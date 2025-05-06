@@ -10,14 +10,14 @@ type Session struct {
 	Messages []goOpenAI.ChatCompletionMessage
 
 	// State is a general-purpose map to store arbitrary state data
-	State map[string]interface{}
+	State map[string]any
 }
 
 // NewSession creates a new agent session
 func NewSession() *Session {
 	return &Session{
 		Messages: []goOpenAI.ChatCompletionMessage{},
-		State:    make(map[string]interface{}),
+		State:    make(map[string]any),
 	}
 }
 
@@ -32,12 +32,12 @@ func (s *Session) GetMessages() []goOpenAI.ChatCompletionMessage {
 }
 
 // SetState sets a value in the state map
-func (s *Session) SetState(key string, value interface{}) {
+func (s *Session) SetState(key string, value any) {
 	s.State[key] = value
 }
 
 // GetState retrieves a value from the state map
-func (s *Session) GetState(key string) (interface{}, bool) {
+func (s *Session) GetState(key string) (any, bool) {
 	value, exists := s.State[key]
 	return value, exists
 }
