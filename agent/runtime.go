@@ -71,7 +71,7 @@ func NewRuntime(cfg *config.Config, agent *Agent, parentPath string) (*Runtime, 
 		subAgents := agent.GetSubAgents()
 		subAgentsStr := ""
 		for _, subAgent := range subAgents {
-			subAgentsStr += subAgent + ": " + agent.GetInstructions() + "\n"
+			subAgentsStr += subAgent + ": " + agent.GetDescription() + "\n"
 		}
 		runtime.messages = append(runtime.messages, goOpenAI.ChatCompletionMessage{
 			Role:    "system",

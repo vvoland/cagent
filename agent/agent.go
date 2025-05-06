@@ -40,6 +40,11 @@ func (a *Agent) GetInstructions() string {
 	return a.config.Instruction
 }
 
+// GetDescription returns the agent's description
+func (a *Agent) GetDescription() string {
+	return a.config.Description
+}
+
 // GetSubAgents returns the list of sub-agent names
 func (a *Agent) GetSubAgents() []string {
 	return a.config.SubAgents
