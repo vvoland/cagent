@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/rumpl/cagent/config"
@@ -15,18 +16,8 @@ import (
 	goOpenAI "github.com/sashabaranov/go-openai"
 )
 
-// ToolCall represents an OpenAI tool call message
-type ToolCall struct {
-	ID       string `json:"id"`
-	Type     string `json:"type"`
-	Function struct {
-		Name      string `json:"name"`
-		Arguments string `json:"arguments"`
-	} `json:"function"`
-}
-
 // ToolHandler is a function type for handling tool calls
-type ToolHandler func(ctx context.Context, toolCall ToolCall) (string, error)
+type ToolHandler func(ctx context.Context, toolCall goOpenAI.ToolCall) (string, error)
 
 // Runtime manages the execution of agents
 type Runtime struct {
@@ -38,6 +29,7 @@ type Runtime struct {
 	subAgents  map[string]*Agent
 	cfg        *config.Config
 	agent      *Agent
+	session    *Session // TODO: not used yet
 }
 
 // NewRuntime creates a new runtime for an agent
@@ -56,6 +48,7 @@ func NewRuntime(cfg *config.Config, agent *Agent, parentPath string) (*Runtime, 
 		subAgents:  make(map[string]*Agent),
 		cfg:        cfg,
 		agent:      agent,
+		session:    NewSession(),
 	}
 
 	// Register the default tools
@@ -86,6 +79,9 @@ func NewRuntime(cfg *config.Config, agent *Agent, parentPath string) (*Runtime, 
 func (r *Runtime) registerDefaultTools() {
 	// Register agent transfer tool
 	r.toolMap["transfer_to_agent"] = r.handleAgentTransfer
+	r.toolMap["read_file"] = r.handleReadFile
+	r.toolMap["write_file"] = r.handleWriteFile
+	r.toolMap["build_dockerfile"] = r.handleBuildDockerfile
 }
 
 // Run starts the agent's interaction loop
@@ -95,30 +91,32 @@ func (r *Runtime) Run(ctx context.Context, messages []goOpenAI.ChatCompletionMes
 	r.messages = append(r.messages, messages...)
 
 	for {
-		// If no initial prompt, get user input
-		if initialPrompt == "" {
-			fmt.Print("\n\nYou: ")
-			input, err := reader.ReadString('\n')
-			if err != nil {
-				return fmt.Errorf("error reading input: %w", err)
-			}
+		if r.messages[len(r.messages)-1].Role != "tool" {
+			// If no initial prompt, get user input
+			if initialPrompt == "" {
+				fmt.Print("\n\nYou: ")
+				input, err := reader.ReadString('\n')
+				if err != nil {
+					return fmt.Errorf("error reading input: %w", err)
+				}
 
-			input = strings.TrimSpace(input)
-			if input == "exit" {
-				return nil
-			}
+				input = strings.TrimSpace(input)
+				if input == "exit" {
+					return nil
+				}
 
-			// Add the user message to the conversation
-			r.messages = append(r.messages, goOpenAI.ChatCompletionMessage{
-				Role:    "user",
-				Content: input,
-			})
-		} else {
-			r.messages = append(r.messages, goOpenAI.ChatCompletionMessage{
-				Role:    "user",
-				Content: initialPrompt,
-			})
-			initialPrompt = ""
+				// Add the user message to the conversation
+				r.messages = append(r.messages, goOpenAI.ChatCompletionMessage{
+					Role:    "user",
+					Content: input,
+				})
+			} else {
+				r.messages = append(r.messages, goOpenAI.ChatCompletionMessage{
+					Role:    "user",
+					Content: initialPrompt,
+				})
+				initialPrompt = ""
+			}
 		}
 
 		// Create a streaming chat completion
@@ -130,7 +128,7 @@ func (r *Runtime) Run(ctx context.Context, messages []goOpenAI.ChatCompletionMes
 
 		// Process the response
 		var fullContent strings.Builder
-		var toolCalls []ToolCall
+		var toolCalls []goOpenAI.ToolCall
 
 		for {
 			response, err := stream.Recv()
@@ -152,7 +150,7 @@ func (r *Runtime) Run(ctx context.Context, messages []goOpenAI.ChatCompletionMes
 
 				// Ensure we have enough room in our toolCalls slice
 				for len(toolCalls) < len(choice.Delta.ToolCalls) {
-					toolCalls = append(toolCalls, ToolCall{})
+					toolCalls = append(toolCalls, goOpenAI.ToolCall{})
 				}
 
 				// Update tool calls with the delta
@@ -164,7 +162,7 @@ func (r *Runtime) Run(ctx context.Context, messages []goOpenAI.ChatCompletionMes
 					idx := *deltaToolCall.Index
 					if idx >= len(toolCalls) {
 						// Expand the slice if needed
-						newToolCalls := make([]ToolCall, idx+1)
+						newToolCalls := make([]goOpenAI.ToolCall, idx+1)
 						copy(newToolCalls, toolCalls)
 						toolCalls = newToolCalls
 					}
@@ -175,7 +173,7 @@ func (r *Runtime) Run(ctx context.Context, messages []goOpenAI.ChatCompletionMes
 					}
 					if deltaToolCall.Type != "" {
 						// Convert the ToolType to string
-						toolCalls[idx].Type = string(deltaToolCall.Type)
+						toolCalls[idx].Type = goOpenAI.ToolType(deltaToolCall.Type)
 					}
 					if deltaToolCall.Function.Name != "" {
 						toolCalls[idx].Function.Name = deltaToolCall.Function.Name
@@ -202,6 +200,8 @@ func (r *Runtime) Run(ctx context.Context, messages []goOpenAI.ChatCompletionMes
 		assistantMessage := goOpenAI.ChatCompletionMessage{
 			Role:    "assistant",
 			Content: fullContent.String(),
+			// Convert our ToolCall slice to the go-openai library's ToolCall type
+			ToolCalls: toolCalls,
 		}
 
 		// Note: Since we're having issues with the version of the go-openai library,
@@ -238,7 +238,7 @@ func (r *Runtime) Run(ctx context.Context, messages []goOpenAI.ChatCompletionMes
 }
 
 // handleAgentTransfer handles the transfer_to_agent tool call
-func (r *Runtime) handleAgentTransfer(ctx context.Context, toolCall ToolCall) (string, error) {
+func (r *Runtime) handleAgentTransfer(ctx context.Context, toolCall goOpenAI.ToolCall) (string, error) {
 	var params struct {
 		Agent string `json:"agent"`
 	}
@@ -247,7 +247,7 @@ func (r *Runtime) handleAgentTransfer(ctx context.Context, toolCall ToolCall) (s
 		return "", fmt.Errorf("invalid arguments: %w", err)
 	}
 
-	fmt.Println("Transferring to sub-agent", params.Agent, "initial prompt:", r.messages[len(r.messages)-2].Content)
+	// fmt.Println("Transferring to sub-agent", params.Agent, "initial prompt:", r.messages[len(r.messages)-2].Content)
 	// Check if the agent is in the list of subAgents
 	if !r.agent.IsSubAgent(params.Agent) {
 		return "", fmt.Errorf("agent %s is not a valid sub-agent", params.Agent)
@@ -274,4 +274,58 @@ func (r *Runtime) handleAgentTransfer(ctx context.Context, toolCall ToolCall) (s
 	subRuntime.Run(ctx, []goOpenAI.ChatCompletionMessage{}, r.messages[len(r.messages)-2].Content)
 
 	return "", nil
+}
+
+func (r *Runtime) handleReadFile(ctx context.Context, toolCall goOpenAI.ToolCall) (string, error) {
+	var params struct {
+		FilePath string `json:"file_path"`
+	}
+
+	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
+		return "", fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	content, err := os.ReadFile(params.FilePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file: %w", err)
+	}
+
+	return string(content), nil
+}
+
+func (r *Runtime) handleWriteFile(ctx context.Context, toolCall goOpenAI.ToolCall) (string, error) {
+	var params struct {
+		FilePath string `json:"file_path"`
+		Content  string `json:"content"`
+	}
+
+	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
+		return "", fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	if err := os.WriteFile(params.FilePath, []byte(params.Content), 0644); err != nil {
+		return "", fmt.Errorf("failed to write file: %w", err)
+	}
+	return "", nil
+}
+
+func (r *Runtime) handleBuildDockerfile(ctx context.Context, toolCall goOpenAI.ToolCall) (string, error) {
+	var params struct {
+		DirectoryPath string `json:"directory_path"`
+	}
+
+	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
+		return "", fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	// Create the docker build command
+	cmd := exec.Command("docker", "build", "-t", "temp-image", params.DirectoryPath)
+
+	// Capture the command output
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("docker build failed: %w\nOutput: %s", err, string(output))
+	}
+
+	return string(output), nil
 }
