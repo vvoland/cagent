@@ -68,9 +68,14 @@ func NewRuntime(cfg *config.Config, agent *Agent, parentPath string) (*Runtime, 
 	})
 
 	if agent.HasSubAgents() {
+		subAgents := agent.GetSubAgents()
+		subAgentsStr := ""
+		for _, subAgent := range subAgents {
+			subAgentsStr += subAgent + ": " + agent.GetInstructions() + "\n"
+		}
 		runtime.messages = append(runtime.messages, goOpenAI.ChatCompletionMessage{
 			Role:    "system",
-			Content: "You are a multi-agent system, make sure to answer the user query in the most helpful way possible. You have access to these sub-agents: " + strings.Join(agent.GetSubAgents(), ", ") + ", call the tool transfer_to_agent if another agent can better answer the user query",
+			Content: "You are a multi-agent system, make sure to answer the user query in the most helpful way possible. You have access to these sub-agents: " + subAgentsStr + "\n\nCall the tool transfer_to_agent if another agent can better answer the user query",
 		})
 	}
 
@@ -79,15 +84,6 @@ func NewRuntime(cfg *config.Config, agent *Agent, parentPath string) (*Runtime, 
 
 // registerDefaultTools registers the default tool handlers
 func (r *Runtime) registerDefaultTools() {
-	// Register file system tools
-	r.toolMap["read_file"] = r.handleReadFile
-	r.toolMap["write_file"] = r.handleWriteFile
-	r.toolMap["list_directory"] = r.handleListDirectory
-
-	// Register web browser tools
-	r.toolMap["search_web"] = r.handleSearchWeb
-	r.toolMap["fetch_url"] = r.handleFetchURL
-
 	// Register agent transfer tool
 	r.toolMap["transfer_to_agent"] = r.handleAgentTransfer
 }
@@ -239,121 +235,6 @@ func (r *Runtime) Run(ctx context.Context, messages []goOpenAI.ChatCompletionMes
 			}
 		}
 	}
-}
-
-// handleReadFile handles the read_file tool call
-func (r *Runtime) handleReadFile(ctx context.Context, toolCall ToolCall) (string, error) {
-	var params struct {
-		Path string `json:"path"`
-	}
-
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
-		return "", fmt.Errorf("invalid arguments: %w", err)
-	}
-
-	// Resolve path (either absolute or relative to parent path)
-	path := params.Path
-	if !strings.HasPrefix(path, "/") {
-		path = fmt.Sprintf("%s/%s", r.parentPath, path)
-	}
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", fmt.Errorf("failed to read file: %w", err)
-	}
-
-	return string(data), nil
-}
-
-// handleWriteFile handles the write_file tool call
-func (r *Runtime) handleWriteFile(ctx context.Context, toolCall ToolCall) (string, error) {
-	var params struct {
-		Path    string `json:"path"`
-		Content string `json:"content"`
-	}
-
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
-		return "", fmt.Errorf("invalid arguments: %w", err)
-	}
-
-	// Resolve path (either absolute or relative to parent path)
-	path := params.Path
-	if !strings.HasPrefix(path, "/") {
-		path = fmt.Sprintf("%s/%s", r.parentPath, path)
-	}
-
-	err := os.WriteFile(path, []byte(params.Content), 0644)
-	if err != nil {
-		return "", fmt.Errorf("failed to write file: %w", err)
-	}
-
-	return fmt.Sprintf("Successfully wrote %d bytes to %s", len(params.Content), path), nil
-}
-
-// handleListDirectory handles the list_directory tool call
-func (r *Runtime) handleListDirectory(ctx context.Context, toolCall ToolCall) (string, error) {
-	var params struct {
-		Path string `json:"path"`
-	}
-
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
-		return "", fmt.Errorf("invalid arguments: %w", err)
-	}
-
-	// Resolve path (either absolute or relative to parent path)
-	path := params.Path
-	if !strings.HasPrefix(path, "/") {
-		path = fmt.Sprintf("%s/%s", r.parentPath, path)
-	}
-
-	entries, err := os.ReadDir(path)
-	if err != nil {
-		return "", fmt.Errorf("failed to read directory: %w", err)
-	}
-
-	result := fmt.Sprintf("Contents of %s:\n", path)
-	for _, entry := range entries {
-		info, err := entry.Info()
-		if err != nil {
-			continue
-		}
-
-		if entry.IsDir() {
-			result += fmt.Sprintf("[DIR] %s/\n", entry.Name())
-		} else {
-			result += fmt.Sprintf("[FILE] %s (%d bytes)\n", entry.Name(), info.Size())
-		}
-	}
-
-	return result, nil
-}
-
-// handleSearchWeb handles the search_web tool call
-func (r *Runtime) handleSearchWeb(ctx context.Context, toolCall ToolCall) (string, error) {
-	var params struct {
-		Query string `json:"query"`
-	}
-
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
-		return "", fmt.Errorf("invalid arguments: %w", err)
-	}
-
-	// This is a placeholder implementation
-	return fmt.Sprintf("Web search results for query: %s\n\nThis is a placeholder. Implement actual web search functionality here.", params.Query), nil
-}
-
-// handleFetchURL handles the fetch_url tool call
-func (r *Runtime) handleFetchURL(ctx context.Context, toolCall ToolCall) (string, error) {
-	var params struct {
-		URL string `json:"url"`
-	}
-
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
-		return "", fmt.Errorf("invalid arguments: %w", err)
-	}
-
-	// This is a placeholder implementation
-	return fmt.Sprintf("Content from URL: %s\n\nThis is a placeholder. Implement actual URL fetching functionality here.", params.URL), nil
 }
 
 // handleAgentTransfer handles the transfer_to_agent tool call
