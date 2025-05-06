@@ -105,33 +105,3 @@ func (c *Client) CreateChatCompletionStream(
 	// Create the stream
 	return c.client.CreateChatCompletionStream(ctx, request)
 }
-
-// CreateChatCompletion creates a standard (non-streaming) chat completion request
-func (c *Client) CreateChatCompletion(
-	ctx context.Context,
-	messages []openai.ChatCompletionMessage,
-	tools []openai.Tool,
-) (openai.ChatCompletionResponse, error) {
-	if len(messages) == 0 {
-		return openai.ChatCompletionResponse{}, errors.New("at least one message is required")
-	}
-
-	// Create request with config parameters
-	request := openai.ChatCompletionRequest{
-		Model:            c.config.Model,
-		Messages:         messages,
-		Temperature:      float32(c.config.Temperature),
-		MaxTokens:        c.config.MaxTokens,
-		TopP:             float32(c.config.TopP),
-		FrequencyPenalty: float32(c.config.FrequencyPenalty),
-		PresencePenalty:  float32(c.config.PresencePenalty),
-	}
-
-	// Add tools if provided
-	if len(tools) > 0 {
-		request.Tools = tools
-	}
-
-	// Create the completion
-	return c.client.CreateChatCompletion(ctx, request)
-}
