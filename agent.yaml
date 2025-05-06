@@ -1,0 +1,50 @@
+agents:
+  root:
+    name: gordon
+    model: openai
+    description: |
+      You are a helpful assistant.
+    tools:
+      - file_system
+      - web_browser
+    instruction: |
+      You are a helpful assistant. You can answer questions, provide information, and assist with various tasks.
+      You have access to the file system and a web browser.
+      Use the file system to read and write files, and use the web browser to search for information online.
+    sub_agents:
+      - containerize
+      - optimize_dockerfile
+
+  containerize:
+    name: containerize
+    model: openai
+    description: |
+      You are a helpful assistant for containerizing applications.
+    tools:
+      - file_system
+    instruction: |
+      You are a helpful assistant for containerizing applications.
+      You can read and write files in the file system.
+      Your task is to help with the containerization process, including creating Dockerfiles and managing dependencies.
+
+  optimize_dockerfile:
+    name: optimize_dockerfile
+    model: openai
+    description: |
+      You are a helpful assistant for optimizing Dockerfiles.
+    tools:
+      - file_system
+    instruction: |
+      You are a helpful assistant for optimizing Dockerfiles.
+      You can read and write files in the file system.
+      Your task is to help with optimizing Dockerfiles for better performance and efficiency.
+
+models:
+  openai:
+    type: openai
+    model: gpt-3.5-turbo
+    temperature: 0.7
+    max_tokens: 1500
+    top_p: 1.0
+    frequency_penalty: 0.0
+    presence_penalty: 0.0
