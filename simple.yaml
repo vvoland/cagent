@@ -1,0 +1,13 @@
+agents:
+  root:
+    name: blackbeard
+    model: openai
+    description: A simple agent that talks like a pirate
+    instruction: Answer any question from the user by talking like a pirate
+    tools:
+      - read_file    
+
+models:
+  openai:
+    type: openai
+    model: gpt-4o
