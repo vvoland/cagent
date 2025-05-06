@@ -18,7 +18,14 @@ func main() {
 	configFile := flag.String("config", "agent.yaml", "Path to the configuration file")
 	agentName := flag.String("agent", "root", "Name of the agent to run")
 	initialPrompt := flag.String("prompt", "", "Initial prompt to send to the agent")
+	help := flag.Bool("h", false, "Display help message")
 	flag.Parse()
+
+	// If help flag is present, print usage and exit
+	if *help {
+		printUsage()
+		return
+	}
 
 	// Load configuration
 	cfg, err := config.LoadConfig(*configFile)
@@ -64,6 +71,7 @@ func printUsage() {
 	fmt.Printf("  -config <path>   Path to the configuration file (default: agent.yaml)\n")
 	fmt.Printf("  -agent <n>    Name of the agent to run (default: root)\n")
 	fmt.Printf("  -prompt <text>   Initial prompt to send to the agent\n")
+	fmt.Printf("  -h               Display this help message\n")
 	fmt.Printf("\nExample:\n")
 	fmt.Printf("  %s -config custom.yaml -agent containerize -prompt \"Containerize my Node.js app\"\n", execName)
 }
