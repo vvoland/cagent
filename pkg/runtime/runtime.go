@@ -40,15 +40,12 @@ func NewRuntime(cfg *config.Config, logger *slog.Logger) (*Runtime, error) {
 
 // registerDefaultTools registers the default tool handlers
 func (r *Runtime) registerDefaultTools() {
-	// Register agent transfer tool
 	r.toolMap["transfer_to_agent"] = r.handleAgentTransfer
 }
 
 // Run starts the agent's interaction loop
 func (r *Runtime) Run(ctx context.Context, a *agent.Agent, messages []openai.ChatCompletionMessage) ([]openai.ChatCompletionMessage, error) {
 	client, err := cagentopenai.NewClientFromConfig(r.cfg, a.GetModel())
-	// r.messages = append(r.messages, messages...)
-	// Register the default tools
 	r.registerDefaultTools()
 
 	// Add system message with instructions
