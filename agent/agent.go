@@ -9,14 +9,14 @@ import (
 	goOpenAI "github.com/sashabaranov/go-openai"
 )
 
-// Agent represents an AI agent with configuration and tools
+// Agent represents an AI agent
 type Agent struct {
 	config *config.Agent
 	tools  []goOpenAI.Tool
 }
 
-// NewAgent creates a new agent from configuration
-func NewAgent(cfg *config.Config, agentName string, parentPath string) (*Agent, error) {
+// New creates a new agent from configuration
+func New(cfg *config.Config, agentName string) (*Agent, error) {
 	agentConfig, err := cfg.GetAgent(agentName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get agent config: %w", err)

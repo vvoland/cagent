@@ -1,0 +1,19 @@
+services:
+  ui:
+    image: ghcr.io/open-webui/open-webui:main
+    ports:
+      - "4000:8080"
+    depends_on:
+      - agent
+
+  agent:
+    provider:
+      type: agent
+      options:
+        yaml: |
+          agents:
+            root:
+              name: blackbeard
+              model: openai
+              description: A simple agent that talks like a pirate
+              instruction: Answer any question from the user by talking like a pirate
