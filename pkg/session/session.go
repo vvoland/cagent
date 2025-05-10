@@ -1,34 +1,138 @@
 package session
 
 import (
+	"fmt"
+
+	"github.com/google/uuid"
+	"github.com/rumpl/cagent/agent"
+	"github.com/rumpl/cagent/config"
 	"github.com/sashabaranov/go-openai"
 )
 
 // Session represents the agent's state including conversation history and variables
 type Session struct {
-	// Messages holds the conversation history
-	Messages []openai.ChatCompletionMessage
+	// ID is the unique identifier for the session
+	ID string
 
-	// State is a general-purpose map to store arbitrary state data
+	// Each agent in a multi-agent system has its own session
+	AgentSession map[string]*AgentSession
+
+	// Messages holds the conversation history
+	Messages []AgentMessage
+
+	// State is a general-purpose map to store arbitrary state data, it is shared between agents
 	State map[string]any
+
+	cfg *config.Config
+}
+
+// AgentMessage is a message from an agent
+type AgentMessage struct {
+	Agent   *agent.Agent
+	Message openai.ChatCompletionMessage
+}
+
+type AgentSession struct {
+	// Agent is the agent that this session belongs to
+	Agent *agent.Agent
+	// Messages holds the conversation history
+	Messages []AgentMessage
 }
 
 // New creates a new agent session
-func New() *Session {
+func New(cfg *config.Config) *Session {
 	return &Session{
-		Messages: []openai.ChatCompletionMessage{},
-		State:    make(map[string]any),
+		ID:           uuid.New().String(),
+		State:        make(map[string]any),
+		AgentSession: make(map[string]*AgentSession),
+		cfg:          cfg,
 	}
 }
 
-// AddMessage adds a message to the conversation history
-func (s *Session) AddMessage(message openai.ChatCompletionMessage) {
-	s.Messages = append(s.Messages, message)
-}
+func (s *Session) GetMessages(a *agent.Agent) []openai.ChatCompletionMessage {
+	// Get the agent session
+	agentSession, exists := s.AgentSession[a.GetName()]
+	if !exists {
+		agentSession = &AgentSession{
+			Agent:    a,
+			Messages: make([]AgentMessage, 0),
+		}
+		s.AgentSession[a.GetName()] = agentSession
+	}
 
-// GetMessages returns the conversation history
-func (s *Session) GetMessages() []openai.ChatCompletionMessage {
-	return s.Messages
+	// Create a new slice to hold the processed messages
+	messages := make([]openai.ChatCompletionMessage, 0)
+
+	if agentSession.Agent.HasSubAgents() {
+		subAgents := agentSession.Agent.GetSubAgents()
+		subAgentsStr := ""
+		for _, subAgent := range subAgents {
+			subAgentSession, exists := s.AgentSession[subAgent]
+			if !exists {
+				aa, _ := agent.New(s.cfg, subAgent)
+				subAgentSession = &AgentSession{
+					Agent:    aa,
+					Messages: make([]AgentMessage, 0),
+				}
+				s.AgentSession[subAgent] = subAgentSession
+			}
+			subAgentsStr += subAgent + ": " + subAgentSession.Agent.GetDescription() + "\n"
+		}
+
+		messages = append(messages, openai.ChatCompletionMessage{
+			Role:    "system",
+			Content: "You are a multi-agent system, make sure to answer the user query in the most helpful way possible. You have access to these sub-agents: " + subAgentsStr + "\n\nIf you are the best to answer the question according to your description, you\ncan answer it.\n\nIf another agent is better for answering the question according to its\ndescription, call `transfer_to_agent` function to transfer the\nquestion to that agent. When transferring, do not generate any text other than\nthe function call.\n",
+		})
+	}
+
+	// Add the agent's system prompt as the first message
+	messages = append(messages, openai.ChatCompletionMessage{
+		Role:    "system",
+		Content: agentSession.Agent.GetInstructions(),
+	})
+
+	for _, msg := range s.Messages {
+		if msg.Message.Role == "system" {
+			continue
+		}
+
+		if msg.Message.Role == "assistant" {
+			messages = append(messages, msg.Message)
+
+			if len(msg.Message.ToolCalls) == 0 {
+				content := fmt.Sprintf("[%s] said: %s", msg.Agent.GetName(), msg.Message.Content)
+
+				messages = append(messages, openai.ChatCompletionMessage{
+					Role: "user",
+					MultiContent: []openai.ChatMessagePart{
+						{
+							Type: openai.ChatMessagePartTypeText,
+							Text: "For context:",
+						},
+						{
+							Type: openai.ChatMessagePartTypeText,
+							Text: content,
+						},
+					},
+				})
+			}
+			continue
+		}
+
+		if msg.Message.Role == "tool" {
+			messages = append(messages, msg.Message)
+			content := fmt.Sprintf("For context: [%s] Tool %s returned: %s", msg.Agent.GetName(), msg.Message.ToolCallID, msg.Message.Content)
+			messages = append(messages, openai.ChatCompletionMessage{
+				Role:    "user",
+				Content: content,
+			})
+			continue
+		}
+
+		messages = append(messages, msg.Message)
+	}
+
+	return messages
 }
 
 // SetState sets a value in the state map

@@ -8,6 +8,7 @@ import (
 	"github.com/rumpl/cagent/agent"
 	"github.com/rumpl/cagent/config"
 	"github.com/rumpl/cagent/pkg/runtime"
+	"github.com/rumpl/cagent/pkg/session"
 	"github.com/sashabaranov/go-openai"
 	"github.com/spf13/cobra"
 )
@@ -47,12 +48,22 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	response, err := runtime.Run(ctx, rootAgent, []openai.ChatCompletionMessage{{Role: "user", Content: args[0]}})
+	sess := session.New(cfg)
+
+	sess.Messages = append(sess.Messages, session.AgentMessage{
+		Agent: rootAgent,
+		Message: openai.ChatCompletionMessage{
+			Role:    "user",
+			Content: args[0],
+		},
+	})
+
+	response, err := runtime.Run(ctx, rootAgent, sess)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println(response[len(response)-1].Content)
+	fmt.Println(response[len(response)-1].Message.Content)
 
 	return nil
 }

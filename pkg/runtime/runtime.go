@@ -12,11 +12,12 @@ import (
 	"github.com/rumpl/cagent/agent"
 	"github.com/rumpl/cagent/config"
 	cagentopenai "github.com/rumpl/cagent/openai"
+	"github.com/rumpl/cagent/pkg/session"
 	"github.com/sashabaranov/go-openai"
 )
 
 // ToolHandler is a function type for handling tool calls
-type ToolHandler func(ctx context.Context, a *agent.Agent, toolCall openai.ToolCall) (string, error)
+type ToolHandler func(ctx context.Context, a *agent.Agent, sess *session.Session, toolCall openai.ToolCall) (string, error)
 
 // Runtime manages the execution of agents
 type Runtime struct {
@@ -44,36 +45,18 @@ func (r *Runtime) registerDefaultTools() {
 }
 
 // Run starts the agent's interaction loop
-func (r *Runtime) Run(ctx context.Context, a *agent.Agent, messages []openai.ChatCompletionMessage) ([]openai.ChatCompletionMessage, error) {
+func (r *Runtime) Run(ctx context.Context, a *agent.Agent, sess *session.Session) ([]session.AgentMessage, error) {
 	client, err := cagentopenai.NewClientFromConfig(r.cfg, a.GetModel())
 	r.registerDefaultTools()
 
-	// Add system message with instructions
-	messages = append(messages, openai.ChatCompletionMessage{
-		Role:    "system",
-		Content: a.GetInstructions(),
-	})
+	messages := sess.GetMessages(a)
 
-	if a.HasSubAgents() {
-		subAgents := a.GetSubAgents()
-		subAgentsStr := ""
-		for _, subAgent := range subAgents {
-			subAgentsStr += subAgent + ": " + a.GetDescription() + "\n"
-		}
-		messages = append(messages, openai.ChatCompletionMessage{
-			Role:    "system",
-			Content: "You are a multi-agent system, make sure to answer the user query in the most helpful way possible. You have access to these sub-agents: " + subAgentsStr + "\n\nCall the tool transfer_to_agent if another agent can better answer the user query",
-		})
-	}
-
-	// Create a streaming chat completion
 	stream, err := client.CreateChatCompletionStream(ctx, messages, a.GetTools())
 	if err != nil {
 		return nil, fmt.Errorf("error creating chat completion: %w", err)
 	}
 	defer stream.Close()
 
-	// Process the response
 	var fullContent strings.Builder
 	var toolCalls []openai.ToolCall
 
@@ -86,10 +69,9 @@ func (r *Runtime) Run(ctx context.Context, a *agent.Agent, messages []openai.Cha
 			return nil, fmt.Errorf("error receiving from stream: %w", err)
 		}
 
-		// Process the choice
 		choice := response.Choices[0]
 
-		// Handle tool calls in the delta
+		// Handle tool calls
 		if choice.Delta.ToolCalls != nil && len(choice.Delta.ToolCalls) > 0 {
 			for len(toolCalls) < len(choice.Delta.ToolCalls) {
 				toolCalls = append(toolCalls, openai.ToolCall{})
@@ -131,7 +113,6 @@ func (r *Runtime) Run(ctx context.Context, a *agent.Agent, messages []openai.Cha
 			continue
 		}
 
-		// Print content delta
 		if choice.Delta.Content != "" {
 			fullContent.WriteString(choice.Delta.Content)
 		}
@@ -144,39 +125,47 @@ func (r *Runtime) Run(ctx context.Context, a *agent.Agent, messages []openai.Cha
 		ToolCalls: toolCalls,
 	}
 
+	sess.Messages = append(sess.Messages, session.AgentMessage{
+		Agent:   a,
+		Message: assistantMessage,
+	})
+
 	messages = append(messages, assistantMessage)
 
 	// Handle tool calls if present
 	if len(toolCalls) > 0 {
 		for _, toolCall := range toolCalls {
-			// Call the appropriate tool handler
 			handler, exists := r.toolMap[toolCall.Function.Name]
 			if !exists {
 				r.logger.Error("tool not implemented", "name", toolCall.Function.Name)
 				continue
 			}
 
-			result, err := handler(ctx, a, toolCall)
+			result, err := handler(ctx, a, sess, toolCall)
 			if err != nil {
 				r.logger.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
 				result = fmt.Sprintf("Error: %v", err)
 			}
 
-			// Add the tool result to the conversation
-			toolResponseMsg := openai.ChatCompletionMessage{
-				Role:       "tool",
-				Content:    result,
-				ToolCallID: toolCall.ID,
+			if toolCall.Function.Name != "transfer_to_agent" {
+				toolResponseMsg := openai.ChatCompletionMessage{
+					Role:       "tool",
+					Content:    result,
+					ToolCallID: toolCall.ID,
+				}
+				sess.Messages = append(sess.Messages, session.AgentMessage{
+					Agent:   a,
+					Message: toolResponseMsg,
+				})
 			}
-			messages = append(messages, toolResponseMsg)
 		}
 	}
-	return messages, nil
-	// }
+
+	return sess.Messages, nil
 }
 
 // handleAgentTransfer handles the transfer_to_agent tool call
-func (r *Runtime) handleAgentTransfer(ctx context.Context, a *agent.Agent, toolCall openai.ToolCall) (string, error) {
+func (r *Runtime) handleAgentTransfer(ctx context.Context, a *agent.Agent, sess *session.Session, toolCall openai.ToolCall) (string, error) {
 	var params struct {
 		Agent string `json:"agent"`
 	}
@@ -208,8 +197,21 @@ func (r *Runtime) handleAgentTransfer(ctx context.Context, a *agent.Agent, toolC
 		return "", fmt.Errorf("failed to create runtime for sub-agent %s: %w", params.Agent, err)
 	}
 
-	// Run the sub-agent with the initial prompt
-	subRuntime.Run(ctx, subAgent, []openai.ChatCompletionMessage{})
+	toolResponseMsg := openai.ChatCompletionMessage{
+		Role:       "tool",
+		Content:    "{}",
+		ToolCallID: toolCall.ID,
+	}
+	sess.Messages = append(sess.Messages, session.AgentMessage{
+		Agent:   a,
+		Message: toolResponseMsg,
+	})
 
-	return "", nil
+	// Run the sub-agent with the initial prompt
+	_, err = subRuntime.Run(ctx, subAgent, sess)
+	if err != nil {
+		return "", fmt.Errorf("failed to run sub-agent %s: %w", params.Agent, err)
+	}
+
+	return "{}", nil
 }

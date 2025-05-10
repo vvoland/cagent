@@ -11,13 +11,12 @@ func AgentTransfer() openai.Tool {
 		Type: "function",
 		Function: &openai.FunctionDefinition{
 			Name:        "transfer_to_agent",
-			Description: "Transfer the conversation to another agent",
+			Description: "Transfer the question to another agent",
 			Parameters: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"agent": map[string]any{
-						"type":        "string",
-						"description": "The name of the agent to transfer to",
+						"type": "string",
 					},
 				},
 				"required": []string{"agent"},

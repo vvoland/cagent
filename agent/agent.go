@@ -35,6 +35,10 @@ func New(cfg *config.Config, agentName string) (*Agent, error) {
 	return agent, nil
 }
 
+func (a *Agent) GetName() string {
+	return a.config.Name
+}
+
 // GetInstructions returns the agent's instructions
 func (a *Agent) GetInstructions() string {
 	return a.config.Instruction
