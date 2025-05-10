@@ -164,13 +164,13 @@ func (r *Runtime) Run(ctx context.Context, a *agent.Agent, messages []openai.Cha
 			// Call the appropriate tool handler
 			handler, exists := r.toolMap[toolCall.Function.Name]
 			if !exists {
-				r.logger.Error("Error: Tool '%s' not implemented", toolCall.Function.Name)
+				r.logger.Error("tool not implemented", "name", toolCall.Function.Name)
 				continue
 			}
 
 			result, err := handler(ctx, a, toolCall)
 			if err != nil {
-				r.logger.Error("Error executing tool '%s': %v", toolCall.Function.Name, err)
+				r.logger.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
 				result = fmt.Sprintf("Error: %v", err)
 			}
 
