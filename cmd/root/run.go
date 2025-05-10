@@ -9,7 +9,7 @@ import (
 	"github.com/rumpl/cagent/agent"
 	"github.com/rumpl/cagent/config"
 	"github.com/rumpl/cagent/pkg/runtime"
-	goOpenAI "github.com/sashabaranov/go-openai"
+	"github.com/sashabaranov/go-openai"
 	"github.com/spf13/cobra"
 )
 
@@ -49,12 +49,12 @@ func runAgentCommand(cmd *cobra.Command, args []string) {
 	}
 
 	// Create a runtime for the agent
-	runtime, err := runtime.NewRuntime(cfg)
+	runtime, err := runtime.NewRuntime(cfg, logger)
 	if err != nil {
 		log.Fatalf("Failed to create runtime: %v", err)
 	}
 
-	messages := []goOpenAI.ChatCompletionMessage{
+	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    "user",
 			Content: prompt,

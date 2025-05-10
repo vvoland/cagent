@@ -1,13 +1,13 @@
 package session
 
 import (
-	goOpenAI "github.com/sashabaranov/go-openai"
+	"github.com/sashabaranov/go-openai"
 )
 
 // Session represents the agent's state including conversation history and variables
 type Session struct {
 	// Messages holds the conversation history
-	Messages []goOpenAI.ChatCompletionMessage
+	Messages []openai.ChatCompletionMessage
 
 	// State is a general-purpose map to store arbitrary state data
 	State map[string]any
@@ -16,18 +16,18 @@ type Session struct {
 // New creates a new agent session
 func New() *Session {
 	return &Session{
-		Messages: []goOpenAI.ChatCompletionMessage{},
+		Messages: []openai.ChatCompletionMessage{},
 		State:    make(map[string]any),
 	}
 }
 
 // AddMessage adds a message to the conversation history
-func (s *Session) AddMessage(message goOpenAI.ChatCompletionMessage) {
+func (s *Session) AddMessage(message openai.ChatCompletionMessage) {
 	s.Messages = append(s.Messages, message)
 }
 
 // GetMessages returns the conversation history
-func (s *Session) GetMessages() []goOpenAI.ChatCompletionMessage {
+func (s *Session) GetMessages() []openai.ChatCompletionMessage {
 	return s.Messages
 }
 

@@ -6,13 +6,13 @@ import (
 
 	"github.com/rumpl/cagent/agent/tools"
 	"github.com/rumpl/cagent/config"
-	goOpenAI "github.com/sashabaranov/go-openai"
+	"github.com/sashabaranov/go-openai"
 )
 
 // Agent represents an AI agent
 type Agent struct {
 	config *config.Agent
-	tools  []goOpenAI.Tool
+	tools  []openai.Tool
 }
 
 // New creates a new agent from configuration
@@ -66,6 +66,6 @@ func (a *Agent) GetModel() string {
 }
 
 // GetTools returns the tools available to this agent
-func (a *Agent) GetTools() []goOpenAI.Tool {
+func (a *Agent) GetTools() []openai.Tool {
 	return a.tools
 }
