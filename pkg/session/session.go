@@ -134,14 +134,3 @@ func (s *Session) GetMessages(a *agent.Agent) []openai.ChatCompletionMessage {
 
 	return messages
 }
-
-// SetState sets a value in the state map
-func (s *Session) SetState(key string, value any) {
-	s.State[key] = value
-}
-
-// GetState retrieves a value from the state map
-func (s *Session) GetState(key string) (any, bool) {
-	value, exists := s.State[key]
-	return value, exists
-}
