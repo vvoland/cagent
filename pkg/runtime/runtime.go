@@ -12,7 +12,6 @@ import (
 	"github.com/rumpl/cagent/agent"
 	"github.com/rumpl/cagent/config"
 	cagentopenai "github.com/rumpl/cagent/openai"
-	"github.com/rumpl/cagent/pkg/session"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -43,14 +42,6 @@ func NewRuntime(cfg *config.Config, logger *slog.Logger) (*Runtime, error) {
 func (r *Runtime) registerDefaultTools() {
 	// Register agent transfer tool
 	r.toolMap["transfer_to_agent"] = r.handleAgentTransfer
-}
-
-func (r *Runtime) RunOnce(ctx context.Context, message string, session *session.Session) (string, error) {
-	return "", nil
-}
-
-func (r *Runtime) RunOnceWithSession(ctx context.Context, message string, session *session.Session) (string, error) {
-	return "", nil
 }
 
 // Run starts the agent's interaction loop
