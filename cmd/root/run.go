@@ -3,7 +3,6 @@ package root
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 
 	"github.com/rumpl/cagent/agent"
@@ -19,7 +18,7 @@ func NewRunCmd() *cobra.Command {
 		Use:   "run",
 		Short: "Run an agent",
 		Long:  `Run an agent with the specified configuration and prompt`,
-		Run:   runAgentCommand,
+		RunE:  runAgentCommand,
 	}
 	// Add flags
 	cmd.PersistentFlags().StringVarP(&configFile, "config", "c", "agent.yaml", "Path to the configuration file")
@@ -28,43 +27,32 @@ func NewRunCmd() *cobra.Command {
 	return cmd
 }
 
-func runAgentCommand(cmd *cobra.Command, args []string) {
-	prompt := args[0]
+func runAgentCommand(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
 	logger := slog.Default()
 	logger.Info("Starting agent", "agent", agentName)
 
-	// Load configuration
 	cfg, err := config.LoadConfig(configFile)
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		return err
 	}
 
-	// Create a context that can be canceled
-	ctx := context.Background()
-
-	// Create the agent
-	a, err := agent.New(cfg, agentName)
+	rootAgent, err := agent.New(cfg, agentName)
 	if err != nil {
-		log.Fatalf("Failed to create agent: %v", err)
+		return err
 	}
 
-	// Create a runtime for the agent
 	runtime, err := runtime.NewRuntime(cfg, logger)
 	if err != nil {
-		log.Fatalf("Failed to create runtime: %v", err)
+		return err
 	}
 
-	messages := []openai.ChatCompletionMessage{
-		{
-			Role:    "user",
-			Content: prompt,
-		},
-	}
-
-	// Run the agent runtime
-	response, err := runtime.Run(ctx, a, messages)
+	response, err := runtime.Run(ctx, rootAgent, []openai.ChatCompletionMessage{{Role: "user", Content: args[0]}})
 	if err != nil {
-		log.Fatalf("Agent error: %v", err)
+		return err
 	}
+
 	fmt.Println(response[len(response)-1].Content)
+
+	return nil
 }

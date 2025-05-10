@@ -25,11 +25,6 @@ func NewRootCmd() *cobra.Command {
 		},
 	}
 
-	// Add flags
-	cmd.PersistentFlags().StringVarP(&configFile, "config", "c", "agent.yaml", "Path to the configuration file")
-	cmd.PersistentFlags().StringVarP(&agentName, "agent", "a", "root", "Name of the agent to run")
-	cmd.PersistentFlags().StringVarP(&initialPrompt, "prompt", "p", "", "Initial prompt to send to the agent")
-
 	// Add subcommands
 	cmd.AddCommand(NewVersionCmd())
 	cmd.AddCommand(NewRunCmd())
