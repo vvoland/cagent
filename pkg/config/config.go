@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/rumpl/cagent/agent"
-	"github.com/rumpl/cagent/agent/tools"
+	"github.com/rumpl/cagent/pkg/agent"
+	"github.com/rumpl/cagent/pkg/agent/tools"
 	"github.com/sashabaranov/go-openai"
 	"gopkg.in/yaml.v3"
 )

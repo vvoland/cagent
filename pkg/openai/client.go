@@ -5,7 +5,7 @@ import (
 	"errors"
 	"os"
 
-	"github.com/rumpl/cagent/config"
+	"github.com/rumpl/cagent/pkg/config"
 	"github.com/sashabaranov/go-openai"
 )
 

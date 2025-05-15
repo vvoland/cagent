@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/rumpl/cagent/config"
+	"github.com/rumpl/cagent/pkg/config"
 	"github.com/rumpl/cagent/pkg/runtime"
 	"github.com/rumpl/cagent/pkg/session"
 	"github.com/sashabaranov/go-openai"

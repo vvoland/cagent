@@ -9,9 +9,9 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/rumpl/cagent/agent"
-	"github.com/rumpl/cagent/config"
-	cagentopenai "github.com/rumpl/cagent/openai"
+	"github.com/rumpl/cagent/pkg/agent"
+	"github.com/rumpl/cagent/pkg/config"
+	cagentopenai "github.com/rumpl/cagent/pkg/openai"
 	"github.com/rumpl/cagent/pkg/session"
 	"github.com/sashabaranov/go-openai"
 )
@@ -216,7 +216,7 @@ func (r *Runtime) handleAgentTransfer(ctx context.Context, a *agent.Agent, sess 
 	}
 
 	r.logger.Debug("Transferring to sub-agent", "agent", params.Agent)
-	// Check if the agent is in the list of subAgents
+
 	if !a.IsSubAgent(params.Agent) && !a.IsParent(params.Agent) {
 		return "", fmt.Errorf("agent %s is not a valid sub-agent", params.Agent)
 	}
@@ -232,10 +232,8 @@ func (r *Runtime) handleAgentTransfer(ctx context.Context, a *agent.Agent, sess 
 	})
 
 	r.currentAgent = params.Agent
-	// Run the sub-agent with the initial prompt
-	// We don't need the returned response since the messages are already added to the session
-	events := r.RunStream(ctx, sess)
-	for event := range events {
+
+	for event := range r.RunStream(ctx, sess) {
 		evts <- event
 		if errEvent, ok := event.(*ErrorEvent); ok {
 			return "", errEvent.Error

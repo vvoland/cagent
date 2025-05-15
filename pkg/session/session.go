@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/rumpl/cagent/agent"
-	"github.com/rumpl/cagent/config"
+	"github.com/rumpl/cagent/pkg/agent"
+	"github.com/rumpl/cagent/pkg/config"
 	"github.com/sashabaranov/go-openai"
 )
 
