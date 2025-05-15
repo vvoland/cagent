@@ -14,6 +14,7 @@ type Agent struct {
 	tools       []openai.Tool
 	model       string
 	subAgents   []*Agent
+	parents     []*Agent
 }
 
 type AgentOpt func(a *Agent)
@@ -51,6 +52,9 @@ func WithModel(model string) AgentOpt {
 func WithSubAgents(subAgents []*Agent) AgentOpt {
 	return func(a *Agent) {
 		a.subAgents = subAgents
+		for _, subAgent := range subAgents {
+			subAgent.parents = append(subAgent.parents, a)
+		}
 	}
 }
 
@@ -101,6 +105,12 @@ func (a *Agent) HasSubAgents() bool {
 func (a *Agent) IsSubAgent(name string) bool {
 	return slices.ContainsFunc(a.subAgents, func(s *Agent) bool {
 		return s.name == name
+	})
+}
+
+func (a *Agent) IsParent(name string) bool {
+	return slices.ContainsFunc(a.parents, func(p *Agent) bool {
+		return p.name == name
 	})
 }
 
