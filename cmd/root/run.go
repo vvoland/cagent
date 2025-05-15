@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/rumpl/cagent/config"
 	"github.com/rumpl/cagent/pkg/runtime"
 	"github.com/rumpl/cagent/pkg/session"
@@ -72,10 +73,11 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 
 	scanner := bufio.NewScanner(os.Stdin)
 
-	fmt.Println("\nEnter your messages (Ctrl+C to exit):")
+	blue := color.New(color.FgBlue).SprintfFunc()
+	fmt.Println(blue("\nEnter your messages (Ctrl+C to exit):"))
 
 	for {
-		fmt.Print("> ")
+		fmt.Print(blue("> "))
 
 		if !scanner.Scan() {
 			break
@@ -101,7 +103,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
-		fmt.Printf("[%s]: %s\n", runtime.CurrentAgent().Name(), response[len(response)-1].Message.Content)
+		fmt.Printf("%s %s\n", blue("[%s]:", runtime.CurrentAgent().Name()), response[len(response)-1].Message.Content)
 	}
 
 	if err := scanner.Err(); err != nil {
