@@ -101,7 +101,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
-		fmt.Printf("[%s]: %s\n", runtime.CurrentAgent().GetName(), response[len(response)-1].Message.Content)
+		fmt.Printf("[%s]: %s\n", runtime.CurrentAgent().Name(), response[len(response)-1].Message.Content)
 	}
 
 	if err := scanner.Err(); err != nil {

@@ -51,13 +51,13 @@ func New(cfg *config.Config) *Session {
 
 func (s *Session) GetMessages(a *agent.Agent) []openai.ChatCompletionMessage {
 	// Get the agent session
-	agentSession, exists := s.AgentSession[a.GetName()]
+	agentSession, exists := s.AgentSession[a.Name()]
 	if !exists {
 		agentSession = &AgentSession{
 			Agent:    a,
 			Messages: make([]AgentMessage, 0),
 		}
-		s.AgentSession[a.GetName()] = agentSession
+		s.AgentSession[a.Name()] = agentSession
 	}
 
 	// Create a new slice to hold the processed messages
@@ -67,16 +67,16 @@ func (s *Session) GetMessages(a *agent.Agent) []openai.ChatCompletionMessage {
 		subAgents := agentSession.Agent.SubAgents()
 		subAgentsStr := ""
 		for _, subAgent := range subAgents {
-			subAgentSession, exists := s.AgentSession[subAgent.GetName()]
+			subAgentSession, exists := s.AgentSession[subAgent.Name()]
 			if !exists {
-				aa, _ := agent.New(subAgent.GetName(), s.cfg.Agents[subAgent.GetName()].Instruction)
+				aa, _ := agent.New(subAgent.Name(), s.cfg.Agents[subAgent.Name()].Instruction)
 				subAgentSession = &AgentSession{
 					Agent:    aa,
 					Messages: make([]AgentMessage, 0),
 				}
-				s.AgentSession[subAgent.GetName()] = subAgentSession
+				s.AgentSession[subAgent.Name()] = subAgentSession
 			}
-			subAgentsStr += subAgent.GetName() + ": " + subAgentSession.Agent.Description() + "\n"
+			subAgentsStr += subAgent.Name() + ": " + subAgentSession.Agent.Description() + "\n"
 		}
 
 		messages = append(messages, openai.ChatCompletionMessage{
@@ -100,7 +100,7 @@ func (s *Session) GetMessages(a *agent.Agent) []openai.ChatCompletionMessage {
 			messages = append(messages, msg.Message)
 
 			if len(msg.Message.ToolCalls) == 0 {
-				content := fmt.Sprintf("[%s] said: %s", msg.Agent.GetName(), msg.Message.Content)
+				content := fmt.Sprintf("[%s] said: %s", msg.Agent.Name(), msg.Message.Content)
 
 				messages = append(messages, openai.ChatCompletionMessage{
 					Role: "user",
@@ -121,7 +121,7 @@ func (s *Session) GetMessages(a *agent.Agent) []openai.ChatCompletionMessage {
 
 		if msg.Message.Role == "tool" {
 			messages = append(messages, msg.Message)
-			content := fmt.Sprintf("For context: [%s] Tool %s returned: %s", msg.Agent.GetName(), msg.Message.ToolCallID, msg.Message.Content)
+			content := fmt.Sprintf("For context: [%s] Tool %s returned: %s", msg.Agent.Name(), msg.Message.ToolCallID, msg.Message.Content)
 			messages = append(messages, openai.ChatCompletionMessage{
 				Role:    "user",
 				Content: content,

@@ -73,7 +73,7 @@ func New(agentName string, prompt string, opts ...AgentOpt) (*Agent, error) {
 	return agent, nil
 }
 
-func (a *Agent) GetName() string {
+func (a *Agent) Name() string {
 	return a.name
 }
 
