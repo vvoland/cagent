@@ -60,13 +60,7 @@ func WithSubAgents(subAgents []*Agent) AgentOpt {
 
 // New creates a new agent
 func New(agentName string, prompt string, opts ...AgentOpt) (*Agent, error) {
-	// tools, err := tools.GetToolsForAgent(cfg, agentName)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to get tools: %w", err)
-	// }
-
 	agent := &Agent{
-		// tools:       tools,
 		instruction: prompt,
 	}
 
