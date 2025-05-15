@@ -186,7 +186,7 @@ func (r *Runtime) handleAgentTransfer(ctx context.Context, a *agent.Agent, sess 
 		return "", fmt.Errorf("invalid arguments: %w", err)
 	}
 
-	r.logger.Info("Transferring to sub-agent", "agent", params.Agent)
+	r.logger.Debug("Transferring to sub-agent", "agent", params.Agent)
 	// Check if the agent is in the list of subAgents
 	if !a.IsSubAgent(params.Agent) && !a.IsParent(params.Agent) {
 		return "", fmt.Errorf("agent %s is not a valid sub-agent", params.Agent)

@@ -33,7 +33,7 @@ func NewRunCmd() *cobra.Command {
 func runAgentCommand(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	logger := slog.Default()
-	logger.Info("Starting agent", "agent", agentName)
+	logger.Debug("Starting agent", "agent", agentName)
 
 	cfg, err := config.LoadConfig(configFile)
 	if err != nil {
