@@ -64,19 +64,19 @@ func (s *Session) GetMessages(a *agent.Agent) []openai.ChatCompletionMessage {
 	messages := make([]openai.ChatCompletionMessage, 0)
 
 	if agentSession.Agent.HasSubAgents() {
-		subAgents := agentSession.Agent.GetSubAgents()
+		subAgents := agentSession.Agent.SubAgents()
 		subAgentsStr := ""
 		for _, subAgent := range subAgents {
-			subAgentSession, exists := s.AgentSession[subAgent]
+			subAgentSession, exists := s.AgentSession[subAgent.GetName()]
 			if !exists {
-				aa, _ := agent.New(s.cfg, subAgent)
+				aa, _ := agent.New(subAgent.GetName(), s.cfg.Agents[subAgent.GetName()].Instruction)
 				subAgentSession = &AgentSession{
 					Agent:    aa,
 					Messages: make([]AgentMessage, 0),
 				}
-				s.AgentSession[subAgent] = subAgentSession
+				s.AgentSession[subAgent.GetName()] = subAgentSession
 			}
-			subAgentsStr += subAgent + ": " + subAgentSession.Agent.GetDescription() + "\n"
+			subAgentsStr += subAgent.GetName() + ": " + subAgentSession.Agent.Description() + "\n"
 		}
 
 		messages = append(messages, openai.ChatCompletionMessage{
@@ -88,7 +88,7 @@ func (s *Session) GetMessages(a *agent.Agent) []openai.ChatCompletionMessage {
 	// Add the agent's system prompt as the first message
 	messages = append(messages, openai.ChatCompletionMessage{
 		Role:    "system",
-		Content: agentSession.Agent.GetInstructions(),
+		Content: agentSession.Agent.Instruction(),
 	})
 
 	for _, msg := range s.Messages {

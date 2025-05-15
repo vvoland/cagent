@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/rumpl/cagent/agent"
+	"github.com/rumpl/cagent/agent/tools"
+	"github.com/sashabaranov/go-openai"
 	"gopkg.in/yaml.v3"
 )
 
@@ -26,32 +29,81 @@ func LoadConfig(path string) (*Config, error) {
 	return &config, nil
 }
 
+func Agents(path string) (map[string]*agent.Agent, error) {
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		return nil, err
+	}
+
+	agents := make(map[string]*agent.Agent)
+	for name, agentConfig := range cfg.Agents {
+		opts := []agent.AgentOpt{
+			agent.WithName(name),
+			agent.WithModel(agentConfig.Model),
+			agent.WithDescription(agentConfig.Description),
+		}
+
+		tools, err := getToolsForAgent(cfg, name)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get tools: %w", err)
+		}
+
+		opts = append(opts, agent.WithTools(tools))
+
+		// Create the agent
+		a, err := agent.New(name, agentConfig.Instruction, opts...)
+		if err != nil {
+			continue
+		}
+
+		agents[name] = a
+	}
+
+	// Process sub-agents after all agents are created
+	for name, agentConfig := range cfg.Agents {
+		if len(agentConfig.SubAgents) > 0 {
+			subAgents := make([]*agent.Agent, 0, len(agentConfig.SubAgents))
+			for _, subName := range agentConfig.SubAgents {
+				if subAgent, exists := agents[subName]; exists {
+					subAgents = append(subAgents, subAgent)
+				}
+			}
+
+			if a, exists := agents[name]; exists && len(subAgents) > 0 {
+				agent.WithSubAgents(subAgents)(a)
+			}
+		}
+	}
+
+	return agents, nil
+}
+
+// getToolsForAgent returns the tool definitions for an agent based on its configuration
+func getToolsForAgent(cfg *Config, agentName string) ([]openai.Tool, error) {
+	var t []openai.Tool
+
+	t = append(t, tools.AgentTransfer())
+
+	return t, nil
+}
+
 // validateConfig ensures the configuration is valid
-func validateConfig(config *Config) error {
+func validateConfig(cfg *Config) error {
 	// Validate that all models referenced in agents exist
-	for agentName, agent := range config.Agents {
-		if _, exists := config.Models[agent.Model]; !exists {
+	for agentName, agent := range cfg.Agents {
+		if _, exists := cfg.Models[agent.Model]; !exists {
 			return fmt.Errorf("agent '%s' references non-existent model '%s'", agentName, agent.Model)
 		}
 
 		// Validate that all sub-agents exist
 		for _, subAgentName := range agent.SubAgents {
-			if _, exists := config.Agents[subAgentName]; !exists {
+			if _, exists := cfg.Agents[subAgentName]; !exists {
 				return fmt.Errorf("agent '%s' references non-existent sub-agent '%s'", agentName, subAgentName)
 			}
 		}
 	}
 
 	return nil
-}
-
-// GetAgent returns an agent configuration by name
-func (c *Config) GetAgent(name string) (*Agent, error) {
-	agent, exists := c.Agents[name]
-	if !exists {
-		return nil, fmt.Errorf("agent '%s' not found in configuration", name)
-	}
-	return &agent, nil
 }
 
 // GetModelConfig returns a model configuration by name

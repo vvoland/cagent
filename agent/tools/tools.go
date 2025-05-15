@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"github.com/rumpl/cagent/config"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -23,13 +22,4 @@ func AgentTransfer() openai.Tool {
 			},
 		},
 	}
-}
-
-// GetToolsForAgent returns the tool definitions for an agent based on its configuration
-func GetToolsForAgent(cfg *config.Config, agentName string) ([]openai.Tool, error) {
-	var tools []openai.Tool
-
-	tools = append(tools, AgentTransfer())
-
-	return tools, nil
 }

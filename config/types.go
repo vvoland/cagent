@@ -1,7 +1,7 @@
 package config
 
-// Agent represents a single agent configuration
-type Agent struct {
+// AgentConfig represents a single agent configuration
+type AgentConfig struct {
 	Name        string   `yaml:"name"`
 	Model       string   `yaml:"model"`
 	Description string   `yaml:"description"`
@@ -23,6 +23,6 @@ type ModelConfig struct {
 
 // Config represents the entire configuration file
 type Config struct {
-	Agents map[string]Agent       `yaml:"agents"`
+	Agents map[string]AgentConfig `yaml:"agents"`
 	Models map[string]ModelConfig `yaml:"models"`
 }

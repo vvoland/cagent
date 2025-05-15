@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/rumpl/cagent/agent"
 	"github.com/rumpl/cagent/config"
 	"github.com/rumpl/cagent/pkg/runtime"
 	"github.com/rumpl/cagent/pkg/session"
@@ -21,7 +20,7 @@ func NewRunCmd() *cobra.Command {
 		Long:  `Run an agent with the specified configuration and prompt`,
 		RunE:  runAgentCommand,
 	}
-	// Add flags
+
 	cmd.PersistentFlags().StringVarP(&configFile, "config", "c", "agent.yaml", "Path to the configuration file")
 	cmd.PersistentFlags().StringVarP(&agentName, "agent", "a", "root", "Name of the agent to run")
 
@@ -38,12 +37,12 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	rootAgent, err := agent.New(cfg, agentName)
+	agents, err := config.Agents(configFile)
 	if err != nil {
 		return err
 	}
 
-	runtime, err := runtime.NewRuntime(cfg, logger)
+	runtime, err := runtime.NewRuntime(cfg, logger, agents)
 	if err != nil {
 		return err
 	}
@@ -51,14 +50,14 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 	sess := session.New(cfg)
 
 	sess.Messages = append(sess.Messages, session.AgentMessage{
-		Agent: rootAgent,
+		Agent: agents[agentName],
 		Message: openai.ChatCompletionMessage{
 			Role:    "user",
 			Content: args[0],
 		},
 	})
 
-	response, err := runtime.Run(ctx, rootAgent, sess)
+	response, err := runtime.Run(ctx, agents[agentName], sess)
 	if err != nil {
 		return err
 	}

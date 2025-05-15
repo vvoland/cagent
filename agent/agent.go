@@ -1,75 +1,115 @@
 package agent
 
 import (
-	"fmt"
 	"slices"
 
-	"github.com/rumpl/cagent/agent/tools"
-	"github.com/rumpl/cagent/config"
 	"github.com/sashabaranov/go-openai"
 )
 
 // Agent represents an AI agent
 type Agent struct {
-	config *config.Agent
-	tools  []openai.Tool
+	name        string
+	description string
+	instruction string
+	tools       []openai.Tool
+	model       string
+	subAgents   []*Agent
 }
 
-// New creates a new agent from configuration
-func New(cfg *config.Config, agentName string) (*Agent, error) {
-	agentConfig, err := cfg.GetAgent(agentName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get agent config: %w", err)
-	}
+type AgentOpt func(a *Agent)
 
-	tools, err := tools.GetToolsForAgent(cfg, agentName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get tools: %w", err)
+func WithInstruction(prompt string) AgentOpt {
+	return func(a *Agent) {
+		a.instruction = prompt
 	}
+}
+
+func WithTools(tools []openai.Tool) AgentOpt {
+	return func(a *Agent) {
+		a.tools = tools
+	}
+}
+
+func WithDescription(description string) AgentOpt {
+	return func(a *Agent) {
+		a.description = description
+	}
+}
+
+func WithName(name string) AgentOpt {
+	return func(a *Agent) {
+		a.name = name
+	}
+}
+
+func WithModel(model string) AgentOpt {
+	return func(a *Agent) {
+		a.model = model
+	}
+}
+
+func WithSubAgents(subAgents []*Agent) AgentOpt {
+	return func(a *Agent) {
+		a.subAgents = subAgents
+	}
+}
+
+// New creates a new agent
+func New(agentName string, prompt string, opts ...AgentOpt) (*Agent, error) {
+	// tools, err := tools.GetToolsForAgent(cfg, agentName)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to get tools: %w", err)
+	// }
 
 	agent := &Agent{
-		config: agentConfig,
-		tools:  tools,
+		// tools:       tools,
+		instruction: prompt,
+	}
+
+	for _, opt := range opts {
+		opt(agent)
 	}
 
 	return agent, nil
 }
 
 func (a *Agent) GetName() string {
-	return a.config.Name
+	return a.name
 }
 
-// GetInstructions returns the agent's instructions
-func (a *Agent) GetInstructions() string {
-	return a.config.Instruction
+// Instruction returns the agent's instructions
+func (a *Agent) Instruction() string {
+	return a.instruction
 }
 
-// GetDescription returns the agent's description
-func (a *Agent) GetDescription() string {
-	return a.config.Description
+// Description returns the agent's description
+func (a *Agent) Description() string {
+	return a.description
 }
 
-// GetSubAgents returns the list of sub-agent names
-func (a *Agent) GetSubAgents() []string {
-	return a.config.SubAgents
+// SubAgents returns the list of sub-agent names
+func (a *Agent) SubAgents() []*Agent {
+	return a.subAgents
 }
 
 // HasSubAgents checks if the agent has sub-agents
 func (a *Agent) HasSubAgents() bool {
-	return len(a.config.SubAgents) > 0
+	return len(a.subAgents) > 0
 }
 
 // IsSubAgent checks if a given agent name is a sub-agent
 func (a *Agent) IsSubAgent(name string) bool {
-	return slices.Contains(a.config.SubAgents, name)
+	return slices.ContainsFunc(a.subAgents, func(s *Agent) bool {
+		return s.name == name
+	})
 }
 
-// GetModel returns the model name used by the agent
-func (a *Agent) GetModel() string {
-	return a.config.Model
+// Model returns the model name used by the agent
+func (a *Agent) Model() string {
+	return a.model
 }
 
-// GetTools returns the tools available to this agent
-func (a *Agent) GetTools() []openai.Tool {
+// Tools returns the tools available to this agent
+func (a *Agent) Tools() []openai.Tool {
 	return a.tools
 }
