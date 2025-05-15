@@ -46,7 +46,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	runtime, err := runtime.NewRuntime(cfg, logger, agents, agentName)
+	rt, err := runtime.NewRuntime(cfg, logger, agents, agentName)
 	if err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			},
 		})
 
-		response, err := runtime.Run(ctx, sess)
+		response, err := rt.Run(ctx, sess)
 		if err != nil {
 			return err
 		}
@@ -90,20 +90,27 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		}
 
 		sess.Messages = append(sess.Messages, session.AgentMessage{
-			Agent: runtime.CurrentAgent(),
+			Agent: rt.CurrentAgent(),
 			Message: openai.ChatCompletionMessage{
 				Role:    "user",
 				Content: userInput,
 			},
 		})
 
-		response, err := runtime.Run(ctx, sess)
-		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			continue
+		first := false
+		for event := range rt.RunStream(ctx, sess) {
+			if !first {
+				fmt.Printf("%s", blue("[%s]: ", rt.CurrentAgent().Name()))
+				first = true
+			}
+			switch event.(type) {
+			case *runtime.AgentChoiceEvent:
+				fmt.Printf("%s", event.(*runtime.AgentChoiceEvent).Choice.Delta.Content)
+			case *runtime.ToolCallEvent:
+				fmt.Printf("%s\n", event.(*runtime.ToolCallEvent).ToolCall.Function.Name)
+			}
 		}
-
-		fmt.Printf("%s %s\n", blue("[%s]:", runtime.CurrentAgent().Name()), response[len(response)-1].Message.Content)
+		fmt.Println()
 	}
 
 	if err := scanner.Err(); err != nil {

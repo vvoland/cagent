@@ -17,7 +17,7 @@ import (
 )
 
 // ToolHandler is a function type for handling tool calls
-type ToolHandler func(ctx context.Context, a *agent.Agent, sess *session.Session, toolCall openai.ToolCall) (string, error)
+type ToolHandler func(ctx context.Context, a *agent.Agent, sess *session.Session, toolCall openai.ToolCall, events chan Event) (string, error)
 
 // Runtime manages the execution of agents
 type Runtime struct {
@@ -51,125 +51,154 @@ func (r *Runtime) CurrentAgent() *agent.Agent {
 }
 
 // Run starts the agent's interaction loop
-func (r *Runtime) Run(ctx context.Context, sess *session.Session) ([]session.AgentMessage, error) {
-	a := r.agents[r.currentAgent]
+func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan Event {
+	events := make(chan Event)
 
-	client, err := cagentopenai.NewClientFromConfig(r.cfg, a.Model())
-	if err != nil {
-		return nil, fmt.Errorf("creating client: %w", err)
-	}
+	go func() {
+		defer close(events)
 
-	r.registerDefaultTools()
+		a := r.agents[r.currentAgent]
 
-	messages := sess.GetMessages(a)
-
-	stream, err := client.CreateChatCompletionStream(ctx, messages, a.Tools())
-	if err != nil {
-		return nil, fmt.Errorf("creating chat completion: %w", err)
-	}
-	defer stream.Close()
-
-	var fullContent strings.Builder
-	var toolCalls []openai.ToolCall
-
-	for {
-		response, err := stream.Recv()
-		if errors.Is(err, io.EOF) {
-			break
-		}
+		client, err := cagentopenai.NewClientFromConfig(r.cfg, a.Model())
 		if err != nil {
-			return nil, fmt.Errorf("error receiving from stream: %w", err)
+			events <- &ErrorEvent{Error: fmt.Errorf("creating client: %w", err)}
+			return
 		}
 
-		choice := response.Choices[0]
+		r.registerDefaultTools()
 
-		// Handle tool calls
-		if choice.Delta.ToolCalls != nil && len(choice.Delta.ToolCalls) > 0 {
-			for len(toolCalls) < len(choice.Delta.ToolCalls) {
-				toolCalls = append(toolCalls, openai.ToolCall{})
+		messages := sess.GetMessages(a)
+
+		stream, err := client.CreateChatCompletionStream(ctx, messages, a.Tools())
+		if err != nil {
+			events <- &ErrorEvent{Error: fmt.Errorf("creating chat completion: %w", err)}
+			return
+		}
+		defer stream.Close()
+
+		var fullContent strings.Builder
+		var toolCalls []openai.ToolCall
+
+		for {
+			response, err := stream.Recv()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				events <- &ErrorEvent{Error: fmt.Errorf("error receiving from stream: %w", err)}
+				return
 			}
 
-			// Update tool calls with the delta
-			for _, deltaToolCall := range choice.Delta.ToolCalls {
-				if deltaToolCall.Index == nil {
-					continue
+			choice := response.Choices[0]
+
+			// Handle tool calls
+			if choice.Delta.ToolCalls != nil && len(choice.Delta.ToolCalls) > 0 {
+				for len(toolCalls) < len(choice.Delta.ToolCalls) {
+					toolCalls = append(toolCalls, openai.ToolCall{})
 				}
 
-				idx := *deltaToolCall.Index
-				if idx >= len(toolCalls) {
-					// Expand the slice if needed
-					newToolCalls := make([]openai.ToolCall, idx+1)
-					copy(newToolCalls, toolCalls)
-					toolCalls = newToolCalls
-				}
+				// Update tool calls with the delta
+				for _, deltaToolCall := range choice.Delta.ToolCalls {
+					if deltaToolCall.Index == nil {
+						continue
+					}
 
-				// Update fields based on what's in the delta
-				if deltaToolCall.ID != "" {
-					toolCalls[idx].ID = deltaToolCall.ID
-				}
-				if deltaToolCall.Type != "" {
-					// Convert the ToolType to string
-					toolCalls[idx].Type = openai.ToolType(deltaToolCall.Type)
-				}
-				if deltaToolCall.Function.Name != "" {
-					toolCalls[idx].Function.Name = deltaToolCall.Function.Name
-				}
-				if deltaToolCall.Function.Arguments != "" {
-					if toolCalls[idx].Function.Arguments == "" {
-						toolCalls[idx].Function.Arguments = deltaToolCall.Function.Arguments
-					} else {
-						toolCalls[idx].Function.Arguments += deltaToolCall.Function.Arguments
+					idx := *deltaToolCall.Index
+					if idx >= len(toolCalls) {
+						// Expand the slice if needed
+						newToolCalls := make([]openai.ToolCall, idx+1)
+						copy(newToolCalls, toolCalls)
+						toolCalls = newToolCalls
+					}
+
+					// Update fields based on what's in the delta
+					if deltaToolCall.ID != "" {
+						toolCalls[idx].ID = deltaToolCall.ID
+					}
+					if deltaToolCall.Type != "" {
+						// Convert the ToolType to string
+						toolCalls[idx].Type = openai.ToolType(deltaToolCall.Type)
+					}
+					if deltaToolCall.Function.Name != "" {
+						toolCalls[idx].Function.Name = deltaToolCall.Function.Name
+					}
+					if deltaToolCall.Function.Arguments != "" {
+						if toolCalls[idx].Function.Arguments == "" {
+							toolCalls[idx].Function.Arguments = deltaToolCall.Function.Arguments
+						} else {
+							toolCalls[idx].Function.Arguments += deltaToolCall.Function.Arguments
+						}
 					}
 				}
-			}
-			continue
-		}
-
-		if choice.Delta.Content != "" {
-			fullContent.WriteString(choice.Delta.Content)
-		}
-	}
-
-	// Add assistant message to conversation history
-	assistantMessage := openai.ChatCompletionMessage{
-		Role:      "assistant",
-		Content:   fullContent.String(),
-		ToolCalls: toolCalls,
-	}
-
-	sess.Messages = append(sess.Messages, session.AgentMessage{
-		Agent:   a,
-		Message: assistantMessage,
-	})
-
-	messages = append(messages, assistantMessage)
-
-	// Handle tool calls if present
-	if len(toolCalls) > 0 {
-		for _, toolCall := range toolCalls {
-			handler, exists := r.toolMap[toolCall.Function.Name]
-			if !exists {
-				r.logger.Error("tool not implemented", "name", toolCall.Function.Name)
 				continue
 			}
 
-			result, err := handler(ctx, a, sess, toolCall)
-			if err != nil {
-				r.logger.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
-				result = fmt.Sprintf("Error: %v", err)
-			}
-
-			if toolCall.Function.Name != "transfer_to_agent" {
-				toolResponseMsg := openai.ChatCompletionMessage{
-					Role:       "tool",
-					Content:    result,
-					ToolCallID: toolCall.ID,
+			if choice.Delta.Content != "" {
+				events <- &AgentChoiceEvent{
+					Choice: choice,
 				}
-				sess.Messages = append(sess.Messages, session.AgentMessage{
-					Agent:   a,
-					Message: toolResponseMsg,
-				})
+				fullContent.WriteString(choice.Delta.Content)
 			}
+		}
+
+		// Add assistant message to conversation history
+		assistantMessage := openai.ChatCompletionMessage{
+			Role:      "assistant",
+			Content:   fullContent.String(),
+			ToolCalls: toolCalls,
+		}
+
+		sess.Messages = append(sess.Messages, session.AgentMessage{
+			Agent:   a,
+			Message: assistantMessage,
+		})
+
+		messages = append(messages, assistantMessage)
+
+		// Handle tool calls if present
+		if len(toolCalls) > 0 {
+			for _, toolCall := range toolCalls {
+				handler, exists := r.toolMap[toolCall.Function.Name]
+				if !exists {
+					r.logger.Error("tool not implemented", "name", toolCall.Function.Name)
+					continue
+				}
+
+				events <- &ToolCallEvent{
+					ToolCall: toolCall,
+				}
+
+				result, err := handler(ctx, a, sess, toolCall, events)
+				if err != nil {
+					r.logger.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
+					result = fmt.Sprintf("Error: %v", err)
+				}
+
+				if toolCall.Function.Name != "transfer_to_agent" {
+					toolResponseMsg := openai.ChatCompletionMessage{
+						Role:       "tool",
+						Content:    result,
+						ToolCallID: toolCall.ID,
+					}
+					sess.Messages = append(sess.Messages, session.AgentMessage{
+						Agent:   a,
+						Message: toolResponseMsg,
+					})
+				}
+			}
+		}
+	}()
+
+	return events
+}
+
+// Run starts the agent's interaction loop
+func (r *Runtime) Run(ctx context.Context, sess *session.Session) ([]session.AgentMessage, error) {
+	eventsChan := r.RunStream(ctx, sess)
+
+	for event := range eventsChan {
+		if errEvent, ok := event.(*ErrorEvent); ok {
+			return nil, errEvent.Error
 		}
 	}
 
@@ -177,7 +206,7 @@ func (r *Runtime) Run(ctx context.Context, sess *session.Session) ([]session.Age
 }
 
 // handleAgentTransfer handles the transfer_to_agent tool call
-func (r *Runtime) handleAgentTransfer(ctx context.Context, a *agent.Agent, sess *session.Session, toolCall openai.ToolCall) (string, error) {
+func (r *Runtime) handleAgentTransfer(ctx context.Context, a *agent.Agent, sess *session.Session, toolCall openai.ToolCall, evts chan Event) (string, error) {
 	var params struct {
 		Agent string `json:"agent"`
 	}
@@ -205,9 +234,12 @@ func (r *Runtime) handleAgentTransfer(ctx context.Context, a *agent.Agent, sess 
 	r.currentAgent = params.Agent
 	// Run the sub-agent with the initial prompt
 	// We don't need the returned response since the messages are already added to the session
-	_, err := r.Run(ctx, sess)
-	if err != nil {
-		return "", fmt.Errorf("failed to run sub-agent %s: %w", params.Agent, err)
+	events := r.RunStream(ctx, sess)
+	for event := range events {
+		evts <- event
+		if errEvent, ok := event.(*ErrorEvent); ok {
+			return "", errEvent.Error
+		}
 	}
 
 	return "{}", nil
