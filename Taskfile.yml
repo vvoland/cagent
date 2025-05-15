@@ -1,0 +1,23 @@
+version: "3"
+
+vars:
+  BINARY_NAME: cagent
+  MAIN_PKG: ./main.go
+  BUILD_DIR: ./bin
+
+tasks:
+  default:
+    cmds:
+      - task --list
+
+  build:
+    desc: Build the application binary
+    cmds:
+      - mkdir -p {{.BUILD_DIR}}
+      - go build -o {{.BUILD_DIR}}/{{.BINARY_NAME}} {{.MAIN_PKG}}
+    sources:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+    generates:
+      - "{{.BUILD_DIR}}/{{.BINARY_NAME}}"
