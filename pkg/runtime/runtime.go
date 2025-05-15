@@ -21,19 +21,21 @@ type ToolHandler func(ctx context.Context, a *agent.Agent, sess *session.Session
 
 // Runtime manages the execution of agents
 type Runtime struct {
-	logger  *slog.Logger
-	toolMap map[string]ToolHandler
-	agents  map[string]*agent.Agent
-	cfg     *config.Config
+	logger       *slog.Logger
+	toolMap      map[string]ToolHandler
+	agents       map[string]*agent.Agent
+	cfg          *config.Config
+	currentAgent string
 }
 
 // NewRuntime creates a new runtime for an agent
-func NewRuntime(cfg *config.Config, logger *slog.Logger, agents map[string]*agent.Agent) (*Runtime, error) {
+func NewRuntime(cfg *config.Config, logger *slog.Logger, agents map[string]*agent.Agent, agentName string) (*Runtime, error) {
 	runtime := &Runtime{
-		toolMap: make(map[string]ToolHandler),
-		agents:  agents,
-		cfg:     cfg,
-		logger:  logger,
+		toolMap:      make(map[string]ToolHandler),
+		agents:       agents,
+		cfg:          cfg,
+		logger:       logger,
+		currentAgent: agentName,
 	}
 
 	return runtime, nil
@@ -44,8 +46,14 @@ func (r *Runtime) registerDefaultTools() {
 	r.toolMap["transfer_to_agent"] = r.handleAgentTransfer
 }
 
+func (r *Runtime) CurrentAgent() *agent.Agent {
+	return r.agents[r.currentAgent]
+}
+
 // Run starts the agent's interaction loop
-func (r *Runtime) Run(ctx context.Context, a *agent.Agent, sess *session.Session) ([]session.AgentMessage, error) {
+func (r *Runtime) Run(ctx context.Context, sess *session.Session) ([]session.AgentMessage, error) {
+	a := r.agents[r.currentAgent]
+
 	client, err := cagentopenai.NewClientFromConfig(r.cfg, a.Model())
 	if err != nil {
 		return nil, fmt.Errorf("creating client: %w", err)
@@ -184,12 +192,6 @@ func (r *Runtime) handleAgentTransfer(ctx context.Context, a *agent.Agent, sess 
 		return "", fmt.Errorf("agent %s is not a valid sub-agent", params.Agent)
 	}
 
-	// Create sub-agent if it doesn't exist
-	subAgent, exists := r.agents[params.Agent]
-	if !exists {
-		return "", fmt.Errorf("sub-agent %s not found", params.Agent)
-	}
-
 	toolResponseMsg := openai.ChatCompletionMessage{
 		Role:       "tool",
 		Content:    "{}",
@@ -200,9 +202,10 @@ func (r *Runtime) handleAgentTransfer(ctx context.Context, a *agent.Agent, sess 
 		Message: toolResponseMsg,
 	})
 
+	r.currentAgent = params.Agent
 	// Run the sub-agent with the initial prompt
 	// We don't need the returned response since the messages are already added to the session
-	_, err := r.Run(ctx, subAgent, sess)
+	_, err := r.Run(ctx, sess)
 	if err != nil {
 		return "", fmt.Errorf("failed to run sub-agent %s: %w", params.Agent, err)
 	}

@@ -1,9 +1,12 @@
 package root
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
+	"strings"
 
 	"github.com/rumpl/cagent/config"
 	"github.com/rumpl/cagent/pkg/runtime"
@@ -42,27 +45,68 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	runtime, err := runtime.NewRuntime(cfg, logger, agents)
+	runtime, err := runtime.NewRuntime(cfg, logger, agents, agentName)
 	if err != nil {
 		return err
 	}
 
 	sess := session.New(cfg)
 
-	sess.Messages = append(sess.Messages, session.AgentMessage{
-		Agent: agents[agentName],
-		Message: openai.ChatCompletionMessage{
-			Role:    "user",
-			Content: args[0],
-		},
-	})
+	if len(args) > 0 {
+		sess.Messages = append(sess.Messages, session.AgentMessage{
+			Agent: agents[agentName],
+			Message: openai.ChatCompletionMessage{
+				Role:    "user",
+				Content: args[0],
+			},
+		})
 
-	response, err := runtime.Run(ctx, agents[agentName], sess)
-	if err != nil {
-		return err
+		response, err := runtime.Run(ctx, sess)
+		if err != nil {
+			return err
+		}
+
+		fmt.Println(response[len(response)-1].Message.Content)
+		return nil
 	}
 
-	fmt.Println(response[len(response)-1].Message.Content)
+	scanner := bufio.NewScanner(os.Stdin)
+
+	fmt.Println("\nEnter your messages (Ctrl+C to exit):")
+
+	for {
+		fmt.Print("> ")
+
+		if !scanner.Scan() {
+			break
+		}
+
+		userInput := scanner.Text()
+
+		if strings.TrimSpace(userInput) == "" {
+			continue
+		}
+
+		sess.Messages = append(sess.Messages, session.AgentMessage{
+			Agent: runtime.CurrentAgent(),
+			Message: openai.ChatCompletionMessage{
+				Role:    "user",
+				Content: userInput,
+			},
+		})
+
+		response, err := runtime.Run(ctx, sess)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			continue
+		}
+
+		fmt.Printf("[%s]: %s\n", runtime.CurrentAgent().GetName(), response[len(response)-1].Message.Content)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
 
 	return nil
 }
