@@ -90,9 +90,18 @@ func (a *Agent) SubAgents() []*Agent {
 	return a.subAgents
 }
 
+// Parents returns the list of parent agent names
+func (a *Agent) Parents() []*Agent {
+	return a.parents
+}
+
 // HasSubAgents checks if the agent has sub-agents
 func (a *Agent) HasSubAgents() bool {
 	return len(a.subAgents) > 0
+}
+
+func (a *Agent) HasParents() bool {
+	return len(a.parents) > 0
 }
 
 // IsSubAgent checks if a given agent name is a sub-agent

@@ -29,6 +29,7 @@ agents:
     instruction: |
       You are an agent that writes engaging content from the provided context
 
+      Once you are done, transfer the conversation back to the "researcher" agent
 models:
   openai:
     type: openai

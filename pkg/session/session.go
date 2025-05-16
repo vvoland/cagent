@@ -61,8 +61,10 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.ChatCompletionMessage {
 	// Create a new slice to hold the processed messages
 	messages := make([]chat.ChatCompletionMessage, 0)
 
-	if agentSession.Agent.HasSubAgents() {
+	if agentSession.Agent.HasSubAgents() || agentSession.Agent.HasParents() {
 		subAgents := agentSession.Agent.SubAgents()
+		subAgents = append(subAgents, agentSession.Agent.Parents()...)
+
 		subAgentsStr := ""
 		for _, subAgent := range subAgents {
 			subAgentSession, exists := s.AgentSession[subAgent.Name()]
