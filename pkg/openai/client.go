@@ -69,14 +69,30 @@ func NewClientFromConfig(cfg *config.Config, modelName string) (*Client, error) 
 	return NewClient(modelCfg)
 }
 
+func convertMultiContent(multiContent []chat.ChatMessagePart) []openai.ChatMessagePart {
+	openaiMultiContent := make([]openai.ChatMessagePart, len(multiContent))
+	for i, part := range multiContent {
+		openaiMultiContent[i] = openai.ChatMessagePart{
+			Type: openai.ChatMessagePartType(part.Type),
+			Text: part.Text,
+		}
+	}
+	return openaiMultiContent
+}
+
 // convertMessages converts chat.ChatCompletionMessage to openai.ChatCompletionMessage
 func convertMessages(messages []chat.ChatCompletionMessage) []openai.ChatCompletionMessage {
 	openaiMessages := make([]openai.ChatCompletionMessage, len(messages))
 	for i, msg := range messages {
 		openaiMessage := openai.ChatCompletionMessage{
-			Role:    msg.Role,
-			Content: msg.Content,
-			Name:    msg.Name,
+			Role: msg.Role,
+			Name: msg.Name,
+		}
+
+		if len(msg.MultiContent) == 0 {
+			openaiMessage.Content = msg.Content
+		} else {
+			openaiMessage.MultiContent = convertMultiContent(msg.MultiContent)
 		}
 
 		if msg.FunctionCall != nil {
