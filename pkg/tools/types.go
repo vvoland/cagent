@@ -1,5 +1,13 @@
 package tools
 
+import (
+	"context"
+)
+
+type ToolHandler interface {
+	CallTool(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error)
+}
+
 type ToolCall struct {
 	Index    *int         `json:"index,omitempty"`
 	ID       string       `json:"id,omitempty"`
@@ -23,6 +31,7 @@ type ToolType string
 type Tool struct {
 	Type     ToolType            `json:"type"`
 	Function *FunctionDefinition `json:"function,omitempty"`
+	Handler  ToolHandler         `json:"handler,omitempty"`
 }
 
 type FunctionDefinition struct {

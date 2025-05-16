@@ -15,6 +15,7 @@ import (
 	cagentopenai "github.com/rumpl/cagent/pkg/openai"
 	"github.com/rumpl/cagent/pkg/session"
 	"github.com/rumpl/cagent/pkg/tools"
+	"github.com/sashabaranov/go-openai"
 )
 
 // ToolHandler is a function type for handling tool calls
@@ -69,123 +70,144 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 
 		r.registerDefaultTools()
 
-		messages := sess.GetMessages(a)
-
-		stream, err := client.CreateChatCompletionStream(ctx, messages, a.Tools())
-		if err != nil {
-			events <- &ErrorEvent{Error: fmt.Errorf("creating chat completion: %w", err)}
-			return
-		}
-		defer stream.Close()
-
-		var fullContent strings.Builder
-		var toolCalls []tools.ToolCall
-
 		for {
-			response, err := stream.Recv()
-			if errors.Is(err, io.EOF) {
-				break
-			}
+			messages := sess.GetMessages(a)
+
+			stream, err := client.CreateChatCompletionStream(ctx, messages, a.Tools())
 			if err != nil {
-				events <- &ErrorEvent{Error: fmt.Errorf("error receiving from stream: %w", err)}
+				events <- &ErrorEvent{Error: fmt.Errorf("creating chat completion: %w", err)}
 				return
 			}
+			defer stream.Close()
 
-			choice := response.Choices[0]
+			var fullContent strings.Builder
+			var toolCalls []tools.ToolCall
 
-			// Handle tool calls
-			if choice.Delta.ToolCalls != nil && len(choice.Delta.ToolCalls) > 0 {
-				for len(toolCalls) < len(choice.Delta.ToolCalls) {
-					toolCalls = append(toolCalls, tools.ToolCall{})
+			for {
+				response, err := stream.Recv()
+				if errors.Is(err, io.EOF) {
+					break
+				}
+				if err != nil {
+					events <- &ErrorEvent{Error: fmt.Errorf("error receiving from stream: %w", err)}
+					return
 				}
 
-				// Update tool calls with the delta
-				for _, deltaToolCall := range choice.Delta.ToolCalls {
-					if deltaToolCall.Index == nil {
-						continue
+				choice := response.Choices[0]
+				if choice.FinishReason == openai.FinishReasonStop {
+					return
+				}
+
+				// Handle tool calls
+				if choice.Delta.ToolCalls != nil && len(choice.Delta.ToolCalls) > 0 {
+					for len(toolCalls) < len(choice.Delta.ToolCalls) {
+						toolCalls = append(toolCalls, tools.ToolCall{})
 					}
 
-					idx := *deltaToolCall.Index
-					if idx >= len(toolCalls) {
-						// Expand the slice if needed
-						newToolCalls := make([]tools.ToolCall, idx+1)
-						copy(newToolCalls, toolCalls)
-						toolCalls = newToolCalls
-					}
+					// Update tool calls with the delta
+					for _, deltaToolCall := range choice.Delta.ToolCalls {
+						if deltaToolCall.Index == nil {
+							continue
+						}
 
-					// Update fields based on what's in the delta
-					if deltaToolCall.ID != "" {
-						toolCalls[idx].ID = deltaToolCall.ID
-					}
-					if deltaToolCall.Type != "" {
-						// Convert the ToolType to string
-						toolCalls[idx].Type = tools.ToolType(deltaToolCall.Type)
-					}
-					if deltaToolCall.Function.Name != "" {
-						toolCalls[idx].Function.Name = deltaToolCall.Function.Name
-					}
-					if deltaToolCall.Function.Arguments != "" {
-						if toolCalls[idx].Function.Arguments == "" {
-							toolCalls[idx].Function.Arguments = deltaToolCall.Function.Arguments
-						} else {
-							toolCalls[idx].Function.Arguments += deltaToolCall.Function.Arguments
+						idx := *deltaToolCall.Index
+						if idx >= len(toolCalls) {
+							// Expand the slice if needed
+							newToolCalls := make([]tools.ToolCall, idx+1)
+							copy(newToolCalls, toolCalls)
+							toolCalls = newToolCalls
+						}
+
+						// Update fields based on what's in the delta
+						if deltaToolCall.ID != "" {
+							toolCalls[idx].ID = deltaToolCall.ID
+						}
+						if deltaToolCall.Type != "" {
+							// Convert the ToolType to string
+							toolCalls[idx].Type = tools.ToolType(deltaToolCall.Type)
+						}
+						if deltaToolCall.Function.Name != "" {
+							toolCalls[idx].Function.Name = deltaToolCall.Function.Name
+						}
+						if deltaToolCall.Function.Arguments != "" {
+							if toolCalls[idx].Function.Arguments == "" {
+								toolCalls[idx].Function.Arguments = deltaToolCall.Function.Arguments
+							} else {
+								toolCalls[idx].Function.Arguments += deltaToolCall.Function.Arguments
+							}
 						}
 					}
-				}
-				continue
-			}
-
-			if choice.Delta.Content != "" {
-				events <- &AgentChoiceEvent{
-					Choice: choice,
-				}
-				fullContent.WriteString(choice.Delta.Content)
-			}
-		}
-
-		// Add assistant message to conversation history
-		assistantMessage := chat.ChatCompletionMessage{
-			Role:      "assistant",
-			Content:   fullContent.String(),
-			ToolCalls: toolCalls,
-		}
-
-		sess.Messages = append(sess.Messages, session.AgentMessage{
-			Agent:   a,
-			Message: assistantMessage,
-		})
-
-		messages = append(messages, assistantMessage)
-
-		// Handle tool calls if present
-		if len(toolCalls) > 0 {
-			for _, toolCall := range toolCalls {
-				handler, exists := r.toolMap[toolCall.Function.Name]
-				if !exists {
-					r.logger.Error("tool not implemented", "name", toolCall.Function.Name)
 					continue
 				}
 
-				events <- &ToolCallEvent{
-					ToolCall: toolCall,
-				}
-
-				result, err := handler(ctx, a, sess, toolCall, events)
-				if err != nil {
-					r.logger.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
-					result = fmt.Sprintf("Error: %v", err)
-				}
-
-				if toolCall.Function.Name != "transfer_to_agent" {
-					toolResponseMsg := chat.ChatCompletionMessage{
-						Role:       "tool",
-						Content:    result,
-						ToolCallID: toolCall.ID,
+				if choice.Delta.Content != "" {
+					events <- &AgentChoiceEvent{
+						Choice: choice,
 					}
-					sess.Messages = append(sess.Messages, session.AgentMessage{
-						Agent:   a,
-						Message: toolResponseMsg,
-					})
+					fullContent.WriteString(choice.Delta.Content)
+				}
+			}
+
+			// Add assistant message to conversation history
+			assistantMessage := chat.ChatCompletionMessage{
+				Role:      "assistant",
+				Content:   fullContent.String(),
+				ToolCalls: toolCalls,
+			}
+
+			sess.Messages = append(sess.Messages, session.AgentMessage{
+				Agent:   a,
+				Message: assistantMessage,
+			})
+
+			messages = append(messages, assistantMessage)
+
+			// Handle tool calls if present
+			if len(toolCalls) > 0 {
+			outer:
+				for _, toolCall := range toolCalls {
+					handler, exists := r.toolMap[toolCall.Function.Name]
+					if exists {
+
+						events <- &ToolCallEvent{
+							ToolCall: toolCall,
+						}
+
+						_, err := handler(ctx, a, sess, toolCall, events)
+						if err != nil {
+							r.logger.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
+						}
+
+						continue
+					}
+					agentTools := a.Tools()
+					for _, tool := range agentTools {
+						if tool.Function.Name == toolCall.Function.Name {
+							exists = true
+
+							events <- &ToolCallEvent{
+								ToolCall: toolCall,
+							}
+
+							res, err := tool.Handler.CallTool(ctx, toolCall)
+							if err != nil {
+								r.logger.Error("Error calling tool", "tool", toolCall.Function.Name, "error", err)
+								break outer
+							}
+
+							// fmt.Println("res", res.Output)
+							toolResponseMsg := chat.ChatCompletionMessage{
+								Role:       "tool",
+								Content:    res.Output,
+								ToolCallID: toolCall.ID,
+							}
+							sess.Messages = append(sess.Messages, session.AgentMessage{
+								Agent:   a,
+								Message: toolResponseMsg,
+							})
+							break outer
+						}
+					}
 				}
 			}
 		}
