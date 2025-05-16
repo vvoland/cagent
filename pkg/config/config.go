@@ -6,7 +6,6 @@ import (
 
 	"github.com/rumpl/cagent/pkg/agent"
 	"github.com/rumpl/cagent/pkg/tools"
-	"github.com/sashabaranov/go-openai"
 	"gopkg.in/yaml.v3"
 )
 
@@ -77,8 +76,8 @@ func Agents(path string) (map[string]*agent.Agent, error) {
 }
 
 // getToolsForAgent returns the tool definitions for an agent based on its configuration
-func getToolsForAgent(cfg *Config, agentName string) ([]openai.Tool, error) {
-	var t []openai.Tool
+func getToolsForAgent(cfg *Config, agentName string) ([]tools.Tool, error) {
+	var t []tools.Tool
 
 	t = append(t, tools.AgentTransfer())
 

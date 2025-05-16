@@ -3,7 +3,7 @@ package agent
 import (
 	"slices"
 
-	"github.com/sashabaranov/go-openai"
+	"github.com/rumpl/cagent/pkg/tools"
 )
 
 // Agent represents an AI agent
@@ -11,7 +11,7 @@ type Agent struct {
 	name        string
 	description string
 	instruction string
-	tools       []openai.Tool
+	tools       []tools.Tool
 	model       string
 	subAgents   []*Agent
 	parents     []*Agent
@@ -25,7 +25,7 @@ func WithInstruction(prompt string) AgentOpt {
 	}
 }
 
-func WithTools(tools []openai.Tool) AgentOpt {
+func WithTools(tools []tools.Tool) AgentOpt {
 	return func(a *Agent) {
 		a.tools = tools
 	}
@@ -114,6 +114,6 @@ func (a *Agent) Model() string {
 }
 
 // Tools returns the tools available to this agent
-func (a *Agent) Tools() []openai.Tool {
+func (a *Agent) Tools() []tools.Tool {
 	return a.tools
 }

@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/rumpl/cagent/pkg/config"
+	"github.com/rumpl/cagent/pkg/tools"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -72,7 +73,7 @@ func NewClientFromConfig(cfg *config.Config, modelName string) (*Client, error) 
 func (c *Client) CreateChatCompletionStream(
 	ctx context.Context,
 	messages []openai.ChatCompletionMessage,
-	tools []openai.Tool,
+	tools []tools.Tool,
 ) (*openai.ChatCompletionStream, error) {
 	if len(messages) == 0 {
 		return nil, errors.New("at least one message is required")
@@ -92,7 +93,18 @@ func (c *Client) CreateChatCompletionStream(
 
 	// Add tools if provided
 	if len(tools) > 0 {
-		request.Tools = tools
+		request.Tools = make([]openai.Tool, len(tools))
+		for i, tool := range tools {
+			request.Tools[i] = openai.Tool{
+				Type: openai.ToolTypeFunction,
+				Function: &openai.FunctionDefinition{
+					Name:        tool.Function.Name,
+					Description: tool.Function.Description,
+					Strict:      tool.Function.Strict,
+					Parameters:  tool.Function.Parameters,
+				},
+			}
+		}
 	}
 
 	// Log the request in JSON format for debugging
