@@ -1,8 +1,15 @@
 package tools
 
 type ToolCall struct {
-	Name string   `json:"name"`
-	Args []string `json:"args"`
+	Index    *int         `json:"index,omitempty"`
+	ID       string       `json:"id,omitempty"`
+	Type     ToolType     `json:"type"`
+	Function FunctionCall `json:"function"`
+}
+type FunctionCall struct {
+	Name string `json:"name,omitempty"`
+
+	Arguments string `json:"arguments,omitempty"`
 }
 
 type ToolCallResult struct {

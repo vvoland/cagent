@@ -10,14 +10,15 @@ import (
 	"strings"
 
 	"github.com/rumpl/cagent/pkg/agent"
+	"github.com/rumpl/cagent/pkg/chat"
 	"github.com/rumpl/cagent/pkg/config"
 	cagentopenai "github.com/rumpl/cagent/pkg/openai"
 	"github.com/rumpl/cagent/pkg/session"
-	"github.com/sashabaranov/go-openai"
+	"github.com/rumpl/cagent/pkg/tools"
 )
 
 // ToolHandler is a function type for handling tool calls
-type ToolHandler func(ctx context.Context, a *agent.Agent, sess *session.Session, toolCall openai.ToolCall, events chan Event) (string, error)
+type ToolHandler func(ctx context.Context, a *agent.Agent, sess *session.Session, toolCall tools.ToolCall, events chan Event) (string, error)
 
 // Runtime manages the execution of agents
 type Runtime struct {
@@ -59,6 +60,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 
 		a := r.agents[r.currentAgent]
 
+		// TODO: Do not use openai's client directly, use a factory of some kind
 		client, err := cagentopenai.NewClientFromConfig(r.cfg, a.Model())
 		if err != nil {
 			events <- &ErrorEvent{Error: fmt.Errorf("creating client: %w", err)}
@@ -77,7 +79,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 		defer stream.Close()
 
 		var fullContent strings.Builder
-		var toolCalls []openai.ToolCall
+		var toolCalls []tools.ToolCall
 
 		for {
 			response, err := stream.Recv()
@@ -94,7 +96,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			// Handle tool calls
 			if choice.Delta.ToolCalls != nil && len(choice.Delta.ToolCalls) > 0 {
 				for len(toolCalls) < len(choice.Delta.ToolCalls) {
-					toolCalls = append(toolCalls, openai.ToolCall{})
+					toolCalls = append(toolCalls, tools.ToolCall{})
 				}
 
 				// Update tool calls with the delta
@@ -106,7 +108,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 					idx := *deltaToolCall.Index
 					if idx >= len(toolCalls) {
 						// Expand the slice if needed
-						newToolCalls := make([]openai.ToolCall, idx+1)
+						newToolCalls := make([]tools.ToolCall, idx+1)
 						copy(newToolCalls, toolCalls)
 						toolCalls = newToolCalls
 					}
@@ -117,7 +119,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 					}
 					if deltaToolCall.Type != "" {
 						// Convert the ToolType to string
-						toolCalls[idx].Type = openai.ToolType(deltaToolCall.Type)
+						toolCalls[idx].Type = tools.ToolType(deltaToolCall.Type)
 					}
 					if deltaToolCall.Function.Name != "" {
 						toolCalls[idx].Function.Name = deltaToolCall.Function.Name
@@ -142,7 +144,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 		}
 
 		// Add assistant message to conversation history
-		assistantMessage := openai.ChatCompletionMessage{
+		assistantMessage := chat.ChatCompletionMessage{
 			Role:      "assistant",
 			Content:   fullContent.String(),
 			ToolCalls: toolCalls,
@@ -175,7 +177,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				}
 
 				if toolCall.Function.Name != "transfer_to_agent" {
-					toolResponseMsg := openai.ChatCompletionMessage{
+					toolResponseMsg := chat.ChatCompletionMessage{
 						Role:       "tool",
 						Content:    result,
 						ToolCallID: toolCall.ID,
@@ -206,7 +208,7 @@ func (r *Runtime) Run(ctx context.Context, sess *session.Session) ([]session.Age
 }
 
 // handleAgentTransfer handles the transfer_to_agent tool call
-func (r *Runtime) handleAgentTransfer(ctx context.Context, a *agent.Agent, sess *session.Session, toolCall openai.ToolCall, evts chan Event) (string, error) {
+func (r *Runtime) handleAgentTransfer(ctx context.Context, a *agent.Agent, sess *session.Session, toolCall tools.ToolCall, evts chan Event) (string, error) {
 	var params struct {
 		Agent string `json:"agent"`
 	}
@@ -221,7 +223,7 @@ func (r *Runtime) handleAgentTransfer(ctx context.Context, a *agent.Agent, sess 
 		return "", fmt.Errorf("agent %s is not a valid sub-agent", params.Agent)
 	}
 
-	toolResponseMsg := openai.ChatCompletionMessage{
+	toolResponseMsg := chat.ChatCompletionMessage{
 		Role:       "tool",
 		Content:    "{}",
 		ToolCallID: toolCall.ID,

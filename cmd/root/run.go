@@ -9,10 +9,10 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/rumpl/cagent/pkg/chat"
 	"github.com/rumpl/cagent/pkg/config"
 	"github.com/rumpl/cagent/pkg/runtime"
 	"github.com/rumpl/cagent/pkg/session"
-	"github.com/sashabaranov/go-openai"
 	"github.com/spf13/cobra"
 )
 
@@ -56,7 +56,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		sess.Messages = append(sess.Messages, session.AgentMessage{
 			Agent: agents[agentName],
-			Message: openai.ChatCompletionMessage{
+			Message: chat.ChatCompletionMessage{
 				Role:    "user",
 				Content: args[0],
 			},
@@ -91,7 +91,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 
 		sess.Messages = append(sess.Messages, session.AgentMessage{
 			Agent: rt.CurrentAgent(),
-			Message: openai.ChatCompletionMessage{
+			Message: chat.ChatCompletionMessage{
 				Role:    "user",
 				Content: userInput,
 			},
@@ -108,6 +108,10 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 				fmt.Printf("%s", event.(*runtime.AgentChoiceEvent).Choice.Delta.Content)
 			case *runtime.ToolCallEvent:
 				fmt.Printf("%s\n", event.(*runtime.ToolCallEvent).ToolCall.Function.Name)
+			case *runtime.AgentMessageEvent:
+				fmt.Printf("%s\n", event.(*runtime.AgentMessageEvent).Message.Content)
+			case *runtime.ErrorEvent:
+				fmt.Printf("%s\n", event.(*runtime.ErrorEvent).Error)
 			}
 		}
 		fmt.Println()

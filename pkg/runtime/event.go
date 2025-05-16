@@ -1,19 +1,20 @@
 package runtime
 
 import (
+	"github.com/rumpl/cagent/pkg/tools"
 	"github.com/sashabaranov/go-openai"
 )
 
 type Event interface{ isEvent() }
 
 type ToolCallEvent struct {
-	ToolCall openai.ToolCall
+	ToolCall tools.ToolCall
 }
 
 func (e *ToolCallEvent) isEvent() {}
 
 type ToolCallResponseEvent struct {
-	ToolCall openai.ToolCall
+	ToolCall tools.ToolCall
 	Response string
 }
 

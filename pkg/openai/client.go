@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 
+	"github.com/rumpl/cagent/pkg/chat"
 	"github.com/rumpl/cagent/pkg/config"
 	"github.com/rumpl/cagent/pkg/tools"
 	"github.com/sashabaranov/go-openai"
@@ -68,30 +69,71 @@ func NewClientFromConfig(cfg *config.Config, modelName string) (*Client, error) 
 	return NewClient(modelCfg)
 }
 
+// convertMessages converts chat.ChatCompletionMessage to openai.ChatCompletionMessage
+func convertMessages(messages []chat.ChatCompletionMessage) []openai.ChatCompletionMessage {
+	openaiMessages := make([]openai.ChatCompletionMessage, len(messages))
+	for i, msg := range messages {
+		openaiMessage := openai.ChatCompletionMessage{
+			Role:    msg.Role,
+			Content: msg.Content,
+			Name:    msg.Name,
+		}
+
+		if msg.FunctionCall != nil {
+			openaiMessage.FunctionCall = &openai.FunctionCall{
+				Name:      msg.FunctionCall.Name,
+				Arguments: msg.FunctionCall.Arguments,
+			}
+		}
+
+		if len(msg.ToolCalls) > 0 {
+			openaiMessage.ToolCalls = make([]openai.ToolCall, len(msg.ToolCalls))
+			for j, toolCall := range msg.ToolCalls {
+				openaiMessage.ToolCalls[j] = openai.ToolCall{
+					ID:   toolCall.ID,
+					Type: openai.ToolType(toolCall.Type),
+					Function: openai.FunctionCall{
+						Name:      toolCall.Function.Name,
+						Arguments: toolCall.Function.Arguments,
+					},
+				}
+			}
+		}
+
+		if msg.ToolCallID != "" {
+			openaiMessage.ToolCallID = msg.ToolCallID
+		}
+
+		openaiMessages[i] = openaiMessage
+	}
+	return openaiMessages
+}
+
 // CreateChatCompletionStream creates a streaming chat completion request
 // It returns a stream that can be iterated over to get completion chunks
 func (c *Client) CreateChatCompletionStream(
 	ctx context.Context,
-	messages []openai.ChatCompletionMessage,
+	messages []chat.ChatCompletionMessage,
 	tools []tools.Tool,
 ) (*openai.ChatCompletionStream, error) {
 	if len(messages) == 0 {
 		return nil, errors.New("at least one message is required")
 	}
 
-	// Create request with config parameters
 	request := openai.ChatCompletionRequest{
 		Model:            c.config.Model,
-		Messages:         messages,
+		Messages:         convertMessages(messages),
 		Temperature:      float32(c.config.Temperature),
-		MaxTokens:        c.config.MaxTokens,
 		TopP:             float32(c.config.TopP),
 		FrequencyPenalty: float32(c.config.FrequencyPenalty),
 		PresencePenalty:  float32(c.config.PresencePenalty),
 		Stream:           true,
 	}
 
-	// Add tools if provided
+	if c.config.MaxTokens > 0 {
+		request.MaxTokens = c.config.MaxTokens
+	}
+
 	if len(tools) > 0 {
 		request.Tools = make([]openai.Tool, len(tools))
 		for i, tool := range tools {
@@ -114,6 +156,5 @@ func (c *Client) CreateChatCompletionStream(
 	// 	fmt.Printf("Error marshaling request to JSON: %v\n", err)
 	// }
 
-	// Create the stream
 	return c.client.CreateChatCompletionStream(ctx, request)
 }
