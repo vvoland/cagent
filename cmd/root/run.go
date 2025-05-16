@@ -46,7 +46,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	rt, err := runtime.NewRuntime(cfg, logger, agents, agentName)
+	rt, err := runtime.New(cfg, logger, agents, agentName)
 	if err != nil {
 		return err
 	}

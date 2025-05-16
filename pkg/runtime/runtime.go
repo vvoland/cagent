@@ -28,8 +28,8 @@ type Runtime struct {
 	currentAgent string
 }
 
-// NewRuntime creates a new runtime for an agent
-func NewRuntime(cfg *config.Config, logger *slog.Logger, agents map[string]*agent.Agent, agentName string) (*Runtime, error) {
+// New creates a new runtime for an agent
+func New(cfg *config.Config, logger *slog.Logger, agents map[string]*agent.Agent, agentName string) (*Runtime, error) {
 	runtime := &Runtime{
 		toolMap:      make(map[string]ToolHandler),
 		agents:       agents,

@@ -35,6 +35,18 @@ agents:
       * Avoid using deprecated features or practices.
 
       You are an agent. Your internal name is "gordon".
+    tools:
+      - type: mcp
+        command: docker
+        args:
+          [
+            "run",
+            "-i",
+            "--rm",
+            "alpine/socat",
+            "STDIO",
+            "TCP:host.docker.internal:8811",
+          ]
     sub_agents:
       - containerize
       - optimize_dockerfile
@@ -52,8 +64,6 @@ agents:
     model: openai
     description: |
       You are a helpful assistant for containerizing applications.
-    tools:
-      - filesystem
     instruction: |
       You are an expert in Docker.
 
@@ -101,10 +111,6 @@ agents:
     model: openai
     description: |
       You are a helpful assistant for optimizing Dockerfiles.
-    tools:
-      - read_file
-      - write_file
-      - build_dockerfile
     instruction: |
       You are an expert in Docker optimization techniques.
 

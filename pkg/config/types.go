@@ -1,11 +1,18 @@
 package config
 
+// Tool represents a tool configuration
+type Tool struct {
+	Type    string   `yaml:"type,omitempty"`
+	Command string   `yaml:"command,omitempty"`
+	Args    []string `yaml:"args,omitempty"`
+}
+
 // AgentConfig represents a single agent configuration
 type AgentConfig struct {
 	Name        string   `yaml:"name"`
 	Model       string   `yaml:"model"`
 	Description string   `yaml:"description"`
-	Tools       []string `yaml:"tools"`
+	Tools       []Tool   `yaml:"tools"`
 	Instruction string   `yaml:"instruction"`
 	SubAgents   []string `yaml:"sub_agents,omitempty"`
 }

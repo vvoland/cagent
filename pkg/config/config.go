@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/rumpl/cagent/pkg/agent"
-	"github.com/rumpl/cagent/pkg/agent/tools"
+	"github.com/rumpl/cagent/pkg/tools"
 	"github.com/sashabaranov/go-openai"
 	"gopkg.in/yaml.v3"
 )
@@ -50,7 +50,6 @@ func Agents(path string) (map[string]*agent.Agent, error) {
 
 		opts = append(opts, agent.WithTools(tools))
 
-		// Create the agent
 		a, err := agent.New(name, agentConfig.Instruction, opts...)
 		if err != nil {
 			continue
@@ -59,7 +58,6 @@ func Agents(path string) (map[string]*agent.Agent, error) {
 		agents[name] = a
 	}
 
-	// Process sub-agents after all agents are created
 	for name, agentConfig := range cfg.Agents {
 		if len(agentConfig.SubAgents) > 0 {
 			subAgents := make([]*agent.Agent, 0, len(agentConfig.SubAgents))
