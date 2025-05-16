@@ -164,6 +164,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 
 			// Handle tool calls if present
 			if len(toolCalls) > 0 {
+				agentTools := a.Tools()
 			outer:
 				for _, toolCall := range toolCalls {
 					handler, exists := r.toolMap[toolCall.Function.Name]
@@ -180,7 +181,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 
 						continue
 					}
-					agentTools := a.Tools()
+
 					for _, tool := range agentTools {
 						if tool.Function.Name == toolCall.Function.Name {
 							exists = true
@@ -195,7 +196,6 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 								break outer
 							}
 
-							// fmt.Println("res", res.Output)
 							toolResponseMsg := chat.ChatCompletionMessage{
 								Role:       "tool",
 								Content:    res.Output,
@@ -205,7 +205,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 								Agent:   a,
 								Message: toolResponseMsg,
 							})
-							break outer
+							break
 						}
 					}
 				}

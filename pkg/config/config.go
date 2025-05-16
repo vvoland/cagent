@@ -81,6 +81,8 @@ func Agents(path string) (map[string]*agent.Agent, error) {
 func getToolsForAgent(cfg *Config, agentName string) ([]tools.Tool, error) {
 	var t []tools.Tool
 
+	t = append(t, tools.AgentTransfer())
+
 	toolDefs := cfg.Agents[agentName].Tools
 	for _, toolDef := range toolDefs {
 		mcpc, _ := mcp.New(context.Background(), toolDef.Command, toolDef.Args)

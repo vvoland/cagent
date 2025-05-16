@@ -1,8 +1,6 @@
 package session
 
 import (
-	"fmt"
-
 	"github.com/google/uuid"
 	"github.com/rumpl/cagent/pkg/agent"
 	"github.com/rumpl/cagent/pkg/chat"
@@ -76,7 +74,7 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.ChatCompletionMessage {
 				}
 				s.AgentSession[subAgent.Name()] = subAgentSession
 			}
-			subAgentsStr += subAgent.Name() + ": " + subAgentSession.Agent.Description() + "\n"
+			subAgentsStr += subAgent.Name() + ": " + subAgent.Description() + "\n"
 		}
 
 		messages = append(messages, chat.ChatCompletionMessage{
@@ -99,33 +97,33 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.ChatCompletionMessage {
 		if msg.Message.Role == "assistant" && msg.Agent != a {
 			messages = append(messages, msg.Message)
 
-			if len(msg.Message.ToolCalls) == 0 {
-				content := fmt.Sprintf("[%s] said: %s", msg.Agent.Name(), msg.Message.Content)
+			// if len(msg.Message.ToolCalls) == 0 {
+			// 	content := fmt.Sprintf("[%s] said: %s", msg.Agent.Name(), msg.Message.Content)
 
-				messages = append(messages, chat.ChatCompletionMessage{
-					Role: "user",
-					MultiContent: []chat.ChatMessagePart{
-						{
-							Type: chat.ChatMessagePartTypeText,
-							Text: "For context:",
-						},
-						{
-							Type: chat.ChatMessagePartTypeText,
-							Text: content,
-						},
-					},
-				})
-			}
+			// 	messages = append(messages, chat.ChatCompletionMessage{
+			// 		Role: "user",
+			// 		MultiContent: []chat.ChatMessagePart{
+			// 			{
+			// 				Type: chat.ChatMessagePartTypeText,
+			// 				Text: "For context:",
+			// 			},
+			// 			{
+			// 				Type: chat.ChatMessagePartTypeText,
+			// 				Text: content,
+			// 			},
+			// 		},
+			// 	})
+			// }
 			continue
 		}
 
 		if msg.Message.Role == "tool" {
 			messages = append(messages, msg.Message)
-			content := fmt.Sprintf("For context: [%s] Tool %s returned: %s", msg.Agent.Name(), msg.Message.ToolCallID, msg.Message.Content)
-			messages = append(messages, chat.ChatCompletionMessage{
-				Role:    "user",
-				Content: content,
-			})
+			// content := fmt.Sprintf("For context: [%s] Tool %s returned: %s", msg.Agent.Name(), msg.Message.ToolCallID, msg.Message.Content)
+			// messages = append(messages, chat.ChatCompletionMessage{
+			// 	Role:    "user",
+			// 	Content: content,
+			// })
 			continue
 		}
 
