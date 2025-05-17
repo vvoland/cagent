@@ -12,7 +12,7 @@ import (
 	"github.com/rumpl/cagent/pkg/agent"
 	"github.com/rumpl/cagent/pkg/chat"
 	"github.com/rumpl/cagent/pkg/config"
-	cagentopenai "github.com/rumpl/cagent/pkg/openai"
+	cagentopenai "github.com/rumpl/cagent/pkg/model/provider/openai"
 	"github.com/rumpl/cagent/pkg/session"
 	"github.com/rumpl/cagent/pkg/tools"
 	"github.com/sashabaranov/go-openai"
