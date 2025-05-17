@@ -1,6 +1,8 @@
 package session
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/rumpl/cagent/pkg/agent"
 	"github.com/rumpl/cagent/pkg/chat"
@@ -81,14 +83,19 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.ChatCompletionMessage {
 
 		messages = append(messages, chat.ChatCompletionMessage{
 			Role:    "system",
-			Content: "You are a multi-agent system, make sure to answer the user query in the most helpful way possible. You have access to these sub-agents: " + subAgentsStr + "\n\nIf you are the best to answer the question according to your description, you\ncan answer it.\n\nIf another agent is better for answering the question according to its\ndescription, call `transfer_to_agent` function to transfer the\nquestion to that agent. When transferring, do not generate any text other than\nthe function call.\n",
+			Content: "You are a multi-agent system, make sure to answer the user query in the most helpful way possible. You have access to these sub-agents: " + subAgentsStr + "\n\nIf you are the best to answer the question according to your description, you\ncan answer it.\n\nIf another agent is better for answering the question according to its\ndescription, call `transfer_to_agent` function to transfer the\nquestion to that agent. When transferring, do not generate any text other than\nthe function call.\n\n",
 		})
+	}
+
+	date := ""
+	if s.cfg.Agents[a.Name()].AddDate {
+		date = "Date today is: " + time.Now().Format("2006-01-02") + "\n"
 	}
 
 	// Add the agent's system prompt as the first message
 	messages = append(messages, chat.ChatCompletionMessage{
 		Role:    "system",
-		Content: agentSession.Agent.Instruction(),
+		Content: agentSession.Agent.Instruction() + "\n\n" + date,
 	})
 
 	for _, msg := range s.Messages {

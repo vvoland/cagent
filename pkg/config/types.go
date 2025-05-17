@@ -15,6 +15,7 @@ type AgentConfig struct {
 	Tools       []Tool   `yaml:"tools"`
 	Instruction string   `yaml:"instruction"`
 	SubAgents   []string `yaml:"sub_agents,omitempty"`
+	AddDate     bool     `yaml:"add_date,omitempty"`
 }
 
 // ModelConfig represents the configuration for a model

@@ -3,6 +3,7 @@ agents:
     name: airbnb
     model: openai
     description: An agent that looks at airbnb things
+    add_date: true
     instruction: |
       ## General Instructions
       - Always provide links to the listings in your response.
