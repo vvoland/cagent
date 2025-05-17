@@ -12,10 +12,9 @@ import (
 	"github.com/rumpl/cagent/pkg/agent"
 	"github.com/rumpl/cagent/pkg/chat"
 	"github.com/rumpl/cagent/pkg/config"
-	cagentopenai "github.com/rumpl/cagent/pkg/model/provider/openai"
+	"github.com/rumpl/cagent/pkg/model/provider"
 	"github.com/rumpl/cagent/pkg/session"
 	"github.com/rumpl/cagent/pkg/tools"
-	"github.com/sashabaranov/go-openai"
 )
 
 // ToolHandler is a function type for handling tool calls
@@ -23,21 +22,23 @@ type ToolHandler func(ctx context.Context, a *agent.Agent, sess *session.Session
 
 // Runtime manages the execution of agents
 type Runtime struct {
-	logger       *slog.Logger
-	toolMap      map[string]ToolHandler
-	agents       map[string]*agent.Agent
-	cfg          *config.Config
-	currentAgent string
+	logger          *slog.Logger
+	toolMap         map[string]ToolHandler
+	agents          map[string]*agent.Agent
+	cfg             *config.Config
+	currentAgent    string
+	providerFactory provider.Factory
 }
 
 // New creates a new runtime for an agent
 func New(cfg *config.Config, logger *slog.Logger, agents map[string]*agent.Agent, agentName string) (*Runtime, error) {
 	runtime := &Runtime{
-		toolMap:      make(map[string]ToolHandler),
-		agents:       agents,
-		cfg:          cfg,
-		logger:       logger,
-		currentAgent: agentName,
+		toolMap:         make(map[string]ToolHandler),
+		agents:          agents,
+		cfg:             cfg,
+		logger:          logger,
+		currentAgent:    agentName,
+		providerFactory: provider.NewFactory(),
 	}
 
 	return runtime, nil
@@ -61,10 +62,10 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 
 		a := r.agents[r.currentAgent]
 
-		// TODO: Do not use openai's client directly, use a factory of some kind
-		client, err := cagentopenai.NewClientFromConfig(r.cfg, a.Model())
+		// Create a provider for the agent's model
+		modelProvider, err := r.providerFactory.NewProviderFromConfig(r.cfg, a.Model())
 		if err != nil {
-			events <- &ErrorEvent{Error: fmt.Errorf("creating client: %w", err)}
+			events <- &ErrorEvent{Error: fmt.Errorf("creating model provider: %w", err)}
 			return
 		}
 
@@ -73,7 +74,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 		for {
 			messages := sess.GetMessages(a)
 
-			stream, err := client.CreateChatCompletionStream(ctx, messages, a.Tools())
+			stream, err := modelProvider.CreateChatCompletionStream(ctx, messages, a.Tools())
 			if err != nil {
 				events <- &ErrorEvent{Error: fmt.Errorf("creating chat completion: %w", err)}
 				return
@@ -93,8 +94,9 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 					return
 				}
 
+				// Use our generic response type directly
 				choice := response.Choices[0]
-				if choice.FinishReason == openai.FinishReasonStop {
+				if choice.FinishReason == chat.FinishReasonStop {
 					return
 				}
 
@@ -123,8 +125,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 							toolCalls[idx].ID = deltaToolCall.ID
 						}
 						if deltaToolCall.Type != "" {
-							// Convert the ToolType to string
-							toolCalls[idx].Type = tools.ToolType(deltaToolCall.Type)
+							toolCalls[idx].Type = deltaToolCall.Type
 						}
 						if deltaToolCall.Function.Name != "" {
 							toolCalls[idx].Function.Name = deltaToolCall.Function.Name

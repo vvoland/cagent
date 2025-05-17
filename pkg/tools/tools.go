@@ -1,5 +1,7 @@
 package tools
 
+import "github.com/mark3labs/mcp-go/mcp"
+
 // AgentTransfer creates a tool definition for transferring control to another agent
 func AgentTransfer() Tool {
 	return Tool{
@@ -7,14 +9,15 @@ func AgentTransfer() Tool {
 		Function: &FunctionDefinition{
 			Name:        "transfer_to_agent",
 			Description: "Transfer the question to another agent",
-			Parameters: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
+			Parameters: mcp.ToolInputSchema{
+				Type: "object",
+				Properties: map[string]any{
 					"agent": map[string]any{
-						"type": "string",
+						"type":        "string",
+						"description": "The name of the agent to transfer the question to",
 					},
 				},
-				"required": []string{"agent"},
+				Required: []string{"agent"},
 			},
 		},
 	}

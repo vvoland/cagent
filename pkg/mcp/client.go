@@ -85,7 +85,7 @@ func (c *Client) ListTools(ctx context.Context) ([]tools.Tool, error) {
 
 // CallTool calls a tool on the MCP server
 func (c *Client) CallTool(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args map[string]interface{}
+	var args map[string]any
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
 		return nil, fmt.Errorf("failed to parse tool arguments: %w", err)
 	}

@@ -1,8 +1,8 @@
 package runtime
 
 import (
+	"github.com/rumpl/cagent/pkg/chat"
 	"github.com/rumpl/cagent/pkg/tools"
-	"github.com/sashabaranov/go-openai"
 )
 
 type Event interface{ isEvent() }
@@ -21,13 +21,13 @@ type ToolCallResponseEvent struct {
 func (e *ToolCallResponseEvent) isEvent() {}
 
 type AgentMessageEvent struct {
-	Message openai.ChatCompletionMessage
+	Message chat.ChatCompletionMessage
 }
 
 func (e *AgentMessageEvent) isEvent() {}
 
 type AgentChoiceEvent struct {
-	Choice openai.ChatCompletionStreamChoice
+	Choice chat.ChatCompletionStreamChoice
 }
 
 func (e *AgentChoiceEvent) isEvent() {}

@@ -54,3 +54,53 @@ type ChatMessagePart struct {
 	Text     string               `json:"text,omitempty"`
 	ImageURL *ChatMessageImageURL `json:"image_url,omitempty"`
 }
+
+// FinishReason represents the reason why the model finished generating a response
+type FinishReason string
+
+const (
+	// FinishReasonStop means the model reached a natural stopping point or the max tokens
+	FinishReasonStop FinishReason = "stop"
+	// FinishReasonLength means the model reached the token limit
+	FinishReasonLength FinishReason = "length"
+	// FinishReasonToolCalls means the model called a tool
+	FinishReasonToolCalls FinishReason = "tool_calls"
+	// FinishReasonFunctionCall is used when the model calls a function (legacy)
+	FinishReasonFunctionCall FinishReason = "function_call"
+	// FinishReasonContentFilter means the content was filtered
+	FinishReasonContentFilter FinishReason = "content_filter"
+	// FinishReasonNull means no finish reason was provided
+	FinishReasonNull FinishReason = "null"
+)
+
+// ChatCompletionDelta represents a delta/chunk in a streaming response
+type ChatCompletionDelta struct {
+	Role         string              `json:"role,omitempty"`
+	Content      string              `json:"content,omitempty"`
+	FunctionCall *tools.FunctionCall `json:"function_call,omitempty"`
+	ToolCalls    []tools.ToolCall    `json:"tool_calls,omitempty"`
+}
+
+// ChatCompletionStreamChoice represents a choice in a streaming response
+type ChatCompletionStreamChoice struct {
+	Index        int                 `json:"index"`
+	Delta        ChatCompletionDelta `json:"delta"`
+	FinishReason FinishReason        `json:"finish_reason,omitempty"`
+}
+
+// ChatCompletionStreamResponse represents a streaming response from the model
+type ChatCompletionStreamResponse struct {
+	ID      string                       `json:"id"`
+	Object  string                       `json:"object"`
+	Created int64                        `json:"created"`
+	Model   string                       `json:"model"`
+	Choices []ChatCompletionStreamChoice `json:"choices"`
+}
+
+// ChatCompletionStream interface represents a stream of chat completions
+type ChatCompletionStream interface {
+	// Recv gets the next completion chunk
+	Recv() (ChatCompletionStreamResponse, error)
+	// Close closes the stream
+	Close()
+}

@@ -24,12 +24,13 @@ agents:
       - summarizer
 
   summarizer:
-    model: openai
+    model: claude
     description: Expert at writing clear, engaging content
     instruction: |
       You are an agent that writes engaging content from the provided context
 
       Once you are done, transfer the conversation back to the "researcher" agent
+
 models:
   openai:
     type: openai
@@ -39,3 +40,7 @@ models:
     top_p: 1.0
     frequency_penalty: 0.0
     presence_penalty: 0.0
+
+  claude:
+    type: anthropic
+    model: claude-3-7-sonnet-latest

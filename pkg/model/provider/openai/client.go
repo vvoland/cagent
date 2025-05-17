@@ -11,7 +11,77 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+// OpenAIStreamAdapter adapts the OpenAI stream to our interface
+type OpenAIStreamAdapter struct {
+	stream *openai.ChatCompletionStream
+}
+
+// Recv gets the next completion chunk
+func (a *OpenAIStreamAdapter) Recv() (chat.ChatCompletionStreamResponse, error) {
+	openaiResponse, err := a.stream.Recv()
+	if err != nil {
+		return chat.ChatCompletionStreamResponse{}, err
+	}
+
+	// Convert the OpenAI response to our generic format
+	response := chat.ChatCompletionStreamResponse{
+		ID:      openaiResponse.ID,
+		Object:  openaiResponse.Object,
+		Created: openaiResponse.Created,
+		Model:   openaiResponse.Model,
+		Choices: make([]chat.ChatCompletionStreamChoice, len(openaiResponse.Choices)),
+	}
+
+	// Convert the choices
+	for i, choice := range openaiResponse.Choices {
+		response.Choices[i] = chat.ChatCompletionStreamChoice{
+			Index:        choice.Index,
+			FinishReason: chat.FinishReason(choice.FinishReason),
+			Delta: chat.ChatCompletionDelta{
+				Role:    choice.Delta.Role,
+				Content: choice.Delta.Content,
+			},
+		}
+
+		// Convert function call if present
+		if choice.Delta.FunctionCall != nil {
+			response.Choices[i].Delta.FunctionCall = &tools.FunctionCall{
+				Name:      choice.Delta.FunctionCall.Name,
+				Arguments: choice.Delta.FunctionCall.Arguments,
+			}
+		}
+
+		// Convert tool calls if present
+		if choice.Delta.ToolCalls != nil && len(choice.Delta.ToolCalls) > 0 {
+			response.Choices[i].Delta.ToolCalls = make([]tools.ToolCall, len(choice.Delta.ToolCalls))
+			for j, toolCall := range choice.Delta.ToolCalls {
+				response.Choices[i].Delta.ToolCalls[j] = tools.ToolCall{
+					ID:   toolCall.ID,
+					Type: tools.ToolType(toolCall.Type),
+					Function: tools.FunctionCall{
+						Name:      toolCall.Function.Name,
+						Arguments: toolCall.Function.Arguments,
+					},
+				}
+				// Handle Index field if present
+				if toolCall.Index != nil {
+					index := *toolCall.Index
+					response.Choices[i].Delta.ToolCalls[j].Index = &index
+				}
+			}
+		}
+	}
+
+	return response, nil
+}
+
+// Close closes the stream
+func (a *OpenAIStreamAdapter) Close() {
+	a.stream.Close()
+}
+
 // Client represents an OpenAI client wrapper
+// It implements the provider.Provider interface
 type Client struct {
 	client *openai.Client
 	config *config.ModelConfig
@@ -53,20 +123,6 @@ func (c *Client) GetClient() *openai.Client {
 // GetConfig returns the model configuration
 func (c *Client) GetConfig() *config.ModelConfig {
 	return c.config
-}
-
-// NewClientFromConfig creates a new OpenAI client from the configuration by model name
-func NewClientFromConfig(cfg *config.Config, modelName string) (*Client, error) {
-	if cfg == nil {
-		return nil, errors.New("configuration is required")
-	}
-
-	modelCfg, err := cfg.GetModelConfig(modelName)
-	if err != nil {
-		return nil, err
-	}
-
-	return NewClient(modelCfg)
 }
 
 func convertMultiContent(multiContent []chat.ChatMessagePart) []openai.ChatMessagePart {
@@ -131,7 +187,7 @@ func (c *Client) CreateChatCompletionStream(
 	ctx context.Context,
 	messages []chat.ChatCompletionMessage,
 	tools []tools.Tool,
-) (*openai.ChatCompletionStream, error) {
+) (chat.ChatCompletionStream, error) {
 	if len(messages) == 0 {
 		return nil, errors.New("at least one message is required")
 	}
@@ -172,5 +228,10 @@ func (c *Client) CreateChatCompletionStream(
 	// 	fmt.Printf("Error marshaling request to JSON: %v\n", err)
 	// }
 
-	return c.client.CreateChatCompletionStream(ctx, request)
+	stream, err := c.client.CreateChatCompletionStream(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	return &OpenAIStreamAdapter{stream: stream}, nil
 }
