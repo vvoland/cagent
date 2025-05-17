@@ -51,27 +51,54 @@ interface Event {
 }
 
 // Component for rendering tool calls
-const ToolCallEvent = ({ name, args }: { name: string; args: string }) => (
-  <div className="tool-call">
-    <div className="tool-header">🛠️ Tool Call: {name}</div>
-    <pre className="tool-args">
-      <code>{args}</code>
-    </pre>
-  </div>
-);
+const ToolCallEvent = ({ name, args }: { name: string; args: string }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div className="tool-call">
+      <div
+        className="tool-header"
+        onClick={() => setIsExpanded(!isExpanded)}
+        style={{ cursor: "pointer" }}
+      >
+        🛠️ Tool Call: {name} {isExpanded ? "▼" : "▶"}
+      </div>
+      <div
+        className={`tool-args-wrapper ${isExpanded ? "expanded" : "collapsed"}`}
+      >
+        <pre className="tool-args">
+          <code>{args}</code>
+        </pre>
+      </div>
+    </div>
+  );
+};
 
 // Component for rendering tool results
-const ToolResultEvent = ({ id, content }: { id: string; content: string }) => (
-  <div className="tool-result">
-    <div className="tool-header">✅ Tool Result: {id}</div>
-    <div
-      className="tool-content"
-      style={{ maxHeight: "100px", overflowY: "auto" }}
-    >
-      <pre>{content}</pre>
+const ToolResultEvent = ({ id, content }: { id: string; content: string }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div className="tool-result">
+      <div
+        className="tool-header"
+        onClick={() => setIsExpanded(!isExpanded)}
+        style={{ cursor: "pointer" }}
+      >
+        ✅ Tool Result: {id} {isExpanded ? "▼" : "▶"}
+      </div>
+      <div
+        className={`tool-content-wrapper ${
+          isExpanded ? "expanded" : "collapsed"
+        }`}
+      >
+        <div className="tool-content" style={{ overflowY: "auto" }}>
+          <pre>{content}</pre>
+        </div>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // Component for rendering messages
 const MessageEvent = ({ role, content }: { role: string; content: string }) => (
@@ -240,7 +267,7 @@ function App() {
                       type: "tool_result" as const,
                       content: eventData.response || "",
                       metadata: {
-                        toolId: lastToolCall?.metadata?.toolId,
+                        toolId: lastToolCall?.metadata?.toolName,
                       },
                     },
                   ];
@@ -305,20 +332,6 @@ function App() {
 
   return (
     <div className="container">
-      <form onSubmit={handleSubmit} className="form">
-        <input
-          type="text"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Enter your prompt..."
-          disabled={isLoading}
-          className="input"
-        />
-        <button type="submit" disabled={isLoading} className="button">
-          {isLoading ? "Processing..." : "Submit"}
-        </button>
-      </form>
-
       <div className="response">
         {groupedEvents.map((event, index) => {
           if (Array.isArray(event)) {
@@ -357,6 +370,20 @@ function App() {
           }
         })}
       </div>
+
+      <form onSubmit={handleSubmit} className="form">
+        <input
+          type="text"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="Enter your prompt..."
+          disabled={isLoading}
+          className="input"
+        />
+        <button type="submit" disabled={isLoading} className="button">
+          {isLoading ? "Processing..." : "Submit"}
+        </button>
+      </form>
     </div>
   );
 }

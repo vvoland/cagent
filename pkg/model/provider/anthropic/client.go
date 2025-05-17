@@ -174,7 +174,7 @@ func convertMessages(messages []chat.ChatCompletionMessage) []anthropic.MessageP
 			anthropicMessages[i] = anthropic.NewUserMessage(anthropic.NewToolResultBlock(msg.ToolCallID, msg.Content, false))
 			continue
 		}
-		pa		fmt.Println("unknown message role", msg.Role)
+		fmt.Println("unknown message role", msg.Role)
 	}
 	return anthropicMessages
 }
