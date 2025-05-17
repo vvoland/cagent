@@ -170,17 +170,20 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				for _, toolCall := range toolCalls {
 					handler, exists := r.toolMap[toolCall.Function.Name]
 					if exists {
-
 						events <- &ToolCallEvent{
 							ToolCall: toolCall,
 						}
 
-						_, err := handler(ctx, a, sess, toolCall, events)
+						res, err := handler(ctx, a, sess, toolCall, events)
+						events <- &ToolCallResponseEvent{
+							ToolCall: toolCall,
+							Response: res,
+						}
 						if err != nil {
 							r.logger.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
 						}
 
-						continue
+						return
 					}
 
 					for _, tool := range agentTools {
@@ -195,6 +198,11 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 							if err != nil {
 								r.logger.Error("Error calling tool", "tool", toolCall.Function.Name, "error", err)
 								break outer
+							}
+
+							events <- &ToolCallResponseEvent{
+								ToolCall: toolCall,
+								Response: res.Output,
 							}
 
 							toolResponseMsg := chat.ChatCompletionMessage{

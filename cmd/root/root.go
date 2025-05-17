@@ -28,6 +28,7 @@ func NewRootCmd() *cobra.Command {
 	// Add subcommands
 	cmd.AddCommand(NewVersionCmd())
 	cmd.AddCommand(NewRunCmd())
+	cmd.AddCommand(NewWebCmd())
 
 	return cmd
 }

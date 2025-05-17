@@ -24,7 +24,7 @@ agents:
       - summarizer
 
   summarizer:
-    model: claude
+    model: openai
     description: Expert at writing clear, engaging content
     instruction: |
       You are an agent that writes engaging content from the provided context

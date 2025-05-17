@@ -129,10 +129,6 @@ func (c *Client) CreateChatCompletionStream(
 	messages []chat.ChatCompletionMessage,
 	tools []tools.Tool,
 ) (chat.ChatCompletionStream, error) {
-	ms := convertMessages(messages)
-	b, _ := json.MarshalIndent(ms, "", "  ")
-	fmt.Println(string(b))
-
 	stream := c.client.Messages.NewStreaming(ctx, anthropic.MessageNewParams{
 		Model:     anthropic.ModelClaude3_7Sonnet20250219,
 		MaxTokens: 1024,
@@ -178,7 +174,7 @@ func convertMessages(messages []chat.ChatCompletionMessage) []anthropic.MessageP
 			anthropicMessages[i] = anthropic.NewUserMessage(anthropic.NewToolResultBlock(msg.ToolCallID, msg.Content, false))
 			continue
 		}
-		fmt.Println("unknown message role", msg.Role)
+		pa		fmt.Println("unknown message role", msg.Role)
 	}
 	return anthropicMessages
 }

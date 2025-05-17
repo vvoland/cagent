@@ -8,32 +8,32 @@ import (
 type Event interface{ isEvent() }
 
 type ToolCallEvent struct {
-	ToolCall tools.ToolCall
+	ToolCall tools.ToolCall `json:"tool_call"`
 }
 
 func (e *ToolCallEvent) isEvent() {}
 
 type ToolCallResponseEvent struct {
-	ToolCall tools.ToolCall
-	Response string
+	ToolCall tools.ToolCall `json:"tool_call"`
+	Response string         `json:"response"`
 }
 
 func (e *ToolCallResponseEvent) isEvent() {}
 
 type AgentMessageEvent struct {
-	Message chat.ChatCompletionMessage
+	Message chat.ChatCompletionMessage `json:"message"`
 }
 
 func (e *AgentMessageEvent) isEvent() {}
 
 type AgentChoiceEvent struct {
-	Choice chat.ChatCompletionStreamChoice
+	Choice chat.ChatCompletionStreamChoice `json:"choice"`
 }
 
 func (e *AgentChoiceEvent) isEvent() {}
 
 type ErrorEvent struct {
-	Error error
+	Error error `json:"error"`
 }
 
 func (e *ErrorEvent) isEvent() {}
