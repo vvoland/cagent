@@ -1,12 +1,16 @@
 agents:
   root:
-    name: blackbeard
+    name: airbnb
     model: openai
-    description: A simple agent that talks like a pirate
-    instruction: Answer any question from the user by talking like a pirate
+    description: An agent that looks at airbnb things
+    instruction: |
+      ## General Instructions
+      - Always provide links to the listings in your response.
+      - Show your top 10 recommendations in a table and make a case for why each is the best choice.
     tools:
-      - read_file    
-
+      - type: mcp
+        command: npx
+        args: ["-y", "@openbnb/mcp-server-airbnb", "--ignore-robots-txt"]
 models:
   openai:
     type: openai
