@@ -1,6 +1,7 @@
 package session
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -60,8 +61,8 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.ChatCompletionMessage {
 		s.AgentSession[a.Name()] = agentSession
 	}
 
-	// Create a new slice to hold the processed messages
 	messages := make([]chat.ChatCompletionMessage, 0)
+	contextMessages := make([]chat.ChatCompletionMessage, 0)
 
 	if agentSession.Agent.HasSubAgents() || agentSession.Agent.HasParents() {
 		subAgents := agentSession.Agent.SubAgents()
@@ -92,7 +93,6 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.ChatCompletionMessage {
 		date = "Date today is: " + time.Now().Format("2006-01-02") + "\n"
 	}
 
-	// Add the agent's system prompt as the first message
 	messages = append(messages, chat.ChatCompletionMessage{
 		Role:    "system",
 		Content: agentSession.Agent.Instruction() + "\n\n" + date,
@@ -106,38 +106,40 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.ChatCompletionMessage {
 		if msg.Message.Role == "assistant" && msg.Agent != a {
 			messages = append(messages, msg.Message)
 
-			// if len(msg.Message.ToolCalls) == 0 {
-			// 	content := fmt.Sprintf("[%s] said: %s", msg.Agent.Name(), msg.Message.Content)
+			if len(msg.Message.ToolCalls) == 0 {
+				content := fmt.Sprintf("[%s] said: %s", msg.Agent.Name(), msg.Message.Content)
 
-			// 	messages = append(messages, chat.ChatCompletionMessage{
-			// 		Role: "user",
-			// 		MultiContent: []chat.ChatMessagePart{
-			// 			{
-			// 				Type: chat.ChatMessagePartTypeText,
-			// 				Text: "For context:",
-			// 			},
-			// 			{
-			// 				Type: chat.ChatMessagePartTypeText,
-			// 				Text: content,
-			// 			},
-			// 		},
-			// 	})
-			// }
+				contextMessages = append(contextMessages, chat.ChatCompletionMessage{
+					Role: "user",
+					MultiContent: []chat.ChatMessagePart{
+						{
+							Type: chat.ChatMessagePartTypeText,
+							Text: "For context:",
+						},
+						{
+							Type: chat.ChatMessagePartTypeText,
+							Text: content,
+						},
+					},
+				})
+			}
 			continue
 		}
 
 		if msg.Message.Role == "tool" {
 			messages = append(messages, msg.Message)
-			// content := fmt.Sprintf("For context: [%s] Tool %s returned: %s", msg.Agent.Name(), msg.Message.ToolCallID, msg.Message.Content)
-			// messages = append(messages, chat.ChatCompletionMessage{
-			// 	Role:    "user",
-			// 	Content: content,
-			// })
+			content := fmt.Sprintf("For context: [%s] Tool %s returned: %s", msg.Agent.Name(), msg.Message.ToolCallID, msg.Message.Content)
+			contextMessages = append(contextMessages, chat.ChatCompletionMessage{
+				Role:    "user",
+				Content: content,
+			})
 			continue
 		}
 
 		messages = append(messages, msg.Message)
 	}
+
+	messages = append(messages, contextMessages...)
 
 	return messages
 }

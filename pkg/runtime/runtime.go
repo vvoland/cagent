@@ -72,6 +72,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 		r.registerDefaultTools()
 
 		for {
+			fmt.Println("Running stream with agent", a.Name())
 			messages := sess.GetMessages(a)
 
 			stream, err := modelProvider.CreateChatCompletionStream(ctx, messages, a.Tools())
@@ -114,7 +115,6 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 
 						idx := *deltaToolCall.Index
 						if idx >= len(toolCalls) {
-							// Expand the slice if needed
 							newToolCalls := make([]tools.ToolCall, idx+1)
 							copy(newToolCalls, toolCalls)
 							toolCalls = newToolCalls

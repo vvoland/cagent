@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -17,20 +18,20 @@ import (
 
 // AnthropicStreamAdapter adapts the Anthropic stream to our interface
 type AnthropicStreamAdapter struct {
-	stream *ssestream.Stream[anthropic.MessageStreamEventUnion]
+	stream   *ssestream.Stream[anthropic.MessageStreamEventUnion]
+	toolCall bool
+	toolIdx  *int
 }
 
 // Recv gets the next completion chunk
 func (a *AnthropicStreamAdapter) Recv() (chat.ChatCompletionStreamResponse, error) {
 	if !a.stream.Next() {
-		if err := a.stream.Err(); err != nil {
-			// Convert Anthropic errors to appropriate chat completion errors
-			if apiErr, ok := err.(*anthropic.Error); ok {
-				return chat.ChatCompletionStreamResponse{}, fmt.Errorf("anthropic API error (status: %d): %s", apiErr.StatusCode, apiErr.Error())
-			}
-			return chat.ChatCompletionStreamResponse{}, err
+		// fmt.Println("stream ended")
+		if a.stream.Err() != nil {
+			// fmt.Println("stream error", a.stream.Err())
+			return chat.ChatCompletionStreamResponse{}, a.stream.Err()
 		}
-		return chat.ChatCompletionStreamResponse{}, nil
+		return chat.ChatCompletionStreamResponse{}, io.EOF
 	}
 
 	event := a.stream.Current()
@@ -38,8 +39,7 @@ func (a *AnthropicStreamAdapter) Recv() (chat.ChatCompletionStreamResponse, erro
 	response := chat.ChatCompletionStreamResponse{
 		ID:     event.Message.ID,
 		Object: "chat.completion.chunk",
-		// Created: event.Message.CreatedAt.Unix(),
-		Model: string(event.Message.Model),
+		Model:  string(event.Message.Model),
 		Choices: []chat.ChatCompletionStreamChoice{
 			{
 				Index: 0,
@@ -52,31 +52,55 @@ func (a *AnthropicStreamAdapter) Recv() (chat.ChatCompletionStreamResponse, erro
 
 	// Handle different event types
 	switch eventVariant := event.AsAny().(type) {
+	case anthropic.ContentBlockStartEvent:
+		switch contentVariant := eventVariant.ContentBlock.AsAny().(type) {
+		case anthropic.ToolUseBlock:
+			a.toolCall = true
+			if a.toolIdx == nil {
+				toolIdx := 0
+				a.toolIdx = &toolIdx
+			} else {
+				*a.toolIdx++
+			}
+			// a.toolIdx++
+			toolCall := tools.ToolCall{
+				ID:    contentVariant.ID,
+				Type:  "function",
+				Index: a.toolIdx,
+				Function: tools.FunctionCall{
+					Name: contentVariant.Name,
+				},
+			}
+			response.Choices[0].Delta.ToolCalls = []tools.ToolCall{toolCall}
+		}
 	case anthropic.ContentBlockDeltaEvent:
 		switch deltaVariant := eventVariant.Delta.AsAny().(type) {
 		case anthropic.TextDelta:
 			response.Choices[0].Delta.Content = deltaVariant.Text
-		case anthropic.ToolUseBlock:
-			// Convert tool use to the expected format
+
+		case anthropic.InputJSONDelta:
+			inputBytes := deltaVariant.PartialJSON
 			toolCall := tools.ToolCall{
-				ID:   deltaVariant.ID,
-				Type: "function",
+				Type:  "function",
+				Index: a.toolIdx,
 				Function: tools.FunctionCall{
-					Name:      deltaVariant.Name,
-					Arguments: string(deltaVariant.Input),
+					Arguments: string(inputBytes),
 				},
 			}
 			response.Choices[0].Delta.ToolCalls = []tools.ToolCall{toolCall}
-			response.Choices[0].FinishReason = chat.FinishReasonToolCalls
+
+		default:
+			fmt.Println("Unknown delta type:", deltaVariant)
 		}
-	case anthropic.ContentBlockStopEvent:
-		response.Choices[0].FinishReason = chat.FinishReasonStop
 	case anthropic.MessageStopEvent:
-		response.Choices[0].FinishReason = chat.FinishReasonStop
-		// case anthropic.Error:
-		// 	return chat.ChatCompletionStreamResponse{}, errors.New("stream error: " + eventVariant.Message())
+		if a.toolCall {
+			response.Choices[0].FinishReason = chat.FinishReasonToolCalls
+		} else {
+			response.Choices[0].FinishReason = chat.FinishReasonStop
+		}
 	}
 
+	// fmt.Println("finish reason", response.Choices[0].FinishReason)
 	return response, nil
 }
 
@@ -129,25 +153,36 @@ func (c *Client) CreateChatCompletionStream(
 	messages []chat.ChatCompletionMessage,
 	tools []tools.Tool,
 ) (chat.ChatCompletionStream, error) {
-	stream := c.client.Messages.NewStreaming(ctx, anthropic.MessageNewParams{
+	params := anthropic.MessageNewParams{
 		Model:     anthropic.ModelClaude3_7Sonnet20250219,
-		MaxTokens: 1024,
+		MaxTokens: 64000,
 		Messages:  convertMessages(messages),
 		Tools:     convertTools(tools),
-	})
+	}
+
+	// b, _ := json.MarshalIndent(params, "", "  ")
+	// fmt.Println("Anthropic params", string(b))
+
+	stream := c.client.Messages.NewStreaming(ctx, params)
 
 	return &AnthropicStreamAdapter{stream: stream}, nil
 }
 
 func convertMessages(messages []chat.ChatCompletionMessage) []anthropic.MessageParam {
-	anthropicMessages := make([]anthropic.MessageParam, len(messages))
-	for i, msg := range messages {
+	var anthropicMessages []anthropic.MessageParam
+
+	// b, _ := json.Marshal(messages)
+	// fmt.Println("Anthropic messages", string(b))
+
+	for _, msg := range messages {
 		if msg.Role == "system" {
-			anthropicMessages[i] = anthropic.NewAssistantMessage(anthropic.NewTextBlock(msg.Content))
+			// Convert system message to user message with system prefix
+			systemContent := "System: " + msg.Content
+			anthropicMessages = append(anthropicMessages, anthropic.NewAssistantMessage(anthropic.NewTextBlock(systemContent)))
 			continue
 		}
 		if msg.Role == "user" {
-			anthropicMessages[i] = anthropic.NewUserMessage(anthropic.NewTextBlock(msg.Content))
+			anthropicMessages = append(anthropicMessages, anthropic.NewUserMessage(anthropic.NewTextBlock(msg.Content)))
 			continue
 		}
 		if msg.Role == "assistant" {
@@ -157,21 +192,21 @@ func convertMessages(messages []chat.ChatCompletionMessage) []anthropic.MessageP
 					var inpts map[string]any
 					json.Unmarshal([]byte(toolCall.Function.Arguments), &inpts)
 					toolUseBlocks[i] = anthropic.ContentBlockParamUnion{
-						OfRequestToolUseBlock: &anthropic.ToolUseBlockParam{
+						OfToolUse: &anthropic.ToolUseBlockParam{
 							ID:    toolCall.ID,
 							Input: inpts,
 							Name:  toolCall.Function.Name,
 						},
 					}
 				}
-				anthropicMessages[i] = anthropic.NewAssistantMessage(toolUseBlocks...)
+				anthropicMessages = append(anthropicMessages, anthropic.NewAssistantMessage(toolUseBlocks...))
 			} else {
-				anthropicMessages[i] = anthropic.NewAssistantMessage(anthropic.NewTextBlock(msg.Content))
+				anthropicMessages = append(anthropicMessages, anthropic.NewAssistantMessage(anthropic.NewTextBlock(msg.Content)))
 			}
 			continue
 		}
 		if msg.Role == "tool" {
-			anthropicMessages[i] = anthropic.NewUserMessage(anthropic.NewToolResultBlock(msg.ToolCallID, msg.Content, false))
+			anthropicMessages = append(anthropicMessages, anthropic.NewUserMessage(anthropic.NewToolResultBlock(msg.ToolCallID, msg.Content, false)))
 			continue
 		}
 		fmt.Println("unknown message role", msg.Role)

@@ -98,9 +98,9 @@ func (c *Client) CallTool(ctx context.Context, toolCall tools.ToolCall) (*tools.
 	}
 	// MCP servers return an error if the args are empty so we make sure
 	// there is at least one argument
-	if len(request.Params.Arguments) == 0 {
-		request.Params.Arguments["args"] = "..."
-	}
+	// if len(request.Params.Arguments) == 0 {
+	// 	request.Params.Arguments["args"] = "..."
+	// }
 
 	resp, err := c.client.CallTool(ctx, request)
 	if err != nil {
