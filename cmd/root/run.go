@@ -51,7 +51,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	sess := session.New(cfg)
+	sess := session.New()
 
 	if len(args) > 0 {
 		sess.Messages = append(sess.Messages, session.AgentMessage{

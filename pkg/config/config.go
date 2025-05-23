@@ -42,6 +42,7 @@ func Agents(path string) (map[string]*agent.Agent, error) {
 			agent.WithName(name),
 			agent.WithModel(agentConfig.Model),
 			agent.WithDescription(agentConfig.Description),
+			agent.WithAddDate(agentConfig.AddDate),
 		}
 
 		tools, err := getToolsForAgent(cfg, name)

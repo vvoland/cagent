@@ -15,6 +15,7 @@ type Agent struct {
 	model       string
 	subAgents   []*Agent
 	parents     []*Agent
+	addDate     bool
 }
 
 type AgentOpt func(a *Agent)
@@ -58,6 +59,12 @@ func WithSubAgents(subAgents []*Agent) AgentOpt {
 	}
 }
 
+func WithAddDate(addDate bool) AgentOpt {
+	return func(a *Agent) {
+		a.addDate = addDate
+	}
+}
+
 // New creates a new agent
 func New(agentName string, prompt string, opts ...AgentOpt) (*Agent, error) {
 	agent := &Agent{
@@ -78,6 +85,10 @@ func (a *Agent) Name() string {
 // Instruction returns the agent's instructions
 func (a *Agent) Instruction() string {
 	return a.instruction
+}
+
+func (a *Agent) AddDate() bool {
+	return a.addDate
 }
 
 // Description returns the agent's description

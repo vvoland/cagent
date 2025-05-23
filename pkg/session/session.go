@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/rumpl/cagent/pkg/agent"
 	"github.com/rumpl/cagent/pkg/chat"
-	"github.com/rumpl/cagent/pkg/config"
 )
 
 // Session represents the agent's state including conversation history and variables
@@ -23,8 +22,6 @@ type Session struct {
 
 	// State is a general-purpose map to store arbitrary state data, it is shared between agents
 	State map[string]any
-
-	cfg *config.Config
 }
 
 // AgentMessage is a message from an agent
@@ -41,12 +38,11 @@ type AgentSession struct {
 }
 
 // New creates a new agent session
-func New(cfg *config.Config) *Session {
+func New() *Session {
 	return &Session{
 		ID:           uuid.New().String(),
 		State:        make(map[string]any),
 		AgentSession: make(map[string]*AgentSession),
-		cfg:          cfg,
 	}
 }
 
@@ -72,7 +68,7 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.ChatCompletionMessage {
 		for _, subAgent := range subAgents {
 			subAgentSession, exists := s.AgentSession[subAgent.Name()]
 			if !exists {
-				aa, _ := agent.New(subAgent.Name(), s.cfg.Agents[subAgent.Name()].Instruction)
+				aa, _ := agent.New(subAgent.Name(), subAgent.Instruction())
 				subAgentSession = &AgentSession{
 					Agent:    aa,
 					Messages: make([]AgentMessage, 0),
@@ -89,7 +85,7 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.ChatCompletionMessage {
 	}
 
 	date := ""
-	if s.cfg.Agents[a.Name()].AddDate {
+	if a.AddDate() {
 		date = "Date today is: " + time.Now().Format("2006-01-02") + "\n"
 	}
 
