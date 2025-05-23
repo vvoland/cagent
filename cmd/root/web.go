@@ -65,7 +65,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		}
 
-		sess := session.New()
+		sess := session.New(agents)
 		for _, msg := range messages {
 			sess.Messages = append(sess.Messages, session.AgentMessage{
 				Agent: agents[agentName],

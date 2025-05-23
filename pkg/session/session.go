@@ -15,7 +15,7 @@ type Session struct {
 	ID string
 
 	// Each agent in a multi-agent system has its own session
-	AgentSession map[string]*AgentSession
+	Agents map[string]*agent.Agent
 
 	// Messages holds the conversation history
 	Messages []AgentMessage
@@ -30,51 +30,30 @@ type AgentMessage struct {
 	Message chat.ChatCompletionMessage
 }
 
-type AgentSession struct {
-	// Agent is the agent that this session belongs to
-	Agent *agent.Agent
-	// Messages holds the conversation history
-	Messages []AgentMessage
-}
-
 // New creates a new agent session
-func New() *Session {
+func New(agents map[string]*agent.Agent) *Session {
 	return &Session{
-		ID:           uuid.New().String(),
-		State:        make(map[string]any),
-		AgentSession: make(map[string]*AgentSession),
+		ID:     uuid.New().String(),
+		State:  make(map[string]any),
+		Agents: agents,
 	}
 }
 
 func (s *Session) GetMessages(a *agent.Agent) []chat.ChatCompletionMessage {
-	// Get the agent session
-	agentSession, exists := s.AgentSession[a.Name()]
+	agentSession, exists := s.Agents[a.Name()]
 	if !exists {
-		agentSession = &AgentSession{
-			Agent:    a,
-			Messages: make([]AgentMessage, 0),
-		}
-		s.AgentSession[a.Name()] = agentSession
+		return nil
 	}
 
 	messages := make([]chat.ChatCompletionMessage, 0)
 	contextMessages := make([]chat.ChatCompletionMessage, 0)
 
-	if agentSession.Agent.HasSubAgents() || agentSession.Agent.HasParents() {
-		subAgents := agentSession.Agent.SubAgents()
-		subAgents = append(subAgents, agentSession.Agent.Parents()...)
+	if agentSession.HasSubAgents() || agentSession.HasParents() {
+		subAgents := agentSession.SubAgents()
+		subAgents = append(subAgents, agentSession.Parents()...)
 
 		subAgentsStr := ""
 		for _, subAgent := range subAgents {
-			subAgentSession, exists := s.AgentSession[subAgent.Name()]
-			if !exists {
-				aa, _ := agent.New(subAgent.Name(), subAgent.Instruction())
-				subAgentSession = &AgentSession{
-					Agent:    aa,
-					Messages: make([]AgentMessage, 0),
-				}
-				s.AgentSession[subAgent.Name()] = subAgentSession
-			}
 			subAgentsStr += subAgent.Name() + ": " + subAgent.Description() + "\n"
 		}
 
@@ -91,7 +70,7 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.ChatCompletionMessage {
 
 	messages = append(messages, chat.ChatCompletionMessage{
 		Role:    "system",
-		Content: agentSession.Agent.Instruction() + "\n\n" + date,
+		Content: agentSession.Instruction() + "\n\n" + date,
 	})
 
 	for _, msg := range s.Messages {
