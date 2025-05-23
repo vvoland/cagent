@@ -27,6 +27,7 @@ type AgentMessageEvent struct {
 func (e *AgentMessageEvent) isEvent() {}
 
 type AgentChoiceEvent struct {
+	Agent  string                          `json:"agent"`
 	Choice chat.ChatCompletionStreamChoice `json:"choice"`
 }
 

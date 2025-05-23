@@ -143,6 +143,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 
 				if choice.Delta.Content != "" {
 					events <- &AgentChoiceEvent{
+						Agent:  a.Name(),
 						Choice: choice,
 					}
 					fullContent.WriteString(choice.Delta.Content)

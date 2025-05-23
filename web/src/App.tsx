@@ -37,6 +37,7 @@ interface EventItem {
     toolId?: string;
     role?: string;
     response?: string;
+    agent?: string;
   };
 }
 
@@ -45,58 +46,94 @@ interface Event {
   response?: string;
   message?: ChatCompletionMessage;
   choice?: ChatCompletionStreamChoice;
+  agent?: string;
   error?: {
     message: string;
   };
 }
 
-// Component for rendering tool calls
-const ToolCallEvent = ({ name, args }: { name: string; args: string }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+// Modal component for displaying tool details
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+}
+
+const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
+  if (!isOpen) return null;
 
   return (
-    <div className="tool-call">
-      <div
-        className="tool-header"
-        onClick={() => setIsExpanded(!isExpanded)}
-        style={{ cursor: "pointer" }}
-      >
-        🛠️ Tool Call: {name} {isExpanded ? "▼" : "▶"}
-      </div>
-      <div
-        className={`tool-args-wrapper ${isExpanded ? "expanded" : "collapsed"}`}
-      >
-        <pre className="tool-args">
-          <code>{args}</code>
-        </pre>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>{title}</h3>
+          <button className="modal-close-btn" onClick={onClose}>
+            ×
+          </button>
+        </div>
+        <div className="modal-body">{children}</div>
       </div>
     </div>
   );
 };
 
-// Component for rendering tool results
-const ToolResultEvent = ({ id, content }: { id: string; content: string }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+// Component for rendering tool calls
+const ToolCallEvent = ({ name, args }: { name: string; args: string }) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
-    <div className="tool-result">
+    <>
       <div
-        className="tool-header"
-        onClick={() => setIsExpanded(!isExpanded)}
-        style={{ cursor: "pointer" }}
+        className="tool-pill tool-call-pill"
+        onClick={() => setIsModalOpen(true)}
       >
-        ✅ Tool Result: {id} {isExpanded ? "▼" : "▶"}
+        <span className="tool-icon">🛠️</span>
+        <span className="tool-name">{name}</span>
       </div>
-      <div
-        className={`tool-content-wrapper ${
-          isExpanded ? "expanded" : "collapsed"
-        }`}
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={`Tool Call: ${name}`}
       >
-        <div className="tool-content" style={{ overflowY: "auto" }}>
+        <h4>Parameters:</h4>
+        <pre className="tool-args">
+          <code>{args}</code>
+        </pre>
+      </Modal>
+    </>
+  );
+};
+
+// Component for rendering tool results
+const ToolResultEvent = ({ id, content }: { id: string; content: string }) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  return (
+    <>
+      <div
+        className="tool-pill tool-result-pill"
+        onClick={() => setIsModalOpen(true)}
+      >
+        <span className="tool-icon">✅</span>
+        <span className="tool-name">{id}</span>
+      </div>
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={`Tool Result: ${id}`}
+      >
+        <h4>Response:</h4>
+        <div
+          className="tool-content"
+          style={{ overflowY: "auto", maxHeight: "500px" }}
+        >
           <pre>{content}</pre>
         </div>
-      </div>
-    </div>
+      </Modal>
+    </>
   );
 };
 
@@ -142,8 +179,11 @@ const ErrorEvent = ({ content }: { content: string }) => (
 // Component for rendering consecutive choice events as a single markdown
 const ChoiceEvents = ({ events }: { events: EventItem[] }) => {
   const content = events.map((e) => e.content).join("");
+  const agent = events[0]?.metadata?.agent;
+
   return (
     <div className="choice">
+      {agent && <div className="agent-header">🤖 {agent}</div>}
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -235,6 +275,9 @@ function App() {
                     {
                       type: "choice",
                       content: eventData.choice!.delta.content,
+                      metadata: {
+                        agent: eventData.agent,
+                      },
                     },
                   ];
                 });

@@ -8,6 +8,8 @@ agents:
       You are an expert developer
 
       Use context7 to find the best documentation about the user question, then transfer the conversation to the summarizer
+
+      Your internal name is "researcher"
     tools:
       - type: mcp
         command: docker
@@ -30,6 +32,8 @@ agents:
       You are an agent that writes engaging content from the provided context
 
       Once you are done, transfer the conversation back to the "researcher" agent
+
+      Your internal name is "summarizer"
 
 models:
   openai:
