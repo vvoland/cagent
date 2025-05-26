@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      "/agent": "http://localhost:8080",
+      "/sessions": "http://localhost:8080",
+      "/sessions/:id/agent": "http://localhost:8080",
     },
   },
 });

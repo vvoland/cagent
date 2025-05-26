@@ -71,6 +71,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 
 		r.registerDefaultTools()
 
+		stopped := false
 		for {
 			fmt.Println("Running stream with agent", a.Name())
 			messages := sess.GetMessages(a)
@@ -98,7 +99,8 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				// Use our generic response type directly
 				choice := response.Choices[0]
 				if choice.FinishReason == chat.FinishReasonStop {
-					return
+					stopped = true
+					break
 				}
 
 				// Handle tool calls
@@ -163,6 +165,10 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			})
 
 			messages = append(messages, assistantMessage)
+
+			if stopped {
+				break
+			}
 
 			// Handle tool calls if present
 			if len(toolCalls) > 0 {

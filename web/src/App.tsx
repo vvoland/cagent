@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -50,6 +50,16 @@ interface Event {
   error?: {
     message: string;
   };
+}
+
+interface Session {
+  id: string;
+  created_at: string;
+  messages: ChatCompletionMessage[];
+}
+
+interface SessionsMap {
+  [key: string]: Session;
 }
 
 // Modal component for displaying tool details
@@ -210,18 +220,104 @@ const ChoiceEvents = ({ events }: { events: EventItem[] }) => {
   );
 };
 
+// Component for rendering the sidebar with sessions
+const Sidebar = ({
+  sessions,
+  currentSessionId,
+  onSessionSelect,
+}: {
+  sessions: SessionsMap;
+  currentSessionId: string | null;
+  onSessionSelect: (sessionId: string) => void;
+}) => {
+  const sortedSessions = Object.values(sessions) as Session[];
+  return (
+    <div className="sidebar">
+      {sortedSessions
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
+        .map((session) => (
+          <div
+            key={session.id}
+            className={`session-item ${
+              session.id === currentSessionId ? "active" : ""
+            }`}
+            onClick={() => onSessionSelect(session.id)}
+          >
+            Session {session.id.slice(0, 8)}
+            <div className="session-date">
+              {new Date(session.created_at).toLocaleDateString()}
+            </div>
+          </div>
+        ))}
+    </div>
+  );
+};
+
 function App() {
   const [prompt, setPrompt] = useState("");
   const [events, setEvents] = useState<EventItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [sessions, setSessions] = useState<SessionsMap>({});
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+
+  const fetchSessions = useCallback(async () => {
+    try {
+      const response = await fetch("/sessions");
+      const data = await response.json();
+      setSessions(data);
+      if (Object.keys(data).length > 0 && !currentSessionId) {
+        // Get the most recent session
+        const sessions = Object.values(data) as Session[];
+        const mostRecentSession = sessions.sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )[0];
+        setCurrentSessionId(mostRecentSession.id);
+      }
+    } catch (error) {
+      console.error("Failed to fetch sessions:", error);
+    }
+  }, [currentSessionId]);
+
+  // Fetch sessions on component mount
+  useEffect(() => {
+    fetchSessions();
+  }, [fetchSessions]);
+
+  const createNewSession = async () => {
+    try {
+      const response = await fetch("/sessions", {
+        method: "POST",
+      });
+      const newSession = await response.json();
+      setSessions((prev) => ({
+        ...prev,
+        [newSession.id]: newSession,
+      }));
+      setCurrentSessionId(newSession.id);
+      setEvents([]);
+    } catch (error) {
+      console.error("Failed to create new session:", error);
+    }
+  };
+
+  const handleSessionSelect = (sessionId: string) => {
+    setCurrentSessionId(sessionId);
+    setEvents([]);
+    // TODO: Fetch session messages if needed
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentSessionId) return;
     setIsLoading(true);
     setEvents([]);
 
     try {
-      const response = await fetch("/agent", {
+      const response = await fetch(`/sessions/${currentSessionId}/agent`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -374,59 +470,77 @@ function App() {
   );
 
   return (
-    <div className="container">
-      <div className="response">
-        {groupedEvents.map((event, index) => {
-          if (Array.isArray(event)) {
-            return <ChoiceEvents key={index} events={event} />;
-          }
+    <div className="app-container">
+      <Sidebar
+        sessions={sessions}
+        currentSessionId={currentSessionId}
+        onSessionSelect={handleSessionSelect}
+      />
+      <div className="main-container">
+        <div className="header">
+          <button onClick={createNewSession} className="new-session-button">
+            New Session
+          </button>
+        </div>
+        <div className="container">
+          <div className="response">
+            {groupedEvents.map((event, index) => {
+              if (Array.isArray(event)) {
+                return <ChoiceEvents key={index} events={event} />;
+              }
 
-          switch (event.type) {
-            case "tool_call":
-              return (
-                <ToolCallEvent
-                  key={index}
-                  name={event.metadata?.toolName || ""}
-                  args={event.metadata?.toolArgs || ""}
-                />
-              );
-            case "tool_result":
-              return (
-                <ToolResultEvent
-                  key={index}
-                  id={event.metadata?.toolId || ""}
-                  content={event.content}
-                />
-              );
-            case "message":
-              return (
-                <MessageEvent
-                  key={index}
-                  role={event.metadata?.role || ""}
-                  content={event.content}
-                />
-              );
-            case "error":
-              return <ErrorEvent key={index} content={event.content} />;
-            default:
-              return null;
-          }
-        })}
+              switch (event.type) {
+                case "tool_call":
+                  return (
+                    <ToolCallEvent
+                      key={index}
+                      name={event.metadata?.toolName || ""}
+                      args={event.metadata?.toolArgs || ""}
+                    />
+                  );
+                case "tool_result":
+                  return (
+                    <ToolResultEvent
+                      key={index}
+                      id={event.metadata?.toolId || ""}
+                      content={event.content}
+                    />
+                  );
+                case "message":
+                  return (
+                    <MessageEvent
+                      key={index}
+                      role={event.metadata?.role || ""}
+                      content={event.content}
+                    />
+                  );
+                case "error":
+                  return <ErrorEvent key={index} content={event.content} />;
+                default:
+                  return null;
+              }
+            })}
+          </div>
+
+          <form onSubmit={handleSubmit} className="form">
+            <input
+              type="text"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Enter your prompt..."
+              disabled={isLoading || !currentSessionId}
+              className="input"
+            />
+            <button
+              type="submit"
+              disabled={isLoading || !currentSessionId}
+              className="button"
+            >
+              {isLoading ? "Processing..." : "Submit"}
+            </button>
+          </form>
+        </div>
       </div>
-
-      <form onSubmit={handleSubmit} className="form">
-        <input
-          type="text"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Enter your prompt..."
-          disabled={isLoading}
-          className="input"
-        />
-        <button type="submit" disabled={isLoading} className="button">
-          {isLoading ? "Processing..." : "Submit"}
-        </button>
-      </form>
     </div>
   );
 }

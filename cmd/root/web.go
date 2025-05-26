@@ -48,13 +48,23 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	agents, err := config.Agents(configFile)
+	if err != nil {
+		return err
+	}
 	e := echo.New()
-	e.POST("/agent", func(c echo.Context) error {
-		agents, err := config.Agents(configFile)
-		if err != nil {
-			return err
-		}
+	sessions := make(map[string]*session.Session)
+	e.GET("/sessions", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, sessions)
+	})
 
+	e.POST("/sessions", func(c echo.Context) error {
+		sess := session.New(agents)
+		sessions[sess.ID] = sess
+		return c.JSON(http.StatusOK, sess)
+	})
+
+	e.POST("/sessions/:id/agent", func(c echo.Context) error {
 		rt, err := runtime.New(cfg, logger, agents, agentName)
 		if err != nil {
 			return err
@@ -65,7 +75,11 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		}
 
-		sess := session.New(agents)
+		sess, ok := sessions[c.Param("id")]
+		if !ok {
+			return c.JSON(http.StatusNotFound, map[string]string{"error": "session not found"})
+		}
+
 		for _, msg := range messages {
 			sess.Messages = append(sess.Messages, session.AgentMessage{
 				Agent: agents[agentName],
@@ -75,6 +89,8 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 				},
 			})
 		}
+
+		fmt.Println(sess.Messages)
 
 		c.Response().Header().Set("Content-Type", "text/event-stream")
 		c.Response().Header().Set("Cache-Control", "no-cache")

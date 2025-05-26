@@ -12,22 +12,22 @@ import (
 // Session represents the agent's state including conversation history and variables
 type Session struct {
 	// ID is the unique identifier for the session
-	ID string
+	ID string `json:"id"`
 
 	// Each agent in a multi-agent system has its own session
-	Agents map[string]*agent.Agent
+	Agents map[string]*agent.Agent `json:"agents"`
 
 	// Messages holds the conversation history
-	Messages []AgentMessage
+	Messages []AgentMessage `json:"messages"`
 
 	// State is a general-purpose map to store arbitrary state data, it is shared between agents
-	State map[string]any
+	State map[string]any `json:"state"`
 }
 
 // AgentMessage is a message from an agent
 type AgentMessage struct {
-	Agent   *agent.Agent
-	Message chat.ChatCompletionMessage
+	Agent   *agent.Agent               `json:"agent"`
+	Message chat.ChatCompletionMessage `json:"message"`
 }
 
 // New creates a new agent session
@@ -49,8 +49,7 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.ChatCompletionMessage {
 	contextMessages := make([]chat.ChatCompletionMessage, 0)
 
 	if agentSession.HasSubAgents() || agentSession.HasParents() {
-		subAgents := agentSession.SubAgents()
-		subAgents = append(subAgents, agentSession.Parents()...)
+		subAgents := append(agentSession.SubAgents(), agentSession.Parents()...)
 
 		subAgentsStr := ""
 		for _, subAgent := range subAgents {
