@@ -58,10 +58,18 @@ export interface Event {
   };
 }
 
+export interface Agent {
+  name: string;
+  description: string;
+  instruction: string;
+  model: string;
+}
+
 export interface Session {
   id: string;
   created_at: string;
   messages: AgentMessage[];
+  agents: { [key: string]: Agent };
 }
 
 export interface SessionsMap {

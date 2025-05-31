@@ -10,8 +10,9 @@ agents:
       - Show your top 10 recommendations in a table and make a case for why each is the best choice.
       - Use markdown for your response
     tools:
-      - airbnb
-
+      - type: mcp
+        command: npx
+        args: ["-y", "@openbnb/mcp-server-airbnb", "--ignore-robots-txt"]
 models:
   openai:
     type: openai

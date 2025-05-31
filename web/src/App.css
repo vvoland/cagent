@@ -39,7 +39,6 @@
   margin-bottom: 20px;
   padding: 15px;
   border-radius: 4px;
-  background-color: #3c4c5d;
 }
 
 .conversation-history {
@@ -55,9 +54,6 @@
   border-left: 4px solid #6c757d;
 }
 
-.message.user {
-  margin-left: 20%;
-}
 
 .message.assistant {
   margin-right: 20%;
@@ -175,7 +171,6 @@
   margin: 1rem 0;
   padding: 0.5rem;
   border-radius: 8px;
-  background: #3c4c5d;
 }
 
 .tool-call {
@@ -203,7 +198,6 @@
 }
 
 .tool-args pre {
-  background: #3c4c5d;
   padding: 1rem;
   border-radius: 4px;
   overflow-x: auto;
@@ -329,7 +323,6 @@
 }
 
 .modal-content {
-  background-color: #3c4c5d;
   border-radius: 8px;
   width: 80%;
   max-width: 700px;
@@ -412,9 +405,34 @@
 }
 
 .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 1rem;
-  background-color: #1e1e1e;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.agent-selector {
+  padding: 0.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  background-color: white;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: #374151;
+  min-width: 200px;
+  cursor: pointer;
+}
+
+.agent-selector:disabled {
+  background-color: #f3f4f6;
+  cursor: not-allowed;
+}
+
+.agent-selector:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
 }
 
 .new-session-button {

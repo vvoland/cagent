@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./App.css";
 import { Sidebar } from "./components/Sidebar";
 import { ToolCallEvent, ToolResultEvent } from "./components/ToolEvents";
@@ -9,16 +9,39 @@ import {
 } from "./components/MessageEvents";
 import { useSessions } from "./hooks/useSessions";
 import { useEvents } from "./hooks/useEvents";
+import { useAgents } from "./hooks/useAgents";
 import type { EventItem } from "./types";
 
 function App() {
   const [prompt, setPrompt] = useState("");
   const { sessions, currentSessionId, createNewSession, selectSession } =
     useSessions();
-  const { events, isLoading, handleSubmit } = useEvents(
-    currentSessionId,
-    sessions
-  );
+  const {
+    agents,
+    selectedAgent,
+    setSelectedAgent,
+    isLoading: isLoadingAgents,
+  } = useAgents();
+
+  // Update selected agent when session changes
+  useEffect(() => {
+    if (currentSessionId && sessions[currentSessionId]) {
+      const session = sessions[currentSessionId];
+      console.log("Session selected:", session);
+      // Get the agent name from the first message
+      if (session.messages && session.messages.length > 0) {
+        const agentName = session.messages[0].agent.name;
+        console.log("Setting selected agent to:", agentName);
+        setSelectedAgent(agentName);
+      }
+    }
+  }, [currentSessionId, sessions]);
+
+  const {
+    events,
+    isLoading: isLoadingEvents,
+    handleSubmit,
+  } = useEvents(currentSessionId, sessions, selectedAgent);
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,9 +77,25 @@ function App() {
       />
       <div className="main-container">
         <div className="header">
-          <button onClick={createNewSession} className="new-session-button">
+          <button
+            onClick={() => selectedAgent && createNewSession(selectedAgent)}
+            className="new-session-button"
+            disabled={!selectedAgent}
+          >
             New Session
           </button>
+          <select
+            value={selectedAgent || ""}
+            onChange={(e) => setSelectedAgent(e.target.value)}
+            disabled={isLoadingAgents}
+            className="agent-selector"
+          >
+            {agents.map((agent) => (
+              <option key={agent.name} value={agent.name}>
+                {agent.name} - {agent.description}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="container">
           <div className="response">
@@ -104,15 +143,15 @@ function App() {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Enter your prompt..."
-              disabled={isLoading || !currentSessionId}
+              disabled={isLoadingEvents || !currentSessionId || !selectedAgent}
               className="input"
             />
             <button
               type="submit"
-              disabled={isLoading || !currentSessionId}
+              disabled={isLoadingEvents || !currentSessionId || !selectedAgent}
               className="button"
             >
-              {isLoading ? "Processing..." : "Submit"}
+              {isLoadingEvents ? "Processing..." : "Submit"}
             </button>
           </form>
         </div>

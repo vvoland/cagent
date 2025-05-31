@@ -10,18 +10,18 @@ agents:
       Use context7 to find the best documentation about the user question, then transfer the conversation to the summarizer
 
       Your internal name is "researcher"
-    tools:
-      - type: mcp
-        command: docker
-        args:
-          [
-            "run",
-            "-i",
-            "--rm",
-            "alpine/socat",
-            "STDIO",
-            "TCP:host.docker.internal:8811",
-          ]
+    # tools:
+    #   - type: mcp
+    #     command: docker
+    #     args:
+    #       [
+    #         "run",
+    #         "-i",
+    #         "--rm",
+    #         "alpine/socat",
+    #         "STDIO",
+    #         "TCP:host.docker.internal:8811",
+    #       ]
     sub_agents:
       - summarizer
 

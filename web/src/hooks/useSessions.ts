@@ -24,9 +24,9 @@ export const useSessions = () => {
     }
   }, [currentSessionId]);
 
-  const createNewSession = async () => {
+  const createNewSession = async (agent: string) => {
     try {
-      const response = await fetch("/sessions", {
+      const response = await fetch(`/sessions/${agent}`, {
         method: "POST",
       });
       const newSession = await response.json();

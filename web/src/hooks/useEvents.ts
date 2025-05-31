@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import type { EventItem, Event, SessionsMap, AgentMessage } from "../types";
 
-export const useEvents = (sessionId: string | null, sessions: SessionsMap) => {
+export const useEvents = (
+  sessionId: string | null,
+  sessions: SessionsMap,
+  selectedAgent: string | null
+) => {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -62,7 +66,7 @@ export const useEvents = (sessionId: string | null, sessions: SessionsMap) => {
   }, [sessionId, sessions]);
 
   const handleSubmit = async (sessionId: string, prompt: string) => {
-    if (!sessionId) return;
+    if (!sessionId || !selectedAgent) return;
     setIsLoading(true);
     setEvents((prev) => [
       ...prev,
@@ -76,18 +80,21 @@ export const useEvents = (sessionId: string | null, sessions: SessionsMap) => {
     ]);
 
     try {
-      const response = await fetch(`/sessions/${sessionId}/agent`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify([
-          {
-            role: "user",
-            content: prompt,
+      const response = await fetch(
+        `/sessions/${sessionId}/agent/${selectedAgent}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
-        ]),
-      });
+          body: JSON.stringify([
+            {
+              role: "user",
+              content: prompt,
+            },
+          ]),
+        }
+      );
 
       const reader = response.body?.getReader();
       if (!reader) {
@@ -203,9 +210,5 @@ export const useEvents = (sessionId: string | null, sessions: SessionsMap) => {
     }
   };
 
-  return {
-    events,
-    isLoading,
-    handleSubmit,
-  };
+  return { events, isLoading, handleSubmit };
 };
