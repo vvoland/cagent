@@ -52,12 +52,7 @@ func Agents(path string) (map[string]*agent.Agent, error) {
 
 		opts = append(opts, agent.WithTools(tools))
 
-		a, err := agent.New(name, agentConfig.Instruction, opts...)
-		if err != nil {
-			continue
-		}
-
-		agents[name] = a
+		agents[name] = agent.New(name, agentConfig.Instruction, opts...)
 	}
 
 	for name, agentConfig := range cfg.Agents {
@@ -86,7 +81,11 @@ func getToolsForAgent(cfg *Config, agentName string) ([]tools.Tool, error) {
 
 	toolDefs := cfg.Agents[agentName].Tools
 	for _, toolDef := range toolDefs {
-		mcpc, _ := mcp.New(context.Background(), toolDef.Command, toolDef.Args)
+		mcpc, err := mcp.New(context.Background(), toolDef.Command, toolDef.Args)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create mcp client: %w", err)
+		}
+
 		mcpc.Start(context.Background())
 		tools, _ := mcpc.ListTools(context.Background())
 		t = append(t, tools...)
