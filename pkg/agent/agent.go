@@ -1,6 +1,8 @@
 package agent
 
 import (
+	"context"
+	"fmt"
 	"slices"
 
 	"github.com/rumpl/cagent/pkg/tools"
@@ -11,11 +13,12 @@ type Agent struct {
 	name        string
 	description string
 	instruction string
-	tools       []tools.Tool
-	model       string
-	subAgents   []*Agent
-	parents     []*Agent
-	addDate     bool
+	// tools       []tools.Tool
+	toolimpl  []tools.ToolSet
+	model     string
+	subAgents []*Agent
+	parents   []*Agent
+	addDate   bool
 }
 
 // New creates a new agent
@@ -87,6 +90,18 @@ func (a *Agent) Model() string {
 }
 
 // Tools returns the tools available to this agent
-func (a *Agent) Tools() []tools.Tool {
-	return a.tools
+func (a *Agent) Tools() ([]tools.Tool, error) {
+	tools := []tools.Tool{}
+	for _, toolSet := range a.toolimpl {
+		ta, err := toolSet.Tools(context.TODO())
+		if err != nil {
+			return nil, fmt.Errorf("failed to get tools: %w", err)
+		}
+		tools = append(tools, ta...)
+	}
+	return tools, nil
+}
+
+func (a *Agent) ToolImpls() []tools.ToolSet {
+	return a.toolimpl
 }

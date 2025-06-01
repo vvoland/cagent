@@ -41,7 +41,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	agents, err := config.Agents(configFile)
+	agents, err := config.Agents(ctx, configFile)
 	if err != nil {
 		return err
 	}

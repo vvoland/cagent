@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/rumpl/cagent/pkg/agent"
 	"github.com/rumpl/cagent/pkg/mcp"
@@ -32,7 +30,7 @@ func LoadConfig(path string) (*Config, error) {
 	return &config, nil
 }
 
-func Agents(path string) (map[string]*agent.Agent, error) {
+func Agents(ctx context.Context, path string) (map[string]*agent.Agent, error) {
 	cfg, err := LoadConfig(path)
 	if err != nil {
 		return nil, err
@@ -47,12 +45,12 @@ func Agents(path string) (map[string]*agent.Agent, error) {
 			agent.WithAddDate(agentConfig.AddDate),
 		}
 
-		tools, err := getToolsForAgent(cfg, name)
+		tools, err := getToolsForAgent(ctx, cfg, name)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tools: %w", err)
 		}
 
-		opts = append(opts, agent.WithTools(tools))
+		opts = append(opts, agent.WithToolSet(tools))
 
 		agents[name] = agent.New(name, agentConfig.Instruction, opts...)
 	}
@@ -76,23 +74,28 @@ func Agents(path string) (map[string]*agent.Agent, error) {
 }
 
 // getToolsForAgent returns the tool definitions for an agent based on its configuration
-func getToolsForAgent(cfg *Config, agentName string) ([]tools.Tool, error) {
-	var t []tools.Tool
+func getToolsForAgent(ctx context.Context, cfg *Config, agentName string) ([]tools.ToolSet, error) {
+	var t []tools.ToolSet
 
 	a := cfg.Agents[agentName]
 	if len(a.SubAgents) > 0 {
-		t = append(t, tools.AgentTransfer())
+		t = append(t, tools.NewAgentTransferTool())
 	}
+
 	toolDefs := cfg.Agents[agentName].Tools
 	for _, toolDef := range toolDefs {
-		mcpc, err := mcp.New(context.Background(), toolDef.Command, toolDef.Args)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create mcp client: %w", err)
-		}
+		if toolDef.Type == "mcp" {
+			mcpc, err := mcp.NewMcpToolset(ctx, toolDef.Command, toolDef.Args)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create mcp client: %w", err)
+			}
 
-		mcpc.Start(context.Background())
-		tools, _ := mcpc.ListTools(context.Background())
-		t = append(t, tools...)
+			if err := mcpc.Start(ctx); err != nil {
+				return nil, fmt.Errorf("failed to start mcp client: %w", err)
+			}
+
+			t = append(t, mcpc)
+		}
 	}
 
 	return t, nil
@@ -124,41 +127,4 @@ func (c *Config) GetModelConfig(name string) (*ModelConfig, error) {
 		return nil, fmt.Errorf("model '%s' not found in configuration", name)
 	}
 	return &model, nil
-}
-
-// LoadAgentsFromDirectory loads all agent configurations from a directory
-func LoadAgentsFromDirectory(dir string) (map[string]*agent.Agent, error) {
-	if dir == "" {
-		return nil, fmt.Errorf("directory path is required")
-	}
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read directory: %w", err)
-	}
-
-	agents := make(map[string]*agent.Agent)
-	for _, entry := range entries {
-		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
-			configPath := filepath.Join(dir, entry.Name())
-			dirAgents, err := Agents(configPath)
-			if err != nil {
-				return nil, fmt.Errorf("failed to load agents from %s: %w", configPath, err)
-			}
-
-			// Merge agents from this file into the main map
-			for name, agent := range dirAgents {
-				if _, exists := agents[name]; exists {
-					return nil, fmt.Errorf("duplicate agent name '%s' found in %s", name, configPath)
-				}
-				agents[name] = agent
-			}
-		}
-	}
-
-	if len(agents) == 0 {
-		return nil, fmt.Errorf("no agent configurations found in directory %s", dir)
-	}
-
-	return agents, nil
 }

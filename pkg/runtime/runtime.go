@@ -73,10 +73,15 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 
 		stopped := false
 		for {
-			fmt.Println("Running stream with agent", a.Name())
 			messages := sess.GetMessages(a)
 
-			stream, err := modelProvider.CreateChatCompletionStream(ctx, messages, a.Tools())
+			agentTools, err := a.Tools()
+			if err != nil {
+				events <- &ErrorEvent{Error: fmt.Errorf("failed to get tools: %w", err)}
+				return
+			}
+
+			stream, err := modelProvider.CreateChatCompletionStream(ctx, messages, agentTools)
 			if err != nil {
 				events <- &ErrorEvent{Error: fmt.Errorf("creating chat completion: %w", err)}
 				return
@@ -172,7 +177,12 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 
 			// Handle tool calls if present
 			if len(toolCalls) > 0 {
-				agentTools := a.Tools()
+				agentTools, err := a.Tools()
+				if err != nil {
+					events <- &ErrorEvent{Error: fmt.Errorf("failed to get tools: %w", err)}
+					return
+				}
+
 			outer:
 				for _, toolCall := range toolCalls {
 					handler, exists := r.toolMap[toolCall.Function.Name]

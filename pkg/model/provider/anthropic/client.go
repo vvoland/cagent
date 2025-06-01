@@ -26,9 +26,7 @@ type AnthropicStreamAdapter struct {
 // Recv gets the next completion chunk
 func (a *AnthropicStreamAdapter) Recv() (chat.ChatCompletionStreamResponse, error) {
 	if !a.stream.Next() {
-		// fmt.Println("stream ended")
 		if a.stream.Err() != nil {
-			// fmt.Println("stream error", a.stream.Err())
 			return chat.ChatCompletionStreamResponse{}, a.stream.Err()
 		}
 		return chat.ChatCompletionStreamResponse{}, io.EOF
@@ -100,7 +98,6 @@ func (a *AnthropicStreamAdapter) Recv() (chat.ChatCompletionStreamResponse, erro
 		}
 	}
 
-	// fmt.Println("finish reason", response.Choices[0].FinishReason)
 	return response, nil
 }
 
@@ -160,9 +157,6 @@ func (c *Client) CreateChatCompletionStream(
 		Tools:     convertTools(tools),
 	}
 
-	// b, _ := json.MarshalIndent(params, "", "  ")
-	// fmt.Println("Anthropic params", string(b))
-
 	stream := c.client.Messages.NewStreaming(ctx, params)
 
 	return &AnthropicStreamAdapter{stream: stream}, nil
@@ -170,9 +164,6 @@ func (c *Client) CreateChatCompletionStream(
 
 func convertMessages(messages []chat.ChatCompletionMessage) []anthropic.MessageParam {
 	var anthropicMessages []anthropic.MessageParam
-
-	// b, _ := json.Marshal(messages)
-	// fmt.Println("Anthropic messages", string(b))
 
 	for _, msg := range messages {
 		if msg.Role == "system" {

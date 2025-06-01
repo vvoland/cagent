@@ -74,7 +74,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 					continue
 				}
 
-				fileAgents, err := config.Agents(configPath)
+				fileAgents, err := config.Agents(ctx, configPath)
 				if err != nil {
 					logger.Warn("Failed to load agents", "file", entry.Name(), "error", err)
 					continue
@@ -113,7 +113,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		agents, err := config.Agents(configFile)
+		agents, err := config.Agents(ctx, configFile)
 		if err != nil {
 			return err
 		}

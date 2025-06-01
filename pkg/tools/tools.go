@@ -42,3 +42,11 @@ type FunctionDefinition struct {
 	Strict      bool                `json:"strict,omitempty"`
 	Parameters  mcp.ToolInputSchema `json:"parameters"`
 }
+
+type ToolSet interface {
+	Handler() ToolHandler
+	Tools(ctx context.Context) ([]Tool, error)
+
+	Start(ctx context.Context) error
+	Stop() error
+}

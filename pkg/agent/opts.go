@@ -10,9 +10,9 @@ func WithInstruction(prompt string) AgentOpt {
 	}
 }
 
-func WithTools(tools []tools.Tool) AgentOpt {
+func WithToolSet(toolSet []tools.ToolSet) AgentOpt {
 	return func(a *Agent) {
-		a.tools = tools
+		a.toolimpl = toolSet
 	}
 }
 

@@ -2,9 +2,7 @@ package openai
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 
 	"github.com/rumpl/cagent/pkg/chat"
@@ -224,11 +222,11 @@ func (c *Client) CreateChatCompletionStream(
 	}
 
 	// Log the request in JSON format for debugging
-	if requestJSON, err := json.MarshalIndent(request, "", "  "); err == nil {
-		fmt.Printf("Chat completion request:\n%s\n", string(requestJSON))
-	} else {
-		fmt.Printf("Error marshaling request to JSON: %v\n", err)
-	}
+	// if requestJSON, err := json.MarshalIndent(request, "", "  "); err == nil {
+	// 	fmt.Printf("Chat completion request:\n%s\n", string(requestJSON))
+	// } else {
+	// 	fmt.Printf("Error marshaling request to JSON: %v\n", err)
+	// }
 
 	stream, err := c.client.CreateChatCompletionStream(ctx, request)
 	if err != nil {
