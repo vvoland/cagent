@@ -20,9 +20,9 @@ type Provider interface {
 	// It returns a stream that can be iterated over to get completion chunks
 	CreateChatCompletionStream(
 		ctx context.Context,
-		messages []chat.ChatCompletionMessage,
+		messages []chat.Message,
 		tools []tools.Tool,
-	) (chat.ChatCompletionStream, error)
+	) (chat.MessageStream, error)
 }
 
 // Factory interface for creating model providers

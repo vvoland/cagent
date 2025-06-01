@@ -21,3 +21,11 @@ tasks:
       - "go.sum"
     generates:
       - "{{.BUILD_DIR}}/{{.BINARY_NAME}}"
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run ./...
+    sources:
+      - "**/*.go"
+      - ".golangci.yml"

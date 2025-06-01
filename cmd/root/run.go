@@ -56,7 +56,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		sess.Messages = append(sess.Messages, session.AgentMessage{
 			Agent: agents[agentName],
-			Message: chat.ChatCompletionMessage{
+			Message: chat.Message{
 				Role:    "user",
 				Content: args[0],
 			},
@@ -91,7 +91,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 
 		sess.Messages = append(sess.Messages, session.AgentMessage{
 			Agent: rt.CurrentAgent(),
-			Message: chat.ChatCompletionMessage{
+			Message: chat.Message{
 				Role:    "user",
 				Content: userInput,
 			},
@@ -103,17 +103,17 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 				fmt.Printf("%s", blue("[%s]: ", rt.CurrentAgent().Name()))
 				first = true
 			}
-			switch event.(type) {
+			switch e := event.(type) {
 			case *runtime.AgentChoiceEvent:
-				fmt.Printf("%s", event.(*runtime.AgentChoiceEvent).Choice.Delta.Content)
+				fmt.Printf("%s", e.Choice.Delta.Content)
 			case *runtime.ToolCallEvent:
-				fmt.Printf("%s(%s)\n", event.(*runtime.ToolCallEvent).ToolCall.Function.Name, event.(*runtime.ToolCallEvent).ToolCall.Function.Arguments)
+				fmt.Printf("%s(%s)\n", e.ToolCall.Function.Name, e.ToolCall.Function.Arguments)
 			case *runtime.ToolCallResponseEvent:
-				fmt.Printf("done(%s)\n", event.(*runtime.ToolCallResponseEvent).ToolCall.Function.Name)
+				fmt.Printf("done(%s)\n", e.ToolCall.Function.Name)
 			case *runtime.AgentMessageEvent:
-				fmt.Printf("%s\n", event.(*runtime.AgentMessageEvent).Message.Content)
+				fmt.Printf("%s\n", e.Message.Content)
 			case *runtime.ErrorEvent:
-				fmt.Printf("%s\n", event.(*runtime.ErrorEvent).Error)
+				fmt.Printf("%s\n", e.Error)
 			}
 		}
 		fmt.Println()

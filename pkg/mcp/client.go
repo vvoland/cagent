@@ -63,7 +63,8 @@ func (c *Client) ListTools(ctx context.Context) ([]tools.Tool, error) {
 	}
 
 	var toolsList []tools.Tool
-	for _, t := range resp.Tools {
+	for i := range resp.Tools {
+		t := &resp.Tools[i]
 		tool := tools.Tool{
 			Type: "function",
 		}

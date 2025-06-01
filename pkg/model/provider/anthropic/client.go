@@ -16,32 +16,32 @@ import (
 	"github.com/rumpl/cagent/pkg/tools"
 )
 
-// AnthropicStreamAdapter adapts the Anthropic stream to our interface
-type AnthropicStreamAdapter struct {
+// StreamAdapter adapts the Anthropic stream to our interface
+type StreamAdapter struct {
 	stream   *ssestream.Stream[anthropic.MessageStreamEventUnion]
 	toolCall bool
 	toolIdx  *int
 }
 
 // Recv gets the next completion chunk
-func (a *AnthropicStreamAdapter) Recv() (chat.ChatCompletionStreamResponse, error) {
+func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 	if !a.stream.Next() {
 		if a.stream.Err() != nil {
-			return chat.ChatCompletionStreamResponse{}, a.stream.Err()
+			return chat.MessageStreamResponse{}, a.stream.Err()
 		}
-		return chat.ChatCompletionStreamResponse{}, io.EOF
+		return chat.MessageStreamResponse{}, io.EOF
 	}
 
 	event := a.stream.Current()
 
-	response := chat.ChatCompletionStreamResponse{
+	response := chat.MessageStreamResponse{
 		ID:     event.Message.ID,
 		Object: "chat.completion.chunk",
 		Model:  string(event.Message.Model),
-		Choices: []chat.ChatCompletionStreamChoice{
+		Choices: []chat.MessageStreamChoice{
 			{
 				Index: 0,
-				Delta: chat.ChatCompletionDelta{
+				Delta: chat.MessageDelta{
 					Role: "assistant",
 				},
 			},
@@ -102,7 +102,7 @@ func (a *AnthropicStreamAdapter) Recv() (chat.ChatCompletionStreamResponse, erro
 }
 
 // Close closes the stream
-func (a *AnthropicStreamAdapter) Close() {
+func (a *StreamAdapter) Close() {
 	if a.stream != nil {
 		a.stream.Close()
 	}
@@ -147,9 +147,9 @@ func (c *Client) GetConfig() *config.ModelConfig {
 // CreateChatCompletionStream creates a streaming chat completion request
 func (c *Client) CreateChatCompletionStream(
 	ctx context.Context,
-	messages []chat.ChatCompletionMessage,
+	messages []chat.Message,
 	tools []tools.Tool,
-) (chat.ChatCompletionStream, error) {
+) (chat.MessageStream, error) {
 	params := anthropic.MessageNewParams{
 		Model:     anthropic.ModelClaude3_7Sonnet20250219,
 		MaxTokens: 64000,
@@ -159,13 +159,14 @@ func (c *Client) CreateChatCompletionStream(
 
 	stream := c.client.Messages.NewStreaming(ctx, params)
 
-	return &AnthropicStreamAdapter{stream: stream}, nil
+	return &StreamAdapter{stream: stream}, nil
 }
 
-func convertMessages(messages []chat.ChatCompletionMessage) []anthropic.MessageParam {
+func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 	var anthropicMessages []anthropic.MessageParam
 
-	for _, msg := range messages {
+	for i := range messages {
+		msg := &messages[i]
 		if msg.Role == "system" {
 			// Convert system message to user message with system prefix
 			systemContent := "System: " + msg.Content
@@ -179,10 +180,12 @@ func convertMessages(messages []chat.ChatCompletionMessage) []anthropic.MessageP
 		if msg.Role == "assistant" {
 			if len(msg.ToolCalls) > 0 {
 				toolUseBlocks := make([]anthropic.ContentBlockParamUnion, len(msg.ToolCalls))
-				for i, toolCall := range msg.ToolCalls {
+				for j, toolCall := range msg.ToolCalls {
 					var inpts map[string]any
-					json.Unmarshal([]byte(toolCall.Function.Arguments), &inpts)
-					toolUseBlocks[i] = anthropic.ContentBlockParamUnion{
+					if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &inpts); err != nil {
+						fmt.Printf("failed to unmarshal tool arguments: %v\n", err)
+					}
+					toolUseBlocks[j] = anthropic.ContentBlockParamUnion{
 						OfToolUse: &anthropic.ToolUseBlockParam{
 							ID:    toolCall.ID,
 							Input: inpts,
@@ -218,8 +221,8 @@ func convertTools(tooles []tools.Tool) []anthropic.ToolUnionParam {
 		}
 	}
 	tools := make([]anthropic.ToolUnionParam, len(toolParams))
-	for i, toolParam := range toolParams {
-		tools[i] = anthropic.ToolUnionParam{OfTool: &toolParam}
+	for i := range toolParams {
+		tools[i] = anthropic.ToolUnionParam{OfTool: &toolParams[i]}
 	}
 
 	return tools

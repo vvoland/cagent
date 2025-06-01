@@ -8,9 +8,8 @@ import (
 )
 
 var (
-	configFile    string
-	agentName     string
-	initialPrompt string
+	configFile string
+	agentName  string
 )
 
 // NewRootCmd creates the root command for cagent
@@ -20,8 +19,8 @@ func NewRootCmd() *cobra.Command {
 		Short: "cagent - AI agent runner",
 		Long:  `cagent is a command-line tool for running AI agents`,
 		// If no subcommand is specified, show help
-		Run: func(cmd *cobra.Command, args []string) {
-			cmd.Help()
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
 		},
 	}
 

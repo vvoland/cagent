@@ -7,33 +7,33 @@ import (
 	"github.com/rumpl/cagent/pkg/tools"
 )
 
-type MCPToolset struct {
+type Toolset struct {
 	c *Client
 }
 
-func NewMcpToolset(ctx context.Context, command string, args []string) (*MCPToolset, error) {
+func NewToolset(ctx context.Context, command string, args []string) (*Toolset, error) {
 	mcpc, err := New(ctx, command, args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create mcp client: %w", err)
 	}
 
-	return &MCPToolset{
+	return &Toolset{
 		c: mcpc,
 	}, nil
 }
 
-func (t *MCPToolset) Handler() tools.ToolHandler {
+func (t *Toolset) Handler() tools.ToolHandler {
 	return t.c
 }
 
-func (t *MCPToolset) Start(ctx context.Context) error {
+func (t *Toolset) Start(ctx context.Context) error {
 	return t.c.Start(ctx)
 }
 
-func (t *MCPToolset) Stop() error {
+func (t *Toolset) Stop() error {
 	return t.c.Stop()
 }
 
-func (t *MCPToolset) Tools(ctx context.Context) ([]tools.Tool, error) {
+func (t *Toolset) Tools(ctx context.Context) ([]tools.Tool, error) {
 	return t.c.ListTools(ctx)
 }

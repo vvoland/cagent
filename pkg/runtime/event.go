@@ -21,14 +21,14 @@ type ToolCallResponseEvent struct {
 func (e *ToolCallResponseEvent) isEvent() {}
 
 type AgentMessageEvent struct {
-	Message chat.ChatCompletionMessage `json:"message"`
+	Message chat.Message `json:"message"`
 }
 
 func (e *AgentMessageEvent) isEvent() {}
 
 type AgentChoiceEvent struct {
-	Agent  string                          `json:"agent"`
-	Choice chat.ChatCompletionStreamChoice `json:"choice"`
+	Agent  string                   `json:"agent"`
+	Choice chat.MessageStreamChoice `json:"choice"`
 }
 
 func (e *AgentChoiceEvent) isEvent() {}

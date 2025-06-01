@@ -11,33 +11,34 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-// OpenAIStreamAdapter adapts the OpenAI stream to our interface
-type OpenAIStreamAdapter struct {
+// StreamAdapter adapts the OpenAI stream to our interface
+type StreamAdapter struct {
 	stream *openai.ChatCompletionStream
 }
 
 // Recv gets the next completion chunk
-func (a *OpenAIStreamAdapter) Recv() (chat.ChatCompletionStreamResponse, error) {
+func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 	openaiResponse, err := a.stream.Recv()
 	if err != nil {
-		return chat.ChatCompletionStreamResponse{}, err
+		return chat.MessageStreamResponse{}, err
 	}
 
 	// Convert the OpenAI response to our generic format
-	response := chat.ChatCompletionStreamResponse{
+	response := chat.MessageStreamResponse{
 		ID:      openaiResponse.ID,
 		Object:  openaiResponse.Object,
 		Created: openaiResponse.Created,
 		Model:   openaiResponse.Model,
-		Choices: make([]chat.ChatCompletionStreamChoice, len(openaiResponse.Choices)),
+		Choices: make([]chat.MessageStreamChoice, len(openaiResponse.Choices)),
 	}
 
 	// Convert the choices
-	for i, choice := range openaiResponse.Choices {
-		response.Choices[i] = chat.ChatCompletionStreamChoice{
+	for i := range openaiResponse.Choices {
+		choice := &openaiResponse.Choices[i]
+		response.Choices[i] = chat.MessageStreamChoice{
 			Index:        choice.Index,
 			FinishReason: chat.FinishReason(choice.FinishReason),
-			Delta: chat.ChatCompletionDelta{
+			Delta: chat.MessageDelta{
 				Role:    choice.Delta.Role,
 				Content: choice.Delta.Content,
 			},
@@ -52,7 +53,7 @@ func (a *OpenAIStreamAdapter) Recv() (chat.ChatCompletionStreamResponse, error) 
 		}
 
 		// Convert tool calls if present
-		if choice.Delta.ToolCalls != nil && len(choice.Delta.ToolCalls) > 0 {
+		if len(choice.Delta.ToolCalls) > 0 {
 			response.Choices[i].Delta.ToolCalls = make([]tools.ToolCall, len(choice.Delta.ToolCalls))
 			for j, toolCall := range choice.Delta.ToolCalls {
 				response.Choices[i].Delta.ToolCalls[j] = tools.ToolCall{
@@ -76,7 +77,7 @@ func (a *OpenAIStreamAdapter) Recv() (chat.ChatCompletionStreamResponse, error) 
 }
 
 // Close closes the stream
-func (a *OpenAIStreamAdapter) Close() {
+func (a *StreamAdapter) Close() {
 	a.stream.Close()
 }
 
@@ -125,7 +126,7 @@ func (c *Client) GetConfig() *config.ModelConfig {
 	return c.config
 }
 
-func convertMultiContent(multiContent []chat.ChatMessagePart) []openai.ChatMessagePart {
+func convertMultiContent(multiContent []chat.MessagePart) []openai.ChatMessagePart {
 	openaiMultiContent := make([]openai.ChatMessagePart, len(multiContent))
 	for i, part := range multiContent {
 		openaiMultiContent[i] = openai.ChatMessagePart{
@@ -137,9 +138,10 @@ func convertMultiContent(multiContent []chat.ChatMessagePart) []openai.ChatMessa
 }
 
 // convertMessages converts chat.ChatCompletionMessage to openai.ChatCompletionMessage
-func convertMessages(messages []chat.ChatCompletionMessage) []openai.ChatCompletionMessage {
+func convertMessages(messages []chat.Message) []openai.ChatCompletionMessage {
 	openaiMessages := make([]openai.ChatCompletionMessage, len(messages))
-	for i, msg := range messages {
+	for i := range messages {
+		msg := &messages[i]
 		openaiMessage := openai.ChatCompletionMessage{
 			Role: msg.Role,
 			Name: msg.Name,
@@ -185,9 +187,9 @@ func convertMessages(messages []chat.ChatCompletionMessage) []openai.ChatComplet
 // It returns a stream that can be iterated over to get completion chunks
 func (c *Client) CreateChatCompletionStream(
 	ctx context.Context,
-	messages []chat.ChatCompletionMessage,
+	messages []chat.Message,
 	tools []tools.Tool,
-) (chat.ChatCompletionStream, error) {
+) (chat.MessageStream, error) {
 	if len(messages) == 0 {
 		return nil, errors.New("at least one message is required")
 	}
@@ -233,5 +235,5 @@ func (c *Client) CreateChatCompletionStream(
 		return nil, err
 	}
 
-	return &OpenAIStreamAdapter{stream: stream}, nil
+	return &StreamAdapter{stream: stream}, nil
 }

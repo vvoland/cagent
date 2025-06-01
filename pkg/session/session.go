@@ -29,8 +29,8 @@ type Session struct {
 
 // AgentMessage is a message from an agent
 type AgentMessage struct {
-	Agent   *agent.Agent               `json:"agent"`
-	Message chat.ChatCompletionMessage `json:"message"`
+	Agent   *agent.Agent `json:"agent"`
+	Message chat.Message `json:"message"`
 }
 
 // New creates a new agent session
@@ -43,14 +43,14 @@ func New(agents map[string]*agent.Agent) *Session {
 	}
 }
 
-func (s *Session) GetMessages(a *agent.Agent) []chat.ChatCompletionMessage {
+func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 	agentSession, exists := s.Agents[a.Name()]
 	if !exists {
 		return nil
 	}
 
-	messages := make([]chat.ChatCompletionMessage, 0)
-	contextMessages := make([]chat.ChatCompletionMessage, 0)
+	messages := make([]chat.Message, 0)
+	contextMessages := make([]chat.Message, 0)
 
 	if agentSession.HasSubAgents() || agentSession.HasParents() {
 		subAgents := append(agentSession.SubAgents(), agentSession.Parents()...)
@@ -71,31 +71,31 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.ChatCompletionMessage {
 		date = "Date today is: " + time.Now().Format("2006-01-02") + "\n"
 	}
 
-	messages = append(messages, chat.ChatCompletionMessage{
+	messages = append(messages, chat.Message{
 		Role:    "system",
 		Content: agentSession.Instruction() + "\n\n" + date,
 	})
 
-	for _, msg := range s.Messages {
-		if msg.Message.Role == "system" {
+	for i := range s.Messages {
+		if s.Messages[i].Message.Role == "system" {
 			continue
 		}
 
-		if msg.Message.Role == "assistant" && msg.Agent != a {
-			messages = append(messages, msg.Message)
+		if s.Messages[i].Message.Role == "assistant" && s.Messages[i].Agent != a {
+			messages = append(messages, s.Messages[i].Message)
 
-			if len(msg.Message.ToolCalls) == 0 {
-				content := fmt.Sprintf("[%s] said: %s", msg.Agent.Name(), msg.Message.Content)
+			if len(s.Messages[i].Message.ToolCalls) == 0 {
+				content := fmt.Sprintf("[%s] said: %s", s.Messages[i].Agent.Name(), s.Messages[i].Message.Content)
 
-				contextMessages = append(contextMessages, chat.ChatCompletionMessage{
+				contextMessages = append(contextMessages, chat.Message{
 					Role: "user",
-					MultiContent: []chat.ChatMessagePart{
+					MultiContent: []chat.MessagePart{
 						{
-							Type: chat.ChatMessagePartTypeText,
+							Type: chat.MessagePartTypeText,
 							Text: "For context:",
 						},
 						{
-							Type: chat.ChatMessagePartTypeText,
+							Type: chat.MessagePartTypeText,
 							Text: content,
 						},
 					},
@@ -104,17 +104,17 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.ChatCompletionMessage {
 			continue
 		}
 
-		if msg.Message.Role == "tool" {
-			messages = append(messages, msg.Message)
-			content := fmt.Sprintf("For context: [%s] Tool %s returned: %s", msg.Agent.Name(), msg.Message.ToolCallID, msg.Message.Content)
-			contextMessages = append(contextMessages, chat.ChatCompletionMessage{
+		if s.Messages[i].Message.Role == "tool" && s.Messages[i].Agent != a {
+			messages = append(messages, s.Messages[i].Message)
+			content := fmt.Sprintf("For context: [%s] Tool %s returned: %s", s.Messages[i].Agent.Name(), s.Messages[i].Message.ToolCallID, s.Messages[i].Message.Content)
+			contextMessages = append(contextMessages, chat.Message{
 				Role:    "user",
 				Content: content,
 			})
 			continue
 		}
 
-		messages = append(messages, msg.Message)
+		messages = append(messages, s.Messages[i].Message)
 	}
 
 	messages = append(messages, contextMessages...)

@@ -38,7 +38,7 @@ func Agents(ctx context.Context, path string) (map[string]*agent.Agent, error) {
 
 	agents := make(map[string]*agent.Agent)
 	for name, agentConfig := range cfg.Agents {
-		opts := []agent.AgentOpt{
+		opts := []agent.Opt{
 			agent.WithName(name),
 			agent.WithModel(agentConfig.Model),
 			agent.WithDescription(agentConfig.Description),
@@ -85,7 +85,7 @@ func getToolsForAgent(ctx context.Context, cfg *Config, agentName string) ([]too
 	toolDefs := cfg.Agents[agentName].Tools
 	for _, toolDef := range toolDefs {
 		if toolDef.Type == "mcp" {
-			mcpc, err := mcp.NewMcpToolset(ctx, toolDef.Command, toolDef.Args)
+			mcpc, err := mcp.NewToolset(ctx, toolDef.Command, toolDef.Args)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create mcp client: %w", err)
 			}

@@ -2,11 +2,11 @@ package chat
 
 import "github.com/rumpl/cagent/pkg/tools"
 
-type ChatMessagePartType string
+type MessagePartType string
 
 const (
-	ChatMessagePartTypeText     ChatMessagePartType = "text"
-	ChatMessagePartTypeImageURL ChatMessagePartType = "image_url"
+	MessagePartTypeText     MessagePartType = "text"
+	MessagePartTypeImageURL MessagePartType = "image_url"
 )
 
 type ImageURLDetail string
@@ -17,16 +17,16 @@ const (
 	ImageURLDetailAuto ImageURLDetail = "auto"
 )
 
-type ChatMessageImageURL struct {
+type MessageImageURL struct {
 	URL    string         `json:"url,omitempty"`
 	Detail ImageURLDetail `json:"detail,omitempty"`
 }
 
-type ChatCompletionMessage struct {
+type Message struct {
 	Role         string `json:"role"`
 	Content      string `json:"content,omitempty"`
 	Refusal      string `json:"refusal,omitempty"`
-	MultiContent []ChatMessagePart
+	MultiContent []MessagePart
 
 	// This property isn't in the official documentation, but it's in
 	// the documentation for the official library for python:
@@ -49,10 +49,10 @@ type ChatCompletionMessage struct {
 	ToolCallID string `json:"tool_call_id,omitempty"`
 }
 
-type ChatMessagePart struct {
-	Type     ChatMessagePartType  `json:"type,omitempty"`
-	Text     string               `json:"text,omitempty"`
-	ImageURL *ChatMessageImageURL `json:"image_url,omitempty"`
+type MessagePart struct {
+	Type     MessagePartType  `json:"type,omitempty"`
+	Text     string           `json:"text,omitempty"`
+	ImageURL *MessageImageURL `json:"image_url,omitempty"`
 }
 
 // FinishReason represents the reason why the model finished generating a response
@@ -74,7 +74,7 @@ const (
 )
 
 // ChatCompletionDelta represents a delta/chunk in a streaming response
-type ChatCompletionDelta struct {
+type MessageDelta struct {
 	Role         string              `json:"role,omitempty"`
 	Content      string              `json:"content,omitempty"`
 	FunctionCall *tools.FunctionCall `json:"function_call,omitempty"`
@@ -82,25 +82,25 @@ type ChatCompletionDelta struct {
 }
 
 // ChatCompletionStreamChoice represents a choice in a streaming response
-type ChatCompletionStreamChoice struct {
-	Index        int                 `json:"index"`
-	Delta        ChatCompletionDelta `json:"delta"`
-	FinishReason FinishReason        `json:"finish_reason,omitempty"`
+type MessageStreamChoice struct {
+	Index        int          `json:"index"`
+	Delta        MessageDelta `json:"delta"`
+	FinishReason FinishReason `json:"finish_reason,omitempty"`
 }
 
 // ChatCompletionStreamResponse represents a streaming response from the model
-type ChatCompletionStreamResponse struct {
-	ID      string                       `json:"id"`
-	Object  string                       `json:"object"`
-	Created int64                        `json:"created"`
-	Model   string                       `json:"model"`
-	Choices []ChatCompletionStreamChoice `json:"choices"`
+type MessageStreamResponse struct {
+	ID      string                `json:"id"`
+	Object  string                `json:"object"`
+	Created int64                 `json:"created"`
+	Model   string                `json:"model"`
+	Choices []MessageStreamChoice `json:"choices"`
 }
 
 // ChatCompletionStream interface represents a stream of chat completions
-type ChatCompletionStream interface {
+type MessageStream interface {
 	// Recv gets the next completion chunk
-	Recv() (ChatCompletionStreamResponse, error)
+	Recv() (MessageStreamResponse, error)
 	// Close closes the stream
 	Close()
 }

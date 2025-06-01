@@ -103,10 +103,6 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 				}
 			}
 		}
-
-		// if len(agents) == 0 {
-		// 	return fmt.Errorf("no valid agent configurations found in directory %s", agentsDir)
-		// }
 	} else {
 		cfg, err = config.LoadConfig(configFile)
 		if err != nil {
@@ -181,7 +177,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 		for _, msg := range messages {
 			sess.Messages = append(sess.Messages, session.AgentMessage{
 				Agent: rt.CurrentAgent(),
-				Message: chat.ChatCompletionMessage{
+				Message: chat.Message{
 					Role:    msg.Role,
 					Content: msg.Content,
 				},
