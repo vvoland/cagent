@@ -1,4 +1,5 @@
 import type { SessionsMap } from "../types";
+import { cn } from "../lib/utils";
 
 interface SidebarProps {
   sessions: SessionsMap;
@@ -11,28 +12,39 @@ export const Sidebar = ({
   currentSessionId,
   onSessionSelect,
 }: SidebarProps) => {
+  console.log(currentSessionId);
   const sortedSessions = Object.values(sessions);
   return (
-    <div className="sidebar">
-      {sortedSessions
-        .sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )
-        .map((session) => (
-          <div
-            key={session.id}
-            className={`session-item ${
-              session.id === currentSessionId ? "active" : ""
-            }`}
-            onClick={() => onSessionSelect(session.id)}
-          >
-            Session {session.id.slice(0, 8)}
-            <div className="session-date">
-              {new Date(session.created_at).toLocaleDateString()}
+    <div className="w-64 border-r bg-background p-4">
+      <div className="font-semibold mb-4 text-lg">Sessions</div>
+      <div className="space-y-2">
+        {sortedSessions
+          .sort(
+            (a, b) =>
+              new Date(b.created_at).getTime() -
+              new Date(a.created_at).getTime()
+          )
+          .map((session) => (
+            <div
+              key={session.id}
+              className={cn(
+                "p-3 rounded-lg cursor-pointer transition-colors",
+                "hover:bg-gray-200",
+                session.id === currentSessionId
+                  ? "bg-secondary text-secondary-foreground"
+                  : "text-foreground"
+              )}
+              onClick={() => onSessionSelect(session.id)}
+            >
+              <div className="font-medium">
+                Session {session.id.slice(0, 8)}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {new Date(session.created_at).toLocaleDateString()}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+      </div>
     </div>
   );
 };

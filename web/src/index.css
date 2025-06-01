@@ -1,68 +1,79 @@
+@import "tailwindcss";
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  --color-background: white;
+  --color-foreground: rgb(2, 8, 23);
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  --color-card: white;
+  --color-card-foreground: rgb(2, 8, 23);
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+  --color-popover: white;
+  --color-popover-foreground: rgb(2, 8, 23);
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
+  --color-primary: rgb(15, 23, 42);
+  --color-primary-foreground: rgb(241, 245, 249);
 
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
+  --color-secondary: rgb(241, 245, 249);
+  --color-secondary-foreground: rgb(15, 23, 42);
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+  --color-muted: rgb(241, 245, 249);
+  --color-muted-foreground: rgb(100, 116, 139);
+
+  --color-accent: rgb(241, 245, 249);
+  --color-accent-foreground: rgb(15, 23, 42);
+
+  --color-destructive: rgb(239, 68, 68);
+  --color-destructive-foreground: rgb(241, 245, 249);
+
+  --color-border: rgb(226, 232, 240);
+  --color-input: rgb(226, 232, 240);
+  --color-ring: rgb(2, 8, 23);
+
+  --radius-default: 0.5rem;
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+.dark {
+  --color-background: rgb(2, 8, 23);
+  --color-foreground: rgb(241, 245, 249);
+
+  --color-card: rgb(2, 8, 23);
+  --color-card-foreground: rgb(241, 245, 249);
+
+  --color-popover: rgb(2, 8, 23);
+  --color-popover-foreground: rgb(241, 245, 249);
+
+  --color-primary: rgb(241, 245, 249);
+  --color-primary-foreground: rgb(15, 23, 42);
+
+  --color-secondary: rgb(30, 41, 59);
+  --color-secondary-foreground: rgb(241, 245, 249);
+
+  --color-muted: rgb(30, 41, 59);
+  --color-muted-foreground: rgb(148, 163, 184);
+
+  --color-accent: rgb(30, 41, 59);
+  --color-accent-foreground: rgb(241, 245, 249);
+
+  --color-destructive: rgb(127, 29, 29);
+  --color-destructive-foreground: rgb(241, 245, 249);
+
+  --color-border: rgb(30, 41, 59);
+  --color-input: rgb(30, 41, 59);
+  --color-ring: rgb(226, 232, 240);
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+@utility base {
+  * {
+    border-color: var(--color-border);
   }
-  a:hover {
-    color: #747bff;
+  
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    min-height: 100vh;
   }
-  button {
-    background-color: #f9f9f9;
+  
+  #root {
+    min-height: 100vh;
   }
 }

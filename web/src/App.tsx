@@ -1,16 +1,17 @@
 import { useState, useEffect } from "react";
-import "./App.css";
-import { Sidebar } from "./components/Sidebar";
-import { ToolCallEvent, ToolResultEvent } from "./components/ToolEvents";
+import { useSessions } from "./hooks/useSessions";
+import { useEvents } from "./hooks/useEvents";
+import { useAgents } from "./hooks/useAgents";
+import type { EventItem } from "./types";
+import { Button } from "./components/ui/button";
+import { Input } from "./components/ui/input";
 import {
   MessageEvent,
   ErrorEvent,
   ChoiceEvents,
 } from "./components/MessageEvents";
-import { useSessions } from "./hooks/useSessions";
-import { useEvents } from "./hooks/useEvents";
-import { useAgents } from "./hooks/useAgents";
-import type { EventItem } from "./types";
+import { ToolCallEvent, ToolResultEvent } from "./components/ToolEvents";
+import { Sidebar } from "./components/Sidebar";
 
 function App() {
   const [prompt, setPrompt] = useState("");
@@ -69,36 +70,40 @@ function App() {
   );
 
   return (
-    <div className="app-container">
+    <div className="min-h-screen flex bg-background">
       <Sidebar
         sessions={sessions}
         currentSessionId={currentSessionId}
         onSessionSelect={selectSession}
       />
-      <div className="main-container">
-        <div className="header">
-          <button
-            onClick={() => selectedAgent && createNewSession(selectedAgent)}
-            className="new-session-button"
-            disabled={!selectedAgent}
-          >
-            New Session
-          </button>
-          <select
-            value={selectedAgent || ""}
-            onChange={(e) => setSelectedAgent(e.target.value)}
-            disabled={isLoadingAgents}
-            className="agent-selector"
-          >
-            {agents.map((agent) => (
-              <option key={agent.name} value={agent.name}>
-                {agent.name} - {agent.description}
-              </option>
-            ))}
-          </select>
+      <div className="flex-1 flex flex-col">
+        <div className="p-4 border-b">
+          <div className="flex gap-4 items-center">
+            <Button
+              onClick={() => selectedAgent && createNewSession(selectedAgent)}
+              disabled={!selectedAgent}
+              variant="outline"
+            >
+              New Session
+            </Button>
+            <select
+              value={selectedAgent || ""}
+              onChange={(e) => setSelectedAgent(e.target.value)}
+              disabled={isLoadingAgents}
+              className="flex h-9 w-[200px] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="">Select an agent...</option>
+              {agents.map((agent) => (
+                <option key={agent.name} value={agent.name}>
+                  {agent.name} - {agent.description}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
-        <div className="container">
-          <div className="response">
+
+        <div className="flex-1 overflow-auto p-4">
+          <div className="space-y-4">
             {groupedEvents.map((event, index) => {
               if (Array.isArray(event)) {
                 return <ChoiceEvents key={index} events={event} />;
@@ -136,23 +141,23 @@ function App() {
               }
             })}
           </div>
+        </div>
 
-          <form onSubmit={handleFormSubmit} className="form">
-            <input
-              type="text"
+        <div className="p-4 border-t">
+          <form onSubmit={handleFormSubmit} className="flex gap-2">
+            <Input
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Enter your prompt..."
               disabled={isLoadingEvents || !currentSessionId || !selectedAgent}
-              className="input"
+              className="flex-1"
             />
-            <button
+            <Button
               type="submit"
               disabled={isLoadingEvents || !currentSessionId || !selectedAgent}
-              className="button"
             >
               {isLoadingEvents ? "Processing..." : "Submit"}
-            </button>
+            </Button>
           </form>
         </div>
       </div>

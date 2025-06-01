@@ -22,6 +22,9 @@ type Session struct {
 
 	// State is a general-purpose map to store arbitrary state data, it is shared between agents
 	State map[string]any `json:"state"`
+
+	// CreatedAt is the time the session was created
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // AgentMessage is a message from an agent
@@ -33,9 +36,10 @@ type AgentMessage struct {
 // New creates a new agent session
 func New(agents map[string]*agent.Agent) *Session {
 	return &Session{
-		ID:     uuid.New().String(),
-		State:  make(map[string]any),
-		Agents: agents,
+		ID:        uuid.New().String(),
+		State:     make(map[string]any),
+		Agents:    agents,
+		CreatedAt: time.Now(),
 	}
 }
 
