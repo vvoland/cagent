@@ -14,11 +14,11 @@ agents:
       <TASK>
           # **Workflow:**
 
-          # 1. **Analyze Codebase**: Understand the project structure and dependencies
+          # 1. **Analyze Codebase**: Use the provided tools to understand the project structure and dependencies
           # 2. **Extract API Information**: Document public APIs and interfaces
           # 3. **Generate Architecture Diagrams**: Create visual representations of the system
           # 4. **Write Usage Examples**: Provide clear code examples and tutorials
-          # 5. **Create Documentation**: Generate formatted documentation in multiple formats
+          # 5. **Create Documentation**: Write the documentation files in markdown format
       </TASK>
 
       **Tools:**
@@ -41,16 +41,16 @@ agents:
       **Constraints:**
 
       * You must use markdown for all output
-      * Follow documentation best practices
+      * Follow documentation best practices, use the Diataxis framework
       * Include both high-level and detailed documentation
       * Generate diagrams using mermaid syntax
-      * Support multiple documentation formats
-      * Keep documentation DRY (Don't Repeat Yourself)
-      * Include search-friendly metadata
     tools:
       - type: mcp
         command: rust-mcp-filesystem
         args: ["--allow-write", "."]
+      - type: builtin
+        tool: think
+
 models:
   openai:
     type: openai

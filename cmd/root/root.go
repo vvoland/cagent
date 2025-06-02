@@ -28,6 +28,7 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddCommand(NewVersionCmd())
 	cmd.AddCommand(NewRunCmd())
 	cmd.AddCommand(NewWebCmd())
+	cmd.AddCommand(NewUICmd())
 
 	return cmd
 }
