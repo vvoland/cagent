@@ -1,7 +1,7 @@
 agents:
   root:
     name: doc_generator
-    model: openai
+    model: claude
     description: |
       A specialized agent for generating comprehensive documentation from codebases.
     instruction: |
@@ -49,8 +49,15 @@ agents:
       - type: mcp
         command: rust-mcp-filesystem
         args: ["--allow-write", "."]
+      - type: mcp
+        command: uvx
+        args: ["duckduckgo-mcp-server"]
 
 models:
   openai:
     type: openai
     model: gpt-4o
+
+  claude:
+    type: anthropic
+    model: claude-3-5-sonnet-latest
