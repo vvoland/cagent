@@ -44,8 +44,6 @@ agents:
     instruction: |
       You are a research assistant that provides accurate, well-sourced information.
       Always cite your sources and prefer recent information.
-    tools:
-      - type: search
     sub_agents:
       - fact_checker
     think: true
@@ -107,10 +105,9 @@ models:
     temperature: 0.5
 ```
 
-## Tools Section
+## Tools
 
-The `tools` section defines global tools that can be referenced by agents. Tools can also be defined directly within an
-agent's configuration.
+The `tools` section defines tools available for an agent.
 
 ### Tool Configuration
 
@@ -119,16 +116,6 @@ agent's configuration.
 | `type`    | String | Yes                 | The type of tool (e.g., `mcp`, `search`, `custom`) |
 | `command` | String | For some tool types | The command to execute (for `mcp` type tools)      |
 | `args`    | Array  | For some tool types | Arguments to pass to the command                   |
-
-Example of global tool definition:
-
-```yaml
-tools:
-  airbnb:
-    type: mcp
-    command: npx
-    args: ["-y", "@openbnb/mcp-server-airbnb", "--ignore-robots-txt"]
-```
 
 Example of tool within an agent:
 
@@ -163,15 +150,6 @@ tools:
     args: ["-y", "@openbnb/mcp-server-airbnb", "--ignore-robots-txt"]
 ```
 
-#### File System Tools
-
-These tools enable agents to interact with the file system:
-
-- `read_file(file_path: str) -> str`: Reads file content
-- `write_file(file_path: str, content: str) -> None`: Writes to files
-- `list_files_in_directory(directory_path: str) -> list`: Lists files in a directory
-- `search_files(path: str, pattern: str) -> list`: Searches for files matching a pattern
-
 #### Think Tool
 
 Enables an agent to reflect on complex problems before responding. Activated by setting `think: true` in the agent
@@ -191,26 +169,6 @@ instruction: |
     # 2. Second step
     # ...
   </TASK>
-```
-
-### Tools Description
-
-```yaml
-instruction: |
-  **Tools:**
-  You have access to the following tools:
-  * `tool_name(param: type) -> return_type`: Description
-  * ...
-```
-
-### Constraints
-
-```yaml
-instruction: |
-  **Constraints:**
-  * Constraint 1
-  * Constraint 2
-  * ...
 ```
 
 ## Complete Reference Example
