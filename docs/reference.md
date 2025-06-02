@@ -1,6 +1,8 @@
 # Agent Configuration Reference
 
-This reference documentation provides detailed information about all configuration options available when creating agents using YAML. Use this guide as a comprehensive reference for all available fields, options, and their expected values.
+This reference documentation provides detailed information about all configuration options available when creating
+agents using YAML. Use this guide as a comprehensive reference for all available fields, options, and their expected
+values.
 
 ## YAML Configuration Structure
 
@@ -9,12 +11,9 @@ The agent configuration YAML file consists of three main sections:
 ```yaml
 agents:
   # Agent definitions
-  
+
 models:
   # Model configurations
-  
-tools:
-  # Global tool definitions
 ```
 
 ## Agents Section
@@ -23,16 +22,16 @@ The `agents` section defines all agents in the system, including the root agent 
 
 ### Root Agent Configuration
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | String | Yes | Unique identifier for the agent |
-| `model` | String | Yes | Reference to a model defined in the models section |
-| `description` | String | Yes | Brief description of the agent's purpose |
-| `instruction` | String | Yes | Detailed instructions guiding the agent's behavior |
-| `tools` | Array | No | List of tools available to the agent |
-| `sub_agents` | Array | No | List of sub-agent names that can be called by this agent |
-| `think` | Boolean | No | When true, enables the agent to use the think tool for reflection |
-| `add_date` | Boolean | No | When true, adds the current date to the agent's context |
+| Field         | Type    | Required | Description                                                       |
+| ------------- | ------- | -------- | ----------------------------------------------------------------- |
+| `name`        | String  | Yes      | Unique identifier for the agent                                   |
+| `model`       | String  | Yes      | Reference to a model defined in the models section                |
+| `description` | String  | Yes      | Brief description of the agent's purpose                          |
+| `instruction` | String  | Yes      | Detailed instructions guiding the agent's behavior                |
+| `tools`       | Array   | No       | List of tools available to the agent                              |
+| `sub_agents`  | Array   | No       | List of sub-agent names that can be called by this agent          |
+| `think`       | Boolean | No       | When true, enables the agent to use the think tool for reflection |
+| `add_date`    | Boolean | No       | When true, adds the current date to the agent's context           |
 
 Example:
 
@@ -54,7 +53,8 @@ agents:
 
 ### Sub-Agent Configuration
 
-Sub-agents have the same configuration options as the root agent but are defined as separate entities under the `agents` section and referenced in the `sub_agents` array of the parent agent.
+Sub-agents have the same configuration options as the root agent but are defined as separate entities under the `agents`
+section and referenced in the `sub_agents` array of the parent agent.
 
 Example:
 
@@ -64,7 +64,7 @@ agents:
     # Root agent config
     sub_agents:
       - fact_checker
-      
+
   fact_checker:
     name: fact_checker
     model: claude
@@ -80,15 +80,15 @@ The `models` section defines the language models that agents can use.
 
 ### Model Configuration
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | String | Yes | The provider of the model (e.g., `openai`, `anthropic`) |
-| `model` | String | Yes | The specific model to use (e.g., `gpt-4o`, `claude-3-5-sonnet-latest`) |
-| `temperature` | Float | No | Controls randomness in output (0.0-1.0) |
-| `max_tokens` | Integer | No | Maximum number of tokens in the response |
-| `top_p` | Float | No | Nucleus sampling parameter (0.0-1.0) |
-| `frequency_penalty` | Float | No | Penalty for new token based on frequency (0.0-2.0) |
-| `presence_penalty` | Float | No | Penalty for new token based on presence (0.0-2.0) |
+| Field               | Type    | Required | Description                                                            |
+| ------------------- | ------- | -------- | ---------------------------------------------------------------------- |
+| `type`              | String  | Yes      | The provider of the model (e.g., `openai`, `anthropic`)                |
+| `model`             | String  | Yes      | The specific model to use (e.g., `gpt-4o`, `claude-3-5-sonnet-latest`) |
+| `temperature`       | Float   | No       | Controls randomness in output (0.0-1.0)                                |
+| `max_tokens`        | Integer | No       | Maximum number of tokens in the response                               |
+| `top_p`             | Float   | No       | Nucleus sampling parameter (0.0-1.0)                                   |
+| `frequency_penalty` | Float   | No       | Penalty for new token based on frequency (0.0-2.0)                     |
+| `presence_penalty`  | Float   | No       | Penalty for new token based on presence (0.0-2.0)                      |
 
 Example:
 
@@ -100,7 +100,7 @@ models:
     temperature: 0.7
     max_tokens: 1500
     top_p: 1.0
-    
+
   claude:
     type: anthropic
     model: claude-3-5-sonnet-latest
@@ -109,15 +109,16 @@ models:
 
 ## Tools Section
 
-The `tools` section defines global tools that can be referenced by agents. Tools can also be defined directly within an agent's configuration.
+The `tools` section defines global tools that can be referenced by agents. Tools can also be defined directly within an
+agent's configuration.
 
 ### Tool Configuration
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | String | Yes | The type of tool (e.g., `mcp`, `search`, `custom`) |
-| `command` | String | For some tool types | The command to execute (for `mcp` type tools) |
-| `args` | Array | For some tool types | Arguments to pass to the command |
+| Field     | Type   | Required            | Description                                        |
+| --------- | ------ | ------------------- | -------------------------------------------------- |
+| `type`    | String | Yes                 | The type of tool (e.g., `mcp`, `search`, `custom`) |
+| `command` | String | For some tool types | The command to execute (for `mcp` type tools)      |
+| `args`    | Array  | For some tool types | Arguments to pass to the command                   |
 
 Example of global tool definition:
 
@@ -138,7 +139,15 @@ agents:
     tools:
       - type: mcp
         command: docker
-        args: ["run", "-i", "--rm", "alpine/socat", "STDIO", "TCP:host.docker.internal:8811"]
+        args:
+          [
+            "run",
+            "-i",
+            "--rm",
+            "alpine/socat",
+            "STDIO",
+            "TCP:host.docker.internal:8811",
+          ]
 ```
 
 ### Common Tool Types
@@ -165,7 +174,8 @@ These tools enable agents to interact with the file system:
 
 #### Think Tool
 
-Enables an agent to reflect on complex problems before responding. Activated by setting `think: true` in the agent configuration.
+Enables an agent to reflect on complex problems before responding. Activated by setting `think: true` in the agent
+configuration.
 
 ## Instruction Field Best Practices
 
@@ -214,7 +224,7 @@ agents:
     instruction: |
       You are a research assistant that provides accurate, well-sourced information.
       Always cite your sources and prefer recent information.
-      
+
       <TASK>
         # **Workflow:**
         # 1. Understand the user's question
@@ -222,11 +232,11 @@ agents:
         # 3. Analyze and verify the information
         # 4. Provide a comprehensive answer with sources
       </TASK>
-      
+
       **Tools:**
       You have access to the following tools:
       * `search(query: str) -> str`: Searches the web for information
-      
+
       **Constraints:**
       * Use markdown for formatting
       * Always cite sources
@@ -238,7 +248,7 @@ agents:
     sub_agents:
       - fact_checker
     think: true
-    
+
   fact_checker:
     name: fact_checker
     model: claude
@@ -253,15 +263,9 @@ models:
     model: gpt-4o
     temperature: 0.7
     max_tokens: 1500
-    
+
   claude:
     type: anthropic
     model: claude-3-5-sonnet-latest
     temperature: 0.5
-
-tools:
-  search:
-    type: mcp
-    command: npx
-    args: ["-y", "search-tool"]
 ```

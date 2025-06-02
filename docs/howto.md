@@ -1,6 +1,8 @@
 # How to Create and Configure Agents
 
-This guide will help you create and configure intelligent agents using YAML. Following the steps below, you'll learn how to build agents ranging from simple conversational bots to complex systems with tools and sub-agents.
+This guide will help you create and configure intelligent agents using YAML.
+Following the steps below, you'll learn how to build agents ranging from simple
+conversational bots to complex systems with tools and sub-agents.
 
 ## Prerequisites
 
@@ -26,7 +28,8 @@ agents:
 
 ### Step 2: Configure the Agent's Personality
 
-The `instruction` field defines how your agent will behave. For example, to create a pirate-speaking agent:
+The `instruction` field defines how your agent will behave. For example, to
+create a pirate-speaking agent:
 
 ```yaml
 agents:
@@ -55,7 +58,8 @@ models:
 
 ### Integrating Tools
 
-Tools extend your agent's capabilities, allowing it to interact with external systems:
+Tools extend your agent's capabilities, allowing it to interact with external
+systems:
 
 ```yaml
 agents:
@@ -65,7 +69,14 @@ agents:
       - type: mcp
         command: docker
         args:
-          ["run", "-i", "--rm", "alpine/socat", "STDIO", "TCP:host.docker.internal:8811"]
+          [
+            "run",
+            "-i",
+            "--rm",
+            "alpine/socat",
+            "STDIO",
+            "TCP:host.docker.internal:8811",
+          ]
 ```
 
 Example: Adding an Airbnb search tool:
@@ -101,7 +112,8 @@ agents:
 
 ### Implementing the 'Think' Tool
 
-The 'think' tool allows agents to reflect before responding, especially useful for complex tasks:
+The 'think' tool allows agents to reflect before responding, especially useful
+for complex tasks:
 
 ```yaml
 agents:
@@ -115,6 +127,7 @@ agents:
 ```
 
 Use the 'think' tool when:
+
 - Processing complex sequential tasks
 - Ensuring compliance with specific policies
 - Verifying gathered information before acting
@@ -144,7 +157,7 @@ agents:
       You are a helpful assistant for containerizing applications.
     instruction: |
       # Containerization instructions...
-    
+
   optimize_dockerfile:
     name: optimize_dockerfile
     model: openai
@@ -202,12 +215,16 @@ instruction: |
 
 ## Troubleshooting
 
-- **Agent not responding correctly**: Check the instruction field for clarity and specificity
+- **Agent not responding correctly**: Check the instruction field for clarity
+  and specificity
 - **Tool errors**: Verify that tool paths and arguments are correct
-- **Sub-agent communication issues**: Ensure sub-agents are properly defined and referenced
+- **Sub-agent communication issues**: Ensure sub-agents are properly defined and
+  referenced
 
 ---
 
-For more detailed information about agent configuration options, refer to the [Reference Documentation](./reference.md).
+For more detailed information about agent configuration options, refer to the
+[Reference Documentation](./reference.md).
 
-For conceptual understanding of how agents work, see the [Explanation](./explanation.md) section.
+For conceptual understanding of how agents work, see the
+[Explanation](./explanation.md) section.
