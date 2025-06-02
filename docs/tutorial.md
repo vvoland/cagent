@@ -96,19 +96,15 @@ agents:
       * Keep responses concise but thorough
       * Always offer a positive encouragement at the end of your responses
     tools:
-      - type: search
+      - type: mcp
+        command: npx
+        args: ["-y", "search-tool"]
 
 models:
   openai:
     type: openai
     model: gpt-4o
     temperature: 0.7
-
-tools:
-  search:
-    type: mcp
-    command: npx
-    args: ["-y", "search-tool"]
 ```
 
 ## Step 5: Create a Sub-Agent
@@ -143,7 +139,9 @@ agents:
       * Keep responses concise but thorough
       * Always offer a positive encouragement at the end of your responses
     tools:
-      - type: search
+      - type: mcp
+        command: npx
+        args: ["-y", "search-tool"]
     sub_agents:
       - fact_checker
 
@@ -170,12 +168,6 @@ models:
     type: openai
     model: gpt-4o
     temperature: 0.7
-
-tools:
-  search:
-    type: mcp
-    command: npx
-    args: ["-y", "search-tool"]
 ```
 
 ## Step 6: Enable the Think Tool
@@ -216,7 +208,9 @@ agents:
       * Keep responses concise but thorough
       * Always offer a positive encouragement at the end of your responses
     tools:
-      - type: search
+      - type: mcp
+        command: npx
+        args: ["-y", "search-tool"]
     sub_agents:
       - fact_checker
 
