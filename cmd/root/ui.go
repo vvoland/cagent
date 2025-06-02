@@ -31,25 +31,109 @@ var (
 
 	errorStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FF0000"))
+
+	// Add viewport style
+	viewportStyle = lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(highlight)
+
+	// Add layout styles
+	appStyle = lipgloss.NewStyle().
+			Padding(1, 0, 0, 0) // Only add padding to the top
+
+	headerStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(highlight)
+
+	footerStyle = lipgloss.NewStyle()
 )
 
 // Message types
-type responseMsg struct{ content string }
-type errorMsg error
-type showInputMsg struct{}
+type (
+	responseMsg  struct{ content string }
+	errorMsg     error
+	showInputMsg struct{}
+)
 
+// model represents the application state
 type model struct {
-	viewport   viewport.Model
-	textInput  textinput.Model
+	// UI components
+	viewport  viewport.Model
+	textInput textinput.Model
+	renderer  *glamour.TermRenderer
+
+	// Content state
 	content    string // rendered content
 	rawContent string // raw markdown content
-	ready      bool
+	err        error
+
+	// App state
+	ready     bool
+	showInput bool // tracks when it's safe to show the text input
+	width     int  // terminal width
+	height    int  // terminal height
+
+	// Business logic
 	rt         *runtime.Runtime
 	sess       *session.Session
-	renderer   *glamour.TermRenderer
-	err        error
 	responseCh chan string
-	showInput  bool // tracks when it's safe to show the text input
+}
+
+// newModel creates and initializes a new model
+func newModel(rt *runtime.Runtime, sess *session.Session) *model {
+	// Initialize text input
+	ti := textinput.New()
+	ti.Placeholder = "Enter your message..."
+	ti.Focus()
+	ti.CharLimit = 256
+	ti.Prompt = inputPromptStyle.Render("> ")
+
+	return &model{
+		textInput:  ti,
+		rt:         rt,
+		sess:       sess,
+		responseCh: make(chan string, 100),
+	}
+}
+
+func (m *model) updateDimensions(width, height int) {
+	m.width = width
+	m.height = height
+
+	// Update viewport dimensions
+	headerHeight := 1
+	footerHeight := 3
+	viewportHeight := height - headerHeight - footerHeight
+
+	m.viewport.Width = width
+	m.viewport.Height = viewportHeight
+	m.viewport.Style = viewportStyle.Copy().
+		Width(width).
+		Height(viewportHeight)
+
+	// Update text input width
+	m.textInput.Width = width - 2
+
+	// Update renderer width
+	var err error
+	m.renderer, err = glamour.NewTermRenderer(
+		glamour.WithAutoStyle(),
+		glamour.WithWordWrap(width),
+	)
+	if err != nil {
+		m.err = err
+	}
+}
+
+// renderContent renders the raw markdown content
+func (m *model) renderContent() error {
+	rendered, err := m.renderer.Render(m.rawContent)
+	if err != nil {
+		return err
+	}
+	m.content = rendered
+	m.viewport.SetContent(m.content)
+	return nil
 }
 
 func (m *model) Init() tea.Cmd {
@@ -102,114 +186,44 @@ func readResponse(ch <-chan string) tea.Cmd {
 	}
 }
 
-func (m *model) renderContent() error {
-	rendered, err := m.renderer.Render(m.rawContent)
-	if err != nil {
-		return err
-	}
-	m.content = rendered
-	m.viewport.SetContent(m.content)
-	return nil
-}
-
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var (
-		cmd  tea.Cmd
-		cmds []tea.Cmd
-	)
+	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case showInputMsg:
 		m.showInput = true
 		return m, nil
-	case tea.KeyMsg:
-		if !m.showInput {
-			return m, nil
-		}
-		switch msg.String() {
-		case "ctrl+c":
-			return m, tea.Quit
-		case "enter":
-			if strings.TrimSpace(m.textInput.Value()) == "" {
-				return m, nil
-			}
 
-			// Store the input before clearing it
-			input := m.textInput.Value()
-			m.textInput.Reset()
-
-			// Add user message to raw content
-			userMsg := fmt.Sprintf("\n**You**: %s\n", input)
-			m.rawContent += userMsg
-			if err := m.renderContent(); err != nil {
-				m.err = err
-			}
-			m.viewport.GotoBottom()
-
-			// Add message to session
-			m.sess.Messages = append(m.sess.Messages, session.AgentMessage{
-				Agent: m.rt.CurrentAgent(),
-				Message: chat.Message{
-					Role:    "user",
-					Content: input,
-				},
-			})
-
-			// Create a new channel for this response
-			m.responseCh = make(chan string, 100)
-			return m, tea.Batch(
-				processStream(m.rt, m.sess, m.responseCh),
-				readResponse(m.responseCh),
-			)
-		}
 	case tea.WindowSizeMsg:
 		if !m.ready {
-			m.viewport = viewport.New(msg.Width, msg.Height-4)
-			m.viewport.Style = lipgloss.NewStyle().
-				BorderStyle(lipgloss.RoundedBorder()).
-				BorderForeground(highlight).
-				Width(msg.Width).
-				Height(msg.Height - 4)
-			m.viewport.MouseWheelEnabled = true
-			m.viewport.YPosition = 0
-
-			// Create a new renderer with the current viewport width
-			var err error
-			m.renderer, err = glamour.NewTermRenderer(
-				glamour.WithAutoStyle(),
-				glamour.WithWordWrap(msg.Width),
-			)
-			if err != nil {
-				m.err = err
-			}
-
-			// Update textinput width
-			m.textInput.Width = msg.Width - 2
+			m.updateDimensions(msg.Width, msg.Height)
 			m.ready = true
 
 			// Add a delay before showing the input
 			return m, tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
 				return showInputMsg{}
 			})
-		} else {
-			m.viewport.Width = msg.Width
-			m.viewport.Height = msg.Height - 4
-			m.textInput.Width = msg.Width - 2
-
-			// Update renderer with new width
-			var err error
-			m.renderer, err = glamour.NewTermRenderer(
-				glamour.WithAutoStyle(),
-				glamour.WithWordWrap(msg.Width),
-			)
-			if err != nil {
-				m.err = err
-			}
 		}
 
-		// Re-render content with new width
+		m.updateDimensions(msg.Width, msg.Height)
 		if err := m.renderContent(); err != nil {
 			m.err = err
+		}
+
+	case tea.KeyMsg:
+		if !m.showInput {
+			return m, nil
+		}
+
+		switch msg.Type {
+		case tea.KeyCtrlC:
+			return m, tea.Quit
+		case tea.KeyEnter:
+			if strings.TrimSpace(m.textInput.Value()) == "" {
+				return m, nil
+			}
+			cmd := m.handleUserInput()
+			return m, cmd
 		}
 
 	case responseMsg:
@@ -218,51 +232,104 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = err
 		}
 		m.viewport.GotoBottom()
+		return m, tea.Tick(time.Millisecond*10, func(t time.Time) tea.Msg {
+			return readResponseMsg{}
+		})
+
+	case readResponseMsg:
 		return m, readResponse(m.responseCh)
 
 	case errorMsg:
 		m.err = error(msg)
-	}
-
-	// Handle textinput updates
-	if m.showInput {
-		var tiCmd tea.Cmd
-		m.textInput, tiCmd = m.textInput.Update(msg)
-		cmds = append(cmds, tiCmd)
+		return m, nil
 	}
 
 	// Handle viewport updates
-	m.viewport, cmd = m.viewport.Update(msg)
-	cmds = append(cmds, cmd)
+	var vpCmd tea.Cmd
+	m.viewport, vpCmd = m.viewport.Update(msg)
+	if vpCmd != nil {
+		cmds = append(cmds, vpCmd)
+	}
+
+	// Handle textinput updates if input is shown
+	if m.showInput {
+		var tiCmd tea.Cmd
+		m.textInput, tiCmd = m.textInput.Update(msg)
+		if tiCmd != nil {
+			cmds = append(cmds, tiCmd)
+		}
+	}
 
 	return m, tea.Batch(cmds...)
 }
+
+// handleUserInput processes user input and returns appropriate commands
+func (m *model) handleUserInput() tea.Cmd {
+	// Store the input before clearing it
+	input := m.textInput.Value()
+	m.textInput.Reset()
+
+	// Add user message to raw content
+	userMsg := fmt.Sprintf("\n**You**: %s\n", input)
+	m.rawContent += userMsg
+	if err := m.renderContent(); err != nil {
+		m.err = err
+	}
+	m.viewport.GotoBottom()
+
+	// Add message to session
+	m.sess.Messages = append(m.sess.Messages, session.AgentMessage{
+		Agent: m.rt.CurrentAgent(),
+		Message: chat.Message{
+			Role:    "user",
+			Content: input,
+		},
+	})
+
+	// Create a new channel for this response
+	m.responseCh = make(chan string, 100)
+
+	return tea.Batch(
+		processStream(m.rt, m.sess, m.responseCh),
+		readResponse(m.responseCh),
+	)
+}
+
+// Additional message type for reading responses
+type readResponseMsg struct{}
 
 func (m *model) View() string {
 	if !m.ready {
 		return "Initializing..."
 	}
 
-	var status string
+	// Build header
+	header := headerStyle.Render("🤖 AI Chat")
+
+	// Build main content area
+	content := m.viewport.View()
+
+	// Build footer with status and input
+	var footer string
 	if m.err != nil {
-		status = errorStyle.Render(fmt.Sprintf("Error: %v", m.err))
+		footer = errorStyle.Render(fmt.Sprintf("Error: %v", m.err))
 	} else {
-		status = statusStyle.Render("🤖 Ready")
+		status := statusStyle.Render("🤖 Ready\n")
+		input := ""
+		if m.showInput {
+			input = "\n" + m.textInput.View() + "\n"
+		}
+		footer = footerStyle.Render(status + input)
 	}
 
-	if !m.showInput {
-		return fmt.Sprintf(
-			"%s\n%s",
-			m.viewport.View(),
-			status,
-		)
-	}
-
-	return fmt.Sprintf(
-		"%s\n%s\n%s",
-		m.viewport.View(),
-		status,
-		"\n"+m.textInput.View(),
+	// Combine all sections
+	return appStyle.Render(
+		lipgloss.JoinVertical(
+			lipgloss.Left,
+			header,
+			content,
+			footer,
+		),
 	)
 }
 
@@ -301,29 +368,7 @@ func runUICommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Initialize with a default width, it will be updated when we get the window size
-	renderer, err := glamour.NewTermRenderer(
-		glamour.WithAutoStyle(),
-		glamour.WithWordWrap(120), // Default width that will be updated
-	)
-	if err != nil {
-		return err
-	}
-
-	// Initialize text input
-	ti := textinput.New()
-	ti.Placeholder = "Enter your message..."
-	ti.Focus()
-	ti.CharLimit = 256
-	ti.Width = 50
-	ti.Prompt = inputPromptStyle.Render("> ")
-
-	m := &model{
-		rt:        rt,
-		sess:      session.New(agents),
-		renderer:  renderer,
-		textInput: ti,
-	}
+	m := newModel(rt, session.New(agents))
 
 	p := tea.NewProgram(
 		m,
