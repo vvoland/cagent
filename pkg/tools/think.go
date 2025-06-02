@@ -14,7 +14,6 @@ type ThinkTool struct {
 }
 
 type thinkHandler struct {
-	tool     *ThinkTool
 	thoughts []string
 }
 
