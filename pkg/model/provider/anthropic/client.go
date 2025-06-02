@@ -59,7 +59,6 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 			} else {
 				*a.toolIdx++
 			}
-			// a.toolIdx++
 			toolCall := tools.ToolCall{
 				ID:    contentBlock.ID,
 				Type:  "function",
@@ -182,7 +181,10 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 				for j, toolCall := range msg.ToolCalls {
 					var inpts map[string]any
 					if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &inpts); err != nil {
-						fmt.Printf("failed to unmarshal tool arguments: %v\n", err)
+						// fmt.Printf("failed to unmarshal tool arguments: %v\n", err)
+					}
+					if inpts == nil {
+						inpts = map[string]any{}
 					}
 					toolUseBlocks[j] = anthropic.ContentBlockParamUnion{
 						OfToolUse: &anthropic.ToolUseBlockParam{
