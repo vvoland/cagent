@@ -2,9 +2,10 @@ package config
 
 // Tool represents a tool configuration
 type Tool struct {
-	Type    string   `yaml:"type,omitempty"`
-	Command string   `yaml:"command,omitempty"`
-	Args    []string `yaml:"args,omitempty"`
+	Type    string            `yaml:"type,omitempty"`
+	Command string            `yaml:"command,omitempty"`
+	Args    []string          `yaml:"args,omitempty"`
+	Env     map[string]string `yaml:"env,omitempty"`
 }
 
 // AgentConfig represents a single agent configuration

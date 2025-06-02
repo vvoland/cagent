@@ -17,8 +17,8 @@ type Client struct {
 }
 
 // New creates a new MCP client that can start an stdio MCP server
-func New(ctx context.Context, command string, args []string) (*Client, error) {
-	mcpClient, err := client.NewStdioMCPClient(command, nil, args...)
+func New(ctx context.Context, command string, args []string, env []string) (*Client, error) {
+	mcpClient, err := client.NewStdioMCPClient(command, env, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create stdio client: %w", err)
 	}

@@ -11,8 +11,8 @@ type Toolset struct {
 	c *Client
 }
 
-func NewToolset(ctx context.Context, command string, args []string) (*Toolset, error) {
-	mcpc, err := New(ctx, command, args)
+func NewToolset(ctx context.Context, command string, args []string, env []string) (*Toolset, error) {
+	mcpc, err := New(ctx, command, args, env)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create mcp client: %w", err)
 	}

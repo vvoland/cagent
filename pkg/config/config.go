@@ -98,7 +98,12 @@ func getToolsForAgent(ctx context.Context, cfg *Config, agentName string) ([]too
 	toolDefs := cfg.Agents[agentName].Tools
 	for _, toolDef := range toolDefs {
 		if toolDef.Type == "mcp" {
-			mcpc, err := mcp.NewToolset(ctx, toolDef.Command, toolDef.Args)
+			// Convert env map to string slice
+			envSlice := make([]string, 0, len(toolDef.Env))
+			for k, v := range toolDef.Env {
+				envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
+			}
+			mcpc, err := mcp.NewToolset(ctx, toolDef.Command, toolDef.Args, envSlice)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create mcp client: %w", err)
 			}
