@@ -89,38 +89,43 @@ func hasParents(cfg *Config, agentName string) bool {
 
 // getToolsForAgent returns the tool definitions for an agent based on its configuration
 func getToolsForAgent(ctx context.Context, cfg *Config, agentName string) ([]tools.ToolSet, error) {
+	a, ok := cfg.Agents[agentName]
+	if !ok {
+		return nil, fmt.Errorf("agent '%s' not found in configuration", agentName)
+	}
+
 	var t []tools.ToolSet
 
-	if hasParents(cfg, agentName) || len(cfg.Agents[agentName].SubAgents) > 0 {
+	if hasParents(cfg, agentName) || len(a.SubAgents) > 0 {
 		t = append(t, tools.NewAgentTransferTool())
 	}
 
-	toolDefs := cfg.Agents[agentName].Tools
-	for _, toolDef := range toolDefs {
-		if toolDef.Type == "mcp" {
-			// Convert env map to string slice
-			envSlice := make([]string, 0, len(toolDef.Env))
-			for k, v := range toolDef.Env {
-				envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
-			}
-			mcpc, err := mcp.NewToolset(ctx, toolDef.Command, toolDef.Args, envSlice)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create mcp client: %w", err)
-			}
-
-			if err := mcpc.Start(ctx); err != nil {
-				return nil, fmt.Errorf("failed to start mcp client: %w", err)
-			}
-
-			t = append(t, mcpc)
-		}
-		if toolDef.Type == "builtin" {
-			tt := tools.NewThinkTool()
-			t = append(t, tt)
-
-		}
+	if a.Think {
+		t = append(t, tools.NewThinkTool())
 	}
 
+	toolDefs := a.Tools
+	for _, toolDef := range toolDefs {
+		if toolDef.Type != "mcp" {
+			continue
+		}
+
+		// Convert env map to string slice
+		envSlice := make([]string, 0, len(toolDef.Env))
+		for k, v := range toolDef.Env {
+			envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
+		}
+		mcpc, err := mcp.NewToolset(ctx, toolDef.Command, toolDef.Args, envSlice)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create mcp client: %w", err)
+		}
+
+		if err := mcpc.Start(ctx); err != nil {
+			return nil, fmt.Errorf("failed to start mcp client: %w", err)
+		}
+
+		t = append(t, mcpc)
+	}
 	return t, nil
 }
 

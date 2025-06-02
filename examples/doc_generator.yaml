@@ -44,12 +44,11 @@ agents:
       * Follow documentation best practices, use the Diataxis framework
       * Include both high-level and detailed documentation
       * Generate diagrams using mermaid syntax
+    think: true
     tools:
       - type: mcp
         command: rust-mcp-filesystem
         args: ["--allow-write", "."]
-      - type: builtin
-        tool: think
 
 models:
   openai:

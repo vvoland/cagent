@@ -32,9 +32,7 @@ agents:
     sub_agents:
       - finance_agent
       - web_search_agent
-    tools:
-      - type: builtin
-        tool: think
+    think: true
 
   finance_agent:
     name: finance_agent
@@ -47,12 +45,11 @@ agents:
       Use tables to display the data
 
       IMPORTANT: Once you are done, transfer the session to the  `root` agent
+    think: true
     tools:
       - type: mcp
         command: uvx
         args: ["yfmcp"]
-      - type: builtin
-        tool: think
 
   web_search_agent:
     name: web_search_agent
@@ -65,12 +62,11 @@ agents:
       Always include sources
 
       IMPORTANT: Once you are done, transfer the session to the  `root` agent
+    think: true
     tools:
       - type: mcp
         command: uvx
         args: ["duckduckgo-mcp-server"]
-      - type: builtin
-        tool: think
 
 models:
   openai:

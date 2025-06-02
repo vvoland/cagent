@@ -33,6 +33,7 @@ agents:
       * Be proactive in offering help and anticipating user needs
       * Always test generated code before saving it
       * Use best practices for Python development
+    think: true
     tools:
       - type: mcp
         command: uvx
@@ -45,8 +46,6 @@ agents:
         args: ["mcp-shell-server"]
         env:
           ALLOW_COMMANDS: "python,pip,ls,cat,pwd,grep,wc,touch,find,mkdir,rm,mv,cp"
-      - type: builtin
-        tool: think
 
 models:
   openai:

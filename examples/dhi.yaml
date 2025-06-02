@@ -10,6 +10,8 @@ agents:
       Your main goal is to analyze Dockerfiles and migrate them to use Docker Hardened Images while maintaining functionality.
       Always use conversation context/state or tools to get information. Prefer tools over your own internal knowledge.
 
+      The Dockerfile of the user is almost certainly in the current directory.
+
       <TASK>
           # **Workflow:**
 
@@ -64,7 +66,7 @@ agents:
       * Include necessary modifications for DHI compatibility
       * Preserve build optimizations where possible
       * Document any significant changes or considerations
-
+    think: true
     tools:
       - type: mcp
         command: docker
@@ -80,8 +82,6 @@ agents:
         args: ["mcp-shell-server"]
         env:
           ALLOW_COMMANDS: "docker,python,pip,ls,cat,pwd,grep,wc,touch,find,mkdir,rm,mv,cp"
-      - type: builtin
-        tool: think
 
 models:
   openai:
