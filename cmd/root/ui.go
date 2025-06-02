@@ -172,6 +172,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				BorderForeground(highlight).
 				Width(msg.Width).
 				Height(msg.Height - 4)
+			m.viewport.MouseWheelEnabled = true
+			m.viewport.YPosition = 0
 			m.ready = true
 
 			// Create a new renderer with the current viewport width
