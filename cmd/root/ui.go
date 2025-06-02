@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
@@ -34,22 +36,24 @@ var (
 // Message types
 type responseMsg struct{ content string }
 type errorMsg error
+type showInputMsg struct{}
 
 type model struct {
-	viewport    viewport.Model
-	content     string // rendered content
-	rawContent  string // raw markdown content
-	ready       bool
-	rt          *runtime.Runtime
-	sess        *session.Session
-	renderer    *glamour.TermRenderer
-	inputBuffer string
-	err         error
-	responseCh  chan string
+	viewport   viewport.Model
+	textInput  textinput.Model
+	content    string // rendered content
+	rawContent string // raw markdown content
+	ready      bool
+	rt         *runtime.Runtime
+	sess       *session.Session
+	renderer   *glamour.TermRenderer
+	err        error
+	responseCh chan string
+	showInput  bool // tracks when it's safe to show the text input
 }
 
 func (m *model) Init() tea.Cmd {
-	return nil
+	return textinput.Blink
 }
 
 // Helper function to truncate string with ellipsis
@@ -115,18 +119,24 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	)
 
 	switch msg := msg.(type) {
+	case showInputMsg:
+		m.showInput = true
+		return m, nil
 	case tea.KeyMsg:
+		if !m.showInput {
+			return m, nil
+		}
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
 		case "enter":
-			if strings.TrimSpace(m.inputBuffer) == "" {
+			if strings.TrimSpace(m.textInput.Value()) == "" {
 				return m, nil
 			}
 
 			// Store the input before clearing it
-			input := m.inputBuffer
-			m.inputBuffer = ""
+			input := m.textInput.Value()
+			m.textInput.Reset()
 
 			// Add user message to raw content
 			userMsg := fmt.Sprintf("\n**You**: %s\n", input)
@@ -152,18 +162,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				readResponse(m.responseCh),
 			)
 		}
-
-		switch msg.Type {
-		case tea.KeyRunes:
-			m.inputBuffer += string(msg.Runes)
-		case tea.KeySpace:
-			m.inputBuffer += " "
-		case tea.KeyBackspace:
-			if m.inputBuffer != "" {
-				m.inputBuffer = m.inputBuffer[:len(m.inputBuffer)-1]
-			}
-		}
-
 	case tea.WindowSizeMsg:
 		if !m.ready {
 			m.viewport = viewport.New(msg.Width, msg.Height-4)
@@ -174,7 +172,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				Height(msg.Height - 4)
 			m.viewport.MouseWheelEnabled = true
 			m.viewport.YPosition = 0
-			m.ready = true
 
 			// Create a new renderer with the current viewport width
 			var err error
@@ -185,9 +182,19 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if err != nil {
 				m.err = err
 			}
+
+			// Update textinput width
+			m.textInput.Width = msg.Width - 2
+			m.ready = true
+
+			// Add a delay before showing the input
+			return m, tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
+				return showInputMsg{}
+			})
 		} else {
 			m.viewport.Width = msg.Width
 			m.viewport.Height = msg.Height - 4
+			m.textInput.Width = msg.Width - 2
 
 			// Update renderer with new width
 			var err error
@@ -217,6 +224,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = error(msg)
 	}
 
+	// Handle textinput updates
+	if m.showInput {
+		var tiCmd tea.Cmd
+		m.textInput, tiCmd = m.textInput.Update(msg)
+		cmds = append(cmds, tiCmd)
+	}
+
+	// Handle viewport updates
 	m.viewport, cmd = m.viewport.Update(msg)
 	cmds = append(cmds, cmd)
 
@@ -235,17 +250,19 @@ func (m *model) View() string {
 		status = statusStyle.Render("🤖 Ready")
 	}
 
-	input := fmt.Sprintf(
-		"\n%s %s",
-		inputPromptStyle.Render(">"),
-		m.inputBuffer,
-	)
+	if !m.showInput {
+		return fmt.Sprintf(
+			"%s\n%s",
+			m.viewport.View(),
+			status,
+		)
+	}
 
 	return fmt.Sprintf(
 		"%s\n%s\n%s",
 		m.viewport.View(),
 		status,
-		input,
+		"\n"+m.textInput.View(),
 	)
 }
 
@@ -293,10 +310,19 @@ func runUICommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Initialize text input
+	ti := textinput.New()
+	ti.Placeholder = "Enter your message..."
+	ti.Focus()
+	ti.CharLimit = 256
+	ti.Width = 50
+	ti.Prompt = inputPromptStyle.Render("> ")
+
 	m := &model{
-		rt:       rt,
-		sess:     session.New(agents),
-		renderer: renderer,
+		rt:        rt,
+		sess:      session.New(agents),
+		renderer:  renderer,
+		textInput: ti,
 	}
 
 	p := tea.NewProgram(
