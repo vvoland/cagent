@@ -51,8 +51,7 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 	// Handle different event types
 	switch eventVariant := event.AsAny().(type) {
 	case anthropic.ContentBlockStartEvent:
-		switch contentVariant := eventVariant.ContentBlock.AsAny().(type) {
-		case anthropic.ToolUseBlock:
+		if contentBlock, ok := eventVariant.ContentBlock.AsAny().(anthropic.ToolUseBlock); ok {
 			a.toolCall = true
 			if a.toolIdx == nil {
 				toolIdx := 0
@@ -62,11 +61,11 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 			}
 			// a.toolIdx++
 			toolCall := tools.ToolCall{
-				ID:    contentVariant.ID,
+				ID:    contentBlock.ID,
 				Type:  "function",
 				Index: a.toolIdx,
 				Function: tools.FunctionCall{
-					Name: contentVariant.Name,
+					Name: contentBlock.Name,
 				},
 			}
 			response.Choices[0].Delta.ToolCalls = []tools.ToolCall{toolCall}

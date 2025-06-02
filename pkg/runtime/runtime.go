@@ -86,7 +86,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				return
 			}
 
-			toolCalls, content, stopped, err := r.handleStream(stream, a, events)
+			calls, content, stopped, err := r.handleStream(stream, a, events)
 			if err != nil {
 				events <- &ErrorEvent{Error: err}
 				return
@@ -96,7 +96,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			assistantMessage := chat.Message{
 				Role:      "assistant",
 				Content:   content,
-				ToolCalls: toolCalls,
+				ToolCalls: calls,
 			}
 
 			sess.Messages = append(sess.Messages, session.AgentMessage{
@@ -109,7 +109,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			}
 
 			// Handle tool calls if present
-			if len(toolCalls) > 0 {
+			if len(calls) > 0 {
 				agentTools, err := a.Tools()
 				if err != nil {
 					events <- &ErrorEvent{Error: fmt.Errorf("failed to get tools: %w", err)}
@@ -117,7 +117,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				}
 
 			outer:
-				for _, toolCall := range toolCalls {
+				for _, toolCall := range calls {
 					handler, exists := r.toolMap[toolCall.Function.Name]
 					if exists {
 						events <- &ToolCallEvent{
@@ -188,7 +188,7 @@ func (r *Runtime) Run(ctx context.Context, sess *session.Session) ([]session.Age
 }
 
 // handleStream handles the stream processing
-func (r *Runtime) handleStream(stream chat.MessageStream, a *agent.Agent, events chan Event) ([]tools.ToolCall, string, bool, error) {
+func (r *Runtime) handleStream(stream chat.MessageStream, a *agent.Agent, events chan Event) (calls []tools.ToolCall, content string, stopped bool, err error) {
 	defer stream.Close()
 
 	var fullContent strings.Builder
