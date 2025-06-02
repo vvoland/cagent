@@ -37,7 +37,8 @@ type errorMsg error
 
 type model struct {
 	viewport    viewport.Model
-	content     string
+	content     string // rendered content
+	rawContent  string // raw markdown content
 	ready       bool
 	rt          *runtime.Runtime
 	sess        *session.Session
@@ -51,6 +52,14 @@ func (m *model) Init() tea.Cmd {
 	return nil
 }
 
+// Helper function to truncate string with ellipsis
+func truncateWithEllipsis(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
+}
+
 func processStream(rt *runtime.Runtime, sess *session.Session, ch chan<- string) tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
@@ -60,14 +69,14 @@ func processStream(rt *runtime.Runtime, sess *session.Session, ch chan<- string)
 			switch e := event.(type) {
 			case *runtime.AgentChoiceEvent:
 				if first {
-					ch <- fmt.Sprintf("\n[%s]: ", rt.CurrentAgent().Name())
+					ch <- fmt.Sprintf("\n**%s**: ", rt.CurrentAgent().Name())
 					first = false
 				}
 				ch <- e.Choice.Delta.Content
 			case *runtime.ToolCallEvent:
-				ch <- fmt.Sprintf("\n🔧 Running: %s(%s)\n", e.ToolCall.Function.Name, e.ToolCall.Function.Arguments)
+				ch <- fmt.Sprintf("\n> 🔧 **Tool Call**: `%s(%s)`\n", e.ToolCall.Function.Name, truncateWithEllipsis(e.ToolCall.Function.Arguments, 20))
 			case *runtime.ToolCallResponseEvent:
-				ch <- fmt.Sprintf("✅ Completed: %s\n", e.ToolCall.Function.Name)
+				ch <- fmt.Sprintf("> ✅ **Completed**: `%s`\n", truncateWithEllipsis(e.Response, 20))
 			case *runtime.AgentMessageEvent:
 				ch <- fmt.Sprintf("\n%s\n", e.Message.Content)
 			case *runtime.ErrorEvent:
@@ -87,6 +96,16 @@ func readResponse(ch <-chan string) tea.Cmd {
 		}
 		return nil
 	}
+}
+
+func (m *model) renderContent() error {
+	rendered, err := m.renderer.Render(m.rawContent)
+	if err != nil {
+		return err
+	}
+	m.content = rendered
+	m.viewport.SetContent(m.content)
+	return nil
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -109,10 +128,12 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			input := m.inputBuffer
 			m.inputBuffer = ""
 
-			// Add user message to content
-			userMsg := fmt.Sprintf("\n[You]: %s\n", input)
-			m.content += userMsg
-			m.viewport.SetContent(m.content)
+			// Add user message to raw content
+			userMsg := fmt.Sprintf("\n**You**: %s\n", input)
+			m.rawContent += userMsg
+			if err := m.renderContent(); err != nil {
+				m.err = err
+			}
 			m.viewport.GotoBottom()
 
 			// Add message to session
@@ -152,15 +173,41 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				Width(msg.Width).
 				Height(msg.Height - 4)
 			m.ready = true
+
+			// Create a new renderer with the current viewport width
+			var err error
+			m.renderer, err = glamour.NewTermRenderer(
+				glamour.WithAutoStyle(),
+				glamour.WithWordWrap(msg.Width),
+			)
+			if err != nil {
+				m.err = err
+			}
 		} else {
 			m.viewport.Width = msg.Width
 			m.viewport.Height = msg.Height - 4
+
+			// Update renderer with new width
+			var err error
+			m.renderer, err = glamour.NewTermRenderer(
+				glamour.WithAutoStyle(),
+				glamour.WithWordWrap(msg.Width),
+			)
+			if err != nil {
+				m.err = err
+			}
 		}
-		m.viewport.SetContent(m.content)
+
+		// Re-render content with new width
+		if err := m.renderContent(); err != nil {
+			m.err = err
+		}
 
 	case responseMsg:
-		m.content += msg.content
-		m.viewport.SetContent(m.content)
+		m.rawContent += msg.content
+		if err := m.renderContent(); err != nil {
+			m.err = err
+		}
 		m.viewport.GotoBottom()
 		return m, readResponse(m.responseCh)
 
@@ -235,9 +282,10 @@ func runUICommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Initialize with a default width, it will be updated when we get the window size
 	renderer, err := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
-		glamour.WithWordWrap(80),
+		glamour.WithWordWrap(120), // Default width that will be updated
 	)
 	if err != nil {
 		return err
