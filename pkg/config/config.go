@@ -77,10 +77,10 @@ func Agents(ctx context.Context, path string) (map[string]*agent.Agent, error) {
 func getToolsForAgent(ctx context.Context, cfg *Config, agentName string) ([]tools.ToolSet, error) {
 	var t []tools.ToolSet
 
-	a := cfg.Agents[agentName]
-	if len(a.SubAgents) > 0 {
-		t = append(t, tools.NewAgentTransferTool())
-	}
+	// a := cfg.Agents[agentName]
+	// if len(a.SubAgents) > 0 {
+	t = append(t, tools.NewAgentTransferTool())
+	// }
 
 	toolDefs := cfg.Agents[agentName].Tools
 	for _, toolDef := range toolDefs {
@@ -95,6 +95,11 @@ func getToolsForAgent(ctx context.Context, cfg *Config, agentName string) ([]too
 			}
 
 			t = append(t, mcpc)
+		}
+		if toolDef.Type == "builtin" {
+			tt := tools.NewThinkTool()
+			t = append(t, tt)
+
 		}
 	}
 

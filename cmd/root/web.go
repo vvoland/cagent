@@ -95,7 +95,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 						fileAgentsMap[n] = a
 					}
 
-					rt, err := runtime.New(cfg, logger, fileAgentsMap, name)
+					rt, err := runtime.New(cfg, logger, fileAgentsMap, "root")
 					if err != nil {
 						return fmt.Errorf("failed to create runtime for agent %s from file %s: %w", name, entry.Name(), err)
 					}

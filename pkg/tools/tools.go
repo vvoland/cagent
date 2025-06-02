@@ -47,6 +47,8 @@ type ToolSet interface {
 	Handler() ToolHandler
 	Tools(ctx context.Context) ([]Tool, error)
 
+	Instructions() string
+
 	Start(ctx context.Context) error
 	Stop() error
 }

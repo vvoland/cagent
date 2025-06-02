@@ -13,6 +13,14 @@ agents:
       - web_search_agent: Search the web for the information
       </team_members>
 
+      <WORKFLOW>
+        1. Call the `web_search_agent` to get the latest news about the stock
+
+        2. Call the `finance_agent` to get the information you need
+
+        3. Give a summary
+      </WORKFLOW>
+
       - Use the transfer_to_agent tool to call the right agent at the right time to answer the users question.
       - DO NOT transfer to multiple members at once
       - ONLY CALL ONE AGENT AT A TIME
@@ -24,32 +32,45 @@ agents:
     sub_agents:
       - finance_agent
       - web_search_agent
+    tools:
+      - type: builtin
+        tool: think
 
   finance_agent:
     name: finance_agent
     model: openai
+    add_date: true
     description: Analyse the given stock
     instruction: |
       Analyse the given stock
 
       Use tables to display the data
+
+      IMPORTANT: Once you are done, transfer the session to the  `root` agent
     tools:
       - type: mcp
         command: uvx
         args: ["yfmcp"]
+      - type: builtin
+        tool: think
 
   web_search_agent:
     name: web_search_agent
     model: openai
+    add_date: true
     description: Search the web for the information
     instruction: |
       Search the web for the information
 
       Always include sources
+
+      IMPORTANT: Once you are done, transfer the session to the  `root` agent
     tools:
       - type: mcp
         command: uvx
         args: ["duckduckgo-mcp-server"]
+      - type: builtin
+        tool: think
 
 models:
   openai:

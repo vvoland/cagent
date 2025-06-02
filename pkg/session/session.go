@@ -60,10 +60,10 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 			subAgentsStr += subAgent.Name() + ": " + subAgent.Description() + "\n"
 		}
 
-		// messages = append(messages, chat.ChatCompletionMessage{
-		// 	Role:    "system",
-		// 	Content: "You are a multi-agent system, make sure to answer the user query in the most helpful way possible. You have access to these sub-agents: " + subAgentsStr + "\n\nIf you are the best to answer the question according to your description, you\ncan answer it.\n\nIf another agent is better for answering the question according to its\ndescription, call `transfer_to_agent` function to transfer the\nquestion to that agent. When transferring, do not generate any text other than\nthe function call.\n\n",
-		// })
+		messages = append(messages, chat.Message{
+			Role:    "system",
+			Content: "You are a multi-agent system, make sure to answer the user query in the most helpful way possible. You have access to these sub-agents: " + subAgentsStr + "\n\nIf you are the best to answer the question according to your description, you\ncan answer it.\n\nIf another agent is better for answering the question according to its\ndescription, call `transfer_to_agent` function to transfer the\nquestion to that agent. When transferring, do not generate any text other than\nthe function call.\n\n",
+		})
 	}
 
 	date := ""
@@ -75,6 +75,15 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		Role:    "system",
 		Content: agentSession.Instruction() + "\n\n" + date,
 	})
+
+	for _, tool := range a.ToolImpls() {
+		if tool.Instructions() != "" {
+			messages = append(messages, chat.Message{
+				Role:    "system",
+				Content: tool.Instructions(),
+			})
+		}
+	}
 
 	for i := range s.Messages {
 		if s.Messages[i].Message.Role == "system" {
@@ -117,7 +126,7 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		messages = append(messages, s.Messages[i].Message)
 	}
 
-	messages = append(messages, contextMessages...)
+	// messages = append(messages, contextMessages...)
 
 	return messages
 }

@@ -17,6 +17,10 @@ func (t *AgentTransferTool) Handler() ToolHandler {
 	return nil
 }
 
+func (t *AgentTransferTool) Instructions() string {
+	return ""
+}
+
 func (t *AgentTransferTool) Tools(ctx context.Context) ([]Tool, error) {
 	return []Tool{
 		{

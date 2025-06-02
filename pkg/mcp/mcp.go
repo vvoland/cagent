@@ -26,6 +26,10 @@ func (t *Toolset) Handler() tools.ToolHandler {
 	return t.c
 }
 
+func (t *Toolset) Instructions() string {
+	return ""
+}
+
 func (t *Toolset) Start(ctx context.Context) error {
 	return t.c.Start(ctx)
 }
