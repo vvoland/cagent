@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	"slices"
+
 	"github.com/rumpl/cagent/pkg/agent"
 	"github.com/rumpl/cagent/pkg/mcp"
 	"github.com/rumpl/cagent/pkg/tools"
@@ -73,14 +75,25 @@ func Agents(ctx context.Context, path string) (map[string]*agent.Agent, error) {
 	return agents, nil
 }
 
+func hasParents(cfg *Config, agentName string) bool {
+	for _, agent := range cfg.Agents {
+		if len(agent.SubAgents) > 0 {
+			if slices.Contains(agent.SubAgents, agentName) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 // getToolsForAgent returns the tool definitions for an agent based on its configuration
 func getToolsForAgent(ctx context.Context, cfg *Config, agentName string) ([]tools.ToolSet, error) {
 	var t []tools.ToolSet
 
-	// a := cfg.Agents[agentName]
-	// if len(a.SubAgents) > 0 {
-	t = append(t, tools.NewAgentTransferTool())
-	// }
+	if hasParents(cfg, agentName) || len(cfg.Agents[agentName].SubAgents) > 0 {
+		t = append(t, tools.NewAgentTransferTool())
+	}
 
 	toolDefs := cfg.Agents[agentName].Tools
 	for _, toolDef := range toolDefs {

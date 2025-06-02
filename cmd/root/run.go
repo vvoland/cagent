@@ -74,6 +74,8 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 	scanner := bufio.NewScanner(os.Stdin)
 
 	blue := color.New(color.FgBlue).SprintfFunc()
+	yellow := color.New(color.FgYellow).SprintfFunc()
+	green := color.New(color.FgGreen).SprintfFunc()
 	fmt.Println(blue("\nEnter your messages (Ctrl+C to exit):"))
 
 	for {
@@ -107,9 +109,9 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			case *runtime.AgentChoiceEvent:
 				fmt.Printf("%s", e.Choice.Delta.Content)
 			case *runtime.ToolCallEvent:
-				fmt.Printf("%s(%s)\n", e.ToolCall.Function.Name, e.ToolCall.Function.Arguments)
+				fmt.Printf("%s", yellow("%s(%s)\n", e.ToolCall.Function.Name, e.ToolCall.Function.Arguments))
 			case *runtime.ToolCallResponseEvent:
-				fmt.Printf("done(%s)\n", e.ToolCall.Function.Name)
+				fmt.Printf("%s", green("done(%s)\n", e.ToolCall.Function.Name))
 			case *runtime.AgentMessageEvent:
 				fmt.Printf("%s\n", e.Message.Content)
 			case *runtime.ErrorEvent:

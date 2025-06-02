@@ -44,16 +44,11 @@ func New(agents map[string]*agent.Agent) *Session {
 }
 
 func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
-	agentSession, exists := s.Agents[a.Name()]
-	if !exists {
-		return nil
-	}
-
 	messages := make([]chat.Message, 0)
 	contextMessages := make([]chat.Message, 0)
 
-	if agentSession.HasSubAgents() || agentSession.HasParents() {
-		subAgents := append(agentSession.SubAgents(), agentSession.Parents()...)
+	if a.HasSubAgents() || a.HasParents() {
+		subAgents := append(a.SubAgents(), a.Parents()...)
 
 		subAgentsStr := ""
 		for _, subAgent := range subAgents {
@@ -73,7 +68,7 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 
 	messages = append(messages, chat.Message{
 		Role:    "system",
-		Content: agentSession.Instruction() + "\n\n" + date,
+		Content: a.Instruction() + "\n\n" + date,
 	})
 
 	for _, tool := range a.ToolImpls() {
@@ -126,7 +121,7 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		messages = append(messages, s.Messages[i].Message)
 	}
 
-	// messages = append(messages, contextMessages...)
+	messages = append(messages, contextMessages...)
 
 	return messages
 }
