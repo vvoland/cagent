@@ -1,6 +1,6 @@
 agents:
   root:
-    name: doc_generator
+    name: dhi
     model: claude
     description: |
       A specialized agent for migrating a Dockerfile to use Docker Hardened Images
