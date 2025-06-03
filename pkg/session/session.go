@@ -9,6 +9,8 @@ import (
 	"github.com/rumpl/cagent/pkg/chat"
 )
 
+var maxMessages = 20 // Maximum number of messages to keep in context
+
 // Session represents the agent's state including conversation history and variables
 type Session struct {
 	// ID is the unique identifier for the session
@@ -122,6 +124,44 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 	}
 
 	messages = append(messages, contextMessages...)
+	return trimMessages(messages)
+}
 
-	return messages
+// trimMessages ensures we don't exceed the maximum number of messages while maintaining
+// consistency between assistant messages and their tool call results
+func trimMessages(messages []chat.Message) []chat.Message {
+	if len(messages) <= maxMessages {
+		return messages
+	}
+
+	// Keep track of tool call IDs that need to be removed
+	toolCallsToRemove := make(map[string]bool)
+
+	// Calculate how many messages we need to remove
+	toRemove := len(messages) - maxMessages
+
+	// Start from the beginning (oldest messages)
+	for i := 0; i < toRemove; i++ {
+		// If this is an assistant message with tool calls, mark them for removal
+		if messages[i].Role == "assistant" {
+			for _, toolCall := range messages[i].ToolCalls {
+				toolCallsToRemove[toolCall.ID] = true
+			}
+		}
+	}
+
+	// Filter messages keeping only those we want to keep
+	result := make([]chat.Message, 0, maxMessages)
+	for i := toRemove; i < len(messages); i++ {
+		msg := messages[i]
+
+		// Skip tool messages that correspond to removed assistant messages
+		if msg.Role == "tool" && toolCallsToRemove[msg.ToolCallID] {
+			continue
+		}
+
+		result = append(result, msg)
+	}
+
+	return result
 }
