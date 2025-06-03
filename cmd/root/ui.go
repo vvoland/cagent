@@ -107,7 +107,7 @@ func (m *model) updateDimensions(width, height int) {
 
 	m.viewport.Width = width
 	m.viewport.Height = viewportHeight
-	m.viewport.Style = viewportStyle.Copy().
+	m.viewport.Style = viewportStyle.
 		Width(width).
 		Height(viewportHeight)
 

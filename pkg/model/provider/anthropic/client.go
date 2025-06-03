@@ -181,9 +181,6 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 				for j, toolCall := range msg.ToolCalls {
 					var inpts map[string]any
 					if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &inpts); err != nil {
-						// fmt.Printf("failed to unmarshal tool arguments: %v\n", err)
-					}
-					if inpts == nil {
 						inpts = map[string]any{}
 					}
 					toolUseBlocks[j] = anthropic.ContentBlockParamUnion{

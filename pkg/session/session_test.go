@@ -14,7 +14,7 @@ func TestTrimMessages(t *testing.T) {
 	messages := make([]chat.Message, maxMessages+10)
 
 	// Fill with some basic messages
-	for i := 0; i < maxMessages+10; i++ {
+	for i := range messages {
 		messages[i] = chat.Message{
 			Role:    "user",
 			Content: "message",
