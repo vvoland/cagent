@@ -95,26 +95,26 @@ Let's break down what each part does:
 
 ```yaml
 agents:
-  root:                    # Required: main agent entry point
-    name: my_first_agent   # Agent identifier (3-50 characters)
-    model: gpt4           # References the model below
-    description: "..."     # Brief description (max 200 chars)
-    instruction: |         # Multi-line instructions (most important!)
+  root: # Required: main agent entry point
+    name: my_first_agent # Agent identifier (3-50 characters)
+    model: gpt4 # References the model below
+    description: "..." # Brief description (max 200 chars)
+    instruction: | # Multi-line instructions (most important!)
       You are a friendly...
 
 models:
-  gpt4:                   # Model identifier (referenced above)
-    type: openai          # Provider: "openai" or "anthropic"
-    model: gpt-4o         # Specific model variant
-    temperature: 0.7      # Creativity level (0.0-1.0)
-    max_tokens: 2000      # Maximum response length
+  gpt4: # Model identifier (referenced above)
+    type: openai # Provider: "openai" or "anthropic"
+    model: gpt-4o # Specific model variant
+    temperature: 0.7 # Creativity level (0.0-1.0)
+    max_tokens: 2000 # Maximum response length
 ```
 
 **🎉 Congratulations!** You've created your first agent. Try different questions and see how it responds.
 
 ## 🔧 Chapter 2: Adding Tools
 
-Now let's give your agent superpowers by adding tools. Tools let agents interact with the outside world.
+Now let's give your agent superpowers by adding toolsets. Toolsets let agents interact with the outside world.
 
 ### Step 1: Create a Research Agent
 
@@ -128,25 +128,27 @@ agents:
     description: AI research assistant with web search
     instruction: |
       You are a professional research assistant with access to web search.
-      
+
       **Your Process:**
       1. Listen carefully to research requests
       2. Use web search to find current, accurate information
       3. Analyze multiple sources for reliability
       4. Provide well-sourced, comprehensive answers
       5. Always cite your sources
-      
+
       **Source Quality Guidelines:**
       - Prefer authoritative sources (.edu, .gov, established news)
       - Look for recent information when relevance matters
       - Cross-check facts across multiple sources
-      
+
       **Available Tools:**
       - search(query): Search the web for current information
-    tools:
+      - summarize(text): Summarize long text passages
+    toolsets:
       - type: mcp
         command: npx
         args: ["-y", "@modelcontextprotocol/server-brave-search"]
+        tools: ["search", "summarize"] # Only enable these specific tools
 
 models:
   claude_research:
@@ -168,21 +170,25 @@ models:
 # "Research the current stock market performance"
 ```
 
-### Step 3: Understanding Tools
+### Step 3: Understanding Toolsets
 
-Tools extend what agents can do:
+Toolsets extend what agents can do:
 
 - **Web Search**: Gets current information from the internet
-- **File Operations**: Reads and writes files  
+- **File Operations**: Reads and writes files
 - **Database Access**: Queries databases
-- **Custom Tools**: Your own specialized tools
+- **Custom Toolsets**: Your own specialized tools
+
+Each toolset can expose multiple tools, and you can optionally filter which tools are available to the agent using the `tools` field.
 
 Notice how we:
-1. **Documented the tool** in the instruction
-2. **Explained when to use it** (for current information)
-3. **Set quality standards** for source evaluation
 
-**💡 Pro Tip**: Always tell your agent about its tools in the instructions!
+1. **Documented the available tools** in the instruction
+2. **Explained when to use them** (for current information)
+3. **Set quality standards** for source evaluation
+4. **Filtered specific tools** we want to enable
+
+**💡 Pro Tip**: Always tell your agent about its available tools in the instructions!
 
 ## 👥 Chapter 3: Building a Multi-Agent Team
 
@@ -200,15 +206,15 @@ agents:
     description: Coordinates a team of AI specialists
     instruction: |
       You are a team coordinator managing AI specialists. Your job is to:
-      
+
       **Route tasks to the right specialist:**
       - Writing tasks → content_writer
       - Research questions → researcher
       - Technical questions → tech_expert
-      
+
       **Always explain your routing decision** to help users understand
       why you're delegating to a specific team member.
-      
+
       **Team Communication:**
       - Introduce the specialist you're calling
       - Provide clear context about the task
@@ -225,7 +231,7 @@ agents:
       - Marketing copy
       - Social media content
       - Creative writing
-      
+
       **Writing Style:**
       - Engaging and conversational tone
       - Clear structure with good flow
@@ -242,7 +248,7 @@ agents:
       - Fact-checking and verification
       - Summarizing complex topics
       - Providing evidence-based conclusions
-      
+
       **Research Standards:**
       - Always cite sources when possible
       - Present balanced viewpoints
@@ -259,7 +265,7 @@ agents:
       - System architecture and design
       - Programming languages and frameworks
       - Technical problem-solving
-      
+
       **Technical Communication:**
       - Explain complex concepts clearly
       - Provide practical examples and code when helpful
@@ -315,6 +321,7 @@ Notice what happens:
 4. **Response flows back** through coordinator
 
 **Key Benefits:**
+
 - **Specialization**: Each agent excels in specific domains
 - **Modularity**: Easy to add/remove/modify specialists
 - **Scalability**: Can handle complex, multi-step workflows
@@ -337,20 +344,20 @@ agents:
     description: Strategic planning agent with advanced reasoning
     instruction: |
       You are a strategic planning consultant who thinks through complex problems.
-      
+
       **Your Superpower: The Think Tool**
       Before responding to complex questions, use the think tool to:
       1. Break down the problem into components
       2. Consider multiple approaches and perspectives
       3. Evaluate pros and cons of different solutions
       4. Plan your response structure
-      
+
       **When to Think:**
       - Multi-step strategic problems
       - Questions with trade-offs or competing priorities
       - Complex analysis requiring structured reasoning
       - Before making important recommendations
-      
+
       **Thinking Process:**
       - Problem definition: What exactly is being asked?
       - Context analysis: What factors are relevant?
@@ -395,23 +402,23 @@ agents:
     description: Advanced AI system with thinking, tools, and specialists
     instruction: |
       You are an advanced AI assistant with a complete toolkit:
-      
+
       **Your Capabilities:**
       - Web search for current information
       - Advanced reasoning with the think tool
       - Team of specialists for complex tasks
-      
+
       **Decision Framework:**
       1. For simple questions: Answer directly
       2. For current info needs: Use web search
       3. For complex analysis: Use think tool first
       4. For specialized tasks: Delegate to team members
-      
+
       **Team Specializations:**
       - research_expert: Deep research and analysis
       - creative_writer: Content creation and writing
       - problem_solver: Technical and analytical problems
-      
+
       **Always explain your approach** so users understand your process.
     tools:
       - type: mcp
@@ -427,13 +434,13 @@ agents:
     description: Expert researcher with web access and analytical thinking
     instruction: |
       You are a research expert specializing in comprehensive analysis.
-      
+
       **Research Excellence:**
       - Use web search for the most current information
       - Cross-reference multiple sources for accuracy
       - Think through complex research questions systematically
       - Provide well-structured, evidence-based conclusions
-      
+
       **Standards:**
       - Always cite your sources
       - Distinguish between facts and interpretations
@@ -451,13 +458,13 @@ agents:
     description: Creative writing specialist with strategic thinking
     instruction: |
       You are a creative writing expert who thinks strategically about content.
-      
+
       **Creative Process:**
       - Think through the writing goals and audience first
       - Consider tone, style, and structure options
       - Create engaging, well-structured content
       - Focus on clear communication and impact
-      
+
       **Writing Expertise:**
       - Blog posts, articles, and essays
       - Marketing copy and social content
@@ -471,13 +478,13 @@ agents:
     description: Analytical problem-solving specialist
     instruction: |
       You are an analytical problem solver who excels at complex challenges.
-      
+
       **Problem-Solving Approach:**
       - Think through problems systematically
       - Break complex issues into manageable parts
       - Consider multiple solution approaches
       - Provide practical, actionable recommendations
-      
+
       **Specializations:**
       - Technical and engineering problems
       - Business strategy and operations
@@ -530,7 +537,7 @@ Congratulations! You've built a complete multi-agent system from scratch. Let's 
 ### ✅ Key Skills Mastered
 
 1. **Basic Agent Configuration** - Created simple, focused agents
-2. **Tool Integration** - Added external capabilities with MCP tools  
+2. **Tool Integration** - Added external capabilities with MCP tools
 3. **Multi-Agent Coordination** - Built teams of specialized agents
 4. **Advanced Features** - Used thinking capabilities and date context
 5. **System Architecture** - Designed sophisticated agent hierarchies
@@ -543,7 +550,7 @@ You progressed through increasingly sophisticated architectures:
 Basic Agent
     ↓
 Agent + Tools
-    ↓  
+    ↓
 Multi-Agent Team
     ↓
 Advanced System with Thinking
@@ -554,21 +561,25 @@ Each level added new capabilities while maintaining the core principles.
 ### 💡 Key Lessons
 
 **1. Instructions Are Everything**
+
 - Clear, specific instructions produce better results
 - Always document available tools and capabilities
 - Explain when and how to delegate to sub-agents
 
-**2. Specialization Beats Generalization**  
+**2. Specialization Beats Generalization**
+
 - Focused agents outperform general-purpose ones
 - Multiple simple agents can handle complex workflows
 - Coordination agents route tasks to appropriate specialists
 
 **3. Tools Extend Capabilities**
+
 - Web search enables current information access
-- File operations allow persistent workflows  
+- File operations allow persistent workflows
 - Custom tools can integrate any external system
 
 **4. Thinking Improves Quality**
+
 - Complex problems benefit from structured reasoning
 - The think tool helps agents plan before responding
 - Metacognitive approaches produce better results
@@ -576,18 +587,21 @@ Each level added new capabilities while maintaining the core principles.
 ## 🚀 Next Steps
 
 ### Immediate Actions
+
 1. **Experiment** with the configurations you've created
 2. **Modify** instructions to see how behavior changes
 3. **Add** new tools from the MCP ecosystem
 4. **Create** your own specialized agents
 
 ### Advanced Projects
+
 1. **Build domain-specific teams** (e.g., financial analysis, content marketing)
 2. **Integrate custom tools** for your specific workflows
 3. **Design complex pipelines** with sequential processing
 4. **Explore automated workflows** with file operations
 
 ### Learning Resources
+
 - **[How-to Guide](./howto.md)** - More practical examples and patterns
 - **[Explanation](./explanation.md)** - Deep dive into architecture and concepts
 - **[Reference](./reference.md)** - Complete configuration documentation
@@ -606,7 +620,7 @@ Each level added new capabilities while maintaining the core principles.
 You now understand these key patterns:
 
 - **Router Pattern**: Central coordinator delegates to specialists
-- **Pipeline Pattern**: Sequential processing through multiple agents  
+- **Pipeline Pattern**: Sequential processing through multiple agents
 - **Tool Pattern**: Agents enhanced with external capabilities
 - **Thinking Pattern**: Metacognitive reasoning for complex problems
 

@@ -104,10 +104,15 @@ agents:
       - Prefer authoritative sources (.edu, .gov, established publications)
       - Cross-reference information across multiple sources
       - Note the recency of information when relevant
-    tools:
+
+      **Available Tools:**
+      - search: Find current information on the web
+      - summarize: Create concise summaries of search results
+    toolsets:
       - type: mcp
         command: npx
         args: ["-y", "@modelcontextprotocol/server-brave-search"]
+        tools: ["search", "summarize"] # Only enable these specific tools
     think: true
 
 models:
@@ -139,10 +144,17 @@ agents:
       - Always confirm destructive operations before executing
       - Back up important files when making major changes
       - Respect file permissions and security
-    tools:
+
+      **Available Tools:**
+      - read: Read file contents
+      - write: Create or modify files
+      - delete: Remove files (use with caution)
+      - search: Find files by content or name
+    toolsets:
       - type: mcp
         command: npx
         args: ["-y", "@modelcontextprotocol/server-filesystem"]
+        tools: ["read", "write", "delete", "search"] # Only enable these specific tools
 
 models:
   gpt4_files:
@@ -167,24 +179,36 @@ agents:
       Use the appropriate tool for each task:
 
       **Web Search**: For current information, news, research
-      **File Operations**: For document creation, editing, analysis  
+      - search: Find information on the web
+      - summarize: Create concise summaries
+
+      **File Operations**: For document creation, editing, analysis
+      - read: Read file contents
+      - write: Create or modify files
+      - search: Find files by content
+
       **Database Access**: For structured data queries and analysis
+      - query: Execute SQL queries
+      - analyze: Analyze query results
 
       **Workflow:**
       1. Analyze the user's request
       2. Determine which tools are needed
       3. Execute tasks using appropriate tools
       4. Synthesize results into a comprehensive response
-    tools:
+    toolsets:
       - type: mcp
         command: npx
         args: ["-y", "@modelcontextprotocol/server-brave-search"]
+        tools: ["search", "summarize"]
       - type: mcp
         command: npx
         args: ["-y", "@modelcontextprotocol/server-filesystem"]
+        tools: ["read", "write", "search"]
       - type: mcp
         command: npx
         args: ["-y", "@modelcontextprotocol/server-sqlite"]
+        tools: ["query", "analyze"]
     think: true
 
 models:

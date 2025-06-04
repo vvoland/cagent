@@ -63,7 +63,7 @@ collaborate to solve complex problems.
 │                           │                                 │
 │                           ▼                                 │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
-│  │   Tools     │◄──►│ Sub-Agents  │◄──►│    Think    │     │
+│  │  Toolsets   │◄──►│ Sub-Agents  │◄──►│    Think    │     │
 │  │   (MCP)     │    │(Specialists)│    │    Tool     │     │
 │  └─────────────┘    └─────────────┘    └─────────────┘     │
 │                                                             │
@@ -100,15 +100,26 @@ Domain-specific experts with focused capabilities:
 - **Independent Context**: Maintain their own conversation and working memory
 - **Reporting Back**: Provide structured results to the coordinating agent
 
-#### 🛠️ Tools (External Capabilities)
+#### 🛠️ Toolsets (External Capabilities)
 
 Extensions that connect agents to the outside world:
 
 - **MCP Protocol**: Model Context Protocol for standardized tool integration
+- **Tool Filtering**: Control which tools are available to each agent
 - **Web Search**: Real-time information retrieval from the internet
 - **File Operations**: Read, write, and manipulate local or remote files
 - **API Integration**: Connect to databases, services, and external systems
-- **Custom Tools**: Extend functionality with domain-specific capabilities
+- **Custom Toolsets**: Extend functionality with domain-specific capabilities
+
+Each toolset can expose multiple tools, and you can control which tools are available to each agent using the `tools` field in the configuration:
+
+```yaml
+toolsets:
+  - type: mcp
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-brave-search"]
+    tools: ["search", "summarize"] # Only enable these specific tools
+```
 
 #### 💭 Think Tool (Metacognition)
 
@@ -118,6 +129,17 @@ Advanced reasoning capability for complex problems:
 - **Planning**: Break down complex tasks into manageable steps
 - **Validation**: Verify reasoning and check for logical consistency
 - **Problem Solving**: Work through multi-step analytical processes
+
+### 🔧 Toolsets as Superpowers
+
+Just like superheroes have special abilities, agents gain "superpowers" through toolsets:
+
+- **Web Search Toolset** = Internet knowledge access (search, summarize)
+- **File Operations Toolset** = Perfect memory and organization (read, write, search)
+- **API Integration Toolset** = Instant connection to any service
+- **Think Tool** = Enhanced reasoning and planning
+
+Each toolset can be configured to expose only the specific tools needed for the agent's role, ensuring focused and secure capabilities.
 
 ## Key Concepts
 
