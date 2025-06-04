@@ -146,13 +146,13 @@ func (c *Client) GetConfig() *config.ModelConfig {
 func (c *Client) CreateChatCompletionStream(
 	ctx context.Context,
 	messages []chat.Message,
-	tools []tools.Tool,
+	requestTools []tools.Tool,
 ) (chat.MessageStream, error) {
 	params := anthropic.MessageNewParams{
 		Model:     anthropic.ModelClaude3_7Sonnet20250219,
 		MaxTokens: 64000,
 		Messages:  convertMessages(messages),
-		Tools:     convertTools(tools),
+		Tools:     convertTools(requestTools),
 	}
 
 	stream := c.client.Messages.NewStreaming(ctx, params)
@@ -218,10 +218,10 @@ func convertTools(tooles []tools.Tool) []anthropic.ToolUnionParam {
 			},
 		}
 	}
-	tools := make([]anthropic.ToolUnionParam, len(toolParams))
+	anthropicTools := make([]anthropic.ToolUnionParam, len(toolParams))
 	for i := range toolParams {
-		tools[i] = anthropic.ToolUnionParam{OfTool: &toolParams[i]}
+		anthropicTools[i] = anthropic.ToolUnionParam{OfTool: &toolParams[i]}
 	}
 
-	return tools
+	return anthropicTools
 }

@@ -45,13 +45,13 @@ func (t *Toolset) Instructions() string {
 // Tools returns the available tools
 func (t *Toolset) Tools(ctx context.Context) ([]tools.Tool, error) {
 	t.logger.Debug("Listing MCP tools", "toolFilter", t.toolFilter)
-	tools, err := t.c.ListTools(ctx, t.toolFilter)
+	mcpTools, err := t.c.ListTools(ctx, t.toolFilter)
 	if err != nil {
 		t.logger.Error("Failed to list MCP tools", "error", err)
 		return nil, err
 	}
-	t.logger.Debug("Listed MCP tools", "count", len(tools))
-	return tools, nil
+	t.logger.Debug("Listed MCP tools", "count", len(mcpTools))
+	return mcpTools, nil
 }
 
 // Start starts the toolset

@@ -188,7 +188,7 @@ func convertMessages(messages []chat.Message) []openai.ChatCompletionMessage {
 func (c *Client) CreateChatCompletionStream(
 	ctx context.Context,
 	messages []chat.Message,
-	tools []tools.Tool,
+	requestTools []tools.Tool,
 ) (chat.MessageStream, error) {
 	if len(messages) == 0 {
 		return nil, errors.New("at least one message is required")
@@ -208,9 +208,9 @@ func (c *Client) CreateChatCompletionStream(
 		request.MaxTokens = c.config.MaxTokens
 	}
 
-	if len(tools) > 0 {
-		request.Tools = make([]openai.Tool, len(tools))
-		for i, tool := range tools {
+	if len(requestTools) > 0 {
+		request.Tools = make([]openai.Tool, len(requestTools))
+		for i, tool := range requestTools {
 			request.Tools[i] = openai.Tool{
 				Type: openai.ToolTypeFunction,
 				Function: &openai.FunctionDefinition{

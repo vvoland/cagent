@@ -47,12 +47,12 @@ func Agents(ctx context.Context, path string, logger *slog.Logger) (map[string]*
 			agent.WithAddDate(agentConfig.AddDate),
 		}
 
-		tools, err := getToolsForAgent(ctx, cfg, name, logger)
+		agentTools, err := getToolsForAgent(ctx, cfg, name, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tools: %w", err)
 		}
 
-		opts = append(opts, agent.WithToolSet(tools))
+		opts = append(opts, agent.WithToolSet(agentTools))
 
 		agents[name] = agent.New(name, agentConfig.Instruction, opts...)
 	}
