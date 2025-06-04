@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -56,7 +57,7 @@ func (c *Client) Stop() error {
 }
 
 // ListTools fetches available tools from the MCP server
-func (c *Client) ListTools(ctx context.Context) ([]tools.Tool, error) {
+func (c *Client) ListTools(ctx context.Context, toolFilter []string) ([]tools.Tool, error) {
 	resp, err := c.client.ListTools(ctx, mcp.ListToolsRequest{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list tools: %w", err)
@@ -65,6 +66,11 @@ func (c *Client) ListTools(ctx context.Context) ([]tools.Tool, error) {
 	var toolsList []tools.Tool
 	for i := range resp.Tools {
 		t := &resp.Tools[i]
+		// If toolFilter is not empty, only include tools that are in the filter
+		if len(toolFilter) > 0 && !slices.Contains(toolFilter, t.Name) {
+			continue
+		}
+
 		tool := tools.Tool{
 			Type: "function",
 		}

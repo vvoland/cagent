@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-
 	"slices"
 
 	"github.com/rumpl/cagent/pkg/agent"
@@ -115,7 +114,7 @@ func getToolsForAgent(ctx context.Context, cfg *Config, agentName string) ([]too
 		for k, v := range toolDef.Env {
 			envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
 		}
-		mcpc, err := mcp.NewToolset(ctx, toolDef.Command, toolDef.Args, envSlice)
+		mcpc, err := mcp.NewToolset(ctx, toolDef.Command, toolDef.Args, envSlice, toolDef.Tools)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create mcp client: %w", err)
 		}

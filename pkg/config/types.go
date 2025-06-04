@@ -6,6 +6,7 @@ type Tool struct {
 	Command string            `yaml:"command,omitempty"`
 	Args    []string          `yaml:"args,omitempty"`
 	Env     map[string]string `yaml:"env,omitempty"`
+	Tools   []string          `yaml:"tools,omitempty"`
 }
 
 // AgentConfig represents a single agent configuration
