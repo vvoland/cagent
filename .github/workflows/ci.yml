@@ -27,10 +27,7 @@ jobs:
       - name: Install golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
-          version: latest
-
-      - name: Run linting
-        run: task lint
+          version: v2.1
 
   test:
     runs-on: ubuntu-latest
