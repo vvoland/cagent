@@ -91,15 +91,15 @@ func (a *Agent) Model() string {
 
 // Tools returns the tools available to this agent
 func (a *Agent) Tools() ([]tools.Tool, error) {
-	tools := []tools.Tool{}
+	agentTools := []tools.Tool{}
 	for _, toolSet := range a.toolimpl {
 		ta, err := toolSet.Tools(context.TODO())
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tools: %w", err)
 		}
-		tools = append(tools, ta...)
+		agentTools = append(agentTools, ta...)
 	}
-	return tools, nil
+	return agentTools, nil
 }
 
 func (a *Agent) ToolImpls() []tools.ToolSet {

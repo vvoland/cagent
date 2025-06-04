@@ -1,64 +1,52 @@
+version: "2"
+run:
+  tests: true
 linters:
-  # Enable additional linters beyond the default set
+  enable:
+    - gocritic
+    - revive
+  settings:
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+    revive:
+      rules:
+        - name: exported
+          arguments:
+            - checkPrivateReceivers
+        - name: package-comments
+          disabled: false
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - dupl
+          - errcheck
+          - gocyclo
+          - gosec
+        path: _test\.go
+    paths:
+      - .*_test\.go$
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  max-same-issues: 3
+formatters:
   enable:
     - gofmt
     - goimports
-    - govet
-    - staticcheck
-    - revive
-    - gosimple
-    - unused
-    - errcheck
-    - ineffassign
-    - typecheck
-    - gocritic
-
-linters-settings:
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - style
-      - performance
-
-  revive:
-    rules:
-      - name: exported
-        arguments: ["checkPrivateReceivers"]
-      - name: package-comments
-        disabled: false
-
-run:
-  # Timeout for analysis, e.g. 30s, 5m
-  timeout: 5m
-
-  # Include test files in analysis
-  tests: true
-
-# Output configuration options
-output:
-  # colored-line-number|line-number|json|tab|checkstyle|code-climate|junit-xml|github-actions
-  formats:
-    - format: colored-line-number
-
-  # Print lines of code with issue
-  print-issued-lines: true
-
-  # Print linter name in the end of issue text
-  print-linter-name: true
-
-issues:
-  # Maximum count of issues with the same text
-  max-same-issues: 3
-
-  # Files to exclude from analysis
-  exclude-files:
-    - ".*_test\\.go$"
-
-  exclude-rules:
-    # Exclude some linters from running on tests files.
-    - path: _test\.go
-      linters:
-        - gocyclo
-        - errcheck
-        - dupl
-        - gosec
+  exclusions:
+    generated: lax
+    paths:
+      - .*_test\.go$
+      - third_party$
+      - builtin$
+      - examples$
