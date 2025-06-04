@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/rumpl/cagent/pkg/chat"
 	"github.com/rumpl/cagent/pkg/config"
+	"github.com/rumpl/cagent/pkg/history"
 	"github.com/rumpl/cagent/pkg/runtime"
 	"github.com/rumpl/cagent/pkg/session"
 	"github.com/spf13/cobra"
@@ -77,23 +78,30 @@ type model struct {
 	rt         *runtime.Runtime
 	sess       *session.Session
 	responseCh chan string
+	history    *history.History
 }
 
 // newModel creates and initializes a new model
-func newModel(rt *runtime.Runtime, sess *session.Session) *model {
+func newModel(rt *runtime.Runtime, sess *session.Session) (*model, error) {
 	// Initialize text input
 	ti := textinput.New()
 	ti.Placeholder = "Enter your message..."
 	ti.Focus()
-	ti.CharLimit = 256
+	ti.CharLimit = 0
 	ti.Prompt = inputPromptStyle.Render("> ")
+
+	hist, err := history.New()
+	if err != nil {
+		return nil, err
+	}
 
 	return &model{
 		textInput:  ti,
 		rt:         rt,
 		sess:       sess,
 		responseCh: make(chan string, 100),
-	}
+		history:    hist,
+	}, nil
 }
 
 func (m *model) updateDimensions(width, height int) {
@@ -218,6 +226,12 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Type {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
+		case tea.KeyUp:
+			m.textInput.SetValue(m.history.Previous())
+			return m, nil
+		case tea.KeyDown:
+			m.textInput.SetValue(m.history.Next())
+			return m, nil
 		case tea.KeyEnter:
 			if strings.TrimSpace(m.textInput.Value()) == "" {
 				return m, nil
@@ -268,6 +282,11 @@ func (m *model) handleUserInput() tea.Cmd {
 	// Store the input before clearing it
 	input := m.textInput.Value()
 	m.textInput.Reset()
+
+	// Add message to history
+	if err := m.history.Add(input); err != nil {
+		m.err = err
+	}
 
 	// Add user message to raw content
 	userMsg := fmt.Sprintf("\n**You**: %s\n", input)
@@ -368,7 +387,10 @@ func runUICommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	m := newModel(rt, session.New(agents))
+	m, err := newModel(rt, session.New(agents))
+	if err != nil {
+		return err
+	}
 
 	p := tea.NewProgram(
 		m,
