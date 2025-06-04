@@ -162,11 +162,11 @@ func processStream(rt *runtime.Runtime, sess *session.Session, ch chan<- string)
 				}
 				ch <- e.Choice.Delta.Content
 			case *runtime.ToolCallEvent:
-				ch <- fmt.Sprintf("\n> 🔧 **Tool Call**: `%s(%s)`\n", e.ToolCall.Function.Name, truncateWithEllipsis(e.ToolCall.Function.Arguments, 20))
+				ch <- fmt.Sprintf("\n\n> 🔧 **Tool Call**: `%s(%s)`\n", e.ToolCall.Function.Name, truncateWithEllipsis(e.ToolCall.Function.Arguments, 20))
 			case *runtime.ToolCallResponseEvent:
-				ch <- fmt.Sprintf("> ✅ **Completed**: `%s`\n", truncateWithEllipsis(e.Response, 20))
+				ch <- fmt.Sprintf("> ✅ **Completed**: `%s`\n\n", truncateWithEllipsis(e.Response, 20))
 			case *runtime.AgentMessageEvent:
-				ch <- fmt.Sprintf("\n%s\n", e.Message.Content)
+				ch <- fmt.Sprintf("\n\n%s\n\n", e.Message.Content)
 			case *runtime.ErrorEvent:
 				close(ch)
 				return errorMsg(e.Error)
