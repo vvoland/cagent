@@ -29,3 +29,10 @@ tasks:
     sources:
       - "**/*.go"
       - ".golangci.yml"
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test ./...
+    sources:
+      - "**/*.go"
