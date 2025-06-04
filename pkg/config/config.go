@@ -105,6 +105,9 @@ func getToolsForAgent(ctx context.Context, cfg *Config, agentName string) ([]too
 
 	toolsets := a.Toolsets
 	for _, toolset := range toolsets {
+		if toolset.Type == "builtin" {
+			t = append(t, tools.NewBashTool())
+		}
 		if toolset.Type != "mcp" {
 			continue
 		}
