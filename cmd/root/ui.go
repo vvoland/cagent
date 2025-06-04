@@ -95,7 +95,13 @@ func newModel(rt *runtime.Runtime, sess *session.Session) (*model, error) {
 		return nil, err
 	}
 
+	// Create viewport with mouse wheel enabled
+	vp := viewport.New(0, 0)
+	vp.MouseWheelEnabled = true
+	vp.MouseWheelDelta = 3 // Number of lines to scroll for each mouse wheel event
+
 	return &model{
+		viewport:   vp,
 		textInput:  ti,
 		rt:         rt,
 		sess:       sess,
@@ -395,6 +401,7 @@ func runUICommand(cmd *cobra.Command, args []string) error {
 	p := tea.NewProgram(
 		m,
 		tea.WithAltScreen(),
+		tea.WithMouseAllMotion(), // Enable mouse support
 	)
 
 	_, err = p.Run()
