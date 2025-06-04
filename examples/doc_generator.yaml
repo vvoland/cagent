@@ -45,7 +45,7 @@ agents:
       * Include both high-level and detailed documentation
       * Generate diagrams using mermaid syntax
     think: true
-    tools:
+    toolsets:
       - type: mcp
         command: rust-mcp-filesystem
         args: ["--allow-write", "."]

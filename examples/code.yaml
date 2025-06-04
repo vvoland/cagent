@@ -10,7 +10,7 @@ agents:
       Use context7 to find the best documentation about the user question, then transfer the conversation to the summarizer
 
       Your internal name is "researcher"
-    # tools:
+    # toolsets:
     #   - type: mcp
     #     command: docker
     #     args:

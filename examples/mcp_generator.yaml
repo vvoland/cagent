@@ -34,7 +34,7 @@ agents:
       * Always test generated code before saving it
       * Use best practices for Python development
     think: true
-    tools:
+    toolsets:
       - type: mcp
         command: uvx
         args: ["duckduckgo-mcp-server"]

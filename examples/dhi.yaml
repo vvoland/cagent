@@ -67,7 +67,7 @@ agents:
       * Preserve build optimizations where possible
       * Document any significant changes or considerations
     think: true
-    tools:
+    toolsets:
       - type: mcp
         command: docker
         args: ["run", "-i", "--rm", "dhi-mcp-server"]

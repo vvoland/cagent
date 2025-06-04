@@ -46,7 +46,7 @@ agents:
 
       IMPORTANT: Once you are done, transfer the session to the  `root` agent
     think: true
-    tools:
+    toolsets:
       - type: mcp
         command: uvx
         args: ["yfmcp"]
@@ -63,7 +63,7 @@ agents:
 
       IMPORTANT: Once you are done, transfer the session to the  `root` agent
     think: true
-    tools:
+    toolsets:
       - type: mcp
         command: uvx
         args: ["duckduckgo-mcp-server"]

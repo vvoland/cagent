@@ -8,7 +8,7 @@ agents:
       You are an expert at finding information
 
       Your main goal is to search the web for the highest quality content about a topic, once you have enough data, transfer the conversation to the "summarizer" agent.
-    # tools:
+    # toolsets:
     #   - type: mcp
     #     command: docker
     #     args:

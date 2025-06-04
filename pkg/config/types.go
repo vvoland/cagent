@@ -1,7 +1,7 @@
 package config
 
-// Tool represents a tool configuration
-type Tool struct {
+// Toolset represents a tool configuration
+type Toolset struct {
 	Type    string            `yaml:"type,omitempty"`
 	Command string            `yaml:"command,omitempty"`
 	Args    []string          `yaml:"args,omitempty"`
@@ -11,14 +11,14 @@ type Tool struct {
 
 // AgentConfig represents a single agent configuration
 type AgentConfig struct {
-	Name        string   `yaml:"name"`
-	Model       string   `yaml:"model"`
-	Description string   `yaml:"description"`
-	Tools       []Tool   `yaml:"tools"`
-	Instruction string   `yaml:"instruction"`
-	SubAgents   []string `yaml:"sub_agents,omitempty"`
-	AddDate     bool     `yaml:"add_date,omitempty"`
-	Think       bool     `yaml:"think,omitempty"`
+	Name        string    `yaml:"name"`
+	Model       string    `yaml:"model"`
+	Description string    `yaml:"description"`
+	Toolsets    []Toolset `yaml:"toolsets"`
+	Instruction string    `yaml:"instruction"`
+	SubAgents   []string  `yaml:"sub_agents,omitempty"`
+	AddDate     bool      `yaml:"add_date,omitempty"`
+	Think       bool      `yaml:"think,omitempty"`
 }
 
 // ModelConfig represents the configuration for a model
