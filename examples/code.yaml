@@ -1,0 +1,50 @@
+agents:
+  root:
+    name: researcher
+    model: openai
+    description: |
+      Expert developer
+    instruction: |
+      You are an expert developer
+
+      Use context7 to find the best documentation about the user question, then transfer the conversation to the summarizer
+
+      Your internal name is "researcher"
+    # tools:
+    #   - type: mcp
+    #     command: docker
+    #     args:
+    #       [
+    #         "run",
+    #         "-i",
+    #         "--rm",
+    #         "alpine/socat",
+    #         "STDIO",
+    #         "TCP:host.docker.internal:8811",
+    #       ]
+    sub_agents:
+      - summarizer
+
+  summarizer:
+    model: openai
+    description: Expert at writing clear, engaging content
+    instruction: |
+      You are an agent that writes engaging content from the provided context
+
+      Once you are done, transfer the conversation back to the "researcher" agent
+
+      Your internal name is "summarizer"
+
+models:
+  openai:
+    type: openai
+    model: gpt-4o
+    temperature: 0.7
+    max_tokens: 1500
+    top_p: 1.0
+    frequency_penalty: 0.0
+    presence_penalty: 0.0
+
+  claude:
+    type: anthropic
+    model: claude-3-5-sonnet-latest
