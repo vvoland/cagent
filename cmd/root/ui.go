@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -369,21 +370,32 @@ func NewUICmd() *cobra.Command {
 
 	cmd.PersistentFlags().StringVarP(&configFile, "config", "c", "agent.yaml", "Path to the configuration file")
 	cmd.PersistentFlags().StringVarP(&agentName, "agent", "a", "root", "Name of the agent to run")
+	cmd.PersistentFlags().BoolVarP(&debugMode, "debug", "d", false, "Enable debug logging")
 
 	return cmd
 }
 
 func runUICommand(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	logger := slog.Default()
-	logger.Debug("Starting agent UI", "agent", agentName)
+
+	// Configure logger based on debug flag
+	logLevel := slog.LevelInfo
+	if debugMode {
+		logLevel = slog.LevelDebug
+	}
+
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: logLevel,
+	}))
+
+	logger.Debug("Starting agent UI", "agent", agentName, "debug_mode", debugMode)
 
 	cfg, err := config.LoadConfig(configFile)
 	if err != nil {
 		return err
 	}
 
-	agents, err := config.Agents(ctx, configFile)
+	agents, err := config.Agents(ctx, configFile, logger)
 	if err != nil {
 		return err
 	}
@@ -393,7 +405,7 @@ func runUICommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	m, err := newModel(rt, session.New(agents))
+	m, err := newModel(rt, session.New(agents, logger))
 	if err != nil {
 		return err
 	}

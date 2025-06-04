@@ -1,6 +1,7 @@
 package session
 
 import (
+	"log/slog"
 	"testing"
 
 	"github.com/rumpl/cagent/pkg/agent"
@@ -95,7 +96,7 @@ func TestGetMessages(t *testing.T) {
 	testAgent := &agent.Agent{}
 
 	// Create a session with many messages
-	s := New(map[string]*agent.Agent{"test": testAgent})
+	s := New(map[string]*agent.Agent{"test": testAgent}, slog.Default())
 
 	// Add more than maxMessages to the session
 	for i := 0; i < maxMessages+10; i++ {
@@ -120,7 +121,7 @@ func TestGetMessagesWithToolCalls(t *testing.T) {
 	testAgent := &agent.Agent{}
 
 	// Create a session
-	s := New(map[string]*agent.Agent{"test": testAgent})
+	s := New(map[string]*agent.Agent{"test": testAgent}, slog.Default())
 
 	// Add a sequence of messages with tool calls
 	s.Messages = append(s.Messages, AgentMessage{

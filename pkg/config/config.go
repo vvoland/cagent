@@ -3,6 +3,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"slices"
 
@@ -31,7 +32,7 @@ func LoadConfig(path string) (*Config, error) {
 	return &config, nil
 }
 
-func Agents(ctx context.Context, path string) (map[string]*agent.Agent, error) {
+func Agents(ctx context.Context, path string, logger *slog.Logger) (map[string]*agent.Agent, error) {
 	cfg, err := LoadConfig(path)
 	if err != nil {
 		return nil, err
@@ -46,7 +47,7 @@ func Agents(ctx context.Context, path string) (map[string]*agent.Agent, error) {
 			agent.WithAddDate(agentConfig.AddDate),
 		}
 
-		tools, err := getToolsForAgent(ctx, cfg, name)
+		tools, err := getToolsForAgent(ctx, cfg, name, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tools: %w", err)
 		}
@@ -87,7 +88,7 @@ func hasParents(cfg *Config, agentName string) bool {
 }
 
 // getToolsForAgent returns the tool definitions for an agent based on its configuration
-func getToolsForAgent(ctx context.Context, cfg *Config, agentName string) ([]tools.ToolSet, error) {
+func getToolsForAgent(ctx context.Context, cfg *Config, agentName string, logger *slog.Logger) ([]tools.ToolSet, error) {
 	a, ok := cfg.Agents[agentName]
 	if !ok {
 		return nil, fmt.Errorf("agent '%s' not found in configuration", agentName)
@@ -117,7 +118,7 @@ func getToolsForAgent(ctx context.Context, cfg *Config, agentName string) ([]too
 		for k, v := range toolset.Env {
 			envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
 		}
-		mcpc, err := mcp.NewToolset(ctx, toolset.Command, toolset.Args, envSlice, toolset.Tools)
+		mcpc, err := mcp.NewToolset(ctx, toolset.Command, toolset.Args, envSlice, toolset.Tools, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create mcp client: %w", err)
 		}

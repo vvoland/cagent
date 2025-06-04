@@ -43,14 +43,25 @@ func NewWebCmd() *cobra.Command {
 	cmd.PersistentFlags().StringVarP(&configFile, "config", "c", "agent.yaml", "Path to the configuration file")
 	cmd.PersistentFlags().StringVarP(&agentsDir, "agents-dir", "d", "", "Directory containing agent configurations")
 	cmd.PersistentFlags().StringVarP(&listenAddr, "listen", "l", ":8080", "Address to listen on")
+	cmd.PersistentFlags().BoolVar(&debugMode, "debug", false, "Enable debug logging")
 
 	return cmd
 }
 
 func runWebCommand(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	logger := slog.Default()
-	logger.Debug("Starting web server", "agents-dir", agentsDir)
+
+	// Configure logger based on debug flag
+	logLevel := slog.LevelInfo
+	if debugMode {
+		logLevel = slog.LevelDebug
+	}
+
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: logLevel,
+	}))
+
+	logger.Debug("Starting web server", "agents-dir", agentsDir, "debug_mode", debugMode)
 
 	var cfg *config.Config
 	var err error
@@ -74,7 +85,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 					continue
 				}
 
-				fileAgents, err := config.Agents(ctx, configPath)
+				fileAgents, err := config.Agents(ctx, configPath, logger)
 				if err != nil {
 					logger.Warn("Failed to load agents", "file", entry.Name(), "error", err)
 					continue
@@ -109,7 +120,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		agents, err := config.Agents(ctx, configFile)
+		agents, err := config.Agents(ctx, configFile, logger)
 		if err != nil {
 			return err
 		}
@@ -151,7 +162,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "runtime not found"})
 		}
 
-		sess := session.New(agents)
+		sess := session.New(agents, logger)
 		sessions[sess.ID] = sess
 		return c.JSON(http.StatusOK, sess)
 	})

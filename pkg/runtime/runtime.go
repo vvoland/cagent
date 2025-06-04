@@ -32,6 +32,8 @@ type Runtime struct {
 
 // New creates a new runtime for an agent
 func New(cfg *config.Config, logger *slog.Logger, agents map[string]*agent.Agent, agentName string) (*Runtime, error) {
+	logger.Debug("Creating new runtime", "agent", agentName, "available_agents", len(agents))
+
 	runtime := &Runtime{
 		toolMap:         make(map[string]ToolHandler),
 		agents:          agents,
@@ -41,12 +43,15 @@ func New(cfg *config.Config, logger *slog.Logger, agents map[string]*agent.Agent
 		providerFactory: provider.NewFactory(),
 	}
 
+	logger.Debug("Runtime created successfully", "agent", agentName)
 	return runtime, nil
 }
 
 // registerDefaultTools registers the default tool handlers
 func (r *Runtime) registerDefaultTools() {
+	r.logger.Debug("Registering default tools")
 	r.toolMap["transfer_to_agent"] = r.handleAgentTransfer
+	r.logger.Debug("Registered default tools", "count", len(r.toolMap))
 }
 
 func (r *Runtime) CurrentAgent() *agent.Agent {
@@ -55,42 +60,56 @@ func (r *Runtime) CurrentAgent() *agent.Agent {
 
 // Run starts the agent's interaction loop
 func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan Event {
+	r.logger.Debug("Starting runtime stream", "agent", r.currentAgent, "session_id", sess.ID)
 	events := make(chan Event)
 
 	go func() {
 		defer close(events)
+		defer r.logger.Debug("Runtime stream completed", "agent", r.currentAgent, "session_id", sess.ID)
 
 		a := r.agents[r.currentAgent]
+		r.logger.Debug("Using agent", "agent", a.Name(), "model", a.Model())
 
 		// Create a provider for the agent's model
 		modelProvider, err := r.providerFactory.NewProviderFromConfig(r.cfg, a.Model())
 		if err != nil {
+			r.logger.Error("Failed to create model provider", "agent", a.Name(), "model", a.Model(), "error", err)
 			events <- &ErrorEvent{Error: fmt.Errorf("creating model provider: %w", err)}
 			return
 		}
+		r.logger.Debug("Created model provider", "agent", a.Name(), "model", a.Model())
 
 		r.registerDefaultTools()
 
 		for {
+			r.logger.Debug("Starting conversation loop iteration", "agent", a.Name())
 			messages := sess.GetMessages(a)
+			r.logger.Debug("Retrieved messages for processing", "agent", a.Name(), "message_count", len(messages))
 
 			agentTools, err := a.Tools()
 			if err != nil {
+				r.logger.Error("Failed to get agent tools", "agent", a.Name(), "error", err)
 				events <- &ErrorEvent{Error: fmt.Errorf("failed to get tools: %w", err)}
 				return
 			}
+			r.logger.Debug("Retrieved agent tools", "agent", a.Name(), "tool_count", len(agentTools))
 
+			r.logger.Debug("Creating chat completion stream", "agent", a.Name())
 			stream, err := modelProvider.CreateChatCompletionStream(ctx, messages, agentTools)
 			if err != nil {
+				r.logger.Error("Failed to create chat completion stream", "agent", a.Name(), "error", err)
 				events <- &ErrorEvent{Error: fmt.Errorf("creating chat completion: %w", err)}
 				return
 			}
 
+			r.logger.Debug("Processing stream", "agent", a.Name())
 			calls, content, stopped, err := r.handleStream(stream, a, events)
 			if err != nil {
+				r.logger.Error("Error handling stream", "agent", a.Name(), "error", err)
 				events <- &ErrorEvent{Error: err}
 				return
 			}
+			r.logger.Debug("Stream processed", "agent", a.Name(), "tool_calls", len(calls), "content_length", len(content), "stopped", stopped)
 
 			// Add assistant message to conversation history
 			assistantMessage := chat.Message{
@@ -103,23 +122,29 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				Agent:   a,
 				Message: assistantMessage,
 			})
+			r.logger.Debug("Added assistant message to session", "agent", a.Name(), "total_messages", len(sess.Messages))
 
 			if stopped {
+				r.logger.Debug("Conversation stopped", "agent", a.Name())
 				break
 			}
 
 			// Handle tool calls if present
 			if len(calls) > 0 {
+				r.logger.Debug("Processing tool calls", "agent", a.Name(), "call_count", len(calls))
 				agentTools, err := a.Tools()
 				if err != nil {
+					r.logger.Error("Failed to get tools for tool calls", "agent", a.Name(), "error", err)
 					events <- &ErrorEvent{Error: fmt.Errorf("failed to get tools: %w", err)}
 					return
 				}
 
 			outer:
 				for _, toolCall := range calls {
+					r.logger.Debug("Processing tool call", "agent", a.Name(), "tool", toolCall.Function.Name)
 					handler, exists := r.toolMap[toolCall.Function.Name]
 					if exists {
+						r.logger.Debug("Using runtime tool handler", "tool", toolCall.Function.Name)
 						events <- &ToolCallEvent{
 							ToolCall: toolCall,
 						}
@@ -131,6 +156,8 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 						}
 						if err != nil {
 							r.logger.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
+						} else {
+							r.logger.Debug("Tool executed successfully", "tool", toolCall.Function.Name)
 						}
 
 						return
@@ -140,6 +167,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 						if tool.Function.Name != toolCall.Function.Name {
 							continue
 						}
+						r.logger.Debug("Using agent tool handler", "tool", toolCall.Function.Name)
 						events <- &ToolCallEvent{
 							ToolCall: toolCall,
 						}
@@ -150,6 +178,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 							break outer
 						}
 
+						r.logger.Debug("Agent tool call completed", "tool", toolCall.Function.Name, "output_length", len(res.Output))
 						events <- &ToolCallResponseEvent{
 							ToolCall: toolCall,
 							Response: res.Output,
@@ -164,6 +193,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 							Agent:   a,
 							Message: toolResponseMsg,
 						})
+						r.logger.Debug("Added tool response to session", "tool", toolCall.Function.Name, "total_messages", len(sess.Messages))
 						break
 					}
 				}
@@ -270,7 +300,7 @@ func (r *Runtime) handleAgentTransfer(ctx context.Context, a *agent.Agent, sess 
 		return "", fmt.Errorf("invalid arguments: %w", err)
 	}
 
-	r.logger.Debug("Transferring to sub-agent", "agent", params.Agent)
+	r.logger.Debug("Transferring to sub-agent", "from_agent", a.Name(), "to_agent", params.Agent)
 
 	if !a.IsSubAgent(params.Agent) && !a.IsParent(params.Agent) {
 		return "", fmt.Errorf("agent %s is not a valid sub-agent", params.Agent)
@@ -287,13 +317,16 @@ func (r *Runtime) handleAgentTransfer(ctx context.Context, a *agent.Agent, sess 
 	})
 
 	r.currentAgent = params.Agent
+	r.logger.Debug("Agent transfer completed", "current_agent", r.currentAgent)
 
 	for event := range r.RunStream(ctx, sess) {
 		evts <- event
 		if errEvent, ok := event.(*ErrorEvent); ok {
+			r.logger.Error("Error during agent transfer execution", "agent", params.Agent, "error", errEvent.Error)
 			return "", errEvent.Error
 		}
 	}
 
+	r.logger.Debug("Sub-agent execution completed", "agent", params.Agent)
 	return "{}", nil
 }

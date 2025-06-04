@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/rumpl/cagent/pkg/tools"
 )
@@ -11,18 +12,23 @@ import (
 type Toolset struct {
 	c          *Client
 	toolFilter []string
+	logger     *slog.Logger
 }
 
 // NewToolset creates a new MCP toolset
-func NewToolset(ctx context.Context, command string, args, env, toolFilter []string) (*Toolset, error) {
-	mcpc, err := New(ctx, command, args, env)
+func NewToolset(ctx context.Context, command string, args, env, toolFilter []string, logger *slog.Logger) (*Toolset, error) {
+	logger.Debug("Creating MCP toolset", "command", command, "args", args, "toolFilter", toolFilter)
+
+	mcpc, err := New(ctx, command, args, env, logger)
 	if err != nil {
+		logger.Error("Failed to create MCP client", "error", err)
 		return nil, fmt.Errorf("failed to create mcp client: %w", err)
 	}
 
 	return &Toolset{
 		c:          mcpc,
 		toolFilter: toolFilter,
+		logger:     logger,
 	}, nil
 }
 
@@ -38,15 +44,36 @@ func (t *Toolset) Instructions() string {
 
 // Tools returns the available tools
 func (t *Toolset) Tools(ctx context.Context) ([]tools.Tool, error) {
-	return t.c.ListTools(ctx, t.toolFilter)
+	t.logger.Debug("Listing MCP tools", "toolFilter", t.toolFilter)
+	tools, err := t.c.ListTools(ctx, t.toolFilter)
+	if err != nil {
+		t.logger.Error("Failed to list MCP tools", "error", err)
+		return nil, err
+	}
+	t.logger.Debug("Listed MCP tools", "count", len(tools))
+	return tools, nil
 }
 
 // Start starts the toolset
 func (t *Toolset) Start(ctx context.Context) error {
-	return t.c.Start(ctx)
+	t.logger.Debug("Starting MCP toolset")
+	err := t.c.Start(ctx)
+	if err != nil {
+		t.logger.Error("Failed to start MCP toolset", "error", err)
+		return err
+	}
+	t.logger.Debug("Started MCP toolset successfully")
+	return nil
 }
 
 // Stop stops the toolset
 func (t *Toolset) Stop() error {
-	return t.c.Stop()
+	t.logger.Debug("Stopping MCP toolset")
+	err := t.c.Stop()
+	if err != nil {
+		t.logger.Error("Failed to stop MCP toolset", "error", err)
+		return err
+	}
+	t.logger.Debug("Stopped MCP toolset successfully")
+	return nil
 }

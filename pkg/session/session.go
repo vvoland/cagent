@@ -2,6 +2,7 @@ package session
 
 import (
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,6 +28,9 @@ type Session struct {
 
 	// CreatedAt is the time the session was created
 	CreatedAt time.Time `json:"created_at"`
+
+	// Logger for debugging and logging session operations
+	logger *slog.Logger
 }
 
 // AgentMessage is a message from an agent
@@ -36,16 +40,22 @@ type AgentMessage struct {
 }
 
 // New creates a new agent session
-func New(agents map[string]*agent.Agent) *Session {
+func New(agents map[string]*agent.Agent, logger *slog.Logger) *Session {
+	sessionID := uuid.New().String()
+	logger.Debug("Creating new session", "session_id", sessionID)
+
 	return &Session{
-		ID:        uuid.New().String(),
+		ID:        sessionID,
 		State:     make(map[string]any),
 		Agents:    agents,
 		CreatedAt: time.Now(),
+		logger:    logger,
 	}
 }
 
 func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
+	s.logger.Debug("Getting messages for agent", "agent", a.Name(), "session_id", s.ID)
+
 	messages := make([]chat.Message, 0)
 	contextMessages := make([]chat.Message, 0)
 
@@ -124,7 +134,15 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 	}
 
 	messages = append(messages, contextMessages...)
-	return trimMessages(messages)
+	trimmed := trimMessages(messages)
+
+	s.logger.Debug("Retrieved messages for agent",
+		"agent", a.Name(),
+		"session_id", s.ID,
+		"total_messages", len(messages),
+		"trimmed_messages", len(trimmed))
+
+	return trimmed
 }
 
 // trimMessages ensures we don't exceed the maximum number of messages while maintaining
