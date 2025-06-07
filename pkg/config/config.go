@@ -96,8 +96,12 @@ func getToolsForAgent(ctx context.Context, cfg *Config, agentName string, logger
 
 	var t []tools.ToolSet
 
-	if hasParents(cfg, agentName) || len(a.SubAgents) > 0 {
-		t = append(t, tools.NewAgentTransferTool())
+	if len(a.SubAgents) > 0 {
+		if cfg.Type == "task" {
+			t = append(t, tools.NewTaskTool())
+		} else {
+			t = append(t, tools.NewAgentTransferTool())
+		}
 	}
 
 	if a.Think {

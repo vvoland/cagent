@@ -34,6 +34,7 @@ type ModelConfig struct {
 
 // Config represents the entire configuration file
 type Config struct {
+	Type   string                 `yaml:"type"`
 	Agents map[string]AgentConfig `yaml:"agents"`
 	Models map[string]ModelConfig `yaml:"models"`
 }

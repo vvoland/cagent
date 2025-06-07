@@ -143,6 +143,7 @@ func (c *Client) CallTool(ctx context.Context, toolCall tools.ToolCall) (*tools.
 
 	result := processMCPContent(resp)
 	c.logger.Debug("MCP tool call completed", "tool", toolCall.Function.Name, "output_length", len(result.Output))
+	c.logger.Debug(result.Output)
 	return result, nil
 }
 

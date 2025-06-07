@@ -51,6 +51,7 @@ func New(cfg *config.Config, logger *slog.Logger, agents map[string]*agent.Agent
 func (r *Runtime) registerDefaultTools() {
 	r.logger.Debug("Registering default tools")
 	r.toolMap["transfer_to_agent"] = r.handleAgentTransfer
+	r.toolMap["transfer_task"] = r.handleTaskTransfer
 	r.logger.Debug("Registered default tools", "count", len(r.toolMap))
 }
 
@@ -159,8 +160,17 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 						} else {
 							r.logger.Debug("Tool executed successfully", "tool", toolCall.Function.Name)
 						}
+						toolResponseMsg := chat.Message{
+							Role:       "tool",
+							Content:    res,
+							ToolCallID: toolCall.ID,
+						}
+						sess.Messages = append(sess.Messages, session.AgentMessage{
+							Agent:   a,
+							Message: toolResponseMsg,
+						})
 
-						return
+						break
 					}
 
 					for _, tool := range agentTools {
@@ -329,4 +339,46 @@ func (r *Runtime) handleAgentTransfer(ctx context.Context, a *agent.Agent, sess 
 
 	r.logger.Debug("Sub-agent execution completed", "agent", params.Agent)
 	return "{}", nil
+}
+
+func (r *Runtime) handleTaskTransfer(ctx context.Context, a *agent.Agent, sess *session.Session, toolCall tools.ToolCall, evts chan Event) (string, error) {
+	var params struct {
+		Agent string `json:"agent"`
+		Task  string `json:"task"`
+	}
+
+	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
+		return "", fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	r.logger.Debug("Transferring task to agent", "from_agent", a.Name(), "to_agent", params.Agent, "task", params.Task)
+
+	ca := r.currentAgent
+	r.currentAgent = params.Agent
+
+	s := session.New(r.agents, r.logger)
+	s.Messages = append(s.Messages, session.AgentMessage{
+		Agent: a,
+		Message: chat.Message{
+			Role:    "user",
+			Content: params.Task,
+		},
+	})
+
+	for event := range r.RunStream(ctx, s) {
+		evts <- event
+	}
+
+	r.currentAgent = ca
+
+	// messages, err := r.Run(ctx, s)
+	// if err != nil {
+	// 	r.logger.Error("Error during task transfer execution", "agent", params.Agent, "error", err)
+	// 	return "", err
+	// }
+
+	// fmt.Println(s.Messages[len(s.Messages)-1].Message.Content)
+	r.logger.Debug("Task transfer completed", "agent", params.Agent, "task", params.Task)
+
+	return s.Messages[len(s.Messages)-1].Message.Content, nil
 }
