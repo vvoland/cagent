@@ -84,7 +84,10 @@ func main() {
 	}
 
 	agents := map[string]*agent.Agent{
-		"root": agent.New("root", "You are a human, with feelings and emotions.", agent.WithModel(llm), agent.WithToolSet([]tools.ToolSet{&tool{}})),
+		"root": agent.New("root",
+			"You are a human, with feelings and emotions.",
+			agent.WithModel(llm),
+			agent.WithToolSets([]tools.ToolSet{&tool{}})),
 	}
 
 	rt, err := runtime.New(logger, agents, "root")

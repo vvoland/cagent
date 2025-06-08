@@ -38,7 +38,7 @@ func Agents(ctx context.Context, path string, logger *slog.Logger) (map[string]*
 			return nil, fmt.Errorf("failed to get tools: %w", err)
 		}
 
-		opts = append(opts, agent.WithToolSet(agentTools))
+		opts = append(opts, agent.WithToolSets(agentTools))
 
 		agents[name] = agent.New(name, agentConfig.Instruction, opts...)
 	}
