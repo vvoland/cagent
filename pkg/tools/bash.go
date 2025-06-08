@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-
-	"github.com/mark3labs/mcp-go/mcp"
 )
 
 type BashTool struct {
@@ -132,7 +130,7 @@ assistant: [uses Bash to 'git add' the unstaged changes from the 'git status' ou
 ## Prefer specific tools
 
 It's VERY IMPORTANT to use specific tools when searching for files, instead of issuing terminal commands with find/grep/ripgrep. Use codebase_search or Grep instead. Use read_file tool rather than cat, and edit_file rather than sed.`,
-				Parameters: mcp.ToolInputSchema{
+				Parameters: FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
 						"cmd": map[string]any{

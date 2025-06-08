@@ -2,8 +2,6 @@ package tools
 
 import (
 	"context"
-
-	"github.com/mark3labs/mcp-go/mcp"
 )
 
 type TaskTool struct {
@@ -25,7 +23,7 @@ func (t *TaskTool) Tools(ctx context.Context) ([]Tool, error) {
 				Description: `Use this function to transfer a task to the selected team member.
             You must provide a clear and concise description of the task the member should achieve AND the expected output.
 `,
-				Parameters: mcp.ToolInputSchema{
+				Parameters: FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
 						"agent": map[string]any{

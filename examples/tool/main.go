@@ -7,7 +7,6 @@ import (
 	"log"
 	"log/slog"
 
-	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/rumpl/cagent/pkg/agent"
 	"github.com/rumpl/cagent/pkg/config"
 	"github.com/rumpl/cagent/pkg/model/provider/openai"
@@ -26,7 +25,7 @@ func (t *tool) Tools(ctx context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "add",
 				Description: "Add two numbers",
-				Parameters: mcp.ToolInputSchema{
+				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
 						"a": map[string]any{
@@ -82,7 +81,7 @@ func main() {
 					Function: &tools.FunctionDefinition{
 						Name:        "add",
 						Description: "Add two numbers",
-						Parameters: mcp.ToolInputSchema{
+						Parameters: tools.FunctionParamaters{
 							Type: "object",
 							Properties: map[string]any{
 								"a": map[string]any{

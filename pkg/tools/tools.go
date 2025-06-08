@@ -2,8 +2,6 @@ package tools
 
 import (
 	"context"
-
-	"github.com/mark3labs/mcp-go/mcp"
 )
 
 type ToolHandler = func(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error)
@@ -34,10 +32,16 @@ type Tool struct {
 }
 
 type FunctionDefinition struct {
-	Name        string              `json:"name"`
-	Description string              `json:"description,omitempty"`
-	Strict      bool                `json:"strict,omitempty"`
-	Parameters  mcp.ToolInputSchema `json:"parameters"`
+	Name        string             `json:"name"`
+	Description string             `json:"description,omitempty"`
+	Strict      bool               `json:"strict,omitempty"`
+	Parameters  FunctionParamaters `json:"parameters"`
+}
+
+type FunctionParamaters struct {
+	Type       string         `json:"type"`
+	Properties map[string]any `json:"properties,omitempty"`
+	Required   []string       `json:"required,omitempty"`
 }
 
 type ToolSet interface {

@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-
-	"github.com/mark3labs/mcp-go/mcp"
 )
 
 type ThinkTool struct {
@@ -56,7 +54,7 @@ func (t *ThinkTool) Tools(ctx context.Context) ([]Tool, error) {
 			Function: &FunctionDefinition{
 				Name:        "think",
 				Description: "Use the tool to think about something. It will not obtain new information or change the database, but just append the thought to the log. Use it when complex reasoning or some cache memory is needed.",
-				Parameters: mcp.ToolInputSchema{
+				Parameters: FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
 						"thought": map[string]any{

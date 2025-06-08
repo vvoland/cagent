@@ -2,8 +2,6 @@ package tools
 
 import (
 	"context"
-
-	"github.com/mark3labs/mcp-go/mcp"
 )
 
 type AgentTransferTool struct {
@@ -23,7 +21,7 @@ func (t *AgentTransferTool) Tools(ctx context.Context) ([]Tool, error) {
 			Function: &FunctionDefinition{
 				Name:        "transfer_to_agent",
 				Description: "Transfer the question to another agent",
-				Parameters: mcp.ToolInputSchema{
+				Parameters: FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
 						"agent": map[string]any{

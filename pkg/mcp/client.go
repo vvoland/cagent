@@ -102,7 +102,11 @@ func (c *Client) ListTools(ctx context.Context, toolFilter []string) ([]tools.To
 		tool.Function = &tools.FunctionDefinition{
 			Name:        t.Name,
 			Description: t.Description,
-			Parameters:  t.InputSchema,
+			Parameters: tools.FunctionParamaters{
+				Type:       t.InputSchema.Type,
+				Properties: t.InputSchema.Properties,
+				Required:   t.InputSchema.Required,
+			},
 		}
 
 		tool.Handler = c.CallTool
