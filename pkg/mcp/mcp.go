@@ -34,7 +34,7 @@ func NewToolset(ctx context.Context, command string, args, env, toolFilter []str
 
 // Handler returns the tool handler
 func (t *Toolset) Handler() tools.ToolHandler {
-	return t.c
+	return t.c.CallTool
 }
 
 // Instructions returns the toolset instructions

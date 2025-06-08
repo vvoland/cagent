@@ -148,7 +148,7 @@ It's VERY IMPORTANT to use specific tools when searching for files, instead of i
 					Required: []string{"cmd", "cwd"},
 				},
 			},
-			Handler: t.handler,
+			Handler: t.handler.CallTool,
 		},
 	}, nil
 }
@@ -160,19 +160,3 @@ func (t *BashTool) Start(ctx context.Context) error {
 func (t *BashTool) Stop() error {
 	return nil
 }
-
-// Make edits to a text file.
-
-// Replaces `old_str` with `new_str` in the given file.
-
-// Returns a git-style diff showing the changes made as formatted markdown, along with the line range ([startLine, endLine]) of the changed content. The diff is also shown to the user.
-
-// The file specified by `path` MUST exist. If you need to create a new file, use `create_file` instead.
-
-// `old_str` MUST exist in the file. Use tools like `read_file` to understand the files you are editing before changing them.
-
-// `old_str` and `new_str` MUST be different from each other.
-
-// `old_str` MUST be unique within the file. Additional lines of context can be added to make the string more unique.
-
-// If you need to replace the entire contents of a file, use `create_file` instead, since it requires less tokens for the same action (since you won't have to repeat the contents before replacing)

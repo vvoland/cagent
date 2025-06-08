@@ -68,7 +68,7 @@ func (t *ThinkTool) Tools(ctx context.Context) ([]Tool, error) {
 					Required: []string{"thought"},
 				},
 			},
-			Handler: t.handler,
+			Handler: t.handler.CallTool,
 		},
 	}, nil
 }

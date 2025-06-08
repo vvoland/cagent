@@ -23,7 +23,7 @@ func (t *tool) Tools(ctx context.Context) ([]tools.Tool, error) {
 	return []tools.Tool{
 		{
 			Type:    "function",
-			Handler: t,
+			Handler: addNumbers,
 			Function: &tools.FunctionDefinition{
 				Name:        "add",
 				Description: "Add two numbers",
@@ -43,7 +43,7 @@ func (t *tool) Tools(ctx context.Context) ([]tools.Tool, error) {
 	}, nil
 }
 
-func (t *tool) CallTool(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func addNumbers(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	type params struct {
 		A int `json:"a"`
 		B int `json:"b"`
@@ -53,6 +53,8 @@ func (t *tool) CallTool(ctx context.Context, toolCall tools.ToolCall) (*tools.To
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &p); err != nil {
 		return nil, err
 	}
+
+	fmt.Println("Adding numbers", p.A, p.B)
 
 	return &tools.ToolCallResult{
 		Output: fmt.Sprintf("%d", p.A+p.B),

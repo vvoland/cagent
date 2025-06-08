@@ -107,7 +107,7 @@ func (c *Client) ListTools(ctx context.Context, toolFilter []string) ([]tools.To
 			Parameters:  t.InputSchema,
 		}
 
-		tool.Handler = c
+		tool.Handler = c.CallTool
 
 		toolsList = append(toolsList, tool)
 		c.logger.Debug("Added MCP tool", "tool", t.Name)

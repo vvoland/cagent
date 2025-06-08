@@ -6,9 +6,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-type ToolHandler interface {
-	CallTool(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error)
-}
+type ToolHandler = func(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error)
 
 type ToolCall struct {
 	Index    *int         `json:"index,omitempty"`

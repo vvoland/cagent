@@ -169,7 +169,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 							ToolCall: toolCall,
 						}
 
-						res, err := tool.Handler.CallTool(ctx, toolCall)
+						res, err := tool.Handler(ctx, toolCall)
 						if err != nil {
 							r.logger.Error("Error calling tool", "tool", toolCall.Function.Name, "error", err)
 							break outer
