@@ -72,13 +72,13 @@ func main() {
 		),
 	}
 
+	sess := session.New(logger)
+	sess.Messages = append(sess.Messages, session.UserMessage("What is 1 + 2?"))
+
 	rt, err := runtime.New(logger, agents, "root")
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	sess := session.New(logger)
-	sess.Messages = append(sess.Messages, session.UserMessage("What is 1 + 2?"))
 
 	messages, err := rt.Run(ctx, sess)
 	if err != nil {

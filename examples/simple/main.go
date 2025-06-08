@@ -29,13 +29,13 @@ func main() {
 		"root": agent.New("root", "You are a human, with feelings and emotions.", agent.WithModel(llm)),
 	}
 
+	sess := session.New(logger)
+	sess.Messages = append(sess.Messages, session.UserMessage("How are you doing?"))
+
 	rt, err := runtime.New(logger, agents, "root")
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	sess := session.New(logger)
-	sess.Messages = append(sess.Messages, session.UserMessage("How are you doing?"))
 
 	messages, err := rt.Run(ctx, sess)
 	if err != nil {

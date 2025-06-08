@@ -34,13 +34,13 @@ func main() {
 		),
 	}
 
+	sess := session.New(logger)
+	sess.Messages = append(sess.Messages, session.UserMessage("Tell me a story about my current directory"))
+
 	rt, err := runtime.New(logger, agents, "root")
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	sess := session.New(logger)
-	sess.Messages = append(sess.Messages, session.UserMessage("Tell me a story about my current directory"))
 
 	messages, err := rt.Run(ctx, sess)
 	if err != nil {
