@@ -1,0 +1,46 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"log/slog"
+
+	"github.com/rumpl/cagent/pkg/agent"
+	"github.com/rumpl/cagent/pkg/config"
+	"github.com/rumpl/cagent/pkg/model/provider/openai"
+	"github.com/rumpl/cagent/pkg/runtime"
+	"github.com/rumpl/cagent/pkg/session"
+)
+
+func main() {
+	ctx := context.Background()
+	logger := slog.Default()
+
+	llm, err := openai.NewClient(&config.ModelConfig{
+		Type:  "openai",
+		Model: "gpt-4o",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	agents := map[string]*agent.Agent{
+		"root": agent.New("root", "You are a human, with feelings and emotions.", agent.WithModel(llm)),
+	}
+
+	rt, err := runtime.New(logger, agents, "root")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sess := session.New(logger)
+	sess.Messages = append(sess.Messages, session.UserMessage("How are you doing?"))
+
+	messages, err := rt.Run(ctx, sess)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(messages[len(messages)-1].Message.Content)
+}
