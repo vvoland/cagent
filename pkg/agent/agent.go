@@ -100,9 +100,9 @@ func (a *Agent) Tools() ([]tools.Tool, error) {
 		}
 		agentTools = append(agentTools, ta...)
 	}
-	for _, tool := range a.toolwrapper.allTools {
-		agentTools = append(agentTools, tool)
-	}
+
+	agentTools = append(agentTools, a.toolwrapper.allTools...)
+
 	return agentTools, nil
 }
 

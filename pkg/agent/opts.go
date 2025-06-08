@@ -19,10 +19,10 @@ func WithToolSets(toolSet []tools.ToolSet) Opt {
 	}
 }
 
-func WithTools(tools []tools.Tool) Opt {
+func WithTools(tls []tools.Tool) Opt {
 	return func(a *Agent) {
 		a.toolwrapper = toolwrapper{
-			allTools: tools,
+			allTools: tls,
 		}
 	}
 }
