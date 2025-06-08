@@ -13,10 +13,6 @@ func NewTaskTool() *TaskTool {
 	return &TaskTool{}
 }
 
-func (t *TaskTool) Handler() ToolHandler {
-	return nil
-}
-
 func (t *TaskTool) Instructions() string {
 	return ""
 }

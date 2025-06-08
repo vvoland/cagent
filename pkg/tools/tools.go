@@ -44,7 +44,6 @@ type FunctionDefinition struct {
 }
 
 type ToolSet interface {
-	Handler() ToolHandler
 	Tools(ctx context.Context) ([]Tool, error)
 
 	Instructions() string

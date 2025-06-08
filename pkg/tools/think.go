@@ -38,10 +38,6 @@ func NewThinkTool() *ThinkTool {
 	}
 }
 
-func (t *ThinkTool) Handler() ToolHandler {
-	return t.handler
-}
-
 func (t *ThinkTool) Instructions() string {
 	return `## Using the think tool
             Before taking any action or responding to the user after receiving tool results, use the think tool as a scratchpad to:

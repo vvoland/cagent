@@ -13,10 +13,6 @@ func NewAgentTransferTool() *AgentTransferTool {
 	return &AgentTransferTool{}
 }
 
-func (t *AgentTransferTool) Handler() ToolHandler {
-	return nil
-}
-
 func (t *AgentTransferTool) Instructions() string {
 	return ""
 }

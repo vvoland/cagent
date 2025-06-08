@@ -61,10 +61,6 @@ func NewBashTool() *BashTool {
 	}
 }
 
-func (t *BashTool) Handler() ToolHandler {
-	return t.handler
-}
-
 func (t *BashTool) Instructions() string {
 	return ""
 }

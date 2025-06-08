@@ -358,13 +358,6 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, a *agent.Agent, sess *
 
 	r.currentAgent = ca
 
-	// messages, err := r.Run(ctx, s)
-	// if err != nil {
-	// 	r.logger.Error("Error during task transfer execution", "agent", params.Agent, "error", err)
-	// 	return "", err
-	// }
-
-	// fmt.Println(s.Messages[len(s.Messages)-1].Message.Content)
 	r.logger.Debug("Task transfer completed", "agent", params.Agent, "task", params.Task)
 
 	return s.Messages[len(s.Messages)-1].Message.Content, nil

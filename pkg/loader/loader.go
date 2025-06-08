@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"slices"
 
 	"github.com/rumpl/cagent/pkg/agent"
 	"github.com/rumpl/cagent/pkg/config"
@@ -60,18 +59,6 @@ func Agents(ctx context.Context, path string, logger *slog.Logger) (map[string]*
 	}
 
 	return agents, nil
-}
-
-func hasParents(cfg *config.Config, agentName string) bool {
-	for _, agent := range cfg.Agents {
-		if len(agent.SubAgents) > 0 {
-			if slices.Contains(agent.SubAgents, agentName) {
-				return true
-			}
-		}
-	}
-
-	return false
 }
 
 // getToolsForAgent returns the tool definitions for an agent based on its configuration
