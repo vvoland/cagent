@@ -17,11 +17,11 @@ export const ToolCallEvent = ({
       <Button
         variant="outline"
         size="sm"
-        className="inline-flex items-center gap-2"
+        className="inline-flex items-center gap-2 m-3"
         onClick={() => setIsModalOpen(true)}
       >
         <span className="text-lg">🛠️</span>
-        <span className="font-medium">{name}</span>
+        <span className="font-medium">tool: {name}</span>
       </Button>
 
       <Modal
@@ -31,14 +31,9 @@ export const ToolCallEvent = ({
       >
         <div className="space-y-4">
           <h4 className="font-semibold text-sm">Parameters:</h4>
-          <pre
-            className={cn(
-              "bg-secondary p-4 rounded-lg overflow-x-auto",
-              "text-sm font-mono"
-            )}
-          >
+          <div className={cn("p-4 rounded-lg", "text-sm font-mono")}>
             <code>{args}</code>
-          </pre>
+          </div>
         </div>
       </Modal>
     </>
@@ -63,7 +58,7 @@ export const ToolResultEvent = ({
         onClick={() => setIsModalOpen(true)}
       >
         <span className="text-lg">✅</span>
-        <span className="font-medium">{id}</span>
+        <span className="font-medium">result: {id}</span>
       </Button>
 
       <Modal
@@ -74,14 +69,14 @@ export const ToolResultEvent = ({
         <div className="space-y-4">
           <h4 className="font-semibold text-sm">Response:</h4>
           <div className="max-h-[500px] overflow-y-auto">
-            <pre
+            <div
               className={cn(
-                "bg-secondary p-4 rounded-lg overflow-x-auto",
-                "text-sm font-mono"
+                "p-4 rounded-lg overflow-x-auto",
+                "text-sm font-mono "
               )}
             >
               {content}
-            </pre>
+            </div>
           </div>
         </div>
       </Modal>

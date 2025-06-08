@@ -12,6 +12,7 @@ import {
 } from "./components/MessageEvents";
 import { ToolCallEvent, ToolResultEvent } from "./components/ToolEvents";
 import { Sidebar } from "./components/Sidebar";
+import { DarkModeToggle } from "./components/DarkModeToggle";
 
 function App() {
   const [prompt, setPrompt] = useState("");
@@ -70,39 +71,42 @@ function App() {
   );
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-screen flex bg-gray-200 dark:bg-gray-800 text-black dark:text-white">
       <Sidebar
         sessions={sessions}
         currentSessionId={currentSessionId}
         onSessionSelect={selectSession}
       />
       <div className="flex-1 flex flex-col">
-        <div className="p-4 border-b">
-          <div className="flex gap-4 items-center">
-            <Button
-              onClick={() => selectedAgent && createNewSession(selectedAgent)}
-              disabled={!selectedAgent}
-              variant="outline"
-            >
-              New Session
-            </Button>
-            <select
-              value={selectedAgent || ""}
-              onChange={(e) => setSelectedAgent(e.target.value)}
-              disabled={isLoadingAgents}
-              className="flex h-9 w-[200px] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="">Select an agent...</option>
-              {agents.map((agent) => (
-                <option key={agent.name} value={agent.name}>
-                  {agent.name} - {agent.description}
-                </option>
-              ))}
-            </select>
+        <div className="p-4 border-b dark:border-border">
+          <div className="flex gap-4 items-center justify-between">
+            <div className="flex gap-4 items-center">
+              <Button
+                onClick={() => selectedAgent && createNewSession(selectedAgent)}
+                disabled={!selectedAgent}
+                variant="outline"
+              >
+                New Session
+              </Button>
+              <select
+                value={selectedAgent || ""}
+                onChange={(e) => setSelectedAgent(e.target.value)}
+                disabled={isLoadingAgents}
+                className="flex h-9 w-[200px] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring dark:border-input dark:bg-background dark:text-foreground"
+              >
+                <option value="">Select an agent...</option>
+                {agents.map((agent) => (
+                  <option key={agent.name} value={agent.name}>
+                    {agent.name} - {agent.description}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <DarkModeToggle />
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto p-4">
+        <div className="flex-1 overflow-auto p-4 dark:text-gray-400">
           <div className="space-y-4">
             {groupedEvents.map((event, index) => {
               if (Array.isArray(event)) {
@@ -143,7 +147,7 @@ function App() {
           </div>
         </div>
 
-        <div className="p-4 border-t">
+        <div className="p-4 border-t dark:border-border dark:bg-background">
           <form onSubmit={handleFormSubmit} className="flex gap-2">
             <Input
               value={prompt}

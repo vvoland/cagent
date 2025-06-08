@@ -12,15 +12,7 @@ export const MessageEvent = ({
   role: string;
   content: string;
 }) => (
-  <div
-    className={cn(
-      "rounded-lg p-4",
-      "shadow-md",
-      role.toLowerCase() === "user"
-        ? "bg-primary text-primary-foreground"
-        : "bg-muted"
-    )}
-  >
+  <div className={cn("rounded-lg p-4", "shadow-md dark:shadow-lg")}>
     <div className="font-semibold mb-2">{role}</div>
     <div className="prose prose-sm dark:prose-invert max-w-none">
       <ReactMarkdown
@@ -34,14 +26,14 @@ export const MessageEvent = ({
                 style={vscDarkPlus}
                 language={match[1]}
                 PreTag="div"
-                className="rounded-md !bg-secondary"
+                className="rounded-md !bg-secondary dark:!bg-secondary"
               >
                 {String(children).replace(/\n$/, "")}
               </SyntaxHighlighter>
             ) : (
               <code
                 className={cn(
-                  "bg-secondary px-1.5 py-0.5 rounded-md",
+                  "bg-secondary px-1.5 py-0.5 rounded-md dark:bg-secondary dark:text-foreground",
                   className
                 )}
               >
@@ -58,7 +50,7 @@ export const MessageEvent = ({
 );
 
 export const ErrorEvent = ({ content }: { content: string }) => (
-  <div className="bg-destructive/10 text-destructive rounded-lg p-4">
+  <div className="bg-destructive/10 text-destructive rounded-lg p-4 dark:bg-destructive/20 dark:text-destructive">
     <div className="font-semibold mb-2">⚠️ Error</div>
     <div>{content}</div>
   </div>
@@ -69,8 +61,10 @@ export const ChoiceEvents = ({ events }: { events: EventItem[] }) => {
   const agent = events[0]?.metadata?.agent;
 
   return (
-    <div className="bg-card text-card-foreground rounded-lg p-4 shadow-md">
-      {agent && <div className="font-semibold mb-2">🤖 {agent}</div>}
+    <div className="bg-card text-card-foreground rounded-lg p-4 shadow-md dark:bg-card dark:text-card-foreground dark:shadow-lg">
+      {agent && (
+        <div className="font-semibold mb-2 dark:text-inherit">🤖 {agent}</div>
+      )}
       <div className="prose prose-sm dark:prose-invert max-w-none">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
@@ -83,14 +77,14 @@ export const ChoiceEvents = ({ events }: { events: EventItem[] }) => {
                   style={vscDarkPlus}
                   language={match[1]}
                   PreTag="div"
-                  className="rounded-md !bg-secondary"
+                  className="rounded-md !bg-secondary dark:!bg-secondary"
                 >
                   {String(children).replace(/\n$/, "")}
                 </SyntaxHighlighter>
               ) : (
                 <code
                   className={cn(
-                    "bg-secondary px-1.5 py-0.5 rounded-md",
+                    "bg-secondary px-1.5 py-0.5 rounded-md dark:bg-secondary dark:text-foreground",
                     className
                   )}
                 >

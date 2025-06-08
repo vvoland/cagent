@@ -15,8 +15,10 @@ export const Sidebar = ({
   console.log(currentSessionId);
   const sortedSessions = Object.values(sessions);
   return (
-    <div className="w-64 border-r bg-background p-4">
-      <div className="font-semibold mb-4 text-lg">Sessions</div>
+    <div className="w-64 border-r bg-background p-4 dark:border-border dark:bg-background">
+      <div className="font-semibold mb-4 text-lg dark:text-foreground">
+        Sessions
+      </div>
       <div className="space-y-2">
         {sortedSessions
           .sort(
@@ -29,17 +31,17 @@ export const Sidebar = ({
               key={session.id}
               className={cn(
                 "p-3 rounded-lg cursor-pointer transition-colors",
-                "hover:bg-gray-200",
+                "hover:bg-gray-200 dark:hover:bg-gray-700",
                 session.id === currentSessionId
-                  ? "bg-secondary text-secondary-foreground"
-                  : "text-foreground"
+                  ? "bg-secondary text-secondary-foreground dark:bg-secondary dark:text-secondary-foreground"
+                  : "text-foreground dark:text-foreground"
               )}
               onClick={() => onSessionSelect(session.id)}
             >
-              <div className="font-medium">
+              <div className="font-medium dark:text-foreground">
                 Session {session.id.slice(0, 8)}
               </div>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm text-muted-foreground dark:text-muted-foreground">
                 {new Date(session.created_at).toLocaleDateString()}
               </div>
             </div>
