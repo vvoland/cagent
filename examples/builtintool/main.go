@@ -11,6 +11,7 @@ import (
 	"github.com/rumpl/cagent/pkg/model/provider/openai"
 	"github.com/rumpl/cagent/pkg/runtime"
 	"github.com/rumpl/cagent/pkg/session"
+	"github.com/rumpl/cagent/pkg/team"
 	"github.com/rumpl/cagent/pkg/tools"
 )
 
@@ -26,13 +27,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	agents := map[string]*agent.Agent{
+	agents := team.New(map[string]*agent.Agent{
 		"root": agent.New("root",
 			"You are an expert hacker",
 			agent.WithModel(llm),
 			agent.WithToolSets([]tools.ToolSet{tools.NewBashTool()}),
 		),
-	}
+	})
 
 	sess := session.New(logger)
 	sess.Messages = append(sess.Messages, session.UserMessage("Tell me a story about my current directory"))

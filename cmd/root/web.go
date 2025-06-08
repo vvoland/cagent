@@ -10,12 +10,15 @@ import (
 	"path/filepath"
 	"strings"
 
+	"maps"
+
 	"github.com/labstack/echo/v4"
 	"github.com/rumpl/cagent/pkg/agent"
 	"github.com/rumpl/cagent/pkg/chat"
 	"github.com/rumpl/cagent/pkg/loader"
 	"github.com/rumpl/cagent/pkg/runtime"
 	"github.com/rumpl/cagent/pkg/session"
+	"github.com/rumpl/cagent/pkg/team"
 	"github.com/spf13/cobra"
 )
 
@@ -76,28 +79,26 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 			agents := make(map[string]*agent.Agent)
 			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
 				configPath := filepath.Join(agentsDir, entry.Name())
-				fileAgents, err := loader.Agents(ctx, configPath, logger)
+				fileTeam, err := loader.Agents(ctx, configPath, logger)
 				if err != nil {
 					logger.Warn("Failed to load agents", "file", entry.Name(), "error", err)
 					continue
 				}
 
 				// Create runtimes for each agent in this file
-				for name := range fileAgents {
+				for name := range fileTeam.Agents() {
 					if _, exists := agents[name]; exists {
 						return fmt.Errorf("duplicate agent name '%s' found in %s", name, configPath)
 					}
-					agents[name] = fileAgents[name]
+					agents[name] = fileTeam.Get(name)
 
-					runtimeAgents[entry.Name()] = fileAgents
+					runtimeAgents[entry.Name()] = fileTeam.Agents()
 
 					// Create a runtime with only the agents from this file
-					fileAgentsMap := make(map[string]*agent.Agent)
-					for n, a := range fileAgents {
-						fileAgentsMap[n] = a
-					}
+					fileAgentsMap := make(map[string]*agent.Agent, fileTeam.Size())
+					maps.Copy(fileAgentsMap, fileTeam.Agents())
 
-					rt, err := runtime.New(logger, fileAgentsMap, "root")
+					rt, err := runtime.New(logger, team.New(fileAgentsMap), "root")
 					if err != nil {
 						return fmt.Errorf("failed to create runtime for agent %s from file %s: %w", name, entry.Name(), err)
 					}
@@ -106,15 +107,15 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 			}
 		}
 	} else {
-		agents, err := loader.Agents(ctx, configFile, logger)
+		t, err := loader.Agents(ctx, configFile, logger)
 		if err != nil {
 			return err
 		}
 
 		// Initialize runtimes for single config file
 		runtimes = make(map[string]*runtime.Runtime)
-		for name := range agents {
-			rt, err := runtime.New(logger, agents, name)
+		for name := range t.Agents() {
+			rt, err := runtime.New(logger, t, name)
 			if err != nil {
 				return fmt.Errorf("failed to create runtime for agent %s: %w", name, err)
 			}

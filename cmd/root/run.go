@@ -61,7 +61,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 
 	if len(args) > 0 {
 		sess.Messages = append(sess.Messages, session.AgentMessage{
-			Agent: agents[agentName],
+			Agent: agents.Get(agentName),
 			Message: chat.Message{
 				Role:    "user",
 				Content: args[0],

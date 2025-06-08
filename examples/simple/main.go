@@ -11,6 +11,7 @@ import (
 	"github.com/rumpl/cagent/pkg/model/provider/openai"
 	"github.com/rumpl/cagent/pkg/runtime"
 	"github.com/rumpl/cagent/pkg/session"
+	"github.com/rumpl/cagent/pkg/team"
 )
 
 func main() {
@@ -25,9 +26,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	agents := map[string]*agent.Agent{
+	agents := team.New(map[string]*agent.Agent{
 		"root": agent.New("root", "You are a human, with feelings and emotions.", agent.WithModel(llm)),
-	}
+	})
 
 	sess := session.New(logger)
 	sess.Messages = append(sess.Messages, session.UserMessage("How are you doing?"))

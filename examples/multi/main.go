@@ -11,6 +11,7 @@ import (
 	"github.com/rumpl/cagent/pkg/model/provider/openai"
 	"github.com/rumpl/cagent/pkg/runtime"
 	"github.com/rumpl/cagent/pkg/session"
+	"github.com/rumpl/cagent/pkg/team"
 	"github.com/rumpl/cagent/pkg/tools"
 )
 
@@ -27,10 +28,10 @@ func main() {
 	}
 
 	child := agent.New("child", "You are a child, with a lot of energy.", agent.WithModel(llm))
-	agents := map[string]*agent.Agent{
+	agents := team.New(map[string]*agent.Agent{
 		"root":  agent.New("root", "You are a human, with feelings and emotions.", agent.WithModel(llm), agent.WithSubAgents([]*agent.Agent{child}), agent.WithToolSets([]tools.ToolSet{&tools.TaskTool{}})),
 		"child": child,
-	}
+	})
 
 	sess := session.New(logger)
 	sess.Messages = append(sess.Messages, session.UserMessage("Ask your child how they are doing and tell me what they said"))

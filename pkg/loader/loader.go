@@ -9,10 +9,11 @@ import (
 	"github.com/rumpl/cagent/pkg/config"
 	"github.com/rumpl/cagent/pkg/mcp"
 	"github.com/rumpl/cagent/pkg/model/provider"
+	"github.com/rumpl/cagent/pkg/team"
 	"github.com/rumpl/cagent/pkg/tools"
 )
 
-func Agents(ctx context.Context, path string, logger *slog.Logger) (map[string]*agent.Agent, error) {
+func Agents(ctx context.Context, path string, logger *slog.Logger) (*team.Team, error) {
 	cfg, err := config.LoadConfig(path)
 	if err != nil {
 		return nil, err
@@ -58,7 +59,7 @@ func Agents(ctx context.Context, path string, logger *slog.Logger) (map[string]*
 		}
 	}
 
-	return agents, nil
+	return team.New(agents), nil
 }
 
 // getToolsForAgent returns the tool definitions for an agent based on its configuration
