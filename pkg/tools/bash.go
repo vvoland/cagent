@@ -68,7 +68,6 @@ func (t *BashTool) Instructions() string {
 func (t *BashTool) Tools(ctx context.Context) ([]Tool, error) {
 	return []Tool{
 		{
-			Type: "function",
 			Function: &FunctionDefinition{
 				Name: "bash",
 				Description: `Executes the given shell command in the user's default shell.

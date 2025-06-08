@@ -97,9 +97,7 @@ func (c *Client) ListTools(ctx context.Context, toolFilter []string) ([]tools.To
 			continue
 		}
 
-		tool := tools.Tool{
-			Type: "function",
-		}
+		tool := tools.Tool{}
 
 		tool.Function = &tools.FunctionDefinition{
 			Name:        t.Name,

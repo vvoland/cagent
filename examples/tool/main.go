@@ -22,7 +22,6 @@ type tool struct {
 func (t *tool) Tools(ctx context.Context) ([]tools.Tool, error) {
 	return []tools.Tool{
 		{
-			Type:    "function",
 			Handler: addNumbers,
 			Function: &tools.FunctionDefinition{
 				Name:        "add",

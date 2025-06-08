@@ -20,7 +20,6 @@ func (t *AgentTransferTool) Instructions() string {
 func (t *AgentTransferTool) Tools(ctx context.Context) ([]Tool, error) {
 	return []Tool{
 		{
-			Type: "function",
 			Function: &FunctionDefinition{
 				Name:        "transfer_to_agent",
 				Description: "Transfer the question to another agent",

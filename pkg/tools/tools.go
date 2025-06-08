@@ -29,7 +29,6 @@ type ToolCallResult struct {
 type ToolType string
 
 type Tool struct {
-	Type     ToolType            `json:"type"`
 	Function *FunctionDefinition `json:"function,omitempty"`
 	Handler  ToolHandler         `json:"handler,omitempty"`
 }

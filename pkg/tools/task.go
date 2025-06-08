@@ -20,7 +20,6 @@ func (t *TaskTool) Instructions() string {
 func (t *TaskTool) Tools(ctx context.Context) ([]Tool, error) {
 	return []Tool{
 		{
-			Type: "function",
 			Function: &FunctionDefinition{
 				Name: "transfer_task",
 				Description: `Use this function to transfer a task to the selected team member.
