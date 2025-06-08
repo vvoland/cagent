@@ -60,18 +60,6 @@ func addNumbers(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallRe
 	}, nil
 }
 
-func (t *tool) Instructions() string {
-	return ""
-}
-
-func (t *tool) Start(ctx context.Context) error {
-	return nil
-}
-
-func (t *tool) Stop() error {
-	return nil
-}
-
 func main() {
 	ctx := context.Background()
 	logger := slog.Default()
@@ -88,7 +76,27 @@ func main() {
 		"root": agent.New("root",
 			"You are a human, with feelings and emotions.",
 			agent.WithModel(llm),
-			agent.WithToolSets([]tools.ToolSet{&tool{}})),
+			agent.WithTools([]tools.Tool{
+				{
+					Handler: addNumbers,
+					Function: &tools.FunctionDefinition{
+						Name:        "add",
+						Description: "Add two numbers",
+						Parameters: mcp.ToolInputSchema{
+							Type: "object",
+							Properties: map[string]any{
+								"a": map[string]any{
+									"type": "number",
+								},
+								"b": map[string]any{
+									"type": "number",
+								},
+							},
+						},
+					},
+				},
+			}),
+		),
 	}
 
 	rt, err := runtime.New(logger, agents, "root")

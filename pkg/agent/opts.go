@@ -19,6 +19,14 @@ func WithToolSets(toolSet []tools.ToolSet) Opt {
 	}
 }
 
+func WithTools(tools []tools.Tool) Opt {
+	return func(a *Agent) {
+		a.toolwrapper = toolwrapper{
+			allTools: tools,
+		}
+	}
+}
+
 func WithDescription(description string) Opt {
 	return func(a *Agent) {
 		a.description = description

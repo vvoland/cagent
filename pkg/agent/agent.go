@@ -14,12 +14,12 @@ type Agent struct {
 	name        string
 	description string
 	instruction string
-	// tools       []tools.Tool
-	toolimpl  []tools.ToolSet
-	model     provider.Provider
-	subAgents []*Agent
-	parents   []*Agent
-	addDate   bool
+	toolimpl    []tools.ToolSet
+	model       provider.Provider
+	subAgents   []*Agent
+	parents     []*Agent
+	addDate     bool
+	toolwrapper toolwrapper
 }
 
 // New creates a new agent
@@ -99,6 +99,9 @@ func (a *Agent) Tools() ([]tools.Tool, error) {
 			return nil, fmt.Errorf("failed to get tools: %w", err)
 		}
 		agentTools = append(agentTools, ta...)
+	}
+	for _, tool := range a.toolwrapper.allTools {
+		agentTools = append(agentTools, tool)
 	}
 	return agentTools, nil
 }
