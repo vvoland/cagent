@@ -11,7 +11,6 @@ import (
 
 	"github.com/rumpl/cagent/pkg/agent"
 	"github.com/rumpl/cagent/pkg/chat"
-	"github.com/rumpl/cagent/pkg/config"
 	"github.com/rumpl/cagent/pkg/model/provider"
 	"github.com/rumpl/cagent/pkg/session"
 	"github.com/rumpl/cagent/pkg/tools"
@@ -25,19 +24,17 @@ type Runtime struct {
 	logger          *slog.Logger
 	toolMap         map[string]ToolHandler
 	agents          map[string]*agent.Agent
-	cfg             *config.Config
 	currentAgent    string
 	providerFactory provider.Factory
 }
 
 // New creates a new runtime for an agent
-func New(cfg *config.Config, logger *slog.Logger, agents map[string]*agent.Agent, agentName string) (*Runtime, error) {
+func New(logger *slog.Logger, agents map[string]*agent.Agent, agentName string) (*Runtime, error) {
 	logger.Debug("Creating new runtime", "agent", agentName, "available_agents", len(agents))
 
 	runtime := &Runtime{
 		toolMap:         make(map[string]ToolHandler),
 		agents:          agents,
-		cfg:             cfg,
 		logger:          logger,
 		currentAgent:    agentName,
 		providerFactory: provider.NewFactory(),
@@ -70,16 +67,6 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 
 		a := r.agents[r.currentAgent]
 		r.logger.Debug("Using agent", "agent", a.Name(), "model", a.Model())
-
-		// Create a provider for the agent's model
-		modelProvider, err := r.providerFactory.NewProviderFromConfig(r.cfg, a.Model())
-		if err != nil {
-			r.logger.Error("Failed to create model provider", "agent", a.Name(), "model", a.Model(), "error", err)
-			events <- &ErrorEvent{Error: fmt.Errorf("creating model provider: %w", err)}
-			return
-		}
-		r.logger.Debug("Created model provider", "agent", a.Name(), "model", a.Model())
-
 		r.registerDefaultTools()
 
 		for {
@@ -96,7 +83,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			r.logger.Debug("Retrieved agent tools", "agent", a.Name(), "tool_count", len(agentTools))
 
 			r.logger.Debug("Creating chat completion stream", "agent", a.Name())
-			stream, err := modelProvider.CreateChatCompletionStream(ctx, messages, agentTools)
+			stream, err := a.Model().CreateChatCompletionStream(ctx, messages, agentTools)
 			if err != nil {
 				r.logger.Error("Failed to create chat completion stream", "agent", a.Name(), "error", err)
 				events <- &ErrorEvent{Error: fmt.Errorf("creating chat completion: %w", err)}

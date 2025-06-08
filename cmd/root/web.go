@@ -13,7 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/rumpl/cagent/pkg/agent"
 	"github.com/rumpl/cagent/pkg/chat"
-	"github.com/rumpl/cagent/pkg/config"
+	"github.com/rumpl/cagent/pkg/loader"
 	"github.com/rumpl/cagent/pkg/runtime"
 	"github.com/rumpl/cagent/pkg/session"
 	"github.com/spf13/cobra"
@@ -63,9 +63,6 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 
 	logger.Debug("Starting web server", "agents-dir", agentsDir, "debug_mode", debugMode)
 
-	var cfg *config.Config
-	var err error
-
 	if agentsDir != "" {
 		runtimes = make(map[string]*runtime.Runtime)
 		runtimeAgents = make(map[string]map[string]*agent.Agent)
@@ -79,13 +76,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 			agents := make(map[string]*agent.Agent)
 			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
 				configPath := filepath.Join(agentsDir, entry.Name())
-				cfg, err = config.LoadConfig(configPath)
-				if err != nil {
-					logger.Warn("Failed to load config", "file", entry.Name(), "error", err)
-					continue
-				}
-
-				fileAgents, err := config.Agents(ctx, configPath, logger)
+				fileAgents, err := loader.Agents(ctx, configPath, logger)
 				if err != nil {
 					logger.Warn("Failed to load agents", "file", entry.Name(), "error", err)
 					continue
@@ -106,7 +97,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 						fileAgentsMap[n] = a
 					}
 
-					rt, err := runtime.New(cfg, logger, fileAgentsMap, "root")
+					rt, err := runtime.New(logger, fileAgentsMap, "root")
 					if err != nil {
 						return fmt.Errorf("failed to create runtime for agent %s from file %s: %w", name, entry.Name(), err)
 					}
@@ -115,12 +106,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 			}
 		}
 	} else {
-		cfg, err = config.LoadConfig(configFile)
-		if err != nil {
-			return err
-		}
-
-		agents, err := config.Agents(ctx, configFile, logger)
+		agents, err := loader.Agents(ctx, configFile, logger)
 		if err != nil {
 			return err
 		}
@@ -128,7 +114,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 		// Initialize runtimes for single config file
 		runtimes = make(map[string]*runtime.Runtime)
 		for name := range agents {
-			rt, err := runtime.New(cfg, logger, agents, name)
+			rt, err := runtime.New(logger, agents, name)
 			if err != nil {
 				return fmt.Errorf("failed to create runtime for agent %s: %w", name, err)
 			}

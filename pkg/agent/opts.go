@@ -1,6 +1,9 @@
 package agent
 
-import "github.com/rumpl/cagent/pkg/tools"
+import (
+	"github.com/rumpl/cagent/pkg/model/provider"
+	"github.com/rumpl/cagent/pkg/tools"
+)
 
 type Opt func(a *Agent)
 
@@ -28,7 +31,7 @@ func WithName(name string) Opt {
 	}
 }
 
-func WithModel(model string) Opt {
+func WithModel(model provider.Provider) Opt {
 	return func(a *Agent) {
 		a.model = model
 	}

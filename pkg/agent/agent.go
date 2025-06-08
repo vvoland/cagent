@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/rumpl/cagent/pkg/model/provider"
 	"github.com/rumpl/cagent/pkg/tools"
 )
 
@@ -15,7 +16,7 @@ type Agent struct {
 	instruction string
 	// tools       []tools.Tool
 	toolimpl  []tools.ToolSet
-	model     string
+	model     provider.Provider
 	subAgents []*Agent
 	parents   []*Agent
 	addDate   bool
@@ -85,7 +86,7 @@ func (a *Agent) IsParent(name string) bool {
 }
 
 // Model returns the model name used by the agent
-func (a *Agent) Model() string {
+func (a *Agent) Model() provider.Provider {
 	return a.model
 }
 

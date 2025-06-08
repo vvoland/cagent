@@ -14,8 +14,8 @@ import (
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/rumpl/cagent/pkg/chat"
-	"github.com/rumpl/cagent/pkg/config"
 	"github.com/rumpl/cagent/pkg/history"
+	"github.com/rumpl/cagent/pkg/loader"
 	"github.com/rumpl/cagent/pkg/runtime"
 	"github.com/rumpl/cagent/pkg/session"
 	"github.com/spf13/cobra"
@@ -390,17 +390,12 @@ func runUICommand(cmd *cobra.Command, args []string) error {
 
 	logger.Debug("Starting agent UI", "agent", agentName, "debug_mode", debugMode)
 
-	cfg, err := config.LoadConfig(configFile)
+	agents, err := loader.Agents(ctx, configFile, logger)
 	if err != nil {
 		return err
 	}
 
-	agents, err := config.Agents(ctx, configFile, logger)
-	if err != nil {
-		return err
-	}
-
-	rt, err := runtime.New(cfg, logger, agents, agentName)
+	rt, err := runtime.New(logger, agents, agentName)
 	if err != nil {
 		return err
 	}

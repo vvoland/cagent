@@ -13,9 +13,6 @@ import (
 
 // Provider defines the interface for model providers
 type Provider interface {
-	// GetConfig returns the model configuration
-	GetConfig() *config.ModelConfig
-
 	// CreateChatCompletionStream creates a streaming chat completion request
 	// It returns a stream that can be iterated over to get completion chunks
 	CreateChatCompletionStream(
