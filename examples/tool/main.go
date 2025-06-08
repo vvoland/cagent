@@ -15,32 +15,6 @@ import (
 	"github.com/rumpl/cagent/pkg/tools"
 )
 
-type tool struct {
-}
-
-func (t *tool) Tools(ctx context.Context) ([]tools.Tool, error) {
-	return []tools.Tool{
-		{
-			Handler: addNumbers,
-			Function: &tools.FunctionDefinition{
-				Name:        "add",
-				Description: "Add two numbers",
-				Parameters: tools.FunctionParamaters{
-					Type: "object",
-					Properties: map[string]any{
-						"a": map[string]any{
-							"type": "number",
-						},
-						"b": map[string]any{
-							"type": "number",
-						},
-					},
-				},
-			},
-		},
-	}, nil
-}
-
 func addNumbers(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	type params struct {
 		A int `json:"a"`
