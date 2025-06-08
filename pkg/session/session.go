@@ -17,9 +17,6 @@ type Session struct {
 	// ID is the unique identifier for the session
 	ID string `json:"id"`
 
-	// Each agent in a multi-agent system has its own session
-	Agents map[string]*agent.Agent `json:"agents"`
-
 	// Messages holds the conversation history
 	Messages []AgentMessage `json:"messages"`
 
@@ -39,15 +36,23 @@ type AgentMessage struct {
 	Message chat.Message `json:"message"`
 }
 
+func UserMessage(content string) AgentMessage {
+	return AgentMessage{
+		Message: chat.Message{
+			Role:    "user",
+			Content: content,
+		},
+	}
+}
+
 // New creates a new agent session
-func New(agents map[string]*agent.Agent, logger *slog.Logger) *Session {
+func New(logger *slog.Logger) *Session {
 	sessionID := uuid.New().String()
 	logger.Debug("Creating new session", "session_id", sessionID)
 
 	return &Session{
 		ID:        sessionID,
 		State:     make(map[string]any),
-		Agents:    agents,
 		CreatedAt: time.Now(),
 		logger:    logger,
 	}

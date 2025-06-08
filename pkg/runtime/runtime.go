@@ -343,7 +343,7 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, a *agent.Agent, sess *
 	ca := r.currentAgent
 	r.currentAgent = params.Agent
 
-	s := session.New(r.agents, r.logger)
+	s := session.New(r.logger)
 	s.Messages = append(s.Messages, session.AgentMessage{
 		Agent: a,
 		Message: chat.Message{

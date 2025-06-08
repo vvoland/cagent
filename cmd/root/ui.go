@@ -400,7 +400,7 @@ func runUICommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	m, err := newModel(rt, session.New(agents, logger))
+	m, err := newModel(rt, session.New(logger))
 	if err != nil {
 		return err
 	}

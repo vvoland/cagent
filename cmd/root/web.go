@@ -141,14 +141,9 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 		return c.JSON(http.StatusOK, sessions)
 	})
 
+	// TODO: remove the :agent from the path, it's not needed to create a session
 	e.POST("/sessions/:agent", func(c echo.Context) error {
-		agentName := c.Param("agent")
-		agents, exists := runtimeAgents[agentName]
-		if !exists {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "runtime not found"})
-		}
-
-		sess := session.New(agents, logger)
+		sess := session.New(logger)
 		sessions[sess.ID] = sess
 		return c.JSON(http.StatusOK, sess)
 	})
