@@ -83,6 +83,10 @@ func getToolsForAgent(ctx context.Context, cfg *config.Config, agentName string,
 		t = append(t, tools.NewThinkTool())
 	}
 
+	if a.Todo {
+		t = append(t, tools.NewTodoTool())
+	}
+
 	toolsets := a.Toolsets
 	for _, toolset := range toolsets {
 		if toolset.Type == "builtin" {

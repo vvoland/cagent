@@ -10,7 +10,7 @@ import (
 	"github.com/rumpl/cagent/pkg/chat"
 )
 
-var maxMessages = 20 // Maximum number of messages to keep in context
+var maxMessages = 100 // Maximum number of messages to keep in context
 
 // Session represents the agent's state including conversation history and variables
 type Session struct {

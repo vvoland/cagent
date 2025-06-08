@@ -2,6 +2,7 @@ package openai
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 
@@ -219,6 +220,9 @@ func (c *Client) CreateChatCompletionStream(
 					Strict:      tool.Function.Strict,
 					Parameters:  tool.Function.Parameters,
 				},
+			}
+			if len(tool.Function.Parameters.Properties) == 0 {
+				request.Tools[i].Function.Parameters = json.RawMessage("{}")
 			}
 		}
 	}
