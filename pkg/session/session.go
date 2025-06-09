@@ -1,7 +1,6 @@
 package session
 
 import (
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -62,7 +61,6 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 	s.logger.Debug("Getting messages for agent", "agent", a.Name(), "session_id", s.ID)
 
 	messages := make([]chat.Message, 0)
-	contextMessages := make([]chat.Message, 0)
 
 	if a.HasSubAgents() || a.HasParents() {
 		subAgents := append(a.SubAgents(), a.Parents()...)
@@ -102,43 +100,9 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 			continue
 		}
 
-		if s.Messages[i].Message.Role == "assistant" && s.Messages[i].Agent != a {
-			messages = append(messages, s.Messages[i].Message)
-
-			if len(s.Messages[i].Message.ToolCalls) == 0 {
-				content := fmt.Sprintf("[%s] said: %s", s.Messages[i].Agent.Name(), s.Messages[i].Message.Content)
-
-				contextMessages = append(contextMessages, chat.Message{
-					Role: "user",
-					MultiContent: []chat.MessagePart{
-						{
-							Type: chat.MessagePartTypeText,
-							Text: "For context:",
-						},
-						{
-							Type: chat.MessagePartTypeText,
-							Text: content,
-						},
-					},
-				})
-			}
-			continue
-		}
-
-		if s.Messages[i].Message.Role == "tool" && s.Messages[i].Agent != a {
-			messages = append(messages, s.Messages[i].Message)
-			content := fmt.Sprintf("For context: [%s] Tool %s returned: %s", s.Messages[i].Agent.Name(), s.Messages[i].Message.ToolCallID, s.Messages[i].Message.Content)
-			contextMessages = append(contextMessages, chat.Message{
-				Role:    "user",
-				Content: content,
-			})
-			continue
-		}
-
 		messages = append(messages, s.Messages[i].Message)
 	}
 
-	messages = append(messages, contextMessages...)
 	trimmed := trimMessages(messages)
 
 	s.logger.Debug("Retrieved messages for agent",
