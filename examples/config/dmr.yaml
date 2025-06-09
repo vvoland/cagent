@@ -1,0 +1,11 @@
+agents:
+  root:
+    name: root
+    model: qwen
+    instruction: Talk like a pirate
+
+models:
+  qwen:
+    type: dmr
+    model: ai/qwen3
+    base_url: http://localhost:12434/engines/llama.cpp/v1

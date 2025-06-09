@@ -31,6 +31,7 @@ type ModelConfig struct {
 	TopP             float64 `yaml:"top_p"`
 	FrequencyPenalty float64 `yaml:"frequency_penalty"`
 	PresencePenalty  float64 `yaml:"presence_penalty"`
+	BaseURL          string  `yaml:"base_url"`
 }
 
 // Config represents the entire configuration file

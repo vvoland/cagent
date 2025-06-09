@@ -7,6 +7,7 @@ import (
 	"github.com/rumpl/cagent/pkg/chat"
 	"github.com/rumpl/cagent/pkg/config"
 	"github.com/rumpl/cagent/pkg/model/provider/anthropic"
+	"github.com/rumpl/cagent/pkg/model/provider/dmr"
 	"github.com/rumpl/cagent/pkg/model/provider/openai"
 	"github.com/rumpl/cagent/pkg/tools"
 )
@@ -40,6 +41,8 @@ func (f *factory) NewProvider(cfg *config.ModelConfig) (Provider, error) {
 		return openai.NewClient(cfg)
 	case "anthropic":
 		return anthropic.NewClient(cfg)
+	case "dmr":
+		return dmr.NewClient(cfg)
 	}
 	return nil, fmt.Errorf("unknown provider type: %s", cfg.Type)
 }
