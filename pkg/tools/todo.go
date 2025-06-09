@@ -55,8 +55,6 @@ func (t *TodoTool) Instructions() string {
             This toolset is REQUIRED for maintaining task state and ensuring all steps are completed.`
 }
 
-
-
 func (h *todoHandler) createTodo(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error) {
 	var params struct {
 		Description string `json:"description"`
