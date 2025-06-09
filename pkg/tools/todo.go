@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"sync"
 )
 
 type TodoTool struct {
@@ -15,13 +14,11 @@ type TodoTool struct {
 type Todo struct {
 	ID          string `json:"id"`
 	Description string `json:"description"`
-	Status      string `json:"status"`   // "pending", "in_progress", "completed"
-	Priority    string `json:"priority"` // "high", "medium", "low"
+	Status      string `json:"status"` // "pending", "completed"
 }
 
 type todoHandler struct {
 	todos map[string]Todo
-	mu    sync.RWMutex
 }
 
 func NewTodoTool() *TodoTool {
@@ -39,10 +36,8 @@ func (t *TodoTool) Instructions() string {
             1. Before starting any complex task:
                - Create a todo for each major step using create_todo
                - Break down complex steps into smaller todos
-               - Set appropriate priorities
             
             2. While working:
-               - Use update_todo to mark tasks as "in_progress" when starting them
                - Use list_todos frequently to keep track of remaining work
                - Mark todos as "completed" when finished
             
@@ -50,7 +45,6 @@ func (t *TodoTool) Instructions() string {
                - Never start a new task without creating a todo for it
                - Always check list_todos before responding to ensure no steps are missed
                - Update todo status to reflect current progress
-               - Remove todos only when they are obsolete or no longer relevant
             
             This toolset is REQUIRED for maintaining task state and ensuring all steps are completed.`
 }
@@ -58,27 +52,22 @@ func (t *TodoTool) Instructions() string {
 func (h *todoHandler) createTodo(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error) {
 	var params struct {
 		Description string `json:"description"`
-		Priority    string `json:"priority"`
 	}
 
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
 		return nil, fmt.Errorf("invalid arguments: %w", err)
 	}
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
 	id := fmt.Sprintf("todo_%d", len(h.todos)+1)
 	todo := Todo{
 		ID:          id,
 		Description: params.Description,
 		Status:      "pending",
-		Priority:    params.Priority,
 	}
 	h.todos[id] = todo
 
 	return &ToolCallResult{
-		Output: fmt.Sprintf("Created todo %s: %s (Priority: %s)", id, params.Description, params.Priority),
+		Output: fmt.Sprintf("Created todo %s: %s", id, params.Description),
 	}, nil
 }
 
@@ -91,9 +80,6 @@ func (h *todoHandler) updateTodo(ctx context.Context, toolCall ToolCall) (*ToolC
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
 		return nil, fmt.Errorf("invalid arguments: %w", err)
 	}
-
-	h.mu.Lock()
-	defer h.mu.Unlock()
 
 	todo, exists := h.todos[params.ID]
 	if !exists {
@@ -109,42 +95,16 @@ func (h *todoHandler) updateTodo(ctx context.Context, toolCall ToolCall) (*ToolC
 }
 
 func (h *todoHandler) listTodos(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error) {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-
 	var output strings.Builder
 	output.WriteString("Current todos:\n")
 
 	for _, todo := range h.todos {
-		output.WriteString(fmt.Sprintf("- [%s] %s (Priority: %s, Status: %s)\n",
-			todo.ID, todo.Description, todo.Priority, todo.Status))
+		output.WriteString(fmt.Sprintf("- [%s] %s (Status: %s)\n",
+			todo.ID, todo.Description, todo.Status))
 	}
 
 	return &ToolCallResult{
 		Output: output.String(),
-	}, nil
-}
-
-func (h *todoHandler) removeTodo(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error) {
-	var params struct {
-		ID string `json:"id"`
-	}
-
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
-		return nil, fmt.Errorf("invalid arguments: %w", err)
-	}
-
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if _, exists := h.todos[params.ID]; !exists {
-		return nil, fmt.Errorf("todo %s not found", params.ID)
-	}
-
-	delete(h.todos, params.ID)
-
-	return &ToolCallResult{
-		Output: fmt.Sprintf("Removed todo %s", params.ID),
 	}, nil
 }
 
@@ -153,7 +113,7 @@ func (t *TodoTool) Tools(ctx context.Context) ([]Tool, error) {
 		{
 			Function: &FunctionDefinition{
 				Name:        "create_todo",
-				Description: "Create a new todo item with a description and priority",
+				Description: "Create a new todo item with a description",
 				Parameters: FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
@@ -161,12 +121,8 @@ func (t *TodoTool) Tools(ctx context.Context) ([]Tool, error) {
 							"type":        "string",
 							"description": "Description of the todo item",
 						},
-						"priority": map[string]any{
-							"type":        "string",
-							"description": "Priority level (high, medium, low)",
-						},
 					},
-					Required: []string{"description", "priority"},
+					Required: []string{"description"},
 				},
 			},
 			Handler: t.handler.createTodo,
@@ -184,7 +140,7 @@ func (t *TodoTool) Tools(ctx context.Context) ([]Tool, error) {
 						},
 						"status": map[string]any{
 							"type":        "string",
-							"description": "New status (pending, in_progress, completed)",
+							"description": "New status (pending, completed)",
 						},
 					},
 					Required: []string{"id", "status"},
@@ -198,23 +154,6 @@ func (t *TodoTool) Tools(ctx context.Context) ([]Tool, error) {
 				Description: "List all current todos with their status",
 			},
 			Handler: t.handler.listTodos,
-		},
-		{
-			Function: &FunctionDefinition{
-				Name:        "remove_todo",
-				Description: "Remove a todo item by ID",
-				Parameters: FunctionParamaters{
-					Type: "object",
-					Properties: map[string]any{
-						"id": map[string]any{
-							"type":        "string",
-							"description": "ID of the todo item to remove",
-						},
-					},
-					Required: []string{"id"},
-				},
-			},
-			Handler: t.handler.removeTodo,
 		},
 	}, nil
 }
