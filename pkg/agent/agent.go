@@ -14,7 +14,7 @@ type Agent struct {
 	name        string
 	description string
 	instruction string
-	toolimpl    []tools.ToolSet
+	toolsets    []tools.ToolSet
 	model       provider.Provider
 	subAgents   []*Agent
 	parents     []*Agent
@@ -94,7 +94,7 @@ func (a *Agent) Model() provider.Provider {
 // Tools returns the tools available to this agent
 func (a *Agent) Tools() ([]tools.Tool, error) {
 	agentTools := []tools.Tool{}
-	for _, toolSet := range a.toolimpl {
+	for _, toolSet := range a.toolsets {
 		ta, err := toolSet.Tools(context.TODO())
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tools: %w", err)
@@ -108,5 +108,5 @@ func (a *Agent) Tools() ([]tools.Tool, error) {
 }
 
 func (a *Agent) ToolImpls() []tools.ToolSet {
-	return a.toolimpl
+	return a.toolsets
 }

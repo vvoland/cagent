@@ -15,7 +15,7 @@ func WithInstruction(prompt string) Opt {
 
 func WithToolSets(toolSet []tools.ToolSet) Opt {
 	return func(a *Agent) {
-		a.toolimpl = toolSet
+		a.toolsets = toolSet
 	}
 }
 
