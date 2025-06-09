@@ -94,6 +94,7 @@ func getToolsForAgent(ctx context.Context, cfg *config.Config, agentName string,
 
 	toolsets := a.Toolsets
 	for _, toolset := range toolsets {
+		// TODO: we will have more builtin tools in the future
 		if toolset.Type == "builtin" {
 			t = append(t, tools.NewBashTool())
 		}
