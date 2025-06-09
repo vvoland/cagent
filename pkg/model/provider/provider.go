@@ -26,9 +26,6 @@ type Provider interface {
 type Factory interface {
 	// NewProvider creates a new provider from a model config
 	NewProvider(cfg *config.ModelConfig) (Provider, error)
-
-	// NewProviderFromConfig creates a new provider from the configuration by model name
-	NewProviderFromConfig(cfg *config.Config, modelName string) (Provider, error)
 }
 
 type factory struct{}
@@ -45,12 +42,4 @@ func (f *factory) NewProvider(cfg *config.ModelConfig) (Provider, error) {
 		return anthropic.NewClient(cfg)
 	}
 	return nil, fmt.Errorf("unknown provider type: %s", cfg.Type)
-}
-
-func (f *factory) NewProviderFromConfig(cfg *config.Config, modelName string) (Provider, error) {
-	modelCfg, err := cfg.GetModelConfig(modelName)
-	if err != nil {
-		return nil, err
-	}
-	return f.NewProvider(modelCfg)
 }

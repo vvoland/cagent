@@ -23,7 +23,12 @@ func Agents(ctx context.Context, path string, logger *slog.Logger) (*team.Team, 
 
 	agents := make(map[string]*agent.Agent)
 	for name, agentConfig := range cfg.Agents {
-		model, err := fac.NewProviderFromConfig(cfg, agentConfig.Model)
+		modelCfg, exists := cfg.Models[agentConfig.Model]
+		if !exists {
+			return nil, fmt.Errorf("model '%s' not found in configuration", agentConfig.Model)
+		}
+
+		model, err := fac.NewProvider(&modelCfg)
 		if err != nil {
 			return nil, err
 		}

@@ -44,12 +44,3 @@ func validateConfig(cfg *Config) error {
 
 	return nil
 }
-
-// GetModelConfig returns a model configuration by name
-func (c *Config) GetModelConfig(name string) (*ModelConfig, error) {
-	model, exists := c.Models[name]
-	if !exists {
-		return nil, fmt.Errorf("model '%s' not found in configuration", name)
-	}
-	return &model, nil
-}
