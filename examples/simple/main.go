@@ -27,7 +27,11 @@ func main() {
 	}
 
 	agents := team.New(map[string]*agent.Agent{
-		"root": agent.New("root", "You are a human, with feelings and emotions.", agent.WithModel(llm)),
+		"root": agent.New("root",
+			"You are a human, with feelings and emotions.",
+			agent.WithModel(llm),
+			agent.WithDescription("A human."),
+		),
 	})
 
 	sess := session.New(logger)

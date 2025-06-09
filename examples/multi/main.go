@@ -33,7 +33,12 @@ func main() {
 		agent.WithDescription("A child."),
 	)
 	agents := team.New(map[string]*agent.Agent{
-		"root":  agent.New("root", "You are a human, with feelings and emotions.", agent.WithModel(llm), agent.WithSubAgents([]*agent.Agent{child}), agent.WithToolSets([]tools.ToolSet{&tools.TaskTool{}})),
+		"root": agent.New("root",
+			"You are a human, with feelings and emotions.",
+			agent.WithModel(llm),
+			agent.WithSubAgents([]*agent.Agent{child}),
+			agent.WithToolSets([]tools.ToolSet{&tools.TaskTool{}}),
+		),
 		"child": child,
 	})
 
