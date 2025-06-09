@@ -42,8 +42,7 @@ func main() {
 		"child": child,
 	})
 
-	sess := session.New(logger)
-	sess.Messages = append(sess.Messages, session.UserMessage("Ask your child how they are doing and tell me what they said"))
+	sess := session.New(logger, session.WithUserMessage("Ask your child how they are doing and tell me what they said"))
 
 	rt, err := runtime.New(logger, agents, "root")
 	if err != nil {

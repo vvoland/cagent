@@ -46,17 +46,31 @@ func UserMessage(content string) AgentMessage {
 	}
 }
 
+type Opt func(s *Session)
+
+func WithUserMessage(content string) Opt {
+	return func(s *Session) {
+		s.Messages = append(s.Messages, UserMessage(content))
+	}
+}
+
 // New creates a new agent session
-func New(logger *slog.Logger) *Session {
+func New(logger *slog.Logger, opts ...Opt) *Session {
 	sessionID := uuid.New().String()
 	logger.Debug("Creating new session", "session_id", sessionID)
 
-	return &Session{
+	s := &Session{
 		ID:        sessionID,
 		State:     make(map[string]any),
 		CreatedAt: time.Now(),
 		logger:    logger,
 	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s
 }
 
 func (s *Session) GetMessages(a *agent.Agent) []chat.Message {

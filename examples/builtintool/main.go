@@ -35,8 +35,7 @@ func main() {
 		),
 	})
 
-	sess := session.New(logger)
-	sess.Messages = append(sess.Messages, session.UserMessage("Tell me a story about my current directory"))
+	sess := session.New(logger, session.WithUserMessage("Tell me a story about my current directory"))
 
 	rt, err := runtime.New(logger, agents, "root")
 	if err != nil {

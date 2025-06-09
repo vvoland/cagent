@@ -73,8 +73,7 @@ func main() {
 		),
 	})
 
-	sess := session.New(logger)
-	sess.Messages = append(sess.Messages, session.UserMessage("What is 1 + 2?"))
+	sess := session.New(logger, session.WithUserMessage("What is 1 + 2?"))
 
 	rt, err := runtime.New(logger, agents, "root")
 	if err != nil {

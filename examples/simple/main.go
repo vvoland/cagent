@@ -34,8 +34,7 @@ func main() {
 		),
 	})
 
-	sess := session.New(logger)
-	sess.Messages = append(sess.Messages, session.UserMessage("How are you doing?"))
+	sess := session.New(logger, session.WithUserMessage("How are you doing?"))
 
 	rt, err := runtime.New(logger, agents, "root")
 	if err != nil {
