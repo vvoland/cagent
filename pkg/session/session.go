@@ -9,6 +9,8 @@ import (
 	"github.com/rumpl/cagent/pkg/chat"
 )
 
+// TODO: instead of trimming, we should compact the history when it nears the
+// context size of the current LLM
 var maxMessages = 100 // Maximum number of messages to keep in context
 
 // Session represents the agent's state including conversation history and variables
