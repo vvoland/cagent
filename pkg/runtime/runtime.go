@@ -45,7 +45,6 @@ func New(logger *slog.Logger, agents *team.Team, agentName string) (*Runtime, er
 // registerDefaultTools registers the default tool handlers
 func (r *Runtime) registerDefaultTools() {
 	r.logger.Debug("Registering default tools")
-	r.toolMap["transfer_to_agent"] = r.handleAgentTransfer
 	r.toolMap["transfer_task"] = r.handleTaskTransfer
 	r.logger.Debug("Registered default tools", "count", len(r.toolMap))
 }
@@ -283,47 +282,6 @@ func (r *Runtime) handleStream(stream chat.MessageStream, a *agent.Agent, events
 	}
 
 	return toolCalls, fullContent.String(), false, nil
-}
-
-// handleAgentTransfer handles the transfer_to_agent tool call
-func (r *Runtime) handleAgentTransfer(ctx context.Context, a *agent.Agent, sess *session.Session, toolCall tools.ToolCall, evts chan Event) (string, error) {
-	var params struct {
-		Agent string `json:"agent"`
-	}
-
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
-		return "", fmt.Errorf("invalid arguments: %w", err)
-	}
-
-	r.logger.Debug("Transferring to sub-agent", "from_agent", a.Name(), "to_agent", params.Agent)
-
-	if !a.IsSubAgent(params.Agent) && !a.IsParent(params.Agent) {
-		return "", fmt.Errorf("agent %s is not a valid sub-agent", params.Agent)
-	}
-
-	toolResponseMsg := chat.Message{
-		Role:       "tool",
-		Content:    "{}",
-		ToolCallID: toolCall.ID,
-	}
-	sess.Messages = append(sess.Messages, session.AgentMessage{
-		Agent:   a,
-		Message: toolResponseMsg,
-	})
-
-	r.currentAgent = params.Agent
-	r.logger.Debug("Agent transfer completed", "current_agent", r.currentAgent)
-
-	for event := range r.RunStream(ctx, sess) {
-		evts <- event
-		if errEvent, ok := event.(*ErrorEvent); ok {
-			r.logger.Error("Error during agent transfer execution", "agent", params.Agent, "error", errEvent.Error)
-			return "", errEvent.Error
-		}
-	}
-
-	r.logger.Debug("Sub-agent execution completed", "agent", params.Agent)
-	return "{}", nil
 }
 
 func (r *Runtime) handleTaskTransfer(ctx context.Context, a *agent.Agent, sess *session.Session, toolCall tools.ToolCall, evts chan Event) (string, error) {
