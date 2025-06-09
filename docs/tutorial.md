@@ -1,6 +1,8 @@
 # Step-by-Step Tutorial: Build Your First Agent
 
-Welcome to the complete cagent tutorial! This hands-on guide will take you from zero to a working multi-agent system. You'll build increasingly sophisticated agents and learn best practices along the way.
+Welcome to the complete cagent tutorial! This hands-on guide will take you from
+zero to a working multi-agent system. You'll build increasingly sophisticated
+agents and learn best practices along the way.
 
 ## 🎯 What You'll Build
 
@@ -110,11 +112,13 @@ models:
     max_tokens: 2000 # Maximum response length
 ```
 
-**🎉 Congratulations!** You've created your first agent. Try different questions and see how it responds.
+**🎉 Congratulations!** You've created your first agent. Try different questions
+and see how it responds.
 
 ## 🔧 Chapter 2: Adding Tools
 
-Now let's give your agent superpowers by adding toolsets. Toolsets let agents interact with the outside world.
+Now let's give your agent superpowers by adding toolsets. Toolsets let agents
+interact with the outside world.
 
 ### Step 1: Create a Research Agent
 
@@ -179,7 +183,8 @@ Toolsets extend what agents can do:
 - **Database Access**: Queries databases
 - **Custom Toolsets**: Your own specialized tools
 
-Each toolset can expose multiple tools, and you can optionally filter which tools are available to the agent using the `tools` field.
+Each toolset can expose multiple tools, and you can optionally filter which
+tools are available to the agent using the `tools` field.
 
 Notice how we:
 
@@ -188,7 +193,8 @@ Notice how we:
 3. **Set quality standards** for source evaluation
 4. **Filtered specific tools** we want to enable
 
-**💡 Pro Tip**: Always tell your agent about its available tools in the instructions!
+**💡 Pro Tip**: Always tell your agent about its available tools in the
+instructions!
 
 ## 👥 Chapter 3: Building a Multi-Agent Team
 
@@ -326,13 +332,61 @@ Notice what happens:
 - **Modularity**: Easy to add/remove/modify specialists
 - **Scalability**: Can handle complex, multi-step workflows
 
-**🎯 Observe**: Pay attention to how the coordinator explains its routing decisions!
+**🎯 Observe**: Pay attention to how the coordinator explains its routing
+decisions!
 
-## 🧠 Chapter 4: Advanced Features
+## 📝 Chapter 4: Advanced Features
 
 Let's explore advanced features that make agents even more powerful.
 
-### Step 1: Add the Think Tool
+### Step 1: Add the Todo Tool
+
+Create `todo-agent.yaml`:
+
+```yaml
+agents:
+  root:
+    name: project_manager
+    model: claude_project
+    description: Project management agent with task tracking
+    instruction: |
+      You are a project manager who breaks down complex tasks and tracks progress.
+
+      **Task Management Process:**
+      - For any complex project, create todo items for each major step
+      - Assign priorities (high/medium/low) based on importance
+      - Update status as work progresses (pending/in_progress/completed)
+      - List all todos periodically to check overall progress
+      - Remove completed todos when fully verified
+
+      **When to Use Todo Tool:**
+      - When planning multi-step projects
+      - When tracking progress on complex tasks
+      - To ensure no steps are missed
+      - To organize work by priority
+    todo: true # Enable the built-in todo tool
+
+models:
+  claude_project:
+    type: anthropic
+    model: claude-3-5-sonnet-latest
+    temperature: 0.3
+    max_tokens: 3000
+```
+
+### Step 2: Test the Todo System
+
+```bash
+# Run the todo agent
+./cagent -config todo-agent.yaml
+
+# Try complex task management scenarios:
+# "Help me plan a website redesign project"
+# "I need to organize my apartment move"
+# "Track my job application process"
+```
+
+### Step 3: Add the Think Tool
 
 Create `thinking-agent.yaml`:
 
@@ -532,7 +586,8 @@ models:
 
 ## 🎓 What You've Learned
 
-Congratulations! You've built a complete multi-agent system from scratch. Let's review what you've accomplished:
+Congratulations! You've built a complete multi-agent system from scratch. Let's
+review what you've accomplished:
 
 ### ✅ Key Skills Mastered
 
@@ -626,8 +681,11 @@ You now understand these key patterns:
 
 ## 🎉 You're Ready!
 
-You now have the foundation to build sophisticated AI systems with cagent. The key is to start with your specific use case and apply the patterns you've learned.
+You now have the foundation to build sophisticated AI systems with cagent. The
+key is to start with your specific use case and apply the patterns you've
+learned.
 
-**Remember**: Great agent systems are built iteratively. Start simple, test thoroughly, and add complexity only when needed.
+**Remember**: Great agent systems are built iteratively. Start simple, test
+thoroughly, and add complexity only when needed.
 
 **Happy building!** 🚀

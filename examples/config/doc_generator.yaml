@@ -44,6 +44,7 @@ agents:
       * Follow documentation best practices, use the Diataxis framework
       * Include both high-level and detailed documentation
       * Generate diagrams using mermaid syntax
+      * The writing style should follow the Diataxis framework
     think: true
     toolsets:
       - type: mcp
@@ -52,6 +53,11 @@ agents:
       - type: mcp
         command: uvx
         args: ["duckduckgo-mcp-server"]
+      - type: mcp
+        command: uvx
+        args: ["mcp-shell-server"]
+        env:
+          ALLOW_COMMANDS: "git,pwd"
 
 models:
   openai:

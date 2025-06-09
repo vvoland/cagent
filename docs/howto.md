@@ -552,6 +552,34 @@ models:
     max_tokens: 4000
 ```
 
+### Using the Todo Tool
+
+The todo tool helps agents track and manage complex tasks:
+
+```yaml
+agents:
+  root:
+    name: project_manager
+    model: gpt4_project
+    description: Project management agent with task tracking
+    instruction: |
+      You are a project manager who breaks complex tasks into manageable steps.
+
+      **Always use the todo tool to:**
+      1. Create todos for each step of a complex project
+      2. Track status using pending/in_progress/completed
+      3. List all todos before finalizing work
+      4. Remove completed todos when verified
+    todo: true # Enable the built-in todo tool
+
+models:
+  gpt4_project:
+    type: openai
+    model: gpt-4o
+    temperature: 0.3
+    max_tokens: 2000
+```
+
 ### Agent with Date Context
 
 Some agents benefit from knowing the current date for time-sensitive responses.
@@ -770,10 +798,11 @@ agents:
 
       **Constraints:**
       - Behavioral limits and requirements
-    tools: [] # Optional
+    toolsets: [] # Optional
     sub_agents: [] # Optional
     think: false # Optional
     add_date: false # Optional
+    todo: false # Optional
 
 models:
   model_reference:

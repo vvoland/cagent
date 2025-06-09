@@ -63,8 +63,14 @@ collaborate to solve complex problems.
 │                           │                                 │
 │                           ▼                                 │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
-│  │  Toolsets   │◄──►│ Sub-Agents  │◄──►│    Think    │     │
-│  │   (MCP)     │    │(Specialists)│    │    Tool     │     │
+│  │  Toolsets   │◄──►│   Team      │◄──►│    Think    │     │
+│  │   (MCP)     │    │ Management  │    │    Tool     │     │
+│  └─────────────┘    └─────┬───────┘    └─────────────┘     │
+│                           │                                 │
+│                           ▼                                 │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
+│  │   Todo      │◄──►│ Sub-Agents  │◄──►│ Built-in    │     │
+│  │   Tool      │    │(Specialists)│    │   Tools     │     │
 │  └─────────────┘    └─────────────┘    └─────────────┘     │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
@@ -91,6 +97,15 @@ The AI reasoning layer that powers all agents:
 - **Configurable Parameters**: Temperature, tokens, penalties for fine-tuning
 - **Provider Agnostic**: Easy switching between different AI providers
 
+#### 🔧 Team Management
+
+Coordinates communication between agents:
+
+- **Agent Registry**: Maintains list of available agents and capabilities
+- **Message Routing**: Directs messages to appropriate agents
+- **Context Sharing**: Manages shared context between agents
+- **Lifecycle Management**: Creates and disposes agent instances as needed
+
 #### 🔬 Sub-Agents (Specialists)
 
 Domain-specific experts with focused capabilities:
@@ -111,7 +126,8 @@ Extensions that connect agents to the outside world:
 - **API Integration**: Connect to databases, services, and external systems
 - **Custom Toolsets**: Extend functionality with domain-specific capabilities
 
-Each toolset can expose multiple tools, and you can control which tools are available to each agent using the `tools` field in the configuration:
+Each toolset can expose multiple tools, and you can control which tools are
+available to each agent using the `tools` field in the configuration:
 
 ```yaml
 toolsets:
@@ -120,6 +136,18 @@ toolsets:
     args: ["-y", "@modelcontextprotocol/server-brave-search"]
     tools: ["search", "summarize"] # Only enable these specific tools
 ```
+
+#### 📓 Todo Tool (Task Management)
+
+Helps agents track and manage complex tasks:
+
+- **Task Creation**: Define new tasks with descriptions and priorities
+- **Status Tracking**: Monitor pending, in-progress, and completed items
+- **Task Lists**: View all current tasks and their status
+- **Task Cleanup**: Remove completed or obsolete tasks
+
+The Todo tool provides structure for complex workflows and helps agents break
+down large projects into manageable steps.
 
 #### 💭 Think Tool (Metacognition)
 
@@ -132,14 +160,18 @@ Advanced reasoning capability for complex problems:
 
 ### 🔧 Toolsets as Superpowers
 
-Just like superheroes have special abilities, agents gain "superpowers" through toolsets:
+Just like superheroes have special abilities, agents gain "superpowers" through
+toolsets:
 
 - **Web Search Toolset** = Internet knowledge access (search, summarize)
-- **File Operations Toolset** = Perfect memory and organization (read, write, search)
+- **File Operations Toolset** = Perfect memory and organization (read, write,
+  search)
 - **API Integration Toolset** = Instant connection to any service
+- **Todo Tool** = Project management and task tracking
 - **Think Tool** = Enhanced reasoning and planning
 
-Each toolset can be configured to expose only the specific tools needed for the agent's role, ensuring focused and secure capabilities.
+Each toolset can be configured to expose only the specific tools needed for the
+agent's role, ensuring focused and secure capabilities.
 
 ## Key Concepts
 
@@ -313,6 +345,7 @@ agents:
 - **Agent Layer**: Instructions define roles and workflows (how to do it)
 - **Model Layer**: LLMs provide reasoning and language capabilities (thinking)
 - **Tool Layer**: External integrations provide data and actions (doing)
+- **Team Layer**: Manages agent relationships and communication (coordinating)
 
 ### 3. 📈 Progressive Disclosure
 

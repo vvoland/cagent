@@ -1,6 +1,8 @@
 # Configuration Reference
 
-Complete reference documentation for all cagent configuration options, parameters, and settings. Use this as your definitive guide for YAML configuration syntax and available options.
+Complete reference documentation for all cagent configuration options,
+parameters, and settings. Use this as your definitive guide for YAML
+configuration syntax and available options.
 
 ## Configuration File Structure
 
@@ -31,7 +33,8 @@ cagent validates configurations on startup. Common validation errors:
 
 ## 📊 Agents Section
 
-The `agents` section defines all agents in your system. The `root` agent is required and serves as the main entry point.
+The `agents` section defines all agents in your system. The `root` agent is
+required and serves as the main entry point.
 
 ### Agent Configuration Fields
 
@@ -52,6 +55,7 @@ The `agents` section defines all agents in your system. The `root` agent is requ
 | `sub_agents` | Array   | `[]`    | Names of agents this agent can delegate to |
 | `think`      | Boolean | `false` | Enable metacognitive thinking capabilities |
 | `add_date`   | Boolean | `false` | Include current date in agent context      |
+| `todo`       | Boolean | `false` | Enable task management capabilities        |
 
 ### Agent Configuration Examples
 
@@ -121,7 +125,8 @@ agents:
 
 ### Instruction Field Best Practices
 
-The `instruction` field is the most critical part of agent configuration. Structure it clearly:
+The `instruction` field is the most critical part of agent configuration.
+Structure it clearly:
 
 ```yaml
 instruction: |
@@ -172,7 +177,8 @@ agents:
 
 ## 🤖 Models Section
 
-The `models` section defines AI providers and their configurations. Each model configuration specifies the provider, model variant, and generation parameters.
+The `models` section defines AI providers and their configurations. Each model
+configuration specifies the provider, model variant, and generation parameters.
 
 ### Model Configuration Fields
 
@@ -319,7 +325,8 @@ agents:
 
 ## 🔧 Tools Section
 
-Tools extend agent capabilities beyond language processing by connecting to external systems, APIs, and services through the Model Context Protocol (MCP).
+Tools extend agent capabilities beyond language processing by connecting to
+external systems, APIs, and services through the Model Context Protocol (MCP).
 
 ### Tool Configuration Fields
 
@@ -390,6 +397,58 @@ tools:
 | Airbnb Search | `@openbnb/mcp-server-airbnb`            | Airbnb listing search      |
 | GitHub        | `@modelcontextprotocol/server-github`   | GitHub API integration     |
 | Postgres      | `@modelcontextprotocol/server-postgres` | PostgreSQL database access |
+
+### Built-in Tools
+
+In addition to MCP-based tools, cagent includes several built-in tools that
+don't require external processes:
+
+#### Todo Tool
+
+The todo tool provides structured task management functionality. Enable it in
+your agent config:
+
+```yaml
+agents:
+  root:
+    name: project_manager
+    model: gpt4
+    todo: true # Enables the todo tool
+    instruction: |
+      You are a project manager. Use the todo tool to track complex tasks.
+
+      **Task Management Process:**
+      1. Break down complex projects into manageable todos
+      2. Track status of all tasks (pending/in_progress/completed)
+      3. Update task status as work progresses
+      4. Remove completed tasks when verified
+```
+
+The todo tool provides these functions:
+
+| Function      | Parameters            | Description                                        |
+| ------------- | --------------------- | -------------------------------------------------- |
+| `create_todo` | description, priority | Create a new task with specified priority          |
+| `update_todo` | id, status            | Update task status (pending/in_progress/completed) |
+| `list_todos`  | none                  | List all current tasks and their status            |
+| `remove_todo` | id                    | Remove a completed or obsolete task                |
+
+#### Think Tool
+
+The think tool enables metacognitive reasoning. Enable it in your agent config:
+
+```yaml
+agents:
+  root:
+    name: analytical_agent
+    think: true # Enables the think tool
+    instruction: |
+      Use the think tool for complex problems:
+      1. Break down the problem
+      2. Consider multiple approaches  
+      3. Validate your reasoning
+      4. Present your conclusion
+```
 
 ### Tool Usage in Agent Instructions
 
