@@ -13,17 +13,8 @@ agents:
       - type: mcp
         command: npx
         args: ["-y", "@openbnb/mcp-server-airbnb", "--ignore-robots-txt"]
+
 models:
   openai:
     type: openai
     model: gpt-4o
-
-  claude:
-    type: anthropic
-    model: claude-3-5-sonnet-latest
-
-toolsets:
-  airbnb:
-    type: mcp
-    command: npx
-    args: ["-y", "@openbnb/mcp-server-airbnb", "--ignore-robots-txt"]

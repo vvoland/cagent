@@ -13,7 +13,13 @@ import {
 import { ToolCallEvent, ToolResultEvent } from "./components/ToolEvents";
 import { Sidebar } from "./components/Sidebar";
 import { DarkModeToggle } from "./components/DarkModeToggle";
-
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 function App() {
   const [prompt, setPrompt] = useState("");
   const { sessions, currentSessionId, createNewSession, selectSession } =
@@ -88,19 +94,22 @@ function App() {
               >
                 New Session
               </Button>
-              <select
+
+              <Select
                 value={selectedAgent || ""}
-                onChange={(e) => setSelectedAgent(e.target.value)}
-                disabled={isLoadingAgents}
-                className="flex h-9 w-[200px] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring dark:border-input dark:bg-background dark:text-foreground"
+                onValueChange={(value: string) => setSelectedAgent(value)}
               >
-                <option value="">Select an agent...</option>
-                {agents.map((agent) => (
-                  <option key={agent.name} value={agent.name}>
-                    {agent.name} - {agent.description}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="w-[380px]">
+                  <SelectValue placeholder="Select an agent..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {agents.map((agent) => (
+                    <SelectItem key={agent.name} value={agent.name}>
+                      {agent.name} - {agent.description}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <DarkModeToggle />
           </div>
