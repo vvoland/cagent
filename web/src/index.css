@@ -77,37 +77,50 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Polar Night palette */
+  --background: oklch(0.25 0.02 260); /* nord0: #2E3440 */
+  --card: oklch(0.22 0.02 260); /* nord1: #3B4252 */
+  --secondary: oklch(0.28 0.02 260); /* nord2: #434C5E */
+  --muted: oklch(0.32 0.02 260); /* nord3: #4C566A */
+
+  /* Snow Storm palette - increased contrast */
+  --foreground: oklch(0.92 0.01 260); /* nord4: #D8DEE9 - brighter */
+  --card-foreground: oklch(0.95 0.01 260); /* nord5: #E5E9F0 - brighter */
+  --popover-foreground: oklch(0.98 0.01 260); /* nord6: #ECEFF4 - brighter */
+
+  /* Frost palette */
+  --primary: oklch(0.75 0.12 220); /* nord8: #88C0D0 */
+  --accent: oklch(0.70 0.12 240); /* nord9: #81A1C1 */
+  --ring: oklch(0.65 0.12 260); /* nord10: #5E81AC */
+
+  /* Aurora palette */
+  --destructive: oklch(0.65 0.20 20); /* nord11: #BF616A */
+  --chart-2: oklch(0.65 0.20 40); /* nord12: #D08770 */
+  --chart-3: oklch(0.75 0.20 80); /* nord13: #EBCB8B */
+  --chart-4: oklch(0.65 0.20 120); /* nord14: #A3BE8C */
+  --chart-5: oklch(0.65 0.20 280); /* nord15: #B48EAD */
+
+  /* UI Elements */
+  --popover: oklch(0.22 0.02 260); /* nord1 */
+  --primary-foreground: oklch(0.25 0.02 260); /* nord0 */
+  --secondary-foreground: oklch(0.92 0.01 260); /* nord4 - brighter */
+  --muted-foreground: oklch(0.75 0.01 260); /* nord3 - brighter for better readability */
+  --accent-foreground: oklch(0.92 0.01 260); /* nord4 - brighter */
+  --border: oklch(0.28 0.02 260); /* nord2 */
+  --input: oklch(0.28 0.02 260); /* nord2 */
+
+  /* Chart colors */
+  --chart-1: oklch(0.75 0.12 220); /* nord8 */
+
+  /* Sidebar colors */
+  --sidebar: oklch(0.22 0.02 260); /* nord1 */
+  --sidebar-foreground: oklch(0.92 0.01 260); /* nord4 - brighter */
+  --sidebar-primary: oklch(0.75 0.12 220); /* nord8 */
+  --sidebar-primary-foreground: oklch(0.25 0.02 260); /* nord0 */
+  --sidebar-accent: oklch(0.28 0.02 260); /* nord2 */
+  --sidebar-accent-foreground: oklch(0.92 0.01 260); /* nord4 - brighter */
+  --sidebar-border: oklch(0.28 0.02 260); /* nord2 */
+  --sidebar-ring: oklch(0.75 0.12 220); /* nord8 */
 }
 
 @layer base {
