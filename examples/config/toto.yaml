@@ -2,7 +2,7 @@ agents:
   root:
     name: prompter
     model: openai
-    description: Provides 5 unique writing prompts daily to inspire 750-word writing exercises. Each prompt is designed to encourage creative thinking, self-reflection, or structured exploration of diverse topics.
+    description: Writes a nice story about a subject
     instruction: |
       You are the leader of a team of AI agents for a daily writing workflow.
 
