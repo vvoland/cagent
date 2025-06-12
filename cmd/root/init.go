@@ -85,7 +85,7 @@ func NewInitCmd() *cobra.Command {
 				return fmt.Errorf("failed to create LLM client: %w", err)
 			}
 
-			prompt := fmt.Sprintf(`Given this purpose for an AI agent: "%s"\n\nName: %s\nDescription: %s\n\nPlease write a system instruction (2-3 sentences) that will guide the agent's behavior.`, purpose, name, description)
+			prompt := fmt.Sprintf(`Given this purpose for an AI agent: %q\n\nName: %s\nDescription: %s\n\nPlease write a system instruction (2-3 sentences) that will guide the agent's behavior.`, purpose, name, description)
 
 			fmt.Println("\nGenerating agent instruction...")
 
@@ -149,7 +149,7 @@ func NewInitCmd() *cobra.Command {
 				return fmt.Errorf("failed to marshal YAML: %w", err)
 			}
 
-			if err := os.WriteFile("agent.yaml", out, 0644); err != nil {
+			if err := os.WriteFile("agent.yaml", out, 0o644); err != nil {
 				return fmt.Errorf("failed to write configuration file: %w", err)
 			}
 
