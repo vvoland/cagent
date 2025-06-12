@@ -24,12 +24,7 @@ function App() {
   const [prompt, setPrompt] = useState("");
   const { sessions, currentSessionId, createNewSession, selectSession } =
     useSessions();
-  const {
-    agents,
-    selectedAgent,
-    setSelectedAgent,
-    isLoading: isLoadingAgents,
-  } = useAgents();
+  const { agents, selectedAgent, setSelectedAgent } = useAgents();
 
   // Update selected agent when session changes
   useEffect(() => {
@@ -43,7 +38,7 @@ function App() {
         setSelectedAgent(agentName);
       }
     }
-  }, [currentSessionId, sessions]);
+  }, [currentSessionId, sessions, setSelectedAgent]);
 
   const {
     events,
