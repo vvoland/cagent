@@ -3,7 +3,6 @@
 A powerful, customizable multi-agent system that orchestrates AI agents with specialized capabilities and tools.
 
 [![Go Version](https://img.shields.io/badge/go-1.24+-blue.svg)](https://golang.org/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ## ✨ What is cagent?
 
