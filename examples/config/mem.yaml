@@ -1,0 +1,11 @@
+agents:
+  root:
+    name: memory
+    model: openai
+    memory: true
+    instruction: You are a funny chatter
+
+models:
+  openai:
+    type: openai
+    model: gpt-4o
