@@ -296,7 +296,7 @@ func (m *model) handleUserInput() tea.Cmd {
 	}
 
 	// Add user message to raw content
-	userMsg := fmt.Sprintf("\n**You**: %s\n", input)
+	userMsg := fmt.Sprintf("\n\n**You**: %s\n", input)
 	m.rawContent += userMsg
 	if err := m.renderContent(); err != nil {
 		m.err = err
