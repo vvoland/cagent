@@ -14,7 +14,7 @@ export const MessageEvent = ({
 }) => (
   <div className={cn("rounded-lg p-4", "shadow-md dark:shadow-lg")}>
     <div className="font-semibold mb-2">{role}</div>
-    <div className="prose prose-sm dark:prose-invert max-w-none">
+    <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:font-semibold prose-headings:tracking-tight prose-p:leading-7 prose-pre:bg-secondary prose-pre:p-0 prose-pre:rounded-md prose-pre:overflow-x-auto prose-pre:max-w-full prose-code:before:content-none prose-code:after:content-none">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -65,7 +65,7 @@ export const ChoiceEvents = ({ events }: { events: EventItem[] }) => {
       {agent && (
         <div className="font-semibold mb-2 dark:text-inherit">🤖 {agent}</div>
       )}
-      <div className="prose prose-sm dark:prose-invert max-w-none">
+      <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:font-semibold prose-headings:tracking-tight prose-p:leading-7 prose-pre:bg-secondary prose-pre:p-0 prose-pre:rounded-md prose-pre:overflow-x-auto prose-pre:max-w-full prose-code:before:content-none prose-code:after:content-none">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
