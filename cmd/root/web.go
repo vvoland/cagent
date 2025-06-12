@@ -114,13 +114,11 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 
 		// Initialize runtimes for single config file
 		runtimes = make(map[string]*runtime.Runtime)
-		for name := range t.Agents() {
-			rt, err := runtime.New(logger, t, name)
-			if err != nil {
-				return fmt.Errorf("failed to create runtime for agent %s: %w", name, err)
-			}
-			runtimes[name] = rt
+		rt, err := runtime.New(logger, t, "root")
+		if err != nil {
+			return err
 		}
+		runtimes[filepath.Base(configFile)] = rt
 	}
 
 	e := echo.New()
