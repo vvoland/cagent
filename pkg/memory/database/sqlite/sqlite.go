@@ -8,11 +8,11 @@ import (
 	"github.com/rumpl/cagent/pkg/memory/database"
 )
 
-type SqliteMemoryDatabase struct {
+type MemoryDatabase struct {
 	db *sql.DB
 }
 
-func NewSqliteMemoryDatabase(path string) (database.Database, error) {
+func NewMemoryDatabase(path string) (database.Database, error) {
 	db, err := sql.Open("sqlite3", path)
 	if err != nil {
 		return nil, err
@@ -23,16 +23,16 @@ func NewSqliteMemoryDatabase(path string) (database.Database, error) {
 		return nil, err
 	}
 
-	return &SqliteMemoryDatabase{db: db}, nil
+	return &MemoryDatabase{db: db}, nil
 }
 
-func (m *SqliteMemoryDatabase) AddMemory(ctx context.Context, memory database.UserMemory) error {
+func (m *MemoryDatabase) AddMemory(ctx context.Context, memory database.UserMemory) error {
 	_, err := m.db.ExecContext(ctx, "INSERT INTO memories (id, created_at, memory) VALUES (?, ?, ?)",
 		memory.ID, memory.CreatedAt, memory.Memory)
 	return err
 }
 
-func (m *SqliteMemoryDatabase) GetMemories(ctx context.Context) ([]database.UserMemory, error) {
+func (m *MemoryDatabase) GetMemories(ctx context.Context) ([]database.UserMemory, error) {
 	rows, err := m.db.QueryContext(ctx, "SELECT id, created_at, memory FROM memories")
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func (m *SqliteMemoryDatabase) GetMemories(ctx context.Context) ([]database.User
 	return memories, nil
 }
 
-func (m *SqliteMemoryDatabase) DeleteMemory(ctx context.Context, memory database.UserMemory) error {
+func (m *MemoryDatabase) DeleteMemory(ctx context.Context, memory database.UserMemory) error {
 	_, err := m.db.ExecContext(ctx, "DELETE FROM memories WHERE id = ?", memory.ID)
 	return err
 }

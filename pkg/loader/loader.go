@@ -51,7 +51,7 @@ func Agents(ctx context.Context, path string, logger *slog.Logger) (*team.Team, 
 		}
 
 		if a.Memory {
-			db, err := sqlite.NewSqliteMemoryDatabase("memories.db")
+			db, err := sqlite.NewMemoryDatabase("memories.db")
 			if err != nil {
 				return nil, fmt.Errorf("failed to create memory database: %w", err)
 			}
