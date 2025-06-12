@@ -27,6 +27,9 @@ func NewMemoryDatabase(path string) (database.Database, error) {
 }
 
 func (m *MemoryDatabase) AddMemory(ctx context.Context, memory database.UserMemory) error {
+	if memory.ID == "" {
+		return database.ErrEmptyID
+	}
 	_, err := m.db.ExecContext(ctx, "INSERT INTO memories (id, created_at, memory) VALUES (?, ?, ?)",
 		memory.ID, memory.CreatedAt, memory.Memory)
 	return err

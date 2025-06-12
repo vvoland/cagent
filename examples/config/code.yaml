@@ -1,7 +1,7 @@
 agents:
   root:
     name: coder
-    model: openai
+    model: claude
     description: |
       Expert developer
     instruction: |
@@ -65,7 +65,7 @@ agents:
         command: uvx
         args: ["mcp-shell-server"]
         env:
-          ALLOW_COMMANDS: "git,pwd"
+          ALLOW_COMMANDS: "git,pwd,go"
 
 models:
   openai:

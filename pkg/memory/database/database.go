@@ -2,6 +2,11 @@ package database
 
 import (
 	"context"
+	"errors"
+)
+
+var (
+	ErrEmptyID = errors.New("memory ID cannot be empty")
 )
 
 type UserMemory struct {
