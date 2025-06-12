@@ -18,8 +18,6 @@ agents:
         2. Call the `prompt_chooser` agent to select the best prompt from the 5 generated.
 
         3. Call the `writer` agent to write a 750-word text based on the chosen prompt.
-
-        4. Return the final result to the user.
       </WORKFLOW>
 
       - Use the transfer_to_agent tool to call the right agent at the right time to complete the workflow.
