@@ -177,7 +177,7 @@ func processStream(rt *runtime.Runtime, sess *session.Session, ch chan<- string)
 				}
 				ch <- e.Choice.Delta.Content
 			case *runtime.ToolCallEvent:
-				ch <- fmt.Sprintf("\n\n> 🔧 **Tool Call**: `%s(%s)`\n", e.ToolCall.Function.Name, truncateWithEllipsis(e.ToolCall.Function.Arguments, 60))
+				ch <- fmt.Sprintf("\n\n> 🔧 **Tool Call**: `%s(%s)`\n\n", e.ToolCall.Function.Name, truncateWithEllipsis(e.ToolCall.Function.Arguments, 60))
 			case *runtime.ToolCallResponseEvent:
 				ch <- fmt.Sprintf("> ✅ **Completed**: `%s`\n\n", truncateWithEllipsis(e.Response, 60))
 			case *runtime.AgentMessageEvent:
@@ -408,7 +408,8 @@ func runUICommand(cmd *cobra.Command, args []string) error {
 	p := tea.NewProgram(
 		m,
 		tea.WithAltScreen(),
-		tea.WithMouseAllMotion(), // Enable mouse support
+		// tea.WithMouseAllMotion(), // Enable mouse support
+		// tea.WithMouseCellMotion(),
 	)
 
 	_, err = p.Run()
