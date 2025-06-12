@@ -26,7 +26,7 @@ agents:
           #    - Maintain code style consistency
 
           # 4. **Validation Loop**:
-          #    - Run linters to check code quality
+          #    - Run linters or tests to check code quality
           #    - Verify changes meet requirements
           #    - If issues found, return to step 3
           #    - Continue until all requirements are met
