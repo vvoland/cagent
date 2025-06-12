@@ -83,10 +83,10 @@
   --secondary: oklch(0.28 0.02 260); /* nord2: #434C5E */
   --muted: oklch(0.32 0.02 260); /* nord3: #4C566A */
 
-  /* Snow Storm palette - increased contrast */
-  --foreground: oklch(0.92 0.01 260); /* nord4: #D8DEE9 - brighter */
-  --card-foreground: oklch(0.95 0.01 260); /* nord5: #E5E9F0 - brighter */
-  --popover-foreground: oklch(0.98 0.01 260); /* nord6: #ECEFF4 - brighter */
+  /* Snow Storm palette - even whiter */
+  --foreground: oklch(0.97 0.01 260); /* nord4: #D8DEE9 - much brighter */
+  --card-foreground: oklch(0.98 0.01 260); /* nord5: #E5E9F0 - much brighter */
+  --popover-foreground: oklch(0.99 0.01 260); /* nord6: #ECEFF4 - much brighter */
 
   /* Frost palette */
   --primary: oklch(0.75 0.12 220); /* nord8: #88C0D0 */
@@ -103,9 +103,9 @@
   /* UI Elements */
   --popover: oklch(0.22 0.02 260); /* nord1 */
   --primary-foreground: oklch(0.25 0.02 260); /* nord0 */
-  --secondary-foreground: oklch(0.92 0.01 260); /* nord4 - brighter */
-  --muted-foreground: oklch(0.75 0.01 260); /* nord3 - brighter for better readability */
-  --accent-foreground: oklch(0.92 0.01 260); /* nord4 - brighter */
+  --secondary-foreground: oklch(0.97 0.01 260); /* nord4 - much brighter */
+  --muted-foreground: oklch(0.85 0.01 260); /* nord3 - brighter for better readability */
+  --accent-foreground: oklch(0.97 0.01 260); /* nord4 - much brighter */
   --border: oklch(0.28 0.02 260); /* nord2 */
   --input: oklch(0.28 0.02 260); /* nord2 */
 
@@ -114,11 +114,11 @@
 
   /* Sidebar colors */
   --sidebar: oklch(0.22 0.02 260); /* nord1 */
-  --sidebar-foreground: oklch(0.92 0.01 260); /* nord4 - brighter */
+  --sidebar-foreground: oklch(0.97 0.01 260); /* nord4 - much brighter */
   --sidebar-primary: oklch(0.75 0.12 220); /* nord8 */
   --sidebar-primary-foreground: oklch(0.25 0.02 260); /* nord0 */
   --sidebar-accent: oklch(0.28 0.02 260); /* nord2 */
-  --sidebar-accent-foreground: oklch(0.92 0.01 260); /* nord4 - brighter */
+  --sidebar-accent-foreground: oklch(0.97 0.01 260); /* nord4 - much brighter */
   --sidebar-border: oklch(0.28 0.02 260); /* nord2 */
   --sidebar-ring: oklch(0.75 0.12 220); /* nord8 */
 }

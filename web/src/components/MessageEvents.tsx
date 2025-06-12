@@ -13,7 +13,7 @@ export const MessageEvent = ({
   content: string;
 }) => (
   <div
-    className={cn("leading-7", "rounded-lg p-4", "shadow-md dark:shadow-lg")}
+    className={cn("leading-8", "rounded-lg p-4", "shadow-md dark:shadow-lg")}
   >
     <div className="font-semibold mb-2">{role}</div>
     <ReactMarkdown
@@ -61,7 +61,7 @@ export const ChoiceEvents = ({ events }: { events: EventItem[] }) => {
   const agent = events[0]?.metadata?.agent;
 
   return (
-    <div className="bg-card text-card-foreground rounded-lg p-4 shadow-md dark:bg-card dark:text-card-foreground dark:shadow-lg">
+    <div className="bg-card rounded-lg p-4 shadow-md dark:bg-card dark:shadow-lg">
       {agent && (
         <div className="font-semibold mb-2 dark:text-inherit">🤖 {agent}</div>
       )}
