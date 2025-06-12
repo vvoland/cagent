@@ -21,6 +21,11 @@ type Provider interface {
 		messages []chat.Message,
 		tools []tools.Tool,
 	) (chat.MessageStream, error)
+
+	CreateChatCompletion(
+		ctx context.Context,
+		messages []chat.Message,
+	) (string, error)
 }
 
 // Factory interface for creating model providers

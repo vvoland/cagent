@@ -160,6 +160,23 @@ func (c *Client) CreateChatCompletionStream(
 	return &StreamAdapter{stream: stream}, nil
 }
 
+func (c *Client) CreateChatCompletion(
+
+	ctx context.Context,
+	messages []chat.Message,
+) (string, error) {
+	response, err := c.client.Messages.New(ctx, anthropic.MessageNewParams{
+		Model:     anthropic.ModelClaude3_7Sonnet20250219,
+		MaxTokens: 64000,
+		Messages:  convertMessages(messages),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return response.Content[0].Text, nil
+}
+
 func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 	var anthropicMessages []anthropic.MessageParam
 

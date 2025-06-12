@@ -234,3 +234,18 @@ func (c *Client) CreateChatCompletionStream(
 
 	return &StreamAdapter{stream: stream}, nil
 }
+
+func (c *Client) CreateChatCompletion(
+	ctx context.Context,
+	messages []chat.Message,
+) (string, error) {
+	response, err := c.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+		Model:    c.config.Model,
+		Messages: convertMessages(messages),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return response.Choices[0].Message.Content, nil
+}
