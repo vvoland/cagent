@@ -5,21 +5,23 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/rumpl/cagent/pkg/memorymanager"
 	"github.com/rumpl/cagent/pkg/model/provider"
 	"github.com/rumpl/cagent/pkg/tools"
 )
 
 // Agent represents an AI agent
 type Agent struct {
-	name        string
-	description string
-	instruction string
-	toolsets    []tools.ToolSet
-	model       provider.Provider
-	subAgents   []*Agent
-	parents     []*Agent
-	addDate     bool
-	toolwrapper toolwrapper
+	name          string
+	description   string
+	instruction   string
+	toolsets      []tools.ToolSet
+	model         provider.Provider
+	subAgents     []*Agent
+	parents       []*Agent
+	addDate       bool
+	toolwrapper   toolwrapper
+	memoryManager memorymanager.Manager
 }
 
 // New creates a new agent

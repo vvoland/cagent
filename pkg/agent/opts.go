@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"github.com/rumpl/cagent/pkg/memorymanager"
 	"github.com/rumpl/cagent/pkg/model/provider"
 	"github.com/rumpl/cagent/pkg/tools"
 )
@@ -57,5 +58,11 @@ func WithSubAgents(subAgents []*Agent) Opt {
 func WithAddDate(addDate bool) Opt {
 	return func(a *Agent) {
 		a.addDate = addDate
+	}
+}
+
+func WithMemoryManager(mm memorymanager.Manager) Opt {
+	return func(a *Agent) {
+		a.memoryManager = mm
 	}
 }

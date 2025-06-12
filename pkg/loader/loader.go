@@ -8,6 +8,8 @@ import (
 	"github.com/rumpl/cagent/pkg/agent"
 	"github.com/rumpl/cagent/pkg/config"
 	"github.com/rumpl/cagent/pkg/mcp"
+	"github.com/rumpl/cagent/pkg/memory"
+	"github.com/rumpl/cagent/pkg/memory/database/sqlite"
 	"github.com/rumpl/cagent/pkg/model/provider"
 	"github.com/rumpl/cagent/pkg/team"
 	"github.com/rumpl/cagent/pkg/tools"
@@ -39,9 +41,23 @@ func Agents(ctx context.Context, path string, logger *slog.Logger) (*team.Team, 
 			agent.WithAddDate(agentConfig.AddDate),
 		}
 
-		agentTools, err := getToolsForAgent(ctx, cfg, name, logger)
+		a, ok := cfg.Agents[name]
+		if !ok {
+			return nil, fmt.Errorf("agent '%s' not found in configuration", name)
+		}
+		agentTools, err := getToolsForAgent(ctx, &a, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tools: %w", err)
+		}
+
+		if a.Memory {
+			db, err := sqlite.NewSqliteMemoryDatabase("memories.db")
+			if err != nil {
+				return nil, fmt.Errorf("failed to create memory database: %w", err)
+			}
+			mm := memory.NewManager(db, model)
+			opts = append(opts, agent.WithMemoryManager(mm))
+			agentTools = append(agentTools, tools.NewMemoryTool(mm))
 		}
 
 		opts = append(opts, agent.WithToolSets(agentTools))
@@ -68,12 +84,7 @@ func Agents(ctx context.Context, path string, logger *slog.Logger) (*team.Team, 
 }
 
 // getToolsForAgent returns the tool definitions for an agent based on its configuration
-func getToolsForAgent(ctx context.Context, cfg *config.Config, agentName string, logger *slog.Logger) ([]tools.ToolSet, error) {
-	a, ok := cfg.Agents[agentName]
-	if !ok {
-		return nil, fmt.Errorf("agent '%s' not found in configuration", agentName)
-	}
-
+func getToolsForAgent(ctx context.Context, a *config.AgentConfig, logger *slog.Logger) ([]tools.ToolSet, error) {
 	var t []tools.ToolSet
 
 	if len(a.SubAgents) > 0 {

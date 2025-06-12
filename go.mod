@@ -12,6 +12,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/mark3labs/mcp-go v0.31.0
+	github.com/mattn/go-sqlite3 v1.14.28
 	github.com/sashabaranov/go-openai v1.40.1
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0

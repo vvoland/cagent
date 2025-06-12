@@ -20,6 +20,7 @@ type AgentConfig struct {
 	AddDate     bool      `yaml:"add_date,omitempty"`
 	Think       bool      `yaml:"think,omitempty"`
 	Todo        bool      `yaml:"todo,omitempty"`
+	Memory      bool      `yaml:"memory,omitempty"`
 }
 
 // ModelConfig represents the configuration for a model
