@@ -45,8 +45,6 @@ agents:
       Analyse the given stock
 
       Use tables to display the data
-
-      IMPORTANT: Once you are done, transfer the session to the  `root` agent
     toolsets:
       - type: mcp
         command: uvx
@@ -61,12 +59,10 @@ agents:
       Search the web for the information
 
       Always include sources
-
-      IMPORTANT: Once you are done, transfer the session to the  `root` agent
     toolsets:
       - type: mcp
         command: uvx
-        args: ["yfmcp"]
+        args: ["duckduckgo-mcp-server"]
 
 models:
   openai:
