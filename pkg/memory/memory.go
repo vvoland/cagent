@@ -3,7 +3,6 @@ package memory
 import (
 	"context"
 
-	"github.com/rumpl/cagent/pkg/chat"
 	"github.com/rumpl/cagent/pkg/memory/database"
 	"github.com/rumpl/cagent/pkg/memorymanager"
 	"github.com/rumpl/cagent/pkg/model/provider"
@@ -30,13 +29,4 @@ func (m *Manager) GetMemories(ctx context.Context) ([]database.UserMemory, error
 
 func (m *Manager) DeleteMemory(ctx context.Context, memory database.UserMemory) error {
 	return m.db.DeleteMemory(ctx, memory)
-}
-
-func (m *Manager) SummarizeMemory(ctx context.Context, memory database.UserMemory) (string, error) {
-	return m.llm.CreateChatCompletion(ctx, []chat.Message{
-		{
-			Role:    "system",
-			Content: "You are a helpful assistant that summarizes memories.",
-		},
-	})
 }

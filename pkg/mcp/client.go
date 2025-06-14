@@ -173,7 +173,7 @@ func (c *Client) GetToolByName(name string) (tools.Tool, error) {
 }
 
 // CallToolWithArgs is a convenience method to call a tool with arguments
-func (c *Client) CallToolWithArgs(ctx context.Context, toolName string, args interface{}) (*tools.ToolCallResult, error) {
+func (c *Client) CallToolWithArgs(ctx context.Context, toolName string, args any) (*tools.ToolCallResult, error) {
 	argsBytes, err := json.Marshal(args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal arguments: %w", err)

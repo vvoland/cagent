@@ -32,11 +32,6 @@ func (m *MockMemoryManager) DeleteMemory(ctx context.Context, memory database.Us
 	return args.Error(0)
 }
 
-func (m *MockMemoryManager) SummarizeMemory(ctx context.Context, memory database.UserMemory) (string, error) {
-	args := m.Called(ctx, memory)
-	return args.String(0), args.Error(1)
-}
-
 func TestNewMemoryTool(t *testing.T) {
 	manager := new(MockMemoryManager)
 	tool := NewMemoryTool(manager)
