@@ -8,18 +8,6 @@ agents:
       You are an expert at finding information
 
       Your main goal is to search the web for the highest quality content about a topic, once you have enough data, transfer the conversation to the "summarizer" agent.
-    # toolsets:
-    #   - type: mcp
-    #     command: docker
-    #     args:
-    #       [
-    #         "run",
-    #         "-i",
-    #         "--rm",
-    #         "alpine/socat",
-    #         "STDIO",
-    #         "TCP:host.docker.internal:8811",
-    #       ]
     sub_agents:
       - summarizer
 
@@ -34,8 +22,3 @@ models:
   openai:
     type: openai
     model: gpt-4o
-    temperature: 0.7
-    max_tokens: 1500
-    top_p: 1.0
-    frequency_penalty: 0.0
-    presence_penalty: 0.0
