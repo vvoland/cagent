@@ -52,6 +52,8 @@ agents:
       * Always validate changes before considering the task complete
       * Follow best practices and maintain code quality
       * Be proactive in identifying potential issues
+      * Only ask for clarification if necessary, try your best to use all the tools to get the info you need
+      * Don't show the code that you generated
 
     todo: true
     toolsets:
@@ -65,7 +67,7 @@ agents:
         command: uvx
         args: ["mcp-shell-server"]
         env:
-          ALLOW_COMMANDS: "git,pwd,go"
+          ALLOW_COMMANDS: "docker,git,pwd,go"
 
 models:
   openai:
@@ -74,4 +76,4 @@ models:
 
   claude:
     type: anthropic
-    model: claude-3-5-sonnet-latest
+    model: claude-4-sonnet-latest
