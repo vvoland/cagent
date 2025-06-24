@@ -87,7 +87,6 @@ type (
 		id       string
 		response string
 	}
-	spinnerTickMsg struct{}
 )
 
 // model represents the application state
@@ -385,7 +384,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyUp:
 			if msg.Alt {
 				// Alt+Up for slow scrolling up
-				m.chatViewport.LineUp(1)
+				m.chatViewport.ScrollUp(1)
 				m.userScrolled = true
 				return m, nil
 			}
@@ -394,7 +393,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyDown:
 			if msg.Alt {
 				// Alt+Down for slow scrolling down
-				m.chatViewport.LineDown(1)
+				m.chatViewport.ScrollDown(1)
 				// Check if we're at the bottom
 				if m.chatViewport.AtBottom() {
 					m.userScrolled = false
@@ -405,12 +404,12 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case tea.KeyPgUp:
 			// Page up for faster scrolling
-			m.chatViewport.HalfViewUp()
+			m.chatViewport.HalfPageUp()
 			m.userScrolled = true
 			return m, nil
 		case tea.KeyPgDown:
 			// Page down for faster scrolling
-			m.chatViewport.HalfViewDown()
+			m.chatViewport.HalfPageDown()
 			// Check if we're at the bottom
 			if m.chatViewport.AtBottom() {
 				m.userScrolled = false
