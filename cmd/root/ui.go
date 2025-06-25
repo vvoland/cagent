@@ -87,6 +87,8 @@ type (
 		id       string
 		response string
 	}
+	workStartMsg struct{}
+	workEndMsg   struct{}
 )
 
 // model represents the application state
@@ -112,6 +114,7 @@ type model struct {
 	chatHeight   int
 	toolHeight   int
 	userScrolled bool // Track if user has manually scrolled
+	isWorking    bool // Track if LLM is actively working
 
 	// Tool call tracking
 	activeToolCalls    map[string]ToolCall
@@ -285,6 +288,9 @@ func processStream(rt *runtime.Runtime, sess *session.Session, ch chan<- string,
 		ctx := context.Background()
 		first := true
 
+		// Signal that work has started
+		toolCh <- workStartMsg{}
+
 		for event := range rt.RunStream(ctx, sess) {
 			switch e := event.(type) {
 			case *runtime.AgentChoiceEvent:
@@ -325,6 +331,9 @@ func processStream(rt *runtime.Runtime, sess *session.Session, ch chan<- string,
 				return errorMsg(e.Error)
 			}
 		}
+
+		// Signal that work has ended
+		toolCh <- workEndMsg{}
 		close(ch)
 		close(toolCh)
 		return nil
@@ -462,6 +471,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, readToolEvents(m.toolCh)
 
+	case workStartMsg:
+		m.isWorking = true
+		return m, readToolEvents(m.toolCh)
+
+	case workEndMsg:
+		m.isWorking = false
+		return m, readToolEvents(m.toolCh)
+
 	case spinner.TickMsg:
 		var spinnerCmd tea.Cmd
 		m.spinner, spinnerCmd = m.spinner.Update(msg)
@@ -558,7 +575,11 @@ func (m *model) View() string {
 	}
 
 	// Build header
-	header := headerStyle.Render("🤖 AI Chat")
+	headerText := "🤖 AI Chat"
+	if m.isWorking || len(m.activeToolCalls) > 0 {
+		headerText += " " + m.spinner.View() + " Working..."
+	}
+	header := headerStyle.Render(headerText)
 
 	// Build chat viewport
 	chatView := m.chatViewport.View()
