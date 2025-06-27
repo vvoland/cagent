@@ -29,7 +29,8 @@ func LoadConfig(path string) (*Config, error) {
 // validateConfig ensures the configuration is valid
 func validateConfig(cfg *Config) error {
 	// Validate that all models referenced in agents exist
-	for agentName, agent := range cfg.Agents {
+	for agentName := range cfg.Agents {
+		agent := cfg.Agents[agentName]
 		if _, exists := cfg.Models[agent.Model]; !exists {
 			return fmt.Errorf("agent '%s' references non-existent model '%s'", agentName, agent.Model)
 		}

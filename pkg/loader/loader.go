@@ -24,7 +24,8 @@ func Agents(ctx context.Context, path string, logger *slog.Logger) (*team.Team, 
 	fac := provider.NewFactory()
 
 	agents := make(map[string]*agent.Agent)
-	for name, agentConfig := range cfg.Agents {
+	for name := range cfg.Agents {
+		agentConfig := cfg.Agents[name]
 		modelCfg, exists := cfg.Models[agentConfig.Model]
 		if !exists {
 			return nil, fmt.Errorf("model '%s' not found in configuration", agentConfig.Model)
@@ -65,7 +66,8 @@ func Agents(ctx context.Context, path string, logger *slog.Logger) (*team.Team, 
 		agents[name] = agent.New(name, agentConfig.Instruction, opts...)
 	}
 
-	for name, agentConfig := range cfg.Agents {
+	for name := range cfg.Agents {
+		agentConfig := cfg.Agents[name]
 		if len(agentConfig.SubAgents) > 0 {
 			subAgents := make([]*agent.Agent, 0, len(agentConfig.SubAgents))
 			for _, subName := range agentConfig.SubAgents {
