@@ -68,9 +68,9 @@ agents:
       * Document any significant changes or considerations
     todo: true
     toolsets:
-      - type: mcp
-        command: docker
-        args: ["run", "-i", "--rm", "dhi-mcp-server"]
+      # - type: mcp
+      #   command: docker
+      #   args: ["run", "-i", "--rm", "dhi-mcp-server"]
       - type: mcp
         command: uvx
         args: ["duckduckgo-mcp-server"]

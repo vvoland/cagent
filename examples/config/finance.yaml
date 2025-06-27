@@ -2,6 +2,7 @@ agents:
   root:
     name: researcher
     model: openai
+    description: "Financial research and analysis coordinator"
     add_date: true
     instruction: |
       You are the leader of a team and sub-teams of AI Agents.

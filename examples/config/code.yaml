@@ -2,8 +2,7 @@ agents:
   root:
     name: coder
     model: claude
-    description: |
-      Expert developer
+    description: "Expert code analysis and development assistant"
     instruction: |
       You are an expert developer with deep knowledge of code analysis, modification, and validation.
 

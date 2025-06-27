@@ -2,7 +2,7 @@ agents:
   root:
     name: airbnb
     model: openai
-    description: An agent that looks at airbnb things
+    description: "Travel accommodation search specialist"
     add_date: true
     instruction: |
       ## General Instructions
