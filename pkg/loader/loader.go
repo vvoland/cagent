@@ -50,8 +50,8 @@ func Agents(ctx context.Context, path string, logger *slog.Logger) (*team.Team, 
 			return nil, fmt.Errorf("failed to get tools: %w", err)
 		}
 
-		if a.Memory {
-			db, err := sqlite.NewMemoryDatabase("memories.db")
+		if a.MemoryConfig.Path != "" {
+			db, err := sqlite.NewMemoryDatabase(a.MemoryConfig.Path)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create memory database: %w", err)
 			}
@@ -109,7 +109,6 @@ func getToolsForAgent(ctx context.Context, a *config.AgentConfig, logger *slog.L
 			continue
 		}
 
-		// Convert env map to string slice
 		envSlice := make([]string, 0, len(toolset.Env))
 		for k, v := range toolset.Env {
 			envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
