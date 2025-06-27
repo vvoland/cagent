@@ -144,7 +144,7 @@ func trimMessages(messages []chat.Message) []chat.Message {
 	toRemove := len(messages) - maxMessages
 
 	// Start from the beginning (oldest messages)
-	for i := 0; i < toRemove; i++ {
+	for i := range toRemove {
 		// If this is an assistant message with tool calls, mark them for removal
 		if messages[i].Role == "assistant" {
 			for _, toolCall := range messages[i].ToolCalls {
