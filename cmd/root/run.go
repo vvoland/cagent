@@ -25,7 +25,6 @@ func NewRunCmd() *cobra.Command {
 		RunE:  runAgentCommand,
 	}
 
-	cmd.PersistentFlags().StringVarP(&configFile, "config", "c", "agent.yaml", "Path to the configuration file")
 	cmd.PersistentFlags().StringVarP(&agentName, "agent", "a", "root", "Name of the agent to run")
 	cmd.PersistentFlags().BoolVarP(&debugMode, "debug", "d", false, "Enable debug logging")
 
@@ -47,7 +46,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 
 	logger.Debug("Starting agent", "agent", agentName, "debug_mode", debugMode)
 
-	agents, err := loader.Agents(ctx, configFile, logger)
+	agents, err := loader.Agents(ctx, args[0], logger)
 	if err != nil {
 		return err
 	}

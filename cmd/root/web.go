@@ -43,7 +43,6 @@ func NewWebCmd() *cobra.Command {
 		RunE:  runWebCommand,
 	}
 
-	cmd.PersistentFlags().StringVarP(&configFile, "config", "c", "agent.yaml", "Path to the configuration file")
 	cmd.PersistentFlags().StringVarP(&agentsDir, "agents-dir", "d", "", "Directory containing agent configurations")
 	cmd.PersistentFlags().StringVarP(&listenAddr, "listen", "l", ":8080", "Address to listen on")
 	cmd.PersistentFlags().BoolVar(&debugMode, "debug", false, "Enable debug logging")
@@ -107,7 +106,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 			}
 		}
 	} else {
-		t, err := loader.Agents(ctx, configFile, logger)
+		t, err := loader.Agents(ctx, args[0], logger)
 		if err != nil {
 			return err
 		}
@@ -118,7 +117,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		runtimes[filepath.Base(configFile)] = rt
+		runtimes[filepath.Base(args[0])] = rt
 	}
 
 	e := echo.New()

@@ -8,9 +8,8 @@ import (
 )
 
 var (
-	configFile string
-	agentName  string
-	debugMode  bool
+	agentName string
+	debugMode bool
 )
 
 // NewRootCmd creates the root command for cagent
