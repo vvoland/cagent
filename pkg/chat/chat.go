@@ -2,6 +2,15 @@ package chat
 
 import "github.com/rumpl/cagent/pkg/tools"
 
+type MessageRole string
+
+const (
+	MessageRoleSystem    MessageRole = "system"
+	MessageRoleUser      MessageRole = "user"
+	MessageRoleAssistant MessageRole = "assistant"
+	MessageRoleTool      MessageRole = "tool"
+)
+
 type MessagePartType string
 
 const (
@@ -23,9 +32,9 @@ type MessageImageURL struct {
 }
 
 type Message struct {
-	Role         string `json:"role"`
-	Content      string `json:"content,omitempty"`
-	Refusal      string `json:"refusal,omitempty"`
+	Role         MessageRole `json:"role"`
+	Content      string      `json:"content,omitempty"`
+	Refusal      string      `json:"refusal,omitempty"`
 	MultiContent []MessagePart
 
 	// This property isn't in the official documentation, but it's in

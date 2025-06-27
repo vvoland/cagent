@@ -144,7 +144,7 @@ func convertMessages(messages []chat.Message) []openai.ChatCompletionMessage {
 	for i := range messages {
 		msg := &messages[i]
 		openaiMessage := openai.ChatCompletionMessage{
-			Role: msg.Role,
+			Role: string(msg.Role),
 			Name: msg.Name,
 		}
 

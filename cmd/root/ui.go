@@ -551,7 +551,7 @@ func (m *model) handleUserInput() tea.Cmd {
 	m.sess.Messages = append(m.sess.Messages, session.AgentMessage{
 		Agent: m.rt.CurrentAgent(),
 		Message: chat.Message{
-			Role:    "user",
+			Role:    chat.MessageRoleUser,
 			Content: input,
 		},
 	})

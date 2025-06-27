@@ -40,7 +40,7 @@ type AgentMessage struct {
 func UserMessage(content string) AgentMessage {
 	return AgentMessage{
 		Message: chat.Message{
-			Role:    "user",
+			Role:    chat.MessageRoleUser,
 			Content: content,
 		},
 	}
@@ -98,21 +98,21 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 	}
 
 	messages = append(messages, chat.Message{
-		Role:    "system",
+		Role:    chat.MessageRoleSystem,
 		Content: a.Instruction() + "\n\n" + date,
 	})
 
 	for _, tool := range a.ToolImpls() {
 		if tool.Instructions() != "" {
 			messages = append(messages, chat.Message{
-				Role:    "system",
+				Role:    chat.MessageRoleSystem,
 				Content: tool.Instructions(),
 			})
 		}
 	}
 
 	for i := range s.Messages {
-		if s.Messages[i].Message.Role == "system" {
+		if s.Messages[i].Message.Role == chat.MessageRoleSystem {
 			continue
 		}
 
@@ -146,7 +146,7 @@ func trimMessages(messages []chat.Message) []chat.Message {
 	// Start from the beginning (oldest messages)
 	for i := range toRemove {
 		// If this is an assistant message with tool calls, mark them for removal
-		if messages[i].Role == "assistant" {
+		if messages[i].Role == chat.MessageRoleAssistant {
 			for _, toolCall := range messages[i].ToolCalls {
 				toolCallsToRemove[toolCall.ID] = true
 			}
@@ -159,7 +159,7 @@ func trimMessages(messages []chat.Message) []chat.Message {
 		msg := messages[i]
 
 		// Skip tool messages that correspond to removed assistant messages
-		if msg.Role == "tool" && toolCallsToRemove[msg.ToolCallID] {
+		if msg.Role == chat.MessageRoleTool && toolCallsToRemove[msg.ToolCallID] {
 			continue
 		}
 

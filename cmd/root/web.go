@@ -23,8 +23,8 @@ import (
 )
 
 type Message struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role    chat.MessageRole `json:"role"`
+	Content string           `json:"content"`
 }
 
 var (

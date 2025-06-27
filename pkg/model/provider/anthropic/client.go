@@ -42,7 +42,7 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 			{
 				Index: 0,
 				Delta: chat.MessageDelta{
-					Role: "assistant",
+					Role: string(chat.MessageRoleAssistant),
 				},
 			},
 		},
@@ -182,17 +182,17 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 
 	for i := range messages {
 		msg := &messages[i]
-		if msg.Role == "system" {
+		if msg.Role == chat.MessageRoleSystem {
 			// Convert system message to user message with system prefix
 			systemContent := "System: " + msg.Content
 			anthropicMessages = append(anthropicMessages, anthropic.NewAssistantMessage(anthropic.NewTextBlock(systemContent)))
 			continue
 		}
-		if msg.Role == "user" {
+		if msg.Role == chat.MessageRoleUser {
 			anthropicMessages = append(anthropicMessages, anthropic.NewUserMessage(anthropic.NewTextBlock(msg.Content)))
 			continue
 		}
-		if msg.Role == "assistant" {
+		if msg.Role == chat.MessageRoleAssistant {
 			if len(msg.ToolCalls) > 0 {
 				toolUseBlocks := make([]anthropic.ContentBlockParamUnion, len(msg.ToolCalls))
 				for j, toolCall := range msg.ToolCalls {
@@ -214,7 +214,7 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 			}
 			continue
 		}
-		if msg.Role == "tool" {
+		if msg.Role == chat.MessageRoleTool {
 			anthropicMessages = append(anthropicMessages, anthropic.NewUserMessage(anthropic.NewToolResultBlock(msg.ToolCallID, msg.Content, false)))
 			continue
 		}

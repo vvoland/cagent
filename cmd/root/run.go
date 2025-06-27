@@ -63,7 +63,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		sess.Messages = append(sess.Messages, session.AgentMessage{
 			Agent: agents.Get(agentName),
 			Message: chat.Message{
-				Role:    "user",
+				Role:    chat.MessageRoleUser,
 				Content: args[0],
 			},
 		})
@@ -100,7 +100,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		sess.Messages = append(sess.Messages, session.AgentMessage{
 			Agent: rt.CurrentAgent(),
 			Message: chat.Message{
-				Role:    "user",
+				Role:    chat.MessageRoleUser,
 				Content: userInput,
 			},
 		})

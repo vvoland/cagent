@@ -131,11 +131,11 @@ func convertMessages(messages []chat.Message) []openai.ChatCompletionMessage {
 	for i := range messages {
 		msg := &messages[i]
 		role := msg.Role
-		if role == "system" {
-			role = "user"
+		if role == chat.MessageRoleSystem {
+			role = chat.MessageRoleUser
 		}
 		openaiMessage := openai.ChatCompletionMessage{
-			Role: role,
+			Role: string(role),
 			Name: msg.Name,
 		}
 
@@ -178,7 +178,7 @@ func convertMessages(messages []chat.Message) []openai.ChatCompletionMessage {
 	for i := 0; i < len(openaiMessages); i++ {
 		currentMsg := openaiMessages[i]
 
-		if currentMsg.Role == "system" || currentMsg.Role == "user" {
+		if currentMsg.Role == string(chat.MessageRoleSystem) || currentMsg.Role == string(chat.MessageRoleUser) {
 			var mergedContent string
 			var mergedMultiContent []openai.ChatMessagePart
 			j := i

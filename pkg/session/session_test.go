@@ -17,7 +17,7 @@ func TestTrimMessages(t *testing.T) {
 	// Fill with some basic messages
 	for i := range messages {
 		messages[i] = chat.Message{
-			Role:    "user",
+			Role:    chat.MessageRoleUser,
 			Content: "message",
 		}
 	}
@@ -30,11 +30,11 @@ func TestTrimMessages(t *testing.T) {
 func TestTrimMessagesWithToolCalls(t *testing.T) {
 	messages := []chat.Message{
 		{
-			Role:    "user",
+			Role:    chat.MessageRoleUser,
 			Content: "first message",
 		},
 		{
-			Role:    "assistant",
+			Role:    chat.MessageRoleAssistant,
 			Content: "response with tool",
 			ToolCalls: []tools.ToolCall{
 				{
@@ -43,16 +43,16 @@ func TestTrimMessagesWithToolCalls(t *testing.T) {
 			},
 		},
 		{
-			Role:       "tool",
+			Role:       chat.MessageRoleTool,
 			Content:    "tool result",
 			ToolCallID: "tool1",
 		},
 		{
-			Role:    "user",
+			Role:    chat.MessageRoleUser,
 			Content: "second message",
 		},
 		{
-			Role:    "assistant",
+			Role:    chat.MessageRoleAssistant,
 			Content: "another response",
 			ToolCalls: []tools.ToolCall{
 				{
@@ -61,7 +61,7 @@ func TestTrimMessagesWithToolCalls(t *testing.T) {
 			},
 		},
 		{
-			Role:       "tool",
+			Role:       chat.MessageRoleTool,
 			Content:    "tool result 2",
 			ToolCallID: "tool2",
 		},
@@ -80,12 +80,12 @@ func TestTrimMessagesWithToolCalls(t *testing.T) {
 	// Verify we don't have any orphaned tool results
 	toolCalls := make(map[string]bool)
 	for _, msg := range result {
-		if msg.Role == "assistant" {
+		if msg.Role == chat.MessageRoleAssistant {
 			for _, tool := range msg.ToolCalls {
 				toolCalls[tool.ID] = true
 			}
 		}
-		if msg.Role == "tool" {
+		if msg.Role == chat.MessageRoleTool {
 			assert.True(t, toolCalls[msg.ToolCallID], "tool result should have corresponding assistant message")
 		}
 	}
@@ -103,7 +103,7 @@ func TestGetMessages(t *testing.T) {
 		s.Messages = append(s.Messages, AgentMessage{
 			Agent: testAgent,
 			Message: chat.Message{
-				Role:    "user",
+				Role:    chat.MessageRoleUser,
 				Content: "test message",
 			},
 		})
@@ -127,7 +127,7 @@ func TestGetMessagesWithToolCalls(t *testing.T) {
 	s.Messages = append(s.Messages, AgentMessage{
 		Agent: testAgent,
 		Message: chat.Message{
-			Role:    "user",
+			Role:    chat.MessageRoleUser,
 			Content: "test message",
 		},
 	})
@@ -135,7 +135,7 @@ func TestGetMessagesWithToolCalls(t *testing.T) {
 	s.Messages = append(s.Messages, AgentMessage{
 		Agent: testAgent,
 		Message: chat.Message{
-			Role:    "assistant",
+			Role:    chat.MessageRoleAssistant,
 			Content: "using tool",
 			ToolCalls: []tools.ToolCall{
 				{
@@ -148,7 +148,7 @@ func TestGetMessagesWithToolCalls(t *testing.T) {
 	s.Messages = append(s.Messages, AgentMessage{
 		Agent: testAgent,
 		Message: chat.Message{
-			Role:       "tool",
+			Role:       chat.MessageRoleTool,
 			ToolCallID: "test-tool",
 			Content:    "tool result",
 		},
@@ -164,12 +164,12 @@ func TestGetMessagesWithToolCalls(t *testing.T) {
 	// Verify tool call consistency
 	toolCalls := make(map[string]bool)
 	for _, msg := range messages {
-		if msg.Role == "assistant" {
+		if msg.Role == chat.MessageRoleAssistant {
 			for _, tool := range msg.ToolCalls {
 				toolCalls[tool.ID] = true
 			}
 		}
-		if msg.Role == "tool" {
+		if msg.Role == chat.MessageRoleTool {
 			assert.True(t, toolCalls[msg.ToolCallID], "tool result should have corresponding assistant message")
 		}
 	}

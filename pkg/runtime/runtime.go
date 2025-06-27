@@ -98,7 +98,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 
 			// Add assistant message to conversation history
 			assistantMessage := chat.Message{
-				Role:      "assistant",
+				Role:      chat.MessageRoleAssistant,
 				Content:   content,
 				ToolCalls: calls,
 			}
@@ -145,7 +145,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 							r.logger.Debug("Tool executed successfully", "tool", toolCall.Function.Name)
 						}
 						toolResponseMsg := chat.Message{
-							Role:       "tool",
+							Role:       chat.MessageRoleTool,
 							Content:    res,
 							ToolCallID: toolCall.ID,
 						}
@@ -179,7 +179,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 						}
 
 						toolResponseMsg := chat.Message{
-							Role:       "tool",
+							Role:       chat.MessageRoleTool,
 							Content:    res.Output,
 							ToolCallID: toolCall.ID,
 						}
@@ -303,7 +303,7 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, a *agent.Agent, sess *
 	s.Messages = append(s.Messages, session.AgentMessage{
 		Agent: a,
 		Message: chat.Message{
-			Role:    "user",
+			Role:    chat.MessageRoleUser,
 			Content: params.Task,
 		},
 	})

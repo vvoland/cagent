@@ -75,7 +75,7 @@ func NewInitCmd() *cobra.Command {
 
 			stream, err := llm.CreateChatCompletionStream(context.Background(), []chat.Message{
 				{
-					Role:    "user",
+					Role:    chat.MessageRoleUser,
 					Content: prompt,
 				},
 			}, nil)
