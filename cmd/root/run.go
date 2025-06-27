@@ -58,24 +58,6 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 
 	sess := session.New(logger)
 
-	if len(args) > 0 {
-		sess.Messages = append(sess.Messages, session.AgentMessage{
-			Agent: agents.Get(agentName),
-			Message: chat.Message{
-				Role:    chat.MessageRoleUser,
-				Content: args[0],
-			},
-		})
-
-		response, err := rt.Run(ctx, sess)
-		if err != nil {
-			return err
-		}
-
-		fmt.Println(response[len(response)-1].Message.Content)
-		return nil
-	}
-
 	scanner := bufio.NewScanner(os.Stdin)
 
 	blue := color.New(color.FgBlue).SprintfFunc()
