@@ -40,35 +40,19 @@ func NewInitCmd() *cobra.Command {
 			}
 			description = strings.TrimSpace(description)
 
-			fmt.Print("Toolsets (comma separated, e.g. bash,task) [optional]: ")
-			toolsetsInput, err := reader.ReadString('\n')
-			if err != nil {
-				return fmt.Errorf("failed to read toolsets: %w", err)
-			}
-			toolsetsInput = strings.TrimSpace(toolsetsInput)
-			var toolsets []config.Toolset
-			if toolsetsInput != "" {
-				for _, t := range strings.Split(toolsetsInput, ",") {
-					name := strings.TrimSpace(t)
-					if name != "" {
-						toolsets = append(toolsets, config.Toolset{Type: name})
-					}
-				}
-			}
-
-			fmt.Print("Enable memory? (y/n) [optional]: ")
-			memoryInput, err := reader.ReadString('\n')
-			if err != nil {
-				return fmt.Errorf("failed to read memory: %w", err)
-			}
-			memory := strings.ToLower(strings.TrimSpace(memoryInput)) == "y"
-
 			fmt.Print("Enable todo tracking? (y/n) [optional]: ")
 			todoInput, err := reader.ReadString('\n')
 			if err != nil {
 				return fmt.Errorf("failed to read todo: %w", err)
 			}
 			todo := strings.ToLower(strings.TrimSpace(todoInput)) == "y"
+
+			fmt.Print("Enable thinking? (y/n) [optional]: ")
+			thinkInput, err := reader.ReadString('\n')
+			if err != nil {
+				return fmt.Errorf("failed to read think: %w", err)
+			}
+			think := strings.ToLower(strings.TrimSpace(thinkInput)) == "y"
 
 			fmt.Print("Enable date awareness? (y/n) [optional]: ")
 			dateInput, err := reader.ReadString('\n')
@@ -112,7 +96,6 @@ func NewInitCmd() *cobra.Command {
 
 				for _, choice := range response.Choices {
 					instructionBuilder.WriteString(choice.Delta.Content)
-					fmt.Print(choice.Delta.Content)
 				}
 			}
 
@@ -125,9 +108,8 @@ func NewInitCmd() *cobra.Command {
 				Model:       "anthropic",
 				Description: description,
 				Instruction: instruction,
-				Toolsets:    toolsets,
-				Memory:      memory,
 				Todo:        todo,
+				Think:       think,
 				AddDate:     addDate,
 			}
 			agents := map[string]config.AgentConfig{
