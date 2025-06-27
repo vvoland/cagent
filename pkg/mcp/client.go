@@ -17,6 +17,9 @@ type Client struct {
 	client *client.Client
 	tools  []tools.Tool
 	logger *slog.Logger
+
+	command string
+	args    []string
 }
 
 // New creates a new MCP client that can start an stdio MCP server
@@ -31,22 +34,24 @@ func New(ctx context.Context, command string, args, env []string, logger *slog.L
 
 	logger.Debug("Created MCP stdio client successfully")
 	return &Client{
-		client: mcpClient,
-		tools:  []tools.Tool{},
-		logger: logger,
+		client:  mcpClient,
+		tools:   []tools.Tool{},
+		logger:  logger,
+		command: command,
+		args:    args,
 	}, nil
 }
 
 // Start initializes and starts the MCP server connection
 func (c *Client) Start(ctx context.Context) error {
-	c.logger.Debug("Starting MCP client")
+	c.logger.Debug("Starting MCP client", "command", c.command, "args", c.args)
 
 	if err := c.client.Start(ctx); err != nil {
 		c.logger.Error("Failed to start MCP client", "error", err)
 		return fmt.Errorf("failed to start MCP client: %w", err)
 	}
 
-	c.logger.Debug("Initializing MCP client")
+	c.logger.Debug("Initializing MCP client", "command", c.command, "args", c.args)
 	initRequest := mcp.InitializeRequest{}
 	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
 	initRequest.Params.ClientInfo = mcp.Implementation{
