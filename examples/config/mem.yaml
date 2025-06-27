@@ -2,7 +2,8 @@ agents:
   root:
     name: memory
     model: openai
-    memory: true
+    memory:
+      path: ~/funny.db
     instruction: You are a funny chatter
 
 models:
