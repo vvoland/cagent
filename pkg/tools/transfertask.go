@@ -4,18 +4,18 @@ import (
 	"context"
 )
 
-type TaskTool struct {
+type TransferTaskTool struct {
 }
 
-func NewTaskTool() *TaskTool {
-	return &TaskTool{}
+func NewTransferTaskTool() *TransferTaskTool {
+	return &TransferTaskTool{}
 }
 
-func (t *TaskTool) Instructions() string {
+func (t *TransferTaskTool) Instructions() string {
 	return ""
 }
 
-func (t *TaskTool) Tools(ctx context.Context) ([]Tool, error) {
+func (t *TransferTaskTool) Tools(ctx context.Context) ([]Tool, error) {
 	return []Tool{
 		{
 			Function: &FunctionDefinition{
@@ -42,10 +42,10 @@ func (t *TaskTool) Tools(ctx context.Context) ([]Tool, error) {
 	}, nil
 }
 
-func (t *TaskTool) Start(ctx context.Context) error {
+func (t *TransferTaskTool) Start(ctx context.Context) error {
 	return nil
 }
 
-func (t *TaskTool) Stop() error {
+func (t *TransferTaskTool) Stop() error {
 	return nil
 }

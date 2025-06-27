@@ -37,7 +37,7 @@ func main() {
 			"You are a human, with feelings and emotions.",
 			agent.WithModel(llm),
 			agent.WithSubAgents([]*agent.Agent{child}),
-			agent.WithToolSets([]tools.ToolSet{&tools.TaskTool{}}),
+			agent.WithToolSets([]tools.ToolSet{&tools.TransferTaskTool{}}),
 		),
 		"child": child,
 	})

@@ -90,7 +90,7 @@ func getToolsForAgent(ctx context.Context, a *config.AgentConfig, logger *slog.L
 	var t []tools.ToolSet
 
 	if len(a.SubAgents) > 0 {
-		t = append(t, tools.NewTaskTool())
+		t = append(t, tools.NewTransferTaskTool())
 	}
 
 	if a.Think {
