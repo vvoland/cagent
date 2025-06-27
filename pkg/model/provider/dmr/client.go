@@ -23,7 +23,6 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		return chat.MessageStreamResponse{}, err
 	}
 
-	// Convert the DMR response to our generic format
 	response := chat.MessageStreamResponse{
 		ID:      openaiResponse.ID,
 		Object:  openaiResponse.Object,
@@ -32,7 +31,6 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		Choices: make([]chat.MessageStreamChoice, len(openaiResponse.Choices)),
 	}
 
-	// Convert the choices
 	for i := range openaiResponse.Choices {
 		choice := &openaiResponse.Choices[i]
 		response.Choices[i] = chat.MessageStreamChoice{
@@ -44,7 +42,6 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 			},
 		}
 
-		// Convert function call if present
 		if choice.Delta.FunctionCall != nil {
 			response.Choices[i].Delta.FunctionCall = &tools.FunctionCall{
 				Name:      choice.Delta.FunctionCall.Name,
@@ -52,7 +49,6 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 			}
 		}
 
-		// Convert tool calls if present
 		if len(choice.Delta.ToolCalls) > 0 {
 			response.Choices[i].Delta.ToolCalls = make([]tools.ToolCall, len(choice.Delta.ToolCalls))
 			for j, toolCall := range choice.Delta.ToolCalls {
@@ -101,7 +97,6 @@ func NewClient(cfg *config.ModelConfig) (*Client, error) {
 	clientConfig := openai.DefaultConfig("")
 	clientConfig.BaseURL = cfg.BaseURL
 
-	// Create the DMR client
 	client := openai.NewClientWithConfig(clientConfig)
 
 	return &Client{
@@ -131,13 +126,16 @@ func convertMultiContent(multiContent []chat.MessagePart) []openai.ChatMessagePa
 	return openaiMultiContent
 }
 
-// convertMessages converts chat.ChatCompletionMessage to openai.ChatCompletionMessage
 func convertMessages(messages []chat.Message) []openai.ChatCompletionMessage {
 	openaiMessages := make([]openai.ChatCompletionMessage, len(messages))
 	for i := range messages {
 		msg := &messages[i]
+		role := msg.Role
+		if role == "system" {
+			role = "user"
+		}
 		openaiMessage := openai.ChatCompletionMessage{
-			Role: msg.Role,
+			Role: role,
 			Name: msg.Name,
 		}
 
@@ -174,7 +172,50 @@ func convertMessages(messages []chat.Message) []openai.ChatCompletionMessage {
 
 		openaiMessages[i] = openaiMessage
 	}
-	return openaiMessages
+
+	var mergedMessages []openai.ChatCompletionMessage
+
+	for i := 0; i < len(openaiMessages); i++ {
+		currentMsg := openaiMessages[i]
+
+		if currentMsg.Role == "system" || currentMsg.Role == "user" {
+			var mergedContent string
+			var mergedMultiContent []openai.ChatMessagePart
+			j := i
+
+			for j < len(openaiMessages) && openaiMessages[j].Role == currentMsg.Role {
+				msgToMerge := openaiMessages[j]
+
+				if len(msgToMerge.MultiContent) == 0 {
+					if mergedContent != "" {
+						mergedContent += "\n"
+					}
+					mergedContent += msgToMerge.Content
+				} else {
+					mergedMultiContent = append(mergedMultiContent, msgToMerge.MultiContent...)
+				}
+				j++
+			}
+
+			mergedMessage := openai.ChatCompletionMessage{
+				Role: currentMsg.Role,
+			}
+
+			if len(mergedMultiContent) == 0 {
+				mergedMessage.Content = mergedContent
+			} else {
+				mergedMessage.MultiContent = mergedMultiContent
+			}
+
+			mergedMessages = append(mergedMessages, mergedMessage)
+
+			i = j - 1
+		} else {
+			mergedMessages = append(mergedMessages, currentMsg)
+		}
+	}
+
+	return mergedMessages
 }
 
 // CreateChatCompletionStream creates a streaming chat completion request
