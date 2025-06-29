@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"github.com/rumpl/cagent/pkg/runtime"
 	"github.com/rumpl/cagent/pkg/session"
 	"github.com/rumpl/cagent/pkg/team"
+	"github.com/rumpl/cagent/web"
 	"github.com/spf13/cobra"
 )
 
@@ -124,7 +126,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 	sessions := make(map[string]*session.Session)
 
 	// List all available agents
-	e.GET("/agents", func(c echo.Context) error {
+	e.GET("/api/agents", func(c echo.Context) error {
 		agentList := make([]map[string]string, 0)
 		for name, agent := range runtimes {
 			agentList = append(agentList, map[string]string{
@@ -135,18 +137,18 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 		return c.JSON(http.StatusOK, agentList)
 	})
 
-	e.GET("/sessions", func(c echo.Context) error {
+	e.GET("/api/sessions", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, sessions)
 	})
 
 	// TODO: remove the :agent from the path, it's not needed to create a session
-	e.POST("/sessions/:agent", func(c echo.Context) error {
+	e.POST("/api/sessions/:agent", func(c echo.Context) error {
 		sess := session.New(logger)
 		sessions[sess.ID] = sess
 		return c.JSON(http.StatusOK, sess)
 	})
 
-	e.POST("/sessions/:id/agent/:agent", func(c echo.Context) error {
+	e.POST("/api/sessions/:id/agent/:agent", func(c echo.Context) error {
 		agentName := c.Param("agent")
 
 		rt, exists := runtimes[agentName]
@@ -188,6 +190,14 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 
 		return nil
 	})
+
+	// Serve the web content
+	fsys, err := fs.Sub(web.WebContent, "dist")
+	if err != nil {
+		return err
+	}
+	assetHandler := http.FileServer(http.FS(fsys))
+	e.GET("/*", echo.WrapHandler(assetHandler))
 
 	return e.Start(listenAddr)
 }

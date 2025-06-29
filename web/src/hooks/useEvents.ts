@@ -81,7 +81,7 @@ export const useEvents = (
 
     try {
       const response = await fetch(
-        `/sessions/${sessionId}/agent/${selectedAgent}`,
+        `/api/sessions/${sessionId}/agent/${selectedAgent}`,
         {
           method: "POST",
           headers: {

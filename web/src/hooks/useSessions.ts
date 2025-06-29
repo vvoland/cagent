@@ -7,7 +7,7 @@ export const useSessions = () => {
 
   const fetchSessions = useCallback(async () => {
     try {
-      const response = await fetch("/sessions");
+      const response = await fetch("/api/sessions");
       const data = (await response.json()) as SessionsMap;
       setSessions(data);
       if (Object.keys(data).length > 0 && !currentSessionId) {
@@ -26,7 +26,7 @@ export const useSessions = () => {
 
   const createNewSession = async (agent: string) => {
     try {
-      const response = await fetch(`/sessions/${agent}`, {
+      const response = await fetch(`/api/sessions/${agent}`, {
         method: "POST",
       });
       const newSession = await response.json();

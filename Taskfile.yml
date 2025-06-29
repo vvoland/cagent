@@ -12,6 +12,7 @@ tasks:
 
   build:
     desc: Build the application binary
+    deps: [build-web]
     cmds:
       - mkdir -p {{.BUILD_DIR}}
       - go build -o {{.BUILD_DIR}}/{{.BINARY_NAME}} {{.MAIN_PKG}}
@@ -19,8 +20,22 @@ tasks:
       - "**/*.go"
       - "go.mod"
       - "go.sum"
+      - "web/**/*.js"
+      - "web/**/*.ts"
+      - "web/**/*.tsx"
+      - "web/**/*.css"
     generates:
       - "{{.BUILD_DIR}}/{{.BINARY_NAME}}"
+
+  build-web:
+    desc: Build the frontend app
+    cmds:
+      - cd web && npm run build
+    sources:
+      - "web/**/*.js"
+      - "web/**/*.ts"
+      - "web/**/*.tsx"
+      - "web/**/*.css"
 
   link:
     desc: Creates a symlink to ~/bin

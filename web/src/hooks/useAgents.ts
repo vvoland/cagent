@@ -13,7 +13,7 @@ export const useAgents = () => {
   useEffect(() => {
     const fetchAgents = async () => {
       try {
-        const response = await fetch("/agents");
+        const response = await fetch("/api/agents");
         const data = await response.json();
         setAgents(data);
         if (data.length > 0) {
