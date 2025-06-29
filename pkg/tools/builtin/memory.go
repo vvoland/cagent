@@ -1,4 +1,4 @@
-package tools
+package builtin
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/rumpl/cagent/pkg/memory/database"
 	"github.com/rumpl/cagent/pkg/memorymanager"
+	"github.com/rumpl/cagent/pkg/tools"
 )
 
 type MemoryTool struct {
@@ -30,13 +31,13 @@ Do not talk about using the tool, just use it.
 - Use the memory tool generously to remember things about the user.`
 }
 
-func (t *MemoryTool) Tools(ctx context.Context) ([]Tool, error) {
-	return []Tool{
+func (t *MemoryTool) Tools(ctx context.Context) ([]tools.Tool, error) {
+	return []tools.Tool{
 		{
-			Function: &FunctionDefinition{
+			Function: &tools.FunctionDefinition{
 				Name:        "add_memory",
 				Description: "Add a new memory to the database",
-				Parameters: FunctionParamaters{
+				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
 						"memory": map[string]any{
@@ -50,10 +51,10 @@ func (t *MemoryTool) Tools(ctx context.Context) ([]Tool, error) {
 			Handler: t.handleAddMemory,
 		},
 		{
-			Function: &FunctionDefinition{
+			Function: &tools.FunctionDefinition{
 				Name:        "get_memories",
 				Description: "Retrieve all stored memories",
-				Parameters: FunctionParamaters{
+				Parameters: tools.FunctionParamaters{
 					Type:       "object",
 					Properties: map[string]any{},
 				},
@@ -61,10 +62,10 @@ func (t *MemoryTool) Tools(ctx context.Context) ([]Tool, error) {
 			Handler: t.handleGetMemories,
 		},
 		{
-			Function: &FunctionDefinition{
+			Function: &tools.FunctionDefinition{
 				Name:        "delete_memory",
 				Description: "Delete a specific memory by ID",
-				Parameters: FunctionParamaters{
+				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
 						"id": map[string]any{
@@ -80,7 +81,7 @@ func (t *MemoryTool) Tools(ctx context.Context) ([]Tool, error) {
 	}, nil
 }
 
-func (t *MemoryTool) handleAddMemory(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error) {
+func (t *MemoryTool) handleAddMemory(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args struct {
 		Memory string `json:"memory"`
 	}
@@ -98,12 +99,12 @@ func (t *MemoryTool) handleAddMemory(ctx context.Context, toolCall ToolCall) (*T
 		return nil, fmt.Errorf("failed to add memory: %w", err)
 	}
 
-	return &ToolCallResult{
+	return &tools.ToolCallResult{
 		Output: fmt.Sprintf("Memory added successfully with ID: %s", memory.ID),
 	}, nil
 }
 
-func (t *MemoryTool) handleGetMemories(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error) {
+func (t *MemoryTool) handleGetMemories(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	memories, err := t.manager.GetMemories(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get memories: %w", err)
@@ -114,12 +115,12 @@ func (t *MemoryTool) handleGetMemories(ctx context.Context, toolCall ToolCall) (
 		return nil, fmt.Errorf("failed to marshal memories: %w", err)
 	}
 
-	return &ToolCallResult{
+	return &tools.ToolCallResult{
 		Output: string(result),
 	}, nil
 }
 
-func (t *MemoryTool) handleDeleteMemory(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error) {
+func (t *MemoryTool) handleDeleteMemory(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args struct {
 		ID string `json:"id"`
 	}
@@ -135,7 +136,7 @@ func (t *MemoryTool) handleDeleteMemory(ctx context.Context, toolCall ToolCall) 
 		return nil, fmt.Errorf("failed to delete memory: %w", err)
 	}
 
-	return &ToolCallResult{
+	return &tools.ToolCallResult{
 		Output: fmt.Sprintf("Memory with ID %s deleted successfully", args.ID),
 	}, nil
 }

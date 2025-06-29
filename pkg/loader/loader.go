@@ -12,6 +12,7 @@ import (
 	"github.com/rumpl/cagent/pkg/model/provider"
 	"github.com/rumpl/cagent/pkg/team"
 	"github.com/rumpl/cagent/pkg/tools"
+	"github.com/rumpl/cagent/pkg/tools/builtin"
 	"github.com/rumpl/cagent/pkg/tools/mcp"
 )
 
@@ -56,7 +57,7 @@ func Load(ctx context.Context, path string, logger *slog.Logger) (*team.Team, er
 			}
 			mm := memory.NewManager(db, model)
 			opts = append(opts, agent.WithMemoryManager(mm))
-			agentTools = append(agentTools, tools.NewMemoryTool(mm))
+			agentTools = append(agentTools, builtin.NewMemoryTool(mm))
 		}
 
 		opts = append(opts, agent.WithToolSets(agentTools))
@@ -88,22 +89,22 @@ func getToolsForAgent(ctx context.Context, a *config.AgentConfig, logger *slog.L
 	var t []tools.ToolSet
 
 	if len(a.SubAgents) > 0 {
-		t = append(t, tools.NewTransferTaskTool())
+		t = append(t, builtin.NewTransferTaskTool())
 	}
 
 	if a.Think {
-		t = append(t, tools.NewThinkTool())
+		t = append(t, builtin.NewThinkTool())
 	}
 
 	if a.Todo {
-		t = append(t, tools.NewTodoTool())
+		t = append(t, builtin.NewTodoTool())
 	}
 
 	toolsets := a.Toolsets
 	for _, toolset := range toolsets {
 		// TODO: we will have more builtin tools in the future
 		if toolset.Type == "builtin" {
-			t = append(t, tools.NewBashTool())
+			t = append(t, builtin.NewBashTool())
 		}
 		if toolset.Type != "mcp" {
 			continue

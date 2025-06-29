@@ -1,10 +1,12 @@
-package tools
+package builtin
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/rumpl/cagent/pkg/tools"
 )
 
 type ThinkTool struct {
@@ -15,7 +17,7 @@ type thinkHandler struct {
 	thoughts []string
 }
 
-func (h *thinkHandler) CallTool(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error) {
+func (h *thinkHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var params struct {
 		Thought string `json:"thought"`
 	}
@@ -25,7 +27,7 @@ func (h *thinkHandler) CallTool(ctx context.Context, toolCall ToolCall) (*ToolCa
 	}
 
 	h.thoughts = append(h.thoughts, params.Thought)
-	return &ToolCallResult{
+	return &tools.ToolCallResult{
 		Output: "Thoughts:\n" + strings.Join(h.thoughts, "\n"),
 	}, nil
 }
@@ -48,13 +50,13 @@ func (t *ThinkTool) Instructions() string {
             - Use the think tool generously to jot down thoughts and ideas.`
 }
 
-func (t *ThinkTool) Tools(ctx context.Context) ([]Tool, error) {
-	return []Tool{
+func (t *ThinkTool) Tools(ctx context.Context) ([]tools.Tool, error) {
+	return []tools.Tool{
 		{
-			Function: &FunctionDefinition{
+			Function: &tools.FunctionDefinition{
 				Name:        "think",
 				Description: "Use the tool to think about something. It will not obtain new information or change the database, but just append the thought to the log. Use it when complex reasoning or some cache memory is needed.",
-				Parameters: FunctionParamaters{
+				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
 						"thought": map[string]any{

@@ -13,6 +13,7 @@ import (
 	"github.com/rumpl/cagent/pkg/session"
 	"github.com/rumpl/cagent/pkg/team"
 	"github.com/rumpl/cagent/pkg/tools"
+	"github.com/rumpl/cagent/pkg/tools/builtin"
 )
 
 func main() {
@@ -31,7 +32,7 @@ func main() {
 		"root": agent.New("root",
 			"You are an expert hacker",
 			agent.WithModel(llm),
-			agent.WithToolSets([]tools.ToolSet{tools.NewBashTool()}),
+			agent.WithToolSets([]tools.ToolSet{builtin.NewBashTool()}),
 		),
 	})
 

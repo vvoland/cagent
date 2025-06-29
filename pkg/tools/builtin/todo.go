@@ -1,10 +1,12 @@
-package tools
+package builtin
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/rumpl/cagent/pkg/tools"
 )
 
 type TodoTool struct {
@@ -49,7 +51,7 @@ func (t *TodoTool) Instructions() string {
             This toolset is REQUIRED for maintaining task state and ensuring all steps are completed.`
 }
 
-func (h *todoHandler) createTodo(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error) {
+func (h *todoHandler) createTodo(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var params struct {
 		Description string `json:"description"`
 	}
@@ -66,12 +68,12 @@ func (h *todoHandler) createTodo(ctx context.Context, toolCall ToolCall) (*ToolC
 	}
 	h.todos[id] = todo
 
-	return &ToolCallResult{
+	return &tools.ToolCallResult{
 		Output: fmt.Sprintf("Created todo %s: %s", id, params.Description),
 	}, nil
 }
 
-func (h *todoHandler) createTodos(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error) {
+func (h *todoHandler) createTodos(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var params struct {
 		Todos []Todo `json:"todos"`
 	}
@@ -92,12 +94,12 @@ func (h *todoHandler) createTodos(ctx context.Context, toolCall ToolCall) (*Tool
 		ids = append(ids, id)
 	}
 
-	return &ToolCallResult{
+	return &tools.ToolCallResult{
 		Output: fmt.Sprintf("Created %d todos:\n%s", len(params.Todos), strings.Join(ids, "\n")),
 	}, nil
 }
 
-func (h *todoHandler) updateTodo(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error) {
+func (h *todoHandler) updateTodo(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var params struct {
 		ID     string `json:"id"`
 		Status string `json:"status"`
@@ -115,12 +117,12 @@ func (h *todoHandler) updateTodo(ctx context.Context, toolCall ToolCall) (*ToolC
 	todo.Status = params.Status
 	h.todos[params.ID] = todo
 
-	return &ToolCallResult{
+	return &tools.ToolCallResult{
 		Output: fmt.Sprintf("Updated todo %s status to: %s", params.ID, params.Status),
 	}, nil
 }
 
-func (h *todoHandler) listTodos(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error) {
+func (h *todoHandler) listTodos(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var output strings.Builder
 	output.WriteString("Current todos:\n")
 
@@ -129,18 +131,18 @@ func (h *todoHandler) listTodos(ctx context.Context, toolCall ToolCall) (*ToolCa
 			todo.ID, todo.Description, todo.Status))
 	}
 
-	return &ToolCallResult{
+	return &tools.ToolCallResult{
 		Output: output.String(),
 	}, nil
 }
 
-func (t *TodoTool) Tools(ctx context.Context) ([]Tool, error) {
-	return []Tool{
+func (t *TodoTool) Tools(ctx context.Context) ([]tools.Tool, error) {
+	return []tools.Tool{
 		{
-			Function: &FunctionDefinition{
+			Function: &tools.FunctionDefinition{
 				Name:        "create_todo",
 				Description: "Create a new todo item with a description",
-				Parameters: FunctionParamaters{
+				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
 						"description": map[string]any{
@@ -154,10 +156,10 @@ func (t *TodoTool) Tools(ctx context.Context) ([]Tool, error) {
 			Handler: t.handler.createTodo,
 		},
 		{
-			Function: &FunctionDefinition{
+			Function: &tools.FunctionDefinition{
 				Name:        "create_todos",
 				Description: "Create a list of new todo items with descriptions",
-				Parameters: FunctionParamaters{
+				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
 						"todos": map[string]any{
@@ -180,10 +182,10 @@ func (t *TodoTool) Tools(ctx context.Context) ([]Tool, error) {
 			Handler: t.handler.createTodos,
 		},
 		{
-			Function: &FunctionDefinition{
+			Function: &tools.FunctionDefinition{
 				Name:        "update_todo",
 				Description: "Update the status of a todo item",
-				Parameters: FunctionParamaters{
+				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
 						"id": map[string]any{
@@ -201,7 +203,7 @@ func (t *TodoTool) Tools(ctx context.Context) ([]Tool, error) {
 			Handler: t.handler.updateTodo,
 		},
 		{
-			Function: &FunctionDefinition{
+			Function: &tools.FunctionDefinition{
 				Name:        "list_todos",
 				Description: "List all current todos with their status",
 			},

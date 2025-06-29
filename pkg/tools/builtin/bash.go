@@ -1,4 +1,4 @@
-package tools
+package builtin
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+
+	"github.com/rumpl/cagent/pkg/tools"
 )
 
 type BashTool struct {
@@ -16,7 +18,7 @@ type bashHandler struct {
 	shell string
 }
 
-func (h *bashHandler) CallTool(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error) {
+func (h *bashHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var params struct {
 		Cmd string `json:"cmd"`
 		Cwd string `json:"cwd"`
@@ -36,12 +38,12 @@ func (h *bashHandler) CallTool(ctx context.Context, toolCall ToolCall) (*ToolCal
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return &ToolCallResult{
+		return &tools.ToolCallResult{
 			Output: fmt.Sprintf("Error executing command: %s\nOutput: %s", err, string(output)),
 		}, nil
 	}
 
-	return &ToolCallResult{
+	return &tools.ToolCallResult{
 		Output: fmt.Sprintf("Output: %s", string(output)),
 	}, nil
 }
@@ -63,10 +65,10 @@ func (t *BashTool) Instructions() string {
 	return ""
 }
 
-func (t *BashTool) Tools(ctx context.Context) ([]Tool, error) {
-	return []Tool{
+func (t *BashTool) Tools(ctx context.Context) ([]tools.Tool, error) {
+	return []tools.Tool{
 		{
-			Function: &FunctionDefinition{
+			Function: &tools.FunctionDefinition{
 				Name: "bash",
 				Description: `Executes the given shell command in the user's default shell.
 
@@ -130,7 +132,7 @@ assistant: [uses Bash to 'git add' the unstaged changes from the 'git status' ou
 ## Prefer specific tools
 
 It's VERY IMPORTANT to use specific tools when searching for files, instead of issuing terminal commands with find/grep/ripgrep. Use codebase_search or Grep instead. Use read_file tool rather than cat, and edit_file rather than sed.`,
-				Parameters: FunctionParamaters{
+				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
 						"cmd": map[string]any{

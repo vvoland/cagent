@@ -1,7 +1,9 @@
-package tools
+package builtin
 
 import (
 	"context"
+
+	"github.com/rumpl/cagent/pkg/tools"
 )
 
 type TransferTaskTool struct {
@@ -15,15 +17,15 @@ func (t *TransferTaskTool) Instructions() string {
 	return ""
 }
 
-func (t *TransferTaskTool) Tools(ctx context.Context) ([]Tool, error) {
-	return []Tool{
+func (t *TransferTaskTool) Tools(ctx context.Context) ([]tools.Tool, error) {
+	return []tools.Tool{
 		{
-			Function: &FunctionDefinition{
+			Function: &tools.FunctionDefinition{
 				Name: "transfer_task",
 				Description: `Use this function to transfer a task to the selected team member.
             You must provide a clear and concise description of the task the member should achieve AND the expected output.
 `,
-				Parameters: FunctionParamaters{
+				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
 						"agent": map[string]any{

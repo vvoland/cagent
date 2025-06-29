@@ -1,4 +1,4 @@
-package tools
+package builtin
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rumpl/cagent/pkg/memory/database"
+	"github.com/rumpl/cagent/pkg/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -52,15 +53,15 @@ func TestMemoryTool_Tools(t *testing.T) {
 	manager := new(MockMemoryManager)
 	tool := NewMemoryTool(manager)
 
-	tools, err := tool.Tools(context.Background())
+	tls, err := tool.Tools(context.Background())
 
 	assert.NoError(t, err)
-	assert.Len(t, tools, 3)
+	assert.Len(t, tls, 3)
 
 	// Verify tool functions
-	assert.Equal(t, "add_memory", tools[0].Function.Name)
-	assert.Equal(t, "get_memories", tools[1].Function.Name)
-	assert.Equal(t, "delete_memory", tools[2].Function.Name)
+	assert.Equal(t, "add_memory", tls[0].Function.Name)
+	assert.Equal(t, "get_memories", tls[1].Function.Name)
+	assert.Equal(t, "delete_memory", tls[2].Function.Name)
 }
 
 func TestMemoryTool_HandleAddMemory(t *testing.T) {
@@ -80,8 +81,8 @@ func TestMemoryTool_HandleAddMemory(t *testing.T) {
 	}
 	argsBytes, _ := json.Marshal(args)
 
-	toolCall := ToolCall{
-		Function: FunctionCall{
+	toolCall := tools.ToolCall{
+		Function: tools.FunctionCall{
 			Name:      "add_memory",
 			Arguments: string(argsBytes),
 		},
@@ -116,8 +117,8 @@ func TestMemoryTool_HandleGetMemories(t *testing.T) {
 	manager.On("GetMemories", mock.Anything).Return(memories, nil)
 
 	// Create tool call
-	toolCall := ToolCall{
-		Function: FunctionCall{
+	toolCall := tools.ToolCall{
+		Function: tools.FunctionCall{
 			Name:      "get_memories",
 			Arguments: "{}",
 		},
@@ -155,8 +156,8 @@ func TestMemoryTool_HandleDeleteMemory(t *testing.T) {
 	}
 	argsBytes, _ := json.Marshal(args)
 
-	toolCall := ToolCall{
-		Function: FunctionCall{
+	toolCall := tools.ToolCall{
+		Function: tools.FunctionCall{
 			Name:      "delete_memory",
 			Arguments: string(argsBytes),
 		},
@@ -176,8 +177,8 @@ func TestMemoryTool_InvalidArguments(t *testing.T) {
 	tool := NewMemoryTool(manager)
 
 	// Invalid JSON for add_memory
-	toolCall := ToolCall{
-		Function: FunctionCall{
+	toolCall := tools.ToolCall{
+		Function: tools.FunctionCall{
 			Name:      "add_memory",
 			Arguments: "{invalid json",
 		},
@@ -188,8 +189,8 @@ func TestMemoryTool_InvalidArguments(t *testing.T) {
 	assert.Nil(t, result)
 
 	// Invalid JSON for delete_memory
-	toolCall = ToolCall{
-		Function: FunctionCall{
+	toolCall = tools.ToolCall{
+		Function: tools.FunctionCall{
 			Name:      "delete_memory",
 			Arguments: "{invalid json",
 		},

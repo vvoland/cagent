@@ -13,6 +13,7 @@ import (
 	"github.com/rumpl/cagent/pkg/session"
 	"github.com/rumpl/cagent/pkg/team"
 	"github.com/rumpl/cagent/pkg/tools"
+	"github.com/rumpl/cagent/pkg/tools/builtin"
 )
 
 func main() {
@@ -37,7 +38,7 @@ func main() {
 			"You are a human, with feelings and emotions.",
 			agent.WithModel(llm),
 			agent.WithSubAgents([]*agent.Agent{child}),
-			agent.WithToolSets([]tools.ToolSet{&tools.TransferTaskTool{}}),
+			agent.WithToolSets([]tools.ToolSet{&builtin.TransferTaskTool{}}),
 		),
 		"child": child,
 	})
