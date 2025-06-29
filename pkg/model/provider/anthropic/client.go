@@ -117,7 +117,6 @@ type Client struct {
 
 // NewClient creates a new Anthropic client from the provided configuration
 func NewClient(cfg *config.ModelConfig, logger *slog.Logger) (*Client, error) {
-	logger.Debug("Creating Anthropic client", "model", cfg.Model)
 
 	if cfg == nil {
 		logger.Error("Anthropic client creation failed", "error", "model configuration is required")

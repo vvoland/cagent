@@ -93,8 +93,6 @@ type Client struct {
 
 // NewClient creates a new OpenAI client from the provided configuration
 func NewClient(cfg *config.ModelConfig, logger *slog.Logger) (*Client, error) {
-	logger.Debug("Creating OpenAI client", "model", cfg.Model)
-
 	if cfg == nil {
 		logger.Error("OpenAI client creation failed", "error", "model configuration is required")
 		return nil, errors.New("model configuration is required")

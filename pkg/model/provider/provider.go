@@ -29,19 +29,7 @@ type Provider interface {
 	) (string, error)
 }
 
-// Factory interface for creating model providers
-type Factory interface {
-	// NewProvider creates a new provider from a model config
-	NewProvider(cfg *config.ModelConfig, logger *slog.Logger) (Provider, error)
-}
-
-type factory struct{}
-
-func NewFactory() Factory {
-	return &factory{}
-}
-
-func (f *factory) NewProvider(cfg *config.ModelConfig, logger *slog.Logger) (Provider, error) {
+func New(cfg *config.ModelConfig, logger *slog.Logger) (Provider, error) {
 	logger.Debug("Creating model provider", "type", cfg.Type, "model", cfg.Model)
 
 	switch cfg.Type {
