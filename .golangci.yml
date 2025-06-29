@@ -20,7 +20,7 @@ linters:
           disabled: false
   exclusions:
     paths:
-      - web
+      - web/embed.go
 issues:
   max-same-issues: 3
 formatters:
