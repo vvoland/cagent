@@ -19,7 +19,7 @@ jobs:
           cache: true
 
       - name: Create dist
-        run: mkdir -p web/dist && touch /web/dist/are-you-for-real
+        run: mkdir -p web/dist && touch web/dist/are-you-for-real
 
       - name: Lint
         uses: golangci/golangci-lint-action@v8
