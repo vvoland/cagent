@@ -33,13 +33,12 @@ linters:
           - gosec
         path: _test\.go
     paths:
+      - web
       - .*_test\.go$
       - third_party$
       - builtin$
       - examples$
 issues:
-  exclude-dirs:
-    - web
   max-same-issues: 3
 formatters:
   enable:
