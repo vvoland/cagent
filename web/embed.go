@@ -1,3 +1,4 @@
+//nolint:all
 package web
 
 import "embed"
