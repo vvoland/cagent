@@ -71,6 +71,32 @@ func (h *todoHandler) createTodo(ctx context.Context, toolCall ToolCall) (*ToolC
 	}, nil
 }
 
+func (h *todoHandler) createTodos(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error) {
+	var params struct {
+		Todos []Todo `json:"todos"`
+	}
+
+	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
+		return nil, fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	ids := make([]string, len(params.Todos))
+	for _, todo := range params.Todos {
+		id := fmt.Sprintf("todo_%d", len(h.todos)+1)
+		todo := Todo{
+			ID:          id,
+			Description: todo.Description,
+			Status:      "pending",
+		}
+		h.todos[id] = todo
+		ids = append(ids, id)
+	}
+
+	return &ToolCallResult{
+		Output: fmt.Sprintf("Created %d todos:\n%s", len(params.Todos), strings.Join(ids, "\n")),
+	}, nil
+}
+
 func (h *todoHandler) updateTodo(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error) {
 	var params struct {
 		ID     string `json:"id"`
@@ -126,6 +152,32 @@ func (t *TodoTool) Tools(ctx context.Context) ([]Tool, error) {
 				},
 			},
 			Handler: t.handler.createTodo,
+		},
+		{
+			Function: &FunctionDefinition{
+				Name:        "create_todos",
+				Description: "Create a list of new todo items with descriptions",
+				Parameters: FunctionParamaters{
+					Type: "object",
+					Properties: map[string]any{
+						"todos": map[string]any{
+							"type":        "array",
+							"description": "List of todo items",
+							"items": map[string]any{
+								"type": "object",
+								"properties": map[string]any{
+									"description": map[string]any{
+										"type":        "string",
+										"description": "Description of the todo item",
+									},
+								},
+							},
+						},
+					},
+					Required: []string{"todos"},
+				},
+			},
+			Handler: t.handler.createTodos,
 		},
 		{
 			Function: &FunctionDefinition{
