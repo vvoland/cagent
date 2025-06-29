@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -111,24 +112,35 @@ func (a *StreamAdapter) Close() {
 type Client struct {
 	client anthropic.Client
 	config *config.ModelConfig
+	logger *slog.Logger
 }
 
 // NewClient creates a new Anthropic client from the provided configuration
-func NewClient(cfg *config.ModelConfig) (*Client, error) {
+func NewClient(cfg *config.ModelConfig, logger *slog.Logger) (*Client, error) {
+	logger.Debug("Creating Anthropic client", "model", cfg.Model)
+
 	if cfg == nil {
+		logger.Error("Anthropic client creation failed", "error", "model configuration is required")
 		return nil, errors.New("model configuration is required")
 	}
 	if cfg.Type != "anthropic" {
+		logger.Error("Anthropic client creation failed", "error", "model type must be 'anthropic'", "actual_type", cfg.Type)
 		return nil, errors.New("model type must be 'anthropic'")
 	}
 	apiKey := os.Getenv("ANTHROPIC_API_KEY")
 	if apiKey == "" {
+		logger.Error("Anthropic client creation failed", "error", "ANTHROPIC_API_KEY environment variable is required")
 		return nil, errors.New("ANTHROPIC_API_KEY environment variable is required")
 	}
+
+	logger.Debug("Anthropic API key found, creating client")
 	client := anthropic.NewClient(option.WithAPIKey(apiKey))
+	logger.Debug("Anthropic client created successfully", "model", cfg.Model)
+
 	return &Client{
 		client: client,
 		config: cfg,
+		logger: logger,
 	}, nil
 }
 
@@ -148,6 +160,11 @@ func (c *Client) CreateChatCompletionStream(
 	messages []chat.Message,
 	requestTools []tools.Tool,
 ) (chat.MessageStream, error) {
+	c.logger.Debug("Creating Anthropic chat completion stream",
+		"model", c.config.Model,
+		"message_count", len(messages),
+		"tool_count", len(requestTools))
+
 	params := anthropic.MessageNewParams{
 		Model:     anthropic.ModelClaude3_7Sonnet20250219,
 		MaxTokens: 64000,
@@ -155,25 +172,41 @@ func (c *Client) CreateChatCompletionStream(
 		Tools:     convertTools(requestTools),
 	}
 
+	if len(requestTools) > 0 {
+		c.logger.Debug("Adding tools to Anthropic request", "tool_count", len(requestTools))
+	}
+
+	// Log the request details for debugging
+	c.logger.Debug("Anthropic chat completion stream request",
+		"model", params.Model,
+		"max_tokens", params.MaxTokens,
+		"message_count", len(params.Messages))
+
 	stream := c.client.Messages.NewStreaming(ctx, params)
+	c.logger.Debug("Anthropic chat completion stream created successfully", "model", c.config.Model)
 
 	return &StreamAdapter{stream: stream}, nil
 }
 
 func (c *Client) CreateChatCompletion(
-
 	ctx context.Context,
 	messages []chat.Message,
 ) (string, error) {
-	response, err := c.client.Messages.New(ctx, anthropic.MessageNewParams{
+	c.logger.Debug("Creating Anthropic chat completion", "model", c.config.Model, "message_count", len(messages))
+
+	params := anthropic.MessageNewParams{
 		Model:     anthropic.ModelClaude3_7Sonnet20250219,
 		MaxTokens: 64000,
 		Messages:  convertMessages(messages),
-	})
+	}
+
+	response, err := c.client.Messages.New(ctx, params)
 	if err != nil {
+		c.logger.Error("Anthropic chat completion failed", "error", err, "model", c.config.Model)
 		return "", err
 	}
 
+	c.logger.Debug("Anthropic chat completion successful", "model", c.config.Model, "response_length", len(response.Content[0].Text))
 	return response.Content[0].Text, nil
 }
 

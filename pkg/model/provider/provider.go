@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/rumpl/cagent/pkg/chat"
 	"github.com/rumpl/cagent/pkg/config"
@@ -31,7 +32,7 @@ type Provider interface {
 // Factory interface for creating model providers
 type Factory interface {
 	// NewProvider creates a new provider from a model config
-	NewProvider(cfg *config.ModelConfig) (Provider, error)
+	NewProvider(cfg *config.ModelConfig, logger *slog.Logger) (Provider, error)
 }
 
 type factory struct{}
@@ -40,14 +41,18 @@ func NewFactory() Factory {
 	return &factory{}
 }
 
-func (f *factory) NewProvider(cfg *config.ModelConfig) (Provider, error) {
+func (f *factory) NewProvider(cfg *config.ModelConfig, logger *slog.Logger) (Provider, error) {
+	logger.Debug("Creating model provider", "type", cfg.Type, "model", cfg.Model)
+
 	switch cfg.Type {
 	case "openai":
-		return openai.NewClient(cfg)
+		return openai.NewClient(cfg, logger)
 	case "anthropic":
-		return anthropic.NewClient(cfg)
+		return anthropic.NewClient(cfg, logger)
 	case "dmr":
-		return dmr.NewClient(cfg)
+		return dmr.NewClient(cfg, logger)
 	}
+
+	logger.Error("Unknown provider type", "type", cfg.Type)
 	return nil, fmt.Errorf("unknown provider type: %s", cfg.Type)
 }

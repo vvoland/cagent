@@ -22,7 +22,7 @@ func main() {
 	llm, err := openai.NewClient(&config.ModelConfig{
 		Type:  "openai",
 		Model: "gpt-4o",
-	})
+	}, logger)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"os"
 
 	"github.com/rumpl/cagent/pkg/chat"
@@ -87,23 +88,31 @@ func (a *StreamAdapter) Close() {
 type Client struct {
 	client *openai.Client
 	config *config.ModelConfig
+	logger *slog.Logger
 }
 
 // NewClient creates a new OpenAI client from the provided configuration
-func NewClient(cfg *config.ModelConfig) (*Client, error) {
+func NewClient(cfg *config.ModelConfig, logger *slog.Logger) (*Client, error) {
+	logger.Debug("Creating OpenAI client", "model", cfg.Model)
+
 	if cfg == nil {
+		logger.Error("OpenAI client creation failed", "error", "model configuration is required")
 		return nil, errors.New("model configuration is required")
 	}
 
 	if cfg.Type != "openai" {
+		logger.Error("OpenAI client creation failed", "error", "model type must be 'openai'", "actual_type", cfg.Type)
 		return nil, errors.New("model type must be 'openai'")
 	}
 
 	// Get the API key from environment variables
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	if apiKey == "" {
+		logger.Error("OpenAI client creation failed", "error", "OPENAI_API_KEY environment variable is required")
 		return nil, errors.New("OPENAI_API_KEY environment variable is required")
 	}
+
+	logger.Debug("OpenAI API key found, creating client")
 
 	// Create a client config
 	clientConfig := openai.DefaultConfig(apiKey)
@@ -111,9 +120,12 @@ func NewClient(cfg *config.ModelConfig) (*Client, error) {
 	// Create the OpenAI client
 	client := openai.NewClientWithConfig(clientConfig)
 
+	logger.Debug("OpenAI client created successfully", "model", cfg.Model)
+
 	return &Client{
 		client: client,
 		config: cfg,
+		logger: logger,
 	}, nil
 }
 
@@ -191,7 +203,13 @@ func (c *Client) CreateChatCompletionStream(
 	messages []chat.Message,
 	requestTools []tools.Tool,
 ) (chat.MessageStream, error) {
+	c.logger.Debug("Creating OpenAI chat completion stream",
+		"model", c.config.Model,
+		"message_count", len(messages),
+		"tool_count", len(requestTools))
+
 	if len(messages) == 0 {
+		c.logger.Error("OpenAI stream creation failed", "error", "at least one message is required")
 		return nil, errors.New("at least one message is required")
 	}
 
@@ -207,9 +225,11 @@ func (c *Client) CreateChatCompletionStream(
 
 	if c.config.MaxTokens > 0 {
 		request.MaxTokens = c.config.MaxTokens
+		c.logger.Debug("OpenAI request configured with max tokens", "max_tokens", c.config.MaxTokens)
 	}
 
 	if len(requestTools) > 0 {
+		c.logger.Debug("Adding tools to OpenAI request", "tool_count", len(requestTools))
 		request.Tools = make([]openai.Tool, len(requestTools))
 		for i, tool := range requestTools {
 			request.Tools[i] = openai.Tool{
@@ -224,21 +244,24 @@ func (c *Client) CreateChatCompletionStream(
 			if len(tool.Function.Parameters.Properties) == 0 {
 				request.Tools[i].Function.Parameters = json.RawMessage("{}")
 			}
+			c.logger.Debug("Added tool to OpenAI request", "tool_name", tool.Function.Name)
 		}
 	}
 
 	// Log the request in JSON format for debugging
-	// if requestJSON, err := json.MarshalIndent(request, "", "  "); err == nil {
-	// 	fmt.Printf("Chat completion request:\n%s\n", string(requestJSON))
-	// } else {
-	// 	fmt.Printf("Error marshaling request to JSON: %v\n", err)
-	// }
+	if requestJSON, err := json.MarshalIndent(request, "", "  "); err == nil {
+		c.logger.Debug("OpenAI chat completion request", "request", string(requestJSON))
+	} else {
+		c.logger.Error("Failed to marshal OpenAI request to JSON", "error", err)
+	}
 
 	stream, err := c.client.CreateChatCompletionStream(ctx, request)
 	if err != nil {
+		c.logger.Error("OpenAI stream creation failed", "error", err, "model", c.config.Model)
 		return nil, err
 	}
 
+	c.logger.Debug("OpenAI chat completion stream created successfully", "model", c.config.Model)
 	return &StreamAdapter{stream: stream}, nil
 }
 
@@ -246,13 +269,19 @@ func (c *Client) CreateChatCompletion(
 	ctx context.Context,
 	messages []chat.Message,
 ) (string, error) {
-	response, err := c.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+	c.logger.Debug("Creating OpenAI chat completion", "model", c.config.Model, "message_count", len(messages))
+
+	request := openai.ChatCompletionRequest{
 		Model:    c.config.Model,
 		Messages: convertMessages(messages),
-	})
+	}
+
+	response, err := c.client.CreateChatCompletion(ctx, request)
 	if err != nil {
+		c.logger.Error("OpenAI chat completion failed", "error", err, "model", c.config.Model)
 		return "", err
 	}
 
+	c.logger.Debug("OpenAI chat completion successful", "model", c.config.Model, "response_length", len(response.Choices[0].Message.Content))
 	return response.Choices[0].Message.Content, nil
 }

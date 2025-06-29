@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -22,6 +23,10 @@ func NewInitCmd() *cobra.Command {
 		Short: "Initialize a new agent configuration",
 		Long:  `Initialize a new agent configuration by asking questions and generating a YAML file`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+				Level: slog.LevelWarn, // Use warn level for init to avoid verbose output
+			}))
+
 			reader := bufio.NewReader(os.Stdin)
 
 			fmt.Print("What should your agent do? (describe its purpose): ")
@@ -64,7 +69,7 @@ func NewInitCmd() *cobra.Command {
 			llm, err := provider.NewFactory().NewProvider(&config.ModelConfig{
 				Type:  "anthropic",
 				Model: "claude-3-5-sonnet-latest",
-			})
+			}, logger)
 			if err != nil {
 				return fmt.Errorf("failed to create LLM client: %w", err)
 			}

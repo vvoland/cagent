@@ -31,7 +31,7 @@ func Agents(ctx context.Context, path string, logger *slog.Logger) (*team.Team, 
 			return nil, fmt.Errorf("model '%s' not found in configuration", agentConfig.Model)
 		}
 
-		model, err := fac.NewProvider(&modelCfg)
+		model, err := fac.NewProvider(&modelCfg, logger)
 		if err != nil {
 			return nil, err
 		}
