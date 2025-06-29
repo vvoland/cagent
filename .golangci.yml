@@ -47,6 +47,7 @@ formatters:
   exclusions:
     generated: lax
     paths:
+      - web/embed.go
       - .*_test\.go$
       - third_party$
       - builtin$
