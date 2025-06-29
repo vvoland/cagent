@@ -643,7 +643,7 @@ func runUICommand(cmd *cobra.Command, args []string) error {
 
 	logger.Debug("Starting agent UI", "agent", agentName, "debug_mode", debugMode)
 
-	agents, err := loader.Agents(ctx, args[0], logger)
+	agents, err := loader.Load(ctx, args[0], logger)
 	if err != nil {
 		return err
 	}

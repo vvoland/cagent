@@ -15,7 +15,7 @@ import (
 	"github.com/rumpl/cagent/pkg/tools"
 )
 
-func Agents(ctx context.Context, path string, logger *slog.Logger) (*team.Team, error) {
+func Load(ctx context.Context, path string, logger *slog.Logger) (*team.Team, error) {
 	cfg, err := config.LoadConfig(path)
 	if err != nil {
 		return nil, err

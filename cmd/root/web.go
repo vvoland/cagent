@@ -78,7 +78,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 			agents := make(map[string]*agent.Agent)
 			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
 				configPath := filepath.Join(agentsDir, entry.Name())
-				fileTeam, err := loader.Agents(ctx, configPath, logger)
+				fileTeam, err := loader.Load(ctx, configPath, logger)
 				if err != nil {
 					logger.Warn("Failed to load agents", "file", entry.Name(), "error", err)
 					continue
@@ -106,7 +106,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 			}
 		}
 	} else {
-		t, err := loader.Agents(ctx, args[0], logger)
+		t, err := loader.Load(ctx, args[0], logger)
 		if err != nil {
 			return err
 		}
