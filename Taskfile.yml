@@ -54,6 +54,7 @@ tasks:
 
   test:
     desc: Run tests
+    deps: [build-web]
     cmds:
       - go test ./...
     sources:
