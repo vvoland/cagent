@@ -1,7 +1,5 @@
 version: "2"
 run:
-  skip-dirs:
-    - web
   tests: true
 linters:
   enable:
@@ -40,6 +38,8 @@ linters:
       - builtin$
       - examples$
 issues:
+  exclude-dirs:
+    - web
   max-same-issues: 3
 formatters:
   enable:
