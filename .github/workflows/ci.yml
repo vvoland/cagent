@@ -18,13 +18,7 @@ jobs:
           go-version: "1.24.3"
           cache: true
 
-      - name: Install Task
-        uses: arduino/setup-task@v2
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          version: 3.x
-
-      - name: Install golangci-lint
+      - name: Lint
         uses: golangci/golangci-lint-action@v8
         with:
           version: v2.1
