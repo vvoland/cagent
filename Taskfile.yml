@@ -31,7 +31,7 @@ tasks:
   build-web:
     desc: Build the frontend app
     cmds:
-      - cd web && npm run build
+      - cd web && npm install && npm run build
     sources:
       - "web/**/*.js"
       - "web/**/*.ts"
