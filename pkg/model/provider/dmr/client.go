@@ -112,16 +112,6 @@ func NewClient(cfg *config.ModelConfig, logger *slog.Logger) (*Client, error) {
 	}, nil
 }
 
-// GetClient returns the underlying DMR client
-func (c *Client) GetClient() *openai.Client {
-	return c.client
-}
-
-// GetConfig returns the model configuration
-func (c *Client) GetConfig() *config.ModelConfig {
-	return c.config
-}
-
 func convertMultiContent(multiContent []chat.MessagePart) []openai.ChatMessagePart {
 	openaiMultiContent := make([]openai.ChatMessagePart, len(multiContent))
 	for i, part := range multiContent {

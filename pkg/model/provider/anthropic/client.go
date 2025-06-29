@@ -143,16 +143,6 @@ func NewClient(cfg *config.ModelConfig, logger *slog.Logger) (*Client, error) {
 	}, nil
 }
 
-// GetClient returns the underlying anthropic client
-func (c *Client) GetClient() *anthropic.Client {
-	return &c.client
-}
-
-// GetConfig returns the model configuration
-func (c *Client) GetConfig() *config.ModelConfig {
-	return c.config
-}
-
 // CreateChatCompletionStream creates a streaming chat completion request
 func (c *Client) CreateChatCompletionStream(
 	ctx context.Context,
