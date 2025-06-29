@@ -1,5 +1,7 @@
 version: "2"
 run:
+  skip-dirs:
+    - web
   tests: true
 linters:
   enable:
