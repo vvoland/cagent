@@ -19,8 +19,25 @@ linters:
         - name: package-comments
           disabled: false
   exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - dupl
+          - errcheck
+          - gocyclo
+          - gosec
+        path: _test\.go
     paths:
       - web/embed.go
+      - .*_test\.go$
+      - third_party$
+      - builtin$
+      - examples$
 issues:
   max-same-issues: 3
 formatters:
