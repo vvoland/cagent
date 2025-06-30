@@ -98,7 +98,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			case *runtime.ToolCallEvent:
 				fmt.Printf("%s", yellow("\n%s(%s)\n", e.ToolCall.Function.Name, e.ToolCall.Function.Arguments))
 			case *runtime.ToolCallResponseEvent:
-				fmt.Printf("%s", green("\ndone(%s)\n", e.ToolCall.Function.Name))
+				fmt.Printf("%s", green("done(%s)\n", e.ToolCall.Function.Name))
 			case *runtime.AgentMessageEvent:
 				fmt.Printf("%s\n", e.Message.Content)
 			case *runtime.ErrorEvent:
