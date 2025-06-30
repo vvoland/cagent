@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
+	"strings"
 
 	"github.com/rumpl/cagent/pkg/agent"
 	"github.com/rumpl/cagent/pkg/config"
@@ -112,6 +114,10 @@ func getToolsForAgent(ctx context.Context, a *config.AgentConfig, logger *slog.L
 
 		envSlice := make([]string, 0, len(toolset.Env))
 		for k, v := range toolset.Env {
+			if after, ok := strings.CutPrefix(v, "$"); ok {
+				envVar := after
+				v = os.Getenv(envVar)
+			}
 			envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
 		}
 		mcpc, err := mcp.NewToolset(ctx, toolset.Command, toolset.Args, envSlice, toolset.Tools, logger)
