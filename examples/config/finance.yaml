@@ -1,7 +1,7 @@
 agents:
   root:
     name: researcher
-    model: openai
+    model: claude
     description: "Financial research and analysis coordinator"
     add_date: true
     instruction: |
@@ -39,7 +39,7 @@ agents:
 
   finance_agent:
     name: finance_agent
-    model: openai
+    model: claude
     add_date: true
     description: Analyse the given stock
     instruction: |
@@ -69,3 +69,7 @@ models:
   openai:
     type: openai
     model: gpt-4o
+
+  claude:
+    type: anthropic
+    model: claude-3-5-sonnet-latest
