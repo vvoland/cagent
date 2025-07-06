@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
@@ -207,11 +208,11 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 		if msg.Role == chat.MessageRoleSystem {
 			// Convert system message to user message with system prefix
 			systemContent := "System: " + msg.Content
-			anthropicMessages = append(anthropicMessages, anthropic.NewAssistantMessage(anthropic.NewTextBlock(systemContent)))
+			anthropicMessages = append(anthropicMessages, anthropic.NewAssistantMessage(anthropic.NewTextBlock(strings.TrimSpace(systemContent))))
 			continue
 		}
 		if msg.Role == chat.MessageRoleUser {
-			anthropicMessages = append(anthropicMessages, anthropic.NewUserMessage(anthropic.NewTextBlock(msg.Content)))
+			anthropicMessages = append(anthropicMessages, anthropic.NewUserMessage(anthropic.NewTextBlock(strings.TrimSpace(msg.Content))))
 			continue
 		}
 		if msg.Role == chat.MessageRoleAssistant {
@@ -232,12 +233,12 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 				}
 				anthropicMessages = append(anthropicMessages, anthropic.NewAssistantMessage(toolUseBlocks...))
 			} else {
-				anthropicMessages = append(anthropicMessages, anthropic.NewAssistantMessage(anthropic.NewTextBlock(msg.Content)))
+				anthropicMessages = append(anthropicMessages, anthropic.NewAssistantMessage(anthropic.NewTextBlock(strings.TrimSpace(msg.Content))))
 			}
 			continue
 		}
 		if msg.Role == chat.MessageRoleTool {
-			anthropicMessages = append(anthropicMessages, anthropic.NewUserMessage(anthropic.NewToolResultBlock(msg.ToolCallID, msg.Content, false)))
+			anthropicMessages = append(anthropicMessages, anthropic.NewUserMessage(anthropic.NewToolResultBlock(msg.ToolCallID, strings.TrimSpace(msg.Content), false)))
 			continue
 		}
 		fmt.Println("unknown message role", msg.Role)
