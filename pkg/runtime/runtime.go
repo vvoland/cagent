@@ -304,7 +304,7 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, a *agent.Agent, sess *
 		Agent: a,
 		Message: chat.Message{
 			Role:    chat.MessageRoleUser,
-			Content: params.Task,
+			Content: strings.TrimSpace(params.Task),
 		},
 	})
 
