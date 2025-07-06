@@ -23,8 +23,7 @@ func (t *TransferTaskTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name: "transfer_task",
 				Description: `Use this function to transfer a task to the selected team member.
-            You must provide a clear and concise description of the task the member should achieve AND the expected output.
-`,
+            You must provide a clear and concise description of the task the member should achieve AND the expected output.`,
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
