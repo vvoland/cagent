@@ -38,7 +38,7 @@ func NewInitCmd() *cobra.Command {
 
 			name := "root"
 
-			fmt.Print("Agent description (2-3 sentences): ")
+			fmt.Print("Agent description in one sentence: ")
 			description, err := reader.ReadString('\n')
 			if err != nil {
 				return fmt.Errorf("failed to read description: %w", err)
@@ -106,8 +106,6 @@ func NewInitCmd() *cobra.Command {
 
 			instruction := strings.TrimSpace(instructionBuilder.String())
 
-			fmt.Println("\n\nValidating configuration...")
-
 			agent := config.AgentConfig{
 				Name:        name,
 				Model:       "anthropic",
@@ -141,7 +139,7 @@ func NewInitCmd() *cobra.Command {
 			}
 
 			fmt.Println("\nAgent configuration has been generated and saved to agent.yaml")
-			fmt.Println("You can now run your agent using: cagent run -c agent.yaml")
+			fmt.Println("You can now run your agent using: cagent run agent.yaml")
 
 			return nil
 		},
