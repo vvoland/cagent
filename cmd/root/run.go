@@ -2,8 +2,10 @@ package root
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"strings"
@@ -11,6 +13,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
+	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/evaluation"
 	"github.com/docker/cagent/pkg/loader"
 	"github.com/docker/cagent/pkg/runtime"
@@ -47,7 +50,29 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 
 	logger.Debug("Starting agent", "agent", agentName, "debug_mode", debugMode)
 
-	agents, err := loader.Load(ctx, args[0], logger)
+	agentFile := args[0]
+	if !fileExists(agentFile) {
+		a, err := fromStore(agentFile)
+		if err != nil {
+			return err
+		}
+		tmpFile, err := os.CreateTemp("", "agentfile-*.yaml")
+		if err != nil {
+			return err
+		}
+		defer os.Remove(tmpFile.Name())
+
+		if _, err := tmpFile.WriteString(a); err != nil {
+			tmpFile.Close()
+			return err
+		}
+		if err := tmpFile.Close(); err != nil {
+			return err
+		}
+		agentFile = tmpFile.Name()
+	}
+
+	agents, err := loader.Load(ctx, agentFile, logger)
 	if err != nil {
 		return err
 	}
@@ -134,4 +159,42 @@ func runUserCommand(userInput string, sess *session.Session) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	exists := err == nil
+	return exists
+}
+
+func fromStore(reference string) (string, error) {
+	store, err := content.NewStore()
+	if err != nil {
+		return "", err
+	}
+
+	img, err := store.GetArtifactImage(reference)
+	if err != nil {
+		return "", err
+	}
+
+	layers, err := img.Layers()
+	if err != nil {
+		return "", err
+	}
+
+	var buf bytes.Buffer
+	layer := layers[0]
+	b, err := layer.Uncompressed()
+	if err != nil {
+		return "", err
+	}
+
+	_, err = io.Copy(&buf, b)
+	if err != nil {
+		return "", err
+	}
+	b.Close()
+
+	return buf.String(), nil
 }
