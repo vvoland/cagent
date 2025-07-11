@@ -99,13 +99,13 @@ agents:
     name: string # Agent identifier
     model: string # Model reference
     description: string # Agent purpose
-    instruction: | # Detailed behavior instructions
-      Multi-line instructions here
+    instruction: string # Detailed behavior instructions
     tools: [] # Available tools (optional)
     sub_agents: [] # Sub-agent names (optional)
     think: boolean # Enable think tool (optional)
     todo: boolean # Enable the todo list tool (optional)
-    memory: boolean # Enable the user memory tool (optional)
+    memory:
+      path: string # Path to the sqlite database for memory storate (optional)
     add_date: boolean # Add current date to context (optional)
 ```
 
