@@ -1,20 +1,28 @@
 # 🤖 cagent
 
-A powerful, customizable multi-agent system that orchestrates AI agents with specialized capabilities and tools.
+A powerful, customizable multi-agent system that orchestrates AI agents with
+specialized capabilities and tools.
 
-[![Go Version](https://img.shields.io/badge/go-1.24+-blue.svg)](https://golang.org/)
+[![Go
+Version](https://img.shields.io/badge/go-1.24+-blue.svg)](https://golang.org/)
 
 ## ✨ What is cagent?
 
-cagent enables you to create intelligent agent teams where each agent has specialized knowledge, tools, and capabilities. Think of it as building a virtual team of experts that can collaborate to solve complex problems.
+cagent enables you to create intelligent agent teams where each agent has
+specialized knowledge, tools, and capabilities. Think of it as building a
+virtual team of experts that can collaborate to solve complex problems.
 
 ### 🎯 Key Features
 
-- **🏗️ Multi-agent architecture** - Create specialized agents for different domains
-- **🔧 Rich tool ecosystem** - Agents can use external tools and APIs via MCP protocol
-- **🔄 Smart delegation** - Agents automatically route tasks to the most suitable specialist
+- **🏗️ Multi-agent architecture** - Create specialized agents for different
+  domains
+- **🔧 Rich tool ecosystem** - Agents can use external tools and APIs via MCP
+  protocol
+- **🔄 Smart delegation** - Agents automatically route tasks to the most
+  suitable specialist
 - **📝 YAML configuration** - Simple, declarative agent and model setup
-- **💭 Advanced reasoning** - Built-in "think", "todo" and "memory" tools for complex problem solving
+- **💭 Advanced reasoning** - Built-in "think", "todo" and "memory" tools for
+  complex problem solving
 - **🌐 Multiple AI providers** - Support for OpenAI, Anthropic and DMR
 
 ## 🚀 Quick Start
