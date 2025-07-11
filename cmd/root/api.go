@@ -2,7 +2,6 @@ package root
 
 import (
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -11,34 +10,20 @@ import (
 	"maps"
 
 	"github.com/rumpl/cagent/pkg/agent"
-	"github.com/rumpl/cagent/pkg/chat"
 	"github.com/rumpl/cagent/pkg/loader"
 	"github.com/rumpl/cagent/pkg/runtime"
 	"github.com/rumpl/cagent/pkg/server"
 	"github.com/rumpl/cagent/pkg/team"
-	"github.com/rumpl/cagent/web"
 	"github.com/spf13/cobra"
 )
 
-type Message struct {
-	Role    chat.MessageRole `json:"role"`
-	Content string           `json:"content"`
-}
-
-var (
-	listenAddr    string
-	agentsDir     string
-	runtimes      map[string]*runtime.Runtime
-	runtimeAgents map[string]map[string]*agent.Agent
-)
-
 // NewWebCmd creates a new web command
-func NewWebCmd() *cobra.Command {
+func NewApiCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "web",
-		Short: "Start a web server",
-		Long:  `Start a web server that exposes the agent via an HTTP API`,
-		RunE:  runWebCommand,
+		Use:   "api",
+		Short: "Start the API server",
+		Long:  `Start the API server that exposes the agent via an HTTP API`,
+		RunE:  runApiCommand,
 	}
 
 	cmd.PersistentFlags().StringVarP(&agentsDir, "agents-dir", "d", "", "Directory containing agent configurations")
@@ -48,9 +33,10 @@ func NewWebCmd() *cobra.Command {
 	return cmd
 }
 
-func runWebCommand(cmd *cobra.Command, args []string) error {
+func runApiCommand(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
+	// Configure logger based on debug flag
 	logLevel := slog.LevelInfo
 	if debugMode {
 		logLevel = slog.LevelDebug
@@ -60,7 +46,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 		Level: logLevel,
 	}))
 
-	logger.Debug("Starting web server", "agents-dir", agentsDir, "debug_mode", debugMode)
+	logger.Debug("Starting API server", "agents-dir", agentsDir, "debug_mode", debugMode)
 
 	if agentsDir != "" {
 		runtimes = make(map[string]*runtime.Runtime)
@@ -117,12 +103,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 		runtimes[filepath.Base(args[0])] = rt
 	}
 
-	fsys, err := fs.Sub(web.WebContent, "dist")
-	if err != nil {
-		return err
-	}
-
-	s, err := server.New(ctx, logger, runtimes, listenAddr, server.WithFrontend(fsys))
+	s, err := server.New(ctx, logger, runtimes, listenAddr)
 	if err != nil {
 		return err
 	}
