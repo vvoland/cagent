@@ -286,8 +286,9 @@ func (r *Runtime) handleStream(stream chat.MessageStream, a *agent.Agent, events
 
 func (r *Runtime) handleTaskTransfer(ctx context.Context, a *agent.Agent, sess *session.Session, toolCall tools.ToolCall, evts chan Event) (string, error) {
 	var params struct {
-		Agent string `json:"agent"`
-		Task  string `json:"task"`
+		Agent          string `json:"agent"`
+		Task           string `json:"task"`
+		ExpectedOutput string `json:"expected_output"`
 	}
 
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
@@ -299,12 +300,18 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, a *agent.Agent, sess *
 	ca := r.currentAgent
 	r.currentAgent = params.Agent
 
+	memberAgentTask := "You are a member of a team of agents. Your goal is to complete the following task:"
+	memberAgentTask += fmt.Sprintf("\n\n<task>\n%s\n</task>", params.Task)
+	if params.ExpectedOutput != "" {
+		memberAgentTask += fmt.Sprintf("\n\n<expected_output>\n%s\n</expected_output>", params.ExpectedOutput)
+	}
+
 	s := session.New(r.logger)
 	s.Messages = append(s.Messages, session.AgentMessage{
 		Agent: a,
 		Message: chat.Message{
 			Role:    chat.MessageRoleUser,
-			Content: strings.TrimSpace(params.Task),
+			Content: strings.TrimSpace(memberAgentTask),
 		},
 	})
 

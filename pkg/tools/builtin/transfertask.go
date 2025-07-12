@@ -35,8 +35,12 @@ func (t *TransferTaskTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 							"type":        "string",
 							"description": "A clear and concise description of the task the member should achieve.",
 						},
+						"expected_output": map[string]any{
+							"type":        "string",
+							"description": "The expected output from the member (optional).",
+						},
 					},
-					Required: []string{"agent", "task"},
+					Required: []string{"agent", "task", "expected_output"},
 				},
 			},
 		},
