@@ -53,7 +53,7 @@ agents:
 
   web_search_agent:
     name: web_search_agent
-    model: openai
+    model: claude
     add_date: true
     description: Search the web for the information
     instruction: |
