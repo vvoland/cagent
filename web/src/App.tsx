@@ -82,11 +82,7 @@ function App() {
         <div className="p-4 border-b dark:border-border">
           <div className="flex gap-4 items-center justify-between">
             <div className="flex gap-4 items-center">
-              <Button
-                onClick={() => selectedAgent && createNewSession(selectedAgent)}
-                disabled={!selectedAgent}
-                variant="outline"
-              >
+              <Button onClick={() => createNewSession()} variant="outline">
                 New Session
               </Button>
 
