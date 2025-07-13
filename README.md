@@ -136,7 +136,7 @@ toolsets:
 
 ## 🤝 Examples
 
-Explore the `examples/config` directory for ready-to-use configurations:
+Explore the [examples/config](examples/config/) directory for ready-to-use configurations:
 
 - [examples/config/agent.yaml](examples/config/agent.yaml) - Basic assistant
 - [examples/config/code.yaml](examples/config/code.yaml) - Software development team
