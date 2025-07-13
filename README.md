@@ -138,7 +138,6 @@ toolsets:
 
 Explore the `examples/config` directory for ready-to-use configurations:
 
-- `examples/config/agent.yaml` - Basic assistant
-- `examples/config/research.yaml` - Research agent with web search
-- `examples/config/code.yaml` - Software development team
-- `examples/config/finance.yaml` - Financial analysis specialist
+- [examples/config/agent.yaml](examples/config/agent.yaml) - Basic assistant
+- [examples/config/code.yaml](examples/config/code.yaml) - Software development team
+- [examples/config/finance.yaml](examples/config/finance.yaml) - Financial analysis specialist
