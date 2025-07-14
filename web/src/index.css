@@ -78,15 +78,15 @@
 
 .dark {
   /* Polar Night palette */
-  --background: oklch(0.25 0.02 260); /* nord0: #2E3440 */
-  --card: oklch(0.22 0.02 260); /* nord1: #3B4252 */
-  --secondary: oklch(0.28 0.02 260); /* nord2: #434C5E */
-  --muted: oklch(0.32 0.02 260); /* nord3: #4C566A */
+  --background: oklch(0.3244 0.0229 264.18); /* nord0: #2E3440 */
+  --card: oklch(0.3792 0.029 266.47); /* nord1: #3B4252 */
+  --secondary: oklch(0.4157 0.0324 264.13); /* nord2: #434C5E */
+  --muted: oklch(0.4523 0.0352 264.13); /* nord3: #4C566A */
 
   /* Snow Storm palette - even whiter */
-  --foreground: oklch(0.97 0.01 260); /* nord4: #D8DEE9 - much brighter */
-  --card-foreground: oklch(0.98 0.01 260); /* nord5: #E5E9F0 - much brighter */
-  --popover-foreground: oklch(0.99 0.01 260); /* nord6: #ECEFF4 - much brighter */
+  --foreground: oklch(0.8993 0.0164 262.75); /* nord4: #D8DEE9 - much brighter */
+  --card-foreground: oklch(0.933 0.0104 261.79); /* nord5: #E5E9F0 - much brighter */
+  --popover-foreground: oklch(0.9513 0.0074 260.73); /* nord6: #ECEFF4 - much brighter */
 
   /* Frost palette */
   --primary: oklch(0.75 0.12 220); /* nord8: #88C0D0 */
