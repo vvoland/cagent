@@ -71,7 +71,3 @@ export interface Session {
   messages: AgentMessage[];
   agents: { [key: string]: Agent };
 }
-
-export interface SessionsMap {
-  [key: string]: Session;
-}

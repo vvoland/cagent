@@ -1,8 +1,8 @@
-import type { SessionsMap } from "../types";
+import type { Session } from "../types";
 import { cn } from "../lib/utils";
 
 interface SidebarProps {
-  sessions: SessionsMap;
+  sessions: Session[];
   currentSessionId: string | null;
   onSessionSelect: (sessionId: string) => void;
 }
@@ -12,8 +12,7 @@ export const Sidebar = ({
   currentSessionId,
   onSessionSelect,
 }: SidebarProps) => {
-  console.log(currentSessionId);
-  const sortedSessions = Object.values(sessions);
+  const sortedSessions = sessions;
   return (
     <div className="w-64 border-r bg-background p-4 dark:border-border dark:bg-background">
       <div className="font-semibold mb-4 text-lg dark:text-foreground">

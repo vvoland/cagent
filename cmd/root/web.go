@@ -15,6 +15,7 @@ import (
 	"github.com/rumpl/cagent/pkg/loader"
 	"github.com/rumpl/cagent/pkg/runtime"
 	"github.com/rumpl/cagent/pkg/server"
+	"github.com/rumpl/cagent/pkg/session"
 	"github.com/rumpl/cagent/pkg/team"
 	"github.com/rumpl/cagent/web"
 	"github.com/spf13/cobra"
@@ -61,6 +62,12 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 	}))
 
 	logger.Debug("Starting web server", "agents-dir", agentsDir, "debug_mode", debugMode)
+
+	// Create session store
+	sessionStore, err := session.NewSQLiteSessionStore("sessions.db")
+	if err != nil {
+		return fmt.Errorf("failed to create session store: %w", err)
+	}
 
 	if agentsDir != "" {
 		runtimes = make(map[string]*runtime.Runtime)
@@ -122,7 +129,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, err := server.New(ctx, logger, runtimes, listenAddr, server.WithFrontend(fsys))
+	s, err := server.New(ctx, logger, runtimes, sessionStore, listenAddr, server.WithFrontend(fsys))
 	if err != nil {
 		return err
 	}

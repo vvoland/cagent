@@ -28,13 +28,11 @@ function App() {
 
   // Update selected agent when session changes
   useEffect(() => {
-    if (currentSessionId && sessions[currentSessionId]) {
-      const session = sessions[currentSessionId];
-      console.log("Session selected:", session);
+    if (currentSessionId && sessions.find((s) => s.id === currentSessionId)) {
+      const session = sessions.find((s) => s.id === currentSessionId);
       // Get the agent name from the first message
-      if (session.messages && session.messages.length > 0) {
+      if (session && session.messages && session.messages.length > 0) {
         const agentName = session.messages[0].agent.name;
-        console.log("Setting selected agent to:", agentName);
         setSelectedAgent(agentName);
       }
     }

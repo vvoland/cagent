@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
-	"sync"
 
 	"github.com/labstack/echo/v4"
 	"github.com/rumpl/cagent/pkg/chat"
@@ -16,14 +15,11 @@ import (
 )
 
 type Server struct {
-	e      *echo.Echo
-	addr   string
-	logger *slog.Logger
-
-	runtimes map[string]*runtime.Runtime
-	sessions map[string]*session.Session
-
-	mux *sync.Mutex
+	e            *echo.Echo
+	addr         string
+	logger       *slog.Logger
+	runtimes     map[string]*runtime.Runtime
+	sessionStore session.Store
 }
 
 type Opt func(*Server)
@@ -35,10 +31,20 @@ func WithFrontend(fsys fs.FS) Opt {
 	}
 }
 
-func New(ctx context.Context, logger *slog.Logger, runtimes map[string]*runtime.Runtime, listenAddr string, opts ...Opt) (*Server, error) {
+func New(ctx context.Context, logger *slog.Logger, runtimes map[string]*runtime.Runtime, sessionStore session.Store, listenAddr string, opts ...Opt) (*Server, error) {
 	e := echo.New()
 
-	s := &Server{e: e, addr: listenAddr, runtimes: runtimes, logger: logger, sessions: make(map[string]*session.Session), mux: &sync.Mutex{}}
+	s := &Server{
+		e:            e,
+		addr:         listenAddr,
+		runtimes:     runtimes,
+		logger:       logger,
+		sessionStore: sessionStore,
+	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
 
 	api := e.Group("/api")
 	// List all available agents
@@ -50,10 +56,6 @@ func New(ctx context.Context, logger *slog.Logger, runtimes map[string]*runtime.
 
 	// Run an agent loop
 	api.POST("/sessions/:id/agent/:agent", s.runAgent)
-
-	for _, opt := range opts {
-		opt(s)
-	}
 
 	return s, nil
 }
@@ -70,16 +72,21 @@ func (s *Server) agents(c echo.Context) error {
 }
 
 func (s *Server) getSessions(c echo.Context) error {
-	s.mux.Lock()
-	defer s.mux.Unlock()
-	return c.JSON(http.StatusOK, s.sessions)
+	sessions, err := s.sessionStore.GetSessions(c.Request().Context())
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to get sessions"})
+	}
+	return c.JSON(http.StatusOK, sessions)
 }
 
 func (s *Server) createSession(c echo.Context) error {
 	sess := session.New(s.logger)
-	s.mux.Lock()
-	s.sessions[sess.ID] = sess
-	s.mux.Unlock()
+
+	if err := s.sessionStore.AddSession(c.Request().Context(), sess); err != nil {
+		s.logger.Error("Failed to persist session", "session_id", sess.ID, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create session"})
+	}
+
 	return c.JSON(http.StatusOK, sess)
 }
 
@@ -96,13 +103,12 @@ func (s *Server) runAgent(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 	}
 
-	s.mux.Lock()
-	sess, ok := s.sessions[c.Param("id")]
-	// TODO: We don't really want to lock the whole map, we only want to lock the session.
-	defer s.mux.Unlock()
-	if !ok {
+	// Load session from store
+	sess, err := s.sessionStore.GetSession(c.Request().Context(), c.Param("id"))
+	if err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "session not found"})
 	}
+	sess.SetLogger(s.logger)
 
 	for _, msg := range messages {
 		sess.Messages = append(sess.Messages, session.AgentMessage{
@@ -112,6 +118,12 @@ func (s *Server) runAgent(c echo.Context) error {
 				Content: msg.Content,
 			},
 		})
+	}
+
+	// Update session in store
+	if err := s.sessionStore.UpdateSession(c.Request().Context(), sess); err != nil {
+		s.logger.Error("Failed to update session in store", "session_id", sess.ID, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to update session"})
 	}
 
 	c.Response().Header().Set("Content-Type", "text/event-stream")
@@ -127,6 +139,11 @@ func (s *Server) runAgent(c echo.Context) error {
 		}
 		fmt.Fprintf(c.Response(), "data: %s\n\n", string(data))
 		c.Response().Flush()
+	}
+
+	// Final update to session store after stream completes
+	if err := s.sessionStore.UpdateSession(c.Request().Context(), sess); err != nil {
+		s.logger.Error("Failed to final update session in store", "session_id", sess.ID, "error", err)
 	}
 
 	return nil

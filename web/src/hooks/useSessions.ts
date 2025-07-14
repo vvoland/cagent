@@ -1,19 +1,18 @@
 import { useState, useCallback, useEffect } from "react";
-import type { SessionsMap, Session } from "../types";
+import type { Session } from "../types";
 
 export const useSessions = () => {
-  const [sessions, setSessions] = useState<SessionsMap>({});
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   const fetchSessions = useCallback(async () => {
     try {
       const response = await fetch("/api/sessions");
-      const data = (await response.json()) as SessionsMap;
+      const data = (await response.json()) as Session[];
       setSessions(data);
       if (Object.keys(data).length > 0 && !currentSessionId) {
         // Get the most recent session
-        const sessions = Object.values(data) as Session[];
-        const mostRecentSession = sessions.sort(
+        const mostRecentSession = data.sort(
           (a, b) =>
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         )[0];

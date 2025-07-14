@@ -13,10 +13,10 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/agents": "http://localhost:8080",
-      "/sessions": "http://localhost:8080",
-      "/sessions/:id": "http://localhost:8080",
-      "/sessions/:id/agent/:agent": "http://localhost:8080",
+      "/api/agents": "http://localhost:8080",
+      "/api/sessions": "http://localhost:8080",
+      "/api/sessions/:id": "http://localhost:8080",
+      "/api/sessions/:id/agent/:agent": "http://localhost:8080",
     },
   },
 });

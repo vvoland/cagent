@@ -1,20 +1,20 @@
 import { useState, useEffect } from "react";
-import type { EventItem, Event, SessionsMap, AgentMessage } from "../types";
+import type { EventItem, Event, AgentMessage, Session } from "../types";
 
 export const useEvents = (
   sessionId: string | null,
-  sessions: SessionsMap,
+  sessions: Session[],
   selectedAgent: string | null
 ) => {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (sessionId && sessions[sessionId]) {
-      const session = sessions[sessionId];
+    if (sessionId && sessions.find((s) => s.id === sessionId)) {
+      const session = sessions.find((s) => s.id === sessionId);
       const sessionEvents: EventItem[] = [];
 
-      if (Array.isArray(session.messages)) {
+      if (session && Array.isArray(session.messages)) {
         session.messages.forEach((msg: AgentMessage) => {
           if (msg.message.role === "assistant") {
             if (msg.message.content) {

@@ -13,6 +13,7 @@ import (
 	"github.com/rumpl/cagent/pkg/loader"
 	"github.com/rumpl/cagent/pkg/runtime"
 	"github.com/rumpl/cagent/pkg/server"
+	"github.com/rumpl/cagent/pkg/session"
 	"github.com/rumpl/cagent/pkg/team"
 	"github.com/spf13/cobra"
 )
@@ -47,6 +48,12 @@ func runApiCommand(cmd *cobra.Command, args []string) error {
 	}))
 
 	logger.Debug("Starting API server", "agents-dir", agentsDir, "debug_mode", debugMode)
+
+	// Create session store
+	sessionStore, err := session.NewSQLiteSessionStore("sessions.db")
+	if err != nil {
+		return fmt.Errorf("failed to create session store: %w", err)
+	}
 
 	if agentsDir != "" {
 		runtimes = make(map[string]*runtime.Runtime)
@@ -103,7 +110,7 @@ func runApiCommand(cmd *cobra.Command, args []string) error {
 		runtimes[filepath.Base(args[0])] = rt
 	}
 
-	s, err := server.New(ctx, logger, runtimes, listenAddr)
+	s, err := server.New(ctx, logger, runtimes, sessionStore, listenAddr)
 	if err != nil {
 		return err
 	}
