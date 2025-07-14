@@ -39,7 +39,6 @@ func TestStoreAgentName(t *testing.T) {
 				Content: "Another message",
 			}),
 		},
-		State:     make(map[string]any),
 		CreatedAt: time.Now(),
 	}
 
@@ -96,7 +95,6 @@ func TestStoreMultipleAgents(t *testing.T) {
 				Content: "Response from agent 2",
 			}),
 		},
-		State:     make(map[string]any),
 		CreatedAt: time.Now(),
 	}
 
@@ -146,7 +144,6 @@ func TestGetSessions(t *testing.T) {
 				Content: "Message from session 1",
 			}),
 		},
-		State:     make(map[string]any),
 		CreatedAt: time.Now().Add(-1 * time.Hour),
 	}
 
@@ -158,7 +155,6 @@ func TestGetSessions(t *testing.T) {
 				Content: "Message from session 2",
 			}),
 		},
-		State:     make(map[string]any),
 		CreatedAt: time.Now(),
 	}
 
@@ -208,7 +204,6 @@ func TestStoreAgentNameJSON(t *testing.T) {
 				Content: "Response from another-agent",
 			}),
 		},
-		State:     make(map[string]any),
 		CreatedAt: time.Now(),
 	}
 

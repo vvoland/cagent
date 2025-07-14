@@ -42,7 +42,6 @@ func NewSQLiteSessionStore(path string) (Store, error) {
 		CREATE TABLE IF NOT EXISTS sessions (
 			id TEXT PRIMARY KEY,
 			messages TEXT,
-			state TEXT,
 			created_at TEXT
 		)
 	`)
@@ -64,14 +63,9 @@ func (s *SQLiteSessionStore) AddSession(ctx context.Context, session *Session) e
 		return err
 	}
 
-	stateJSON, err := json.Marshal(session.State)
-	if err != nil {
-		return err
-	}
-
 	_, err = s.db.ExecContext(ctx,
-		"INSERT INTO sessions (id, messages, state, created_at) VALUES (?, ?, ?, ?)",
-		session.ID, string(messagesJSON), string(stateJSON), session.CreatedAt.Format(time.RFC3339))
+		"INSERT INTO sessions (id, messages, created_at) VALUES (?, ?, ?)",
+		session.ID, string(messagesJSON), session.CreatedAt.Format(time.RFC3339))
 	return err
 }
 
@@ -82,12 +76,12 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 	}
 
 	row := s.db.QueryRowContext(ctx,
-		"SELECT id, messages, state, created_at FROM sessions WHERE id = ?", id)
+		"SELECT id, messages, created_at FROM sessions WHERE id = ?", id)
 
-	var messagesJSON, stateJSON, createdAtStr string
+	var messagesJSON, createdAtStr string
 	var sessionID string
 
-	err := row.Scan(&sessionID, &messagesJSON, &stateJSON, &createdAtStr)
+	err := row.Scan(&sessionID, &messagesJSON, &createdAtStr)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
@@ -101,11 +95,6 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 		return nil, err
 	}
 
-	var state map[string]any
-	if err := json.Unmarshal([]byte(stateJSON), &state); err != nil {
-		return nil, err
-	}
-
 	createdAt, err := time.Parse(time.RFC3339, createdAtStr)
 	if err != nil {
 		return nil, err
@@ -114,7 +103,6 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 	return &Session{
 		ID:        sessionID,
 		Messages:  messages,
-		State:     state,
 		CreatedAt: createdAt,
 		logger:    nil, // Logger is not persisted and will need to be set by caller
 	}, nil
@@ -123,7 +111,7 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 // GetSessions retrieves all sessions
 func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error) {
 	rows, err := s.db.QueryContext(ctx,
-		"SELECT id, messages, state, created_at FROM sessions ORDER BY created_at DESC")
+		"SELECT id, messages, created_at FROM sessions ORDER BY created_at DESC")
 	if err != nil {
 		return nil, err
 	}
@@ -131,10 +119,10 @@ func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error
 
 	sessions := make([]*Session, 0)
 	for rows.Next() {
-		var messagesJSON, stateJSON, createdAtStr string
+		var messagesJSON, createdAtStr string
 		var sessionID string
 
-		err := rows.Scan(&sessionID, &messagesJSON, &stateJSON, &createdAtStr)
+		err := rows.Scan(&sessionID, &messagesJSON, &createdAtStr)
 		if err != nil {
 			return nil, err
 		}
@@ -142,11 +130,6 @@ func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error
 		// Parse the data
 		var messages []AgentMessage
 		if err := json.Unmarshal([]byte(messagesJSON), &messages); err != nil {
-			return nil, err
-		}
-
-		var state map[string]any
-		if err := json.Unmarshal([]byte(stateJSON), &state); err != nil {
 			return nil, err
 		}
 
@@ -158,7 +141,6 @@ func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error
 		session := &Session{
 			ID:        sessionID,
 			Messages:  messages,
-			State:     state,
 			CreatedAt: createdAt,
 			logger:    nil, // Logger is not persisted and will need to be set by caller
 		}
@@ -203,14 +185,9 @@ func (s *SQLiteSessionStore) UpdateSession(ctx context.Context, session *Session
 		return err
 	}
 
-	stateJSON, err := json.Marshal(session.State)
-	if err != nil {
-		return err
-	}
-
 	result, err := s.db.ExecContext(ctx,
-		"UPDATE sessions SET messages = ?, state = ? WHERE id = ?",
-		string(messagesJSON), string(stateJSON), session.ID)
+		"UPDATE sessions SET messages = ? WHERE id = ?",
+		string(messagesJSON), session.ID)
 	if err != nil {
 		return err
 	}

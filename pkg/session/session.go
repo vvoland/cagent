@@ -21,9 +21,6 @@ type Session struct {
 	// Messages holds the conversation history
 	Messages []AgentMessage `json:"messages"`
 
-	// State is a general-purpose map to store arbitrary state data, it is shared between agents
-	State map[string]any `json:"state"`
-
 	// CreatedAt is the time the session was created
 	CreatedAt time.Time `json:"created_at"`
 
@@ -74,7 +71,6 @@ func New(logger *slog.Logger, opts ...Opt) *Session {
 
 	s := &Session{
 		ID:        sessionID,
-		State:     make(map[string]any),
 		CreatedAt: time.Now(),
 		logger:    logger,
 	}
