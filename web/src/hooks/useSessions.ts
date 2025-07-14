@@ -29,10 +29,7 @@ export const useSessions = () => {
         method: "POST",
       });
       const newSession = await response.json();
-      setSessions((prev) => ({
-        ...prev,
-        [newSession.id]: newSession,
-      }));
+      setSessions((prev) => [...prev, newSession]);
       setCurrentSessionId(newSession.id);
       return newSession.id;
     } catch (error) {

@@ -12,14 +12,13 @@ export const Sidebar = ({
   currentSessionId,
   onSessionSelect,
 }: SidebarProps) => {
-  const sortedSessions = sessions;
   return (
     <div className="w-64 border-r bg-background p-4 dark:border-border dark:bg-background">
       <div className="font-semibold mb-4 text-lg dark:text-foreground">
         Sessions
       </div>
       <div className="space-y-2">
-        {sortedSessions
+        {sessions
           .sort(
             (a, b) =>
               new Date(b.created_at).getTime() -
