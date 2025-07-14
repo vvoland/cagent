@@ -2,14 +2,9 @@ import { useState, useEffect } from "react";
 import { useSessions } from "./hooks/useSessions";
 import { useEvents } from "./hooks/useEvents";
 import { useAgents } from "./hooks/useAgents";
-import type { EventItem } from "./types";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
-import {
-  MessageEvent,
-  ErrorEvent,
-  ChoiceEvents,
-} from "./components/MessageEvents";
+import { MessageEvent, ErrorEvent } from "./components/MessageEvents";
 import { ToolCallEvent, ToolResultEvent } from "./components/ToolEvents";
 import { Sidebar } from "./components/Sidebar";
 import { DarkModeToggle } from "./components/DarkModeToggle";
@@ -55,24 +50,7 @@ function App() {
     await handleSubmit(currentSessionId, prompt);
     setPrompt("");
   };
-
-  // Group consecutive choice events together
-  const groupedEvents = events.reduce<(EventItem | EventItem[])[]>(
-    (acc, event) => {
-      if (event.type === "choice") {
-        const lastGroup = acc[acc.length - 1];
-        if (Array.isArray(lastGroup) && lastGroup[0].type === "choice") {
-          lastGroup.push(event);
-        } else {
-          acc.push([event]);
-        }
-      } else {
-        acc.push(event);
-      }
-      return acc;
-    },
-    []
-  );
+  console.log("events", events);
 
   return (
     <div className="min-h-screen flex bg-gray-200 dark:bg-background text-black dark:text-white">
@@ -112,11 +90,7 @@ function App() {
 
         <div className="flex-1 overflow-y-auto p-4 pb-24">
           <div className="max-w-4xl mx-auto space-y-4">
-            {groupedEvents.map((event, index) => {
-              if (Array.isArray(event)) {
-                return <ChoiceEvents key={index} events={event} />;
-              }
-
+            {events.map((event, index) => {
               switch (event.type) {
                 case "tool_call":
                   return (
@@ -139,6 +113,7 @@ function App() {
                     <MessageEvent
                       key={index}
                       role={event.metadata?.role || ""}
+                      agent={event.metadata?.agent || ""}
                       content={event.content}
                     />
                   );

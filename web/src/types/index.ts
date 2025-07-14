@@ -24,15 +24,11 @@ export interface AgentMessage {
 export interface ChatCompletionStreamChoice {
   delta: {
     content: string;
+    role: string;
   };
 }
 
-export type EventType =
-  | "choice"
-  | "tool_call"
-  | "tool_result"
-  | "message"
-  | "error";
+export type EventType = "tool_call" | "tool_result" | "message" | "error";
 
 export interface EventItem {
   type: EventType;

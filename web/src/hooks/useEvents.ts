@@ -23,6 +23,7 @@ export const useEvents = (
                 content: msg.message.content,
                 metadata: {
                   role: msg.message.role,
+                  agent: msg.agent.name,
                 },
               });
             }
@@ -45,6 +46,7 @@ export const useEvents = (
               content: msg.message.content,
               metadata: {
                 role: msg.message.role,
+                agent: msg.agent.name,
               },
             });
           } else if (msg.message.role === "tool") {
@@ -53,6 +55,7 @@ export const useEvents = (
               content: msg.message.content,
               metadata: {
                 toolId: msg.message.tool_call_id,
+                agent: msg.agent.name,
               },
             });
           }
@@ -116,7 +119,10 @@ export const useEvents = (
               if (eventData.choice?.delta.content) {
                 setEvents((prev) => {
                   const lastEvent = prev[prev.length - 1];
-                  if (lastEvent?.type === "choice") {
+                  if (
+                    lastEvent?.type === "message" &&
+                    lastEvent.metadata?.role === eventData.choice?.delta?.role
+                  ) {
                     return [
                       ...prev.slice(0, -1),
                       {
@@ -129,10 +135,11 @@ export const useEvents = (
                   return [
                     ...prev,
                     {
-                      type: "choice",
+                      type: "message",
                       content: eventData.choice!.delta.content,
                       metadata: {
                         agent: eventData.agent,
+                        role: eventData.choice?.delta?.role,
                       },
                     },
                   ];
@@ -166,6 +173,7 @@ export const useEvents = (
                       content: eventData.response || "",
                       metadata: {
                         toolId: lastToolCall?.metadata?.toolName,
+                        agent: lastToolCall?.metadata?.agent,
                       },
                     },
                   ];
@@ -178,6 +186,7 @@ export const useEvents = (
                     content: eventData.message!.content,
                     metadata: {
                       role: eventData.message!.role,
+                      agent: eventData.agent,
                     },
                   },
                 ]);
