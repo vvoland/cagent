@@ -54,6 +54,8 @@ func New(ctx context.Context, logger *slog.Logger, runtimes map[string]*runtime.
 	// Create a new session
 	api.POST("/sessions", s.createSession)
 
+	api.DELETE("/sessions/:id", s.deleteSession)
+
 	// Run an agent loop
 	api.POST("/sessions/:id/agent/:agent", s.runAgent)
 
@@ -88,6 +90,15 @@ func (s *Server) createSession(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, sess)
+}
+
+func (s *Server) deleteSession(c echo.Context) error {
+	if err := s.sessionStore.DeleteSession(c.Request().Context(), c.Param("id")); err != nil {
+		s.logger.Error("Failed to delete session", "session_id", c.Param("id"), "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to delete session"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "session deleted"})
 }
 
 func (s *Server) runAgent(c echo.Context) error {

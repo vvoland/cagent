@@ -42,6 +42,15 @@ export const useSessions = () => {
     setCurrentSessionId(sessionId);
   };
 
+  const deleteSession = async (sessionId: string) => {
+    try {
+      await fetch(`/api/sessions/${sessionId}`, { method: "DELETE" });
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+    } catch (error) {
+      console.error("Failed to delete session:", error);
+    }
+  };
+
   // Fetch sessions on mount
   useEffect(() => {
     fetchSessions();
@@ -52,5 +61,6 @@ export const useSessions = () => {
     currentSessionId,
     createNewSession,
     selectSession,
+    deleteSession,
   };
 };

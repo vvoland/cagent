@@ -22,8 +22,13 @@ import {
 } from "@/components/ui/select";
 function App() {
   const [prompt, setPrompt] = useState("");
-  const { sessions, currentSessionId, createNewSession, selectSession } =
-    useSessions();
+  const {
+    sessions,
+    currentSessionId,
+    createNewSession,
+    selectSession,
+    deleteSession,
+  } = useSessions();
   const { agents, selectedAgent, setSelectedAgent } = useAgents();
 
   // Update selected agent when session changes
@@ -75,6 +80,7 @@ function App() {
         sessions={sessions}
         currentSessionId={currentSessionId}
         onSessionSelect={selectSession}
+        onDeleteSession={deleteSession}
       />
       <div className="flex-1 flex flex-col h-screen">
         <div className="p-4 border-b dark:border-border">
