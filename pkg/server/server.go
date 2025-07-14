@@ -122,10 +122,12 @@ func (s *Server) runAgent(c echo.Context) error {
 	sess.SetLogger(s.logger)
 
 	for _, msg := range messages {
-		sess.Messages = append(sess.Messages, session.NewAgentMessage(rt.CurrentAgent(), &chat.Message{
-			Role:    msg.Role,
-			Content: msg.Content,
-		}))
+		sess.Messages = append(sess.Messages, session.AgentMessage{
+			Message: chat.Message{
+				Role:    msg.Role,
+				Content: msg.Content,
+			},
+		})
 	}
 
 	// Update session in store
