@@ -39,6 +39,7 @@ func NewWebCmd() *cobra.Command {
 		Use:   "web",
 		Short: "Start a web server",
 		Long:  `Start a web server that exposes the agent via an HTTP API`,
+		Args:  cobra.ExactArgs(1),
 		RunE:  runWebCommand,
 	}
 
@@ -64,7 +65,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 	logger.Debug("Starting web server", "agents-dir", agentsDir, "debug_mode", debugMode)
 
 	// Create session store
-	sessionStore, err := session.NewSQLiteSessionStore("sessions.db")
+	sessionStore, err := session.NewSQLiteSessionStore(args[0])
 	if err != nil {
 		return fmt.Errorf("failed to create session store: %w", err)
 	}
