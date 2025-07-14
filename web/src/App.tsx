@@ -32,7 +32,7 @@ function App() {
       const session = sessions.find((s) => s.id === currentSessionId);
       // Get the agent name from the first message
       if (session && session.messages && session.messages.length > 0) {
-        const agentName = session.messages[0].agent.name;
+        const agentName = session.messages[0].agentName;
         setSelectedAgent(agentName);
       }
     }
@@ -50,7 +50,6 @@ function App() {
     await handleSubmit(currentSessionId, prompt);
     setPrompt("");
   };
-  console.log("events", events);
 
   return (
     <div className="min-h-screen flex bg-gray-200 dark:bg-background text-black dark:text-white">

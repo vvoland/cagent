@@ -78,13 +78,10 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
-		sess.Messages = append(sess.Messages, session.AgentMessage{
-			Agent: rt.CurrentAgent(),
-			Message: chat.Message{
-				Role:    chat.MessageRoleUser,
-				Content: userInput,
-			},
-		})
+		sess.Messages = append(sess.Messages, session.NewAgentMessage(rt.CurrentAgent(), &chat.Message{
+			Role:    chat.MessageRoleUser,
+			Content: userInput,
+		}))
 
 		first := false
 		for event := range rt.RunStream(ctx, sess) {

@@ -103,10 +103,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				ToolCalls: calls,
 			}
 
-			sess.Messages = append(sess.Messages, session.AgentMessage{
-				Agent:   a,
-				Message: assistantMessage,
-			})
+			sess.Messages = append(sess.Messages, session.NewAgentMessage(a, &assistantMessage))
 			r.logger.Debug("Added assistant message to session", "agent", a.Name(), "total_messages", len(sess.Messages))
 
 			if stopped {
@@ -149,10 +146,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 							Content:    res,
 							ToolCallID: toolCall.ID,
 						}
-						sess.Messages = append(sess.Messages, session.AgentMessage{
-							Agent:   a,
-							Message: toolResponseMsg,
-						})
+						sess.Messages = append(sess.Messages, session.NewAgentMessage(a, &toolResponseMsg))
 
 						break
 					}
@@ -183,10 +177,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 							Content:    res.Output,
 							ToolCallID: toolCall.ID,
 						}
-						sess.Messages = append(sess.Messages, session.AgentMessage{
-							Agent:   a,
-							Message: toolResponseMsg,
-						})
+						sess.Messages = append(sess.Messages, session.NewAgentMessage(a, &toolResponseMsg))
 						r.logger.Debug("Added tool response to session", "tool", toolCall.Function.Name, "total_messages", len(sess.Messages))
 						break
 					}

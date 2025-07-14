@@ -15,9 +15,7 @@ export interface ChatCompletionMessage {
 }
 
 export interface AgentMessage {
-  agent: {
-    name: string;
-  };
+  agentName: string;
   message: ChatCompletionMessage;
 }
 

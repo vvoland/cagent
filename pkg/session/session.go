@@ -33,16 +33,29 @@ type Session struct {
 
 // AgentMessage is a message from an agent
 type AgentMessage struct {
-	Agent   *agent.Agent `json:"agent"`
-	Message chat.Message `json:"message"`
+	AgentName string       `json:"agentName"`
+	Message   chat.Message `json:"message"`
 }
 
 func UserMessage(content string) AgentMessage {
 	return AgentMessage{
+		AgentName: "", // User messages don't have an agent name
 		Message: chat.Message{
 			Role:    chat.MessageRoleUser,
 			Content: content,
 		},
+	}
+}
+
+// NewAgentMessage creates a new AgentMessage with the given agent and message
+func NewAgentMessage(a *agent.Agent, message *chat.Message) AgentMessage {
+	agentName := ""
+	if a != nil {
+		agentName = a.Name()
+	}
+	return AgentMessage{
+		AgentName: agentName,
+		Message:   *message,
 	}
 }
 

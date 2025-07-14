@@ -23,7 +23,7 @@ export const useEvents = (
                 content: msg.message.content,
                 metadata: {
                   role: msg.message.role,
-                  agent: msg.agent.name,
+                  agent: msg.agentName,
                 },
               });
             }
@@ -46,7 +46,7 @@ export const useEvents = (
               content: msg.message.content,
               metadata: {
                 role: msg.message.role,
-                agent: msg.agent.name,
+                agent: msg.agentName,
               },
             });
           } else if (msg.message.role === "tool") {
@@ -55,7 +55,7 @@ export const useEvents = (
               content: msg.message.content,
               metadata: {
                 toolId: msg.message.tool_call_id,
-                agent: msg.agent.name,
+                agent: msg.agentName,
               },
             });
           }
