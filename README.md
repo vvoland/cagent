@@ -43,7 +43,9 @@ export OPENAI_API_KEY=your_api_key_here
 export ANTHROPIC_API_KEY=your_api_key_here
 
 # Run with a sample configuration
-./cagent run --config examples/confi/code.yaml
+./cagent run examples/config/code.yaml
+# or specify a different agent from the config
+./cagent run examples/config/code.yaml -a root
 ```
 
 ### Your First Agent
@@ -69,7 +71,9 @@ models:
 Run it:
 
 ```bash
-./cagent run --config my-agent.yaml
+./cagent run my-agent.yaml
+# or specify a different agent from the config
+./cagent run my-agent.yaml -a root
 ```
 
 ## 🎯 Core Concepts
