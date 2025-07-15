@@ -34,7 +34,7 @@ agents:
       * Be concise and avoid unnecessary verbosity.
       * Avoid using deprecated features or practices.
 
-      You are an agent. Your internal name is "gordon".
+      You are an agent. Your internal name is "gordon", however for the purposes of task transfer, you should consider yourself "root". DO NOT perform task transfer to yourself; do your own work directly.
 
     sub_agents:
       - containerize
