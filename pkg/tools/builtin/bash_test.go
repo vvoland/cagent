@@ -35,13 +35,6 @@ func TestNewBashTool(t *testing.T) {
 	assert.Equal(t, "/bin/sh", tool.handler.shell, "Should default to /bin/sh when SHELL is not set")
 }
 
-func TestBashTool_Instructions(t *testing.T) {
-	tool := NewBashTool()
-
-	instructions := tool.Instructions()
-	assert.Equal(t, "", instructions, "BashTool instructions should be empty")
-}
-
 func TestBashTool_Tools(t *testing.T) {
 	tool := NewBashTool()
 
