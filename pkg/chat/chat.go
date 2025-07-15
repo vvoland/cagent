@@ -32,10 +32,10 @@ type MessageImageURL struct {
 }
 
 type Message struct {
-	Role         MessageRole `json:"role"`
-	Content      string      `json:"content,omitempty"`
-	Refusal      string      `json:"refusal,omitempty"`
-	MultiContent []MessagePart
+	Role         MessageRole   `json:"role"`
+	Content      string        `json:"content"`
+	Refusal      string        `json:"refusal,omitempty"`
+	MultiContent []MessagePart `json:"multi_content,omitempty"`
 
 	// This property isn't in the official documentation, but it's in
 	// the documentation for the official library for python:
