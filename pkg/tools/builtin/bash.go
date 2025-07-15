@@ -62,17 +62,7 @@ func NewBashTool() *BashTool {
 }
 
 func (t *BashTool) Instructions() string {
-	return ""
-}
-
-func (t *BashTool) Tools(ctx context.Context) ([]tools.Tool, error) {
-	return []tools.Tool{
-		{
-			Function: &tools.FunctionDefinition{
-				Name: "bash",
-				Description: `Executes the given shell command in the user's default shell.
-
-## Important notes
+	return `## Important notes about the "bash" tool
 
 1. Directory Verification:
    - If the command will create new directories or files, first use the list_directory tool to verify the parent directory exists and is the correct location
@@ -131,7 +121,15 @@ assistant: [uses Bash to 'git add' the unstaged changes from the 'git status' ou
 
 ## Prefer specific tools
 
-It's VERY IMPORTANT to use specific tools when searching for files, instead of issuing terminal commands with find/grep/ripgrep. Use codebase_search or Grep instead. Use read_file tool rather than cat, and edit_file rather than sed.`,
+It's VERY IMPORTANT to use specific tools when searching for files, instead of issuing terminal commands with find/grep/ripgrep. Use codebase_search or Grep instead. Use read_file tool rather than cat, and edit_file rather than sed.`
+}
+
+func (t *BashTool) Tools(ctx context.Context) ([]tools.Tool, error) {
+	return []tools.Tool{
+		{
+			Function: &tools.FunctionDefinition{
+				Name:        "bash",
+				Description: `Executes the given shell command in the user's default shell.`,
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{

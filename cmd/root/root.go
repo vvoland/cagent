@@ -24,7 +24,6 @@ func NewRootCmd() *cobra.Command {
 		},
 	}
 
-	// Add subcommands
 	cmd.AddCommand(NewVersionCmd())
 	cmd.AddCommand(NewRunCmd())
 	cmd.AddCommand(NewWebCmd())
@@ -35,7 +34,6 @@ func NewRootCmd() *cobra.Command {
 	return cmd
 }
 
-// Execute runs the root command
 func Execute() {
 	if err := NewRootCmd().Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

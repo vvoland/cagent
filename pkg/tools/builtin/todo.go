@@ -33,22 +33,23 @@ func NewTodoTool() *TodoTool {
 
 func (t *TodoTool) Instructions() string {
 	return `## Using the Todo Tools
-            IMPORTANT: You MUST use these tools to track the progress of your tasks:
-            
-            1. Before starting any complex task:
-               - Create a todo for each major step using create_todo
-               - Break down complex steps into smaller todos
-            
-            2. While working:
-               - Use list_todos frequently to keep track of remaining work
-               - Mark todos as "completed" when finished
-            
-            3. Task Management Rules:
-               - Never start a new task without creating a todo for it
-               - Always check list_todos before responding to ensure no steps are missed
-               - Update todo status to reflect current progress
-            
-            This toolset is REQUIRED for maintaining task state and ensuring all steps are completed.`
+
+IMPORTANT: You MUST use these tools to track the progress of your tasks:
+
+1. Before starting any complex task:
+	- Create a todo for each major step using create_todo
+	- Break down complex steps into smaller todos
+
+2. While working:
+	- Use list_todos frequently to keep track of remaining work
+	- Mark todos as "completed" when finished
+
+3. Task Management Rules:
+	- Never start a new task without creating a todo for it
+	- Always check list_todos before responding to ensure no steps are missed
+	- Update todo status to reflect current progress
+
+This toolset is REQUIRED for maintaining task state and ensuring all steps are completed.`
 }
 
 func (h *todoHandler) createTodo(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
