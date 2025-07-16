@@ -33,13 +33,15 @@ func main() {
 		agent.WithModel(llm),
 		agent.WithDescription("A child."),
 	)
+	root := agent.New("root",
+		"You are a human, with feelings and emotions.",
+		agent.WithModel(llm),
+		agent.WithSubAgents([]*agent.Agent{child}),
+		agent.WithToolSets([]tools.ToolSet{&builtin.TransferTaskTool{}}),
+	)
+
 	agents := team.New(map[string]*agent.Agent{
-		"root": agent.New("root",
-			"You are a human, with feelings and emotions.",
-			agent.WithModel(llm),
-			agent.WithSubAgents([]*agent.Agent{child}),
-			agent.WithToolSets([]tools.ToolSet{&builtin.TransferTaskTool{}}),
-		),
+		"root":  root,
 		"child": child,
 	})
 
@@ -54,6 +56,5 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	fmt.Println(messages[len(messages)-1].Message.Content)
 }

@@ -30,6 +30,7 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddCommand(NewUICmd())
 	cmd.AddCommand(NewInitCmd())
 	cmd.AddCommand(NewApiCmd())
+	cmd.AddCommand(NewEvalCmd())
 
 	return cmd
 }
