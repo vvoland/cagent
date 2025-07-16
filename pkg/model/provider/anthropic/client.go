@@ -156,8 +156,8 @@ func (c *Client) CreateChatCompletionStream(
 		"tool_count", len(requestTools))
 
 	params := anthropic.MessageNewParams{
-		Model:     anthropic.ModelClaude3_7Sonnet20250219,
-		MaxTokens: 64000,
+		Model:     anthropic.Model(c.config.Model),
+		MaxTokens: int64(c.config.MaxTokens),
 		Messages:  convertMessages(messages),
 		Tools:     convertTools(requestTools),
 	}
@@ -185,8 +185,8 @@ func (c *Client) CreateChatCompletion(
 	c.logger.Debug("Creating Anthropic chat completion", "model", c.config.Model, "message_count", len(messages))
 
 	params := anthropic.MessageNewParams{
-		Model:     anthropic.ModelClaude3_7Sonnet20250219,
-		MaxTokens: 64000,
+		Model:     anthropic.Model(c.config.Model),
+		MaxTokens: int64(c.config.MaxTokens),
 		Messages:  convertMessages(messages),
 	}
 
