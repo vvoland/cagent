@@ -75,4 +75,5 @@ models:
 
   claude:
     type: anthropic
-    model: claude-4-sonnet-latest
+    model: claude-3-5-sonnet-latest
+    max_tokens: 8192

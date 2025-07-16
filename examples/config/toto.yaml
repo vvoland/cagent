@@ -53,7 +53,8 @@ agents:
 models:
   anthropic:
     type: anthropic
-    model: claude-3-sonnet-latest
+    model: claude-3-5-sonnet-latest
+    max_tokens: 8192
 
   openai:
     type: openai
