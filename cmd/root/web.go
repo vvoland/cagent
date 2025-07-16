@@ -125,6 +125,10 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 		runtimes[filepath.Base(args[0])] = rt
 	}
 
+	if len(runtimes) == 0 {
+		return fmt.Errorf("no agents found")
+	}
+
 	fsys, err := fs.Sub(web.WebContent, "dist")
 	if err != nil {
 		return err
