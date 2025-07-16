@@ -4,7 +4,7 @@ agents:
     model: openai
     description: "Humorous AI with persistent memory"
     memory:
-      path: ~/funny.db
+      path: ./funny.db
     instruction: You are a funny chatter
 
 models:
