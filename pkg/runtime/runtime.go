@@ -121,7 +121,6 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 					return
 				}
 
-			outer:
 				for _, toolCall := range calls {
 					r.logger.Debug("Processing tool call", "agent", a.Name(), "tool", toolCall.Function.Name)
 					handler, exists := r.toolMap[toolCall.Function.Name]
@@ -163,10 +162,13 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 						res, err := tool.Handler(ctx, toolCall)
 						if err != nil {
 							r.logger.Error("Error calling tool", "tool", toolCall.Function.Name, "error", err)
-							break outer
+							res = &tools.ToolCallResult{
+								Output: fmt.Sprintf("Error calling tool: %v", err),
+							}
+						} else {
+							r.logger.Debug("Agent tool call completed", "tool", toolCall.Function.Name, "output_length", len(res.Output))
 						}
 
-						r.logger.Debug("Agent tool call completed", "tool", toolCall.Function.Name, "output_length", len(res.Output))
 						events <- &ToolCallResponseEvent{
 							ToolCall: toolCall,
 							Response: res.Output,
