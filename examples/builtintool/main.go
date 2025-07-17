@@ -32,7 +32,7 @@ func main() {
 		"root": agent.New("root",
 			"You are an expert hacker",
 			agent.WithModel(llm),
-			agent.WithToolSets([]tools.ToolSet{builtin.NewBashTool()}),
+			agent.WithToolSets([]tools.ToolSet{builtin.NewShellTool()}),
 		),
 	})
 

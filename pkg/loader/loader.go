@@ -105,8 +105,8 @@ func getToolsForAgent(ctx context.Context, a *config.AgentConfig, logger *slog.L
 	toolsets := a.Toolsets
 	for _, toolset := range toolsets {
 		// TODO: we will have more builtin tools in the future
-		if toolset.Type == "builtin" {
-			t = append(t, builtin.NewBashTool())
+		if toolset.Type == "shell" {
+			t = append(t, builtin.NewShellTool())
 		}
 		if toolset.Type != "mcp" {
 			continue

@@ -55,18 +55,12 @@ agents:
       * Don't show the code that you generated
 
     todo: true
+
     toolsets:
+      - type: shell
       - type: mcp
         command: rust-mcp-filesystem
         args: ["--allow-write", "."]
-      - type: mcp
-        command: uvx
-        args: ["duckduckgo-mcp-server"]
-      - type: mcp
-        command: uvx
-        args: ["mcp-shell-server"]
-        env:
-          ALLOW_COMMANDS: "docker,git,pwd,go"
 
 models:
   openai:
@@ -75,5 +69,5 @@ models:
 
   claude:
     type: anthropic
-    model: claude-3-5-sonnet-latest
-    max_tokens: 8192
+    model: claude-sonnet-4-0
+    max_tokens: 64000

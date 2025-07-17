@@ -13,14 +13,14 @@ import (
 	"github.com/rumpl/cagent/pkg/tools"
 )
 
-func TestNewBashTool(t *testing.T) {
+func TestNewShellTool(t *testing.T) {
 	// Save original env
 	originalShell := os.Getenv("SHELL")
 	defer os.Setenv("SHELL", originalShell)
 
 	// Test with SHELL env var set
 	os.Setenv("SHELL", "/bin/bash")
-	tool := NewBashTool()
+	tool := NewShellTool()
 
 	assert.NotNil(t, tool)
 	assert.NotNil(t, tool.handler)
@@ -28,15 +28,15 @@ func TestNewBashTool(t *testing.T) {
 
 	// Test with no SHELL env var
 	os.Setenv("SHELL", "")
-	tool = NewBashTool()
+	tool = NewShellTool()
 
 	assert.NotNil(t, tool)
 	assert.NotNil(t, tool.handler)
 	assert.Equal(t, "/bin/sh", tool.handler.shell, "Should default to /bin/sh when SHELL is not set")
 }
 
-func TestBashTool_Tools(t *testing.T) {
-	tool := NewBashTool()
+func TestShellTool_Tools(t *testing.T) {
+	tool := NewShellTool()
 
 	tools, err := tool.Tools(context.Background())
 
@@ -60,9 +60,9 @@ func TestBashTool_Tools(t *testing.T) {
 	assert.NotNil(t, tools[0].Handler)
 }
 
-func TestBashTool_HandlerEcho(t *testing.T) {
+func TestShellTool_HandlerEcho(t *testing.T) {
 	// This is a simple test that should work on most systems
-	tool := NewBashTool()
+	tool := NewShellTool()
 
 	// Get handler from tool
 	tls, err := tool.Tools(context.Background())
@@ -96,9 +96,9 @@ func TestBashTool_HandlerEcho(t *testing.T) {
 	assert.Contains(t, result.Output, "hello world")
 }
 
-func TestBashTool_HandlerWithCwd(t *testing.T) {
+func TestShellTool_HandlerWithCwd(t *testing.T) {
 	// This test verifies the cwd parameter works
-	tool := NewBashTool()
+	tool := NewShellTool()
 
 	// Get handler from tool
 	tls, err := tool.Tools(context.Background())
@@ -137,9 +137,9 @@ func TestBashTool_HandlerWithCwd(t *testing.T) {
 		"Expected output to contain the temp dir path: %s, but got: %s", tmpDir, result.Output)
 }
 
-func TestBashTool_HandlerError(t *testing.T) {
+func TestShellTool_HandlerError(t *testing.T) {
 	// This test verifies error handling
-	tool := NewBashTool()
+	tool := NewShellTool()
 
 	// Get handler from tool
 	tls, err := tool.Tools(context.Background())
@@ -173,8 +173,8 @@ func TestBashTool_HandlerError(t *testing.T) {
 	assert.Contains(t, result.Output, "Error executing command")
 }
 
-func TestBashTool_InvalidArguments(t *testing.T) {
-	tool := NewBashTool()
+func TestShellTool_InvalidArguments(t *testing.T) {
+	tool := NewShellTool()
 
 	// Get handler from tool
 	tls, err := tool.Tools(context.Background())
@@ -196,8 +196,8 @@ func TestBashTool_InvalidArguments(t *testing.T) {
 	assert.Nil(t, result)
 }
 
-func TestBashTool_StartStop(t *testing.T) {
-	tool := NewBashTool()
+func TestShellTool_StartStop(t *testing.T) {
+	tool := NewShellTool()
 
 	// Test Start method
 	err := tool.Start(context.Background())

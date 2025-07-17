@@ -10,15 +10,15 @@ import (
 	"github.com/rumpl/cagent/pkg/tools"
 )
 
-type BashTool struct {
-	handler *bashHandler
+type ShellTool struct {
+	handler *shellHandler
 }
 
-type bashHandler struct {
+type shellHandler struct {
 	shell string
 }
 
-func (h *bashHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (h *shellHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var params struct {
 		Cmd string `json:"cmd"`
 		Cwd string `json:"cwd"`
@@ -48,20 +48,20 @@ func (h *bashHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*t
 	}, nil
 }
 
-func NewBashTool() *BashTool {
+func NewShellTool() *ShellTool {
 	shell := os.Getenv("SHELL")
 	if shell == "" {
 		shell = "/bin/sh" // Fallback to /bin/sh if SHELL is not set
 	}
 
-	return &BashTool{
-		handler: &bashHandler{
+	return &ShellTool{
+		handler: &shellHandler{
 			shell: shell,
 		},
 	}
 }
 
-func (t *BashTool) Instructions() string {
+func (t *ShellTool) Instructions() string {
 	return `## Important notes about the "bash" tool
 
 1. Directory Verification:
@@ -124,11 +124,11 @@ assistant: [uses Bash to 'git add' the unstaged changes from the 'git status' ou
 It's VERY IMPORTANT to use specific tools when searching for files, instead of issuing terminal commands with find/grep/ripgrep. Use codebase_search or Grep instead. Use read_file tool rather than cat, and edit_file rather than sed.`
 }
 
-func (t *BashTool) Tools(ctx context.Context) ([]tools.Tool, error) {
+func (t *ShellTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 	return []tools.Tool{
 		{
 			Function: &tools.FunctionDefinition{
-				Name:        "bash",
+				Name:        "shell",
 				Description: `Executes the given shell command in the user's default shell.`,
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
@@ -150,10 +150,10 @@ func (t *BashTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 	}, nil
 }
 
-func (t *BashTool) Start(ctx context.Context) error {
+func (t *ShellTool) Start(ctx context.Context) error {
 	return nil
 }
 
-func (t *BashTool) Stop() error {
+func (t *ShellTool) Stop() error {
 	return nil
 }
