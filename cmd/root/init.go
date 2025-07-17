@@ -67,14 +67,15 @@ func NewInitCmd() *cobra.Command {
 			addDate := strings.ToLower(strings.TrimSpace(dateInput)) == "y"
 
 			llm, err := anthropic.NewClient(&config.ModelConfig{
-				Type:  "anthropic",
-				Model: "claude-3-5-sonnet-latest",
+				Type:      "anthropic",
+				Model:     "claude-sonnet-4-0",
+				MaxTokens: 64000,
 			}, logger)
 			if err != nil {
 				return fmt.Errorf("failed to create LLM client: %w", err)
 			}
 
-			prompt := fmt.Sprintf(`Given this purpose for an AI agent: %q\n\nName: %s\nDescription: %s\n\nPlease write a system instruction (2-3 sentences) that will guide the agent's behavior.`, purpose, name, description)
+			prompt := fmt.Sprintf(`Given this purpose for an AI agent: %q\n\nName: %s\nDescription: %s\n\nPlease write a system instruction that will guide the agent's behavior, try to infer what the user wants the agent to do.`, purpose, name, description)
 
 			fmt.Println("\nGenerating agent instruction...")
 
@@ -120,8 +121,9 @@ func NewInitCmd() *cobra.Command {
 			}
 			models := map[string]config.ModelConfig{
 				"anthropic": {
-					Type:  "anthropic",
-					Model: "claude-3-sonnet-latest",
+					Type:      "anthropic",
+					Model:     "claude-sonnet-4-0",
+					MaxTokens: 64000,
 				},
 			}
 			cfg := config.Config{
