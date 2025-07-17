@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/rumpl/cagent/pkg/chat"
-	"github.com/rumpl/cagent/pkg/config"
-	"github.com/rumpl/cagent/pkg/model/provider/anthropic"
-	"github.com/rumpl/cagent/pkg/model/provider/dmr"
-	"github.com/rumpl/cagent/pkg/model/provider/openai"
-	"github.com/rumpl/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/model/provider/anthropic"
+	"github.com/docker/cagent/pkg/model/provider/dmr"
+	"github.com/docker/cagent/pkg/model/provider/openai"
+	"github.com/docker/cagent/pkg/tools"
 )
 
 // Provider defines the interface for model providers

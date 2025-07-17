@@ -1,6 +1,6 @@
 package server
 
-import "github.com/rumpl/cagent/pkg/chat"
+import "github.com/docker/cagent/pkg/chat"
 
 type Message struct {
 	Role    chat.MessageRole `json:"role"`

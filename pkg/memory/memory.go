@@ -3,9 +3,9 @@ package memory
 import (
 	"context"
 
-	"github.com/rumpl/cagent/pkg/memory/database"
-	"github.com/rumpl/cagent/pkg/memorymanager"
-	"github.com/rumpl/cagent/pkg/model/provider"
+	"github.com/docker/cagent/pkg/memory/database"
+	"github.com/docker/cagent/pkg/memorymanager"
+	"github.com/docker/cagent/pkg/model/provider"
 )
 
 type Manager struct {

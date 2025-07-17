@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/rumpl/cagent/cmd/root"
+	"github.com/docker/cagent/cmd/root"
 )
 
 func main() {

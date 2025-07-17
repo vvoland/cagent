@@ -1,6 +1,6 @@
 package chat
 
-import "github.com/rumpl/cagent/pkg/tools"
+import "github.com/docker/cagent/pkg/tools"
 
 type MessageRole string
 

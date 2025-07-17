@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/rumpl/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools"
 )
 
 // Toolset represents a set of MCP tools

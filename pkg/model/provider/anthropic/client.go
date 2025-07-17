@@ -13,9 +13,9 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/anthropics/anthropic-sdk-go/packages/ssestream"
-	"github.com/rumpl/cagent/pkg/chat"
-	"github.com/rumpl/cagent/pkg/config"
-	"github.com/rumpl/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/tools"
 )
 
 // StreamAdapter adapts the Anthropic stream to our interface

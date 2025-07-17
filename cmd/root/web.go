@@ -10,14 +10,14 @@ import (
 
 	"maps"
 
-	"github.com/rumpl/cagent/pkg/agent"
-	"github.com/rumpl/cagent/pkg/chat"
-	"github.com/rumpl/cagent/pkg/loader"
-	"github.com/rumpl/cagent/pkg/runtime"
-	"github.com/rumpl/cagent/pkg/server"
-	"github.com/rumpl/cagent/pkg/session"
-	"github.com/rumpl/cagent/pkg/team"
-	"github.com/rumpl/cagent/web"
+	"github.com/docker/cagent/pkg/agent"
+	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/loader"
+	"github.com/docker/cagent/pkg/runtime"
+	"github.com/docker/cagent/pkg/server"
+	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/cagent/pkg/team"
+	"github.com/docker/cagent/web"
 	"github.com/spf13/cobra"
 )
 

@@ -8,11 +8,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/loader"
+	"github.com/docker/cagent/pkg/runtime"
+	"github.com/docker/cagent/pkg/session"
 	"github.com/fatih/color"
-	"github.com/rumpl/cagent/pkg/chat"
-	"github.com/rumpl/cagent/pkg/loader"
-	"github.com/rumpl/cagent/pkg/runtime"
-	"github.com/rumpl/cagent/pkg/session"
 	"github.com/spf13/cobra"
 )
 

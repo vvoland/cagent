@@ -14,11 +14,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/rumpl/cagent/pkg/chat"
-	"github.com/rumpl/cagent/pkg/history"
-	"github.com/rumpl/cagent/pkg/loader"
-	"github.com/rumpl/cagent/pkg/runtime"
-	"github.com/rumpl/cagent/pkg/session"
+	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/history"
+	"github.com/docker/cagent/pkg/loader"
+	"github.com/docker/cagent/pkg/runtime"
+	"github.com/docker/cagent/pkg/session"
 	"github.com/spf13/cobra"
 )
 

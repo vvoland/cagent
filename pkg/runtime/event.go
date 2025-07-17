@@ -1,8 +1,8 @@
 package runtime
 
 import (
-	"github.com/rumpl/cagent/pkg/chat"
-	"github.com/rumpl/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/tools"
 )
 
 type Event interface{ isEvent() }

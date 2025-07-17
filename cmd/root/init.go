@@ -9,9 +9,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rumpl/cagent/pkg/chat"
-	"github.com/rumpl/cagent/pkg/config"
-	"github.com/rumpl/cagent/pkg/model/provider/anthropic"
+	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/model/provider/anthropic"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )

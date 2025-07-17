@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rumpl/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools"
 )
 
 type ThinkTool struct {

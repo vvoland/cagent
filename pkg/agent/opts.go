@@ -1,9 +1,9 @@
 package agent
 
 import (
-	"github.com/rumpl/cagent/pkg/memorymanager"
-	"github.com/rumpl/cagent/pkg/model/provider"
-	"github.com/rumpl/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/memorymanager"
+	"github.com/docker/cagent/pkg/model/provider"
+	"github.com/docker/cagent/pkg/tools"
 )
 
 type Opt func(a *Agent)

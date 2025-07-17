@@ -3,7 +3,7 @@ package memorymanager
 import (
 	"context"
 
-	"github.com/rumpl/cagent/pkg/memory/database"
+	"github.com/docker/cagent/pkg/memory/database"
 )
 
 type Manager interface {

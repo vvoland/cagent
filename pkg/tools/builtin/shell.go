@@ -7,7 +7,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/rumpl/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools"
 )
 
 type ShellTool struct {

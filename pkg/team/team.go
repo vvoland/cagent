@@ -1,6 +1,6 @@
 package team
 
-import "github.com/rumpl/cagent/pkg/agent"
+import "github.com/docker/cagent/pkg/agent"
 
 type Team struct {
 	agents map[string]*agent.Agent

@@ -1,4 +1,4 @@
-module github.com/rumpl/cagent
+module github.com/docker/cagent
 
 go 1.24.1
 

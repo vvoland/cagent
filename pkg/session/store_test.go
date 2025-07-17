@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rumpl/cagent/pkg/agent"
-	"github.com/rumpl/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/agent"
+	"github.com/docker/cagent/pkg/chat"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

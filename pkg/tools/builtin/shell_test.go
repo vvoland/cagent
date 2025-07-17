@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rumpl/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools"
 )
 
 func TestNewShellTool(t *testing.T) {
@@ -44,7 +44,7 @@ func TestShellTool_Tools(t *testing.T) {
 	assert.Len(t, tools, 1)
 
 	// Verify bash function
-	assert.Equal(t, "bash", tools[0].Function.Name)
+	assert.Equal(t, "shell", tools[0].Function.Name)
 	assert.Contains(t, tools[0].Function.Description, "Executes the given shell command")
 
 	// Check parameters
@@ -83,7 +83,7 @@ func TestShellTool_HandlerEcho(t *testing.T) {
 
 	toolCall := tools.ToolCall{
 		Function: tools.FunctionCall{
-			Name:      "bash",
+			Name:      "shell",
 			Arguments: string(argsBytes),
 		},
 	}
@@ -121,7 +121,7 @@ func TestShellTool_HandlerWithCwd(t *testing.T) {
 
 	toolCall := tools.ToolCall{
 		Function: tools.FunctionCall{
-			Name:      "bash",
+			Name:      "shell",
 			Arguments: string(argsBytes),
 		},
 	}
@@ -160,7 +160,7 @@ func TestShellTool_HandlerError(t *testing.T) {
 
 	toolCall := tools.ToolCall{
 		Function: tools.FunctionCall{
-			Name:      "bash",
+			Name:      "shell",
 			Arguments: string(argsBytes),
 		},
 	}
@@ -186,7 +186,7 @@ func TestShellTool_InvalidArguments(t *testing.T) {
 	// Invalid JSON
 	toolCall := tools.ToolCall{
 		Function: tools.FunctionCall{
-			Name:      "bash",
+			Name:      "shell",
 			Arguments: "{invalid json",
 		},
 	}

@@ -7,9 +7,9 @@ import (
 	"log/slog"
 	"slices"
 
+	"github.com/docker/cagent/pkg/tools"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/rumpl/cagent/pkg/tools"
 )
 
 // Client implements an MCP client for interacting with MCP servers

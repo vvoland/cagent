@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rumpl/cagent/pkg/memory/database"
-	"github.com/rumpl/cagent/pkg/memorymanager"
-	"github.com/rumpl/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/memory/database"
+	"github.com/docker/cagent/pkg/memorymanager"
+	"github.com/docker/cagent/pkg/tools"
 )
 
 type MemoryTool struct {

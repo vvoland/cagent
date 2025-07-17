@@ -6,14 +6,14 @@ import (
 	"log"
 	"log/slog"
 
-	"github.com/rumpl/cagent/pkg/agent"
-	"github.com/rumpl/cagent/pkg/config"
-	"github.com/rumpl/cagent/pkg/model/provider/openai"
-	"github.com/rumpl/cagent/pkg/runtime"
-	"github.com/rumpl/cagent/pkg/session"
-	"github.com/rumpl/cagent/pkg/team"
-	"github.com/rumpl/cagent/pkg/tools"
-	"github.com/rumpl/cagent/pkg/tools/builtin"
+	"github.com/docker/cagent/pkg/agent"
+	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/model/provider/openai"
+	"github.com/docker/cagent/pkg/runtime"
+	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/cagent/pkg/team"
+	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools/builtin"
 )
 
 func main() {

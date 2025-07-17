@@ -4,9 +4,9 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/rumpl/cagent/pkg/agent"
-	"github.com/rumpl/cagent/pkg/chat"
-	"github.com/rumpl/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/agent"
+	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/tools"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -7,15 +7,15 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rumpl/cagent/pkg/agent"
-	"github.com/rumpl/cagent/pkg/config"
-	"github.com/rumpl/cagent/pkg/memory"
-	"github.com/rumpl/cagent/pkg/memory/database/sqlite"
-	"github.com/rumpl/cagent/pkg/model/provider"
-	"github.com/rumpl/cagent/pkg/team"
-	"github.com/rumpl/cagent/pkg/tools"
-	"github.com/rumpl/cagent/pkg/tools/builtin"
-	"github.com/rumpl/cagent/pkg/tools/mcp"
+	"github.com/docker/cagent/pkg/agent"
+	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/memory"
+	"github.com/docker/cagent/pkg/memory/database/sqlite"
+	"github.com/docker/cagent/pkg/model/provider"
+	"github.com/docker/cagent/pkg/team"
+	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools/builtin"
+	"github.com/docker/cagent/pkg/tools/mcp"
 )
 
 func Load(ctx context.Context, path string, logger *slog.Logger) (*team.Team, error) {

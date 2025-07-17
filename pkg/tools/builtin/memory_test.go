@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rumpl/cagent/pkg/memory/database"
-	"github.com/rumpl/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/memory/database"
+	"github.com/docker/cagent/pkg/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

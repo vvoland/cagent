@@ -9,11 +9,11 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/rumpl/cagent/pkg/agent"
-	"github.com/rumpl/cagent/pkg/chat"
-	"github.com/rumpl/cagent/pkg/session"
-	"github.com/rumpl/cagent/pkg/team"
-	"github.com/rumpl/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/agent"
+	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/cagent/pkg/team"
+	"github.com/docker/cagent/pkg/tools"
 )
 
 // ToolHandler is a function type for handling tool calls
