@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/evaluation"
 	"github.com/docker/cagent/pkg/loader"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
@@ -34,7 +34,6 @@ func NewRunCmd() *cobra.Command {
 func runAgentCommand(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
-	// Configure logger based on debug flag
 	logLevel := slog.LevelInfo
 	if debugMode {
 		logLevel = slog.LevelDebug
@@ -72,16 +71,19 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			break
 		}
 
-		userInput := scanner.Text()
-
-		if strings.TrimSpace(userInput) == "" {
+		userInput := strings.TrimSpace(scanner.Text())
+		if userInput == "" {
 			continue
 		}
 
-		sess.Messages = append(sess.Messages, session.NewAgentMessage(rt.CurrentAgent(), &chat.Message{
-			Role:    chat.MessageRoleUser,
-			Content: userInput,
-		}))
+		handled, err := runUserCommand(userInput, sess)
+		if err != nil {
+			return err
+		}
+
+		if !handled {
+			sess.Messages = append(sess.Messages, session.UserMessage(userInput))
+		}
 
 		first := false
 		for event := range rt.RunStream(ctx, sess) {
@@ -110,4 +112,24 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func runUserCommand(userInput string, sess *session.Session) (bool, error) {
+	yellow := color.New(color.FgYellow).SprintfFunc()
+	switch userInput {
+	case "/exit":
+		os.Exit(0)
+	case "/eval":
+		err := evaluation.Save(sess)
+		if err == nil {
+			fmt.Printf("%s\n", yellow("Evaluation saved"))
+			return true, err
+		}
+		return true, nil
+	case "/reset":
+		sess.Messages = []session.AgentMessage{}
+		return true, nil
+	}
+
+	return false, nil
 }
