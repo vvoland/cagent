@@ -16,4 +16,4 @@ COPY server.py .
 ENV PYTHONUNBUFFERED=1
 
 # Run the server
-CMD ["python", "server.py"] 
+CMD ["python", "server.py"]
