@@ -64,3 +64,8 @@ tasks:
     desc: Build Docker image
     cmds:
       - docker build -t docker/cagent:latest .
+
+  cross:
+    desc: Build binaries for multiple platforms
+    cmds:
+      - docker buildx build --platform linux/amd64,linux/arm64,darwin/amd64,darwin/arm64,windows/amd64,windows/arm64 --target=cross --output=./dist .
