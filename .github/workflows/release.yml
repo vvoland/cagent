@@ -42,8 +42,15 @@ jobs:
       - name: Build cross platform binaries
         run: task cross
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      - name: Create the release
+        uses: softprops/action-gh-release@v2
         with:
-          name: cagent
-          path: ./dist/**/cagent-*
+          files: |
+            ./dist/linux_arm64/cagent-linux-arm64
+            ./dist/linux_amd64/cagent-linux-amd64
+            ./dist/darwin_arm64/cagent-darwin-arm64
+            ./dist/darwin_amd64/cagent-darwin-amd64
+            ./dist/windows_arm64/cagent-windows-arm64.exe
+            ./dist/windows_amd64/cagent-windows-amd64.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
