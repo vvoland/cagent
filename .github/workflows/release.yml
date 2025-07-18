@@ -24,6 +24,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
+          fetch-depth: 0
           ref: ${{ github.event.inputs.branch }}
 
       - name: Install Task
@@ -42,10 +43,21 @@ jobs:
       - name: Build cross platform binaries
         run: task cross
 
+      - name: GitHub auth token from GitHub App
+        id: docker-write-app
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.DOCKER_READ_WRITE_APP_ID }}
+          private-key: ${{ secrets.DOCKER_READ_WRITE_APP_PRIVATE_KEY }}
+          owner: docker
+          repositories: cagent
+
       - name: Create the release
         uses: softprops/action-gh-release@v2
         with:
+          name: ${{ github.event.inputs.tag }}
           tag_name: ${{ github.event.inputs.tag }}
+          token: ${{ steps.docker-write-app.outputs.token }}
           files: |
             ./dist/linux_arm64/cagent-linux-arm64
             ./dist/linux_amd64/cagent-linux-amd64
@@ -53,5 +65,3 @@ jobs:
             ./dist/darwin_amd64/cagent-darwin-amd64
             ./dist/windows_arm64/cagent-windows-arm64.exe
             ./dist/windows_amd64/cagent-windows-amd64.exe
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
