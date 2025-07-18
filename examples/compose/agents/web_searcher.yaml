@@ -1,0 +1,19 @@
+agents:
+  root:
+    name: web_searcher
+    model: openai
+    description: An agent that can search up to date informations
+    instruction: |
+      Use the DuckDuckGo search tool to find relevant and up-to-date information.
+      Always share your sources with the user.
+    toolsets:
+      - type: mcp
+        command: socat
+        args: ["STDIO", "TCP:gateway:8811"]
+        tools:
+          - search
+
+models:
+  openai:
+    type: openai
+    model: gpt-4o
