@@ -21,9 +21,10 @@ import (
 // NewWebCmd creates a new web command
 func NewApiCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "api",
+		Use:   "api <agent-name>",
 		Short: "Start the API server",
 		Long:  `Start the API server that exposes the agent via an HTTP API`,
+		Args:  cobra.ExactArgs(1),
 		RunE:  runApiCommand,
 	}
 

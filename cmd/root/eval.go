@@ -11,7 +11,7 @@ import (
 
 func NewEvalCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:  "eval",
+		Use:  "eval <agent-name> <eval-dir>",
 		Args: cobra.ExactArgs(2),
 		RunE: runEvalCommand,
 	}

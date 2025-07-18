@@ -613,9 +613,10 @@ func (m *model) View() string {
 // NewUICmd creates a new UI command
 func NewUICmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "ui",
+		Use:   "ui <agent-name>",
 		Short: "Run the agent with a TUI",
 		Long:  `Run the agent with a Terminal User Interface powered by Charm`,
+		Args:  cobra.ExactArgs(1),
 		RunE:  runUICommand,
 	}
 

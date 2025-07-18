@@ -19,9 +19,10 @@ import (
 // NewRunCmd creates a new run command
 func NewRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "run",
+		Use:   "run <agent-name>",
 		Short: "Run an agent",
 		Long:  `Run an agent with the specified configuration and prompt`,
+		Args:  cobra.ExactArgs(1),
 		RunE:  runAgentCommand,
 	}
 
