@@ -238,7 +238,18 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 			continue
 		}
 		if msg.Role == chat.MessageRoleTool {
-			anthropicMessages = append(anthropicMessages, anthropic.NewUserMessage(anthropic.NewToolResultBlock(msg.ToolCallID, strings.TrimSpace(msg.Content), false)))
+			toolResult := anthropic.NewToolResultBlock(msg.ToolCallID)
+			toolResult.OfToolResult = &anthropic.ToolResultBlockParam{
+				ToolUseID: msg.ToolCallID,
+				Content: []anthropic.ToolResultBlockParamContentUnion{
+					{
+						OfText: &anthropic.TextBlockParam{
+							Text: strings.TrimSpace(msg.Content),
+						},
+					},
+				},
+			}
+			anthropicMessages = append(anthropicMessages, anthropic.NewUserMessage(toolResult))
 			continue
 		}
 		fmt.Println("unknown message role", msg.Role)
