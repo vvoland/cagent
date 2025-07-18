@@ -26,13 +26,6 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch }}
 
-      - name: Setup
-        id: setup
-        uses: docker/actions/setup@setup/v1
-        with:
-          app_id: ${{ secrets.HUB_PLATFORM_APP_ID }}
-          app_private_key: ${{ secrets.HUB_PLATFORM_APP_PRIVATE_KEY }}
-
       - name: Install Task
         uses: arduino/setup-task@v2
         with:
