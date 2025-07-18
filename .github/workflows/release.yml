@@ -45,6 +45,7 @@ jobs:
       - name: Create the release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event.inputs.branch }}
           files: |
             ./dist/linux_arm64/cagent-linux-arm64
             ./dist/linux_amd64/cagent-linux-amd64
