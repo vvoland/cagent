@@ -7,10 +7,11 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/sashabaranov/go-openai"
+
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/tools"
-	"github.com/sashabaranov/go-openai"
 )
 
 // StreamAdapter adapts the OpenAI stream to our interface

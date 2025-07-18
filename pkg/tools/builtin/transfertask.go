@@ -6,8 +6,7 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
-type TransferTaskTool struct {
-}
+type TransferTaskTool struct{}
 
 func NewTransferTaskTool() *TransferTaskTool {
 	return &TransferTaskTool{}

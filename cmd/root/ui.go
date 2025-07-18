@@ -14,12 +14,13 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/spf13/cobra"
+
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/history"
 	"github.com/docker/cagent/pkg/loader"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
-	"github.com/spf13/cobra"
 )
 
 var (

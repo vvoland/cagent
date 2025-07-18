@@ -3,11 +3,12 @@ package root
 import (
 	"fmt"
 	"log/slog"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"maps"
+	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/loader"
@@ -15,7 +16,6 @@ import (
 	"github.com/docker/cagent/pkg/server"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
-	"github.com/spf13/cobra"
 )
 
 // NewWebCmd creates a new web command

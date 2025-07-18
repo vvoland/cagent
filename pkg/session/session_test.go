@@ -4,10 +4,11 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/tools"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestTrimMessages(t *testing.T) {

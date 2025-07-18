@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/spf13/cobra"
+
 	"github.com/docker/cagent/pkg/evaluation"
 	"github.com/docker/cagent/pkg/loader"
-	"github.com/spf13/cobra"
 )
 
 func NewEvalCmd() *cobra.Command {

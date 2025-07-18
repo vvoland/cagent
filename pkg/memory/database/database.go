@@ -5,9 +5,7 @@ import (
 	"errors"
 )
 
-var (
-	ErrEmptyID = errors.New("memory ID cannot be empty")
-)
+var ErrEmptyID = errors.New("memory ID cannot be empty")
 
 type UserMemory struct {
 	ID        string

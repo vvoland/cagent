@@ -9,11 +9,12 @@ import (
 	"os"
 	"strings"
 
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
+
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/model/provider/anthropic"
-	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 // NewInitCmd creates a new init command

@@ -8,10 +8,11 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/labstack/echo/v4"
+
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
-	"github.com/labstack/echo/v4"
 )
 
 type Server struct {

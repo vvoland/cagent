@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"maps"
+	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/chat"
@@ -18,7 +19,6 @@ import (
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/web"
-	"github.com/spf13/cobra"
 )
 
 type Message struct {

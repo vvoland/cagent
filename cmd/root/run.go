@@ -8,12 +8,13 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fatih/color"
+	"github.com/spf13/cobra"
+
 	"github.com/docker/cagent/pkg/evaluation"
 	"github.com/docker/cagent/pkg/loader"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
-	"github.com/fatih/color"
-	"github.com/spf13/cobra"
 )
 
 // NewRunCmd creates a new run command

@@ -5,9 +5,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/chat"
-	"github.com/google/uuid"
 )
 
 // TODO: instead of trimming, we should compact the history when it nears the

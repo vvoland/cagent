@@ -6,9 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/cagent/pkg/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/docker/cagent/pkg/tools"
 )
 
 func TestNewTodoTool(t *testing.T) {
@@ -152,7 +153,6 @@ func TestTodoTool_CreateTodos(t *testing.T) {
 
 	// Verify todos were added to the handler's todos map
 	assert.Len(t, tool.handler.todos, 3)
-
 }
 
 func TestTodoTool_UpdateTodo(t *testing.T) {

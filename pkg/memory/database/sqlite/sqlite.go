@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/docker/cagent/pkg/memory/database"
 	_ "github.com/mattn/go-sqlite3"
+
+	"github.com/docker/cagent/pkg/memory/database"
 )
 
 type MemoryDatabase struct {

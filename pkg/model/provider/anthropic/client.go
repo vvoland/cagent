@@ -13,6 +13,7 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/anthropics/anthropic-sdk-go/packages/ssestream"
+
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/tools"
@@ -118,7 +119,6 @@ type Client struct {
 
 // NewClient creates a new Anthropic client from the provided configuration
 func NewClient(cfg *config.ModelConfig, logger *slog.Logger) (*Client, error) {
-
 	if cfg == nil {
 		logger.Error("Anthropic client creation failed", "error", "model configuration is required")
 		return nil, errors.New("model configuration is required")
