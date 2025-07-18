@@ -3,7 +3,6 @@ package agent
 import (
 	"context"
 	"fmt"
-	"slices"
 
 	"github.com/docker/cagent/pkg/memorymanager"
 	"github.com/docker/cagent/pkg/model/provider"
@@ -73,19 +72,6 @@ func (a *Agent) HasSubAgents() bool {
 
 func (a *Agent) HasParents() bool {
 	return len(a.parents) > 0
-}
-
-// IsSubAgent checks if a given agent name is a sub-agent
-func (a *Agent) IsSubAgent(name string) bool {
-	return slices.ContainsFunc(a.subAgents, func(s *Agent) bool {
-		return s.name == name
-	})
-}
-
-func (a *Agent) IsParent(name string) bool {
-	return slices.ContainsFunc(a.parents, func(p *Agent) bool {
-		return p.name == name
-	})
 }
 
 // Model returns the model name used by the agent

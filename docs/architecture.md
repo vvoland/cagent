@@ -210,7 +210,6 @@ classDiagram
         +memoryManager: Manager
 
         +Tools() []Tool
-        +IsSubAgent(name) bool
         +HasSubAgents() bool
     }
 
