@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
 	"slices"
+	"strings"
 
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -45,14 +47,21 @@ func New(ctx context.Context, command string, args, env []string, logger *slog.L
 
 // Start initializes and starts the MCP server connection
 func (c *Client) Start(ctx context.Context) error {
-	c.logger.Debug("Starting MCP client", "command", c.command, "args", c.args)
+	command := expandEnv(c.command, os.Environ())
+
+	var args []string
+	for _, arg := range c.args {
+		args = append(args, expandEnv(arg, os.Environ()))
+	}
+
+	c.logger.Debug("Starting MCP client", "command", command, "args", args)
 
 	if err := c.client.Start(ctx); err != nil {
 		c.logger.Error("Failed to start MCP client", "error", err)
 		return fmt.Errorf("failed to start MCP client: %w", err)
 	}
 
-	c.logger.Debug("Initializing MCP client", "command", c.command, "args", c.args)
+	c.logger.Debug("Initializing MCP client", "command", command, "args", args)
 	initRequest := mcp.InitializeRequest{}
 	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
 	initRequest.Params.ClientInfo = mcp.Implementation{
@@ -68,6 +77,17 @@ func (c *Client) Start(ctx context.Context) error {
 
 	c.logger.Debug("MCP client started and initialized successfully")
 	return nil
+}
+
+func expandEnv(value string, env []string) string {
+	return os.Expand(value, func(name string) string {
+		for _, e := range env {
+			if after, ok := strings.CutPrefix(e, name+"="); ok {
+				return after
+			}
+		}
+		return ""
+	})
 }
 
 // Stop stops the MCP server
