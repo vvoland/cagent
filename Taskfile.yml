@@ -59,3 +59,8 @@ tasks:
       - go test ./...
     sources:
       - "**/*.go"
+
+  build-image:
+    desc: Build Docker image
+    cmds:
+      - docker build -t docker/cagent:latest .
