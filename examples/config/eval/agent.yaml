@@ -1,0 +1,12 @@
+agents:
+  root:
+    name: eval-agent
+    model: gpt4o
+    instruction: You are the most helpful agent of all
+    toolsets:
+      - type: shell
+
+models:
+  gpt4o:
+    type: openai
+    model: gpt-4o
