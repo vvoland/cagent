@@ -1,0 +1,6 @@
+*
+!/go.mod
+!/go.sum
+!/web/**/*
+/web/dist
+!./**/*.go
