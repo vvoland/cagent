@@ -65,6 +65,18 @@ func WithUserMessage(content string) Opt {
 	}
 }
 
+func WithSystemMessage(content string) Opt {
+	return func(s *Session) {
+		s.Messages = append(s.Messages, AgentMessage{
+			AgentName: "",
+			Message: chat.Message{
+				Role:    chat.MessageRoleSystem,
+				Content: content,
+			},
+		})
+	}
+}
+
 // New creates a new agent session
 func New(logger *slog.Logger, opts ...Opt) *Session {
 	sessionID := uuid.New().String()
