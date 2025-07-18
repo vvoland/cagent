@@ -136,10 +136,6 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 	}
 
 	for i := range s.Messages {
-		if s.Messages[i].Message.Role == chat.MessageRoleSystem {
-			continue
-		}
-
 		messages = append(messages, s.Messages[i].Message)
 	}
 
