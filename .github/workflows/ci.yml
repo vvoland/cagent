@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
     branches: [main]
 
@@ -10,7 +11,8 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -29,7 +31,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -49,7 +52,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -69,13 +73,13 @@ jobs:
   build-image:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
-        id: buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Install Task
@@ -86,3 +90,49 @@ jobs:
 
       - name: Build
         run: task build-image
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [lint, test, build]
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          version: 3.x
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build binaries for all platforms
+        run: task cross
+
+      - name: GitHub auth token
+        id: docker-write-app
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.DOCKER_READ_WRITE_APP_ID }}
+          private-key: ${{ secrets.DOCKER_READ_WRITE_APP_PRIVATE_KEY }}
+          owner: docker
+          repositories: cagent
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          token: ${{ steps.docker-write-app.outputs.token }}
+          files: |
+            ./dist/linux_arm64/cagent-linux-arm64
+            ./dist/linux_amd64/cagent-linux-amd64
+            ./dist/darwin_arm64/cagent-darwin-arm64
+            ./dist/darwin_amd64/cagent-darwin-amd64
+            ./dist/windows_arm64/cagent-windows-arm64.exe
+            ./dist/windows_amd64/cagent-windows-amd64.exe
