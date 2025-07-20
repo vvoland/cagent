@@ -33,7 +33,7 @@ func Load(ctx context.Context, path string, logger *slog.Logger) (*team.Team, er
 			agent.WithDescription(agentConfig.Description),
 			agent.WithAddDate(agentConfig.AddDate),
 		}
-		models, err := getModelsForAgent(ctx, cfg, &agentConfig, logger)
+		models, err := getModelsForAgent(cfg, &agentConfig, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get models: %w", err)
 		}
@@ -84,7 +84,7 @@ func Load(ctx context.Context, path string, logger *slog.Logger) (*team.Team, er
 	return team.New(agents), nil
 }
 
-func getModelsForAgent(ctx context.Context, cfg *config.Config, a *config.AgentConfig, logger *slog.Logger) ([]provider.Provider, error) {
+func getModelsForAgent(cfg *config.Config, a *config.AgentConfig, logger *slog.Logger) ([]provider.Provider, error) {
 	modelNames := strings.Split(a.Model, ",")
 	models := make([]provider.Provider, 0, len(modelNames))
 	for _, modelName := range modelNames {
@@ -120,7 +120,6 @@ func getToolsForAgent(ctx context.Context, a *config.AgentConfig, logger *slog.L
 
 	toolsets := a.Toolsets
 	for _, toolset := range toolsets {
-		// TODO: we will have more builtin tools in the future
 		if toolset.Type == "shell" {
 			t = append(t, builtin.NewShellTool())
 		}
