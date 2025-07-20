@@ -77,8 +77,14 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	agents.StartToolSets(ctx)
-	defer agents.StopToolSets()
+	if err := agents.StartToolSets(ctx); err != nil {
+		return err
+	}
+	defer func() {
+		if err := agents.StopToolSets(); err != nil {
+			logger.Error("Failed to stop tool sets", "error", err)
+		}
+	}()
 
 	rt, err := runtime.New(logger, agents, agentName)
 	if err != nil {
