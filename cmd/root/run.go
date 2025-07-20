@@ -108,9 +108,11 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		if !handled {
-			sess.Messages = append(sess.Messages, session.UserMessage(userInput))
+		if handled {
+			continue
 		}
+
+		sess.Messages = append(sess.Messages, session.UserMessage(userInput))
 
 		first := false
 		for event := range rt.RunStream(ctx, sess) {
