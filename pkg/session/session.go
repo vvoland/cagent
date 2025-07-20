@@ -127,7 +127,7 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		Content: a.Instruction() + "\n\n" + date,
 	})
 
-	for _, tool := range a.ToolImpls() {
+	for _, tool := range a.ToolSets() {
 		if tool.Instructions() != "" {
 			messages = append(messages, chat.Message{
 				Role:    chat.MessageRoleSystem,

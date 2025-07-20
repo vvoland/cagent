@@ -96,6 +96,6 @@ func (a *Agent) Tools() ([]tools.Tool, error) {
 	return agentTools, nil
 }
 
-func (a *Agent) ToolImpls() []tools.ToolSet {
+func (a *Agent) ToolSets() []tools.ToolSet {
 	return a.toolsets
 }
