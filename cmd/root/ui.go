@@ -647,6 +647,9 @@ func runUICommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	agents.StartToolSets(ctx)
+	defer agents.StopToolSets()
+
 	rt, err := runtime.New(logger, agents, agentName)
 	if err != nil {
 		return err
