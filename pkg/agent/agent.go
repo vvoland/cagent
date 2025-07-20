@@ -80,10 +80,6 @@ func (a *Agent) Model() provider.Provider {
 	return a.models[rand.Intn(len(a.models))]
 }
 
-func (a *Agent) Models() []provider.Provider {
-	return a.models
-}
-
 // Tools returns the tools available to this agent
 func (a *Agent) Tools() ([]tools.Tool, error) {
 	agentTools := []tools.Tool{}
