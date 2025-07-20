@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/runtime"
@@ -34,7 +35,7 @@ func WithFrontend(fsys fs.FS) Opt {
 
 func New(ctx context.Context, logger *slog.Logger, runtimes map[string]*runtime.Runtime, sessionStore session.Store, listenAddr string, opts ...Opt) (*Server, error) {
 	e := echo.New()
-
+	e.Use(middleware.CORS())
 	s := &Server{
 		e:            e,
 		addr:         listenAddr,
