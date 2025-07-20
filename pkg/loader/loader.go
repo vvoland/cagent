@@ -27,20 +27,18 @@ func Load(ctx context.Context, path string, logger *slog.Logger) (*team.Team, er
 	agents := make(map[string]*agent.Agent)
 	for name := range cfg.Agents {
 		agentConfig := cfg.Agents[name]
-		modelCfg, exists := cfg.Models[agentConfig.Model]
-		if !exists {
-			return nil, fmt.Errorf("model '%s' not found in configuration", agentConfig.Model)
-		}
 
-		model, err := provider.New(&modelCfg, logger)
-		if err != nil {
-			return nil, err
-		}
 		opts := []agent.Opt{
 			agent.WithName(name),
-			agent.WithModel(model),
 			agent.WithDescription(agentConfig.Description),
 			agent.WithAddDate(agentConfig.AddDate),
+		}
+		models, err := getModelsForAgent(ctx, cfg, &agentConfig, logger)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get models: %w", err)
+		}
+		for _, model := range models {
+			opts = append(opts, agent.WithModel(model))
 		}
 
 		a, ok := cfg.Agents[name]
@@ -57,7 +55,7 @@ func Load(ctx context.Context, path string, logger *slog.Logger) (*team.Team, er
 			if err != nil {
 				return nil, fmt.Errorf("failed to create memory database: %w", err)
 			}
-			mm := memory.NewManager(db, model)
+			mm := memory.NewManager(db, models[0])
 			opts = append(opts, agent.WithMemoryManager(mm))
 			agentTools = append(agentTools, builtin.NewMemoryTool(mm))
 		}
@@ -84,6 +82,24 @@ func Load(ctx context.Context, path string, logger *slog.Logger) (*team.Team, er
 	}
 
 	return team.New(agents), nil
+}
+
+func getModelsForAgent(ctx context.Context, cfg *config.Config, a *config.AgentConfig, logger *slog.Logger) ([]provider.Provider, error) {
+	modelNames := strings.Split(a.Model, ",")
+	models := make([]provider.Provider, 0, len(modelNames))
+	for _, modelName := range modelNames {
+		modelCfg, exists := cfg.Models[modelName]
+		if !exists {
+			return nil, fmt.Errorf("model '%s' not found in configuration", modelName)
+		}
+
+		model, err := provider.New(&modelCfg, logger)
+		if err != nil {
+			return nil, err
+		}
+		models = append(models, model)
+	}
+	return models, nil
 }
 
 // getToolsForAgent returns the tool definitions for an agent based on its configuration

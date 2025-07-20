@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"math/rand"
 
 	"github.com/docker/cagent/pkg/memorymanager"
 	"github.com/docker/cagent/pkg/model/provider"
@@ -15,7 +16,7 @@ type Agent struct {
 	description   string
 	instruction   string
 	toolsets      []tools.ToolSet
-	model         provider.Provider
+	models        []provider.Provider
 	subAgents     []*Agent
 	parents       []*Agent
 	addDate       bool
@@ -74,9 +75,13 @@ func (a *Agent) HasParents() bool {
 	return len(a.parents) > 0
 }
 
-// Model returns the model name used by the agent
+// Model returns a random model from the available models
 func (a *Agent) Model() provider.Provider {
-	return a.model
+	return a.models[rand.Intn(len(a.models))]
+}
+
+func (a *Agent) Models() []provider.Provider {
+	return a.models
 }
 
 // Tools returns the tools available to this agent

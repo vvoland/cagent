@@ -42,7 +42,7 @@ func WithName(name string) Opt {
 
 func WithModel(model provider.Provider) Opt {
 	return func(a *Agent) {
-		a.model = model
+		a.models = append(a.models, model)
 	}
 }
 

@@ -63,7 +63,8 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 		defer r.logger.Debug("Runtime stream completed", "agent", r.currentAgent, "session_id", sess.ID)
 
 		a := r.team.Get(r.currentAgent)
-		r.logger.Debug("Using agent", "agent", a.Name(), "model", a.Model())
+		model := a.Model()
+		r.logger.Debug("Using agent", "agent", a.Name(), "model", model)
 		r.registerDefaultTools()
 
 		for {
@@ -80,7 +81,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			r.logger.Debug("Retrieved agent tools", "agent", a.Name(), "tool_count", len(agentTools))
 
 			r.logger.Debug("Creating chat completion stream", "agent", a.Name())
-			stream, err := a.Model().CreateChatCompletionStream(ctx, messages, agentTools)
+			stream, err := model.CreateChatCompletionStream(ctx, messages, agentTools)
 			if err != nil {
 				r.logger.Error("Failed to create chat completion stream", "agent", a.Name(), "error", err)
 				events <- &ErrorEvent{Error: fmt.Errorf("creating chat completion: %w", err)}

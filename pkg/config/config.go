@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -31,8 +32,11 @@ func validateConfig(cfg *Config) error {
 	// Validate that all models referenced in agents exist
 	for agentName := range cfg.Agents {
 		agent := cfg.Agents[agentName]
-		if _, exists := cfg.Models[agent.Model]; !exists {
-			return fmt.Errorf("agent '%s' references non-existent model '%s'", agentName, agent.Model)
+		modelNames := strings.SplitSeq(agent.Model, ",")
+		for modelName := range modelNames {
+			if _, exists := cfg.Models[modelName]; !exists {
+				return fmt.Errorf("agent '%s' references non-existent model '%s'", agentName, modelName)
+			}
 		}
 
 		// Validate that all sub-agents exist
