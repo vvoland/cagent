@@ -140,10 +140,6 @@ func getToolsForAgent(ctx context.Context, a *config.AgentConfig, logger *slog.L
 			return nil, fmt.Errorf("failed to create mcp client: %w", err)
 		}
 
-		if err := mcpc.Start(ctx); err != nil {
-			return nil, fmt.Errorf("failed to start mcp client: %w", err)
-		}
-
 		t = append(t, mcpc)
 	}
 	return t, nil

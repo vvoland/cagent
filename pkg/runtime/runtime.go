@@ -42,6 +42,10 @@ func New(logger *slog.Logger, agents *team.Team, agentName string) (*Runtime, er
 	return runtime, nil
 }
 
+func (r *Runtime) Team() *team.Team {
+	return r.team
+}
+
 // registerDefaultTools registers the default tool handlers
 func (r *Runtime) registerDefaultTools() {
 	r.logger.Debug("Registering default tools")
@@ -63,6 +67,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 		defer r.logger.Debug("Runtime stream completed", "agent", r.currentAgent, "session_id", sess.ID)
 
 		a := r.team.Get(r.currentAgent)
+
 		model := a.Model()
 		r.logger.Debug("Using agent", "agent", a.Name(), "model", model)
 		r.registerDefaultTools()

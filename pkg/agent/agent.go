@@ -12,16 +12,17 @@ import (
 
 // Agent represents an AI agent
 type Agent struct {
-	name          string
-	description   string
-	instruction   string
-	toolsets      []tools.ToolSet
-	models        []provider.Provider
-	subAgents     []*Agent
-	parents       []*Agent
-	addDate       bool
-	toolwrapper   toolwrapper
-	memoryManager memorymanager.Manager
+	name            string
+	description     string
+	instruction     string
+	toolsets        []tools.ToolSet
+	toolsetsStarted bool
+	models          []provider.Provider
+	subAgents       []*Agent
+	parents         []*Agent
+	addDate         bool
+	toolwrapper     toolwrapper
+	memoryManager   memorymanager.Manager
 }
 
 // New creates a new agent
@@ -98,4 +99,34 @@ func (a *Agent) Tools() ([]tools.Tool, error) {
 
 func (a *Agent) ToolSets() []tools.ToolSet {
 	return a.toolsets
+}
+
+func (a *Agent) StartToolSets(ctx context.Context) error {
+	if a.toolsetsStarted {
+		return nil
+	}
+
+	for _, toolSet := range a.toolsets {
+		if err := toolSet.Start(ctx); err != nil {
+			return fmt.Errorf("failed to start toolset: %w", err)
+		}
+	}
+
+	a.toolsetsStarted = true
+	return nil
+}
+
+func (a *Agent) StopToolSets() error {
+	if !a.toolsetsStarted {
+		return nil
+	}
+
+	for _, toolSet := range a.toolsets {
+		if err := toolSet.Stop(); err != nil {
+			return fmt.Errorf("failed to stop toolset: %w", err)
+		}
+	}
+
+	a.toolsetsStarted = false
+	return nil
 }
