@@ -11,4 +11,4 @@ models:
   qwen:
     type: dmr
     model: ai/qwen3
-    base_url: http://localhost:12434/engines/llama.cpp/v1
+    # base_url defaults to http://localhost:12434/engines/llama.cpp/v1
