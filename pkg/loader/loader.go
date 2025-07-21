@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/memory"
 	"github.com/docker/cagent/pkg/memory/database/sqlite"
 	"github.com/docker/cagent/pkg/model/provider"
@@ -88,20 +89,23 @@ func Load(ctx context.Context, path string, logger *slog.Logger) (*team.Team, er
 }
 
 func getModelsForAgent(cfg *config.Config, a *config.AgentConfig, logger *slog.Logger) ([]provider.Provider, error) {
-	modelNames := strings.Split(a.Model, ",")
-	models := make([]provider.Provider, 0, len(modelNames))
-	for _, modelName := range modelNames {
+	var models []provider.Provider
+
+	env := environment.NewDefaultProvider(logger)
+
+	for modelName := range strings.SplitSeq(a.Model, ",") {
 		modelCfg, exists := cfg.Models[modelName]
 		if !exists {
 			return nil, fmt.Errorf("model '%s' not found in configuration", modelName)
 		}
 
-		model, err := provider.New(&modelCfg, logger)
+		model, err := provider.New(&modelCfg, env, logger)
 		if err != nil {
 			return nil, err
 		}
 		models = append(models, model)
 	}
+
 	return models, nil
 }
 

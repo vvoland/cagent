@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/model/provider/anthropic"
 	"github.com/docker/cagent/pkg/model/provider/dmr"
 	"github.com/docker/cagent/pkg/model/provider/openai"
@@ -29,14 +30,14 @@ type Provider interface {
 	) (string, error)
 }
 
-func New(cfg *config.ModelConfig, logger *slog.Logger) (Provider, error) {
+func New(cfg *config.ModelConfig, env environment.Provider, logger *slog.Logger) (Provider, error) {
 	logger.Debug("Creating model provider", "type", cfg.Type, "model", cfg.Model)
 
 	switch cfg.Type {
 	case "openai":
-		return openai.NewClient(cfg, logger)
+		return openai.NewClient(cfg, env, logger)
 	case "anthropic":
-		return anthropic.NewClient(cfg, logger)
+		return anthropic.NewClient(cfg, env, logger)
 	case "dmr":
 		return dmr.NewClient(cfg, logger)
 	}

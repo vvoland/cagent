@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/model/provider/openai"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
@@ -41,7 +42,7 @@ func main() {
 	llm, err := openai.NewClient(&config.ModelConfig{
 		Type:  "openai",
 		Model: "gpt-4o",
-	}, logger)
+	}, environment.NewEnvVariableProvider(), logger)
 	if err != nil {
 		log.Fatal(err)
 	}
