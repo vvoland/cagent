@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
-	"os"
 
 	"github.com/sashabaranov/go-openai"
 
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/env"
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -93,7 +93,7 @@ type Client struct {
 }
 
 // NewClient creates a new OpenAI client from the provided configuration
-func NewClient(cfg *config.ModelConfig, logger *slog.Logger) (*Client, error) {
+func NewClient(cfg *config.ModelConfig, env env.Provider, logger *slog.Logger) (*Client, error) {
 	if cfg == nil {
 		logger.Error("OpenAI client creation failed", "error", "model configuration is required")
 		return nil, errors.New("model configuration is required")
@@ -105,20 +105,19 @@ func NewClient(cfg *config.ModelConfig, logger *slog.Logger) (*Client, error) {
 	}
 
 	// Get the API key from environment variables
-	apiKey := os.Getenv("OPENAI_API_KEY")
+	apiKey, err := env.GetEnv(context.TODO(), "OPENAI_API_KEY")
+	if err != nil {
+		logger.Error("OpenAI client creation failed", "error", "failed to get OPENAI_API_KEY from environment", "details", err)
+		return nil, errors.New("OPENAI_API_KEY environment variable is required")
+	}
 	if apiKey == "" {
 		logger.Error("OpenAI client creation failed", "error", "OPENAI_API_KEY environment variable is required")
 		return nil, errors.New("OPENAI_API_KEY environment variable is required")
 	}
 
 	logger.Debug("OpenAI API key found, creating client")
-
-	// Create a client config
 	clientConfig := openai.DefaultConfig(apiKey)
-
-	// Create the OpenAI client
 	client := openai.NewClientWithConfig(clientConfig)
-
 	logger.Debug("OpenAI client created successfully", "model", cfg.Model)
 
 	return &Client{

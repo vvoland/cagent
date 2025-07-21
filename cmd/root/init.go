@@ -14,6 +14,7 @@ import (
 
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/env"
 	"github.com/docker/cagent/pkg/model/provider/anthropic"
 )
 
@@ -71,7 +72,7 @@ func NewInitCmd() *cobra.Command {
 				Type:      "anthropic",
 				Model:     "claude-sonnet-4-0",
 				MaxTokens: 64000,
-			}, logger)
+			}, env.NewEnvVariableProvider(), logger)
 			if err != nil {
 				return fmt.Errorf("failed to create LLM client: %w", err)
 			}
