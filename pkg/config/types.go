@@ -30,14 +30,15 @@ type MemoryConfig struct {
 
 // ModelConfig represents the configuration for a model
 type ModelConfig struct {
-	Type             string  `yaml:"type,omitempty"`
-	Model            string  `yaml:"model,omitempty"`
-	Temperature      float64 `yaml:"temperature,omitempty"`
-	MaxTokens        int     `yaml:"max_tokens,omitempty"`
-	TopP             float64 `yaml:"top_p,omitempty"`
-	FrequencyPenalty float64 `yaml:"frequency_penalty,omitempty"`
-	PresencePenalty  float64 `yaml:"presence_penalty,omitempty"`
-	BaseURL          string  `yaml:"base_url,omitempty"`
+	Type              string  `yaml:"type,omitempty"`
+	Model             string  `yaml:"model,omitempty"`
+	Temperature       float64 `yaml:"temperature,omitempty"`
+	MaxTokens         int     `yaml:"max_tokens,omitempty"`
+	TopP              float64 `yaml:"top_p,omitempty"`
+	FrequencyPenalty  float64 `yaml:"frequency_penalty,omitempty"`
+	PresencePenalty   float64 `yaml:"presence_penalty,omitempty"`
+	BaseURL           string  `yaml:"base_url,omitempty"`
+	ParallelToolCalls *bool   `yaml:"parallel_tool_calls,omitempty"`
 }
 
 // Config represents the entire configuration file

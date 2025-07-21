@@ -202,13 +202,14 @@ func (c *Client) CreateChatCompletionStream(
 	}
 
 	request := openai.ChatCompletionRequest{
-		Model:            c.config.Model,
-		Messages:         convertMessages(messages),
-		Temperature:      float32(c.config.Temperature),
-		TopP:             float32(c.config.TopP),
-		FrequencyPenalty: float32(c.config.FrequencyPenalty),
-		PresencePenalty:  float32(c.config.PresencePenalty),
-		Stream:           true,
+		Model:             c.config.Model,
+		Messages:          convertMessages(messages),
+		Temperature:       float32(c.config.Temperature),
+		TopP:              float32(c.config.TopP),
+		FrequencyPenalty:  float32(c.config.FrequencyPenalty),
+		PresencePenalty:   float32(c.config.PresencePenalty),
+		Stream:            true,
+		ParallelToolCalls: *c.config.ParallelToolCalls,
 	}
 
 	if c.config.MaxTokens > 0 {
@@ -260,8 +261,9 @@ func (c *Client) CreateChatCompletion(
 	c.logger.Debug("Creating OpenAI chat completion", "model", c.config.Model, "message_count", len(messages))
 
 	request := openai.ChatCompletionRequest{
-		Model:    c.config.Model,
-		Messages: convertMessages(messages),
+		Model:             c.config.Model,
+		Messages:          convertMessages(messages),
+		ParallelToolCalls: *c.config.ParallelToolCalls,
 	}
 
 	response, err := c.client.CreateChatCompletion(ctx, request)

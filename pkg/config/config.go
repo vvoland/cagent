@@ -20,6 +20,13 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
+	for _, model := range config.Models {
+		if model.ParallelToolCalls == nil {
+			model.ParallelToolCalls = new(bool)
+			*model.ParallelToolCalls = true
+		}
+	}
+
 	if err := validateConfig(&config); err != nil {
 		return nil, err
 	}

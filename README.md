@@ -125,6 +125,7 @@ models:
     top_p: float # Nucleus sampling (0.0-1.0)
     frequency_penalty: float # Repetition penalty (0.0-2.0)
     presence_penalty: float # Topic repetition penalty (0.0-2.0)
+    parallel_tool_calls: boolean
 ```
 
 ### Tool Configuration
