@@ -243,6 +243,11 @@ func (c *Client) CreateChatCompletionStream(
 		return nil, errors.New("at least one message is required")
 	}
 
+	parallelToolCalls := true
+	if c.config.ParallelToolCalls != nil {
+		parallelToolCalls = *c.config.ParallelToolCalls
+	}
+
 	request := openai.ChatCompletionRequest{
 		Model:             c.config.Model,
 		Messages:          convertMessages(messages),
@@ -251,7 +256,7 @@ func (c *Client) CreateChatCompletionStream(
 		FrequencyPenalty:  float32(c.config.FrequencyPenalty),
 		PresencePenalty:   float32(c.config.PresencePenalty),
 		Stream:            true,
-		ParallelToolCalls: *c.config.ParallelToolCalls,
+		ParallelToolCalls: parallelToolCalls,
 	}
 
 	if c.config.MaxTokens > 0 {
@@ -302,10 +307,15 @@ func (c *Client) CreateChatCompletion(
 ) (string, error) {
 	c.logger.Debug("Creating DMR chat completion", "model", c.config.Model, "message_count", len(messages), "base_url", c.baseURL)
 
+	parallelToolCalls := true
+	if c.config.ParallelToolCalls != nil {
+		parallelToolCalls = *c.config.ParallelToolCalls
+	}
+
 	request := openai.ChatCompletionRequest{
 		Model:             c.config.Model,
 		Messages:          convertMessages(messages),
-		ParallelToolCalls: *c.config.ParallelToolCalls,
+		ParallelToolCalls: parallelToolCalls,
 	}
 
 	response, err := c.client.CreateChatCompletion(ctx, request)
