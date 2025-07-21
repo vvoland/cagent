@@ -11,9 +11,7 @@ import (
 )
 
 func NewPullCmd() *cobra.Command {
-	var (
-		debug bool
-	)
+	var debug bool
 
 	cmd := &cobra.Command{
 		Use:   "pull <registry-ref>",

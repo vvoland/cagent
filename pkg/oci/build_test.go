@@ -14,7 +14,7 @@ func TestPackageFileAsOCIToStore(t *testing.T) {
 version: v1.0.0
 description: "Test application"
 `
-	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(testContent), 0o644); err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
@@ -74,7 +74,7 @@ func TestPackageFileAsOCIToStoreMissingFile(t *testing.T) {
 
 func TestPackageFileAsOCIToStoreInvalidTag(t *testing.T) {
 	testFile := filepath.Join(t.TempDir(), "test.txt")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0o644); err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 
@@ -126,7 +126,7 @@ func TestPackageFileAsOCIToStoreDifferentFileTypes(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create test file
 			testFile := filepath.Join(t.TempDir(), tc.filename)
-			if err := os.WriteFile(testFile, []byte(tc.content), 0644); err != nil {
+			if err := os.WriteFile(testFile, []byte(tc.content), 0o644); err != nil {
 				t.Fatalf("Failed to write test file: %v", err)
 			}
 
