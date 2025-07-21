@@ -47,11 +47,7 @@ agents:
 
     think: true
     toolsets:
-      # You likely need to brew install rust-mcp-stack/tap/rust-mcp-filesystem once before using this toolset
-      # see https://rust-mcp-stack.github.io/rust-mcp-filesystem/#/guide/install
-      - type: mcp
-        command: rust-mcp-filesystem
-        args: ["--allow-write", "."]
+      - type: filesystem
       - type: mcp
         command: uvx
         args: ["mcp-shell-server"]

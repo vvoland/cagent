@@ -96,9 +96,7 @@ agents:
     model: claude
     description: Expert software developer
     toolsets:
-      - type: mcp
-        command: rust-mcp-filesystem
-      - type: shell
+      - type: filesystem
     think: true
 
   reviewer:

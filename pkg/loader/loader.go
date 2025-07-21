@@ -120,27 +120,34 @@ func getToolsForAgent(ctx context.Context, a *config.AgentConfig, logger *slog.L
 
 	toolsets := a.Toolsets
 	for _, toolset := range toolsets {
-		if toolset.Type == "shell" {
+		switch toolset.Type {
+		case "shell":
 			t = append(t, builtin.NewShellTool())
-		}
-		if toolset.Type != "mcp" {
-			continue
-		}
-
-		envSlice := make([]string, 0, len(toolset.Env))
-		for k, v := range toolset.Env {
-			if after, ok := strings.CutPrefix(v, "$"); ok {
-				envVar := after
-				v = os.Getenv(envVar)
+		case "filesystem":
+			wd, err := os.Getwd()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get working directory: %w", err)
 			}
-			envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
-		}
-		mcpc, err := mcp.NewToolset(ctx, toolset.Command, toolset.Args, envSlice, toolset.Tools, logger)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create mcp client: %w", err)
-		}
+			t = append(t, builtin.NewFilesystemTool([]string{wd}))
+		case "mcp":
+			envSlice := make([]string, 0, len(toolset.Env))
+			for k, v := range toolset.Env {
+				if after, ok := strings.CutPrefix(v, "$"); ok {
+					envVar := after
+					v = os.Getenv(envVar)
+				}
+				envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
+			}
+			mcpc, err := mcp.NewToolset(ctx, toolset.Command, toolset.Args, envSlice, toolset.Tools, logger)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create mcp client: %w", err)
+			}
 
-		t = append(t, mcpc)
+			t = append(t, mcpc)
+		default:
+			return nil, fmt.Errorf("unknown toolset type: %s", toolset.Type)
+		}
 	}
+
 	return t, nil
 }

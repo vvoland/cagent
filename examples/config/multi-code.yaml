@@ -4,7 +4,7 @@ agents:
   root:
     name: coder
     model: opus
-    description: "Expert code analysis and development assistant"
+    description: Expert code analysis and development assistant
     instruction: |
       You are a senior technical lead and project coordinator responsible for intelligently analyzing coding tasks and coordinating work between specialized development teams.
 
@@ -40,7 +40,6 @@ agents:
       - Monitor progress and ensure subagents stay aligned with overall goals
       - Facilitate communication between subagents when their work intersects
       - Review outputs from subagents to ensure they meet requirements
-      - Handle integration testing and final validation
       - Provide feedback and request refinements when needed
 
       ## **Communication Guidelines:**
@@ -57,13 +56,12 @@ agents:
       - Make trade-off decisions when there are conflicts between different approaches
 
       Your success is measured by how effectively you can leverage your specialized team to deliver high-quality, integrated solutions that fully meet the user's requirements.
-    todo: true
     sub_agents:
       - web
       - golang
 
   web:
-    model: claude
+    model: gpt4o
     description: Expert frontend coder
     instruction: |
       You are an expert developer with deep knowledge of code analysis, modification, and validation.
@@ -117,12 +115,10 @@ agents:
     todo: true
     toolsets:
       - type: shell
-      - type: mcp
-        command: rust-mcp-filesystem
-        args: ["--allow-write", "."]
+      - type: filesystem
 
   golang:
-    model: claude
+    model: gpt4o
     description: Expert golang coder
     instruction: |
       You are an expert developer with deep knowledge of code analysis, modification, and validation.
@@ -176,12 +172,10 @@ agents:
     todo: true
     toolsets:
       - type: shell
-      - type: mcp
-        command: rust-mcp-filesystem
-        args: ["--allow-write", "."]
+      - type: filesystem
 
 models:
-  openai:
+  gpt4o:
     type: openai
     model: gpt-4o
 

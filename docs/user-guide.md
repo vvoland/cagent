@@ -108,9 +108,7 @@ agents:
       You are an expert developer. Focus on coding tasks,
       code review, and technical implementation.
     toolsets:
-      - type: mcp
-        command: rust-mcp-filesystem
-        args: ["--allow-write", "."]
+      - type: filesystem
 
   designer:
     name: designer
@@ -287,6 +285,7 @@ Example installation of filesystem tool:
 cargo install rust-mcp-filesystem
 ```
 
+a
 Then configure in your agent:
 
 ```yaml
@@ -321,9 +320,7 @@ agents:
       You are an expert developer. Write clean, efficient code
       and follow best practices.
     toolsets:
-      - type: mcp
-        command: rust-mcp-filesystem
-        args: ["--allow-write", "."]
+      - type: filesystem
       - type: shell
     think: true
 
@@ -335,9 +332,7 @@ agents:
       You are a code review expert. Focus on code quality,
       security, and maintainability.
     toolsets:
-      - type: mcp
-        command: rust-mcp-filesystem
-        args: ["--allow-write", "."]
+      - type: filesystem
 
   tester:
     name: qa_engineer

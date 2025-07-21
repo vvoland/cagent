@@ -76,9 +76,7 @@ agents:
       - type: mcp
         command: uvx
         args: ["duckduckgo-mcp-server"]
-      - type: mcp
-        command: rust-mcp-filesystem
-        args: ["--allow-write", "."]
+      - type: filesystem
       - type: mcp
         command: uvx
         args: ["mcp-shell-server"]
