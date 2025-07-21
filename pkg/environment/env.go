@@ -1,4 +1,4 @@
-package env
+package environment
 
 import (
 	"context"
@@ -11,6 +11,6 @@ func NewEnvVariableProvider() *EnvVariableProvider {
 	return &EnvVariableProvider{}
 }
 
-func (p *EnvVariableProvider) GetEnv(ctx context.Context, name string) (string, error) {
+func (p *EnvVariableProvider) Get(ctx context.Context, name string) (string, error) {
 	return os.Getenv(name), nil
 }

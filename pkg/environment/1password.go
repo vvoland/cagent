@@ -1,4 +1,4 @@
-package env
+package environment
 
 import (
 	"context"
@@ -24,7 +24,7 @@ func NewOnePasswordProvider(logger *slog.Logger) *OnePasswordProvider {
 	}
 }
 
-func (p *OnePasswordProvider) GetEnv(ctx context.Context, name string) (string, error) {
+func (p *OnePasswordProvider) Get(ctx context.Context, name string) (string, error) {
 	p.onceSecrets.Do(func() {
 		opToken := os.Getenv("OP_SERVICE_ACCOUNT_TOKEN")
 		if opToken == "" {

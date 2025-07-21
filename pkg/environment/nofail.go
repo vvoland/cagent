@@ -1,4 +1,4 @@
-package env
+package environment
 
 import "context"
 
@@ -12,8 +12,8 @@ func NewNoFailProvider(provider Provider) *NoFailProvider {
 	}
 }
 
-func (p *NoFailProvider) GetEnv(ctx context.Context, name string) (string, error) {
-	value, err := p.provider.GetEnv(ctx, name)
+func (p *NoFailProvider) Get(ctx context.Context, name string) (string, error) {
+	value, err := p.provider.Get(ctx, name)
 	if err != nil {
 		// Ignore the error and return an empty string
 		return "", nil

@@ -9,7 +9,7 @@ import (
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/env"
+	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/memory"
 	"github.com/docker/cagent/pkg/memory/database/sqlite"
 	"github.com/docker/cagent/pkg/model/provider"
@@ -88,7 +88,7 @@ func Load(ctx context.Context, path string, logger *slog.Logger) (*team.Team, er
 func getModelsForAgent(cfg *config.Config, a *config.AgentConfig, logger *slog.Logger) ([]provider.Provider, error) {
 	var models []provider.Provider
 
-	env := env.NewDefaultProvider(logger)
+	env := environment.NewDefaultProvider(logger)
 
 	for modelName := range strings.SplitSeq(a.Model, ",") {
 		modelCfg, exists := cfg.Models[modelName]

@@ -15,7 +15,7 @@ import (
 
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/env"
+	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -118,7 +118,7 @@ type Client struct {
 }
 
 // NewClient creates a new Anthropic client from the provided configuration
-func NewClient(cfg *config.ModelConfig, env env.Provider, logger *slog.Logger) (*Client, error) {
+func NewClient(cfg *config.ModelConfig, env environment.Provider, logger *slog.Logger) (*Client, error) {
 	if cfg == nil {
 		logger.Error("Anthropic client creation failed", "error", "model configuration is required")
 		return nil, errors.New("model configuration is required")
@@ -130,7 +130,7 @@ func NewClient(cfg *config.ModelConfig, env env.Provider, logger *slog.Logger) (
 	}
 
 	// Get the API key from environment variables
-	apiKey, err := env.GetEnv(context.TODO(), "ANTHROPIC_API_KEY")
+	apiKey, err := env.Get(context.TODO(), "ANTHROPIC_API_KEY")
 	if err != nil {
 		logger.Error("Anthropic client creation failed", "error", "failed to get ANTHROPIC_API_KEY from environment", "details", err)
 		return nil, errors.New("ANTHROPIC_API_KEY environment variable is required")

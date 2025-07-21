@@ -1,4 +1,4 @@
-package env
+package environment
 
 import "context"
 
@@ -12,9 +12,9 @@ func NewMultiProvider(providers ...Provider) *MultiProvider {
 	}
 }
 
-func (p *MultiProvider) GetEnv(ctx context.Context, name string) (string, error) {
+func (p *MultiProvider) Get(ctx context.Context, name string) (string, error) {
 	for _, provider := range p.providers {
-		value, err := provider.GetEnv(ctx, name)
+		value, err := provider.Get(ctx, name)
 		if err != nil {
 			return "", err
 		}
