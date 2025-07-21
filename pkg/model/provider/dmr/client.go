@@ -82,9 +82,10 @@ func (a *StreamAdapter) Close() {
 // Client represents an DMR client wrapper
 // It implements the provider.Provider interface
 type Client struct {
-	client *openai.Client
-	config *config.ModelConfig
-	logger *slog.Logger
+	client  *openai.Client
+	config  *config.ModelConfig
+	baseURL string
+	logger  *slog.Logger
 }
 
 // NewClient creates a new DMR client from the provided configuration
@@ -99,17 +100,25 @@ func NewClient(cfg *config.ModelConfig, logger *slog.Logger) (*Client, error) {
 		return nil, errors.New("model type must be 'dmr'")
 	}
 
-	logger.Debug("Creating DMR client config", "base_url", cfg.BaseURL)
+	// Set default base_url for DMR models if not provided
+	baseURL := cfg.BaseURL
+	if baseURL == "" {
+		baseURL = "http://localhost:12434/engines/llama.cpp/v1"
+		logger.Debug("Using default DMR base_url", "base_url", baseURL)
+	}
+
+	logger.Debug("Creating DMR client config", "base_url", baseURL)
 	clientConfig := openai.DefaultConfig("")
-	clientConfig.BaseURL = cfg.BaseURL
+	clientConfig.BaseURL = baseURL
 
 	client := openai.NewClientWithConfig(clientConfig)
-	logger.Debug("DMR client created successfully", "model", cfg.Model, "base_url", cfg.BaseURL)
+	logger.Debug("DMR client created successfully", "model", cfg.Model, "base_url", baseURL)
 
 	return &Client{
-		client: client,
-		config: cfg,
-		logger: logger,
+		client:  client,
+		config:  cfg,
+		baseURL: baseURL,
+		logger:  logger,
 	}, nil
 }
 
@@ -227,7 +236,7 @@ func (c *Client) CreateChatCompletionStream(
 		"model", c.config.Model,
 		"message_count", len(messages),
 		"tool_count", len(requestTools),
-		"base_url", c.config.BaseURL)
+		"base_url", c.baseURL)
 
 	if len(messages) == 0 {
 		c.logger.Error("DMR stream creation failed", "error", "at least one message is required")
@@ -278,7 +287,7 @@ func (c *Client) CreateChatCompletionStream(
 
 	stream, err := c.client.CreateChatCompletionStream(ctx, request)
 	if err != nil {
-		c.logger.Error("DMR stream creation failed", "error", err, "model", c.config.Model, "base_url", c.config.BaseURL)
+		c.logger.Error("DMR stream creation failed", "error", err, "model", c.config.Model, "base_url", c.baseURL)
 		return nil, err
 	}
 
@@ -290,7 +299,7 @@ func (c *Client) CreateChatCompletion(
 	ctx context.Context,
 	messages []chat.Message,
 ) (string, error) {
-	c.logger.Debug("Creating DMR chat completion", "model", c.config.Model, "message_count", len(messages), "base_url", c.config.BaseURL)
+	c.logger.Debug("Creating DMR chat completion", "model", c.config.Model, "message_count", len(messages), "base_url", c.baseURL)
 
 	request := openai.ChatCompletionRequest{
 		Model:    c.config.Model,
@@ -299,7 +308,7 @@ func (c *Client) CreateChatCompletion(
 
 	response, err := c.client.CreateChatCompletion(ctx, request)
 	if err != nil {
-		c.logger.Error("DMR chat completion failed", "error", err, "model", c.config.Model, "base_url", c.config.BaseURL)
+		c.logger.Error("DMR chat completion failed", "error", err, "model", c.config.Model, "base_url", c.baseURL)
 		return "", err
 	}
 
