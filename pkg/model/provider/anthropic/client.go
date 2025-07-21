@@ -89,7 +89,7 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 			response.Choices[0].Delta.ToolCalls = []tools.ToolCall{toolCall}
 
 		default:
-			fmt.Println("Unknown delta type:", deltaVariant)
+			return response, fmt.Errorf("unknown delta type: %T", deltaVariant)
 		}
 	case anthropic.MessageStopEvent:
 		if a.toolCall {
@@ -252,7 +252,6 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 			anthropicMessages = append(anthropicMessages, anthropic.NewUserMessage(toolResult))
 			continue
 		}
-		fmt.Println("unknown message role", msg.Role)
 	}
 	return anthropicMessages
 }
