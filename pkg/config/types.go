@@ -2,11 +2,12 @@ package config
 
 // Toolset represents a tool configuration
 type Toolset struct {
-	Type    string            `yaml:"type,omitempty"`
-	Command string            `yaml:"command,omitempty"`
-	Args    []string          `yaml:"args,omitempty"`
-	Env     map[string]string `yaml:"env,omitempty"`
-	Tools   []string          `yaml:"tools,omitempty"`
+	Type     string            `yaml:"type,omitempty"`
+	Command  string            `yaml:"command,omitempty"`
+	Args     []string          `yaml:"args,omitempty"`
+	Env      map[string]string `yaml:"env,omitempty"`
+	Envfiles StringOrList      `yaml:"env_file,omitempty"`
+	Tools    []string          `yaml:"tools,omitempty"`
 }
 
 // AgentConfig represents a single agent configuration
@@ -43,4 +44,22 @@ type ModelConfig struct {
 type Config struct {
 	Agents map[string]AgentConfig `yaml:"agents,omitempty"`
 	Models map[string]ModelConfig `yaml:"models,omitempty"`
+}
+
+type StringOrList []string
+
+func (sm *StringOrList) UnmarshalYAML(unmarshal func(any) error) error {
+	var multi []string
+	if err := unmarshal(&multi); err != nil {
+		var single string
+		if err := unmarshal(&single); err != nil {
+			return err
+		}
+
+		*sm = []string{single}
+		return nil
+	}
+
+	*sm = multi
+	return nil
 }
