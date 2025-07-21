@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/docker/cagent/pkg/agent"
@@ -23,6 +24,8 @@ func Load(ctx context.Context, path string, logger *slog.Logger) (*team.Team, er
 	if err != nil {
 		return nil, err
 	}
+
+	parentDir := filepath.Dir(path)
 
 	agents := make(map[string]*agent.Agent)
 	for name := range cfg.Agents {
@@ -45,7 +48,7 @@ func Load(ctx context.Context, path string, logger *slog.Logger) (*team.Team, er
 		if !ok {
 			return nil, fmt.Errorf("agent '%s' not found in configuration", name)
 		}
-		agentTools, err := getToolsForAgent(ctx, &a, logger)
+		agentTools, err := getToolsForAgent(ctx, &a, parentDir, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tools: %w", err)
 		}
@@ -103,7 +106,7 @@ func getModelsForAgent(cfg *config.Config, a *config.AgentConfig, logger *slog.L
 }
 
 // getToolsForAgent returns the tool definitions for an agent based on its configuration
-func getToolsForAgent(ctx context.Context, a *config.AgentConfig, logger *slog.Logger) ([]tools.ToolSet, error) {
+func getToolsForAgent(ctx context.Context, a *config.AgentConfig, parentDir string, logger *slog.Logger) ([]tools.ToolSet, error) {
 	var t []tools.ToolSet
 
 	if len(a.SubAgents) > 0 {
@@ -130,14 +133,23 @@ func getToolsForAgent(ctx context.Context, a *config.AgentConfig, logger *slog.L
 			}
 			t = append(t, builtin.NewFilesystemTool([]string{wd}))
 		case "mcp":
-			envSlice := make([]string, 0, len(toolset.Env))
+			var envSlice []string
+
 			for k, v := range toolset.Env {
-				if after, ok := strings.CutPrefix(v, "$"); ok {
-					envVar := after
-					v = os.Getenv(envVar)
-				}
+				v = expandEnv(v, append(os.Environ(), envSlice...))
 				envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
 			}
+
+			keyValues, err := readEnvFiles(parentDir, toolset.Envfiles)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, kv := range keyValues {
+				v := expandEnv(kv.Value, append(os.Environ(), envSlice...))
+				envSlice = append(envSlice, fmt.Sprintf("%s=%s", kv.Key, v))
+			}
+
 			mcpc, err := mcp.NewToolset(ctx, toolset.Command, toolset.Args, envSlice, toolset.Tools, logger)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create mcp client: %w", err)

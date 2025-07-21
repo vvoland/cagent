@@ -80,8 +80,7 @@ agents:
       - type: mcp
         command: uvx
         args: ["mcp-shell-server"]
-        env:
-          ALLOW_COMMANDS: "docker,python,pip,ls,cat,pwd,grep,wc,touch,find,mkdir,rm,mv,cp"
+        env_file: .env
 
 models:
   openai:

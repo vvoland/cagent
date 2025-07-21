@@ -136,6 +136,7 @@ toolsets:
     args: [] # Command arguments
     tools: [] # Optional: List of specific tools to enable
     env: [] # Environment variables for this tool
+    env_file: [] # Environment variable files
 ```
 
 ## 🤝 Examples
