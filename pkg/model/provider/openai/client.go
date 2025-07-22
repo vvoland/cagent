@@ -117,6 +117,10 @@ func NewClient(cfg *config.ModelConfig, env environment.Provider, logger *slog.L
 
 	logger.Debug("OpenAI API key found, creating client")
 	clientConfig := openai.DefaultConfig(apiKey)
+	clientConfig.BaseURL = "https://api.openai.com/v1"
+	if cfg.BaseURL != "" {
+		clientConfig.BaseURL = cfg.BaseURL
+	}
 	client := openai.NewClientWithConfig(clientConfig)
 	logger.Debug("OpenAI client created successfully", "model", cfg.Model)
 
