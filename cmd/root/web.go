@@ -10,7 +10,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/loader"
 	"github.com/docker/cagent/pkg/runtime"
@@ -25,10 +24,9 @@ type Message struct {
 }
 
 var (
-	listenAddr    string
-	agentsDir     string
-	runtimes      map[string]*runtime.Runtime
-	runtimeAgents map[string]map[string]*agent.Agent
+	listenAddr string
+	agentsDir  string
+	runtimes   map[string]*runtime.Runtime
 )
 
 // NewWebCmd creates a new web command
@@ -70,7 +68,6 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 
 	if agentsDir != "" {
 		runtimes = make(map[string]*runtime.Runtime)
-		runtimeAgents = make(map[string]map[string]*agent.Agent)
 
 		entries, err := os.ReadDir(agentsDir)
 		if err != nil {
