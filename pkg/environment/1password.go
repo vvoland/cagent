@@ -47,6 +47,10 @@ func (p *OnePasswordProvider) Get(ctx context.Context, name string) (string, err
 		p.secrets = client.Secrets()
 	})
 
+	if p.onceSecretsErr != nil {
+		return "", p.onceSecretsErr
+	}
+
 	secret, err := p.secrets.Resolve(ctx, "op://cagent/"+name+"/password")
 	if err != nil {
 		return "", fmt.Errorf("failed to find environment variable (%s) in 1Password: %w", name, err)
