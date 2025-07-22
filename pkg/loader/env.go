@@ -64,6 +64,10 @@ func readEnvFile(parentDir, path string) ([]KeyValuePair, error) {
 			return nil, fmt.Errorf("invalid env file line: %s", line)
 		}
 
+		if strings.HasPrefix(v, `"`) && strings.HasSuffix(v, `"`) {
+			v = strings.TrimSuffix(strings.TrimPrefix(v, `"`), `"`)
+		}
+
 		lines = append(lines, KeyValuePair{
 			Key:   k,
 			Value: v,

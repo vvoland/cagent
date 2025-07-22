@@ -39,7 +39,7 @@ func TestReadEnvFilesEmpty(t *testing.T) {
 func TestReadEnvFiles(t *testing.T) {
 	temp := t.TempDir()
 	write(t, filepath.Join(temp, ".env1"), "KEY1=VALUE1\n# Comment\nKEY2=VALUE2\n")
-	write(t, filepath.Join(temp, ".env2"), "\n\nKEY3=VALUE3\n")
+	write(t, filepath.Join(temp, ".env2"), "\n\nKEY3=\"VALUE3\"\n")
 
 	lines, err := readEnvFiles(temp, []string{".env1", ".env2"})
 
