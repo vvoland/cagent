@@ -23,6 +23,29 @@ func expandEnv(value string, env []string) string {
 	})
 }
 
+// expandTildePath expands ~ in file paths to the user's home directory
+func expandTildePath(path string) (string, error) {
+	if !strings.HasPrefix(path, "~") {
+		return path, nil
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get user home directory: %w", err)
+	}
+
+	if path == "~" {
+		return homeDir, nil
+	}
+
+	if strings.HasPrefix(path, "~/") {
+		return filepath.Join(homeDir, path[2:]), nil
+	}
+
+	// Handle ~username/ format - not commonly supported in this context
+	return "", fmt.Errorf("unsupported tilde expansion format: %s", path)
+}
+
 func readEnvFiles(parentDir string, paths []string) ([]KeyValuePair, error) {
 	if len(paths) == 0 {
 		return nil, nil
@@ -42,6 +65,13 @@ func readEnvFiles(parentDir string, paths []string) ([]KeyValuePair, error) {
 }
 
 func readEnvFile(parentDir, path string) ([]KeyValuePair, error) {
+	// First expand tilde paths
+	expandedPath, err := expandTildePath(path)
+	if err != nil {
+		return nil, err
+	}
+	path = expandedPath
+
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(parentDir, path)
 	}
