@@ -33,7 +33,7 @@ virtual team of experts that can collaborate to solve complex problems.
 
 ```bash
 # Clone and build
-git clone https://github.com/rumpl/cagent.git
+git clone https://github.com/docker/cagent.git
 cd cagent
 task build
 
