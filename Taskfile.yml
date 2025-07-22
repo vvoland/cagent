@@ -59,6 +59,7 @@ tasks:
       - go test ./...
     sources:
       - "**/*.go"
+      - "**/*.txt"
 
   build-image:
     desc: Build Docker image
