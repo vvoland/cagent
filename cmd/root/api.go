@@ -3,19 +3,16 @@ package root
 import (
 	"fmt"
 	"log/slog"
-	"maps"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/loader"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/server"
 	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/team"
 )
 
 // NewWebCmd creates a new web command
@@ -58,7 +55,6 @@ func runApiCommand(cmd *cobra.Command, args []string) error {
 
 	if agentsDir != "" {
 		runtimes = make(map[string]*runtime.Runtime)
-		runtimeAgents = make(map[string]map[string]*agent.Agent)
 
 		entries, err := os.ReadDir(agentsDir)
 		if err != nil {
@@ -66,40 +62,49 @@ func runApiCommand(cmd *cobra.Command, args []string) error {
 		}
 
 		for _, entry := range entries {
-			agents := make(map[string]*agent.Agent)
-			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".yaml") {
-				configPath := filepath.Join(agentsDir, entry.Name())
-				fileTeam, err := loader.Load(ctx, configPath, logger)
-				if err != nil {
-					logger.Warn("Failed to load agents", "file", entry.Name(), "error", err)
-					continue
-				}
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") {
+				continue
+			}
+			configPath := filepath.Join(agentsDir, entry.Name())
+			fileTeam, err := loader.Load(ctx, configPath, logger)
+			if err != nil {
+				logger.Warn("Failed to load agents", "file", entry.Name(), "error", err)
+				continue
+			}
 
-				// Create runtimes for each agent in this file
-				for name := range fileTeam.Agents() {
-					if _, exists := agents[name]; exists {
-						return fmt.Errorf("duplicate agent name '%s' found in %s", name, configPath)
-					}
-					agents[name] = fileTeam.Get(name)
+			if err := fileTeam.StartToolSets(ctx); err != nil {
+				return fmt.Errorf("failed to start tool sets: %w", err)
+			}
 
-					runtimeAgents[entry.Name()] = fileTeam.Agents()
+			rt, err := runtime.New(logger, fileTeam, "root")
+			if err != nil {
+				return fmt.Errorf("failed to create runtime for file %s: %w", entry.Name(), err)
+			}
+			runtimes[entry.Name()] = rt
+		}
 
-					// Create a runtime with only the agents from this file
-					fileAgentsMap := make(map[string]*agent.Agent, fileTeam.Size())
-					maps.Copy(fileAgentsMap, fileTeam.Agents())
-
-					rt, err := runtime.New(logger, team.New(fileAgentsMap), "root")
-					if err != nil {
-						return fmt.Errorf("failed to create runtime for agent %s from file %s: %w", name, entry.Name(), err)
-					}
-					runtimes[entry.Name()] = rt
+		defer func() {
+			for _, rt := range runtimes {
+				if err := rt.Team().StopToolSets(); err != nil {
+					logger.Error("Failed to stop tool sets", "error", err)
 				}
 			}
-		}
+		}()
 	} else {
 		t, err := loader.Load(ctx, args[0], logger)
 		if err != nil {
 			return err
+		}
+		defer func() {
+			for _, rt := range runtimes {
+				if err := rt.Team().StopToolSets(); err != nil {
+					logger.Error("Failed to stop tool sets", "error", err)
+				}
+			}
+		}()
+
+		if err := t.StartToolSets(ctx); err != nil {
+			return fmt.Errorf("failed to start tool sets: %w", err)
 		}
 
 		// Initialize runtimes for single config file
