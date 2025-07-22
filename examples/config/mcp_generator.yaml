@@ -41,11 +41,7 @@ agents:
         command: uvx
         args: ["duckduckgo-mcp-server"]
       - type: filesystem
-      - type: mcp
-        command: uvx
-        args: ["mcp-shell-server"]
-        env:
-          ALLOW_COMMANDS: "python,pip,ls,cat,pwd,grep,wc,touch,find,mkdir,rm,mv,cp"
+      - type: shell
 
 models:
   openai:

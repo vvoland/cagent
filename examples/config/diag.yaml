@@ -48,11 +48,7 @@ agents:
     think: true
     toolsets:
       - type: filesystem
-      - type: mcp
-        command: uvx
-        args: ["mcp-shell-server"]
-        env:
-          ALLOW_COMMANDS: "docker,git,pwd,go,grep"
+      - type: shell
 
 models:
   openai:
