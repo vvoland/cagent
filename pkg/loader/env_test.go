@@ -29,6 +29,63 @@ func TestExpandEnv(t *testing.T) {
 	}
 }
 
+func TestExpandTildePath(t *testing.T) {
+	homeDir, err := os.UserHomeDir()
+	require.NoError(t, err)
+
+	tests := []struct {
+		name        string
+		input       string
+		expected    string
+		expectError bool
+	}{
+		{
+			name:     "no tilde",
+			input:    "/absolute/path",
+			expected: "/absolute/path",
+		},
+		{
+			name:     "relative path",
+			input:    "relative/path",
+			expected: "relative/path",
+		},
+		{
+			name:     "tilde only",
+			input:    "~",
+			expected: homeDir,
+		},
+		{
+			name:     "tilde with slash",
+			input:    "~/env/slack.env",
+			expected: filepath.Join(homeDir, "env/slack.env"),
+		},
+		{
+			name:     "tilde with deeper path",
+			input:    "~/config/app/settings.env",
+			expected: filepath.Join(homeDir, "config/app/settings.env"),
+		},
+		{
+			name:        "unsupported tilde format",
+			input:       "~user/path",
+			expected:    "",
+			expectError: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := expandTildePath(test.input)
+			if test.expectError {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "unsupported tilde expansion format")
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, test.expected, result)
+			}
+		})
+	}
+}
+
 func TestReadEnvFilesEmpty(t *testing.T) {
 	lines, err := readEnvFiles("/some/dir", []string{})
 
@@ -51,6 +108,29 @@ func TestReadEnvFiles(t *testing.T) {
 	assert.Equal(t, "VALUE2", lines[1].Value)
 	assert.Equal(t, "KEY3", lines[2].Key)
 	assert.Equal(t, "VALUE3", lines[2].Value)
+}
+
+func TestReadEnvFileWithTildePath(t *testing.T) {
+	homeDir, err := os.UserHomeDir()
+	require.NoError(t, err)
+
+	// Create a temporary file in a subdirectory of the home directory
+	testDir := filepath.Join(homeDir, "test-cagent-env")
+	err = os.MkdirAll(testDir, 0755)
+	require.NoError(t, err)
+	defer os.RemoveAll(testDir)
+
+	envFile := filepath.Join(testDir, "test.env")
+	write(t, envFile, "TILDE_KEY=TILDE_VALUE\n")
+
+	// Test with tilde path
+	tildePath := "~/test-cagent-env/test.env"
+	lines, err := readEnvFile("/some/parent/dir", tildePath)
+
+	require.NoError(t, err)
+	assert.Len(t, lines, 1)
+	assert.Equal(t, "TILDE_KEY", lines[0].Key)
+	assert.Equal(t, "TILDE_VALUE", lines[0].Value)
 }
 
 func TestReadEnvFileNotFound(t *testing.T) {
