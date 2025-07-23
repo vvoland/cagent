@@ -116,7 +116,7 @@ export const Sidebar = memo<SidebarProps>(({
   }, [onDeleteSession]);
 
   return (
-    <aside className="w-64 border-r bg-background/95 backdrop-blur-sm p-4 dark:border-border dark:bg-background/95 flex flex-col">
+    <aside className="w-64 h-screen border-r bg-background/95 backdrop-blur-sm p-4 dark:border-border dark:bg-background/95 flex flex-col">
       <header className="font-semibold mb-4 text-lg dark:text-foreground flex items-center gap-2">
         <MessageSquare className="h-5 w-5 text-primary" />
         <span>Sessions</span>
@@ -127,7 +127,7 @@ export const Sidebar = memo<SidebarProps>(({
         )}
       </header>
       
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {sortedSessions.length === 0 ? (
           <div className="text-center text-muted-foreground py-8">
             <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />

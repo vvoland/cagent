@@ -6,19 +6,21 @@ import { vscDarkPlus, vs } from "react-syntax-highlighter/dist/esm/styles/prism"
 import { cn } from "../lib/utils";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { MessageActionButtons } from "./MessageActionButtons";
+import { CollapsibleContent } from "./CollapsibleContent";
 
 interface MessageEventProps {
   role: string;
   agent: string | null;
   content: string;
   onReplay?: (() => void) | undefined;
+  isLatest?: boolean;
 }
 
 interface ErrorEventProps {
   content: string;
 }
 
-export const MessageEvent = memo<MessageEventProps>(({ role, agent, content, onReplay }) => {
+export const MessageEvent = memo<MessageEventProps>(({ role, agent, content, onReplay, isLatest = false }) => {
   const { isDarkMode } = useDarkMode();
   
   // Memoize markdown components for better performance
@@ -110,14 +112,18 @@ export const MessageEvent = memo<MessageEventProps>(({ role, agent, content, onR
         />
       </header>
       
-      <div className="prose prose-sm lg:prose-base max-w-none dark:prose-invert overflow-x-auto">
+      <CollapsibleContent 
+        isLatest={isLatest}
+        maxLines={5}
+        className="prose prose-sm lg:prose-base max-w-none dark:prose-invert overflow-x-auto"
+      >
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={markdownComponents}
         >
           {content}
         </ReactMarkdown>
-      </div>
+      </CollapsibleContent>
     </article>
   );
 });

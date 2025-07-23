@@ -84,5 +84,6 @@ export const ConnectedToolEvents = memo<ConnectedToolEventsProps>(({ events, cla
 
 ConnectedToolEvents.displayName = 'ConnectedToolEvents';
 
-// Export the connected system for easy usage
+// Export both the connected system and stacked system for easy usage
 export { ConnectedToolChip, ConnectedToolChipGroup, useConnectedToolCalls } from './ConnectedToolChip';
+export { StackedToolEvents } from './StackedToolEvents';

@@ -8,7 +8,7 @@ import { useToastHelpers } from "./components/Toast";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { MessageEvent, ErrorEvent } from "./components/MessageEvents";
-import { ToolCallEvent, ToolResultEvent, ConnectedToolEvents } from "./components/ToolEvents";
+import { ToolCallEvent, ToolResultEvent, StackedToolEvents } from "./components/ToolEvents";
 import { Sidebar } from "./components/Sidebar";
 import { DarkModeToggle } from "./components/DarkModeToggle";
 import { SkeletonList, MessageSkeleton } from "./components/LoadingSkeleton";
@@ -290,18 +290,23 @@ const App = memo(() => {
 
   // Memoized render function for events
   const renderEvent = useCallback((eventGroup: any, index: number) => {
+    const groupedEvents = groupToolEvents(events);
+    
     if (eventGroup.type === 'connected_tools') {
       return (
-        <ConnectedToolEvents
-          key={`connected-tools-${index}`}
+        <StackedToolEvents
+          key={`stacked-tools-${index}`}
           events={eventGroup.events}
           className="mx-2 lg:mx-3"
+          maxVisible={1}
         />
       );
     }
     
     // Handle regular events
     const event = eventGroup;
+    const isLatestEvent = index === groupedEvents.length - 1;
+    
     switch (event.type) {
       case "tool_call":
         // Fallback for individual tool calls (shouldn't happen with grouping)
@@ -329,6 +334,7 @@ const App = memo(() => {
             agent={event.metadata?.agent || ""}
             content={event.content}
             onReplay={event.metadata?.role === 'user' ? (() => handleReplayMessage(event.content)) : undefined}
+            isLatest={isLatestEvent}
           />
         );
       case "error":
@@ -336,7 +342,7 @@ const App = memo(() => {
       default:
         return null;
     }
-  }, [handleReplayMessage]);
+  }, [handleReplayMessage, events]);
 
   // Check if form is disabled
   const isFormDisabled = isLoadingEvents || !currentSessionId || !selectedAgent;
@@ -368,7 +374,7 @@ const App = memo(() => {
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden h-0">
               <Sidebar
                 sessions={sessions}
                 currentSessionId={currentSessionId}
