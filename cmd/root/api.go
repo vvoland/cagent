@@ -21,7 +21,6 @@ func NewApiCmd() *cobra.Command {
 		Use:   "api <agent-name>",
 		Short: "Start the API server",
 		Long:  `Start the API server that exposes the agent via an HTTP API`,
-		Args:  cobra.ExactArgs(1),
 		RunE:  runApiCommand,
 	}
 
@@ -116,7 +115,7 @@ func runApiCommand(cmd *cobra.Command, args []string) error {
 		runtimes[filepath.Base(args[0])] = rt
 	}
 
-	s, err := server.New(ctx, logger, runtimes, sessionStore, listenAddr)
+	s, err := server.New(ctx, logger, runtimes, sessionStore, listenAddr, server.WithAgentsDir(agentsDir))
 	if err != nil {
 		return err
 	}

@@ -4,7 +4,7 @@ agents:
   root:
     name: memory
     model: openai
-    description: "Humorous AI with persistent memory"
+    description: Humorous AI with persistent memory
     memory:
       path: ./funny.db
     instruction: You are a funny chatter
@@ -13,3 +13,6 @@ models:
   openai:
     type: openai
     model: gpt-4o
+
+metadata:
+  author: JL

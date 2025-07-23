@@ -11,7 +11,9 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
+	"github.com/docker/cagent/internal/creator"
 	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/loader"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 )
@@ -22,6 +24,7 @@ type Server struct {
 	logger       *slog.Logger
 	runtimes     map[string]*runtime.Runtime
 	sessionStore session.Store
+	agentsDir    string
 }
 
 type Opt func(*Server)
@@ -30,6 +33,12 @@ func WithFrontend(fsys fs.FS) Opt {
 	return func(s *Server) {
 		assetHandler := http.FileServer(http.FS(fsys))
 		s.e.GET("/*", echo.WrapHandler(assetHandler))
+	}
+}
+
+func WithAgentsDir(dir string) Opt {
+	return func(s *Server) {
+		s.agentsDir = dir
 	}
 }
 
@@ -49,8 +58,10 @@ func New(ctx context.Context, logger *slog.Logger, runtimes map[string]*runtime.
 	}
 
 	api := e.Group("/api")
+
 	// List all available agents
 	api.GET("/agents", s.agents)
+	api.POST("/agents", s.createAgent)
 	// List all sessions
 	api.GET("/sessions", s.getSessions)
 	// Create a new session
@@ -62,6 +73,35 @@ func New(ctx context.Context, logger *slog.Logger, runtimes map[string]*runtime.
 	api.POST("/sessions/:id/agent/:agent", s.runAgent)
 
 	return s, nil
+}
+
+type createAgentRequest struct {
+	Prompt string `json:"prompt"`
+}
+
+func (s *Server) createAgent(c echo.Context) error {
+	var req createAgentRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+	prompt := req.Prompt
+
+	out, path, err := creator.CreateAgent(c.Request().Context(), s.agentsDir, s.logger, prompt)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create agent"})
+	}
+
+	team, err := loader.Load(c.Request().Context(), path, s.logger)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
+	}
+
+	s.runtimes[path], err = runtime.New(s.logger, team, "root")
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create runtime"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"path": path, "out": out})
 }
 
 func (s *Server) agents(c echo.Context) error {
