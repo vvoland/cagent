@@ -5,18 +5,20 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus, vs } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { cn } from "../lib/utils";
 import { useDarkMode } from "../hooks/useDarkMode";
+import { MessageActionButtons } from "./MessageActionButtons";
 
 interface MessageEventProps {
   role: string;
   agent: string | null;
   content: string;
+  onReplay?: (() => void) | undefined;
 }
 
 interface ErrorEventProps {
   content: string;
 }
 
-export const MessageEvent = memo<MessageEventProps>(({ role, agent, content }) => {
+export const MessageEvent = memo<MessageEventProps>(({ role, agent, content, onReplay }) => {
   const { isDarkMode } = useDarkMode();
   
   // Memoize markdown components for better performance
@@ -84,7 +86,7 @@ export const MessageEvent = memo<MessageEventProps>(({ role, agent, content }) =
   return (
     <article
       className={cn(
-        "leading-8 rounded-lg p-3 lg:p-4 shadow-md dark:shadow-lg",
+        "group leading-8 rounded-lg p-3 lg:p-4 shadow-md dark:shadow-lg",
         "transition-all hover:shadow-lg dark:hover:shadow-xl",
         "border border-transparent hover:border-primary/20",
         "text-sm lg:text-base"
@@ -92,12 +94,22 @@ export const MessageEvent = memo<MessageEventProps>(({ role, agent, content }) =
       role="article"
       aria-label={`Message from ${displayName}`}
     >
-      <header className="font-semibold mb-2 flex items-center gap-2 flex-wrap">
-        <span className="text-sm lg:text-base">{displayName}</span>
-        <span className="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded-full">
-          {role}
-        </span>
+      <header className="font-semibold mb-2 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
+          <span className="text-sm lg:text-base truncate">{displayName}</span>
+          <span className="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded-full flex-shrink-0">
+            {role}
+          </span>
+        </div>
+        
+        {/* Message Action Buttons */}
+        <MessageActionButtons
+          content={content}
+          role={role}
+          onReplay={onReplay}
+        />
       </header>
+      
       <div className="prose prose-sm lg:prose-base max-w-none dark:prose-invert overflow-x-auto">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, memo, Suspense } from "react";
+import { useState, useEffect, useCallback, memo, Suspense, useRef } from "react";
 import { useSessions } from "./hooks/useSessions";
 import { useEvents } from "./hooks/useEvents";
 import { useAgents } from "./hooks/useAgents";
@@ -12,7 +12,7 @@ import { ToolCallEvent, ToolResultEvent, ConnectedToolEvents } from "./component
 import { Sidebar } from "./components/Sidebar";
 import { DarkModeToggle } from "./components/DarkModeToggle";
 import { SkeletonList, MessageSkeleton } from "./components/LoadingSkeleton";
-import { Menu, X } from "lucide-react";
+import { Menu, X, ChevronDown } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -24,8 +24,15 @@ import {
 const App = memo(() => {
   const [prompt, setPrompt] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const logger = useLogger('App');
   const toast = useToastHelpers();
+  
+  // Refs for scroll management
+  const scrollContainerRef = useRef<HTMLElement>(null);
+  const lastEventCountRef = useRef(0);
   
   const {
     sessions,
@@ -103,6 +110,77 @@ const App = memo(() => {
     handleSubmit,
   } = useEvents(currentSessionId, sessions, selectedAgent);
 
+  // Scroll detection logic
+  const checkScrollPosition = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    const nearBottom = distanceFromBottom <= 100; // 100px threshold
+    
+    setIsNearBottom(nearBottom);
+    setShowScrollButton(!nearBottom && events.length > 0);
+  }, [events.length]);
+
+  // Auto-scroll when new messages arrive (only if user was near bottom)
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const currentEventCount = events.length;
+    const hasNewEvents = currentEventCount > lastEventCountRef.current;
+    
+    if (hasNewEvents) {
+      if (isNearBottom) {
+        // Auto-scroll to bottom with smooth animation
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth'
+        });
+        setUnreadCount(0); // Reset unread count when auto-scrolling
+      } else {
+        // User has scrolled up, increment unread count
+        const newMessages = currentEventCount - lastEventCountRef.current;
+        setUnreadCount(prev => prev + newMessages);
+      }
+    }
+    
+    lastEventCountRef.current = currentEventCount;
+  }, [events.length, isNearBottom]);
+
+  // Scroll to bottom handler
+  const scrollToBottom = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: 'smooth'
+    });
+    setUnreadCount(0);
+    setShowScrollButton(false);
+  }, []);
+
+  // Attach scroll event listener
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      requestAnimationFrame(checkScrollPosition);
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    
+    // Initial check
+    checkScrollPosition();
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+    };
+  }, [checkScrollPosition]);
+
   const handleFormSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentSessionId) return;
@@ -120,6 +198,21 @@ const App = memo(() => {
       logger.timeEnd('submit-prompt');
     }
   }, [currentSessionId, handleSubmit, prompt, logger, toast]);
+
+  // Replay message handler
+  const handleReplayMessage = useCallback(async (content: string) => {
+    if (!currentSessionId) return;
+    
+    logger.info('Replaying message', { content: content.slice(0, 50) + '...' });
+    try {
+      await handleSubmit(currentSessionId, content);
+      toast.success('Message replayed successfully');
+    } catch (error) {
+      logger.error('Failed to replay message', error);
+      toast.error('Failed to replay message', 'Please try again');
+      throw error; // Re-throw to handle loading state in MessageActionButtons
+    }
+  }, [currentSessionId, handleSubmit, logger, toast]);
 
   // Keyboard shortcuts (disabled on mobile)
   useKeyboard([
@@ -235,6 +328,7 @@ const App = memo(() => {
             role={event.metadata?.role || ""}
             agent={event.metadata?.agent || ""}
             content={event.content}
+            onReplay={event.metadata?.role === 'user' ? (() => handleReplayMessage(event.content)) : undefined}
           />
         );
       case "error":
@@ -242,7 +336,7 @@ const App = memo(() => {
       default:
         return null;
     }
-  }, []);
+  }, [handleReplayMessage]);
 
   // Check if form is disabled
   const isFormDisabled = isLoadingEvents || !currentSessionId || !selectedAgent;
@@ -354,7 +448,10 @@ const App = memo(() => {
         </header>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-3 lg:p-4 pb-20 lg:pb-24">
+        <main 
+          ref={scrollContainerRef}
+          className="flex-1 overflow-y-auto p-3 lg:p-4 pb-20 lg:pb-24 relative"
+        >
           <div className="max-w-4xl mx-auto space-y-4">
             <Suspense fallback={
               <SkeletonList count={3} component={MessageSkeleton} />
@@ -386,6 +483,39 @@ const App = memo(() => {
               </div>
             )}
           </div>
+          
+          {/* Scroll to bottom button */}
+          {showScrollButton && (
+            <button
+              onClick={scrollToBottom}
+              className={`
+                fixed bottom-24 lg:bottom-28 right-4 lg:right-6 z-30
+                w-12 h-12 lg:w-10 lg:h-10 rounded-full
+                bg-blue-500 hover:bg-blue-600 dark:bg-[#5e81ac] dark:hover:bg-[#81a1c1]
+                text-white shadow-xl hover:shadow-2xl
+                border border-blue-600 dark:border-[#4c566a]
+                flex items-center justify-center
+                transition-all duration-300 ease-in-out
+                hover:-translate-y-1 hover:scale-110
+                focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2
+                dark:focus:ring-[#81a1c1] dark:focus:ring-offset-gray-900
+                group
+              `}
+              aria-label={`Scroll to bottom${unreadCount > 0 ? ` (${unreadCount} new messages)` : ''}`}
+              title={`Scroll to bottom${unreadCount > 0 ? ` (${unreadCount} new messages)` : ''}`}
+            >
+              <div className="relative flex items-center justify-center">
+                <ChevronDown className="w-5 h-5 lg:w-4 lg:h-4 group-hover:animate-bounce" />
+                {unreadCount > 0 && (
+                  <div className="absolute -top-2 -right-2 w-5 h-5 lg:w-4 lg:h-4 bg-red-500 dark:bg-[#bf616a] rounded-full flex items-center justify-center border-2 border-white dark:border-gray-900">
+                    <span className="text-xs font-bold text-white leading-none">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </button>
+          )}
         </main>
 
         {/* Footer form */}
