@@ -8,7 +8,7 @@ import { useToastHelpers } from "./components/Toast";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { MessageEvent, ErrorEvent } from "./components/MessageEvents";
-import { ToolCallEvent, ToolResultEvent } from "./components/ToolEvents";
+import { ToolCallEvent, ToolResultEvent, ConnectedToolEvents } from "./components/ToolEvents";
 import { Sidebar } from "./components/Sidebar";
 import { DarkModeToggle } from "./components/DarkModeToggle";
 import { SkeletonList, MessageSkeleton } from "./components/LoadingSkeleton";
@@ -148,10 +148,70 @@ const App = memo(() => {
     };
   }, [logger]);
 
+  // Helper function to group tool call/result pairs
+  const groupToolEvents = useCallback((events: any[]) => {
+    const grouped: any[] = [];
+    let i = 0;
+    
+    while (i < events.length) {
+      const event = events[i];
+      
+      if (event.type === 'tool_call') {
+        // Look for a matching tool_result in the next few events
+        const toolEvents: any[] = [{
+          type: 'tool_call',
+          name: event.metadata?.toolName || '',
+          args: event.metadata?.toolArgs || '{}',
+          timestamp: event.timestamp
+        }];
+        
+        // Check if the next event is a tool_result
+        if (i + 1 < events.length && events[i + 1].type === 'tool_result') {
+          const resultEvent = events[i + 1];
+          toolEvents.push({
+            type: 'tool_result',
+            id: resultEvent.metadata?.toolId || '',
+            content: resultEvent.content || '',
+            success: !resultEvent.metadata?.error,
+            timestamp: resultEvent.timestamp
+          });
+          i += 2; // Skip both events
+        } else {
+          i += 1; // Only skip the tool_call event
+        }
+        
+        grouped.push({
+          type: 'connected_tools',
+          events: toolEvents,
+          index: i
+        });
+      } else {
+        // Non-tool events remain as-is
+        grouped.push({ ...event, index: i });
+        i += 1;
+      }
+    }
+    
+    return grouped;
+  }, []);
+
   // Memoized render function for events
-  const renderEvent = useCallback((event: any, index: number) => {
+  const renderEvent = useCallback((eventGroup: any, index: number) => {
+    if (eventGroup.type === 'connected_tools') {
+      return (
+        <ConnectedToolEvents
+          key={`connected-tools-${index}`}
+          events={eventGroup.events}
+          className="mx-2 lg:mx-3"
+        />
+      );
+    }
+    
+    // Handle regular events
+    const event = eventGroup;
     switch (event.type) {
       case "tool_call":
+        // Fallback for individual tool calls (shouldn't happen with grouping)
         return (
           <ToolCallEvent
             key={`${event.type}-${index}`}
@@ -160,6 +220,7 @@ const App = memo(() => {
           />
         );
       case "tool_result":
+        // Fallback for individual tool results (shouldn't happen with grouping)
         return (
           <ToolResultEvent
             key={`${event.type}-${index}`}
@@ -298,7 +359,7 @@ const App = memo(() => {
             <Suspense fallback={
               <SkeletonList count={3} component={MessageSkeleton} />
             }>
-              {events.map(renderEvent)}
+              {groupToolEvents(events).map(renderEvent)}
             </Suspense>
             
             {/* Loading indicator */}
