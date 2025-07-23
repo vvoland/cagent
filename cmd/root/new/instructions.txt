@@ -47,6 +47,8 @@ agents:
         - type: filesystem
 ```
 
+It can also use local MCP Servers:
+
 ```yaml
 agents:
     root:
@@ -58,6 +60,22 @@ agents:
             tools: [] # Optional: List of specific tools to enable
             env: [] # Environment variables for this tool
             env_file: [] # Environment variable files
+```
+
+Or remote MCP Servers:
+
+```yaml
+agents:
+    root:
+        ...
+        toolsets:
+        - type: mcp # Model Context Protocol
+            remote:
+              url: string # Base URL to connect to
+              transport_type: string # Type of MCP transport (sse or streamable)
+              headers:
+                key: value # HTTP headers. Mainly used for auth
+            tools: [] # Optional: List of specific tools to enable
 ```
 
 ### Model Configuration

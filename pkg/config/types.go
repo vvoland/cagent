@@ -1,13 +1,43 @@
 package config
 
+import "errors"
+
 // Toolset represents a tool configuration
 type Toolset struct {
 	Type     string            `yaml:"type,omitempty"`
 	Command  string            `yaml:"command,omitempty"`
+	Remote   Remote            `yaml:"remote,omitempty"`
 	Args     []string          `yaml:"args,omitempty"`
 	Env      map[string]string `yaml:"env,omitempty"`
 	Envfiles StringOrList      `yaml:"env_file,omitempty"`
 	Tools    []string          `yaml:"tools,omitempty"`
+}
+
+type Remote struct {
+	URL           string            `yaml:"url"`
+	TransportType string            `yaml:"transport_type,omitempty"`
+	Headers       map[string]string `yaml:"headers,omitempty"`
+}
+
+// Ensure that either Command or Remote is set, but not both empty
+func (t *Toolset) validate() error {
+	if t.Command == "" && t.Remote.URL == "" {
+		return errors.New("either Command or Remote must be set in Toolset")
+	}
+	if t.Command != "" && t.Remote.URL != "" {
+		return errors.New("either Command or Remote must be set in Toolset")
+	}
+	return nil
+}
+
+func (t *Toolset) UnmarshalYAML(unmarshal func(any) error) error {
+	type alias Toolset
+	var tmp alias
+	if err := unmarshal(&tmp); err != nil {
+		return err
+	}
+	*t = Toolset(tmp)
+	return t.validate()
 }
 
 // TodoConfig represents todo configuration that can be either a boolean or an object

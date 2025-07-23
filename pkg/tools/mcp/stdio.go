@@ -5,11 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
 	"slices"
-	"strings"
 
 	"github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/client/transport"
 	"github.com/mark3labs/mcp-go/mcp"
 
 	"github.com/docker/cagent/pkg/tools"
@@ -17,51 +16,72 @@ import (
 
 // Client implements an MCP client for interacting with MCP servers
 type Client struct {
-	client *client.Client
-	tools  []tools.Tool
-	logger *slog.Logger
-
-	command string
-	args    []string
+	client  *client.Client
+	tools   []tools.Tool
+	logger  *slog.Logger
+	logType string
+	logId   string
 }
 
-// New creates a new MCP client that can start an stdio MCP server
-func New(ctx context.Context, command string, args, env []string, logger *slog.Logger) (*Client, error) {
-	logger.Debug("Creating MCP stdio client", "command", command, "args", args)
+// NewStdioClient creates a new MCP client that can start an stdio MCP server
+func NewStdioClient(ctx context.Context, command string, args, env []string, logger *slog.Logger) (*Client, error) {
+	logger.Debug("Creating stdio MCP client", "command", command, "args", args)
 
-	mcpClient, err := client.NewStdioMCPClient(command, env, args...)
+	c, err := client.NewStdioMCPClient(command, env, args...)
 	if err != nil {
 		logger.Error("Failed to create stdio MCP client", "error", err)
-		return nil, fmt.Errorf("failed to create stdio client: %w", err)
+		return nil, fmt.Errorf("failed to create stdio MCP client: %w", err)
 	}
 
-	logger.Debug("Created MCP stdio client successfully")
+	logger.Debug("Created stdio MCP client successfully")
 	return &Client{
-		client:  mcpClient,
-		tools:   []tools.Tool{},
+		client:  c,
 		logger:  logger,
-		command: command,
-		args:    args,
+		logType: "command",
+		logId:   command,
+	}, nil
+}
+
+// NewRemoteClient creates a new MCP client that can connect to a remote MCP server
+func NewRemoteClient(ctx context.Context, url, transportType string, headers map[string]string, logger *slog.Logger) (*Client, error) {
+	logger.Debug("Creating remote MCP client", "url", url, "transport", transportType, "headers", headers)
+
+	var c *client.Client
+	if transportType == "sse" {
+		var err error
+		c, err = client.NewSSEMCPClient(url, client.WithHeaders(headers))
+		if err != nil {
+			logger.Error("Failed to create sse remote MCP client", "error", err)
+			return nil, fmt.Errorf("failed to create sse remote MCP client: %w", err)
+		}
+	} else {
+		var err error
+		c, err = client.NewStreamableHttpClient(url, transport.WithHTTPHeaders(headers))
+		if err != nil {
+			logger.Error("Failed to create streamable remote MCP client", "error", err)
+			return nil, fmt.Errorf("failed to create streamable remote MCP client: %w", err)
+		}
+	}
+
+	logger.Debug("Created remote MCP client successfully")
+	return &Client{
+		client:  c,
+		logger:  logger,
+		logType: "remote",
+		logId:   url,
 	}, nil
 }
 
 // Start initializes and starts the MCP server connection
 func (c *Client) Start(ctx context.Context) error {
-	command := expandEnv(c.command, os.Environ())
-
-	var args []string
-	for _, arg := range c.args {
-		args = append(args, expandEnv(arg, os.Environ()))
-	}
-
-	c.logger.Debug("Starting MCP client", "command", command, "args", args)
+	c.logger.Debug("Starting MCP client", c.logType, c.logId)
 
 	if err := c.client.Start(ctx); err != nil {
 		c.logger.Error("Failed to start MCP client", "error", err)
 		return fmt.Errorf("failed to start MCP client: %w", err)
 	}
 
-	c.logger.Debug("Initializing MCP client", "command", command, "args", args)
+	c.logger.Debug("Initializing MCP client", c.logType, c.logId)
 	initRequest := mcp.InitializeRequest{}
 	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
 	initRequest.Params.ClientInfo = mcp.Implementation{
@@ -77,17 +97,6 @@ func (c *Client) Start(ctx context.Context) error {
 
 	c.logger.Debug("MCP client started and initialized successfully")
 	return nil
-}
-
-func expandEnv(value string, env []string) string {
-	return os.Expand(value, func(name string) string {
-		for _, e := range env {
-			if after, ok := strings.CutPrefix(e, name+"="); ok {
-				return after
-			}
-		}
-		return ""
-	})
 }
 
 // Stop stops the MCP server

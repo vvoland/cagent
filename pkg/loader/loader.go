@@ -135,40 +135,64 @@ func getToolsForAgent(ctx context.Context, a *config.AgentConfig, parentDir stri
 	}
 
 	toolsets := a.Toolsets
-	for _, toolset := range toolsets {
-		switch toolset.Type {
-		case "shell":
+	for i := range toolsets {
+		toolset := toolsets[i]
+
+		switch {
+		case toolset.Type == "shell":
 			t = append(t, builtin.NewShellTool())
-		case "filesystem":
+
+		case toolset.Type == "filesystem":
 			wd, err := os.Getwd()
 			if err != nil {
 				return nil, fmt.Errorf("failed to get working directory: %w", err)
 			}
+
 			t = append(t, builtin.NewFilesystemTool([]string{wd}))
-		case "mcp":
-			var envSlice []string
 
-			for k, v := range toolset.Env {
-				v = expandEnv(v, append(os.Environ(), envSlice...))
-				envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
-			}
-
-			keyValues, err := readEnvFiles(parentDir, toolset.Envfiles)
+		case toolset.Type == "mcp" && toolset.Command != "":
+			// Expand env first because it's used when expanding command and args.
+			env, err := toolsetEnv(toolset.Env, toolset.Envfiles, parentDir)
 			if err != nil {
 				return nil, err
 			}
 
-			for _, kv := range keyValues {
-				v := expandEnv(kv.Value, append(os.Environ(), envSlice...))
-				envSlice = append(envSlice, fmt.Sprintf("%s=%s", kv.Key, v))
+			// Expand command.
+			command := expandEnv(toolset.Command, append(os.Environ(), env...))
+
+			// Expand args.
+			var args []string
+			for _, arg := range toolset.Args {
+				args = append(args, expandEnv(arg, append(os.Environ(), env...)))
 			}
 
-			mcpc, err := mcp.NewToolset(ctx, toolset.Command, toolset.Args, envSlice, toolset.Tools, logger)
+			mcpc, err := mcp.NewToolsetCommand(ctx, command, args, env, toolset.Tools, logger)
 			if err != nil {
-				return nil, fmt.Errorf("failed to create mcp client: %w", err)
+				return nil, fmt.Errorf("failed to create stdio mcp client: %w", err)
 			}
 
 			t = append(t, mcpc)
+
+		case toolset.Type == "mcp" && toolset.Remote.URL != "":
+			// Expand env first because it's used when expanding headers.
+			env, err := toolsetEnv(toolset.Env, toolset.Envfiles, parentDir)
+			if err != nil {
+				return nil, err
+			}
+
+			// Expand headers.
+			headers := map[string]string{}
+			for k, v := range toolset.Remote.Headers {
+				headers[k] = expandEnv(v, append(os.Environ(), env...))
+			}
+
+			mcpc, err := mcp.NewToolsetRemote(ctx, toolset.Remote.URL, toolset.Remote.TransportType, headers, toolset.Tools, logger)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create remote mcp client: %w", err)
+			}
+
+			t = append(t, mcpc)
+
 		default:
 			return nil, fmt.Errorf("unknown toolset type: %s", toolset.Type)
 		}

@@ -22,11 +22,6 @@ RUN --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=1 go build -trimpath -ldflags "-s -w" -o /agent .
 
-FROM alpine:3.22@sha256:4bcff63911fcb4448bd4fdacec207030997caf25e9bea4045fa6c8c44de311d1
-RUN apk add --no-cache curl socat
-COPY --from=build-agent /agent /
-ENTRYPOINT [ "/agent" ]
-
 FROM --platform=$BUILDPLATFORM golang:1.24.1-alpine3.21 AS builder-base
 WORKDIR /src
 COPY --from=xx / /
@@ -72,4 +67,9 @@ EOT
 FROM builder-$TARGETOS AS builder
 
 FROM scratch AS cross
-COPY --from=builder /binaries . 
+COPY --from=builder /binaries .
+
+FROM alpine:3.22@sha256:4bcff63911fcb4448bd4fdacec207030997caf25e9bea4045fa6c8c44de311d1
+RUN apk add --no-cache curl socat
+COPY --from=build-agent /agent /
+ENTRYPOINT [ "/agent" ]

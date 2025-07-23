@@ -131,6 +131,8 @@ models:
 
 ### Tool Configuration
 
+**Local (stdio) MCP Server**
+
 ```yaml
 toolsets:
   - type: mcp # Model Context Protocol
@@ -139,6 +141,19 @@ toolsets:
     tools: [] # Optional: List of specific tools to enable
     env: [] # Environment variables for this tool
     env_file: [] # Environment variable files
+```
+
+**Remote (sse or streamable) MCP Server**
+
+```yaml
+toolsets:
+  - type: mcp # Model Context Protocol
+    remote:
+      url: string # Base URL to connect to
+      transport_type: string # Type of MCP transport (sse or streamable)
+      headers:
+        key: value # HTTP headers. Mainly used for auth
+    tools: [] # Optional: List of specific tools to enable
 ```
 
 ## 🤝 Examples

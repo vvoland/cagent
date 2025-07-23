@@ -12,6 +12,27 @@ type KeyValuePair struct {
 	Value string
 }
 
+func toolsetEnv(env map[string]string, envFiles []string, parentDir string) ([]string, error) {
+	var envSlice []string
+
+	for k, v := range env {
+		v = expandEnv(v, append(os.Environ(), envSlice...))
+		envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	keyValues, err := readEnvFiles(parentDir, envFiles)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, kv := range keyValues {
+		v := expandEnv(kv.Value, append(os.Environ(), envSlice...))
+		envSlice = append(envSlice, fmt.Sprintf("%s=%s", kv.Key, v))
+	}
+
+	return envSlice, nil
+}
+
 func expandEnv(value string, env []string) string {
 	return os.Expand(value, func(name string) string {
 		for _, e := range env {

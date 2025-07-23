@@ -14,6 +14,7 @@ services:
   gateway:
     image: docker/mcp-gateway
     command:
+      - --transport=streaming
       - --servers=duckduckgo
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

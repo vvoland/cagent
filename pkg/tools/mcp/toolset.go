@@ -15,14 +15,31 @@ type Toolset struct {
 	logger     *slog.Logger
 }
 
-// NewToolset creates a new MCP toolset
-func NewToolset(ctx context.Context, command string, args, env, toolFilter []string, logger *slog.Logger) (*Toolset, error) {
+// NewToolsetCommand creates a new MCP toolset from a command.
+func NewToolsetCommand(ctx context.Context, command string, args, env, toolFilter []string, logger *slog.Logger) (*Toolset, error) {
 	logger.Debug("Creating MCP toolset", "command", command, "args", args, "toolFilter", toolFilter)
 
-	mcpc, err := New(ctx, command, args, env, logger)
+	mcpc, err := NewStdioClient(ctx, command, args, env, logger)
 	if err != nil {
 		logger.Error("Failed to create MCP client", "error", err)
 		return nil, fmt.Errorf("failed to create mcp client: %w", err)
+	}
+
+	return &Toolset{
+		c:          mcpc,
+		toolFilter: toolFilter,
+		logger:     logger,
+	}, nil
+}
+
+// NewToolsetRemote creates a new MCP toolset from a remote MCP Server.
+func NewToolsetRemote(ctx context.Context, url, transport string, headers map[string]string, toolFilter []string, logger *slog.Logger) (*Toolset, error) {
+	logger.Debug("Creating MCP toolset", "url", url, "transport", transport, "headers", headers, "toolFilter", toolFilter)
+
+	mcpc, err := NewRemoteClient(ctx, url, transport, headers, logger)
+	if err != nil {
+		logger.Error("Failed to create remote MCP client", "error", err)
+		return nil, fmt.Errorf("failed to create remote mcp client: %w", err)
 	}
 
 	return &Toolset{

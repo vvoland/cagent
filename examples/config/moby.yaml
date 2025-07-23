@@ -1,0 +1,20 @@
+#!/usr/bin/env cagent run
+
+agents:
+  root:
+    name: root
+    model: anthropic
+    description: Moby Project Expert
+    instruction: |
+      You are an AI assistant with expertise in the moby/moby project's documentation.
+    toolsets:
+      - type: mcp
+        remote:
+          url: https://gitmcp.io/moby/moby
+          transport_type: streamable
+
+models:
+  anthropic:
+    type: anthropic
+    model: claude-3-5-sonnet-latest
+    max_tokens: 8192

@@ -116,7 +116,7 @@ func TestReadEnvFileWithTildePath(t *testing.T) {
 
 	// Create a temporary file in a subdirectory of the home directory
 	testDir := filepath.Join(homeDir, "test-cagent-env")
-	err = os.MkdirAll(testDir, 0755)
+	err = os.MkdirAll(testDir, 0o755)
 	require.NoError(t, err)
 	defer os.RemoveAll(testDir)
 
@@ -154,6 +154,6 @@ func TestReadEnvFileInvalid(t *testing.T) {
 
 func write(t *testing.T, path, content string) {
 	t.Helper()
-	err := os.WriteFile(path, []byte(content), 0644)
+	err := os.WriteFile(path, []byte(content), 0o644)
 	require.NoError(t, err)
 }
