@@ -10,8 +10,9 @@ agents:
       Always share your sources with the user.
     toolsets:
       - type: mcp
-        command: socat
-        args: ["STDIO", "TCP:gateway:8811"]
+        remote:
+          url: http://gateway:8811
+          transport_type: streaming
         tools:
           - search
 

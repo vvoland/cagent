@@ -712,7 +712,6 @@ func (t *FilesystemTool) handleSearchFiles(ctx context.Context, toolCall tools.T
 
 		return nil
 	})
-
 	if err != nil {
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error searching files: %s", err)}, nil
 	}
@@ -806,7 +805,6 @@ func (t *FilesystemTool) handleSearchFilesContent(ctx context.Context, toolCall 
 
 		return nil
 	})
-
 	if err != nil {
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error searching file contents: %s", err)}, nil
 	}
