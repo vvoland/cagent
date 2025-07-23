@@ -152,11 +152,12 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 							ToolCallID: toolCall.ID,
 						}
 						sess.Messages = append(sess.Messages, session.NewAgentMessage(a, &toolResponseMsg))
-
-						break
 					}
 
 					for _, tool := range agentTools {
+						if _, ok := r.toolMap[tool.Function.Name]; ok {
+							continue
+						}
 						if tool.Function.Name != toolCall.Function.Name {
 							continue
 						}

@@ -29,6 +29,11 @@ func Load(ctx context.Context, path string, logger *slog.Logger) (*team.Team, er
 	parentDir := filepath.Dir(path)
 
 	agents := make(map[string]*agent.Agent)
+
+	sharedTools := map[string]tools.ToolSet{
+		"todo": builtin.NewTodoTool(),
+	}
+
 	for name := range cfg.Agents {
 		agentConfig := cfg.Agents[name]
 
@@ -49,7 +54,7 @@ func Load(ctx context.Context, path string, logger *slog.Logger) (*team.Team, er
 		if !ok {
 			return nil, fmt.Errorf("agent '%s' not found in configuration", name)
 		}
-		agentTools, err := getToolsForAgent(ctx, &a, parentDir, logger)
+		agentTools, err := getToolsForAgent(ctx, &a, parentDir, logger, sharedTools)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tools: %w", err)
 		}
@@ -110,7 +115,7 @@ func getModelsForAgent(cfg *config.Config, a *config.AgentConfig, logger *slog.L
 }
 
 // getToolsForAgent returns the tool definitions for an agent based on its configuration
-func getToolsForAgent(ctx context.Context, a *config.AgentConfig, parentDir string, logger *slog.Logger) ([]tools.ToolSet, error) {
+func getToolsForAgent(ctx context.Context, a *config.AgentConfig, parentDir string, logger *slog.Logger, sharedTools map[string]tools.ToolSet) ([]tools.ToolSet, error) {
 	var t []tools.ToolSet
 
 	if len(a.SubAgents) > 0 {
@@ -121,8 +126,12 @@ func getToolsForAgent(ctx context.Context, a *config.AgentConfig, parentDir stri
 		t = append(t, builtin.NewThinkTool())
 	}
 
-	if a.Todo {
-		t = append(t, builtin.NewTodoTool())
+	if a.Todo.Enabled {
+		if a.Todo.Shared {
+			t = append(t, sharedTools["todo"])
+		} else {
+			t = append(t, builtin.NewTodoTool())
+		}
 	}
 
 	toolsets := a.Toolsets

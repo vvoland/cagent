@@ -108,6 +108,7 @@ agents:
     sub_agents: [] # Sub-agent names (optional)
     think: boolean # Enable think tool (optional)
     todo: boolean # Enable the todo list tool (optional)
+      shared: boolean # Should the todo list be shared (optional)
     memory:
       path: string # Path to the sqlite database for memory storate (optional)
     add_date: boolean # Add current date to context (optional)

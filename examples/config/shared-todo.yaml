@@ -1,0 +1,35 @@
+agents:
+  root:
+    name: a
+    model: gpt
+    instruction: |
+      Here is your workflow:
+        - Transfer to the `first` agent, the task should be: create a todo
+        - Transfer to the `second` agent, the task should be: what todos do you have?
+
+    sub_agents:
+      - first
+      - second
+
+  first:
+    name: first
+    model: gpt
+    instruction: Use the todos tool to create one random todo item
+    todo:
+      shared: true
+
+  second:
+    name: second
+    model: gpt
+    instruction: Get the todos and show them
+    todo:
+      shared: true
+
+models:
+  gpt:
+    type: openai
+    model: gpt-4o
+  claude:
+    type: anthropic
+    model: claude-sonnet-4-0
+    max_tokens: 8000
