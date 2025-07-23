@@ -63,14 +63,6 @@ export const CollapsibleContent = memo<CollapsibleContentProps>(({
       // If full height is greater than clamped height, content overflows
       const isOverflowing = fullHeight > clampedHeight + 10; // Add 10px buffer
       
-      console.log('CollapsibleContent Debug:', {
-        isLatest,
-        fullHeight,
-        clampedHeight,
-        isOverflowing,
-        maxLines
-      });
-
       setShouldCollapse(isOverflowing);
       
       // If content overflows and this isn't the latest message, collapse by default

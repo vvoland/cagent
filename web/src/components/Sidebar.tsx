@@ -39,6 +39,10 @@ const SessionItem = memo<SessionItemProps>(({ session, isActive, onSelect, onDel
   }, [session.created_at]);
 
   const sessionId = session.id.slice(0, 8);
+  const sessionName =
+    session.messages && session.messages[0] && session.messages[0].message.content
+      ? session.messages[0].message.content.slice(0, 50)
+      : "Untitled Session";
   const messageCount = session.messages?.length || 0;
 
   return (
@@ -65,7 +69,7 @@ const SessionItem = memo<SessionItemProps>(({ session, isActive, onSelect, onDel
       <div className="flex items-start justify-between mb-1">
         <div className="font-medium dark:text-foreground flex items-center gap-2 min-w-0">
           <MessageSquare className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-          <span className="truncate">Session {sessionId}</span>
+          <span className="truncate">{sessionName}</span>
         </div>
         <Button
           variant="ghost"

@@ -23,7 +23,7 @@ interface StackedToolEventsProps {
 export const StackedToolEvents = memo<StackedToolEventsProps>(({ 
   events, 
   className, 
-  maxVisible = 1 
+  maxVisible = 3
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const { connectedToolCalls, toggleExpanded, isExpanded: isChipExpanded } = useConnectedToolCalls(events);
@@ -40,8 +40,6 @@ export const StackedToolEvents = memo<StackedToolEventsProps>(({
   }, []);
 
   const getStackStyle = (index: number, total: number) => {
-    // If not showing stacking or expanded, show normally
-    if (!shouldShowStacking || isExpanded) {
       return {
         transform: 'scale(1)',
         opacity: 1,
@@ -49,44 +47,6 @@ export const StackedToolEvents = memo<StackedToolEventsProps>(({
         clipPath: 'none',
         marginBottom: index < total - 1 ? '8px' : '0'
       };
-    }
-
-    // When collapsed with stacking, apply stacking effects
-    const reverseIndex = total - 1 - index; // 0 is the latest (top), 1 is second, etc.
-    
-    if (reverseIndex === 0) {
-      // Latest tool call: full visibility
-      return {
-        transform: 'scale(1)',
-        opacity: 1,
-        zIndex: 10,
-        clipPath: 'none'
-      };
-    } else if (reverseIndex === 1) {
-      // Second tool call: partial visibility (clipped 40%)
-      return {
-        transform: 'scale(0.98) translateY(-4px)',
-        opacity: 0.8,
-        zIndex: 9,
-        clipPath: 'inset(0 0 40% 0)'
-      };
-    } else if (reverseIndex === 2) {
-      // Third tool call: more partial (clipped 60%)
-      return {
-        transform: 'scale(0.96) translateY(-8px)',
-        opacity: 0.6,
-        zIndex: 8,
-        clipPath: 'inset(0 0 60% 0)'
-      };
-    } else {
-      // Fourth and beyond: heavily clipped
-      return {
-        transform: 'scale(0.94) translateY(-12px)',
-        opacity: 0.4,
-        zIndex: 7,
-        clipPath: 'inset(0 0 75% 0)'
-      };
-    }
   };
 
   return (

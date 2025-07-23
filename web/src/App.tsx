@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, memo, Suspense, useRef } from "react";
+import { useState, useEffect, useCallback, memo, Suspense, useRef, useMemo } from "react";
 import { useSessions } from "./hooks/useSessions";
 import { useEvents } from "./hooks/useEvents";
 import { useAgents } from "./hooks/useAgents";
@@ -8,11 +8,12 @@ import { useToastHelpers } from "./components/Toast";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { MessageEvent, ErrorEvent } from "./components/MessageEvents";
-import { ToolCallEvent, ToolResultEvent, StackedToolEvents } from "./components/ToolEvents";
+import { StackedToolEvents } from "./components/ToolEvents";
 import { Sidebar } from "./components/Sidebar";
 import { DarkModeToggle } from "./components/DarkModeToggle";
 import { SkeletonList, MessageSkeleton } from "./components/LoadingSkeleton";
-import { Menu, X, ChevronDown } from "lucide-react";
+import { Menu, X, ChevronDown, TestTube } from "lucide-react";
+// Demo components removed - not needed for production
 import {
   Select,
   SelectContent,
@@ -27,13 +28,14 @@ const App = memo(() => {
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showDemo, setShowDemo] = useState(false);
   const logger = useLogger('App');
   const toast = useToastHelpers();
-  
+
   // Refs for scroll management
   const scrollContainerRef = useRef<HTMLElement>(null);
   const lastEventCountRef = useRef(0);
-  
+
   const {
     sessions,
     currentSessionId,
@@ -118,7 +120,7 @@ const App = memo(() => {
     const { scrollTop, scrollHeight, clientHeight } = container;
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
     const nearBottom = distanceFromBottom <= 100; // 100px threshold
-    
+
     setIsNearBottom(nearBottom);
     setShowScrollButton(!nearBottom && events.length > 0);
   }, [events.length]);
@@ -130,7 +132,7 @@ const App = memo(() => {
 
     const currentEventCount = events.length;
     const hasNewEvents = currentEventCount > lastEventCountRef.current;
-    
+
     if (hasNewEvents) {
       if (isNearBottom) {
         // Auto-scroll to bottom with smooth animation
@@ -145,7 +147,7 @@ const App = memo(() => {
         setUnreadCount(prev => prev + newMessages);
       }
     }
-    
+
     lastEventCountRef.current = currentEventCount;
   }, [events.length, isNearBottom]);
 
@@ -172,7 +174,7 @@ const App = memo(() => {
     };
 
     container.addEventListener('scroll', handleScroll, { passive: true });
-    
+
     // Initial check
     checkScrollPosition();
 
@@ -184,7 +186,7 @@ const App = memo(() => {
   const handleFormSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentSessionId) return;
-    
+
     logger.time('submit-prompt');
     try {
       await handleSubmit(currentSessionId, prompt);
@@ -202,7 +204,7 @@ const App = memo(() => {
   // Replay message handler
   const handleReplayMessage = useCallback(async (content: string) => {
     if (!currentSessionId) return;
-    
+
     logger.info('Replaying message', { content: content.slice(0, 50) + '...' });
     try {
       await handleSubmit(currentSessionId, content);
@@ -224,9 +226,9 @@ const App = memo(() => {
       ...commonShortcuts.toggleTheme,
       handler: () => {
         // This would be handled by the DarkModeToggle component
-        const event = new KeyboardEvent('keydown', { 
-          key: 'd', 
-          ctrlKey: true 
+        const event = new KeyboardEvent('keydown', {
+          key: 'd',
+          ctrlKey: true
         });
         document.dispatchEvent(event);
       },
@@ -241,108 +243,146 @@ const App = memo(() => {
     };
   }, [logger]);
 
-  // Helper function to group tool call/result pairs
-  const groupToolEvents = useCallback((events: any[]) => {
-    const grouped: any[] = [];
-    let i = 0;
-    
-    while (i < events.length) {
-      const event = events[i];
-      
-      if (event.type === 'tool_call') {
-        // Look for a matching tool_result in the next few events
-        const toolEvents: any[] = [{
-          type: 'tool_call',
-          name: event.metadata?.toolName || '',
-          args: event.metadata?.toolArgs || '{}',
-          timestamp: event.timestamp
-        }];
-        
-        // Check if the next event is a tool_result
-        if (i + 1 < events.length && events[i + 1].type === 'tool_result') {
-          const resultEvent = events[i + 1];
-          toolEvents.push({
-            type: 'tool_result',
-            id: resultEvent.metadata?.toolId || '',
-            content: resultEvent.content || '',
-            success: !resultEvent.metadata?.error,
-            timestamp: resultEvent.timestamp
-          });
-          i += 2; // Skip both events
-        } else {
-          i += 1; // Only skip the tool_call event
-        }
-        
-        grouped.push({
-          type: 'connected_tools',
-          events: toolEvents,
-          index: i
-        });
-      } else {
-        // Non-tool events remain as-is
-        grouped.push({ ...event, index: i });
-        i += 1;
-      }
-    }
-    
-    return grouped;
-  }, []);
+  // Process events into chronological order with tool call stacks
+  const processedEvents = useMemo(() => {
+    const processed: Array<{
+      type: 'message' | 'error' | 'tool_stack';
+      data: any;
+      key: string;
+    }> = [];
 
-  // Memoized render function for events
-  const renderEvent = useCallback((eventGroup: any, index: number) => {
-    const groupedEvents = groupToolEvents(events);
-    
-    if (eventGroup.type === 'connected_tools') {
-      return (
-        <StackedToolEvents
-          key={`stacked-tools-${index}`}
-          events={eventGroup.events}
-          className="mx-2 lg:mx-3"
-          maxVisible={1}
-        />
-      );
+    let currentToolStack: Array<{
+      id: string;
+      callEvent: {
+        name: string;
+        args: string;
+        timestamp: Date;
+      };
+      resultEvent?: {
+        id: string;
+        content: string;
+        success: boolean;
+        timestamp: Date;
+      };
+      status: 'pending' | 'success' | 'error';
+    }> = [];
+
+    let toolStackId = 0;
+
+    events.forEach((event, index) => {
+      if (event.type === 'tool_call') {
+        // Add to current tool stack
+        const toolId = event.metadata?.toolId || `tool-${Date.now()}-${Math.random()}`;
+        currentToolStack.push({
+          id: toolId,
+          callEvent: {
+            name: event.metadata?.toolName || 'unknown',
+            args: event.metadata?.toolArgs || '{}',
+            timestamp: event.timestamp || new Date()
+          },
+          status: 'pending'
+        });
+      } else if (event.type === 'tool_result') {
+        // Find the corresponding tool call in current stack and update it
+        const toolIndex = currentToolStack.findIndex(tool =>
+          !tool.resultEvent && tool.status === 'pending'
+        );
+
+        if (toolIndex !== -1) {
+          const existingTool = currentToolStack[toolIndex];
+          if (existingTool) {
+            currentToolStack[toolIndex] = {
+              id: existingTool.id,
+              callEvent: existingTool.callEvent,
+              resultEvent: {
+                id: event.metadata?.toolId || 'unknown',
+                content: event.content || '',
+                success: event.metadata?.success !== false,
+                timestamp: event.timestamp || new Date()
+              },
+              status: event.metadata?.success !== false ? 'success' : 'error'
+            };
+          }
+        }
+      } else {
+        // Non-tool event (message, error)
+        // First, flush any pending tool stack
+        if (currentToolStack.length > 0) {
+          processed.push({
+            type: 'tool_stack',
+            data: [...currentToolStack],
+            key: `tool-stack-${toolStackId++}`
+          });
+          currentToolStack = [];
+        }
+
+        // Add the message/error event
+        processed.push({
+          type: event.type as 'message' | 'error',
+          data: event,
+          key: `${event.type}-${index}`
+        });
+      }
+    });
+
+    // Flush any remaining tool stack at the end
+    if (currentToolStack.length > 0) {
+      processed.push({
+        type: 'tool_stack',
+        data: [...currentToolStack],
+        key: `tool-stack-${toolStackId++}`
+      });
     }
-    
-    // Handle regular events
-    const event = eventGroup;
-    const isLatestEvent = index === groupedEvents.length - 1;
-    
-    switch (event.type) {
-      case "tool_call":
-        // Fallback for individual tool calls (shouldn't happen with grouping)
+
+    return processed;
+  }, [events]);
+
+  // Render processed events in chronological order
+  const renderProcessedEvent = useCallback((processedEvent: any, index: number) => {
+    const { type, data, key } = processedEvent;
+
+    switch (type) {
+      case 'tool_stack':
         return (
-          <ToolCallEvent
-            key={`${event.type}-${index}`}
-            name={event.metadata?.toolName || ""}
-            args={event.metadata?.toolArgs || ""}
-          />
+          <div key={key} className="mx-2 lg:mx-3">
+            <StackedToolEvents
+              events={data.map((tool: any) => ([
+                {
+                  type: 'tool_call' as const,
+                  name: tool.callEvent.name,
+                  args: tool.callEvent.args,
+                  id: tool.id,
+                  timestamp: tool.callEvent.timestamp
+                },
+                ...(tool.resultEvent ? [{
+                  type: 'tool_result' as const,
+                  id: tool.resultEvent.id,
+                  content: tool.resultEvent.content,
+                  success: tool.resultEvent.success,
+                  timestamp: tool.resultEvent.timestamp
+                }] : [])
+              ])).flat()}
+            />
+          </div>
         );
-      case "tool_result":
-        // Fallback for individual tool results (shouldn't happen with grouping)
-        return (
-          <ToolResultEvent
-            key={`${event.type}-${index}`}
-            id={event.metadata?.toolId || ""}
-            content={event.content}
-          />
-        );
-      case "message":
+      case 'message':
+        const isLatestEvent = index === processedEvents.length - 1;
         return (
           <MessageEvent
-            key={`${event.type}-${index}`}
-            role={event.metadata?.role || ""}
-            agent={event.metadata?.agent || ""}
-            content={event.content}
-            onReplay={event.metadata?.role === 'user' ? (() => handleReplayMessage(event.content)) : undefined}
+            key={key}
+            role={data.metadata?.role || ""}
+            agent={data.metadata?.agent || ""}
+            content={data.content}
+            onReplay={data.metadata?.role === 'user' ? (() => handleReplayMessage(data.content)) : undefined}
             isLatest={isLatestEvent}
           />
         );
-      case "error":
-        return <ErrorEvent key={`${event.type}-${index}`} content={event.content} />;
+      case 'error':
+        return <ErrorEvent key={key} content={data.content} />;
       default:
         return null;
     }
-  }, [handleReplayMessage, events]);
+  }, [handleReplayMessage, processedEvents.length]);
 
   // Check if form is disabled
   const isFormDisabled = isLoadingEvents || !currentSessionId || !selectedAgent;
@@ -402,19 +442,30 @@ const App = memo(() => {
                 <span className="sr-only">Open menu</span>
               </Button>
 
+              {/* Mobile Demo Button */}
+              <Button
+                onClick={() => setShowDemo(!showDemo)}
+                variant="outline"
+                size="icon"
+                className="sm:hidden h-9 w-9 flex-shrink-0"
+                title="Toggle Stacking Demo"
+              >
+                <TestTube className="h-4 w-4" />
+              </Button>
+
               {/* New Session Button */}
-              <Button 
-                onClick={handleNewSession} 
+              <Button
+                onClick={handleNewSession}
                 variant="outline"
                 size="sm"
                 className="transition-all hover:scale-105 hidden sm:flex"
               >
                 New Session
               </Button>
-              
+
               {/* Mobile New Session Button */}
-              <Button 
-                onClick={handleNewSession} 
+              <Button
+                onClick={handleNewSession}
                 variant="outline"
                 size="icon"
                 className="sm:hidden h-9 w-9 flex-shrink-0"
@@ -447,24 +498,28 @@ const App = memo(() => {
                 </Select>
               </div>
             </div>
-            
+
             {/* Dark Mode Toggle */}
             <DarkModeToggle />
           </div>
         </header>
 
         {/* Main content */}
-        <main 
+        <main
           ref={scrollContainerRef}
           className="flex-1 overflow-y-auto p-3 lg:p-4 pb-20 lg:pb-24 relative"
         >
+
           <div className="max-w-4xl mx-auto space-y-4">
             <Suspense fallback={
               <SkeletonList count={3} component={MessageSkeleton} />
             }>
-              {groupToolEvents(events).map(renderEvent)}
+              {/* Render all events in chronological order with tool stacks */}
+              {processedEvents.map((processedEvent, index) =>
+                renderProcessedEvent(processedEvent, index)
+              )}
             </Suspense>
-            
+
             {/* Loading indicator */}
             {isLoadingEvents && (
               <div className="flex items-center justify-center py-4">
@@ -474,14 +529,14 @@ const App = memo(() => {
                 </div>
               </div>
             )}
-            
+
             {/* Empty state */}
             {events.length === 0 && !isLoadingEvents && (
               <div className="flex flex-col items-center justify-center py-8 lg:py-12 text-center px-4">
                 <div className="text-4xl lg:text-6xl mb-4 opacity-50">💬</div>
                 <h3 className="text-base lg:text-lg font-semibold mb-2">Start a conversation</h3>
                 <p className="text-muted-foreground text-sm lg:text-base max-w-md">
-                  {selectedAgent 
+                  {selectedAgent
                     ? `Send a message to ${selectedAgent} to get started.`
                     : 'Select an agent and send a message to begin.'
                   }
@@ -489,7 +544,7 @@ const App = memo(() => {
               </div>
             )}
           </div>
-          
+
           {/* Scroll to bottom button */}
           {showScrollButton && (
             <button

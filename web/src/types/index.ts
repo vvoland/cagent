@@ -31,6 +31,7 @@ export type EventType = "tool_call" | "tool_result" | "message" | "error";
 export interface EventItem {
   type: EventType;
   content: string;
+  timestamp?: Date;
   metadata?: {
     toolName?: string | undefined;
     toolArgs?: string | undefined;
@@ -38,6 +39,7 @@ export interface EventItem {
     role?: string | undefined;
     response?: string | undefined;
     agent?: string | undefined;
+    success?: boolean | undefined;
   };
 }
 
