@@ -32,12 +32,12 @@ export interface EventItem {
   type: EventType;
   content: string;
   metadata?: {
-    toolName?: string;
-    toolArgs?: string;
-    toolId?: string;
-    role?: string;
-    response?: string;
-    agent?: string;
+    toolName?: string | undefined;
+    toolArgs?: string | undefined;
+    toolId?: string | undefined;
+    role?: string | undefined;
+    response?: string | undefined;
+    agent?: string | undefined;
   };
 }
 
