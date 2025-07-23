@@ -1,19 +1,26 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
 	"github.com/docker/cagent/internal/creator"
 	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/loader"
+	"github.com/docker/cagent/pkg/remote"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 )
@@ -62,6 +69,7 @@ func New(ctx context.Context, logger *slog.Logger, runtimes map[string]*runtime.
 	// List all available agents
 	api.GET("/agents", s.agents)
 	api.POST("/agents", s.createAgent)
+	api.POST("/agents/pull", s.pullAgent)
 	// List all sessions
 	api.GET("/sessions", s.getSessions)
 	// Create a new session
@@ -102,6 +110,47 @@ func (s *Server) createAgent(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{"path": path, "out": out})
+}
+
+type pullAgentRequest struct {
+	Name string `json:"name"`
+}
+
+func (s *Server) pullAgent(c echo.Context) error {
+	var req pullAgentRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	_, err := remote.Pull(req.Name)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to pull agent"})
+	}
+
+	yaml, err := fromStore(req.Name)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to get agent yaml"})
+	}
+
+	agentName := strings.ReplaceAll(req.Name, "/", "_")
+
+	fileName := filepath.Join(s.agentsDir, agentName+".yaml")
+
+	if err := os.WriteFile(fileName, []byte(yaml), 0o644); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to write agent yaml to " + fileName + ": " + err.Error()})
+	}
+
+	team, err := loader.Load(c.Request().Context(), fileName, s.logger)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
+	}
+
+	s.runtimes[agentName], err = runtime.New(s.logger, team, "root")
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create runtime"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"name": agentName})
 }
 
 func (s *Server) agents(c echo.Context) error {
@@ -203,4 +252,36 @@ func (s *Server) runAgent(c echo.Context) error {
 
 func (s *Server) Start() error {
 	return s.e.Start(s.addr)
+}
+
+func fromStore(reference string) (string, error) {
+	store, err := content.NewStore()
+	if err != nil {
+		return "", err
+	}
+
+	img, err := store.GetArtifactImage(reference)
+	if err != nil {
+		return "", err
+	}
+
+	layers, err := img.Layers()
+	if err != nil {
+		return "", err
+	}
+
+	var buf bytes.Buffer
+	layer := layers[0]
+	b, err := layer.Uncompressed()
+	if err != nil {
+		return "", err
+	}
+
+	_, err = io.Copy(&buf, b)
+	if err != nil {
+		return "", err
+	}
+	b.Close()
+
+	return buf.String(), nil
 }
