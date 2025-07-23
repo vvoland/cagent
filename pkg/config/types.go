@@ -10,6 +10,33 @@ type Toolset struct {
 	Tools    []string          `yaml:"tools,omitempty"`
 }
 
+// TodoConfig represents todo configuration that can be either a boolean or an object
+type TodoConfig struct {
+	Enabled bool `yaml:"-"`
+	Shared  bool `yaml:"shared,omitempty"`
+}
+
+// UnmarshalYAML implements custom unmarshaling for TodoConfig to support both boolean and object formats
+func (t *TodoConfig) UnmarshalYAML(unmarshal func(any) error) error {
+	type todoConfigAlias TodoConfig
+
+	var config todoConfigAlias
+	if err := unmarshal(&config); err == nil {
+		*t = TodoConfig(config)
+		t.Enabled = true
+		return nil
+	}
+
+	var enabled bool
+	if err := unmarshal(&enabled); err != nil {
+		return err
+	}
+
+	t.Enabled = enabled
+
+	return nil
+}
+
 // AgentConfig represents a single agent configuration
 type AgentConfig struct {
 	Name         string       `yaml:"name,omitempty"`
@@ -20,7 +47,7 @@ type AgentConfig struct {
 	SubAgents    []string     `yaml:"sub_agents,omitempty"`
 	AddDate      bool         `yaml:"add_date,omitempty"`
 	Think        bool         `yaml:"think,omitempty"`
-	Todo         bool         `yaml:"todo,omitempty"`
+	Todo         TodoConfig   `yaml:"todo,omitempty"`
 	MemoryConfig MemoryConfig `yaml:"memory,omitempty"`
 }
 
