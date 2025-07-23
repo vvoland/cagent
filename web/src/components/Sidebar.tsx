@@ -9,6 +9,7 @@ interface SidebarProps {
   currentSessionId: string | null;
   onSessionSelect: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
+  isMobile?: boolean;
 }
 
 interface SessionItemProps {
@@ -101,6 +102,7 @@ export const Sidebar = memo<SidebarProps>(({
   currentSessionId,
   onSessionSelect,
   onDeleteSession,
+  isMobile = false,
 }) => {
   // Memoize sorted sessions for better performance
   const sortedSessions = useMemo(() => 
@@ -120,7 +122,10 @@ export const Sidebar = memo<SidebarProps>(({
   }, [onDeleteSession]);
 
   return (
-    <aside className="w-64 h-screen border-r bg-background/95 backdrop-blur-sm p-4 dark:border-border dark:bg-background/95 flex flex-col">
+    <aside className={cn(
+      "border-r bg-background/95 backdrop-blur-sm p-4 dark:border-border dark:bg-background/95 flex flex-col",
+      isMobile ? "w-full h-full" : "w-80 max-w-[85vw] h-screen"
+    )}>
       <header className="font-semibold mb-4 text-lg dark:text-foreground flex items-center gap-2">
         <MessageSquare className="h-5 w-5 text-primary" />
         <span>Sessions</span>

@@ -12,8 +12,7 @@ import { StackedToolEvents } from "./components/ToolEvents";
 import { Sidebar } from "./components/Sidebar";
 import { DarkModeToggle } from "./components/DarkModeToggle";
 import { SkeletonList, MessageSkeleton } from "./components/LoadingSkeleton";
-import { Menu, X, ChevronDown, TestTube } from "lucide-react";
-// Demo components removed - not needed for production
+import { Menu, X, ChevronDown } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -28,7 +27,6 @@ const App = memo(() => {
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [showDemo, setShowDemo] = useState(false);
   const logger = useLogger('App');
   const toast = useToastHelpers();
 
@@ -414,12 +412,13 @@ const App = memo(() => {
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <div className="flex-1 overflow-hidden h-0">
+            <div className="flex-1 overflow-y-auto min-h-0">
               <Sidebar
                 sessions={sessions}
                 currentSessionId={currentSessionId}
                 onSessionSelect={handleSessionSelect}
                 onDeleteSession={handleDeleteSession}
+                isMobile={true}
               />
             </div>
           </div>
@@ -440,17 +439,6 @@ const App = memo(() => {
               >
                 <Menu className="h-4 w-4" />
                 <span className="sr-only">Open menu</span>
-              </Button>
-
-              {/* Mobile Demo Button */}
-              <Button
-                onClick={() => setShowDemo(!showDemo)}
-                variant="outline"
-                size="icon"
-                className="sm:hidden h-9 w-9 flex-shrink-0"
-                title="Toggle Stacking Demo"
-              >
-                <TestTube className="h-4 w-4" />
               </Button>
 
               {/* New Session Button */}
