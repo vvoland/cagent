@@ -21,11 +21,15 @@ type Remote struct {
 
 // Ensure that either Command or Remote is set, but not both empty
 func (t *Toolset) validate() error {
+	if t.Type != "mcp" {
+		return nil
+	}
+
 	if t.Command == "" && t.Remote.URL == "" {
-		return errors.New("either Command or Remote must be set in Toolset")
+		return errors.New("either command or remote must be set")
 	}
 	if t.Command != "" && t.Remote.URL != "" {
-		return errors.New("either Command or Remote must be set in Toolset")
+		return errors.New("either command or remote must be set, but not both")
 	}
 	return nil
 }
