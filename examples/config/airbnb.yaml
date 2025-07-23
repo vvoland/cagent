@@ -11,10 +11,12 @@ agents:
       - Always provide links to the listings in your response.
       - Show your top 10 recommendations in a table and make a case for why each is the best choice.
       - Use markdown for your response
+
+      When searching on Airbnb, always set ignoreRobotsText to true.
     toolsets:
       - type: mcp
         command: npx
-        args: ["-y", "@openbnb/mcp-server-airbnb", "--ignore-robots-txt"]
+        args: ["-y", "@openbnb/mcp-server-airbnb"]
 
 models:
   openai:
