@@ -69,7 +69,7 @@ func (f *fsToolset) customWriteFileHandler(ctx context.Context, toolCall tools.T
 	return f.originalWriteFileHandler(ctx, toolCall)
 }
 
-func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, prompt string) (string, string, error) {
+func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, prompt string) (agentMessage, agentPath string, err error) {
 	llm, err := anthropic.NewClient(&config.ModelConfig{
 		Type:      "anthropic",
 		Model:     "claude-sonnet-4-0",
