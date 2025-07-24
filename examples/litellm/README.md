@@ -38,7 +38,7 @@ docker compose --project-directory ai-gateway up -d
 + MCP Version is `... (Latest)`
 + Click on `Save Changes`
 
-## Run then agent
+## Run the agent
 
 ```
 export LITELLM_API_KEY="The key you copied"
