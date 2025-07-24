@@ -2,11 +2,13 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -26,7 +28,6 @@ import (
 
 type Server struct {
 	e            *echo.Echo
-	addr         string
 	logger       *slog.Logger
 	runtimes     map[string]*runtime.Runtime
 	sessionStore session.Store
@@ -48,13 +49,11 @@ func WithAgentsDir(dir string) Opt {
 	}
 }
 
-func New(logger *slog.Logger, runtimes map[string]*runtime.Runtime, sessionStore session.Store, listenAddr string, opts ...Opt) *Server {
+func New(logger *slog.Logger, runtimes map[string]*runtime.Runtime, sessionStore session.Store, opts ...Opt) *Server {
 	e := echo.New()
-	e.HideBanner = true
 	e.Use(middleware.CORS())
 	s := &Server{
 		e:            e,
-		addr:         listenAddr,
 		runtimes:     runtimes,
 		logger:       logger,
 		sessionStore: sessionStore,
@@ -81,6 +80,31 @@ func New(logger *slog.Logger, runtimes map[string]*runtime.Runtime, sessionStore
 	api.POST("/sessions/:id/agent/:agent", s.runAgent)
 
 	return s
+}
+
+func (s *Server) Start(ctx context.Context, listenAddr string) error {
+	s.logger.Info("Starting server on http://localhost" + listenAddr)
+
+	var lc net.ListenConfig
+	ln, err := lc.Listen(ctx, "tcp", listenAddr)
+	if err != nil {
+		return err
+	}
+	go func() {
+		<-ctx.Done()
+		ln.Close()
+	}()
+
+	httpServer := http.Server{
+		// Addr:    listenAddr,
+		Handler: s.e,
+	}
+	if err := httpServer.Serve(ln); err != nil && err != http.ErrServerClosed {
+		s.logger.Error("Failed to start server", "error", err)
+		return err
+	}
+
+	return nil
 }
 
 type createAgentRequest struct {
@@ -245,15 +269,6 @@ func (s *Server) runAgent(c echo.Context) error {
 	// Final update to session store after stream completes
 	if err := s.sessionStore.UpdateSession(c.Request().Context(), sess); err != nil {
 		s.logger.Error("Failed to final update session in store", "session_id", sess.ID, "error", err)
-	}
-
-	return nil
-}
-
-func (s *Server) Start() error {
-	err := s.e.Start(s.addr)
-	if err != nil && err != http.ErrServerClosed {
-		return fmt.Errorf("failed to start server: %w", err)
 	}
 
 	return nil

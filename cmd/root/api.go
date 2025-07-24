@@ -115,6 +115,6 @@ func runApiCommand(cmd *cobra.Command, args []string) error {
 		runtimes[filepath.Base(args[0])] = rt
 	}
 
-	s := server.New(logger, runtimes, sessionStore, listenAddr, server.WithAgentsDir(agentsDir))
-	return s.Start()
+	s := server.New(logger, runtimes, sessionStore, server.WithAgentsDir(agentsDir))
+	return s.Start(ctx, listenAddr)
 }
