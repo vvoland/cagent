@@ -146,7 +146,8 @@ func (s *Server) createAgent(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
 	}
 
-	s.runtimes[path], err = runtime.New(s.logger, team, "root")
+	agentName := filepath.Base(path)
+	s.runtimes[agentName], err = runtime.New(s.logger, team, "root")
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create runtime"})
 	}
