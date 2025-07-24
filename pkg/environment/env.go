@@ -5,12 +5,12 @@ import (
 	"os"
 )
 
-type EnvVariableProvider struct{}
+type OsEnvProvider struct{}
 
-func NewEnvVariableProvider() *EnvVariableProvider {
-	return &EnvVariableProvider{}
+func NewOsEnvProvider() *OsEnvProvider {
+	return &OsEnvProvider{}
 }
 
-func (p *EnvVariableProvider) Get(ctx context.Context, name string) (string, error) {
+func (p *OsEnvProvider) Get(ctx context.Context, name string) (string, error) {
 	return os.Getenv(name), nil
 }

@@ -74,7 +74,7 @@ func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, promp
 		Type:      "anthropic",
 		Model:     "claude-sonnet-4-0",
 		MaxTokens: 64000,
-	}, environment.NewEnvVariableProvider(), logger)
+	}, environment.NewOsEnvProvider(), logger)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create LLM client: %w", err)
 	}

@@ -24,7 +24,7 @@ func main() {
 	llm, err := openai.NewClient(&config.ModelConfig{
 		Type:  "openai",
 		Model: "gpt-4o",
-	}, environment.NewEnvVariableProvider(), logger)
+	}, environment.NewDefaultProvider(logger), logger)
 	if err != nil {
 		log.Fatal(err)
 	}

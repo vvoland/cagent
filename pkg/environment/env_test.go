@@ -7,20 +7,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestEnvVariableProviderFound(t *testing.T) {
+func TestOsEnvProviderFound(t *testing.T) {
 	t.Setenv("TEST1", "VALUE1")
 
-	provider := NewEnvVariableProvider()
+	provider := NewOsEnvProvider()
 	value, err := provider.Get(t.Context(), "TEST1")
 
 	require.NoError(t, err)
 	assert.Equal(t, "VALUE1", value)
 }
 
-func TestEnvVariableProviderNotFound(t *testing.T) {
+func TestOsEnvProviderNotFound(t *testing.T) {
 	t.Setenv("TEST2", "")
 
-	provider := NewEnvVariableProvider()
+	provider := NewOsEnvProvider()
 	value, err := provider.Get(t.Context(), "TEST2")
 
 	require.NoError(t, err)

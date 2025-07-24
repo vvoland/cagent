@@ -4,7 +4,7 @@ import "log/slog"
 
 func NewDefaultProvider(logger *slog.Logger) Provider {
 	return NewMultiProvider(
-		NewEnvVariableProvider(),
+		NewOsEnvProvider(),
 		NewNoFailProvider(
 			NewOnePasswordProvider(logger),
 		),

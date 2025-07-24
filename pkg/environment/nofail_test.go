@@ -12,7 +12,7 @@ import (
 func TestNoFailProviderFound(t *testing.T) {
 	t.Setenv("TEST1", "VALUE1")
 
-	provider := NewNoFailProvider(NewEnvVariableProvider())
+	provider := NewNoFailProvider(NewOsEnvProvider())
 	value, err := provider.Get(t.Context(), "TEST1")
 
 	require.NoError(t, err)
@@ -22,7 +22,7 @@ func TestNoFailProviderFound(t *testing.T) {
 func TestNoFailProviderNotFound(t *testing.T) {
 	t.Setenv("TEST2", "")
 
-	provider := NewNoFailProvider(NewEnvVariableProvider())
+	provider := NewNoFailProvider(NewOsEnvProvider())
 	value, err := provider.Get(t.Context(), "TEST2")
 
 	require.NoError(t, err)
