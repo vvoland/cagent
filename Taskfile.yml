@@ -7,15 +7,21 @@ vars:
 
 tasks:
   default:
-    cmds:
-      - task --list
+    cmd: task --list
 
   build:
     desc: Build the application binary
     deps: [build-web]
+    vars:
+      GIT_TAG:
+        sh: git describe --tags --exact-match 2>/dev/null || echo dev
+      GIT_COMMIT:
+        sh: git rev-parse HEAD
+      BUILD_DATE:
+        sh: date
     cmds:
       - mkdir -p {{.BUILD_DIR}}
-      - go build -o {{.BUILD_DIR}}/{{.BINARY_NAME}} {{.MAIN_PKG}}
+      - go build -ldflags "-X 'github.com/docker/cagent/cmd/root.Version={{.GIT_TAG}}' -X 'github.com/docker/cagent/cmd/root.Commit={{.GIT_COMMIT}}' -X 'github.com/docker/cagent/cmd/root.BuildTime={{.BUILD_DATE}}'" -o {{.BUILD_DIR}}/{{.BINARY_NAME}} {{.MAIN_PKG}}
     sources:
       - "**/*.go"
       - "go.mod"
@@ -30,8 +36,7 @@ tasks:
 
   build-web:
     desc: Build the frontend app
-    cmds:
-      - cd web && npm install && npm run build
+    cmd: cd web && npm install && npm run build
     sources:
       - "web/**/*.js"
       - "web/**/*.ts"
@@ -41,13 +46,11 @@ tasks:
 
   link:
     desc: Creates a symlink to ~/bin
-    cmds:
-      - ln -sf {{.USER_WORKING_DIR}}/{{.BUILD_DIR}}/{{.BINARY_NAME}} {{.HOME}}/bin/{{.BINARY_NAME}}
+    cmd: ln -sf {{.USER_WORKING_DIR}}/{{.BUILD_DIR}}/{{.BINARY_NAME}} {{.HOME}}/bin/{{.BINARY_NAME}}
 
   lint:
     desc: Run golangci-lint
-    cmds:
-      - golangci-lint run ./...
+    cmd: golangci-lint run ./...
     sources:
       - "**/*.go"
       - ".golangci.yml"
@@ -55,18 +58,42 @@ tasks:
   test:
     desc: Run tests
     deps: [build-web]
-    cmds:
-      - go test ./...
+    cmd: go test ./...
     sources:
       - "**/*.go"
       - "**/*.txt"
 
   build-image:
     desc: Build Docker image
-    cmds:
-      - docker build -t docker/cagent:latest .
+    vars:
+      GIT_TAG:
+        sh: git describe --tags --exact-match 2>/dev/null || echo dev
+      GIT_COMMIT:
+        sh: git rev-parse HEAD
+      BUILD_DATE:
+        sh: date
+    cmd: |
+      docker buildx build \
+        -t docker/cagent:latest \
+        --build-arg GIT_TAG="{{.GIT_TAG}}" \
+        --build-arg GIT_COMMIT="{{.GIT_COMMIT}}" \
+        --build-arg BUILD_DATE="{{.BUILD_DATE}}" \
+        .
 
   cross:
     desc: Build binaries for multiple platforms
-    cmds:
-      - docker buildx build --platform linux/amd64,linux/arm64,darwin/amd64,darwin/arm64,windows/amd64,windows/arm64 --target=cross --output=./dist .
+    vars:
+      GIT_TAG:
+        sh: git describe --tags --exact-match 2>/dev/null || echo dev
+      GIT_COMMIT:
+        sh: git rev-parse HEAD
+      BUILD_DATE:
+        sh: date
+    cmd: |
+      docker buildx build \
+        --target=cross \
+        --build-arg GIT_TAG="{{.GIT_TAG}}" \
+        --build-arg GIT_COMMIT="{{.GIT_COMMIT}}" \
+        --build-arg BUILD_DATE="{{.BUILD_DATE}}" \
+        --platform linux/amd64,linux/arm64,darwin/amd64,darwin/arm64,windows/amd64,windows/arm64 \
+        --output=./dist .

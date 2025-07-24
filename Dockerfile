@@ -18,16 +18,16 @@ RUN apk add --no-cache build-base
 WORKDIR /app
 COPY . ./
 COPY --from=build-web /web/dist ./web/dist
+ARG GIT_TAG GIT_COMMIT BUILD_DATE
 RUN --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=/go/pkg/mod \
-    CGO_ENABLED=1 go build -trimpath -ldflags "-s -w" -o /agent .
+    CGO_ENABLED=1 go build -trimpath -ldflags "-s -w -X 'github.com/docker/cagent/cmd/root.Version=$GIT_TAG' -X 'github.com/docker/cagent/cmd/root.Commit=$GIT_COMMIT' -X 'github.com/docker/cagent/cmd/root.BuildTime=$BUILD_DATE'" -o /agent .
 
 FROM --platform=$BUILDPLATFORM golang:1.24.1-alpine3.21 AS builder-base
 WORKDIR /src
 COPY --from=xx / /
-ARG TARGETPLATFORM
-ARG TARGETOS
-ARG TARGETARCH
+ARG TARGETPLATFORM TARGETOS TARGETARCH
+ARG GIT_TAG GIT_COMMIT BUILD_DATE
 
 FROM builder-base AS builder-darwin
 RUN apk add clang
@@ -37,7 +37,7 @@ RUN --mount=type=bind,from=osxcross,src=/osxsdk,target=/xx-sdk \
     --mount=type=cache,target=/root/.cache,id=docker-ai-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod <<EOT
     set -x
-    CGO_ENABLED=1 xx-go build -trimpath -ldflags "-s -w" -o /binaries/cagent-$TARGETOS-$TARGETARCH .
+    CGO_ENABLED=1 xx-go build -trimpath -ldflags "-s -w -X 'github.com/docker/cagent/cmd/root.Version=$GIT_TAG' -X 'github.com/docker/cagent/cmd/root.Commit=$GIT_COMMIT' -X 'github.com/docker/cagent/cmd/root.BuildTime=$BUILD_DATE'" -o /binaries/cagent-$TARGETOS-$TARGETARCH .
     xx-verify --static /binaries/cagent-darwin-$TARGETARCH
 EOT
 
@@ -49,7 +49,7 @@ COPY --from=build-web /web/dist ./web/dist
 RUN --mount=type=cache,target=/root/.cache,id=docker-ai-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod <<EOT
     set -x
-    CGO_ENABLED=1 xx-go build -trimpath -ldflags "-s -w -linkmode=external -extldflags '-static'" -o /binaries/cagent-$TARGETOS-$TARGETARCH .
+    CGO_ENABLED=1 xx-go build -trimpath -ldflags "-s -w -linkmode=external -extldflags '-static' -X 'github.com/docker/cagent/cmd/root.Version=$GIT_TAG' -X 'github.com/docker/cagent/cmd/root.Commit=$GIT_COMMIT' -X 'github.com/docker/cagent/cmd/root.BuildTime=$BUILD_DATE'" -o /binaries/cagent-$TARGETOS-$TARGETARCH .
     xx-verify --static /binaries/cagent-linux-$TARGETARCH
 EOT
 
@@ -59,7 +59,7 @@ COPY --from=build-web /web/dist ./web/dist
 RUN --mount=type=cache,target=/root/.cache,id=docker-ai-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod <<EOT
     set -x
-    CGO_ENABLED=0 xx-go build -trimpath -ldflags "-s -w" -o /binaries/cagent-$TARGETOS-$TARGETARCH .
+    CGO_ENABLED=0 xx-go build -trimpath -ldflags "-s -w -X 'github.com/docker/cagent/cmd/root.Version=$GIT_TAG' -X 'github.com/docker/cagent/cmd/root.Commit=$GIT_COMMIT' -X 'github.com/docker/cagent/cmd/root.BuildTime=$BUILD_DATE'" -o /binaries/cagent-$TARGETOS-$TARGETARCH .
     mv /binaries/cagent-$TARGETOS-$TARGETARCH /binaries/cagent-$TARGETOS-$TARGETARCH.exe
     xx-verify --static /binaries/cagent-windows-$TARGETARCH.exe
 EOT
