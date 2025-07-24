@@ -8,7 +8,7 @@ be handled centrally, on the Gateway side.
 
 ## Run the LiteLLM based AI Gateway
 
-Make sure `MY_OPENAI_API_KEY` env variable is configured.
+Make sure `MY_OPENAI_API_KEY` and `MY_ANTHROPIC_API_KEY` env variables are  configured.
 
 ```
 docker compose --project-directory ai-gateway up -d
