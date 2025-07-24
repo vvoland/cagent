@@ -1,66 +1,153 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import type { Session } from "../types";
 
-export const useSessions = () => {
+interface UseSessionsReturn {
+  sessions: Session[];
+  currentSessionId: string | null;
+  isLoading: boolean;
+  error: string | null;
+  createNewSession: () => Promise<string | null>;
+  selectSession: (sessionId: string) => void;
+  deleteSession: (sessionId: string) => Promise<void>;
+  refreshSessions: () => Promise<void>;
+}
+
+export const useSessions = (): UseSessionsReturn => {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchSessions = useCallback(async () => {
     try {
+      setIsLoading(true);
+      setError(null);
       const response = await fetch("/api/sessions");
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch sessions: ${response.statusText}`);
+      }
+      
       const data = (await response.json()) as Session[];
       setSessions(data);
-      if (Object.keys(data).length > 0 && !currentSessionId) {
+      
+      // Only set current session if we don't have one and there are sessions available
+      if (data.length > 0 && !currentSessionId) {
         // Get the most recent session
         const mostRecentSession = data.sort(
           (a, b) =>
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         )[0];
-        setCurrentSessionId(mostRecentSession.id);
+        if (mostRecentSession) {
+          setCurrentSessionId(mostRecentSession.id);
+        }
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch sessions";
       console.error("Failed to fetch sessions:", error);
+      setError(errorMessage);
+      setSessions([]);
+    } finally {
+      setIsLoading(false);
     }
-  }, [currentSessionId]);
+  }, []); // Removed currentSessionId dependency to prevent unnecessary re-fetches
 
-  const createNewSession = async () => {
+  const createNewSession = useCallback(async (): Promise<string | null> => {
     try {
+      setError(null);
       const response = await fetch(`/api/sessions`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
       });
-      const newSession = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(`Failed to create session: ${response.statusText}`);
+      }
+      
+      const newSession = await response.json() as Session;
       setSessions((prev) => [...prev, newSession]);
       setCurrentSessionId(newSession.id);
       return newSession.id;
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to create new session";
       console.error("Failed to create new session:", error);
+      setError(errorMessage);
       return null;
     }
-  };
+  }, []);
 
-  const selectSession = (sessionId: string) => {
+  const selectSession = useCallback((sessionId: string) => {
     setCurrentSessionId(sessionId);
-  };
+    setError(null); // Clear any existing errors when switching sessions
+  }, []);
 
-  const deleteSession = async (sessionId: string) => {
+  const deleteSession = useCallback(async (sessionId: string): Promise<void> => {
     try {
-      await fetch(`/api/sessions/${sessionId}`, { method: "DELETE" });
+      setError(null);
+      const response = await fetch(`/api/sessions/${sessionId}`, { 
+        method: "DELETE" 
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to delete session: ${response.statusText}`);
+      }
+      
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      
+      // If we deleted the current session, select another one or clear it
+      if (currentSessionId === sessionId) {
+        const remainingSessions = sessions.filter((s) => s.id !== sessionId);
+        if (remainingSessions.length > 0) {
+          const mostRecentSession = remainingSessions.sort(
+            (a, b) =>
+              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          )[0];
+          if (mostRecentSession) {
+            setCurrentSessionId(mostRecentSession.id);
+          } else {
+            setCurrentSessionId(null);
+          }
+        } else {
+          setCurrentSessionId(null);
+        }
+      }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to delete session";
       console.error("Failed to delete session:", error);
+      setError(errorMessage);
     }
-  };
+  }, [currentSessionId, sessions]);
+
+  // Memoize the refresh function to avoid recreation
+  const refreshSessions = useCallback(() => fetchSessions(), [fetchSessions]);
 
   // Fetch sessions on mount
   useEffect(() => {
     fetchSessions();
   }, [fetchSessions]);
 
-  return {
+  // Memoize the return object to prevent unnecessary re-renders
+  const returnValue = useMemo((): UseSessionsReturn => ({
     sessions,
     currentSessionId,
+    isLoading,
+    error,
     createNewSession,
     selectSession,
     deleteSession,
-  };
+    refreshSessions,
+  }), [
+    sessions,
+    currentSessionId,
+    isLoading,
+    error,
+    createNewSession,
+    selectSession,
+    deleteSession,
+    refreshSessions,
+  ]);
+
+  return returnValue;
 };

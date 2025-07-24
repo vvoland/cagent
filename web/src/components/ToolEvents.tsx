@@ -1,85 +1,89 @@
-import { useState } from "react";
-import { Modal } from "./Modal";
-import { Button } from "./ui/button";
-import { cn } from "../lib/utils";
+import { memo } from "react";
+import { 
+  ConnectedToolChip, 
+  ConnectedToolChipGroup, 
+  useConnectedToolCalls 
+} from "./ConnectedToolChip";
 
-export const ToolCallEvent = ({
-  name,
-  args,
-}: {
+// Legacy individual event components - kept for backward compatibility
+interface ToolCallEventProps {
   name: string;
   args: string;
-}) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+}
 
-  return (
-    <>
-      <Button
-        variant="outline"
-        size="sm"
-        className="inline-flex items-center gap-2 m-3"
-        onClick={() => setIsModalOpen(true)}
-      >
-        <span className="text-lg">🛠️</span>
-        <span className="font-medium">tool: {name}</span>
-      </Button>
-
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={`Tool Call: ${name}`}
-      >
-        <div className="space-y-4">
-          <h4 className="font-semibold text-sm">Parameters:</h4>
-          <div className={cn("p-4 rounded-lg", "text-sm font-mono")}>
-            <code>{args}</code>
-          </div>
-        </div>
-      </Modal>
-    </>
-  );
-};
-
-export const ToolResultEvent = ({
-  id,
-  content,
-}: {
+interface ToolResultEventProps {
   id: string;
   content: string;
-}) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+}
 
+// Legacy components that create simple connected tool calls
+export const ToolCallEvent = memo<ToolCallEventProps>(({ name, args }) => {
+  const mockEvents = [{ type: 'tool_call' as const, name, args }];
+  const { connectedToolCalls, toggleExpanded, isExpanded } = useConnectedToolCalls(mockEvents);
+  
+  if (connectedToolCalls.length === 0) return null;
+  
+  const toolCall = connectedToolCalls[0];
+  if (!toolCall) return null;
+  
   return (
-    <>
-      <Button
-        variant="outline"
-        size="sm"
-        className="inline-flex items-center gap-2"
-        onClick={() => setIsModalOpen(true)}
-      >
-        <span className="text-lg">✅</span>
-        <span className="font-medium">result: {id}</span>
-      </Button>
-
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={`Tool Result: ${id}`}
-      >
-        <div className="space-y-4">
-          <h4 className="font-semibold text-sm">Response:</h4>
-          <div className="max-h-[500px] overflow-y-auto">
-            <div
-              className={cn(
-                "p-4 rounded-lg overflow-x-auto",
-                "text-sm font-mono "
-              )}
-            >
-              {content}
-            </div>
-          </div>
-        </div>
-      </Modal>
-    </>
+    <ConnectedToolChipGroup className="mx-2 lg:mx-3">
+      <ConnectedToolChip
+        toolCall={toolCall}
+        onToggle={toggleExpanded}
+        expanded={isExpanded(toolCall.id)}
+        className="transition-all hover:shadow-md hover:scale-[1.005] active:scale-100"
+      />
+    </ConnectedToolChipGroup>
   );
-};
+});
+
+ToolCallEvent.displayName = 'ToolCallEvent';
+
+export const ToolResultEvent = memo<ToolResultEventProps>(() => {
+  // This component is now handled by the connected system
+  // It should not be rendered separately as results are connected to calls
+  return null;
+});
+
+ToolResultEvent.displayName = 'ToolResultEvent';
+
+// New main component for rendering connected tool operations
+interface ConnectedToolEventsProps {
+  events: Array<{
+    type: 'tool_call' | 'tool_result';
+    name?: string;
+    args?: string;
+    id?: string;
+    content?: string;
+    success?: boolean;
+    timestamp?: Date;
+  }>;
+  className?: string;
+}
+
+export const ConnectedToolEvents = memo<ConnectedToolEventsProps>(({ events, className }) => {
+  const { connectedToolCalls, toggleExpanded, isExpanded } = useConnectedToolCalls(events);
+  
+  if (connectedToolCalls.length === 0) return null;
+  
+  return (
+    <ConnectedToolChipGroup className={className || ''}>
+      {connectedToolCalls.map((toolCall) => (
+        <ConnectedToolChip
+          key={toolCall.id}
+          toolCall={toolCall}
+          onToggle={toggleExpanded}
+          expanded={isExpanded(toolCall.id)}
+          className="transition-all hover:shadow-md hover:scale-[1.005] active:scale-100"
+        />
+      ))}
+    </ConnectedToolChipGroup>
+  );
+});
+
+ConnectedToolEvents.displayName = 'ConnectedToolEvents';
+
+// Export both the connected system and stacked system for easy usage
+export { ConnectedToolChip, ConnectedToolChipGroup, useConnectedToolCalls } from './ConnectedToolChip';
+export { StackedToolEvents } from './StackedToolEvents';

@@ -31,13 +31,15 @@ export type EventType = "tool_call" | "tool_result" | "message" | "error";
 export interface EventItem {
   type: EventType;
   content: string;
+  timestamp?: Date;
   metadata?: {
-    toolName?: string;
-    toolArgs?: string;
-    toolId?: string;
-    role?: string;
-    response?: string;
-    agent?: string;
+    toolName?: string | undefined;
+    toolArgs?: string | undefined;
+    toolId?: string | undefined;
+    role?: string | undefined;
+    response?: string | undefined;
+    agent?: string | undefined;
+    success?: boolean | undefined;
   };
 }
 
