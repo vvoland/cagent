@@ -36,7 +36,6 @@ func NewWebCmd() *cobra.Command {
 		Short:   "Start a web server",
 		Long:    `Start a web server that exposes the agents via an HTTP API`,
 		Example: `cagent web /tmp/session.db --agents-dir /path/to/agents --listen :8080`,
-		Args:    cobra.ExactArgs(1),
 		RunE:    runWebCommand,
 	}
 
@@ -61,8 +60,12 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 
 	logger.Debug("Starting web server", "agents-dir", agentsDir, "debug_mode", debugMode)
 
-	// Create session store
-	sessionStore, err := session.NewSQLiteSessionStore(args[0])
+	sessionDb := args[0]
+	if len(args) == 2 {
+		sessionDb = args[1]
+	}
+
+	sessionStore, err := session.NewSQLiteSessionStore(sessionDb)
 	if err != nil {
 		return fmt.Errorf("failed to create session store: %w", err)
 	}
@@ -110,6 +113,14 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+		if err := t.StartToolSets(ctx); err != nil {
+			return fmt.Errorf("failed to start tool sets: %w", err)
+		}
+		defer func() {
+			if err := t.StopToolSets(); err != nil {
+				logger.Error("Failed to stop tool sets", "error", err)
+			}
+		}()
 
 		// Initialize runtimes for single config file
 		runtimes = make(map[string]*runtime.Runtime)
