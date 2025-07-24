@@ -51,6 +51,7 @@ func WithAgentsDir(dir string) Opt {
 
 func New(ctx context.Context, logger *slog.Logger, runtimes map[string]*runtime.Runtime, sessionStore session.Store, listenAddr string, opts ...Opt) (*Server, error) {
 	e := echo.New()
+	e.HideBanner = true
 	e.Use(middleware.CORS())
 	s := &Server{
 		e:            e,
