@@ -140,8 +140,14 @@ func NewClient(cfg *config.ModelConfig, env environment.Provider, logger *slog.L
 		return nil, errors.New("ANTHROPIC_API_KEY environment variable is required")
 	}
 
+	var options []option.RequestOption
+	options = append(options, option.WithAPIKey(apiKey))
+	if cfg.BaseURL != "" {
+		options = append(options, option.WithBaseURL(cfg.BaseURL))
+	}
+
 	logger.Debug("Anthropic API key found, creating client")
-	client := anthropic.NewClient(option.WithAPIKey(apiKey))
+	client := anthropic.NewClient(options...)
 	logger.Debug("Anthropic client created successfully", "model", cfg.Model)
 
 	return &Client{
