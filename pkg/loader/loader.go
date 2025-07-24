@@ -96,18 +96,26 @@ func Load(ctx context.Context, path string, logger *slog.Logger) (*team.Team, er
 func getModelsForAgent(cfg *config.Config, a *config.AgentConfig, logger *slog.Logger) ([]provider.Provider, error) {
 	var models []provider.Provider
 
-	env := environment.NewDefaultProvider(logger)
-
-	for modelName := range strings.SplitSeq(a.Model, ",") {
-		modelCfg, exists := cfg.Models[modelName]
+	for name := range strings.SplitSeq(a.Model, ",") {
+		modelCfg, exists := cfg.Models[name]
 		if !exists {
-			return nil, fmt.Errorf("model '%s' not found in configuration", modelName)
+			return nil, fmt.Errorf("model '%s' not found in configuration", name)
 		}
+
+		env := environment.NewMultiProvider(
+			environment.NewOsEnvProvider(),
+			environment.NewKeyValueProvider(modelCfg.Env),
+			environment.NewKeyValueProvider(cfg.Env),
+			environment.NewNoFailProvider(
+				environment.NewOnePasswordProvider(logger),
+			),
+		)
 
 		model, err := provider.New(&modelCfg, env, logger)
 		if err != nil {
 			return nil, err
 		}
+
 		models = append(models, model)
 	}
 
