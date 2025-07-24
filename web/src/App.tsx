@@ -183,11 +183,24 @@ const App = memo(() => {
 
   const handleFormSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentSessionId) return;
+    if (!selectedAgent || !prompt.trim()) return;
 
     logger.time('submit-prompt');
     try {
-      await handleSubmit(currentSessionId, prompt);
+      let sessionId = currentSessionId;
+      
+      // Auto-create session if none exists
+      if (!sessionId) {
+        logger.info('No session exists, creating new session automatically');
+        sessionId = await createNewSession();
+        if (!sessionId) {
+          toast.error('Failed to create session', 'Please try again');
+          return;
+        }
+        toast.info('New session created automatically');
+      }
+
+      await handleSubmit(sessionId, prompt);
       setPrompt("");
       logger.info('Prompt submitted successfully', { prompt: prompt.slice(0, 50) + '...' });
       toast.success('Message sent successfully');
@@ -197,22 +210,35 @@ const App = memo(() => {
     } finally {
       logger.timeEnd('submit-prompt');
     }
-  }, [currentSessionId, handleSubmit, prompt, logger, toast]);
+  }, [currentSessionId, createNewSession, handleSubmit, prompt, selectedAgent, logger, toast]);
 
   // Replay message handler
   const handleReplayMessage = useCallback(async (content: string) => {
-    if (!currentSessionId) return;
+    if (!selectedAgent) return;
 
     logger.info('Replaying message', { content: content.slice(0, 50) + '...' });
     try {
-      await handleSubmit(currentSessionId, content);
+      let sessionId = currentSessionId;
+      
+      // Auto-create session if none exists
+      if (!sessionId) {
+        logger.info('No session exists, creating new session automatically for replay');
+        sessionId = await createNewSession();
+        if (!sessionId) {
+          toast.error('Failed to create session for replay', 'Please try again');
+          throw new Error('Failed to create session');
+        }
+        toast.info('New session created for replay');
+      }
+
+      await handleSubmit(sessionId, content);
       toast.success('Message replayed successfully');
     } catch (error) {
       logger.error('Failed to replay message', error);
       toast.error('Failed to replay message', 'Please try again');
       throw error; // Re-throw to handle loading state in MessageActionButtons
     }
-  }, [currentSessionId, handleSubmit, logger, toast]);
+  }, [currentSessionId, createNewSession, handleSubmit, selectedAgent, logger, toast]);
 
   // Keyboard shortcuts (disabled on mobile)
   useKeyboard([
@@ -382,8 +408,8 @@ const App = memo(() => {
     }
   }, [handleReplayMessage, processedEvents.length]);
 
-  // Check if form is disabled
-  const isFormDisabled = isLoadingEvents || !currentSessionId || !selectedAgent;
+  // Check if form is disabled (allow submission without session - will auto-create)
+  const isFormDisabled = isLoadingEvents || !selectedAgent;
 
   return (
     <div className="min-h-screen flex bg-gray-200 dark:bg-background text-black dark:text-white">
