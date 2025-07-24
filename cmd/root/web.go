@@ -32,11 +32,12 @@ var (
 // NewWebCmd creates a new web command
 func NewWebCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "web",
-		Short: "Start a web server",
-		Long:  `Start a web server that exposes the agent via an HTTP API`,
-		Args:  cobra.ExactArgs(1),
-		RunE:  runWebCommand,
+		Use:     "web session.db",
+		Short:   "Start a web server",
+		Long:    `Start a web server that exposes the agents via an HTTP API`,
+		Example: `cagent web /tmp/session.db --agents-dir /path/to/agents --listen :8080`,
+		Args:    cobra.ExactArgs(1),
+		RunE:    runWebCommand,
 	}
 
 	cmd.PersistentFlags().StringVarP(&agentsDir, "agents-dir", "d", "", "Directory containing agent configurations")
