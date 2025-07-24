@@ -129,6 +129,36 @@ models:
     parallel_tool_calls: boolean
 ```
 
+#### Model Examples
+```yaml
+
+#OpenAI API 
+models:
+  openai:
+    type: openai
+    model: gpt-4o
+
+#Anthropic API
+models:
+  claude:
+    type: anthropic
+    model: claude-sonnet-4-0
+
+#Docker Model Runner
+models: 
+  qwen:
+    type: dmr
+    model: ai/qwen3
+
+#Ollama
+models:
+  ollama:
+    type: openai
+    model: llama3
+    base_url: http://localhost:11434/v1
+
+```
+
 ### Tool Configuration
 
 **Local (stdio) MCP Server**
