@@ -27,6 +27,7 @@ const App = memo(() => {
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
   const logger = useLogger('App');
   const toast = useToastHelpers();
 
@@ -40,6 +41,7 @@ const App = memo(() => {
     createNewSession,
     selectSession,
     deleteSession,
+    refreshSessions,
   } = useSessions();
   const { agents, selectedAgent, setSelectedAgent } = useAgents();
 
@@ -108,7 +110,7 @@ const App = memo(() => {
     events,
     isLoading: isLoadingEvents,
     handleSubmit,
-  } = useEvents(currentSessionId, sessions, selectedAgent);
+  } = useEvents(currentSessionId, sessions, selectedAgent, refreshSessions);
 
   // Scroll detection logic
   const checkScrollPosition = useCallback(() => {
@@ -181,23 +183,43 @@ const App = memo(() => {
     };
   }, [checkScrollPosition]);
 
+  // Handle pending prompt submission if session is created
+  useEffect(() => {
+  if (currentSessionId && pendingPrompt) {
+    // Session was created and we have a pending prompt to submit
+    const submitPendingPrompt = async () => {
+      try {
+        await handleSubmit(currentSessionId, pendingPrompt);
+        setPrompt("");
+        logger.info('Pending prompt submitted successfully', { prompt: pendingPrompt.slice(0, 50) + '...' });
+        toast.success('Message sent successfully');
+      } catch (error) {
+        logger.error('Failed to submit pending prompt', error);
+        toast.error('Failed to send message', 'Please try again');
+      } finally {
+        setPendingPrompt(null); // Clear the pending prompt
+      }
+    };
+    
+    submitPendingPrompt();
+  }
+}, [currentSessionId, pendingPrompt, handleSubmit, logger, toast]);
+
   const handleFormSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedAgent || !prompt.trim()) return;
 
     logger.time('submit-prompt');
     try {
+
       let sessionId = currentSessionId;
-      
+
       // Auto-create session if none exists
       if (!sessionId) {
-        logger.info('No session exists, creating new session automatically');
-        sessionId = await createNewSession();
-        if (!sessionId) {
-          toast.error('Failed to create session', 'Please try again');
-          return;
-        }
-        toast.info('New session created automatically');
+        logger.info('No session exists, creating new session automatically for replay');
+        setPendingPrompt(prompt); // Store the prompt to submit after session creation
+        await handleNewSession();
+        return;
       }
 
       await handleSubmit(sessionId, prompt);
@@ -219,10 +241,10 @@ const App = memo(() => {
     logger.info('Replaying message', { content: content.slice(0, 50) + '...' });
     try {
       let sessionId = currentSessionId;
-      
+
       // Auto-create session if none exists
       if (!sessionId) {
-        logger.info('No session exists, creating new session automatically for replay');
+        logger.info('No session exists, error');
         sessionId = await createNewSession();
         if (!sessionId) {
           toast.error('Failed to create session for replay', 'Please try again');
