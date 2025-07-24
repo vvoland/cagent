@@ -211,7 +211,7 @@ $ cagent run config.yaml -a agent_name
 $ cagent run config.yaml --debug
 
 # Start web interface
-$ cagent web -d ./folder/with/agent_files /tmp/session.db
+$ cagent web -d ./examples/config/chat /tmp/session.db
 
 # Start UI interface
 $ cagent ui config.yaml
