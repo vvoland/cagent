@@ -1,0 +1,79 @@
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    volumes:
+      - ./config.yaml:/app/config.yaml
+    command:
+      - "--config=/app/config.yaml"
+    ports:
+      - "4000:4000"
+    environment:
+      DATABASE_URL: "postgresql://llmproxy:dbpassword9090@db:5432/litellm"
+      OPENAI_API_KEY: $MY_OPENAI_API_KEY
+      LITELLM_MASTER_KEY: sk-1234
+      LITELLM_SALT_KEY: sk-1234
+    depends_on:
+      db:
+        condition: service_healthy
+      gateway:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 http://localhost:4000/health/liveliness || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    links:
+      - gateway:gateway.com
+
+  gateway:
+    image: docker/mcp-gateway
+    command:
+      - --central
+      - --transport=streaming
+      - --port=9011
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: wget -O- http://localhost:9011/health
+      interval: 1s
+      timeout: 2s
+      retries: 60
+      start_period: 2s
+
+  db:
+    image: postgres:16
+    restart: always
+    container_name: litellm_db
+    environment:
+      POSTGRES_DB: litellm
+      POSTGRES_USER: llmproxy
+      POSTGRES_PASSWORD: dbpassword9090
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d litellm -U llmproxy"]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - prometheus_data:/prometheus
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+    restart: always
+
+volumes:
+  prometheus_data:
+    driver: local
+  postgres_data:
+    name: litellm_postgres_data

@@ -103,9 +103,9 @@ func getModelsForAgent(cfg *config.Config, a *config.AgentConfig, logger *slog.L
 		}
 
 		env := environment.NewMultiProvider(
-			environment.NewOsEnvProvider(),
 			environment.NewKeyValueProvider(modelCfg.Env),
 			environment.NewKeyValueProvider(cfg.Env),
+			environment.NewOsEnvProvider(), // TODO(dga): Which env should take precedence? os or config?
 			environment.NewNoFailProvider(
 				environment.NewOnePasswordProvider(logger),
 			),
