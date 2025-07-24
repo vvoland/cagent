@@ -10,6 +10,7 @@ services:
     environment:
       DATABASE_URL: "postgresql://llmproxy:dbpassword9090@db:5432/litellm"
       OPENAI_API_KEY: $MY_OPENAI_API_KEY
+      ANTHROPIC_API_KEY: $MY_ANTHROPIC_API_KEY
       LITELLM_MASTER_KEY: sk-1234
       LITELLM_SALT_KEY: sk-1234
     depends_on:

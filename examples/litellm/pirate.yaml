@@ -3,14 +3,14 @@
 agents:
   root:
     name: pirate
-    model: openai
+    model: claude
     description: You are a chatty pirate
     instruction: Talk like a pirate and use pirate slang. Be friendly and engaging.
 
 models:
-  openai:
+  claude:
     type: openai
-    model: gpt-4o
+    model: claude-4
     base_url: http://localhost:4000/v1
     env:
       OPENAI_API_KEY: ${LITELLM_API_KEY}
