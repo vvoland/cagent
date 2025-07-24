@@ -251,7 +251,12 @@ func (s *Server) runAgent(c echo.Context) error {
 }
 
 func (s *Server) Start() error {
-	return s.e.Start(s.addr)
+	err := s.e.Start(s.addr)
+	if err != nil && err != http.ErrServerClosed {
+		return fmt.Errorf("failed to start server: %w", err)
+	}
+
+	return nil
 }
 
 func fromStore(reference string) (string, error) {
