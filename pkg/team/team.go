@@ -16,10 +16,6 @@ func New(agents map[string]*agent.Agent) *Team {
 	return &Team{agents: agents}
 }
 
-func (t *Team) Agents() map[string]*agent.Agent {
-	return t.agents
-}
-
 func (t *Team) Get(name string) *agent.Agent {
 	return t.agents[name]
 }

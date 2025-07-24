@@ -4,19 +4,19 @@ import "errors"
 
 // Toolset represents a tool configuration
 type Toolset struct {
-	Type     string            `yaml:"type,omitempty"`
-	Command  string            `yaml:"command,omitempty"`
-	Remote   Remote            `yaml:"remote,omitempty"`
-	Args     []string          `yaml:"args,omitempty"`
-	Env      map[string]string `yaml:"env,omitempty"`
-	Envfiles StringOrList      `yaml:"env_file,omitempty"`
-	Tools    []string          `yaml:"tools,omitempty"`
+	Type     string            `json:"type,omitempty" yaml:"type,omitempty"`
+	Command  string            `json:"command,omitempty" yaml:"command,omitempty"`
+	Remote   Remote            `json:"remote,omitempty" yaml:"remote,omitempty"`
+	Args     []string          `json:"args,omitempty" yaml:"args,omitempty"`
+	Env      map[string]string `json:"env,omitempty" yaml:"env,omitempty"`
+	Envfiles StringOrList      `json:"env_file,omitempty" yaml:"env_file,omitempty"`
+	Tools    []string          `json:"tools,omitempty" yaml:"tools,omitempty"`
 }
 
 type Remote struct {
-	URL           string            `yaml:"url"`
-	TransportType string            `yaml:"transport_type,omitempty"`
-	Headers       map[string]string `yaml:"headers,omitempty"`
+	URL           string            `json:"url" yaml:"url"`
+	TransportType string            `json:"transport_type,omitempty" yaml:"transport_type,omitempty"`
+	Headers       map[string]string `json:"headers,omitempty" yaml:"headers,omitempty"`
 }
 
 // Ensure that either Command or Remote is set, but not both empty
@@ -46,8 +46,8 @@ func (t *Toolset) UnmarshalYAML(unmarshal func(any) error) error {
 
 // TodoConfig represents todo configuration that can be either a boolean or an object
 type TodoConfig struct {
-	Enabled bool `yaml:"-"`
-	Shared  bool `yaml:"shared,omitempty"`
+	Enabled bool `json:"-" yaml:"-"`
+	Shared  bool `json:"shared,omitempty" yaml:"shared,omitempty"`
 }
 
 // UnmarshalYAML implements custom unmarshaling for TodoConfig to support both boolean and object formats
@@ -73,41 +73,41 @@ func (t *TodoConfig) UnmarshalYAML(unmarshal func(any) error) error {
 
 // AgentConfig represents a single agent configuration
 type AgentConfig struct {
-	Name         string       `yaml:"name,omitempty"`
-	Model        string       `yaml:"model,omitempty"`
-	Description  string       `yaml:"description,omitempty"`
-	Toolsets     []Toolset    `yaml:"toolsets,omitempty"`
-	Instruction  string       `yaml:"instruction,omitempty"`
-	SubAgents    []string     `yaml:"sub_agents,omitempty"`
-	AddDate      bool         `yaml:"add_date,omitempty"`
-	Think        bool         `yaml:"think,omitempty"`
-	Todo         TodoConfig   `yaml:"todo,omitempty"`
-	MemoryConfig MemoryConfig `yaml:"memory,omitempty"`
+	Name         string       `json:"name,omitempty" yaml:"name,omitempty"`
+	Model        string       `json:"model,omitempty" yaml:"model,omitempty"`
+	Description  string       `json:"description,omitempty" yaml:"description,omitempty"`
+	Toolsets     []Toolset    `json:"toolsets,omitempty" yaml:"toolsets,omitempty"`
+	Instruction  string       `json:"instruction,omitempty" yaml:"instruction,omitempty"`
+	SubAgents    []string     `json:"sub_agents,omitempty" yaml:"sub_agents,omitempty"`
+	AddDate      bool         `json:"add_date,omitempty" yaml:"add_date,omitempty"`
+	Think        bool         `json:"think,omitempty" yaml:"think,omitempty"`
+	Todo         TodoConfig   `json:"todo,omitempty" yaml:"todo,omitempty"`
+	MemoryConfig MemoryConfig `json:"memory,omitempty" yaml:"memory,omitempty"`
 }
 
 type MemoryConfig struct {
-	Path string `yaml:"path,omitempty"`
+	Path string `json:"path,omitempty" yaml:"path,omitempty"`
 }
 
 // ModelConfig represents the configuration for a model
 type ModelConfig struct {
-	Type              string            `yaml:"type,omitempty"`
-	Model             string            `yaml:"model,omitempty"`
-	Temperature       float64           `yaml:"temperature,omitempty"`
-	MaxTokens         int               `yaml:"max_tokens,omitempty"`
-	TopP              float64           `yaml:"top_p,omitempty"`
-	FrequencyPenalty  float64           `yaml:"frequency_penalty,omitempty"`
-	PresencePenalty   float64           `yaml:"presence_penalty,omitempty"`
-	BaseURL           string            `yaml:"base_url,omitempty"`
-	ParallelToolCalls *bool             `yaml:"parallel_tool_calls,omitempty"`
-	Env               map[string]string `yaml:"env,omitempty"`
+	Type              string            `json:"type,omitempty" yaml:"type,omitempty"`
+	Model             string            `json:"model,omitempty" yaml:"model,omitempty"`
+	Temperature       float64           `json:"temperature,omitempty" yaml:"temperature,omitempty"`
+	MaxTokens         int               `json:"max_tokens,omitempty" yaml:"max_tokens,omitempty"`
+	TopP              float64           `json:"top_p,omitempty" yaml:"top_p,omitempty"`
+	FrequencyPenalty  float64           `json:"frequency_penalty,omitempty" yaml:"frequency_penalty,omitempty"`
+	PresencePenalty   float64           `json:"presence_penalty,omitempty" yaml:"presence_penalty,omitempty"`
+	BaseURL           string            `json:"base_url,omitempty" yaml:"base_url,omitempty"`
+	ParallelToolCalls *bool             `json:"parallel_tool_calls,omitempty" yaml:"parallel_tool_calls,omitempty"`
+	Env               map[string]string `json:"env,omitempty" yaml:"env,omitempty"`
 }
 
 // Config represents the entire configuration file
 type Config struct {
-	Agents map[string]AgentConfig `yaml:"agents,omitempty"`
-	Models map[string]ModelConfig `yaml:"models,omitempty"`
-	Env    map[string]string      `yaml:"env,omitempty"`
+	Agents map[string]AgentConfig `json:"agents,omitempty" yaml:"agents,omitempty"`
+	Models map[string]ModelConfig `json:"models,omitempty" yaml:"models,omitempty"`
+	Env    map[string]string      `json:"env,omitempty" yaml:"env,omitempty"`
 }
 
 type StringOrList []string

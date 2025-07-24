@@ -19,6 +19,7 @@ import (
 
 	"github.com/docker/cagent/internal/creator"
 	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/loader"
 	"github.com/docker/cagent/pkg/remote"
@@ -67,15 +68,18 @@ func New(logger *slog.Logger, runtimes map[string]*runtime.Runtime, sessionStore
 
 	// List all available agents
 	api.GET("/agents", s.agents)
+	// Get an agent by id
+	api.GET("/agents/:id", s.getAgent)
+	// Create a new agent
 	api.POST("/agents", s.createAgent)
+	// Pull an agent from a remote registry
 	api.POST("/agents/pull", s.pullAgent)
 	// List all sessions
 	api.GET("/sessions", s.getSessions)
-	// Create a new session
+	// Create a new session and run an agent loop
 	api.POST("/sessions", s.createSession)
-
+	// Delete a session
 	api.DELETE("/sessions/:id", s.deleteSession)
-
 	// Run an agent loop
 	api.POST("/sessions/:id/agent/:agent", s.runAgent)
 
@@ -113,6 +117,16 @@ func (s *Server) Listen(ctx context.Context, ln net.Listener) error {
 
 type createAgentRequest struct {
 	Prompt string `json:"prompt"`
+}
+
+func (s *Server) getAgent(c echo.Context) error {
+	path := filepath.Join(s.agentsDir, c.Param("id"))
+	cfg, err := config.LoadConfig(path)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "agent not found"})
+	}
+
+	return c.JSON(http.StatusOK, cfg)
 }
 
 func (s *Server) createAgent(c echo.Context) error {
