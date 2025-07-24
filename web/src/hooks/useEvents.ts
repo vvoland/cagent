@@ -11,7 +11,8 @@ interface UseEventsReturn {
 export const useEvents = (
   sessionId: string | null,
   sessions: Session[],
-  selectedAgent: string | null
+  selectedAgent: string | null,
+  refreshSessions?: () => Promise<void>
 ): UseEventsReturn => {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -264,6 +265,15 @@ export const useEvents = (
         }
       } finally {
         reader.releaseLock();
+      }
+      
+      // Refresh sessions after streaming completes to update session data
+      if (refreshSessions) {
+        try {
+          await refreshSessions();
+        } catch (error) {
+          console.warn('Failed to refresh sessions after message completion:', error);
+        }
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
