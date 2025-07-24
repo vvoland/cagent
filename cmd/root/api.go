@@ -116,5 +116,5 @@ func runApiCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	s := server.New(logger, runtimes, sessionStore, server.WithAgentsDir(agentsDir))
-	return s.Start(ctx, listenAddr)
+	return s.ListenAndServe(ctx, listenAddr)
 }

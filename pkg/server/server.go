@@ -82,7 +82,7 @@ func New(logger *slog.Logger, runtimes map[string]*runtime.Runtime, sessionStore
 	return s
 }
 
-func (s *Server) Start(ctx context.Context, listenAddr string) error {
+func (s *Server) ListenAndServe(ctx context.Context, listenAddr string) error {
 	s.logger.Info("Starting server on http://localhost" + listenAddr)
 
 	var lc net.ListenConfig
@@ -95,11 +95,15 @@ func (s *Server) Start(ctx context.Context, listenAddr string) error {
 		ln.Close()
 	}()
 
-	httpServer := http.Server{
-		// Addr:    listenAddr,
+	return s.Listen(ctx, ln)
+}
+
+func (s *Server) Listen(ctx context.Context, ln net.Listener) error {
+	srv := http.Server{
 		Handler: s.e,
 	}
-	if err := httpServer.Serve(ln); err != nil && err != http.ErrServerClosed {
+
+	if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
 		s.logger.Error("Failed to start server", "error", err)
 		return err
 	}

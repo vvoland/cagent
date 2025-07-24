@@ -130,5 +130,5 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	s := server.New(logger, runtimes, sessionStore, server.WithFrontend(fsys))
-	return s.Start(ctx, listenAddr)
+	return s.ListenAndServe(ctx, listenAddr)
 }
