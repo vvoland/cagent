@@ -16,7 +16,7 @@ func toolsetEnv(env map[string]string, envFiles []string, parentDir string) ([]s
 	var envSlice []string
 
 	for k, v := range env {
-		v = expandEnv(v, append(os.Environ(), envSlice...))
+		v = expandEnv(v, os.Environ())
 		envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
 	}
 
@@ -26,7 +26,7 @@ func toolsetEnv(env map[string]string, envFiles []string, parentDir string) ([]s
 	}
 
 	for _, kv := range keyValues {
-		v := expandEnv(kv.Value, append(os.Environ(), envSlice...))
+		v := expandEnv(kv.Value, os.Environ())
 		envSlice = append(envSlice, fmt.Sprintf("%s=%s", kv.Key, v))
 	}
 
