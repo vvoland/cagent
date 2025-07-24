@@ -20,13 +20,17 @@ import (
 	"github.com/docker/cagent/pkg/tools/mcp"
 )
 
-func Load(ctx context.Context, path string, logger *slog.Logger) (*team.Team, error) {
+func Load(ctx context.Context, path string, envFiles []string, logger *slog.Logger) (*team.Team, error) {
 	cfg, err := config.LoadConfig(path)
 	if err != nil {
 		return nil, err
 	}
 
 	parentDir := filepath.Dir(path)
+	absEnvFles, err := environment.AbsolutePaths(parentDir, envFiles)
+	if err != nil {
+		return nil, err
+	}
 
 	agents := make(map[string]*agent.Agent)
 
@@ -42,7 +46,7 @@ func Load(ctx context.Context, path string, logger *slog.Logger) (*team.Team, er
 			agent.WithDescription(agentConfig.Description),
 			agent.WithAddDate(agentConfig.AddDate),
 		}
-		models, err := getModelsForAgent(cfg, &agentConfig, logger)
+		models, err := getModelsForAgent(cfg, &agentConfig, absEnvFles, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get models: %w", err)
 		}
@@ -93,7 +97,7 @@ func Load(ctx context.Context, path string, logger *slog.Logger) (*team.Team, er
 	return team.New(agents), nil
 }
 
-func getModelsForAgent(cfg *config.Config, a *config.AgentConfig, logger *slog.Logger) ([]provider.Provider, error) {
+func getModelsForAgent(cfg *config.Config, a *config.AgentConfig, absEnvFiles []string, logger *slog.Logger) ([]provider.Provider, error) {
 	var models []provider.Provider
 
 	for name := range strings.SplitSeq(a.Model, ",") {
@@ -105,7 +109,8 @@ func getModelsForAgent(cfg *config.Config, a *config.AgentConfig, logger *slog.L
 		env := environment.NewMultiProvider(
 			environment.NewKeyValueProvider(modelCfg.Env),
 			environment.NewKeyValueProvider(cfg.Env),
-			environment.NewOsEnvProvider(), // TODO(dga): Which env should take precedence? os or config?
+			environment.NewEnvFilesProvider(absEnvFiles),
+			environment.NewOsEnvProvider(), // TODO(dga): Which env should take precedence? OS or config?
 			environment.NewNoFailProvider(
 				environment.NewOnePasswordProvider(logger),
 			),
@@ -166,12 +171,12 @@ func getToolsForAgent(ctx context.Context, a *config.AgentConfig, parentDir stri
 			}
 
 			// Expand command.
-			command := expandEnv(toolset.Command, append(os.Environ(), env...))
+			command := environment.Expand(toolset.Command, append(os.Environ(), env...))
 
 			// Expand args.
 			var args []string
 			for _, arg := range toolset.Args {
-				args = append(args, expandEnv(arg, append(os.Environ(), env...)))
+				args = append(args, environment.Expand(arg, append(os.Environ(), env...)))
 			}
 
 			mcpc, err := mcp.NewToolsetCommand(ctx, command, args, env, toolset.Tools, logger)
@@ -191,7 +196,7 @@ func getToolsForAgent(ctx context.Context, a *config.AgentConfig, parentDir stri
 			// Expand headers.
 			headers := map[string]string{}
 			for k, v := range toolset.Remote.Headers {
-				headers[k] = expandEnv(v, append(os.Environ(), env...))
+				headers[k] = environment.Expand(v, append(os.Environ(), env...))
 			}
 
 			mcpc, err := mcp.NewToolsetRemote(ctx, toolset.Remote.URL, toolset.Remote.TransportType, headers, toolset.Tools, logger)

@@ -3,7 +3,6 @@ package environment
 import (
 	"context"
 	"os"
-	"strings"
 )
 
 // OsEnvProvider provides access to the operating system's environment variables.
@@ -30,16 +29,30 @@ func NewKeyValueProvider(env map[string]string) *KeyValueProvider {
 }
 
 func (p *KeyValueProvider) Get(ctx context.Context, name string) (string, error) {
-	return expandEnv(p.env[name], os.Environ()), nil
+	return Expand(p.env[name], os.Environ()), nil
 }
 
-func expandEnv(value string, env []string) string {
-	return os.Expand(value, func(name string) string {
-		for _, e := range env {
-			if after, ok := strings.CutPrefix(e, name+"="); ok {
-				return after
-			}
+type EnvFilesProviders struct {
+	absEnvFiles []string
+}
+
+func NewEnvFilesProvider(absEnvFiles []string) *EnvFilesProviders {
+	return &EnvFilesProviders{
+		absEnvFiles: absEnvFiles,
+	}
+}
+
+func (p *EnvFilesProviders) Get(ctx context.Context, name string) (string, error) {
+	values, err := ReadEnvFiles(p.absEnvFiles)
+	if err != nil {
+		return "", err
+	}
+
+	for _, kv := range values {
+		if kv.Key == name {
+			return Expand(kv.Value, os.Environ()), nil
 		}
-		return ""
-	})
+	}
+
+	return "", nil
 }

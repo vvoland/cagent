@@ -27,6 +27,7 @@ func NewApiCmd() *cobra.Command {
 	cmd.PersistentFlags().StringVarP(&agentsDir, "agents-dir", "d", "", "Directory containing agent configurations")
 	cmd.PersistentFlags().StringVarP(&listenAddr, "listen", "l", ":8080", "Address to listen on")
 	cmd.PersistentFlags().BoolVar(&debugMode, "debug", false, "Enable debug logging")
+	cmd.PersistentFlags().StringSliceVar(&envFiles, "env-from-file", nil, "Set environment variables from file")
 
 	return cmd
 }
@@ -65,7 +66,7 @@ func runApiCommand(cmd *cobra.Command, args []string) error {
 				continue
 			}
 			configPath := filepath.Join(agentsDir, entry.Name())
-			fileTeam, err := loader.Load(ctx, configPath, logger)
+			fileTeam, err := loader.Load(ctx, configPath, envFiles, logger)
 			if err != nil {
 				logger.Warn("Failed to load agents", "file", entry.Name(), "error", err)
 				continue
@@ -90,7 +91,7 @@ func runApiCommand(cmd *cobra.Command, args []string) error {
 			}
 		}()
 	} else {
-		t, err := loader.Load(ctx, args[0], logger)
+		t, err := loader.Load(ctx, args[0], envFiles, logger)
 		if err != nil {
 			return err
 		}

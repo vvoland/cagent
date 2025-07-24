@@ -141,7 +141,7 @@ func (s *Server) createAgent(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create agent"})
 	}
 
-	team, err := loader.Load(c.Request().Context(), path, s.logger)
+	team, err := loader.Load(c.Request().Context(), path, nil, s.logger)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
 	}
@@ -183,7 +183,7 @@ func (s *Server) pullAgent(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to write agent yaml to " + fileName + ": " + err.Error()})
 	}
 
-	team, err := loader.Load(c.Request().Context(), fileName, s.logger)
+	team, err := loader.Load(c.Request().Context(), fileName, nil, s.logger)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
 	}

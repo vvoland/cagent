@@ -17,13 +17,15 @@ func NewEvalCmd() *cobra.Command {
 		RunE: runEvalCommand,
 	}
 
+	cmd.PersistentFlags().StringSliceVar(&envFiles, "env-from-file", nil, "Set environment variables from file")
+
 	return cmd
 }
 
 func runEvalCommand(cmd *cobra.Command, args []string) error {
 	logger := slog.Default()
 
-	agents, err := loader.Load(cmd.Context(), args[0], logger)
+	agents, err := loader.Load(cmd.Context(), args[0], envFiles, logger)
 	if err != nil {
 		return err
 	}

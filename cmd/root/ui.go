@@ -623,6 +623,7 @@ func NewUICmd() *cobra.Command {
 
 	cmd.PersistentFlags().StringVarP(&agentName, "agent", "a", "root", "Name of the agent to run")
 	cmd.PersistentFlags().BoolVarP(&debugMode, "debug", "d", false, "Enable debug logging")
+	cmd.PersistentFlags().StringSliceVar(&envFiles, "env-from-file", nil, "Set environment variables from file")
 
 	return cmd
 }
@@ -642,7 +643,7 @@ func runUICommand(cmd *cobra.Command, args []string) error {
 
 	logger.Debug("Starting agent UI", "agent", agentName, "debug_mode", debugMode)
 
-	agents, err := loader.Load(ctx, args[0], logger)
+	agents, err := loader.Load(ctx, args[0], envFiles, logger)
 	if err != nil {
 		return err
 	}
