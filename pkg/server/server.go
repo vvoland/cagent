@@ -2,7 +2,6 @@ package server
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -49,7 +48,7 @@ func WithAgentsDir(dir string) Opt {
 	}
 }
 
-func New(ctx context.Context, logger *slog.Logger, runtimes map[string]*runtime.Runtime, sessionStore session.Store, listenAddr string, opts ...Opt) (*Server, error) {
+func New(logger *slog.Logger, runtimes map[string]*runtime.Runtime, sessionStore session.Store, listenAddr string, opts ...Opt) *Server {
 	e := echo.New()
 	e.HideBanner = true
 	e.Use(middleware.CORS())
@@ -81,7 +80,7 @@ func New(ctx context.Context, logger *slog.Logger, runtimes map[string]*runtime.
 	// Run an agent loop
 	api.POST("/sessions/:id/agent/:agent", s.runAgent)
 
-	return s, nil
+	return s
 }
 
 type createAgentRequest struct {

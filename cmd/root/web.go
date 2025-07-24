@@ -129,10 +129,6 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, err := server.New(ctx, logger, runtimes, sessionStore, listenAddr, server.WithFrontend(fsys))
-	if err != nil {
-		return err
-	}
-
+	s := server.New(logger, runtimes, sessionStore, listenAddr, server.WithFrontend(fsys))
 	return s.Start()
 }
