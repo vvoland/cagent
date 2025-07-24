@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// OsEnvProvider provides access to the operating system's environment variables.
 type OsEnvProvider struct{}
 
 func NewOsEnvProvider() *OsEnvProvider {
@@ -16,6 +17,8 @@ func (p *OsEnvProvider) Get(ctx context.Context, name string) (string, error) {
 	return os.Getenv(name), nil
 }
 
+// KeyValueProvider provides access to a map of key-value pairs as environment variables
+// usually configured with `env:` section in a configuration file.
 type KeyValueProvider struct {
 	env map[string]string
 }
