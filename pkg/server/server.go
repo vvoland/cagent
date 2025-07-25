@@ -34,6 +34,7 @@ type Server struct {
 	sessionStore session.Store
 	agentsDir    string
 	gateway      string
+	envFiles     []string
 }
 
 type Opt func(*Server)
@@ -51,7 +52,7 @@ func WithAgentsDir(dir string) Opt {
 	}
 }
 
-func New(logger *slog.Logger, runtimes map[string]*runtime.Runtime, sessionStore session.Store, gateway string, opts ...Opt) *Server {
+func New(logger *slog.Logger, runtimes map[string]*runtime.Runtime, sessionStore session.Store, envFiles []string, gateway string, opts ...Opt) *Server {
 	e := echo.New()
 	e.Use(middleware.CORS())
 	s := &Server{
@@ -60,6 +61,7 @@ func New(logger *slog.Logger, runtimes map[string]*runtime.Runtime, sessionStore
 		logger:       logger,
 		sessionStore: sessionStore,
 		gateway:      gateway,
+		envFiles:     envFiles,
 	}
 
 	for _, opt := range opts {
@@ -146,7 +148,7 @@ func (s *Server) createAgent(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create agent"})
 	}
 
-	team, err := loader.Load(c.Request().Context(), path, nil, s.gateway, s.logger)
+	team, err := loader.Load(c.Request().Context(), path, s.envFiles, s.gateway, s.logger)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
 	}
@@ -192,7 +194,7 @@ func (s *Server) pullAgent(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to write agent yaml to " + fileName + ": " + err.Error()})
 	}
 
-	team, err := loader.Load(c.Request().Context(), fileName, nil, s.gateway, s.logger)
+	team, err := loader.Load(c.Request().Context(), fileName, s.envFiles, s.gateway, s.logger)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
 	}

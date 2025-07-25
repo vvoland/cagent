@@ -108,6 +108,6 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create session store: %w", err)
 	}
 
-	s := server.New(logger, runtimes, sessionStore, gateway, server.WithFrontend(fsys))
+	s := server.New(logger, runtimes, sessionStore, envFiles, gateway, server.WithFrontend(fsys))
 	return s.ListenAndServe(ctx, listenAddr)
 }
