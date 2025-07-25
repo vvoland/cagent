@@ -196,7 +196,7 @@ func (s *Server) pullAgent(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
 	}
 
-	if err := team.StartToolSets(context.TODO()); err != nil {
+	if err := team.StartToolSets(c.Request().Context()); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to start tool sets"})
 	}
 
