@@ -51,6 +51,10 @@ func NewWebCmd() *cobra.Command {
 func runWebCommand(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
+	if agentsDir == "" && len(args) == 0 {
+		return fmt.Errorf("either --agents-dir or <agent-name> must be specified")
+	}
+
 	logLevel := slog.LevelInfo
 	if debugMode {
 		logLevel = slog.LevelDebug
