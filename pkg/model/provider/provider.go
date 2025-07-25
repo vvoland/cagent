@@ -53,11 +53,11 @@ func New(cfg *config.ModelConfig, env environment.Provider, gateway string, logg
 			BaseURL:           strings.TrimSuffix(gateway, "/") + "/v1",
 			ParallelToolCalls: cfg.ParallelToolCalls,
 			// TODO(dga): temperature and stuff.
-			Temperature:      cfg.Temperature,
-			MaxTokens:        cfg.MaxTokens,
-			TopP:             cfg.TopP,
-			FrequencyPenalty: cfg.FrequencyPenalty,
-			PresencePenalty:  cfg.PresencePenalty,
+			// Temperature:      cfg.Temperature,
+			// MaxTokens:        cfg.MaxTokens, // MaxTokens is not portable
+			// TopP:             cfg.TopP,
+			// FrequencyPenalty: cfg.FrequencyPenalty,
+			// PresencePenalty:  cfg.PresencePenalty,
 		}
 
 		return openai.NewClient(gatewayCfg, env, logger)
