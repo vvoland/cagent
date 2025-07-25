@@ -81,6 +81,24 @@ tasks:
         --build-arg BUILD_DATE="{{.BUILD_DATE}}" \
         .
 
+  build-local:
+    desc: Build binaries for local host platform
+    vars:
+      GIT_TAG:
+        sh: git describe --tags --exact-match 2>/dev/null || echo dev
+      GIT_COMMIT:
+        sh: git rev-parse HEAD
+      BUILD_DATE:
+        sh: date
+    cmd: |
+      docker buildx build \
+        --target=local \
+        --build-arg GIT_TAG="{{.GIT_TAG}}" \
+        --build-arg GIT_COMMIT="{{.GIT_COMMIT}}" \
+        --build-arg BUILD_DATE="{{.BUILD_DATE}}" \
+        --platform local \
+        --output=./dist .
+
   cross:
     desc: Build binaries for multiple platforms
     vars:

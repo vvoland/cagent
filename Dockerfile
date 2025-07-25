@@ -66,6 +66,10 @@ EOT
 
 FROM builder-$TARGETOS AS builder
 
+FROM scratch AS local
+ARG TARGETOS TARGETARCH
+COPY --from=builder /binaries/cagent-$TARGETOS-$TARGETARCH cagent
+
 FROM scratch AS cross
 COPY --from=builder /binaries .
 
