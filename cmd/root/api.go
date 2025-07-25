@@ -52,7 +52,7 @@ func runApiCommand(cmd *cobra.Command, args []string) error {
 
 	logger.Debug("Starting API server", "agents", agentsPath, "debug_mode", debugMode)
 
-	runtimes = make(map[string]*runtime.Runtime)
+	runtimes := make(map[string]*runtime.Runtime)
 
 	for _, agentPath := range agents {
 		fileTeam, err := loader.Load(ctx, agentPath, envFiles, logger)

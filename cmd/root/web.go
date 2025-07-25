@@ -25,7 +25,6 @@ type Message struct {
 var (
 	listenAddr string
 	sessionDb  string
-	runtimes   map[string]*runtime.Runtime
 	envFiles   []string
 )
 
@@ -68,7 +67,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 
 	logger.Debug("Starting API server", "agents", agentsPath, "debug_mode", debugMode)
 
-	runtimes = make(map[string]*runtime.Runtime)
+	runtimes := make(map[string]*runtime.Runtime)
 
 	for _, agentPath := range agents {
 		fileTeam, err := loader.Load(ctx, agentPath, envFiles, logger)
