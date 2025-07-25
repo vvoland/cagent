@@ -168,9 +168,14 @@ func (c *Client) CreateChatCompletionStream(
 		"message_count", len(messages),
 		"tool_count", len(requestTools))
 
+	maxTokens := int64(c.config.MaxTokens)
+	if maxTokens == 0 {
+		maxTokens = 8192
+	}
+
 	params := anthropic.MessageNewParams{
 		Model:     anthropic.Model(c.config.Model),
-		MaxTokens: int64(c.config.MaxTokens),
+		MaxTokens: maxTokens,
 		Messages:  convertMessages(messages),
 		Tools:     convertTools(requestTools),
 	}
@@ -182,7 +187,7 @@ func (c *Client) CreateChatCompletionStream(
 	// Log the request details for debugging
 	c.logger.Debug("Anthropic chat completion stream request",
 		"model", params.Model,
-		"max_tokens", params.MaxTokens,
+		"max_tokens", maxTokens,
 		"message_count", len(params.Messages))
 
 	stream := c.client.Messages.NewStreaming(ctx, params)
