@@ -8,7 +8,10 @@ be handled centrally, on the Gateway side.
 
 ## Run the LiteLLM based AI Gateway
 
-Make sure `MY_OPENAI_API_KEY` and `MY_ANTHROPIC_API_KEY` env variables are configured.
+Make sure `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` env variables are configured
+in `./ai-gateway/.env`.
+
+Make sure `brave.api_key` env variable is configured in `./ai-gateway/.env.mcp`.
 
 ```
 docker compose --project-directory ai-gateway up -d
@@ -25,23 +28,20 @@ docker compose --project-directory ai-gateway up -d
 + Click on `Create Key`
 + Copy the value
 
-## Configure an MCP Server on LiteLLM's console
-
-+ Open http://localhost:4000/ui
-+ Login with user `admin` and password `sk-1234`
-+ Open http://localhost:4000/ui/?page=mcp-servers
-+ Click `Add New MCP Server`
-+ Pick a name. e.g `Docker MCP Gateway`
-+ Transport Type is `HTTP`
-+ MCP Server URL is `http://gateway.com:9011`
-+ Authentication is `None`
-+ MCP Version is `... (Latest)`
-+ Click on `Save Changes`
-
-## Run the agent
+## Run the agent without the AI Gateway
 
 ```
-export LITELLM_API_KEY="The key you copied"
+export OPENAI_API_KEY="<YOUR_OPENAI_API_KEY>"
 cagent run pirate.yaml
+
+export ANTHROPIC_API_KEY="<YOUR_ANTHROPIC_API_KEY>"
 cagent run web_searcher.yaml
+```
+
+## Run the agent with the AI Gateway
+
+```
+export LITELLM_API_KEY="<YOUR_LITELLM_API_KEY>"
+cagent run --gateway=http://localhost:4000 pirate.yaml
+cagent run --gateway=http://localhost:4000 web_searcher.yaml
 ```

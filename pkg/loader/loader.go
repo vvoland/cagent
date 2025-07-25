@@ -171,18 +171,11 @@ func getToolsForAgent(ctx context.Context, a *config.AgentConfig, parentDir stri
 					servers = strings.TrimPrefix(toolset.Args[3], "--servers=")
 				}
 
-				// Expand env first because it's used when expanding headers.
-				env, err := toolsetEnv(toolset.Env, append(absEnvFiles, toolset.Envfiles...), parentDir)
-				if err != nil {
-					return nil, err
-				}
-
 				headers := map[string]string{
-					"x-litellm-api-key": environment.Expand("Bearer ${LITELLM_API_KEY}", append(os.Environ(), env...)),
-					"x-mcp-servers":     servers,
+					"x-mcp-servers": servers,
 				}
 
-				url := strings.TrimSuffix(strings.ReplaceAll(gateway, ":4000", ":9011"), "/") + "/mcp"
+				url := strings.TrimSuffix(gateway, "/") + "/mcp"
 				mcpc, err := mcp.NewToolsetRemote(ctx, url, "streamable", headers, toolset.Tools, logger)
 				if err != nil {
 					return nil, fmt.Errorf("failed to create remote mcp client: %w", err)

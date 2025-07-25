@@ -11,11 +11,12 @@ model_list:
     litellm_params:
       model: openai/gpt-4o-mini
       api_key: os.environ/OPENAI_API_KEY
-  - model_name: claude-4
+  - model_name: claude-sonnet-4-0
     litellm_params:
-      model: anthropic/claude-4
+      model: anthropic/claude-4-sonnet-20250514
       api_key: os.environ/ANTHROPIC_API_KEY
-  - model_name: claude-3.7
+  - model_name: claude-3-5-sonnet-latest
     litellm_params:
-      model: anthropic/claude-3.7
+      model: anthropic/claude-3-5-sonnet-latest
       api_key: os.environ/ANTHROPIC_API_KEY
+

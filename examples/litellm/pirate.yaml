@@ -9,8 +9,5 @@ agents:
 
 models:
   claude:
-    type: openai
-    model: claude-4
-    base_url: http://localhost:4000/v1
-    env:
-      OPENAI_API_KEY: ${LITELLM_API_KEY}
+    type: anthropic
+    model: claude-sonnet-4-0
