@@ -185,25 +185,24 @@ const App = memo(() => {
 
   // Handle pending prompt submission if session is created
   useEffect(() => {
-  if (currentSessionId && pendingPrompt) {
-    // Session was created and we have a pending prompt to submit
-    const submitPendingPrompt = async () => {
-      try {
-        await handleSubmit(currentSessionId, pendingPrompt);
-        setPrompt("");
-        logger.info('Pending prompt submitted successfully', { prompt: pendingPrompt.slice(0, 50) + '...' });
-        toast.success('Message sent successfully');
-      } catch (error) {
-        logger.error('Failed to submit pending prompt', error);
-        toast.error('Failed to send message', 'Please try again');
-      } finally {
-        setPendingPrompt(null); // Clear the pending prompt
-      }
-    };
-    
-    submitPendingPrompt();
-  }
-}, [currentSessionId, pendingPrompt, handleSubmit, logger, toast]);
+    if (currentSessionId && pendingPrompt) {
+      // Session was created and we have a pending prompt to submit
+      const submitPendingPrompt = async () => {
+        try {
+          await handleSubmit(currentSessionId, pendingPrompt);
+          setPrompt("");
+          logger.info('Pending prompt submitted successfully', { prompt: pendingPrompt.slice(0, 50) + '...' });
+        } catch (error) {
+          logger.error('Failed to submit pending prompt', error);
+          toast.error('Failed to send message', 'Please try again');
+        } finally {
+          setPendingPrompt(null); // Clear the pending prompt
+        }
+      };
+
+      submitPendingPrompt();
+    }
+  }, [currentSessionId, pendingPrompt, handleSubmit, logger, toast]);
 
   const handleFormSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,7 +210,6 @@ const App = memo(() => {
 
     logger.time('submit-prompt');
     try {
-
       let sessionId = currentSessionId;
 
       // Auto-create session if none exists
@@ -225,7 +223,6 @@ const App = memo(() => {
       await handleSubmit(sessionId, prompt);
       setPrompt("");
       logger.info('Prompt submitted successfully', { prompt: prompt.slice(0, 50) + '...' });
-      toast.success('Message sent successfully');
     } catch (error) {
       logger.error('Failed to submit prompt', error);
       toast.error('Failed to send message', 'Please try again');
