@@ -59,6 +59,7 @@ func New(logger *slog.Logger, runtimes map[string]*runtime.Runtime, sessionStore
 		runtimes:     runtimes,
 		logger:       logger,
 		sessionStore: sessionStore,
+		gateway:      gateway,
 	}
 
 	for _, opt := range opts {
