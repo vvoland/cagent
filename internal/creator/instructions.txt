@@ -62,21 +62,19 @@ agents:
             env_file: [] # Environment variable files
 ```
 
-Or remote MCP Servers:
+Example of using an MCP server from the gateway:
 
 ```yaml
 agents:
     root:
         ...
         toolsets:
-        - type: mcp # Model Context Protocol
-            remote:
-              url: string # Base URL to connect to
-              transport_type: string # Type of MCP transport (sse or streamable)
-              headers:
-                key: value # HTTP headers. Mainly used for auth
-            tools: [] # Optional: List of specific tools to enable
+        - type: mcp
+            command: docker
+            args: [mcp, gateway, run, '--servers=youtube_transcript]
 ```
+
+
 
 ### Model Configuration
 
