@@ -25,7 +25,7 @@ type Message struct {
 
 var (
 	listenAddr string
-	agentsDir  string
+	sessionDb  string
 	runtimes   map[string]*runtime.Runtime
 	envFiles   []string
 )
@@ -33,15 +33,16 @@ var (
 // NewWebCmd creates a new web command
 func NewWebCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "web session.db",
+		Use:     "web <agent-file>|<agents-dir>",
 		Short:   "Start a web server",
 		Long:    `Start a web server that exposes the agents via an HTTP API`,
-		Example: `cagent web /tmp/session.db --agents-dir /path/to/agents --listen :8080`,
+		Example: `cagent web /path/to/agents --listen :8080`,
+		Args:    cobra.ExactArgs(1),
 		RunE:    runWebCommand,
 	}
 
-	cmd.PersistentFlags().StringVarP(&agentsDir, "agents-dir", "d", "", "Directory containing agent configurations")
 	cmd.PersistentFlags().StringVarP(&listenAddr, "listen", "l", ":8080", "Address to listen on")
+	cmd.PersistentFlags().StringVarP(&sessionDb, "session-db", "s", "session.db", "Path to the session database")
 	cmd.PersistentFlags().BoolVar(&debugMode, "debug", false, "Enable debug logging")
 	cmd.PersistentFlags().StringSliceVar(&envFiles, "env-from-file", nil, "Set environment variables from file")
 
@@ -50,10 +51,6 @@ func NewWebCmd() *cobra.Command {
 
 func runWebCommand(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-
-	if agentsDir == "" && len(args) == 0 {
-		return fmt.Errorf("either --agents-dir or <agent-name> must be specified")
-	}
 
 	logLevel := slog.LevelInfo
 	if debugMode {
@@ -64,19 +61,27 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 		Level: logLevel,
 	}))
 
-	logger.Debug("Starting web server", "agents-dir", agentsDir, "debug_mode", debugMode)
-
-	sessionDb := args[0]
-	if len(args) == 2 {
-		sessionDb = args[1]
+	fsys, err := fs.Sub(web.WebContent, "dist")
+	if err != nil {
+		return err
 	}
 
+	// Create session store
 	sessionStore, err := session.NewSQLiteSessionStore(sessionDb)
 	if err != nil {
 		return fmt.Errorf("failed to create session store: %w", err)
 	}
 
-	if agentsDir != "" {
+	agentsPath := args[0]
+	stat, err := os.Stat(agentsPath)
+	if err != nil {
+		return fmt.Errorf("failed to stat agents path: %w", err)
+	}
+
+	if stat.IsDir() {
+		agentsDir := agentsPath
+		logger.Debug("Starting API server", "agents-dir", agentsDir, "debug_mode", debugMode)
+
 		runtimes = make(map[string]*runtime.Runtime)
 
 		entries, err := os.ReadDir(agentsDir)
@@ -88,7 +93,6 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") {
 				continue
 			}
-
 			configPath := filepath.Join(agentsDir, entry.Name())
 			fileTeam, err := loader.Load(ctx, configPath, envFiles, logger)
 			if err != nil {
@@ -114,37 +118,36 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 				}
 			}
 		}()
-	} else {
-		t, err := loader.Load(ctx, args[0], envFiles, logger)
-		if err != nil {
-			return err
-		}
-		if err := t.StartToolSets(ctx); err != nil {
-			return fmt.Errorf("failed to start tool sets: %w", err)
-		}
-		defer func() {
-			if err := t.StopToolSets(); err != nil {
-				logger.Error("Failed to stop tool sets", "error", err)
-			}
-		}()
 
-		// Initialize runtimes for single config file
-		runtimes = make(map[string]*runtime.Runtime)
-		rt, err := runtime.New(logger, t, "root")
-		if err != nil {
-			return err
-		}
-		runtimes[filepath.Base(args[0])] = rt
+		s := server.New(logger, runtimes, sessionStore, server.WithFrontend(fsys))
+		return s.ListenAndServe(ctx, listenAddr)
 	}
 
-	if len(runtimes) == 0 {
-		return fmt.Errorf("no agents found")
-	}
+	logger.Debug("Starting API server", "agent-file", agentsPath, "debug_mode", debugMode)
 
-	fsys, err := fs.Sub(web.WebContent, "dist")
+	t, err := loader.Load(ctx, agentsPath, envFiles, logger)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		for _, rt := range runtimes {
+			if err := rt.Team().StopToolSets(); err != nil {
+				logger.Error("Failed to stop tool sets", "error", err)
+			}
+		}
+	}()
+
+	if err := t.StartToolSets(ctx); err != nil {
+		return fmt.Errorf("failed to start tool sets: %w", err)
+	}
+
+	// Initialize runtimes for single config file
+	runtimes = make(map[string]*runtime.Runtime)
+	rt, err := runtime.New(logger, t, "root")
+	if err != nil {
+		return err
+	}
+	runtimes[filepath.Base(agentsPath)] = rt
 
 	s := server.New(logger, runtimes, sessionStore, server.WithFrontend(fsys))
 	return s.ListenAndServe(ctx, listenAddr)

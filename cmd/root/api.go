@@ -18,14 +18,15 @@ import (
 // NewWebCmd creates a new web command
 func NewApiCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "api <agent-name>",
+		Use:   "api <agent-file>|<agents-dir>",
 		Short: "Start the API server",
 		Long:  `Start the API server that exposes the agent via an HTTP API`,
+		Args:  cobra.ExactArgs(1),
 		RunE:  runApiCommand,
 	}
 
-	cmd.PersistentFlags().StringVarP(&agentsDir, "agents-dir", "d", "", "Directory containing agent configurations")
 	cmd.PersistentFlags().StringVarP(&listenAddr, "listen", "l", ":8080", "Address to listen on")
+	cmd.PersistentFlags().StringVarP(&sessionDb, "session-db", "s", "session.db", "Path to the session database")
 	cmd.PersistentFlags().BoolVar(&debugMode, "debug", false, "Enable debug logging")
 	cmd.PersistentFlags().StringSliceVar(&envFiles, "env-from-file", nil, "Set environment variables from file")
 
@@ -34,10 +35,6 @@ func NewApiCmd() *cobra.Command {
 
 func runApiCommand(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-
-	if agentsDir == "" && len(args) == 0 {
-		return fmt.Errorf("either --agents-dir or <agent-name> must be specified")
-	}
 
 	// Configure logger based on debug flag
 	logLevel := slog.LevelInfo
@@ -49,15 +46,22 @@ func runApiCommand(cmd *cobra.Command, args []string) error {
 		Level: logLevel,
 	}))
 
-	logger.Debug("Starting API server", "agents-dir", agentsDir, "debug_mode", debugMode)
-
 	// Create session store
-	sessionStore, err := session.NewSQLiteSessionStore("sessions.db")
+	sessionStore, err := session.NewSQLiteSessionStore(sessionDb)
 	if err != nil {
 		return fmt.Errorf("failed to create session store: %w", err)
 	}
 
-	if agentsDir != "" {
+	agentsPath := args[0]
+	stat, err := os.Stat(agentsPath)
+	if err != nil {
+		return fmt.Errorf("failed to stat agents path: %w", err)
+	}
+
+	if stat.IsDir() {
+		agentsDir := agentsPath
+		logger.Debug("Starting API server", "agents-dir", agentsDir, "debug_mode", debugMode)
+
 		runtimes = make(map[string]*runtime.Runtime)
 
 		entries, err := os.ReadDir(agentsDir)
@@ -94,32 +98,37 @@ func runApiCommand(cmd *cobra.Command, args []string) error {
 				}
 			}
 		}()
-	} else {
-		t, err := loader.Load(ctx, args[0], envFiles, logger)
-		if err != nil {
-			return err
-		}
-		defer func() {
-			for _, rt := range runtimes {
-				if err := rt.Team().StopToolSets(); err != nil {
-					logger.Error("Failed to stop tool sets", "error", err)
-				}
-			}
-		}()
 
-		if err := t.StartToolSets(ctx); err != nil {
-			return fmt.Errorf("failed to start tool sets: %w", err)
-		}
-
-		// Initialize runtimes for single config file
-		runtimes = make(map[string]*runtime.Runtime)
-		rt, err := runtime.New(logger, t, "root")
-		if err != nil {
-			return err
-		}
-		runtimes[filepath.Base(args[0])] = rt
+		s := server.New(logger, runtimes, sessionStore, server.WithAgentsDir(agentsDir))
+		return s.ListenAndServe(ctx, listenAddr)
 	}
 
-	s := server.New(logger, runtimes, sessionStore, server.WithAgentsDir(agentsDir))
+	logger.Debug("Starting API server", "agent-file", agentsPath, "debug_mode", debugMode)
+
+	t, err := loader.Load(ctx, agentsPath, envFiles, logger)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		for _, rt := range runtimes {
+			if err := rt.Team().StopToolSets(); err != nil {
+				logger.Error("Failed to stop tool sets", "error", err)
+			}
+		}
+	}()
+
+	if err := t.StartToolSets(ctx); err != nil {
+		return fmt.Errorf("failed to start tool sets: %w", err)
+	}
+
+	// Initialize runtimes for single config file
+	runtimes = make(map[string]*runtime.Runtime)
+	rt, err := runtime.New(logger, t, "root")
+	if err != nil {
+		return err
+	}
+	runtimes[filepath.Base(agentsPath)] = rt
+
+	s := server.New(logger, runtimes, sessionStore)
 	return s.ListenAndServe(ctx, listenAddr)
 }
