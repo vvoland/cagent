@@ -122,6 +122,9 @@ type createAgentRequest struct {
 
 func (s *Server) getAgent(c echo.Context) error {
 	path := filepath.Join(s.agentsDir, c.Param("id"))
+	if !strings.HasSuffix(path, ".yaml") {
+		path += ".yaml"
+	}
 	cfg, err := config.LoadConfig(path)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "agent not found"})
@@ -145,6 +148,10 @@ func (s *Server) createAgent(c echo.Context) error {
 	team, err := loader.Load(c.Request().Context(), path, nil, s.gateway, s.logger)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
+	}
+
+	if err := team.StartToolSets(context.TODO()); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to start tool sets"})
 	}
 
 	agentName := filepath.Base(path)
@@ -187,6 +194,10 @@ func (s *Server) pullAgent(c echo.Context) error {
 	team, err := loader.Load(c.Request().Context(), fileName, nil, s.gateway, s.logger)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
+	}
+
+	if err := team.StartToolSets(context.TODO()); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to start tool sets"})
 	}
 
 	s.runtimes[agentName], err = runtime.New(s.logger, team, "root")
