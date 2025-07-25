@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -51,6 +50,7 @@ func NewWebCmd() *cobra.Command {
 
 func runWebCommand(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
+	agentsPath := args[0]
 
 	logLevel := slog.LevelInfo
 	if debugMode {
@@ -61,74 +61,34 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 		Level: logLevel,
 	}))
 
-	fsys, err := fs.Sub(web.WebContent, "dist")
+	agents, err := findAgents(agentsPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to find agents: %w", err)
 	}
 
-	// Create session store
-	sessionStore, err := session.NewSQLiteSessionStore(sessionDb)
-	if err != nil {
-		return fmt.Errorf("failed to create session store: %w", err)
-	}
+	logger.Debug("Starting API server", "agents", agentsPath, "debug_mode", debugMode)
 
-	agentsPath := args[0]
-	stat, err := os.Stat(agentsPath)
-	if err != nil {
-		return fmt.Errorf("failed to stat agents path: %w", err)
-	}
+	runtimes = make(map[string]*runtime.Runtime)
 
-	if stat.IsDir() {
-		agentsDir := agentsPath
-		logger.Debug("Starting API server", "agents-dir", agentsDir, "debug_mode", debugMode)
-
-		runtimes = make(map[string]*runtime.Runtime)
-
-		entries, err := os.ReadDir(agentsDir)
+	for _, agentPath := range agents {
+		fileTeam, err := loader.Load(ctx, agentPath, envFiles, logger)
 		if err != nil {
-			return fmt.Errorf("failed to read directory: %w", err)
+			logger.Warn("Failed to load agent", "file", agentPath, "error", err)
+			continue
 		}
 
-		for _, entry := range entries {
-			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") {
-				continue
-			}
-			configPath := filepath.Join(agentsDir, entry.Name())
-			fileTeam, err := loader.Load(ctx, configPath, envFiles, logger)
-			if err != nil {
-				logger.Warn("Failed to load agents", "file", entry.Name(), "error", err)
-				continue
-			}
-
-			if err := fileTeam.StartToolSets(ctx); err != nil {
-				return fmt.Errorf("failed to start tool sets: %w", err)
-			}
-
-			rt, err := runtime.New(logger, fileTeam, "root")
-			if err != nil {
-				return fmt.Errorf("failed to create runtime for file %s: %w", entry.Name(), err)
-			}
-			runtimes[entry.Name()] = rt
+		if err := fileTeam.StartToolSets(ctx); err != nil {
+			return fmt.Errorf("failed to start tool sets: %w", err)
 		}
 
-		defer func() {
-			for _, rt := range runtimes {
-				if err := rt.Team().StopToolSets(); err != nil {
-					logger.Error("Failed to stop tool sets", "error", err)
-				}
-			}
-		}()
-
-		s := server.New(logger, runtimes, sessionStore, server.WithFrontend(fsys))
-		return s.ListenAndServe(ctx, listenAddr)
+		filename := filepath.Base(agentPath)
+		rt, err := runtime.New(logger, fileTeam, "root")
+		if err != nil {
+			return fmt.Errorf("failed to create runtime for file %s: %w", filename, err)
+		}
+		runtimes[filename] = rt
 	}
 
-	logger.Debug("Starting API server", "agent-file", agentsPath, "debug_mode", debugMode)
-
-	t, err := loader.Load(ctx, agentsPath, envFiles, logger)
-	if err != nil {
-		return err
-	}
 	defer func() {
 		for _, rt := range runtimes {
 			if err := rt.Team().StopToolSets(); err != nil {
@@ -137,17 +97,15 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
-	if err := t.StartToolSets(ctx); err != nil {
-		return fmt.Errorf("failed to start tool sets: %w", err)
-	}
-
-	// Initialize runtimes for single config file
-	runtimes = make(map[string]*runtime.Runtime)
-	rt, err := runtime.New(logger, t, "root")
+	fsys, err := fs.Sub(web.WebContent, "dist")
 	if err != nil {
 		return err
 	}
-	runtimes[filepath.Base(agentsPath)] = rt
+
+	sessionStore, err := session.NewSQLiteSessionStore(sessionDb)
+	if err != nil {
+		return fmt.Errorf("failed to create session store: %w", err)
+	}
 
 	s := server.New(logger, runtimes, sessionStore, server.WithFrontend(fsys))
 	return s.ListenAndServe(ctx, listenAddr)

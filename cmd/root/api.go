@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -35,8 +34,8 @@ func NewApiCmd() *cobra.Command {
 
 func runApiCommand(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
+	agentsPath := args[0]
 
-	// Configure logger based on debug flag
 	logLevel := slog.LevelInfo
 	if debugMode {
 		logLevel = slog.LevelDebug
@@ -46,69 +45,34 @@ func runApiCommand(cmd *cobra.Command, args []string) error {
 		Level: logLevel,
 	}))
 
-	// Create session store
-	sessionStore, err := session.NewSQLiteSessionStore(sessionDb)
+	agents, err := findAgents(agentsPath)
 	if err != nil {
-		return fmt.Errorf("failed to create session store: %w", err)
+		return fmt.Errorf("failed to find agents: %w", err)
 	}
 
-	agentsPath := args[0]
-	stat, err := os.Stat(agentsPath)
-	if err != nil {
-		return fmt.Errorf("failed to stat agents path: %w", err)
-	}
+	logger.Debug("Starting API server", "agents", agentsPath, "debug_mode", debugMode)
 
-	if stat.IsDir() {
-		agentsDir := agentsPath
-		logger.Debug("Starting API server", "agents-dir", agentsDir, "debug_mode", debugMode)
+	runtimes = make(map[string]*runtime.Runtime)
 
-		runtimes = make(map[string]*runtime.Runtime)
-
-		entries, err := os.ReadDir(agentsDir)
+	for _, agentPath := range agents {
+		fileTeam, err := loader.Load(ctx, agentPath, envFiles, logger)
 		if err != nil {
-			return fmt.Errorf("failed to read directory: %w", err)
+			logger.Warn("Failed to load agent", "file", agentPath, "error", err)
+			continue
 		}
 
-		for _, entry := range entries {
-			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") {
-				continue
-			}
-			configPath := filepath.Join(agentsDir, entry.Name())
-			fileTeam, err := loader.Load(ctx, configPath, envFiles, logger)
-			if err != nil {
-				logger.Warn("Failed to load agents", "file", entry.Name(), "error", err)
-				continue
-			}
-
-			if err := fileTeam.StartToolSets(ctx); err != nil {
-				return fmt.Errorf("failed to start tool sets: %w", err)
-			}
-
-			rt, err := runtime.New(logger, fileTeam, "root")
-			if err != nil {
-				return fmt.Errorf("failed to create runtime for file %s: %w", entry.Name(), err)
-			}
-			runtimes[entry.Name()] = rt
+		if err := fileTeam.StartToolSets(ctx); err != nil {
+			return fmt.Errorf("failed to start tool sets: %w", err)
 		}
 
-		defer func() {
-			for _, rt := range runtimes {
-				if err := rt.Team().StopToolSets(); err != nil {
-					logger.Error("Failed to stop tool sets", "error", err)
-				}
-			}
-		}()
-
-		s := server.New(logger, runtimes, sessionStore, server.WithAgentsDir(agentsDir))
-		return s.ListenAndServe(ctx, listenAddr)
+		filename := filepath.Base(agentPath)
+		rt, err := runtime.New(logger, fileTeam, "root")
+		if err != nil {
+			return fmt.Errorf("failed to create runtime for file %s: %w", filename, err)
+		}
+		runtimes[filename] = rt
 	}
 
-	logger.Debug("Starting API server", "agent-file", agentsPath, "debug_mode", debugMode)
-
-	t, err := loader.Load(ctx, agentsPath, envFiles, logger)
-	if err != nil {
-		return err
-	}
 	defer func() {
 		for _, rt := range runtimes {
 			if err := rt.Team().StopToolSets(); err != nil {
@@ -117,18 +81,20 @@ func runApiCommand(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
-	if err := t.StartToolSets(ctx); err != nil {
-		return fmt.Errorf("failed to start tool sets: %w", err)
-	}
-
-	// Initialize runtimes for single config file
-	runtimes = make(map[string]*runtime.Runtime)
-	rt, err := runtime.New(logger, t, "root")
+	sessionStore, err := session.NewSQLiteSessionStore(sessionDb)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create session store: %w", err)
 	}
-	runtimes[filepath.Base(agentsPath)] = rt
 
-	s := server.New(logger, runtimes, sessionStore)
+	var opts []server.Opt
+	stat, err := os.Stat(agentsPath)
+	if err != nil {
+		return fmt.Errorf("failed to stat agents path: %w", err)
+	}
+	if stat.IsDir() {
+		opts = append(opts, server.WithAgentsDir(agentsPath))
+	}
+
+	s := server.New(logger, runtimes, sessionStore, opts...)
 	return s.ListenAndServe(ctx, listenAddr)
 }
