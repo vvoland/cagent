@@ -18,6 +18,7 @@ func NewEvalCmd() *cobra.Command {
 	}
 
 	cmd.PersistentFlags().StringSliceVar(&envFiles, "env-from-file", nil, "Set environment variables from file")
+	cmd.PersistentFlags().StringVar(&gateway, "gateway", "", "Set the gateway address")
 
 	return cmd
 }
@@ -25,7 +26,7 @@ func NewEvalCmd() *cobra.Command {
 func runEvalCommand(cmd *cobra.Command, args []string) error {
 	logger := slog.Default()
 
-	agents, err := loader.Load(cmd.Context(), args[0], envFiles, logger)
+	agents, err := loader.Load(cmd.Context(), args[0], envFiles, gateway, logger)
 	if err != nil {
 		return err
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config"
@@ -30,8 +31,37 @@ type Provider interface {
 	) (string, error)
 }
 
-func New(cfg *config.ModelConfig, env environment.Provider, logger *slog.Logger) (Provider, error) {
+func New(cfg *config.ModelConfig, env environment.Provider, gateway string, logger *slog.Logger) (Provider, error) {
 	logger.Debug("Creating model provider", "type", cfg.Type, "model", cfg.Model)
+
+	if gateway != "" {
+		api_key, err := env.Get(context.TODO(), "LITELLM_API_KEY")
+		if err != nil {
+			return nil, err
+		}
+
+		env = environment.NewMultiProvider(
+			environment.NewKeyValueProvider(map[string]string{
+				"OPENAI_API_KEY": api_key,
+			}),
+			env,
+		)
+
+		gatewayCfg := &config.ModelConfig{
+			Type:              "openai",
+			Model:             cfg.Model,
+			BaseURL:           strings.TrimSuffix(gateway, "/") + "/v1",
+			ParallelToolCalls: cfg.ParallelToolCalls,
+			// TODO(dga): temperature and stuff.
+			Temperature:      cfg.Temperature,
+			MaxTokens:        cfg.MaxTokens,
+			TopP:             cfg.TopP,
+			FrequencyPenalty: cfg.FrequencyPenalty,
+			PresencePenalty:  cfg.PresencePenalty,
+		}
+
+		return openai.NewClient(gatewayCfg, env, logger)
+	}
 
 	switch cfg.Type {
 	case "openai":

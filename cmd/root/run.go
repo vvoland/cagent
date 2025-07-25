@@ -33,6 +33,7 @@ func NewRunCmd() *cobra.Command {
 	cmd.PersistentFlags().StringVarP(&agentName, "agent", "a", "root", "Name of the agent to run")
 	cmd.PersistentFlags().BoolVarP(&debugMode, "debug", "d", false, "Enable debug logging")
 	cmd.PersistentFlags().StringSliceVar(&envFiles, "env-from-file", nil, "Set environment variables from file")
+	cmd.PersistentFlags().StringVar(&gateway, "gateway", "", "Set the gateway address")
 
 	return cmd
 }
@@ -73,7 +74,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		agentFile = tmpFile.Name()
 	}
 
-	agents, err := loader.Load(ctx, agentFile, envFiles, logger)
+	agents, err := loader.Load(ctx, agentFile, envFiles, gateway, logger)
 	if err != nil {
 		return err
 	}

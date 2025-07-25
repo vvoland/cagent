@@ -9,10 +9,10 @@ services:
       - "4000:4000"
     environment:
       DATABASE_URL: "postgresql://llmproxy:dbpassword9090@db:5432/litellm"
-      OPENAI_API_KEY: $MY_OPENAI_API_KEY
-      ANTHROPIC_API_KEY: $MY_ANTHROPIC_API_KEY
       LITELLM_MASTER_KEY: sk-1234
       LITELLM_SALT_KEY: sk-1234
+    env_file:
+      - ~/.env
     depends_on:
       db:
         condition: service_healthy

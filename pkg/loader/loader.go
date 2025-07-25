@@ -20,7 +20,7 @@ import (
 	"github.com/docker/cagent/pkg/tools/mcp"
 )
 
-func Load(ctx context.Context, path string, envFiles []string, logger *slog.Logger) (*team.Team, error) {
+func Load(ctx context.Context, path string, envFiles []string, gateway string, logger *slog.Logger) (*team.Team, error) {
 	cfg, err := config.LoadConfig(path)
 	if err != nil {
 		return nil, err
@@ -46,7 +46,7 @@ func Load(ctx context.Context, path string, envFiles []string, logger *slog.Logg
 			agent.WithDescription(agentConfig.Description),
 			agent.WithAddDate(agentConfig.AddDate),
 		}
-		models, err := getModelsForAgent(cfg, &agentConfig, absEnvFles, logger)
+		models, err := getModelsForAgent(cfg, &agentConfig, absEnvFles, gateway, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get models: %w", err)
 		}
@@ -58,7 +58,7 @@ func Load(ctx context.Context, path string, envFiles []string, logger *slog.Logg
 		if !ok {
 			return nil, fmt.Errorf("agent '%s' not found in configuration", name)
 		}
-		agentTools, err := getToolsForAgent(ctx, &a, parentDir, logger, sharedTools)
+		agentTools, err := getToolsForAgent(ctx, &a, parentDir, logger, sharedTools, envFiles, gateway)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tools: %w", err)
 		}
@@ -97,7 +97,7 @@ func Load(ctx context.Context, path string, envFiles []string, logger *slog.Logg
 	return team.New(agents), nil
 }
 
-func getModelsForAgent(cfg *config.Config, a *config.AgentConfig, absEnvFiles []string, logger *slog.Logger) ([]provider.Provider, error) {
+func getModelsForAgent(cfg *config.Config, a *config.AgentConfig, absEnvFiles []string, gateway string, logger *slog.Logger) ([]provider.Provider, error) {
 	var models []provider.Provider
 
 	for name := range strings.SplitSeq(a.Model, ",") {
@@ -116,7 +116,7 @@ func getModelsForAgent(cfg *config.Config, a *config.AgentConfig, absEnvFiles []
 			),
 		)
 
-		model, err := provider.New(&modelCfg, env, logger)
+		model, err := provider.New(&modelCfg, env, gateway, logger)
 		if err != nil {
 			return nil, err
 		}
@@ -128,7 +128,7 @@ func getModelsForAgent(cfg *config.Config, a *config.AgentConfig, absEnvFiles []
 }
 
 // getToolsForAgent returns the tool definitions for an agent based on its configuration
-func getToolsForAgent(ctx context.Context, a *config.AgentConfig, parentDir string, logger *slog.Logger, sharedTools map[string]tools.ToolSet) ([]tools.ToolSet, error) {
+func getToolsForAgent(ctx context.Context, a *config.AgentConfig, parentDir string, logger *slog.Logger, sharedTools map[string]tools.ToolSet, absEnvFiles []string, gateway string) ([]tools.ToolSet, error) {
 	var t []tools.ToolSet
 
 	if len(a.SubAgents) > 0 {
@@ -164,27 +164,61 @@ func getToolsForAgent(ctx context.Context, a *config.AgentConfig, parentDir stri
 			t = append(t, builtin.NewFilesystemTool([]string{wd}))
 
 		case toolset.Type == "mcp" && toolset.Command != "":
-			// Expand env first because it's used when expanding command and args.
-			env, err := toolsetEnv(toolset.Env, toolset.Envfiles, parentDir)
-			if err != nil {
-				return nil, err
+			if gateway != "" {
+				// TODO(dga): Really guess the server.
+				var servers string
+				if toolset.Command == "docker" && len(toolset.Args) >= 4 && toolset.Args[0] == "mcp" && toolset.Args[1] == "gateway" && toolset.Args[2] == "run" && strings.HasPrefix(toolset.Args[3], "servers=") {
+					servers = strings.TrimPrefix(toolset.Args[3], "servers=")
+				} else {
+					args := strings.Join(toolset.Args, " ")
+					if strings.Contains(args, "duckduckgo") {
+						servers = "duckduckgo"
+					} else if strings.Contains(args, "brave") {
+						servers = "brave"
+					}
+				}
+
+				// Expand env first because it's used when expanding headers.
+				env, err := toolsetEnv(toolset.Env, append(absEnvFiles, toolset.Envfiles...), parentDir)
+				if err != nil {
+					return nil, err
+				}
+
+				headers := map[string]string{
+					"x-litellm-api-key": environment.Expand("Bearer ${LITELLM_API_KEY}", append(os.Environ(), env...)),
+					"x-mcp-servers":     servers,
+				}
+
+				url := strings.TrimSuffix(gateway, "/") + "/mcp"
+				mcpc, err := mcp.NewToolsetRemote(ctx, url, "streamable", headers, toolset.Tools, logger)
+				if err != nil {
+					return nil, fmt.Errorf("failed to create remote mcp client: %w", err)
+				}
+
+				t = append(t, mcpc)
+			} else {
+				// Expand env first because it's used when expanding command and args.
+				env, err := toolsetEnv(toolset.Env, append(absEnvFiles, toolset.Envfiles...), parentDir)
+				if err != nil {
+					return nil, err
+				}
+
+				// Expand command.
+				command := environment.Expand(toolset.Command, append(os.Environ(), env...))
+
+				// Expand args.
+				var args []string
+				for _, arg := range toolset.Args {
+					args = append(args, environment.Expand(arg, append(os.Environ(), env...)))
+				}
+
+				mcpc, err := mcp.NewToolsetCommand(ctx, command, args, env, toolset.Tools, logger)
+				if err != nil {
+					return nil, fmt.Errorf("failed to create stdio mcp client: %w", err)
+				}
+
+				t = append(t, mcpc)
 			}
-
-			// Expand command.
-			command := environment.Expand(toolset.Command, append(os.Environ(), env...))
-
-			// Expand args.
-			var args []string
-			for _, arg := range toolset.Args {
-				args = append(args, environment.Expand(arg, append(os.Environ(), env...)))
-			}
-
-			mcpc, err := mcp.NewToolsetCommand(ctx, command, args, env, toolset.Tools, logger)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create stdio mcp client: %w", err)
-			}
-
-			t = append(t, mcpc)
 
 		case toolset.Type == "mcp" && toolset.Remote.URL != "":
 			// Expand env first because it's used when expanding headers.

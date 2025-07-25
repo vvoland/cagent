@@ -25,6 +25,7 @@ type Message struct {
 var (
 	listenAddr string
 	sessionDb  string
+	gateway    string
 	envFiles   []string
 )
 
@@ -43,6 +44,7 @@ func NewWebCmd() *cobra.Command {
 	cmd.PersistentFlags().StringVarP(&sessionDb, "session-db", "s", "session.db", "Path to the session database")
 	cmd.PersistentFlags().BoolVar(&debugMode, "debug", false, "Enable debug logging")
 	cmd.PersistentFlags().StringSliceVar(&envFiles, "env-from-file", nil, "Set environment variables from file")
+	cmd.PersistentFlags().StringVar(&gateway, "gateway", "", "Set the gateway address")
 
 	return cmd
 }
@@ -70,7 +72,7 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 	runtimes := make(map[string]*runtime.Runtime)
 
 	for _, agentPath := range agents {
-		fileTeam, err := loader.Load(ctx, agentPath, envFiles, logger)
+		fileTeam, err := loader.Load(ctx, agentPath, envFiles, gateway, logger)
 		if err != nil {
 			logger.Warn("Failed to load agent", "file", agentPath, "error", err)
 			continue
@@ -106,6 +108,6 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create session store: %w", err)
 	}
 
-	s := server.New(logger, runtimes, sessionStore, server.WithFrontend(fsys))
+	s := server.New(logger, runtimes, sessionStore, gateway, server.WithFrontend(fsys))
 	return s.ListenAndServe(ctx, listenAddr)
 }

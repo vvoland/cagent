@@ -4,7 +4,7 @@ agents:
   root:
     name: web_searcher
     model: openai
-    description: An agent that can search up to date informations
+    description: An agent that can search up to date information
     instruction: |
       Use the DuckDuckGo search tool to find relevant and up-to-date information.
       Always share your sources with the user.

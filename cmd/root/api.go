@@ -28,6 +28,7 @@ func NewApiCmd() *cobra.Command {
 	cmd.PersistentFlags().StringVarP(&sessionDb, "session-db", "s", "session.db", "Path to the session database")
 	cmd.PersistentFlags().BoolVar(&debugMode, "debug", false, "Enable debug logging")
 	cmd.PersistentFlags().StringSliceVar(&envFiles, "env-from-file", nil, "Set environment variables from file")
+	cmd.PersistentFlags().StringVar(&gateway, "gateway", "", "Set the gateway address")
 
 	return cmd
 }
@@ -55,7 +56,7 @@ func runApiCommand(cmd *cobra.Command, args []string) error {
 	runtimes := make(map[string]*runtime.Runtime)
 
 	for _, agentPath := range agents {
-		fileTeam, err := loader.Load(ctx, agentPath, envFiles, logger)
+		fileTeam, err := loader.Load(ctx, agentPath, envFiles, gateway, logger)
 		if err != nil {
 			logger.Warn("Failed to load agent", "file", agentPath, "error", err)
 			continue
@@ -95,6 +96,6 @@ func runApiCommand(cmd *cobra.Command, args []string) error {
 		opts = append(opts, server.WithAgentsDir(agentsPath))
 	}
 
-	s := server.New(logger, runtimes, sessionStore, opts...)
+	s := server.New(logger, runtimes, sessionStore, gateway, opts...)
 	return s.ListenAndServe(ctx, listenAddr)
 }
