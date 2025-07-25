@@ -167,15 +167,8 @@ func getToolsForAgent(ctx context.Context, a *config.AgentConfig, parentDir stri
 			if gateway != "" {
 				// TODO(dga): Really guess the server.
 				var servers string
-				if toolset.Command == "docker" && len(toolset.Args) >= 4 && toolset.Args[0] == "mcp" && toolset.Args[1] == "gateway" && toolset.Args[2] == "run" && strings.HasPrefix(toolset.Args[3], "servers=") {
-					servers = strings.TrimPrefix(toolset.Args[3], "servers=")
-				} else {
-					args := strings.Join(toolset.Args, " ")
-					if strings.Contains(args, "duckduckgo") {
-						servers = "duckduckgo"
-					} else if strings.Contains(args, "brave") {
-						servers = "brave"
-					}
+				if toolset.Command == "docker" && len(toolset.Args) >= 4 && toolset.Args[0] == "mcp" && toolset.Args[1] == "gateway" && toolset.Args[2] == "run" && strings.HasPrefix(toolset.Args[3], "--servers=") {
+					servers = strings.TrimPrefix(toolset.Args[3], "--servers=")
 				}
 
 				// Expand env first because it's used when expanding headers.
