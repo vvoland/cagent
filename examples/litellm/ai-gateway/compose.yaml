@@ -31,6 +31,7 @@ services:
     image: docker/mcp-gateway
     command:
       - --central
+      - --verbose
       - --transport=streaming
       - --port=9011
     volumes:
