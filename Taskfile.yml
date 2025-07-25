@@ -24,6 +24,7 @@ tasks:
       - go build -ldflags "-X 'github.com/docker/cagent/cmd/root.Version={{.GIT_TAG}}' -X 'github.com/docker/cagent/cmd/root.Commit={{.GIT_COMMIT}}' -X 'github.com/docker/cagent/cmd/root.BuildTime={{.BUILD_DATE}}'" -o {{.BUILD_DIR}}/{{.BINARY_NAME}} {{.MAIN_PKG}}
     sources:
       - "**/*.go"
+      - "**/*.txt"
       - "go.mod"
       - "go.sum"
       - "web/**/*.js"
