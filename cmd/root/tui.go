@@ -94,7 +94,7 @@ type (
 
 // model represents the application state
 type model struct {
-	// UI components
+	// TUI components
 	chatViewport viewport.Model
 	toolViewport viewport.Model
 	textInput    textinput.Model
@@ -611,14 +611,14 @@ func (m *model) View() string {
 	)
 }
 
-// NewUICmd creates a new UI command
-func NewUICmd() *cobra.Command {
+// NewTUICmd creates a new TUI command
+func NewTUICmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "ui <agent-name>",
+		Use:   "tui <agent-name>",
 		Short: "Run the agent with a TUI",
 		Long:  `Run the agent with a Terminal User Interface powered by Charm`,
 		Args:  cobra.ExactArgs(1),
-		RunE:  runUICommand,
+		RunE:  runTUICommand,
 	}
 
 	cmd.PersistentFlags().StringVarP(&agentName, "agent", "a", "root", "Name of the agent to run")
@@ -629,7 +629,7 @@ func NewUICmd() *cobra.Command {
 	return cmd
 }
 
-func runUICommand(cmd *cobra.Command, args []string) error {
+func runTUICommand(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
 	// Configure logger based on debug flag
@@ -642,7 +642,7 @@ func runUICommand(cmd *cobra.Command, args []string) error {
 		Level: logLevel,
 	}))
 
-	logger.Debug("Starting agent UI", "agent", agentName, "debug_mode", debugMode)
+	logger.Debug("Starting agent TUI", "agent", agentName, "debug_mode", debugMode)
 
 	agents, err := loader.Load(ctx, args[0], envFiles, gateway, logger)
 	if err != nil {

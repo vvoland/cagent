@@ -117,7 +117,7 @@ The command layer provides multiple interfaces for interacting with cagent:
 - RESTful API endpoints
 - WebSocket support for real-time communication
 
-#### UI Command (`ui.go`)
+#### TUI Command (`tui.go`)
 
 - Desktop application interface
 - Native GUI components
