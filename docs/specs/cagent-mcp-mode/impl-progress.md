@@ -140,6 +140,22 @@
 
 *Reference: [Testing Strategy](./cagent-mcp-mode.md#testing-strategy)*
 
+#### 2.5 Endpoint Configuration and UX Improvements ✅ **COMPLETE**
+- [x] **Configurable base path**: Added `--path` flag (default: `/mcp`) for custom endpoint paths
+- [x] **Enhanced startup output**: Clear, formatted display with complete endpoint URLs
+- [x] **Client connection guidance**: Shows exact SSE endpoint for MCP client connections
+- [x] **Graceful shutdown**: Proper context-aware shutdown handling with signal processing
+- [x] **Flexible configuration**: Support for custom ports and paths (e.g., `/api/cagent`, `/custom/endpoint`)
+
+#### 2.6 Streaming Response Bug Fix ✅ **COMPLETE**
+- [x] **Issue identification**: Discovered `invoke_agent` returning empty responses despite successful execution
+- [x] **Root cause analysis**: Found that executor only captured `AgentMessageEvent` but not streaming `AgentChoiceEvent`
+- [x] **AgentChoiceEvent handling**: Added proper processing of streaming content deltas from model responses
+- [x] **Content accumulation**: Implemented `strings.Builder` to collect streaming deltas into final response
+- [x] **Response prioritization**: Final content from `AgentMessageEvent` with fallback to streaming content
+- [x] **Enhanced debugging**: Added detailed logging for streaming events, content lengths, and response previews
+- [x] **End-to-end verification**: Direct servicecore testing confirmed proper response content collection
+
 ### Phase 3: Session Management
 
 #### 3.1 Session-Based MCP Tools
@@ -275,4 +291,4 @@
 - **Future HTTP Refactor**: HTTP API will use servicecore with authentication-based client IDs
 - **Advanced Tools**: `transfer_task` is internal to cagent, not exposed as external MCP tool
 
-*Last Updated: 2025-07-26 - Phase 2 MCP Server Implementation completed with SSE transport, tool registration, and comprehensive testing*
+*Last Updated: 2025-07-26 - Phase 2 MCP Server Implementation completed with SSE transport, tool registration, endpoint configuration, and streaming response fix*
