@@ -97,20 +97,31 @@ transfer_agent_session(agent_session_id: string, target_agent: string) -> {succe
 
 #### Session Storage
 ```go
-type Session struct {
+// Two-tier session architecture
+type Manager struct {
+    clientSessions  map[string]*ClientSession  // MCP client sessions (automatic)
+    mutex          sync.RWMutex
+    timeout        time.Duration
+    maxSessions    int
+}
+
+// ClientSession - Created automatically on MCP client connect
+type ClientSession struct {
+    ID           string
+    agentSessions map[string]*AgentSession    // Agent sessions scoped to this client
+    created      time.Time
+    lastUsed     time.Time
+}
+
+// AgentSession - Created explicitly via create_agent_session tool
+type AgentSession struct {
     ID        string
-    AgentFile string
+    ClientID  string        // Parent client session ID
+    AgentSpec string        // Can be file path, image reference, or store reference
     Runtime   *runtime.Runtime
     Created   time.Time
     LastUsed  time.Time
     Messages  []session.AgentMessage
-}
-
-type SessionManager struct {
-    sessions    map[string]*Session
-    mutex       sync.RWMutex
-    timeout     time.Duration
-    maxSessions int
 }
 ```
 
@@ -154,7 +165,7 @@ Since MCP doesn't natively support streaming, we'll need to handle cagent's even
 pkg/
 ├── mcpserver/                    # MCP server implementation
 │   ├── server.go                 # Core MCP server setup and lifecycle
-│   ├── handlers.go               # MCP tool handlers (create_session, send_message, etc.)
+│   ├── handlers.go               # MCP tool handlers (create_agent_session, send_message, etc.)
 │   ├── sessions.go               # Session management logic
 │   └── tools.go                  # MCP tool definitions and registration
 ├── mcpsession/                   # Session management
@@ -862,7 +873,7 @@ func TestMCPServer_CreateSession(t *testing.T) {
     client, err := client.NewStreamableHttpClient(testServer.URL)
     require.NoError(t, err)
     
-    // Test create_session tool
+    // Test create_agent_session tool
     result, err := client.CallTool(ctx, mcp.CallToolRequest{
         Params: mcp.CallToolParams{
             Name: "create_agent_session",
