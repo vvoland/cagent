@@ -4,44 +4,116 @@
 
 This document outlines the design for an MCP (Model Context Protocol) server mode for cagent, allowing external clients like Claude Code to programmatically invoke cagent agents and maintain conversational sessions.
 
+## Architectural Decision Process
+
+### Discovery of Existing HTTP API
+
+During analysis, we discovered that cagent already has a functioning HTTP API (`pkg/server/`) that provides:
+- Agent management and execution
+- Session creation and management
+- Docker image support via content store
+- Streaming responses
+
+### Critical Security Analysis
+
+**However, the existing HTTP API has fundamental security flaws:**
+- **Zero client isolation** - any client can see all sessions from all other clients
+- **No authentication or authorization** - anonymous access to all operations
+- **Cross-client session manipulation** - clients can delete or hijack other clients' sessions
+- **Shared runtime instances** - no separation between different clients
+
+**Example Attack Scenarios:**
+```bash
+# Any client can list ALL sessions from ALL other clients
+curl http://localhost:8080/api/sessions
+
+# Any client can delete any other client's session
+curl -X DELETE http://localhost:8080/api/sessions/other-client-session-id
+
+# Any client can send messages to any other client's session
+curl -X POST http://localhost:8080/api/sessions/hijacked-session/agent/reviewer
+```
+
+### Architecture Options Evaluated
+
+#### Initial Options
+- **Option 1**: Build MCP Server from Scratch
+- **Option 2**: Add MCP Transport to Existing HTTP Server
+
+#### Extended Options (After HTTP API Discovery)
+- **Option 2a**: Direct MCP integration with existing HTTP server
+- **Option 2b**: Retrofit security into existing HTTP server
+- **Option 2c**: Extract shared logic into common core layer
+
+### **Selected Approach: Option 1 + Shared Core (Hybrid)**
+
+**Why This Approach:**
+
+1. **Security Requirements**: MCP needs proper client isolation from day 1
+   - Existing HTTP API is fundamentally insecure for multi-tenant use
+   - Retrofitting security would be more complex than building correctly
+
+2. **Architecture Benefits**: Shared core provides foundation for both transports
+   - Extract working agent execution logic into `pkg/servicecore/`
+   - Build secure MCP server using servicecore
+   - Future: Refactor HTTP API to use same secure servicecore
+
+3. **Incremental Value**: Enables future HTTP API security improvements
+   - Phase 1: Build secure MCP with servicecore
+   - Phase 2: Migrate HTTP API to use same secure core
+   - Result: Both transports benefit from battle-tested, multi-tenant core
+
+4. **Code Reuse**: Leverages existing working components
+   - Agent loading (`pkg/loader`)
+   - Runtime execution (`pkg/runtime`)
+   - Content store operations (`pkg/content`)
+   - Docker image resolution patterns
+
+**Final Architecture:**
+```
+┌─────────────────┐    ┌─────────────────┐
+│   MCP Server    │    │  HTTP Server    │
+│  (Transport)    │    │  (Transport)    │  <- Future refactor
+└─────────┬───────┘    └─────────┬───────┘
+          │                      │
+          └──────────┬───────────┘
+                     │
+        ┌────────────▼─────────────┐
+        │     Service Core         │  <- Shared business logic
+        │   (Multi-tenant)         │     with client isolation
+        └────────────┬─────────────┘
+                     │
+        ┌────────────▼─────────────┐
+        │   Existing Components    │
+        │  (runtime, loader, etc.) │
+        └──────────────────────────┘
+```
+
 ## Architecture Options
 
-### Option 1: One-Shot Mode (Stateless)
+### Option 1: One-Shot Mode vs Session-Based Mode
+
+#### One-Shot Mode (Stateless)
 Each MCP call creates a fresh cagent runtime instance:
 - Load agent configuration
-- Process single message
+- Process single message  
 - Return response
 - Terminate runtime
 
-**Pros:**
-- Simple implementation
-- No session management complexity  
-- Stateless and predictable
-- No memory accumulation
+**Pros:** Simple implementation, stateless, no memory accumulation
+**Cons:** High overhead, no conversation context, inefficient for multi-turn
 
-**Cons:**
-- High overhead (loading agents repeatedly)
-- No conversation context between calls
-- Cannot leverage agent memory features
-- Inefficient for multi-turn interactions
-
-### Option 2: Session-Based Mode (Stateful) - **RECOMMENDED**
+#### Session-Based Mode (Stateful) - **SELECTED**
 MCP server maintains persistent cagent sessions:
 - Sessions map to long-running cagent runtime instances
 - Conversation state preserved across calls
 - Multi-turn interactions supported
 - Session lifecycle management
 
-**Pros:**
-- Efficient resource usage
-- True conversational flow
-- Supports agent memory and context
-- Enables complex multi-turn workflows
+**Pros:** Efficient resource usage, true conversational flow, supports agent memory
+**Cons:** Complex session management, memory growth, cleanup complexity
 
-**Cons:**
-- Complex session management
-- Memory usage grows over time
-- Need session cleanup/timeout logic
+**Decision:** Selected session-based mode for rich conversational interactions.
 
 ## Proposed Implementation
 
@@ -80,11 +152,12 @@ pull_agent(registry_ref: string) -> {digest: string, reference: string}
 // Get conversation history
 get_agent_session_history(agent_session_id: string, limit?: number) -> {messages: Message[]}
 
-// Execute with custom configuration
-invoke_with_config(config: AgentConfig, message: string) -> {response: string}
+// Execute with custom configuration (requires investigation)
+// TODO: Research if/how current cagent supports dynamic agent configuration
+// invoke_with_config(config: AgentConfig, message: string) -> {response: string}
 
-// Multi-agent delegation within session
-transfer_agent_session(agent_session_id: string, target_agent: string) -> {success: boolean}
+// Note: transfer_task is internal to cagent agents and not externally exposed
+// Multi-agent delegation happens automatically within agent sessions via transfer_task tool
 ```
 
 ### Session Management
@@ -157,23 +230,57 @@ Since MCP doesn't natively support streaming, we'll need to handle cagent's even
 
 ## Code Structure Design
 
+### Architecture Overview
+
+The implementation follows a **layered architecture** with a shared service core that can support multiple transport protocols:
+
+```
+┌─────────────────┐    ┌─────────────────┐
+│   MCP Server    │    │  HTTP Server    │  
+│  (Transport)    │    │  (Transport)    │  <- Future refactor
+└─────────┬───────┘    └─────────┬───────┘
+          │                      │
+          └──────────┬───────────┘
+                     │
+        ┌─────────────▼─────────────┐
+        │     Service Core         │  <- Shared business logic
+        │   (Multi-tenant)         │
+        └─────────────┬─────────────┘
+                      │
+        ┌─────────────▼─────────────┐
+        │   Existing Components    │
+        │  (runtime, loader, etc.) │
+        └───────────────────────────┘
+```
+
 ### Package Organization
 
 #### New Packages to Create
 
 ```
 pkg/
-├── mcpserver/                    # MCP server implementation
-│   ├── server.go                 # Core MCP server setup and lifecycle
-│   ├── handlers.go               # MCP tool handlers (create_agent_session, send_message, etc.)
-│   ├── sessions.go               # Session management logic
+├── servicecore/                  # Shared multi-tenant service layer
+│   ├── manager.go                # Client-scoped session management
+│   ├── resolver.go               # Agent resolution (file/image/store)
+│   ├── executor.go               # Runtime execution with streaming
+│   ├── store.go                  # Multi-tenant session storage
+│   └── types.go                  # Common types and interfaces
+├── mcpserver/                    # MCP protocol-specific transport
+│   ├── server.go                 # MCP server setup and lifecycle
+│   ├── handlers.go               # MCP tool implementations using servicecore
 │   └── tools.go                  # MCP tool definitions and registration
-├── mcpsession/                   # Session management
-│   ├── manager.go                # SessionManager with concurrent access
-│   ├── session.go                # Session wrapper around runtime.Runtime
-│   └── store.go                  # Optional persistence for sessions
 cmd/root/
 └── mcp.go                        # New `cagent mcp run` command
+```
+
+#### Future HTTP Server Refactor
+
+```
+pkg/
+└── server/                       # HTTP transport (Phase 2 refactor)
+    ├── server.go                 # HTTP endpoints using servicecore
+    ├── handlers.go               # HTTP handlers calling servicecore methods
+    └── types.go                  # HTTP-specific request/response types
 ```
 
 #### Dependencies and Imports
@@ -182,29 +289,133 @@ Based on existing codebase analysis, we'll use:
 - **MCP Library**: `github.com/mark3labs/mcp-go/server` (confirmed server support)
 - **Existing Components**: 
   - `pkg/runtime` - Core agent runtime
-  - `pkg/session` - Session message handling
+  - `pkg/session` - Session message handling (will be wrapped by servicecore)
   - `pkg/loader` - Agent configuration loading
   - `pkg/team` - Agent team management
+  - `pkg/content` - Docker image content store
+  - `pkg/remote` - Registry operations
 
 ### Package Responsibilities
 
+#### `pkg/servicecore/`
+**Purpose**: Shared multi-tenant agent service layer
+
+```go
+// types.go - Core service interfaces and types
+type ServiceManager interface {
+    // Client lifecycle
+    CreateClient(clientID string) error
+    RemoveClient(clientID string) error
+    
+    // Agent operations
+    ResolveAgent(agentSpec string) (string, error)
+    ListAgents(source string) ([]AgentInfo, error)
+    PullAgent(registryRef string) error
+    
+    // Session operations (client-scoped)
+    CreateAgentSession(clientID, agentSpec string) (*AgentSession, error)
+    SendMessage(clientID, sessionID, message string) (*Response, error)
+    ListSessions(clientID string) ([]*AgentSession, error)
+    CloseSession(clientID, sessionID string) error
+}
+
+type AgentInfo struct {
+    Name        string `json:"name"`
+    Description string `json:"description"`
+    Source      string `json:"source"` // "file", "store"
+    Path        string `json:"path,omitempty"`
+    Reference   string `json:"reference,omitempty"`
+}
+
+type Response struct {
+    Content  string                 `json:"content"`
+    Events   []runtime.Event        `json:"events"`
+    Metadata map[string]interface{} `json:"metadata"`
+}
+
+// manager.go - Client and session management
+type Manager struct {
+    clients      map[string]*Client
+    store        Store
+    resolver     *Resolver
+    executor     *Executor
+    mutex        sync.RWMutex
+    logger       *slog.Logger
+}
+
+type Client struct {
+    ID           string
+    AgentSessions map[string]*AgentSession
+    Created      time.Time
+    LastUsed     time.Time
+    mutex        sync.RWMutex
+}
+
+type AgentSession struct {
+    ID        string
+    ClientID  string
+    AgentSpec string
+    Runtime   *runtime.Runtime
+    Session   *session.Session
+    Created   time.Time
+    LastUsed  time.Time
+}
+
+// resolver.go - Agent resolution logic
+type Resolver struct {
+    agentsDir string
+    store     *content.Store
+    logger    *slog.Logger
+}
+
+func (r *Resolver) ResolveAgent(agentSpec string) (string, error)
+func (r *Resolver) ListFileAgents() ([]AgentInfo, error)
+func (r *Resolver) ListStoreAgents() ([]AgentInfo, error)
+func (r *Resolver) PullAgent(registryRef string) error
+
+// executor.go - Runtime execution with streaming
+type Executor struct {
+    logger *slog.Logger
+}
+
+func (e *Executor) CreateRuntime(agentPath, agentName string, envFiles []string, gateway string) (*runtime.Runtime, error)
+func (e *Executor) ExecuteStream(rt *runtime.Runtime, sess *session.Session, message string) (*Response, error)
+
+// store.go - Multi-tenant session storage
+type Store interface {
+    // Client operations
+    CreateClient(ctx context.Context, clientID string) error
+    DeleteClient(ctx context.Context, clientID string) error
+    
+    // Session operations (client-scoped)
+    CreateSession(ctx context.Context, clientID string, session *AgentSession) error
+    GetSession(ctx context.Context, clientID, sessionID string) (*AgentSession, error)
+    ListSessions(ctx context.Context, clientID string) ([]*AgentSession, error)
+    UpdateSession(ctx context.Context, clientID string, session *AgentSession) error
+    DeleteSession(ctx context.Context, clientID, sessionID string) error
+}
+```
+
 #### `pkg/mcpserver/`
-**Purpose**: Core MCP server implementation and tool handlers
+**Purpose**: MCP protocol transport layer
 
 ```go
 // server.go
 type MCPServer struct {
-    server     *server.MCPServer  // from mcp-go
-    sessions   *mcpsession.Manager
-    logger     *slog.Logger
-    agentsDir  string
+    server      *server.MCPServer     // from mcp-go
+    serviceCore servicecore.ServiceManager
+    logger      *slog.Logger
 }
 
-func NewMCPServer(agentsDir string, logger *slog.Logger) *MCPServer
+func NewMCPServer(serviceCore servicecore.ServiceManager, logger *slog.Logger) *MCPServer
 func (s *MCPServer) Start(ctx context.Context) error
 func (s *MCPServer) Stop() error
 
-// handlers.go - MCP tool implementations (client-scoped)
+// Client session lifecycle hooks
+func (s *MCPServer) OnClientConnect(clientID string) error
+func (s *MCPServer) OnClientDisconnect(clientID string) error
+
+// handlers.go - MCP tool implementations using servicecore
 func (s *MCPServer) handleCreateAgentSession(ctx context.Context, clientID string, args map[string]any) (*mcp.CallToolResult, error)
 func (s *MCPServer) handleSendMessage(ctx context.Context, clientID string, args map[string]any) (*mcp.CallToolResult, error)
 func (s *MCPServer) handleInvokeAgent(ctx context.Context, clientID string, args map[string]any) (*mcp.CallToolResult, error)
@@ -213,74 +424,48 @@ func (s *MCPServer) handleCloseAgentSession(ctx context.Context, clientID string
 func (s *MCPServer) handleListAgentSessions(ctx context.Context, clientID string, args map[string]any) (*mcp.CallToolResult, error)
 func (s *MCPServer) handlePullAgent(ctx context.Context, clientID string, args map[string]any) (*mcp.CallToolResult, error)
 
-// Agent resolution utilities
-func (s *MCPServer) resolveAgentSource(agentSpec string) (string, error)
-func (s *MCPServer) listFileAgents() ([]AgentInfo, error)
-func (s *MCPServer) listStoreAgents() ([]AgentInfo, error)
-
-// Client session lifecycle hooks
-func (s *MCPServer) OnClientConnect(clientID string) error
-func (s *MCPServer) OnClientDisconnect(clientID string) error
-
 // tools.go - MCP tool registration
 func (s *MCPServer) registerTools() error
-func createSessionTool() mcp.Tool
+func createAgentSessionTool() mcp.Tool
 func sendMessageTool() mcp.Tool
 func invokeAgentTool() mcp.Tool
 ```
 
-#### `pkg/mcpsession/`
-**Purpose**: Client-scoped session lifecycle and state management
+#### Future `pkg/server/` (Phase 2 Refactor)
+**Purpose**: HTTP transport layer using servicecore
 
 ```go
-// manager.go
-type Manager struct {
-    clientSessions  map[string]*ClientSession  // MCP client sessions
-    mutex          sync.RWMutex
-    timeout        time.Duration
-    maxSessions    int
-    logger         *slog.Logger
+// server.go - HTTP server using servicecore
+type HTTPServer struct {
+    e           *echo.Echo
+    serviceCore servicecore.ServiceManager
+    logger      *slog.Logger
 }
 
-// ClientSession represents an MCP client connection (e.g., one Claude Code instance)
-type ClientSession struct {
-    ID           string
-    agentSessions map[string]*AgentSession    // Agent sessions scoped to this client
-    mutex        sync.RWMutex
-    created      time.Time
-    lastUsed     time.Time
+// handlers.go - HTTP handlers calling servicecore methods
+func (s *HTTPServer) createSession(c echo.Context) error {
+    // Extract client ID from HTTP session/auth
+    clientID := extractClientID(c)
+    
+    // Call servicecore instead of direct session creation
+    session, err := s.serviceCore.CreateAgentSession(clientID, agentSpec)
+    // ...
 }
 
-// AgentSession represents a running cagent instance within a client session
-type AgentSession struct {
-    ID        string
-    ClientID  string        // Parent client session ID
-    AgentSpec string        // Can be file path, image reference, or store reference
-    Runtime   *runtime.Runtime
-    Team      *team.Team
-    Session   *session.Session
-    Created   time.Time
-    LastUsed  time.Time
-    mutex     sync.Mutex
+func (s *HTTPServer) listSessions(c echo.Context) error {
+    clientID := extractClientID(c)
+    sessions, err := s.serviceCore.ListSessions(clientID)  // Client-scoped!
+    return c.JSON(http.StatusOK, sessions)
 }
 
-func NewManager(timeout time.Duration, maxSessions int, logger *slog.Logger) *Manager
-func (m *Manager) GetOrCreateClientSession(clientID string) *ClientSession
-func (m *Manager) CreateAgentSession(clientID, agentSpec string) (*AgentSession, error)
-func (m *Manager) GetAgentSession(clientID, agentSessionID string) (*AgentSession, error)
-func (m *Manager) CloseAgentSession(clientID, agentSessionID string) error
-func (m *Manager) CloseClientSession(clientID string) error
-func (m *Manager) CleanupExpired() int
+// types.go - HTTP-specific request/response types
+type CreateSessionRequest struct {
+    AgentSpec string `json:"agent_spec"`
+}
 
-// session.go  
-func (s *AgentSession) SendMessage(message string) (*Response, error)
-func (s *AgentSession) GetHistory() []session.AgentMessage
-func (s *AgentSession) Close() error
-
-func (cs *ClientSession) CreateAgentSession(agentSpec string) (*AgentSession, error)
-func (cs *ClientSession) GetAgentSession(agentSessionID string) (*AgentSession, error)
-func (cs *ClientSession) ListAgentSessions() []*AgentSession
-func (cs *ClientSession) CloseAgentSession(agentSessionID string) error
+type SendMessageRequest struct {
+    Message string `json:"message"`
+}
 ```
 
 #### `cmd/root/mcp.go`
@@ -302,21 +487,66 @@ func NewMCPCmd() *cobra.Command {
     return cmd
 }
 
-func runMCPCommand(cmd *cobra.Command, args []string) error
+func runMCPCommand(cmd *cobra.Command, args []string) error {
+    // Create servicecore manager
+    serviceCore := servicecore.NewManager(agentsDir, sessionTimeout, maxSessions, logger)
+    
+    // Create MCP server using servicecore
+    mcpServer := mcpserver.NewMCPServer(serviceCore, logger)
+    
+    return mcpServer.Start(ctx)
+}
 ```
 
 ### Integration Points with Existing Components 
 
-#### Reused Components
+#### Reused Components (via servicecore)
 - **`pkg/runtime/runtime.go`**: Core execution engine (reuse `Runtime.RunStream()`)
-- **`pkg/session/session.go`**: Message handling and conversation state
+- **`pkg/session/session.go`**: Message handling and conversation state (wrapped by servicecore)
 - **`pkg/loader/loader.go`**: Agent configuration loading 
 - **`pkg/team/team.go`**: Agent team management
 - **`pkg/tools/`**: All existing tool infrastructure
+- **`pkg/content/store.go`**: Docker image content store
+- **`pkg/remote/pull.go`**: Registry operations
 
 #### Extended Components
 - **`cmd/root/root.go`**: Add MCP command to root command
 - **`go.mod`**: Already has `github.com/mark3labs/mcp-go v0.34.0`
+
+#### Security Enhancement & Migration Strategy
+
+**Current State:**
+- **`pkg/session/store.go`**: Single-tenant, no client isolation
+- **Database schema**: `sessions` table without `client_id` field
+
+**Target State:**
+- **`pkg/servicecore/store.go`**: Multi-tenant with client scoping
+- **Database schema**: Extended with `client_id` for proper isolation
+
+**Client ID Handling by Transport:**
+
+| Transport | Client ID Source | Strategy |
+|-----------|------------------|----------|
+| **MCP Server** | MCP session context | Real client ID from MCP library |
+| **HTTP API** | Default constant | `__global` until authentication added |
+| **Future HTTP + Auth** | Authentication context | Real client ID from auth token/session |
+
+**Non-Breaking Migration Strategy:**
+```sql
+-- Phase 1: Add client_id column with default
+ALTER TABLE sessions ADD COLUMN client_id TEXT DEFAULT '__global';
+CREATE INDEX idx_sessions_client_id ON sessions(client_id);
+
+-- Phase 2: All existing sessions automatically get '__global' client_id
+-- Phase 3: New sessions get real client_id (MCP) or '__global' (HTTP)
+-- Phase 4: When HTTP adds auth, it can use real client_id
+```
+
+**Backward Compatibility:**
+- ✅ Existing HTTP API clients continue to work unchanged
+- ✅ All existing sessions remain accessible via HTTP API
+- ✅ HTTP sessions isolated from MCP sessions automatically
+- ✅ No data loss or breaking changes
 
 ### MCP Tool Definitions
 
@@ -420,7 +650,7 @@ var mcpTools = []mcp.Tool{
 ```
 Claude Code → Connect to MCP Server → OnClientConnect(clientID)
                                               ↓
-                                 Create ClientSession in Manager
+                                 serviceCore.CreateClient(clientID)
                                               ↓
                                     Ready for agent session creation
 ```
@@ -429,9 +659,9 @@ Claude Code → Connect to MCP Server → OnClientConnect(clientID)
 ```
 Claude Code → create_agent_session → Extract clientID from MCP context
                                               ↓
-                                 Manager.CreateAgentSession(clientID, agentSpec)
+                                 serviceCore.CreateAgentSession(clientID, agentSpec)
                                               ↓
-                                    resolveAgentSource(agentSpec)
+                                    resolver.ResolveAgent(agentSpec)
                                               ↓
                                         ┌─────────────────┐
                                         │   File Path?    │────Yes───→ Use agentSpec directly
@@ -441,30 +671,28 @@ Claude Code → create_agent_session → Extract clientID from MCP context
                                               ↓
                                     Create temp file with YAML content
                                               ↓  
-                                     loader.Load(resolved_path)
+                                     executor.CreateRuntime(resolved_path)
                                               ↓  
-                                     runtime.New(team, agent)
+                                     loader.Load() → runtime.New() → session.New()
                                               ↓
-                                     session.New(logger)
-                                              ↓
-                                Store in ClientSession.agentSessions[agentSessionID]
+                                Store in servicecore with client scoping
 ```
 
 #### Message Processing Flow (Client-Scoped)
 ```
 Claude Code → send_message → Extract clientID from MCP context
                                       ↓
-                    Manager.GetAgentSession(clientID, agentSessionID)
+                    serviceCore.SendMessage(clientID, sessionID, message)
                                       ↓
-                             AgentSession.SendMessage(message)
+                             Get client-scoped session from store
                                       ↓ 
                         session.Messages.append(UserMessage)
                                       ↓
-                           runtime.RunStream(ctx, session)
+                           executor.ExecuteStream(runtime, session, message)
                                       ↓
                          Process events and collect response
                                       ↓
-                            Return structured response
+                            Return structured response with metadata
 ```
 
 ### Client Session Isolation
@@ -604,30 +832,39 @@ pkg/mcpserver/
 
 ## Implementation Plan
 
-### Phase 1: Basic MCP Server
+### Phase 1: Service Core Foundation
+- [ ] Create `pkg/servicecore/` package structure
+- [ ] Implement core interfaces and types
+- [ ] Multi-tenant session storage with client scoping
+- [ ] Agent resolver (file/image/store resolution)
+- [ ] Runtime executor with streaming support
+- [ ] Service manager with client lifecycle
+
+### Phase 2: MCP Server Implementation
 - [ ] Add `cagent mcp run` command
-- [ ] Implement MCP server infrastructure
-- [ ] Basic `invoke_agent()` tool (one-shot mode)
-- [ ] `list_agents()` functionality
+- [ ] Implement MCP server using servicecore
+- [ ] MCP tool handlers calling servicecore methods
+- [ ] Client identity extraction from MCP context
+- [ ] Basic `invoke_agent()` and `list_agents()` tools
 
-### Phase 2: Session Management
-- [ ] Session manager implementation
+### Phase 3: Session Management
 - [ ] `create_agent_session()` and `send_message()` tools
+- [ ] Client-scoped session operations
 - [ ] Session timeout and cleanup
-- [ ] Basic session persistence
-
-### Phase 3: Advanced Features
-- [ ] Event streaming/buffering
-- [ ] Session history and metadata
-- [ ] Multi-agent transfers within sessions
-- [ ] Performance optimizations
+- [ ] Event streaming and response formatting
 
 ### Phase 4: Production Features
-- [ ] Authentication/authorization
-- [ ] Rate limiting
+- [ ] Error handling and recovery
+- [ ] Performance optimizations
 - [ ] Metrics and monitoring
 - [ ] Configuration validation
-- [ ] Error handling improvements
+- [ ] Comprehensive testing
+
+### Phase 5: HTTP Server Refactor (Future)
+- [ ] Extract HTTP handlers to use servicecore  
+- [ ] Add client authentication to HTTP layer
+- [ ] Implement client-scoped operations in HTTP API
+- [ ] Migrate existing HTTP clients to secure multi-tenant model
 
 ## Agent Specification Formats
 
