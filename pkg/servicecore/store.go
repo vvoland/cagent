@@ -53,7 +53,8 @@ func (s *SQLiteStore) migrate() error {
 		CREATE TABLE IF NOT EXISTS sessions (
 			id TEXT PRIMARY KEY,
 			messages TEXT,
-			created_at TEXT
+			created_at TEXT,
+			agent_spec TEXT
 		)
 	`)
 	if err != nil {
@@ -158,8 +159,8 @@ func (s *SQLiteStore) CreateSession(ctx context.Context, clientID string, agentS
 	}
 
 	_, err = s.db.ExecContext(ctx,
-		"INSERT INTO sessions (id, client_id, messages, created_at) VALUES (?, ?, ?, ?)",
-		agentSession.ID, clientID, string(messagesJSON), agentSession.Created.Format(time.RFC3339))
+		"INSERT INTO sessions (id, client_id, messages, created_at, agent_spec) VALUES (?, ?, ?, ?, ?)",
+		agentSession.ID, clientID, string(messagesJSON), agentSession.Created.Format(time.RFC3339), agentSession.AgentSpec)
 	
 	if err != nil {
 		return err
@@ -179,13 +180,13 @@ func (s *SQLiteStore) GetSession(ctx context.Context, clientID, sessionID string
 	}
 
 	row := s.db.QueryRowContext(ctx,
-		"SELECT id, messages, created_at FROM sessions WHERE id = ? AND client_id = ?", 
+		"SELECT id, messages, created_at, agent_spec FROM sessions WHERE id = ? AND client_id = ?", 
 		sessionID, clientID)
 
-	var messagesJSON, createdAtStr string
+	var messagesJSON, createdAtStr, agentSpec string
 	var id string
 
-	err := row.Scan(&id, &messagesJSON, &createdAtStr)
+	err := row.Scan(&id, &messagesJSON, &createdAtStr, &agentSpec)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrSessionNotFound
@@ -205,10 +206,11 @@ func (s *SQLiteStore) GetSession(ctx context.Context, clientID, sessionID string
 	}
 
 	agentSession := &AgentSession{
-		ID:       id,
-		ClientID: clientID,
-		Created:  createdAt,
-		LastUsed: createdAt, // Will be updated by manager
+		ID:        id,
+		ClientID:  clientID,
+		AgentSpec: agentSpec,
+		Created:   createdAt,
+		LastUsed:  createdAt, // Will be updated by manager
 		// Runtime and Session will be set by manager
 	}
 
@@ -222,7 +224,7 @@ func (s *SQLiteStore) ListSessions(ctx context.Context, clientID string) ([]*Age
 	}
 
 	rows, err := s.db.QueryContext(ctx,
-		"SELECT id, messages, created_at FROM sessions WHERE client_id = ? ORDER BY created_at DESC",
+		"SELECT id, messages, created_at, agent_spec FROM sessions WHERE client_id = ? ORDER BY created_at DESC",
 		clientID)
 	if err != nil {
 		return nil, err
@@ -231,10 +233,10 @@ func (s *SQLiteStore) ListSessions(ctx context.Context, clientID string) ([]*Age
 
 	sessions := make([]*AgentSession, 0)
 	for rows.Next() {
-		var messagesJSON, createdAtStr string
+		var messagesJSON, createdAtStr, agentSpec string
 		var id string
 
-		err := rows.Scan(&id, &messagesJSON, &createdAtStr)
+		err := rows.Scan(&id, &messagesJSON, &createdAtStr, &agentSpec)
 		if err != nil {
 			return nil, err
 		}
@@ -245,10 +247,11 @@ func (s *SQLiteStore) ListSessions(ctx context.Context, clientID string) ([]*Age
 		}
 
 		agentSession := &AgentSession{
-			ID:       id,
-			ClientID: clientID,
-			Created:  createdAt,
-			LastUsed: createdAt, // Will be updated by manager
+			ID:        id,
+			ClientID:  clientID,
+			AgentSpec: agentSpec,
+			Created:   createdAt,
+			LastUsed:  createdAt, // Will be updated by manager
 		}
 
 		sessions = append(sessions, agentSession)

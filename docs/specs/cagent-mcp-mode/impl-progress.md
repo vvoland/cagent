@@ -15,54 +15,54 @@
 ### Phase 1: Service Core Foundation
 
 #### 1.1 Project Setup
-- [ ] **Verify MCP dependency**: Confirm `github.com/mark3labs/mcp-go v0.34.0` is available in go.mod
-- [ ] **Create servicecore package**: Set up `pkg/servicecore/` directory structure
-- [ ] **Create MCP package**: Set up `pkg/mcpserver/` directory
-- [ ] **Add command structure**: Create skeleton for `cmd/root/mcp.go`
+- [x] **Verify MCP dependency**: Confirm `github.com/mark3labs/mcp-go v0.34.0` is available in go.mod
+- [x] **Create servicecore package**: Set up `pkg/servicecore/` directory structure
+- [x] **Create MCP package**: Set up `pkg/mcpserver/` directory
+- [x] **Add command structure**: Create skeleton for `cmd/root/mcp.go`
 
 *Reference: [Code Structure Design](./cagent-mcp-mode.md#code-structure-design)*
 
 #### 1.2 Service Core Types and Interfaces
-- [ ] **Core interfaces**: Define `ServiceManager` interface with client lifecycle and session operations
-- [ ] **Common types**: Implement `AgentInfo`, `Response`, `Client`, `AgentSession` types
-- [ ] **Store interface**: Define multi-tenant `Store` interface with client scoping
-- [ ] **Client ID constants**: Define `DEFAULT_CLIENT_ID = "__global"` for HTTP compatibility
-- [ ] **Package organization**: Set up `types.go`, `manager.go`, `resolver.go`, `executor.go`, `store.go`
+- [x] **Core interfaces**: Define `ServiceManager` interface with client lifecycle and session operations
+- [x] **Common types**: Implement `AgentInfo`, `Response`, `Client`, `AgentSession` types
+- [x] **Store interface**: Define multi-tenant `Store` interface with client scoping
+- [x] **Client ID constants**: Define `DEFAULT_CLIENT_ID = "__global"` for HTTP compatibility
+- [x] **Package organization**: Set up `types.go`, `manager.go`, `resolver.go`, `executor.go`, `store.go`
 
 *Reference: [servicecore types](./cagent-mcp-mode.md#pkgservicecore)*
 
 #### 1.3 Multi-Tenant Session Storage
-- [ ] **Database schema migration**: Add `client_id` column with `'__global'` default
-- [ ] **Client ID constants**: Define `DEFAULT_CLIENT_ID = "__global"` for HTTP API compatibility
-- [ ] **Non-breaking migration**: ALTER TABLE to add client_id without data loss
-- [ ] **Client-scoped operations**: Implement store methods with client isolation
-- [ ] **Transport-specific client ID**: MCP uses real client ID, HTTP uses default
+- [x] **Database schema migration**: Add `client_id` column with `'__global'` default
+- [x] **Client ID constants**: Define `DEFAULT_CLIENT_ID = "__global"` for HTTP API compatibility
+- [x] **Non-breaking migration**: ALTER TABLE to add client_id without data loss
+- [x] **Client-scoped operations**: Implement store methods with client isolation
+- [x] **Transport-specific client ID**: MCP uses real client ID, HTTP uses default
 
 *Reference: [Security enhancement](./cagent-mcp-mode.md#integration-points-with-existing-components)*
 
 #### 1.4 Agent Resolution System
-- [ ] **Agent source resolution**: Implement `Resolver.ResolveAgent()` function that:
+- [x] **Agent source resolution**: Implement `Resolver.ResolveAgent()` function that:
   - Checks if agent spec is existing file path
   - Falls back to content store lookup for Docker images
   - Creates temporary files with YAML content from images
   - Returns resolved file path for loader
-- [ ] **File/store listing**: Implement `ListFileAgents()` and `ListStoreAgents()` methods
-- [ ] **Registry operations**: Implement `PullAgent()` using existing `pkg/remote/pull.go`
-- [ ] **Error handling**: Proper error messages for missing agents
+- [x] **File/store listing**: Implement `ListFileAgents()` and `ListStoreAgents()` methods
+- [x] **Registry operations**: Implement `PullAgent()` using existing `pkg/remote/pull.go`
+- [x] **Error handling**: Proper error messages for missing agents
 
 *Reference: [Agent resolution logic](./cagent-mcp-mode.md#integration-flow)*
 
 #### 1.5 Runtime Executor
-- [ ] **Runtime creation**: Implement `Executor.CreateRuntime()` wrapping existing loader/runtime logic  
-- [ ] **Stream execution**: Implement `ExecuteStream()` handling `runtime.RunStream()` events
-- [ ] **Response formatting**: Structure responses with content, events, and metadata
-- [ ] **Error propagation**: Proper error handling from runtime to service layer
+- [x] **Runtime creation**: Implement `Executor.CreateRuntime()` wrapping existing loader/runtime logic  
+- [x] **Stream execution**: Implement `ExecuteStream()` handling `runtime.RunStream()` events
+- [x] **Response formatting**: Structure responses with content, events, and metadata
+- [x] **Error propagation**: Proper error handling from runtime to service layer
 
 #### 1.6 Service Manager Implementation
-- [ ] **Client lifecycle**: Implement `CreateClient()` and `RemoveClient()` methods
-- [ ] **Session management**: Client-scoped session operations using store
-- [ ] **Resource cleanup**: Automatic cleanup on client disconnect
-- [ ] **Concurrent access**: Thread-safe operations with proper mutex usage
+- [x] **Client lifecycle**: Implement `CreateClient()` and `RemoveClient()` methods
+- [x] **Session management**: Client-scoped session operations using store
+- [x] **Resource cleanup**: Automatic cleanup on client disconnect
+- [x] **Concurrent access**: Thread-safe operations with proper mutex usage
 
 ### Phase 2: MCP Server Implementation
 
