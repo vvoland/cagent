@@ -120,8 +120,8 @@
   - Response formatting with session metadata
 - [ ] **send_message tool**:
   - Call servicecore.SendMessage() with client and session validation
-  - Message processing and runtime stream handling
-  - Event collection and response formatting
+  - Message processing with SSE streaming support
+  - Real-time event forwarding via Server-Sent Events
   - Metadata inclusion (duration, tool calls, tokens)
 - [ ] **Session management tools**:
   - `list_agent_sessions` - Call servicecore.ListSessions() with client scoping
@@ -130,11 +130,13 @@
 
 *Reference: [Integration Flow](./cagent-mcp-mode.md#integration-flow)*
 
-#### 3.2 Event Streaming and Response Formatting
-- [ ] **Event collection**: Handle streaming events from servicecore execution
-- [ ] **Response structuring**: Format responses with content, events, and metadata
-- [ ] **Error handling**: Proper error propagation and formatting for MCP clients
-- [ ] **Timeout handling**: Implement appropriate timeouts for long-running operations
+#### 3.2 SSE Streaming and Response Formatting
+- [ ] **SSE streaming setup**: Implement MCP HTTP transport with Server-Sent Events support
+- [ ] **Real-time event forwarding**: Stream `runtime.RunStream()` events as they occur
+- [ ] **Partial response formatting**: Format each streaming event with type, content, and metadata
+- [ ] **Final response completion**: Send completion event with full response summary
+- [ ] **Stream error handling**: Proper error propagation and recovery in streaming context
+- [ ] **Timeout handling**: Implement appropriate timeouts for long-running streaming operations
 
 #### 3.3 Client Session Isolation Validation
 - [ ] **Session scoping verification**: Ensure all MCP tools enforce client scoping

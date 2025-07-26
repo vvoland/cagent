@@ -200,33 +200,40 @@ type AgentSession struct {
 
 ### Event Streaming
 
-Since MCP doesn't natively support streaming, we'll need to handle cagent's event-driven responses:
+**MCP supports streaming through Server-Sent Events (SSE) in the HTTP transport**, enabling real-time responses:
 
-#### Option A: Buffered Response
-- Collect all events from `runtime.RunStream()`
-- Return final response + event summary
-- Simple but loses real-time feedback
+#### MCP Streaming Capabilities
+- **SSE Support**: HTTP transport supports Server-Sent Events for streaming responses
+- **Multiple Messages**: Servers can send multiple JSON-RPC messages before final response  
+- **Interactive Experience**: Clients receive real-time updates during agent execution
+- **Session Management**: Resumable streams with event IDs for reliability
 
-#### Option B: Event Array Response
-- Return structured response with event details
-- Client can process events for rich feedback
-- More complex but preserves information
+#### Streaming Implementation Approach
+- Use MCP's SSE streaming to forward `runtime.RunStream()` events in real-time
+- Each streaming event contains partial response with content, events, and metadata
+- Final message indicates completion with full response summary
+- Enhanced user experience with immediate feedback during long-running operations
 
+#### Example Streaming Response Flow
 ```json
+// Stream Event 1 - Tool Call Started
+{"type": "partial", "content": {"tool_call": "filesystem", "status": "started"}}
+
+// Stream Event 2 - Tool Response  
+{"type": "partial", "content": {"tool_response": {"result": "file contents..."}}}
+
+// Stream Event 3 - Agent Message
+{"type": "partial", "content": {"agent_message": "Based on the file..."}}
+
+// Final Event - Complete Response
 {
+  "type": "complete", 
   "response": "final agent response",
-  "events": [
-    {"type": "tool_call", "tool": "filesystem", "args": "..."},
-    {"type": "tool_response", "result": "..."},
-    {"type": "agent_message", "content": "..."}
-  ],
-  "metadata": {
-    "duration_ms": 1500,
-    "tool_calls": 2,
-    "tokens_used": 450
-  }
+  "metadata": {"duration_ms": 1500, "tool_calls": 2, "tokens_used": 450}
 }
 ```
+
+**Selected: SSE Streaming Implementation** to provide optimal interactive experience for MCP clients.
 
 ## Code Structure Design
 
