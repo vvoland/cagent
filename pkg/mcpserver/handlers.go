@@ -66,6 +66,19 @@ func (s *MCPServer) handleInvokeAgent(ctx context.Context, req mcp.CallToolReque
 		s.logger.Error("Failed to send message", "client_id", clientID, "session_id", session.ID, "error", err)
 		return nil, fmt.Errorf("sending message: %w", err)
 	}
+	
+	// Debug the response we got from servicecore
+	s.logger.Debug("Got response from servicecore", 
+		"client_id", clientID, 
+		"session_id", session.ID, 
+		"content_length", len(response.Content),
+		"event_count", len(response.Events),
+		"content_preview", func() string {
+			if len(response.Content) > 100 {
+				return response.Content[:100] + "..."
+			}
+			return response.Content
+		}())
 
 	// Clean up session after one-shot invocation
 	if err := s.serviceCore.CloseSession(clientID, session.ID); err != nil {

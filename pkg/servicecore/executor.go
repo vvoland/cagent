@@ -37,6 +37,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/docker/cagent/pkg/loader"
@@ -103,12 +104,20 @@ func (e *Executor) ExecuteStream(rt *runtime.Runtime, sess *session.Session, mes
 	// Collect events and final response
 	var events []runtime.Event
 	var finalContent string
+	var streamingContent strings.Builder
 	toolCallCount := 0
 
 	for event := range eventStream {
 		events = append(events, event)
 		
+		e.logger.Debug("Processing event", "event_type", fmt.Sprintf("%T", event))
+		
 		switch evt := event.(type) {
+		case *runtime.AgentChoiceEvent:
+			// This contains the streaming content from the model
+			streamingContent.WriteString(evt.Choice.Delta.Content)
+			e.logger.Debug("Agent choice event", "delta_length", len(evt.Choice.Delta.Content), "delta_content", evt.Choice.Delta.Content)
+			
 		case *runtime.ToolCallEvent:
 			toolCallCount++
 			e.logger.Debug("Tool call event", "tool_name", evt.ToolCall.Function.Name)
@@ -118,19 +127,33 @@ func (e *Executor) ExecuteStream(rt *runtime.Runtime, sess *session.Session, mes
 			
 		case *runtime.AgentMessageEvent:
 			finalContent = evt.Message.Content
-			e.logger.Debug("Agent message event", "content_length", len(evt.Message.Content))
+			e.logger.Debug("Agent message event", "content_length", len(evt.Message.Content), "content_preview", func() string {
+				if len(evt.Message.Content) > 100 {
+					return evt.Message.Content[:100] + "..."
+				}
+				return evt.Message.Content
+			}())
 			
 		case *runtime.ErrorEvent:
 			e.logger.Error("Runtime error event", "error", evt.Error)
 			return nil, fmt.Errorf("runtime execution error: %w", evt.Error)
+		default:
+			e.logger.Debug("Unknown event type", "event_type", fmt.Sprintf("%T", event))
 		}
 	}
 
 	duration := time.Since(startTime)
 	
+	// Use streaming content if available, fallback to final content
+	content := finalContent
+	if content == "" && streamingContent.Len() > 0 {
+		content = streamingContent.String()
+		e.logger.Debug("Using streaming content as final content", "content_length", len(content))
+	}
+	
 	// Build response with metadata
 	response := &Response{
-		Content: finalContent,
+		Content: content,
 		Events:  events,
 		Metadata: map[string]interface{}{
 			"duration_ms":    duration.Milliseconds(),
@@ -147,11 +170,13 @@ func (e *Executor) ExecuteStream(rt *runtime.Runtime, sess *session.Session, mes
 		"tool_calls", toolCallCount,
 		"events", len(events),
 		"final_content_length", len(finalContent),
-		"final_content_preview", func() string {
-			if len(finalContent) > 100 {
-				return finalContent[:100] + "..."
+		"streaming_content_length", streamingContent.Len(),
+		"response_content_length", len(content),
+		"response_content_preview", func() string {
+			if len(content) > 100 {
+				return content[:100] + "..."
 			}
-			return finalContent
+			return content
 		}())
 
 	return response, nil
