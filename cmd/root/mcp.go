@@ -1,7 +1,9 @@
 package root
 
 import (
+	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -25,7 +27,7 @@ and maintain conversational sessions.`,
 		RunE: runMCPCommand,
 	}
 
-	cmd.Flags().StringVar(&agentsDir, "agents-dir", "~/.cagent/agents", "Directory containing agent configs")
+	cmd.Flags().StringVar(&agentsDir, "agents-dir", "", "Directory containing agent configs (defaults to current directory)")
 	cmd.Flags().IntVar(&maxSessions, "max-sessions", 100, "Maximum concurrent sessions")
 	cmd.Flags().DurationVar(&sessionTimeout, "session-timeout", time.Hour, "Session timeout duration")
 	cmd.Flags().BoolVar(&debugMode, "debug", false, "Enable debug logging")
@@ -40,8 +42,19 @@ func runMCPCommand(cmd *cobra.Command, args []string) error {
 		logger.Info("Debug mode enabled")
 	}
 
+	// Default agents directory to current working directory if not specified
+	resolvedAgentsDir := agentsDir
+	if resolvedAgentsDir == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("getting current working directory: %w", err)
+		}
+		resolvedAgentsDir = cwd
+		logger.Info("Using current directory as agents root", "path", resolvedAgentsDir)
+	}
+
 	// Create servicecore manager
-	serviceCore, err := servicecore.NewManager(agentsDir, sessionTimeout, maxSessions, logger)
+	serviceCore, err := servicecore.NewManager(resolvedAgentsDir, sessionTimeout, maxSessions, logger)
 	if err != nil {
 		return err
 	}

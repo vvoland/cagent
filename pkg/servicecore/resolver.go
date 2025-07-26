@@ -16,45 +16,81 @@ import (
 // Resolver handles agent specification resolution (file path, image reference, or store reference)
 type Resolver struct {
 	agentsDir string
+	rootDir   string // Security: restrict file access to this root directory
 	store     *content.Store
 	logger    *slog.Logger
 }
 
-// NewResolver creates a new agent resolver
+// NewResolver creates a new agent resolver with security root directory
 func NewResolver(agentsDir string, logger *slog.Logger) (*Resolver, error) {
 	store, err := content.NewStore()
 	if err != nil {
 		return nil, fmt.Errorf("creating content store: %w", err)
 	}
 
+	// Convert agentsDir to absolute path for security validation
+	absAgentsDir, err := filepath.Abs(agentsDir)
+	if err != nil {
+		return nil, fmt.Errorf("converting agents directory to absolute path: %w", err)
+	}
+
 	return &Resolver{
-		agentsDir: agentsDir,
+		agentsDir: absAgentsDir,
+		rootDir:   absAgentsDir, // Default root is the agents directory
 		store:     store,
 		logger:    logger,
 	}, nil
 }
 
-// ResolveAgent resolves an agent specification to a file path
-// Priority: File path → Content store → Error
+// isPathSafe validates that a path is within the allowed root directory
+func (r *Resolver) isPathSafe(path string) error {
+	// Convert target path to absolute path
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("converting path to absolute: %w", err)
+	}
+
+	// Convert root directory to absolute path
+	absRoot, err := filepath.Abs(r.rootDir)
+	if err != nil {
+		return fmt.Errorf("converting root directory to absolute: %w", err)
+	}
+
+	// Ensure root path ends with separator for proper prefix matching
+	if !strings.HasSuffix(absRoot, string(filepath.Separator)) {
+		absRoot += string(filepath.Separator)
+	}
+
+	// Check if target path starts with the root path prefix
+	if !strings.HasPrefix(absPath+string(filepath.Separator), absRoot) {
+		return fmt.Errorf("path outside allowed root directory")
+	}
+
+	return nil
+}
+
+// ResolveAgent resolves an agent specification to a file path with security restrictions
+// Priority: File path (within root) → Content store → Error
 func (r *Resolver) ResolveAgent(agentSpec string) (string, error) {
 	r.logger.Debug("Resolving agent", "agent_spec", agentSpec)
 
-	// Check if it's a file path that exists
-	if r.fileExists(agentSpec) {
-		r.logger.Debug("Agent resolved as file path", "path", agentSpec)
-		return agentSpec, nil
+	// First, try to resolve as file path (absolute or relative to agents dir)
+	var candidatePath string
+	if filepath.IsAbs(agentSpec) {
+		candidatePath = agentSpec
+	} else {
+		candidatePath = filepath.Join(r.agentsDir, agentSpec)
 	}
 
-	// Check if it's a relative path in agents directory
-	if !filepath.IsAbs(agentSpec) {
-		fullPath := filepath.Join(r.agentsDir, agentSpec)
-		if r.fileExists(fullPath) {
-			r.logger.Debug("Agent resolved as relative path", "path", fullPath)
-			return fullPath, nil
-		}
+	// Security check: validate path is within allowed root
+	if err := r.isPathSafe(candidatePath); err != nil {
+		r.logger.Warn("Agent path rejected for security", "path", candidatePath, "error", err)
+	} else if r.fileExists(candidatePath) {
+		r.logger.Debug("Agent resolved as file path", "path", candidatePath)
+		return candidatePath, nil
 	}
 
-	// Try to load from content store (Docker images)
+	// If not a valid file path, try content store (Docker images)
 	yamlContent, err := r.fromStore(agentSpec)
 	if err != nil {
 		return "", fmt.Errorf("agent not found in files or store: %w", err)
@@ -85,24 +121,21 @@ func (r *Resolver) ResolveAgent(agentSpec string) (string, error) {
 func (r *Resolver) ListFileAgents() ([]AgentInfo, error) {
 	agents := []AgentInfo{}
 
-	// Expand tilde in agents directory
-	agentsDir := r.expandPath(r.agentsDir)
-
 	// Check if agents directory exists
-	if !r.fileExists(agentsDir) {
-		r.logger.Debug("Agents directory does not exist", "path", agentsDir)
+	if !r.fileExists(r.agentsDir) {
+		r.logger.Debug("Agents directory does not exist", "path", r.agentsDir)
 		return agents, nil
 	}
 
 	// Walk through agents directory
-	err := filepath.Walk(agentsDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(r.agentsDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
 		// Only include .yaml and .yml files
 		if !info.IsDir() && (strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".yml")) {
-			relPath, err := filepath.Rel(agentsDir, path)
+			relPath, err := filepath.Rel(r.agentsDir, path)
 			if err != nil {
 				relPath = path
 			}
@@ -151,21 +184,10 @@ func (r *Resolver) PullAgent(registryRef string) error {
 
 // fileExists checks if a file exists
 func (r *Resolver) fileExists(path string) bool {
-	_, err := os.Stat(r.expandPath(path))
+	_, err := os.Stat(path)
 	return err == nil
 }
 
-// expandPath expands ~ to home directory
-func (r *Resolver) expandPath(path string) string {
-	if strings.HasPrefix(path, "~/") {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return path
-		}
-		return filepath.Join(homeDir, path[2:])
-	}
-	return path
-}
 
 // fromStore loads agent YAML content from content store (same logic as run.go)
 func (r *Resolver) fromStore(reference string) (string, error) {

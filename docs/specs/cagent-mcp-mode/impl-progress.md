@@ -12,7 +12,7 @@
 
 ## 📋 Implementation Checklist
 
-### Phase 1: Service Core Foundation
+### Phase 1: Service Core Foundation ✅ **COMPLETE**
 
 #### 1.1 Project Setup
 - [x] **Verify MCP dependency**: Confirm `github.com/mark3labs/mcp-go v0.34.0` is available in go.mod
@@ -64,6 +64,25 @@
 - [x] **Resource cleanup**: Automatic cleanup on client disconnect
 - [x] **Concurrent access**: Thread-safe operations with proper mutex usage
 
+#### 1.7 Comprehensive Unit Testing ✅ **NEW**
+- [x] **Test coverage**: 37 test cases covering all servicecore functionality
+- [x] **Store testing**: Multi-tenant session storage with client isolation validation
+- [x] **Manager testing**: Client lifecycle, session operations, concurrent access
+- [x] **Resolver testing**: Agent resolution for files, relative paths, store lookups
+- [x] **Executor testing**: Runtime creation and cleanup validation
+- [x] **Integration patterns**: TDD approach with testify framework following project conventions
+- [x] **Database migration testing**: Non-breaking schema changes with backwards compatibility
+- [x] **Error handling**: Comprehensive edge case and error condition testing
+
+#### 1.8 Agent Resolution Security ✅ **NEW**
+- [x] **Path security validation**: Implement `isPathSafe()` method with proper absolute path validation
+- [x] **Root directory restriction**: Restrict all file access to within specified root directory
+- [x] **Path traversal prevention**: Block attempts to access files outside root using `../` attacks
+- [x] **Secure prefix matching**: Use absolute paths with trailing separator for exact prefix validation
+- [x] **Command line integration**: Update MCP command to default to current working directory
+- [x] **Remove unsafe operations**: Remove home directory expansion (`~/`) from runtime resolution
+- [x] **Security testing**: Add comprehensive tests for path traversal and outside-root detection
+
 ### Phase 2: MCP Server Implementation
 
 #### 2.1 MCP Command and Infrastructure
@@ -103,9 +122,9 @@
 *Reference: [MCP Tool Definitions](./cagent-mcp-mode.md#mcp-tool-definitions)*
 
 #### 2.4 Testing Infrastructure
-- [ ] **Test package setup**: Create test files in `pkg/servicecore/` and `pkg/mcpserver/`
-- [ ] **Mock agent configurations**: Set up `testdata/agents/` with sample YAML files
-- [ ] **Servicecore testing**: Test core business logic independent of transport
+- [x] **Test package setup**: Create test files in `pkg/servicecore/` and `pkg/mcpserver/`
+- [x] **Mock agent configurations**: Set up `testdata/agents/` with sample YAML files
+- [x] **Servicecore testing**: Test core business logic independent of transport
 - [ ] **MCP integration testing**: Test MCP tool handlers using in-memory test servers
 
 *Reference: [Testing Strategy](./cagent-mcp-mode.md#testing-strategy)*
@@ -243,4 +262,4 @@
 - **Future HTTP Refactor**: HTTP API will use servicecore with authentication-based client IDs
 - **Advanced Tools**: `transfer_task` is internal to cagent, not exposed as external MCP tool
 
-*Last Updated: [Update when progress is made]*
+*Last Updated: 2025-07-26 - Phase 1 Service Core Foundation completed with comprehensive unit tests*

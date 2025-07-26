@@ -49,6 +49,29 @@ func TestResolver_ResolveAgent(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "agent not found in files or store")
 	})
+
+	t.Run("RejectUnsafePath", func(t *testing.T) {
+		// Create a file outside the temp directory
+		outsideDir, err := os.MkdirTemp("", "outside-")
+		require.NoError(t, err)
+		defer os.RemoveAll(outsideDir)
+
+		outsideFile := filepath.Join(outsideDir, "outside-agent.yaml")
+		err = os.WriteFile(outsideFile, []byte("outside agent"), 0644)
+		require.NoError(t, err)
+
+		// Attempt to resolve should fail due to security restrictions
+		_, err = resolver.ResolveAgent(outsideFile)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "agent not found in files or store")
+	})
+
+	t.Run("RejectPathTraversal", func(t *testing.T) {
+		// Test path traversal attack
+		_, err := resolver.ResolveAgent("../../../etc/passwd")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "agent not found in files or store")
+	})
 }
 
 func TestResolver_ListFileAgents(t *testing.T) {
@@ -170,29 +193,34 @@ func TestResolver_FileExists(t *testing.T) {
 	assert.False(t, resolver.fileExists(filepath.Join(tempDir, "non-existent.txt")))
 }
 
-func TestResolver_ExpandPath(t *testing.T) {
+func TestResolver_IsPathSafe(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "resolver-security-test-")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
 
-	resolver, err := NewResolver("/tmp", logger)
+	resolver, err := NewResolver(tempDir, logger)
 	require.NoError(t, err)
 
-	t.Run("AbsolutePath", func(t *testing.T) {
-		path := "/absolute/path"
-		expanded := resolver.expandPath(path)
-		assert.Equal(t, path, expanded)
+	t.Run("SafePath", func(t *testing.T) {
+		safePath := filepath.Join(tempDir, "safe-agent.yaml")
+		err := resolver.isPathSafe(safePath)
+		assert.NoError(t, err)
 	})
 
-	t.Run("TildePath", func(t *testing.T) {
-		path := "~/test/path"
-		expanded := resolver.expandPath(path)
-		assert.NotEqual(t, path, expanded)
-		assert.NotContains(t, expanded, "~")
+	t.Run("PathTraversal", func(t *testing.T) {
+		unsafePath := filepath.Join(tempDir, "../../../etc/passwd")
+		err := resolver.isPathSafe(unsafePath)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "path outside allowed root directory")
 	})
 
-	t.Run("RelativePath", func(t *testing.T) {
-		path := "relative/path"
-		expanded := resolver.expandPath(path)
-		assert.Equal(t, path, expanded)
+	t.Run("OutsideRoot", func(t *testing.T) {
+		outsidePath := "/etc/passwd" 
+		err := resolver.isPathSafe(outsidePath)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "path outside allowed root directory")
 	})
 }
 
