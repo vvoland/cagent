@@ -51,8 +51,14 @@ func NewManager(agentsDir string, timeout time.Duration, maxSessions int, logger
 
 	executor := NewExecutor(logger)
 
-	// TODO: Initialize store
+	// Initialize SQLite store (for future session persistence)
+	// For now, we'll use nil store since we're managing sessions in memory
 	var store Store
+	// TODO: Initialize actual store when session persistence is needed
+	// store, err := NewSQLiteStore(":memory:", logger)
+	// if err != nil {
+	//     return nil, fmt.Errorf("creating store: %w", err)
+	// }
 
 	return &Manager{
 		clients:     make(map[string]*Client),

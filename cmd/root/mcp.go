@@ -1,19 +1,24 @@
 package root
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/docker/cagent/pkg/servicecore"
+	"github.com/docker/cagent/pkg/mcpserver"
 )
 
 var (
 	agentsDir      string
 	maxSessions    int
 	sessionTimeout time.Duration
+	port           string
 )
 
 // NewMCPCmd creates the MCP server command
@@ -30,14 +35,22 @@ and maintain conversational sessions.`,
 	cmd.Flags().StringVar(&agentsDir, "agents-dir", "", "Directory containing agent configs (defaults to current directory)")
 	cmd.Flags().IntVar(&maxSessions, "max-sessions", 100, "Maximum concurrent sessions")
 	cmd.Flags().DurationVar(&sessionTimeout, "session-timeout", time.Hour, "Session timeout duration")
+	cmd.Flags().StringVar(&port, "port", "8080", "Port for MCP SSE server")
 	cmd.Flags().BoolVar(&debugMode, "debug", false, "Enable debug logging")
 
 	return cmd
 }
 
 func runMCPCommand(cmd *cobra.Command, args []string) error {
-	// TODO: Initialize logger with appropriate level
-	logger := slog.Default()
+	// Initialize logger with appropriate level
+	handlerOpts := &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}
+	if debugMode {
+		handlerOpts.Level = slog.LevelDebug
+	}
+	logger := slog.New(slog.NewTextHandler(os.Stderr, handlerOpts))
+	
 	if debugMode {
 		logger.Info("Debug mode enabled")
 	}
@@ -56,18 +69,37 @@ func runMCPCommand(cmd *cobra.Command, args []string) error {
 	// Create servicecore manager
 	serviceCore, err := servicecore.NewManager(resolvedAgentsDir, sessionTimeout, maxSessions, logger)
 	if err != nil {
-		return err
+		return fmt.Errorf("creating servicecore manager: %w", err)
 	}
 
-	// TODO: Create MCP server using servicecore
-	// mcpServer := mcpserver.NewMCPServer(serviceCore, logger)
+	// Create MCP server using servicecore
+	mcpServer := mcpserver.NewMCPServer(serviceCore, logger)
 
-	// TODO: Start MCP server
-	// return mcpServer.Start(ctx)
+	// Set up context with cancellation
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	logger.Info("MCP server starting", "agents_dir", agentsDir, "max_sessions", maxSessions, "timeout", sessionTimeout)
+	// Set up signal handling for graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigChan
+		logger.Info("Received shutdown signal, stopping MCP server")
+		cancel()
+	}()
+
+	logger.Info("MCP SSE server starting", 
+		"agents_dir", resolvedAgentsDir, 
+		"max_sessions", maxSessions, 
+		"timeout", sessionTimeout,
+		"port", port)
 	
-	// Placeholder implementation - servicecore created successfully
-	_ = serviceCore
+	// Start MCP SSE server
+	if err := mcpServer.Start(ctx, port); err != nil {
+		return fmt.Errorf("starting MCP SSE server: %w", err)
+	}
+
+	logger.Info("MCP server stopped")
 	return nil
 }
