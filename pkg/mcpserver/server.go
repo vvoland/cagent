@@ -54,7 +54,7 @@ type MCPServer struct {
 }
 
 // NewMCPServer creates a new MCP server instance
-func NewMCPServer(serviceCore servicecore.ServiceManager, logger *slog.Logger) *MCPServer {
+func NewMCPServer(serviceCore servicecore.ServiceManager, logger *slog.Logger, basePath string) *MCPServer {
 	mcpServerInstance := &MCPServer{
 		serviceCore: serviceCore,
 		logger:      logger,
@@ -69,7 +69,7 @@ func NewMCPServer(serviceCore servicecore.ServiceManager, logger *slog.Logger) *
 
 	// Create SSE server wrapper for HTTP transport with streaming
 	mcpServerInstance.sseServer = server.NewSSEServer(mcpServerInstance.mcpServer,
-		server.WithStaticBasePath("/mcp"),
+		server.WithStaticBasePath(basePath),
 		server.WithKeepAliveInterval(30*time.Second),
 	)
 
@@ -80,13 +80,25 @@ func NewMCPServer(serviceCore servicecore.ServiceManager, logger *slog.Logger) *
 func (s *MCPServer) Start(ctx context.Context, port string) error {
 	s.logger.Info("Starting MCP SSE server", "port", port)
 	
-	// Start SSE server on specified port
+	// Start SSE server on specified port in a goroutine
 	addr := ":" + port
-	if err := s.sseServer.Start(addr); err != nil {
-		return fmt.Errorf("serving MCP SSE server: %w", err)
+	errChan := make(chan error, 1)
+	
+	go func() {
+		if err := s.sseServer.Start(addr); err != nil {
+			errChan <- fmt.Errorf("serving MCP SSE server: %w", err)
+		}
+	}()
+	
+	// Wait for context cancellation or server error
+	select {
+	case <-ctx.Done():
+		s.logger.Info("MCP SSE server shutting down")
+		// TODO: Add graceful shutdown when mcp-go supports it
+		return nil
+	case err := <-errChan:
+		return err
 	}
-
-	return nil
 }
 
 // TODO: Client lifecycle management will be added when mcp-go library supports it

@@ -145,7 +145,14 @@ func (e *Executor) ExecuteStream(rt *runtime.Runtime, sess *session.Session, mes
 		"session_id", sess.ID, 
 		"duration_ms", duration.Milliseconds(),
 		"tool_calls", toolCallCount,
-		"events", len(events))
+		"events", len(events),
+		"final_content_length", len(finalContent),
+		"final_content_preview", func() string {
+			if len(finalContent) > 100 {
+				return finalContent[:100] + "..."
+			}
+			return finalContent
+		}())
 
 	return response, nil
 }

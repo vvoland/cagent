@@ -19,6 +19,7 @@ var (
 	maxSessions    int
 	sessionTimeout time.Duration
 	port           string
+	basePath       string
 )
 
 // NewMCPCmd creates the MCP server command
@@ -36,6 +37,7 @@ and maintain conversational sessions.`,
 	cmd.Flags().IntVar(&maxSessions, "max-sessions", 100, "Maximum concurrent sessions")
 	cmd.Flags().DurationVar(&sessionTimeout, "session-timeout", time.Hour, "Session timeout duration")
 	cmd.Flags().StringVar(&port, "port", "8080", "Port for MCP SSE server")
+	cmd.Flags().StringVar(&basePath, "path", "/mcp", "Base path for MCP endpoints (e.g., /mcp, /foo/bar)")
 	cmd.Flags().BoolVar(&debugMode, "debug", false, "Enable debug logging")
 
 	return cmd
@@ -73,7 +75,7 @@ func runMCPCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create MCP server using servicecore
-	mcpServer := mcpserver.NewMCPServer(serviceCore, logger)
+	mcpServer := mcpserver.NewMCPServer(serviceCore, logger, basePath)
 
 	// Set up context with cancellation
 	ctx, cancel := context.WithCancel(context.Background())
@@ -89,11 +91,22 @@ func runMCPCommand(cmd *cobra.Command, args []string) error {
 		cancel()
 	}()
 
+	// Build the complete endpoint URLs for client connection
+	sseEndpoint := fmt.Sprintf("http://localhost:%s%s/sse", port, basePath)
+	messageEndpoint := fmt.Sprintf("http://localhost:%s%s/message", port, basePath)
+	
 	logger.Info("MCP SSE server starting", 
 		"agents_dir", resolvedAgentsDir, 
 		"max_sessions", maxSessions, 
 		"timeout", sessionTimeout,
-		"port", port)
+		"port", port,
+		"base_path", basePath)
+	
+	fmt.Printf("\n🚀 MCP Server Ready!\n")
+	fmt.Printf("📡 SSE Endpoint:     %s\n", sseEndpoint)
+	fmt.Printf("💬 Message Endpoint: %s\n", messageEndpoint)
+	fmt.Printf("📁 Agents Directory: %s\n", resolvedAgentsDir)
+	fmt.Printf("\nMCP clients should connect to: %s\n\n", sseEndpoint)
 	
 	// Start MCP SSE server
 	if err := mcpServer.Start(ctx, port); err != nil {
