@@ -1,3 +1,26 @@
+// manager.go implements the ServiceManager interface as the central orchestrator
+// for multi-tenant agent operations in cagent's MCP mode.
+//
+// This file serves as the primary coordination layer that:
+// 1. Manages client lifecycle with proper isolation between MCP clients
+// 2. Orchestrates agent resolution, runtime creation, and session management
+// 3. Enforces security boundaries and resource limits per client
+// 4. Provides thread-safe operations for concurrent client access
+//
+// Key Components:
+// - Client management: Creates, tracks, and cleans up client sessions
+// - Agent operations: Delegates to Resolver for secure agent specification handling
+// - Session lifecycle: Coordinates Executor for runtime creation and message processing
+// - Resource limits: Enforces maximum sessions per client and proper cleanup
+//
+// Security Considerations:
+// - All operations are client-scoped to prevent cross-client access
+// - Agent resolution is restricted to configured root directories
+// - Proper resource cleanup prevents memory leaks and zombie processes
+//
+// The Manager acts as the single entry point for both MCP and future HTTP transports,
+// ensuring consistent behavior and security across all access methods.
+//
 package servicecore
 
 import (

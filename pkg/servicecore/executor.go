@@ -1,3 +1,36 @@
+// executor.go handles runtime creation and stream execution for agent sessions
+// in cagent's servicecore architecture.
+//
+// This component bridges the gap between the servicecore's session management
+// and cagent's existing runtime system, providing:
+//
+// 1. Runtime Lifecycle Management:
+//    - Creates new runtime instances from resolved agent configurations
+//    - Initializes agent toolsets and validates configurations
+//    - Manages runtime cleanup to prevent resource leaks
+//    - Integrates with existing cagent loader and runtime components
+//
+// 2. Stream Execution Coordination:
+//    - Processes user messages through the agent runtime
+//    - Collects streaming events from runtime.RunStream() into structured responses
+//    - Tracks execution metadata (duration, tool calls, event counts)
+//    - Handles runtime errors and provides structured error reporting
+//
+// 3. Event Processing and Response Formatting:
+//    - Aggregates streaming events (tool calls, responses, agent messages)
+//    - Builds structured Response objects with content, events, and metadata
+//    - Provides timing and performance metrics for monitoring
+//    - Maintains session state consistency across message exchanges
+//
+// Integration Points:
+// - Uses pkg/loader for agent configuration parsing
+// - Leverages pkg/runtime for actual agent execution
+// - Integrates with pkg/session for conversation state management
+// - Provides clean abstractions for both MCP and HTTP transports
+//
+// The Executor ensures that runtime complexity is hidden from transport layers
+// while providing rich structured data for client consumption and system monitoring.
+//
 package servicecore
 
 import (

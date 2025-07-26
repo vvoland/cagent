@@ -1,3 +1,39 @@
+// store.go implements multi-tenant session storage for cagent's servicecore architecture.
+// This component provides persistent storage with client isolation for MCP and HTTP clients.
+//
+// Core Responsibilities:
+// 1. Multi-Tenant Session Management:
+//    - Client-scoped session storage with mandatory client_id isolation
+//    - Backward-compatible database migration from single-tenant to multi-tenant
+//    - Session lifecycle tracking (creation, retrieval, updates, deletion)
+//    - Automatic cleanup when clients disconnect
+//
+// 2. Database Schema Evolution:
+//    - Non-breaking migration adding client_id column with '__global' default
+//    - Preserves existing sessions by assigning them to DEFAULT_CLIENT_ID
+//    - Performance optimization through proper indexing on client_id
+//    - PRAGMA-based schema introspection for safe migrations
+//
+// 3. Security and Isolation:
+//    - All operations require explicit client_id to prevent cross-client access
+//    - Input validation prevents empty client/session IDs
+//    - Structured error handling with specific error types
+//    - Defensive programming with proper resource cleanup
+//
+// 4. Integration with Existing Systems:
+//    - Maintains compatibility with pkg/session data structures
+//    - JSON serialization for message storage
+//    - RFC3339 timestamp formatting for consistent time handling
+//    - Bridge between servicecore types and legacy session storage
+//
+// Client ID Strategy:
+// - MCP clients: Use real client ID from MCP session context
+// - HTTP clients: Use '__global' constant until authentication is added
+// - Legacy sessions: Automatically inherit '__global' client ID
+//
+// This component is essential for enabling true multi-tenant operation while
+// maintaining backward compatibility with existing single-tenant deployments.
+//
 package servicecore
 
 import (

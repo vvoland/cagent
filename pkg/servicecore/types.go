@@ -1,3 +1,19 @@
+// Package servicecore provides the core business logic layer for cagent's multi-tenant agent services.
+// This package abstracts the complexity of agent resolution, runtime management, and session handling
+// to provide a clean interface for both MCP and HTTP transport layers.
+//
+// Key Design Principles:
+// - Multi-tenant architecture: All operations are client-scoped to ensure isolation
+// - Transport-agnostic: Core business logic is independent of MCP or HTTP specifics
+// - Security-first: Agent resolution is restricted to configured root directories
+// - Resource management: Proper cleanup and lifecycle management for runtimes and sessions
+//
+// The types in this file define the core interfaces and data structures that enable:
+// 1. Client isolation through explicit client IDs in all operations
+// 2. Agent metadata representation across different sources (files, Docker images)
+// 3. Structured response formatting with events and metadata
+// 4. Session lifecycle management with proper resource tracking
+//
 package servicecore
 
 import (

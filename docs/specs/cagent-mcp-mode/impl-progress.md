@@ -250,16 +250,18 @@
 
 - **Layered Architecture**: ServiceCore provides business logic, MCP/HTTP provide transport
 - **Client Isolation**: All operations must be client-scoped for multi-tenant security
-- **Agent Resolution Priority**: File path → Content store → Error
+- **Agent Resolution Priority**: File path (within root) → Content store → Error
+- **Agent Resolution Security**: All file paths restricted to root directory with path traversal prevention
 - **Database Migration**: Non-breaking migration using `client_id` field with `'__global'` default
 - **Client ID Strategy**: 
   - MCP clients: Real client ID from MCP session context
   - HTTP clients: `'__global'` constant until authentication added
   - Existing sessions: Automatically get `'__global'` client ID
+- **Path Security**: Absolute path validation with secure prefix matching prevents directory traversal
 - **Error Handling**: Consistent error formats across servicecore and transport layers
 - **Resource Management**: Proper cleanup and timeout handling essential
 - **Testing Strategy**: Test servicecore independently, then transport integrations
 - **Future HTTP Refactor**: HTTP API will use servicecore with authentication-based client IDs
 - **Advanced Tools**: `transfer_task` is internal to cagent, not exposed as external MCP tool
 
-*Last Updated: 2025-07-26 - Phase 1 Service Core Foundation completed with comprehensive unit tests*
+*Last Updated: 2025-07-26 - Phase 1 Service Core Foundation completed with comprehensive unit tests and agent resolution security*

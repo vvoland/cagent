@@ -1,3 +1,34 @@
+// resolver.go implements secure agent specification resolution for cagent's multi-tenant architecture.
+// This component handles the critical security boundary between external agent specifications
+// and the cagent runtime system.
+//
+// Core Responsibilities:
+// 1. Agent specification resolution with multiple source priority:
+//    - File paths (absolute or relative to agents directory) - HIGHEST PRIORITY
+//    - Content store lookups (Docker images) - FALLBACK
+//    - Error reporting for missing agents - FINAL
+//
+// 2. Path security validation:
+//    - Restricts all file access to within a configured root directory
+//    - Prevents directory traversal attacks (../../../etc/passwd)
+//    - Blocks access to system files outside the allowed scope
+//    - Uses absolute path conversion with secure prefix matching
+//
+// 3. Agent discovery and metadata:
+//    - Lists available file-based agents with recursive directory scanning
+//    - Provides agent metadata for client consumption
+//    - Integrates with Docker registry pulling for remote agents
+//
+// Security Architecture:
+// The resolver implements defense-in-depth by:
+// - Converting all paths to absolute form to eliminate relative path ambiguity
+// - Using trailing separator prefix matching to prevent bypass attacks
+// - Logging security violations for monitoring and audit
+// - Failing secure by default (reject unsafe paths, don't expand home directories)
+//
+// This component is essential for preventing MCP clients from accessing arbitrary
+// files on the host system while maintaining usability for legitimate agent specifications.
+//
 package servicecore
 
 import (
