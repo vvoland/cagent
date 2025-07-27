@@ -192,11 +192,39 @@ func (r *Resolver) ListFileAgents() ([]AgentInfo, error) {
 
 // ListStoreAgents lists agents available in the content store
 func (r *Resolver) ListStoreAgents() ([]AgentInfo, error) {
-	// TODO: Implement store listing - this would require extending the content store
-	// For now, return empty list
-	agents := []AgentInfo{}
-	r.logger.Debug("Store agent listing not yet implemented")
+	artifacts, err := r.store.ListArtifacts()
+	if err != nil {
+		return nil, fmt.Errorf("listing store artifacts: %w", err)
+	}
+
+	agents := make([]AgentInfo, 0, len(artifacts))
+	for _, artifact := range artifacts {
+		agent := AgentInfo{
+			Name:        r.extractNameFromReference(artifact.Reference),
+			Description: fmt.Sprintf("Store-based agent: %s", artifact.Reference),
+			Source:      "store",
+			Path:        artifact.Reference, // Use reference as path for store agents
+		}
+		agents = append(agents, agent)
+	}
+
+	r.logger.Debug("Listed store agents", "count", len(agents))
 	return agents, nil
+}
+
+// extractNameFromReference extracts a friendly name from a reference
+func (r *Resolver) extractNameFromReference(reference string) string {
+	// Handle references like "docker.io/user/agent:tag" or "user/agent:tag"
+	parts := strings.Split(reference, "/")
+	if len(parts) > 0 {
+		lastPart := parts[len(parts)-1]
+		// Remove tag if present
+		if colonIndex := strings.LastIndex(lastPart, ":"); colonIndex != -1 {
+			return lastPart[:colonIndex]
+		}
+		return lastPart
+	}
+	return reference
 }
 
 // PullAgent pulls an agent image from registry to local store
