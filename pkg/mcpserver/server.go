@@ -108,59 +108,59 @@ func (s *MCPServer) Start(ctx context.Context, port string) error {
 func (s *MCPServer) registerTools() {
 	// One-shot agent invocation
 	s.mcpServer.AddTool(mcp.NewTool("invoke_agent",
-		mcp.WithDescription("Invoke an agent with a message and get a response"),
-		mcp.WithString("agent", mcp.Required(), mcp.Description("Agent specification (file path, relative path, or registry reference)")),
+		mcp.WithDescription("Invoke an agent with a single message and get a response (one-shot execution). Use this for simple, single interactions. For ongoing conversations, use create_agent_session followed by send_message instead."),
+		mcp.WithString("agent", mcp.Required(), mcp.Description("Agent specification (file path, relative path, or registry reference like 'myregistry.com/agent:latest')")),
 		mcp.WithString("message", mcp.Required(), mcp.Description("Message to send to the agent")),
 	), s.handleInvokeAgent)
 
 	// List available agents
 	s.mcpServer.AddTool(mcp.NewTool("list_agents",
-		mcp.WithDescription("List available agents"),
-		mcp.WithString("source", mcp.Description("Agent source filter: 'files', 'store', or 'all' (default)")),
+		mcp.WithDescription("List all available agents that can be used with invoke_agent or create_agent_session. Shows agents from local files and pulled registry images. Use this to discover available agents before invoking them."),
+		mcp.WithString("source", mcp.Description("Agent source filter: 'files' (local config files), 'store' (pulled images), or 'all' (default - shows both)")),
 	), s.handleListAgents)
 
 	// Pull agent from registry
 	s.mcpServer.AddTool(mcp.NewTool("pull_agent",
-		mcp.WithDescription("Pull an agent image from registry to local store"),
-		mcp.WithString("registry_ref", mcp.Required(), mcp.Description("Registry reference (e.g., 'myregistry.com/myagent:latest')")),
+		mcp.WithDescription("Pull an agent image from a Docker registry to local store, making it available for invoke_agent and create_agent_session. Use this to download agents from registries before using them."),
+		mcp.WithString("registry_ref", mcp.Required(), mcp.Description("Registry reference (e.g., 'myregistry.com/myagent:latest' or 'docker.io/user/agent:v1.0')")),
 	), s.handlePullAgent)
 
 	// Session management tools
 	s.mcpServer.AddTool(mcp.NewTool("create_agent_session",
-		mcp.WithDescription("Create a persistent agent session"),
+		mcp.WithDescription("Create a persistent agent session. Returns a session ID that must be used with send_message, get_agent_session_info, get_agent_session_history, and close_agent_session tools. Use this when you want to have an ongoing conversation with an agent rather than one-shot invocations."),
 		mcp.WithString("agent", mcp.Required(), mcp.Description("Agent specification (file path, relative path, or registry reference)")),
 	), s.handleCreateAgentSession)
 
 	s.mcpServer.AddTool(mcp.NewTool("send_message",
-		mcp.WithDescription("Send a message to an existing agent session"),
-		mcp.WithString("session_id", mcp.Required(), mcp.Description("Session ID to send message to")),
+		mcp.WithDescription("Send a message to an existing agent session created with create_agent_session. The session_id parameter must be the session ID returned from create_agent_session. Use this for ongoing conversations with persistent agents."),
+		mcp.WithString("session_id", mcp.Required(), mcp.Description("Session ID returned from create_agent_session")),
 		mcp.WithString("message", mcp.Required(), mcp.Description("Message to send to the agent")),
 	), s.handleSendMessage)
 
 	s.mcpServer.AddTool(mcp.NewTool("list_agent_sessions",
-		mcp.WithDescription("List all active agent sessions for the current client"),
+		mcp.WithDescription("List all active agent sessions for the current client. Shows sessions created with create_agent_session that haven't been closed. Use this to see what sessions are available for send_message, get_agent_session_info, or close_agent_session."),
 	), s.handleListAgentSessions)
 
 	s.mcpServer.AddTool(mcp.NewTool("close_agent_session",
-		mcp.WithDescription("Close an existing agent session"),
-		mcp.WithString("session_id", mcp.Required(), mcp.Description("Session ID to close")),
+		mcp.WithDescription("Close and cleanup an existing agent session created with create_agent_session. After closing, the session_id can no longer be used with send_message or other session tools."),
+		mcp.WithString("session_id", mcp.Required(), mcp.Description("Session ID returned from create_agent_session to close")),
 	), s.handleCloseAgentSession)
 
 	s.mcpServer.AddTool(mcp.NewTool("get_agent_session_info",
-		mcp.WithDescription("Get detailed information about a specific agent session"),
-		mcp.WithString("session_id", mcp.Required(), mcp.Description("Session ID to get information for")),
+		mcp.WithDescription("Get detailed information about a specific agent session created with create_agent_session. Shows metadata like creation time, last used time, agent details, and message count."),
+		mcp.WithString("session_id", mcp.Required(), mcp.Description("Session ID returned from create_agent_session")),
 	), s.handleGetAgentSessionInfo)
 
 	// Advanced session management tools
 	s.mcpServer.AddTool(mcp.NewTool("get_agent_session_history",
-		mcp.WithDescription("Get conversation history for an agent session with optional pagination"),
-		mcp.WithString("session_id", mcp.Required(), mcp.Description("Session ID to get history for")),
+		mcp.WithDescription("Get conversation history for an agent session created with create_agent_session. Returns all messages exchanged with the agent, optionally paginated. Useful for reviewing past conversations or context."),
+		mcp.WithString("session_id", mcp.Required(), mcp.Description("Session ID returned from create_agent_session")),
 		mcp.WithNumber("limit", mcp.Description("Maximum number of messages to return (default: 50, 0 for all)")),
 	), s.handleGetAgentSessionHistory)
 
 	s.mcpServer.AddTool(mcp.NewTool("get_agent_session_info_enhanced", 
-		mcp.WithDescription("Get enhanced detailed information about a specific agent session including agent metadata and statistics"),
-		mcp.WithString("session_id", mcp.Required(), mcp.Description("Session ID to get enhanced information for")),
+		mcp.WithDescription("Get comprehensive information about an agent session created with create_agent_session. Includes detailed agent metadata, available tools, statistics, and session state. More detailed than get_agent_session_info."),
+		mcp.WithString("session_id", mcp.Required(), mcp.Description("Session ID returned from create_agent_session")),
 	), s.handleGetAgentSessionInfoEnhanced)
 
 	s.logger.Debug("Registered MCP tools", "tools", []string{

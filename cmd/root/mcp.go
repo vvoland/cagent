@@ -25,7 +25,7 @@ var (
 // NewMCPCmd creates the MCP server command
 func NewMCPCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "mcp run",
+		Use:   "mcp server",
 		Short: "Start cagent in MCP server mode",
 		Long: `Start cagent as an MCP (Model Context Protocol) server.
 This allows external clients like Claude Code to programmatically invoke cagent agents

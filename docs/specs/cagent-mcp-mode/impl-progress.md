@@ -95,7 +95,7 @@
 ### Phase 2: MCP Server Implementation
 
 #### 2.1 MCP Command and Infrastructure ✅ **COMPLETE**
-- [x] **Create MCP command**: Implement `cagent mcp run` cobra command with flags:
+- [x] **Create MCP command**: Implement `cagent mcp server` cobra command with flags:
   - `--agents-dir` (defaults to current directory)
   - `--max-sessions` (default: 100)
   - `--session-timeout` (default: 1 hour)

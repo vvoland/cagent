@@ -18,7 +18,7 @@ A comprehensive MCP client for testing the cagent MCP server's agent management 
 
 1. **Start the MCP server:**
    ```bash
-   ./bin/cagent mcp run --port 8080 --path /mcp --debug --agents-dir examples/config
+   ./bin/cagent mcp server --port 8080 --path /mcp --debug --agents-dir examples/config
    ```
 
 2. **Run the test client:**

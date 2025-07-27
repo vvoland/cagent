@@ -119,7 +119,7 @@ MCP server maintains persistent cagent sessions:
 
 ### Command Structure
 ```bash
-cagent mcp run [--port 8080] [--host localhost] [--timeout 3600]
+cagent mcp server [--port 8080] [--host localhost] [--timeout 3600]
 ```
 
 ### MCP Tools Exposed
@@ -277,7 +277,7 @@ pkg/
 │   ├── handlers.go               # MCP tool implementations using servicecore
 │   └── tools.go                  # MCP tool definitions and registration
 cmd/root/
-└── mcp.go                        # New `cagent mcp run` command
+└── mcp.go                        # New `cagent mcp server` command
 ```
 
 #### Future HTTP Server Refactor
@@ -481,7 +481,7 @@ type SendMessageRequest struct {
 ```go
 func NewMCPCmd() *cobra.Command {
     cmd := &cobra.Command{
-        Use:   "mcp run",
+        Use:   "mcp server",
         Short: "Start cagent in MCP server mode",
         RunE:  runMCPCommand,
     }
@@ -848,7 +848,7 @@ pkg/mcpserver/
 - [ ] Service manager with client lifecycle
 
 ### Phase 2: MCP Server Implementation
-- [ ] Add `cagent mcp run` command
+- [ ] Add `cagent mcp server` command
 - [ ] Implement MCP server using servicecore
 - [ ] MCP tool handlers calling servicecore methods
 - [ ] Client identity extraction from MCP context
