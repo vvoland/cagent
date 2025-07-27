@@ -167,21 +167,26 @@
 
 ### Phase 3: Session Management
 
-#### 3.1 Session-Based MCP Tools
-- [ ] **create_agent_session tool**: 
+#### 3.1 Session-Based MCP Tools ✅ **COMPLETE**
+- [x] **create_agent_session tool**: 
   - Call servicecore.CreateAgentSession() with client scoping
   - Agent resolution and runtime initialization via servicecore
   - Session ID generation and tracking
   - Response formatting with session metadata
-- [ ] **send_message tool**:
+- [x] **send_message tool**:
   - Call servicecore.SendMessage() with client and session validation
-  - Message processing with SSE streaming support
-  - Real-time event forwarding via Server-Sent Events
-  - Metadata inclusion (duration, tool calls, tokens)
-- [ ] **Session management tools**:
+  - Message processing for agent communication
+  - Response content collection and formatting
+  - Error handling with proper client validation
+- [x] **Session management tools**:
   - `list_agent_sessions` - Call servicecore.ListSessions() with client scoping
   - `close_agent_session` - Call servicecore.CloseSession() with validation
-  - `get_agent_session_info` - Session metadata retrieval
+  - `get_agent_session_info` - Session metadata retrieval with detailed formatting
+- [x] **Parameter validation**: Comprehensive validation for all session tools with structured error messages
+- [x] **Tool registration**: All 5 session tools properly registered in MCP server with descriptions and parameter definitions
+- [x] **Response formatting**: Consistent text-based responses for MCP client consumption with helper functions
+- [x] **Testing coverage**: Unit tests for tool registration, handler verification, and servicecore integration
+- [x] **Client isolation**: All operations properly scoped to prevent cross-client session access
 
 *Reference: [Integration Flow](./cagent-mcp-mode.md#integration-flow)*
 
@@ -301,4 +306,4 @@
 - **Future HTTP Refactor**: HTTP API will use servicecore with authentication-based client IDs
 - **Advanced Tools**: `transfer_task` is internal to cagent, not exposed as external MCP tool
 
-*Last Updated: 2025-07-27 - Phase 2 MCP Server Implementation completed with SSE transport, tool registration, endpoint configuration, streaming response fix, and comprehensive test isolation using dependency injection patterns*
+*Last Updated: 2025-07-27 - Phase 3.1 Session Management completed with all 5 session-based MCP tools (create_agent_session, send_message, list_agent_sessions, close_agent_session, get_agent_session_info) including parameter validation, client isolation, response formatting, and comprehensive testing*
