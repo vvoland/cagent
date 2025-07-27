@@ -59,6 +59,11 @@ func NewResolver(agentsDir string, logger *slog.Logger) (*Resolver, error) {
 		return nil, fmt.Errorf("creating content store: %w", err)
 	}
 
+	return NewResolverWithStore(agentsDir, store, logger)
+}
+
+// NewResolverWithStore creates a new agent resolver with a custom store (for testing)
+func NewResolverWithStore(agentsDir string, store *content.Store, logger *slog.Logger) (*Resolver, error) {
 	// Convert agentsDir to absolute path for security validation
 	absAgentsDir, err := filepath.Abs(agentsDir)
 	if err != nil {

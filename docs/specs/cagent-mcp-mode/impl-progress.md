@@ -64,7 +64,7 @@
 - [x] **Resource cleanup**: Automatic cleanup on client disconnect
 - [x] **Concurrent access**: Thread-safe operations with proper mutex usage
 
-#### 1.7 Comprehensive Unit Testing ✅ **NEW**
+#### 1.7 Comprehensive Unit Testing ✅ **COMPLETE**
 - [x] **Test coverage**: 37 test cases covering all servicecore functionality
 - [x] **Store testing**: Multi-tenant session storage with client isolation validation
 - [x] **Manager testing**: Client lifecycle, session operations, concurrent access
@@ -74,7 +74,16 @@
 - [x] **Database migration testing**: Non-breaking schema changes with backwards compatibility
 - [x] **Error handling**: Comprehensive edge case and error condition testing
 
-#### 1.8 Agent Resolution Security ✅ **NEW**
+#### 1.8 Test Isolation and Dependency Injection ✅ **COMPLETE**
+- [x] **Dependency injection constructors**: Added `NewManagerWithResolver()` and `NewResolverWithStore()` for testable components
+- [x] **Isolated test stores**: All tests use temporary directories via `content.NewStore(content.WithBaseDir(t.TempDir()))`
+- [x] **Production safety**: Tests never modify user's real content store (`~/.cagent/store/`)
+- [x] **Predictable assertions**: Tests expect exact results with isolated stores (e.g., empty store = 0 agents)
+- [x] **Parallel test execution**: Tests can run concurrently without interfering with each other
+- [x] **Clean test environments**: Each test gets fresh, isolated storage preventing cross-test contamination
+- [x] **Constructor flexibility**: Production code maintains backward compatibility while tests use dependency injection
+
+#### 1.9 Agent Resolution Security ✅ **COMPLETE**
 - [x] **Path security validation**: Implement `isPathSafe()` method with proper absolute path validation
 - [x] **Root directory restriction**: Restrict all file access to within specified root directory
 - [x] **Path traversal prevention**: Block attempts to access files outside root using `../` attacks
@@ -285,10 +294,11 @@
   - HTTP clients: `'__global'` constant until authentication added
   - Existing sessions: Automatically get `'__global'` client ID
 - **Path Security**: Absolute path validation with secure prefix matching prevents directory traversal
+- **Test Isolation**: Dependency injection with temporary stores prevents production data contamination
 - **Error Handling**: Consistent error formats across servicecore and transport layers
 - **Resource Management**: Proper cleanup and timeout handling essential
-- **Testing Strategy**: Test servicecore independently, then transport integrations
+- **Testing Strategy**: Test servicecore independently with isolated stores, then transport integrations
 - **Future HTTP Refactor**: HTTP API will use servicecore with authentication-based client IDs
 - **Advanced Tools**: `transfer_task` is internal to cagent, not exposed as external MCP tool
 
-*Last Updated: 2025-07-26 - Phase 2 MCP Server Implementation completed with SSE transport, tool registration, endpoint configuration, and streaming response fix*
+*Last Updated: 2025-07-27 - Phase 2 MCP Server Implementation completed with SSE transport, tool registration, endpoint configuration, streaming response fix, and comprehensive test isolation using dependency injection patterns*

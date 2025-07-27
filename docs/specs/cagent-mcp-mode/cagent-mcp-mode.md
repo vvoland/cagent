@@ -1103,6 +1103,28 @@ pkg/mcpsession/
 ```
 
 #### Test Implementation Pattern
+
+**ServiceCore Testing with Isolation:**
+```go
+func TestManager_AgentOperations(t *testing.T) {
+    // Create isolated store for testing
+    store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
+    require.NoError(t, err)
+
+    resolver, err := NewResolverWithStore(tempDir, store, logger)
+    require.NoError(t, err)
+
+    manager, err := NewManagerWithResolver(resolver, time.Hour, 10, logger)
+    require.NoError(t, err)
+
+    // Test with isolated store ensures no production data contamination
+    storeAgents, err := manager.ListAgents("store")
+    require.NoError(t, err)
+    assert.Len(t, storeAgents, 0) // Predictable results with clean store
+}
+```
+
+**MCP Server Testing:**
 ```go
 func TestMCPServer_CreateSession(t *testing.T) {
     // Setup
@@ -1158,6 +1180,13 @@ testdata/
 
 ### Testing Benefits
 
+#### Test Isolation Advantages
+- **Clean environments** - Each test uses isolated temporary stores preventing cross-test contamination
+- **Predictable results** - Tests don't depend on external state or leftover artifacts from other tests
+- **Production safety** - Tests never modify user's real content store (`~/.cagent/store/`)
+- **Dependency injection** - Constructors like `NewManagerWithResolver()` enable custom store configurations
+- **Parallel execution** - Tests can run concurrently without interfering with each other
+
 #### In-Memory Testing Advantages
 - **Fast execution** - No process spawning or network overhead
 - **Deterministic** - Controlled environment without external dependencies
@@ -1171,6 +1200,7 @@ testdata/
 4. **Agent loading** - Configuration parsing and validation
 5. **Error handling** - Invalid inputs, missing files, runtime errors
 6. **Integration** - Full client→server→agent→response workflows
+7. **Test isolation** - Dependency injection patterns with temporary stores
 
 #### Client Session Isolation Tests
 ```go

@@ -49,6 +49,11 @@ func NewManager(agentsDir string, timeout time.Duration, maxSessions int, logger
 		return nil, fmt.Errorf("creating resolver: %w", err)
 	}
 
+	return NewManagerWithResolver(resolver, timeout, maxSessions, logger)
+}
+
+// NewManagerWithResolver creates a new ServiceManager instance with a custom resolver (for testing)
+func NewManagerWithResolver(resolver *Resolver, timeout time.Duration, maxSessions int, logger *slog.Logger) (ServiceManager, error) {
 	executor := NewExecutor(logger)
 
 	// Initialize SQLite store (for future session persistence)

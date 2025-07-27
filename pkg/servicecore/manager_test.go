@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/cagent/pkg/content"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +19,14 @@ func TestManager_ClientLifecycle(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
 
-	manager, err := NewManager(tempDir, time.Hour, 10, logger)
+	// Create isolated store for testing
+	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
+	require.NoError(t, err)
+
+	resolver, err := NewResolverWithStore(tempDir, store, logger)
+	require.NoError(t, err)
+
+	manager, err := NewManagerWithResolver(resolver, time.Hour, 10, logger)
 	require.NoError(t, err)
 
 	t.Run("CreateClient", func(t *testing.T) {
@@ -72,7 +80,15 @@ models:
 	require.NoError(t, err)
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	manager, err := NewManager(tempDir, time.Hour, 10, logger)
+
+	// Create isolated store for testing
+	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
+	require.NoError(t, err)
+
+	resolver, err := NewResolverWithStore(tempDir, store, logger)
+	require.NoError(t, err)
+
+	manager, err := NewManagerWithResolver(resolver, time.Hour, 10, logger)
 	require.NoError(t, err)
 
 	t.Run("ResolveAgent", func(t *testing.T) {
@@ -87,21 +103,24 @@ models:
 
 	t.Run("ListAgents", func(t *testing.T) {
 		// Test listing file agents
-		agents, err := manager.ListAgents("files")
+		fileAgents, err := manager.ListAgents("files")
 		require.NoError(t, err)
-		assert.Len(t, agents, 1)
-		assert.Equal(t, "test-agent", agents[0].Name)
-		assert.Equal(t, "file", agents[0].Source)
+		assert.Len(t, fileAgents, 1)
+		assert.Equal(t, "test-agent", fileAgents[0].Name)
+		assert.Equal(t, "file", fileAgents[0].Source)
 
-		// Test listing store agents (should be empty)
-		agents, err = manager.ListAgents("store")
+		// Test listing store agents (should be empty with isolated store)
+		storeAgents, err := manager.ListAgents("store")
 		require.NoError(t, err)
-		assert.Len(t, agents, 0)
+		assert.Len(t, storeAgents, 0)
 
-		// Test listing all agents
-		agents, err = manager.ListAgents("all")
+		// Test listing all agents (files + store)
+		allAgents, err := manager.ListAgents("all")
 		require.NoError(t, err)
-		assert.Len(t, agents, 1)
+		// Should have exactly our 1 file agent
+		assert.Len(t, allAgents, 1)
+		assert.Equal(t, "test-agent", allAgents[0].Name)
+		assert.Equal(t, "file", allAgents[0].Source)
 
 		// Test invalid source
 		_, err = manager.ListAgents("invalid")
@@ -122,7 +141,15 @@ func TestManager_SessionOperations(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	manager, err := NewManager(tempDir, time.Hour, 2, logger) // Max 2 sessions for testing
+
+	// Create isolated store for testing
+	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
+	require.NoError(t, err)
+
+	resolver, err := NewResolverWithStore(tempDir, store, logger)
+	require.NoError(t, err)
+
+	manager, err := NewManagerWithResolver(resolver, time.Hour, 2, logger) // Max 2 sessions for testing
 	require.NoError(t, err)
 
 	// Create a client
@@ -184,7 +211,15 @@ func TestManager_SessionLimits(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	manager, err := NewManager(tempDir, time.Hour, 1, logger) // Max 1 session
+
+	// Create isolated store for testing
+	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
+	require.NoError(t, err)
+
+	resolver, err := NewResolverWithStore(tempDir, store, logger)
+	require.NoError(t, err)
+
+	manager, err := NewManagerWithResolver(resolver, time.Hour, 1, logger) // Max 1 session
 	require.NoError(t, err)
 
 	// Create a client
@@ -219,7 +254,15 @@ func TestManager_ConcurrentAccess(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	manager, err := NewManager(tempDir, time.Hour, 10, logger)
+
+	// Create isolated store for testing
+	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
+	require.NoError(t, err)
+
+	resolver, err := NewResolverWithStore(tempDir, store, logger)
+	require.NoError(t, err)
+
+	manager, err := NewManagerWithResolver(resolver, time.Hour, 10, logger)
 	require.NoError(t, err)
 
 	t.Run("ConcurrentClientCreation", func(t *testing.T) {

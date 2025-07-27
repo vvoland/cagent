@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/docker/cagent/pkg/content"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -149,11 +150,15 @@ func TestResolver_ListFileAgents(t *testing.T) {
 func TestResolver_ListStoreAgents(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
 
-	resolver, err := NewResolver("/tmp", logger)
+	// Create a temporary store for testing
+	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
 	require.NoError(t, err)
 
-	t.Run("NotImplemented", func(t *testing.T) {
-		// Currently returns empty list
+	resolver, err := NewResolverWithStore("/tmp", store, logger)
+	require.NoError(t, err)
+
+	t.Run("EmptyStore", func(t *testing.T) {
+		// Empty store should return empty list
 		agents, err := resolver.ListStoreAgents()
 		require.NoError(t, err)
 		assert.Len(t, agents, 0)
@@ -163,7 +168,11 @@ func TestResolver_ListStoreAgents(t *testing.T) {
 func TestResolver_PullAgent(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
 
-	resolver, err := NewResolver("/tmp", logger)
+	// Create a temporary store for testing
+	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
+	require.NoError(t, err)
+
+	resolver, err := NewResolverWithStore("/tmp", store, logger)
 	require.NoError(t, err)
 
 	t.Run("InvalidReference", func(t *testing.T) {
@@ -232,7 +241,11 @@ func TestResolver_FromStore_Integration(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
 
-	resolver, err := NewResolver("/tmp", logger)
+	// Create a temporary store for testing
+	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
+	require.NoError(t, err)
+
+	resolver, err := NewResolverWithStore("/tmp", store, logger)
 	require.NoError(t, err)
 
 	t.Run("NonExistentImage", func(t *testing.T) {
