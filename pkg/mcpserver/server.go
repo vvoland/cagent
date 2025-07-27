@@ -151,9 +151,22 @@ func (s *MCPServer) registerTools() {
 		mcp.WithString("session_id", mcp.Required(), mcp.Description("Session ID to get information for")),
 	), s.handleGetAgentSessionInfo)
 
+	// Advanced session management tools
+	s.mcpServer.AddTool(mcp.NewTool("get_agent_session_history",
+		mcp.WithDescription("Get conversation history for an agent session with optional pagination"),
+		mcp.WithString("session_id", mcp.Required(), mcp.Description("Session ID to get history for")),
+		mcp.WithNumber("limit", mcp.Description("Maximum number of messages to return (default: 50, 0 for all)")),
+	), s.handleGetAgentSessionHistory)
+
+	s.mcpServer.AddTool(mcp.NewTool("get_agent_session_info_enhanced", 
+		mcp.WithDescription("Get enhanced detailed information about a specific agent session including agent metadata and statistics"),
+		mcp.WithString("session_id", mcp.Required(), mcp.Description("Session ID to get enhanced information for")),
+	), s.handleGetAgentSessionInfoEnhanced)
+
 	s.logger.Debug("Registered MCP tools", "tools", []string{
 		"invoke_agent", "list_agents", "pull_agent", 
 		"create_agent_session", "send_message", "list_agent_sessions", 
 		"close_agent_session", "get_agent_session_info",
+		"get_agent_session_history", "get_agent_session_info_enhanced",
 	})
 }

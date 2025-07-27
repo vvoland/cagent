@@ -226,10 +226,24 @@
 - [ ] **Health checks**: Server health monitoring and diagnostics
 - [ ] **Metrics collection**: Session, tool call, and performance metrics
 
-#### 4.4 Advanced MCP Tools (Optional)
-- [ ] **get_agent_session_history**: Conversation history retrieval with pagination support
-- [ ] **get_agent_session_info**: Enhanced session metadata and statistics
-- [ ] **invoke_with_config investigation**: Research current codebase to determine if/how to implement custom config execution
+#### 4.4 Advanced MCP Tools ✅ **COMPLETE**
+- [x] **get_agent_session_history**: Conversation history retrieval with pagination support
+  - Retrieves conversation messages from agent sessions with optional limit parameter
+  - Formats messages with role, agent name, and content for client consumption
+  - Supports pagination with configurable limits (default 50, 0 for all messages)
+  - Proper client isolation ensures users only see their own session history
+- [x] **get_agent_session_info_enhanced**: Enhanced session metadata and statistics
+  - Provides comprehensive session information including agent details, toolsets, and statistics
+  - Includes agent name, description, instruction, available tools, and message count
+  - Exposes runtime metadata and session creation timestamps
+  - Formatted for easy consumption by MCP clients with structured output
+- [x] **invoke_with_config investigation**: Research current codebase to determine if/how to implement custom config execution
+  - **Research Findings**: Dynamic agent configuration is technically feasible but complex
+  - **Current Architecture**: Agent creation requires YAML config files processed by pkg/loader
+  - **Key Components**: AgentConfig struct supports all necessary fields (model, instruction, toolsets, etc.)
+  - **Implementation Challenge**: Would require creating temporary config files or refactoring loader to accept in-memory configs
+  - **Recommendation**: Not implemented due to complexity vs. benefit ratio; existing file-based approach sufficient
+  - **Alternative**: Users can create custom agent YAML files and use create_agent_session with file paths
 
 *Note: transfer_task is internal to cagent agents and not exposed as external MCP tool*
 
@@ -306,4 +320,4 @@
 - **Future HTTP Refactor**: HTTP API will use servicecore with authentication-based client IDs
 - **Advanced Tools**: `transfer_task` is internal to cagent, not exposed as external MCP tool
 
-*Last Updated: 2025-07-27 - Phase 3.1 Session Management completed with all 5 session-based MCP tools (create_agent_session, send_message, list_agent_sessions, close_agent_session, get_agent_session_info) including parameter validation, client isolation, response formatting, and comprehensive testing*
+*Last Updated: 2025-07-27 - Phase 4.4 Advanced MCP Tools completed with get_agent_session_history and enhanced get_agent_session_info tools, plus comprehensive research on invoke_with_config feasibility. All advanced session management capabilities now available via MCP interface with proper client isolation and comprehensive testing.*

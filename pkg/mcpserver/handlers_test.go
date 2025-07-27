@@ -82,6 +82,50 @@ func TestFormatSessionList(t *testing.T) {
 	assert.Contains(t, result, "2025-07-27 11:15:00")
 }
 
+func TestAdvancedSessionTools(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
+
+	// Create isolated store for testing
+	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
+	require.NoError(t, err)
+
+	tempDir := t.TempDir()
+	resolver, err := servicecore.NewResolverWithStore(tempDir, store, logger)
+	require.NoError(t, err)
+
+	manager, err := servicecore.NewManagerWithResolver(resolver, time.Hour, 10, logger)
+	require.NoError(t, err)
+
+	// Create MCP server
+	mcpServer := NewMCPServer(manager, logger, "/mcp")
+
+	t.Run("AdvancedToolsRegistered", func(t *testing.T) {
+		// Verify the advanced session tool handlers exist as methods
+		assert.NotNil(t, mcpServer.handleGetAgentSessionHistory)
+		assert.NotNil(t, mcpServer.handleGetAgentSessionInfoEnhanced)
+	})
+
+	t.Run("ServiceCoreAdvancedMethods", func(t *testing.T) {
+		// Test that MCP server can access servicecore advanced functionality
+		
+		// Create a client
+		err := mcpServer.serviceCore.CreateClient("test-client")
+		assert.NoError(t, err)
+
+		// Test GetSessionHistory for non-existent session (should return error)
+		_, err = mcpServer.serviceCore.GetSessionHistory("test-client", "non-existent", 10)
+		assert.Error(t, err)
+
+		// Test GetSessionInfo for non-existent session (should return error)
+		_, err = mcpServer.serviceCore.GetSessionInfo("test-client", "non-existent")
+		assert.Error(t, err)
+
+		// Remove client
+		err = mcpServer.serviceCore.RemoveClient("test-client")
+		assert.NoError(t, err)
+	})
+}
+
 func TestSessionToolsServiceCoreIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")

@@ -482,3 +482,141 @@ func formatSessionList(sessions []interface{}) string {
 	}
 	return result
 }
+
+// handleGetAgentSessionHistory implements conversation history retrieval with pagination
+func (s *MCPServer) handleGetAgentSessionHistory(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// Extract client ID from context
+	clientID, err := s.extractClientID(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate and extract parameters
+	args, ok := req.Params.Arguments.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid arguments format")
+	}
+
+	sessionID, ok := args["session_id"].(string)
+	if !ok || sessionID == "" {
+		return nil, fmt.Errorf("session_id parameter is required and must be a string")
+	}
+
+	// Optional limit parameter (default to 50 if not specified)
+	limit := 50
+	if limitVal, exists := args["limit"]; exists {
+		if limitFloat, ok := limitVal.(float64); ok {
+			limit = int(limitFloat)
+		} else if limitInt, ok := limitVal.(int); ok {
+			limit = limitInt
+		}
+	}
+
+	s.logger.Debug("Getting session history", "client_id", clientID, "session_id", sessionID, "limit", limit)
+
+	// Get session history from servicecore
+	history, err := s.serviceCore.GetSessionHistory(clientID, sessionID, limit)
+	if err != nil {
+		s.logger.Error("Failed to get session history", "client_id", clientID, "session_id", sessionID, "error", err)
+		return nil, fmt.Errorf("getting session history: %w", err)
+	}
+
+	// Format history for display
+	var result string
+	if len(history) == 0 {
+		result = "No conversation history found for this session."
+	} else {
+		result = fmt.Sprintf("Conversation History (showing %d messages):\n\n", len(history))
+		for i, msg := range history {
+			role := msg.Role
+			if msg.AgentName != "" {
+				role = fmt.Sprintf("%s (%s)", role, msg.AgentName)
+			}
+			result += fmt.Sprintf("%d. [%s]: %s\n\n", i+1, role, msg.Content)
+		}
+	}
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			mcp.TextContent{
+				Type: "text",
+				Text: result,
+			},
+		},
+		IsError: false,
+	}, nil
+}
+
+// handleGetAgentSessionInfoEnhanced implements enhanced session metadata retrieval
+func (s *MCPServer) handleGetAgentSessionInfoEnhanced(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// Extract client ID from context
+	clientID, err := s.extractClientID(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate and extract parameters
+	args, ok := req.Params.Arguments.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid arguments format")
+	}
+
+	sessionID, ok := args["session_id"].(string)
+	if !ok || sessionID == "" {
+		return nil, fmt.Errorf("session_id parameter is required and must be a string")
+	}
+
+	s.logger.Debug("Getting enhanced session info", "client_id", clientID, "session_id", sessionID)
+
+	// Get enhanced session info from servicecore
+	sessionInfo, err := s.serviceCore.GetSessionInfo(clientID, sessionID)
+	if err != nil {
+		s.logger.Error("Failed to get session info", "client_id", clientID, "session_id", sessionID, "error", err)
+		return nil, fmt.Errorf("getting session info: %w", err)
+	}
+
+	// Format enhanced session info
+	result := fmt.Sprintf(`Enhanced Session Information:
+
+Basic Details:
+  Session ID: %s
+  Agent Spec: %s
+  Client ID: %s
+  Created: %s
+  Last Used: %s
+  Message Count: %d
+
+Agent Details:
+  Agent Name: %s
+  Description: %s
+  Instruction: %s
+
+Toolsets: %v
+
+Session Details:
+  Internal Session ID: %s
+  Session Created: %s
+`, 
+		sessionInfo.ID,
+		sessionInfo.AgentSpec,
+		sessionInfo.ClientID,
+		sessionInfo.Created.Format("2006-01-02 15:04:05"),
+		sessionInfo.LastUsed.Format("2006-01-02 15:04:05"),
+		sessionInfo.MessageCount,
+		sessionInfo.Metadata["agent_name"],
+		sessionInfo.Metadata["agent_description"],
+		sessionInfo.Metadata["agent_instruction"],
+		sessionInfo.Metadata["toolsets"],
+		sessionInfo.Metadata["session_id"],
+		sessionInfo.Metadata["session_created_at"])
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			mcp.TextContent{
+				Type: "text",
+				Text: result,
+			},
+		},
+		IsError: false,
+	}, nil
+}

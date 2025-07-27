@@ -43,6 +43,10 @@ type ServiceManager interface {
 	SendMessage(clientID, sessionID, message string) (*Response, error)
 	ListSessions(clientID string) ([]*AgentSession, error)
 	CloseSession(clientID, sessionID string) error
+	
+	// Advanced session operations
+	GetSessionHistory(clientID, sessionID string, limit int) ([]SessionMessage, error)
+	GetSessionInfo(clientID, sessionID string) (*SessionInfo, error)
 }
 
 // AgentInfo represents metadata about an available agent
@@ -78,6 +82,25 @@ type AgentSession struct {
 	Session   *session.Session
 	Created   time.Time
 	LastUsed  time.Time
+}
+
+// SessionMessage represents a message in the conversation history
+type SessionMessage struct {
+	AgentName string    `json:"agent_name"`
+	Role      string    `json:"role"`
+	Content   string    `json:"content"`
+	Timestamp time.Time `json:"timestamp,omitempty"`
+}
+
+// SessionInfo represents detailed information about a session
+type SessionInfo struct {
+	ID           string                 `json:"id"`
+	ClientID     string                 `json:"client_id"`
+	AgentSpec    string                 `json:"agent_spec"`
+	Created      time.Time              `json:"created"`
+	LastUsed     time.Time              `json:"last_used"`
+	MessageCount int                    `json:"message_count"`
+	Metadata     map[string]interface{} `json:"metadata"`
 }
 
 // Store defines the interface for multi-tenant session storage

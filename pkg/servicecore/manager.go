@@ -24,6 +24,7 @@
 package servicecore
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -288,4 +289,124 @@ func (m *Manager) closeSessionUnsafe(clientID, sessionID string) error {
 		"client_id", clientID, "session_id", sessionID, "agent_spec", agentSession.AgentSpec)
 
 	return nil
+}
+
+// GetSessionHistory retrieves conversation history for an agent session with optional pagination
+func (m *Manager) GetSessionHistory(clientID, sessionID string, limit int) ([]SessionMessage, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	client, exists := m.clients[clientID]
+	if !exists {
+		return nil, fmt.Errorf("client %s not found", clientID)
+	}
+
+	agentSession, exists := client.AgentSessions[sessionID]
+	if !exists {
+		return nil, fmt.Errorf("session %s not found for client %s", sessionID, clientID)
+	}
+
+	if agentSession.Session == nil {
+		return []SessionMessage{}, nil
+	}
+
+	// Convert session messages to our format
+	sessionMessages := agentSession.Session.Messages
+	var result []SessionMessage
+
+	// Apply limit if specified (0 means no limit)
+	start := 0
+	if limit > 0 && len(sessionMessages) > limit {
+		start = len(sessionMessages) - limit
+	}
+
+	for i := start; i < len(sessionMessages); i++ {
+		msg := sessionMessages[i]
+		result = append(result, SessionMessage{
+			AgentName: msg.AgentName,
+			Role:      string(msg.Message.Role),
+			Content:   msg.Message.Content,
+			// Note: session.AgentMessage doesn't have timestamps, 
+			// we could enhance this in the future
+		})
+	}
+
+	m.logger.Debug("Retrieved session history", 
+		"client_id", clientID, "session_id", sessionID, 
+		"total_messages", len(sessionMessages), "returned_messages", len(result))
+
+	return result, nil
+}
+
+// GetSessionInfo retrieves detailed information about an agent session
+func (m *Manager) GetSessionInfo(clientID, sessionID string) (*SessionInfo, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	client, exists := m.clients[clientID]
+	if !exists {
+		return nil, fmt.Errorf("client %s not found", clientID)
+	}
+
+	agentSession, exists := client.AgentSessions[sessionID]
+	if !exists {
+		return nil, fmt.Errorf("session %s not found for client %s", sessionID, clientID)
+	}
+
+	messageCount := 0
+	if agentSession.Session != nil {
+		messageCount = len(agentSession.Session.Messages)
+	}
+
+	// Get agent name from runtime if available
+	agentName := "unknown"
+	if agentSession.Runtime != nil && agentSession.Runtime.CurrentAgent() != nil {
+		agentName = agentSession.Runtime.CurrentAgent().Name()
+	}
+
+	metadata := map[string]interface{}{
+		"agent_name":    agentName,
+		"session_id":    agentSession.Session.ID,
+		"session_created_at": agentSession.Session.CreatedAt,
+	}
+
+	// Add runtime info if available
+	if agentSession.Runtime != nil && agentSession.Runtime.CurrentAgent() != nil {
+		agent := agentSession.Runtime.CurrentAgent()
+		metadata["agent_description"] = agent.Description()
+		metadata["agent_instruction"] = agent.Instruction()
+		
+		// Add toolsets info
+		toolsets := agent.ToolSets()
+		metadata["toolsets_count"] = len(toolsets)
+		
+		// Get available tools from toolsets
+		availableTools := []string{}
+		for _, ts := range toolsets {
+			tools, err := ts.Tools(context.Background())
+			if err == nil {
+				for _, tool := range tools {
+					if tool.Function != nil {
+						availableTools = append(availableTools, tool.Function.Name)
+					}
+				}
+			}
+		}
+		metadata["available_tools"] = availableTools
+	}
+
+	sessionInfo := &SessionInfo{
+		ID:           sessionID,
+		ClientID:     clientID,
+		AgentSpec:    agentSession.AgentSpec,
+		Created:      agentSession.Created,
+		LastUsed:     agentSession.LastUsed,
+		MessageCount: messageCount,
+		Metadata:     metadata,
+	}
+
+	m.logger.Debug("Retrieved session info", 
+		"client_id", clientID, "session_id", sessionID, "message_count", messageCount)
+
+	return sessionInfo, nil
 }
