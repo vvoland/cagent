@@ -125,5 +125,35 @@ func (s *MCPServer) registerTools() {
 		mcp.WithString("registry_ref", mcp.Required(), mcp.Description("Registry reference (e.g., 'myregistry.com/myagent:latest')")),
 	), s.handlePullAgent)
 
-	s.logger.Debug("Registered MCP tools", "tools", []string{"invoke_agent", "list_agents", "pull_agent"})
+	// Session management tools
+	s.mcpServer.AddTool(mcp.NewTool("create_agent_session",
+		mcp.WithDescription("Create a persistent agent session"),
+		mcp.WithString("agent", mcp.Required(), mcp.Description("Agent specification (file path, relative path, or registry reference)")),
+	), s.handleCreateAgentSession)
+
+	s.mcpServer.AddTool(mcp.NewTool("send_message",
+		mcp.WithDescription("Send a message to an existing agent session"),
+		mcp.WithString("session_id", mcp.Required(), mcp.Description("Session ID to send message to")),
+		mcp.WithString("message", mcp.Required(), mcp.Description("Message to send to the agent")),
+	), s.handleSendMessage)
+
+	s.mcpServer.AddTool(mcp.NewTool("list_agent_sessions",
+		mcp.WithDescription("List all active agent sessions for the current client"),
+	), s.handleListAgentSessions)
+
+	s.mcpServer.AddTool(mcp.NewTool("close_agent_session",
+		mcp.WithDescription("Close an existing agent session"),
+		mcp.WithString("session_id", mcp.Required(), mcp.Description("Session ID to close")),
+	), s.handleCloseAgentSession)
+
+	s.mcpServer.AddTool(mcp.NewTool("get_agent_session_info",
+		mcp.WithDescription("Get detailed information about a specific agent session"),
+		mcp.WithString("session_id", mcp.Required(), mcp.Description("Session ID to get information for")),
+	), s.handleGetAgentSessionInfo)
+
+	s.logger.Debug("Registered MCP tools", "tools", []string{
+		"invoke_agent", "list_agents", "pull_agent", 
+		"create_agent_session", "send_message", "list_agent_sessions", 
+		"close_agent_session", "get_agent_session_info",
+	})
 }

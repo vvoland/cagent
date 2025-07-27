@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/docker/cagent/pkg/servicecore"
 )
 
 // handleInvokeAgent implements one-shot agent invocation
@@ -209,6 +210,249 @@ func (s *MCPServer) extractClientID(ctx context.Context) (string, error) {
 	return clientID, nil
 }
 
+// handleCreateAgentSession implements persistent agent session creation
+func (s *MCPServer) handleCreateAgentSession(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// Extract client ID from context
+	clientID, err := s.extractClientID(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate and extract parameters
+	args, ok := req.Params.Arguments.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid arguments format")
+	}
+
+	agent, ok := args["agent"].(string)
+	if !ok || agent == "" {
+		return nil, fmt.Errorf("agent parameter is required and must be a string")
+	}
+
+	s.logger.Debug("Creating agent session", "client_id", clientID, "agent", agent)
+
+	// Create agent session
+	session, err := s.serviceCore.CreateAgentSession(clientID, agent)
+	if err != nil {
+		s.logger.Error("Failed to create agent session", "client_id", clientID, "agent", agent, "error", err)
+		return nil, fmt.Errorf("creating agent session: %w", err)
+	}
+
+	// Format response for MCP client
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			mcp.TextContent{
+				Type: "text",
+				Text: fmt.Sprintf("Created agent session: %s\nAgent: %s\nClient: %s\nCreated: %s", 
+					session.ID, session.AgentSpec, session.ClientID, session.Created.Format("2006-01-02 15:04:05")),
+			},
+		},
+		IsError: false,
+	}, nil
+}
+
+// handleSendMessage implements message sending to existing agent sessions
+func (s *MCPServer) handleSendMessage(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// Extract client ID from context
+	clientID, err := s.extractClientID(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate and extract parameters
+	args, ok := req.Params.Arguments.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid arguments format")
+	}
+
+	sessionID, ok := args["session_id"].(string)
+	if !ok || sessionID == "" {
+		return nil, fmt.Errorf("session_id parameter is required and must be a string")
+	}
+
+	message, ok := args["message"].(string)
+	if !ok || message == "" {
+		return nil, fmt.Errorf("message parameter is required and must be a string")
+	}
+
+	s.logger.Debug("Sending message to session", "client_id", clientID, "session_id", sessionID, "message_length", len(message))
+
+	// Send message using servicecore
+	response, err := s.serviceCore.SendMessage(clientID, sessionID, message)
+	if err != nil {
+		s.logger.Error("Failed to send message", "client_id", clientID, "session_id", sessionID, "error", err)
+		return nil, fmt.Errorf("sending message: %w", err)
+	}
+
+	// Debug the response we got from servicecore
+	s.logger.Debug("Got response from servicecore", 
+		"client_id", clientID, 
+		"session_id", sessionID, 
+		"content_length", len(response.Content),
+		"event_count", len(response.Events),
+		"content_preview", func() string {
+			if len(response.Content) > 100 {
+				return response.Content[:100] + "..."
+			}
+			return response.Content
+		}())
+
+	// Format response for MCP client
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			mcp.TextContent{
+				Type: "text",
+				Text: response.Content,
+			},
+		},
+		IsError: false,
+	}, nil
+}
+
+// handleListAgentSessions implements session listing for a client
+func (s *MCPServer) handleListAgentSessions(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// Extract client ID from context
+	clientID, err := s.extractClientID(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	s.logger.Debug("Listing agent sessions", "client_id", clientID)
+
+	// Get sessions from servicecore
+	sessions, err := s.serviceCore.ListSessions(clientID)
+	if err != nil {
+		s.logger.Error("Failed to list sessions", "client_id", clientID, "error", err)
+		return nil, fmt.Errorf("listing sessions: %w", err)
+	}
+
+	// Format response for MCP client
+	var sessionList []interface{}
+	for _, session := range sessions {
+		sessionInfo := map[string]interface{}{
+			"id":         session.ID,
+			"agent_spec": session.AgentSpec,
+			"created":    session.Created.Format("2006-01-02 15:04:05"),
+			"last_used":  session.LastUsed.Format("2006-01-02 15:04:05"),
+		}
+		sessionList = append(sessionList, sessionInfo)
+	}
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			mcp.TextContent{
+				Type: "text",
+				Text: fmt.Sprintf("Found %d active sessions:\n\n%s", len(sessions), formatSessionList(sessionList)),
+			},
+		},
+		IsError: false,
+	}, nil
+}
+
+// handleCloseAgentSession implements session closure
+func (s *MCPServer) handleCloseAgentSession(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// Extract client ID from context
+	clientID, err := s.extractClientID(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate and extract parameters
+	args, ok := req.Params.Arguments.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid arguments format")
+	}
+
+	sessionID, ok := args["session_id"].(string)
+	if !ok || sessionID == "" {
+		return nil, fmt.Errorf("session_id parameter is required and must be a string")
+	}
+
+	s.logger.Debug("Closing agent session", "client_id", clientID, "session_id", sessionID)
+
+	// Close session using servicecore
+	if err := s.serviceCore.CloseSession(clientID, sessionID); err != nil {
+		s.logger.Error("Failed to close session", "client_id", clientID, "session_id", sessionID, "error", err)
+		return nil, fmt.Errorf("closing session: %w", err)
+	}
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			mcp.TextContent{
+				Type: "text",
+				Text: fmt.Sprintf("Successfully closed session: %s", sessionID),
+			},
+		},
+		IsError: false,
+	}, nil
+}
+
+// handleGetAgentSessionInfo implements session metadata retrieval
+func (s *MCPServer) handleGetAgentSessionInfo(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// Extract client ID from context
+	clientID, err := s.extractClientID(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate and extract parameters
+	args, ok := req.Params.Arguments.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid arguments format")
+	}
+
+	sessionID, ok := args["session_id"].(string)
+	if !ok || sessionID == "" {
+		return nil, fmt.Errorf("session_id parameter is required and must be a string")
+	}
+
+	s.logger.Debug("Getting agent session info", "client_id", clientID, "session_id", sessionID)
+
+	// Get sessions from servicecore and find the requested one
+	sessions, err := s.serviceCore.ListSessions(clientID)
+	if err != nil {
+		s.logger.Error("Failed to list sessions", "client_id", clientID, "error", err)
+		return nil, fmt.Errorf("listing sessions: %w", err)
+	}
+
+	// Find the specific session
+	var targetSession *servicecore.AgentSession
+	for _, session := range sessions {
+		if session.ID == sessionID {
+			targetSession = session
+			break
+		}
+	}
+
+	if targetSession == nil {
+		return nil, fmt.Errorf("session %s not found for client %s", sessionID, clientID)
+	}
+
+	// Format detailed session info
+	sessionInfo := fmt.Sprintf(`Session Information:
+ID: %s
+Agent Spec: %s
+Client ID: %s
+Created: %s
+Last Used: %s
+`, 
+		targetSession.ID,
+		targetSession.AgentSpec,
+		targetSession.ClientID,
+		targetSession.Created.Format("2006-01-02 15:04:05"),
+		targetSession.LastUsed.Format("2006-01-02 15:04:05"))
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			mcp.TextContent{
+				Type: "text",
+				Text: sessionInfo,
+			},
+		},
+		IsError: false,
+	}, nil
+}
+
 // formatAgentList formats the agent list for text display
 func formatAgentList(agents []interface{}) string {
 	var result string
@@ -218,6 +462,22 @@ func formatAgentList(agents []interface{}) string {
 			desc := agentMap["description"]
 			source := agentMap["source"]
 			result += fmt.Sprintf("%d. %s (%s)\n   %s\n", i+1, name, source, desc)
+		}
+	}
+	return result
+}
+
+// formatSessionList formats the session list for text display
+func formatSessionList(sessions []interface{}) string {
+	var result string
+	for i, session := range sessions {
+		if sessionMap, ok := session.(map[string]interface{}); ok {
+			id := sessionMap["id"]
+			agentSpec := sessionMap["agent_spec"]
+			created := sessionMap["created"]
+			lastUsed := sessionMap["last_used"]
+			result += fmt.Sprintf("%d. %s (Agent: %s)\n   Created: %s, Last Used: %s\n", 
+				i+1, id, agentSpec, created, lastUsed)
 		}
 	}
 	return result
