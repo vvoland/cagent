@@ -140,11 +140,7 @@ func (s *Server) createAgent(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
 	}
 
-	agentName := filepath.Base(path)
-	s.runtimes[agentName], err = runtime.New(s.logger, team, "root")
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create runtime"})
-	}
+	s.runtimes[filepath.Base(path)] = runtime.New(s.logger, team, "root")
 
 	return c.JSON(http.StatusOK, map[string]string{"path": path, "out": out})
 }
@@ -170,7 +166,6 @@ func (s *Server) pullAgent(c echo.Context) error {
 	}
 
 	agentName := strings.ReplaceAll(req.Name, "/", "_")
-
 	fileName := filepath.Join(s.agentsDir, agentName+".yaml")
 
 	if err := os.WriteFile(fileName, []byte(yaml), 0o644); err != nil {
@@ -182,10 +177,7 @@ func (s *Server) pullAgent(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
 	}
 
-	s.runtimes[agentName], err = runtime.New(s.logger, team, "root")
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create runtime"})
-	}
+	s.runtimes[agentName] = runtime.New(s.logger, team, "root")
 
 	return c.JSON(http.StatusOK, map[string]string{"name": agentName})
 }

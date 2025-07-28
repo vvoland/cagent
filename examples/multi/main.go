@@ -41,15 +41,9 @@ func main() {
 		agent.WithSubAgents(child),
 		agent.WithToolSets(builtin.NewTransferTaskTool()),
 	)
-
-	agents := team.New(root, child)
+	rt := runtime.New(logger, team.New(root, child), "root")
 
 	sess := session.New(logger, session.WithUserMessage("", "Ask your child how they are doing and tell me what they said"))
-
-	rt, err := runtime.New(logger, agents, "root")
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	messages, err := rt.Run(ctx, sess)
 	if err != nil {

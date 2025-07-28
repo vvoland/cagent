@@ -35,13 +35,9 @@ func main() {
 			agent.WithModel(llm),
 			agent.WithToolSets(builtin.NewShellTool()),
 		))
+	rt := runtime.New(logger, agents, "root")
 
 	sess := session.New(logger, session.WithUserMessage("", "Tell me a story about my current directory"))
-
-	rt, err := runtime.New(logger, agents, "root")
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	messages, err := rt.Run(ctx, sess)
 	if err != nil {

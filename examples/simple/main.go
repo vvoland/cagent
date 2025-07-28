@@ -34,13 +34,9 @@ func main() {
 			agent.WithModel(llm),
 			agent.WithDescription("A human."),
 		))
+	rt := runtime.New(logger, agents, "root")
 
 	sess := session.New(logger, session.WithUserMessage("", "How are you doing?"))
-
-	rt, err := runtime.New(logger, agents, "root")
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	messages, err := rt.Run(ctx, sess)
 	if err != nil {

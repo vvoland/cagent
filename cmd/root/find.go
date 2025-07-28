@@ -12,45 +12,41 @@ import (
 	"github.com/docker/cagent/pkg/runtime"
 )
 
-func loadAgents(ctx context.Context, agentsPath string, logger *slog.Logger) (map[string]*runtime.Runtime, error) {
+func loadAgents(ctx context.Context, agentsPathOrDirectory string, logger *slog.Logger) (map[string]*runtime.Runtime, error) {
 	runtimes := make(map[string]*runtime.Runtime)
 
-	agents, err := findAgents(agentsPath)
+	agentPaths, err := findAgentPaths(agentsPathOrDirectory)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find agents: %w", err)
 	}
 
-	for _, agentPath := range agents {
+	for _, agentPath := range agentPaths {
 		team, err := loader.Load(ctx, agentPath, envFiles, gateway, logger)
 		if err != nil {
 			logger.Warn("Failed to load agent", "file", agentPath, "error", err)
 			continue
 		}
 
-		filename := filepath.Base(agentPath)
-		rt, err := runtime.New(logger, team, "root")
-		if err != nil {
-			return nil, fmt.Errorf("failed to create runtime for file %s: %w", filename, err)
-		}
-		runtimes[filename] = rt
+		runtimes[filepath.Base(agentPath)] = runtime.New(logger, team, "root")
 	}
 
 	return runtimes, nil
 }
 
-func findAgents(agentsPath string) ([]string, error) {
-	stat, err := os.Stat(agentsPath)
+func findAgentPaths(agentsPathOrDirectory string) ([]string, error) {
+	stat, err := os.Stat(agentsPathOrDirectory)
 	if err != nil {
 		return nil, fmt.Errorf("failed to stat agents path: %w", err)
 	}
 
 	if !stat.IsDir() {
-		return []string{agentsPath}, nil
+		return []string{agentsPathOrDirectory}, nil
 	}
 
 	var agents []string
 
-	entries, err := os.ReadDir(agentsPath)
+	agentsDirectory := agentsPathOrDirectory
+	entries, err := os.ReadDir(agentsDirectory)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read directory: %w", err)
 	}
@@ -60,7 +56,7 @@ func findAgents(agentsPath string) ([]string, error) {
 			continue
 		}
 
-		agents = append(agents, filepath.Join(agentsPath, entry.Name()))
+		agents = append(agents, filepath.Join(agentsDirectory, entry.Name()))
 	}
 
 	return agents, nil

@@ -27,19 +27,16 @@ type Runtime struct {
 	currentAgent string
 }
 
-// New creates a new runtime for an agent
-func New(logger *slog.Logger, agents *team.Team, agentName string) (*Runtime, error) {
+// New creates a new runtime for an agent and its team
+func New(logger *slog.Logger, agents *team.Team, agentName string) *Runtime {
 	logger.Debug("Creating new runtime", "agent", agentName, "available_agents", agents.Size())
 
-	runtime := &Runtime{
+	return &Runtime{
 		toolMap:      make(map[string]ToolHandler),
 		team:         agents,
 		logger:       logger,
 		currentAgent: agentName,
 	}
-
-	logger.Debug("Runtime created successfully", "agent", agentName)
-	return runtime, nil
 }
 
 func (r *Runtime) Team() *team.Team {

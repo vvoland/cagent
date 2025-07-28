@@ -92,14 +92,9 @@ func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, promp
 				&fsToolset,
 			),
 		))
+	rt := runtime.New(logger, agents, "root")
 
 	sess := session.New(logger, session.WithUserMessage("", prompt))
-
-	rt, err := runtime.New(logger, agents, "root")
-	if err != nil {
-		logger.Error("failed to create runtime", "error", err)
-		return "", "", err
-	}
 
 	messages, err := rt.Run(ctx, sess)
 	if err != nil {

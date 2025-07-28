@@ -47,36 +47,34 @@ func main() {
 		log.Fatal(err)
 	}
 
+	toolAddNumbers := tools.Tool{
+		Handler: addNumbers,
+		Function: &tools.FunctionDefinition{
+			Name:        "add",
+			Description: "Add two numbers",
+			Parameters: tools.FunctionParamaters{
+				Type: "object",
+				Properties: map[string]any{
+					"a": map[string]any{
+						"type": "number",
+					},
+					"b": map[string]any{
+						"type": "number",
+					},
+				},
+			},
+		},
+	}
+
 	agents := team.New(
 		agent.New("root",
 			"You are a human, with feelings and emotions.",
 			agent.WithModel(llm),
-			agent.WithTools(tools.Tool{
-				Handler: addNumbers,
-				Function: &tools.FunctionDefinition{
-					Name:        "add",
-					Description: "Add two numbers",
-					Parameters: tools.FunctionParamaters{
-						Type: "object",
-						Properties: map[string]any{
-							"a": map[string]any{
-								"type": "number",
-							},
-							"b": map[string]any{
-								"type": "number",
-							},
-						},
-					},
-				},
-			}),
+			agent.WithTools(toolAddNumbers),
 		))
+	rt := runtime.New(logger, agents, "root")
 
 	sess := session.New(logger, session.WithUserMessage("", "What is 1 + 2?"))
-
-	rt, err := runtime.New(logger, agents, "root")
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	messages, err := rt.Run(ctx, sess)
 	if err != nil {
