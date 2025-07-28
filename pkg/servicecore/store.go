@@ -3,28 +3,28 @@
 //
 // Core Responsibilities:
 // 1. Multi-Tenant Session Management:
-//    - Client-scoped session storage with mandatory client_id isolation
-//    - Backward-compatible database migration from single-tenant to multi-tenant
-//    - Session lifecycle tracking (creation, retrieval, updates, deletion)
-//    - Automatic cleanup when clients disconnect
+//   - Client-scoped session storage with mandatory client_id isolation
+//   - Backward-compatible database migration from single-tenant to multi-tenant
+//   - Session lifecycle tracking (creation, retrieval, updates, deletion)
+//   - Automatic cleanup when clients disconnect
 //
 // 2. Database Schema Evolution:
-//    - Non-breaking migration adding client_id column with '__global' default
-//    - Preserves existing sessions by assigning them to DEFAULT_CLIENT_ID
-//    - Performance optimization through proper indexing on client_id
-//    - PRAGMA-based schema introspection for safe migrations
+//   - Non-breaking migration adding client_id column with '__global' default
+//   - Preserves existing sessions by assigning them to DEFAULT_CLIENT_ID
+//   - Performance optimization through proper indexing on client_id
+//   - PRAGMA-based schema introspection for safe migrations
 //
 // 3. Security and Isolation:
-//    - All operations require explicit client_id to prevent cross-client access
-//    - Input validation prevents empty client/session IDs
-//    - Structured error handling with specific error types
-//    - Defensive programming with proper resource cleanup
+//   - All operations require explicit client_id to prevent cross-client access
+//   - Input validation prevents empty client/session IDs
+//   - Structured error handling with specific error types
+//   - Defensive programming with proper resource cleanup
 //
 // 4. Integration with Existing Systems:
-//    - Maintains compatibility with pkg/session data structures
-//    - JSON serialization for message storage
-//    - RFC3339 timestamp formatting for consistent time handling
-//    - Bridge between servicecore types and legacy session storage
+//   - Maintains compatibility with pkg/session data structures
+//   - JSON serialization for message storage
+//   - RFC3339 timestamp formatting for consistent time handling
+//   - Bridge between servicecore types and legacy session storage
 //
 // Client ID Strategy:
 // - MCP clients: Use real client ID from MCP session context
@@ -33,7 +33,6 @@
 //
 // This component is essential for enabling true multi-tenant operation while
 // maintaining backward compatibility with existing single-tenant deployments.
-//
 package servicecore
 
 import (
@@ -44,8 +43,8 @@ import (
 	"log/slog"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/docker/cagent/pkg/session"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var (
@@ -197,7 +196,7 @@ func (s *SQLiteStore) CreateSession(ctx context.Context, clientID string, agentS
 	_, err = s.db.ExecContext(ctx,
 		"INSERT INTO sessions (id, client_id, messages, created_at, agent_spec) VALUES (?, ?, ?, ?, ?)",
 		agentSession.ID, clientID, string(messagesJSON), agentSession.Created.Format(time.RFC3339), agentSession.AgentSpec)
-	
+
 	if err != nil {
 		return err
 	}
@@ -216,7 +215,7 @@ func (s *SQLiteStore) GetSession(ctx context.Context, clientID, sessionID string
 	}
 
 	row := s.db.QueryRowContext(ctx,
-		"SELECT id, messages, created_at, agent_spec FROM sessions WHERE id = ? AND client_id = ?", 
+		"SELECT id, messages, created_at, agent_spec FROM sessions WHERE id = ? AND client_id = ?",
 		sessionID, clientID)
 
 	var messagesJSON, createdAtStr, agentSpec string
@@ -335,8 +334,8 @@ func (s *SQLiteStore) DeleteSession(ctx context.Context, clientID, sessionID str
 		return ErrEmptySessionID
 	}
 
-	result, err := s.db.ExecContext(ctx, 
-		"DELETE FROM sessions WHERE id = ? AND client_id = ?", 
+	result, err := s.db.ExecContext(ctx,
+		"DELETE FROM sessions WHERE id = ? AND client_id = ?",
 		sessionID, clientID)
 	if err != nil {
 		return err

@@ -9,9 +9,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/spf13/cobra"
-	"github.com/docker/cagent/pkg/servicecore"
 	"github.com/docker/cagent/pkg/mcpserver"
+	"github.com/docker/cagent/pkg/servicecore"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -52,7 +52,7 @@ func runMCPCommand(cmd *cobra.Command, args []string) error {
 		handlerOpts.Level = slog.LevelDebug
 	}
 	logger := slog.New(slog.NewTextHandler(os.Stderr, handlerOpts))
-	
+
 	if debugMode {
 		logger.Info("Debug mode enabled")
 	}
@@ -94,20 +94,20 @@ func runMCPCommand(cmd *cobra.Command, args []string) error {
 	// Build the complete endpoint URLs for client connection
 	sseEndpoint := fmt.Sprintf("http://localhost:%s%s/sse", port, basePath)
 	messageEndpoint := fmt.Sprintf("http://localhost:%s%s/message", port, basePath)
-	
-	logger.Info("MCP SSE server starting", 
-		"agents_dir", resolvedAgentsDir, 
-		"max_sessions", maxSessions, 
+
+	logger.Info("MCP SSE server starting",
+		"agents_dir", resolvedAgentsDir,
+		"max_sessions", maxSessions,
 		"timeout", sessionTimeout,
 		"port", port,
 		"base_path", basePath)
-	
+
 	fmt.Printf("\n🚀 MCP Server Ready!\n")
 	fmt.Printf("📡 SSE Endpoint:     %s\n", sseEndpoint)
 	fmt.Printf("💬 Message Endpoint: %s\n", messageEndpoint)
 	fmt.Printf("📁 Agents Directory: %s\n", resolvedAgentsDir)
 	fmt.Printf("\nMCP clients should connect to: %s\n\n", sseEndpoint)
-	
+
 	// Start MCP SSE server
 	if err := mcpServer.Start(ctx, port); err != nil {
 		return fmt.Errorf("starting MCP SSE server: %w", err)

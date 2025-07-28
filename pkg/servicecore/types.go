@@ -13,7 +13,6 @@
 // 2. Agent metadata representation across different sources (files, Docker images)
 // 3. Structured response formatting with events and metadata
 // 4. Session lifecycle management with proper resource tracking
-//
 package servicecore
 
 import (
@@ -43,7 +42,7 @@ type ServiceManager interface {
 	SendMessage(clientID, sessionID, message string) (*Response, error)
 	ListSessions(clientID string) ([]*AgentSession, error)
 	CloseSession(clientID, sessionID string) error
-	
+
 	// Advanced session operations
 	GetSessionHistory(clientID, sessionID string, limit int) ([]SessionMessage, error)
 	GetSessionInfo(clientID, sessionID string) (*SessionInfo, error)
@@ -53,8 +52,8 @@ type ServiceManager interface {
 type AgentInfo struct {
 	Name         string `json:"name"`
 	Description  string `json:"description"`
-	Source       string `json:"source"` // "file", "store"
-	Path         string `json:"path,omitempty"`         // Absolute path (for internal use)
+	Source       string `json:"source"`                  // "file", "store"
+	Path         string `json:"path,omitempty"`          // Absolute path (for internal use)
 	RelativePath string `json:"relative_path,omitempty"` // Relative path from agents dir (for user reference)
 	Reference    string `json:"reference,omitempty"`     // Full image reference (for store agents)
 }

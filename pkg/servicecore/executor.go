@@ -5,22 +5,22 @@
 // and cagent's existing runtime system, providing:
 //
 // 1. Runtime Lifecycle Management:
-//    - Creates new runtime instances from resolved agent configurations
-//    - Initializes agent toolsets and validates configurations
-//    - Manages runtime cleanup to prevent resource leaks
-//    - Integrates with existing cagent loader and runtime components
+//   - Creates new runtime instances from resolved agent configurations
+//   - Initializes agent toolsets and validates configurations
+//   - Manages runtime cleanup to prevent resource leaks
+//   - Integrates with existing cagent loader and runtime components
 //
 // 2. Stream Execution Coordination:
-//    - Processes user messages through the agent runtime
-//    - Collects streaming events from runtime.RunStream() into structured responses
-//    - Tracks execution metadata (duration, tool calls, event counts)
-//    - Handles runtime errors and provides structured error reporting
+//   - Processes user messages through the agent runtime
+//   - Collects streaming events from runtime.RunStream() into structured responses
+//   - Tracks execution metadata (duration, tool calls, event counts)
+//   - Handles runtime errors and provides structured error reporting
 //
 // 3. Event Processing and Response Formatting:
-//    - Aggregates streaming events (tool calls, responses, agent messages)
-//    - Builds structured Response objects with content, events, and metadata
-//    - Provides timing and performance metrics for monitoring
-//    - Maintains session state consistency across message exchanges
+//   - Aggregates streaming events (tool calls, responses, agent messages)
+//   - Builds structured Response objects with content, events, and metadata
+//   - Provides timing and performance metrics for monitoring
+//   - Maintains session state consistency across message exchanges
 //
 // Integration Points:
 // - Uses pkg/loader for agent configuration parsing
@@ -30,7 +30,6 @@
 //
 // The Executor ensures that runtime complexity is hidden from transport layers
 // while providing rich structured data for client consumption and system monitoring.
-//
 package servicecore
 
 import (
@@ -61,7 +60,7 @@ func NewExecutor(logger *slog.Logger) *Executor {
 // CreateRuntime creates a new runtime instance for an agent
 func (e *Executor) CreateRuntime(agentPath, agentName string, envFiles []string, gateway string) (*runtime.Runtime, *session.Session, error) {
 	ctx := context.Background()
-	
+
 	e.logger.Debug("Creating runtime", "agent_path", agentPath, "agent_name", agentName)
 
 	// Load agent configuration using existing loader
@@ -89,7 +88,7 @@ func (e *Executor) CreateRuntime(agentPath, agentName string, envFiles []string,
 // ExecuteStream executes a message and collects streaming events into a response
 func (e *Executor) ExecuteStream(rt *runtime.Runtime, sess *session.Session, agentSpec, message string) (*Response, error) {
 	startTime := time.Now()
-	
+
 	e.logger.Debug("Executing stream", "session_id", sess.ID, "message_length", len(message))
 
 	// Add user message to session
@@ -107,22 +106,22 @@ func (e *Executor) ExecuteStream(rt *runtime.Runtime, sess *session.Session, age
 
 	for event := range eventStream {
 		events = append(events, event)
-		
+
 		e.logger.Debug("Processing event", "event_type", fmt.Sprintf("%T", event))
-		
+
 		switch evt := event.(type) {
 		case *runtime.AgentChoiceEvent:
 			// This contains the streaming content from the model
 			streamingContent.WriteString(evt.Choice.Delta.Content)
 			e.logger.Debug("Agent choice event", "delta_length", len(evt.Choice.Delta.Content), "delta_content", evt.Choice.Delta.Content)
-			
+
 		case *runtime.ToolCallEvent:
 			toolCallCount++
 			e.logger.Debug("Tool call event", "tool_name", evt.ToolCall.Function.Name)
-			
+
 		case *runtime.ToolCallResponseEvent:
 			e.logger.Debug("Tool response event", "tool_name", evt.ToolCall.Function.Name, "response_length", len(evt.Response))
-			
+
 		case *runtime.AgentMessageEvent:
 			finalContent = evt.Message.Content
 			e.logger.Debug("Agent message event", "content_length", len(evt.Message.Content), "content_preview", func() string {
@@ -131,7 +130,7 @@ func (e *Executor) ExecuteStream(rt *runtime.Runtime, sess *session.Session, age
 				}
 				return evt.Message.Content
 			}())
-			
+
 		case *runtime.ErrorEvent:
 			e.logger.Error("Runtime error event", "error", evt.Error)
 			return nil, fmt.Errorf("runtime execution error: %w", evt.Error)
@@ -141,14 +140,14 @@ func (e *Executor) ExecuteStream(rt *runtime.Runtime, sess *session.Session, age
 	}
 
 	duration := time.Since(startTime)
-	
+
 	// Use streaming content if available, fallback to final content
 	content := finalContent
 	if content == "" && streamingContent.Len() > 0 {
 		content = streamingContent.String()
 		e.logger.Debug("Using streaming content as final content", "content_length", len(content))
 	}
-	
+
 	// Build response with metadata
 	response := &Response{
 		Content: content,
@@ -162,8 +161,8 @@ func (e *Executor) ExecuteStream(rt *runtime.Runtime, sess *session.Session, age
 		},
 	}
 
-	e.logger.Debug("Stream execution completed", 
-		"session_id", sess.ID, 
+	e.logger.Debug("Stream execution completed",
+		"session_id", sess.ID,
 		"duration_ms", duration.Milliseconds(),
 		"tool_calls", toolCallCount,
 		"events", len(events),

@@ -20,7 +20,6 @@
 //
 // The Manager acts as the single entry point for both MCP and future HTTP transports,
 // ensuring consistent behavior and security across all access methods.
-//
 package servicecore
 
 import (
@@ -33,14 +32,14 @@ import (
 
 // Manager implements ServiceManager with multi-tenant client and session management
 type Manager struct {
-	clients      map[string]*Client
-	store        Store
-	resolver     *Resolver
-	executor     *Executor
-	timeout      time.Duration
-	maxSessions  int
-	mutex        sync.RWMutex
-	logger       *slog.Logger
+	clients     map[string]*Client
+	store       Store
+	resolver    *Resolver
+	executor    *Executor
+	timeout     time.Duration
+	maxSessions int
+	mutex       sync.RWMutex
+	logger      *slog.Logger
 }
 
 // NewManager creates a new ServiceManager instance
@@ -110,7 +109,7 @@ func (m *Manager) RemoveClient(clientID string) error {
 	// Clean up all agent sessions for this client
 	for sessionID := range client.AgentSessions {
 		if err := m.closeSessionUnsafe(clientID, sessionID); err != nil {
-			m.logger.Warn("Error closing session during client cleanup", 
+			m.logger.Warn("Error closing session during client cleanup",
 				"client_id", clientID, "session_id", sessionID, "error", err)
 		}
 	}
@@ -180,7 +179,7 @@ func (m *Manager) CreateAgentSession(clientID, agentSpec string) (*AgentSession,
 	}
 
 	sessionID := sess.ID // Use the session ID from the session object
-	
+
 	agentSession := &AgentSession{
 		ID:        sessionID,
 		ClientID:  clientID,
@@ -194,9 +193,9 @@ func (m *Manager) CreateAgentSession(clientID, agentSpec string) (*AgentSession,
 	client.AgentSessions[sessionID] = agentSession
 	client.LastUsed = time.Now()
 
-	m.logger.Info("Agent session created", 
+	m.logger.Info("Agent session created",
 		"client_id", clientID, "session_id", sessionID, "agent_spec", agentSpec, "agent_path", agentPath)
-	
+
 	return agentSession, nil
 }
 
@@ -231,7 +230,7 @@ func (m *Manager) SendMessage(clientID, sessionID, message string) (*Response, e
 	// Add client context to metadata
 	response.Metadata["client_id"] = clientID
 
-	m.logger.Debug("Message processed", 
+	m.logger.Debug("Message processed",
 		"client_id", clientID, "session_id", sessionID, "message_length", len(message))
 
 	return response, nil
@@ -285,7 +284,7 @@ func (m *Manager) closeSessionUnsafe(clientID, sessionID string) error {
 	delete(client.AgentSessions, sessionID)
 	client.LastUsed = time.Now()
 
-	m.logger.Info("Agent session closed", 
+	m.logger.Info("Agent session closed",
 		"client_id", clientID, "session_id", sessionID, "agent_spec", agentSession.AgentSpec)
 
 	return nil
@@ -326,13 +325,13 @@ func (m *Manager) GetSessionHistory(clientID, sessionID string, limit int) ([]Se
 			AgentName: msg.AgentName,
 			Role:      string(msg.Message.Role),
 			Content:   msg.Message.Content,
-			// Note: session.AgentMessage doesn't have timestamps, 
+			// Note: session.AgentMessage doesn't have timestamps,
 			// we could enhance this in the future
 		})
 	}
 
-	m.logger.Debug("Retrieved session history", 
-		"client_id", clientID, "session_id", sessionID, 
+	m.logger.Debug("Retrieved session history",
+		"client_id", clientID, "session_id", sessionID,
 		"total_messages", len(sessionMessages), "returned_messages", len(result))
 
 	return result, nil
@@ -365,8 +364,8 @@ func (m *Manager) GetSessionInfo(clientID, sessionID string) (*SessionInfo, erro
 	}
 
 	metadata := map[string]interface{}{
-		"agent_name":    agentName,
-		"session_id":    agentSession.Session.ID,
+		"agent_name":         agentName,
+		"session_id":         agentSession.Session.ID,
 		"session_created_at": agentSession.Session.CreatedAt,
 	}
 
@@ -375,11 +374,11 @@ func (m *Manager) GetSessionInfo(clientID, sessionID string) (*SessionInfo, erro
 		agent := agentSession.Runtime.CurrentAgent()
 		metadata["agent_description"] = agent.Description()
 		metadata["agent_instruction"] = agent.Instruction()
-		
+
 		// Add toolsets info
 		toolsets := agent.ToolSets()
 		metadata["toolsets_count"] = len(toolsets)
-		
+
 		// Get available tools from toolsets
 		availableTools := []string{}
 		for _, ts := range toolsets {
@@ -405,7 +404,7 @@ func (m *Manager) GetSessionInfo(clientID, sessionID string) (*SessionInfo, erro
 		Metadata:     metadata,
 	}
 
-	m.logger.Debug("Retrieved session info", 
+	m.logger.Debug("Retrieved session info",
 		"client_id", clientID, "session_id", sessionID, "message_count", messageCount)
 
 	return sessionInfo, nil

@@ -3,35 +3,34 @@
 //
 // Core Responsibilities:
 // 1. MCP Protocol Implementation:
-//    - Registers MCP tools (invoke_agent, list_agents, pull_agent, session management)
-//    - Handles MCP client connections and lifecycle events
-//    - Provides structured error responses following MCP conventions
-//    - Manages real client IDs extracted from MCP session context
+//   - Registers MCP tools (invoke_agent, list_agents, pull_agent, session management)
+//   - Handles MCP client connections and lifecycle events
+//   - Provides structured error responses following MCP conventions
+//   - Manages real client IDs extracted from MCP session context
 //
 // 2. Client Lifecycle Management:
-//    - OnClientConnect: Creates new client in servicecore with real MCP client ID
-//    - OnClientDisconnect: Removes client and cleans up all associated sessions
-//    - Client ID validation and uniqueness enforcement
-//    - Automatic resource cleanup on disconnect
+//   - OnClientConnect: Creates new client in servicecore with real MCP client ID
+//   - OnClientDisconnect: Removes client and cleans up all associated sessions
+//   - Client ID validation and uniqueness enforcement
+//   - Automatic resource cleanup on disconnect
 //
 // 3. Tool Registration and Routing:
-//    - Maps MCP tool calls to servicecore operations
-//    - Handles parameter validation and type conversion
-//    - Provides consistent error handling across all tools
-//    - Formats responses for MCP client consumption
+//   - Maps MCP tool calls to servicecore operations
+//   - Handles parameter validation and type conversion
+//   - Provides consistent error handling across all tools
+//   - Formats responses for MCP client consumption
 //
 // 4. Security and Isolation:
-//    - Enforces client isolation through servicecore operations
-//    - Validates all client operations against proper client context
-//    - Prevents cross-client access through MCP protocol violations
-//    - Logs security-relevant events for monitoring
+//   - Enforces client isolation through servicecore operations
+//   - Validates all client operations against proper client context
+//   - Prevents cross-client access through MCP protocol violations
+//   - Logs security-relevant events for monitoring
 //
 // Integration Architecture:
 // - Uses servicecore.ServiceManager for all business logic
 // - Leverages mcp-go library for protocol implementation
 // - Provides clean separation between transport and business logic
 // - Enables consistent behavior across MCP and future HTTP transports
-//
 package mcpserver
 
 import (
@@ -40,9 +39,9 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/docker/cagent/pkg/servicecore"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/docker/cagent/pkg/servicecore"
 )
 
 // MCPServer implements the MCP server using servicecore for business logic
@@ -79,17 +78,17 @@ func NewMCPServer(serviceCore servicecore.ServiceManager, logger *slog.Logger, b
 // Start starts the MCP SSE server on the specified port
 func (s *MCPServer) Start(ctx context.Context, port string) error {
 	s.logger.Info("Starting MCP SSE server", "port", port)
-	
+
 	// Start SSE server on specified port in a goroutine
 	addr := ":" + port
 	errChan := make(chan error, 1)
-	
+
 	go func() {
 		if err := s.sseServer.Start(addr); err != nil {
 			errChan <- fmt.Errorf("serving MCP SSE server: %w", err)
 		}
 	}()
-	
+
 	// Wait for context cancellation or server error
 	select {
 	case <-ctx.Done():
@@ -158,14 +157,14 @@ func (s *MCPServer) registerTools() {
 		mcp.WithNumber("limit", mcp.Description("Maximum number of messages to return (default: 50, 0 for all)")),
 	), s.handleGetAgentSessionHistory)
 
-	s.mcpServer.AddTool(mcp.NewTool("get_agent_session_info_enhanced", 
+	s.mcpServer.AddTool(mcp.NewTool("get_agent_session_info_enhanced",
 		mcp.WithDescription("Get comprehensive information about an agent session created with create_agent_session. Includes detailed agent metadata, available tools, statistics, and session state. More detailed than get_agent_session_info."),
 		mcp.WithString("session_id", mcp.Required(), mcp.Description("Session ID returned from create_agent_session")),
 	), s.handleGetAgentSessionInfoEnhanced)
 
 	s.logger.Debug("Registered MCP tools", "tools", []string{
-		"invoke_agent", "list_agents", "pull_agent", 
-		"create_agent_session", "send_message", "list_agent_sessions", 
+		"invoke_agent", "list_agents", "pull_agent",
+		"create_agent_session", "send_message", "list_agent_sessions",
 		"close_agent_session", "get_agent_session_info",
 		"get_agent_session_history", "get_agent_session_info_enhanced",
 	})

@@ -13,15 +13,14 @@
 // - Parameter validation prevents malicious input
 // - Errors are logged but sanitized for client responses
 // - Client isolation is enforced through servicecore operations
-//
 package mcpserver
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/docker/cagent/pkg/servicecore"
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 // handleInvokeAgent implements one-shot agent invocation
@@ -67,11 +66,11 @@ func (s *MCPServer) handleInvokeAgent(ctx context.Context, req mcp.CallToolReque
 		s.logger.Error("Failed to send message", "client_id", clientID, "session_id", session.ID, "error", err)
 		return nil, fmt.Errorf("sending message: %w", err)
 	}
-	
+
 	// Debug the response we got from servicecore
-	s.logger.Debug("Got response from servicecore", 
-		"client_id", clientID, 
-		"session_id", session.ID, 
+	s.logger.Debug("Got response from servicecore",
+		"client_id", clientID,
+		"session_id", session.ID,
 		"content_length", len(response.Content),
 		"event_count", len(response.Events),
 		"content_preview", func() string {
@@ -130,19 +129,20 @@ func (s *MCPServer) handleListAgents(ctx context.Context, req mcp.CallToolReques
 	for _, agent := range agents {
 		// Determine the agent_ref based on source type
 		var agentRef string
-		if agent.Source == "file" {
+		switch agent.Source {
+		case "file":
 			agentRef = agent.RelativePath // For file agents, use the relative path from agents dir
-		} else if agent.Source == "store" {
+		case "store":
 			agentRef = agent.Reference // For store agents, use the full image reference with tag
 		}
-		
+
 		agentInfo := map[string]interface{}{
-			"agent_ref":    agentRef,
+			"agent_ref":     agentRef,
 			"friendly_name": agent.Name,
-			"source":       agent.Source,
-			"description":  agent.Description,
+			"source":        agent.Source,
+			"description":   agent.Description,
 		}
-		
+
 		// Keep legacy fields for backward compatibility
 		if agent.Path != "" {
 			agentInfo["path"] = agent.Path
@@ -150,7 +150,7 @@ func (s *MCPServer) handleListAgents(ctx context.Context, req mcp.CallToolReques
 		if agent.Reference != "" {
 			agentInfo["reference"] = agent.Reference
 		}
-		
+
 		agentList = append(agentList, agentInfo)
 	}
 
@@ -208,13 +208,13 @@ func (s *MCPServer) extractClientID(ctx context.Context) (string, error) {
 	// TODO: Extract actual client ID from MCP context
 	// For now, use a placeholder client ID and create client if needed
 	clientID := "mcp-client-1" // Placeholder
-	
+
 	// Ensure client exists in servicecore
 	if err := s.serviceCore.CreateClient(clientID); err != nil {
 		// Client might already exist, which is fine
 		s.logger.Debug("Client creation result", "client_id", clientID, "error", err)
 	}
-	
+
 	if clientID == "" {
 		return "", fmt.Errorf("client ID not found in context")
 	}
@@ -255,7 +255,7 @@ func (s *MCPServer) handleCreateAgentSession(ctx context.Context, req mcp.CallTo
 		Content: []mcp.Content{
 			mcp.TextContent{
 				Type: "text",
-				Text: fmt.Sprintf("Created agent session: %s\nAgent: %s\nClient: %s\nCreated: %s", 
+				Text: fmt.Sprintf("Created agent session: %s\nAgent: %s\nClient: %s\nCreated: %s",
 					session.ID, session.AgentSpec, session.ClientID, session.Created.Format("2006-01-02 15:04:05")),
 			},
 		},
@@ -297,9 +297,9 @@ func (s *MCPServer) handleSendMessage(ctx context.Context, req mcp.CallToolReque
 	}
 
 	// Debug the response we got from servicecore
-	s.logger.Debug("Got response from servicecore", 
-		"client_id", clientID, 
-		"session_id", sessionID, 
+	s.logger.Debug("Got response from servicecore",
+		"client_id", clientID,
+		"session_id", sessionID,
 		"content_length", len(response.Content),
 		"event_count", len(response.Events),
 		"content_preview", func() string {
@@ -447,7 +447,7 @@ Agent Spec: %s
 Client ID: %s
 Created: %s
 Last Used: %s
-`, 
+`,
 		targetSession.ID,
 		targetSession.AgentSpec,
 		targetSession.ClientID,
@@ -469,17 +469,19 @@ Last Used: %s
 func formatAgentList(agents []interface{}) string {
 	var result string
 	for i, agent := range agents {
-		if agentMap, ok := agent.(map[string]interface{}); ok {
-			agentRef := agentMap["agent_ref"]
-			friendlyName := agentMap["friendly_name"]
-			source := agentMap["source"]
-			desc := agentMap["description"]
-			
-			result += fmt.Sprintf("%d. %s\n", i+1, friendlyName)
-			result += fmt.Sprintf("   agent_ref: %s\n", agentRef)
-			result += fmt.Sprintf("   source: %s\n", source)
-			result += fmt.Sprintf("   description: %s\n\n", desc)
+		agentMap, ok := agent.(map[string]interface{})
+		if !ok {
+			continue
 		}
+		agentRef := agentMap["agent_ref"]
+		friendlyName := agentMap["friendly_name"]
+		source := agentMap["source"]
+		desc := agentMap["description"]
+
+		result += fmt.Sprintf("%d. %s\n", i+1, friendlyName)
+		result += fmt.Sprintf("   agent_ref: %s\n", agentRef)
+		result += fmt.Sprintf("   source: %s\n", source)
+		result += fmt.Sprintf("   description: %s\n\n", desc)
 	}
 	return result
 }
@@ -488,14 +490,16 @@ func formatAgentList(agents []interface{}) string {
 func formatSessionList(sessions []interface{}) string {
 	var result string
 	for i, session := range sessions {
-		if sessionMap, ok := session.(map[string]interface{}); ok {
-			id := sessionMap["id"]
-			agentSpec := sessionMap["agent_spec"]
-			created := sessionMap["created"]
-			lastUsed := sessionMap["last_used"]
-			result += fmt.Sprintf("%d. %s (Agent: %s)\n   Created: %s, Last Used: %s\n", 
-				i+1, id, agentSpec, created, lastUsed)
+		sessionMap, ok := session.(map[string]interface{})
+		if !ok {
+			continue
 		}
+		id := sessionMap["id"]
+		agentSpec := sessionMap["agent_spec"]
+		created := sessionMap["created"]
+		lastUsed := sessionMap["last_used"]
+		result += fmt.Sprintf("%d. %s (Agent: %s)\n   Created: %s, Last Used: %s\n",
+			i+1, id, agentSpec, created, lastUsed)
 	}
 	return result
 }
@@ -522,10 +526,11 @@ func (s *MCPServer) handleGetAgentSessionHistory(ctx context.Context, req mcp.Ca
 	// Optional limit parameter (default to 50 if not specified)
 	limit := 50
 	if limitVal, exists := args["limit"]; exists {
-		if limitFloat, ok := limitVal.(float64); ok {
-			limit = int(limitFloat)
-		} else if limitInt, ok := limitVal.(int); ok {
-			limit = limitInt
+		switch v := limitVal.(type) {
+		case float64:
+			limit = int(v)
+		case int:
+			limit = v
 		}
 	}
 
@@ -613,7 +618,7 @@ Toolsets: %v
 Session Details:
   Internal Session ID: %s
   Session Created: %s
-`, 
+`,
 		sessionInfo.ID,
 		sessionInfo.AgentSpec,
 		sessionInfo.ClientID,
