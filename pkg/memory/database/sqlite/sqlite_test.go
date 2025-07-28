@@ -56,7 +56,7 @@ func TestAddMemory(t *testing.T) {
 	}
 
 	err := db.AddMemory(ctx, memory)
-	assert.NoError(t, err, "Adding memory should succeed")
+	require.NoError(t, err, "Adding memory should succeed")
 
 	// Test adding a duplicate memory (same ID)
 	err = db.AddMemory(ctx, memory)
@@ -81,7 +81,7 @@ func TestGetMemories(t *testing.T) {
 
 	// Test with empty database
 	memories, err := db.GetMemories(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, memories, "Empty database should return empty memories slice")
 
 	// Add test memories
@@ -105,7 +105,7 @@ func TestGetMemories(t *testing.T) {
 
 	// Get and verify memories
 	memories, err = db.GetMemories(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, memories, 2, "Should retrieve both added memories")
 
 	// Verify contents (order might not be guaranteed)
@@ -145,7 +145,7 @@ func TestDeleteMemory(t *testing.T) {
 
 	// Delete the memory
 	err = db.DeleteMemory(ctx, memory)
-	assert.NoError(t, err, "Deleting existing memory should succeed")
+	require.NoError(t, err, "Deleting existing memory should succeed")
 
 	// Verify it's gone
 	memories, err = db.GetMemories(ctx)
@@ -157,7 +157,7 @@ func TestDeleteMemory(t *testing.T) {
 		ID: "non-existent-id",
 	}
 	err = db.DeleteMemory(ctx, nonExistentMemory)
-	assert.NoError(t, err, "Deleting non-existent memory should not return an error")
+	require.NoError(t, err, "Deleting non-existent memory should not return an error")
 }
 
 func TestDatabaseOperationsWithCanceledContext(t *testing.T) {

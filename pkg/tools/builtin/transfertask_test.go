@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewTaskTool(t *testing.T) {
@@ -23,7 +24,7 @@ func TestTaskTool_Tools(t *testing.T) {
 
 	tools, err := tool.Tools(context.Background())
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, tools, 1)
 
 	// Verify transfer_task function
@@ -48,9 +49,9 @@ func TestTaskTool_StartStop(t *testing.T) {
 
 	// Test Start method
 	err := tool.Start(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Test Stop method
 	err = tool.Stop()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

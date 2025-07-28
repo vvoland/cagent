@@ -40,7 +40,7 @@ func TestShellTool_Tools(t *testing.T) {
 
 	tools, err := tool.Tools(context.Background())
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, tools, 1)
 
 	// Verify bash function
@@ -201,9 +201,9 @@ func TestShellTool_StartStop(t *testing.T) {
 
 	// Test Start method
 	err := tool.Start(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Test Stop method
 	err = tool.Stop()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

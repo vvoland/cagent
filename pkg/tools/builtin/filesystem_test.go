@@ -72,7 +72,7 @@ func TestFilesystemTool_IsPathAllowed(t *testing.T) {
 	// Test allowed path
 	allowedPath := filepath.Join(tmpDir, "subdir", "file.txt")
 	err := tool.isPathAllowed(allowedPath)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Test disallowed path
 	disallowedPath := "/etc/passwd"
@@ -425,7 +425,7 @@ func TestFilesystemTool_DirectoryTree(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(result.Output), &tree))
 
 	assert.Equal(t, "directory", tree.Type)
-	assert.True(t, len(tree.Children) >= 2) // file1.txt and subdir1
+	assert.GreaterOrEqual(t, len(tree.Children), 2) // file1.txt and subdir1
 
 	// Test with depth limit
 	args = map[string]any{
@@ -461,7 +461,7 @@ func TestFilesystemTool_SearchFiles(t *testing.T) {
 	result := callHandler(t, handler, args)
 
 	lines := strings.Split(strings.TrimSpace(result.Output), "\n")
-	assert.True(t, len(lines) >= 2) // Should find test.txt, test.log, and test_sub.txt
+	assert.GreaterOrEqual(t, len(lines), 2) // Should find test.txt, test.log, and test_sub.txt
 
 	// Test search with exclude patterns
 	args = map[string]any{
@@ -568,11 +568,11 @@ func TestFilesystemTool_StartStop(t *testing.T) {
 
 	// Test Start method
 	err := tool.Start(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Test Stop method
 	err = tool.Stop()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 // Helper functions

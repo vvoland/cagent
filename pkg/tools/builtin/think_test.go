@@ -32,7 +32,7 @@ func TestThinkTool_Tools(t *testing.T) {
 
 	tls, err := tool.Tools(context.Background())
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, tls, 1)
 
 	// Verify think function
@@ -124,9 +124,9 @@ func TestThinkTool_StartStop(t *testing.T) {
 
 	// Test Start method
 	err := tool.Start(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Test Stop method
 	err = tool.Stop()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

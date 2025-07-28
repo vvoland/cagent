@@ -33,7 +33,7 @@ func TestNew(t *testing.T) {
 	// Check if directory was created
 	historyDir := filepath.Join(tmpHome, ".cagent")
 	_, err = os.Stat(historyDir)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Check initial state
 	assert.Equal(t, -1, h.current)
@@ -56,7 +56,7 @@ func TestHistory_AddAndSave(t *testing.T) {
 
 	// Verify messages were added
 	assert.Equal(t, messages, h.Messages)
-	assert.Equal(t, len(messages), h.current)
+	assert.Len(t, messages, h.current)
 
 	// Test persistence by creating a new instance
 	h2, err := New()

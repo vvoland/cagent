@@ -54,7 +54,7 @@ func TestStoreAgentName(t *testing.T) {
 	require.NotNil(t, retrievedSession)
 
 	// Verify the agent names are correctly stored and retrieved
-	assert.Equal(t, 3, len(retrievedSession.Messages))
+	assert.Len(t, retrievedSession.Messages, 3)
 
 	// First message should be user message with empty agent name
 	assert.Equal(t, "demo-agent", retrievedSession.Messages[0].AgentFilename)
@@ -113,7 +113,7 @@ func TestStoreMultipleAgents(t *testing.T) {
 	require.NotNil(t, retrievedSession)
 
 	// Verify the agent names are correctly stored and retrieved
-	assert.Equal(t, 3, len(retrievedSession.Messages))
+	assert.Len(t, retrievedSession.Messages, 3)
 
 	// First message should be user message with empty agent name
 	assert.Equal(t, "demo", retrievedSession.Messages[0].AgentFilename)
@@ -175,11 +175,11 @@ func TestGetSessions(t *testing.T) {
 	// Retrieve all sessions
 	sessions, err := store.GetSessions(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, 2, len(sessions))
+	assert.Len(t, sessions, 2)
 
 	// Verify agent names are preserved in all sessions
 	for _, session := range sessions {
-		assert.Equal(t, 1, len(session.Messages))
+		assert.Len(t, session.Messages, 1)
 		assert.Equal(t, "test-agent", session.Messages[0].AgentName)
 	}
 }

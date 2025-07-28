@@ -76,7 +76,7 @@ func TestTrimMessagesWithToolCalls(t *testing.T) {
 	result := trimMessages(messages)
 
 	// Should keep last 3 messages, but ensure tool call consistency
-	assert.Equal(t, 3, len(result), "should have exactly 3 messages")
+	assert.Len(t, result, 3)
 
 	// Verify we don't have any orphaned tool results
 	toolCalls := make(map[string]bool)
