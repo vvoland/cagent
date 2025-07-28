@@ -8,11 +8,17 @@
 // 4. Format response for MCP client consumption
 // 5. Handle errors with structured MCP error responses
 //
+// Multi-Tenant Support Status:
+// - The servicecore layer is designed for multi-tenant operation with client isolation
+// - However, actual client ID extraction from MCP context is not yet implemented
+// - Currently all MCP clients use the same DEFAULT_CLIENT_ID, making them effectively global
+// - This means MCP clients can see and interact with each other's sessions
+//
 // Security Considerations:
 // - All operations require valid client ID from MCP context
 // - Parameter validation prevents malicious input
 // - Errors are logged but sanitized for client responses
-// - Client isolation is enforced through servicecore operations
+// - Client isolation is enforced through servicecore operations (when client IDs differ)
 package mcpserver
 
 import (
@@ -206,8 +212,8 @@ func (s *MCPServer) handlePullAgent(ctx context.Context, req mcp.CallToolRequest
 // extractClientID extracts the client ID from MCP context
 func (s *MCPServer) extractClientID(ctx context.Context) (string, error) {
 	// TODO: Extract actual client ID from MCP context
-	// For now, use a placeholder client ID and create client if needed
-	clientID := "mcp-client-1" // Placeholder
+	// For now, use the global default client ID (multi-tenant support is not fully implemented)
+	clientID := servicecore.DEFAULT_CLIENT_ID
 
 	// Ensure client exists in servicecore
 	if err := s.serviceCore.CreateClient(clientID); err != nil {

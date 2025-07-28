@@ -729,6 +729,10 @@ func (s *MCPServer) extractClientID(ctx context.Context) (string, error) {
     }
     return "", fmt.Errorf("no client session found in context")
 }
+```
+
+**Current Implementation Status:**
+The current implementation does not extract actual client IDs from MCP context. Instead, all MCP clients use `DEFAULT_CLIENT_ID` ("__global"), effectively making the MCP server operate in single-tenant mode like the HTTP API. While the servicecore layer supports full multi-tenant operation, the MCP transport layer needs client ID extraction implementation to achieve true client isolation.
 
 // All tool handlers use client-scoped operations
 func (s *MCPServer) handleCreateAgentSession(ctx context.Context, clientID string, args map[string]any) (*mcp.CallToolResult, error) {
