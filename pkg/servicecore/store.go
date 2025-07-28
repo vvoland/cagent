@@ -185,7 +185,7 @@ func (s *SQLiteStore) CreateSession(ctx context.Context, clientID string, agentS
 	// Convert AgentSession to session.Session format for storage
 	sessionData := &session.Session{
 		ID:        agentSession.ID,
-		Messages:  []session.AgentMessage{}, // Start with empty messages
+		Messages:  []session.Message{}, // Start with empty messages
 		CreatedAt: agentSession.Created,
 	}
 
@@ -236,7 +236,7 @@ func (s *SQLiteStore) GetSession(ctx context.Context, clientID, sessionID string
 	}
 
 	// Parse messages (though we don't store them in AgentSession directly)
-	var messages []session.AgentMessage
+	var messages []session.Message
 	if err := json.Unmarshal([]byte(messagesJSON), &messages); err != nil {
 		return nil, err
 	}

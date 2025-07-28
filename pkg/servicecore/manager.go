@@ -223,7 +223,7 @@ func (m *Manager) SendMessage(clientID, sessionID, message string) (*Response, e
 	m.mutex.Unlock()
 
 	// Execute message using executor
-	response, err := m.executor.ExecuteStream(agentSession.Runtime, agentSession.Session, message)
+	response, err := m.executor.ExecuteStream(agentSession.Runtime, agentSession.Session, agentSession.AgentSpec, message)
 	if err != nil {
 		return nil, fmt.Errorf("executing message: %w", err)
 	}

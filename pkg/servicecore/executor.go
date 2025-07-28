@@ -40,6 +40,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/loader"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
@@ -64,22 +65,19 @@ func (e *Executor) CreateRuntime(agentPath, agentName string, envFiles []string,
 	e.logger.Debug("Creating runtime", "agent_path", agentPath, "agent_name", agentName)
 
 	// Load agent configuration using existing loader
-	agents, err := loader.Load(ctx, agentPath, envFiles, gateway, e.logger)
+	runConfig := config.RuntimeConfig{
+		EnvFiles: envFiles,
+		Gateway:  gateway,
+	}
+	agents, err := loader.Load(ctx, agentPath, runConfig, e.logger)
 	if err != nil {
 		return nil, nil, fmt.Errorf("loading agent configuration: %w", err)
 	}
 
-	// Start tool sets
-	if err := agents.StartToolSets(ctx); err != nil {
-		return nil, nil, fmt.Errorf("starting tool sets: %w", err)
-	}
+	// Tool sets are started automatically when needed
 
 	// Create runtime
-	rt, err := runtime.New(e.logger, agents, agentName)
-	if err != nil {
-		agents.StopToolSets() // Clean up on error
-		return nil, nil, fmt.Errorf("creating runtime: %w", err)
-	}
+	rt := runtime.New(e.logger, agents, agentName)
 
 	// Create session
 	sess := session.New(e.logger)
@@ -89,13 +87,13 @@ func (e *Executor) CreateRuntime(agentPath, agentName string, envFiles []string,
 }
 
 // ExecuteStream executes a message and collects streaming events into a response
-func (e *Executor) ExecuteStream(rt *runtime.Runtime, sess *session.Session, message string) (*Response, error) {
+func (e *Executor) ExecuteStream(rt *runtime.Runtime, sess *session.Session, agentSpec, message string) (*Response, error) {
 	startTime := time.Now()
 	
 	e.logger.Debug("Executing stream", "session_id", sess.ID, "message_length", len(message))
 
 	// Add user message to session
-	sess.Messages = append(sess.Messages, session.UserMessage(message))
+	sess.Messages = append(sess.Messages, session.UserMessage(agentSpec, message))
 
 	// Start streaming execution
 	ctx := context.Background()
