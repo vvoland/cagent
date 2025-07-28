@@ -76,9 +76,9 @@ func Load(ctx context.Context, path string, envFiles []string, gateway string, l
 
 		opts = append(opts, agent.WithToolSets(agentTools...))
 
-		agent := agent.New(name, agentConfig.Instruction, opts...)
-		agents = append(agents, agent)
-		agentsByName[name] = agent
+		ag := agent.New(name, agentConfig.Instruction, opts...)
+		agents = append(agents, ag)
+		agentsByName[name] = ag
 	}
 
 	for name := range cfg.Agents {
