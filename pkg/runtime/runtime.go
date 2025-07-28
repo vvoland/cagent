@@ -77,7 +77,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			messages := sess.GetMessages(a)
 			r.logger.Debug("Retrieved messages for processing", "agent", a.Name(), "message_count", len(messages))
 
-			agentTools, err := a.Tools()
+			agentTools, err := a.Tools(ctx)
 			if err != nil {
 				r.logger.Error("Failed to get agent tools", "agent", a.Name(), "error", err)
 				events <- &ErrorEvent{Error: fmt.Errorf("failed to get tools: %w", err)}
@@ -120,7 +120,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			// Handle tool calls if present
 			if len(calls) > 0 {
 				r.logger.Debug("Processing tool calls", "agent", a.Name(), "call_count", len(calls))
-				agentTools, err := a.Tools()
+				agentTools, err := a.Tools(ctx)
 				if err != nil {
 					r.logger.Error("Failed to get tools for tool calls", "agent", a.Name(), "error", err)
 					events <- &ErrorEvent{Error: fmt.Errorf("failed to get tools: %w", err)}

@@ -649,10 +649,6 @@ func runTUICommand(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-
-	if err := agents.StartToolSets(ctx); err != nil {
-		return err
-	}
 	defer func() {
 		if err := agents.StopToolSets(); err != nil {
 			logger.Error("Failed to stop tool sets", "error", err)

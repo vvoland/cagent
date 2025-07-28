@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"sync/atomic"
 
 	"github.com/docker/cagent/pkg/memorymanager"
 	"github.com/docker/cagent/pkg/model/provider"
@@ -16,7 +17,7 @@ type Agent struct {
 	description     string
 	instruction     string
 	toolsets        []tools.ToolSet
-	toolsetsStarted bool
+	toolsetsStarted atomic.Bool
 	models          []provider.Provider
 	subAgents       []*Agent
 	parents         []*Agent
@@ -82,10 +83,14 @@ func (a *Agent) Model() provider.Provider {
 }
 
 // Tools returns the tools available to this agent
-func (a *Agent) Tools() ([]tools.Tool, error) {
+func (a *Agent) Tools(ctx context.Context) ([]tools.Tool, error) {
+	if err := a.ensureToolSetsAreStarted(ctx); err != nil {
+		return nil, err
+	}
+
 	agentTools := []tools.Tool{}
 	for _, toolSet := range a.toolsets {
-		ta, err := toolSet.Tools(context.TODO())
+		ta, err := toolSet.Tools(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tools: %w", err)
 		}
@@ -101,8 +106,8 @@ func (a *Agent) ToolSets() []tools.ToolSet {
 	return a.toolsets
 }
 
-func (a *Agent) StartToolSets(ctx context.Context) error {
-	if a.toolsetsStarted {
+func (a *Agent) ensureToolSetsAreStarted(ctx context.Context) error {
+	if a.toolsetsStarted.Load() {
 		return nil
 	}
 
@@ -112,12 +117,12 @@ func (a *Agent) StartToolSets(ctx context.Context) error {
 		}
 	}
 
-	a.toolsetsStarted = true
+	a.toolsetsStarted.Store(true)
 	return nil
 }
 
 func (a *Agent) StopToolSets() error {
-	if !a.toolsetsStarted {
+	if !a.toolsetsStarted.Load() {
 		return nil
 	}
 
@@ -127,6 +132,6 @@ func (a *Agent) StopToolSets() error {
 		}
 	}
 
-	a.toolsetsStarted = false
+	a.toolsetsStarted.Store(false)
 	return nil
 }

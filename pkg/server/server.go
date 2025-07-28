@@ -140,10 +140,6 @@ func (s *Server) createAgent(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
 	}
 
-	if err := team.StartToolSets(context.TODO()); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to start tool sets"})
-	}
-
 	agentName := filepath.Base(path)
 	s.runtimes[agentName], err = runtime.New(s.logger, team, "root")
 	if err != nil {
@@ -184,10 +180,6 @@ func (s *Server) pullAgent(c echo.Context) error {
 	team, err := loader.Load(c.Request().Context(), fileName, s.envFiles, s.gateway, s.logger)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
-	}
-
-	if err := team.StartToolSets(c.Request().Context()); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to start tool sets"})
 	}
 
 	s.runtimes[agentName], err = runtime.New(s.logger, team, "root")

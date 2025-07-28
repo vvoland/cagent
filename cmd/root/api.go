@@ -130,10 +130,6 @@ func loadAgents(ctx context.Context, agentsPath string, logger *slog.Logger) (ma
 			continue
 		}
 
-		if err := fileTeam.StartToolSets(ctx); err != nil {
-			return nil, fmt.Errorf("failed to start tool sets: %w", err)
-		}
-
 		filename := filepath.Base(agentPath)
 		rt, err := runtime.New(logger, fileTeam, "root")
 		if err != nil {
