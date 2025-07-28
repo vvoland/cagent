@@ -29,14 +29,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	agents := team.New(map[string]*agent.Agent{
-		"root": agent.New(
+	agents := team.New(
+		agent.New(
 			"root",
 			"You are an expert hacker",
 			agent.WithModel(llm),
 			agent.WithToolSets([]tools.ToolSet{builtin.NewShellTool()}),
-		),
-	})
+		))
 
 	sess := session.New(logger, session.WithUserMessage("", "Tell me a story about my current directory"))
 

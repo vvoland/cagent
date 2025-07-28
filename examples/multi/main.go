@@ -43,10 +43,7 @@ func main() {
 		agent.WithToolSets([]tools.ToolSet{&builtin.TransferTaskTool{}}),
 	)
 
-	agents := team.New(map[string]*agent.Agent{
-		"root":  root,
-		"child": child,
-	})
+	agents := team.New(root, child)
 
 	sess := session.New(logger, session.WithUserMessage("", "Ask your child how they are doing and tell me what they said"))
 

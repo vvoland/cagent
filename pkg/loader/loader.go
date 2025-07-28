@@ -32,7 +32,8 @@ func Load(ctx context.Context, path string, envFiles []string, gateway string, l
 		return nil, err
 	}
 
-	agents := make(map[string]*agent.Agent)
+	var agents []*agent.Agent
+	agentsByName := make(map[string]*agent.Agent)
 
 	sharedTools := map[string]tools.ToolSet{
 		"todo": builtin.NewTodoTool(),
@@ -75,7 +76,9 @@ func Load(ctx context.Context, path string, envFiles []string, gateway string, l
 
 		opts = append(opts, agent.WithToolSets(agentTools))
 
-		agents[name] = agent.New(name, agentConfig.Instruction, opts...)
+		agent := agent.New(name, agentConfig.Instruction, opts...)
+		agents = append(agents, agent)
+		agentsByName[name] = agent
 	}
 
 	for name := range cfg.Agents {
@@ -86,17 +89,17 @@ func Load(ctx context.Context, path string, envFiles []string, gateway string, l
 
 		subAgents := make([]*agent.Agent, 0, len(agentConfig.SubAgents))
 		for _, subName := range agentConfig.SubAgents {
-			if subAgent, exists := agents[subName]; exists {
+			if subAgent, exists := agentsByName[subName]; exists {
 				subAgents = append(subAgents, subAgent)
 			}
 		}
 
-		if a, exists := agents[name]; exists && len(subAgents) > 0 {
+		if a, exists := agentsByName[name]; exists && len(subAgents) > 0 {
 			agent.WithSubAgents(subAgents)(a)
 		}
 	}
 
-	return team.New(agents), nil
+	return team.New(agents...), nil
 }
 
 func getModelsForAgent(cfg *config.Config, a *config.AgentConfig, absEnvFiles []string, gateway string, logger *slog.Logger) ([]provider.Provider, error) {

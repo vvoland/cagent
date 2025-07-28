@@ -12,8 +12,13 @@ type Team struct {
 	toolsetsStarted bool
 }
 
-func New(agents map[string]*agent.Agent) *Team {
-	return &Team{agents: agents}
+func New(agents ...*agent.Agent) *Team {
+	agentsByName := make(map[string]*agent.Agent)
+	for _, agent := range agents {
+		agentsByName[agent.Name()] = agent
+	}
+
+	return &Team{agents: agentsByName}
 }
 
 func (t *Team) Get(name string) *agent.Agent {

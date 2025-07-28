@@ -82,13 +82,13 @@ func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, promp
 	fmt.Println("Generating agent configuration....")
 
 	fsToolset := fsToolset{inner: builtin.NewFilesystemTool([]string{baseDir})}
-	agents := team.New(map[string]*agent.Agent{
-		"root": agent.New("root",
+	agents := team.New(
+		agent.New(
+			"root",
 			agentBuilderInstructions,
 			agent.WithModel(llm),
 			agent.WithToolSets([]tools.ToolSet{builtin.NewShellTool(), &fsToolset}),
-		),
-	})
+		))
 
 	sess := session.New(logger, session.WithUserMessage("", prompt))
 

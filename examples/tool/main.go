@@ -47,8 +47,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	agents := team.New(map[string]*agent.Agent{
-		"root": agent.New("root",
+	agents := team.New(
+		agent.New("root",
 			"You are a human, with feelings and emotions.",
 			agent.WithModel(llm),
 			agent.WithTools([]tools.Tool{
@@ -71,8 +71,7 @@ func main() {
 					},
 				},
 			}),
-		),
-	})
+		))
 
 	sess := session.New(logger, session.WithUserMessage("", "What is 1 + 2?"))
 
