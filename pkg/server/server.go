@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -80,10 +81,13 @@ func New(logger *slog.Logger, runtimes map[string]*runtime.Runtime, sessionStore
 	api.POST("/agents/pull", s.pullAgent)
 	// List all sessions
 	api.GET("/sessions", s.getSessions)
+	// Get a session by id
+	api.GET("/sessions/:id", s.getSession)
 	// Create a new session and run an agent loop
 	api.POST("/sessions", s.createSession)
 	// Delete a session
 	api.DELETE("/sessions/:id", s.deleteSession)
+
 	// Run an agent loop
 	api.POST("/sessions/:id/agent/:agent", s.runAgent)
 
@@ -206,12 +210,27 @@ func (s *Server) agents(c echo.Context) error {
 	return c.JSON(http.StatusOK, agentList)
 }
 
+type sessionResponse struct {
+	ID          string `json:"id"`
+	CreatedAt   string `json:"created_at"`
+	NumMessages int    `json:"num_messages"`
+}
+
 func (s *Server) getSessions(c echo.Context) error {
 	sessions, err := s.sessionStore.GetSessions(c.Request().Context())
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to get sessions"})
 	}
-	return c.JSON(http.StatusOK, sessions)
+
+	responses := make([]sessionResponse, len(sessions))
+	for i, sess := range sessions {
+		responses[i] = sessionResponse{
+			ID:          sess.ID,
+			CreatedAt:   sess.CreatedAt.Format(time.RFC3339),
+			NumMessages: len(sess.Messages),
+		}
+	}
+	return c.JSON(http.StatusOK, responses)
 }
 
 func (s *Server) createSession(c echo.Context) error {
@@ -220,6 +239,15 @@ func (s *Server) createSession(c echo.Context) error {
 	if err := s.sessionStore.AddSession(c.Request().Context(), sess); err != nil {
 		s.logger.Error("Failed to persist session", "session_id", sess.ID, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create session"})
+	}
+
+	return c.JSON(http.StatusOK, sess)
+}
+
+func (s *Server) getSession(c echo.Context) error {
+	sess, err := s.sessionStore.GetSession(c.Request().Context(), c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "session not found"})
 	}
 
 	return c.JSON(http.StatusOK, sess)

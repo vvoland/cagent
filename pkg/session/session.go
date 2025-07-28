@@ -32,7 +32,7 @@ type Session struct {
 
 // AgentMessage is a message from an agent
 type AgentMessage struct {
-	AgentName string       `json:"agentName"`
+	AgentName string       `json:"agentName"` // TODO: rename to agent_name
 	Message   chat.Message `json:"message"`
 }
 
