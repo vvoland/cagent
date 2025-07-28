@@ -4,6 +4,7 @@ go 1.24.1
 
 require (
 	github.com/1password/onepassword-sdk-go v0.3.1
+	github.com/Microsoft/go-winio v0.6.2
 	github.com/anthropics/anthropic-sdk-go v1.5.0
 	github.com/charmbracelet/bubbles v0.21.0
 	github.com/charmbracelet/bubbletea v1.3.6

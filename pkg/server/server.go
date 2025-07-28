@@ -93,8 +93,7 @@ func New(logger *slog.Logger, runtimes map[string]*runtime.Runtime, sessionStore
 func (s *Server) ListenAndServe(ctx context.Context, listenAddr string) error {
 	s.logger.Info("Starting server on http://localhost" + listenAddr)
 
-	var lc net.ListenConfig
-	ln, err := lc.Listen(ctx, "tcp", listenAddr)
+	ln, err := listen(ctx, listenAddr)
 	if err != nil {
 		return err
 	}
