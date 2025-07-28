@@ -631,6 +631,7 @@ func NewTUICmd() *cobra.Command {
 
 func runTUICommand(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
+	agentFilename := args[0]
 
 	// Configure logger based on debug flag
 	logLevel := slog.LevelInfo
@@ -644,7 +645,7 @@ func runTUICommand(cmd *cobra.Command, args []string) error {
 
 	logger.Debug("Starting agent TUI", "agent", agentName, "debug_mode", debugMode)
 
-	agents, err := loader.Load(ctx, args[0], envFiles, gateway, logger)
+	agents, err := loader.Load(ctx, agentFilename, envFiles, gateway, logger)
 	if err != nil {
 		return err
 	}

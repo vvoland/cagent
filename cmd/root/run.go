@@ -40,6 +40,7 @@ func NewRunCmd() *cobra.Command {
 
 func runAgentCommand(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
+	agentFilename := args[0]
 
 	logLevel := slog.LevelInfo
 	if debugMode {
@@ -52,9 +53,8 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 
 	logger.Debug("Starting agent", "agent", agentName, "debug_mode", debugMode)
 
-	agentFile := args[0]
-	if !fileExists(agentFile) {
-		a, err := fromStore(agentFile)
+	if !fileExists(agentFilename) {
+		a, err := fromStore(agentFilename)
 		if err != nil {
 			return err
 		}
@@ -71,10 +71,10 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		if err := tmpFile.Close(); err != nil {
 			return err
 		}
-		agentFile = tmpFile.Name()
+		agentFilename = tmpFile.Name()
 	}
 
-	agents, err := loader.Load(ctx, agentFile, envFiles, gateway, logger)
+	agents, err := loader.Load(ctx, agentFilename, envFiles, gateway, logger)
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
-		sess.Messages = append(sess.Messages, session.UserMessage(userInput))
+		sess.Messages = append(sess.Messages, session.UserMessage(agentFilename, userInput))
 
 		first := false
 		for event := range rt.RunStream(ctx, sess) {

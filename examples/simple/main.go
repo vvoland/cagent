@@ -28,14 +28,15 @@ func main() {
 	}
 
 	agents := team.New(map[string]*agent.Agent{
-		"root": agent.New("root",
+		"root": agent.New(
+			"root",
 			"You are a human, with feelings and emotions.",
 			agent.WithModel(llm),
 			agent.WithDescription("A human."),
 		),
 	})
 
-	sess := session.New(logger, session.WithUserMessage("How are you doing?"))
+	sess := session.New(logger, session.WithUserMessage("", "How are you doing?"))
 
 	rt, err := runtime.New(logger, agents, "root")
 	if err != nil {

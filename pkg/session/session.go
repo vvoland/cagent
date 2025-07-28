@@ -32,13 +32,15 @@ type Session struct {
 
 // Message is a message from an agent
 type Message struct {
-	AgentName string       `json:"agentName"` // TODO: rename to agent_name
-	Message   chat.Message `json:"message"`
+	AgentFilename string       `json:"agentFilename"`
+	AgentName     string       `json:"agentName"` // TODO: rename to agent_name
+	Message       chat.Message `json:"message"`
 }
 
-func UserMessage(content string) Message {
+func UserMessage(agentFilename, content string) Message {
 	return Message{
-		AgentName: "", // User messages don't have an agent name
+		AgentFilename: agentFilename,
+		AgentName:     "",
 		Message: chat.Message{
 			Role:    chat.MessageRoleUser,
 			Content: content,
@@ -46,31 +48,36 @@ func UserMessage(content string) Message {
 	}
 }
 
-// NewAgentMessage creates a new AgentMessage with the given agent and message
 func NewAgentMessage(a *agent.Agent, message *chat.Message) Message {
 	return Message{
-		AgentName: a.Name(),
-		Message:   *message,
+		AgentFilename: "",
+		AgentName:     a.Name(),
+		Message:       *message,
+	}
+}
+
+func SystemMessage(content string) Message {
+	return Message{
+		AgentFilename: "",
+		AgentName:     "",
+		Message: chat.Message{
+			Role:    chat.MessageRoleSystem,
+			Content: content,
+		},
 	}
 }
 
 type Opt func(s *Session)
 
-func WithUserMessage(content string) Opt {
+func WithUserMessage(agentFilename, content string) Opt {
 	return func(s *Session) {
-		s.Messages = append(s.Messages, UserMessage(content))
+		s.Messages = append(s.Messages, UserMessage(agentFilename, content))
 	}
 }
 
 func WithSystemMessage(content string) Opt {
 	return func(s *Session) {
-		s.Messages = append(s.Messages, Message{
-			AgentName: "",
-			Message: chat.Message{
-				Role:    chat.MessageRoleSystem,
-				Content: content,
-			},
-		})
+		s.Messages = append(s.Messages, SystemMessage(content))
 	}
 }
 
@@ -145,6 +152,15 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		"trimmed_messages", len(trimmed))
 
 	return trimmed
+}
+
+func (s *Session) GetMostRecentAgentFilename() string {
+	for i := len(s.Messages) - 1; i >= 0; i-- {
+		if agentFilename := s.Messages[i].AgentFilename; agentFilename != "" {
+			return agentFilename
+		}
+	}
+	return ""
 }
 
 // trimMessages ensures we don't exceed the maximum number of messages while maintaining

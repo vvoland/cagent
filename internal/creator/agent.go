@@ -90,7 +90,7 @@ func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, promp
 		),
 	})
 
-	sess := session.New(logger, session.WithUserMessage(prompt))
+	sess := session.New(logger, session.WithUserMessage("", prompt))
 
 	rt, err := runtime.New(logger, agents, "root")
 	if err != nil {

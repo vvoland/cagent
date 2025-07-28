@@ -30,14 +30,15 @@ func main() {
 	}
 
 	agents := team.New(map[string]*agent.Agent{
-		"root": agent.New("root",
+		"root": agent.New(
+			"root",
 			"You are an expert hacker",
 			agent.WithModel(llm),
 			agent.WithToolSets([]tools.ToolSet{builtin.NewShellTool()}),
 		),
 	})
 
-	sess := session.New(logger, session.WithUserMessage("Tell me a story about my current directory"))
+	sess := session.New(logger, session.WithUserMessage("", "Tell me a story about my current directory"))
 
 	rt, err := runtime.New(logger, agents, "root")
 	if err != nil {

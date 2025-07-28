@@ -29,12 +29,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	child := agent.New("child",
+	child := agent.New(
+		"child",
 		"You are a child, with a lot of energy.",
 		agent.WithModel(llm),
 		agent.WithDescription("A child."),
 	)
-	root := agent.New("root",
+	root := agent.New(
+		"root",
 		"You are a human, with feelings and emotions.",
 		agent.WithModel(llm),
 		agent.WithSubAgents([]*agent.Agent{child}),
@@ -46,7 +48,7 @@ func main() {
 		"child": child,
 	})
 
-	sess := session.New(logger, session.WithUserMessage("Ask your child how they are doing and tell me what they said"))
+	sess := session.New(logger, session.WithUserMessage("", "Ask your child how they are doing and tell me what they said"))
 
 	rt, err := runtime.New(logger, agents, "root")
 	if err != nil {

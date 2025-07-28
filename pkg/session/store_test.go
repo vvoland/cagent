@@ -31,7 +31,7 @@ func TestStoreAgentName(t *testing.T) {
 	session := &Session{
 		ID: "test-session",
 		Messages: []Message{
-			UserMessage("Hello"),
+			UserMessage("demo-agent", "Hello"),
 			NewAgentMessage(testAgent1, &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "Hello from test-agent-1",
@@ -57,14 +57,17 @@ func TestStoreAgentName(t *testing.T) {
 	assert.Equal(t, 3, len(retrievedSession.Messages))
 
 	// First message should be user message with empty agent name
+	assert.Equal(t, "demo-agent", retrievedSession.Messages[0].AgentFilename)
 	assert.Equal(t, "", retrievedSession.Messages[0].AgentName)
 	assert.Equal(t, "Hello", retrievedSession.Messages[0].Message.Content)
 
 	// Second message should have the first agent's name
+	assert.Equal(t, "", retrievedSession.Messages[1].AgentFilename)
 	assert.Equal(t, "test-agent-1", retrievedSession.Messages[1].AgentName)
 	assert.Equal(t, "Hello from test-agent-1", retrievedSession.Messages[1].Message.Content)
 
 	// Third message should have the second agent's name
+	assert.Equal(t, "", retrievedSession.Messages[2].AgentFilename)
 	assert.Equal(t, "test-agent-2", retrievedSession.Messages[2].AgentName)
 	assert.Equal(t, "Another message from test-agent-2", retrievedSession.Messages[2].Message.Content)
 }
@@ -85,9 +88,10 @@ func TestStoreMultipleAgents(t *testing.T) {
 
 	// Create a session with messages from different agents
 	session := &Session{
-		ID: "multi-agent-session",
+		ID:        "multi-agent-session",
+		CreatedAt: time.Now(),
 		Messages: []Message{
-			UserMessage("Start conversation"),
+			UserMessage("demo", "Start conversation"),
 			NewAgentMessage(agent1, &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "Response from agent 1",
@@ -97,7 +101,6 @@ func TestStoreMultipleAgents(t *testing.T) {
 				Content: "Response from agent 2",
 			}),
 		},
-		CreatedAt: time.Now(),
 	}
 
 	// Store the session
@@ -113,13 +116,16 @@ func TestStoreMultipleAgents(t *testing.T) {
 	assert.Equal(t, 3, len(retrievedSession.Messages))
 
 	// First message should be user message with empty agent name
+	assert.Equal(t, "demo", retrievedSession.Messages[0].AgentFilename)
 	assert.Equal(t, "", retrievedSession.Messages[0].AgentName)
 
 	// Second message should have agent-1 name
+	assert.Equal(t, "", retrievedSession.Messages[1].AgentFilename)
 	assert.Equal(t, "agent-1", retrievedSession.Messages[1].AgentName)
 	assert.Equal(t, "Response from agent 1", retrievedSession.Messages[1].Message.Content)
 
 	// Third message should have agent-2 name
+	assert.Equal(t, "", retrievedSession.Messages[2].AgentFilename)
 	assert.Equal(t, "agent-2", retrievedSession.Messages[2].AgentName)
 	assert.Equal(t, "Response from agent 2", retrievedSession.Messages[2].Message.Content)
 }
@@ -196,7 +202,7 @@ func TestStoreAgentNameJSON(t *testing.T) {
 	session := &Session{
 		ID: "json-test-session",
 		Messages: []Message{
-			UserMessage("User input"),
+			UserMessage("demo-agent", "User input"),
 			NewAgentMessage(agent1, &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "Response from my-agent",
@@ -217,6 +223,11 @@ func TestStoreAgentNameJSON(t *testing.T) {
 	retrievedSession, err := store.GetSession(context.Background(), "json-test-session")
 	require.NoError(t, err)
 	require.NotNil(t, retrievedSession)
+
+	// Verify specific agent filenames are correctly stored and retrieved
+	assert.Equal(t, "demo-agent", retrievedSession.Messages[0].AgentFilename) // User message
+	assert.Equal(t, "", retrievedSession.Messages[1].AgentFilename)           // First agent
+	assert.Equal(t, "", retrievedSession.Messages[2].AgentFilename)           // Second agent
 
 	// Verify specific agent names are correctly stored and retrieved
 	assert.Equal(t, "", retrievedSession.Messages[0].AgentName)              // User message

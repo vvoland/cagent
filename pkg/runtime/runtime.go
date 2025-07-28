@@ -306,7 +306,7 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, a *agent.Agent, sess *
 		memberAgentTask += fmt.Sprintf("\n\n<expected_output>\n%s\n</expected_output>", params.ExpectedOutput)
 	}
 
-	s := session.New(r.logger, session.WithUserMessage(memberAgentTask))
+	s := session.New(r.logger, session.WithUserMessage(sess.GetMostRecentAgentFilename(), memberAgentTask))
 
 	for event := range r.RunStream(ctx, s) {
 		evts <- event

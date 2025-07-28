@@ -19,7 +19,6 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 
 	"github.com/docker/cagent/internal/creator"
-	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/loader"
@@ -211,9 +210,10 @@ func (s *Server) agents(c echo.Context) error {
 }
 
 type sessionResponse struct {
-	ID          string `json:"id"`
-	CreatedAt   string `json:"created_at"`
-	NumMessages int    `json:"num_messages"`
+	ID                         string `json:"id"`
+	CreatedAt                  string `json:"created_at"`
+	NumMessages                int    `json:"num_messages"`
+	GetMostRecentAgentFilename string `json:"most_recent_agent_filename"`
 }
 
 func (s *Server) getSessions(c echo.Context) error {
@@ -225,9 +225,10 @@ func (s *Server) getSessions(c echo.Context) error {
 	responses := make([]sessionResponse, len(sessions))
 	for i, sess := range sessions {
 		responses[i] = sessionResponse{
-			ID:          sess.ID,
-			CreatedAt:   sess.CreatedAt.Format(time.RFC3339),
-			NumMessages: len(sess.Messages),
+			ID:                         sess.ID,
+			CreatedAt:                  sess.CreatedAt.Format(time.RFC3339),
+			NumMessages:                len(sess.Messages),
+			GetMostRecentAgentFilename: sess.GetMostRecentAgentFilename(),
 		}
 	}
 	return c.JSON(http.StatusOK, responses)
@@ -263,16 +264,11 @@ func (s *Server) deleteSession(c echo.Context) error {
 }
 
 func (s *Server) runAgent(c echo.Context) error {
-	agentName := c.Param("agent")
+	agentFilename := c.Param("agent")
 
-	rt, exists := s.runtimes[agentName]
+	rt, exists := s.runtimes[agentFilename]
 	if !exists {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "runtime not found"})
-	}
-
-	var messages []Message
-	if err := json.NewDecoder(c.Request().Body).Decode(&messages); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 	}
 
 	// Load session from store
@@ -282,13 +278,14 @@ func (s *Server) runAgent(c echo.Context) error {
 	}
 	sess.SetLogger(s.logger)
 
+	var messages []Message
+	if err := json.NewDecoder(c.Request().Body).Decode(&messages); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	// TODO(dga): for now, we only receive one message and it's always a user message.
 	for _, msg := range messages {
-		sess.Messages = append(sess.Messages, session.Message{
-			Message: chat.Message{
-				Role:    msg.Role,
-				Content: msg.Content,
-			},
-		})
+		sess.Messages = append(sess.Messages, session.UserMessage(agentFilename, msg.Content))
 	}
 
 	// Update session in store
