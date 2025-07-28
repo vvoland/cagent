@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func listen(ctx context.Context, addr string) (net.Listener, error) {
+func Listen(ctx context.Context, addr string) (net.Listener, error) {
 	if path, ok := strings.CutPrefix(addr, "unix://"); ok {
 		return listenUnix(ctx, path)
 	}

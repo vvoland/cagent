@@ -90,21 +90,6 @@ func New(logger *slog.Logger, runtimes map[string]*runtime.Runtime, sessionStore
 	return s
 }
 
-func (s *Server) ListenAndServe(ctx context.Context, listenAddr string) error {
-	s.logger.Info("Starting server on http://localhost" + listenAddr)
-
-	ln, err := listen(ctx, listenAddr)
-	if err != nil {
-		return err
-	}
-	go func() {
-		<-ctx.Done()
-		ln.Close()
-	}()
-
-	return s.Listen(ctx, ln)
-}
-
 func (s *Server) Listen(ctx context.Context, ln net.Listener) error {
 	srv := http.Server{
 		Handler: s.e,

@@ -3,6 +3,7 @@ package root
 import (
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
 
@@ -45,6 +46,21 @@ func runApiCommand(cmd *cobra.Command, args []string) error {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 		Level: logLevel,
 	}))
+
+	ln, err := server.Listen(ctx, listenAddr)
+	if err != nil {
+		return fmt.Errorf("failed to listen on %s: %w", listenAddr, err)
+	}
+	go func() {
+		<-ctx.Done()
+		_ = ln.Close()
+	}()
+
+	if _, ok := ln.(*net.TCPListener); ok {
+		logger.Info("Listening on http://localhost" + listenAddr)
+	} else {
+		logger.Info("Listening on " + listenAddr)
+	}
 
 	agents, err := findAgents(agentsPath)
 	if err != nil {
@@ -97,5 +113,5 @@ func runApiCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	s := server.New(logger, runtimes, sessionStore, envFiles, gateway, opts...)
-	return s.ListenAndServe(ctx, listenAddr)
+	return s.Listen(ctx, ln)
 }

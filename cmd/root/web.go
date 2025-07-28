@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
 
@@ -62,6 +63,21 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 		Level: logLevel,
 	}))
 
+	ln, err := server.Listen(ctx, listenAddr)
+	if err != nil {
+		return fmt.Errorf("failed to listen on %s: %w", listenAddr, err)
+	}
+	go func() {
+		<-ctx.Done()
+		_ = ln.Close()
+	}()
+
+	if _, ok := ln.(*net.TCPListener); ok {
+		logger.Info("Listening on http://localhost" + listenAddr)
+	} else {
+		logger.Info("Listening on " + listenAddr)
+	}
+
 	agents, err := findAgents(agentsPath)
 	if err != nil {
 		return fmt.Errorf("failed to find agents: %w", err)
@@ -109,5 +125,5 @@ func runWebCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	s := server.New(logger, runtimes, sessionStore, envFiles, gateway, server.WithFrontend(fsys))
-	return s.ListenAndServe(ctx, listenAddr)
+	return s.Listen(ctx, ln)
 }
