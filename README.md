@@ -43,9 +43,9 @@ export OPENAI_API_KEY=your_api_key_here
 export ANTHROPIC_API_KEY=your_api_key_here
 
 # Run with a sample configuration
-./cagent run examples/config/code.yaml
+./bin/cagent run examples/config/code.yaml
 # or specify a different agent from the config
-./cagent run examples/config/code.yaml -a root
+./bin/cagent run examples/config/code.yaml -a root
 ```
 
 ### Your First Agent
@@ -71,9 +71,9 @@ models:
 Run it:
 
 ```bash
-./cagent run my-agent.yaml
+./bin/cagent run my-agent.yaml
 # or specify a different agent from the config
-./cagent run my-agent.yaml -a root
+./bin/cagent run my-agent.yaml -a root
 ```
 
 ## 🎯 Core Concepts
@@ -130,9 +130,10 @@ models:
 ```
 
 #### Model Examples
+
 ```yaml
 
-#OpenAI API 
+#OpenAI API
 models:
   openai:
     type: openai
@@ -145,7 +146,7 @@ models:
     model: claude-sonnet-4-0
 
 #Docker Model Runner
-models: 
+models:
   qwen:
     type: dmr
     model: ai/qwen3
