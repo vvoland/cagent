@@ -1,6 +1,7 @@
 package root
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -73,41 +74,13 @@ func runHttp(cmd *cobra.Command, startWeb bool, args []string) error {
 		logger.Info("Listening on " + listenAddr)
 	}
 
-	agents, err := findAgents(agentsPath)
-	if err != nil {
-		return fmt.Errorf("failed to find agents: %w", err)
-	}
-
 	logger.Debug("Starting server", "agents", agentsPath, "debug_mode", debugMode)
 
-	runtimes := make(map[string]*runtime.Runtime)
-
-	for _, agentPath := range agents {
-		fileTeam, err := loader.Load(ctx, agentPath, envFiles, gateway, logger)
-		if err != nil {
-			logger.Warn("Failed to load agent", "file", agentPath, "error", err)
-			continue
-		}
-
-		if err := fileTeam.StartToolSets(ctx); err != nil {
-			return fmt.Errorf("failed to start tool sets: %w", err)
-		}
-
-		filename := filepath.Base(agentPath)
-		rt, err := runtime.New(logger, fileTeam, "root")
-		if err != nil {
-			return fmt.Errorf("failed to create runtime for file %s: %w", filename, err)
-		}
-		runtimes[filename] = rt
+	cleanup, runtimes, err := loadAgents(ctx, agentsPath, logger)
+	if err != nil {
+		return fmt.Errorf("failed to load agents: %w", err)
 	}
-
-	defer func() {
-		for _, rt := range runtimes {
-			if err := rt.Team().StopToolSets(); err != nil {
-				logger.Error("Failed to stop tool sets", "error", err)
-			}
-		}
-	}()
+	defer cleanup()
 
 	sessionStore, err := session.NewSQLiteSessionStore(sessionDb)
 	if err != nil {
@@ -134,4 +107,42 @@ func runHttp(cmd *cobra.Command, startWeb bool, args []string) error {
 
 	s := server.New(logger, runtimes, sessionStore, envFiles, gateway, opts...)
 	return s.Listen(ctx, ln)
+}
+
+func loadAgents(ctx context.Context, agentsPath string, logger *slog.Logger) (func(), map[string]*runtime.Runtime, error) {
+	runtimes := make(map[string]*runtime.Runtime)
+
+	agents, err := findAgents(agentsPath)
+	if err != nil {
+		return func() {}, nil, fmt.Errorf("failed to find agents: %w", err)
+	}
+
+	for _, agentPath := range agents {
+		fileTeam, err := loader.Load(ctx, agentPath, envFiles, gateway, logger)
+		if err != nil {
+			logger.Warn("Failed to load agent", "file", agentPath, "error", err)
+			continue
+		}
+
+		if err := fileTeam.StartToolSets(ctx); err != nil {
+			return func() {}, nil, fmt.Errorf("failed to start tool sets: %w", err)
+		}
+
+		filename := filepath.Base(agentPath)
+		rt, err := runtime.New(logger, fileTeam, "root")
+		if err != nil {
+			return func() {}, nil, fmt.Errorf("failed to create runtime for file %s: %w", filename, err)
+		}
+		runtimes[filename] = rt
+	}
+
+	cleanup := func() {
+		for _, rt := range runtimes {
+			if err := rt.Team().StopToolSets(); err != nil {
+				logger.Error("Failed to stop tool sets", "error", err)
+			}
+		}
+	}
+
+	return cleanup, runtimes, nil
 }
