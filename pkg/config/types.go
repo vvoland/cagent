@@ -110,6 +110,11 @@ type Config struct {
 	Env    map[string]string      `json:"env,omitempty" yaml:"env,omitempty"`
 }
 
+type RuntimeConfig struct {
+	EnvFiles []string
+	Gateway  string
+}
+
 type StringOrList []string
 
 func (sm *StringOrList) UnmarshalYAML(unmarshal func(any) error) error {

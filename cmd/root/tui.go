@@ -623,8 +623,8 @@ func NewTUICmd() *cobra.Command {
 
 	cmd.PersistentFlags().StringVarP(&agentName, "agent", "a", "root", "Name of the agent to run")
 	cmd.PersistentFlags().BoolVarP(&debugMode, "debug", "d", false, "Enable debug logging")
-	cmd.PersistentFlags().StringSliceVar(&envFiles, "env-from-file", nil, "Set environment variables from file")
-	cmd.PersistentFlags().StringVar(&gateway, "gateway", "", "Set the gateway address")
+	cmd.PersistentFlags().StringSliceVar(&runConfig.EnvFiles, "env-from-file", nil, "Set environment variables from file")
+	cmd.PersistentFlags().StringVar(&runConfig.Gateway, "gateway", "", "Set the gateway address")
 
 	return cmd
 }
@@ -645,7 +645,7 @@ func runTUICommand(cmd *cobra.Command, args []string) error {
 
 	logger.Debug("Starting agent TUI", "agent", agentName, "debug_mode", debugMode)
 
-	agents, err := loader.Load(ctx, agentFilename, envFiles, gateway, logger)
+	agents, err := loader.Load(ctx, agentFilename, runConfig, logger)
 	if err != nil {
 		return err
 	}

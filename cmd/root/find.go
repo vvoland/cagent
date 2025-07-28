@@ -21,7 +21,7 @@ func loadAgents(ctx context.Context, agentsPathOrDirectory string, logger *slog.
 	}
 
 	for _, agentPath := range agentPaths {
-		team, err := loader.Load(ctx, agentPath, envFiles, gateway, logger)
+		team, err := loader.Load(ctx, agentPath, runConfig, logger)
 		if err != nil {
 			logger.Warn("Failed to load agent", "file", agentPath, "error", err)
 			continue

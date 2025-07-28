@@ -20,8 +20,8 @@ func NewWebCmd() *cobra.Command {
 	cmd.PersistentFlags().StringVarP(&listenAddr, "listen", "l", ":8080", "Address to listen on")
 	cmd.PersistentFlags().StringVarP(&sessionDb, "session-db", "s", "session.db", "Path to the session database")
 	cmd.PersistentFlags().BoolVar(&debugMode, "debug", false, "Enable debug logging")
-	cmd.PersistentFlags().StringSliceVar(&envFiles, "env-from-file", nil, "Set environment variables from file")
-	cmd.PersistentFlags().StringVar(&gateway, "gateway", "", "Set the gateway address")
+	cmd.PersistentFlags().StringSliceVar(&runConfig.EnvFiles, "env-from-file", nil, "Set environment variables from file")
+	cmd.PersistentFlags().StringVar(&runConfig.Gateway, "gateway", "", "Set the gateway address")
 
 	return cmd
 }

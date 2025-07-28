@@ -20,14 +20,14 @@ import (
 	"github.com/docker/cagent/pkg/tools/mcp"
 )
 
-func Load(ctx context.Context, path string, envFiles []string, gateway string, logger *slog.Logger) (*team.Team, error) {
+func Load(ctx context.Context, path string, runConfig config.RuntimeConfig, logger *slog.Logger) (*team.Team, error) {
 	cfg, err := config.LoadConfig(path)
 	if err != nil {
 		return nil, err
 	}
 
 	parentDir := filepath.Dir(path)
-	absEnvFles, err := environment.AbsolutePaths(parentDir, envFiles)
+	absEnvFles, err := environment.AbsolutePaths(parentDir, runConfig.EnvFiles)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func Load(ctx context.Context, path string, envFiles []string, gateway string, l
 			agent.WithDescription(agentConfig.Description),
 			agent.WithAddDate(agentConfig.AddDate),
 		}
-		models, err := getModelsForAgent(cfg, &agentConfig, absEnvFles, gateway, logger)
+		models, err := getModelsForAgent(cfg, &agentConfig, absEnvFles, runConfig.Gateway, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get models: %w", err)
 		}
@@ -59,7 +59,7 @@ func Load(ctx context.Context, path string, envFiles []string, gateway string, l
 		if !ok {
 			return nil, fmt.Errorf("agent '%s' not found in configuration", name)
 		}
-		agentTools, err := getToolsForAgent(ctx, &a, parentDir, logger, sharedTools, envFiles, gateway)
+		agentTools, err := getToolsForAgent(ctx, &a, parentDir, logger, sharedTools, absEnvFles, runConfig.Gateway)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tools: %w", err)
 		}
