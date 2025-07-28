@@ -115,13 +115,6 @@ func runHttp(cmd *cobra.Command, startWeb bool, args []string) error {
 	}
 
 	var opts []server.Opt
-	stat, err := os.Stat(agentsPath)
-	if err != nil {
-		return fmt.Errorf("failed to stat agents path: %w", err)
-	}
-	if stat.IsDir() {
-		opts = append(opts, server.WithAgentsDir(agentsPath))
-	}
 
 	if startWeb {
 		fsys, err := fs.Sub(web.WebContent, "dist")
@@ -129,6 +122,14 @@ func runHttp(cmd *cobra.Command, startWeb bool, args []string) error {
 			return err
 		}
 		opts = append(opts, server.WithFrontend(fsys))
+	} else {
+		stat, err := os.Stat(agentsPath)
+		if err != nil {
+			return fmt.Errorf("failed to stat agents path: %w", err)
+		}
+		if stat.IsDir() {
+			opts = append(opts, server.WithAgentsDir(agentsPath))
+		}
 	}
 
 	s := server.New(logger, runtimes, sessionStore, envFiles, gateway, opts...)
