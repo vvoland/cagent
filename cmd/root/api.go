@@ -109,8 +109,8 @@ func runHttp(cmd *cobra.Command, startWeb bool, args []string) error {
 	return s.Serve(ctx, ln)
 }
 
-func loadAgents(ctx context.Context, agentsPath string, logger *slog.Logger) (func(), map[string]*runtime.Runtime, error) {
-	runtimes := make(map[string]*runtime.Runtime)
+func loadAgents(ctx context.Context, agentsPath string, logger *slog.Logger) (cleanup func(), runtimes map[string]*runtime.Runtime, err error) {
+	runtimes = make(map[string]*runtime.Runtime)
 
 	agents, err := findAgents(agentsPath)
 	if err != nil {
@@ -136,7 +136,7 @@ func loadAgents(ctx context.Context, agentsPath string, logger *slog.Logger) (fu
 		runtimes[filename] = rt
 	}
 
-	cleanup := func() {
+	cleanup = func() {
 		for _, rt := range runtimes {
 			if err := rt.Team().StopToolSets(); err != nil {
 				logger.Error("Failed to stop tool sets", "error", err)
