@@ -65,10 +65,15 @@ func Load(ctx context.Context, path string, envFiles []string, gateway string, l
 		}
 
 		if a.MemoryConfig.Path != "" {
+			if err := os.MkdirAll(filepath.Dir(a.MemoryConfig.Path), 0o700); err != nil {
+				return nil, fmt.Errorf("failed to create memory database directory: %w", err)
+			}
+
 			db, err := sqlite.NewMemoryDatabase(a.MemoryConfig.Path)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create memory database: %w", err)
 			}
+
 			mm := memory.NewManager(db, models[0])
 			opts = append(opts, agent.WithMemoryManager(mm))
 			agentTools = append(agentTools, builtin.NewMemoryTool(mm))
