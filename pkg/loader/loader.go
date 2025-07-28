@@ -74,7 +74,7 @@ func Load(ctx context.Context, path string, envFiles []string, gateway string, l
 			agentTools = append(agentTools, builtin.NewMemoryTool(mm))
 		}
 
-		opts = append(opts, agent.WithToolSets(agentTools))
+		opts = append(opts, agent.WithToolSets(agentTools...))
 
 		agent := agent.New(name, agentConfig.Instruction, opts...)
 		agents = append(agents, agent)
@@ -95,7 +95,7 @@ func Load(ctx context.Context, path string, envFiles []string, gateway string, l
 		}
 
 		if a, exists := agentsByName[name]; exists && len(subAgents) > 0 {
-			agent.WithSubAgents(subAgents)(a)
+			agent.WithSubAgents(subAgents...)(a)
 		}
 	}
 

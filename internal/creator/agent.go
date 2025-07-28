@@ -87,7 +87,10 @@ func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, promp
 			"root",
 			agentBuilderInstructions,
 			agent.WithModel(llm),
-			agent.WithToolSets([]tools.ToolSet{builtin.NewShellTool(), &fsToolset}),
+			agent.WithToolSets(
+				builtin.NewShellTool(),
+				&fsToolset,
+			),
 		))
 
 	sess := session.New(logger, session.WithUserMessage("", prompt))

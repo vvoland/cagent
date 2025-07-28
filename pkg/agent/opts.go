@@ -14,13 +14,13 @@ func WithInstruction(prompt string) Opt {
 	}
 }
 
-func WithToolSets(toolSet []tools.ToolSet) Opt {
+func WithToolSets(toolSet ...tools.ToolSet) Opt {
 	return func(a *Agent) {
 		a.toolsets = toolSet
 	}
 }
 
-func WithTools(tls []tools.Tool) Opt {
+func WithTools(tls ...tools.Tool) Opt {
 	return func(a *Agent) {
 		a.toolwrapper = toolwrapper{
 			allTools: tls,
@@ -46,7 +46,7 @@ func WithModel(model provider.Provider) Opt {
 	}
 }
 
-func WithSubAgents(subAgents []*Agent) Opt {
+func WithSubAgents(subAgents ...*Agent) Opt {
 	return func(a *Agent) {
 		a.subAgents = subAgents
 		for _, subAgent := range subAgents {

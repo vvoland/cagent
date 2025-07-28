@@ -51,21 +51,19 @@ func main() {
 		agent.New("root",
 			"You are a human, with feelings and emotions.",
 			agent.WithModel(llm),
-			agent.WithTools([]tools.Tool{
-				{
-					Handler: addNumbers,
-					Function: &tools.FunctionDefinition{
-						Name:        "add",
-						Description: "Add two numbers",
-						Parameters: tools.FunctionParamaters{
-							Type: "object",
-							Properties: map[string]any{
-								"a": map[string]any{
-									"type": "number",
-								},
-								"b": map[string]any{
-									"type": "number",
-								},
+			agent.WithTools(tools.Tool{
+				Handler: addNumbers,
+				Function: &tools.FunctionDefinition{
+					Name:        "add",
+					Description: "Add two numbers",
+					Parameters: tools.FunctionParamaters{
+						Type: "object",
+						Properties: map[string]any{
+							"a": map[string]any{
+								"type": "number",
+							},
+							"b": map[string]any{
+								"type": "number",
 							},
 						},
 					},

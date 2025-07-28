@@ -13,7 +13,6 @@ import (
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
-	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
 )
 
@@ -39,8 +38,8 @@ func main() {
 		"root",
 		"You are a human, with feelings and emotions.",
 		agent.WithModel(llm),
-		agent.WithSubAgents([]*agent.Agent{child}),
-		agent.WithToolSets([]tools.ToolSet{&builtin.TransferTaskTool{}}),
+		agent.WithSubAgents(child),
+		agent.WithToolSets(builtin.NewTransferTaskTool()),
 	)
 
 	agents := team.New(root, child)

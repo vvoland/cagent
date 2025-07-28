@@ -13,7 +13,6 @@ import (
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
-	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
 )
 
@@ -34,7 +33,7 @@ func main() {
 			"root",
 			"You are an expert hacker",
 			agent.WithModel(llm),
-			agent.WithToolSets([]tools.ToolSet{builtin.NewShellTool()}),
+			agent.WithToolSets(builtin.NewShellTool()),
 		))
 
 	sess := session.New(logger, session.WithUserMessage("", "Tell me a story about my current directory"))
