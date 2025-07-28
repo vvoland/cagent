@@ -21,14 +21,14 @@ func loadAgents(ctx context.Context, agentsPath string, logger *slog.Logger) (ma
 	}
 
 	for _, agentPath := range agents {
-		fileTeam, err := loader.Load(ctx, agentPath, envFiles, gateway, logger)
+		team, err := loader.Load(ctx, agentPath, envFiles, gateway, logger)
 		if err != nil {
 			logger.Warn("Failed to load agent", "file", agentPath, "error", err)
 			continue
 		}
 
 		filename := filepath.Base(agentPath)
-		rt, err := runtime.New(logger, fileTeam, "root")
+		rt, err := runtime.New(logger, team, "root")
 		if err != nil {
 			return nil, fmt.Errorf("failed to create runtime for file %s: %w", filename, err)
 		}
