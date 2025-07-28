@@ -2,6 +2,7 @@ package root
 
 import (
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net"
 	"os"
@@ -13,6 +14,14 @@ import (
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/server"
 	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/cagent/web"
+)
+
+var (
+	listenAddr string
+	sessionDb  string
+	gateway    string
+	envFiles   []string
 )
 
 // NewWebCmd creates a new web command
@@ -22,7 +31,9 @@ func NewApiCmd() *cobra.Command {
 		Short: "Start the API server",
 		Long:  `Start the API server that exposes the agent via an HTTP API`,
 		Args:  cobra.ExactArgs(1),
-		RunE:  runApiCommand,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runHttp(cmd, false, args)
+		},
 	}
 
 	cmd.PersistentFlags().StringVarP(&listenAddr, "listen", "l", ":8080", "Address to listen on")
@@ -34,7 +45,7 @@ func NewApiCmd() *cobra.Command {
 	return cmd
 }
 
-func runApiCommand(cmd *cobra.Command, args []string) error {
+func runHttp(cmd *cobra.Command, startWeb bool, args []string) error {
 	ctx := cmd.Context()
 	agentsPath := args[0]
 
@@ -67,7 +78,7 @@ func runApiCommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to find agents: %w", err)
 	}
 
-	logger.Debug("Starting API server", "agents", agentsPath, "debug_mode", debugMode)
+	logger.Debug("Starting server", "agents", agentsPath, "debug_mode", debugMode)
 
 	runtimes := make(map[string]*runtime.Runtime)
 
@@ -110,6 +121,14 @@ func runApiCommand(cmd *cobra.Command, args []string) error {
 	}
 	if stat.IsDir() {
 		opts = append(opts, server.WithAgentsDir(agentsPath))
+	}
+
+	if startWeb {
+		fsys, err := fs.Sub(web.WebContent, "dist")
+		if err != nil {
+			return err
+		}
+		opts = append(opts, server.WithFrontend(fsys))
 	}
 
 	s := server.New(logger, runtimes, sessionStore, envFiles, gateway, opts...)
