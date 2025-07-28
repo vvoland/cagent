@@ -76,11 +76,17 @@ func runHttp(cmd *cobra.Command, startWeb bool, args []string) error {
 
 	logger.Debug("Starting server", "agents", agentsPath, "debug_mode", debugMode)
 
-	cleanup, runtimes, err := loadAgents(ctx, agentsPath, logger)
+	runtimes, err := loadAgents(ctx, agentsPath, logger)
 	if err != nil {
 		return fmt.Errorf("failed to load agents: %w", err)
 	}
-	defer cleanup()
+	defer func() {
+		for _, rt := range runtimes {
+			if err := rt.Team().StopToolSets(); err != nil {
+				logger.Error("Failed to stop tool sets", "error", err)
+			}
+		}
+	}()
 
 	sessionStore, err := session.NewSQLiteSessionStore(sessionDb)
 	if err != nil {
@@ -109,12 +115,12 @@ func runHttp(cmd *cobra.Command, startWeb bool, args []string) error {
 	return s.Serve(ctx, ln)
 }
 
-func loadAgents(ctx context.Context, agentsPath string, logger *slog.Logger) (cleanup func(), runtimes map[string]*runtime.Runtime, err error) {
-	runtimes = make(map[string]*runtime.Runtime)
+func loadAgents(ctx context.Context, agentsPath string, logger *slog.Logger) (map[string]*runtime.Runtime, error) {
+	runtimes := make(map[string]*runtime.Runtime)
 
 	agents, err := findAgents(agentsPath)
 	if err != nil {
-		return func() {}, nil, fmt.Errorf("failed to find agents: %w", err)
+		return nil, fmt.Errorf("failed to find agents: %w", err)
 	}
 
 	for _, agentPath := range agents {
@@ -125,24 +131,16 @@ func loadAgents(ctx context.Context, agentsPath string, logger *slog.Logger) (cl
 		}
 
 		if err := fileTeam.StartToolSets(ctx); err != nil {
-			return func() {}, nil, fmt.Errorf("failed to start tool sets: %w", err)
+			return nil, fmt.Errorf("failed to start tool sets: %w", err)
 		}
 
 		filename := filepath.Base(agentPath)
 		rt, err := runtime.New(logger, fileTeam, "root")
 		if err != nil {
-			return func() {}, nil, fmt.Errorf("failed to create runtime for file %s: %w", filename, err)
+			return nil, fmt.Errorf("failed to create runtime for file %s: %w", filename, err)
 		}
 		runtimes[filename] = rt
 	}
 
-	cleanup = func() {
-		for _, rt := range runtimes {
-			if err := rt.Team().StopToolSets(); err != nil {
-				logger.Error("Failed to stop tool sets", "error", err)
-			}
-		}
-	}
-
-	return cleanup, runtimes, nil
+	return runtimes, nil
 }
