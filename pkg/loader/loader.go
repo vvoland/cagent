@@ -65,11 +65,12 @@ func Load(ctx context.Context, path string, runConfig config.RuntimeConfig, logg
 		}
 
 		if a.MemoryConfig.Path != "" {
-			if err := os.MkdirAll(filepath.Dir(a.MemoryConfig.Path), 0o700); err != nil {
+			memoryPath := filepath.Join(parentDir, a.MemoryConfig.Path)
+			if err := os.MkdirAll(filepath.Dir(memoryPath), 0o700); err != nil {
 				return nil, fmt.Errorf("failed to create memory database directory: %w", err)
 			}
 
-			db, err := sqlite.NewMemoryDatabase(a.MemoryConfig.Path)
+			db, err := sqlite.NewMemoryDatabase(memoryPath)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create memory database: %w", err)
 			}

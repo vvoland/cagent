@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -84,7 +85,7 @@ func runHttp(cmd *cobra.Command, startWeb bool, args []string) error {
 		}
 	}()
 
-	sessionStore, err := session.NewSQLiteSessionStore(sessionDb)
+	sessionStore, err := session.NewSQLiteSessionStore(filepath.Join(agentsPath, sessionDb))
 	if err != nil {
 		return fmt.Errorf("failed to create session store: %w", err)
 	}
