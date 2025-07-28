@@ -80,17 +80,19 @@ func Load(ctx context.Context, path string, envFiles []string, gateway string, l
 
 	for name := range cfg.Agents {
 		agentConfig := cfg.Agents[name]
-		if len(agentConfig.SubAgents) > 0 {
-			subAgents := make([]*agent.Agent, 0, len(agentConfig.SubAgents))
-			for _, subName := range agentConfig.SubAgents {
-				if subAgent, exists := agents[subName]; exists {
-					subAgents = append(subAgents, subAgent)
-				}
-			}
+		if len(agentConfig.SubAgents) == 0 {
+			continue
+		}
 
-			if a, exists := agents[name]; exists && len(subAgents) > 0 {
-				agent.WithSubAgents(subAgents)(a)
+		subAgents := make([]*agent.Agent, 0, len(agentConfig.SubAgents))
+		for _, subName := range agentConfig.SubAgents {
+			if subAgent, exists := agents[subName]; exists {
+				subAgents = append(subAgents, subAgent)
 			}
+		}
+
+		if a, exists := agents[name]; exists && len(subAgents) > 0 {
+			agent.WithSubAgents(subAgents)(a)
 		}
 	}
 
