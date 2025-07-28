@@ -15,6 +15,9 @@ type MemoryTool struct {
 	manager memorymanager.Manager
 }
 
+// Make sure Memory Tool implements the ToolSet Interface
+var _ tools.ToolSet = (*MemoryTool)(nil)
+
 func NewMemoryTool(manager memorymanager.Manager) *MemoryTool {
 	return &MemoryTool{
 		manager: manager,

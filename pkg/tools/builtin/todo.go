@@ -13,6 +13,9 @@ type TodoTool struct {
 	handler *todoHandler
 }
 
+// Make sure Todo Tool implements the ToolSet Interface
+var _ tools.ToolSet = (*TodoTool)(nil)
+
 type Todo struct {
 	ID          string `json:"id"`
 	Description string `json:"description"`
