@@ -21,7 +21,7 @@ type Session struct {
 	ID string `json:"id"`
 
 	// Messages holds the conversation history
-	Messages []AgentMessage `json:"messages"`
+	Messages []Message `json:"messages"`
 
 	// CreatedAt is the time the session was created
 	CreatedAt time.Time `json:"created_at"`
@@ -30,14 +30,14 @@ type Session struct {
 	logger *slog.Logger
 }
 
-// AgentMessage is a message from an agent
-type AgentMessage struct {
+// Message is a message from an agent
+type Message struct {
 	AgentName string       `json:"agentName"` // TODO: rename to agent_name
 	Message   chat.Message `json:"message"`
 }
 
-func UserMessage(content string) AgentMessage {
-	return AgentMessage{
+func UserMessage(content string) Message {
+	return Message{
 		AgentName: "", // User messages don't have an agent name
 		Message: chat.Message{
 			Role:    chat.MessageRoleUser,
@@ -47,13 +47,9 @@ func UserMessage(content string) AgentMessage {
 }
 
 // NewAgentMessage creates a new AgentMessage with the given agent and message
-func NewAgentMessage(a *agent.Agent, message *chat.Message) AgentMessage {
-	agentName := ""
-	if a != nil {
-		agentName = a.Name()
-	}
-	return AgentMessage{
-		AgentName: agentName,
+func NewAgentMessage(a *agent.Agent, message *chat.Message) Message {
+	return Message{
+		AgentName: a.Name(),
 		Message:   *message,
 	}
 }
@@ -68,7 +64,7 @@ func WithUserMessage(content string) Opt {
 
 func WithSystemMessage(content string) Opt {
 	return func(s *Session) {
-		s.Messages = append(s.Messages, AgentMessage{
+		s.Messages = append(s.Messages, Message{
 			AgentName: "",
 			Message: chat.Message{
 				Role:    chat.MessageRoleSystem,

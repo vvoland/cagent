@@ -167,7 +167,7 @@ func runUserCommand(userInput string, sess *session.Session) (bool, error) {
 		}
 		return true, nil
 	case "/reset":
-		sess.Messages = []session.AgentMessage{}
+		sess.Messages = []session.Message{}
 		return true, nil
 	}
 

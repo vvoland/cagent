@@ -23,21 +23,22 @@ func TestStoreAgentName(t *testing.T) {
 	require.NoError(t, err)
 	defer store.(*SQLiteSessionStore).Close()
 
-	// Create a test agent
-	testAgent := agent.New("test-agent", "test prompt")
+	// Create test agents
+	testAgent1 := agent.New("test-agent-1", "test prompt 1")
+	testAgent2 := agent.New("test-agent-2", "test prompt 2")
 
 	// Create a session with messages from different agents
 	session := &Session{
 		ID: "test-session",
-		Messages: []AgentMessage{
+		Messages: []Message{
 			UserMessage("Hello"),
-			NewAgentMessage(testAgent, &chat.Message{
+			NewAgentMessage(testAgent1, &chat.Message{
 				Role:    chat.MessageRoleAssistant,
-				Content: "Hello from test-agent",
+				Content: "Hello from test-agent-1",
 			}),
-			NewAgentMessage(nil, &chat.Message{
+			NewAgentMessage(testAgent2, &chat.Message{
 				Role:    chat.MessageRoleUser,
-				Content: "Another message",
+				Content: "Another message from test-agent-2",
 			}),
 		},
 		CreatedAt: time.Now(),
@@ -59,13 +60,13 @@ func TestStoreAgentName(t *testing.T) {
 	assert.Equal(t, "", retrievedSession.Messages[0].AgentName)
 	assert.Equal(t, "Hello", retrievedSession.Messages[0].Message.Content)
 
-	// Second message should have the agent name
-	assert.Equal(t, "test-agent", retrievedSession.Messages[1].AgentName)
-	assert.Equal(t, "Hello from test-agent", retrievedSession.Messages[1].Message.Content)
+	// Second message should have the first agent's name
+	assert.Equal(t, "test-agent-1", retrievedSession.Messages[1].AgentName)
+	assert.Equal(t, "Hello from test-agent-1", retrievedSession.Messages[1].Message.Content)
 
-	// Third message should have empty agent name (nil agent)
-	assert.Equal(t, "", retrievedSession.Messages[2].AgentName)
-	assert.Equal(t, "Another message", retrievedSession.Messages[2].Message.Content)
+	// Third message should have the second agent's name
+	assert.Equal(t, "test-agent-2", retrievedSession.Messages[2].AgentName)
+	assert.Equal(t, "Another message from test-agent-2", retrievedSession.Messages[2].Message.Content)
 }
 
 func TestStoreMultipleAgents(t *testing.T) {
@@ -85,7 +86,7 @@ func TestStoreMultipleAgents(t *testing.T) {
 	// Create a session with messages from different agents
 	session := &Session{
 		ID: "multi-agent-session",
-		Messages: []AgentMessage{
+		Messages: []Message{
 			UserMessage("Start conversation"),
 			NewAgentMessage(agent1, &chat.Message{
 				Role:    chat.MessageRoleAssistant,
@@ -139,7 +140,7 @@ func TestGetSessions(t *testing.T) {
 	// Create multiple sessions
 	session1 := &Session{
 		ID: "session-1",
-		Messages: []AgentMessage{
+		Messages: []Message{
 			NewAgentMessage(testAgent, &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "Message from session 1",
@@ -150,7 +151,7 @@ func TestGetSessions(t *testing.T) {
 
 	session2 := &Session{
 		ID: "session-2",
-		Messages: []AgentMessage{
+		Messages: []Message{
 			NewAgentMessage(testAgent, &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "Message from session 2",
@@ -194,7 +195,7 @@ func TestStoreAgentNameJSON(t *testing.T) {
 	// Create a session with messages from different agents
 	session := &Session{
 		ID: "json-test-session",
-		Messages: []AgentMessage{
+		Messages: []Message{
 			UserMessage("User input"),
 			NewAgentMessage(agent1, &chat.Message{
 				Role:    chat.MessageRoleAssistant,

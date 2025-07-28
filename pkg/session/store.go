@@ -90,7 +90,7 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 	}
 
 	// Parse the data
-	var messages []AgentMessage
+	var messages []Message
 	if err := json.Unmarshal([]byte(messagesJSON), &messages); err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error
 		}
 
 		// Parse the data
-		var messages []AgentMessage
+		var messages []Message
 		if err := json.Unmarshal([]byte(messagesJSON), &messages); err != nil {
 			return nil, err
 		}

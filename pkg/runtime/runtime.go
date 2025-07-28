@@ -199,7 +199,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 }
 
 // Run starts the agent's interaction loop
-func (r *Runtime) Run(ctx context.Context, sess *session.Session) ([]session.AgentMessage, error) {
+func (r *Runtime) Run(ctx context.Context, sess *session.Session) ([]session.Message, error) {
 	eventsChan := r.RunStream(ctx, sess)
 
 	for event := range eventsChan {

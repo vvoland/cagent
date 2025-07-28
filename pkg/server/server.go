@@ -283,7 +283,7 @@ func (s *Server) runAgent(c echo.Context) error {
 	sess.SetLogger(s.logger)
 
 	for _, msg := range messages {
-		sess.Messages = append(sess.Messages, session.AgentMessage{
+		sess.Messages = append(sess.Messages, session.Message{
 			Message: chat.Message{
 				Role:    msg.Role,
 				Content: msg.Content,

@@ -67,8 +67,8 @@ func Evaluate(ctx context.Context, t *team.Team, evalsDir string, logger *slog.L
 	return results, nil
 }
 
-func runLoop(ctx context.Context, logger *slog.Logger, rt *runtime.Runtime, eval session.Session) ([]session.AgentMessage, error) {
-	var userMessages []session.AgentMessage
+func runLoop(ctx context.Context, logger *slog.Logger, rt *runtime.Runtime, eval session.Session) ([]session.Message, error) {
+	var userMessages []session.Message
 	for i := range eval.Messages {
 		if eval.Messages[i].Message.Role == chat.MessageRoleUser {
 			userMessages = append(userMessages, eval.Messages[i])
@@ -89,15 +89,15 @@ func runLoop(ctx context.Context, logger *slog.Logger, rt *runtime.Runtime, eval
 	return sess.Messages, nil
 }
 
-func evaluate(expectedMessages, actualMessages []session.AgentMessage) (Score, error) {
-	var expectedToolMessages []session.AgentMessage
+func evaluate(expectedMessages, actualMessages []session.Message) (Score, error) {
+	var expectedToolMessages []session.Message
 	for i := range expectedMessages {
 		if len(expectedMessages[i].Message.ToolCalls) != 0 {
 			expectedToolMessages = append(expectedToolMessages, expectedMessages[i])
 		}
 	}
 
-	var actualToolMessages []session.AgentMessage
+	var actualToolMessages []session.Message
 	for i := range actualMessages {
 		if len(actualMessages[i].Message.ToolCalls) != 0 {
 			actualToolMessages = append(actualToolMessages, actualMessages[i])
@@ -149,7 +149,7 @@ func rouge1(expected, actual string) float64 {
 	return 2 * (precision * recall) / (precision + recall)
 }
 
-func toolTrajectoryScore(expectedToolMessages, actualToolMessages []session.AgentMessage) float64 {
+func toolTrajectoryScore(expectedToolMessages, actualToolMessages []session.Message) float64 {
 	score := 0.0
 
 	for i := range expectedToolMessages {
