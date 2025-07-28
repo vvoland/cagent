@@ -128,17 +128,29 @@ func (s *MCPServer) handleListAgents(ctx context.Context, req mcp.CallToolReques
 	// Format response for MCP client
 	var agentList []interface{}
 	for _, agent := range agents {
-		agentInfo := map[string]interface{}{
-			"name":        agent.Name,
-			"description": agent.Description,
-			"source":      agent.Source,
+		// Determine the agent_ref based on source type
+		var agentRef string
+		if agent.Source == "file" {
+			agentRef = agent.RelativePath // For file agents, use the relative path from agents dir
+		} else if agent.Source == "store" {
+			agentRef = agent.Reference // For store agents, use the full image reference with tag
 		}
+		
+		agentInfo := map[string]interface{}{
+			"agent_ref":    agentRef,
+			"friendly_name": agent.Name,
+			"source":       agent.Source,
+			"description":  agent.Description,
+		}
+		
+		// Keep legacy fields for backward compatibility
 		if agent.Path != "" {
 			agentInfo["path"] = agent.Path
 		}
 		if agent.Reference != "" {
 			agentInfo["reference"] = agent.Reference
 		}
+		
 		agentList = append(agentList, agentInfo)
 	}
 
@@ -458,10 +470,15 @@ func formatAgentList(agents []interface{}) string {
 	var result string
 	for i, agent := range agents {
 		if agentMap, ok := agent.(map[string]interface{}); ok {
-			name := agentMap["name"]
-			desc := agentMap["description"]
+			agentRef := agentMap["agent_ref"]
+			friendlyName := agentMap["friendly_name"]
 			source := agentMap["source"]
-			result += fmt.Sprintf("%d. %s (%s)\n   %s\n", i+1, name, source, desc)
+			desc := agentMap["description"]
+			
+			result += fmt.Sprintf("%d. %s\n", i+1, friendlyName)
+			result += fmt.Sprintf("   agent_ref: %s\n", agentRef)
+			result += fmt.Sprintf("   source: %s\n", source)
+			result += fmt.Sprintf("   description: %s\n\n", desc)
 		}
 	}
 	return result

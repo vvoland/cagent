@@ -54,9 +54,9 @@ func main() {
 		"server_name", initResult.ServerInfo.Name,
 		"server_version", initResult.ServerInfo.Version)
 
-	fmt.Println("Connected! Testing store agent listing...")
+	fmt.Println("Connected! Testing agent reference formatting...")
 
-	// Test 1: List store agents (should be empty initially)
+	// Test 1: List store agents (may be empty or have existing agents)
 	fmt.Println("\n=== Test 1: List store agents (before pull) ===")
 	request1 := mcp.CallToolRequest{}
 	request1.Params.Name = "list_agents"
@@ -69,49 +69,40 @@ func main() {
 		os.Exit(1)
 	}
 	printResult("Store agents before pull", result1)
+	fmt.Println("Look for 'agent_ref' field - for store agents, this should be full image reference with tag")
 
-	// Test 2: Pull the jean-laurent agent
-	fmt.Println("\n=== Test 2: Pull jean-laurent agent ===")
+	// Test 2: List file agents
+	fmt.Println("\n=== Test 2: List file agents ===")
 	request2 := mcp.CallToolRequest{}
-	request2.Params.Name = "pull_agent"
+	request2.Params.Name = "list_agents"
 	request2.Params.Arguments = map[string]interface{}{
-		"registry_ref": "djordjelukic1639080/jean-laurent",
+		"source": "files",
 	}
 	result2, err := mcpClient.CallTool(ctx, request2)
 	if err != nil {
-		logger.Error("Failed to pull agent", "error", err)
+		logger.Error("Failed to list file agents", "error", err)
 		os.Exit(1)
 	}
-	printResult("Pull result", result2)
+	printResult("File agents", result2)
+	fmt.Println("Look for 'agent_ref' field - for file agents, this should be the relative path from agents directory")
 
-	// Test 3: List store agents again (should now show the pulled agent)
-	fmt.Println("\n=== Test 3: List store agents (after pull) ===")
+	// Test 3: List all agents
+	fmt.Println("\n=== Test 3: List all agents (files + store) ===")
 	request3 := mcp.CallToolRequest{}
 	request3.Params.Name = "list_agents"
 	request3.Params.Arguments = map[string]interface{}{
-		"source": "store",
-	}
-	result3, err := mcpClient.CallTool(ctx, request3)
-	if err != nil {
-		logger.Error("Failed to list store agents after pull", "error", err)
-		os.Exit(1)
-	}
-	printResult("Store agents after pull", result3)
-
-	// Test 4: List all agents
-	fmt.Println("\n=== Test 4: List all agents (files + store) ===")
-	request4 := mcp.CallToolRequest{}
-	request4.Params.Name = "list_agents"
-	request4.Params.Arguments = map[string]interface{}{
 		"source": "all",
 	}
-	result4, err := mcpClient.CallTool(ctx, request4)
+	result3, err := mcpClient.CallTool(ctx, request3)
 	if err != nil {
 		logger.Error("Failed to list all agents", "error", err)
 		os.Exit(1)
 	}
-	printResult("All agents", result4)
+	printResult("All agents", result3)
 
+	fmt.Println("\n=== VERIFICATION: Check agent_ref format ===")
+	fmt.Println("Expected for file agents: agent_ref should be relative path from agents directory")
+	fmt.Println("Expected for store agents: agent_ref should be full image reference with tag")
 	fmt.Println("\nTest completed successfully!")
 }
 

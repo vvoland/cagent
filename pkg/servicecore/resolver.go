@@ -177,10 +177,11 @@ func (r *Resolver) ListFileAgents() ([]AgentInfo, error) {
 			}
 
 			agent := AgentInfo{
-				Name:        strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
-				Description: fmt.Sprintf("File-based agent: %s", relPath),
-				Source:      "file",
-				Path:        path,
+				Name:         strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
+				Description:  fmt.Sprintf("File-based agent: %s", relPath),
+				Source:       "file",
+				Path:         path,    // Absolute path for internal resolution
+				RelativePath: relPath, // Relative path for user reference
 			}
 			agents = append(agents, agent)
 		}
@@ -208,7 +209,7 @@ func (r *Resolver) ListStoreAgents() ([]AgentInfo, error) {
 			Name:        r.extractNameFromReference(artifact.Reference),
 			Description: fmt.Sprintf("Store-based agent: %s", artifact.Reference),
 			Source:      "store",
-			Path:        artifact.Reference, // Use reference as path for store agents
+			Reference:   artifact.Reference, // Full image reference with tag (the agent ref)
 		}
 		agents = append(agents, agent)
 	}

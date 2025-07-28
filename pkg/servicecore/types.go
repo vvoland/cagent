@@ -51,11 +51,12 @@ type ServiceManager interface {
 
 // AgentInfo represents metadata about an available agent
 type AgentInfo struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Source      string `json:"source"` // "file", "store"
-	Path        string `json:"path,omitempty"`
-	Reference   string `json:"reference,omitempty"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	Source       string `json:"source"` // "file", "store"
+	Path         string `json:"path,omitempty"`         // Absolute path (for internal use)
+	RelativePath string `json:"relative_path,omitempty"` // Relative path from agents dir (for user reference)
+	Reference    string `json:"reference,omitempty"`     // Full image reference (for store agents)
 }
 
 // Response represents a structured response from agent execution
