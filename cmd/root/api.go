@@ -1,18 +1,14 @@
 package root
 
 import (
-	"context"
 	"fmt"
 	"io/fs"
 	"log/slog"
 	"net"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/loader"
-	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/server"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/web"
@@ -113,30 +109,4 @@ func runHttp(cmd *cobra.Command, startWeb bool, args []string) error {
 
 	s := server.New(logger, runtimes, sessionStore, envFiles, gateway, opts...)
 	return s.Serve(ctx, ln)
-}
-
-func loadAgents(ctx context.Context, agentsPath string, logger *slog.Logger) (map[string]*runtime.Runtime, error) {
-	runtimes := make(map[string]*runtime.Runtime)
-
-	agents, err := findAgents(agentsPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find agents: %w", err)
-	}
-
-	for _, agentPath := range agents {
-		fileTeam, err := loader.Load(ctx, agentPath, envFiles, gateway, logger)
-		if err != nil {
-			logger.Warn("Failed to load agent", "file", agentPath, "error", err)
-			continue
-		}
-
-		filename := filepath.Base(agentPath)
-		rt, err := runtime.New(logger, fileTeam, "root")
-		if err != nil {
-			return nil, fmt.Errorf("failed to create runtime for file %s: %w", filename, err)
-		}
-		runtimes[filename] = rt
-	}
-
-	return runtimes, nil
 }
