@@ -90,7 +90,7 @@ func New(logger *slog.Logger, runtimes map[string]*runtime.Runtime, sessionStore
 	return s
 }
 
-func (s *Server) Listen(ctx context.Context, ln net.Listener) error {
+func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 	srv := http.Server{
 		Handler: s.e,
 	}

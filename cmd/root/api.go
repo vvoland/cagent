@@ -106,7 +106,7 @@ func runHttp(cmd *cobra.Command, startWeb bool, args []string) error {
 	}
 
 	s := server.New(logger, runtimes, sessionStore, envFiles, gateway, opts...)
-	return s.Listen(ctx, ln)
+	return s.Serve(ctx, ln)
 }
 
 func loadAgents(ctx context.Context, agentsPath string, logger *slog.Logger) (func(), map[string]*runtime.Runtime, error) {
