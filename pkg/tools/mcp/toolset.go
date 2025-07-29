@@ -15,6 +15,9 @@ type Toolset struct {
 	logger     *slog.Logger
 }
 
+// Make sure the MCP Toolset always implements _our_ ToolSet interface
+var _ tools.ToolSet = (*Toolset)(nil)
+
 // NewToolsetCommand creates a new MCP toolset from a command.
 func NewToolsetCommand(ctx context.Context, command string, args, env, toolFilter []string, logger *slog.Logger) (*Toolset, error) {
 	logger.Debug("Creating MCP toolset", "command", command, "args", args, "toolFilter", toolFilter)

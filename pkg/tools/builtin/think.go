@@ -13,6 +13,9 @@ type ThinkTool struct {
 	handler *thinkHandler
 }
 
+// Make sure Think Tool implements the ToolSet Interface
+var _ tools.ToolSet = (*ThinkTool)(nil)
+
 type thinkHandler struct {
 	thoughts []string
 }

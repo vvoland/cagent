@@ -8,6 +8,9 @@ import (
 
 type TransferTaskTool struct{}
 
+// Make sure Transfer Tool implements the ToolSet Interface
+var _ tools.ToolSet = (*TransferTaskTool)(nil)
+
 func NewTransferTaskTool() *TransferTaskTool {
 	return &TransferTaskTool{}
 }

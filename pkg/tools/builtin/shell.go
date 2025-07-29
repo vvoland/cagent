@@ -14,6 +14,9 @@ type ShellTool struct {
 	handler *shellHandler
 }
 
+// Make sure Shell Tool implements the ToolSet Interface
+var _ tools.ToolSet = (*ShellTool)(nil)
+
 type shellHandler struct {
 	shell string
 }
