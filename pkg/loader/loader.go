@@ -2,6 +2,7 @@ package loader
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -163,6 +164,15 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 			t = append(t, builtin.NewThinkTool())
 		case toolset.Type == "shell":
 			t = append(t, builtin.NewShellTool())
+
+		case toolset.Type == "script":
+			b, _ := json.Marshal(a)
+			fmt.Println(string(b))
+			if len(toolset.Shell) == 0 {
+				return nil, fmt.Errorf("shell is required for script toolset")
+			}
+
+			t = append(t, builtin.NewScriptShellTool(toolset.Shell))
 		case toolset.Type == "filesystem":
 			wd, err := os.Getwd()
 			if err != nil {

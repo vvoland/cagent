@@ -2,6 +2,21 @@ package v1
 
 import "errors"
 
+// ScriptShellToolConfig represents a custom shell tool configuration
+type ScriptShellToolConfig struct {
+	Cmd         string `json:"cmd" yaml:"cmd"`
+	Description string `json:"description" yaml:"description"`
+
+	// Args is directly passed as "properties" in the JSON schema
+	Args map[string]any `json:"args,omitempty" yaml:"args,omitempty"`
+
+	// Required is directly passed as "required" in the JSON schema
+	Required []string `json:"required" yaml:"required"`
+
+	Env        map[string]string `json:"env,omitempty" yaml:"env,omitempty"`
+	WorkingDir string            `json:"working_dir,omitempty" yaml:"working_dir,omitempty"`
+}
+
 // Toolset represents a tool configuration
 type Toolset struct {
 	Type     string            `json:"type,omitempty" yaml:"type,omitempty"`
@@ -16,6 +31,9 @@ type Toolset struct {
 	Shared bool `json:"shared,omitempty" yaml:"shared,omitempty"`
 	// For the memory tool
 	Path string `json:"path,omitempty" yaml:"path,omitempty"`
+
+	// For the script tool
+	Shell map[string]ScriptShellToolConfig `json:"shell,omitempty" yaml:"shell,omitempty"`
 }
 
 type Remote struct {
@@ -26,6 +44,9 @@ type Remote struct {
 
 // Ensure that either Command or Remote is set, but not both empty
 func (t *Toolset) validate() error {
+	if len(t.Shell) > 0 && t.Type != "script" {
+		return errors.New("shell can only be used with type 'script'")
+	}
 	if t.Type != "mcp" {
 		return nil
 	}
