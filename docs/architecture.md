@@ -8,194 +8,223 @@ interact, and the design principles behind the system.
 cagent is built as a modular, event-driven multi-agent system with the following
 key characteristics:
 
-- **Hierarchical Agent Structure**: Agents can have sub-agents for specialized
-  tasks
+- **Multi-tenant Architecture**: ServiceCore layer provides client isolation for MCP and HTTP transports
+- **Transport-Agnostic Design**: Core business logic separated from MCP/HTTP transport concerns
+- **Hierarchical Agent Structure**: Agents can have sub-agents with task delegation via transfer_task tool
 - **Event-Driven Runtime**: Streaming architecture for real-time interactions
-- **Pluggable Tools**: Extensible tool system via Model Context Protocol (MCP)
-- **Provider Agnostic**: Support for multiple AI providers
-- **Configuration-Driven**: YAML-based declarative configuration
+- **Pluggable Tools**: Extensible tool system with built-in tools and MCP integration
+- **Provider Agnostic**: Support for multiple AI providers (OpenAI, Anthropic, DMR)
+- **Security-First**: Client-scoped operations with proper resource isolation
+- **Agent Store System**: Support for both file-based and Docker registry-based agent distribution
 
 ## Architecture Diagram
 
 ```mermaid
 graph TB
-    subgraph "User Interface Layer"
+    subgraph "Transport Layer"
+        MCP[MCP Server]
+        HTTP[HTTP/Web Server]
         CLI[CLI Interface]
-        WEB[Web Interface]
-        UI[Desktop UI]
-        API[REST API]
+        TUI[TUI Interface]
     end
 
-    subgraph "Command Layer"
-        ROOT[Root Command]
-        RUN[Run Command]
-        INIT[Init Command]
-        EVAL[Eval Command]
+    subgraph "ServiceCore Layer"
+        MANAGER[ServiceManager]
+        RESOLVER[Agent Resolver]
+        EXECUTOR[Runtime Executor]
+        STORE[Session Store]
     end
 
-    subgraph "Core Runtime"
+    subgraph "Runtime System"
         RT[Runtime]
-        SESS[Session Manager]
-        TEAM[Team Coordinator]
+        EVENTS[Event System]
+        STREAM[Stream Handler]
     end
 
-    subgraph "Agent Layer"
+    subgraph "Agent System"
         AGENT[Agent]
-        TOOLS[Tool System]
+        TEAM[Team Coordinator]
         MEMORY[Memory Manager]
     end
 
-    subgraph "Model Layer"
-        OPENAI[OpenAI Provider]
-        ANTHROPIC[Anthropic Provider]
-        DMR[DMR Provider]
-    end
-
-    subgraph "Configuration"
-        CONFIG[Config Loader]
-        VALIDATOR[Validator]
-        LOADER[Agent Loader]
-    end
-
-    subgraph "External Tools"
-        MCP[MCP Tools]
-        SHELL[Shell Tools]
+    subgraph "Tool System"
         BUILTIN[Built-in Tools]
+        MCP_TOOLS[MCP Tools]
+        TRANSFER[Transfer Task]
     end
 
-    CLI --> ROOT
-    WEB --> ROOT
-    UI --> ROOT
-    API --> ROOT
+    subgraph "Model Providers"
+        OPENAI[OpenAI]
+        ANTHROPIC[Anthropic]
+        DMR[DMR]
+    end
 
-    ROOT --> RUN
-    ROOT --> INIT
-    ROOT --> EVAL
+    subgraph "Configuration & Loading"
+        CONFIG[Config Loader]
+        LOADER[Agent Loader]
+        ENV[Environment]
+    end
 
-    RUN --> RT
-    RT --> SESS
+    subgraph "Agent Sources"
+        FILES[Local Files]
+        DOCKER[Docker Registry]
+        CONTENT[Content Store]
+    end
+
+    MCP --> MANAGER
+    HTTP --> MANAGER
+    CLI --> RT
+    TUI --> RT
+
+    MANAGER --> RESOLVER
+    MANAGER --> EXECUTOR
+    MANAGER --> STORE
+
+    EXECUTOR --> RT
+    RT --> EVENTS
+    RT --> STREAM
     RT --> TEAM
 
     TEAM --> AGENT
-    AGENT --> TOOLS
     AGENT --> MEMORY
+    AGENT --> BUILTIN
+    AGENT --> MCP_TOOLS
+    AGENT --> TRANSFER
 
     AGENT --> OPENAI
     AGENT --> ANTHROPIC
     AGENT --> DMR
 
-    RT --> CONFIG
-    CONFIG --> VALIDATOR
-    CONFIG --> LOADER
+    RESOLVER --> FILES
+    RESOLVER --> DOCKER
+    RESOLVER --> CONTENT
 
-    TOOLS --> MCP
-    TOOLS --> SHELL
-    TOOLS --> BUILTIN
+    LOADER --> CONFIG
+    LOADER --> ENV
 ```
 
 ## Component Architecture
 
-### 1. Command Layer (`cmd/root/`)
+### 1. Transport Layer (`cmd/root/`, `pkg/mcpserver/`)
 
-The command layer provides multiple interfaces for interacting with cagent:
+The transport layer provides multiple interfaces for interacting with cagent:
 
-#### Root Command (`root.go`)
+#### MCP Server (`pkg/mcpserver/`)
 
-- Entry point for all CLI operations
-- Manages global flags and configuration
-- Dispatches to appropriate subcommands
+- Full MCP (Model Context Protocol) implementation with SSE transport
+- Multi-tenant client isolation with proper lifecycle management
+- Tool handlers for agent operations: invoke_agent, list_agents, create_agent_session
+- Session management tools: send_message, list_agent_sessions, close_agent_session
+- Advanced session operations: get_agent_session_info, get_agent_session_history
+- Docker registry integration: pull_agent for downloading agent images
+- Structured responses with explicit agent_ref formatting
 
-#### Run Command (`run.go`)
+#### CLI Interface (`cmd/root/run.go`)
 
-- Interactive chat interface
-- Handles user input and agent responses
-- Manages conversation flow and session state
+- Direct agent execution for local development and testing
+- Interactive chat interface with streaming responses
+- Session commands: /exit, /eval, /reset
+- Support for both file-based and store-based agents
 
-#### Web Interface (`web.go`)
+#### Web Interface (`cmd/root/web.go`)
 
 - HTTP server for web-based interactions
-- RESTful API endpoints
-- WebSocket support for real-time communication
+- Session database integration
+- Multi-agent support via directory-based configuration
 
-#### TUI Command (`tui.go`)
+#### TUI Interface (`cmd/root/tui.go`)
 
-- Desktop application interface
-- Native GUI components
-- Cross-platform compatibility
+- Terminal user interface for interactive agent sessions
+- Local agent execution with enhanced UX
 
-### 2. Configuration System (`pkg/config/`)
+### 2. ServiceCore Layer (`pkg/servicecore/`)
 
-The configuration system handles agent and model definitions:
+The ServiceCore layer provides the core business logic with multi-tenant architecture:
 
 ```mermaid
 graph LR
-    YAML[YAML File] --> LOADER[Config Loader]
-    LOADER --> VALIDATOR[Validator]
-    VALIDATOR --> CONFIG[Config Object]
-    CONFIG --> AGENT_FACTORY[Agent Factory]
-    AGENT_FACTORY --> AGENTS[Agent Instances]
+    CLIENT[MCP/HTTP Client] --> MANAGER[ServiceManager]
+    MANAGER --> RESOLVER[Agent Resolver]
+    MANAGER --> EXECUTOR[Runtime Executor]
+    RESOLVER --> FILES[File Agents]
+    RESOLVER --> STORE[Store Agents]
+    EXECUTOR --> RUNTIME[Runtime Creation]
+    EXECUTOR --> SESSION[Session Management]
 ```
 
-#### Configuration Loading Flow
+#### ServiceManager Interface
 
-1. **Parse YAML**: Load and parse configuration file
-2. **Validate Structure**: Check syntax and required fields
-3. **Cross-Reference**: Ensure all references are valid
-4. **Create Objects**: Instantiate agents and models
+- **Client Management**: CreateClient, RemoveClient with proper isolation
+- **Agent Operations**: ResolveAgent, ListAgents, PullAgent with security boundaries
+- **Session Management**: CreateAgentSession, SendMessage, ListSessions, CloseSession
+- **Advanced Operations**: GetSessionHistory, GetSessionInfo with client scoping
+
+#### Multi-Tenant Design
+
+- All operations require clientID for proper isolation
+- Agent resolution restricted to configured root directories
+- Session limits and timeout enforcement per client
+- Resource cleanup on client disconnect
+- Security-first design preventing cross-client access
 
 ### 3. Runtime System (`pkg/runtime/`)
 
-The runtime system is the core execution engine:
+The runtime system is the core execution engine with event-driven architecture:
 
 ```mermaid
 sequenceDiagram
-    participant User
+    participant ServiceCore
     participant Runtime
     participant Agent
     participant Model
     participant Tools
 
-    User->>Runtime: Send Message
+    ServiceCore->>Runtime: RunStream
     Runtime->>Agent: Get Tools
     Agent->>Runtime: Return Tools
-    Runtime->>Model: Create Stream
-    Model->>Runtime: Stream Response
-    Runtime->>User: Stream Events
+    Runtime->>Model: CreateChatCompletionStream
+    Model->>Runtime: Stream Chunks
+    Runtime->>ServiceCore: AgentChoiceEvent
 
-    alt Tool Call Required
+    alt Tool Call
         Runtime->>Tools: Execute Tool
-        Tools->>Runtime: Return Result
-        Runtime->>Model: Continue Stream
-        Model->>Runtime: Stream Response
+        Tools->>Runtime: Tool Result
+        Runtime->>ServiceCore: ToolCallEvent
+        Runtime->>ServiceCore: ToolCallResponseEvent
+        Runtime->>Model: Continue with Tool Response
     end
 
-    Runtime->>User: Final Response
+    Runtime->>ServiceCore: Completion
 ```
 
 #### Key Components
 
 **Runtime Engine** (`runtime.go`):
 
-- Manages agent lifecycle
-- Handles streaming responses
-- Coordinates tool execution
-- Manages task delegation
+- Event-driven streaming with RunStream method
+- Team coordination with transfer_task tool handler
+- Built-in tool registration (transfer_task)
+- Agent tool integration and execution
+- Session message management
 
-**Event System**:
+**Event System** (`event.go`):
 
-- Real-time streaming architecture
-- Multiple event types for different actions
-- Asynchronous processing
+- AgentChoiceEvent: Real-time content streaming
+- ToolCallEvent: Tool invocation notifications
+- ToolCallResponseEvent: Tool execution results
+- ErrorEvent: Error handling and propagation
+- AgentMessageEvent: Agent communication events
 
 **Tool Integration**:
 
-- Dynamic tool discovery
-- Tool call parsing and execution
-- Error handling and recovery
+- Runtime-level tools (transfer_task for delegation)
+- Agent-level tools from ToolSets
+- MCP tool integration via toolsets
+- Built-in tools (think, todo, memory, filesystem, shell)
 
 ### 4. Agent System (`pkg/agent/`)
 
-Agents are the core abstraction in cagent:
+Agents are the core abstraction in cagent with hierarchical structure:
 
 ```mermaid
 classDiagram
@@ -203,18 +232,23 @@ classDiagram
         +name: string
         +description: string
         +instruction: string
-        +model: Provider
-        +tools: []ToolSet
+        +toolsets: []ToolSet
+        +models: []Provider
         +subAgents: []*Agent
         +parents: []*Agent
+        +addDate: bool
         +memoryManager: Manager
 
-        +Tools() []Tool
+        +Tools(ctx) []Tool
+        +Model() Provider
         +HasSubAgents() bool
+        +StopToolSets() error
     }
 
     class ToolSet {
         +Tools(ctx) []Tool
+        +Start(ctx) error
+        +Stop() error
     }
 
     class Provider {
@@ -223,146 +257,219 @@ classDiagram
 
     Agent --> ToolSet
     Agent --> Provider
-    Agent --> Agent : sub-agents
+    Agent --> Agent : hierarchical
 ```
 
-#### Agent Lifecycle
+#### Agent Features
 
+**Core Properties**:
+- Name, description, instruction for agent behavior
+- Multi-model support with random selection
+- Hierarchical sub-agent relationships
+- Date injection capability (addDate)
+- Memory manager integration
+
+**Tool Management**:
+- ToolSet lifecycle with Start/Stop operations
+- Lazy toolset initialization
+- Tool aggregation from multiple sources
+- Built-in tool wrapper integration
+
+**Lifecycle Management**:
 1. **Creation**: Agent instantiated from configuration
-2. **Initialization**: Tools and sub-agents connected
-3. **Execution**: Processing messages and tool calls
-4. **Delegation**: Task transfer to sub-agents
-5. **Cleanup**: Resource cleanup and state persistence
+2. **Tool Initialization**: ToolSets started on first use
+3. **Execution**: Processing messages and coordinating tools
+4. **Delegation**: Task transfer via transfer_task tool
+5. **Cleanup**: Proper ToolSet stopping and resource cleanup
 
-### 5. Model Integration (`pkg/model/`)
+### 5. Model Integration (`pkg/model/provider/`)
 
-The model layer abstracts different AI providers:
+The model layer abstracts different AI providers with unified interface:
 
 ```mermaid
 graph TB
     subgraph "Provider Interface"
         INTERFACE[Provider Interface]
+        AUTH[Auth Manager]
     end
 
     subgraph "Implementations"
-        OPENAI_IMPL[OpenAI Implementation]
-        ANTHROPIC_IMPL[Anthropic Implementation]
-        DMR_IMPL[DMR Implementation]
+        OPENAI[OpenAI Client]
+        ANTHROPIC[Anthropic Client]
+        DMR[DMR Client]
     end
 
     subgraph "Common Features"
         STREAMING[Streaming Support]
         TOOLS_SUPPORT[Tool Calling]
         CONFIG[Configuration]
+        ERROR[Error Handling]
     end
 
-    INTERFACE --> OPENAI_IMPL
-    INTERFACE --> ANTHROPIC_IMPL
-    INTERFACE --> DMR_IMPL
+    INTERFACE --> OPENAI
+    INTERFACE --> ANTHROPIC
+    INTERFACE --> DMR
 
-    OPENAI_IMPL --> STREAMING
-    ANTHROPIC_IMPL --> STREAMING
-    DMR_IMPL --> STREAMING
+    AUTH --> OPENAI
+    AUTH --> ANTHROPIC
+    AUTH --> DMR
 
-    OPENAI_IMPL --> TOOLS_SUPPORT
-    ANTHROPIC_IMPL --> TOOLS_SUPPORT
-    DMR_IMPL --> TOOLS_SUPPORT
+    OPENAI --> STREAMING
+    ANTHROPIC --> STREAMING
+    DMR --> STREAMING
+
+    OPENAI --> TOOLS_SUPPORT
+    ANTHROPIC --> TOOLS_SUPPORT
+    DMR --> TOOLS_SUPPORT
 ```
 
 #### Provider Interface
 
-All providers implement a common interface:
+All providers implement the common `Provider` interface:
 
-- `CreateChatCompletionStream()`: Stream-based chat completion
-- Model-specific configuration handling
-- Tool call support
-- Error handling and retry logic
+- `CreateChatCompletionStream(ctx, messages, tools)`: Unified streaming interface
+- Authentication handling via auth package
+- Tool calling support across all providers
+- Consistent error handling and retry logic
+- Provider-specific configuration management
+
+#### Supported Providers
+
+- **OpenAI**: GPT models with function calling
+- **Anthropic**: Claude models with tool use
+- **DMR**: Custom model provider with streaming support
 
 ### 6. Tool System (`pkg/tools/`)
 
-The tool system provides extensible capabilities:
+The tool system provides extensible capabilities through ToolSets:
 
 ```mermaid
 graph TB
-    subgraph "Tool Types"
-        BUILTIN[Built-in Tools]
-        MCP_TOOLS[MCP Tools]
-        SHELL_TOOLS[Shell Tools]
+    subgraph "Tool Architecture"
+        TOOLSET[ToolSet Interface]
+        TOOL[Tool Interface]
+        HANDLER[ToolHandler]
     end
 
-    subgraph "Built-in Tools"
+    subgraph "Built-in Tools" 
         THINK[Think Tool]
         TODO[Todo Tool]
         MEMORY[Memory Tool]
-        TRANSFER[Transfer Task Tool]
+        TRANSFER[Transfer Task]
+        FILESYSTEM[Filesystem Tool]
+        SHELL[Shell Tool]
     end
 
-    subgraph "MCP Protocol"
-        MCP_CLIENT[MCP Client]
-        EXTERNAL_TOOLS[External Tools]
+    subgraph "MCP Integration"
+        MCP_TOOLSET[MCP ToolSet]
+        STDIO[STDIO Transport]
+        EXTERNAL[External MCP Tools]
     end
 
-    BUILTIN --> THINK
-    BUILTIN --> TODO
-    BUILTIN --> MEMORY
-    BUILTIN --> TRANSFER
+    TOOLSET --> TOOL
+    TOOL --> HANDLER
 
-    MCP_TOOLS --> MCP_CLIENT
-    MCP_CLIENT --> EXTERNAL_TOOLS
+    TOOLSET --> THINK
+    TOOLSET --> TODO
+    TOOLSET --> MEMORY
+    TOOLSET --> TRANSFER
+    TOOLSET --> FILESYSTEM
+    TOOLSET --> SHELL
+
+    MCP_TOOLSET --> STDIO
+    STDIO --> EXTERNAL
 ```
+
+#### Tool Interface Design
+
+```go
+type Tool struct {
+    Function *FunctionDefinition
+    Handler  ToolHandler
+}
+
+type ToolSet interface {
+    Tools(ctx context.Context) ([]Tool, error)
+    Instructions() string
+    Start(ctx context.Context) error
+    Stop() error
+}
+```
+
+#### Built-in Tools
+
+- **Think Tool**: Internal reasoning and reflection
+- **Todo Tool**: Task and goal management
+- **Memory Tool**: Persistent information storage
+- **Transfer Task Tool**: Agent delegation (handled by runtime)
+- **Filesystem Tool**: File operations with security restrictions
+- **Shell Tool**: System command execution
 
 #### Tool Execution Flow
 
-1. **Discovery**: Agent discovers available tools
-2. **Registration**: Tools registered with runtime
-3. **Invocation**: Model decides to call tool
-4. **Execution**: Tool handler processes request
-5. **Response**: Result returned to model
+1. **ToolSet Lifecycle**: Start/Stop management
+2. **Tool Discovery**: Agent aggregates tools from all ToolSets
+3. **Model Invocation**: AI model decides to call tool
+4. **Handler Execution**: Tool-specific logic processes request
+5. **Response Integration**: Result returned to conversation flow
 
 ### 7. Session Management (`pkg/session/`)
 
-Session management handles conversation state:
+Session management handles conversation state and message history:
 
 ```mermaid
 graph LR
     subgraph "Session Components"
         SESS[Session]
-        MESSAGES[Message History]
-        METADATA[Metadata]
+        MESSAGES[AgentMessage List]
+        STORE[Session Store]
+    end
+
+    subgraph "Message Structure"
+        AGENT_MSG[AgentMessage]
+        CHAT_MSG[chat.Message]
+        AGENT_NAME[AgentName]
+        FILENAME[Filename]
     end
 
     subgraph "Message Types"
         USER[User Messages]
-        AGENT[Agent Messages]
+        ASSISTANT[Assistant Messages]
         TOOL[Tool Messages]
         SYSTEM[System Messages]
     end
 
     SESS --> MESSAGES
-    SESS --> METADATA
-    MESSAGES --> USER
-    MESSAGES --> AGENT
-    MESSAGES --> TOOL
-    MESSAGES --> SYSTEM
+    SESS --> STORE
+    MESSAGES --> AGENT_MSG
+    AGENT_MSG --> CHAT_MSG
+    AGENT_MSG --> AGENT_NAME
+    AGENT_MSG --> FILENAME
+    CHAT_MSG --> USER
+    CHAT_MSG --> ASSISTANT
+    CHAT_MSG --> TOOL
+    CHAT_MSG --> SYSTEM
 ```
 
 #### Session Features
 
-- **Message History**: Complete conversation tracking
-- **Agent Context**: Per-agent message filtering
-- **Persistence**: Session state can be saved/loaded
-- **Metadata**: Additional context and configuration
+- **AgentMessage Structure**: Links messages to specific agents and files
+- **Message Filtering**: GetMessages(agent) for agent-specific context
+- **Session Creation**: Configurable with initial user messages
+- **Unique Identification**: UUID-based session IDs
+- **Store Interface**: Pluggable persistence layer (SQLite implementation)
+- **Multi-Agent Context**: Proper message attribution in team scenarios
 
 ### 8. Team Coordination (`pkg/team/`)
 
-The team system manages multi-agent coordination:
+The team system manages multi-agent coordination and agent registry:
 
 ```mermaid
 graph TB
     subgraph "Team Structure"
-        TEAM[Team Manager]
-        AGENTS[Agent Registry]
-        DELEGATION[Task Delegation]
+        TEAM[Team]
+        REGISTRY[Agent Registry]
+        TOOLSETS[ToolSet Management]
     end
 
     subgraph "Agent Hierarchy"
@@ -372,185 +479,368 @@ graph TB
         SUB3[Sub-Agent 3]
     end
 
-    TEAM --> AGENTS
-    TEAM --> DELEGATION
+    subgraph "Delegation Mechanism"
+        TRANSFER[transfer_task tool]
+        RUNTIME[Runtime Handler]
+        SESSION[New Session]
+    end
 
-    AGENTS --> ROOT
+    TEAM --> REGISTRY
+    TEAM --> TOOLSETS
+
+    REGISTRY --> ROOT
     ROOT --> SUB1
     ROOT --> SUB2
     ROOT --> SUB3
+
+    TRANSFER --> RUNTIME
+    RUNTIME --> SESSION
 ```
 
-#### Delegation Flow
+#### Team Operations
 
-1. **Task Analysis**: Root agent analyzes incoming task
-2. **Agent Selection**: Identifies best sub-agent for task
-3. **Context Transfer**: Passes relevant context
-4. **Execution**: Sub-agent processes task
-5. **Result Integration**: Results merged back to main conversation
+**Agent Registry**:
+- `Get(name)`: Retrieve agent by name
+- `Size()`: Get total agent count
+- `StopToolSets()`: Cleanup all agent toolsets
+- Agent lookup for transfer_task operations
+
+**Delegation Flow** (via transfer_task):
+1. **Task Transfer**: Runtime receives transfer_task call
+2. **Agent Switch**: Runtime switches to target agent
+3. **New Session**: Creates isolated session for sub-task
+4. **Execution**: Sub-agent processes task independently
+5. **Result Return**: Output merged back to main conversation
+6. **Context Restore**: Runtime switches back to original agent
+
+**Resource Management**:
+- Proper toolset lifecycle management
+- Agent cleanup on team destruction
+- Memory manager coordination across agents
 
 ## Data Flow
 
-### Message Processing Flow
+### MCP Message Processing Flow
+
+```mermaid
+sequenceDiagram
+    participant MCP_Client
+    participant MCP_Server
+    participant ServiceCore
+    participant Runtime
+    participant Agent
+    participant Model
+    participant Tools
+
+    MCP_Client->>MCP_Server: invoke_agent
+    MCP_Server->>ServiceCore: CreateAgentSession
+    ServiceCore->>Runtime: Create Runtime
+    ServiceCore->>ServiceCore: Create Session
+    MCP_Server->>ServiceCore: SendMessage
+    ServiceCore->>Runtime: ExecuteStream
+    
+    Runtime->>Agent: Get Tools
+    Runtime->>Model: CreateChatCompletionStream
+    
+    loop Stream Processing
+        Model->>Runtime: Stream Chunk
+        Runtime->>ServiceCore: AgentChoiceEvent
+        
+        alt Tool Call
+            Runtime->>Tools: Execute Tool
+            Tools->>Runtime: Tool Result
+            Runtime->>ServiceCore: ToolCallEvent
+        end
+    end
+    
+    ServiceCore->>MCP_Server: Response
+    MCP_Server->>MCP_Client: Tool Response
+```
+
+### CLI Message Processing Flow
 
 ```mermaid
 sequenceDiagram
     participant User
+    participant CLI
     participant Runtime
     participant Session
     participant Agent
     participant Model
     participant Tools
 
-    User->>Runtime: Input Message
-    Runtime->>Session: Add User Message
-    Session->>Agent: Get Context Messages
-    Agent->>Session: Filtered Messages
-    Runtime->>Model: Create Stream
+    User->>CLI: Input Message
+    CLI->>Session: Add UserMessage
+    CLI->>Runtime: RunStream
+    Runtime->>Session: GetMessages(agent)
+    Session->>Runtime: Filtered Messages
+    Runtime->>Model: CreateChatCompletionStream
 
     loop Stream Processing
         Model->>Runtime: Stream Chunk
-        Runtime->>User: Stream Event
+        Runtime->>CLI: AgentChoiceEvent
+        CLI->>User: Display Content
 
         alt Tool Call
             Runtime->>Tools: Execute Tool
             Tools->>Runtime: Tool Result
-            Runtime->>Session: Add Tool Message
+            Runtime->>CLI: ToolCallEvent
+            Runtime->>Session: Add Tool Response
         end
     end
 
-    Runtime->>Session: Add Agent Response
-    Session->>Session: Update History
+    Runtime->>Session: Add Assistant Message
 ```
 
-### Configuration Loading Flow
+### Agent Resolution Flow
 
 ```mermaid
 sequenceDiagram
-    participant CLI
+    participant Client
+    participant ServiceCore
+    participant Resolver
+    participant FileSystem
+    participant ContentStore
     participant Loader
-    participant Config
-    participant Validator
-    participant Factory
     participant Team
 
-    CLI->>Loader: Load Config File
+    Client->>ServiceCore: CreateAgentSession(agentSpec)
+    ServiceCore->>Resolver: ResolveAgent(agentSpec)
+    
+    alt File Agent
+        Resolver->>FileSystem: Check Local Files
+        FileSystem->>Resolver: Agent Path
+    else Store Agent
+        Resolver->>ContentStore: Check Store
+        ContentStore->>Resolver: Agent Content
+    end
+    
+    ServiceCore->>Loader: Load(agentPath)
     Loader->>Config: Parse YAML
-    Config->>Validator: Validate Structure
-    Validator->>Config: Validation Result
-    Config->>Factory: Create Agents
-    Factory->>Team: Register Agents
-    Team->>CLI: Ready Team
+    Config->>Loader: Agent Config
+    Loader->>Team: Create Team
+    Team->>ServiceCore: Ready Runtime
+```
+
+### Agent Store Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant MCP_Server
+    participant ServiceCore
+    participant Resolver
+    participant Remote
+    participant ContentStore
+
+    Client->>MCP_Server: pull_agent(registry_ref)
+    MCP_Server->>ServiceCore: PullAgent
+    ServiceCore->>Resolver: PullAgent
+    Resolver->>Remote: Pull from Registry
+    Remote->>ContentStore: Store Locally
+    ContentStore->>Resolver: Success
+    Resolver->>ServiceCore: Agent Available
+    ServiceCore->>MCP_Server: Success
+    MCP_Server->>Client: Agent Pulled
 ```
 
 ## Design Principles
 
-### 1. Modularity
+### 1. Multi-Tenant Architecture
 
-- Each component has a single responsibility
-- Clear interfaces between components
-- Pluggable architecture for extensibility
+- Client isolation at the ServiceCore layer
+- All operations scoped to specific clients
+- Proper resource cleanup and session limits
+- Security-first design preventing cross-client access
 
-### 2. Event-Driven Architecture
+### 2. Transport-Agnostic Design
+
+- Core business logic separated from transport concerns
+- ServiceCore provides unified interface for MCP and HTTP
+- Consistent behavior across different access methods
+- Easy to add new transport layers
+
+### 3. Event-Driven Architecture
 
 - Streaming responses for real-time interaction
-- Asynchronous processing where possible
-- Event-based communication between components
+- Event types for different runtime phases
+- Asynchronous tool execution
+- Real-time progress feedback
 
-### 3. Configuration-Driven
+### 4. Security-First Design
 
-- Declarative agent and model definitions
-- No hard-coded behaviors
-- Easy to modify and extend
+- Agent resolution restricted to configured directories
+- Client-scoped operations with proper validation
+- Resource limits and timeout enforcement
+- Secure tool permissions and input validation
 
-### 4. Provider Agnostic
+### 5. Hierarchical Agent System
 
-- Abstract interface for AI providers
-- Consistent behavior across providers
-- Easy to add new providers
+- Agent-to-agent delegation via transfer_task
+- Sub-agent specialization for complex tasks
+- Context-aware task routing
+- Proper task isolation and result integration
 
-### 5. Tool Extensibility
+### 6. Pluggable Tool System
 
-- Standard tool interface
-- Support for external tools via MCP
+- ToolSet interface for extensible capabilities
 - Built-in tools for common operations
+- MCP integration for external tools
+- Tool lifecycle management (Start/Stop)
+
+### 7. Provider Agnostic Model Layer
+
+- Unified Provider interface across AI models
+- Consistent streaming and tool calling support
+- Authentication abstraction
+- Easy to add new AI providers
 
 ## Performance Considerations
 
 ### 1. Streaming Architecture
 
-- Reduces latency for user interactions
-- Enables real-time progress feedback
-- Efficient memory usage
+- Real-time event streaming reduces perceived latency
+- Chunked response processing for immediate feedback
+- Efficient memory usage with stream-based processing
+- Non-blocking tool execution
 
-### 2. Lazy Loading
+### 2. Multi-Tenant Resource Management
 
-- Agents created only when needed
-- Tools loaded on demand
-- Configuration validated incrementally
+- Client-isolated sessions prevent resource conflicts
+- Session limits and timeout enforcement
+- Proper runtime and toolset cleanup
+- Memory-efficient agent loading
 
-### 3. Resource Management
+### 3. Lazy Initialization
 
-- Proper cleanup of resources
-- Connection pooling for providers
-- Memory management for large conversations
+- ToolSets started only when first used
+- Agent resolution on-demand
+- Configuration loading optimized for common cases
+- MCP tool discovery as needed
 
 ### 4. Concurrent Processing
 
-- Multiple agents can run concurrently
+- Multiple client sessions can run simultaneously
 - Tool calls executed asynchronously
-- Efficient context switching
+- Event-driven architecture enables parallelism
+- Efficient context switching between agents
+
+### 5. Store-Based Agent Distribution
+
+- Docker registry integration for agent sharing
+- Local content store for caching
+- Efficient agent packaging and distribution
+- On-demand agent pulling
 
 ## Security Considerations
 
-### 1. API Key Management
+### 1. Multi-Tenant Isolation
 
-- Environment variable usage
-- No hardcoded credentials
-- Secure key rotation support
+- Client ID scoping for all operations
+- Session isolation preventing cross-client access
+- Resource limits per client
+- Proper cleanup on client disconnect
 
-### 2. Tool Permissions
+### 2. Agent Resolution Security
 
-- Granular tool access control
-- Filesystem permission restrictions
-- Shell command filtering
+- Restricted to configured root directories
+- Path traversal prevention
+- Secure agent specification parsing
+- Registry authentication for agent pulling
 
-### 3. Input Validation
+### 3. Tool Security
 
-- Configuration validation
+- Filesystem tool restrictions to allowed directories
+- Shell command execution controls
+- MCP tool isolation and validation
+- Tool parameter sanitization
+
+### 4. Authentication & Authorization
+
+- Environment-based credential management
+- Provider-specific authentication handling
+- No hardcoded secrets or keys
+- Secure credential rotation support
+
+### 5. Input Validation
+
+- MCP tool parameter validation
+- Configuration file validation
+- Agent specification validation
 - User input sanitization
-- Tool parameter validation
 
-### 4. Audit Logging
+### 6. Audit & Monitoring
 
-- Complete action logging
-- Debug information capture
-- Error tracking and reporting
+- Comprehensive logging with client context
+- Security event tracking
+- Error monitoring and alerting
+- Debug information for troubleshooting
 
 ## Extension Points
 
-### 1. Custom Providers
+### 1. Custom AI Providers
 
 Implement the `Provider` interface to add new AI providers:
 
 ```go
 type Provider interface {
-    CreateChatCompletionStream(ctx context.Context, messages []Message, tools []Tool) (Stream, error)
+    CreateChatCompletionStream(ctx context.Context, messages []chat.Message, tools []tools.Tool) (chat.MessageStream, error)
 }
 ```
 
-### 2. Custom Tools
+### 2. Custom ToolSets
 
-Create new tools by implementing the `Tool` interface:
+Create new toolsets by implementing the `ToolSet` interface:
 
 ```go
-type Tool interface {
-    Function() Function
-    Handler(ctx context.Context, call ToolCall) (*ToolCallResult, error)
+type ToolSet interface {
+    Tools(ctx context.Context) ([]Tool, error)
+    Instructions() string
+    Start(ctx context.Context) error
+    Stop() error
 }
 ```
 
-### 3. Custom Memory Managers
+### 3. Custom Tools
+
+Add individual tools with the `Tool` structure:
+
+```go
+type Tool struct {
+    Function *FunctionDefinition
+    Handler  ToolHandler
+}
+
+type ToolHandler func(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error)
+```
+
+### 4. Custom Session Stores
+
+Implement the `Store` interface for different persistence backends:
+
+```go
+type Store interface {
+    CreateClient(ctx context.Context, clientID string) error
+    DeleteClient(ctx context.Context, clientID string) error
+    CreateSession(ctx context.Context, clientID string, session *AgentSession) error
+    GetSession(ctx context.Context, clientID, sessionID string) (*AgentSession, error)
+    // ... other session operations
+}
+```
+
+### 5. Custom Transport Layers
+
+Extend with new transport mechanisms by using ServiceCore:
+
+```go
+func NewCustomTransport(serviceCore servicecore.ServiceManager) *CustomTransport {
+    return &CustomTransport{
+        serviceCore: serviceCore,
+    }
+}
+```
+
+### 6. Custom Memory Managers
 
 Implement custom memory strategies:
 
@@ -561,18 +851,50 @@ type Manager interface {
 }
 ```
 
-### 4. Custom UI Components
+### 7. Custom Agent Resolvers
 
-Add new interfaces by implementing command handlers:
+Extend agent resolution with custom sources:
 
 ```go
-func NewCustomCmd() *cobra.Command {
-    return &cobra.Command{
-        Use: "custom",
-        RunE: customCommandHandler,
-    }
+type CustomResolver struct {
+    // Custom resolution logic
+}
+
+func (r *CustomResolver) ResolveAgent(agentSpec string) (string, error) {
+    // Custom agent resolution
 }
 ```
 
-This architecture provides a solid foundation for building sophisticated
-multi-agent systems while maintaining flexibility and extensibility.
+## Current Implementation Status
+
+### Fully Implemented
+
+- ✅ **ServiceCore Layer**: Multi-tenant architecture with client isolation
+- ✅ **MCP Server**: Full MCP protocol implementation with SSE transport
+- ✅ **Runtime System**: Event-driven streaming with tool integration
+- ✅ **Agent System**: Hierarchical agents with tool management
+- ✅ **Tool System**: Built-in tools and MCP integration
+- ✅ **Model Providers**: OpenAI, Anthropic, and DMR support
+- ✅ **Session Management**: Conversation state and message history
+- ✅ **Agent Store**: Docker registry integration for agent distribution
+- ✅ **CLI Interface**: Direct agent execution and interaction
+- ✅ **Web Interface**: HTTP server with session database
+- ✅ **Configuration System**: YAML-based agent and model definitions
+
+### Architecture Limitations
+
+- **MCP Client Isolation**: Currently uses DEFAULT_CLIENT_ID for HTTP API compatibility
+- **Session Persistence**: In-memory sessions in ServiceCore, SQLite store interface defined but not fully integrated
+- **Tool Security**: Basic restrictions implemented, could be enhanced
+- **Error Recovery**: Basic error handling, could be more sophisticated
+- **Performance Monitoring**: Limited metrics and monitoring capabilities
+
+### Notable Design Patterns
+
+- **Transport-Agnostic**: ServiceCore cleanly separates business logic from transport
+- **Event-Driven**: Real-time streaming across all interfaces
+- **Security-First**: Client scoping and resource isolation
+- **Extensible**: Plugin-like architecture for tools, providers, and transports
+- **Resource Management**: Proper lifecycle management for agents and sessions
+
+This architecture provides a solid foundation for building sophisticated multi-agent systems with enterprise-grade multi-tenancy, security, and extensibility while maintaining clean separation of concerns and consistent behavior across different access methods.
