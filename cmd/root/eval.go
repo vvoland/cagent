@@ -18,7 +18,7 @@ func NewEvalCmd() *cobra.Command {
 	}
 
 	cmd.PersistentFlags().StringSliceVar(&runConfig.EnvFiles, "env-from-file", nil, "Set environment variables from file")
-	cmd.PersistentFlags().StringVar(&runConfig.Gateway, "gateway", "", "Set the gateway address")
+	addGatewayFlags(cmd)
 
 	return cmd
 }
