@@ -20,7 +20,7 @@ func getDockerDesktopPaths() (DockerDesktopPaths, error) {
 
 		// On Linux
 		return DockerDesktopPaths{
-			BackendSocket: filepath.Join(home, ".docker/desktop/backend.sock"),
+			BackendSocket: filepath.Join(home, ".docker", "desktop", "backend.sock"),
 		}, nil
 	}
 
