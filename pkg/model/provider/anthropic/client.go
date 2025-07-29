@@ -16,6 +16,7 @@ import (
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/environment"
+	"github.com/docker/cagent/pkg/model/provider/auth"
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -129,19 +130,15 @@ func NewClient(cfg *config.ModelConfig, env environment.Provider, logger *slog.L
 		return nil, errors.New("model type must be 'anthropic'")
 	}
 
-	// Get the API key from environment variables
-	apiKey, err := env.Get(context.TODO(), "ANTHROPIC_API_KEY")
+	// Get the auth token from environment variables
+	authToken, err := auth.Token(context.TODO(), env, cfg.BaseURL, "ANTHROPIC_API_KEY")
 	if err != nil {
-		logger.Error("Anthropic client creation failed", "error", "failed to get ANTHROPIC_API_KEY from environment", "details", err)
-		return nil, errors.New("ANTHROPIC_API_KEY environment variable is required")
-	}
-	if apiKey == "" {
-		logger.Error("Anthropic client creation failed", "error", "ANTHROPIC_API_KEY environment variable is required")
-		return nil, errors.New("ANTHROPIC_API_KEY environment variable is required")
+		logger.Error("Anthropic client creation failed", "error", "failed to get authentication token", "details", err)
+		return nil, err
 	}
 
 	var options []option.RequestOption
-	options = append(options, option.WithAPIKey(apiKey))
+	options = append(options, option.WithAPIKey(authToken))
 	if cfg.BaseURL != "" {
 		options = append(options, option.WithBaseURL(cfg.BaseURL))
 	}

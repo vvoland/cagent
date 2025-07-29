@@ -11,6 +11,7 @@ import (
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/environment"
+	"github.com/docker/cagent/pkg/model/provider/auth"
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -104,19 +105,15 @@ func NewClient(cfg *config.ModelConfig, env environment.Provider, logger *slog.L
 		return nil, errors.New("model type must be 'openai'")
 	}
 
-	// Get the API key from environment variables
-	apiKey, err := env.Get(context.TODO(), "OPENAI_API_KEY")
+	// Get the auth token from environment variables
+	authToken, err := auth.Token(context.TODO(), env, cfg.BaseURL, "OPENAI_API_KEY")
 	if err != nil {
-		logger.Error("OpenAI client creation failed", "error", "failed to get OPENAI_API_KEY from environment", "details", err)
-		return nil, errors.New("OPENAI_API_KEY environment variable is required")
+		logger.Error("OpenAI client creation failed", "error", "failed to get authentication token", "details", err)
+		return nil, err
 	}
-	if apiKey == "" {
-		logger.Error("OpenAI client creation failed", "error", "OPENAI_API_KEY environment variable is required")
-		return nil, errors.New("OPENAI_API_KEY environment variable is required")
-	}
-
 	logger.Debug("OpenAI API key found, creating client")
-	clientConfig := openai.DefaultConfig(apiKey)
+
+	clientConfig := openai.DefaultConfig(authToken)
 	clientConfig.BaseURL = "https://api.openai.com/v1"
 	if cfg.BaseURL != "" {
 		clientConfig.BaseURL = cfg.BaseURL

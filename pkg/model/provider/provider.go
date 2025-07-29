@@ -33,44 +33,30 @@ type Provider interface {
 func New(cfg *config.ModelConfig, env environment.Provider, gateway string, logger *slog.Logger) (Provider, error) {
 	logger.Debug("Creating model provider", "type", cfg.Type, "model", cfg.Model)
 
-	if gateway != "" {
-		api_key, err := env.Get(context.TODO(), "LITELLM_API_KEY")
-		if err != nil {
-			return nil, err
-		}
-
-		env = environment.NewMultiProvider(
-			environment.NewKeyValueProvider(map[string]string{
-				"OPENAI_API_KEY": api_key,
-			}),
-			env,
-		)
-
+	switch {
+	case gateway != "":
 		gatewayCfg := &config.ModelConfig{
 			Type:              "openai",
 			Model:             cfg.Model,
 			BaseURL:           gateway + "/v1",
 			ParallelToolCalls: cfg.ParallelToolCalls,
-			// TODO(dga): temperature and stuff.
-			// Temperature:      cfg.Temperature,
 			// MaxTokens:        cfg.MaxTokens, // MaxTokens is not portable
-			// TopP:             cfg.TopP,
-			// FrequencyPenalty: cfg.FrequencyPenalty,
-			// PresencePenalty:  cfg.PresencePenalty,
+			// TODO(dga): temperature and stuff.
 		}
 
 		return openai.NewClient(gatewayCfg, env, logger)
-	}
 
-	switch cfg.Type {
-	case "openai":
+	case cfg.Type == "openai":
 		return openai.NewClient(cfg, env, logger)
-	case "anthropic":
-		return anthropic.NewClient(cfg, env, logger)
-	case "dmr":
-		return dmr.NewClient(cfg, logger)
-	}
 
-	logger.Error("Unknown provider type", "type", cfg.Type)
-	return nil, fmt.Errorf("unknown provider type: %s", cfg.Type)
+	case cfg.Type == "anthropic":
+		return anthropic.NewClient(cfg, env, logger)
+
+	case cfg.Type == "dmr":
+		return dmr.NewClient(cfg, logger)
+
+	default:
+		logger.Error("Unknown provider type", "type", cfg.Type)
+		return nil, fmt.Errorf("unknown provider type: %s", cfg.Type)
+	}
 }
