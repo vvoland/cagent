@@ -16,6 +16,10 @@ var (
 	loginInfoCacheOnce sync.Once
 )
 
+func IsLoggedIn(ctx context.Context) bool {
+	return GetToken(ctx) != ""
+}
+
 func GetToken(ctx context.Context) string {
 	var token string
 	_ = ClientBackend.Get(ctx, "/registry/token", &token)

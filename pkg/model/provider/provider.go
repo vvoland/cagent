@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config"
@@ -50,7 +49,7 @@ func New(cfg *config.ModelConfig, env environment.Provider, gateway string, logg
 		gatewayCfg := &config.ModelConfig{
 			Type:              "openai",
 			Model:             cfg.Model,
-			BaseURL:           strings.TrimSuffix(gateway, "/") + "/v1",
+			BaseURL:           gateway + "/v1",
 			ParallelToolCalls: cfg.ParallelToolCalls,
 			// TODO(dga): temperature and stuff.
 			// Temperature:      cfg.Temperature,

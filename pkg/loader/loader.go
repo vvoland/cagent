@@ -186,8 +186,7 @@ func getToolsForAgent(ctx context.Context, a *config.AgentConfig, parentDir stri
 					"x-mcp-servers": servers,
 				}
 
-				url := strings.TrimSuffix(gateway, "/") + "/mcp"
-				mcpc, err := mcp.NewToolsetRemote(ctx, url, "streamable", headers, toolset.Tools, logger)
+				mcpc, err := mcp.NewToolsetRemote(ctx, gateway+"/mcp", "streamable", headers, toolset.Tools, logger)
 				if err != nil {
 					return nil, fmt.Errorf("failed to create remote mcp client: %w", err)
 				}
