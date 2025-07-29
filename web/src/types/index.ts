@@ -61,9 +61,16 @@ export interface Agent {
   model: string;
 }
 
-export interface Session {
+export interface SessionDetail {
   id: string;
   created_at: string;
   messages: AgentMessage[];
   agents: { [key: string]: Agent };
+}
+
+export interface Session {
+  id: string;
+  created_at: string;
+  num_messages: number;
+  most_recent_agent_filename: string;
 }

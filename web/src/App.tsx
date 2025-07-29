@@ -1,4 +1,12 @@
-import { useState, useEffect, useCallback, memo, Suspense, useRef, useMemo } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  memo,
+  Suspense,
+  useRef,
+  useMemo,
+} from "react";
 import { useSessions } from "./hooks/useSessions";
 import { useEvents } from "./hooks/useEvents";
 import { useAgents } from "./hooks/useAgents";
@@ -28,7 +36,7 @@ const App = memo(() => {
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
-  const logger = useLogger('App');
+  const logger = useLogger("App");
   const toast = useToastHelpers();
 
   // Refs for scroll management
@@ -37,6 +45,7 @@ const App = memo(() => {
 
   const {
     sessions,
+    currentSession,
     currentSessionId,
     createNewSession,
     selectSession,
@@ -47,55 +56,71 @@ const App = memo(() => {
 
   // Memoized callbacks for better performance
   const handleNewSession = useCallback(() => {
-    logger.info('Creating new session');
+    logger.info("Creating new session");
     createNewSession();
-    toast.success('New session created');
+    toast.success("New session created");
     setIsMobileMenuOpen(false); // Close mobile menu after action
   }, [createNewSession, logger, toast]);
 
-  const handleSessionSelect = useCallback((sessionId: string) => {
-    logger.info('Selecting session', { sessionId });
-    selectSession(sessionId);
-    setIsMobileMenuOpen(false); // Close mobile menu after selection
-  }, [selectSession, logger]);
+  const handleSessionSelect = useCallback(
+    (sessionId: string) => {
+      logger.info("Selecting session", { sessionId });
+      selectSession(sessionId);
+      setIsMobileMenuOpen(false); // Close mobile menu after selection
+    },
+    [selectSession, logger]
+  );
 
-  const handleDeleteSession = useCallback((sessionId: string) => {
-    logger.info('Deleting session', { sessionId });
-    deleteSession(sessionId);
-    toast.info('Session deleted');
-  }, [deleteSession, logger, toast]);
+  const handleDeleteSession = useCallback(
+    (sessionId: string) => {
+      logger.info("Deleting session", { sessionId });
+      deleteSession(sessionId);
+      toast.info("Session deleted");
+    },
+    [deleteSession, logger, toast]
+  );
 
-  const handleAgentChange = useCallback((value: string) => {
-    logger.info('Changing agent', { agent: value });
-    setSelectedAgent(value);
-    toast.info(`Agent changed to ${value}`);
-  }, [setSelectedAgent, logger, toast]);
+  const handleAgentChange = useCallback(
+    (value: string) => {
+      logger.info("Changing agent", { agent: value });
+      setSelectedAgent(value);
+      toast.info(`Agent changed to ${value}`);
+    },
+    [setSelectedAgent, logger, toast]
+  );
 
-  const handlePromptChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setPrompt(e.target.value);
-  }, []);
+  const handlePromptChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setPrompt(e.target.value);
+    },
+    []
+  );
 
   const toggleMobileMenu = useCallback(() => {
-    setIsMobileMenuOpen(prev => !prev);
+    setIsMobileMenuOpen((prev) => !prev);
   }, []);
 
   // Close mobile menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element;
-      if (isMobileMenuOpen && !target.closest('.mobile-sidebar') && !target.closest('.mobile-menu-button')) {
+      if (
+        isMobileMenuOpen &&
+        !target.closest(".mobile-sidebar") &&
+        !target.closest(".mobile-menu-button")
+      ) {
         setIsMobileMenuOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isMobileMenuOpen]);
 
   // Update selected agent when session changes
   useEffect(() => {
-    if (currentSessionId && sessions.find((s) => s.id === currentSessionId)) {
-      const session = sessions.find((s) => s.id === currentSessionId);
+    if (currentSession) {
+      const session = currentSession;
       // Get the agent name from the first message
       if (session && session.messages && session.messages.length > 0) {
         const agentName = session.messages[0]?.agentName;
@@ -104,13 +129,13 @@ const App = memo(() => {
         }
       }
     }
-  }, [currentSessionId, sessions, setSelectedAgent]);
+  }, [currentSession, setSelectedAgent]);
 
   const {
     events,
     isLoading: isLoadingEvents,
     handleSubmit,
-  } = useEvents(currentSessionId, sessions, selectedAgent, refreshSessions);
+  } = useEvents(currentSession, selectedAgent, refreshSessions);
 
   // Scroll detection logic
   const checkScrollPosition = useCallback(() => {
@@ -138,13 +163,13 @@ const App = memo(() => {
         // Auto-scroll to bottom with smooth animation
         container.scrollTo({
           top: container.scrollHeight,
-          behavior: 'smooth'
+          behavior: "smooth",
         });
         setUnreadCount(0); // Reset unread count when auto-scrolling
       } else {
         // User has scrolled up, increment unread count
         const newMessages = currentEventCount - lastEventCountRef.current;
-        setUnreadCount(prev => prev + newMessages);
+        setUnreadCount((prev) => prev + newMessages);
       }
     }
 
@@ -158,7 +183,7 @@ const App = memo(() => {
 
     container.scrollTo({
       top: container.scrollHeight,
-      behavior: 'smooth'
+      behavior: "smooth",
     });
     setUnreadCount(0);
     setShowScrollButton(false);
@@ -173,13 +198,13 @@ const App = memo(() => {
       requestAnimationFrame(checkScrollPosition);
     };
 
-    container.addEventListener('scroll', handleScroll, { passive: true });
+    container.addEventListener("scroll", handleScroll, { passive: true });
 
     // Initial check
     checkScrollPosition();
 
     return () => {
-      container.removeEventListener('scroll', handleScroll);
+      container.removeEventListener("scroll", handleScroll);
     };
   }, [checkScrollPosition]);
 
@@ -191,10 +216,12 @@ const App = memo(() => {
         try {
           await handleSubmit(currentSessionId, pendingPrompt);
           setPrompt("");
-          logger.info('Pending prompt submitted successfully', { prompt: pendingPrompt.slice(0, 50) + '...' });
+          logger.info("Pending prompt submitted successfully", {
+            prompt: pendingPrompt.slice(0, 50) + "...",
+          });
         } catch (error) {
-          logger.error('Failed to submit pending prompt', error);
-          toast.error('Failed to send message', 'Please try again');
+          logger.error("Failed to submit pending prompt", error);
+          toast.error("Failed to send message", "Please try again");
         } finally {
           setPendingPrompt(null); // Clear the pending prompt
         }
@@ -204,92 +231,125 @@ const App = memo(() => {
     }
   }, [currentSessionId, pendingPrompt, handleSubmit, logger, toast]);
 
-  const handleFormSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedAgent || !prompt.trim()) return;
+  const handleFormSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!selectedAgent || !prompt.trim()) return;
 
-    logger.time('submit-prompt');
-    try {
-      let sessionId = currentSessionId;
+      logger.time("submit-prompt");
+      try {
+        const sessionId = currentSessionId;
 
-      // Auto-create session if none exists
-      if (!sessionId) {
-        logger.info('No session exists, creating new session automatically for replay');
-        setPendingPrompt(prompt); // Store the prompt to submit after session creation
-        await handleNewSession();
-        return;
+        // Auto-create session if none exists
+        if (!sessionId) {
+          logger.info(
+            "No session exists, creating new session automatically for replay"
+          );
+          setPendingPrompt(prompt); // Store the prompt to submit after session creation
+          await handleNewSession();
+          return;
+        }
+
+        await handleSubmit(sessionId, prompt);
+        setPrompt("");
+        logger.info("Prompt submitted successfully", {
+          prompt: prompt.slice(0, 50) + "...",
+        });
+      } catch (error) {
+        logger.error("Failed to submit prompt", error);
+        toast.error("Failed to send message", "Please try again");
+      } finally {
+        logger.timeEnd("submit-prompt");
       }
-
-      await handleSubmit(sessionId, prompt);
-      setPrompt("");
-      logger.info('Prompt submitted successfully', { prompt: prompt.slice(0, 50) + '...' });
-    } catch (error) {
-      logger.error('Failed to submit prompt', error);
-      toast.error('Failed to send message', 'Please try again');
-    } finally {
-      logger.timeEnd('submit-prompt');
-    }
-  }, [currentSessionId, createNewSession, handleSubmit, prompt, selectedAgent, logger, toast]);
+    },
+    [
+      currentSessionId,
+      handleSubmit,
+      prompt,
+      handleNewSession,
+      selectedAgent,
+      logger,
+      toast,
+    ]
+  );
 
   // Replay message handler
-  const handleReplayMessage = useCallback(async (content: string) => {
-    if (!selectedAgent) return;
+  const handleReplayMessage = useCallback(
+    async (content: string) => {
+      if (!selectedAgent) return;
 
-    logger.info('Replaying message', { content: content.slice(0, 50) + '...' });
-    try {
-      let sessionId = currentSessionId;
+      logger.info("Replaying message", {
+        content: content.slice(0, 50) + "...",
+      });
+      try {
+        let sessionId = currentSessionId;
 
-      // Auto-create session if none exists
-      if (!sessionId) {
-        logger.info('No session exists, error');
-        sessionId = await createNewSession();
+        // Auto-create session if none exists
         if (!sessionId) {
-          toast.error('Failed to create session for replay', 'Please try again');
-          throw new Error('Failed to create session');
+          logger.info("No session exists, error");
+          sessionId = await createNewSession();
+          if (!sessionId) {
+            toast.error(
+              "Failed to create session for replay",
+              "Please try again"
+            );
+            throw new Error("Failed to create session");
+          }
+          toast.info("New session created for replay");
         }
-        toast.info('New session created for replay');
-      }
 
-      await handleSubmit(sessionId, content);
-      toast.success('Message replayed successfully');
-    } catch (error) {
-      logger.error('Failed to replay message', error);
-      toast.error('Failed to replay message', 'Please try again');
-      throw error; // Re-throw to handle loading state in MessageActionButtons
-    }
-  }, [currentSessionId, createNewSession, handleSubmit, selectedAgent, logger, toast]);
+        await handleSubmit(sessionId, content);
+        toast.success("Message replayed successfully");
+      } catch (error) {
+        logger.error("Failed to replay message", error);
+        toast.error("Failed to replay message", "Please try again");
+        throw error; // Re-throw to handle loading state in MessageActionButtons
+      }
+    },
+    [
+      currentSessionId,
+      createNewSession,
+      handleSubmit,
+      selectedAgent,
+      logger,
+      toast,
+    ]
+  );
 
   // Keyboard shortcuts (disabled on mobile)
-  useKeyboard([
-    {
-      ...commonShortcuts.newSession,
-      handler: handleNewSession,
-    },
-    {
-      ...commonShortcuts.toggleTheme,
-      handler: () => {
-        // This would be handled by the DarkModeToggle component
-        const event = new KeyboardEvent('keydown', {
-          key: 'd',
-          ctrlKey: true
-        });
-        document.dispatchEvent(event);
+  useKeyboard(
+    [
+      {
+        ...commonShortcuts.newSession,
+        handler: handleNewSession,
       },
-    },
-  ], { enabled: window.innerWidth > 768 }); // Disable keyboard shortcuts on mobile
+      {
+        ...commonShortcuts.toggleTheme,
+        handler: () => {
+          // This would be handled by the DarkModeToggle component
+          const event = new KeyboardEvent("keydown", {
+            key: "d",
+            ctrlKey: true,
+          });
+          document.dispatchEvent(event);
+        },
+      },
+    ],
+    { enabled: window.innerWidth > 768 }
+  ); // Disable keyboard shortcuts on mobile
 
   // Performance logging
   useEffect(() => {
-    logger.info('App component mounted');
+    logger.info("App component mounted");
     return () => {
-      logger.info('App component unmounted');
+      logger.info("App component unmounted");
     };
   }, [logger]);
 
   // Process events into chronological order with tool call stacks
   const processedEvents = useMemo(() => {
     const processed: Array<{
-      type: 'message' | 'error' | 'tool_stack';
+      type: "message" | "error" | "tool_stack";
       data: any;
       key: string;
     }> = [];
@@ -307,28 +367,29 @@ const App = memo(() => {
         success: boolean;
         timestamp: Date;
       };
-      status: 'pending' | 'success' | 'error';
+      status: "pending" | "success" | "error";
     }> = [];
 
     let toolStackId = 0;
 
     events.forEach((event, index) => {
-      if (event.type === 'tool_call') {
+      if (event.type === "tool_call") {
         // Add to current tool stack
-        const toolId = event.metadata?.toolId || `tool-${Date.now()}-${Math.random()}`;
+        const toolId =
+          event.metadata?.toolId || `tool-${Date.now()}-${Math.random()}`;
         currentToolStack.push({
           id: toolId,
           callEvent: {
-            name: event.metadata?.toolName || 'unknown',
-            args: event.metadata?.toolArgs || '{}',
-            timestamp: event.timestamp || new Date()
+            name: event.metadata?.toolName || "unknown",
+            args: event.metadata?.toolArgs || "{}",
+            timestamp: event.timestamp || new Date(),
           },
-          status: 'pending'
+          status: "pending",
         });
-      } else if (event.type === 'tool_result') {
+      } else if (event.type === "tool_result") {
         // Find the corresponding tool call in current stack and update it
-        const toolIndex = currentToolStack.findIndex(tool =>
-          !tool.resultEvent && tool.status === 'pending'
+        const toolIndex = currentToolStack.findIndex(
+          (tool) => !tool.resultEvent && tool.status === "pending"
         );
 
         if (toolIndex !== -1) {
@@ -338,12 +399,12 @@ const App = memo(() => {
               id: existingTool.id,
               callEvent: existingTool.callEvent,
               resultEvent: {
-                id: event.metadata?.toolId || 'unknown',
-                content: event.content || '',
+                id: event.metadata?.toolId || "unknown",
+                content: event.content || "",
                 success: event.metadata?.success !== false,
-                timestamp: event.timestamp || new Date()
+                timestamp: event.timestamp || new Date(),
               },
-              status: event.metadata?.success !== false ? 'success' : 'error'
+              status: event.metadata?.success !== false ? "success" : "error",
             };
           }
         }
@@ -352,18 +413,18 @@ const App = memo(() => {
         // First, flush any pending tool stack
         if (currentToolStack.length > 0) {
           processed.push({
-            type: 'tool_stack',
+            type: "tool_stack",
             data: [...currentToolStack],
-            key: `tool-stack-${toolStackId++}`
+            key: `tool-stack-${toolStackId++}`,
           });
           currentToolStack = [];
         }
 
         // Add the message/error event
         processed.push({
-          type: event.type as 'message' | 'error',
+          type: event.type as "message" | "error",
           data: event,
-          key: `${event.type}-${index}`
+          key: `${event.type}-${index}`,
         });
       }
     });
@@ -371,9 +432,9 @@ const App = memo(() => {
     // Flush any remaining tool stack at the end
     if (currentToolStack.length > 0) {
       processed.push({
-        type: 'tool_stack',
+        type: "tool_stack",
         data: [...currentToolStack],
-        key: `tool-stack-${toolStackId++}`
+        key: `tool-stack-${toolStackId++}`,
       });
     }
 
@@ -381,51 +442,64 @@ const App = memo(() => {
   }, [events]);
 
   // Render processed events in chronological order
-  const renderProcessedEvent = useCallback((processedEvent: any, index: number) => {
-    const { type, data, key } = processedEvent;
+  const renderProcessedEvent = useCallback(
+    (processedEvent: any, index: number) => {
+      const { type, data, key } = processedEvent;
 
-    switch (type) {
-      case 'tool_stack':
-        return (
-          <div key={key} className="mx-2 lg:mx-3">
-            <StackedToolEvents
-              events={data.map((tool: any) => ([
-                {
-                  type: 'tool_call' as const,
-                  name: tool.callEvent.name,
-                  args: tool.callEvent.args,
-                  id: tool.id,
-                  timestamp: tool.callEvent.timestamp
-                },
-                ...(tool.resultEvent ? [{
-                  type: 'tool_result' as const,
-                  id: tool.resultEvent.id,
-                  content: tool.resultEvent.content,
-                  success: tool.resultEvent.success,
-                  timestamp: tool.resultEvent.timestamp
-                }] : [])
-              ])).flat()}
+      switch (type) {
+        case "tool_stack":
+          return (
+            <div key={key} className="mx-2 lg:mx-3">
+              <StackedToolEvents
+                events={data
+                  .map((tool: any) => [
+                    {
+                      type: "tool_call" as const,
+                      name: tool.callEvent.name,
+                      args: tool.callEvent.args,
+                      id: tool.id,
+                      timestamp: tool.callEvent.timestamp,
+                    },
+                    ...(tool.resultEvent
+                      ? [
+                          {
+                            type: "tool_result" as const,
+                            id: tool.resultEvent.id,
+                            content: tool.resultEvent.content,
+                            success: tool.resultEvent.success,
+                            timestamp: tool.resultEvent.timestamp,
+                          },
+                        ]
+                      : []),
+                  ])
+                  .flat()}
+              />
+            </div>
+          );
+        case "message":
+          const isLatestEvent = index === processedEvents.length - 1;
+          return (
+            <MessageEvent
+              key={key}
+              role={data.metadata?.role || ""}
+              agent={data.metadata?.agent || ""}
+              content={data.content}
+              onReplay={
+                data.metadata?.role === "user"
+                  ? () => handleReplayMessage(data.content)
+                  : undefined
+              }
+              isLatest={isLatestEvent}
             />
-          </div>
-        );
-      case 'message':
-        const isLatestEvent = index === processedEvents.length - 1;
-        return (
-          <MessageEvent
-            key={key}
-            role={data.metadata?.role || ""}
-            agent={data.metadata?.agent || ""}
-            content={data.content}
-            onReplay={data.metadata?.role === 'user' ? (() => handleReplayMessage(data.content)) : undefined}
-            isLatest={isLatestEvent}
-          />
-        );
-      case 'error':
-        return <ErrorEvent key={key} content={data.content} />;
-      default:
-        return null;
-    }
-  }, [handleReplayMessage, processedEvents.length]);
+          );
+        case "error":
+          return <ErrorEvent key={key} content={data.content} />;
+        default:
+          return null;
+      }
+    },
+    [handleReplayMessage, processedEvents.length]
+  );
 
   // Check if form is disabled (allow submission without session - will auto-create)
   const isFormDisabled = isLoadingEvents || !selectedAgent;
@@ -542,11 +616,10 @@ const App = memo(() => {
           ref={scrollContainerRef}
           className="flex-1 overflow-y-auto p-3 lg:p-4 pb-20 lg:pb-24 relative"
         >
-
           <div className="max-w-4xl mx-auto space-y-4">
-            <Suspense fallback={
-              <SkeletonList count={3} component={MessageSkeleton} />
-            }>
+            <Suspense
+              fallback={<SkeletonList count={3} component={MessageSkeleton} />}
+            >
               {/* Render all events in chronological order with tool stacks */}
               {processedEvents.map((processedEvent, index) =>
                 renderProcessedEvent(processedEvent, index)
@@ -567,12 +640,13 @@ const App = memo(() => {
             {events.length === 0 && !isLoadingEvents && (
               <div className="flex flex-col items-center justify-center py-8 lg:py-12 text-center px-4">
                 <div className="text-4xl lg:text-6xl mb-4 opacity-50">💬</div>
-                <h3 className="text-base lg:text-lg font-semibold mb-2">Start a conversation</h3>
+                <h3 className="text-base lg:text-lg font-semibold mb-2">
+                  Start a conversation
+                </h3>
                 <p className="text-muted-foreground text-sm lg:text-base max-w-md">
                   {selectedAgent
                     ? `Send a message to ${selectedAgent} to get started.`
-                    : 'Select an agent and send a message to begin.'
-                  }
+                    : "Select an agent and send a message to begin."}
                 </p>
               </div>
             )}
@@ -595,15 +669,19 @@ const App = memo(() => {
                 dark:focus:ring-[#81a1c1] dark:focus:ring-offset-gray-900
                 group
               `}
-              aria-label={`Scroll to bottom${unreadCount > 0 ? ` (${unreadCount} new messages)` : ''}`}
-              title={`Scroll to bottom${unreadCount > 0 ? ` (${unreadCount} new messages)` : ''}`}
+              aria-label={`Scroll to bottom${
+                unreadCount > 0 ? ` (${unreadCount} new messages)` : ""
+              }`}
+              title={`Scroll to bottom${
+                unreadCount > 0 ? ` (${unreadCount} new messages)` : ""
+              }`}
             >
               <div className="relative flex items-center justify-center">
                 <ChevronDown className="w-5 h-5 lg:w-4 lg:h-4 group-hover:animate-bounce" />
                 {unreadCount > 0 && (
                   <div className="absolute -top-2 -right-2 w-5 h-5 lg:w-4 lg:h-4 bg-red-500 dark:bg-[#bf616a] rounded-full flex items-center justify-center border-2 border-white dark:border-gray-900">
                     <span className="text-xs font-bold text-white leading-none">
-                      {unreadCount > 99 ? '99+' : unreadCount}
+                      {unreadCount > 99 ? "99+" : unreadCount}
                     </span>
                   </div>
                 )}
@@ -651,6 +729,6 @@ const App = memo(() => {
   );
 });
 
-App.displayName = 'App';
+App.displayName = "App";
 
 export default App;
