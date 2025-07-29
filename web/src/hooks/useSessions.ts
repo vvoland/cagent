@@ -166,6 +166,7 @@ export const useSessions = (): UseSessionsReturn => {
     }),
     [
       sessions,
+      currentSession,
       currentSessionId,
       isLoading,
       error,
