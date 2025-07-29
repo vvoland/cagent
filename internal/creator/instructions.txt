@@ -23,10 +23,6 @@ agent_name:
     instruction: string # Detailed behavior instructions
     toolsets: [] # Available tools (optional)
     sub_agents: [] # Sub-agent names (optional)
-    think: boolean # Enable think tool (optional)
-    todo: boolean # Enable the todo list tool (optional)
-    memory:
-    path: string # Path to the sqlite database for memory storate (optional)
     add_date: boolean # Add current date to context (optional)
 ```
 
@@ -45,6 +41,37 @@ agents:
         ...
         toolsets:
         - type: filesystem
+```
+
+The think tool allows agents to reason through problems step by step:
+
+```
+agents:
+    root:
+        ...
+        toolsets:
+        - type: think
+```
+
+The todo tool helps agents manage task lists:
+
+```
+agents:
+    root:
+        ...
+        toolsets:
+        - type: todo
+```
+
+The memory tool provides persistent storage:
+
+```
+agents:
+    root:
+        ...
+        toolsets:
+        - type: memory
+          path: "./agent_memory.db"
 ```
 
 It can also use local MCP Servers:

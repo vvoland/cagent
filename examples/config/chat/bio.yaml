@@ -38,8 +38,8 @@ agents:
       * Use bold for important keywords.
       * Share your sources at the end of the biography.
 
-    todo: true
     toolsets:
+      - type: todo
       - type: mcp
         command: docker
         args: ["mcp", "gateway", "run", "--servers=brave,fetch"]

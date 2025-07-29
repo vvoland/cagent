@@ -36,8 +36,8 @@ agents:
       * Be proactive in offering help and anticipating user needs
       * Always test generated code before saving it
       * Use best practices for Python development
-    think: true
     toolsets:
+      - type: think
       - type: mcp
         command: uvx
         args: ["duckduckgo-mcp-server"]

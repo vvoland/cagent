@@ -97,10 +97,13 @@ agents:
     description: purpose
     instruction: detailed_behavior
     sub_agents: [list]
-    toolsets: [tool_configs]
-    think: boolean
-    todo: boolean
-    memory: {path: string}
+    toolsets:
+      - type: mcp
+      - type: think
+      - type: todo
+      - type: memory
+        path: {path: string}
+      - ...
 ```
 
 #### Task Delegation Flow

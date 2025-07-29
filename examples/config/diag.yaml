@@ -46,10 +46,10 @@ agents:
       The logs might be big, never read the whole file, use "grep -C" to get parts of files
       IMPORTANT: never use the `read_file` tool.
 
-    think: true
     toolsets:
       - type: filesystem
       - type: shell
+      - type: think
 
 models:
   openai:

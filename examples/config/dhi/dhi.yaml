@@ -69,7 +69,6 @@ agents:
       * Include necessary modifications for DHI compatibility
       * Preserve build optimizations where possible
       * Document any significant changes or considerations
-    todo: true
     toolsets:
       # - type: mcp
       #   command: docker
@@ -82,6 +81,7 @@ agents:
         command: uvx
         args: ["mcp-shell-server"]
         env_file: .env
+      - type: todo
 
 models:
   openai:

@@ -38,7 +38,8 @@ agents:
     sub_agents:
       - finance_agent
       - web_search_agent
-    think: true
+    toolsets:
+      - type: think
 
   finance_agent:
     name: finance_agent

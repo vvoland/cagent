@@ -4,8 +4,6 @@ agents:
   root:
     name: pirate
     model: openai
-    description: An agent that talks like a pirate
-    instruction: Always answer by talking like a pirate.
 
 models:
   openai:

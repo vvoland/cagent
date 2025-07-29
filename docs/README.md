@@ -97,7 +97,7 @@ agents:
     description: Expert software developer
     toolsets:
       - type: filesystem
-    think: true
+      - type: think
 
   reviewer:
     name: code_reviewer

@@ -159,9 +159,6 @@ models:
 | `instruction` | string  | Detailed behavior instructions  | ✓        |
 | `sub_agents`  | array   | List of sub-agent names         | ✗        |
 | `toolsets`    | array   | Available tools                 | ✗        |
-| `think`       | boolean | Enable think tool               | ✗        |
-| `todo`        | boolean | Enable todo list tool           | ✗        |
-| `memory.path` | string  | SQLite database path for memory | ✗        |
 | `add_date`    | boolean | Add current date to context     | ✗        |
 
 #### Model Properties
@@ -289,7 +286,8 @@ The think tool allows agents to reason through problems step by step:
 agents:
   root:
     # ... other config
-    think: true
+    toolsets:
+      - type: think
 ```
 
 ### Todo Tool
@@ -300,7 +298,8 @@ The todo tool helps agents manage task lists:
 agents:
   root:
     # ... other config
-    todo: true
+    toolsets:
+      - type: todo
 ```
 
 ### Memory Tool
@@ -311,8 +310,9 @@ The memory tool provides persistent storage:
 agents:
   root:
     # ... other config
-    memory:
-      path: "./agent_memory.db"
+    toolsets:
+      - type: memory
+        path: "./agent_memory.db"
 ```
 
 ### Task Transfer Tool
@@ -410,7 +410,7 @@ agents:
     toolsets:
       - type: filesystem
       - type: shell
-    think: true
+      - type: think
 
   reviewer:
     name: code_reviewer
@@ -431,7 +431,7 @@ agents:
       software quality.
     toolsets:
       - type: shell
-    todo: true
+      - type: todo
 
 models:
   gpt4:
@@ -461,9 +461,9 @@ agents:
       - type: mcp
         command: mcp-web-search
         args: ["--provider", "duckduckgo"]
-    think: true
-    memory:
-      path: "./research_memory.db"
+      - type: todo
+      - type: memory
+        path: "./research_memory.db"
 
 models:
   claude:

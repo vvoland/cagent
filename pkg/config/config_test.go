@@ -8,15 +8,93 @@ import (
 )
 
 func TestMigrate_v0_v1_provider(t *testing.T) {
-	cfg, err := LoadConfig("testdata/pirate_v0.yaml")
+	cfg, err := LoadConfig("testdata/provider_v0.yaml")
 	require.NoError(t, err)
 
 	assert.Equal(t, "openai", cfg.Models["openai"].Provider)
 }
 
 func TestMigrate_v1_provider(t *testing.T) {
-	cfg, err := LoadConfig("testdata/pirate_v1.yaml")
+	cfg, err := LoadConfig("testdata/provider_v1.yaml")
 	require.NoError(t, err)
 
 	assert.Equal(t, "openai", cfg.Models["openai"].Provider)
+}
+
+func TestMigrate_v0_v1_todo(t *testing.T) {
+	cfg, err := LoadConfig("testdata/todo_v0.yaml")
+	require.NoError(t, err)
+
+	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
+	assert.Equal(t, "todo", cfg.Agents["root"].Toolsets[0].Type)
+	assert.False(t, cfg.Agents["root"].Toolsets[0].Shared)
+	assert.Equal(t, "mcp", cfg.Agents["root"].Toolsets[1].Type)
+}
+
+func TestMigrate_v1_todo(t *testing.T) {
+	cfg, err := LoadConfig("testdata/todo_v1.yaml")
+	require.NoError(t, err)
+
+	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
+	assert.Equal(t, "todo", cfg.Agents["root"].Toolsets[0].Type)
+	assert.False(t, cfg.Agents["root"].Toolsets[0].Shared)
+	assert.Equal(t, "mcp", cfg.Agents["root"].Toolsets[1].Type)
+}
+
+func TestMigrate_v0_v1_shared_todo(t *testing.T) {
+	cfg, err := LoadConfig("testdata/shared_todo_v0.yaml")
+	require.NoError(t, err)
+
+	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
+	assert.Equal(t, "todo", cfg.Agents["root"].Toolsets[0].Type)
+	assert.True(t, cfg.Agents["root"].Toolsets[0].Shared)
+	assert.Equal(t, "mcp", cfg.Agents["root"].Toolsets[1].Type)
+}
+
+func TestMigrate_v1_shared_todo(t *testing.T) {
+	cfg, err := LoadConfig("testdata/shared_todo_v1.yaml")
+	require.NoError(t, err)
+
+	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
+	assert.Equal(t, "todo", cfg.Agents["root"].Toolsets[0].Type)
+	assert.True(t, cfg.Agents["root"].Toolsets[0].Shared)
+	assert.Equal(t, "mcp", cfg.Agents["root"].Toolsets[1].Type)
+}
+
+func TestMigrate_v0_v1_think(t *testing.T) {
+	cfg, err := LoadConfig("testdata/think_v0.yaml")
+	require.NoError(t, err)
+
+	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
+	assert.Equal(t, "think", cfg.Agents["root"].Toolsets[0].Type)
+	assert.Equal(t, "mcp", cfg.Agents["root"].Toolsets[1].Type)
+}
+
+func TestMigrate_v1_think(t *testing.T) {
+	cfg, err := LoadConfig("testdata/think_v1.yaml")
+	require.NoError(t, err)
+
+	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
+	assert.Equal(t, "think", cfg.Agents["root"].Toolsets[0].Type)
+	assert.Equal(t, "mcp", cfg.Agents["root"].Toolsets[1].Type)
+}
+
+func TestMigrate_v0_v1_memory(t *testing.T) {
+	cfg, err := LoadConfig("testdata/memory_v0.yaml")
+	require.NoError(t, err)
+
+	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
+	assert.Equal(t, "memory", cfg.Agents["root"].Toolsets[0].Type)
+	assert.Equal(t, "dev_memory.db", cfg.Agents["root"].Toolsets[0].Path)
+	assert.Equal(t, "mcp", cfg.Agents["root"].Toolsets[1].Type)
+}
+
+func TestMigrate_v1_memory(t *testing.T) {
+	cfg, err := LoadConfig("testdata/memory_v1.yaml")
+	require.NoError(t, err)
+
+	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
+	assert.Equal(t, "memory", cfg.Agents["root"].Toolsets[0].Type)
+	assert.Equal(t, "dev_memory.db", cfg.Agents["root"].Toolsets[0].Path)
+	assert.Equal(t, "mcp", cfg.Agents["root"].Toolsets[1].Type)
 }

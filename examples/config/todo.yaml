@@ -11,9 +11,9 @@ agents:
       You are an expert developer, your only purpose in life is to help the user with their query.
 
       The user wants you to edit their code. Do not show the code, use the tools for file editing directly
-    todo: true
     toolsets:
       - type: filesystem
+      - type: todo
 
 models:
   openai:

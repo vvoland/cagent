@@ -62,25 +62,9 @@ func Load(ctx context.Context, path string, runConfig latest.RuntimeConfig, logg
 		if !ok {
 			return nil, fmt.Errorf("agent '%s' not found in configuration", name)
 		}
-		agentTools, err := getToolsForAgent(ctx, &a, parentDir, logger, sharedTools, absEnvFles, runConfig.Gateway)
+		agentTools, err := getToolsForAgent(ctx, &a, parentDir, logger, sharedTools, models[0], absEnvFles, runConfig.Gateway)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tools: %w", err)
-		}
-
-		if a.MemoryConfig.Path != "" {
-			memoryPath := filepath.Join(parentDir, a.MemoryConfig.Path)
-			if err := os.MkdirAll(filepath.Dir(memoryPath), 0o700); err != nil {
-				return nil, fmt.Errorf("failed to create memory database directory: %w", err)
-			}
-
-			db, err := sqlite.NewMemoryDatabase(memoryPath)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create memory database: %w", err)
-			}
-
-			mm := memory.NewManager(db, models[0])
-			opts = append(opts, agent.WithMemoryManager(mm))
-			agentTools = append(agentTools, builtin.NewMemoryTool(mm))
 		}
 
 		opts = append(opts, agent.WithToolSets(agentTools...))
@@ -142,23 +126,11 @@ func getModelsForAgent(cfg *latest.Config, a *latest.AgentConfig, absEnvFiles []
 }
 
 // getToolsForAgent returns the tool definitions for an agent based on its configuration
-func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir string, logger *slog.Logger, sharedTools map[string]tools.ToolSet, absEnvFiles []string, gateway string) ([]tools.ToolSet, error) {
+func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir string, logger *slog.Logger, sharedTools map[string]tools.ToolSet, model provider.Provider, absEnvFiles []string, gateway string) ([]tools.ToolSet, error) {
 	var t []tools.ToolSet
 
 	if len(a.SubAgents) > 0 {
 		t = append(t, builtin.NewTransferTaskTool())
-	}
-
-	if a.Think {
-		t = append(t, builtin.NewThinkTool())
-	}
-
-	if a.Todo.Enabled {
-		if a.Todo.Shared {
-			t = append(t, sharedTools["todo"])
-		} else {
-			t = append(t, builtin.NewTodoTool())
-		}
 	}
 
 	toolsets := a.Toolsets
@@ -166,16 +138,38 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 		toolset := toolsets[i]
 
 		switch {
+		case toolset.Type == "todo":
+			if toolset.Shared {
+				t = append(t, sharedTools["todo"])
+			} else {
+				t = append(t, builtin.NewTodoTool())
+			}
+		case toolset.Type == "memory":
+			if toolset.Path != "" {
+				memoryPath := filepath.Join(parentDir, toolset.Path)
+				if err := os.MkdirAll(filepath.Dir(memoryPath), 0o700); err != nil {
+					return nil, fmt.Errorf("failed to create memory database directory: %w", err)
+				}
+
+				db, err := sqlite.NewMemoryDatabase(memoryPath)
+				if err != nil {
+					return nil, fmt.Errorf("failed to create memory database: %w", err)
+				}
+
+				mm := memory.NewManager(db, model)
+				t = append(t, builtin.NewMemoryTool(mm))
+			}
+		case toolset.Type == "think":
+			t = append(t, builtin.NewThinkTool())
 		case toolset.Type == "shell":
 			t = append(t, builtin.NewShellTool())
-
 		case toolset.Type == "filesystem":
 			wd, err := os.Getwd()
 			if err != nil {
 				return nil, fmt.Errorf("failed to get working directory: %w", err)
 			}
 
-			t = append(t, builtin.NewFilesystemTool([]string{wd}))
+			t = append(t, builtin.NewFilesystemTool([]string{wd}, builtin.WithAllowedTools(toolset.Tools)))
 
 		case toolset.Type == "mcp" && toolset.Command != "":
 			if gateway != "" {

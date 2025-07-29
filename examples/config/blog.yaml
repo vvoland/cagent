@@ -28,7 +28,8 @@ agents:
     sub_agents:
       - web_search_agent
       - writer
-    think: true
+    toolsets:
+      - type: think
 
   web_search_agent:
     name: web_search_agent

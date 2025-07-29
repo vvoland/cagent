@@ -35,9 +35,9 @@ agents:
       * Include both high-level and detailed documentation
       * Generate diagrams using mermaid syntax
       * The writing style should follow the Diataxis framework
-    think: true
     toolsets:
       - type: shell
+      - type: think
 
 models:
   claude:

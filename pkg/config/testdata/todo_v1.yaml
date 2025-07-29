@@ -1,0 +1,16 @@
+version: "1"
+
+agents:
+  root:
+    name: bio
+    model: openai
+    toolsets:
+      - type: todo
+      - type: mcp
+        command: docker
+        args: ["mcp", "gateway", "run", "--servers=brave,fetch"]
+
+models:
+  openai:
+    provider: openai
+    model: gpt-4o

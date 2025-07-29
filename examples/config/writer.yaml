@@ -30,7 +30,8 @@ agents:
     sub_agents:
       - prompt_chooser
       - writer
-    think: true
+    toolsets:
+      - type: think
 
   prompt_chooser:
     name: prompt_chooser

@@ -106,11 +106,6 @@ agents:
     instruction: string # Detailed behavior instructions
     tools: [] # Available tools (optional)
     sub_agents: [] # Sub-agent names (optional)
-    think: boolean # Enable think tool (optional)
-    todo: boolean # Enable the todo list tool (optional)
-      shared: boolean # Should the todo list be shared (optional)
-    memory:
-      path: string # Path to the sqlite database for memory storage (optional)
     add_date: boolean # Add current date to context (optional)
 ```
 
@@ -185,6 +180,12 @@ toolsets:
       headers:
         key: value # HTTP headers. Mainly used for auth
     tools: [] # Optional: List of specific tools to enable
+    - type: filesystem
+    - type: think # Enable think tool (optional)
+    - type: todo # Enable the todo list tool (optional)
+      shared: boolean # Should the todo list be shared (optional)
+    - type: memory 
+      path: # Path to the sqlite database for memory storage (optional)
 ```
 
 ## 🤝 Examples

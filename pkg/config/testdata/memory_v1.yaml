@@ -1,0 +1,17 @@
+version: "1"
+
+agents:
+  root:
+    name: bio
+    model: openai
+    toolsets:
+      - type: memory
+        path: dev_memory.db
+      - type: mcp
+        command: docker
+        args: ["mcp", "gateway", "run", "--servers=brave,fetch"]
+
+models:
+  openai:
+    provider: openai
+    model: gpt-4o

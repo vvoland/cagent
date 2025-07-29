@@ -149,6 +149,6 @@ agents:
     toolsets:
       - type: filesystem
       - type: shell
-    todo: true
+      - type: todo
     memory:
       path: golang_dev_memory.db

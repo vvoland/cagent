@@ -16,12 +16,25 @@ import (
 
 type FilesystemTool struct {
 	allowedDirectories []string
+	allowedTools       []string
 }
 
-func NewFilesystemTool(allowedDirectories []string) *FilesystemTool {
-	return &FilesystemTool{
+type FileSystemOpt func(*FilesystemTool)
+
+func WithAllowedTools(allowedTools []string) FileSystemOpt {
+	return func(t *FilesystemTool) {
+		t.allowedTools = allowedTools
+	}
+}
+
+func NewFilesystemTool(allowedDirectories []string, opts ...FileSystemOpt) *FilesystemTool {
+	t := &FilesystemTool{
 		allowedDirectories: allowedDirectories,
 	}
+	for _, opt := range opts {
+		opt(t)
+	}
+	return t
 }
 
 func (t *FilesystemTool) Instructions() string {
@@ -47,7 +60,7 @@ This toolset provides comprehensive filesystem operations with built-in security
 }
 
 func (t *FilesystemTool) Tools(ctx context.Context) ([]tools.Tool, error) {
-	return []tools.Tool{
+	tls := []tools.Tool{
 		{
 			Function: &tools.FunctionDefinition{
 				Name:        "create_directory",
@@ -330,7 +343,22 @@ func (t *FilesystemTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 			},
 			Handler: t.handleWriteFile,
 		},
-	}, nil
+	}
+
+	if len(t.allowedTools) == 0 {
+		return tls, nil
+	}
+
+	allowedTools := []tools.Tool{}
+	for _, tool := range t.allowedTools {
+		allowedTools = append(allowedTools, tools.Tool{
+			Function: &tools.FunctionDefinition{
+				Name:        tool,
+				Description: tool,
+			},
+		})
+	}
+	return allowedTools, nil
 }
 
 // Security helper to check if path is allowed

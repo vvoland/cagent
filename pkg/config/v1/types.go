@@ -11,6 +11,11 @@ type Toolset struct {
 	Env      map[string]string `json:"env,omitempty" yaml:"env,omitempty"`
 	Envfiles StringOrList      `json:"env_file,omitempty" yaml:"env_file,omitempty"`
 	Tools    []string          `json:"tools,omitempty" yaml:"tools,omitempty"`
+
+	// For the think tool
+	Shared bool `json:"shared,omitempty" yaml:"shared,omitempty"`
+	// For the memory tool
+	Path string `json:"path,omitempty" yaml:"path,omitempty"`
 }
 
 type Remote struct {
@@ -44,49 +49,15 @@ func (t *Toolset) UnmarshalYAML(unmarshal func(any) error) error {
 	return t.validate()
 }
 
-// TodoConfig represents todo configuration that can be either a boolean or an object
-type TodoConfig struct {
-	Enabled bool `json:"-" yaml:"-"`
-	Shared  bool `json:"shared,omitempty" yaml:"shared,omitempty"`
-}
-
-// UnmarshalYAML implements custom unmarshaling for TodoConfig to support both boolean and object formats
-func (t *TodoConfig) UnmarshalYAML(unmarshal func(any) error) error {
-	type todoConfigAlias TodoConfig
-
-	var config todoConfigAlias
-	if err := unmarshal(&config); err == nil {
-		*t = TodoConfig(config)
-		t.Enabled = true
-		return nil
-	}
-
-	var enabled bool
-	if err := unmarshal(&enabled); err != nil {
-		return err
-	}
-
-	t.Enabled = enabled
-
-	return nil
-}
-
 // AgentConfig represents a single agent configuration
 type AgentConfig struct {
-	Name         string       `json:"name,omitempty" yaml:"name,omitempty"`
-	Model        string       `json:"model,omitempty" yaml:"model,omitempty"`
-	Description  string       `json:"description,omitempty" yaml:"description,omitempty"`
-	Toolsets     []Toolset    `json:"toolsets,omitempty" yaml:"toolsets,omitempty"`
-	Instruction  string       `json:"instruction,omitempty" yaml:"instruction,omitempty"`
-	SubAgents    []string     `json:"sub_agents,omitempty" yaml:"sub_agents,omitempty"`
-	AddDate      bool         `json:"add_date,omitempty" yaml:"add_date,omitempty"`
-	Think        bool         `json:"think,omitempty" yaml:"think,omitempty"`
-	Todo         TodoConfig   `json:"todo,omitempty" yaml:"todo,omitempty"`
-	MemoryConfig MemoryConfig `json:"memory,omitempty" yaml:"memory,omitempty"`
-}
-
-type MemoryConfig struct {
-	Path string `json:"path,omitempty" yaml:"path,omitempty"`
+	Name        string    `json:"name,omitempty" yaml:"name,omitempty"`
+	Model       string    `json:"model,omitempty" yaml:"model,omitempty"`
+	Description string    `json:"description,omitempty" yaml:"description,omitempty"`
+	Toolsets    []Toolset `json:"toolsets,omitempty" yaml:"toolsets,omitempty"`
+	Instruction string    `json:"instruction,omitempty" yaml:"instruction,omitempty"`
+	SubAgents   []string  `json:"sub_agents,omitempty" yaml:"sub_agents,omitempty"`
+	AddDate     bool      `json:"add_date,omitempty" yaml:"add_date,omitempty"`
 }
 
 // ModelConfig represents the configuration for a model

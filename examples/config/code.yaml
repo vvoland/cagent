@@ -57,11 +57,10 @@ agents:
       * Only ask for clarification if necessary, try your best to use all the tools to get the info you need
       * Don't show the code that you generated
 
-    todo: true
-
     toolsets:
       - type: shell
       - type: filesystem
+      - type: todo
 
 models:
   openai:

@@ -11,10 +11,46 @@ func UpgradeFrom(old v0.Config) Config {
 	var config Config
 	cloneThroughJSON(old, &config)
 
-	for name, old_model := range old.Models {
-		new_model := config.Models[name]
-		new_model.Provider = old_model.Type
-		config.Models[name] = new_model
+	// model.Type --> model.Provider
+	for name := range old.Models {
+		oldModel := old.Models[name]
+		newModel := config.Models[name]
+
+		newModel.Provider = oldModel.Type
+		config.Models[name] = newModel
+	}
+
+	// todo:true --> toolsets: [{type: todo}]
+	// think:true --> toolsets: [{type: think}]
+	// memory:{path: PATH} --> toolsets: [{type: memory, path: PATH}]
+	for name := range old.Agents {
+		oldAgent := old.Agents[name]
+		newAgent := config.Agents[name]
+
+		var toolsets []Toolset
+
+		if oldAgent.Todo.Enabled {
+			toolsets = append(toolsets, Toolset{
+				Type:   "todo",
+				Shared: oldAgent.Todo.Shared,
+			})
+		}
+		if oldAgent.Think {
+			toolsets = append(toolsets, Toolset{
+				Type: "think",
+			})
+		}
+		if oldAgent.MemoryConfig.Path != "" {
+			toolsets = append(toolsets, Toolset{
+				Type: "memory",
+				Path: oldAgent.MemoryConfig.Path,
+			})
+		}
+
+		toolsets = append(toolsets, newAgent.Toolsets...)
+		newAgent.Toolsets = toolsets
+		config.Agents[name] = newAgent
+
 	}
 
 	return config
