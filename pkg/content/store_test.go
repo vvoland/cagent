@@ -11,7 +11,7 @@ import (
 )
 
 func TestStoreBasicOperations(t *testing.T) {
-	store, err := NewStore()
+	store, err := NewStore(WithBaseDir(t.TempDir()))
 	if err != nil {
 		t.Fatalf("Failed to create store: %v", err)
 	}
@@ -29,12 +29,6 @@ func TestStoreBasicOperations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to store artifact: %v", err)
 	}
-
-	t.Cleanup(func() {
-		if err := store.DeleteArtifact(digest); err != nil {
-			t.Logf("Failed to clean up artifact: %v", err)
-		}
-	})
 
 	retrievedImg, err := store.GetArtifactImage(testRef)
 	if err != nil {
@@ -77,7 +71,7 @@ func TestStoreBasicOperations(t *testing.T) {
 }
 
 func TestStoreMultipleArtifacts(t *testing.T) {
-	store, err := NewStore()
+	store, err := NewStore(WithBaseDir(t.TempDir()))
 	if err != nil {
 		t.Fatalf("Failed to create store: %v", err)
 	}
@@ -107,14 +101,6 @@ func TestStoreMultipleArtifacts(t *testing.T) {
 		digests = append(digests, digest)
 	}
 
-	t.Cleanup(func() {
-		for _, digest := range digests {
-			if err := store.DeleteArtifact(digest); err != nil {
-				t.Logf("Failed to clean up artifact %s: %v", digest, err)
-			}
-		}
-	})
-
 	artifacts, err := store.ListArtifacts()
 	if err != nil {
 		t.Fatalf("Failed to list artifacts: %v", err)
@@ -136,7 +122,7 @@ func TestStoreMultipleArtifacts(t *testing.T) {
 }
 
 func TestStoreResolution(t *testing.T) {
-	store, err := NewStore()
+	store, err := NewStore(WithBaseDir(t.TempDir()))
 	if err != nil {
 		t.Fatalf("Failed to create store: %v", err)
 	}
@@ -150,16 +136,10 @@ func TestStoreResolution(t *testing.T) {
 	}
 
 	testRef := "resolution-test:latest"
-	digest, err := store.StoreArtifact(img, testRef)
+	_, err = store.StoreArtifact(img, testRef)
 	if err != nil {
 		t.Fatalf("Failed to store artifact: %v", err)
 	}
-
-	t.Cleanup(func() {
-		if err := store.DeleteArtifact(digest); err != nil {
-			t.Logf("Failed to clean up artifact: %v", err)
-		}
-	})
 
 	testCases := []string{
 		testRef,
