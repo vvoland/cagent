@@ -64,7 +64,7 @@ export interface Agent {
 export interface SessionDetail {
   id: string;
   created_at: string;
-  messages: AgentMessage[];
+  messages?: AgentMessage[];
   agents: { [key: string]: Agent };
 }
 

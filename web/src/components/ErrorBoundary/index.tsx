@@ -1,4 +1,4 @@
-import { Component, type ReactNode } from 'react';
+import { Component, type ReactNode } from "react";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -10,7 +10,10 @@ interface ErrorBoundaryState {
   error?: Error | undefined;
 }
 
-export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+export class ErrorBoundary extends Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
@@ -21,10 +24,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Application error:', error, errorInfo);
-    
+    console.error("Application error:", error, errorInfo);
+
     // Report to error monitoring service in production
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === "production") {
       // TODO: Add error reporting service integration
       // reportError(error, errorInfo);
     }
@@ -39,6 +42,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   };
 
   override render() {
+    console.log(this.state);
     if (this.state.hasError) {
       if (this.props.fallback) {
         return this.props.fallback;
@@ -51,9 +55,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               Something went wrong
             </h1>
             <p className="text-muted-foreground mb-6">
-              The application encountered an unexpected error. You can try refreshing the page or contact support if the problem persists.
+              The application encountered an unexpected error. You can try
+              refreshing the page or contact support if the problem persists.
             </p>
-            
+
             <div className="flex gap-2 justify-center mb-4">
               <button
                 onClick={this.handleRetry}
@@ -69,7 +74,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               </button>
             </div>
 
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {process.env.NODE_ENV === "development" && this.state.error && (
               <details className="mt-6 text-left">
                 <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
                   Error Details (Development)

@@ -29,7 +29,7 @@ export const useEvents = (
 
     const sessionEvents: EventItem[] = [];
 
-    session.messages.forEach((msg: AgentMessage) => {
+    session.messages?.forEach((msg: AgentMessage) => {
       if (msg.message.role === "assistant") {
         if (msg.message.content) {
           sessionEvents.push({

@@ -24,12 +24,14 @@ export const useSessions = (): UseSessionsReturn => {
 
   useEffect(() => {
     const run = async () => {
-      const response = await fetch(`/api/sessions/${currentSessionId}`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch session: ${response.statusText}`);
+      if (currentSessionId) {
+        const response = await fetch(`/api/sessions/${currentSessionId}`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch session: ${response.statusText}`);
+        }
+        const data = (await response.json()) as SessionDetail;
+        setCurrentSession(data);
       }
-      const data = (await response.json()) as SessionDetail;
-      setCurrentSession(data);
     };
     run();
   }, [currentSessionId, sessions]);
