@@ -6,9 +6,16 @@ powerful multi-agent system to accomplish various tasks.
 ## What is cagent?
 
 cagent is a powerful, customizable multi-agent system that orchestrates AI
-agents with specialized capabilities and tools. It enables you to create
-intelligent agent teams where each agent has specialized knowledge, tools, and
-capabilities.
+agents with specialized capabilities and tools. It features:
+
+- **🏗️ Multi-tenant architecture** with client isolation and session management
+- **🔧 Rich tool ecosystem** via Model Context Protocol (MCP) integration
+- **🤖 Hierarchical agent system** with intelligent task delegation
+- **🌐 Multiple interfaces** including CLI, Web UI, TUI, API server, and MCP server
+- **📦 Agent distribution** via Docker registry integration
+- **🔒 Security-first design** with proper client scoping and resource isolation
+- **⚡ Event-driven streaming** for real-time interactions
+- **🧠 Multi-model support** (OpenAI, Anthropic, DMR, Docker AI Gateway)
 
 ## Quick Start
 
@@ -35,11 +42,22 @@ capabilities.
 
    # For Anthropic
    export ANTHROPIC_API_KEY=your_api_key_here
+
+   # For Docker AI Gateway (if using Docker Desktop)
+   # Authentication is handled automatically via Docker Desktop
    ```
 
 3. **Run your first agent:**
+
    ```bash
-   ./cagent run examples/config/agent.yaml
+   # Interactive CLI mode
+   ./bin/cagent run examples/config/agent.yaml
+
+   # Or start the web interface
+   ./bin/cagent web -d ./examples/config /tmp/session.db
+
+   # Or start as MCP server for external clients
+   ./bin/cagent mcp server --agents-dir ./examples/config --port 8080
    ```
 
 ## Core Concepts
@@ -198,43 +216,66 @@ toolsets:
 
 ### Command Line Interface
 
-cagent provides several commands:
+cagent provides multiple interfaces and deployment modes:
 
 ```bash
-# Run an agent interactively
-$ cagent run config.yaml
+# Interactive CLI mode
+$ ./bin/cagent run config.yaml
+$ ./bin/cagent run config.yaml -a agent_name  # Run specific agent
+$ ./bin/cagent run config.yaml --debug        # Enable debug logging
 
-# Run a specific agent from the config
-$ cagent run config.yaml -a agent_name
+# Web Interface (recommended for multi-session use)
+$ ./bin/cagent web -d ./config_directory /tmp/session.db
+$ ./bin/cagent web -d ./config_directory /tmp/session.db --port 3000
 
-# Enable debug logging
-$ cagent run config.yaml --debug
+# Terminal UI
+$ ./bin/cagent tui config.yaml
 
-# Start web interface
-$ cagent web -d ./examples/config/chat /tmp/session.db
+# MCP Server Mode (for external clients like Claude Code)
+$ ./bin/cagent mcp server --agents-dir ./config_directory
+$ ./bin/cagent mcp server --port 8080 --path /mcp --agents-dir ./config
 
-# Start UI interface
-$ cagent ui config.yaml
+# API Server (HTTP REST API)
+$ ./bin/cagent api config.yaml
+$ ./bin/cagent api config.yaml --port 8080
 
-# Start API server
-$ cagent api config.yaml
+# Docker AI Gateway Integration
+$ ./bin/cagent run config.yaml --gateway https://api.docker.com
 
-# Initialize a new project
-$ cagent init
-
-# Run evaluations
-$ cagent eval config.yaml
+# Project Management
+$ ./bin/cagent init                          # Initialize new project
+$ ./bin/cagent eval config.yaml             # Run evaluations
+$ ./bin/cagent pull docker.io/user/agent    # Pull agent from registry
+$ ./bin/cagent push docker.io/user/agent    # Push agent to registry
 ```
 
-### Interactive Commands
+### Interface-Specific Features
 
-During an interactive session, you can use special commands:
+#### CLI Interactive Commands
+
+During CLI sessions, you can use special commands:
 
 | Command  | Description                              |
 | -------- | ---------------------------------------- |
 | `/exit`  | Exit the program                         |
 | `/reset` | Clear conversation history               |
 | `/eval`  | Save current conversation for evaluation |
+
+#### Web Interface Features
+
+- **Multi-session management**: Create and switch between multiple agent sessions
+- **Session persistence**: Conversations saved to SQLite database
+- **Real-time streaming**: Live updates as agents process requests
+- **Agent switching**: Easy switching between different agents in the same session
+- **History management**: Full conversation history with search and export
+
+#### MCP Server Mode
+
+- **External client integration**: Works with Claude Code, Cursor, and other MCP clients
+- **Session isolation**: Each MCP client gets isolated sessions
+- **Tool exposure**: Agents accessible as MCP tools for external use
+- **Real-time streaming**: SSE-based streaming responses
+- **Multi-client support**: Handle multiple concurrent MCP clients
 
 ## Built-in Tools
 
@@ -297,6 +338,9 @@ Common MCP tools include:
 - **Database**: Query databases
 - **Web**: Make HTTP requests
 - **Git**: Version control operations
+- **Browser**: Web browsing and automation
+- **Code**: Programming language specific tools
+- **API**: REST API integration tools
 
 ### Installing MCP Tools
 
@@ -305,16 +349,38 @@ Example installation of filesystem tool:
 ```bash
 # Install Rust-based MCP filesystem tool
 cargo install rust-mcp-filesystem
+
+# Install other popular MCP tools
+npm install -g @modelcontextprotocol/server-filesystem
+npm install -g @modelcontextprotocol/server-git
+npm install -g @modelcontextprotocol/server-web
 ```
 
-a
-Then configure in your agent:
+### Configuring MCP Tools
+
+**Local (stdio) MCP Server:**
 
 ```yaml
 toolsets:
   - type: mcp
     command: rust-mcp-filesystem
     args: ["--allow-write", "."]
+    tools: ["read_file", "write_file"] # Optional: specific tools only
+    env:
+      - "RUST_LOG=debug"
+```
+
+**Remote (SSE) MCP Server:**
+
+```yaml
+toolsets:
+  - type: mcp
+    remote:
+      url: "https://mcp-server.example.com"
+      transport_type: "sse"
+      headers:
+        Authorization: "Bearer your-token-here"
+    tools: ["search_web", "fetch_url"]
 ```
 
 ## Examples
@@ -406,29 +472,93 @@ models:
     max_tokens: 64000
 ```
 
+## Advanced Features
+
+### Agent Store and Distribution
+
+cagent supports distributing agents via Docker registries:
+
+```bash
+# Pull an agent from a registry
+./bin/cagent pull docker.io/username/my-agent:latest
+
+# Push your agent to a registry
+./bin/cagent push docker.io/username/my-agent:latest
+```
+
+**Agent References:**
+
+- File agents: `my-agent.yaml` (relative path)
+- Store agents: `docker.io/username/my-agent:latest` (full Docker reference)
+
+### Docker AI Gateway Integration
+
+When using Docker Desktop, cagent can integrate with Docker's AI Gateway:
+
+```yaml
+models:
+  gateway_gpt4:
+    type: openai
+    model: gpt-4o
+    base_url: https://api.docker.com/v1
+    # Authentication handled automatically via Docker Desktop
+```
+
+```bash
+# Use gateway flag to override model endpoints
+./bin/cagent run config.yaml --gateway https://api.docker.com
+```
+
+### Session Management
+
+**Web Interface Sessions:**
+
+- Persistent SQLite storage
+- Multi-agent conversations in single session
+- Session history and search
+- Export capabilities
+
+**MCP Server Sessions:**
+
+- Client-isolated sessions
+- Session creation and management via MCP tools
+- Real-time streaming responses
+- Session timeout and cleanup
+
 ## Best Practices
 
 ### Agent Design
 
 1. **Single Responsibility**: Each agent should have a clear, focused purpose
-2. **Clear Instructions**: Provide detailed, specific instructions for each
-   agent
+2. **Clear Instructions**: Provide detailed, specific instructions for each agent
 3. **Appropriate Tools**: Give agents only the tools they need
-4. **Hierarchy**: Use sub-agents for specialized tasks
+4. **Hierarchy Design**: Use sub-agents for specialized tasks and clear delegation paths
+5. **Model Selection**: Choose appropriate models for different capabilities (reasoning vs creativity)
 
 ### Configuration Management
 
 1. **Validation**: Always validate your configuration before running
 2. **Environment Variables**: Use environment variables for sensitive data
 3. **Modularity**: Break complex configurations into smaller, reusable pieces
-4. **Documentation**: Document your agent configurations
+4. **Documentation**: Document your agent configurations and tool permissions
+5. **Version Control**: Track agent configurations in git for reproducibility
 
 ### Tool Usage
 
 1. **Minimal Permissions**: Give tools only necessary permissions
 2. **Error Handling**: Consider how agents will handle tool failures
 3. **Security**: Be cautious with shell access and file system permissions
-4. **Testing**: Test tool combinations thoroughly
+4. **Testing**: Test tool combinations thoroughly in isolation
+5. **MCP Tool Lifecycle**: Properly handle MCP tool start/stop lifecycle
+
+### Production Deployment
+
+1. **MCP Server Mode**: Use MCP server for external integrations
+2. **Web Interface**: Use web mode for multi-user scenarios
+3. **Session Limits**: Configure appropriate session limits and timeouts
+4. **Monitoring**: Enable debug logging for troubleshooting
+5. **Resource Management**: Monitor memory and CPU usage for concurrent sessions
+6. **Client Isolation**: Ensure proper client scoping in multi-tenant deployments
 
 ## Troubleshooting
 
@@ -439,85 +569,182 @@ models:
 - Check API keys are set correctly
 - Verify model name matches provider
 - Check network connectivity
+- Ensure Docker Desktop is running (for Docker AI Gateway)
+- Verify gateway authentication (check Docker Desktop login)
 
 **Tool errors:**
 
-- Ensure MCP tools are installed
-- Check file permissions
-- Verify tool arguments
+- Ensure MCP tools are installed and accessible
+- Check file permissions for filesystem tools
+- Verify tool arguments and command paths
+- Test MCP tools independently before integration
+- Check tool lifecycle (start/stop) in debug logs
 
 **Configuration errors:**
 
 - Validate YAML syntax
 - Check all referenced agents exist
 - Ensure all models are defined
+- Verify toolset configurations
+- Check agent hierarchy (sub_agents references)
+
+**Session and connectivity issues:**
+
+- Verify port availability for web/MCP server modes
+- Check SQLite database permissions for web interface
+- Test MCP endpoint accessibility (curl test)
+- Verify client isolation in multi-tenant scenarios
+- Check session timeouts and limits
+
+**Performance issues:**
+
+- Monitor memory usage with multiple concurrent sessions
+- Check for tool resource leaks
+- Verify proper session cleanup
+- Monitor streaming response performance
 
 ### Debug Mode
 
 Enable debug logging for detailed information:
 
 ```bash
-./cagent run config.yaml --debug
+# CLI mode
+./bin/cagent run config.yaml --debug
+
+# Web interface
+./bin/cagent web -d ./config /tmp/session.db --debug
+
+# MCP server
+./bin/cagent mcp server --agents-dir ./config --debug
 ```
 
 ### Log Analysis
 
 Check logs for:
 
-- API call errors
-- Tool execution failures
+- API call errors and rate limiting
+- Tool execution failures and timeouts
 - Configuration validation issues
 - Network connectivity problems
+- MCP protocol handshake issues
+- Session creation and cleanup events
+- Client isolation boundary violations
+- Docker AI Gateway authentication failures
 
-## Advanced Usage
+### Testing MCP Integration
 
-### Custom Memory
+Test MCP server functionality:
 
-Implement custom memory strategies:
+```bash
+# Start MCP server
+./bin/cagent mcp server --agents-dir ./examples/config --port 8080 --debug
 
-```yaml
-memory:
-  path: "./custom_memory.db"
-  # Memory will persist across sessions
+# Test with curl (check server is running)
+curl -N http://localhost:8080/mcp/sse
+
+# Run MCP test client
+cd examples/mcptesting
+go run test-mcp-client.go
 ```
 
-### Multi-Model Teams
+### Agent Store Issues
 
-Use different models for different capabilities:
+```bash
+# Check agent resolution
+./bin/cagent mcp server --agents-dir ./config --debug
+# Look for "Agent resolved" messages in logs
+
+# Test Docker registry connectivity
+docker pull docker.io/username/agent:latest
+
+# Verify agent content
+./bin/cagent pull docker.io/username/agent:latest
+```
+
+## Integration Examples
+
+### MCP Client Integration
+
+Using cagent agents from external MCP clients:
+
+```javascript
+// Example: Using cagent from Claude Code or Cursor
+const mcp = require("@modelcontextprotocol/client");
+
+// Connect to cagent MCP server
+const client = new mcp.Client({
+  url: "http://localhost:8080/mcp/sse",
+  transport: "sse",
+});
+
+// List available agents
+const agents = await client.callTool("list_agents", {});
+
+// Create a session with a specific agent
+const session = await client.callTool("create_agent_session", {
+  agent_spec: "developer",
+  initial_message: "Help me debug this Python code",
+});
+
+// Send messages to the agent
+const response = await client.callTool("send_message", {
+  session_id: session.session_id,
+  message:
+    "def fibonacci(n): return n if n <= 1 else fibonacci(n-1) + fibonacci(n-2)",
+});
+```
+
+### Custom Memory Strategies
+
+Implement persistent memory across sessions:
 
 ```yaml
 agents:
-  analyst:
-    model: claude_reasoning # Good for analysis
-  creator:
-    model: gpt4_creative # Good for creative tasks
-  coder:
-    model: claude_coding # Good for coding
+  researcher:
+    name: research_assistant
+    model: claude
+    memory:
+      path: "./research_memory.db"
+    instruction: |
+      You are a research assistant with persistent memory.
+      Remember important findings and reference previous research.
+```
 
+### Multi-Model Teams with Gateway Integration
+
+```yaml
 models:
-  claude_reasoning:
+  # Local model for fast responses
+  claude_local:
     type: anthropic
     model: claude-sonnet-4-0
     temperature: 0.2
 
+  # Gateway model for enhanced capabilities
+  gpt4_gateway:
+    type: openai
+    model: gpt-4o
+    base_url: https://api.docker.com/v1
+    temperature: 0.1
+
+  # Creative model for content generation
   gpt4_creative:
     type: openai
     model: gpt-4o
     temperature: 0.8
 
-  claude_coding:
-    type: anthropic
-    model: claude-sonnet-4-0
-    temperature: 0.1
-```
+agents:
+  analyst:
+    model: claude_local
+    description: Fast analysis and reasoning
 
-### Integration with CI/CD
+  coder:
+    model: gpt4_gateway
+    description: Enhanced coding with gateway models
 
-Use cagent in automated workflows:
-
-```bash
-# Example: Code review automation
-./cagent run review_agent.yaml < changed_files.txt
+  writer:
+    model: gpt4_creative
+    description: Creative content generation
 ```
 
 This guide should help you get started with cagent and build powerful
