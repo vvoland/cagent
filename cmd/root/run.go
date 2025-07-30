@@ -95,6 +95,9 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 	green := color.New(color.FgGreen).SprintfFunc()
 	fmt.Println(blue("\nEnter your messages (Ctrl+C to exit):"))
 
+	// If the last received event was an error, return it. That way the exit code
+	// will be non-zero if the agent failed.
+	var lastErr error
 	for {
 		fmt.Print(blue("> "))
 
@@ -124,6 +127,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 				fmt.Printf("%s", blue("[%s]: ", rt.CurrentAgent().Name()))
 				first = true
 			}
+			lastErr = nil
 			switch e := event.(type) {
 			case *runtime.AgentChoiceEvent:
 				fmt.Printf("%s", e.Choice.Delta.Content)
@@ -135,6 +139,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 				fmt.Printf("%s\n", e.Message.Content)
 			case *runtime.ErrorEvent:
 				fmt.Printf("%s\n", e.Error)
+				lastErr = e.Error
 			}
 		}
 		fmt.Println()
@@ -144,7 +149,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return nil
+	return lastErr
 }
 
 func runUserCommand(userInput string, sess *session.Session) (bool, error) {
