@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/config"
@@ -82,17 +83,20 @@ func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, promp
 	fmt.Println("Generating agent configuration....")
 
 	fsToolset := fsToolset{inner: builtin.NewFilesystemTool([]string{baseDir})}
-	agents := team.New(
-		agent.New(
-			"root",
-			agentBuilderInstructions,
-			agent.WithModel(llm),
-			agent.WithToolSets(
-				builtin.NewShellTool(),
-				&fsToolset,
-			),
-		))
-	rt := runtime.New(logger, agents)
+	fileName := filepath.Base(fsToolset.path)
+	newTeam := team.New(
+		team.WithID(fileName),
+		team.WithAgents(
+			agent.New(
+				"root",
+				agentBuilderInstructions,
+				agent.WithModel(llm),
+				agent.WithToolSets(
+					builtin.NewShellTool(),
+					&fsToolset,
+				),
+			)))
+	rt := runtime.New(logger, newTeam)
 
 	sess := session.New(logger, session.WithUserMessage("", prompt))
 

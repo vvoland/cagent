@@ -27,14 +27,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	agents := team.New(
-		agent.New(
-			"root",
-			"You are a human, with feelings and emotions.",
-			agent.WithModel(llm),
-			agent.WithDescription("A human."),
-		))
-	rt := runtime.New(logger, agents)
+	human := agent.New(
+		"root",
+		"You are a human, with feelings and emotions.",
+		agent.WithModel(llm),
+		agent.WithDescription("A human."),
+	)
+
+	humanTeam := team.New(team.WithAgents(human))
+
+	rt := runtime.New(logger, humanTeam)
 
 	sess := session.New(logger, session.WithUserMessage("", "How are you doing?"))
 

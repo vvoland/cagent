@@ -182,10 +182,10 @@ func (s *Server) pullAgent(c echo.Context) error {
 
 func (s *Server) agents(c echo.Context) error {
 	agentList := make([]map[string]string, 0)
-	for name, agent := range s.runtimes {
+	for id, rt := range s.runtimes {
 		agentList = append(agentList, map[string]string{
-			"name":        name,
-			"description": agent.CurrentAgent().Description(),
+			"name":        id,
+			"description": rt.Team().Get("root").Description(),
 		})
 	}
 	return c.JSON(http.StatusOK, agentList)

@@ -66,13 +66,16 @@ func main() {
 		},
 	}
 
-	agents := team.New(
-		agent.New("root",
-			"You are a human, with feelings and emotions.",
-			agent.WithModel(llm),
-			agent.WithTools(toolAddNumbers),
-		))
-	rt := runtime.New(logger, agents)
+	calculator := agent.New(
+		"root",
+		"You are a human, with feelings and emotions.",
+		agent.WithModel(llm),
+		agent.WithTools(toolAddNumbers),
+	)
+
+	calculatorTeam := team.New(team.WithAgents(calculator))
+
+	rt := runtime.New(logger, calculatorTeam)
 
 	sess := session.New(logger, session.WithUserMessage("", "What is 1 + 2?"))
 
