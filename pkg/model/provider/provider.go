@@ -38,7 +38,7 @@ func New(cfg *config.ModelConfig, env environment.Provider, gateway string, logg
 		gatewayCfg := &config.ModelConfig{
 			Type:              "openai",
 			Model:             cfg.Model,
-			BaseURL:           gateway + "/v1",
+			BaseURL:           gateway,
 			ParallelToolCalls: cfg.ParallelToolCalls,
 			// MaxTokens:        cfg.MaxTokens, // MaxTokens is not portable
 			// TODO(dga): temperature and stuff.
