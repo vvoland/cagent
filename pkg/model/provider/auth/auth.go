@@ -25,15 +25,6 @@ func Token(ctx context.Context, env environment.Provider, baseURL, defaultEnvNam
 		return token, nil
 	}
 
-	// TEMP: LiteLLM demo
-	if u.Hostname() == "localhost" {
-		token, err := env.Get(ctx, "LITELLM_API_KEY")
-		if err != nil || token == "" {
-			return "", errors.New("LITELLM_API_KEY environment variable is required")
-		}
-		return token, nil
-	}
-
 	// No Gateway
 	token, err := env.Get(ctx, defaultEnvName)
 	if err != nil || token == "" {
