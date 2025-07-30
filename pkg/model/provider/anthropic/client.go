@@ -111,6 +111,14 @@ func (c *Client) CreateChatCompletionStream(
 		"max_tokens", maxTokens,
 		"message_count", len(params.Messages))
 
+	if c.logger.Enabled(ctx, slog.LevelDebug) {
+		b, err := json.Marshal(params)
+		if err != nil {
+			c.logger.Error("Failed to marshal Anthropic request", "error", err)
+		}
+		c.logger.Debug("Request", "request", string(b))
+	}
+
 	stream := c.client.Messages.NewStreaming(ctx, params)
 	c.logger.Debug("Anthropic chat completion stream created successfully", "model", c.config.Model)
 
@@ -156,13 +164,14 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 		}
 		if msg.Role == chat.MessageRoleAssistant {
 			if len(msg.ToolCalls) > 0 {
-				toolUseBlocks := make([]anthropic.ContentBlockParamUnion, len(msg.ToolCalls))
+				toolUseBlocks := make([]anthropic.ContentBlockParamUnion, len(msg.ToolCalls)+1)
+				toolUseBlocks[0] = anthropic.NewTextBlock(strings.TrimSpace(msg.Content))
 				for j, toolCall := range msg.ToolCalls {
 					var inpts map[string]any
 					if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &inpts); err != nil {
 						inpts = map[string]any{}
 					}
-					toolUseBlocks[j] = anthropic.ContentBlockParamUnion{
+					toolUseBlocks[j+1] = anthropic.ContentBlockParamUnion{
 						OfToolUse: &anthropic.ToolUseBlockParam{
 							ID:    toolCall.ID,
 							Input: inpts,

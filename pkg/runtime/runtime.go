@@ -235,7 +235,7 @@ func (r *Runtime) handleStream(stream chat.MessageStream, a *agent.Agent, events
 			break
 		}
 		if err != nil {
-			return nil, "", false, fmt.Errorf("error receiving from stream: %w", err)
+			return nil, "", true, fmt.Errorf("error receiving from stream: %w", err)
 		}
 
 		choice := response.Choices[0]
