@@ -96,7 +96,7 @@ agents:
     model: claude
     description: Expert software developer
     toolsets:
-      - provider: filesystem
+      - type: filesystem
     think: true
 
   reviewer:

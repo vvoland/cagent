@@ -126,7 +126,7 @@ agents:
       You are an expert developer. Focus on coding tasks,
       code review, and technical implementation.
     toolsets:
-      - provider: filesystem
+      - type: filesystem
 
   designer:
     name: designer
@@ -183,7 +183,7 @@ models:
 
 ```yaml
 toolsets:
-  - provider: mcp # Model Context Protocol
+  - type: mcp # Model Context Protocol
     command: string # Command to execute
     args: [] # Command arguments
     tools: [] # Optional: List of specific tools to enable
