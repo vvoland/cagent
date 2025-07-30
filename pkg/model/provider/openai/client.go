@@ -12,80 +12,9 @@ import (
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/desktop"
 	"github.com/docker/cagent/pkg/environment"
+	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/tools"
 )
-
-var DefaultOpenaiBaseURL = openai.DefaultConfig("").BaseURL
-
-// StreamAdapter adapts the OpenAI stream to our interface
-type StreamAdapter struct {
-	stream *openai.ChatCompletionStream
-}
-
-// Recv gets the next completion chunk
-func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
-	openaiResponse, err := a.stream.Recv()
-	if err != nil {
-		return chat.MessageStreamResponse{}, err
-	}
-
-	// Convert the OpenAI response to our generic format
-	response := chat.MessageStreamResponse{
-		ID:      openaiResponse.ID,
-		Object:  openaiResponse.Object,
-		Created: openaiResponse.Created,
-		Model:   openaiResponse.Model,
-		Choices: make([]chat.MessageStreamChoice, len(openaiResponse.Choices)),
-	}
-
-	// Convert the choices
-	for i := range openaiResponse.Choices {
-		choice := &openaiResponse.Choices[i]
-		response.Choices[i] = chat.MessageStreamChoice{
-			Index:        choice.Index,
-			FinishReason: chat.FinishReason(choice.FinishReason),
-			Delta: chat.MessageDelta{
-				Role:    choice.Delta.Role,
-				Content: choice.Delta.Content,
-			},
-		}
-
-		// Convert function call if present
-		if choice.Delta.FunctionCall != nil {
-			response.Choices[i].Delta.FunctionCall = &tools.FunctionCall{
-				Name:      choice.Delta.FunctionCall.Name,
-				Arguments: choice.Delta.FunctionCall.Arguments,
-			}
-		}
-
-		// Convert tool calls if present
-		if len(choice.Delta.ToolCalls) > 0 {
-			response.Choices[i].Delta.ToolCalls = make([]tools.ToolCall, len(choice.Delta.ToolCalls))
-			for j, toolCall := range choice.Delta.ToolCalls {
-				response.Choices[i].Delta.ToolCalls[j] = tools.ToolCall{
-					ID:   toolCall.ID,
-					Type: tools.ToolType(toolCall.Type),
-					Function: tools.FunctionCall{
-						Name:      toolCall.Function.Name,
-						Arguments: toolCall.Function.Arguments,
-					},
-				}
-				// Handle Index field if present
-				if toolCall.Index != nil {
-					index := *toolCall.Index
-					response.Choices[i].Delta.ToolCalls[j].Index = &index
-				}
-			}
-		}
-	}
-
-	return response, nil
-}
-
-// Close closes the stream
-func (a *StreamAdapter) Close() {
-	a.stream.Close()
-}
 
 // Client represents an OpenAI client wrapper
 // It implements the provider.Provider interface
@@ -96,7 +25,7 @@ type Client struct {
 }
 
 // NewClient creates a new OpenAI client from the provided configuration
-func NewClient(cfg *config.ModelConfig, env environment.Provider, logger *slog.Logger) (*Client, error) {
+func NewClient(cfg *config.ModelConfig, env environment.Provider, logger *slog.Logger, opts ...options.Opt) (*Client, error) {
 	if cfg == nil {
 		logger.Error("OpenAI client creation failed", "error", "model configuration is required")
 		return nil, errors.New("model configuration is required")
@@ -107,10 +36,13 @@ func NewClient(cfg *config.ModelConfig, env environment.Provider, logger *slog.L
 		return nil, errors.New("model type must be 'openai'")
 	}
 
+	var globalOptions options.ModelOptions
+	for _, opt := range opts {
+		opt(&globalOptions)
+	}
+
 	var openaiConfig openai.ClientConfig
-	switch cfg.BaseURL {
-	case "", DefaultOpenaiBaseURL:
-		// We use the default OpenAI base URL
+	if gateway := globalOptions.Gateway(); gateway == "" {
 		authToken, err := env.Get(context.TODO(), "OPENAI_API_KEY")
 		if err != nil || authToken == "" {
 			logger.Error("OpenAI client creation failed", "error", "failed to get authentication token", "details", err)
@@ -118,9 +50,7 @@ func NewClient(cfg *config.ModelConfig, env environment.Provider, logger *slog.L
 		}
 
 		openaiConfig = openai.DefaultConfig(authToken)
-
-	default:
-		// In any other case, we assume that we connect to Docker's AI Gateway
+	} else {
 		authToken := desktop.GetToken(context.TODO())
 		if authToken == "" {
 			logger.Error("OpenAI client creation failed", "error", "failed to get Docker Desktop's authentication token")
@@ -128,7 +58,7 @@ func NewClient(cfg *config.ModelConfig, env environment.Provider, logger *slog.L
 		}
 
 		openaiConfig = openai.DefaultConfig(authToken)
-		openaiConfig.BaseURL = cfg.BaseURL + "/v1"
+		openaiConfig.BaseURL = gateway + "/v1"
 	}
 
 	logger.Debug("OpenAI API key found, creating client")

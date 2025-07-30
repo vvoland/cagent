@@ -14,6 +14,7 @@ import (
 	"github.com/docker/cagent/pkg/memory"
 	"github.com/docker/cagent/pkg/memory/database/sqlite"
 	"github.com/docker/cagent/pkg/model/provider"
+	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
@@ -47,7 +48,7 @@ func Load(ctx context.Context, path string, runConfig config.RuntimeConfig, logg
 			agent.WithDescription(agentConfig.Description),
 			agent.WithAddDate(agentConfig.AddDate),
 		}
-		models, err := getModelsForAgent(cfg, &agentConfig, absEnvFles, runConfig.Gateway, logger)
+		models, err := getModelsForAgent(cfg, &agentConfig, absEnvFles, logger, options.WithGateway(runConfig.Gateway))
 		if err != nil {
 			return nil, fmt.Errorf("failed to get models: %w", err)
 		}
@@ -108,7 +109,7 @@ func Load(ctx context.Context, path string, runConfig config.RuntimeConfig, logg
 	return team.New(agents...), nil
 }
 
-func getModelsForAgent(cfg *config.Config, a *config.AgentConfig, absEnvFiles []string, gateway string, logger *slog.Logger) ([]provider.Provider, error) {
+func getModelsForAgent(cfg *config.Config, a *config.AgentConfig, absEnvFiles []string, logger *slog.Logger, opts ...options.Opt) ([]provider.Provider, error) {
 	var models []provider.Provider
 
 	for name := range strings.SplitSeq(a.Model, ",") {
@@ -127,7 +128,7 @@ func getModelsForAgent(cfg *config.Config, a *config.AgentConfig, absEnvFiles []
 			),
 		)
 
-		model, err := provider.New(&modelCfg, env, gateway, logger)
+		model, err := provider.New(&modelCfg, env, logger, opts...)
 		if err != nil {
 			return nil, err
 		}

@@ -4,111 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
 	"log/slog"
 	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
-	"github.com/anthropics/anthropic-sdk-go/packages/ssestream"
 
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/desktop"
 	"github.com/docker/cagent/pkg/environment"
+	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/tools"
 )
-
-// StreamAdapter adapts the Anthropic stream to our interface
-type StreamAdapter struct {
-	stream   *ssestream.Stream[anthropic.MessageStreamEventUnion]
-	toolCall bool
-	toolIdx  *int
-}
-
-// Recv gets the next completion chunk
-func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
-	if !a.stream.Next() {
-		if a.stream.Err() != nil {
-			return chat.MessageStreamResponse{}, a.stream.Err()
-		}
-		return chat.MessageStreamResponse{}, io.EOF
-	}
-
-	event := a.stream.Current()
-
-	response := chat.MessageStreamResponse{
-		ID:     event.Message.ID,
-		Object: "chat.completion.chunk",
-		Model:  string(event.Message.Model),
-		Choices: []chat.MessageStreamChoice{
-			{
-				Index: 0,
-				Delta: chat.MessageDelta{
-					Role: string(chat.MessageRoleAssistant),
-				},
-			},
-		},
-	}
-
-	// Handle different event types
-	switch eventVariant := event.AsAny().(type) {
-	case anthropic.ContentBlockStartEvent:
-		if contentBlock, ok := eventVariant.ContentBlock.AsAny().(anthropic.ToolUseBlock); ok {
-			a.toolCall = true
-			if a.toolIdx == nil {
-				toolIdx := 0
-				a.toolIdx = &toolIdx
-			} else {
-				*a.toolIdx++
-			}
-			toolCall := tools.ToolCall{
-				ID:    contentBlock.ID,
-				Type:  "function",
-				Index: a.toolIdx,
-				Function: tools.FunctionCall{
-					Name: contentBlock.Name,
-				},
-			}
-			response.Choices[0].Delta.ToolCalls = []tools.ToolCall{toolCall}
-		}
-	case anthropic.ContentBlockDeltaEvent:
-		switch deltaVariant := eventVariant.Delta.AsAny().(type) {
-		case anthropic.TextDelta:
-			response.Choices[0].Delta.Content = deltaVariant.Text
-
-		case anthropic.InputJSONDelta:
-			inputBytes := deltaVariant.PartialJSON
-			toolCall := tools.ToolCall{
-				Type:  "function",
-				Index: a.toolIdx,
-				Function: tools.FunctionCall{
-					Arguments: string(inputBytes),
-				},
-			}
-			response.Choices[0].Delta.ToolCalls = []tools.ToolCall{toolCall}
-
-		default:
-			return response, fmt.Errorf("unknown delta type: %T", deltaVariant)
-		}
-	case anthropic.MessageStopEvent:
-		if a.toolCall {
-			response.Choices[0].FinishReason = chat.FinishReasonToolCalls
-		} else {
-			response.Choices[0].FinishReason = chat.FinishReasonStop
-		}
-	}
-
-	return response, nil
-}
-
-// Close closes the stream
-func (a *StreamAdapter) Close() {
-	if a.stream != nil {
-		a.stream.Close()
-	}
-}
 
 // Client represents an Anthropic client wrapper implementing provider.Provider
 // It holds the anthropic client and model config
@@ -119,7 +27,7 @@ type Client struct {
 }
 
 // NewClient creates a new Anthropic client from the provided configuration
-func NewClient(cfg *config.ModelConfig, env environment.Provider, logger *slog.Logger) (*Client, error) {
+func NewClient(cfg *config.ModelConfig, env environment.Provider, logger *slog.Logger, opts ...options.Opt) (*Client, error) {
 	if cfg == nil {
 		logger.Error("Anthropic client creation failed", "error", "model configuration is required")
 		return nil, errors.New("model configuration is required")
@@ -130,32 +38,37 @@ func NewClient(cfg *config.ModelConfig, env environment.Provider, logger *slog.L
 		return nil, errors.New("model type must be 'anthropic'")
 	}
 
-	var options []option.RequestOption
-	switch cfg.BaseURL {
-	case "", "https://api.anthropic.com/":
-		// We use the default Anthropic base URL
+	var globalOptions options.ModelOptions
+	for _, opt := range opts {
+		opt(&globalOptions)
+	}
+
+	var requestOptions []option.RequestOption
+	if gateway := globalOptions.Gateway(); gateway == "" {
 		authToken, err := env.Get(context.TODO(), "ANTHROPIC_API_KEY")
 		if err != nil || authToken == "" {
 			logger.Error("Anthropic client creation failed", "error", "failed to get authentication token", "details", err)
 			return nil, errors.New("ANTHROPIC_API_KEY environment variable is required")
 		}
 
-		options = append(options, option.WithAPIKey(authToken))
-
-	default:
-		// In any other case, we assume that we connect to Docker's AI Gateway
+		requestOptions = append(requestOptions,
+			option.WithAPIKey(authToken),
+		)
+	} else {
 		authToken := desktop.GetToken(context.TODO())
 		if authToken == "" {
 			logger.Error("Anthropic client creation failed", "error", "failed to get Docker Desktop's authentication token")
 			return nil, errors.New("sorry, you first need to sign in Docker Desktop to use the Docker AI Gateway")
 		}
 
-		options = append(options, option.WithAPIKey(authToken))
-		options = append(options, option.WithBaseURL(cfg.BaseURL))
+		requestOptions = append(requestOptions,
+			option.WithAPIKey(authToken),
+			option.WithBaseURL(gateway),
+		)
 	}
 
 	logger.Debug("Anthropic API key found, creating client")
-	client := anthropic.NewClient(options...)
+	client := anthropic.NewClient(requestOptions...)
 	logger.Debug("Anthropic client created successfully", "model", cfg.Model)
 
 	return &Client{

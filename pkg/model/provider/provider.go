@@ -11,6 +11,7 @@ import (
 	"github.com/docker/cagent/pkg/model/provider/anthropic"
 	"github.com/docker/cagent/pkg/model/provider/dmr"
 	"github.com/docker/cagent/pkg/model/provider/openai"
+	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -30,24 +31,18 @@ type Provider interface {
 	) (string, error)
 }
 
-func New(cfg *config.ModelConfig, env environment.Provider, gateway string, logger *slog.Logger) (Provider, error) {
+func New(cfg *config.ModelConfig, env environment.Provider, logger *slog.Logger, opts ...options.Opt) (Provider, error) {
 	logger.Debug("Creating model provider", "type", cfg.Type, "model", cfg.Model)
 
 	switch cfg.Type {
 	case "openai":
-		if gateway != "" {
-			cfg.BaseURL = gateway
-		}
-		return openai.NewClient(cfg, env, logger)
+		return openai.NewClient(cfg, env, logger, opts...)
 
 	case "anthropic":
-		if gateway != "" {
-			cfg.BaseURL = gateway
-		}
-		return anthropic.NewClient(cfg, env, logger)
+		return anthropic.NewClient(cfg, env, logger, opts...)
 
 	case "dmr":
-		return dmr.NewClient(cfg, logger)
+		return dmr.NewClient(cfg, logger, opts...)
 
 	default:
 		logger.Error("Unknown provider type", "type", cfg.Type)
