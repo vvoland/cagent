@@ -256,7 +256,7 @@ func (c *Client) CreateChatCompletionStream(
 	}
 
 	// Log the request in JSON format for debugging
-	if requestJSON, err := json.MarshalIndent(request, "", "  "); err == nil {
+	if requestJSON, err := json.Marshal(request); err == nil {
 		c.logger.Debug("OpenAI chat completion request", "request", string(requestJSON))
 	} else {
 		c.logger.Error("Failed to marshal OpenAI request to JSON", "error", err)
