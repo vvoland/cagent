@@ -164,7 +164,7 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 		}
 		if msg.Role == chat.MessageRoleAssistant {
 			if len(msg.ToolCalls) > 0 {
-				blockLen := len(msg.ToolCalls) + 1
+				blockLen := len(msg.ToolCalls)
 				msgContent := strings.TrimSpace(msg.Content)
 				offset := 0
 				if msgContent != "" {
