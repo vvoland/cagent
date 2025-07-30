@@ -10,10 +10,12 @@ import (
 
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/desktop"
 	"github.com/docker/cagent/pkg/environment"
-	"github.com/docker/cagent/pkg/model/provider/auth"
 	"github.com/docker/cagent/pkg/tools"
 )
+
+var DefaultOpenaiBaseURL = openai.DefaultConfig("").BaseURL
 
 // StreamAdapter adapts the OpenAI stream to our interface
 type StreamAdapter struct {
@@ -105,20 +107,32 @@ func NewClient(cfg *config.ModelConfig, env environment.Provider, logger *slog.L
 		return nil, errors.New("model type must be 'openai'")
 	}
 
-	// Get the auth token from environment variables
-	authToken, err := auth.Token(context.TODO(), env, cfg.BaseURL, "OPENAI_API_KEY")
-	if err != nil {
-		logger.Error("OpenAI client creation failed", "error", "failed to get authentication token", "details", err)
-		return nil, err
-	}
-	logger.Debug("OpenAI API key found, creating client")
+	var openaiConfig openai.ClientConfig
+	switch cfg.BaseURL {
+	case "", DefaultOpenaiBaseURL:
+		// We use the default OpenAI base URL
+		authToken, err := env.Get(context.TODO(), "OPENAI_API_KEY")
+		if err != nil || authToken == "" {
+			logger.Error("OpenAI client creation failed", "error", "failed to get authentication token", "details", err)
+			return nil, errors.New("OPENAI_API_KEY environment variable is required")
+		}
 
-	clientConfig := openai.DefaultConfig(authToken)
-	clientConfig.BaseURL = "https://api.openai.com/v1"
-	if cfg.BaseURL != "" {
-		clientConfig.BaseURL = cfg.BaseURL
+		openaiConfig = openai.DefaultConfig(authToken)
+
+	default:
+		// In any other case, we assume that we connect to Docker's AI Gateway
+		authToken := desktop.GetToken(context.TODO())
+		if authToken == "" {
+			logger.Error("OpenAI client creation failed", "error", "failed to get Docker Desktop's authentication token")
+			return nil, errors.New("sorry, you first need to sign in Docker Desktop to use the Docker AI Gateway")
+		}
+
+		openaiConfig = openai.DefaultConfig(authToken)
+		openaiConfig.BaseURL = cfg.BaseURL
 	}
-	client := openai.NewClientWithConfig(clientConfig)
+
+	logger.Debug("OpenAI API key found, creating client")
+	client := openai.NewClientWithConfig(openaiConfig)
 	logger.Debug("OpenAI client created successfully", "model", cfg.Model)
 
 	return &Client{

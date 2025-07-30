@@ -16,7 +16,6 @@ import (
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/environment"
-	"github.com/docker/cagent/pkg/model/provider/auth"
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -131,7 +130,7 @@ func NewClient(cfg *config.ModelConfig, env environment.Provider, logger *slog.L
 	}
 
 	// Get the auth token from environment variables
-	authToken, err := auth.Token(context.TODO(), env, cfg.BaseURL, "ANTHROPIC_API_KEY")
+	authToken, err := env.Get(context.TODO(), "ANTHROPIC_API_KEY")
 	if err != nil {
 		logger.Error("Anthropic client creation failed", "error", "failed to get authentication token", "details", err)
 		return nil, err
