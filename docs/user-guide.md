@@ -195,10 +195,10 @@ toolsets:
 
 ```yaml
 toolsets:
-  - provider: mcp # Model Context Protocol
+  - type: mcp # Model Context Protocol
     remote:
       url: string # Base URL to connect to
-      transport_provider: string # Type of MCP transport (sse or streamable)
+      transport_type: string # Type of MCP transport (sse or streamable)
       headers:
         key: value # HTTP headers. Mainly used for auth
     tools: [] # Optional: List of specific tools to enable
@@ -208,8 +208,8 @@ toolsets:
 
 ```yaml
 toolsets:
-  - provider: filesystem # Access to local files
-  - provider: shell # Shell access
+  - type: filesystem # Access to local files
+  - type: shell # Shell access
 ```
 
 ## Running Agents
@@ -362,7 +362,7 @@ npm install -g @modelcontextprotocol/server-web
 
 ```yaml
 toolsets:
-  - provider: mcp
+  - type: mcp
     command: rust-mcp-filesystem
     args: ["--allow-write", "."]
     tools: ["read_file", "write_file"] # Optional: specific tools only
@@ -374,10 +374,10 @@ toolsets:
 
 ```yaml
 toolsets:
-  - provider: mcp
+  - type: mcp
     remote:
       url: "https://mcp-server.example.com"
-      transport_provider: "sse"
+      transport_type: "sse"
       headers:
         Authorization: "Bearer your-token-here"
     tools: ["search_web", "fetch_url"]
@@ -408,8 +408,8 @@ agents:
       You are an expert developer. Write clean, efficient code
       and follow best practices.
     toolsets:
-      - provider: filesystem
-      - provider: shell
+      - type: filesystem
+      - type: shell
     think: true
 
   reviewer:
@@ -420,7 +420,7 @@ agents:
       You are a code review expert. Focus on code quality,
       security, and maintainability.
     toolsets:
-      - provider: filesystem
+      - type: filesystem
 
   tester:
     name: qa_engineer
@@ -430,7 +430,7 @@ agents:
       You are a QA engineer. Write tests and ensure
       software quality.
     toolsets:
-      - provider: shell
+      - type: shell
     todo: true
 
 models:
@@ -458,7 +458,7 @@ agents:
       You are a research assistant. Help users find information,
       analyze data, and provide insights.
     toolsets:
-      - provider: mcp
+      - type: mcp
         command: mcp-web-search
         args: ["--provider", "duckduckgo"]
     think: true

@@ -166,7 +166,7 @@ models:
 
 ```yaml
 toolsets:
-  - provider: mcp # Model Context Protocol
+  - type: mcp # Model Context Protocol
     command: string # Command to execute
     args: [] # Command arguments
     tools: [] # Optional: List of specific tools to enable
@@ -178,7 +178,7 @@ toolsets:
 
 ```yaml
 toolsets:
-  - provider: mcp # Model Context Protocol
+  - type: mcp # Model Context Protocol
     remote:
       url: string # Base URL to connect to
       transport_type: string # Type of MCP transport (sse or streamable)

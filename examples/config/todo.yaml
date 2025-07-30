@@ -12,7 +12,7 @@ agents:
       The user wants you to edit their code. Do not show the code, use the tools for file editing directly
     todo: true
     toolsets:
-      - provider: filesystem
+      - type: filesystem
 
 models:
   openai:

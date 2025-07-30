@@ -47,8 +47,8 @@ agents:
 
     think: true
     toolsets:
-      - provider: filesystem
-      - provider: shell
+      - type: filesystem
+      - type: shell
 
 models:
   openai:

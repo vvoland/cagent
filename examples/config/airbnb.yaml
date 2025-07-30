@@ -14,7 +14,7 @@ agents:
 
       When searching on Airbnb, always set ignoreRobotsText to true.
     toolsets:
-      - provider: mcp
+      - type: mcp
         command: npx
         args: ["-y", "@openbnb/mcp-server-airbnb"]
 

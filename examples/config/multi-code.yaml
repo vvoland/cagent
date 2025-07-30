@@ -114,8 +114,8 @@ agents:
 
     todo: true
     toolsets:
-      - provider: shell
-      - provider: filesystem
+      - type: shell
+      - type: filesystem
 
   golang:
     model: gpt4o
@@ -171,8 +171,8 @@ agents:
 
     todo: true
     toolsets:
-      - provider: shell
-      - provider: filesystem
+      - type: shell
+      - type: filesystem
 
 models:
   gpt4o:

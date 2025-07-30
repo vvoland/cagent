@@ -37,11 +37,11 @@ agents:
       * Use best practices for Python development
     think: true
     toolsets:
-      - provider: mcp
+      - type: mcp
         command: uvx
         args: ["duckduckgo-mcp-server"]
-      - provider: filesystem
-      - provider: shell
+      - type: filesystem
+      - type: shell
 
 models:
   openai:

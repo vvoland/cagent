@@ -38,7 +38,7 @@ agents:
       Always start by understanding what the user wants to build, then break it down into logical, small iterations.
     sub_agents: [designer, awesome_engineer]
     toolsets:
-      - provider: filesystem
+      - type: filesystem
     think: true
     todo: true
     memory:
@@ -70,7 +70,7 @@ agents:
       Keep designs simple and focused on the specific feature being built in the current iteration.
       Build upon previous designs to maintain consistency across the application.
     toolsets:
-      - provider: filesystem
+      - type: filesystem
     think: true
     memory:
       path: dev_memory.db
@@ -140,8 +140,8 @@ agents:
       Focus on building robust, scalable backend systems that support the current iteration's feature.
       Ensure seamless integration with the frontend implementation.
     toolsets:
-      - provider: filesystem
-      - provider: shell
+      - type: filesystem
+      - type: shell
     think: true
     memory:
       path: dev_memory.db

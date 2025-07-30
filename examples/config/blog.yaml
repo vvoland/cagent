@@ -39,7 +39,7 @@ agents:
 
       Always include sources
     toolsets:
-      - provider: mcp
+      - type: mcp
         command: uvx
         args: ["duckduckgo-mcp-server"]
 

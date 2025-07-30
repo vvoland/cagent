@@ -105,8 +105,8 @@ agents:
 
       Always provide practical, actionable advice based on the cagent architecture and follow Go best practices. When helping with code, consider the multi-tenant security model, proper error handling, and the event-driven streaming architecture.
     toolsets:
-      - provider: filesystem
-      - provider: shell
+      - type: filesystem
+      - type: shell
     todo: true
     memory:
       path: golang_dev_memory.db

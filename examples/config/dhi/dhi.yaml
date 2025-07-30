@@ -70,14 +70,14 @@ agents:
       * Document any significant changes or considerations
     todo: true
     toolsets:
-      # - provider: mcp
+      # - type: mcp
       #   command: docker
       #   args: ["run", "-i", "--rm", "dhi-mcp-server"]
-      - provider: mcp
+      - type: mcp
         command: uvx
         args: ["duckduckgo-mcp-server"]
-      - provider: filesystem
-      - provider: mcp
+      - type: filesystem
+      - type: mcp
         command: uvx
         args: ["mcp-shell-server"]
         env_file: .env

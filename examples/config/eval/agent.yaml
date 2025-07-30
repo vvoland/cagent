@@ -6,7 +6,7 @@ agents:
     model: gpt4o
     instruction: You are the most helpful agent of all
     toolsets:
-      - provider: shell
+      - type: shell
 
 models:
   gpt4o:

@@ -59,8 +59,8 @@ agents:
     todo: true
 
     toolsets:
-      - provider: shell
-      - provider: filesystem
+      - type: shell
+      - type: filesystem
 
 models:
   openai:

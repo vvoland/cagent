@@ -9,7 +9,7 @@ agents:
       Use the DuckDuckGo search tool to find relevant and up-to-date information.
       Always share your sources with the user.
     toolsets:
-      - provider: mcp
+      - type: mcp
         remote:
           url: http://gateway:8811
           transport_type: streaming

@@ -49,7 +49,7 @@ agents:
 
       Use tables to display the data
     toolsets:
-      - provider: mcp
+      - type: mcp
         command: uvx
         args: ["yfmcp"]
 
@@ -63,7 +63,7 @@ agents:
 
       Always include sources
     toolsets:
-      - provider: mcp
+      - type: mcp
         command: uvx
         args: ["duckduckgo-mcp-server"]
 

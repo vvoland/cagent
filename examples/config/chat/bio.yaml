@@ -39,7 +39,7 @@ agents:
 
     todo: true
     toolsets:
-      - provider: mcp
+      - type: mcp
         command: docker
         args: ["mcp", "gateway", "run", "--servers=brave,fetch"]
 

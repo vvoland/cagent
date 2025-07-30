@@ -8,7 +8,7 @@ agents:
     instruction: |
       You are an AI assistant with expertise in the moby/moby project's documentation.
     toolsets:
-      - provider: mcp
+      - type: mcp
         remote:
           url: https://gitmcp.io/moby/moby
           transport_type: streamable

@@ -36,7 +36,7 @@ agents:
       * The writing style should follow the Diataxis framework
     think: true
     toolsets:
-      - provider: shell
+      - type: shell
 
 models:
   claude:
