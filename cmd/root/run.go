@@ -84,7 +84,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
-	rt := runtime.New(logger, agents, agentName)
+	rt := runtime.New(logger, agents, runtime.WithCurrentAgent(agentName))
 
 	sess := session.New(logger)
 

@@ -138,7 +138,7 @@ func (s *Server) createAgent(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
 	}
 
-	s.runtimes[filepath.Base(path)] = runtime.New(s.logger, team, "root")
+	s.runtimes[filepath.Base(path)] = runtime.New(s.logger, team)
 
 	return c.JSON(http.StatusOK, map[string]string{"path": path, "out": out})
 }
@@ -175,7 +175,7 @@ func (s *Server) pullAgent(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
 	}
 
-	s.runtimes[agentName] = runtime.New(s.logger, team, "root")
+	s.runtimes[agentName] = runtime.New(s.logger, team)
 
 	return c.JSON(http.StatusOK, map[string]string{"name": agentName})
 }

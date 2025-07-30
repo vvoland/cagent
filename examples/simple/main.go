@@ -34,7 +34,7 @@ func main() {
 			agent.WithModel(llm),
 			agent.WithDescription("A human."),
 		))
-	rt := runtime.New(logger, agents, "root")
+	rt := runtime.New(logger, agents)
 
 	sess := session.New(logger, session.WithUserMessage("", "How are you doing?"))
 

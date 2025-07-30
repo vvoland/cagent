@@ -41,7 +41,7 @@ func main() {
 		agent.WithSubAgents(child),
 		agent.WithToolSets(builtin.NewTransferTaskTool()),
 	)
-	rt := runtime.New(logger, team.New(root, child), "root")
+	rt := runtime.New(logger, team.New(root, child))
 
 	sess := session.New(logger, session.WithUserMessage("", "Ask your child how they are doing and tell me what they said"))
 

@@ -72,7 +72,7 @@ func main() {
 			agent.WithModel(llm),
 			agent.WithTools(toolAddNumbers),
 		))
-	rt := runtime.New(logger, agents, "root")
+	rt := runtime.New(logger, agents)
 
 	sess := session.New(logger, session.WithUserMessage("", "What is 1 + 2?"))
 

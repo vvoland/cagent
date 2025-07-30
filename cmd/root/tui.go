@@ -655,7 +655,7 @@ func runTUICommand(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
-	rt := runtime.New(logger, agents, agentName)
+	rt := runtime.New(logger, agents, runtime.WithCurrentAgent(agentName))
 
 	m, err := newModel(rt, session.New(logger))
 	if err != nil {
