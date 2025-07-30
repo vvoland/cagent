@@ -35,9 +35,15 @@ func New(cfg *config.ModelConfig, env environment.Provider, gateway string, logg
 
 	switch cfg.Type {
 	case "openai":
+		if gateway != "" {
+			cfg.BaseURL = gateway
+		}
 		return openai.NewClient(cfg, env, logger)
 
 	case "anthropic":
+		if gateway != "" {
+			cfg.BaseURL = gateway
+		}
 		return anthropic.NewClient(cfg, env, logger)
 
 	case "dmr":
