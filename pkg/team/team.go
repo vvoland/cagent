@@ -7,19 +7,35 @@ import (
 )
 
 type Team struct {
+	ID     string
 	agents map[string]*agent.Agent
 }
 
-func New(agents ...*agent.Agent) *Team {
-	agentsByName := make(map[string]*agent.Agent)
-	for _, agent := range agents {
-		agentsByName[agent.Name()] = agent
-	}
+type Opt func(*Team)
 
-	return &Team{agents: agentsByName}
+func WithID(id string) Opt {
+	return func(t *Team) {
+		t.ID = id
+	}
 }
 
-func (t *Team) Get(name string) *agent.Agent {
+func WithAgents(agents ...*agent.Agent) Opt {
+	return func(t *Team) {
+		for _, agent := range agents {
+			t.agents[agent.Name()] = agent
+		}
+	}
+}
+
+func New(opts ...Opt) *Team {
+	t := &Team{agents: make(map[string]*agent.Agent)}
+	for _, opt := range opts {
+		opt(t)
+	}
+	return t
+}
+
+func (t *Team) Agent(name string) *agent.Agent {
 	return t.agents[name]
 }
 

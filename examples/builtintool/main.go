@@ -29,12 +29,15 @@ func main() {
 	}
 
 	agents := team.New(
-		agent.New(
-			"root",
-			"You are an expert hacker",
-			agent.WithModel(llm),
-			agent.WithToolSets(builtin.NewShellTool()),
-		))
+		team.WithAgents(
+			agent.New(
+				"root",
+				"You are an expert hacker",
+				agent.WithModel(llm),
+				agent.WithToolSets(builtin.NewShellTool()),
+			),
+		),
+	)
 	rt := runtime.New(logger, agents)
 
 	sess := session.New(logger, session.WithUserMessage("", "Tell me a story about my current directory"))

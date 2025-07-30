@@ -28,6 +28,7 @@ func Load(ctx context.Context, path string, runConfig config.RuntimeConfig, logg
 	}
 
 	parentDir := filepath.Dir(path)
+	fileName := filepath.Base(path)
 	absEnvFles, err := environment.AbsolutePaths(parentDir, runConfig.EnvFiles)
 	if err != nil {
 		return nil, err
@@ -106,7 +107,7 @@ func Load(ctx context.Context, path string, runConfig config.RuntimeConfig, logg
 		}
 	}
 
-	return team.New(agents...), nil
+	return team.New(team.WithID(fileName), team.WithAgents(agents...)), nil
 }
 
 func getModelsForAgent(cfg *config.Config, a *config.AgentConfig, absEnvFiles []string, logger *slog.Logger, opts ...options.Opt) ([]provider.Provider, error) {

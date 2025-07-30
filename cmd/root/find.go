@@ -27,7 +27,7 @@ func loadAgents(ctx context.Context, agentsPathOrDirectory string, logger *slog.
 			continue
 		}
 
-		runtimes[filepath.Base(agentPath)] = runtime.New(logger, team)
+		runtimes[team.ID] = runtime.New(logger, team)
 	}
 
 	return runtimes, nil
