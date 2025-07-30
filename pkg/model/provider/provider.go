@@ -33,26 +33,14 @@ type Provider interface {
 func New(cfg *config.ModelConfig, env environment.Provider, gateway string, logger *slog.Logger) (Provider, error) {
 	logger.Debug("Creating model provider", "type", cfg.Type, "model", cfg.Model)
 
-	switch {
-	case gateway != "":
-		gatewayCfg := &config.ModelConfig{
-			Type:              "openai",
-			Model:             cfg.Model,
-			BaseURL:           gateway,
-			ParallelToolCalls: cfg.ParallelToolCalls,
-			// MaxTokens:        cfg.MaxTokens, // MaxTokens is not portable
-			// TODO(dga): temperature and stuff.
-		}
-
-		return openai.NewClient(gatewayCfg, env, logger)
-
-	case cfg.Type == "openai":
+	switch cfg.Type {
+	case "openai":
 		return openai.NewClient(cfg, env, logger)
 
-	case cfg.Type == "anthropic":
+	case "anthropic":
 		return anthropic.NewClient(cfg, env, logger)
 
-	case cfg.Type == "dmr":
+	case "dmr":
 		return dmr.NewClient(cfg, logger)
 
 	default:

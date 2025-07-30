@@ -15,6 +15,7 @@ import (
 
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/desktop"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/tools"
 )
@@ -129,16 +130,27 @@ func NewClient(cfg *config.ModelConfig, env environment.Provider, logger *slog.L
 		return nil, errors.New("model type must be 'anthropic'")
 	}
 
-	// Get the auth token from environment variables
-	authToken, err := env.Get(context.TODO(), "ANTHROPIC_API_KEY")
-	if err != nil {
-		logger.Error("Anthropic client creation failed", "error", "failed to get authentication token", "details", err)
-		return nil, err
-	}
-
 	var options []option.RequestOption
-	options = append(options, option.WithAPIKey(authToken))
-	if cfg.BaseURL != "" {
+	switch cfg.BaseURL {
+	case "", "https://api.anthropic.com/":
+		// We use the default Anthropic base URL
+		authToken, err := env.Get(context.TODO(), "ANTHROPIC_API_KEY")
+		if err != nil || authToken == "" {
+			logger.Error("Anthropic client creation failed", "error", "failed to get authentication token", "details", err)
+			return nil, errors.New("ANTHROPIC_API_KEY environment variable is required")
+		}
+
+		options = append(options, option.WithAPIKey(authToken))
+
+	default:
+		// In any other case, we assume that we connect to Docker's AI Gateway
+		authToken := desktop.GetToken(context.TODO())
+		if authToken == "" {
+			logger.Error("Anthropic client creation failed", "error", "failed to get Docker Desktop's authentication token")
+			return nil, errors.New("sorry, you first need to sign in Docker Desktop to use the Docker AI Gateway")
+		}
+
+		options = append(options, option.WithAPIKey(authToken))
 		options = append(options, option.WithBaseURL(cfg.BaseURL))
 	}
 
