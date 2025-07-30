@@ -164,14 +164,23 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 		}
 		if msg.Role == chat.MessageRoleAssistant {
 			if len(msg.ToolCalls) > 0 {
-				toolUseBlocks := make([]anthropic.ContentBlockParamUnion, len(msg.ToolCalls)+1)
-				toolUseBlocks[0] = anthropic.NewTextBlock(strings.TrimSpace(msg.Content))
+				blockLen := len(msg.ToolCalls) + 1
+				msgContent := strings.TrimSpace(msg.Content)
+				offset := 0
+				if msgContent != "" {
+					blockLen++
+					offset = 1
+				}
+				toolUseBlocks := make([]anthropic.ContentBlockParamUnion, blockLen)
+				if msgContent != "" {
+					toolUseBlocks[0] = anthropic.NewTextBlock(msgContent)
+				}
 				for j, toolCall := range msg.ToolCalls {
 					var inpts map[string]any
 					if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &inpts); err != nil {
 						inpts = map[string]any{}
 					}
-					toolUseBlocks[j+1] = anthropic.ContentBlockParamUnion{
+					toolUseBlocks[j+offset] = anthropic.ContentBlockParamUnion{
 						OfToolUse: &anthropic.ToolUseBlockParam{
 							ID:    toolCall.ID,
 							Input: inpts,
