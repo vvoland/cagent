@@ -185,7 +185,7 @@ func (s *Server) agents(c echo.Context) error {
 	for id, rt := range s.runtimes {
 		agentList = append(agentList, map[string]string{
 			"name":        id,
-			"description": rt.Team().Get("root").Description(),
+			"description": rt.Team().Agent("root").Description(),
 		})
 	}
 	return c.JSON(http.StatusOK, agentList)

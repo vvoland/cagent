@@ -65,7 +65,7 @@ func (r *Runtime) registerDefaultTools() {
 }
 
 func (r *Runtime) CurrentAgent() *agent.Agent {
-	return r.team.Get(r.currentAgent)
+	return r.team.Agent(r.currentAgent)
 }
 
 // Run starts the agent's interaction loop
@@ -77,7 +77,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 		defer close(events)
 		defer r.logger.Debug("Runtime stream completed", "agent", r.currentAgent, "session_id", sess.ID)
 
-		a := r.team.Get(r.currentAgent)
+		a := r.team.Agent(r.currentAgent)
 
 		model := a.Model()
 		r.logger.Debug("Using agent", "agent", a.Name(), "model", model)

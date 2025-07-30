@@ -35,7 +35,7 @@ func New(opts ...Opt) *Team {
 	return t
 }
 
-func (t *Team) Get(name string) *agent.Agent {
+func (t *Team) Agent(name string) *agent.Agent {
 	return t.agents[name]
 }
 
