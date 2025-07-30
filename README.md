@@ -64,7 +64,7 @@ agents:
 
 models:
   gpt4:
-    type: openai
+    provider: openai
     model: gpt-4o
 ```
 
@@ -119,7 +119,7 @@ agents:
 ```yaml
 models:
   model_name:
-    type: string # Provider: openai, anthropic, dmr
+    provider: string # Provider: openai, anthropic, dmr
     model: string # Model name: gpt-4o, claude-3-5-sonnet-latest
     temperature: float # Randomness (0.0-1.0)
     max_tokens: integer # Response length limit
@@ -136,25 +136,25 @@ models:
 #OpenAI API
 models:
   openai:
-    type: openai
+    provider: openai
     model: gpt-4o
 
 #Anthropic API
 models:
   claude:
-    type: anthropic
+    provider: anthropic
     model: claude-sonnet-4-0
 
 #Docker Model Runner
 models:
   qwen:
-    type: dmr
+    provider: dmr
     model: ai/qwen3
 
 #Ollama
 models:
   ollama:
-    type: openai
+    provider: openai
     model: llama3
     base_url: http://localhost:11434/v1
 
@@ -166,7 +166,7 @@ models:
 
 ```yaml
 toolsets:
-  - type: mcp # Model Context Protocol
+  - provider: mcp # Model Context Protocol
     command: string # Command to execute
     args: [] # Command arguments
     tools: [] # Optional: List of specific tools to enable
@@ -178,7 +178,7 @@ toolsets:
 
 ```yaml
 toolsets:
-  - type: mcp # Model Context Protocol
+  - provider: mcp # Model Context Protocol
     remote:
       url: string # Base URL to connect to
       transport_type: string # Type of MCP transport (sse or streamable)

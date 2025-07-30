@@ -77,7 +77,7 @@ agents:
 
 models:
   gpt4:
-    type: openai
+    provider: openai
     model: gpt-4o
 ```
 
@@ -96,7 +96,7 @@ agents:
     model: claude
     description: Expert software developer
     toolsets:
-      - type: filesystem
+      - provider: filesystem
     think: true
 
   reviewer:
@@ -106,10 +106,10 @@ agents:
 
 models:
   gpt4:
-    type: openai
+    provider: openai
     model: gpt-4o
   claude:
-    type: anthropic
+    provider: anthropic
     model: claude-sonnet-4-0
 ```
 

@@ -20,8 +20,8 @@ func main() {
 	logger := slog.Default()
 
 	llm, err := openai.NewClient(&config.ModelConfig{
-		Type:  "openai",
-		Model: "gpt-4o",
+		Provider: "openai",
+		Model:    "gpt-4o",
 	}, environment.NewDefaultProvider(logger), logger)
 	if err != nil {
 		log.Fatal(err)

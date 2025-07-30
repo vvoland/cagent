@@ -1,6 +1,6 @@
 models:
   claude:
-    type: anthropic
+    provider: anthropic
     model: claude-sonnet-4-0
     max_tokens: 64000
 
@@ -105,8 +105,8 @@ agents:
 
       Always provide practical, actionable advice based on the cagent architecture and follow Go best practices. When helping with code, consider the multi-tenant security model, proper error handling, and the event-driven streaming architecture.
     toolsets:
-      - type: filesystem
-      - type: shell
+      - provider: filesystem
+      - provider: shell
     todo: true
     memory:
       path: golang_dev_memory.db

@@ -36,7 +36,7 @@ agents:
     root:
         ...
         toolsets:
-        - type: shell
+        - provider: shell
 ```
 
 ```
@@ -44,7 +44,7 @@ agents:
     root:
         ...
         toolsets:
-        - type: filesystem
+        - provider: filesystem
 ```
 
 It can also use local MCP Servers:
@@ -54,7 +54,7 @@ agents:
     root:
         ...
         toolsets:
-        - type: mcp # Model Context Protocol
+        - provider: mcp # Model Context Protocol
             command: string # Command to execute
             args: [] # Command arguments
             tools: [] # Optional: List of specific tools to enable
@@ -69,7 +69,7 @@ agents:
     root:
         ...
         toolsets:
-        - type: mcp
+        - provider: mcp
             command: docker
             args: [mcp, gateway, run, '--servers=youtube_transcript]
 ```
@@ -81,7 +81,7 @@ agents:
 ```yaml
 models:
 model_name:
-    type: string # Provider: openai, anthropic, dmr
+    provider: string # Provider: openai, anthropic, dmr
     model: string # Model name: gpt-4o, claude-3-5-sonnet-latest
     max_tokens: integer # Response length limit
 ```
@@ -90,7 +90,7 @@ For the model, always use this:
 
 ```yaml
   claude:
-    type: anthropic
+    provider: anthropic
     model: claude-sonnet-4-0
     max_tokens: 64000
 ```

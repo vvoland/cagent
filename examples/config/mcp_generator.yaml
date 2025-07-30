@@ -37,15 +37,15 @@ agents:
       * Use best practices for Python development
     think: true
     toolsets:
-      - type: mcp
+      - provider: mcp
         command: uvx
         args: ["duckduckgo-mcp-server"]
-      - type: filesystem
-      - type: shell
+      - provider: filesystem
+      - provider: shell
 
 models:
   openai:
-    type: openai
+    provider: openai
     model: gpt-4o
     temperature: 0.7
     max_tokens: 1500
@@ -54,6 +54,6 @@ models:
     presence_penalty: 0.0
 
   claude:
-    type: anthropic
+    provider: anthropic
     model: claude-3-5-sonnet-latest
     max_tokens: 8192

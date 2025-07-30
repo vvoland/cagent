@@ -49,7 +49,7 @@ agents:
 
       Use tables to display the data
     toolsets:
-      - type: mcp
+      - provider: mcp
         command: uvx
         args: ["yfmcp"]
 
@@ -63,16 +63,16 @@ agents:
 
       Always include sources
     toolsets:
-      - type: mcp
+      - provider: mcp
         command: uvx
         args: ["duckduckgo-mcp-server"]
 
 models:
   openai:
-    type: openai
+    provider: openai
     model: gpt-4o
 
   claude:
-    type: anthropic
+    provider: anthropic
     model: claude-3-5-sonnet-latest
     max_tokens: 8192

@@ -73,7 +73,7 @@ agents:
 models:
   test-model:
     provider: test
-    type: test
+    model: test
 `
 	agentFile := tempDir + "/test-agent.yaml"
 	err = os.WriteFile(agentFile, []byte(testAgentContent), 0644)
@@ -227,19 +227,19 @@ func TestManager_SessionLimits(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a test agent file (won't actually load due to missing model config)
-	testAgent := tempDir + "/test.yaml"  
+	testAgent := tempDir + "/test.yaml"
 	err = os.WriteFile(testAgent, []byte("test"), 0644)
 	require.NoError(t, err)
 
 	t.Run("SessionLimit", func(t *testing.T) {
 		// This will fail at runtime creation stage, but let's test the session limit logic
 		// by mocking a successful session creation scenario
-		
+
 		// For now, we can test that the session limit check works by inspecting the manager state
 		// Since CreateAgentSession calls resolver.ResolveAgent which will succeed for our test file
 		// but then fail at executor.CreateRuntime due to invalid agent config,
 		// we can verify the limit logic separately by checking if we get the right error
-		
+
 		// The session limit is checked before runtime creation, so we need a valid agent file
 		// to test this properly, but that requires a full agent configuration
 		// For now, let's test that non-existent agents fail appropriately
@@ -268,7 +268,7 @@ func TestManager_ConcurrentAccess(t *testing.T) {
 	t.Run("ConcurrentClientCreation", func(t *testing.T) {
 		// Test concurrent client creation
 		done := make(chan bool, 10)
-		
+
 		for i := 0; i < 10; i++ {
 			go func(id int) {
 				err := manager.CreateClient(fmt.Sprintf("client-%d", id))
@@ -291,4 +291,3 @@ func TestManager_ConcurrentAccess(t *testing.T) {
 		}
 	})
 }
-

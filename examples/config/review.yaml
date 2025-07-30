@@ -47,14 +47,14 @@ agents:
       For each warning or failure, tell the user how to fix it.
     # todo: true
     toolsets:
-      - type: filesystem
+      - provider: filesystem
 
 models:
   openai:
-    type: openai
+    provider: openai
     model: gpt-4o
 
   claude:
-    type: anthropic
+    provider: anthropic
     model: claude-3-5-sonnet-latest
     max_tokens: 8192

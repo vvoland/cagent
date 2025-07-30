@@ -158,7 +158,7 @@ agents:
 
 models:
   openai:
-    type: openai
+    provider: openai
     model: gpt-4o
     temperature: 0.7
     max_tokens: 1500

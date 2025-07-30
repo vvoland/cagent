@@ -32,9 +32,9 @@ type Provider interface {
 }
 
 func New(cfg *config.ModelConfig, env environment.Provider, logger *slog.Logger, opts ...options.Opt) (Provider, error) {
-	logger.Debug("Creating model provider", "type", cfg.Type, "model", cfg.Model)
+	logger.Debug("Creating model provider", "type", cfg.Provider, "model", cfg.Model)
 
-	switch cfg.Type {
+	switch cfg.Provider {
 	case "openai":
 		return openai.NewClient(cfg, env, logger, opts...)
 
@@ -45,7 +45,7 @@ func New(cfg *config.ModelConfig, env environment.Provider, logger *slog.Logger,
 		return dmr.NewClient(cfg, logger, opts...)
 
 	default:
-		logger.Error("Unknown provider type", "type", cfg.Type)
-		return nil, fmt.Errorf("unknown provider type: %s", cfg.Type)
+		logger.Error("Unknown provider type", "type", cfg.Provider)
+		return nil, fmt.Errorf("unknown provider type: %s", cfg.Provider)
 	}
 }

@@ -11,11 +11,11 @@ agents:
       Your responses should be clear, concise, and focused on providing accurate information about Python programming,
       libraries, and best practices.
     toolsets:
-    - type: filesystem
-    - type: shell
+    - provider: filesystem
+    - provider: shell
 
 models:
   claude:
-    type: anthropic
+    provider: anthropic
     model: claude-sonnet-4-0
     max_tokens: 64000

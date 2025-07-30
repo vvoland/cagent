@@ -99,7 +99,7 @@ agents:
 
 models:
   gpt4:
-    type: openai
+    provider: openai
     model: gpt-4o
 ```
 
@@ -126,7 +126,7 @@ agents:
       You are an expert developer. Focus on coding tasks,
       code review, and technical implementation.
     toolsets:
-      - type: filesystem
+      - provider: filesystem
 
   designer:
     name: designer
@@ -138,11 +138,11 @@ agents:
 
 models:
   gpt4:
-    type: openai
+    provider: openai
     model: gpt-4o
 
   claude:
-    type: anthropic
+    provider: anthropic
     model: claude-sonnet-4-0
     max_tokens: 64000
 ```
@@ -183,7 +183,7 @@ models:
 
 ```yaml
 toolsets:
-  - type: mcp # Model Context Protocol
+  - provider: mcp # Model Context Protocol
     command: string # Command to execute
     args: [] # Command arguments
     tools: [] # Optional: List of specific tools to enable
@@ -195,10 +195,10 @@ toolsets:
 
 ```yaml
 toolsets:
-  - type: mcp # Model Context Protocol
+  - provider: mcp # Model Context Protocol
     remote:
       url: string # Base URL to connect to
-      transport_type: string # Type of MCP transport (sse or streamable)
+      transport_provider: string # Type of MCP transport (sse or streamable)
       headers:
         key: value # HTTP headers. Mainly used for auth
     tools: [] # Optional: List of specific tools to enable
@@ -208,8 +208,8 @@ toolsets:
 
 ```yaml
 toolsets:
-  - type: filesystem # Access to local files
-  - type: shell # Shell access
+  - provider: filesystem # Access to local files
+  - provider: shell # Shell access
 ```
 
 ## Running Agents
@@ -362,7 +362,7 @@ npm install -g @modelcontextprotocol/server-web
 
 ```yaml
 toolsets:
-  - type: mcp
+  - provider: mcp
     command: rust-mcp-filesystem
     args: ["--allow-write", "."]
     tools: ["read_file", "write_file"] # Optional: specific tools only
@@ -374,10 +374,10 @@ toolsets:
 
 ```yaml
 toolsets:
-  - type: mcp
+  - provider: mcp
     remote:
       url: "https://mcp-server.example.com"
-      transport_type: "sse"
+      transport_provider: "sse"
       headers:
         Authorization: "Bearer your-token-here"
     tools: ["search_web", "fetch_url"]
@@ -408,8 +408,8 @@ agents:
       You are an expert developer. Write clean, efficient code
       and follow best practices.
     toolsets:
-      - type: filesystem
-      - type: shell
+      - provider: filesystem
+      - provider: shell
     think: true
 
   reviewer:
@@ -420,7 +420,7 @@ agents:
       You are a code review expert. Focus on code quality,
       security, and maintainability.
     toolsets:
-      - type: filesystem
+      - provider: filesystem
 
   tester:
     name: qa_engineer
@@ -430,16 +430,16 @@ agents:
       You are a QA engineer. Write tests and ensure
       software quality.
     toolsets:
-      - type: shell
+      - provider: shell
     todo: true
 
 models:
   gpt4:
-    type: openai
+    provider: openai
     model: gpt-4o
 
   claude:
-    type: anthropic
+    provider: anthropic
     model: claude-sonnet-4-0
     max_tokens: 64000
 ```
@@ -458,7 +458,7 @@ agents:
       You are a research assistant. Help users find information,
       analyze data, and provide insights.
     toolsets:
-      - type: mcp
+      - provider: mcp
         command: mcp-web-search
         args: ["--provider", "duckduckgo"]
     think: true
@@ -467,7 +467,7 @@ agents:
 
 models:
   claude:
-    type: anthropic
+    provider: anthropic
     model: claude-sonnet-4-0
     max_tokens: 64000
 ```
@@ -498,7 +498,7 @@ When using Docker Desktop, cagent can integrate with Docker's AI Gateway:
 ```yaml
 models:
   gateway_gpt4:
-    type: openai
+    provider: openai
     model: gpt-4o
     base_url: https://api.docker.com/v1
     # Authentication handled automatically via Docker Desktop
@@ -716,20 +716,20 @@ agents:
 models:
   # Local model for fast responses
   claude_local:
-    type: anthropic
+    provider: anthropic
     model: claude-sonnet-4-0
     temperature: 0.2
 
   # Gateway model for enhanced capabilities
   gpt4_gateway:
-    type: openai
+    provider: openai
     model: gpt-4o
     base_url: https://api.docker.com/v1
     temperature: 0.1
 
   # Creative model for content generation
   gpt4_creative:
-    type: openai
+    provider: openai
     model: gpt-4o
     temperature: 0.8
 

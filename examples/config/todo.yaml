@@ -12,14 +12,14 @@ agents:
       The user wants you to edit their code. Do not show the code, use the tools for file editing directly
     todo: true
     toolsets:
-      - type: filesystem
+      - provider: filesystem
 
 models:
   openai:
-    type: openai
+    provider: openai
     model: gpt-4o
 
   claude:
-    type: anthropic
+    provider: anthropic
     model: claude-3-5-sonnet-latest
     max_tokens: 8192

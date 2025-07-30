@@ -47,15 +47,15 @@ agents:
 
     think: true
     toolsets:
-      - type: filesystem
-      - type: shell
+      - provider: filesystem
+      - provider: shell
 
 models:
   openai:
-    type: openai
+    provider: openai
     model: gpt-4o
 
   claude:
-    type: anthropic
+    provider: anthropic
     model: claude-3-5-sonnet-latest
     max_tokens: 8192

@@ -114,8 +114,8 @@ agents:
 
     todo: true
     toolsets:
-      - type: shell
-      - type: filesystem
+      - provider: shell
+      - provider: filesystem
 
   golang:
     model: gpt4o
@@ -171,20 +171,20 @@ agents:
 
     todo: true
     toolsets:
-      - type: shell
-      - type: filesystem
+      - provider: shell
+      - provider: filesystem
 
 models:
   gpt4o:
-    type: openai
+    provider: openai
     model: gpt-4o
 
   claude:
-    type: anthropic
+    provider: anthropic
     model: claude-sonnet-4-0
     max_tokens: 64000
 
   opus:
-    type: anthropic
+    provider: anthropic
     model: claude-opus-4-0
     max_tokens: 32000

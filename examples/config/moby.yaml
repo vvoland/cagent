@@ -8,13 +8,13 @@ agents:
     instruction: |
       You are an AI assistant with expertise in the moby/moby project's documentation.
     toolsets:
-      - type: mcp
+      - provider: mcp
         remote:
           url: https://gitmcp.io/moby/moby
           transport_type: streamable
 
 models:
   anthropic:
-    type: anthropic
+    provider: anthropic
     model: claude-3-5-sonnet-latest
     max_tokens: 8192

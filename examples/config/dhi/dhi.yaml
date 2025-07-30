@@ -70,24 +70,24 @@ agents:
       * Document any significant changes or considerations
     todo: true
     toolsets:
-      # - type: mcp
+      # - provider: mcp
       #   command: docker
       #   args: ["run", "-i", "--rm", "dhi-mcp-server"]
-      - type: mcp
+      - provider: mcp
         command: uvx
         args: ["duckduckgo-mcp-server"]
-      - type: filesystem
-      - type: mcp
+      - provider: filesystem
+      - provider: mcp
         command: uvx
         args: ["mcp-shell-server"]
         env_file: .env
 
 models:
   openai:
-    type: openai
+    provider: openai
     model: gpt-4o
 
   claude:
-    type: anthropic
+    provider: anthropic
     model: claude-3-5-sonnet-latest
     max_tokens: 8192

@@ -39,11 +39,11 @@ agents:
 
     todo: true
     toolsets:
-      - type: mcp
+      - provider: mcp
         command: docker
         args: ["mcp", "gateway", "run", "--servers=brave,fetch"]
 
 models:
   openai:
-    type: openai
+    provider: openai
     model: gpt-4o

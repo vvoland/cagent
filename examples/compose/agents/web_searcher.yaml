@@ -9,7 +9,7 @@ agents:
       Use the DuckDuckGo search tool to find relevant and up-to-date information.
       Always share your sources with the user.
     toolsets:
-      - type: mcp
+      - provider: mcp
         remote:
           url: http://gateway:8811
           transport_type: streaming
@@ -18,5 +18,5 @@ agents:
 
 models:
   openai:
-    type: openai
+    provider: openai
     model: gpt-4o
