@@ -283,7 +283,7 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 				ToolCall: toolCall,
 			}
 
-			if sess.ToolsApproved || r.autoRunTools {
+			if sess.ToolsApproved || r.autoRunTools || toolCall.Function.Name == "transfer_task" {
 				r.runAgentTool(ctx, handler, sess, toolCall, events, a)
 			} else {
 				// Wait for the user to approve or reject the tool call
