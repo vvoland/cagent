@@ -6,7 +6,7 @@ agents:
     toolsets:
       - type: mcp
         command: docker
-        args: ["mcp", "gateway", "run", "--servers=brave,fetch"]
+        args: ["mcp", "gateway", "run", "--servers=fetch"]
 
 models:
   openai:

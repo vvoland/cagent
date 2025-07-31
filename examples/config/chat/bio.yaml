@@ -26,7 +26,7 @@ agents:
 
       You have access to the following tools to assist you:
 
-      * Brave tools for searching the web.
+      * DuckDuckGo tools for searching the web.
       * Fetch tools for fetching specific urls and gathering additional information.
 
       **Constraints:**
@@ -42,7 +42,7 @@ agents:
       - type: todo
       - type: mcp
         command: docker
-        args: ["mcp", "gateway", "run", "--servers=brave,fetch"]
+        args: ["mcp", "gateway", "run", "--servers=duckduckgo,fetch"]
 
 models:
   openai:
