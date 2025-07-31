@@ -132,6 +132,25 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			case *runtime.AgentChoiceEvent:
 				fmt.Printf("%s", e.Choice.Delta.Content)
 			case *runtime.ToolCallEvent:
+				if sess.ToolsApproved {
+					fmt.Printf("%s", green("done(%s)\n", e.ToolCall.Function.Name))
+					continue
+				} else {
+					fmt.Printf("%s", yellow("\n%s(%s)\n", e.ToolCall.Function.Name, e.ToolCall.Function.Arguments))
+					fmt.Println("\nCan I run this tool? (y/a/n)")
+					scanner.Scan()
+					text := scanner.Text()
+					switch text {
+					case "y":
+						rt.Resume(ctx, string(runtime.ResumeTypeApprove))
+					case "a":
+						sess.ToolsApproved = true
+						rt.Resume(ctx, string(runtime.ResumeTypeApproveSession))
+					case "n":
+						rt.Resume(ctx, string(runtime.ResumeTypeReject))
+					}
+				}
+
 				fmt.Printf("%s", yellow("\n%s(%s)\n", e.ToolCall.Function.Name, e.ToolCall.Function.Arguments))
 			case *runtime.ToolCallResponseEvent:
 				fmt.Printf("%s", green("done(%s)\n", e.ToolCall.Function.Name))
