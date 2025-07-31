@@ -4,5 +4,17 @@
         "go": {
             "command": "gopls"
         }
+    },
+    "mcp": {
+        "context7": {
+            "type": "stdio",
+            "command": "docker",
+            "args": [
+                "mcp",
+                "gateway",
+                "run",
+                "--servers=context7"
+            ]
+        }
     }
 }
