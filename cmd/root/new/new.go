@@ -7,9 +7,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/internal/creator"
+	"github.com/docker/cagent/pkg/runtime"
 )
 
 // Cmd creates a new command to create a new agent configuration
@@ -22,21 +24,44 @@ func Cmd() *cobra.Command {
 			ctx := cmd.Context()
 			logger := slog.Default()
 
-			reader := bufio.NewReader(os.Stdin)
+			prompt := ""
+			if len(args) > 0 {
+				prompt = strings.Join(args, " ")
+			} else {
 
-			fmt.Print("What should your agent do? (describe its purpose): ")
-			prompt, err := reader.ReadString('\n')
-			if err != nil {
-				return fmt.Errorf("failed to read purpose: %w", err)
+				reader := bufio.NewReader(os.Stdin)
+
+				fmt.Print("What should yousr agent do? (describe its purpose): ")
+				var err error
+				prompt, err = reader.ReadString('\n')
+				if err != nil {
+					return fmt.Errorf("failed to read purpose: %w", err)
+				}
+				prompt = strings.TrimSpace(prompt)
 			}
-			prompt = strings.TrimSpace(prompt)
 
-			out, _, err := creator.CreateAgent(ctx, ".", logger, prompt)
+			out, err := creator.StreamCreateAgent(ctx, ".", logger, prompt)
 			if err != nil {
 				return err
 			}
 
-			fmt.Println(out)
+			yellow := color.New(color.FgYellow).SprintfFunc()
+			green := color.New(color.FgGreen).SprintfFunc()
+
+			for event := range out {
+				switch e := event.(type) {
+				case *runtime.AgentChoiceEvent:
+					fmt.Printf("%s", e.Choice.Delta.Content)
+				case *runtime.ToolCallEvent:
+					fmt.Printf("%s", yellow("\n%s(%s)\n", e.ToolCall.Function.Name, e.ToolCall.Function.Arguments))
+				case *runtime.ToolCallResponseEvent:
+					fmt.Printf("%s", green("done(%s)\n", e.ToolCall.Function.Name))
+				case *runtime.AgentMessageEvent:
+					fmt.Printf("%s\n", e.Message.Content)
+				case *runtime.ErrorEvent:
+					fmt.Printf("%s\n", e.Error)
+				}
+			}
 
 			return nil
 		},

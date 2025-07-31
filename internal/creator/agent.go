@@ -70,7 +70,7 @@ func (f *fsToolset) customWriteFileHandler(ctx context.Context, toolCall tools.T
 	return f.originalWriteFileHandler(ctx, toolCall)
 }
 
-func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, prompt string) (agentMessage, agentPath string, err error) {
+func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, prompt string) (out, path string, err error) {
 	llm, err := anthropic.NewClient(&latest.ModelConfig{
 		Provider:  "anthropic",
 		Model:     "claude-sonnet-4-0",
@@ -103,9 +103,42 @@ func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, promp
 
 	messages, err := rt.Run(ctx, sess)
 	if err != nil {
-		logger.Error("failed to run session", "error", err)
-		return "", "", err
+		return "", "", fmt.Errorf("failed to run session: %w", err)
 	}
 
 	return messages[len(messages)-1].Message.Content, fsToolset.path, nil
+}
+
+func StreamCreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, prompt string) (<-chan runtime.Event, error) {
+	llm, err := anthropic.NewClient(&latest.ModelConfig{
+		Provider:  "anthropic",
+		Model:     "claude-sonnet-4-0",
+		MaxTokens: 64000,
+	}, environment.NewOsEnvProvider(), logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create LLM client: %w", err)
+	}
+
+	fmt.Println("Generating agent configuration....")
+
+	fsToolset := fsToolset{inner: builtin.NewFilesystemTool([]string{baseDir})}
+	fileName := filepath.Base(fsToolset.path)
+	newTeam := team.New(
+		team.WithID(fileName),
+		team.WithAgents(
+			agent.New(
+				"root",
+				agentBuilderInstructions,
+				agent.WithModel(llm),
+				agent.WithToolSets(
+					builtin.NewShellTool(),
+					&fsToolset,
+				),
+			)))
+	rt := runtime.New(logger, newTeam)
+
+	sess := session.New(logger, session.WithUserMessage("", prompt))
+	sess.ToolsApproved = true
+
+	return rt.RunStream(ctx, sess), nil
 }
