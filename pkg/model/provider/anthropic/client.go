@@ -62,7 +62,7 @@ func NewClient(cfg *latest.ModelConfig, env environment.Provider, logger *slog.L
 		}
 
 		requestOptions = append(requestOptions,
-			// option.WithAuthToken(authToken), // Don't use API key here, use auth token for gateway
+			option.WithAuthToken(authToken),
 			option.WithAPIKey(authToken),
 			option.WithBaseURL(gateway),
 		)
