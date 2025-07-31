@@ -48,7 +48,7 @@ func Evaluate(ctx context.Context, t *team.Team, evalsDir string, logger *slog.L
 	for _, eval := range evals {
 		rt := runtime.New(logger, t)
 
-		actualMessages, err := runLoop(ctx, logger, rt, eval)
+		actualMessages, err := runLoop(ctx, logger, rt, &eval)
 		if err != nil {
 			return nil, err
 		}
@@ -65,7 +65,7 @@ func Evaluate(ctx context.Context, t *team.Team, evalsDir string, logger *slog.L
 	return results, nil
 }
 
-func runLoop(ctx context.Context, logger *slog.Logger, rt *runtime.Runtime, eval session.Session) ([]session.Message, error) {
+func runLoop(ctx context.Context, logger *slog.Logger, rt *runtime.Runtime, eval *session.Session) ([]session.Message, error) {
 	var userMessages []session.Message
 	for i := range eval.Messages {
 		if eval.Messages[i].Message.Role == chat.MessageRoleUser {

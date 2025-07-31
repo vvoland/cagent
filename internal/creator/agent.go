@@ -99,6 +99,7 @@ func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, promp
 	rt := runtime.New(logger, newTeam)
 
 	sess := session.New(logger, session.WithUserMessage("", prompt))
+	sess.ToolsApproved = true
 
 	messages, err := rt.Run(ctx, sess)
 	if err != nil {

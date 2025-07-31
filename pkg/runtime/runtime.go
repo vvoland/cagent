@@ -276,25 +276,29 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 				ToolCall: toolCall,
 			}
 
-			// Wait for the user to approve or reject the tool call
-			r.logger.Debug("Waiting for resume signal", "tool", toolCall.Function.Name)
-			select {
-			case cType := <-r.resumeChan:
-				switch cType {
-				case ResumeTypeApprove:
-					r.logger.Debug("Resume signal received, approving tool handler", "tool", toolCall.Function.Name)
-					r.newMethod(ctx, handler, sess, toolCall, events, a)
-				case ResumeTypeApproveSession:
-					r.logger.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name)
-					sess.ToolsApproved = true
-					r.newMethod(ctx, handler, sess, toolCall, events, a)
-				case ResumeTypeReject:
-					r.logger.Debug("Resume signal received, rejecting tool handler", "tool", toolCall.Function.Name)
-					r.addToolRejectedResponse(sess, toolCall, events)
+			if sess.ToolsApproved {
+				r.runAgentTool(ctx, handler, sess, toolCall, events, a)
+			} else {
+				// Wait for the user to approve or reject the tool call
+				r.logger.Debug("Waiting for resume signal", "tool", toolCall.Function.Name)
+				select {
+				case cType := <-r.resumeChan:
+					switch cType {
+					case ResumeTypeApprove:
+						r.logger.Debug("Resume signal received, approving tool handler", "tool", toolCall.Function.Name)
+						r.runAgentTool(ctx, handler, sess, toolCall, events, a)
+					case ResumeTypeApproveSession:
+						r.logger.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name)
+						sess.ToolsApproved = true
+						r.runAgentTool(ctx, handler, sess, toolCall, events, a)
+					case ResumeTypeReject:
+						r.logger.Debug("Resume signal received, rejecting tool handler", "tool", toolCall.Function.Name)
+						r.addToolRejectedResponse(sess, toolCall, events)
+					}
+				case <-ctx.Done():
+					r.logger.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name)
+					return fmt.Errorf("context cancelled while waiting for resume: %w", ctx.Err())
 				}
-			case <-ctx.Done():
-				r.logger.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name)
-				return fmt.Errorf("context cancelled while waiting for resume: %w", ctx.Err())
 			}
 		}
 
@@ -311,26 +315,30 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 				ToolCall: toolCall,
 			}
 
-			select {
-			case cType := <-r.resumeChan:
-				switch cType {
-				case ResumeTypeApprove:
-					r.logger.Debug("Resume signal received, approving tool handler", "tool", toolCall.Function.Name)
-					r.newMethod2(ctx, tool, toolCall, events, sess, a)
-				case ResumeTypeApproveSession:
-					r.logger.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name)
-					sess.ToolsApproved = true
-					r.newMethod2(ctx, tool, toolCall, events, sess, a)
-				case ResumeTypeReject:
-					r.logger.Debug("Resume signal received, rejecting tool handler", "tool", toolCall.Function.Name)
-					r.addToolRejectedResponse(sess, toolCall, events)
-				}
+			if sess.ToolsApproved {
+				r.runTool(ctx, tool, toolCall, events, sess, a)
+			} else {
+				select {
+				case cType := <-r.resumeChan:
+					switch cType {
+					case ResumeTypeApprove:
+						r.logger.Debug("Resume signal received, approving tool handler", "tool", toolCall.Function.Name)
+						r.runTool(ctx, tool, toolCall, events, sess, a)
+					case ResumeTypeApproveSession:
+						r.logger.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name)
+						sess.ToolsApproved = true
+						r.runTool(ctx, tool, toolCall, events, sess, a)
+					case ResumeTypeReject:
+						r.logger.Debug("Resume signal received, rejecting tool handler", "tool", toolCall.Function.Name)
+						r.addToolRejectedResponse(sess, toolCall, events)
+					}
 
-				r.logger.Debug("Added tool response to session", "tool", toolCall.Function.Name, "total_messages", len(sess.Messages))
-				break toolLoop
-			case <-ctx.Done():
-				r.logger.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name)
-				return fmt.Errorf("context cancelled while waiting for resume: %w", ctx.Err())
+					r.logger.Debug("Added tool response to session", "tool", toolCall.Function.Name, "total_messages", len(sess.Messages))
+					break toolLoop
+				case <-ctx.Done():
+					r.logger.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name)
+					return fmt.Errorf("context cancelled while waiting for resume: %w", ctx.Err())
+				}
 			}
 		}
 	}
@@ -338,7 +346,7 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 	return nil
 }
 
-func (r *Runtime) newMethod2(ctx context.Context, tool tools.Tool, toolCall tools.ToolCall, events chan Event, sess *session.Session, a *agent.Agent) {
+func (r *Runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.ToolCall, events chan Event, sess *session.Session, a *agent.Agent) {
 	res, err := tool.Handler(ctx, toolCall)
 	if err != nil {
 		r.logger.Error("Error calling tool", "tool", toolCall.Function.Name, "error", err)
@@ -361,7 +369,7 @@ func (r *Runtime) newMethod2(ctx context.Context, tool tools.Tool, toolCall tool
 	sess.Messages = append(sess.Messages, session.NewAgentMessage(a, &toolResponseMsg))
 }
 
-func (r *Runtime) newMethod(ctx context.Context, handler ToolHandler, sess *session.Session, toolCall tools.ToolCall, events chan Event, a *agent.Agent) {
+func (r *Runtime) runAgentTool(ctx context.Context, handler ToolHandler, sess *session.Session, toolCall tools.ToolCall, events chan Event, a *agent.Agent) {
 	res, err := handler(ctx, sess, toolCall, events)
 	if err != nil {
 		r.logger.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
