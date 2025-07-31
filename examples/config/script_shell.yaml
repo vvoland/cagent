@@ -1,0 +1,41 @@
+#!/usr/bin/env cagent run
+version: "1"
+
+agents:
+  root:
+    name: shell_agent
+    model: openai
+    description: |
+      An agent with custom shell commands
+    instruction: |
+      You are a helpful assistant with access to custom shell tools.
+
+    toolsets:
+      - type: script
+        shell:
+          get_ip:
+            cmd: "curl -s https://ipinfo.io | jq -r .ip"
+            description: "Get public IP"
+
+          docker_images:
+            cmd: "docker images $img"
+            description: "List running Docker containers"
+            required: []
+            args:
+              img:
+                description: "Docker image to list"
+                type: "string"
+
+          github_user_repos:
+            cmd: "curl -s https://api.github.com/users/$username/repos | jq '.[].name'"
+            description: "List Github repositories of the provided user"
+            args:
+              username:
+                description: "Github username to get the repository list for"
+                type: "string"
+
+models:
+  openai:
+    provider: openai
+    model: gpt-4o
+    max_tokens: 1500
