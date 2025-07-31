@@ -26,6 +26,9 @@ type Session struct {
 	// CreatedAt is the time the session was created
 	CreatedAt time.Time `json:"created_at"`
 
+	// ToolsApproved is a flag to indicate if the tools have been approved
+	ToolsApproved bool `json:"tools_approved"`
+
 	// Logger for debugging and logging session operations
 	logger *slog.Logger
 }

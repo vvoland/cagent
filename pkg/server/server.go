@@ -242,12 +242,23 @@ func (s *Server) getSession(c echo.Context) error {
 	return c.JSON(http.StatusOK, sess)
 }
 
+type resumeSessionRequest struct {
+	Confirmation string `json:"confirmation"`
+}
+
 func (s *Server) resumeSession(c echo.Context) error {
-	sess, err := s.sessionStore.GetSession(c.Request().Context(), c.Param("id"))
-	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]string{"error": "session not found"})
+	sessionID := c.Param("id")
+	var req resumeSessionRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 	}
-	sess.SetLogger(s.logger)
+
+	rt, exists := s.runtimes[sessionID]
+	if !exists {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "runtime not found"})
+	}
+
+	rt.Resume(c.Request().Context(), req.Confirmation)
 
 	return c.JSON(http.StatusOK, map[string]string{"message": "session resumed"})
 }

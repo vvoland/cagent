@@ -16,6 +16,14 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
+type ResumeType string
+
+const (
+	ResumeTypeApprove        ResumeType = "approve"
+	ResumeTypeApproveSession ResumeType = "approve-session"
+	ResumeTypeReject         ResumeType = "reject"
+)
+
 // ToolHandler is a function type for handling tool calls
 type ToolHandler func(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, events chan Event) (*tools.ToolCallResult, error)
 
@@ -25,6 +33,7 @@ type Runtime struct {
 	toolMap      map[string]ToolHandler
 	team         *team.Team
 	currentAgent string
+	resumeChan   chan ResumeType
 }
 
 type Opt func(*Runtime)
@@ -42,6 +51,7 @@ func New(logger *slog.Logger, agents *team.Team, opts ...Opt) *Runtime {
 		team:         agents,
 		logger:       logger,
 		currentAgent: "root",
+		resumeChan:   make(chan ResumeType),
 	}
 
 	for _, opt := range opts {
@@ -136,6 +146,25 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 	}()
 
 	return events
+}
+
+func (r *Runtime) Resume(ctx context.Context, confirmationType string) {
+	r.logger.Debug("Resuming runtime", "agent", r.currentAgent, "confirmation_type", confirmationType)
+
+	cType := ResumeTypeApproveSession
+	switch confirmationType {
+	case "approve":
+		cType = ResumeTypeApproveSession
+	case "reject":
+		cType = ResumeTypeReject
+	}
+
+	select {
+	case r.resumeChan <- cType:
+		r.logger.Debug("Resume signal sent", "agent", r.currentAgent)
+	default:
+		r.logger.Debug("Resume channel not ready, ignoring", "agent", r.currentAgent)
+	}
 }
 
 // Run starts the agent's interaction loop
@@ -247,24 +276,29 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 				ToolCall: toolCall,
 			}
 
-			res, err := handler(ctx, sess, toolCall, events)
-			events <- &ToolCallResponseEvent{
-				ToolCall: toolCall,
-				Response: res.Output,
+			// Wait for the user to approve or reject the tool call
+			r.logger.Debug("Waiting for resume signal", "tool", toolCall.Function.Name)
+			select {
+			case cType := <-r.resumeChan:
+				switch cType {
+				case ResumeTypeApprove:
+					r.logger.Debug("Resume signal received, approving tool handler", "tool", toolCall.Function.Name)
+					r.newMethod(ctx, handler, sess, toolCall, events, a)
+				case ResumeTypeApproveSession:
+					r.logger.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name)
+					sess.ToolsApproved = true
+					r.newMethod(ctx, handler, sess, toolCall, events, a)
+				case ResumeTypeReject:
+					r.logger.Debug("Resume signal received, rejecting tool handler", "tool", toolCall.Function.Name)
+					r.addToolRejectedResponse(sess, toolCall, events)
+				}
+			case <-ctx.Done():
+				r.logger.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name)
+				return fmt.Errorf("context cancelled while waiting for resume: %w", ctx.Err())
 			}
-			if err != nil {
-				r.logger.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
-			} else {
-				r.logger.Debug("Tool executed successfully", "tool", toolCall.Function.Name)
-			}
-			toolResponseMsg := chat.Message{
-				Role:       chat.MessageRoleTool,
-				Content:    res.Output,
-				ToolCallID: toolCall.ID,
-			}
-			sess.Messages = append(sess.Messages, session.NewAgentMessage(a, &toolResponseMsg))
 		}
 
+	toolLoop:
 		for _, tool := range agentTools {
 			if _, ok := r.toolMap[tool.Function.Name]; ok {
 				continue
@@ -277,33 +311,92 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 				ToolCall: toolCall,
 			}
 
-			res, err := tool.Handler(ctx, toolCall)
-			if err != nil {
-				r.logger.Error("Error calling tool", "tool", toolCall.Function.Name, "error", err)
-				res = &tools.ToolCallResult{
-					Output: fmt.Sprintf("Error calling tool: %v", err),
+			select {
+			case cType := <-r.resumeChan:
+				switch cType {
+				case ResumeTypeApprove:
+					r.logger.Debug("Resume signal received, approving tool handler", "tool", toolCall.Function.Name)
+					r.newMethod2(ctx, tool, toolCall, events, sess, a)
+				case ResumeTypeApproveSession:
+					r.logger.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name)
+					sess.ToolsApproved = true
+					r.newMethod2(ctx, tool, toolCall, events, sess, a)
+				case ResumeTypeReject:
+					r.logger.Debug("Resume signal received, rejecting tool handler", "tool", toolCall.Function.Name)
+					r.addToolRejectedResponse(sess, toolCall, events)
 				}
-			} else {
-				r.logger.Debug("Agent tool call completed", "tool", toolCall.Function.Name, "output_length", len(res.Output))
-			}
 
-			events <- &ToolCallResponseEvent{
-				ToolCall: toolCall,
-				Response: res.Output,
+				r.logger.Debug("Added tool response to session", "tool", toolCall.Function.Name, "total_messages", len(sess.Messages))
+				break toolLoop
+			case <-ctx.Done():
+				r.logger.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name)
+				return fmt.Errorf("context cancelled while waiting for resume: %w", ctx.Err())
 			}
-
-			toolResponseMsg := chat.Message{
-				Role:       chat.MessageRoleTool,
-				Content:    res.Output,
-				ToolCallID: toolCall.ID,
-			}
-			sess.Messages = append(sess.Messages, session.NewAgentMessage(a, &toolResponseMsg))
-			r.logger.Debug("Added tool response to session", "tool", toolCall.Function.Name, "total_messages", len(sess.Messages))
-			break
 		}
 	}
 
 	return nil
+}
+
+func (r *Runtime) newMethod2(ctx context.Context, tool tools.Tool, toolCall tools.ToolCall, events chan Event, sess *session.Session, a *agent.Agent) {
+	res, err := tool.Handler(ctx, toolCall)
+	if err != nil {
+		r.logger.Error("Error calling tool", "tool", toolCall.Function.Name, "error", err)
+		res = &tools.ToolCallResult{
+			Output: fmt.Sprintf("Error calling tool: %v", err),
+		}
+	} else {
+		r.logger.Debug("Agent tool call completed", "tool", toolCall.Function.Name, "output_length", len(res.Output))
+	}
+
+	events <- &ToolCallResponseEvent{
+		ToolCall: toolCall,
+		Response: res.Output,
+	}
+	toolResponseMsg := chat.Message{
+		Role:       chat.MessageRoleTool,
+		Content:    res.Output,
+		ToolCallID: toolCall.ID,
+	}
+	sess.Messages = append(sess.Messages, session.NewAgentMessage(a, &toolResponseMsg))
+}
+
+func (r *Runtime) newMethod(ctx context.Context, handler ToolHandler, sess *session.Session, toolCall tools.ToolCall, events chan Event, a *agent.Agent) {
+	res, err := handler(ctx, sess, toolCall, events)
+	if err != nil {
+		r.logger.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
+	} else {
+		r.logger.Debug("Tool executed successfully", "tool", toolCall.Function.Name)
+	}
+
+	events <- &ToolCallResponseEvent{
+		ToolCall: toolCall,
+		Response: res.Output,
+	}
+	toolResponseMsg := chat.Message{
+		Role:       chat.MessageRoleTool,
+		Content:    res.Output,
+		ToolCallID: toolCall.ID,
+	}
+	sess.Messages = append(sess.Messages, session.NewAgentMessage(a, &toolResponseMsg))
+}
+
+func (r *Runtime) addToolRejectedResponse(sess *session.Session, toolCall tools.ToolCall, events chan Event) {
+	a := r.CurrentAgent()
+
+	result := "The user rejected the tool call."
+
+	events <- &ToolCallResponseEvent{
+		ToolCall: toolCall,
+		Response: result,
+	}
+
+	toolResponseMsg := chat.Message{
+		Role:       chat.MessageRoleTool,
+		Content:    result,
+		ToolCallID: toolCall.ID,
+	}
+	sess.Messages = append(sess.Messages, session.NewAgentMessage(a, &toolResponseMsg))
 }
 
 func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, evts chan Event) (*tools.ToolCallResult, error) {
