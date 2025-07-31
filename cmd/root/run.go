@@ -133,7 +133,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 				fmt.Printf("%s", e.Choice.Delta.Content)
 			case *runtime.ToolCallEvent:
 				if sess.ToolsApproved {
-					fmt.Printf("%s", green("done(%s)\n", e.ToolCall.Function.Name))
+					fmt.Printf("%s", yellow("\n%s(%s)\n", e.ToolCall.Function.Name, e.ToolCall.Function.Arguments))
 					continue
 				} else {
 					fmt.Printf("%s", yellow("\n%s(%s)\n", e.ToolCall.Function.Name, e.ToolCall.Function.Arguments))
