@@ -316,8 +316,10 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 			}
 
 			if sess.ToolsApproved {
+				r.logger.Debug("Tools approved, running tool", "tool", toolCall.Function.Name)
 				r.runTool(ctx, tool, toolCall, events, sess, a)
 			} else {
+				r.logger.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name)
 				select {
 				case cType := <-r.resumeChan:
 					switch cType {
