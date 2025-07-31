@@ -1,6 +1,12 @@
 #!/usr/bin/env cagent run
 version: "1"
 
+readme: |
+  This is a simple echo agent configuration file.
+  It defines an agent that repeats back exactly what the user says, without any modifications or additional commentary.
+
+  For example, run it with `echo "TEST" | cagent run echo-agent.yaml -`
+
 agents:
   root:
     name: echo

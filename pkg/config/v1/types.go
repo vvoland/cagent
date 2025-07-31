@@ -79,6 +79,7 @@ type Config struct {
 	Agents map[string]AgentConfig `json:"agents,omitempty" yaml:"agents,omitempty"`
 	Models map[string]ModelConfig `json:"models,omitempty" yaml:"models,omitempty"`
 	Env    map[string]string      `json:"env,omitempty" yaml:"env,omitempty"`
+	Readme string                 `json:"readme,omitempty" yaml:"readme,omitempty"`
 }
 
 type RuntimeConfig struct {
