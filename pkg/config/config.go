@@ -23,28 +23,47 @@ func LoadConfig(path string) (*latest.Config, error) {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
-	var config latest.Config
-
-	switch raw["version"] {
-	case nil, "0", 0:
-		var old v0.Config
-		if err := yaml.Unmarshal(data, &old); err != nil {
-			return nil, fmt.Errorf("failed to parse config file: %w", err)
-		}
-		config = v1.UpgradeFrom(old)
-
-	default:
-		config = latest.Config{}
-		if err := yaml.Unmarshal(data, &config); err != nil {
-			return nil, fmt.Errorf("failed to parse config file: %w", err)
-		}
+	// Migrate the configuration to the most recent version.
+	oldConfig, err := parseCurrentVersion(data, raw["version"])
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
+	config := migrateToLatestConfig(oldConfig)
 
 	if err := validateConfig(&config); err != nil {
 		return nil, err
 	}
 
 	return &config, nil
+}
+
+func parseCurrentVersion(data []byte, version any) (any, error) {
+	switch version {
+	case nil, "0", 0:
+		var old v0.Config
+		if err := yaml.Unmarshal(data, &old); err != nil {
+			return nil, err
+		}
+		return old, nil
+
+	default:
+		var old v1.Config
+		if err := yaml.Unmarshal(data, &old); err != nil {
+			return nil, err
+		}
+		return old, nil
+	}
+}
+
+func migrateToLatestConfig(c any) latest.Config {
+	for {
+		if old, ok := c.(v0.Config); ok {
+			c = v1.UpgradeFrom(old)
+			continue
+		}
+
+		return c.(latest.Config)
+	}
 }
 
 // validateConfig ensures the configuration is valid

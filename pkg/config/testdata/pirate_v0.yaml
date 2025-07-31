@@ -1,5 +1,3 @@
-version: "0"
-
 agents:
   root:
     name: pirate
