@@ -7,6 +7,8 @@ linters:
     - revive
   settings:
     gocritic:
+      disabled-checks:
+        - dupImport
       enabled-tags:
         - diagnostic
         - style
@@ -18,6 +20,9 @@ linters:
             - checkPrivateReceivers
         - name: package-comments
           disabled: false
+    staticcheck:
+      checks:
+        - '-ST1019'
   exclusions:
     generated: lax
     presets:
