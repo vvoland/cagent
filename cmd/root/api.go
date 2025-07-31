@@ -42,7 +42,7 @@ func NewApiCmd() *cobra.Command {
 	return cmd
 }
 
-func runHttp(cmd *cobra.Command, startWeb bool, autoRunTools bool, args []string) error {
+func runHttp(cmd *cobra.Command, startWeb, autoRunTools bool, args []string) error {
 	ctx := cmd.Context()
 	agentsPath := args[0]
 
