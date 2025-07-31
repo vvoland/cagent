@@ -28,7 +28,6 @@ func Cmd() *cobra.Command {
 			if len(args) > 0 {
 				prompt = strings.Join(args, " ")
 			} else {
-
 				reader := bufio.NewReader(os.Stdin)
 
 				fmt.Print("What should yousr agent do? (describe its purpose): ")
