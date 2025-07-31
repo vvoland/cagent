@@ -97,15 +97,21 @@ type ModelConfig struct {
 
 // Config represents the entire configuration file
 type Config struct {
-	Agents map[string]AgentConfig `json:"agents,omitempty" yaml:"agents,omitempty"`
-	Models map[string]ModelConfig `json:"models,omitempty" yaml:"models,omitempty"`
-	Env    map[string]string      `json:"env,omitempty" yaml:"env,omitempty"`
-	Readme string                 `json:"readme,omitempty" yaml:"readme,omitempty"`
+	Agents   map[string]AgentConfig `json:"agents,omitempty" yaml:"agents,omitempty"`
+	Models   map[string]ModelConfig `json:"models,omitempty" yaml:"models,omitempty"`
+	Env      map[string]string      `json:"env,omitempty" yaml:"env,omitempty"`
+	Metadata Metadata               `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 }
 
 type RuntimeConfig struct {
 	EnvFiles []string
 	Gateway  string
+}
+
+type Metadata struct {
+	Author  string `json:"author,omitempty" yaml:"author,omitempty"`
+	License string `json:"license,omitempty" yaml:"license,omitempty"`
+	Readme  string `json:"readme,omitempty" yaml:"readme,omitempty"`
 }
 
 type StringOrList []string

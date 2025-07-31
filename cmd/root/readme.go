@@ -27,6 +27,6 @@ func readmeAgentCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	_, err = fmt.Print(cfg.Readme)
+	_, err = fmt.Print(cfg.Metadata.Readme)
 	return err
 }
