@@ -30,8 +30,8 @@ func NewClient(cfg *config.ModelConfig, logger *slog.Logger, opts ...options.Opt
 		return nil, errors.New("model configuration is required")
 	}
 
-	if cfg.Type != "dmr" {
-		logger.Error("DMR client creation failed", "error", "model type must be 'dmr'", "actual_type", cfg.Type)
+	if cfg.Provider != "dmr" {
+		logger.Error("DMR client creation failed", "error", "model type must be 'dmr'", "actual_type", cfg.Provider)
 		return nil, errors.New("model type must be 'dmr'")
 	}
 

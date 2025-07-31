@@ -1,6 +1,6 @@
 models:
   model:
-    type: anthropic
+    provider: anthropic
     model: claude-sonnet-4-0
     max_tokens: 64000
 

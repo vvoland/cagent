@@ -17,18 +17,18 @@ import (
 
 func TestNewMCPServer(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	
+
 	// Create a mock servicecore manager
 	tempDir, err := os.MkdirTemp("", "mcpserver-test-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
-	
+
 	serviceCore, err := servicecore.NewManager(tempDir, time.Hour, 100, logger)
 	require.NoError(t, err)
 
 	t.Run("ServerCreation", func(t *testing.T) {
 		mcpServer := NewMCPServer(serviceCore, logger, "/mcp")
-		
+
 		assert.NotNil(t, mcpServer)
 		assert.Equal(t, serviceCore, mcpServer.serviceCore)
 		assert.Equal(t, logger, mcpServer.logger)
@@ -38,7 +38,7 @@ func TestNewMCPServer(t *testing.T) {
 
 	t.Run("ServerConfiguration", func(t *testing.T) {
 		mcpServer := NewMCPServer(serviceCore, logger, "/mcp")
-		
+
 		// Verify server is properly configured
 		assert.NotNil(t, mcpServer.mcpServer, "MCP server should be created")
 		assert.NotNil(t, mcpServer.sseServer, "SSE server should be created")
@@ -51,12 +51,12 @@ func TestMCPServerIntegration(t *testing.T) {
 	}
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	
+
 	// Create a temporary directory for test agents
 	tempDir, err := os.MkdirTemp("", "mcpserver-integration-")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
-	
+
 	// Create a test agent file
 	testAgent := `
 agents:
@@ -69,18 +69,18 @@ agents:
 models:
   test-model:
     provider: openai
-    type: gpt-4
+    model: gpt-4
 `
 	agentFile := tempDir + "/test-agent.yaml"
 	err = os.WriteFile(agentFile, []byte(testAgent), 0644)
 	require.NoError(t, err)
-	
+
 	serviceCore, err := servicecore.NewManager(tempDir, time.Hour, 100, logger)
 	require.NoError(t, err)
 
 	t.Run("ServiceCoreIntegration", func(t *testing.T) {
 		mcpServer := NewMCPServer(serviceCore, logger, "/mcp")
-		
+
 		// Test that the server can access servicecore functionality
 		agents, err := mcpServer.serviceCore.ListAgents("files")
 		assert.NoError(t, err)
@@ -89,7 +89,7 @@ models:
 		assert.Equal(t, "file", agents[0].Source)
 		assert.NotEmpty(t, agents[0].Path, "File agents should have Path populated")
 		assert.NotEmpty(t, agents[0].RelativePath, "File agents should have RelativePath populated")
-		
+
 		// For file agents, Path should be absolute, RelativePath should be relative
 		assert.Equal(t, agentFile, agents[0].Path, "File agent path should match created file")
 		assert.Equal(t, "test-agent.yaml", agents[0].RelativePath, "File agent relative path should be relative to agents dir")
@@ -97,29 +97,29 @@ models:
 
 	t.Run("AgentRefFormatting", func(t *testing.T) {
 		mcpServer := NewMCPServer(serviceCore, logger, "/mcp")
-		
+
 		// Test file agents
 		agents, err := mcpServer.serviceCore.ListAgents("files")
 		require.NoError(t, err)
 		require.Len(t, agents, 1)
-		
+
 		fileAgent := agents[0]
 		assert.Equal(t, "file", fileAgent.Source)
 		assert.NotEmpty(t, fileAgent.Path, "File agents should have Path populated")
 		assert.NotEmpty(t, fileAgent.RelativePath, "File agents should have RelativePath populated")
 		assert.Empty(t, fileAgent.Reference, "File agents should not have Reference populated")
-		
+
 		// Test store agents (may have existing agents)
 		storeAgents, err := mcpServer.serviceCore.ListAgents("store")
 		require.NoError(t, err)
-		
+
 		// If there are store agents, verify their format
 		for _, storeAgent := range storeAgents {
 			assert.Equal(t, "store", storeAgent.Source)
 			assert.NotEmpty(t, storeAgent.Reference, "Store agents should have Reference populated")
 			assert.Empty(t, storeAgent.Path, "Store agents should not have Path populated")
 		}
-		
+
 		// Verify that if we had a store agent, it would have Reference field
 		// This tests the logic without requiring actual Docker images
 		mockStoreAgent := servicecore.AgentInfo{
@@ -128,7 +128,7 @@ models:
 			Source:      "store",
 			Reference:   "docker.io/user/agent:latest",
 		}
-		
+
 		// Simulate how the handler would determine agent_ref
 		var agentRef string
 		if mockStoreAgent.Source == "file" {
@@ -136,9 +136,9 @@ models:
 		} else if mockStoreAgent.Source == "store" {
 			agentRef = mockStoreAgent.Reference
 		}
-		
+
 		assert.Equal(t, "docker.io/user/agent:latest", agentRef, "Store agent ref should be the full image reference")
-		
+
 		// Test file agent ref logic
 		mockFileAgent := servicecore.AgentInfo{
 			Name:         "mock-file-agent",
@@ -147,14 +147,14 @@ models:
 			Path:         "/path/to/agent.yaml",
 			RelativePath: "agent.yaml",
 		}
-		
+
 		var fileAgentRef string
 		if mockFileAgent.Source == "file" {
 			fileAgentRef = mockFileAgent.RelativePath
 		} else if mockFileAgent.Source == "store" {
 			fileAgentRef = mockFileAgent.Reference
 		}
-		
+
 		assert.Equal(t, "agent.yaml", fileAgentRef, "File agent ref should be the relative path")
 	})
 
@@ -175,7 +175,7 @@ models:
 				Reference:   "docker.io/user/store-agent:latest",
 			},
 		}
-		
+
 		// Simulate the handler formatting logic
 		var agentList []interface{}
 		for _, agent := range mockAgents {
@@ -185,7 +185,7 @@ models:
 			} else if agent.Source == "store" {
 				agentRef = agent.Reference
 			}
-			
+
 			agentInfo := map[string]interface{}{
 				"agent_ref":     agentRef,
 				"friendly_name": agent.Name,
@@ -194,16 +194,16 @@ models:
 			}
 			agentList = append(agentList, agentInfo)
 		}
-		
+
 		// Verify formatting
 		require.Len(t, agentList, 2)
-		
+
 		// Check file agent formatting
 		fileAgentInfo := agentList[0].(map[string]interface{})
 		assert.Equal(t, "file-agent.yaml", fileAgentInfo["agent_ref"])
 		assert.Equal(t, "file-agent", fileAgentInfo["friendly_name"])
 		assert.Equal(t, "file", fileAgentInfo["source"])
-		
+
 		// Check store agent formatting
 		storeAgentInfo := agentList[1].(map[string]interface{})
 		assert.Equal(t, "docker.io/user/store-agent:latest", storeAgentInfo["agent_ref"])

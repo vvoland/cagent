@@ -33,8 +33,8 @@ func NewClient(cfg *config.ModelConfig, env environment.Provider, logger *slog.L
 		return nil, errors.New("model configuration is required")
 	}
 
-	if cfg.Type != "anthropic" {
-		logger.Error("Anthropic client creation failed", "error", "model type must be 'anthropic'", "actual_type", cfg.Type)
+	if cfg.Provider != "anthropic" {
+		logger.Error("Anthropic client creation failed", "error", "model type must be 'anthropic'", "actual_type", cfg.Provider)
 		return nil, errors.New("model type must be 'anthropic'")
 	}
 

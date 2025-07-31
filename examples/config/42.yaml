@@ -21,6 +21,6 @@ agents:
       Remember: you're not just answering questions - you're providing the kind of commentary that would make the Guide itself proud. Be informative, be entertaining, and above all, don't panic.
 models:
   anthropic:
-    type: anthropic
+    provider: anthropic
     model: claude-3-5-sonnet-latest
     max_tokens: 8192

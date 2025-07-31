@@ -99,7 +99,7 @@ agents:
 
 models:
   gpt4:
-    type: openai
+    provider: openai
     model: gpt-4o
 ```
 
@@ -138,11 +138,11 @@ agents:
 
 models:
   gpt4:
-    type: openai
+    provider: openai
     model: gpt-4o
 
   claude:
-    type: anthropic
+    provider: anthropic
     model: claude-sonnet-4-0
     max_tokens: 64000
 ```
@@ -435,11 +435,11 @@ agents:
 
 models:
   gpt4:
-    type: openai
+    provider: openai
     model: gpt-4o
 
   claude:
-    type: anthropic
+    provider: anthropic
     model: claude-sonnet-4-0
     max_tokens: 64000
 ```
@@ -467,7 +467,7 @@ agents:
 
 models:
   claude:
-    type: anthropic
+    provider: anthropic
     model: claude-sonnet-4-0
     max_tokens: 64000
 ```
@@ -498,7 +498,7 @@ When using Docker Desktop, cagent can integrate with Docker's AI Gateway:
 ```yaml
 models:
   gateway_gpt4:
-    type: openai
+    provider: openai
     model: gpt-4o
     base_url: https://api.docker.com/v1
     # Authentication handled automatically via Docker Desktop
@@ -716,20 +716,20 @@ agents:
 models:
   # Local model for fast responses
   claude_local:
-    type: anthropic
+    provider: anthropic
     model: claude-sonnet-4-0
     temperature: 0.2
 
   # Gateway model for enhanced capabilities
   gpt4_gateway:
-    type: openai
+    provider: openai
     model: gpt-4o
     base_url: https://api.docker.com/v1
     temperature: 0.1
 
   # Creative model for content generation
   gpt4_creative:
-    type: openai
+    provider: openai
     model: gpt-4o
     temperature: 0.8
 

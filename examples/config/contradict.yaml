@@ -10,6 +10,6 @@ agents:
 
 models:
   anthropic:
-    type: anthropic
+    provider: anthropic
     model: claude-3-5-sonnet-latest
     max_tokens: 8192

@@ -9,6 +9,6 @@ agents:
 
 models:
   qwen:
-    type: dmr
+    provider: dmr
     model: ai/qwen3
     # base_url defaults to http://localhost:12434/engines/llama.cpp/v1

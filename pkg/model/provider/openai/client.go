@@ -31,8 +31,8 @@ func NewClient(cfg *config.ModelConfig, env environment.Provider, logger *slog.L
 		return nil, errors.New("model configuration is required")
 	}
 
-	if cfg.Type != "openai" {
-		logger.Error("OpenAI client creation failed", "error", "model type must be 'openai'", "actual_type", cfg.Type)
+	if cfg.Provider != "openai" {
+		logger.Error("OpenAI client creation failed", "error", "model type must be 'openai'", "actual_type", cfg.Provider)
 		return nil, errors.New("model type must be 'openai'")
 	}
 

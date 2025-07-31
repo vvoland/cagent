@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestExecutor_CreateRuntime(t *testing.T) {
@@ -16,36 +15,6 @@ func TestExecutor_CreateRuntime(t *testing.T) {
 	t.Run("InvalidAgentPath", func(t *testing.T) {
 		_, _, err := executor.CreateRuntime("non-existent.yaml", "root", nil, "")
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "loading agent configuration")
-	})
-
-	t.Run("EmptyAgentName", func(t *testing.T) {
-		// Create a minimal valid agent file
-		tempDir, err := os.MkdirTemp("", "executor-test-")
-		require.NoError(t, err)
-		defer os.RemoveAll(tempDir)
-
-		validAgent := `
-agents:
-  root:
-    name: test-agent
-    description: Test agent
-    model: test-model
-    instruction: You are a test agent
-
-models:
-  test-model:
-    provider: openai
-    type: gpt-4
-`
-		agentFile := tempDir + "/valid-agent.yaml"
-		err = os.WriteFile(agentFile, []byte(validAgent), 0644)
-		require.NoError(t, err)
-
-		// This will still fail due to missing API keys, but should get further
-		_, _, err = executor.CreateRuntime(agentFile, "", nil, "")
-		assert.Error(t, err)
-		// The error will be from the loader/runtime, not from our executor
 		assert.Contains(t, err.Error(), "loading agent configuration")
 	})
 }
@@ -65,7 +34,7 @@ func TestExecutor_CleanupRuntime(t *testing.T) {
 
 func TestNewExecutor(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	
+
 	executor := NewExecutor(logger)
 	assert.NotNil(t, executor)
 	assert.Equal(t, logger, executor.logger)

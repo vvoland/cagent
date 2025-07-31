@@ -10,8 +10,8 @@ import (
 func TestNewClientWithDefaultBaseURL(t *testing.T) {
 	// Test case 1: No base_url provided, should use default
 	cfg := &config.ModelConfig{
-		Type:  "dmr",
-		Model: "ai/qwen3",
+		Provider: "dmr",
+		Model:    "ai/qwen3",
 		// BaseURL is empty, should use default
 	}
 
@@ -30,9 +30,9 @@ func TestNewClientWithExplicitBaseURL(t *testing.T) {
 	// Test case 2: Explicit base_url provided, should use that
 	customURL := "http://custom.example.com:8080/api/v1"
 	cfg := &config.ModelConfig{
-		Type:    "dmr",
-		Model:   "ai/qwen3",
-		BaseURL: customURL,
+		Provider: "dmr",
+		Model:    "ai/qwen3",
+		BaseURL:  customURL,
 	}
 
 	logger := slog.Default()
@@ -49,8 +49,8 @@ func TestNewClientWithExplicitBaseURL(t *testing.T) {
 func TestNewClientWithWrongType(t *testing.T) {
 	// Test case 3: Wrong model type, should return error
 	cfg := &config.ModelConfig{
-		Type:  "openai", // Wrong type
-		Model: "gpt-4",
+		Provider: "openai", // Wrong type
+		Model:    "gpt-4",
 	}
 
 	logger := slog.Default()
