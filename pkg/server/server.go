@@ -37,6 +37,7 @@ type Server struct {
 	agentsDir    string
 	runConfig    latest.RuntimeConfig
 	teams        map[string]*team.Team
+	autoRunTools bool
 }
 
 type Opt func(*Server)
@@ -51,6 +52,12 @@ func WithFrontend(fsys fs.FS) Opt {
 func WithAgentsDir(dir string) Opt {
 	return func(s *Server) {
 		s.agentsDir = dir
+	}
+}
+
+func WithAutoRunTools(autoRunTools bool) Opt {
+	return func(s *Server) {
+		s.autoRunTools = autoRunTools
 	}
 }
 
@@ -288,7 +295,11 @@ func (s *Server) runAgent(c echo.Context) error {
 
 	rt, exists := s.runtimes[sess.ID]
 	if !exists {
-		rt = runtime.New(s.logger, t)
+		opts := []runtime.Opt{}
+		if s.autoRunTools {
+			opts = append(opts, runtime.WithAutoRunTools(true))
+		}
+		rt = runtime.New(s.logger, t, opts...)
 		s.runtimes[sess.ID] = rt
 	}
 

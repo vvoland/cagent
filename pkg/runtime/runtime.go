@@ -34,6 +34,7 @@ type Runtime struct {
 	team         *team.Team
 	currentAgent string
 	resumeChan   chan ResumeType
+	autoRunTools bool
 }
 
 type Opt func(*Runtime)
@@ -41,6 +42,12 @@ type Opt func(*Runtime)
 func WithCurrentAgent(agentName string) Opt {
 	return func(r *Runtime) {
 		r.currentAgent = agentName
+	}
+}
+
+func WithAutoRunTools(autoRunTools bool) Opt {
+	return func(r *Runtime) {
+		r.autoRunTools = autoRunTools
 	}
 }
 
@@ -276,7 +283,7 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 				ToolCall: toolCall,
 			}
 
-			if sess.ToolsApproved {
+			if sess.ToolsApproved || r.autoRunTools {
 				r.runAgentTool(ctx, handler, sess, toolCall, events, a)
 			} else {
 				// Wait for the user to approve or reject the tool call
@@ -315,7 +322,7 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 				ToolCall: toolCall,
 			}
 
-			if sess.ToolsApproved {
+			if sess.ToolsApproved || r.autoRunTools {
 				r.logger.Debug("Tools approved, running tool", "tool", toolCall.Function.Name)
 				r.runTool(ctx, tool, toolCall, events, sess, a)
 			} else {

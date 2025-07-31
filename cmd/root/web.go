@@ -13,7 +13,7 @@ func NewWebCmd() *cobra.Command {
 		Example: `cagent web /path/to/agents --listen :8080`,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runHttp(cmd, true, args)
+			return runHttp(cmd, true, true, args)
 		},
 	}
 

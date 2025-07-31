@@ -29,7 +29,7 @@ func NewApiCmd() *cobra.Command {
 		Long:  `Start the API server that exposes the agent via an HTTP API`,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runHttp(cmd, false, args)
+			return runHttp(cmd, false, false, args)
 		},
 	}
 
@@ -42,7 +42,7 @@ func NewApiCmd() *cobra.Command {
 	return cmd
 }
 
-func runHttp(cmd *cobra.Command, startWeb bool, args []string) error {
+func runHttp(cmd *cobra.Command, startWeb bool, autoRunTools bool, args []string) error {
 	ctx := cmd.Context()
 	agentsPath := args[0]
 
@@ -106,6 +106,10 @@ func runHttp(cmd *cobra.Command, startWeb bool, args []string) error {
 			}
 		}
 	}()
+
+	if autoRunTools {
+		opts = append(opts, server.WithAutoRunTools(true))
+	}
 
 	s := server.New(logger, sessionStore, runConfig, teams, opts...)
 	return s.Serve(ctx, ln)
