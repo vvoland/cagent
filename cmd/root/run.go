@@ -118,8 +118,12 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		scanner = bufio.NewScanner(os.Stdin)
 	}
 
-	for scanner.Scan() {
+	for {
 		fmt.Print(blue("> "))
+
+		if !scanner.Scan() {
+			break
+		}
 
 		userInput := strings.TrimSpace(scanner.Text())
 		if userInput == "" {
