@@ -275,35 +275,35 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 	}
 
 	for _, toolCall := range calls {
-		r.logger.Debug("Processing tool call", "agent", a.Name(), "tool", toolCall.Function.Name)
+		r.logger.Debug("Processing tool call", "agent", a.Name(), "tool", toolCall.Function.Name, "session_id", sess.ID)
 		handler, exists := r.toolMap[toolCall.Function.Name]
 		if exists {
-			r.logger.Debug("Using runtime tool handler", "tool", toolCall.Function.Name)
+			r.logger.Debug("Using runtime tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
 			events <- &ToolCallEvent{
 				ToolCall: toolCall,
 			}
 
-			if sess.ToolsApproved || r.autoRunTools || toolCall.Function.Name == "transfer_task" {
+			if sess.ToolsApproved || r.autoRunTools {
 				r.runAgentTool(ctx, handler, sess, toolCall, events, a)
 			} else {
 				// Wait for the user to approve or reject the tool call
-				r.logger.Debug("Waiting for resume signal", "tool", toolCall.Function.Name)
+				r.logger.Debug("Waiting for resume signal", "tool", toolCall.Function.Name, "session_id", sess.ID)
 				select {
 				case cType := <-r.resumeChan:
 					switch cType {
 					case ResumeTypeApprove:
-						r.logger.Debug("Resume signal received, approving tool handler", "tool", toolCall.Function.Name)
+						r.logger.Debug("Resume signal received, approving tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
 						r.runAgentTool(ctx, handler, sess, toolCall, events, a)
 					case ResumeTypeApproveSession:
-						r.logger.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name)
+						r.logger.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name, "session_id", sess.ID)
 						sess.ToolsApproved = true
 						r.runAgentTool(ctx, handler, sess, toolCall, events, a)
 					case ResumeTypeReject:
-						r.logger.Debug("Resume signal received, rejecting tool handler", "tool", toolCall.Function.Name)
+						r.logger.Debug("Resume signal received, rejecting tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
 						r.addToolRejectedResponse(sess, toolCall, events)
 					}
 				case <-ctx.Done():
-					r.logger.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name)
+					r.logger.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
 					return fmt.Errorf("context cancelled while waiting for resume: %w", ctx.Err())
 				}
 			}
@@ -322,30 +322,31 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 				ToolCall: toolCall,
 			}
 
-			if sess.ToolsApproved || r.autoRunTools || toolCall.Function.Name == "transfer_task" || (tool.Function.Annotations.ReadOnlyHint != nil && *tool.Function.Annotations.ReadOnlyHint == true) {
-				r.logger.Debug("Tools approved, running tool", "tool", toolCall.Function.Name)
+			// NOTE(rumpl): don't filter tools by name or anything else here
+			if sess.ToolsApproved || r.autoRunTools {
+				r.logger.Debug("Tools approved, running tool", "tool", toolCall.Function.Name, "session_id", sess.ID)
 				r.runTool(ctx, tool, toolCall, events, sess, a)
 			} else {
-				r.logger.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name)
+				r.logger.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
 				select {
 				case cType := <-r.resumeChan:
 					switch cType {
 					case ResumeTypeApprove:
-						r.logger.Debug("Resume signal received, approving tool handler", "tool", toolCall.Function.Name)
+						r.logger.Debug("Resume signal received, approving tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
 						r.runTool(ctx, tool, toolCall, events, sess, a)
 					case ResumeTypeApproveSession:
-						r.logger.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name)
+						r.logger.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name, "session_id", sess.ID)
 						sess.ToolsApproved = true
 						r.runTool(ctx, tool, toolCall, events, sess, a)
 					case ResumeTypeReject:
-						r.logger.Debug("Resume signal received, rejecting tool handler", "tool", toolCall.Function.Name)
+						r.logger.Debug("Resume signal received, rejecting tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
 						r.addToolRejectedResponse(sess, toolCall, events)
 					}
 
-					r.logger.Debug("Added tool response to session", "tool", toolCall.Function.Name, "total_messages", len(sess.Messages))
+					r.logger.Debug("Added tool response to session", "tool", toolCall.Function.Name, "session_id", sess.ID, "total_messages", len(sess.Messages))
 					break toolLoop
 				case <-ctx.Done():
-					r.logger.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name)
+					r.logger.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
 					return fmt.Errorf("context cancelled while waiting for resume: %w", ctx.Err())
 				}
 			}
@@ -441,6 +442,7 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 	}
 
 	s := session.New(r.logger, session.WithUserMessage(sess.GetMostRecentAgentFilename(), memberAgentTask))
+	s.ToolsApproved = sess.ToolsApproved
 
 	for event := range r.RunStream(ctx, s) {
 		evts <- event
