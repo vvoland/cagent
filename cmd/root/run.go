@@ -105,12 +105,14 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 	var scanner LineScanner
 	if len(args) == 2 {
 		if args[1] == "-" {
-			scanner = &SingleTextScanner{
-				Input: os.Stdin,
+			scanner = &ScannerWithFixedFirstText{
+				Input:   os.Stdin,
+				Scanner: bufio.NewScanner(os.Stdin),
 			}
 		} else {
-			scanner = &SingleTextScanner{
-				Input: strings.NewReader(args[1]),
+			scanner = &ScannerWithFixedFirstText{
+				Input:   strings.NewReader(args[1]),
+				Scanner: bufio.NewScanner(os.Stdin),
 			}
 		}
 	} else {
@@ -248,32 +250,38 @@ type LineScanner interface {
 	Err() error
 }
 
-type SingleTextScanner struct {
-	Input io.Reader
-	done  bool
-	err   error
+type ScannerWithFixedFirstText struct {
+	Input         io.Reader
+	Scanner       *bufio.Scanner
+	scannedFirst  bool
+	returnedFirst bool
+	err           error
 }
 
-func (s *SingleTextScanner) Scan() bool {
-	return !s.done
+func (s *ScannerWithFixedFirstText) Scan() bool {
+	if !s.scannedFirst {
+		s.scannedFirst = true
+		return true
+	}
+	s.returnedFirst = true
+	return s.Scanner.Scan()
 }
 
-func (s *SingleTextScanner) Text() string {
-	if s.done {
-		s.err = errors.New("called on already done scanner")
-		return ""
+func (s *ScannerWithFixedFirstText) Text() string {
+	if !s.returnedFirst {
+		buf, err := io.ReadAll(s.Input)
+		if err != nil {
+			s.err = err
+			return ""
+		}
+		return string(buf)
 	}
 
-	buf, err := io.ReadAll(s.Input)
-	if err != nil {
-		s.err = err
-		return ""
-	}
-
-	s.done = true
-	return string(buf)
+	s.scannedFirst = true
+	s.returnedFirst = true
+	return s.Scanner.Text()
 }
 
-func (s *SingleTextScanner) Err() error {
-	return s.err
+func (s *ScannerWithFixedFirstText) Err() error {
+	return errors.Join(s.err, s.Scanner.Err())
 }
