@@ -30,7 +30,7 @@ func Cmd() *cobra.Command {
 			} else {
 				reader := bufio.NewReader(os.Stdin)
 
-				fmt.Print("What should yousr agent do? (describe its purpose): ")
+				fmt.Print("What should your agent do? (describe its purpose): ")
 				var err error
 				prompt, err = reader.ReadString('\n')
 				if err != nil {
