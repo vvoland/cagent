@@ -142,6 +142,13 @@ func (c *Client) ListTools(ctx context.Context, toolFilter []string) ([]tools.To
 				Properties: t.InputSchema.Properties,
 				Required:   t.InputSchema.Required,
 			},
+			Annotations: tools.ToolAnnotation{
+				Title:           t.Annotations.Title,
+				ReadOnlyHint:    t.Annotations.ReadOnlyHint,
+				DestructiveHint: t.Annotations.DestructiveHint,
+				IdempotentHint:  t.Annotations.IdempotentHint,
+				OpenWorldHint:   t.Annotations.OpenWorldHint,
+			},
 		}
 
 		tool.Handler = c.CallTool

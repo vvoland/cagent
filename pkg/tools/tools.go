@@ -34,6 +34,15 @@ type FunctionDefinition struct {
 	Description string             `json:"description,omitempty"`
 	Strict      bool               `json:"strict,omitempty"`
 	Parameters  FunctionParamaters `json:"parameters"`
+	Annotations ToolAnnotation     `json:"annotations"`
+}
+
+type ToolAnnotation struct {
+	Title           string `json:"title,omitempty"`
+	ReadOnlyHint    *bool  `json:"readOnlyHint,omitempty"`
+	DestructiveHint *bool  `json:"destructiveHint,omitempty"`
+	IdempotentHint  *bool  `json:"idempotentHint,omitempty"`
+	OpenWorldHint   *bool  `json:"openWorldHint,omitempty"`
 }
 
 type FunctionParamaters struct {
