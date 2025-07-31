@@ -132,28 +132,27 @@ func (c *Client) ListTools(ctx context.Context, toolFilter []string) ([]tools.To
 			continue
 		}
 
-		tool := tools.Tool{}
-
-		tool.Function = &tools.FunctionDefinition{
-			Name:        t.Name,
-			Description: t.Description,
-			Parameters: tools.FunctionParamaters{
-				Type:       t.InputSchema.Type,
-				Properties: t.InputSchema.Properties,
-				Required:   t.InputSchema.Required,
-			},
-			Annotations: tools.ToolAnnotation{
-				Title:           t.Annotations.Title,
-				ReadOnlyHint:    t.Annotations.ReadOnlyHint,
-				DestructiveHint: t.Annotations.DestructiveHint,
-				IdempotentHint:  t.Annotations.IdempotentHint,
-				OpenWorldHint:   t.Annotations.OpenWorldHint,
+		tool := tools.Tool{
+			Handler: c.CallTool,
+			Function: &tools.FunctionDefinition{
+				Name:        t.Name,
+				Description: t.Description,
+				Parameters: tools.FunctionParamaters{
+					Type:       t.InputSchema.Type,
+					Properties: t.InputSchema.Properties,
+					Required:   t.InputSchema.Required,
+				},
+				Annotations: tools.ToolAnnotation{
+					Title:           t.Annotations.Title,
+					ReadOnlyHint:    t.Annotations.ReadOnlyHint,
+					DestructiveHint: t.Annotations.DestructiveHint,
+					IdempotentHint:  t.Annotations.IdempotentHint,
+					OpenWorldHint:   t.Annotations.OpenWorldHint,
+				},
 			},
 		}
-
-		tool.Handler = c.CallTool
-
 		toolsList = append(toolsList, tool)
+
 		c.logger.Debug("Added MCP tool", "tool", t.Name)
 	}
 
