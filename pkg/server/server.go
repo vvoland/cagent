@@ -146,13 +146,18 @@ func (s *Server) createAgent(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create agent"})
 	}
 
+	s.logger.Info("Agent created", "path", path, "out", out)
+
 	t, err := loader.Load(c.Request().Context(), path, s.runConfig, s.logger)
 	if err != nil {
+		_ = os.Remove(path)
+		s.logger.Error("Failed to load agent", "path", path, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
 	}
 
 	s.teams[filepath.Base(path)] = t
 
+	s.logger.Info("Agent loaded", "path", path, "out", out)
 	return c.JSON(http.StatusOK, map[string]string{"path": path, "out": out})
 }
 

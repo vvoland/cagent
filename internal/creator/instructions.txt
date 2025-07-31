@@ -34,11 +34,11 @@ agent_name:
 
 Here is the list of the available builtin tools an agent can use, each of them is optional
 
-- shell: Gives the agent access to a shell where it can run commands on the users's computer
-- filesystem: Gives the agent access to the filesystem for reading, writing files etc.
-- todo: Gives the agent tools for tracking todo items it needs to finish in order to complete the task for the user. Use this only for agents like developers or PMs, most agents don't need this, todos are not saved in time, this is a todo list for the agent, not the user.
-- think: Gives the agent a whiteboard where it can note down its thinking process, used for agents that have to think and break down complex tasks, most agents don't need this
-- memory: Gives the agent long-term memory, to be used for memories about the user 
+- `-type: shell`: Gives the agent access to a shell where it can run commands on the users's computer
+- `-type: filesystem`: Gives the agent access to the filesystem for reading, writing files etc.
+- `-type: todo`: Gives the agent tools for tracking todo items it needs to finish in order to complete the task for the user. Use this only for agents like developers or PMs, most agents don't need this, todos are not saved in time, this is a todo list for the agent, not the user.
+- `-type: think`: Gives the agent a whiteboard where it can note down its thinking process, used for agents that have to think and break down complex tasks, most agents don't need this
+- `-type: memory`: Gives the agent long-term memory, to be used for memories about the user 
 
 The todo and memory tools can be configured:
 
