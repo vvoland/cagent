@@ -9,11 +9,11 @@ import (
 	"strings"
 
 	"github.com/docker/cagent/pkg/loader"
-	"github.com/docker/cagent/pkg/runtime"
+	"github.com/docker/cagent/pkg/team"
 )
 
-func loadAgents(ctx context.Context, agentsPathOrDirectory string, logger *slog.Logger) (map[string]*runtime.Runtime, error) {
-	runtimes := make(map[string]*runtime.Runtime)
+func loadTeams(ctx context.Context, agentsPathOrDirectory string, logger *slog.Logger) (map[string]*team.Team, error) {
+	teams := make(map[string]*team.Team)
 
 	agentPaths, err := findAgentPaths(agentsPathOrDirectory)
 	if err != nil {
@@ -21,16 +21,16 @@ func loadAgents(ctx context.Context, agentsPathOrDirectory string, logger *slog.
 	}
 
 	for _, agentPath := range agentPaths {
-		team, err := loader.Load(ctx, agentPath, runConfig, logger)
+		t, err := loader.Load(ctx, agentPath, runConfig, logger)
 		if err != nil {
 			logger.Warn("Failed to load agent", "file", agentPath, "error", err)
 			continue
 		}
 
-		runtimes[team.ID] = runtime.New(logger, team)
+		teams[t.ID] = t
 	}
 
-	return runtimes, nil
+	return teams, nil
 }
 
 func findAgentPaths(agentsPathOrDirectory string) ([]string, error) {

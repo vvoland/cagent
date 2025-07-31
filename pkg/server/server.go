@@ -25,6 +25,7 @@ import (
 	"github.com/docker/cagent/pkg/remote"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/cagent/pkg/team"
 )
 
 type Server struct {
@@ -34,6 +35,7 @@ type Server struct {
 	sessionStore session.Store
 	agentsDir    string
 	runConfig    config.RuntimeConfig
+	teams        map[string]*team.Team
 }
 
 type Opt func(*Server)
@@ -51,15 +53,16 @@ func WithAgentsDir(dir string) Opt {
 	}
 }
 
-func New(logger *slog.Logger, runtimes map[string]*runtime.Runtime, sessionStore session.Store, runConfig config.RuntimeConfig, opts ...Opt) *Server {
+func New(logger *slog.Logger, sessionStore session.Store, runConfig config.RuntimeConfig, teams map[string]*team.Team, opts ...Opt) *Server {
 	e := echo.New()
 	e.Use(middleware.CORS())
 	s := &Server{
 		e:            e,
-		runtimes:     runtimes,
+		runtimes:     make(map[string]*runtime.Runtime),
 		logger:       logger,
 		sessionStore: sessionStore,
 		runConfig:    runConfig,
+		teams:        teams,
 	}
 
 	for _, opt := range opts {
@@ -80,6 +83,8 @@ func New(logger *slog.Logger, runtimes map[string]*runtime.Runtime, sessionStore
 	api.GET("/sessions", s.getSessions)
 	// Get a session by id
 	api.GET("/sessions/:id", s.getSession)
+	// Resume a session by id
+	api.POST("/sessions/:id/resume", s.resumeSession)
 	// Create a new session and run an agent loop
 	api.POST("/sessions", s.createSession)
 	// Delete a session
@@ -133,12 +138,12 @@ func (s *Server) createAgent(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create agent"})
 	}
 
-	team, err := loader.Load(c.Request().Context(), path, s.runConfig, s.logger)
+	t, err := loader.Load(c.Request().Context(), path, s.runConfig, s.logger)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
 	}
 
-	s.runtimes[filepath.Base(path)] = runtime.New(s.logger, team)
+	s.teams[filepath.Base(path)] = t
 
 	return c.JSON(http.StatusOK, map[string]string{"path": path, "out": out})
 }
@@ -170,22 +175,22 @@ func (s *Server) pullAgent(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to write agent yaml to " + fileName + ": " + err.Error()})
 	}
 
-	team, err := loader.Load(c.Request().Context(), fileName, s.runConfig, s.logger)
+	t, err := loader.Load(c.Request().Context(), fileName, s.runConfig, s.logger)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
 	}
 
-	s.runtimes[agentName] = runtime.New(s.logger, team)
+	s.teams[agentName] = t
 
 	return c.JSON(http.StatusOK, map[string]string{"name": agentName})
 }
 
 func (s *Server) agents(c echo.Context) error {
 	agentList := make([]map[string]string, 0)
-	for id, rt := range s.runtimes {
+	for id, t := range s.teams {
 		agentList = append(agentList, map[string]string{
 			"name":        id,
-			"description": rt.Team().Agent("root").Description(),
+			"description": t.Agent("root").Description(),
 		})
 	}
 	return c.JSON(http.StatusOK, agentList)
@@ -236,6 +241,16 @@ func (s *Server) getSession(c echo.Context) error {
 	return c.JSON(http.StatusOK, sess)
 }
 
+func (s *Server) resumeSession(c echo.Context) error {
+	sess, err := s.sessionStore.GetSession(c.Request().Context(), c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "session not found"})
+	}
+	sess.SetLogger(s.logger)
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "session resumed"})
+}
+
 func (s *Server) deleteSession(c echo.Context) error {
 	if err := s.sessionStore.DeleteSession(c.Request().Context(), c.Param("id")); err != nil {
 		s.logger.Error("Failed to delete session", "session_id", c.Param("id"), "error", err)
@@ -247,18 +262,23 @@ func (s *Server) deleteSession(c echo.Context) error {
 
 func (s *Server) runAgent(c echo.Context) error {
 	agentFilename := c.Param("agent")
+	sessionID := c.Param("id")
 
-	rt, exists := s.runtimes[agentFilename]
+	t, exists := s.teams[agentFilename]
 	if !exists {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "runtime not found"})
 	}
-
-	// Load session from store
-	sess, err := s.sessionStore.GetSession(c.Request().Context(), c.Param("id"))
+	sess, err := s.sessionStore.GetSession(c.Request().Context(), sessionID)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "session not found"})
 	}
 	sess.SetLogger(s.logger)
+
+	rt, exists := s.runtimes[sess.ID]
+	if !exists {
+		rt = runtime.New(s.logger, t)
+		s.runtimes[sess.ID] = rt
+	}
 
 	var messages []Message
 	if err := json.NewDecoder(c.Request().Body).Decode(&messages); err != nil {
@@ -270,7 +290,6 @@ func (s *Server) runAgent(c echo.Context) error {
 		sess.Messages = append(sess.Messages, session.UserMessage(agentFilename, msg.Content))
 	}
 
-	// Update session in store
 	if err := s.sessionStore.UpdateSession(c.Request().Context(), sess); err != nil {
 		s.logger.Error("Failed to update session in store", "session_id", sess.ID, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to update session"})
@@ -291,7 +310,6 @@ func (s *Server) runAgent(c echo.Context) error {
 		c.Response().Flush()
 	}
 
-	// Final update to session store after stream completes
 	if err := s.sessionStore.UpdateSession(c.Request().Context(), sess); err != nil {
 		s.logger.Error("Failed to final update session in store", "session_id", sess.ID, "error", err)
 	}

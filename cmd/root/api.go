@@ -72,18 +72,6 @@ func runHttp(cmd *cobra.Command, startWeb bool, args []string) error {
 
 	logger.Debug("Starting server", "agents", agentsPath, "debug_mode", debugMode)
 
-	runtimes, err := loadAgents(ctx, agentsPath, logger)
-	if err != nil {
-		return fmt.Errorf("failed to load agents: %w", err)
-	}
-	defer func() {
-		for _, rt := range runtimes {
-			if err := rt.Team().StopToolSets(); err != nil {
-				logger.Error("Failed to stop tool sets", "error", err)
-			}
-		}
-	}()
-
 	sessionStore, err := session.NewSQLiteSessionStore(sessionDb)
 	if err != nil {
 		return fmt.Errorf("failed to create session store: %w", err)
@@ -107,6 +95,18 @@ func runHttp(cmd *cobra.Command, startWeb bool, args []string) error {
 		}
 	}
 
-	s := server.New(logger, runtimes, sessionStore, runConfig, opts...)
+	teams, err := loadTeams(ctx, agentsPath, logger)
+	if err != nil {
+		return fmt.Errorf("failed to load teams: %w", err)
+	}
+	defer func() {
+		for _, team := range teams {
+			if err := team.StopToolSets(); err != nil {
+				logger.Error("Failed to stop tool sets", "error", err)
+			}
+		}
+	}()
+
+	s := server.New(logger, sessionStore, runConfig, teams, opts...)
 	return s.Serve(ctx, ln)
 }
