@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/config"
+	latest "github.com/docker/cagent/pkg/config/v1"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/memory"
 	"github.com/docker/cagent/pkg/memory/database/sqlite"
@@ -21,7 +22,7 @@ import (
 	"github.com/docker/cagent/pkg/tools/mcp"
 )
 
-func Load(ctx context.Context, path string, runConfig config.RuntimeConfig, logger *slog.Logger) (*team.Team, error) {
+func Load(ctx context.Context, path string, runConfig latest.RuntimeConfig, logger *slog.Logger) (*team.Team, error) {
 	cfg, err := config.LoadConfig(path)
 	if err != nil {
 		return nil, err
@@ -110,7 +111,7 @@ func Load(ctx context.Context, path string, runConfig config.RuntimeConfig, logg
 	return team.New(team.WithID(fileName), team.WithAgents(agents...)), nil
 }
 
-func getModelsForAgent(cfg *config.Config, a *config.AgentConfig, absEnvFiles []string, logger *slog.Logger, opts ...options.Opt) ([]provider.Provider, error) {
+func getModelsForAgent(cfg *latest.Config, a *latest.AgentConfig, absEnvFiles []string, logger *slog.Logger, opts ...options.Opt) ([]provider.Provider, error) {
 	var models []provider.Provider
 
 	for name := range strings.SplitSeq(a.Model, ",") {
@@ -141,7 +142,7 @@ func getModelsForAgent(cfg *config.Config, a *config.AgentConfig, absEnvFiles []
 }
 
 // getToolsForAgent returns the tool definitions for an agent based on its configuration
-func getToolsForAgent(ctx context.Context, a *config.AgentConfig, parentDir string, logger *slog.Logger, sharedTools map[string]tools.ToolSet, absEnvFiles []string, gateway string) ([]tools.ToolSet, error) {
+func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir string, logger *slog.Logger, sharedTools map[string]tools.ToolSet, absEnvFiles []string, gateway string) ([]tools.ToolSet, error) {
 	var t []tools.ToolSet
 
 	if len(a.SubAgents) > 0 {

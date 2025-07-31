@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/cagent/pkg/agent"
-	"github.com/docker/cagent/pkg/config"
+	latest "github.com/docker/cagent/pkg/config/v1"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/model/provider/anthropic"
 	"github.com/docker/cagent/pkg/runtime"
@@ -71,7 +71,7 @@ func (f *fsToolset) customWriteFileHandler(ctx context.Context, toolCall tools.T
 }
 
 func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, prompt string) (agentMessage, agentPath string, err error) {
-	llm, err := anthropic.NewClient(&config.ModelConfig{
+	llm, err := anthropic.NewClient(&latest.ModelConfig{
 		Provider:  "anthropic",
 		Model:     "claude-sonnet-4-0",
 		MaxTokens: 64000,

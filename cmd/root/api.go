@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/config"
+	latest "github.com/docker/cagent/pkg/config/v1"
 	"github.com/docker/cagent/pkg/server"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/web"
@@ -18,7 +18,7 @@ import (
 var (
 	listenAddr string
 	sessionDb  string
-	runConfig  config.RuntimeConfig
+	runConfig  latest.RuntimeConfig
 )
 
 // NewWebCmd creates a new web command

@@ -1,4 +1,4 @@
-package config
+package v0
 
 import "errors"
 
@@ -91,7 +91,7 @@ type MemoryConfig struct {
 
 // ModelConfig represents the configuration for a model
 type ModelConfig struct {
-	Provider          string            `json:"provider,omitempty" yaml:"provider,omitempty"`
+	Type              string            `json:"type,omitempty" yaml:"type,omitempty"`
 	Model             string            `json:"model,omitempty" yaml:"model,omitempty"`
 	Temperature       float64           `json:"temperature,omitempty" yaml:"temperature,omitempty"`
 	MaxTokens         int               `json:"max_tokens,omitempty" yaml:"max_tokens,omitempty"`

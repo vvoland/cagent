@@ -11,7 +11,7 @@ import (
 	"github.com/anthropics/anthropic-sdk-go/option"
 
 	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/config"
+	latest "github.com/docker/cagent/pkg/config/v1"
 	"github.com/docker/cagent/pkg/desktop"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/model/provider/options"
@@ -22,12 +22,12 @@ import (
 // It holds the anthropic client and model config
 type Client struct {
 	client anthropic.Client
-	config *config.ModelConfig
+	config *latest.ModelConfig
 	logger *slog.Logger
 }
 
 // NewClient creates a new Anthropic client from the provided configuration
-func NewClient(cfg *config.ModelConfig, env environment.Provider, logger *slog.Logger, opts ...options.Opt) (*Client, error) {
+func NewClient(cfg *latest.ModelConfig, env environment.Provider, logger *slog.Logger, opts ...options.Opt) (*Client, error) {
 	if cfg == nil {
 		logger.Error("Anthropic client creation failed", "error", "model configuration is required")
 		return nil, errors.New("model configuration is required")

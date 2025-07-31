@@ -9,7 +9,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 
 	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/config"
+	latest "github.com/docker/cagent/pkg/config/v1"
 	"github.com/docker/cagent/pkg/desktop"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/model/provider/options"
@@ -20,12 +20,12 @@ import (
 // It implements the provider.Provider interface
 type Client struct {
 	client *openai.Client
-	config *config.ModelConfig
+	config *latest.ModelConfig
 	logger *slog.Logger
 }
 
 // NewClient creates a new OpenAI client from the provided configuration
-func NewClient(cfg *config.ModelConfig, env environment.Provider, logger *slog.Logger, opts ...options.Opt) (*Client, error) {
+func NewClient(cfg *latest.ModelConfig, env environment.Provider, logger *slog.Logger, opts ...options.Opt) (*Client, error) {
 	if cfg == nil {
 		logger.Error("OpenAI client creation failed", "error", "model configuration is required")
 		return nil, errors.New("model configuration is required")

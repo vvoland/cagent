@@ -1,3 +1,6 @@
+#!/usr/bin/env cagent run
+version: "1"
+
 models:
   claude:
     provider: anthropic

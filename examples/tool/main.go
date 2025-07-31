@@ -8,7 +8,7 @@ import (
 	"log/slog"
 
 	"github.com/docker/cagent/pkg/agent"
-	"github.com/docker/cagent/pkg/config"
+	latest "github.com/docker/cagent/pkg/config/v1"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/model/provider/openai"
 	"github.com/docker/cagent/pkg/runtime"
@@ -39,7 +39,7 @@ func main() {
 	ctx := context.Background()
 	logger := slog.Default()
 
-	llm, err := openai.NewClient(&config.ModelConfig{
+	llm, err := openai.NewClient(&latest.ModelConfig{
 		Provider: "openai",
 		Model:    "gpt-4o",
 	}, environment.NewDefaultProvider(logger), logger)

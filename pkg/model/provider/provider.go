@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/config"
+	latest "github.com/docker/cagent/pkg/config/v1"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/model/provider/anthropic"
 	"github.com/docker/cagent/pkg/model/provider/dmr"
@@ -31,7 +31,7 @@ type Provider interface {
 	) (string, error)
 }
 
-func New(cfg *config.ModelConfig, env environment.Provider, logger *slog.Logger, opts ...options.Opt) (Provider, error) {
+func New(cfg *latest.ModelConfig, env environment.Provider, logger *slog.Logger, opts ...options.Opt) (Provider, error) {
 	logger.Debug("Creating model provider", "type", cfg.Provider, "model", cfg.Model)
 
 	switch cfg.Provider {

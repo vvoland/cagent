@@ -39,7 +39,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/cagent/pkg/config"
+	latest "github.com/docker/cagent/pkg/config/v1"
 	"github.com/docker/cagent/pkg/loader"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
@@ -64,7 +64,7 @@ func (e *Executor) CreateRuntime(agentPath, agentName string, envFiles []string,
 	e.logger.Debug("Creating runtime", "agent_path", agentPath, "agent_name", agentName)
 
 	// Load agent configuration using existing loader
-	runConfig := config.RuntimeConfig{
+	runConfig := latest.RuntimeConfig{
 		EnvFiles: envFiles,
 		Gateway:  gateway,
 	}
