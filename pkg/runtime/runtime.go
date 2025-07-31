@@ -322,7 +322,7 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 				ToolCall: toolCall,
 			}
 
-			if sess.ToolsApproved || r.autoRunTools || toolCall.Function.Name == "transfer_task" {
+			if sess.ToolsApproved || r.autoRunTools || toolCall.Function.Name == "transfer_task" || (tool.Function.Annotations.ReadOnlyHint != nil && *tool.Function.Annotations.ReadOnlyHint == true) {
 				r.logger.Debug("Tools approved, running tool", "tool", toolCall.Function.Name)
 				r.runTool(ctx, tool, toolCall, events, sess, a)
 			} else {
