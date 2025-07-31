@@ -70,26 +70,10 @@ agents:
 **Builtin tool selection constraints**
 
 - This is very important so listen up, use the builtin tools only when absolutely necessary.
-- Most of the time think, todo or memory is not necessary
+- Most of the time `think`, `todo` or `memory` are not necessary.
+- Pick zero to two MCP servers from the MCP Gateway only if they will greatly improve the quality of the agent.
 
-It can also use local MCP Servers:
-
-```yaml
-version: "1"
-
-agents:
-    root:
-        ...
-        toolsets:
-        - type: mcp # Model Context Protocol
-            command: string # Command to execute
-            args: [] # Command arguments
-            tools: [] # Optional: List of specific tools to enable
-            env: [] # Environment variables for this tool
-            env_file: [] # Environment variable files
-```
-
-Example of using an MCP server from the gateway:
+Example of using an MCP server from the MCP Gateway:
 
 ```yaml
 version: "1"
@@ -103,7 +87,36 @@ agents:
             args: ["mcp", "gateway", "run", "--servers=youtube_transcript"]
 ```
 
+**Discover which MCP Servers are available and useful**
 
+To discover which MCP servers are available with the MCP Gateway, run
+the following shell command. It lists every available server name and description:
+
+```console
+docker mcp catalog show
+```
+
+To better understand which tools an MCP server offers, run this shell command:
+
+```console
+docker mcp server inspect <server_name>
+```
+
+**Streamline the configuration**
+
+When chosing multiple MCP Servers, always combine them with a single gateway:
+
+```yaml
+version: "1"
+
+agents:
+    root:
+        ...
+        toolsets:
+        - type: mcp
+            command: docker
+            args: ["mcp", "gateway", "run", "--servers=duckduckgo,youtube_transcript,other"]
+```
 
 ### Model Configuration
 
