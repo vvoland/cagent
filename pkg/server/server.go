@@ -168,16 +168,20 @@ type pullAgentRequest struct {
 func (s *Server) pullAgent(c echo.Context) error {
 	var req pullAgentRequest
 	if err := c.Bind(&req); err != nil {
+		s.logger.Error("Failed to bind pull agent request", "error", err)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 	}
 
+	s.logger.Info("Pulling agent", "name", req.Name)
 	_, err := remote.Pull(req.Name)
 	if err != nil {
+		s.logger.Error("Failed to pull agent", "name", req.Name, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to pull agent"})
 	}
 
 	yaml, err := fromStore(req.Name)
 	if err != nil {
+		s.logger.Error("Failed to get agent yaml", "name", req.Name, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to get agent yaml"})
 	}
 
@@ -185,11 +189,13 @@ func (s *Server) pullAgent(c echo.Context) error {
 	fileName := filepath.Join(s.agentsDir, agentName+".yaml")
 
 	if err := os.WriteFile(fileName, []byte(yaml), 0o644); err != nil {
+		s.logger.Error("Failed to write agent yaml", "name", req.Name, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to write agent yaml to " + fileName + ": " + err.Error()})
 	}
 
 	t, err := loader.Load(c.Request().Context(), fileName, s.runConfig, s.logger)
 	if err != nil {
+		s.logger.Error("Failed to load agent", "name", req.Name, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
 	}
 
