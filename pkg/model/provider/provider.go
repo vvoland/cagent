@@ -31,18 +31,18 @@ type Provider interface {
 	) (string, error)
 }
 
-func New(cfg *latest.ModelConfig, env environment.Provider, logger *slog.Logger, opts ...options.Opt) (Provider, error) {
+func New(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider, logger *slog.Logger, opts ...options.Opt) (Provider, error) {
 	logger.Debug("Creating model provider", "type", cfg.Provider, "model", cfg.Model)
 
 	switch cfg.Provider {
 	case "openai":
-		return openai.NewClient(cfg, env, logger, opts...)
+		return openai.NewClient(ctx, cfg, env, logger, opts...)
 
 	case "anthropic":
-		return anthropic.NewClient(cfg, env, logger, opts...)
+		return anthropic.NewClient(ctx, cfg, env, logger, opts...)
 
 	case "dmr":
-		return dmr.NewClient(cfg, logger, opts...)
+		return dmr.NewClient(ctx, cfg, logger, opts...)
 
 	default:
 		logger.Error("Unknown provider type", "type", cfg.Provider)

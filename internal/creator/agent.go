@@ -71,11 +71,15 @@ func (f *fsToolset) customWriteFileHandler(ctx context.Context, toolCall tools.T
 }
 
 func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, prompt string) (out, path string, err error) {
-	llm, err := anthropic.NewClient(&latest.ModelConfig{
-		Provider:  "anthropic",
-		Model:     "claude-sonnet-4-0",
-		MaxTokens: 64000,
-	}, environment.NewOsEnvProvider(), logger)
+	llm, err := anthropic.NewClient(
+		ctx,
+		&latest.ModelConfig{
+			Provider:  "anthropic",
+			Model:     "claude-sonnet-4-0",
+			MaxTokens: 64000,
+		},
+		environment.NewOsEnvProvider(),
+		logger)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create LLM client: %w", err)
 	}
@@ -110,11 +114,16 @@ func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, promp
 }
 
 func StreamCreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, prompt string) (<-chan runtime.Event, error) {
-	llm, err := anthropic.NewClient(&latest.ModelConfig{
-		Provider:  "anthropic",
-		Model:     "claude-sonnet-4-0",
-		MaxTokens: 64000,
-	}, environment.NewOsEnvProvider(), logger)
+	llm, err := anthropic.NewClient(
+		ctx,
+		&latest.ModelConfig{
+			Provider:  "anthropic",
+			Model:     "claude-sonnet-4-0",
+			MaxTokens: 64000,
+		},
+		environment.NewOsEnvProvider(),
+		logger,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create LLM client: %w", err)
 	}

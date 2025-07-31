@@ -51,7 +51,7 @@ func Load(ctx context.Context, path string, runConfig latest.RuntimeConfig, logg
 			agent.WithDescription(agentConfig.Description),
 			agent.WithAddDate(agentConfig.AddDate),
 		}
-		models, err := getModelsForAgent(cfg, &agentConfig, absEnvFles, logger, options.WithGateway(runConfig.Gateway))
+		models, err := getModelsForAgent(ctx, cfg, &agentConfig, absEnvFles, logger, options.WithGateway(runConfig.Gateway))
 		if err != nil {
 			return nil, fmt.Errorf("failed to get models: %w", err)
 		}
@@ -96,7 +96,7 @@ func Load(ctx context.Context, path string, runConfig latest.RuntimeConfig, logg
 	return team.New(team.WithID(fileName), team.WithAgents(agents...)), nil
 }
 
-func getModelsForAgent(cfg *latest.Config, a *latest.AgentConfig, absEnvFiles []string, logger *slog.Logger, opts ...options.Opt) ([]provider.Provider, error) {
+func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentConfig, absEnvFiles []string, logger *slog.Logger, opts ...options.Opt) ([]provider.Provider, error) {
 	var models []provider.Provider
 
 	for name := range strings.SplitSeq(a.Model, ",") {
@@ -115,7 +115,7 @@ func getModelsForAgent(cfg *latest.Config, a *latest.AgentConfig, absEnvFiles []
 			),
 		)
 
-		model, err := provider.New(&modelCfg, env, logger, opts...)
+		model, err := provider.New(ctx, &modelCfg, env, logger, opts...)
 		if err != nil {
 			return nil, err
 		}

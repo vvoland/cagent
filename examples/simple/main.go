@@ -19,10 +19,15 @@ func main() {
 	ctx := context.Background()
 	logger := slog.Default()
 
-	llm, err := openai.NewClient(&latest.ModelConfig{
-		Provider: "openai",
-		Model:    "gpt-4o",
-	}, environment.NewDefaultProvider(logger), logger)
+	llm, err := openai.NewClient(
+		ctx,
+		&latest.ModelConfig{
+			Provider: "openai",
+			Model:    "gpt-4o",
+		},
+		environment.NewDefaultProvider(logger),
+		logger,
+	)
 	if err != nil {
 		log.Fatal(err)
 	}

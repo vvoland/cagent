@@ -24,7 +24,7 @@ type Client struct {
 }
 
 // NewClient creates a new DMR client from the provided configuration
-func NewClient(cfg *latest.ModelConfig, logger *slog.Logger, opts ...options.Opt) (*Client, error) {
+func NewClient(_ context.Context, cfg *latest.ModelConfig, logger *slog.Logger, opts ...options.Opt) (*Client, error) {
 	if cfg == nil {
 		logger.Error("DMR client creation failed", "error", "model configuration is required")
 		return nil, errors.New("model configuration is required")

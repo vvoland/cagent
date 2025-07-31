@@ -27,7 +27,7 @@ type Client struct {
 }
 
 // NewClient creates a new Anthropic client from the provided configuration
-func NewClient(cfg *latest.ModelConfig, env environment.Provider, logger *slog.Logger, opts ...options.Opt) (*Client, error) {
+func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider, logger *slog.Logger, opts ...options.Opt) (*Client, error) {
 	if cfg == nil {
 		logger.Error("Anthropic client creation failed", "error", "model configuration is required")
 		return nil, errors.New("model configuration is required")
@@ -45,7 +45,7 @@ func NewClient(cfg *latest.ModelConfig, env environment.Provider, logger *slog.L
 
 	var requestOptions []option.RequestOption
 	if gateway := globalOptions.Gateway(); gateway == "" {
-		authToken, err := env.Get(context.TODO(), "ANTHROPIC_API_KEY")
+		authToken, err := env.Get(ctx, "ANTHROPIC_API_KEY")
 		if err != nil || authToken == "" {
 			logger.Error("Anthropic client creation failed", "error", "failed to get authentication token", "details", err)
 			return nil, errors.New("ANTHROPIC_API_KEY environment variable is required")
@@ -55,7 +55,7 @@ func NewClient(cfg *latest.ModelConfig, env environment.Provider, logger *slog.L
 			option.WithAPIKey(authToken),
 		)
 	} else {
-		authToken := desktop.GetToken(context.TODO())
+		authToken := desktop.GetToken(ctx)
 		if authToken == "" {
 			logger.Error("Anthropic client creation failed", "error", "failed to get Docker Desktop's authentication token")
 			return nil, errors.New("sorry, you first need to sign in Docker Desktop to use the Docker AI Gateway")

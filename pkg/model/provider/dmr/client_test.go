@@ -16,7 +16,7 @@ func TestNewClientWithDefaultBaseURL(t *testing.T) {
 	}
 
 	logger := slog.Default()
-	client, err := NewClient(cfg, logger)
+	client, err := NewClient(t.Context(), cfg, logger)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -36,7 +36,7 @@ func TestNewClientWithExplicitBaseURL(t *testing.T) {
 	}
 
 	logger := slog.Default()
-	client, err := NewClient(cfg, logger)
+	client, err := NewClient(t.Context(), cfg, logger)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -54,7 +54,7 @@ func TestNewClientWithWrongType(t *testing.T) {
 	}
 
 	logger := slog.Default()
-	_, err := NewClient(cfg, logger)
+	_, err := NewClient(t.Context(), cfg, logger)
 	if err == nil {
 		t.Fatal("Expected error for wrong model type, got nil")
 	}
