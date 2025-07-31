@@ -14,6 +14,8 @@ A yaml file contains everyting needed to run a team of agents:
 
 If you are making a team of agents you should make one `root` agent whose job is to delegate tasks to its subagents
 
+Important: always include top level `version: "1"`
+
 ```yaml
 version: "1"
 
