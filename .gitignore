@@ -5,6 +5,7 @@ dist
 evals
 *.db
 /cagent
+.crush
 
 # agents
 agent.yaml
