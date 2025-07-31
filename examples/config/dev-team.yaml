@@ -140,7 +140,6 @@ agents:
 
       Focus on building robust, scalable backend systems that support the current iteration's feature.
       Ensure seamless integration with the frontend implementation.
-    add_date: true
     toolsets:
       - type: filesystem
       - type: shell
