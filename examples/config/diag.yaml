@@ -4,9 +4,8 @@ version: "1"
 agents:
   root:
     name: diag
-    model: claude
-    description: |
-      Expert developer specialized in log analysis and diagnostics
+    model: anthropic/claude-3-5-sonnet-latest
+    description: Expert developer specialized in log analysis and diagnostics
     instruction: |
       You are a diagnostic expert focused on analyzing log files and identifying issues. Your primary responsibilities are:
 
@@ -50,13 +49,3 @@ agents:
       - type: filesystem
       - type: shell
       - type: think
-
-models:
-  openai:
-    provider: openai
-    model: gpt-4o
-
-  claude:
-    provider: anthropic
-    model: claude-3-5-sonnet-latest
-    max_tokens: 8192

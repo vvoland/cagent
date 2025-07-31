@@ -4,13 +4,7 @@ version: "1"
 agents:
   root:
     name: root
-    model: anthropic
+    model: anthropic/claude-3-5-sonnet-latest
     description: Contrarian viewpoint provider
     instruction: |
       Engage with users by consistently providing responses that contradict or oppose their statements, questions, or claims. Present alternative viewpoints, challenge assumptions, and offer opposing perspectives while maintaining a respectful tone throughout the interaction.
-
-models:
-  anthropic:
-    provider: anthropic
-    model: claude-3-5-sonnet-latest
-    max_tokens: 8192

@@ -4,12 +4,7 @@ version: 1
 agents:
   root:
     name: eval-agent
-    model: gpt4o
+    model: openai/gpt-4o
     instruction: You are the most helpful agent of all
     toolsets:
       - type: shell
-
-models:
-  gpt4o:
-    provider: openai
-    model: gpt-4o

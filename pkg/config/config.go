@@ -77,9 +77,16 @@ func validateConfig(cfg *latest.Config) error {
 	// Validate that all models referenced in agents exist
 	for agentName := range cfg.Agents {
 		agent := cfg.Agents[agentName]
+
 		modelNames := strings.SplitSeq(agent.Model, ",")
 		for modelName := range modelNames {
 			if _, exists := cfg.Models[modelName]; !exists {
+				// If the model is not found and is in the "provider/model" format, we can auto register.
+				if provider, model, ok := strings.Cut(modelName, "/"); ok {
+					autoRegisterModel(cfg, provider, model)
+					continue
+				}
+
 				return fmt.Errorf("agent '%s' references non-existent model '%s'", agentName, modelName)
 			}
 		}
@@ -93,6 +100,18 @@ func validateConfig(cfg *latest.Config) error {
 	}
 
 	return nil
+}
+
+// autoRegisterModel registers a model in the configuration if it does not exist.
+func autoRegisterModel(cfg *latest.Config, provider, model string) {
+	if cfg.Models == nil {
+		cfg.Models = make(map[string]latest.ModelConfig)
+	}
+
+	cfg.Models[provider+"/"+model] = latest.ModelConfig{
+		Provider: provider,
+		Model:    model,
+	}
 }
 
 func boolPtr(b bool) *bool {

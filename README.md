@@ -56,16 +56,11 @@ Create `my-agent.yaml`:
 agents:
   root:
     name: assistant
-    model: gpt4
+    model: openai/gpt-4o
     description: A helpful AI assistant
     instruction: |
       You are a knowledgeable assistant that helps users with various tasks.
       Be helpful, accurate, and concise in your responses.
-
-models:
-  gpt4:
-    provider: openai
-    model: gpt-4o
 ```
 
 Run it:

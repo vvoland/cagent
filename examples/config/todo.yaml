@@ -4,9 +4,8 @@ version: "1"
 agents:
   root:
     name: code-editor
-    model: claude
-    description: |
-      Expert developer
+    model: anthropic/claude-3-5-sonnet-latest
+    description: Expert developer
     instruction: |
       You are an expert developer, your only purpose in life is to help the user with their query.
 
@@ -14,13 +13,3 @@ agents:
     toolsets:
       - type: filesystem
       - type: todo
-
-models:
-  openai:
-    provider: openai
-    model: gpt-4o
-
-  claude:
-    provider: anthropic
-    model: claude-3-5-sonnet-latest
-    max_tokens: 8192

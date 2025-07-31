@@ -4,7 +4,7 @@ version: "1"
 agents:
   root:
     name: coder
-    model: openai
+    model: claude
     description: "Expert code analysis and development assistant"
     instruction: |
       You are an expert developer with deep knowledge of code analysis, modification, and validation.
@@ -63,10 +63,6 @@ agents:
       - type: todo
 
 models:
-  openai:
-    provider: openai
-    model: gpt-4o
-
   claude:
     provider: anthropic
     model: claude-sonnet-4-0

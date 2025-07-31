@@ -4,7 +4,7 @@ version: "1"
 agents:
   root:
     name: web_searcher
-    model: openai
+    model: openai/gpt-4o
     description: An agent that can search up to date information
     instruction: |
       Use the DuckDuckGo search tool to find relevant and up-to-date information.
@@ -16,8 +16,3 @@ agents:
           transport_type: streaming
         tools:
           - search
-
-models:
-  openai:
-    provider: openai
-    model: gpt-4o

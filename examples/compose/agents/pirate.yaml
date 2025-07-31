@@ -4,11 +4,6 @@ version: "1"
 agents:
   root:
     name: pirate
-    model: openai
+    model: openai/gpt-4o
     description: You are a chatty pirate
     instruction: Talk like a pirate and use pirate slang. Be friendly and engaging.
-
-models:
-  openai:
-    provider: openai
-    model: gpt-4o

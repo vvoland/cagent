@@ -32,7 +32,3 @@ models:
   gpt:
     provider: openai
     model: gpt-4o
-  claude:
-    provider: anthropic
-    model: claude-sonnet-4-0
-    max_tokens: 8000

@@ -4,7 +4,7 @@ version: "1"
 agents:
   root:
     name: airbnb
-    model: openai
+    model: openai/gpt-4o
     description: "Travel accommodation search specialist"
     add_date: true
     instruction: |
@@ -18,8 +18,3 @@ agents:
       - type: mcp
         command: npx
         args: ["-y", "@openbnb/mcp-server-airbnb"]
-
-models:
-  openai:
-    provider: openai
-    model: gpt-4o

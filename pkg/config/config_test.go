@@ -7,6 +7,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestAutoRegisterModels(t *testing.T) {
+	cfg, err := LoadConfig("testdata/autoregister.yaml")
+	require.NoError(t, err)
+
+	assert.Len(t, cfg.Models, 2)
+	assert.Equal(t, "openai", cfg.Models["openai/gpt-4o"].Provider)
+	assert.Equal(t, "gpt-4o", cfg.Models["openai/gpt-4o"].Model)
+	assert.Equal(t, "anthropic", cfg.Models["anthropic/claude-sonnet-4-0"].Provider)
+	assert.Equal(t, "claude-sonnet-4-0", cfg.Models["anthropic/claude-sonnet-4-0"].Model)
+}
+
 func TestMigrate_v0_v1_provider(t *testing.T) {
 	cfg, err := LoadConfig("testdata/provider_v0.yaml")
 	require.NoError(t, err)

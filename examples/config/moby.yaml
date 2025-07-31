@@ -4,18 +4,11 @@ version: "1"
 agents:
   root:
     name: root
-    model: anthropic
+    model: anthropic/claude-3-5-sonnet-latest
     description: Moby Project Expert
-    instruction: |
-      You are an AI assistant with expertise in the moby/moby project's documentation.
+    instruction: You are an AI assistant with expertise in the moby/moby project's documentation.
     toolsets:
       - type: mcp
         remote:
           url: https://gitmcp.io/moby/moby
           transport_type: streamable
-
-models:
-  anthropic:
-    provider: anthropic
-    model: claude-3-5-sonnet-latest
-    max_tokens: 8192

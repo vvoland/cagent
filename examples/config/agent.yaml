@@ -5,8 +5,7 @@ agents:
   root:
     name: gordon
     model: openai
-    description: |
-      You are a helpful assistant.
+    description: You are a helpful assistant.
     instruction: |
       You are an expert in Docker.
 

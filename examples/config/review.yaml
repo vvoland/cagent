@@ -50,11 +50,6 @@ agents:
       - type: filesystem
 
 models:
-  openai:
-    provider: openai
-    model: gpt-4o
-
   claude:
     provider: anthropic
     model: claude-3-5-sonnet-latest
-    max_tokens: 8192
