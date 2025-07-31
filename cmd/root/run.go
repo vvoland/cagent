@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -101,35 +100,10 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 	// will be non-zero if the agent failed.
 	var lastErr error
 
-	// Either read from stdin or from the provided argument
-	var scanner LineScanner
-	if len(args) == 2 {
-		if args[1] == "-" {
-			scanner = &ScannerWithFixedFirstText{
-				Input:   os.Stdin,
-				Scanner: bufio.NewScanner(os.Stdin),
-			}
-		} else {
-			scanner = &ScannerWithFixedFirstText{
-				Input:   strings.NewReader(args[1]),
-				Scanner: bufio.NewScanner(os.Stdin),
-			}
-		}
-	} else {
-		fmt.Println(blue("\nEnter your messages (Ctrl+C to exit):"))
-		scanner = bufio.NewScanner(os.Stdin)
-	}
-
-	for {
-		fmt.Print(blue("> "))
-
-		if !scanner.Scan() {
-			break
-		}
-
-		userInput := strings.TrimSpace(scanner.Text())
+	oneLoop := func(text string, scannerConfirmations *bufio.Scanner) error {
+		userInput := strings.TrimSpace(text)
 		if userInput == "" {
-			continue
+			return nil
 		}
 
 		handled, err := runUserCommand(userInput, sess)
@@ -138,7 +112,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		}
 
 		if handled {
-			continue
+			return nil
 		}
 
 		sess.Messages = append(sess.Messages, session.UserMessage(agentFilename, userInput))
@@ -156,8 +130,8 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			case *runtime.ToolCallConfirmationEvent:
 				fmt.Printf("%s", yellow("\n%s(%s)\n", e.ToolCall.Function.Name, e.ToolCall.Function.Arguments))
 				fmt.Println("\nCan I run this tool? (y/a/n)")
-				scanner.Scan()
-				text := scanner.Text()
+				scannerConfirmations.Scan()
+				text := scannerConfirmations.Text()
 				switch text {
 				case "y":
 					rt.Resume(ctx, string(runtime.ResumeTypeApprove))
@@ -177,10 +151,42 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			}
 		}
 		fmt.Println()
+		return nil
 	}
 
-	if err := scanner.Err(); err != nil {
-		return err
+	if len(args) == 2 {
+		if args[1] == "-" {
+			buf, err := io.ReadAll(os.Stdin)
+			if err != nil {
+				return fmt.Errorf("failed to read from stdin: %w", err)
+			}
+
+			if err := oneLoop(string(buf), bufio.NewScanner(os.Stdin)); err != nil {
+				return err
+			}
+		} else {
+			if err := oneLoop(args[1], bufio.NewScanner(os.Stdin)); err != nil {
+				return err
+			}
+		}
+	} else {
+		fmt.Println(blue("\nEnter your messages (Ctrl+C to exit):"))
+		scanner := bufio.NewScanner(os.Stdin)
+		for {
+			fmt.Print(blue("> "))
+
+			if !scanner.Scan() {
+				break
+			}
+
+			if err := oneLoop(scanner.Text(), scanner); err != nil {
+				return err
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
+			return err
+		}
 	}
 
 	return lastErr
@@ -242,46 +248,4 @@ func fromStore(reference string) (string, error) {
 	b.Close()
 
 	return buf.String(), nil
-}
-
-type LineScanner interface {
-	Scan() bool
-	Text() string
-	Err() error
-}
-
-type ScannerWithFixedFirstText struct {
-	Input         io.Reader
-	Scanner       *bufio.Scanner
-	scannedFirst  bool
-	returnedFirst bool
-	err           error
-}
-
-func (s *ScannerWithFixedFirstText) Scan() bool {
-	if !s.scannedFirst {
-		s.scannedFirst = true
-		return true
-	}
-	s.returnedFirst = true
-	return s.Scanner.Scan()
-}
-
-func (s *ScannerWithFixedFirstText) Text() string {
-	if !s.returnedFirst {
-		buf, err := io.ReadAll(s.Input)
-		if err != nil {
-			s.err = err
-			return ""
-		}
-		return string(buf)
-	}
-
-	s.scannedFirst = true
-	s.returnedFirst = true
-	return s.Scanner.Text()
-}
-
-func (s *ScannerWithFixedFirstText) Err() error {
-	return errors.Join(s.err, s.Scanner.Err())
 }
