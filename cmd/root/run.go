@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -23,11 +24,15 @@ import (
 // NewRunCmd creates a new run command
 func NewRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "run <agent-name>",
+		Use:   "run <agent-name> [message|-]",
 		Short: "Run an agent",
 		Long:  `Run an agent with the specified configuration and prompt`,
-		Args:  cobra.ExactArgs(1),
-		RunE:  runAgentCommand,
+		Example: `  cagent run ./agent.yaml
+  cagent run ./team.yaml --agent root
+  cagent run ./echo.yaml "ECHO"
+  echo "ECHO" | cagent run ./echo.yaml -`,
+		Args: cobra.RangeArgs(1, 2),
+		RunE: runAgentCommand,
 	}
 
 	cmd.PersistentFlags().StringVarP(&agentName, "agent", "a", "root", "Name of the agent to run")
@@ -88,22 +93,33 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 
 	sess := session.New(logger)
 
-	scanner := bufio.NewScanner(os.Stdin)
-
 	blue := color.New(color.FgBlue).SprintfFunc()
 	yellow := color.New(color.FgYellow).SprintfFunc()
 	green := color.New(color.FgGreen).SprintfFunc()
-	fmt.Println(blue("\nEnter your messages (Ctrl+C to exit):"))
 
 	// If the last received event was an error, return it. That way the exit code
 	// will be non-zero if the agent failed.
 	var lastErr error
-	for {
-		fmt.Print(blue("> "))
 
-		if !scanner.Scan() {
-			break
+	// Either read from stdin or from the provided argument
+	var scanner LineScanner
+	if len(args) == 2 {
+		if args[1] == "-" {
+			scanner = &SingleTextScanner{
+				Input: os.Stdin,
+			}
+		} else {
+			scanner = &SingleTextScanner{
+				Input: strings.NewReader(args[1]),
+			}
 		}
+	} else {
+		fmt.Println(blue("\nEnter your messages (Ctrl+C to exit):"))
+		scanner = bufio.NewScanner(os.Stdin)
+	}
+
+	for scanner.Scan() {
+		fmt.Print(blue("> "))
 
 		userInput := strings.TrimSpace(scanner.Text())
 		if userInput == "" {
@@ -227,4 +243,40 @@ func fromStore(reference string) (string, error) {
 	b.Close()
 
 	return buf.String(), nil
+}
+
+type LineScanner interface {
+	Scan() bool
+	Text() string
+	Err() error
+}
+
+type SingleTextScanner struct {
+	Input io.Reader
+	done  bool
+	err   error
+}
+
+func (s *SingleTextScanner) Scan() bool {
+	return !s.done
+}
+
+func (s *SingleTextScanner) Text() string {
+	if s.done {
+		s.err = errors.New("called on already done scanner")
+		return ""
+	}
+
+	buf, err := io.ReadAll(s.Input)
+	if err != nil {
+		s.err = err
+		return ""
+	}
+
+	s.done = true
+	return string(buf)
+}
+
+func (s *SingleTextScanner) Err() error {
+	return s.err
 }
