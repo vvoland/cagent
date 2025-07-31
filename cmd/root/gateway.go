@@ -1,6 +1,7 @@
 package root
 
 import (
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -11,6 +12,11 @@ func addGatewayFlags(cmd *cobra.Command) {
 
 	persistentPreRunE := cmd.PersistentPreRunE
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		// Get gateway value from the environment.
+		if gateway := os.Getenv("CAGENT_GATEWAY"); gateway != "" {
+			runConfig.Gateway = gateway
+		}
+
 		// Ensure the gateway url is canonical.
 		runConfig.Gateway = strings.TrimSpace(strings.TrimSuffix(runConfig.Gateway, "/"))
 
