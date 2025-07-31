@@ -100,7 +100,7 @@ agents:
         toolsets:
         - type: mcp
             command: docker
-            args: [mcp, gateway, run, '--servers=youtube_transcript]
+            args: ["mcp", "gateway", "run", "--servers=youtube_transcript"]
 ```
 
 
