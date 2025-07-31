@@ -87,7 +87,7 @@ agents:
       - Agent struct with name, description, instruction, toolsets, models, sub-agents
       - Hierarchical structure where root agents coordinate sub-agents
       - Tool integration with built-in tools (think, todo, memory, transfer_task) and external MCP tools
-      - Multi-model support (OpenAI, Anthropic, DMR)
+      - Multi-model support (OpenAI, Anthropic, Gemini, DMR)
 
       **Runtime System** (`pkg/runtime/`):
       - Event-driven architecture with streaming responses

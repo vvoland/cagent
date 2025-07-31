@@ -13,7 +13,7 @@ key characteristics:
 - **Hierarchical Agent Structure**: Agents can have sub-agents with task delegation via transfer_task tool
 - **Event-Driven Runtime**: Streaming architecture for real-time interactions
 - **Pluggable Tools**: Extensible tool system with built-in tools and MCP integration
-- **Provider Agnostic**: Support for multiple AI providers (OpenAI, Anthropic, DMR)
+- **Provider Agnostic**: Support for multiple AI providers (OpenAI, Anthropic, Gemini, DMR)
 - **Security-First**: Client-scoped operations with proper resource isolation
 - **Agent Store System**: Support for both file-based and Docker registry-based agent distribution
 
@@ -56,6 +56,7 @@ graph TB
     subgraph "Model Providers"
         OPENAI[OpenAI]
         ANTHROPIC[Anthropic]
+        GEMINI[Gemini]
         DMR[DMR]
     end
 
@@ -295,6 +296,7 @@ graph TB
     subgraph "Implementations"
         OPENAI[OpenAI Client]
         ANTHROPIC[Anthropic Client]
+        GEMINI[Gemini Client]
         DMR[DMR Client]
     end
 
@@ -873,7 +875,7 @@ func (r *CustomResolver) ResolveAgent(agentSpec string) (string, error) {
 - ✅ **Runtime System**: Event-driven streaming with tool integration
 - ✅ **Agent System**: Hierarchical agents with tool management
 - ✅ **Tool System**: Built-in tools and MCP integration
-- ✅ **Model Providers**: OpenAI, Anthropic, and DMR support
+- ✅ **Model Providers**: OpenAI, Anthropic, Gemini and DMR support
 - ✅ **Session Management**: Conversation state and message history
 - ✅ **Agent Store**: Docker registry integration for agent distribution
 - ✅ **CLI Interface**: Direct agent execution and interaction

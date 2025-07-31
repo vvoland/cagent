@@ -27,7 +27,7 @@ virtual team of experts that can collaborate to solve complex problems.
 ### Prerequisites
 
 - Go 1.24 or higher
-- API key for your chosen AI provider (OpenAI, Anthropic, etc.)
+- API key for your chosen AI provider (OpenAI, Anthropic, Gemini, etc.)
 
 ### Installation & Setup
 
@@ -37,10 +37,12 @@ git clone https://github.com/docker/cagent.git
 cd cagent
 task build
 
-# Set your API key
+# Set your OpenAI API key
 export OPENAI_API_KEY=your_api_key_here
 # or for Anthropic
 export ANTHROPIC_API_KEY=your_api_key_here
+# or for Gemini
+export GOOGLE_API_KEY=your_api_key_here
 
 # Run with a sample configuration
 ./bin/cagent run examples/config/code.yaml
@@ -121,25 +123,31 @@ models:
 
 ```yaml
 
-#OpenAI API
+# OpenAI
 models:
   openai:
     provider: openai
     model: gpt-4o
 
-#Anthropic API
+# Anthropic
 models:
   claude:
     provider: anthropic
     model: claude-sonnet-4-0
 
-#Docker Model Runner
+# Gemini
+models:
+  claude:
+    provider: gemini
+    model: gemini-2.5-flash
+
+# Docker Model Runner (DMR)
 models:
   qwen:
     provider: dmr
     model: ai/qwen3
 
-#Ollama
+# Ollama
 models:
   ollama:
     provider: openai

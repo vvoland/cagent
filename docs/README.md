@@ -59,7 +59,7 @@ Understand:
 - **🔄 Smart delegation** - Agents automatically route tasks to specialists
 - **📝 YAML configuration** - Simple, declarative setup
 - **💭 Advanced reasoning** - Built-in tools for complex problem solving
-- **🌐 Multiple AI providers** - Support for OpenAI, Anthropic, and DMR
+- **🌐 Multiple AI providers** - Support for OpenAI, Anthropic, Gemini and DMR
 
 ## 🛠️ Configuration Examples
 

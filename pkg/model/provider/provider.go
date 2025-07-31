@@ -10,6 +10,7 @@ import (
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/model/provider/anthropic"
 	"github.com/docker/cagent/pkg/model/provider/dmr"
+	"github.com/docker/cagent/pkg/model/provider/gemini"
 	"github.com/docker/cagent/pkg/model/provider/openai"
 	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/tools"
@@ -40,6 +41,9 @@ func New(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider,
 
 	case "anthropic":
 		return anthropic.NewClient(ctx, cfg, env, logger, opts...)
+
+	case "gemini":
+		return gemini.NewClient(ctx, cfg, env, logger, opts...)
 
 	case "dmr":
 		return dmr.NewClient(ctx, cfg, logger, opts...)

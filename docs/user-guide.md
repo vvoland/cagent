@@ -15,14 +15,14 @@ agents with specialized capabilities and tools. It features:
 - **📦 Agent distribution** via Docker registry integration
 - **🔒 Security-first design** with proper client scoping and resource isolation
 - **⚡ Event-driven streaming** for real-time interactions
-- **🧠 Multi-model support** (OpenAI, Anthropic, DMR, Docker AI Gateway)
+- **🧠 Multi-model support** (OpenAI, Anthropic, Gemini, DMR, Docker AI Gateway)
 
 ## Quick Start
 
 ### Prerequisites
 
 - Go 1.24 or higher
-- API key for your chosen AI provider (OpenAI, Anthropic, etc.)
+- API key for your chosen AI provider (OpenAI, Anthropic, Gemini, etc.)
 
 ### Installation
 
@@ -42,6 +42,9 @@ agents with specialized capabilities and tools. It features:
 
    # For Anthropic
    export ANTHROPIC_API_KEY=your_api_key_here
+
+   # For Gemini
+   export GOOGLE_API_KEY=your_api_key_here
 
    # For Docker AI Gateway (if using Docker Desktop)
    # Authentication is handled automatically via Docker Desktop

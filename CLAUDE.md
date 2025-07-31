@@ -45,7 +45,7 @@ cagent is a multi-agent AI system with hierarchical agent structure and pluggabl
 - **Agent struct**: Core abstraction with name, description, instruction, toolsets, models, and sub-agents
 - **Hierarchical structure**: Root agents coordinate sub-agents for specialized tasks
 - **Tool integration**: Agents have access to built-in tools (think, todo, memory, transfer_task) and external MCP tools
-- **Multi-model support**: Agents can use different AI providers (OpenAI, Anthropic, DMR)
+- **Multi-model support**: Agents can use different AI providers (OpenAI, Anthropic, Gemini, DMR)
 
 #### Runtime System (`pkg/runtime/`)
 - **Event-driven architecture**: Streaming responses for real-time interaction
