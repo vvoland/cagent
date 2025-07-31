@@ -3,7 +3,6 @@ version: "1"
 
 agents:
   root:
-    name: root
     model: claude,gpt-4o
     description: An agent that helps you learn new things
     instruction: |

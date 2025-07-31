@@ -55,7 +55,6 @@ Create `my-agent.yaml`:
 ```yaml
 agents:
   root:
-    name: assistant
     model: openai/gpt-4o
     description: A helpful AI assistant
     instruction: |
@@ -95,7 +94,6 @@ Run it:
 ```yaml
 agents:
   agent_name:
-    name: string # Agent identifier
     model: string # Model reference
     description: string # Agent purpose
     instruction: string # Detailed behavior instructions

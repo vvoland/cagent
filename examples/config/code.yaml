@@ -3,7 +3,6 @@ version: "1"
 
 agents:
   root:
-    name: coder
     model: claude
     description: "Expert code analysis and development assistant"
     instruction: |

@@ -92,7 +92,6 @@ cagent is a multi-agent AI system with hierarchical agent structure and pluggabl
 ```yaml
 agents:
   root:
-    name: agent_name
     model: model_ref
     description: purpose
     instruction: detailed_behavior

@@ -9,7 +9,6 @@ models:
 
 agents:
   root:
-    name: golang_developer
     model: claude
     description: Expert Golang developer specializing in the cagent multi-agent AI system architecture
     instruction: |
@@ -122,7 +121,6 @@ agents:
       ```yaml
       agents:
         root:
-          name: agent_name
           model: model_ref
           description: purpose
           instruction: detailed_behavior

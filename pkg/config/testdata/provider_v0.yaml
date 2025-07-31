@@ -1,6 +1,5 @@
 agents:
   root:
-    name: pirate
     model: openai
 
 models:

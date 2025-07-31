@@ -3,7 +3,6 @@ version: "1"
 
 agents:
   root:
-    name: researcher
     model: claude
     description: "Financial research and analysis coordinator"
     add_date: true
@@ -42,7 +41,6 @@ agents:
       - type: think
 
   finance_agent:
-    name: finance_agent
     model: claude
     add_date: true
     description: Analyse the given stock
@@ -56,7 +54,6 @@ agents:
         args: ["yfmcp"]
 
   web_search_agent:
-    name: web_search_agent
     model: claude
     add_date: true
     description: Search the web for the information

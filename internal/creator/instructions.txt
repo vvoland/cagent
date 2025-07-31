@@ -21,7 +21,6 @@ version: "1"
 
 agents:
 agent_name:
-    name: string # Agent identifier
     model: string # Model reference
     description: string # Agent purpose
     instruction: string # Detailed behavior instructions

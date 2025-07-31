@@ -3,7 +3,6 @@ version: "1"
 
 agents:
   root:
-    name: root
     model: qwen
     description: "Pirate-themed AI assistant"
     instruction: Talk like a pirate

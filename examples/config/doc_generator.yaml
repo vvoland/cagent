@@ -3,7 +3,6 @@ version: "1"
 
 agents:
   root:
-    name: doc_generator
     model: claude
     description: A specialized agent for generating comprehensive documentation from codebases.
     instruction: |

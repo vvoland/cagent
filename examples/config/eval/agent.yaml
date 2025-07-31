@@ -3,7 +3,6 @@ version: 1
 
 agents:
   root:
-    name: eval-agent
     model: openai/gpt-4o
     instruction: You are the most helpful agent of all
     toolsets:

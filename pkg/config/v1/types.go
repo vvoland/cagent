@@ -72,7 +72,6 @@ func (t *Toolset) UnmarshalYAML(unmarshal func(any) error) error {
 
 // AgentConfig represents a single agent configuration
 type AgentConfig struct {
-	Name        string    `json:"name,omitempty" yaml:"name,omitempty"`
 	Model       string    `json:"model,omitempty" yaml:"model,omitempty"`
 	Description string    `json:"description,omitempty" yaml:"description,omitempty"`
 	Toolsets    []Toolset `json:"toolsets,omitempty" yaml:"toolsets,omitempty"`

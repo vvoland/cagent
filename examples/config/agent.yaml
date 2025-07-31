@@ -3,7 +3,6 @@ version: "1"
 
 agents:
   root:
-    name: gordon
     model: openai
     description: You are a helpful assistant.
     instruction: |
@@ -44,17 +43,14 @@ agents:
       - pirate
 
   pirate:
-    name: pirate
     model: openai
     description: An agent that talks like a pirate
     instruction: |
       Always answer by talking like a pirate.
 
   containerize:
-    name: containerize
     model: openai
-    description: |
-      You are a helpful assistant for containerizing applications.
+    description: You are a helpful assistant for containerizing applications.
     instruction: |
       You are an expert in Docker.
 
@@ -98,10 +94,8 @@ agents:
       *   Be proactive in offering help and anticipating customer needs.
 
   optimize_dockerfile:
-    name: optimize_dockerfile
     model: openai
-    description: |
-      You are a helpful assistant for optimizing Dockerfiles.
+    description: You are a helpful assistant for optimizing Dockerfiles.
     instruction: |
       You are an expert in Docker optimization techniques.
 

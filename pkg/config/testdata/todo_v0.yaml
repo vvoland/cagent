@@ -1,6 +1,5 @@
 agents:
   root:
-    name: bio
     model: openai
     todo: true
     toolsets:

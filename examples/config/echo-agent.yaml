@@ -10,7 +10,6 @@ metadata:
 
 agents:
   root:
-    name: echo
     model: claude
     description: "Simple echo agent that repeats exactly what the user says"
     instruction: |

@@ -3,7 +3,6 @@ version: "1"
 
 agents:
   root:
-    name: root
     model: anthropic/claude-3-5-sonnet-latest
     description: "Douglas Adams-style witty AI assistant"
     instruction: |

@@ -3,10 +3,8 @@ version: "1"
 
 agents:
   root:
-    name: code-editor
     model: claude
-    description: |
-      Expert developer
+    description: Expert developer
     instruction: |
       You are an expert DevOps engineer and Docker specialist. Use the filesystem tools to read the dockerfile and I need you to conduct a comprehensive review. Please analyze the Dockerfile against the following criteria and provide specific feedback:
 

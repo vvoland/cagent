@@ -3,7 +3,6 @@ version: "1"
 
 agents:
   root:
-    name: airbnb
     model: openai/gpt-4o
     description: "Travel accommodation search specialist"
     add_date: true

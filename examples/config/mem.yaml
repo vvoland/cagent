@@ -3,7 +3,6 @@ version: "1"
 
 agents:
   root:
-    name: memory
     model: openai/gpt-4o
     description: Humorous AI with persistent memory
     memory:

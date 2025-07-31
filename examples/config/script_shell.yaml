@@ -3,13 +3,9 @@ version: "1"
 
 agents:
   root:
-    name: shell_agent
     model: openai
-    description: |
-      An agent with custom shell commands
-    instruction: |
-      You are a helpful assistant with access to custom shell tools.
-
+    description: An agent with custom shell commands
+    instruction: You are a helpful assistant with access to custom shell tools.
     toolsets:
       - type: script
         shell:

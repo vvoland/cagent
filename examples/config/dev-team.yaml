@@ -9,7 +9,6 @@ models:
 
 agents:
   root:
-    name: root
     model: model
     description: Product Manager - Leads the development team and coordinates iterations
     instruction: |
@@ -48,7 +47,6 @@ agents:
         path: dev_memory.db
 
   designer:
-    name: designer
     model: model
     description: UI/UX Designer - Creates user interface designs and wireframes
     instruction: |
@@ -78,7 +76,6 @@ agents:
         path: dev_memory.db
 
   awesome_engineer:
-    name: awesome_engineer
     model: model
     description: Awesome Engineer - Implements user interfaces based on designs
     instruction: |

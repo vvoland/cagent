@@ -90,7 +90,6 @@ cagent uses YAML configuration files to define agents, models, and tools.
 ```yaml
 agents:
   root:
-    name: assistant
     model: gpt4
     description: A helpful AI assistant
     instruction: |
@@ -108,7 +107,6 @@ models:
 ```yaml
 agents:
   root:
-    name: manager
     model: gpt4
     description: Project manager that delegates tasks
     instruction: |
@@ -119,7 +117,6 @@ agents:
       - designer
 
   developer:
-    name: coder
     model: claude
     description: Expert software developer
     instruction: |
@@ -129,7 +126,6 @@ agents:
       - type: filesystem
 
   designer:
-    name: designer
     model: gpt4
     description: UI/UX design specialist
     instruction: |
@@ -392,7 +388,6 @@ A complete development team with specialized roles:
 ```yaml
 agents:
   root:
-    name: tech_lead
     model: claude
     description: Technical lead coordinating development
     instruction: |
@@ -401,7 +396,6 @@ agents:
     sub_agents: [developer, reviewer, tester]
 
   developer:
-    name: coder
     model: claude
     description: Expert software developer
     instruction: |
@@ -413,7 +407,6 @@ agents:
       - type: think
 
   reviewer:
-    name: code_reviewer
     model: gpt4
     description: Code review specialist
     instruction: |
@@ -423,7 +416,6 @@ agents:
       - type: filesystem
 
   tester:
-    name: qa_engineer
     model: gpt4
     description: Quality assurance engineer
     instruction: |
@@ -451,7 +443,6 @@ A research-focused agent with web access:
 ```yaml
 agents:
   root:
-    name: researcher
     model: claude
     description: Research assistant with web access
     instruction: |
@@ -701,7 +692,6 @@ Implement persistent memory across sessions:
 ```yaml
 agents:
   researcher:
-    name: research_assistant
     model: claude
     memory:
       path: "./research_memory.db"

@@ -3,10 +3,8 @@ version: "1"
 
 agents:
   root:
-    name: generator
     model: openai
-    description: |
-      Expert Python developer and code generator
+    description: Expert Python developer and code generator
     instruction: |
       You are an expert Python developer and code generator.
       Your main goal is to generate Python code based on user requirements.

@@ -2,7 +2,6 @@ version: "1"
 
 agents:
   root:
-    name: pirate
     model: openai
 
 models:

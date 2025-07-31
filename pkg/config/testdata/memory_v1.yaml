@@ -2,7 +2,6 @@ version: "1"
 
 agents:
   root:
-    name: bio
     model: openai
     toolsets:
       - type: memory

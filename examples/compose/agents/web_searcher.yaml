@@ -3,7 +3,6 @@ version: "1"
 
 agents:
   root:
-    name: web_searcher
     model: openai/gpt-4o
     description: An agent that can search up to date information
     instruction: |

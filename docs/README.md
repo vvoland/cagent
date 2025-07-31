@@ -68,7 +68,6 @@ Understand:
 ```yaml
 agents:
   root:
-    name: assistant
     model: gpt4
     description: A helpful AI assistant
     instruction: |
@@ -86,13 +85,11 @@ models:
 ```yaml
 agents:
   root:
-    name: tech_lead
     model: claude
     description: Technical lead coordinating development
     sub_agents: [developer, reviewer]
 
   developer:
-    name: coder
     model: claude
     description: Expert software developer
     toolsets:
@@ -100,7 +97,6 @@ agents:
       - type: think
 
   reviewer:
-    name: code_reviewer
     model: gpt4
     description: Code review specialist
 

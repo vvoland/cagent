@@ -3,7 +3,6 @@ version: "1"
 
 agents:
   root:
-    name: prompter
     model: anthropic
     description: Writes techincal blog posts
     instruction: |
@@ -32,7 +31,6 @@ agents:
       - type: think
 
   web_search_agent:
-    name: web_search_agent
     model: anthropic
     add_date: true
     description: Search the web for the information
@@ -46,7 +44,6 @@ agents:
         args: ["duckduckgo-mcp-server"]
 
   writer:
-    name: writer
     model: anthropic
     description: Writes a 750-word technical blog post based on the chosen prompt.
     instruction: |

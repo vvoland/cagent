@@ -3,7 +3,6 @@ version: "1"
 
 agents:
   root:
-    name: bio
     model: openai/gpt-4o
     description: Create a biography of the user based on internet searches.
     instruction: |

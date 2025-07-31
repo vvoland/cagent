@@ -3,7 +3,6 @@ version: "1"
 
 agents:
   root:
-    name: root
     model: claude
     description: Expert Python developer and assistant
     instruction: |

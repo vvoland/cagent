@@ -3,10 +3,8 @@ version: "1"
 
 agents:
   root:
-    name: dhi
     model: claude
-    description: |
-      A specialized agent for migrating a Dockerfile to use Docker Hardened Images
+    description: A specialized agent for migrating a Dockerfile to use Docker Hardened Images
     instruction: |
       You are an expert in Docker and Docker Hardened Images (DHI).
 

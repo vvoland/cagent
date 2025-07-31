@@ -27,9 +27,9 @@ type Agent struct {
 }
 
 // New creates a new agent
-func New(agentName, prompt string, opts ...Opt) *Agent {
+func New(name, prompt string, opts ...Opt) *Agent {
 	agent := &Agent{
-		name:        agentName,
+		name:        name,
 		instruction: prompt,
 	}
 

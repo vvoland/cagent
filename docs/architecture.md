@@ -229,7 +229,6 @@ Agents are the core abstraction in cagent with hierarchical structure:
 ```mermaid
 classDiagram
     class Agent {
-        +name: string
         +description: string
         +instruction: string
         +toolsets: []ToolSet
