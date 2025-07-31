@@ -122,14 +122,8 @@ func (e *Executor) ExecuteStream(rt *runtime.Runtime, sess *session.Session, age
 		case *runtime.ToolCallResponseEvent:
 			e.logger.Debug("Tool response event", "tool_name", evt.ToolCall.Function.Name, "response_length", len(evt.Response))
 
-		case *runtime.AgentMessageEvent:
-			finalContent = evt.Message.Content
-			e.logger.Debug("Agent message event", "content_length", len(evt.Message.Content), "content_preview", func() string {
-				if len(evt.Message.Content) > 100 {
-					return evt.Message.Content[:100] + "..."
-				}
-				return evt.Message.Content
-			}())
+		case *runtime.ToolCallConfirmationEvent:
+			e.logger.Debug("Tool call confirmation event", "tool_name", evt.ToolCall.Function.Name)
 
 		case *runtime.ErrorEvent:
 			e.logger.Error("Runtime error event", "error", evt.Error)

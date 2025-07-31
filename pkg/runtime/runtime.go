@@ -108,7 +108,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			agentTools, err := a.Tools(ctx)
 			if err != nil {
 				r.logger.Error("Failed to get agent tools", "agent", a.Name(), "error", err)
-				events <- &ErrorEvent{Error: fmt.Errorf("failed to get tools: %w", err)}
+				events <- Error(fmt.Errorf("failed to get tools: %w", err))
 				return
 			}
 			r.logger.Debug("Retrieved agent tools", "agent", a.Name(), "tool_count", len(agentTools))
@@ -117,7 +117,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			stream, err := model.CreateChatCompletionStream(ctx, messages, agentTools)
 			if err != nil {
 				r.logger.Error("Failed to create chat completion stream", "agent", a.Name(), "error", err)
-				events <- &ErrorEvent{Error: fmt.Errorf("creating chat completion: %w", err)}
+				events <- Error(fmt.Errorf("creating chat completion: %w", err))
 				return
 			}
 
@@ -125,7 +125,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			calls, content, stopped, err := r.handleStream(stream, a, events)
 			if err != nil {
 				r.logger.Error("Error handling stream", "agent", a.Name(), "error", err)
-				events <- &ErrorEvent{Error: err}
+				events <- Error(err)
 				return
 			}
 			r.logger.Debug("Stream processed", "agent", a.Name(), "tool_calls", len(calls), "content_length", len(content), "stopped", stopped)
@@ -146,7 +146,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			}
 
 			if err := r.processToolCalls(ctx, sess, calls, events); err != nil {
-				events <- &ErrorEvent{Error: err}
+				events <- Error(err)
 				return
 			}
 		}
@@ -249,10 +249,7 @@ func (r *Runtime) handleStream(stream chat.MessageStream, a *agent.Agent, events
 		}
 
 		if choice.Delta.Content != "" {
-			events <- &AgentChoiceEvent{
-				Agent:  a.Name(),
-				Choice: choice,
-			}
+			events <- AgentChoice(a.Name(), choice)
 			fullContent.WriteString(choice.Delta.Content)
 		}
 	}
@@ -279,15 +276,12 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 		handler, exists := r.toolMap[toolCall.Function.Name]
 		if exists {
 			r.logger.Debug("Using runtime tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
-			events <- &ToolCallEvent{
-				ToolCall: toolCall,
-			}
-
-			if sess.ToolsApproved || r.autoRunTools {
+			if sess.ToolsApproved || r.autoRunTools || toolCall.Function.Name == "transfer_task" {
 				r.runAgentTool(ctx, handler, sess, toolCall, events, a)
 			} else {
-				// Wait for the user to approve or reject the tool call
-				r.logger.Debug("Waiting for resume signal", "tool", toolCall.Function.Name, "session_id", sess.ID)
+				r.logger.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
+				events <- ToolCallConfirmation(toolCall)
+
 				select {
 				case cType := <-r.resumeChan:
 					switch cType {
@@ -318,16 +312,13 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 				continue
 			}
 			r.logger.Debug("Using agent tool handler", "tool", toolCall.Function.Name)
-			events <- &ToolCallEvent{
-				ToolCall: toolCall,
-			}
 
-			// NOTE(rumpl): don't filter tools by name or anything else here
-			if sess.ToolsApproved || r.autoRunTools {
+			if sess.ToolsApproved || r.autoRunTools || (tool.Function.Annotations.ReadOnlyHint != nil && *tool.Function.Annotations.ReadOnlyHint == true) {
 				r.logger.Debug("Tools approved, running tool", "tool", toolCall.Function.Name, "session_id", sess.ID)
 				r.runTool(ctx, tool, toolCall, events, sess, a)
 			} else {
 				r.logger.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
+				events <- ToolCallConfirmation(toolCall)
 				select {
 				case cType := <-r.resumeChan:
 					switch cType {
@@ -357,6 +348,7 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 }
 
 func (r *Runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.ToolCall, events chan Event, sess *session.Session, a *agent.Agent) {
+	events <- ToolCall(toolCall)
 	res, err := tool.Handler(ctx, toolCall)
 	if err != nil {
 		r.logger.Error("Error calling tool", "tool", toolCall.Function.Name, "error", err)
@@ -367,10 +359,7 @@ func (r *Runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.T
 		r.logger.Debug("Agent tool call completed", "tool", toolCall.Function.Name, "output_length", len(res.Output))
 	}
 
-	events <- &ToolCallResponseEvent{
-		ToolCall: toolCall,
-		Response: res.Output,
-	}
+	events <- ToolCallResponse(toolCall, res.Output)
 	toolResponseMsg := chat.Message{
 		Role:       chat.MessageRoleTool,
 		Content:    res.Output,
@@ -380,6 +369,7 @@ func (r *Runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.T
 }
 
 func (r *Runtime) runAgentTool(ctx context.Context, handler ToolHandler, sess *session.Session, toolCall tools.ToolCall, events chan Event, a *agent.Agent) {
+	events <- ToolCall(toolCall)
 	res, err := handler(ctx, sess, toolCall, events)
 	if err != nil {
 		r.logger.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
@@ -387,10 +377,7 @@ func (r *Runtime) runAgentTool(ctx context.Context, handler ToolHandler, sess *s
 		r.logger.Debug("Tool executed successfully", "tool", toolCall.Function.Name)
 	}
 
-	events <- &ToolCallResponseEvent{
-		ToolCall: toolCall,
-		Response: res.Output,
-	}
+	events <- ToolCallResponse(toolCall, res.Output)
 	toolResponseMsg := chat.Message{
 		Role:       chat.MessageRoleTool,
 		Content:    res.Output,
@@ -404,10 +391,7 @@ func (r *Runtime) addToolRejectedResponse(sess *session.Session, toolCall tools.
 
 	result := "The user rejected the tool call."
 
-	events <- &ToolCallResponseEvent{
-		ToolCall: toolCall,
-		Response: result,
-	}
+	events <- ToolCallResponse(toolCall, result)
 
 	toolResponseMsg := chat.Message{
 		Role:       chat.MessageRoleTool,
@@ -446,6 +430,9 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 
 	for event := range r.RunStream(ctx, s) {
 		evts <- event
+		if errEvent, ok := event.(*ErrorEvent); ok {
+			return nil, errEvent.Error
+		}
 	}
 
 	r.currentAgent = ca

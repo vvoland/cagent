@@ -210,6 +210,9 @@ func (t *TodoTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "list_todos",
 				Description: "List all current todos with their status",
+				Annotations: tools.ToolAnnotation{
+					ReadOnlyHint: &[]bool{true}[0],
+				},
 			},
 			Handler: t.handler.listTodos,
 		},

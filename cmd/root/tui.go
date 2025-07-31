@@ -324,8 +324,6 @@ func processStream(rt *runtime.Runtime, sess *session.Session, ch chan<- string,
 				ch <- fmt.Sprintf("> ✅ **Completed**: `%s`\n\n",
 					truncateWithEllipsis(e.Response, 60))
 
-			case *runtime.AgentMessageEvent:
-				ch <- fmt.Sprintf("\n\n%s\n\n", e.Message.Content)
 			case *runtime.ErrorEvent:
 				close(ch)
 				close(toolCh)

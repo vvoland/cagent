@@ -57,6 +57,9 @@ func (t *MemoryTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "get_memories",
 				Description: "Retrieve all stored memories",
+				Annotations: tools.ToolAnnotation{
+					ReadOnlyHint: &[]bool{true}[0],
+				},
 				Parameters: tools.FunctionParamaters{
 					Type:       "object",
 					Properties: map[string]any{},

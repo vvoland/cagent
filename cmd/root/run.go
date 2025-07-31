@@ -151,6 +151,8 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			switch e := event.(type) {
 			case *runtime.AgentChoiceEvent:
 				fmt.Printf("%s", e.Choice.Delta.Content)
+			case *runtime.ToolCallConfirmationEvent:
+
 			case *runtime.ToolCallEvent:
 				if sess.ToolsApproved {
 					fmt.Printf("%s", yellow("\n%s(%s)\n", e.ToolCall.Function.Name, e.ToolCall.Function.Arguments))
@@ -174,8 +176,6 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 				fmt.Printf("%s", yellow("\n%s(%s)\n", e.ToolCall.Function.Name, e.ToolCall.Function.Arguments))
 			case *runtime.ToolCallResponseEvent:
 				fmt.Printf("%s", green("done(%s)\n", e.ToolCall.Function.Name))
-			case *runtime.AgentMessageEvent:
-				fmt.Printf("%s\n", e.Message.Content)
 			case *runtime.ErrorEvent:
 				fmt.Printf("%s\n", e.Error)
 				lastErr = e.Error
