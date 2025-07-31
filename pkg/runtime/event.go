@@ -55,7 +55,7 @@ type AgentChoiceEvent struct {
 	Choice chat.MessageStreamChoice `json:"choice"`
 }
 
-func AgentChoice(agent string, choice chat.MessageStreamChoice) Event {
+func AgentChoice(agent string, choice chat.MessageStreamChoice) Event { //nolint:gocritic
 	return &AgentChoiceEvent{
 		Type:   "agent_choice",
 		Agent:  agent,
