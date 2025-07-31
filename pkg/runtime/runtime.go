@@ -17,7 +17,7 @@ import (
 )
 
 // ToolHandler is a function type for handling tool calls
-type ToolHandler func(ctx context.Context, a *agent.Agent, sess *session.Session, toolCall tools.ToolCall, events chan Event) (string, error)
+type ToolHandler func(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, events chan Event) (*tools.ToolCallResult, error)
 
 // Runtime manages the execution of agents
 type Runtime struct {
@@ -128,80 +128,9 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				break
 			}
 
-			// Handle tool calls if present
-			if len(calls) > 0 {
-				r.logger.Debug("Processing tool calls", "agent", a.Name(), "call_count", len(calls))
-				agentTools, err := a.Tools(ctx)
-				if err != nil {
-					r.logger.Error("Failed to get tools for tool calls", "agent", a.Name(), "error", err)
-					events <- &ErrorEvent{Error: fmt.Errorf("failed to get tools: %w", err)}
-					return
-				}
-
-				for _, toolCall := range calls {
-					r.logger.Debug("Processing tool call", "agent", a.Name(), "tool", toolCall.Function.Name)
-					handler, exists := r.toolMap[toolCall.Function.Name]
-					if exists {
-						r.logger.Debug("Using runtime tool handler", "tool", toolCall.Function.Name)
-						events <- &ToolCallEvent{
-							ToolCall: toolCall,
-						}
-
-						res, err := handler(ctx, a, sess, toolCall, events)
-						events <- &ToolCallResponseEvent{
-							ToolCall: toolCall,
-							Response: res,
-						}
-						if err != nil {
-							r.logger.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
-						} else {
-							r.logger.Debug("Tool executed successfully", "tool", toolCall.Function.Name)
-						}
-						toolResponseMsg := chat.Message{
-							Role:       chat.MessageRoleTool,
-							Content:    res,
-							ToolCallID: toolCall.ID,
-						}
-						sess.Messages = append(sess.Messages, session.NewAgentMessage(a, &toolResponseMsg))
-					}
-
-					for _, tool := range agentTools {
-						if _, ok := r.toolMap[tool.Function.Name]; ok {
-							continue
-						}
-						if tool.Function.Name != toolCall.Function.Name {
-							continue
-						}
-						r.logger.Debug("Using agent tool handler", "tool", toolCall.Function.Name)
-						events <- &ToolCallEvent{
-							ToolCall: toolCall,
-						}
-
-						res, err := tool.Handler(ctx, toolCall)
-						if err != nil {
-							r.logger.Error("Error calling tool", "tool", toolCall.Function.Name, "error", err)
-							res = &tools.ToolCallResult{
-								Output: fmt.Sprintf("Error calling tool: %v", err),
-							}
-						} else {
-							r.logger.Debug("Agent tool call completed", "tool", toolCall.Function.Name, "output_length", len(res.Output))
-						}
-
-						events <- &ToolCallResponseEvent{
-							ToolCall: toolCall,
-							Response: res.Output,
-						}
-
-						toolResponseMsg := chat.Message{
-							Role:       chat.MessageRoleTool,
-							Content:    res.Output,
-							ToolCallID: toolCall.ID,
-						}
-						sess.Messages = append(sess.Messages, session.NewAgentMessage(a, &toolResponseMsg))
-						r.logger.Debug("Added tool response to session", "tool", toolCall.Function.Name, "total_messages", len(sess.Messages))
-						break
-					}
-				}
+			if err := r.processToolCalls(ctx, sess, calls, events); err != nil {
+				events <- &ErrorEvent{Error: err}
+				return
 			}
 		}
 	}()
@@ -295,7 +224,89 @@ func (r *Runtime) handleStream(stream chat.MessageStream, a *agent.Agent, events
 	return toolCalls, fullContent.String(), false, nil
 }
 
-func (r *Runtime) handleTaskTransfer(ctx context.Context, a *agent.Agent, sess *session.Session, toolCall tools.ToolCall, evts chan Event) (string, error) {
+// processToolCalls handles the execution of tool calls for an agent
+func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, calls []tools.ToolCall, events chan Event) error {
+	if len(calls) == 0 {
+		return nil
+	}
+
+	a := r.CurrentAgent()
+	r.logger.Debug("Processing tool calls", "agent", a.Name(), "call_count", len(calls))
+	agentTools, err := a.Tools(ctx)
+	if err != nil {
+		r.logger.Error("Failed to get tools for tool calls", "agent", a.Name(), "error", err)
+		return fmt.Errorf("failed to get tools: %w", err)
+	}
+
+	for _, toolCall := range calls {
+		r.logger.Debug("Processing tool call", "agent", a.Name(), "tool", toolCall.Function.Name)
+		handler, exists := r.toolMap[toolCall.Function.Name]
+		if exists {
+			r.logger.Debug("Using runtime tool handler", "tool", toolCall.Function.Name)
+			events <- &ToolCallEvent{
+				ToolCall: toolCall,
+			}
+
+			res, err := handler(ctx, sess, toolCall, events)
+			events <- &ToolCallResponseEvent{
+				ToolCall: toolCall,
+				Response: res.Output,
+			}
+			if err != nil {
+				r.logger.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
+			} else {
+				r.logger.Debug("Tool executed successfully", "tool", toolCall.Function.Name)
+			}
+			toolResponseMsg := chat.Message{
+				Role:       chat.MessageRoleTool,
+				Content:    res.Output,
+				ToolCallID: toolCall.ID,
+			}
+			sess.Messages = append(sess.Messages, session.NewAgentMessage(a, &toolResponseMsg))
+		}
+
+		for _, tool := range agentTools {
+			if _, ok := r.toolMap[tool.Function.Name]; ok {
+				continue
+			}
+			if tool.Function.Name != toolCall.Function.Name {
+				continue
+			}
+			r.logger.Debug("Using agent tool handler", "tool", toolCall.Function.Name)
+			events <- &ToolCallEvent{
+				ToolCall: toolCall,
+			}
+
+			res, err := tool.Handler(ctx, toolCall)
+			if err != nil {
+				r.logger.Error("Error calling tool", "tool", toolCall.Function.Name, "error", err)
+				res = &tools.ToolCallResult{
+					Output: fmt.Sprintf("Error calling tool: %v", err),
+				}
+			} else {
+				r.logger.Debug("Agent tool call completed", "tool", toolCall.Function.Name, "output_length", len(res.Output))
+			}
+
+			events <- &ToolCallResponseEvent{
+				ToolCall: toolCall,
+				Response: res.Output,
+			}
+
+			toolResponseMsg := chat.Message{
+				Role:       chat.MessageRoleTool,
+				Content:    res.Output,
+				ToolCallID: toolCall.ID,
+			}
+			sess.Messages = append(sess.Messages, session.NewAgentMessage(a, &toolResponseMsg))
+			r.logger.Debug("Added tool response to session", "tool", toolCall.Function.Name, "total_messages", len(sess.Messages))
+			break
+		}
+	}
+
+	return nil
+}
+
+func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, evts chan Event) (*tools.ToolCallResult, error) {
 	var params struct {
 		Agent          string `json:"agent"`
 		Task           string `json:"task"`
@@ -303,8 +314,10 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, a *agent.Agent, sess *
 	}
 
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
-		return "", fmt.Errorf("invalid arguments: %w", err)
+		return nil, fmt.Errorf("invalid arguments: %w", err)
 	}
+
+	a := r.CurrentAgent()
 
 	r.logger.Debug("Transferring task to agent", "from_agent", a.Name(), "to_agent", params.Agent, "task", params.Task)
 
@@ -327,5 +340,7 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, a *agent.Agent, sess *
 
 	r.logger.Debug("Task transfer completed", "agent", params.Agent, "task", params.Task)
 
-	return s.Messages[len(s.Messages)-1].Message.Content, nil
+	return &tools.ToolCallResult{
+		Output: s.Messages[len(s.Messages)-1].Message.Content,
+	}, nil
 }
