@@ -161,7 +161,7 @@ func (r *Runtime) Resume(ctx context.Context, confirmationType string) {
 	cType := ResumeTypeApproveSession
 	switch confirmationType {
 	case "approve":
-		cType = ResumeTypeApproveSession
+		cType = ResumeTypeApprove
 	case "reject":
 		cType = ResumeTypeReject
 	}
