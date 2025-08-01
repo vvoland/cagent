@@ -93,6 +93,7 @@ type ModelConfig struct {
 	BaseURL           string            `json:"base_url,omitempty" yaml:"base_url,omitempty"`
 	ParallelToolCalls *bool             `json:"parallel_tool_calls,omitempty" yaml:"parallel_tool_calls,omitempty"`
 	Env               map[string]string `json:"env,omitempty" yaml:"env,omitempty"`
+	TokenKey          string            `json:"token_key,omitempty" yaml:"token_key,omitempty"`
 }
 
 // Config represents the entire configuration file
