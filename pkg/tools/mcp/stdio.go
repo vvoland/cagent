@@ -1,37 +1,28 @@
 package mcp
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
-	"slices"
+	"os/exec"
+	"runtime"
+	"sync"
+	"sync/atomic"
+	"syscall"
 
-	"github.com/mark3labs/mcp-go/client"
-	"github.com/mark3labs/mcp-go/client/transport"
 	"github.com/mark3labs/mcp-go/mcp"
-
-	"github.com/docker/cagent/pkg/tools"
 )
-
-// Client implements an MCP client for interacting with MCP servers
-type Client struct {
-	client  *client.Client
-	tools   []tools.Tool
-	logger  *slog.Logger
-	logType string
-	logId   string
-}
 
 // NewStdioClient creates a new MCP client that can start an stdio MCP server
 func NewStdioClient(ctx context.Context, command string, args, env []string, logger *slog.Logger) (*Client, error) {
 	logger.Debug("Creating stdio MCP client", "command", command, "args", args)
 
-	c, err := client.NewStdioMCPClient(command, env, args...)
-	if err != nil {
-		logger.Error("Failed to create stdio MCP client", "error", err)
-		return nil, fmt.Errorf("failed to create stdio MCP client: %w", err)
-	}
+	c := newStdioCmdClient(command, env, args, logger)
 
 	logger.Debug("Created stdio MCP client successfully")
 	return &Client{
@@ -42,191 +33,277 @@ func NewStdioClient(ctx context.Context, command string, args, env []string, log
 	}, nil
 }
 
-// NewRemoteClient creates a new MCP client that can connect to a remote MCP server
-func NewRemoteClient(ctx context.Context, url, transportType string, headers map[string]string, logger *slog.Logger) (*Client, error) {
-	logger.Debug("Creating remote MCP client", "url", url, "transport", transportType, "headers", headers)
+type stdioMCPClient struct {
+	command string
+	env     []string
+	args    []string
+	logger  *slog.Logger
 
-	var c *client.Client
-	if transportType == "sse" {
-		var err error
-		c, err = client.NewSSEMCPClient(url, client.WithHeaders(headers))
-		if err != nil {
-			logger.Error("Failed to create sse remote MCP client", "error", err)
-			return nil, fmt.Errorf("failed to create sse remote MCP client: %w", err)
-		}
-	} else {
-		var err error
-		c, err = client.NewStreamableHttpClient(url, transport.WithHTTPHeaders(headers))
-		if err != nil {
-			logger.Error("Failed to create streamable remote MCP client", "error", err)
-			return nil, fmt.Errorf("failed to create streamable remote MCP client: %w", err)
-		}
-	}
+	stdin       io.WriteCloser
+	requestID   atomic.Int64
+	responses   sync.Map
+	close       func() error
+	initialized atomic.Bool
+}
 
-	logger.Debug("Created remote MCP client successfully")
-	return &Client{
-		client:  c,
+type RPCResponse struct {
+	Error    *string
+	Response *json.RawMessage
+}
+
+type BaseMessage struct {
+	JSONRPC string          `json:"jsonrpc"`
+	ID      *int64          `json:"id,omitempty"`
+	Method  string          `json:"method,omitempty"`
+	Result  json.RawMessage `json:"result,omitempty"`
+	Error   *struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	} `json:"error,omitempty"`
+}
+
+func newStdioCmdClient(command string, env, args []string, logger *slog.Logger) *stdioMCPClient {
+	return &stdioMCPClient{
+		command: command,
+		env:     env,
+		args:    args,
 		logger:  logger,
-		logType: "remote",
-		logId:   url,
-	}, nil
+	}
 }
 
-// Start initializes and starts the MCP server connection
-func (c *Client) Start(ctx context.Context) error {
-	c.logger.Debug("Starting MCP client", c.logType, c.logId)
-
-	if err := c.client.Start(ctx); err != nil {
-		c.logger.Error("Failed to start MCP client", "error", err)
-		return fmt.Errorf("failed to start MCP client: %w", err)
-	}
-
-	c.logger.Debug("Initializing MCP client", c.logType, c.logId)
-	initRequest := mcp.InitializeRequest{}
-	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
-	initRequest.Params.ClientInfo = mcp.Implementation{
-		Name:    "cagent",
-		Version: "1.0.0",
-	}
-
-	_, err := c.client.Initialize(ctx, initRequest)
-	if err != nil {
-		c.logger.Error("Failed to initialize MCP client", "error", err)
-		return fmt.Errorf("failed to initialize MCP client: %w", err)
-	}
-
-	c.logger.Debug("MCP client started and initialized successfully")
+func (c *stdioMCPClient) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop stops the MCP server
-func (c *Client) Stop() error {
-	c.logger.Debug("Stopping MCP client")
-	err := c.client.Close()
-	if err != nil {
-		c.logger.Error("Failed to stop MCP client", "error", err)
-		return err
+func (c *stdioMCPClient) Initialize(ctx context.Context, request mcp.InitializeRequest) (*mcp.InitializeResult, error) { //nolint:gocritic
+	if c.initialized.Load() {
+		return nil, errors.New("client already initialized")
 	}
-	c.logger.Debug("MCP client stopped successfully")
-	return nil
+
+	ctxCmd, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	cmd := exec.CommandContext(ctxCmd, c.command, c.args...)
+	cmd.Env = c.env
+	cmd.Cancel = func() error {
+		if runtime.GOOS == "windows" {
+			return cmd.Process.Kill()
+		}
+		return cmd.Process.Signal(syscall.SIGTERM)
+	}
+
+	var stderr bytes.Buffer
+	if c.logger.Handler().Enabled(ctx, slog.LevelDebug) {
+		logLogger := slog.NewLogLogger(c.logger.Handler(), slog.LevelDebug)
+		cmd.Stderr = io.MultiWriter(&stderr, logLogger.Writer())
+	} else {
+		cmd.Stderr = io.MultiWriter(&stderr)
+	}
+
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		cancel()
+		return nil, fmt.Errorf("failed to create stdin pipe: %w", err)
+	}
+	c.stdin = stdin
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		cancel()
+		return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		cancel()
+		return nil, fmt.Errorf("failed to start command: %w", err)
+	}
+
+	c.close = func() error {
+		cancel()
+		return nil
+	}
+	go func() {
+		_ = cmd.Wait()
+		cancel()
+	}()
+	go func() {
+		_ = c.readResponses(bufio.NewReader(stdout))
+	}()
+
+	var result mcp.InitializeResult
+	errCh := make(chan error)
+	go func() {
+		errCh <- func() error {
+			params := struct {
+				ProtocolVersion string                 `json:"protocolVersion"`
+				ClientInfo      mcp.Implementation     `json:"clientInfo"`
+				Capabilities    mcp.ClientCapabilities `json:"capabilities"`
+			}{
+				ProtocolVersion: request.Params.ProtocolVersion,
+				ClientInfo:      request.Params.ClientInfo,
+				Capabilities:    request.Params.Capabilities,
+			}
+
+			if err := c.request(ctxCmd, "initialize", params, &result); err != nil {
+				return err
+			}
+
+			encoder := json.NewEncoder(stdin)
+			if err := encoder.Encode(mcp.JSONRPCNotification{
+				JSONRPC: mcp.JSONRPC_VERSION,
+				Notification: mcp.Notification{
+					Method: "notifications/initialized",
+				},
+			}); err != nil {
+				return fmt.Errorf("failed to marshal initialized notification: %w", err)
+			}
+
+			c.initialized.Store(true)
+			return nil
+		}()
+	}()
+
+	select {
+	case <-ctxCmd.Done():
+		return nil, errors.New(stderr.String())
+	case <-ctx.Done():
+		cancel() // need to also cancel command if timed out or cancelled from parent
+		return nil, ctx.Err()
+	case err := <-errCh:
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &result, nil
 }
 
-// ListTools fetches available tools from the MCP server
-func (c *Client) ListTools(ctx context.Context, toolFilter []string) ([]tools.Tool, error) {
-	c.logger.Debug("Listing tools from MCP server", "toolFilter", toolFilter)
+func (c *stdioMCPClient) Close() error {
+	return c.close()
+}
 
-	resp, err := c.client.ListTools(ctx, mcp.ListToolsRequest{})
-	if err != nil {
-		c.logger.Error("Failed to list tools from MCP server", "error", err)
-		return nil, fmt.Errorf("failed to list tools: %w", err)
-	}
+func (c *stdioMCPClient) readResponses(stdout *bufio.Reader) error {
+	for {
+		buf, err := stdout.ReadBytes('\n')
+		if err != nil {
+			return err
+		}
 
-	c.logger.Debug("Received tools from MCP server", "count", len(resp.Tools))
-
-	var toolsList []tools.Tool
-	for i := range resp.Tools {
-		t := &resp.Tools[i]
-		// If toolFilter is not empty, only include tools that are in the filter
-		if len(toolFilter) > 0 && !slices.Contains(toolFilter, t.Name) {
-			c.logger.Debug("Filtering out tool", "tool", t.Name)
+		var baseMessage BaseMessage
+		if err := json.Unmarshal(buf, &baseMessage); err != nil {
 			continue
 		}
 
-		tool := tools.Tool{
-			Handler: c.CallTool,
-			Function: &tools.FunctionDefinition{
-				Name:        t.Name,
-				Description: t.Description,
-				Parameters: tools.FunctionParamaters{
-					Type:       t.InputSchema.Type,
-					Properties: t.InputSchema.Properties,
-					Required:   t.InputSchema.Required,
-				},
-				Annotations: tools.ToolAnnotation{
-					Title:           t.Annotations.Title,
-					ReadOnlyHint:    t.Annotations.ReadOnlyHint,
-					DestructiveHint: t.Annotations.DestructiveHint,
-					IdempotentHint:  t.Annotations.IdempotentHint,
-					OpenWorldHint:   t.Annotations.OpenWorldHint,
-				},
-			},
+		if baseMessage.ID == nil {
+			continue
 		}
-		toolsList = append(toolsList, tool)
 
-		c.logger.Debug("Added MCP tool", "tool", t.Name)
-	}
+		if ch, ok := c.responses.LoadAndDelete(*baseMessage.ID); ok {
+			responseChan := ch.(chan RPCResponse)
 
-	c.tools = toolsList
-	c.logger.Debug("Finished listing MCP tools", "filtered_count", len(toolsList))
-	return toolsList, nil
-}
-
-// CallTool calls a tool on the MCP server
-func (c *Client) CallTool(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	c.logger.Debug("Calling MCP tool", "tool", toolCall.Function.Name, "arguments", toolCall.Function.Arguments)
-
-	if toolCall.Function.Arguments == "" {
-		toolCall.Function.Arguments = "{}"
-	}
-	var args map[string]any
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-		c.logger.Error("Failed to parse tool arguments", "tool", toolCall.Function.Name, "error", err)
-		return nil, fmt.Errorf("failed to parse tool arguments: %w", err)
-	}
-
-	request := mcp.CallToolRequest{}
-	request.Params.Name = toolCall.Function.Name
-	request.Params.Arguments = args
-
-	resp, err := c.client.CallTool(ctx, request)
-	if err != nil {
-		c.logger.Error("Failed to call MCP tool", "tool", toolCall.Function.Name, "error", err)
-		return nil, fmt.Errorf("failed to call tool: %w", err)
-	}
-
-	result := processMCPContent(resp)
-	c.logger.Debug("MCP tool call completed", "tool", toolCall.Function.Name, "output_length", len(result.Output))
-	c.logger.Debug(result.Output)
-	return result, nil
-}
-
-func processMCPContent(toolResult *mcp.CallToolResult) *tools.ToolCallResult {
-	finalContent := ""
-	for _, resultContent := range toolResult.Content {
-		if textContent, ok := resultContent.(mcp.TextContent); ok {
-			finalContent += textContent.Text
+			if baseMessage.Error != nil {
+				responseChan <- RPCResponse{
+					Error: &baseMessage.Error.Message,
+				}
+			} else {
+				responseChan <- RPCResponse{
+					Response: &baseMessage.Result,
+				}
+			}
 		}
 	}
-
-	return &tools.ToolCallResult{
-		Output: finalContent,
-	}
 }
 
-// GetToolByName returns a tool by name
-func (c *Client) GetToolByName(name string) (tools.Tool, error) {
-	for _, tool := range c.tools {
-		if tool.Function != nil && tool.Function.Name == name {
-			return tool, nil
-		}
-	}
-	return tools.Tool{}, fmt.Errorf("tool %s not found", name)
-}
+func (c *stdioMCPClient) sendRequest(ctx context.Context, method string, params any) (*json.RawMessage, error) {
+	id := c.requestID.Add(1)
+	responseChan := make(chan RPCResponse, 1)
+	c.responses.Store(id, responseChan)
 
-// CallToolWithArgs is a convenience method to call a tool with arguments
-func (c *Client) CallToolWithArgs(ctx context.Context, toolName string, args any) (*tools.ToolCallResult, error) {
-	argsBytes, err := json.Marshal(args)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal arguments: %w", err)
-	}
-
-	toolCall := tools.ToolCall{
-		Type: "function",
-		Function: tools.FunctionCall{
-			Name:      toolName,
-			Arguments: string(argsBytes),
+	encoder := json.NewEncoder(c.stdin)
+	if err := encoder.Encode(mcp.JSONRPCRequest{
+		JSONRPC: mcp.JSONRPC_VERSION,
+		ID:      mcp.NewRequestId(id),
+		Request: mcp.Request{
+			Method: method,
 		},
+		Params: params,
+	}); err != nil {
+		return nil, fmt.Errorf("failed to encode request: %w", err)
 	}
 
-	return c.CallTool(ctx, toolCall)
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case response := <-responseChan:
+		if response.Error != nil {
+			return nil, errors.New(*response.Error)
+		}
+		return response.Response, nil
+	}
+}
+
+func (c *stdioMCPClient) request(ctx context.Context, method string, params, v any) error {
+	response, err := c.sendRequest(ctx, method, params)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(*response, &v)
+}
+
+func (c *stdioMCPClient) ListTools(ctx context.Context, request mcp.ListToolsRequest) (*mcp.ListToolsResult, error) {
+	var result mcp.ListToolsResult
+	if err := c.request(ctx, "tools/list", request, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (c *stdioMCPClient) ListPrompts(ctx context.Context, request mcp.ListPromptsRequest) (*mcp.ListPromptsResult, error) {
+	var result mcp.ListPromptsResult
+	if err := c.request(ctx, "prompts/list", request, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (c *stdioMCPClient) ListResources(ctx context.Context, request mcp.ListResourcesRequest) (*mcp.ListResourcesResult, error) {
+	var result mcp.ListResourcesResult
+	if err := c.request(ctx, "resources/list", request, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (c *stdioMCPClient) ListResourceTemplates(ctx context.Context, request mcp.ListResourceTemplatesRequest) (*mcp.ListResourceTemplatesResult, error) {
+	var result mcp.ListResourceTemplatesResult
+	if err := c.request(ctx, "resources/templates/list", request, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (c *stdioMCPClient) CallTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	response, err := c.sendRequest(ctx, "tools/call", request.Params)
+	if err != nil {
+		return nil, err
+	}
+
+	return mcp.ParseCallToolResult(response)
+}
+
+func (c *stdioMCPClient) GetPrompt(ctx context.Context, request mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
+	response, err := c.sendRequest(ctx, "prompts/get", request.Params)
+	if err != nil {
+		return nil, err
+	}
+
+	return mcp.ParseGetPromptResult(response)
+}
+
+func (c *stdioMCPClient) ReadResource(ctx context.Context, request mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+	response, err := c.sendRequest(ctx, "resources/read", request.Params)
+	if err != nil {
+		return nil, err
+	}
+
+	return mcp.ParseReadResourceResult(response)
 }

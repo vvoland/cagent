@@ -35,6 +35,14 @@ func New(opts ...Opt) *Team {
 	return t
 }
 
+func (t *Team) AgentNames() []string {
+	names := make([]string, 0, len(t.agents))
+	for name := range t.agents {
+		names = append(names, name)
+	}
+	return names
+}
+
 func (t *Team) Agent(name string) *agent.Agent {
 	return t.agents[name]
 }
