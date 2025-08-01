@@ -1,48 +1,24 @@
 package history
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func setupTest(t *testing.T) (string, func()) {
-	// Setup temporary home directory
-	tmpHome := t.TempDir()
-	originalHome := os.Getenv("HOME")
-	t.Setenv("HOME", tmpHome)
-
-	cleanup := func() {
-		os.Setenv("HOME", originalHome)
-	}
-
-	return tmpHome, cleanup
-}
-
 func TestNew(t *testing.T) {
-	tmpHome, cleanup := setupTest(t)
-	defer cleanup()
+	t.Setenv("HOME", t.TempDir())
 
 	h, err := New()
 	require.NoError(t, err)
-	assert.NotNil(t, h)
 
-	// Check if directory was created
-	historyDir := filepath.Join(tmpHome, ".cagent")
-	_, err = os.Stat(historyDir)
-	require.NoError(t, err)
-
-	// Check initial state
 	assert.Equal(t, -1, h.current)
 	assert.Empty(t, h.Messages)
 }
 
 func TestHistory_AddAndSave(t *testing.T) {
-	_, cleanup := setupTest(t)
-	defer cleanup()
+	t.Setenv("HOME", t.TempDir())
 
 	h, err := New()
 	require.NoError(t, err)
@@ -65,8 +41,7 @@ func TestHistory_AddAndSave(t *testing.T) {
 }
 
 func TestHistory_Navigation(t *testing.T) {
-	_, cleanup := setupTest(t)
-	defer cleanup()
+	t.Setenv("HOME", t.TempDir())
 
 	h, err := New()
 	require.NoError(t, err)
@@ -96,8 +71,7 @@ func TestHistory_Navigation(t *testing.T) {
 }
 
 func TestHistory_EdgeCases(t *testing.T) {
-	_, cleanup := setupTest(t)
-	defer cleanup()
+	t.Setenv("HOME", t.TempDir())
 
 	h, err := New()
 	require.NoError(t, err)

@@ -8,8 +8,9 @@ import (
 
 type History struct {
 	Messages []string `json:"messages"`
-	path     string
-	current  int
+
+	path    string
+	current int
 }
 
 func New() (*History, error) {
@@ -18,15 +19,8 @@ func New() (*History, error) {
 		return nil, err
 	}
 
-	historyDir := filepath.Join(homeDir, ".cagent")
-	if err := os.MkdirAll(historyDir, 0o755); err != nil {
-		return nil, err
-	}
-
-	historyFile := filepath.Join(historyDir, "history.json")
-
 	h := &History{
-		path:    historyFile,
+		path:    filepath.Join(homeDir, ".cagent", "history.json"),
 		current: -1,
 	}
 
@@ -82,6 +76,11 @@ func (h *History) save() error {
 	if err != nil {
 		return err
 	}
+
+	if err := os.MkdirAll(filepath.Dir(h.path), 0o755); err != nil {
+		return err
+	}
+
 	return os.WriteFile(h.path, data, 0o644)
 }
 
@@ -90,5 +89,6 @@ func (h *History) load() error {
 	if err != nil {
 		return err
 	}
+
 	return json.Unmarshal(data, h)
 }
