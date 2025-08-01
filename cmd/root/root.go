@@ -38,6 +38,7 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddCommand(NewBuildCmd())
 	cmd.AddCommand(NewMCPCmd())
 	cmd.AddCommand(NewReadmeCmd())
+	cmd.AddCommand(NewDebugCmd())
 
 	return cmd
 }
