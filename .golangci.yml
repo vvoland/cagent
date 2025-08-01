@@ -3,8 +3,26 @@ run:
   tests: true
 linters:
   enable:
+    - containedctx
+    - copyloopvar
+    - errcheck
+    - ginkgolinter
     - gocritic
+    - govet
+    - importas      # Enforces consistent import aliases.
+    - ineffassign
+    - intrange
+    - misspell
+    - nakedret
+    - nolintlint
     - revive
+    - staticcheck
+    - testifylint
+    - thelper
+    - unconvert
+    - unparam
+    - unused
+    - usestdlibvars
   settings:
     gocritic:
       disabled-checks:

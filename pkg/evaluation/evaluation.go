@@ -52,10 +52,9 @@ func Evaluate(ctx context.Context, t *team.Team, evalsDir string, logger *slog.L
 		if err != nil {
 			return nil, err
 		}
-		score, err := evaluate(eval.Messages, actualMessages)
-		if err != nil {
-			return nil, err
-		}
+
+		score := evaluate(eval.Messages, actualMessages)
+
 		results = append(results, Result{
 			Score:    score,
 			EvalFile: eval.ID,
@@ -74,7 +73,7 @@ func runLoop(ctx context.Context, logger *slog.Logger, rt *runtime.Runtime, eval
 	}
 
 	sess := session.New(logger)
-	for i := 0; i < len(userMessages); i++ {
+	for i := range userMessages {
 		sess.Messages = append(sess.Messages, userMessages[i])
 		messages, err := rt.Run(ctx, sess)
 		if err != nil {
@@ -87,7 +86,7 @@ func runLoop(ctx context.Context, logger *slog.Logger, rt *runtime.Runtime, eval
 	return sess.Messages, nil
 }
 
-func evaluate(expectedMessages, actualMessages []session.Message) (Score, error) {
+func evaluate(expectedMessages, actualMessages []session.Message) Score {
 	var expectedToolMessages []session.Message
 	for i := range expectedMessages {
 		if len(expectedMessages[i].Message.ToolCalls) != 0 {
@@ -108,7 +107,7 @@ func evaluate(expectedMessages, actualMessages []session.Message) (Score, error)
 	return Score{
 		ToolTrajectoryScore: toolTrajectoryScore,
 		Rouge1Score:         rouge1Score,
-	}, nil
+	}
 }
 
 // https://medium.com/nlplanet/two-minutes-nlp-learn-the-rouge-metric-by-examples-f179cc285499

@@ -210,7 +210,7 @@ func (s *MCPServer) handlePullAgent(ctx context.Context, req mcp.CallToolRequest
 }
 
 // extractClientID extracts the client ID from MCP context
-func (s *MCPServer) extractClientID(ctx context.Context) (string, error) {
+func (s *MCPServer) extractClientID(_ context.Context) (string, error) {
 	// TODO: Extract actual client ID from MCP context
 	// For now, use the global default client ID (multi-tenant support is not fully implemented)
 	clientID := servicecore.DEFAULT_CLIENT_ID

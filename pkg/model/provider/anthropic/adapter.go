@@ -75,7 +75,7 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 				Type:  "function",
 				Index: a.toolIdx,
 				Function: tools.FunctionCall{
-					Arguments: string(inputBytes),
+					Arguments: inputBytes,
 				},
 			}
 			response.Choices[0].Delta.ToolCalls = []tools.ToolCall{toolCall}
