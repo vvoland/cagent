@@ -20,6 +20,8 @@ import (
 	"github.com/docker/cagent/pkg/session"
 )
 
+var autoApprove bool
+
 // NewRunCmd creates a new run command
 func NewRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -36,6 +38,7 @@ func NewRunCmd() *cobra.Command {
 
 	cmd.PersistentFlags().StringVarP(&agentName, "agent", "a", "root", "Name of the agent to run")
 	cmd.PersistentFlags().BoolVarP(&debugMode, "debug", "d", false, "Enable debug logging")
+	cmd.PersistentFlags().BoolVar(&autoApprove, "yolo", false, "Automatically approve all tool calls without prompting")
 	cmd.PersistentFlags().StringSliceVar(&runConfig.EnvFiles, "env-from-file", nil, "Set environment variables from file")
 	addGatewayFlags(cmd)
 
@@ -88,7 +91,10 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
-	rt := runtime.New(logger, agents, runtime.WithCurrentAgent(agentName))
+	rt := runtime.New(logger, agents,
+		runtime.WithCurrentAgent(agentName),
+		runtime.WithAutoRunTools(autoApprove),
+	)
 
 	sess := session.New(logger)
 
