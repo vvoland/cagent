@@ -35,11 +35,13 @@ Here is the list of the available builtin tools an agent can use, each of them i
 
 - `-type: shell`: Gives the agent access to a shell where it can run commands on the users's computer
 - `-type: filesystem`: Gives the agent access to the filesystem for reading, writing files etc.
+- `-type: script`: Gives the agent access to custom shell commands/scripts with predefined parameters and environment variables
 - `-type: todo`: Gives the agent tools for tracking todo items it needs to finish in order to complete the task for the user. Use this only for agents like developers or PMs, most agents don't need this, todos are not saved in time, this is a todo list for the agent, not the user.
 - `-type: think`: Gives the agent a whiteboard where it can note down its thinking process, used for agents that have to think and break down complex tasks, most agents don't need this
 - `-type: memory`: Gives the agent long-term memory, to be used for memories about the user 
 
-The todo and memory tools can be configured:
+
+The todo, memory, and script tools can be configured:
 
 Todos can be shared between different agents in a team
 ```
@@ -65,6 +67,54 @@ agents:
         - type: memory
           path: "./agent_memory.db"
 ```
+
+Script tools allow you to define custom shell commands with typed parameters:
+
+```
+version: "1"
+
+agents:
+    root:
+        ...
+        toolsets:
+        - type: script
+          shell:
+            get_ip:
+              cmd: "curl -s https://ipinfo.io | jq -r .ip"
+              description: "Get public IP address"
+            deploy_app:
+              cmd: "docker build -t $IMAGE_NAME . && docker run -d -p $PORT:8080 $IMAGE_NAME"
+              description: "Deploy application using Docker"
+              args:
+                IMAGE_NAME:
+                  type: string
+                  description: "Name for the Docker image"
+                PORT:
+                  type: string
+                  description: "Host port to bind to container port 8080"
+              required: ["IMAGE_NAME", "PORT"]
+              working_dir: "/app"
+              env:
+                DOCKER_BUILDKIT: "1"
+            list_repos:
+              cmd: "curl -s https://api.github.com/users/$username/repos | jq '.[].name'"
+              description: "List Github repositories for a user"
+              args:
+                username:
+                  type: string
+                  description: "Github username to get repositories for"
+              required: ["username"]
+```
+
+Script tool configuration options:
+- `cmd`: The shell command to execute with $VARIABLE substitution (required)
+- `description`: Human-readable description of what the tool does (optional)
+- `args`: Parameters that can be passed to the command as environment variables (optional)
+- `required`: List of argument names that must be provided (optional, defaults to all args if args exist, empty array for no requirements)
+- `working_dir`: Directory to execute the command in (optional)
+- `env`: Static environment variables to set for the command (optional)
+
+Note: Arguments are substituted as environment variables in the command using $VARIABLE_NAME syntax.
 
 **Builtin tool selection constraints**
 
