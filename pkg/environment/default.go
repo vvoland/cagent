@@ -13,5 +13,10 @@ func NewDefaultProvider() Provider {
 		p = append(p, passProvider)
 	}
 
+	keychainProvider, err := NewKeychainProvider()
+	if err == nil {
+		p = append(p, keychainProvider)
+	}
+
 	return NewMultiProvider(p...)
 }
