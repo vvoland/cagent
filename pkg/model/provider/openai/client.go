@@ -50,6 +50,9 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		}
 
 		openaiConfig = openai.DefaultConfig(authToken)
+		if cfg.BaseURL != "" {
+			openaiConfig.BaseURL = cfg.BaseURL
+		}
 	} else {
 		authToken := desktop.GetToken(ctx)
 		if authToken == "" {
