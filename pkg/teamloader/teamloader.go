@@ -157,7 +157,7 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 			return nil, fmt.Errorf("model '%s' not found in configuration", name)
 		}
 
-		env := environment.NewMultiProvider(
+		providers := []environment.Provider{
 			environment.NewKeyValueProvider(modelCfg.Env),
 			environment.NewKeyValueProvider(cfg.Env),
 			environment.NewEnvFilesProvider(absEnvFiles),
@@ -165,7 +165,15 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 			environment.NewNoFailProvider(
 				environment.NewOnePasswordProvider(),
 			),
-		)
+		}
+
+		// Append pass provider at the end if available
+		passProvider, err := environment.NewPassProvider()
+		if err == nil {
+			providers = append(providers, passProvider)
+		}
+
+		env := environment.NewMultiProvider(providers...)
 
 		model, err := provider.New(ctx, &modelCfg, env, opts...)
 		if err != nil {
