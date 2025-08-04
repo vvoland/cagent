@@ -90,9 +90,11 @@ func New(logger *slog.Logger, opts ...Opt) *Session {
 	logger.Debug("Creating new session", "session_id", sessionID)
 
 	s := &Session{
-		ID:        sessionID,
-		CreatedAt: time.Now(),
-		logger:    logger,
+		ID:            sessionID,
+		CreatedAt:     time.Now(),
+		Messages:      make([]Message, 0),
+		ToolsApproved: false,
+		logger:        logger,
 	}
 
 	for _, opt := range opts {
