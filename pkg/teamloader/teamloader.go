@@ -173,6 +173,12 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 			providers = append(providers, passProvider)
 		}
 
+		// Append keychain provider if available
+		keychainProvider, err := environment.NewKeychainProvider()
+		if err == nil {
+			providers = append(providers, keychainProvider)
+		}
+
 		env := environment.NewMultiProvider(providers...)
 
 		model, err := provider.New(ctx, &modelCfg, env, opts...)
