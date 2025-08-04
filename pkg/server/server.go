@@ -13,7 +13,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -215,29 +214,13 @@ func (s *Server) agents(c echo.Context) error {
 	return c.JSON(http.StatusOK, agentList)
 }
 
-type sessionResponse struct {
-	ID                         string `json:"id"`
-	CreatedAt                  string `json:"created_at"`
-	NumMessages                int    `json:"num_messages"`
-	GetMostRecentAgentFilename string `json:"most_recent_agent_filename"`
-}
-
 func (s *Server) getSessions(c echo.Context) error {
 	sessions, err := s.sessionStore.GetSessions(c.Request().Context())
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to get sessions"})
 	}
 
-	responses := make([]sessionResponse, len(sessions))
-	for i, sess := range sessions {
-		responses[i] = sessionResponse{
-			ID:                         sess.ID,
-			CreatedAt:                  sess.CreatedAt.Format(time.RFC3339),
-			NumMessages:                len(sess.Messages),
-			GetMostRecentAgentFilename: sess.GetMostRecentAgentFilename(),
-		}
-	}
-	return c.JSON(http.StatusOK, responses)
+	return c.JSON(http.StatusOK, sessions)
 }
 
 func (s *Server) createSession(c echo.Context) error {
