@@ -79,7 +79,7 @@ func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, promp
 			Model:     "claude-sonnet-4-0",
 			MaxTokens: 64000,
 		},
-		environment.NewOsEnvProvider(),
+		environment.NewDefaultProvider(logger),
 		logger,
 		options.WithGateway(runConfig.ModelsGateway),
 	)
@@ -127,7 +127,7 @@ func StreamCreateAgent(ctx context.Context, baseDir string, logger *slog.Logger,
 			Model:     "claude-sonnet-4-0",
 			MaxTokens: 64000,
 		},
-		environment.NewOsEnvProvider(),
+		environment.NewDefaultProvider(logger),
 		logger,
 		options.WithGateway(runConfig.ModelsGateway),
 	)
