@@ -51,7 +51,7 @@ func Load(ctx context.Context, path string, runConfig latest.RuntimeConfig, logg
 			agent.WithDescription(agentConfig.Description),
 			agent.WithAddDate(agentConfig.AddDate),
 		}
-		models, err := getModelsForAgent(ctx, cfg, &agentConfig, absEnvFles, logger, options.WithGateway(runConfig.Gateway))
+		models, err := getModelsForAgent(ctx, cfg, &agentConfig, absEnvFles, logger, options.WithGateway(runConfig.ModelsGateway))
 		if err != nil {
 			return nil, fmt.Errorf("failed to get models: %w", err)
 		}
@@ -63,7 +63,7 @@ func Load(ctx context.Context, path string, runConfig latest.RuntimeConfig, logg
 		if !ok {
 			return nil, fmt.Errorf("agent '%s' not found in configuration", name)
 		}
-		agentTools, err := getToolsForAgent(ctx, &a, parentDir, logger, sharedTools, models[0], absEnvFles, runConfig.Gateway)
+		agentTools, err := getToolsForAgent(ctx, &a, parentDir, logger, sharedTools, models[0], absEnvFles, runConfig.ToolsGateway)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tools: %w", err)
 		}
