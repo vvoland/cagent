@@ -65,8 +65,8 @@ func (e *Executor) CreateRuntime(agentPath, agentName string, envFiles []string,
 
 	// Load agent configuration using existing loader
 	runConfig := latest.RuntimeConfig{
-		EnvFiles: envFiles,
-		Gateway:  gateway,
+		EnvFiles:      envFiles,
+		ModelsGateway: gateway,
 	}
 	agents, err := loader.Load(ctx, agentPath, runConfig, e.logger)
 	if err != nil {

@@ -103,8 +103,9 @@ type Config struct {
 }
 
 type RuntimeConfig struct {
-	EnvFiles []string
-	Gateway  string
+	EnvFiles      []string
+	ModelsGateway string
+	ToolsGateway  string
 }
 
 type Metadata struct {
