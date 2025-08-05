@@ -21,13 +21,14 @@ type ScriptShellTool struct {
 var _ tools.ToolSet = (*ScriptShellTool)(nil)
 
 func NewScriptShellTool(shellTools map[string]latest.ScriptShellToolConfig, env []string) *ScriptShellTool {
-	for _, tool := range shellTools {
+	for k, tool := range shellTools {
 		// If no required array was set, all arguments are required
 		if tool.Required == nil {
 			tool.Required = make([]string, len(tool.Args))
 			for argName := range tool.Args {
 				tool.Required = append(tool.Required, argName)
 			}
+			shellTools[k] = tool
 		}
 	}
 	return &ScriptShellTool{
@@ -99,8 +100,11 @@ func (t *ScriptShellTool) Tools(context.Context) ([]tools.Tool, error) {
 
 func (t *ScriptShellTool) execute(ctx context.Context, toolConfig *latest.ScriptShellToolConfig, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var params map[string]any
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
-		return nil, fmt.Errorf("invalid arguments: %w", err)
+	rawArgs := toolCall.Function.Arguments
+	if rawArgs != "" || len(toolConfig.Required) > 0 {
+		if err := json.Unmarshal([]byte(rawArgs), &params); err != nil {
+			return nil, fmt.Errorf("invalid arguments: %w", err)
+		}
 	}
 
 	// Use default shell
