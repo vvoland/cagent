@@ -28,6 +28,7 @@ virtual team of experts that can collaborate to solve complex problems.
 
 - Go 1.24 or higher
 - API key for your chosen AI provider (OpenAI, Anthropic, Gemini, etc.)
+- [Task 3.44 or higher](https://taskfile.dev/installation/)
 
 ### Installation & Setup
 
@@ -185,7 +186,7 @@ toolsets:
     - type: think # Enable think tool (optional)
     - type: todo # Enable the todo list tool (optional)
       shared: boolean # Should the todo list be shared (optional)
-    - type: memory 
+    - type: memory
       path: # Path to the sqlite database for memory storage (optional)
 ```
 
