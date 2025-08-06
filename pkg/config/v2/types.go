@@ -78,6 +78,15 @@ type Toolset struct {
 
 	// For the script tool
 	Shell map[string]ScriptShellToolConfig `json:"shell,omitempty" yaml:"shell,omitempty"`
+
+	// For the filesystem tool - post-edit commands
+	PostEdit []PostEditConfig `json:"post_edit,omitempty" yaml:"post_edit,omitempty"`
+}
+
+// PostEditConfig represents a post-edit command configuration
+type PostEditConfig struct {
+	Path string `json:"path" yaml:"path"`
+	Cmd  string `json:"cmd" yaml:"cmd"`
 }
 
 // Ensure that either Command, Remote or Ref is set, but not all empty
