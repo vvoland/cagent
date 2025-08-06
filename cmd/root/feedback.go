@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// version information
 var (
 	FeedbackLink = "https://docker.qualtrics.com/jfe/form/SV_cNsCIg92nQemlfw"
 )
