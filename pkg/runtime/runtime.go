@@ -371,16 +371,19 @@ func (r *Runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.T
 func (r *Runtime) runAgentTool(ctx context.Context, handler ToolHandler, sess *session.Session, toolCall tools.ToolCall, events chan Event, a *agent.Agent) {
 	events <- ToolCall(toolCall)
 	res, err := handler(ctx, sess, toolCall, events)
+	var output string
 	if err != nil {
+		output = fmt.Sprintf("error calling tool: %v", err)
 		r.logger.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
 	} else {
+		output = res.Output
 		r.logger.Debug("Tool executed successfully", "tool", toolCall.Function.Name)
 	}
 
-	events <- ToolCallResponse(toolCall, res.Output)
+	events <- ToolCallResponse(toolCall, output)
 	toolResponseMsg := chat.Message{
 		Role:       chat.MessageRoleTool,
-		Content:    res.Output,
+		Content:    output,
 		ToolCallID: toolCall.ID,
 	}
 	sess.Messages = append(sess.Messages, session.NewAgentMessage(a, &toolResponseMsg))
