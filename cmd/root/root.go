@@ -41,6 +41,8 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddCommand(NewDebugCmd())
 	cmd.AddCommand(NewFeedbackCmd())
 
+	cmd.OutOrStdout().Write([]byte("For any feedback, please visit: " + FeedbackLink + "\n\n"))
+
 	return cmd
 }
 
