@@ -245,7 +245,19 @@ func getToolsForAgent(a *latest.AgentConfig, parentDir string, sharedTools map[s
 				return nil, fmt.Errorf("failed to get working directory: %w", err)
 			}
 
-			t = append(t, builtin.NewFilesystemTool([]string{wd}, builtin.WithAllowedTools(toolset.Tools)))
+			opts := []builtin.FileSystemOpt{builtin.WithAllowedTools(toolset.Tools)}
+			if len(toolset.PostEdit) > 0 {
+				postEditConfigs := make([]builtin.PostEditConfig, len(toolset.PostEdit))
+				for i, pe := range toolset.PostEdit {
+					postEditConfigs[i] = builtin.PostEditConfig{
+						Path: pe.Path,
+						Cmd:  pe.Cmd,
+					}
+				}
+				opts = append(opts, builtin.WithPostEditCommands(postEditConfigs))
+			}
+
+			t = append(t, builtin.NewFilesystemTool([]string{wd}, opts...))
 
 		case toolset.Type == "mcp" && toolset.Command != "":
 			if gateway != "" {
