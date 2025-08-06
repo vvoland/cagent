@@ -22,6 +22,7 @@ import (
 	"github.com/docker/cagent/pkg/config"
 	latest "github.com/docker/cagent/pkg/config/v1"
 	"github.com/docker/cagent/pkg/content"
+	"github.com/docker/cagent/pkg/desktop"
 	"github.com/docker/cagent/pkg/loader"
 	"github.com/docker/cagent/pkg/remote"
 	"github.com/docker/cagent/pkg/runtime"
@@ -100,6 +101,7 @@ func New(logger *slog.Logger, sessionStore session.Store, runConfig latest.Runti
 
 	// Run an agent loop
 	api.POST("/sessions/:id/agent/:agent", s.runAgent)
+	api.GET("/desktop/token", s.getDesktopToken)
 
 	return s
 }
@@ -115,6 +117,11 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 	}
 
 	return nil
+}
+
+func (s *Server) getDesktopToken(c echo.Context) error {
+	authToken := desktop.GetToken(c.Request().Context())
+	return c.JSON(http.StatusOK, map[string]string{"token": authToken})
 }
 
 type createAgentRequest struct {
