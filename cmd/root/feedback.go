@@ -1,0 +1,24 @@
+package root
+
+import (
+	"fmt"
+
+	"github.com/spf13/cobra"
+)
+
+// version information
+var (
+	FeedbackLink = "https://docker.qualtrics.com/jfe/form/SV_cNsCIg92nQemlfw"
+)
+
+// NewFeedbackCmd creates a new feedback command
+func NewFeedbackCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "feedback",
+		Short: "Send feedback about cagent",
+		Long:  `Submit feedback or report issues with cagent`,
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println("Feel free to give feedback:\n", FeedbackLink)
+		},
+	}
+}
