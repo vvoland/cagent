@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"net/http"
 
 	"github.com/docker/cagent/pkg/chat"
 	latest "github.com/docker/cagent/pkg/config/v1"
@@ -33,28 +34,34 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		return nil, errors.New("model type must be 'gemini'")
 	}
 
-	var opts_ options.ModelOptions
+	var modelOptions options.ModelOptions
 	for _, opt := range opts {
-		opt(&opts_)
+		opt(&modelOptions)
 	}
 
 	var apiKey string
-	if gateway := opts_.Gateway(); gateway == "" {
+	var httpOptions genai.HTTPOptions
+	if gateway := modelOptions.Gateway(); gateway == "" {
 		var err error
 		apiKey, err = env.Get(ctx, "GOOGLE_API_KEY")
 		if err != nil || apiKey == "" {
 			return nil, errors.New("GOOGLE_API_KEY environment variable is required")
 		}
 	} else {
+		// genai client requires a non-empty API key
 		apiKey = desktop.GetToken(ctx)
 		if apiKey == "" {
 			return nil, errors.New("sorry, you first need to sign in Docker Desktop to use the Docker AI Gateway")
 		}
+		httpOptions.BaseURL = gateway
+		httpOptions.Headers = make(http.Header)
+		httpOptions.Headers.Set("Authorization", "Bearer "+apiKey)
 	}
 
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
-		APIKey:  apiKey,
-		Backend: genai.BackendGeminiAPI,
+		APIKey:      apiKey,
+		Backend:     genai.BackendGeminiAPI,
+		HTTPOptions: httpOptions,
 	})
 	if err != nil {
 		return nil, err
