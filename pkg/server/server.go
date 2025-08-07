@@ -218,9 +218,9 @@ func (s *Server) importAgent(c echo.Context) error {
 
 	// If target file already exists, generate an alternative name
 	if _, err := os.Stat(targetPath); err == nil {
-		agentKey = agentKey + "_copy"
+		agentKey += "_copy"
 		targetPath = filepath.Join(s.agentsDir, agentKey+".yaml")
-		
+
 		// If the _copy version also exists, add numbers until we find an available name
 		counter := 1
 		for {
@@ -329,11 +329,11 @@ func (s *Server) exportAgents(c echo.Context) error {
 
 	s.logger.Info("Agents exported successfully", "zip_path", zipPath, "agents_dir", s.agentsDir)
 	return c.JSON(http.StatusOK, map[string]string{
-		"zip_path":     zipPath,
-		"zip_file":     zipFileName,
+		"zip_path":      zipPath,
+		"zip_file":      zipFileName,
 		"zip_directory": filepath.Dir(zipPath),
-		"agents_dir":   s.agentsDir,
-		"created_at":   time.Now().Format(time.RFC3339),
+		"agents_dir":    s.agentsDir,
+		"created_at":    time.Now().Format(time.RFC3339),
 	})
 }
 
