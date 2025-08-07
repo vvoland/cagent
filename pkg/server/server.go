@@ -86,6 +86,8 @@ func New(logger *slog.Logger, sessionStore session.Store, runConfig latest.Runti
 	api.GET("/agents/:id", s.getAgent)
 	// Create a new agent
 	api.POST("/agents", s.createAgent)
+	// Import an agent from a file path
+	api.POST("/agents/import", s.importAgent)
 	// Pull an agent from a remote registry
 	api.POST("/agents/pull", s.pullAgent)
 	// List all sessions
@@ -128,6 +130,10 @@ type createAgentRequest struct {
 	Prompt string `json:"prompt"`
 }
 
+type importAgentRequest struct {
+	FilePath string `json:"file_path"`
+}
+
 func (s *Server) getAgent(c echo.Context) error {
 	path := filepath.Join(s.agentsDir, c.Param("id"))
 	if !strings.HasSuffix(path, ".yaml") {
@@ -166,6 +172,89 @@ func (s *Server) createAgent(c echo.Context) error {
 
 	s.logger.Info("Agent loaded", "path", path, "out", out)
 	return c.JSON(http.StatusOK, map[string]string{"path": path, "out": out})
+}
+
+func (s *Server) importAgent(c echo.Context) error {
+	var req importAgentRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	if req.FilePath == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "file_path is required"})
+	}
+
+	// Check if the file exists
+	if _, err := os.Stat(req.FilePath); os.IsNotExist(err) {
+		s.logger.Error("Agent file does not exist", "path", req.FilePath)
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "agent file not found"})
+	}
+
+	// Validate it's a YAML file
+	if !strings.HasSuffix(strings.ToLower(req.FilePath), ".yaml") && !strings.HasSuffix(strings.ToLower(req.FilePath), ".yml") {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "file must be a YAML file (.yaml or .yml)"})
+	}
+
+	// First validate the agent configuration by loading it
+	_, err := loader.Load(c.Request().Context(), req.FilePath, s.runConfig, s.logger)
+	if err != nil {
+		s.logger.Error("Failed to load agent from file", "path", req.FilePath, "error", err)
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "failed to load agent configuration: " + err.Error()})
+	}
+
+	// Read the original file content
+	fileContent, err := os.ReadFile(req.FilePath)
+	if err != nil {
+		s.logger.Error("Failed to read agent file", "path", req.FilePath, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to read agent file: " + err.Error()})
+	}
+
+	// Create target file path in agents directory
+	agentKey := strings.TrimSuffix(filepath.Base(req.FilePath), filepath.Ext(req.FilePath))
+	targetPath := filepath.Join(s.agentsDir, agentKey+".yaml")
+
+	// If target file already exists, generate an alternative name
+	if _, err := os.Stat(targetPath); err == nil {
+		agentKey = agentKey + "_copy"
+		targetPath = filepath.Join(s.agentsDir, agentKey+".yaml")
+		
+		// If the _copy version also exists, add numbers until we find an available name
+		counter := 1
+		for {
+			if _, err := os.Stat(targetPath); os.IsNotExist(err) {
+				break
+			}
+			agentKey = strings.TrimSuffix(filepath.Base(req.FilePath), filepath.Ext(req.FilePath)) + fmt.Sprintf("_copy_%d", counter)
+			targetPath = filepath.Join(s.agentsDir, agentKey+".yaml")
+			counter++
+		}
+		s.logger.Info("Target file exists, using alternative name", "original_key", strings.TrimSuffix(filepath.Base(req.FilePath), filepath.Ext(req.FilePath)), "new_key", agentKey)
+	}
+
+	// Write the file to the agents directory
+	if err := os.WriteFile(targetPath, fileContent, 0o644); err != nil {
+		s.logger.Error("Failed to write agent file to agents directory", "target", targetPath, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to write agent file to " + targetPath + ": " + err.Error()})
+	}
+
+	// Load the agent from the new location
+	t, err := loader.Load(c.Request().Context(), targetPath, s.runConfig, s.logger)
+	if err != nil {
+		// Clean up the file we just created if loading fails
+		_ = os.Remove(targetPath)
+		s.logger.Error("Failed to load agent from target path", "path", targetPath, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent from target path: " + err.Error()})
+	}
+
+	s.teams[agentKey] = t
+
+	s.logger.Info("Agent imported successfully", "original_path", req.FilePath, "target_path", targetPath, "key", agentKey)
+	return c.JSON(http.StatusOK, map[string]string{
+		"original_path": req.FilePath,
+		"target_path":   targetPath,
+		"agent_key":     agentKey,
+		"description":   t.Agent("root").Description(),
+	})
 }
 
 type pullAgentRequest struct {
