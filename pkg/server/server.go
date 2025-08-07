@@ -1,6 +1,7 @@
 package server
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -88,6 +89,8 @@ func New(logger *slog.Logger, sessionStore session.Store, runConfig latest.Runti
 	api.POST("/agents", s.createAgent)
 	// Import an agent from a file path
 	api.POST("/agents/import", s.importAgent)
+	// Export multiple agents as a zip file
+	api.POST("/agents/export", s.exportAgents)
 	// Pull an agent from a remote registry
 	api.POST("/agents/pull", s.pullAgent)
 	// List all sessions
@@ -254,6 +257,83 @@ func (s *Server) importAgent(c echo.Context) error {
 		"target_path":   targetPath,
 		"agent_key":     agentKey,
 		"description":   t.Agent("root").Description(),
+	})
+}
+
+func (s *Server) exportAgents(c echo.Context) error {
+	// Create zip file in the agents directory
+	zipFileName := fmt.Sprintf("agents_export_%d.zip", time.Now().Unix())
+	zipPath := filepath.Join(s.agentsDir, zipFileName)
+
+	// Create the zip file
+	zipFile, err := os.Create(zipPath)
+	if err != nil {
+		s.logger.Error("Failed to create zip file", "path", zipPath, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create zip file"})
+	}
+	defer zipFile.Close()
+
+	// Create a zip writer
+	zipWriter := zip.NewWriter(zipFile)
+	defer zipWriter.Close()
+
+	// Walk through the agents directory and add files to zip
+	err = filepath.Walk(s.agentsDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip directories
+		if info.IsDir() {
+			return nil
+		}
+
+		// Skip the zip file itself to avoid recursion
+		if path == zipPath {
+			return nil
+		}
+
+		// Only include YAML/YML files
+		ext := strings.ToLower(filepath.Ext(path))
+		if ext != ".yaml" && ext != ".yml" {
+			return nil
+		}
+
+		// Get relative path for the zip entry
+		relPath, err := filepath.Rel(s.agentsDir, path)
+		if err != nil {
+			return err
+		}
+
+		// Create zip entry
+		zipEntry, err := zipWriter.Create(relPath)
+		if err != nil {
+			return err
+		}
+
+		// Read file content and write to zip
+		fileContent, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+
+		_, err = zipEntry.Write(fileContent)
+		return err
+	})
+
+	if err != nil {
+		_ = os.Remove(zipPath) // Clean up on error
+		s.logger.Error("Failed to create agents export zip", "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create agents export: " + err.Error()})
+	}
+
+	s.logger.Info("Agents exported successfully", "zip_path", zipPath, "agents_dir", s.agentsDir)
+	return c.JSON(http.StatusOK, map[string]string{
+		"zip_path":     zipPath,
+		"zip_file":     zipFileName,
+		"zip_directory": filepath.Dir(zipPath),
+		"agents_dir":   s.agentsDir,
+		"created_at":   time.Now().Format(time.RFC3339),
 	})
 }
 
