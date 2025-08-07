@@ -28,6 +28,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `cd examples/mcptesting && go run test-mcp-client.go` - Test MCP server functionality
 - Test client verifies agent listing, pulling, and invocation via MCP protocol
 
+### Single Test Execution
+- `go test ./pkg/specific/package` - Run tests for specific package
+- `go test ./pkg/... -run TestSpecificFunction` - Run specific test function
+- `go test -v ./...` - Run all tests with verbose output
+
 ## Architecture Overview
 
 cagent is a multi-agent AI system with hierarchical agent structure and pluggable tool ecosystem via MCP (Model Context Protocol).
@@ -162,3 +167,141 @@ agents:
 - **Current behavior**: All MCP clients use `DEFAULT_CLIENT_ID` ("__global"), making them effectively share sessions
 - **Impact**: Multiple MCP clients can see and interact with each other's agent sessions
 - **Recommendation**: Use single MCP client per cagent instance until full multi-tenant support is implemented
+
+## Model Provider Configuration Examples
+
+### OpenAI
+```yaml
+models:
+  gpt4:
+    provider: openai
+    model: gpt-4o
+    temperature: 0.7
+    max_tokens: 4000
+```
+
+### Anthropic
+```yaml
+models:
+  claude:
+    provider: anthropic
+    model: claude-sonnet-4-0
+    max_tokens: 64000
+```
+
+### Gemini
+```yaml
+models:
+  gemini:
+    provider: gemini
+    model: gemini-2.0-flash
+    temperature: 0.5
+```
+
+### Local Ollama
+```yaml
+models:
+  local:
+    provider: openai
+    model: llama3
+    base_url: http://localhost:11434/v1
+```
+
+## Tool Configuration Examples
+
+### Local MCP Server (stdio)
+```yaml
+toolsets:
+  - type: mcp
+    command: "python"
+    args: ["-m", "mcp_server"]
+    tools: ["specific_tool"]  # optional filtering
+    env:
+      - "API_KEY=value"
+```
+
+### Remote MCP Server (SSE)
+```yaml
+toolsets:
+  - type: mcp
+    remote:
+      url: "http://localhost:8080/mcp"
+      transport_type: "sse"
+      headers:
+        Authorization: "Bearer token"
+```
+
+### Memory Tool with Custom Path
+```yaml
+toolsets:
+  - type: memory
+    path: "./agent_memory.db"
+```
+
+## Common Development Patterns
+
+### Agent Hierarchy Example
+```yaml
+agents:
+  root:
+    model: claude
+    description: "Main coordinator"
+    sub_agents: ["researcher", "writer"]
+    toolsets:
+      - type: transfer_task
+      - type: think
+  
+  researcher:
+    model: gpt4
+    description: "Research specialist"
+    toolsets:
+      - type: mcp
+        command: "web_search_tool"
+  
+  writer:
+    model: claude
+    description: "Writing specialist"
+    toolsets:
+      - type: filesystem
+      - type: memory
+```
+
+### Session Commands During CLI Usage
+- `/exit` - End the session
+- `/reset` - Clear session history
+- `/eval <expression>` - Evaluate expression (debug mode)
+
+## File Locations and Patterns
+
+### Key Package Structure
+- `pkg/servicecore/` - Multi-tenant business logic layer
+- `pkg/agent/` - Core agent abstraction and management
+- `pkg/runtime/` - Event-driven execution engine
+- `pkg/tools/` - Built-in and MCP tool implementations
+- `pkg/model/provider/` - AI provider implementations
+- `pkg/session/` - Conversation state management
+- `pkg/config/` - YAML configuration parsing and validation
+- `pkg/mcpserver/` - MCP protocol server implementation
+
+### Configuration File Locations
+- `examples/config/` - Sample agent configurations
+- Root directory - Main project configurations (Taskfile.yml, go.mod)
+- `web/` - Frontend React application
+
+### Environment Variables
+- `OPENAI_API_KEY` - OpenAI authentication
+- `ANTHROPIC_API_KEY` - Anthropic authentication
+- `GOOGLE_API_KEY` - Google/Gemini authentication
+- `MCP_SSE_ENDPOINT` - Override MCP test endpoint
+
+## Debugging and Troubleshooting
+
+### Debug Mode
+- Add `--debug` flag to any command for detailed logging
+- Example: `./bin/cagent run config.yaml --debug`
+
+### Common Issues
+- **Web build required**: Run `task build-web` before `task build` or `task test`
+- **Agent not found**: Check agent name matches config file agent definitions
+- **Tool startup failures**: Verify MCP tool commands and dependencies are available
+- **Multi-tenant sessions**: Remember all MCP clients currently share sessions
