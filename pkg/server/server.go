@@ -25,6 +25,7 @@ import (
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/desktop"
 	"github.com/docker/cagent/pkg/loader"
+	"github.com/docker/cagent/pkg/oci"
 	"github.com/docker/cagent/pkg/remote"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
@@ -93,6 +94,8 @@ func New(logger *slog.Logger, sessionStore session.Store, runConfig latest.Runti
 	api.POST("/agents/export", s.exportAgents)
 	// Pull an agent from a remote registry
 	api.POST("/agents/pull", s.pullAgent)
+	// Push an agent to a remote registry
+	api.POST("/agents/push", s.pushAgent)
 	// List all sessions
 	api.GET("/sessions", s.getSessions)
 	// Get a session by id
@@ -378,6 +381,64 @@ func (s *Server) pullAgent(c echo.Context) error {
 	s.teams[agentName] = t
 
 	return c.JSON(http.StatusOK, map[string]string{"name": agentName})
+}
+
+type pushAgentRequest struct {
+	Filepath string `json:"filepath"`
+	Tag      string `json:"tag"`
+}
+
+func (s *Server) pushAgent(c echo.Context) error {
+	var req pushAgentRequest
+	if err := c.Bind(&req); err != nil {
+		s.logger.Error("Failed to bind push agent request", "error", err)
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	if req.Filepath == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "filepath is required"})
+	}
+
+	if req.Tag == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "tag is required"})
+	}
+
+	s.logger.Info("Building and pushing agent", "filepath", req.Filepath, "tag", req.Tag)
+
+	// Check if the file exists
+	if _, err := os.Stat(req.Filepath); os.IsNotExist(err) {
+		s.logger.Error("Agent file does not exist", "path", req.Filepath)
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "agent file not found"})
+	}
+
+	// First, build the artifact
+	store, err := content.NewStore()
+	if err != nil {
+		s.logger.Error("Failed to create content store", "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create content store"})
+	}
+
+	digest, err := oci.PackageFileAsOCIToStore(req.Filepath, req.Tag, store)
+	if err != nil {
+		s.logger.Error("Failed to build artifact", "filepath", req.Filepath, "tag", req.Tag, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to build artifact"})
+	}
+
+	s.logger.Info("Artifact built successfully", "tag", req.Tag, "digest", digest)
+
+	// Then, push the artifact
+	if err := remote.Push(req.Tag); err != nil {
+		s.logger.Error("Failed to push agent", "tag", req.Tag, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to push agent"})
+	}
+
+	s.logger.Info("Agent pushed successfully", "filepath", req.Filepath, "tag", req.Tag, "digest", digest)
+	return c.JSON(http.StatusOK, map[string]string{
+		"filepath": req.Filepath,
+		"tag":      req.Tag,
+		"digest":   digest,
+		"status":   "pushed",
+	})
 }
 
 func (s *Server) agents(c echo.Context) error {
