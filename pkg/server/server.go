@@ -83,9 +83,9 @@ func New(logger *slog.Logger, sessionStore session.Store, runConfig latest.Runti
 	api := e.Group("/api")
 
 	// List all available agents
-	api.GET("/agents", s.agents)
+	api.GET("/agents", s.getAgents)
 	// Get an agent by id
-	api.GET("/agents/:id", s.getAgent)
+	api.GET("/agents/:id", s.getAgentConfig)
 	// Create a new agent
 	api.POST("/agents", s.createAgent)
 	// Import an agent from a file path
@@ -140,7 +140,7 @@ type importAgentRequest struct {
 	FilePath string `json:"file_path"`
 }
 
-func (s *Server) getAgent(c echo.Context) error {
+func (s *Server) getAgentConfig(c echo.Context) error {
 	path := filepath.Join(s.agentsDir, c.Param("id"))
 	if !strings.HasSuffix(path, ".yaml") {
 		path += ".yaml"
@@ -254,12 +254,11 @@ func (s *Server) importAgent(c echo.Context) error {
 
 	s.teams[agentKey] = t
 
-	s.logger.Info("Agent imported successfully", "original_path", req.FilePath, "target_path", targetPath, "key", agentKey)
+	s.logger.Info("Agent imported successfully", "originalPath", req.FilePath, "targetPath", targetPath, "key", agentKey)
 	return c.JSON(http.StatusOK, map[string]string{
-		"original_path": req.FilePath,
-		"target_path":   targetPath,
-		"agent_key":     agentKey,
-		"description":   t.Agent("root").Description(),
+		"originalPath": req.FilePath,
+		"targetPath":   targetPath,
+		"description":  t.Agent("root").Description(),
 	})
 }
 
@@ -330,13 +329,13 @@ func (s *Server) exportAgents(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create agents export: " + err.Error()})
 	}
 
-	s.logger.Info("Agents exported successfully", "zip_path", zipPath, "agents_dir", s.agentsDir)
+	s.logger.Info("Agents exported successfully", "zipPath", zipPath, "agentsDir", s.agentsDir)
 	return c.JSON(http.StatusOK, map[string]string{
-		"zip_path":      zipPath,
-		"zip_file":      zipFileName,
-		"zip_directory": filepath.Dir(zipPath),
-		"agents_dir":    s.agentsDir,
-		"created_at":    time.Now().Format(time.RFC3339),
+		"zipPath":      zipPath,
+		"zipFile":      zipFileName,
+		"zipDirectory": filepath.Dir(zipPath),
+		"agentsDir":    s.agentsDir,
+		"createdAt":    time.Now().Format(time.RFC3339),
 	})
 }
 
@@ -380,7 +379,7 @@ func (s *Server) pullAgent(c echo.Context) error {
 
 	s.teams[agentName] = t
 
-	return c.JSON(http.StatusOK, map[string]string{"name": agentName})
+	return c.JSON(http.StatusOK, map[string]string{"name": agentName, "description": t.Agent("root").Description()})
 }
 
 type pushAgentRequest struct {
@@ -437,11 +436,10 @@ func (s *Server) pushAgent(c echo.Context) error {
 		"filepath": req.Filepath,
 		"tag":      req.Tag,
 		"digest":   digest,
-		"status":   "pushed",
 	})
 }
 
-func (s *Server) agents(c echo.Context) error {
+func (s *Server) getAgents(c echo.Context) error {
 	agentList := make([]map[string]string, 0)
 	for id, t := range s.teams {
 		agentList = append(agentList, map[string]string{
