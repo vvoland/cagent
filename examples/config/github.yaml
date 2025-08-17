@@ -1,0 +1,19 @@
+#!/usr/bin/env cagent run
+version: "1"
+
+agents:
+  root:
+    model: claude
+    description: "Github Agent - Help with Github using MCP tools"
+    instruction: |
+      You are a helpful assistant that can help with all things Github by leveraging Github MCP tools
+    toolsets:
+      - type: mcp
+        command: docker
+        args: ["mcp", "gateway", "run", "--servers=github-official"]
+
+models:
+  claude:
+    provider: anthropic
+    model: claude-sonnet-4-0
+    max_tokens: 64000
