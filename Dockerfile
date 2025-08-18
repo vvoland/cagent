@@ -6,18 +6,10 @@ FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.6.1 AS xx
 # osxcross contains the MacOSX cross toolchain for xx
 FROM crazymax/osxcross:14.5-r0-debian AS osxcross
 
-# TODO(platform?)
-FROM --platform=$BUILDPLATFORM node:24-alpine@sha256:820e86612c21d0636580206d802a726f2595366e1b867e564cbc652024151e8a AS build-web
-WORKDIR /web
-COPY web ./
-RUN --mount=type=cache,target=/root/.npm \
-    npm install && npm run build
-
 FROM golang:1.24-alpine@sha256:daae04ebad0c21149979cd8e9db38f565ecefd8547cf4a591240dc1972cf1399 AS build-agent
 RUN apk add --no-cache build-base
 WORKDIR /app
 COPY . ./
-COPY --from=build-web /web/dist ./web/dist
 ARG GIT_TAG GIT_COMMIT BUILD_DATE
 RUN --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=/go/pkg/mod \
@@ -32,7 +24,6 @@ ARG GIT_TAG GIT_COMMIT BUILD_DATE
 FROM builder-base AS builder-darwin
 RUN apk add clang
 COPY . ./
-COPY --from=build-web /web/dist ./web/dist
 RUN --mount=type=bind,from=osxcross,src=/osxsdk,target=/xx-sdk \
     --mount=type=cache,target=/root/.cache,id=docker-ai-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod <<EOT
@@ -45,7 +36,6 @@ FROM builder-base AS builder-linux
 RUN apk add clang
 RUN xx-apk add libx11-dev musl-dev gcc
 COPY . ./
-COPY --from=build-web /web/dist ./web/dist
 RUN --mount=type=cache,target=/root/.cache,id=docker-ai-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod <<EOT
     set -x
@@ -55,7 +45,6 @@ EOT
 
 FROM builder-base AS builder-windows
 COPY . ./
-COPY --from=build-web /web/dist ./web/dist
 RUN --mount=type=cache,target=/root/.cache,id=docker-ai-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod <<EOT
     set -x
