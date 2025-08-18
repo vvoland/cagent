@@ -744,6 +744,10 @@ func (t *FilesystemTool) handleSearchFiles(ctx context.Context, toolCall tools.T
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error searching files: %s", err)}, nil
 	}
 
+	if len(matches) == 0 {
+		return &tools.ToolCallResult{Output: "No files found"}, nil
+	}
+
 	return &tools.ToolCallResult{Output: strings.Join(matches, "\n")}, nil
 }
 
@@ -835,6 +839,10 @@ func (t *FilesystemTool) handleSearchFilesContent(ctx context.Context, toolCall 
 	})
 	if err != nil {
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error searching file contents: %s", err)}, nil
+	}
+
+	if len(results) == 0 {
+		return &tools.ToolCallResult{Output: "No results found"}, nil
 	}
 
 	return &tools.ToolCallResult{Output: strings.Join(results, "\n")}, nil

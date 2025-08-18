@@ -453,14 +453,25 @@ func TestFilesystemTool_SearchFiles(t *testing.T) {
 
 	handler := getToolHandler(t, tool, "search_files")
 
-	// Test search for files containing "test"
+	// Test search for files containing "asdf"
 	args := map[string]any{
 		"path":    tmpDir,
-		"pattern": "test",
+		"pattern": "asdf",
 	}
 	result := callHandler(t, handler, args)
 
 	lines := strings.Split(strings.TrimSpace(result.Output), "\n")
+	assert.Equal(t, len(lines), 1) // Should find test.txt, test.log, and test_sub.txt
+	assert.Contains(t, lines, "No files found")
+
+	// Test search for files containing "test"
+	args = map[string]any{
+		"path":    tmpDir,
+		"pattern": "test",
+	}
+	result = callHandler(t, handler, args)
+
+	lines = strings.Split(strings.TrimSpace(result.Output), "\n")
 	assert.GreaterOrEqual(t, len(lines), 2) // Should find test.txt, test.log, and test_sub.txt
 
 	// Test search with exclude patterns
