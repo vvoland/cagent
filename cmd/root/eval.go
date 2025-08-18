@@ -2,7 +2,6 @@ package root
 
 import (
 	"fmt"
-	"log/slog"
 
 	"github.com/spf13/cobra"
 
@@ -24,7 +23,7 @@ func NewEvalCmd() *cobra.Command {
 }
 
 func runEvalCommand(cmd *cobra.Command, args []string) error {
-	logger := slog.Default()
+	logger := newLogger()
 
 	agents, err := loader.Load(cmd.Context(), args[0], runConfig, logger)
 	if err != nil {

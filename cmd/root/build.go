@@ -2,7 +2,6 @@ package root
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 
 	"github.com/docker/cagent/pkg/content"
@@ -40,14 +39,7 @@ Examples:
 }
 
 func runBuildCommand(filePath, tag string) error {
-	logLevel := slog.LevelInfo
-	if debugMode {
-		logLevel = slog.LevelDebug
-	}
-
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: logLevel,
-	}))
+	logger := newLogger()
 
 	logger.Debug("Starting build", "file", filePath, "tag", tag)
 

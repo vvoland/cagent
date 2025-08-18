@@ -2,8 +2,6 @@ package root
 
 import (
 	"fmt"
-	"log/slog"
-	"os"
 
 	"github.com/docker/cagent/pkg/remote"
 	"github.com/google/go-containerregistry/pkg/crane"
@@ -28,14 +26,7 @@ from the build command.`,
 }
 
 func runPushCommand(reference string) error {
-	logLevel := slog.LevelInfo
-	if debugMode {
-		logLevel = slog.LevelDebug
-	}
-
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: logLevel,
-	}))
+	logger := newLogger()
 
 	logger.Debug("Starting push", "registry_ref", reference)
 

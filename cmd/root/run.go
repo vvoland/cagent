@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"strings"
 
@@ -48,14 +47,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	agentFilename := args[0]
 
-	logLevel := slog.LevelInfo
-	if debugMode {
-		logLevel = slog.LevelDebug
-	}
-
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: logLevel,
-	}))
+	logger := newLogger()
 
 	logger.Debug("Starting agent", "agent", agentName, "debug_mode", debugMode)
 

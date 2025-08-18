@@ -2,8 +2,6 @@ package root
 
 import (
 	"fmt"
-	"log/slog"
-	"os"
 
 	"github.com/docker/cagent/pkg/remote"
 	"github.com/google/go-containerregistry/pkg/crane"
@@ -25,14 +23,7 @@ func NewPullCmd() *cobra.Command {
 }
 
 func runPullCommand(registryRef string) error {
-	logLevel := slog.LevelInfo
-	if debugMode {
-		logLevel = slog.LevelDebug
-	}
-
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: logLevel,
-	}))
+	logger := newLogger()
 
 	logger.Debug("Starting pull", "registry_ref", registryRef)
 

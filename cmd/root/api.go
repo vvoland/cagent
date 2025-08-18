@@ -3,7 +3,6 @@ package root
 import (
 	"fmt"
 	"io/fs"
-	"log/slog"
 	"net"
 	"os"
 
@@ -46,14 +45,7 @@ func runHttp(cmd *cobra.Command, startWeb, autoRunTools bool, args []string) err
 	ctx := cmd.Context()
 	agentsPath := args[0]
 
-	logLevel := slog.LevelInfo
-	if debugMode {
-		logLevel = slog.LevelDebug
-	}
-
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: logLevel,
-	}))
+	logger := newLogger()
 
 	ln, err := server.Listen(ctx, listenAddr)
 	if err != nil {

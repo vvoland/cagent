@@ -3,7 +3,6 @@ package root
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -43,18 +42,7 @@ and maintain conversational sessions.`,
 }
 
 func runMCPCommand(cmd *cobra.Command, args []string) error {
-	// Initialize logger with appropriate level
-	handlerOpts := &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}
-	if debugMode {
-		handlerOpts.Level = slog.LevelDebug
-	}
-	logger := slog.New(slog.NewTextHandler(os.Stderr, handlerOpts))
-
-	if debugMode {
-		logger.Info("Debug mode enabled")
-	}
+	logger := newLogger()
 
 	// Default agents directory to current working directory if not specified
 	resolvedAgentsDir := agentsDir

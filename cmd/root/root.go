@@ -2,6 +2,7 @@ package root
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -11,6 +12,17 @@ var (
 	agentName string
 	debugMode bool
 )
+
+func newLogger() *slog.Logger {
+	logLevel := slog.LevelInfo
+	if debugMode {
+		logLevel = slog.LevelDebug
+	}
+
+	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: logLevel,
+	}))
+}
 
 // NewRootCmd creates the root command for cagent
 func NewRootCmd() *cobra.Command {

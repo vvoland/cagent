@@ -3,8 +3,6 @@ package root
 import (
 	"context"
 	"fmt"
-	"log/slog"
-	"os"
 	"strings"
 	"time"
 
@@ -630,15 +628,7 @@ func runTUICommand(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	agentFilename := args[0]
 
-	// Configure logger based on debug flag
-	logLevel := slog.LevelInfo
-	if debugMode {
-		logLevel = slog.LevelDebug
-	}
-
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: logLevel,
-	}))
+	logger := newLogger()
 
 	logger.Debug("Starting agent TUI", "agent", agentName, "debug_mode", debugMode)
 
