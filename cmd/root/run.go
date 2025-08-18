@@ -14,9 +14,9 @@ import (
 
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/evaluation"
-	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/cagent/pkg/teamloader"
 )
 
 var autoApprove bool

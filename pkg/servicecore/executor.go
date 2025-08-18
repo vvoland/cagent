@@ -40,9 +40,9 @@ import (
 	"time"
 
 	latest "github.com/docker/cagent/pkg/config/v1"
-	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/cagent/pkg/teamloader"
 )
 
 // Executor handles runtime creation and stream execution
