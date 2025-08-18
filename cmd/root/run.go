@@ -14,7 +14,7 @@ import (
 
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/evaluation"
-	"github.com/docker/cagent/pkg/loader"
+	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 )
@@ -72,7 +72,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		agentFilename = tmpFile.Name()
 	}
 
-	agents, err := loader.Load(ctx, agentFilename, runConfig, logger)
+	agents, err := teamloader.Load(ctx, agentFilename, runConfig, logger)
 	if err != nil {
 		return err
 	}

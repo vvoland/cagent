@@ -23,7 +23,7 @@
 //   - Maintains session state consistency across message exchanges
 //
 // Integration Points:
-// - Uses pkg/loader for agent configuration parsing
+// - Uses pkg/teamloader for agent configuration parsing
 // - Leverages pkg/runtime for actual agent execution
 // - Integrates with pkg/session for conversation state management
 // - Provides clean abstractions for both MCP and HTTP transports
@@ -40,7 +40,7 @@ import (
 	"time"
 
 	latest "github.com/docker/cagent/pkg/config/v1"
-	"github.com/docker/cagent/pkg/loader"
+	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 )
@@ -68,7 +68,7 @@ func (e *Executor) CreateRuntime(agentPath, agentName string, envFiles []string,
 		EnvFiles:      envFiles,
 		ModelsGateway: gateway,
 	}
-	agents, err := loader.Load(ctx, agentPath, runConfig, e.logger)
+	agents, err := teamloader.Load(ctx, agentPath, runConfig, e.logger)
 	if err != nil {
 		return nil, nil, fmt.Errorf("loading agent configuration: %w", err)
 	}

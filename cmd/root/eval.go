@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/evaluation"
-	"github.com/docker/cagent/pkg/loader"
+	"github.com/docker/cagent/pkg/teamloader"
 )
 
 func NewEvalCmd() *cobra.Command {
@@ -25,7 +25,7 @@ func NewEvalCmd() *cobra.Command {
 func runEvalCommand(cmd *cobra.Command, args []string) error {
 	logger := newLogger()
 
-	agents, err := loader.Load(cmd.Context(), args[0], runConfig, logger)
+	agents, err := teamloader.Load(cmd.Context(), args[0], runConfig, logger)
 	if err != nil {
 		return err
 	}

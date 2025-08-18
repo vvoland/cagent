@@ -24,7 +24,6 @@ import (
 	latest "github.com/docker/cagent/pkg/config/v1"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/desktop"
-	"github.com/docker/cagent/pkg/loader"
 	"github.com/docker/cagent/pkg/oci"
 	"github.com/docker/cagent/pkg/remote"
 	"github.com/docker/cagent/pkg/runtime"
@@ -168,7 +167,7 @@ func (s *Server) createAgent(c echo.Context) error {
 
 	s.logger.Info("Agent created", "path", path, "out", out)
 
-	t, err := loader.Load(c.Request().Context(), path, s.runConfig, s.logger)
+	t, err := teamloader.Load(c.Request().Context(), path, s.runConfig, s.logger)
 	if err != nil {
 		_ = os.Remove(path)
 		s.logger.Error("Failed to load agent", "path", path, "error", err)
@@ -203,7 +202,7 @@ func (s *Server) importAgent(c echo.Context) error {
 	}
 
 	// First validate the agent configuration by loading it
-	_, err := loader.Load(c.Request().Context(), req.FilePath, s.runConfig, s.logger)
+	_, err := teamloader.Load(c.Request().Context(), req.FilePath, s.runConfig, s.logger)
 	if err != nil {
 		s.logger.Error("Failed to load agent from file", "path", req.FilePath, "error", err)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "failed to load agent configuration: " + err.Error()})
@@ -245,7 +244,7 @@ func (s *Server) importAgent(c echo.Context) error {
 	}
 
 	// Load the agent from the new location
-	t, err := loader.Load(c.Request().Context(), targetPath, s.runConfig, s.logger)
+	t, err := teamloader.Load(c.Request().Context(), targetPath, s.runConfig, s.logger)
 	if err != nil {
 		// Clean up the file we just created if loading fails
 		_ = os.Remove(targetPath)
@@ -372,7 +371,7 @@ func (s *Server) pullAgent(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to write agent yaml to " + fileName + ": " + err.Error()})
 	}
 
-	t, err := loader.Load(c.Request().Context(), fileName, s.runConfig, s.logger)
+	t, err := teamloader.Load(c.Request().Context(), fileName, s.runConfig, s.logger)
 	if err != nil {
 		s.logger.Error("Failed to load agent", "name", req.Name, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})

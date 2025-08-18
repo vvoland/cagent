@@ -16,7 +16,7 @@ import (
 
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/history"
-	"github.com/docker/cagent/pkg/loader"
+	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 )
@@ -632,7 +632,7 @@ func runTUICommand(cmd *cobra.Command, args []string) error {
 
 	logger.Debug("Starting agent TUI", "agent", agentName, "debug_mode", debugMode)
 
-	agents, err := loader.Load(ctx, agentFilename, runConfig, logger)
+	agents, err := teamloader.Load(ctx, agentFilename, runConfig, logger)
 	if err != nil {
 		return err
 	}

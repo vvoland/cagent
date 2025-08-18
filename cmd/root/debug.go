@@ -1,7 +1,7 @@
 package root
 
 import (
-	"github.com/docker/cagent/pkg/loader"
+	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/spf13/cobra"
 )
 
@@ -29,7 +29,7 @@ func debugToolsetsCommand(cmd *cobra.Command, args []string) error {
 	logger := newLogger()
 
 	logger.Info("Loading agent", "agent", agentFilename)
-	team, err := loader.Load(ctx, agentFilename, runConfig, logger)
+	team, err := teamloader.Load(ctx, agentFilename, runConfig, logger)
 	if err != nil {
 		return err
 	}
