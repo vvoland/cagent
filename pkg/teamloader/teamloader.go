@@ -1,4 +1,4 @@
-package root
+package teamloader
 
 import (
 	"context"
@@ -8,14 +8,16 @@ import (
 	"path/filepath"
 	"strings"
 
+	latest "github.com/docker/cagent/pkg/config/v1"
 	"github.com/docker/cagent/pkg/loader"
 	"github.com/docker/cagent/pkg/team"
 )
 
-func loadTeams(ctx context.Context, agentsPathOrDirectory string, logger *slog.Logger) (map[string]*team.Team, error) {
+// LoadTeams loads all agent teams from the given directory or file path
+func LoadTeams(ctx context.Context, agentsPathOrDirectory string, runConfig latest.RuntimeConfig, logger *slog.Logger) (map[string]*team.Team, error) {
 	teams := make(map[string]*team.Team)
 
-	agentPaths, err := findAgentPaths(agentsPathOrDirectory)
+	agentPaths, err := FindAgentPaths(agentsPathOrDirectory)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find agents: %w", err)
 	}
@@ -33,7 +35,8 @@ func loadTeams(ctx context.Context, agentsPathOrDirectory string, logger *slog.L
 	return teams, nil
 }
 
-func findAgentPaths(agentsPathOrDirectory string) ([]string, error) {
+// FindAgentPaths finds all agent YAML files in the given directory or returns the single file path
+func FindAgentPaths(agentsPathOrDirectory string) ([]string, error) {
 	stat, err := os.Stat(agentsPathOrDirectory)
 	if err != nil {
 		return nil, fmt.Errorf("failed to stat agents path: %w", err)

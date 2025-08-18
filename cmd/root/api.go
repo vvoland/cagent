@@ -12,6 +12,7 @@ import (
 	latest "github.com/docker/cagent/pkg/config/v1"
 	"github.com/docker/cagent/pkg/server"
 	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/web"
 )
 
@@ -94,7 +95,7 @@ func runHttp(cmd *cobra.Command, startWeb, autoRunTools bool, args []string) err
 		}
 	}
 
-	teams, err := loadTeams(ctx, agentsPath, logger)
+	teams, err := teamloader.LoadTeams(ctx, agentsPath, runConfig, logger)
 	if err != nil {
 		return fmt.Errorf("failed to load teams: %w", err)
 	}

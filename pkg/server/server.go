@@ -30,6 +30,7 @@ import (
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
+	"github.com/docker/cagent/pkg/teamloader"
 )
 
 type Server struct {
@@ -440,6 +441,11 @@ func (s *Server) pushAgent(c echo.Context) error {
 }
 
 func (s *Server) getAgents(c echo.Context) error {
+	// Refresh agents from disk to get the latest configurations
+	if err := s.refreshAgentsFromDisk(c.Request().Context()); err != nil {
+		s.logger.Error("Failed to refresh agents from disk", "error", err)
+	}
+
 	agentList := make([]map[string]string, 0)
 	for id, t := range s.teams {
 		agentList = append(agentList, map[string]string{
@@ -448,6 +454,29 @@ func (s *Server) getAgents(c echo.Context) error {
 		})
 	}
 	return c.JSON(http.StatusOK, agentList)
+}
+
+func (s *Server) refreshAgentsFromDisk(ctx context.Context) error {
+	if s.agentsDir == "" {
+		return nil
+	}
+
+	newTeams, err := teamloader.LoadTeams(ctx, s.agentsDir, s.runConfig, s.logger)
+	if err != nil {
+		return fmt.Errorf("failed to load teams: %w", err)
+	}
+
+	for id, oldTeam := range s.teams {
+		if _, exists := newTeams[id]; !exists {
+			// Team no longer exists on disk, stop its tool sets
+			if err := oldTeam.StopToolSets(); err != nil {
+				s.logger.Error("Failed to stop tool sets for removed team", "team", id, "error", err)
+			}
+		}
+	}
+
+	s.teams = newTeams
+	return nil
 }
 
 type sessionResponse struct {
