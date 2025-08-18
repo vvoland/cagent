@@ -1,4 +1,4 @@
-package new
+package root
 
 import (
 	"bufio"
@@ -15,7 +15,7 @@ import (
 )
 
 // Cmd creates a new command to create a new agent configuration
-func Cmd() *cobra.Command {
+func NewNewCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "new",
 		Short: "Create a new agent configuration",
@@ -39,7 +39,7 @@ func Cmd() *cobra.Command {
 				prompt = strings.TrimSpace(prompt)
 			}
 
-			out, err := creator.StreamCreateAgent(ctx, ".", logger, prompt)
+			out, err := creator.StreamCreateAgent(ctx, ".", logger, prompt, runConfig)
 			if err != nil {
 				return err
 			}
@@ -63,6 +63,7 @@ func Cmd() *cobra.Command {
 			return nil
 		},
 	}
+	addGatewayFlags(cmd)
 
 	return cmd
 }

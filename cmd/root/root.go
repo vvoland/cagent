@@ -5,8 +5,6 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-
-	"github.com/docker/cagent/cmd/root/new"
 )
 
 var (
@@ -30,7 +28,7 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddCommand(NewRunCmd())
 	cmd.AddCommand(NewWebCmd())
 	cmd.AddCommand(NewTUICmd())
-	cmd.AddCommand(new.Cmd())
+	cmd.AddCommand(NewNewCmd())
 	cmd.AddCommand(NewApiCmd())
 	cmd.AddCommand(NewEvalCmd())
 	cmd.AddCommand(NewPushCmd())

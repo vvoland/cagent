@@ -12,6 +12,7 @@ import (
 	latest "github.com/docker/cagent/pkg/config/v1"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/model/provider/anthropic"
+	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
@@ -113,7 +114,7 @@ func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, promp
 	return messages[len(messages)-1].Message.Content, fsToolset.path, nil
 }
 
-func StreamCreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, prompt string) (<-chan runtime.Event, error) {
+func StreamCreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, prompt string, runConfig latest.RuntimeConfig) (<-chan runtime.Event, error) {
 	llm, err := anthropic.NewClient(
 		ctx,
 		&latest.ModelConfig{
@@ -123,6 +124,7 @@ func StreamCreateAgent(ctx context.Context, baseDir string, logger *slog.Logger,
 		},
 		environment.NewOsEnvProvider(),
 		logger,
+		options.WithGateway(runConfig.ModelsGateway),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create LLM client: %w", err)
