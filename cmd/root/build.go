@@ -11,10 +11,7 @@ import (
 )
 
 func NewBuildCmd() *cobra.Command {
-	var (
-		debug bool
-		tag   string
-	)
+	var tag string
 
 	cmd := &cobra.Command{
 		Use:   "build [flags] <file>",
@@ -32,20 +29,19 @@ Examples:
 			if tag == "" {
 				return fmt.Errorf("tag is required, use -t or --tag to specify it")
 			}
-			return runBuildCommand(args[0], tag, debug)
+			return runBuildCommand(args[0], tag)
 		},
 	}
 
 	cmd.Flags().StringVarP(&tag, "tag", "t", "", "Tag for the artifact (required)")
-	cmd.Flags().BoolVarP(&debug, "debug", "d", false, "Enable debug output")
 	_ = cmd.MarkFlagRequired("tag")
 
 	return cmd
 }
 
-func runBuildCommand(filePath, tag string, debug bool) error {
+func runBuildCommand(filePath, tag string) error {
 	logLevel := slog.LevelInfo
-	if debug {
+	if debugMode {
 		logLevel = slog.LevelDebug
 	}
 

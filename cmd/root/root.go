@@ -24,6 +24,9 @@ func NewRootCmd() *cobra.Command {
 		},
 	}
 
+	// Add persistent debug flag available to all commands
+	cmd.PersistentFlags().BoolVarP(&debugMode, "debug", "d", false, "Enable debug logging")
+
 	cmd.AddCommand(NewVersionCmd())
 	cmd.AddCommand(NewRunCmd())
 	cmd.AddCommand(NewWebCmd())

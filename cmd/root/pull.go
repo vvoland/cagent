@@ -11,26 +11,22 @@ import (
 )
 
 func NewPullCmd() *cobra.Command {
-	var debug bool
-
 	cmd := &cobra.Command{
 		Use:   "pull <registry-ref>",
 		Short: "Pull an artifact from Docker Hub",
 		Long:  `Pull an artifact from Docker Hub`,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runPullCommand(args[0], debug)
+			return runPullCommand(args[0])
 		},
 	}
-
-	cmd.Flags().BoolVarP(&debug, "debug", "d", false, "Enable debug output")
 
 	return cmd
 }
 
-func runPullCommand(registryRef string, debug bool) error {
+func runPullCommand(registryRef string) error {
 	logLevel := slog.LevelInfo
-	if debug {
+	if debugMode {
 		logLevel = slog.LevelDebug
 	}
 

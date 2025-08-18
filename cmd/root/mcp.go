@@ -38,7 +38,6 @@ and maintain conversational sessions.`,
 	cmd.Flags().DurationVar(&sessionTimeout, "session-timeout", time.Hour, "Session timeout duration")
 	cmd.Flags().StringVar(&port, "port", "8080", "Port for MCP SSE server")
 	cmd.Flags().StringVar(&basePath, "path", "/mcp", "Base path for MCP endpoints (e.g., /mcp, /foo/bar)")
-	cmd.Flags().BoolVar(&debugMode, "debug", false, "Enable debug logging")
 
 	return cmd
 }
