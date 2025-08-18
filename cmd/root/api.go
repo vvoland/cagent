@@ -2,7 +2,6 @@ package root
 
 import (
 	"fmt"
-	"io/fs"
 	"net"
 	"os"
 
@@ -12,7 +11,6 @@ import (
 	"github.com/docker/cagent/pkg/server"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/teamloader"
-	"github.com/docker/cagent/web"
 )
 
 var (
@@ -29,7 +27,7 @@ func NewApiCmd() *cobra.Command {
 		Long:  `Start the API server that exposes the agent via an HTTP API`,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runHttp(cmd, false, false, args)
+			return runHttp(cmd, false, args)
 		},
 	}
 
@@ -41,7 +39,7 @@ func NewApiCmd() *cobra.Command {
 	return cmd
 }
 
-func runHttp(cmd *cobra.Command, startWeb, autoRunTools bool, args []string) error {
+func runHttp(cmd *cobra.Command, autoRunTools bool, args []string) error {
 	ctx := cmd.Context()
 	agentsPath := args[0]
 
@@ -71,20 +69,12 @@ func runHttp(cmd *cobra.Command, startWeb, autoRunTools bool, args []string) err
 
 	var opts []server.Opt
 
-	if startWeb {
-		fsys, err := fs.Sub(web.WebContent, "dist")
-		if err != nil {
-			return err
-		}
-		opts = append(opts, server.WithFrontend(fsys))
-	} else {
-		stat, err := os.Stat(agentsPath)
-		if err != nil {
-			return fmt.Errorf("failed to stat agents path: %w", err)
-		}
-		if stat.IsDir() {
-			opts = append(opts, server.WithAgentsDir(agentsPath))
-		}
+	stat, err := os.Stat(agentsPath)
+	if err != nil {
+		return fmt.Errorf("failed to stat agents path: %w", err)
+	}
+	if stat.IsDir() {
+		opts = append(opts, server.WithAgentsDir(agentsPath))
 	}
 
 	teams, err := teamloader.LoadTeams(ctx, agentsPath, runConfig, logger)
