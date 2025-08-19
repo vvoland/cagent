@@ -36,9 +36,10 @@ func TestFilesystemTool_Tools(t *testing.T) {
 	tools, err := tool.Tools(context.Background())
 
 	require.NoError(t, err)
-	assert.Len(t, tools, 13)
+	assert.Len(t, tools, 14)
 
 	expectedTools := []string{
+		"add_allowed_directory",
 		"create_directory",
 		"directory_tree",
 		"edit_file",
@@ -617,4 +618,123 @@ func callHandler(t *testing.T, handler tools.ToolHandler, args map[string]any) *
 	require.NotNil(t, result)
 
 	return result
+}
+
+func TestFilesystemTool_AddAllowedDirectory(t *testing.T) {
+	// Create temporary directories for testing
+	tmpDir1 := t.TempDir()
+	tmpDir2 := t.TempDir()
+
+	// Create filesystem tool with only tmpDir1 initially allowed
+	tool := NewFilesystemTool([]string{tmpDir1})
+	handler := getToolHandler(t, tool, "add_allowed_directory")
+
+	t.Run("request consent for new directory", func(t *testing.T) {
+		args := map[string]any{
+			"path":   tmpDir2,
+			"reason": "Need access for testing",
+		}
+		result := callHandler(t, handler, args)
+
+		// Should return consent request message
+		assert.Contains(t, result.Output, "SECURITY CONSENT REQUEST")
+		assert.Contains(t, result.Output, tmpDir2)
+		assert.Contains(t, result.Output, "Need access for testing")
+		assert.Contains(t, result.Output, "confirmed")
+
+		// Directory should not be added yet
+		assert.Len(t, tool.allowedDirectories, 1)
+		assert.Equal(t, tmpDir1, tool.allowedDirectories[0])
+	})
+
+	t.Run("add directory with confirmation", func(t *testing.T) {
+		args := map[string]any{
+			"path":      tmpDir2,
+			"reason":    "Need access for testing",
+			"confirmed": true,
+		}
+		result := callHandler(t, handler, args)
+
+		// Should return success message
+		assert.Contains(t, result.Output, "Directory successfully added")
+		assert.Contains(t, result.Output, tmpDir2)
+
+		// Directory should now be added
+		assert.Len(t, tool.allowedDirectories, 2)
+		assert.Contains(t, tool.allowedDirectories, tmpDir1)
+		assert.Contains(t, tool.allowedDirectories, tmpDir2)
+	})
+
+	t.Run("attempt to add already allowed directory", func(t *testing.T) {
+		args := map[string]any{
+			"path":      tmpDir1,
+			"reason":    "Testing duplicate",
+			"confirmed": true,
+		}
+		result := callHandler(t, handler, args)
+
+		// Should return already allowed message
+		assert.Contains(t, result.Output, "already in allowed directories")
+		assert.Contains(t, result.Output, tmpDir1)
+
+		// Should not add duplicate
+		assert.Len(t, tool.allowedDirectories, 2)
+	})
+
+	t.Run("attempt to add subdirectory of allowed directory", func(t *testing.T) {
+		subDir := filepath.Join(tmpDir1, "subdir")
+		err := os.MkdirAll(subDir, 0o755)
+		require.NoError(t, err)
+
+		args := map[string]any{
+			"path":      subDir,
+			"reason":    "Testing subdirectory",
+			"confirmed": true,
+		}
+		result := callHandler(t, handler, args)
+
+		// Should return already accessible message
+		assert.Contains(t, result.Output, "already accessible")
+		assert.Contains(t, result.Output, subDir)
+		assert.Contains(t, result.Output, tmpDir1)
+
+		// Should not add subdirectory
+		assert.Len(t, tool.allowedDirectories, 2)
+	})
+
+	t.Run("attempt to add non-existent directory", func(t *testing.T) {
+		nonExistent := "/path/that/does/not/exist"
+		args := map[string]any{
+			"path":      nonExistent,
+			"reason":    "Testing non-existent",
+			"confirmed": true,
+		}
+		result := callHandler(t, handler, args)
+
+		// Should return error message
+		assert.Contains(t, result.Output, "Error accessing path")
+
+		// Should not add non-existent directory
+		assert.Len(t, tool.allowedDirectories, 2)
+	})
+
+	t.Run("attempt to add file instead of directory", func(t *testing.T) {
+		// Create a file
+		tempFile := filepath.Join(tmpDir2, "testfile.txt")
+		err := os.WriteFile(tempFile, []byte("test"), 0o644)
+		require.NoError(t, err)
+
+		args := map[string]any{
+			"path":      tempFile,
+			"reason":    "Testing file",
+			"confirmed": true,
+		}
+		result := callHandler(t, handler, args)
+
+		// Should return error message
+		assert.Contains(t, result.Output, "is not a directory")
+
+		// Should not add file
+		assert.Len(t, tool.allowedDirectories, 2)
+	})
 }

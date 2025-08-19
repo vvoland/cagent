@@ -46,6 +46,12 @@ This toolset provides comprehensive filesystem operations with built-in security
 - All operations are restricted to allowed directories only
 - Use list_allowed_directories to see available paths
 - Subdirectories within allowed directories are accessible
+- Use add_allowed_directory to request access to new directories (requires user consent)
+
+### Directory Access Management
+- If you need access to a directory outside the allowed list, use add_allowed_directory
+- This will request user consent before expanding filesystem access
+- Always provide a clear reason when requesting new directory access
 
 ### Common Patterns
 - Always check if directories exist before creating files
@@ -165,6 +171,31 @@ func (t *FilesystemTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 				},
 			},
 			Handler: t.handleListAllowedDirectories,
+		},
+		{
+			Function: &tools.FunctionDefinition{
+				Name:        "add_allowed_directory",
+				Description: "Request to add a new directory to the allowed directories list. This requires explicit user consent for security reasons.",
+				Parameters: tools.FunctionParamaters{
+					Type: "object",
+					Properties: map[string]any{
+						"path": map[string]any{
+							"type":        "string",
+							"description": "The directory path to add to allowed directories",
+						},
+						"reason": map[string]any{
+							"type":        "string",
+							"description": "Explanation of why this directory needs to be added",
+						},
+						"confirmed": map[string]any{
+							"type":        "boolean",
+							"description": "Set to true to confirm that you consent to adding this directory",
+						},
+					},
+					Required: []string{"path", "reason"},
+				},
+			},
+			Handler: t.handleAddAllowedDirectory,
 		},
 		{
 			Function: &tools.FunctionDefinition{
@@ -561,6 +592,92 @@ func (t *FilesystemTool) handleListAllowedDirectories(ctx context.Context, toolC
 	}
 
 	return &tools.ToolCallResult{Output: string(result)}, nil
+}
+
+func (t *FilesystemTool) handleAddAllowedDirectory(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+	var args struct {
+		Path      string `json:"path"`
+		Reason    string `json:"reason"`
+		Confirmed bool   `json:"confirmed"`
+	}
+	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
+		return nil, fmt.Errorf("failed to parse arguments: %w", err)
+	}
+
+	// Validate the path exists and is a directory
+	absPath, err := filepath.Abs(args.Path)
+	if err != nil {
+		return &tools.ToolCallResult{Output: fmt.Sprintf("Error resolving path: %s", err)}, nil
+	}
+
+	info, err := os.Stat(absPath)
+	if err != nil {
+		return &tools.ToolCallResult{Output: fmt.Sprintf("Error accessing path: %s", err)}, nil
+	}
+
+	if !info.IsDir() {
+		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s is not a directory", absPath)}, nil
+	}
+
+	// Check if the directory is already allowed
+	for _, allowedDir := range t.allowedDirectories {
+		allowedAbs, err := filepath.Abs(allowedDir)
+		if err != nil {
+			continue
+		}
+		if allowedAbs == absPath {
+			return &tools.ToolCallResult{Output: fmt.Sprintf("Directory %s is already in allowed directories list", absPath)}, nil
+		}
+		// Check if the requested path is already covered by an existing allowed directory
+		if strings.HasPrefix(absPath, allowedAbs) {
+			return &tools.ToolCallResult{Output: fmt.Sprintf("Directory %s is already accessible (covered by %s)", absPath, allowedAbs)}, nil
+		}
+	}
+
+	// If not confirmed, show consent request
+	if !args.Confirmed {
+		consentMsg := fmt.Sprintf(`SECURITY CONSENT REQUEST
+
+The agent is requesting permission to add a new directory to the allowed filesystem access list:
+
+Path: %s
+Reason: %s
+
+This will grant the agent read/write access to this directory and all its subdirectories.
+
+IMPORTANT: Only grant this permission if:
+1. You trust this request and understand the security implications
+2. The directory contains files the agent legitimately needs to access
+3. The directory doesn't contain sensitive personal data or system files
+
+To proceed, call this tool again with the same parameters but add "confirmed": true
+To deny, do not call the tool again.
+
+Current allowed directories:
+%s`, absPath, args.Reason, strings.Join(t.allowedDirectories, "\n"))
+
+		return &tools.ToolCallResult{Output: consentMsg}, nil
+	}
+
+	// User has confirmed, add the directory
+	return t.addAllowedDirectory(absPath)
+}
+
+// addAllowedDirectory adds a directory to the allowed directories list
+func (t *FilesystemTool) addAllowedDirectory(absPath string) (*tools.ToolCallResult, error) {
+	// Add the directory to the allowed list
+	t.allowedDirectories = append(t.allowedDirectories, absPath)
+
+	successMsg := fmt.Sprintf(`Directory successfully added to allowed directories list.
+
+Added: %s
+
+The agent now has filesystem access to this directory and all its subdirectories.
+
+Updated allowed directories:
+%s`, absPath, strings.Join(t.allowedDirectories, "\n"))
+
+	return &tools.ToolCallResult{Output: successMsg}, nil
 }
 
 func (t *FilesystemTool) handleListDirectory(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
