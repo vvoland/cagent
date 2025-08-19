@@ -428,6 +428,7 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 		memberAgentTask += fmt.Sprintf("\n\n<expected_output>\n%s\n</expected_output>", params.ExpectedOutput)
 	}
 
+	r.logger.Info("Creating new session with parent session", "parent_session_id", sess.ID, "tools_approved", sess.ToolsApproved)
 	s := session.New(r.logger, session.WithUserMessage(sess.GetMostRecentAgentFilename(), memberAgentTask))
 	s.ToolsApproved = sess.ToolsApproved
 
@@ -437,6 +438,8 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 			return nil, errEvent.Error
 		}
 	}
+
+	sess.ToolsApproved = s.ToolsApproved
 
 	r.currentAgent = ca
 
