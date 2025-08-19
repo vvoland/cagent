@@ -51,6 +51,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 			return nil, errors.New("ANTHROPIC_API_KEY environment variable is required")
 		}
 
+		logger.Debug("Anthropic API key found, creating client")
 		requestOptions = append(requestOptions,
 			option.WithAPIKey(authToken),
 		)
@@ -61,6 +62,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 			return nil, errors.New("sorry, you first need to sign in Docker Desktop to use the Docker AI Gateway")
 		}
 
+		logger.Debug("Docker Desktop's authentication token found, creating client")
 		requestOptions = append(requestOptions,
 			option.WithAuthToken(authToken),
 			option.WithAPIKey(authToken),
@@ -68,7 +70,6 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		)
 	}
 
-	logger.Debug("Anthropic API key found, creating client")
 	client := anthropic.NewClient(requestOptions...)
 	logger.Debug("Anthropic client created successfully", "model", cfg.Model)
 
