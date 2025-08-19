@@ -447,9 +447,14 @@ func (s *Server) getAgents(c echo.Context) error {
 
 	agentList := make([]map[string]string, 0)
 	for id, t := range s.teams {
+		a := t.Agent("root")
+		if a == nil {
+			s.logger.Error("Agent root not found", "team", id)
+			continue
+		}
 		agentList = append(agentList, map[string]string{
 			"name":        id,
-			"description": t.Agent("root").Description(),
+			"description": a.Description(),
 		})
 	}
 	return c.JSON(http.StatusOK, agentList)
