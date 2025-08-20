@@ -44,11 +44,13 @@ RUN --mount=type=cache,target=/root/.cache,id=docker-ai-$TARGETPLATFORM \
 EOT
 
 FROM builder-base AS builder-windows
+RUN apk add zig build-base
 COPY . ./
 RUN --mount=type=cache,target=/root/.cache,id=docker-ai-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod <<EOT
     set -x
-    CGO_ENABLED=0 xx-go build -trimpath -ldflags "-s -w -X 'github.com/docker/cagent/cmd/root.Version=$GIT_TAG' -X 'github.com/docker/cagent/cmd/root.Commit=$GIT_COMMIT' -X 'github.com/docker/cagent/cmd/root.BuildTime=$BUILD_DATE'" -o /binaries/cagent-$TARGETOS-$TARGETARCH .
+    CGO_ENABLED=1 CC="zig cc -target x86_64-windows-gnu" CXX="zig c++ -target x86_64-windows-gnu"  xx-go build -trimpath -ldflags "-s -w -X 'github.com/docker/cagent/cmd/root.Version=$GIT_TAG' -X 'github.com/docker/cagent/cmd/root.Commit=$GIT_COMMIT' -X 'github.com/docker/cagent/cmd/root.BuildTime=$BUILD_DATE'" -o /binaries/cagent-$TARGETOS-$TARGETARCH .
+    ls -la /binaries
     mv /binaries/cagent-$TARGETOS-$TARGETARCH /binaries/cagent-$TARGETOS-$TARGETARCH.exe
     xx-verify --static /binaries/cagent-windows-$TARGETARCH.exe
 EOT
