@@ -2,10 +2,12 @@ package gemini
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/docker/cagent/pkg/chat"
 	latest "github.com/docker/cagent/pkg/config/v1"
@@ -134,9 +136,36 @@ func convertMessagesToGemini(messages []chat.Message) []*genai.Content {
 				if part.Type == chat.MessagePartTypeText {
 					parts = append(parts, genai.NewPartFromText(part.Text))
 				} else if part.Type == chat.MessagePartTypeImageURL && part.ImageURL != nil {
-					// TODO: Implement image support for Gemini SDK
-					// For now, add a text note about the image
-					parts = append(parts, genai.NewPartFromText("[Image content not yet supported in Gemini provider]"))
+					// For Gemini, we need to extract base64 data from data URL and convert to bytes
+					// Based on: https://ai.google.dev/gemini-api/docs/vision
+					if strings.HasPrefix(part.ImageURL.URL, "data:") {
+						urlParts := strings.SplitN(part.ImageURL.URL, ",", 2)
+						if len(urlParts) == 2 {
+							// Extract media type from data URL
+							mediaTypePart := urlParts[0]
+							base64Data := urlParts[1]
+
+							// Decode base64 data to bytes
+							if imageData, err := base64.StdEncoding.DecodeString(base64Data); err == nil {
+								var mimeType string
+								if strings.Contains(mediaTypePart, "image/jpeg") {
+									mimeType = "image/jpeg"
+								} else if strings.Contains(mediaTypePart, "image/png") {
+									mimeType = "image/png"
+								} else if strings.Contains(mediaTypePart, "image/gif") {
+									mimeType = "image/gif"
+								} else if strings.Contains(mediaTypePart, "image/webp") {
+									mimeType = "image/webp"
+								} else {
+									mimeType = "image/jpeg" // Default
+								}
+
+								// Create image part using Gemini Go SDK
+								// Equivalent to types.Part.from_bytes(data=image_bytes, mime_type='image/jpeg')
+								parts = append(parts, genai.NewPartFromBytes(imageData, mimeType))
+							}
+						}
+					}
 				}
 			}
 			if len(parts) > 0 {
@@ -307,6 +336,19 @@ func (c *Client) CreateChatCompletionStream(
 	c.logger.Debug("Gemini messages", "count", len(contents))
 	for i, content := range contents {
 		c.logger.Debug("Message", "index", i, "role", content.Role)
+	}
+
+	// For Gemini 2.5 models with thoughtSignature streaming issues,
+	// try non-streaming first to avoid parsing problems
+	if strings.Contains(c.config.Model, "2.5") {
+		c.logger.Debug("Using non-streaming mode for Gemini 2.5 to avoid thoughtSignature parsing issues")
+		response, err := c.client.Models.GenerateContent(ctx, c.config.Model, contents, config)
+		if err != nil {
+			c.logger.Debug("Non-streaming failed, falling back to streaming", "error", err)
+		} else {
+			// Convert non-streaming response to streaming format
+			return NewNonStreamingAdapter(response, c.config.Model, c.logger), nil
+		}
 	}
 
 	iter := c.client.Models.GenerateContentStream(ctx, c.config.Model, contents, config)

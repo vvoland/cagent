@@ -12,9 +12,15 @@ models:
     temperature: 0.0
     max_tokens: 1000
 
+  gemini:
+    provider: gemini
+    model: gemini-2.5-flash
+    temperature: 0.0
+    max_tokens: 8000
+
 agents:
   root:
-    model: claude
+    model: gemini
     description: "Expert image text extraction and analysis agent that can read text from images and provide clear, comprehensive explanations of the content"
     instruction: |
       You are an expert image text extraction agent with advanced OCR capabilities. Your primary responsibilities are:

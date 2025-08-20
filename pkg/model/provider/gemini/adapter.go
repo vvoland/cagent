@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"regexp"
+	"strings"
 	"sync"
 
 	"github.com/docker/cagent/pkg/chat"
@@ -48,7 +50,40 @@ func NewStreamAdapter(iter func(func(*genai.GenerateContentResponse, error) bool
 				return true
 			}
 
+			// Handle streaming parser errors from new Gemini 2.5 response fields
 			if err != nil {
+				errMsg := err.Error()
+				// Check if this is a streaming chunk parsing error that contains valid response data
+				if strings.Contains(errMsg, "invalid stream chunk") && strings.Contains(errMsg, `"text":`) {
+
+					// Try to extract text content from the error message
+					if textContent := extractTextFromError(errMsg); textContent != "" {
+						// Create a synthetic response with the extracted text
+						adapter.ch <- result{resp: &genai.GenerateContentResponse{
+							Candidates: []*genai.Candidate{
+								{
+									Content: &genai.Content{
+										Parts: []*genai.Part{
+											{Text: textContent},
+										},
+									},
+								},
+							},
+						}}
+						hasContent = true
+
+						// Check if this appears to be a complete response (has finishReason)
+						if strings.Contains(errMsg, `"finishReason"`) {
+							// This is the final chunk, send done signal
+							adapter.ch <- result{done: true}
+							return false
+						}
+
+						// Continue iteration to potentially get more chunks
+						return true
+					}
+				}
+
 				adapter.ch <- result{err: err}
 				return false
 			}
@@ -102,6 +137,48 @@ func NewStreamAdapter(iter func(func(*genai.GenerateContentResponse, error) bool
 			}
 			adapter.ch <- result{done: true, resp: finalResp}
 		}
+	}()
+
+	return adapter
+}
+
+// NewNonStreamingAdapter creates a streaming adapter from a non-streaming response
+func NewNonStreamingAdapter(response *genai.GenerateContentResponse, model string, logger *slog.Logger) *StreamAdapter {
+	adapter := &StreamAdapter{
+		ch:     make(chan result),
+		model:  model,
+		logger: logger,
+	}
+
+	go func() {
+		defer close(adapter.ch)
+
+		// Send the complete response as a single chunk
+		if response != nil {
+			// Extract text content
+			var textContent string
+			for _, candidate := range response.Candidates {
+				if candidate.Content != nil {
+					for _, part := range candidate.Content.Parts {
+						if part.Text != "" {
+							textContent += part.Text
+						}
+					}
+				}
+			}
+
+			if textContent != "" {
+				adapter.ch <- result{resp: response}
+			}
+
+			// Check for function calls
+			if funcs := response.FunctionCalls(); len(funcs) > 0 {
+				adapter.ch <- result{resp: response}
+			}
+		}
+
+		// Send final message
+		adapter.ch <- result{done: true, resp: response}
 	}()
 
 	return adapter
@@ -190,4 +267,86 @@ func (g *StreamAdapter) Close() {
 		for range g.ch {
 		}
 	}()
+}
+
+// extractTextFromError attempts to extract text content from streaming parsing errors
+func extractTextFromError(errMsg string) string {
+	// Look for the JSON response in the error message
+	// The error typically contains something like: invalid stream chunk: [{...JSON...}]
+
+	// First try to find the complete JSON object
+	startIdx := strings.Index(errMsg, "[{")
+	if startIdx == -1 {
+		return ""
+	}
+
+	// Find the matching closing bracket
+	jsonStart := startIdx + 1 // Skip the opening [
+	bracketCount := 0
+	var jsonEnd int
+
+	for i := jsonStart; i < len(errMsg); i++ {
+		char := errMsg[i]
+		if char == '{' {
+			bracketCount++
+		} else if char == '}' {
+			bracketCount--
+			if bracketCount == 0 {
+				jsonEnd = i + 1
+				break
+			}
+		}
+	}
+
+	if bracketCount != 0 || jsonEnd == 0 {
+		// Fallback to regex approach for partial text
+		textRegex := regexp.MustCompile(`"text"\s*:\s*"([^"\\]*(\\.[^"\\]*)*)"`)
+		matches := textRegex.FindStringSubmatch(errMsg)
+
+		if len(matches) > 1 {
+			textContent := matches[1]
+			textContent = strings.ReplaceAll(textContent, `\"`, `"`)
+			textContent = strings.ReplaceAll(textContent, `\\`, `\`)
+			textContent = strings.ReplaceAll(textContent, `\n`, "\n")
+			textContent = strings.ReplaceAll(textContent, `\t`, "\t")
+			return textContent
+		}
+		return ""
+	}
+
+	// Extract the JSON string
+	jsonStr := errMsg[jsonStart:jsonEnd]
+
+	// Try to parse the JSON to extract text
+	var response struct {
+		Candidates []struct {
+			Content struct {
+				Parts []struct {
+					Text string `json:"text"`
+				} `json:"parts"`
+			} `json:"content"`
+			FinishReason string `json:"finishReason"`
+		} `json:"candidates"`
+	}
+
+	if err := json.Unmarshal([]byte(jsonStr), &response); err == nil {
+		if len(response.Candidates) > 0 && len(response.Candidates[0].Content.Parts) > 0 {
+			return response.Candidates[0].Content.Parts[0].Text
+		}
+	}
+
+	// Final fallback to regex approach
+	textRegex := regexp.MustCompile(`"text"\s*:\s*"([^"\\]*(\\.[^"\\]*)*)"`)
+	matches := textRegex.FindStringSubmatch(errMsg)
+
+	if len(matches) > 1 {
+		textContent := matches[1]
+		textContent = strings.ReplaceAll(textContent, `\"`, `"`)
+		textContent = strings.ReplaceAll(textContent, `\\`, `\`)
+		textContent = strings.ReplaceAll(textContent, `\n`, "\n")
+		textContent = strings.ReplaceAll(textContent, `\t`, "\t")
+		return textContent
+	}
+
+	return ""
 }
