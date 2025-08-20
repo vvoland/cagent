@@ -168,9 +168,50 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 					if part.Type == chat.MessagePartTypeText {
 						contentBlocks = append(contentBlocks, anthropic.NewTextBlock(strings.TrimSpace(part.Text)))
 					} else if part.Type == chat.MessagePartTypeImageURL && part.ImageURL != nil {
-						// TODO: Implement image support for Anthropic SDK
-						// For now, we'll add a text note about the image
-						contentBlocks = append(contentBlocks, anthropic.NewTextBlock("[Image content not yet supported in Anthropic provider]"))
+						// Anthropic expects base64 image data
+						// Extract base64 data from data URL
+						if strings.HasPrefix(part.ImageURL.URL, "data:") {
+							parts := strings.SplitN(part.ImageURL.URL, ",", 2)
+							if len(parts) == 2 {
+								// Extract media type from data URL
+								mediaTypePart := parts[0]
+								base64Data := parts[1]
+
+								var mediaType string
+								if strings.Contains(mediaTypePart, "image/jpeg") {
+									mediaType = "image/jpeg"
+								} else if strings.Contains(mediaTypePart, "image/png") {
+									mediaType = "image/png"
+								} else if strings.Contains(mediaTypePart, "image/gif") {
+									mediaType = "image/gif"
+								} else if strings.Contains(mediaTypePart, "image/webp") {
+									mediaType = "image/webp"
+								} else {
+									// Default to jpeg if not recognized
+									mediaType = "image/jpeg"
+								}
+
+								// Create image block using raw JSON approach
+								// Based on: https://docs.anthropic.com/en/api/messages-vision
+								imageBlockJSON := map[string]interface{}{
+									"type": "image",
+									"source": map[string]interface{}{
+										"type":       "base64",
+										"media_type": mediaType,
+										"data":       base64Data,
+									},
+								}
+
+								// Convert to JSON and back to ContentBlockParamUnion
+								jsonBytes, err := json.Marshal(imageBlockJSON)
+								if err == nil {
+									var imageBlock anthropic.ContentBlockParamUnion
+									if json.Unmarshal(jsonBytes, &imageBlock) == nil {
+										contentBlocks = append(contentBlocks, imageBlock)
+									}
+								}
+							}
+						}
 					}
 				}
 				if len(contentBlocks) > 0 {

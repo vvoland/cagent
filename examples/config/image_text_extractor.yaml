@@ -6,9 +6,15 @@ models:
     model: gpt-4o
     max_tokens: 4000
 
+  claude:
+    provider: anthropic
+    model: claude-3-5-sonnet-latest
+    temperature: 0.0
+    max_tokens: 1000
+
 agents:
   root:
-    model: gpt4_vision
+    model: claude
     description: "Expert image text extraction and analysis agent that can read text from images and provide clear, comprehensive explanations of the content"
     instruction: |
       You are an expert image text extraction agent with advanced OCR capabilities. Your primary responsibilities are:
