@@ -96,6 +96,8 @@ func New(logger *slog.Logger, sessionStore session.Store, runConfig latest.Runti
 	api.POST("/agents/pull", s.pullAgent)
 	// Push an agent to a remote registry
 	api.POST("/agents/push", s.pushAgent)
+	// Delete an agent by file path
+	api.DELETE("/agents", s.deleteAgent)
 	// List all sessions
 	api.GET("/sessions", s.getSessions)
 	// Get a session by id
@@ -137,6 +139,10 @@ type createAgentRequest struct {
 }
 
 type importAgentRequest struct {
+	FilePath string `json:"file_path"`
+}
+
+type deleteAgentRequest struct {
 	FilePath string `json:"file_path"`
 }
 
@@ -436,6 +442,73 @@ func (s *Server) pushAgent(c echo.Context) error {
 		"filepath": req.Filepath,
 		"tag":      req.Tag,
 		"digest":   digest,
+	})
+}
+
+func (s *Server) deleteAgent(c echo.Context) error {
+	var req deleteAgentRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	if req.FilePath == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "file_path is required"})
+	}
+
+	// Check if the file exists
+	if _, err := os.Stat(req.FilePath); os.IsNotExist(err) {
+		s.logger.Error("Agent file does not exist", "path", req.FilePath)
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "agent file not found"})
+	}
+
+	// Validate it's a YAML file
+	if !strings.HasSuffix(strings.ToLower(req.FilePath), ".yaml") && !strings.HasSuffix(strings.ToLower(req.FilePath), ".yml") {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "file must be a YAML file (.yaml or .yml)"})
+	}
+
+	// Security check: ensure the file is within the agents directory
+	absFilePath, err := filepath.Abs(req.FilePath)
+	if err != nil {
+		s.logger.Error("Failed to get absolute path", "path", req.FilePath, "error", err)
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid file path"})
+	}
+
+	absAgentsDir, err := filepath.Abs(s.agentsDir)
+	if err != nil {
+		s.logger.Error("Failed to get absolute agents directory path", "agentsDir", s.agentsDir, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to resolve agents directory"})
+	}
+
+	// Check if the file is within the agents directory
+	relPath, err := filepath.Rel(absAgentsDir, absFilePath)
+	if err != nil || strings.HasPrefix(relPath, "..") {
+		s.logger.Error("File is outside agents directory", "path", req.FilePath, "agentsDir", s.agentsDir)
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "file must be within the agents directory"})
+	}
+
+	// Determine the agent key from the file path
+	agentKey := strings.TrimSuffix(filepath.Base(req.FilePath), filepath.Ext(req.FilePath))
+
+	// Remove from teams map and stop toolsets if active
+	if team, exists := s.teams[agentKey]; exists {
+		s.logger.Info("Stopping toolsets for agent", "agentKey", agentKey)
+		if err := team.StopToolSets(); err != nil {
+			s.logger.Error("Failed to stop tool sets for agent", "agentKey", agentKey, "error", err)
+			// Continue with deletion even if stopping toolsets fails
+		}
+		delete(s.teams, agentKey)
+		s.logger.Info("Removed agent from teams", "agentKey", agentKey)
+	}
+
+	// Delete the file
+	if err := os.Remove(req.FilePath); err != nil {
+		s.logger.Error("Failed to delete agent file", "path", req.FilePath, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to delete agent file: " + err.Error()})
+	}
+
+	s.logger.Info("Agent deleted successfully", "filePath", req.FilePath, "agentKey", agentKey)
+	return c.JSON(http.StatusOK, map[string]string{
+		"filePath": req.FilePath,
 	})
 }
 
