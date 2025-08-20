@@ -71,7 +71,7 @@ func (f *fsToolset) customWriteFileHandler(ctx context.Context, toolCall tools.T
 	return f.originalWriteFileHandler(ctx, toolCall)
 }
 
-func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, prompt string) (out, path string, err error) {
+func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, prompt string, runConfig latest.RuntimeConfig) (out, path string, err error) {
 	llm, err := anthropic.NewClient(
 		ctx,
 		&latest.ModelConfig{
@@ -80,7 +80,9 @@ func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, promp
 			MaxTokens: 64000,
 		},
 		environment.NewOsEnvProvider(),
-		logger)
+		logger,
+		options.WithGateway(runConfig.ModelsGateway),
+	)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create LLM client: %w", err)
 	}

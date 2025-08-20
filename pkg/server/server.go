@@ -160,7 +160,7 @@ func (s *Server) createAgent(c echo.Context) error {
 	}
 	prompt := req.Prompt
 
-	out, path, err := creator.CreateAgent(c.Request().Context(), s.agentsDir, s.logger, prompt)
+	out, path, err := creator.CreateAgent(c.Request().Context(), s.agentsDir, s.logger, prompt, s.runConfig)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create agent"})
 	}
