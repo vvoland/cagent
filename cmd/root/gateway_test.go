@@ -33,8 +33,9 @@ func TestGatewayLogic(t *testing.T) {
 			envVars: map[string]string{
 				"CAGENT_TOOLS_GATEWAY": "https://tools.example.com",
 			},
-			args:                 []string{},
-			expectedToolsGateway: "https://tools.example.com",
+			args:                  []string{},
+			expectedModelsGateway: defaultModelsGateway,
+			expectedToolsGateway:  "https://tools.example.com",
 		},
 		{
 			name: "env_var_gateway_sets_both",
@@ -64,7 +65,7 @@ func TestGatewayLogic(t *testing.T) {
 		{
 			name:                  "cli_flag_tools_gateway",
 			args:                  []string{"--tools-gateway", "https://cli-tools.example.com"},
-			expectedModelsGateway: "",
+			expectedModelsGateway: defaultModelsGateway,
 			expectedToolsGateway:  "https://cli-tools.example.com",
 		},
 		{
