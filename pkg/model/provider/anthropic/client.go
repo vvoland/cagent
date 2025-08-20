@@ -178,15 +178,16 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 								base64Data := parts[1]
 
 								var mediaType string
-								if strings.Contains(mediaTypePart, "image/jpeg") {
+								switch {
+								case strings.Contains(mediaTypePart, "image/jpeg"):
 									mediaType = "image/jpeg"
-								} else if strings.Contains(mediaTypePart, "image/png") {
+								case strings.Contains(mediaTypePart, "image/png"):
 									mediaType = "image/png"
-								} else if strings.Contains(mediaTypePart, "image/gif") {
+								case strings.Contains(mediaTypePart, "image/gif"):
 									mediaType = "image/gif"
-								} else if strings.Contains(mediaTypePart, "image/webp") {
+								case strings.Contains(mediaTypePart, "image/webp"):
 									mediaType = "image/webp"
-								} else {
+								default:
 									// Default to jpeg if not recognized
 									mediaType = "image/jpeg"
 								}

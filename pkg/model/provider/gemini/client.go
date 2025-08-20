@@ -148,15 +148,16 @@ func convertMessagesToGemini(messages []chat.Message) []*genai.Content {
 							// Decode base64 data to bytes
 							if imageData, err := base64.StdEncoding.DecodeString(base64Data); err == nil {
 								var mimeType string
-								if strings.Contains(mediaTypePart, "image/jpeg") {
+								switch {
+								case strings.Contains(mediaTypePart, "image/jpeg"):
 									mimeType = "image/jpeg"
-								} else if strings.Contains(mediaTypePart, "image/png") {
+								case strings.Contains(mediaTypePart, "image/png"):
 									mimeType = "image/png"
-								} else if strings.Contains(mediaTypePart, "image/gif") {
+								case strings.Contains(mediaTypePart, "image/gif"):
 									mimeType = "image/gif"
-								} else if strings.Contains(mediaTypePart, "image/webp") {
+								case strings.Contains(mediaTypePart, "image/webp"):
 									mimeType = "image/webp"
-								} else {
+								default:
 									mimeType = "image/jpeg" // Default
 								}
 

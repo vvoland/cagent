@@ -253,23 +253,23 @@ func fromStore(reference string) (string, error) {
 }
 
 // createUserMessageWithAttachment creates a user message with optional image attachment
-func createUserMessageWithAttachment(agentFilename, content, attachmentPath string) session.Message {
+func createUserMessageWithAttachment(agentFilename, userContent, attachmentPath string) session.Message {
 	if attachmentPath == "" {
-		return session.UserMessage(agentFilename, content)
+		return session.UserMessage(agentFilename, userContent)
 	}
 
 	// Convert file to data URL
 	dataURL, err := fileToDataURL(attachmentPath)
 	if err != nil {
 		fmt.Printf("Warning: Failed to attach file %s: %v\n", attachmentPath, err)
-		return session.UserMessage(agentFilename, content)
+		return session.UserMessage(agentFilename, userContent)
 	}
 
 	// Create message with multi-content including text and image
 	multiContent := []chat.MessagePart{
 		{
 			Type: chat.MessagePartTypeText,
-			Text: content,
+			Text: userContent,
 		},
 		{
 			Type: chat.MessagePartTypeImageURL,
