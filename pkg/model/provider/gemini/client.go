@@ -133,6 +133,10 @@ func convertMessagesToGemini(messages []chat.Message) []*genai.Content {
 			for _, part := range msg.MultiContent {
 				if part.Type == chat.MessagePartTypeText {
 					parts = append(parts, genai.NewPartFromText(part.Text))
+				} else if part.Type == chat.MessagePartTypeImageURL && part.ImageURL != nil {
+					// TODO: Implement image support for Gemini SDK
+					// For now, add a text note about the image
+					parts = append(parts, genai.NewPartFromText("[Image content not yet supported in Gemini provider]"))
 				}
 			}
 			if len(parts) > 0 {

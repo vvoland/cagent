@@ -161,7 +161,24 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 			continue
 		}
 		if msg.Role == chat.MessageRoleUser {
-			anthropicMessages = append(anthropicMessages, anthropic.NewUserMessage(anthropic.NewTextBlock(strings.TrimSpace(msg.Content))))
+			// Handle MultiContent for user messages (including images)
+			if len(msg.MultiContent) > 0 {
+				contentBlocks := make([]anthropic.ContentBlockParamUnion, 0, len(msg.MultiContent))
+				for _, part := range msg.MultiContent {
+					if part.Type == chat.MessagePartTypeText {
+						contentBlocks = append(contentBlocks, anthropic.NewTextBlock(strings.TrimSpace(part.Text)))
+					} else if part.Type == chat.MessagePartTypeImageURL && part.ImageURL != nil {
+						// TODO: Implement image support for Anthropic SDK
+						// For now, we'll add a text note about the image
+						contentBlocks = append(contentBlocks, anthropic.NewTextBlock("[Image content not yet supported in Anthropic provider]"))
+					}
+				}
+				if len(contentBlocks) > 0 {
+					anthropicMessages = append(anthropicMessages, anthropic.NewUserMessage(contentBlocks...))
+				}
+			} else {
+				anthropicMessages = append(anthropicMessages, anthropic.NewUserMessage(anthropic.NewTextBlock(strings.TrimSpace(msg.Content))))
+			}
 			continue
 		}
 		if msg.Role == chat.MessageRoleAssistant {

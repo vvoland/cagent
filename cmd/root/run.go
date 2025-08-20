@@ -4,14 +4,17 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
+	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/evaluation"
 	"github.com/docker/cagent/pkg/runtime"
@@ -20,6 +23,7 @@ import (
 )
 
 var autoApprove bool
+var attachmentPath string
 
 // NewRunCmd creates a new run command
 func NewRunCmd() *cobra.Command {
@@ -38,6 +42,7 @@ func NewRunCmd() *cobra.Command {
 	cmd.PersistentFlags().StringVarP(&agentName, "agent", "a", "root", "Name of the agent to run")
 	cmd.PersistentFlags().BoolVar(&autoApprove, "yolo", false, "Automatically approve all tool calls without prompting")
 	cmd.PersistentFlags().StringSliceVar(&runConfig.EnvFiles, "env-from-file", nil, "Set environment variables from file")
+	cmd.PersistentFlags().StringVar(&attachmentPath, "attach", "", "Attach an image file to the message")
 	addGatewayFlags(cmd)
 
 	return cmd
@@ -112,7 +117,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		sess.Messages = append(sess.Messages, session.UserMessage(agentFilename, userInput))
+		sess.Messages = append(sess.Messages, createUserMessageWithAttachment(agentFilename, userInput, attachmentPath))
 
 		first := false
 		for event := range rt.RunStream(ctx, sess) {
@@ -245,4 +250,84 @@ func fromStore(reference string) (string, error) {
 	b.Close()
 
 	return buf.String(), nil
+}
+
+// createUserMessageWithAttachment creates a user message with optional image attachment
+func createUserMessageWithAttachment(agentFilename, content, attachmentPath string) session.Message {
+	if attachmentPath == "" {
+		return session.UserMessage(agentFilename, content)
+	}
+
+	// Convert file to data URL
+	dataURL, err := fileToDataURL(attachmentPath)
+	if err != nil {
+		fmt.Printf("Warning: Failed to attach file %s: %v\n", attachmentPath, err)
+		return session.UserMessage(agentFilename, content)
+	}
+
+	// Create message with multi-content including text and image
+	multiContent := []chat.MessagePart{
+		{
+			Type: chat.MessagePartTypeText,
+			Text: content,
+		},
+		{
+			Type: chat.MessagePartTypeImageURL,
+			ImageURL: &chat.MessageImageURL{
+				URL:    dataURL,
+				Detail: chat.ImageURLDetailAuto,
+			},
+		},
+	}
+
+	return session.Message{
+		AgentFilename: agentFilename,
+		AgentName:     "",
+		Message: chat.Message{
+			Role:         chat.MessageRoleUser,
+			MultiContent: multiContent,
+		},
+	}
+}
+
+// fileToDataURL converts a file to a data URL
+func fileToDataURL(filePath string) (string, error) {
+	// Check if file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return "", fmt.Errorf("file does not exist: %s", filePath)
+	}
+
+	// Read file content
+	fileBytes, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// Determine MIME type based on file extension
+	ext := strings.ToLower(filepath.Ext(filePath))
+	var mimeType string
+	switch ext {
+	case ".jpg", ".jpeg":
+		mimeType = "image/jpeg"
+	case ".png":
+		mimeType = "image/png"
+	case ".gif":
+		mimeType = "image/gif"
+	case ".webp":
+		mimeType = "image/webp"
+	case ".bmp":
+		mimeType = "image/bmp"
+	case ".svg":
+		mimeType = "image/svg+xml"
+	default:
+		return "", fmt.Errorf("unsupported image format: %s", ext)
+	}
+
+	// Encode to base64
+	encoded := base64.StdEncoding.EncodeToString(fileBytes)
+
+	// Create data URL
+	dataURL := fmt.Sprintf("data:%s;base64,%s", mimeType, encoded)
+
+	return dataURL, nil
 }

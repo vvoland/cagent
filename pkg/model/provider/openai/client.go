@@ -78,10 +78,20 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 func convertMultiContent(multiContent []chat.MessagePart) []openai.ChatMessagePart {
 	openaiMultiContent := make([]openai.ChatMessagePart, len(multiContent))
 	for i, part := range multiContent {
-		openaiMultiContent[i] = openai.ChatMessagePart{
+		openaiPart := openai.ChatMessagePart{
 			Type: openai.ChatMessagePartType(part.Type),
 			Text: part.Text,
 		}
+
+		// Handle image URL conversion
+		if part.Type == chat.MessagePartTypeImageURL && part.ImageURL != nil {
+			openaiPart.ImageURL = &openai.ChatMessageImageURL{
+				URL:    part.ImageURL.URL,
+				Detail: openai.ImageURLDetail(part.ImageURL.Detail),
+			}
+		}
+
+		openaiMultiContent[i] = openaiPart
 	}
 	return openaiMultiContent
 }
