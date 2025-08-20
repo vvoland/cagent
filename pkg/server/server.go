@@ -490,9 +490,9 @@ func (s *Server) deleteAgent(c echo.Context) error {
 	agentKey := strings.TrimSuffix(filepath.Base(req.FilePath), filepath.Ext(req.FilePath))
 
 	// Remove from teams map and stop toolsets if active
-	if team, exists := s.teams[agentKey]; exists {
+	if t, exists := s.teams[agentKey]; exists {
 		s.logger.Info("Stopping toolsets for agent", "agentKey", agentKey)
-		if err := team.StopToolSets(); err != nil {
+		if err := t.StopToolSets(); err != nil {
 			s.logger.Error("Failed to stop tool sets for agent", "agentKey", agentKey, "error", err)
 			// Continue with deletion even if stopping toolsets fails
 		}
