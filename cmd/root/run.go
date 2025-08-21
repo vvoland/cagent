@@ -189,7 +189,16 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		sess.Messages = append(sess.Messages, createUserMessageWithAttachment(agentFilename, userInput, attachmentPath))
+		// Parse for /attach commands in the message
+		messageText, attachPath := parseAttachCommand(userInput)
+
+		// Use either the per-message attachment or the global one
+		finalAttachPath := attachPath
+		if finalAttachPath == "" {
+			finalAttachPath = attachmentPath
+		}
+
+		sess.Messages = append(sess.Messages, createUserMessageWithAttachment(agentFilename, messageText, finalAttachPath))
 
 		first := false
 		for event := range rt.RunStream(ctx, sess) {
@@ -286,6 +295,63 @@ func runUserCommand(userInput string, sess *session.Session) (bool, error) {
 	return false, nil
 }
 
+// parseAttachCommand parses user input for /attach commands
+// Returns the message text (with /attach commands removed) and the attachment path
+func parseAttachCommand(input string) (string, string) {
+	lines := strings.Split(input, "\n")
+	var messageLines []string
+	var attachPath string
+
+	for _, line := range lines {
+		// Look for /attach anywhere in the line
+		attachIndex := strings.Index(line, "/attach ")
+		if attachIndex != -1 {
+			// Extract the part before /attach
+			beforeAttach := line[:attachIndex]
+
+			// Extract the part after /attach (starting after "/attach ")
+			afterAttachStart := attachIndex + 8 // Length of "/attach "
+			if afterAttachStart < len(line) {
+				afterAttach := line[afterAttachStart:]
+
+				// Split on spaces to get the file path (first token) and any remaining text
+				tokens := strings.Fields(afterAttach)
+				if len(tokens) > 0 {
+					attachPath = tokens[0]
+
+					// Reconstruct the line with /attach and file path removed
+					var remainingText string
+					if len(tokens) > 1 {
+						remainingText = strings.Join(tokens[1:], " ")
+					}
+
+					// Combine the text before /attach and any text after the file path
+					var parts []string
+					if strings.TrimSpace(beforeAttach) != "" {
+						parts = append(parts, strings.TrimSpace(beforeAttach))
+					}
+					if remainingText != "" {
+						parts = append(parts, remainingText)
+					}
+					reconstructedLine := strings.Join(parts, " ")
+					if reconstructedLine != "" {
+						messageLines = append(messageLines, reconstructedLine)
+					}
+				}
+			}
+		} else {
+			// Keep lines without /attach commands
+			messageLines = append(messageLines, line)
+		}
+	}
+
+	// Join the message lines back together
+	messageText := strings.Join(messageLines, "\n")
+	messageText = strings.TrimSpace(messageText)
+
+	return messageText, attachPath
+}
+
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	exists := err == nil
@@ -337,11 +403,17 @@ func createUserMessageWithAttachment(agentFilename, userContent, attachmentPath 
 		return session.UserMessage(agentFilename, userContent)
 	}
 
+	// Ensure we have some text content when attaching a file
+	textContent := userContent
+	if strings.TrimSpace(textContent) == "" {
+		textContent = "Please analyze this attached file."
+	}
+
 	// Create message with multi-content including text and image
 	multiContent := []chat.MessagePart{
 		{
 			Type: chat.MessagePartTypeText,
-			Text: userContent,
+			Text: textContent,
 		},
 		{
 			Type: chat.MessagePartTypeImageURL,
