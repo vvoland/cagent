@@ -71,7 +71,7 @@ func (f *fsToolset) customWriteFileHandler(ctx context.Context, toolCall tools.T
 	return f.originalWriteFileHandler(ctx, toolCall)
 }
 
-func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, prompt string, description string, runConfig latest.RuntimeConfig) (out, path string, err error) {
+func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, prompt, description string, runConfig latest.RuntimeConfig) (out, path string, err error) {
 	llm, err := anthropic.NewClient(
 		ctx,
 		&latest.ModelConfig{
@@ -117,7 +117,7 @@ func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, promp
 	return messages[len(messages)-1].Message.Content, fsToolset.path, nil
 }
 
-func StreamCreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, prompt string, description string, runConfig latest.RuntimeConfig) (<-chan runtime.Event, error) {
+func StreamCreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, prompt, description string, runConfig latest.RuntimeConfig) (<-chan runtime.Event, error) {
 	llm, err := anthropic.NewClient(
 		ctx,
 		&latest.ModelConfig{
