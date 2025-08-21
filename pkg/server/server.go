@@ -470,7 +470,7 @@ func (s *Server) pullAgent(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to pull agent"})
 	}
 
-	yaml, err := fromStore(req.Name)
+	yamlFile, err := fromStore(req.Name)
 	if err != nil {
 		s.logger.Error("Failed to get agent yaml", "name", req.Name, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to get agent yaml"})
@@ -479,7 +479,7 @@ func (s *Server) pullAgent(c echo.Context) error {
 	agentName := strings.ReplaceAll(req.Name, "/", "_")
 	fileName := filepath.Join(s.agentsDir, agentName+".yaml")
 
-	if err := os.WriteFile(fileName, []byte(yaml), 0o644); err != nil {
+	if err := os.WriteFile(fileName, []byte(yamlFile), 0o644); err != nil {
 		s.logger.Error("Failed to write agent yaml", "name", req.Name, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to write agent yaml to " + fileName + ": " + err.Error()})
 	}
