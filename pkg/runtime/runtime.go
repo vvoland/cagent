@@ -14,6 +14,9 @@ import (
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/tools"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type ResumeType string
@@ -35,6 +38,7 @@ type Runtime struct {
 	currentAgent string
 	resumeChan   chan ResumeType
 	autoRunTools bool
+	tracer       trace.Tracer
 }
 
 type Opt func(*Runtime)
@@ -48,6 +52,13 @@ func WithCurrentAgent(agentName string) Opt {
 func WithAutoRunTools(autoRunTools bool) Opt {
 	return func(r *Runtime) {
 		r.autoRunTools = autoRunTools
+	}
+}
+
+// WithTracer sets a custom OpenTelemetry tracer; if not provided, tracing is disabled (no-op).
+func WithTracer(t trace.Tracer) Opt {
+	return func(r *Runtime) {
+		r.tracer = t
 	}
 }
 
@@ -94,6 +105,13 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 		defer close(events)
 		defer r.logger.Debug("Runtime stream completed", "agent", r.currentAgent, "session_id", sess.ID)
 
+		// Start a session span (optional)
+		ctx, sessionSpan := r.startSpan(ctx, "runtime.session", trace.WithAttributes(
+			attribute.String("agent", r.currentAgent),
+			attribute.String("session.id", sess.ID),
+		))
+		defer sessionSpan.End()
+
 		a := r.team.Agent(r.currentAgent)
 
 		model := a.Model()
@@ -108,26 +126,45 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			agentTools, err := a.Tools(ctx)
 			if err != nil {
 				r.logger.Error("Failed to get agent tools", "agent", a.Name(), "error", err)
+				sessionSpan.RecordError(err)
+				sessionSpan.SetStatus(codes.Error, "failed to get tools")
 				events <- Error(fmt.Errorf("failed to get tools: %w", err))
 				return
 			}
 			r.logger.Debug("Retrieved agent tools", "agent", a.Name(), "tool_count", len(agentTools))
 
+			// Create a span for the model stream (optional)
+			streamCtx, streamSpan := r.startSpan(ctx, "runtime.stream", trace.WithAttributes(
+				attribute.String("agent", a.Name()),
+				attribute.String("session.id", sess.ID),
+			))
 			r.logger.Debug("Creating chat completion stream", "agent", a.Name())
-			stream, err := model.CreateChatCompletionStream(ctx, messages, agentTools)
+			stream, err := model.CreateChatCompletionStream(streamCtx, messages, agentTools)
 			if err != nil {
+				streamSpan.RecordError(err)
+				streamSpan.SetStatus(codes.Error, "creating chat completion")
 				r.logger.Error("Failed to create chat completion stream", "agent", a.Name(), "error", err)
 				events <- Error(fmt.Errorf("creating chat completion: %w", err))
+				streamSpan.End()
 				return
 			}
 
 			r.logger.Debug("Processing stream", "agent", a.Name())
 			calls, content, stopped, err := r.handleStream(stream, a, events)
 			if err != nil {
+				streamSpan.RecordError(err)
+				streamSpan.SetStatus(codes.Error, "error handling stream")
 				r.logger.Error("Error handling stream", "agent", a.Name(), "error", err)
 				events <- Error(err)
+				streamSpan.End()
 				return
 			}
+			streamSpan.SetAttributes(
+				attribute.Int("tool.calls", len(calls)),
+				attribute.Int("content.length", len(content)),
+				attribute.Bool("stopped", stopped),
+			)
+			streamSpan.End()
 			r.logger.Debug("Stream processed", "agent", a.Name(), "tool_calls", len(calls), "content_length", len(content), "stopped", stopped)
 
 			// Add assistant message to conversation history
@@ -146,6 +183,8 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			}
 
 			if err := r.processToolCalls(ctx, sess, calls, events); err != nil {
+				sessionSpan.RecordError(err)
+				sessionSpan.SetStatus(codes.Error, "process tool calls")
 				events <- Error(err)
 				return
 			}
@@ -272,12 +311,21 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 	}
 
 	for _, toolCall := range calls {
+		// Start a span for each tool call
+		callCtx, callSpan := r.startSpan(ctx, "runtime.tool.call", trace.WithAttributes(
+			attribute.String("tool.name", toolCall.Function.Name),
+			attribute.String("tool.type", string(toolCall.Type)),
+			attribute.String("agent", a.Name()),
+			attribute.String("session.id", sess.ID),
+			attribute.String("tool.call_id", toolCall.ID),
+		))
+
 		r.logger.Debug("Processing tool call", "agent", a.Name(), "tool", toolCall.Function.Name, "session_id", sess.ID)
 		handler, exists := r.toolMap[toolCall.Function.Name]
 		if exists {
 			r.logger.Debug("Using runtime tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
 			if sess.ToolsApproved || r.autoRunTools || toolCall.Function.Name == "transfer_task" {
-				r.runAgentTool(ctx, handler, sess, toolCall, events, a)
+				r.runAgentTool(callCtx, handler, sess, toolCall, events, a)
 			} else {
 				r.logger.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
 				events <- ToolCallConfirmation(toolCall)
@@ -287,18 +335,20 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 					switch cType {
 					case ResumeTypeApprove:
 						r.logger.Debug("Resume signal received, approving tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
-						r.runAgentTool(ctx, handler, sess, toolCall, events, a)
+						r.runAgentTool(callCtx, handler, sess, toolCall, events, a)
 					case ResumeTypeApproveSession:
 						r.logger.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name, "session_id", sess.ID)
 						sess.ToolsApproved = true
-						r.runAgentTool(ctx, handler, sess, toolCall, events, a)
+						r.runAgentTool(callCtx, handler, sess, toolCall, events, a)
 					case ResumeTypeReject:
 						r.logger.Debug("Resume signal received, rejecting tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
 						r.addToolRejectedResponse(sess, toolCall, events)
 					}
-				case <-ctx.Done():
+				case <-callCtx.Done():
 					r.logger.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
-					return fmt.Errorf("context cancelled while waiting for resume: %w", ctx.Err())
+					callSpan.RecordError(callCtx.Err())
+					callSpan.SetStatus(codes.Error, "context cancelled while waiting for resume")
+					return fmt.Errorf("context cancelled while waiting for resume: %w", callCtx.Err())
 				}
 			}
 		}
@@ -315,7 +365,7 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 
 			if sess.ToolsApproved || r.autoRunTools || (tool.Function.Annotations.ReadOnlyHint != nil && *tool.Function.Annotations.ReadOnlyHint == true) {
 				r.logger.Debug("Tools approved, running tool", "tool", toolCall.Function.Name, "session_id", sess.ID)
-				r.runTool(ctx, tool, toolCall, events, sess, a)
+				r.runTool(callCtx, tool, toolCall, events, sess, a)
 			} else {
 				r.logger.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
 				events <- ToolCallConfirmation(toolCall)
@@ -324,11 +374,11 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 					switch cType {
 					case ResumeTypeApprove:
 						r.logger.Debug("Resume signal received, approving tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
-						r.runTool(ctx, tool, toolCall, events, sess, a)
+						r.runTool(callCtx, tool, toolCall, events, sess, a)
 					case ResumeTypeApproveSession:
 						r.logger.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name, "session_id", sess.ID)
 						sess.ToolsApproved = true
-						r.runTool(ctx, tool, toolCall, events, sess, a)
+						r.runTool(callCtx, tool, toolCall, events, sess, a)
 					case ResumeTypeReject:
 						r.logger.Debug("Resume signal received, rejecting tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
 						r.addToolRejectedResponse(sess, toolCall, events)
@@ -336,26 +386,43 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 
 					r.logger.Debug("Added tool response to session", "tool", toolCall.Function.Name, "session_id", sess.ID, "total_messages", len(sess.Messages))
 					break toolLoop
-				case <-ctx.Done():
+				case <-callCtx.Done():
 					r.logger.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
-					return fmt.Errorf("context cancelled while waiting for resume: %w", ctx.Err())
+					callSpan.RecordError(callCtx.Err())
+					callSpan.SetStatus(codes.Error, "context cancelled while waiting for resume")
+					return fmt.Errorf("context cancelled while waiting for resume: %w", callCtx.Err())
 				}
 			}
 		}
+		// Set tool call span success after processing corresponding handler
+		callSpan.SetStatus(codes.Ok, "tool call processed")
+		callSpan.End()
 	}
 
 	return nil
 }
 
 func (r *Runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.ToolCall, events chan Event, sess *session.Session, a *agent.Agent) {
+	// Start a child span for the actual tool handler execution
+	ctx, span := r.startSpan(ctx, "runtime.tool.handler", trace.WithAttributes(
+		attribute.String("tool.name", toolCall.Function.Name),
+		attribute.String("agent", a.Name()),
+		attribute.String("session.id", sess.ID),
+		attribute.String("tool.call_id", toolCall.ID),
+	))
+	defer span.End()
+
 	events <- ToolCall(toolCall)
 	res, err := tool.Handler(ctx, toolCall)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "tool handler error")
 		r.logger.Error("Error calling tool", "tool", toolCall.Function.Name, "error", err)
 		res = &tools.ToolCallResult{
 			Output: fmt.Sprintf("Error calling tool: %v", err),
 		}
 	} else {
+		span.SetStatus(codes.Ok, "tool handler completed")
 		r.logger.Debug("Agent tool call completed", "tool", toolCall.Function.Name, "output_length", len(res.Output))
 	}
 
@@ -369,14 +436,26 @@ func (r *Runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.T
 }
 
 func (r *Runtime) runAgentTool(ctx context.Context, handler ToolHandler, sess *session.Session, toolCall tools.ToolCall, events chan Event, a *agent.Agent) {
+	// Start a child span for runtime-provided tool handler execution
+	ctx, span := r.startSpan(ctx, "runtime.tool.handler.runtime", trace.WithAttributes(
+		attribute.String("tool.name", toolCall.Function.Name),
+		attribute.String("agent", a.Name()),
+		attribute.String("session.id", sess.ID),
+		attribute.String("tool.call_id", toolCall.ID),
+	))
+	defer span.End()
+
 	events <- ToolCall(toolCall)
 	res, err := handler(ctx, sess, toolCall, events)
 	var output string
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "runtime tool handler error")
 		output = fmt.Sprintf("error calling tool: %v", err)
 		r.logger.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
 	} else {
 		output = res.Output
+		span.SetStatus(codes.Ok, "runtime tool handler completed")
 		r.logger.Debug("Tool executed successfully", "tool", toolCall.Function.Name)
 	}
 
@@ -404,6 +483,14 @@ func (r *Runtime) addToolRejectedResponse(sess *session.Session, toolCall tools.
 	sess.Messages = append(sess.Messages, session.NewAgentMessage(a, &toolResponseMsg))
 }
 
+// startSpan wraps tracer.Start, returning a no-op span if the tracer is nil.
+func (r *Runtime) startSpan(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
+	if r.tracer == nil {
+		return ctx, trace.SpanFromContext(ctx)
+	}
+	return r.tracer.Start(ctx, name, opts...)
+}
+
 func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, evts chan Event) (*tools.ToolCallResult, error) {
 	var params struct {
 		Agent          string `json:"agent"`
@@ -416,6 +503,14 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 	}
 
 	a := r.CurrentAgent()
+
+	// Span for task transfer (optional)
+	ctx, span := r.startSpan(ctx, "runtime.task_transfer", trace.WithAttributes(
+		attribute.String("from.agent", a.Name()),
+		attribute.String("to.agent", params.Agent),
+		attribute.String("session.id", sess.ID),
+	))
+	defer span.End()
 
 	r.logger.Debug("Transferring task to agent", "from_agent", a.Name(), "to_agent", params.Agent, "task", params.Task)
 
@@ -435,6 +530,8 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 	for event := range r.RunStream(ctx, s) {
 		evts <- event
 		if errEvent, ok := event.(*ErrorEvent); ok {
+			span.RecordError(errEvent.Error)
+			span.SetStatus(codes.Error, "error in transferred session")
 			return nil, errEvent.Error
 		}
 	}
@@ -445,6 +542,7 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 
 	r.logger.Debug("Task transfer completed", "agent", params.Agent, "task", params.Task)
 
+	span.SetStatus(codes.Ok, "task transfer completed")
 	return &tools.ToolCallResult{
 		Output: s.Messages[len(s.Messages)-1].Message.Content,
 	}, nil

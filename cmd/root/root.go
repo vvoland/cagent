@@ -9,8 +9,9 @@ import (
 )
 
 var (
-	agentName string
-	debugMode bool
+	agentName  string
+	debugMode  bool
+	enableOtel bool
 )
 
 func newLogger() *slog.Logger {
@@ -38,6 +39,7 @@ func NewRootCmd() *cobra.Command {
 
 	// Add persistent debug flag available to all commands
 	cmd.PersistentFlags().BoolVarP(&debugMode, "debug", "d", false, "Enable debug logging")
+	cmd.PersistentFlags().BoolVarP(&enableOtel, "otel", "t", false, "Enable OpenTelemetry tracing")
 
 	cmd.AddCommand(NewVersionCmd())
 	cmd.AddCommand(NewRunCmd())

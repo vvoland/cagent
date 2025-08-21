@@ -10,9 +10,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/sdk/resource"
+	"go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.34.0"
 
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/content"
@@ -24,6 +30,53 @@ import (
 
 var autoApprove bool
 var attachmentPath string
+
+// initOTelSDK initializes OpenTelemetry SDK with OTLP exporter
+func initOTelSDK(ctx context.Context) (shutdown func(context.Context) error, err error) {
+	res, err := resource.Merge(
+		resource.Default(),
+		resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName("cagent"),
+			semconv.ServiceVersion("dev"), // TODO: use actual version
+		),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create resource: %w", err)
+	}
+
+	var traceExporter trace.SpanExporter
+	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+
+	// Only initialize if endpoint is configured
+	if endpoint != "" {
+		traceExporter, err = otlptracehttp.New(ctx,
+			otlptracehttp.WithEndpoint(endpoint),
+			otlptracehttp.WithInsecure(), // TODO: make configurable
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create trace exporter: %w", err)
+		}
+	}
+
+	// Configure tracer provider
+	var tracerProviderOpts []trace.TracerProviderOption
+	tracerProviderOpts = append(tracerProviderOpts, trace.WithResource(res))
+
+	if traceExporter != nil {
+		tracerProviderOpts = append(tracerProviderOpts,
+			trace.WithBatcher(traceExporter,
+				trace.WithBatchTimeout(5*time.Second),
+				trace.WithMaxExportBatchSize(512),
+			),
+		)
+	}
+
+	tp := trace.NewTracerProvider(tracerProviderOpts...)
+	otel.SetTracerProvider(tp)
+
+	return tp.Shutdown, nil
+}
 
 // NewRunCmd creates a new run command
 func NewRunCmd() *cobra.Command {
@@ -56,6 +109,22 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 
 	logger.Debug("Starting agent", "agent", agentName, "debug_mode", debugMode)
 
+	if enableOtel {
+		shutdown, err := initOTelSDK(ctx)
+		if err != nil {
+			logger.Warn("Failed to initialize OpenTelemetry SDK", "error", err)
+		} else if shutdown != nil {
+			defer func() {
+				shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				if err := shutdown(shutdownCtx); err != nil {
+					logger.Warn("Failed to shutdown OpenTelemetry SDK", "error", err)
+				}
+			}()
+			logger.Debug("OpenTelemetry SDK initialized successfully")
+		}
+	}
+
 	if !fileExists(agentFilename) {
 		a, err := fromStore(agentFilename)
 		if err != nil {
@@ -87,9 +156,12 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
+	tracer := otel.Tracer("cagent")
+
 	rt := runtime.New(logger, agents,
 		runtime.WithCurrentAgent(agentName),
 		runtime.WithAutoRunTools(autoApprove),
+		runtime.WithTracer(tracer),
 	)
 
 	sess := session.New(logger)
