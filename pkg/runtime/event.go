@@ -22,14 +22,16 @@ func ToolCall(toolCall tools.ToolCall) Event {
 func (e *ToolCallEvent) isEvent() {}
 
 type ToolCallConfirmationEvent struct {
-	Type     string         `json:"type"`
-	ToolCall tools.ToolCall `json:"tool_call"`
+	Type      string         `json:"type"`
+	ToolCall  tools.ToolCall `json:"tool_call"`
+	AgentName string         `json:"agent_name"`
 }
 
-func ToolCallConfirmation(toolCall tools.ToolCall) Event {
+func ToolCallConfirmation(toolCall tools.ToolCall, agentName string) Event {
 	return &ToolCallConfirmationEvent{
-		Type:     "tool_call_confirmation",
-		ToolCall: toolCall,
+		Type:      "tool_call_confirmation",
+		ToolCall:  toolCall,
+		AgentName: agentName,
 	}
 }
 func (e *ToolCallConfirmationEvent) isEvent() {}

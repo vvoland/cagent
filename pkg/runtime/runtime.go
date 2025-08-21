@@ -328,7 +328,7 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 				r.runAgentTool(callCtx, handler, sess, toolCall, events, a)
 			} else {
 				r.logger.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
-				events <- ToolCallConfirmation(toolCall)
+				events <- ToolCallConfirmation(toolCall, a.Name())
 
 				select {
 				case cType := <-r.resumeChan:
@@ -368,7 +368,7 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 				r.runTool(callCtx, tool, toolCall, events, sess, a)
 			} else {
 				r.logger.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
-				events <- ToolCallConfirmation(toolCall)
+				events <- ToolCallConfirmation(toolCall, a.Name())
 				select {
 				case cType := <-r.resumeChan:
 					switch cType {
