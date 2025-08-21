@@ -53,7 +53,7 @@ func Evaluate(ctx context.Context, t *team.Team, evalsDir string, logger *slog.L
 			return nil, err
 		}
 
-		score := evaluate(eval.Messages, actualMessages)
+		score := evaluate(eval.GetAllMessages(), actualMessages)
 
 		results = append(results, Result{
 			Score:    score,
@@ -66,24 +66,25 @@ func Evaluate(ctx context.Context, t *team.Team, evalsDir string, logger *slog.L
 
 func runLoop(ctx context.Context, logger *slog.Logger, rt *runtime.Runtime, eval *session.Session) ([]session.Message, error) {
 	var userMessages []session.Message
-	for i := range eval.Messages {
-		if eval.Messages[i].Message.Role == chat.MessageRoleUser {
-			userMessages = append(userMessages, eval.Messages[i])
+	allMessages := eval.GetAllMessages()
+	for i := range allMessages {
+		if allMessages[i].Message.Role == chat.MessageRoleUser {
+			userMessages = append(userMessages, allMessages[i])
 		}
 	}
 
 	sess := session.New(logger)
 	for i := range userMessages {
-		sess.Messages = append(sess.Messages, userMessages[i])
-		messages, err := rt.Run(ctx, sess)
+		sess.AddMessage(&userMessages[i])
+		_, err := rt.Run(ctx, sess)
 		if err != nil {
 			return nil, err
 		}
 
-		sess.Messages = messages
+		// Note: rt.Run now returns all messages, but we use sess.GetAllMessages() instead
 	}
 
-	return sess.Messages, nil
+	return sess.GetAllMessages(), nil
 }
 
 func evaluate(expectedMessages, actualMessages []session.Message) Score {

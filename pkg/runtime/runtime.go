@@ -174,8 +174,8 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				ToolCalls: calls,
 			}
 
-			sess.Messages = append(sess.Messages, session.NewAgentMessage(a, &assistantMessage))
-			r.logger.Debug("Added assistant message to session", "agent", a.Name(), "total_messages", len(sess.Messages))
+			sess.AddMessage(session.NewAgentMessage(a, &assistantMessage))
+			r.logger.Debug("Added assistant message to session", "agent", a.Name(), "total_messages", len(sess.GetAllMessages()))
 
 			if stopped {
 				r.logger.Debug("Conversation stopped", "agent", a.Name())
@@ -223,7 +223,7 @@ func (r *Runtime) Run(ctx context.Context, sess *session.Session) ([]session.Mes
 		}
 	}
 
-	return sess.Messages, nil
+	return sess.GetAllMessages(), nil
 }
 
 // handleStream handles the stream processing
@@ -384,7 +384,7 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 						r.addToolRejectedResponse(sess, toolCall, events)
 					}
 
-					r.logger.Debug("Added tool response to session", "tool", toolCall.Function.Name, "session_id", sess.ID, "total_messages", len(sess.Messages))
+					r.logger.Debug("Added tool response to session", "tool", toolCall.Function.Name, "session_id", sess.ID, "total_messages", len(sess.GetAllMessages()))
 					break toolLoop
 				case <-callCtx.Done():
 					r.logger.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
@@ -432,7 +432,7 @@ func (r *Runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.T
 		Content:    res.Output,
 		ToolCallID: toolCall.ID,
 	}
-	sess.Messages = append(sess.Messages, session.NewAgentMessage(a, &toolResponseMsg))
+	sess.AddMessage(session.NewAgentMessage(a, &toolResponseMsg))
 }
 
 func (r *Runtime) runAgentTool(ctx context.Context, handler ToolHandler, sess *session.Session, toolCall tools.ToolCall, events chan Event, a *agent.Agent) {
@@ -465,7 +465,7 @@ func (r *Runtime) runAgentTool(ctx context.Context, handler ToolHandler, sess *s
 		Content:    output,
 		ToolCallID: toolCall.ID,
 	}
-	sess.Messages = append(sess.Messages, session.NewAgentMessage(a, &toolResponseMsg))
+	sess.AddMessage(session.NewAgentMessage(a, &toolResponseMsg))
 }
 
 func (r *Runtime) addToolRejectedResponse(sess *session.Session, toolCall tools.ToolCall, events chan Event) {
@@ -480,7 +480,7 @@ func (r *Runtime) addToolRejectedResponse(sess *session.Session, toolCall tools.
 		Content:    result,
 		ToolCallID: toolCall.ID,
 	}
-	sess.Messages = append(sess.Messages, session.NewAgentMessage(a, &toolResponseMsg))
+	sess.AddMessage(session.NewAgentMessage(a, &toolResponseMsg))
 }
 
 // startSpan wraps tracer.Start, returning a no-op span if the tracer is nil.
@@ -524,7 +524,7 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 	}
 
 	r.logger.Info("Creating new session with parent session", "parent_session_id", sess.ID, "tools_approved", sess.ToolsApproved)
-	s := session.New(r.logger, session.WithUserMessage(sess.GetMostRecentAgentFilename(), memberAgentTask))
+	s := session.New(r.logger, session.WithSystemMessage(memberAgentTask))
 	s.ToolsApproved = sess.ToolsApproved
 
 	for event := range r.RunStream(ctx, s) {
@@ -538,12 +538,22 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 
 	sess.ToolsApproved = s.ToolsApproved
 
+	// Store the complete sub-session in the parent session
+	sess.AddSubSession(s)
+
 	r.currentAgent = ca
 
 	r.logger.Debug("Task transfer completed", "agent", params.Agent, "task", params.Task)
 
+	// Get the last message content from the sub-session
+	allMessages := s.GetAllMessages()
+	lastMessageContent := ""
+	if len(allMessages) > 0 {
+		lastMessageContent = allMessages[len(allMessages)-1].Message.Content
+	}
+
 	span.SetStatus(codes.Ok, "task transfer completed")
 	return &tools.ToolCallResult{
-		Output: s.Messages[len(s.Messages)-1].Message.Content,
+		Output: lastMessageContent,
 	}, nil
 }

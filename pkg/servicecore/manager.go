@@ -310,7 +310,7 @@ func (m *Manager) GetSessionHistory(clientID, sessionID string, limit int) ([]Se
 	}
 
 	// Convert session messages to our format
-	sessionMessages := agentSession.Session.Messages
+	sessionMessages := agentSession.Session.GetAllMessages()
 	var result []SessionMessage
 
 	// Apply limit if specified (0 means no limit)
@@ -354,7 +354,7 @@ func (m *Manager) GetSessionInfo(clientID, sessionID string) (*SessionInfo, erro
 
 	messageCount := 0
 	if agentSession.Session != nil {
-		messageCount = len(agentSession.Session.Messages)
+		messageCount = len(agentSession.Session.GetAllMessages())
 	}
 
 	// Get agent name from runtime if available

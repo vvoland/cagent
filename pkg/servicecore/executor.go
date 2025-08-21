@@ -92,7 +92,7 @@ func (e *Executor) ExecuteStream(rt *runtime.Runtime, sess *session.Session, age
 	e.logger.Debug("Executing stream", "session_id", sess.ID, "message_length", len(message))
 
 	// Add user message to session
-	sess.Messages = append(sess.Messages, session.UserMessage(agentSpec, message))
+	sess.AddMessage(session.UserMessage(agentSpec, message))
 
 	// Start streaming execution
 	ctx := context.Background()

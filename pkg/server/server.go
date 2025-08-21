@@ -556,7 +556,7 @@ func (s *Server) refreshAgentsFromDisk(ctx context.Context) error {
 	return nil
 }
 
-type sessionResponse struct {
+type sessionsResponse struct {
 	ID                         string `json:"id"`
 	CreatedAt                  string `json:"created_at"`
 	NumMessages                int    `json:"num_messages"`
@@ -569,12 +569,12 @@ func (s *Server) getSessions(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to get sessions"})
 	}
 
-	responses := make([]sessionResponse, len(sessions))
+	responses := make([]sessionsResponse, len(sessions))
 	for i, sess := range sessions {
-		responses[i] = sessionResponse{
+		responses[i] = sessionsResponse{
 			ID:                         sess.ID,
 			CreatedAt:                  sess.CreatedAt.Format(time.RFC3339),
-			NumMessages:                len(sess.Messages),
+			NumMessages:                len(sess.GetAllMessages()),
 			GetMostRecentAgentFilename: sess.GetMostRecentAgentFilename(),
 		}
 	}
@@ -592,13 +592,38 @@ func (s *Server) createSession(c echo.Context) error {
 	return c.JSON(http.StatusOK, sess)
 }
 
+type sessionResponse struct {
+	// ID is the unique identifier for the session
+	ID string `json:"id"`
+
+	// Messages holds the conversation history (messages and sub-sessions)
+	Messages []session.Message `json:"messages,omitempty"`
+
+	// CreatedAt is the time the session was created
+	CreatedAt time.Time `json:"created_at"`
+
+	// ToolsApproved is a flag to indicate if the tools have been approved
+	ToolsApproved bool `json:"tools_approved"`
+
+	// Logger for debugging and logging session operations
+	logger *slog.Logger
+}
+
 func (s *Server) getSession(c echo.Context) error {
 	sess, err := s.sessionStore.GetSession(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "session not found"})
 	}
 
-	return c.JSON(http.StatusOK, sess)
+	sr := sessionResponse{
+		ID:            sess.ID,
+		CreatedAt:     sess.CreatedAt,
+		Messages:      sess.GetAllMessages(),
+		ToolsApproved: sess.ToolsApproved,
+		logger:        s.logger,
+	}
+
+	return c.JSON(http.StatusOK, sr)
 }
 
 type resumeSessionRequest struct {
@@ -662,7 +687,7 @@ func (s *Server) runAgent(c echo.Context) error {
 
 	// TODO(dga): for now, we only receive one message and it's always a user message.
 	for _, msg := range messages {
-		sess.Messages = append(sess.Messages, session.UserMessage(agentFilename, msg.Content))
+		sess.AddMessage(session.UserMessage(agentFilename, msg.Content))
 	}
 
 	if err := s.sessionStore.UpdateSession(c.Request().Context(), sess); err != nil {

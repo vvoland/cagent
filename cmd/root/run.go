@@ -225,7 +225,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			finalAttachPath = attachmentPath
 		}
 
-		sess.Messages = append(sess.Messages, createUserMessageWithAttachment(agentFilename, messageText, finalAttachPath))
+		sess.AddMessage(createUserMessageWithAttachment(agentFilename, messageText, finalAttachPath))
 
 		first := false
 		for event := range rt.RunStream(ctx, sess) {
@@ -315,7 +315,8 @@ func runUserCommand(userInput string, sess *session.Session) (bool, error) {
 		}
 		return true, nil
 	case "/reset":
-		sess.Messages = []session.Message{}
+		// Reset session items
+		sess.Messages = []session.Item{}
 		return true, nil
 	}
 
@@ -415,7 +416,7 @@ func fromStore(reference string) (string, error) {
 }
 
 // createUserMessageWithAttachment creates a user message with optional image attachment
-func createUserMessageWithAttachment(agentFilename, userContent, attachmentPath string) session.Message {
+func createUserMessageWithAttachment(agentFilename, userContent, attachmentPath string) *session.Message {
 	if attachmentPath == "" {
 		return session.UserMessage(agentFilename, userContent)
 	}
@@ -448,7 +449,7 @@ func createUserMessageWithAttachment(agentFilename, userContent, attachmentPath 
 		},
 	}
 
-	return session.Message{
+	return &session.Message{
 		AgentFilename: agentFilename,
 		AgentName:     "",
 		Message: chat.Message{
