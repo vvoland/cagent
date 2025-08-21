@@ -82,6 +82,11 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          version: "lab:latest"
+          driver: cloud
+          endpoint: "docker/make-product-smarter"
+          install: true
 
       - name: Install Task
         uses: arduino/setup-task@v2
@@ -111,6 +116,11 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          version: "lab:latest"
+          driver: cloud
+          endpoint: "docker/make-product-smarter"
+          install: true
 
       - name: Build binaries for all platforms
         run: task cross
