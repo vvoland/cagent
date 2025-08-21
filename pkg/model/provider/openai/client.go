@@ -167,6 +167,9 @@ func (c *Client) CreateChatCompletionStream(
 		FrequencyPenalty: float32(c.config.FrequencyPenalty),
 		PresencePenalty:  float32(c.config.PresencePenalty),
 		Stream:           true,
+		StreamOptions: &openai.StreamOptions{
+			IncludeUsage: true,
+		},
 	}
 
 	if c.config.ParallelToolCalls != nil {

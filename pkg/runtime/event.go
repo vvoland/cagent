@@ -78,3 +78,19 @@ func Error(err error) Event {
 	}
 }
 func (e *ErrorEvent) isEvent() {}
+
+type TokenUsageEvent struct {
+	Type  string      `json:"type"`
+	Usage *chat.Usage `json:"usage"`
+}
+
+func TokenUsage(inputTokens, outputTokens int) Event {
+	return &TokenUsageEvent{
+		Type: "token_usage",
+		Usage: &chat.Usage{
+			InputTokens:  inputTokens,
+			OutputTokens: outputTokens,
+		},
+	}
+}
+func (e *TokenUsageEvent) isEvent() {}

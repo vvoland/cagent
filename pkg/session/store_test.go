@@ -41,7 +41,9 @@ func TestStoreAgentName(t *testing.T) {
 				Content: "Another message from test-agent-2",
 			})),
 		},
-		CreatedAt: time.Now(),
+		InputTokens:  100,
+		OutputTokens: 200,
+		CreatedAt:    time.Now(),
 	}
 
 	// Store the session

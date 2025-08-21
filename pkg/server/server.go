@@ -667,6 +667,8 @@ type sessionsResponse struct {
 	ID                         string `json:"id"`
 	CreatedAt                  string `json:"created_at"`
 	NumMessages                int    `json:"num_messages"`
+	InputTokens                int    `json:"input_tokens"`
+	OutputTokens               int    `json:"output_tokens"`
 	GetMostRecentAgentFilename string `json:"most_recent_agent_filename"`
 }
 
@@ -682,6 +684,8 @@ func (s *Server) getSessions(c echo.Context) error {
 			ID:                         sess.ID,
 			CreatedAt:                  sess.CreatedAt.Format(time.RFC3339),
 			NumMessages:                len(sess.GetAllMessages()),
+			InputTokens:                sess.InputTokens,
+			OutputTokens:               sess.OutputTokens,
 			GetMostRecentAgentFilename: sess.GetMostRecentAgentFilename(),
 		}
 	}
@@ -700,20 +704,12 @@ func (s *Server) createSession(c echo.Context) error {
 }
 
 type sessionResponse struct {
-	// ID is the unique identifier for the session
-	ID string `json:"id"`
-
-	// Messages holds the conversation history (messages and sub-sessions)
-	Messages []session.Message `json:"messages,omitempty"`
-
-	// CreatedAt is the time the session was created
-	CreatedAt time.Time `json:"created_at"`
-
-	// ToolsApproved is a flag to indicate if the tools have been approved
-	ToolsApproved bool `json:"tools_approved"`
-
-	// Logger for debugging and logging session operations
-	logger *slog.Logger
+	ID            string            `json:"id"`
+	Messages      []session.Message `json:"messages,omitempty"`
+	CreatedAt     time.Time         `json:"created_at"`
+	ToolsApproved bool              `json:"tools_approved"`
+	InputTokens   int               `json:"input_tokens"`
+	OutputTokens  int               `json:"output_tokens"`
 }
 
 func (s *Server) getSession(c echo.Context) error {
@@ -727,7 +723,8 @@ func (s *Server) getSession(c echo.Context) error {
 		CreatedAt:     sess.CreatedAt,
 		Messages:      sess.GetAllMessages(),
 		ToolsApproved: sess.ToolsApproved,
-		logger:        s.logger,
+		InputTokens:   sess.InputTokens,
+		OutputTokens:  sess.OutputTokens,
 	}
 
 	return c.JSON(http.StatusOK, sr)

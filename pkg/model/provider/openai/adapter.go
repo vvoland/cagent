@@ -28,9 +28,23 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		Choices: make([]chat.MessageStreamChoice, len(openaiResponse.Choices)),
 	}
 
+	if openaiResponse.Usage != nil {
+		response.Usage = &chat.Usage{
+			InputTokens:  openaiResponse.Usage.PromptTokens,
+			OutputTokens: openaiResponse.Usage.CompletionTokens,
+		}
+		response.Choices = append(response.Choices, chat.MessageStreamChoice{
+			FinishReason: chat.FinishReasonStop,
+		})
+	}
+
 	// Convert the choices
 	for i := range openaiResponse.Choices {
 		choice := &openaiResponse.Choices[i]
+		if choice.FinishReason == openai.FinishReasonStop {
+			choice.FinishReason = openai.FinishReasonNull
+		}
+
 		response.Choices[i] = chat.MessageStreamChoice{
 			Index:        choice.Index,
 			FinishReason: chat.FinishReason(choice.FinishReason),
