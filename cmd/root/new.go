@@ -25,10 +25,8 @@ func NewNewCmd() *cobra.Command {
 			logger := slog.Default()
 
 			prompt := ""
-			description := ""
 			if len(args) > 0 {
 				prompt = strings.Join(args, " ")
-				description = prompt // Use the same text for both prompt and description when passed as args
 			} else {
 				reader := bufio.NewReader(os.Stdin)
 
@@ -39,16 +37,9 @@ func NewNewCmd() *cobra.Command {
 					return fmt.Errorf("failed to read purpose: %w", err)
 				}
 				prompt = strings.TrimSpace(prompt)
-				
-				fmt.Print("Provide a brief description for your agent: ")
-				description, err = reader.ReadString('\n')
-				if err != nil {
-					return fmt.Errorf("failed to read description: %w", err)
-				}
-				description = strings.TrimSpace(description)
 			}
 
-			out, err := creator.StreamCreateAgent(ctx, ".", logger, prompt, description, runConfig)
+			out, err := creator.StreamCreateAgent(ctx, ".", logger, prompt, runConfig)
 			if err != nil {
 				return err
 			}

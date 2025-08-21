@@ -135,8 +135,7 @@ func (s *Server) getDesktopToken(c echo.Context) error {
 }
 
 type createAgentRequest struct {
-	Prompt      string `json:"prompt"`
-	Description string `json:"description"`
+	Prompt string `json:"prompt"`
 }
 
 type importAgentRequest struct {
@@ -166,9 +165,8 @@ func (s *Server) createAgent(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 	}
 	prompt := req.Prompt
-	description := req.Description
 
-	out, path, err := creator.CreateAgent(c.Request().Context(), s.agentsDir, s.logger, prompt, description, s.runConfig)
+	out, path, err := creator.CreateAgent(c.Request().Context(), s.agentsDir, s.logger, prompt, s.runConfig)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create agent"})
 	}
