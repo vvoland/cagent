@@ -235,14 +235,14 @@ func (s *Server) createAgentConfig(c echo.Context) error {
 
 	// Create the YAML configuration
 	agentConfig := map[string]any{
-		"agents": map[string]any{
-			"root": map[string]any{
-				"model":       model,
-				"description": description,
-				"instruction": instruction,
-				"toolsets": []map[string]any{
-					{"type": "filesystem"},
-					{"type": "shell"},
+		"agents": map[string]latest.AgentConfig{
+			"root": {
+				Model:       model,
+				Description: description,
+				Instruction: instruction,
+				Toolsets: []latest.Toolset{
+					{Type: "filesystem"},
+					{Type: "shell"},
 				},
 			},
 		},
