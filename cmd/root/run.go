@@ -297,10 +297,9 @@ func runUserCommand(userInput string, sess *session.Session) (bool, error) {
 
 // parseAttachCommand parses user input for /attach commands
 // Returns the message text (with /attach commands removed) and the attachment path
-func parseAttachCommand(input string) (string, string) {
+func parseAttachCommand(input string) (messageText string, attachPath string) {
 	lines := strings.Split(input, "\n")
 	var messageLines []string
-	var attachPath string
 
 	for _, line := range lines {
 		// Look for /attach anywhere in the line
@@ -346,10 +345,10 @@ func parseAttachCommand(input string) (string, string) {
 	}
 
 	// Join the message lines back together
-	messageText := strings.Join(messageLines, "\n")
+	messageText = strings.Join(messageLines, "\n")
 	messageText = strings.TrimSpace(messageText)
 
-	return messageText, attachPath
+	return
 }
 
 func fileExists(path string) bool {
