@@ -39,7 +39,7 @@ func NewNewCmd() *cobra.Command {
 					return fmt.Errorf("failed to read purpose: %w", err)
 				}
 				prompt = strings.TrimSpace(prompt)
-
+				
 				fmt.Print("Provide a brief description for your agent: ")
 				description, err = reader.ReadString('\n')
 				if err != nil {
