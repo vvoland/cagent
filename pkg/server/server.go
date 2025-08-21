@@ -90,7 +90,7 @@ func New(logger *slog.Logger, sessionStore session.Store, runConfig latest.Runti
 	// Create a new agent
 	api.POST("/agents", s.createAgent)
 	// Create a new agent manually with YAML configuration
-	api.POST("/agents/create/manual", s.createAgentManual)
+	api.POST("/agents/config", s.createAgentConfig)
 	// Import an agent from a file path
 	api.POST("/agents/import", s.importAgent)
 	// Export multiple agents as a zip file
@@ -196,7 +196,7 @@ type createAgentManualRequest struct {
 	Instruction string `json:"instruction"`
 }
 
-func (s *Server) createAgentManual(c echo.Context) error {
+func (s *Server) createAgentConfig(c echo.Context) error {
 	var req createAgentManualRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
