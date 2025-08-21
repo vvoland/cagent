@@ -10,3 +10,6 @@ evals
 # agents
 agent.yaml
 vendor
+
+# Local environment files
+.env.local
