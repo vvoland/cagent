@@ -104,14 +104,20 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 		return nil, err
 	}
 
-	// Parse the data
+	// Ok listen up, we used to only store messages in the database, but now we
+	// store messages and sub-sessions. So we need to handle both cases.
+	// We do this in a kind of hacky way, but it works. "AgentFilename" is always present
+	// in a message in the old format, so we check for it to determine the format.
 	var items []Item
-	if err := json.Unmarshal([]byte(messagesJSON), &items); err != nil {
-		// Try to unmarshal as legacy messages format for backward compatibility
-		var messages []Message
-		if err2 := json.Unmarshal([]byte(messagesJSON), &messages); err2 != nil {
-			return nil, err // Return original error if both fail
+	var messages []Message
+	if err := json.Unmarshal([]byte(messagesJSON), &messages); err != nil {
+		return nil, err
+	}
+	if len(messages) > 0 && messages[0].AgentFilename == "" {
+		if err := json.Unmarshal([]byte(messagesJSON), &items); err != nil {
+			return nil, err
 		}
+	} else {
 		items = convertMessagesToItems(messages)
 	}
 
@@ -153,14 +159,20 @@ func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error
 			return nil, err
 		}
 
-		// Parse the data
+		// Ok listen up, we used to only store messages in the database, but now we
+		// store messages and sub-sessions. So we need to handle both cases.
+		// We do this in a kind of hacky way, but it works. "AgentFilename" is always present
+		// in a message in the old format, so we check for it to determine the format.
 		var items []Item
-		if err := json.Unmarshal([]byte(messagesJSON), &items); err != nil {
-			// Try to unmarshal as legacy messages format for backward compatibility
-			var messages []Message
-			if err2 := json.Unmarshal([]byte(messagesJSON), &messages); err2 != nil {
-				return nil, err // Return original error if both fail
+		var messages []Message
+		if err := json.Unmarshal([]byte(messagesJSON), &messages); err != nil {
+			return nil, err
+		}
+		if len(messages) > 0 && messages[0].AgentFilename == "" {
+			if err := json.Unmarshal([]byte(messagesJSON), &items); err != nil {
+				return nil, err
 			}
+		} else {
 			items = convertMessagesToItems(messages)
 		}
 
