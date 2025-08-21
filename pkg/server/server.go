@@ -18,6 +18,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"gopkg.in/yaml.v3"
 
 	"github.com/docker/cagent/internal/creator"
 	"github.com/docker/cagent/pkg/config"
@@ -88,6 +89,8 @@ func New(logger *slog.Logger, sessionStore session.Store, runConfig latest.Runti
 	api.GET("/agents/:id", s.getAgentConfig)
 	// Create a new agent
 	api.POST("/agents", s.createAgent)
+	// Create a new agent manually with YAML configuration
+	api.POST("/agents/config", s.createAgentConfig)
 	// Import an agent from a file path
 	api.POST("/agents/import", s.importAgent)
 	// Export multiple agents as a zip file
@@ -184,6 +187,110 @@ func (s *Server) createAgent(c echo.Context) error {
 
 	s.logger.Info("Agent loaded", "path", path, "out", out)
 	return c.JSON(http.StatusOK, map[string]string{"path": path, "out": out})
+}
+
+type createAgentManualRequest struct {
+	Filename    string `json:"filename"`
+	Model       string `json:"model"`
+	Description string `json:"description"`
+	Instruction string `json:"instruction"`
+}
+
+func (s *Server) createAgentConfig(c echo.Context) error {
+	var req createAgentManualRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	// Validate required fields
+	if req.Filename == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "filename is required"})
+	}
+	if req.Model == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "model is required"})
+	}
+	if req.Description == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "description is required"})
+	}
+	if req.Instruction == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "instruction is required"})
+	}
+
+	filename := req.Filename
+	model := req.Model
+	description := req.Description
+	instruction := req.Instruction
+
+	// Check if file already exists and generate alternative name if needed
+	originalFilename := filename
+	counter := 1
+	for {
+		path := filepath.Join(s.agentsDir, filename+".yaml")
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			break
+		}
+		filename = fmt.Sprintf("%s_%d", originalFilename, counter)
+		counter++
+	}
+
+	// Create the YAML configuration
+	agentConfig := map[string]any{
+		"agents": map[string]latest.AgentConfig{
+			"root": {
+				Model:       model,
+				Description: description,
+				Instruction: instruction,
+				Toolsets: []latest.Toolset{
+					{Type: "filesystem"},
+					{Type: "shell"},
+				},
+			},
+		},
+	}
+
+	// Marshal to YAML with custom indentation (2 spaces)
+	var buf bytes.Buffer
+	encoder := yaml.NewEncoder(&buf)
+	encoder.SetIndent(1)
+	err := encoder.Encode(agentConfig)
+	if err != nil {
+		s.logger.Error("Failed to marshal agent config to YAML", "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to generate YAML configuration"})
+	}
+	encoder.Close()
+	yamlData := buf.Bytes()
+
+	// Prepend shebang line to the YAML content
+	shebang := "#!/usr/bin/env cagent run\nversion: \"1\"\n\n"
+	finalContent := shebang + string(yamlData)
+
+	// Write the file to the agents directory
+	targetPath := filepath.Join(s.agentsDir, filename)
+	if !strings.HasSuffix(targetPath, ".yaml") && !strings.HasSuffix(targetPath, ".yml") {
+		targetPath += ".yaml"
+	}
+
+	if err := os.WriteFile(targetPath, []byte(finalContent), 0o644); err != nil {
+		s.logger.Error("Failed to write agent file", "path", targetPath, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to write agent file"})
+	}
+
+	// Load the agent from the new location
+	t, err := teamloader.Load(c.Request().Context(), targetPath, s.runConfig, s.logger)
+	if err != nil {
+		// Clean up the file we just created if loading fails
+		_ = os.Remove(targetPath)
+		s.logger.Error("Failed to load agent from target path", "path", targetPath, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent from target path: " + err.Error()})
+	}
+
+	agentKey := strings.TrimSuffix(filepath.Base(targetPath), filepath.Ext(targetPath))
+	s.teams[agentKey] = t
+
+	s.logger.Info("Manual agent created successfully", "filepath", targetPath, "filename", filename)
+	return c.JSON(http.StatusOK, map[string]string{
+		"filepath": targetPath,
+	})
 }
 
 func (s *Server) importAgent(c echo.Context) error {
@@ -363,7 +470,7 @@ func (s *Server) pullAgent(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to pull agent"})
 	}
 
-	yaml, err := fromStore(req.Name)
+	yamlFile, err := fromStore(req.Name)
 	if err != nil {
 		s.logger.Error("Failed to get agent yaml", "name", req.Name, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to get agent yaml"})
@@ -372,7 +479,7 @@ func (s *Server) pullAgent(c echo.Context) error {
 	agentName := strings.ReplaceAll(req.Name, "/", "_")
 	fileName := filepath.Join(s.agentsDir, agentName+".yaml")
 
-	if err := os.WriteFile(fileName, []byte(yaml), 0o644); err != nil {
+	if err := os.WriteFile(fileName, []byte(yamlFile), 0o644); err != nil {
 		s.logger.Error("Failed to write agent yaml", "name", req.Name, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to write agent yaml to " + fileName + ": " + err.Error()})
 	}
@@ -556,7 +663,7 @@ func (s *Server) refreshAgentsFromDisk(ctx context.Context) error {
 	return nil
 }
 
-type sessionResponse struct {
+type sessionsResponse struct {
 	ID                         string `json:"id"`
 	CreatedAt                  string `json:"created_at"`
 	NumMessages                int    `json:"num_messages"`
@@ -569,12 +676,12 @@ func (s *Server) getSessions(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to get sessions"})
 	}
 
-	responses := make([]sessionResponse, len(sessions))
+	responses := make([]sessionsResponse, len(sessions))
 	for i, sess := range sessions {
-		responses[i] = sessionResponse{
+		responses[i] = sessionsResponse{
 			ID:                         sess.ID,
 			CreatedAt:                  sess.CreatedAt.Format(time.RFC3339),
-			NumMessages:                len(sess.Messages),
+			NumMessages:                len(sess.GetAllMessages()),
 			GetMostRecentAgentFilename: sess.GetMostRecentAgentFilename(),
 		}
 	}
@@ -592,13 +699,38 @@ func (s *Server) createSession(c echo.Context) error {
 	return c.JSON(http.StatusOK, sess)
 }
 
+type sessionResponse struct {
+	// ID is the unique identifier for the session
+	ID string `json:"id"`
+
+	// Messages holds the conversation history (messages and sub-sessions)
+	Messages []session.Message `json:"messages,omitempty"`
+
+	// CreatedAt is the time the session was created
+	CreatedAt time.Time `json:"created_at"`
+
+	// ToolsApproved is a flag to indicate if the tools have been approved
+	ToolsApproved bool `json:"tools_approved"`
+
+	// Logger for debugging and logging session operations
+	logger *slog.Logger
+}
+
 func (s *Server) getSession(c echo.Context) error {
 	sess, err := s.sessionStore.GetSession(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "session not found"})
 	}
 
-	return c.JSON(http.StatusOK, sess)
+	sr := sessionResponse{
+		ID:            sess.ID,
+		CreatedAt:     sess.CreatedAt,
+		Messages:      sess.GetAllMessages(),
+		ToolsApproved: sess.ToolsApproved,
+		logger:        s.logger,
+	}
+
+	return c.JSON(http.StatusOK, sr)
 }
 
 type resumeSessionRequest struct {
@@ -662,7 +794,7 @@ func (s *Server) runAgent(c echo.Context) error {
 
 	// TODO(dga): for now, we only receive one message and it's always a user message.
 	for _, msg := range messages {
-		sess.Messages = append(sess.Messages, session.UserMessage(agentFilename, msg.Content))
+		sess.AddMessage(session.UserMessage(agentFilename, msg.Content))
 	}
 
 	if err := s.sessionStore.UpdateSession(c.Request().Context(), sess); err != nil {

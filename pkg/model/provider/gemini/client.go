@@ -2,10 +2,12 @@ package gemini
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/docker/cagent/pkg/chat"
 	latest "github.com/docker/cagent/pkg/config/v1"
@@ -22,6 +24,10 @@ type Client struct {
 	client *genai.Client
 	config *latest.ModelConfig
 	logger *slog.Logger
+	// When using the Docker AI Gateway, tokens are short-lived. We rebuild
+	// the client per request when in gateway mode.
+	useGateway     bool
+	gatewayBaseURL string
 }
 
 // NewClient creates a new Gemini client from the provided configuration
@@ -41,6 +47,8 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 
 	var apiKey string
 	var httpOptions genai.HTTPOptions
+	useGateway := false
+	gatewayBaseURL := ""
 	if gateway := modelOptions.Gateway(); gateway == "" {
 		var err error
 		apiKey, err = env.Get(ctx, "GOOGLE_API_KEY")
@@ -56,6 +64,8 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		httpOptions.BaseURL = gateway
 		httpOptions.Headers = make(http.Header)
 		httpOptions.Headers.Set("Authorization", "Bearer "+apiKey)
+		useGateway = true
+		gatewayBaseURL = gateway
 	}
 
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
@@ -68,10 +78,30 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 	}
 
 	return &Client{
-		client: client,
-		config: cfg,
-		logger: logger,
+		client:         client,
+		config:         cfg,
+		logger:         logger,
+		useGateway:     useGateway,
+		gatewayBaseURL: gatewayBaseURL,
 	}, nil
+}
+
+// newGatewayClient builds a new Gemini client using a fresh Docker Desktop token.
+func (c *Client) newGatewayClient(ctx context.Context) (*genai.Client, error) {
+	token := desktop.GetToken(ctx)
+	if token == "" {
+		return nil, errors.New("failed to get Docker Desktop token for gateway")
+	}
+	httpOptions := genai.HTTPOptions{
+		BaseURL: c.gatewayBaseURL,
+		Headers: make(http.Header),
+	}
+	httpOptions.Headers.Set("Authorization", "Bearer "+token)
+	return genai.NewClient(ctx, &genai.ClientConfig{
+		APIKey:      token,
+		Backend:     genai.BackendGeminiAPI,
+		HTTPOptions: httpOptions,
+	})
 }
 
 // convertMessagesToGemini converts chat.Messages into Gemini Contents
@@ -133,6 +163,38 @@ func convertMessagesToGemini(messages []chat.Message) []*genai.Content {
 			for _, part := range msg.MultiContent {
 				if part.Type == chat.MessagePartTypeText {
 					parts = append(parts, genai.NewPartFromText(part.Text))
+				} else if part.Type == chat.MessagePartTypeImageURL && part.ImageURL != nil {
+					// For Gemini, we need to extract base64 data from data URL and convert to bytes
+					// Based on: https://ai.google.dev/gemini-api/docs/vision
+					if strings.HasPrefix(part.ImageURL.URL, "data:") {
+						urlParts := strings.SplitN(part.ImageURL.URL, ",", 2)
+						if len(urlParts) == 2 {
+							// Extract media type from data URL
+							mediaTypePart := urlParts[0]
+							base64Data := urlParts[1]
+
+							// Decode base64 data to bytes
+							if imageData, err := base64.StdEncoding.DecodeString(base64Data); err == nil {
+								var mimeType string
+								switch {
+								case strings.Contains(mediaTypePart, "image/jpeg"):
+									mimeType = "image/jpeg"
+								case strings.Contains(mediaTypePart, "image/png"):
+									mimeType = "image/png"
+								case strings.Contains(mediaTypePart, "image/gif"):
+									mimeType = "image/gif"
+								case strings.Contains(mediaTypePart, "image/webp"):
+									mimeType = "image/webp"
+								default:
+									mimeType = "image/jpeg" // Default
+								}
+
+								// Create image part using Gemini Go SDK
+								// Equivalent to types.Part.from_bytes(data=image_bytes, mime_type='image/jpeg')
+								parts = append(parts, genai.NewPartFromBytes(imageData, mimeType))
+							}
+						}
+					}
 				}
 			}
 			if len(parts) > 0 {
@@ -305,7 +367,40 @@ func (c *Client) CreateChatCompletionStream(
 		c.logger.Debug("Message", "index", i, "role", content.Role)
 	}
 
-	iter := c.client.Models.GenerateContentStream(ctx, c.config.Model, contents, config)
+	// For Gemini 2.5 models with thoughtSignature streaming issues,
+	// try non-streaming first to avoid parsing problems
+	if strings.Contains(c.config.Model, "2.5") {
+		c.logger.Debug("Using non-streaming mode for Gemini 2.5 to avoid thoughtSignature parsing issues")
+		var client *genai.Client
+		if c.useGateway {
+			if gwClient, err := c.newGatewayClient(ctx); err == nil {
+				client = gwClient
+			} else {
+				client = c.client
+			}
+		} else {
+			client = c.client
+		}
+		response, err := client.Models.GenerateContent(ctx, c.config.Model, contents, config)
+		if err != nil {
+			c.logger.Debug("Non-streaming failed, falling back to streaming", "error", err)
+		} else {
+			// Convert non-streaming response to streaming format
+			return NewNonStreamingAdapter(response, c.config.Model, c.logger), nil
+		}
+	}
+
+	// Build a fresh client per request when using the gateway
+	var iter func(func(*genai.GenerateContentResponse, error) bool)
+	if c.useGateway {
+		if gwClient, err := c.newGatewayClient(ctx); err == nil {
+			iter = gwClient.Models.GenerateContentStream(ctx, c.config.Model, contents, config)
+		} else {
+			iter = c.client.Models.GenerateContentStream(ctx, c.config.Model, contents, config)
+		}
+	} else {
+		iter = c.client.Models.GenerateContentStream(ctx, c.config.Model, contents, config)
+	}
 	return NewStreamAdapter(iter, c.config.Model, c.logger), nil
 }
 
@@ -314,7 +409,18 @@ func (c *Client) CreateChatCompletion(
 	ctx context.Context,
 	messages []chat.Message,
 ) (string, error) {
-	result, err := c.client.Models.GenerateContent(ctx, c.config.Model, convertMessagesToGemini(messages), c.buildConfig())
+	// Build a fresh client per request when using the gateway
+	var client *genai.Client
+	if c.useGateway {
+		if gwClient, err := c.newGatewayClient(ctx); err == nil {
+			client = gwClient
+		} else {
+			client = c.client
+		}
+	} else {
+		client = c.client
+	}
+	result, err := client.Models.GenerateContent(ctx, c.config.Model, convertMessagesToGemini(messages), c.buildConfig())
 	if err != nil {
 		return "", err
 	}

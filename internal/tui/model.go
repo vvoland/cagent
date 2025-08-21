@@ -392,7 +392,7 @@ func (m *model) handleUserInput() tea.Cmd {
 	m.userScrolled = false
 	m.chatViewport.GotoBottom()
 
-	m.sess.Messages = append(m.sess.Messages, session.NewAgentMessage(m.rt.CurrentAgent(), &chat.Message{
+	m.sess.AddMessage(session.NewAgentMessage(m.rt.CurrentAgent(), &chat.Message{
 		Role:    chat.MessageRoleUser,
 		Content: input,
 	}))

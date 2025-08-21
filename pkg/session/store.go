@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"log/slog"
 	"strconv"
 	"time"
 
@@ -16,6 +15,15 @@ var (
 	ErrEmptyID  = errors.New("session ID cannot be empty")
 	ErrNotFound = errors.New("session not found")
 )
+
+// convertMessagesToItems converts a slice of Messages to SessionItems for backward compatibility
+func convertMessagesToItems(messages []Message) []Item {
+	items := make([]Item, len(messages))
+	for i := range messages {
+		items[i] = NewMessageItem(&messages[i])
+	}
+	return items
+}
 
 // Store defines the interface for session storage
 type Store interface {
@@ -65,14 +73,14 @@ func (s *SQLiteSessionStore) AddSession(ctx context.Context, session *Session) e
 		return ErrEmptyID
 	}
 
-	messagesJSON, err := json.Marshal(session.Messages)
+	itemsJSON, err := json.Marshal(session.Messages)
 	if err != nil {
 		return err
 	}
 
 	_, err = s.db.ExecContext(ctx,
 		"INSERT INTO sessions (id, messages, tools_approved, created_at) VALUES (?, ?, ?, ?)",
-		session.ID, string(messagesJSON), session.ToolsApproved, session.CreatedAt.Format(time.RFC3339))
+		session.ID, string(itemsJSON), session.ToolsApproved, session.CreatedAt.Format(time.RFC3339))
 	return err
 }
 
@@ -96,10 +104,21 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 		return nil, err
 	}
 
-	// Parse the data
+	// Ok listen up, we used to only store messages in the database, but now we
+	// store messages and sub-sessions. So we need to handle both cases.
+	// We do this in a kind of hacky way, but it works. "AgentFilename" is always present
+	// in a message in the old format, so we check for it to determine the format.
+	var items []Item
 	var messages []Message
 	if err := json.Unmarshal([]byte(messagesJSON), &messages); err != nil {
 		return nil, err
+	}
+	if len(messages) > 0 && messages[0].AgentFilename == "" {
+		if err := json.Unmarshal([]byte(messagesJSON), &items); err != nil {
+			return nil, err
+		}
+	} else {
+		items = convertMessagesToItems(messages)
 	}
 
 	toolsApproved, err := strconv.ParseBool(toolsApprovedStr)
@@ -114,7 +133,7 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 
 	return &Session{
 		ID:            sessionID,
-		Messages:      messages,
+		Messages:      items,
 		ToolsApproved: toolsApproved,
 		CreatedAt:     createdAt,
 		logger:        nil, // Logger is not persisted and will need to be set by caller
@@ -140,10 +159,21 @@ func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error
 			return nil, err
 		}
 
-		// Parse the data
+		// Ok listen up, we used to only store messages in the database, but now we
+		// store messages and sub-sessions. So we need to handle both cases.
+		// We do this in a kind of hacky way, but it works. "AgentFilename" is always present
+		// in a message in the old format, so we check for it to determine the format.
+		var items []Item
 		var messages []Message
 		if err := json.Unmarshal([]byte(messagesJSON), &messages); err != nil {
 			return nil, err
+		}
+		if len(messages) > 0 && messages[0].AgentFilename == "" {
+			if err := json.Unmarshal([]byte(messagesJSON), &items); err != nil {
+				return nil, err
+			}
+		} else {
+			items = convertMessagesToItems(messages)
 		}
 
 		toolsApproved, err := strconv.ParseBool(toolsApprovedStr)
@@ -158,7 +188,7 @@ func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error
 
 		session := &Session{
 			ID:            sessionID,
-			Messages:      messages,
+			Messages:      items,
 			ToolsApproved: toolsApproved,
 			CreatedAt:     createdAt,
 			logger:        nil, // Logger is not persisted and will need to be set by caller
@@ -199,14 +229,14 @@ func (s *SQLiteSessionStore) UpdateSession(ctx context.Context, session *Session
 		return ErrEmptyID
 	}
 
-	messagesJSON, err := json.Marshal(session.Messages)
+	itemsJSON, err := json.Marshal(session.Messages)
 	if err != nil {
 		return err
 	}
 
 	result, err := s.db.ExecContext(ctx,
 		"UPDATE sessions SET messages = ?, tools_approved = ? WHERE id = ?",
-		string(messagesJSON), session.ToolsApproved, session.ID)
+		string(itemsJSON), session.ToolsApproved, session.ID)
 	if err != nil {
 		return err
 	}
@@ -226,9 +256,4 @@ func (s *SQLiteSessionStore) UpdateSession(ctx context.Context, session *Session
 // Close closes the database connection
 func (s *SQLiteSessionStore) Close() error {
 	return s.db.Close()
-}
-
-// SetLogger sets the logger for a session (useful after loading from store)
-func (session *Session) SetLogger(logger *slog.Logger) {
-	session.logger = logger
 }

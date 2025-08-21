@@ -1,0 +1,9 @@
+services:
+  jaeger:
+    image: jaegertracing/jaeger
+    ports:
+      - "16686:16686"
+      - "4318:4318"
+    command: ["--set", "service.telemetry.logs.level=error"]
+    environment:
+      - OTEL_TRACES_SAMPLER=always_off

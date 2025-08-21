@@ -15,13 +15,32 @@ import (
 // context size of the current LLM
 var maxMessages = 100 // Maximum number of messages to keep in context
 
+// Item represents either a message or a sub-session
+type Item struct {
+	// Message holds a regular conversation message
+	Message *Message `json:"message,omitempty"`
+
+	// SubSession holds a complete sub-session from task transfers
+	SubSession *Session `json:"sub_session,omitempty"`
+}
+
+// IsMessage returns true if this item contains a message
+func (si *Item) IsMessage() bool {
+	return si.Message != nil
+}
+
+// IsSubSession returns true if this item contains a sub-session
+func (si *Item) IsSubSession() bool {
+	return si.SubSession != nil
+}
+
 // Session represents the agent's state including conversation history and variables
 type Session struct {
 	// ID is the unique identifier for the session
 	ID string `json:"id"`
 
-	// Messages holds the conversation history
-	Messages []Message `json:"messages"`
+	// Messages holds the conversation history (messages and sub-sessions)
+	Messages []Item `json:"messages"`
 
 	// CreatedAt is the time the session was created
 	CreatedAt time.Time `json:"created_at"`
@@ -40,8 +59,8 @@ type Message struct {
 	Message       chat.Message `json:"message"`
 }
 
-func UserMessage(agentFilename, content string) Message {
-	return Message{
+func UserMessage(agentFilename, content string) *Message {
+	return &Message{
 		AgentFilename: agentFilename,
 		AgentName:     "",
 		Message: chat.Message{
@@ -51,16 +70,16 @@ func UserMessage(agentFilename, content string) Message {
 	}
 }
 
-func NewAgentMessage(a *agent.Agent, message *chat.Message) Message {
-	return Message{
+func NewAgentMessage(a *agent.Agent, message *chat.Message) *Message {
+	return &Message{
 		AgentFilename: "",
 		AgentName:     a.Name(),
 		Message:       *message,
 	}
 }
 
-func SystemMessage(content string) Message {
-	return Message{
+func SystemMessage(content string) *Message {
+	return &Message{
 		AgentFilename: "",
 		AgentName:     "",
 		Message: chat.Message{
@@ -70,17 +89,72 @@ func SystemMessage(content string) Message {
 	}
 }
 
+// Helper functions for creating SessionItems
+
+// NewMessageItem creates a SessionItem containing a message
+func NewMessageItem(msg *Message) Item {
+	return Item{Message: msg}
+}
+
+// NewSubSessionItem creates a SessionItem containing a sub-session
+func NewSubSessionItem(subSession *Session) Item {
+	return Item{SubSession: subSession}
+}
+
+// Session helper methods
+
+// AddMessage adds a message to the session
+func (s *Session) AddMessage(msg *Message) {
+	s.Messages = append(s.Messages, NewMessageItem(msg))
+}
+
+// AddSubSession adds a sub-session to the session
+func (s *Session) AddSubSession(subSession *Session) {
+	s.Messages = append(s.Messages, NewSubSessionItem(subSession))
+}
+
+// GetAllMessages extracts all messages from the session, including from sub-sessions
+func (s *Session) GetAllMessages() []Message {
+	var messages []Message
+	for _, item := range s.Messages {
+		if item.IsMessage() && item.Message.Message.Role != chat.MessageRoleSystem {
+			messages = append(messages, *item.Message)
+		} else if item.IsSubSession() {
+			// Recursively get messages from sub-sessions
+			subMessages := item.SubSession.GetAllMessages()
+			messages = append(messages, subMessages...)
+		}
+	}
+	return messages
+}
+
+// getMessages extracts only messages from the session, excluding sub-sessions
+func (s *Session) getMessages() []Message {
+	var messages []Message
+	for _, item := range s.Messages {
+		if item.IsMessage() {
+			messages = append(messages, *item.Message)
+		}
+	}
+	return messages
+}
+
+// SetLogger sets the logger for the session
+func (s *Session) SetLogger(logger *slog.Logger) {
+	s.logger = logger
+}
+
 type Opt func(s *Session)
 
 func WithUserMessage(agentFilename, content string) Opt {
 	return func(s *Session) {
-		s.Messages = append(s.Messages, UserMessage(agentFilename, content))
+		s.AddMessage(UserMessage(agentFilename, content))
 	}
 }
 
 func WithSystemMessage(content string) Opt {
 	return func(s *Session) {
-		s.Messages = append(s.Messages, SystemMessage(content))
+		s.AddMessage(SystemMessage(content))
 	}
 }
 
@@ -92,7 +166,7 @@ func New(logger *slog.Logger, opts ...Opt) *Session {
 	s := &Session{
 		ID:            sessionID,
 		CreatedAt:     time.Now(),
-		Messages:      make([]Message, 0),
+		Messages:      make([]Item, 0),
 		ToolsApproved: false,
 		logger:        logger,
 	}
@@ -144,8 +218,10 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		}
 	}
 
-	for i := range s.Messages {
-		messages = append(messages, s.Messages[i].Message)
+	// Extract messages (excluding sub-session messages)
+	sessionMessages := s.getMessages()
+	for i := range sessionMessages {
+		messages = append(messages, sessionMessages[i].Message)
 	}
 
 	trimmed := trimMessages(messages)
@@ -160,9 +236,17 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 }
 
 func (s *Session) GetMostRecentAgentFilename() string {
+	// Check items in reverse order
 	for i := len(s.Messages) - 1; i >= 0; i-- {
-		if agentFilename := s.Messages[i].AgentFilename; agentFilename != "" {
-			return agentFilename
+		item := s.Messages[i]
+		if item.IsMessage() {
+			if agentFilename := item.Message.AgentFilename; agentFilename != "" {
+				return agentFilename
+			}
+		} else if item.IsSubSession() {
+			if filename := item.SubSession.GetMostRecentAgentFilename(); filename != "" {
+				return filename
+			}
 		}
 	}
 	return ""

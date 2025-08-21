@@ -4,14 +4,23 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/sdk/resource"
+	"go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.34.0"
 
+	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/evaluation"
 	"github.com/docker/cagent/pkg/runtime"
@@ -20,6 +29,56 @@ import (
 )
 
 var autoApprove bool
+var attachmentPath string
+
+// initOTelSDK initializes OpenTelemetry SDK with OTLP exporter
+func initOTelSDK(ctx context.Context) (shutdown func(context.Context) error, err error) {
+	res, err := resource.Merge(
+		resource.Default(),
+		resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName("cagent"),
+			semconv.ServiceVersion("dev"), // TODO: use actual version
+		),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create resource: %w", err)
+	}
+
+	var traceExporter trace.SpanExporter
+	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+
+	// Only initialize if endpoint is configured
+	if endpoint != "" {
+		traceExporter, err = otlptracehttp.New(ctx,
+			otlptracehttp.WithEndpoint(endpoint),
+			otlptracehttp.WithInsecure(), // TODO: make configurable
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create trace exporter: %w", err)
+		}
+	}
+
+	// Configure tracer provider
+	var tracerProviderOpts []trace.TracerProviderOption
+	tracerProviderOpts = append(tracerProviderOpts, trace.WithResource(res))
+
+	if traceExporter != nil {
+		tracerProviderOpts = append(tracerProviderOpts,
+			trace.WithBatcher(traceExporter,
+				trace.WithBatchTimeout(5*time.Second),
+				trace.WithMaxExportBatchSize(512),
+			),
+		)
+	}
+
+	tp := trace.NewTracerProvider(tracerProviderOpts...)
+	otel.SetTracerProvider(tp)
+
+	return tp.Shutdown, nil
+}
+
+var workingDir string
 
 // NewRunCmd creates a new run command
 func NewRunCmd() *cobra.Command {
@@ -38,6 +97,8 @@ func NewRunCmd() *cobra.Command {
 	cmd.PersistentFlags().StringVarP(&agentName, "agent", "a", "root", "Name of the agent to run")
 	cmd.PersistentFlags().BoolVar(&autoApprove, "yolo", false, "Automatically approve all tool calls without prompting")
 	cmd.PersistentFlags().StringSliceVar(&runConfig.EnvFiles, "env-from-file", nil, "Set environment variables from file")
+	cmd.PersistentFlags().StringVar(&attachmentPath, "attach", "", "Attach an image file to the message")
+	cmd.PersistentFlags().StringVar(&workingDir, "working-dir", "", "Set the working directory for the session (applies to tools and relative paths)")
 	addGatewayFlags(cmd)
 
 	return cmd
@@ -50,6 +111,46 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 	logger := newLogger()
 
 	logger.Debug("Starting agent", "agent", agentName, "debug_mode", debugMode)
+
+	if enableOtel {
+		shutdown, err := initOTelSDK(ctx)
+		if err != nil {
+			logger.Warn("Failed to initialize OpenTelemetry SDK", "error", err)
+		} else if shutdown != nil {
+			defer func() {
+				shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				if err := shutdown(shutdownCtx); err != nil {
+					logger.Warn("Failed to shutdown OpenTelemetry SDK", "error", err)
+				}
+			}()
+			logger.Debug("OpenTelemetry SDK initialized successfully")
+		}
+	}
+
+	// Resolve agentFilename to an absolute path early so changing cwd won't break path resolution
+	if !strings.Contains(agentFilename, "\n") {
+		if abs, err := filepath.Abs(agentFilename); err == nil {
+			agentFilename = abs
+		}
+	}
+
+	// If working-dir was provided, validate and change process working directory
+	if workingDir != "" {
+		absWd, err := filepath.Abs(workingDir)
+		if err != nil {
+			return fmt.Errorf("invalid working directory: %w", err)
+		}
+		info, err := os.Stat(absWd)
+		if err != nil || !info.IsDir() {
+			return fmt.Errorf("working directory does not exist or is not a directory: %s", absWd)
+		}
+		if err := os.Chdir(absWd); err != nil {
+			return fmt.Errorf("failed to change working directory: %w", err)
+		}
+		_ = os.Setenv("PWD", absWd)
+		logger.Debug("Working directory set", "dir", absWd)
+	}
 
 	if !fileExists(agentFilename) {
 		a, err := fromStore(agentFilename)
@@ -82,9 +183,12 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
+	tracer := otel.Tracer("cagent")
+
 	rt := runtime.New(logger, agents,
 		runtime.WithCurrentAgent(agentName),
 		runtime.WithAutoRunTools(autoApprove),
+		runtime.WithTracer(tracer),
 	)
 
 	sess := session.New(logger)
@@ -112,7 +216,16 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		sess.Messages = append(sess.Messages, session.UserMessage(agentFilename, userInput))
+		// Parse for /attach commands in the message
+		messageText, attachPath := parseAttachCommand(userInput)
+
+		// Use either the per-message attachment or the global one
+		finalAttachPath := attachPath
+		if finalAttachPath == "" {
+			finalAttachPath = attachmentPath
+		}
+
+		sess.AddMessage(createUserMessageWithAttachment(agentFilename, messageText, finalAttachPath))
 
 		first := false
 		for event := range rt.RunStream(ctx, sess) {
@@ -202,11 +315,66 @@ func runUserCommand(userInput string, sess *session.Session) (bool, error) {
 		}
 		return true, nil
 	case "/reset":
-		sess.Messages = []session.Message{}
+		// Reset session items
+		sess.Messages = []session.Item{}
 		return true, nil
 	}
 
 	return false, nil
+}
+
+// parseAttachCommand parses user input for /attach commands
+// Returns the message text (with /attach commands removed) and the attachment path
+func parseAttachCommand(input string) (messageText, attachPath string) {
+	lines := strings.Split(input, "\n")
+	var messageLines []string
+
+	for _, line := range lines {
+		// Look for /attach anywhere in the line
+		attachIndex := strings.Index(line, "/attach ")
+		if attachIndex != -1 {
+			// Extract the part before /attach
+			beforeAttach := line[:attachIndex]
+
+			// Extract the part after /attach (starting after "/attach ")
+			afterAttachStart := attachIndex + 8 // Length of "/attach "
+			if afterAttachStart < len(line) {
+				afterAttach := line[afterAttachStart:]
+
+				// Split on spaces to get the file path (first token) and any remaining text
+				tokens := strings.Fields(afterAttach)
+				if len(tokens) > 0 {
+					attachPath = tokens[0]
+
+					// Reconstruct the line with /attach and file path removed
+					var remainingText string
+					if len(tokens) > 1 {
+						remainingText = strings.Join(tokens[1:], " ")
+					}
+
+					// Combine the text before /attach and any text after the file path
+					var parts []string
+					if strings.TrimSpace(beforeAttach) != "" {
+						parts = append(parts, strings.TrimSpace(beforeAttach))
+					}
+					if remainingText != "" {
+						parts = append(parts, remainingText)
+					}
+					reconstructedLine := strings.Join(parts, " ")
+					if reconstructedLine != "" {
+						messageLines = append(messageLines, reconstructedLine)
+					}
+				}
+			}
+		} else {
+			// Keep lines without /attach commands
+			messageLines = append(messageLines, line)
+		}
+	}
+
+	// Join the message lines back together
+	messageText = strings.TrimSpace(strings.Join(messageLines, "\n"))
+	return messageText, attachPath
 }
 
 func fileExists(path string) bool {
@@ -245,4 +413,90 @@ func fromStore(reference string) (string, error) {
 	b.Close()
 
 	return buf.String(), nil
+}
+
+// createUserMessageWithAttachment creates a user message with optional image attachment
+func createUserMessageWithAttachment(agentFilename, userContent, attachmentPath string) *session.Message {
+	if attachmentPath == "" {
+		return session.UserMessage(agentFilename, userContent)
+	}
+
+	// Convert file to data URL
+	dataURL, err := fileToDataURL(attachmentPath)
+	if err != nil {
+		fmt.Printf("Warning: Failed to attach file %s: %v\n", attachmentPath, err)
+		return session.UserMessage(agentFilename, userContent)
+	}
+
+	// Ensure we have some text content when attaching a file
+	textContent := userContent
+	if strings.TrimSpace(textContent) == "" {
+		textContent = "Please analyze this attached file."
+	}
+
+	// Create message with multi-content including text and image
+	multiContent := []chat.MessagePart{
+		{
+			Type: chat.MessagePartTypeText,
+			Text: textContent,
+		},
+		{
+			Type: chat.MessagePartTypeImageURL,
+			ImageURL: &chat.MessageImageURL{
+				URL:    dataURL,
+				Detail: chat.ImageURLDetailAuto,
+			},
+		},
+	}
+
+	return &session.Message{
+		AgentFilename: agentFilename,
+		AgentName:     "",
+		Message: chat.Message{
+			Role:         chat.MessageRoleUser,
+			MultiContent: multiContent,
+		},
+	}
+}
+
+// fileToDataURL converts a file to a data URL
+func fileToDataURL(filePath string) (string, error) {
+	// Check if file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return "", fmt.Errorf("file does not exist: %s", filePath)
+	}
+
+	// Read file content
+	fileBytes, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// Determine MIME type based on file extension
+	ext := strings.ToLower(filepath.Ext(filePath))
+	var mimeType string
+	switch ext {
+	case ".jpg", ".jpeg":
+		mimeType = "image/jpeg"
+	case ".png":
+		mimeType = "image/png"
+	case ".gif":
+		mimeType = "image/gif"
+	case ".webp":
+		mimeType = "image/webp"
+	case ".bmp":
+		mimeType = "image/bmp"
+	case ".svg":
+		mimeType = "image/svg+xml"
+	default:
+		return "", fmt.Errorf("unsupported image format: %s", ext)
+	}
+
+	// Encode to base64
+	encoded := base64.StdEncoding.EncodeToString(fileBytes)
+
+	// Create data URL
+	dataURL := fmt.Sprintf("data:%s;base64,%s", mimeType, encoded)
+
+	return dataURL, nil
 }

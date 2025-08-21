@@ -30,16 +30,16 @@ func TestStoreAgentName(t *testing.T) {
 	// Create a session with messages from different agents
 	session := &Session{
 		ID: "test-session",
-		Messages: []Message{
-			UserMessage("demo-agent", "Hello"),
-			NewAgentMessage(testAgent1, &chat.Message{
+		Messages: []Item{
+			NewMessageItem(UserMessage("demo-agent", "Hello")),
+			NewMessageItem(NewAgentMessage(testAgent1, &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "Hello from test-agent-1",
-			}),
-			NewAgentMessage(testAgent2, &chat.Message{
+			})),
+			NewMessageItem(NewAgentMessage(testAgent2, &chat.Message{
 				Role:    chat.MessageRoleUser,
 				Content: "Another message from test-agent-2",
-			}),
+			})),
 		},
 		CreatedAt: time.Now(),
 	}
@@ -54,22 +54,22 @@ func TestStoreAgentName(t *testing.T) {
 	require.NotNil(t, retrievedSession)
 
 	// Verify the agent names are correctly stored and retrieved
-	assert.Len(t, retrievedSession.Messages, 3)
+	assert.Len(t, retrievedSession.GetAllMessages(), 3)
 
 	// First message should be user message with empty agent name
-	assert.Equal(t, "demo-agent", retrievedSession.Messages[0].AgentFilename)
-	assert.Equal(t, "", retrievedSession.Messages[0].AgentName)
-	assert.Equal(t, "Hello", retrievedSession.Messages[0].Message.Content)
+	assert.Equal(t, "demo-agent", retrievedSession.Messages[0].Message.AgentFilename)
+	assert.Equal(t, "", retrievedSession.Messages[0].Message.AgentName)
+	assert.Equal(t, "Hello", retrievedSession.Messages[0].Message.Message.Content)
 
 	// Second message should have the first agent's name
-	assert.Equal(t, "", retrievedSession.Messages[1].AgentFilename)
-	assert.Equal(t, "test-agent-1", retrievedSession.Messages[1].AgentName)
-	assert.Equal(t, "Hello from test-agent-1", retrievedSession.Messages[1].Message.Content)
+	assert.Equal(t, "", retrievedSession.Messages[1].Message.AgentFilename)
+	assert.Equal(t, "test-agent-1", retrievedSession.Messages[1].Message.AgentName)
+	assert.Equal(t, "Hello from test-agent-1", retrievedSession.Messages[1].Message.Message.Content)
 
 	// Third message should have the second agent's name
-	assert.Equal(t, "", retrievedSession.Messages[2].AgentFilename)
-	assert.Equal(t, "test-agent-2", retrievedSession.Messages[2].AgentName)
-	assert.Equal(t, "Another message from test-agent-2", retrievedSession.Messages[2].Message.Content)
+	assert.Equal(t, "", retrievedSession.Messages[2].Message.AgentFilename)
+	assert.Equal(t, "test-agent-2", retrievedSession.Messages[2].Message.AgentName)
+	assert.Equal(t, "Another message from test-agent-2", retrievedSession.Messages[2].Message.Message.Content)
 }
 
 func TestStoreMultipleAgents(t *testing.T) {
@@ -90,16 +90,16 @@ func TestStoreMultipleAgents(t *testing.T) {
 	session := &Session{
 		ID:        "multi-agent-session",
 		CreatedAt: time.Now(),
-		Messages: []Message{
-			UserMessage("demo", "Start conversation"),
-			NewAgentMessage(agent1, &chat.Message{
+		Messages: []Item{
+			NewMessageItem(UserMessage("demo", "Start conversation")),
+			NewMessageItem(NewAgentMessage(agent1, &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "Response from agent 1",
-			}),
-			NewAgentMessage(agent2, &chat.Message{
+			})),
+			NewMessageItem(NewAgentMessage(agent2, &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "Response from agent 2",
-			}),
+			})),
 		},
 	}
 
@@ -116,18 +116,18 @@ func TestStoreMultipleAgents(t *testing.T) {
 	assert.Len(t, retrievedSession.Messages, 3)
 
 	// First message should be user message with empty agent name
-	assert.Equal(t, "demo", retrievedSession.Messages[0].AgentFilename)
-	assert.Equal(t, "", retrievedSession.Messages[0].AgentName)
+	assert.Equal(t, "demo", retrievedSession.Messages[0].Message.AgentFilename)
+	assert.Equal(t, "", retrievedSession.Messages[0].Message.AgentName)
 
 	// Second message should have agent-1 name
-	assert.Equal(t, "", retrievedSession.Messages[1].AgentFilename)
-	assert.Equal(t, "agent-1", retrievedSession.Messages[1].AgentName)
-	assert.Equal(t, "Response from agent 1", retrievedSession.Messages[1].Message.Content)
+	assert.Equal(t, "", retrievedSession.Messages[1].Message.AgentFilename)
+	assert.Equal(t, "agent-1", retrievedSession.Messages[1].Message.AgentName)
+	assert.Equal(t, "Response from agent 1", retrievedSession.Messages[1].Message.Message.Content)
 
 	// Third message should have agent-2 name
-	assert.Equal(t, "", retrievedSession.Messages[2].AgentFilename)
-	assert.Equal(t, "agent-2", retrievedSession.Messages[2].AgentName)
-	assert.Equal(t, "Response from agent 2", retrievedSession.Messages[2].Message.Content)
+	assert.Equal(t, "", retrievedSession.Messages[2].Message.AgentFilename)
+	assert.Equal(t, "agent-2", retrievedSession.Messages[2].Message.AgentName)
+	assert.Equal(t, "Response from agent 2", retrievedSession.Messages[2].Message.Message.Content)
 }
 
 func TestGetSessions(t *testing.T) {
@@ -146,22 +146,22 @@ func TestGetSessions(t *testing.T) {
 	// Create multiple sessions
 	session1 := &Session{
 		ID: "session-1",
-		Messages: []Message{
-			NewAgentMessage(testAgent, &chat.Message{
+		Messages: []Item{
+			NewMessageItem(NewAgentMessage(testAgent, &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "Message from session 1",
-			}),
+			})),
 		},
 		CreatedAt: time.Now().Add(-1 * time.Hour),
 	}
 
 	session2 := &Session{
 		ID: "session-2",
-		Messages: []Message{
-			NewAgentMessage(testAgent, &chat.Message{
+		Messages: []Item{
+			NewMessageItem(NewAgentMessage(testAgent, &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "Message from session 2",
-			}),
+			})),
 		},
 		CreatedAt: time.Now(),
 	}
@@ -180,7 +180,7 @@ func TestGetSessions(t *testing.T) {
 	// Verify agent names are preserved in all sessions
 	for _, session := range sessions {
 		assert.Len(t, session.Messages, 1)
-		assert.Equal(t, "test-agent", session.Messages[0].AgentName)
+		assert.Equal(t, "test-agent", session.Messages[0].Message.AgentName)
 	}
 }
 
@@ -201,16 +201,16 @@ func TestStoreAgentNameJSON(t *testing.T) {
 	// Create a session with messages from different agents
 	session := &Session{
 		ID: "json-test-session",
-		Messages: []Message{
-			UserMessage("demo-agent", "User input"),
-			NewAgentMessage(agent1, &chat.Message{
+		Messages: []Item{
+			NewMessageItem(UserMessage("demo-agent", "User input")),
+			NewMessageItem(NewAgentMessage(agent1, &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "Response from my-agent",
-			}),
-			NewAgentMessage(agent2, &chat.Message{
+			})),
+			NewMessageItem(NewAgentMessage(agent2, &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "Response from another-agent",
-			}),
+			})),
 		},
 		CreatedAt: time.Now(),
 	}
@@ -225,12 +225,12 @@ func TestStoreAgentNameJSON(t *testing.T) {
 	require.NotNil(t, retrievedSession)
 
 	// Verify specific agent filenames are correctly stored and retrieved
-	assert.Equal(t, "demo-agent", retrievedSession.Messages[0].AgentFilename) // User message
-	assert.Equal(t, "", retrievedSession.Messages[1].AgentFilename)           // First agent
-	assert.Equal(t, "", retrievedSession.Messages[2].AgentFilename)           // Second agent
+	assert.Equal(t, "demo-agent", retrievedSession.Messages[0].Message.AgentFilename) // User message
+	assert.Equal(t, "", retrievedSession.Messages[1].Message.AgentFilename)           // First agent
+	assert.Equal(t, "", retrievedSession.Messages[2].Message.AgentFilename)           // Second agent
 
 	// Verify specific agent names are correctly stored and retrieved
-	assert.Equal(t, "", retrievedSession.Messages[0].AgentName)              // User message
-	assert.Equal(t, "my-agent", retrievedSession.Messages[1].AgentName)      // First agent
-	assert.Equal(t, "another-agent", retrievedSession.Messages[2].AgentName) // Second agent
+	assert.Equal(t, "", retrievedSession.Messages[0].Message.AgentName)              // User message
+	assert.Equal(t, "my-agent", retrievedSession.Messages[1].Message.AgentName)      // First agent
+	assert.Equal(t, "another-agent", retrievedSession.Messages[2].Message.AgentName) // Second agent
 }

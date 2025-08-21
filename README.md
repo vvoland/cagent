@@ -148,14 +148,6 @@ models:
   qwen:
     provider: dmr
     model: ai/qwen3
-
-# Ollama
-models:
-  ollama:
-    provider: openai
-    model: llama3
-    base_url: http://localhost:11434/v1
-
 ```
 
 ### Tool Configuration

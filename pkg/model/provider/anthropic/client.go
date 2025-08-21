@@ -24,6 +24,10 @@ type Client struct {
 	client anthropic.Client
 	config *latest.ModelConfig
 	logger *slog.Logger
+	// When using the Docker AI Gateway, tokens are short-lived. We rebuild
+	// the client per request when in gateway mode.
+	useGateway     bool
+	gatewayBaseURL string
 }
 
 // NewClient creates a new Anthropic client from the provided configuration
@@ -44,6 +48,8 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 	}
 
 	var requestOptions []option.RequestOption
+	useGateway := false
+	gatewayBaseURL := ""
 	if gateway := globalOptions.Gateway(); gateway == "" {
 		authToken, err := env.Get(ctx, "ANTHROPIC_API_KEY")
 		if err != nil || authToken == "" {
@@ -68,16 +74,33 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 			option.WithAPIKey(authToken),
 			option.WithBaseURL(gateway),
 		)
+		useGateway = true
+		gatewayBaseURL = gateway
 	}
 
 	client := anthropic.NewClient(requestOptions...)
 	logger.Debug("Anthropic client created successfully", "model", cfg.Model)
 
 	return &Client{
-		client: client,
-		config: cfg,
-		logger: logger,
+		client:         client,
+		config:         cfg,
+		logger:         logger,
+		useGateway:     useGateway,
+		gatewayBaseURL: gatewayBaseURL,
 	}, nil
+}
+
+// newGatewayClient builds a new Anthropic client using a fresh Docker Desktop token.
+func (c *Client) newGatewayClient(ctx context.Context) anthropic.Client {
+	authToken := desktop.GetToken(ctx)
+	opts := []option.RequestOption{
+		option.WithAuthToken(authToken),
+		option.WithAPIKey(authToken),
+	}
+	if c.gatewayBaseURL != "" {
+		opts = append(opts, option.WithBaseURL(c.gatewayBaseURL))
+	}
+	return anthropic.NewClient(opts...)
 }
 
 // CreateChatCompletionStream creates a streaming chat completion request
@@ -121,7 +144,12 @@ func (c *Client) CreateChatCompletionStream(
 		c.logger.Debug("Request", "request", string(b))
 	}
 
-	stream := c.client.Messages.NewStreaming(ctx, params)
+	// Build a fresh client per request when using the gateway
+	client := c.client
+	if c.useGateway {
+		client = c.newGatewayClient(ctx)
+	}
+	stream := client.Messages.NewStreaming(ctx, params)
 	c.logger.Debug("Anthropic chat completion stream created successfully", "model", c.config.Model)
 
 	return &StreamAdapter{stream: stream}, nil
@@ -139,7 +167,12 @@ func (c *Client) CreateChatCompletion(
 		Messages:  convertMessages(messages),
 	}
 
-	response, err := c.client.Messages.New(ctx, params)
+	// Build a fresh client per request when using the gateway
+	client := c.client
+	if c.useGateway {
+		client = c.newGatewayClient(ctx)
+	}
+	response, err := client.Messages.New(ctx, params)
 	if err != nil {
 		c.logger.Error("Anthropic chat completion failed", "error", err, "model", c.config.Model)
 		return "", err
@@ -161,7 +194,66 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 			continue
 		}
 		if msg.Role == chat.MessageRoleUser {
-			anthropicMessages = append(anthropicMessages, anthropic.NewUserMessage(anthropic.NewTextBlock(strings.TrimSpace(msg.Content))))
+			// Handle MultiContent for user messages (including images)
+			if len(msg.MultiContent) > 0 {
+				contentBlocks := make([]anthropic.ContentBlockParamUnion, 0, len(msg.MultiContent))
+				for _, part := range msg.MultiContent {
+					if part.Type == chat.MessagePartTypeText {
+						contentBlocks = append(contentBlocks, anthropic.NewTextBlock(strings.TrimSpace(part.Text)))
+					} else if part.Type == chat.MessagePartTypeImageURL && part.ImageURL != nil {
+						// Anthropic expects base64 image data
+						// Extract base64 data from data URL
+						if strings.HasPrefix(part.ImageURL.URL, "data:") {
+							parts := strings.SplitN(part.ImageURL.URL, ",", 2)
+							if len(parts) == 2 {
+								// Extract media type from data URL
+								mediaTypePart := parts[0]
+								base64Data := parts[1]
+
+								var mediaType string
+								switch {
+								case strings.Contains(mediaTypePart, "image/jpeg"):
+									mediaType = "image/jpeg"
+								case strings.Contains(mediaTypePart, "image/png"):
+									mediaType = "image/png"
+								case strings.Contains(mediaTypePart, "image/gif"):
+									mediaType = "image/gif"
+								case strings.Contains(mediaTypePart, "image/webp"):
+									mediaType = "image/webp"
+								default:
+									// Default to jpeg if not recognized
+									mediaType = "image/jpeg"
+								}
+
+								// Create image block using raw JSON approach
+								// Based on: https://docs.anthropic.com/en/api/messages-vision
+								imageBlockJSON := map[string]interface{}{
+									"type": "image",
+									"source": map[string]interface{}{
+										"type":       "base64",
+										"media_type": mediaType,
+										"data":       base64Data,
+									},
+								}
+
+								// Convert to JSON and back to ContentBlockParamUnion
+								jsonBytes, err := json.Marshal(imageBlockJSON)
+								if err == nil {
+									var imageBlock anthropic.ContentBlockParamUnion
+									if json.Unmarshal(jsonBytes, &imageBlock) == nil {
+										contentBlocks = append(contentBlocks, imageBlock)
+									}
+								}
+							}
+						}
+					}
+				}
+				if len(contentBlocks) > 0 {
+					anthropicMessages = append(anthropicMessages, anthropic.NewUserMessage(contentBlocks...))
+				}
+			} else {
+				anthropicMessages = append(anthropicMessages, anthropic.NewUserMessage(anthropic.NewTextBlock(strings.TrimSpace(msg.Content))))
+			}
 			continue
 		}
 		if msg.Role == chat.MessageRoleAssistant {

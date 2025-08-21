@@ -101,7 +101,7 @@ func TestGetMessages(t *testing.T) {
 
 	// Add more than maxMessages to the session
 	for i := 0; i < maxMessages+10; i++ {
-		s.Messages = append(s.Messages, NewAgentMessage(testAgent, &chat.Message{
+		s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
 			Role:    chat.MessageRoleUser,
 			Content: "test message",
 		}))
@@ -122,12 +122,12 @@ func TestGetMessagesWithToolCalls(t *testing.T) {
 	s := New(slog.Default())
 
 	// Add a sequence of messages with tool calls
-	s.Messages = append(s.Messages, NewAgentMessage(testAgent, &chat.Message{
+	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
 		Role:    chat.MessageRoleUser,
 		Content: "test message",
 	}))
 
-	s.Messages = append(s.Messages, NewAgentMessage(testAgent, &chat.Message{
+	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
 		Role:    chat.MessageRoleAssistant,
 		Content: "using tool",
 		ToolCalls: []tools.ToolCall{
@@ -137,7 +137,7 @@ func TestGetMessagesWithToolCalls(t *testing.T) {
 		},
 	}))
 
-	s.Messages = append(s.Messages, NewAgentMessage(testAgent, &chat.Message{
+	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
 		Role:       chat.MessageRoleTool,
 		ToolCallID: "test-tool",
 		Content:    "tool result",
