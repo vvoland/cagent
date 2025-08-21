@@ -199,7 +199,16 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 			}
 		case toolset.Type == "memory":
 			if toolset.Path != "" {
-				memoryPath := filepath.Join(parentDir, toolset.Path)
+				var memoryPath string
+				if filepath.IsAbs(toolset.Path) {
+					memoryPath = toolset.Path
+				} else {
+					if wd, err := os.Getwd(); err == nil {
+						memoryPath = filepath.Join(wd, toolset.Path)
+					} else {
+						memoryPath = filepath.Join(parentDir, toolset.Path)
+					}
+				}
 				if err := os.MkdirAll(filepath.Dir(memoryPath), 0o700); err != nil {
 					return nil, fmt.Errorf("failed to create memory database directory: %w", err)
 				}

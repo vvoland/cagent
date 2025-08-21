@@ -78,6 +78,8 @@ func initOTelSDK(ctx context.Context) (shutdown func(context.Context) error, err
 	return tp.Shutdown, nil
 }
 
+var workingDir string
+
 // NewRunCmd creates a new run command
 func NewRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -96,6 +98,7 @@ func NewRunCmd() *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&autoApprove, "yolo", false, "Automatically approve all tool calls without prompting")
 	cmd.PersistentFlags().StringSliceVar(&runConfig.EnvFiles, "env-from-file", nil, "Set environment variables from file")
 	cmd.PersistentFlags().StringVar(&attachmentPath, "attach", "", "Attach an image file to the message")
+	cmd.PersistentFlags().StringVar(&workingDir, "working-dir", "", "Set the working directory for the session (applies to tools and relative paths)")
 	addGatewayFlags(cmd)
 
 	return cmd
@@ -123,6 +126,30 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			}()
 			logger.Debug("OpenTelemetry SDK initialized successfully")
 		}
+	}
+
+	// Resolve agentFilename to an absolute path early so changing cwd won't break path resolution
+	if !strings.Contains(agentFilename, "\n") {
+		if abs, err := filepath.Abs(agentFilename); err == nil {
+			agentFilename = abs
+		}
+	}
+
+	// If working-dir was provided, validate and change process working directory
+	if workingDir != "" {
+		absWd, err := filepath.Abs(workingDir)
+		if err != nil {
+			return fmt.Errorf("invalid working directory: %w", err)
+		}
+		info, err := os.Stat(absWd)
+		if err != nil || !info.IsDir() {
+			return fmt.Errorf("working directory does not exist or is not a directory: %s", absWd)
+		}
+		if err := os.Chdir(absWd); err != nil {
+			return fmt.Errorf("failed to change working directory: %w", err)
+		}
+		_ = os.Setenv("PWD", absWd)
+		logger.Debug("Working directory set", "dir", absWd)
 	}
 
 	if !fileExists(agentFilename) {
