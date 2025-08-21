@@ -22,6 +22,10 @@ type Client struct {
 	client *openai.Client
 	config *latest.ModelConfig
 	logger *slog.Logger
+	// When using the Docker AI Gateway, tokens are short-lived. We rebuild
+	// the client per request using these fields.
+	useGateway     bool
+	gatewayBaseURL string
 }
 
 // NewClient creates a new OpenAI client from the provided configuration
@@ -62,6 +66,17 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 
 		openaiConfig = openai.DefaultConfig(authToken)
 		openaiConfig.BaseURL = gateway + "/v1"
+		// mark gateway usage for per-request token refresh
+		// we persist the base URL to rebuild clients on demand
+		// even though we also create an initial client here
+		// so the first request works immediately
+	}
+
+	useGateway := false
+	gatewayBaseURL := ""
+	if globalOptions.Gateway() != "" {
+		useGateway = true
+		gatewayBaseURL = globalOptions.Gateway() + "/v1"
 	}
 
 	logger.Debug("OpenAI API key found, creating client")
@@ -69,10 +84,20 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 	logger.Debug("OpenAI client created successfully", "model", cfg.Model)
 
 	return &Client{
-		client: client,
-		config: cfg,
-		logger: logger,
+		client:         client,
+		config:         cfg,
+		logger:         logger,
+		useGateway:     useGateway,
+		gatewayBaseURL: gatewayBaseURL,
 	}, nil
+}
+
+// newGatewayClient builds a new OpenAI client using a fresh Docker Desktop token.
+func (c *Client) newGatewayClient(ctx context.Context) *openai.Client {
+	authToken := desktop.GetToken(ctx)
+	cfg := openai.DefaultConfig(authToken)
+	cfg.BaseURL = c.gatewayBaseURL
+	return openai.NewClientWithConfig(cfg)
 }
 
 func convertMultiContent(multiContent []chat.MessagePart) []openai.ChatMessagePart {
@@ -205,7 +230,12 @@ func (c *Client) CreateChatCompletionStream(
 		c.logger.Error("Failed to marshal OpenAI request to JSON", "error", err)
 	}
 
-	stream, err := c.client.CreateChatCompletionStream(ctx, request)
+	// Build a fresh client per request when using the gateway
+	client := c.client
+	if c.useGateway {
+		client = c.newGatewayClient(ctx)
+	}
+	stream, err := client.CreateChatCompletionStream(ctx, request)
 	if err != nil {
 		c.logger.Error("OpenAI stream creation failed", "error", err, "model", c.config.Model)
 		return nil, err
@@ -230,7 +260,12 @@ func (c *Client) CreateChatCompletion(
 		request.ParallelToolCalls = *c.config.ParallelToolCalls
 	}
 
-	response, err := c.client.CreateChatCompletion(ctx, request)
+	// Build a fresh client per request when using the gateway
+	client := c.client
+	if c.useGateway {
+		client = c.newGatewayClient(ctx)
+	}
+	response, err := client.CreateChatCompletion(ctx, request)
 	if err != nil {
 		c.logger.Error("OpenAI chat completion failed", "error", err, "model", c.config.Model)
 		return "", err

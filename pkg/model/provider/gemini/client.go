@@ -24,6 +24,10 @@ type Client struct {
 	client *genai.Client
 	config *latest.ModelConfig
 	logger *slog.Logger
+	// When using the Docker AI Gateway, tokens are short-lived. We rebuild
+	// the client per request when in gateway mode.
+	useGateway     bool
+	gatewayBaseURL string
 }
 
 // NewClient creates a new Gemini client from the provided configuration
@@ -43,6 +47,8 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 
 	var apiKey string
 	var httpOptions genai.HTTPOptions
+	useGateway := false
+	gatewayBaseURL := ""
 	if gateway := modelOptions.Gateway(); gateway == "" {
 		var err error
 		apiKey, err = env.Get(ctx, "GOOGLE_API_KEY")
@@ -58,6 +64,8 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		httpOptions.BaseURL = gateway
 		httpOptions.Headers = make(http.Header)
 		httpOptions.Headers.Set("Authorization", "Bearer "+apiKey)
+		useGateway = true
+		gatewayBaseURL = gateway
 	}
 
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
@@ -70,10 +78,30 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 	}
 
 	return &Client{
-		client: client,
-		config: cfg,
-		logger: logger,
+		client:         client,
+		config:         cfg,
+		logger:         logger,
+		useGateway:     useGateway,
+		gatewayBaseURL: gatewayBaseURL,
 	}, nil
+}
+
+// newGatewayClient builds a new Gemini client using a fresh Docker Desktop token.
+func (c *Client) newGatewayClient(ctx context.Context) (*genai.Client, error) {
+	token := desktop.GetToken(ctx)
+	if token == "" {
+		return nil, errors.New("failed to get Docker Desktop token for gateway")
+	}
+	httpOptions := genai.HTTPOptions{
+		BaseURL: c.gatewayBaseURL,
+		Headers: make(http.Header),
+	}
+	httpOptions.Headers.Set("Authorization", "Bearer "+token)
+	return genai.NewClient(ctx, &genai.ClientConfig{
+		APIKey:      token,
+		Backend:     genai.BackendGeminiAPI,
+		HTTPOptions: httpOptions,
+	})
 }
 
 // convertMessagesToGemini converts chat.Messages into Gemini Contents
@@ -343,7 +371,17 @@ func (c *Client) CreateChatCompletionStream(
 	// try non-streaming first to avoid parsing problems
 	if strings.Contains(c.config.Model, "2.5") {
 		c.logger.Debug("Using non-streaming mode for Gemini 2.5 to avoid thoughtSignature parsing issues")
-		response, err := c.client.Models.GenerateContent(ctx, c.config.Model, contents, config)
+		var client *genai.Client
+		if c.useGateway {
+			if gwClient, err := c.newGatewayClient(ctx); err == nil {
+				client = gwClient
+			} else {
+				client = c.client
+			}
+		} else {
+			client = c.client
+		}
+		response, err := client.Models.GenerateContent(ctx, c.config.Model, contents, config)
 		if err != nil {
 			c.logger.Debug("Non-streaming failed, falling back to streaming", "error", err)
 		} else {
@@ -352,7 +390,17 @@ func (c *Client) CreateChatCompletionStream(
 		}
 	}
 
-	iter := c.client.Models.GenerateContentStream(ctx, c.config.Model, contents, config)
+	// Build a fresh client per request when using the gateway
+	var iter func(func(*genai.GenerateContentResponse, error) bool)
+	if c.useGateway {
+		if gwClient, err := c.newGatewayClient(ctx); err == nil {
+			iter = gwClient.Models.GenerateContentStream(ctx, c.config.Model, contents, config)
+		} else {
+			iter = c.client.Models.GenerateContentStream(ctx, c.config.Model, contents, config)
+		}
+	} else {
+		iter = c.client.Models.GenerateContentStream(ctx, c.config.Model, contents, config)
+	}
 	return NewStreamAdapter(iter, c.config.Model, c.logger), nil
 }
 
@@ -361,7 +409,18 @@ func (c *Client) CreateChatCompletion(
 	ctx context.Context,
 	messages []chat.Message,
 ) (string, error) {
-	result, err := c.client.Models.GenerateContent(ctx, c.config.Model, convertMessagesToGemini(messages), c.buildConfig())
+	// Build a fresh client per request when using the gateway
+	var client *genai.Client
+	if c.useGateway {
+		if gwClient, err := c.newGatewayClient(ctx); err == nil {
+			client = gwClient
+		} else {
+			client = c.client
+		}
+	} else {
+		client = c.client
+	}
+	result, err := client.Models.GenerateContent(ctx, c.config.Model, convertMessagesToGemini(messages), c.buildConfig())
 	if err != nil {
 		return "", err
 	}
