@@ -39,6 +39,11 @@ git clone https://github.com/docker/cagent.git
 cd cagent
 task build
 
+# Set Docker AI Gateway
+export CAGENT_MODELS_GATEWAY=url_to_docker_ai_gateway
+
+# Alternatively, you to need set keys for remote inference services
+# Note that these are not needed if you are using Docker AI Gateway
 # Set your OpenAI API key
 export OPENAI_API_KEY=your_api_key_here
 # or for Anthropic
