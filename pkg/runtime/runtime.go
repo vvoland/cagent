@@ -615,10 +615,6 @@ func (r *Runtime) generateSessionTitle(ctx context.Context, sess *session.Sessio
 		lastMessage := titleMessages[len(titleMessages)-1]
 		if lastMessage.Message.Role == "assistant" {
 			title := strings.TrimSpace(lastMessage.Message.Content)
-			// Limit title length
-			if len(title) > 50 {
-				title = title[:47] + "..."
-			}
 			sess.Title = title
 			r.logger.Debug("Generated session title", "session_id", sess.ID, "title", title)
 			// Emit SessionTitleEvent
