@@ -261,8 +261,8 @@ func (s *SQLiteSessionStore) UpdateSession(ctx context.Context, session *Session
 	}
 
 	result, err := s.db.ExecContext(ctx,
-		"UPDATE sessions SET messages = ?, tools_approved = ?, input_tokens = ?, output_tokens = ?, title = ? WHERE id = ?",
-		string(itemsJSON), session.ToolsApproved, session.InputTokens, session.OutputTokens, session.Title, session.ID)
+		"UPDATE sessions SET messages = ?, title = ?, tools_approved = ?, input_tokens = ?, output_tokens = ? WHERE id = ?",
+		string(itemsJSON), session.Title, session.ToolsApproved, session.InputTokens, session.OutputTokens, session.ID)
 	if err != nil {
 		return err
 	}
