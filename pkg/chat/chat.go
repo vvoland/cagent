@@ -104,6 +104,12 @@ type MessageStreamResponse struct {
 	Created int64                 `json:"created"`
 	Model   string                `json:"model"`
 	Choices []MessageStreamChoice `json:"choices"`
+	Usage   *Usage                `json:"usage,omitempty"`
+}
+
+type Usage struct {
+	InputTokens  int `json:"input_tokens"`
+	OutputTokens int `json:"output_tokens"`
 }
 
 // ChatCompletionStream interface represents a stream of chat completions

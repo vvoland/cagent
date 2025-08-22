@@ -83,6 +83,11 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		default:
 			return response, fmt.Errorf("unknown delta type: %T", deltaVariant)
 		}
+	case anthropic.MessageDeltaEvent:
+		response.Usage = &chat.Usage{
+			InputTokens:  int(eventVariant.Usage.InputTokens),
+			OutputTokens: int(eventVariant.Usage.OutputTokens),
+		}
 	case anthropic.MessageStopEvent:
 		if a.toolCall {
 			response.Choices[0].FinishReason = chat.FinishReasonToolCalls

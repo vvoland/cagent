@@ -314,6 +314,10 @@ func runUserCommand(userInput string, sess *session.Session) (bool, error) {
 			return true, err
 		}
 		return true, nil
+	case "/usage":
+		fmt.Printf("%s\n", yellow("Input tokens: %d", sess.InputTokens))
+		fmt.Printf("%s\n", yellow("Output tokens: %d", sess.OutputTokens))
+		return true, nil
 	case "/reset":
 		// Reset session items
 		sess.Messages = []session.Item{}

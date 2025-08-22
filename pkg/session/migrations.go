@@ -158,6 +158,20 @@ func getAllMigrations() []Migration {
 			UpSQL:       `ALTER TABLE sessions ADD COLUMN tools_approved BOOLEAN DEFAULT 0`,
 			DownSQL:     `ALTER TABLE sessions DROP COLUMN tools_approved`,
 		},
+		{
+			ID:          2,
+			Name:        "002_add_usage_column",
+			Description: "Add usage column to sessions table",
+			UpSQL:       `ALTER TABLE sessions ADD COLUMN input_tokens INTEGER DEFAULT 0`,
+			DownSQL:     `ALTER TABLE sessions DROP COLUMN input_tokens`,
+		},
+		{
+			ID:          3,
+			Name:        "003_add_output_tokens_column",
+			Description: "Add output_tokens column to sessions table",
+			UpSQL:       `ALTER TABLE sessions ADD COLUMN output_tokens INTEGER DEFAULT 0`,
+			DownSQL:     `ALTER TABLE sessions DROP COLUMN output_tokens`,
+		},
 		// Add more migrations here as needed
 	}
 }

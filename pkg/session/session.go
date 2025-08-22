@@ -48,6 +48,9 @@ type Session struct {
 	// ToolsApproved is a flag to indicate if the tools have been approved
 	ToolsApproved bool `json:"tools_approved"`
 
+	InputTokens  int `json:"input_tokens"`
+	OutputTokens int `json:"output_tokens"`
+
 	// Logger for debugging and logging session operations
 	logger *slog.Logger
 }
@@ -168,6 +171,8 @@ func New(logger *slog.Logger, opts ...Opt) *Session {
 		CreatedAt:     time.Now(),
 		Messages:      make([]Item, 0),
 		ToolsApproved: false,
+		InputTokens:   0,
+		OutputTokens:  0,
 		logger:        logger,
 	}
 

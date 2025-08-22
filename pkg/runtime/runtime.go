@@ -150,7 +150,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			}
 
 			r.logger.Debug("Processing stream", "agent", a.Name())
-			calls, content, stopped, err := r.handleStream(stream, a, events)
+			calls, content, stopped, err := r.handleStream(stream, a, sess, events)
 			if err != nil {
 				streamSpan.RecordError(err)
 				streamSpan.SetStatus(codes.Error, "error handling stream")
@@ -227,7 +227,7 @@ func (r *Runtime) Run(ctx context.Context, sess *session.Session) ([]session.Mes
 }
 
 // handleStream handles the stream processing
-func (r *Runtime) handleStream(stream chat.MessageStream, a *agent.Agent, events chan Event) (calls []tools.ToolCall, content string, stopped bool, err error) {
+func (r *Runtime) handleStream(stream chat.MessageStream, a *agent.Agent, sess *session.Session, events chan Event) (calls []tools.ToolCall, content string, stopped bool, err error) {
 	defer stream.Close()
 
 	var fullContent strings.Builder
@@ -242,6 +242,11 @@ func (r *Runtime) handleStream(stream chat.MessageStream, a *agent.Agent, events
 			return nil, "", true, fmt.Errorf("error receiving from stream: %w", err)
 		}
 
+		if response.Usage != nil {
+			sess.InputTokens += response.Usage.InputTokens
+			sess.OutputTokens += response.Usage.OutputTokens
+			events <- TokenUsage(sess.InputTokens, sess.OutputTokens)
+		}
 		choice := response.Choices[0]
 		if choice.FinishReason == chat.FinishReasonStop {
 			return toolCalls, fullContent.String(), true, nil
