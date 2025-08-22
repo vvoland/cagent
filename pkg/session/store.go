@@ -79,8 +79,8 @@ func (s *SQLiteSessionStore) AddSession(ctx context.Context, session *Session) e
 	}
 
 	_, err = s.db.ExecContext(ctx,
-		"INSERT INTO sessions (id, messages, tools_approved, input_tokens, output_tokens, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-		session.ID, string(itemsJSON), session.ToolsApproved, session.InputTokens, session.OutputTokens, session.CreatedAt.Format(time.RFC3339))
+		"INSERT INTO sessions (id, messages, tools_approved, input_tokens, output_tokens, title, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		session.ID, string(itemsJSON), session.ToolsApproved, session.InputTokens, session.OutputTokens, session.Title, session.CreatedAt.Format(time.RFC3339))
 	return err
 }
 
@@ -91,12 +91,12 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 	}
 
 	row := s.db.QueryRowContext(ctx,
-		"SELECT id, messages, tools_approved, input_tokens, output_tokens, created_at FROM sessions WHERE id = ?", id)
+		"SELECT id, messages, tools_approved, input_tokens, output_tokens, title, created_at FROM sessions WHERE id = ?", id)
 
-	var messagesJSON, toolsApprovedStr, inputTokensStr, outputTokensStr, createdAtStr string
+	var messagesJSON, toolsApprovedStr, inputTokensStr, outputTokensStr, titleStr, createdAtStr string
 	var sessionID string
 
-	err := row.Scan(&sessionID, &messagesJSON, &toolsApprovedStr, &inputTokensStr, &outputTokensStr, &createdAtStr)
+	err := row.Scan(&sessionID, &messagesJSON, &toolsApprovedStr, &inputTokensStr, &outputTokensStr, &titleStr, &createdAtStr)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
@@ -143,6 +143,7 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 
 	return &Session{
 		ID:            sessionID,
+		Title:         titleStr,
 		Messages:      items,
 		ToolsApproved: toolsApproved,
 		InputTokens:   inputTokens,
@@ -155,7 +156,7 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 // GetSessions retrieves all sessions
 func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error) {
 	rows, err := s.db.QueryContext(ctx,
-		"SELECT id, messages, tools_approved, input_tokens, output_tokens, created_at FROM sessions ORDER BY created_at DESC")
+		"SELECT id, messages, tools_approved, input_tokens, output_tokens, title, created_at FROM sessions ORDER BY created_at DESC")
 	if err != nil {
 		return nil, err
 	}
@@ -163,10 +164,10 @@ func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error
 
 	sessions := make([]*Session, 0)
 	for rows.Next() {
-		var messagesJSON, toolsApprovedStr, inputTokensStr, outputTokensStr, createdAtStr string
+		var messagesJSON, toolsApprovedStr, inputTokensStr, outputTokensStr, titleStr, createdAtStr string
 		var sessionID string
 
-		err := rows.Scan(&sessionID, &messagesJSON, &toolsApprovedStr, &inputTokensStr, &outputTokensStr, &createdAtStr)
+		err := rows.Scan(&sessionID, &messagesJSON, &toolsApprovedStr, &inputTokensStr, &outputTokensStr, &titleStr, &createdAtStr)
 		if err != nil {
 			return nil, err
 		}
@@ -210,6 +211,7 @@ func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error
 
 		session := &Session{
 			ID:            sessionID,
+			Title:         titleStr,
 			Messages:      items,
 			ToolsApproved: toolsApproved,
 			InputTokens:   inputTokens,
@@ -259,8 +261,8 @@ func (s *SQLiteSessionStore) UpdateSession(ctx context.Context, session *Session
 	}
 
 	result, err := s.db.ExecContext(ctx,
-		"UPDATE sessions SET messages = ?, tools_approved = ?, input_tokens = ?, output_tokens = ? WHERE id = ?",
-		string(itemsJSON), session.ToolsApproved, session.InputTokens, session.OutputTokens, session.ID)
+		"UPDATE sessions SET messages = ?, tools_approved = ?, input_tokens = ?, output_tokens = ?, title = ? WHERE id = ?",
+		string(itemsJSON), session.ToolsApproved, session.InputTokens, session.OutputTokens, session.Title, session.ID)
 	if err != nil {
 		return err
 	}

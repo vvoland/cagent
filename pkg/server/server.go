@@ -665,6 +665,7 @@ func (s *Server) refreshAgentsFromDisk(ctx context.Context) error {
 
 type sessionsResponse struct {
 	ID                         string `json:"id"`
+	Title                      string `json:"title"`
 	CreatedAt                  string `json:"created_at"`
 	NumMessages                int    `json:"num_messages"`
 	InputTokens                int    `json:"input_tokens"`
@@ -682,6 +683,7 @@ func (s *Server) getSessions(c echo.Context) error {
 	for i, sess := range sessions {
 		responses[i] = sessionsResponse{
 			ID:                         sess.ID,
+			Title:                      sess.Title,
 			CreatedAt:                  sess.CreatedAt.Format(time.RFC3339),
 			NumMessages:                len(sess.GetAllMessages()),
 			InputTokens:                sess.InputTokens,
@@ -705,6 +707,7 @@ func (s *Server) createSession(c echo.Context) error {
 
 type sessionResponse struct {
 	ID            string            `json:"id"`
+	Title         string            `json:"title"`
 	Messages      []session.Message `json:"messages,omitempty"`
 	CreatedAt     time.Time         `json:"created_at"`
 	ToolsApproved bool              `json:"tools_approved"`
@@ -720,6 +723,7 @@ func (s *Server) getSession(c echo.Context) error {
 
 	sr := sessionResponse{
 		ID:            sess.ID,
+		Title:         sess.Title,
 		CreatedAt:     sess.CreatedAt,
 		Messages:      sess.GetAllMessages(),
 		ToolsApproved: sess.ToolsApproved,

@@ -94,3 +94,18 @@ func TokenUsage(inputTokens, outputTokens int) Event {
 	}
 }
 func (e *TokenUsageEvent) isEvent() {}
+
+type SessionTitleEvent struct {
+	Type      string `json:"type"`
+	SessionID string `json:"session_id"`
+	Title     string `json:"title"`
+}
+
+func SessionTitle(sessionID, title string) Event {
+	return &SessionTitleEvent{
+		Type:      "session_title",
+		SessionID: sessionID,
+		Title:     title,
+	}
+}
+func (e *SessionTitleEvent) isEvent() {}

@@ -39,6 +39,9 @@ type Session struct {
 	// ID is the unique identifier for the session
 	ID string `json:"id"`
 
+	// Title is the title of the session, set by the runtime
+	Title string `json:"title"`
+
 	// Messages holds the conversation history (messages and sub-sessions)
 	Messages []Item `json:"messages"`
 

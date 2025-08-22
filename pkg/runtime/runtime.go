@@ -179,6 +179,10 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 
 			if stopped {
 				r.logger.Debug("Conversation stopped", "agent", a.Name())
+				// Generate title for session if it doesn't have one and has messages
+				if sess.Title == "" && len(sess.GetAllMessages()) > 0 {
+					r.generateSessionTitle(ctx, sess, events)
+				}
 				break
 			}
 
@@ -561,4 +565,64 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 	return &tools.ToolCallResult{
 		Output: lastMessageContent,
 	}, nil
+}
+
+// generateSessionTitle generates a title for the session based on the conversation history
+func (r *Runtime) generateSessionTitle(ctx context.Context, sess *session.Session, events chan Event) {
+	r.logger.Debug("Generating title for session", "session_id", sess.ID)
+
+	// Create conversation history summary
+	var conversationHistory strings.Builder
+	messages := sess.GetAllMessages()
+	for i := range messages {
+		role := "Unknown"
+		switch messages[i].Message.Role {
+		case "user":
+			role = "User"
+		case "assistant":
+			role = "Assistant"
+		case "system":
+			role = "System"
+		}
+		conversationHistory.WriteString(fmt.Sprintf("\n%s: %s", role, messages[i].Message.Content))
+	}
+
+	// Create a new session for title generation with auto-run tools
+	systemPrompt := "You are a helpful AI assistant that generates concise, descriptive titles for conversations. You will be given a conversation history and asked to create a title that captures the main topic."
+	userPrompt := fmt.Sprintf("Based on the following conversation between a user and an AI assistant, generate a short, descriptive title (maximum 50 characters) that captures the main topic or purpose of the conversation. Return ONLY the title text, nothing else.\n\nConversation history:%s\n\nGenerate a title for this conversation:", conversationHistory.String())
+
+	newTeam := team.New(
+		team.WithID("title-generator"),
+		team.WithAgents(agent.New("root", systemPrompt, agent.WithModel(r.CurrentAgent().Model()))),
+	)
+
+	titleSession := session.New(r.logger, session.WithSystemMessage(systemPrompt))
+	titleSession.AddMessage(session.UserMessage("", userPrompt))
+	titleSession.Title = "Generating title..."
+
+	titleRuntime := New(r.logger, newTeam)
+
+	// Run the title generation (this will be a simple back-and-forth)
+	_, err := titleRuntime.Run(ctx, titleSession)
+	if err != nil {
+		r.logger.Error("Failed to generate session title", "session_id", sess.ID, "error", err)
+		return
+	}
+
+	// Get the generated title from the last assistant message
+	titleMessages := titleSession.GetAllMessages()
+	if len(titleMessages) > 0 {
+		lastMessage := titleMessages[len(titleMessages)-1]
+		if lastMessage.Message.Role == "assistant" {
+			title := strings.TrimSpace(lastMessage.Message.Content)
+			// Limit title length
+			if len(title) > 50 {
+				title = title[:47] + "..."
+			}
+			sess.Title = title
+			r.logger.Debug("Generated session title", "session_id", sess.ID, "title", title)
+			// Emit SessionTitleEvent
+			events <- SessionTitle(sess.ID, title)
+		}
+	}
 }

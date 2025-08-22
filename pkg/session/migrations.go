@@ -172,6 +172,13 @@ func getAllMigrations() []Migration {
 			UpSQL:       `ALTER TABLE sessions ADD COLUMN output_tokens INTEGER DEFAULT 0`,
 			DownSQL:     `ALTER TABLE sessions DROP COLUMN output_tokens`,
 		},
+		{
+			ID:          4,
+			Name:        "004_add_title_column",
+			Description: "Add title column to sessions table",
+			UpSQL:       `ALTER TABLE sessions ADD COLUMN title TEXT DEFAULT ''`,
+			DownSQL:     `ALTER TABLE sessions DROP COLUMN title`,
+		},
 		// Add more migrations here as needed
 	}
 }
