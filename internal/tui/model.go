@@ -197,6 +197,11 @@ func (m *model) Init() tea.Cmd {
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
+	var tiCmd tea.Cmd
+	m.textInput, tiCmd = m.textInput.Update(msg)
+	if tiCmd != nil {
+		cmds = append(cmds, tiCmd)
+	}
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -314,15 +319,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, toolVpCmd)
 	}
 
-	var tiCmd tea.Cmd
-	m.textInput, tiCmd = m.textInput.Update(msg)
-	if tiCmd != nil {
-		cmds = append(cmds, tiCmd)
-	}
 	return m, tea.Batch(cmds...)
 }
 
-// handleUserInput processes user input and returns appropriate commands
 func (m *model) handleUserInput() tea.Cmd {
 	input := m.textInput.Value()
 	m.textInput.Reset()
