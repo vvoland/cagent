@@ -137,17 +137,6 @@ func (s *Session) GetAllMessages() []Message {
 	return messages
 }
 
-// getMessages extracts only messages from the session, excluding sub-sessions
-func (s *Session) getMessages() []Message {
-	var messages []Message
-	for _, item := range s.Messages {
-		if item.IsMessage() {
-			messages = append(messages, *item.Message)
-		}
-	}
-	return messages
-}
-
 // SetLogger sets the logger for the session
 func (s *Session) SetLogger(logger *slog.Logger) {
 	s.logger = logger
