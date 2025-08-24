@@ -163,3 +163,56 @@ func TestGetMessagesWithToolCalls(t *testing.T) {
 		}
 	}
 }
+
+func TestGetMessagesWithSummary(t *testing.T) {
+	// Create a test agent
+	testAgent := &agent.Agent{}
+
+	// Create a session
+	s := New(slog.Default())
+
+	// Add some initial messages
+	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+		Role:    chat.MessageRoleUser,
+		Content: "first message",
+	}))
+	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+		Role:    chat.MessageRoleAssistant,
+		Content: "first response",
+	}))
+
+	// Add a summary
+	s.Messages = append(s.Messages, Item{Summary: "This is a summary of the conversation so far"})
+
+	// Add messages after the summary
+	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+		Role:    chat.MessageRoleUser,
+		Content: "message after summary",
+	}))
+	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+		Role:    chat.MessageRoleAssistant,
+		Content: "response after summary",
+	}))
+
+	// Get messages
+	messages := s.GetMessages(testAgent)
+
+	// Count non-system messages (user and assistant only)
+	userAssistantMessages := 0
+	summaryFound := false
+	for _, msg := range messages {
+		if msg.Role == chat.MessageRoleUser || msg.Role == chat.MessageRoleAssistant {
+			userAssistantMessages++
+		}
+		if msg.Role == chat.MessageRoleSystem && msg.Content == "Session Summary: This is a summary of the conversation so far" {
+			summaryFound = true
+		}
+	}
+
+	// We should have:
+	// - 1 summary system message
+	// - 2 messages after the summary (user + assistant)
+	// - Various other system messages from agent setup
+	assert.True(t, summaryFound, "should include summary as system message")
+	assert.Equal(t, 2, userAssistantMessages, "should only include messages after summary")
+}

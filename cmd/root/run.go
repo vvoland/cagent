@@ -207,7 +207,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		handled, err := runUserCommand(userInput, sess)
+		handled, err := runUserCommand(userInput, sess, rt, ctx)
 		if err != nil {
 			return err
 		}
@@ -302,7 +302,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 	return lastErr
 }
 
-func runUserCommand(userInput string, sess *session.Session) (bool, error) {
+func runUserCommand(userInput string, sess *session.Session, rt *runtime.Runtime, ctx context.Context) (bool, error) {
 	yellow := color.New(color.FgYellow).SprintfFunc()
 	switch userInput {
 	case "/exit":
@@ -321,6 +321,32 @@ func runUserCommand(userInput string, sess *session.Session) (bool, error) {
 	case "/reset":
 		// Reset session items
 		sess.Messages = []session.Item{}
+		return true, nil
+	case "/compact":
+		// Generate a summary of the session and compact the history
+		fmt.Printf("%s\n", yellow("Generating summary..."))
+
+		// Create a channel to capture summary events
+		events := make(chan runtime.Event, 100)
+
+		// Generate the summary
+		rt.Summarize(ctx, sess, events)
+
+		// Process events and show the summary
+		close(events)
+		summaryGenerated := false
+		for event := range events {
+			if summaryEvent, ok := event.(*runtime.SessionSummaryEvent); ok {
+				fmt.Printf("%s\n", yellow("Summary generated and added to session"))
+				fmt.Printf("Summary: %s\n", summaryEvent.Summary)
+				summaryGenerated = true
+			}
+		}
+
+		if !summaryGenerated {
+			fmt.Printf("%s\n", yellow("No summary generated"))
+		}
+
 		return true, nil
 	}
 

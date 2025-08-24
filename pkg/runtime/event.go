@@ -109,3 +109,18 @@ func SessionTitle(sessionID, title string) Event {
 	}
 }
 func (e *SessionTitleEvent) isEvent() {}
+
+type SessionSummaryEvent struct {
+	Type      string `json:"type"`
+	SessionID string `json:"session_id"`
+	Summary   string `json:"summary"`
+}
+
+func SessionSummary(sessionID, summary string) Event {
+	return &SessionSummaryEvent{
+		Type:      "session_summary",
+		SessionID: sessionID,
+		Summary:   summary,
+	}
+}
+func (e *SessionSummaryEvent) isEvent() {}

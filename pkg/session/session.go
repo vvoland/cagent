@@ -22,6 +22,9 @@ type Item struct {
 
 	// SubSession holds a complete sub-session from task transfers
 	SubSession *Session `json:"sub_session,omitempty"`
+
+	// Summary is a summary of the session up until this point
+	Summary string `json:"summary,omitempty"`
 }
 
 // IsMessage returns true if this item contains a message
@@ -226,10 +229,31 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		}
 	}
 
-	// Extract messages (excluding sub-session messages)
-	sessionMessages := s.getMessages()
-	for i := range sessionMessages {
-		messages = append(messages, sessionMessages[i].Message)
+	lastSummaryIndex := -1
+	for i := len(s.Messages) - 1; i >= 0; i-- {
+		if s.Messages[i].Summary != "" {
+			lastSummaryIndex = i
+			break
+		}
+	}
+
+	if lastSummaryIndex != -1 {
+		messages = append(messages, chat.Message{
+			Role:    chat.MessageRoleSystem,
+			Content: "Session Summary: " + s.Messages[lastSummaryIndex].Summary,
+		})
+	}
+
+	startIndex := lastSummaryIndex + 1
+	if lastSummaryIndex == -1 {
+		startIndex = 0
+	}
+
+	for i := startIndex; i < len(s.Messages); i++ {
+		item := s.Messages[i]
+		if item.IsMessage() {
+			messages = append(messages, item.Message.Message)
+		}
 	}
 
 	trimmed := trimMessages(messages)
