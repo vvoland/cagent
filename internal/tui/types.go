@@ -19,7 +19,6 @@ type ToolCall struct {
 type (
 	responseMsg     struct{ content string }
 	errorMsg        error
-	showInputMsg    struct{}
 	toolCallMsg     struct{ toolCall ToolCall }
 	toolCompleteMsg struct {
 		id       string

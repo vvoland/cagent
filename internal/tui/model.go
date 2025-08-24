@@ -5,12 +5,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/bubbles/v2/spinner"
+	"github.com/charmbracelet/bubbles/v2/textinput"
+	"github.com/charmbracelet/bubbles/v2/viewport"
+	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/glamour"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/history"
@@ -35,7 +35,6 @@ type model struct {
 
 	// App state
 	ready        bool
-	showInput    bool
 	width        int
 	height       int
 	chatHeight   int
@@ -57,26 +56,20 @@ type model struct {
 
 // NewModel creates and initializes a new model
 func NewModel(rt *runtime.Runtime, sess *session.Session) (*model, error) {
-	// Initialize text input
 	ti := textinput.New()
 	ti.Placeholder = "Enter your message..."
 	ti.Focus()
 	ti.CharLimit = 0
 	ti.Prompt = inputPromptStyle.Render("> ")
+	ti.VirtualCursor = true
 
 	hist, err := history.New()
 	if err != nil {
 		return nil, err
 	}
 
-	// Create viewports with smooth scrolling
-	chatVp := viewport.New(0, 0)
-	chatVp.MouseWheelEnabled = true
-	chatVp.MouseWheelDelta = 1 // Reduced from 3 to 1 for smoother scrolling
-
-	toolVp := viewport.New(0, 0)
-	toolVp.MouseWheelEnabled = true
-	toolVp.MouseWheelDelta = 1
+	chatVp := viewport.New()
+	toolVp := viewport.New()
 
 	// Initialize spinner
 	s := spinner.New()
@@ -117,15 +110,15 @@ func (m *model) updateDimensions(width, height int) {
 	}
 
 	// Update chat viewport
-	m.chatViewport.Width = width - 2         // Account for borders
-	m.chatViewport.Height = m.chatHeight - 2 // Account for borders
+	m.chatViewport.SetWidth(width - 2)         // Account for borders
+	m.chatViewport.SetHeight(m.chatHeight - 2) // Account for borders
 	m.chatViewport.Style = chatViewportStyle.
 		Width(width).
 		Height(m.chatHeight)
 
 	// Update tool viewport
-	m.toolViewport.Width = width - 2
-	m.toolViewport.Height = m.toolHeight - 2
+	m.toolViewport.SetWidth(width - 2)
+	m.toolViewport.SetHeight(m.toolHeight - 2)
 	m.toolViewport.Style = toolViewportStyle.
 		Width(width).
 		Height(m.toolHeight).
@@ -133,7 +126,7 @@ func (m *model) updateDimensions(width, height int) {
 		MarginLeft(0)
 
 	// Update text input width
-	m.textInput.Width = width - 2
+	m.textInput.SetWidth(width - 2)
 
 	// Update renderer width
 	var err error
@@ -206,18 +199,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
-	case showInputMsg:
-		m.showInput = true
-		return m, nil
-
 	case tea.WindowSizeMsg:
 		if !m.ready {
 			m.updateDimensions(msg.Width, msg.Height)
 			m.ready = true
-
-			return m, tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
-				return showInputMsg{}
-			})
+			return m, nil
 		}
 
 		m.updateDimensions(msg.Width, msg.Height)
@@ -225,50 +211,18 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = err
 		}
 		m.renderToolContent()
-
+		return m, nil
 	case tea.KeyMsg:
-		if !m.showInput {
-			return m, nil
-		}
-
-		switch msg.Type {
-		case tea.KeyCtrlC:
+		switch msg.String() {
+		case "ctrl+c":
 			return m, tea.Quit
-		case tea.KeyUp:
-			if msg.Alt {
-				// Alt+Up for slow scrolling up
-				m.chatViewport.ScrollUp(1)
-				m.userScrolled = true
-				return m, nil
-			}
+		case "up":
 			m.textInput.SetValue(m.history.Previous())
 			return m, nil
-		case tea.KeyDown:
-			if msg.Alt {
-				// Alt+Down for slow scrolling down
-				m.chatViewport.ScrollDown(1)
-				// Check if we're at the bottom
-				if m.chatViewport.AtBottom() {
-					m.userScrolled = false
-				}
-				return m, nil
-			}
+		case "alt+down":
 			m.textInput.SetValue(m.history.Next())
 			return m, nil
-		case tea.KeyPgUp:
-			// Page up for faster scrolling
-			m.chatViewport.HalfPageUp()
-			m.userScrolled = true
-			return m, nil
-		case tea.KeyPgDown:
-			// Page down for faster scrolling
-			m.chatViewport.HalfPageDown()
-			// Check if we're at the bottom
-			if m.chatViewport.AtBottom() {
-				m.userScrolled = false
-			}
-			return m, nil
-		case tea.KeyEnter:
+		case "enter":
 			if strings.TrimSpace(m.textInput.Value()) == "" {
 				return m, nil
 			}
@@ -344,10 +298,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Detect if user manually scrolled (position changed via user input, not programmatically)
 	if m.chatViewport.YOffset != prevChatY {
 		// Check if user scrolled up from bottom
-		maxScroll := len(strings.Split(m.chatContent, "\n")) - m.chatViewport.Height
-		if maxScroll < 0 {
-			maxScroll = 0
-		}
+		maxScroll := max(len(strings.Split(m.chatContent, "\n"))-m.chatViewport.Height(), 0)
+
 		if m.chatViewport.YOffset < maxScroll {
 			m.userScrolled = true
 		} else {
@@ -362,15 +314,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, toolVpCmd)
 	}
 
-	// Handle textinput updates if input is shown
-	if m.showInput {
-		var tiCmd tea.Cmd
-		m.textInput, tiCmd = m.textInput.Update(msg)
-		if tiCmd != nil {
-			cmds = append(cmds, tiCmd)
-		}
+	var tiCmd tea.Cmd
+	m.textInput, tiCmd = m.textInput.Update(msg)
+	if tiCmd != nil {
+		cmds = append(cmds, tiCmd)
 	}
-
 	return m, tea.Batch(cmds...)
 }
 
@@ -432,9 +380,7 @@ func (m *model) View() string {
 	} else {
 		status := statusStyle.Render("🤖 Ready\n")
 		input := ""
-		if m.showInput {
-			input = "\n" + m.textInput.View() + "\n"
-		}
+		input = "\n" + m.textInput.View() + "\n"
 		footer = footerStyle.Render(status + input)
 	}
 

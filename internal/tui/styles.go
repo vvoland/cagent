@@ -1,12 +1,13 @@
 package tui
 
 import (
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/charmbracelet/lipgloss/v2/compat"
 )
 
 var (
 	// Styles
-	highlight = lipgloss.AdaptiveColor{Light: "#874BFD", Dark: "#7D56F4"}
+	highlight = compat.AdaptiveColor{Light: lipgloss.Color("#874BFD"), Dark: lipgloss.Color("#7D56F4")}
 
 	statusStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#43BF6D"))

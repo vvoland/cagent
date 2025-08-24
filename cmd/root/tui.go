@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/internal/tui"
@@ -84,8 +84,8 @@ func runTUICommand(cmd *cobra.Command, args []string) error {
 	p := tea.NewProgram(
 		m,
 		tea.WithAltScreen(),
-		tea.WithMouseAllMotion(), // Enable mouse support
-		tea.WithMouseCellMotion(),
+		// tea.WithMouseAllMotion(), // Enable mouse support
+		// tea.WithMouseCellMotion(),
 	)
 
 	_, err = p.Run()
