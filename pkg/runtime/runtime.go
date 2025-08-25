@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/chat"
@@ -568,6 +569,7 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 
 	ca := r.currentAgent
 	r.currentAgent = params.Agent
+	defer func() { r.currentAgent = ca }()
 
 	memberAgentTask := "You are a member of a team of agents. Your goal is to complete the following task:"
 	memberAgentTask += fmt.Sprintf("\n\n<task>\n%s\n</task>", params.Task)
@@ -575,9 +577,14 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 		memberAgentTask += fmt.Sprintf("\n\n<expected_output>\n%s\n</expected_output>", params.ExpectedOutput)
 	}
 
-	r.logger.Info("Creating new session with parent session", "parent_session_id", sess.ID, "tools_approved", sess.ToolsApproved)
+	r.logger.Debug("Creating new session with parent session", "parent_session_id", sess.ID, "tools_approved", sess.ToolsApproved)
 	s := session.New(r.logger, session.WithSystemMessage(memberAgentTask))
 	s.ToolsApproved = sess.ToolsApproved
+
+	// Hacky workaround: insert a small delay to allow the CLI to print the
+	// original tool call line before the sub-agent starts streaming events.
+	// This mitigates interleaving of the sub-agent output with the tool call line.
+	time.Sleep(250 * time.Millisecond)
 
 	for event := range r.RunStream(ctx, s) {
 		evts <- event
@@ -592,8 +599,6 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 
 	// Store the complete sub-session in the parent session
 	sess.AddSubSession(s)
-
-	r.currentAgent = ca
 
 	r.logger.Debug("Task transfer completed", "agent", params.Agent, "task", params.Task)
 

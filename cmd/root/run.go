@@ -28,6 +28,8 @@ import (
 	"github.com/docker/cagent/pkg/teamloader"
 )
 
+const APP_NAME = "cagent"
+
 var autoApprove bool
 var attachmentPath string
 
@@ -37,7 +39,7 @@ func initOTelSDK(ctx context.Context) (shutdown func(context.Context) error, err
 		resource.Default(),
 		resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceName("cagent"),
+			semconv.ServiceName(APP_NAME),
 			semconv.ServiceVersion("dev"), // TODO: use actual version
 		),
 	)
@@ -183,7 +185,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
-	tracer := otel.Tracer("cagent")
+	tracer := otel.Tracer(APP_NAME)
 
 	rt, err := runtime.New(logger, agents,
 		runtime.WithCurrentAgent(agentName),
@@ -195,10 +197,6 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	sess := session.New(logger)
-
-	blue := color.New(color.FgBlue).SprintfFunc()
-	yellow := color.New(color.FgYellow).SprintfFunc()
-	green := color.New(color.FgGreen).SprintfFunc()
 
 	// If the last received event was an error, return it. That way the exit code
 	// will be non-zero if the agent failed.
@@ -230,40 +228,69 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 
 		sess.AddMessage(createUserMessageWithAttachment(agentFilename, messageText, finalAttachPath))
 
-		first := false
+		firstLoop := true
+		lastAgent := rt.CurrentAgent().Name()
+		llmIsTyping := false
+		var lastConfirmedToolCallID string
 		for event := range rt.RunStream(ctx, sess) {
-			if !first {
-				fmt.Printf("%s", blue("[%s]: ", rt.CurrentAgent().Name()))
-				first = true
+			if firstLoop || lastAgent != rt.CurrentAgent().Name() {
+				printAgentName(rt.CurrentAgent().Name())
+				firstLoop = false
+				lastAgent = rt.CurrentAgent().Name()
 			}
 			lastErr = nil
 			switch e := event.(type) {
 			case *runtime.AgentChoiceEvent:
+				if !llmIsTyping {
+					fmt.Println()
+					llmIsTyping = true
+				}
 				fmt.Printf("%s", e.Choice.Delta.Content)
 			case *runtime.ToolCallConfirmationEvent:
-				fmt.Printf("%s", yellow("\n%s(%s)\n", e.ToolCall.Function.Name, e.ToolCall.Function.Arguments))
-				fmt.Println("\nCan I run this tool? (y/a/n)")
-				scannerConfirmations.Scan()
-				text := scannerConfirmations.Text()
-				switch text {
-				case "y":
+				if llmIsTyping {
+					fmt.Println()
+					llmIsTyping = false
+				}
+				result := printToolCallWithConfirmation(e.ToolCall, scannerConfirmations)
+				lastConfirmedToolCallID = e.ToolCall.ID // Store the ID to avoid duplicate printing
+				switch result {
+				case ConfirmationApprove:
 					rt.Resume(ctx, string(runtime.ResumeTypeApprove))
-				case "a":
+				case ConfirmationApproveSession:
 					sess.ToolsApproved = true
 					rt.Resume(ctx, string(runtime.ResumeTypeApproveSession))
-				case "n":
+				case ConfirmationReject:
 					rt.Resume(ctx, string(runtime.ResumeTypeReject))
+					lastConfirmedToolCallID = "" // Clear on reject since tool won't execute
 				}
 			case *runtime.ToolCallEvent:
-				fmt.Printf("%s", yellow("\n%s(%s)\n", e.ToolCall.Function.Name, e.ToolCall.Function.Arguments))
+				if llmIsTyping {
+					fmt.Println()
+					llmIsTyping = false
+				}
+				// Only print if this wasn't already shown during confirmation
+				if e.ToolCall.ID != lastConfirmedToolCallID {
+					printToolCall(e.ToolCall)
+				}
 			case *runtime.ToolCallResponseEvent:
-				fmt.Printf("%s", green("done(%s)\n", e.ToolCall.Function.Name))
+				if llmIsTyping {
+					fmt.Println()
+					llmIsTyping = false
+				}
+				printToolCallResponse(e.ToolCall, e.Response)
+				// Clear the confirmed ID after the tool completes
+				if e.ToolCall.ID == lastConfirmedToolCallID {
+					lastConfirmedToolCallID = ""
+				}
 			case *runtime.ErrorEvent:
-				fmt.Printf("%s\n", e.Error)
+				if llmIsTyping {
+					fmt.Println()
+					llmIsTyping = false
+				}
+				printError(e.Error)
 				lastErr = e.Error
 			}
 		}
-		fmt.Println()
 		return nil
 	}
 
@@ -283,10 +310,15 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			}
 		}
 	} else {
-		fmt.Println(blue("\nEnter your messages (Ctrl+C to exit):"))
+		printWelcomeMessage()
 		scanner := bufio.NewScanner(os.Stdin)
+		firstQuestion := true
 		for {
+			if !firstQuestion {
+				fmt.Println()
+			}
 			fmt.Print(blue("> "))
+			firstQuestion = false
 
 			if !scanner.Scan() {
 				break
