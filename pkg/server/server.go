@@ -87,6 +87,8 @@ func New(logger *slog.Logger, sessionStore session.Store, runConfig latest.Runti
 	api.GET("/agents", s.getAgents)
 	// Get an agent by id
 	api.GET("/agents/:id", s.getAgentConfig)
+	// Edit an agent configuration by id
+	api.PUT("/agents/:id", s.editAgentConfig)
 	// Create a new agent
 	api.POST("/agents", s.createAgent)
 	// Create a new agent manually with YAML configuration
@@ -149,6 +151,10 @@ type deleteAgentRequest struct {
 	FilePath string `json:"file_path"`
 }
 
+type editAgentConfigRequest struct {
+	AgentConfig latest.Config `json:"agent_config"`
+}
+
 func (s *Server) getAgentConfig(c echo.Context) error {
 	path := filepath.Join(s.agentsDir, c.Param("id"))
 	if !strings.HasSuffix(path, ".yaml") {
@@ -160,6 +166,88 @@ func (s *Server) getAgentConfig(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, cfg)
+}
+
+func (s *Server) editAgentConfig(c echo.Context) error {
+	var req editAgentConfigRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	path := filepath.Join(s.agentsDir, c.Param("id"))
+	if !strings.HasSuffix(path, ".yaml") {
+		path += ".yaml"
+	}
+
+	// Check if the file exists
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "agent not found"})
+	}
+
+	// Read current file to preserve shebang and other metadata
+	currentContent, err := os.ReadFile(path)
+	if err != nil {
+		s.logger.Error("Failed to read agent file", "path", path, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to read agent file"})
+	}
+
+	// Extract shebang and version lines if they exist
+	shebang := ""
+	versionLine := ""
+	currentLines := strings.Split(string(currentContent), "\n")
+	for i, line := range currentLines {
+		if i == 0 && strings.HasPrefix(line, "#!/") {
+			shebang = line + "\n"
+		} else if strings.HasPrefix(line, "version:") {
+			versionLine = line + "\n"
+			break
+		}
+	}
+
+	// Marshal the new configuration to YAML
+	var buf bytes.Buffer
+	encoder := yaml.NewEncoder(&buf)
+	encoder.SetIndent(1)
+	err = encoder.Encode(req.AgentConfig)
+	if err != nil {
+		s.logger.Error("Failed to marshal agent config to YAML", "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to generate YAML configuration"})
+	}
+	encoder.Close()
+	yamlData := buf.Bytes()
+
+	// Combine shebang, version, and YAML content
+	finalContent := shebang + versionLine
+	if shebang != "" || versionLine != "" {
+		finalContent += "\n"
+	}
+	finalContent += string(yamlData)
+
+	// Write the updated configuration back to the file
+	if err := os.WriteFile(path, []byte(finalContent), 0o644); err != nil {
+		s.logger.Error("Failed to write agent file", "path", path, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to write agent file"})
+	}
+
+	// Reload the agent to update the in-memory configuration
+	t, err := teamloader.Load(c.Request().Context(), path, s.runConfig, s.logger)
+	if err != nil {
+		s.logger.Error("Failed to reload agent after edit", "path", path, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to reload agent configuration"})
+	}
+
+	// Update the teams map with the reloaded agent
+	agentKey := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+	if oldTeam, exists := s.teams[agentKey]; exists {
+		// Stop old team's toolsets before replacing
+		if err := oldTeam.StopToolSets(); err != nil {
+			s.logger.Error("Failed to stop old team toolsets", "agentKey", agentKey, "error", err)
+		}
+	}
+	s.teams[agentKey] = t
+
+	s.logger.Info("Agent configuration updated successfully", "path", path)
+	return c.JSON(http.StatusOK, map[string]string{"message": "agent configuration updated successfully", "path": path})
 }
 
 func (s *Server) createAgent(c echo.Context) error {
