@@ -9,7 +9,8 @@ import (
 
 // StreamAdapter adapts the OpenAI stream to our interface
 type StreamAdapter struct {
-	stream *openai.ChatCompletionStream
+	stream           *openai.ChatCompletionStream
+	lastFinishReason chat.FinishReason
 }
 
 // Recv gets the next completion chunk
@@ -33,8 +34,13 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 			InputTokens:  openaiResponse.Usage.PromptTokens,
 			OutputTokens: openaiResponse.Usage.CompletionTokens,
 		}
+		// Use the tracked finish reason instead of hardcoding stop
+		finishReason := a.lastFinishReason
+		if finishReason == "" {
+			finishReason = chat.FinishReasonStop
+		}
 		response.Choices = append(response.Choices, chat.MessageStreamChoice{
-			FinishReason: chat.FinishReasonStop,
+			FinishReason: finishReason,
 		})
 	}
 
@@ -45,9 +51,15 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 			choice.FinishReason = openai.FinishReasonNull
 		}
 
+		finishReason := chat.FinishReason(choice.FinishReason)
+		// Track the finish reason for when we get usage info
+		if finishReason != chat.FinishReasonNull && finishReason != "" {
+			a.lastFinishReason = finishReason
+		}
+
 		response.Choices[i] = chat.MessageStreamChoice{
 			Index:        choice.Index,
-			FinishReason: chat.FinishReason(choice.FinishReason),
+			FinishReason: finishReason,
 			Delta: chat.MessageDelta{
 				Role:    choice.Delta.Role,
 				Content: choice.Delta.Content,
