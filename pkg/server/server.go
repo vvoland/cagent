@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"dario.cat/mergo"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"gopkg.in/yaml.v3"
@@ -88,7 +89,7 @@ func New(logger *slog.Logger, sessionStore session.Store, runConfig latest.Runti
 	// Get an agent by id
 	api.GET("/agents/:id", s.getAgentConfig)
 	// Edit an agent configuration by id
-	api.PUT("/agents/:id", s.editAgentConfig)
+	api.PUT("/agents/config", s.editAgentConfig)
 	// Create a new agent
 	api.POST("/agents", s.createAgent)
 	// Create a new agent manually with YAML configuration
@@ -153,6 +154,7 @@ type deleteAgentRequest struct {
 
 type editAgentConfigRequest struct {
 	AgentConfig latest.Config `json:"agent_config"`
+	Filename    string        `json:"filename"`
 }
 
 func (s *Server) getAgentConfig(c echo.Context) error {
@@ -174,7 +176,7 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 	}
 
-	path := filepath.Join(s.agentsDir, c.Param("id"))
+	path := filepath.Join(s.agentsDir, req.Filename)
 	if !strings.HasSuffix(path, ".yaml") {
 		path += ".yaml"
 	}
@@ -184,7 +186,21 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "agent not found"})
 	}
 
-	// Read current file to preserve shebang and other metadata
+	// Load the target file content
+	currentConfig, err := config.LoadConfig(path)
+	if err != nil {
+		s.logger.Error("Failed to load current config", "path", path, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load current configuration"})
+	}
+
+	// Merge the new content with the current one
+	if err := mergo.Merge(currentConfig, req.AgentConfig, mergo.WithOverride); err != nil {
+		s.logger.Error("Failed to apply new agent configuration", "path", path, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to apply new agent configuration"})
+	}
+	mergedConfig := *currentConfig
+
+	// Read current file to preserve shebang and metadata structure
 	currentContent, err := os.ReadFile(path)
 	if err != nil {
 		s.logger.Error("Failed to read agent file", "path", path, "error", err)
@@ -204,19 +220,19 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 		}
 	}
 
-	// Marshal the new configuration to YAML
+	// Marshal the merged configuration to YAML
 	var buf bytes.Buffer
 	encoder := yaml.NewEncoder(&buf)
-	encoder.SetIndent(1)
-	err = encoder.Encode(req.AgentConfig)
+	encoder.SetIndent(2)
+	err = encoder.Encode(mergedConfig)
 	if err != nil {
-		s.logger.Error("Failed to marshal agent config to YAML", "error", err)
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to generate YAML configuration"})
+		s.logger.Error("Failed to marshal merged config to YAML", "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to generate merged YAML configuration"})
 	}
 	encoder.Close()
 	yamlData := buf.Bytes()
 
-	// Combine shebang, version, and YAML content
+	// Combine shebang, version, and merged YAML content
 	finalContent := shebang + versionLine
 	if shebang != "" || versionLine != "" {
 		finalContent += "\n"
@@ -247,7 +263,7 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 	s.teams[agentKey] = t
 
 	s.logger.Info("Agent configuration updated successfully", "path", path)
-	return c.JSON(http.StatusOK, map[string]string{"message": "agent configuration updated successfully", "path": path})
+	return c.JSON(http.StatusOK, map[string]any{"message": "agent configuration updated successfully", "path": path, "mergedConfig": mergedConfig})
 }
 
 func (s *Server) createAgent(c echo.Context) error {
