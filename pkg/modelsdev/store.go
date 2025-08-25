@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -108,7 +109,14 @@ func (s *Store) GetProvider(ctx context.Context, providerID string) (*Provider, 
 }
 
 // GetModel returns a specific model by provider ID and model ID
-func (s *Store) GetModel(ctx context.Context, providerID, modelID string) (*Model, error) {
+func (s *Store) GetModel(ctx context.Context, id string) (*Model, error) {
+	parts := strings.Split(id, "/")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid model ID: %q", id)
+	}
+	providerID := parts[0]
+	modelID := parts[1]
+
 	provider, err := s.GetProvider(ctx, providerID)
 	if err != nil {
 		return nil, err

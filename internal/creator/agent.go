@@ -103,7 +103,10 @@ func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, promp
 					&fsToolset,
 				),
 			)))
-	rt := runtime.New(logger, newTeam)
+	rt, err := runtime.New(logger, newTeam)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create runtime: %w", err)
+	}
 
 	sess := session.New(logger, session.WithUserMessage("", prompt))
 	sess.ToolsApproved = true
@@ -148,7 +151,10 @@ func StreamCreateAgent(ctx context.Context, baseDir string, logger *slog.Logger,
 					&fsToolset,
 				),
 			)))
-	rt := runtime.New(logger, newTeam)
+	rt, err := runtime.New(logger, newTeam)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create runtime: %w", err)
+	}
 
 	sess := session.New(logger, session.WithUserMessage("", prompt))
 	sess.ToolsApproved = true

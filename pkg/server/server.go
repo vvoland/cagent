@@ -872,7 +872,11 @@ func (s *Server) runAgent(c echo.Context) error {
 		if s.autoRunTools {
 			opts = append(opts, runtime.WithAutoRunTools(true))
 		}
-		rt = runtime.New(s.logger, t, opts...)
+		rt, err = runtime.New(s.logger, t, opts...)
+		if err != nil {
+			s.logger.Error("Failed to create runtime", "error", err)
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create runtime"})
+		}
 		s.runtimes[sess.ID] = rt
 	}
 

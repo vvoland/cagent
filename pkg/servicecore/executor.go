@@ -76,7 +76,10 @@ func (e *Executor) CreateRuntime(agentPath, agentName string, envFiles []string,
 	// Tool sets are started automatically when needed
 
 	// Create runtime
-	rt := runtime.New(e.logger, agents, runtime.WithCurrentAgent(agentName))
+	rt, err := runtime.New(e.logger, agents, runtime.WithCurrentAgent(agentName))
+	if err != nil {
+		return nil, nil, fmt.Errorf("creating runtime: %w", err)
+	}
 
 	// Create session
 	sess := session.New(e.logger)

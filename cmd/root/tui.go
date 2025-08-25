@@ -74,7 +74,10 @@ func runTUICommand(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
-	rt := runtime.New(logger, agents, runtime.WithCurrentAgent(agentName))
+	rt, err := runtime.New(logger, agents, runtime.WithCurrentAgent(agentName))
+	if err != nil {
+		return fmt.Errorf("failed to create runtime: %w", err)
+	}
 
 	m, err := tui.NewModel(rt, session.New(logger))
 	if err != nil {

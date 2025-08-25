@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/modelsdev"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/tools"
@@ -39,6 +40,7 @@ type Runtime struct {
 	resumeChan   chan ResumeType
 	autoRunTools bool
 	tracer       trace.Tracer
+	modelsStore  *modelsdev.Store
 }
 
 type Opt func(*Runtime)
@@ -63,13 +65,19 @@ func WithTracer(t trace.Tracer) Opt {
 }
 
 // New creates a new runtime for an agent and its team
-func New(logger *slog.Logger, agents *team.Team, opts ...Opt) *Runtime {
+func New(logger *slog.Logger, agents *team.Team, opts ...Opt) (*Runtime, error) {
+	modelsStore, err := modelsdev.NewStore()
+	if err != nil {
+		return nil, err
+	}
+
 	r := &Runtime{
 		toolMap:      make(map[string]ToolHandler),
 		team:         agents,
 		logger:       logger,
 		currentAgent: "root",
 		resumeChan:   make(chan ResumeType),
+		modelsStore:  modelsStore,
 	}
 
 	for _, opt := range opts {
@@ -78,7 +86,7 @@ func New(logger *slog.Logger, agents *team.Team, opts ...Opt) *Runtime {
 
 	logger.Debug("Creating new runtime", "agent", r.currentAgent, "available_agents", agents.Size())
 
-	return r
+	return r, nil
 }
 
 func (r *Runtime) Team() *team.Team {
@@ -115,7 +123,8 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 		a := r.team.Agent(r.currentAgent)
 
 		model := a.Model()
-		r.logger.Debug("Using agent", "agent", a.Name(), "model", model)
+		modelID := model.ID()
+		r.logger.Debug("Using agent", "agent", a.Name(), "model", modelID)
 		r.registerDefaultTools()
 
 		for {
@@ -600,10 +609,14 @@ func (r *Runtime) generateSessionTitle(ctx context.Context, sess *session.Sessio
 	titleSession.AddMessage(session.UserMessage("", userPrompt))
 	titleSession.Title = "Generating title..."
 
-	titleRuntime := New(r.logger, newTeam)
+	titleRuntime, err := New(r.logger, newTeam)
+	if err != nil {
+		r.logger.Error("Failed to create title generator runtime", "error", err)
+		return
+	}
 
 	// Run the title generation (this will be a simple back-and-forth)
-	_, err := titleRuntime.Run(ctx, titleSession)
+	_, err = titleRuntime.Run(ctx, titleSession)
 	if err != nil {
 		r.logger.Error("Failed to generate session title", "session_id", sess.ID, "error", err)
 		return
@@ -661,10 +674,14 @@ func (r *Runtime) Summarize(ctx context.Context, sess *session.Session, events c
 	summarySession.AddMessage(session.UserMessage("", userPrompt))
 	summarySession.Title = "Generating summary..."
 
-	summaryRuntime := New(r.logger, newTeam)
+	summaryRuntime, err := New(r.logger, newTeam)
+	if err != nil {
+		r.logger.Error("Failed to create summary generator runtime", "error", err)
+		return
+	}
 
 	// Run the summary generation
-	_, err := summaryRuntime.Run(ctx, summarySession)
+	_, err = summaryRuntime.Run(ctx, summarySession)
 	if err != nil {
 		r.logger.Error("Failed to generate session summary", "session_id", sess.ID, "error", err)
 		return

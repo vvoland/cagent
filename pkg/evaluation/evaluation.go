@@ -46,7 +46,10 @@ func Evaluate(ctx context.Context, t *team.Team, evalsDir string, logger *slog.L
 
 	var results []Result
 	for _, eval := range evals {
-		rt := runtime.New(logger, t)
+		rt, err := runtime.New(logger, t)
+		if err != nil {
+			return nil, err
+		}
 
 		actualMessages, err := runLoop(ctx, logger, rt, &eval)
 		if err != nil {

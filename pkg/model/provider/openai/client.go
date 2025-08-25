@@ -277,3 +277,7 @@ func (c *Client) CreateChatCompletion(
 	c.logger.Debug("OpenAI chat completion successful", "model", c.config.Model, "response_length", len(response.Choices[0].Message.Content))
 	return response.Choices[0].Message.Content, nil
 }
+
+func (c *Client) ID() string {
+	return c.config.Provider + "/" + c.config.Model
+}

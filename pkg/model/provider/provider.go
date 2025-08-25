@@ -18,6 +18,8 @@ import (
 
 // Provider defines the interface for model providers
 type Provider interface {
+	// ID returns the model provider ID
+	ID() string
 	// CreateChatCompletionStream creates a streaming chat completion request
 	// It returns a stream that can be iterated over to get completion chunks
 	CreateChatCompletionStream(

@@ -185,11 +185,14 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 
 	tracer := otel.Tracer("cagent")
 
-	rt := runtime.New(logger, agents,
+	rt, err := runtime.New(logger, agents,
 		runtime.WithCurrentAgent(agentName),
 		runtime.WithAutoRunTools(autoApprove),
 		runtime.WithTracer(tracer),
 	)
+	if err != nil {
+		return fmt.Errorf("failed to create runtime: %w", err)
+	}
 
 	sess := session.New(logger)
 

@@ -43,7 +43,10 @@ func main() {
 			),
 		),
 	)
-	rt := runtime.New(logger, agents)
+	rt, err := runtime.New(logger, agents)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	sess := session.New(logger, session.WithUserMessage("", "Tell me a story about my current directory"))
 

@@ -80,7 +80,10 @@ func main() {
 
 	calculatorTeam := team.New(team.WithAgents(calculator))
 
-	rt := runtime.New(logger, calculatorTeam)
+	rt, err := runtime.New(logger, calculatorTeam)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	sess := session.New(logger, session.WithUserMessage("", "What is 1 + 2?"))
 

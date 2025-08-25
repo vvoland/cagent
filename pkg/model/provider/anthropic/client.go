@@ -316,3 +316,7 @@ func convertTools(tooles []tools.Tool) []anthropic.ToolUnionParam {
 
 	return anthropicTools
 }
+
+func (c *Client) ID() string {
+	return c.config.Provider + "/" + c.config.Model
+}

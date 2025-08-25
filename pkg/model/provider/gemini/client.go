@@ -450,3 +450,7 @@ func (c *Client) CreateChatCompletion(
 
 	return textParts[0], nil
 }
+
+func (c *Client) ID() string {
+	return c.config.Provider + "/" + c.config.Model
+}

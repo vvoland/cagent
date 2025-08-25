@@ -41,7 +41,10 @@ func main() {
 
 	humanTeam := team.New(team.WithAgents(human))
 
-	rt := runtime.New(logger, humanTeam)
+	rt, err := runtime.New(logger, humanTeam)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	sess := session.New(logger, session.WithUserMessage("", "How are you doing?"))
 
