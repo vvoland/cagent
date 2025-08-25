@@ -176,8 +176,8 @@ func formatJSONValue(key string, value interface{}) string {
 		// Handle multiline strings by displaying with actual newlines
 		if strings.Contains(v, "\n") {
 			// Format as: key: "content with
-			//              actual line breaks"
-			return fmt.Sprintf("%s: \"%s\"", bold(key), v)
+			// actual line breaks"
+			return fmt.Sprintf("%s: %q", bold(key), v)
 		}
 		// Regular string with proper escaping
 		return fmt.Sprintf("%s: %q", bold(key), v)
