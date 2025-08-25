@@ -33,14 +33,15 @@ type ToolHandler func(ctx context.Context, sess *session.Session, toolCall tools
 
 // Runtime manages the execution of agents
 type Runtime struct {
-	logger       *slog.Logger
-	toolMap      map[string]ToolHandler
-	team         *team.Team
-	currentAgent string
-	resumeChan   chan ResumeType
-	autoRunTools bool
-	tracer       trace.Tracer
-	modelsStore  *modelsdev.Store
+	logger            *slog.Logger
+	toolMap           map[string]ToolHandler
+	team              *team.Team
+	currentAgent      string
+	resumeChan        chan ResumeType
+	autoRunTools      bool
+	tracer            trace.Tracer
+	modelsStore       *modelsdev.Store
+	sessionCompaction bool
 }
 
 type Opt func(*Runtime)
@@ -64,6 +65,12 @@ func WithTracer(t trace.Tracer) Opt {
 	}
 }
 
+func WithSessionCompaction(sessionCompaction bool) Opt {
+	return func(r *Runtime) {
+		r.sessionCompaction = sessionCompaction
+	}
+}
+
 // New creates a new runtime for an agent and its team
 func New(logger *slog.Logger, agents *team.Team, opts ...Opt) (*Runtime, error) {
 	modelsStore, err := modelsdev.NewStore()
@@ -72,12 +79,13 @@ func New(logger *slog.Logger, agents *team.Team, opts ...Opt) (*Runtime, error) 
 	}
 
 	r := &Runtime{
-		toolMap:      make(map[string]ToolHandler),
-		team:         agents,
-		logger:       logger,
-		currentAgent: "root",
-		resumeChan:   make(chan ResumeType),
-		modelsStore:  modelsStore,
+		toolMap:           make(map[string]ToolHandler),
+		team:              agents,
+		logger:            logger,
+		currentAgent:      "root",
+		resumeChan:        make(chan ResumeType),
+		modelsStore:       modelsStore,
+		sessionCompaction: true,
 	}
 
 	for _, opt := range opts {
@@ -192,6 +200,21 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			sess.AddMessage(session.NewAgentMessage(a, &assistantMessage))
 			r.logger.Debug("Added assistant message to session", "agent", a.Name(), "total_messages", len(sess.GetAllMessages()))
 
+			contextLimit := 0
+			if m != nil {
+				contextLimit = m.Limit.Context
+			}
+			events <- TokenUsage(sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.Cost)
+
+			if m != nil && r.sessionCompaction {
+				if sess.InputTokens+sess.OutputTokens > int(float64(contextLimit)*0.9) {
+					events <- SessionCompaction(sess.ID, "start")
+					r.Summarize(ctx, sess, events)
+					events <- TokenUsage(sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.Cost)
+					events <- SessionCompaction(sess.ID, "completed")
+				}
+			}
+
 			if stopped {
 				r.logger.Debug("Conversation stopped", "agent", a.Name())
 				// Generate title for session if it doesn't have one and has messages
@@ -208,7 +231,6 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				return
 			}
 
-			events <- TokenUsage(sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, m.Limit.Context, sess.Cost)
 		}
 	}()
 
@@ -621,7 +643,7 @@ func (r *Runtime) generateSessionTitle(ctx context.Context, sess *session.Sessio
 	titleSession.AddMessage(session.UserMessage("", userPrompt))
 	titleSession.Title = "Generating title..."
 
-	titleRuntime, err := New(r.logger, newTeam)
+	titleRuntime, err := New(r.logger, newTeam, WithSessionCompaction(false))
 	if err != nil {
 		r.logger.Error("Failed to create title generator runtime", "error", err)
 		return
@@ -686,7 +708,7 @@ func (r *Runtime) Summarize(ctx context.Context, sess *session.Session, events c
 	summarySession.AddMessage(session.UserMessage("", userPrompt))
 	summarySession.Title = "Generating summary..."
 
-	summaryRuntime, err := New(r.logger, newTeam)
+	summaryRuntime, err := New(r.logger, newTeam, WithSessionCompaction(false))
 	if err != nil {
 		r.logger.Error("Failed to create summary generator runtime", "error", err)
 		return
