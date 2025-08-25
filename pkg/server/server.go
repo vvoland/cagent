@@ -263,7 +263,7 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 	s.teams[agentKey] = t
 
 	s.logger.Info("Agent configuration updated successfully", "path", path)
-	return c.JSON(http.StatusOK, map[string]any{"message": "agent configuration updated successfully", "path": path, "mergedConfig": mergedConfig})
+	return c.JSON(http.StatusOK, map[string]any{"message": "agent configuration updated successfully", "path": path, "config": mergedConfig})
 }
 
 func (s *Server) createAgent(c echo.Context) error {
