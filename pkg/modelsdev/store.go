@@ -62,11 +62,11 @@ func NewStore(opts ...Opt) (*Store, error) {
 		opt(s)
 	}
 
-	return &Store{
-		client: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-	}, nil
+	s.client = &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	return s, nil
 }
 
 // GetDatabase returns the models.dev database, fetching from cache or API as needed
