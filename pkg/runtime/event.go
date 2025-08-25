@@ -80,16 +80,27 @@ func Error(err error) Event {
 func (e *ErrorEvent) isEvent() {}
 
 type TokenUsageEvent struct {
-	Type  string      `json:"type"`
-	Usage *chat.Usage `json:"usage"`
+	Type  string `json:"type"`
+	Usage *Usage `json:"usage"`
 }
 
-func TokenUsage(inputTokens, outputTokens int) Event {
+type Usage struct {
+	InputTokens   int     `json:"input_tokens"`
+	OutputTokens  int     `json:"output_tokens"`
+	ContextLength int     `json:"context_length"`
+	ContextLimit  int     `json:"context_limit"`
+	Cost          float64 `json:"cost"`
+}
+
+func TokenUsage(inputTokens, outputTokens, contextLength, contextLimit int, cost float64) Event {
 	return &TokenUsageEvent{
 		Type: "token_usage",
-		Usage: &chat.Usage{
-			InputTokens:  inputTokens,
-			OutputTokens: outputTokens,
+		Usage: &Usage{
+			ContextLength: contextLength,
+			ContextLimit:  contextLimit,
+			InputTokens:   inputTokens,
+			OutputTokens:  outputTokens,
+			Cost:          cost,
 		},
 	}
 }

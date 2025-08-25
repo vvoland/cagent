@@ -179,6 +179,13 @@ func getAllMigrations() []Migration {
 			UpSQL:       `ALTER TABLE sessions ADD COLUMN title TEXT DEFAULT ''`,
 			DownSQL:     `ALTER TABLE sessions DROP COLUMN title`,
 		},
+		{
+			ID:          5,
+			Name:        "005_add_cost_column",
+			Description: "Add cost column to sessions table",
+			UpSQL:       `ALTER TABLE sessions ADD COLUMN cost REAL DEFAULT 0`,
+			DownSQL:     `ALTER TABLE sessions DROP COLUMN cost`,
+		},
 		// Add more migrations here as needed
 	}
 }

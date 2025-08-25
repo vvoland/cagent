@@ -85,8 +85,10 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		}
 	case anthropic.MessageDeltaEvent:
 		response.Usage = &chat.Usage{
-			InputTokens:  int(eventVariant.Usage.InputTokens),
-			OutputTokens: int(eventVariant.Usage.OutputTokens),
+			InputTokens:        int(eventVariant.Usage.InputTokens),
+			OutputTokens:       int(eventVariant.Usage.OutputTokens),
+			CachedInputTokens:  int(eventVariant.Usage.CacheReadInputTokens),
+			CachedOutputTokens: int(eventVariant.Usage.CacheCreationInputTokens),
 		}
 	case anthropic.MessageStopEvent:
 		if a.toolCall {

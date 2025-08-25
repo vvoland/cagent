@@ -91,12 +91,12 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 	}
 
 	row := s.db.QueryRowContext(ctx,
-		"SELECT id, messages, tools_approved, input_tokens, output_tokens, title, created_at FROM sessions WHERE id = ?", id)
+		"SELECT id, messages, tools_approved, input_tokens, output_tokens, title, cost, created_at FROM sessions WHERE id = ?", id)
 
-	var messagesJSON, toolsApprovedStr, inputTokensStr, outputTokensStr, titleStr, createdAtStr string
+	var messagesJSON, toolsApprovedStr, inputTokensStr, outputTokensStr, titleStr, costStr, createdAtStr string
 	var sessionID string
 
-	err := row.Scan(&sessionID, &messagesJSON, &toolsApprovedStr, &inputTokensStr, &outputTokensStr, &titleStr, &createdAtStr)
+	err := row.Scan(&sessionID, &messagesJSON, &toolsApprovedStr, &inputTokensStr, &outputTokensStr, &titleStr, &costStr, &createdAtStr)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
@@ -136,6 +136,11 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 		return nil, err
 	}
 
+	cost, err := strconv.ParseFloat(costStr, 64)
+	if err != nil {
+		return nil, err
+	}
+
 	createdAt, err := time.Parse(time.RFC3339, createdAtStr)
 	if err != nil {
 		return nil, err
@@ -148,6 +153,7 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 		ToolsApproved: toolsApproved,
 		InputTokens:   inputTokens,
 		OutputTokens:  outputTokens,
+		Cost:          cost,
 		CreatedAt:     createdAt,
 		logger:        nil, // Logger is not persisted and will need to be set by caller
 	}, nil
@@ -156,7 +162,7 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 // GetSessions retrieves all sessions
 func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error) {
 	rows, err := s.db.QueryContext(ctx,
-		"SELECT id, messages, tools_approved, input_tokens, output_tokens, title, created_at FROM sessions ORDER BY created_at DESC")
+		"SELECT id, messages, tools_approved, input_tokens, output_tokens, title, cost, created_at FROM sessions ORDER BY created_at DESC")
 	if err != nil {
 		return nil, err
 	}
@@ -164,10 +170,10 @@ func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error
 
 	sessions := make([]*Session, 0)
 	for rows.Next() {
-		var messagesJSON, toolsApprovedStr, inputTokensStr, outputTokensStr, titleStr, createdAtStr string
+		var messagesJSON, toolsApprovedStr, inputTokensStr, outputTokensStr, titleStr, costStr, createdAtStr string
 		var sessionID string
 
-		err := rows.Scan(&sessionID, &messagesJSON, &toolsApprovedStr, &inputTokensStr, &outputTokensStr, &titleStr, &createdAtStr)
+		err := rows.Scan(&sessionID, &messagesJSON, &toolsApprovedStr, &inputTokensStr, &outputTokensStr, &titleStr, &costStr, &createdAtStr)
 		if err != nil {
 			return nil, err
 		}
@@ -204,6 +210,11 @@ func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error
 			return nil, err
 		}
 
+		cost, err := strconv.ParseFloat(costStr, 64)
+		if err != nil {
+			return nil, err
+		}
+
 		createdAt, err := time.Parse(time.RFC3339, createdAtStr)
 		if err != nil {
 			return nil, err
@@ -216,6 +227,7 @@ func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error
 			ToolsApproved: toolsApproved,
 			InputTokens:   inputTokens,
 			OutputTokens:  outputTokens,
+			Cost:          cost,
 			CreatedAt:     createdAt,
 			logger:        nil, // Logger is not persisted and will need to be set by caller
 		}
@@ -261,8 +273,8 @@ func (s *SQLiteSessionStore) UpdateSession(ctx context.Context, session *Session
 	}
 
 	result, err := s.db.ExecContext(ctx,
-		"UPDATE sessions SET messages = ?, title = ?, tools_approved = ?, input_tokens = ?, output_tokens = ? WHERE id = ?",
-		string(itemsJSON), session.Title, session.ToolsApproved, session.InputTokens, session.OutputTokens, session.ID)
+		"UPDATE sessions SET messages = ?, title = ?, tools_approved = ?, input_tokens = ?, output_tokens = ?, cost = ? WHERE id = ?",
+		string(itemsJSON), session.Title, session.ToolsApproved, session.InputTokens, session.OutputTokens, session.Cost, session.ID)
 	if err != nil {
 		return err
 	}

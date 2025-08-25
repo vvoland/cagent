@@ -110,6 +110,10 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 	events := make(chan Event)
 
 	go func() {
+		a := r.team.Agent(r.currentAgent)
+		model := a.Model()
+		modelID := model.ID()
+
 		defer close(events)
 		defer r.logger.Debug("Runtime stream completed", "agent", r.currentAgent, "session_id", sess.ID)
 
@@ -120,12 +124,14 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 		))
 		defer sessionSpan.End()
 
-		a := r.team.Agent(r.currentAgent)
-
-		model := a.Model()
-		modelID := model.ID()
 		r.logger.Debug("Using agent", "agent", a.Name(), "model", modelID)
 		r.registerDefaultTools()
+
+		r.logger.Debug("Getting model definition", "model_id", modelID)
+		m, err := r.modelsStore.GetModel(context.Background(), modelID)
+		if err != nil {
+			r.logger.Debug("Failed to get model definition", "error", err)
+		}
 
 		for {
 			r.logger.Debug("Starting conversation loop iteration", "agent", a.Name())
@@ -159,7 +165,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			}
 
 			r.logger.Debug("Processing stream", "agent", a.Name())
-			calls, content, stopped, err := r.handleStream(stream, a, sess, events)
+			calls, content, stopped, err := r.handleStream(stream, a, sess, m, events)
 			if err != nil {
 				streamSpan.RecordError(err)
 				streamSpan.SetStatus(codes.Error, "error handling stream")
@@ -201,6 +207,8 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				events <- Error(err)
 				return
 			}
+
+			events <- TokenUsage(sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, m.Limit.Context, sess.Cost)
 		}
 	}()
 
@@ -240,7 +248,7 @@ func (r *Runtime) Run(ctx context.Context, sess *session.Session) ([]session.Mes
 }
 
 // handleStream handles the stream processing
-func (r *Runtime) handleStream(stream chat.MessageStream, a *agent.Agent, sess *session.Session, events chan Event) (calls []tools.ToolCall, content string, stopped bool, err error) {
+func (r *Runtime) handleStream(stream chat.MessageStream, a *agent.Agent, sess *session.Session, m *modelsdev.Model, events chan Event) (calls []tools.ToolCall, content string, stopped bool, err error) {
 	defer stream.Close()
 
 	var fullContent strings.Builder
@@ -256,10 +264,14 @@ func (r *Runtime) handleStream(stream chat.MessageStream, a *agent.Agent, sess *
 		}
 
 		if response.Usage != nil {
-			sess.InputTokens += response.Usage.InputTokens
-			sess.OutputTokens += response.Usage.OutputTokens
-			events <- TokenUsage(sess.InputTokens, sess.OutputTokens)
+			sess.InputTokens = response.Usage.InputTokens + response.Usage.CachedInputTokens
+			sess.OutputTokens = response.Usage.OutputTokens + response.Usage.CachedOutputTokens
+			if m != nil {
+				cost := m.Cost.Input/1e6*float64(sess.InputTokens) + m.Cost.Output/1e6*float64(sess.OutputTokens) + m.Cost.CacheRead/1e6*float64(response.Usage.CachedInputTokens) + m.Cost.CacheWrite/1e6*float64(response.Usage.CachedOutputTokens)
+				sess.Cost = cost
+			}
 		}
+
 		choice := response.Choices[0]
 		if choice.FinishReason == chat.FinishReasonStop {
 			return toolCalls, fullContent.String(), true, nil

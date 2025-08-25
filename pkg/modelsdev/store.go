@@ -17,6 +17,11 @@ const (
 	CacheFileName   = "models_dev.json"
 )
 
+// ModelAliases maps alias model IDs to their actual model IDs
+var ModelAliases = map[string]string{
+	"anthropic/claude-sonnet-4-0": "anthropic/claude-sonnet-4-20250514",
+}
+
 // Store manages the models.dev data with local caching
 type Store struct {
 	cacheDir        string
@@ -110,6 +115,11 @@ func (s *Store) GetProvider(ctx context.Context, providerID string) (*Provider, 
 
 // GetModel returns a specific model by provider ID and model ID
 func (s *Store) GetModel(ctx context.Context, id string) (*Model, error) {
+	// Check if the ID is an alias and resolve it
+	if actualID, isAlias := ModelAliases[id]; isAlias {
+		id = actualID
+	}
+
 	parts := strings.Split(id, "/")
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid model ID: %q", id)

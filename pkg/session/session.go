@@ -54,8 +54,9 @@ type Session struct {
 	// ToolsApproved is a flag to indicate if the tools have been approved
 	ToolsApproved bool `json:"tools_approved"`
 
-	InputTokens  int `json:"input_tokens"`
-	OutputTokens int `json:"output_tokens"`
+	InputTokens  int     `json:"input_tokens"`
+	OutputTokens int     `json:"output_tokens"`
+	Cost         float64 `json:"cost"`
 
 	// Logger for debugging and logging session operations
 	logger *slog.Logger
