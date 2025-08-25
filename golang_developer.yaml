@@ -132,7 +132,6 @@ agents:
       You can help users run cagent in various modes:
       - `./bin/cagent run <config.yaml>` - Run agent with configuration
       - `./bin/cagent run <config.yaml> -a <agent_name>` - Run specific agent
-      - `./bin/cagent web -d <config_dir> <session.db>` - Start web interface
       - `./bin/cagent tui <config.yaml>` - Start TUI interface
       - `./bin/cagent mcp server --port 8080 --path /mcp --agents-dir <config_dir>` - Start MCP server mode
       - `./bin/cagent init` - Initialize new project
