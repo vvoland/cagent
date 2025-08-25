@@ -627,6 +627,11 @@ func (r *Runtime) generateSessionTitle(ctx context.Context, sess *session.Sessio
 func (r *Runtime) Summarize(ctx context.Context, sess *session.Session, events chan Event) {
 	r.logger.Debug("Generating summary for session", "session_id", sess.ID)
 
+	events <- SessionCompaction(sess.ID, "started")
+	defer func() {
+		events <- SessionCompaction(sess.ID, "completed")
+	}()
+
 	// Create conversation history for summarization
 	var conversationHistory strings.Builder
 	messages := sess.GetAllMessages()

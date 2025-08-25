@@ -124,3 +124,18 @@ func SessionSummary(sessionID, summary string) Event {
 	}
 }
 func (e *SessionSummaryEvent) isEvent() {}
+
+type SessionCompactionEvent struct {
+	Type      string `json:"type"`
+	SessionID string `json:"session_id"`
+	Status    string `json:"status"`
+}
+
+func SessionCompaction(sessionID, status string) Event {
+	return &SessionCompactionEvent{
+		Type:      "session_compaction",
+		SessionID: sessionID,
+		Status:    status,
+	}
+}
+func (e *SessionCompactionEvent) isEvent() {}
