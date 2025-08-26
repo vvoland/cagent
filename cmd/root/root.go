@@ -39,7 +39,7 @@ func NewRootCmd() *cobra.Command {
 
 	// Add persistent debug flag available to all commands
 	cmd.PersistentFlags().BoolVarP(&debugMode, "debug", "d", false, "Enable debug logging")
-	cmd.PersistentFlags().BoolVarP(&enableOtel, "otel", "t", false, "Enable OpenTelemetry tracing")
+	cmd.PersistentFlags().BoolVarP(&enableOtel, "otel", "o", false, "Enable OpenTelemetry tracing")
 
 	cmd.AddCommand(NewVersionCmd())
 	cmd.AddCommand(NewRunCmd())
