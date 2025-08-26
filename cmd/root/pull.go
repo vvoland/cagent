@@ -2,6 +2,9 @@ package root
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/docker/cagent/pkg/remote"
 	"github.com/google/go-containerregistry/pkg/crane"
@@ -27,12 +30,27 @@ func runPullCommand(registryRef string) error {
 
 	logger.Debug("Starting pull", "registry_ref", registryRef)
 
+	fmt.Println("Pulling agent ", registryRef)
+
 	var opts []crane.Option
-	digest, err := remote.Pull(registryRef, opts...)
+	_, err := remote.Pull(registryRef, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to pull artifact: %w", err)
 	}
-	fmt.Printf("Successfully pulled artifact from %s (digest: %s)\n", registryRef, digest)
+
+	yamlFile, err := fromStore(registryRef)
+	if err != nil {
+		return fmt.Errorf("failed to get agent yaml: %w", err)
+	}
+
+	agentName := strings.ReplaceAll(registryRef, "/", "_")
+	fileName := filepath.Join(agentsDir, agentName+".yaml")
+
+	if err := os.WriteFile(fileName, []byte(yamlFile), 0o644); err != nil {
+		return err
+	}
+
+	fmt.Printf("Agent saved to %s\n", fileName)
 
 	return nil
 }
