@@ -326,7 +326,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		firstQuestion := true
 		for {
 			if !firstQuestion {
-				fmt.Println()
+				fmt.Print("\n\n")
 			}
 			fmt.Print(blue("> "))
 			firstQuestion = false
