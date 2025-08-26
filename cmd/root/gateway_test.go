@@ -29,15 +29,6 @@ func TestGatewayLogic(t *testing.T) {
 			expectedModelsGateway: "https://models.example.com",
 		},
 		{
-			name: "env_var_tools_gateway_only",
-			envVars: map[string]string{
-				"CAGENT_TOOLS_GATEWAY": "https://tools.example.com",
-			},
-			args:                  []string{},
-			expectedModelsGateway: defaultModelsGateway,
-			expectedToolsGateway:  "https://tools.example.com",
-		},
-		{
 			name: "env_var_gateway_sets_both",
 			envVars: map[string]string{
 				"CAGENT_GATEWAY": "https://gateway.example.com",
@@ -61,12 +52,6 @@ func TestGatewayLogic(t *testing.T) {
 			args:                  []string{"--models-gateway", "https://cli-models.example.com"},
 			expectedModelsGateway: "https://cli-models.example.com",
 			expectedToolsGateway:  "",
-		},
-		{
-			name:                  "cli_flag_tools_gateway",
-			args:                  []string{"--tools-gateway", "https://cli-tools.example.com"},
-			expectedModelsGateway: defaultModelsGateway,
-			expectedToolsGateway:  "https://cli-tools.example.com",
 		},
 		{
 			name:          "cli_flag_gateway_mutually_exclusive_with_models_gateway",

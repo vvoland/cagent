@@ -17,8 +17,6 @@ const (
 	envToolsGateway   = "CAGENT_TOOLS_GATEWAY"
 )
 
-const defaultModelsGateway = "TODO"
-
 type gatewayConfig struct {
 	mainGateway string
 }
@@ -81,11 +79,6 @@ func addGatewayFlags(cmd *cobra.Command) {
 		}
 		if runConfig.ToolsGateway == "" {
 			runConfig.ToolsGateway = gwConfig.mainGateway
-		}
-
-		// Set default models gateway if still unset
-		if runConfig.ModelsGateway == "" {
-			runConfig.ModelsGateway = defaultModelsGateway
 		}
 
 		// Ensure the gateway url is canonical.
