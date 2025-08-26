@@ -8,7 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"strings"
-	"time"
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/chat"
@@ -465,7 +464,7 @@ func (r *Runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.T
 	))
 	defer span.End()
 
-	events <- ToolCall(toolCall)
+	events <- ToolCall(toolCall, a.Name())
 	res, err := tool.Handler(ctx, toolCall)
 	if err != nil {
 		span.RecordError(err)
@@ -479,7 +478,7 @@ func (r *Runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.T
 		r.logger.Debug("Agent tool call completed", "tool", toolCall.Function.Name, "output_length", len(res.Output))
 	}
 
-	events <- ToolCallResponse(toolCall, res.Output)
+	events <- ToolCallResponse(toolCall, res.Output, a.Name())
 	toolResponseMsg := chat.Message{
 		Role:       chat.MessageRoleTool,
 		Content:    res.Output,
@@ -498,7 +497,7 @@ func (r *Runtime) runAgentTool(ctx context.Context, handler ToolHandler, sess *s
 	))
 	defer span.End()
 
-	events <- ToolCall(toolCall)
+	events <- ToolCall(toolCall, a.Name())
 	res, err := handler(ctx, sess, toolCall, events)
 	var output string
 	if err != nil {
@@ -512,7 +511,7 @@ func (r *Runtime) runAgentTool(ctx context.Context, handler ToolHandler, sess *s
 		r.logger.Debug("Tool executed successfully", "tool", toolCall.Function.Name)
 	}
 
-	events <- ToolCallResponse(toolCall, output)
+	events <- ToolCallResponse(toolCall, output, a.Name())
 	toolResponseMsg := chat.Message{
 		Role:       chat.MessageRoleTool,
 		Content:    output,
@@ -526,7 +525,7 @@ func (r *Runtime) addToolRejectedResponse(sess *session.Session, toolCall tools.
 
 	result := "The user rejected the tool call."
 
-	events <- ToolCallResponse(toolCall, result)
+	events <- ToolCallResponse(toolCall, result, a.Name())
 
 	toolResponseMsg := chat.Message{
 		Role:       chat.MessageRoleTool,
@@ -581,10 +580,8 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 	s := session.New(r.logger, session.WithSystemMessage(memberAgentTask))
 	s.ToolsApproved = sess.ToolsApproved
 
-	// Hacky workaround: insert a small delay to allow the CLI to print the
-	// original tool call line before the sub-agent starts streaming events.
-	// This mitigates interleaving of the sub-agent output with the tool call line.
-	time.Sleep(250 * time.Millisecond)
+	// No delay needed: ToolCall event now carries the agent name so the CLI can
+	// render deterministically before sub-agent output begins.
 
 	for event := range r.RunStream(ctx, s) {
 		evts <- event

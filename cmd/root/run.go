@@ -233,16 +233,27 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		llmIsTyping := false
 		var lastConfirmedToolCallID string
 		for event := range rt.RunStream(ctx, sess) {
-			if firstLoop || lastAgent != rt.CurrentAgent().Name() {
-				printAgentName(rt.CurrentAgent().Name())
+			if event.GetAgentName() != "" && (firstLoop || lastAgent != event.GetAgentName()) {
+				if !firstLoop {
+					if llmIsTyping {
+						fmt.Println()
+						llmIsTyping = false
+					}
+					fmt.Println()
+				}
+				printAgentName(agentName)
 				firstLoop = false
-				lastAgent = rt.CurrentAgent().Name()
+				lastAgent = agentName
 			}
 			lastErr = nil
 			switch e := event.(type) {
 			case *runtime.AgentChoiceEvent:
+				agentChanged := lastAgent != e.AgentName
 				if !llmIsTyping {
-					fmt.Println()
+					// Only add newline if we're not already typing
+					if !agentChanged {
+						fmt.Println()
+					}
 					llmIsTyping = true
 				}
 				fmt.Printf("%s", e.Choice.Delta.Content)

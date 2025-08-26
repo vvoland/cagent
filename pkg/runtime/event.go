@@ -5,33 +5,46 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
-type Event interface{ isEvent() }
+type Event interface {
+	isEvent()
+	GetAgentName() string
+}
+
+// AgentContext carries optional agent attribution for an event.
+type AgentContext struct {
+	AgentName string `json:"agent_name,omitempty"`
+}
+
+// GetAgentName returns the agent name for events embedding AgentContext.
+func (a AgentContext) GetAgentName() string { return a.AgentName }
 
 type ToolCallEvent struct {
 	Type     string         `json:"type"`
 	ToolCall tools.ToolCall `json:"tool_call"`
+	AgentContext
 }
 
-func ToolCall(toolCall tools.ToolCall) Event {
+func ToolCall(toolCall tools.ToolCall, agentName string) Event {
 	return &ToolCallEvent{
-		Type:     "tool_call",
-		ToolCall: toolCall,
+		Type:         "tool_call",
+		ToolCall:     toolCall,
+		AgentContext: AgentContext{AgentName: agentName},
 	}
 }
 
 func (e *ToolCallEvent) isEvent() {}
 
 type ToolCallConfirmationEvent struct {
-	Type      string         `json:"type"`
-	ToolCall  tools.ToolCall `json:"tool_call"`
-	AgentName string         `json:"agent_name"`
+	Type     string         `json:"type"`
+	ToolCall tools.ToolCall `json:"tool_call"`
+	AgentContext
 }
 
 func ToolCallConfirmation(toolCall tools.ToolCall, agentName string) Event {
 	return &ToolCallConfirmationEvent{
-		Type:      "tool_call_confirmation",
-		ToolCall:  toolCall,
-		AgentName: agentName,
+		Type:         "tool_call_confirmation",
+		ToolCall:     toolCall,
+		AgentContext: AgentContext{AgentName: agentName},
 	}
 }
 func (e *ToolCallConfirmationEvent) isEvent() {}
@@ -40,28 +53,30 @@ type ToolCallResponseEvent struct {
 	Type     string         `json:"type"`
 	ToolCall tools.ToolCall `json:"tool_call"`
 	Response string         `json:"response"`
+	AgentContext
 }
 
-func ToolCallResponse(toolCall tools.ToolCall, response string) Event {
+func ToolCallResponse(toolCall tools.ToolCall, response string, agentName string) Event {
 	return &ToolCallResponseEvent{
-		Type:     "tool_call_response",
-		ToolCall: toolCall,
-		Response: response,
+		Type:         "tool_call_response",
+		ToolCall:     toolCall,
+		Response:     response,
+		AgentContext: AgentContext{AgentName: agentName},
 	}
 }
 func (e *ToolCallResponseEvent) isEvent() {}
 
 type AgentChoiceEvent struct {
 	Type   string                   `json:"type"`
-	Agent  string                   `json:"agent"`
 	Choice chat.MessageStreamChoice `json:"choice"`
+	AgentContext
 }
 
-func AgentChoice(agent string, choice chat.MessageStreamChoice) Event { //nolint:gocritic
+func AgentChoice(agentName string, choice chat.MessageStreamChoice) Event { //nolint:gocritic
 	return &AgentChoiceEvent{
-		Type:   "agent_choice",
-		Agent:  agent,
-		Choice: choice,
+		Type:         "agent_choice",
+		Choice:       choice,
+		AgentContext: AgentContext{AgentName: agentName},
 	}
 }
 func (e *AgentChoiceEvent) isEvent() {}
@@ -69,6 +84,7 @@ func (e *AgentChoiceEvent) isEvent() {}
 type ErrorEvent struct {
 	Type  string `json:"type"`
 	Error string `json:"error"`
+	AgentContext
 }
 
 func Error(msg string) Event {
@@ -82,6 +98,7 @@ func (e *ErrorEvent) isEvent() {}
 type TokenUsageEvent struct {
 	Type  string `json:"type"`
 	Usage *Usage `json:"usage"`
+	AgentContext
 }
 
 type Usage struct {
@@ -110,6 +127,7 @@ type SessionTitleEvent struct {
 	Type      string `json:"type"`
 	SessionID string `json:"session_id"`
 	Title     string `json:"title"`
+	AgentContext
 }
 
 func SessionTitle(sessionID, title string) Event {
@@ -125,6 +143,7 @@ type SessionSummaryEvent struct {
 	Type      string `json:"type"`
 	SessionID string `json:"session_id"`
 	Summary   string `json:"summary"`
+	AgentContext
 }
 
 func SessionSummary(sessionID, summary string) Event {
@@ -140,6 +159,7 @@ type SessionCompactionEvent struct {
 	Type      string `json:"type"`
 	SessionID string `json:"session_id"`
 	Status    string `json:"status"`
+	AgentContext
 }
 
 func SessionCompaction(sessionID, status string) Event {
