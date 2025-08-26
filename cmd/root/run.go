@@ -241,9 +241,9 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 					}
 					fmt.Println()
 				}
-				printAgentName(agentName)
+				printAgentName(event.GetAgentName())
 				firstLoop = false
-				lastAgent = agentName
+				lastAgent = event.GetAgentName()
 			}
 			lastErr = nil
 			switch e := event.(type) {
