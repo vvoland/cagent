@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/internal/creator"
@@ -30,13 +29,14 @@ func NewNewCmd() *cobra.Command {
 			} else {
 				reader := bufio.NewReader(os.Stdin)
 
-				fmt.Print("What should your agent do? (describe its purpose): ")
+				fmt.Print(blue("Welcome to %s! (Ctrl+C to exit)\n\nWhat should your agent/agent team do? (describe its purpose):\n\n> ", bold(APP_NAME)))
 				var err error
 				prompt, err = reader.ReadString('\n')
 				if err != nil {
 					return fmt.Errorf("failed to read purpose: %w", err)
 				}
 				prompt = strings.TrimSpace(prompt)
+				fmt.Println()
 			}
 
 			out, err := creator.StreamCreateAgent(ctx, ".", logger, prompt, runConfig)
@@ -44,22 +44,37 @@ func NewNewCmd() *cobra.Command {
 				return err
 			}
 
-			yellow := color.New(color.FgYellow).SprintfFunc()
-			green := color.New(color.FgGreen).SprintfFunc()
+			llmIsTyping := false
 
 			for event := range out {
 				switch e := event.(type) {
 				case *runtime.AgentChoiceEvent:
+					if !llmIsTyping {
+						fmt.Println()
+						llmIsTyping = true
+					}
 					fmt.Printf("%s", e.Choice.Delta.Content)
 				case *runtime.ToolCallEvent:
-					fmt.Printf("%s", yellow("\n%s(%s)\n", e.ToolCall.Function.Name, e.ToolCall.Function.Arguments))
+					if llmIsTyping {
+						fmt.Println()
+						llmIsTyping = false
+					}
+					printToolCall(e.ToolCall)
 				case *runtime.ToolCallResponseEvent:
-					fmt.Printf("%s", green("done(%s)\n", e.ToolCall.Function.Name))
+					if llmIsTyping {
+						fmt.Println()
+						llmIsTyping = false
+					}
+					printToolCallResponse(e.ToolCall, e.Response)
 				case *runtime.ErrorEvent:
-					fmt.Printf("%s\n", e.Error)
+					if llmIsTyping {
+						fmt.Println()
+						llmIsTyping = false
+					}
+					printError(fmt.Errorf("%s", e.Error))
 				}
 			}
-
+			fmt.Print("\n\n")
 			return nil
 		},
 	}

@@ -56,7 +56,7 @@ type ToolCallResponseEvent struct {
 	AgentContext
 }
 
-func ToolCallResponse(toolCall tools.ToolCall, response string, agentName string) Event {
+func ToolCallResponse(toolCall tools.ToolCall, response, agentName string) Event {
 	return &ToolCallResponseEvent{
 		Type:         "tool_call_response",
 		ToolCall:     toolCall,
