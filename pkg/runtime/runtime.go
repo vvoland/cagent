@@ -152,7 +152,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				r.logger.Error("Failed to get agent tools", "agent", a.Name(), "error", err)
 				sessionSpan.RecordError(err)
 				sessionSpan.SetStatus(codes.Error, "failed to get tools")
-				events <- Error(fmt.Errorf("failed to get tools: %w", err))
+				events <- Error(fmt.Sprintf("failed to get tools: %v", err))
 				return
 			}
 			r.logger.Debug("Retrieved agent tools", "agent", a.Name(), "tool_count", len(agentTools))
@@ -168,7 +168,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				streamSpan.RecordError(err)
 				streamSpan.SetStatus(codes.Error, "creating chat completion")
 				r.logger.Error("Failed to create chat completion stream", "agent", a.Name(), "error", err)
-				events <- Error(fmt.Errorf("creating chat completion: %w", err))
+				events <- Error(fmt.Sprintf("creating chat completion: %v", err))
 				streamSpan.End()
 				return
 			}
@@ -179,7 +179,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				streamSpan.RecordError(err)
 				streamSpan.SetStatus(codes.Error, "error handling stream")
 				r.logger.Error("Error handling stream", "agent", a.Name(), "error", err)
-				events <- Error(err)
+				events <- Error(err.Error())
 				streamSpan.End()
 				return
 			}
@@ -228,7 +228,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			if err := r.processToolCalls(ctx, sess, calls, events); err != nil {
 				sessionSpan.RecordError(err)
 				sessionSpan.SetStatus(codes.Error, "process tool calls")
-				events <- Error(err)
+				events <- Error(err.Error())
 				return
 			}
 
@@ -263,7 +263,7 @@ func (r *Runtime) Run(ctx context.Context, sess *session.Session) ([]session.Mes
 
 	for event := range eventsChan {
 		if errEvent, ok := event.(*ErrorEvent); ok {
-			return nil, errEvent.Error
+			return nil, fmt.Errorf("%s", errEvent.Error)
 		}
 	}
 
@@ -589,9 +589,9 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 	for event := range r.RunStream(ctx, s) {
 		evts <- event
 		if errEvent, ok := event.(*ErrorEvent); ok {
-			span.RecordError(errEvent.Error)
+			span.RecordError(fmt.Errorf("%s", errEvent.Error))
 			span.SetStatus(codes.Error, "error in transferred session")
-			return nil, errEvent.Error
+			return nil, fmt.Errorf("%s", errEvent.Error)
 		}
 	}
 

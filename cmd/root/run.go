@@ -287,8 +287,8 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 					fmt.Println()
 					llmIsTyping = false
 				}
-				printError(e.Error)
-				lastErr = e.Error
+				lastErr = fmt.Errorf("%s", e.Error)
+				printError(lastErr)
 			}
 		}
 		return nil

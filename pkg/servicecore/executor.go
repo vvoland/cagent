@@ -130,7 +130,7 @@ func (e *Executor) ExecuteStream(rt *runtime.Runtime, sess *session.Session, age
 
 		case *runtime.ErrorEvent:
 			e.logger.Error("Runtime error event", "error", evt.Error)
-			return nil, fmt.Errorf("runtime execution error: %w", evt.Error)
+			return nil, fmt.Errorf("runtime execution error: %s", evt.Error)
 		default:
 			e.logger.Debug("Unknown event type", "event_type", fmt.Sprintf("%T", event))
 		}

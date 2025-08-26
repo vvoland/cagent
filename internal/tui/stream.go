@@ -54,7 +54,7 @@ func processStream(rt *runtime.Runtime, sess *session.Session, ch chan<- string,
 			case *runtime.ErrorEvent:
 				close(ch)
 				close(toolCh)
-				return errorMsg(e.Error)
+				return errorMsg(fmt.Errorf("%s", e.Error))
 			}
 		}
 

@@ -68,13 +68,13 @@ func (e *AgentChoiceEvent) isEvent() {}
 
 type ErrorEvent struct {
 	Type  string `json:"type"`
-	Error error  `json:"error"`
+	Error string `json:"error"`
 }
 
-func Error(err error) Event {
+func Error(msg string) Event {
 	return &ErrorEvent{
 		Type:  "error",
-		Error: err,
+		Error: msg,
 	}
 }
 func (e *ErrorEvent) isEvent() {}
