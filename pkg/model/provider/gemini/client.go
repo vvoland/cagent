@@ -36,8 +36,8 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		return nil, errors.New("model configuration is required")
 	}
 
-	if cfg.Provider != "gemini" {
-		return nil, errors.New("model type must be 'gemini'")
+	if cfg.Provider != "google" {
+		return nil, errors.New("model type must be 'google'")
 	}
 
 	var modelOptions options.ModelOptions

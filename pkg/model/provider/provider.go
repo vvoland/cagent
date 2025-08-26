@@ -44,7 +44,7 @@ func New(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider,
 	case "anthropic":
 		return anthropic.NewClient(ctx, cfg, env, logger, opts...)
 
-	case "gemini":
+	case "google":
 		return gemini.NewClient(ctx, cfg, env, logger, opts...)
 
 	case "dmr":
