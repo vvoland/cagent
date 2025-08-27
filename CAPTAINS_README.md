@@ -41,6 +41,8 @@ agents:
 
 #### **Set your API key:**
 
+Based on the models you configure your agents to use, you will need to set the corresponding provider API key accordingly.
+
 ```bash
 # For OpenAI models
 export OPENAI_API_KEY=your_api_key_here
@@ -63,12 +65,6 @@ cagent run my-agent.yaml -a root
 ### Multi agent team example
 
 ```yaml
-models:
-  claude:
-    provider: anthropic
-    model: claude-sonnet-4-0
-    max_tokens: 64000
-
 agents:
   root:
     model: claude
@@ -96,6 +92,12 @@ agents:
       4. Report back to the root agent with your results
       
       Focus on being thorough and helpful in whatever task you're given.
+
+models:
+  claude:
+    provider: anthropic
+    model: claude-sonnet-4-0
+    max_tokens: 64000
 ```
 
 ## 🎯 Core Concepts
@@ -187,6 +189,9 @@ models:
 ```
 
 #### Model Examples
+
+> ⚠️ **NOTE** ⚠️  
+> **More model names can be found [here](https://modelname.ai/)**
 
 ```yaml
 
@@ -320,14 +325,6 @@ agents:
         path: "./agent_memory.db"
 ```
 
-### Task Transfer Tool
-
-All agents automatically have access to the task transfer tool, which allows
-them to delegate tasks to other agents:
-
-```
-transfer_task(agent="developer", task="Create a login form", expected_output="HTML and CSS code")
-```
 ### Using tools via the Docker MCP Toolkit
 
 Using the `docker mcp gateway` command you can configure your agents with a set of MCP tools
