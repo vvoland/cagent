@@ -46,7 +46,26 @@ jobs:
       - name: Run tests
         run: task test
 
+  license-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.3"
+          cache: true
+
+      - name: Install go-licences
+        run: go install github.com/google/go-licenses@latest
+
+      - name: Check licenses
+        run: go-licenses check . --allowed_licenses=Apache-2.0,MIT,BSD-3-Clause,BSD-2-Clause
+
   build:
+    needs: [lint, test, license-check]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -102,7 +121,7 @@ jobs:
 
   build-for-release:
     runs-on: ubuntu-latest
-    needs: [lint, test, build]
+    needs: [lint, test, build, license-check]
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Checkout
@@ -150,7 +169,7 @@ jobs:
       pull-requests: write
       contents: write
     if: startsWith(github.ref, 'refs/tags/v')
-    uses: docker/desktop-action-private/.github/workflows/sign.yml@main # this requires adding the GH repo to https://github.com/docker/infra-terraform/blob/main/infra/aws/default/iam/ci_desktop_signing.tf#L32
+    uses: docker/desktop-action-private/.github/workflows/sign.yml@main
     with:
       artifacts-name: dist
       filter-win: windows_*/*
