@@ -1,9 +1,8 @@
 # CRUSH.md - Development Guide for cagent
 
 ## Build & Test Commands
-- `task build` - Build application binary (includes web frontend)
-- `task build-web` - Build React frontend only
-- `task test` - Run all Go tests (requires web build first)
+- `task build` - Build application binary
+- `task test` - Run all Go tests
 - `go test ./pkg/servicecore` - Run tests for specific package
 - `go test -run TestStoreBasicOperations ./pkg/content` - Run single test
 - `task lint` - Run golangci-lint with gocritic, revive rules

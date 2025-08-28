@@ -23,7 +23,7 @@ key characteristics:
 graph TB
     subgraph "Transport Layer"
         MCP[MCP Server]
-        HTTP[HTTP/Web Server]
+        HTTP[HTTP/API Server]
         CLI[CLI Interface]
         TUI[TUI Interface]
     end
@@ -125,13 +125,7 @@ The transport layer provides multiple interfaces for interacting with cagent:
 - Direct agent execution for local development and testing
 - Interactive chat interface with streaming responses
 - Session commands: /exit, /eval, /reset
-- Support for both file-based and store-based agents
-
-#### Web Interface (`cmd/root/web.go`)
-
-- HTTP server for web-based interactions
-- Session database integration
-- Multi-agent support via directory-based configuration
+- Support for both file-based and store-based agentsF
 
 #### TUI Interface (`cmd/root/tui.go`)
 
@@ -879,7 +873,6 @@ func (r *CustomResolver) ResolveAgent(agentSpec string) (string, error) {
 - ✅ **Session Management**: Conversation state and message history
 - ✅ **Agent Store**: Docker registry integration for agent distribution
 - ✅ **CLI Interface**: Direct agent execution and interaction
-- ✅ **Web Interface**: HTTP server with session database
 - ✅ **Configuration System**: YAML-based agent and model definitions
 
 ### Architecture Limitations

@@ -6,9 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Build and Development
 
-- `task build` - Build the application binary (depends on `build-web`)
-- `task build-web` - Build the frontend React application
-- `task test` - Run Go tests (depends on `build-web`)
+- `task build` - Build the application binary 
+- `task test` - Run Go tests
 - `task lint` - Run golangci-lint
 - `task link` - Create symlink to ~/bin for easy access
 
@@ -22,7 +21,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - `./bin/cagent run <config.yaml>` - Run agent with configuration
 - `./bin/cagent run <config.yaml> -a <agent_name>` - Run specific agent
-- `./bin/cagent web -d <config_dir> <session.db>` - Start web interface
 - `./bin/cagent tui <config.yaml>` - Start TUI interface
 - `./bin/cagent mcp server --port 8080 --path /mcp --agents-dir <config_dir>` - Start MCP server mode
 - `./bin/cagent init` - Initialize new project
@@ -75,7 +73,7 @@ cagent is a multi-agent AI system with hierarchical agent structure and pluggabl
 
 #### Command Layer (`cmd/root/`)
 
-- **Multiple interfaces**: CLI (`run.go`), Web (`web.go`), TUI (`tui.go`), API (`api.go`), MCP server (`mcp.go`)
+- **Multiple interfaces**: CLI (`run.go`), TUI (`tui.go`), API (`api.go`), MCP server (`mcp.go`)
 - **Interactive commands**: `/exit`, `/reset`, `/eval` during sessions
 - **Debug support**: `--debug` flag for detailed logging
 - **MCP server mode**: SSE-based transport for external MCP clients like Claude Code
@@ -145,7 +143,6 @@ agents:
 
 - Tests located alongside source files (`*_test.go`)
 - Run `task test` to execute full test suite
-- Web frontend must be built before running Go tests
 
 ### Configuration Validation
 
@@ -158,16 +155,7 @@ agents:
 - Follow existing patterns in `pkg/` directories
 - Implement proper interfaces for providers and tools
 - Add configuration support if needed
-- Consider both CLI and web interface impacts
-
-### Web Frontend (`web/`)
-
-- React/TypeScript application with Tailwind CSS and Radix UI components
-- Build with `npm run build` or `task build-web` (required before Go build)
-- Embedded in Go binary via `embed.go`
-- Real-time communication with backend via SSE/WebSocket
-- Includes dark mode toggle, syntax highlighting, and responsive design
-- Uses Vite for development and bundling
+- Consider both CLI and TUI interface impacts, along with API server impacts
 
 ### Key Patterns
 
@@ -310,7 +298,6 @@ agents:
 
 - `examples/config/` - Sample agent configurations
 - Root directory - Main project configurations (Taskfile.yml, go.mod)
-- `web/` - Frontend React application
 
 ### Environment Variables
 
@@ -328,7 +315,6 @@ agents:
 
 ### Common Issues
 
-- **Web build required**: Run `task build-web` before `task build` or `task test`
 - **Agent not found**: Check agent name matches config file agent definitions
 - **Tool startup failures**: Verify MCP tool commands and dependencies are available
 - **Multi-tenant sessions**: Remember all MCP clients currently share sessions

@@ -19,7 +19,7 @@ var (
 	runConfig  latest.RuntimeConfig
 )
 
-// NewWebCmd creates a new web command
+// NewApiCmd creates a new api command
 func NewApiCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "api <agent-file>|<agents-dir>",

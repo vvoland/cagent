@@ -11,7 +11,7 @@ agents with specialized capabilities and tools. It features:
 - **🏗️ Multi-tenant architecture** with client isolation and session management
 - **🔧 Rich tool ecosystem** via Model Context Protocol (MCP) integration
 - **🤖 Hierarchical agent system** with intelligent task delegation
-- **🌐 Multiple interfaces** including CLI, Web UI, TUI, API server, and MCP server
+- **🌐 Multiple interfaces** including CLI, TUI, API server, and MCP server
 - **📦 Agent distribution** via Docker registry integration
 - **🔒 Security-first design** with proper client scoping and resource isolation
 - **⚡ Event-driven streaming** for real-time interactions
@@ -55,9 +55,6 @@ agents with specialized capabilities and tools. It features:
    ```bash
    # Interactive CLI mode
    ./bin/cagent run examples/config/agent.yaml
-
-   # Or start the web interface
-   ./bin/cagent web -d ./examples/config /tmp/session.db
 
    # Or start as MCP server for external clients
    ./bin/cagent mcp server --agents-dir ./examples/config --port 8080
@@ -220,10 +217,6 @@ $ ./bin/cagent run config.yaml
 $ ./bin/cagent run config.yaml -a agent_name  # Run specific agent
 $ ./bin/cagent run config.yaml --debug        # Enable debug logging
 
-# Web Interface (recommended for multi-session use)
-$ ./bin/cagent web -d ./config_directory /tmp/session.db
-$ ./bin/cagent web -d ./config_directory /tmp/session.db --port 3000
-
 # Terminal UI
 $ ./bin/cagent tui config.yaml
 
@@ -256,14 +249,6 @@ During CLI sessions, you can use special commands:
 | `/exit`  | Exit the program                         |
 | `/reset` | Clear conversation history               |
 | `/eval`  | Save current conversation for evaluation |
-
-#### Web Interface Features
-
-- **Multi-session management**: Create and switch between multiple agent sessions
-- **Session persistence**: Conversations saved to SQLite database
-- **Real-time streaming**: Live updates as agents process requests
-- **Agent switching**: Easy switching between different agents in the same session
-- **History management**: Full conversation history with search and export
 
 #### MCP Server Mode
 
@@ -505,13 +490,6 @@ models:
 
 ### Session Management
 
-**Web Interface Sessions:**
-
-- Persistent SQLite storage
-- Multi-agent conversations in single session
-- Session history and search
-- Export capabilities
-
 **MCP Server Sessions:**
 
 - Client-isolated sessions
@@ -548,11 +526,10 @@ models:
 ### Production Deployment
 
 1. **MCP Server Mode**: Use MCP server for external integrations
-2. **Web Interface**: Use web mode for multi-user scenarios
-3. **Session Limits**: Configure appropriate session limits and timeouts
-4. **Monitoring**: Enable debug logging for troubleshooting
-5. **Resource Management**: Monitor memory and CPU usage for concurrent sessions
-6. **Client Isolation**: Ensure proper client scoping in multi-tenant deployments
+2. **Session Limits**: Configure appropriate session limits and timeouts
+3. **Monitoring**: Enable debug logging for troubleshooting
+4. **Resource Management**: Monitor memory and CPU usage for concurrent sessions
+5. **Client Isolation**: Ensure proper client scoping in multi-tenant deployments
 
 ## Troubleshooting
 
@@ -584,8 +561,7 @@ models:
 
 **Session and connectivity issues:**
 
-- Verify port availability for web/MCP server modes
-- Check SQLite database permissions for web interface
+- Verify port availability for MCP server modes
 - Test MCP endpoint accessibility (curl test)
 - Verify client isolation in multi-tenant scenarios
 - Check session timeouts and limits
@@ -604,9 +580,6 @@ Enable debug logging for detailed information:
 ```bash
 # CLI mode
 ./bin/cagent run config.yaml --debug
-
-# Web interface
-./bin/cagent web -d ./config /tmp/session.db --debug
 
 # MCP server
 ./bin/cagent mcp server --agents-dir ./config --debug
