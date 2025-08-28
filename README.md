@@ -1,16 +1,14 @@
 # 🤖 `cagent` 🤖
 
 > A powerful, customizable multi-agent system that orchestrates AI agents with
-specialized capabilities and tools.
-
-
+> specialized capabilities and tools.
 
 ![cagent in action](docs/assets/cagent-run.gif)
 
 ## ✨ What is `cagent`? ✨
 
 `cagent` enables you to create and run intelligent agent teams where each agent has
-specialized knowledge, tools, and capabilities.  
+specialized knowledge, tools, and capabilities.
 
 Think of it as allowing you to quickly build a virtual team of experts that can collaborate to solve complex problems.
 
@@ -37,9 +35,9 @@ Note that `cagent` is in active development and there will be likely breaking ch
 
 Prebuilt binaries for Windows, MacOS and Linux can be found on the releases page of the [project's GitHub repository](https://github.com/docker/cagent/releases)
 
-Once you've downloaded the appropriate bianry for your platform, you may need to give it executable permissions.  
+Once you've downloaded the appropriate bianry for your platform, you may need to give it executable permissions.
 
-On MacOS and Linux, this can be done with the following command:  
+On MacOS and Linux, this can be done with the following command:
 
 ```sh
 # linux amd64 build example
@@ -50,7 +48,7 @@ You can then rename the binary to `cagent` and configure your `PATH` to be able 
 
 #### Build from source
 
-If you're hacking on `cagent`, or just want to be on the bleeding edge, then building from source is a must.  
+If you're hacking on `cagent`, or just want to be on the bleeding edge, then building from source is a must.
 
 Here's what you need to know:
 
@@ -154,7 +152,7 @@ agents:
       2. Provide detailed and accurate responses
       3. Ask for clarification if tasks are unclear
       4. Report back to the root agent with your results
-      
+
       Focus on being thorough and helpful in whatever task you're given.
 
 models:
@@ -181,9 +179,9 @@ models:
 
 ## Quickly generate agents and agent teams with `cagent new`
 
-Using the command `cagent new` you can quickly generate agents or multi agent teams using a single prompt! `cagent` has a built-in agent dedicated to this task.  
+Using the command `cagent new` you can quickly generate agents or multi agent teams using a single prompt! `cagent` has a built-in agent dedicated to this task.
 
-To use the feature, you must have an Anthropic API key available in your environment  
+To use the feature, you must have an Anthropic API key available in your environment
 
 `export ANTHROPIC_API_KEY=your_api_key_here`
 
@@ -201,27 +199,27 @@ What should your agent/agent team do? (describe its purpose):
 
 ### Agent Properties
 
-| Property      | Type    | Description                     | Required |
-| ------------- | ------- | ------------------------------- | -------- |
-| `name`        | string  | Agent identifier                | ✓        |
-| `model`       | string  | Model reference                 | ✓        |
-| `description` | string  | Agent purpose                   | ✓        |
-| `instruction` | string  | Detailed behavior instructions  | ✓        |
-| `sub_agents`  | array   | List of sub-agent names         | ✗        |
-| `toolsets`    | array   | Available tools                 | ✗        |
-| `add_date`    | boolean | Add current date to context     | ✗        |
+| Property      | Type    | Description                    | Required |
+| ------------- | ------- | ------------------------------ | -------- |
+| `name`        | string  | Agent identifier               | ✓        |
+| `model`       | string  | Model reference                | ✓        |
+| `description` | string  | Agent purpose                  | ✓        |
+| `instruction` | string  | Detailed behavior instructions | ✓        |
+| `sub_agents`  | array   | List of sub-agent names        | ✗        |
+| `toolsets`    | array   | Available tools                | ✗        |
+| `add_date`    | boolean | Add current date to context    | ✗        |
 
 #### Example
 
 ```yaml
 agents:
   agent_name:
-    model: string       # Model reference
+    model: string # Model reference
     description: string # Agent purpose
     instruction: string # Detailed behavior instructions
-    tools: []           # Available tools (optional)
-    sub_agents: []      # Sub-agent names (optional)
-    add_date: boolean   # Add current date to context (optional)
+    tools: [] # Available tools (optional)
+    sub_agents: [] # Sub-agent names (optional)
+    add_date: boolean # Add current date to context (optional)
 ```
 
 ### Model Properties
@@ -242,13 +240,13 @@ agents:
 ```yaml
 models:
   model_name:
-    type: string             # Provider: openai, anthropic, google, dmr
-    model: string            # Model name: gpt-4o, claude-3-5-sonnet-latest, gemini-2.5-flash, qwen3:4B, ...
-    temperature: float       # Randomness (0.0-1.0)
-    max_tokens: integer      # Response length limit
-    top_p: float             # Nucleus sampling (0.0-1.0)
+    type: string # Provider: openai, anthropic, google, dmr
+    model: string # Model name: gpt-4o, claude-3-5-sonnet-latest, gemini-2.5-flash, qwen3:4B, ...
+    temperature: float # Randomness (0.0-1.0)
+    max_tokens: integer # Response length limit
+    top_p: float # Nucleus sampling (0.0-1.0)
     frequency_penalty: float # Repetition penalty (0.0-2.0)
-    presence_penalty: float  # Topic repetition penalty (0.0-2.0)
+    presence_penalty: float # Topic repetition penalty (0.0-2.0)
     parallel_tool_calls: boolean
 ```
 
@@ -290,7 +288,7 @@ models:
 
 More information on the idea can be found [here](https://xbow.com/blog/alloy-agents)
 
-To have an agent use an alloy model, you can define more than one model in the `model` field, separated by commas.  
+To have an agent use an alloy model, you can define more than one model in the `model` field, separated by commas.
 
 Example:
 
@@ -300,7 +298,6 @@ agents:
     model: anthropic/claude-sonnet-4-0,openai/gpt-5-mini
     ...
 ```
-
 
 ### Tool Configuration
 
@@ -334,11 +331,11 @@ toolsets:
 ```yaml
 toolsets:
   - type: filesystem # Grants the agent filesystem access
-  - type: think      # Enables the think tool
-  - type: todo       # Enable the todo list tool
-    shared: boolean  # Should the todo list be shared between agents (optional)
-  - type: memory     # Allows the agent to store memories to a local sqlite db
-    path: ./mem.db   # Path to the sqlite database for memory storage (optional)
+  - type: think # Enables the think tool
+  - type: todo # Enable the todo list tool
+    shared: boolean # Should the todo list be shared between agents (optional)
+  - type: memory # Allows the agent to store memories to a local sqlite db
+    path: ./mem.db # Path to the sqlite database for memory storage (optional)
 ```
 
 ## Built-in Tools
@@ -436,12 +433,12 @@ cagent pull agentcatalog/pirate
 
 During CLI sessions, you can use special commands:
 
-| Command  | Description                              |
-| -------- | ---------------------------------------- |
-| `/exit`  | Exit the program                         |
-| `/reset` | Clear conversation history               |
-| `/eval`  | Save current conversation for evaluation |
-
+| Command    | Description                              |
+| ---------- | ---------------------------------------- |
+| `/exit`    | Exit the program                         |
+| `/reset`   | Clear conversation history               |
+| `/eval`    | Save current conversation for evaluation |
+| `/compact` | Compact the current session              |
 
 ## 🤝 Examples
 
