@@ -3,6 +3,10 @@
 > A powerful, customizable multi-agent system that orchestrates AI agents with
 specialized capabilities and tools.
 
+
+
+![cagent in action](docs/assets/cagent-run.gif)
+
 ## ✨ What is `cagent`? ✨
 
 `cagent` enables you to create and run intelligent agent teams where each agent has
