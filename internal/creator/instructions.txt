@@ -178,15 +178,3 @@ model_name:
     model: string # Model name: gpt-4o, claude-3-5-sonnet-latest
     max_tokens: integer # Response length limit
 ```
-
-For the model, always use this:
-
-```yaml
-version: "1"
-
-models:
-  claude:
-    provider: anthropic
-    model: claude-sonnet-4-0
-    max_tokens: 64000
-```

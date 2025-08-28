@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"strings"
 
 	"github.com/sashabaranov/go-openai"
 
@@ -202,8 +203,13 @@ func (c *Client) CreateChatCompletionStream(
 	}
 
 	if c.config.MaxTokens > 0 {
-		request.MaxTokens = c.config.MaxTokens
-		c.logger.Debug("OpenAI request configured with max tokens", "max_tokens", c.config.MaxTokens)
+		if !isResponsesOnlyModel(c.config.Model) {
+			request.MaxTokens = c.config.MaxTokens
+			c.logger.Debug("OpenAI request configured with max tokens", "max_tokens", c.config.MaxTokens)
+		} else {
+			request.MaxCompletionTokens = c.config.MaxTokens
+			c.logger.Debug("using max_completion_tokens instead of max_tokens for Responses-API models", "model", c.config.Model)
+		}
 	}
 
 	if len(requestTools) > 0 {
@@ -240,8 +246,16 @@ func (c *Client) CreateChatCompletionStream(
 	}
 	stream, err := client.CreateChatCompletionStream(ctx, request)
 	if err != nil {
-		c.logger.Error("OpenAI stream creation failed", "error", err, "model", c.config.Model)
-		return nil, err
+		// Fallback for future models: retry without max_tokens if server complains
+		if isMaxTokensUnsupportedError(err) {
+			c.logger.Debug("Retrying OpenAI stream without max_tokens due to server requirement", "model", c.config.Model)
+			request.MaxTokens = 0
+			stream, err = client.CreateChatCompletionStream(ctx, request)
+		}
+		if err != nil {
+			c.logger.Error("OpenAI stream creation failed", "error", err, "model", c.config.Model)
+			return nil, err
+		}
 	}
 
 	c.logger.Debug("OpenAI chat completion stream created successfully", "model", c.config.Model)
@@ -259,6 +273,15 @@ func (c *Client) CreateChatCompletion(
 		Messages: convertMessages(messages),
 	}
 
+	// Set appropriate token limit depending on model family
+	if c.config.MaxTokens > 0 {
+		if isResponsesOnlyModel(c.config.Model) {
+			request.MaxCompletionTokens = c.config.MaxTokens
+		} else {
+			request.MaxTokens = c.config.MaxTokens
+		}
+	}
+
 	if c.config.ParallelToolCalls != nil {
 		request.ParallelToolCalls = *c.config.ParallelToolCalls
 	}
@@ -270,12 +293,48 @@ func (c *Client) CreateChatCompletion(
 	}
 	response, err := client.CreateChatCompletion(ctx, request)
 	if err != nil {
-		c.logger.Error("OpenAI chat completion failed", "error", err, "model", c.config.Model)
-		return "", err
+		// Fallback for future models: retry without max_tokens if server complains
+		if isMaxTokensUnsupportedError(err) {
+			c.logger.Debug("Retrying OpenAI request without max_tokens due to server requirement", "model", c.config.Model)
+			request.MaxTokens = 0
+			request.MaxCompletionTokens = c.config.MaxTokens
+			response, err = client.CreateChatCompletion(ctx, request)
+		}
+		if err != nil {
+			c.logger.Error("OpenAI chat completion failed", "error", err, "model", c.config.Model)
+			return "", err
+		}
 	}
 
 	c.logger.Debug("OpenAI chat completion successful", "model", c.config.Model, "response_length", len(response.Choices[0].Message.Content))
 	return response.Choices[0].Message.Content, nil
+}
+
+// isResponsesOnlyModel returns true for newer OpenAI models that use the Responses API
+// and expect max_completion_tokens/max_output_tokens instead of max_tokens
+func isResponsesOnlyModel(model string) bool {
+	m := strings.ToLower(model)
+	if strings.HasPrefix(m, "gpt-4.1") {
+		return true
+	}
+	if strings.HasPrefix(m, "o1") || strings.HasPrefix(m, "o3") || strings.HasPrefix(m, "o4") {
+		return true
+	}
+	if strings.HasPrefix(m, "gpt-5") {
+		return true
+	}
+	return false
+}
+
+// isMaxTokensUnsupportedError returns true if the error indicates the server expects
+// max_completion_tokens instead of max_tokens (Responses API models)
+func isMaxTokensUnsupportedError(err error) bool {
+	if err == nil {
+		return false
+	}
+	e := strings.ToLower(err.Error())
+	return strings.Contains(e, "this model is not supported maxtokens") ||
+		strings.Contains(e, "use maxcompletiontokens")
 }
 
 func (c *Client) ID() string {

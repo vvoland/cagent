@@ -13,6 +13,9 @@ import (
 	"github.com/docker/cagent/pkg/runtime"
 )
 
+var modelProvider string
+var modelName string
+
 // Cmd creates a new command to create a new agent configuration
 func NewNewCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -22,6 +25,32 @@ func NewNewCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			logger := slog.Default()
+
+			// Validate flag combinations immediately: --model requires explicit --provider
+			flags := cmd.Flags()
+			if flags.Changed("model") && !flags.Changed("provider") {
+				return fmt.Errorf("--model can only be used together with --provider")
+			}
+
+			// Auto-select provider if none explicitly provided (before any prompts)
+			if !flags.Changed("provider") {
+				if runConfig.ModelsGateway == "" {
+					// Prefer Anthropic, then OpenAI, then Google based on available API keys
+					switch {
+					case os.Getenv("ANTHROPIC_API_KEY") != "":
+						modelProvider = "anthropic"
+					case os.Getenv("OPENAI_API_KEY") != "":
+						modelProvider = "openai"
+					case os.Getenv("GOOGLE_API_KEY") != "":
+						modelProvider = "google"
+					default:
+						return fmt.Errorf("no provider credentials found; set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_API_KEY, or pass --provider")
+					}
+				} else {
+					// Using Models Gateway; default to Anthropic if not specified
+					modelProvider = "anthropic"
+				}
+			}
 
 			prompt := ""
 			if len(args) > 0 {
@@ -39,7 +68,7 @@ func NewNewCmd() *cobra.Command {
 				fmt.Println()
 			}
 
-			out, err := creator.StreamCreateAgent(ctx, ".", logger, prompt, runConfig)
+			out, err := creator.StreamCreateAgent(ctx, ".", logger, prompt, runConfig, modelProvider, modelName)
 			if err != nil {
 				return err
 			}
@@ -79,6 +108,8 @@ func NewNewCmd() *cobra.Command {
 		},
 	}
 	addGatewayFlags(cmd)
+	cmd.PersistentFlags().StringVar(&modelProvider, "provider", "", "Model provider to use: anthropic, openai, google. if not specified, they will be picked in that order based on available API keys")
+	cmd.PersistentFlags().StringVar(&modelName, "model", "", "Model to use (overrides provider default)")
 
 	return cmd
 }

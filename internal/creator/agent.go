@@ -6,11 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/docker/cagent/pkg/agent"
 	latest "github.com/docker/cagent/pkg/config/v1"
 	"github.com/docker/cagent/pkg/environment"
+	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/model/provider/anthropic"
 	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/runtime"
@@ -119,12 +122,54 @@ func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, promp
 	return messages[len(messages)-1].Message.Content, fsToolset.path, nil
 }
 
-func StreamCreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, prompt string, runConfig latest.RuntimeConfig) (<-chan runtime.Event, error) {
-	llm, err := anthropic.NewClient(
+func StreamCreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, prompt string, runConfig latest.RuntimeConfig, providerName, modelNameOverride string) (<-chan runtime.Event, error) {
+	// Select default model per provider
+	prov := providerName
+
+	var modelName string
+	switch prov {
+	case "openai":
+		modelName = "gpt-5-mini"
+	case "google":
+		modelName = "gemini-2.5-flash"
+	case "anthropic", "":
+		prov = "anthropic"
+		modelName = "claude-sonnet-4-0"
+	default:
+		// Fallback to anthropic if unknown
+		prov = "anthropic"
+		modelName = "claude-sonnet-4-0"
+	}
+
+	// If a specific model override is provided, use it
+	if modelNameOverride != "" {
+		modelName = modelNameOverride
+	}
+
+	// If not using a models gateway, avoid selecting a provider the user can't run
+	usableProviders := []string{}
+	if runConfig.ModelsGateway == "" {
+		if os.Getenv("OPENAI_API_KEY") != "" {
+			usableProviders = append(usableProviders, "openai")
+		}
+		if os.Getenv("ANTHROPIC_API_KEY") != "" {
+			usableProviders = append(usableProviders, "anthropic")
+		}
+		if os.Getenv("GOOGLE_API_KEY") != "" {
+			usableProviders = append(usableProviders, "google")
+		}
+	}
+	modelsPerProvider := map[string]string{
+		"openai":    "gpt-5-mini",
+		"anthropic": "claude-sonnet-4-0",
+		"google":    "gemini-2.5-flash",
+	}
+
+	llm, err := provider.New(
 		ctx,
 		&latest.ModelConfig{
-			Provider:  "anthropic",
-			Model:     "claude-sonnet-4-0",
+			Provider:  prov,
+			Model:     modelName,
 			MaxTokens: 64000,
 		},
 		environment.NewDefaultProvider(logger),
@@ -139,12 +184,25 @@ func StreamCreateAgent(ctx context.Context, baseDir string, logger *slog.Logger,
 
 	fsToolset := fsToolset{inner: builtin.NewFilesystemTool([]string{baseDir})}
 	fileName := filepath.Base(fsToolset.path)
+
+	// Provide soft guidance to prefer the selected providers
+	instructions := agentBuilderInstructions + "\n\nPreferred model providers to use: " + strings.Join(usableProviders, ", ") + ". You must always use one or more of the following model configurations: \n"
+	for _, provider := range usableProviders {
+		instructions += fmt.Sprintf(`
+		version: "1"
+		models:
+			%s:
+				type: %s
+				model: %s
+				max_tokens: 64000\n`, provider, provider, modelsPerProvider[provider])
+	}
+
 	newTeam := team.New(
 		team.WithID(fileName),
 		team.WithAgents(
 			agent.New(
 				"root",
-				agentBuilderInstructions,
+				instructions,
 				agent.WithModel(llm),
 				agent.WithToolSets(
 					builtin.NewShellTool(),
