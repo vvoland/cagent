@@ -1,0 +1,29 @@
+Weekly Sync - Platform Team
+March 12, 2024
+Attendees: Sarah, Mike, Jennifer, Carlos (joined late ~10:15)
+So we started talking about the migration project... basically everyone agrees its taking way too long. Sarah mentioned that the database stuff is super complicated and we probably underestimated by like 2-3 weeks minimum.
+Action items from last week:
+
+Mike was supposed to review the API docs (didn't happen yet - swamped with prod issues)
+Jennifer finished the testing framework setup ✓
+Nobody remembered who was suppose to talk to the security team about the certificates thing
+
+Main Discussion Points
+The kubernetes cluster is acting weird again. Getting random pod restarts especially during peak hours (usually around 2-3pm). Carlos thinks its probably memory leaks in the new service but we need to actually check the logs properly. Someone should really look into this ASAP before it becomes a bigger problem.
+Budget conversation - apparently we're over budget on AWS by like $4k this month?? Need to figure out what's eating up all the resources. Probably those test environments that nobody ever shuts down. Mike suggested we just setup some automation to kill them after 24 hours but then Jennifer pointed out that would break the QA teams workflow so idk what we're doing about that.
+Random stuff that came up:
+
+Coffee machine is broken on 3rd floor (again)
+Team lunch next Friday - Carlos is organizing, thinking maybe thai food or pizza
+Sarah's gonna be OOO next Monday & Tuesday
+We really need to update our runbooks, they're like 6 months out of date
+
+Next steps:
+
+Someone needs to investigate the k8s issue (Mike volunteered)
+Set up meeting with finance about AWS costs
+Follow up on that security certificate thing (still don't know who's doing this??)
+Jennifer will send out the new testing guidelines by EOW
+
+Meeting ran over by 20 mins because we got sidetracked discussing whether to switch to Postgres or stick with MySQL. No decision made, pushing to next week.
+Note: Recording failed so these notes might be missing some stuff
