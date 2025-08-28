@@ -83,6 +83,8 @@ export GOOGLE_API_KEY=your_api_key_here    # For Gemini models
 ./bin/cagent run examples/config/code.yaml
 # or specify a different agent from the config
 ./bin/cagent run examples/config/code.yaml -a root
+# or run directly from an image reference
+./bin/cagent run agentcatalog/pirate
 ```
 
 ### Your First Agent
@@ -120,6 +122,8 @@ export GOOGLE_API_KEY=your_api_key_here
 cagent run my-agent.yaml
 # or specify a different starting agent from the config, useful for agent teams
 cagent run my-agent.yaml -a root
+# or run directly from an image reference
+./bin/cagent run agentcatalog/pirate
 ```
 
 ### Multi agent team example
