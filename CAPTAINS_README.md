@@ -39,7 +39,7 @@ agents:
       Be helpful, accurate, and concise in your responses.
 ```
 
-#### **Set your API key:**
+#### **Set your API keys:**
 
 Based on the models you configure your agents to use, you will need to set the corresponding provider API key accordingly.
 
@@ -263,12 +263,6 @@ toolsets:
       headers:
         key: value # HTTP headers. Mainly used for auth
     tools: [] # Optional: List of specific tools to enable
-  - type: filesystem
-  - type: think # Enable think tool (optional)
-  - type: todo # Enable the todo list tool (optional)
-    shared: boolean # Should the todo list be shared (optional)
-  - type: memory
-    path: # Path to the sqlite database for memory storage (optional)
 ```
 
 **Built-in tools**
@@ -325,10 +319,10 @@ agents:
         path: "./agent_memory.db"
 ```
 
-### Using tools via the Docker MCP Toolkit
+### Using tools via the Docker MCP Gateway
 
 Using the `docker mcp gateway` command you can configure your agents with a set of MCP tools
-delivered straight from Docker's MCP Toolkit.
+delivered straight from Docker's MCP Gateway.
 
 > you can check `docker mcp gateway run --help` for more information on how to use that command
 
