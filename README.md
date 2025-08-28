@@ -14,6 +14,8 @@ specialized knowledge, tools, and capabilities.
 
 Think of it as allowing you to quickly build a virtual team of experts that can collaborate to solve complex problems.
 
+Note that `cagent` is in active development and there will be likely breaking changes.
+
 ### 🎯 Key Features
 
 - **🏗️ Multi-agent architecture** - Create specialized agents for different
