@@ -181,9 +181,25 @@ models:
 
 Using the command `cagent new` you can quickly generate agents or multi agent teams using a single prompt! `cagent` has a built-in agent dedicated to this task.
 
-To use the feature, you must have an Anthropic API key available in your environment
+To use the feature, you must have an Anthropic, OpenAI or Google API key available in your environment.
 
-`export ANTHROPIC_API_KEY=your_api_key_here`
+If `--provider` is unspecified, `cagent new` will automatically choose between these 3 in order based on the first api key it finds in the environment
+
+```sh
+export ANTHROPIC_API_KEY=your_api_key_here  # first choice
+export OPENAI_API_KEY=your_api_key_here     # if anthropic key not set
+export GOOGLE_API_KEY=your_api_key_here     # if anthropic and openai keys not set
+```
+
+The model in use can also be overridden using `--model` (can only be used together with `--provider`)
+
+Example of provider and model overriding:
+
+```sh
+cagent new --provider openai --model gpt-5
+```
+
+---
 
 ```sh
 $ cagent new
