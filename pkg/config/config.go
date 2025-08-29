@@ -12,7 +12,7 @@ import (
 )
 
 // LoadConfigSecure loads the configuration from a file with path validation
-func LoadConfigSecure(path string, allowedDir string) (*v1.Config, error) {
+func LoadConfigSecure(path, allowedDir string) (*v1.Config, error) {
 	validatedPath, err := validatePathInDirectory(path, allowedDir)
 	if err != nil {
 		return nil, fmt.Errorf("path validation failed: %w", err)
