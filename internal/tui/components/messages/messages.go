@@ -28,6 +28,8 @@ type Model interface {
 	AddAssistantMessage() tea.Cmd
 	AddSeparatorMessage() tea.Cmd
 	AddOrUpdateToolCall(toolName string, arguments string, status types.ToolStatus) tea.Cmd
+	// AddToolResult adds a tool result message or updates existing tool call with result
+	AddToolResult(toolName string, result string, status types.ToolStatus) tea.Cmd
 	AppendToLastMessage(agentName string, content string) tea.Cmd
 	ClearMessages()
 	ScrollToBottom() tea.Cmd
@@ -326,6 +328,26 @@ func (m *model) AddOrUpdateToolCall(toolName, arguments string, status types.Too
 
 	// Initialize the new view
 	return view.Init()
+}
+
+// AddToolResult adds tool result to the most recent matching tool call
+func (m *model) AddToolResult(toolName, result string, status types.ToolStatus) tea.Cmd {
+	// Find the most recent tool call with this name and update it with the result
+	for i := len(m.messages) - 1; i >= 0; i-- {
+		msg := &m.messages[i]
+		if msg.Type == types.MessageTypeToolCall && msg.ToolName == toolName {
+			// Update the existing tool call message with the result content
+			msg.Content = result
+			msg.ToolStatus = status
+			// Update the corresponding view
+			view := m.createToolCallView(msg)
+			m.views[i] = view
+			// Initialize the updated view
+			return view.Init()
+		}
+	}
+
+	return nil
 }
 
 // AppendToLastMessage appends content to the last message (for streaming)

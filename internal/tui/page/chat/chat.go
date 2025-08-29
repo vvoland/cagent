@@ -232,7 +232,8 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
 	case *runtime.ToolCallResponseEvent:
 		spinnerCmd := p.sidebar.SetWorking(true)
-		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, msg.ToolCall.Function.Arguments, types.ToolStatusCompleted)
+		// Update the tool call with the response content and completed status
+		cmd := p.messages.AddToolResult(msg.ToolCall.Function.Name, msg.Response, types.ToolStatusCompleted)
 
 		// Return focus to editor after tool execution completes
 		p.setFocusToEditor()

@@ -159,6 +159,24 @@ func (mv *toolModel) Render(width int) string {
 
 	content := fmt.Sprintf("│ %s %s%s", icon, styles.HighlightStyle.Render(msg.ToolName), spinnerText)
 
+	// Add tool result content if available (for completed tools with content)
+	var resultContent string
+	if (msg.ToolStatus == types.ToolStatusCompleted || msg.ToolStatus == types.ToolStatusError) && msg.Content != "" {
+		// Split content into lines and take only first 10
+		lines := strings.Split(msg.Content, "\n")
+		if len(lines) > 10 {
+			lines = lines[:10]
+			// Add indicator that content was truncated
+			lines = append(lines, "... (output truncated)")
+		}
+
+		// Join the lines back and apply muted style
+		trimmedContent := strings.Join(lines, "\n")
+		if trimmedContent != "" {
+			resultContent = "\n" + styles.MutedStyle.Render(trimmedContent)
+		}
+	}
+
 	confirmationContent := ""
 	// Add confirmation options if in confirmation mode
 	if msg.ToolStatus == types.ToolStatusConfirmation {
@@ -177,9 +195,9 @@ func (mv *toolModel) Render(width int) string {
 
 	rendered, err := mv.renderer.Render(confirmationContent)
 	if err != nil {
-		return strings.TrimRight(content+confirmationContent, "\n\r\t")
+		return strings.TrimRight(content+confirmationContent+resultContent, "\n\r\t")
 	}
-	return styles.BaseStyle.PaddingLeft(2).PaddingTop(2).Render(content + strings.TrimRight(rendered, "\n\r\t "))
+	return styles.BaseStyle.PaddingLeft(2).PaddingTop(2).Render(content + strings.TrimRight(rendered, "\n\r\t ") + resultContent)
 }
 
 // Height calculates the height needed for this message view
