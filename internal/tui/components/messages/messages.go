@@ -6,7 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/v2/help"
 	"github.com/charmbracelet/bubbles/v2/key"
 	tea "github.com/charmbracelet/bubbletea/v2"
-	"github.com/charmbracelet/glamour"
+	"github.com/charmbracelet/glamour/v2"
 
 	"github.com/docker/cagent/internal/app"
 	"github.com/docker/cagent/internal/tui/components/message"
@@ -88,8 +88,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if cmd != nil {
 			cmds = append(cmds, cmd)
 		}
-		// Recalculate total height and adjust scroll position after resize
-		m.calculateTotalHeight()
 		// Ensure scroll position is still valid after resize
 		maxScroll := max(0, m.totalHeight-m.height)
 		if m.scrollOffset > maxScroll {
@@ -98,9 +96,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Continue processing other updates after resize
 
 	case tea.MouseWheelMsg:
-		// Ensure scroll bounds are up-to-date before applying deltas
-		m.calculateTotalHeight()
-
 		// Use a reasonable scroll amount (3 lines per wheel event)
 		const mouseScrollAmount = 3
 
@@ -183,7 +178,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View renders the component
 func (m *model) View() string {
-	m.calculateTotalHeight()
 	return m.renderVisibleViews()
 }
 
@@ -282,7 +276,6 @@ func (m *model) AddAssistantMessage() tea.Cmd {
 	}
 	if wasAtBottom {
 		// Scroll to bottom synchronously after adding content
-		m.calculateTotalHeight()
 		m.scrollToBottom()
 	}
 	return tea.Batch(cmds...)
@@ -357,7 +350,6 @@ func (m *model) AppendToLastMessage(agentName, content string) tea.Cmd {
 		}
 		if wasAtBottom {
 			// Scroll to bottom synchronously after content update
-			m.calculateTotalHeight()
 			m.scrollToBottom()
 		}
 		return tea.Batch(cmds...)
@@ -381,7 +373,6 @@ func (m *model) AppendToLastMessage(agentName, content string) tea.Cmd {
 		}
 		if wasAtBottom {
 			// Scroll to bottom synchronously after adding content
-			m.calculateTotalHeight()
 			m.scrollToBottom()
 		}
 		return tea.Batch(cmds...)
@@ -399,7 +390,6 @@ func (m *model) ClearMessages() {
 // ScrollToBottom scrolls to the bottom of the chat
 func (m *model) ScrollToBottom() tea.Cmd {
 	// Make this synchronous to prevent race conditions
-	m.calculateTotalHeight()
 	m.scrollToBottom()
 	return nil
 }
@@ -493,17 +483,15 @@ func (m *model) renderVisibleViews() string {
 }
 
 // Scrolling methods
-const defaultScrollAmount = 1 // Number of lines to scroll per scroll action
+const defaultScrollAmount = 3 // Number of lines to scroll per scroll action
 
 func (m *model) scrollUp() {
-	m.calculateTotalHeight() // Ensure bounds are current
 	if m.scrollOffset > 0 {
 		m.scrollOffset = max(0, m.scrollOffset-defaultScrollAmount)
 	}
 }
 
 func (m *model) scrollDown() {
-	m.calculateTotalHeight() // Ensure bounds are current
 	maxScroll := max(0, m.totalHeight-m.height)
 	if m.scrollOffset < maxScroll {
 		m.scrollOffset = min(maxScroll, m.scrollOffset+defaultScrollAmount)
@@ -511,12 +499,10 @@ func (m *model) scrollDown() {
 }
 
 func (m *model) scrollPageUp() {
-	m.calculateTotalHeight() // Ensure bounds are current
 	m.scrollOffset = max(0, m.scrollOffset-m.height)
 }
 
 func (m *model) scrollPageDown() {
-	m.calculateTotalHeight() // Ensure bounds are current
 	maxScroll := max(0, m.totalHeight-m.height)
 	m.scrollOffset = min(maxScroll, m.scrollOffset+m.height)
 }
@@ -526,8 +512,6 @@ func (m *model) scrollToTop() {
 }
 
 func (m *model) scrollToBottom() {
-	// Height should already be calculated by caller, but ensure it's current
-	m.calculateTotalHeight()
 	maxScroll := max(0, m.totalHeight-m.height)
 	m.scrollOffset = maxScroll
 }
