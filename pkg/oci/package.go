@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/content"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -20,7 +21,14 @@ func PackageFileAsOCIToStore(filePath, artifactRef string, store *content.Store)
 	if !strings.Contains(artifactRef, ":") {
 		artifactRef += ":latest"
 	}
-	data, err := os.ReadFile(filePath)
+
+	// Validate the file path to prevent directory traversal attacks
+	validatedPath, err := config.ValidatePathInDirectory(filePath, "")
+	if err != nil {
+		return "", fmt.Errorf("invalid file path: %w", err)
+	}
+
+	data, err := os.ReadFile(validatedPath)
 	if err != nil {
 		return "", fmt.Errorf("reading file: %w", err)
 	}
@@ -36,7 +44,7 @@ func PackageFileAsOCIToStore(filePath, artifactRef string, store *content.Store)
 
 	annotations := map[string]string{
 		"org.opencontainers.image.created":     time.Now().Format(time.RFC3339),
-		"org.opencontainers.image.description": fmt.Sprintf("OCI artifact containing %s", filepath.Base(filePath)),
+		"org.opencontainers.image.description": fmt.Sprintf("OCI artifact containing %s", filepath.Base(validatedPath)),
 	}
 
 	img = mutate.Annotations(img, annotations).(v1.Image)

@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/docker/cagent/pkg/config"
 )
 
 type KeyValuePair struct {
@@ -32,11 +34,20 @@ func AbsolutePath(parentDir, relOrAbsPath string) (string, error) {
 		return "", err
 	}
 
+	// For absolute paths (including tilde-expanded ones), validate against directory traversal
 	if filepath.IsAbs(path) {
+		if strings.Contains(relOrAbsPath, "..") {
+			return "", fmt.Errorf("invalid environment file path: path contains directory traversal sequences")
+		}
 		return path, nil
 	}
 
-	return filepath.Join(parentDir, path), nil
+	validatedPath, err := config.ValidatePathInDirectory(path, parentDir)
+	if err != nil {
+		return "", fmt.Errorf("invalid environment file path: %w", err)
+	}
+
+	return validatedPath, nil
 }
 
 // expandTildePath expands ~ in file paths to the user's home directory
@@ -80,8 +91,8 @@ func ReadEnvFiles(absolutePaths []string) ([]KeyValuePair, error) {
 	return allLines, nil
 }
 
-func ReadEnvFile(absolutePaths string) ([]KeyValuePair, error) {
-	buf, err := os.ReadFile(absolutePaths)
+func ReadEnvFile(absolutePath string) ([]KeyValuePair, error) {
+	buf, err := os.ReadFile(absolutePath)
 	if err != nil {
 		return nil, err
 	}
