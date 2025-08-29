@@ -206,3 +206,19 @@ func SessionCompaction(sessionID, status string) Event {
 	}
 }
 func (e *SessionCompactionEvent) isEvent() {}
+
+type StreamStoppedEvent struct {
+	Type string `json:"type"`
+}
+
+func StreamStopped() Event {
+	return &StreamStoppedEvent{
+		Type: "stream_stopped",
+	}
+}
+
+func (e *StreamStoppedEvent) GetAgentName() string {
+	return ""
+}
+
+func (e *StreamStoppedEvent) isEvent() {}

@@ -132,7 +132,10 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 		model := a.Model()
 		modelID := model.ID()
 
-		defer close(events)
+		defer func() {
+			events <- StreamStopped()
+			close(events)
+		}()
 		defer r.logger.Debug("Runtime stream completed", "agent", r.currentAgent, "session_id", sess.ID)
 
 		// Start a session span (optional)

@@ -203,7 +203,9 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		p.sidebar.SetTitle(msg.Title)
 	case *runtime.TokenUsageEvent:
 		p.sidebar.SetTokenUsage(msg.Usage)
-		p.messages.AddSeparatorMessage()
+	case *runtime.StreamStoppedEvent:
+		cmd := p.messages.AddSeparatorMessage()
+		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
 	case *runtime.ToolCallConfirmationEvent:
 		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, msg.ToolCall.Function.Arguments, types.ToolStatusConfirmation)
 		focusCmd := p.messages.FocusToolInConfirmation()
