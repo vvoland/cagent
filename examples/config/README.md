@@ -2,6 +2,9 @@
 
 ## **Basic Configurations:**
 
+Theses examples are fairly basics and show you the yaml syntax for writing an agent.
+Some os theses agents use some [BuiltIn Tools](https://github.com/docker/cagent?tab=readme-ov-file#tool-configuration) like filesystem which grants filesystem access or memory which allows the agent to store it's finding for later use.
+
 | Name              | Description/Purpose                                 | Filesystem | Shell | Todo | Think | Memory | MCP Servers | Sub-agents |
 |------------------ |-----------------------------------------------------|------------|-------|------|-------|--------|-------------|------------|
 | [echo-agent.yaml](echo-agent.yaml)   | Simple echo agent                                   |            |       |      |       |        |             |           |
@@ -20,29 +23,34 @@
 
 ## **Advanced Configurations:**
 
+Theses are more advanced examples, most of them involves some sort of MCP server to augment the agent capabilities with powerful custom integration with 3 party services.
+
 | Name                       | Description/Purpose                          | Filesystem | Shell | Todo | Think | Memory | MCP Servers  | Sub-agents |
 |----------------------------|----------------------------------------------|------------|-------|------|-------|--------|--------------|------------|
-| [bio.yaml](bio.yaml)                   | Biography generation from internet searches  |            |       |      |       |        | `duckduckgo, fetch` |       |
+| [bio.yaml](bio.yaml)                   | Biography generation from internet searches  |            |       |      |       |        | `[duckduckgo](https://hub.docker.com/mcp/server/duckduckgo/overview), [fetch](https://hub.docker.com/mcp/server/fetch/overview)` |       |
 | [airbnb.yaml](airbnb.yaml)                | Airbnb search specialist                     |            |       |      |       |        | `@openbnb/mcp-server-airbnb` |   |
-| [github_issue_manager.yaml](github_issue_manager.yaml)  | GitHub Issue Manager                         |            |       |      |       |        | `github-official`          |       |
-| [github.yaml](github.yaml)                | Github assistance using MCP tools            |            |       |      |       |        | `github-official` |    |
+| [github_issue_manager.yaml](github_issue_manager.yaml)  | GitHub Issue Manager                         |            |       |      |       |        | `[github-official](https://hub.docker.com/mcp/server/github-official/overview)`          |       |
+| [github.yaml](github.yaml)                | Github assistance using MCP tools            |            |       |      |       |        | `[github-official](https://hub.docker.com/mcp/server/github-official/overview)` |    |
 | [review.yaml](review.yaml)                | Dockerfile review specialist                 | ✓          |       |      |       |        |              |       |
 | [code.yaml](code.yaml)                  | Code analysis and development assistant      | ✓          | ✓     | ✓    |       |        |              |       |
 | [go_packages.yml](go_packages.yml)            | Golang packages expert                       |            |       |      |       |        |              |       |
 | [moby.yaml](moby.yaml)                  | Moby Project Expert                          |            |       |      |       |        | `gitmcp.io/moby/moby` |   |
 | [image_text_extractor.yaml](image_text_extractor.yaml)  | Image text extraction                        | ✓          |       |      |       |        |              |       |
 | [doc_generator.yaml](doc_generator.yaml)         | Documentation generation from codebases      |            | ✓     |      | ✓     |        |              |       |
-| [mcp_generator.yaml](mcp_generator.yaml)         | Generates MCP configurations                 |            |       |      |       |        | `docker,duckduckgo-mcp-server` |   |
+| [mcp_generator.yaml](mcp_generator.yaml)         | Generates MCP configurations                 |            |       |      |       |        | `docker,[duckduckgo-mcp-server](https://hub.docker.com/mcp/server/duckduckgo/overview)` |   |
 
 ## **Multi-Agent Configurations:**
 
+Theses examples are group of agents working together. Each of them are specialized for a given task, and usually have some tools assigned to fullfill these tasks.
+A coordinator agent, usually make them work together, and check the work is finished.
+
 | Name              | Description/Purpose                        | Filesystem | Shell | Todo | Think | Memory | MCP Servers  | Sub-agents     |
 |-------------------|--------------------------------------------|------------|-------|------|-------|--------|--------------|----------------|
-| agent.yaml        | Docker Expert Assistant                    |            |       |      |       |        |              | ✓             |
-| blog.yaml         | Technical blog writing workflow            |            |       |      | ✓     |        | `duckduckgo-mcp-server` | ✓   |
-| dev-team.yaml     | Development team coordinator               | ✓          | ✓     | ✓    | ✓     | ✓      |              | ✓             |
-| multi-code.yaml   | Technical lead and project coordination    | ✓          | ✓     | ✓    | ✓     | ✓      |              | ✓             |
-| writer.yaml       | Story writing workflow supervisor          |            |       |      | ✓     |        |              | ✓             |
-| finance.yaml      | Financial research and analysis            |            |       |      | ✓     |        | `duckduckgo-mcp-server` | ✓ |
-| shared-todo.yaml  | Shared todo item manager                   |            |       | ✓    |       |        |              | ✓             |
+| [agent.yaml](agent.yaml)        | Docker Expert Assistant                    |            |       |      |       |        |              | ✓             |
+| [blog.yaml](blog.yaml)         | Technical blog writing workflow            |            |       |      | ✓     |        | `[duckduckgo-mcp-server](https://hub.docker.com/mcp/server/duckduckgo/overview)` | ✓   |
+| [dev-team.yaml](dev-team.yaml)     | Development team coordinator               | ✓          | ✓     | ✓    | ✓     | ✓      |              | ✓             |
+| [multi-code.yaml](multi-code.yaml)   | Technical lead and project coordination    | ✓          | ✓     | ✓    | ✓     | ✓      |              | ✓             |
+| [writer.yaml](writer.yaml)       | Story writing workflow supervisor          |            |       |      | ✓     |        |              | ✓             |
+| [finance.yaml](finance.yaml)      | Financial research and analysis            |            |       |      | ✓     |        | `[duckduckgo-mcp-server](https://hub.docker.com/mcp/server/duckduckgo/overview)` | ✓ |
+| [shared-todo.yaml](shared-todo.yaml)  | Shared todo item manager                   |            |       | ✓    |       |        |              | ✓             |
 
