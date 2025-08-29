@@ -321,7 +321,7 @@ func (r *Runtime) handleStream(stream chat.MessageStream, a *agent.Agent, sess *
 			sess.OutputTokens = response.Usage.OutputTokens + response.Usage.CachedOutputTokens
 			if m != nil {
 				cost := m.Cost.Input/1e6*float64(sess.InputTokens) + m.Cost.Output/1e6*float64(sess.OutputTokens) + m.Cost.CacheRead/1e6*float64(response.Usage.CachedInputTokens) + m.Cost.CacheWrite/1e6*float64(response.Usage.CachedOutputTokens)
-				sess.Cost = cost
+				sess.Cost += cost
 			}
 		}
 
