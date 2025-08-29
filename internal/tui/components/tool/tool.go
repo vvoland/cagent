@@ -43,6 +43,32 @@ type toolModel struct {
 	app      *app.App
 }
 
+// wrapLines wraps long lines to fit within the specified width
+func wrapLines(text string, width int) []string {
+	if width <= 0 {
+		return strings.Split(text, "\n")
+	}
+
+	lines := strings.Split(text, "\n")
+	var wrappedLines []string
+
+	for _, line := range lines {
+		if len(line) <= width {
+			wrappedLines = append(wrappedLines, line)
+		} else {
+			// Split long line into multiple lines
+			for len(line) > width {
+				wrappedLines = append(wrappedLines, line[:width])
+				line = line[width:]
+			}
+			if line != "" {
+				wrappedLines = append(wrappedLines, line)
+			}
+		}
+	}
+	return wrappedLines
+}
+
 // GetSize implements Model.
 func (mv *toolModel) GetSize() (width, height int) {
 	return mv.width, mv.height
@@ -162,8 +188,17 @@ func (mv *toolModel) Render(width int) string {
 	// Add tool result content if available (for completed tools with content)
 	var resultContent string
 	if (msg.ToolStatus == types.ToolStatusCompleted || msg.ToolStatus == types.ToolStatusError) && msg.Content != "" {
-		// Split content into lines and take only first 10
-		lines := strings.Split(msg.Content, "\n")
+		// Calculate available width for content (accounting for padding and prefixes)
+		// Base padding (2) + content prefix and spacing
+		availableWidth := width - 6
+		if availableWidth < 10 {
+			availableWidth = 10 // Minimum readable width
+		}
+
+		// Wrap long lines to fit the component width
+		lines := wrapLines(msg.Content, availableWidth)
+
+		// Take only first 10 lines after wrapping
 		if len(lines) > 10 {
 			lines = lines[:10]
 			// Add indicator that content was truncated
