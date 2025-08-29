@@ -1,4 +1,4 @@
-#!/usr/bin/env cagent run
+#!/usr/bin/env cagent tui
 version: "1"
 
 agents:
