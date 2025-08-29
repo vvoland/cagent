@@ -3,7 +3,7 @@ version: "1"
 
 agents:
   root:
-    model: anthropic/claude-sonnet-4-0
+    model: openai/gpt-4o #anthropic/claude-sonnet-4-0
     description: Expert Golang developer specializing in the cagent multi-agent AI system architecture
     instruction: |
       Your main goal is to help users with code-related tasks by examining, modifying, and validating code changes.

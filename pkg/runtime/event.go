@@ -18,6 +18,26 @@ type AgentContext struct {
 // GetAgentName returns the agent name for events embedding AgentContext.
 func (a AgentContext) GetAgentName() string { return a.AgentName }
 
+// UserMessageEvent is sent when a user message is received
+type UserMessageEvent struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
+}
+
+func UserMessage(message string) Event {
+	return &UserMessageEvent{
+		Type:    "user_message",
+		Message: message,
+	}
+}
+
+func (e *UserMessageEvent) GetAgentName() string {
+	return ""
+}
+
+func (e *UserMessageEvent) isEvent() {}
+
+// ToolCallEvent is sent when a tool call is received
 type ToolCallEvent struct {
 	Type     string         `json:"type"`
 	ToolCall tools.ToolCall `json:"tool_call"`
@@ -65,6 +85,22 @@ func ToolCallResponse(toolCall tools.ToolCall, response, agentName string) Event
 	}
 }
 func (e *ToolCallResponseEvent) isEvent() {}
+
+type StreamStartedEvent struct {
+	Type string `json:"type"`
+}
+
+func StreamStarted() Event {
+	return &StreamStartedEvent{
+		Type: "stream_started",
+	}
+}
+
+func (e *StreamStartedEvent) GetAgentName() string {
+	return ""
+}
+
+func (e *StreamStartedEvent) isEvent() {}
 
 type AgentChoiceEvent struct {
 	Type   string                   `json:"type"`

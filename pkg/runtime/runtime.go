@@ -118,6 +118,8 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 	events := make(chan Event)
 
 	go func() {
+		events <- UserMessage(sess.GetMessages(r.CurrentAgent())[len(sess.GetMessages(r.CurrentAgent()))-1].Content)
+		events <- StreamStarted()
 		a := r.team.Agent(r.currentAgent)
 
 		// Ensure any toolsets (e.g., MCP clients/processes) are torn down when this run finishes

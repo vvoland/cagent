@@ -10,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/spf13/cobra"
 
+	"github.com/docker/cagent/internal/app"
 	"github.com/docker/cagent/internal/tui"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
@@ -79,17 +80,19 @@ func runTUICommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create runtime: %w", err)
 	}
 
-	m, err := tui.NewModel(rt, session.New(logger))
-	if err != nil {
-		return err
-	}
+	a := app.New(agentFilename, rt, session.New(logger))
+	m := tui.New(a)
 
 	p := tea.NewProgram(
 		m,
 		tea.WithAltScreen(),
-		// tea.WithMouseAllMotion(), // Enable mouse support
-		// tea.WithMouseCellMotion(),
+		tea.WithContext(ctx),
+		tea.WithMouseCellMotion(),
+		tea.WithMouseAllMotion(),
+		tea.WithFilter(tui.MouseEventFilter),
 	)
+
+	go a.Subscribe(context.Background(), p)
 
 	_, err = p.Run()
 	return err
