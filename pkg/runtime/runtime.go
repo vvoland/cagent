@@ -304,6 +304,8 @@ func (r *Runtime) handleStream(stream chat.MessageStream, a *agent.Agent, sess *
 
 	var fullContent strings.Builder
 	var toolCalls []tools.ToolCall
+	// Track which tool call indices we've already emitted partial events for
+	emittedPartialEvents := make(map[int]bool)
 
 	for {
 		response, err := stream.Recv()
@@ -334,7 +336,7 @@ func (r *Runtime) handleStream(stream chat.MessageStream, a *agent.Agent, sess *
 				toolCalls = append(toolCalls, tools.ToolCall{})
 			}
 
-			// Update tool calls with the delta
+			// Process each tool call delta
 			for _, deltaToolCall := range choice.Delta.ToolCalls {
 				if deltaToolCall.Index == nil {
 					continue
@@ -346,6 +348,12 @@ func (r *Runtime) handleStream(stream chat.MessageStream, a *agent.Agent, sess *
 					copy(newToolCalls, toolCalls)
 					toolCalls = newToolCalls
 				}
+
+				// Check if we should emit a partial event for this tool call
+				// We want to emit when we first get the function name
+				shouldEmitPartial := !emittedPartialEvents[idx] &&
+					deltaToolCall.Function.Name != "" &&
+					toolCalls[idx].Function.Name == "" // Don't emit if we already have the name
 
 				// Update fields based on what's in the delta
 				if deltaToolCall.ID != "" {
@@ -363,6 +371,12 @@ func (r *Runtime) handleStream(stream chat.MessageStream, a *agent.Agent, sess *
 					} else {
 						toolCalls[idx].Function.Arguments += deltaToolCall.Function.Arguments
 					}
+				}
+
+				// Emit PartialToolCallEvent when we first get the function name
+				if shouldEmitPartial {
+					events <- PartialToolCall(toolCalls[idx], a.Name())
+					emittedPartialEvents[idx] = true
 				}
 			}
 			continue

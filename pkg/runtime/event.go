@@ -38,6 +38,23 @@ func (e *UserMessageEvent) GetAgentName() string {
 func (e *UserMessageEvent) isEvent() {}
 
 // ToolCallEvent is sent when a tool call is received
+// PartialToolCallEvent is sent when a tool call is first received (partial/complete)
+type PartialToolCallEvent struct {
+	Type     string         `json:"type"`
+	ToolCall tools.ToolCall `json:"tool_call"`
+	AgentContext
+}
+
+func PartialToolCall(toolCall tools.ToolCall, agentName string) Event {
+	return &PartialToolCallEvent{
+		Type:         "partial_tool_call",
+		ToolCall:     toolCall,
+		AgentContext: AgentContext{AgentName: agentName},
+	}
+}
+
+func (e *PartialToolCallEvent) isEvent() {}
+
 type ToolCallEvent struct {
 	Type     string         `json:"type"`
 	ToolCall tools.ToolCall `json:"tool_call"`

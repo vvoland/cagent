@@ -208,6 +208,11 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		spinnerCmd := p.sidebar.SetWorking(false)
 		cmd := p.messages.AddSeparatorMessage()
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
+	case *runtime.PartialToolCallEvent:
+		// When we first receive a tool call, show it immediately in pending state
+		spinnerCmd := p.sidebar.SetWorking(true)
+		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, msg.ToolCall.Function.Arguments, types.ToolStatusPending)
+		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
 	case *runtime.ToolCallConfirmationEvent:
 		spinnerCmd := p.sidebar.SetWorking(false) // Stop working indicator during confirmation
 		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, msg.ToolCall.Function.Arguments, types.ToolStatusConfirmation)
