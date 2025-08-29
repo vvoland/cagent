@@ -321,8 +321,8 @@ func (p *chatPage) SetSize(width, height int) tea.Cmd {
 	var cmds []tea.Cmd
 
 	// Calculate heights accounting for padding
-	headerHeight := 3   // header + top/bottom padding
-	editorHeight := 3   // fixed 3 lines for multi-line input
+	headerHeight := 3 // header + top/bottom padding
+	editorHeight := 3 // fixed 3 lines for multi-line input
 
 	// Calculate available space, ensuring status bar remains visible
 	availableHeight := height - headerHeight
