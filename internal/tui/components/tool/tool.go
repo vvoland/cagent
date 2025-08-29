@@ -167,13 +167,12 @@ func (mv *toolModel) Render(width int) string {
 	// Add confirmation options if in confirmation mode
 	if msg.ToolStatus == types.ToolStatusConfirmation {
 		var arguments map[string]any
-		if err := json.Unmarshal([]byte(msg.Arguments), &arguments); err != nil {
-			return ""
-		}
-		if len(arguments) > 0 {
-			confirmationContent += "\n\nArguments:\n"
-			for k, v := range arguments {
-				confirmationContent += fmt.Sprintf("\n%s: %v", k, v)
+		if msg.Arguments != "" {
+			if err := json.Unmarshal([]byte(msg.Arguments), &arguments); err == nil {
+				confirmationContent += "\n\nArguments:\n"
+				for k, v := range arguments {
+					confirmationContent += fmt.Sprintf("\n%s: %v", k, v)
+				}
 			}
 		}
 		confirmationContent += "\n\nDo you want to allow this tool call?"
