@@ -192,10 +192,13 @@ type sessionsResponse struct {
 
 func (s *Server) getAgentConfig(c echo.Context) error {
 	agentID := c.Param("id")
-	path := filepath.Join(s.agentsDir, agentID)
-	if !strings.HasSuffix(path, ".yaml") {
-		path += ".yaml"
+
+	path, err := s.secureAgentPath(agentID)
+	if err != nil {
+		s.logger.Error("Invalid agent ID", "agentID", agentID, "error", err)
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid agent ID"})
 	}
+
 	cfg, err := config.LoadConfigSecure(path, s.agentsDir)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "agent not found"})
@@ -214,29 +217,10 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "filename is required"})
 	}
 
-	path := filepath.Join(s.agentsDir, req.Filename)
-	if !strings.HasSuffix(path, ".yaml") {
-		path += ".yaml"
-	}
-
-	// Security check: ensure the file is within the agents directory
-	absFilePath, err := filepath.Abs(path)
+	path, err := s.secureAgentPath(req.Filename)
 	if err != nil {
-		s.logger.Error("Failed to get absolute path", "path", path, "error", err)
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid file path"})
-	}
-
-	absAgentsDir, err := filepath.Abs(s.agentsDir)
-	if err != nil {
-		s.logger.Error("Failed to get absolute agents directory path", "agentsDir", s.agentsDir, "error", err)
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to resolve agents directory"})
-	}
-
-	// Check if the file is within the agents directory
-	relPath, err := filepath.Rel(absAgentsDir, absFilePath)
-	if err != nil || strings.HasPrefix(relPath, "..") {
-		s.logger.Error("File is outside agents directory", "path", path, "agentsDir", s.agentsDir)
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "file must be within the agents directory"})
+		s.logger.Error("Invalid filename", "filename", req.Filename, "error", err)
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid filename"})
 	}
 
 	// Check if the file exists
@@ -458,33 +442,39 @@ func (s *Server) importAgent(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "file_path is required"})
 	}
 
+	validatedSourcePath, err := config.ValidatePathInDirectory(req.FilePath, "")
+	if err != nil {
+		s.logger.Error("Invalid source file path", "path", req.FilePath, "error", err)
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid source file path"})
+	}
+
 	// Check if the file exists
-	if _, err := os.Stat(req.FilePath); os.IsNotExist(err) {
-		s.logger.Error("Agent file does not exist", "path", req.FilePath)
+	if _, err := os.Stat(validatedSourcePath); os.IsNotExist(err) {
+		s.logger.Error("Agent file does not exist", "path", validatedSourcePath)
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "agent file not found"})
 	}
 
 	// Validate it's a YAML file
-	if !strings.HasSuffix(strings.ToLower(req.FilePath), ".yaml") && !strings.HasSuffix(strings.ToLower(req.FilePath), ".yml") {
+	if !strings.HasSuffix(strings.ToLower(validatedSourcePath), ".yaml") && !strings.HasSuffix(strings.ToLower(validatedSourcePath), ".yml") {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "file must be a YAML file (.yaml or .yml)"})
 	}
 
 	// First validate the agent configuration by loading it
-	_, err := teamloader.Load(c.Request().Context(), req.FilePath, s.runConfig, s.logger)
+	_, err = teamloader.Load(c.Request().Context(), validatedSourcePath, s.runConfig, s.logger)
 	if err != nil {
-		s.logger.Error("Failed to load agent from file", "path", req.FilePath, "error", err)
+		s.logger.Error("Failed to load agent from file", "path", validatedSourcePath, "error", err)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "failed to load agent configuration: " + err.Error()})
 	}
 
 	// Read the original file content
-	fileContent, err := os.ReadFile(req.FilePath)
+	fileContent, err := os.ReadFile(validatedSourcePath)
 	if err != nil {
-		s.logger.Error("Failed to read agent file", "path", req.FilePath, "error", err)
+		s.logger.Error("Failed to read agent file", "path", validatedSourcePath, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to read agent file: " + err.Error()})
 	}
 
 	// Create target file path in agents directory
-	agentKey := strings.TrimSuffix(filepath.Base(req.FilePath), filepath.Ext(req.FilePath))
+	agentKey := strings.TrimSuffix(filepath.Base(validatedSourcePath), filepath.Ext(validatedSourcePath))
 	targetPath := filepath.Join(s.agentsDir, agentKey+".yaml")
 
 	// If target file already exists, generate an alternative name
@@ -498,11 +488,11 @@ func (s *Server) importAgent(c echo.Context) error {
 			if _, err := os.Stat(targetPath); os.IsNotExist(err) {
 				break
 			}
-			agentKey = strings.TrimSuffix(filepath.Base(req.FilePath), filepath.Ext(req.FilePath)) + fmt.Sprintf("_copy_%d", counter)
+			agentKey = strings.TrimSuffix(filepath.Base(validatedSourcePath), filepath.Ext(validatedSourcePath)) + fmt.Sprintf("_copy_%d", counter)
 			targetPath = filepath.Join(s.agentsDir, agentKey+".yaml")
 			counter++
 		}
-		s.logger.Info("Target file exists, using alternative name", "original_key", strings.TrimSuffix(filepath.Base(req.FilePath), filepath.Ext(req.FilePath)), "new_key", agentKey)
+		s.logger.Info("Target file exists, using alternative name", "original_key", strings.TrimSuffix(filepath.Base(validatedSourcePath), filepath.Ext(validatedSourcePath)), "new_key", agentKey)
 	}
 
 	// Write the file to the agents directory
@@ -522,9 +512,9 @@ func (s *Server) importAgent(c echo.Context) error {
 
 	s.teams[agentKey] = t
 
-	s.logger.Info("Agent imported successfully", "originalPath", req.FilePath, "targetPath", targetPath, "key", agentKey)
+	s.logger.Info("Agent imported successfully", "originalPath", validatedSourcePath, "targetPath", targetPath, "key", agentKey)
 	return c.JSON(http.StatusOK, map[string]string{
-		"originalPath": req.FilePath,
+		"originalPath": validatedSourcePath,
 		"targetPath":   targetPath,
 		"description":  t.Agent("root").Description(),
 	})
@@ -661,11 +651,18 @@ func (s *Server) pushAgent(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "tag is required"})
 	}
 
-	s.logger.Info("Building and pushing agent", "filepath", req.Filepath, "tag", req.Tag)
+	// Validate the file path to prevent directory traversal attacks
+	validatedFilepath, err := config.ValidatePathInDirectory(req.Filepath, "")
+	if err != nil {
+		s.logger.Error("Invalid file path", "path", req.Filepath, "error", err)
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid file path"})
+	}
+
+	s.logger.Info("Building and pushing agent", "filepath", validatedFilepath, "tag", req.Tag)
 
 	// Check if the file exists
-	if _, err := os.Stat(req.Filepath); os.IsNotExist(err) {
-		s.logger.Error("Agent file does not exist", "path", req.Filepath)
+	if _, err := os.Stat(validatedFilepath); os.IsNotExist(err) {
+		s.logger.Error("Agent file does not exist", "path", validatedFilepath)
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "agent file not found"})
 	}
 
@@ -676,9 +673,9 @@ func (s *Server) pushAgent(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create content store"})
 	}
 
-	digest, err := oci.PackageFileAsOCIToStore(req.Filepath, req.Tag, store)
+	digest, err := oci.PackageFileAsOCIToStore(validatedFilepath, req.Tag, store)
 	if err != nil {
-		s.logger.Error("Failed to build artifact", "filepath", req.Filepath, "tag", req.Tag, "error", err)
+		s.logger.Error("Failed to build artifact", "filepath", validatedFilepath, "tag", req.Tag, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to build artifact"})
 	}
 
@@ -690,9 +687,9 @@ func (s *Server) pushAgent(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to push agent"})
 	}
 
-	s.logger.Info("Agent pushed successfully", "filepath", req.Filepath, "tag", req.Tag, "digest", digest)
+	s.logger.Info("Agent pushed successfully", "filepath", validatedFilepath, "tag", req.Tag, "digest", digest)
 	return c.JSON(http.StatusOK, map[string]string{
-		"filepath": req.Filepath,
+		"filepath": validatedFilepath,
 		"tag":      req.Tag,
 		"digest":   digest,
 	})
@@ -708,6 +705,12 @@ func (s *Server) deleteAgent(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "file_path is required"})
 	}
 
+	err := s.validateAgentPath(req.FilePath)
+	if err != nil {
+		s.logger.Error("Invalid file path", "path", req.FilePath, "error", err)
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid file path"})
+	}
+
 	// Check if the file exists
 	if _, err := os.Stat(req.FilePath); os.IsNotExist(err) {
 		s.logger.Error("Agent file does not exist", "path", req.FilePath)
@@ -717,26 +720,6 @@ func (s *Server) deleteAgent(c echo.Context) error {
 	// Validate it's a YAML file
 	if !strings.HasSuffix(strings.ToLower(req.FilePath), ".yaml") && !strings.HasSuffix(strings.ToLower(req.FilePath), ".yml") {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "file must be a YAML file (.yaml or .yml)"})
-	}
-
-	// Security check: ensure the file is within the agents directory
-	absFilePath, err := filepath.Abs(req.FilePath)
-	if err != nil {
-		s.logger.Error("Failed to get absolute path", "path", req.FilePath, "error", err)
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid file path"})
-	}
-
-	absAgentsDir, err := filepath.Abs(s.agentsDir)
-	if err != nil {
-		s.logger.Error("Failed to get absolute agents directory path", "agentsDir", s.agentsDir, "error", err)
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to resolve agents directory"})
-	}
-
-	// Check if the file is within the agents directory
-	relPath, err := filepath.Rel(absAgentsDir, absFilePath)
-	if err != nil || strings.HasPrefix(relPath, "..") {
-		s.logger.Error("File is outside agents directory", "path", req.FilePath, "agentsDir", s.agentsDir)
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "file must be within the agents directory"})
 	}
 
 	// Determine the agent key from the file path
@@ -981,4 +964,30 @@ func fromStore(reference string) (string, error) {
 	b.Close()
 
 	return buf.String(), nil
+}
+
+func (s *Server) validateAgentPath(path string) error {
+	validatedPath, err := config.ValidatePathInDirectory(path, s.agentsDir)
+	if err != nil {
+		return fmt.Errorf("invalid agent file path: %w", err)
+	}
+
+	absOriginal, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("failed to resolve original path: %w", err)
+	}
+
+	if absOriginal != validatedPath {
+		return fmt.Errorf("path validation mismatch: security check failed")
+	}
+
+	return nil
+}
+
+func (s *Server) secureAgentPath(filename string) (string, error) {
+	if !strings.HasSuffix(filename, ".yaml") && !strings.HasSuffix(filename, ".yml") {
+		filename += ".yaml"
+	}
+
+	return config.ValidatePathInDirectory(filename, s.agentsDir)
 }
