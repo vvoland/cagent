@@ -2,13 +2,14 @@ package root
 
 import (
 	"bufio"
-	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/fatih/color"
+	"golang.org/x/term"
 )
 
 // text colors
@@ -27,6 +28,7 @@ const (
 	ConfirmationApprove        ConfirmationResult = "approve"
 	ConfirmationApproveSession ConfirmationResult = "approve_session"
 	ConfirmationReject         ConfirmationResult = "reject"
+	ConfirmationAbort          ConfirmationResult = "abort"
 )
 
 // text utility functions
@@ -50,35 +52,59 @@ func printToolCall(toolCall tools.ToolCall, colorFunc ...func(format string, a .
 	fmt.Printf("\n%s\n", c("%s%s", bold(toolCall.Function.Name), formatToolCallArguments(toolCall.Function.Arguments)))
 }
 
-func printToolCallWithConfirmation(ctx context.Context, toolCall tools.ToolCall, scanner *bufio.Scanner) ConfirmationResult {
+func printToolCallWithConfirmation(toolCall tools.ToolCall, scanner *bufio.Scanner) ConfirmationResult {
 	fmt.Printf("\n%s\n", bold(yellow("🛠️ Tool call requires confirmation 🛠️")))
 	printToolCall(toolCall, color.New(color.FgWhite).SprintfFunc())
 	fmt.Printf("\n%s", bold(yellow("Can I run this tool? ([y]es/[a]ll/[n]o): ")))
 
-	inputCh := make(chan string, 1)
-	go func() {
-		if scanner.Scan() {
-			inputCh <- scanner.Text()
-		} else {
-			inputCh <- ""
+	// Try single-character input from stdin in raw mode (no Enter required)
+	fd := int(os.Stdin.Fd())
+	if oldState, err := term.MakeRaw(fd); err == nil {
+		defer func() {
+			if err := term.Restore(fd, oldState); err != nil {
+				fmt.Printf("\n%s\n", yellow("Failed to restore terminal state: %v", err))
+			}
+		}()
+		buf := make([]byte, 1)
+		for {
+			if _, err := os.Stdin.Read(buf); err != nil {
+				break
+			}
+			switch buf[0] {
+			case 'y', 'Y':
+				fmt.Print(bold("Yes 👍"))
+				return ConfirmationApprove
+			case 'a', 'A':
+				fmt.Print(bold("Yes to all 👍"))
+				return ConfirmationApproveSession
+			case 'n', 'N':
+				fmt.Print(bold("No 👎"))
+				return ConfirmationReject
+			case 3: // Ctrl+C
+				return ConfirmationAbort
+			case '\r', '\n':
+				// ignore
+			default:
+				// ignore other keys
+			}
 		}
-	}()
+	}
 
-	select {
-	case <-ctx.Done():
+	// Fallback: line-based scanner (requires Enter)
+	if !scanner.Scan() {
 		return ConfirmationReject
-	case text := <-inputCh:
-		switch text {
-		case "y":
-			return ConfirmationApprove
-		case "a":
-			return ConfirmationApproveSession
-		case "n":
-			return ConfirmationReject
-		default:
-			// Default to reject for invalid input
-			return ConfirmationReject
-		}
+	}
+	text := scanner.Text()
+	switch text {
+	case "y":
+		return ConfirmationApprove
+	case "a":
+		return ConfirmationApproveSession
+	case "n":
+		return ConfirmationReject
+	default:
+		// Default to reject for invalid input
+		return ConfirmationReject
 	}
 }
 

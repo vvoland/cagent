@@ -291,7 +291,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 					fmt.Println()
 					llmIsTyping = false
 				}
-				result := printToolCallWithConfirmation(loopCtx, e.ToolCall, scannerConfirmations)
+				result := printToolCallWithConfirmation(e.ToolCall, scannerConfirmations)
 				// If interrupted, skip resuming; the runtime will notice context cancellation and stop
 				if loopCtx.Err() != nil {
 					continue
@@ -306,6 +306,10 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 				case ConfirmationReject:
 					rt.Resume(ctx, string(runtime.ResumeTypeReject))
 					lastConfirmedToolCallID = "" // Clear on reject since tool won't execute
+				case ConfirmationAbort:
+					// Stop the agent loop immediately
+					loopCancel()
+					continue
 				}
 			case *runtime.ToolCallEvent:
 				if llmIsTyping {
