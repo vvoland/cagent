@@ -3,16 +3,56 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	v0 "github.com/docker/cagent/pkg/config/v0"
-	latest "github.com/docker/cagent/pkg/config/v1"
 	v1 "github.com/docker/cagent/pkg/config/v1"
 	"gopkg.in/yaml.v3"
 )
 
-// LoadConfig loads the configuration from a file
-func LoadConfig(path string) (*latest.Config, error) {
+// LoadConfigSecure loads the configuration from a file with path validation
+func LoadConfigSecure(path string, allowedDir string) (*v1.Config, error) {
+	validatedPath, err := validatePathInDirectory(path, allowedDir)
+	if err != nil {
+		return nil, fmt.Errorf("path validation failed: %w", err)
+	}
+
+	return LoadConfig(validatedPath)
+}
+
+func validatePathInDirectory(path, allowedDir string) (string, error) {
+	cleanAllowedDir := filepath.Clean(allowedDir)
+	absAllowedDir, err := filepath.Abs(cleanAllowedDir)
+	if err != nil {
+		return "", fmt.Errorf("invalid allowed directory: %w", err)
+	}
+
+	var targetPath string
+	if filepath.IsAbs(path) {
+		targetPath = filepath.Clean(path)
+	} else {
+		targetPath = filepath.Join(absAllowedDir, path)
+	}
+
+	absTargetPath, err := filepath.Abs(targetPath)
+	if err != nil {
+		return "", fmt.Errorf("invalid path: %w", err)
+	}
+
+	relPath, err := filepath.Rel(absAllowedDir, absTargetPath)
+	if err != nil {
+		return "", fmt.Errorf("cannot determine relative path: %w", err)
+	}
+
+	if strings.HasPrefix(relPath, "..") {
+		return "", fmt.Errorf("path outside allowed directory: %s", path)
+	}
+
+	return absTargetPath, nil
+}
+
+func LoadConfig(path string) (*v1.Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
@@ -23,7 +63,6 @@ func LoadConfig(path string) (*latest.Config, error) {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
-	// Migrate the configuration to the most recent version.
 	oldConfig, err := parseCurrentVersion(data, raw["version"])
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
@@ -55,33 +94,30 @@ func parseCurrentVersion(data []byte, version any) (any, error) {
 	}
 }
 
-func migrateToLatestConfig(c any) latest.Config {
+func migrateToLatestConfig(c any) v1.Config {
 	for {
 		if old, ok := c.(v0.Config); ok {
 			c = v1.UpgradeFrom(old)
 			continue
 		}
 
-		return c.(latest.Config)
+		return c.(v1.Config)
 	}
 }
 
-// validateConfig ensures the configuration is valid
-func validateConfig(cfg *latest.Config) error {
+func validateConfig(cfg *v1.Config) error {
 	for _, model := range cfg.Models {
 		if model.ParallelToolCalls == nil {
 			model.ParallelToolCalls = boolPtr(true)
 		}
 	}
 
-	// Validate that all models referenced in agents exist
 	for agentName := range cfg.Agents {
 		agent := cfg.Agents[agentName]
 
 		modelNames := strings.SplitSeq(agent.Model, ",")
 		for modelName := range modelNames {
 			if _, exists := cfg.Models[modelName]; !exists {
-				// If the model is not found and is in the "provider/model" format, we can auto register.
 				if provider, model, ok := strings.Cut(modelName, "/"); ok {
 					autoRegisterModel(cfg, provider, model)
 					continue
@@ -91,7 +127,6 @@ func validateConfig(cfg *latest.Config) error {
 			}
 		}
 
-		// Validate that all sub-agents exist
 		for _, subAgentName := range agent.SubAgents {
 			if _, exists := cfg.Agents[subAgentName]; !exists {
 				return fmt.Errorf("agent '%s' references non-existent sub-agent '%s'", agentName, subAgentName)
@@ -102,13 +137,12 @@ func validateConfig(cfg *latest.Config) error {
 	return nil
 }
 
-// autoRegisterModel registers a model in the configuration if it does not exist.
-func autoRegisterModel(cfg *latest.Config, provider, model string) {
+func autoRegisterModel(cfg *v1.Config, provider, model string) {
 	if cfg.Models == nil {
-		cfg.Models = make(map[string]latest.ModelConfig)
+		cfg.Models = make(map[string]v1.ModelConfig)
 	}
 
-	cfg.Models[provider+"/"+model] = latest.ModelConfig{
+	cfg.Models[provider+"/"+model] = v1.ModelConfig{
 		Provider: provider,
 		Model:    model,
 	}

@@ -191,11 +191,12 @@ type sessionsResponse struct {
 // API handlers
 
 func (s *Server) getAgentConfig(c echo.Context) error {
-	path := filepath.Join(s.agentsDir, c.Param("id"))
+	agentID := c.Param("id")
+	path := filepath.Join(s.agentsDir, agentID)
 	if !strings.HasSuffix(path, ".yaml") {
 		path += ".yaml"
 	}
-	cfg, err := config.LoadConfig(path)
+	cfg, err := config.LoadConfigSecure(path, s.agentsDir)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "agent not found"})
 	}
@@ -244,7 +245,7 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 	}
 
 	// Load the target file content
-	currentConfig, err := config.LoadConfig(path)
+	currentConfig, err := config.LoadConfigSecure(path, s.agentsDir)
 	if err != nil {
 		s.logger.Error("Failed to load current config", "path", path, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load current configuration"})
