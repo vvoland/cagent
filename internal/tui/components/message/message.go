@@ -24,16 +24,14 @@ type Model interface {
 	// Height returns the height this view will take when rendered at the given width
 	Height(width int) int
 	// Message returns the underlying message
-	Message() types.Message
-	// SetMessage updates the underlying message
-	SetMessage(msg types.Message)
+	Message() *types.Message
 	// SetRenderer sets the markdown renderer
 	SetRenderer(renderer *glamour.TermRenderer)
 }
 
 // messageModel implements Model
 type messageModel struct {
-	message  types.Message
+	message  *types.Message
 	renderer *glamour.TermRenderer
 	width    int
 	height   int
@@ -42,7 +40,7 @@ type messageModel struct {
 }
 
 // New creates a new message view
-func New(msg types.Message) Model {
+func New(msg *types.Message) Model {
 	s := spinner.New()
 	s.Spinner = spinner.Points
 
@@ -127,13 +125,8 @@ func (mv *messageModel) Height(width int) int {
 }
 
 // Message returns the underlying message
-func (mv *messageModel) Message() types.Message {
+func (mv *messageModel) Message() *types.Message {
 	return mv.message
-}
-
-// SetMessage updates the underlying message
-func (mv *messageModel) SetMessage(msg types.Message) {
-	mv.message = msg
 }
 
 // SetRenderer sets the markdown renderer

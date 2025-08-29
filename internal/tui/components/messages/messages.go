@@ -27,8 +27,7 @@ type Model interface {
 	AddUserMessage(content string) tea.Cmd
 	AddAssistantMessage() tea.Cmd
 	AddSeparatorMessage() tea.Cmd
-	AddToolCall(toolName string, status types.ToolStatus) tea.Cmd
-	AddOrUpdateToolCall(toolName string, status types.ToolStatus) tea.Cmd
+	AddOrUpdateToolCall(toolName string, arguments string, status types.ToolStatus) tea.Cmd
 	AppendToLastMessage(agentName string, content string) tea.Cmd
 	ClearMessages()
 	ScrollToBottom() tea.Cmd
@@ -258,7 +257,7 @@ func (m *model) AddUserMessage(content string) tea.Cmd {
 	}
 	m.messages = append(m.messages, msg)
 
-	view := m.createMessageView(msg)
+	view := m.createMessageView(&msg)
 	m.views = append(m.views, view)
 
 	// Initialize the new view
@@ -273,7 +272,7 @@ func (m *model) AddAssistantMessage() tea.Cmd {
 	wasAtBottom := m.isAtBottom()
 	m.messages = append(m.messages, msg)
 
-	view := m.createMessageView(msg)
+	view := m.createMessageView(&msg)
 	m.views = append(m.views, view)
 
 	// Initialize the new view (this will start the spinner for empty assistant messages)
@@ -291,44 +290,21 @@ func (m *model) AddSeparatorMessage() tea.Cmd {
 	}
 	m.messages = append(m.messages, msg)
 
-	view := m.createMessageView(msg)
+	view := m.createMessageView(&msg)
 	m.views = append(m.views, view)
 
-	return view.Init()
-}
-
-// AddToolCall adds a tool call message to the chat
-func (m *model) AddToolCall(toolName string, status types.ToolStatus) tea.Cmd {
-	// Check if last message is an empty assistant message and remove it
-	m.removeLastEmptyAssistantMessage()
-
-	msg := types.Message{
-		Type:       types.MessageTypeToolCall,
-		ToolName:   toolName,
-		ToolStatus: status,
-	}
-	wasAtBottom := m.isAtBottom()
-	m.messages = append(m.messages, msg)
-
-	view := m.createMessageView(msg)
-	m.views = append(m.views, view)
-
-	// Initialize the new view
-	if wasAtBottom {
-		return tea.Batch(view.Init(), m.ScrollToBottom())
-	}
 	return view.Init()
 }
 
 // AddOrUpdateToolCall adds a tool call or updates existing one with the given status
-func (m *model) AddOrUpdateToolCall(toolName string, status types.ToolStatus) tea.Cmd {
+func (m *model) AddOrUpdateToolCall(toolName, arguments string, status types.ToolStatus) tea.Cmd {
 	// First try to update existing tool
 	if len(m.messages) > 0 {
 		lastMessage := &m.messages[len(m.messages)-1]
 		if lastMessage.Type == types.MessageTypeToolCall && lastMessage.ToolName == toolName {
 			lastMessage.ToolStatus = status
 			// Update the corresponding view
-			view := m.createToolCallView(*lastMessage)
+			view := m.createToolCallView(lastMessage)
 			m.views[len(m.views)-1] = view
 			// Initialize the updated view
 			return view.Init()
@@ -342,10 +318,11 @@ func (m *model) AddOrUpdateToolCall(toolName string, status types.ToolStatus) te
 		Type:       types.MessageTypeToolCall,
 		ToolName:   toolName,
 		ToolStatus: status,
+		Arguments:  arguments,
 	}
 	m.messages = append(m.messages, msg)
 
-	view := m.createToolCallView(msg)
+	view := m.createToolCallView(&msg)
 	m.views = append(m.views, view)
 
 	// Initialize the new view
@@ -365,7 +342,7 @@ func (m *model) AppendToLastMessage(agentName, content string) tea.Cmd {
 		wasAtBottom := m.isAtBottom()
 		lastMsg.Content += content
 		// Update the corresponding view
-		view := m.createMessageView(*lastMsg)
+		view := m.createMessageView(lastMsg)
 		m.views[lastIdx] = view
 		// Initialize the updated view (needed for spinner state changes)
 		if wasAtBottom {
@@ -382,7 +359,7 @@ func (m *model) AppendToLastMessage(agentName, content string) tea.Cmd {
 		wasAtBottom := m.isAtBottom()
 		m.messages = append(m.messages, msg)
 
-		view := m.createMessageView(msg)
+		view := m.createMessageView(&msg)
 		m.views = append(m.views, view)
 
 		// Initialize the new view
@@ -411,7 +388,7 @@ func (m *model) ScrollToBottom() tea.Cmd {
 
 // Virtual list implementation methods
 
-func (m *model) createToolCallView(msg types.Message) tool.Model {
+func (m *model) createToolCallView(msg *types.Message) tool.Model {
 	view := tool.New(msg, m.app)
 	view.SetRenderer(m.renderer)
 	view.SetSize(m.width, 0) // Height will be calculated dynamically
@@ -419,7 +396,7 @@ func (m *model) createToolCallView(msg types.Message) tool.Model {
 }
 
 // createMessageView creates a properly initialized MessageView
-func (m *model) createMessageView(msg types.Message) message.Model {
+func (m *model) createMessageView(msg *types.Message) message.Model {
 	view := message.New(msg)
 	view.SetRenderer(m.renderer)
 	view.SetSize(m.width, 0) // Height will be calculated dynamically

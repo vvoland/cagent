@@ -205,13 +205,13 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		p.sidebar.SetTokenUsage(msg.Usage)
 		p.messages.AddSeparatorMessage()
 	case *runtime.ToolCallConfirmationEvent:
-		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, types.ToolStatusConfirmation)
+		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, msg.ToolCall.Function.Arguments, types.ToolStatusConfirmation)
 		focusCmd := p.messages.FocusToolInConfirmation()
 		// Switch focus to messages so user can immediately respond with Y/N/A
 		p.setFocusToChat()
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), focusCmd)
 	case *runtime.ToolCallEvent:
-		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, types.ToolStatusPending)
+		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, msg.ToolCall.Function.Arguments, types.ToolStatusPending)
 
 		// Check if this is a todo-related tool call and update sidebar
 		toolName := msg.ToolCall.Function.Name
@@ -225,7 +225,7 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
 	case *runtime.ToolCallResponseEvent:
-		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, types.ToolStatusCompleted)
+		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, msg.ToolCall.Function.Arguments, types.ToolStatusCompleted)
 
 		// Return focus to editor after tool execution completes
 		p.setFocusToEditor()

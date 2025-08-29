@@ -1,6 +1,7 @@
 package tool
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -22,9 +23,7 @@ type Model interface {
 	util.Heightable
 
 	// Message returns the underlying message
-	Message() types.Message
-	// SetMessage updates the underlying message
-	SetMessage(msg types.Message)
+	Message() *types.Message
 	// SetRenderer sets the markdown renderer
 	SetRenderer(renderer *glamour.TermRenderer)
 	// Focus sets focus on the tool for handling input
@@ -35,7 +34,7 @@ type Model interface {
 
 // toolModel implements Model
 type toolModel struct {
-	message  types.Message
+	message  *types.Message
 	renderer *glamour.TermRenderer
 	width    int
 	height   int
@@ -57,7 +56,7 @@ func (mv *toolModel) SetSize(width, height int) tea.Cmd {
 }
 
 // New creates a new message view
-func New(msg types.Message, a *app.App) Model {
+func New(msg *types.Message, a *app.App) Model {
 	s := spinner.New()
 	s.Spinner = spinner.Points
 
@@ -167,6 +166,16 @@ func (mv *toolModel) Render(width int) string {
 	confirmationContent := ""
 	// Add confirmation options if in confirmation mode
 	if msg.ToolStatus == types.ToolStatusConfirmation {
+		var arguments map[string]any
+		if err := json.Unmarshal([]byte(msg.Arguments), &arguments); err != nil {
+			return ""
+		}
+		if len(arguments) > 0 {
+			confirmationContent += "\n\nArguments:\n"
+			for k, v := range arguments {
+				confirmationContent += fmt.Sprintf("\n%s: %v", k, v)
+			}
+		}
 		confirmationContent += "\n\nDo you want to allow this tool call?"
 		confirmationContent += "\n**[Y]es** | **[N]o** | **[A]ll** (approve all tools this session)"
 	}
@@ -185,14 +194,8 @@ func (mv *toolModel) Height(width int) int {
 }
 
 // Message returns the underlying message
-func (mv *toolModel) Message() types.Message {
+func (mv *toolModel) Message() *types.Message {
 	return mv.message
-}
-
-// SetMessage updates the underlying message
-func (mv *toolModel) SetMessage(msg types.Message) {
-	mv.message = msg
-	// Note: Spinner state is automatically handled based on message content in Update() and formatMessage()
 }
 
 // SetRenderer sets the markdown renderer
