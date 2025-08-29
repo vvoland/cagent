@@ -176,9 +176,33 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 	}
 
+	if req.Filename == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "filename is required"})
+	}
+
 	path := filepath.Join(s.agentsDir, req.Filename)
 	if !strings.HasSuffix(path, ".yaml") {
 		path += ".yaml"
+	}
+
+	// Security check: ensure the file is within the agents directory
+	absFilePath, err := filepath.Abs(path)
+	if err != nil {
+		s.logger.Error("Failed to get absolute path", "path", path, "error", err)
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid file path"})
+	}
+
+	absAgentsDir, err := filepath.Abs(s.agentsDir)
+	if err != nil {
+		s.logger.Error("Failed to get absolute agents directory path", "agentsDir", s.agentsDir, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to resolve agents directory"})
+	}
+
+	// Check if the file is within the agents directory
+	relPath, err := filepath.Rel(absAgentsDir, absFilePath)
+	if err != nil || strings.HasPrefix(relPath, "..") {
+		s.logger.Error("File is outside agents directory", "path", path, "agentsDir", s.agentsDir)
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "file must be within the agents directory"})
 	}
 
 	// Check if the file exists
