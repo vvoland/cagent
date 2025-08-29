@@ -28,6 +28,7 @@ type Message struct {
 	Content    string
 	Sender     string     // Agent name for assistant messages
 	ToolName   string     // Tool name for tool messages
+	ToolCallID string     // Tool call ID for precise identification
 	ToolStatus ToolStatus // Status for tool calls
 	Arguments  string     // Arguments for tool calls
 	Timestamp  int64

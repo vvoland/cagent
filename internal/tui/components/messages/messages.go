@@ -27,9 +27,9 @@ type Model interface {
 	AddUserMessage(content string) tea.Cmd
 	AddAssistantMessage() tea.Cmd
 	AddSeparatorMessage() tea.Cmd
-	AddOrUpdateToolCall(toolName string, arguments string, status types.ToolStatus) tea.Cmd
+	AddOrUpdateToolCall(toolName, toolCallID, arguments string, status types.ToolStatus) tea.Cmd
 	// AddToolResult adds a tool result message or updates existing tool call with result
-	AddToolResult(toolName string, result string, status types.ToolStatus) tea.Cmd
+	AddToolResult(toolName, toolCallID, result string, status types.ToolStatus) tea.Cmd
 	AppendToLastMessage(agentName string, content string) tea.Cmd
 	ClearMessages()
 	ScrollToBottom() tea.Cmd
@@ -298,26 +298,31 @@ func (m *model) AddSeparatorMessage() tea.Cmd {
 }
 
 // AddOrUpdateToolCall adds a tool call or updates existing one with the given status
-func (m *model) AddOrUpdateToolCall(toolName, arguments string, status types.ToolStatus) tea.Cmd {
-	// First try to update existing tool
-	if len(m.messages) > 0 {
-		lastMessage := &m.messages[len(m.messages)-1]
-		if lastMessage.Type == types.MessageTypeToolCall && lastMessage.ToolName == toolName {
-			lastMessage.ToolStatus = status
+func (m *model) AddOrUpdateToolCall(toolName, toolCallID, arguments string, status types.ToolStatus) tea.Cmd {
+	// First try to update existing tool by ID (more precise)
+	for i := len(m.messages) - 1; i >= 0; i-- {
+		msg := &m.messages[i]
+		if msg.ToolCallID == toolCallID {
+			msg.ToolStatus = status
+			if arguments != "" {
+				msg.Arguments = arguments // Update arguments if provided
+			}
 			// Update the corresponding view
-			view := m.createToolCallView(lastMessage)
-			m.views[len(m.views)-1] = view
+			view := m.createToolCallView(msg)
+			m.views[i] = view
 			// Initialize the updated view
 			return view.Init()
 		}
 	}
 
-	// Check if last message is an empty assistant message and remove it
+	// If not found by ID, check if we need to remove last empty assistant message
 	m.removeLastEmptyAssistantMessage()
 
+	// Create new tool call
 	msg := types.Message{
 		Type:       types.MessageTypeToolCall,
 		ToolName:   toolName,
+		ToolCallID: toolCallID,
 		ToolStatus: status,
 		Arguments:  arguments,
 	}
@@ -331,11 +336,11 @@ func (m *model) AddOrUpdateToolCall(toolName, arguments string, status types.Too
 }
 
 // AddToolResult adds tool result to the most recent matching tool call
-func (m *model) AddToolResult(toolName, result string, status types.ToolStatus) tea.Cmd {
-	// Find the most recent tool call with this name and update it with the result
+func (m *model) AddToolResult(toolName, toolCallID, result string, status types.ToolStatus) tea.Cmd {
+	// Find the tool call with matching name and ID and update it with the result
 	for i := len(m.messages) - 1; i >= 0; i-- {
 		msg := &m.messages[i]
-		if msg.Type == types.MessageTypeToolCall && msg.ToolName == toolName {
+		if msg.ToolCallID == toolCallID {
 			// Update the existing tool call message with the result content
 			msg.Content = result
 			msg.ToolStatus = status

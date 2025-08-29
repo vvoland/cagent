@@ -211,18 +211,18 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case *runtime.PartialToolCallEvent:
 		// When we first receive a tool call, show it immediately in pending state
 		spinnerCmd := p.sidebar.SetWorking(true)
-		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, msg.ToolCall.Function.Arguments, types.ToolStatusPending)
+		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, msg.ToolCall.ID, msg.ToolCall.Function.Arguments, types.ToolStatusPending)
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
 	case *runtime.ToolCallConfirmationEvent:
 		spinnerCmd := p.sidebar.SetWorking(false) // Stop working indicator during confirmation
-		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, msg.ToolCall.Function.Arguments, types.ToolStatusConfirmation)
+		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, msg.ToolCall.ID, msg.ToolCall.Function.Arguments, types.ToolStatusConfirmation)
 		focusCmd := p.messages.FocusToolInConfirmation()
 		// Switch focus to messages so user can immediately respond with Y/N/A
 		p.setFocusToChat()
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), focusCmd, spinnerCmd)
 	case *runtime.ToolCallEvent:
 		spinnerCmd := p.sidebar.SetWorking(true)
-		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, msg.ToolCall.Function.Arguments, types.ToolStatusPending)
+		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, msg.ToolCall.ID, msg.ToolCall.Function.Arguments, types.ToolStatusRunning)
 
 		// Check if this is a todo-related tool call and update sidebar
 		toolName := msg.ToolCall.Function.Name
@@ -238,7 +238,7 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case *runtime.ToolCallResponseEvent:
 		spinnerCmd := p.sidebar.SetWorking(true)
 		// Update the tool call with the response content and completed status
-		cmd := p.messages.AddToolResult(msg.ToolCall.Function.Name, msg.Response, types.ToolStatusCompleted)
+		cmd := p.messages.AddToolResult(msg.ToolCall.Function.Name, msg.ToolCall.ID, msg.Response, types.ToolStatusCompleted)
 
 		// Return focus to editor after tool execution completes
 		p.setFocusToEditor()
