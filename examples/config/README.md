@@ -1,22 +1,21 @@
-# YAML Configuration Files Analysis
+# Examples Configuration Files Analysis
 
 ## **Basic Configurations:**
 
-
 | Name              | Description/Purpose                                 | Filesystem | Shell | Todo | Think | Memory | MCP Servers | Sub-agents |
 |------------------ |-----------------------------------------------------|------------|-------|------|-------|--------|-------------|------------|
-| echo-agent.yaml   | Simple echo agent                                   |            |       |      |       |        |             |           |
-| pirate.yaml       | Pirate-themed assistant                             |            |       |      |       |        |             |           |
-| 42.yaml           | Douglas Adams-style witty AI assistant              |            |       |      |       |        |             |           |
-| contradict.yaml   | Contrarian viewpoint provider                       |            |       |      |       |        |             |           |
-| silvia.yaml       | Sylvia Plath-inspired poetic AI                     |            |       |      |       |        |             |           |
-| script_shell.yaml | Agent with custom shell commands                    |            | ✓     |      |       |        |             |           |
-| mem.yaml          | Humorous AI with persistent memory                  | ✓          |       |      |       | ✓      |             |           |
-| diag.yaml         | Log analysis and diagnostics                        | ✓          | ✓     |      | ✓     |        |             |           |
-| todo.yaml         | Task manager example                                |            |       | ✓    |       |        |             |           |
-| pythonist.yaml    | Python programming assistant                        | ✓          | ✓     |      |       |        |             |           |
-| alloy.yaml        | Learning assistant                                  |            |       |      |       |        |             |           |
-| dmr.yaml          | Pirate-themed AI assistant                          |            |       |      |       |        |             |           |
+| [echo-agent.yaml](echo-agent.yaml)   | Simple echo agent                                   |            |       |      |       |        |             |           |
+| [pirate.yaml](pirate.yaml)       | Pirate-themed assistant                             |            |       |      |       |        |             |           |
+| [42.yaml](42.yaml)           | Douglas Adams-style witty AI assistant              |            |       |      |       |        |             |           |
+| [contradict.yaml](contradict.yaml)   | Contrarian viewpoint provider                       |            |       |      |       |        |             |           |
+| [silvia.yaml](silvia.yaml)       | Sylvia Plath-inspired poetic AI                     |            |       |      |       |        |             |           |
+| [script_shell.yaml](script_shell.yaml) | Agent with custom shell commands                    |            | ✓     |      |       |        |             |           |
+| [mem.yaml](mem.yaml)          | Humorous AI with persistent memory                  | ✓          |       |      |       | ✓      |             |           |
+| [diag.yaml](diag.yaml)         | Log analysis and diagnostics                        | ✓          | ✓     |      | ✓     |        |             |           |
+| [todo.yaml](todo.yaml)         | Task manager example                                |            |       | ✓    |       |        |             |           |
+| [pythonist.yaml](pythonist.yaml)    | Python programming assistant                        | ✓          | ✓     |      |       |        |             |           |
+| [alloy.yaml](alloy.yaml)        | Learning assistant                                  |            |       |      |       |        |             |           |
+| [dmr.yaml](dmr.yaml)          | Pirate-themed AI assistant                          |            |       |      |       |        |             |           |
 
 
 ## **Advanced Configurations:**
