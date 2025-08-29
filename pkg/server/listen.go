@@ -14,7 +14,7 @@ func Listen(ctx context.Context, addr string) (net.Listener, error) {
 	}
 
 	if path, ok := strings.CutPrefix(addr, "npipe://"); ok {
-		return listenNamedPipe(strings.TrimPrefix(path, "npipe://"))
+		return listenNamedPipe(path)
 	}
 
 	return listenTCP(ctx, addr)
