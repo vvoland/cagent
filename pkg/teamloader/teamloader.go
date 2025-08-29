@@ -76,12 +76,11 @@ func FindAgentPaths(agentsPathOrDirectory string) ([]string, error) {
 }
 
 func Load(ctx context.Context, path string, runConfig latest.RuntimeConfig, logger *slog.Logger) (*team.Team, error) {
-	cfg, err := config.LoadConfig(path)
+	parentDir := filepath.Dir(path)
+	cfg, err := config.LoadConfigSecure(path, parentDir)
 	if err != nil {
 		return nil, err
 	}
-
-	parentDir := filepath.Dir(path)
 	fileName := filepath.Base(path)
 	absEnvFles, err := environment.AbsolutePaths(parentDir, runConfig.EnvFiles)
 	if err != nil {
