@@ -193,8 +193,9 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := p.messages.AddUserMessage(msg.Message)
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
 	case *runtime.StreamStartedEvent:
+		spinnerCmd := p.sidebar.SetWorking(true)
 		cmd := p.messages.AddAssistantMessage()
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
+		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
 	case *runtime.AgentChoiceEvent:
 		cmd := p.messages.AppendToLastMessage(msg.AgentName, msg.Choice.Delta.Content)
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
@@ -204,15 +205,18 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case *runtime.TokenUsageEvent:
 		p.sidebar.SetTokenUsage(msg.Usage)
 	case *runtime.StreamStoppedEvent:
+		spinnerCmd := p.sidebar.SetWorking(false)
 		cmd := p.messages.AddSeparatorMessage()
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
+		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
 	case *runtime.ToolCallConfirmationEvent:
+		spinnerCmd := p.sidebar.SetWorking(false) // Stop working indicator during confirmation
 		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, msg.ToolCall.Function.Arguments, types.ToolStatusConfirmation)
 		focusCmd := p.messages.FocusToolInConfirmation()
 		// Switch focus to messages so user can immediately respond with Y/N/A
 		p.setFocusToChat()
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), focusCmd)
+		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), focusCmd, spinnerCmd)
 	case *runtime.ToolCallEvent:
+		spinnerCmd := p.sidebar.SetWorking(true)
 		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, msg.ToolCall.Function.Arguments, types.ToolStatusPending)
 
 		// Check if this is a todo-related tool call and update sidebar
@@ -225,13 +229,14 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
+		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
 	case *runtime.ToolCallResponseEvent:
+		spinnerCmd := p.sidebar.SetWorking(true)
 		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, msg.ToolCall.Function.Arguments, types.ToolStatusCompleted)
 
 		// Return focus to editor after tool execution completes
 		p.setFocusToEditor()
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
+		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
 	}
 
 	sidebarModel, sidebarCmd := p.sidebar.Update(msg)

@@ -276,10 +276,16 @@ func (m *model) AddAssistantMessage() tea.Cmd {
 	m.views = append(m.views, view)
 
 	// Initialize the new view (this will start the spinner for empty assistant messages)
-	if wasAtBottom {
-		return tea.Batch(view.Init(), m.ScrollToBottom())
+	var cmds []tea.Cmd
+	if initCmd := view.Init(); initCmd != nil {
+		cmds = append(cmds, initCmd)
 	}
-	return view.Init()
+	if wasAtBottom {
+		// Scroll to bottom synchronously after adding content
+		m.calculateTotalHeight()
+		m.scrollToBottom()
+	}
+	return tea.Batch(cmds...)
 }
 
 // AddSeparatorMessage adds a separator message to the chat
@@ -345,10 +351,16 @@ func (m *model) AppendToLastMessage(agentName, content string) tea.Cmd {
 		view := m.createMessageView(lastMsg)
 		m.views[lastIdx] = view
 		// Initialize the updated view (needed for spinner state changes)
-		if wasAtBottom {
-			return tea.Batch(view.Init(), m.ScrollToBottom())
+		var cmds []tea.Cmd
+		if initCmd := view.Init(); initCmd != nil {
+			cmds = append(cmds, initCmd)
 		}
-		return view.Init()
+		if wasAtBottom {
+			// Scroll to bottom synchronously after content update
+			m.calculateTotalHeight()
+			m.scrollToBottom()
+		}
+		return tea.Batch(cmds...)
 	} else {
 		// Last message is not assistant (probably a tool), create new assistant message
 		msg := types.Message{
@@ -363,10 +375,16 @@ func (m *model) AppendToLastMessage(agentName, content string) tea.Cmd {
 		m.views = append(m.views, view)
 
 		// Initialize the new view
-		if wasAtBottom {
-			return tea.Batch(view.Init(), m.ScrollToBottom())
+		var cmds []tea.Cmd
+		if initCmd := view.Init(); initCmd != nil {
+			cmds = append(cmds, initCmd)
 		}
-		return view.Init()
+		if wasAtBottom {
+			// Scroll to bottom synchronously after adding content
+			m.calculateTotalHeight()
+			m.scrollToBottom()
+		}
+		return tea.Batch(cmds...)
 	}
 }
 
@@ -380,10 +398,10 @@ func (m *model) ClearMessages() {
 
 // ScrollToBottom scrolls to the bottom of the chat
 func (m *model) ScrollToBottom() tea.Cmd {
-	return func() tea.Msg {
-		m.scrollToBottom()
-		return nil
-	}
+	// Make this synchronous to prevent race conditions
+	m.calculateTotalHeight()
+	m.scrollToBottom()
+	return nil
 }
 
 // Virtual list implementation methods
@@ -415,6 +433,8 @@ func (m *model) calculateTotalHeight() {
 
 // isAtBottom returns true if the viewport is scrolled to the bottom
 func (m *model) isAtBottom() bool {
+	// Always recalculate height before checking bottom position
+	m.calculateTotalHeight()
 	maxScroll := max(0, m.totalHeight-m.height)
 	return m.scrollOffset >= maxScroll
 }
@@ -476,12 +496,14 @@ func (m *model) renderVisibleViews() string {
 const defaultScrollAmount = 1 // Number of lines to scroll per scroll action
 
 func (m *model) scrollUp() {
+	m.calculateTotalHeight() // Ensure bounds are current
 	if m.scrollOffset > 0 {
 		m.scrollOffset = max(0, m.scrollOffset-defaultScrollAmount)
 	}
 }
 
 func (m *model) scrollDown() {
+	m.calculateTotalHeight() // Ensure bounds are current
 	maxScroll := max(0, m.totalHeight-m.height)
 	if m.scrollOffset < maxScroll {
 		m.scrollOffset = min(maxScroll, m.scrollOffset+defaultScrollAmount)
@@ -489,10 +511,12 @@ func (m *model) scrollDown() {
 }
 
 func (m *model) scrollPageUp() {
+	m.calculateTotalHeight() // Ensure bounds are current
 	m.scrollOffset = max(0, m.scrollOffset-m.height)
 }
 
 func (m *model) scrollPageDown() {
+	m.calculateTotalHeight() // Ensure bounds are current
 	maxScroll := max(0, m.totalHeight-m.height)
 	m.scrollOffset = min(maxScroll, m.scrollOffset+m.height)
 }
@@ -502,6 +526,8 @@ func (m *model) scrollToTop() {
 }
 
 func (m *model) scrollToBottom() {
+	// Height should already be calculated by caller, but ensure it's current
+	m.calculateTotalHeight()
 	maxScroll := max(0, m.totalHeight-m.height)
 	m.scrollOffset = maxScroll
 }

@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/v2/spinner"
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
 
@@ -22,6 +23,7 @@ type Model interface {
 	SetTitle(title string)
 	SetTokenUsage(usage *runtime.Usage)
 	SetTodoArguments(toolName, arguments string) error
+	SetWorking(working bool) tea.Cmd
 }
 
 // model implements Model
@@ -31,16 +33,22 @@ type model struct {
 	title    string
 	usage    *runtime.Usage
 	todoComp *todo.Component
+	working  bool
+	spinner  spinner.Model
 }
 
 // New creates a new sidebar component
 func New() Model {
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+
 	return &model{
 		width:    20, // Default width
 		height:   24, // Default height
 		usage:    &runtime.Usage{},
 		todoComp: todo.NewComponent(),
 		title:    "New Session",
+		spinner:  s,
 	}
 }
 
@@ -62,6 +70,16 @@ func (m *model) SetTodoArguments(toolName, arguments string) error {
 		return m.todoComp.ParseTodoWriteArguments(arguments)
 	}
 	return m.todoComp.ParseTodoArguments(toolName, arguments)
+}
+
+// SetWorking sets the working state and returns a command to start the spinner if needed
+func (m *model) SetWorking(working bool) tea.Cmd {
+	m.working = working
+	if working {
+		// Start spinner when beginning to work
+		return m.spinner.Tick
+	}
+	return nil
 }
 
 // formatTokenCount formats a token count with K/M suffixes for readability
@@ -91,10 +109,19 @@ func getCurrentWorkingDirectory() string {
 
 // Update handles messages and updates the component state
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if ws, ok := msg.(tea.WindowSizeMsg); ok {
-		cmd := m.SetSize(ws.Width, ws.Height)
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		cmd := m.SetSize(msg.Width, msg.Height)
 		return m, cmd
+	default:
+		// Update spinner when working
+		if m.working {
+			var cmd tea.Cmd
+			m.spinner, cmd = m.spinner.Update(msg)
+			return m, cmd
+		}
 	}
+
 	return m, nil
 }
 
@@ -125,6 +152,11 @@ func (m *model) View() string {
 	costText := greyStyle.Render(fmt.Sprintf("$%.2f", m.usage.Cost))
 
 	topContent += fmt.Sprintf("%s %s %s", percentageText, totalTokensText, costText)
+	// Add working indicator if active
+	if m.working {
+		workingIndicator := lipgloss.NewStyle().Foreground(lipgloss.Color("#00ff00")).Render(m.spinner.View() + " Working...")
+		topContent += "\n" + workingIndicator
+	}
 
 	// Get todo content (if any)
 	m.todoComp.SetSize(m.width)
