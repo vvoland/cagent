@@ -15,7 +15,7 @@ RUN --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=1 go build -trimpath -ldflags "-s -w -X 'github.com/docker/cagent/cmd/root.Version=$GIT_TAG' -X 'github.com/docker/cagent/cmd/root.Commit=$GIT_COMMIT' -X 'github.com/docker/cagent/cmd/root.BuildTime=$BUILD_DATE'" -o /agent .
 
-FROM --platform=$BUILDPLATFORM golang:1.24.1-alpine3.21 AS builder-base
+FROM --platform=$BUILDPLATFORM golang:1.24.2-alpine3.21 AS builder-base
 WORKDIR /src
 COPY --from=xx / /
 ARG TARGETPLATFORM TARGETOS TARGETARCH
