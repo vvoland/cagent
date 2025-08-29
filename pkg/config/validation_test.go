@@ -62,7 +62,7 @@ func TestValidatePathInDirectory(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := validatePathInDirectory(tt.path, tt.allowedDir)
+			result, err := ValidatePathInDirectory(tt.path, tt.allowedDir)
 
 			if tt.expectError {
 				require.Error(t, err)

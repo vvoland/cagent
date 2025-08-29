@@ -13,7 +13,7 @@ import (
 
 // LoadConfigSecure loads the configuration from a file with path validation
 func LoadConfigSecure(path, allowedDir string) (*v1.Config, error) {
-	validatedPath, err := validatePathInDirectory(path, allowedDir)
+	validatedPath, err := ValidatePathInDirectory(path, allowedDir)
 	if err != nil {
 		return nil, fmt.Errorf("path validation failed: %w", err)
 	}
@@ -21,7 +21,31 @@ func LoadConfigSecure(path, allowedDir string) (*v1.Config, error) {
 	return LoadConfig(validatedPath)
 }
 
-func validatePathInDirectory(path, allowedDir string) (string, error) {
+func ValidatePathInDirectory(path, allowedDir string) (string, error) {
+	if path == "" {
+		return "", fmt.Errorf("empty path")
+	}
+
+	cleanPath := filepath.Clean(path)
+
+	if cleanPath == "" || cleanPath == "." {
+		return "", fmt.Errorf("empty or invalid path")
+	}
+
+	if filepath.IsAbs(cleanPath) && allowedDir == "" {
+		if strings.Contains(path, "..") {
+			return "", fmt.Errorf("path contains directory traversal sequences")
+		}
+		return cleanPath, nil
+	}
+
+	if allowedDir == "" {
+		if strings.HasPrefix(cleanPath, "..") {
+			return "", fmt.Errorf("path contains directory traversal sequences")
+		}
+		return cleanPath, nil
+	}
+
 	cleanAllowedDir := filepath.Clean(allowedDir)
 	absAllowedDir, err := filepath.Abs(cleanAllowedDir)
 	if err != nil {
@@ -29,10 +53,10 @@ func validatePathInDirectory(path, allowedDir string) (string, error) {
 	}
 
 	var targetPath string
-	if filepath.IsAbs(path) {
-		targetPath = filepath.Clean(path)
+	if filepath.IsAbs(cleanPath) {
+		targetPath = cleanPath
 	} else {
-		targetPath = filepath.Join(absAllowedDir, path)
+		targetPath = filepath.Join(absAllowedDir, cleanPath)
 	}
 
 	absTargetPath, err := filepath.Abs(targetPath)

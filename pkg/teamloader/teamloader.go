@@ -200,19 +200,24 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 			if toolset.Path != "" {
 				var memoryPath string
 				if filepath.IsAbs(toolset.Path) {
-					memoryPath = toolset.Path
+					memoryPath = ""
 				} else {
 					if wd, err := os.Getwd(); err == nil {
-						memoryPath = filepath.Join(wd, toolset.Path)
+						memoryPath = wd
 					} else {
-						memoryPath = filepath.Join(parentDir, toolset.Path)
+						memoryPath = parentDir
 					}
 				}
-				if err := os.MkdirAll(filepath.Dir(memoryPath), 0o700); err != nil {
+
+				validatedMemoryPath, err := config.ValidatePathInDirectory(toolset.Path, memoryPath)
+				if err != nil {
+					return nil, fmt.Errorf("invalid memory database path: %w", err)
+				}
+				if err := os.MkdirAll(filepath.Dir(validatedMemoryPath), 0o700); err != nil {
 					return nil, fmt.Errorf("failed to create memory database directory: %w", err)
 				}
 
-				db, err := sqlite.NewMemoryDatabase(memoryPath)
+				db, err := sqlite.NewMemoryDatabase(validatedMemoryPath)
 				if err != nil {
 					return nil, fmt.Errorf("failed to create memory database: %w", err)
 				}
