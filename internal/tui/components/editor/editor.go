@@ -40,9 +40,9 @@ func New() Editor {
 	ta.Prompt = "│ "
 	ta.CharLimit = -1
 	ta.SetWidth(50)
-	ta.SetHeight(1)
+	ta.SetHeight(3) // Set minimum 3 lines for multi-line input
 	ta.ShowLineNumbers = false
-	ta.KeyMap.InsertNewline.SetEnabled(false) // Disable newline insertion on Enter
+	ta.KeyMap.InsertNewline.SetEnabled(true) // Enable newline insertion
 
 	return &editorCmp{
 		textarea: ta,
@@ -64,7 +64,7 @@ func (e *editorCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return e, nil
 	case tea.KeyPressMsg:
 		switch msg.String() {
-		case "enter":
+		case "ctrl+enter":
 			if !e.textarea.Focused() {
 				return e, nil
 			}
@@ -73,7 +73,7 @@ func (e *editorCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				e.textarea.Reset()
 				return e, util.CmdHandler(SendMsg{Content: value})
 			}
-			return e, nil // Don't pass Enter to textarea when we handle it
+			return e, nil
 		case "ctrl+c":
 			return e, tea.Quit
 		}
@@ -100,9 +100,10 @@ func (e *editorCmp) SetSize(width, height int) tea.Cmd {
 
 	// Account for border and padding
 	contentWidth := max(width, 10)
+	contentHeight := max(height, 3) // Minimum 3 lines, but respect height parameter
 
 	e.textarea.SetWidth(contentWidth)
-	e.textarea.SetHeight(1) // Always single line
+	e.textarea.SetHeight(contentHeight)
 
 	return nil
 }
@@ -132,8 +133,12 @@ func (e *editorCmp) IsFocused() bool {
 func (e *editorCmp) Bindings() []key.Binding {
 	return []key.Binding{
 		key.NewBinding(
+			key.WithKeys("ctrl+enter"),
+			key.WithHelp("ctrl+enter", "send"),
+		),
+		key.NewBinding(
 			key.WithKeys("enter"),
-			key.WithHelp("enter", "send"),
+			key.WithHelp("enter", "new line"),
 		),
 	}
 }

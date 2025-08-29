@@ -321,9 +321,13 @@ func (p *chatPage) SetSize(width, height int) tea.Cmd {
 	var cmds []tea.Cmd
 
 	// Calculate heights accounting for padding
-	headerHeight := 3 // header + top/bottom padding
-	p.inputHeight = 3 // input style includes its own padding
-	p.chatHeight = height - headerHeight - p.inputHeight
+	headerHeight := 3   // header + top/bottom padding
+	editorHeight := 3   // fixed 3 lines for multi-line input
+
+	// Calculate available space, ensuring status bar remains visible
+	availableHeight := height - headerHeight
+	p.inputHeight = editorHeight + 2 // account for editor padding
+	p.chatHeight = availableHeight - p.inputHeight
 
 	// Account for horizontal padding in width
 	innerWidth := width - 2 // subtract left/right padding
@@ -335,8 +339,8 @@ func (p *chatPage) SetSize(width, height int) tea.Cmd {
 	// Set component sizes
 	cmds = append(cmds,
 		p.messages.SetSize(mainWidth, p.chatHeight),
-		p.sidebar.SetSize(sidebarWidth, p.chatHeight), // Use chatHeight for consistency with View method
-		p.editor.SetSize(innerWidth, 1),               // Input field gets full width
+		p.sidebar.SetSize(sidebarWidth, p.chatHeight),
+		p.editor.SetSize(innerWidth, editorHeight), // Use calculated editor height
 	)
 
 	return tea.Batch(cmds...)
