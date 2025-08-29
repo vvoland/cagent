@@ -198,7 +198,7 @@ func (t *TodoTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 						},
 						"status": map[string]any{
 							"type":        "string",
-							"description": "New status (pending, completed)",
+							"description": "New status (pending, in-progress,completed)",
 						},
 					},
 					Required: []string{"id", "status"},

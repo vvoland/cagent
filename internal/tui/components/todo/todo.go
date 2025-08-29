@@ -169,9 +169,12 @@ func (c *Component) Render() string {
 		case "pending":
 			icon = "◯"
 			style = styles.PendingStyle
+		case "in-progress":
+			icon = "◕"
+			style = styles.InProgressStyle
 		case "completed":
 			icon = "✓"
-			style = styles.SuccessStyle
+			style = styles.MutedStyle
 		default:
 			icon = "?"
 			style = styles.BaseStyle

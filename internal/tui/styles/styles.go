@@ -24,7 +24,8 @@ var (
 	borderPrimary = lipgloss.Color("#FFA500") // Orange for primary borders
 
 	// State colors
-	pending = lipgloss.Color("#FFAA00") // Orange for pending states
+	pending    = lipgloss.Color("#FFFFFF") // White for pending states
+	inProgress = lipgloss.Color("#FFA500") // Orange for in-progress states
 )
 
 // Generic, reusable styles
@@ -59,6 +60,9 @@ var (
 
 	ActiveStyle = lipgloss.NewStyle().
 			Foreground(active)
+
+	InProgressStyle = lipgloss.NewStyle().
+			Foreground(inProgress)
 
 	PendingStyle = lipgloss.NewStyle().
 			Foreground(pending)
