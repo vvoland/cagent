@@ -1,78 +1,46 @@
-1. BASIC AGENTS (Single agent, minimal toolsets, simple functionality)
+# YAML Configuration Files Analysis
 
-1.1 Style & Personality Demos
+## **Basic Configurations:**
 
-* 42.yaml: Douglas Adams-style witty assistant (Hitchhiker's Guide persona)
-* contradict.yaml: Contrarian viewpoint provider
-* pirate.yaml: Simple pirate-speaking agent
-* silvia.yaml: Sylvia Plath-inspired poetic AI
-* dmr.yaml: Basic pirate agent with custom DMR/Qwen model
+| Name          | Description/Purpose                                 | Filesystem | Shell | Todo | Think | Memory | MCP Servers | Sub-agents |
+|---------------|-----------------------------------------------------|------------|-------|------|-------|--------|-------------|------------|
+| 42.yaml       | Douglas Adams-style witty AI assistant              | ❌         | ❌    | ❌   | ❌    | ❌     | ❌          | ❌         |
+| pythonist.yaml| Python programming assistant                        | ✅         | ✅    | ❌   | ❌    | ❌     | ❌          | ❌         |
+| script_shell.yaml | Agent with custom shell commands                | ❌         | ✅    | ❌   | ❌    | ❌     | ❌          | ❌         |
+| echo-agent.yaml | Simple echo agent                                 | ❌         | ❌    | ❌   | ❌    | ❌     | ❌          | ❌         |
+| contradict.yaml | Contrarian viewpoint provider                     | ❌         | ❌    | ❌   | ❌    | ❌     | ❌          | ❌         |
+| github.yaml   | Github assistance using MCP tools                   | ❌         | ❌    | ❌   | ❌    | ❌     | `github-official` | ❌     |
+| mem.yaml      | Humorous AI with persistent memory                  | ✅         | ❌    | ❌   | ❌    | ✅     | ❌          | ❌         |
+| airbnb.yaml   | Airbnb search specialist                            | ❌         | ❌    | ❌   | ❌    | ❌     | `@openbnb/mcp-server-airbnb` | ❌ |
+| diag.yaml     | Log analysis and diagnostics                        | ✅         | ✅    | ❌   | ✅    | ❌     | ❌          | ❌         |
+| pirate.yaml   | Pirate-themed assistant                             | ❌         | ❌    | ❌   | ❌    | ❌     | ❌          | ❌         |
 
-1.2 Simple Utility Agents
+## **Advanced Configurations:**
 
-* echo-agent.yaml: Minimal echo agent that repeats user input exactly
-* mem.yaml: Basic memory demonstration with persistent storage
-* alloy.yaml: Learning companion with multiple model support (claude, gpt-4o)
+| Name                       | Description/Purpose                           | Filesystem | Shell | Todo | Think | Memory | MCP Servers  | Sub-agents |
+|----------------------------|-----------------------------------------------|------------|-------|------|-------|--------|--------------|------------|
+| bio.yaml                   | Biography generation from internet searches   | ❌         | ❌    | ❌   | ❌    | ❌     | `duckduckgo, fetch` | ❌     |
+| github_issue_manager.yaml  | GitHub Issue Manager                          | ❌         | ❌    | ❌   | ❌    | ❌     | `github`          | ❌     |
+| alloy.yaml                 | Learning assistant                            | ❌         | ❌    | ❌   | ❌    | ❌     | ❌                | ❌     |
+| review.yaml                | Dockerfile review specialist                  | ✅         | ❌    | ❌   | ❌    | ❌     | ❌                | ❌     |
+| code.yaml                  | Code analysis and development assistant       | ✅         | ✅    | ✅   | ❌    | ❌     | ❌                | ❌     |
+| go_packages.yml            | Golang packages expert                        | ❌         | ❌    | ❌   | ❌    | ❌     | ❌                | ❌     |
+| silvia.yaml                | Sylvia Plath-inspired poetic AI               | ❌         | ❌    | ❌   | ❌    | ❌     | ❌                | ❌     |
+| todo.yaml                  | Task manager example                          | ❌         | ❌    | ✅   | ❌    | ❌     | ❌                | ❌     |
+| image_text_extractor.yaml  | Image text extraction                         | ✅         | ❌    | ❌   | ❌    | ❌     | ❌                | ❌     |
+| doc_generator.yaml         | Documentation generation from codebases       | ❌         | ✅    | ❌   | ✅    | ❌     | ❌                | ❌     |
 
-1.3 Basic Development Tools
+## **Multi-Agent Configurations:**
 
-* review.yaml: Docker file reviewer (filesystem toolset)
-* todo.yaml: Code editor with filesystem and todo tools
-* pythonist.yaml: Python development assistant (filesystem, shell)
-
-2. INTERMEDIATE AGENTS (Single agent with multiple toolsets or moderate complexity)
-
-2.1 Web-Integrated Agents
-
-* airbnb.yaml: Travel accommodation search with AirBnB MCP server
-* bio.yaml: Biography generator using DuckDuckGo and fetch tools
-* moby.yaml: Moby project expert with remote MCP integration
-* github.yaml: GitHub assistant using official GitHub MCP server
-
-2.2 Specialized Development Tools
-
-* go_packages.yml: Go package expert with custom script toolset
-* image_text_extractor.yaml: OCR and image analysis with vision models
-* diag.yaml: Log analysis specialist (filesystem, shell, think)
-
-2.3 Custom Script Agents
-
-* script_shell.yaml: Demonstrates custom shell commands (IP, Docker, GitHub APIs)
-
-3. ADVANCED SINGLE AGENTS (Complex workflows, multiple toolsets, sophisticated functionality)
-
-3.1 Code Generation & Analysis
-
-* code.yaml: Expert code analysis with validation loops (filesystem, shell, todo, DuckDuckGo)
-* mcp_generator.yaml: Python code generator with testing workflow (think, DuckDuckGo, filesystem, shell)
-* doc_generator.yaml: Comprehensive documentation generator (shell, think, Diátaxis framework)
-
-3.2 Specialized Migration Tools
-
-* dhi/dhi.yaml: Docker Hardened Images migration specialist (DuckDuckGo, filesystem, shell, todo)
-
-3.3 Project Management
-
-* github_issue_manager.yaml: GitHub issue management with date awareness
-
-4. MULTI-AGENT SYSTEMS (Coordinated teams with specialized sub-agents)
-
-4.1 Content Creation Teams
-
-* blog.yaml: Technical blog writing (web_search_agent + writer)
-* writer.yaml: Creative writing workflow (prompt_chooser + writer)
-* finance.yaml: Financial analysis (finance_agent + web_search_agent)
-
-4.2 Development Teams
-
-* agent.yaml: Docker expertise team (containerize + optimize_dockerfile + pirate)
-* multi-code.yaml: Full development team (web frontend + golang backend specialist)
-* dev-team.yaml: Complete development workflow (designer + awesome_engineer with memory)
-
-4.3 Language Processing Teams
-
-* professional/professional_writing_agent.yaml: English editing + French translation
-
-4.4 Shared State Demos
-
-* shared-todo.yaml: Demonstrates shared todo state between agents
+| Name          | Description/Purpose                        | Filesystem | Shell | Todo | Think | Memory | MCP Servers  | Sub-agents     |
+|---------------|--------------------------------------------|------------|-------|------|-------|--------|--------------|----------------|
+| agent.yaml    | Docker Expert Assistant                    | ❌         | ❌    | ❌   | ❌    | ❌     | ❌            | ✅             |
+| blog.yaml     | Technical blog writing workflow            | ❌         | ❌    | ❌   | ✅    | ❌     | `duckduckgo-mcp-server` | ✅   |
+| dev-team.yaml | Development team coordinator               | ✅         | ✅    | ✅   | ✅    | ✅     | ❌            | ✅             |
+| multi-code.yaml | Technical lead and project coordination  | ✅         | ✅    | ✅   | ✅    | ✅     | ❌            | ✅             |
+| writer.yaml   | Story writing workflow supervisor          | ❌         | ❌    | ❌   | ✅    | ❌     | ❌            | ✅             |
+| finance.yaml  | Financial research and analysis            | ❌         | ❌    | ❌   | ✅    | ❌     | `duckduckgo-mcp-server` | ✅ |
+| shared-todo.yaml | Shared todo item manager                | ❌         | ❌    | ✅   | ❌    | ❌     | ❌            | ✅             |
+| mcp_generator.yaml | Generates MCP configurations         | ❌         | ❌    | ❌   | ❌    | ❌     | `docker,duckduckgo-mcp-server` | ❌ |
+| moby.yaml     | Moby Project Expert                        | ❌         | ❌    | ❌   | ❌    | ❌     | `gitmcp.io/moby/moby` | ❌ |
+| dmr.yaml      | Pirate-themed AI assistant                 | ❌         | ❌    | ❌   | ❌    | ❌     | ❌            | ❌             |
