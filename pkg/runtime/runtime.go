@@ -119,6 +119,14 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 
 	go func() {
 		a := r.team.Agent(r.currentAgent)
+
+		// Ensure any toolsets (e.g., MCP clients/processes) are torn down when this run finishes
+		// so that subsequent runs start from a clean state and no goroutines remain hanging.
+		defer func() {
+			if err := a.StopToolSets(); err != nil {
+				r.logger.Error("Failed to stop tool sets on run completion", "agent", a.Name(), "error", err)
+			}
+		}()
 		model := a.Model()
 		modelID := model.ID()
 
@@ -142,6 +150,11 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 		}
 
 		for {
+			// Exit immediately if the stream context has been cancelled (e.g., Ctrl+C)
+			if err := ctx.Err(); err != nil {
+				r.logger.Debug("Runtime stream context cancelled, stopping loop", "agent", a.Name(), "session_id", sess.ID)
+				return
+			}
 			r.logger.Debug("Starting conversation loop iteration", "agent", a.Name())
 			messages := sess.GetMessages(a)
 			r.logger.Debug("Retrieved messages for processing", "agent", a.Name(), "message_count", len(messages))
@@ -175,6 +188,12 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			r.logger.Debug("Processing stream", "agent", a.Name())
 			calls, content, stopped, err := r.handleStream(stream, a, sess, m, events)
 			if err != nil {
+				// Treat context cancellation as a graceful stop
+				if errors.Is(err, context.Canceled) || strings.Contains(strings.ToLower(err.Error()), "context canceled") {
+					r.logger.Debug("Model stream canceled by context", "agent", a.Name(), "session_id", sess.ID)
+					streamSpan.End()
+					return
+				}
 				streamSpan.RecordError(err)
 				streamSpan.SetStatus(codes.Error, "error handling stream")
 				r.logger.Error("Error handling stream", "agent", a.Name(), "error", err)
@@ -225,6 +244,11 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			}
 
 			if err := r.processToolCalls(ctx, sess, calls, events); err != nil {
+				// If cancellation, stop quietly
+				if errors.Is(err, context.Canceled) || strings.Contains(strings.ToLower(err.Error()), "context cancelled") || strings.Contains(strings.ToLower(err.Error()), "context canceled") {
+					r.logger.Debug("Tool call processing canceled by context", "agent", a.Name(), "session_id", sess.ID)
+					return
+				}
 				sessionSpan.RecordError(err)
 				sessionSpan.SetStatus(codes.Error, "process tool calls")
 				events <- Error(err.Error())
@@ -362,7 +386,7 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 		return fmt.Errorf("failed to get tools: %w", err)
 	}
 
-	for _, toolCall := range calls {
+	for i, toolCall := range calls {
 		// Start a span for each tool call
 		callCtx, callSpan := r.startSpan(ctx, "runtime.tool.call", trace.WithAttributes(
 			attribute.String("tool.name", toolCall.Function.Name),
@@ -398,9 +422,13 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 					}
 				case <-callCtx.Done():
 					r.logger.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
-					callSpan.RecordError(callCtx.Err())
-					callSpan.SetStatus(codes.Error, "context cancelled while waiting for resume")
-					return fmt.Errorf("context cancelled while waiting for resume: %w", callCtx.Err())
+					// Synthesize cancellation responses for the current and any remaining tool calls
+					r.addToolCancelledResponse(sess, toolCall, events)
+					for j := i + 1; j < len(calls); j++ {
+						r.addToolCancelledResponse(sess, calls[j], events)
+					}
+					callSpan.SetStatus(codes.Ok, "tool call canceled by user")
+					return nil
 				}
 			}
 		}
@@ -440,9 +468,13 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 					break toolLoop
 				case <-callCtx.Done():
 					r.logger.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
-					callSpan.RecordError(callCtx.Err())
-					callSpan.SetStatus(codes.Error, "context cancelled while waiting for resume")
-					return fmt.Errorf("context cancelled while waiting for resume: %w", callCtx.Err())
+					// Synthesize cancellation responses for the current and any remaining tool calls
+					r.addToolCancelledResponse(sess, toolCall, events)
+					for j := i + 1; j < len(calls); j++ {
+						r.addToolCancelledResponse(sess, calls[j], events)
+					}
+					callSpan.SetStatus(codes.Ok, "tool call canceled by user")
+					return nil
 				}
 			}
 		}
@@ -467,11 +499,18 @@ func (r *Runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.T
 	events <- ToolCall(toolCall, a.Name())
 	res, err := tool.Handler(ctx, toolCall)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "tool handler error")
-		r.logger.Error("Error calling tool", "tool", toolCall.Function.Name, "error", err)
-		res = &tools.ToolCallResult{
-			Output: fmt.Sprintf("Error calling tool: %v", err),
+		if errors.Is(err, context.Canceled) || ctx.Err() == context.Canceled {
+			r.logger.Debug("Tool handler canceled by context", "tool", toolCall.Function.Name, "agent", a.Name(), "session_id", sess.ID)
+			// Synthesize a cancellation response so the transcript remains consistent
+			res = &tools.ToolCallResult{Output: "The tool call was canceled by the user."}
+			span.SetStatus(codes.Ok, "tool handler canceled by user")
+		} else {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "tool handler error")
+			r.logger.Error("Error calling tool", "tool", toolCall.Function.Name, "error", err)
+			res = &tools.ToolCallResult{
+				Output: fmt.Sprintf("Error calling tool: %v", err),
+			}
 		}
 	} else {
 		span.SetStatus(codes.Ok, "tool handler completed")
@@ -501,10 +540,17 @@ func (r *Runtime) runAgentTool(ctx context.Context, handler ToolHandler, sess *s
 	res, err := handler(ctx, sess, toolCall, events)
 	var output string
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "runtime tool handler error")
-		output = fmt.Sprintf("error calling tool: %v", err)
-		r.logger.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
+		if errors.Is(err, context.Canceled) || ctx.Err() == context.Canceled {
+			r.logger.Debug("Runtime tool handler canceled by context", "tool", toolCall.Function.Name, "agent", a.Name(), "session_id", sess.ID)
+			// Synthesize a cancellation response so the transcript remains consistent
+			output = "The tool call was canceled by the user."
+			span.SetStatus(codes.Ok, "runtime tool handler canceled by user")
+		} else {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "runtime tool handler error")
+			output = fmt.Sprintf("error calling tool: %v", err)
+			r.logger.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
+		}
 	} else {
 		output = res.Output
 		span.SetStatus(codes.Ok, "runtime tool handler completed")
@@ -524,6 +570,21 @@ func (r *Runtime) addToolRejectedResponse(sess *session.Session, toolCall tools.
 	a := r.CurrentAgent()
 
 	result := "The user rejected the tool call."
+
+	events <- ToolCallResponse(toolCall, result, a.Name())
+
+	toolResponseMsg := chat.Message{
+		Role:       chat.MessageRoleTool,
+		Content:    result,
+		ToolCallID: toolCall.ID,
+	}
+	sess.AddMessage(session.NewAgentMessage(a, &toolResponseMsg))
+}
+
+func (r *Runtime) addToolCancelledResponse(sess *session.Session, toolCall tools.ToolCall, events chan Event) {
+	a := r.CurrentAgent()
+
+	result := "The tool call was canceled by the user."
 
 	events <- ToolCallResponse(toolCall, result, a.Name())
 

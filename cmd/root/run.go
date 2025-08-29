@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"time"
@@ -233,6 +234,18 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
+		// Create a cancellable context for this agentic loop and wire Ctrl+C to cancel it
+		loopCtx, loopCancel := context.WithCancel(ctx)
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, os.Interrupt)
+		go func() {
+			<-sigCh
+			// Ensure we break any inline typing output nicely
+			fmt.Println()
+			loopCancel()
+		}()
+		defer signal.Stop(sigCh)
+
 		// Parse for /attach commands in the message
 		messageText, attachPath := parseAttachCommand(userInput)
 
@@ -248,7 +261,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		lastAgent := rt.CurrentAgent().Name()
 		llmIsTyping := false
 		var lastConfirmedToolCallID string
-		for event := range rt.RunStream(ctx, sess) {
+		for event := range rt.RunStream(loopCtx, sess) {
 			if event.GetAgentName() != "" && (firstLoop || lastAgent != event.GetAgentName()) {
 				if !firstLoop {
 					if llmIsTyping {
@@ -278,7 +291,11 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 					fmt.Println()
 					llmIsTyping = false
 				}
-				result := printToolCallWithConfirmation(e.ToolCall, scannerConfirmations)
+				result := printToolCallWithConfirmation(loopCtx, e.ToolCall, scannerConfirmations)
+				// If interrupted, skip resuming; the runtime will notice context cancellation and stop
+				if loopCtx.Err() != nil {
+					continue
+				}
 				lastConfirmedToolCallID = e.ToolCall.ID // Store the ID to avoid duplicate printing
 				switch result {
 				case ConfirmationApprove:
@@ -314,9 +331,19 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 					fmt.Println()
 					llmIsTyping = false
 				}
-				lastErr = fmt.Errorf("%s", e.Error)
-				printError(lastErr)
+				lowerErr := strings.ToLower(e.Error)
+				if strings.Contains(lowerErr, "context cancel") && loopCtx.Err() != nil { // treat Ctrl+C cancellations as non-errors
+					lastErr = nil
+				} else {
+					lastErr = fmt.Errorf("%s", e.Error)
+					printError(lastErr)
+				}
 			}
+		}
+
+		// If the loop ended due to Ctrl+C, inform the user succinctly
+		if loopCtx.Err() != nil {
+			fmt.Println(yellow("\n⚠️  agent stopped  ⚠️"))
 		}
 		return nil
 	}

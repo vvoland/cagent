@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -79,6 +80,10 @@ func (c *Client) ListTools(ctx context.Context, toolFilter []string) ([]tools.To
 
 	resp, err := c.client.ListTools(ctx, mcp.ListToolsRequest{})
 	if err != nil {
+		if errors.Is(err, context.Canceled) || ctx.Err() == context.Canceled {
+			c.logger.Debug("ListTools canceled by context")
+			return nil, err
+		}
 		c.logger.Error("Failed to list tools from MCP server", "error", err)
 		return nil, fmt.Errorf("failed to list tools: %w", err)
 	}
@@ -142,6 +147,10 @@ func (c *Client) CallTool(ctx context.Context, toolCall tools.ToolCall) (*tools.
 
 	resp, err := c.client.CallTool(ctx, request)
 	if err != nil {
+		if errors.Is(err, context.Canceled) || ctx.Err() == context.Canceled {
+			c.logger.Debug("CallTool canceled by context", "tool", toolCall.Function.Name)
+			return nil, err
+		}
 		c.logger.Error("Failed to call MCP tool", "tool", toolCall.Function.Name, "error", err)
 		return nil, fmt.Errorf("failed to call tool: %w", err)
 	}

@@ -2,6 +2,7 @@ package root
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -31,9 +32,8 @@ const (
 // text utility functions
 
 func printWelcomeMessage() {
-	fmt.Println(blue("\nWelcome to %s! (Ctrl+C to exit)\n", bold(APP_NAME)))
+	fmt.Printf("\n%s\n%s\n\n", blue("------- Welcome to %s! -------", bold(APP_NAME)), gray("(Ctrl+C to stop the agent or exit)"))
 }
-
 func printError(err error) {
 	fmt.Println(red("❌ %s", err))
 }
@@ -50,23 +50,35 @@ func printToolCall(toolCall tools.ToolCall, colorFunc ...func(format string, a .
 	fmt.Printf("\n%s\n", c("%s%s", bold(toolCall.Function.Name), formatToolCallArguments(toolCall.Function.Arguments)))
 }
 
-func printToolCallWithConfirmation(toolCall tools.ToolCall, scanner *bufio.Scanner) ConfirmationResult {
+func printToolCallWithConfirmation(ctx context.Context, toolCall tools.ToolCall, scanner *bufio.Scanner) ConfirmationResult {
 	fmt.Printf("\n%s\n", bold(yellow("🛠️ Tool call requires confirmation 🛠️")))
 	printToolCall(toolCall, color.New(color.FgWhite).SprintfFunc())
 	fmt.Printf("\n%s", bold(yellow("Can I run this tool? ([y]es/[a]ll/[n]o): ")))
 
-	scanner.Scan()
-	text := scanner.Text()
-	switch text {
-	case "y":
-		return ConfirmationApprove
-	case "a":
-		return ConfirmationApproveSession
-	case "n":
+	inputCh := make(chan string, 1)
+	go func() {
+		if scanner.Scan() {
+			inputCh <- scanner.Text()
+		} else {
+			inputCh <- ""
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
 		return ConfirmationReject
-	default:
-		// Default to reject for invalid input
-		return ConfirmationReject
+	case text := <-inputCh:
+		switch text {
+		case "y":
+			return ConfirmationApprove
+		case "a":
+			return ConfirmationApproveSession
+		case "n":
+			return ConfirmationReject
+		default:
+			// Default to reject for invalid input
+			return ConfirmationReject
+		}
 	}
 }
 

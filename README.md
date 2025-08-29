@@ -204,7 +204,8 @@ cagent new --provider openai --model gpt-5
 ```sh
 $ cagent new
 
-Welcome to cagent! (Ctrl+C to exit)
+------- Welcome to cagent! -------
+(Ctrl+C to stop the agent or exit)
 
 What should your agent/agent team do? (describe its purpose):
 

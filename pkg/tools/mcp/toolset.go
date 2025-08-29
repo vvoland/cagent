@@ -62,6 +62,11 @@ func (t *Toolset) Tools(ctx context.Context) ([]tools.Tool, error) {
 	t.logger.Debug("Listing MCP tools", "toolFilter", t.toolFilter)
 	mcpTools, err := t.c.ListTools(ctx, t.toolFilter)
 	if err != nil {
+		if ctx.Err() == context.Canceled {
+			// Log at debug level on cancellation
+			t.logger.Debug("MCP tools listing canceled by context")
+			return nil, err
+		}
 		t.logger.Error("Failed to list MCP tools", "error", err)
 		return nil, err
 	}

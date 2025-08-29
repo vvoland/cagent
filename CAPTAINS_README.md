@@ -126,7 +126,7 @@ To use the feature, you must have an Anthropic API key available in your environ
 ```sh
 $ cagent new
 
-Welcome to cagent! (Ctrl+C to exit)
+------- Welcome to cagent! -------
 
 What should your agent/agent team do? (describe its purpose):
 

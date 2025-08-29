@@ -58,7 +58,11 @@ func NewNewCmd() *cobra.Command {
 			} else {
 				reader := bufio.NewReader(os.Stdin)
 
-				fmt.Print(blue("Welcome to %s! (Ctrl+C to exit)\n\nWhat should your agent/agent team do? (describe its purpose):\n\n> ", bold(APP_NAME)))
+				fmt.Printf("%s\n", blue("------- Welcome to %s! -------", bold(APP_NAME)))
+				fmt.Printf("%s\n\n", gray("         (Ctrl+C to exit)"))
+				fmt.Printf("%s\n\n", blue("What should your agent/agent team do? (describe its purpose)"))
+				fmt.Print(blue("> "))
+
 				var err error
 				prompt, err = reader.ReadString('\n')
 				if err != nil {

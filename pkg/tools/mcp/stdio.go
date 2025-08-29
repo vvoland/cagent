@@ -177,7 +177,23 @@ func (c *stdioMCPClient) Initialize(ctx context.Context, request mcp.InitializeR
 }
 
 func (c *stdioMCPClient) Close() error {
-	return c.close()
+	err := c.close()
+
+	c.initialized.Store(false)
+
+	c.responses.Range(func(key, value any) bool {
+		if ch, ok := value.(chan RPCResponse); ok {
+			msg := "client closed"
+			select {
+			case ch <- RPCResponse{Error: &msg}:
+			default:
+			}
+		}
+		c.responses.Delete(key)
+		return true
+	})
+
+	return err
 }
 
 func (c *stdioMCPClient) readResponses(stdout *bufio.Reader) error {
@@ -231,6 +247,8 @@ func (c *stdioMCPClient) sendRequest(ctx context.Context, method string, params 
 
 	select {
 	case <-ctx.Done():
+		// Best-effort cleanup of pending response to avoid leaks when a request is canceled
+		c.responses.Delete(id)
 		return nil, ctx.Err()
 	case response := <-responseChan:
 		if response.Error != nil {
