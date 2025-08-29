@@ -78,9 +78,9 @@ export ANTHROPIC_API_KEY=your_api_key_here # For Anthopic models
 export GOOGLE_API_KEY=your_api_key_here    # For Gemini models
 
 # Run with a sample configuration
-./bin/cagent run examples/config/code.yaml
+./bin/cagent run examples/code.yaml
 # or specify a different agent from the config
-./bin/cagent run examples/config/code.yaml -a root
+./bin/cagent run examples/code.yaml -a root
 # or run directly from an image reference
 ./bin/cagent run agentcatalog/pirate
 ```
@@ -459,8 +459,8 @@ During CLI sessions, you can use special commands:
 
 ## 🤝 Examples
 
-Explore the [examples/config](examples/config/) directory for ready-to-use configurations:
+Explore the [examples/](examples/) directory for ready-to-use configurations:
 
-- [examples/config/agent.yaml](examples/config/agent.yaml) - Basic assistant
-- [examples/config/code.yaml](examples/config/code.yaml) - Software development team
-- [examples/config/finance.yaml](examples/config/finance.yaml) - Financial analysis specialist
+- [examples/agent.yaml](examples/agent.yaml) - Basic assistant
+- [examples/code.yaml](examples/code.yaml) - Software development team
+- [examples/finance.yaml](examples/finance.yaml) - Financial analysis specialist
