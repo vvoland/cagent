@@ -8,7 +8,7 @@ import (
 )
 
 func TestAutoRegisterModels(t *testing.T) {
-	cfg, err := LoadConfig("testdata/autoregister.yaml")
+	cfg, err := loadConfig("testdata/autoregister.yaml")
 	require.NoError(t, err)
 
 	assert.Len(t, cfg.Models, 2)
@@ -19,7 +19,7 @@ func TestAutoRegisterModels(t *testing.T) {
 }
 
 func TestAutoRegisterAlloy(t *testing.T) {
-	cfg, err := LoadConfig("testdata/autoregister_alloy.yaml")
+	cfg, err := loadConfig("testdata/autoregister_alloy.yaml")
 	require.NoError(t, err)
 
 	assert.Len(t, cfg.Models, 2)
@@ -30,21 +30,21 @@ func TestAutoRegisterAlloy(t *testing.T) {
 }
 
 func TestMigrate_v0_v1_provider(t *testing.T) {
-	cfg, err := LoadConfig("testdata/provider_v0.yaml")
+	cfg, err := loadConfig("testdata/provider_v0.yaml")
 	require.NoError(t, err)
 
 	assert.Equal(t, "openai", cfg.Models["openai"].Provider)
 }
 
 func TestMigrate_v1_provider(t *testing.T) {
-	cfg, err := LoadConfig("testdata/provider_v1.yaml")
+	cfg, err := loadConfig("testdata/provider_v1.yaml")
 	require.NoError(t, err)
 
 	assert.Equal(t, "openai", cfg.Models["openai"].Provider)
 }
 
 func TestMigrate_v0_v1_todo(t *testing.T) {
-	cfg, err := LoadConfig("testdata/todo_v0.yaml")
+	cfg, err := loadConfig("testdata/todo_v0.yaml")
 	require.NoError(t, err)
 
 	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
@@ -54,7 +54,7 @@ func TestMigrate_v0_v1_todo(t *testing.T) {
 }
 
 func TestMigrate_v1_todo(t *testing.T) {
-	cfg, err := LoadConfig("testdata/todo_v1.yaml")
+	cfg, err := loadConfig("testdata/todo_v1.yaml")
 	require.NoError(t, err)
 
 	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
@@ -64,7 +64,7 @@ func TestMigrate_v1_todo(t *testing.T) {
 }
 
 func TestMigrate_v0_v1_shared_todo(t *testing.T) {
-	cfg, err := LoadConfig("testdata/shared_todo_v0.yaml")
+	cfg, err := loadConfig("testdata/shared_todo_v0.yaml")
 	require.NoError(t, err)
 
 	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
@@ -74,7 +74,7 @@ func TestMigrate_v0_v1_shared_todo(t *testing.T) {
 }
 
 func TestMigrate_v1_shared_todo(t *testing.T) {
-	cfg, err := LoadConfig("testdata/shared_todo_v1.yaml")
+	cfg, err := loadConfig("testdata/shared_todo_v1.yaml")
 	require.NoError(t, err)
 
 	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
@@ -84,7 +84,7 @@ func TestMigrate_v1_shared_todo(t *testing.T) {
 }
 
 func TestMigrate_v0_v1_think(t *testing.T) {
-	cfg, err := LoadConfig("testdata/think_v0.yaml")
+	cfg, err := loadConfig("testdata/think_v0.yaml")
 	require.NoError(t, err)
 
 	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
@@ -93,7 +93,7 @@ func TestMigrate_v0_v1_think(t *testing.T) {
 }
 
 func TestMigrate_v1_think(t *testing.T) {
-	cfg, err := LoadConfig("testdata/think_v1.yaml")
+	cfg, err := loadConfig("testdata/think_v1.yaml")
 	require.NoError(t, err)
 
 	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
@@ -102,7 +102,7 @@ func TestMigrate_v1_think(t *testing.T) {
 }
 
 func TestMigrate_v0_v1_memory(t *testing.T) {
-	cfg, err := LoadConfig("testdata/memory_v0.yaml")
+	cfg, err := loadConfig("testdata/memory_v0.yaml")
 	require.NoError(t, err)
 
 	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
@@ -112,7 +112,7 @@ func TestMigrate_v0_v1_memory(t *testing.T) {
 }
 
 func TestMigrate_v1_memory(t *testing.T) {
-	cfg, err := LoadConfig("testdata/memory_v1.yaml")
+	cfg, err := loadConfig("testdata/memory_v1.yaml")
 	require.NoError(t, err)
 
 	assert.Len(t, cfg.Agents["root"].Toolsets, 2)

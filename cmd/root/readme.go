@@ -2,6 +2,7 @@ package root
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/docker/cagent/pkg/config"
 	"github.com/spf13/cobra"
@@ -22,7 +23,14 @@ func NewReadmeCmd() *cobra.Command {
 func readmeAgentCommand(cmd *cobra.Command, args []string) error {
 	agentFilename := args[0]
 
-	cfg, err := config.LoadConfig(agentFilename)
+	// Get current working directory as the base directory for security validation
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current working directory: %w", err)
+	}
+
+	// Use the secure config loader to prevent directory traversal attacks
+	cfg, err := config.LoadConfigSecure(agentFilename, cwd)
 	if err != nil {
 		return err
 	}

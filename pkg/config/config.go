@@ -18,7 +18,7 @@ func LoadConfigSecure(path, allowedDir string) (*v1.Config, error) {
 		return nil, fmt.Errorf("path validation failed: %w", err)
 	}
 
-	return LoadConfig(validatedPath)
+	return loadConfig(validatedPath)
 }
 
 func ValidatePathInDirectory(path, allowedDir string) (string, error) {
@@ -76,7 +76,7 @@ func ValidatePathInDirectory(path, allowedDir string) (string, error) {
 	return absTargetPath, nil
 }
 
-func LoadConfig(path string) (*v1.Config, error) {
+func loadConfig(path string) (*v1.Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
