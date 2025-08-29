@@ -143,19 +143,52 @@ func (s *Server) getDesktopToken(c echo.Context) error {
 type createAgentRequest struct {
 	Prompt string `json:"prompt"`
 }
-
 type importAgentRequest struct {
 	FilePath string `json:"file_path"`
 }
-
 type deleteAgentRequest struct {
 	FilePath string `json:"file_path"`
 }
-
 type editAgentConfigRequest struct {
 	AgentConfig latest.Config `json:"agent_config"`
 	Filename    string        `json:"filename"`
 }
+type createAgentManualRequest struct {
+	Filename    string `json:"filename"`
+	Model       string `json:"model"`
+	Description string `json:"description"`
+	Instruction string `json:"instruction"`
+}
+type pushAgentRequest struct {
+	Filepath string `json:"filepath"`
+	Tag      string `json:"tag"`
+}
+type pullAgentRequest struct {
+	Name string `json:"name"`
+}
+type sessionResponse struct {
+	ID            string            `json:"id"`
+	Title         string            `json:"title"`
+	Messages      []session.Message `json:"messages,omitempty"`
+	CreatedAt     time.Time         `json:"created_at"`
+	ToolsApproved bool              `json:"tools_approved"`
+	InputTokens   int               `json:"input_tokens"`
+	OutputTokens  int               `json:"output_tokens"`
+}
+type resumeSessionRequest struct {
+	Confirmation string `json:"confirmation"`
+}
+type sessionsResponse struct {
+	ID                         string `json:"id"`
+	Title                      string `json:"title"`
+	CreatedAt                  string `json:"created_at"`
+	NumMessages                int    `json:"num_messages"`
+	InputTokens                int    `json:"input_tokens"`
+	OutputTokens               int    `json:"output_tokens"`
+	GetMostRecentAgentFilename string `json:"most_recent_agent_filename"`
+}
+
+// API handlers
 
 func (s *Server) getAgentConfig(c echo.Context) error {
 	path := filepath.Join(s.agentsDir, c.Param("id"))
@@ -315,13 +348,6 @@ func (s *Server) createAgent(c echo.Context) error {
 
 	s.logger.Info("Agent loaded", "path", path, "out", out)
 	return c.JSON(http.StatusOK, map[string]string{"path": path, "out": out})
-}
-
-type createAgentManualRequest struct {
-	Filename    string `json:"filename"`
-	Model       string `json:"model"`
-	Description string `json:"description"`
-	Instruction string `json:"instruction"`
 }
 
 func (s *Server) createAgentConfig(c echo.Context) error {
@@ -580,10 +606,6 @@ func (s *Server) exportAgents(c echo.Context) error {
 	})
 }
 
-type pullAgentRequest struct {
-	Name string `json:"name"`
-}
-
 func (s *Server) pullAgent(c echo.Context) error {
 	var req pullAgentRequest
 	if err := c.Bind(&req); err != nil {
@@ -621,11 +643,6 @@ func (s *Server) pullAgent(c echo.Context) error {
 	s.teams[agentName] = t
 
 	return c.JSON(http.StatusOK, map[string]string{"name": agentName, "description": t.Agent("root").Description()})
-}
-
-type pushAgentRequest struct {
-	Filepath string `json:"filepath"`
-	Tag      string `json:"tag"`
 }
 
 func (s *Server) pushAgent(c echo.Context) error {
@@ -791,16 +808,6 @@ func (s *Server) refreshAgentsFromDisk(ctx context.Context) error {
 	return nil
 }
 
-type sessionsResponse struct {
-	ID                         string `json:"id"`
-	Title                      string `json:"title"`
-	CreatedAt                  string `json:"created_at"`
-	NumMessages                int    `json:"num_messages"`
-	InputTokens                int    `json:"input_tokens"`
-	OutputTokens               int    `json:"output_tokens"`
-	GetMostRecentAgentFilename string `json:"most_recent_agent_filename"`
-}
-
 func (s *Server) getSessions(c echo.Context) error {
 	sessions, err := s.sessionStore.GetSessions(c.Request().Context())
 	if err != nil {
@@ -833,16 +840,6 @@ func (s *Server) createSession(c echo.Context) error {
 	return c.JSON(http.StatusOK, sess)
 }
 
-type sessionResponse struct {
-	ID            string            `json:"id"`
-	Title         string            `json:"title"`
-	Messages      []session.Message `json:"messages,omitempty"`
-	CreatedAt     time.Time         `json:"created_at"`
-	ToolsApproved bool              `json:"tools_approved"`
-	InputTokens   int               `json:"input_tokens"`
-	OutputTokens  int               `json:"output_tokens"`
-}
-
 func (s *Server) getSession(c echo.Context) error {
 	sess, err := s.sessionStore.GetSession(c.Request().Context(), c.Param("id"))
 	if err != nil {
@@ -860,10 +857,6 @@ func (s *Server) getSession(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, sr)
-}
-
-type resumeSessionRequest struct {
-	Confirmation string `json:"confirmation"`
 }
 
 func (s *Server) resumeSession(c echo.Context) error {
