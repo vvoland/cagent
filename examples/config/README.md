@@ -22,17 +22,17 @@
 
 | Name                       | Description/Purpose                          | Filesystem | Shell | Todo | Think | Memory | MCP Servers  | Sub-agents |
 |----------------------------|----------------------------------------------|------------|-------|------|-------|--------|--------------|------------|
-| bio.yaml                   | Biography generation from internet searches  |            |       |      |       |        | `duckduckgo, fetch` |       |
-| airbnb.yaml                | Airbnb search specialist                     |            |       |      |       |        | `@openbnb/mcp-server-airbnb` |   |
-| github_issue_manager.yaml  | GitHub Issue Manager                         |            |       |      |       |        | `github-official`          |       |
-| github.yaml                | Github assistance using MCP tools            |            |       |      |       |        | `github-official` |    |
-| review.yaml                | Dockerfile review specialist                 | ✓          |       |      |       |        |              |       |
-| code.yaml                  | Code analysis and development assistant      | ✓          | ✓     | ✓    |       |        |              |       |
-| go_packages.yml            | Golang packages expert                       |            |       |      |       |        |              |       |
-| moby.yaml                  | Moby Project Expert                          |            |       |      |       |        | `gitmcp.io/moby/moby` |   |
-| image_text_extractor.yaml  | Image text extraction                        | ✓          |       |      |       |        |              |       |
-| doc_generator.yaml         | Documentation generation from codebases      |            | ✓     |      | ✓     |        |              |       |
-| mcp_generator.yaml         | Generates MCP configurations                 |            |       |      |       |        | `docker,duckduckgo-mcp-server` |   |
+| [bio.yaml](bio.yaml)                   | Biography generation from internet searches  |            |       |      |       |        | `duckduckgo, fetch` |       |
+| [airbnb.yaml](airbnb.yaml)                | Airbnb search specialist                     |            |       |      |       |        | `@openbnb/mcp-server-airbnb` |   |
+| [github_issue_manager.yaml](github_issue_manager.yaml)  | GitHub Issue Manager                         |            |       |      |       |        | `github-official`          |       |
+| [github.yaml](github.yaml)                | Github assistance using MCP tools            |            |       |      |       |        | `github-official` |    |
+| [review.yaml](review.yaml)                | Dockerfile review specialist                 | ✓          |       |      |       |        |              |       |
+| [code.yaml](code.yaml)                  | Code analysis and development assistant      | ✓          | ✓     | ✓    |       |        |              |       |
+| [go_packages.yml](go_packages.yml)            | Golang packages expert                       |            |       |      |       |        |              |       |
+| [moby.yaml](moby.yaml)                  | Moby Project Expert                          |            |       |      |       |        | `gitmcp.io/moby/moby` |   |
+| [image_text_extractor.yaml](image_text_extractor.yaml)  | Image text extraction                        | ✓          |       |      |       |        |              |       |
+| [doc_generator.yaml](doc_generator.yaml)         | Documentation generation from codebases      |            | ✓     |      | ✓     |        |              |       |
+| [mcp_generator.yaml](mcp_generator.yaml)         | Generates MCP configurations                 |            |       |      |       |        | `docker,duckduckgo-mcp-server` |   |
 
 ## **Multi-Agent Configurations:**
 
