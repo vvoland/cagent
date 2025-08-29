@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/v2/spinner"
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/glamour"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/v2"
 
 	"github.com/docker/cagent/internal/tui/core/layout"
 	"github.com/docker/cagent/internal/tui/types"
