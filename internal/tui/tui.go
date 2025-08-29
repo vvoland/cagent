@@ -249,15 +249,13 @@ func (a *appModel) moveToPage(pageID page.ID) tea.Cmd {
 func (a *appModel) View() string {
 	// Handle minimum window size
 	if a.wWidth < 25 || a.wHeight < 15 {
-		return lipgloss.NewStyle().
+		return styles.CenterStyle.
 			Width(a.wWidth).
 			Height(a.wHeight).
-			Align(lipgloss.Center, lipgloss.Center).
 			Render(
-				lipgloss.NewStyle().
+				styles.BorderStyle.
 					Padding(1, 1).
 					Foreground(lipgloss.Color("#ffffff")).
-					BorderStyle(lipgloss.RoundedBorder()).
 					BorderForeground(lipgloss.Color("#ff5f87")).
 					Render("Window too small!"),
 			)
@@ -270,11 +268,10 @@ func (a *appModel) View() string {
 
 	// Show loading if not ready
 	if !a.ready {
-		return lipgloss.NewStyle().
+		return styles.CenterStyle.
 			Width(a.wWidth).
 			Height(a.wHeight).
-			Align(lipgloss.Center, lipgloss.Center).
-			Render(styles.StatusStyle.Render("Loading..."))
+			Render(styles.MutedStyle.Render("Loading..."))
 	}
 
 	// Render current page
@@ -310,7 +307,7 @@ func (a *appModel) View() string {
 						}
 						statusText += part
 					}
-					statusBar = lipgloss.NewStyle().
+					statusBar = styles.BaseStyle.
 						Width(a.width).
 						PaddingLeft(1).
 						Render(statusText)

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/docker/cagent/internal/tui/styles"
 )
 
 // Todo represents a single todo item
@@ -157,12 +158,8 @@ func (c *Component) Render() string {
 	}
 
 	var content strings.Builder
-	base := lipgloss.NewStyle()
-	content.WriteString(base.Bold(true).Render("TODOs"))
+	content.WriteString(styles.HighlightStyle.Render("TODOs"))
 	content.WriteString("\n")
-
-	pendingStyle := base.Foreground(lipgloss.Color("#FFAA00")) // Orange for pending
-	completedStyle := base.Foreground(lipgloss.Color("#00FF00"))
 
 	for _, todo := range c.todos {
 		var icon string
@@ -171,13 +168,13 @@ func (c *Component) Render() string {
 		switch todo.Status {
 		case "pending":
 			icon = "◯"
-			style = pendingStyle
+			style = styles.PendingStyle
 		case "completed":
 			icon = "✓"
-			style = completedStyle
+			style = styles.SuccessStyle
 		default:
 			icon = "?"
-			style = base
+			style = styles.BaseStyle
 		}
 
 		// Truncate description to fit width

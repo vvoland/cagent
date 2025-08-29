@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/cagent/internal/tui/components/todo"
 	"github.com/docker/cagent/internal/tui/core/layout"
+	"github.com/docker/cagent/internal/tui/styles"
 	"github.com/docker/cagent/internal/tui/util"
 	"github.com/docker/cagent/pkg/runtime"
 )
@@ -134,27 +135,25 @@ func (m *model) View() string {
 		usagePercent = (float64(m.usage.ContextLength) / float64(m.usage.ContextLimit)) * 100
 	}
 
-	// Define color styles for the usage display
-	greyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#808080"))
-	lightGreyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#C0C0C0"))
+	// Use predefined styles for the usage display
 
 	// Build top content (title + pwd + token usage)
 	topContent := m.title + "\n\n"
 
 	// Add current working directory in grey
 	if pwd := getCurrentWorkingDirectory(); pwd != "" {
-		topContent += greyStyle.Render(pwd) + "\n\n"
+		topContent += styles.MutedStyle.Render(pwd) + "\n\n"
 	}
 
 	// Format each part with its respective color
-	percentageText := greyStyle.Render(fmt.Sprintf("%.0f%%", usagePercent))
-	totalTokensText := lightGreyStyle.Render(fmt.Sprintf("(%s)", formatTokenCount(totalTokens)))
-	costText := greyStyle.Render(fmt.Sprintf("$%.2f", m.usage.Cost))
+	percentageText := styles.MutedStyle.Render(fmt.Sprintf("%.0f%%", usagePercent))
+	totalTokensText := styles.SubtleStyle.Render(fmt.Sprintf("(%s)", formatTokenCount(totalTokens)))
+	costText := styles.MutedStyle.Render(fmt.Sprintf("$%.2f", m.usage.Cost))
 
 	topContent += fmt.Sprintf("%s %s %s", percentageText, totalTokensText, costText)
 	// Add working indicator if active
 	if m.working {
-		workingIndicator := lipgloss.NewStyle().Foreground(lipgloss.Color("#00ff00")).Render(m.spinner.View() + " Working...")
+		workingIndicator := styles.ActiveStyle.Render(m.spinner.View() + " Working...")
 		topContent += "\n" + workingIndicator
 	}
 
@@ -185,7 +184,7 @@ func (m *model) View() string {
 		}
 		finalContent += todoContent
 
-		sidebarStyle := lipgloss.NewStyle().
+		sidebarStyle := styles.BaseStyle.
 			Width(m.width).
 			Height(m.height-2).
 			Align(lipgloss.Left, lipgloss.Top)
@@ -193,7 +192,7 @@ func (m *model) View() string {
 		return sidebarStyle.Render(finalContent)
 	} else {
 		// No todos, just render top content normally
-		sidebarStyle := lipgloss.NewStyle().
+		sidebarStyle := styles.BaseStyle.
 			Width(m.width).
 			Height(m.height-2).
 			Align(lipgloss.Left, lipgloss.Top)

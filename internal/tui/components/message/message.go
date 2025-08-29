@@ -7,9 +7,9 @@ import (
 	"github.com/charmbracelet/bubbles/v2/spinner"
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/glamour/v2"
-	"github.com/charmbracelet/lipgloss/v2"
 
 	"github.com/docker/cagent/internal/tui/core/layout"
+	"github.com/docker/cagent/internal/tui/styles"
 	"github.com/docker/cagent/internal/tui/types"
 	"github.com/docker/cagent/internal/tui/util"
 )
@@ -111,8 +111,7 @@ func (mv *messageModel) Render(width int) string {
 		}
 		return strings.TrimRight(rendered, "\n\r\t ")
 	case types.MessageTypeSeparator:
-		greyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#808080"))
-		return greyStyle.Render("•" + strings.Repeat("─", mv.width-3) + "•")
+		return styles.MutedStyle.Render("•" + strings.Repeat("─", mv.width-3) + "•")
 	default:
 		return msg.Content
 	}

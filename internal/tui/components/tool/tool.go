@@ -8,10 +8,10 @@ import (
 	"github.com/charmbracelet/bubbles/v2/spinner"
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/glamour/v2"
-	"github.com/charmbracelet/lipgloss/v2"
 
 	"github.com/docker/cagent/internal/app"
 	"github.com/docker/cagent/internal/tui/core/layout"
+	"github.com/docker/cagent/internal/tui/styles"
 	"github.com/docker/cagent/internal/tui/types"
 	"github.com/docker/cagent/internal/tui/util"
 )
@@ -134,11 +134,7 @@ func (mv *toolModel) Render(width int) string {
 	msg := mv.message
 	var icon string
 
-	base := lipgloss.NewStyle()
-	// Define color styles
-	greenStyle := base.Foreground(lipgloss.Color("#00FF00"))
-	redStyle := base.Foreground(lipgloss.Color("#FF0000"))
-	yellowStyle := base.Foreground(lipgloss.Color("#FFFF00"))
+	// Use predefined styles
 
 	switch msg.ToolStatus {
 	case types.ToolStatusPending:
@@ -146,13 +142,13 @@ func (mv *toolModel) Render(width int) string {
 	case types.ToolStatusRunning:
 		icon = "⚙"
 	case types.ToolStatusCompleted:
-		icon = greenStyle.Render("✓")
+		icon = styles.SuccessStyle.Render("✓")
 	case types.ToolStatusError:
-		icon = redStyle.Render("✗")
+		icon = styles.ErrorStyle.Render("✗")
 	case types.ToolStatusConfirmation:
-		icon = yellowStyle.Render("?")
+		icon = styles.WarningStyle.Render("?")
 	default:
-		icon = yellowStyle.Render("?")
+		icon = styles.WarningStyle.Render("?")
 	}
 
 	// Add spinner for pending and running tools
@@ -161,7 +157,7 @@ func (mv *toolModel) Render(width int) string {
 		spinnerText = " " + mv.spinner.View()
 	}
 
-	content := fmt.Sprintf("│ %s %s%s", icon, base.Bold(true).Render(msg.ToolName), spinnerText)
+	content := fmt.Sprintf("│ %s %s%s", icon, styles.HighlightStyle.Render(msg.ToolName), spinnerText)
 
 	confirmationContent := ""
 	// Add confirmation options if in confirmation mode
@@ -183,7 +179,7 @@ func (mv *toolModel) Render(width int) string {
 	if err != nil {
 		return strings.TrimRight(content+confirmationContent, "\n\r\t")
 	}
-	return base.PaddingLeft(2).PaddingTop(2).Render(content + strings.TrimRight(rendered, "\n\r\t "))
+	return styles.BaseStyle.PaddingLeft(2).PaddingTop(2).Render(content + strings.TrimRight(rendered, "\n\r\t "))
 }
 
 // Height calculates the height needed for this message view
