@@ -313,16 +313,44 @@ func (m *model) scrollToBottom() {
 	m.scrollOffset = 9_999_999 // Will be clamped in View()
 }
 
-// renderItem creates a renderedItem for a specific view with caching
+// shouldCacheMessage determines if a message should be cached based on its type and content.
+// Only static content is cached to improve performance while preserving dynamic animations.
+func (m *model) shouldCacheMessage(index int) bool {
+	if index < 0 || index >= len(m.messages) {
+		return false
+	}
+
+	msg := m.messages[index]
+
+	switch msg.Type {
+	case types.MessageTypeToolCall:
+		// Never cache tool messages - they have dynamic spinners
+		return false
+	case types.MessageTypeAssistant:
+		// Only cache assistant messages that have content (completed streaming)
+		// Empty assistant messages have spinners and need constant re-rendering
+		return strings.Trim(msg.Content, "\r\n\t ") != ""
+	case types.MessageTypeUser, types.MessageTypeSeparator:
+		// Always cache static content
+		return true
+	default:
+		// Unknown types - don't cache to be safe
+		return false
+	}
+}
+
+// renderItem creates a renderedItem for a specific view with selective caching
 func (m *model) renderItem(index int, view util.HeightableModel) renderedItem {
 	id := m.getItemID(index)
 
-	// Check cache first
-	if cached, exists := m.renderedItems[id]; exists {
-		return cached
+	// Only check cache for messages that should be cached
+	if m.shouldCacheMessage(index) {
+		if cached, exists := m.renderedItems[id]; exists {
+			return cached
+		}
 	}
 
-	// Render the item
+	// Render the item (always for dynamic content, or when not cached)
 	rendered := view.View()
 	height := strings.Count(rendered, "\n") + 1
 	if rendered == "" {
@@ -335,7 +363,11 @@ func (m *model) renderItem(index int, view util.HeightableModel) renderedItem {
 		height: height,
 	}
 
-	m.renderedItems[id] = item
+	// Only store in cache for messages that should be cached
+	if m.shouldCacheMessage(index) {
+		m.renderedItems[id] = item
+	}
+
 	return item
 }
 
@@ -385,8 +417,11 @@ func (m *model) ensureAllItemsRendered() {
 
 // invalidateItem removes an item from cache, forcing re-render
 func (m *model) invalidateItem(index int) {
-	id := m.getItemID(index)
-	delete(m.renderedItems, id)
+	// Only invalidate if it was actually cached
+	if m.shouldCacheMessage(index) {
+		id := m.getItemID(index)
+		delete(m.renderedItems, id)
+	}
 }
 
 // invalidateAllItems clears the entire cache
@@ -494,7 +529,6 @@ func (m *model) AddOrUpdateToolCall(toolName, toolCallID, arguments string, stat
 			// Update the corresponding view
 			view := m.createToolCallView(msg)
 			m.views[i] = view
-			m.invalidateItem(i)
 			return view.Init()
 		}
 	}
@@ -528,7 +562,6 @@ func (m *model) AddToolResult(toolName, toolCallID, result string, status types.
 			// Update the corresponding view
 			view := m.createToolCallView(msg)
 			m.views[i] = view
-			m.invalidateItem(i)
 			return view.Init()
 		}
 	}
