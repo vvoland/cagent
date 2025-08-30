@@ -59,7 +59,7 @@ func NewManagerWithResolver(resolver *Resolver, timeout time.Duration, maxSessio
 	// For now, we'll use nil store since we're managing sessions in memory
 	var store Store
 	// TODO: Initialize actual store when session persistence is needed
-	// store, err := NewSQLiteStore(":memory:", logger)
+	// store, err := NewSQLiteStore(":memory:")
 	// if err != nil {
 	//     return nil, fmt.Errorf("creating store: %w", err)
 	// }

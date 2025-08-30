@@ -48,7 +48,6 @@ type Resolver struct {
 	agentsDir string
 	rootDir   string // Security: restrict file access to this root directory
 	store     *content.Store
-	logger    *slog.Logger
 }
 
 // NewResolver creates a new agent resolver with security root directory
@@ -106,7 +105,7 @@ func (r *Resolver) isPathSafe(path string) error {
 // ResolveAgent resolves an agent specification to a file path with security restrictions
 // Priority: File path (within root) → Content store → Error
 func (r *Resolver) ResolveAgent(agentSpec string) (string, error) {
-	r.logger.Debug("Resolving agent", "agent_spec", agentSpec)
+	slog.Debug("Resolving agent", "agent_spec", agentSpec)
 
 	// First, try to resolve as file path (absolute or relative to agents dir)
 	var candidatePath string
@@ -118,9 +117,9 @@ func (r *Resolver) ResolveAgent(agentSpec string) (string, error) {
 
 	// Security check: validate path is within allowed root
 	if err := r.isPathSafe(candidatePath); err != nil {
-		r.logger.Warn("Agent path rejected for security", "path", candidatePath, "error", err)
+		slog.Warn("Agent path rejected for security", "path", candidatePath, "error", err)
 	} else if r.fileExists(candidatePath) {
-		r.logger.Debug("Agent resolved as file path", "path", candidatePath)
+		slog.Debug("Agent resolved as file path", "path", candidatePath)
 		return candidatePath, nil
 	}
 
@@ -147,7 +146,7 @@ func (r *Resolver) ResolveAgent(agentSpec string) (string, error) {
 		return "", fmt.Errorf("closing temp file: %w", err)
 	}
 
-	r.logger.Debug("Agent resolved from store", "agent_spec", agentSpec, "temp_file", tmpFile.Name())
+	slog.Debug("Agent resolved from store", "agent_spec", agentSpec, "temp_file", tmpFile.Name())
 	return tmpFile.Name(), nil
 }
 
@@ -157,7 +156,7 @@ func (r *Resolver) ListFileAgents() ([]AgentInfo, error) {
 
 	// Check if agents directory exists
 	if !r.fileExists(r.agentsDir) {
-		r.logger.Debug("Agents directory does not exist", "path", r.agentsDir)
+		slog.Debug("Agents directory does not exist", "path", r.agentsDir)
 		return agents, nil
 	}
 
@@ -190,7 +189,7 @@ func (r *Resolver) ListFileAgents() ([]AgentInfo, error) {
 		return nil, fmt.Errorf("listing file agents: %w", err)
 	}
 
-	r.logger.Debug("Listed file agents", "count", len(agents))
+	slog.Debug("Listed file agents", "count", len(agents))
 	return agents, nil
 }
 
@@ -212,7 +211,7 @@ func (r *Resolver) ListStoreAgents() ([]AgentInfo, error) {
 		agents = append(agents, agent)
 	}
 
-	r.logger.Debug("Listed store agents", "count", len(agents))
+	slog.Debug("Listed store agents", "count", len(agents))
 	return agents, nil
 }
 
@@ -233,7 +232,7 @@ func (r *Resolver) extractNameFromReference(reference string) string {
 
 // PullAgent pulls an agent image from registry to local store
 func (r *Resolver) PullAgent(registryRef string) error {
-	r.logger.Info("Pulling agent from registry", "reference", registryRef)
+	slog.Info("Pulling agent from registry", "reference", registryRef)
 
 	// Use existing remote pull functionality
 	digest, err := remote.Pull(registryRef)
@@ -241,7 +240,7 @@ func (r *Resolver) PullAgent(registryRef string) error {
 		return fmt.Errorf("pulling agent image: %w", err)
 	}
 
-	r.logger.Info("Successfully pulled agent", "reference", registryRef, "digest", digest)
+	slog.Info("Successfully pulled agent", "reference", registryRef, "digest", digest)
 	return nil
 }
 

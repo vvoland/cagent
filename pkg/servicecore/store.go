@@ -56,20 +56,18 @@ var (
 
 // SQLiteStore implements Store using SQLite with multi-tenant support
 type SQLiteStore struct {
-	db     *sql.DB
-	logger *slog.Logger
+	db *sql.DB
 }
 
 // NewSQLiteStore creates a new SQLite store with multi-tenant support
-func NewSQLiteStore(path string, logger *slog.Logger) (Store, error) {
+func NewSQLiteStore(path string) (Store, error) {
 	db, err := sql.Open("sqlite3", path)
 	if err != nil {
 		return nil, err
 	}
 
 	store := &SQLiteStore{
-		db:     db,
-		logger: logger,
+		db: db,
 	}
 
 	if err := store.migrate(); err != nil {
@@ -120,7 +118,7 @@ func (s *SQLiteStore) migrate() error {
 
 	// Add client_id column if it doesn't exist (non-breaking migration)
 	if !hasClientID {
-		s.logger.Info("Adding client_id column to sessions table")
+		slog.Info("Adding client_id column to sessions table")
 		_, err = s.db.ExecContext(ctx, `
 			ALTER TABLE sessions ADD COLUMN client_id TEXT DEFAULT '__global'
 		`)
@@ -136,7 +134,7 @@ func (s *SQLiteStore) migrate() error {
 			return err
 		}
 
-		s.logger.Info("Successfully added client_id column with default '__global'")
+		slog.Info("Successfully added client_id column with default '__global'")
 	}
 
 	return nil
@@ -148,7 +146,7 @@ func (s *SQLiteStore) CreateClient(ctx context.Context, clientID string) error {
 		return ErrEmptyClientID
 	}
 	// No explicit client table needed - clients are implicit through session records
-	s.logger.Debug("Client created (implicit)", "client_id", clientID)
+	slog.Debug("Client created (implicit)", "client_id", clientID)
 	return nil
 }
 
@@ -168,7 +166,7 @@ func (s *SQLiteStore) DeleteClient(ctx context.Context, clientID string) error {
 		return err
 	}
 
-	s.logger.Debug("Client sessions deleted", "client_id", clientID, "sessions_deleted", rowsAffected)
+	slog.Debug("Client sessions deleted", "client_id", clientID, "sessions_deleted", rowsAffected)
 	return nil
 }
 
@@ -201,7 +199,7 @@ func (s *SQLiteStore) CreateSession(ctx context.Context, clientID string, agentS
 		return err
 	}
 
-	s.logger.Debug("Session created", "client_id", clientID, "session_id", agentSession.ID)
+	slog.Debug("Session created", "client_id", clientID, "session_id", agentSession.ID)
 	return nil
 }
 
@@ -350,7 +348,7 @@ func (s *SQLiteStore) DeleteSession(ctx context.Context, clientID, sessionID str
 		return ErrSessionNotFound
 	}
 
-	s.logger.Debug("Session deleted", "client_id", clientID, "session_id", sessionID)
+	slog.Debug("Session deleted", "client_id", clientID, "session_id", sessionID)
 	return nil
 }
 

@@ -2,7 +2,6 @@ package servicecore
 
 import (
 	"context"
-	"log/slog"
 	"os"
 	"testing"
 	"time"
@@ -16,10 +15,8 @@ func TestSQLiteStore_Migration(t *testing.T) {
 	tempDB := "test_store_migration.db"
 	defer os.Remove(tempDB)
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-
 	// Create the store - should apply migration
-	store, err := NewSQLiteStore(tempDB, logger)
+	store, err := NewSQLiteStore(tempDB)
 	require.NoError(t, err)
 	defer store.(*SQLiteStore).Close()
 
@@ -33,8 +30,7 @@ func TestSQLiteStore_ClientOperations(t *testing.T) {
 	tempDB := "test_store_client.db"
 	defer os.Remove(tempDB)
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	store, err := NewSQLiteStore(tempDB, logger)
+	store, err := NewSQLiteStore(tempDB)
 	require.NoError(t, err)
 	defer store.(*SQLiteStore).Close()
 
@@ -81,8 +77,7 @@ func TestSQLiteStore_SessionOperations(t *testing.T) {
 	tempDB := "test_store_session.db"
 	defer os.Remove(tempDB)
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	store, err := NewSQLiteStore(tempDB, logger)
+	store, err := NewSQLiteStore(tempDB)
 	require.NoError(t, err)
 	defer store.(*SQLiteStore).Close()
 
@@ -167,7 +162,7 @@ func TestSQLiteStore_SessionOperations(t *testing.T) {
 		}
 		require.NotNil(t, sess1)
 		require.NotNil(t, sess2)
-		
+
 		// session2 should be listed first (more recent)
 		assert.True(t, sessions[0].Created.After(sessions[1].Created) || sessions[0].Created.Equal(sessions[1].Created))
 
@@ -226,8 +221,7 @@ func TestSQLiteStore_ClientIsolation(t *testing.T) {
 	tempDB := "test_store_isolation.db"
 	defer os.Remove(tempDB)
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	store, err := NewSQLiteStore(tempDB, logger)
+	store, err := NewSQLiteStore(tempDB)
 	require.NoError(t, err)
 	defer store.(*SQLiteStore).Close()
 
