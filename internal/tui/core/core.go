@@ -3,6 +3,7 @@ package core
 import (
 	"github.com/charmbracelet/bubbles/v2/help"
 	"github.com/charmbracelet/bubbles/v2/key"
+	tea "github.com/charmbracelet/bubbletea/v2"
 )
 
 // KeyMapHelp interface for components that provide help
@@ -32,4 +33,11 @@ func (s *simpleHelp) FullHelp() [][]key.Binding {
 // ShortHelp implements help.KeyMap
 func (s *simpleHelp) ShortHelp() []key.Binding {
 	return s.shortList
+}
+
+// CmdHandler creates a command that returns the given message
+func CmdHandler(msg tea.Msg) tea.Cmd {
+	return func() tea.Msg {
+		return msg
+	}
 }

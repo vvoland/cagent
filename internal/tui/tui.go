@@ -9,10 +9,11 @@ import (
 
 	"github.com/docker/cagent/internal/app"
 	"github.com/docker/cagent/internal/tui/core"
+	"github.com/docker/cagent/internal/tui/core/layout"
+	"github.com/docker/cagent/internal/tui/dialog"
 	"github.com/docker/cagent/internal/tui/page"
 	chatpage "github.com/docker/cagent/internal/tui/page/chat"
 	"github.com/docker/cagent/internal/tui/styles"
-	"github.com/docker/cagent/internal/tui/util"
 )
 
 var lastMouseEvent time.Time
@@ -38,8 +39,11 @@ type appModel struct {
 
 	currentPage  page.ID
 	previousPage page.ID
-	pages        map[page.ID]util.Model
+	pages        map[page.ID]layout.Model
 	loadedPages  map[page.ID]bool
+
+	// Dialog system
+	dialog dialog.Manager
 
 	// State
 	ready bool
@@ -77,8 +81,9 @@ func New(a *app.App) tea.Model {
 		currentPage: chatpage.ChatPageID,
 		loadedPages: make(map[page.ID]bool),
 		keyMap:      keyMap,
+		dialog:      dialog.New(),
 
-		pages: map[page.ID]util.Model{
+		pages: map[page.ID]layout.Model{
 			chatpage.ChatPageID: chatPageInstance,
 		},
 	}
@@ -90,8 +95,12 @@ func New(a *app.App) tea.Model {
 func (a *appModel) Init() tea.Cmd {
 	var cmds []tea.Cmd
 
+	// Initialize dialog system
+	cmd := a.dialog.Init()
+	cmds = append(cmds, cmd)
+
 	// Initialize current page
-	cmd := a.pages[a.currentPage].Init()
+	cmd = a.pages[a.currentPage].Init()
 	cmds = append(cmds, cmd)
 	a.loadedPages[a.currentPage] = true
 
@@ -102,18 +111,28 @@ func (a *appModel) Init() tea.Cmd {
 
 // Update handles incoming messages and updates the application state
 func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmds []tea.Cmd
-	var cmd tea.Cmd
-
 	switch msg := msg.(type) {
+	// Handle dialog-specific messages first
+	case dialog.OpenDialogMsg, dialog.CloseDialogMsg:
+		u, dialogCmd := a.dialog.Update(msg)
+		a.dialog = u.(dialog.Manager)
+		return a, dialogCmd
+
 	case tea.KeyboardEnhancementsMsg:
-		// Forward to all pages
+		// Forward to all pages and dialogs
+		var cmds []tea.Cmd
 		for id, page := range a.pages {
 			m, pageCmd := page.Update(msg)
-			a.pages[id] = m.(util.Model)
+			a.pages[id] = m.(layout.Model)
 			if pageCmd != nil {
 				cmds = append(cmds, pageCmd)
 			}
+		}
+		// Also forward to dialog system
+		u, dialogCmd := a.dialog.Update(msg)
+		a.dialog = u.(dialog.Manager)
+		if dialogCmd != nil {
+			cmds = append(cmds, dialogCmd)
 		}
 		return a, tea.Batch(cmds...)
 
@@ -131,39 +150,59 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, cmd
 
 	case tea.MouseWheelMsg, tea.MouseClickMsg, tea.MouseMotionMsg, tea.MouseReleaseMsg:
-		// Forward mouse events to current page
+		// If dialogs are active, they get priority for mouse events
+		if a.dialog.HasDialog() {
+			u, dialogCmd := a.dialog.Update(msg)
+			a.dialog = u.(dialog.Manager)
+			return a, dialogCmd
+		}
+		// Otherwise forward to current page
 		item, ok := a.pages[a.currentPage]
 		if !ok {
 			return a, nil
 		}
 		updated, cmd := item.Update(msg)
-		a.pages[a.currentPage] = updated.(util.Model)
+		a.pages[a.currentPage] = updated.(layout.Model)
 		return a, cmd
 
 	case tea.PasteMsg:
-		// Forward paste events to current page
+		// If dialogs are active, they get priority for paste events
+		if a.dialog.HasDialog() {
+			u, dialogCmd := a.dialog.Update(msg)
+			a.dialog = u.(dialog.Manager)
+			return a, dialogCmd
+		}
+		// Otherwise forward to current page
 		item, ok := a.pages[a.currentPage]
 		if !ok {
 			return a, nil
 		}
 		updated, cmd := item.Update(msg)
-		a.pages[a.currentPage] = updated.(util.Model)
+		a.pages[a.currentPage] = updated.(layout.Model)
 		return a, cmd
 
 	case error:
 		a.err = msg
 		return a, nil
-	}
 
-	// Forward other messages to current page
-	item, ok := a.pages[a.currentPage]
-	if !ok {
-		return a, nil
-	}
-	updated, cmd := item.Update(msg)
-	a.pages[a.currentPage] = updated.(util.Model)
+	default:
+		// For other messages, check if dialogs should handle them first
+		// If dialogs are active, they get priority for input
+		if a.dialog.HasDialog() {
+			u, dialogCmd := a.dialog.Update(msg)
+			a.dialog = u.(dialog.Manager)
+			return a, dialogCmd
+		}
 
-	return a, cmd
+		// Otherwise, forward to current page
+		item, ok := a.pages[a.currentPage]
+		if !ok {
+			return a, nil
+		}
+		updated, cmd := item.Update(msg)
+		a.pages[a.currentPage] = updated.(layout.Model)
+		return a, cmd
+	}
 }
 
 // handleWindowResize processes window resize events
@@ -177,6 +216,13 @@ func (a *appModel) handleWindowResize(width, height int) tea.Cmd {
 		a.ready = true
 	}
 
+	// Update dialog system
+	u, cmd := a.dialog.Update(tea.WindowSizeMsg{Width: width, Height: height})
+	a.dialog = u.(dialog.Manager)
+	if cmd != nil {
+		cmds = append(cmds, cmd)
+	}
+
 	// Update all pages
 	for p, page := range a.pages {
 		if sizable, ok := page.(interface{ SetSize(int, int) tea.Cmd }); ok {
@@ -185,7 +231,7 @@ func (a *appModel) handleWindowResize(width, height int) tea.Cmd {
 		} else {
 			// Fallback: send window size message
 			updated, cmd := page.Update(tea.WindowSizeMsg{Width: a.width, Height: a.height})
-			a.pages[p] = updated.(util.Model)
+			a.pages[p] = updated.(layout.Model)
 			if cmd != nil {
 				cmds = append(cmds, cmd)
 			}
@@ -197,6 +243,13 @@ func (a *appModel) handleWindowResize(width, height int) tea.Cmd {
 
 // handleKeyPressMsg processes keyboard input
 func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
+	// If dialogs are active, they handle key input first
+	if a.dialog.HasDialog() {
+		u, dialogCmd := a.dialog.Update(msg)
+		a.dialog = u.(dialog.Manager)
+		return dialogCmd
+	}
+
 	switch {
 	case key.Matches(msg, a.keyMap.Quit):
 		return tea.Quit
@@ -211,7 +264,7 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
 		}
 
 		updated, cmd := item.Update(msg)
-		a.pages[a.currentPage] = updated.(util.Model)
+		a.pages[a.currentPage] = updated.(layout.Model)
 		return cmd
 	}
 }
@@ -318,5 +371,24 @@ func (a *appModel) View() string {
 		components = append(components, statusBar)
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Top, components...)
+	baseView := lipgloss.JoinVertical(lipgloss.Top, components...)
+
+	// Create layered view if there is a dialog
+	if a.dialog.HasDialog() {
+		// Create background layer with the base view
+		baseLayer := lipgloss.NewLayer(baseView)
+
+		// Get dialog layers
+		dialogLayer := a.dialog.GetLayer()
+
+		// Combine all layers
+		allLayers := []*lipgloss.Layer{baseLayer}
+		allLayers = append(allLayers, dialogLayer)
+
+		// Create and render canvas
+		canvas := lipgloss.NewCanvas(allLayers...)
+		return canvas.Render()
+	}
+
+	return baseView
 }

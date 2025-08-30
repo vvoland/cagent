@@ -11,12 +11,11 @@ import (
 	"github.com/docker/cagent/internal/tui/core/layout"
 	"github.com/docker/cagent/internal/tui/styles"
 	"github.com/docker/cagent/internal/tui/types"
-	"github.com/docker/cagent/internal/tui/util"
 )
 
 // Model represents a view that can render a message
 type Model interface {
-	util.Model
+	layout.Model
 	layout.Sizeable
 
 	// Render returns the rendered content for this message view

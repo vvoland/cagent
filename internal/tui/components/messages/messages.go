@@ -16,12 +16,11 @@ import (
 	"github.com/docker/cagent/internal/tui/core"
 	"github.com/docker/cagent/internal/tui/core/layout"
 	"github.com/docker/cagent/internal/tui/types"
-	"github.com/docker/cagent/internal/tui/util"
 )
 
 // Model represents a chat message list component
 type Model interface {
-	util.Model
+	layout.Model
 	layout.Sizeable
 	layout.Focusable
 	layout.Help
@@ -50,7 +49,7 @@ type renderedItem struct {
 type model struct {
 	renderer    *glamour.TermRenderer
 	messages    []types.Message
-	views       []util.HeightableModel
+	views       []layout.Heightable
 	width       int
 	height      int
 	focused     bool
@@ -68,7 +67,7 @@ type model struct {
 func New(a *app.App) Model {
 	return &model{
 		messages:      make([]types.Message, 0),
-		views:         make([]util.HeightableModel, 0),
+		views:         make([]layout.Heightable, 0),
 		width:         80,
 		height:        24,
 		scrollOffset:  0,
@@ -340,7 +339,7 @@ func (m *model) shouldCacheMessage(index int) bool {
 }
 
 // renderItem creates a renderedItem for a specific view with selective caching
-func (m *model) renderItem(index int, view util.HeightableModel) renderedItem {
+func (m *model) renderItem(index int, view layout.Heightable) renderedItem {
 	id := m.getItemID(index)
 
 	// Only check cache for messages that should be cached
@@ -625,7 +624,7 @@ func (m *model) AppendToLastMessage(agentName, content string) tea.Cmd {
 // ClearMessages clears all messages
 func (m *model) ClearMessages() {
 	m.messages = make([]types.Message, 0)
-	m.views = make([]util.HeightableModel, 0)
+	m.views = make([]layout.Heightable, 0)
 	m.scrollOffset = 0
 	m.rendered = ""
 	m.totalHeight = 0

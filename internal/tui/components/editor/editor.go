@@ -9,7 +9,6 @@ import (
 	"github.com/docker/cagent/internal/tui/core"
 	"github.com/docker/cagent/internal/tui/core/layout"
 	"github.com/docker/cagent/internal/tui/styles"
-	"github.com/docker/cagent/internal/tui/util"
 )
 
 // SendMsg represents a message to send
@@ -19,7 +18,7 @@ type SendMsg struct {
 
 // Editor represents an input editor component
 type Editor interface {
-	util.Model
+	layout.Model
 	layout.Sizeable
 	layout.Focusable
 	layout.Help
@@ -71,7 +70,7 @@ func (e *editorCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			value := e.textarea.Value()
 			if value != "" {
 				e.textarea.Reset()
-				return e, util.CmdHandler(SendMsg{Content: value})
+				return e, core.CmdHandler(SendMsg{Content: value})
 			}
 			return e, nil
 		case "ctrl+c":

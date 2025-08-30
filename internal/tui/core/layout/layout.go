@@ -24,3 +24,14 @@ type Help interface {
 	Bindings() []key.Binding
 	Help() help.KeyMap
 }
+
+// Model is the base interface for all TUI models
+type Model interface {
+	tea.Model
+	tea.ViewModel
+}
+
+type Heightable interface {
+	Model
+	Height(width int) int
+}

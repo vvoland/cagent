@@ -1,7 +1,6 @@
 package tool
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -13,14 +12,13 @@ import (
 	"github.com/docker/cagent/internal/tui/core/layout"
 	"github.com/docker/cagent/internal/tui/styles"
 	"github.com/docker/cagent/internal/tui/types"
-	"github.com/docker/cagent/internal/tui/util"
 )
 
 // Model represents a view that can render a message
 type Model interface {
-	util.Model
+	layout.Model
 	layout.Sizeable
-	util.Heightable
+	layout.Heightable
 
 	// Message returns the underlying message
 	Message() *types.Message
@@ -120,31 +118,6 @@ func (mv *toolModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return mv, cmd
 	}
 
-	// Handle keyboard input when in confirmation mode and focused
-	if mv.focused && mv.message.ToolStatus == types.ToolStatusConfirmation {
-		if keyMsg, ok := msg.(tea.KeyMsg); ok {
-			switch keyMsg.String() {
-			case "y", "Y":
-				if mv.app != nil {
-					mv.app.Resume("approve")
-				}
-				return mv, nil
-			case "n", "N":
-				if mv.app != nil {
-					mv.app.Resume("reject")
-				}
-				return mv, nil
-			case "a", "A":
-				if mv.app != nil {
-					mv.app.Resume("approve-session")
-				}
-				return mv, nil
-			}
-		}
-	}
-
-	// Message views typically don't handle input directly
-	// They're controlled by the parent MessageListCmp
 	return mv, nil
 }
 
@@ -212,27 +185,7 @@ func (mv *toolModel) Render(width int) string {
 		}
 	}
 
-	confirmationContent := ""
-	// Add confirmation options if in confirmation mode
-	if msg.ToolStatus == types.ToolStatusConfirmation {
-		var arguments map[string]any
-		if msg.Arguments != "" {
-			if err := json.Unmarshal([]byte(msg.Arguments), &arguments); err == nil {
-				confirmationContent += "\n\nArguments:\n"
-				for k, v := range arguments {
-					confirmationContent += fmt.Sprintf("\n%s: %v", k, v)
-				}
-			}
-		}
-		confirmationContent += "\n\nDo you want to allow this tool call?"
-		confirmationContent += "\n**[Y]es** | **[N]o** | **[A]ll** (approve all tools this session)"
-	}
-
-	rendered, err := mv.renderer.Render(confirmationContent)
-	if err != nil {
-		return strings.TrimRight(content+confirmationContent+resultContent, "\n\r\t")
-	}
-	return styles.BaseStyle.PaddingLeft(2).PaddingTop(2).Render(content + strings.TrimRight(rendered, "\n\r\t ") + resultContent)
+	return styles.BaseStyle.PaddingLeft(2).PaddingTop(2).Render(content + resultContent)
 }
 
 // Height calculates the height needed for this message view

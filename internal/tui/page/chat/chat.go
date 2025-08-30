@@ -13,10 +13,10 @@ import (
 	"github.com/docker/cagent/internal/tui/components/sidebar"
 	"github.com/docker/cagent/internal/tui/core"
 	"github.com/docker/cagent/internal/tui/core/layout"
+	"github.com/docker/cagent/internal/tui/dialog"
 	"github.com/docker/cagent/internal/tui/page"
 	"github.com/docker/cagent/internal/tui/styles"
 	"github.com/docker/cagent/internal/tui/types"
-	"github.com/docker/cagent/internal/tui/util"
 	"github.com/docker/cagent/pkg/runtime"
 )
 
@@ -34,7 +34,7 @@ const (
 
 // Page represents the main chat page
 type Page interface {
-	util.Model
+	layout.Model
 	layout.Sizeable
 	layout.Help
 }
@@ -216,10 +216,13 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case *runtime.ToolCallConfirmationEvent:
 		spinnerCmd := p.sidebar.SetWorking(false) // Stop working indicator during confirmation
 		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, msg.ToolCall.ID, msg.ToolCall.Function.Arguments, types.ToolStatusConfirmation)
-		focusCmd := p.messages.FocusToolInConfirmation()
-		// Switch focus to messages so user can immediately respond with Y/N/A
-		p.setFocusToChat()
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), focusCmd, spinnerCmd)
+
+		// Open tool confirmation dialog
+		dialogCmd := core.CmdHandler(dialog.OpenDialogMsg{
+			Model: dialog.NewToolConfirmationDialog(msg.ToolCall.Function.Name, msg.ToolCall.Function.Arguments, p.app),
+		})
+
+		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd, dialogCmd)
 	case *runtime.ToolCallEvent:
 		spinnerCmd := p.sidebar.SetWorking(true)
 		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, msg.ToolCall.ID, msg.ToolCall.Function.Arguments, types.ToolStatusRunning)

@@ -12,13 +12,12 @@ import (
 	"github.com/docker/cagent/internal/tui/components/todo"
 	"github.com/docker/cagent/internal/tui/core/layout"
 	"github.com/docker/cagent/internal/tui/styles"
-	"github.com/docker/cagent/internal/tui/util"
 	"github.com/docker/cagent/pkg/runtime"
 )
 
 // Model represents a sidebar component
 type Model interface {
-	util.Model
+	layout.Model
 	layout.Sizeable
 
 	SetTitle(title string)
