@@ -20,11 +20,6 @@ type Dialog interface {
 	Position() (int, int) // Returns (row, col) for dialog placement
 }
 
-// CloseCallback is an optional interface for dialogs that need cleanup
-type CloseCallback interface {
-	Close() tea.Cmd // Called when dialog is closed
-}
-
 // Manager manages the dialog stack and rendering
 type Manager interface {
 	tea.Model
@@ -99,13 +94,6 @@ func (d *manager) View() string {
 
 // handleOpen processes dialog opening requests
 func (d *manager) handleOpen(msg OpenDialogMsg) (tea.Model, tea.Cmd) {
-	// Close existing dialog if present (cleanup)
-	if d.currentDialog != nil {
-		if closeable, ok := d.currentDialog.(CloseCallback); ok {
-			_ = closeable.Close() // Execute cleanup but don't wait for it
-		}
-	}
-
 	// Set the new dialog as current
 	d.currentDialog = msg.Model
 
@@ -130,14 +118,8 @@ func (d *manager) handleClose() (tea.Model, tea.Cmd) {
 		return d, nil
 	}
 
-	// Get current dialog before clearing
-	dialog := d.currentDialog
 	d.currentDialog = nil
 
-	// Call cleanup if implemented
-	if closeable, ok := dialog.(CloseCallback); ok {
-		return d, closeable.Close()
-	}
 	return d, nil
 }
 
