@@ -14,14 +14,11 @@ import (
 	"github.com/docker/cagent/internal/tui/core"
 	"github.com/docker/cagent/internal/tui/core/layout"
 	"github.com/docker/cagent/internal/tui/dialog"
-	"github.com/docker/cagent/internal/tui/page"
+
 	"github.com/docker/cagent/internal/tui/styles"
 	"github.com/docker/cagent/internal/tui/types"
 	"github.com/docker/cagent/pkg/runtime"
 )
-
-// ChatPageID is the unique identifier for the chat page
-var ChatPageID page.ID = "chat"
 
 // FocusedPanel represents which panel is currently focused
 type FocusedPanel string

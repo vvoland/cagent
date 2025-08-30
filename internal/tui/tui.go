@@ -9,9 +9,7 @@ import (
 
 	"github.com/docker/cagent/internal/app"
 	"github.com/docker/cagent/internal/tui/core"
-	"github.com/docker/cagent/internal/tui/core/layout"
 	"github.com/docker/cagent/internal/tui/dialog"
-	"github.com/docker/cagent/internal/tui/page"
 	chatpage "github.com/docker/cagent/internal/tui/page/chat"
 	"github.com/docker/cagent/internal/tui/styles"
 )
@@ -37,10 +35,7 @@ type appModel struct {
 	width, height   int
 	keyMap          KeyMap
 
-	currentPage  page.ID
-	previousPage page.ID
-	pages        map[page.ID]layout.Model
-	loadedPages  map[page.ID]bool
+	chatPage chatpage.Page
 
 	// Dialog system
 	dialog dialog.Manager
@@ -78,14 +73,9 @@ func New(a *app.App) tea.Model {
 	keyMap := DefaultKeyMap()
 
 	model := &appModel{
-		currentPage: chatpage.ChatPageID,
-		loadedPages: make(map[page.ID]bool),
-		keyMap:      keyMap,
-		dialog:      dialog.New(),
-
-		pages: map[page.ID]layout.Model{
-			chatpage.ChatPageID: chatPageInstance,
-		},
+		chatPage: chatPageInstance,
+		keyMap:   keyMap,
+		dialog:   dialog.New(),
 	}
 
 	return model
@@ -99,10 +89,9 @@ func (a *appModel) Init() tea.Cmd {
 	cmd := a.dialog.Init()
 	cmds = append(cmds, cmd)
 
-	// Initialize current page
-	cmd = a.pages[a.currentPage].Init()
+	// Initialize chat page
+	cmd = a.chatPage.Init()
 	cmds = append(cmds, cmd)
-	a.loadedPages[a.currentPage] = true
 
 	// Mouse support is configured via program options (cell motion + filter)
 
@@ -119,16 +108,13 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, dialogCmd
 
 	case tea.KeyboardEnhancementsMsg:
-		// Forward to all pages and dialogs
 		var cmds []tea.Cmd
-		for id, page := range a.pages {
-			m, pageCmd := page.Update(msg)
-			a.pages[id] = m.(layout.Model)
-			if pageCmd != nil {
-				cmds = append(cmds, pageCmd)
-			}
+		m, pageCmd := a.chatPage.Update(msg)
+		a.chatPage = m.(chatpage.Page)
+		if pageCmd != nil {
+			cmds = append(cmds, pageCmd)
 		}
-		// Also forward to dialog system
+
 		u, dialogCmd := a.dialog.Update(msg)
 		a.dialog = u.(dialog.Manager)
 		if dialogCmd != nil {
@@ -139,10 +125,6 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		a.wWidth, a.wHeight = msg.Width, msg.Height
 		cmd := a.handleWindowResize(msg.Width, msg.Height)
-		return a, cmd
-
-	case page.ChangeMsg:
-		cmd := a.moveToPage(msg.ID)
 		return a, cmd
 
 	case tea.KeyPressMsg:
@@ -156,29 +138,15 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.dialog = u.(dialog.Manager)
 			return a, dialogCmd
 		}
-		// Otherwise forward to current page
-		item, ok := a.pages[a.currentPage]
-		if !ok {
-			return a, nil
-		}
-		updated, cmd := item.Update(msg)
-		a.pages[a.currentPage] = updated.(layout.Model)
+		// Otherwise forward to chat page
+		updated, cmd := a.chatPage.Update(msg)
+		a.chatPage = updated.(chatpage.Page)
 		return a, cmd
 
 	case tea.PasteMsg:
-		// If dialogs are active, they get priority for paste events
-		if a.dialog.HasDialog() {
-			u, dialogCmd := a.dialog.Update(msg)
-			a.dialog = u.(dialog.Manager)
-			return a, dialogCmd
-		}
-		// Otherwise forward to current page
-		item, ok := a.pages[a.currentPage]
-		if !ok {
-			return a, nil
-		}
-		updated, cmd := item.Update(msg)
-		a.pages[a.currentPage] = updated.(layout.Model)
+		// Otherwise forward to chat page
+		updated, cmd := a.chatPage.Update(msg)
+		a.chatPage = updated.(chatpage.Page)
 		return a, cmd
 
 	case error:
@@ -194,13 +162,9 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, dialogCmd
 		}
 
-		// Otherwise, forward to current page
-		item, ok := a.pages[a.currentPage]
-		if !ok {
-			return a, nil
-		}
-		updated, cmd := item.Update(msg)
-		a.pages[a.currentPage] = updated.(layout.Model)
+		// Otherwise, forward to chat page
+		updated, cmd := a.chatPage.Update(msg)
+		a.chatPage = updated.(chatpage.Page)
 		return a, cmd
 	}
 }
@@ -223,18 +187,16 @@ func (a *appModel) handleWindowResize(width, height int) tea.Cmd {
 		cmds = append(cmds, cmd)
 	}
 
-	// Update all pages
-	for p, page := range a.pages {
-		if sizable, ok := page.(interface{ SetSize(int, int) tea.Cmd }); ok {
-			cmd := sizable.SetSize(a.width, a.height)
+	// Update chat page
+	if sizable, ok := a.chatPage.(interface{ SetSize(int, int) tea.Cmd }); ok {
+		cmd := sizable.SetSize(a.width, a.height)
+		cmds = append(cmds, cmd)
+	} else {
+		// Fallback: send window size message
+		updated, cmd := a.chatPage.Update(tea.WindowSizeMsg{Width: a.width, Height: a.height})
+		a.chatPage = updated.(chatpage.Page)
+		if cmd != nil {
 			cmds = append(cmds, cmd)
-		} else {
-			// Fallback: send window size message
-			updated, cmd := page.Update(tea.WindowSizeMsg{Width: a.width, Height: a.height})
-			a.pages[p] = updated.(layout.Model)
-			if cmd != nil {
-				cmds = append(cmds, cmd)
-			}
 		}
 	}
 
@@ -257,41 +219,13 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
 		// Toggle help (would be implemented with a help system)
 		return nil
 	default:
-		// Forward to current page
-		item, ok := a.pages[a.currentPage]
-		if !ok {
-			return nil
-		}
-
-		updated, cmd := item.Update(msg)
-		a.pages[a.currentPage] = updated.(layout.Model)
+		updated, cmd := a.chatPage.Update(msg)
+		a.chatPage = updated.(chatpage.Page)
 		return cmd
 	}
 }
 
-// moveToPage handles navigation between different pages
-func (a *appModel) moveToPage(pageID page.ID) tea.Cmd {
-	var cmds []tea.Cmd
-
-	// Initialize page if not loaded
-	if _, ok := a.loadedPages[pageID]; !ok {
-		cmd := a.pages[pageID].Init()
-		cmds = append(cmds, cmd)
-		a.loadedPages[pageID] = true
-	}
-
-	// Switch pages
-	a.previousPage = a.currentPage
-	a.currentPage = pageID
-
-	// Set page size
-	if sizable, ok := a.pages[a.currentPage].(interface{ SetSize(int, int) tea.Cmd }); ok {
-		cmd := sizable.SetSize(a.width, a.height)
-		cmds = append(cmds, cmd)
-	}
-
-	return tea.Batch(cmds...)
-}
+// moveToPage is no longer needed since we only have one page
 
 // View renders the complete application interface
 func (a *appModel) View() string {
@@ -322,17 +256,12 @@ func (a *appModel) View() string {
 			Render(styles.MutedStyle.Render("Loading..."))
 	}
 
-	// Render current page
-	currentPage := a.pages[a.currentPage]
-	if currentPage == nil {
-		return styles.ErrorStyle.Render("Page not found")
-	}
-
-	pageView := currentPage.View()
+	// Render chat page
+	pageView := a.chatPage.View()
 
 	// Create status bar if needed
 	statusBar := ""
-	if withHelp, ok := currentPage.(core.KeyMapHelp); ok {
+	if withHelp, ok := a.chatPage.(core.KeyMapHelp); ok {
 		help := withHelp.Help()
 		if help != nil {
 			// Show short help
