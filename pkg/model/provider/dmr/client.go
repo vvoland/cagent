@@ -20,18 +20,17 @@ type Client struct {
 	client  *openai.Client
 	config  *latest.ModelConfig
 	baseURL string
-	logger  *slog.Logger
 }
 
 // NewClient creates a new DMR client from the provided configuration
-func NewClient(_ context.Context, cfg *latest.ModelConfig, logger *slog.Logger, opts ...options.Opt) (*Client, error) {
+func NewClient(_ context.Context, cfg *latest.ModelConfig, opts ...options.Opt) (*Client, error) {
 	if cfg == nil {
-		logger.Error("DMR client creation failed", "error", "model configuration is required")
+		slog.Error("DMR client creation failed", "error", "model configuration is required")
 		return nil, errors.New("model configuration is required")
 	}
 
 	if cfg.Provider != "dmr" {
-		logger.Error("DMR client creation failed", "error", "model type must be 'dmr'", "actual_type", cfg.Provider)
+		slog.Error("DMR client creation failed", "error", "model type must be 'dmr'", "actual_type", cfg.Provider)
 		return nil, errors.New("model type must be 'dmr'")
 	}
 
@@ -44,21 +43,20 @@ func NewClient(_ context.Context, cfg *latest.ModelConfig, logger *slog.Logger, 
 	baseURL := cfg.BaseURL
 	if baseURL == "" {
 		baseURL = "http://localhost:12434/engines/llama.cpp/v1"
-		logger.Debug("Using default DMR base_url", "base_url", baseURL)
+		slog.Debug("Using default DMR base_url", "base_url", baseURL)
 	}
 
-	logger.Debug("Creating DMR client config", "base_url", baseURL)
+	slog.Debug("Creating DMR client config", "base_url", baseURL)
 	clientConfig := openai.DefaultConfig("")
 	clientConfig.BaseURL = baseURL
 
 	client := openai.NewClientWithConfig(clientConfig)
-	logger.Debug("DMR client created successfully", "model", cfg.Model, "base_url", baseURL)
+	slog.Debug("DMR client created successfully", "model", cfg.Model, "base_url", baseURL)
 
 	return &Client{
 		client:  client,
 		config:  cfg,
 		baseURL: baseURL,
-		logger:  logger,
 	}, nil
 }
 
@@ -182,14 +180,14 @@ func (c *Client) CreateChatCompletionStream(
 	messages []chat.Message,
 	requestTools []tools.Tool,
 ) (chat.MessageStream, error) {
-	c.logger.Debug("Creating DMR chat completion stream",
+	slog.Debug("Creating DMR chat completion stream",
 		"model", c.config.Model,
 		"message_count", len(messages),
 		"tool_count", len(requestTools),
 		"base_url", c.baseURL)
 
 	if len(messages) == 0 {
-		c.logger.Error("DMR stream creation failed", "error", "at least one message is required")
+		slog.Error("DMR stream creation failed", "error", "at least one message is required")
 		return nil, errors.New("at least one message is required")
 	}
 
@@ -211,11 +209,11 @@ func (c *Client) CreateChatCompletionStream(
 
 	if c.config.MaxTokens > 0 {
 		request.MaxTokens = c.config.MaxTokens
-		c.logger.Debug("DMR request configured with max tokens", "max_tokens", c.config.MaxTokens)
+		slog.Debug("DMR request configured with max tokens", "max_tokens", c.config.MaxTokens)
 	}
 
 	if len(requestTools) > 0 {
-		c.logger.Debug("Adding tools to DMR request", "tool_count", len(requestTools))
+		slog.Debug("Adding tools to DMR request", "tool_count", len(requestTools))
 		request.Tools = make([]openai.Tool, len(requestTools))
 		for i, tool := range requestTools {
 			request.Tools[i] = openai.Tool{
@@ -230,24 +228,24 @@ func (c *Client) CreateChatCompletionStream(
 			if len(tool.Function.Parameters.Properties) == 0 {
 				request.Tools[i].Function.Parameters = json.RawMessage("{}")
 			}
-			c.logger.Debug("Added tool to DMR request", "tool_name", tool.Function.Name)
+			slog.Debug("Added tool to DMR request", "tool_name", tool.Function.Name)
 		}
 	}
 
 	// Log the request in JSON format for debugging
 	if requestJSON, err := json.Marshal(request); err == nil {
-		c.logger.Debug("DMR chat completion request", "request", string(requestJSON))
+		slog.Debug("DMR chat completion request", "request", string(requestJSON))
 	} else {
-		c.logger.Error("Failed to marshal DMR request to JSON", "error", err)
+		slog.Error("Failed to marshal DMR request to JSON", "error", err)
 	}
 
 	stream, err := c.client.CreateChatCompletionStream(ctx, request)
 	if err != nil {
-		c.logger.Error("DMR stream creation failed", "error", err, "model", c.config.Model, "base_url", c.baseURL)
+		slog.Error("DMR stream creation failed", "error", err, "model", c.config.Model, "base_url", c.baseURL)
 		return nil, err
 	}
 
-	c.logger.Debug("DMR chat completion stream created successfully", "model", c.config.Model)
+	slog.Debug("DMR chat completion stream created successfully", "model", c.config.Model)
 	return &StreamAdapter{stream: stream}, nil
 }
 
@@ -255,7 +253,7 @@ func (c *Client) CreateChatCompletion(
 	ctx context.Context,
 	messages []chat.Message,
 ) (string, error) {
-	c.logger.Debug("Creating DMR chat completion", "model", c.config.Model, "message_count", len(messages), "base_url", c.baseURL)
+	slog.Debug("Creating DMR chat completion", "model", c.config.Model, "message_count", len(messages), "base_url", c.baseURL)
 
 	parallelToolCalls := true
 	if c.config.ParallelToolCalls != nil {
@@ -270,11 +268,11 @@ func (c *Client) CreateChatCompletion(
 
 	response, err := c.client.CreateChatCompletion(ctx, request)
 	if err != nil {
-		c.logger.Error("DMR chat completion failed", "error", err, "model", c.config.Model, "base_url", c.baseURL)
+		slog.Error("DMR chat completion failed", "error", err, "model", c.config.Model, "base_url", c.baseURL)
 		return "", err
 	}
 
-	c.logger.Debug("DMR chat completion successful", "model", c.config.Model, "response_length", len(response.Choices[0].Message.Content))
+	slog.Debug("DMR chat completion successful", "model", c.config.Model, "response_length", len(response.Choices[0].Message.Content))
 	return response.Choices[0].Message.Content, nil
 }
 

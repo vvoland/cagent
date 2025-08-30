@@ -23,7 +23,6 @@ import (
 type Client struct {
 	client *genai.Client
 	config *latest.ModelConfig
-	logger *slog.Logger
 	// When using the Docker AI Gateway, tokens are short-lived. We rebuild
 	// the client per request when in gateway mode.
 	useGateway     bool
@@ -31,7 +30,7 @@ type Client struct {
 }
 
 // NewClient creates a new Gemini client from the provided configuration
-func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider, logger *slog.Logger, opts ...options.Opt) (*Client, error) {
+func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider, opts ...options.Opt) (*Client, error) {
 	if cfg == nil {
 		return nil, errors.New("model configuration is required")
 	}
@@ -80,7 +79,6 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 	return &Client{
 		client:         client,
 		config:         cfg,
-		logger:         logger,
 		useGateway:     useGateway,
 		gatewayBaseURL: gatewayBaseURL,
 	}, nil
@@ -351,10 +349,10 @@ func (c *Client) CreateChatCompletionStream(
 		}
 
 		// Debug: Log the tools we're sending
-		c.logger.Debug("Gemini tools config", "tools", config.Tools)
+		slog.Debug("Gemini tools config", "tools", config.Tools)
 		for _, tool := range config.Tools {
 			for _, fn := range tool.FunctionDeclarations {
-				c.logger.Debug("Function", "name", fn.Name, "desc", fn.Description, "params", fn.Parameters)
+				slog.Debug("Function", "name", fn.Name, "desc", fn.Description, "params", fn.Parameters)
 			}
 		}
 	}
@@ -362,15 +360,15 @@ func (c *Client) CreateChatCompletionStream(
 	contents := convertMessagesToGemini(messages)
 
 	// Debug: Log the messages we're sending
-	c.logger.Debug("Gemini messages", "count", len(contents))
+	slog.Debug("Gemini messages", "count", len(contents))
 	for i, content := range contents {
-		c.logger.Debug("Message", "index", i, "role", content.Role)
+		slog.Debug("Message", "index", i, "role", content.Role)
 	}
 
 	// For Gemini 2.5 models with thoughtSignature streaming issues,
 	// try non-streaming first to avoid parsing problems
 	if strings.Contains(c.config.Model, "2.5") {
-		c.logger.Debug("Using non-streaming mode for Gemini 2.5 to avoid thoughtSignature parsing issues")
+		slog.Debug("Using non-streaming mode for Gemini 2.5 to avoid thoughtSignature parsing issues")
 		var client *genai.Client
 		if c.useGateway {
 			if gwClient, err := c.newGatewayClient(ctx); err == nil {
@@ -383,10 +381,10 @@ func (c *Client) CreateChatCompletionStream(
 		}
 		response, err := client.Models.GenerateContent(ctx, c.config.Model, contents, config)
 		if err != nil {
-			c.logger.Debug("Non-streaming failed, falling back to streaming", "error", err)
+			slog.Debug("Non-streaming failed, falling back to streaming", "error", err)
 		} else {
 			// Convert non-streaming response to streaming format
-			return NewNonStreamingAdapter(response, c.config.Model, c.logger), nil
+			return NewNonStreamingAdapter(response, c.config.Model), nil
 		}
 	}
 
@@ -401,7 +399,7 @@ func (c *Client) CreateChatCompletionStream(
 	} else {
 		iter = c.client.Models.GenerateContentStream(ctx, c.config.Model, contents, config)
 	}
-	return NewStreamAdapter(iter, c.config.Model, c.logger), nil
+	return NewStreamAdapter(iter, c.config.Model), nil
 }
 
 // CreateChatCompletion creates a non-streaming chat completion

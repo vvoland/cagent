@@ -328,10 +328,6 @@ func (t *FilesystemTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 							"type":        "string",
 							"description": "The starting directory path",
 						},
-						"pattern": map[string]any{
-							"type":        "string",
-							"description": "GLOB pattern for files to search in",
-						},
 						"query": map[string]any{
 							"type":        "string",
 							"description": "The text or regex pattern to search for",
@@ -348,7 +344,7 @@ func (t *FilesystemTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 							"description": "Patterns to exclude from search",
 						},
 					},
-					Required: []string{"path", "pattern", "query"},
+					Required: []string{"path", "query"},
 				},
 			},
 			Handler: t.handleSearchFilesContent,
@@ -871,7 +867,6 @@ func (t *FilesystemTool) handleSearchFiles(ctx context.Context, toolCall tools.T
 func (t *FilesystemTool) handleSearchFilesContent(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args struct {
 		Path            string   `json:"path"`
-		Pattern         string   `json:"pattern"`
 		Query           string   `json:"query"`
 		IsRegex         bool     `json:"is_regex"`
 		ExcludePatterns []string `json:"excludePatterns"`
@@ -901,11 +896,6 @@ func (t *FilesystemTool) handleSearchFilesContent(ctx context.Context, toolCall 
 		}
 
 		if err := t.isPathAllowed(path); err != nil {
-			return nil
-		}
-
-		// Check if file matches the pattern
-		if matched, _ := filepath.Match(args.Pattern, filepath.Base(path)); !matched {
 			return nil
 		}
 

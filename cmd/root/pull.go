@@ -2,6 +2,7 @@ package root
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,9 +27,7 @@ func NewPullCmd() *cobra.Command {
 }
 
 func runPullCommand(registryRef string) error {
-	logger := newLogger()
-
-	logger.Debug("Starting pull", "registry_ref", registryRef)
+	slog.Debug("Starting pull", "registry_ref", registryRef)
 
 	fmt.Println("Pulling agent ", registryRef)
 

@@ -2,6 +2,7 @@ package root
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/oci"
@@ -28,7 +29,6 @@ from the build command.`,
 }
 
 func runPushCommand(filePath, tag string) error {
-	logger := newLogger()
 
 	store, err := content.NewStore()
 	if err != nil {
@@ -40,7 +40,7 @@ func runPushCommand(filePath, tag string) error {
 		return fmt.Errorf("failed to build artifact: %w", err)
 	}
 
-	logger.Debug("Starting push", "registry_ref", tag)
+	slog.Debug("Starting push", "registry_ref", tag)
 
 	fmt.Printf("Pushing agent %s to %s\n", filePath, tag)
 

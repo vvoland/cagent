@@ -14,23 +14,20 @@ var (
 	enableOtel bool
 )
 
-func newLogger() *slog.Logger {
-	logLevel := slog.LevelInfo
-	if debugMode {
-		logLevel = slog.LevelDebug
-	}
-
-	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: logLevel,
-	}))
-}
-
 // NewRootCmd creates the root command for cagent
 func NewRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cagent",
 		Short: "cagent - AI agent runner",
 		Long:  `cagent is a command-line tool for running AI agents`,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if debugMode {
+				slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+					Level: slog.LevelDebug,
+				})))
+			}
+			return nil
+		},
 		// If no subcommand is specified, show help
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()

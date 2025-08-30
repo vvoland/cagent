@@ -23,7 +23,6 @@ import (
 type Client struct {
 	client anthropic.Client
 	config *latest.ModelConfig
-	logger *slog.Logger
 	// When using the Docker AI Gateway, tokens are short-lived. We rebuild
 	// the client per request when in gateway mode.
 	useGateway     bool
@@ -31,14 +30,14 @@ type Client struct {
 }
 
 // NewClient creates a new Anthropic client from the provided configuration
-func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider, logger *slog.Logger, opts ...options.Opt) (*Client, error) {
+func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider, opts ...options.Opt) (*Client, error) {
 	if cfg == nil {
-		logger.Error("Anthropic client creation failed", "error", "model configuration is required")
+		slog.Error("Anthropic client creation failed", "error", "model configuration is required")
 		return nil, errors.New("model configuration is required")
 	}
 
 	if cfg.Provider != "anthropic" {
-		logger.Error("Anthropic client creation failed", "error", "model type must be 'anthropic'", "actual_type", cfg.Provider)
+		slog.Error("Anthropic client creation failed", "error", "model type must be 'anthropic'", "actual_type", cfg.Provider)
 		return nil, errors.New("model type must be 'anthropic'")
 	}
 
@@ -53,22 +52,22 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 	if gateway := globalOptions.Gateway(); gateway == "" {
 		authToken, err := env.Get(ctx, "ANTHROPIC_API_KEY")
 		if err != nil || authToken == "" {
-			logger.Error("Anthropic client creation failed", "error", "failed to get authentication token", "details", err)
+			slog.Error("Anthropic client creation failed", "error", "failed to get authentication token", "details", err)
 			return nil, errors.New("ANTHROPIC_API_KEY environment variable is required")
 		}
 
-		logger.Debug("Anthropic API key found, creating client")
+		slog.Debug("Anthropic API key found, creating client")
 		requestOptions = append(requestOptions,
 			option.WithAPIKey(authToken),
 		)
 	} else {
 		authToken := desktop.GetToken(ctx)
 		if authToken == "" {
-			logger.Error("Anthropic client creation failed", "error", "failed to get Docker Desktop's authentication token")
+			slog.Error("Anthropic client creation failed", "error", "failed to get Docker Desktop's authentication token")
 			return nil, errors.New("sorry, you first need to sign in Docker Desktop to use the Docker AI Gateway")
 		}
 
-		logger.Debug("Docker Desktop's authentication token found, creating client")
+		slog.Debug("Docker Desktop's authentication token found, creating client")
 		requestOptions = append(requestOptions,
 			option.WithAuthToken(authToken),
 			option.WithAPIKey(authToken),
@@ -79,12 +78,11 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 	}
 
 	client := anthropic.NewClient(requestOptions...)
-	logger.Debug("Anthropic client created successfully", "model", cfg.Model)
+	slog.Debug("Anthropic client created successfully", "model", cfg.Model)
 
 	return &Client{
 		client:         client,
 		config:         cfg,
-		logger:         logger,
 		useGateway:     useGateway,
 		gatewayBaseURL: gatewayBaseURL,
 	}, nil
@@ -109,7 +107,7 @@ func (c *Client) CreateChatCompletionStream(
 	messages []chat.Message,
 	requestTools []tools.Tool,
 ) (chat.MessageStream, error) {
-	c.logger.Debug("Creating Anthropic chat completion stream",
+	slog.Debug("Creating Anthropic chat completion stream",
 		"model", c.config.Model,
 		"message_count", len(messages),
 		"tool_count", len(requestTools))
@@ -127,21 +125,21 @@ func (c *Client) CreateChatCompletionStream(
 	}
 
 	if len(requestTools) > 0 {
-		c.logger.Debug("Adding tools to Anthropic request", "tool_count", len(requestTools))
+		slog.Debug("Adding tools to Anthropic request", "tool_count", len(requestTools))
 	}
 
 	// Log the request details for debugging
-	c.logger.Debug("Anthropic chat completion stream request",
+	slog.Debug("Anthropic chat completion stream request",
 		"model", params.Model,
 		"max_tokens", maxTokens,
 		"message_count", len(params.Messages))
 
-	if c.logger.Enabled(ctx, slog.LevelDebug) {
+	if slog.Default().Enabled(ctx, slog.LevelDebug) {
 		b, err := json.Marshal(params)
 		if err != nil {
-			c.logger.Error("Failed to marshal Anthropic request", "error", err)
+			slog.Error("Failed to marshal Anthropic request", "error", err)
 		}
-		c.logger.Debug("Request", "request", string(b))
+		slog.Debug("Request", "request", string(b))
 	}
 
 	// Build a fresh client per request when using the gateway
@@ -150,7 +148,7 @@ func (c *Client) CreateChatCompletionStream(
 		client = c.newGatewayClient(ctx)
 	}
 	stream := client.Messages.NewStreaming(ctx, params)
-	c.logger.Debug("Anthropic chat completion stream created successfully", "model", c.config.Model)
+	slog.Debug("Anthropic chat completion stream created successfully", "model", c.config.Model)
 
 	return &StreamAdapter{stream: stream}, nil
 }
@@ -159,7 +157,7 @@ func (c *Client) CreateChatCompletion(
 	ctx context.Context,
 	messages []chat.Message,
 ) (string, error) {
-	c.logger.Debug("Creating Anthropic chat completion", "model", c.config.Model, "message_count", len(messages))
+	slog.Debug("Creating Anthropic chat completion", "model", c.config.Model, "message_count", len(messages))
 
 	params := anthropic.MessageNewParams{
 		Model:     anthropic.Model(c.config.Model),
@@ -174,11 +172,11 @@ func (c *Client) CreateChatCompletion(
 	}
 	response, err := client.Messages.New(ctx, params)
 	if err != nil {
-		c.logger.Error("Anthropic chat completion failed", "error", err, "model", c.config.Model)
+		slog.Error("Anthropic chat completion failed", "error", err, "model", c.config.Model)
 		return "", err
 	}
 
-	c.logger.Debug("Anthropic chat completion successful", "model", c.config.Model, "response_length", len(response.Content[0].Text))
+	slog.Debug("Anthropic chat completion successful", "model", c.config.Model, "response_length", len(response.Content[0].Text))
 	return response.Content[0].Text, nil
 }
 

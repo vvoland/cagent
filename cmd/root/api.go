@@ -2,6 +2,7 @@ package root
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 
@@ -43,8 +44,6 @@ func runHttp(cmd *cobra.Command, autoRunTools bool, args []string) error {
 	ctx := cmd.Context()
 	agentsPath := args[0]
 
-	logger := newLogger()
-
 	ln, err := server.Listen(ctx, listenAddr)
 	if err != nil {
 		return fmt.Errorf("failed to listen on %s: %w", listenAddr, err)
@@ -55,12 +54,12 @@ func runHttp(cmd *cobra.Command, autoRunTools bool, args []string) error {
 	}()
 
 	if _, ok := ln.(*net.TCPListener); ok {
-		logger.Info("Listening on http://localhost" + listenAddr)
+		slog.Info("Listening on http://localhost" + listenAddr)
 	} else {
-		logger.Info("Listening on " + listenAddr)
+		slog.Info("Listening on " + listenAddr)
 	}
 
-	logger.Debug("Starting server", "agents", agentsPath, "debug_mode", debugMode)
+	slog.Debug("Starting server", "agents", agentsPath, "debug_mode", debugMode)
 
 	sessionStore, err := session.NewSQLiteSessionStore(sessionDb)
 	if err != nil {
@@ -77,14 +76,14 @@ func runHttp(cmd *cobra.Command, autoRunTools bool, args []string) error {
 		opts = append(opts, server.WithAgentsDir(agentsPath))
 	}
 
-	teams, err := teamloader.LoadTeams(ctx, agentsPath, runConfig, logger)
+	teams, err := teamloader.LoadTeams(ctx, agentsPath, runConfig)
 	if err != nil {
 		return fmt.Errorf("failed to load teams: %w", err)
 	}
 	defer func() {
 		for _, team := range teams {
 			if err := team.StopToolSets(); err != nil {
-				logger.Error("Failed to stop tool sets", "error", err)
+				slog.Error("Failed to stop tool sets", "error", err)
 			}
 		}
 	}()
@@ -93,6 +92,6 @@ func runHttp(cmd *cobra.Command, autoRunTools bool, args []string) error {
 		opts = append(opts, server.WithAutoRunTools(true))
 	}
 
-	s := server.New(logger, sessionStore, runConfig, teams, opts...)
+	s := server.New(sessionStore, runConfig, teams, opts...)
 	return s.Serve(ctx, ln)
 }

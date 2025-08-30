@@ -1,7 +1,6 @@
 package dmr
 
 import (
-	"log/slog"
 	"testing"
 
 	latest "github.com/docker/cagent/pkg/config/v1"
@@ -15,8 +14,7 @@ func TestNewClientWithDefaultBaseURL(t *testing.T) {
 		// BaseURL is empty, should use default
 	}
 
-	logger := slog.Default()
-	client, err := NewClient(t.Context(), cfg, logger)
+	client, err := NewClient(t.Context(), cfg)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -35,8 +33,7 @@ func TestNewClientWithExplicitBaseURL(t *testing.T) {
 		BaseURL:  customURL,
 	}
 
-	logger := slog.Default()
-	client, err := NewClient(t.Context(), cfg, logger)
+	client, err := NewClient(t.Context(), cfg)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -53,8 +50,7 @@ func TestNewClientWithWrongType(t *testing.T) {
 		Model:    "gpt-4",
 	}
 
-	logger := slog.Default()
-	_, err := NewClient(t.Context(), cfg, logger)
+	_, err := NewClient(t.Context(), cfg)
 	if err == nil {
 		t.Fatal("Expected error for wrong model type, got nil")
 	}

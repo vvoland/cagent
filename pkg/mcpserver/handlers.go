@@ -24,6 +24,7 @@ package mcpserver
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/docker/cagent/pkg/servicecore"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -53,12 +54,12 @@ func (s *MCPServer) handleInvokeAgent(ctx context.Context, req mcp.CallToolReque
 		return nil, fmt.Errorf("message parameter is required and must be a string")
 	}
 
-	s.logger.Debug("Invoking agent", "client_id", clientID, "agent", agent, "message_length", len(message))
+	slog.Debug("Invoking agent", "client_id", clientID, "agent", agent, "message_length", len(message))
 
 	// Create agent session
 	session, err := s.serviceCore.CreateAgentSession(clientID, agent)
 	if err != nil {
-		s.logger.Error("Failed to create agent session", "client_id", clientID, "agent", agent, "error", err)
+		slog.Error("Failed to create agent session", "client_id", clientID, "agent", agent, "error", err)
 		return nil, fmt.Errorf("creating agent session: %w", err)
 	}
 
@@ -67,14 +68,14 @@ func (s *MCPServer) handleInvokeAgent(ctx context.Context, req mcp.CallToolReque
 	if err != nil {
 		// Clean up session on error
 		if cleanupErr := s.serviceCore.CloseSession(clientID, session.ID); cleanupErr != nil {
-			s.logger.Warn("Failed to cleanup session after error", "session_id", session.ID, "error", cleanupErr)
+			slog.Warn("Failed to cleanup session after error", "session_id", session.ID, "error", cleanupErr)
 		}
-		s.logger.Error("Failed to send message", "client_id", clientID, "session_id", session.ID, "error", err)
+		slog.Error("Failed to send message", "client_id", clientID, "session_id", session.ID, "error", err)
 		return nil, fmt.Errorf("sending message: %w", err)
 	}
 
 	// Debug the response we got from servicecore
-	s.logger.Debug("Got response from servicecore",
+	slog.Debug("Got response from servicecore",
 		"client_id", clientID,
 		"session_id", session.ID,
 		"content_length", len(response.Content),
@@ -88,7 +89,7 @@ func (s *MCPServer) handleInvokeAgent(ctx context.Context, req mcp.CallToolReque
 
 	// Clean up session after one-shot invocation
 	if err := s.serviceCore.CloseSession(clientID, session.ID); err != nil {
-		s.logger.Warn("Failed to cleanup session after completion", "session_id", session.ID, "error", err)
+		slog.Warn("Failed to cleanup session after completion", "session_id", session.ID, "error", err)
 	}
 
 	// Format response for MCP client
@@ -121,12 +122,12 @@ func (s *MCPServer) handleListAgents(ctx context.Context, req mcp.CallToolReques
 		}
 	}
 
-	s.logger.Debug("Listing agents", "client_id", clientID, "source", source)
+	slog.Debug("Listing agents", "client_id", clientID, "source", source)
 
 	// Get agents from servicecore
 	agents, err := s.serviceCore.ListAgents(source)
 	if err != nil {
-		s.logger.Error("Failed to list agents", "client_id", clientID, "source", source, "error", err)
+		slog.Error("Failed to list agents", "client_id", clientID, "source", source, "error", err)
 		return nil, fmt.Errorf("listing agents: %w", err)
 	}
 
@@ -190,11 +191,11 @@ func (s *MCPServer) handlePullAgent(ctx context.Context, req mcp.CallToolRequest
 		return nil, fmt.Errorf("registry_ref parameter is required and must be a string")
 	}
 
-	s.logger.Info("Pulling agent", "client_id", clientID, "registry_ref", registryRef)
+	slog.Info("Pulling agent", "client_id", clientID, "registry_ref", registryRef)
 
 	// Pull agent using servicecore
 	if err := s.serviceCore.PullAgent(registryRef); err != nil {
-		s.logger.Error("Failed to pull agent", "client_id", clientID, "registry_ref", registryRef, "error", err)
+		slog.Error("Failed to pull agent", "client_id", clientID, "registry_ref", registryRef, "error", err)
 		return nil, fmt.Errorf("pulling agent: %w", err)
 	}
 
@@ -218,7 +219,7 @@ func (s *MCPServer) extractClientID(_ context.Context) (string, error) {
 	// Ensure client exists in servicecore
 	if err := s.serviceCore.CreateClient(clientID); err != nil {
 		// Client might already exist, which is fine
-		s.logger.Debug("Client creation result", "client_id", clientID, "error", err)
+		slog.Debug("Client creation result", "client_id", clientID, "error", err)
 	}
 
 	if clientID == "" {
@@ -247,12 +248,12 @@ func (s *MCPServer) handleCreateAgentSession(ctx context.Context, req mcp.CallTo
 		return nil, fmt.Errorf("agent parameter is required and must be a string")
 	}
 
-	s.logger.Debug("Creating agent session", "client_id", clientID, "agent", agent)
+	slog.Debug("Creating agent session", "client_id", clientID, "agent", agent)
 
 	// Create agent session
 	session, err := s.serviceCore.CreateAgentSession(clientID, agent)
 	if err != nil {
-		s.logger.Error("Failed to create agent session", "client_id", clientID, "agent", agent, "error", err)
+		slog.Error("Failed to create agent session", "client_id", clientID, "agent", agent, "error", err)
 		return nil, fmt.Errorf("creating agent session: %w", err)
 	}
 
@@ -293,17 +294,17 @@ func (s *MCPServer) handleSendMessage(ctx context.Context, req mcp.CallToolReque
 		return nil, fmt.Errorf("message parameter is required and must be a string")
 	}
 
-	s.logger.Debug("Sending message to session", "client_id", clientID, "session_id", sessionID, "message_length", len(message))
+	slog.Debug("Sending message to session", "client_id", clientID, "session_id", sessionID, "message_length", len(message))
 
 	// Send message using servicecore
 	response, err := s.serviceCore.SendMessage(clientID, sessionID, message)
 	if err != nil {
-		s.logger.Error("Failed to send message", "client_id", clientID, "session_id", sessionID, "error", err)
+		slog.Error("Failed to send message", "client_id", clientID, "session_id", sessionID, "error", err)
 		return nil, fmt.Errorf("sending message: %w", err)
 	}
 
 	// Debug the response we got from servicecore
-	s.logger.Debug("Got response from servicecore",
+	slog.Debug("Got response from servicecore",
 		"client_id", clientID,
 		"session_id", sessionID,
 		"content_length", len(response.Content),
@@ -335,12 +336,12 @@ func (s *MCPServer) handleListAgentSessions(ctx context.Context, req mcp.CallToo
 		return nil, err
 	}
 
-	s.logger.Debug("Listing agent sessions", "client_id", clientID)
+	slog.Debug("Listing agent sessions", "client_id", clientID)
 
 	// Get sessions from servicecore
 	sessions, err := s.serviceCore.ListSessions(clientID)
 	if err != nil {
-		s.logger.Error("Failed to list sessions", "client_id", clientID, "error", err)
+		slog.Error("Failed to list sessions", "client_id", clientID, "error", err)
 		return nil, fmt.Errorf("listing sessions: %w", err)
 	}
 
@@ -386,11 +387,11 @@ func (s *MCPServer) handleCloseAgentSession(ctx context.Context, req mcp.CallToo
 		return nil, fmt.Errorf("session_id parameter is required and must be a string")
 	}
 
-	s.logger.Debug("Closing agent session", "client_id", clientID, "session_id", sessionID)
+	slog.Debug("Closing agent session", "client_id", clientID, "session_id", sessionID)
 
 	// Close session using servicecore
 	if err := s.serviceCore.CloseSession(clientID, sessionID); err != nil {
-		s.logger.Error("Failed to close session", "client_id", clientID, "session_id", sessionID, "error", err)
+		slog.Error("Failed to close session", "client_id", clientID, "session_id", sessionID, "error", err)
 		return nil, fmt.Errorf("closing session: %w", err)
 	}
 
@@ -424,12 +425,12 @@ func (s *MCPServer) handleGetAgentSessionInfo(ctx context.Context, req mcp.CallT
 		return nil, fmt.Errorf("session_id parameter is required and must be a string")
 	}
 
-	s.logger.Debug("Getting agent session info", "client_id", clientID, "session_id", sessionID)
+	slog.Debug("Getting agent session info", "client_id", clientID, "session_id", sessionID)
 
 	// Get sessions from servicecore and find the requested one
 	sessions, err := s.serviceCore.ListSessions(clientID)
 	if err != nil {
-		s.logger.Error("Failed to list sessions", "client_id", clientID, "error", err)
+		slog.Error("Failed to list sessions", "client_id", clientID, "error", err)
 		return nil, fmt.Errorf("listing sessions: %w", err)
 	}
 
@@ -540,12 +541,12 @@ func (s *MCPServer) handleGetAgentSessionHistory(ctx context.Context, req mcp.Ca
 		}
 	}
 
-	s.logger.Debug("Getting session history", "client_id", clientID, "session_id", sessionID, "limit", limit)
+	slog.Debug("Getting session history", "client_id", clientID, "session_id", sessionID, "limit", limit)
 
 	// Get session history from servicecore
 	history, err := s.serviceCore.GetSessionHistory(clientID, sessionID, limit)
 	if err != nil {
-		s.logger.Error("Failed to get session history", "client_id", clientID, "session_id", sessionID, "error", err)
+		slog.Error("Failed to get session history", "client_id", clientID, "session_id", sessionID, "error", err)
 		return nil, fmt.Errorf("getting session history: %w", err)
 	}
 
@@ -594,12 +595,12 @@ func (s *MCPServer) handleGetAgentSessionInfoEnhanced(ctx context.Context, req m
 		return nil, fmt.Errorf("session_id parameter is required and must be a string")
 	}
 
-	s.logger.Debug("Getting enhanced session info", "client_id", clientID, "session_id", sessionID)
+	slog.Debug("Getting enhanced session info", "client_id", clientID, "session_id", sessionID)
 
 	// Get enhanced session info from servicecore
 	sessionInfo, err := s.serviceCore.GetSessionInfo(clientID, sessionID)
 	if err != nil {
-		s.logger.Error("Failed to get session info", "client_id", clientID, "session_id", sessionID, "error", err)
+		slog.Error("Failed to get session info", "client_id", clientID, "session_id", sessionID, "error", err)
 		return nil, fmt.Errorf("getting session info: %w", err)
 	}
 

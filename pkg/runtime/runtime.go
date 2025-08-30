@@ -33,7 +33,6 @@ type ToolHandler func(ctx context.Context, sess *session.Session, toolCall tools
 
 // Runtime manages the execution of agents
 type Runtime struct {
-	logger            *slog.Logger
 	toolMap           map[string]ToolHandler
 	team              *team.Team
 	currentAgent      string
@@ -72,7 +71,7 @@ func WithSessionCompaction(sessionCompaction bool) Opt {
 }
 
 // New creates a new runtime for an agent and its team
-func New(logger *slog.Logger, agents *team.Team, opts ...Opt) (*Runtime, error) {
+func New(agents *team.Team, opts ...Opt) (*Runtime, error) {
 	modelsStore, err := modelsdev.NewStore()
 	if err != nil {
 		return nil, err
@@ -81,7 +80,6 @@ func New(logger *slog.Logger, agents *team.Team, opts ...Opt) (*Runtime, error) 
 	r := &Runtime{
 		toolMap:           make(map[string]ToolHandler),
 		team:              agents,
-		logger:            logger,
 		currentAgent:      "root",
 		resumeChan:        make(chan ResumeType),
 		modelsStore:       modelsStore,
@@ -92,7 +90,7 @@ func New(logger *slog.Logger, agents *team.Team, opts ...Opt) (*Runtime, error) 
 		opt(r)
 	}
 
-	logger.Debug("Creating new runtime", "agent", r.currentAgent, "available_agents", agents.Size())
+	slog.Debug("Creating new runtime", "agent", r.currentAgent, "available_agents", agents.Size())
 
 	return r, nil
 }
@@ -103,9 +101,9 @@ func (r *Runtime) Team() *team.Team {
 
 // registerDefaultTools registers the default tool handlers
 func (r *Runtime) registerDefaultTools() {
-	r.logger.Debug("Registering default tools")
+	slog.Debug("Registering default tools")
 	r.toolMap["transfer_task"] = r.handleTaskTransfer
-	r.logger.Debug("Registered default tools", "count", len(r.toolMap))
+	slog.Debug("Registered default tools", "count", len(r.toolMap))
 }
 
 func (r *Runtime) CurrentAgent() *agent.Agent {
@@ -114,7 +112,7 @@ func (r *Runtime) CurrentAgent() *agent.Agent {
 
 // Run starts the agent's interaction loop
 func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan Event {
-	r.logger.Debug("Starting runtime stream", "agent", r.currentAgent, "session_id", sess.ID)
+	slog.Debug("Starting runtime stream", "agent", r.currentAgent, "session_id", sess.ID)
 	events := make(chan Event)
 
 	go func() {
@@ -126,7 +124,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 		// so that subsequent runs start from a clean state and no goroutines remain hanging.
 		defer func() {
 			if err := a.StopToolSets(); err != nil {
-				r.logger.Error("Failed to stop tool sets on run completion", "agent", a.Name(), "error", err)
+				slog.Error("Failed to stop tool sets on run completion", "agent", a.Name(), "error", err)
 			}
 		}()
 		model := a.Model()
@@ -136,7 +134,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			events <- StreamStopped()
 			close(events)
 		}()
-		defer r.logger.Debug("Runtime stream completed", "agent", r.currentAgent, "session_id", sess.ID)
+		defer slog.Debug("Runtime stream completed", "agent", r.currentAgent, "session_id", sess.ID)
 
 		// Start a session span (optional)
 		ctx, sessionSpan := r.startSpan(ctx, "runtime.session", trace.WithAttributes(
@@ -145,63 +143,63 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 		))
 		defer sessionSpan.End()
 
-		r.logger.Debug("Using agent", "agent", a.Name(), "model", modelID)
+		slog.Debug("Using agent", "agent", a.Name(), "model", modelID)
 		r.registerDefaultTools()
 
-		r.logger.Debug("Getting model definition", "model_id", modelID)
+		slog.Debug("Getting model definition", "model_id", modelID)
 		m, err := r.modelsStore.GetModel(context.Background(), modelID)
 		if err != nil {
-			r.logger.Debug("Failed to get model definition", "error", err)
+			slog.Debug("Failed to get model definition", "error", err)
 		}
 
 		for {
 			// Exit immediately if the stream context has been cancelled (e.g., Ctrl+C)
 			if err := ctx.Err(); err != nil {
-				r.logger.Debug("Runtime stream context cancelled, stopping loop", "agent", a.Name(), "session_id", sess.ID)
+				slog.Debug("Runtime stream context cancelled, stopping loop", "agent", a.Name(), "session_id", sess.ID)
 				return
 			}
-			r.logger.Debug("Starting conversation loop iteration", "agent", a.Name())
+			slog.Debug("Starting conversation loop iteration", "agent", a.Name())
 			messages := sess.GetMessages(a)
-			r.logger.Debug("Retrieved messages for processing", "agent", a.Name(), "message_count", len(messages))
+			slog.Debug("Retrieved messages for processing", "agent", a.Name(), "message_count", len(messages))
 
 			agentTools, err := a.Tools(ctx)
 			if err != nil {
-				r.logger.Error("Failed to get agent tools", "agent", a.Name(), "error", err)
+				slog.Error("Failed to get agent tools", "agent", a.Name(), "error", err)
 				sessionSpan.RecordError(err)
 				sessionSpan.SetStatus(codes.Error, "failed to get tools")
 				events <- Error(fmt.Sprintf("failed to get tools: %v", err))
 				return
 			}
-			r.logger.Debug("Retrieved agent tools", "agent", a.Name(), "tool_count", len(agentTools))
+			slog.Debug("Retrieved agent tools", "agent", a.Name(), "tool_count", len(agentTools))
 
 			// Create a span for the model stream (optional)
 			streamCtx, streamSpan := r.startSpan(ctx, "runtime.stream", trace.WithAttributes(
 				attribute.String("agent", a.Name()),
 				attribute.String("session.id", sess.ID),
 			))
-			r.logger.Debug("Creating chat completion stream", "agent", a.Name())
+			slog.Debug("Creating chat completion stream", "agent", a.Name())
 			stream, err := model.CreateChatCompletionStream(streamCtx, messages, agentTools)
 			if err != nil {
 				streamSpan.RecordError(err)
 				streamSpan.SetStatus(codes.Error, "creating chat completion")
-				r.logger.Error("Failed to create chat completion stream", "agent", a.Name(), "error", err)
+				slog.Error("Failed to create chat completion stream", "agent", a.Name(), "error", err)
 				events <- Error(fmt.Sprintf("creating chat completion: %v", err))
 				streamSpan.End()
 				return
 			}
 
-			r.logger.Debug("Processing stream", "agent", a.Name())
+			slog.Debug("Processing stream", "agent", a.Name())
 			calls, content, stopped, err := r.handleStream(stream, a, sess, m, events)
 			if err != nil {
 				// Treat context cancellation as a graceful stop
 				if errors.Is(err, context.Canceled) || strings.Contains(strings.ToLower(err.Error()), "context canceled") {
-					r.logger.Debug("Model stream canceled by context", "agent", a.Name(), "session_id", sess.ID)
+					slog.Debug("Model stream canceled by context", "agent", a.Name(), "session_id", sess.ID)
 					streamSpan.End()
 					return
 				}
 				streamSpan.RecordError(err)
 				streamSpan.SetStatus(codes.Error, "error handling stream")
-				r.logger.Error("Error handling stream", "agent", a.Name(), "error", err)
+				slog.Error("Error handling stream", "agent", a.Name(), "error", err)
 				events <- Error(err.Error())
 				streamSpan.End()
 				return
@@ -212,7 +210,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				attribute.Bool("stopped", stopped),
 			)
 			streamSpan.End()
-			r.logger.Debug("Stream processed", "agent", a.Name(), "tool_calls", len(calls), "content_length", len(content), "stopped", stopped)
+			slog.Debug("Stream processed", "agent", a.Name(), "tool_calls", len(calls), "content_length", len(content), "stopped", stopped)
 
 			// Add assistant message to conversation history
 			assistantMessage := chat.Message{
@@ -222,7 +220,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			}
 
 			sess.AddMessage(session.NewAgentMessage(a, &assistantMessage))
-			r.logger.Debug("Added assistant message to session", "agent", a.Name(), "total_messages", len(sess.GetAllMessages()))
+			slog.Debug("Added assistant message to session", "agent", a.Name(), "total_messages", len(sess.GetAllMessages()))
 
 			contextLimit := 0
 			if m != nil {
@@ -240,7 +238,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			}
 
 			if stopped {
-				r.logger.Debug("Conversation stopped", "agent", a.Name())
+				slog.Debug("Conversation stopped", "agent", a.Name())
 				// Generate title for session if it doesn't have one and has messages
 				if sess.Title == "" && len(sess.GetAllMessages()) > 0 {
 					r.generateSessionTitle(ctx, sess, events)
@@ -251,7 +249,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			if err := r.processToolCalls(ctx, sess, calls, events); err != nil {
 				// If cancellation, stop quietly
 				if errors.Is(err, context.Canceled) || strings.Contains(strings.ToLower(err.Error()), "context cancelled") || strings.Contains(strings.ToLower(err.Error()), "context canceled") {
-					r.logger.Debug("Tool call processing canceled by context", "agent", a.Name(), "session_id", sess.ID)
+					slog.Debug("Tool call processing canceled by context", "agent", a.Name(), "session_id", sess.ID)
 					return
 				}
 				sessionSpan.RecordError(err)
@@ -267,7 +265,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 }
 
 func (r *Runtime) Resume(ctx context.Context, confirmationType string) {
-	r.logger.Debug("Resuming runtime", "agent", r.currentAgent, "confirmation_type", confirmationType)
+	slog.Debug("Resuming runtime", "agent", r.currentAgent, "confirmation_type", confirmationType)
 
 	cType := ResumeTypeApproveSession
 	switch confirmationType {
@@ -279,9 +277,9 @@ func (r *Runtime) Resume(ctx context.Context, confirmationType string) {
 
 	select {
 	case r.resumeChan <- cType:
-		r.logger.Debug("Resume signal sent", "agent", r.currentAgent)
+		slog.Debug("Resume signal sent", "agent", r.currentAgent)
 	default:
-		r.logger.Debug("Resume channel not ready, ignoring", "agent", r.currentAgent)
+		slog.Debug("Resume channel not ready, ignoring", "agent", r.currentAgent)
 	}
 }
 
@@ -398,10 +396,10 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 	}
 
 	a := r.CurrentAgent()
-	r.logger.Debug("Processing tool calls", "agent", a.Name(), "call_count", len(calls))
+	slog.Debug("Processing tool calls", "agent", a.Name(), "call_count", len(calls))
 	agentTools, err := a.Tools(ctx)
 	if err != nil {
-		r.logger.Error("Failed to get tools for tool calls", "agent", a.Name(), "error", err)
+		slog.Error("Failed to get tools for tool calls", "agent", a.Name(), "error", err)
 		return fmt.Errorf("failed to get tools: %w", err)
 	}
 
@@ -415,32 +413,32 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 			attribute.String("tool.call_id", toolCall.ID),
 		))
 
-		r.logger.Debug("Processing tool call", "agent", a.Name(), "tool", toolCall.Function.Name, "session_id", sess.ID)
+		slog.Debug("Processing tool call", "agent", a.Name(), "tool", toolCall.Function.Name, "session_id", sess.ID)
 		handler, exists := r.toolMap[toolCall.Function.Name]
 		if exists {
-			r.logger.Debug("Using runtime tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
+			slog.Debug("Using runtime tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
 			if sess.ToolsApproved || r.autoRunTools || toolCall.Function.Name == "transfer_task" {
 				r.runAgentTool(callCtx, handler, sess, toolCall, events, a)
 			} else {
-				r.logger.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
+				slog.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
 				events <- ToolCallConfirmation(toolCall, a.Name())
 
 				select {
 				case cType := <-r.resumeChan:
 					switch cType {
 					case ResumeTypeApprove:
-						r.logger.Debug("Resume signal received, approving tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
+						slog.Debug("Resume signal received, approving tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
 						r.runAgentTool(callCtx, handler, sess, toolCall, events, a)
 					case ResumeTypeApproveSession:
-						r.logger.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name, "session_id", sess.ID)
+						slog.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name, "session_id", sess.ID)
 						sess.ToolsApproved = true
 						r.runAgentTool(callCtx, handler, sess, toolCall, events, a)
 					case ResumeTypeReject:
-						r.logger.Debug("Resume signal received, rejecting tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
+						slog.Debug("Resume signal received, rejecting tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
 						r.addToolRejectedResponse(sess, toolCall, events)
 					}
 				case <-callCtx.Done():
-					r.logger.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
+					slog.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
 					// Synthesize cancellation responses for the current and any remaining tool calls
 					r.addToolCancelledResponse(sess, toolCall, events)
 					for j := i + 1; j < len(calls); j++ {
@@ -460,33 +458,33 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 			if tool.Function.Name != toolCall.Function.Name {
 				continue
 			}
-			r.logger.Debug("Using agent tool handler", "tool", toolCall.Function.Name)
+			slog.Debug("Using agent tool handler", "tool", toolCall.Function.Name)
 
 			if sess.ToolsApproved || r.autoRunTools || (tool.Function.Annotations.ReadOnlyHint != nil && *tool.Function.Annotations.ReadOnlyHint == true) {
-				r.logger.Debug("Tools approved, running tool", "tool", toolCall.Function.Name, "session_id", sess.ID)
+				slog.Debug("Tools approved, running tool", "tool", toolCall.Function.Name, "session_id", sess.ID)
 				r.runTool(callCtx, tool, toolCall, events, sess, a)
 			} else {
-				r.logger.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
+				slog.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
 				events <- ToolCallConfirmation(toolCall, a.Name())
 				select {
 				case cType := <-r.resumeChan:
 					switch cType {
 					case ResumeTypeApprove:
-						r.logger.Debug("Resume signal received, approving tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
+						slog.Debug("Resume signal received, approving tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
 						r.runTool(callCtx, tool, toolCall, events, sess, a)
 					case ResumeTypeApproveSession:
-						r.logger.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name, "session_id", sess.ID)
+						slog.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name, "session_id", sess.ID)
 						sess.ToolsApproved = true
 						r.runTool(callCtx, tool, toolCall, events, sess, a)
 					case ResumeTypeReject:
-						r.logger.Debug("Resume signal received, rejecting tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
+						slog.Debug("Resume signal received, rejecting tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
 						r.addToolRejectedResponse(sess, toolCall, events)
 					}
 
-					r.logger.Debug("Added tool response to session", "tool", toolCall.Function.Name, "session_id", sess.ID, "total_messages", len(sess.GetAllMessages()))
+					slog.Debug("Added tool response to session", "tool", toolCall.Function.Name, "session_id", sess.ID, "total_messages", len(sess.GetAllMessages()))
 					break toolLoop
 				case <-callCtx.Done():
-					r.logger.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
+					slog.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
 					// Synthesize cancellation responses for the current and any remaining tool calls
 					r.addToolCancelledResponse(sess, toolCall, events)
 					for j := i + 1; j < len(calls); j++ {
@@ -519,21 +517,21 @@ func (r *Runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.T
 	res, err := tool.Handler(ctx, toolCall)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || ctx.Err() == context.Canceled {
-			r.logger.Debug("Tool handler canceled by context", "tool", toolCall.Function.Name, "agent", a.Name(), "session_id", sess.ID)
+			slog.Debug("Tool handler canceled by context", "tool", toolCall.Function.Name, "agent", a.Name(), "session_id", sess.ID)
 			// Synthesize a cancellation response so the transcript remains consistent
 			res = &tools.ToolCallResult{Output: "The tool call was canceled by the user."}
 			span.SetStatus(codes.Ok, "tool handler canceled by user")
 		} else {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "tool handler error")
-			r.logger.Error("Error calling tool", "tool", toolCall.Function.Name, "error", err)
+			slog.Error("Error calling tool", "tool", toolCall.Function.Name, "error", err)
 			res = &tools.ToolCallResult{
 				Output: fmt.Sprintf("Error calling tool: %v", err),
 			}
 		}
 	} else {
 		span.SetStatus(codes.Ok, "tool handler completed")
-		r.logger.Debug("Agent tool call completed", "tool", toolCall.Function.Name, "output_length", len(res.Output))
+		slog.Debug("Agent tool call completed", "tool", toolCall.Function.Name, "output_length", len(res.Output))
 	}
 
 	events <- ToolCallResponse(toolCall, res.Output, a.Name())
@@ -560,7 +558,7 @@ func (r *Runtime) runAgentTool(ctx context.Context, handler ToolHandler, sess *s
 	var output string
 	if err != nil {
 		if errors.Is(err, context.Canceled) || ctx.Err() == context.Canceled {
-			r.logger.Debug("Runtime tool handler canceled by context", "tool", toolCall.Function.Name, "agent", a.Name(), "session_id", sess.ID)
+			slog.Debug("Runtime tool handler canceled by context", "tool", toolCall.Function.Name, "agent", a.Name(), "session_id", sess.ID)
 			// Synthesize a cancellation response so the transcript remains consistent
 			output = "The tool call was canceled by the user."
 			span.SetStatus(codes.Ok, "runtime tool handler canceled by user")
@@ -568,12 +566,12 @@ func (r *Runtime) runAgentTool(ctx context.Context, handler ToolHandler, sess *s
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "runtime tool handler error")
 			output = fmt.Sprintf("error calling tool: %v", err)
-			r.logger.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
+			slog.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
 		}
 	} else {
 		output = res.Output
 		span.SetStatus(codes.Ok, "runtime tool handler completed")
-		r.logger.Debug("Tool executed successfully", "tool", toolCall.Function.Name)
+		slog.Debug("Tool executed successfully", "tool", toolCall.Function.Name)
 	}
 
 	events <- ToolCallResponse(toolCall, output, a.Name())
@@ -644,7 +642,7 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 	))
 	defer span.End()
 
-	r.logger.Debug("Transferring task to agent", "from_agent", a.Name(), "to_agent", params.Agent, "task", params.Task)
+	slog.Debug("Transferring task to agent", "from_agent", a.Name(), "to_agent", params.Agent, "task", params.Task)
 
 	ca := r.currentAgent
 	r.currentAgent = params.Agent
@@ -656,8 +654,8 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 		memberAgentTask += fmt.Sprintf("\n\n<expected_output>\n%s\n</expected_output>", params.ExpectedOutput)
 	}
 
-	r.logger.Debug("Creating new session with parent session", "parent_session_id", sess.ID, "tools_approved", sess.ToolsApproved)
-	s := session.New(r.logger, session.WithSystemMessage(memberAgentTask))
+	slog.Debug("Creating new session with parent session", "parent_session_id", sess.ID, "tools_approved", sess.ToolsApproved)
+	s := session.New(session.WithSystemMessage(memberAgentTask))
 	s.ToolsApproved = sess.ToolsApproved
 
 	// No delay needed: ToolCall event now carries the agent name so the CLI can
@@ -677,7 +675,7 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 	// Store the complete sub-session in the parent session
 	sess.AddSubSession(s)
 
-	r.logger.Debug("Task transfer completed", "agent", params.Agent, "task", params.Task)
+	slog.Debug("Task transfer completed", "agent", params.Agent, "task", params.Task)
 
 	// Get the last message content from the sub-session
 	allMessages := s.GetAllMessages()
@@ -694,7 +692,7 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 
 // generateSessionTitle generates a title for the session based on the conversation history
 func (r *Runtime) generateSessionTitle(ctx context.Context, sess *session.Session, events chan Event) {
-	r.logger.Debug("Generating title for session", "session_id", sess.ID)
+	slog.Debug("Generating title for session", "session_id", sess.ID)
 
 	// Create conversation history summary
 	var conversationHistory strings.Builder
@@ -721,20 +719,20 @@ func (r *Runtime) generateSessionTitle(ctx context.Context, sess *session.Sessio
 		team.WithAgents(agent.New("root", systemPrompt, agent.WithModel(r.CurrentAgent().Model()))),
 	)
 
-	titleSession := session.New(r.logger, session.WithSystemMessage(systemPrompt))
+	titleSession := session.New(session.WithSystemMessage(systemPrompt))
 	titleSession.AddMessage(session.UserMessage("", userPrompt))
 	titleSession.Title = "Generating title..."
 
-	titleRuntime, err := New(r.logger, newTeam, WithSessionCompaction(false))
+	titleRuntime, err := New(newTeam, WithSessionCompaction(false))
 	if err != nil {
-		r.logger.Error("Failed to create title generator runtime", "error", err)
+		slog.Error("Failed to create title generator runtime", "error", err)
 		return
 	}
 
 	// Run the title generation (this will be a simple back-and-forth)
 	_, err = titleRuntime.Run(ctx, titleSession)
 	if err != nil {
-		r.logger.Error("Failed to generate session title", "session_id", sess.ID, "error", err)
+		slog.Error("Failed to generate session title", "session_id", sess.ID, "error", err)
 		return
 	}
 
@@ -745,7 +743,7 @@ func (r *Runtime) generateSessionTitle(ctx context.Context, sess *session.Sessio
 		if lastMessage.Message.Role == "assistant" {
 			title := strings.TrimSpace(lastMessage.Message.Content)
 			sess.Title = title
-			r.logger.Debug("Generated session title", "session_id", sess.ID, "title", title)
+			slog.Debug("Generated session title", "session_id", sess.ID, "title", title)
 			// Emit SessionTitleEvent
 			events <- SessionTitle(sess.ID, title)
 		}
@@ -754,7 +752,7 @@ func (r *Runtime) generateSessionTitle(ctx context.Context, sess *session.Sessio
 
 // Summarize generates a summary for the session based on the conversation history
 func (r *Runtime) Summarize(ctx context.Context, sess *session.Session, events chan Event) {
-	r.logger.Debug("Generating summary for session", "session_id", sess.ID)
+	slog.Debug("Generating summary for session", "session_id", sess.ID)
 
 	events <- SessionCompaction(sess.ID, "started")
 	defer func() {
@@ -786,20 +784,20 @@ func (r *Runtime) Summarize(ctx context.Context, sess *session.Session, events c
 		team.WithAgents(agent.New("root", systemPrompt, agent.WithModel(r.CurrentAgent().Model()))),
 	)
 
-	summarySession := session.New(r.logger, session.WithSystemMessage(systemPrompt))
+	summarySession := session.New(session.WithSystemMessage(systemPrompt))
 	summarySession.AddMessage(session.UserMessage("", userPrompt))
 	summarySession.Title = "Generating summary..."
 
-	summaryRuntime, err := New(r.logger, newTeam, WithSessionCompaction(false))
+	summaryRuntime, err := New(newTeam, WithSessionCompaction(false))
 	if err != nil {
-		r.logger.Error("Failed to create summary generator runtime", "error", err)
+		slog.Error("Failed to create summary generator runtime", "error", err)
 		return
 	}
 
 	// Run the summary generation
 	_, err = summaryRuntime.Run(ctx, summarySession)
 	if err != nil {
-		r.logger.Error("Failed to generate session summary", "session_id", sess.ID, "error", err)
+		slog.Error("Failed to generate session summary", "session_id", sess.ID, "error", err)
 		return
 	}
 
@@ -811,7 +809,7 @@ func (r *Runtime) Summarize(ctx context.Context, sess *session.Session, events c
 			summary := strings.TrimSpace(lastMessage.Message.Content)
 			// Add the summary to the session as a summary item
 			sess.Messages = append(sess.Messages, session.Item{Summary: summary})
-			r.logger.Debug("Generated session summary", "session_id", sess.ID, "summary_length", len(summary))
+			slog.Debug("Generated session summary", "session_id", sess.ID, "summary_length", len(summary))
 			// Emit SessionSummaryEvent
 			events <- SessionSummary(sess.ID, summary)
 		}

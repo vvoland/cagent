@@ -3,6 +3,7 @@ package root
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -42,8 +43,6 @@ and maintain conversational sessions.`,
 }
 
 func runMCPCommand(cmd *cobra.Command, args []string) error {
-	logger := newLogger()
-
 	// Default agents directory to current working directory if not specified
 	resolvedAgentsDir := agentsDir
 	if resolvedAgentsDir == "" {
@@ -52,17 +51,17 @@ func runMCPCommand(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("getting current working directory: %w", err)
 		}
 		resolvedAgentsDir = cwd
-		logger.Info("Using current directory as agents root", "path", resolvedAgentsDir)
+		slog.Info("Using current directory as agents root", "path", resolvedAgentsDir)
 	}
 
 	// Create servicecore manager
-	serviceCore, err := servicecore.NewManager(resolvedAgentsDir, sessionTimeout, maxSessions, logger)
+	serviceCore, err := servicecore.NewManager(resolvedAgentsDir, sessionTimeout, maxSessions)
 	if err != nil {
 		return fmt.Errorf("creating servicecore manager: %w", err)
 	}
 
 	// Create MCP server using servicecore
-	mcpServer := mcpserver.NewMCPServer(serviceCore, logger, basePath)
+	mcpServer := mcpserver.NewMCPServer(serviceCore, basePath)
 
 	// Set up context with cancellation
 	ctx, cancel := context.WithCancel(context.Background())
@@ -74,7 +73,7 @@ func runMCPCommand(cmd *cobra.Command, args []string) error {
 
 	go func() {
 		<-sigChan
-		logger.Info("Received shutdown signal, stopping MCP server")
+		slog.Info("Received shutdown signal, stopping MCP server")
 		cancel()
 	}()
 
@@ -82,7 +81,7 @@ func runMCPCommand(cmd *cobra.Command, args []string) error {
 	sseEndpoint := fmt.Sprintf("http://localhost:%s%s/sse", port, basePath)
 	messageEndpoint := fmt.Sprintf("http://localhost:%s%s/message", port, basePath)
 
-	logger.Info("MCP SSE server starting",
+	slog.Info("MCP SSE server starting",
 		"agents_dir", resolvedAgentsDir,
 		"max_sessions", maxSessions,
 		"timeout", sessionTimeout,
@@ -100,6 +99,6 @@ func runMCPCommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("starting MCP SSE server: %w", err)
 	}
 
-	logger.Info("MCP server stopped")
+	slog.Info("MCP server stopped")
 	return nil
 }

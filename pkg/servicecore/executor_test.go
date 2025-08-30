@@ -1,16 +1,13 @@
 package servicecore
 
 import (
-	"log/slog"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestExecutor_CreateRuntime(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	executor := NewExecutor(logger)
+	executor := NewExecutor()
 
 	t.Run("InvalidAgentPath", func(t *testing.T) {
 		_, _, err := executor.CreateRuntime("non-existent.yaml", "root", nil, "")
@@ -20,8 +17,7 @@ func TestExecutor_CreateRuntime(t *testing.T) {
 }
 
 func TestExecutor_CleanupRuntime(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	executor := NewExecutor(logger)
+	executor := NewExecutor()
 
 	t.Run("NilRuntime", func(t *testing.T) {
 		err := executor.CleanupRuntime(nil)
@@ -33,11 +29,8 @@ func TestExecutor_CleanupRuntime(t *testing.T) {
 }
 
 func TestNewExecutor(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-
-	executor := NewExecutor(logger)
+	executor := NewExecutor()
 	assert.NotNil(t, executor)
-	assert.Equal(t, logger, executor.logger)
 }
 
 // Integration tests would require full agent setup with models, tools, etc.

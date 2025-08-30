@@ -57,9 +57,6 @@ type Session struct {
 	InputTokens  int     `json:"input_tokens"`
 	OutputTokens int     `json:"output_tokens"`
 	Cost         float64 `json:"cost"`
-
-	// Logger for debugging and logging session operations
-	logger *slog.Logger
 }
 
 // Message is a message from an agent
@@ -138,11 +135,6 @@ func (s *Session) GetAllMessages() []Message {
 	return messages
 }
 
-// SetLogger sets the logger for the session
-func (s *Session) SetLogger(logger *slog.Logger) {
-	s.logger = logger
-}
-
 type Opt func(s *Session)
 
 func WithUserMessage(agentFilename, content string) Opt {
@@ -158,9 +150,9 @@ func WithSystemMessage(content string) Opt {
 }
 
 // New creates a new agent session
-func New(logger *slog.Logger, opts ...Opt) *Session {
+func New(opts ...Opt) *Session {
 	sessionID := uuid.New().String()
-	logger.Debug("Creating new session", "session_id", sessionID)
+	slog.Debug("Creating new session", "session_id", sessionID)
 
 	s := &Session{
 		ID:            sessionID,
@@ -169,7 +161,6 @@ func New(logger *slog.Logger, opts ...Opt) *Session {
 		ToolsApproved: false,
 		InputTokens:   0,
 		OutputTokens:  0,
-		logger:        logger,
 	}
 
 	for _, opt := range opts {
@@ -180,7 +171,7 @@ func New(logger *slog.Logger, opts ...Opt) *Session {
 }
 
 func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
-	s.logger.Debug("Getting messages for agent", "agent", a.Name(), "session_id", s.ID)
+	slog.Debug("Getting messages for agent", "agent", a.Name(), "session_id", s.ID)
 
 	messages := make([]chat.Message, 0)
 
@@ -248,7 +239,7 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 
 	trimmed := trimMessages(messages)
 
-	s.logger.Debug("Retrieved messages for agent",
+	slog.Debug("Retrieved messages for agent",
 		"agent", a.Name(),
 		"session_id", s.ID,
 		"total_messages", len(messages),

@@ -19,15 +19,14 @@ import (
 )
 
 // NewStdioClient creates a new MCP client that can start an stdio MCP server
-func NewStdioClient(ctx context.Context, command string, args, env []string, logger *slog.Logger) (*Client, error) {
-	logger.Debug("Creating stdio MCP client", "command", command, "args", args)
+func NewStdioClient(ctx context.Context, command string, args, env []string) (*Client, error) {
+	slog.Debug("Creating stdio MCP client", "command", command, "args", args)
 
-	c := newStdioCmdClient(command, env, args, logger)
+	c := newStdioCmdClient(command, env, args)
 
-	logger.Debug("Created stdio MCP client successfully")
+	slog.Debug("Created stdio MCP client successfully")
 	return &Client{
 		client:  c,
-		logger:  logger,
 		logType: "command",
 		logId:   command,
 	}, nil
@@ -37,7 +36,6 @@ type stdioMCPClient struct {
 	command string
 	env     []string
 	args    []string
-	logger  *slog.Logger
 
 	stdin       io.WriteCloser
 	requestID   atomic.Int64
@@ -62,12 +60,11 @@ type BaseMessage struct {
 	} `json:"error,omitempty"`
 }
 
-func newStdioCmdClient(command string, env, args []string, logger *slog.Logger) *stdioMCPClient {
+func newStdioCmdClient(command string, env, args []string) *stdioMCPClient {
 	return &stdioMCPClient{
 		command: command,
 		env:     env,
 		args:    args,
-		logger:  logger,
 	}
 }
 
@@ -91,8 +88,8 @@ func (c *stdioMCPClient) Initialize(ctx context.Context, request mcp.InitializeR
 	}
 
 	var stderr bytes.Buffer
-	if c.logger.Handler().Enabled(ctx, slog.LevelDebug) {
-		logLogger := slog.NewLogLogger(c.logger.Handler(), slog.LevelDebug)
+	if slog.Default().Handler().Enabled(ctx, slog.LevelDebug) {
+		logLogger := slog.NewLogLogger(slog.Default().Handler(), slog.LevelDebug)
 		cmd.Stderr = io.MultiWriter(&stderr, logLogger.Writer())
 	} else {
 		cmd.Stderr = io.MultiWriter(&stderr)

@@ -52,17 +52,17 @@ type Resolver struct {
 }
 
 // NewResolver creates a new agent resolver with security root directory
-func NewResolver(agentsDir string, logger *slog.Logger) (*Resolver, error) {
+func NewResolver(agentsDir string) (*Resolver, error) {
 	store, err := content.NewStore()
 	if err != nil {
 		return nil, fmt.Errorf("creating content store: %w", err)
 	}
 
-	return NewResolverWithStore(agentsDir, store, logger)
+	return NewResolverWithStore(agentsDir, store)
 }
 
 // NewResolverWithStore creates a new agent resolver with a custom store (for testing)
-func NewResolverWithStore(agentsDir string, store *content.Store, logger *slog.Logger) (*Resolver, error) {
+func NewResolverWithStore(agentsDir string, store *content.Store) (*Resolver, error) {
 	// Convert agentsDir to absolute path for security validation
 	absAgentsDir, err := filepath.Abs(agentsDir)
 	if err != nil {
@@ -73,7 +73,6 @@ func NewResolverWithStore(agentsDir string, store *content.Store, logger *slog.L
 		agentsDir: absAgentsDir,
 		rootDir:   absAgentsDir, // Default root is the agents directory
 		store:     store,
-		logger:    logger,
 	}, nil
 }
 

@@ -15,13 +15,10 @@ type OnePasswordProvider struct {
 	onceSecrets    sync.Once
 	secrets        onepassword.SecretsAPI
 	onceSecretsErr error
-	logger         *slog.Logger
 }
 
-func NewOnePasswordProvider(logger *slog.Logger) *OnePasswordProvider {
-	return &OnePasswordProvider{
-		logger: logger,
-	}
+func NewOnePasswordProvider() *OnePasswordProvider {
+	return &OnePasswordProvider{}
 }
 
 func (p *OnePasswordProvider) Get(ctx context.Context, name string) (string, error) {
@@ -33,7 +30,7 @@ func (p *OnePasswordProvider) Get(ctx context.Context, name string) (string, err
 		}
 
 		path := "op://cagent/" + name + "/password"
-		p.logger.Debug("Looking for environment variable in 1Password", "path", path)
+		slog.Debug("Looking for environment variable in 1Password", "path", path)
 
 		client, err := onepassword.NewClient(ctx,
 			onepassword.WithServiceAccountToken(opToken),

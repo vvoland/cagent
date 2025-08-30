@@ -85,9 +85,17 @@ func addGatewayFlags(cmd *cobra.Command) {
 		runConfig.ModelsGateway = canonize(runConfig.ModelsGateway)
 		runConfig.ToolsGateway = canonize(runConfig.ToolsGateway)
 
+		// First call the original persistentPreRunE if it exists (from this command)
 		if persistentPreRunE != nil {
 			return persistentPreRunE(cmd, args)
 		}
+
+		// If this command doesn't have its own persistentPreRunE, check if the parent has one
+		// This ensures parent PersistentPreRunE is called for child commands
+		if cmd.Parent() != nil && cmd.Parent().PersistentPreRunE != nil {
+			return cmd.Parent().PersistentPreRunE(cmd, args)
+		}
+
 		return nil
 	}
 }

@@ -24,7 +24,7 @@ import (
 )
 
 // LoadTeams loads all agent teams from the given directory or file path
-func LoadTeams(ctx context.Context, agentsPathOrDirectory string, runConfig latest.RuntimeConfig, logger *slog.Logger) (map[string]*team.Team, error) {
+func LoadTeams(ctx context.Context, agentsPathOrDirectory string, runConfig latest.RuntimeConfig) (map[string]*team.Team, error) {
 	teams := make(map[string]*team.Team)
 
 	agentPaths, err := FindAgentPaths(agentsPathOrDirectory)
@@ -33,9 +33,9 @@ func LoadTeams(ctx context.Context, agentsPathOrDirectory string, runConfig late
 	}
 
 	for _, agentPath := range agentPaths {
-		t, err := Load(ctx, agentPath, runConfig, logger)
+		t, err := Load(ctx, agentPath, runConfig)
 		if err != nil {
-			logger.Warn("Failed to load agent", "file", agentPath, "error", err)
+			slog.Warn("Failed to load agent", "file", agentPath, "error", err)
 			continue
 		}
 
@@ -75,7 +75,7 @@ func FindAgentPaths(agentsPathOrDirectory string) ([]string, error) {
 	return agents, nil
 }
 
-func Load(ctx context.Context, path string, runConfig latest.RuntimeConfig, logger *slog.Logger) (*team.Team, error) {
+func Load(ctx context.Context, path string, runConfig latest.RuntimeConfig) (*team.Team, error) {
 	parentDir := filepath.Dir(path)
 	cfg, err := config.LoadConfigSecure(path, parentDir)
 	if err != nil {
@@ -102,7 +102,7 @@ func Load(ctx context.Context, path string, runConfig latest.RuntimeConfig, logg
 			agent.WithDescription(agentConfig.Description),
 			agent.WithAddDate(agentConfig.AddDate),
 		}
-		models, err := getModelsForAgent(ctx, cfg, &agentConfig, absEnvFles, logger, options.WithGateway(runConfig.ModelsGateway))
+		models, err := getModelsForAgent(ctx, cfg, &agentConfig, absEnvFles, options.WithGateway(runConfig.ModelsGateway))
 		if err != nil {
 			return nil, fmt.Errorf("failed to get models: %w", err)
 		}
@@ -114,7 +114,7 @@ func Load(ctx context.Context, path string, runConfig latest.RuntimeConfig, logg
 		if !ok {
 			return nil, fmt.Errorf("agent '%s' not found in configuration", name)
 		}
-		agentTools, err := getToolsForAgent(ctx, &a, parentDir, logger, sharedTools, models[0], absEnvFles, runConfig.ToolsGateway)
+		agentTools, err := getToolsForAgent(ctx, &a, parentDir, sharedTools, models[0], absEnvFles, runConfig.ToolsGateway)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tools: %w", err)
 		}
@@ -147,7 +147,7 @@ func Load(ctx context.Context, path string, runConfig latest.RuntimeConfig, logg
 	return team.New(team.WithID(fileName), team.WithAgents(agents...)), nil
 }
 
-func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentConfig, absEnvFiles []string, logger *slog.Logger, opts ...options.Opt) ([]provider.Provider, error) {
+func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentConfig, absEnvFiles []string, opts ...options.Opt) ([]provider.Provider, error) {
 	var models []provider.Provider
 
 	for name := range strings.SplitSeq(a.Model, ",") {
@@ -162,11 +162,11 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 			environment.NewEnvFilesProvider(absEnvFiles),
 			environment.NewOsEnvProvider(), // TODO(dga): Which env should take precedence? OS or config?
 			environment.NewNoFailProvider(
-				environment.NewOnePasswordProvider(logger),
+				environment.NewOnePasswordProvider(),
 			),
 		)
 
-		model, err := provider.New(ctx, &modelCfg, env, logger, opts...)
+		model, err := provider.New(ctx, &modelCfg, env, opts...)
 		if err != nil {
 			return nil, err
 		}
@@ -178,7 +178,7 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 }
 
 // getToolsForAgent returns the tool definitions for an agent based on its configuration
-func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir string, logger *slog.Logger, sharedTools map[string]tools.ToolSet, model provider.Provider, absEnvFiles []string, gateway string) ([]tools.ToolSet, error) {
+func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir string, sharedTools map[string]tools.ToolSet, model provider.Provider, absEnvFiles []string, gateway string) ([]tools.ToolSet, error) {
 	var t []tools.ToolSet
 
 	if len(a.SubAgents) > 0 {
@@ -258,7 +258,7 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 					"x-mcp-servers": servers,
 				}
 
-				mcpc, err := mcp.NewToolsetRemote(ctx, gateway+"/mcp", "streamable", headers, toolset.Tools, logger)
+				mcpc, err := mcp.NewToolsetRemote(ctx, gateway+"/mcp", "streamable", headers, toolset.Tools)
 				if err != nil {
 					return nil, fmt.Errorf("failed to create remote mcp client: %w", err)
 				}
@@ -280,7 +280,7 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 					args = append(args, environment.Expand(arg, append(os.Environ(), env...)))
 				}
 
-				mcpc, err := mcp.NewToolsetCommand(ctx, command, args, env, toolset.Tools, logger)
+				mcpc, err := mcp.NewToolsetCommand(ctx, command, args, env, toolset.Tools)
 				if err != nil {
 					return nil, fmt.Errorf("failed to create stdio mcp client: %w", err)
 				}
@@ -301,7 +301,7 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 				headers[k] = environment.Expand(v, append(os.Environ(), env...))
 			}
 
-			mcpc, err := mcp.NewToolsetRemote(ctx, toolset.Remote.URL, toolset.Remote.TransportType, headers, toolset.Tools, logger)
+			mcpc, err := mcp.NewToolsetRemote(ctx, toolset.Remote.URL, toolset.Remote.TransportType, headers, toolset.Tools)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create remote mcp client: %w", err)
 			}

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"log/slog"
 
 	"github.com/docker/cagent/pkg/agent"
 	latest "github.com/docker/cagent/pkg/config/v1"
@@ -37,7 +36,6 @@ func addNumbers(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallRe
 
 func main() {
 	ctx := context.Background()
-	logger := slog.Default()
 
 	llm, err := openai.NewClient(
 		ctx,
@@ -45,8 +43,7 @@ func main() {
 			Provider: "openai",
 			Model:    "gpt-4o",
 		},
-		environment.NewDefaultProvider(logger),
-		logger,
+		environment.NewDefaultProvider(),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -80,12 +77,12 @@ func main() {
 
 	calculatorTeam := team.New(team.WithAgents(calculator))
 
-	rt, err := runtime.New(logger, calculatorTeam)
+	rt, err := runtime.New(calculatorTeam)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	sess := session.New(logger, session.WithUserMessage("", "What is 1 + 2?"))
+	sess := session.New(session.WithUserMessage("", "What is 1 + 2?"))
 
 	messages, err := rt.Run(ctx, sess)
 	if err != nil {

@@ -2,7 +2,6 @@ package servicecore
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"testing"
 	"time"
@@ -17,16 +16,14 @@ func TestManager_ClientLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-
 	// Create isolated store for testing
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
 	require.NoError(t, err)
 
-	resolver, err := NewResolverWithStore(tempDir, store, logger)
+	resolver, err := NewResolverWithStore(tempDir, store)
 	require.NoError(t, err)
 
-	manager, err := NewManagerWithResolver(resolver, time.Hour, 10, logger)
+	manager, err := NewManagerWithResolver(resolver, time.Hour, 10)
 	require.NoError(t, err)
 
 	t.Run("CreateClient", func(t *testing.T) {
@@ -79,16 +76,14 @@ models:
 	err = os.WriteFile(agentFile, []byte(testAgentContent), 0644)
 	require.NoError(t, err)
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-
 	// Create isolated store for testing
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
 	require.NoError(t, err)
 
-	resolver, err := NewResolverWithStore(tempDir, store, logger)
+	resolver, err := NewResolverWithStore(tempDir, store)
 	require.NoError(t, err)
 
-	manager, err := NewManagerWithResolver(resolver, time.Hour, 10, logger)
+	manager, err := NewManagerWithResolver(resolver, time.Hour, 10)
 	require.NoError(t, err)
 
 	t.Run("ResolveAgent", func(t *testing.T) {
@@ -140,16 +135,14 @@ func TestManager_SessionOperations(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-
 	// Create isolated store for testing
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
 	require.NoError(t, err)
 
-	resolver, err := NewResolverWithStore(tempDir, store, logger)
+	resolver, err := NewResolverWithStore(tempDir, store)
 	require.NoError(t, err)
 
-	manager, err := NewManagerWithResolver(resolver, time.Hour, 2, logger) // Max 2 sessions for testing
+	manager, err := NewManagerWithResolver(resolver, time.Hour, 2) // Max 2 sessions for testing
 	require.NoError(t, err)
 
 	// Create a client
@@ -210,16 +203,14 @@ func TestManager_SessionLimits(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-
 	// Create isolated store for testing
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
 	require.NoError(t, err)
 
-	resolver, err := NewResolverWithStore(tempDir, store, logger)
+	resolver, err := NewResolverWithStore(tempDir, store)
 	require.NoError(t, err)
 
-	manager, err := NewManagerWithResolver(resolver, time.Hour, 1, logger) // Max 1 session
+	manager, err := NewManagerWithResolver(resolver, time.Hour, 1) // Max 1 session
 	require.NoError(t, err)
 
 	// Create a client
@@ -253,16 +244,14 @@ func TestManager_ConcurrentAccess(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-
 	// Create isolated store for testing
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
 	require.NoError(t, err)
 
-	resolver, err := NewResolverWithStore(tempDir, store, logger)
+	resolver, err := NewResolverWithStore(tempDir, store)
 	require.NoError(t, err)
 
-	manager, err := NewManagerWithResolver(resolver, time.Hour, 10, logger)
+	manager, err := NewManagerWithResolver(resolver, time.Hour, 10)
 	require.NoError(t, err)
 
 	t.Run("ConcurrentClientCreation", func(t *testing.T) {

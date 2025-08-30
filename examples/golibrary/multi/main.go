@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"log/slog"
 
 	"github.com/docker/cagent/pkg/agent"
 	latest "github.com/docker/cagent/pkg/config/v1"
@@ -18,7 +17,6 @@ import (
 
 func main() {
 	ctx := context.Background()
-	logger := slog.Default()
 
 	llm, err := openai.NewClient(
 		ctx,
@@ -26,8 +24,7 @@ func main() {
 			Provider: "openai",
 			Model:    "gpt-4o",
 		},
-		environment.NewDefaultProvider(logger),
-		logger)
+		environment.NewDefaultProvider())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -45,12 +42,12 @@ func main() {
 		agent.WithSubAgents(child),
 		agent.WithToolSets(builtin.NewTransferTaskTool()),
 	)
-	rt, err := runtime.New(logger, team.New(team.WithAgents(root, child)))
+	rt, err := runtime.New(team.New(team.WithAgents(root, child)))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	sess := session.New(logger, session.WithUserMessage("", "Ask your child how they are doing and tell me what they said"))
+	sess := session.New(session.WithUserMessage("", "Ask your child how they are doing and tell me what they said"))
 
 	messages, err := rt.Run(ctx, sess)
 	if err != nil {

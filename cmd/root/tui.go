@@ -3,6 +3,7 @@ package root
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -39,9 +40,7 @@ func runTUICommand(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	agentFilename := args[0]
 
-	logger := newLogger()
-
-	logger.Debug("Starting agent TUI", "agent", agentName, "debug_mode", debugMode)
+	slog.Debug("Starting agent TUI", "agent", agentName, "debug_mode", debugMode)
 
 	if !strings.Contains(agentFilename, "\n") {
 		if abs, err := filepath.Abs(agentFilename); err == nil {
@@ -62,25 +61,25 @@ func runTUICommand(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to change working directory: %w", err)
 		}
 		_ = os.Setenv("PWD", absWd)
-		logger.Debug("Working directory set", "dir", absWd)
+		slog.Debug("Working directory set", "dir", absWd)
 	}
 
-	agents, err := teamloader.Load(ctx, agentFilename, runConfig, logger)
+	agents, err := teamloader.Load(ctx, agentFilename, runConfig)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if err := agents.StopToolSets(); err != nil {
-			logger.Error("Failed to stop tool sets", "error", err)
+			slog.Error("Failed to stop tool sets", "error", err)
 		}
 	}()
 
-	rt, err := runtime.New(logger, agents, runtime.WithCurrentAgent(agentName))
+	rt, err := runtime.New(agents, runtime.WithCurrentAgent(agentName))
 	if err != nil {
 		return fmt.Errorf("failed to create runtime: %w", err)
 	}
 
-	a := app.New(agentFilename, rt, session.New(logger))
+	a := app.New(agentFilename, rt, session.New())
 	m := tui.New(a)
 
 	p := tea.NewProgram(

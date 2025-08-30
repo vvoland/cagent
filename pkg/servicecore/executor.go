@@ -47,28 +47,25 @@ import (
 
 // Executor handles runtime creation and stream execution
 type Executor struct {
-	logger *slog.Logger
 }
 
 // NewExecutor creates a new runtime executor
-func NewExecutor(logger *slog.Logger) *Executor {
-	return &Executor{
-		logger: logger,
-	}
+func NewExecutor() *Executor {
+	return &Executor{}
 }
 
 // CreateRuntime creates a new runtime instance for an agent
 func (e *Executor) CreateRuntime(agentPath, agentName string, envFiles []string, gateway string) (*runtime.Runtime, *session.Session, error) {
 	ctx := context.Background()
 
-	e.logger.Debug("Creating runtime", "agent_path", agentPath, "agent_name", agentName)
+	slog.Debug("Creating runtime", "agent_path", agentPath, "agent_name", agentName)
 
 	// Load agent configuration using existing loader
 	runConfig := latest.RuntimeConfig{
 		EnvFiles:      envFiles,
 		ModelsGateway: gateway,
 	}
-	agents, err := teamloader.Load(ctx, agentPath, runConfig, e.logger)
+	agents, err := teamloader.Load(ctx, agentPath, runConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("loading agent configuration: %w", err)
 	}
@@ -76,15 +73,15 @@ func (e *Executor) CreateRuntime(agentPath, agentName string, envFiles []string,
 	// Tool sets are started automatically when needed
 
 	// Create runtime
-	rt, err := runtime.New(e.logger, agents, runtime.WithCurrentAgent(agentName))
+	rt, err := runtime.New(agents, runtime.WithCurrentAgent(agentName))
 	if err != nil {
 		return nil, nil, fmt.Errorf("creating runtime: %w", err)
 	}
 
 	// Create session
-	sess := session.New(e.logger)
+	sess := session.New()
 
-	e.logger.Debug("Runtime created successfully", "agent_name", agentName, "session_id", sess.ID)
+	slog.Debug("Runtime created successfully", "agent_name", agentName, "session_id", sess.ID)
 	return rt, sess, nil
 }
 
@@ -92,7 +89,7 @@ func (e *Executor) CreateRuntime(agentPath, agentName string, envFiles []string,
 func (e *Executor) ExecuteStream(rt *runtime.Runtime, sess *session.Session, agentSpec, message string) (*Response, error) {
 	startTime := time.Now()
 
-	e.logger.Debug("Executing stream", "session_id", sess.ID, "message_length", len(message))
+	slog.Debug("Executing stream", "session_id", sess.ID, "message_length", len(message))
 
 	// Add user message to session
 	sess.AddMessage(session.UserMessage(agentSpec, message))
@@ -110,29 +107,29 @@ func (e *Executor) ExecuteStream(rt *runtime.Runtime, sess *session.Session, age
 	for event := range eventStream {
 		events = append(events, event)
 
-		e.logger.Debug("Processing event", "event_type", fmt.Sprintf("%T", event))
+		slog.Debug("Processing event", "event_type", fmt.Sprintf("%T", event))
 
 		switch evt := event.(type) {
 		case *runtime.AgentChoiceEvent:
 			// This contains the streaming content from the model
 			streamingContent.WriteString(evt.Choice.Delta.Content)
-			e.logger.Debug("Agent choice event", "delta_length", len(evt.Choice.Delta.Content), "delta_content", evt.Choice.Delta.Content)
+			slog.Debug("Agent choice event", "delta_length", len(evt.Choice.Delta.Content), "delta_content", evt.Choice.Delta.Content)
 
 		case *runtime.ToolCallEvent:
 			toolCallCount++
-			e.logger.Debug("Tool call event", "tool_name", evt.ToolCall.Function.Name)
+			slog.Debug("Tool call event", "tool_name", evt.ToolCall.Function.Name)
 
 		case *runtime.ToolCallResponseEvent:
-			e.logger.Debug("Tool response event", "tool_name", evt.ToolCall.Function.Name, "response_length", len(evt.Response))
+			slog.Debug("Tool response event", "tool_name", evt.ToolCall.Function.Name, "response_length", len(evt.Response))
 
 		case *runtime.ToolCallConfirmationEvent:
-			e.logger.Debug("Tool call confirmation event", "tool_name", evt.ToolCall.Function.Name)
+			slog.Debug("Tool call confirmation event", "tool_name", evt.ToolCall.Function.Name)
 
 		case *runtime.ErrorEvent:
-			e.logger.Error("Runtime error event", "error", evt.Error)
+			slog.Error("Runtime error event", "error", evt.Error)
 			return nil, fmt.Errorf("runtime execution error: %s", evt.Error)
 		default:
-			e.logger.Debug("Unknown event type", "event_type", fmt.Sprintf("%T", event))
+			slog.Debug("Unknown event type", "event_type", fmt.Sprintf("%T", event))
 		}
 	}
 
@@ -142,7 +139,7 @@ func (e *Executor) ExecuteStream(rt *runtime.Runtime, sess *session.Session, age
 	content := finalContent
 	if content == "" && streamingContent.Len() > 0 {
 		content = streamingContent.String()
-		e.logger.Debug("Using streaming content as final content", "content_length", len(content))
+		slog.Debug("Using streaming content as final content", "content_length", len(content))
 	}
 
 	// Build response with metadata
@@ -158,7 +155,7 @@ func (e *Executor) ExecuteStream(rt *runtime.Runtime, sess *session.Session, age
 		},
 	}
 
-	e.logger.Debug("Stream execution completed",
+	slog.Debug("Stream execution completed",
 		"session_id", sess.ID,
 		"duration_ms", duration.Milliseconds(),
 		"tool_calls", toolCallCount,
@@ -184,10 +181,10 @@ func (e *Executor) CleanupRuntime(rt *runtime.Runtime) error {
 
 	// Stop tool sets
 	if err := rt.Team().StopToolSets(); err != nil {
-		e.logger.Warn("Error stopping tool sets during cleanup", "error", err)
+		slog.Warn("Error stopping tool sets during cleanup", "error", err)
 		return fmt.Errorf("stopping tool sets: %w", err)
 	}
 
-	e.logger.Debug("Runtime cleaned up successfully")
+	slog.Debug("Runtime cleaned up successfully")
 	return nil
 }

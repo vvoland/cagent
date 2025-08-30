@@ -23,14 +23,13 @@ func NewEvalCmd() *cobra.Command {
 }
 
 func runEvalCommand(cmd *cobra.Command, args []string) error {
-	logger := newLogger()
 
-	agents, err := teamloader.Load(cmd.Context(), args[0], runConfig, logger)
+	agents, err := teamloader.Load(cmd.Context(), args[0], runConfig)
 	if err != nil {
 		return err
 	}
 
-	evalResults, err := evaluation.Evaluate(cmd.Context(), agents, args[1], logger)
+	evalResults, err := evaluation.Evaluate(cmd.Context(), agents, args[1])
 	if err != nil {
 		return err
 	}

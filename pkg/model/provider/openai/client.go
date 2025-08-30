@@ -22,7 +22,6 @@ import (
 type Client struct {
 	client *openai.Client
 	config *latest.ModelConfig
-	logger *slog.Logger
 	// When using the Docker AI Gateway, tokens are short-lived. We rebuild
 	// the client per request using these fields.
 	useGateway     bool
@@ -30,14 +29,14 @@ type Client struct {
 }
 
 // NewClient creates a new OpenAI client from the provided configuration
-func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider, logger *slog.Logger, opts ...options.Opt) (*Client, error) {
+func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider, opts ...options.Opt) (*Client, error) {
 	if cfg == nil {
-		logger.Error("OpenAI client creation failed", "error", "model configuration is required")
+		slog.Error("OpenAI client creation failed", "error", "model configuration is required")
 		return nil, errors.New("model configuration is required")
 	}
 
 	if cfg.Provider != "openai" {
-		logger.Error("OpenAI client creation failed", "error", "model type must be 'openai'", "actual_type", cfg.Provider)
+		slog.Error("OpenAI client creation failed", "error", "model type must be 'openai'", "actual_type", cfg.Provider)
 		return nil, errors.New("model type must be 'openai'")
 	}
 
@@ -50,7 +49,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 	if gateway := globalOptions.Gateway(); gateway == "" {
 		authToken, err := env.Get(ctx, "OPENAI_API_KEY")
 		if err != nil || authToken == "" {
-			logger.Error("OpenAI client creation failed", "error", "failed to get authentication token", "details", err)
+			slog.Error("OpenAI client creation failed", "error", "failed to get authentication token", "details", err)
 			return nil, errors.New("OPENAI_API_KEY environment variable is required")
 		}
 
@@ -61,7 +60,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 	} else {
 		authToken := desktop.GetToken(ctx)
 		if authToken == "" {
-			logger.Error("OpenAI client creation failed", "error", "failed to get Docker Desktop's authentication token")
+			slog.Error("OpenAI client creation failed", "error", "failed to get Docker Desktop's authentication token")
 			return nil, errors.New("sorry, you first need to sign in Docker Desktop to use the Docker AI Gateway")
 		}
 
@@ -80,14 +79,13 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		gatewayBaseURL = globalOptions.Gateway() + "/v1"
 	}
 
-	logger.Debug("OpenAI API key found, creating client")
+	slog.Debug("OpenAI API key found, creating client")
 	client := openai.NewClientWithConfig(openaiConfig)
-	logger.Debug("OpenAI client created successfully", "model", cfg.Model)
+	slog.Debug("OpenAI client created successfully", "model", cfg.Model)
 
 	return &Client{
 		client:         client,
 		config:         cfg,
-		logger:         logger,
 		useGateway:     useGateway,
 		gatewayBaseURL: gatewayBaseURL,
 	}, nil
@@ -175,13 +173,13 @@ func (c *Client) CreateChatCompletionStream(
 	messages []chat.Message,
 	requestTools []tools.Tool,
 ) (chat.MessageStream, error) {
-	c.logger.Debug("Creating OpenAI chat completion stream",
+	slog.Debug("Creating OpenAI chat completion stream",
 		"model", c.config.Model,
 		"message_count", len(messages),
 		"tool_count", len(requestTools))
 
 	if len(messages) == 0 {
-		c.logger.Error("OpenAI stream creation failed", "error", "at least one message is required")
+		slog.Error("OpenAI stream creation failed", "error", "at least one message is required")
 		return nil, errors.New("at least one message is required")
 	}
 
@@ -205,15 +203,15 @@ func (c *Client) CreateChatCompletionStream(
 	if c.config.MaxTokens > 0 {
 		if !isResponsesOnlyModel(c.config.Model) {
 			request.MaxTokens = c.config.MaxTokens
-			c.logger.Debug("OpenAI request configured with max tokens", "max_tokens", c.config.MaxTokens)
+			slog.Debug("OpenAI request configured with max tokens", "max_tokens", c.config.MaxTokens)
 		} else {
 			request.MaxCompletionTokens = c.config.MaxTokens
-			c.logger.Debug("using max_completion_tokens instead of max_tokens for Responses-API models", "model", c.config.Model)
+			slog.Debug("using max_completion_tokens instead of max_tokens for Responses-API models", "model", c.config.Model)
 		}
 	}
 
 	if len(requestTools) > 0 {
-		c.logger.Debug("Adding tools to OpenAI request", "tool_count", len(requestTools))
+		slog.Debug("Adding tools to OpenAI request", "tool_count", len(requestTools))
 		request.Tools = make([]openai.Tool, len(requestTools))
 		for i, tool := range requestTools {
 			request.Tools[i] = openai.Tool{
@@ -228,15 +226,15 @@ func (c *Client) CreateChatCompletionStream(
 			if len(tool.Function.Parameters.Properties) == 0 {
 				request.Tools[i].Function.Parameters = json.RawMessage("{}")
 			}
-			c.logger.Debug("Added tool to OpenAI request", "tool_name", tool.Function.Name)
+			slog.Debug("Added tool to OpenAI request", "tool_name", tool.Function.Name)
 		}
 	}
 
 	// Log the request in JSON format for debugging
 	if requestJSON, err := json.Marshal(request); err == nil {
-		c.logger.Debug("OpenAI chat completion request", "request", string(requestJSON))
+		slog.Debug("OpenAI chat completion request", "request", string(requestJSON))
 	} else {
-		c.logger.Error("Failed to marshal OpenAI request to JSON", "error", err)
+		slog.Error("Failed to marshal OpenAI request to JSON", "error", err)
 	}
 
 	// Build a fresh client per request when using the gateway
@@ -248,17 +246,17 @@ func (c *Client) CreateChatCompletionStream(
 	if err != nil {
 		// Fallback for future models: retry without max_tokens if server complains
 		if isMaxTokensUnsupportedError(err) {
-			c.logger.Debug("Retrying OpenAI stream without max_tokens due to server requirement", "model", c.config.Model)
+			slog.Debug("Retrying OpenAI stream without max_tokens due to server requirement", "model", c.config.Model)
 			request.MaxTokens = 0
 			stream, err = client.CreateChatCompletionStream(ctx, request)
 		}
 		if err != nil {
-			c.logger.Error("OpenAI stream creation failed", "error", err, "model", c.config.Model)
+			slog.Error("OpenAI stream creation failed", "error", err, "model", c.config.Model)
 			return nil, err
 		}
 	}
 
-	c.logger.Debug("OpenAI chat completion stream created successfully", "model", c.config.Model)
+	slog.Debug("OpenAI chat completion stream created successfully", "model", c.config.Model)
 	return &StreamAdapter{stream: stream}, nil
 }
 
@@ -266,7 +264,7 @@ func (c *Client) CreateChatCompletion(
 	ctx context.Context,
 	messages []chat.Message,
 ) (string, error) {
-	c.logger.Debug("Creating OpenAI chat completion", "model", c.config.Model, "message_count", len(messages))
+	slog.Debug("Creating OpenAI chat completion", "model", c.config.Model, "message_count", len(messages))
 
 	request := openai.ChatCompletionRequest{
 		Model:    c.config.Model,
@@ -295,18 +293,18 @@ func (c *Client) CreateChatCompletion(
 	if err != nil {
 		// Fallback for future models: retry without max_tokens if server complains
 		if isMaxTokensUnsupportedError(err) {
-			c.logger.Debug("Retrying OpenAI request without max_tokens due to server requirement", "model", c.config.Model)
+			slog.Debug("Retrying OpenAI request without max_tokens due to server requirement", "model", c.config.Model)
 			request.MaxTokens = 0
 			request.MaxCompletionTokens = c.config.MaxTokens
 			response, err = client.CreateChatCompletion(ctx, request)
 		}
 		if err != nil {
-			c.logger.Error("OpenAI chat completion failed", "error", err, "model", c.config.Model)
+			slog.Error("OpenAI chat completion failed", "error", err, "model", c.config.Model)
 			return "", err
 		}
 	}
 
-	c.logger.Debug("OpenAI chat completion successful", "model", c.config.Model, "response_length", len(response.Choices[0].Message.Content))
+	slog.Debug("OpenAI chat completion successful", "model", c.config.Model, "response_length", len(response.Choices[0].Message.Content))
 	return response.Choices[0].Message.Content, nil
 }
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,7 +23,7 @@ type Result struct {
 	EvalFile string
 }
 
-func Evaluate(ctx context.Context, t *team.Team, evalsDir string, logger *slog.Logger) ([]Result, error) {
+func Evaluate(ctx context.Context, t *team.Team, evalsDir string) ([]Result, error) {
 	evalFiles, err := os.ReadDir(evalsDir)
 	if err != nil {
 		return nil, err
@@ -40,18 +39,17 @@ func Evaluate(ctx context.Context, t *team.Team, evalsDir string, logger *slog.L
 		if err := json.Unmarshal(evalFile, &sess); err != nil {
 			return nil, err
 		}
-		sess.SetLogger(logger)
 		evals = append(evals, sess)
 	}
 
 	var results []Result
 	for _, eval := range evals {
-		rt, err := runtime.New(logger, t)
+		rt, err := runtime.New(t)
 		if err != nil {
 			return nil, err
 		}
 
-		actualMessages, err := runLoop(ctx, logger, rt, &eval)
+		actualMessages, err := runLoop(ctx, rt, &eval)
 		if err != nil {
 			return nil, err
 		}
@@ -67,7 +65,7 @@ func Evaluate(ctx context.Context, t *team.Team, evalsDir string, logger *slog.L
 	return results, nil
 }
 
-func runLoop(ctx context.Context, logger *slog.Logger, rt *runtime.Runtime, eval *session.Session) ([]session.Message, error) {
+func runLoop(ctx context.Context, rt *runtime.Runtime, eval *session.Session) ([]session.Message, error) {
 	var userMessages []session.Message
 	allMessages := eval.GetAllMessages()
 	for i := range allMessages {
@@ -76,7 +74,7 @@ func runLoop(ctx context.Context, logger *slog.Logger, rt *runtime.Runtime, eval
 		}
 	}
 
-	sess := session.New(logger)
+	sess := session.New()
 	for i := range userMessages {
 		sess.AddMessage(&userMessages[i])
 		_, err := rt.Run(ctx, sess)

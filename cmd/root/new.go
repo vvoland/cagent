@@ -3,7 +3,6 @@ package root
 import (
 	"bufio"
 	"fmt"
-	"log/slog"
 	"os"
 	"strings"
 
@@ -24,7 +23,6 @@ func NewNewCmd() *cobra.Command {
 		Long:  `Create a new agent configuration by asking questions and generating a YAML file`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-			logger := slog.Default()
 
 			// Validate flag combinations immediately: --model requires explicit --provider
 			flags := cmd.Flags()
@@ -72,7 +70,7 @@ func NewNewCmd() *cobra.Command {
 				fmt.Println()
 			}
 
-			out, err := creator.StreamCreateAgent(ctx, ".", logger, prompt, runConfig, modelProvider, modelName)
+			out, err := creator.StreamCreateAgent(ctx, ".", prompt, runConfig, modelProvider, modelName)
 			if err != nil {
 				return err
 			}

@@ -39,22 +39,21 @@ type Manager struct {
 	timeout     time.Duration
 	maxSessions int
 	mutex       sync.RWMutex
-	logger      *slog.Logger
 }
 
 // NewManager creates a new ServiceManager instance
-func NewManager(agentsDir string, timeout time.Duration, maxSessions int, logger *slog.Logger) (ServiceManager, error) {
-	resolver, err := NewResolver(agentsDir, logger)
+func NewManager(agentsDir string, timeout time.Duration, maxSessions int) (ServiceManager, error) {
+	resolver, err := NewResolver(agentsDir)
 	if err != nil {
 		return nil, fmt.Errorf("creating resolver: %w", err)
 	}
 
-	return NewManagerWithResolver(resolver, timeout, maxSessions, logger)
+	return NewManagerWithResolver(resolver, timeout, maxSessions)
 }
 
 // NewManagerWithResolver creates a new ServiceManager instance with a custom resolver (for testing)
-func NewManagerWithResolver(resolver *Resolver, timeout time.Duration, maxSessions int, logger *slog.Logger) (ServiceManager, error) {
-	executor := NewExecutor(logger)
+func NewManagerWithResolver(resolver *Resolver, timeout time.Duration, maxSessions int) (ServiceManager, error) {
+	executor := NewExecutor()
 
 	// Initialize SQLite store (for future session persistence)
 	// For now, we'll use nil store since we're managing sessions in memory
@@ -72,7 +71,6 @@ func NewManagerWithResolver(resolver *Resolver, timeout time.Duration, maxSessio
 		executor:    executor,
 		timeout:     timeout,
 		maxSessions: maxSessions,
-		logger:      logger,
 	}, nil
 }
 
@@ -92,7 +90,7 @@ func (m *Manager) CreateClient(clientID string) error {
 		LastUsed:      time.Now(),
 	}
 
-	m.logger.Info("Client created", "client_id", clientID)
+	slog.Info("Client created", "client_id", clientID)
 	return nil
 }
 
@@ -109,13 +107,13 @@ func (m *Manager) RemoveClient(clientID string) error {
 	// Clean up all agent sessions for this client
 	for sessionID := range client.AgentSessions {
 		if err := m.closeSessionUnsafe(clientID, sessionID); err != nil {
-			m.logger.Warn("Error closing session during client cleanup",
+			slog.Warn("Error closing session during client cleanup",
 				"client_id", clientID, "session_id", sessionID, "error", err)
 		}
 	}
 
 	delete(m.clients, clientID)
-	m.logger.Info("Client removed", "client_id", clientID)
+	slog.Info("Client removed", "client_id", clientID)
 	return nil
 }
 
@@ -193,7 +191,7 @@ func (m *Manager) CreateAgentSession(clientID, agentSpec string) (*AgentSession,
 	client.AgentSessions[sessionID] = agentSession
 	client.LastUsed = time.Now()
 
-	m.logger.Info("Agent session created",
+	slog.Info("Agent session created",
 		"client_id", clientID, "session_id", sessionID, "agent_spec", agentSpec, "agent_path", agentPath)
 
 	return agentSession, nil
@@ -230,7 +228,7 @@ func (m *Manager) SendMessage(clientID, sessionID, message string) (*Response, e
 	// Add client context to metadata
 	response.Metadata["client_id"] = clientID
 
-	m.logger.Debug("Message processed",
+	slog.Debug("Message processed",
 		"client_id", clientID, "session_id", sessionID, "message_length", len(message))
 
 	return response, nil
@@ -277,14 +275,14 @@ func (m *Manager) closeSessionUnsafe(clientID, sessionID string) error {
 	// Clean up runtime resources
 	if agentSession.Runtime != nil {
 		if err := m.executor.CleanupRuntime(agentSession.Runtime); err != nil {
-			m.logger.Warn("Error cleaning up runtime", "error", err, "session_id", sessionID)
+			slog.Warn("Error cleaning up runtime", "error", err, "session_id", sessionID)
 		}
 	}
 
 	delete(client.AgentSessions, sessionID)
 	client.LastUsed = time.Now()
 
-	m.logger.Info("Agent session closed",
+	slog.Info("Agent session closed",
 		"client_id", clientID, "session_id", sessionID, "agent_spec", agentSession.AgentSpec)
 
 	return nil
@@ -330,7 +328,7 @@ func (m *Manager) GetSessionHistory(clientID, sessionID string, limit int) ([]Se
 		})
 	}
 
-	m.logger.Debug("Retrieved session history",
+	slog.Debug("Retrieved session history",
 		"client_id", clientID, "session_id", sessionID,
 		"total_messages", len(sessionMessages), "returned_messages", len(result))
 
@@ -404,7 +402,7 @@ func (m *Manager) GetSessionInfo(clientID, sessionID string) (*SessionInfo, erro
 		Metadata:     metadata,
 	}
 
-	m.logger.Debug("Retrieved session info",
+	slog.Debug("Retrieved session info",
 		"client_id", clientID, "session_id", sessionID, "message_count", messageCount)
 
 	return sessionInfo, nil

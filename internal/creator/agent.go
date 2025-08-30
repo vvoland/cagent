@@ -5,7 +5,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -74,7 +73,7 @@ func (f *fsToolset) customWriteFileHandler(ctx context.Context, toolCall tools.T
 	return f.originalWriteFileHandler(ctx, toolCall)
 }
 
-func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, prompt string, runConfig latest.RuntimeConfig) (out, path string, err error) {
+func CreateAgent(ctx context.Context, baseDir, prompt string, runConfig latest.RuntimeConfig) (out, path string, err error) {
 	llm, err := anthropic.NewClient(
 		ctx,
 		&latest.ModelConfig{
@@ -82,8 +81,7 @@ func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, promp
 			Model:     "claude-sonnet-4-0",
 			MaxTokens: 64000,
 		},
-		environment.NewDefaultProvider(logger),
-		logger,
+		environment.NewDefaultProvider(),
 		options.WithGateway(runConfig.ModelsGateway),
 	)
 	if err != nil {
@@ -106,12 +104,12 @@ func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, promp
 					&fsToolset,
 				),
 			)))
-	rt, err := runtime.New(logger, newTeam)
+	rt, err := runtime.New(newTeam)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create runtime: %w", err)
 	}
 
-	sess := session.New(logger, session.WithUserMessage("", prompt))
+	sess := session.New(session.WithUserMessage("", prompt))
 	sess.ToolsApproved = true
 
 	messages, err := rt.Run(ctx, sess)
@@ -122,7 +120,7 @@ func CreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, promp
 	return messages[len(messages)-1].Message.Content, fsToolset.path, nil
 }
 
-func StreamCreateAgent(ctx context.Context, baseDir string, logger *slog.Logger, prompt string, runConfig latest.RuntimeConfig, providerName, modelNameOverride string) (<-chan runtime.Event, error) {
+func StreamCreateAgent(ctx context.Context, baseDir, prompt string, runConfig latest.RuntimeConfig, providerName, modelNameOverride string) (<-chan runtime.Event, error) {
 	// Select default model per provider
 	prov := providerName
 
@@ -172,8 +170,7 @@ func StreamCreateAgent(ctx context.Context, baseDir string, logger *slog.Logger,
 			Model:     modelName,
 			MaxTokens: 64000,
 		},
-		environment.NewDefaultProvider(logger),
-		logger,
+		environment.NewDefaultProvider(),
 		options.WithGateway(runConfig.ModelsGateway),
 	)
 	if err != nil {
@@ -209,12 +206,12 @@ func StreamCreateAgent(ctx context.Context, baseDir string, logger *slog.Logger,
 					&fsToolset,
 				),
 			)))
-	rt, err := runtime.New(logger, newTeam)
+	rt, err := runtime.New(newTeam)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create runtime: %w", err)
 	}
 
-	sess := session.New(logger, session.WithUserMessage("", prompt))
+	sess := session.New(session.WithUserMessage("", prompt))
 	sess.ToolsApproved = true
 
 	return rt.RunStream(ctx, sess), nil

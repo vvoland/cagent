@@ -1,7 +1,6 @@
 package servicecore
 
 import (
-	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,9 +16,7 @@ func TestResolver_ResolveAgent(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-
-	resolver, err := NewResolver(tempDir, logger)
+	resolver, err := NewResolver(tempDir)
 	require.NoError(t, err)
 
 	t.Run("ResolveExistingFile", func(t *testing.T) {
@@ -81,9 +78,7 @@ func TestResolver_ListFileAgents(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-
-	resolver, err := NewResolver(tempDir, logger)
+	resolver, err := NewResolver(tempDir)
 	require.NoError(t, err)
 
 	t.Run("EmptyDirectory", func(t *testing.T) {
@@ -138,7 +133,7 @@ func TestResolver_ListFileAgents(t *testing.T) {
 	})
 
 	t.Run("NonExistentDirectory", func(t *testing.T) {
-		nonExistentResolver, err := NewResolver("/non/existent/path", logger)
+		nonExistentResolver, err := NewResolver("/non/existent/path")
 		require.NoError(t, err)
 
 		agents, err := nonExistentResolver.ListFileAgents()
@@ -148,13 +143,11 @@ func TestResolver_ListFileAgents(t *testing.T) {
 }
 
 func TestResolver_ListStoreAgents(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-
 	// Create a temporary store for testing
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
 	require.NoError(t, err)
 
-	resolver, err := NewResolverWithStore("/tmp", store, logger)
+	resolver, err := NewResolverWithStore("/tmp", store)
 	require.NoError(t, err)
 
 	t.Run("EmptyStore", func(t *testing.T) {
@@ -166,13 +159,12 @@ func TestResolver_ListStoreAgents(t *testing.T) {
 }
 
 func TestResolver_PullAgent(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
 
 	// Create a temporary store for testing
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
 	require.NoError(t, err)
 
-	resolver, err := NewResolverWithStore("/tmp", store, logger)
+	resolver, err := NewResolverWithStore("/tmp", store)
 	require.NoError(t, err)
 
 	t.Run("InvalidReference", func(t *testing.T) {
@@ -188,9 +180,7 @@ func TestResolver_FileExists(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-
-	resolver, err := NewResolver(tempDir, logger)
+	resolver, err := NewResolver(tempDir)
 	require.NoError(t, err)
 
 	// Create a test file
@@ -207,9 +197,7 @@ func TestResolver_IsPathSafe(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-
-	resolver, err := NewResolver(tempDir, logger)
+	resolver, err := NewResolver(tempDir)
 	require.NoError(t, err)
 
 	t.Run("SafePath", func(t *testing.T) {
@@ -226,7 +214,7 @@ func TestResolver_IsPathSafe(t *testing.T) {
 	})
 
 	t.Run("OutsideRoot", func(t *testing.T) {
-		outsidePath := "/etc/passwd" 
+		outsidePath := "/etc/passwd"
 		err := resolver.isPathSafe(outsidePath)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "path outside allowed root directory")
@@ -239,13 +227,11 @@ func TestResolver_FromStore_Integration(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-
 	// Create a temporary store for testing
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
 	require.NoError(t, err)
 
-	resolver, err := NewResolverWithStore("/tmp", store, logger)
+	resolver, err := NewResolverWithStore("/tmp", store)
 	require.NoError(t, err)
 
 	t.Run("NonExistentImage", func(t *testing.T) {

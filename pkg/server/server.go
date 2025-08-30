@@ -36,7 +36,6 @@ import (
 
 type Server struct {
 	e            *echo.Echo
-	logger       *slog.Logger
 	runtimes     map[string]*runtime.Runtime
 	sessionStore session.Store
 	agentsDir    string
@@ -66,13 +65,12 @@ func WithAutoRunTools(autoRunTools bool) Opt {
 	}
 }
 
-func New(logger *slog.Logger, sessionStore session.Store, runConfig latest.RuntimeConfig, teams map[string]*team.Team, opts ...Opt) *Server {
+func New(sessionStore session.Store, runConfig latest.RuntimeConfig, teams map[string]*team.Team, opts ...Opt) *Server {
 	e := echo.New()
 	e.Use(middleware.CORS())
 	s := &Server{
 		e:            e,
 		runtimes:     make(map[string]*runtime.Runtime),
-		logger:       logger,
 		sessionStore: sessionStore,
 		runConfig:    runConfig,
 		teams:        teams,
@@ -128,7 +126,7 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 	}
 
 	if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
-		s.logger.Error("Failed to start server", "error", err)
+		slog.Error("Failed to start server", "error", err)
 		return err
 	}
 
@@ -195,7 +193,7 @@ func (s *Server) getAgentConfig(c echo.Context) error {
 
 	path, err := s.secureAgentPath(agentID)
 	if err != nil {
-		s.logger.Error("Invalid agent ID", "agentID", agentID, "error", err)
+		slog.Error("Invalid agent ID", "agentID", agentID, "error", err)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid agent ID"})
 	}
 
@@ -219,7 +217,7 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 
 	path, err := s.secureAgentPath(req.Filename)
 	if err != nil {
-		s.logger.Error("Invalid filename", "filename", req.Filename, "error", err)
+		slog.Error("Invalid filename", "filename", req.Filename, "error", err)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid filename"})
 	}
 
@@ -231,13 +229,13 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 	// Load the target file content
 	currentConfig, err := config.LoadConfigSecure(path, s.agentsDir)
 	if err != nil {
-		s.logger.Error("Failed to load current config", "path", path, "error", err)
+		slog.Error("Failed to load current config", "path", path, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load current configuration"})
 	}
 
 	// Merge the new content with the current one
 	if err := mergo.Merge(currentConfig, req.AgentConfig, mergo.WithOverride); err != nil {
-		s.logger.Error("Failed to apply new agent configuration", "path", path, "error", err)
+		slog.Error("Failed to apply new agent configuration", "path", path, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to apply new agent configuration"})
 	}
 	mergedConfig := *currentConfig
@@ -245,7 +243,7 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 	// Read current file to preserve shebang and metadata structure
 	currentContent, err := os.ReadFile(path)
 	if err != nil {
-		s.logger.Error("Failed to read agent file", "path", path, "error", err)
+		slog.Error("Failed to read agent file", "path", path, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to read agent file"})
 	}
 
@@ -268,7 +266,7 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 	encoder.SetIndent(2)
 	err = encoder.Encode(mergedConfig)
 	if err != nil {
-		s.logger.Error("Failed to marshal merged config to YAML", "error", err)
+		slog.Error("Failed to marshal merged config to YAML", "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to generate merged YAML configuration"})
 	}
 	encoder.Close()
@@ -283,14 +281,14 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 
 	// Write the updated configuration back to the file
 	if err := os.WriteFile(path, []byte(finalContent), 0o644); err != nil {
-		s.logger.Error("Failed to write agent file", "path", path, "error", err)
+		slog.Error("Failed to write agent file", "path", path, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to write agent file"})
 	}
 
 	// Reload the agent to update the in-memory configuration
-	t, err := teamloader.Load(c.Request().Context(), path, s.runConfig, s.logger)
+	t, err := teamloader.Load(c.Request().Context(), path, s.runConfig)
 	if err != nil {
-		s.logger.Error("Failed to reload agent after edit", "path", path, "error", err)
+		slog.Error("Failed to reload agent after edit", "path", path, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to reload agent configuration"})
 	}
 
@@ -299,12 +297,12 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 	if oldTeam, exists := s.teams[agentKey]; exists {
 		// Stop old team's toolsets before replacing
 		if err := oldTeam.StopToolSets(); err != nil {
-			s.logger.Error("Failed to stop old team toolsets", "agentKey", agentKey, "error", err)
+			slog.Error("Failed to stop old team toolsets", "agentKey", agentKey, "error", err)
 		}
 	}
 	s.teams[agentKey] = t
 
-	s.logger.Info("Agent configuration updated successfully", "path", path)
+	slog.Info("Agent configuration updated successfully", "path", path)
 	return c.JSON(http.StatusOK, map[string]any{"message": "agent configuration updated successfully", "path": path, "config": mergedConfig})
 }
 
@@ -315,23 +313,23 @@ func (s *Server) createAgent(c echo.Context) error {
 	}
 	prompt := req.Prompt
 
-	out, path, err := creator.CreateAgent(c.Request().Context(), s.agentsDir, s.logger, prompt, s.runConfig)
+	out, path, err := creator.CreateAgent(c.Request().Context(), s.agentsDir, prompt, s.runConfig)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create agent"})
 	}
 
-	s.logger.Info("Agent created", "path", path, "out", out)
+	slog.Info("Agent created", "path", path, "out", out)
 
-	t, err := teamloader.Load(c.Request().Context(), path, s.runConfig, s.logger)
+	t, err := teamloader.Load(c.Request().Context(), path, s.runConfig)
 	if err != nil {
 		_ = os.Remove(path)
-		s.logger.Error("Failed to load agent", "path", path, "error", err)
+		slog.Error("Failed to load agent", "path", path, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
 	}
 
 	s.teams[filepath.Base(path)] = t
 
-	s.logger.Info("Agent loaded", "path", path, "out", out)
+	slog.Info("Agent loaded", "path", path, "out", out)
 	return c.JSON(http.StatusOK, map[string]string{"path": path, "out": out})
 }
 
@@ -393,7 +391,7 @@ func (s *Server) createAgentConfig(c echo.Context) error {
 	encoder.SetIndent(1)
 	err := encoder.Encode(agentConfig)
 	if err != nil {
-		s.logger.Error("Failed to marshal agent config to YAML", "error", err)
+		slog.Error("Failed to marshal agent config to YAML", "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to generate YAML configuration"})
 	}
 	encoder.Close()
@@ -410,23 +408,23 @@ func (s *Server) createAgentConfig(c echo.Context) error {
 	}
 
 	if err := os.WriteFile(targetPath, []byte(finalContent), 0o644); err != nil {
-		s.logger.Error("Failed to write agent file", "path", targetPath, "error", err)
+		slog.Error("Failed to write agent file", "path", targetPath, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to write agent file"})
 	}
 
 	// Load the agent from the new location
-	t, err := teamloader.Load(c.Request().Context(), targetPath, s.runConfig, s.logger)
+	t, err := teamloader.Load(c.Request().Context(), targetPath, s.runConfig)
 	if err != nil {
 		// Clean up the file we just created if loading fails
 		_ = os.Remove(targetPath)
-		s.logger.Error("Failed to load agent from target path", "path", targetPath, "error", err)
+		slog.Error("Failed to load agent from target path", "path", targetPath, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent from target path: " + err.Error()})
 	}
 
 	agentKey := strings.TrimSuffix(filepath.Base(targetPath), filepath.Ext(targetPath))
 	s.teams[agentKey] = t
 
-	s.logger.Info("Manual agent created successfully", "filepath", targetPath, "filename", filename)
+	slog.Info("Manual agent created successfully", "filepath", targetPath, "filename", filename)
 	return c.JSON(http.StatusOK, map[string]string{
 		"filepath": targetPath,
 	})
@@ -444,13 +442,13 @@ func (s *Server) importAgent(c echo.Context) error {
 
 	validatedSourcePath, err := config.ValidatePathInDirectory(req.FilePath, "")
 	if err != nil {
-		s.logger.Error("Invalid source file path", "path", req.FilePath, "error", err)
+		slog.Error("Invalid source file path", "path", req.FilePath, "error", err)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid source file path"})
 	}
 
 	// Check if the file exists
 	if _, err := os.Stat(validatedSourcePath); os.IsNotExist(err) {
-		s.logger.Error("Agent file does not exist", "path", validatedSourcePath)
+		slog.Error("Agent file does not exist", "path", validatedSourcePath)
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "agent file not found"})
 	}
 
@@ -460,16 +458,16 @@ func (s *Server) importAgent(c echo.Context) error {
 	}
 
 	// First validate the agent configuration by loading it
-	_, err = teamloader.Load(c.Request().Context(), validatedSourcePath, s.runConfig, s.logger)
+	_, err = teamloader.Load(c.Request().Context(), validatedSourcePath, s.runConfig)
 	if err != nil {
-		s.logger.Error("Failed to load agent from file", "path", validatedSourcePath, "error", err)
+		slog.Error("Failed to load agent from file", "path", validatedSourcePath, "error", err)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "failed to load agent configuration: " + err.Error()})
 	}
 
 	// Read the original file content
 	fileContent, err := os.ReadFile(validatedSourcePath)
 	if err != nil {
-		s.logger.Error("Failed to read agent file", "path", validatedSourcePath, "error", err)
+		slog.Error("Failed to read agent file", "path", validatedSourcePath, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to read agent file: " + err.Error()})
 	}
 
@@ -492,27 +490,27 @@ func (s *Server) importAgent(c echo.Context) error {
 			targetPath = filepath.Join(s.agentsDir, agentKey+".yaml")
 			counter++
 		}
-		s.logger.Info("Target file exists, using alternative name", "original_key", strings.TrimSuffix(filepath.Base(validatedSourcePath), filepath.Ext(validatedSourcePath)), "new_key", agentKey)
+		slog.Info("Target file exists, using alternative name", "original_key", strings.TrimSuffix(filepath.Base(validatedSourcePath), filepath.Ext(validatedSourcePath)), "new_key", agentKey)
 	}
 
 	// Write the file to the agents directory
 	if err := os.WriteFile(targetPath, fileContent, 0o644); err != nil {
-		s.logger.Error("Failed to write agent file to agents directory", "target", targetPath, "error", err)
+		slog.Error("Failed to write agent file to agents directory", "target", targetPath, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to write agent file to " + targetPath + ": " + err.Error()})
 	}
 
 	// Load the agent from the new location
-	t, err := teamloader.Load(c.Request().Context(), targetPath, s.runConfig, s.logger)
+	t, err := teamloader.Load(c.Request().Context(), targetPath, s.runConfig)
 	if err != nil {
 		// Clean up the file we just created if loading fails
 		_ = os.Remove(targetPath)
-		s.logger.Error("Failed to load agent from target path", "path", targetPath, "error", err)
+		slog.Error("Failed to load agent from target path", "path", targetPath, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent from target path: " + err.Error()})
 	}
 
 	s.teams[agentKey] = t
 
-	s.logger.Info("Agent imported successfully", "originalPath", validatedSourcePath, "targetPath", targetPath, "key", agentKey)
+	slog.Info("Agent imported successfully", "originalPath", validatedSourcePath, "targetPath", targetPath, "key", agentKey)
 	return c.JSON(http.StatusOK, map[string]string{
 		"originalPath": validatedSourcePath,
 		"targetPath":   targetPath,
@@ -528,7 +526,7 @@ func (s *Server) exportAgents(c echo.Context) error {
 	// Create the zip file
 	zipFile, err := os.Create(zipPath)
 	if err != nil {
-		s.logger.Error("Failed to create zip file", "path", zipPath, "error", err)
+		slog.Error("Failed to create zip file", "path", zipPath, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create zip file"})
 	}
 	defer zipFile.Close()
@@ -583,11 +581,11 @@ func (s *Server) exportAgents(c echo.Context) error {
 
 	if err != nil {
 		_ = os.Remove(zipPath) // Clean up on error
-		s.logger.Error("Failed to create agents export zip", "error", err)
+		slog.Error("Failed to create agents export zip", "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create agents export: " + err.Error()})
 	}
 
-	s.logger.Info("Agents exported successfully", "zipPath", zipPath, "agentsDir", s.agentsDir)
+	slog.Info("Agents exported successfully", "zipPath", zipPath, "agentsDir", s.agentsDir)
 	return c.JSON(http.StatusOK, map[string]string{
 		"zipPath":      zipPath,
 		"zipFile":      zipFileName,
@@ -600,20 +598,20 @@ func (s *Server) exportAgents(c echo.Context) error {
 func (s *Server) pullAgent(c echo.Context) error {
 	var req pullAgentRequest
 	if err := c.Bind(&req); err != nil {
-		s.logger.Error("Failed to bind pull agent request", "error", err)
+		slog.Error("Failed to bind pull agent request", "error", err)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 	}
 
-	s.logger.Info("Pulling agent", "name", req.Name)
+	slog.Info("Pulling agent", "name", req.Name)
 	_, err := remote.Pull(req.Name)
 	if err != nil {
-		s.logger.Error("Failed to pull agent", "name", req.Name, "error", err)
+		slog.Error("Failed to pull agent", "name", req.Name, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to pull agent"})
 	}
 
 	yamlFile, err := fromStore(req.Name)
 	if err != nil {
-		s.logger.Error("Failed to get agent yaml", "name", req.Name, "error", err)
+		slog.Error("Failed to get agent yaml", "name", req.Name, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to get agent yaml"})
 	}
 
@@ -621,13 +619,13 @@ func (s *Server) pullAgent(c echo.Context) error {
 	fileName := filepath.Join(s.agentsDir, agentName+".yaml")
 
 	if err := os.WriteFile(fileName, []byte(yamlFile), 0o644); err != nil {
-		s.logger.Error("Failed to write agent yaml", "name", req.Name, "error", err)
+		slog.Error("Failed to write agent yaml", "name", req.Name, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to write agent yaml to " + fileName + ": " + err.Error()})
 	}
 
-	t, err := teamloader.Load(c.Request().Context(), fileName, s.runConfig, s.logger)
+	t, err := teamloader.Load(c.Request().Context(), fileName, s.runConfig)
 	if err != nil {
-		s.logger.Error("Failed to load agent", "name", req.Name, "error", err)
+		slog.Error("Failed to load agent", "name", req.Name, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load agent"})
 	}
 
@@ -639,7 +637,7 @@ func (s *Server) pullAgent(c echo.Context) error {
 func (s *Server) pushAgent(c echo.Context) error {
 	var req pushAgentRequest
 	if err := c.Bind(&req); err != nil {
-		s.logger.Error("Failed to bind push agent request", "error", err)
+		slog.Error("Failed to bind push agent request", "error", err)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 	}
 
@@ -654,40 +652,40 @@ func (s *Server) pushAgent(c echo.Context) error {
 	// Validate the file path to prevent directory traversal attacks
 	validatedFilepath, err := config.ValidatePathInDirectory(req.Filepath, "")
 	if err != nil {
-		s.logger.Error("Invalid file path", "path", req.Filepath, "error", err)
+		slog.Error("Invalid file path", "path", req.Filepath, "error", err)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid file path"})
 	}
 
-	s.logger.Info("Building and pushing agent", "filepath", validatedFilepath, "tag", req.Tag)
+	slog.Info("Building and pushing agent", "filepath", validatedFilepath, "tag", req.Tag)
 
 	// Check if the file exists
 	if _, err := os.Stat(validatedFilepath); os.IsNotExist(err) {
-		s.logger.Error("Agent file does not exist", "path", validatedFilepath)
+		slog.Error("Agent file does not exist", "path", validatedFilepath)
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "agent file not found"})
 	}
 
 	// First, build the artifact
 	store, err := content.NewStore()
 	if err != nil {
-		s.logger.Error("Failed to create content store", "error", err)
+		slog.Error("Failed to create content store", "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create content store"})
 	}
 
 	digest, err := oci.PackageFileAsOCIToStore(validatedFilepath, req.Tag, store)
 	if err != nil {
-		s.logger.Error("Failed to build artifact", "filepath", validatedFilepath, "tag", req.Tag, "error", err)
+		slog.Error("Failed to build artifact", "filepath", validatedFilepath, "tag", req.Tag, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to build artifact"})
 	}
 
-	s.logger.Info("Artifact built successfully", "tag", req.Tag, "digest", digest)
+	slog.Info("Artifact built successfully", "tag", req.Tag, "digest", digest)
 
 	// Then, push the artifact
 	if err := remote.Push(req.Tag); err != nil {
-		s.logger.Error("Failed to push agent", "tag", req.Tag, "error", err)
+		slog.Error("Failed to push agent", "tag", req.Tag, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to push agent"})
 	}
 
-	s.logger.Info("Agent pushed successfully", "filepath", validatedFilepath, "tag", req.Tag, "digest", digest)
+	slog.Info("Agent pushed successfully", "filepath", validatedFilepath, "tag", req.Tag, "digest", digest)
 	return c.JSON(http.StatusOK, map[string]string{
 		"filepath": validatedFilepath,
 		"tag":      req.Tag,
@@ -707,13 +705,13 @@ func (s *Server) deleteAgent(c echo.Context) error {
 
 	err := s.validateAgentPath(req.FilePath)
 	if err != nil {
-		s.logger.Error("Invalid file path", "path", req.FilePath, "error", err)
+		slog.Error("Invalid file path", "path", req.FilePath, "error", err)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid file path"})
 	}
 
 	// Check if the file exists
 	if _, err := os.Stat(req.FilePath); os.IsNotExist(err) {
-		s.logger.Error("Agent file does not exist", "path", req.FilePath)
+		slog.Error("Agent file does not exist", "path", req.FilePath)
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "agent file not found"})
 	}
 
@@ -727,22 +725,22 @@ func (s *Server) deleteAgent(c echo.Context) error {
 
 	// Remove from teams map and stop toolsets if active
 	if t, exists := s.teams[agentKey]; exists {
-		s.logger.Info("Stopping toolsets for agent", "agentKey", agentKey)
+		slog.Info("Stopping toolsets for agent", "agentKey", agentKey)
 		if err := t.StopToolSets(); err != nil {
-			s.logger.Error("Failed to stop tool sets for agent", "agentKey", agentKey, "error", err)
+			slog.Error("Failed to stop tool sets for agent", "agentKey", agentKey, "error", err)
 			// Continue with deletion even if stopping toolsets fails
 		}
 		delete(s.teams, agentKey)
-		s.logger.Info("Removed agent from teams", "agentKey", agentKey)
+		slog.Info("Removed agent from teams", "agentKey", agentKey)
 	}
 
 	// Delete the file
 	if err := os.Remove(req.FilePath); err != nil {
-		s.logger.Error("Failed to delete agent file", "path", req.FilePath, "error", err)
+		slog.Error("Failed to delete agent file", "path", req.FilePath, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to delete agent file: " + err.Error()})
 	}
 
-	s.logger.Info("Agent deleted successfully", "filePath", req.FilePath, "agentKey", agentKey)
+	slog.Info("Agent deleted successfully", "filePath", req.FilePath, "agentKey", agentKey)
 	return c.JSON(http.StatusOK, map[string]string{
 		"filePath": req.FilePath,
 	})
@@ -751,14 +749,14 @@ func (s *Server) deleteAgent(c echo.Context) error {
 func (s *Server) getAgents(c echo.Context) error {
 	// Refresh agents from disk to get the latest configurations
 	if err := s.refreshAgentsFromDisk(c.Request().Context()); err != nil {
-		s.logger.Error("Failed to refresh agents from disk", "error", err)
+		slog.Error("Failed to refresh agents from disk", "error", err)
 	}
 
 	agentList := make([]map[string]string, 0)
 	for id, t := range s.teams {
 		a := t.Agent("root")
 		if a == nil {
-			s.logger.Error("Agent root not found", "team", id)
+			slog.Error("Agent root not found", "team", id)
 			continue
 		}
 		agentList = append(agentList, map[string]string{
@@ -774,7 +772,7 @@ func (s *Server) refreshAgentsFromDisk(ctx context.Context) error {
 		return nil
 	}
 
-	newTeams, err := teamloader.LoadTeams(ctx, s.agentsDir, s.runConfig, s.logger)
+	newTeams, err := teamloader.LoadTeams(ctx, s.agentsDir, s.runConfig)
 	if err != nil {
 		return fmt.Errorf("failed to load teams: %w", err)
 	}
@@ -783,7 +781,7 @@ func (s *Server) refreshAgentsFromDisk(ctx context.Context) error {
 		if _, exists := newTeams[id]; !exists {
 			// Team no longer exists on disk, stop its tool sets
 			if err := oldTeam.StopToolSets(); err != nil {
-				s.logger.Error("Failed to stop tool sets for removed team", "team", id, "error", err)
+				slog.Error("Failed to stop tool sets for removed team", "team", id, "error", err)
 			}
 		}
 	}
@@ -814,10 +812,10 @@ func (s *Server) getSessions(c echo.Context) error {
 }
 
 func (s *Server) createSession(c echo.Context) error {
-	sess := session.New(s.logger)
+	sess := session.New()
 
 	if err := s.sessionStore.AddSession(c.Request().Context(), sess); err != nil {
-		s.logger.Error("Failed to persist session", "session_id", sess.ID, "error", err)
+		slog.Error("Failed to persist session", "session_id", sess.ID, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create session"})
 	}
 
@@ -862,7 +860,7 @@ func (s *Server) resumeSession(c echo.Context) error {
 
 func (s *Server) deleteSession(c echo.Context) error {
 	if err := s.sessionStore.DeleteSession(c.Request().Context(), c.Param("id")); err != nil {
-		s.logger.Error("Failed to delete session", "session_id", c.Param("id"), "error", err)
+		slog.Error("Failed to delete session", "session_id", c.Param("id"), "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to delete session"})
 	}
 
@@ -881,7 +879,6 @@ func (s *Server) runAgent(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "session not found"})
 	}
-	sess.SetLogger(s.logger)
 
 	rt, exists := s.runtimes[sess.ID]
 	if !exists {
@@ -889,9 +886,9 @@ func (s *Server) runAgent(c echo.Context) error {
 		if s.autoRunTools {
 			opts = append(opts, runtime.WithAutoRunTools(true))
 		}
-		rt, err = runtime.New(s.logger, t, opts...)
+		rt, err = runtime.New(t, opts...)
 		if err != nil {
-			s.logger.Error("Failed to create runtime", "error", err)
+			slog.Error("Failed to create runtime", "error", err)
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create runtime"})
 		}
 		s.runtimes[sess.ID] = rt
@@ -908,7 +905,7 @@ func (s *Server) runAgent(c echo.Context) error {
 	}
 
 	if err := s.sessionStore.UpdateSession(c.Request().Context(), sess); err != nil {
-		s.logger.Error("Failed to update session in store", "session_id", sess.ID, "error", err)
+		slog.Error("Failed to update session in store", "session_id", sess.ID, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to update session"})
 	}
 
@@ -928,7 +925,7 @@ func (s *Server) runAgent(c echo.Context) error {
 	}
 
 	if err := s.sessionStore.UpdateSession(c.Request().Context(), sess); err != nil {
-		s.logger.Error("Failed to final update session in store", "session_id", sess.ID, "error", err)
+		slog.Error("Failed to final update session in store", "session_id", sess.ID, "error", err)
 	}
 
 	return nil

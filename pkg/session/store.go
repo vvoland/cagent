@@ -155,7 +155,6 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 		OutputTokens:  outputTokens,
 		Cost:          cost,
 		CreatedAt:     createdAt,
-		logger:        nil, // Logger is not persisted and will need to be set by caller
 	}, nil
 }
 
@@ -229,7 +228,6 @@ func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error
 			OutputTokens:  outputTokens,
 			Cost:          cost,
 			CreatedAt:     createdAt,
-			logger:        nil, // Logger is not persisted and will need to be set by caller
 		}
 
 		sessions = append(sessions, session)

@@ -1,7 +1,6 @@
 package session
 
 import (
-	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -97,7 +96,7 @@ func TestGetMessages(t *testing.T) {
 	testAgent := &agent.Agent{}
 
 	// Create a session with many messages
-	s := New(slog.Default())
+	s := New()
 
 	// Add more than maxMessages to the session
 	for i := 0; i < maxMessages+10; i++ {
@@ -119,7 +118,7 @@ func TestGetMessagesWithToolCalls(t *testing.T) {
 	testAgent := &agent.Agent{}
 
 	// Create a session
-	s := New(slog.Default())
+	s := New()
 
 	// Add a sequence of messages with tool calls
 	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
@@ -169,7 +168,7 @@ func TestGetMessagesWithSummary(t *testing.T) {
 	testAgent := &agent.Agent{}
 
 	// Create a session
-	s := New(slog.Default())
+	s := New()
 
 	// Add some initial messages
 	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{

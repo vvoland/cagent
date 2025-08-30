@@ -20,7 +20,6 @@ type StreamAdapter struct {
 	model        string
 	mu           sync.Mutex
 	lastResponse *genai.GenerateContentResponse // Store last response for final message
-	logger       *slog.Logger
 }
 
 type result struct {
@@ -30,11 +29,10 @@ type result struct {
 }
 
 // NewStreamAdapter constructs a StreamAdapter from Gemini's iterator
-func NewStreamAdapter(iter func(func(*genai.GenerateContentResponse, error) bool), model string, logger *slog.Logger) *StreamAdapter {
+func NewStreamAdapter(iter func(func(*genai.GenerateContentResponse, error) bool), model string) *StreamAdapter {
 	adapter := &StreamAdapter{
-		ch:     make(chan result),
-		model:  model,
-		logger: logger,
+		ch:    make(chan result),
+		model: model,
 	}
 
 	go func() {
@@ -143,11 +141,10 @@ func NewStreamAdapter(iter func(func(*genai.GenerateContentResponse, error) bool
 }
 
 // NewNonStreamingAdapter creates a streaming adapter from a non-streaming response
-func NewNonStreamingAdapter(response *genai.GenerateContentResponse, model string, logger *slog.Logger) *StreamAdapter {
+func NewNonStreamingAdapter(response *genai.GenerateContentResponse, model string) *StreamAdapter {
 	adapter := &StreamAdapter{
-		ch:     make(chan result),
-		model:  model,
-		logger: logger,
+		ch:    make(chan result),
+		model: model,
 	}
 
 	go func() {
@@ -209,7 +206,7 @@ func (g *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		if res.resp != nil && len(res.resp.FunctionCalls()) > 0 {
 			resp.Choices[0].FinishReason = chat.FinishReasonToolCalls
 			// Don't include function calls in the final message - they were already sent
-			g.logger.Debug("Gemini: Final message with tool calls finish reason")
+			slog.Debug("Gemini: Final message with tool calls finish reason")
 		} else {
 			resp.Choices[0].FinishReason = chat.FinishReasonStop
 		}
@@ -252,7 +249,7 @@ func (g *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 						Arguments: string(argsJSON),
 					},
 				}
-				g.logger.Debug("Gemini: Sending tool call", "name", fc.Name, "args", string(argsJSON), "id", toolID)
+				slog.Debug("Gemini: Sending tool call", "name", fc.Name, "args", string(argsJSON), "id", toolID)
 			}
 		}
 	}

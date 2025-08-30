@@ -1,7 +1,6 @@
 package gemini
 
 import (
-	"log/slog"
 	"testing"
 
 	"github.com/docker/cagent/pkg/chat"
@@ -35,9 +34,7 @@ func TestStreamAdapter_FunctionCalls(t *testing.T) {
 			fn(mockResp, nil)
 		}
 
-		// Create adapter with a test logger
-		logger := slog.Default()
-		adapter := NewStreamAdapter(iter, "test-model", logger)
+		adapter := NewStreamAdapter(iter, "test-model")
 
 		// Read the response
 		resp, err := adapter.Recv()

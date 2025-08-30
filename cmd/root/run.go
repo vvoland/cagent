@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -112,23 +113,21 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	agentFilename := args[0]
 
-	logger := newLogger()
-
-	logger.Debug("Starting agent", "agent", agentName, "debug_mode", debugMode)
+	slog.Debug("Starting agent", "agent", agentName, "debug_mode", debugMode)
 
 	if enableOtel {
 		shutdown, err := initOTelSDK(ctx)
 		if err != nil {
-			logger.Warn("Failed to initialize OpenTelemetry SDK", "error", err)
+			slog.Warn("Failed to initialize OpenTelemetry SDK", "error", err)
 		} else if shutdown != nil {
 			defer func() {
 				shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
 				if err := shutdown(shutdownCtx); err != nil {
-					logger.Warn("Failed to shutdown OpenTelemetry SDK", "error", err)
+					slog.Warn("Failed to shutdown OpenTelemetry SDK", "error", err)
 				}
 			}()
-			logger.Debug("OpenTelemetry SDK initialized successfully")
+			slog.Debug("OpenTelemetry SDK initialized successfully")
 		}
 	}
 
@@ -146,7 +145,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to change working directory: %w", err)
 		}
 		_ = os.Setenv("PWD", absWd)
-		logger.Debug("Working directory set", "dir", absWd)
+		slog.Debug("Working directory set", "dir", absWd)
 	}
 
 	// Determine how to obtain the agent definition
@@ -192,19 +191,19 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		agentFilename = tmpFile.Name()
 	}
 
-	agents, err := teamloader.Load(ctx, agentFilename, runConfig, logger)
+	agents, err := teamloader.Load(ctx, agentFilename, runConfig)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if err := agents.StopToolSets(); err != nil {
-			logger.Error("Failed to stop tool sets", "error", err)
+			slog.Error("Failed to stop tool sets", "error", err)
 		}
 	}()
 
 	tracer := otel.Tracer(APP_NAME)
 
-	rt, err := runtime.New(logger, agents,
+	rt, err := runtime.New(agents,
 		runtime.WithCurrentAgent(agentName),
 		runtime.WithAutoRunTools(autoApprove),
 		runtime.WithTracer(tracer),
@@ -213,7 +212,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create runtime: %w", err)
 	}
 
-	sess := session.New(logger)
+	sess := session.New()
 
 	// If the last received event was an error, return it. That way the exit code
 	// will be non-zero if the agent failed.

@@ -49,14 +49,12 @@ type MCPServer struct {
 	serviceCore servicecore.ServiceManager
 	mcpServer   *server.MCPServer
 	sseServer   *server.SSEServer
-	logger      *slog.Logger
 }
 
 // NewMCPServer creates a new MCP server instance
-func NewMCPServer(serviceCore servicecore.ServiceManager, logger *slog.Logger, basePath string) *MCPServer {
+func NewMCPServer(serviceCore servicecore.ServiceManager, basePath string) *MCPServer {
 	mcpServerInstance := &MCPServer{
 		serviceCore: serviceCore,
-		logger:      logger,
 	}
 
 	// Create MCP server with tool capabilities
@@ -77,7 +75,7 @@ func NewMCPServer(serviceCore servicecore.ServiceManager, logger *slog.Logger, b
 
 // Start starts the MCP SSE server on the specified port
 func (s *MCPServer) Start(ctx context.Context, port string) error {
-	s.logger.Info("Starting MCP SSE server", "port", port)
+	slog.Info("Starting MCP SSE server", "port", port)
 
 	// Start SSE server on specified port in a goroutine
 	addr := ":" + port
@@ -92,7 +90,7 @@ func (s *MCPServer) Start(ctx context.Context, port string) error {
 	// Wait for context cancellation or server error
 	select {
 	case <-ctx.Done():
-		s.logger.Info("MCP SSE server shutting down")
+		slog.Info("MCP SSE server shutting down")
 		// TODO: Add graceful shutdown when mcp-go supports it
 		return nil
 	case err := <-errChan:
@@ -162,7 +160,7 @@ func (s *MCPServer) registerTools() {
 		mcp.WithString("session_id", mcp.Required(), mcp.Description("Session ID returned from create_agent_session")),
 	), s.handleGetAgentSessionInfoEnhanced)
 
-	s.logger.Debug("Registered MCP tools", "tools", []string{
+	slog.Debug("Registered MCP tools", "tools", []string{
 		"invoke_agent", "list_agents", "pull_agent",
 		"create_agent_session", "send_message", "list_agent_sessions",
 		"close_agent_session", "get_agent_session_info",
