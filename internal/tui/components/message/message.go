@@ -72,8 +72,6 @@ func (mv *messageModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return mv, cmd
 	}
 
-	// Message views typically don't handle input directly
-	// They're controlled by the parent MessageListCmp
 	return mv, nil
 }
 

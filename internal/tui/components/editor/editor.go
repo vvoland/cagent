@@ -24,8 +24,8 @@ type Editor interface {
 	layout.Help
 }
 
-// editorCmp implements Editor
-type editorCmp struct {
+// editor implements Editor
+type editor struct {
 	textarea textarea.Model
 	width    int
 	height   int
@@ -43,18 +43,18 @@ func New() Editor {
 	ta.ShowLineNumbers = false
 	ta.KeyMap.InsertNewline.SetEnabled(true) // Enable newline insertion
 
-	return &editorCmp{
+	return &editor{
 		textarea: ta,
 	}
 }
 
 // Init initializes the component
-func (e *editorCmp) Init() tea.Cmd {
+func (e *editor) Init() tea.Cmd {
 	return textarea.Blink
 }
 
 // Update handles messages and updates the component state
-func (e *editorCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
@@ -83,7 +83,7 @@ func (e *editorCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View renders the component
-func (e *editorCmp) View() string {
+func (e *editor) View() string {
 	style := styles.InputStyle
 	if e.textarea.Focused() {
 		style = styles.FocusedStyle
@@ -93,7 +93,7 @@ func (e *editorCmp) View() string {
 }
 
 // SetSize sets the dimensions of the component
-func (e *editorCmp) SetSize(width, height int) tea.Cmd {
+func (e *editor) SetSize(width, height int) tea.Cmd {
 	e.width = width
 	e.height = height
 
@@ -108,28 +108,28 @@ func (e *editorCmp) SetSize(width, height int) tea.Cmd {
 }
 
 // GetSize returns the current dimensions
-func (e *editorCmp) GetSize() (width, height int) {
+func (e *editor) GetSize() (width, height int) {
 	return e.width, e.height
 }
 
 // Focus gives focus to the component
-func (e *editorCmp) Focus() tea.Cmd {
+func (e *editor) Focus() tea.Cmd {
 	return e.textarea.Focus()
 }
 
 // Blur removes focus from the component
-func (e *editorCmp) Blur() tea.Cmd {
+func (e *editor) Blur() tea.Cmd {
 	e.textarea.Blur()
 	return nil
 }
 
 // IsFocused returns whether the component is focused
-func (e *editorCmp) IsFocused() bool {
+func (e *editor) IsFocused() bool {
 	return e.textarea.Focused()
 }
 
 // Bindings returns key bindings for the component
-func (e *editorCmp) Bindings() []key.Binding {
+func (e *editor) Bindings() []key.Binding {
 	return []key.Binding{
 		key.NewBinding(
 			key.WithKeys("ctrl+enter"),
@@ -143,6 +143,6 @@ func (e *editorCmp) Bindings() []key.Binding {
 }
 
 // Help returns the help information
-func (e *editorCmp) Help() help.KeyMap {
-	return core.NewSimpleHelp(e.Bindings(), [][]key.Binding{e.Bindings()})
+func (e *editor) Help() help.KeyMap {
+	return core.NewSimpleHelp(e.Bindings())
 }

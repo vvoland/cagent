@@ -47,9 +47,7 @@ type appModel struct {
 
 // KeyMap defines global key bindings
 type KeyMap struct {
-	Quit         key.Binding
-	Help         key.Binding
-	pageBindings []key.Binding
+	Quit key.Binding
 }
 
 // DefaultKeyMap returns the default global key bindings
@@ -59,11 +57,6 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("ctrl+c"),
 			key.WithHelp("ctrl+c", "quit"),
 		),
-		Help: key.NewBinding(
-			key.WithKeys("ctrl+g"),
-			key.WithHelp("ctrl+g", "help"),
-		),
-		pageBindings: []key.Binding{},
 	}
 }
 
@@ -215,9 +208,6 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, a.keyMap.Quit):
 		return tea.Quit
-	case key.Matches(msg, a.keyMap.Help):
-		// Toggle help (would be implemented with a help system)
-		return nil
 	default:
 		updated, cmd := a.chatPage.Update(msg)
 		a.chatPage = updated.(chatpage.Page)

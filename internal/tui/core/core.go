@@ -13,26 +13,24 @@ type KeyMapHelp interface {
 
 // simpleHelp implements help.KeyMap with simple key bindings
 type simpleHelp struct {
-	shortList []key.Binding
-	fullList  [][]key.Binding
+	list []key.Binding
 }
 
 // NewSimpleHelp creates a new simple help system
-func NewSimpleHelp(shortList []key.Binding, fullList [][]key.Binding) help.KeyMap {
+func NewSimpleHelp(list []key.Binding) help.KeyMap {
 	return &simpleHelp{
-		shortList: shortList,
-		fullList:  fullList,
+		list,
 	}
-}
-
-// FullHelp implements help.KeyMap
-func (s *simpleHelp) FullHelp() [][]key.Binding {
-	return s.fullList
 }
 
 // ShortHelp implements help.KeyMap
 func (s *simpleHelp) ShortHelp() []key.Binding {
-	return s.shortList
+	return s.list
+}
+
+// FullHelp implements help.KeyMap
+func (s *simpleHelp) FullHelp() [][]key.Binding {
+	return [][]key.Binding{}
 }
 
 // CmdHandler creates a command that returns the given message

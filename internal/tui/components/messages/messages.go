@@ -280,7 +280,7 @@ func (m *model) Bindings() []key.Binding {
 
 // Help returns the help information
 func (m *model) Help() help.KeyMap {
-	return core.NewSimpleHelp(m.Bindings(), [][]key.Binding{m.Bindings()})
+	return core.NewSimpleHelp(m.Bindings())
 }
 
 // Simple scrolling methods

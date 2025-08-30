@@ -61,10 +61,8 @@ type chatPage struct {
 
 // KeyMap defines key bindings for the chat page
 type KeyMap struct {
-	Tab   key.Binding
-	Quit  key.Binding
-	Send  key.Binding
-	Focus key.Binding
+	Tab  key.Binding
+	Quit key.Binding
 }
 
 // DefaultKeyMap returns the default key bindings
@@ -77,14 +75,6 @@ func DefaultKeyMap() KeyMap {
 		Quit: key.NewBinding(
 			key.WithKeys("ctrl+c"),
 			key.WithHelp("ctrl+c", "quit"),
-		),
-		Send: key.NewBinding(
-			key.WithKeys("enter"),
-			key.WithHelp("enter", "send message"),
-		),
-		Focus: key.NewBinding(
-			key.WithKeys("ctrl+f"),
-			key.WithHelp("ctrl+f", "focus chat"),
 		),
 	}
 }
@@ -149,9 +139,6 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return p, tea.Quit
 		case key.Matches(msg, p.keyMap.Tab):
 			p.switchFocus()
-			return p, nil
-		case key.Matches(msg, p.keyMap.Focus):
-			p.setFocusToChat()
 			return p, nil
 		}
 
@@ -371,7 +358,7 @@ func (p *chatPage) Bindings() []key.Binding {
 
 // Help returns help information
 func (p *chatPage) Help() help.KeyMap {
-	return core.NewSimpleHelp(p.Bindings(), [][]key.Binding{p.Bindings()})
+	return core.NewSimpleHelp(p.Bindings())
 }
 
 // switchFocus cycles between the focusable panels
@@ -393,22 +380,6 @@ func (p *chatPage) switchFocus() {
 		p.focusedPanel = PanelChat
 		p.messages.Focus()
 	}
-}
-
-// setFocusToChat directly sets focus to the chat panel
-func (p *chatPage) setFocusToChat() {
-	// Clear focus from current panel
-	switch p.focusedPanel {
-	case PanelChat:
-		// Already focused on chat, nothing to do
-		return
-	case PanelEditor:
-		p.editor.Blur()
-	}
-
-	// Set focus to chat panel
-	p.focusedPanel = PanelChat
-	p.messages.Focus()
 }
 
 // setFocusToEditor directly sets focus to the editor panel
