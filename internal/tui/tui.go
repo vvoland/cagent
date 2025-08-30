@@ -100,21 +100,6 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.dialog = u.(dialog.Manager)
 		return a, dialogCmd
 
-	case tea.KeyboardEnhancementsMsg:
-		var cmds []tea.Cmd
-		m, pageCmd := a.chatPage.Update(msg)
-		a.chatPage = m.(chatpage.Page)
-		if pageCmd != nil {
-			cmds = append(cmds, pageCmd)
-		}
-
-		u, dialogCmd := a.dialog.Update(msg)
-		a.dialog = u.(dialog.Manager)
-		if dialogCmd != nil {
-			cmds = append(cmds, dialogCmd)
-		}
-		return a, tea.Batch(cmds...)
-
 	case tea.WindowSizeMsg:
 		a.wWidth, a.wHeight = msg.Width, msg.Height
 		cmd := a.handleWindowResize(msg.Width, msg.Height)
@@ -124,19 +109,13 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := a.handleKeyPressMsg(msg)
 		return a, cmd
 
-	case tea.MouseWheelMsg, tea.MouseClickMsg, tea.MouseMotionMsg, tea.MouseReleaseMsg:
+	case tea.MouseWheelMsg:
 		// If dialogs are active, they get priority for mouse events
 		if a.dialog.HasDialog() {
 			u, dialogCmd := a.dialog.Update(msg)
 			a.dialog = u.(dialog.Manager)
 			return a, dialogCmd
 		}
-		// Otherwise forward to chat page
-		updated, cmd := a.chatPage.Update(msg)
-		a.chatPage = updated.(chatpage.Page)
-		return a, cmd
-
-	case tea.PasteMsg:
 		// Otherwise forward to chat page
 		updated, cmd := a.chatPage.Update(msg)
 		a.chatPage = updated.(chatpage.Page)
@@ -214,8 +193,6 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
 		return cmd
 	}
 }
-
-// moveToPage is no longer needed since we only have one page
 
 // View renders the complete application interface
 func (a *appModel) View() string {
