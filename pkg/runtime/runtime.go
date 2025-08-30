@@ -323,6 +323,9 @@ func (r *Runtime) handleStream(stream chat.MessageStream, a *agent.Agent, sess *
 			}
 		}
 
+		if len(response.Choices) == 0 {
+			continue
+		}
 		choice := response.Choices[0]
 		if choice.FinishReason == chat.FinishReasonStop {
 			return toolCalls, fullContent.String(), true, nil
