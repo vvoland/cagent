@@ -20,17 +20,12 @@ var lastMouseEvent time.Time
 // MouseEventFilter filters mouse events to prevent spam
 func MouseEventFilter(m tea.Model, msg tea.Msg) tea.Msg {
 	switch msg.(type) {
-	case tea.MouseMotionMsg:
+	case tea.MouseWheelMsg, tea.MouseMotionMsg:
 		now := time.Now()
-		// trackpad is sending too many motion events
-		if now.Sub(lastMouseEvent) < 15*time.Millisecond {
+		if now.Sub(lastMouseEvent) < 50*time.Millisecond {
 			return nil
 		}
 		lastMouseEvent = now
-	case tea.MouseWheelMsg:
-		// Don't filter mouse wheel events - they're needed for scrolling
-		// User scrolling should be responsive
-		return msg
 	}
 	return msg
 }
