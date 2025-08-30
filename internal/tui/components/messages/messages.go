@@ -1,12 +1,14 @@
 package messages
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/v2/help"
 	"github.com/charmbracelet/bubbles/v2/key"
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/glamour/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 
 	"github.com/docker/cagent/internal/app"
 	"github.com/docker/cagent/internal/tui/components/message"
@@ -28,7 +30,6 @@ type Model interface {
 	AddAssistantMessage() tea.Cmd
 	AddSeparatorMessage() tea.Cmd
 	AddOrUpdateToolCall(toolName, toolCallID, arguments string, status types.ToolStatus) tea.Cmd
-	// AddToolResult adds a tool result message or updates existing tool call with result
 	AddToolResult(toolName, toolCallID, result string, status types.ToolStatus) tea.Cmd
 	AppendToLastMessage(agentName string, content string) tea.Cmd
 	ClearMessages()
@@ -36,33 +37,46 @@ type Model interface {
 	FocusToolInConfirmation() tea.Cmd
 }
 
+// renderedItem represents a cached rendered message with position information
+type renderedItem struct {
+	id     string // Message ID or index as string
+	view   string // Cached rendered content
+	height int    // Height in lines
+	start  int    // Starting line position in complete content
+	end    int    // Ending line position in complete content
+}
+
 // model implements Model
 type model struct {
-	renderer     *glamour.TermRenderer
-	messages     []types.Message
-	views        []util.HeightableModel
-	width        int
-	height       int
-	focused      bool
-	scrollOffset int // Current scroll position in lines
-	totalHeight  int // Total height of all content
-	app          *app.App
-	toolFocused  tool.Model // Currently focused tool for confirmation
+	renderer    *glamour.TermRenderer
+	messages    []types.Message
+	views       []util.HeightableModel
+	width       int
+	height      int
+	focused     bool
+	app         *app.App
+	toolFocused tool.Model
+
+	// Height tracking system fields
+	scrollOffset  int                     // Current scroll position in lines
+	rendered      string                  // Complete rendered content string
+	renderedItems map[string]renderedItem // Cache of rendered items with positions
+	totalHeight   int                     // Total height of all content in lines
 }
 
 // New creates a new message list component
 func New(a *app.App) Model {
-	mlc := &model{
-		messages:     make([]types.Message, 0),
-		views:        make([]util.HeightableModel, 0),
-		width:        80, // Default width
-		height:       24, // Default height
-		scrollOffset: 0,
-		totalHeight:  0,
-		app:          a,
+	return &model{
+		messages:      make([]types.Message, 0),
+		views:         make([]util.HeightableModel, 0),
+		width:         80,
+		height:        24,
+		scrollOffset:  0,
+		app:           a,
+		rendered:      "",
+		renderedItems: make(map[string]renderedItem),
+		totalHeight:   0,
 	}
-
-	return mlc
 }
 
 // Init initializes the component
@@ -85,23 +99,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		// Update component dimensions
 		cmd := m.SetSize(msg.Width, msg.Height)
 		if cmd != nil {
 			cmds = append(cmds, cmd)
 		}
-		// Ensure scroll position is still valid after resize
-		maxScroll := max(0, m.totalHeight-m.height)
-		if m.scrollOffset > maxScroll {
-			m.scrollOffset = maxScroll
-		}
-		// Continue processing other updates after resize
 
 	case tea.MouseWheelMsg:
-		// Use a reasonable scroll amount (3 lines per wheel event)
 		const mouseScrollAmount = 3
-
-		// Use Button field for direction detection since Y is always positive on this system
 		buttonStr := msg.Button.String()
 
 		switch buttonStr {
@@ -114,14 +118,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.scrollDown()
 			}
 		default:
-			// Fallback to Y value for systems that use it correctly
 			if msg.Y < 0 {
-				// Use smaller scroll amount for negative Y systems too
 				for range min(-msg.Y, mouseScrollAmount) {
 					m.scrollUp()
 				}
 			} else if msg.Y > 0 {
-				// Use smaller scroll amount for positive Y systems too
 				for range min(msg.Y, mouseScrollAmount) {
 					m.scrollDown()
 				}
@@ -130,7 +131,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyPressMsg:
-		// Handle scrolling keys regardless of focus
 		switch msg.String() {
 		case "up", "k":
 			m.scrollUp()
@@ -152,7 +152,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// If focused and a tool needs confirmation, handle that first
 		if m.focused && m.toolFocused != nil {
 			if updatedModel, cmd := m.toolFocused.Update(msg); cmd != nil {
 				m.toolFocused = updatedModel.(tool.Model)
@@ -164,7 +163,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Forward updates to all message views (for spinner updates)
+	// Forward updates to all message views
 	for i, view := range m.views {
 		updatedView, cmd := view.Update(msg)
 		if updatedView != nil {
@@ -178,9 +177,36 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-// View renders the component
 func (m *model) View() string {
-	return m.renderVisibleViews()
+	if len(m.messages) == 0 {
+		return ""
+	}
+
+	// Ensure all items are rendered and positioned
+	m.ensureAllItemsRendered()
+
+	if m.totalHeight == 0 {
+		return ""
+	}
+
+	// Calculate viewport bounds
+	maxScrollOffset := max(0, m.totalHeight-m.height)
+	m.scrollOffset = max(0, min(m.scrollOffset, maxScrollOffset))
+
+	// Extract visible portion from complete rendered content
+	lines := strings.Split(m.rendered, "\n")
+	if len(lines) == 0 {
+		return ""
+	}
+
+	startLine := m.scrollOffset
+	endLine := min(startLine+m.height, len(lines))
+
+	if startLine >= endLine {
+		return ""
+	}
+
+	return strings.Join(lines[startLine:endLine], "\n")
 }
 
 // SetSize sets the dimensions of the component
@@ -188,12 +214,12 @@ func (m *model) SetSize(width, height int) tea.Cmd {
 	m.width = width
 	m.height = height
 
-	// Ensure minimum width for renderer to prevent issues
+	// Ensure minimum width
 	if width < 10 {
 		width = 10
 	}
 
-	// Initialize or update markdown renderer to match available width
+	// Initialize or update renderer
 	if r, err := glamour.NewTermRenderer(
 		glamour.WithWordWrap(width),
 		glamour.WithStandardStyle("dark"),
@@ -201,6 +227,19 @@ func (m *model) SetSize(width, height int) tea.Cmd {
 		m.renderer = r
 	}
 
+	// Update all views with new size
+	for _, view := range m.views {
+		// Type switch to get the SetSize method
+		switch v := view.(type) {
+		case message.Model:
+			v.SetSize(width, 0)
+		case tool.Model:
+			v.SetSize(width, 0)
+		}
+	}
+
+	// Size changes may affect item rendering, invalidate all items
+	m.invalidateAllItems()
 	return nil
 }
 
@@ -245,18 +284,159 @@ func (m *model) Help() help.KeyMap {
 	return core.NewSimpleHelp(m.Bindings(), [][]key.Binding{m.Bindings()})
 }
 
+// Simple scrolling methods
+const defaultScrollAmount = 1
+
+func (m *model) scrollUp() {
+	if m.scrollOffset > 0 {
+		m.scrollOffset = max(0, m.scrollOffset-defaultScrollAmount)
+	}
+}
+
+func (m *model) scrollDown() {
+	m.scrollOffset += defaultScrollAmount
+}
+
+func (m *model) scrollPageUp() {
+	m.scrollOffset = max(0, m.scrollOffset-m.height)
+}
+
+func (m *model) scrollPageDown() {
+	m.scrollOffset += m.height
+}
+
+func (m *model) scrollToTop() {
+	m.scrollOffset = 0
+}
+
+func (m *model) scrollToBottom() {
+	m.scrollOffset = 9_999_999 // Will be clamped in View()
+}
+
+// renderItem creates a renderedItem for a specific view with caching
+func (m *model) renderItem(index int, view util.HeightableModel) renderedItem {
+	id := m.getItemID(index)
+
+	// Check cache first
+	if cached, exists := m.renderedItems[id]; exists {
+		return cached
+	}
+
+	// Render the item
+	rendered := view.View()
+	height := strings.Count(rendered, "\n") + 1
+	if rendered == "" {
+		height = 0
+	}
+
+	item := renderedItem{
+		id:     id,
+		view:   rendered,
+		height: height,
+	}
+
+	m.renderedItems[id] = item
+	return item
+}
+
+// ensureAllItemsRendered ensures all message items are rendered and positioned
+func (m *model) ensureAllItemsRendered() {
+	if len(m.views) == 0 {
+		m.rendered = ""
+		m.totalHeight = 0
+		return
+	}
+
+	// Render all items and calculate their positions
+	var allLines []string
+	currentPosition := 0
+
+	for i, view := range m.views {
+		item := m.renderItem(i, view)
+
+		// Update position information
+		item.start = currentPosition
+		if item.height > 0 {
+			item.end = currentPosition + item.height - 1
+		} else {
+			item.end = currentPosition
+		}
+
+		// Add content to complete rendered string
+		if item.view != "" {
+			lines := strings.Split(item.view, "\n")
+			allLines = append(allLines, lines...)
+			currentPosition += len(lines)
+		}
+
+		// Add separator between messages (but not after last message)
+		if i < len(m.views)-1 && item.view != "" {
+			allLines = append(allLines, "")
+			currentPosition += 1
+		}
+
+		// Update cache with position information
+		m.renderedItems[item.id] = item
+	}
+
+	m.rendered = strings.Join(allLines, "\n")
+	m.totalHeight = len(allLines)
+}
+
+// invalidateItem removes an item from cache, forcing re-render
+func (m *model) invalidateItem(index int) {
+	id := m.getItemID(index)
+	delete(m.renderedItems, id)
+}
+
+// invalidateAllItems clears the entire cache
+func (m *model) invalidateAllItems() {
+	m.renderedItems = make(map[string]renderedItem)
+	m.rendered = ""
+	m.totalHeight = 0
+}
+
+// getItemID returns a unique ID for a message at the given index
+func (m *model) getItemID(index int) string {
+	if index >= 0 && index < len(m.messages) {
+		// Use a combination of index and message type/content hash for uniqueness
+		msg := m.messages[index]
+		return fmt.Sprintf("%d-%d-%d", index, int(msg.Type), len(msg.Content))
+	}
+	return fmt.Sprintf("%d", index)
+}
+
+// isAtBottom returns true if the viewport is at the bottom
+func (m *model) isAtBottom() bool {
+	if len(m.messages) == 0 {
+		return true
+	}
+
+	totalHeight := lipgloss.Height(m.rendered) - 1
+	maxScrollOffset := max(0, totalHeight-m.height)
+	return m.scrollOffset >= maxScrollOffset
+}
+
 // AddUserMessage adds a user message to the chat
 func (m *model) AddUserMessage(content string) tea.Cmd {
 	msg := types.Message{
 		Type:    types.MessageTypeUser,
 		Content: content,
 	}
+
+	wasAtBottom := m.isAtBottom()
 	m.messages = append(m.messages, msg)
 
 	view := m.createMessageView(&msg)
 	m.views = append(m.views, view)
 
-	// Initialize the new view
+	if wasAtBottom {
+		return tea.Batch(view.Init(), tea.Cmd(func() tea.Msg {
+			m.scrollToBottom()
+			return nil
+		}))
+	}
+
 	return view.Init()
 }
 
@@ -265,21 +445,25 @@ func (m *model) AddAssistantMessage() tea.Cmd {
 	msg := types.Message{
 		Type: types.MessageTypeAssistant,
 	}
+
 	wasAtBottom := m.isAtBottom()
 	m.messages = append(m.messages, msg)
 
 	view := m.createMessageView(&msg)
 	m.views = append(m.views, view)
 
-	// Initialize the new view (this will start the spinner for empty assistant messages)
 	var cmds []tea.Cmd
 	if initCmd := view.Init(); initCmd != nil {
 		cmds = append(cmds, initCmd)
 	}
+
 	if wasAtBottom {
-		// Scroll to bottom synchronously after adding content
-		m.scrollToBottom()
+		cmds = append(cmds, tea.Cmd(func() tea.Msg {
+			m.scrollToBottom()
+			return nil
+		}))
 	}
+
 	return tea.Batch(cmds...)
 }
 
@@ -299,23 +483,23 @@ func (m *model) AddSeparatorMessage() tea.Cmd {
 
 // AddOrUpdateToolCall adds a tool call or updates existing one with the given status
 func (m *model) AddOrUpdateToolCall(toolName, toolCallID, arguments string, status types.ToolStatus) tea.Cmd {
-	// First try to update existing tool by ID (more precise)
+	// First try to update existing tool by ID
 	for i := len(m.messages) - 1; i >= 0; i-- {
 		msg := &m.messages[i]
 		if msg.ToolCallID == toolCallID {
 			msg.ToolStatus = status
 			if arguments != "" {
-				msg.Arguments = arguments // Update arguments if provided
+				msg.Arguments = arguments
 			}
 			// Update the corresponding view
 			view := m.createToolCallView(msg)
 			m.views[i] = view
-			// Initialize the updated view
+			m.invalidateItem(i)
 			return view.Init()
 		}
 	}
 
-	// If not found by ID, check if we need to remove last empty assistant message
+	// If not found by ID, remove last empty assistant message
 	m.removeLastEmptyAssistantMessage()
 
 	// Create new tool call
@@ -331,27 +515,23 @@ func (m *model) AddOrUpdateToolCall(toolName, toolCallID, arguments string, stat
 	view := m.createToolCallView(&msg)
 	m.views = append(m.views, view)
 
-	// Initialize the new view
 	return view.Init()
 }
 
 // AddToolResult adds tool result to the most recent matching tool call
 func (m *model) AddToolResult(toolName, toolCallID, result string, status types.ToolStatus) tea.Cmd {
-	// Find the tool call with matching name and ID and update it with the result
 	for i := len(m.messages) - 1; i >= 0; i-- {
 		msg := &m.messages[i]
 		if msg.ToolCallID == toolCallID {
-			// Update the existing tool call message with the result content
 			msg.Content = result
 			msg.ToolStatus = status
 			// Update the corresponding view
 			view := m.createToolCallView(msg)
 			m.views[i] = view
-			// Initialize the updated view
+			m.invalidateItem(i)
 			return view.Init()
 		}
 	}
-
 	return nil
 }
 
@@ -363,25 +543,27 @@ func (m *model) AppendToLastMessage(agentName, content string) tea.Cmd {
 	lastIdx := len(m.messages) - 1
 	lastMsg := &m.messages[lastIdx]
 
-	// Only append to assistant messages - if last message is not assistant, create new one
 	if lastMsg.Type == types.MessageTypeAssistant {
 		wasAtBottom := m.isAtBottom()
 		lastMsg.Content += content
 		// Update the corresponding view
 		view := m.createMessageView(lastMsg)
 		m.views[lastIdx] = view
-		// Initialize the updated view (needed for spinner state changes)
+		m.invalidateItem(lastIdx)
+
 		var cmds []tea.Cmd
 		if initCmd := view.Init(); initCmd != nil {
 			cmds = append(cmds, initCmd)
 		}
 		if wasAtBottom {
-			// Scroll to bottom synchronously after content update
-			m.scrollToBottom()
+			cmds = append(cmds, tea.Cmd(func() tea.Msg {
+				m.scrollToBottom()
+				return nil
+			}))
 		}
 		return tea.Batch(cmds...)
 	} else {
-		// Last message is not assistant (probably a tool), create new assistant message
+		// Create new assistant message
 		msg := types.Message{
 			Type:    types.MessageTypeAssistant,
 			Content: content,
@@ -393,14 +575,15 @@ func (m *model) AppendToLastMessage(agentName, content string) tea.Cmd {
 		view := m.createMessageView(&msg)
 		m.views = append(m.views, view)
 
-		// Initialize the new view
 		var cmds []tea.Cmd
 		if initCmd := view.Init(); initCmd != nil {
 			cmds = append(cmds, initCmd)
 		}
 		if wasAtBottom {
-			// Scroll to bottom synchronously after adding content
-			m.scrollToBottom()
+			cmds = append(cmds, tea.Cmd(func() tea.Msg {
+				m.scrollToBottom()
+				return nil
+			}))
 		}
 		return tea.Batch(cmds...)
 	}
@@ -411,141 +594,35 @@ func (m *model) ClearMessages() {
 	m.messages = make([]types.Message, 0)
 	m.views = make([]util.HeightableModel, 0)
 	m.scrollOffset = 0
+	m.rendered = ""
 	m.totalHeight = 0
+	m.renderedItems = make(map[string]renderedItem)
 }
 
 // ScrollToBottom scrolls to the bottom of the chat
 func (m *model) ScrollToBottom() tea.Cmd {
-	// Make this synchronous to prevent race conditions
-	m.scrollToBottom()
-	return nil
+	return tea.Cmd(func() tea.Msg {
+		m.scrollToBottom()
+		return nil
+	})
 }
-
-// Virtual list implementation methods
 
 func (m *model) createToolCallView(msg *types.Message) tool.Model {
 	view := tool.New(msg, m.app)
 	view.SetRenderer(m.renderer)
-	view.SetSize(m.width, 0) // Height will be calculated dynamically
+	view.SetSize(m.width, 0)
 	return view
 }
 
-// createMessageView creates a properly initialized MessageView
 func (m *model) createMessageView(msg *types.Message) message.Model {
 	view := message.New(msg)
 	view.SetRenderer(m.renderer)
-	view.SetSize(m.width, 0) // Height will be calculated dynamically
+	view.SetSize(m.width, 0)
 	return view
-}
-
-// calculateTotalHeight calculates the total height of all content
-func (m *model) calculateTotalHeight() {
-	m.totalHeight = 0
-
-	for _, view := range m.views {
-		height := view.Height(m.width)
-		m.totalHeight += height
-	}
-}
-
-// isAtBottom returns true if the viewport is scrolled to the bottom
-func (m *model) isAtBottom() bool {
-	// Always recalculate height before checking bottom position
-	m.calculateTotalHeight()
-	maxScroll := max(0, m.totalHeight-m.height)
-	return m.scrollOffset >= maxScroll
-}
-
-// renderVisibleViews renders only the views that are currently visible
-func (m *model) renderVisibleViews() string {
-	if len(m.views) == 0 {
-		return ""
-	}
-
-	var content strings.Builder
-	currentLine := 0
-	hasWrittenLine := false
-
-	writeLine := func(line string) {
-		if hasWrittenLine {
-			content.WriteString("\n")
-		}
-		content.WriteString(line)
-		hasWrittenLine = true
-	}
-
-	viewportStart := m.scrollOffset
-	viewportEnd := m.scrollOffset + m.height
-
-	for _, view := range m.views {
-		// Get view height
-		viewHeight := view.Height(m.width)
-
-		itemStart := currentLine
-		itemEnd := currentLine + viewHeight
-
-		// If item is at least partially visible
-		if itemEnd > viewportStart && itemStart < viewportEnd {
-			// Add the view content
-			viewContent := view.View()
-			viewLines := strings.SplitSeq(viewContent, "\n")
-			for line := range viewLines {
-				if currentLine >= viewportStart && currentLine < viewportEnd {
-					writeLine(line)
-				}
-				currentLine++
-			}
-		} else {
-			// Item not visible, just advance the line counter
-			currentLine += viewHeight
-		}
-
-		// Stop rendering if we're past the visible area
-		if currentLine >= viewportEnd {
-			break
-		}
-	}
-
-	return content.String()
-}
-
-// Scrolling methods
-const defaultScrollAmount = 3 // Number of lines to scroll per scroll action
-
-func (m *model) scrollUp() {
-	if m.scrollOffset > 0 {
-		m.scrollOffset = max(0, m.scrollOffset-defaultScrollAmount)
-	}
-}
-
-func (m *model) scrollDown() {
-	maxScroll := max(0, m.totalHeight-m.height)
-	if m.scrollOffset < maxScroll {
-		m.scrollOffset = min(maxScroll, m.scrollOffset+defaultScrollAmount)
-	}
-}
-
-func (m *model) scrollPageUp() {
-	m.scrollOffset = max(0, m.scrollOffset-m.height)
-}
-
-func (m *model) scrollPageDown() {
-	maxScroll := max(0, m.totalHeight-m.height)
-	m.scrollOffset = min(maxScroll, m.scrollOffset+m.height)
-}
-
-func (m *model) scrollToTop() {
-	m.scrollOffset = 0
-}
-
-func (m *model) scrollToBottom() {
-	maxScroll := max(0, m.totalHeight-m.height)
-	m.scrollOffset = maxScroll
 }
 
 // FocusToolInConfirmation finds and focuses the first tool that needs confirmation
 func (m *model) FocusToolInConfirmation() tea.Cmd {
-	// Find the tool that needs confirmation (search backwards to get the most recent)
 	for i := len(m.messages) - 1; i >= 0; i-- {
 		msg := m.messages[i]
 		if msg.Type == types.MessageTypeToolCall && msg.ToolStatus == types.ToolStatusConfirmation {
@@ -566,13 +643,12 @@ func (m *model) removeLastEmptyAssistantMessage() {
 		lastIdx := len(m.messages) - 1
 		lastMessage := m.messages[lastIdx]
 
-		// Check if last message is an assistant message with empty content
 		if lastMessage.Type == types.MessageTypeAssistant && strings.Trim(lastMessage.Content, "\r\n\t ") == "" {
-			// Remove the last message and its corresponding view
 			m.messages = m.messages[:lastIdx]
 			if len(m.views) > lastIdx {
 				m.views = m.views[:lastIdx]
 			}
+			m.invalidateItem(lastIdx)
 		}
 	}
 }

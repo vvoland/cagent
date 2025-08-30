@@ -22,7 +22,7 @@ func MouseEventFilter(m tea.Model, msg tea.Msg) tea.Msg {
 	switch msg.(type) {
 	case tea.MouseWheelMsg, tea.MouseMotionMsg:
 		now := time.Now()
-		if now.Sub(lastMouseEvent) < 50*time.Millisecond {
+		if now.Sub(lastMouseEvent) < 20*time.Millisecond {
 			return nil
 		}
 		lastMouseEvent = now
