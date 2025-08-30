@@ -578,6 +578,7 @@ func (m *model) AppendToLastMessage(agentName, content string) tea.Cmd {
 	if lastMsg.Type == types.MessageTypeAssistant {
 		wasAtBottom := m.isAtBottom()
 		lastMsg.Content += content
+		lastMsg.Sender = agentName
 		// Update the corresponding view
 		view := m.createMessageView(lastMsg)
 		m.views[lastIdx] = view
