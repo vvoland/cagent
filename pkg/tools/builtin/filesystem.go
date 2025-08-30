@@ -88,6 +88,9 @@ func (t *FilesystemTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "directory_tree",
 				Description: "Get a recursive tree view of files and directories as a JSON structure.",
+				Annotations: tools.ToolAnnotation{
+					ReadOnlyHint: &[]bool{true}[0],
+				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
@@ -148,6 +151,9 @@ func (t *FilesystemTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "get_file_info",
 				Description: "Retrieve detailed metadata about a file or directory.",
+				Annotations: tools.ToolAnnotation{
+					ReadOnlyHint: &[]bool{true}[0],
+				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
@@ -165,6 +171,9 @@ func (t *FilesystemTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "list_allowed_directories",
 				Description: "Returns a list of directories that the server has permission to access.",
+				Annotations: tools.ToolAnnotation{
+					ReadOnlyHint: &[]bool{true}[0],
+				},
 				Parameters: tools.FunctionParamaters{
 					Type:       "object",
 					Properties: map[string]any{},
@@ -201,6 +210,9 @@ func (t *FilesystemTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "list_directory",
 				Description: "Get a detailed listing of all files and directories in a specified path.",
+				Annotations: tools.ToolAnnotation{
+					ReadOnlyHint: &[]bool{true}[0],
+				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
@@ -218,6 +230,9 @@ func (t *FilesystemTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "list_directory_with_sizes",
 				Description: "Get a detailed listing of all files and directories in a specified path, including sizes.",
+				Annotations: tools.ToolAnnotation{
+					ReadOnlyHint: &[]bool{true}[0],
+				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
@@ -256,6 +271,9 @@ func (t *FilesystemTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "read_file",
 				Description: "Read the complete contents of a file from the file system.",
+				Annotations: tools.ToolAnnotation{
+					ReadOnlyHint: &[]bool{true}[0],
+				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
@@ -273,6 +291,9 @@ func (t *FilesystemTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "read_multiple_files",
 				Description: "Read the contents of multiple files simultaneously.",
+				Annotations: tools.ToolAnnotation{
+					ReadOnlyHint: &[]bool{true}[0],
+				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
@@ -293,6 +314,9 @@ func (t *FilesystemTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "search_files",
 				Description: "Recursively search for files and directories matching a pattern.",
+				Annotations: tools.ToolAnnotation{
+					ReadOnlyHint: &[]bool{true}[0],
+				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
@@ -321,6 +345,9 @@ func (t *FilesystemTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "search_files_content",
 				Description: "Searches for text or regex patterns in the content of files matching a GLOB pattern.",
+				Annotations: tools.ToolAnnotation{
+					ReadOnlyHint: &[]bool{true}[0],
+				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
