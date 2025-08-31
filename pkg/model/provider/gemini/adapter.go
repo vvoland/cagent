@@ -172,6 +172,11 @@ func NewNonStreamingAdapter(response *genai.GenerateContentResponse, model strin
 			if funcs := response.FunctionCalls(); len(funcs) > 0 {
 				adapter.ch <- result{resp: response}
 			}
+
+			// Send usage information if available (as a separate chunk)
+			if response.UsageMetadata != nil {
+				adapter.ch <- result{resp: response}
+			}
 		}
 
 		// Send final message
@@ -212,6 +217,16 @@ func (g *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		}
 	} else if res.resp != nil {
 		resp.ID = res.resp.ResponseID
+
+		// Handle token usage if present
+		if res.resp.UsageMetadata != nil {
+			resp.Usage = &chat.Usage{
+				InputTokens:        int(res.resp.UsageMetadata.PromptTokenCount),
+				OutputTokens:       int(res.resp.UsageMetadata.CandidatesTokenCount),
+				CachedInputTokens:  int(res.resp.UsageMetadata.CachedContentTokenCount),
+				CachedOutputTokens: 0, // Gemini doesn't provide cached output tokens
+			}
+		}
 
 		// Handle text content without using Text() to avoid warnings
 		var textContent string
