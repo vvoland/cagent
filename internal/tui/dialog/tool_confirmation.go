@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss/v2"
 
 	"github.com/docker/cagent/internal/app"
+	"github.com/docker/cagent/internal/tui/components/todo"
 	"github.com/docker/cagent/internal/tui/core"
 )
 
@@ -195,85 +196,10 @@ func (d *toolConfirmationDialog) View() string {
 
 	// Arguments section
 	var argumentsSection string
-	if d.arguments != "" {
-		argumentsHeader := lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#6b7280")).
-			Render("Arguments:")
-
-		var formattedArgs string
-		var arguments map[string]any
-		if err := json.Unmarshal([]byte(d.arguments), &arguments); err == nil {
-			var argLines []string
-			for k, v := range arguments {
-				// Format key
-				keyStyle := lipgloss.NewStyle().
-					Bold(true).
-					Foreground(lipgloss.Color("#9ca3af"))
-				formattedKey := keyStyle.Render(k + ":")
-
-				// Format value
-				var valueStr string
-				if vStr, ok := v.(string); ok {
-					valueStr = vStr
-				} else {
-					valueBytes, _ := json.MarshalIndent(v, "", "  ")
-					valueStr = string(valueBytes)
-				}
-
-				// Truncate very long values before wrapping
-				maxValueLength := 200
-				if len(valueStr) > maxValueLength {
-					valueStr = valueStr[:maxValueLength] + "..."
-				}
-
-				// Wrap long values
-				availableWidth := contentWidth - len(k) - 6 // Account for key, colon, spaces, and indent
-				if availableWidth < 20 {
-					availableWidth = 20
-				}
-				wrappedValue := wrapText(valueStr, availableWidth)
-
-				// Limit to maximum 3 lines for readability
-				valueLines := strings.Split(wrappedValue, "\n")
-				if len(valueLines) > 3 {
-					valueLines = valueLines[:3]
-					if len(valueLines[2]) > availableWidth-3 {
-						valueLines[2] = valueLines[2][:availableWidth-3] + "..."
-					} else {
-						valueLines[2] += "..."
-					}
-					wrappedValue = strings.Join(valueLines, "\n")
-				}
-
-				// Indent wrapped lines
-				valueLines = strings.Split(wrappedValue, "\n")
-				if len(valueLines) > 1 {
-					for i := 1; i < len(valueLines); i++ {
-						valueLines[i] = "    " + valueLines[i]
-					}
-					wrappedValue = strings.Join(valueLines, "\n")
-				}
-
-				valueStyled := lipgloss.NewStyle().
-					Foreground(lipgloss.Color("#6b7280")).
-					Render(wrappedValue)
-
-				argLines = append(argLines, fmt.Sprintf("  %s %s", formattedKey, valueStyled))
-			}
-			formattedArgs = strings.Join(argLines, "\n")
-		} else {
-			// If JSON unmarshaling fails, truncate and wrap the raw arguments
-			rawArgs := d.arguments
-			if len(rawArgs) > 150 {
-				rawArgs = rawArgs[:150] + "..."
-			}
-			formattedArgs = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#6b7280")).
-				Render("  " + wrapText(rawArgs, contentWidth-2))
-		}
-
-		argumentsSection = lipgloss.JoinVertical(lipgloss.Left, argumentsHeader, "", formattedArgs)
+	if d.toolName == "create_todos" || d.toolName == "create_todo" {
+		argumentsSection = d.renderTodo(contentWidth)
+	} else {
+		argumentsSection = d.renderArguments(contentWidth)
 	}
 
 	// Question
@@ -305,6 +231,103 @@ func (d *toolConfirmationDialog) View() string {
 	return dialogStyle.Render(content)
 }
 
+func (d *toolConfirmationDialog) renderTodo(contentWidth int) string {
+	todoComponent := todo.NewComponent()
+	todoComponent.SetSize(contentWidth)
+
+	err := todoComponent.ParseTodoArguments(d.toolName, d.arguments)
+	if err != nil {
+		return ""
+	}
+	return todoComponent.Render()
+}
+
+func (d *toolConfirmationDialog) renderArguments(contentWidth int) string {
+	if d.arguments == "" {
+		return ""
+	}
+
+	argumentsHeader := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#6b7280")).
+		Render("Arguments:")
+
+	var formattedArgs string
+	var arguments map[string]any
+	if err := json.Unmarshal([]byte(d.arguments), &arguments); err == nil {
+		var argLines []string
+		// TODO: sort arguments by key
+		for k, v := range arguments {
+			// Format key
+			keyStyle := lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("#9ca3af"))
+			formattedKey := keyStyle.Render(k + ":")
+
+			// Format value
+			var valueStr string
+			if vStr, ok := v.(string); ok {
+				valueStr = vStr
+			} else {
+				valueBytes, _ := json.MarshalIndent(v, "", "  ")
+				valueStr = string(valueBytes)
+			}
+
+			// Truncate very long values before wrapping
+			maxValueLength := 200
+			if len(valueStr) > maxValueLength {
+				valueStr = valueStr[:maxValueLength] + "..."
+			}
+
+			// Wrap long values
+			availableWidth := contentWidth - len(k) - 6 // Account for key, colon, spaces, and indent
+			if availableWidth < 20 {
+				availableWidth = 20
+			}
+			wrappedValue := wrapText(valueStr, availableWidth)
+
+			// Limit to maximum 3 lines for readability
+			valueLines := strings.Split(wrappedValue, "\n")
+			if len(valueLines) > 3 {
+				valueLines = valueLines[:3]
+				if len(valueLines[2]) > availableWidth-3 {
+					valueLines[2] = valueLines[2][:availableWidth-3] + "..."
+				} else {
+					valueLines[2] += "..."
+				}
+				wrappedValue = strings.Join(valueLines, "\n")
+			}
+
+			// Indent wrapped lines
+			valueLines = strings.Split(wrappedValue, "\n")
+			if len(valueLines) > 1 {
+				for i := 1; i < len(valueLines); i++ {
+					valueLines[i] = "    " + valueLines[i]
+				}
+				wrappedValue = strings.Join(valueLines, "\n")
+			}
+
+			valueStyled := lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#6b7280")).
+				Render(wrappedValue)
+
+			argLines = append(argLines, fmt.Sprintf("  %s %s", formattedKey, valueStyled))
+		}
+		formattedArgs = strings.Join(argLines, "\n")
+	} else {
+		// If JSON unmarshaling fails, truncate and wrap the raw arguments
+		rawArgs := d.arguments
+		if len(rawArgs) > 150 {
+			rawArgs = rawArgs[:150] + "..."
+		}
+		formattedArgs = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#6b7280")).
+			Render("  " + wrapText(rawArgs, contentWidth-2))
+	}
+
+	return lipgloss.JoinVertical(lipgloss.Left, argumentsHeader, "", formattedArgs)
+}
+
 // Position calculates the position to center the dialog
 func (d *toolConfirmationDialog) Position() (row, col int) {
 	// Calculate dialog width (same logic as in View())
@@ -322,6 +345,13 @@ func (d *toolConfirmationDialog) Position() (row, col int) {
 		// Add height for arguments section
 		// Rough estimation: 3 lines for header + arguments
 		dialogHeight += 5
+	}
+
+	// Add height for todo preview section if todo-related tools
+	if d.toolName == "create_todos" || d.toolName == "create_todo" && d.arguments != "" {
+		// Add height for preview section header and content
+		// Rough estimation: 2 lines for header + variable lines for todos
+		dialogHeight += 6
 	}
 
 	row = (d.height - dialogHeight) / 2

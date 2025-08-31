@@ -213,7 +213,7 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Check if this is a todo-related tool call and update sidebar
 		toolName := msg.ToolCall.Function.Name
-		if toolName == "todo_write" || toolName == "create_todo" || toolName == "create_todos" ||
+		if toolName == "create_todo" || toolName == "create_todos" ||
 			toolName == "update_todo" || toolName == "list_todos" {
 			if err := p.sidebar.SetTodoArguments(toolName, msg.ToolCall.Function.Arguments); err != nil {
 				// Log error but don't fail the tool call

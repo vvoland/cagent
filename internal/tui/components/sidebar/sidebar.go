@@ -66,9 +66,6 @@ func (m *model) SetTokenUsage(usage *runtime.Usage) {
 }
 
 func (m *model) SetTodoArguments(toolName, arguments string) error {
-	if toolName == "todo_write" {
-		return m.todoComp.ParseTodoWriteArguments(arguments)
-	}
 	return m.todoComp.ParseTodoArguments(toolName, arguments)
 }
 
