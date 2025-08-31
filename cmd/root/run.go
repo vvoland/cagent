@@ -213,6 +213,7 @@ func runAgentCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	sess := session.New()
+	sess.Title = "Running agent"
 
 	// If the last received event was an error, return it. That way the exit code
 	// will be non-zero if the agent failed.
