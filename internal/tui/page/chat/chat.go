@@ -114,29 +114,22 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		cmd := p.SetSize(msg.Width, msg.Height)
-		// Also forward resize event to components to ensure they handle it
-		var cmds []tea.Cmd
-		if cmd != nil {
-			cmds = append(cmds, cmd)
-		}
+		cmds = append(cmds, cmd)
+
 		// Forward to sidebar component
 		sidebarModel, sidebarCmd := p.sidebar.Update(msg)
 		p.sidebar = sidebarModel.(sidebar.Model)
-		if sidebarCmd != nil {
-			cmds = append(cmds, sidebarCmd)
-		}
+		cmds = append(cmds, sidebarCmd)
+
 		// Forward to chat component
 		chatModel, chatCmd := p.messages.Update(msg)
 		p.messages = chatModel.(messages.Model)
-		if chatCmd != nil {
-			cmds = append(cmds, chatCmd)
-		}
+		cmds = append(cmds, chatCmd)
+
 		// Forward to editor component
 		editorModel, editorCmd := p.editor.Update(msg)
 		p.editor = editorModel.(editor.Editor)
-		if editorCmd != nil {
-			cmds = append(cmds, editorCmd)
-		}
+		cmds = append(cmds, editorCmd)
 		return p, tea.Batch(cmds...)
 
 	case tea.KeyPressMsg:
@@ -246,21 +239,15 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	sidebarModel, sidebarCmd := p.sidebar.Update(msg)
 	p.sidebar = sidebarModel.(sidebar.Model)
-	if sidebarCmd != nil {
-		cmds = append(cmds, sidebarCmd)
-	}
+	cmds = append(cmds, sidebarCmd)
 
 	chatModel, chatCmd := p.messages.Update(msg)
 	p.messages = chatModel.(messages.Model)
-	if chatCmd != nil {
-		cmds = append(cmds, chatCmd)
-	}
+	cmds = append(cmds, chatCmd)
 
 	editorModel, editorCmd := p.editor.Update(msg)
 	p.editor = editorModel.(editor.Editor)
-	if editorCmd != nil {
-		cmds = append(cmds, editorCmd)
-	}
+	cmds = append(cmds, editorCmd)
 
 	return p, tea.Batch(cmds...)
 }
