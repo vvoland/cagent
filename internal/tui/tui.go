@@ -12,6 +12,7 @@ import (
 	"github.com/docker/cagent/internal/tui/dialog"
 	chatpage "github.com/docker/cagent/internal/tui/page/chat"
 	"github.com/docker/cagent/internal/tui/styles"
+	"github.com/docker/cagent/pkg/runtime"
 )
 
 var lastMouseEvent time.Time
@@ -126,6 +127,13 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	default:
+		if _, isRuntimeEvent := msg.(runtime.Event); isRuntimeEvent {
+			// Always forward runtime events to chat page
+			updated, cmd := a.chatPage.Update(msg)
+			a.chatPage = updated.(chatpage.Page)
+			return a, cmd
+		}
+
 		// For other messages, check if dialogs should handle them first
 		// If dialogs are active, they get priority for input
 		if a.dialog.HasDialog() {
