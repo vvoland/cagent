@@ -740,17 +740,13 @@ func (r *Runtime) generateSessionTitle(ctx context.Context, sess *session.Sessio
 	}
 
 	// Get the generated title from the last assistant message
-	titleMessages := titleSession.GetAllMessages()
-	if len(titleMessages) > 0 {
-		lastMessage := titleMessages[len(titleMessages)-1]
-		if lastMessage.Message.Role == "assistant" {
-			title := strings.TrimSpace(lastMessage.Message.Content)
-			sess.Title = title
-			slog.Debug("Generated session title", "session_id", sess.ID, "title", title)
-			// Emit SessionTitleEvent
-			events <- SessionTitle(sess.ID, title)
-		}
+	title := titleSession.GetLastAssistantMessageContent()
+	if title == "" {
+		return
 	}
+	sess.Title = title
+	slog.Debug("Generated session title", "session_id", sess.ID, "title", title)
+	events <- SessionTitle(sess.ID, title)
 }
 
 // Summarize generates a summary for the session based on the conversation history
@@ -804,17 +800,12 @@ func (r *Runtime) Summarize(ctx context.Context, sess *session.Session, events c
 		return
 	}
 
-	// Get the generated summary from the last assistant message
-	summaryMessages := summarySession.GetAllMessages()
-	if len(summaryMessages) > 0 {
-		lastMessage := summaryMessages[len(summaryMessages)-1]
-		if lastMessage.Message.Role == "assistant" {
-			summary := strings.TrimSpace(lastMessage.Message.Content)
-			// Add the summary to the session as a summary item
-			sess.Messages = append(sess.Messages, session.Item{Summary: summary})
-			slog.Debug("Generated session summary", "session_id", sess.ID, "summary_length", len(summary))
-			// Emit SessionSummaryEvent
-			events <- SessionSummary(sess.ID, summary)
-		}
+	summary := summarySession.GetLastAssistantMessageContent()
+	if summary == "" {
+		return
 	}
+	// Add the summary to the session as a summary item
+	sess.Messages = append(sess.Messages, session.Item{Summary: summary})
+	slog.Debug("Generated session summary", "session_id", sess.ID, "summary_length", len(summary))
+	events <- SessionSummary(sess.ID, summary)
 }
