@@ -113,7 +113,7 @@ func (r *Runtime) CurrentAgent() *agent.Agent {
 // Run starts the agent's interaction loop
 func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan Event {
 	slog.Debug("Starting runtime stream", "agent", r.currentAgent, "session_id", sess.ID)
-	events := make(chan Event)
+	events := make(chan Event, 128)
 
 	go func() {
 		events <- UserMessage(sess.GetMessages(r.CurrentAgent())[len(sess.GetMessages(r.CurrentAgent()))-1].Content)

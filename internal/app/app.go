@@ -22,7 +22,7 @@ func New(agentFilename string, rt *runtime.Runtime, sess *session.Session) *App 
 		agentFilename: agentFilename,
 		runtime:       rt,
 		session:       sess,
-		events:        make(chan tea.Msg),
+		events:        make(chan tea.Msg, 128),
 	}
 }
 
@@ -31,8 +31,7 @@ func (a *App) Run(ctx context.Context, message string) {
 	go func() {
 		a.session.AddMessage(session.UserMessage(a.agentFilename, message))
 		for event := range a.runtime.RunStream(ctx, a.session) {
-			var msg tea.Msg = event
-			a.events <- msg
+			a.events <- event
 		}
 	}()
 }
