@@ -24,9 +24,8 @@ import (
 type FocusedPanel string
 
 const (
-	PanelSidebar FocusedPanel = "sidebar"
-	PanelChat    FocusedPanel = "chat"
-	PanelEditor  FocusedPanel = "editor"
+	PanelChat   FocusedPanel = "chat"
+	PanelEditor FocusedPanel = "editor"
 )
 
 // Page represents the main chat page
