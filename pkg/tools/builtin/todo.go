@@ -87,13 +87,15 @@ func (h *todoHandler) createTodos(ctx context.Context, toolCall tools.ToolCall) 
 	}
 
 	ids := make([]string, len(params.Todos))
+	start := len(h.todos)
 	for i, todo := range params.Todos {
-		id := fmt.Sprintf("todo_%d", i+1)
+		id := fmt.Sprintf("todo_%d", start+i+1)
 		todo := Todo{
 			ID:          id,
 			Description: todo.Description,
 			Status:      "pending",
 		}
+
 		h.todos[id] = todo
 		ids[i] = id
 	}
