@@ -241,11 +241,7 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
 	case *runtime.ToolCallResponseEvent:
 		spinnerCmd := p.setWorking(true)
-		// Update the tool call with the response content and completed status
 		cmd := p.messages.AddToolResult(msg.ToolCall.Function.Name, msg.ToolCall.ID, msg.Response, types.ToolStatusCompleted)
-
-		// Return focus to editor after tool execution completes
-		p.setFocusToEditor()
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
 	}
 
@@ -387,13 +383,8 @@ func (p *chatPage) Help() help.KeyMap {
 
 // switchFocus cycles between the focusable panels
 func (p *chatPage) switchFocus() {
-	// Clear focus from current panel
-	switch p.focusedPanel {
-	case PanelChat:
-		p.messages.Blur()
-	case PanelEditor:
-		p.editor.Blur()
-	}
+	p.messages.Blur()
+	p.editor.Blur()
 
 	// Move to next panel
 	switch p.focusedPanel {
@@ -404,22 +395,6 @@ func (p *chatPage) switchFocus() {
 		p.focusedPanel = PanelChat
 		p.messages.Focus()
 	}
-}
-
-// setFocusToEditor directly sets focus to the editor panel
-func (p *chatPage) setFocusToEditor() {
-	// Clear focus from current panel
-	switch p.focusedPanel {
-	case PanelEditor:
-		// Already focused on editor, nothing to do
-		return
-	case PanelChat:
-		p.messages.Blur()
-	}
-
-	// Set focus to editor panel
-	p.focusedPanel = PanelEditor
-	p.editor.Focus()
 }
 
 // processMessage processes a message with the runtime
