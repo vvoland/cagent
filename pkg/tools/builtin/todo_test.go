@@ -73,9 +73,7 @@ func TestTodoTool_CreateTodo(t *testing.T) {
 	createHandler := tls[0].Handler
 
 	// Create tool call
-	args := struct {
-		Description string `json:"description"`
-	}{
+	args := Todo{
 		Description: "Test todo item",
 	}
 	argsBytes, _ := json.Marshal(args)
@@ -114,13 +112,9 @@ func TestTodoTool_CreateTodos(t *testing.T) {
 
 	// Create multiple todos
 	args := struct {
-		Todos []struct {
-			Description string `json:"description"`
-		} `json:"todos"`
+		Todos []Todo `json:"todos"`
 	}{
-		Todos: []struct {
-			Description string `json:"description"`
-		}{
+		Todos: []Todo{
 			{
 				Description: "First todo item",
 			},
@@ -153,6 +147,33 @@ func TestTodoTool_CreateTodos(t *testing.T) {
 
 	// Verify todos were added to the handler's todos map
 	assert.Len(t, tool.handler.todos, 3)
+
+	// Create multiple todos
+	args = struct {
+		Todos []Todo `json:"todos"`
+	}{
+		Todos: []Todo{
+			{
+				Description: "Last todo item",
+			},
+		},
+	}
+	argsBytes, _ = json.Marshal(args)
+
+	toolCall = tools.ToolCall{
+		Function: tools.FunctionCall{
+			Name:      "create_todos",
+			Arguments: string(argsBytes),
+		},
+	}
+
+	// Call handler
+	result, err = createTodosHandler(context.Background(), toolCall)
+
+	require.NoError(t, err)
+	assert.Contains(t, result.Output, "Created 1 todos:")
+	assert.Contains(t, result.Output, "todo_4")
+	assert.Len(t, tool.handler.todos, 4)
 }
 
 func TestTodoTool_UpdateTodo(t *testing.T) {
@@ -167,9 +188,7 @@ func TestTodoTool_UpdateTodo(t *testing.T) {
 	updateHandler := tls[2].Handler
 
 	// First create a todo
-	createArgs := struct {
-		Description string `json:"description"`
-	}{
+	createArgs := Todo{
 		Description: "Test todo item",
 	}
 	createArgsBytes, _ := json.Marshal(createArgs)
@@ -233,13 +252,10 @@ func TestTodoTool_ListTodos(t *testing.T) {
 	}
 
 	for _, todoDesc := range todos {
-		createArgs := struct {
-			Description string `json:"description"`
-		}{
+		createArgs := Todo{
 			Description: todoDesc,
 		}
 		createArgsBytes, _ := json.Marshal(createArgs)
-
 		createToolCall := tools.ToolCall{
 			Function: tools.FunctionCall{
 				Name:      "create_todo",
