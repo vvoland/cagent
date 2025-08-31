@@ -22,6 +22,7 @@ type Editor interface {
 	layout.Sizeable
 	layout.Focusable
 	layout.Help
+	SetWorking(working bool) tea.Cmd
 }
 
 // editor implements Editor
@@ -29,6 +30,7 @@ type editor struct {
 	textarea textarea.Model
 	width    int
 	height   int
+	working  bool
 }
 
 // New creates a new editor component
@@ -68,7 +70,7 @@ func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return e, nil
 			}
 			value := e.textarea.Value()
-			if value != "" {
+			if value != "" && !e.working {
 				e.textarea.Reset()
 				return e, core.CmdHandler(SendMsg{Content: value})
 			}
@@ -145,4 +147,9 @@ func (e *editor) Bindings() []key.Binding {
 // Help returns the help information
 func (e *editor) Help() help.KeyMap {
 	return core.NewSimpleHelp(e.Bindings())
+}
+
+func (e *editor) SetWorking(working bool) tea.Cmd {
+	e.working = working
+	return nil
 }
