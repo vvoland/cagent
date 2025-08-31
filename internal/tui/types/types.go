@@ -6,6 +6,7 @@ type MessageType int
 const (
 	MessageTypeUser MessageType = iota
 	MessageTypeAssistant
+	MessageTypeError
 	MessageTypeSeparator
 	MessageTypeToolCall
 	MessageTypeToolResult

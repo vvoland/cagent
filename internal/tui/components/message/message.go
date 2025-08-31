@@ -109,6 +109,8 @@ func (mv *messageModel) Render(width int) string {
 		return strings.TrimRight(rendered, "\n\r\t ")
 	case types.MessageTypeSeparator:
 		return styles.MutedStyle.Render("•" + strings.Repeat("─", mv.width-3) + "•")
+	case types.MessageTypeError:
+		return styles.ErrorStyle.PaddingLeft(2).Render("│ " + msg.Content)
 	default:
 		return msg.Content
 	}

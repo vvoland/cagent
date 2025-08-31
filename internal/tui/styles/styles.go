@@ -11,7 +11,7 @@ var (
 
 	// Status colors
 	success    = lipgloss.Color("#00FF00") // Green for success/completed
-	errorColor = lipgloss.Color("#FF0000") // Red for errors
+	errorColor = lipgloss.Color("#E06C75") // Red for errors
 	warning    = lipgloss.Color("#FFFF00") // Yellow for warnings/confirmation
 	active     = lipgloss.Color("#00ff00") // Green for active/working states
 

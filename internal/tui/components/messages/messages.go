@@ -26,6 +26,7 @@ type Model interface {
 	layout.Help
 
 	AddUserMessage(content string) tea.Cmd
+	AddErrorMessage(content string) tea.Cmd
 	AddAssistantMessage() tea.Cmd
 	AddSeparatorMessage() tea.Cmd
 	AddOrUpdateToolCall(toolName, toolCallID, arguments string, status types.ToolStatus) tea.Cmd
@@ -471,6 +472,27 @@ func (m *model) AddUserMessage(content string) tea.Cmd {
 		}))
 	}
 
+	return view.Init()
+}
+
+func (m *model) AddErrorMessage(content string) tea.Cmd {
+	msg := types.Message{
+		Type:    types.MessageTypeError,
+		Content: content,
+	}
+
+	wasAtBottom := m.isAtBottom()
+	m.messages = append(m.messages, msg)
+
+	view := m.createMessageView(&msg)
+	m.views = append(m.views, view)
+
+	if wasAtBottom {
+		return tea.Batch(view.Init(), tea.Cmd(func() tea.Msg {
+			m.scrollToBottom()
+			return nil
+		}))
+	}
 	return view.Init()
 }
 
