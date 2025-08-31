@@ -152,29 +152,29 @@ func NewNonStreamingAdapter(response *genai.GenerateContentResponse, model strin
 
 		// Send the complete response as a single chunk
 		if response != nil {
-			// Extract text content
-			var textContent string
+			// Check if we should send the response (has content, function calls, or usage)
+			hasContent := false
+
+			// Check for text content
 			for _, candidate := range response.Candidates {
 				if candidate.Content != nil {
 					for _, part := range candidate.Content.Parts {
 						if part.Text != "" {
-							textContent += part.Text
+							hasContent = true
+							break
 						}
 					}
 				}
-			}
-
-			if textContent != "" {
-				adapter.ch <- result{resp: response}
+				if hasContent {
+					break
+				}
 			}
 
 			// Check for function calls
-			if funcs := response.FunctionCalls(); len(funcs) > 0 {
-				adapter.ch <- result{resp: response}
-			}
+			hasFunctionCalls := len(response.FunctionCalls()) > 0
 
-			// Send usage information if available (as a separate chunk)
-			if response.UsageMetadata != nil {
+			// Send response once if it has any relevant content
+			if hasContent || hasFunctionCalls || response.UsageMetadata != nil {
 				adapter.ch <- result{resp: response}
 			}
 		}
