@@ -110,6 +110,16 @@ func (r *Runtime) CurrentAgent() *agent.Agent {
 	return r.team.Agent(r.currentAgent)
 }
 
+func (r *Runtime) finalizeEventChannel(sess *session.Session, events chan Event) {
+	defer close(events)
+
+	events <- StreamStopped()
+
+	if sess.Title == "" && len(sess.GetAllMessages()) > 0 {
+		r.generateSessionTitle(context.Background(), sess, events)
+	}
+}
+
 // Run starts the agent's interaction loop
 func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan Event {
 	slog.Debug("Starting runtime stream", "agent", r.currentAgent, "session_id", sess.ID)
@@ -130,13 +140,8 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 		model := a.Model()
 		modelID := model.ID()
 
-		defer func() {
-			events <- StreamStopped()
-			close(events)
-		}()
-		defer slog.Debug("Runtime stream completed", "agent", r.currentAgent, "session_id", sess.ID)
+		defer r.finalizeEventChannel(sess, events)
 
-		// Start a session span (optional)
 		ctx, sessionSpan := r.startSpan(ctx, "runtime.session", trace.WithAttributes(
 			attribute.String("agent", r.currentAgent),
 			attribute.String("session.id", sess.ID),
@@ -172,7 +177,6 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			}
 			slog.Debug("Retrieved agent tools", "agent", a.Name(), "tool_count", len(agentTools))
 
-			// Create a span for the model stream (optional)
 			streamCtx, streamSpan := r.startSpan(ctx, "runtime.stream", trace.WithAttributes(
 				attribute.String("agent", a.Name()),
 				attribute.String("session.id", sess.ID),
@@ -192,7 +196,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			calls, content, stopped, err := r.handleStream(stream, a, sess, m, events)
 			if err != nil {
 				// Treat context cancellation as a graceful stop
-				if errors.Is(err, context.Canceled) || strings.Contains(strings.ToLower(err.Error()), "context canceled") {
+				if errors.Is(err, context.Canceled) {
 					slog.Debug("Model stream canceled by context", "agent", a.Name(), "session_id", sess.ID)
 					streamSpan.End()
 					return
@@ -239,16 +243,12 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 
 			if stopped {
 				slog.Debug("Conversation stopped", "agent", a.Name())
-				// Generate title for session if it doesn't have one and has messages
-				if sess.Title == "" && len(sess.GetAllMessages()) > 0 {
-					r.generateSessionTitle(ctx, sess, events)
-				}
 				break
 			}
 
 			if err := r.processToolCalls(ctx, sess, calls, events); err != nil {
 				// If cancellation, stop quietly
-				if errors.Is(err, context.Canceled) || strings.Contains(strings.ToLower(err.Error()), "context cancelled") || strings.Contains(strings.ToLower(err.Error()), "context canceled") {
+				if errors.Is(err, context.Canceled) {
 					slog.Debug("Tool call processing canceled by context", "agent", a.Name(), "session_id", sess.ID)
 					return
 				}
@@ -257,7 +257,6 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				events <- Error(err.Error())
 				return
 			}
-
 		}
 	}()
 
