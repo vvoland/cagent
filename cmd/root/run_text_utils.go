@@ -44,7 +44,7 @@ func printAgentName(agentName string) {
 	fmt.Printf("\n%s\n", blue("--- Agent: %s ---", bold(agentName)))
 }
 
-func printToolCall(toolCall tools.ToolCall, colorFunc ...func(format string, a ...interface{}) string) {
+func printToolCall(toolCall tools.ToolCall, colorFunc ...func(format string, a ...any) string) {
 	c := gray
 	if len(colorFunc) > 0 && colorFunc[0] != nil {
 		c = colorFunc[0]
@@ -118,7 +118,7 @@ func formatToolCallArguments(arguments string) string {
 	}
 
 	// Parse JSON to validate it and reformat
-	var parsed interface{}
+	var parsed any
 	if err := json.Unmarshal([]byte(arguments), &parsed); err != nil {
 		// If JSON parsing fails, return the original string
 		return fmt.Sprintf("(%s)", arguments)
@@ -135,7 +135,7 @@ func formatToolCallResponse(response string) string {
 
 	// For responses, we want to show them as readable text, not JSON
 	// Check if it looks like JSON first
-	var parsed interface{}
+	var parsed any
 	if err := json.Unmarshal([]byte(response), &parsed); err == nil {
 		// It's valid JSON, format it nicely
 		return " → " + formatParsedJSON(parsed)
@@ -177,9 +177,9 @@ func formatToolCallResponse(response string) string {
 	return fmt.Sprintf(" → %q", response)
 }
 
-func formatParsedJSON(data interface{}) string {
+func formatParsedJSON(data any) string {
 	switch v := data.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		if len(v) == 0 {
 			return "()"
 		}
@@ -208,7 +208,7 @@ func formatParsedJSON(data interface{}) string {
 	}
 }
 
-func formatJSONValue(key string, value interface{}) string {
+func formatJSONValue(key string, value any) string {
 	switch v := value.(type) {
 	case string:
 		// Handle multiline strings by displaying with actual newlines
@@ -220,7 +220,7 @@ func formatJSONValue(key string, value interface{}) string {
 		// Regular string with proper escaping
 		return fmt.Sprintf("%s: %q", bold(key), v)
 
-	case []interface{}:
+	case []any:
 		if len(v) == 0 {
 			return fmt.Sprintf("%s: []", bold(key))
 		}
@@ -228,7 +228,7 @@ func formatJSONValue(key string, value interface{}) string {
 		jsonBytes, _ := json.MarshalIndent(v, "", "  ")
 		return fmt.Sprintf("%s: %s", bold(key), string(jsonBytes))
 
-	case map[string]interface{}:
+	case map[string]any:
 		jsonBytes, _ := json.MarshalIndent(v, "", "  ")
 		return fmt.Sprintf("%s: %s", bold(key), string(jsonBytes))
 
