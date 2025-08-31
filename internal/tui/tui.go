@@ -8,7 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss/v2"
 
 	"github.com/docker/cagent/internal/app"
-	"github.com/docker/cagent/internal/tui/core"
+	"github.com/docker/cagent/internal/tui/components/statusbar"
 	"github.com/docker/cagent/internal/tui/dialog"
 	chatpage "github.com/docker/cagent/internal/tui/page/chat"
 	"github.com/docker/cagent/internal/tui/styles"
@@ -36,7 +36,8 @@ type appModel struct {
 	width, height   int
 	keyMap          KeyMap
 
-	chatPage chatpage.Page
+	chatPage  chatpage.Page
+	statusBar statusbar.StatusBar
 
 	// Dialog system
 	dialog dialog.Manager
@@ -67,9 +68,10 @@ func New(a *app.App) tea.Model {
 	keyMap := DefaultKeyMap()
 
 	model := &appModel{
-		chatPage: chatPageInstance,
-		keyMap:   keyMap,
-		dialog:   dialog.New(),
+		chatPage:  chatPageInstance,
+		keyMap:    keyMap,
+		dialog:    dialog.New(),
+		statusBar: statusbar.New(chatPageInstance),
 	}
 
 	return model
@@ -180,6 +182,9 @@ func (a *appModel) handleWindowResize(width, height int) tea.Cmd {
 		}
 	}
 
+	// Update status bar width
+	a.statusBar.SetWidth(a.width)
+
 	return tea.Batch(cmds...)
 }
 
@@ -234,39 +239,8 @@ func (a *appModel) View() string {
 	// Render chat page
 	pageView := a.chatPage.View()
 
-	// Create status bar if needed
-	statusBar := ""
-	if withHelp, ok := a.chatPage.(core.KeyMapHelp); ok {
-		help := withHelp.Help()
-		if help != nil {
-			// Show short help
-			shortcuts := help.ShortHelp()
-			if len(shortcuts) > 0 {
-				var helpParts []string
-				for _, binding := range shortcuts {
-					if binding.Help().Key != "" && binding.Help().Desc != "" {
-						keyPart := styles.StatusStyle.Render(binding.Help().Key)
-						actionPart := styles.ActionStyle.Render(binding.Help().Desc)
-						helpParts = append(helpParts, keyPart+" "+actionPart)
-					}
-				}
-				if len(helpParts) > 0 {
-					// Join with proper spacing between key bindings
-					statusText := ""
-					for i, part := range helpParts {
-						if i > 0 {
-							statusText += "  " // Add two spaces between key bindings
-						}
-						statusText += part
-					}
-					statusBar = styles.BaseStyle.
-						Width(a.width).
-						PaddingLeft(1).
-						Render(statusText)
-				}
-			}
-		}
-	}
+	// Create status bar
+	statusBar := a.statusBar.View()
 
 	// Combine page view with status bar
 	var components []string
