@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"log/slog"
 
 	tea "github.com/charmbracelet/bubbletea/v2"
 
@@ -40,11 +39,9 @@ func (a *App) Subscribe(ctx context.Context, program *tea.Program) {
 	for {
 		select {
 		case <-ctx.Done():
-			slog.Debug("TUI message handler shutting down")
 			return
 		case msg, ok := <-a.events:
 			if !ok {
-				slog.Debug("TUI message channel closed")
 				return
 			}
 			program.Send(msg)
