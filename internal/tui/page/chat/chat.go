@@ -49,6 +49,8 @@ type chatPage struct {
 	// State
 	focusedPanel FocusedPanel
 
+	msgCancel context.CancelFunc
+
 	// Key map
 	keyMap KeyMap
 
@@ -61,8 +63,9 @@ type chatPage struct {
 
 // KeyMap defines key bindings for the chat page
 type KeyMap struct {
-	Tab  key.Binding
-	Quit key.Binding
+	Tab    key.Binding
+	Quit   key.Binding
+	Cancel key.Binding
 }
 
 // DefaultKeyMap returns the default key bindings
@@ -75,6 +78,10 @@ func DefaultKeyMap() KeyMap {
 		Quit: key.NewBinding(
 			key.WithKeys("ctrl+c"),
 			key.WithHelp("ctrl+c", "quit"),
+		),
+		Cancel: key.NewBinding(
+			key.WithKeys("esc"),
+			key.WithHelp("esc", "cancel stream"),
 		),
 	}
 }
@@ -140,6 +147,13 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, p.keyMap.Tab):
 			p.switchFocus()
 			return p, nil
+		case key.Matches(msg, p.keyMap.Cancel):
+			// Cancel current message processing if active
+			if p.msgCancel != nil {
+				p.msgCancel()
+				p.msgCancel = nil
+			}
+			return p, nil
 		}
 
 		// Route other keys to focused component
@@ -191,6 +205,9 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case *runtime.StreamStoppedEvent:
 		spinnerCmd := p.setWorking(false)
 		cmd := p.messages.AddSeparatorMessage()
+		if p.msgCancel != nil {
+			p.msgCancel = nil
+		}
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
 	case *runtime.PartialToolCallEvent:
 		// When we first receive a tool call, show it immediately in pending state
@@ -348,6 +365,7 @@ func (p *chatPage) GetSize() (width, height int) {
 func (p *chatPage) Bindings() []key.Binding {
 	bindings := []key.Binding{
 		p.keyMap.Tab,
+		p.keyMap.Cancel,
 		p.keyMap.Quit,
 	}
 
@@ -406,7 +424,14 @@ func (p *chatPage) setFocusToEditor() {
 
 // processMessage processes a message with the runtime
 func (p *chatPage) processMessage(content string) tea.Cmd {
-	p.app.Run(context.Background(), content)
+	if p.msgCancel != nil {
+		p.msgCancel()
+	}
+
+	var ctx context.Context
+	ctx, p.msgCancel = context.WithCancel(context.Background())
+
+	p.app.Run(ctx, content)
 
 	return tea.Batch(
 		p.messages.ScrollToBottom(),
