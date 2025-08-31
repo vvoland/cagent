@@ -267,9 +267,7 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (p *chatPage) setWorking(working bool) tea.Cmd {
-	var cmds []tea.Cmd
-	cmds = append(cmds, p.sidebar.SetWorking(working), p.editor.SetWorking(working))
-	return tea.Batch(cmds...)
+	return tea.Batch(p.sidebar.SetWorking(working), p.editor.SetWorking(working))
 }
 
 // View renders the chat page
