@@ -146,10 +146,7 @@ func (mv *toolModel) Render(width int) string {
 	if (msg.ToolStatus == types.ToolStatusCompleted || msg.ToolStatus == types.ToolStatusError) && msg.Content != "" {
 		// Calculate available width for content (accounting for padding and prefixes)
 		// Base padding (2) + content prefix and spacing
-		availableWidth := width - 6
-		if availableWidth < 10 {
-			availableWidth = 10 // Minimum readable width
-		}
+		availableWidth := max(width-6, 10) // Minimum readable width
 
 		// Wrap long lines to fit the component width
 		lines := wrapLines(msg.Content, availableWidth)
