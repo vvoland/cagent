@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/v2/spinner"
+	"github.com/charmbracelet/bubbles/v2/viewport"
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/glamour/v2"
 
@@ -157,6 +158,14 @@ func (mv *toolModel) Render(width int) string {
 	}
 
 	content := fmt.Sprintf("│ %s %s%s", icon, styles.HighlightStyle.Render(msg.ToolName), spinnerText)
+
+	if msg.Arguments != "" {
+		lines := wrapLines(msg.Arguments, mv.width-2)
+		argsViewport := viewport.New(viewport.WithWidth(mv.width), viewport.WithHeight(len(lines)))
+		argsViewport.SetContent(styles.MutedStyle.Render(strings.Join(lines, "\n")))
+		argsViewport.GotoBottom()
+		content += "\n" + argsViewport.View()
+	}
 
 	// Add tool result content if available (for completed tools with content)
 	var resultContent string

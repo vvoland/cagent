@@ -373,6 +373,7 @@ func (r *Runtime) handleStream(stream chat.MessageStream, a *agent.Agent, sess *
 					} else {
 						toolCalls[idx].Function.Arguments += deltaToolCall.Function.Arguments
 					}
+					shouldEmitPartial = true
 				}
 
 				// Emit PartialToolCallEvent when we first get the function name
