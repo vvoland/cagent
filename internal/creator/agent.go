@@ -145,7 +145,7 @@ func StreamCreateAgent(ctx context.Context, baseDir, prompt string, runConfig la
 	}
 
 	// If not using a models gateway, avoid selecting a provider the user can't run
-	usableProviders := []string{}
+	var usableProviders []string
 	if runConfig.ModelsGateway == "" {
 		if os.Getenv("OPENAI_API_KEY") != "" {
 			usableProviders = append(usableProviders, "openai")

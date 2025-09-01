@@ -378,7 +378,7 @@ func (m *Manager) GetSessionInfo(clientID, sessionID string) (*SessionInfo, erro
 		metadata["toolsets_count"] = len(toolsets)
 
 		// Get available tools from toolsets
-		availableTools := []string{}
+		var availableTools []string
 		for _, ts := range toolsets {
 			tools, err := ts.Tools(context.Background())
 			if err == nil {

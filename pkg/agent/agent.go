@@ -88,7 +88,7 @@ func (a *Agent) Tools(ctx context.Context) ([]tools.Tool, error) {
 		return nil, err
 	}
 
-	agentTools := []tools.Tool{}
+	var agentTools []tools.Tool
 	for _, toolSet := range a.toolsets {
 		ta, err := toolSet.Tools(ctx)
 		if err != nil {

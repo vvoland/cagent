@@ -403,7 +403,7 @@ func (t *FilesystemTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 		return tls, nil
 	}
 
-	allowedTools := []tools.Tool{}
+	var allowedTools []tools.Tool
 	for _, tool := range t.allowedTools {
 		allowedTools = append(allowedTools, tools.Tool{
 			Function: &tools.FunctionDefinition{

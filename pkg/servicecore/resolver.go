@@ -152,7 +152,7 @@ func (r *Resolver) ResolveAgent(agentSpec string) (string, error) {
 
 // ListFileAgents lists agents available as files
 func (r *Resolver) ListFileAgents() ([]AgentInfo, error) {
-	agents := []AgentInfo{}
+	var agents []AgentInfo
 
 	// Check if agents directory exists
 	if !r.fileExists(r.agentsDir) {

@@ -882,7 +882,7 @@ func (s *Server) runAgent(c echo.Context) error {
 
 	rt, exists := s.runtimes[sess.ID]
 	if !exists {
-		opts := []runtime.Opt{}
+		var opts []runtime.Opt
 		if s.autoRunTools {
 			opts = append(opts, runtime.WithAutoRunTools(true))
 		}
