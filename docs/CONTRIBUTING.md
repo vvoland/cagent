@@ -74,7 +74,7 @@ $ task build-local
 
 ## Project Architecture
 
-More info about the architecture behind `cagent` can be found [here](/docs/ARCHITECTURE.md)
+More info about the architecture behind `cagent` can be found [here](/docs/architecture.md)
 
 ## Opening issues
 

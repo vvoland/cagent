@@ -45,7 +45,6 @@ A coordinator agent usually makes them work together and checks that the work is
 
 | Name                                 | Description/Purpose                     | Filesystem | Shell | Todo | Think | Memory | MCP Servers                                                                    | Sub-agents |
 | ------------------------------------ | --------------------------------------- | ---------- | ----- | ---- | ----- | ------ | ------------------------------------------------------------------------------ | ---------- |
-| [agent.yaml](agent.yaml)             | Docker Expert Assistant                 |            |       |      |       |        |                                                                                | ✓          |
 | [blog.yaml](blog.yaml)               | Technical blog writing workflow         |            |       |      | ✓     |        | [duckduckgo-mcp-server](https://hub.docker.com/mcp/server/duckduckgo/overview) | ✓          |
 | [dev-team.yaml](dev-team.yaml)       | Development team coordinator            | ✓          | ✓     | ✓    | ✓     | ✓      |                                                                                | ✓          |
 | [multi-code.yaml](multi-code.yaml)   | Technical lead and project coordination | ✓          | ✓     | ✓    | ✓     | ✓      |                                                                                | ✓          |

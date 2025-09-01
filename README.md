@@ -28,7 +28,7 @@ agents:
       Be helpful, accurate, and concise in your responses.
 ```
 
-More examples can be found [here](/examples/)!
+More examples can be found [here](/examples/README.md)!
 
 ### 🎯 Key Features
 
