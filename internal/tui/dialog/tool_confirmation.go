@@ -171,10 +171,7 @@ func (d *toolConfirmationDialog) View() string {
 	title := titleStyle.Render("Tool Confirmation")
 
 	// Separator - make it shorter and more subtle
-	separatorWidth := contentWidth - 10
-	if separatorWidth < 20 {
-		separatorWidth = 20
-	}
+	separatorWidth := max(contentWidth-10, 20)
 	separator := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#4b5563")).
 		Align(lipgloss.Center).
