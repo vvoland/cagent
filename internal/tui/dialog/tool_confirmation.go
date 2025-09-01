@@ -94,6 +94,10 @@ func (d *toolConfirmationDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return d, core.CmdHandler(CloseDialogMsg{})
 		}
+
+		if msg.String() == "ctrl+c" {
+			return d, tea.Quit
+		}
 	}
 
 	return d, nil
