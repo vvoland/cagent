@@ -4,7 +4,7 @@ version: "1"
 agents:
   root:
     model: anthropic
-    description: Writes techincal blog posts
+    description: Writes technical blog posts
     instruction: |
       You are the leader of a team of AI agents for a technical blog writing workflow.
 
@@ -17,7 +17,7 @@ agents:
       <WORKFLOW>
         1. Call the `web_search_agent` agent to search for the web to get important information about the task that is asked
 
-        3. Call the `writer` agent to write a 750-word technical blog post based on the reserach done by the web_search_agent
+        3. Call the `writer` agent to write a 750-word technical blog post based on the research done by the web_search_agent
       </WORKFLOW>
 
       - Use the transfer_to_agent tool to call the right agent at the right time to complete the workflow.

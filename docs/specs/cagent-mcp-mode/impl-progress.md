@@ -15,7 +15,7 @@
 ### Phase 1: Service Core Foundation ✅ **COMPLETE**
 
 #### 1.1 Project Setup
-- [x] **Verify MCP dependency**: Confirm `github.com/mark3labs/mcp-go v0.34.0` is available in go.mod
+- [x] **Verify MCP dependency**: Confirm `github.com/mark3labs/mcp-go v0.34.0` is available in `go.mod`
 - [x] **Create servicecore package**: Set up `pkg/servicecore/` directory structure
 - [x] **Create MCP package**: Set up `pkg/mcpserver/` directory
 - [x] **Add command structure**: Create skeleton for `cmd/root/mcp.go`

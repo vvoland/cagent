@@ -17,7 +17,7 @@ agents:
       **Tasks:**
       1. **Search for User Information**: Use web searches to find relevant information about the user.
       2. **Fetch Additional Data**: Use the Fetch tool to gather more specific information from targeted sources.
-      3. **On errors**, search for other sources and repeat fron step 2.
+      3. **On errors**, search for other sources and repeat from step 2.
       4. **Compile Biography**: Combine the gathered information into a coherent biography.
       5. **Verify the credibility of sources** before including information.
 

@@ -2,7 +2,7 @@
 
 ## Development environment setup
 
-> We currently support `cagent` development on MacOS and linux based systems. Windows support coming soon
+> We currently support `cagent` development on macOS and linux based systems. Windows support coming soon
 
 #### Build from source
 
@@ -62,14 +62,14 @@ $ task build-local
 - **Root Agent**: Main entry point that coordinates the system. This represents the first agent you interact with
 - **Sub-Agents**: Specialized agents for specific domains or tasks
 - **Tools**: External capabilities agents can use via the Model Context Protocol (MCP)
-- **Models**: Models agents can be configures to use. They include the AI provider and the model configuration (model to use, max_tokens, temperature, etc.)
+- **Models**: Models agents can be configured to use. They include the AI provider and the model configuration (model to use, max_tokens, temperature, etc.)
 
 ### Agent <-> Sub-Agent Delegation Flow
 
 1. User interacts with root agent
 2. Root agent analyzes the request
 3. Root agent can decide to delegate to appropriate sub-agent if specialized knowledge is needed
-4. Sub-agent processes the task delegated to it using its tools and expertise, in it's own agentic loop.
+4. Sub-agent processes the task delegated to it using its tools and expertise, in its own agentic loop.
 5. Results eventually flow back to the root agent and the user
 
 ## Project Architecture

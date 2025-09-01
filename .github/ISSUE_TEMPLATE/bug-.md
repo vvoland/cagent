@@ -31,7 +31,7 @@ A clear and concise description of what you expected to see/happen.
 **Screenshots**  
 
 If applicable, add screenshots to help explain your problem.
-Especially useful if the problem is visual (rendering issues etc) or you're not totally sure how to explain the problem and need to show it to us
+Especially useful if the problem is visual (rendering issues etc.) or you're not totally sure how to explain the problem and need to show it to us
 
 **OS and Terminal type**  
 
