@@ -48,24 +48,18 @@ func wrapLines(text string, width int) []string {
 		return strings.Split(text, "\n")
 	}
 
-	lines := strings.Split(text, "\n")
-	var wrappedLines []string
+	var lines []string
 
-	for _, line := range lines {
-		if len(line) <= width {
-			wrappedLines = append(wrappedLines, line)
-		} else {
-			// Split long line into multiple lines
-			for len(line) > width {
-				wrappedLines = append(wrappedLines, line[:width])
-				line = line[width:]
-			}
-			if line != "" {
-				wrappedLines = append(wrappedLines, line)
-			}
+	for line := range strings.SplitSeq(text, "\n") {
+		for len(line) > width {
+			lines = append(lines, line[:width])
+			line = line[width:]
 		}
+
+		lines = append(lines, line)
 	}
-	return wrappedLines
+
+	return lines
 }
 
 // GetSize implements Model.
