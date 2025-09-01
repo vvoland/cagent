@@ -126,7 +126,9 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 	events := make(chan Event, 128)
 
 	go func() {
-		events <- UserMessage(sess.GetMessages(r.CurrentAgent())[len(sess.GetMessages(r.CurrentAgent()))-1].Content)
+		if sess.SendUserMessage {
+			events <- UserMessage(sess.GetMessages(r.CurrentAgent())[len(sess.GetMessages(r.CurrentAgent()))-1].Content)
+		}
 		events <- StreamStarted()
 		a := r.team.Agent(r.currentAgent)
 
@@ -658,10 +660,8 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 
 	slog.Debug("Creating new session with parent session", "parent_session_id", sess.ID, "tools_approved", sess.ToolsApproved)
 	s := session.New(session.WithSystemMessage(memberAgentTask))
+	s.SendUserMessage = false
 	s.ToolsApproved = sess.ToolsApproved
-
-	// No delay needed: ToolCall event now carries the agent name so the CLI can
-	// render deterministically before sub-agent output begins.
 
 	for event := range r.RunStream(ctx, s) {
 		evts <- event

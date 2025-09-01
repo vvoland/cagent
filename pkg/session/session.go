@@ -54,6 +54,9 @@ type Session struct {
 	// ToolsApproved is a flag to indicate if the tools have been approved
 	ToolsApproved bool `json:"tools_approved"`
 
+	// SendUserMessage is a flag to indicate if the user message should be sent
+	SendUserMessage bool
+
 	InputTokens  int     `json:"input_tokens"`
 	OutputTokens int     `json:"output_tokens"`
 	Cost         float64 `json:"cost"`
@@ -164,12 +167,13 @@ func New(opts ...Opt) *Session {
 	slog.Debug("Creating new session", "session_id", sessionID)
 
 	s := &Session{
-		ID:            sessionID,
-		CreatedAt:     time.Now(),
-		Messages:      make([]Item, 0),
-		ToolsApproved: false,
-		InputTokens:   0,
-		OutputTokens:  0,
+		ID:              sessionID,
+		CreatedAt:       time.Now(),
+		Messages:        make([]Item, 0),
+		ToolsApproved:   false,
+		InputTokens:     0,
+		OutputTokens:    0,
+		SendUserMessage: true,
 	}
 
 	for _, opt := range opts {
