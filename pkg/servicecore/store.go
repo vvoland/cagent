@@ -48,7 +48,6 @@ import (
 )
 
 var (
-	ErrClientNotFound  = errors.New("client not found")
 	ErrSessionNotFound = errors.New("session not found")
 	ErrEmptyClientID   = errors.New("client ID cannot be empty")
 	ErrEmptySessionID  = errors.New("session ID cannot be empty")

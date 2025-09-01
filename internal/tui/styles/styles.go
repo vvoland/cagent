@@ -32,73 +32,65 @@ var (
 var (
 	// Base application style
 	AppStyle = lipgloss.NewStyle().
-			Padding(0, 1, 0, 1)
+		Padding(0, 1, 0, 1)
 
 	// Text styles
 	HighlightStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(highlight)
+		Bold(true).
+		Foreground(highlight)
 
 	MutedStyle = lipgloss.NewStyle().
-			Foreground(muted)
+		Foreground(muted)
 
 	SubtleStyle = lipgloss.NewStyle().
-			Foreground(subtle)
+		Foreground(subtle)
 
 	SecondaryStyle = lipgloss.NewStyle().
-			Foreground(secondary)
+		Foreground(secondary)
 
 	// Status styles
 	SuccessStyle = lipgloss.NewStyle().
-			Foreground(success)
+		Foreground(success)
 
 	ErrorStyle = lipgloss.NewStyle().
-			Foreground(errorColor)
+		Foreground(errorColor)
 
 	WarningStyle = lipgloss.NewStyle().
-			Foreground(warning)
+		Foreground(warning)
 
 	ActiveStyle = lipgloss.NewStyle().
-			Foreground(active)
+		Foreground(active)
 
 	InProgressStyle = lipgloss.NewStyle().
-			Foreground(inProgress)
+		Foreground(inProgress)
 
 	PendingStyle = lipgloss.NewStyle().
-			Foreground(pending)
+		Foreground(pending)
 
 	// Layout styles
 	HeaderStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(highlight).
-			Padding(0, 0, 1, 0)
+		Bold(true).
+		Foreground(highlight).
+		Padding(0, 0, 1, 0)
 
 	BaseStyle = lipgloss.NewStyle()
 
 	BorderStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(borderPrimary)
-
-	ToolsStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(borderPrimary).
-			PaddingLeft(0).
-			MarginLeft(0).
-			Align(lipgloss.Left)
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(borderPrimary)
 
 	// Input styles
 	InputStyle = lipgloss.NewStyle().
-			Padding(2, 0, 1, 0)
+		Padding(2, 0, 1, 0)
 
 	FocusedStyle = lipgloss.NewStyle().
-			Padding(2, 0, 1, 0)
+		Padding(2, 0, 1, 0)
 
 	// Layout helpers
 	CenterStyle = lipgloss.NewStyle().
-			Align(lipgloss.Center, lipgloss.Center)
+		Align(lipgloss.Center, lipgloss.Center)
 
 	// Deprecated styles (kept for backward compatibility)
-	FooterStyle = BaseStyle
 	StatusStyle = MutedStyle
 	ActionStyle = SecondaryStyle
 	ChatStyle   = BaseStyle
