@@ -1,4 +1,4 @@
-# User Guide
+# Usage and configuration
 
 This guide will help you get started with cagent and learn how to use its
 powerful multi-agent system to accomplish various tasks.
@@ -15,195 +15,18 @@ agents with specialized capabilities and tools. It features:
 - **📦 Agent distribution** via Docker registry integration
 - **🔒 Security-first design** with proper client scoping and resource isolation
 - **⚡ Event-driven streaming** for real-time interactions
-- **🧠 Multi-model support** (OpenAI, Anthropic, Gemini, DMR, Docker AI Gateway)
+- **🧠 Multi-model support** (OpenAI, Anthropic, Gemini, [Docker Model Runner (DMR)](https://docs.docker.com/ai/model-runner/))
 
-## Quick Start
 
-### Prerequisites
+## Why?
 
-- Go 1.24 or higher
-- API key for your chosen AI provider (OpenAI, Anthropic, Gemini, etc.)
+After passing the last year+ building AI agents of various types, using a variety of software solutions and frameworks, we kept asking ourselves some of the same questions:
 
-### Installation
+- How can we make building and running useful agentic systems less of a hassle?
+- Most agents we build end up use many of the same building blocks. Can we re-use most of those building block and have declarative configurations for new agents?
+- How can we package and share agents amongst each other as simply as possible without all the headaches?
 
-1. **Clone and build the project:**
-
-   ```bash
-   git clone https://github.com/rumpl/cagent.git
-   cd cagent
-   task build
-   ```
-
-2. **Set your API key:**
-
-   ```bash
-   # For OpenAI
-   export OPENAI_API_KEY=your_api_key_here
-
-   # For Anthropic
-   export ANTHROPIC_API_KEY=your_api_key_here
-
-   # For Gemini
-   export GOOGLE_API_KEY=your_api_key_here
-
-   # For Docker AI Gateway (if using Docker Desktop)
-   # Authentication is handled automatically via Docker Desktop
-   ```
-
-3. **Run your first agent:**
-
-   ```bash
-   # Interactive CLI mode
-   ./bin/cagent run examples/config/agent.yaml
-
-   # Or start as MCP server for external clients
-   ./bin/cagent mcp server --agents-dir ./examples/config --port 8080
-   ```
-
-## Core Concepts
-
-### Agent Hierarchy
-
-cagent organizes agents in a hierarchical structure:
-
-- **Root Agent**: The main entry point that coordinates the system
-- **Sub-Agents**: Specialized agents for specific domains or tasks
-- **Tools**: External capabilities via Model Context Protocol (MCP)
-- **Models**: AI providers and their configurations
-
-### Task Delegation
-
-The system uses intelligent task delegation:
-
-1. User interacts with the root agent
-2. Root agent analyzes the request
-3. If specialized knowledge is needed, delegates to appropriate sub-agent
-4. Sub-agent processes the task using its tools and expertise
-5. Results flow back to the root agent and user
-
-## Configuration
-
-cagent uses YAML configuration files to define agents, models, and tools.
-
-### Basic Agent Configuration
-
-```yaml
-agents:
-  root:
-    model: gpt4
-    description: A helpful AI assistant
-    instruction: |
-      You are a knowledgeable assistant that helps users with various tasks.
-      Be helpful, accurate, and concise in your responses.
-
-models:
-  gpt4:
-    provider: openai
-    model: gpt-4o
-```
-
-### Multi-Agent Configuration
-
-```yaml
-agents:
-  root:
-    model: gpt4
-    description: Project manager that delegates tasks
-    instruction: |
-      You are a project manager that coordinates different specialists.
-      Delegate tasks to the appropriate team members.
-    sub_agents:
-      - developer
-      - designer
-
-  developer:
-    model: claude
-    description: Expert software developer
-    instruction: |
-      You are an expert developer. Focus on coding tasks,
-      code review, and technical implementation.
-    toolsets:
-      - type: filesystem
-
-  designer:
-    model: gpt4
-    description: UI/UX design specialist
-    instruction: |
-      You are a UI/UX designer. Focus on design tasks,
-      user experience, and visual elements.
-
-models:
-  gpt4:
-    provider: openai
-    model: gpt-4o
-
-  claude:
-    provider: anthropic
-    model: claude-sonnet-4-0
-    max_tokens: 64000
-```
-
-### Configuration Reference
-
-#### Agent Properties
-
-| Property      | Type    | Description                     | Required |
-| ------------- | ------- | ------------------------------- | -------- |
-| `name`        | string  | Agent identifier                | ✓        |
-| `model`       | string  | Model reference                 | ✓        |
-| `description` | string  | Agent purpose                   | ✓        |
-| `instruction` | string  | Detailed behavior instructions  | ✓        |
-| `sub_agents`  | array   | List of sub-agent names         | ✗        |
-| `toolsets`    | array   | Available tools                 | ✗        |
-| `add_date`    | boolean | Add current date to context     | ✗        |
-
-#### Model Properties
-
-| Property            | Type    | Description                                      | Required |
-| ------------------- | ------- | ------------------------------------------------ | -------- |
-| `type`              | string  | Provider: `openai`, `anthropic`, `dmr`           | ✓        |
-| `model`             | string  | Model name (e.g., `gpt-4o`, `claude-sonnet-4-0`) | ✓        |
-| `temperature`       | float   | Randomness (0.0-1.0)                             | ✗        |
-| `max_tokens`        | integer | Response length limit                            | ✗        |
-| `top_p`             | float   | Nucleus sampling (0.0-1.0)                       | ✗        |
-| `frequency_penalty` | float   | Repetition penalty (0.0-2.0)                     | ✗        |
-| `presence_penalty`  | float   | Topic repetition penalty (0.0-2.0)               | ✗        |
-| `base_url`          | string  | Custom API endpoint                              | ✗        |
-
-#### Tool Configuration
-
-**Local (stdio) MCP Server**
-
-```yaml
-toolsets:
-  - type: mcp # Model Context Protocol
-    command: string # Command to execute
-    args: [] # Command arguments
-    tools: [] # Optional: List of specific tools to enable
-    env: [] # Environment variables for this tool
-    env_file: [] # Environment variable files
-```
-
-**Remote (sse or streamable) MCP Server**
-
-```yaml
-toolsets:
-  - type: mcp # Model Context Protocol
-    remote:
-      url: string # Base URL to connect to
-      transport_type: string # Type of MCP transport (sse or streamable)
-      headers:
-        key: value # HTTP headers. Mainly used for auth
-    tools: [] # Optional: List of specific tools to enable
-```
-
-**Builtin tools:**
-
-```yaml
-toolsets:
-  - type: filesystem # Access to local files
-  - type: shell # Shell access
-```
+We really think we're getting somewhere as we build out the primitives of `cagent` so, in keeping with our love for open-source software in general, we decided to **share it and build it in the open** to allow the community at large to make use of our work and contribute to the future of the project itself. 
 
 ## Running Agents
 
@@ -228,11 +51,8 @@ $ ./bin/cagent mcp server --port 8080 --path /mcp --agents-dir ./config
 $ ./bin/cagent api config.yaml
 $ ./bin/cagent api config.yaml --port 8080
 
-# Docker AI Gateway Integration
-$ ./bin/cagent run config.yaml --gateway https://api.docker.com
-
 # Project Management
-$ ./bin/cagent init                          # Initialize new project
+$ ./bin/cagent new                          # Initialize new project
 $ ./bin/cagent eval config.yaml             # Run evaluations
 $ ./bin/cagent pull docker.io/user/agent    # Pull agent from registry
 $ ./bin/cagent push docker.io/user/agent    # Push agent to registry
@@ -244,11 +64,12 @@ $ ./bin/cagent push docker.io/user/agent    # Push agent to registry
 
 During CLI sessions, you can use special commands:
 
-| Command  | Description                              |
-| -------- | ---------------------------------------- |
-| `/exit`  | Exit the program                         |
-| `/reset` | Clear conversation history               |
-| `/eval`  | Save current conversation for evaluation |
+| Command    | Description                                 |
+| ---------- | ------------------------------------------- |
+| `/exit`    | Exit the program                            |
+| `/reset`   | Clear conversation history                  |
+| `/eval`    | Save current conversation for evaluation    |
+| `/compact` | Compact conversation to lower context usage |
 
 #### MCP Server Mode
 
@@ -258,9 +79,210 @@ During CLI sessions, you can use special commands:
 - **Real-time streaming**: SSE-based streaming responses
 - **Multi-client support**: Handle multiple concurrent MCP clients
 
+## 🔧 Configuration Reference
+
+### Agent Properties
+
+| Property      | Type    | Description                    | Required |
+| ------------- | ------- | ------------------------------ | -------- |
+| `name`        | string  | Agent identifier               | ✓        |
+| `model`       | string  | Model reference                | ✓        |
+| `description` | string  | Agent purpose                  | ✓        |
+| `instruction` | string  | Detailed behavior instructions | ✓        |
+| `sub_agents`  | array   | List of sub-agent names        | ✗        |
+| `toolsets`    | array   | Available tools                | ✗        |
+| `add_date`    | boolean | Add current date to context    | ✗        |
+
+#### Example
+
+```yaml
+agents:
+  agent_name:
+    model: string # Model reference
+    description: string # Agent purpose
+    instruction: string # Detailed behavior instructions
+    tools: [] # Available tools (optional)
+    sub_agents: [] # Sub-agent names (optional)
+    add_date: boolean # Add current date to context (optional)
+```
+
+### Model Properties
+
+| Property            | Type    | Description                                      | Required |
+| ------------------- | ------- | ------------------------------------------------ | -------- |
+| `provider`              | string  | Provider: `openai`, `anthropic`, `dmr`           | ✓        |
+| `model`             | string  | Model name (e.g., `gpt-4o`, `claude-sonnet-4-0`) | ✓        |
+| `temperature`       | float   | Randomness (0.0-1.0)                             | ✗        |
+| `max_tokens`        | integer | Response length limit                            | ✗        |
+| `top_p`             | float   | Nucleus sampling (0.0-1.0)                       | ✗        |
+| `frequency_penalty` | float   | Repetition penalty (0.0-2.0)                     | ✗        |
+| `presence_penalty`  | float   | Topic repetition penalty (0.0-2.0)               | ✗        |
+| `base_url`          | string  | Custom API endpoint                              | ✗        |
+
+#### Example
+
+```yaml
+models:
+  model_name:
+    provider: string # Provider: openai, anthropic, google, dmr
+    model: string # Model name: gpt-4o, claude-3-5-sonnet-latest, gemini-2.5-flash, qwen3:4B, ...
+    temperature: float # Randomness (0.0-1.0)
+    max_tokens: integer # Response length limit
+    top_p: float # Nucleus sampling (0.0-1.0)
+    frequency_penalty: float # Repetition penalty (0.0-2.0)
+    presence_penalty: float # Topic repetition penalty (0.0-2.0)
+    parallel_tool_calls: boolean
+```
+
+#### Model Examples
+
+> ⚠️ **NOTE** ⚠️  
+> **More model names can be found [here](https://modelname.ai/)**
+
+```yaml
+
+# OpenAI
+models:
+  openai:
+    provider: openai
+    model: gpt-5-mini
+
+# Anthropic
+models:
+  claude:
+    provider: anthropic
+    model: claude-sonnet-4-0
+
+# Gemini
+models:
+  gemini:
+    provider: google
+    model: gemini-2.5-flash
+
+# Docker Model Runner (DMR)
+models:
+  qwen:
+    provider: dmr
+    model: ai/qwen3
+```
+
+### Alloy models
+
+"Alloy models" essentially means using more than one model in the same chat context. Not at the same time, but "randomly" throughout the conversation to try to take advantage of the strong points of each model.
+
+More information on the idea can be found [here](https://xbow.com/blog/alloy-agents)
+
+To have an agent use an alloy model, you can define more than one model in the `model` field, separated by commas.
+
+Example:
+
+```yaml
+agents:
+  root:
+    model: anthropic/claude-sonnet-4-0,openai/gpt-5-mini
+    ...
+```
+
+### Tool Configuration
+
+
+### Available MCP Tools
+
+Common MCP tools include:
+
+- **Filesystem**: Read/write files
+- **Shell**: Execute shell commands
+- **Database**: Query databases
+- **Web**: Make HTTP requests
+- **Git**: Version control operations
+- **Browser**: Web browsing and automation
+- **Code**: Programming language specific tools
+- **API**: REST API integration tools
+
+### Installing MCP Tools
+
+Example installation of local tools:
+
+```bash
+# Install Rust-based MCP filesystem tool
+cargo install rust-mcp-filesystem
+
+# Install other popular MCP tools
+npm install -g @modelcontextprotocol/server-filesystem
+npm install -g @modelcontextprotocol/server-git
+npm install -g @modelcontextprotocol/server-web
+```
+
+### Configuring MCP Tools
+
+**Local (stdio) MCP Server:**
+
+```yaml
+
+toolsets:
+  - type: mcp # Model Context Protocol
+    command: string # Command to execute
+    args: [] # Command arguments
+    tools: [] # Optional: List of specific tools to enable
+    env: [] # Environment variables for this tool
+    env_file: [] # Environment variable files
+```
+
+Example:
+
+``` yaml
+toolsets:
+  - type: mcp
+    command: rust-mcp-filesystem
+    args: ["--allow-write", "."]
+    tools: ["read_file", "write_file"] # Optional: specific tools only
+    env:
+      - "RUST_LOG=debug"
+```
+
+**Remote (SSE) MCP Server:**
+
+```yaml
+toolsets:
+  - type: mcp # Model Context Protocol
+    remote:
+      url: string # Base URL to connect to
+      transport_type: string # Type of MCP transport (sse or streamable)
+      headers:
+        key: value # HTTP headers. Mainly used for auth
+    tools: [] # Optional: List of specific tools to enable
+```
+
+Example:
+
+```yaml
+toolsets:
+  - type: mcp
+    remote:
+      url: "https://mcp-server.example.com"
+      transport_type: "sse"
+      headers:
+        Authorization: "Bearer your-token-here"
+    tools: ["search_web", "fetch_url"]
+```
+
 ## Built-in Tools
 
-cagent includes several built-in tools that agents can use:
+Included in `cagent` are a series of built-in tools that can greatly enhance the capabilities of your agents without needing to configure any external MCP tools.  
+
+**Configuration example**
+
+```yaml
+toolsets:
+  - type: filesystem # Grants the agent filesystem access
+  - type: think # Enables the think tool
+  - type: todo # Enable the todo list tool
+    shared: boolean # Should the todo list be shared between agents (optional)
+  - type: memory # Allows the agent to store memories to a local sqlite db
+    path: ./mem.db # Path to the sqlite database for memory storage (optional)
+```
+
+Lets go into a bit more detail about the built-in tools that agents can use:
 
 ### Think Tool
 
@@ -308,64 +330,25 @@ them to delegate tasks to other agents:
 transfer_task(agent="developer", task="Create a login form", expected_output="HTML and CSS code")
 ```
 
-## External Tools (MCP)
+### Using tools via the Docker MCP Gateway
 
-cagent supports external tools through the Model Context Protocol (MCP). This
-allows agents to use a wide variety of external capabilities.
+We recommend using MCP tools via the [Docker MCP Gateway](https://github.com/docker/mcp-gateway).  
+All tools are containerized for resource isolation and security, and all the tools in the catalog can be accessed through a single endpoint
 
-### Available MCP Tools
+Using the `docker mcp gateway` command you can configure your agents with a set of MCP tools
+delivered straight from Docker's MCP Gateway.
 
-Common MCP tools include:
+> you can check `docker mcp gateway run --help` for more information on how to use that command
 
-- **Filesystem**: Read/write files
-- **Shell**: Execute shell commands
-- **Database**: Query databases
-- **Web**: Make HTTP requests
-- **Git**: Version control operations
-- **Browser**: Web browsing and automation
-- **Code**: Programming language specific tools
-- **API**: REST API integration tools
-
-### Installing MCP Tools
-
-Example installation of filesystem tool:
-
-```bash
-# Install Rust-based MCP filesystem tool
-cargo install rust-mcp-filesystem
-
-# Install other popular MCP tools
-npm install -g @modelcontextprotocol/server-filesystem
-npm install -g @modelcontextprotocol/server-git
-npm install -g @modelcontextprotocol/server-web
-```
-
-### Configuring MCP Tools
-
-**Local (stdio) MCP Server:**
+In this example, lets configure duckduckgo to give our agents the ability to search the web:
 
 ```yaml
 toolsets:
   - type: mcp
-    command: rust-mcp-filesystem
-    args: ["--allow-write", "."]
-    tools: ["read_file", "write_file"] # Optional: specific tools only
-    env:
-      - "RUST_LOG=debug"
+    command: docker
+    args: ["mcp", "gateway", "run", "--servers=duckduckgo"]
 ```
 
-**Remote (SSE) MCP Server:**
-
-```yaml
-toolsets:
-  - type: mcp
-    remote:
-      url: "https://mcp-server.example.com"
-      transport_type: "sse"
-      headers:
-        Authorization: "Bearer your-token-here"
-    tools: ["search_web", "fetch_url"]
-```
 
 ## Examples
 
@@ -455,7 +438,7 @@ models:
 
 ### Agent Store and Distribution
 
-cagent supports distributing agents via Docker registries:
+cagent supports distributing via, and running agents from, Docker registries:
 
 ```bash
 # Pull an agent from a registry
@@ -463,6 +446,9 @@ cagent supports distributing agents via Docker registries:
 
 # Push your agent to a registry
 ./bin/cagent push docker.io/username/my-agent:latest
+
+# Run an agent directly from an image reference
+./bin/cagent run docker.io/username/my-agent:latest
 ```
 
 **Agent References:**
@@ -470,23 +456,6 @@ cagent supports distributing agents via Docker registries:
 - File agents: `my-agent.yaml` (relative path)
 - Store agents: `docker.io/username/my-agent:latest` (full Docker reference)
 
-### Docker AI Gateway Integration
-
-When using Docker Desktop, cagent can integrate with Docker's AI Gateway:
-
-```yaml
-models:
-  gateway_gpt4:
-    provider: openai
-    model: gpt-4o
-    base_url: https://api.docker.com/v1
-    # Authentication handled automatically via Docker Desktop
-```
-
-```bash
-# Use gateway flag to override model endpoints
-./bin/cagent run config.yaml --gateway https://api.docker.com
-```
 
 ### Session Management
 
@@ -540,8 +509,6 @@ models:
 - Check API keys are set correctly
 - Verify model name matches provider
 - Check network connectivity
-- Ensure Docker Desktop is running (for Docker AI Gateway)
-- Verify gateway authentication (check Docker Desktop login)
 
 **Tool errors:**
 
@@ -596,7 +563,6 @@ Check logs for:
 - MCP protocol handshake issues
 - Session creation and cleanup events
 - Client isolation boundary violations
-- Docker AI Gateway authentication failures
 
 ### Testing MCP Integration
 
@@ -676,7 +642,7 @@ agents:
       Remember important findings and reference previous research.
 ```
 
-### Multi-Model Teams with Gateway Integration
+### Multi-Model Teams
 
 ```yaml
 models:
@@ -686,11 +652,9 @@ models:
     model: claude-sonnet-4-0
     temperature: 0.2
 
-  # Gateway model for enhanced capabilities
-  gpt4_gateway:
+  gpt4:
     provider: openai
     model: gpt-4o
-    base_url: https://api.docker.com/v1
     temperature: 0.1
 
   # Creative model for content generation
@@ -705,8 +669,8 @@ agents:
     description: Fast analysis and reasoning
 
   coder:
-    model: gpt4_gateway
-    description: Enhanced coding with gateway models
+    model: gpt4
+    description: not very creative developer
 
   writer:
     model: gpt4_creative
@@ -714,5 +678,4 @@ agents:
 ```
 
 This guide should help you get started with cagent and build powerful
-multi-agent systems. For more advanced topics, see the Architecture Guide and
-API Reference.
+multi-agent systems.
