@@ -148,6 +148,10 @@ func (t *TodoTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "create_todo",
 				Description: "Create a new todo item with a description",
+				Annotations: tools.ToolAnnotation{
+					// This is technically not read-only but has practically no destructive side effects.
+					ReadOnlyHint: &[]bool{true}[0],
+				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
@@ -165,6 +169,10 @@ func (t *TodoTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "create_todos",
 				Description: "Create a list of new todo items with descriptions",
+				Annotations: tools.ToolAnnotation{
+					// This is technically not read-only but has practically no destructive side effects.
+					ReadOnlyHint: &[]bool{true}[0],
+				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
@@ -191,6 +199,10 @@ func (t *TodoTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "update_todo",
 				Description: "Update the status of a todo item",
+				Annotations: tools.ToolAnnotation{
+					// This is technically not read-only but has practically no destructive side effects.
+					ReadOnlyHint: &[]bool{true}[0],
+				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
