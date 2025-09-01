@@ -82,7 +82,7 @@ const (
 	FinishReasonNull FinishReason = "null"
 )
 
-// ChatCompletionDelta represents a delta/chunk in a streaming response
+// MessageDelta represents a delta/chunk in a streaming response
 type MessageDelta struct {
 	Role         string              `json:"role,omitempty"`
 	Content      string              `json:"content,omitempty"`
@@ -90,14 +90,14 @@ type MessageDelta struct {
 	ToolCalls    []tools.ToolCall    `json:"tool_calls,omitempty"`
 }
 
-// ChatCompletionStreamChoice represents a choice in a streaming response
+// MessageStreamChoice represents a choice in a streaming response
 type MessageStreamChoice struct {
 	Index        int          `json:"index"`
 	Delta        MessageDelta `json:"delta"`
 	FinishReason FinishReason `json:"finish_reason,omitempty"`
 }
 
-// ChatCompletionStreamResponse represents a streaming response from the model
+// MessageStreamResponse represents a streaming response from the model
 type MessageStreamResponse struct {
 	ID      string                `json:"id"`
 	Object  string                `json:"object"`
@@ -114,7 +114,7 @@ type Usage struct {
 	CachedOutputTokens int `json:"cached_output_tokens"`
 }
 
-// ChatCompletionStream interface represents a stream of chat completions
+// MessageStream interface represents a stream of chat completions
 type MessageStream interface {
 	// Recv gets the next completion chunk
 	Recv() (MessageStreamResponse, error)
