@@ -61,6 +61,17 @@ func TestTodoTool_Tools(t *testing.T) {
 	assert.NotNil(t, tools[3].Handler)
 }
 
+func TestTodoTool_DisplayNames(t *testing.T) {
+	tool := NewTodoTool()
+
+	all, err := tool.Tools(t.Context())
+	require.NoError(t, err)
+
+	for _, tool := range all {
+		assert.NotEqual(t, tool.Function.Name, tools.DisplayName(tool.Function.Name))
+	}
+}
+
 func TestTodoTool_CreateTodo(t *testing.T) {
 	tool := NewTodoTool()
 

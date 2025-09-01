@@ -59,6 +59,17 @@ func TestShellTool_Tools(t *testing.T) {
 	assert.NotNil(t, tools[0].Handler)
 }
 
+func TestShellTool_DisplayNames(t *testing.T) {
+	tool := NewShellTool()
+
+	all, err := tool.Tools(t.Context())
+	require.NoError(t, err)
+
+	for _, tool := range all {
+		assert.NotEqual(t, tool.Function.Name, tools.DisplayName(tool.Function.Name))
+	}
+}
+
 func TestShellTool_HandlerEcho(t *testing.T) {
 	// This is a simple test that should work on most systems
 	tool := NewShellTool()

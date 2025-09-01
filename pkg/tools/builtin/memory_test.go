@@ -65,6 +65,18 @@ func TestMemoryTool_Tools(t *testing.T) {
 	assert.Equal(t, "delete_memory", tls[2].Function.Name)
 }
 
+func TestMemoryTool_DisplayNames(t *testing.T) {
+	manager := new(MockMemoryManager)
+	tool := NewMemoryTool(manager)
+
+	all, err := tool.Tools(t.Context())
+	require.NoError(t, err)
+
+	for _, tool := range all {
+		assert.NotEqual(t, tool.Function.Name, tools.DisplayName(tool.Function.Name))
+	}
+}
+
 func TestMemoryTool_HandleAddMemory(t *testing.T) {
 	manager := new(MockMemoryManager)
 	tool := NewMemoryTool(manager)

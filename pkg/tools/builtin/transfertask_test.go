@@ -3,6 +3,7 @@ package builtin
 import (
 	"testing"
 
+	"github.com/docker/cagent/pkg/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -41,6 +42,17 @@ func TestTaskTool_Tools(t *testing.T) {
 
 	// Verify no handler is provided (it's handled externally)
 	assert.Nil(t, tools[0].Handler)
+}
+
+func TestTaskTool_DisplayNames(t *testing.T) {
+	tool := NewTransferTaskTool()
+
+	all, err := tool.Tools(t.Context())
+	require.NoError(t, err)
+
+	for _, tool := range all {
+		assert.NotEqual(t, tool.Function.Name, tools.DisplayName(tool.Function.Name))
+	}
 }
 
 func TestTaskTool_StartStop(t *testing.T) {

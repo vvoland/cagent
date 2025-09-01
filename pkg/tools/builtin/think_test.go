@@ -49,6 +49,17 @@ func TestThinkTool_Tools(t *testing.T) {
 	assert.NotNil(t, tls[0].Handler)
 }
 
+func TestThinkTool_DisplayNames(t *testing.T) {
+	tool := NewThinkTool()
+
+	all, err := tool.Tools(t.Context())
+	require.NoError(t, err)
+
+	for _, tool := range all {
+		assert.NotEqual(t, tool.Function.Name, tools.DisplayName(tool.Function.Name))
+	}
+}
+
 func TestThinkTool_Handler(t *testing.T) {
 	tool := NewThinkTool()
 

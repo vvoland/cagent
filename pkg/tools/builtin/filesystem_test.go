@@ -65,6 +65,17 @@ func TestFilesystemTool_Tools(t *testing.T) {
 	}
 }
 
+func TestFilesystemTool_DisplayNames(t *testing.T) {
+	tool := NewFilesystemTool([]string{"/tmp"})
+
+	all, err := tool.Tools(t.Context())
+	require.NoError(t, err)
+
+	for _, tool := range all {
+		assert.NotEqual(t, tool.Function.Name, tools.DisplayName(tool.Function.Name))
+	}
+}
+
 func TestFilesystemTool_IsPathAllowed(t *testing.T) {
 	tmpDir := t.TempDir()
 	tool := NewFilesystemTool([]string{tmpDir})
