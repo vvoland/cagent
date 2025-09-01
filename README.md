@@ -40,16 +40,16 @@ More examples can be found [here](/examples/)!
   suitable specialist
 - **📝 YAML configuration** - Declarative model and agent configuration
 - **💭 Advanced reasoning** - Built-in "think", "todo" and "memory" tools for
-  complex problem solving
+  complex problem-solving
 - **🌐 Multiple AI providers** - Support for OpenAI, Anthropic, Gemini and DMR ([Docker Model Runner](https://docs.docker.com/ai/model-runner/))
 
 ## 🚀 Quick Start 🚀
 
 ### Installation
 
-[Prebuilt binaries](https://github.com/docker/cagent/releases) for Windows, MacOS and Linux can be found on the releases page of the [project's GitHub repository](https://github.com/docker/cagent)  
+[Prebuilt binaries](https://github.com/docker/cagent/releases) for Windows, macOS and Linux can be found on the releases page of the [project's GitHub repository](https://github.com/docker/cagent)  
 Once you've downloaded the appropriate binary for your platform, you may need to give it executable permissions.  
-On MacOS and Linux, this can be done with the following command:
+On macOS and Linux, this can be done with the following command:
 
 ```sh
 # linux amd64 build example
@@ -86,7 +86,7 @@ cagent run my-agent.yaml -a root
 ./bin/cagent run agentcatalog/pirate
 ```
 
-### Multi agent team example
+### Multi-agent team example
 
 ```yaml
 agents:
@@ -126,7 +126,7 @@ models:
 
 ## Quickly generate agents and agent teams with `cagent new`
 
-Using the command `cagent new` you can quickly generate agents or multi agent teams using a single prompt! `cagent` has a built-in agent dedicated to this task.
+Using the command `cagent new` you can quickly generate agents or multi-agent teams using a single prompt! `cagent` has a built-in agent dedicated to this task.
 
 To use the feature, you must have an Anthropic, OpenAI or Google API key available in your environment.
 
@@ -191,6 +191,6 @@ More details on the usage and configuration of `cagent` can be found in [USAGE.m
 
 ## Contributing
 
-Wanna hack on `cagent`, or help us fix bugs and build out some features? 🔧
+Want to hack on `cagent`, or help us fix bugs and build out some features? 🔧
 
 Read the information on how to build from source and contribute to the project in [CONTRIBUTING.md](/docs/CONTRIBUTING.md)

@@ -282,7 +282,7 @@ toolsets:
     path: ./mem.db # Path to the sqlite database for memory storage (optional)
 ```
 
-Lets go into a bit more detail about the built-in tools that agents can use:
+Let's go into a bit more detail about the built-in tools that agents can use:
 
 ### Think Tool
 

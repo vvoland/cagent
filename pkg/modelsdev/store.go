@@ -82,7 +82,7 @@ func (s *Store) GetDatabase(ctx context.Context) (*Database, error) {
 	// Cache is invalid or doesn't exist, fetch from API
 	database, err := s.fetchFromAPI(ctx)
 	if err != nil {
-		// If API fetch fails but we have cached data, use it
+		// If API fetch fails, but we have cached data, use it
 		if cached != nil {
 			return &cached.Database, nil
 		}
