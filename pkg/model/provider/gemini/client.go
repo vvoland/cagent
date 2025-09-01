@@ -365,29 +365,6 @@ func (c *Client) CreateChatCompletionStream(
 		slog.Debug("Message", "index", i, "role", content.Role)
 	}
 
-	// For Gemini 2.5 models with thoughtSignature streaming issues,
-	// try non-streaming first to avoid parsing problems
-	if strings.Contains(c.config.Model, "2.5") {
-		slog.Debug("Using non-streaming mode for Gemini 2.5 to avoid thoughtSignature parsing issues")
-		var client *genai.Client
-		if c.useGateway {
-			if gwClient, err := c.newGatewayClient(ctx); err == nil {
-				client = gwClient
-			} else {
-				client = c.client
-			}
-		} else {
-			client = c.client
-		}
-		response, err := client.Models.GenerateContent(ctx, c.config.Model, contents, config)
-		if err != nil {
-			slog.Debug("Non-streaming failed, falling back to streaming", "error", err)
-		} else {
-			// Convert non-streaming response to streaming format
-			return NewNonStreamingAdapter(response, c.config.Model), nil
-		}
-	}
-
 	// Build a fresh client per request when using the gateway
 	var iter func(func(*genai.GenerateContentResponse, error) bool)
 	if c.useGateway {

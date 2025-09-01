@@ -2,7 +2,6 @@ package gemini
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"log/slog"
 	"regexp"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/google/uuid"
 	"google.golang.org/genai"
 )
 
@@ -140,52 +140,6 @@ func NewStreamAdapter(iter func(func(*genai.GenerateContentResponse, error) bool
 	return adapter
 }
 
-// NewNonStreamingAdapter creates a streaming adapter from a non-streaming response
-func NewNonStreamingAdapter(response *genai.GenerateContentResponse, model string) *StreamAdapter {
-	adapter := &StreamAdapter{
-		ch:    make(chan result),
-		model: model,
-	}
-
-	go func() {
-		defer close(adapter.ch)
-
-		// Send the complete response as a single chunk
-		if response != nil {
-			// Check if we should send the response (has content, function calls, or usage)
-			hasContent := false
-
-			// Check for text content
-			for _, candidate := range response.Candidates {
-				if candidate.Content != nil {
-					for _, part := range candidate.Content.Parts {
-						if part.Text != "" {
-							hasContent = true
-							break
-						}
-					}
-				}
-				if hasContent {
-					break
-				}
-			}
-
-			// Check for function calls
-			hasFunctionCalls := len(response.FunctionCalls()) > 0
-
-			// Send response once if it has any relevant content
-			if hasContent || hasFunctionCalls || response.UsageMetadata != nil {
-				adapter.ch <- result{resp: response}
-			}
-		}
-
-		// Send final message
-		adapter.ch <- result{done: true, resp: response}
-	}()
-
-	return adapter
-}
-
 // Recv gets the next Gemini content chunk
 func (g *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 	res, ok := <-g.ch
@@ -249,22 +203,19 @@ func (g *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 			for i, fc := range funcs {
 				// Convert args to JSON string
 				argsJSON, _ := json.Marshal(fc.Args)
+				id := "call_" + uuid.New().String()
+				slog.Debug("Gemini: Function call", "name", fc.Name, "args", string(argsJSON), "id", id)
 				idx := i
-				// Generate ID if not provided
-				toolID := fc.ID
-				if toolID == "" {
-					toolID = fmt.Sprintf("call_%d", i)
-				}
 				resp.Choices[0].Delta.ToolCalls[i] = tools.ToolCall{
 					Index: &idx,
-					ID:    toolID,
+					ID:    id,
 					Type:  "function",
 					Function: tools.FunctionCall{
 						Name:      fc.Name,
 						Arguments: string(argsJSON),
 					},
 				}
-				slog.Debug("Gemini: Sending tool call", "name", fc.Name, "args", string(argsJSON), "id", toolID)
+				slog.Debug("Gemini: Sending tool call", "name", fc.Name, "args", string(argsJSON), "id", fc.ID)
 			}
 		}
 	}
