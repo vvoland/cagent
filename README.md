@@ -12,7 +12,7 @@ specialized knowledge, tools, and capabilities.
 
 Think of it as allowing you to quickly build and run a team of virtual experts that can collaborate to solve complex problems for you.
 
-⚠️ Note: `cagent` is in active development and there will be likely breaking changes ⚠️
+⚠️ Note: `cagent` is in active development, **breaking changes are to be expected** ⚠️
 
 ### Your First Agent
 
