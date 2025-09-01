@@ -1,7 +1,6 @@
 package builtin
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 	"strings"
@@ -38,7 +37,7 @@ func TestNewShellTool(t *testing.T) {
 func TestShellTool_Tools(t *testing.T) {
 	tool := NewShellTool()
 
-	tools, err := tool.Tools(context.Background())
+	tools, err := tool.Tools(t.Context())
 
 	require.NoError(t, err)
 	assert.Len(t, tools, 1)
@@ -65,7 +64,7 @@ func TestShellTool_HandlerEcho(t *testing.T) {
 	tool := NewShellTool()
 
 	// Get handler from tool
-	tls, err := tool.Tools(context.Background())
+	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
 	require.Len(t, tls, 1)
 
@@ -89,7 +88,7 @@ func TestShellTool_HandlerEcho(t *testing.T) {
 	}
 
 	// Call handler
-	result, err := handler(context.Background(), toolCall)
+	result, err := handler(t.Context(), toolCall)
 
 	// Verify
 	require.NoError(t, err)
@@ -101,7 +100,7 @@ func TestShellTool_HandlerWithCwd(t *testing.T) {
 	tool := NewShellTool()
 
 	// Get handler from tool
-	tls, err := tool.Tools(context.Background())
+	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
 	require.Len(t, tls, 1)
 
@@ -127,7 +126,7 @@ func TestShellTool_HandlerWithCwd(t *testing.T) {
 	}
 
 	// Call handler
-	result, err := handler(context.Background(), toolCall)
+	result, err := handler(t.Context(), toolCall)
 
 	// Verify
 	require.NoError(t, err)
@@ -142,7 +141,7 @@ func TestShellTool_HandlerError(t *testing.T) {
 	tool := NewShellTool()
 
 	// Get handler from tool
-	tls, err := tool.Tools(context.Background())
+	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
 	require.Len(t, tls, 1)
 
@@ -166,7 +165,7 @@ func TestShellTool_HandlerError(t *testing.T) {
 	}
 
 	// Call handler
-	result, err := handler(context.Background(), toolCall)
+	result, err := handler(t.Context(), toolCall)
 
 	// Verify
 	require.NoError(t, err, "Handler should not return an error")
@@ -177,7 +176,7 @@ func TestShellTool_InvalidArguments(t *testing.T) {
 	tool := NewShellTool()
 
 	// Get handler from tool
-	tls, err := tool.Tools(context.Background())
+	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
 	require.Len(t, tls, 1)
 
@@ -191,7 +190,7 @@ func TestShellTool_InvalidArguments(t *testing.T) {
 		},
 	}
 
-	result, err := handler(context.Background(), toolCall)
+	result, err := handler(t.Context(), toolCall)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 }
@@ -200,7 +199,7 @@ func TestShellTool_StartStop(t *testing.T) {
 	tool := NewShellTool()
 
 	// Test Start method
-	err := tool.Start(context.Background())
+	err := tool.Start(t.Context())
 	require.NoError(t, err)
 
 	// Test Stop method

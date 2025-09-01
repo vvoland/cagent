@@ -46,7 +46,7 @@ func TestAddMemory(t *testing.T) {
 	db, _, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Test adding a valid memory
 	memory := database.UserMemory{
@@ -165,7 +165,7 @@ func TestDatabaseOperationsWithCanceledContext(t *testing.T) {
 	defer cleanup()
 
 	// Create a canceled context
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	// Test operations with canceled context

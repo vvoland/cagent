@@ -1,7 +1,6 @@
 package builtin
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,7 +21,7 @@ func TestTaskTool_Instructions(t *testing.T) {
 func TestTaskTool_Tools(t *testing.T) {
 	tool := NewTransferTaskTool()
 
-	tools, err := tool.Tools(context.Background())
+	tools, err := tool.Tools(t.Context())
 
 	require.NoError(t, err)
 	assert.Len(t, tools, 1)
@@ -48,7 +47,7 @@ func TestTaskTool_StartStop(t *testing.T) {
 	tool := NewTransferTaskTool()
 
 	// Test Start method
-	err := tool.Start(context.Background())
+	err := tool.Start(t.Context())
 	require.NoError(t, err)
 
 	// Test Stop method

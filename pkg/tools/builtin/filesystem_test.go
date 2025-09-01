@@ -1,7 +1,6 @@
 package builtin
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -33,7 +32,7 @@ func TestFilesystemTool_Instructions(t *testing.T) {
 
 func TestFilesystemTool_Tools(t *testing.T) {
 	tool := NewFilesystemTool([]string{"/tmp"})
-	tools, err := tool.Tools(context.Background())
+	tools, err := tool.Tools(t.Context())
 
 	require.NoError(t, err)
 	assert.Len(t, tools, 14)
@@ -570,7 +569,7 @@ func TestFilesystemTool_InvalidArguments(t *testing.T) {
 		},
 	}
 
-	result, err := handler(context.Background(), toolCall)
+	result, err := handler(t.Context(), toolCall)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 }
@@ -579,7 +578,7 @@ func TestFilesystemTool_StartStop(t *testing.T) {
 	tool := NewFilesystemTool([]string{"/tmp"})
 
 	// Test Start method
-	err := tool.Start(context.Background())
+	err := tool.Start(t.Context())
 	require.NoError(t, err)
 
 	// Test Stop method
@@ -590,7 +589,7 @@ func TestFilesystemTool_StartStop(t *testing.T) {
 // Helper functions
 
 func getToolHandler(t *testing.T, tool *FilesystemTool, toolName string) tools.ToolHandler {
-	tls, err := tool.Tools(context.Background())
+	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
 
 	for _, tl := range tls {
@@ -613,7 +612,7 @@ func callHandler(t *testing.T, handler tools.ToolHandler, args map[string]any) *
 		},
 	}
 
-	result, err := handler(context.Background(), toolCall)
+	result, err := handler(t.Context(), toolCall)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 

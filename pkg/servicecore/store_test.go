@@ -21,7 +21,7 @@ func TestSQLiteStore_Migration(t *testing.T) {
 	defer store.(*SQLiteStore).Close()
 
 	// Verify migration was applied by creating a client
-	ctx := context.Background()
+	ctx := t.Context()
 	err = store.CreateClient(ctx, "test-client")
 	assert.NoError(t, err)
 }

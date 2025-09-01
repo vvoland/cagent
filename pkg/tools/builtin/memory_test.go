@@ -54,7 +54,7 @@ func TestMemoryTool_Tools(t *testing.T) {
 	manager := new(MockMemoryManager)
 	tool := NewMemoryTool(manager)
 
-	tls, err := tool.Tools(context.Background())
+	tls, err := tool.Tools(t.Context())
 
 	require.NoError(t, err)
 	assert.Len(t, tls, 3)
@@ -90,7 +90,7 @@ func TestMemoryTool_HandleAddMemory(t *testing.T) {
 	}
 
 	// Call handler
-	result, err := tool.handleAddMemory(context.Background(), toolCall)
+	result, err := tool.handleAddMemory(t.Context(), toolCall)
 
 	// Verify
 	require.NoError(t, err)
@@ -126,7 +126,7 @@ func TestMemoryTool_HandleGetMemories(t *testing.T) {
 	}
 
 	// Call handler
-	result, err := tool.handleGetMemories(context.Background(), toolCall)
+	result, err := tool.handleGetMemories(t.Context(), toolCall)
 
 	// Verify
 	require.NoError(t, err)
@@ -165,7 +165,7 @@ func TestMemoryTool_HandleDeleteMemory(t *testing.T) {
 	}
 
 	// Call handler
-	result, err := tool.handleDeleteMemory(context.Background(), toolCall)
+	result, err := tool.handleDeleteMemory(t.Context(), toolCall)
 
 	// Verify
 	require.NoError(t, err)
@@ -185,7 +185,7 @@ func TestMemoryTool_InvalidArguments(t *testing.T) {
 		},
 	}
 
-	result, err := tool.handleAddMemory(context.Background(), toolCall)
+	result, err := tool.handleAddMemory(t.Context(), toolCall)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 
@@ -197,7 +197,7 @@ func TestMemoryTool_InvalidArguments(t *testing.T) {
 		},
 	}
 
-	result, err = tool.handleDeleteMemory(context.Background(), toolCall)
+	result, err = tool.handleDeleteMemory(t.Context(), toolCall)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 }
@@ -207,7 +207,7 @@ func TestMemoryTool_StartStop(t *testing.T) {
 	tool := NewMemoryTool(manager)
 
 	// Test Start method
-	err := tool.Start(context.Background())
+	err := tool.Start(t.Context())
 	require.NoError(t, err)
 
 	// Test Stop method

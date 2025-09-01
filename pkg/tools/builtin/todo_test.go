@@ -1,7 +1,6 @@
 package builtin
 
 import (
-	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -32,7 +31,7 @@ func TestTodoTool_Instructions(t *testing.T) {
 func TestTodoTool_Tools(t *testing.T) {
 	tool := NewTodoTool()
 
-	tools, err := tool.Tools(context.Background())
+	tools, err := tool.Tools(t.Context())
 
 	require.NoError(t, err)
 	assert.Len(t, tools, 4)
@@ -66,7 +65,7 @@ func TestTodoTool_CreateTodo(t *testing.T) {
 	tool := NewTodoTool()
 
 	// Get handler from tool
-	tls, err := tool.Tools(context.Background())
+	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
 	require.Len(t, tls, 4)
 
@@ -86,7 +85,7 @@ func TestTodoTool_CreateTodo(t *testing.T) {
 	}
 
 	// Call handler
-	result, err := createHandler(context.Background(), toolCall)
+	result, err := createHandler(t.Context(), toolCall)
 
 	// Verify
 	require.NoError(t, err)
@@ -104,7 +103,7 @@ func TestTodoTool_CreateTodos(t *testing.T) {
 	tool := NewTodoTool()
 
 	// Get handler from tool
-	tls, err := tool.Tools(context.Background())
+	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
 	require.Len(t, tls, 4)
 
@@ -136,7 +135,7 @@ func TestTodoTool_CreateTodos(t *testing.T) {
 	}
 
 	// Call handler
-	result, err := createTodosHandler(context.Background(), toolCall)
+	result, err := createTodosHandler(t.Context(), toolCall)
 
 	// Verify
 	require.NoError(t, err)
@@ -168,7 +167,7 @@ func TestTodoTool_CreateTodos(t *testing.T) {
 	}
 
 	// Call handler
-	result, err = createTodosHandler(context.Background(), toolCall)
+	result, err = createTodosHandler(t.Context(), toolCall)
 
 	require.NoError(t, err)
 	assert.Contains(t, result.Output, "Created 1 todos:")
@@ -180,7 +179,7 @@ func TestTodoTool_UpdateTodo(t *testing.T) {
 	tool := NewTodoTool()
 
 	// Get handlers from tool
-	tls, err := tool.Tools(context.Background())
+	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
 	require.Len(t, tls, 4)
 
@@ -200,7 +199,7 @@ func TestTodoTool_UpdateTodo(t *testing.T) {
 		},
 	}
 
-	_, err = createHandler(context.Background(), createToolCall)
+	_, err = createHandler(t.Context(), createToolCall)
 	require.NoError(t, err)
 
 	// Now update it
@@ -221,7 +220,7 @@ func TestTodoTool_UpdateTodo(t *testing.T) {
 	}
 
 	// Call update handler
-	result, err := updateHandler(context.Background(), updateToolCall)
+	result, err := updateHandler(t.Context(), updateToolCall)
 
 	// Verify
 	require.NoError(t, err)
@@ -237,7 +236,7 @@ func TestTodoTool_ListTodos(t *testing.T) {
 	tool := NewTodoTool()
 
 	// Get handlers from tool
-	tls, err := tool.Tools(context.Background())
+	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
 	require.Len(t, tls, 4)
 
@@ -263,7 +262,7 @@ func TestTodoTool_ListTodos(t *testing.T) {
 			},
 		}
 
-		_, err = createHandler(context.Background(), createToolCall)
+		_, err = createHandler(t.Context(), createToolCall)
 		require.NoError(t, err)
 	}
 
@@ -276,7 +275,7 @@ func TestTodoTool_ListTodos(t *testing.T) {
 	}
 
 	// Call list handler
-	result, err := listHandler(context.Background(), listToolCall)
+	result, err := listHandler(t.Context(), listToolCall)
 
 	// Verify
 	require.NoError(t, err)
@@ -291,7 +290,7 @@ func TestTodoTool_UpdateNonexistentTodo(t *testing.T) {
 	tool := NewTodoTool()
 
 	// Get update handler from tool
-	tls, err := tool.Tools(context.Background())
+	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
 	require.Len(t, tls, 4)
 
@@ -315,7 +314,7 @@ func TestTodoTool_UpdateNonexistentTodo(t *testing.T) {
 	}
 
 	// Call update handler
-	_, err = updateHandler(context.Background(), updateToolCall)
+	_, err = updateHandler(t.Context(), updateToolCall)
 
 	// Verify error
 	assert.Error(t, err)
@@ -326,7 +325,7 @@ func TestTodoTool_InvalidArguments(t *testing.T) {
 	tool := NewTodoTool()
 
 	// Get handlers from tool
-	tls, err := tool.Tools(context.Background())
+	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
 	require.Len(t, tls, 4)
 
@@ -341,7 +340,7 @@ func TestTodoTool_InvalidArguments(t *testing.T) {
 		},
 	}
 
-	_, err = createHandler(context.Background(), createToolCall)
+	_, err = createHandler(t.Context(), createToolCall)
 	assert.Error(t, err)
 
 	// Invalid JSON for update_todo
@@ -352,7 +351,7 @@ func TestTodoTool_InvalidArguments(t *testing.T) {
 		},
 	}
 
-	_, err = updateHandler(context.Background(), updateToolCall)
+	_, err = updateHandler(t.Context(), updateToolCall)
 	assert.Error(t, err)
 }
 
@@ -360,7 +359,7 @@ func TestTodoTool_StartStop(t *testing.T) {
 	tool := NewTodoTool()
 
 	// Test Start method
-	err := tool.Start(context.Background())
+	err := tool.Start(t.Context())
 	require.NoError(t, err)
 
 	// Test Stop method

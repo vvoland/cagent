@@ -1,7 +1,6 @@
 package builtin
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
 
@@ -30,7 +29,7 @@ func TestThinkTool_Instructions(t *testing.T) {
 func TestThinkTool_Tools(t *testing.T) {
 	tool := NewThinkTool()
 
-	tls, err := tool.Tools(context.Background())
+	tls, err := tool.Tools(t.Context())
 
 	require.NoError(t, err)
 	assert.Len(t, tls, 1)
@@ -54,7 +53,7 @@ func TestThinkTool_Handler(t *testing.T) {
 	tool := NewThinkTool()
 
 	// Get handler from tool
-	tls, err := tool.Tools(context.Background())
+	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
 	require.Len(t, tls, 1)
 
@@ -76,7 +75,7 @@ func TestThinkTool_Handler(t *testing.T) {
 	}
 
 	// Call handler
-	result, err := handler(context.Background(), toolCall)
+	result, err := handler(t.Context(), toolCall)
 
 	// Verify
 	require.NoError(t, err)
@@ -88,7 +87,7 @@ func TestThinkTool_Handler(t *testing.T) {
 
 	toolCall.Function.Arguments = string(argsBytes)
 
-	result, err = handler(context.Background(), toolCall)
+	result, err = handler(t.Context(), toolCall)
 
 	// Verify both thoughts are in output
 	require.NoError(t, err)
@@ -100,7 +99,7 @@ func TestThinkTool_InvalidArguments(t *testing.T) {
 	tool := NewThinkTool()
 
 	// Get handler from tool
-	tls, err := tool.Tools(context.Background())
+	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
 	require.Len(t, tls, 1)
 
@@ -114,7 +113,7 @@ func TestThinkTool_InvalidArguments(t *testing.T) {
 		},
 	}
 
-	result, err := handler(context.Background(), toolCall)
+	result, err := handler(t.Context(), toolCall)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 }
@@ -123,7 +122,7 @@ func TestThinkTool_StartStop(t *testing.T) {
 	tool := NewThinkTool()
 
 	// Test Start method
-	err := tool.Start(context.Background())
+	err := tool.Start(t.Context())
 	require.NoError(t, err)
 
 	// Test Stop method

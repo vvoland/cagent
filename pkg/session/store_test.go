@@ -1,7 +1,6 @@
 package session
 
 import (
-	"context"
 	"os"
 	"testing"
 	"time"
@@ -47,11 +46,11 @@ func TestStoreAgentName(t *testing.T) {
 	}
 
 	// Store the session
-	err = store.AddSession(context.Background(), session)
+	err = store.AddSession(t.Context(), session)
 	require.NoError(t, err)
 
 	// Retrieve the session
-	retrievedSession, err := store.GetSession(context.Background(), "test-session")
+	retrievedSession, err := store.GetSession(t.Context(), "test-session")
 	require.NoError(t, err)
 	require.NotNil(t, retrievedSession)
 
@@ -106,11 +105,11 @@ func TestStoreMultipleAgents(t *testing.T) {
 	}
 
 	// Store the session
-	err = store.AddSession(context.Background(), session)
+	err = store.AddSession(t.Context(), session)
 	require.NoError(t, err)
 
 	// Retrieve the session
-	retrievedSession, err := store.GetSession(context.Background(), "multi-agent-session")
+	retrievedSession, err := store.GetSession(t.Context(), "multi-agent-session")
 	require.NoError(t, err)
 	require.NotNil(t, retrievedSession)
 
@@ -169,13 +168,13 @@ func TestGetSessions(t *testing.T) {
 	}
 
 	// Store the sessions
-	err = store.AddSession(context.Background(), session1)
+	err = store.AddSession(t.Context(), session1)
 	require.NoError(t, err)
-	err = store.AddSession(context.Background(), session2)
+	err = store.AddSession(t.Context(), session2)
 	require.NoError(t, err)
 
 	// Retrieve all sessions
-	sessions, err := store.GetSessions(context.Background())
+	sessions, err := store.GetSessions(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, sessions, 2)
 
@@ -218,11 +217,11 @@ func TestStoreAgentNameJSON(t *testing.T) {
 	}
 
 	// Store the session
-	err = store.AddSession(context.Background(), session)
+	err = store.AddSession(t.Context(), session)
 	require.NoError(t, err)
 
 	// Retrieve the session
-	retrievedSession, err := store.GetSession(context.Background(), "json-test-session")
+	retrievedSession, err := store.GetSession(t.Context(), "json-test-session")
 	require.NoError(t, err)
 	require.NotNil(t, retrievedSession)
 
