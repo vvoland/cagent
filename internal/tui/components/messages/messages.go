@@ -466,10 +466,10 @@ func (m *model) AddUserMessage(content string) tea.Cmd {
 	m.views = append(m.views, view)
 
 	if wasAtBottom {
-		return tea.Batch(view.Init(), tea.Cmd(func() tea.Msg {
+		return tea.Batch(view.Init(), func() tea.Msg {
 			m.scrollToBottom()
 			return nil
-		}))
+		})
 	}
 
 	return view.Init()
@@ -488,15 +488,17 @@ func (m *model) AddErrorMessage(content string) tea.Cmd {
 	m.views = append(m.views, view)
 
 	if wasAtBottom {
-		return tea.Batch(view.Init(), tea.Cmd(func() tea.Msg {
+		return tea.Batch(view.Init(), func() tea.Msg {
 			m.scrollToBottom()
 			return nil
-		}))
+		})
 	}
 	return view.Init()
 }
 
 // AddAssistantMessage adds an assistant message to the chat
+//
+//goland:noinspection ALL
 func (m *model) AddAssistantMessage() tea.Cmd {
 	msg := types.Message{
 		Type: types.MessageTypeAssistant,
@@ -611,10 +613,10 @@ func (m *model) AppendToLastMessage(agentName, content string) tea.Cmd {
 			cmds = append(cmds, initCmd)
 		}
 		if wasAtBottom {
-			cmds = append(cmds, tea.Cmd(func() tea.Msg {
+			cmds = append(cmds, func() tea.Msg {
 				m.scrollToBottom()
 				return nil
-			}))
+			})
 		}
 		return tea.Batch(cmds...)
 	} else {
@@ -635,10 +637,10 @@ func (m *model) AppendToLastMessage(agentName, content string) tea.Cmd {
 			cmds = append(cmds, initCmd)
 		}
 		if wasAtBottom {
-			cmds = append(cmds, tea.Cmd(func() tea.Msg {
+			cmds = append(cmds, func() tea.Msg {
 				m.scrollToBottom()
 				return nil
-			}))
+			})
 		}
 		return tea.Batch(cmds...)
 	}
@@ -656,10 +658,10 @@ func (m *model) ClearMessages() {
 
 // ScrollToBottom scrolls to the bottom of the chat
 func (m *model) ScrollToBottom() tea.Cmd {
-	return tea.Cmd(func() tea.Msg {
+	return func() tea.Msg {
 		m.scrollToBottom()
 		return nil
-	})
+	}
 }
 
 func (m *model) createToolCallView(msg *types.Message) tool.Model {
