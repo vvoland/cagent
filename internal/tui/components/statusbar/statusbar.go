@@ -46,7 +46,7 @@ func (s *StatusBar) formatHelpString(bindings []key.Binding) string {
 }
 
 // View renders the status bar
-func (s StatusBar) View() string {
+func (s *StatusBar) View() string {
 	if s.help == nil {
 		return ""
 	}
