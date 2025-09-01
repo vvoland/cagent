@@ -65,7 +65,7 @@ func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return e, nil
 	case tea.KeyPressMsg:
 		switch msg.String() {
-		case "ctrl+enter":
+		case "enter":
 			if !e.textarea.Focused() {
 				return e, nil
 			}
@@ -134,12 +134,8 @@ func (e *editor) IsFocused() bool {
 func (e *editor) Bindings() []key.Binding {
 	return []key.Binding{
 		key.NewBinding(
-			key.WithKeys("ctrl+enter"),
-			key.WithHelp("ctrl+enter", "send"),
-		),
-		key.NewBinding(
 			key.WithKeys("enter"),
-			key.WithHelp("enter", "new line"),
+			key.WithHelp("enter", "send"),
 		),
 	}
 }
