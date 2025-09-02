@@ -40,7 +40,7 @@ func NewRootCmd() *cobra.Command {
 
 	cmd.AddCommand(NewVersionCmd())
 	cmd.AddCommand(NewRunCmd())
-	cmd.AddCommand(NewTUICmd())
+	cmd.AddCommand(NewTuiCmd())
 	cmd.AddCommand(NewNewCmd())
 	cmd.AddCommand(NewApiCmd())
 	cmd.AddCommand(NewEvalCmd())

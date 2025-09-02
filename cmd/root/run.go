@@ -34,33 +34,8 @@ var (
 	autoApprove    bool
 	attachmentPath string
 	workingDir     string
+	useTUI         bool
 )
-
-// NewTUICmd creates a new TUI command
-func NewTUICmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "tui <agent-name> [message|-]",
-		Short: "Run the agent",
-		Long:  `Run an agent with the specified configuration and prompt`,
-		Example: `  cagent tui ./agent.yaml
-  cagent tui ./team.yaml --agent root
-  cagent tui ./echo.yaml "INSTRUCTIONS"
-  echo "INSTRUCTIONS" | cagent tui ./echo.yaml -`,
-		Args: cobra.RangeArgs(1, 2),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCommand(cmd, args, true)
-		},
-	}
-
-	cmd.PersistentFlags().StringVarP(&agentName, "agent", "a", "root", "Name of the agent to run")
-	cmd.PersistentFlags().StringSliceVar(&runConfig.EnvFiles, "env-from-file", nil, "Set environment variables from file")
-	cmd.PersistentFlags().StringVar(&workingDir, "working-dir", "", "Set the working directory for the session (applies to tools and relative paths)")
-	cmd.PersistentFlags().BoolVar(&autoApprove, "yolo", false, "Automatically approve all tool calls without prompting")
-	cmd.PersistentFlags().StringVar(&attachmentPath, "attach", "", "Attach an image file to the message")
-	addGatewayFlags(cmd)
-
-	return cmd
-}
 
 // NewRunCmd creates a new run command
 func NewRunCmd() *cobra.Command {
@@ -73,9 +48,7 @@ func NewRunCmd() *cobra.Command {
   cagent run ./echo.yaml "INSTRUCTIONS"
   echo "INSTRUCTIONS" | cagent run ./echo.yaml -`,
 		Args: cobra.RangeArgs(1, 2),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCommand(cmd, args, false)
-		},
+		RunE: runCommand,
 	}
 
 	cmd.PersistentFlags().StringVarP(&agentName, "agent", "a", "root", "Name of the agent to run")
@@ -83,15 +56,28 @@ func NewRunCmd() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&workingDir, "working-dir", "", "Set the working directory for the session (applies to tools and relative paths)")
 	cmd.PersistentFlags().BoolVar(&autoApprove, "yolo", false, "Automatically approve all tool calls without prompting")
 	cmd.PersistentFlags().StringVar(&attachmentPath, "attach", "", "Attach an image file to the message")
+	cmd.PersistentFlags().BoolVar(&useTUI, "tui", true, "Run the agent with a Terminal User Interface (TUI)")
 	addGatewayFlags(cmd)
 
 	return cmd
 }
 
-func runCommand(_ *cobra.Command, args []string, useTUI bool) error {
+func NewTuiCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:    "tui",
+		Short:  "Deprecated. Use `cagent run` instead.",
+		Hidden: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			fmt.Fprintln(os.Stderr, "'cagent tui' is deprecated. Please use 'cagent run' instead.")
+			return nil
+		},
+	}
+}
+
+func runCommand(_ *cobra.Command, args []string) error {
 	ctx := context.Background()
 
-	slog.Debug("Starting agent TUI", "agent", agentName, "debug_mode", debugMode)
+	slog.Debug("Starting agent", "agent", agentName, "debug_mode", debugMode)
 
 	agentFilename := args[0]
 	if !strings.Contains(agentFilename, "\n") {
@@ -213,8 +199,8 @@ func runCommand(_ *cobra.Command, args []string, useTUI bool) error {
 			if err != nil {
 				return fmt.Errorf("failed to read from stdin: %w", err)
 			}
-			content := string(buf)
-			firstMessage = &content
+			text := string(buf)
+			firstMessage = &text
 		} else {
 			firstMessage = &args[1]
 		}
