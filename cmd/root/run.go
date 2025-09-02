@@ -48,7 +48,9 @@ func NewRunCmd() *cobra.Command {
   cagent run ./echo.yaml "INSTRUCTIONS"
   echo "INSTRUCTIONS" | cagent run ./echo.yaml -`,
 		Args: cobra.RangeArgs(1, 2),
-		RunE: runCommand,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runCommand(cmd, args, false)
+		},
 	}
 
 	cmd.PersistentFlags().StringVarP(&agentName, "agent", "a", "root", "Name of the agent to run")
@@ -74,7 +76,7 @@ func NewTuiCmd() *cobra.Command {
 	}
 }
 
-func runCommand(_ *cobra.Command, args []string) error {
+func runCommand(_ *cobra.Command, args []string, exec bool) error {
 	ctx := context.Background()
 
 	slog.Debug("Starting agent", "agent", agentName, "debug_mode", debugMode)
@@ -186,11 +188,17 @@ func runCommand(_ *cobra.Command, args []string) error {
 	sess := session.New()
 	sess.Title = "Running agent"
 
-	// Run without the TUI
+	// For `cagent exec`
+	if exec {
+		return runWithoutTUI(ctx, agentFilename, rt, sess, []string{"exec", "Follow the default instructions"})
+	}
+
+	// For `cagent run --tui=false`
 	if !useTUI {
 		return runWithoutTUI(ctx, agentFilename, rt, sess, args)
 	}
 
+	// The default is to use the TUI
 	var firstMessage *string
 	if len(args) == 2 {
 		// TODO: attachments
