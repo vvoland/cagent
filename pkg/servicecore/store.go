@@ -220,7 +220,7 @@ func (s *SQLiteStore) GetSession(ctx context.Context, clientID, sessionID string
 
 	err := row.Scan(&id, &messagesJSON, &createdAtStr, &agentSpec)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrSessionNotFound
 		}
 		return nil, err

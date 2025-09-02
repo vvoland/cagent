@@ -79,7 +79,7 @@ func (c *Client) ListTools(ctx context.Context, toolFilter []string) ([]tools.To
 
 	resp, err := c.client.ListTools(ctx, mcp.ListToolsRequest{})
 	if err != nil {
-		if errors.Is(err, context.Canceled) || ctx.Err() == context.Canceled {
+		if errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
 			slog.Debug("ListTools canceled by context")
 			return nil, err
 		}
@@ -146,7 +146,7 @@ func (c *Client) CallTool(ctx context.Context, toolCall tools.ToolCall) (*tools.
 
 	resp, err := c.client.CallTool(ctx, request)
 	if err != nil {
-		if errors.Is(err, context.Canceled) || ctx.Err() == context.Canceled {
+		if errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
 			slog.Debug("CallTool canceled by context", "tool", toolCall.Function.Name)
 			return nil, err
 		}

@@ -521,7 +521,7 @@ func (r *Runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.T
 	events <- ToolCall(toolCall, a.Name())
 	res, err := tool.Handler(ctx, toolCall)
 	if err != nil {
-		if errors.Is(err, context.Canceled) || ctx.Err() == context.Canceled {
+		if errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
 			slog.Debug("Tool handler canceled by context", "tool", toolCall.Function.Name, "agent", a.Name(), "session_id", sess.ID)
 			// Synthesize a cancellation response so the transcript remains consistent
 			res = &tools.ToolCallResult{Output: "The tool call was canceled by the user."}
@@ -562,7 +562,7 @@ func (r *Runtime) runAgentTool(ctx context.Context, handler ToolHandler, sess *s
 	res, err := handler(ctx, sess, toolCall, events)
 	var output string
 	if err != nil {
-		if errors.Is(err, context.Canceled) || ctx.Err() == context.Canceled {
+		if errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
 			slog.Debug("Runtime tool handler canceled by context", "tool", toolCall.Function.Name, "agent", a.Name(), "session_id", sess.ID)
 			// Synthesize a cancellation response so the transcript remains consistent
 			output = "The tool call was canceled by the user."

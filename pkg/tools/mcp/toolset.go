@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -53,7 +54,7 @@ func (t *Toolset) Tools(ctx context.Context) ([]tools.Tool, error) {
 	slog.Debug("Listing MCP tools", "toolFilter", t.toolFilter)
 	mcpTools, err := t.c.ListTools(ctx, t.toolFilter)
 	if err != nil {
-		if ctx.Err() == context.Canceled {
+		if errors.Is(ctx.Err(), context.Canceled) {
 			// Log at debug level on cancellation
 			slog.Debug("MCP tools listing canceled by context")
 			return nil, err

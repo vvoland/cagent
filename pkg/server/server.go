@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -125,7 +126,7 @@ func (s *Server) Serve(_ context.Context, ln net.Listener) error {
 		Handler: s.e,
 	}
 
-	if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
+	if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		slog.Error("Failed to start server", "error", err)
 		return err
 	}
