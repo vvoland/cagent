@@ -9,6 +9,7 @@ Some of these agents use [Built-in Tools](https://github.com/docker/cagent?tab=r
 |----------------------------------------|----------------------------------------|------------|-------|------|-------|--------|-------------|------------|
 | [echo-agent.yaml](echo-agent.yaml)     | Simple echo agent                      |            |       |      |       |        |             |            |
 | [pirate.yaml](pirate.yaml)             | Pirate-themed assistant                |            |       |      |       |        |             |            |
+| [haiku.yaml](haiku.yaml)               | Write Haikus                           |            |       |      |       |        |             |            |
 | [42.yaml](42.yaml)                     | Douglas Adams-style witty AI assistant |            |       |      |       |        |             |            |
 | [contradict.yaml](contradict.yaml)     | Contrarian viewpoint provider          |            |       |      |       |        |             |            |
 | [silvia.yaml](silvia.yaml)             | Sylvia Plath-inspired poetic AI        |            |       |      |       |        |             |            |
