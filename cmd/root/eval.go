@@ -23,7 +23,6 @@ func NewEvalCmd() *cobra.Command {
 }
 
 func runEvalCommand(cmd *cobra.Command, args []string) error {
-
 	agents, err := teamloader.Load(cmd.Context(), args[0], runConfig)
 	if err != nil {
 		return err

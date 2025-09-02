@@ -41,6 +41,14 @@ tasks:
     sources:
       - "{{.GO_SOURCES}}"
       - ".golangci.yml"
+    
+  format:
+    desc: Format code
+    cmds:
+      - go install mvdan.cc/gofumpt@latest
+      - gofumpt -w .
+    sources:
+      - "{{.GO_SOURCES}}"
 
   test:
     desc: Run tests

@@ -65,6 +65,7 @@ issues:
 formatters:
   enable:
     - gofmt
+    - gofumpt
     - goimports
   exclusions:
     generated: lax

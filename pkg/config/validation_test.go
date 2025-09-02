@@ -10,13 +10,12 @@ import (
 )
 
 func TestValidatePathInDirectory(t *testing.T) {
-
 	tmpDir, err := os.MkdirTemp("", "test_config")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 
 	testFile := filepath.Join(tmpDir, "test.yaml")
-	err = os.WriteFile(testFile, []byte("test: value"), 0644)
+	err = os.WriteFile(testFile, []byte("test: value"), 0o644)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -96,7 +95,7 @@ agents:
     description: "test agent"
 `
 	testFile := filepath.Join(tmpDir, "valid.yaml")
-	err = os.WriteFile(testFile, []byte(validConfig), 0644)
+	err = os.WriteFile(testFile, []byte(validConfig), 0o644)
 	require.NoError(t, err)
 
 	cfg, err := LoadConfigSecure(testFile, tmpDir)

@@ -79,7 +79,6 @@ func TestFormatSessionList(t *testing.T) {
 }
 
 func TestAdvancedSessionTools(t *testing.T) {
-
 	// Create isolated store for testing
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
 	require.NoError(t, err)

@@ -22,7 +22,7 @@ func TestResolver_ResolveAgent(t *testing.T) {
 	t.Run("ResolveExistingFile", func(t *testing.T) {
 		// Create a test agent file
 		agentFile := filepath.Join(tempDir, "test-agent.yaml")
-		err := os.WriteFile(agentFile, []byte("test agent content"), 0644)
+		err := os.WriteFile(agentFile, []byte("test agent content"), 0o644)
 		require.NoError(t, err)
 
 		resolved, err := resolver.ResolveAgent(agentFile)
@@ -33,7 +33,7 @@ func TestResolver_ResolveAgent(t *testing.T) {
 	t.Run("ResolveRelativePath", func(t *testing.T) {
 		// Create a test agent file in the agents directory
 		agentFile := filepath.Join(tempDir, "relative-agent.yaml")
-		err := os.WriteFile(agentFile, []byte("relative agent content"), 0644)
+		err := os.WriteFile(agentFile, []byte("relative agent content"), 0o644)
 		require.NoError(t, err)
 
 		resolved, err := resolver.ResolveAgent("relative-agent.yaml")
@@ -55,7 +55,7 @@ func TestResolver_ResolveAgent(t *testing.T) {
 		defer os.RemoveAll(outsideDir)
 
 		outsideFile := filepath.Join(outsideDir, "outside-agent.yaml")
-		err = os.WriteFile(outsideFile, []byte("outside agent"), 0644)
+		err = os.WriteFile(outsideFile, []byte("outside agent"), 0o644)
 		require.NoError(t, err)
 
 		// Attempt to resolve should fail due to security restrictions
@@ -97,14 +97,14 @@ func TestResolver_ListFileAgents(t *testing.T) {
 
 		for _, agentFile := range agentFiles {
 			fullPath := filepath.Join(tempDir, agentFile)
-			err := os.MkdirAll(filepath.Dir(fullPath), 0755)
+			err := os.MkdirAll(filepath.Dir(fullPath), 0o755)
 			require.NoError(t, err)
-			err = os.WriteFile(fullPath, []byte("test content"), 0644)
+			err = os.WriteFile(fullPath, []byte("test content"), 0o644)
 			require.NoError(t, err)
 		}
 
 		// Create a non-YAML file that should be ignored
-		err = os.WriteFile(filepath.Join(tempDir, "readme.txt"), []byte("not an agent"), 0644)
+		err = os.WriteFile(filepath.Join(tempDir, "readme.txt"), []byte("not an agent"), 0o644)
 		require.NoError(t, err)
 
 		agents, err := resolver.ListFileAgents()
@@ -159,7 +159,6 @@ func TestResolver_ListStoreAgents(t *testing.T) {
 }
 
 func TestResolver_PullAgent(t *testing.T) {
-
 	// Create a temporary store for testing
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
 	require.NoError(t, err)
@@ -185,7 +184,7 @@ func TestResolver_FileExists(t *testing.T) {
 
 	// Create a test file
 	testFile := filepath.Join(tempDir, "test-file.txt")
-	err = os.WriteFile(testFile, []byte("test"), 0644)
+	err = os.WriteFile(testFile, []byte("test"), 0o644)
 	require.NoError(t, err)
 
 	assert.True(t, resolver.fileExists(testFile))

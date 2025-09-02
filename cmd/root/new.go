@@ -12,8 +12,10 @@ import (
 	"github.com/docker/cagent/pkg/runtime"
 )
 
-var modelProvider string
-var modelName string
+var (
+	modelProvider string
+	modelName     string
+)
 
 // Cmd creates a new command to create a new agent configuration
 func NewNewCmd() *cobra.Command {

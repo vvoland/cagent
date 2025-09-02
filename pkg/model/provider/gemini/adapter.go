@@ -53,7 +53,6 @@ func NewStreamAdapter(iter func(func(*genai.GenerateContentResponse, error) bool
 				errMsg := err.Error()
 				// Check if this is a streaming chunk parsing error that contains valid response data
 				if strings.Contains(errMsg, "invalid stream chunk") && strings.Contains(errMsg, `"text":`) {
-
 					// Try to extract text content from the error message
 					if textContent := extractTextFromError(errMsg); textContent != "" {
 						// Create a synthetic response with the extracted text

@@ -193,7 +193,6 @@ func (s *SQLiteStore) CreateSession(ctx context.Context, clientID string, agentS
 	_, err = s.db.ExecContext(ctx,
 		"INSERT INTO sessions (id, client_id, messages, created_at, agent_spec) VALUES (?, ?, ?, ?, ?)",
 		agentSession.ID, clientID, string(messagesJSON), agentSession.Created.Format(time.RFC3339), agentSession.AgentSpec)
-
 	if err != nil {
 		return err
 	}

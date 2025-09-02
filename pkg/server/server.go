@@ -579,7 +579,6 @@ func (s *Server) exportAgents(c echo.Context) error {
 		_, err = zipEntry.Write(fileContent)
 		return err
 	})
-
 	if err != nil {
 		_ = os.Remove(zipPath) // Clean up on error
 		slog.Error("Failed to create agents export zip", "error", err)

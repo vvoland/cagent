@@ -184,7 +184,6 @@ func (r *Resolver) ListFileAgents() ([]AgentInfo, error) {
 		}
 		return nil
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("listing file agents: %w", err)
 	}

@@ -73,7 +73,7 @@ models:
     model: test
 `
 	agentFile := tempDir + "/test-agent.yaml"
-	err = os.WriteFile(agentFile, []byte(testAgentContent), 0644)
+	err = os.WriteFile(agentFile, []byte(testAgentContent), 0o644)
 	require.NoError(t, err)
 
 	// Create isolated store for testing
@@ -219,7 +219,7 @@ func TestManager_SessionLimits(t *testing.T) {
 
 	// Create a test agent file (won't actually load due to missing model config)
 	testAgent := tempDir + "/test.yaml"
-	err = os.WriteFile(testAgent, []byte("test"), 0644)
+	err = os.WriteFile(testAgent, []byte("test"), 0o644)
 	require.NoError(t, err)
 
 	t.Run("SessionLimit", func(t *testing.T) {

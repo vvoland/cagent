@@ -33,8 +33,10 @@ import (
 
 const APP_NAME = "cagent"
 
-var autoApprove bool
-var attachmentPath string
+var (
+	autoApprove    bool
+	attachmentPath string
+)
 
 // initOTelSDK initializes OpenTelemetry SDK with OTLP exporter
 func initOTelSDK(ctx context.Context) (shutdown func(context.Context) error, err error) {

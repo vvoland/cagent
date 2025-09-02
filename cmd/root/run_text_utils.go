@@ -13,10 +13,12 @@ import (
 )
 
 // text colors
-var blue = color.New(color.FgBlue).SprintfFunc()
-var yellow = color.New(color.FgYellow).SprintfFunc()
-var red = color.New(color.FgRed).SprintfFunc()
-var gray = color.New(color.FgHiBlack).SprintfFunc()
+var (
+	blue   = color.New(color.FgBlue).SprintfFunc()
+	yellow = color.New(color.FgYellow).SprintfFunc()
+	red    = color.New(color.FgRed).SprintfFunc()
+	gray   = color.New(color.FgHiBlack).SprintfFunc()
+)
 
 // text styles
 var bold = color.New(color.Bold).SprintfFunc()
@@ -36,6 +38,7 @@ const (
 func printWelcomeMessage() {
 	fmt.Printf("\n%s\n%s\n\n", blue("------- Welcome to %s! -------", bold(APP_NAME)), gray("(Ctrl+C to stop the agent or exit)"))
 }
+
 func printError(err error) {
 	fmt.Println(red("❌ %s", err))
 }

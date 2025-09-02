@@ -46,8 +46,7 @@ import (
 )
 
 // Executor handles runtime creation and stream execution
-type Executor struct {
-}
+type Executor struct{}
 
 // NewExecutor creates a new runtime executor
 func NewExecutor() *Executor {

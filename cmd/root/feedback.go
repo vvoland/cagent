@@ -6,9 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	FeedbackLink = "https://docker.qualtrics.com/jfe/form/SV_cNsCIg92nQemlfw"
-)
+var FeedbackLink = "https://docker.qualtrics.com/jfe/form/SV_cNsCIg92nQemlfw"
 
 // NewFeedbackCmd creates a new feedback command
 func NewFeedbackCmd() *cobra.Command {

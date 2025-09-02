@@ -65,7 +65,7 @@ models:
     model: gpt-4
 `
 	agentFile := tempDir + "/test-agent.yaml"
-	err = os.WriteFile(agentFile, []byte(testAgent), 0644)
+	err = os.WriteFile(agentFile, []byte(testAgent), 0o644)
 	require.NoError(t, err)
 
 	serviceCore, err := servicecore.NewManager(tempDir, time.Hour, 100)

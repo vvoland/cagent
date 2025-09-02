@@ -29,7 +29,6 @@ from the build command.`,
 }
 
 func runPushCommand(filePath, tag string) error {
-
 	store, err := content.NewStore()
 	if err != nil {
 		return err
