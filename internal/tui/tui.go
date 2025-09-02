@@ -64,7 +64,7 @@ func DefaultKeyMap() KeyMap {
 
 // New creates and initializes a new TUI application model
 func New(a *app.App) tea.Model {
-	chatPageInstance := chatpage.New(a)
+	chatPageInstance := chatpage.New(a, a.FirstMessage())
 
 	return &appModel{
 		chatPage:  chatPageInstance,

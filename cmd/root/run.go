@@ -39,12 +39,14 @@ var (
 // NewTUICmd creates a new TUI command
 func NewTUICmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "tui <agent-name>",
+		Use:   "tui <agent-name> [message|-]",
 		Short: "Run the agent",
 		Long:  `Run an agent with the specified configuration and prompt`,
 		Example: `  cagent tui ./agent.yaml
-  cagent tui ./team.yaml --agent root`,
-		Args: cobra.ExactArgs(1),
+  cagent tui ./team.yaml --agent root
+  cagent tui ./echo.yaml "INSTRUCTIONS"
+  echo "INSTRUCTIONS" | cagent tui ./echo.yaml -`,
+		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCommand(cmd, args, true)
 		},
@@ -54,6 +56,7 @@ func NewTUICmd() *cobra.Command {
 	cmd.PersistentFlags().StringSliceVar(&runConfig.EnvFiles, "env-from-file", nil, "Set environment variables from file")
 	cmd.PersistentFlags().StringVar(&workingDir, "working-dir", "", "Set the working directory for the session (applies to tools and relative paths)")
 	cmd.PersistentFlags().BoolVar(&autoApprove, "yolo", false, "Automatically approve all tool calls without prompting")
+	cmd.PersistentFlags().StringVar(&attachmentPath, "attach", "", "Attach an image file to the message")
 	addGatewayFlags(cmd)
 
 	return cmd
@@ -67,8 +70,8 @@ func NewRunCmd() *cobra.Command {
 		Long:  `Run an agent with the specified configuration and prompt`,
 		Example: `  cagent run ./agent.yaml
   cagent run ./team.yaml --agent root
-  cagent run ./echo.yaml "ECHO"
-  echo "ECHO" | cagent run ./echo.yaml -`,
+  cagent run ./echo.yaml "INSTRUCTIONS"
+  echo "INSTRUCTIONS" | cagent run ./echo.yaml -`,
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCommand(cmd, args, false)
@@ -79,9 +82,8 @@ func NewRunCmd() *cobra.Command {
 	cmd.PersistentFlags().StringSliceVar(&runConfig.EnvFiles, "env-from-file", nil, "Set environment variables from file")
 	cmd.PersistentFlags().StringVar(&workingDir, "working-dir", "", "Set the working directory for the session (applies to tools and relative paths)")
 	cmd.PersistentFlags().BoolVar(&autoApprove, "yolo", false, "Automatically approve all tool calls without prompting")
-	addGatewayFlags(cmd)
-
 	cmd.PersistentFlags().StringVar(&attachmentPath, "attach", "", "Attach an image file to the message")
+	addGatewayFlags(cmd)
 
 	return cmd
 }
@@ -195,14 +197,30 @@ func runCommand(_ *cobra.Command, args []string, useTUI bool) error {
 		return fmt.Errorf("failed to create runtime: %w", err)
 	}
 
-	if useTUI {
-		return runWithTUI(ctx, agentFilename, rt)
-	}
-	return runWithoutTUI(ctx, agentFilename, rt, args)
-}
+	sess := session.New()
+	sess.Title = "Running agent"
 
-func runWithTUI(ctx context.Context, agentFilename string, rt *runtime.Runtime) error {
-	a := app.New(agentFilename, rt, session.New())
+	// Run without the TUI
+	if !useTUI {
+		return runWithoutTUI(ctx, agentFilename, rt, sess, args)
+	}
+
+	var firstMessage *string
+	if len(args) == 2 {
+		// TODO: attachments
+		if args[1] == "-" {
+			buf, err := io.ReadAll(os.Stdin)
+			if err != nil {
+				return fmt.Errorf("failed to read from stdin: %w", err)
+			}
+			content := string(buf)
+			firstMessage = &content
+		} else {
+			firstMessage = &args[1]
+		}
+	}
+
+	a := app.New(agentFilename, rt, sess, firstMessage)
 	m := tui.New(a)
 
 	p := tea.NewProgram(
@@ -214,16 +232,13 @@ func runWithTUI(ctx context.Context, agentFilename string, rt *runtime.Runtime) 
 		tea.WithFilter(tui.MouseEventFilter),
 	)
 
-	go a.Subscribe(context.Background(), p)
+	go a.Subscribe(ctx, p)
 
-	_, err := p.Run()
+	_, err = p.Run()
 	return err
 }
 
-func runWithoutTUI(ctx context.Context, agentFilename string, rt *runtime.Runtime, args []string) error {
-	sess := session.New()
-	sess.Title = "Running agent"
-
+func runWithoutTUI(ctx context.Context, agentFilename string, rt *runtime.Runtime, sess *session.Session, args []string) error {
 	// If the last received event was an error, return it. That way the exit code
 	// will be non-zero if the agent failed.
 	var lastErr error

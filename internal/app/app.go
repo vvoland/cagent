@@ -13,16 +13,22 @@ type App struct {
 	agentFilename string
 	runtime       *runtime.Runtime
 	session       *session.Session
+	firstMessage  *string
 	events        chan tea.Msg
 }
 
-func New(agentFilename string, rt *runtime.Runtime, sess *session.Session) *App {
+func New(agentFilename string, rt *runtime.Runtime, sess *session.Session, firstMessage *string) *App {
 	return &App{
 		agentFilename: agentFilename,
 		runtime:       rt,
 		session:       sess,
+		firstMessage:  firstMessage,
 		events:        make(chan tea.Msg, 128),
 	}
+}
+
+func (a *App) FirstMessage() *string {
+	return a.firstMessage
 }
 
 // Run one agent loop

@@ -86,7 +86,7 @@ func DefaultKeyMap() KeyMap {
 }
 
 // New creates a new chat page
-func New(a *app.App) Page {
+func New(a *app.App, firstMessage *string) Page {
 	return &chatPage{
 		sidebar:      sidebar.New(),
 		messages:     messages.New(a),
@@ -99,12 +99,22 @@ func New(a *app.App) Page {
 
 // Init initializes the chat page
 func (p *chatPage) Init() tea.Cmd {
-	return tea.Batch(
+	cmds := []tea.Cmd{
 		p.sidebar.Init(),
 		p.messages.Init(),
 		p.editor.Init(),
 		p.editor.Focus(),
-	)
+	}
+
+	if firstMessage := p.app.FirstMessage(); firstMessage != nil {
+		cmds = append(cmds, func() tea.Msg {
+			return editor.SendMsg{
+				Content: *firstMessage,
+			}
+		})
+	}
+
+	return tea.Batch(cmds...)
 }
 
 // Update handles messages and updates the page state
