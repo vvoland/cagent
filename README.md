@@ -129,6 +129,8 @@ models:
     max_tokens: 64000
 ```
 
+You'll find a curated list of agents examples, spread into 3 categories, [Basic](https://github.com/docker/cagent/tree/main/examples#basic-configurations), [Advanced](https://github.com/docker/cagent/tree/main/examples#advanced-configurations) and [multi-agents](https://github.com/docker/cagent/tree/main/examples#multi-agent-configurations) in the `/examples/` directory. 
+
 ## Quickly generate agents and agent teams with `cagent new`
 
 Using the command `cagent new` you can quickly generate agents or multi-agent teams using a single prompt! `cagent` has a built-in agent dedicated to this task.
