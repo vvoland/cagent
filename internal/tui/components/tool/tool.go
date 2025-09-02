@@ -104,24 +104,6 @@ func (mv *toolModel) View() string {
 // Render renders the message view content
 func (mv *toolModel) Render(width int) string {
 	msg := mv.message
-	var icon string
-
-	// Use predefined styles
-
-	switch msg.ToolStatus {
-	case types.ToolStatusPending:
-		icon = "⊙"
-	case types.ToolStatusRunning:
-		icon = "⚙"
-	case types.ToolStatusCompleted:
-		icon = styles.SuccessStyle.Render("✓")
-	case types.ToolStatusError:
-		icon = styles.ErrorStyle.Render("✗")
-	case types.ToolStatusConfirmation:
-		icon = styles.WarningStyle.Render("?")
-	default:
-		icon = styles.WarningStyle.Render("?")
-	}
 
 	// Add spinner for pending and running tools
 	var spinnerText string
@@ -133,7 +115,7 @@ func (mv *toolModel) Render(width int) string {
 	team := mv.app.Team()
 	agent := team.Agent(msg.Sender)
 	displayName := agent.ToolDisplayName(context.TODO(), msg.ToolCall.Function.Name)
-	content := fmt.Sprintf("%s %s%s", icon, styles.HighlightStyle.Render(displayName), spinnerText)
+	content := fmt.Sprintf("%s %s%s", icon(msg.ToolStatus), styles.HighlightStyle.Render(displayName), spinnerText)
 
 	if msg.ToolCall.Function.Arguments != "" {
 		lines := wrapLines(msg.ToolCall.Function.Arguments, mv.width-2)
@@ -194,4 +176,21 @@ func (mv *toolModel) Focus() tea.Cmd {
 // Blur removes focus from the tool
 func (mv *toolModel) Blur() {
 	mv.focused = false
+}
+
+func icon(status types.ToolStatus) string {
+	switch status {
+	case types.ToolStatusPending:
+		return "⊙"
+	case types.ToolStatusRunning:
+		return "⚙"
+	case types.ToolStatusCompleted:
+		return styles.SuccessStyle.Render("✓")
+	case types.ToolStatusError:
+		return styles.ErrorStyle.Render("✗")
+	case types.ToolStatusConfirmation:
+		return styles.WarningStyle.Render("?")
+	default:
+		return styles.WarningStyle.Render("?")
+	}
 }
