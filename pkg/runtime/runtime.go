@@ -318,12 +318,15 @@ func (r *Runtime) handleStream(stream chat.MessageStream, a *agent.Agent, sess *
 		}
 
 		if response.Usage != nil {
+			if m != nil {
+				sess.Cost += (float64(response.Usage.InputTokens)*m.Cost.Input +
+					float64(response.Usage.OutputTokens)*m.Cost.Output +
+					float64(response.Usage.CachedInputTokens)*m.Cost.CacheRead +
+					float64(response.Usage.CachedOutputTokens)*m.Cost.CacheWrite) / 1e6
+			}
+
 			sess.InputTokens = response.Usage.InputTokens + response.Usage.CachedInputTokens
 			sess.OutputTokens = response.Usage.OutputTokens + response.Usage.CachedOutputTokens
-			if m != nil {
-				cost := m.Cost.Input/1e6*float64(sess.InputTokens) + m.Cost.Output/1e6*float64(sess.OutputTokens) + m.Cost.CacheRead/1e6*float64(response.Usage.CachedInputTokens) + m.Cost.CacheWrite/1e6*float64(response.Usage.CachedOutputTokens)
-				sess.Cost += cost
-			}
 		}
 
 		if len(response.Choices) == 0 {
