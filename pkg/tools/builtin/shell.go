@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 
 	"github.com/docker/cagent/pkg/tools"
 )
@@ -18,7 +19,8 @@ type ShellTool struct {
 var _ tools.ToolSet = (*ShellTool)(nil)
 
 type shellHandler struct {
-	shell string
+	shell           string
+	shellArgsPrefix []string
 }
 
 func (h *shellHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
@@ -31,12 +33,15 @@ func (h *shellHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*
 		return nil, fmt.Errorf("invalid arguments: %w", err)
 	}
 
-	cmd := exec.CommandContext(ctx, h.shell, "-c", params.Cmd)
+	cmd := exec.CommandContext(ctx, h.shell, append(h.shellArgsPrefix, params.Cmd)...)
 	cmd.Env = os.Environ()
 	if params.Cwd != "" {
 		cmd.Dir = params.Cwd
 	} else {
-		cmd.Dir = os.Getenv("PWD")
+		// Use the current working directory; avoid PWD on Windows (may be MSYS-style like /c/...)
+		if wd, err := os.Getwd(); err == nil {
+			cmd.Dir = wd
+		}
 	}
 
 	output, err := cmd.CombinedOutput()
@@ -52,14 +57,39 @@ func (h *shellHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*
 }
 
 func NewShellTool() *ShellTool {
-	shell := os.Getenv("SHELL")
-	if shell == "" {
-		shell = "/bin/sh" // Fallback to /bin/sh if SHELL is not set
+	var shell string
+	var argsPrefix []string
+
+	if runtime.GOOS == "windows" {
+		// Prefer PowerShell (pwsh or Windows PowerShell) when available, otherwise fall back to cmd.exe
+		if path, err := exec.LookPath("pwsh.exe"); err == nil {
+			shell = path
+			argsPrefix = []string{"-NoProfile", "-NonInteractive", "-Command"}
+		} else if path, err := exec.LookPath("powershell.exe"); err == nil {
+			shell = path
+			argsPrefix = []string{"-NoProfile", "-NonInteractive", "-Command"}
+		} else {
+			// Use ComSpec if available, otherwise default to cmd.exe
+			if comspec := os.Getenv("ComSpec"); comspec != "" {
+				shell = comspec
+			} else {
+				shell = "cmd.exe"
+			}
+			argsPrefix = []string{"/C"}
+		}
+	} else {
+		// Unix-like: use SHELL or default to /bin/sh
+		shell = os.Getenv("SHELL")
+		if shell == "" {
+			shell = "/bin/sh"
+		}
+		argsPrefix = []string{"-c"}
 	}
 
 	return &ShellTool{
 		handler: &shellHandler{
-			shell: shell,
+			shell:           shell,
+			shellArgsPrefix: argsPrefix,
 		},
 	}
 }
@@ -71,7 +101,7 @@ Execute shell commands in the user's environment with full control over working 
 
 ## Core Concepts
 
-**Execution Context**: Commands run in the user's default shell (${SHELL}) with access to all environment variables and the current workspace.
+**Execution Context**: Commands run in the user's default shell with access to all environment variables and the current workspace. On Windows, PowerShell (pwsh/powershell) is used when available; otherwise, cmd.exe is used. On Unix-like systems, ${SHELL} is used or /bin/sh as fallback.
 
 **Working Directory Management**:
 - Default execution location: workspace root
