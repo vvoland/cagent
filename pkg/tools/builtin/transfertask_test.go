@@ -3,7 +3,6 @@ package builtin
 import (
 	"testing"
 
-	"github.com/docker/cagent/pkg/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -51,7 +50,8 @@ func TestTaskTool_DisplayNames(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, tool := range all {
-		assert.NotEqual(t, tool.Function.Name, tools.DisplayName(tool.Function.Name))
+		assert.NotEmpty(t, tool.DisplayName())
+		assert.NotEqual(t, tool.Function.Name, tool.DisplayName())
 	}
 }
 

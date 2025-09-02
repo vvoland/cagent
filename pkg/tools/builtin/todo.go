@@ -151,6 +151,7 @@ func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 				Annotations: tools.ToolAnnotation{
 					// This is technically not read-only but has practically no destructive side effects.
 					ReadOnlyHint: &[]bool{true}[0],
+					Title:        "Create TODO",
 				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
@@ -172,6 +173,7 @@ func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 				Annotations: tools.ToolAnnotation{
 					// This is technically not read-only but has practically no destructive side effects.
 					ReadOnlyHint: &[]bool{true}[0],
+					Title:        "Create TODOs",
 				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
@@ -202,6 +204,7 @@ func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 				Annotations: tools.ToolAnnotation{
 					// This is technically not read-only but has practically no destructive side effects.
 					ReadOnlyHint: &[]bool{true}[0],
+					Title:        "Update TODO",
 				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
@@ -226,6 +229,7 @@ func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 				Description: "List all current todos with their status",
 				Annotations: tools.ToolAnnotation{
 					ReadOnlyHint: &[]bool{true}[0],
+					Title:        "List TODOs",
 				},
 			},
 			Handler: t.handler.listTodos,

@@ -1,6 +1,7 @@
 package tool
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -13,7 +14,6 @@ import (
 	"github.com/docker/cagent/internal/tui/core/layout"
 	"github.com/docker/cagent/internal/tui/styles"
 	"github.com/docker/cagent/internal/tui/types"
-	"github.com/docker/cagent/pkg/tools"
 )
 
 // Model represents a view that can render a message
@@ -129,7 +129,7 @@ func (mv *toolModel) Render(width int) string {
 		spinnerText = " " + mv.spinner.View()
 	}
 
-	displayName := tools.DisplayName(msg.ToolName)
+	displayName := mv.app.ToolDisplayName(context.TODO(), msg.ToolName)
 	content := fmt.Sprintf("%s %s%s", icon, styles.HighlightStyle.Render(displayName), spinnerText)
 
 	if msg.Arguments != "" {

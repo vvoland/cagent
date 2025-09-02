@@ -31,6 +31,10 @@ func (a *App) FirstMessage() *string {
 	return a.firstMessage
 }
 
+func (a *App) ToolDisplayName(ctx context.Context, toolName string) string {
+	return a.runtime.CurrentAgent().ToolDisplayName(ctx, toolName)
+}
+
 // Run one agent loop
 func (a *App) Run(ctx context.Context, message string) {
 	go func() {

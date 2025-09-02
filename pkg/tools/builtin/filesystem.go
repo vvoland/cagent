@@ -71,6 +71,9 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "create_directory",
 				Description: "Create a new directory or ensure a directory exists. Can create multiple nested directories in one operation.",
+				Annotations: tools.ToolAnnotation{
+					Title: "Create Directory",
+				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
@@ -90,6 +93,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 				Description: "Get a recursive tree view of files and directories as a JSON structure.",
 				Annotations: tools.ToolAnnotation{
 					ReadOnlyHint: &[]bool{true}[0],
+					Title:        "Directory Tree",
 				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
@@ -112,6 +116,9 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "edit_file",
 				Description: "Make line-based edits to a text file. Each edit replaces exact line sequences with new content.",
+				Annotations: tools.ToolAnnotation{
+					Title: "Edit File",
+				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
@@ -153,6 +160,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 				Description: "Retrieve detailed metadata about a file or directory.",
 				Annotations: tools.ToolAnnotation{
 					ReadOnlyHint: &[]bool{true}[0],
+					Title:        "Get File Info",
 				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
@@ -173,6 +181,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 				Description: "Returns a list of directories that the server has permission to access.",
 				Annotations: tools.ToolAnnotation{
 					ReadOnlyHint: &[]bool{true}[0],
+					Title:        "List Allowed Directories",
 				},
 				Parameters: tools.FunctionParamaters{
 					Type:       "object",
@@ -185,6 +194,9 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "add_allowed_directory",
 				Description: "Request to add a new directory to the allowed directories list. This requires explicit user consent for security reasons.",
+				Annotations: tools.ToolAnnotation{
+					Title: "Add Allowed Directory",
+				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
@@ -212,6 +224,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 				Description: "Get a detailed listing of all files and directories in a specified path.",
 				Annotations: tools.ToolAnnotation{
 					ReadOnlyHint: &[]bool{true}[0],
+					Title:        "List Directory",
 				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
@@ -232,6 +245,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 				Description: "Get a detailed listing of all files and directories in a specified path, including sizes.",
 				Annotations: tools.ToolAnnotation{
 					ReadOnlyHint: &[]bool{true}[0],
+					Title:        "List Directory With Sizes",
 				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
@@ -250,6 +264,9 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "move_file",
 				Description: "Move or rename files and directories.",
+				Annotations: tools.ToolAnnotation{
+					Title: "Move File",
+				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
@@ -273,6 +290,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 				Description: "Read the complete contents of a file from the file system.",
 				Annotations: tools.ToolAnnotation{
 					ReadOnlyHint: &[]bool{true}[0],
+					Title:        "Read File",
 				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
@@ -293,6 +311,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 				Description: "Read the contents of multiple files simultaneously.",
 				Annotations: tools.ToolAnnotation{
 					ReadOnlyHint: &[]bool{true}[0],
+					Title:        "Read Multiple Files",
 				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
@@ -316,6 +335,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 				Description: "Recursively search for files and directories matching a pattern.",
 				Annotations: tools.ToolAnnotation{
 					ReadOnlyHint: &[]bool{true}[0],
+					Title:        "Search Files",
 				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
@@ -347,6 +367,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 				Description: "Searches for text or regex patterns in the content of files matching a GLOB pattern.",
 				Annotations: tools.ToolAnnotation{
 					ReadOnlyHint: &[]bool{true}[0],
+					Title:        "Search Files Content",
 				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
@@ -380,6 +401,9 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "write_file",
 				Description: "Create a new file or completely overwrite an existing file with new content.",
+				Annotations: tools.ToolAnnotation{
+					Title: "Write File",
+				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{

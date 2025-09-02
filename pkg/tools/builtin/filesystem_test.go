@@ -72,7 +72,8 @@ func TestFilesystemTool_DisplayNames(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, tool := range all {
-		assert.NotEqual(t, tool.Function.Name, tools.DisplayName(tool.Function.Name))
+		assert.NotEmpty(t, tool.DisplayName())
+		assert.NotEqual(t, tool.Function.Name, tool.DisplayName())
 	}
 }
 

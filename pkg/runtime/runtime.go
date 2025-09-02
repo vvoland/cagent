@@ -101,15 +101,15 @@ func (r *Runtime) Team() *team.Team {
 	return r.team
 }
 
+func (r *Runtime) CurrentAgent() *agent.Agent {
+	return r.team.Agent(r.currentAgent)
+}
+
 // registerDefaultTools registers the default tool handlers
 func (r *Runtime) registerDefaultTools() {
 	slog.Debug("Registering default tools")
 	r.toolMap["transfer_task"] = r.handleTaskTransfer
 	slog.Debug("Registered default tools", "count", len(r.toolMap))
-}
-
-func (r *Runtime) CurrentAgent() *agent.Agent {
-	return r.team.Agent(r.currentAgent)
 }
 
 func (r *Runtime) finalizeEventChannel(ctx context.Context, sess *session.Session, events chan Event) {

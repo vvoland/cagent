@@ -28,6 +28,7 @@ func (t *TransferTaskTool) Tools(context.Context) ([]tools.Tool, error) {
             You must provide a clear and concise description of the task the member should achieve AND the expected output.`,
 				Annotations: tools.ToolAnnotation{
 					ReadOnlyHint: &[]bool{true}[0],
+					Title:        "Transfer Task",
 				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",

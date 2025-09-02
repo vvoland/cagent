@@ -162,6 +162,9 @@ func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "shell",
 				Description: `Executes the given shell command in the user's default shell.`,
+				Annotations: tools.ToolAnnotation{
+					Title: "Run Shell Command",
+				},
 				Parameters: tools.FunctionParamaters{
 					Type: "object",
 					Properties: map[string]any{
