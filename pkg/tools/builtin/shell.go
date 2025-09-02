@@ -65,66 +65,65 @@ func NewShellTool() *ShellTool {
 }
 
 func (t *ShellTool) Instructions() string {
-	return `## Important notes about the "bash" tool
+	return `# Shell Tool Usage Guide
 
-1. Directory Verification:
-   - If the command will create new directories or files, first use the list_directory tool to verify the parent directory exists and is the correct location
-   - For example, before running a mkdir command, first use list_directory to check the parent directory exists
+Execute shell commands in the user's environment with full control over working directories and command parameters.
 
-2. Working directory:
-   - Your working directory is at the root of the user's workspace unless you override it for a command by setting the "cwd" parameter.
-   - Use the "cwd" parameter to specify an absolute or relative path to a directory where the command should be executed (e.g., "cwd: "core/src"").
-   - You may use "cd PATH && COMMAND" if the user explicitly requests it, otherwise prefer using the "cwd" parameter.
+## Core Concepts
 
-3. Multiple independent commands:
-   - Do NOT chain multiple independent commands with ";".
-   - Instead, make multiple separate tool calls for each command you want to run
+**Execution Context**: Commands run in the user's default shell (${SHELL}) with access to all environment variables and the current workspace.
 
-4. Shell escapes:
-   - Escape any special characters in the command if those are not to be interpreted by the shell
+**Working Directory Management**:
+- Default execution location: workspace root
+- Override with "cwd" parameter for targeted command execution
+- Supports both absolute and relative paths
 
-5. Truncated output:
-   - Only the last 50000 characters of the output will be returned to you along with how many lines got truncated, if any
-   - If necessary, when the output is truncated, consider running the command again with a grep or head filter to search through the truncated lines
+**Command Isolation**: Each tool call creates a fresh shell session - no state persists between executions.
 
-6. Stateless environment:
-   - Setting an environment variable or using "cd" only impacts a single command, it does not persist between commands
+## Parameter Reference
 
-## Examples
+| Parameter | Type   | Required | Description |
+|-----------|--------|----------|-------------|
+| cmd       | string | Yes      | Shell command to execute |
+| cwd       | string | Yes      | Working directory (use "." for current) |
 
-- To run 'go test ./...': use { cmd: 'go test ./...' }
-- To run 'cargo build' in the core/src directory: use { cmd: 'cargo build', cwd: 'core/src' }
-- To run 'ps aux | grep node', use { cmd: 'ps aux | grep node' }
-- To run commands in a subdirectory using cd: use { cmd: 'cd core/src && ls -la' }
-- To print a special character like $ with some command "cmd", use { cmd: 'cmd \$' }
+## Best Practices
 
-## Git
+### ✅ DO
+- Use separate tool calls for independent operations
+- Leverage the "cwd" parameter for directory-specific commands
+- Quote arguments containing spaces or special characters
+- Use pipes and redirections within a single command
 
-Use this tool to interact with git. You can use it to run 'git log', 'git show', or other 'git' commands.
+### ❌ AVOID
+- Chaining unrelated commands with ";" or "&&"
+- Relying on state from previous commands
+- Complex multi-line scripts (break into separate calls)
 
-When the user shares a git commit SHA, you can use 'git show' to look it up. When the user asks when a change was introduced, you can use 'git log'.
+## Usage Examples
 
-If the user asks you to, use this tool to create git commits too. But only if the user asked.
+**Basic command execution:**
+{ "cmd": "ls -la", "cwd": "." }
 
-<git-example>
-user: commit the changes
-assistant: [uses Bash to run 'git status']
-[uses Bash to 'git add' the changes from the 'git status' output]
-[uses Bash to run 'git commit -m "commit message"']
-</git-example>
+**Language-specific operations:**
+{ "cmd": "go test ./...", "cwd": "." }
+{ "cmd": "npm install", "cwd": "frontend" }
+{ "cmd": "python -m pytest tests/", "cwd": "backend" }
 
-<git-example>
-user: commit the changes
-assistant: [uses Bash to run 'git status']
-there are already files staged, do you want me to add the changes?
-user: yes
-assistant: [uses Bash to 'git add' the unstaged changes from the 'git status' output]
-[uses Bash to run 'git commit -m "commit message"']
-</git-example>
+**File operations:**
+{ "cmd": "find . -name '*.go' -type f", "cwd": "." }
+{ "cmd": "grep -r 'TODO' src/", "cwd": "." }
 
-## Prefer specific tools
+**Process management:**
+{ "cmd": "ps aux | grep node", "cwd": "." }
+{ "cmd": "docker ps --format 'table {{.Names}}\t{{.Status}}'", "cwd": "." }
 
-It's VERY IMPORTANT to use specific tools when searching for files, instead of issuing terminal commands with find/grep/ripgrep. Use codebase_search or Grep instead. Use read_file tool rather than cat, and edit_file rather than sed.`
+**Complex pipelines:**
+{ "cmd": "cat package.json | jq '.dependencies'", "cwd": "frontend" }
+
+## Error Handling
+
+Commands that exit with non-zero status codes will return error information along with any output produced before failure.`
 }
 
 func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
