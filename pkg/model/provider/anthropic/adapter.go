@@ -11,15 +11,21 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
-// StreamAdapter adapts the Anthropic stream to our interface
-type StreamAdapter struct {
+// streamAdapter adapts the Anthropic stream to our interface
+type streamAdapter struct {
 	stream   *ssestream.Stream[anthropic.MessageStreamEventUnion]
 	toolCall bool
-	toolIdx  *int
+	toolID   string
+}
+
+func newStreamAdapter(stream *ssestream.Stream[anthropic.MessageStreamEventUnion]) *streamAdapter {
+	return &streamAdapter{
+		stream: stream,
+	}
 }
 
 // Recv gets the next completion chunk
-func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
+func (a *streamAdapter) Recv() (chat.MessageStreamResponse, error) {
 	if !a.stream.Next() {
 		if a.stream.Err() != nil {
 			return chat.MessageStreamResponse{}, a.stream.Err()
@@ -47,17 +53,11 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 	switch eventVariant := event.AsAny().(type) {
 	case anthropic.ContentBlockStartEvent:
 		if contentBlock, ok := eventVariant.ContentBlock.AsAny().(anthropic.ToolUseBlock); ok {
+			a.toolID = contentBlock.ID
 			a.toolCall = true
-			if a.toolIdx == nil {
-				toolIdx := 0
-				a.toolIdx = &toolIdx
-			} else {
-				*a.toolIdx++
-			}
 			toolCall := tools.ToolCall{
-				ID:    contentBlock.ID,
-				Type:  "function",
-				Index: a.toolIdx,
+				ID:   a.toolID,
+				Type: "function",
 				Function: tools.FunctionCall{
 					Name: contentBlock.Name,
 				},
@@ -72,8 +72,8 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		case anthropic.InputJSONDelta:
 			inputBytes := deltaVariant.PartialJSON
 			toolCall := tools.ToolCall{
-				Type:  "function",
-				Index: a.toolIdx,
+				ID:   a.toolID,
+				Type: "function",
 				Function: tools.FunctionCall{
 					Arguments: inputBytes,
 				},
@@ -102,7 +102,7 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 }
 
 // Close closes the stream
-func (a *StreamAdapter) Close() {
+func (a *streamAdapter) Close() {
 	if a.stream != nil {
 		a.stream.Close()
 	}

@@ -7,14 +7,22 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
-// StreamAdapter adapts the OpenAI stream to our interface
-type StreamAdapter struct {
+// streamAdapter adapts the OpenAI stream to our interface
+type streamAdapter struct {
 	stream           *openai.ChatCompletionStream
 	lastFinishReason chat.FinishReason
+	toolCalls        map[int]string
+}
+
+func newStreamAdapter(stream *openai.ChatCompletionStream) *streamAdapter {
+	return &streamAdapter{
+		stream:    stream,
+		toolCalls: make(map[int]string),
+	}
 }
 
 // Recv gets the next completion chunk
-func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
+func (a *streamAdapter) Recv() (chat.MessageStreamResponse, error) {
 	openaiResponse, err := a.stream.Recv()
 	if err != nil {
 		return chat.MessageStreamResponse{}, err
@@ -30,7 +38,6 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 	}
 
 	if openaiResponse.Usage != nil {
-
 		response.Usage = &chat.Usage{
 			InputTokens:        openaiResponse.Usage.PromptTokens,
 			OutputTokens:       openaiResponse.Usage.CompletionTokens,
@@ -81,18 +88,20 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		if len(choice.Delta.ToolCalls) > 0 {
 			response.Choices[i].Delta.ToolCalls = make([]tools.ToolCall, len(choice.Delta.ToolCalls))
 			for j, toolCall := range choice.Delta.ToolCalls {
+				id := toolCall.ID
+				if existing, ok := a.toolCalls[*toolCall.Index]; ok {
+					id = existing
+				} else {
+					a.toolCalls[*toolCall.Index] = id
+				}
+
 				response.Choices[i].Delta.ToolCalls[j] = tools.ToolCall{
-					ID:   toolCall.ID,
+					ID:   id,
 					Type: tools.ToolType(toolCall.Type),
 					Function: tools.FunctionCall{
 						Name:      toolCall.Function.Name,
 						Arguments: toolCall.Function.Arguments,
 					},
-				}
-				// Handle Index field if present
-				if toolCall.Index != nil {
-					index := *toolCall.Index
-					response.Choices[i].Delta.ToolCalls[j].Index = &index
 				}
 			}
 		}
@@ -102,6 +111,6 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 }
 
 // Close closes the stream
-func (a *StreamAdapter) Close() {
+func (a *streamAdapter) Close() {
 	a.stream.Close()
 }

@@ -7,13 +7,19 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
-// StreamAdapter adapts the DMR stream to our interface
-type StreamAdapter struct {
+// streamAdapter adapts the DMR stream to our interface
+type streamAdapter struct {
 	stream *openai.ChatCompletionStream
 }
 
+func newStreamAdapter(stream *openai.ChatCompletionStream) *streamAdapter {
+	return &streamAdapter{
+		stream: stream,
+	}
+}
+
 // Recv gets the next completion chunk
-func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
+func (a *streamAdapter) Recv() (chat.MessageStreamResponse, error) {
 	openaiResponse, err := a.stream.Recv()
 	if err != nil {
 		return chat.MessageStreamResponse{}, err
@@ -56,11 +62,6 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 						Arguments: toolCall.Function.Arguments,
 					},
 				}
-				// Handle Index field if present
-				if toolCall.Index != nil {
-					index := *toolCall.Index
-					response.Choices[i].Delta.ToolCalls[j].Index = &index
-				}
 			}
 		}
 	}
@@ -69,6 +70,6 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 }
 
 // Close closes the stream
-func (a *StreamAdapter) Close() {
+func (a *streamAdapter) Close() {
 	a.stream.Close()
 }

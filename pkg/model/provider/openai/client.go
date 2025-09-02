@@ -257,7 +257,7 @@ func (c *Client) CreateChatCompletionStream(
 	}
 
 	slog.Debug("OpenAI chat completion stream created successfully", "model", c.config.Model)
-	return &StreamAdapter{stream: stream}, nil
+	return newStreamAdapter(stream), nil
 }
 
 func (c *Client) CreateChatCompletion(

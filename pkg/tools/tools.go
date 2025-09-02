@@ -5,7 +5,6 @@ import "context"
 type ToolHandler = func(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error)
 
 type ToolCall struct {
-	Index    *int         `json:"index,omitempty"`
 	ID       string       `json:"id,omitempty"`
 	Type     ToolType     `json:"type"`
 	Function FunctionCall `json:"function"`

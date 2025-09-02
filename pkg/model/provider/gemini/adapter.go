@@ -198,23 +198,20 @@ func (g *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 
 		// Handle function calls
 		if funcs := res.resp.FunctionCalls(); len(funcs) > 0 {
-			resp.Choices[0].Delta.ToolCalls = make([]tools.ToolCall, len(funcs))
-			for i, fc := range funcs {
-				// Convert args to JSON string
+			resp.Choices[0].Delta.ToolCalls = []tools.ToolCall{}
+			for _, fc := range funcs {
 				argsJSON, _ := json.Marshal(fc.Args)
 				id := "call_" + uuid.New().String()
 				slog.Debug("Gemini: Function call", "name", fc.Name, "args", string(argsJSON), "id", id)
-				idx := i
-				resp.Choices[0].Delta.ToolCalls[i] = tools.ToolCall{
-					Index: &idx,
-					ID:    id,
-					Type:  "function",
+				resp.Choices[0].Delta.ToolCalls = append(resp.Choices[0].Delta.ToolCalls, tools.ToolCall{
+					ID:   id,
+					Type: "function",
 					Function: tools.FunctionCall{
 						Name:      fc.Name,
 						Arguments: string(argsJSON),
 					},
-				}
-				slog.Debug("Gemini: Sending tool call", "name", fc.Name, "args", string(argsJSON), "id", fc.ID)
+				})
+				slog.Debug("Gemini: Sending tool call", "name", fc.Name, "args", string(argsJSON), "id", id)
 			}
 		}
 	}

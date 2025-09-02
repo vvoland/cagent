@@ -150,7 +150,7 @@ func (c *Client) CreateChatCompletionStream(
 	stream := client.Messages.NewStreaming(ctx, params)
 	slog.Debug("Anthropic chat completion stream created successfully", "model", c.config.Model)
 
-	return &StreamAdapter{stream: stream}, nil
+	return newStreamAdapter(stream), nil
 }
 
 func (c *Client) CreateChatCompletion(
