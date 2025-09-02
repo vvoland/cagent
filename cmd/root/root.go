@@ -21,7 +21,7 @@ func NewRootCmd() *cobra.Command {
 		Short: "cagent - AI agent runner",
 		Long:  `cagent is a command-line tool for running AI agents`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if cmd.DisplayName() != "exec" {
+			if cmd.DisplayName() != "exec" && os.Getenv("CAGENT_HIDE_FEEDBACK_LINK") != "1" {
 				_, _ = cmd.OutOrStdout().Write([]byte("\nFor any feedback, please visit: " + FeedbackLink + "\n\n"))
 			}
 
