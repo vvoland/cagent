@@ -297,7 +297,7 @@ agents:
 ### Configuration File Locations
 
 - `examples/config/` - Sample agent configurations
-- Root directory - Main project configurations (Taskfile.yml, go.mod)
+- Root directory - Main project configurations (`Taskfile.yml`, `go.mod`)
 
 ### Environment Variables
 

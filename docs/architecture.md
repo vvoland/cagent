@@ -258,7 +258,7 @@ classDiagram
 
 **Core Properties**:
 - Name, description, instruction for agent behavior
-- Multi-model support with random selection
+- Multi-Model support with random selection
 - Hierarchical sub-agent relationships
 - Date injection capability (addDate)
 - Memory manager integration
