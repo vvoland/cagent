@@ -26,7 +26,7 @@ func TestNewClientWithDefaultBaseURL(t *testing.T) {
 
 func TestNewClientWithExplicitBaseURL(t *testing.T) {
 	// Test case 2: Explicit base_url provided, should use that
-	customURL := "http://custom.example.com:8080/api/v1"
+	customURL := "https://custom.example.com:8080/api/v1"
 	cfg := &latest.ModelConfig{
 		Provider: "dmr",
 		Model:    "ai/qwen3",
