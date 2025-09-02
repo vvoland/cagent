@@ -57,15 +57,12 @@ func (mv *toolModel) SetSize(width, height int) tea.Cmd {
 
 // New creates a new message view
 func New(msg *types.Message, a *app.App) Model {
-	s := spinner.New()
-	s.Spinner = spinner.Points
-
 	return &toolModel{
 		message: msg,
 		width:   80, // Default width
 		height:  1,  // Will be calculated
 		focused: false,
-		spinner: s,
+		spinner: spinner.New(spinner.WithSpinner(spinner.Points)),
 		app:     a,
 	}
 }

@@ -39,16 +39,13 @@ type model struct {
 
 // New creates a new sidebar component
 func New() Model {
-	s := spinner.New()
-	s.Spinner = spinner.Dot
-
 	return &model{
 		width:    20, // Default width
 		height:   24, // Default height
 		usage:    &runtime.Usage{},
 		todoComp: todo.NewComponent(),
 		title:    "New Session",
-		spinner:  s,
+		spinner:  spinner.New(spinner.WithSpinner(spinner.Dot)),
 	}
 }
 

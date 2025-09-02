@@ -65,33 +65,24 @@ func DefaultKeyMap() KeyMap {
 // New creates and initializes a new TUI application model
 func New(a *app.App) tea.Model {
 	chatPageInstance := chatpage.New(a)
-	keyMap := DefaultKeyMap()
 
-	model := &appModel{
+	return &appModel{
 		chatPage:  chatPageInstance,
-		keyMap:    keyMap,
+		keyMap:    DefaultKeyMap(),
 		dialog:    dialog.New(),
 		statusBar: statusbar.New(chatPageInstance),
 	}
-
-	return model
 }
 
 // Init initializes the application
 func (a *appModel) Init() tea.Cmd {
-	var cmds []tea.Cmd
+	return tea.Batch(
+		// Initialize dialog system
+		a.dialog.Init(),
 
-	// Initialize dialog system
-	cmd := a.dialog.Init()
-	cmds = append(cmds, cmd)
-
-	// Initialize chat page
-	cmd = a.chatPage.Init()
-	cmds = append(cmds, cmd)
-
-	// Mouse support is configured via program options (cell motion + filter)
-
-	return tea.Batch(cmds...)
+		// Initialize chat page
+		a.chatPage.Init(),
+	)
 }
 
 // Update handles incoming messages and updates the application state
