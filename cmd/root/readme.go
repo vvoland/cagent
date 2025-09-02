@@ -20,7 +20,7 @@ func NewReadmeCmd() *cobra.Command {
 	return cmd
 }
 
-func readmeAgentCommand(cmd *cobra.Command, args []string) error {
+func readmeAgentCommand(_ *cobra.Command, args []string) error {
 	agentFilename := args[0]
 
 	// Get current working directory as the base directory for security validation

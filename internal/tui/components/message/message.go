@@ -83,7 +83,7 @@ func (mv *messageModel) View() string {
 // MessageView specific methods
 
 // Render renders the message view content
-func (mv *messageModel) Render(width int) string {
+func (mv *messageModel) Render(int) string {
 	msg := mv.message
 	switch msg.Type {
 	case types.MessageTypeUser:

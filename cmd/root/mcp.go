@@ -42,7 +42,7 @@ and maintain conversational sessions.`,
 	return cmd
 }
 
-func runMCPCommand(cmd *cobra.Command, args []string) error {
+func runMCPCommand(*cobra.Command, []string) error {
 	// Default agents directory to current working directory if not specified
 	resolvedAgentsDir := agentsDir
 	if resolvedAgentsDir == "" {

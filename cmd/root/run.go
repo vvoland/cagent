@@ -109,7 +109,7 @@ func NewRunCmd() *cobra.Command {
 	return cmd
 }
 
-func runAgentCommand(cmd *cobra.Command, args []string) error {
+func runAgentCommand(_ *cobra.Command, args []string) error {
 	ctx := context.Background()
 	agentFilename := args[0]
 

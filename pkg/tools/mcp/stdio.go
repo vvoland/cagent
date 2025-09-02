@@ -68,7 +68,7 @@ func newStdioCmdClient(command string, env, args []string) *stdioMCPClient {
 	}
 }
 
-func (c *stdioMCPClient) Start(ctx context.Context) error {
+func (c *stdioMCPClient) Start(context.Context) error {
 	return nil
 }
 

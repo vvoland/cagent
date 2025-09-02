@@ -10,7 +10,7 @@ type toolwrapper struct {
 	allTools []tools.Tool
 }
 
-func (t *toolwrapper) Tools(ctx context.Context) ([]tools.Tool, error) {
+func (t *toolwrapper) Tools(context.Context) ([]tools.Tool, error) {
 	return t.allTools, nil
 }
 
@@ -18,7 +18,7 @@ func (t *toolwrapper) Instructions() string {
 	return ""
 }
 
-func (t *toolwrapper) Start(ctx context.Context) error {
+func (t *toolwrapper) Start(context.Context) error {
 	return nil
 }
 

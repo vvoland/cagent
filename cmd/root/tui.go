@@ -36,7 +36,7 @@ func NewTUICmd() *cobra.Command {
 	return cmd
 }
 
-func runTUICommand(cmd *cobra.Command, args []string) error {
+func runTUICommand(_ *cobra.Command, args []string) error {
 	ctx := context.Background()
 	agentFilename := args[0]
 

@@ -16,7 +16,7 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
-func addNumbers(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func addNumbers(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	type params struct {
 		A int `json:"a"`
 		B int `json:"b"`

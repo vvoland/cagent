@@ -120,7 +120,7 @@ func New(sessionStore session.Store, runConfig latest.RuntimeConfig, teams map[s
 	return s
 }
 
-func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
+func (s *Server) Serve(_ context.Context, ln net.Listener) error {
 	srv := http.Server{
 		Handler: s.e,
 	}

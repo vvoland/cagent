@@ -12,7 +12,7 @@ func NewOsEnvProvider() *OsEnvProvider {
 	return &OsEnvProvider{}
 }
 
-func (p *OsEnvProvider) Get(ctx context.Context, name string) (string, error) {
+func (p *OsEnvProvider) Get(_ context.Context, name string) (string, error) {
 	return os.Getenv(name), nil
 }
 
@@ -28,7 +28,7 @@ func NewKeyValueProvider(env map[string]string) *KeyValueProvider {
 	}
 }
 
-func (p *KeyValueProvider) Get(ctx context.Context, name string) (string, error) {
+func (p *KeyValueProvider) Get(_ context.Context, name string) (string, error) {
 	return Expand(p.env[name], os.Environ()), nil
 }
 
@@ -42,7 +42,7 @@ func NewEnvFilesProvider(absEnvFiles []string) *EnvFilesProviders {
 	}
 }
 
-func (p *EnvFilesProviders) Get(ctx context.Context, name string) (string, error) {
+func (p *EnvFilesProviders) Get(_ context.Context, name string) (string, error) {
 	values, err := ReadEnvFiles(p.absEnvFiles)
 	if err != nil {
 		return "", err

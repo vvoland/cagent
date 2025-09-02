@@ -265,7 +265,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 	return events
 }
 
-func (r *Runtime) Resume(ctx context.Context, confirmationType string) {
+func (r *Runtime) Resume(_ context.Context, confirmationType string) {
 	slog.Debug("Resuming runtime", "agent", r.currentAgent, "confirmation_type", confirmationType)
 
 	cType := ResumeTypeApproveSession

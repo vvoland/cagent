@@ -127,7 +127,7 @@ assistant: [uses Bash to 'git add' the unstaged changes from the 'git status' ou
 It's VERY IMPORTANT to use specific tools when searching for files, instead of issuing terminal commands with find/grep/ripgrep. Use codebase_search or Grep instead. Use read_file tool rather than cat, and edit_file rather than sed.`
 }
 
-func (t *ShellTool) Tools(ctx context.Context) ([]tools.Tool, error) {
+func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
 	return []tools.Tool{
 		{
 			Function: &tools.FunctionDefinition{
@@ -153,7 +153,7 @@ func (t *ShellTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 	}, nil
 }
 
-func (t *ShellTool) Start(ctx context.Context) error {
+func (t *ShellTool) Start(context.Context) error {
 	return nil
 }
 

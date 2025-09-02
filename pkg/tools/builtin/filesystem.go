@@ -65,7 +65,7 @@ This toolset provides comprehensive filesystem operations with built-in security
 - Use appropriate exclude patterns in search operations`
 }
 
-func (t *FilesystemTool) Tools(ctx context.Context) ([]tools.Tool, error) {
+func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 	tls := []tools.Tool{
 		{
 			Function: &tools.FunctionDefinition{
@@ -438,7 +438,7 @@ func (t *FilesystemTool) isPathAllowed(path string) error {
 
 // Handler implementations
 
-func (t *FilesystemTool) handleCreateDirectory(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleCreateDirectory(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args struct {
 		Path string `json:"path"`
 	}
@@ -457,7 +457,7 @@ func (t *FilesystemTool) handleCreateDirectory(ctx context.Context, toolCall too
 	return &tools.ToolCallResult{Output: fmt.Sprintf("Directory created successfully: %s", args.Path)}, nil
 }
 
-func (t *FilesystemTool) handleDirectoryTree(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleDirectoryTree(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args struct {
 		Path     string `json:"path"`
 		MaxDepth *int   `json:"max_depth"`
@@ -530,7 +530,7 @@ func (t *FilesystemTool) buildDirectoryTree(path string, maxDepth *int, currentD
 	return node, nil
 }
 
-func (t *FilesystemTool) handleEditFile(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleEditFile(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args struct {
 		Path  string `json:"path"`
 		Edits []struct {
@@ -575,7 +575,7 @@ func (t *FilesystemTool) handleEditFile(ctx context.Context, toolCall tools.Tool
 	return &tools.ToolCallResult{Output: fmt.Sprintf("File edited successfully. Changes:\n%s", strings.Join(changes, "\n"))}, nil
 }
 
-func (t *FilesystemTool) handleGetFileInfo(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleGetFileInfo(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args struct {
 		Path string `json:"path"`
 	}
@@ -608,7 +608,7 @@ func (t *FilesystemTool) handleGetFileInfo(ctx context.Context, toolCall tools.T
 	return &tools.ToolCallResult{Output: string(result)}, nil
 }
 
-func (t *FilesystemTool) handleListAllowedDirectories(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleListAllowedDirectories(context.Context, tools.ToolCall) (*tools.ToolCallResult, error) {
 	result, err := json.MarshalIndent(t.allowedDirectories, "", "  ")
 	if err != nil {
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error formatting directories: %s", err)}, nil
@@ -617,7 +617,7 @@ func (t *FilesystemTool) handleListAllowedDirectories(ctx context.Context, toolC
 	return &tools.ToolCallResult{Output: string(result)}, nil
 }
 
-func (t *FilesystemTool) handleAddAllowedDirectory(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleAddAllowedDirectory(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args struct {
 		Path      string `json:"path"`
 		Reason    string `json:"reason"`
@@ -703,7 +703,7 @@ Updated allowed directories:
 	return &tools.ToolCallResult{Output: successMsg}, nil
 }
 
-func (t *FilesystemTool) handleListDirectory(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleListDirectory(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args struct {
 		Path string `json:"path"`
 	}
@@ -732,7 +732,7 @@ func (t *FilesystemTool) handleListDirectory(ctx context.Context, toolCall tools
 	return &tools.ToolCallResult{Output: result.String()}, nil
 }
 
-func (t *FilesystemTool) handleListDirectoryWithSizes(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleListDirectoryWithSizes(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args struct {
 		Path string `json:"path"`
 	}
@@ -766,7 +766,7 @@ func (t *FilesystemTool) handleListDirectoryWithSizes(ctx context.Context, toolC
 	return &tools.ToolCallResult{Output: result.String()}, nil
 }
 
-func (t *FilesystemTool) handleMoveFile(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleMoveFile(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args struct {
 		Source      string `json:"source"`
 		Destination string `json:"destination"`
@@ -793,7 +793,7 @@ func (t *FilesystemTool) handleMoveFile(ctx context.Context, toolCall tools.Tool
 	return &tools.ToolCallResult{Output: fmt.Sprintf("Successfully moved %s to %s", args.Source, args.Destination)}, nil
 }
 
-func (t *FilesystemTool) handleReadFile(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleReadFile(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args struct {
 		Path string `json:"path"`
 	}
@@ -813,7 +813,7 @@ func (t *FilesystemTool) handleReadFile(ctx context.Context, toolCall tools.Tool
 	return &tools.ToolCallResult{Output: string(content)}, nil
 }
 
-func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleReadMultipleFiles(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args struct {
 		Paths []string `json:"paths"`
 	}
@@ -840,7 +840,7 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, toolCall t
 	return &tools.ToolCallResult{Output: result.String()}, nil
 }
 
-func (t *FilesystemTool) handleSearchFiles(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleSearchFiles(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args struct {
 		Path            string   `json:"path"`
 		Pattern         string   `json:"pattern"`
@@ -891,7 +891,7 @@ func (t *FilesystemTool) handleSearchFiles(ctx context.Context, toolCall tools.T
 	return &tools.ToolCallResult{Output: strings.Join(matches, "\n")}, nil
 }
 
-func (t *FilesystemTool) handleSearchFilesContent(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args struct {
 		Path            string   `json:"path"`
 		Query           string   `json:"query"`
@@ -982,7 +982,7 @@ func (t *FilesystemTool) handleSearchFilesContent(ctx context.Context, toolCall 
 	return &tools.ToolCallResult{Output: strings.Join(results, "\n")}, nil
 }
 
-func (t *FilesystemTool) handleWriteFile(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleWriteFile(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args struct {
 		Path    string `json:"path"`
 		Content string `json:"content"`
@@ -1002,7 +1002,7 @@ func (t *FilesystemTool) handleWriteFile(ctx context.Context, toolCall tools.Too
 	return &tools.ToolCallResult{Output: fmt.Sprintf("File written successfully: %s (%d bytes)", args.Path, len(args.Content))}, nil
 }
 
-func (t *FilesystemTool) Start(ctx context.Context) error {
+func (t *FilesystemTool) Start(context.Context) error {
 	return nil
 }
 

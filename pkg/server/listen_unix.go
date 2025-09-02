@@ -8,6 +8,6 @@ import (
 	"runtime"
 )
 
-func listenNamedPipe(path string) (net.Listener, error) {
+func listenNamedPipe(string) (net.Listener, error) {
 	return nil, fmt.Errorf("named pipes not supported on %s", runtime.GOOS)
 }

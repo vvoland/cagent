@@ -19,7 +19,7 @@ func (t *TransferTaskTool) Instructions() string {
 	return ""
 }
 
-func (t *TransferTaskTool) Tools(ctx context.Context) ([]tools.Tool, error) {
+func (t *TransferTaskTool) Tools(context.Context) ([]tools.Tool, error) {
 	return []tools.Tool{
 		{
 			Function: &tools.FunctionDefinition{
@@ -52,7 +52,7 @@ func (t *TransferTaskTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 	}, nil
 }
 
-func (t *TransferTaskTool) Start(ctx context.Context) error {
+func (t *TransferTaskTool) Start(context.Context) error {
 	return nil
 }
 

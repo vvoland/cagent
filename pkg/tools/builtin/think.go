@@ -20,7 +20,7 @@ type thinkHandler struct {
 	thoughts []string
 }
 
-func (h *thinkHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (h *thinkHandler) CallTool(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var params struct {
 		Thought string `json:"thought"`
 	}
@@ -54,7 +54,7 @@ Before taking any action or responding to the user after receiving tool results,
 - Use the think tool generously to jot down thoughts and ideas.`
 }
 
-func (t *ThinkTool) Tools(ctx context.Context) ([]tools.Tool, error) {
+func (t *ThinkTool) Tools(context.Context) ([]tools.Tool, error) {
 	return []tools.Tool{
 		{
 			Function: &tools.FunctionDefinition{
@@ -79,7 +79,7 @@ func (t *ThinkTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 	}, nil
 }
 
-func (t *ThinkTool) Start(ctx context.Context) error {
+func (t *ThinkTool) Start(context.Context) error {
 	return nil
 }
 

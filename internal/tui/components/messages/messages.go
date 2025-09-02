@@ -576,7 +576,7 @@ func (m *model) AddOrUpdateToolCall(toolName, toolCallID, arguments string, stat
 }
 
 // AddToolResult adds tool result to the most recent matching tool call
-func (m *model) AddToolResult(toolName, toolCallID, result string, status types.ToolStatus) tea.Cmd {
+func (m *model) AddToolResult(_, toolCallID, result string, status types.ToolStatus) tea.Cmd {
 	for i := len(m.messages) - 1; i >= 0; i-- {
 		msg := &m.messages[i]
 		if msg.ToolCallID == toolCallID {

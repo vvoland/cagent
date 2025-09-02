@@ -55,7 +55,7 @@ IMPORTANT: You MUST use these tools to track the progress of your tasks:
 This toolset is REQUIRED for maintaining task state and ensuring all steps are completed.`
 }
 
-func (h *todoHandler) createTodo(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (h *todoHandler) createTodo(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var params struct {
 		Description string `json:"description"`
 	}
@@ -77,7 +77,7 @@ func (h *todoHandler) createTodo(ctx context.Context, toolCall tools.ToolCall) (
 	}, nil
 }
 
-func (h *todoHandler) createTodos(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (h *todoHandler) createTodos(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var params struct {
 		Todos []Todo `json:"todos"`
 	}
@@ -105,7 +105,7 @@ func (h *todoHandler) createTodos(ctx context.Context, toolCall tools.ToolCall) 
 	}, nil
 }
 
-func (h *todoHandler) updateTodo(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (h *todoHandler) updateTodo(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var params struct {
 		ID     string `json:"id"`
 		Status string `json:"status"`
@@ -128,7 +128,7 @@ func (h *todoHandler) updateTodo(ctx context.Context, toolCall tools.ToolCall) (
 	}, nil
 }
 
-func (h *todoHandler) listTodos(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (h *todoHandler) listTodos(context.Context, tools.ToolCall) (*tools.ToolCallResult, error) {
 	var output strings.Builder
 	output.WriteString("Current todos:\n")
 
@@ -142,7 +142,7 @@ func (h *todoHandler) listTodos(ctx context.Context, toolCall tools.ToolCall) (*
 	}, nil
 }
 
-func (t *TodoTool) Tools(ctx context.Context) ([]tools.Tool, error) {
+func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 	return []tools.Tool{
 		{
 			Function: &tools.FunctionDefinition{
@@ -233,7 +233,7 @@ func (t *TodoTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 	}, nil
 }
 
-func (t *TodoTool) Start(ctx context.Context) error {
+func (t *TodoTool) Start(context.Context) error {
 	return nil
 }
 

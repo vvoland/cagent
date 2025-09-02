@@ -64,7 +64,7 @@ func (t *ScriptShellTool) Instructions() string {
 	return instructions.String()
 }
 
-func (t *ScriptShellTool) Tools(ctx context.Context) ([]tools.Tool, error) {
+func (t *ScriptShellTool) Tools(context.Context) ([]tools.Tool, error) {
 	var toolsList []tools.Tool
 
 	for name, toolConfig := range t.shellTools {
@@ -134,7 +134,7 @@ func (t *ScriptShellTool) execute(ctx context.Context, toolConfig *latest.Script
 	}, nil
 }
 
-func (t *ScriptShellTool) Start(ctx context.Context) error {
+func (t *ScriptShellTool) Start(context.Context) error {
 	return nil
 }
 

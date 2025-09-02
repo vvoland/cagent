@@ -329,7 +329,7 @@ func (s *MCPServer) handleSendMessage(ctx context.Context, req mcp.CallToolReque
 }
 
 // handleListAgentSessions implements session listing for a client
-func (s *MCPServer) handleListAgentSessions(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *MCPServer) handleListAgentSessions(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	// Extract client ID from context
 	clientID, err := s.extractClientID(ctx)
 	if err != nil {

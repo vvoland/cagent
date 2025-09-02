@@ -140,7 +140,7 @@ func (s *SQLiteStore) migrate() error {
 }
 
 // CreateClient creates a client record (no-op for SQLite, clients are implicit)
-func (s *SQLiteStore) CreateClient(ctx context.Context, clientID string) error {
+func (s *SQLiteStore) CreateClient(_ context.Context, clientID string) error {
 	if clientID == "" {
 		return ErrEmptyClientID
 	}

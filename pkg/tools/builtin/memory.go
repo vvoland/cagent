@@ -34,7 +34,7 @@ Do not talk about using the tool, just use it.
 - Use the memory tool generously to remember things about the user.`
 }
 
-func (t *MemoryTool) Tools(ctx context.Context) ([]tools.Tool, error) {
+func (t *MemoryTool) Tools(context.Context) ([]tools.Tool, error) {
 	return []tools.Tool{
 		{
 			Function: &tools.FunctionDefinition{
@@ -110,7 +110,7 @@ func (t *MemoryTool) handleAddMemory(ctx context.Context, toolCall tools.ToolCal
 	}, nil
 }
 
-func (t *MemoryTool) handleGetMemories(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (t *MemoryTool) handleGetMemories(ctx context.Context, _ tools.ToolCall) (*tools.ToolCallResult, error) {
 	memories, err := t.manager.GetMemories(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get memories: %w", err)
@@ -147,7 +147,7 @@ func (t *MemoryTool) handleDeleteMemory(ctx context.Context, toolCall tools.Tool
 	}, nil
 }
 
-func (t *MemoryTool) Start(ctx context.Context) error {
+func (t *MemoryTool) Start(context.Context) error {
 	return nil
 }
 
