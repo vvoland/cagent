@@ -74,8 +74,9 @@ func UserMessage(agentFilename, content string) *Message {
 		AgentFilename: agentFilename,
 		AgentName:     "",
 		Message: chat.Message{
-			Role:    chat.MessageRoleUser,
-			Content: content,
+			Role:      chat.MessageRoleUser,
+			Content:   content,
+			CreatedAt: time.Now().Format(time.RFC3339),
 		},
 	}
 }
@@ -93,8 +94,9 @@ func SystemMessage(content string) *Message {
 		AgentFilename: "",
 		AgentName:     "",
 		Message: chat.Message{
-			Role:    chat.MessageRoleSystem,
-			Content: content,
+			Role:      chat.MessageRoleSystem,
+			Content:   content,
+			CreatedAt: time.Now().Format(time.RFC3339),
 		},
 	}
 }
@@ -233,8 +235,9 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 
 	if lastSummaryIndex != -1 {
 		messages = append(messages, chat.Message{
-			Role:    chat.MessageRoleSystem,
-			Content: "Session Summary: " + s.Messages[lastSummaryIndex].Summary,
+			Role:      chat.MessageRoleSystem,
+			Content:   "Session Summary: " + s.Messages[lastSummaryIndex].Summary,
+			CreatedAt: time.Now().Format(time.RFC3339),
 		})
 	}
 

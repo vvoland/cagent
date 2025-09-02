@@ -580,6 +580,7 @@ func createUserMessageWithAttachment(agentFilename, userContent, attachmentPath 
 		Message: chat.Message{
 			Role:         chat.MessageRoleUser,
 			MultiContent: multiContent,
+			CreatedAt:    time.Now().Format(time.RFC3339),
 		},
 	}
 }

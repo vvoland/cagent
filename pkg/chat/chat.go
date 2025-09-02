@@ -56,6 +56,8 @@ type Message struct {
 
 	// For Role=tool prompts this should be set to the ID given in the assistant's prior request to call a tool.
 	ToolCallID string `json:"tool_call_id,omitempty"`
+
+	CreatedAt string `json:"created_at,omitempty"`
 }
 
 type MessagePart struct {
