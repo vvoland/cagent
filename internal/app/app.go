@@ -13,6 +13,7 @@ import (
 type App struct {
 	agentFilename string
 	runtime       *runtime.Runtime
+	team          *team.Team
 	session       *session.Session
 	firstMessage  *string
 	events        chan tea.Msg
@@ -22,6 +23,7 @@ func New(agentFilename string, rt *runtime.Runtime, sess *session.Session, first
 	return &App{
 		agentFilename: agentFilename,
 		runtime:       rt,
+		team:          rt.Team(),
 		session:       sess,
 		firstMessage:  firstMessage,
 		events:        make(chan tea.Msg, 128),
@@ -33,7 +35,7 @@ func (a *App) FirstMessage() *string {
 }
 
 func (a *App) Team() *team.Team {
-	return a.runtime.Team()
+	return a.team
 }
 
 // Run one agent loop
