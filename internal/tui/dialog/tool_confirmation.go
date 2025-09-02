@@ -253,77 +253,78 @@ func (d *toolConfirmationDialog) renderArguments(contentWidth int) string {
 		Foreground(lipgloss.Color("#6b7280")).
 		Render("Arguments:")
 
-	var formattedArgs string
 	var arguments map[string]any
-	if err := json.Unmarshal([]byte(d.arguments), &arguments); err == nil {
-		var argLines []string
-		// TODO: sort arguments by key
-		for k, v := range arguments {
-			// Format key
-			keyStyle := lipgloss.NewStyle().
-				Bold(true).
-				Foreground(lipgloss.Color("#9ca3af"))
-			formattedKey := keyStyle.Render(k + ":")
-
-			// Format value
-			var valueStr string
-			if vStr, ok := v.(string); ok {
-				valueStr = vStr
-			} else {
-				valueBytes, _ := json.MarshalIndent(v, "", "  ")
-				valueStr = string(valueBytes)
-			}
-
-			// Truncate very long values before wrapping
-			maxValueLength := 200
-			if len(valueStr) > maxValueLength {
-				valueStr = valueStr[:maxValueLength] + "..."
-			}
-
-			// Wrap long values
-			// Account for key, colon, spaces, and indent
-			availableWidth := max(contentWidth-len(k)-6, 20)
-			wrappedValue := wrapText(valueStr, availableWidth)
-
-			// Limit to maximum 3 lines for readability
-			valueLines := strings.Split(wrappedValue, "\n")
-			if len(valueLines) > 3 {
-				valueLines = valueLines[:3]
-				if len(valueLines[2]) > availableWidth-3 {
-					valueLines[2] = valueLines[2][:availableWidth-3] + "..."
-				} else {
-					valueLines[2] += "..."
-				}
-				wrappedValue = strings.Join(valueLines, "\n")
-			}
-
-			// Indent wrapped lines
-			valueLines = strings.Split(wrappedValue, "\n")
-			if len(valueLines) > 1 {
-				for i := 1; i < len(valueLines); i++ {
-					valueLines[i] = "    " + valueLines[i]
-				}
-				wrappedValue = strings.Join(valueLines, "\n")
-			}
-
-			valueStyled := lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#6b7280")).
-				Render(wrappedValue)
-
-			argLines = append(argLines, fmt.Sprintf("  %s %s", formattedKey, valueStyled))
-		}
-		formattedArgs = strings.Join(argLines, "\n")
-	} else {
+	if err := json.Unmarshal([]byte(d.arguments), &arguments); err != nil {
 		// If JSON unmarshaling fails, truncate and wrap the raw arguments
 		rawArgs := d.arguments
 		if len(rawArgs) > 150 {
 			rawArgs = rawArgs[:150] + "..."
 		}
-		formattedArgs = lipgloss.NewStyle().
+
+		formattedArgs := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#6b7280")).
 			Render("  " + wrapText(rawArgs, contentWidth-2))
+		return lipgloss.JoinVertical(lipgloss.Left, argumentsHeader, "", formattedArgs)
 	}
 
+	var argLines []string
+	// TODO: sort arguments by key
+	for k, v := range arguments {
+		// Format key
+		keyStyle := lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("#9ca3af"))
+		formattedKey := keyStyle.Render(k + ":")
+
+		// Format value
+		var valueStr string
+		if vStr, ok := v.(string); ok {
+			valueStr = vStr
+		} else {
+			valueBytes, _ := json.MarshalIndent(v, "", "  ")
+			valueStr = string(valueBytes)
+		}
+
+		// Truncate very long values before wrapping
+		maxValueLength := 200
+		if len(valueStr) > maxValueLength {
+			valueStr = valueStr[:maxValueLength] + "..."
+		}
+
+		// Wrap long values
+		// Account for key, colon, spaces, and indent
+		availableWidth := max(contentWidth-len(k)-6, 20)
+		wrappedValue := wrapText(valueStr, availableWidth)
+
+		// Limit to maximum 3 lines for readability
+		valueLines := strings.Split(wrappedValue, "\n")
+		if len(valueLines) > 3 {
+			valueLines = valueLines[:3]
+			if len(valueLines[2]) > availableWidth-3 {
+				valueLines[2] = valueLines[2][:availableWidth-3] + "..."
+			} else {
+				valueLines[2] += "..."
+			}
+			wrappedValue = strings.Join(valueLines, "\n")
+		}
+
+		// Indent wrapped lines
+		valueLines = strings.Split(wrappedValue, "\n")
+		if len(valueLines) > 1 {
+			for i := 1; i < len(valueLines); i++ {
+				valueLines[i] = "    " + valueLines[i]
+			}
+			wrappedValue = strings.Join(valueLines, "\n")
+		}
+
+		valueStyled := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#6b7280")).
+			Render(wrappedValue)
+
+		argLines = append(argLines, fmt.Sprintf("  %s %s", formattedKey, valueStyled))
+	}
+
+	formattedArgs := strings.Join(argLines, "\n")
 	return lipgloss.JoinVertical(lipgloss.Left, argumentsHeader, "", formattedArgs)
 }
 
