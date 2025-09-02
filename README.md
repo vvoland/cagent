@@ -10,7 +10,7 @@
 `cagent` lets you create and run intelligent AI agents, where each agent has
 specialized knowledge, tools, and capabilities.
 
-Think of it as allowing you to quickly build and run a team of virtual experts that
+Think of it as allowing you to quickly build, share and run a team of virtual experts that
 collaborate to solve complex problems for you.
 
 And it's dead easy to use!
