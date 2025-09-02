@@ -22,7 +22,7 @@ type Agent struct {
 	subAgents       []*Agent
 	parents         []*Agent
 	addDate         bool
-	toolwrapper     toolwrapper
+	toolWrapper     toolWrapper
 	memoryManager   memorymanager.Manager
 }
 
@@ -97,7 +97,7 @@ func (a *Agent) Tools(ctx context.Context) ([]tools.Tool, error) {
 		agentTools = append(agentTools, ta...)
 	}
 
-	agentTools = append(agentTools, a.toolwrapper.allTools...)
+	agentTools = append(agentTools, a.toolWrapper.allTools...)
 
 	return agentTools, nil
 }

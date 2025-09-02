@@ -6,22 +6,22 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
-type toolwrapper struct {
+type toolWrapper struct {
 	allTools []tools.Tool
 }
 
-func (t *toolwrapper) Tools(context.Context) ([]tools.Tool, error) {
+func (t *toolWrapper) Tools(context.Context) ([]tools.Tool, error) {
 	return t.allTools, nil
 }
 
-func (t *toolwrapper) Instructions() string {
+func (t *toolWrapper) Instructions() string {
 	return ""
 }
 
-func (t *toolwrapper) Start(context.Context) error {
+func (t *toolWrapper) Start(context.Context) error {
 	return nil
 }
 
-func (t *toolwrapper) Stop() error {
+func (t *toolWrapper) Stop() error {
 	return nil
 }

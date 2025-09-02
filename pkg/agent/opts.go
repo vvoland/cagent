@@ -22,7 +22,7 @@ func WithToolSets(toolSet ...tools.ToolSet) Opt {
 
 func WithTools(tls ...tools.Tool) Opt {
 	return func(a *Agent) {
-		a.toolwrapper = toolwrapper{
+		a.toolWrapper = toolWrapper{
 			allTools: tls,
 		}
 	}
