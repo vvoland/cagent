@@ -754,16 +754,17 @@ func (s *Server) getAgents(c echo.Context) error {
 		slog.Error("Failed to refresh agents from disk", "error", err)
 	}
 
-	agentList := make([]map[string]string, 0)
+	agentList := make([]map[string]any, 0)
 	for id, t := range s.teams {
 		a := t.Agent("root")
 		if a == nil {
 			slog.Error("Agent root not found", "team", id)
 			continue
 		}
-		agentList = append(agentList, map[string]string{
+		agentList = append(agentList, map[string]any{
 			"name":        id,
 			"description": a.Description(),
+			"multi":       a.HasSubAgents(),
 		})
 	}
 	return c.JSON(http.StatusOK, agentList)
