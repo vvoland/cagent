@@ -18,6 +18,7 @@ Think of it as allowing you to quickly build and run a team of virtual experts t
 
 Example [basic_agent.yaml](/examples/basic_agent.yaml):
 
+Creating agents with cagent is very simple. Agents are described in a simple yaml, like this one:
 ```yaml
 agents:
   root:
@@ -27,6 +28,7 @@ agents:
       You are a knowledgeable assistant that helps users with various tasks.
       Be helpful, accurate, and concise in your responses.
 ```
+You can easily run them via the command line interface with `cagent run basic_agent.yaml`.
 
 More examples can be found [here](/examples/README.md)!
 
@@ -60,7 +62,7 @@ You can then rename the binary to `cagent` and configure your `PATH` to be able 
 
 ### **Set your API keys**
 
-Based on the models you configure your agents to use, you will need to set the corresponding provider API key accordingly.
+Based on the models you configure your agents to use, you will need to set the corresponding provider API key accordingly, all theses keys are optional, you will likely need at least one of theses though.
 
 ```bash
 # For OpenAI models
