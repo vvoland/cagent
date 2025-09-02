@@ -7,7 +7,7 @@
 
 ## ✨ What is `cagent`? ✨
 
-`cagent` lets you create and run intelligent AI agents and teams, where each agent has
+`cagent` lets you create and run intelligent AI agents, where each agent has
 specialized knowledge, tools, and capabilities.
 
 Think of it as allowing you to quickly build and run a team of virtual experts that
@@ -87,8 +87,8 @@ cagent run ./examples/pirate.yaml
 # or specify a different starting agent from the config, useful for agent teams
 cagent run ./examples/pirate.yaml -a root
 
-# or run directly from an image reference
-cagent run agentcatalog/pirate
+# or run directly from an image reference here I'm pulling the pirate agent from the creek repository 
+cagent run creek/pirate
 ```
 
 ### Multi-agent team example
@@ -166,7 +166,7 @@ What should your agent/agent team do? (describe its purpose):
 > I need an agent team that connects to <some-service> and does...
 ```
 
-## Pushing and pulling agents and teams from Docker Hub
+## Pushing and pulling agents from Docker Hub
 
 ### `cagent push`
 
@@ -180,15 +180,15 @@ cagent push ./<agent-file>.yaml namespace/reponame
 
 ### `cagent pull`
 
-Pulling agents/teams from Docker Hub is also just one `cagent pull` command away.
+Pulling agents from Docker Hub is also just one `cagent pull` command away.
 
 ```sh
-cagent pull agentcatalog/pirate
+cagent pull creek/pirate
 ```
 
 `cagent` will pull the image, extract the yaml file and place it in your working directory for ease of use.
 
-`cagent run agentcatalog_pirate.yaml` will run your newly pulled agent
+`cagent run creek.yaml` will run your newly pulled agent
 
 ## Usage
 
