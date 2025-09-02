@@ -340,13 +340,7 @@ func (d *toolConfirmationDialog) renderArguments(contentWidth int) string {
 // Position calculates the position to center the dialog
 func (d *toolConfirmationDialog) Position() (row, col int) {
 	// Calculate dialog width (same logic as in View())
-	dialogWidth := d.width * 60 / 100 // 60% of screen width
-	if dialogWidth < 50 {
-		dialogWidth = 50
-	}
-	if dialogWidth > 80 {
-		dialogWidth = 80
-	}
+	dialogWidth := min(max(d.width*60/100, 50), 80)
 
 	// Estimate dialog height based on content
 	dialogHeight := 12 // Base height for title, tool name, question, and options
