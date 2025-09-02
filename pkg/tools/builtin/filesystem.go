@@ -868,13 +868,13 @@ func (t *FilesystemTool) handleSearchFiles(_ context.Context, toolCall tools.Too
 
 		// Check exclude patterns
 		for _, exclude := range args.ExcludePatterns {
-			if matched, _ := filepath.Match(exclude, filepath.Base(path)); matched {
+			if match(exclude, filepath.Base(path)) {
 				return nil
 			}
 		}
 
 		// Case-insensitive match
-		if strings.Contains(strings.ToLower(filepath.Base(path)), pattern) {
+		if match(pattern, filepath.Base(path)) {
 			matches = append(matches, path)
 		}
 
@@ -928,7 +928,7 @@ func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, toolCall to
 
 		// Check exclude patterns
 		for _, exclude := range args.ExcludePatterns {
-			if matched, _ := filepath.Match(exclude, filepath.Base(path)); matched {
+			if match(exclude, filepath.Base(path)) {
 				return nil
 			}
 		}
@@ -1008,4 +1008,13 @@ func (t *FilesystemTool) Start(context.Context) error {
 
 func (t *FilesystemTool) Stop() error {
 	return nil
+}
+
+func match(pattern, name string) bool {
+	matched, _ := filepath.Match(pattern, name)
+	if matched {
+		return true
+	}
+
+	return strings.Contains(strings.ToLower(name), strings.ToLower(pattern))
 }

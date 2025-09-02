@@ -451,7 +451,6 @@ func TestFilesystemTool_DirectoryTree(t *testing.T) {
 
 func TestFilesystemTool_SearchFiles(t *testing.T) {
 	tmpDir := t.TempDir()
-	tool := NewFilesystemTool([]string{tmpDir})
 
 	// Create test files
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0o644))
@@ -462,6 +461,7 @@ func TestFilesystemTool_SearchFiles(t *testing.T) {
 	require.NoError(t, os.Mkdir(subDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(subDir, "test_sub.txt"), []byte("sub"), 0o644))
 
+	tool := NewFilesystemTool([]string{tmpDir})
 	handler := getToolHandler(t, tool, "search_files")
 
 	// Test search for files containing "asdf"
@@ -472,7 +472,7 @@ func TestFilesystemTool_SearchFiles(t *testing.T) {
 	result := callHandler(t, handler, args)
 
 	lines := strings.Split(strings.TrimSpace(result.Output), "\n")
-	assert.Equal(t, len(lines), 1) // Should find test.txt, test.log, and test_sub.txt
+	assert.Len(t, lines, 1) // Should find test.txt, test.log, and test_sub.txt
 	assert.Contains(t, lines, "No files found")
 
 	// Test search for files containing "test"
@@ -483,7 +483,7 @@ func TestFilesystemTool_SearchFiles(t *testing.T) {
 	result = callHandler(t, handler, args)
 
 	lines = strings.Split(strings.TrimSpace(result.Output), "\n")
-	assert.GreaterOrEqual(t, len(lines), 2) // Should find test.txt, test.log, and test_sub.txt
+	assert.Len(t, lines, 3) // Should find test.txt, test.log, and test_sub.txt
 
 	// Test search with exclude patterns
 	args = map[string]any{
@@ -548,6 +548,31 @@ func TestFilesystemTool_SearchFilesContent(t *testing.T) {
 	result = callHandler(t, handler, args)
 
 	assert.Contains(t, result.Output, "Invalid regex pattern")
+}
+
+func TestFilesystemTool_SearchFiles_RecursivePattern(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create test files
+	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, "child"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "first.txt"), []byte("first"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "ignored"), []byte("ignored"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "child", "second.txt"), []byte("second"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "child", "third.txt"), []byte("third"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "child", "ignored"), []byte("ignored"), 0o644))
+
+	tool := NewFilesystemTool([]string{tmpDir})
+	handler := getToolHandler(t, tool, "search_files")
+
+	// Test search for files containing ".txt" files
+	args := map[string]any{
+		"path":    tmpDir,
+		"pattern": "*.txt",
+	}
+	result := callHandler(t, handler, args)
+
+	lines := strings.Split(strings.TrimSpace(result.Output), "\n")
+	assert.Len(t, lines, 3) // Should find first.txt, second.txt, and third.txt
 }
 
 func TestFilesystemTool_ListAllowedDirectories(t *testing.T) {
