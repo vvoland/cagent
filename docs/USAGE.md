@@ -65,7 +65,7 @@ $ ./bin/cagent push docker.io/user/agent    # Push agent to registry
 During CLI sessions, you can use special commands:
 
 | Command    | Description                                 |
-| ---------- | ------------------------------------------- |
+|------------|---------------------------------------------|
 | `/exit`    | Exit the program                            |
 | `/reset`   | Clear conversation history                  |
 | `/eval`    | Save current conversation for evaluation    |
@@ -84,7 +84,7 @@ During CLI sessions, you can use special commands:
 ### Agent Properties
 
 | Property      | Type    | Description                    | Required |
-| ------------- | ------- | ------------------------------ | -------- |
+|---------------|---------|--------------------------------|----------|
 | `name`        | string  | Agent identifier               | ✓        |
 | `model`       | string  | Model reference                | ✓        |
 | `description` | string  | Agent purpose                  | ✓        |
@@ -109,8 +109,8 @@ agents:
 ### Model Properties
 
 | Property            | Type    | Description                                      | Required |
-| ------------------- | ------- | ------------------------------------------------ | -------- |
-| `provider`              | string  | Provider: `openai`, `anthropic`, `dmr`           | ✓        |
+|---------------------|---------|--------------------------------------------------|----------|
+| `provider`          | string  | Provider: `openai`, `anthropic`, `dmr`           | ✓        |
 | `model`             | string  | Model name (e.g., `gpt-4o`, `claude-sonnet-4-0`) | ✓        |
 | `temperature`       | float   | Randomness (0.0-1.0)                             | ✗        |
 | `max_tokens`        | integer | Response length limit                            | ✗        |

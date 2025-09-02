@@ -6,7 +6,7 @@ These examples are fairly basic and show you the YAML syntax for writing an agen
 Some of these agents use [Built-in Tools](https://github.com/docker/cagent?tab=readme-ov-file#tool-configuration) like filesystem (which grants filesystem access) or memory (which allows the agent to store its findings for later use).
 
 | Name                                   | Description/Purpose                    | Filesystem | Shell | Todo | Think | Memory | MCP Servers | Sub-agents |
-| -------------------------------------- | -------------------------------------- | ---------- | ----- | ---- | ----- | ------ | ----------- | ---------- |
+|----------------------------------------|----------------------------------------|------------|-------|------|-------|--------|-------------|------------|
 | [echo-agent.yaml](echo-agent.yaml)     | Simple echo agent                      |            |       |      |       |        |             |            |
 | [pirate.yaml](pirate.yaml)             | Pirate-themed assistant                |            |       |      |       |        |             |            |
 | [42.yaml](42.yaml)                     | Douglas Adams-style witty AI assistant |            |       |      |       |        |             |            |
@@ -25,7 +25,7 @@ Some of these agents use [Built-in Tools](https://github.com/docker/cagent?tab=r
 These are more advanced examples, most of them involve some sort of MCP server to augment the agent capabilities with powerful custom integrations with third-party services.
 
 | Name                                                   | Description/Purpose                         | Filesystem | Shell | Todo | Think | Memory | MCP Servers                                                                                                                    | Sub-agents |
-| ------------------------------------------------------ | ------------------------------------------- | ---------- | ----- | ---- | ----- | ------ | ------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+|--------------------------------------------------------|---------------------------------------------|------------|-------|------|-------|--------|--------------------------------------------------------------------------------------------------------------------------------|------------|
 | [bio.yaml](bio.yaml)                                   | Biography generation from internet searches |            |       |      |       |        | [duckduckgo](https://hub.docker.com/mcp/server/duckduckgo/overview), [fetch](https://hub.docker.com/mcp/server/fetch/overview) |            |
 | [airbnb.yaml](airbnb.yaml)                             | Airbnb search specialist                    |            |       |      |       |        | `@openbnb/mcp-server-airbnb`                                                                                                   |            |
 | [github_issue_manager.yaml](github_issue_manager.yaml) | GitHub Issue Manager                        |            |       |      |       |        | [github-official](https://hub.docker.com/mcp/server/github-official/overview)                                                  |            |
@@ -44,7 +44,7 @@ These examples are groups of agents working together. Each of them is specialize
 A coordinator agent usually makes them work together and checks that the work is finished.
 
 | Name                                 | Description/Purpose                     | Filesystem | Shell | Todo | Think | Memory | MCP Servers                                                                    | Sub-agents |
-| ------------------------------------ | --------------------------------------- | ---------- | ----- | ---- | ----- | ------ | ------------------------------------------------------------------------------ | ---------- |
+|--------------------------------------|-----------------------------------------|------------|-------|------|-------|--------|--------------------------------------------------------------------------------|------------|
 | [blog.yaml](blog.yaml)               | Technical blog writing workflow         |            |       |      | ✓     |        | [duckduckgo-mcp-server](https://hub.docker.com/mcp/server/duckduckgo/overview) | ✓          |
 | [dev-team.yaml](dev-team.yaml)       | Development team coordinator            | ✓          | ✓     | ✓    | ✓     | ✓      |                                                                                | ✓          |
 | [multi-code.yaml](multi-code.yaml)   | Technical lead and project coordination | ✓          | ✓     | ✓    | ✓     | ✓      |                                                                                | ✓          |

@@ -532,10 +532,10 @@ func runMCPCommand(cmd *cobra.Command, args []string) error {
 
 **Client ID Handling by Transport:**
 
-| Transport | Client ID Source | Strategy |
-|-----------|------------------|----------|
-| **MCP Server** | MCP session context | Real client ID from MCP library |
-| **HTTP API** | Default constant | `__global` until authentication added |
+| Transport              | Client ID Source       | Strategy                               |
+|------------------------|------------------------|----------------------------------------|
+| **MCP Server**         | MCP session context    | Real client ID from MCP library        |
+| **HTTP API**           | Default constant       | `__global` until authentication added  |
 | **Future HTTP + Auth** | Authentication context | Real client ID from auth token/session |
 
 **Non-Breaking Migration Strategy:**
