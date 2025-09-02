@@ -90,24 +90,20 @@ func (mv *messageModel) Render(int) string {
 		return msg.Content
 	case types.MessageTypeAssistant:
 		if msg.Content == "" {
-			if rendered, err := mv.renderer.Render(mv.spinner.View()); err == nil {
-				return strings.TrimRight(rendered, "\n\r\t ")
-			}
-			return fmt.Sprintf("> %s", mv.spinner.View())
+			return mv.spinner.View()
 		}
 
 		text := senderPrefix(msg.Sender) + msg.Content
 		rendered, err := mv.renderer.Render(text)
 		if err != nil {
-			// Couldn't render markdown, return plain text
-			rendered = text
+			return text
 		}
 
 		return strings.TrimRight(rendered, "\n\r\t ")
 	case types.MessageTypeSeparator:
 		return styles.MutedStyle.Render("•" + strings.Repeat("─", mv.width-3) + "•")
 	case types.MessageTypeError:
-		return styles.ErrorStyle.PaddingLeft(2).Render("│ " + msg.Content)
+		return styles.ErrorStyle.Render("│ " + msg.Content)
 	default:
 		return msg.Content
 	}

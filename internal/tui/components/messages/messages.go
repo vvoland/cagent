@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/v2/key"
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/glamour/v2"
+	"github.com/charmbracelet/glamour/v2/styles"
 	"github.com/charmbracelet/lipgloss/v2"
 
 	"github.com/docker/cagent/internal/app"
@@ -219,10 +220,14 @@ func (m *model) SetSize(width, height int) tea.Cmd {
 		width = 10
 	}
 
+	// Build a custom style
+	customDarkStyle := *styles.DefaultStyles["dark"]
+	customDarkStyle.Document.Margin = uintPtr(0)
+
 	// Initialize or update renderer
 	if r, err := glamour.NewTermRenderer(
 		glamour.WithWordWrap(width),
-		glamour.WithStandardStyle("dark"),
+		glamour.WithStyles(customDarkStyle),
 	); err == nil {
 		m.renderer = r
 	}
@@ -709,3 +714,5 @@ func (m *model) removeLastEmptyAssistantMessage() {
 		}
 	}
 }
+
+func uintPtr(u uint) *uint { return &u }
