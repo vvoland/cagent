@@ -281,10 +281,8 @@ func (d *toolConfirmationDialog) renderArguments(contentWidth int) string {
 			}
 
 			// Wrap long values
-			availableWidth := contentWidth - len(k) - 6 // Account for key, colon, spaces, and indent
-			if availableWidth < 20 {
-				availableWidth = 20
-			}
+			// Account for key, colon, spaces, and indent
+			availableWidth := max(contentWidth-len(k)-6, 20)
 			wrappedValue := wrapText(valueStr, availableWidth)
 
 			// Limit to maximum 3 lines for readability
