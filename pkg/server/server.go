@@ -322,6 +322,9 @@ func (s *Server) createAgent(c echo.Context) error {
 	}
 
 	slog.Info("Agent created", "path", path, "out", out)
+	if path == "" {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": out})
+	}
 
 	t, err := teamloader.Load(c.Request().Context(), path, s.runConfig)
 	if err != nil {
