@@ -95,14 +95,14 @@ func (mv *messageModel) Render(int) string {
 			}
 			return fmt.Sprintf("> %s", mv.spinner.View())
 		}
-		rendered, err := mv.renderer.Render(fmt.Sprintf("%s: %s", msg.Sender, msg.Content))
+
+		text := senderPrefix(msg.Sender) + msg.Content
+		rendered, err := mv.renderer.Render(text)
 		if err != nil {
-			sender := msg.Sender
-			if sender == "" {
-				sender = "root"
-			}
-			return strings.TrimRight(fmt.Sprintf("%s: %s", sender, msg.Content), "\n\r\t ")
+			// Couldn't render markdown, return plain text
+			rendered = text
 		}
+
 		return strings.TrimRight(rendered, "\n\r\t ")
 	case types.MessageTypeSeparator:
 		return styles.MutedStyle.Render("•" + strings.Repeat("─", mv.width-3) + "•")
@@ -111,6 +111,13 @@ func (mv *messageModel) Render(int) string {
 	default:
 		return msg.Content
 	}
+}
+
+func senderPrefix(sender string) string {
+	if sender == "" || sender == "root" {
+		return ""
+	}
+	return fmt.Sprintf("%s: ", sender)
 }
 
 // Height calculates the height needed for this message view
