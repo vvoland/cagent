@@ -57,10 +57,6 @@ tasks:
       - "{{.GO_SOURCES}}"
       - "**/*.txt"
 
-  build-image:
-    desc: Build Docker image
-    cmd: docker buildx build -t docker/cagent:latest {{.BUILD_ARGS}} .
-
   build-local:
     desc: Build binaries for local host platform
     cmd: docker buildx build --target=local {{.BUILD_ARGS}} --platform local --output=./dist .
