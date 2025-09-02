@@ -357,16 +357,8 @@ func (d *toolConfirmationDialog) Position() (row, col int) {
 		dialogHeight += 6
 	}
 
-	row = (d.height - dialogHeight) / 2
-	col = (d.width - dialogWidth) / 2
-
 	// Ensure dialog stays on screen
-	if row < 0 {
-		row = 0
-	}
-	if col < 0 {
-		col = 0
-	}
-
+	row = max(0, (d.height-dialogHeight)/2)
+	col = max(0, (d.width-dialogWidth)/2)
 	return row, col
 }
