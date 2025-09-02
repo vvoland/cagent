@@ -130,7 +130,7 @@ func (mv *toolModel) Render(width int) string {
 	}
 
 	displayName := tools.DisplayName(msg.ToolName)
-	content := fmt.Sprintf("│ %s %s%s", icon, styles.HighlightStyle.Render(displayName), spinnerText)
+	content := fmt.Sprintf("%s %s%s", icon, styles.HighlightStyle.Render(displayName), spinnerText)
 
 	if msg.Arguments != "" {
 		lines := wrapLines(msg.Arguments, mv.width-2)
@@ -143,9 +143,8 @@ func (mv *toolModel) Render(width int) string {
 	// Add tool result content if available (for completed tools with content)
 	var resultContent string
 	if (msg.ToolStatus == types.ToolStatusCompleted || msg.ToolStatus == types.ToolStatusError) && msg.Content != "" {
-		// Calculate available width for content (accounting for padding and prefixes)
-		// Base padding (2) + content prefix and spacing
-		availableWidth := max(width-6, 10) // Minimum readable width
+		// Calculate available width for content (accounting for padding)
+		availableWidth := max(width-2, 10) // Minimum readable width
 
 		// Wrap long lines to fit the component width
 		lines := wrapLines(msg.Content, availableWidth)
@@ -164,7 +163,7 @@ func (mv *toolModel) Render(width int) string {
 		}
 	}
 
-	return styles.BaseStyle.PaddingLeft(2).PaddingTop(2).Render(content + resultContent)
+	return styles.BaseStyle.PaddingLeft(2).PaddingTop(1).Render(content + resultContent)
 }
 
 // Height calculates the height needed for this message view
