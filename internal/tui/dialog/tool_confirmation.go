@@ -13,6 +13,7 @@ import (
 	"github.com/docker/cagent/internal/app"
 	"github.com/docker/cagent/internal/tui/components/todo"
 	"github.com/docker/cagent/internal/tui/core"
+	"github.com/docker/cagent/pkg/tools"
 )
 
 // ToolConfirmationResponse represents the user's response to tool confirmation
@@ -55,10 +56,10 @@ func defaultToolConfirmationKeyMap() toolConfirmationKeyMap {
 }
 
 // NewToolConfirmationDialog creates a new tool confirmation dialog
-func NewToolConfirmationDialog(toolName, arguments string, appInstance *app.App) Dialog {
+func NewToolConfirmationDialog(toolCall tools.ToolCall, appInstance *app.App) Dialog {
 	return &toolConfirmationDialog{
-		toolName:  toolName,
-		arguments: arguments,
+		toolName:  toolCall.Function.Name,
+		arguments: toolCall.Function.Arguments,
 		app:       appInstance,
 		keyMap:    defaultToolConfirmationKeyMap(),
 	}

@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/cagent/pkg/team"
 )
 
 type App struct {
@@ -31,8 +32,8 @@ func (a *App) FirstMessage() *string {
 	return a.firstMessage
 }
 
-func (a *App) ToolDisplayName(ctx context.Context, toolName string) string {
-	return a.runtime.CurrentAgent().ToolDisplayName(ctx, toolName)
+func (a *App) Team() *team.Team {
+	return a.runtime.Team()
 }
 
 // Run one agent loop

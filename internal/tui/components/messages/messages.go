@@ -17,6 +17,7 @@ import (
 	"github.com/docker/cagent/internal/tui/core"
 	"github.com/docker/cagent/internal/tui/core/layout"
 	"github.com/docker/cagent/internal/tui/types"
+	"github.com/docker/cagent/pkg/tools"
 )
 
 // Model represents a chat message list component
@@ -30,8 +31,8 @@ type Model interface {
 	AddErrorMessage(content string) tea.Cmd
 	AddAssistantMessage() tea.Cmd
 	AddSeparatorMessage() tea.Cmd
-	AddOrUpdateToolCall(toolName, toolCallID, arguments string, status types.ToolStatus) tea.Cmd
-	AddToolResult(toolName, toolCallID, result string, status types.ToolStatus) tea.Cmd
+	AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, status types.ToolStatus) tea.Cmd
+	AddToolResult(toolCall tools.ToolCall, result string, status types.ToolStatus) tea.Cmd
 	AppendToLastMessage(agentName string, content string) tea.Cmd
 	ClearMessages()
 	ScrollToBottom() tea.Cmd
@@ -545,14 +546,14 @@ func (m *model) AddSeparatorMessage() tea.Cmd {
 }
 
 // AddOrUpdateToolCall adds a tool call or updates existing one with the given status
-func (m *model) AddOrUpdateToolCall(toolName, toolCallID, arguments string, status types.ToolStatus) tea.Cmd {
+func (m *model) AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, status types.ToolStatus) tea.Cmd {
 	// First try to update existing tool by ID
 	for i := len(m.messages) - 1; i >= 0; i-- {
 		msg := &m.messages[i]
-		if msg.ToolCallID == toolCallID {
+		if msg.ToolCall.ID == toolCall.ID {
 			msg.ToolStatus = status
-			if arguments != "" {
-				msg.Arguments = arguments
+			if toolCall.Function.Arguments != "" {
+				msg.ToolCall.Function.Arguments = toolCall.Function.Arguments
 			}
 			// Update the corresponding view
 			view := m.createToolCallView(msg)
@@ -567,10 +568,9 @@ func (m *model) AddOrUpdateToolCall(toolName, toolCallID, arguments string, stat
 	// Create new tool call
 	msg := types.Message{
 		Type:       types.MessageTypeToolCall,
-		ToolName:   toolName,
-		ToolCallID: toolCallID,
+		Sender:     agentName,
+		ToolCall:   toolCall,
 		ToolStatus: status,
-		Arguments:  arguments,
 	}
 	m.messages = append(m.messages, msg)
 
@@ -581,10 +581,10 @@ func (m *model) AddOrUpdateToolCall(toolName, toolCallID, arguments string, stat
 }
 
 // AddToolResult adds tool result to the most recent matching tool call
-func (m *model) AddToolResult(_, toolCallID, result string, status types.ToolStatus) tea.Cmd {
+func (m *model) AddToolResult(toolCall tools.ToolCall, result string, status types.ToolStatus) tea.Cmd {
 	for i := len(m.messages) - 1; i >= 0; i-- {
 		msg := &m.messages[i]
-		if msg.ToolCallID == toolCallID {
+		if msg.ToolCall.ID == toolCall.ID {
 			msg.Content = result
 			msg.ToolStatus = status
 			// Update the corresponding view

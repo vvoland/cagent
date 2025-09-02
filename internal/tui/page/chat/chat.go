@@ -217,21 +217,21 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case *runtime.PartialToolCallEvent:
 		// When we first receive a tool call, show it immediately in pending state
 		spinnerCmd := p.setWorking(true)
-		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, msg.ToolCall.ID, msg.ToolCall.Function.Arguments, types.ToolStatusPending)
+		cmd := p.messages.AddOrUpdateToolCall(msg.AgentName, msg.ToolCall, types.ToolStatusPending)
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
 	case *runtime.ToolCallConfirmationEvent:
 		spinnerCmd := p.setWorking(false) // Stop working indicator during confirmation
-		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, msg.ToolCall.ID, msg.ToolCall.Function.Arguments, types.ToolStatusConfirmation)
+		cmd := p.messages.AddOrUpdateToolCall(msg.AgentName, msg.ToolCall, types.ToolStatusConfirmation)
 
 		// Open tool confirmation dialog
 		dialogCmd := core.CmdHandler(dialog.OpenDialogMsg{
-			Model: dialog.NewToolConfirmationDialog(msg.ToolCall.Function.Name, msg.ToolCall.Function.Arguments, p.app),
+			Model: dialog.NewToolConfirmationDialog(msg.ToolCall, p.app),
 		})
 
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd, dialogCmd)
 	case *runtime.ToolCallEvent:
 		spinnerCmd := p.setWorking(true)
-		cmd := p.messages.AddOrUpdateToolCall(msg.ToolCall.Function.Name, msg.ToolCall.ID, msg.ToolCall.Function.Arguments, types.ToolStatusRunning)
+		cmd := p.messages.AddOrUpdateToolCall(msg.AgentName, msg.ToolCall, types.ToolStatusRunning)
 
 		// Check if this is a todo-related tool call and update sidebar
 		toolName := msg.ToolCall.Function.Name
@@ -246,7 +246,7 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
 	case *runtime.ToolCallResponseEvent:
 		spinnerCmd := p.setWorking(true)
-		cmd := p.messages.AddToolResult(msg.ToolCall.Function.Name, msg.ToolCall.ID, msg.Response, types.ToolStatusCompleted)
+		cmd := p.messages.AddToolResult(msg.ToolCall, msg.Response, types.ToolStatusCompleted)
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
 	}
 

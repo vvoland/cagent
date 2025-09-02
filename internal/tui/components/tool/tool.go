@@ -129,11 +129,14 @@ func (mv *toolModel) Render(width int) string {
 		spinnerText = " " + mv.spinner.View()
 	}
 
-	displayName := mv.app.ToolDisplayName(context.TODO(), msg.ToolName)
+	// Ask the tool what's its display name
+	team := mv.app.Team()
+	agent := team.Agent(msg.Sender)
+	displayName := agent.ToolDisplayName(context.TODO(), msg.ToolCall.Function.Name)
 	content := fmt.Sprintf("%s %s%s", icon, styles.HighlightStyle.Render(displayName), spinnerText)
 
-	if msg.Arguments != "" {
-		lines := wrapLines(msg.Arguments, mv.width-2)
+	if msg.ToolCall.Function.Arguments != "" {
+		lines := wrapLines(msg.ToolCall.Function.Arguments, mv.width-2)
 		argsViewport := viewport.New(viewport.WithWidth(mv.width), viewport.WithHeight(len(lines)))
 		argsViewport.SetContent(styles.MutedStyle.Render(strings.Join(lines, "\n")))
 		argsViewport.GotoBottom()
