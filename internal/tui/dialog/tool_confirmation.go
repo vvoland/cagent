@@ -3,6 +3,7 @@ package dialog
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/v2/key"
@@ -267,9 +268,17 @@ func (d *toolConfirmationDialog) renderArguments(contentWidth int) string {
 		return lipgloss.JoinVertical(lipgloss.Left, argumentsHeader, "", formattedArgs)
 	}
 
+	// Sort arguments by key to ensure consistent order
+	keys := make([]string, 0, len(arguments))
+	for k := range arguments {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
 	var argLines []string
-	// TODO: sort arguments by key
-	for k, v := range arguments {
+	for _, k := range keys {
+		v := arguments[k]
+
 		// Format key
 		keyStyle := lipgloss.NewStyle().
 			Bold(true).
