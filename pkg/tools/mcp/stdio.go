@@ -19,7 +19,7 @@ import (
 )
 
 // NewStdioClient creates a new MCP client that can start an stdio MCP server
-func NewStdioClient(ctx context.Context, command string, args, env []string) (*Client, error) {
+func NewStdioClient(command string, args, env []string) *Client {
 	slog.Debug("Creating stdio MCP client", "command", command, "args", args)
 
 	c := newStdioCmdClient(command, env, args)
@@ -29,7 +29,7 @@ func NewStdioClient(ctx context.Context, command string, args, env []string) (*C
 		client:  c,
 		logType: "command",
 		logId:   command,
-	}, nil
+	}
 }
 
 type stdioMCPClient struct {

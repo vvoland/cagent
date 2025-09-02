@@ -1,7 +1,6 @@
 package mcp
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 
@@ -10,7 +9,7 @@ import (
 )
 
 // NewRemoteClient creates a new MCP client that can connect to a remote MCP server
-func NewRemoteClient(ctx context.Context, url, transportType string, headers map[string]string) (*Client, error) {
+func NewRemoteClient(url, transportType string, headers map[string]string) (*Client, error) {
 	slog.Debug("Creating remote MCP client", "url", url, "transport", transportType, "headers", headers)
 
 	var c *client.Client

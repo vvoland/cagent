@@ -114,7 +114,7 @@ func Load(ctx context.Context, path string, runConfig latest.RuntimeConfig) (*te
 		if !ok {
 			return nil, fmt.Errorf("agent '%s' not found in configuration", name)
 		}
-		agentTools, err := getToolsForAgent(ctx, &a, parentDir, sharedTools, models[0], absEnvFles, runConfig.ToolsGateway)
+		agentTools, err := getToolsForAgent(&a, parentDir, sharedTools, models[0], absEnvFles, runConfig.ToolsGateway)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tools: %w", err)
 		}
@@ -178,7 +178,7 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 }
 
 // getToolsForAgent returns the tool definitions for an agent based on its configuration
-func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir string, sharedTools map[string]tools.ToolSet, model provider.Provider, absEnvFiles []string, gateway string) ([]tools.ToolSet, error) {
+func getToolsForAgent(a *latest.AgentConfig, parentDir string, sharedTools map[string]tools.ToolSet, model provider.Provider, absEnvFiles []string, gateway string) ([]tools.ToolSet, error) {
 	var t []tools.ToolSet
 
 	if len(a.SubAgents) > 0 {
@@ -258,7 +258,7 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 					"x-mcp-servers": servers,
 				}
 
-				mcpc, err := mcp.NewToolsetRemote(ctx, gateway+"/mcp", "streamable", headers, toolset.Tools)
+				mcpc, err := mcp.NewToolsetRemote(gateway+"/mcp", "streamable", headers, toolset.Tools)
 				if err != nil {
 					return nil, fmt.Errorf("failed to create remote mcp client: %w", err)
 				}
@@ -280,12 +280,7 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 					args = append(args, environment.Expand(arg, append(os.Environ(), env...)))
 				}
 
-				mcpc, err := mcp.NewToolsetCommand(ctx, command, args, env, toolset.Tools)
-				if err != nil {
-					return nil, fmt.Errorf("failed to create stdio mcp client: %w", err)
-				}
-
-				t = append(t, mcpc)
+				t = append(t, mcp.NewToolsetCommand(command, args, env, toolset.Tools))
 			}
 
 		case toolset.Type == "mcp" && toolset.Remote.URL != "":
@@ -301,7 +296,7 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 				headers[k] = environment.Expand(v, append(os.Environ(), env...))
 			}
 
-			mcpc, err := mcp.NewToolsetRemote(ctx, toolset.Remote.URL, toolset.Remote.TransportType, headers, toolset.Tools)
+			mcpc, err := mcp.NewToolsetRemote(toolset.Remote.URL, toolset.Remote.TransportType, headers, toolset.Tools)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create remote mcp client: %w", err)
 			}
