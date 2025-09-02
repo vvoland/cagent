@@ -21,6 +21,10 @@ func NewRootCmd() *cobra.Command {
 		Short: "cagent - AI agent runner",
 		Long:  `cagent is a command-line tool for running AI agents`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if cmd.DisplayName() != "exec" {
+				_, _ = cmd.OutOrStdout().Write([]byte("\nFor any feedback, please visit: " + FeedbackLink + "\n\n"))
+			}
+
 			if debugMode {
 				slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 					Level: slog.LevelDebug,
@@ -40,6 +44,7 @@ func NewRootCmd() *cobra.Command {
 
 	cmd.AddCommand(NewVersionCmd())
 	cmd.AddCommand(NewRunCmd())
+	cmd.AddCommand(NewExecCmd())
 	cmd.AddCommand(NewTuiCmd())
 	cmd.AddCommand(NewNewCmd())
 	cmd.AddCommand(NewApiCmd())
@@ -51,8 +56,6 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddCommand(NewDebugCmd())
 	cmd.AddCommand(NewFeedbackCmd())
 	cmd.AddCommand(NewCatalogCmd())
-
-	_, _ = cmd.OutOrStdout().Write([]byte("\nFor any feedback, please visit: " + FeedbackLink + "\n\n"))
 
 	return cmd
 }
