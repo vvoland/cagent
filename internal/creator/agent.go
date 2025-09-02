@@ -121,27 +121,24 @@ func CreateAgent(ctx context.Context, baseDir, prompt string, runConfig latest.R
 }
 
 func StreamCreateAgent(ctx context.Context, baseDir, prompt string, runConfig latest.RuntimeConfig, providerName, modelNameOverride string) (<-chan runtime.Event, error) {
-	// Select default model per provider
-	prov := providerName
-
-	var modelName string
-	switch prov {
-	case "openai":
-		modelName = "gpt-5-mini"
-	case "google":
-		modelName = "gemini-2.5-flash"
-	case "anthropic", "":
-		prov = "anthropic"
-		modelName = "claude-sonnet-4-0"
-	default:
-		// Fallback to anthropic if unknown
-		prov = "anthropic"
-		modelName = "claude-sonnet-4-0"
+	defaultModels := map[string]string{
+		"openai":    "gpt-5-mini",
+		"anthropic": "claude-sonnet-4-0",
+		"google":    "gemini-2.5-flash",
+		"dmr":       "ai/qwen3:latest",
 	}
 
-	// If a specific model override is provided, use it
+	var modelName string
+	if _, ok := defaultModels[providerName]; ok {
+		modelName = defaultModels[providerName]
+	} else {
+		modelName = defaultModels["anthropic"]
+	}
+
 	if modelNameOverride != "" {
 		modelName = modelNameOverride
+	} else {
+		fmt.Printf("Using default model: %s\n", modelName)
 	}
 
 	// If not using a models gateway, avoid selecting a provider the user can't run
@@ -156,17 +153,14 @@ func StreamCreateAgent(ctx context.Context, baseDir, prompt string, runConfig la
 		if os.Getenv("GOOGLE_API_KEY") != "" {
 			usableProviders = append(usableProviders, "google")
 		}
-	}
-	modelsPerProvider := map[string]string{
-		"openai":    "gpt-5-mini",
-		"anthropic": "claude-sonnet-4-0",
-		"google":    "gemini-2.5-flash",
+		// DMR runs locally by default; include it when not using a gateway
+		usableProviders = append(usableProviders, "dmr")
 	}
 
 	llm, err := provider.New(
 		ctx,
 		&latest.ModelConfig{
-			Provider:  prov,
+			Provider:  providerName,
 			Model:     modelName,
 			MaxTokens: 64000,
 		},
@@ -191,7 +185,7 @@ func StreamCreateAgent(ctx context.Context, baseDir, prompt string, runConfig la
 			%s:
 				type: %s
 				model: %s
-				max_tokens: 64000\n`, provider, provider, modelsPerProvider[provider])
+				max_tokens: 64000\n`, provider, provider, defaultModels[provider])
 	}
 
 	newTeam := team.New(

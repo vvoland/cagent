@@ -12,10 +12,7 @@ import (
 	"github.com/docker/cagent/pkg/runtime"
 )
 
-var (
-	modelProvider string
-	modelName     string
-)
+var modelParam string
 
 // Cmd creates a new command to create a new agent configuration
 func NewNewCmd() *cobra.Command {
@@ -26,25 +23,43 @@ func NewNewCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			// Validate flag combinations immediately: --model requires explicit --provider
-			flags := cmd.Flags()
-			if flags.Changed("model") && !flags.Changed("provider") {
-				return fmt.Errorf("--model can only be used together with --provider")
+			var model string         // final model name
+			var modelProvider string // final provider name
+
+			// Parse provider from --model if specified as "provider/model" where provider is recognized
+			derivedProvider := ""
+			if idx := strings.Index(modelParam, "/"); idx > 0 {
+				candidate := strings.ToLower(modelParam[:idx])
+				switch candidate {
+				case "anthropic", "openai", "google", "dmr":
+					derivedProvider = candidate
+					model = modelParam[idx+1:]
+				}
 			}
 
-			// Auto-select provider if none explicitly provided (before any prompts)
-			if !flags.Changed("provider") {
+			// Determine provider
+			if derivedProvider != "" {
+				modelProvider = derivedProvider
+			} else {
 				if runConfig.ModelsGateway == "" {
 					// Prefer Anthropic, then OpenAI, then Google based on available API keys
+					// default to DMR if no provider credentials are found
 					switch {
 					case os.Getenv("ANTHROPIC_API_KEY") != "":
 						modelProvider = "anthropic"
+						fmt.Printf("%s\n\n", gray("ANTHROPIC_API_KEY found, using Anthropic"))
 					case os.Getenv("OPENAI_API_KEY") != "":
 						modelProvider = "openai"
+						fmt.Printf("%s\n\n", gray("OPENAI_API_KEY found, using OpenAI"))
 					case os.Getenv("GOOGLE_API_KEY") != "":
 						modelProvider = "google"
+						fmt.Printf("%s\n\n", gray("GOOGLE_API_KEY found, using Google"))
 					default:
-						return fmt.Errorf("no provider credentials found; set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_API_KEY, or pass --provider")
+						modelProvider = "dmr"
+						fmt.Printf("%s\n\n", yellow("⚠️ No provider credentials found, defaulting to Docker Model Runner (DMR)"))
+					}
+					if modelParam == "" {
+						fmt.Printf("%s\n\n", gray("use \"--model provider/model\" to use a different model"))
 					}
 				} else {
 					// Using Models Gateway; default to Anthropic if not specified
@@ -72,7 +87,7 @@ func NewNewCmd() *cobra.Command {
 				fmt.Println()
 			}
 
-			out, err := creator.StreamCreateAgent(ctx, ".", prompt, runConfig, modelProvider, modelName)
+			out, err := creator.StreamCreateAgent(ctx, ".", prompt, runConfig, modelProvider, model)
 			if err != nil {
 				return err
 			}
@@ -112,8 +127,7 @@ func NewNewCmd() *cobra.Command {
 		},
 	}
 	addGatewayFlags(cmd)
-	cmd.PersistentFlags().StringVar(&modelProvider, "provider", "", "Model provider to use: anthropic, openai, google. if not specified, they will be picked in that order based on available API keys")
-	cmd.PersistentFlags().StringVar(&modelName, "model", "", "Model to use (overrides provider default)")
+	cmd.PersistentFlags().StringVar(&modelParam, "model", "", "Model to use, optionally as provider/model where provider is one of: anthropic, openai, google, dmr. If omitted, provider is auto-selected based on available credentials or gateway")
 
 	return cmd
 }
