@@ -14,14 +14,13 @@ import (
 	"strings"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
-	"go.opentelemetry.io/otel/sdk/resource"
-	"go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.34.0"
 
+	"github.com/docker/cagent/internal/app"
+	"github.com/docker/cagent/internal/tui"
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/evaluation"
@@ -31,61 +30,34 @@ import (
 	"github.com/docker/cagent/pkg/teamloader"
 )
 
-const APP_NAME = "cagent"
-
 var (
 	autoApprove    bool
 	attachmentPath string
+	workingDir     string
 )
 
-// initOTelSDK initializes OpenTelemetry SDK with OTLP exporter
-func initOTelSDK(ctx context.Context) (shutdown func(context.Context) error, err error) {
-	res, err := resource.Merge(
-		resource.Default(),
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceName(APP_NAME),
-			semconv.ServiceVersion("dev"), // TODO: use actual version
-		),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create resource: %w", err)
+// NewTUICmd creates a new TUI command
+func NewTUICmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "tui <agent-name>",
+		Short: "Run the agent",
+		Long:  `Run an agent with the specified configuration and prompt`,
+		Example: `  cagent tui ./agent.yaml
+  cagent tui ./team.yaml --agent root`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runCommand(cmd, args, true)
+		},
 	}
 
-	var traceExporter trace.SpanExporter
-	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	cmd.PersistentFlags().StringVarP(&agentName, "agent", "a", "root", "Name of the agent to run")
+	cmd.PersistentFlags().StringSliceVar(&runConfig.EnvFiles, "env-from-file", nil, "Set environment variables from file")
+	cmd.PersistentFlags().StringVar(&workingDir, "working-dir", "", "Set the working directory for the session (applies to tools and relative paths)")
+	cmd.PersistentFlags().BoolVar(&autoApprove, "yolo", false, "Automatically approve all tool calls without prompting")
+	addGatewayFlags(cmd)
 
-	// Only initialize if endpoint is configured
-	if endpoint != "" {
-		traceExporter, err = otlptracehttp.New(ctx,
-			otlptracehttp.WithEndpoint(endpoint),
-			otlptracehttp.WithInsecure(), // TODO: make configurable
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create trace exporter: %w", err)
-		}
-	}
-
-	// Configure tracer provider
-	var tracerProviderOpts []trace.TracerProviderOption
-	tracerProviderOpts = append(tracerProviderOpts, trace.WithResource(res))
-
-	if traceExporter != nil {
-		tracerProviderOpts = append(tracerProviderOpts,
-			trace.WithBatcher(traceExporter,
-				trace.WithBatchTimeout(5*time.Second),
-				trace.WithMaxExportBatchSize(512),
-			),
-		)
-	}
-
-	tp := trace.NewTracerProvider(tracerProviderOpts...)
-	otel.SetTracerProvider(tp)
-
-	return tp.Shutdown, nil
+	return cmd
 }
-
-var workingDir string
 
 // NewRunCmd creates a new run command
 func NewRunCmd() *cobra.Command {
@@ -98,24 +70,167 @@ func NewRunCmd() *cobra.Command {
   cagent run ./echo.yaml "ECHO"
   echo "ECHO" | cagent run ./echo.yaml -`,
 		Args: cobra.RangeArgs(1, 2),
-		RunE: runAgentCommand,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runCommand(cmd, args, false)
+		},
 	}
 
 	cmd.PersistentFlags().StringVarP(&agentName, "agent", "a", "root", "Name of the agent to run")
-	cmd.PersistentFlags().BoolVar(&autoApprove, "yolo", false, "Automatically approve all tool calls without prompting")
 	cmd.PersistentFlags().StringSliceVar(&runConfig.EnvFiles, "env-from-file", nil, "Set environment variables from file")
-	cmd.PersistentFlags().StringVar(&attachmentPath, "attach", "", "Attach an image file to the message")
 	cmd.PersistentFlags().StringVar(&workingDir, "working-dir", "", "Set the working directory for the session (applies to tools and relative paths)")
+	cmd.PersistentFlags().BoolVar(&autoApprove, "yolo", false, "Automatically approve all tool calls without prompting")
 	addGatewayFlags(cmd)
+
+	cmd.PersistentFlags().StringVar(&attachmentPath, "attach", "", "Attach an image file to the message")
 
 	return cmd
 }
 
-func runAgentCommand(_ *cobra.Command, args []string) error {
+func runCommand(cmd *cobra.Command, args []string, useTUI bool) error {
+	if useTUI {
+		return runWithTUI(cmd, args)
+	}
+	return runWithoutTUI(cmd, args)
+}
+
+func runWithTUI(_ *cobra.Command, args []string) error {
 	ctx := context.Background()
+
+	slog.Debug("Starting agent TUI", "agent", agentName, "debug_mode", debugMode)
+
 	agentFilename := args[0]
+	if !strings.Contains(agentFilename, "\n") {
+		if abs, err := filepath.Abs(agentFilename); err == nil {
+			agentFilename = abs
+		}
+	}
+
+	if enableOtel {
+		shutdown, err := initOTelSDK(ctx)
+		if err != nil {
+			slog.Warn("Failed to initialize OpenTelemetry SDK", "error", err)
+		} else if shutdown != nil {
+			defer func() {
+				shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				if err := shutdown(shutdownCtx); err != nil {
+					slog.Warn("Failed to shutdown OpenTelemetry SDK", "error", err)
+				}
+			}()
+			slog.Debug("OpenTelemetry SDK initialized successfully")
+		}
+	}
+
+	// If working-dir was provided, validate and change process working directory
+	if workingDir != "" {
+		absWd, err := filepath.Abs(workingDir)
+		if err != nil {
+			return fmt.Errorf("invalid working directory: %w", err)
+		}
+		info, err := os.Stat(absWd)
+		if err != nil || !info.IsDir() {
+			return fmt.Errorf("working directory does not exist or is not a directory: %s", absWd)
+		}
+		if err := os.Chdir(absWd); err != nil {
+			return fmt.Errorf("failed to change working directory: %w", err)
+		}
+		_ = os.Setenv("PWD", absWd)
+		slog.Debug("Working directory set", "dir", absWd)
+	}
+
+	// Determine how to obtain the agent definition
+	ext := strings.ToLower(filepath.Ext(agentFilename))
+	if ext == ".yaml" || ext == ".yml" {
+		// Treat as local YAML file: resolve to absolute path so later chdir doesn't break it
+		if !strings.Contains(agentFilename, "\n") {
+			if abs, err := filepath.Abs(agentFilename); err == nil {
+				agentFilename = abs
+			}
+		}
+		if !fileExists(agentFilename) {
+			return fmt.Errorf("agent file not found: %s", agentFilename)
+		}
+	} else {
+		// Treat as an OCI image reference. Try local store first, otherwise pull then load.
+		a, err := fromStore(agentFilename)
+		if err != nil {
+			fmt.Println("Pulling agent ", agentFilename)
+			if _, pullErr := remote.Pull(agentFilename); pullErr != nil {
+				return fmt.Errorf("failed to pull OCI image %s: %w", agentFilename, pullErr)
+			}
+			// Retry after pull
+			a, err = fromStore(agentFilename)
+			if err != nil {
+				return fmt.Errorf("failed to load agent from store after pull: %w", err)
+			}
+		}
+
+		// Write the fetched content to a temporary YAML file
+		tmpFile, err := os.CreateTemp("", "agentfile-*.yaml")
+		if err != nil {
+			return err
+		}
+		defer os.Remove(tmpFile.Name())
+		if _, err := tmpFile.WriteString(a); err != nil {
+			tmpFile.Close()
+			return err
+		}
+		if err := tmpFile.Close(); err != nil {
+			return err
+		}
+		agentFilename = tmpFile.Name()
+	}
+
+	agents, err := teamloader.Load(ctx, agentFilename, runConfig)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := agents.StopToolSets(); err != nil {
+			slog.Error("Failed to stop tool sets", "error", err)
+		}
+	}()
+
+	tracer := otel.Tracer(APP_NAME)
+
+	rt, err := runtime.New(agents,
+		runtime.WithCurrentAgent(agentName),
+		runtime.WithAutoRunTools(autoApprove),
+		runtime.WithTracer(tracer),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create runtime: %w", err)
+	}
+
+	a := app.New(agentFilename, rt, session.New())
+	m := tui.New(a)
+
+	p := tea.NewProgram(
+		m,
+		tea.WithAltScreen(),
+		tea.WithContext(ctx),
+		tea.WithMouseCellMotion(),
+		tea.WithMouseAllMotion(),
+		tea.WithFilter(tui.MouseEventFilter),
+	)
+
+	go a.Subscribe(context.Background(), p)
+
+	_, err = p.Run()
+	return err
+}
+
+func runWithoutTUI(_ *cobra.Command, args []string) error {
+	ctx := context.Background()
 
 	slog.Debug("Starting agent", "agent", agentName, "debug_mode", debugMode)
+
+	agentFilename := args[0]
+	if !strings.Contains(agentFilename, "\n") {
+		if abs, err := filepath.Abs(agentFilename); err == nil {
+			agentFilename = abs
+		}
+	}
 
 	if enableOtel {
 		shutdown, err := initOTelSDK(ctx)
