@@ -116,6 +116,8 @@ func New(sessionStore session.Store, runConfig latest.RuntimeConfig, teams map[s
 
 	// Run an agent loop
 	api.POST("/sessions/:id/agent/:agent", s.runAgent)
+	api.POST("/sessions/:id/agent/:agent/:agent_name", s.runAgent)
+
 	api.GET("/desktop/token", s.getDesktopToken)
 
 	return s
@@ -868,8 +870,14 @@ func (s *Server) deleteSession(c echo.Context) error {
 }
 
 func (s *Server) runAgent(c echo.Context) error {
-	agentFilename := c.Param("agent")
 	sessionID := c.Param("id")
+	agentFilename := c.Param("agent")
+	currentAgent := c.Param("agent_name")
+	if currentAgent == "" {
+		currentAgent = "root"
+	}
+
+	slog.Debug("Running agent", "agent_filename", agentFilename, "session_id", sessionID, "current_agent", currentAgent)
 
 	t, exists := s.teams[agentFilename]
 	if !exists {
@@ -882,7 +890,9 @@ func (s *Server) runAgent(c echo.Context) error {
 
 	rt, exists := s.runtimes[sess.ID]
 	if !exists {
-		var opts []runtime.Opt
+		var opts []runtime.Opt = []runtime.Opt{
+			runtime.WithCurrentAgent(currentAgent),
+		}
 		if s.autoRunTools {
 			opts = append(opts, runtime.WithAutoRunTools(true))
 		}
