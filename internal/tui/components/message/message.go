@@ -90,12 +90,12 @@ func (mv *messageModel) Render(int) string {
 		return msg.Content
 	case types.MessageTypeAssistant:
 		if msg.Content == "" {
-			if rendered, err := mv.renderer.Render("> " + mv.spinner.View()); err == nil {
+			if rendered, err := mv.renderer.Render(mv.spinner.View()); err == nil {
 				return strings.TrimRight(rendered, "\n\r\t ")
 			}
 			return fmt.Sprintf("> %s", mv.spinner.View())
 		}
-		rendered, err := mv.renderer.Render(fmt.Sprintf("> %s: %s", msg.Sender, msg.Content))
+		rendered, err := mv.renderer.Render(fmt.Sprintf("%s: %s", msg.Sender, msg.Content))
 		if err != nil {
 			sender := msg.Sender
 			if sender == "" {
