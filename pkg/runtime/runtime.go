@@ -718,7 +718,7 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 
 	slog.Debug("Creating new session with parent session", "parent_session_id", sess.ID, "tools_approved", sess.ToolsApproved)
 	s := session.New(session.WithSystemMessage(memberAgentTask), session.WithUserMessage("", "Follow the default instructions"))
-	s.SendUserMessage = true
+	s.SendUserMessage = false
 	s.ToolsApproved = sess.ToolsApproved
 
 	for event := range r.RunStream(ctx, s) {
