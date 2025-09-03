@@ -27,7 +27,7 @@ type Editor interface {
 
 // editor implements Editor
 type editor struct {
-	textarea textarea.Model
+	textarea *textarea.Model
 	width    int
 	height   int
 	working  bool
