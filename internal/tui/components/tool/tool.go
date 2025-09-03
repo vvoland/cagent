@@ -130,7 +130,7 @@ func (mv *toolModel) Render(width int) string {
 		// Join the lines back and apply muted style
 		trimmedContent := strings.Join(lines, "\n")
 		if trimmedContent != "" {
-			resultContent = "\n" + styles.MutedStyle.Render(trimmedContent)
+			resultContent = "\n" + styles.ToolCallResultStyle.Render(trimmedContent)
 		}
 	}
 
