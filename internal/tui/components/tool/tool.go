@@ -85,30 +85,31 @@ func (mv *toolModel) View() string {
 	return mv.Render(mv.width)
 }
 
-// MessageView specific methods
-
 // Render renders the message view content
 func (mv *toolModel) Render(width int) string {
 	msg := mv.message
-
-	// Add spinner for pending and running tools
-	var spinnerText string
-	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
-		spinnerText = " " + mv.spinner.View()
-	}
 
 	// Ask the tool what's its display name
 	team := mv.app.Team()
 	agent := team.Agent(msg.Sender)
 	displayName := agent.ToolDisplayName(context.TODO(), msg.ToolCall.Function.Name)
-	content := fmt.Sprintf("%s %s%s", icon(msg.ToolStatus), styles.HighlightStyle.Render(displayName), spinnerText)
+	content := fmt.Sprintf("%s %s", icon(msg.ToolStatus), styles.HighlightStyle.Render(displayName))
 
 	if msg.ToolCall.Function.Arguments != "" {
-		lines := wrapLines(msg.ToolCall.Function.Arguments, mv.width-2)
-		argsViewport := viewport.New(viewport.WithWidth(mv.width), viewport.WithHeight(len(lines)))
-		argsViewport.SetContent(styles.MutedStyle.Render(strings.Join(lines, "\n")))
-		argsViewport.GotoBottom()
-		content += "\n" + argsViewport.View()
+		if msg.ToolCall.Function.Name == "search_files" {
+			content += " " + render_search_files(msg.ToolCall)
+		} else {
+			lines := wrapLines(msg.ToolCall.Function.Arguments, mv.width-2)
+			argsViewport := viewport.New(viewport.WithWidth(mv.width), viewport.WithHeight(len(lines)))
+			argsViewport.SetContent(styles.MutedStyle.Render(strings.Join(lines, "\n")))
+			argsViewport.GotoBottom()
+			content += "\n" + argsViewport.View()
+		}
+	}
+
+	// Add spinner for pending and running tools
+	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
+		content += " " + mv.spinner.View()
 	}
 
 	// Add tool result content if available (for completed tools with content)
