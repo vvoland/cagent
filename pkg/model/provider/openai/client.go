@@ -47,7 +47,11 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 
 	var openaiConfig openai.ClientConfig
 	if gateway := globalOptions.Gateway(); gateway == "" {
-		authToken, err := env.Get(ctx, "OPENAI_API_KEY")
+		key := cfg.TokenKey
+		if key == "" {
+			key = "OPENAI_API_KEY"
+		}
+		authToken, err := env.Get(ctx, key)
 		if err != nil || authToken == "" {
 			slog.Error("OpenAI client creation failed", "error", "failed to get authentication token", "details", err)
 			return nil, errors.New("OPENAI_API_KEY environment variable is required")
