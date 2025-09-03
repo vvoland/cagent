@@ -87,7 +87,7 @@ cagent run ./examples/pirate.yaml
 # or specify a different starting agent from the config, useful for agent teams
 cagent run ./examples/pirate.yaml -a root
 
-# or run directly from an image reference here I'm pulling the pirate agent from the creek repository 
+# or run directly from an image reference here I'm pulling the pirate agent from the creek repository
 cagent run creek/pirate
 ```
 
@@ -129,7 +129,28 @@ models:
     max_tokens: 64000
 ```
 
-You'll find a curated list of agents examples, spread into 3 categories, [Basic](https://github.com/docker/cagent/tree/main/examples#basic-configurations), [Advanced](https://github.com/docker/cagent/tree/main/examples#advanced-configurations) and [multi-agents](https://github.com/docker/cagent/tree/main/examples#multi-agent-configurations) in the `/examples/` directory. 
+You'll find a curated list of agents examples, spread into 3 categories, [Basic](https://github.com/docker/cagent/tree/main/examples#basic-configurations), [Advanced](https://github.com/docker/cagent/tree/main/examples#advanced-configurations) and [multi-agents](https://github.com/docker/cagent/tree/main/examples#multi-agent-configurations) in the `/examples/` directory.
+
+## MCP (Model Context Protocol)
+
+`cagent` supports MCP servers, enabling agents to use a wide variety of external tools and services. It supports three transport types: `stdio`, `http` and `sse`.
+
+Get started easily wtith the Docker MCP [Toolkit](https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/) and [catalog](https://docs.docker.com/ai/mcp-catalog-and-toolkit/catalog/).
+
+```yaml
+toolsets:
+  - type: mcp
+      command: docker # stdio transport
+      arguments: [mcp, gateway, run, "--servers=context7"]
+
+  - type: mcp
+      remote:
+        url: "https://mcp-server.example.com"
+        transport_type: "sse" # or "streamable"
+        headers:
+          Authorization: "Bearer your-token-here"
+      tools: ["search_web", "fetch_url"]
+```
 
 ## Quickly generate agents and agent teams with `cagent new`
 
@@ -215,7 +236,7 @@ cd cagent
 cagent run ./golang_developer.yaml
 ```
 
-This agent is an *expert Golang developer specializing in the cagent multi-agent AI system architecture*.
+This agent is an _expert Golang developer specializing in the cagent multi-agent AI system architecture_.
 
 Ask it anything about `cagent`. It can be questions about the current code or about
 improvements to the code. It can also fix issues and implement new features!
@@ -224,3 +245,7 @@ improvements to the code. It can also fix issues and implement new features!
 
 We’d love to hear your thoughts on this project.
 You can find us on [Slack](https://dockercommunity.slack.com/archives/C09DASHHRU4)
+
+```
+
+```
