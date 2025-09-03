@@ -717,8 +717,8 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 	}
 
 	slog.Debug("Creating new session with parent session", "parent_session_id", sess.ID, "tools_approved", sess.ToolsApproved)
-	s := session.New(session.WithSystemMessage(memberAgentTask))
-	s.SendUserMessage = false
+	s := session.New(session.WithSystemMessage(memberAgentTask), session.WithUserMessage("", "Follow the default instructions"))
+	s.SendUserMessage = true
 	s.ToolsApproved = sess.ToolsApproved
 
 	for event := range r.RunStream(ctx, s) {
@@ -732,21 +732,13 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 
 	sess.ToolsApproved = s.ToolsApproved
 
-	// Store the complete sub-session in the parent session
 	sess.AddSubSession(s)
 
 	slog.Debug("Task transfer completed", "agent", params.Agent, "task", params.Task)
 
-	// Get the last message content from the sub-session
-	allMessages := s.GetAllMessages()
-	lastMessageContent := ""
-	if len(allMessages) > 0 {
-		lastMessageContent = allMessages[len(allMessages)-1].Message.Content
-	}
-
 	span.SetStatus(codes.Ok, "task transfer completed")
 	return &tools.ToolCallResult{
-		Output: lastMessageContent,
+		Output: s.GetLastAssistantMessageContent(),
 	}, nil
 }
 

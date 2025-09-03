@@ -191,7 +191,7 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 
 	messages := make([]chat.Message, 0)
 
-	if a.HasSubAgents() || a.HasParents() {
+	if a.HasSubAgents() {
 		subAgents := append(a.SubAgents(), a.Parents()...)
 
 		subAgentsStr := ""
