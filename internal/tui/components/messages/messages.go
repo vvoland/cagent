@@ -37,6 +37,7 @@ type Model interface {
 	ClearMessages()
 	ScrollToBottom() tea.Cmd
 	FocusToolInConfirmation() tea.Cmd
+	AddShellOutputMessage(content string) tea.Cmd
 }
 
 // renderedItem represents a cached rendered message with position information
@@ -460,60 +461,38 @@ func (m *model) isAtBottom() bool {
 
 // AddUserMessage adds a user message to the chat
 func (m *model) AddUserMessage(content string) tea.Cmd {
-	msg := types.Message{
+	return m.addMessage(&types.Message{
 		Type:    types.MessageTypeUser,
 		Content: content,
-	}
-
-	wasAtBottom := m.isAtBottom()
-	m.messages = append(m.messages, msg)
-
-	view := m.createMessageView(&msg)
-	m.views = append(m.views, view)
-
-	if wasAtBottom {
-		return tea.Batch(view.Init(), func() tea.Msg {
-			m.scrollToBottom()
-			return nil
-		})
-	}
-
-	return view.Init()
+	})
 }
 
 func (m *model) AddErrorMessage(content string) tea.Cmd {
-	msg := types.Message{
+	return m.addMessage(&types.Message{
 		Type:    types.MessageTypeError,
 		Content: content,
-	}
+	})
+}
 
-	wasAtBottom := m.isAtBottom()
-	m.messages = append(m.messages, msg)
-
-	view := m.createMessageView(&msg)
-	m.views = append(m.views, view)
-
-	if wasAtBottom {
-		return tea.Batch(view.Init(), func() tea.Msg {
-			m.scrollToBottom()
-			return nil
-		})
-	}
-	return view.Init()
+func (m *model) AddShellOutputMessage(content string) tea.Cmd {
+	return m.addMessage(&types.Message{
+		Type:    types.MessageTypeShellOutput,
+		Content: content,
+	})
 }
 
 // AddAssistantMessage adds an assistant message to the chat
-//
-//goland:noinspection ALL
 func (m *model) AddAssistantMessage() tea.Cmd {
-	msg := types.Message{
+	return m.addMessage(&types.Message{
 		Type: types.MessageTypeAssistant,
-	}
+	})
+}
 
+func (m *model) addMessage(msg *types.Message) tea.Cmd {
 	wasAtBottom := m.isAtBottom()
-	m.messages = append(m.messages, msg)
+	m.messages = append(m.messages, *msg)
 
-	view := m.createMessageView(&msg)
+	view := m.createMessageView(msg)
 	m.views = append(m.views, view)
 
 	var cmds []tea.Cmd
