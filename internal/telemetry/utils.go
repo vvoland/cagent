@@ -15,6 +15,14 @@ import (
 
 var userUUID string
 
+// Build-time telemetry configuration (set via -ldflags)
+var (
+	TelemetryEnabled  = "true" // Default enabled
+	TelemetryEndpoint = ""     // Set at build time
+	TelemetryAPIKey   = ""     // Set at build time
+	TelemetryHeader   = ""     // Set at build time
+)
+
 // getSystemInfo collects system information for events
 func getSystemInfo() (osName, osVersion, osLanguage string) {
 	osInfo := runtime.GOOS
@@ -25,24 +33,33 @@ func getSystemInfo() (osName, osVersion, osLanguage string) {
 	return osInfo, "", osLang
 }
 
-// GetTelemetryEnabled checks if telemetry should be enabled based on environment
+// GetTelemetryEnabled checks if telemetry should be enabled based on environment or build-time config
 func GetTelemetryEnabled() bool {
 	if env := os.Getenv("TELEMETRY_ENABLED"); env != "" {
 		return env == "true"
 	}
-	return true // Default enabled
+	return TelemetryEnabled == "true"
 }
 
 func getTelemetryEndpoint() string {
-	return os.Getenv("TELEMETRY_ENDPOINT")
+	if env := os.Getenv("TELEMETRY_ENDPOINT"); env != "" {
+		return env
+	}
+	return TelemetryEndpoint
 }
 
 func getTelemetryAPIKey() string {
-	return os.Getenv("TELEMETRY_API_KEY")
+	if env := os.Getenv("TELEMETRY_API_KEY"); env != "" {
+		return env
+	}
+	return TelemetryAPIKey
 }
 
 func getTelemetryHeader() string {
-	return os.Getenv("TELEMETRY_HEADER")
+	if env := os.Getenv("TELEMETRY_HEADER"); env != "" {
+		return env
+	}
+	return TelemetryHeader
 }
 
 // getUserUUIDFilePath returns the path to the user UUID file
