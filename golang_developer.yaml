@@ -140,5 +140,3 @@ agents:
       - type: mcp
         command: docker
         args: [mcp, gateway, run, "--servers=context7"]
-    memory:
-      path: golang_dev_memory.db
