@@ -200,7 +200,7 @@ func runCommand(_ *cobra.Command, args []string, exec bool) error {
 
 	// For `cagent run --tui=false`
 	//
-	// NOTE(krissetto): TUI is temporarilydisabled on windows as well because of input issues.
+	// NOTE(krissetto): TUI is temporarily disabled on windows because of input issues.
 	// see github.com/docker/cagent/issues/80 for more details.
 	if !useTUI || goRuntime.GOOS == "windows" {
 		return runWithoutTUI(ctx, agentFilename, rt, sess, args)
