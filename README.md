@@ -211,6 +211,7 @@ A smart way to improve `cagent`'s codebase and feature set is to do it with the 
 We have one that we use and that you should use too:
 
 ```sh
+cd cagent
 cagent run ./golang_developer.yaml
 ```
 
