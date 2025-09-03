@@ -9,7 +9,6 @@ import (
 // Sizeable represents components that can be resized
 type Sizeable interface {
 	SetSize(width, height int) tea.Cmd
-	GetSize() (width, height int)
 }
 
 // Focusable represents components that can receive focus
@@ -29,9 +28,5 @@ type Help interface {
 type Model interface {
 	tea.Model
 	tea.ViewModel
-}
-
-type Heightable interface {
-	Model
-	Height(width int) int
+	Sizeable
 }

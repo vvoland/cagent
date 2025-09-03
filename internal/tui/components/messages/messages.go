@@ -36,7 +36,6 @@ type Model interface {
 	AppendToLastMessage(agentName string, content string) tea.Cmd
 	ClearMessages()
 	ScrollToBottom() tea.Cmd
-	FocusToolInConfirmation() tea.Cmd
 	AddShellOutputMessage(content string) tea.Cmd
 }
 
@@ -53,12 +52,12 @@ type renderedItem struct {
 type model struct {
 	renderer    *glamour.TermRenderer
 	messages    []types.Message
-	views       []layout.Heightable
+	views       []layout.Model
 	width       int
 	height      int
 	focused     bool
 	app         *app.App
-	toolFocused tool.Model
+	toolFocused layout.Model
 
 	// Height tracking system fields
 	scrollOffset  int                     // Current scroll position in lines
@@ -71,7 +70,7 @@ type model struct {
 func New(a *app.App) Model {
 	return &model{
 		messages:      make([]types.Message, 0),
-		views:         make([]layout.Heightable, 0),
+		views:         make([]layout.Model, 0),
 		width:         80,
 		height:        24,
 		scrollOffset:  0,
@@ -157,10 +156,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if m.focused && m.toolFocused != nil {
 			if updatedModel, cmd := m.toolFocused.Update(msg); cmd != nil {
-				m.toolFocused = updatedModel.(tool.Model)
+				m.toolFocused = updatedModel.(layout.Model)
 				return m, cmd
 			} else {
-				m.toolFocused = updatedModel.(tool.Model)
+				m.toolFocused = updatedModel.(layout.Model)
 			}
 			return m, nil
 		}
@@ -170,7 +169,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	for i, view := range m.views {
 		updatedView, cmd := view.Update(msg)
 		if updatedView != nil {
-			m.views[i] = updatedView.(message.Model)
+			m.views[i] = updatedView.(layout.Model)
 		}
 		if cmd != nil {
 			cmds = append(cmds, cmd)
@@ -236,13 +235,7 @@ func (m *model) SetSize(width, height int) tea.Cmd {
 
 	// Update all views with new size
 	for _, view := range m.views {
-		// Type switch to get the SetSize method
-		switch v := view.(type) {
-		case message.Model:
-			v.SetSize(width, 0)
-		case tool.Model:
-			v.SetSize(width, 0)
-		}
+		view.SetSize(width, 0)
 	}
 
 	// Size changes may affect item rendering, invalidate all items
@@ -347,7 +340,7 @@ func (m *model) shouldCacheMessage(index int) bool {
 }
 
 // renderItem creates a renderedItem for a specific view with selective caching
-func (m *model) renderItem(index int, view layout.Heightable) renderedItem {
+func (m *model) renderItem(index int, view layout.Model) renderedItem {
 	id := m.getItemID(index)
 
 	// Only check cache for messages that should be cached
@@ -633,7 +626,7 @@ func (m *model) AppendToLastMessage(agentName, content string) tea.Cmd {
 // ClearMessages clears all messages
 func (m *model) ClearMessages() {
 	m.messages = make([]types.Message, 0)
-	m.views = make([]layout.Heightable, 0)
+	m.views = make([]layout.Model, 0)
 	m.scrollOffset = 0
 	m.rendered = ""
 	m.totalHeight = 0
@@ -648,34 +641,16 @@ func (m *model) ScrollToBottom() tea.Cmd {
 	}
 }
 
-func (m *model) createToolCallView(msg *types.Message) tool.Model {
-	view := tool.New(msg, m.app)
-	view.SetRenderer(m.renderer)
+func (m *model) createToolCallView(msg *types.Message) layout.Model {
+	view := tool.New(msg, m.app, m.renderer)
 	view.SetSize(m.width, 0)
 	return view
 }
 
-func (m *model) createMessageView(msg *types.Message) message.Model {
-	view := message.New(msg)
-	view.SetRenderer(m.renderer)
+func (m *model) createMessageView(msg *types.Message) layout.Model {
+	view := message.New(msg, m.renderer)
 	view.SetSize(m.width, 0)
 	return view
-}
-
-// FocusToolInConfirmation finds and focuses the first tool that needs confirmation
-func (m *model) FocusToolInConfirmation() tea.Cmd {
-	for i := len(m.messages) - 1; i >= 0; i-- {
-		msg := m.messages[i]
-		if msg.Type == types.MessageTypeToolCall && msg.ToolStatus == types.ToolStatusConfirmation {
-			if i < len(m.views) {
-				if toolView, ok := m.views[i].(tool.Model); ok {
-					m.toolFocused = toolView
-					return toolView.Focus()
-				}
-			}
-		}
-	}
-	return nil
 }
 
 // removeLastEmptyAssistantMessage removes the last message if it's an assistant message with empty content

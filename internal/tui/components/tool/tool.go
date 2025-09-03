@@ -16,22 +16,6 @@ import (
 	"github.com/docker/cagent/internal/tui/types"
 )
 
-// Model represents a view that can render a message
-type Model interface {
-	layout.Model
-	layout.Sizeable
-	layout.Heightable
-
-	// Message returns the underlying message
-	Message() *types.Message
-	// SetRenderer sets the markdown renderer
-	SetRenderer(renderer *glamour.TermRenderer)
-	// Focus sets focus on the tool for handling input
-	Focus() tea.Cmd
-	// Blur removes focus from the tool
-	Blur()
-}
-
 // toolModel implements Model
 type toolModel struct {
 	message  *types.Message
@@ -43,11 +27,6 @@ type toolModel struct {
 	app      *app.App
 }
 
-// GetSize implements Model.
-func (mv *toolModel) GetSize() (width, height int) {
-	return mv.width, mv.height
-}
-
 // SetSize implements Model.
 func (mv *toolModel) SetSize(width, height int) tea.Cmd {
 	mv.width = width
@@ -56,14 +35,21 @@ func (mv *toolModel) SetSize(width, height int) tea.Cmd {
 }
 
 // New creates a new message view
-func New(msg *types.Message, a *app.App) Model {
+func New(msg *types.Message, a *app.App, renderer *glamour.TermRenderer) layout.Model {
+	if msg.ToolCall.Function.Name == "transfer_task" {
+		return &transferTaskModel{
+			msg: msg,
+			// renderer: renderer,
+		}
+	}
 	return &toolModel{
-		message: msg,
-		width:   80, // Default width
-		height:  1,  // Will be calculated
-		focused: false,
-		spinner: spinner.New(spinner.WithSpinner(spinner.Points)),
-		app:     a,
+		message:  msg,
+		width:    80, // Default width
+		height:   1,  // Will be calculated
+		focused:  false,
+		spinner:  spinner.New(spinner.WithSpinner(spinner.Points)),
+		app:      a,
+		renderer: renderer,
 	}
 }
 
@@ -149,33 +135,6 @@ func (mv *toolModel) Render(width int) string {
 	}
 
 	return styles.BaseStyle.PaddingLeft(2).PaddingTop(1).Render(content + resultContent)
-}
-
-// Height calculates the height needed for this message view
-func (mv *toolModel) Height(width int) int {
-	content := mv.Render(width)
-	return strings.Count(content, "\n") + 1
-}
-
-// Message returns the underlying message
-func (mv *toolModel) Message() *types.Message {
-	return mv.message
-}
-
-// SetRenderer sets the markdown renderer
-func (mv *toolModel) SetRenderer(renderer *glamour.TermRenderer) {
-	mv.renderer = renderer
-}
-
-// Focus sets focus on the tool for handling input
-func (mv *toolModel) Focus() tea.Cmd {
-	mv.focused = true
-	return nil
-}
-
-// Blur removes focus from the tool
-func (mv *toolModel) Blur() {
-	mv.focused = false
 }
 
 func icon(status types.ToolStatus) string {

@@ -30,6 +30,13 @@ type toolConfirmationDialog struct {
 	keyMap        toolConfirmationKeyMap
 }
 
+// SetSize implements Dialog.
+func (d *toolConfirmationDialog) SetSize(width int, height int) tea.Cmd {
+	d.width = width
+	d.height = height
+	return nil
+}
+
 // toolConfirmationKeyMap defines key bindings for tool confirmation dialog
 type toolConfirmationKeyMap struct {
 	Yes key.Binding

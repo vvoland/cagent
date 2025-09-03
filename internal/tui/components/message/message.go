@@ -17,15 +17,6 @@ import (
 type Model interface {
 	layout.Model
 	layout.Sizeable
-
-	// Render returns the rendered content for this message view
-	Render(width int) string
-	// Height returns the height this view will take when rendered at the given width
-	Height(width int) int
-	// Message returns the underlying message
-	Message() *types.Message
-	// SetRenderer sets the markdown renderer
-	SetRenderer(renderer *glamour.TermRenderer)
 }
 
 // messageModel implements Model
@@ -39,13 +30,14 @@ type messageModel struct {
 }
 
 // New creates a new message view
-func New(msg *types.Message) Model {
+func New(msg *types.Message, renderer *glamour.TermRenderer) Model {
 	return &messageModel{
-		message: msg,
-		width:   80, // Default width
-		height:  1,  // Will be calculated
-		focused: false,
-		spinner: spinner.New(spinner.WithSpinner(spinner.Points)),
+		message:  msg,
+		width:    80, // Default width
+		height:   1,  // Will be calculated
+		focused:  false,
+		spinner:  spinner.New(spinner.WithSpinner(spinner.Points)),
+		renderer: renderer,
 	}
 }
 
@@ -130,11 +122,6 @@ func (mv *messageModel) Height(width int) int {
 // Message returns the underlying message
 func (mv *messageModel) Message() *types.Message {
 	return mv.message
-}
-
-// SetRenderer sets the markdown renderer
-func (mv *messageModel) SetRenderer(renderer *glamour.TermRenderer) {
-	mv.renderer = renderer
 }
 
 // Layout.Sizeable methods
