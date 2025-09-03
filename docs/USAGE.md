@@ -184,7 +184,6 @@ agents:
 
 ### Tool Configuration
 
-
 ### Available MCP Tools
 
 Common MCP tools include:
@@ -197,20 +196,6 @@ Common MCP tools include:
 - **Browser**: Web browsing and automation
 - **Code**: Programming language specific tools
 - **API**: REST API integration tools
-
-### Installing MCP Tools
-
-Example installation of local tools:
-
-```bash
-# Install Rust-based MCP filesystem tool
-cargo install rust-mcp-filesystem
-
-# Install other popular MCP tools
-npm install -g @modelcontextprotocol/server-filesystem
-npm install -g @modelcontextprotocol/server-git
-npm install -g @modelcontextprotocol/server-web
-```
 
 ### Configuring MCP Tools
 
@@ -263,6 +248,39 @@ toolsets:
       headers:
         Authorization: "Bearer your-token-here"
     tools: ["search_web", "fetch_url"]
+```
+
+### Using tools via the Docker MCP Gateway
+
+We recommend using MCP tools via the [Docker MCP Gateway](https://github.com/docker/mcp-gateway).  
+All tools are containerized for resource isolation and security, and all the tools in the catalog can be accessed through a single endpoint
+
+Using the `docker mcp gateway` command you can configure your agents with a set of MCP tools
+delivered straight from Docker's MCP Gateway.
+
+> you can check `docker mcp gateway run --help` for more information on how to use that command
+
+In this example, lets configure duckduckgo to give our agents the ability to search the web:
+
+```yaml
+toolsets:
+  - type: mcp
+    command: docker
+    args: ["mcp", "gateway", "run", "--servers=duckduckgo"]
+```
+
+### Installing MCP Tools
+
+Example installation of local tools with `cargo` or `npm`:
+
+```bash
+# Install Rust-based MCP filesystem tool
+cargo install rust-mcp-filesystem
+
+# Install other popular MCP tools
+npm install -g @modelcontextprotocol/server-filesystem
+npm install -g @modelcontextprotocol/server-git
+npm install -g @modelcontextprotocol/server-web
 ```
 
 ## Built-in Tools
@@ -328,26 +346,6 @@ them to delegate tasks to other agents:
 ```
 transfer_task(agent="developer", task="Create a login form", expected_output="HTML and CSS code")
 ```
-
-### Using tools via the Docker MCP Gateway
-
-We recommend using MCP tools via the [Docker MCP Gateway](https://github.com/docker/mcp-gateway).  
-All tools are containerized for resource isolation and security, and all the tools in the catalog can be accessed through a single endpoint
-
-Using the `docker mcp gateway` command you can configure your agents with a set of MCP tools
-delivered straight from Docker's MCP Gateway.
-
-> you can check `docker mcp gateway run --help` for more information on how to use that command
-
-In this example, lets configure duckduckgo to give our agents the ability to search the web:
-
-```yaml
-toolsets:
-  - type: mcp
-    command: docker
-    args: ["mcp", "gateway", "run", "--servers=duckduckgo"]
-```
-
 
 ## Examples
 

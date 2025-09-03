@@ -35,7 +35,61 @@ agents:
 
 Run it in a terminal with `cagent run basic_agent.yaml`.
 
-Many examples can be found [here](/examples/README.md)!
+Many more examples can be found [here](/examples/README.md)!
+
+### Improving an agent with MCP tools
+
+`cagent` supports MCP servers, enabling agents to use a wide variety of external tools and services.  
+
+It supports three transport types: `stdio`, `http` and `sse`.
+
+Giving an agent access to tools via MCP is a quick way to greatly improve its capabilities, the quality of its results and its general useful-ness.
+
+Get started quickly with the [Docker MCP Toolkit](https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/) and [catalog](https://docs.docker.com/ai/mcp-catalog-and-toolkit/catalog/)
+
+Here, we're giving the same basic agent from the example above access to a **containerized** `duckduckgo` mcp server and it's tools by using Docker's MCP Gateway:
+
+```yaml
+agents:
+  root:
+    model: openai/gpt-5-mini
+    description: A helpful AI assistant
+    instruction: |
+      You are a knowledgeable assistant that helps users with various tasks.
+      Be helpful, accurate, and concise in your responses.
+    toolset:
+      - type: mcp
+        command: docker # stdio transport
+        args: ["mcp", "gateway", "run", "--servers=duckduckgo"]
+```
+
+When using a containerized server via the Docker MCP gateway, you can configure any required settings/secrets/authentication using the [Docker MCP Toolkit](https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/#example-use-the-github-official-mcp-server) in Docker Desktop.  
+
+Aside from the containerized MCP severs the Docker MCP Gateway provides, any standard MCP server can be used with cagent!  
+
+Here's an example similar to the above but adding `read_file` and `write_file` tools from the `rust-mcp-filesystem` MCP server:
+
+```yaml
+agents:
+  root:
+    model: openai/gpt-5-mini
+    description: A helpful AI assistant
+    instruction: |
+      You are a knowledgeable assistant that helps users with various tasks.
+      Be helpful, accurate, and concise in your responses. Write your search results to disk.
+    toolset:
+      - type: mcp
+        command: docker
+        args: ["mcp", "gateway", "run", "--servers=duckduckgo"]
+      - type: mcp
+        command: rust-mcp-filesystem # installed with `cargo install rust-mcp-filesystem`
+        args: ["--allow-write", "."]
+        tools: ["read_file", "write_file"] # Optional: specific tools only
+        env:
+          - "RUST_LOG=debug"
+```
+
+See [the USAGE docs](./docs/USAGE.md#tool-configuration) for more detailed information and examples
 
 ### 🎯 Key Features
 
@@ -131,52 +185,36 @@ models:
 
 You'll find a curated list of agents examples, spread into 3 categories, [Basic](https://github.com/docker/cagent/tree/main/examples#basic-configurations), [Advanced](https://github.com/docker/cagent/tree/main/examples#advanced-configurations) and [multi-agents](https://github.com/docker/cagent/tree/main/examples#multi-agent-configurations) in the `/examples/` directory.
 
-## MCP (Model Context Protocol)
-
-`cagent` supports MCP servers, enabling agents to use a wide variety of external tools and services. It supports three transport types: `stdio`, `http` and `sse`.
-
-Get started easily wtith the Docker MCP [Toolkit](https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/) and [catalog](https://docs.docker.com/ai/mcp-catalog-and-toolkit/catalog/).
-
-```yaml
-toolsets:
-  - type: mcp
-      command: docker # stdio transport
-      arguments: [mcp, gateway, run, "--servers=context7"]
-
-  - type: mcp
-      remote:
-        url: "https://mcp-server.example.com"
-        transport_type: "sse" # or "streamable"
-        headers:
-          Authorization: "Bearer your-token-here"
-      tools: ["search_web", "fetch_url"]
-```
-
 ## Quickly generate agents and agent teams with `cagent new`
 
-Using the command `cagent new` you can quickly generate agents or multi-agent teams using a single prompt! `cagent` has a built-in agent dedicated to this task.
+Using the command `cagent new` you can quickly generate agents or multi-agent teams using a single prompt!  
+`cagent` has a built-in agent dedicated to this task.
 
-To use the feature, you must have an Anthropic, OpenAI or Google API key available in your environment.
+To use the feature, you must have an Anthropic, OpenAI or Google API key available in your environment, or specify a local model to run with DMR (Docker Model Runner).
 
-If `--provider` is unspecified, `cagent new` will automatically choose between these 3 in order based on the first api key it finds in the environment
+You can choose what provider and model gets used by passing the `--model provider/modelname` flag to `cagent new`
+
+If `--model` is unspecified, `cagent new` will automatically choose between these 3 providers in order based on the first api key it finds in your environment
 
 ```sh
-export ANTHROPIC_API_KEY=your_api_key_here  # first choice
-export OPENAI_API_KEY=your_api_key_here     # if anthropic key not set
-export GOOGLE_API_KEY=your_api_key_here     # if anthropic and openai keys are not set
+export ANTHROPIC_API_KEY=your_api_key_here  # first choice. default model claude-sonnet-4-0
+export OPENAI_API_KEY=your_api_key_here     # if anthropic key not set. default model gpt-5-mini
+export GOOGLE_API_KEY=your_api_key_here     # if anthropic and openai keys are not set. default model gemini-2.5-flash
 ```
-
-The model in use can also be overridden using `--model` (can only be used together with `--provider`)
 
 Example of provider and model overriding:
 
 ```sh
-cagent new --provider openai --model gpt-5
+# Use GPT-5 via OpenAI
+cagent new --model openai/gpt-5
+
+# Use a local model (ai/gemma3-qat:12B) via DMR
+cagent new --model dmr/ai/gemma3-qat:12B
 ```
 
 ---
 
-```sh
+```
 $ cagent new
 
 ------- Welcome to cagent! -------
@@ -245,7 +283,3 @@ improvements to the code. It can also fix issues and implement new features!
 
 We’d love to hear your thoughts on this project.
 You can find us on [Slack](https://dockercommunity.slack.com/archives/C09DASHHRU4)
-
-```
-
-```
