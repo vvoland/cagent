@@ -1,11 +1,11 @@
 # Architecture Guide
 
-This guide explains the internal architecture of cagent, how components
+This guide explains the internal architecture of `cagent`, how components
 interact, and the design principles behind the system.
 
 ## System Overview
 
-cagent is built as a modular, event-driven multi-agent system with the following
+`cagent` is built as a modular, event-driven multi-agent system with the following
 key characteristics:
 
 - **Multi-tenant Architecture**: ServiceCore layer provides client isolation for MCP and HTTP transports

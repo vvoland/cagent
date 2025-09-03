@@ -21,7 +21,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - `./bin/cagent run <config.yaml>` - Run agent with configuration
 - `./bin/cagent run <config.yaml> -a <agent_name>` - Run specific agent
-- `./bin/cagent tui <config.yaml>` - Start TUI interface
 - `./bin/cagent mcp server --port 8080 --path /mcp --agents-dir <config_dir>` - Start MCP server mode
 - `./bin/cagent init` - Initialize new project
 

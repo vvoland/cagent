@@ -1,11 +1,11 @@
 # Usage and configuration
 
-This guide will help you get started with cagent and learn how to use its
+This guide will help you get started with `cagent` and learn how to use its
 powerful multi-agent system to accomplish various tasks.
 
 ## What is cagent?
 
-cagent is a powerful, customizable multi-agent system that orchestrates AI
+`cagent` is a powerful, customizable multi-agent system that orchestrates AI
 agents with specialized capabilities and tools. It features:
 
 - **🏗️ Multi-tenant architecture** with client isolation and session management
@@ -35,27 +35,24 @@ We really think we're getting somewhere as we build out the primitives of `cagen
 cagent provides multiple interfaces and deployment modes:
 
 ```bash
-# Interactive CLI mode
-$ ./bin/cagent run config.yaml
-$ ./bin/cagent run config.yaml -a agent_name  # Run specific agent
-$ ./bin/cagent run config.yaml --debug        # Enable debug logging
-
 # Terminal UI
-$ ./bin/cagent tui config.yaml
+$ cagent run config.yaml
+$ cagent run config.yaml -a agent_name  # Run specific agent
+$ cagent run config.yaml --debug        # Enable debug logging
 
 # MCP Server Mode (for external clients like Claude Code)
-$ ./bin/cagent mcp server --agents-dir ./config_directory
-$ ./bin/cagent mcp server --port 8080 --path /mcp --agents-dir ./config
+$ cagent mcp server --agents-dir ./config_directory
+$ cagent mcp server --port 8080 --path /mcp --agents-dir ./config
 
 # API Server (HTTP REST API)
-$ ./bin/cagent api config.yaml
-$ ./bin/cagent api config.yaml --port 8080
+$ cagent api config.yaml
+$ cagent api config.yaml --port 8080
 
 # Project Management
-$ ./bin/cagent new                          # Initialize new project
-$ ./bin/cagent eval config.yaml             # Run evaluations
-$ ./bin/cagent pull docker.io/user/agent    # Pull agent from registry
-$ ./bin/cagent push docker.io/user/agent    # Push agent to registry
+$ cagent new                          # Initialize new project
+$ cagent eval config.yaml             # Run evaluations
+$ cagent pull docker.io/user/agent    # Pull agent from registry
+$ cagent push docker.io/user/agent    # Push agent to registry
 ```
 
 ### Interface-Specific Features

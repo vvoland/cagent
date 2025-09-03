@@ -2,14 +2,16 @@
 
 ## **Basic Configurations**
 
-These examples are fairly basic and show you the YAML syntax for writing an agent.
-Some of these agents use [Built-in Tools](https://github.com/docker/cagent?tab=readme-ov-file#tool-configuration) like filesystem (which grants filesystem access) or memory (which allows the agent to store its findings for later use).
+These examples are fairly basic and show you the YAML syntax for writing agents.
+
+Some of these agents use [built-in tools](../docs/USAGE.md#tool-configuration)
+like `filesystem`, which grants filesystem access, or `memory`, to allow the agent to store its findings for later use.
 
 | Name                                   | Description/Purpose                    | Filesystem | Shell | Todo | Think | Memory | MCP Servers | Sub-agents |
 |----------------------------------------|----------------------------------------|------------|-------|------|-------|--------|-------------|------------|
 | [echo-agent.yaml](echo-agent.yaml)     | Simple echo agent                      |            |       |      |       |        |             |            |
 | [pirate.yaml](pirate.yaml)             | Pirate-themed assistant                |            |       |      |       |        |             |            |
-| [haiku.yaml](haiku.yaml)               | Write Haikus                           |            |       |      |       |        |             |            |
+| [haiku.yaml](haiku.yaml)               | Writes Haikus                          |            |       |      |       |        |             |            |
 | [42.yaml](42.yaml)                     | Douglas Adams-style witty AI assistant |            |       |      |       |        |             |            |
 | [contradict.yaml](contradict.yaml)     | Contrarian viewpoint provider          |            |       |      |       |        |             |            |
 | [silvia.yaml](silvia.yaml)             | Sylvia Plath-inspired poetic AI        |            |       |      |       |        |             |            |
@@ -37,7 +39,7 @@ These are more advanced examples, most of them involve some sort of MCP server t
 | [moby.yaml](moby.yaml)                                 | Moby Project Expert                         |            |       |      |       |        | `gitmcp.io/moby/moby`                                                                                                          |            |
 | [image_text_extractor.yaml](image_text_extractor.yaml) | Image text extraction                       | ✓          |       |      |       |        |                                                                                                                                |            |
 | [doc_generator.yaml](doc_generator.yaml)               | Documentation generation from codebases     |            | ✓     |      | ✓     |        |                                                                                                                                |            |
-| [mcp_generator.yaml](mcp_generator.yaml)               | Generates MCP configurations                |            |       |      |       |        | docker,[duckduckgo-mcp-server](https://hub.docker.com/mcp/server/duckduckgo/overview)                                          |            |
+| [mcp_generator.yaml](mcp_generator.yaml)               | Generates MCP configurations                |            |       |      |       |        | docker,[duckduckgo](https://hub.docker.com/mcp/server/duckduckgo/overview)                                          |            |
 
 ## **Multi-Agent Configurations**
 
@@ -46,9 +48,9 @@ A coordinator agent usually makes them work together and checks that the work is
 
 | Name                                 | Description/Purpose                     | Filesystem | Shell | Todo | Think | Memory | MCP Servers                                                                    | Sub-agents |
 |--------------------------------------|-----------------------------------------|------------|-------|------|-------|--------|--------------------------------------------------------------------------------|------------|
-| [blog.yaml](blog.yaml)               | Technical blog writing workflow         |            |       |      | ✓     |        | [duckduckgo-mcp-server](https://hub.docker.com/mcp/server/duckduckgo/overview) | ✓          |
+| [blog.yaml](blog.yaml)               | Technical blog writing workflow         |            |       |      | ✓     |        | [duckduckgo](https://hub.docker.com/mcp/server/duckduckgo/overview) | ✓          |
 | [dev-team.yaml](dev-team.yaml)       | Development team coordinator            | ✓          | ✓     | ✓    | ✓     | ✓      |                                                                                | ✓          |
 | [multi-code.yaml](multi-code.yaml)   | Technical lead and project coordination | ✓          | ✓     | ✓    | ✓     | ✓      |                                                                                | ✓          |
 | [writer.yaml](writer.yaml)           | Story writing workflow supervisor       |            |       |      | ✓     |        |                                                                                | ✓          |
-| [finance.yaml](finance.yaml)         | Financial research and analysis         |            |       |      | ✓     |        | [duckduckgo-mcp-server](https://hub.docker.com/mcp/server/duckduckgo/overview) | ✓          |
+| [finance.yaml](finance.yaml)         | Financial research and analysis         |            |       |      | ✓     |        | [duckduckgo](https://hub.docker.com/mcp/server/duckduckgo/overview) | ✓          |
 | [shared-todo.yaml](shared-todo.yaml) | Shared todo item manager                |            |       | ✓    |       |        |                                                                                | ✓          |
