@@ -87,7 +87,7 @@ func runCommand(_ *cobra.Command, args []string, exec bool) error {
 	slog.Debug("Starting agent", "agent", agentName, "debug_mode", debugMode)
 
 	agentFilename := args[0]
-	if !strings.Contains(agentFilename, "\n") {
+	if !strings.Contains(agentFilename, "\n") && (strings.Contains(agentFilename, ".yaml") || strings.Contains(agentFilename, ".yml")) {
 		if abs, err := filepath.Abs(agentFilename); err == nil {
 			agentFilename = abs
 		}
