@@ -1,13 +1,18 @@
 package styles
 
 import (
+	"image/color"
+
+	"github.com/charmbracelet/bubbles/v2/textarea"
 	"github.com/charmbracelet/lipgloss/v2"
 )
 
 // Color scheme - centralized color palette
 var (
+	Background = lipgloss.Color("#1f1c28ff")
+
 	// Primary colors
-	highlight = lipgloss.Color("#7D56F4") // Purple for headers and focus
+	highlight = lipgloss.Color("#1D63ED") // Docker blue for headers and focus
 
 	// Status colors
 	success    = lipgloss.Color("#00FF00") // Green for success/completed
@@ -16,6 +21,7 @@ var (
 	active     = lipgloss.Color("#00ff00") // Green for active/working states
 
 	// Text colors
+	primary   = lipgloss.Color("#869395") // ~White for primary text
 	muted     = lipgloss.Color("#808080") // Grey for muted text
 	subtle    = lipgloss.Color("#C0C0C0") // Light grey for subtle text
 	secondary = lipgloss.Color("#606060") // Darker grey for secondary text
@@ -28,67 +34,57 @@ var (
 	inProgress = lipgloss.Color("#FFA500") // Orange for in-progress states
 )
 
-// Generic, reusable styles
+func darken(c color.Color, percent float64) color.Color {
+	r, g, b, a := c.RGBA()
+	factor := 1.0 - percent/100.0
+	return color.RGBA{
+		R: uint8(float64(r>>8) * factor),
+		G: uint8(float64(g>>8) * factor),
+		B: uint8(float64(b>>8) * factor),
+		A: uint8(a >> 8),
+	}
+}
+
 var (
-	// Base application style
-	AppStyle = lipgloss.NewStyle().
-			Padding(0, 1, 0, 1)
+	BaseStyle = lipgloss.NewStyle().Foreground(primary)
+	AppStyle  = BaseStyle.Padding(0, 1, 0, 1)
 
 	// Text styles
-	HighlightStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(highlight)
-
-	MutedStyle = lipgloss.NewStyle().
-			Foreground(muted)
-
-	SubtleStyle = lipgloss.NewStyle().
-			Foreground(subtle)
-
-	SecondaryStyle = lipgloss.NewStyle().
-			Foreground(secondary)
+	HighlightStyle = BaseStyle.Foreground(highlight)
+	MutedStyle     = BaseStyle.Foreground(muted)
+	SubtleStyle    = BaseStyle.Foreground(subtle)
+	SecondaryStyle = BaseStyle.Foreground(secondary)
 
 	// Status styles
-	SuccessStyle = lipgloss.NewStyle().
-			Foreground(success)
-
-	ErrorStyle = lipgloss.NewStyle().
-			Foreground(errorColor)
-
-	WarningStyle = lipgloss.NewStyle().
-			Foreground(warning)
-
-	ActiveStyle = lipgloss.NewStyle().
-			Foreground(active)
-
-	InProgressStyle = lipgloss.NewStyle().
-			Foreground(inProgress)
-
-	PendingStyle = lipgloss.NewStyle().
-			Foreground(pending)
+	SuccessStyle    = BaseStyle.Foreground(success)
+	ErrorStyle      = BaseStyle.Foreground(errorColor)
+	WarningStyle    = BaseStyle.Foreground(warning)
+	ActiveStyle     = BaseStyle.Foreground(active)
+	InProgressStyle = BaseStyle.Foreground(inProgress)
+	PendingStyle    = BaseStyle.Foreground(pending)
 
 	// Layout styles
-	HeaderStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(highlight).
-			Padding(0, 0, 1, 0)
-
-	BaseStyle = lipgloss.NewStyle()
-
-	BorderStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(borderPrimary)
+	HeaderStyle = BaseStyle.Foreground(highlight).Padding(0, 0, 1, 0)
+	BorderStyle = BaseStyle.Border(lipgloss.RoundedBorder()).BorderForeground(borderPrimary)
 
 	// Input styles
-	InputStyle = lipgloss.NewStyle().
-			Padding(2, 0, 1, 0)
-
-	FocusedStyle = lipgloss.NewStyle().
-			Padding(2, 0, 1, 0)
+	InputStyle = textarea.Styles{
+		Focused: textarea.StyleState{
+			Base:        BaseStyle,
+			Placeholder: BaseStyle.Foreground(darken(primary, 40)),
+		},
+		Blurred: textarea.StyleState{
+			Base:        BaseStyle,
+			Placeholder: BaseStyle.Foreground(darken(primary, 40)),
+		},
+		Cursor: textarea.CursorStyle{
+			Color: highlight,
+		},
+	}
+	EditorStyle = BaseStyle.Padding(2, 0, 0, 0)
 
 	// Layout helpers
-	CenterStyle = lipgloss.NewStyle().
-			Align(lipgloss.Center, lipgloss.Center)
+	CenterStyle = BaseStyle.Align(lipgloss.Center, lipgloss.Center)
 
 	// Deprecated styles (kept for backward compatibility)
 	StatusStyle = MutedStyle

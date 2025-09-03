@@ -36,12 +36,13 @@ type editor struct {
 // New creates a new editor component
 func New() Editor {
 	ta := textarea.New()
+	ta.SetStyles(styles.InputStyle)
 	ta.Placeholder = "Type your message here..."
-	ta.Focus()
 	ta.Prompt = "│ "
 	ta.CharLimit = -1
 	ta.SetWidth(50)
 	ta.SetHeight(3) // Set minimum 3 lines for multi-line input
+	ta.Focus()
 	ta.ShowLineNumbers = false
 	ta.KeyMap.InsertNewline.SetEnabled(true) // Enable newline insertion
 
@@ -86,12 +87,7 @@ func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View renders the component
 func (e *editor) View() string {
-	style := styles.InputStyle
-	if e.textarea.Focused() {
-		style = styles.FocusedStyle
-	}
-
-	return style.Render(e.textarea.View())
+	return styles.EditorStyle.Render(e.textarea.View())
 }
 
 // SetSize sets the dimensions of the component

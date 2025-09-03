@@ -201,10 +201,10 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
 }
 
 // View renders the complete application interface
-func (a *appModel) View() string {
+func (a *appModel) View() tea.View {
 	// Handle minimum window size
 	if a.wWidth < 25 || a.wHeight < 15 {
-		return styles.CenterStyle.
+		return toFullscreenView(styles.CenterStyle.
 			Width(a.wWidth).
 			Height(a.wHeight).
 			Render(
@@ -213,20 +213,23 @@ func (a *appModel) View() string {
 					Foreground(lipgloss.Color("#ffffff")).
 					BorderForeground(lipgloss.Color("#ff5f87")).
 					Render("Window too small!"),
-			)
+			),
+		)
 	}
 
 	// Show error if present
 	if a.err != nil {
-		return styles.ErrorStyle.Render(a.err.Error())
+		return toFullscreenView(styles.ErrorStyle.Render(a.err.Error()))
 	}
 
 	// Show loading if not ready
 	if !a.ready {
-		return styles.CenterStyle.
-			Width(a.wWidth).
-			Height(a.wHeight).
-			Render(styles.MutedStyle.Render("Loading..."))
+		return toFullscreenView(
+			styles.CenterStyle.
+				Width(a.wWidth).
+				Height(a.wHeight).
+				Render(styles.MutedStyle.Render("Loading...")),
+		)
 	}
 
 	// Render chat page
@@ -258,8 +261,14 @@ func (a *appModel) View() string {
 
 		// Create and render canvas
 		canvas := lipgloss.NewCanvas(allLayers...)
-		return canvas.Render()
+		return toFullscreenView(canvas.Render())
 	}
 
-	return baseView
+	return toFullscreenView(baseView)
+}
+
+func toFullscreenView(content string) tea.View {
+	view := tea.NewView(content)
+	view.BackgroundColor = styles.Background
+	return view
 }

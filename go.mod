@@ -11,6 +11,7 @@ require (
 	github.com/charmbracelet/bubbletea/v2 v2.0.0-beta.4.0.20250813213544-5cc219db8892
 	github.com/charmbracelet/glamour/v2 v2.0.0-20250811143442-a27abb32f018
 	github.com/charmbracelet/lipgloss/v2 v2.0.0-beta.3.0.20250721205738-ea66aa652ee0
+	github.com/charmbracelet/x/exp/charmtone v0.0.0-20250902204034-1cdc10c66d5b
 	github.com/fatih/color v1.18.0
 	github.com/google/go-containerregistry v0.20.6
 	github.com/google/uuid v1.6.0
@@ -43,6 +44,7 @@ require (
 	github.com/charmbracelet/ultraviolet v0.0.0-20250813213450-50737e162af5 // indirect
 	github.com/charmbracelet/x/ansi v0.10.1 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.14-0.20250811133356-e0c5dbe5ea4a // indirect
+	github.com/charmbracelet/x/exp/color v0.0.0-20250902204034-1cdc10c66d5b // indirect
 	github.com/charmbracelet/x/exp/slice v0.0.0-20250829135019-44e44e21330d // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/charmbracelet/x/termios v0.1.1 // indirect
