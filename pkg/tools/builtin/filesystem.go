@@ -864,12 +864,14 @@ func (t *FilesystemTool) handleReadMultipleFiles(_ context.Context, toolCall too
 	return &tools.ToolCallResult{Output: result.String()}, nil
 }
 
+type SearchFilesArgs struct {
+	Path            string   `json:"path"`
+	Pattern         string   `json:"pattern"`
+	ExcludePatterns []string `json:"excludePatterns"`
+}
+
 func (t *FilesystemTool) handleSearchFiles(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args struct {
-		Path            string   `json:"path"`
-		Pattern         string   `json:"pattern"`
-		ExcludePatterns []string `json:"excludePatterns"`
-	}
+	var args SearchFilesArgs
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
 		return nil, fmt.Errorf("failed to parse arguments: %w", err)
 	}
