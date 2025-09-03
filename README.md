@@ -204,6 +204,21 @@ Want to hack on `cagent`, or help us fix bugs and build out some features? 🔧
 
 Read the information on how to build from source and contribute to the project in [CONTRIBUTING.md](/docs/CONTRIBUTING.md)
 
+## DogFooding: using `cagent` to code on `cagent`
+
+A smart way to improve `cagent`'s codebase and feature set is to do it with the help of a `cagent` agent!
+
+We have one that we use and that you should use too:
+
+```sh
+cagent run ./golang_developer.yaml
+```
+
+This agent is an *expert Golang developer specializing in the cagent multi-agent AI system architecture*.
+
+Ask it anything about `cagent`. It can be questions about the current code or about
+improvements to the code. It can also fix issues and implement new features!
+
 ## Share your feedback
 
 We’d love to hear your thoughts on this project.

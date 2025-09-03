@@ -8,12 +8,10 @@
 
 If you're hacking on `cagent`, or just want to be on the bleeding edge, then building from source is a must.
 
-Here's what you need to know:
-
 ##### Prerequisites
 
 - Go 1.25 or higher
-- API key for your chosen AI provider (OpenAI, Anthropic, Gemini, etc.)
+- API key(s) for your chosen AI provider (OpenAI, Anthropic, Gemini, etc.)
 - [Task 3.44 or higher](https://taskfile.dev/installation/)
 - [`golangci-lint`](https://golangci-lint.run/docs/welcome/install/#binaries`)
 
@@ -25,20 +23,17 @@ git clone https://github.com/docker/cagent.git
 cd cagent
 task build
 
-# If using the Docker AI Gateway, set this env var or use the `--models-gateway url_to_docker_ai_gateway` CLI flag
-export CAGENT_MODELS_GATEWAY=url_to_docker_ai_gateway
-
-# Alternatively, you to need set keys for remote inference services
-# Note that these are not needed if you are using Docker AI Gateway
-
+# Set keys for remote inference services
 export OPENAI_API_KEY=your_api_key_here    # For OpenAI models
 export ANTHROPIC_API_KEY=your_api_key_here # For Anthopic models
 export GOOGLE_API_KEY=your_api_key_here    # For Gemini models
 
 # Run with a sample configuration
 ./bin/cagent run examples/code.yaml
+
 # or specify a different agent from the config
 ./bin/cagent run examples/code.yaml -a root
+
 # or run directly from an image reference
 ./bin/cagent run agentcatalog/pirate
 ```
@@ -49,12 +44,10 @@ Binary builds can also be made using `docker` itself.
 
 Start a build via docker using `task build-local` (for only your local architecture), or use `task cross` to build for all supported platforms.  
 
-Builds done via `docker` will the placed in the ./dist directory
+Builds done via `docker` will the placed in the `./dist` directory
 
 ```sh
 $ task build-local
-
-
 ```
 
 ### 🎯 Core `cagent` Concepts
@@ -71,6 +64,21 @@ $ task build-local
 3. Root agent can decide to delegate to appropriate sub-agent if specialized knowledge is needed
 4. Sub-agent processes the task delegated to it using its tools and expertise, in its own agentic loop.
 5. Results eventually flow back to the root agent and the user
+
+## DogFooding: using `cagent` to code on `cagent`
+
+A smart way to improve `cagent`'s codebase and feature set is to do it with the help of a `cagent` agent!
+
+We have one that we use and that you should use too:
+
+```sh
+cagent run ./golang_developer.yaml
+```
+
+This agent is an *expert Golang developer specializing in the cagent multi-agent AI system architecture*.
+
+Ask it anything about `cagent`. It can be questions about the current code or about
+improvements to the code. It can also fix issues and implement new features!
 
 ## Project Architecture
 
