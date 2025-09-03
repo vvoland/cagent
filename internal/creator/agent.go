@@ -183,7 +183,7 @@ func StreamCreateAgent(ctx context.Context, baseDir, prompt string, runConfig la
 		version: "1"
 		models:
 			%s:
-				type: %s
+				provider: %s
 				model: %s
 				max_tokens: 64000\n`, provider, provider, defaultModels[provider])
 	}
