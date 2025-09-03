@@ -31,7 +31,7 @@ type toolConfirmationDialog struct {
 }
 
 // SetSize implements Dialog.
-func (d *toolConfirmationDialog) SetSize(width int, height int) tea.Cmd {
+func (d *toolConfirmationDialog) SetSize(width, height int) tea.Cmd {
 	d.width = width
 	d.height = height
 	return nil

@@ -16,7 +16,7 @@ func (m *transferTaskModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m *transferTaskModel) SetSize(width int, height int) tea.Cmd {
+func (m *transferTaskModel) SetSize(width, height int) tea.Cmd {
 	return nil
 }
 
