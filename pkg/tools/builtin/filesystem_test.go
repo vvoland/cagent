@@ -484,7 +484,8 @@ func TestFilesystemTool_SearchFiles(t *testing.T) {
 	result = callHandler(t, handler, args)
 
 	lines = strings.Split(strings.TrimSpace(result.Output), "\n")
-	assert.Len(t, lines, 3) // Should find test.txt, test.log, and test_sub.txt
+	assert.Contains(t, result.Output, "3 files found:\n")
+	assert.Len(t, lines, 3+1) // Should find test.txt, test.log, and test_sub.txt
 
 	// Test search with exclude patterns
 	args = map[string]any{
@@ -573,7 +574,8 @@ func TestFilesystemTool_SearchFiles_RecursivePattern(t *testing.T) {
 	result := callHandler(t, handler, args)
 
 	lines := strings.Split(strings.TrimSpace(result.Output), "\n")
-	assert.Len(t, lines, 3) // Should find first.txt, second.txt, and third.txt
+	assert.Contains(t, result.Output, "3 files found:\n")
+	assert.Len(t, lines, 3+1) // Should find first.txt, second.txt, and third.txt
 }
 
 func TestFilesystemTool_ListAllowedDirectories(t *testing.T) {

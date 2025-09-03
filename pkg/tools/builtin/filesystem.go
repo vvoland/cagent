@@ -178,7 +178,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 		{
 			Function: &tools.FunctionDefinition{
 				Name:        "list_allowed_directories",
-				Description: "Returns a list of directories that the server has permission to access.",
+				Description: "Returns a list of directories that the server has permission to access. Don't call if you access only the current working directory. It's always allowed.",
 				Annotations: tools.ToolAnnotation{
 					ReadOnlyHint: &[]bool{true}[0],
 					Title:        "List Allowed Directories",
@@ -332,7 +332,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 		{
 			Function: &tools.FunctionDefinition{
 				Name:        "search_files",
-				Description: "Recursively search for files and directories matching a pattern.",
+				Description: "Recursively search for files and directories matching a pattern. Prints the full paths of matching files and the total number of files found.",
 				Annotations: tools.ToolAnnotation{
 					ReadOnlyHint: &[]bool{true}[0],
 					Title:        "Search Files",
@@ -346,14 +346,14 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 						},
 						"pattern": map[string]any{
 							"type":        "string",
-							"description": "The search pattern (case-insensitive)",
+							"description": "The search pattern",
 						},
 						"excludePatterns": map[string]any{
-							"type": "array",
+							"type":        "array",
+							"description": "Patterns to exclude from search",
 							"items": map[string]any{
 								"type": "string",
 							},
-							"description": "Patterns to exclude from search",
 						},
 					},
 					Required: []string{"path", "pattern"},
@@ -912,7 +912,9 @@ func (t *FilesystemTool) handleSearchFiles(_ context.Context, toolCall tools.Too
 		return &tools.ToolCallResult{Output: "No files found"}, nil
 	}
 
-	return &tools.ToolCallResult{Output: strings.Join(matches, "\n")}, nil
+	return &tools.ToolCallResult{
+		Output: fmt.Sprintf("%d files found:\n%s", len(matches), strings.Join(matches, "\n")),
+	}, nil
 }
 
 func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
