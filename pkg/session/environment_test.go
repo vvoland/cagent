@@ -50,6 +50,7 @@ func TestGetEnvironmentInfo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dir := tt.setupFunc()
 			info := getEnvironmentInfo(dir)
 
@@ -95,6 +96,7 @@ func TestIsGitRepo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dir := tt.setupFunc()
 			assert.True(t, isGitRepo(dir))
 		})
@@ -128,6 +130,7 @@ func TestIsNotGitRepo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dir := tt.setupFunc()
 			assert.False(t, isGitRepo(dir))
 		})

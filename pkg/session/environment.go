@@ -11,11 +11,11 @@ import (
 // working directory, git repository status, and platform information
 func getEnvironmentInfo(workingDir string) string {
 	return fmt.Sprintf(`Here is useful information about the environment you are running in:
-<env>
-Working directory: %s
-Is directory a git repo: %s
-Platform: %s
-</env>`, workingDir, boolToYesNo(isGitRepo(workingDir)), runtime.GOOS)
+	<env>
+	Working directory: %s
+	Is directory a git repo: %s
+	Platform: %s
+	</env>`, workingDir, boolToYesNo(isGitRepo(workingDir)), runtime.GOOS)
 }
 
 // isGitRepo checks if the given directory is a git repository
