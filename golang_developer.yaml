@@ -90,7 +90,7 @@ agents:
 
       **Configuration System** (`pkg/config/`):
       - YAML-based declarative agent, model, and tool definitions
-      - Support for agent properties: name, model, description, instruction, sub_agents, toolsets, think, todo, memory, add_date
+      - Support for agent properties: name, model, description, instruction, sub_agents, toolsets, think, todo, memory, add_date, add_environment_info
       - Model provider configuration for openai, anthropic, dmr
       - Tool configuration for MCP tools and builtin tools (filesystem, shell)
 

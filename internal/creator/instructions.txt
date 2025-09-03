@@ -27,6 +27,7 @@ agent_name:
     toolsets: [] # Available tools (optional)
     sub_agents: [] # Sub-agent names (optional)
     add_date: boolean # Add current date to context (optional)
+    add_environment_info: boolean # Add information about the environment (working dir, OS, git...) (optional)
 ```
 
 **Each model can have a list of toolsets**

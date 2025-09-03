@@ -62,7 +62,8 @@ agents:
       - `task build` - Build the application binary 
       - `task test` - Run Go tests
       - `task lint` - Run golangci-lint for code quality
-
+    add_date: true
+    add_environment_info: true
     toolsets:
       - type: think
       - type: filesystem

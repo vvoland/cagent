@@ -2,6 +2,7 @@ package session
 
 import (
 	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -213,7 +214,12 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 	}
 
 	if a.AddEnvironmentInfo() {
-		content += "\n\n" + getEnvironmentInfo(s.GetWorkingDir())
+		wd, err := os.Getwd()
+		if err != nil {
+			slog.Error("getting current working directory for environment info", "error", err)
+		} else {
+			content += "\n\n" + getEnvironmentInfo(wd)
+		}
 	}
 
 	messages = append(messages, chat.Message{

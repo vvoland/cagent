@@ -66,7 +66,7 @@ cagent is a multi-agent AI system with hierarchical agent structure and pluggabl
 #### Configuration System (`pkg/config/`)
 
 - **YAML-based configuration**: Declarative agent, model, and tool definitions
-- **Agent properties**: name, model, description, instruction, sub_agents, toolsets, think, todo, memory, add_date
+- **Agent properties**: name, model, description, instruction, sub_agents, toolsets, think, todo, memory, add_date, add_environment_info
 - **Model providers**: openai, anthropic, dmr with configurable parameters
 - **Tool configuration**: MCP tools (local stdio and remote), builtin tools (filesystem, shell)
 

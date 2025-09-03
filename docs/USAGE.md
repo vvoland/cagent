@@ -80,15 +80,16 @@ During CLI sessions, you can use special commands:
 
 ### Agent Properties
 
-| Property      | Type    | Description                    | Required |
-|---------------|---------|--------------------------------|----------|
-| `name`        | string  | Agent identifier               | ✓        |
-| `model`       | string  | Model reference                | ✓        |
-| `description` | string  | Agent purpose                  | ✓        |
-| `instruction` | string  | Detailed behavior instructions | ✓        |
-| `sub_agents`  | array   | List of sub-agent names        | ✗        |
-| `toolsets`    | array   | Available tools                | ✗        |
-| `add_date`    | boolean | Add current date to context    | ✗        |
+| Property               | Type    | Description                                                     | Required |
+|------------------------|---------|-----------------------------------------------------------------|----------|
+| `name`                 | string  | Agent identifier                                                | ✓        |
+| `model`                | string  | Model reference                                                 | ✓        |
+| `description`          | string  | Agent purpose                                                   | ✓        |
+| `instruction`          | string  | Detailed behavior instructions                                  | ✓        |
+| `sub_agents`           | array   | List of sub-agent names                                         | ✗        |
+| `toolsets`             | array   | Available tools                                                 | ✗        |
+| `add_date`             | boolean | Add current date to context                                     | ✗        |
+| `add_environment_info` | boolean | Add information about the environment (working dir, OS, git...) | ✗        |
 
 #### Example
 
@@ -101,6 +102,7 @@ agents:
     tools: [] # Available tools (optional)
     sub_agents: [] # Sub-agent names (optional)
     add_date: boolean # Add current date to context (optional)
+    add_environment_info: boolean # Add information about the environment (working dir, OS, git...) (optional)
 ```
 
 ### Model Properties
