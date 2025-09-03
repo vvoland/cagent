@@ -203,3 +203,8 @@ We track anonymous usage data to improve the tool. See [TELEMETRY.md](/docs/TELE
 Want to hack on `cagent`, or help us fix bugs and build out some features? 🔧
 
 Read the information on how to build from source and contribute to the project in [CONTRIBUTING.md](/docs/CONTRIBUTING.md)
+
+## Share your feedback
+
+We’d love to hear your thoughts on this project.
+You can find us on [Slack](https://dockercommunity.slack.com/archives/C09DASHHRU4)

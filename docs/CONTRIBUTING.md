@@ -189,3 +189,8 @@ Notes:
 - Extreme violations of a threatening, abusive, destructive or illegal nature will be addressed immediately and are not subject to 3 strikes or forgiveness.
 
 - Contact abuse@docker.com to report abuse or appeal violations. In the case of appeals, we know that mistakes happen, and we'll work with you to come up with a fair solution if there has been a misunderstanding.
+
+## Any question?
+
+We’d love to hear them and help.
+You can find us on [Slack](https://dockercommunity.slack.com/archives/C09DASHHRU4)
