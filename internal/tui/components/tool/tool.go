@@ -115,8 +115,11 @@ func (mv *toolModel) Render(width int) string {
 	// Add tool result content if available (for completed tools with content)
 	var resultContent string
 	if (msg.ToolStatus == types.ToolStatusCompleted || msg.ToolStatus == types.ToolStatusError) && msg.Content != "" {
+		style := styles.ToolCallResultStyle
+
 		// Calculate available width for content (accounting for padding)
-		availableWidth := max(width-2, 10) // Minimum readable width
+		padding := style.Padding().GetHorizontalPadding()
+		availableWidth := max(width-2-padding, 10) // Minimum readable width
 
 		// Wrap long lines to fit the component width
 		lines := wrapLines(msg.Content, availableWidth)
@@ -125,13 +128,13 @@ func (mv *toolModel) Render(width int) string {
 		if len(lines) > 10 {
 			lines = lines[:10]
 			// Add indicator that content was truncated
-			lines = append(lines, "... (output truncated)")
+			lines = append(lines, wrapLines("... (output truncated)", availableWidth)...)
 		}
 
 		// Join the lines back and apply muted style
 		trimmedContent := strings.Join(lines, "\n")
 		if trimmedContent != "" {
-			resultContent = "\n" + styles.ToolCallResultStyle.Render(trimmedContent)
+			resultContent = "\n" + style.Render(trimmedContent)
 		}
 	}
 
