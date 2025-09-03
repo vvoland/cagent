@@ -199,10 +199,7 @@ func runCommand(_ *cobra.Command, args []string, exec bool) error {
 	}
 
 	// For `cagent run --tui=false`
-	//
-	// NOTE(krissetto): TUI is temporarily disabled on windows because of input issues.
-	// see github.com/docker/cagent/issues/80 for more details.
-	if !useTUI || goRuntime.GOOS == "windows" {
+	if !useTUI {
 		return runWithoutTUI(ctx, agentFilename, rt, sess, args)
 	}
 
@@ -225,14 +222,19 @@ func runCommand(_ *cobra.Command, args []string, exec bool) error {
 	a := app.New(agentFilename, rt, sess, firstMessage)
 	m := tui.New(a)
 
-	p := tea.NewProgram(
-		m,
+	progOpts := []tea.ProgramOption{
 		tea.WithAltScreen(),
 		tea.WithContext(ctx),
+		tea.WithFilter(tui.MouseEventFilter),
 		tea.WithMouseCellMotion(),
 		tea.WithMouseAllMotion(),
-		tea.WithFilter(tui.MouseEventFilter),
-	)
+	}
+	if goRuntime.GOOS == "windows" {
+		// WithInputTTY seems to be required for proper keyboard input
+		progOpts = append(progOpts, tea.WithInputTTY())
+	}
+
+	p := tea.NewProgram(m, progOpts...)
 
 	go a.Subscribe(ctx, p)
 
