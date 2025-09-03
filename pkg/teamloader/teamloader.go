@@ -101,6 +101,7 @@ func Load(ctx context.Context, path string, runConfig latest.RuntimeConfig) (*te
 			agent.WithName(name),
 			agent.WithDescription(agentConfig.Description),
 			agent.WithAddDate(agentConfig.AddDate),
+			agent.WithAddEnvironmentInfo(agentConfig.AddEnvironmentInfo),
 		}
 		models, err := getModelsForAgent(ctx, cfg, &agentConfig, absEnvFiles, options.WithGateway(runConfig.ModelsGateway))
 		if err != nil {

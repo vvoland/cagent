@@ -206,14 +206,19 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		})
 	}
 
-	date := ""
+	content := a.Instruction()
+
 	if a.AddDate() {
-		date = "Date today is: " + time.Now().Format("2006-01-02") + "\n"
+		content += "\n\n" + "Today's date: " + time.Now().Format("2006-01-02")
+	}
+
+	if a.AddEnvironmentInfo() {
+		content += "\n\n" + getEnvironmentInfo(s.GetWorkingDir())
 	}
 
 	messages = append(messages, chat.Message{
 		Role:    chat.MessageRoleSystem,
-		Content: a.Instruction() + "\n\n" + date,
+		Content: content,
 	})
 
 	for _, tool := range a.ToolSets() {
