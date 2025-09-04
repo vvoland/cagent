@@ -128,7 +128,7 @@ func runCommand(_ *cobra.Command, args []string, exec bool) error {
 
 	// Determine how to obtain the agent definition
 	ext := strings.ToLower(filepath.Ext(agentFilename))
-	if ext == ".yaml" || ext == ".yml" {
+	if ext == ".yaml" || ext == ".yml" || strings.HasPrefix(agentFilename, "/dev/fd/") {
 		// Treat as local YAML file: resolve to absolute path so later chdir doesn't break it
 		if !strings.Contains(agentFilename, "\n") {
 			if abs, err := filepath.Abs(agentFilename); err == nil {
