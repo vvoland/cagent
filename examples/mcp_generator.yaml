@@ -37,8 +37,7 @@ agents:
     toolsets:
       - type: think
       - type: mcp
-        command: uvx
-        args: ["duckduckgo-mcp-server"]
+        ref: docker:duckduckgo
       - type: filesystem
       - type: shell
 

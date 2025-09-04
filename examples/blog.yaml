@@ -40,8 +40,7 @@ agents:
       Always include sources
     toolsets:
       - type: mcp
-        command: uvx
-        args: ["duckduckgo-mcp-server"]
+        ref: docker:duckduckgo
 
   writer:
     model: anthropic

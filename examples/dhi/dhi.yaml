@@ -72,13 +72,9 @@ agents:
       #   command: docker
       #   args: ["run", "-i", "--rm", "dhi-mcp-server"]
       - type: mcp
-        command: uvx
-        args: ["duckduckgo-mcp-server"]
+        ref: docker:duckduckgo
       - type: filesystem
-      - type: mcp
-        command: uvx
-        args: ["mcp-shell-server"]
-        env_file: .env
+      - type: shell
       - type: todo
 
 models:

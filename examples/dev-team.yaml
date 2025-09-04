@@ -53,8 +53,7 @@ agents:
       - type: memory
         path: dev_memory.db
       - type: mcp
-        command: npx
-        args: [-y, '@upstash/context7-mcp']
+        ref: docker:context7
 
   designer:
     model: model
@@ -89,8 +88,7 @@ agents:
       - type: memory
         path: dev_memory.db
       - type: mcp
-        command: npx
-        args: [-y, '@upstash/context7-mcp']
+        ref: docker:context7
 
   awesome_engineer:
     model: model
@@ -165,5 +163,4 @@ agents:
       - type: memory
         path: dev_memory.db
       - type: mcp
-        command: npx
-        args: [-y, '@upstash/context7-mcp']
+        ref: docker:context7
