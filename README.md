@@ -59,8 +59,7 @@ agents:
       Be helpful, accurate, and concise in your responses.
     toolset:
       - type: mcp
-        command: docker # stdio transport
-        args: ["mcp", "gateway", "run", "--servers=duckduckgo"]
+        ref: docker:duckduckgo # stdio transport
 ```
 
 When using a containerized server via the Docker MCP gateway, you can configure any required settings/secrets/authentication using the [Docker MCP Toolkit](https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/#example-use-the-github-official-mcp-server) in Docker Desktop.  
@@ -79,8 +78,7 @@ agents:
       Be helpful, accurate, and concise in your responses. Write your search results to disk.
     toolset:
       - type: mcp
-        command: docker
-        args: ["mcp", "gateway", "run", "--servers=duckduckgo"]
+        ref: docker:duckduckgo
       - type: mcp
         command: rust-mcp-filesystem # installed with `cargo install rust-mcp-filesystem`
         args: ["--allow-write", "."]

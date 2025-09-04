@@ -121,9 +121,9 @@ Note: Arguments are substituted as environment variables in the command using $V
 
 - This is very important so listen up, use the builtin tools only when absolutely necessary.
 - Most of the time `think`, `todo` or `memory` are not necessary.
-- Pick zero to two MCP servers from the MCP Gateway only if they will greatly improve the quality of the agent.
+- Pick zero to two MCP servers from the docker MCP Catalog only if they will greatly improve the quality of the agent.
 
-Example of using an MCP server from the MCP Gateway:
+Example of using the `youtube_transcript` MCP server, from the docker MCP Catalog, using the docker MCP Gateway:
 
 ```yaml
 version: "1"
@@ -133,8 +133,7 @@ agents:
         ...
         toolsets:
         - type: mcp
-            command: docker
-            args: ["mcp", "gateway", "run", "--servers=youtube_transcript"]
+          ref: docker:youtube_transcript
 ```
 
 **Discover which MCP Servers are available and useful**
@@ -152,9 +151,9 @@ To better understand which tools an MCP server offers, run this shell command:
 docker mcp server inspect <server_name>
 ```
 
-**Streamline the configuration**
+**Using multiple MCP Servers**
 
-When chosing multiple MCP Servers, always combine them with a single gateway:
+Multiple MCP Servers can be configured when multiple tools are useful.
 
 ```yaml
 version: "1"
@@ -164,8 +163,11 @@ agents:
         ...
         toolsets:
         - type: mcp
-            command: docker
-            args: ["mcp", "gateway", "run", "--servers=duckduckgo,youtube_transcript,other"]
+          ref: docker:duckduckgo
+        - type: mcp
+          ref: docker:youtube_transcript
+        - type: mcp
+          ref: docker:other
 ```
 
 ### Model Configuration

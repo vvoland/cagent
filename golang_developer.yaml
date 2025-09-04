@@ -140,5 +140,4 @@ agents:
       - type: shell
       - type: todo
       - type: mcp
-        command: docker
-        args: [mcp, gateway, run, "--servers=context7"]
+        ref: docker:context7

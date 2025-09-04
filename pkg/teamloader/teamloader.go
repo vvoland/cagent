@@ -261,6 +261,17 @@ func getToolsForAgent(a *latest.AgentConfig, parentDir string, sharedTools map[s
 
 			t = append(t, builtin.NewFilesystemTool([]string{wd}, builtin.WithAllowedTools(toolset.Tools)))
 
+		case toolset.Type == "mcp" && toolset.Ref != "":
+			serverName := strings.TrimPrefix(toolset.Ref, "docker:")
+
+			env, err := toolsetEnv(toolset.Env, append(absEnvFiles, toolset.Envfiles...), parentDir)
+			if err != nil {
+				return nil, err
+			}
+
+			// TODO(dga): If the server's docker image had the right annotations, we could run it directly with `docker run` or with the MCP gateway as a go library.
+			t = append(t, mcp.NewToolsetCommand("docker", []string{"mcp", "gateway", "run", "--servers=" + serverName}, env, toolset.Tools))
+
 		case toolset.Type == "mcp" && toolset.Command != "":
 			// Expand env first because it's used when expanding command and args.
 			env, err := toolsetEnv(toolset.Env, append(absEnvFiles, toolset.Envfiles...), parentDir)

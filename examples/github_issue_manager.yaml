@@ -38,5 +38,4 @@ agents:
     add_date: true
     toolsets:
       - type: mcp
-        command: docker
-        args: ["mcp", "gateway", "run", "--servers=github-official"]
+        ref: docker:github-official

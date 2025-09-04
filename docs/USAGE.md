@@ -252,21 +252,16 @@ toolsets:
 
 ### Using tools via the Docker MCP Gateway
 
-We recommend using MCP tools via the [Docker MCP Gateway](https://github.com/docker/mcp-gateway).  
-All tools are containerized for resource isolation and security, and all the tools in the catalog can be accessed through a single endpoint
+We recommend running containerized MCP tools, for security and resource isolation.
+Under the hood, `cagent` will run them with the [Docker MCP Gateway](https://github.com/docker/mcp-gateway)
+so that all the tools in the `Docker MCP Catalog` can be accessed through a single endpoint.
 
-Using the `docker mcp gateway` command you can configure your agents with a set of MCP tools
-delivered straight from Docker's MCP Gateway.
-
-> you can check `docker mcp gateway run --help` for more information on how to use that command
-
-In this example, lets configure duckduckgo to give our agents the ability to search the web:
+In this example, lets configure `duckduckgo` to give our agents the ability to search the web:
 
 ```yaml
 toolsets:
   - type: mcp
-    command: docker
-    args: ["mcp", "gateway", "run", "--servers=duckduckgo"]
+    ref: docker:duckduckgo
 ```
 
 ### Installing MCP Tools

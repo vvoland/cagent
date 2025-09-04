@@ -39,5 +39,6 @@ agents:
     toolsets:
       - type: todo
       - type: mcp
-        command: docker
-        args: ["mcp", "gateway", "run", "--servers=duckduckgo,fetch"]
+        ref: docker:duckduckgo
+      - type: mcp
+        ref: docker:fetch

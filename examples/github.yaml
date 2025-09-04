@@ -9,8 +9,7 @@ agents:
       You are a helpful assistant that can help with all things Github by leveraging Github MCP tools
     toolsets:
       - type: mcp
-        command: docker
-        args: ["mcp", "gateway", "run", "--servers=github-official"]
+        ref: docker:github-official
 
 models:
   claude:

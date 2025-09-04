@@ -1,6 +1,9 @@
 package v1
 
-import "errors"
+import (
+	"errors"
+	"strings"
+)
 
 // ScriptShellToolConfig represents a custom shell tool configuration
 type ScriptShellToolConfig struct {
@@ -20,6 +23,7 @@ type ScriptShellToolConfig struct {
 // Toolset represents a tool configuration
 type Toolset struct {
 	Type     string            `json:"type,omitempty" yaml:"type,omitempty"`
+	Ref      string            `json:"ref,omitempty" yaml:"ref,omitempty"`
 	Command  string            `json:"command,omitempty" yaml:"command,omitempty"`
 	Remote   Remote            `json:"remote,omitempty" yaml:"remote,omitempty"`
 	Args     []string          `json:"args,omitempty" yaml:"args,omitempty"`
@@ -42,7 +46,7 @@ type Remote struct {
 	Headers       map[string]string `json:"headers,omitempty" yaml:"headers,omitempty"`
 }
 
-// Ensure that either Command or Remote is set, but not both empty
+// Ensure that either Command, Remote or Ref is set, but not all empty
 func (t *Toolset) validate() error {
 	if len(t.Shell) > 0 && t.Type != "script" {
 		return errors.New("shell can only be used with type 'script'")
@@ -51,12 +55,27 @@ func (t *Toolset) validate() error {
 		return nil
 	}
 
-	if t.Command == "" && t.Remote.URL == "" {
-		return errors.New("either command or remote must be set")
+	count := 0
+	if t.Command != "" {
+		count++
 	}
-	if t.Command != "" && t.Remote.URL != "" {
-		return errors.New("either command or remote must be set, but not both")
+	if t.Remote.URL != "" {
+		count++
 	}
+	if t.Ref != "" {
+		count++
+	}
+	if count == 0 {
+		return errors.New("either command, remote or ref must be set")
+	}
+	if count > 1 {
+		return errors.New("either command, remote or ref must be set, but only one of those")
+	}
+
+	if t.Ref != "" && !strings.Contains(t.Ref, "docker:") {
+		return errors.New("only docker refs are supported for MCP tools, e.g., 'docker:context7'")
+	}
+
 	return nil
 }
 
