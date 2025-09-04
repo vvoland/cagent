@@ -85,12 +85,8 @@ func convertMessages(messages []chat.Message) []openai.ChatCompletionMessage {
 	openaiMessages := make([]openai.ChatCompletionMessage, len(messages))
 	for i := range messages {
 		msg := &messages[i]
-		role := msg.Role
-		if role == chat.MessageRoleSystem {
-			role = chat.MessageRoleUser
-		}
 		openaiMessage := openai.ChatCompletionMessage{
-			Role: string(role),
+			Role: string(msg.Role),
 			Name: msg.Name,
 		}
 
