@@ -7,14 +7,16 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
-// streamAdapter adapts the DMR stream to our interface
+// streamAdapter adapts the OpenAI stream to our interface
 type streamAdapter struct {
-	stream *openai.ChatCompletionStream
+	stream    *openai.ChatCompletionStream
+	toolCalls map[int]string
 }
 
 func newStreamAdapter(stream *openai.ChatCompletionStream) *streamAdapter {
 	return &streamAdapter{
-		stream: stream,
+		stream:    stream,
+		toolCalls: make(map[int]string),
 	}
 }
 
@@ -25,6 +27,7 @@ func (a *streamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		return chat.MessageStreamResponse{}, err
 	}
 
+	// Convert the OpenAI response to our generic format
 	response := chat.MessageStreamResponse{
 		ID:      openaiResponse.ID,
 		Object:  openaiResponse.Object,
@@ -33,17 +36,36 @@ func (a *streamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		Choices: make([]chat.MessageStreamChoice, len(openaiResponse.Choices)),
 	}
 
+	if openaiResponse.Usage != nil {
+		response.Usage = &chat.Usage{
+			InputTokens:        openaiResponse.Usage.PromptTokens,
+			OutputTokens:       openaiResponse.Usage.CompletionTokens,
+			CachedOutputTokens: 0,
+		}
+		if openaiResponse.Usage.PromptTokensDetails != nil {
+			response.Usage.CachedInputTokens = openaiResponse.Usage.PromptTokensDetails.CachedTokens
+		}
+
+		response.Choices = append(response.Choices, chat.MessageStreamChoice{
+			FinishReason: chat.FinishReasonStop,
+		})
+	}
+
+	// Convert the choices
 	for i := range openaiResponse.Choices {
 		choice := &openaiResponse.Choices[i]
+		finishReason := chat.FinishReason(choice.FinishReason)
+
 		response.Choices[i] = chat.MessageStreamChoice{
 			Index:        choice.Index,
-			FinishReason: chat.FinishReason(choice.FinishReason),
+			FinishReason: finishReason,
 			Delta: chat.MessageDelta{
 				Role:    choice.Delta.Role,
 				Content: choice.Delta.Content,
 			},
 		}
 
+		// Convert function call if present
 		if choice.Delta.FunctionCall != nil {
 			response.Choices[i].Delta.FunctionCall = &tools.FunctionCall{
 				Name:      choice.Delta.FunctionCall.Name,
@@ -51,11 +73,19 @@ func (a *streamAdapter) Recv() (chat.MessageStreamResponse, error) {
 			}
 		}
 
+		// Convert tool calls if present
 		if len(choice.Delta.ToolCalls) > 0 {
 			response.Choices[i].Delta.ToolCalls = make([]tools.ToolCall, len(choice.Delta.ToolCalls))
 			for j, toolCall := range choice.Delta.ToolCalls {
+				id := toolCall.ID
+				if existing, ok := a.toolCalls[*toolCall.Index]; ok {
+					id = existing
+				} else {
+					a.toolCalls[*toolCall.Index] = id
+				}
+
 				response.Choices[i].Delta.ToolCalls[j] = tools.ToolCall{
-					ID:   toolCall.ID,
+					ID:   id,
 					Type: tools.ToolType(toolCall.Type),
 					Function: tools.FunctionCall{
 						Name:      toolCall.Function.Name,

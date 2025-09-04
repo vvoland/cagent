@@ -197,13 +197,16 @@ func (c *Client) CreateChatCompletionStream(
 	}
 
 	request := openai.ChatCompletionRequest{
-		Model:             c.config.Model,
-		Messages:          convertMessages(messages),
-		Temperature:       float32(c.config.Temperature),
-		TopP:              float32(c.config.TopP),
-		FrequencyPenalty:  float32(c.config.FrequencyPenalty),
-		PresencePenalty:   float32(c.config.PresencePenalty),
-		Stream:            true,
+		Model:            c.config.Model,
+		Messages:         convertMessages(messages),
+		Temperature:      float32(c.config.Temperature),
+		TopP:             float32(c.config.TopP),
+		FrequencyPenalty: float32(c.config.FrequencyPenalty),
+		PresencePenalty:  float32(c.config.PresencePenalty),
+		Stream:           true,
+		StreamOptions: &openai.StreamOptions{
+			IncludeUsage: true,
+		},
 		ParallelToolCalls: parallelToolCalls,
 	}
 
