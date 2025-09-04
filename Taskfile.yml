@@ -21,7 +21,6 @@ tasks:
   build:
     desc: Build the application binary
     cmds:
-      - mkdir -p {{.BUILD_DIR}}
       - go build -ldflags "{{.LDFLAGS}}" -o {{.BUILD_DIR}}/{{.BINARY_NAME}} {{.MAIN_PKG}}
     sources:
       - "{{.GO_SOURCES}}"
