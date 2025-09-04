@@ -21,6 +21,7 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tools/mcp"
+	"gopkg.in/yaml.v3"
 )
 
 // LoadTeams loads all agent teams from the given directory or file path
@@ -262,15 +263,38 @@ func getToolsForAgent(a *latest.AgentConfig, parentDir string, sharedTools map[s
 			t = append(t, builtin.NewFilesystemTool([]string{wd}, builtin.WithAllowedTools(toolset.Tools)))
 
 		case toolset.Type == "mcp" && toolset.Ref != "":
-			serverName := strings.TrimPrefix(toolset.Ref, "docker:")
-
 			env, err := toolsetEnv(toolset.Env, append(absEnvFiles, toolset.Envfiles...), parentDir)
 			if err != nil {
 				return nil, err
 			}
 
+			serverName := strings.TrimPrefix(toolset.Ref, "docker:")
+			args := []string{"mcp", "gateway", "run", "--servers=" + serverName}
+
+			if toolset.Config != nil {
+				serverConfig := map[string]any{
+					serverName: toolset.Config,
+				}
+
+				file, err := os.CreateTemp("", "mcp-config-*.yaml")
+				if err != nil {
+					return nil, fmt.Errorf("failed to create temp file: %w", err)
+				}
+				// TODO(dga): Delete the temp file after use.
+
+				if err := yaml.NewEncoder(file).Encode(serverConfig); err != nil {
+					return nil, fmt.Errorf("failed to write config to temp file: %w", err)
+				}
+
+				args = append(args, "--config="+file.Name())
+			}
+
+			// Isolate ourselves from the global MCP Gateway config by always using the docker MCP catalog.
+			// This improves shareability of agent configs.
+			args = append(args, "--catalog=https://desktop.docker.com/mcp/catalog/v2/catalog.yaml")
+
 			// TODO(dga): If the server's docker image had the right annotations, we could run it directly with `docker run` or with the MCP gateway as a go library.
-			t = append(t, mcp.NewToolsetCommand("docker", []string{"mcp", "gateway", "run", "--servers=" + serverName}, env, toolset.Tools))
+			t = append(t, mcp.NewToolsetCommand("docker", args, env, toolset.Tools))
 
 		case toolset.Type == "mcp" && toolset.Command != "":
 			// Expand env first because it's used when expanding command and args.

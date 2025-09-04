@@ -36,11 +36,12 @@ agents:
       </TASK>
 
       **Tools:**
-      You have access to the following tools to assist you:
+       You have access to the following tools to assist you:
        - Filesystem tools for reading and writing code files
        - Shell access for running linters and validators
        - TODO tools to organize your work. Use TODOs to break down tasks and track progress. Don't use them for trivial tasks.
        - Think tool for reasoning and planning. Don't use it for trivial tasks.
+       - ast-grep for Go code searching and analysis. Always prefer ast-grep for code examination and modification over adhoc shell commands.
 
       **Constraints:**
        - Be thorough in code examination before making changes
@@ -68,5 +69,9 @@ agents:
       - type: todo
       - type: mcp
         ref: docker:context7
+      - type: mcp
+        ref: docker:ast-grep
+        config:
+          path: .
     memory:
       path: golang_tests_memory.db

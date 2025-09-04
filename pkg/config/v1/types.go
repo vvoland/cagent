@@ -24,6 +24,7 @@ type ScriptShellToolConfig struct {
 type Toolset struct {
 	Type     string            `json:"type,omitempty" yaml:"type,omitempty"`
 	Ref      string            `json:"ref,omitempty" yaml:"ref,omitempty"`
+	Config   any               `json:"config,omitempty" yaml:"config,omitempty"`
 	Command  string            `json:"command,omitempty" yaml:"command,omitempty"`
 	Remote   Remote            `json:"remote,omitempty" yaml:"remote,omitempty"`
 	Args     []string          `json:"args,omitempty" yaml:"args,omitempty"`
