@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"strings"
+	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 
@@ -51,14 +53,49 @@ func (c *Client) Start(ctx context.Context) error {
 		Version: "1.0.0",
 	}
 
-	_, err := c.client.Initialize(ctx, initRequest)
-	if err != nil {
-		slog.Error("Failed to initialize MCP client", "error", err)
-		return fmt.Errorf("failed to initialize MCP client: %w", err)
+	const maxRetries = 3
+	for attempt := 0; ; attempt++ {
+		_, err := c.client.Initialize(ctx, initRequest)
+		if err == nil {
+			break
+		}
+		// TODO(krissetto): This is a temporary fix to handle the case where the remote server hasn't finished its async init
+		// and we send the notifications/initialized message before the server is ready. Fix upstream in mcp-go if possible.
+		//
+		// Only retry when initialization fails due to sending the initialized notification.
+		if !isInitNotificationSendError(err) {
+			slog.Error("Failed to initialize MCP client", "error", err)
+			return fmt.Errorf("failed to initialize MCP client: %w", err)
+		}
+		if attempt >= maxRetries {
+			slog.Error("Failed to initialize MCP client after retries", "error", err)
+			return fmt.Errorf("failed to initialize MCP client after retries: %w", err)
+		}
+		backoff := time.Duration(200*(attempt+1)) * time.Millisecond
+		slog.Debug("MCP initialize failed to send initialized notification; retrying", "id", c.logId, "attempt", attempt+1, "backoff_ms", backoff.Milliseconds())
+		select {
+		case <-time.After(backoff):
+		case <-ctx.Done():
+			return fmt.Errorf("failed to initialize MCP client: %w", ctx.Err())
+		}
 	}
 
 	slog.Debug("MCP client started and initialized successfully")
 	return nil
+}
+
+// isInitNotificationSendError returns true if initialization failed while sending the
+// notifications/initialized message to the server.
+func isInitNotificationSendError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	// mcp-go client returns this error
+	if strings.Contains(msg, "failed to send initialized notification") {
+		return true
+	}
+	return false
 }
 
 // Stop stops the MCP server

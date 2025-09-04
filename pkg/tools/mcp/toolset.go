@@ -30,7 +30,7 @@ func NewToolsetCommand(command string, args, env, toolFilter []string) *Toolset 
 
 // NewToolsetRemote creates a new MCP toolset from a remote MCP Server.
 func NewToolsetRemote(url, transport string, headers map[string]string, toolFilter []string) (*Toolset, error) {
-	slog.Debug("Creating MCP toolset", "url", url, "transport", transport, "headers", headers, "toolFilter", toolFilter)
+	slog.Debug("Creating Remote MCP toolset", "url", url, "transport", transport, "headers", headers, "toolFilter", toolFilter)
 
 	mcpc, err := NewRemoteClient(url, transport, headers)
 	if err != nil {
