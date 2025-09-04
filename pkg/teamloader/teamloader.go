@@ -115,7 +115,7 @@ func Load(ctx context.Context, path string, runConfig latest.RuntimeConfig) (*te
 		if !ok {
 			return nil, fmt.Errorf("agent '%s' not found in configuration", name)
 		}
-		agentTools, err := getToolsForAgent(&a, parentDir, sharedTools, models[0], absEnvFiles, runConfig.ToolsGateway)
+		agentTools, err := getToolsForAgent(&a, parentDir, sharedTools, models[0], absEnvFiles)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tools: %w", err)
 		}
@@ -193,7 +193,7 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 }
 
 // getToolsForAgent returns the tool definitions for an agent based on its configuration
-func getToolsForAgent(a *latest.AgentConfig, parentDir string, sharedTools map[string]tools.ToolSet, model provider.Provider, absEnvFiles []string, gateway string) ([]tools.ToolSet, error) {
+func getToolsForAgent(a *latest.AgentConfig, parentDir string, sharedTools map[string]tools.ToolSet, model provider.Provider, absEnvFiles []string) ([]tools.ToolSet, error) {
 	var t []tools.ToolSet
 
 	if len(a.SubAgents) > 0 {
@@ -262,41 +262,22 @@ func getToolsForAgent(a *latest.AgentConfig, parentDir string, sharedTools map[s
 			t = append(t, builtin.NewFilesystemTool([]string{wd}, builtin.WithAllowedTools(toolset.Tools)))
 
 		case toolset.Type == "mcp" && toolset.Command != "":
-			if gateway != "" {
-				// TODO(dga): Really guess the server.
-				var servers string
-				if toolset.Command == "docker" && len(toolset.Args) >= 4 && toolset.Args[0] == "mcp" && toolset.Args[1] == "gateway" && toolset.Args[2] == "run" && strings.HasPrefix(toolset.Args[3], "--servers=") {
-					servers = strings.TrimPrefix(toolset.Args[3], "--servers=")
-				}
-
-				headers := map[string]string{
-					"x-mcp-servers": servers,
-				}
-
-				mcpc, err := mcp.NewToolsetRemote(gateway+"/mcp", "streamable", headers, toolset.Tools)
-				if err != nil {
-					return nil, fmt.Errorf("failed to create remote mcp client: %w", err)
-				}
-
-				t = append(t, mcpc)
-			} else {
-				// Expand env first because it's used when expanding command and args.
-				env, err := toolsetEnv(toolset.Env, append(absEnvFiles, toolset.Envfiles...), parentDir)
-				if err != nil {
-					return nil, err
-				}
-
-				// Expand command.
-				command := environment.Expand(toolset.Command, append(os.Environ(), env...))
-
-				// Expand args.
-				var args []string
-				for _, arg := range toolset.Args {
-					args = append(args, environment.Expand(arg, append(os.Environ(), env...)))
-				}
-
-				t = append(t, mcp.NewToolsetCommand(command, args, env, toolset.Tools))
+			// Expand env first because it's used when expanding command and args.
+			env, err := toolsetEnv(toolset.Env, append(absEnvFiles, toolset.Envfiles...), parentDir)
+			if err != nil {
+				return nil, err
 			}
+
+			// Expand command.
+			command := environment.Expand(toolset.Command, append(os.Environ(), env...))
+
+			// Expand args.
+			var args []string
+			for _, arg := range toolset.Args {
+				args = append(args, environment.Expand(arg, append(os.Environ(), env...)))
+			}
+
+			t = append(t, mcp.NewToolsetCommand(command, args, env, toolset.Tools))
 
 		case toolset.Type == "mcp" && toolset.Remote.URL != "":
 			// Expand env first because it's used when expanding headers.
