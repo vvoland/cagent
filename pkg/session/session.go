@@ -142,9 +142,10 @@ func (s *Session) GetAllMessages() []Message {
 }
 
 func (s *Session) GetLastAssistantMessageContent() string {
-	for i := len(s.Messages) - 1; i >= 0; i-- {
-		if s.Messages[i].Message.Message.Role == chat.MessageRoleAssistant {
-			return strings.TrimSpace(s.Messages[i].Message.Message.Content)
+	messages := s.GetAllMessages()
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Message.Role == chat.MessageRoleAssistant {
+			return strings.TrimSpace(messages[i].Message.Content)
 		}
 	}
 	return ""
