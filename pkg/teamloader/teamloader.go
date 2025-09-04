@@ -13,6 +13,7 @@ import (
 	"github.com/docker/cagent/pkg/config"
 	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/environment"
+	"github.com/docker/cagent/pkg/gateway"
 	"github.com/docker/cagent/pkg/memory"
 	"github.com/docker/cagent/pkg/memory/database/sqlite"
 	"github.com/docker/cagent/pkg/model/provider"
@@ -285,11 +286,30 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 				args = append(args, "--config="+file.Name())
 			}
 
-			// Isolate ourselves from the global MCP Gateway config by always using the docker MCP catalog.
-			// This improves shareability of agent configs.
-			args = append(args, "--catalog=https://desktop.docker.com/mcp/catalog/v2/catalog.yaml")
+			// Isolate ourselves from the MCP Toolkit config by always using the Docker MCP catalog.
+			// This improves shareability of agents.
+			args = append(args, "--catalog="+gateway.DockerCatalogURL)
 
-			// TODO: the MCP Gateway doesn't know how to read secrets from env variables.
+			// Check which env vars are required to configure the MCP server secrets.
+			requiredEnvs, err := gateway.RequiredEnvVars(ctx, serverName, gateway.DockerCatalogURL)
+			if err != nil {
+				return nil, fmt.Errorf("reading which secrets the MCP server needs: %w", err)
+			}
+
+			// Check that we have all required env vars set.
+			for _, requiredEnv := range requiredEnvs {
+				v := envProvider.Get(ctx, requiredEnv)
+				if v == "" {
+					// TODO(dga): The secret might be configured in the MCP Toolkit.
+					// so don't fail for now...
+					// return nil, fmt.Errorf("MCP server %q requires environment variable %q to be set. Either set it before running cagent or run cagent with --env-from-file", serverName, requiredEnv)
+				}
+			}
+
+			// We have all the secrets, let's create a file with all of them for the MCP Gateway
+			// ...
+
+			// TODO: `docker mcp` doesn't know how to read secrets from env variables.
 			// TODO(dga): If the server's docker image had the right annotations, we could run it directly with `docker run` or with the MCP gateway as a go library.
 			t = append(t, mcp.NewToolsetCommand("docker", args, env, toolset.Tools, cleanUp))
 
