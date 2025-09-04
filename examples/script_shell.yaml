@@ -24,10 +24,10 @@ agents:
 
           github_user_repos:
             cmd: "curl -s https://api.github.com/users/$username/repos | jq '.[].name'"
-            description: "List Github repositories of the provided user"
+            description: "List GitHub repositories of the provided user"
             args:
               username:
-                description: "Github username to get the repository list for"
+                description: "GitHub username to get the repository list for"
                 type: "string"
 
 models:

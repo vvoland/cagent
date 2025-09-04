@@ -4,9 +4,9 @@ version: "1"
 agents:
   root:
     model: claude
-    description: "Github Agent - Help with Github using MCP tools"
+    description: "GitHub Agent - Help with GitHub using MCP tools"
     instruction: |
-      You are a helpful assistant that can help with all things Github by leveraging Github MCP tools
+      You are a helpful assistant that can help with all things GitHub by leveraging GitHub MCP tools
     toolsets:
       - type: mcp
         ref: docker:github-official
