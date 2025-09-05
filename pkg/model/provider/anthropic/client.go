@@ -225,9 +225,9 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 
 								// Create image block using raw JSON approach
 								// Based on: https://docs.anthropic.com/en/api/messages-vision
-								imageBlockJSON := map[string]interface{}{
+								imageBlockJSON := map[string]any{
 									"type": "image",
-									"source": map[string]interface{}{
+									"source": map[string]any{
 										"type":       "base64",
 										"media_type": mediaType,
 										"data":       base64Data,

@@ -96,7 +96,7 @@ func (t *ScriptShellTool) Tools(context.Context) ([]tools.Tool, error) {
 }
 
 func (t *ScriptShellTool) execute(ctx context.Context, toolConfig *latest.ScriptShellToolConfig, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var params map[string]interface{}
+	var params map[string]any
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
 		return nil, fmt.Errorf("invalid arguments: %w", err)
 	}

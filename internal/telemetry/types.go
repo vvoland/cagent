@@ -12,7 +12,7 @@ import (
 // StructuredEvent represents a type-safe telemetry event with structured properties
 type StructuredEvent interface {
 	GetEventType() EventType
-	ToStructuredProperties() interface{}
+	ToStructuredProperties() any
 }
 
 // Simplified event system - event types are now just strings in the Event.Event field
@@ -33,13 +33,13 @@ type EventPayload struct {
 	EventTimestamp int64     `json:"event_timestamp"`
 	Source         string    `json:"source"`
 
-	Properties map[string]interface{} `json:"properties,omitempty"`
+	Properties map[string]any `json:"properties,omitempty"`
 }
 
 // EventWithContext wraps an event with its context for async processing
 type EventWithContext struct {
 	eventName  string
-	properties map[string]interface{}
+	properties map[string]any
 }
 
 // COMMAND EVENTS
@@ -64,7 +64,7 @@ func (e *CommandEvent) GetEventType() EventType {
 	return EventTypeCommand
 }
 
-func (e *CommandEvent) ToStructuredProperties() interface{} {
+func (e *CommandEvent) ToStructuredProperties() any {
 	return CommandPayload{
 		Action:    e.Action,
 		Args:      e.Args,
@@ -101,7 +101,7 @@ func (e *ToolEvent) GetEventType() EventType {
 	return EventTypeTool
 }
 
-func (e *ToolEvent) ToStructuredProperties() interface{} {
+func (e *ToolEvent) ToStructuredProperties() any {
 	return ToolPayload{
 		Action:     e.Action,
 		SessionID:  e.SessionID,
@@ -143,7 +143,7 @@ func (e *TokenEvent) GetEventType() EventType {
 	return EventTypeToken
 }
 
-func (e *TokenEvent) ToStructuredProperties() interface{} {
+func (e *TokenEvent) ToStructuredProperties() any {
 	return TokenPayload{
 		Action:       e.Action,
 		SessionID:    e.SessionID,
@@ -195,7 +195,7 @@ func (e *SessionStartEvent) GetEventType() EventType {
 	return EventTypeSession
 }
 
-func (e *SessionStartEvent) ToStructuredProperties() interface{} {
+func (e *SessionStartEvent) ToStructuredProperties() any {
 	return SessionStartPayload{
 		Action:    "start",
 		SessionID: e.SessionID,
@@ -239,7 +239,7 @@ func (e *SessionEndEvent) GetEventType() EventType {
 	return EventTypeSession
 }
 
-func (e *SessionEndEvent) ToStructuredProperties() interface{} {
+func (e *SessionEndEvent) ToStructuredProperties() any {
 	return SessionEndPayload{
 		Action:       "end",
 		SessionID:    e.SessionID,

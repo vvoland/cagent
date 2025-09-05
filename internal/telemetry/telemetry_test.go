@@ -611,14 +611,14 @@ func TestAllEventTypes(t *testing.T) {
 		}
 
 		// Verify request body structure
-		var requestBody map[string]interface{}
+		var requestBody map[string]any
 		if err := json.Unmarshal(bodies[i], &requestBody); err != nil {
 			t.Errorf("Request %d: Failed to unmarshal request body: %v", i, err)
 			continue
 		}
 
 		// Verify it has records array structure
-		records, ok := requestBody["records"].([]interface{})
+		records, ok := requestBody["records"].([]any)
 		if !ok {
 			t.Errorf("Request %d: Expected 'records' array in request body", i)
 			continue
@@ -629,13 +629,13 @@ func TestAllEventTypes(t *testing.T) {
 		}
 
 		// Verify the event structure
-		record := records[0].(map[string]interface{})
+		record := records[0].(map[string]any)
 		if eventType, ok := record["event"].(string); !ok || eventType == "" {
 			t.Errorf("Request %d: Expected non-empty event type, got %v", i, record["event"])
 		}
 
 		// Verify properties exist
-		if _, ok := record["properties"].(map[string]interface{}); !ok {
+		if _, ok := record["properties"].(map[string]any); !ok {
 			t.Errorf("Request %d: Expected properties object in event", i)
 		}
 	}
@@ -862,13 +862,13 @@ func TestHTTPRequestVerification(t *testing.T) {
 			t.Fatal("Expected request body to be captured")
 		}
 
-		var requestBody map[string]interface{}
+		var requestBody map[string]any
 		if err := json.Unmarshal(bodies[0], &requestBody); err != nil {
 			t.Fatalf("Failed to unmarshal request body: %v", err)
 		}
 
 		// Verify it has records array structure
-		records, ok := requestBody["records"].([]interface{})
+		records, ok := requestBody["records"].([]any)
 		if !ok {
 			t.Fatal("Expected 'records' array in request body")
 		}
@@ -877,13 +877,13 @@ func TestHTTPRequestVerification(t *testing.T) {
 		}
 
 		// Verify the event structure
-		record := records[0].(map[string]interface{})
+		record := records[0].(map[string]any)
 		if record["event"] != "command" {
 			t.Errorf("Expected event type 'command', got %v", record["event"])
 		}
 
 		// Verify properties contain the command data
-		properties, ok := record["properties"].(map[string]interface{})
+		properties, ok := record["properties"].(map[string]any)
 		if !ok {
 			t.Fatal("Expected properties object in event")
 		}

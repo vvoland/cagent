@@ -108,15 +108,15 @@ func saveUserUUID(newUUID string) error {
 	return os.WriteFile(uuidFile, []byte(newUUID), 0o600)
 }
 
-// structToMap converts a struct to map[string]interface{} using JSON marshaling
+// structToMap converts a struct to map[string]any using JSON marshaling
 // This automatically handles all fields and respects JSON tags (including omitempty)
-func structToMap(v interface{}) (map[string]interface{}, error) {
+func structToMap(v any) (map[string]any, error) {
 	data, err := json.Marshal(v)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal struct: %w", err)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	err = json.Unmarshal(data, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal to map: %w", err)

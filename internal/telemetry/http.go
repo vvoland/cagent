@@ -11,11 +11,11 @@ import (
 )
 
 // createEvent creates an EventPayload struct from eventType and properties
-func (tc *Client) createEvent(eventName string, properties map[string]interface{}) EventPayload {
+func (tc *Client) createEvent(eventName string, properties map[string]any) EventPayload {
 	osInfo, _, osLanguage := getSystemInfo()
 
 	// Create a new properties map that includes both user properties and system metadata
-	allProperties := make(map[string]interface{})
+	allProperties := make(map[string]any)
 
 	// Copy user-provided properties first
 	for k, v := range properties {
@@ -71,7 +71,7 @@ func (tc *Client) sendEvent(event *EventPayload) {
 	// Event processing (OpenTelemetry tracing handled in run.go)
 
 	// Log the event
-	logArgs := []interface{}{
+	logArgs := []any{
 		"event", event.Event,
 		"event_timestamp", event.EventTimestamp,
 		"source", event.Source,
@@ -98,8 +98,8 @@ func (tc *Client) sendEvent(event *EventPayload) {
 // performHTTPRequest handles the actual HTTP request to the telemetry API
 func (tc *Client) performHTTPRequest(event *EventPayload) error {
 	// Wrap event in records array to match MarlinRequest format
-	requestBody := map[string]interface{}{
-		"records": []interface{}{event},
+	requestBody := map[string]any{
+		"records": []any{event},
 	}
 
 	// Serialize request to JSON
