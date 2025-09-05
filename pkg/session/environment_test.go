@@ -20,7 +20,7 @@ func TestGetEnvironmentInfo(t *testing.T) {
 			name: "with git repo",
 			setupFunc: func() string {
 				tmpDir := t.TempDir()
-				require.NoError(t, os.Mkdir(filepath.Join(tmpDir, ".git"), 0755))
+				require.NoError(t, os.Mkdir(filepath.Join(tmpDir, ".git"), 0o755))
 				return tmpDir
 			},
 			expectGit: true,
@@ -80,7 +80,7 @@ func TestIsGitRepo(t *testing.T) {
 			name: "git folder",
 			setupFunc: func() string {
 				tmpDir := t.TempDir()
-				require.NoError(t, os.Mkdir(filepath.Join(tmpDir, ".git"), 0755))
+				require.NoError(t, os.Mkdir(filepath.Join(tmpDir, ".git"), 0o755))
 				return tmpDir
 			},
 		},
@@ -88,7 +88,7 @@ func TestIsGitRepo(t *testing.T) {
 			name: "git file",
 			setupFunc: func() string {
 				tmpDir := t.TempDir()
-				require.NoError(t, os.WriteFile(filepath.Join(tmpDir, ".git"), []byte("gitdir: /some/other/path"), 0644))
+				require.NoError(t, os.WriteFile(filepath.Join(tmpDir, ".git"), []byte("gitdir: /some/other/path"), 0o644))
 				return tmpDir
 			},
 		},

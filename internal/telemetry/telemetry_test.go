@@ -203,7 +203,6 @@ func TestCommandTracking(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 		return nil
 	})
-
 	if err != nil {
 		t.Fatalf("Command execution failed: %v", err)
 	}
@@ -662,7 +661,6 @@ func TestTrackServerStart(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 		return nil
 	})
-
 	if err != nil {
 		t.Fatalf("Server execution failed: %v", err)
 	}
