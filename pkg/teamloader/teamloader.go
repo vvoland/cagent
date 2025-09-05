@@ -256,17 +256,17 @@ func getToolsForAgent(a *latest.AgentConfig, parentDir string, sharedTools map[s
 			serverName := strings.TrimPrefix(toolset.Ref, "docker:")
 			args := []string{"mcp", "gateway", "run", "--servers=" + serverName}
 
+			var cleanUp func() error
 			if toolset.Config != nil {
-				serverConfig := map[string]any{
-					serverName: toolset.Config,
-				}
-
 				file, err := os.CreateTemp("", "mcp-config-*.yaml")
 				if err != nil {
 					return nil, fmt.Errorf("failed to create temp file: %w", err)
 				}
-				// TODO(dga): Delete the temp file after use.
+				cleanUp = func() error { return os.Remove(file.Name()) }
 
+				serverConfig := map[string]any{
+					serverName: toolset.Config,
+				}
 				if err := yaml.NewEncoder(file).Encode(serverConfig); err != nil {
 					return nil, fmt.Errorf("failed to write config to temp file: %w", err)
 				}
@@ -279,10 +279,10 @@ func getToolsForAgent(a *latest.AgentConfig, parentDir string, sharedTools map[s
 			args = append(args, "--catalog=https://desktop.docker.com/mcp/catalog/v2/catalog.yaml")
 
 			// TODO(dga): If the server's docker image had the right annotations, we could run it directly with `docker run` or with the MCP gateway as a go library.
-			t = append(t, mcp.NewToolsetCommand("docker", args, os.Environ(), toolset.Tools))
+			t = append(t, mcp.NewToolsetCommand("docker", args, os.Environ(), toolset.Tools, cleanUp))
 
 		case toolset.Type == "mcp" && toolset.Command != "":
-			t = append(t, mcp.NewToolsetCommand(toolset.Command, toolset.Args, os.Environ(), toolset.Tools))
+			t = append(t, mcp.NewToolsetCommand(toolset.Command, toolset.Args, os.Environ(), toolset.Tools, nil))
 
 		case toolset.Type == "mcp" && toolset.Remote.URL != "":
 			// Expand headers.
