@@ -200,10 +200,6 @@ func (c *Client) CreateChatCompletionStream(
 		},
 	}
 
-	if c.config.ParallelToolCalls != nil {
-		request.ParallelToolCalls = *c.config.ParallelToolCalls
-	}
-
 	if c.config.MaxTokens > 0 {
 		if !isResponsesOnlyModel(c.config.Model) {
 			request.MaxTokens = c.config.MaxTokens
@@ -231,6 +227,9 @@ func (c *Client) CreateChatCompletionStream(
 				request.Tools[i].Function.Parameters = json.RawMessage("{}")
 			}
 			slog.Debug("Added tool to OpenAI request", "tool_name", tool.Function.Name)
+		}
+		if c.config.ParallelToolCalls != nil {
+			request.ParallelToolCalls = *c.config.ParallelToolCalls
 		}
 	}
 
@@ -284,9 +283,7 @@ func (c *Client) CreateChatCompletion(
 		}
 	}
 
-	if c.config.ParallelToolCalls != nil {
-		request.ParallelToolCalls = *c.config.ParallelToolCalls
-	}
+	// Do not set ParallelToolCalls when there are no tools; it can break streaming
 
 	// Build a fresh client per request when using the gateway
 	client := c.client

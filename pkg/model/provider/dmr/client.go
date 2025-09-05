@@ -290,11 +290,6 @@ func (c *Client) CreateChatCompletionStream(
 		return nil, errors.New("at least one message is required")
 	}
 
-	parallelToolCalls := true
-	if c.config.ParallelToolCalls != nil {
-		parallelToolCalls = *c.config.ParallelToolCalls
-	}
-
 	request := openai.ChatCompletionRequest{
 		Model:            c.config.Model,
 		Messages:         convertMessages(messages),
@@ -306,7 +301,11 @@ func (c *Client) CreateChatCompletionStream(
 		StreamOptions: &openai.StreamOptions{
 			IncludeUsage: true,
 		},
-		ParallelToolCalls: parallelToolCalls,
+	}
+
+	// Only set ParallelToolCalls when tools are present; matches OpenAI provider behavior
+	if len(requestTools) > 0 && c.config.ParallelToolCalls != nil {
+		request.ParallelToolCalls = *c.config.ParallelToolCalls
 	}
 
 	if c.config.MaxTokens > 0 {
@@ -337,6 +336,9 @@ func (c *Client) CreateChatCompletionStream(
 			}
 			slog.Debug("Added tool to DMR request", "tool_name", tool.Function.Name)
 		}
+		if c.config.ParallelToolCalls != nil {
+			request.ParallelToolCalls = *c.config.ParallelToolCalls
+		}
 	}
 
 	// Log the request in JSON format for debugging
@@ -362,15 +364,9 @@ func (c *Client) CreateChatCompletion(
 ) (string, error) {
 	slog.Debug("Creating DMR chat completion", "model", c.config.Model, "message_count", len(messages), "base_url", c.baseURL)
 
-	parallelToolCalls := true
-	if c.config.ParallelToolCalls != nil {
-		parallelToolCalls = *c.config.ParallelToolCalls
-	}
-
 	request := openai.ChatCompletionRequest{
-		Model:             c.config.Model,
-		Messages:          convertMessages(messages),
-		ParallelToolCalls: parallelToolCalls,
+		Model:    c.config.Model,
+		Messages: convertMessages(messages),
 	}
 
 	response, err := c.client.CreateChatCompletion(ctx, request)
