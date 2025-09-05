@@ -13,7 +13,6 @@ import (
 	"github.com/docker/cagent/pkg/config"
 	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/environment"
-	"github.com/docker/cagent/pkg/gateway"
 	"github.com/docker/cagent/pkg/memory"
 	"github.com/docker/cagent/pkg/memory/database/sqlite"
 	"github.com/docker/cagent/pkg/model/provider"
@@ -22,7 +21,6 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tools/mcp"
-	"gopkg.in/yaml.v3"
 )
 
 // LoadTeams loads all agent teams from the given directory or file path
@@ -265,56 +263,10 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 			t = append(t, builtin.NewFilesystemTool([]string{wd}, builtin.WithAllowedTools(toolset.Tools)))
 
 		case toolset.Type == "mcp" && toolset.Ref != "":
-			serverName := strings.TrimPrefix(toolset.Ref, "docker:")
-			args := []string{"mcp", "gateway", "run", "--servers=" + serverName}
-
-			var cleanUp func() error
-			if toolset.Config != nil {
-				file, err := os.CreateTemp("", "mcp-config-*.yaml")
-				if err != nil {
-					return nil, fmt.Errorf("failed to create temp file: %w", err)
-				}
-				cleanUp = func() error { return os.Remove(file.Name()) }
-
-				serverConfig := map[string]any{
-					serverName: toolset.Config,
-				}
-				if err := yaml.NewEncoder(file).Encode(serverConfig); err != nil {
-					return nil, fmt.Errorf("failed to write config to temp file: %w", err)
-				}
-
-				args = append(args, "--config="+file.Name())
-			}
-
-			// Isolate ourselves from the MCP Toolkit config by always using the Docker MCP catalog.
-			// This improves shareability of agents.
-			args = append(args, "--catalog="+gateway.DockerCatalogURL)
-
-			// Check which env vars are required to configure the MCP server secrets.
-			requiredEnvs, err := gateway.RequiredEnvVars(ctx, serverName, gateway.DockerCatalogURL)
-			if err != nil {
-				return nil, fmt.Errorf("reading which secrets the MCP server needs: %w", err)
-			}
-
-			// Check that we have all required env vars set.
-			for _, requiredEnv := range requiredEnvs {
-				v := envProvider.Get(ctx, requiredEnv)
-				if v == "" {
-					// TODO(dga): The secret might be configured in the MCP Toolkit.
-					// so don't fail for now...
-					// return nil, fmt.Errorf("MCP server %q requires environment variable %q to be set. Either set it before running cagent or run cagent with --env-from-file", serverName, requiredEnv)
-				}
-			}
-
-			// We have all the secrets, let's create a file with all of them for the MCP Gateway
-			// ...
-
-			// TODO: `docker mcp` doesn't know how to read secrets from env variables.
-			// TODO(dga): If the server's docker image had the right annotations, we could run it directly with `docker run` or with the MCP gateway as a go library.
-			t = append(t, mcp.NewToolsetCommand("docker", args, env, toolset.Tools, cleanUp))
+			t = append(t, mcp.NewGatewayToolset(toolset.Ref, toolset.Config, toolset.Tools, envProvider))
 
 		case toolset.Type == "mcp" && toolset.Command != "":
-			t = append(t, mcp.NewToolsetCommand(toolset.Command, toolset.Args, env, toolset.Tools, nil))
+			t = append(t, mcp.NewToolsetCommand(toolset.Command, toolset.Args, env, toolset.Tools))
 
 		case toolset.Type == "mcp" && toolset.Remote.URL != "":
 			// TODO: the tool's config can set env variables that could be used in headers.

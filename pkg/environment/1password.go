@@ -11,7 +11,7 @@ import (
 )
 
 type OnePasswordProvider struct {
-	secrets onepassword.SecretsAPI
+	opToken string
 }
 
 func NewOnePasswordProvider(ctx context.Context) (*OnePasswordProvider, error) {
@@ -20,7 +20,7 @@ func NewOnePasswordProvider(ctx context.Context) (*OnePasswordProvider, error) {
 		return nil, errors.New("OP_SERVICE_ACCOUNT_TOKEN environment variable is required for 1Password integration")
 	}
 
-	client, err := onepassword.NewClient(ctx,
+	_, err := onepassword.NewClient(ctx,
 		onepassword.WithServiceAccountToken(opToken),
 		onepassword.WithIntegrationInfo("cagent 1Password Integration", "v1.0.0"),
 	)
@@ -29,17 +29,22 @@ func NewOnePasswordProvider(ctx context.Context) (*OnePasswordProvider, error) {
 	}
 
 	return &OnePasswordProvider{
-		secrets: client.Secrets(),
+		opToken: opToken,
 	}, nil
 }
 
 func (p *OnePasswordProvider) Get(ctx context.Context, name string) string {
-	path := "op://cagent/" + name + "/password"
-	slog.Debug("Looking for environment variable in 1Password", "path", path)
+	// This thing is not thread-safe, so we create a new client each time (for now)
+	// even though it's probably too slow.
+	client, _ := onepassword.NewClient(ctx,
+		onepassword.WithServiceAccountToken(p.opToken),
+		onepassword.WithIntegrationInfo("cagent 1Password Integration", "v1.0.0"),
+	)
 
-	secret, err := p.secrets.Resolve(ctx, "op://cagent/"+name+"/password")
+	secret, err := client.Secrets().Resolve(ctx, "op://cagent/"+name+"/password")
 	if err != nil {
 		// Ignore error
+		slog.Error("Failed to find secret in 1Password", "error", err)
 		return ""
 	}
 

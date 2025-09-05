@@ -45,6 +45,7 @@ func (p *KeychainProvider) Get(ctx context.Context, name string) string {
 	err := cmd.Run()
 	if err != nil {
 		// Ignore error
+		slog.Error("Failed to find secret in keychain", "error", err)
 		return ""
 	}
 

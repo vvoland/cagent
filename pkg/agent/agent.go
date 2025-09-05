@@ -98,7 +98,7 @@ func (a *Agent) Tools(ctx context.Context) ([]tools.Tool, error) {
 	for _, toolSet := range a.toolsets {
 		ta, err := toolSet.Tools(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get tools: %w", err)
+			return nil, err
 		}
 		agentTools = append(agentTools, ta...)
 	}

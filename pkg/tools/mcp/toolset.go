@@ -13,20 +13,18 @@ import (
 type Toolset struct {
 	c          *Client
 	toolFilter []string
-	cleanup    func() error
 }
 
 // Make sure the MCP Toolset always implements _our_ ToolSet interface
 var _ tools.ToolSet = (*Toolset)(nil)
 
 // NewToolsetCommand creates a new MCP toolset from a command.
-func NewToolsetCommand(command string, args, env, toolFilter []string, cleanup func() error) *Toolset {
+func NewToolsetCommand(command string, args, env, toolFilter []string) *Toolset {
 	slog.Debug("Creating MCP toolset", "command", command, "args", args, "toolFilter", toolFilter)
 
 	return &Toolset{
 		c:          NewStdioClient(command, args, env),
 		toolFilter: toolFilter,
-		cleanup:    cleanup,
 	}
 }
 
@@ -87,12 +85,6 @@ func (t *Toolset) Stop() error {
 	if err != nil {
 		slog.Error("Failed to stop MCP toolset", "error", err)
 		return err
-	}
-	if t.cleanup != nil {
-		if err := t.cleanup(); err != nil {
-			slog.Error("Failed to cleanup MCP toolset", "error", err)
-			return err
-		}
 	}
 	slog.Debug("Stopped MCP toolset successfully")
 	return nil

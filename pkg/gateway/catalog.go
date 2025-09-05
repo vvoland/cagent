@@ -11,7 +11,7 @@ import (
 
 const DockerCatalogURL = "https://desktop.docker.com/mcp/catalog/v2/catalog.yaml"
 
-func RequiredEnvVars(ctx context.Context, serverName, catalogURL string) ([]string, error) {
+func RequiredEnvVars(ctx context.Context, serverName, catalogURL string) ([]Secret, error) {
 	catalog, err := readCatalog(ctx, catalogURL)
 	if err != nil {
 		return nil, err
@@ -22,12 +22,7 @@ func RequiredEnvVars(ctx context.Context, serverName, catalogURL string) ([]stri
 		return nil, fmt.Errorf("MCP server %q not found in catalog %q", serverName, catalogURL)
 	}
 
-	var secrets []string
-	for _, secret := range server.Secrets {
-		secrets = append(secrets, secret.Env)
-	}
-
-	return secrets, nil
+	return server.Secrets, nil
 }
 
 func readCatalog(ctx context.Context, url string) (Catalog, error) {
