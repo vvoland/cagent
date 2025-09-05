@@ -141,6 +141,12 @@ func StreamCreateAgent(ctx context.Context, baseDir, prompt string, runConfig la
 		fmt.Printf("Using default model: %s\n", modelName)
 	}
 
+	// if the user provided a model override, lets use that by default for DMR
+	// in the generated agentfile
+	if providerName == "dmr" && modelName == "" {
+		defaultModels["dmr"] = modelName
+	}
+
 	// If not using a models gateway, avoid selecting a provider the user can't run
 	var usableProviders []string
 	if runConfig.ModelsGateway == "" {
@@ -157,12 +163,18 @@ func StreamCreateAgent(ctx context.Context, baseDir, prompt string, runConfig la
 		usableProviders = append(usableProviders, "dmr")
 	}
 
+	// Use 16k for DMR to limit memory costs
+	maxTokens := 64000
+	if providerName == "dmr" {
+		maxTokens = 16000
+	}
+
 	llm, err := provider.New(
 		ctx,
 		&latest.ModelConfig{
 			Provider:  providerName,
 			Model:     modelName,
-			MaxTokens: 64000,
+			MaxTokens: maxTokens,
 		},
 		environment.NewDefaultProvider(),
 		options.WithGateway(runConfig.ModelsGateway),
@@ -179,13 +191,17 @@ func StreamCreateAgent(ctx context.Context, baseDir, prompt string, runConfig la
 	// Provide soft guidance to prefer the selected providers
 	instructions := agentBuilderInstructions + "\n\nPreferred model providers to use: " + strings.Join(usableProviders, ", ") + ". You must always use one or more of the following model configurations: \n"
 	for _, provider := range usableProviders {
+		suggestedMaxTokens := 64000
+		if provider == "dmr" {
+			suggestedMaxTokens = 16000
+		}
 		instructions += fmt.Sprintf(`
 		version: "1"
 		models:
 			%s:
 				provider: %s
 				model: %s
-				max_tokens: 64000\n`, provider, provider, defaultModels[provider])
+				max_tokens: %d\n`, provider, provider, defaultModels[provider], suggestedMaxTokens)
 	}
 
 	newTeam := team.New(
