@@ -50,6 +50,7 @@ $ cagent api config.yaml --port 8080
 
 # Project Management
 $ cagent new                          # Initialize new project
+$ cagent new --model openai/gpt-5-mini --max-tokens 32000  # Override max tokens during generation
 $ cagent eval config.yaml             # Run evaluations
 $ cagent pull docker.io/user/agent    # Pull agent from registry
 $ cagent push docker.io/user/agent    # Push agent to registry

@@ -13,7 +13,10 @@ import (
 	"github.com/docker/cagent/pkg/runtime"
 )
 
-var modelParam string
+var (
+	modelParam     string
+	maxTokensParam int
+)
 
 // Cmd creates a new command to create a new agent configuration
 func NewNewCmd() *cobra.Command {
@@ -90,7 +93,7 @@ func NewNewCmd() *cobra.Command {
 				fmt.Println()
 			}
 
-			out, err := creator.StreamCreateAgent(ctx, ".", prompt, runConfig, modelProvider, model)
+			out, err := creator.StreamCreateAgent(ctx, ".", prompt, runConfig, modelProvider, model, maxTokensParam)
 			if err != nil {
 				return err
 			}
@@ -131,6 +134,7 @@ func NewNewCmd() *cobra.Command {
 	}
 	addGatewayFlags(cmd)
 	cmd.PersistentFlags().StringVar(&modelParam, "model", "", "Model to use, optionally as provider/model where provider is one of: anthropic, openai, google, dmr. If omitted, provider is auto-selected based on available credentials or gateway")
+	cmd.PersistentFlags().IntVar(&maxTokensParam, "max-tokens", 0, "Override max_tokens for the selected model (0 = default)")
 
 	return cmd
 }

@@ -120,7 +120,7 @@ func CreateAgent(ctx context.Context, baseDir, prompt string, runConfig latest.R
 	return messages[len(messages)-1].Message.Content, fsToolset.path, nil
 }
 
-func StreamCreateAgent(ctx context.Context, baseDir, prompt string, runConfig latest.RuntimeConfig, providerName, modelNameOverride string) (<-chan runtime.Event, error) {
+func StreamCreateAgent(ctx context.Context, baseDir, prompt string, runConfig latest.RuntimeConfig, providerName, modelNameOverride string, maxTokensOverride int) (<-chan runtime.Event, error) {
 	defaultModels := map[string]string{
 		"openai":    "gpt-5-mini",
 		"anthropic": "claude-sonnet-4-0",
@@ -167,6 +167,9 @@ func StreamCreateAgent(ctx context.Context, baseDir, prompt string, runConfig la
 	maxTokens := 64000
 	if providerName == "dmr" {
 		maxTokens = 16000
+	}
+	if maxTokensOverride > 0 {
+		maxTokens = maxTokensOverride
 	}
 
 	llm, err := provider.New(
