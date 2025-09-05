@@ -62,13 +62,14 @@ type ScriptShellToolConfig struct {
 
 // Toolset represents a tool configuration
 type Toolset struct {
-	Type    string   `json:"type,omitempty" yaml:"type,omitempty"`
-	Ref     string   `json:"ref,omitempty" yaml:"ref,omitempty"`
-	Config  any      `json:"config,omitempty" yaml:"config,omitempty"`
-	Command string   `json:"command,omitempty" yaml:"command,omitempty"`
-	Remote  Remote   `json:"remote,omitempty" yaml:"remote,omitempty"`
-	Args    []string `json:"args,omitempty" yaml:"args,omitempty"`
-	Tools   []string `json:"tools,omitempty" yaml:"tools,omitempty"`
+	Type    string            `json:"type,omitempty" yaml:"type,omitempty"`
+	Ref     string            `json:"ref,omitempty" yaml:"ref,omitempty"`
+	Config  any               `json:"config,omitempty" yaml:"config,omitempty"`
+	Command string            `json:"command,omitempty" yaml:"command,omitempty"`
+	Remote  Remote            `json:"remote,omitempty" yaml:"remote,omitempty"`
+	Args    []string          `json:"args,omitempty" yaml:"args,omitempty"`
+	Tools   []string          `json:"tools,omitempty" yaml:"tools,omitempty"`
+	Env     map[string]string `json:"env,omitempty" yaml:"env,omitempty"`
 
 	// For the think tool
 	Shared bool `json:"shared,omitempty" yaml:"shared,omitempty"`

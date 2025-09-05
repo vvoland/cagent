@@ -130,7 +130,7 @@ func Load(ctx context.Context, path string, runConfig config.RuntimeConfig) (*te
 		if !ok {
 			return nil, fmt.Errorf("agent '%s' not found in configuration", name)
 		}
-		agentTools, err := getToolsForAgent(&a, parentDir, sharedTools, models[0])
+		agentTools, err := getToolsForAgent(ctx, &a, parentDir, sharedTools, models[0], env)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tools: %w", err)
 		}
@@ -184,7 +184,7 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 }
 
 // getToolsForAgent returns the tool definitions for an agent based on its configuration
-func getToolsForAgent(a *latest.AgentConfig, parentDir string, sharedTools map[string]tools.ToolSet, model provider.Provider) ([]tools.ToolSet, error) {
+func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir string, sharedTools map[string]tools.ToolSet, model provider.Provider, env environment.Provider) ([]tools.ToolSet, error) {
 	var t []tools.ToolSet
 
 	if len(a.SubAgents) > 0 {
@@ -278,17 +278,34 @@ func getToolsForAgent(a *latest.AgentConfig, parentDir string, sharedTools map[s
 			// This improves shareability of agent configs.
 			args = append(args, "--catalog=https://desktop.docker.com/mcp/catalog/v2/catalog.yaml")
 
+			envVars, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), env)
+			if err != nil {
+				return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
+			}
+
 			// TODO(dga): If the server's docker image had the right annotations, we could run it directly with `docker run` or with the MCP gateway as a go library.
-			t = append(t, mcp.NewToolsetCommand("docker", args, os.Environ(), toolset.Tools, cleanUp))
+			t = append(t, mcp.NewToolsetCommand("docker", args, envVars, toolset.Tools, cleanUp))
 
 		case toolset.Type == "mcp" && toolset.Command != "":
-			t = append(t, mcp.NewToolsetCommand(toolset.Command, toolset.Args, os.Environ(), toolset.Tools, nil))
+			envVars, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), env)
+			if err != nil {
+				return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
+			}
+
+			t = append(t, mcp.NewToolsetCommand(toolset.Command, toolset.Args, envVars, toolset.Tools, nil))
 
 		case toolset.Type == "mcp" && toolset.Remote.URL != "":
-			// Expand headers.
+			// TODO: the tool can have env variables too
+
+			// Expand env vars in headers.
 			headers := map[string]string{}
 			for k, v := range toolset.Remote.Headers {
-				headers[k] = environment.Expand(v, os.Environ())
+				expanded, err := environment.Expand(ctx, v, env)
+				if err != nil {
+					return nil, fmt.Errorf("failed to expand header '%s': %w", k, err)
+				}
+
+				headers[k] = expanded
 			}
 
 			mcpc, err := mcp.NewToolsetRemote(toolset.Remote.URL, toolset.Remote.TransportType, headers, toolset.Tools)

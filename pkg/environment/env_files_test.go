@@ -9,24 +9,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestExpand(t *testing.T) {
-	env := []string{"USER=alice", "HOME=/home/alice"}
+func TestExpandAll(t *testing.T) {
+	t.Setenv("USER", "alice")
+	t.Setenv("HOME", "/home/alice")
 
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"Hello $USER", "Hello alice"},
-		{"Your home is at $HOME", "Your home is at /home/alice"},
-		{"No variable here", "No variable here"},
-		{"$UNKNOWN_VAR should be empty", " should be empty"},
-	}
+	expanded, err := ExpandAll(t.Context(), []string{"Hello $USER", "Your home is at $HOME", "No variable here"}, NewOsEnvProvider())
 
-	for _, test := range tests {
-		result := Expand(test.input, env)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"Hello alice", "Your home is at /home/alice", "No variable here"}, expanded)
+}
 
-		assert.Equal(t, test.expected, result)
-	}
+func TestExpandAll_Error(t *testing.T) {
+	t.Setenv("UNKNOWN_VAR", "")
+
+	expanded, err := ExpandAll(t.Context(), []string{"$UNKNOWN_VAR"}, NewOsEnvProvider())
+
+	require.Error(t, err)
+	assert.Empty(t, expanded)
 }
 
 func TestAbsolutePath(t *testing.T) {
