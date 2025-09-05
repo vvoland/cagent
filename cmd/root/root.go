@@ -2,11 +2,11 @@ package root
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/docker/cagent/internal/config"
 	"github.com/docker/cagent/internal/telemetry"
@@ -86,7 +86,7 @@ func NewRootCmd() *cobra.Command {
 	// Add persistent debug flag available to all commands
 	cmd.PersistentFlags().BoolVarP(&debugMode, "debug", "d", false, "Enable debug logging")
 	cmd.PersistentFlags().BoolVarP(&enableOtel, "otel", "o", false, "Enable OpenTelemetry tracing")
-	cmd.PersistentFlags().StringVar(&logFilePath, "log-file", "", "Path to log file (default: ~/.cagent/cagent.log)")
+	cmd.PersistentFlags().StringVar(&logFilePath, "log-file", "", "Path to debug log file (default: ~/.cagent/cagent.debug.log; only used with --debug)")
 
 	cmd.AddCommand(NewVersionCmd())
 	cmd.AddCommand(NewRunCmd())
@@ -130,15 +130,32 @@ We collect anonymous usage data to help improve cagent. To disable:
 	}
 }
 
-// setupLogging configures slog to write to a file instead of stdout/stderr when using the TUI.
-// By default, it writes to <dataDir>/logs/cagent-<timestamp>.log. Users can override with --log-file.
+// setupLogging configures slog logging behavior.
+// When --debug is enabled, logs are written to a single file <dataDir>/cagent.debug.log (append mode),
+// or to the file specified by --log-file. When in the TUI, structured logs are suppressed if not in --debug mode
 func setupLogging(cmd *cobra.Command) error {
-	// Determine log file path
-	if logFilePath != "" {
-		path := logFilePath
+	level := slog.LevelInfo
+	if debugMode {
+		level = slog.LevelDebug
+	}
+
+	// Determine if TUI is enabled for the run command
+	useTUI := false
+	if cmd != nil && cmd.Name() == "run" {
+		if f := cmd.Flags().Lookup("tui"); f != nil {
+			if v, err := cmd.Flags().GetBool("tui"); err == nil {
+				useTUI = v
+			}
+		}
+	}
+
+	var writer io.Writer
+	if debugMode {
+		// Determine path from flag or default to <dataDir>/cagent.debug.log
+		path := strings.TrimSpace(logFilePath)
 		if path == "" {
 			dataDir := config.GetDataDir()
-			path = filepath.Join(dataDir, "cagent.log")
+			path = filepath.Join(dataDir, "cagent.debug.log")
 		} else {
 			if path == "~" || strings.HasPrefix(path, "~/") {
 				homeDir, err := os.UserHomeDir()
@@ -165,50 +182,21 @@ func setupLogging(cmd *cobra.Command) error {
 		}
 		logFile = f
 
-		// Configure slog default logger
-		level := slog.LevelInfo
-		if debugMode {
-			level = slog.LevelDebug
+		// In debug mode, write to file; mirror to stderr when not in TUI
+		if useTUI {
+			writer = f
+		} else {
+			writer = io.MultiWriter(f, os.Stderr)
 		}
-		slog.SetDefault(slog.New(slog.NewTextHandler(f, &slog.HandlerOptions{Level: level})))
-		return nil
+	} else {
+		// Non-debug: discard logs in TUI to keep interface clean, else stderr
+		if useTUI {
+			writer = io.Discard
+		} else {
+			writer = os.Stderr
+		}
 	}
 
-	// Else, decide based on TUI flag: file when TUI is enabled, stderr otherwise
-	useTUI := false
-	if cmd != nil && cmd.Name() == "run" {
-		if f := cmd.Flags().Lookup("tui"); f != nil {
-			if v, err := cmd.Flags().GetBool("tui"); err == nil {
-				useTUI = v
-			}
-		}
-	}
-	if useTUI {
-		dataDir := config.GetDataDir()
-		logsDir := filepath.Join(dataDir, "logs")
-		if err := os.MkdirAll(logsDir, 0o755); err != nil {
-			return err
-		}
-		timestamp := time.Now().Format("20060102-150405")
-		path := filepath.Join(logsDir, fmt.Sprintf("cagent-%s.log", timestamp))
-		f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o644)
-		if err != nil {
-			return err
-		}
-		logFile = f
-		level := slog.LevelInfo
-		if debugMode {
-			level = slog.LevelDebug
-		}
-		slog.SetDefault(slog.New(slog.NewTextHandler(f, &slog.HandlerOptions{Level: level})))
-		return nil
-	}
-
-	// Default to stderr
-	level := slog.LevelInfo
-	if debugMode {
-		level = slog.LevelDebug
-	}
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})))
+	slog.SetDefault(slog.New(slog.NewTextHandler(writer, &slog.HandlerOptions{Level: level})))
 	return nil
 }
