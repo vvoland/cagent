@@ -76,7 +76,7 @@ func FindAgentPaths(agentsPathOrDirectory string) ([]string, error) {
 	return agents, nil
 }
 
-func Load(ctx context.Context, path string, runConfig config.RuntimeConfig) (*team.Team, error) {
+func Load(ctx context.Context, path string, runtimeConfig config.RuntimeConfig) (*team.Team, error) {
 	parentDir := filepath.Dir(path)
 	cfg, err := config.LoadConfigSecure(path, parentDir)
 	if err != nil {
@@ -85,12 +85,12 @@ func Load(ctx context.Context, path string, runConfig config.RuntimeConfig) (*te
 
 	// Make env file paths absolute relative to the agent config file.
 	fileName := filepath.Base(path)
-	runConfig.EnvFiles, err = environment.AbsolutePaths(parentDir, runConfig.EnvFiles)
+	runtimeConfig.EnvFiles, err = environment.AbsolutePaths(parentDir, runtimeConfig.EnvFiles)
 	if err != nil {
 		return nil, err
 	}
 
-	envFilesProviders, err := environment.NewEnvFilesProvider(runConfig.EnvFiles)
+	envFilesProviders, err := environment.NewEnvFilesProvider(runtimeConfig.EnvFiles)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read env files: %w", err)
 	}
@@ -111,7 +111,7 @@ func Load(ctx context.Context, path string, runConfig config.RuntimeConfig) (*te
 	for name := range cfg.Agents {
 		agentConfig := cfg.Agents[name]
 
-		models, err := getModelsForAgent(ctx, cfg, &agentConfig, env, runConfig)
+		models, err := getModelsForAgent(ctx, cfg, &agentConfig, env, runtimeConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get models: %w", err)
 		}
