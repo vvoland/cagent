@@ -19,7 +19,7 @@ func TestNewShellTool(t *testing.T) {
 
 	// Test with SHELL env var set
 	os.Setenv("SHELL", "/bin/bash")
-	tool := NewShellTool()
+	tool := NewShellTool(nil)
 
 	assert.NotNil(t, tool)
 	assert.NotNil(t, tool.handler)
@@ -27,7 +27,7 @@ func TestNewShellTool(t *testing.T) {
 
 	// Test with no SHELL env var
 	os.Setenv("SHELL", "")
-	tool = NewShellTool()
+	tool = NewShellTool(nil)
 
 	assert.NotNil(t, tool)
 	assert.NotNil(t, tool.handler)
@@ -35,7 +35,7 @@ func TestNewShellTool(t *testing.T) {
 }
 
 func TestShellTool_Tools(t *testing.T) {
-	tool := NewShellTool()
+	tool := NewShellTool(nil)
 
 	tools, err := tool.Tools(t.Context())
 
@@ -60,7 +60,7 @@ func TestShellTool_Tools(t *testing.T) {
 }
 
 func TestShellTool_DisplayNames(t *testing.T) {
-	tool := NewShellTool()
+	tool := NewShellTool(nil)
 
 	all, err := tool.Tools(t.Context())
 	require.NoError(t, err)
@@ -73,7 +73,7 @@ func TestShellTool_DisplayNames(t *testing.T) {
 
 func TestShellTool_HandlerEcho(t *testing.T) {
 	// This is a simple test that should work on most systems
-	tool := NewShellTool()
+	tool := NewShellTool(nil)
 
 	// Get handler from tool
 	tls, err := tool.Tools(t.Context())
@@ -109,7 +109,7 @@ func TestShellTool_HandlerEcho(t *testing.T) {
 
 func TestShellTool_HandlerWithCwd(t *testing.T) {
 	// This test verifies the cwd parameter works
-	tool := NewShellTool()
+	tool := NewShellTool(nil)
 
 	// Get handler from tool
 	tls, err := tool.Tools(t.Context())
@@ -150,7 +150,7 @@ func TestShellTool_HandlerWithCwd(t *testing.T) {
 
 func TestShellTool_HandlerError(t *testing.T) {
 	// This test verifies error handling
-	tool := NewShellTool()
+	tool := NewShellTool(nil)
 
 	// Get handler from tool
 	tls, err := tool.Tools(t.Context())
@@ -185,7 +185,7 @@ func TestShellTool_HandlerError(t *testing.T) {
 }
 
 func TestShellTool_InvalidArguments(t *testing.T) {
-	tool := NewShellTool()
+	tool := NewShellTool(nil)
 
 	// Get handler from tool
 	tls, err := tool.Tools(t.Context())
@@ -208,7 +208,7 @@ func TestShellTool_InvalidArguments(t *testing.T) {
 }
 
 func TestShellTool_StartStop(t *testing.T) {
-	tool := NewShellTool()
+	tool := NewShellTool(nil)
 
 	// Test Start method
 	err := tool.Start(t.Context())

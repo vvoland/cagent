@@ -21,6 +21,7 @@ var _ tools.ToolSet = (*ShellTool)(nil)
 type shellHandler struct {
 	shell           string
 	shellArgsPrefix []string
+	env             []string
 }
 
 func (h *shellHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
@@ -34,7 +35,7 @@ func (h *shellHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*
 	}
 
 	cmd := exec.CommandContext(ctx, h.shell, append(h.shellArgsPrefix, params.Cmd)...)
-	cmd.Env = os.Environ()
+	cmd.Env = h.env
 	if params.Cwd != "" {
 		cmd.Dir = params.Cwd
 	} else {
@@ -56,7 +57,7 @@ func (h *shellHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*
 	}, nil
 }
 
-func NewShellTool() *ShellTool {
+func NewShellTool(env []string) *ShellTool {
 	var shell string
 	var argsPrefix []string
 
@@ -90,6 +91,7 @@ func NewShellTool() *ShellTool {
 		handler: &shellHandler{
 			shell:           shell,
 			shellArgsPrefix: argsPrefix,
+			env:             env,
 		},
 	}
 }

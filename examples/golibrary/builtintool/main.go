@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/docker/cagent/pkg/agent"
 	latest "github.com/docker/cagent/pkg/config/v2"
@@ -36,7 +37,7 @@ func main() {
 				"root",
 				"You are an expert hacker",
 				agent.WithModel(llm),
-				agent.WithToolSets(builtin.NewShellTool()),
+				agent.WithToolSets(builtin.NewShellTool(os.Environ())),
 			),
 		),
 	)

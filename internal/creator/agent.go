@@ -101,7 +101,7 @@ func CreateAgent(ctx context.Context, baseDir, prompt string, runConfig config.R
 				agentBuilderInstructions,
 				agent.WithModel(llm),
 				agent.WithToolSets(
-					builtin.NewShellTool(),
+					builtin.NewShellTool(os.Environ()),
 					&fsToolset,
 				),
 			)))
@@ -216,7 +216,7 @@ func StreamCreateAgent(ctx context.Context, baseDir, prompt string, runConfig co
 				instructions,
 				agent.WithModel(llm),
 				agent.WithToolSets(
-					builtin.NewShellTool(),
+					builtin.NewShellTool(os.Environ()),
 					&fsToolset,
 				),
 			)))

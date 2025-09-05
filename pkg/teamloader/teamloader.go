@@ -184,7 +184,7 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 }
 
 // getToolsForAgent returns the tool definitions for an agent based on its configuration
-func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir string, sharedTools map[string]tools.ToolSet, model provider.Provider, env environment.Provider) ([]tools.ToolSet, error) {
+func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir string, sharedTools map[string]tools.ToolSet, model provider.Provider, envProvider environment.Provider) ([]tools.ToolSet, error) {
 	var t []tools.ToolSet
 
 	if len(a.SubAgents) > 0 {
@@ -194,6 +194,12 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 	toolsets := a.Toolsets
 	for i := range toolsets {
 		toolset := toolsets[i]
+
+		env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), envProvider)
+		if err != nil {
+			return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
+		}
+		env = append(env, os.Environ()...)
 
 		switch {
 		case toolset.Type == "todo":
@@ -239,20 +245,17 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 			t = append(t, builtin.NewThinkTool())
 
 		case toolset.Type == "shell":
-			// TODO: the tool's config can set env variables
-			t = append(t, builtin.NewShellTool())
+			t = append(t, builtin.NewShellTool(env))
 
 		case toolset.Type == "script":
-			// TODO: the tool's config can set env variables
 			_, _ = json.Marshal(a)
 			if len(toolset.Shell) == 0 {
 				return nil, fmt.Errorf("shell is required for script toolset")
 			}
 
-			t = append(t, builtin.NewScriptShellTool(toolset.Shell))
+			t = append(t, builtin.NewScriptShellTool(toolset.Shell, env))
 
 		case toolset.Type == "filesystem":
-			// TODO: the tool's config can set env variables
 			wd, err := os.Getwd()
 			if err != nil {
 				return nil, fmt.Errorf("failed to get working directory: %w", err)
@@ -287,28 +290,18 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 			args = append(args, "--catalog=https://desktop.docker.com/mcp/catalog/v2/catalog.yaml")
 
 			// TODO: the MCP Gateway doesn't know how to read secrets from env variables.
-			envVars, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), env)
-			if err != nil {
-				return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
-			}
-
 			// TODO(dga): If the server's docker image had the right annotations, we could run it directly with `docker run` or with the MCP gateway as a go library.
-			t = append(t, mcp.NewToolsetCommand("docker", args, append(os.Environ(), envVars...), toolset.Tools, cleanUp))
+			t = append(t, mcp.NewToolsetCommand("docker", args, env, toolset.Tools, cleanUp))
 
 		case toolset.Type == "mcp" && toolset.Command != "":
-			envVars, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), env)
-			if err != nil {
-				return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
-			}
-
-			t = append(t, mcp.NewToolsetCommand(toolset.Command, toolset.Args, append(os.Environ(), envVars...), toolset.Tools, nil))
+			t = append(t, mcp.NewToolsetCommand(toolset.Command, toolset.Args, env, toolset.Tools, nil))
 
 		case toolset.Type == "mcp" && toolset.Remote.URL != "":
+			// TODO: the tool's config can set env variables that could be used in headers.
 			// Expand env vars in headers.
-			// TODO: the tool can have env variables that end up being referenced in headers.
 			headers := map[string]string{}
 			for k, v := range toolset.Remote.Headers {
-				expanded, err := environment.Expand(ctx, v, env)
+				expanded, err := environment.Expand(ctx, v, envProvider)
 				if err != nil {
 					return nil, fmt.Errorf("failed to expand header '%s': %w", k, err)
 				}

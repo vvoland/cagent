@@ -15,11 +15,12 @@ import (
 
 type ScriptShellTool struct {
 	shellTools map[string]latest.ScriptShellToolConfig
+	env        []string
 }
 
 var _ tools.ToolSet = (*ScriptShellTool)(nil)
 
-func NewScriptShellTool(shellTools map[string]latest.ScriptShellToolConfig) *ScriptShellTool {
+func NewScriptShellTool(shellTools map[string]latest.ScriptShellToolConfig, env []string) *ScriptShellTool {
 	for _, tool := range shellTools {
 		// If no required array was set, all arguments are required
 		if tool.Required == nil {
@@ -31,6 +32,7 @@ func NewScriptShellTool(shellTools map[string]latest.ScriptShellToolConfig) *Scr
 	}
 	return &ScriptShellTool{
 		shellTools: shellTools,
+		env:        env,
 	}
 }
 
@@ -101,31 +103,25 @@ func (t *ScriptShellTool) execute(ctx context.Context, toolConfig *latest.Script
 		return nil, fmt.Errorf("invalid arguments: %w", err)
 	}
 
-	command := toolConfig.Cmd
-
 	// Use default shell
 	shell := os.Getenv("SHELL")
 	if shell == "" {
 		shell = "/bin/sh"
 	}
 
-	cmd := exec.CommandContext(ctx, shell, "-c", command)
-
-	// Set up environment
-	cmd.Env = os.Environ()
-
+	cmd := exec.CommandContext(ctx, shell, "-c", toolConfig.Cmd)
+	cmd.Dir = toolConfig.WorkingDir
+	cmd.Env = t.env
 	for key, value := range params {
 		if value != nil {
 			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, value))
 		}
 	}
 
-	cmd.Dir = toolConfig.WorkingDir
-
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return &tools.ToolCallResult{
-			Output: fmt.Sprintf("Error executing command '%s': %s\nOutput: %s", command, err, string(output)),
+			Output: fmt.Sprintf("Error executing command '%s': %s\nOutput: %s", toolConfig.Cmd, err, string(output)),
 		}, nil
 	}
 
