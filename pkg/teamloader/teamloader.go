@@ -202,48 +202,57 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 			} else {
 				t = append(t, builtin.NewTodoTool())
 			}
+
 		case toolset.Type == "memory":
-			if toolset.Path != "" {
-				var memoryPath string
-				if filepath.IsAbs(toolset.Path) {
-					memoryPath = ""
-				} else {
-					if wd, err := os.Getwd(); err == nil {
-						memoryPath = wd
-					} else {
-						memoryPath = parentDir
-					}
-				}
-
-				validatedMemoryPath, err := config.ValidatePathInDirectory(toolset.Path, memoryPath)
-				if err != nil {
-					return nil, fmt.Errorf("invalid memory database path: %w", err)
-				}
-				if err := os.MkdirAll(filepath.Dir(validatedMemoryPath), 0o700); err != nil {
-					return nil, fmt.Errorf("failed to create memory database directory: %w", err)
-				}
-
-				db, err := sqlite.NewMemoryDatabase(validatedMemoryPath)
-				if err != nil {
-					return nil, fmt.Errorf("failed to create memory database: %w", err)
-				}
-
-				mm := memory.NewManager(db, model)
-				t = append(t, builtin.NewMemoryTool(mm))
+			if toolset.Path == "" {
+				continue
 			}
+
+			var memoryPath string
+			if filepath.IsAbs(toolset.Path) {
+				memoryPath = ""
+			} else {
+				if wd, err := os.Getwd(); err == nil {
+					memoryPath = wd
+				} else {
+					memoryPath = parentDir
+				}
+			}
+
+			validatedMemoryPath, err := config.ValidatePathInDirectory(toolset.Path, memoryPath)
+			if err != nil {
+				return nil, fmt.Errorf("invalid memory database path: %w", err)
+			}
+			if err := os.MkdirAll(filepath.Dir(validatedMemoryPath), 0o700); err != nil {
+				return nil, fmt.Errorf("failed to create memory database directory: %w", err)
+			}
+
+			db, err := sqlite.NewMemoryDatabase(validatedMemoryPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create memory database: %w", err)
+			}
+
+			mm := memory.NewManager(db, model)
+			t = append(t, builtin.NewMemoryTool(mm))
+
 		case toolset.Type == "think":
 			t = append(t, builtin.NewThinkTool())
+
 		case toolset.Type == "shell":
+			// TODO: the tool's config can set env variables
 			t = append(t, builtin.NewShellTool())
 
 		case toolset.Type == "script":
+			// TODO: the tool's config can set env variables
 			_, _ = json.Marshal(a)
 			if len(toolset.Shell) == 0 {
 				return nil, fmt.Errorf("shell is required for script toolset")
 			}
 
 			t = append(t, builtin.NewScriptShellTool(toolset.Shell))
+
 		case toolset.Type == "filesystem":
+			// TODO: the tool's config can set env variables
 			wd, err := os.Getwd()
 			if err != nil {
 				return nil, fmt.Errorf("failed to get working directory: %w", err)
@@ -277,13 +286,14 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 			// This improves shareability of agent configs.
 			args = append(args, "--catalog=https://desktop.docker.com/mcp/catalog/v2/catalog.yaml")
 
+			// TODO: the MCP Gateway doesn't know how to read secrets from env variables.
 			envVars, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), env)
 			if err != nil {
 				return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
 			}
 
 			// TODO(dga): If the server's docker image had the right annotations, we could run it directly with `docker run` or with the MCP gateway as a go library.
-			t = append(t, mcp.NewToolsetCommand("docker", args, envVars, toolset.Tools, cleanUp))
+			t = append(t, mcp.NewToolsetCommand("docker", args, append(os.Environ(), envVars...), toolset.Tools, cleanUp))
 
 		case toolset.Type == "mcp" && toolset.Command != "":
 			envVars, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), env)
@@ -291,12 +301,11 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 				return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
 			}
 
-			t = append(t, mcp.NewToolsetCommand(toolset.Command, toolset.Args, envVars, toolset.Tools, nil))
+			t = append(t, mcp.NewToolsetCommand(toolset.Command, toolset.Args, append(os.Environ(), envVars...), toolset.Tools, nil))
 
 		case toolset.Type == "mcp" && toolset.Remote.URL != "":
-			// TODO: the tool can have env variables too
-
 			// Expand env vars in headers.
+			// TODO: the tool can have env variables that end up being referenced in headers.
 			headers := map[string]string{}
 			for k, v := range toolset.Remote.Headers {
 				expanded, err := environment.Expand(ctx, v, env)
