@@ -192,7 +192,6 @@ func runCommand(_ *cobra.Command, args []string, exec bool) error {
 	}
 
 	sess := session.New()
-	sess.Title = "Running agent"
 
 	// For `cagent exec`
 	if exec {
@@ -244,6 +243,7 @@ func runCommand(_ *cobra.Command, args []string, exec bool) error {
 }
 
 func runWithoutTUI(ctx context.Context, agentFilename string, rt *runtime.Runtime, sess *session.Session, args []string) error {
+	sess.Title = "Running agent"
 	// If the last received event was an error, return it. That way the exit code
 	// will be non-zero if the agent failed.
 	var lastErr error
