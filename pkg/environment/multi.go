@@ -12,17 +12,13 @@ func NewMultiProvider(providers ...Provider) *MultiProvider {
 	}
 }
 
-func (p *MultiProvider) Get(ctx context.Context, name string) (string, error) {
+func (p *MultiProvider) Get(ctx context.Context, name string) string {
 	for _, provider := range p.providers {
-		value, err := provider.Get(ctx, name)
-		if err != nil {
-			return "", err
-		}
-
+		value := provider.Get(ctx, name)
 		if value != "" {
-			return value, nil
+			return value
 		}
 	}
 
-	return "", nil
+	return ""
 }

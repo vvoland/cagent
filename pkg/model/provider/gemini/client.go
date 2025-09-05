@@ -49,9 +49,8 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 	useGateway := false
 	gatewayBaseURL := ""
 	if gateway := modelOptions.Gateway(); gateway == "" {
-		var err error
-		apiKey, err = env.Get(ctx, "GOOGLE_API_KEY")
-		if err != nil || apiKey == "" {
+		apiKey = env.Get(ctx, "GOOGLE_API_KEY")
+		if apiKey == "" {
 			return nil, errors.New("GOOGLE_API_KEY environment variable is required")
 		}
 	} else {

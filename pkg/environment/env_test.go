@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestOsEnvProvider(t *testing.T) {
@@ -13,15 +12,12 @@ func TestOsEnvProvider(t *testing.T) {
 
 	provider := NewOsEnvProvider()
 
-	value, err := provider.Get(t.Context(), "TEST1")
-	require.NoError(t, err)
+	value := provider.Get(t.Context(), "TEST1")
 	assert.Equal(t, "VALUE1", value)
 
-	value, err = provider.Get(t.Context(), "TEST2")
-	require.NoError(t, err)
+	value = provider.Get(t.Context(), "TEST2")
 	assert.Equal(t, "VALUE2", value)
 
-	value, err = provider.Get(t.Context(), "NOT_FOUND")
-	require.NoError(t, err)
+	value = provider.Get(t.Context(), "NOT_FOUND")
 	assert.Empty(t, value)
 }

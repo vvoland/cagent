@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"os/exec"
 	"strings"
@@ -35,7 +34,7 @@ func NewKeychainProvider() (*KeychainProvider, error) {
 
 // Get retrieves the value of a secret by its service name from the macOS keychain.
 // It uses the `security find-generic-password -w -s <name>` command to fetch the password.
-func (p *KeychainProvider) Get(ctx context.Context, name string) (string, error) {
+func (p *KeychainProvider) Get(ctx context.Context, name string) string {
 	cmd := exec.CommandContext(ctx, "security", "find-generic-password", "-w", "-s", name)
 
 	var out bytes.Buffer
@@ -45,8 +44,9 @@ func (p *KeychainProvider) Get(ctx context.Context, name string) (string, error)
 
 	err := cmd.Run()
 	if err != nil {
-		return "", fmt.Errorf("failed to retrieve secret from keychain: %w, stderr: %v", err, stderr.String())
+		// Ignore error
+		return ""
 	}
 
-	return strings.TrimSpace(out.String()), nil
+	return strings.TrimSpace(out.String())
 }

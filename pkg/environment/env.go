@@ -12,31 +12,31 @@ func NewOsEnvProvider() *OsEnvProvider {
 	return &OsEnvProvider{}
 }
 
-func (p *OsEnvProvider) Get(_ context.Context, name string) (string, error) {
-	return os.Getenv(name), nil
+func (p *OsEnvProvider) Get(_ context.Context, name string) string {
+	return os.Getenv(name)
 }
 
 type EnvFilesProviders struct {
-	absEnvFiles []string
+	values []KeyValuePair
 }
 
-func NewEnvFilesProvider(absEnvFiles []string) *EnvFilesProviders {
-	return &EnvFilesProviders{
-		absEnvFiles: absEnvFiles,
-	}
-}
-
-func (p *EnvFilesProviders) Get(_ context.Context, name string) (string, error) {
-	values, err := ReadEnvFiles(p.absEnvFiles)
+func NewEnvFilesProvider(absEnvFiles []string) (*EnvFilesProviders, error) {
+	values, err := ReadEnvFiles(absEnvFiles)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	for _, kv := range values {
+	return &EnvFilesProviders{
+		values: values,
+	}, nil
+}
+
+func (p *EnvFilesProviders) Get(_ context.Context, name string) string {
+	for _, kv := range p.values {
 		if kv.Key == name {
-			return kv.Value, nil
+			return kv.Value
 		}
 	}
 
-	return "", nil
+	return ""
 }

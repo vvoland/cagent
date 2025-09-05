@@ -5,49 +5,37 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestMultiProviderNone(t *testing.T) {
 	provider := NewMultiProvider()
-	value, err := provider.Get(t.Context(), "TEST1")
+	value := provider.Get(t.Context(), "TEST1")
 
-	require.NoError(t, err)
 	assert.Empty(t, value)
 }
 
 func TestMultiProviderDelegate(t *testing.T) {
-	provider := NewMultiProvider(&alwaysFound{}, &neverFound{}, &alwaysFailProvider{})
-	value, err := provider.Get(t.Context(), "TEST2")
+	provider := NewMultiProvider(&alwaysFound{}, &neverFound{})
+	value := provider.Get(t.Context(), "TEST2")
 
-	require.NoError(t, err)
 	assert.Equal(t, "FOUND", value)
 }
 
 func TestMultiProviderTryInOrder(t *testing.T) {
-	provider := NewMultiProvider(&neverFound{}, &alwaysFound{}, &alwaysFailProvider{})
-	value, err := provider.Get(t.Context(), "TEST3")
+	provider := NewMultiProvider(&neverFound{}, &alwaysFound{})
+	value := provider.Get(t.Context(), "TEST3")
 
-	require.NoError(t, err)
 	assert.Equal(t, "FOUND", value)
-}
-
-func TestMultiProviderFails(t *testing.T) {
-	provider := NewMultiProvider(&alwaysFailProvider{})
-	value, err := provider.Get(t.Context(), "TEST4")
-
-	require.Error(t, err)
-	assert.Empty(t, value)
 }
 
 type neverFound struct{}
 
-func (p *neverFound) Get(context.Context, string) (string, error) {
-	return "", nil
+func (p *neverFound) Get(context.Context, string) string {
+	return ""
 }
 
 type alwaysFound struct{}
 
-func (p *alwaysFound) Get(context.Context, string) (string, error) {
-	return "FOUND", nil
+func (p *alwaysFound) Get(context.Context, string) string {
+	return "FOUND"
 }

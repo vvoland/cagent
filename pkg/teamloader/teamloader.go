@@ -90,6 +90,17 @@ func Load(ctx context.Context, path string, runConfig config.RuntimeConfig) (*te
 		return nil, err
 	}
 
+	envFilesProviders, err := environment.NewEnvFilesProvider(runConfig.EnvFiles)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read env files: %w", err)
+	}
+
+	env := environment.NewMultiProvider(
+		envFilesProviders,
+		environment.NewDefaultProvider(ctx),
+	)
+
+	// Load agents
 	var agents []*agent.Agent
 	agentsByName := make(map[string]*agent.Agent)
 
@@ -100,15 +111,16 @@ func Load(ctx context.Context, path string, runConfig config.RuntimeConfig) (*te
 	for name := range cfg.Agents {
 		agentConfig := cfg.Agents[name]
 
+		models, err := getModelsForAgent(ctx, cfg, &agentConfig, env, runConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get models: %w", err)
+		}
+
 		opts := []agent.Opt{
 			agent.WithName(name),
 			agent.WithDescription(agentConfig.Description),
 			agent.WithAddDate(agentConfig.AddDate),
 			agent.WithAddEnvironmentInfo(agentConfig.AddEnvironmentInfo),
-		}
-		models, err := getModelsForAgent(ctx, cfg, &agentConfig, runConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get models: %w", err)
 		}
 		for _, model := range models {
 			opts = append(opts, agent.WithModel(model))
@@ -151,7 +163,7 @@ func Load(ctx context.Context, path string, runConfig config.RuntimeConfig) (*te
 	return team.New(team.WithID(fileName), team.WithAgents(agents...)), nil
 }
 
-func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentConfig, runtimeConfig config.RuntimeConfig) ([]provider.Provider, error) {
+func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentConfig, env environment.Provider, runtimeConfig config.RuntimeConfig) ([]provider.Provider, error) {
 	var models []provider.Provider
 
 	for name := range strings.SplitSeq(a.Model, ",") {
@@ -159,11 +171,6 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 		if !exists {
 			return nil, fmt.Errorf("model '%s' not found in configuration", name)
 		}
-
-		env := environment.NewMultiProvider(
-			environment.NewEnvFilesProvider(runtimeConfig.EnvFiles),
-			environment.NewDefaultProvider(ctx),
-		)
 
 		model, err := provider.New(ctx, &modelCfg, env, options.WithGateway(runtimeConfig.ModelsGateway))
 		if err != nil {

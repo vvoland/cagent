@@ -33,14 +33,15 @@ func NewOnePasswordProvider(ctx context.Context) (*OnePasswordProvider, error) {
 	}, nil
 }
 
-func (p *OnePasswordProvider) Get(ctx context.Context, name string) (string, error) {
+func (p *OnePasswordProvider) Get(ctx context.Context, name string) string {
 	path := "op://cagent/" + name + "/password"
 	slog.Debug("Looking for environment variable in 1Password", "path", path)
 
 	secret, err := p.secrets.Resolve(ctx, "op://cagent/"+name+"/password")
 	if err != nil {
-		return "", fmt.Errorf("failed to find environment variable (%s) in 1Password: %w", name, err)
+		// Ignore error
+		return ""
 	}
 
-	return secret, nil
+	return secret
 }

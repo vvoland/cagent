@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"os/exec"
 	"strings"
@@ -34,7 +33,7 @@ func NewPassProvider() (*PassProvider, error) {
 
 // Get retrieves the value of a secret by its name using the `pass` CLI.
 // The name corresponds to the path in the `pass` store.
-func (p *PassProvider) Get(ctx context.Context, name string) (string, error) {
+func (p *PassProvider) Get(ctx context.Context, name string) string {
 	cmd := exec.CommandContext(ctx, "pass", "show", name)
 
 	var out bytes.Buffer
@@ -44,8 +43,9 @@ func (p *PassProvider) Get(ctx context.Context, name string) (string, error) {
 
 	err := cmd.Run()
 	if err != nil {
-		return "", fmt.Errorf("failed to retrieve secret with `pass`: %w, stderr: %v", err, stderr.String())
+		// Ignore error
+		return ""
 	}
 
-	return strings.TrimSpace(out.String()), nil
+	return strings.TrimSpace(out.String())
 }
