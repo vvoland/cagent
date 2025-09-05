@@ -25,7 +25,7 @@ import (
 )
 
 // LoadTeams loads all agent teams from the given directory or file path
-func LoadTeams(ctx context.Context, agentsPathOrDirectory string, runConfig config.RuntimeConfig) (map[string]*team.Team, error) {
+func LoadTeams(ctx context.Context, agentsPathOrDirectory string, runtimeConfig config.RuntimeConfig) (map[string]*team.Team, error) {
 	teams := make(map[string]*team.Team)
 
 	agentPaths, err := FindAgentPaths(agentsPathOrDirectory)
@@ -34,7 +34,7 @@ func LoadTeams(ctx context.Context, agentsPathOrDirectory string, runConfig conf
 	}
 
 	for _, agentPath := range agentPaths {
-		t, err := Load(ctx, agentPath, runConfig)
+		t, err := Load(ctx, agentPath, runtimeConfig)
 		if err != nil {
 			slog.Warn("Failed to load agent", "file", agentPath, "error", err)
 			continue
