@@ -5,8 +5,10 @@ agents:
   root:
     model: openai/gpt-4o
     description: Humorous AI with persistent memory
-    memory:
-      path: ./funny.db
+    toolsets:
+      - type: memory
+        # Saved to a relative path to your current dir
+        path: "./funny.db"
     instruction: You are a funny chatter
 
 metadata:
