@@ -237,8 +237,7 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 			t = append(t, builtin.NewShellTool())
 
 		case toolset.Type == "script":
-			b, _ := json.Marshal(a)
-			fmt.Println(string(b))
+			_, _ = json.Marshal(a)
 			if len(toolset.Shell) == 0 {
 				return nil, fmt.Errorf("shell is required for script toolset")
 			}
