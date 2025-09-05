@@ -283,8 +283,6 @@ func (c *Client) CreateChatCompletion(
 		}
 	}
 
-	// Do not set ParallelToolCalls when there are no tools; it can break streaming
-
 	// Build a fresh client per request when using the gateway
 	client := c.client
 	if c.useGateway {
