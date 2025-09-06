@@ -186,8 +186,9 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 		msg := &messages[i]
 		if msg.Role == chat.MessageRoleSystem {
 			// Convert system message to user message with system prefix
-			systemContent := "System: " + msg.Content
-			anthropicMessages = append(anthropicMessages, anthropic.NewAssistantMessage(anthropic.NewTextBlock(strings.TrimSpace(systemContent))))
+			if systemContent := strings.TrimSpace("System: " + msg.Content); systemContent != "System:" {
+				anthropicMessages = append(anthropicMessages, anthropic.NewAssistantMessage(anthropic.NewTextBlock(systemContent)))
+			}
 			continue
 		}
 		if msg.Role == chat.MessageRoleUser {
@@ -196,7 +197,9 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 				contentBlocks := make([]anthropic.ContentBlockParamUnion, 0, len(msg.MultiContent))
 				for _, part := range msg.MultiContent {
 					if part.Type == chat.MessagePartTypeText {
-						contentBlocks = append(contentBlocks, anthropic.NewTextBlock(strings.TrimSpace(part.Text)))
+						if txt := strings.TrimSpace(part.Text); txt != "" {
+							contentBlocks = append(contentBlocks, anthropic.NewTextBlock(txt))
+						}
 					} else if part.Type == chat.MessagePartTypeImageURL && part.ImageURL != nil {
 						// Anthropic expects base64 image data
 						// Extract base64 data from data URL
@@ -249,7 +252,9 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 					anthropicMessages = append(anthropicMessages, anthropic.NewUserMessage(contentBlocks...))
 				}
 			} else {
-				anthropicMessages = append(anthropicMessages, anthropic.NewUserMessage(anthropic.NewTextBlock(strings.TrimSpace(msg.Content))))
+				if txt := strings.TrimSpace(msg.Content); txt != "" {
+					anthropicMessages = append(anthropicMessages, anthropic.NewUserMessage(anthropic.NewTextBlock(txt)))
+				}
 			}
 			continue
 		}
@@ -281,7 +286,9 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 				}
 				anthropicMessages = append(anthropicMessages, anthropic.NewAssistantMessage(toolUseBlocks...))
 			} else {
-				anthropicMessages = append(anthropicMessages, anthropic.NewAssistantMessage(anthropic.NewTextBlock(strings.TrimSpace(msg.Content))))
+				if txt := strings.TrimSpace(msg.Content); txt != "" {
+					anthropicMessages = append(anthropicMessages, anthropic.NewAssistantMessage(anthropic.NewTextBlock(txt)))
+				}
 			}
 			continue
 		}
