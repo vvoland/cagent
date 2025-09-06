@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -501,10 +502,16 @@ func getDockerModelEndpointAndEngine() (endpoint, engine string, err error) {
 		return "", "", err
 	}
 	endpoint = strings.TrimSpace(st.Endpoint)
-	// TODO(krissetto): temporary override for the internal dmr endpoint that `docker model status --json` currently returns
-	if endpoint == "http://model-runner.docker.internal/engines/v1/" {
-		endpoint = "http://localhost:12434/engines/llama.cpp/v1"
+
+	inDockerContainer := false
+	finfo, err := os.Stat("/.dockerenv")
+	if err == nil && finfo.Mode().IsRegular() {
+		inDockerContainer = true
 	}
+
+	// normalize endpoint considering container environment
+	endpoint = normalizeDMREndpoint(endpoint, inDockerContainer)
+
 	engine = strings.TrimSpace(st.Engine)
 	if engine == "" {
 		if st.Backends != nil {
@@ -522,6 +529,22 @@ func getDockerModelEndpointAndEngine() (endpoint, engine string, err error) {
 		engine = "llama.cpp"
 	}
 	return endpoint, engine, nil
+}
+
+// normalizeDMREndpoint applies an override to the endpoint reported by
+// `docker model status --json` to ensure the DMR client uses a reachable address
+// from the current environment.
+func normalizeDMREndpoint(endpoint string, inDockerContainer bool) string {
+	// This env overriding might need to be updated if we end up having multiple separate DMR
+	// engines with different endpoints running at the same time
+	if hostEnvVar := os.Getenv("MODEL_RUNNER_HOST"); hostEnvVar != "" {
+		return hostEnvVar
+	}
+	// Only override if not running in a docker container
+	if endpoint == "http://model-runner.docker.internal/engines/v1/" && !inDockerContainer {
+		return "http://localhost:12434/engines/llama.cpp/v1"
+	}
+	return endpoint
 }
 
 // buildRuntimeFlagsFromModelConfig converts standard ModelConfig fields into backend-specific
