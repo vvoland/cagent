@@ -2,6 +2,7 @@ package message
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/v2/spinner"
@@ -96,8 +97,15 @@ func (mv *messageModel) Render(int) string {
 		if msg.Content == "" {
 			return mv.spinner.View()
 		}
-		text := senderPrefix(msg.Sender) + msg.Content
-		return styles.MutedStyle.Italic(true).Render("Thinking: " + text)
+		text := "Thinking: " + senderPrefix(msg.Sender) + msg.Content
+		// Render through the markdown renderer to ensure proper wrapping to width
+		rendered, err := mv.renderer.Render(text)
+		if err != nil {
+			return styles.MutedStyle.Italic(true).Render(text)
+		}
+		// Strip ANSI from inner rendering so muted style fully applies
+		clean := stripANSI(strings.TrimRight(rendered, "\n\r\t "))
+		return styles.MutedStyle.Italic(true).Render(clean)
 	case types.MessageTypeShellOutput:
 		if rendered, err := mv.renderer.Render(fmt.Sprintf("```console\n%s\n```", msg.Content)); err == nil {
 			return strings.TrimRight(rendered, "\n\r\t ")
@@ -142,4 +150,10 @@ func (mv *messageModel) SetSize(width, height int) tea.Cmd {
 // GetSize returns the current dimensions
 func (mv *messageModel) GetSize() (width, height int) {
 	return mv.width, mv.height
+}
+
+var ansiEscape = regexp.MustCompile("\x1b\\[[0-9;]*m")
+
+func stripANSI(s string) string {
+	return ansiEscape.ReplaceAllString(s, "")
 }
