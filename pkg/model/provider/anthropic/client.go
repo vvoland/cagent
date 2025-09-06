@@ -123,6 +123,11 @@ func (c *Client) CreateChatCompletionStream(
 		Tools:     convertTools(requestTools),
 	}
 
+	// Populate proper Anthropic system prompt from input messages
+	if sys := extractSystemBlocks(messages); len(sys) > 0 {
+		params.System = sys
+	}
+
 	if len(requestTools) > 0 {
 		slog.Debug("Adding tools to Anthropic request", "tool_count", len(requestTools))
 	}
@@ -164,6 +169,11 @@ func (c *Client) CreateChatCompletion(
 		Messages:  convertMessages(messages),
 	}
 
+	// Populate proper Anthropic system prompt from input messages
+	if sys := extractSystemBlocks(messages); len(sys) > 0 {
+		params.System = sys
+	}
+
 	// Build a fresh client per request when using the gateway
 	client := c.client
 	if c.useGateway {
@@ -185,10 +195,7 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 	for i := range messages {
 		msg := &messages[i]
 		if msg.Role == chat.MessageRoleSystem {
-			// Convert system message to user message with system prefix
-			if systemContent := strings.TrimSpace("System: " + msg.Content); systemContent != "System:" {
-				anthropicMessages = append(anthropicMessages, anthropic.NewAssistantMessage(anthropic.NewTextBlock(systemContent)))
-			}
+			// System messages are handled via the top-level params.System
 			continue
 		}
 		if msg.Role == chat.MessageRoleUser {
@@ -299,6 +306,30 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 		}
 	}
 	return anthropicMessages
+}
+
+// extractSystemBlocks converts any system-role messages into Anthropic system text blocks
+// to be set on the top-level MessageNewParams.System field.
+func extractSystemBlocks(messages []chat.Message) []anthropic.TextBlockParam {
+	var systemBlocks []anthropic.TextBlockParam
+	for i := range messages {
+		msg := &messages[i]
+		if msg.Role != chat.MessageRoleSystem {
+			continue
+		}
+		if len(msg.MultiContent) > 0 {
+			for _, part := range msg.MultiContent {
+				if part.Type == chat.MessagePartTypeText {
+					if txt := strings.TrimSpace(part.Text); txt != "" {
+						systemBlocks = append(systemBlocks, anthropic.TextBlockParam{Text: txt})
+					}
+				}
+			}
+		} else if txt := strings.TrimSpace(msg.Content); txt != "" {
+			systemBlocks = append(systemBlocks, anthropic.TextBlockParam{Text: txt})
+		}
+	}
+	return systemBlocks
 }
 
 func convertTools(tooles []tools.Tool) []anthropic.ToolUnionParam {
