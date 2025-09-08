@@ -44,7 +44,7 @@ func (p *PassProvider) Get(ctx context.Context, name string) string {
 	err := cmd.Run()
 	if err != nil {
 		// Ignore error
-		slog.Error("Failed to find secret in pass", "error", err)
+		slog.Debug("Failed to find secret in pass", "error", err)
 		return ""
 	}
 

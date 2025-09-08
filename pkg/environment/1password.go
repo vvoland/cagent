@@ -44,7 +44,7 @@ func (p *OnePasswordProvider) Get(ctx context.Context, name string) string {
 	secret, err := client.Secrets().Resolve(ctx, "op://cagent/"+name+"/password")
 	if err != nil {
 		// Ignore error
-		slog.Error("Failed to find secret in 1Password", "error", err)
+		slog.Debug("Failed to find secret in 1Password", "error", err)
 		return ""
 	}
 
