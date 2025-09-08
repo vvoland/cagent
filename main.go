@@ -1,9 +1,7 @@
 package main
 
-import (
-	"github.com/docker/cagent/cmd/root"
-)
+import "github.com/docker/cagent/cmd/root"
 
 func main() {
-	root.Execute()
+	root.Run()
 }

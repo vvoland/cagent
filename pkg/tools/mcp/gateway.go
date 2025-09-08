@@ -48,7 +48,7 @@ func (t *GatewayToolset) Instructions() string {
 }
 
 func (t *GatewayToolset) configureOnce(ctx context.Context) error {
-	mcpServerName := parseServerRef(t.ref)
+	mcpServerName := gateway.ParseServerRef(t.ref)
 
 	// Check which secrets (env vars) are required by the MCP server.
 	secrets, err := gateway.RequiredEnvVars(ctx, mcpServerName, gateway.DockerCatalogURL)
@@ -113,17 +113,12 @@ func (t *GatewayToolset) Stop() error {
 	return errors.Join(stopErr, cleanUpSecretsErr, cleanUpConfigErr)
 }
 
-func parseServerRef(ref string) string {
-	return strings.TrimPrefix(ref, "docker:")
-}
-
 func writeSecretsToFile(ctx context.Context, mcpServerName string, secrets []gateway.Secret, envProvider environment.Provider) (string, error) {
 	var secretValues []string
 	for _, secret := range secrets {
 		v := envProvider.Get(ctx, secret.Env)
 		if v == "" {
-			// TODO(dga): Add a link to some doc that explains the different ways to provide secrets.
-			return "", fmt.Errorf("MCP server %q requires environment variable %q to be set. Either set it before running cagent or run cagent with --env-from-file", mcpServerName, secret.Env)
+			return "", errors.New("missing environment variable " + secret.Env + " required by MCP server " + mcpServerName)
 		}
 
 		secretValues = append(secretValues, fmt.Sprintf("%s=%s", secret.Name, v))

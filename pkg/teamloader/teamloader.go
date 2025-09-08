@@ -7,12 +7,14 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/config"
 	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/environment"
+	"github.com/docker/cagent/pkg/gateway"
 	"github.com/docker/cagent/pkg/memory"
 	"github.com/docker/cagent/pkg/memory/database/sqlite"
 	"github.com/docker/cagent/pkg/model/provider"
@@ -75,15 +77,78 @@ func FindAgentPaths(agentsPathOrDirectory string) ([]string, error) {
 	return agents, nil
 }
 
-func Load(ctx context.Context, path string, runtimeConfig config.RuntimeConfig) (*team.Team, error) {
-	parentDir := filepath.Dir(path)
-	cfg, err := config.LoadConfigSecure(path, parentDir)
-	if err != nil {
-		return nil, err
+// checkRequiredEnvVars checks which environment variables are required by the models and tools.
+// This allows exiting early with a proper error message instead of failing later when trying to use a model or tool.
+// TODO(dga): This code contains lots of duplication and ought to be refactored.
+func checkRequiredEnvVars(ctx context.Context, cfg *latest.Config, env environment.Provider) error {
+	requiredEnv := map[string]bool{}
+
+	for _, model := range cfg.Models {
+		switch model.Provider {
+		case "openai":
+			requiredEnv["OPENAI_API_KEY"] = true
+		case "anthropic":
+			requiredEnv["ANTHROPIC_API_KEY"] = true
+		case "google":
+			requiredEnv["GOOGLE_API_KEY"] = true
+		}
 	}
 
-	// Make env file paths absolute relative to the agent config file.
+	for _, agent := range cfg.Agents {
+		model := agent.Model
+		switch {
+		case strings.HasPrefix(model, "openai/"):
+			requiredEnv["OPENAI_API_KEY"] = true
+		case strings.HasPrefix(model, "anthropic/"):
+			requiredEnv["ANTHROPIC_API_KEY"] = true
+		case strings.HasPrefix(model, "google/"):
+			requiredEnv["GOOGLE_API_KEY"] = true
+		}
+
+		for i := range agent.Toolsets {
+			toolSet := agent.Toolsets[i]
+
+			if toolSet.Type == "mcp" && toolSet.Ref != "" {
+				mcpServerName := gateway.ParseServerRef(toolSet.Ref)
+
+				secrets, err := gateway.RequiredEnvVars(ctx, mcpServerName, gateway.DockerCatalogURL)
+				if err != nil {
+					return fmt.Errorf("reading which secrets the MCP server needs: %w", err)
+				}
+				for _, secret := range secrets {
+					requiredEnv[secret.Env] = true
+				}
+			}
+		}
+	}
+
+	if len(requiredEnv) == 0 {
+		return nil
+	}
+
+	var requiredEnvList []string
+	for e := range requiredEnv {
+		if env.Get(ctx, e) == "" {
+			requiredEnvList = append(requiredEnvList, e)
+		}
+	}
+
+	if len(requiredEnvList) == 0 {
+		return nil
+	}
+
+	sort.Strings(requiredEnvList)
+	return &environment.RequiredEnvError{
+		Missing: requiredEnvList,
+	}
+}
+
+func Load(ctx context.Context, path string, runtimeConfig config.RuntimeConfig) (*team.Team, error) {
 	fileName := filepath.Base(path)
+	parentDir := filepath.Dir(path)
+
+	// Make env file paths absolute relative to the agent config file.
+	var err error
 	runtimeConfig.EnvFiles, err = environment.AbsolutePaths(parentDir, runtimeConfig.EnvFiles)
 	if err != nil {
 		return nil, err
@@ -98,6 +163,17 @@ func Load(ctx context.Context, path string, runtimeConfig config.RuntimeConfig) 
 		envFilesProviders,
 		environment.NewDefaultProvider(ctx),
 	)
+
+	// Load the agent's configuration
+	cfg, err := config.LoadConfigSecure(path, parentDir)
+	if err != nil {
+		return nil, err
+	}
+
+	// Early check for required env vars before loading models and tools.
+	if err := checkRequiredEnvVars(ctx, cfg, env); err != nil {
+		return nil, err
+	}
 
 	// Load agents
 	var agents []*agent.Agent

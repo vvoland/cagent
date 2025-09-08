@@ -1,6 +1,7 @@
 package root
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -11,6 +12,7 @@ import (
 	"github.com/docker/cagent/internal/config"
 	"github.com/docker/cagent/internal/telemetry"
 	"github.com/docker/cagent/internal/version"
+	"github.com/docker/cagent/pkg/environment"
 	"github.com/spf13/cobra"
 )
 
@@ -81,6 +83,8 @@ func NewRootCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
+		SilenceErrors: true,
+		SilenceUsage:  true,
 	}
 
 	// Add persistent debug flag available to all commands
@@ -105,6 +109,10 @@ func NewRootCmd() *cobra.Command {
 	return cmd
 }
 
+func Run() {
+	Execute()
+}
+
 func Execute() {
 	// Set the version for automatic telemetry initialization
 	telemetry.SetGlobalTelemetryVersion(version.Version)
@@ -125,7 +133,18 @@ We collect anonymous usage data to help improve cagent. To disable:
 
 	rootCmd := NewRootCmd()
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		envErr := &environment.RequiredEnvError{}
+		if errors.As(err, &envErr) {
+			fmt.Fprintln(os.Stderr, "The following environment variables must be set:")
+			for _, v := range envErr.Missing {
+				fmt.Fprintf(os.Stderr, " - %s\n", v)
+			}
+			fmt.Fprintln(os.Stderr, "\nEither:\n - Set those environment variables before running cagent\n - Run cagent with --env-from-file\n - Store those secrets using one of the built-in environment variable providers.")
+		} else {
+			fmt.Fprintln(os.Stderr, err)
+			_ = rootCmd.Usage()
+		}
+
 		os.Exit(1)
 	}
 }

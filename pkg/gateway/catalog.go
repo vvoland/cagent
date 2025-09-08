@@ -5,11 +5,16 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/stretchr/testify/assert/yaml"
 )
 
 const DockerCatalogURL = "https://desktop.docker.com/mcp/catalog/v2/catalog.yaml"
+
+func ParseServerRef(ref string) string {
+	return strings.TrimPrefix(ref, "docker:")
+}
 
 func RequiredEnvVars(ctx context.Context, serverName, catalogURL string) ([]Secret, error) {
 	catalog, err := readCatalog(ctx, catalogURL)
