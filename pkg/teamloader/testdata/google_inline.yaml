@@ -1,0 +1,6 @@
+version: "2"
+
+agents:
+  root:
+    model: google/gemini-2.0-flash
+    instruction: Always answer by talking like a pirate.

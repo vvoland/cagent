@@ -1,0 +1,15 @@
+version: "2"
+
+agents:
+  anthropic:
+    model: anthropic/claude-sonnet-4-0
+    instruction: Always answer by talking like a pirate.
+  dmr:
+    model: dmr/ai/gemma3-qat:12B
+    instruction: Always answer by talking like a pirate.
+  openai:
+    model: openai/gpt-4o
+    instruction: Always answer by talking like a pirate.
+  gemini:
+    model: google/gemini-2.0-flash
+    instruction: Always answer by talking like a pirate.
