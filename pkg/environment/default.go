@@ -5,7 +5,7 @@ import "context"
 func NewDefaultProvider(ctx context.Context) Provider {
 	var providers []Provider
 
-	providers = append(providers, NewOsEnvProvider())
+	providers = append(providers, NewOsEnvProvider(), NewRunSecretsProvider())
 
 	// Append 1Password provider at the end if available
 	if onePasswordProvider, err := NewOnePasswordProvider(ctx); err == nil {
