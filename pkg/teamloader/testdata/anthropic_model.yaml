@@ -1,0 +1,11 @@
+version: "2"
+
+agents:
+  root:
+    model: claude
+    instruction: Always answer by talking like a pirate.
+
+models:
+  claude:
+    provider: anthropic
+    model: claude-sonnet-4-0

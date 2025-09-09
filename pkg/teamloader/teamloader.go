@@ -80,43 +80,51 @@ func FindAgentPaths(agentsPathOrDirectory string) ([]string, error) {
 // checkRequiredEnvVars checks which environment variables are required by the models and tools.
 // This allows exiting early with a proper error message instead of failing later when trying to use a model or tool.
 // TODO(dga): This code contains lots of duplication and ought to be refactored.
-func checkRequiredEnvVars(ctx context.Context, cfg *latest.Config, env environment.Provider) error {
+func checkRequiredEnvVars(ctx context.Context, cfg *latest.Config, env environment.Provider, runtimeConfig config.RuntimeConfig) error {
 	requiredEnv := map[string]bool{}
 
-	for _, model := range cfg.Models {
-		switch model.Provider {
-		case "openai":
-			requiredEnv["OPENAI_API_KEY"] = true
-		case "anthropic":
-			requiredEnv["ANTHROPIC_API_KEY"] = true
-		case "google":
-			requiredEnv["GOOGLE_API_KEY"] = true
+	// Models
+	if runtimeConfig.ModelsGateway == "" {
+		for _, model := range cfg.Models {
+			switch model.Provider {
+			case "openai":
+				requiredEnv["OPENAI_API_KEY"] = true
+			case "anthropic":
+				requiredEnv["ANTHROPIC_API_KEY"] = true
+			case "google":
+				requiredEnv["GOOGLE_API_KEY"] = true
+			}
+		}
+
+		for _, agent := range cfg.Agents {
+			model := agent.Model
+			switch {
+			case strings.HasPrefix(model, "openai/"):
+				requiredEnv["OPENAI_API_KEY"] = true
+			case strings.HasPrefix(model, "anthropic/"):
+				requiredEnv["ANTHROPIC_API_KEY"] = true
+			case strings.HasPrefix(model, "google/"):
+				requiredEnv["GOOGLE_API_KEY"] = true
+			}
 		}
 	}
 
-	for _, agent := range cfg.Agents {
-		model := agent.Model
-		switch {
-		case strings.HasPrefix(model, "openai/"):
-			requiredEnv["OPENAI_API_KEY"] = true
-		case strings.HasPrefix(model, "anthropic/"):
-			requiredEnv["ANTHROPIC_API_KEY"] = true
-		case strings.HasPrefix(model, "google/"):
-			requiredEnv["GOOGLE_API_KEY"] = true
-		}
+	// Tools
+	if runtimeConfig.ToolsGateway == "" {
+		for _, agent := range cfg.Agents {
+			for i := range agent.Toolsets {
+				toolSet := agent.Toolsets[i]
 
-		for i := range agent.Toolsets {
-			toolSet := agent.Toolsets[i]
+				if toolSet.Type == "mcp" && toolSet.Ref != "" {
+					mcpServerName := gateway.ParseServerRef(toolSet.Ref)
 
-			if toolSet.Type == "mcp" && toolSet.Ref != "" {
-				mcpServerName := gateway.ParseServerRef(toolSet.Ref)
-
-				secrets, err := gateway.RequiredEnvVars(ctx, mcpServerName, gateway.DockerCatalogURL)
-				if err != nil {
-					return fmt.Errorf("reading which secrets the MCP server needs: %w", err)
-				}
-				for _, secret := range secrets {
-					requiredEnv[secret.Env] = true
+					secrets, err := gateway.RequiredEnvVars(ctx, mcpServerName, gateway.DockerCatalogURL)
+					if err != nil {
+						return fmt.Errorf("reading which secrets the MCP server needs: %w", err)
+					}
+					for _, secret := range secrets {
+						requiredEnv[secret.Env] = true
+					}
 				}
 			}
 		}
@@ -171,7 +179,7 @@ func Load(ctx context.Context, path string, runtimeConfig config.RuntimeConfig) 
 	}
 
 	// Early check for required env vars before loading models and tools.
-	if err := checkRequiredEnvVars(ctx, cfg, env); err != nil {
+	if err := checkRequiredEnvVars(ctx, cfg, env, runtimeConfig); err != nil {
 		return nil, err
 	}
 
