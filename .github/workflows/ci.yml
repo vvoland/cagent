@@ -97,8 +97,7 @@ jobs:
           TELEMETRY_HEADER: ${{ secrets.TELEMETRY_HEADER }}
 
   build-image:
-    # remove once this works on main
-    # if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: [build]
     runs-on: ubuntu-latest
     steps:
@@ -118,6 +117,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
 
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: docker/cagent
+
       - name: Build and push image
         uses: docker/build-push-action@v5
         with:
@@ -125,6 +130,6 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           sbom: true
           provenance: mode=max
-          tags: ${{ steps.metadata.outputs.tags }}
-          labels: ${{ steps.metadata.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           build-args: GIT_COMMIT=${{ github.sha }}
