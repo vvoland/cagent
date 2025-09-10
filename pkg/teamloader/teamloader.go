@@ -110,7 +110,7 @@ func checkRequiredEnvVars(ctx context.Context, cfg *latest.Config, env environme
 	}
 
 	// Tools
-	if runtimeConfig.ToolsGateway == "" {
+	if runtimeConfig.ToolsGateway == "" && !environment.IsInContainer() {
 		for _, agent := range cfg.Agents {
 			for i := range agent.Toolsets {
 				toolSet := agent.Toolsets[i]
