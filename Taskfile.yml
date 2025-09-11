@@ -24,6 +24,7 @@ tasks:
       - go build -ldflags "{{.LDFLAGS}}" -o {{.BUILD_DIR}}/{{.BINARY_NAME}} {{.MAIN_PKG}}
     sources:
       - "{{.GO_SOURCES}}"
+      - "**/*.template"
       - "**/*.txt"
       - "go.mod"
       - "go.sum"
