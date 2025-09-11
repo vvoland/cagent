@@ -12,7 +12,7 @@ import (
 	"github.com/docker/cagent/internal/telemetry"
 	"github.com/docker/cagent/pkg/config"
 	latest "github.com/docker/cagent/pkg/config/v2"
-	"github.com/docker/cagent/pkg/model/provider"
+	"github.com/docker/cagent/pkg/secrets"
 )
 
 var push bool
@@ -42,7 +42,7 @@ func runBuildCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	secrets := gatherRequiredEnv(cfg)
+	secrets := secrets.GatherEnvVarsForModels(cfg)
 	mcpServers := gatherMCPServers(cfg)
 
 	tmp, err := os.MkdirTemp("", "build")
@@ -94,49 +94,6 @@ LABEL com.docker.agent.secrets="%s"
 	buildCmd.Stderr = os.Stderr
 
 	return buildCmd.Run()
-}
-
-func gatherRequiredEnv(cfg *latest.Config) []string {
-	requiredEnv := map[string]bool{}
-
-	for name := range cfg.Models {
-		model := cfg.Models[name]
-		// Use the token environment variable from the alias if available
-		if alias, exists := provider.ProviderAliases[model.Provider]; exists {
-			if alias.TokenEnvVar != "" {
-				requiredEnv[alias.TokenEnvVar] = true
-			}
-		} else {
-			// Fallback to hardcoded mappings for unknown providers
-			switch model.Provider {
-			case "openai":
-				requiredEnv["OPENAI_API_KEY"] = true
-			case "anthropic":
-				requiredEnv["ANTHROPIC_API_KEY"] = true
-			case "google":
-				requiredEnv["GOOGLE_API_KEY"] = true
-			}
-		}
-	}
-
-	for _, agent := range cfg.Agents {
-		model := agent.Model
-		switch {
-		case strings.HasPrefix(model, "openai/"):
-			requiredEnv["OPENAI_API_KEY"] = true
-		case strings.HasPrefix(model, "anthropic/"):
-			requiredEnv["ANTHROPIC_API_KEY"] = true
-		case strings.HasPrefix(model, "google/"):
-			requiredEnv["GOOGLE_API_KEY"] = true
-		}
-	}
-
-	var requiredEnvList []string
-	for e := range requiredEnv {
-		requiredEnvList = append(requiredEnvList, e)
-	}
-
-	return requiredEnvList
 }
 
 func gatherMCPServers(cfg *latest.Config) []string {

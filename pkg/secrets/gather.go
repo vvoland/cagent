@@ -21,7 +21,7 @@ func GatherMissingEnvVars(ctx context.Context, cfg *latest.Config, env environme
 
 	// Models
 	if runtimeConfig.ModelsGateway == "" {
-		names := GatherEnvVarsForModels(ctx, cfg)
+		names := GatherEnvVarsForModels(cfg)
 		for _, e := range names {
 			requiredEnv[e] = true
 		}
@@ -49,7 +49,7 @@ func GatherMissingEnvVars(ctx context.Context, cfg *latest.Config, env environme
 	return missing, nil
 }
 
-func GatherEnvVarsForModels(ctx context.Context, cfg *latest.Config) []string {
+func GatherEnvVarsForModels(cfg *latest.Config) []string {
 	requiredEnv := map[string]bool{}
 
 	for name := range cfg.Models {
