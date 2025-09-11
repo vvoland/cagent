@@ -9,7 +9,8 @@ RUN cat <<EOF > /agent.yaml
 EOF
 RUN chmod +r /agent.yaml && mkdir /data && chmod 777 -R /data
 USER cagent
-ENTRYPOINT ["/cagent", "api", "--session-db", "/data/session.db", "/agent.yaml"]
+ENTRYPOINT ["/cagent"]
+CMD ["api", "--session-db", "/data/session.db", "/agent.yaml"]
 
 LABEL com.docker.agent.packaging.version="v0.0.1"
 LABEL com.docker.agent.runtime="cagent"
