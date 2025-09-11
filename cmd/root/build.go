@@ -20,6 +20,7 @@ var push bool
 func NewBuildCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "build <agent-file> <image-name>",
+		Short:  "Build a Docker image for the agent",
 		Args:   cobra.ExactArgs(2),
 		RunE:   runBuildCommand,
 		Hidden: true,
