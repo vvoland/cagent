@@ -13,7 +13,6 @@ import (
 	"text/template"
 
 	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/secrets"
 )
 
 //go:embed Dockerfile.template
@@ -33,7 +32,6 @@ func BuildDockerImage(ctx context.Context, agentFilePath, dockerImageName string
 	}
 
 	// Analyze the config to find which secrets are needed
-	modelSecrets := secrets.GatherEnvVarsForModels(cfg)
 	modelNames := config.GatherModelNames(cfg)
 	mcpServers := config.GatherMCPServerReferences(cfg)
 
@@ -47,7 +45,6 @@ func BuildDockerImage(ctx context.Context, agentFilePath, dockerImageName string
 		"Licenses":    cfg.Metadata.License,
 		"McpServers":  strings.Join(mcpServers, ","),
 		"Models":      strings.Join(modelNames, ","),
-		"Secrets":     strings.Join(modelSecrets, ","),
 	}); err != nil {
 		return err
 	}
