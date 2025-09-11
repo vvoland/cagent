@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/docker/cagent/pkg/config"
 	latest "github.com/docker/cagent/pkg/config/v2"
@@ -70,25 +69,6 @@ func GatherEnvVarsForModels(cfg *latest.Config) []string {
 			case "google":
 				requiredEnv["GOOGLE_API_KEY"] = true
 			}
-		}
-	}
-
-	for _, agent := range cfg.Agents {
-		model := agent.Model
-
-		for prefix, alias := range provider.ProviderAliases {
-			if strings.HasPrefix(model, prefix+"/") && alias.TokenEnvVar != "" {
-				requiredEnv[alias.TokenEnvVar] = true
-			}
-		}
-
-		switch {
-		case strings.HasPrefix(model, "openai/"):
-			requiredEnv["OPENAI_API_KEY"] = true
-		case strings.HasPrefix(model, "anthropic/"):
-			requiredEnv["ANTHROPIC_API_KEY"] = true
-		case strings.HasPrefix(model, "google/"):
-			requiredEnv["GOOGLE_API_KEY"] = true
 		}
 	}
 
