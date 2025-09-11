@@ -11,7 +11,6 @@ import (
 
 	"github.com/docker/cagent/internal/telemetry"
 	"github.com/docker/cagent/pkg/config"
-	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/secrets"
 )
 
@@ -43,7 +42,7 @@ func runBuildCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	secrets := secrets.GatherEnvVarsForModels(cfg)
-	mcpServers := gatherMCPServers(cfg)
+	mcpServers := config.GatherMCPServerReferences(cfg)
 
 	tmp, err := os.MkdirTemp("", "build")
 	if err != nil {
@@ -94,25 +93,4 @@ LABEL com.docker.agent.secrets="%s"
 	buildCmd.Stderr = os.Stderr
 
 	return buildCmd.Run()
-}
-
-func gatherMCPServers(cfg *latest.Config) []string {
-	requiredServers := map[string]bool{}
-
-	for _, agent := range cfg.Agents {
-		for i := range agent.Toolsets {
-			toolSet := agent.Toolsets[i]
-
-			if toolSet.Type == "mcp" && toolSet.Ref != "" {
-				requiredServers[toolSet.Ref] = true
-			}
-		}
-	}
-
-	var requiredServersList []string
-	for e := range requiredServers {
-		requiredServersList = append(requiredServersList, e)
-	}
-
-	return requiredServersList
 }

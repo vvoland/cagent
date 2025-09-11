@@ -98,21 +98,16 @@ func GatherEnvVarsForModels(cfg *latest.Config) []string {
 func GatherEnvVarsForTools(ctx context.Context, cfg *latest.Config) ([]string, error) {
 	requiredEnv := map[string]bool{}
 
-	for _, agent := range cfg.Agents {
-		for i := range agent.Toolsets {
-			toolSet := agent.Toolsets[i]
+	for _, ref := range config.GatherMCPServerReferences(cfg) {
+		mcpServerName := gateway.ParseServerRef(ref)
 
-			if toolSet.Type == "mcp" && toolSet.Ref != "" {
-				mcpServerName := gateway.ParseServerRef(toolSet.Ref)
+		secrets, err := gateway.RequiredEnvVars(ctx, mcpServerName, gateway.DockerCatalogURL)
+		if err != nil {
+			return nil, fmt.Errorf("reading which secrets the MCP server needs: %w", err)
+		}
 
-				secrets, err := gateway.RequiredEnvVars(ctx, mcpServerName, gateway.DockerCatalogURL)
-				if err != nil {
-					return nil, fmt.Errorf("reading which secrets the MCP server needs: %w", err)
-				}
-				for _, secret := range secrets {
-					requiredEnv[secret.Env] = true
-				}
-			}
+		for _, secret := range secrets {
+			requiredEnv[secret.Env] = true
 		}
 	}
 
