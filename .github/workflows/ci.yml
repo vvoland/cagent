@@ -124,7 +124,7 @@ jobs:
         with:
           images: docker/cagent
           tags: |
-            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
             type=ref,event=tag
 
       - name: Build and push image
