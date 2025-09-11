@@ -1,0 +1,20 @@
+# syntax=docker/dockerfile:1
+FROM alpine:3.22@sha256:4bcff63911fcb4448bd4fdacec207030997caf25e9bea4045fa6c8c44de311d1
+
+RUN adduser -D cagent
+ADD https://github.com/docker/cagent/releases/download/v1.0.9/cagent-linux-arm64 /cagent
+RUN chmod +x /cagent
+RUN cat <<EOF > /agent.yaml
+{{ .AgentConfig }}
+EOF
+RUN chmod +r /agent.yaml && mkdir /data && chmod 777 -R /data
+USER cagent
+ENTRYPOINT ["/cagent"]
+CMD ["api", "--session-db", "/data/session.db", "/agent.yaml"]
+
+LABEL com.docker.agent.packaging.version="v0.0.1"
+LABEL com.docker.agent.runtime="cagent"
+LABEL org.opencontainers.image.description="{{ .Description }}"
+LABEL org.opencontainers.image.licenses="{{ .Licenses }}"
+LABEL com.docker.agent.mcp-servers="{{ .McpServers }}"
+LABEL com.docker.agent.secrets="{{ .Secrets }}"
