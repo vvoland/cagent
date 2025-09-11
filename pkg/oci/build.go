@@ -1,16 +1,22 @@
 package oci
 
 import (
+	"bytes"
 	"context"
-	"fmt"
+	_ "embed"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"text/template"
 
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/secrets"
 )
+
+//go:embed Dockerfile.template
+var dockerfileTemplate string
 
 func BuildDockerImage(ctx context.Context, agentFilePath, dockerImageName string, push bool) error {
 	agentYaml, err := os.ReadFile(agentFilePath)
@@ -26,31 +32,27 @@ func BuildDockerImage(ctx context.Context, agentFilePath, dockerImageName string
 	}
 
 	// Analyze the config to find which secrets are needed
-	secrets := secrets.GatherEnvVarsForModels(cfg)
+	modelSecrets := secrets.GatherEnvVarsForModels(cfg)
 	mcpServers := config.GatherMCPServerReferences(cfg)
 
-	// TODO(dga): set the right entrypoint.
-	dockerfile := fmt.Sprintf(`# syntax=docker/dockerfile:1
-FROM alpine:3.22@sha256:4bcff63911fcb4448bd4fdacec207030997caf25e9bea4045fa6c8c44de311d1
+	// Generate the Dockerfile
+	var dockerfileBuf bytes.Buffer
 
-RUN adduser -D cagent
-ADD https://github.com/docker/cagent/releases/download/v1.0.9/cagent-linux-arm64 /cagent
-RUN chmod +x /cagent
-RUN cat <<EOF > /agent.yaml
-%s
-EOF
-RUN chmod +r /agent.yaml
-USER cagent
-ENTRYPOINT ["/cagent", "run", "--debug", "--tui=false", "/agent.yaml", "get my username on github"]
+	tpl := template.Must(template.New("Dockerfile").Parse(dockerfileTemplate))
+	if err := tpl.Execute(&dockerfileBuf, map[string]any{
+		"AgentConfig": string(agentYaml),
+		"Description": cfg.Agents["root"].Description,
+		"Licenses":    cfg.Metadata.License,
+		"McpServers":  strings.Join(mcpServers, ","),
+		"Secrets":     strings.Join(modelSecrets, ","),
+	}); err != nil {
+		return err
+	}
 
-LABEL com.docker.agent.packaging.version="v0.0.1"
-LABEL com.docker.agent.runtime="cagent"
-LABEL org.opencontainers.image.description="%s"
-LABEL org.opencontainers.image.licenses="%s"
-LABEL com.docker.agent.mcp-servers="%s"
-LABEL com.docker.agent.secrets="%s"
-`, string(agentYaml), cfg.Agents["root"].Description, cfg.Metadata.License, strings.Join(mcpServers, ","), strings.Join(secrets, ","))
+	dockerfile := dockerfileBuf.String()
+	slog.Debug("Generated Dockerfile", "dockerfile", dockerfile)
 
+	// Run docker build
 	buildArgs := []string{"build"}
 	if dockerImageName != "" {
 		buildArgs = append(buildArgs, "-t", dockerImageName)
@@ -64,6 +66,7 @@ LABEL com.docker.agent.secrets="%s"
 	buildCmd.Stdin = strings.NewReader(dockerfile)
 	buildCmd.Stdout = os.Stdout
 	buildCmd.Stderr = os.Stderr
+	slog.Debug("running docker build", "args", buildArgs)
 
 	return buildCmd.Run()
 }
