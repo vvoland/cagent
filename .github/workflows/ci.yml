@@ -133,4 +133,10 @@ jobs:
           provenance: mode=max
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: GIT_COMMIT=${{ github.sha }}
+          build-args: |
+            GIT_TAG=${{ github.ref_name }}
+            GIT_COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ steps.meta.outputs.created }}
+            TELEMETRY_ENDPOINT=${{ secrets.TELEMETRY_ENDPOINT }}
+            TELEMETRY_API_KEY=${{ secrets.TELEMETRY_API_KEY }}
+            TELEMETRY_HEADER=${{ secrets.TELEMETRY_HEADER }}
