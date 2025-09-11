@@ -33,32 +33,34 @@ func NewBuildCmd() *cobra.Command {
 func runBuildCommand(cmd *cobra.Command, args []string) error {
 	telemetry.TrackCommand("build", args)
 
-	fileName := filepath.Base(args[0])
-	parentDir := filepath.Dir(args[0])
+	agentFilePath := args[0]
+	agentYaml, err := os.ReadFile(agentFilePath)
+	if err != nil {
+		return err
+	}
 
+	fileName := filepath.Base(agentFilePath)
+	parentDir := filepath.Dir(agentFilePath)
 	cfg, err := config.LoadConfigSecure(fileName, parentDir)
 	if err != nil {
 		return err
 	}
 
+	// Analyze the config to find which secrets are needed
 	secrets := secrets.GatherEnvVarsForModels(cfg)
 	mcpServers := config.GatherMCPServerReferences(cfg)
 
-	tmp, err := os.MkdirTemp("", "build")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmp)
-
 	// TODO(dga): set the right entrypoint.
-	err = os.WriteFile(filepath.Join(tmp, "Dockerfile"), fmt.Appendf(nil, `# syntax=docker/dockerfile:1
+	dockerfile := fmt.Sprintf(`# syntax=docker/dockerfile:1
 FROM alpine:3.22@sha256:4bcff63911fcb4448bd4fdacec207030997caf25e9bea4045fa6c8c44de311d1
 
 RUN adduser -D cagent
 ADD https://github.com/docker/cagent/releases/download/v1.0.9/cagent-linux-arm64 /cagent
 RUN chmod +x /cagent
-COPY agent.yaml /
-RUN chmod 666 /agent.yaml
+RUN cat <<EOF > /agent.yaml
+%s
+EOF
+RUN chmod +r /agent.yaml
 USER cagent
 ENTRYPOINT ["/cagent", "run", "--debug", "--tui=false", "/agent.yaml", "get my username on github"]
 
@@ -68,20 +70,7 @@ LABEL org.opencontainers.image.description="%s"
 LABEL org.opencontainers.image.licenses="%s"
 LABEL com.docker.agent.mcp-servers="%s"
 LABEL com.docker.agent.secrets="%s"
-`, cfg.Agents["root"].Description, cfg.Metadata.License, strings.Join(mcpServers, ","), strings.Join(secrets, ",")), 0o700)
-	if err != nil {
-		return err
-	}
-
-	agentYaml, err := os.ReadFile(args[0])
-	if err != nil {
-		return err
-	}
-
-	err = os.WriteFile(filepath.Join(tmp, "agent.yaml"), agentYaml, 0o700)
-	if err != nil {
-		return err
-	}
+`, string(agentYaml), cfg.Agents["root"].Description, cfg.Metadata.License, strings.Join(mcpServers, ","), strings.Join(secrets, ","))
 
 	buildArgs := []string{"build"}
 	if len(args) > 1 {
@@ -90,8 +79,10 @@ LABEL com.docker.agent.secrets="%s"
 	if push {
 		buildArgs = append(buildArgs, "--push")
 	}
-	buildArgs = append(buildArgs, tmp)
+	buildArgs = append(buildArgs, "-")
+
 	buildCmd := exec.CommandContext(cmd.Context(), "docker", buildArgs...)
+	buildCmd.Stdin = strings.NewReader(dockerfile)
 	buildCmd.Stdout = os.Stdout
 	buildCmd.Stderr = os.Stderr
 
