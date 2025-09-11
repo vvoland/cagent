@@ -75,6 +75,13 @@ func GatherEnvVarsForModels(cfg *latest.Config) []string {
 
 	for _, agent := range cfg.Agents {
 		model := agent.Model
+
+		for prefix, alias := range provider.ProviderAliases {
+			if strings.HasPrefix(model, prefix+"/") && alias.TokenEnvVar != "" {
+				requiredEnv[alias.TokenEnvVar] = true
+			}
+		}
+
 		switch {
 		case strings.HasPrefix(model, "openai/"):
 			requiredEnv["OPENAI_API_KEY"] = true
