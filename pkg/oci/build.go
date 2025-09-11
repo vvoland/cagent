@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -12,7 +13,6 @@ import (
 	"text/template"
 
 	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/secrets"
 )
 
 //go:embed Dockerfile.template
@@ -32,7 +32,7 @@ func BuildDockerImage(ctx context.Context, agentFilePath, dockerImageName string
 	}
 
 	// Analyze the config to find which secrets are needed
-	modelSecrets := secrets.GatherEnvVarsForModels(cfg)
+	modelNames := config.GatherModelNames(cfg)
 	mcpServers := config.GatherMCPServerReferences(cfg)
 
 	// Generate the Dockerfile
@@ -44,13 +44,15 @@ func BuildDockerImage(ctx context.Context, agentFilePath, dockerImageName string
 		"Description": cfg.Agents["root"].Description,
 		"Licenses":    cfg.Metadata.License,
 		"McpServers":  strings.Join(mcpServers, ","),
-		"Secrets":     strings.Join(modelSecrets, ","),
+		"Models":      strings.Join(modelNames, ","),
 	}); err != nil {
 		return err
 	}
 
 	dockerfile := dockerfileBuf.String()
-	slog.Debug("Generated Dockerfile", "dockerfile", dockerfile)
+	if slog.Default().Enabled(ctx, slog.LevelDebug) {
+		fmt.Println(dockerfile)
+	}
 
 	// Run docker build
 	buildArgs := []string{"build"}
