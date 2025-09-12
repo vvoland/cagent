@@ -147,6 +147,11 @@ jobs:
             GIT_TAG=${{ github.ref_name }}
             GIT_COMMIT=${{ github.sha }}
             BUILD_DATE=${{ steps.meta.outputs.created }}
-            TELEMETRY_ENDPOINT=${{ secrets.TELEMETRY_ENDPOINT }}
-            TELEMETRY_API_KEY=${{ secrets.TELEMETRY_API_KEY }}
-            TELEMETRY_HEADER=${{ secrets.TELEMETRY_HEADER }}
+          secret-envs: |
+            telemetry_api_key=TELEMETRY_API_KEY
+            telemetry_endpoint=TELEMETRY_ENDPOINT
+            telemetry_header=TELEMETRY_HEADER
+        env:
+          TELEMETRY_API_KEY: ${{ secrets.TELEMETRY_API_KEY }}
+          TELEMETRY_ENDPOINT: ${{ secrets.TELEMETRY_ENDPOINT }}
+          TELEMETRY_HEADER: ${{ secrets.TELEMETRY_HEADER }}
