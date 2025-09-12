@@ -32,6 +32,17 @@ func BuildDockerImage(ctx context.Context, agentFilePath, dockerImageName string
 		return err
 	}
 
+	// Make sure the config is compatible with `cagent build`
+	for _, agent := range cfg.Agents {
+		for i := range agent.Toolsets {
+			toolSet := agent.Toolsets[i]
+
+			if toolSet.Type == "mcp" && toolSet.Command != "" {
+				return fmt.Errorf("toolset with command \"%s\" can't be used in `cagent build`", toolSet.Command)
+			}
+		}
+	}
+
 	// Analyze the config to find which secrets are needed
 	modelNames := config.GatherModelNames(cfg)
 	mcpServers := config.GatherMCPServerReferences(cfg)
