@@ -98,8 +98,8 @@ jobs:
           TELEMETRY_HEADER: ${{ secrets.TELEMETRY_HEADER }}
 
   build-image:
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: [build]
+    needs:
+      - build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -124,8 +124,9 @@ jobs:
         with:
           images: docker/cagent
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=edge
+            type=ref,event=pr
 
       - name: Build and push image
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
