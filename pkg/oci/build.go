@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/docker/cagent/pkg/config"
 )
@@ -41,9 +42,10 @@ func BuildDockerImage(ctx context.Context, agentFilePath, dockerImageName string
 	tpl := template.Must(template.New("Dockerfile").Parse(dockerfileTemplate))
 	if err := tpl.Execute(&dockerfileBuf, map[string]any{
 		"AgentConfig": string(agentYaml),
+		"BuildDate":   time.Now().UTC().Format(time.RFC3339),
 		"Description": cfg.Agents["root"].Description,
-		"Licenses":    cfg.Metadata.License,
 		"McpServers":  strings.Join(mcpServers, ","),
+		"Metadata":    cfg.Metadata,
 		"Models":      strings.Join(modelNames, ","),
 	}); err != nil {
 		return err
