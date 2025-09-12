@@ -96,6 +96,7 @@ func runHttp(cmd *cobra.Command, autoRunTools bool, args []string) error {
 		opts = append(opts, server.WithAutoRunTools(true))
 	}
 
+	runConfig.RedirectURI = redirectURI
 	s := server.New(sessionStore, runConfig, teams, opts...)
 	return s.Serve(ctx, ln)
 }
