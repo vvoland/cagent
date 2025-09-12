@@ -21,7 +21,7 @@ LABEL org.opencontainers.image.version=""
 VOLUME /data
 ENV TELEMETRY_ENABLED=true
 ENV CAGENT_HIDE_FEEDBACK_LINK=0
-CMD ["api", "--session-db", "/data/session.db", "/agent.yaml"]
+CMD ["api", "--listen", "unix:///data/agent.sock", "--session-db", "/data/session.db", "/agent.yaml"]
 RUN cat <<EOF >/agent.yaml
 {{ .AgentConfig }}
 EOF
