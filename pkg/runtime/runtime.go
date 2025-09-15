@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -17,6 +19,8 @@ import (
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/client/transport"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -35,15 +39,16 @@ type ToolHandler func(ctx context.Context, sess *session.Session, toolCall tools
 
 // Runtime manages the execution of agents
 type Runtime struct {
-	toolMap                map[string]ToolHandler
-	team                   *team.Team
-	currentAgent           string
-	resumeChan             chan ResumeType
-	oauthAuthorizationChan chan bool
-	autoRunTools           bool
-	tracer                 trace.Tracer
-	modelsStore            *modelsdev.Store
-	sessionCompaction      bool
+	toolMap                  map[string]ToolHandler
+	team                     *team.Team
+	currentAgent             string
+	resumeChan               chan ResumeType
+	resumeAuthorizeOauthFlow chan bool
+	resumeOauthCodeReceived  chan string
+	autoRunTools             bool
+	tracer                   trace.Tracer
+	modelsStore              *modelsdev.Store
+	sessionCompaction        bool
 }
 
 type Opt func(*Runtime)
@@ -81,13 +86,14 @@ func New(agents *team.Team, opts ...Opt) (*Runtime, error) {
 	}
 
 	r := &Runtime{
-		toolMap:                make(map[string]ToolHandler),
-		team:                   agents,
-		currentAgent:           "root",
-		resumeChan:             make(chan ResumeType),
-		oauthAuthorizationChan: make(chan bool),
-		modelsStore:            modelsStore,
-		sessionCompaction:      true,
+		toolMap:                  make(map[string]ToolHandler),
+		team:                     agents,
+		currentAgent:             "root",
+		resumeChan:               make(chan ResumeType),
+		resumeAuthorizeOauthFlow: make(chan bool),
+		resumeOauthCodeReceived:  make(chan string),
+		modelsStore:              modelsStore,
+		sessionCompaction:        true,
 	}
 
 	for _, opt := range opts {
@@ -192,9 +198,25 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				if errors.As(err, &oauthErr) {
 					events <- AuthorizationRequired(oauthErr.ServerURL, oauthErr.ServerType)
 
-					slog.Debug("Waiting for OAuth authorization completion", "agent", a.Name(), "server", oauthErr.ServerURL, "type", oauthErr.ServerType)
+					slog.Debug("Waiting for OAuth authorization to start", "agent", a.Name(), "server", oauthErr.ServerURL, "type", oauthErr.ServerType)
+					<-r.resumeAuthorizeOauthFlow
+
+					// Start the OAuth authorization flow
+					slog.Debug("Starting OAuth authorization flow", "agent", a.Name(), "server", oauthErr.ServerURL, "type", oauthErr.ServerType)
+					authCompleted := make(chan error, 1)
+					// Extract the OAuth handler from the original error
+					oauthHandler := client.GetOAuthHandler(err)
+					go func() {
+						authCompleted <- r.performOAuthAuthorization(ctx, oauthHandler)
+					}()
+
 					select {
-					case <-r.oauthAuthorizationChan:
+					case authErr := <-authCompleted:
+						if authErr != nil {
+							slog.Error("OAuth authorization failed", "agent", a.Name(), "server", oauthErr.ServerURL, "error", authErr)
+							events <- Error(fmt.Sprintf("OAuth authorization failed: %v", authErr))
+							return
+						}
 						slog.Debug("OAuth authorization completed, retrying tool retrieval", "agent", a.Name(), "server", oauthErr.ServerURL)
 						// Retry getting tools
 						agentTools, err = a.Tools(ctx)
@@ -330,15 +352,15 @@ func (r *Runtime) Resume(_ context.Context, confirmationType string) {
 	}
 }
 
-// ResumeAfterAuthorization signals that OAuth authorization has completed
-func (r *Runtime) ResumeAfterAuthorization(_ context.Context) {
-	slog.Debug("Resuming runtime after OAuth authorization", "agent", r.currentAgent)
+// ResumeStartAuthorizationFlow signals that OAuth authorization has completed
+func (r *Runtime) ResumeStartAuthorizationFlow(_ context.Context, confirmation bool) {
+	slog.Debug("Resuming runtime to start OAuth flow", "agent", r.currentAgent)
 
 	select {
-	case r.oauthAuthorizationChan <- true:
-		slog.Debug("OAuth authorization completion signal sent", "agent", r.currentAgent)
+	case r.resumeAuthorizeOauthFlow <- confirmation:
+		slog.Debug("Starting OAuth authorization signal sent", "agent", r.currentAgent, "confirmation", confirmation)
 	default:
-		slog.Debug("OAuth authorization channel not ready, ignoring", "agent", r.currentAgent)
+		slog.Debug("Starting OAuth authorization channel not ready, ignoring", "agent", r.currentAgent)
 	}
 }
 
@@ -897,4 +919,81 @@ func (r *Runtime) Summarize(ctx context.Context, sess *session.Session, events c
 	sess.Messages = append(sess.Messages, session.Item{Summary: summary})
 	slog.Debug("Generated session summary", "session_id", sess.ID, "summary_length", len(summary))
 	events <- SessionSummary(sess.ID, summary)
+}
+
+// performOAuthAuthorization performs the OAuth authorization flow
+func (r *Runtime) performOAuthAuthorization(ctx context.Context, oauthHandler *transport.OAuthHandler) error {
+	slog.Debug("Starting OAuth authorization flow")
+
+	// Generate PKCE code verifier and challenge
+	codeVerifier, err := client.GenerateCodeVerifier()
+	if err != nil {
+		return fmt.Errorf("failed to generate code verifier: %w", err)
+	}
+	codeChallenge := client.GenerateCodeChallenge(codeVerifier)
+
+	// Generate state parameter
+	state, err := client.GenerateState()
+	if err != nil {
+		return fmt.Errorf("failed to generate state: %w", err)
+	}
+
+	// Register client if no client ID is available
+	if oauthHandler.GetClientID() == "" {
+		slog.Debug("Registering OAuth client")
+		err = oauthHandler.RegisterClient(ctx, "cagent-oauth-client")
+		if err != nil {
+			return fmt.Errorf("failed to register client: %w", err)
+		}
+	}
+
+	// Get the authorization URL
+	authURL, err := oauthHandler.GetAuthorizationURL(ctx, state, codeChallenge)
+	if err != nil {
+		return fmt.Errorf("failed to get authorization URL: %w", err)
+	}
+
+	// Open the browser to the authorization URL
+	slog.Info("Opening browser for OAuth authorization", "url", authURL)
+	err = openBrowser(authURL)
+	if err != nil {
+		slog.Warn("Failed to open browser automatically", "error", err)
+		slog.Info("Please open the following URL in your browser", "url", authURL)
+	}
+
+	// Wait for the authorization code to be received
+	slog.Debug("Waiting for OAuth authorization code")
+	code := <-r.resumeOauthCodeReceived
+
+	// Exchange the authorization code for a token
+	slog.Debug("Exchanging authorization code for token")
+	err = oauthHandler.ProcessAuthorizationResponse(ctx, code, state, codeVerifier)
+	if err != nil {
+		return fmt.Errorf("failed to process authorization response: %w", err)
+	}
+
+	slog.Info("OAuth authorization completed successfully")
+	return nil
+}
+
+// openBrowser opens the default browser to the specified URL
+func openBrowser(url string) error {
+	var cmd string
+	var args []string
+
+	switch runtime.GOOS {
+	case "windows":
+		cmd = "rundll32"
+		args = []string{"url.dll,FileProtocolHandler", url}
+	case "darwin":
+		cmd = "open"
+		args = []string{url}
+	case "linux":
+		cmd = "xdg-open"
+		args = []string{url}
+	default:
+		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
+	}
+
+	return exec.Command(cmd, args...).Start()
 }

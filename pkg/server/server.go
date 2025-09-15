@@ -120,6 +120,9 @@ func New(sessionStore session.Store, runConfig config.RuntimeConfig, teams map[s
 
 	api.GET("/desktop/token", s.getDesktopToken)
 
+	// Resume to start an OAuth flow
+	api.POST("/:id/resumeStartOauth", s.resumeStartOauth)
+
 	return s
 }
 
@@ -187,6 +190,10 @@ type sessionsResponse struct {
 	InputTokens                int    `json:"input_tokens"`
 	OutputTokens               int    `json:"output_tokens"`
 	GetMostRecentAgentFilename string `json:"most_recent_agent_filename"`
+}
+
+type resumeStartOauthRequest struct {
+	Confirmation bool `json:"confirmation"`
 }
 
 // API handlers
@@ -1001,4 +1008,21 @@ func (s *Server) secureAgentPath(filename string) (string, error) {
 	}
 
 	return config.ValidatePathInDirectory(filename, s.agentsDir)
+}
+
+func (s *Server) resumeStartOauth(c echo.Context) error {
+	sessionID := c.Param("id")
+	var req resumeStartOauthRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	rt, exists := s.runtimes[sessionID]
+	if !exists {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "runtime not found"})
+	}
+
+	rt.ResumeStartAuthorizationFlow(c.Request().Context(), req.Confirmation)
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "Oauth started"})
 }
