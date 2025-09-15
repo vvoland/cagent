@@ -49,6 +49,11 @@ func (t *Toolset) Instructions() string {
 	return ""
 }
 
+// GetServerInfo returns server identification information
+func (t *Toolset) GetServerInfo() (serverURL, serverType string) {
+	return t.c.GetServerInfo()
+}
+
 // Tools returns the available tools
 func (t *Toolset) Tools(ctx context.Context) ([]tools.Tool, error) {
 	slog.Debug("Listing MCP tools", "toolFilter", t.toolFilter)

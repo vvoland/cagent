@@ -10,7 +10,23 @@ import (
 	"github.com/docker/cagent/pkg/memorymanager"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/mark3labs/mcp-go/client"
 )
+
+// OAuthAuthorizationRequiredError wraps an OAuth authorization error with server information
+type OAuthAuthorizationRequiredError struct {
+	Err        error
+	ServerURL  string
+	ServerType string
+}
+
+func (e *OAuthAuthorizationRequiredError) Error() string {
+	return fmt.Sprintf("OAuth authorization required for %s server '%s': %v", e.ServerType, e.ServerURL, e.Err)
+}
+
+func (e *OAuthAuthorizationRequiredError) Unwrap() error {
+	return e.Err
+}
 
 // Agent represents an AI agent
 type Agent struct {
@@ -88,9 +104,28 @@ func (a *Agent) Model() provider.Provider {
 	return a.models[rand.Intn(len(a.models))]
 }
 
+// ServerInfoProvider interface for toolsets that can provide server information
+type ServerInfoProvider interface {
+	GetServerInfo() (serverURL, serverType string)
+}
+
 // Tools returns the tools available to this agent
 func (a *Agent) Tools(ctx context.Context) ([]tools.Tool, error) {
 	if err := a.ensureToolSetsAreStarted(ctx); err != nil {
+		// If this is an OAuth authorization error during startup, try to wrap it with server info
+		if client.IsOAuthAuthorizationRequiredError(err) {
+			// Try to find which toolset caused the OAuth error by checking each one
+			for _, toolSet := range a.toolsets {
+				if serverInfoProvider, ok := toolSet.(ServerInfoProvider); ok {
+					serverURL, serverType := serverInfoProvider.GetServerInfo()
+					return nil, &OAuthAuthorizationRequiredError{
+						Err:        err,
+						ServerURL:  serverURL,
+						ServerType: serverType,
+					}
+				}
+			}
+		}
 		return nil, err
 	}
 

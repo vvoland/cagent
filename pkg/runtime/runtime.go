@@ -35,14 +35,15 @@ type ToolHandler func(ctx context.Context, sess *session.Session, toolCall tools
 
 // Runtime manages the execution of agents
 type Runtime struct {
-	toolMap           map[string]ToolHandler
-	team              *team.Team
-	currentAgent      string
-	resumeChan        chan ResumeType
-	autoRunTools      bool
-	tracer            trace.Tracer
-	modelsStore       *modelsdev.Store
-	sessionCompaction bool
+	toolMap                map[string]ToolHandler
+	team                   *team.Team
+	currentAgent           string
+	resumeChan             chan ResumeType
+	oauthAuthorizationChan chan bool
+	autoRunTools           bool
+	tracer                 trace.Tracer
+	modelsStore            *modelsdev.Store
+	sessionCompaction      bool
 }
 
 type Opt func(*Runtime)
@@ -80,12 +81,13 @@ func New(agents *team.Team, opts ...Opt) (*Runtime, error) {
 	}
 
 	r := &Runtime{
-		toolMap:           make(map[string]ToolHandler),
-		team:              agents,
-		currentAgent:      "root",
-		resumeChan:        make(chan ResumeType),
-		modelsStore:       modelsStore,
-		sessionCompaction: true,
+		toolMap:                make(map[string]ToolHandler),
+		team:                   agents,
+		currentAgent:           "root",
+		resumeChan:             make(chan ResumeType),
+		oauthAuthorizationChan: make(chan bool),
+		modelsStore:            modelsStore,
+		sessionCompaction:      true,
 	}
 
 	for _, opt := range opts {
@@ -184,8 +186,32 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				if telemetryClient := telemetry.FromContext(ctx); telemetryClient != nil {
 					telemetryClient.RecordError(ctx, err.Error())
 				}
-				events <- Error(fmt.Sprintf("failed to get tools: %v", err))
-				return
+
+				// Check if this is an OAuth authorization error with server info
+				var oauthErr *agent.OAuthAuthorizationRequiredError
+				if errors.As(err, &oauthErr) {
+					events <- AuthorizationRequired(oauthErr.ServerURL, oauthErr.ServerType)
+
+					slog.Debug("Waiting for OAuth authorization completion", "agent", a.Name(), "server", oauthErr.ServerURL, "type", oauthErr.ServerType)
+					select {
+					case <-r.oauthAuthorizationChan:
+						slog.Debug("OAuth authorization completed, retrying tool retrieval", "agent", a.Name(), "server", oauthErr.ServerURL)
+						// Retry getting tools
+						agentTools, err = a.Tools(ctx)
+						if err != nil {
+							slog.Error("Failed to get tools after OAuth authorization", "agent", a.Name(), "error", err)
+							events <- Error(fmt.Sprintf("failed to get tools after authorization: %v", err))
+							return
+						}
+					case <-ctx.Done():
+						slog.Debug("Context cancelled while waiting for OAuth authorization", "agent", a.Name(), "server", oauthErr.ServerURL)
+						return
+					}
+				} else {
+					events <- Error(fmt.Sprintf("failed to get tools: %v", err))
+					return
+				}
+
 			}
 			slog.Debug("Retrieved agent tools", "agent", a.Name(), "tool_count", len(agentTools))
 
@@ -301,6 +327,18 @@ func (r *Runtime) Resume(_ context.Context, confirmationType string) {
 		slog.Debug("Resume signal sent", "agent", r.currentAgent)
 	default:
 		slog.Debug("Resume channel not ready, ignoring", "agent", r.currentAgent)
+	}
+}
+
+// ResumeAfterAuthorization signals that OAuth authorization has completed
+func (r *Runtime) ResumeAfterAuthorization(_ context.Context) {
+	slog.Debug("Resuming runtime after OAuth authorization", "agent", r.currentAgent)
+
+	select {
+	case r.oauthAuthorizationChan <- true:
+		slog.Debug("OAuth authorization completion signal sent", "agent", r.currentAgent)
+	default:
+		slog.Debug("OAuth authorization channel not ready, ignoring", "agent", r.currentAgent)
 	}
 }
 

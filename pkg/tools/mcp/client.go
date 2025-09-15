@@ -214,6 +214,11 @@ func (c *Client) GetToolByName(name string) (tools.Tool, error) {
 	return tools.Tool{}, fmt.Errorf("tool %s not found", name)
 }
 
+// GetServerInfo returns server identification information
+func (c *Client) GetServerInfo() (serverURL, serverType string) {
+	return c.logId, c.logType
+}
+
 // CallToolWithArgs is a convenience method to call a tool with arguments
 func (c *Client) CallToolWithArgs(ctx context.Context, toolName string, args any) (*tools.ToolCallResult, error) {
 	argsBytes, err := json.Marshal(args)
