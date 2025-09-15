@@ -1,3 +1,28 @@
+// Package runtime provides OAuth discovery and authorization URL handling for MCP servers.
+//
+// OAuth Discovery Implementation Gap in MCP Ecosystem:
+//
+// While the MCP Specification technically describes using /.well-known/oauth-protected-resource
+// for discovery (RFC 9728, see https://www.speakeasy.com/mcp/building-servers/state-of-oauth-in-mcp),
+// most current MCP servers actually look for
+// /.well-known/oauth-authorization-server directly at the MCP server's domain (RFC 8414).
+// This is how the OAuth dance works in practice today. The gap between specification and
+// implementation is prevalent in the MCP ecosystem.
+//
+// The mcp-go oauthHandler.GetAuthorizationURL doesn't handle this correctly and follows only
+// the strict RFC 9728 path, which fails with most real-world MCP servers. While waiting for
+// this PR https://github.com/mark3labs/mcp-go/pull/581 to fix the upstream discovery logic,
+// we need a workaround that implements the correct discovery sequence that actually works
+// with existing MCP servers.
+//
+// This implementation bridges the gap by:
+//  1. First trying the RFC 9728 approach (/.well-known/oauth-protected-resource)
+//  2. Falling back to the RFC 8414 approach (/.well-known/oauth-authorization-server)
+//     which is what most MCP servers actually implement
+//  3. Providing sensible defaults as a final fallback
+//
+// This ensures compatibility with both specification-compliant servers and the majority
+// of existing MCP server implementations that follow the more common OAuth patterns.
 package runtime
 
 import (
@@ -33,9 +58,20 @@ type OAuthProtectedResource struct {
 	ResourceName         string   `json:"resource_name,omitempty"`
 }
 
-// GetAuthorizationURL gets the OAuth authorization URL using the correct discovery logic
+// GetAuthorizationURL gets the OAuth authorization URL using the correct discovery logic.
+//
+// This function works around the mcp-go library's incomplete OAuth discovery implementation.
+// The upstream GetAuthorizationURL method fails with most MCP servers because it only tries
+// the RFC 9728 discovery path, while most servers implement RFC 8414 directly.
+//
+// Our approach:
+// 1. Use our custom discovery logic to find the correct authorization endpoint
+// 2. Leverage the existing mcp-go logic for parameter construction (client_id, scope, etc.)
+// 3. Combine the correct endpoint with the correct parameters
+//
+// This ensures we get properly formatted OAuth URLs that work with real MCP servers.
 func GetAuthorizationURL(ctx context.Context, oauthHandler *transport.OAuthHandler, state, codeChallenge string) (string, error) {
-	// Get server metadata using our corrected discovery logic
+	// Get server metadata using our corrected discovery logic that handles the spec vs reality gap
 	metadata, err := getCorrectServerMetadata(ctx, oauthHandler)
 	if err != nil {
 		return "", fmt.Errorf("failed to get server metadata: %w", err)
@@ -61,10 +97,20 @@ func GetAuthorizationURL(ctx context.Context, oauthHandler *transport.OAuthHandl
 	return metadata.AuthorizationEndpoint + "?" + parsedURL.RawQuery, nil
 }
 
-// getCorrectServerMetadata implements the correct OAuth discovery sequence:
-// 1. Try /.well-known/oauth-protected-resource (RFC 9728)
-// 2. If that fails, try /.well-known/oauth-authorization-server (RFC 8414)
-// 3. If both fail, use default endpoints
+// getCorrectServerMetadata implements the OAuth discovery sequence that works with real MCP servers.
+//
+// The MCP specification suggests using RFC 9728 (/.well-known/oauth-protected-resource) for
+// discovery, but in practice most MCP servers implement RFC 8414 (/.well-known/oauth-authorization-server)
+// directly. This creates a gap where spec-compliant clients fail with most real implementations.
+//
+// Discovery sequence (in order of preference):
+// 1. Try /.well-known/oauth-protected-resource (RFC 9728) - for spec-compliant servers
+// 2. Try /.well-known/oauth-authorization-server (RFC 8414) - for most real MCP servers
+// 3. Try /.well-known/openid-configuration (OpenID Connect) - for OIDC-based implementations
+// 4. Use default endpoints - final fallback for servers with minimal OAuth support
+//
+// This pragmatic approach ensures compatibility with the widest range of MCP server implementations
+// while maintaining compliance with the specification where possible.
 func getCorrectServerMetadata(ctx context.Context, oauthHandler *transport.OAuthHandler) (*AuthServerMetadata, error) {
 	// Extract base URL from the OAuth handler
 	// We'll use the existing metadata call just to get the base URL, then do our own discovery
@@ -100,7 +146,15 @@ func getCorrectServerMetadata(ctx context.Context, oauthHandler *transport.OAuth
 	return getDefaultEndpoints(baseURL), nil
 }
 
-// extractBaseURLFromHandler extracts the base URL from the OAuth handler
+// extractBaseURLFromHandler extracts the base URL from the OAuth handler.
+//
+// This is a necessary workaround because the mcp-go OAuth handler doesn't expose
+// the base URL directly. We call the existing (flawed) GetServerMetadata method
+// not for its discovery logic, but to extract the base URL that we can then use
+// for our own corrected discovery sequence.
+//
+// The irony is that we're calling the broken method to get the URL, then ignoring
+// its discovery results and doing our own discovery that actually works.
 func extractBaseURLFromHandler(ctx context.Context, oauthHandler *transport.OAuthHandler) (string, error) {
 	// We need to get the base URL somehow. The cleanest way is to call the existing
 	// metadata method and extract the base URL from the result, even though the

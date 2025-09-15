@@ -36,13 +36,39 @@ const (
 	ResumeTypeReject         ResumeType = "reject"
 )
 
-// OAuthStateData represents the data encoded in the OAuth state parameter
+// OAuthStateData represents the data encoded in the OAuth state parameter.
+//
+// In OAuth flows, the state parameter serves dual purposes:
+//  1. Security: CSRF protection by including random data
+//  2. Session tracking: When the browser returns from authorization, we need to know
+//     which session triggered the OAuth flow to route the callback correctly.
+//
+// Since OAuth authorization happens in a browser (different context from our runtime),
+// we embed the session ID in the state parameter so we can retrieve it when the
+// authorization server redirects back to us with the authorization code.
 type OAuthStateData struct {
-	SessionID string `json:"session_id"`
-	Random    string `json:"random"`
+	SessionID string `json:"session_id"` // The session ID that initiated the OAuth flow
+	Random    string `json:"random"`     // Random component for CSRF protection
 }
 
-// generateStateWithSessionID generates an OAuth state parameter that encodes the session ID
+// generateStateWithSessionID generates an OAuth state parameter that encodes the session ID.
+//
+// OAuth State Parameter Design:
+//
+// When an agent needs OAuth authorization, the flow works like this:
+// 1. Agent runtime detects OAuth is needed and pauses execution
+// 2. We generate authorization URL with state parameter containing the session ID
+// 3. User's browser is redirected to the OAuth provider for authorization
+// 4. OAuth provider redirects back to our callback URL with the authorization code AND the state
+// 5. Our callback handler receives the state, extracts the session ID from it
+// 6. We can then resume the correct agent session with the authorization code
+//
+// Without encoding session ID in state, we couldn't match the OAuth callback to the
+// specific agent session that requested authorization, especially in multi-session scenarios.
+//
+// The state parameter combines:
+// - Session ID: To route the callback back to the correct session
+// - Random bytes: For CSRF protection (traditional OAuth security requirement)
 func generateStateWithSessionID(sessionID string) (string, error) {
 	// Generate a random component for security
 	randomBytes := make([]byte, 16)
@@ -66,8 +92,16 @@ func generateStateWithSessionID(sessionID string) (string, error) {
 	return state, nil
 }
 
-// DecodeSessionIDFromState extracts the session ID from an OAuth state parameter
-// This function is exported to allow OAuth callback handlers to decode session IDs
+// DecodeSessionIDFromState extracts the session ID from an OAuth state parameter.
+//
+// This function is exported to allow OAuth callback handlers to decode session IDs.
+// When the OAuth provider redirects back to our callback endpoint, they include the
+// state parameter we originally sent. This function reverses the encoding done by
+// generateStateWithSessionID to extract the session ID, allowing us to route the
+// authorization code back to the correct agent session that initiated the OAuth flow.
+//
+// This is the critical piece that bridges the browser-based OAuth callback back to
+// the specific runtime session that needs the authorization.
 func DecodeSessionIDFromState(state string) (string, error) {
 	// Base64 decode the state
 	stateJSON, err := base64.RawURLEncoding.DecodeString(state)
@@ -996,6 +1030,10 @@ func (r *Runtime) performOAuthAuthorization(ctx context.Context, sess *session.S
 	codeChallenge := client.GenerateCodeChallenge(codeVerifier)
 
 	// Generate state parameter with encoded session ID
+	// This is crucial: when the browser returns from OAuth authorization,
+	// the callback handler needs to know which session to resume. By encoding
+	// the session ID in the state parameter, we create a bridge between the
+	// browser-based OAuth flow and the specific agent session that needs authorization.
 	state, err := generateStateWithSessionID(sess.ID)
 	if err != nil {
 		return fmt.Errorf("failed to generate state with session ID: %w", err)
