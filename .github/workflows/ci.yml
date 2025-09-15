@@ -103,6 +103,7 @@ jobs:
           TELEMETRY_HEADER: ${{ secrets.TELEMETRY_HEADER }}
 
   build-image:
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     needs:
       - build
     runs-on: ubuntu-latest
