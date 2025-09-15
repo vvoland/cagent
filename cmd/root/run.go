@@ -51,9 +51,7 @@ func NewRunCmd() *cobra.Command {
   cagent run ./echo.yaml "INSTRUCTIONS"
   echo "INSTRUCTIONS" | cagent run ./echo.yaml -`,
 		Args: cobra.RangeArgs(1, 2),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCommand(cmd, args, false)
-		},
+		RunE: runCommand,
 	}
 
 	cmd.PersistentFlags().StringVarP(&agentName, "agent", "a", "root", "Name of the agent to run")
@@ -79,12 +77,17 @@ func NewTuiCmd() *cobra.Command {
 	}
 }
 
-func runCommand(_ *cobra.Command, args []string, exec bool) error {
-	// Track the run command
+func runCommand(cmd *cobra.Command, args []string) error {
 	telemetry.TrackCommand("run", args)
+	return doRunCommand(cmd.Context(), args, false)
+}
 
-	ctx := context.Background()
+func execCommand(cmd *cobra.Command, args []string) error {
+	telemetry.TrackCommand("exec", args)
+	return doRunCommand(cmd.Context(), args, true)
+}
 
+func doRunCommand(ctx context.Context, args []string, exec bool) error {
 	slog.Debug("Starting agent", "agent", agentName, "debug_mode", debugMode)
 
 	agentFilename := args[0]
@@ -195,7 +198,13 @@ func runCommand(_ *cobra.Command, args []string, exec bool) error {
 
 	// For `cagent exec`
 	if exec {
-		return runWithoutTUI(ctx, agentFilename, rt, sess, []string{"exec", "Follow the default instructions"})
+		execArgs := []string{"exec"}
+		if len(args) == 2 {
+			execArgs = append(execArgs, args[1])
+		} else {
+			execArgs = append(execArgs, "Follow the default instructions")
+		}
+		return runWithoutTUI(ctx, agentFilename, rt, sess, execArgs)
 	}
 
 	// For `cagent run --tui=false`
