@@ -29,6 +29,7 @@ import (
 	"github.com/docker/cagent/pkg/remote"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/teamloader"
 )
 
@@ -38,6 +39,7 @@ var (
 	attachmentPath string
 	workingDir     string
 	useTUI         bool
+	remoteAddress  string
 )
 
 // NewRunCmd creates a new run command
@@ -60,6 +62,7 @@ func NewRunCmd() *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&autoApprove, "yolo", false, "Automatically approve all tool calls without prompting")
 	cmd.PersistentFlags().StringVar(&attachmentPath, "attach", "", "Attach an image file to the message")
 	cmd.PersistentFlags().BoolVar(&useTUI, "tui", true, "Run the agent with a Terminal User Interface (TUI)")
+	cmd.PersistentFlags().StringVar(&remoteAddress, "remote", "", "Use remote runtime with specified address (only supported with TUI)")
 	addGatewayFlags(cmd)
 
 	return cmd
@@ -130,71 +133,114 @@ func doRunCommand(ctx context.Context, args []string, exec bool) error {
 		slog.Debug("Working directory set", "dir", absWd)
 	}
 
-	// Determine how to obtain the agent definition
-	ext := strings.ToLower(filepath.Ext(agentFilename))
-	if ext == ".yaml" || ext == ".yml" || strings.HasPrefix(agentFilename, "/dev/fd/") {
-		// Treat as local YAML file: resolve to absolute path so later chdir doesn't break it
-		if !strings.Contains(agentFilename, "\n") {
-			if abs, err := filepath.Abs(agentFilename); err == nil {
-				agentFilename = abs
+	// Skip agent file loading when using remote runtime
+	var agents *team.Team
+	var err error
+	if remoteAddress == "" {
+		// Determine how to obtain the agent definition
+		ext := strings.ToLower(filepath.Ext(agentFilename))
+		if ext == ".yaml" || ext == ".yml" || strings.HasPrefix(agentFilename, "/dev/fd/") {
+			// Treat as local YAML file: resolve to absolute path so later chdir doesn't break it
+			if !strings.Contains(agentFilename, "\n") {
+				if abs, err := filepath.Abs(agentFilename); err == nil {
+					agentFilename = abs
+				}
 			}
-		}
-		if !fileExists(agentFilename) {
-			return fmt.Errorf("agent file not found: %s", agentFilename)
-		}
-	} else {
-		// Treat as an OCI image reference. Try local store first, otherwise pull then load.
-		a, err := fromStore(agentFilename)
-		if err != nil {
-			fmt.Println("Pulling agent ", agentFilename)
-			if _, pullErr := remote.Pull(agentFilename); pullErr != nil {
-				return fmt.Errorf("failed to pull OCI image %s: %w", agentFilename, pullErr)
+			if !fileExists(agentFilename) {
+				return fmt.Errorf("agent file not found: %s", agentFilename)
 			}
-			// Retry after pull
-			a, err = fromStore(agentFilename)
+		} else {
+			// Treat as an OCI image reference. Try local store first, otherwise pull then load.
+			a, err := fromStore(agentFilename)
 			if err != nil {
-				return fmt.Errorf("failed to load agent from store after pull: %w", err)
+				fmt.Println("Pulling agent ", agentFilename)
+				if _, pullErr := remote.Pull(agentFilename); pullErr != nil {
+					return fmt.Errorf("failed to pull OCI image %s: %w", agentFilename, pullErr)
+				}
+				// Retry after pull
+				a, err = fromStore(agentFilename)
+				if err != nil {
+					return fmt.Errorf("failed to load agent from store after pull: %w", err)
+				}
 			}
+
+			// Write the fetched content to a temporary YAML file
+			tmpFile, err := os.CreateTemp("", "agentfile-*.yaml")
+			if err != nil {
+				return err
+			}
+			defer os.Remove(tmpFile.Name())
+			if _, err := tmpFile.WriteString(a); err != nil {
+				tmpFile.Close()
+				return err
+			}
+			if err := tmpFile.Close(); err != nil {
+				return err
+			}
+			agentFilename = tmpFile.Name()
 		}
 
-		// Write the fetched content to a temporary YAML file
-		tmpFile, err := os.CreateTemp("", "agentfile-*.yaml")
+		agents, err = teamloader.Load(ctx, agentFilename, runConfig)
 		if err != nil {
 			return err
 		}
-		defer os.Remove(tmpFile.Name())
-		if _, err := tmpFile.WriteString(a); err != nil {
-			tmpFile.Close()
-			return err
-		}
-		if err := tmpFile.Close(); err != nil {
-			return err
-		}
-		agentFilename = tmpFile.Name()
+		defer func() {
+			if err := agents.StopToolSets(); err != nil {
+				slog.Error("Failed to stop tool sets", "error", err)
+			}
+		}()
+	} else {
+		// For remote runtime, just store the original agent filename
+		// The remote server will handle agent loading
+		slog.Debug("Skipping local agent file loading for remote runtime", "filename", agentFilename)
 	}
 
-	agents, err := teamloader.Load(ctx, agentFilename, runConfig)
-	if err != nil {
-		return err
+	// Validate remote flag usage
+	if remoteAddress != "" && (!useTUI || exec) {
+		return fmt.Errorf("--remote flag can only be used with TUI mode")
 	}
-	defer func() {
-		if err := agents.StopToolSets(); err != nil {
-			slog.Error("Failed to stop tool sets", "error", err)
-		}
-	}()
 
 	tracer := otel.Tracer(APP_NAME)
 
-	rt, err := runtime.New(agents,
-		runtime.WithCurrentAgent(agentName),
-		runtime.WithAutoRunTools(autoApprove),
-		runtime.WithTracer(tracer),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create runtime: %w", err)
-	}
+	var sess *session.Session
 
-	sess := session.New()
+	// Create runtime based on whether remote flag is specified
+	var rt runtime.Runtime
+	if remoteAddress != "" && useTUI && !exec {
+		// Create remote runtime for TUI mode
+		remoteClient, err := runtime.NewClient(remoteAddress)
+		if err != nil {
+			return fmt.Errorf("failed to create remote client: %w", err)
+		}
+
+		sess, err = remoteClient.CreateSession(ctx)
+		if err != nil {
+			return err
+		}
+
+		remoteRt, err := runtime.NewRemoteRuntime(remoteClient,
+			runtime.WithRemoteCurrentAgent("root"),
+			runtime.WithRemoteAgentFilename("pirate.yaml"),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create remote runtime: %w", err)
+		}
+		rt = remoteRt
+		slog.Debug("Using remote runtime", "address", remoteAddress, "agent", agentName)
+	} else {
+		// Create local runtime
+		localRt, err := runtime.New(agents,
+			runtime.WithCurrentAgent(agentName),
+			runtime.WithAutoRunTools(autoApprove),
+			runtime.WithTracer(tracer),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create runtime: %w", err)
+		}
+		rt = localRt
+		sess = session.New()
+		slog.Debug("Using local runtime", "agent", agentName)
+	}
 
 	// For `cagent exec`
 	if exec {
@@ -204,12 +250,12 @@ func doRunCommand(ctx context.Context, args []string, exec bool) error {
 		} else {
 			execArgs = append(execArgs, "Follow the default instructions")
 		}
-		return runWithoutTUI(ctx, agentFilename, rt, sess, execArgs)
+		return runWithoutTUI(ctx, agentFilename, rt, session.New(), execArgs)
 	}
 
 	// For `cagent run --tui=false`
 	if !useTUI {
-		return runWithoutTUI(ctx, agentFilename, rt, sess, args)
+		return runWithoutTUI(ctx, agentFilename, rt, session.New(), args)
 	}
 
 	// The default is to use the TUI
@@ -228,7 +274,7 @@ func doRunCommand(ctx context.Context, args []string, exec bool) error {
 		}
 	}
 
-	a := app.New(agentFilename, rt, sess, firstMessage)
+	a := app.New(agentFilename, rt, agents, sess, firstMessage)
 	m := tui.New(a)
 
 	progOpts := []tea.ProgramOption{
@@ -251,7 +297,7 @@ func doRunCommand(ctx context.Context, args []string, exec bool) error {
 	return err
 }
 
-func runWithoutTUI(ctx context.Context, agentFilename string, rt *runtime.Runtime, sess *session.Session, args []string) error {
+func runWithoutTUI(ctx context.Context, agentFilename string, rt runtime.Runtime, sess *session.Session, args []string) error {
 	sess.Title = "Running agent"
 	// If the last received event was an error, return it. That way the exit code
 	// will be non-zero if the agent failed.
@@ -442,7 +488,7 @@ func runWithoutTUI(ctx context.Context, agentFilename string, rt *runtime.Runtim
 	return lastErr
 }
 
-func runUserCommand(userInput string, sess *session.Session, rt *runtime.Runtime, ctx context.Context) (bool, error) {
+func runUserCommand(userInput string, sess *session.Session, rt runtime.Runtime, ctx context.Context) (bool, error) {
 	yellow := color.New(color.FgYellow).SprintfFunc()
 	switch userInput {
 	case "/exit":

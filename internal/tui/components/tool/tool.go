@@ -90,9 +90,14 @@ func (mv *toolModel) Render(width int) string {
 	msg := mv.message
 
 	// Ask the tool what's its display name
+	displayName := msg.ToolCall.Function.Name
 	team := mv.app.Team()
-	agent := team.Agent(msg.Sender)
-	displayName := agent.ToolDisplayName(context.TODO(), msg.ToolCall.Function.Name)
+	if team != nil {
+		agent := team.Agent(msg.Sender)
+		if agent != nil {
+			displayName = agent.ToolDisplayName(context.TODO(), msg.ToolCall.Function.Name)
+		}
+	}
 	content := fmt.Sprintf("%s %s", icon(msg.ToolStatus), styles.HighlightStyle.Render(displayName))
 
 	if msg.ToolCall.Function.Arguments != "" {

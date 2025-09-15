@@ -14,18 +14,18 @@ import (
 
 type App struct {
 	agentFilename string
-	runtime       *runtime.Runtime
+	runtime       runtime.Runtime
 	team          *team.Team
 	session       *session.Session
 	firstMessage  *string
 	events        chan tea.Msg
 }
 
-func New(agentFilename string, rt *runtime.Runtime, sess *session.Session, firstMessage *string) *App {
+func New(agentFilename string, rt runtime.Runtime, agents *team.Team, sess *session.Session, firstMessage *string) *App {
 	return &App{
 		agentFilename: agentFilename,
 		runtime:       rt,
-		team:          rt.Team(),
+		team:          agents,
 		session:       sess,
 		firstMessage:  firstMessage,
 		events:        make(chan tea.Msg, 128),
