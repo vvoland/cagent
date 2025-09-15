@@ -2,6 +2,8 @@ package runtime
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -33,6 +35,54 @@ const (
 	ResumeTypeApproveSession ResumeType = "approve-session"
 	ResumeTypeReject         ResumeType = "reject"
 )
+
+// OAuthStateData represents the data encoded in the OAuth state parameter
+type OAuthStateData struct {
+	SessionID string `json:"session_id"`
+	Random    string `json:"random"`
+}
+
+// generateStateWithSessionID generates an OAuth state parameter that encodes the session ID
+func generateStateWithSessionID(sessionID string) (string, error) {
+	// Generate a random component for security
+	randomBytes := make([]byte, 16)
+	if _, err := rand.Read(randomBytes); err != nil {
+		return "", fmt.Errorf("failed to generate random bytes: %w", err)
+	}
+
+	stateData := OAuthStateData{
+		SessionID: sessionID,
+		Random:    base64.RawURLEncoding.EncodeToString(randomBytes),
+	}
+
+	// JSON encode the state data
+	stateJSON, err := json.Marshal(stateData)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal state data: %w", err)
+	}
+
+	// Base64 encode the JSON to create the state parameter
+	state := base64.RawURLEncoding.EncodeToString(stateJSON)
+	return state, nil
+}
+
+// DecodeSessionIDFromState extracts the session ID from an OAuth state parameter
+// This function is exported to allow OAuth callback handlers to decode session IDs
+func DecodeSessionIDFromState(state string) (string, error) {
+	// Base64 decode the state
+	stateJSON, err := base64.RawURLEncoding.DecodeString(state)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode state: %w", err)
+	}
+
+	// JSON decode the state data
+	var stateData OAuthStateData
+	if err := json.Unmarshal(stateJSON, &stateData); err != nil {
+		return "", fmt.Errorf("failed to unmarshal state data: %w", err)
+	}
+
+	return stateData.SessionID, nil
+}
 
 // ToolHandler is a function type for handling tool calls
 type ToolHandler func(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, events chan Event) (*tools.ToolCallResult, error)
@@ -207,7 +257,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 					// Extract the OAuth handler from the original error
 					oauthHandler := client.GetOAuthHandler(err)
 					go func() {
-						authCompleted <- r.performOAuthAuthorization(ctx, oauthHandler)
+						authCompleted <- r.performOAuthAuthorization(ctx, sess, oauthHandler)
 					}()
 
 					select {
@@ -361,6 +411,19 @@ func (r *Runtime) ResumeStartAuthorizationFlow(_ context.Context, confirmation b
 		slog.Debug("Starting OAuth authorization signal sent", "agent", r.currentAgent, "confirmation", confirmation)
 	default:
 		slog.Debug("Starting OAuth authorization channel not ready, ignoring", "agent", r.currentAgent)
+	}
+}
+
+// ResumeCodeReceived sends the OAuth authorization code to the runtime
+func (r *Runtime) ResumeCodeReceived(code string) error {
+	slog.Debug("Sending OAuth authorization code to runtime", "agent", r.currentAgent)
+	select {
+	case r.resumeOauthCodeReceived <- code:
+		slog.Debug("OAuth authorization code sent successfully", "agent", r.currentAgent)
+		return nil
+	default:
+		slog.Debug("OAuth code channel not ready", "agent", r.currentAgent)
+		return fmt.Errorf("OAuth flow not in progress")
 	}
 }
 
@@ -922,7 +985,7 @@ func (r *Runtime) Summarize(ctx context.Context, sess *session.Session, events c
 }
 
 // performOAuthAuthorization performs the OAuth authorization flow
-func (r *Runtime) performOAuthAuthorization(ctx context.Context, oauthHandler *transport.OAuthHandler) error {
+func (r *Runtime) performOAuthAuthorization(ctx context.Context, sess *session.Session, oauthHandler *transport.OAuthHandler) error {
 	slog.Debug("Starting OAuth authorization flow")
 
 	// Generate PKCE code verifier and challenge
@@ -932,10 +995,10 @@ func (r *Runtime) performOAuthAuthorization(ctx context.Context, oauthHandler *t
 	}
 	codeChallenge := client.GenerateCodeChallenge(codeVerifier)
 
-	// Generate state parameter
-	state, err := client.GenerateState()
+	// Generate state parameter with encoded session ID
+	state, err := generateStateWithSessionID(sess.ID)
 	if err != nil {
-		return fmt.Errorf("failed to generate state: %w", err)
+		return fmt.Errorf("failed to generate state with session ID: %w", err)
 	}
 
 	// Register client if no client ID is available
@@ -947,8 +1010,8 @@ func (r *Runtime) performOAuthAuthorization(ctx context.Context, oauthHandler *t
 		}
 	}
 
-	// Get the authorization URL
-	authURL, err := oauthHandler.GetAuthorizationURL(ctx, state, codeChallenge)
+	// Get the authorization URL using our corrected implementation
+	authURL, err := GetAuthorizationURL(ctx, oauthHandler, state, codeChallenge)
 	if err != nil {
 		return fmt.Errorf("failed to get authorization URL: %w", err)
 	}

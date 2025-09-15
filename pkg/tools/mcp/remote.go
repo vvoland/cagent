@@ -86,7 +86,7 @@ func NewRemoteClient(url, transportType string, headers map[string]string, redir
 		}
 	}
 
-	slog.Debug("Created remote MCP client successfully")
+	slog.Debug("Created remote MCP client successfully", "url", url, "transport", transportType, "requiresOAuth", requiresOAuth)
 	return &Client{
 		client:  c,
 		logType: "remote",
