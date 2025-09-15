@@ -3,16 +3,26 @@
 # xx is a helper for cross-compilation
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.7.0 AS xx
 
-FROM --platform=$BUILDPLATFORM golang:1.25.0-alpine3.22 AS builder-base
+FROM --platform=$BUILDPLATFORM golang:1.25.0-alpine3.22 AS base
 RUN apk add clang
 COPY --from=xx / /
 ENV CGO_ENABLED=0
-ARG GIT_TAG GIT_COMMIT BUILD_DATE
-ARG TARGETPLATFORM TARGETOS TARGETARCH
 WORKDIR /src
+
+FROM base AS builder-base
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=bind,source=go.mod,target=go.mod \
+    --mount=type=bind,source=go.sum,target=go.sum \
+    go mod download
 
 FROM builder-base AS builder
 COPY . ./
+ARG GIT_TAG
+ARG GIT_COMMIT
+ARG BUILD_DATE
+ARG TARGETPLATFORM
+ARG TARGETOS
+ARG TARGETARCH
 RUN --mount=type=cache,target=/root/.cache,id=docker-ai-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=secret,id=telemetry_api_key,env=TELEMETRY_API_KEY \
