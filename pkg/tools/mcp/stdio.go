@@ -322,3 +322,66 @@ func (c *stdioMCPClient) ReadResource(ctx context.Context, request mcp.ReadResou
 
 	return mcp.ParseReadResourceResult(response)
 }
+
+// Ping checks if the server is alive
+func (c *stdioMCPClient) Ping(ctx context.Context) error {
+	_, err := c.sendRequest(ctx, "ping", nil)
+	return err
+}
+
+// Subscribe requests notifications for changes to a specific resource
+func (c *stdioMCPClient) Subscribe(ctx context.Context, request mcp.SubscribeRequest) error {
+	_, err := c.sendRequest(ctx, "resources/subscribe", request.Params)
+	return err
+}
+
+// Unsubscribe cancels notifications for a specific resource
+func (c *stdioMCPClient) Unsubscribe(ctx context.Context, request mcp.UnsubscribeRequest) error {
+	_, err := c.sendRequest(ctx, "resources/unsubscribe", request.Params)
+	return err
+}
+
+// SetLevel sets the logging level for the server
+func (c *stdioMCPClient) SetLevel(ctx context.Context, request mcp.SetLevelRequest) error {
+	_, err := c.sendRequest(ctx, "logging/setLevel", request.Params)
+	return err
+}
+
+// Complete requests completion options for a given argument
+func (c *stdioMCPClient) Complete(ctx context.Context, request mcp.CompleteRequest) (*mcp.CompleteResult, error) { //nolint:gocritic // interface requires value type
+	response, err := c.sendRequest(ctx, "completion/complete", request.Params)
+	if err != nil {
+		return nil, err
+	}
+
+	var result mcp.CompleteResult
+	if err := json.Unmarshal(*response, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// ListResourcesByPage manually list resources by page
+func (c *stdioMCPClient) ListResourcesByPage(ctx context.Context, request mcp.ListResourcesRequest) (*mcp.ListResourcesResult, error) {
+	return c.ListResources(ctx, request)
+}
+
+// ListResourceTemplatesByPage manually list resource templates by page
+func (c *stdioMCPClient) ListResourceTemplatesByPage(ctx context.Context, request mcp.ListResourceTemplatesRequest) (*mcp.ListResourceTemplatesResult, error) {
+	return c.ListResourceTemplates(ctx, request)
+}
+
+// ListPromptsByPage manually list prompts by page
+func (c *stdioMCPClient) ListPromptsByPage(ctx context.Context, request mcp.ListPromptsRequest) (*mcp.ListPromptsResult, error) {
+	return c.ListPrompts(ctx, request)
+}
+
+// ListToolsByPage manually list tools by page
+func (c *stdioMCPClient) ListToolsByPage(ctx context.Context, request mcp.ListToolsRequest) (*mcp.ListToolsResult, error) {
+	return c.ListTools(ctx, request)
+}
+
+// OnNotification registers a handler for notifications (no-op for stdio client)
+func (c *stdioMCPClient) OnNotification(handler func(notification mcp.JSONRPCNotification)) {
+	// TODO: Implement notification handling for stdio client if needed
+}
