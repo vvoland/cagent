@@ -10,7 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"os/exec"
-	"runtime"
+	goRT "runtime"
 	"strings"
 	"time"
 
@@ -121,8 +121,26 @@ func DecodeSessionIDFromState(state string) (string, error) {
 // ToolHandler is a function type for handling tool calls
 type ToolHandler func(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, events chan Event) (*tools.ToolCallResult, error)
 
-// Runtime manages the execution of agents
-type Runtime struct {
+// Runtime defines the contract for runtime execution
+type Runtime interface {
+	// CurrentAgent returns the currently active agent
+	CurrentAgent() *agent.Agent
+	// RunStream starts the agent's interaction loop and returns a channel of events
+	RunStream(ctx context.Context, sess *session.Session) <-chan Event
+	// Run starts the agent's interaction loop and returns the final messages
+	Run(ctx context.Context, sess *session.Session) ([]session.Message, error)
+	// Resume allows resuming execution after user confirmation
+	Resume(ctx context.Context, confirmationType string)
+	// Summarize generates a summary for the session
+	Summarize(ctx context.Context, sess *session.Session, events chan Event)
+	// ResumeStartAuthorizationFlow signals that user confirmation has been given to start the OAuth flow
+	ResumeStartAuthorizationFlow(_ context.Context, confirmation bool)
+	// ResumeCodeReceived sends the OAuth authorization code to the runtime after user has completed the OAuth flow in their browser
+	ResumeCodeReceived(_ context.Context, code string) error
+}
+
+// runtime manages the execution of agents
+type runtime struct {
 	toolMap                  map[string]ToolHandler
 	team                     *team.Team
 	currentAgent             string
@@ -135,41 +153,41 @@ type Runtime struct {
 	sessionCompaction        bool
 }
 
-type Opt func(*Runtime)
+type Opt func(*runtime)
 
 func WithCurrentAgent(agentName string) Opt {
-	return func(r *Runtime) {
+	return func(r *runtime) {
 		r.currentAgent = agentName
 	}
 }
 
 func WithAutoRunTools(autoRunTools bool) Opt {
-	return func(r *Runtime) {
+	return func(r *runtime) {
 		r.autoRunTools = autoRunTools
 	}
 }
 
 // WithTracer sets a custom OpenTelemetry tracer; if not provided, tracing is disabled (no-op).
 func WithTracer(t trace.Tracer) Opt {
-	return func(r *Runtime) {
+	return func(r *runtime) {
 		r.tracer = t
 	}
 }
 
 func WithSessionCompaction(sessionCompaction bool) Opt {
-	return func(r *Runtime) {
+	return func(r *runtime) {
 		r.sessionCompaction = sessionCompaction
 	}
 }
 
 // New creates a new runtime for an agent and its team
-func New(agents *team.Team, opts ...Opt) (*Runtime, error) {
+func New(agents *team.Team, opts ...Opt) (Runtime, error) {
 	modelsStore, err := modelsdev.NewStore()
 	if err != nil {
 		return nil, err
 	}
 
-	r := &Runtime{
+	r := &runtime{
 		toolMap:                  make(map[string]ToolHandler),
 		team:                     agents,
 		currentAgent:             "root",
@@ -189,22 +207,18 @@ func New(agents *team.Team, opts ...Opt) (*Runtime, error) {
 	return r, nil
 }
 
-func (r *Runtime) Team() *team.Team {
-	return r.team
-}
-
-func (r *Runtime) CurrentAgent() *agent.Agent {
+func (r *runtime) CurrentAgent() *agent.Agent {
 	return r.team.Agent(r.currentAgent)
 }
 
 // registerDefaultTools registers the default tool handlers
-func (r *Runtime) registerDefaultTools() {
+func (r *runtime) registerDefaultTools() {
 	slog.Debug("Registering default tools")
 	r.toolMap["transfer_task"] = r.handleTaskTransfer
 	slog.Debug("Registered default tools", "count", len(r.toolMap))
 }
 
-func (r *Runtime) finalizeEventChannel(ctx context.Context, sess *session.Session, events chan Event) {
+func (r *runtime) finalizeEventChannel(ctx context.Context, sess *session.Session, events chan Event) {
 	defer close(events)
 
 	events <- StreamStopped()
@@ -220,7 +234,7 @@ func (r *Runtime) finalizeEventChannel(ctx context.Context, sess *session.Sessio
 }
 
 // Run starts the agent's interaction loop
-func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan Event {
+func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan Event {
 	slog.Debug("Starting runtime stream", "agent", r.currentAgent, "session_id", sess.ID)
 	events := make(chan Event, 128)
 
@@ -417,7 +431,7 @@ func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 	return events
 }
 
-func (r *Runtime) Resume(_ context.Context, confirmationType string) {
+func (r *runtime) Resume(_ context.Context, confirmationType string) {
 	slog.Debug("Resuming runtime", "agent", r.currentAgent, "confirmation_type", confirmationType)
 
 	cType := ResumeTypeApproveSession
@@ -436,8 +450,7 @@ func (r *Runtime) Resume(_ context.Context, confirmationType string) {
 	}
 }
 
-// ResumeStartAuthorizationFlow signals that OAuth authorization has completed
-func (r *Runtime) ResumeStartAuthorizationFlow(_ context.Context, confirmation bool) {
+func (r *runtime) ResumeStartAuthorizationFlow(_ context.Context, confirmation bool) {
 	slog.Debug("Resuming runtime to start OAuth flow", "agent", r.currentAgent)
 
 	select {
@@ -448,8 +461,7 @@ func (r *Runtime) ResumeStartAuthorizationFlow(_ context.Context, confirmation b
 	}
 }
 
-// ResumeCodeReceived sends the OAuth authorization code to the runtime
-func (r *Runtime) ResumeCodeReceived(code string) error {
+func (r *runtime) ResumeCodeReceived(_ context.Context, code string) error {
 	slog.Debug("Sending OAuth authorization code to runtime", "agent", r.currentAgent)
 	select {
 	case r.resumeOauthCodeReceived <- code:
@@ -462,7 +474,7 @@ func (r *Runtime) ResumeCodeReceived(code string) error {
 }
 
 // Run starts the agent's interaction loop
-func (r *Runtime) Run(ctx context.Context, sess *session.Session) ([]session.Message, error) {
+func (r *runtime) Run(ctx context.Context, sess *session.Session) ([]session.Message, error) {
 	eventsChan := r.RunStream(ctx, sess)
 
 	for event := range eventsChan {
@@ -475,7 +487,7 @@ func (r *Runtime) Run(ctx context.Context, sess *session.Session) ([]session.Mes
 }
 
 // handleStream handles the stream processing
-func (r *Runtime) handleStream(ctx context.Context, stream chat.MessageStream, a *agent.Agent, sess *session.Session, m *modelsdev.Model, events chan Event) (calls []tools.ToolCall, content, reasoningContent string, stopped bool, err error) {
+func (r *runtime) handleStream(ctx context.Context, stream chat.MessageStream, a *agent.Agent, sess *session.Session, m *modelsdev.Model, events chan Event) (calls []tools.ToolCall, content, reasoningContent string, stopped bool, err error) {
 	defer stream.Close()
 
 	var fullContent strings.Builder
@@ -589,7 +601,7 @@ func (r *Runtime) handleStream(ctx context.Context, stream chat.MessageStream, a
 }
 
 // processToolCalls handles the execution of tool calls for an agent
-func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, calls []tools.ToolCall, events chan Event) error {
+func (r *runtime) processToolCalls(ctx context.Context, sess *session.Session, calls []tools.ToolCall, events chan Event) error {
 	if len(calls) == 0 {
 		return nil
 	}
@@ -702,7 +714,7 @@ func (r *Runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 	return nil
 }
 
-func (r *Runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.ToolCall, events chan Event, sess *session.Session, a *agent.Agent) {
+func (r *runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.ToolCall, events chan Event, sess *session.Session, a *agent.Agent) {
 	// Start a child span for the actual tool handler execution
 	ctx, span := r.startSpan(ctx, "runtime.tool.handler", trace.WithAttributes(
 		attribute.String("tool.name", toolCall.Function.Name),
@@ -751,7 +763,7 @@ func (r *Runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.T
 	sess.AddMessage(session.NewAgentMessage(a, &toolResponseMsg))
 }
 
-func (r *Runtime) runAgentTool(ctx context.Context, handler ToolHandler, sess *session.Session, toolCall tools.ToolCall, events chan Event, a *agent.Agent) {
+func (r *runtime) runAgentTool(ctx context.Context, handler ToolHandler, sess *session.Session, toolCall tools.ToolCall, events chan Event, a *agent.Agent) {
 	// Start a child span for runtime-provided tool handler execution
 	ctx, span := r.startSpan(ctx, "runtime.tool.handler.runtime", trace.WithAttributes(
 		attribute.String("tool.name", toolCall.Function.Name),
@@ -800,7 +812,7 @@ func (r *Runtime) runAgentTool(ctx context.Context, handler ToolHandler, sess *s
 	sess.AddMessage(session.NewAgentMessage(a, &toolResponseMsg))
 }
 
-func (r *Runtime) addToolRejectedResponse(sess *session.Session, toolCall tools.ToolCall, events chan Event) {
+func (r *runtime) addToolRejectedResponse(sess *session.Session, toolCall tools.ToolCall, events chan Event) {
 	a := r.CurrentAgent()
 
 	result := "The user rejected the tool call."
@@ -816,7 +828,7 @@ func (r *Runtime) addToolRejectedResponse(sess *session.Session, toolCall tools.
 	sess.AddMessage(session.NewAgentMessage(a, &toolResponseMsg))
 }
 
-func (r *Runtime) addToolCancelledResponse(sess *session.Session, toolCall tools.ToolCall, events chan Event) {
+func (r *runtime) addToolCancelledResponse(sess *session.Session, toolCall tools.ToolCall, events chan Event) {
 	a := r.CurrentAgent()
 
 	result := "The tool call was canceled by the user."
@@ -833,14 +845,14 @@ func (r *Runtime) addToolCancelledResponse(sess *session.Session, toolCall tools
 }
 
 // startSpan wraps tracer.Start, returning a no-op span if the tracer is nil.
-func (r *Runtime) startSpan(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
+func (r *runtime) startSpan(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
 	if r.tracer == nil {
 		return ctx, trace.SpanFromContext(ctx)
 	}
 	return r.tracer.Start(ctx, name, opts...)
 }
 
-func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, evts chan Event) (*tools.ToolCallResult, error) {
+func (r *runtime) handleTaskTransfer(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, evts chan Event) (*tools.ToolCallResult, error) {
 	var params struct {
 		Agent          string `json:"agent"`
 		Task           string `json:"task"`
@@ -902,7 +914,7 @@ func (r *Runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 }
 
 // generateSessionTitle generates a title for the session based on the conversation history
-func (r *Runtime) generateSessionTitle(ctx context.Context, sess *session.Session, events chan Event) {
+func (r *runtime) generateSessionTitle(ctx context.Context, sess *session.Session, events chan Event) {
 	slog.Debug("Generating title for session", "session_id", sess.ID)
 
 	// Create conversation history summary
@@ -958,7 +970,7 @@ func (r *Runtime) generateSessionTitle(ctx context.Context, sess *session.Sessio
 }
 
 // Summarize generates a summary for the session based on the conversation history
-func (r *Runtime) Summarize(ctx context.Context, sess *session.Session, events chan Event) {
+func (r *runtime) Summarize(ctx context.Context, sess *session.Session, events chan Event) {
 	slog.Debug("Generating summary for session", "session_id", sess.ID)
 
 	events <- SessionCompaction(sess.ID, "started")
@@ -1019,7 +1031,7 @@ func (r *Runtime) Summarize(ctx context.Context, sess *session.Session, events c
 }
 
 // performOAuthAuthorization performs the OAuth authorization flow
-func (r *Runtime) performOAuthAuthorization(ctx context.Context, sess *session.Session, oauthHandler *transport.OAuthHandler) error {
+func (r *runtime) performOAuthAuthorization(ctx context.Context, sess *session.Session, oauthHandler *transport.OAuthHandler) error {
 	slog.Debug("Starting OAuth authorization flow")
 
 	// Generate PKCE code verifier and challenge
@@ -1082,7 +1094,7 @@ func openBrowser(url string) error {
 	var cmd string
 	var args []string
 
-	switch runtime.GOOS {
+	switch goRT.GOOS {
 	case "windows":
 		cmd = "rundll32"
 		args = []string{"url.dll,FileProtocolHandler", url}
@@ -1093,7 +1105,7 @@ func openBrowser(url string) error {
 		cmd = "xdg-open"
 		args = []string{url}
 	default:
-		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
+		return fmt.Errorf("unsupported platform: %s", goRT.GOOS)
 	}
 
 	return exec.Command(cmd, args...).Start()
