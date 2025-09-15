@@ -4,7 +4,7 @@
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.7.0 AS xx
 
 FROM --platform=$BUILDPLATFORM golang:1.25.0-alpine3.22 AS base
-RUN apk add clang
+RUN apk add clang file
 COPY --from=xx / /
 ENV CGO_ENABLED=0
 WORKDIR /src
@@ -30,6 +30,7 @@ RUN --mount=type=cache,target=/root/.cache,id=docker-ai-$TARGETPLATFORM \
     --mount=type=secret,id=telemetry_header,env=TELEMETRY_HEADER <<EOT
     set -ex
     xx-go build -trimpath -ldflags "-s -w -X 'github.com/docker/cagent/cmd/root.Version=$GIT_TAG' -X 'github.com/docker/cagent/cmd/root.Commit=$GIT_COMMIT' -X 'github.com/docker/cagent/cmd/root.BuildTime=$BUILD_DATE' -X 'github.com/docker/cagent/internal/telemetry.TelemetryEndpoint=$TELEMETRY_ENDPOINT' -X 'github.com/docker/cagent/internal/telemetry.TelemetryAPIKey=$TELEMETRY_API_KEY' -X 'github.com/docker/cagent/internal/telemetry.TelemetryHeader=$TELEMETRY_HEADER'" -o /binaries/cagent-$TARGETOS-$TARGETARCH .
+    file /binaries/cagent-$TARGETos-$TARGETARCH
     xx-verify --static /binaries/cagent-$TARGETOS-$TARGETARCH
     if [ "$TARGETOS" = "windows" ]; then
       mv /binaries/cagent-$TARGETOS-$TARGETARCH /binaries/cagent-$TARGETOS-$TARGETARCH.exe
