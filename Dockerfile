@@ -3,25 +3,13 @@
 # xx is a helper for cross-compilation
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.7.0 AS xx
 
-FROM golang:1.25.0-alpine@sha256:f18a072054848d87a8077455f0ac8a25886f2397f88bfdd222d6fafbb5bba440 AS build-agent
-RUN apk add --no-cache build-base
-WORKDIR /app
-COPY . ./
-ARG GIT_TAG GIT_COMMIT BUILD_DATE
-RUN --mount=type=cache,target=/root/.cache \
-    --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=secret,id=telemetry_api_key \
-    --mount=type=secret,id=telemetry_endpoint \
-    --mount=type=secret,id=telemetry_header \
-    sh -c 'TELEMETRY_API_KEY=$(cat /run/secrets/telemetry_api_key 2>/dev/null || echo "") && TELEMETRY_ENDPOINT=$(cat /run/secrets/telemetry_endpoint 2>/dev/null || echo "") && TELEMETRY_HEADER=$(cat /run/secrets/telemetry_header 2>/dev/null || echo "") && go build -trimpath -ldflags "-s -w -X '"'"'github.com/docker/cagent/cmd/root.Version=$GIT_TAG'"'"' -X '"'"'github.com/docker/cagent/cmd/root.Commit=$GIT_COMMIT'"'"' -X '"'"'github.com/docker/cagent/cmd/root.BuildTime=$BUILD_DATE'"'"' -X '"'"'github.com/docker/cagent/internal/telemetry.TelemetryEndpoint=$TELEMETRY_ENDPOINT'"'"' -X '"'"'github.com/docker/cagent/internal/telemetry.TelemetryAPIKey=$TELEMETRY_API_KEY'"'"' -X '"'"'github.com/docker/cagent/internal/telemetry.TelemetryHeader=$TELEMETRY_HEADER'"'"'" -o /agent .'
-
 FROM --platform=$BUILDPLATFORM golang:1.25.0-alpine3.22 AS builder-base
 RUN apk add clang
-WORKDIR /src
 COPY --from=xx / /
 ENV CGO_ENABLED=0
-ARG TARGETPLATFORM TARGETOS TARGETARCH
 ARG GIT_TAG GIT_COMMIT BUILD_DATE
+ARG TARGETPLATFORM TARGETOS TARGETARCH
+WORKDIR /src
 
 FROM builder-base AS builder
 COPY . ./
