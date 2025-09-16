@@ -25,6 +25,7 @@ type Options struct {
 	DryRun  bool
 	Push    bool
 	NoCache bool
+	Pull    bool
 }
 
 func BuildDockerImage(ctx context.Context, agentFilePath, dockerImageName string, opts Options) error {
@@ -106,6 +107,9 @@ func BuildDockerImage(ctx context.Context, agentFilePath, dockerImageName string
 	buildArgs := []string{"build"}
 	if opts.NoCache {
 		buildArgs = append(buildArgs, "--no-cache")
+	}
+	if opts.Pull {
+		buildArgs = append(buildArgs, "--pull")
 	}
 	if dockerImageName != "" {
 		buildArgs = append(buildArgs, "-t", dockerImageName)

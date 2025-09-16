@@ -21,6 +21,7 @@ func NewBuildCmd() *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&opts.DryRun, "dry-run", false, "only print the generated Dockerfile")
 	cmd.PersistentFlags().BoolVar(&opts.Push, "push", false, "push the image")
 	cmd.PersistentFlags().BoolVar(&opts.NoCache, "no-cache", false, "Do not use cache when building the image")
+	cmd.PersistentFlags().BoolVar(&opts.Pull, "pull", false, "Always attempt to pull all referenced images")
 
 	return cmd
 }
