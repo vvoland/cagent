@@ -3,6 +3,7 @@ package secrets
 import (
 	"context"
 	"fmt"
+	"os"
 	"sort"
 
 	"github.com/docker/cagent/pkg/config"
@@ -10,6 +11,7 @@ import (
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/gateway"
 	"github.com/docker/cagent/pkg/model/provider"
+	"github.com/docker/cagent/pkg/tools/mcp"
 )
 
 // GatherMissingEnvVars finds out which environment variables are required by the models and tools.
@@ -27,13 +29,15 @@ func GatherMissingEnvVars(ctx context.Context, cfg *latest.Config, env environme
 	}
 
 	// Tools
-	if runtimeConfig.ToolsGateway == "" && !environment.IsInContainer() {
-		names, err := GatherEnvVarsForTools(ctx, cfg)
-		if err != nil {
-			return nil, err
-		}
-		for _, e := range names {
-			requiredEnv[e] = true
+	if runtimeConfig.ToolsGateway == "" {
+		if mcpGatewayURL := os.Getenv(mcp.DOCKER_MCP_GATEWAY_URL_ENV); mcpGatewayURL != "" {
+			names, err := GatherEnvVarsForTools(ctx, cfg)
+			if err != nil {
+				return nil, err
+			}
+			for _, e := range names {
+				requiredEnv[e] = true
+			}
 		}
 	}
 
