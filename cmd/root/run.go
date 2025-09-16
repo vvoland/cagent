@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	goRuntime "runtime"
 	"strings"
 	"time"
 
@@ -283,10 +282,6 @@ func doRunCommand(ctx context.Context, args []string, exec bool) error {
 		tea.WithFilter(tui.MouseEventFilter),
 		tea.WithMouseCellMotion(),
 		tea.WithMouseAllMotion(),
-	}
-	if goRuntime.GOOS == "windows" {
-		// WithInputTTY seems to be required for proper keyboard input
-		progOpts = append(progOpts, tea.WithInputTTY())
 	}
 
 	p := tea.NewProgram(m, progOpts...)
