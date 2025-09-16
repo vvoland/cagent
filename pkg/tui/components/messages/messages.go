@@ -11,7 +11,7 @@ import (
 	"github.com/charmbracelet/glamour/v2/styles"
 	"github.com/charmbracelet/lipgloss/v2"
 
-	"github.com/docker/cagent/internal/app"
+	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tui/components/message"

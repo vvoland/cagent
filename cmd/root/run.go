@@ -20,8 +20,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel"
 
-	"github.com/docker/cagent/internal/app"
-	"github.com/docker/cagent/internal/telemetry"
+	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/evaluation"
@@ -30,6 +29,7 @@ import (
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/teamloader"
+	"github.com/docker/cagent/pkg/telemetry"
 	"github.com/docker/cagent/pkg/tui"
 )
 
