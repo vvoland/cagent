@@ -294,10 +294,16 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				// Check if this is an OAuth authorization error with server info
 				var oauthErr *agent.OAuthAuthorizationRequiredError
 				if errors.As(err, &oauthErr) {
-					events <- AuthorizationRequired(oauthErr.ServerURL, oauthErr.ServerType)
+					events <- AuthorizationRequired(oauthErr.ServerURL, oauthErr.ServerType, "pending")
 
 					slog.Debug("Waiting for OAuth authorization to start", "agent", a.Name(), "server", oauthErr.ServerURL, "type", oauthErr.ServerType)
-					<-r.resumeAuthorizeOauthFlow
+					confirmation := <-r.resumeAuthorizeOauthFlow
+
+					if !confirmation {
+						slog.Debug("OAuth authorization not confirmed by user, stopping runtime", "agent", a.Name(), "server", oauthErr.ServerURL)
+						events <- AuthorizationRequired(oauthErr.ServerURL, oauthErr.ServerType, "denied")
+						return
+					}
 
 					// Start the OAuth authorization flow
 					slog.Debug("Starting OAuth authorization flow", "agent", a.Name(), "server", oauthErr.ServerURL, "type", oauthErr.ServerType)
@@ -316,6 +322,9 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 							return
 						}
 						slog.Debug("OAuth authorization completed, retrying tool retrieval", "agent", a.Name(), "server", oauthErr.ServerURL)
+
+						events <- AuthorizationRequired(oauthErr.ServerURL, oauthErr.ServerType, "confirmed")
+
 						// Retry getting tools
 						agentTools, err = a.Tools(ctx)
 						if err != nil {
