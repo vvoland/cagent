@@ -251,12 +251,12 @@ func doRunCommand(ctx context.Context, args []string, exec bool) error {
 		} else {
 			execArgs = append(execArgs, "Follow the default instructions")
 		}
-		return runWithoutTUI(ctx, agentFilename, rt, session.New(), execArgs)
+		return runWithoutTUI(ctx, agentFilename, rt, sess, execArgs)
 	}
 
 	// For `cagent run --tui=false`
 	if !useTUI {
-		return runWithoutTUI(ctx, agentFilename, rt, session.New(), args)
+		return runWithoutTUI(ctx, agentFilename, rt, sess, args)
 	}
 
 	// The default is to use the TUI
