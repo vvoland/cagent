@@ -212,7 +212,9 @@ func doRunCommand(ctx context.Context, args []string, exec bool) error {
 			return fmt.Errorf("failed to create remote client: %w", err)
 		}
 
-		sess, err = remoteClient.CreateSession(ctx)
+		sessTemplate := session.New()
+		sessTemplate.ToolsApproved = autoApprove
+		sess, err = remoteClient.CreateSession(ctx, sessTemplate)
 		if err != nil {
 			return err
 		}
@@ -230,7 +232,6 @@ func doRunCommand(ctx context.Context, args []string, exec bool) error {
 		// Create local runtime
 		localRt, err := runtime.New(agents,
 			runtime.WithCurrentAgent(agentName),
-			runtime.WithAutoRunTools(autoApprove),
 			runtime.WithTracer(tracer),
 		)
 		if err != nil {
@@ -238,6 +239,7 @@ func doRunCommand(ctx context.Context, args []string, exec bool) error {
 		}
 		rt = localRt
 		sess = session.New()
+		sess.ToolsApproved = autoApprove
 		slog.Debug("Using local runtime", "agent", agentName)
 	}
 

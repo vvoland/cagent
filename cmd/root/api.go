@@ -31,7 +31,7 @@ func NewApiCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			telemetry.TrackCommand("api", args)
-			return runHttp(cmd, false, args)
+			return runHttp(cmd, args)
 		},
 	}
 
@@ -44,7 +44,7 @@ func NewApiCmd() *cobra.Command {
 	return cmd
 }
 
-func runHttp(cmd *cobra.Command, autoRunTools bool, args []string) error {
+func runHttp(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	agentsPath := args[0]
 
@@ -91,10 +91,6 @@ func runHttp(cmd *cobra.Command, autoRunTools bool, args []string) error {
 			}
 		}
 	}()
-
-	if autoRunTools {
-		opts = append(opts, server.WithAutoRunTools(true))
-	}
 
 	runConfig.RedirectURI = redirectURI
 	s := server.New(sessionStore, runConfig, teams, opts...)
