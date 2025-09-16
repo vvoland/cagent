@@ -122,6 +122,10 @@ func New(sessionStore session.Store, runConfig config.RuntimeConfig, teams map[s
 
 	group.GET("/desktop/token", s.getDesktopToken)
 
+	// Resume to start an OAuth flow
+	group.POST("/:id/resumeStartOauth", s.resumeStartOauth)
+	group.POST("/resumeCodeReceivedOauth", s.resumeCodeReceivedOauth)
+
 	return s
 }
 
@@ -955,4 +959,53 @@ func (s *Server) secureAgentPath(filename string) (string, error) {
 	}
 
 	return config.ValidatePathInDirectory(filename, s.agentsDir)
+}
+
+func (s *Server) resumeStartOauth(c echo.Context) error {
+	sessionID := c.Param("id")
+	var req api.ResumeStartOauthRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	rt, exists := s.runtimes[sessionID]
+	if !exists {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "runtime not found"})
+	}
+
+	rt.ResumeStartAuthorizationFlow(c.Request().Context(), req.Confirmation)
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "Oauth started"})
+}
+
+func (s *Server) resumeCodeReceivedOauth(c echo.Context) error {
+	var req api.ResumeCodeReceivedOauthRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	code := req.Code
+	state := req.State
+
+	// Extract session ID from the OAuth state parameter
+	sessionID, err := runtime.DecodeSessionIDFromState(state)
+	if err != nil {
+		slog.Error("Failed to decode session ID from OAuth state", "error", err)
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid OAuth state parameter"})
+	}
+
+	rt, exists := s.runtimes[sessionID]
+	if !exists {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "runtime not found"})
+	}
+
+	// Send the authorization code to the runtime's OAuth channel
+	if err := rt.ResumeCodeReceived(c.Request().Context(), code); err != nil {
+		slog.Error("Failed to send OAuth code to runtime", "session_id", sessionID, "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "OAuth flow not in progress"})
+	}
+
+	slog.Debug("OAuth authorization code sent to runtime", "session_id", sessionID)
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "OAuth code received"})
 }

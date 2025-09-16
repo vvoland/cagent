@@ -177,5 +177,36 @@ func (r *RemoteRuntime) convertSessionMessages(sess *session.Session) []api.Mess
 	return messages
 }
 
+// Resume allows resuming execution after user confirmation
+func (r *RemoteRuntime) ResumeStartAuthorizationFlow(ctx context.Context, confirmationType bool) {
+	slog.Debug("Resuming remote runtime", "agent", r.currentAgent, "confirmation_type", confirmationType, "session_id", r.sessionID)
+
+	if r.sessionID == "" {
+		slog.Error("Cannot resume: no session ID available")
+		return
+	}
+
+	if err := r.client.ResumeStartAuthorizationFlow(ctx, r.sessionID, confirmationType); err != nil {
+		slog.Error("Failed to resume remote session", "error", err, "session_id", r.sessionID)
+	}
+}
+
+// Resume allows resuming execution after user confirmation
+func (r *RemoteRuntime) ResumeCodeReceived(ctx context.Context, code string) error {
+	slog.Debug("Resuming remote runtime", "agent", r.currentAgent, "code", code, "session_id", r.sessionID)
+
+	if r.sessionID == "" {
+		slog.Error("Cannot resume: no session ID available")
+		return fmt.Errorf("session ID cannot be empty")
+	}
+
+	if err := r.client.ResumeCodeReceived(ctx, code); err != nil {
+		slog.Error("Failed to resume remote session", "error", err, "session_id", r.sessionID)
+		return err
+	}
+
+	return nil
+}
+
 // Verify that RemoteRuntime implements the Interface
 var _ Runtime = (*RemoteRuntime)(nil)

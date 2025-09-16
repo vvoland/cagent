@@ -365,7 +365,7 @@ func (c *Client) runAgentWithAgentName(ctx context.Context, sessionID, agent, ag
 				case "stream_stopped":
 					eventChan <- StreamStopped()
 				case "authorization_required":
-					eventChan <- AuthorizationRequired()
+					eventChan <- AuthorizationRequired(event["server_url"].(string), event["server_type"].(string), event["confirmation"].(string))
 				case "session_compaction":
 					eventChan <- SessionCompaction(event["session_id"].(string), event["status"].(string))
 				case "token_usage":
@@ -397,4 +397,14 @@ func (c *Client) runAgentWithAgentName(ctx context.Context, sessionID, agent, ag
 	}()
 
 	return eventChan, nil
+}
+
+func (c *Client) ResumeStartAuthorizationFlow(ctx context.Context, id string, confirmation bool) error {
+	req := api.ResumeStartOauthRequest{Confirmation: confirmation}
+	return c.doRequest(ctx, "POST", "/api/"+id+"/resumeStartOauth", req, nil)
+}
+
+func (c *Client) ResumeCodeReceived(ctx context.Context, code string) error {
+	req := api.ResumeCodeReceivedOauthRequest{Code: code}
+	return c.doRequest(ctx, "POST", "/api/resumeCodeReceivedOauth", req, nil)
 }

@@ -5,10 +5,25 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/client/transport"
 )
+
+var (
+	globalTokenStore client.TokenStore
+	tokenStoreOnce   sync.Once
+)
+
+// GetGlobalTokenStore returns the global tokenStore instance, creating it if necessary
+func GetGlobalTokenStore() client.TokenStore {
+	tokenStoreOnce.Do(func() {
+		globalTokenStore = client.NewMemoryTokenStore()
+		slog.Debug("Created global tokenStore")
+	})
+	return globalTokenStore
+}
 
 // detectOAuthRequirement checks if the server requires OAuth authentication
 // by making a test request and checking for WWW-Authenticate header.
@@ -39,7 +54,7 @@ func detectOAuthRequirement(url string) bool {
 }
 
 // NewRemoteClient creates a new MCP client that can connect to a remote MCP server
-func NewRemoteClient(url, transportType string, headers map[string]string, redirectURI string) (*Client, error) {
+func NewRemoteClient(url, transportType string, headers map[string]string, redirectURI string, tokenStore client.TokenStore) (*Client, error) {
 	slog.Debug("Creating remote MCP client", "url", url, "transport", transportType, "headers", headers, "redirectURI", redirectURI)
 
 	// Detect if the server requires OAuth authentication
@@ -49,8 +64,6 @@ func NewRemoteClient(url, transportType string, headers map[string]string, redir
 	var err error
 
 	if requiresOAuth {
-		tokenStore := client.NewMemoryTokenStore()
-
 		oauthConfig := client.OAuthConfig{
 			RedirectURI: redirectURI,
 			TokenStore:  tokenStore,
@@ -86,7 +99,7 @@ func NewRemoteClient(url, transportType string, headers map[string]string, redir
 		}
 	}
 
-	slog.Debug("Created remote MCP client successfully")
+	slog.Debug("Created remote MCP client successfully", "url", url, "transport", transportType, "requiresOAuth", requiresOAuth)
 	return &Client{
 		client:  c,
 		logType: "remote",
