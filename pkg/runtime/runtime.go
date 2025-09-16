@@ -36,6 +36,26 @@ const (
 	ResumeTypeReject         ResumeType = "reject"
 )
 
+// OAuthAuthorizationRequiredError wraps an OAuth authorization error with server information
+type OAuthAuthorizationRequiredError struct {
+	Err        error
+	ServerURL  string
+	ServerType string
+}
+
+func (e *OAuthAuthorizationRequiredError) Error() string {
+	return fmt.Sprintf("OAuth authorization required for %s server '%s': %v", e.ServerType, e.ServerURL, e.Err)
+}
+
+func (e *OAuthAuthorizationRequiredError) Unwrap() error {
+	return e.Err
+}
+
+// ServerInfoProvider interface for toolsets that can provide server information
+type ServerInfoProvider interface {
+	GetServerInfo() (serverURL, serverType string)
+}
+
 // OAuthStateData represents the data encoded in the OAuth state parameter.
 //
 // In OAuth flows, the state parameter serves dual purposes:
@@ -218,6 +238,29 @@ func (r *runtime) registerDefaultTools() {
 	slog.Debug("Registered default tools", "count", len(r.toolMap))
 }
 
+// getAgentToolsWithOAuthHandling gets tools from the agent and handles OAuth errors by wrapping them with server info
+func (r *runtime) getAgentToolsWithOAuthHandling(ctx context.Context, a *agent.Agent) ([]tools.Tool, error) {
+	agentTools, err := a.Tools(ctx)
+	if err != nil {
+		// If this is an OAuth authorization error, wrap it with server info
+		if client.IsOAuthAuthorizationRequiredError(err) {
+			// Try to find which toolset caused the OAuth error by checking each one
+			for _, toolSet := range a.ToolSets() {
+				if serverInfoProvider, ok := toolSet.(ServerInfoProvider); ok {
+					serverURL, serverType := serverInfoProvider.GetServerInfo()
+					return nil, &OAuthAuthorizationRequiredError{
+						Err:        err,
+						ServerURL:  serverURL,
+						ServerType: serverType,
+					}
+				}
+			}
+		}
+		return nil, err
+	}
+	return agentTools, nil
+}
+
 func (r *runtime) finalizeEventChannel(ctx context.Context, sess *session.Session, events chan Event) {
 	defer close(events)
 
@@ -281,7 +324,7 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			messages := sess.GetMessages(a)
 			slog.Debug("Retrieved messages for processing", "agent", a.Name(), "message_count", len(messages))
 
-			agentTools, err := a.Tools(ctx)
+			agentTools, err := r.getAgentToolsWithOAuthHandling(ctx, a)
 			if err != nil {
 				slog.Error("Failed to get agent tools", "agent", a.Name(), "error", err)
 				sessionSpan.RecordError(err)
@@ -292,7 +335,7 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				}
 
 				// Check if this is an OAuth authorization error with server info
-				var oauthErr *agent.OAuthAuthorizationRequiredError
+				var oauthErr *OAuthAuthorizationRequiredError
 				if errors.As(err, &oauthErr) {
 					events <- AuthorizationRequired(oauthErr.ServerURL, oauthErr.ServerType, "pending")
 
@@ -326,7 +369,7 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 						events <- AuthorizationRequired(oauthErr.ServerURL, oauthErr.ServerType, "confirmed")
 
 						// Retry getting tools
-						agentTools, err = a.Tools(ctx)
+						agentTools, err = r.getAgentToolsWithOAuthHandling(ctx, a)
 						if err != nil {
 							slog.Error("Failed to get tools after OAuth authorization", "agent", a.Name(), "error", err)
 							events <- Error(fmt.Sprintf("failed to get tools after authorization: %v", err))
@@ -617,7 +660,7 @@ func (r *runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 
 	a := r.CurrentAgent()
 	slog.Debug("Processing tool calls", "agent", a.Name(), "call_count", len(calls))
-	agentTools, err := a.Tools(ctx)
+	agentTools, err := r.getAgentToolsWithOAuthHandling(ctx, a)
 	if err != nil {
 		slog.Error("Failed to get tools for tool calls", "agent", a.Name(), "error", err)
 		return fmt.Errorf("failed to get tools: %w", err)
