@@ -129,7 +129,7 @@ We collect anonymous usage data to help improve cagent. To disable:
   - Set environment variable: TELEMETRY_ENABLED=false
 
 `, FeedbackLink)
-		_, _ = os.Stdout.WriteString(startupMsg)
+		_, _ = os.Stderr.WriteString(startupMsg)
 	}
 
 	rootCmd := NewRootCmd()
