@@ -19,7 +19,7 @@ import (
 //go:embed Dockerfile.template
 var dockerfileTemplate string
 
-func BuildDockerImage(ctx context.Context, agentFilePath, dockerImageName string, push bool) error {
+func BuildDockerImage(ctx context.Context, agentFilePath, dockerImageName string, dryRun, push bool) error {
 	agentYaml, err := os.ReadFile(agentFilePath)
 	if err != nil {
 		return err
@@ -43,6 +43,9 @@ func BuildDockerImage(ctx context.Context, agentFilePath, dockerImageName string
 		}
 	}
 
+	// Build the content of an optional servers.json
+	serversJson := ""
+
 	// Analyze the config to find which secrets are needed
 	modelNames := config.GatherModelNames(cfg)
 	mcpServers := config.GatherMCPServerReferences(cfg)
@@ -52,6 +55,7 @@ func BuildDockerImage(ctx context.Context, agentFilePath, dockerImageName string
 
 	tpl := template.Must(template.New("Dockerfile").Parse(dockerfileTemplate))
 	if err := tpl.Execute(&dockerfileBuf, map[string]any{
+		"ServersJson": serversJson,
 		"AgentConfig": string(agentYaml),
 		"BuildDate":   time.Now().UTC().Format(time.RFC3339),
 		"Description": cfg.Agents["root"].Description,
@@ -63,8 +67,9 @@ func BuildDockerImage(ctx context.Context, agentFilePath, dockerImageName string
 	}
 
 	dockerfile := dockerfileBuf.String()
-	if slog.Default().Enabled(ctx, slog.LevelDebug) {
+	if dryRun {
 		fmt.Println(dockerfile)
+		return nil
 	}
 
 	// Run docker build
