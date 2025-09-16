@@ -7,13 +7,13 @@ import (
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
 
-	"github.com/docker/cagent/internal/app"
-	"github.com/docker/cagent/internal/telemetry"
-	"github.com/docker/cagent/internal/tui/components/statusbar"
-	"github.com/docker/cagent/internal/tui/dialog"
-	chatpage "github.com/docker/cagent/internal/tui/page/chat"
-	"github.com/docker/cagent/internal/tui/styles"
+	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/runtime"
+	"github.com/docker/cagent/pkg/telemetry"
+	"github.com/docker/cagent/pkg/tui/components/statusbar"
+	"github.com/docker/cagent/pkg/tui/dialog"
+	chatpage "github.com/docker/cagent/pkg/tui/page/chat"
+	"github.com/docker/cagent/pkg/tui/styles"
 )
 
 var lastMouseEvent time.Time

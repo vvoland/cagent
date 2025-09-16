@@ -22,11 +22,11 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"gopkg.in/yaml.v3"
 
-	"github.com/docker/cagent/internal/creator"
 	"github.com/docker/cagent/pkg/api"
 	"github.com/docker/cagent/pkg/config"
 	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/content"
+	"github.com/docker/cagent/pkg/creator"
 	"github.com/docker/cagent/pkg/desktop"
 	"github.com/docker/cagent/pkg/oci"
 	"github.com/docker/cagent/pkg/remote"

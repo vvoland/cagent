@@ -5,9 +5,9 @@ import (
 
 	"github.com/charmbracelet/bubbles/v2/key"
 	"github.com/charmbracelet/lipgloss/v2"
-	"github.com/docker/cagent/internal/tui/core"
-	"github.com/docker/cagent/internal/tui/styles"
-	"github.com/docker/cagent/internal/version"
+	"github.com/docker/cagent/pkg/tui/core"
+	"github.com/docker/cagent/pkg/tui/styles"
+	"github.com/docker/cagent/pkg/version"
 )
 
 // StatusBar represents the status bar component that displays key bindings help

@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/docker/cagent/internal/config"
+	"github.com/docker/cagent/pkg/paths"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 )
@@ -65,7 +65,7 @@ func getTelemetryHeader() string {
 
 // getUserUUIDFilePath returns the path to the user UUID file
 func getUserUUIDFilePath() string {
-	configDir := config.GetConfigDir()
+	configDir := paths.GetConfigDir()
 	return filepath.Join(configDir, "user-uuid")
 }
 

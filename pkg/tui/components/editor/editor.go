@@ -6,9 +6,9 @@ import (
 	"github.com/charmbracelet/bubbles/v2/textarea"
 	tea "github.com/charmbracelet/bubbletea/v2"
 
-	"github.com/docker/cagent/internal/tui/core"
-	"github.com/docker/cagent/internal/tui/core/layout"
-	"github.com/docker/cagent/internal/tui/styles"
+	"github.com/docker/cagent/pkg/tui/core"
+	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/styles"
 )
 
 // SendMsg represents a message to send

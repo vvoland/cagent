@@ -10,10 +10,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
 
-	"github.com/docker/cagent/internal/app"
-	"github.com/docker/cagent/internal/tui/components/todo"
-	"github.com/docker/cagent/internal/tui/core"
+	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tui/components/todo"
+	"github.com/docker/cagent/pkg/tui/core"
 )
 
 // ToolConfirmationResponse represents the user's response to tool confirmation

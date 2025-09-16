@@ -9,9 +9,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/glamour/v2"
 
-	"github.com/docker/cagent/internal/tui/core/layout"
-	"github.com/docker/cagent/internal/tui/styles"
-	"github.com/docker/cagent/internal/tui/types"
+	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/styles"
+	"github.com/docker/cagent/pkg/tui/types"
 )
 
 // Model represents a view that can render a message

@@ -3,7 +3,7 @@ package dialog
 import (
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
-	"github.com/docker/cagent/internal/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/core/layout"
 )
 
 // OpenDialogMsg is sent to open a new dialog

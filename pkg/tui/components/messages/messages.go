@@ -11,14 +11,14 @@ import (
 	"github.com/charmbracelet/glamour/v2/styles"
 	"github.com/charmbracelet/lipgloss/v2"
 
-	"github.com/docker/cagent/internal/app"
-	"github.com/docker/cagent/internal/tui/components/message"
-	"github.com/docker/cagent/internal/tui/components/tool"
-	"github.com/docker/cagent/internal/tui/core"
-	"github.com/docker/cagent/internal/tui/core/layout"
-	"github.com/docker/cagent/internal/tui/types"
+	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tui/components/message"
+	"github.com/docker/cagent/pkg/tui/components/tool"
+	"github.com/docker/cagent/pkg/tui/core"
+	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/types"
 )
 
 // Model represents a chat message list component

@@ -9,10 +9,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
 
-	"github.com/docker/cagent/internal/tui/components/todo"
-	"github.com/docker/cagent/internal/tui/core/layout"
-	"github.com/docker/cagent/internal/tui/styles"
 	"github.com/docker/cagent/pkg/runtime"
+	"github.com/docker/cagent/pkg/tui/components/todo"
+	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/styles"
 )
 
 // Model represents a sidebar component

@@ -8,11 +8,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/internal/telemetry"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/server"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/teamloader"
+	"github.com/docker/cagent/pkg/telemetry"
 )
 
 var (

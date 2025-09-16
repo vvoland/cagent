@@ -14,12 +14,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/cagent/internal/telemetry"
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/modelsdev"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
+	"github.com/docker/cagent/pkg/telemetry"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/client/transport"

@@ -3,8 +3,8 @@ package root
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/internal/telemetry"
 	"github.com/docker/cagent/pkg/oci"
+	"github.com/docker/cagent/pkg/telemetry"
 )
 
 var (
