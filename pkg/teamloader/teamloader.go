@@ -319,7 +319,7 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 				headers[k] = expanded
 			}
 
-			mcpc, err := mcp.NewToolsetRemote(toolset.Remote.URL, toolset.Remote.TransportType, headers, toolset.Tools, runtimeConfig.RedirectURI)
+			mcpc, err := mcp.NewToolsetRemote(toolset.Remote.URL, toolset.Remote.TransportType, headers, toolset.Tools, runtimeConfig.RedirectURI, mcp.GetGlobalTokenStore())
 			if err != nil {
 				return nil, fmt.Errorf("failed to create remote mcp client: %w", err)
 			}
