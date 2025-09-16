@@ -814,7 +814,7 @@ func (s *Server) resumeSession(c echo.Context) error {
 
 	rt, exists := s.runtimes[sessionID]
 	if !exists {
-		return c.JSON(http.StatusNotFound, map[string]string{"error": "runtime not found"})
+		return c.JSON(http.StatusNotFound, map[string]string{"error": fmt.Sprintf("runtime not found: %s", sessionID)})
 	}
 
 	rt.Resume(c.Request().Context(), req.Confirmation)
@@ -843,7 +843,7 @@ func (s *Server) runAgent(c echo.Context) error {
 
 	t, exists := s.teams[agentFilename]
 	if !exists {
-		return c.JSON(http.StatusNotFound, map[string]string{"error": "runtime not found"})
+		return c.JSON(http.StatusNotFound, map[string]string{"error": fmt.Sprintf("runtime not found: %s", agentFilename)})
 	}
 	sess, err := s.sessionStore.GetSession(c.Request().Context(), sessionID)
 	if err != nil {
@@ -970,7 +970,7 @@ func (s *Server) resumeStartOauth(c echo.Context) error {
 
 	rt, exists := s.runtimes[sessionID]
 	if !exists {
-		return c.JSON(http.StatusNotFound, map[string]string{"error": "runtime not found"})
+		return c.JSON(http.StatusNotFound, map[string]string{"error": fmt.Sprintf("runtime not found: %s", sessionID)})
 	}
 
 	rt.ResumeStartAuthorizationFlow(c.Request().Context(), req.Confirmation)
@@ -996,7 +996,7 @@ func (s *Server) resumeCodeReceivedOauth(c echo.Context) error {
 
 	rt, exists := s.runtimes[sessionID]
 	if !exists {
-		return c.JSON(http.StatusNotFound, map[string]string{"error": "runtime not found"})
+		return c.JSON(http.StatusNotFound, map[string]string{"error": fmt.Sprintf("runtime not found: %s", sessionID)})
 	}
 
 	// Send the authorization code to the runtime's OAuth channel
