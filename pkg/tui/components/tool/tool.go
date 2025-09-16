@@ -11,9 +11,9 @@ import (
 	"github.com/charmbracelet/glamour/v2"
 
 	"github.com/docker/cagent/internal/app"
-	"github.com/docker/cagent/internal/tui/core/layout"
-	"github.com/docker/cagent/internal/tui/styles"
-	"github.com/docker/cagent/internal/tui/types"
+	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/styles"
+	"github.com/docker/cagent/pkg/tui/types"
 )
 
 // toolModel implements Model

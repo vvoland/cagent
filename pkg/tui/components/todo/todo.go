@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss/v2"
-	"github.com/docker/cagent/internal/tui/styles"
+	"github.com/docker/cagent/pkg/tui/styles"
 )
 
 // Todo represents a single todo item
