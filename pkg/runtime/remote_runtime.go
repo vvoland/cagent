@@ -90,7 +90,7 @@ func (r *RemoteRuntime) RunStream(ctx context.Context, sess *session.Session) <-
 		}
 		if sessionID == "" {
 			// Create a new session if none exists
-			newSess, err := r.client.CreateSession(ctx)
+			newSess, err := r.client.CreateSession(ctx, nil)
 			if err != nil {
 				events <- Error(fmt.Sprintf("failed to create remote session: %v", err))
 				return

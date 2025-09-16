@@ -43,7 +43,6 @@ type Server struct {
 	agentsDir    string
 	runConfig    config.RuntimeConfig
 	teams        map[string]*team.Team
-	autoRunTools bool
 }
 
 type Opt func(*Server)
@@ -58,12 +57,6 @@ func WithFrontend(fsys fs.FS) Opt {
 func WithAgentsDir(dir string) Opt {
 	return func(s *Server) {
 		s.agentsDir = dir
-	}
-}
-
-func WithAutoRunTools(autoRunTools bool) Opt {
-	return func(s *Server) {
-		s.autoRunTools = autoRunTools
 	}
 }
 
@@ -776,7 +769,13 @@ func (s *Server) getSessions(c echo.Context) error {
 }
 
 func (s *Server) createSession(c echo.Context) error {
+	var sessionTemplate session.Session
+	if err := c.Bind(&sessionTemplate); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
 	sess := session.New()
+	sess.ToolsApproved = sessionTemplate.ToolsApproved
 
 	if err := s.sessionStore.AddSession(c.Request().Context(), sess); err != nil {
 		slog.Error("Failed to persist session", "session_id", sess.ID, "error", err)
@@ -854,9 +853,6 @@ func (s *Server) runAgent(c echo.Context) error {
 	if !exists {
 		var opts []runtime.Opt = []runtime.Opt{
 			runtime.WithCurrentAgent(currentAgent),
-		}
-		if s.autoRunTools {
-			opts = append(opts, runtime.WithAutoRunTools(true))
 		}
 		rt, err = runtime.New(t, opts...)
 		if err != nil {

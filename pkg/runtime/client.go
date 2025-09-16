@@ -241,9 +241,9 @@ func (c *Client) GetSession(ctx context.Context, id string) (*api.SessionRespons
 }
 
 // CreateSession creates a new session
-func (c *Client) CreateSession(ctx context.Context) (*session.Session, error) {
+func (c *Client) CreateSession(ctx context.Context, sessTemplate *session.Session) (*session.Session, error) {
 	var sess session.Session
-	err := c.doRequest(ctx, "POST", "/api/sessions", nil, &sess)
+	err := c.doRequest(ctx, "POST", "/api/sessions", sessTemplate, &sess)
 	return &sess, err
 }
 

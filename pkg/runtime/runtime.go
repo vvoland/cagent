@@ -167,7 +167,6 @@ type runtime struct {
 	resumeChan               chan ResumeType
 	resumeAuthorizeOauthFlow chan bool
 	resumeOauthCodeReceived  chan string
-	autoRunTools             bool
 	tracer                   trace.Tracer
 	modelsStore              *modelsdev.Store
 	sessionCompaction        bool
@@ -178,12 +177,6 @@ type Opt func(*runtime)
 func WithCurrentAgent(agentName string) Opt {
 	return func(r *runtime) {
 		r.currentAgent = agentName
-	}
-}
-
-func WithAutoRunTools(autoRunTools bool) Opt {
-	return func(r *runtime) {
-		r.autoRunTools = autoRunTools
 	}
 }
 
@@ -688,7 +681,7 @@ func (r *runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 		handler, exists := r.toolMap[toolCall.Function.Name]
 		if exists {
 			slog.Debug("Using runtime tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
-			if sess.ToolsApproved || r.autoRunTools || toolCall.Function.Name == "transfer_task" {
+			if sess.ToolsApproved || toolCall.Function.Name == "transfer_task" {
 				r.runAgentTool(callCtx, handler, sess, toolCall, events, a)
 			} else {
 				slog.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
@@ -731,7 +724,7 @@ func (r *runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 			}
 			slog.Debug("Using agent tool handler", "tool", toolCall.Function.Name)
 
-			if sess.ToolsApproved || r.autoRunTools || (tool.Function.Annotations.ReadOnlyHint != nil && *tool.Function.Annotations.ReadOnlyHint == true) {
+			if sess.ToolsApproved || (tool.Function.Annotations.ReadOnlyHint != nil && *tool.Function.Annotations.ReadOnlyHint == true) {
 				slog.Debug("Tools approved, running tool", "tool", toolCall.Function.Name, "session_id", sess.ID)
 				r.runTool(callCtx, tool, toolCall, events, sess, a)
 			} else {
