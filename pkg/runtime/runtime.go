@@ -434,17 +434,22 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			streamSpan.End()
 			slog.Debug("Stream processed", "agent", a.Name(), "tool_calls", len(calls), "content_length", len(content), "stopped", stopped)
 
-			// Add assistant message to conversation history
-			assistantMessage := chat.Message{
-				Role:             chat.MessageRoleAssistant,
-				Content:          content,
-				ReasoningContent: reasoningContent,
-				ToolCalls:        calls,
-				CreatedAt:        time.Now().Format(time.RFC3339),
-			}
+			// Add assistant message to conversation history, but skip empty assistant messages
+			// Providers reject assistant messages that have neither content nor tool calls.
+			if strings.TrimSpace(content) != "" || len(calls) > 0 {
+				assistantMessage := chat.Message{
+					Role:             chat.MessageRoleAssistant,
+					Content:          content,
+					ReasoningContent: reasoningContent,
+					ToolCalls:        calls,
+					CreatedAt:        time.Now().Format(time.RFC3339),
+				}
 
-			sess.AddMessage(session.NewAgentMessage(a, &assistantMessage))
-			slog.Debug("Added assistant message to session", "agent", a.Name(), "total_messages", len(sess.GetAllMessages()))
+				sess.AddMessage(session.NewAgentMessage(a, &assistantMessage))
+				slog.Debug("Added assistant message to session", "agent", a.Name(), "total_messages", len(sess.GetAllMessages()))
+			} else {
+				slog.Debug("Skipping empty assistant message (no content and no tool calls)", "agent", a.Name())
+			}
 
 			contextLimit := 0
 			if m != nil {
@@ -582,7 +587,7 @@ func (r *runtime) handleStream(ctx context.Context, stream chat.MessageStream, a
 			continue
 		}
 		choice := response.Choices[0]
-		if choice.FinishReason == chat.FinishReasonStop {
+		if choice.FinishReason == chat.FinishReasonStop || choice.FinishReason == chat.FinishReasonLength {
 			return toolCalls, fullContent.String(), fullReasoningContent.String(), true, nil
 		}
 
@@ -649,7 +654,10 @@ func (r *runtime) handleStream(ctx context.Context, stream chat.MessageStream, a
 		}
 	}
 
-	return toolCalls, fullContent.String(), fullReasoningContent.String(), false, nil
+	// If the stream completed without producing any content or tool calls, likely because of a token limit, stop to avoid breaking the request loop
+	// NOTE(krissetto): this can likely be removed once compaction works properly with all providers (aka dmr)
+	stoppedDueToNoOutput := fullContent.Len() == 0 && len(toolCalls) == 0
+	return toolCalls, fullContent.String(), fullReasoningContent.String(), stoppedDueToNoOutput, nil
 }
 
 // processToolCalls handles the execution of tool calls for an agent
