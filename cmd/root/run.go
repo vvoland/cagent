@@ -275,7 +275,7 @@ func doRunCommand(ctx context.Context, args []string, exec bool) error {
 		}
 	}
 
-	a := app.New(agentFilename, rt, agents, sess, firstMessage)
+	a := app.New("cagent", agentFilename, rt, agents, sess, firstMessage)
 	m := tui.New(a)
 
 	progOpts := []tea.ProgramOption{
