@@ -5,25 +5,10 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
-	"sync"
 
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/client/transport"
 )
-
-var (
-	globalTokenStore client.TokenStore
-	tokenStoreOnce   sync.Once
-)
-
-// GetGlobalTokenStore returns the global tokenStore instance, creating it if necessary
-func GetGlobalTokenStore() client.TokenStore {
-	tokenStoreOnce.Do(func() {
-		globalTokenStore = client.NewMemoryTokenStore()
-		slog.Debug("Created global tokenStore")
-	})
-	return globalTokenStore
-}
 
 // detectOAuthRequirement checks if the server requires OAuth authentication
 // by making a test request and checking for WWW-Authenticate header.

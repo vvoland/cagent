@@ -7,7 +7,6 @@ import (
 	"log/slog"
 
 	"github.com/docker/cagent/pkg/tools"
-	"github.com/mark3labs/mcp-go/client"
 )
 
 // Toolset represents a set of MCP tools
@@ -30,9 +29,10 @@ func NewToolsetCommand(command string, args, env, toolFilter []string) *Toolset 
 }
 
 // NewToolsetRemote creates a new MCP toolset from a remote MCP Server.
-func NewToolsetRemote(url, transport string, headers map[string]string, toolFilter []string, redirectURI string, tokenStore client.TokenStore) (*Toolset, error) {
+func NewToolsetRemote(url, transport string, headers map[string]string, toolFilter []string, redirectURI string) (*Toolset, error) {
 	slog.Debug("Creating Remote MCP toolset", "url", url, "transport", transport, "headers", headers, "toolFilter", toolFilter, "redirectURI", redirectURI)
 
+	tokenStore := GetTokenStore(url)
 	mcpc, err := NewRemoteClient(url, transport, headers, redirectURI, tokenStore)
 	if err != nil {
 		slog.Error("Failed to create remote MCP client", "error", err)
