@@ -29,15 +29,13 @@ func GatherMissingEnvVars(ctx context.Context, cfg *latest.Config, env environme
 	}
 
 	// Tools
-	if runtimeConfig.ToolsGateway == "" {
-		if mcpGatewayURL := os.Getenv(mcp.DOCKER_MCP_GATEWAY_URL_ENV); mcpGatewayURL != "" {
-			names, err := GatherEnvVarsForTools(ctx, cfg)
-			if err != nil {
-				return nil, err
-			}
-			for _, e := range names {
-				requiredEnv[e] = true
-			}
+	if mcpGatewayURL := os.Getenv(mcp.DOCKER_MCP_GATEWAY_URL_ENV); mcpGatewayURL != "" {
+		names, err := GatherEnvVarsForTools(ctx, cfg)
+		if err != nil {
+			return nil, err
+		}
+		for _, e := range names {
+			requiredEnv[e] = true
 		}
 	}
 
