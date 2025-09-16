@@ -7,10 +7,7 @@ import (
 	"github.com/docker/cagent/pkg/telemetry"
 )
 
-var (
-	push   bool
-	dryRun bool
-)
+var opts oci.Options
 
 func NewBuildCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -21,8 +18,9 @@ func NewBuildCmd() *cobra.Command {
 		Hidden: true,
 	}
 
-	cmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "only print the generated Dockerfile")
-	cmd.PersistentFlags().BoolVar(&push, "push", false, "push the image")
+	cmd.PersistentFlags().BoolVar(&opts.DryRun, "dry-run", false, "only print the generated Dockerfile")
+	cmd.PersistentFlags().BoolVar(&opts.Push, "push", false, "push the image")
+	cmd.PersistentFlags().BoolVar(&opts.NoCache, "no-cache", false, "Do not use cache when building the image")
 
 	return cmd
 }
@@ -36,5 +34,5 @@ func runBuildCommand(cmd *cobra.Command, args []string) error {
 		dockerImageName = args[1]
 	}
 
-	return oci.BuildDockerImage(cmd.Context(), agentFilePath, dockerImageName, dryRun, push)
+	return oci.BuildDockerImage(cmd.Context(), agentFilePath, dockerImageName, opts)
 }
