@@ -119,7 +119,7 @@ func Execute() {
 	telemetry.SetGlobalTelemetryVersion(version.Version)
 
 	// Print startup message only on first installation/setup
-	if isFirstRun() {
+	if isFirstRun() && os.Getenv("CAGENT_HIDE_TELEMETRY_BANNER") != "1" {
 		startupMsg := fmt.Sprintf(`
 Welcome to cagent! 🚀
 
