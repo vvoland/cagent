@@ -2,7 +2,6 @@ package oauth
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 
@@ -140,23 +139,4 @@ func (m *manager) performOAuthAuthorization(ctx context.Context, sessionID strin
 
 	slog.Info("OAuth authorization completed successfully")
 	return nil
-}
-
-// WrapOAuthError wraps an OAuth authorization error with server information from a toolset
-func WrapOAuthError(err error, serverInfoProvider ServerInfoProvider) error {
-	if client.IsOAuthAuthorizationRequiredError(err) {
-		serverURL, serverType := serverInfoProvider.GetServerInfo()
-		return &AuthorizationRequiredError{
-			Err:        err,
-			ServerURL:  serverURL,
-			ServerType: serverType,
-		}
-	}
-	return err
-}
-
-// IsAuthorizationRequiredError checks if an error is an OAuth authorization required error
-func IsAuthorizationRequiredError(err error) bool {
-	var oauthErr *AuthorizationRequiredError
-	return errors.As(err, &oauthErr)
 }

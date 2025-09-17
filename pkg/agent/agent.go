@@ -12,17 +12,17 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
-// ToolSetStartupError wraps toolset startup failures with context
-type ToolSetStartupError struct {
-	Err   error
-	Index int
+// ToolSetError wraps toolset startup failures with context
+type ToolSetError struct {
+	Err     error
+	Toolset tools.ToolSet
 }
 
-func (e *ToolSetStartupError) Error() string {
+func (e *ToolSetError) Error() string {
 	return fmt.Sprintf("failed to start toolset: %v", e.Err)
 }
 
-func (e *ToolSetStartupError) Unwrap() error {
+func (e *ToolSetError) Unwrap() error {
 	return e.Err
 }
 
@@ -148,16 +148,16 @@ func (a *Agent) ensureToolSetsAreStarted(ctx context.Context) error {
 	a.toolsetsMutex.Lock()
 	defer a.toolsetsMutex.Unlock()
 
-	for i, toolSet := range a.toolsets {
+	for _, toolSet := range a.toolsets {
 		// Skip if toolset is already started
 		if a.startedToolsets[toolSet] {
 			continue
 		}
 
 		if err := toolSet.Start(ctx); err != nil {
-			return &ToolSetStartupError{
-				Err:   err,
-				Index: i,
+			return &ToolSetError{
+				Err:     err,
+				Toolset: toolSet,
 			}
 		}
 
