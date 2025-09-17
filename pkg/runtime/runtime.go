@@ -168,7 +168,7 @@ func (r *runtime) finalizeEventChannel(ctx context.Context, sess *session.Sessio
 	}
 }
 
-// Run starts the agent's interaction loop
+// RunStream starts the agent's interaction loop and returns a channel of events
 func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan Event {
 	slog.Debug("Starting runtime stream", "agent", r.currentAgent, "session_id", sess.ID)
 	events := make(chan Event, 128)
@@ -206,7 +206,31 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			slog.Debug("Failed to get model definition", "error", err)
 		}
 
+		iteration := 0
+		// Use a runtime copy of maxIterations so we don't modify the session's persistent config
+		runtimeMaxIterations := sess.MaxIterations
 		for {
+			// Check iteration limit
+			if runtimeMaxIterations > 0 && iteration >= runtimeMaxIterations {
+				slog.Debug("Maximum iterations reached", "agent", a.Name(), "iterations", iteration, "max", runtimeMaxIterations)
+				events <- MaxIterationsReached(runtimeMaxIterations)
+
+				// Wait for user decision
+				select {
+				case resumeType := <-r.resumeChan:
+					if resumeType == ResumeTypeApprove {
+						slog.Debug("User chose to continue after max iterations", "agent", a.Name())
+						runtimeMaxIterations = iteration + 10
+					} else {
+						slog.Debug("User chose to exit after max iterations", "agent", a.Name())
+						return
+					}
+				case <-ctx.Done():
+					slog.Debug("Context cancelled while waiting for max iterations decision", "agent", a.Name())
+					return
+				}
+			}
+			iteration++
 			// Exit immediately if the stream context has been cancelled (e.g., Ctrl+C)
 			if err := ctx.Err(); err != nil {
 				slog.Debug("Runtime stream context cancelled, stopping loop", "agent", a.Name(), "session_id", sess.ID)
@@ -816,7 +840,11 @@ func (r *runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 	}
 
 	slog.Debug("Creating new session with parent session", "parent_session_id", sess.ID, "tools_approved", sess.ToolsApproved)
-	s := session.New(session.WithSystemMessage(memberAgentTask), session.WithUserMessage("", "Follow the default instructions"))
+	s := session.New(
+		session.WithSystemMessage(memberAgentTask),
+		session.WithUserMessage("", "Follow the default instructions"),
+		session.WithMaxIterations(sess.MaxIterations),
+	)
 	s.SendUserMessage = false
 	s.Title = "Transferred task"
 	s.ToolsApproved = sess.ToolsApproved
