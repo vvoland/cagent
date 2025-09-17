@@ -40,7 +40,7 @@ type Runtime interface {
 	// CurrentAgent returns the currently active agent
 	CurrentAgent() *agent.Agent
 	// RunStream starts the agent's interaction loop and returns a channel of events
-	RunStream(ctx context.Context, sess *session.Session) <-chan Event
+	RunStream(ctx context.Context, sess *session.Session, maxIterations int) <-chan Event
 	// Run starts the agent's interaction loop and returns the final messages
 	Run(ctx context.Context, sess *session.Session) ([]session.Message, error)
 	// Resume allows resuming execution after user confirmation
@@ -168,8 +168,9 @@ func (r *runtime) finalizeEventChannel(ctx context.Context, sess *session.Sessio
 	}
 }
 
-// Run starts the agent's interaction loop
-func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan Event {
+// RunStream starts the agent's interaction loop with an optional iteration limit
+// If maxIterations is 0, there is no limit
+func (r *runtime) RunStream(ctx context.Context, sess *session.Session, maxIterations int) <-chan Event {
 	slog.Debug("Starting runtime stream", "agent", r.currentAgent, "session_id", sess.ID)
 	events := make(chan Event, 128)
 
@@ -206,7 +207,29 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			slog.Debug("Failed to get model definition", "error", err)
 		}
 
+		iteration := 0
 		for {
+			// Check iteration limit
+			if maxIterations > 0 && iteration >= maxIterations {
+				slog.Debug("Maximum iterations reached", "agent", a.Name(), "iterations", iteration, "max", maxIterations)
+				events <- MaxIterationsReached(maxIterations)
+
+				// Wait for user decision
+				select {
+				case resumeType := <-r.resumeChan:
+					if resumeType == ResumeTypeApprove {
+						slog.Debug("User chose to continue after max iterations", "agent", a.Name())
+						maxIterations = iteration + 10
+					} else {
+						slog.Debug("User chose to exit after max iterations", "agent", a.Name())
+						return
+					}
+				case <-ctx.Done():
+					slog.Debug("Context cancelled while waiting for max iterations decision", "agent", a.Name())
+					return
+				}
+			}
+			iteration++
 			// Exit immediately if the stream context has been cancelled (e.g., Ctrl+C)
 			if err := ctx.Err(); err != nil {
 				slog.Debug("Runtime stream context cancelled, stopping loop", "agent", a.Name(), "session_id", sess.ID)
@@ -402,7 +425,7 @@ func (r *runtime) ResumeCodeReceived(_ context.Context, code string) error {
 
 // Run starts the agent's interaction loop
 func (r *runtime) Run(ctx context.Context, sess *session.Session) ([]session.Message, error) {
-	eventsChan := r.RunStream(ctx, sess)
+	eventsChan := r.RunStream(ctx, sess, 0)
 
 	for event := range eventsChan {
 		if errEvent, ok := event.(*ErrorEvent); ok {
@@ -821,7 +844,7 @@ func (r *runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 	s.Title = "Transferred task"
 	s.ToolsApproved = sess.ToolsApproved
 
-	for event := range r.RunStream(ctx, s) {
+	for event := range r.RunStream(ctx, s, 0) {
 		evts <- event
 		if errEvent, ok := event.(*ErrorEvent); ok {
 			span.RecordError(fmt.Errorf("%s", errEvent.Error))

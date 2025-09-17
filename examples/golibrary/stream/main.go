@@ -44,7 +44,7 @@ func main() {
 
 	sess := session.New(session.WithUserMessage("", "How are you doing?"))
 
-	events := rt.RunStream(ctx, sess)
+	events := rt.RunStream(ctx, sess, 0)
 	for event := range events {
 		switch e := event.(type) {
 		case *runtime.AgentChoiceEvent:

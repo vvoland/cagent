@@ -72,8 +72,9 @@ func (r *RemoteRuntime) CurrentAgent() *agent.Agent {
 	return agent.New(r.currentAgent, fmt.Sprintf("Remote agent: %s", r.currentAgent))
 }
 
-// RunStream starts the agent's interaction loop and returns a channel of events
-func (r *RemoteRuntime) RunStream(ctx context.Context, sess *session.Session) <-chan Event {
+// RunStream starts the agent's interaction loop with an optional iteration limit
+// If maxIterations is 0, there is no limit
+func (r *RemoteRuntime) RunStream(ctx context.Context, sess *session.Session, maxIterations int) <-chan Event {
 	slog.Debug("Starting remote runtime stream", "agent", r.currentAgent, "session_id", r.sessionID)
 	events := make(chan Event, 128)
 
@@ -125,7 +126,7 @@ func (r *RemoteRuntime) RunStream(ctx context.Context, sess *session.Session) <-
 
 // Run starts the agent's interaction loop and returns the final messages
 func (r *RemoteRuntime) Run(ctx context.Context, sess *session.Session) ([]session.Message, error) {
-	eventsChan := r.RunStream(ctx, sess)
+	eventsChan := r.RunStream(ctx, sess, 0)
 
 	for event := range eventsChan {
 		if errEvent, ok := event.(*ErrorEvent); ok {

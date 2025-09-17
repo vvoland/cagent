@@ -883,7 +883,7 @@ func (s *Server) runAgent(c echo.Context) error {
 	c.Response().Header().Set("Connection", "keep-alive")
 	c.Response().WriteHeader(http.StatusOK)
 
-	streamChan := rt.RunStream(c.Request().Context(), sess)
+	streamChan := rt.RunStream(c.Request().Context(), sess, 0)
 	for event := range streamChan {
 		data, err := json.Marshal(event)
 		if err != nil {

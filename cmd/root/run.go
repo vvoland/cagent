@@ -349,7 +349,7 @@ func runWithoutTUI(ctx context.Context, agentFilename string, rt runtime.Runtime
 		lastAgent := rt.CurrentAgent().Name()
 		llmIsTyping := false
 		var lastConfirmedToolCallID string
-		for event := range rt.RunStream(loopCtx, sess) {
+		for event := range rt.RunStream(loopCtx, sess, 0) {
 			if event.GetAgentName() != "" && (firstLoop || lastAgent != event.GetAgentName()) {
 				if !firstLoop {
 					if llmIsTyping {

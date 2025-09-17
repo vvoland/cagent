@@ -58,7 +58,7 @@ func (a *App) Run(ctx context.Context, message string) {
 
 		// User message
 		a.session.AddMessage(session.UserMessage(a.agentFilename, message))
-		for event := range a.runtime.RunStream(ctx, a.session) {
+		for event := range a.runtime.RunStream(ctx, a.session, 0) {
 			a.events <- event
 		}
 	}()
