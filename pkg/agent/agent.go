@@ -5,12 +5,26 @@ import (
 	"fmt"
 	"log/slog"
 	"math/rand"
-	"sync/atomic"
+	"sync"
 
 	"github.com/docker/cagent/pkg/memorymanager"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/tools"
 )
+
+// ToolSetStartupError wraps toolset startup failures with context
+type ToolSetStartupError struct {
+	Err   error
+	Index int
+}
+
+func (e *ToolSetStartupError) Error() string {
+	return fmt.Sprintf("failed to start toolset: %v", e.Err)
+}
+
+func (e *ToolSetStartupError) Unwrap() error {
+	return e.Err
+}
 
 // Agent represents an AI agent
 type Agent struct {
@@ -18,7 +32,8 @@ type Agent struct {
 	description        string
 	instruction        string
 	toolsets           []tools.ToolSet
-	toolsetsStarted    atomic.Bool
+	startedToolsets    map[tools.ToolSet]bool
+	toolsetsMutex      sync.RWMutex
 	models             []provider.Provider
 	subAgents          []*Agent
 	parents            []*Agent
@@ -31,8 +46,9 @@ type Agent struct {
 // New creates a new agent
 func New(name, prompt string, opts ...Opt) *Agent {
 	agent := &Agent{
-		name:        name,
-		instruction: prompt,
+		name:            name,
+		instruction:     prompt,
+		startedToolsets: make(map[tools.ToolSet]bool),
 	}
 
 	for _, opt := range opts {
@@ -129,31 +145,46 @@ func (a *Agent) ToolSets() []tools.ToolSet {
 }
 
 func (a *Agent) ensureToolSetsAreStarted(ctx context.Context) error {
-	if a.toolsetsStarted.Load() {
-		return nil
-	}
+	a.toolsetsMutex.Lock()
+	defer a.toolsetsMutex.Unlock()
 
-	for _, toolSet := range a.toolsets {
-		if err := toolSet.Start(ctx); err != nil {
-			return fmt.Errorf("failed to start toolset: %w", err)
+	for i, toolSet := range a.toolsets {
+		// Skip if toolset is already started
+		if a.startedToolsets[toolSet] {
+			continue
 		}
+
+		if err := toolSet.Start(ctx); err != nil {
+			return &ToolSetStartupError{
+				Err:   err,
+				Index: i,
+			}
+		}
+
+		// Mark toolset as started
+		a.startedToolsets[toolSet] = true
 	}
 
-	a.toolsetsStarted.Store(true)
 	return nil
 }
 
 func (a *Agent) StopToolSets() error {
-	if !a.toolsetsStarted.Load() {
-		return nil
-	}
+	a.toolsetsMutex.Lock()
+	defer a.toolsetsMutex.Unlock()
 
 	for _, toolSet := range a.toolsets {
+		// Only stop toolsets that are marked as started
+		if !a.startedToolsets[toolSet] {
+			continue
+		}
+
 		if err := toolSet.Stop(); err != nil {
 			return fmt.Errorf("failed to stop toolset: %w", err)
 		}
+
+		// Mark toolset as stopped
+		a.startedToolsets[toolSet] = false
 	}
 
-	a.toolsetsStarted.Store(false)
 	return nil
 }

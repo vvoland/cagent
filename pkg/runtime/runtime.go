@@ -126,12 +126,18 @@ func (r *runtime) registerDefaultTools() {
 func (r *runtime) getAgentToolsWithOAuthHandling(ctx context.Context, a *agent.Agent) ([]tools.Tool, error) {
 	agentTools, err := a.Tools(ctx)
 	if err != nil {
-		// If this is an OAuth authorization error, wrap it with server info
-		if client.IsOAuthAuthorizationRequiredError(err) {
-			// Try to find which toolset caused the OAuth error by checking each one
-			for _, toolSet := range a.ToolSets() {
-				if serverInfoProvider, ok := toolSet.(oauth.ServerInfoProvider); ok {
-					return nil, oauth.WrapOAuthError(err, serverInfoProvider)
+		// Check if this is a ToolSetStartupError
+		var toolSetStartupErr *agent.ToolSetStartupError
+		if errors.As(err, &toolSetStartupErr) {
+			// Check if the inner error is an OAuth authorization error
+			if client.IsOAuthAuthorizationRequiredError(toolSetStartupErr.Err) {
+				// Use the index from ToolSetStartupError to get the specific toolset
+				toolsets := a.ToolSets()
+				if toolSetStartupErr.Index >= 0 && toolSetStartupErr.Index < len(toolsets) {
+					toolSet := toolsets[toolSetStartupErr.Index]
+					if serverInfoProvider, ok := toolSet.(oauth.ServerInfoProvider); ok {
+						return nil, oauth.WrapOAuthError(toolSetStartupErr.Err, serverInfoProvider)
+					}
 				}
 			}
 		}
