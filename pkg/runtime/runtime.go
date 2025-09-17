@@ -562,7 +562,7 @@ func (r *runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 
 	a := r.CurrentAgent()
 	slog.Debug("Processing tool calls", "agent", a.Name(), "call_count", len(calls))
-	agentTools, err := r.getAgentToolsWithOAuthHandling(ctx, a)
+	agentTools, err := a.Tools(ctx)
 	if err != nil {
 		slog.Error("Failed to get tools for tool calls", "agent", a.Name(), "error", err)
 		return fmt.Errorf("failed to get tools: %w", err)
