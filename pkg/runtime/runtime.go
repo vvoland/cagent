@@ -40,7 +40,7 @@ type Runtime interface {
 	// CurrentAgent returns the currently active agent
 	CurrentAgent() *agent.Agent
 	// RunStream starts the agent's interaction loop and returns a channel of events
-	RunStream(ctx context.Context, sess *session.Session, maxIterations int) <-chan Event
+	RunStream(ctx context.Context, sess *session.Session) <-chan Event
 	// Run starts the agent's interaction loop and returns the final messages
 	Run(ctx context.Context, sess *session.Session) ([]session.Message, error)
 	// Resume allows resuming execution after user confirmation
@@ -168,9 +168,8 @@ func (r *runtime) finalizeEventChannel(ctx context.Context, sess *session.Sessio
 	}
 }
 
-// RunStream starts the agent's interaction loop with an optional iteration limit
-// If maxIterations is 0, there is no limit
-func (r *runtime) RunStream(ctx context.Context, sess *session.Session, maxIterations int) <-chan Event {
+// RunStream starts the agent's interaction loop and returns a channel of events
+func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan Event {
 	slog.Debug("Starting runtime stream", "agent", r.currentAgent, "session_id", sess.ID)
 	events := make(chan Event, 128)
 
@@ -208,18 +207,20 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session, maxItera
 		}
 
 		iteration := 0
+		// Use a runtime copy of maxIterations so we don't modify the session's persistent config
+		runtimeMaxIterations := sess.MaxIterations
 		for {
 			// Check iteration limit
-			if maxIterations > 0 && iteration >= maxIterations {
-				slog.Debug("Maximum iterations reached", "agent", a.Name(), "iterations", iteration, "max", maxIterations)
-				events <- MaxIterationsReached(maxIterations)
+			if runtimeMaxIterations > 0 && iteration >= runtimeMaxIterations {
+				slog.Debug("Maximum iterations reached", "agent", a.Name(), "iterations", iteration, "max", runtimeMaxIterations)
+				events <- MaxIterationsReached(runtimeMaxIterations)
 
 				// Wait for user decision
 				select {
 				case resumeType := <-r.resumeChan:
 					if resumeType == ResumeTypeApprove {
 						slog.Debug("User chose to continue after max iterations", "agent", a.Name())
-						maxIterations = iteration + 10
+						runtimeMaxIterations = iteration + 10
 					} else {
 						slog.Debug("User chose to exit after max iterations", "agent", a.Name())
 						return
@@ -425,7 +426,7 @@ func (r *runtime) ResumeCodeReceived(_ context.Context, code string) error {
 
 // Run starts the agent's interaction loop
 func (r *runtime) Run(ctx context.Context, sess *session.Session) ([]session.Message, error) {
-	eventsChan := r.RunStream(ctx, sess, 0)
+	eventsChan := r.RunStream(ctx, sess)
 
 	for event := range eventsChan {
 		if errEvent, ok := event.(*ErrorEvent); ok {
@@ -839,12 +840,16 @@ func (r *runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 	}
 
 	slog.Debug("Creating new session with parent session", "parent_session_id", sess.ID, "tools_approved", sess.ToolsApproved)
-	s := session.New(session.WithSystemMessage(memberAgentTask), session.WithUserMessage("", "Follow the default instructions"))
+	s := session.New(
+		session.WithSystemMessage(memberAgentTask),
+		session.WithUserMessage("", "Follow the default instructions"),
+		session.WithMaxIterations(sess.MaxIterations),
+	)
 	s.SendUserMessage = false
 	s.Title = "Transferred task"
 	s.ToolsApproved = sess.ToolsApproved
 
-	for event := range r.RunStream(ctx, s, 0) {
+	for event := range r.RunStream(ctx, s) {
 		evts <- event
 		if errEvent, ok := event.(*ErrorEvent); ok {
 			span.RecordError(fmt.Errorf("%s", errEvent.Error))
