@@ -254,6 +254,43 @@ func (r *runtime) getAgentToolsWithOAuthHandling(ctx context.Context, a *agent.A
 	return agentTools, nil
 }
 
+// handleOAuthAuthorizationFlow handles a single OAuth authorization flow
+func (r *runtime) handleOAuthAuthorizationFlow(ctx context.Context, sess *session.Session, oauthErr *OAuthAuthorizationRequiredError, events chan Event) error {
+	events <- AuthorizationRequired(oauthErr.ServerURL, oauthErr.ServerType, "pending")
+
+	slog.Debug("Waiting for OAuth authorization to start", "server", oauthErr.ServerURL, "type", oauthErr.ServerType)
+	confirmation := <-r.resumeAuthorizeOauthFlow
+
+	if !confirmation {
+		slog.Debug("OAuth authorization not confirmed by user, stopping", "server", oauthErr.ServerURL)
+		events <- AuthorizationRequired(oauthErr.ServerURL, oauthErr.ServerType, "denied")
+		return fmt.Errorf("OAuth authorization denied by user")
+	}
+
+	// Start the OAuth authorization flow
+	slog.Debug("Starting OAuth authorization flow", "server", oauthErr.ServerURL, "type", oauthErr.ServerType)
+	authCompleted := make(chan error, 1)
+	// Extract the OAuth handler from the original error
+	oauthHandler := client.GetOAuthHandler(oauthErr.Err)
+	go func() {
+		authCompleted <- r.performOAuthAuthorization(ctx, sess, oauthHandler)
+	}()
+
+	select {
+	case authErr := <-authCompleted:
+		if authErr != nil {
+			slog.Error("OAuth authorization failed", "server", oauthErr.ServerURL, "error", authErr)
+			return fmt.Errorf("OAuth authorization failed: %v", authErr)
+		}
+		slog.Debug("OAuth authorization completed", "server", oauthErr.ServerURL)
+		events <- AuthorizationRequired(oauthErr.ServerURL, oauthErr.ServerType, "confirmed")
+		return nil
+	case <-ctx.Done():
+		slog.Debug("Context cancelled while waiting for OAuth authorization", "server", oauthErr.ServerURL)
+		return ctx.Err()
+	}
+}
+
 func (r *runtime) finalizeEventChannel(ctx context.Context, sess *session.Session, events chan Event) {
 	defer close(events)
 
@@ -317,66 +354,47 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			messages := sess.GetMessages(a)
 			slog.Debug("Retrieved messages for processing", "agent", a.Name(), "message_count", len(messages))
 
-			agentTools, err := r.getAgentToolsWithOAuthHandling(ctx, a)
-			if err != nil {
-				slog.Error("Failed to get agent tools", "agent", a.Name(), "error", err)
-				sessionSpan.RecordError(err)
-				sessionSpan.SetStatus(codes.Error, "failed to get tools")
-				// Track error in telemetry
-				if telemetryClient := telemetry.FromContext(ctx); telemetryClient != nil {
-					telemetryClient.RecordError(ctx, err.Error())
-				}
-
-				// Check if this is an OAuth authorization error with server info
-				var oauthErr *OAuthAuthorizationRequiredError
-				if errors.As(err, &oauthErr) {
-					events <- AuthorizationRequired(oauthErr.ServerURL, oauthErr.ServerType, "pending")
-
-					slog.Debug("Waiting for OAuth authorization to start", "agent", a.Name(), "server", oauthErr.ServerURL, "type", oauthErr.ServerType)
-					confirmation := <-r.resumeAuthorizeOauthFlow
-
-					if !confirmation {
-						slog.Debug("OAuth authorization not confirmed by user, stopping runtime", "agent", a.Name(), "server", oauthErr.ServerURL)
-						events <- AuthorizationRequired(oauthErr.ServerURL, oauthErr.ServerType, "denied")
-						return
+			// Retry loop for getting agent tools with OAuth handling
+			var agentTools []tools.Tool
+			for {
+				var err error
+				agentTools, err = r.getAgentToolsWithOAuthHandling(ctx, a)
+				if err != nil {
+					slog.Error("Failed to get agent tools", "agent", a.Name(), "error", err)
+					sessionSpan.RecordError(err)
+					sessionSpan.SetStatus(codes.Error, "failed to get tools")
+					// Track error in telemetry
+					if telemetryClient := telemetry.FromContext(ctx); telemetryClient != nil {
+						telemetryClient.RecordError(ctx, err.Error())
 					}
 
-					// Start the OAuth authorization flow
-					slog.Debug("Starting OAuth authorization flow", "agent", a.Name(), "server", oauthErr.ServerURL, "type", oauthErr.ServerType)
-					authCompleted := make(chan error, 1)
-					// Extract the OAuth handler from the original error
-					oauthHandler := client.GetOAuthHandler(err)
-					go func() {
-						authCompleted <- r.performOAuthAuthorization(ctx, sess, oauthHandler)
-					}()
-
-					select {
-					case authErr := <-authCompleted:
+					// Check if this is an OAuth authorization error with server info
+					var oauthErr *OAuthAuthorizationRequiredError
+					if errors.As(err, &oauthErr) {
+						// Handle OAuth authorization flow
+						authErr := r.handleOAuthAuthorizationFlow(ctx, sess, oauthErr, events)
 						if authErr != nil {
-							slog.Error("OAuth authorization failed", "agent", a.Name(), "server", oauthErr.ServerURL, "error", authErr)
+							if errors.Is(authErr, context.Canceled) || errors.Is(authErr, context.DeadlineExceeded) {
+								slog.Debug("Context cancelled during OAuth authorization", "agent", a.Name())
+								return
+							}
+							slog.Error("OAuth authorization process failed", "agent", a.Name(), "error", authErr)
 							events <- Error(fmt.Sprintf("OAuth authorization failed: %v", authErr))
 							return
 						}
+
 						slog.Debug("OAuth authorization completed, retrying tool retrieval", "agent", a.Name(), "server", oauthErr.ServerURL)
-
-						events <- AuthorizationRequired(oauthErr.ServerURL, oauthErr.ServerType, "confirmed")
-
-						// Retry getting tools
-						agentTools, err = r.getAgentToolsWithOAuthHandling(ctx, a)
-						if err != nil {
-							slog.Error("Failed to get tools after OAuth authorization", "agent", a.Name(), "error", err)
-							events <- Error(fmt.Sprintf("failed to get tools after authorization: %v", err))
-							return
-						}
-					case <-ctx.Done():
-						slog.Debug("Context cancelled while waiting for OAuth authorization", "agent", a.Name(), "server", oauthErr.ServerURL)
+						// Continue the loop to retry getting tools
+						continue
+					} else {
+						// Non-OAuth error, cannot recover
+						events <- Error(fmt.Sprintf("failed to get tools: %v", err))
 						return
 					}
 				} else {
-					events <- Error(fmt.Sprintf("failed to get tools: %v", err))
-					return
+					// Successfully retrieved tools, exit the retry loop
+					break
 				}
-
 			}
 			slog.Debug("Retrieved agent tools", "agent", a.Name(), "tool_count", len(agentTools))
 
