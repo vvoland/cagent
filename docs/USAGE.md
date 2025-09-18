@@ -87,6 +87,7 @@ During CLI sessions, you can use special commands:
 | `toolsets`             | array   | Available tools                                                 | ✗        |
 | `add_date`             | boolean | Add current date to context                                     | ✗        |
 | `add_environment_info` | boolean | Add information about the environment (working dir, OS, git...) | ✗        |
+| `max_iterations`       | int     | Specifies how many times the agent can loop when using tools    | ✗        |
 
 #### Example
 
@@ -100,6 +101,7 @@ agents:
     sub_agents: [] # Sub-agent names (optional)
     add_date: boolean # Add current date to context (optional)
     add_environment_info: boolean # Add information about the environment (working dir, OS, git...) (optional)
+    max_iterations: int # How many times this agent can loop when calling tools (optional, default = unlimited)
 ```
 
 ### Model Properties
