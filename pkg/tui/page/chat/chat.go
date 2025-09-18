@@ -257,6 +257,15 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		spinnerCmd := p.setWorking(true)
 		cmd := p.messages.AddToolResult(msg, types.ToolStatusCompleted)
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
+	case *runtime.MaxIterationsReachedEvent:
+		spinnerCmd := p.setWorking(false) // Stop working indicator during confirmation
+
+		// Open max iterations confirmation dialog
+		dialogCmd := core.CmdHandler(dialog.OpenDialogMsg{
+			Model: dialog.NewMaxIterationsDialog(msg.MaxIterations, p.app),
+		})
+
+		return p, tea.Batch(spinnerCmd, dialogCmd)
 	}
 
 	sidebarModel, sidebarCmd := p.sidebar.Update(msg)

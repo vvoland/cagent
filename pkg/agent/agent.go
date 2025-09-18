@@ -39,6 +39,7 @@ type Agent struct {
 	parents            []*Agent
 	addDate            bool
 	addEnvironmentInfo bool
+	maxIterations      int
 	toolWrapper        toolWrapper
 	memoryManager      memorymanager.Manager
 }
@@ -73,6 +74,10 @@ func (a *Agent) AddDate() bool {
 
 func (a *Agent) AddEnvironmentInfo() bool {
 	return a.addEnvironmentInfo
+}
+
+func (a *Agent) MaxIterations() int {
+	return a.maxIterations
 }
 
 // Description returns the agent's description

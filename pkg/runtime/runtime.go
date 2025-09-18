@@ -204,6 +204,14 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 						runtimeMaxIterations = iteration + 10
 					} else {
 						slog.Debug("User chose to exit after max iterations", "agent", a.Name())
+						// Synthesize a final assistant message so callers (e.g., parent agents)
+						// receive a non-empty response and providers are not given empty tool outputs.
+						assistantMessage := chat.Message{
+							Role:      chat.MessageRoleAssistant,
+							Content:   fmt.Sprintf("I have reached the maximum number of iterations (%d). Stopping as requested by user.", runtimeMaxIterations),
+							CreatedAt: time.Now().Format(time.RFC3339),
+						}
+						sess.AddMessage(session.NewAgentMessage(a, &assistantMessage))
 						return
 					}
 				case <-ctx.Done():
@@ -821,10 +829,16 @@ func (r *runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 	}
 
 	slog.Debug("Creating new session with parent session", "parent_session_id", sess.ID, "tools_approved", sess.ToolsApproved)
+
+	subAgentMaxIter := 0
+	if child := r.team.Agent(params.Agent); child != nil {
+		subAgentMaxIter = child.MaxIterations()
+	}
+
 	s := session.New(
 		session.WithSystemMessage(memberAgentTask),
 		session.WithUserMessage("", "Follow the default instructions"),
-		session.WithMaxIterations(sess.MaxIterations),
+		session.WithMaxIterations(subAgentMaxIter),
 	)
 	s.SendUserMessage = false
 	s.Title = "Transferred task"
