@@ -137,6 +137,8 @@ agents:
     toolsets:
       - type: filesystem
       - type: shell
+      - type: memory
+        path: ./.coder.db
       - type: todo
       - type: mcp
         ref: docker:context7
