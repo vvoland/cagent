@@ -18,7 +18,6 @@ import (
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/telemetry"
 	"github.com/docker/cagent/pkg/tools"
-	"github.com/mark3labs/mcp-go/client"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -122,32 +121,8 @@ func (r *runtime) registerDefaultTools() {
 	slog.Debug("Registered default tools", "count", len(r.toolMap))
 }
 
-// getAgentToolsWithOAuthHandling gets tools from the agent and handles OAuth errors by wrapping them with server info
-func (r *runtime) getAgentToolsWithOAuthHandling(ctx context.Context, a *agent.Agent) ([]tools.Tool, error) {
-	agentTools, err := a.Tools(ctx)
-	if err != nil {
-		// Check if this is a ToolSetStartupError
-		var toolSetStartupErr *agent.ToolSetStartupError
-		if errors.As(err, &toolSetStartupErr) {
-			// Check if the inner error is an OAuth authorization error
-			if client.IsOAuthAuthorizationRequiredError(toolSetStartupErr.Err) {
-				// Use the index from ToolSetStartupError to get the specific toolset
-				toolsets := a.ToolSets()
-				if toolSetStartupErr.Index >= 0 && toolSetStartupErr.Index < len(toolsets) {
-					toolSet := toolsets[toolSetStartupErr.Index]
-					if serverInfoProvider, ok := toolSet.(oauth.ServerInfoProvider); ok {
-						return nil, oauth.WrapOAuthError(toolSetStartupErr.Err, serverInfoProvider)
-					}
-				}
-			}
-		}
-		return nil, err
-	}
-	return agentTools, nil
-}
-
 // handleOAuthAuthorizationFlow handles a single OAuth authorization flow
-func (r *runtime) handleOAuthAuthorizationFlow(ctx context.Context, sess *session.Session, oauthErr *oauth.AuthorizationRequiredError, events chan Event) error {
+func (r *runtime) handleOAuthAuthorizationFlow(ctx context.Context, sess *session.Session, oauthRequiredErr *oauth.AuthorizationRequiredError, events chan Event) error {
 	// Create OAuth manager if it doesn't exist
 	if r.oauthManager == nil {
 		emitAuthRequired := func(serverURL, serverType, status string) {
@@ -156,7 +131,7 @@ func (r *runtime) handleOAuthAuthorizationFlow(ctx context.Context, sess *sessio
 		r.oauthManager = oauth.NewManager(emitAuthRequired)
 	}
 
-	return r.oauthManager.HandleAuthorizationFlow(ctx, sess.ID, oauthErr)
+	return r.oauthManager.HandleAuthorizationFlow(ctx, sess.ID, oauthRequiredErr)
 }
 
 func (r *runtime) finalizeEventChannel(ctx context.Context, sess *session.Session, events chan Event) {
@@ -250,7 +225,7 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			var agentTools []tools.Tool
 			for {
 				var err error
-				agentTools, err = r.getAgentToolsWithOAuthHandling(ctx, a)
+				agentTools, err = a.Tools(ctx)
 				if err != nil {
 					slog.Error("Failed to get agent tools", "agent", a.Name(), "error", err)
 					sessionSpan.RecordError(err)
@@ -261,21 +236,21 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 					}
 
 					// Check if this is an OAuth authorization error with server info
-					if oauth.IsAuthorizationRequiredError(err) {
-						oauthErr := err.(*oauth.AuthorizationRequiredError)
+					if err, ok := oauth.MayBeOAuthError(err); ok {
+						oauthRequiredErr := err.(*oauth.AuthorizationRequiredError)
 						// Handle OAuth authorization flow
-						authErr := r.handleOAuthAuthorizationFlow(ctx, sess, oauthErr, events)
-						if authErr != nil {
-							if errors.Is(authErr, context.Canceled) || errors.Is(authErr, context.DeadlineExceeded) {
+						oauthFlowErr := r.handleOAuthAuthorizationFlow(ctx, sess, oauthRequiredErr, events)
+						if oauthFlowErr != nil {
+							if errors.Is(oauthFlowErr, context.Canceled) || errors.Is(oauthFlowErr, context.DeadlineExceeded) {
 								slog.Debug("Context cancelled during OAuth authorization", "agent", a.Name())
 								return
 							}
-							slog.Error("OAuth authorization process failed", "agent", a.Name(), "error", authErr)
-							events <- Error(fmt.Sprintf("OAuth authorization failed: %v", authErr))
+							slog.Error("OAuth authorization process failed", "agent", a.Name(), "error", oauthFlowErr)
+							events <- Error(fmt.Sprintf("OAuth authorization failed: %v", oauthFlowErr))
 							return
 						}
 
-						slog.Debug("OAuth authorization completed, retrying tool retrieval", "agent", a.Name(), "server", oauthErr.ServerURL)
+						slog.Debug("OAuth authorization completed, retrying tool retrieval", "agent", a.Name(), "server", oauthRequiredErr.ServerURL)
 						// Continue the loop to retry getting tools
 						continue
 					} else {
