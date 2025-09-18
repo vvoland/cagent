@@ -624,11 +624,12 @@ Implement persistent memory across sessions:
 agents:
   researcher:
     model: claude
-    memory:
-      path: "./research_memory.db"
     instruction: |
       You are a research assistant with persistent memory.
       Remember important findings and reference previous research.
+    toolsets:
+      - type: memory
+        path: ./research_memory.db
 ```
 
 ### Multi-Model Teams
