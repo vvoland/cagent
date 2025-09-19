@@ -302,7 +302,16 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 			t = append(t, builtin.NewFilesystemTool([]string{wd}, opts...))
 
 		case toolset.Type == "mcp" && toolset.Ref != "":
-			t = append(t, mcp.NewGatewayToolset(toolset.Ref, toolset.Config, toolset.Tools, envProvider))
+			if mcpGatewayURL := os.Getenv(mcp.DOCKER_MCP_GATEWAY_URL_ENV); mcpGatewayURL != "" {
+				// TODO(dga): we might connect multiple times to the same MCP Gateway and end up with duplicate toolsets.
+				toolset, err := mcp.NewToolsetRemote(mcpGatewayURL, "streaming", nil, toolset.Tools, "")
+				if err != nil {
+					return nil, fmt.Errorf("connecting to remote MCP Gateway: %w", err)
+				}
+				t = append(t, toolset)
+			} else {
+				t = append(t, mcp.NewGatewayToolset(toolset.Ref, toolset.Config, toolset.Tools, envProvider))
+			}
 
 		case toolset.Type == "mcp" && toolset.Command != "":
 			t = append(t, mcp.NewToolsetCommand(toolset.Command, toolset.Args, env, toolset.Tools))
