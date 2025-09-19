@@ -67,11 +67,11 @@ tasks:
 
   build-image:
     desc: Build Docker image
-    cmd: docker buildx build -t docker/cagent:latest {{.BUILD_ARGS}} .
+    cmd: docker buildx build -t docker/cagent:v1.4 {{.BUILD_ARGS}} .
 
   push-image:
     desc: Build and Push Docker image
-    cmd: docker buildx build --push -t docker/cagent:latest {{.BUILD_ARGS}} .
+    cmd: docker buildx build --push -t docker/cagent:v1.4 {{.BUILD_ARGS}} .
 
   build-agents:
     desc: Build Demo dockerized agents
