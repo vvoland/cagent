@@ -305,12 +305,7 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 		case toolset.Type == "mcp" && toolset.Ref != "":
 			mcpServerName := gateway.ParseServerRef(toolset.Ref)
 			if mcpServerURL := os.Getenv(mcp.ENV_DOCKER_MCP_URL_PREFIX + mcpServerName); mcpServerURL != "" {
-				// This MCP server is configured at runtime to be remote. We connect to it directly over http.
-				toolset, err := mcp.NewToolsetRemote(mcpServerURL, "streaming", nil, toolset.Tools, "")
-				if err != nil {
-					return nil, fmt.Errorf("connecting to remote MCP Server: %w", err)
-				}
-				t = append(t, toolset)
+				t = append(t, mcp.NewToolsetCommand("socat", []string{"STDIO", fmt.Sprintf("TCP:mcp-%s:4444", mcpServerName)}, nil, toolset.Tools))
 			} else {
 				t = append(t, mcp.NewGatewayToolset(mcpServerName, toolset.Config, toolset.Tools, envProvider))
 			}
