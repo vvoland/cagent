@@ -45,6 +45,7 @@ FROM scratch AS cross
 COPY --from=builder /binaries .
 
 FROM docker:cli
+RUN apk add --no-cache ca-certificates
 RUN mkdir /data
 ARG TARGETOS TARGETARCH
 ENV DOCKER_MCP_IN_CONTAINER=1
