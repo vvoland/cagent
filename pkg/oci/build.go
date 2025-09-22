@@ -69,11 +69,18 @@ func BuildDockerImage(ctx context.Context, agentFilePath, dockerImageName string
 	modelNames := config.GatherModelNames(cfg)
 	mcpServers := config.GatherMCPServerReferences(cfg)
 
+	// Find which base image to use
+	baseImage := "docker/cagent"
+	if baseImageOverride := os.Getenv("CAGENT_BASE_IMAGE"); baseImageOverride != "" {
+		baseImage = baseImageOverride
+	}
+
 	// Generate the Dockerfile
 	var dockerfileBuf bytes.Buffer
 
 	tpl := template.Must(template.New("Dockerfile").Parse(dockerfileTemplate))
 	if err := tpl.Execute(&dockerfileBuf, map[string]any{
+		"BaseImage":   baseImage,
 		"AgentConfig": string(agentYaml),
 		"BuildDate":   time.Now().UTC().Format(time.RFC3339),
 		"Description": cfg.Agents["root"].Description,
