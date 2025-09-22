@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/secrets"
 )
 
 //go:embed Dockerfile.template
@@ -40,8 +41,11 @@ func BuildDockerImage(ctx context.Context, agentFilePath, dockerImageName string
 	}
 
 	// Analyze the config to find which secrets are needed
-	modelNames := config.GatherModelNames(cfg)
-	mcpServers := config.GatherMCPServerReferences(cfg)
+	modelSecrets := secrets.GatherEnvVarsForModels(cfg)
+	toolSecrets, err := secrets.GatherEnvVarsForTools(ctx, cfg)
+	if err != nil {
+		return err
+	}
 
 	// Find which base image to use
 	baseImage := "docker/cagent"
@@ -54,13 +58,13 @@ func BuildDockerImage(ctx context.Context, agentFilePath, dockerImageName string
 
 	tpl := template.Must(template.New("Dockerfile").Parse(dockerfileTemplate))
 	if err := tpl.Execute(&dockerfileBuf, map[string]any{
-		"BaseImage":   baseImage,
-		"AgentConfig": string(agentYaml),
-		"BuildDate":   time.Now().UTC().Format(time.RFC3339),
-		"Description": cfg.Agents["root"].Description,
-		"McpServers":  strings.Join(mcpServers, ","),
-		"Metadata":    cfg.Metadata,
-		"Models":      strings.Join(modelNames, ","),
+		"BaseImage":    baseImage,
+		"AgentConfig":  string(agentYaml),
+		"BuildDate":    time.Now().UTC().Format(time.RFC3339),
+		"Description":  cfg.Agents["root"].Description,
+		"Metadata":     cfg.Metadata,
+		"ModelSecrets": strings.Join(modelSecrets, ","),
+		"ToolSecrets":  strings.Join(toolSecrets, ","),
 	}); err != nil {
 		return err
 	}
