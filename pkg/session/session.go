@@ -284,8 +284,8 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 
 	systemCount := 0
 	conversationCount := 0
-	for _, msg := range trimmed {
-		if msg.Role == chat.MessageRoleSystem {
+	for i := range trimmed {
+		if trimmed[i].Role == chat.MessageRoleSystem {
 			systemCount++
 		} else {
 			conversationCount++
@@ -329,11 +329,11 @@ func trimMessages(messages []chat.Message, maxItems int) []chat.Message {
 	var systemMessages []chat.Message
 	var conversationMessages []chat.Message
 
-	for _, msg := range messages {
-		if msg.Role == chat.MessageRoleSystem {
-			systemMessages = append(systemMessages, msg)
+	for i := range messages {
+		if messages[i].Role == chat.MessageRoleSystem {
+			systemMessages = append(systemMessages, messages[i])
 		} else {
-			conversationMessages = append(conversationMessages, msg)
+			conversationMessages = append(conversationMessages, messages[i])
 		}
 	}
 
