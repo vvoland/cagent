@@ -86,7 +86,7 @@ func BuildDockerImage(ctx context.Context, agentFilePath, dockerImageName string
 	if dockerImageName != "" {
 		buildArgs = append(buildArgs, "-t", dockerImageName)
 		if opts.Push {
-			buildArgs = append(buildArgs, "--push")
+			buildArgs = append(buildArgs, "--push", "--platform", "linux/amd64,linux/arm64")
 		}
 	}
 	buildArgs = append(buildArgs, "-")
