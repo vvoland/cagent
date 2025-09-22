@@ -101,6 +101,8 @@ func New(sessionStore session.Store, runConfig config.RuntimeConfig, teams map[s
 	group.DELETE("/agents", s.deleteAgent)
 	// List all sessions
 	group.GET("/sessions", s.getSessions)
+	// Get sessions by agent filename
+	group.GET("/sessions/agent/:id", s.getSessionsByAgent)
 	// Get a session by id
 	group.GET("/sessions/:id", s.getSession)
 	// Resume a session by id
@@ -752,6 +754,32 @@ func (s *Server) getSessions(c echo.Context) error {
 	sessions, err := s.sessionStore.GetSessions(c.Request().Context())
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to get sessions"})
+	}
+
+	responses := make([]api.SessionsResponse, len(sessions))
+	for i, sess := range sessions {
+		responses[i] = api.SessionsResponse{
+			ID:                         sess.ID,
+			Title:                      sess.Title,
+			CreatedAt:                  sess.CreatedAt.Format(time.RFC3339),
+			NumMessages:                len(sess.GetAllMessages()),
+			InputTokens:                sess.InputTokens,
+			OutputTokens:               sess.OutputTokens,
+			GetMostRecentAgentFilename: sess.GetMostRecentAgentFilename(),
+		}
+	}
+	return c.JSON(http.StatusOK, responses)
+}
+
+func (s *Server) getSessionsByAgent(c echo.Context) error {
+	agentFilename := c.Param("id")
+	if agentFilename == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "id parameter is required"})
+	}
+
+	sessions, err := s.sessionStore.GetSessionsByAgent(c.Request().Context(), agentFilename)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to get sessions for agent"})
 	}
 
 	responses := make([]api.SessionsResponse, len(sessions))
