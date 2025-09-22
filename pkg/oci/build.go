@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/docker/cagent/pkg/config"
-	v2 "github.com/docker/cagent/pkg/config/v2"
 )
 
 //go:embed Dockerfile.template
@@ -38,31 +37,6 @@ func BuildDockerImage(ctx context.Context, agentFilePath, dockerImageName string
 	cfg, err := config.LoadConfigSecure(fileName, parentDir)
 	if err != nil {
 		return err
-	}
-
-	// Collect information about MCP servers
-	servers := Servers{
-		MCPServers: map[string]Server{},
-	}
-
-	// Make sure the config is compatible with `cagent build`
-	for _, agent := range cfg.Agents {
-		for i := range agent.Toolsets {
-			toolSet := agent.Toolsets[i]
-			if toolSet.Type != "mcp" {
-				continue
-			}
-
-			if toolSet.Command != "" {
-				return fmt.Errorf("toolset with command \"%s\" can't be used in `cagent build`", toolSet.Command)
-			}
-
-			server, err := mcpToolSetToServer(ctx, &toolSet)
-			if err != nil {
-				return err
-			}
-			servers.MCPServers[toolSet.Ref] = server
-		}
 	}
 
 	// Analyze the config to find which secrets are needed
@@ -120,22 +94,4 @@ func BuildDockerImage(ctx context.Context, agentFilePath, dockerImageName string
 	slog.Debug("running docker build", "args", buildArgs)
 
 	return buildCmd.Run()
-}
-
-func mcpToolSetToServer(ctx context.Context, toolSet *v2.Toolset) (Server, error) {
-	args, err := mcpServerArgs(ctx, toolSet.Ref, toolSet.Config)
-	if err != nil {
-		return Server{}, err
-	}
-
-	// TODO(dga): support the config part (probably by appending to the args or by adding env variables)
-	//   - type: mcp
-	//     ref: docker:ast-grep
-	//     config:
-	//       path: .
-	// TODO(dga): What's the actual command?
-	return Server{
-		Command: "docker",
-		Args:    args,
-	}, nil
 }
