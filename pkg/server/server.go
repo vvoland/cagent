@@ -845,14 +845,19 @@ func (s *Server) runAgent(c echo.Context) error {
 	if !exists {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": fmt.Sprintf("team not found: %s", agentFilename)})
 	}
+	agent := t.Agent(currentAgent)
+	if agent == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": fmt.Sprintf("agent not found: %s", currentAgent)})
+	}
 	sess, err := s.sessionStore.GetSession(c.Request().Context(), sessionID)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "session not found"})
 	}
+
 	// Only set max iterations the first time the session is run
 	// since on creation we can accept an empty sessionTemplate
-	if len(sess.Messages) == 0 && sess.MaxIterations == 0 && t.Agent(currentAgent).MaxIterations() > 0 {
-		sess.MaxIterations = t.Agent(currentAgent).MaxIterations()
+	if len(sess.Messages) == 0 && sess.MaxIterations == 0 && agent.MaxIterations() > 0 {
+		sess.MaxIterations = agent.MaxIterations()
 	}
 
 	rt, exists := s.runtimes[sess.ID]
