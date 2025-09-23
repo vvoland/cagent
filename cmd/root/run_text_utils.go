@@ -12,17 +12,17 @@ import (
 	"golang.org/x/term"
 )
 
-// text colors
 var (
-	blue   = color.New(color.FgBlue).SprintfFunc()
-	yellow = color.New(color.FgYellow).SprintfFunc()
-	red    = color.New(color.FgRed).SprintfFunc()
-	gray   = color.New(color.FgHiBlack).SprintfFunc()
-	green  = color.New(color.FgGreen).SprintfFunc()
-)
+	// Let's disable the colors in non TUI mode.
+	// (dga): I kept those functions in case we find a proper way to use them in both dark and light modes.
+	blue   = fmt.Sprintf
+	yellow = fmt.Sprintf
+	red    = fmt.Sprintf
+	white  = fmt.Sprintf
+	green  = fmt.Sprintf
 
-// text styles
-var bold = color.New(color.Bold).SprintfFunc()
+	bold = color.New(color.Bold).SprintfFunc()
+)
 
 // confirmation result types
 type ConfirmationResult string
@@ -37,7 +37,7 @@ const (
 // text utility functions
 
 func printWelcomeMessage() {
-	fmt.Printf("\n%s\n%s\n\n", blue("------- Welcome to %s! -------", bold(APP_NAME)), gray("(Ctrl+C to stop the agent or exit)"))
+	fmt.Printf("\n%s\n%s\n\n", blue("------- Welcome to %s! -------", bold(APP_NAME)), white("(Ctrl+C to stop the agent or exit)"))
 }
 
 func printError(err error) {
@@ -49,11 +49,11 @@ func printAgentName(agentName string) {
 }
 
 func printToolCall(toolCall tools.ToolCall, colorFunc ...func(format string, a ...any) string) {
-	c := gray
+	c := white
 	if len(colorFunc) > 0 && colorFunc[0] != nil {
 		c = colorFunc[0]
 	}
-	fmt.Printf("\n%s\n", c("%s%s", bold(toolCall.Function.Name), formatToolCallArguments(toolCall.Function.Arguments)))
+	fmt.Printf("\nCalling %s\n", c("%s%s", bold(toolCall.Function.Name), formatToolCallArguments(toolCall.Function.Arguments)))
 }
 
 func printToolCallWithConfirmation(toolCall tools.ToolCall, scanner *bufio.Scanner) ConfirmationResult {
@@ -113,12 +113,12 @@ func printToolCallWithConfirmation(toolCall tools.ToolCall, scanner *bufio.Scann
 }
 
 func printToolCallResponse(toolCall tools.ToolCall, response string) {
-	fmt.Printf("\n%s\n", gray("%s response%s", bold(toolCall.Function.Name), formatToolCallResponse(response)))
+	fmt.Printf("\n%s\n", white("%s response%s", bold(toolCall.Function.Name), formatToolCallResponse(response)))
 }
 
 func promptMaxIterationsContinue(maxIterations int) ConfirmationResult {
 	fmt.Printf("\n%s\n", yellow("⚠️  Maximum iterations (%d) reached. The agent may be stuck in a loop.", maxIterations))
-	fmt.Printf("%s\n", gray("This can happen with smaller or less capable models."))
+	fmt.Printf("%s\n", white("This can happen with smaller or less capable models."))
 	fmt.Printf("\n%s (y/n): ", blue("Do you want to continue for 10 more iterations?"))
 
 	reader := bufio.NewReader(os.Stdin)
@@ -133,7 +133,7 @@ func promptMaxIterationsContinue(maxIterations int) ConfirmationResult {
 		fmt.Printf("%s\n\n", green("✓ Continuing..."))
 		return ConfirmationApprove
 	} else {
-		fmt.Printf("%s\n\n", gray("Exiting..."))
+		fmt.Printf("%s\n\n", white("Exiting..."))
 		return ConfirmationReject
 	}
 }

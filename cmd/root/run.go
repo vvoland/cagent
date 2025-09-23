@@ -381,7 +381,7 @@ func runWithoutTUI(ctx context.Context, agentFilename string, rt runtime.Runtime
 				}
 				fmt.Printf("%s", e.Content)
 			case *runtime.AgentChoiceReasoningEvent:
-				fmt.Printf("%s", gray(e.Content))
+				fmt.Printf("%s", white(e.Content))
 			case *runtime.ToolCallConfirmationEvent:
 				if llmIsTyping {
 					fmt.Println()
