@@ -73,7 +73,7 @@ tasks:
     desc: Build and Push Docker image
     cmd: docker buildx build --push -t docker/cagent {{.BUILD_ARGS}} .
 
-  build-agents:
+  push-agents:
     desc: Build Demo dockerized agents
     vars:
       DOCKER_ID:
