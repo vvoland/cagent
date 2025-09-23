@@ -73,14 +73,23 @@ tasks:
     desc: Build and Push Docker image
     cmd: docker buildx build --push -t docker/cagent {{.BUILD_ARGS}} .
 
-  build-agents:
-    desc: Build Demo dockerized agents
+  push-agent:
+    desc: Build dockerized agent
+    internal: true
     vars:
       DOCKER_ID:
         sh: curl -s --unix-socket ~/Library/Containers/com.docker.docker/Data/backend.sock http://_/registry/info | jq -r .id
     depends: ["build"]
-    cmds:
-      - ./bin/cagent build --push ./examples/pirate.yaml {{.DOCKER_ID}}/cagent-pirate
-      - ./bin/cagent build --push ./examples/github.yaml {{.DOCKER_ID}}/cagent-github
-      - ./bin/cagent build --push ./examples/gopher.yaml {{.DOCKER_ID}}/cagent-gopher
-      - ./bin/cagent build --push ./examples/mem.yaml {{.DOCKER_ID}}/cagent-mem
+    cmd: ./bin/cagent build --push ./examples/{{.AGENT}}.yaml {{.DOCKER_ID}}/cagent-{{.AGENT}}
+
+  push-agents:
+    desc: Build dockerized agents
+    deps:
+      - task: push-agent
+        vars: { AGENT: 'pirate' }
+      - task: push-agent
+        vars: { AGENT: 'github' }
+      - task: push-agent
+        vars: { AGENT: 'gopher' }
+      - task: push-agent
+        vars: { AGENT: 'mem' }
