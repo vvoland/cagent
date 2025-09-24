@@ -12,9 +12,10 @@ import (
 
 func NewEvalCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:  "eval <agent-name> <eval-dir>",
-		Args: cobra.ExactArgs(2),
-		RunE: runEvalCommand,
+		Use:   "eval <agent-name> <eval-dir>",
+		Short: "Run evaluations for an agent",
+		Args:  cobra.ExactArgs(2),
+		RunE:  runEvalCommand,
 	}
 
 	cmd.PersistentFlags().StringSliceVar(&runConfig.EnvFiles, "env-from-file", nil, "Set environment variables from file")
