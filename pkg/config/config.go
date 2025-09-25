@@ -9,7 +9,7 @@ import (
 	v0 "github.com/docker/cagent/pkg/config/v0"
 	v1 "github.com/docker/cagent/pkg/config/v1"
 	latest "github.com/docker/cagent/pkg/config/v2"
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 )
 
 // LoadConfigSecure loads the configuration from a file with path validation
@@ -80,22 +80,22 @@ func ValidatePathInDirectory(path, allowedDir string) (string, error) {
 func loadConfig(path string) (*latest.Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read config file: %w", err)
+		return nil, fmt.Errorf("reading config file: %w", err)
 	}
 
 	var raw map[string]any
 	if err := yaml.Unmarshal(data, &raw); err != nil {
-		return nil, fmt.Errorf("failed to parse config file %s: %w", path, err)
+		return nil, fmt.Errorf("parsing config file %s\n%s", path, yaml.FormatError(err, true, true))
 	}
 
 	oldConfig, err := parseCurrentVersion(data, raw["version"])
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse config file %s: %w", path, err)
+		return nil, fmt.Errorf("parsing config file %s\n%s", path, yaml.FormatError(err, true, true))
 	}
 
 	config, err := migrateToLatestConfig(oldConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to migrate config: %w", err)
+		return nil, fmt.Errorf("migrating config: %w", err)
 	}
 
 	if err := validateConfig(&config); err != nil {

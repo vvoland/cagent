@@ -12,6 +12,7 @@ require (
 	github.com/charmbracelet/glamour/v2 v2.0.0-20250811143442-a27abb32f018
 	github.com/charmbracelet/lipgloss/v2 v2.0.0-beta.3.0.20250721205738-ea66aa652ee0
 	github.com/fatih/color v1.18.0
+	github.com/goccy/go-yaml v1.18.0
 	github.com/google/go-containerregistry v0.20.6
 	github.com/google/uuid v1.6.0
 	github.com/labstack/echo/v4 v4.13.4
@@ -25,7 +26,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.38.0
 	golang.org/x/term v0.34.0
 	google.golang.org/genai v1.22.0
-	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.39.0
 )
 
@@ -121,6 +121,7 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250826171959-ef028d996bc1 // indirect
 	google.golang.org/grpc v1.75.0 // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.66.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect

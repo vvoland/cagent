@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 )
 
 const DockerCatalogURL = "https://desktop.docker.com/mcp/catalog/v2/catalog.yaml"
