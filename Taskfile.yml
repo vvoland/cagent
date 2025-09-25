@@ -16,6 +16,9 @@ tasks:
   default:
     cmd: task --list
 
+  dev:
+    deps: ["lint", "test", "build"]
+
   build:
     desc: Build the application binary
     cmds:
