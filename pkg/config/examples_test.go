@@ -31,6 +31,7 @@ func TestParseExamples(t *testing.T) {
 			cfg, err := loadConfig(file)
 
 			require.NoError(t, err)
+			require.Equal(t, "2", cfg.Version, "Version should be 2 in %s", file)
 			require.NotEmpty(t, cfg.Agents["root"].Instruction, "Instruction should not be empty in %s", file)
 		})
 	}
