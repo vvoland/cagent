@@ -19,7 +19,6 @@ func NewVersionCmd() *cobra.Command {
 			telemetry.TrackCommand("version", args)
 
 			fmt.Printf("cagent version %s\n", version.Version)
-			fmt.Printf("Build time: %s\n", version.BuildTime)
 			fmt.Printf("Commit: %s\n", version.Commit)
 		},
 	}
