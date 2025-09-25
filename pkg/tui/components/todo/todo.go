@@ -95,62 +95,6 @@ func (c *Component) ParseTodoArguments(toolName, arguments string) error {
 	return nil
 }
 
-// ParseTodoWriteArguments handles the todo_write tool arguments format
-func (c *Component) ParseTodoWriteArguments(arguments string) error {
-	var params struct {
-		Merge bool `json:"merge"`
-		Todos []struct {
-			ID      string `json:"id"`
-			Content string `json:"content"`
-			Status  string `json:"status"`
-		} `json:"todos"`
-	}
-
-	if err := json.Unmarshal([]byte(arguments), &params); err != nil {
-		return err
-	}
-
-	if params.Merge {
-		// Update existing todos
-		for _, newTodo := range params.Todos {
-			found := false
-			for i, existingTodo := range c.todos {
-				if existingTodo.ID == newTodo.ID {
-					// Update existing todo
-					if newTodo.Content != "" {
-						c.todos[i].Description = newTodo.Content
-					}
-					if newTodo.Status != "" {
-						c.todos[i].Status = newTodo.Status
-					}
-					found = true
-					break
-				}
-			}
-			if !found && newTodo.ID != "" {
-				// Add new todo if not found
-				c.todos = append(c.todos, Todo{
-					ID:          newTodo.ID,
-					Description: newTodo.Content,
-					Status:      newTodo.Status,
-				})
-			}
-		}
-	} else {
-		// Replace all todos
-		c.todos = make([]Todo, 0, len(params.Todos))
-		for _, newTodo := range params.Todos {
-			c.todos = append(c.todos, Todo{
-				ID:          newTodo.ID,
-				Description: newTodo.Content,
-				Status:      newTodo.Status,
-			})
-		}
-	}
-
-	return nil
-}
-
 // Render renders the todo component
 func (c *Component) Render() string {
 	if len(c.todos) == 0 {
