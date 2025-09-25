@@ -77,7 +77,7 @@ tasks:
     vars:
       DOCKER_ID:
         sh: curl -s --unix-socket ~/Library/Containers/com.docker.docker/Data/backend.sock http://_/registry/info | jq -r .id
-    depends: ["build"]
+    deps: ["build"]
     cmd: ./bin/cagent build --push ./examples/{{.AGENT}}.yaml {{.DOCKER_ID}}/cagent-{{.AGENT}}
 
   push-agents:
