@@ -248,9 +248,6 @@ func (c *Client) CreateChatCompletionStream(
 					Parameters:  tool.Function.Parameters,
 				},
 			}
-			if len(tool.Function.Parameters.Properties) == 0 {
-				request.Tools[i].Function.Parameters = json.RawMessage("{}")
-			}
 			slog.Debug("Added tool to OpenAI request", "tool_name", tool.Function.Name)
 		}
 		if c.config.ParallelToolCalls != nil {

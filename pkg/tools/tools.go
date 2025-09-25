@@ -1,6 +1,9 @@
 package tools
 
-import "context"
+import (
+	"context"
+	"encoding/json"
+)
 
 type ToolHandler = func(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error)
 
@@ -46,8 +49,19 @@ type ToolAnnotation struct {
 
 type FunctionParameters struct {
 	Type       string         `json:"type"`
-	Properties map[string]any `json:"properties,omitempty"`
+	Properties map[string]any `json:"properties"`
 	Required   []string       `json:"required,omitempty"`
+}
+
+func (fp FunctionParameters) MarshalJSON() ([]byte, error) {
+	type Alias FunctionParameters
+	if fp.Type == "" {
+		fp.Type = "object"
+	}
+	if fp.Properties == nil {
+		fp.Properties = map[string]any{}
+	}
+	return json.Marshal(Alias(fp))
 }
 
 type ToolSet interface {
