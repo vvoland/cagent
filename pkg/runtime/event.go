@@ -124,7 +124,7 @@ type AgentChoiceEvent struct {
 	AgentContext
 }
 
-func AgentChoice(agentName string, content string) Event { //nolint:gocritic
+func AgentChoice(agentName, content string) Event { //nolint:gocritic
 	return &AgentChoiceEvent{
 		Type:         "agent_choice",
 		Content:      content,
@@ -139,7 +139,7 @@ type AgentChoiceReasoningEvent struct {
 	AgentContext
 }
 
-func AgentChoiceReasoning(agentName string, content string) Event { //nolint:gocritic
+func AgentChoiceReasoning(agentName, content string) Event { //nolint:gocritic
 	return &AgentChoiceReasoningEvent{
 		Type:         "agent_choice_reasoning",
 		Content:      content,

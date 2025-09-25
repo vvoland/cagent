@@ -3,9 +3,10 @@ package root
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	"github.com/docker/cagent/pkg/telemetry"
 	"github.com/docker/cagent/pkg/version"
-	"github.com/spf13/cobra"
 )
 
 // NewVersionCmd creates a new version command
