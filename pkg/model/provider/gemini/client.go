@@ -249,7 +249,7 @@ func convertParametersToSchema(params any) *genai.Schema {
 	}
 
 	// Convert FunctionParameters to Schema
-	if funcParams, ok := params.(tools.FunctionParamaters); ok {
+	if funcParams, ok := params.(tools.FunctionParameters); ok {
 		// Convert type string to Gemini Type
 		var schemaType genai.Type
 		switch funcParams.Type {

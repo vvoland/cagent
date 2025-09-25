@@ -32,7 +32,7 @@ type FunctionDefinition struct {
 	Name        string             `json:"name"`
 	Description string             `json:"description,omitempty"`
 	Strict      bool               `json:"strict,omitempty"`
-	Parameters  FunctionParamaters `json:"parameters"`
+	Parameters  FunctionParameters `json:"parameters"`
 	Annotations ToolAnnotation     `json:"annotations"`
 }
 
@@ -44,7 +44,7 @@ type ToolAnnotation struct {
 	OpenWorldHint   *bool  `json:"openWorldHint,omitempty"`
 }
 
-type FunctionParamaters struct {
+type FunctionParameters struct {
 	Type       string         `json:"type"`
 	Properties map[string]any `json:"properties,omitempty"`
 	Required   []string       `json:"required,omitempty"`

@@ -90,7 +90,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 				Annotations: tools.ToolAnnotation{
 					Title: "Create Directory",
 				},
-				Parameters: tools.FunctionParamaters{
+				Parameters: tools.FunctionParameters{
 					Type: "object",
 					Properties: map[string]any{
 						"path": map[string]any{
@@ -111,7 +111,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					ReadOnlyHint: &[]bool{true}[0],
 					Title:        "Directory Tree",
 				},
-				Parameters: tools.FunctionParamaters{
+				Parameters: tools.FunctionParameters{
 					Type: "object",
 					Properties: map[string]any{
 						"path": map[string]any{
@@ -135,7 +135,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 				Annotations: tools.ToolAnnotation{
 					Title: "Edit File",
 				},
-				Parameters: tools.FunctionParamaters{
+				Parameters: tools.FunctionParameters{
 					Type: "object",
 					Properties: map[string]any{
 						"path": map[string]any{
@@ -178,7 +178,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					ReadOnlyHint: &[]bool{true}[0],
 					Title:        "Get File Info",
 				},
-				Parameters: tools.FunctionParamaters{
+				Parameters: tools.FunctionParameters{
 					Type: "object",
 					Properties: map[string]any{
 						"path": map[string]any{
@@ -199,7 +199,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					ReadOnlyHint: &[]bool{true}[0],
 					Title:        "List Allowed Directories",
 				},
-				Parameters: tools.FunctionParamaters{
+				Parameters: tools.FunctionParameters{
 					Type:       "object",
 					Properties: map[string]any{},
 				},
@@ -213,7 +213,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 				Annotations: tools.ToolAnnotation{
 					Title: "Add Allowed Directory",
 				},
-				Parameters: tools.FunctionParamaters{
+				Parameters: tools.FunctionParameters{
 					Type: "object",
 					Properties: map[string]any{
 						"path": map[string]any{
@@ -242,7 +242,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					ReadOnlyHint: &[]bool{true}[0],
 					Title:        "List Directory",
 				},
-				Parameters: tools.FunctionParamaters{
+				Parameters: tools.FunctionParameters{
 					Type: "object",
 					Properties: map[string]any{
 						"path": map[string]any{
@@ -263,7 +263,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					ReadOnlyHint: &[]bool{true}[0],
 					Title:        "List Directory With Sizes",
 				},
-				Parameters: tools.FunctionParamaters{
+				Parameters: tools.FunctionParameters{
 					Type: "object",
 					Properties: map[string]any{
 						"path": map[string]any{
@@ -283,7 +283,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 				Annotations: tools.ToolAnnotation{
 					Title: "Move File",
 				},
-				Parameters: tools.FunctionParamaters{
+				Parameters: tools.FunctionParameters{
 					Type: "object",
 					Properties: map[string]any{
 						"source": map[string]any{
@@ -308,7 +308,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					ReadOnlyHint: &[]bool{true}[0],
 					Title:        "Read File",
 				},
-				Parameters: tools.FunctionParamaters{
+				Parameters: tools.FunctionParameters{
 					Type: "object",
 					Properties: map[string]any{
 						"path": map[string]any{
@@ -329,7 +329,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					ReadOnlyHint: &[]bool{true}[0],
 					Title:        "Read Multiple Files",
 				},
-				Parameters: tools.FunctionParamaters{
+				Parameters: tools.FunctionParameters{
 					Type: "object",
 					Properties: map[string]any{
 						"paths": map[string]any{
@@ -353,7 +353,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					ReadOnlyHint: &[]bool{true}[0],
 					Title:        "Search Files",
 				},
-				Parameters: tools.FunctionParamaters{
+				Parameters: tools.FunctionParameters{
 					Type: "object",
 					Properties: map[string]any{
 						"path": map[string]any{
@@ -385,7 +385,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					ReadOnlyHint: &[]bool{true}[0],
 					Title:        "Search Files Content",
 				},
-				Parameters: tools.FunctionParamaters{
+				Parameters: tools.FunctionParameters{
 					Type: "object",
 					Properties: map[string]any{
 						"path": map[string]any{
@@ -420,7 +420,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 				Annotations: tools.ToolAnnotation{
 					Title: "Write File",
 				},
-				Parameters: tools.FunctionParamaters{
+				Parameters: tools.FunctionParameters{
 					Type: "object",
 					Properties: map[string]any{
 						"path": map[string]any{
