@@ -33,6 +33,12 @@ linters:
           deny:
             - pkg: github.com/docker/cagent/internal
               desc: don't use /internal/ from /pkg/
+        testify_is_for_tests:
+          files:
+            - "**/*.go"
+            - "!**/*_test.go"
+          deny:
+            - pkg: github.com/stretchr/testify
     gocritic:
       disabled-checks:
         - dupImport

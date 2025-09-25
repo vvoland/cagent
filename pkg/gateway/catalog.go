@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/stretchr/testify/assert/yaml"
+	"gopkg.in/yaml.v3"
 )
 
 const DockerCatalogURL = "https://desktop.docker.com/mcp/catalog/v2/catalog.yaml"
