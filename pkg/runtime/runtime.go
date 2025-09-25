@@ -228,6 +228,8 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				return
 			}
 			slog.Debug("Starting conversation loop iteration", "agent", a.Name())
+			// Looping, get the updated messages from the session
+			messages := sess.GetMessages(a)
 			slog.Debug("Retrieved messages for processing", "agent", a.Name(), "message_count", len(messages))
 
 			// Retry loop for getting agent tools with OAuth handling
