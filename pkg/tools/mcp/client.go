@@ -139,7 +139,7 @@ func (c *Client) ListTools(ctx context.Context, toolFilter []string) ([]tools.To
 			Function: &tools.FunctionDefinition{
 				Name:        t.Name,
 				Description: t.Description,
-				Parameters: tools.FunctionParamaters{
+				Parameters: tools.FunctionParameters{
 					Type:       t.InputSchema.Type,
 					Properties: t.InputSchema.Properties,
 					Required:   t.InputSchema.Required,

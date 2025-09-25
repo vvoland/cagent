@@ -394,7 +394,7 @@ func (c *Client) CreateChatCompletion(
 // sanitizeToolParameters ensures the tool parameter schema is safe for engines using Jinja-like templates.
 // In particular, it avoids shadowing built-in mapping methods like `keys()` by removing a literal "keys"
 // field from property schemas if present, and guarantees the outer structure is an object with a properties map.
-func sanitizeToolParameters(p tools.FunctionParamaters) any {
+func sanitizeToolParameters(p tools.FunctionParameters) any {
 	// Start with a safe container
 	out := map[string]any{
 		"type":       "object",

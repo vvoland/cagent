@@ -43,7 +43,7 @@ func (t *MemoryTool) Tools(context.Context) ([]tools.Tool, error) {
 				Annotations: tools.ToolAnnotation{
 					Title: "Add Memory",
 				},
-				Parameters: tools.FunctionParamaters{
+				Parameters: tools.FunctionParameters{
 					Type: "object",
 					Properties: map[string]any{
 						"memory": map[string]any{
@@ -64,7 +64,7 @@ func (t *MemoryTool) Tools(context.Context) ([]tools.Tool, error) {
 					ReadOnlyHint: &[]bool{true}[0],
 					Title:        "Get Memories",
 				},
-				Parameters: tools.FunctionParamaters{
+				Parameters: tools.FunctionParameters{
 					Type:       "object",
 					Properties: map[string]any{},
 				},
@@ -78,7 +78,7 @@ func (t *MemoryTool) Tools(context.Context) ([]tools.Tool, error) {
 				Annotations: tools.ToolAnnotation{
 					Title: "Delete Memory",
 				},
-				Parameters: tools.FunctionParamaters{
+				Parameters: tools.FunctionParameters{
 					Type: "object",
 					Properties: map[string]any{
 						"id": map[string]any{
