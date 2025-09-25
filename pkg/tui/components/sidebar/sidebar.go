@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/runtime"
+	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tui/components/todo"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/styles"
@@ -22,7 +23,7 @@ type Model interface {
 
 	SetTitle(title string)
 	SetTokenUsage(usage *runtime.Usage)
-	SetTodoArguments(toolName, arguments string) error
+	SetTodos(toolCall tools.ToolCall) error
 	SetWorking(working bool) tea.Cmd
 }
 
@@ -62,8 +63,8 @@ func (m *model) SetTokenUsage(usage *runtime.Usage) {
 	m.usage = usage
 }
 
-func (m *model) SetTodoArguments(toolName, arguments string) error {
-	return m.todoComp.ParseTodoArguments(toolName, arguments)
+func (m *model) SetTodos(toolCall tools.ToolCall) error {
+	return m.todoComp.SetTodos(toolCall)
 }
 
 // SetWorking sets the working state and returns a command to start the spinner if needed
