@@ -1,5 +1,5 @@
 agents:
-  go_developer:
+  root:
     description: A Go developer agent with post-edit formatting
     model: gpt-4
     instruction: |
