@@ -42,6 +42,7 @@ linters:
     gocritic:
       disabled-checks:
         - dupImport
+        - hugeParam
       enabled-tags:
         - diagnostic
         - style

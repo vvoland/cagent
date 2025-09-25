@@ -85,12 +85,12 @@ func loadConfig(path string) (*latest.Config, error) {
 
 	var raw map[string]any
 	if err := yaml.Unmarshal(data, &raw); err != nil {
-		return nil, fmt.Errorf("failed to parse config file: %w", err)
+		return nil, fmt.Errorf("failed to parse config file %s: %w", path, err)
 	}
 
 	oldConfig, err := parseCurrentVersion(data, raw["version"])
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse config file: %w", err)
+		return nil, fmt.Errorf("failed to parse config file %s: %w", path, err)
 	}
 
 	config, err := migrateToLatestConfig(oldConfig)

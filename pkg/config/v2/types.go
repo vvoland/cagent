@@ -7,6 +7,7 @@ import (
 
 // Config represents the entire configuration file
 type Config struct {
+	Version  string                 `json:"version,omitempty" yaml:"version,omitempty"`
 	Agents   map[string]AgentConfig `json:"agents,omitempty" yaml:"agents,omitempty"`
 	Models   map[string]ModelConfig `json:"models,omitempty" yaml:"models,omitempty"`
 	Metadata Metadata               `json:"metadata,omitempty" yaml:"metadata,omitempty"`
