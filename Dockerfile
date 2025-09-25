@@ -41,9 +41,12 @@ COPY --from=builder /binaries .
 
 FROM alpine
 RUN apk add --no-cache ca-certificates docker-cli
+RUN addgroup -S cagent && adduser -S -G cagent cagent
 ARG TARGETOS TARGETARCH
 ENV DOCKER_MCP_IN_CONTAINER=1
-ENTRYPOINT ["/cagent"]
-RUN mkdir /data
+RUN mkdir /data /work && chmod 777 /data /work
 COPY --from=docker/mcp-gateway:v2 /docker-mcp /usr/local/lib/docker/cli-plugins/
 COPY --from=builder /binaries/cagent-$TARGETOS-$TARGETARCH /cagent
+USER cagent
+WORKDIR /work
+ENTRYPOINT ["/cagent"]
