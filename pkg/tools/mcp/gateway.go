@@ -12,7 +12,7 @@ import (
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/gateway"
 	"github.com/docker/cagent/pkg/tools"
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 )
 
 const ENV_DOCKER_MCP_URL_PREFIX = "DOCKER_MCP_URL_"
