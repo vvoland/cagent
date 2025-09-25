@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/v2/spinner"
-	"github.com/charmbracelet/bubbles/v2/viewport"
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/glamour/v2"
 
@@ -18,13 +17,11 @@ import (
 
 // toolModel implements Model
 type toolModel struct {
-	message  *types.Message
-	renderer *glamour.TermRenderer
-	width    int
-	height   int
-	focused  bool
-	spinner  spinner.Model
-	app      *app.App
+	message *types.Message
+	width   int
+	height  int
+	spinner spinner.Model
+	app     *app.App
 }
 
 // SetSize implements Model.
@@ -39,17 +36,15 @@ func New(msg *types.Message, a *app.App, renderer *glamour.TermRenderer) layout.
 	if msg.ToolCall.Function.Name == "transfer_task" {
 		return &transferTaskModel{
 			msg: msg,
-			// renderer: renderer,
 		}
 	}
+
 	return &toolModel{
-		message:  msg,
-		width:    80, // Default width
-		height:   1,  // Will be calculated
-		focused:  false,
-		spinner:  spinner.New(spinner.WithSpinner(spinner.Points)),
-		app:      a,
-		renderer: renderer,
+		message: msg,
+		width:   80,
+		height:  1,
+		spinner: spinner.New(spinner.WithSpinner(spinner.Points)),
+		app:     a,
 	}
 }
 
@@ -105,10 +100,7 @@ func (mv *toolModel) Render(width int) string {
 			content += " " + render_search_files(msg.ToolCall)
 		} else {
 			lines := wrapLines(msg.ToolCall.Function.Arguments, mv.width-2)
-			argsViewport := viewport.New(viewport.WithWidth(mv.width), viewport.WithHeight(len(lines)))
-			argsViewport.SetContent(styles.MutedStyle.Render(strings.Join(lines, "\n")))
-			argsViewport.GotoBottom()
-			content += "\n" + argsViewport.View()
+			content += "\n" + strings.Join(lines, "\n")
 		}
 	}
 
