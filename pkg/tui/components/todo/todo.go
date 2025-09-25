@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tui/styles"
 )
 
@@ -35,8 +36,10 @@ func (c *Component) SetSize(width int) {
 	c.width = width
 }
 
-// ParseTodoArguments extracts todos from tool call arguments
-func (c *Component) ParseTodoArguments(toolName, arguments string) error {
+// SetTodos sets the todo builtin call, handles create_todo, create_todos, update_todo
+func (c *Component) SetTodos(toolCall tools.ToolCall) error {
+	toolName := toolCall.Function.Name
+	arguments := toolCall.Function.Arguments
 	switch toolName {
 	case "create_todo":
 		var params struct {

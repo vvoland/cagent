@@ -246,7 +246,7 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		toolName := msg.ToolCall.Function.Name
 		if toolName == "create_todo" || toolName == "create_todos" ||
 			toolName == "update_todo" || toolName == "list_todos" {
-			if err := p.sidebar.SetTodoArguments(toolName, msg.ToolCall.Function.Arguments); err != nil {
+			if err := p.sidebar.SetTodos(msg.ToolCall); err != nil {
 				// Log error but don't fail the tool call
 				// Could add logging here if needed
 			}
