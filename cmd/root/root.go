@@ -143,7 +143,10 @@ We collect anonymous usage data to help improve cagent. To disable:
 			fmt.Fprintln(os.Stderr, "\nEither:\n - Set those environment variables before running cagent\n - Run cagent with --env-from-file\n - Store those secrets using one of the built-in environment variable providers.")
 		} else {
 			fmt.Fprintln(os.Stderr, err)
-			_ = rootCmd.Usage()
+			fmt.Fprintln(os.Stderr)
+			if strings.HasPrefix(err.Error(), "unknown command ") || strings.HasPrefix(err.Error(), "accepts ") {
+				_ = rootCmd.Usage()
+			}
 		}
 
 		os.Exit(1)
