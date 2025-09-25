@@ -4,6 +4,7 @@ version: "2"
 agents:
   root:
     model: gpt
+    description: An agent to demonstrate how to setup a shared todo.
     instruction: |
       Here is your workflow:
         - Transfer to the `first` agent, the task should be: create a todo
