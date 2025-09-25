@@ -87,13 +87,19 @@ issues:
   max-same-issues: 3
 formatters:
   enable:
+    - gci
     - gofmt
     - gofumpt
-    - goimports
-  exclusions:
-    generated: lax
-    paths:
-      - .*_test\.go$
-      - third_party$
-      - builtin$
-      - examples$
+  settings:
+    gci:
+      custom-order: true
+      sections:
+        - standard
+        - default
+        - prefix(github.com/docker/cagent)
+    gofmt:
+      rewrite-rules:
+        - pattern: 'interface{}'
+          replacement: 'any'
+    gofumpt:
+      extra-rules: true

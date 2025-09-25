@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss/v2"
+
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tui/styles"
 )

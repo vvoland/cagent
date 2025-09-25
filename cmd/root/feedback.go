@@ -3,8 +3,9 @@ package root
 import (
 	"fmt"
 
-	"github.com/docker/cagent/pkg/telemetry"
 	"github.com/spf13/cobra"
+
+	"github.com/docker/cagent/pkg/telemetry"
 )
 
 var FeedbackLink = "https://docker.qualtrics.com/jfe/form/SV_cNsCIg92nQemlfw"

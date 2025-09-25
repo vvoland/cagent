@@ -7,9 +7,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/docker/cagent/pkg/tools"
 	"github.com/fatih/color"
 	"golang.org/x/term"
+
+	"github.com/docker/cagent/pkg/tools"
 )
 
 var (

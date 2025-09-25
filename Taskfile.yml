@@ -38,18 +38,17 @@ tasks:
 
   lint:
     desc: Run golangci-lint
-    cmd: golangci-lint run ./...
+    cmd: golangci-lint run
     sources:
       - "{{.GO_SOURCES}}"
       - ".golangci.yml"
 
   format:
     desc: Format code
-    cmds:
-      - go install mvdan.cc/gofumpt@latest
-      - gofumpt -w .
+    cmd: golangci-lint fmt
     sources:
       - "{{.GO_SOURCES}}"
+      - ".golangci.yml"
 
   test:
     desc: Run tests

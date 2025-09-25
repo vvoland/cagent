@@ -9,13 +9,14 @@ import (
 	"net/http"
 	"strings"
 
+	"google.golang.org/genai"
+
 	"github.com/docker/cagent/pkg/chat"
 	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/desktop"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/tools"
-	"google.golang.org/genai"
 )
 
 // Client represents a Gemini client wrapper

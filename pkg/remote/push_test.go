@@ -3,12 +3,13 @@ package remote
 import (
 	"testing"
 
-	"github.com/docker/cagent/pkg/content"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/static"
 	"github.com/google/go-containerregistry/pkg/v1/types"
+
+	"github.com/docker/cagent/pkg/content"
 )
 
 func TestPush(t *testing.T) {

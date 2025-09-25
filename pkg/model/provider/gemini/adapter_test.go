@@ -3,8 +3,9 @@ package gemini
 import (
 	"testing"
 
-	"github.com/docker/cagent/pkg/chat"
 	"google.golang.org/genai"
+
+	"github.com/docker/cagent/pkg/chat"
 )
 
 func TestStreamAdapter_FunctionCalls(t *testing.T) {

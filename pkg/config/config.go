@@ -6,10 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/goccy/go-yaml"
+
 	v0 "github.com/docker/cagent/pkg/config/v0"
 	v1 "github.com/docker/cagent/pkg/config/v1"
 	latest "github.com/docker/cagent/pkg/config/v2"
-	"github.com/goccy/go-yaml"
 )
 
 // LoadConfigSecure loads the configuration from a file with path validation
