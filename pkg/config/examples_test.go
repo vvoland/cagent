@@ -25,9 +25,13 @@ func TestParseExamples(t *testing.T) {
 	assert.NotEmpty(t, files)
 
 	for _, file := range files {
-		cfg, err := loadConfig(file)
+		t.Run(file, func(t *testing.T) {
+			t.Parallel()
 
-		require.NoError(t, err)
-		require.NotEmpty(t, cfg.Agents["root"].Instruction, "Instruction should not be empty in %s", file)
+			cfg, err := loadConfig(file)
+
+			require.NoError(t, err)
+			require.NotEmpty(t, cfg.Agents["root"].Instruction, "Instruction should not be empty in %s", file)
+		})
 	}
 }
