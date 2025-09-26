@@ -1,8 +1,9 @@
 package tool
 
 import (
-	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestWrapLines(t *testing.T) {
@@ -157,9 +158,7 @@ func TestWrapLines(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			wrapped := wrapLines(tt.text, tt.width)
 
-			if !reflect.DeepEqual(wrapped, tt.expected) {
-				t.Errorf("wrapLines(%q, %d) = %q, want %q", tt.text, tt.width, wrapped, tt.expected)
-			}
+			assert.Equal(t, tt.expected, wrapped)
 		})
 	}
 }
