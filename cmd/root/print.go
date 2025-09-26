@@ -1,9 +1,7 @@
 package root
 
 import (
-	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
@@ -14,11 +12,10 @@ import (
 
 func NewPrintCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:    "print <agent-name>",
-		Short:  "Print the canonical configuration of an agent",
-		Args:   cobra.ExactArgs(1),
-		RunE:   printCommand,
-		Hidden: true,
+		Use:   "print <agent-file>",
+		Short: "Print the canonical form of an agent file",
+		Args:  cobra.ExactArgs(1),
+		RunE:  printCommand,
 	}
 }
 
@@ -27,20 +24,10 @@ func printCommand(cmd *cobra.Command, args []string) error {
 
 	agentFilename := args[0]
 
-	ext := strings.ToLower(filepath.Ext(agentFilename))
-	if ext == ".yaml" || ext == ".yml" || strings.HasPrefix(agentFilename, "/dev/fd/") {
-		cfg, err := config.LoadConfigSecure(filepath.Base(agentFilename), filepath.Dir(agentFilename))
-		if err != nil {
-			return err
-		}
-
-		buf, err := yaml.Marshal(cfg)
-		if err != nil {
-			return err
-		}
-
-		fmt.Println(string(buf))
+	cfg, err := config.LoadConfigSecure(filepath.Base(agentFilename), filepath.Dir(agentFilename))
+	if err != nil {
+		return err
 	}
 
-	return nil
+	return yaml.NewEncoder(cmd.OutOrStdout()).Encode(cfg)
 }
