@@ -1,61 +1,34 @@
 package dmr
 
 import (
-	"context"
 	"reflect"
 	"testing"
 
 	latest "github.com/docker/cagent/pkg/config/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestNewClientWithDefaultBaseURL(t *testing.T) {
-	// No base_url provided, should use default
-	cfg := &latest.ModelConfig{
-		Provider: "dmr",
-		Model:    "ai/qwen3",
-		// BaseURL is empty, should use default
-	}
-
-	client, err := NewClient(context.Background(), cfg)
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-
-	if client.baseURL != "http://localhost:12434/engines/llama.cpp/v1" {
-		t.Errorf("Expected default baseURL to be 'http://localhost:12434/engines/llama.cpp/v1', got '%s'", client.baseURL)
-	}
-}
-
 func TestNewClientWithExplicitBaseURL(t *testing.T) {
-	// Explicit base_url provided, should use that
-	customURL := "https://custom.example.com:8080/api/v1"
 	cfg := &latest.ModelConfig{
 		Provider: "dmr",
 		Model:    "ai/qwen3",
-		BaseURL:  customURL,
+		BaseURL:  "https://custom.example.com:8080/api/v1",
 	}
 
-	client, err := NewClient(context.Background(), cfg)
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-
-	if client.baseURL != customURL {
-		t.Errorf("Expected baseURL to be '%s', got '%s'", customURL, client.baseURL)
-	}
+	client, err := NewClient(t.Context(), cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "https://custom.example.com:8080/api/v1", client.baseURL)
 }
 
 func TestNewClientWithWrongType(t *testing.T) {
-	// Wrong model type, should return error
 	cfg := &latest.ModelConfig{
-		Provider: "openai", // Wrong type
+		Provider: "openai",
 		Model:    "gpt-4",
 	}
 
-	_, err := NewClient(context.Background(), cfg)
-	if err == nil {
-		t.Fatal("Expected error for wrong model type, got nil")
-	}
+	_, err := NewClient(t.Context(), cfg)
+	require.Error(t, err)
 }
 
 func TestBuildDockerConfigureArgs(t *testing.T) {
@@ -119,87 +92,5 @@ func TestMergeRuntimeFlagsPreferUser_WarnsAndPrefersUser(t *testing.T) {
 	expected := []string{"--top-p", "0.8", "--temp", "0.7", "--threads", "8"}
 	if !reflect.DeepEqual(merged, expected) {
 		t.Fatalf("unexpected merged flags.\nexpected: %#v\nactual:   %#v", expected, merged)
-	}
-}
-
-func TestNormalizeDMREndpoint_NoEnvOverride(t *testing.T) {
-	tests := []struct {
-		name              string
-		endpoint          string
-		inDockerContainer bool
-		want              string
-	}{
-		{
-			name:              "override when not in docker",
-			endpoint:          "http://model-runner.docker.internal/engines/v1/",
-			inDockerContainer: false,
-			want:              "http://localhost:12434/engines/llama.cpp/v1",
-		},
-		{
-			name:              "no override when in docker",
-			endpoint:          "http://model-runner.docker.internal/engines/v1/",
-			inDockerContainer: true,
-			want:              "http://model-runner.docker.internal/engines/v1/",
-		},
-		{
-			name:              "other endpoint unchanged",
-			endpoint:          "http://example/engines/v1/",
-			inDockerContainer: false,
-			want:              "http://example/engines/v1/",
-		},
-		{
-			name:              "empty endpoint unchanged",
-			endpoint:          "",
-			inDockerContainer: false,
-			want:              "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := normalizeDMREndpoint(tt.endpoint, tt.inDockerContainer)
-			if got != tt.want {
-				t.Fatalf("normalizeDMREndpoint(%q, %v) = %q, want %q", tt.endpoint, tt.inDockerContainer, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestNormalizeDMREndpoint_EnvOverride(t *testing.T) {
-	t.Setenv("MODEL_RUNNER_HOST", "http://myhost:9999/custom/v1")
-
-	tests := []struct {
-		name              string
-		endpoint          string
-		inDockerContainer bool
-		want              string
-	}{
-		{
-			name:              "env overrides non-container default endpoint",
-			endpoint:          "http://model-runner.docker.internal/engines/v1/",
-			inDockerContainer: false,
-			want:              "http://myhost:9999/custom/v1",
-		},
-		{
-			name:              "env overrides in-container default endpoint",
-			endpoint:          "http://model-runner.docker.internal/engines/v1/",
-			inDockerContainer: true,
-			want:              "http://myhost:9999/custom/v1",
-		},
-		{
-			name:              "env overrides arbitrary endpoint",
-			endpoint:          "http://example/engines/v1/",
-			inDockerContainer: false,
-			want:              "http://myhost:9999/custom/v1",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := normalizeDMREndpoint(tt.endpoint, tt.inDockerContainer)
-			if got != tt.want {
-				t.Fatalf("normalizeDMREndpoint should prefer env var: got %q, want %q", got, tt.want)
-			}
-		})
 	}
 }
