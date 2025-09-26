@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
@@ -45,47 +47,61 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, opts ...options.Opt
 		opt(&globalOptions)
 	}
 
-	// Resolve base_url for DMR models. If not provided, configure with the docker model plugin, else fallback.
-	baseURL := cfg.BaseURL
-	if baseURL == "" {
-		endpoint, engine, err := getDockerModelEndpointAndEngine(ctx)
-		if err != nil {
-			slog.Debug("docker model status query failed", "error", err)
-		}
-
-		// Build runtime flags from ModelConfig and engine
-		contextSize, providerRuntimeFlags := parseDMRProviderOpts(cfg)
-		configFlags := buildRuntimeFlagsFromModelConfig(engine, cfg)
-		finalFlags, warnings := mergeRuntimeFlagsPreferUser(configFlags, providerRuntimeFlags)
-		for _, w := range warnings {
-			slog.Warn(w)
-		}
-		slog.Debug("DMR provider_opts parsed", "model", cfg.Model, "context_size", contextSize, "runtime_flags", finalFlags, "engine", engine)
-		if err := configureDockerModel(ctx, cfg.Model, contextSize, finalFlags); err != nil {
-			slog.Debug("docker model configure skipped or failed", "error", err)
-		}
-
-		if endpoint != "" {
-			baseURL = endpoint
-			slog.Debug("Using docker model endpoint for DMR base_url", "base_url", baseURL)
-		} else {
-			baseURL = "http://localhost:12434/engines/llama.cpp/v1"
-			slog.Debug("Using default DMR base_url", "base_url", baseURL)
-		}
+	endpoint, engine, err := getDockerModelEndpointAndEngine(ctx)
+	if err != nil {
+		slog.Debug("docker model status query failed", "error", err)
 	}
 
-	slog.Debug("Creating DMR client config", "base_url", baseURL)
 	clientConfig := openai.DefaultConfig("")
-	clientConfig.BaseURL = baseURL
 
-	client := openai.NewClientWithConfig(clientConfig)
-	slog.Debug("DMR client created successfully", "model", cfg.Model, "base_url", baseURL)
+	switch {
+	case cfg.BaseURL != "":
+		clientConfig.BaseURL = cfg.BaseURL
+	case os.Getenv("MODEL_RUNNER_HOST") != "":
+		clientConfig.BaseURL = os.Getenv("MODEL_RUNNER_HOST")
+	case inContainer():
+		// This won't work with Docker CE but we have no way to detect that from inside the container.
+		clientConfig.BaseURL = "http://model-runner.docker.internal/engines/v1/"
+	case endpoint == "http://model-runner.docker.internal/engines/v1/":
+		// Docker Desktop
+		clientConfig.BaseURL = "http://_/exp/vDD4.40/engines/v1"
+		clientConfig.HTTPClient = &http.Client{
+			Transport: &http.Transport{
+				DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+					var d net.Dialer
+					return d.DialContext(ctx, "unix", "/var/run/docker.sock")
+				},
+			},
+		}
+	default:
+		// Docker CE
+		clientConfig.BaseURL = endpoint
+	}
+
+	// Build runtime flags from ModelConfig and engine
+	contextSize, providerRuntimeFlags := parseDMRProviderOpts(cfg)
+	configFlags := buildRuntimeFlagsFromModelConfig(engine, cfg)
+	finalFlags, warnings := mergeRuntimeFlagsPreferUser(configFlags, providerRuntimeFlags)
+	for _, w := range warnings {
+		slog.Warn(w)
+	}
+	slog.Debug("DMR provider_opts parsed", "model", cfg.Model, "context_size", contextSize, "runtime_flags", finalFlags, "engine", engine)
+	if err := configureDockerModel(ctx, cfg.Model, contextSize, finalFlags); err != nil {
+		slog.Debug("docker model configure skipped or failed", "error", err)
+	}
+
+	slog.Debug("DMR client created successfully", "model", cfg.Model, "base_url", clientConfig.BaseURL)
 
 	return &Client{
-		client:  client,
+		client:  openai.NewClientWithConfig(clientConfig),
 		config:  cfg,
-		baseURL: baseURL,
+		baseURL: clientConfig.BaseURL,
 	}, nil
+}
+
+func inContainer() bool {
+	finfo, err := os.Stat("/.dockerenv")
+	return err == nil && finfo.Mode().IsRegular()
 }
 
 func convertMultiContent(multiContent []chat.MessagePart) []openai.ChatMessagePart {
@@ -290,7 +306,8 @@ func (c *Client) CreateChatCompletionStream(
 		"model", c.config.Model,
 		"message_count", len(messages),
 		"tool_count", len(requestTools),
-		"base_url", c.baseURL)
+		"base_url", c.baseURL,
+	)
 
 	if len(messages) == 0 {
 		slog.Error("DMR stream creation failed", "error", "at least one message is required")
@@ -366,7 +383,7 @@ func (c *Client) CreateChatCompletionStream(
 		return nil, err
 	}
 
-	slog.Debug("DMR chat completion stream created successfully", "model", c.config.Model)
+	slog.Debug("DMR chat completion stream created successfully", "model", c.config.Model, "base_url", c.baseURL)
 	return newStreamAdapter(stream, trackUsage), nil
 }
 
@@ -383,7 +400,7 @@ func (c *Client) CreateChatCompletion(
 
 	response, err := c.client.CreateChatCompletion(ctx, request)
 	if err != nil {
-		slog.Error("DMR chat completion failed", "error", err, "model", c.config.Model, "base_url", c.baseURL)
+		slog.Error("DMR chat completion failed", "error", err, "model", c.config.Model)
 		return "", err
 	}
 
@@ -502,6 +519,7 @@ func getDockerModelEndpointAndEngine(ctx context.Context) (endpoint, engine stri
 	if err := cmd.Run(); err != nil {
 		return "", "", errors.New(strings.TrimSpace(stderr.String()))
 	}
+
 	type status struct {
 		Running  bool              `json:"running"`
 		Backends map[string]string `json:"backends"`
@@ -512,16 +530,8 @@ func getDockerModelEndpointAndEngine(ctx context.Context) (endpoint, engine stri
 	if err := json.Unmarshal(stdout.Bytes(), &st); err != nil {
 		return "", "", err
 	}
+
 	endpoint = strings.TrimSpace(st.Endpoint)
-
-	inDockerContainer := false
-	finfo, err := os.Stat("/.dockerenv")
-	if err == nil && finfo.Mode().IsRegular() {
-		inDockerContainer = true
-	}
-
-	// normalize endpoint considering container environment
-	endpoint = normalizeDMREndpoint(endpoint, inDockerContainer)
 
 	engine = strings.TrimSpace(st.Engine)
 	if engine == "" {
@@ -539,23 +549,8 @@ func getDockerModelEndpointAndEngine(ctx context.Context) (endpoint, engine stri
 	if engine == "" {
 		engine = "llama.cpp"
 	}
-	return endpoint, engine, nil
-}
 
-// normalizeDMREndpoint applies an override to the endpoint reported by
-// `docker model status --json` to ensure the DMR client uses a reachable address
-// from the current environment.
-func normalizeDMREndpoint(endpoint string, inDockerContainer bool) string {
-	// This env overriding might need to be updated if we end up having multiple separate DMR
-	// engines with different endpoints running at the same time
-	if hostEnvVar := os.Getenv("MODEL_RUNNER_HOST"); hostEnvVar != "" {
-		return hostEnvVar
-	}
-	// Only override if not running in a docker container
-	if endpoint == "http://model-runner.docker.internal/engines/v1/" && !inDockerContainer {
-		return "http://localhost:12434/engines/llama.cpp/v1"
-	}
-	return endpoint
+	return endpoint, engine, nil
 }
 
 // buildRuntimeFlagsFromModelConfig converts standard ModelConfig fields into backend-specific
