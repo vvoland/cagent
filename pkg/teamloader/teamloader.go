@@ -305,11 +305,7 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 
 		case toolset.Type == "mcp" && toolset.Ref != "":
 			mcpServerName := gateway.ParseServerRef(toolset.Ref)
-			if mcpServerURL := os.Getenv(mcp.ENV_DOCKER_MCP_URL_PREFIX + mcpServerName); mcpServerURL != "" {
-				t = append(t, mcp.NewToolsetCommand("socat", []string{"STDIO", fmt.Sprintf("TCP:mcp-%s:4444", mcpServerName)}, nil, toolset.Tools))
-			} else {
-				t = append(t, mcp.NewGatewayToolset(mcpServerName, toolset.Config, toolset.Tools, envProvider))
-			}
+			t = append(t, mcp.NewGatewayToolset(mcpServerName, toolset.Config, toolset.Tools, envProvider))
 
 		case toolset.Type == "mcp" && toolset.Command != "":
 			t = append(t, mcp.NewToolsetCommand(toolset.Command, toolset.Args, env, toolset.Tools))
