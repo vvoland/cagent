@@ -212,8 +212,9 @@ func convertMessages(messages []chat.Message) []openai.ChatCompletionMessage {
 		}
 
 		openaiMessage := openai.ChatCompletionMessage{
-			Role: string(msg.Role),
-			Name: msg.Name,
+			Role:       string(msg.Role),
+			Name:       msg.Name,
+			ToolCallID: msg.ToolCallID,
 		}
 
 		if len(msg.MultiContent) == 0 {
@@ -229,22 +230,15 @@ func convertMessages(messages []chat.Message) []openai.ChatCompletionMessage {
 			}
 		}
 
-		if len(msg.ToolCalls) > 0 {
-			openaiMessage.ToolCalls = make([]openai.ToolCall, len(msg.ToolCalls))
-			for j, toolCall := range msg.ToolCalls {
-				openaiMessage.ToolCalls[j] = openai.ToolCall{
-					ID:   toolCall.ID,
-					Type: openai.ToolType(toolCall.Type),
-					Function: openai.FunctionCall{
-						Name:      toolCall.Function.Name,
-						Arguments: toolCall.Function.Arguments,
-					},
-				}
-			}
-		}
-
-		if msg.ToolCallID != "" {
-			openaiMessage.ToolCallID = msg.ToolCallID
+		for _, call := range msg.ToolCalls {
+			openaiMessage.ToolCalls = append(openaiMessage.ToolCalls, openai.ToolCall{
+				ID:   call.ID,
+				Type: openai.ToolType(call.Type),
+				Function: openai.FunctionCall{
+					Name:      call.Function.Name,
+					Arguments: call.Function.Arguments,
+				},
+			})
 		}
 
 		openaiMessages = append(openaiMessages, openaiMessage)
@@ -297,11 +291,7 @@ func convertMessages(messages []chat.Message) []openai.ChatCompletionMessage {
 
 // CreateChatCompletionStream creates a streaming chat completion request
 // It returns a stream that can be iterated over to get completion chunks
-func (c *Client) CreateChatCompletionStream(
-	ctx context.Context,
-	messages []chat.Message,
-	requestTools []tools.Tool,
-) (chat.MessageStream, error) {
+func (c *Client) CreateChatCompletionStream(ctx context.Context, messages []chat.Message, requestTools []tools.Tool) (chat.MessageStream, error) {
 	slog.Debug("Creating DMR chat completion stream",
 		"model", c.config.Model,
 		"message_count", len(messages),
@@ -314,10 +304,7 @@ func (c *Client) CreateChatCompletionStream(
 		return nil, errors.New("at least one message is required")
 	}
 
-	trackUsage := true
-	if c.config.TrackUsage != nil && *c.config.TrackUsage == false {
-		trackUsage = false
-	}
+	trackUsage := c.config.TrackUsage == nil || *c.config.TrackUsage
 
 	request := openai.ChatCompletionRequest{
 		Model:            c.config.Model,
@@ -387,10 +374,7 @@ func (c *Client) CreateChatCompletionStream(
 	return newStreamAdapter(stream, trackUsage), nil
 }
 
-func (c *Client) CreateChatCompletion(
-	ctx context.Context,
-	messages []chat.Message,
-) (string, error) {
+func (c *Client) CreateChatCompletion(ctx context.Context, messages []chat.Message) (string, error) {
 	slog.Debug("Creating DMR chat completion", "model", c.config.Model, "message_count", len(messages), "base_url", c.baseURL)
 
 	request := openai.ChatCompletionRequest{
@@ -412,7 +396,6 @@ func (c *Client) CreateChatCompletion(
 // In particular, it avoids shadowing built-in mapping methods like `keys()` by removing a literal "keys"
 // field from property schemas if present, and guarantees the outer structure is an object with a properties map.
 func sanitizeToolParameters(p tools.FunctionParameters) any {
-	// Start with a safe container
 	out := map[string]any{
 		"type":       "object",
 		"properties": map[string]any{},
@@ -420,7 +403,6 @@ func sanitizeToolParameters(p tools.FunctionParameters) any {
 	if p.Type != "" {
 		out["type"] = p.Type
 	}
-	// Copy required if present
 	if len(p.Required) > 0 {
 		out["required"] = p.Required
 	}
