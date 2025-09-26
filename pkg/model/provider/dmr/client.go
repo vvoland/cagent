@@ -29,7 +29,7 @@ type Client struct {
 }
 
 // NewClient creates a new DMR client from the provided configuration
-func NewClient(_ context.Context, cfg *latest.ModelConfig, opts ...options.Opt) (*Client, error) {
+func NewClient(ctx context.Context, cfg *latest.ModelConfig, opts ...options.Opt) (*Client, error) {
 	if cfg == nil {
 		slog.Error("DMR client creation failed", "error", "model configuration is required")
 		return nil, errors.New("model configuration is required")
@@ -48,7 +48,7 @@ func NewClient(_ context.Context, cfg *latest.ModelConfig, opts ...options.Opt) 
 	// Resolve base_url for DMR models. If not provided, configure with the docker model plugin, else fallback.
 	baseURL := cfg.BaseURL
 	if baseURL == "" {
-		endpoint, engine, err := getDockerModelEndpointAndEngine()
+		endpoint, engine, err := getDockerModelEndpointAndEngine(ctx)
 		if err != nil {
 			slog.Debug("docker model status query failed", "error", err)
 		}
@@ -61,7 +61,7 @@ func NewClient(_ context.Context, cfg *latest.ModelConfig, opts ...options.Opt) 
 			slog.Warn(w)
 		}
 		slog.Debug("DMR provider_opts parsed", "model", cfg.Model, "context_size", contextSize, "runtime_flags", finalFlags, "engine", engine)
-		if err := configureDockerModel(cfg.Model, contextSize, finalFlags); err != nil {
+		if err := configureDockerModel(ctx, cfg.Model, contextSize, finalFlags); err != nil {
 			slog.Debug("docker model configure skipped or failed", "error", err)
 		}
 
@@ -464,10 +464,10 @@ func parseDMRProviderOpts(cfg *latest.ModelConfig) (contextSize int, runtimeFlag
 	return contextSize, runtimeFlags
 }
 
-func configureDockerModel(model string, contextSize int, runtimeFlags []string) error {
+func configureDockerModel(ctx context.Context, model string, contextSize int, runtimeFlags []string) error {
 	args := buildDockerModelConfigureArgs(model, contextSize, runtimeFlags)
 
-	cmd := exec.Command("docker", args...)
+	cmd := exec.CommandContext(ctx, "docker", args...)
 	slog.Debug("Running docker model configure", "model", model, "args", args)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -494,8 +494,8 @@ func buildDockerModelConfigureArgs(model string, contextSize int, runtimeFlags [
 	return args
 }
 
-func getDockerModelEndpointAndEngine() (endpoint, engine string, err error) {
-	cmd := exec.Command("docker", "model", "status", "--json")
+func getDockerModelEndpointAndEngine(ctx context.Context) (endpoint, engine string, err error) {
+	cmd := exec.CommandContext(ctx, "docker", "model", "status", "--json")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

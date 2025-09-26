@@ -1,6 +1,7 @@
 package oauth
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -190,7 +191,7 @@ func ValidateAndSanitizeURL(rawURL string) (string, error) {
 // - URL validation and sanitization using ValidateAndSanitizeURL
 // - Logging of security events (blocked URLs, successful opens)
 // - Maintains backward compatibility for legitimate OAuth URLs
-func OpenBrowser(urlToOpen string) error {
+func OpenBrowser(ctx context.Context, urlToOpen string) error {
 	// Validate and sanitize the URL before opening
 	validatedURL, err := ValidateAndSanitizeURL(urlToOpen)
 	if err != nil {
@@ -217,7 +218,7 @@ func OpenBrowser(urlToOpen string) error {
 
 	slog.Info("Opening browser with validated URL", "url", validatedURL, "platform", runtime.GOOS)
 
-	err = exec.Command(cmd, args...).Start()
+	err = exec.CommandContext(ctx, cmd, args...).Start()
 	if err != nil {
 		slog.Error("Failed to execute browser command", "cmd", cmd, "args", args, "error", err)
 		return fmt.Errorf("failed to open browser: %w", err)

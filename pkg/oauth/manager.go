@@ -121,7 +121,7 @@ func (m *manager) performOAuthAuthorization(ctx context.Context, sessionID strin
 
 	// Open the browser to the authorization URL
 	slog.Info("Opening browser for OAuth authorization", "url", authURL)
-	err = OpenBrowser(authURL)
+	err = OpenBrowser(ctx, authURL)
 	if err != nil {
 		slog.Warn("Failed to open browser automatically", "error", err, "url", authURL)
 	}
