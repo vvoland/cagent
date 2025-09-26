@@ -21,7 +21,6 @@ type Model interface {
 	layout.Model
 	layout.Sizeable
 
-	SetTitle(title string)
 	SetTokenUsage(usage *runtime.Usage)
 	SetTodos(toolCall tools.ToolCall) error
 	SetWorking(working bool) tea.Cmd
@@ -31,7 +30,6 @@ type Model interface {
 type model struct {
 	width    int
 	height   int
-	title    string
 	usage    *runtime.Usage
 	todoComp *todo.Component
 	working  bool
@@ -45,7 +43,6 @@ func New() Model {
 		height:   24, // Default height
 		usage:    &runtime.Usage{},
 		todoComp: todo.NewComponent(),
-		title:    "New Session",
 		spinner:  spinner.New(spinner.WithSpinner(spinner.Dot)),
 	}
 }
@@ -53,10 +50,6 @@ func New() Model {
 // Init initializes the component
 func (m *model) Init() tea.Cmd {
 	return nil
-}
-
-func (m *model) SetTitle(title string) {
-	m.title = title
 }
 
 func (m *model) SetTokenUsage(usage *runtime.Usage) {
@@ -132,7 +125,7 @@ func (m *model) View() string {
 	// Use predefined styles for the usage display
 
 	// Build top content (title + pwd + token usage)
-	topContent := m.title + "\n\n"
+	topContent := ""
 
 	// Add current working directory in grey
 	if pwd := getCurrentWorkingDirectory(); pwd != "" {
