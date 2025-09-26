@@ -13,7 +13,7 @@ func NewBuildCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "build <agent-file> [docker-image-name]",
 		Short:  "Build a Docker image for the agent",
-		Args:   cobra.MinimumNArgs(1),
+		Args:   cobra.RangeArgs(1, 2),
 		RunE:   runBuildCommand,
 		Hidden: true,
 	}
