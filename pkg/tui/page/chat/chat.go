@@ -213,7 +213,6 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
 	case *runtime.SessionTitleEvent:
 		p.sessionTitle = msg.Title
-		p.sidebar.SetTitle(msg.Title)
 	case *runtime.TokenUsageEvent:
 		p.sidebar.SetTokenUsage(msg.Usage)
 	case *runtime.StreamStoppedEvent:
