@@ -107,6 +107,7 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddCommand(NewFeedbackCmd())
 	cmd.AddCommand(NewCatalogCmd())
 	cmd.AddCommand(NewBuildCmd())
+	cmd.AddCommand(NewPrintCmd())
 
 	return cmd
 }
