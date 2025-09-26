@@ -50,6 +50,8 @@ Get started quickly with the [Docker MCP Toolkit](https://docs.docker.com/ai/mcp
 Here, we're giving the same basic agent from the example above access to a **containerized** `duckduckgo` mcp server and it's tools by using Docker's MCP Gateway:
 
 ```yaml
+version: "2"
+
 agents:
   root:
     model: openai/gpt-5-mini
@@ -57,7 +59,7 @@ agents:
     instruction: |
       You are a knowledgeable assistant that helps users with various tasks.
       Be helpful, accurate, and concise in your responses.
-    toolset:
+    toolsets:
       - type: mcp
         ref: docker:duckduckgo # stdio transport
 ```
@@ -69,6 +71,8 @@ Aside from the containerized MCP severs the Docker MCP Gateway provides, any sta
 Here's an example similar to the above but adding `read_file` and `write_file` tools from the `rust-mcp-filesystem` MCP server:
 
 ```yaml
+version: "2"
+
 agents:
   root:
     model: openai/gpt-5-mini
@@ -76,7 +80,7 @@ agents:
     instruction: |
       You are a knowledgeable assistant that helps users with various tasks.
       Be helpful, accurate, and concise in your responses. Write your search results to disk.
-    toolset:
+    toolsets:
       - type: mcp
         ref: docker:duckduckgo
       - type: mcp
