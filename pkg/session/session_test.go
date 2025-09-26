@@ -24,7 +24,7 @@ func TestTrimMessages(t *testing.T) {
 
 	// Test basic trimming
 	result := trimMessages(messages, maxMessages)
-	assert.Equal(t, maxMessages, len(result), "should trim to maxMessages")
+	assert.Len(t, result, maxMessages, "should trim to maxMessages")
 }
 
 func TestTrimMessagesWithToolCalls(t *testing.T) {
