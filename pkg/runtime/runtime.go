@@ -26,6 +26,10 @@ import (
 
 type ResumeType string
 
+type modelStore interface {
+	GetModel(ctx context.Context, modelID string) (*modelsdev.Model, error)
+}
+
 const (
 	ResumeTypeApprove        ResumeType = "approve"
 	ResumeTypeApproveSession ResumeType = "approve-session"
@@ -61,7 +65,7 @@ type runtime struct {
 	resumeChan        chan ResumeType
 	oauthManager      oauth.Manager
 	tracer            trace.Tracer
-	modelsStore       *modelsdev.Store
+	modelsStore       modelStore
 	sessionCompaction bool
 }
 
@@ -83,6 +87,12 @@ func WithTracer(t trace.Tracer) Opt {
 func WithSessionCompaction(sessionCompaction bool) Opt {
 	return func(r *runtime) {
 		r.sessionCompaction = sessionCompaction
+	}
+}
+
+func WithModelStore(store modelStore) Opt {
+	return func(r *runtime) {
+		r.modelsStore = store
 	}
 }
 
