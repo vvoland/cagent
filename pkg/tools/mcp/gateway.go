@@ -16,8 +16,6 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
-const ENV_DOCKER_MCP_URL_PREFIX = "DOCKER_MCP_URL_"
-
 type GatewayToolset struct {
 	mcpServerName string
 	config        any
