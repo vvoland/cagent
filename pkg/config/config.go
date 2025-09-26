@@ -11,6 +11,7 @@ import (
 	v0 "github.com/docker/cagent/pkg/config/v0"
 	v1 "github.com/docker/cagent/pkg/config/v1"
 	latest "github.com/docker/cagent/pkg/config/v2"
+	v2 "github.com/docker/cagent/pkg/config/v2"
 )
 
 // LoadConfigSecure loads the configuration from a file with path validation
@@ -79,17 +80,20 @@ func ValidatePathInDirectory(path, allowedDir string) (string, error) {
 }
 
 func loadConfig(path string) (*latest.Config, error) {
+	dir := filepath.Dir(path)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading config file: %w", err)
 	}
 
-	var raw map[string]any
-	if err := yaml.Unmarshal(data, &raw); err != nil {
-		return nil, fmt.Errorf("parsing config file %s\n%s", path, yaml.FormatError(err, true, true))
+	var raw struct {
+		Version any `yaml:"version"`
+	}
+	if err := yaml.UnmarshalWithOptions(data, &raw, yaml.ReferenceDirs(dir)); err != nil {
+		return nil, fmt.Errorf("looking for version in config file %s\n%s", path, yaml.FormatError(err, true, true))
 	}
 
-	oldConfig, err := parseCurrentVersion(data, raw["version"])
+	oldConfig, err := parseCurrentVersion(dir, data, raw.Version)
 	if err != nil {
 		return nil, fmt.Errorf("parsing config file %s\n%s", path, yaml.FormatError(err, true, true))
 	}
@@ -106,14 +110,22 @@ func loadConfig(path string) (*latest.Config, error) {
 	return &config, nil
 }
 
-func parseCurrentVersion(data []byte, version any) (any, error) {
+func parseCurrentVersion(dir string, data []byte, version any) (any, error) {
+	options := []yaml.DecodeOption{yaml.Strict(), yaml.ReferenceDirs(dir)}
+
 	switch version {
 	case nil, "0", 0:
-		return v0.Load(data)
+		var cfg v0.Config
+		err := yaml.UnmarshalWithOptions(data, &cfg, options...)
+		return cfg, err
 	case "1", 1:
-		return v1.Load(data)
+		var cfg v1.Config
+		err := yaml.UnmarshalWithOptions(data, &cfg, options...)
+		return cfg, err
 	default:
-		return latest.Load(data)
+		var cfg v2.Config
+		err := yaml.UnmarshalWithOptions(data, &cfg, options...)
+		return cfg, err
 	}
 }
 
