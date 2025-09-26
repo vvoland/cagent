@@ -162,8 +162,6 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 		}
 
 		a := r.team.Agent(r.currentAgent)
-		model := a.Model()
-		modelID := model.ID()
 
 		messages := sess.GetMessages(a)
 		if sess.SendUserMessage {
@@ -180,14 +178,7 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 		))
 		defer sessionSpan.End()
 
-		slog.Debug("Using agent", "agent", a.Name(), "model", modelID)
 		r.registerDefaultTools()
-
-		slog.Debug("Getting model definition", "model_id", modelID)
-		m, err := r.modelsStore.GetModel(context.Background(), modelID)
-		if err != nil {
-			slog.Debug("Failed to get model definition", "error", err)
-		}
 
 		iteration := 0
 		// Use a runtime copy of maxIterations so we don't modify the session's persistent config
@@ -280,6 +271,16 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 				attribute.String("agent", a.Name()),
 				attribute.String("session.id", sess.ID),
 			))
+
+			model := a.Model()
+			modelID := model.ID()
+			slog.Debug("Using agent", "agent", a.Name(), "model", modelID)
+			slog.Debug("Getting model definition", "model_id", modelID)
+			m, err := r.modelsStore.GetModel(context.Background(), modelID)
+			if err != nil {
+				slog.Debug("Failed to get model definition", "error", err)
+			}
+
 			slog.Debug("Creating chat completion stream", "agent", a.Name())
 			stream, err := model.CreateChatCompletionStream(streamCtx, messages, agentTools)
 			if err != nil {
