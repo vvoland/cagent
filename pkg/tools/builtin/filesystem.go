@@ -160,10 +160,6 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 							},
 							"description": "Array of edit operations",
 						},
-						"dryRun": map[string]any{
-							"type":        "boolean",
-							"description": "If true, preview changes without applying them",
-						},
 					},
 					Required: []string{"path", "edits"},
 				},
@@ -599,7 +595,6 @@ func (t *FilesystemTool) handleEditFile(ctx context.Context, toolCall tools.Tool
 			OldText string `json:"oldText"`
 			NewText string `json:"newText"`
 		} `json:"edits"`
-		DryRun bool `json:"dryRun"`
 	}
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
 		return nil, fmt.Errorf("failed to parse arguments: %w", err)
@@ -624,10 +619,6 @@ func (t *FilesystemTool) handleEditFile(ctx context.Context, toolCall tools.Tool
 		}
 		modifiedContent = strings.Replace(modifiedContent, edit.OldText, edit.NewText, 1)
 		changes = append(changes, fmt.Sprintf("Edit %d: Replaced %d characters", i+1, len(edit.OldText)))
-	}
-
-	if args.DryRun {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Dry run completed. Changes:\n%s", strings.Join(changes, "\n"))}, nil
 	}
 
 	if err := os.WriteFile(args.Path, []byte(modifiedContent), 0o644); err != nil {

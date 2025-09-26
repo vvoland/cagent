@@ -362,7 +362,6 @@ func TestFilesystemTool_EditFile(t *testing.T) {
 				"newText": "See you later",
 			},
 		},
-		"dryRun": false,
 	}
 	result := callHandler(t, handler, args)
 
@@ -374,26 +373,6 @@ func TestFilesystemTool_EditFile(t *testing.T) {
 	expected := "Hi Universe\nThis is a test\nSee you later"
 	assert.Equal(t, expected, string(editedContent))
 
-	// Test dry run
-	args = map[string]any{
-		"path": testFile,
-		"edits": []map[string]any{
-			{
-				"oldText": "Hi Universe",
-				"newText": "Hello Again",
-			},
-		},
-		"dryRun": true,
-	}
-	result = callHandler(t, handler, args)
-
-	assert.Contains(t, result.Output, "Dry run completed")
-
-	// Verify file unchanged
-	unchangedContent, err := os.ReadFile(testFile)
-	require.NoError(t, err)
-	assert.Equal(t, expected, string(unchangedContent))
-
 	// Test edit with non-existent text
 	args = map[string]any{
 		"path": testFile,
@@ -403,7 +382,6 @@ func TestFilesystemTool_EditFile(t *testing.T) {
 				"newText": "Replacement",
 			},
 		},
-		"dryRun": false,
 	}
 	result = callHandler(t, handler, args)
 
