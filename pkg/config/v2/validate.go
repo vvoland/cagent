@@ -32,6 +32,14 @@ func (t *Toolset) validate() error {
 	if len(t.Shell) > 0 && t.Type != "script" {
 		return errors.New("shell can only be used with type 'script'")
 	}
+
+	if len(t.Path) > 0 && t.Type != "memory" {
+		return errors.New("path can only be used with type 'memory'")
+	}
+	if len(t.Path) == 0 && t.Type == "memory" {
+		return errors.New("memory toolset requires a path to be set")
+	}
+
 	if t.Type != "mcp" {
 		return nil
 	}
