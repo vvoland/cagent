@@ -29,40 +29,40 @@ func (t *Config) validate() error {
 
 // Ensure that either Command, Remote or Ref is set, but not all empty
 func (t *Toolset) validate() error {
+	// Attributes used on the wrong toolset type.
 	if len(t.Shell) > 0 && t.Type != "script" {
 		return errors.New("shell can only be used with type 'script'")
 	}
-
 	if len(t.Path) > 0 && t.Type != "memory" {
 		return errors.New("path can only be used with type 'memory'")
 	}
-	if len(t.Path) == 0 && t.Type == "memory" {
-		return errors.New("memory toolset requires a path to be set")
-	}
 
-	if t.Type != "mcp" {
-		return nil
-	}
+	switch t.Type {
+	case "memory":
+		if len(t.Path) == 0 {
+			return errors.New("memory toolset requires a path to be set")
+		}
+	case "mcp":
+		count := 0
+		if t.Command != "" {
+			count++
+		}
+		if t.Remote.URL != "" {
+			count++
+		}
+		if t.Ref != "" {
+			count++
+		}
+		if count == 0 {
+			return errors.New("either command, remote or ref must be set")
+		}
+		if count > 1 {
+			return errors.New("either command, remote or ref must be set, but only one of those")
+		}
 
-	count := 0
-	if t.Command != "" {
-		count++
-	}
-	if t.Remote.URL != "" {
-		count++
-	}
-	if t.Ref != "" {
-		count++
-	}
-	if count == 0 {
-		return errors.New("either command, remote or ref must be set")
-	}
-	if count > 1 {
-		return errors.New("either command, remote or ref must be set, but only one of those")
-	}
-
-	if t.Ref != "" && !strings.Contains(t.Ref, "docker:") {
-		return errors.New("only docker refs are supported for MCP tools, e.g., 'docker:context7'")
+		if t.Ref != "" && !strings.Contains(t.Ref, "docker:") {
+			return errors.New("only docker refs are supported for MCP tools, e.g., 'docker:context7'")
+		}
 	}
 
 	return nil
