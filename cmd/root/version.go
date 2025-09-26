@@ -15,6 +15,7 @@ func NewVersionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print the version information",
 		Long:  `Display the version, build time, and commit hash`,
+		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			// Track the version command
 			telemetry.TrackCommand("version", args)
