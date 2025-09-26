@@ -120,7 +120,11 @@ func TestValidationErrors(t *testing.T) {
 		},
 		{
 			name: "path in non memory toolset",
-			path: "testdata/invalid_mcp_path_v2.yaml",
+			path: "testdata/invalid_path_v2.yaml",
+		},
+		{
+			name: "post_edit in non filesystem toolset",
+			path: "testdata/invalid_post_edit_v2.yaml",
 		},
 	}
 
@@ -128,7 +132,7 @@ func TestValidationErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := loadConfig("testdata/missing_memory_path.yaml")
+			_, err := loadConfig(tt.path)
 			require.Error(t, err)
 		})
 	}

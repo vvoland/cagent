@@ -67,24 +67,29 @@ type PostEditConfig struct {
 
 // Toolset represents a tool configuration
 type Toolset struct {
-	Type    string            `json:"type,omitempty" yaml:"type,omitempty"`
-	Ref     string            `json:"ref,omitempty" yaml:"ref,omitempty"`
-	Config  any               `json:"config,omitempty" yaml:"config,omitempty"`
-	Command string            `json:"command,omitempty" yaml:"command,omitempty"`
-	Remote  Remote            `json:"remote,omitempty" yaml:"remote,omitempty"`
-	Args    []string          `json:"args,omitempty" yaml:"args,omitempty"`
-	Tools   []string          `json:"tools,omitempty" yaml:"tools,omitempty"`
-	Env     map[string]string `json:"env,omitempty" yaml:"env,omitempty"`
+	Type  string   `json:"type,omitempty" yaml:"type,omitempty"`
+	Tools []string `json:"tools,omitempty" yaml:"tools,omitempty"`
 
-	// For the think tool
+	// For the `mcp` tool
+	Command string   `json:"command,omitempty" yaml:"command,omitempty"`
+	Args    []string `json:"args,omitempty" yaml:"args,omitempty"`
+	Ref     string   `json:"ref,omitempty" yaml:"ref,omitempty"`
+	Remote  Remote   `json:"remote,omitempty" yaml:"remote,omitempty"`
+	Config  any      `json:"config,omitempty" yaml:"config,omitempty"`
+
+	// For `shell`, `script` or `mcp` tools
+	Env map[string]string `json:"env,omitempty" yaml:"env,omitempty"`
+
+	// For the `todo` tool
 	Shared bool `json:"shared,omitempty" yaml:"shared,omitempty"`
-	// For the memory tool
+
+	// For the `memory` tool
 	Path string `json:"path,omitempty" yaml:"path,omitempty"`
 
-	// For the script tool
+	// For the `script` tool
 	Shell map[string]ScriptShellToolConfig `json:"shell,omitempty" yaml:"shell,omitempty"`
 
-	// For the filesystem tool - post-edit commands
+	// For the `filesystem` tool - post-edit commands
 	PostEdit []PostEditConfig `json:"post_edit,omitempty" yaml:"post_edit,omitempty"`
 }
 

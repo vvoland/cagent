@@ -17,8 +17,8 @@ func (t *Config) UnmarshalYAML(unmarshal func(any) error) error {
 
 func (t *Config) validate() error {
 	for _, agent := range t.Agents {
-		for _, toolSet := range agent.Toolsets {
-			if err := toolSet.validate(); err != nil {
+		for i := range agent.Toolsets {
+			if err := agent.Toolsets[i].validate(); err != nil {
 				return err
 			}
 		}
@@ -27,19 +27,42 @@ func (t *Config) validate() error {
 	return nil
 }
 
-// Ensure that either Command, Remote or Ref is set, but not all empty
 func (t *Toolset) validate() error {
 	// Attributes used on the wrong toolset type.
 	if len(t.Shell) > 0 && t.Type != "script" {
 		return errors.New("shell can only be used with type 'script'")
 	}
-	if len(t.Path) > 0 && t.Type != "memory" {
+	if t.Path != "" && t.Type != "memory" {
 		return errors.New("path can only be used with type 'memory'")
+	}
+	if len(t.PostEdit) > 0 && t.Type != "filesystem" {
+		return errors.New("post_edit can only be used with type 'filesystem'")
+	}
+	if len(t.Env) > 0 && (t.Type != "shell" && t.Type != "script" && t.Type != "mcp") {
+		return errors.New("env can only be used with type 'shell', 'script' or 'mcp'")
+	}
+	if t.Shared && t.Type != "todo" {
+		return errors.New("shared can only be used with type 'todo'")
+	}
+	if t.Command != "" && t.Type != "mcp" {
+		return errors.New("command can only be used with type 'mcp'")
+	}
+	if len(t.Args) > 0 && t.Type != "mcp" {
+		return errors.New("args can only be used with type 'mcp'")
+	}
+	if t.Ref != "" && t.Type != "mcp" {
+		return errors.New("ref can only be used with type 'mcp'")
+	}
+	if (t.Remote.URL != "" || t.Remote.TransportType != "" || len(t.Remote.Headers) > 0) && t.Type != "mcp" {
+		return errors.New("remote can only be used with type 'mcp'")
+	}
+	if t.Config != nil && t.Type != "mcp" {
+		return errors.New("config can only be used with type 'mcp'")
 	}
 
 	switch t.Type {
 	case "memory":
-		if len(t.Path) == 0 {
+		if t.Path == "" {
 			return errors.New("memory toolset requires a path to be set")
 		}
 	case "mcp":
