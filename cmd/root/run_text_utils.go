@@ -139,6 +139,32 @@ func promptMaxIterationsContinue(maxIterations int) ConfirmationResult {
 	}
 }
 
+func promptOAuthAuthorization(serverURL, serverType string) ConfirmationResult {
+	fmt.Printf("\n%s\n", yellow("🔐 OAuth Authorization Required"))
+	fmt.Printf("%s %s (%s)\n", white("Server:"), blue(serverURL), serverType)
+	fmt.Printf("%s\n", white("This server requires OAuth authentication to access its tools."))
+	fmt.Printf("%s\n", white("Your browser will open automatically to complete the authorization."))
+	fmt.Printf("\n%s (y/n): ", blue("Do you want to authorize access?"))
+
+	reader := bufio.NewReader(os.Stdin)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Printf("\n%s\n", red("Failed to read input, aborting authorization..."))
+		return ConfirmationAbort
+	}
+
+	response = strings.TrimSpace(strings.ToLower(response))
+	if response == "y" || response == "yes" {
+		fmt.Printf("%s\n", green("✓ Starting OAuth authorization..."))
+		fmt.Printf("%s\n", white("Please complete the authorization in your browser."))
+		fmt.Printf("%s\n\n", white("Once completed, the agent will continue automatically."))
+		return ConfirmationApprove
+	} else {
+		fmt.Printf("%s\n\n", white("Authorization declined. Exiting..."))
+		return ConfirmationReject
+	}
+}
+
 func formatToolCallArguments(arguments string) string {
 	if arguments == "" {
 		return "()"
