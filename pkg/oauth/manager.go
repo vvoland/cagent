@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/client/transport"
@@ -128,7 +129,49 @@ func (m *manager) performOAuthAuthorization(ctx context.Context, sessionID strin
 
 	// Wait for the authorization code to be received
 	slog.Debug("Waiting for OAuth authorization code")
-	code := <-m.resumeOauthCodeReceived
+	var code string
+
+	// Check if we have a global callback server running
+	if callbackServer := GetGlobalCallbackServer(); callbackServer != nil {
+		slog.Debug("Using callback server for OAuth authorization")
+		// Wait for callback from the browser
+		callbackCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+		defer cancel()
+
+		result, err := callbackServer.WaitForCallback(callbackCtx)
+		if err != nil {
+			if err == context.DeadlineExceeded {
+				return fmt.Errorf("OAuth authorization timed out after 5 minutes")
+			}
+			return fmt.Errorf("failed to wait for OAuth callback: %w", err)
+		}
+
+		if result.Error != "" {
+			return fmt.Errorf("OAuth authorization error: %s", result.Error)
+		}
+
+		if result.Code == "" {
+			return fmt.Errorf("no authorization code received from OAuth callback")
+		}
+
+		// Verify state parameter matches
+		receivedState := result.State
+		if receivedState != state {
+			slog.Warn("OAuth state mismatch", "expected", state, "received", receivedState)
+		}
+
+		code = result.Code
+		slog.Debug("Received OAuth code via callback server", "code_present", code != "")
+	} else {
+		// Fallback to manual input
+		slog.Debug("No callback server available, waiting for manual input")
+		select {
+		case code = <-m.resumeOauthCodeReceived:
+			slog.Debug("Received OAuth code via manual input", "code_present", code != "")
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 
 	// Exchange the authorization code for a token using the same state and codeVerifier
 	slog.Debug("Exchanging authorization code for token")

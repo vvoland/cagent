@@ -265,6 +265,17 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		})
 
 		return p, tea.Batch(spinnerCmd, dialogCmd)
+	case *runtime.AuthorizationRequiredEvent:
+		spinnerCmd := p.setWorking(false) // Stop working indicator during confirmation
+
+		if msg.Confirmation == "pending" {
+			// Open OAuth authorization confirmation dialog
+			dialogCmd := core.CmdHandler(dialog.OpenDialogMsg{
+				Model: dialog.NewOAuthAuthorizationDialog(msg.ServerURL, msg.ServerType, p.app),
+			})
+
+			return p, tea.Batch(spinnerCmd, dialogCmd)
+		}
 	}
 
 	sidebarModel, sidebarCmd := p.sidebar.Update(msg)
