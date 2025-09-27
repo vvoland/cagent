@@ -711,9 +711,16 @@ func (r *runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.T
 	}
 
 	events <- ToolCallResponse(toolCall, res.Output, a.Name())
+
+	// Ensure tool response content is not empty for API compatibility
+	content := res.Output
+	if strings.TrimSpace(content) == "" {
+		content = "(no output)"
+	}
+
 	toolResponseMsg := chat.Message{
 		Role:       chat.MessageRoleTool,
-		Content:    res.Output,
+		Content:    content,
 		ToolCallID: toolCall.ID,
 		CreatedAt:  time.Now().Format(time.RFC3339),
 	}
@@ -760,9 +767,16 @@ func (r *runtime) runAgentTool(ctx context.Context, handler ToolHandler, sess *s
 	}
 
 	events <- ToolCallResponse(toolCall, output, a.Name())
+
+	// Ensure tool response content is not empty for API compatibility
+	content := output
+	if strings.TrimSpace(content) == "" {
+		content = "(no output)"
+	}
+
 	toolResponseMsg := chat.Message{
 		Role:       chat.MessageRoleTool,
-		Content:    output,
+		Content:    content,
 		ToolCallID: toolCall.ID,
 		CreatedAt:  time.Now().Format(time.RFC3339),
 	}
