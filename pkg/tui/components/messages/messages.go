@@ -749,8 +749,7 @@ func formatToolCallContent(msg types.Message) string {
 	var parts []string
 	parts = append(parts, fmt.Sprintf("%s invoked %s", sender, name))
 	if args := strings.TrimSpace(msg.ToolCall.Function.Arguments); args != "" {
-		parts = append(parts, "Arguments:")
-		parts = append(parts, args)
+		parts = append(parts, "Arguments:", args)
 	}
 	return strings.Join(parts, "\n")
 }
