@@ -38,6 +38,8 @@ type Model interface {
 	ClearMessages()
 	ScrollToBottom() tea.Cmd
 	AddShellOutputMessage(content string) tea.Cmd
+	AddSystemMessage(content string) tea.Cmd
+	PlainTextTranscript() string
 }
 
 // renderedItem represents a cached rendered message with position information
@@ -475,6 +477,13 @@ func (m *model) AddShellOutputMessage(content string) tea.Cmd {
 	})
 }
 
+func (m *model) AddSystemMessage(content string) tea.Cmd {
+	return m.addMessage(&types.Message{
+		Type:    types.MessageTypeSystem,
+		Content: content,
+	})
+}
+
 // AddAssistantMessage adds an assistant message to the chat
 func (m *model) AddAssistantMessage() tea.Cmd {
 	return m.addMessage(&types.Message{
@@ -644,6 +653,36 @@ func (m *model) ScrollToBottom() tea.Cmd {
 	}
 }
 
+// PlainTextTranscript returns the conversation as plain text suitable for copying
+func (m *model) PlainTextTranscript() string {
+	var builder strings.Builder
+
+	for _, msg := range m.messages {
+		switch msg.Type {
+		case types.MessageTypeUser:
+			writeTranscriptSection(&builder, "User", msg.Content)
+		case types.MessageTypeAssistant:
+			label := assistantLabel(msg.Sender)
+			writeTranscriptSection(&builder, label, msg.Content)
+		case types.MessageTypeAssistantReasoning:
+			label := assistantLabel(msg.Sender) + " (thinking)"
+			writeTranscriptSection(&builder, label, msg.Content)
+		case types.MessageTypeShellOutput:
+			writeTranscriptSection(&builder, "Shell Output", msg.Content)
+		case types.MessageTypeError:
+			writeTranscriptSection(&builder, "Error", msg.Content)
+		case types.MessageTypeToolCall:
+			callLabel := toolCallLabel(msg)
+			writeTranscriptSection(&builder, callLabel, formatToolCallContent(msg))
+		case types.MessageTypeToolResult:
+			resultLabel := toolResultLabel(msg)
+			writeTranscriptSection(&builder, resultLabel, msg.Content)
+		}
+	}
+
+	return strings.TrimSpace(builder.String())
+}
+
 func (m *model) createToolCallView(msg *types.Message) layout.Model {
 	view := tool.New(msg, m.app, m.renderer)
 	view.SetSize(m.width, 0)
@@ -670,6 +709,57 @@ func (m *model) removeSpinner() {
 			m.invalidateItem(lastIdx)
 		}
 	}
+}
+
+func assistantLabel(sender string) string {
+	trimmed := strings.TrimSpace(sender)
+	if trimmed == "" || trimmed == "root" {
+		return "Assistant"
+	}
+	return trimmed
+}
+
+func writeTranscriptSection(builder *strings.Builder, title, content string) {
+	text := strings.TrimSpace(content)
+	if text == "" {
+		return
+	}
+	if builder.Len() > 0 {
+		builder.WriteString("\n\n")
+	}
+	builder.WriteString(title)
+	builder.WriteString(":\n")
+	builder.WriteString(text)
+}
+
+func toolCallLabel(msg types.Message) string {
+	name := strings.TrimSpace(msg.ToolCall.Function.Name)
+	if name == "" {
+		return "Tool Call"
+	}
+	return fmt.Sprintf("Tool Call (%s)", name)
+}
+
+func formatToolCallContent(msg types.Message) string {
+	sender := assistantLabel(msg.Sender)
+	name := strings.TrimSpace(msg.ToolCall.Function.Name)
+	if name == "" {
+		name = "tool"
+	}
+	var parts []string
+	parts = append(parts, fmt.Sprintf("%s invoked %s", sender, name))
+	if args := strings.TrimSpace(msg.ToolCall.Function.Arguments); args != "" {
+		parts = append(parts, "Arguments:", args)
+	}
+	return strings.Join(parts, "\n")
+}
+
+func toolResultLabel(msg types.Message) string {
+	name := strings.TrimSpace(msg.ToolCall.Function.Name)
+	if name == "" {
+		return "Tool Result"
+	}
+	return fmt.Sprintf("Tool Result (%s)", name)
 }
 
 func uintPtr(u uint) *uint { return &u }

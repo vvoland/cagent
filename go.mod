@@ -5,6 +5,7 @@ go 1.25.1
 require (
 	dario.cat/mergo v1.0.2
 	github.com/Microsoft/go-winio v0.6.2
+	github.com/atotto/clipboard v0.1.4
 	github.com/anthropics/anthropic-sdk-go v1.9.1
 	github.com/charmbracelet/bubbles/v2 v2.0.0-beta.1.0.20250820203609-601216f68ee2
 	github.com/charmbracelet/bubbletea/v2 v2.0.0-beta.4.0.20250813213544-5cc219db8892
@@ -33,7 +34,6 @@ require (
 	cloud.google.com/go/auth v0.16.5 // indirect
 	cloud.google.com/go/compute/metadata v0.8.0 // indirect
 	github.com/alecthomas/chroma/v2 v2.20.0 // indirect
-	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect

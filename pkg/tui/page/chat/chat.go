@@ -2,7 +2,9 @@ package chat
 
 import (
 	"context"
+	"strings"
 
+	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/v2/help"
 	"github.com/charmbracelet/bubbles/v2/key"
 	tea "github.com/charmbracelet/bubbletea/v2"
@@ -424,6 +426,10 @@ func (p *chatPage) switchFocus() {
 
 // processMessage processes a message with the runtime
 func (p *chatPage) processMessage(content string) tea.Cmd {
+	if handled, cmd := p.handleSlashCommand(content); handled {
+		return cmd
+	}
+
 	if p.msgCancel != nil {
 		p.msgCancel()
 	}
@@ -436,4 +442,25 @@ func (p *chatPage) processMessage(content string) tea.Cmd {
 	return tea.Batch(
 		p.messages.ScrollToBottom(),
 	)
+}
+
+func (p *chatPage) handleSlashCommand(content string) (bool, tea.Cmd) {
+	trimmed := strings.TrimSpace(content)
+	if trimmed != "/clipboard" {
+		return false, nil
+	}
+
+	transcript := p.messages.PlainTextTranscript()
+	if transcript == "" {
+		cmd := p.messages.AddSystemMessage("Conversation is empty; nothing copied.")
+		return true, tea.Batch(cmd, p.messages.ScrollToBottom())
+	}
+
+	if err := clipboard.WriteAll(transcript); err != nil {
+		cmd := p.messages.AddSystemMessage("Failed to copy conversation: " + err.Error())
+		return true, tea.Batch(cmd, p.messages.ScrollToBottom())
+	}
+
+	cmd := p.messages.AddSystemMessage("Conversation copied to clipboard.")
+	return true, tea.Batch(cmd, p.messages.ScrollToBottom())
 }
