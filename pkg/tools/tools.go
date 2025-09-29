@@ -49,6 +49,7 @@ type ToolAnnotation struct {
 }
 
 type ToolOutputSchema struct {
+	Ref        string         `json:"$ref,omitempty"`
 	Type       string         `json:"type"`
 	Items      map[string]any `json:"items,omitempty"`
 	Properties map[string]any `json:"properties,omitempty"`
