@@ -19,6 +19,7 @@ func NewEvalCmd() *cobra.Command {
 	}
 
 	cmd.PersistentFlags().StringSliceVar(&runConfig.EnvFiles, "env-from-file", nil, "Set environment variables from file")
+	cmd.PersistentFlags().BoolVar(&runConfig.GlobalCodeMode, "code-mode-tools", false, "Provide a single tool to call other tools via Javascript")
 	addGatewayFlags(cmd)
 
 	return cmd
