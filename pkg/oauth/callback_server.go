@@ -45,7 +45,7 @@ func (s *CallbackServer) Start(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to listen on port %d: %w", s.port, err)
 	}
-	func() {
+	go func() {
 		<-ctx.Done()
 		listener.Close()
 	}()
