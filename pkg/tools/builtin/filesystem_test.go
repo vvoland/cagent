@@ -841,3 +841,84 @@ func TestFilesystemTool_FilterTools(t *testing.T) {
 	require.Equal(t, "list_allowed_directories", tools[0].Function.Name)
 	require.NotNil(t, tools[0].Handler)
 }
+
+func TestMatchExcludePattern(t *testing.T) {
+	tests := []struct {
+		name     string
+		pattern  string
+		relPath  string
+		expected bool
+	}{
+		// Directory wildcard patterns
+		{
+			name:     "matches directory with wildcard",
+			pattern:  ".git/*",
+			relPath:  ".git/config",
+			expected: true,
+		},
+		{
+			name:     "matches directory itself with wildcard",
+			pattern:  ".git/*",
+			relPath:  ".git",
+			expected: true,
+		},
+		{
+			name:     "matches nested file with directory wildcard",
+			pattern:  ".git/*",
+			relPath:  ".git/hooks/pre-commit",
+			expected: true,
+		},
+		{
+			name:     "does not match different directory",
+			pattern:  ".git/*",
+			relPath:  "src/main.go",
+			expected: false,
+		},
+		// Glob patterns on full path
+		{
+			name:     "matches full path glob",
+			pattern:  "*.log",
+			relPath:  "debug.log",
+			expected: true,
+		},
+		{
+			name:     "matches nested file glob",
+			pattern:  "*.log",
+			relPath:  "logs/debug.log",
+			expected: true,
+		},
+		{
+			name:     "does not match different extension",
+			pattern:  "*.log",
+			relPath:  "main.go",
+			expected: false,
+		},
+		// Base name matching for backwards compatibility
+		{
+			name:     "matches base name glob",
+			pattern:  "*.tmp",
+			relPath:  "cache/temp.tmp",
+			expected: true,
+		},
+		{
+			name:     "matches base name exact",
+			pattern:  "README.md",
+			relPath:  "docs/README.md",
+			expected: true,
+		},
+		// Parent directory matching
+		{
+			name:     "matches parent directory",
+			pattern:  "node_modules",
+			relPath:  "node_modules/package/file.js",
+			expected: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := matchExcludePattern(tc.pattern, tc.relPath)
+			assert.Equal(t, tc.expected, result, "Pattern: %s, Path: %s, IsDir: %v", tc.pattern, tc.relPath)
+		})
+	}
+}

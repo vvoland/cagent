@@ -926,14 +926,20 @@ func (t *FilesystemTool) handleSearchFiles(_ context.Context, toolCall tools.Too
 			return nil // Skip disallowed paths
 		}
 
-		// Check exclude patterns
+		// Check exclude patterns against relative path from search root
+		relPath, err := filepath.Rel(args.Path, path)
+		if err != nil {
+			return nil
+		}
+
 		for _, exclude := range args.ExcludePatterns {
-			if match(exclude, filepath.Base(path)) {
+			if matchExcludePattern(exclude, relPath) {
+				if d.IsDir() {
+					return fs.SkipDir
+				}
 				return nil
 			}
 		}
-
-		// Case-insensitive match
 		if match(pattern, filepath.Base(path)) {
 			matches = append(matches, path)
 		}
@@ -980,7 +986,7 @@ func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, toolCall to
 	var results []string
 
 	err := filepath.WalkDir(args.Path, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
+		if err != nil {
 			return nil
 		}
 
@@ -988,11 +994,24 @@ func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, toolCall to
 			return nil
 		}
 
-		// Check exclude patterns
+		// Check exclude patterns against relative path from search root
+		relPath, err := filepath.Rel(args.Path, path)
+		if err != nil {
+			return nil
+		}
+
 		for _, exclude := range args.ExcludePatterns {
-			if match(exclude, filepath.Base(path)) {
-				return nil
+			if matchExcludePattern(exclude, relPath) {
+				if d.IsDir() {
+					return fs.SkipDir // Skip entire directory
+				}
+				return nil // Skip this file
 			}
+		}
+
+		// Only process files, not directories
+		if d.IsDir() {
+			return nil
 		}
 
 		content, err := os.ReadFile(path)
@@ -1075,6 +1094,47 @@ func (t *FilesystemTool) Start(context.Context) error {
 
 func (t *FilesystemTool) Stop() error {
 	return nil
+}
+
+// matchExcludePattern checks if a path should be excluded based on the exclude pattern
+// It supports glob patterns and directory wildcards like .git/*
+func matchExcludePattern(pattern, relPath string) bool {
+	// Normalize path separators to forward slashes for consistent matching
+	normalizedPath := filepath.ToSlash(relPath)
+	normalizedPattern := filepath.ToSlash(pattern)
+
+	// Handle directory patterns ending with /*
+	if strings.HasSuffix(normalizedPattern, "/*") {
+		dirPattern := strings.TrimSuffix(normalizedPattern, "/*")
+		// Check if path starts with the directory pattern
+		if strings.HasPrefix(normalizedPath, dirPattern+"/") || normalizedPath == dirPattern {
+			return true
+		}
+	}
+
+	// Try glob pattern matching on the full relative path
+	matched, _ := filepath.Match(normalizedPattern, normalizedPath)
+	if matched {
+		return true
+	}
+
+	// Try glob pattern matching on just the base name for backwards compatibility
+	matched, _ = filepath.Match(normalizedPattern, filepath.Base(normalizedPath))
+	if matched {
+		return true
+	}
+
+	// Check if pattern matches any parent directory path
+	pathParts := strings.Split(normalizedPath, "/")
+	for i := range pathParts {
+		subPath := strings.Join(pathParts[:i+1], "/")
+		matched, _ := filepath.Match(normalizedPattern, subPath)
+		if matched {
+			return true
+		}
+	}
+
+	return false
 }
 
 func match(pattern, name string) bool {
