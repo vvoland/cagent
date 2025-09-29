@@ -220,11 +220,14 @@ type SessionTitleEvent struct {
 	AgentContext
 }
 
-func SessionTitle(sessionID, title string) Event {
+func SessionTitle(sessionID, title, agentName string) Event {
 	return &SessionTitleEvent{
 		Type:      "session_title",
 		SessionID: sessionID,
 		Title:     title,
+		AgentContext: AgentContext{
+			AgentName: agentName,
+		},
 	}
 }
 func (e *SessionTitleEvent) isEvent() {}
@@ -236,11 +239,14 @@ type SessionSummaryEvent struct {
 	AgentContext
 }
 
-func SessionSummary(sessionID, summary string) Event {
+func SessionSummary(sessionID, summary, agentName string) Event {
 	return &SessionSummaryEvent{
 		Type:      "session_summary",
 		SessionID: sessionID,
 		Summary:   summary,
+		AgentContext: AgentContext{
+			AgentName: agentName,
+		},
 	}
 }
 func (e *SessionSummaryEvent) isEvent() {}
@@ -252,11 +258,14 @@ type SessionCompactionEvent struct {
 	AgentContext
 }
 
-func SessionCompaction(sessionID, status string) Event {
+func SessionCompaction(sessionID, status, agentName string) Event {
 	return &SessionCompactionEvent{
 		Type:      "session_compaction",
 		SessionID: sessionID,
 		Status:    status,
+		AgentContext: AgentContext{
+			AgentName: agentName,
+		},
 	}
 }
 func (e *SessionCompactionEvent) isEvent() {}
@@ -286,14 +295,16 @@ type AuthorizationRequiredEvent struct {
 	ServerURL    string `json:"server_url"`
 	ServerType   string `json:"server_type"`
 	Confirmation string `json:"confirmation"` // only  "pending" | "confirmed" | "denied"
+	AgentContext
 }
 
-func AuthorizationRequired(serverURL, serverType, confirmation string) Event {
+func AuthorizationRequired(serverURL, serverType, confirmation, agentName string) Event {
 	return &AuthorizationRequiredEvent{
 		Type:         "authorization_required",
 		ServerURL:    serverURL,
 		ServerType:   serverType,
 		Confirmation: confirmation,
+		AgentContext: AgentContext{AgentName: agentName},
 	}
 }
 

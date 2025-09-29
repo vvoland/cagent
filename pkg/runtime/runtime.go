@@ -137,7 +137,7 @@ func (r *runtime) handleOAuthAuthorizationFlow(ctx context.Context, sess *sessio
 	// Create OAuth manager if it doesn't exist
 	if r.oauthManager == nil {
 		emitAuthRequired := func(serverURL, serverType, status string) {
-			events <- AuthorizationRequired(serverURL, serverType, status)
+			events <- AuthorizationRequired(serverURL, serverType, status, r.currentAgent)
 		}
 		r.oauthManager = oauth.NewManager(emitAuthRequired)
 		defer func() {
@@ -317,10 +317,10 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 
 			if m != nil && r.sessionCompaction {
 				if sess.InputTokens+sess.OutputTokens > int(float64(contextLimit)*0.9) {
-					events <- SessionCompaction(sess.ID, "start")
+					events <- SessionCompaction(sess.ID, "start", r.currentAgent)
 					r.Summarize(ctx, sess, events)
 					events <- TokenUsage(sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.Cost)
-					events <- SessionCompaction(sess.ID, "completed")
+					events <- SessionCompaction(sess.ID, "completed", r.currentAgent)
 				}
 			}
 
@@ -940,16 +940,16 @@ func (r *runtime) generateSessionTitle(ctx context.Context, sess *session.Sessio
 	}
 	sess.Title = title
 	slog.Debug("Generated session title", "session_id", sess.ID, "title", title)
-	events <- SessionTitle(sess.ID, title)
+	events <- SessionTitle(sess.ID, title, r.currentAgent)
 }
 
 // Summarize generates a summary for the session based on the conversation history
 func (r *runtime) Summarize(ctx context.Context, sess *session.Session, events chan Event) {
 	slog.Debug("Generating summary for session", "session_id", sess.ID)
 
-	events <- SessionCompaction(sess.ID, "started")
+	events <- SessionCompaction(sess.ID, "started", r.currentAgent)
 	defer func() {
-		events <- SessionCompaction(sess.ID, "completed")
+		events <- SessionCompaction(sess.ID, "completed", r.currentAgent)
 	}()
 
 	// Create conversation history for summarization
@@ -1001,5 +1001,5 @@ func (r *runtime) Summarize(ctx context.Context, sess *session.Session, events c
 	// Add the summary to the session as a summary item
 	sess.Messages = append(sess.Messages, session.Item{Summary: summary})
 	slog.Debug("Generated session summary", "session_id", sess.ID, "summary_length", len(summary))
-	events <- SessionSummary(sess.ID, summary)
+	events <- SessionSummary(sess.ID, summary, r.currentAgent)
 }

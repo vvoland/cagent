@@ -363,9 +363,9 @@ func (c *Client) runAgentWithAgentName(ctx context.Context, sessionID, agent, ag
 				case "stream_stopped":
 					eventChan <- StreamStopped(sessionID, event["agent_name"].(string))
 				case "authorization_required":
-					eventChan <- AuthorizationRequired(event["server_url"].(string), event["server_type"].(string), event["confirmation"].(string))
+					eventChan <- AuthorizationRequired(event["server_url"].(string), event["server_type"].(string), event["confirmation"].(string), event["agent_name"].(string))
 				case "session_compaction":
-					eventChan <- SessionCompaction(event["session_id"].(string), event["status"].(string))
+					eventChan <- SessionCompaction(event["session_id"].(string), event["status"].(string), event["agent_name"].(string))
 				case "token_usage":
 					usage := event["usage"].(map[string]any)
 					inputTokens, _ := usage["input_tokens"].(float64)
@@ -379,9 +379,9 @@ func (c *Client) runAgentWithAgentName(ctx context.Context, sessionID, agent, ag
 					maxIterations, _ := event["max_iterations"].(float64)
 					eventChan <- MaxIterationsReached(int(maxIterations))
 				case "session_title":
-					eventChan <- SessionTitle(event["session_id"].(string), event["title"].(string))
+					eventChan <- SessionTitle(event["session_id"].(string), event["title"].(string), event["agent_name"].(string))
 				case "session_summary":
-					eventChan <- SessionSummary(event["session_id"].(string), event["summary"].(string))
+					eventChan <- SessionSummary(event["session_id"].(string), event["summary"].(string), event["agent_name"].(string))
 				case "shell":
 					eventChan <- ShellOutput(event["output"].(string))
 				case "error":
