@@ -5,8 +5,8 @@ go 1.25.1
 require (
 	dario.cat/mergo v1.0.2
 	github.com/Microsoft/go-winio v0.6.2
-	github.com/atotto/clipboard v0.1.4
 	github.com/anthropics/anthropic-sdk-go v1.9.1
+	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/bubbles/v2 v2.0.0-beta.1.0.20250820203609-601216f68ee2
 	github.com/charmbracelet/bubbletea/v2 v2.0.0-beta.4.0.20250813213544-5cc219db8892
 	github.com/charmbracelet/glamour/v2 v2.0.0-20250811143442-a27abb32f018
@@ -16,7 +16,7 @@ require (
 	github.com/google/go-containerregistry v0.20.6
 	github.com/google/uuid v1.6.0
 	github.com/labstack/echo/v4 v4.13.4
-	github.com/mark3labs/mcp-go v0.40.1-0.20250919152514-dd0058cb6537
+	github.com/mark3labs/mcp-go v0.41.0
 	github.com/sashabaranov/go-openai v1.41.1
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.1
