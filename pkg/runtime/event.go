@@ -103,17 +103,21 @@ func ToolCallResponse(toolCall tools.ToolCall, response, agentName string) Event
 func (e *ToolCallResponseEvent) isEvent() {}
 
 type StreamStartedEvent struct {
-	Type string `json:"type"`
+	Type      string `json:"type"`
+	SessionID string `json:"session_id,omitempty"`
+	AgentContext
 }
 
-func StreamStarted() Event {
+func StreamStarted(sessionID, agentName string) Event {
 	return &StreamStartedEvent{
-		Type: "stream_started",
+		Type:         "stream_started",
+		SessionID:    sessionID,
+		AgentContext: AgentContext{AgentName: agentName},
 	}
 }
 
 func (e *StreamStartedEvent) GetAgentName() string {
-	return ""
+	return e.AgentName
 }
 
 func (e *StreamStartedEvent) isEvent() {}
@@ -253,17 +257,21 @@ func SessionCompaction(sessionID, status string) Event {
 func (e *SessionCompactionEvent) isEvent() {}
 
 type StreamStoppedEvent struct {
-	Type string `json:"type"`
+	Type      string `json:"type"`
+	SessionID string `json:"session_id,omitempty"`
+	AgentContext
 }
 
-func StreamStopped() Event {
+func StreamStopped(sessionID, agentName string) Event {
 	return &StreamStoppedEvent{
-		Type: "stream_stopped",
+		Type:         "stream_stopped",
+		SessionID:    sessionID,
+		AgentContext: AgentContext{AgentName: agentName},
 	}
 }
 
 func (e *StreamStoppedEvent) GetAgentName() string {
-	return ""
+	return e.AgentName
 }
 
 func (e *StreamStoppedEvent) isEvent() {}

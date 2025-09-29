@@ -148,7 +148,7 @@ func (r *runtime) handleOAuthAuthorizationFlow(ctx context.Context, sess *sessio
 func (r *runtime) finalizeEventChannel(ctx context.Context, sess *session.Session, events chan Event) {
 	defer close(events)
 
-	events <- StreamStopped()
+	events <- StreamStopped(sess.ID, r.currentAgent)
 
 	telemetry.RecordSessionEnd(ctx)
 
@@ -172,7 +172,7 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			events <- UserMessage(messages[len(messages)-1].Content)
 		}
 
-		events <- StreamStarted()
+		events <- StreamStarted(sess.ID, a.Name())
 
 		defer r.finalizeEventChannel(ctx, sess, events)
 
