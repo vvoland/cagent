@@ -333,9 +333,15 @@ func (c *Client) CreateChatCompletionStream(ctx context.Context, messages []chat
 		slog.Debug("Adding tools to DMR request", "tool_count", len(requestTools))
 		request.Tools = make([]openai.Tool, len(requestTools))
 		for i, tool := range requestTools {
+			// DMR requires the `description` key to be present; ensure a non-empty value
+			// NOTE(krissetto): workaround, remove when fixed upstream, this shouldn't be necceessary
+			desc := tool.Function.Description
+			if desc == "" {
+				desc = "Function " + tool.Function.Name
+			}
 			fd := &openai.FunctionDefinition{
 				Name:        tool.Function.Name,
-				Description: tool.Function.Description,
+				Description: desc,
 				Strict:      tool.Function.Strict,
 			}
 			if len(tool.Function.Parameters.Properties) == 0 {
