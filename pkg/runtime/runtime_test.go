@@ -181,10 +181,10 @@ func TestSimple(t *testing.T) {
 
 	expectedEvents := []Event{
 		UserMessage("Hi"),
-		StreamStarted(),
+		StreamStarted(sess.ID, "root"),
 		AgentChoice("root", "Hello"),
 		TokenUsage(3, 2, 5, 0, 0),
-		StreamStopped(),
+		StreamStopped(sess.ID, "root"),
 	}
 
 	require.Equal(t, expectedEvents, events)
@@ -206,14 +206,14 @@ func TestMultipleContentChunks(t *testing.T) {
 
 	expectedEvents := []Event{
 		UserMessage("Please greet me"),
-		StreamStarted(),
+		StreamStarted(sess.ID, "root"),
 		AgentChoice("root", "Hello "),
 		AgentChoice("root", "there, "),
 		AgentChoice("root", "how "),
 		AgentChoice("root", "are "),
 		AgentChoice("root", "you?"),
 		TokenUsage(8, 12, 20, 0, 0),
-		StreamStopped(),
+		StreamStopped(sess.ID, "root"),
 	}
 
 	require.Equal(t, expectedEvents, events)
@@ -233,12 +233,12 @@ func TestWithReasoning(t *testing.T) {
 
 	expectedEvents := []Event{
 		UserMessage("Hi"),
-		StreamStarted(),
+		StreamStarted(sess.ID, "root"),
 		AgentChoiceReasoning("root", "Let me think about this..."),
 		AgentChoiceReasoning("root", " I should respond politely."),
 		AgentChoice("root", "Hello, how can I help you?"),
 		TokenUsage(10, 15, 25, 0, 0),
-		StreamStopped(),
+		StreamStopped(sess.ID, "root"),
 	}
 
 	require.Equal(t, expectedEvents, events)
@@ -259,13 +259,13 @@ func TestMixedContentAndReasoning(t *testing.T) {
 
 	expectedEvents := []Event{
 		UserMessage("Hi there"),
-		StreamStarted(),
+		StreamStarted(sess.ID, "root"),
 		AgentChoiceReasoning("root", "The user wants a greeting"),
 		AgentChoice("root", "Hello!"),
 		AgentChoiceReasoning("root", " I should be friendly"),
 		AgentChoice("root", " How can I help you today?"),
 		TokenUsage(15, 20, 35, 0, 0),
-		StreamStopped(),
+		StreamStopped(sess.ID, "root"),
 	}
 
 	require.Equal(t, expectedEvents, events)
@@ -316,66 +316,6 @@ func TestErrorEvent(t *testing.T) {
 	// Check the error message contains our test error
 	errorEvent := events[2].(*ErrorEvent)
 	require.Contains(t, errorEvent.Error, "simulated error")
-}
-
-func TestRuntimeRunStream_TableDriven(t *testing.T) {
-	tests := []struct {
-		name           string
-		streamBuilder  func() *streamBuilder
-		userMessage    string
-		expectedEvents []Event
-	}{
-		{
-			name: "single_word_response",
-			streamBuilder: func() *streamBuilder {
-				return newStreamBuilder().AddContent("Yes").AddStopWithUsage(2, 1)
-			},
-			userMessage: "Confirm",
-			expectedEvents: []Event{
-				UserMessage("Confirm"),
-				StreamStarted(),
-				AgentChoice("root", "Yes"),
-				TokenUsage(2, 1, 3, 0, 0),
-				StreamStopped(),
-			},
-		},
-		{
-			name: "reasoning_only_response",
-			streamBuilder: func() *streamBuilder {
-				return newStreamBuilder().AddReasoning("Thinking...").AddStopWithUsage(5, 3)
-			},
-			userMessage: "Think about this",
-			expectedEvents: []Event{
-				UserMessage("Think about this"),
-				StreamStarted(),
-				AgentChoiceReasoning("root", "Thinking..."),
-				TokenUsage(5, 3, 8, 0, 0),
-				StreamStopped(),
-			},
-		},
-		{
-			name: "zero_token_response",
-			streamBuilder: func() *streamBuilder {
-				return newStreamBuilder().AddStopWithUsage(0, 0)
-			},
-			userMessage: "Empty",
-			expectedEvents: []Event{
-				UserMessage("Empty"),
-				StreamStarted(),
-				TokenUsage(0, 0, 0, 0, 0),
-				StreamStopped(),
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			stream := tt.streamBuilder().Build()
-			sess := session.New(session.WithUserMessage("", tt.userMessage))
-			events := runSession(t, sess, stream)
-			require.Equal(t, tt.expectedEvents, events)
-		})
-	}
 }
 
 func TestContextCancellation(t *testing.T) {

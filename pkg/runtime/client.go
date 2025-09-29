@@ -361,9 +361,9 @@ func (c *Client) runAgentWithAgentName(ctx context.Context, sessionID, agent, ag
 				case "error":
 					eventChan <- Error(event["error"].(string))
 				case "stream_started":
-					eventChan <- StreamStarted()
+					eventChan <- StreamStarted(sessionID, event["agent_name"].(string))
 				case "stream_stopped":
-					eventChan <- StreamStopped()
+					eventChan <- StreamStopped(sessionID, event["agent_name"].(string))
 				case "authorization_required":
 					eventChan <- AuthorizationRequired(event["server_url"].(string), event["server_type"].(string), event["confirmation"].(string))
 				case "session_compaction":
