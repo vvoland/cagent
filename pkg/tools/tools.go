@@ -32,11 +32,12 @@ type Tool struct {
 }
 
 type FunctionDefinition struct {
-	Name        string             `json:"name"`
-	Description string             `json:"description,omitempty"`
-	Strict      bool               `json:"strict,omitempty"`
-	Parameters  FunctionParameters `json:"parameters"`
-	Annotations ToolAnnotation     `json:"annotations"`
+	Name         string             `json:"name"`
+	Description  string             `json:"description,omitempty"`
+	Strict       bool               `json:"strict,omitempty"`
+	Parameters   FunctionParameters `json:"parameters"`
+	Annotations  ToolAnnotation     `json:"annotations"`
+	OutputSchema ToolOutputSchema   `json:"outputSchema"`
 }
 
 type ToolAnnotation struct {
@@ -45,6 +46,12 @@ type ToolAnnotation struct {
 	DestructiveHint *bool  `json:"destructiveHint,omitempty"`
 	IdempotentHint  *bool  `json:"idempotentHint,omitempty"`
 	OpenWorldHint   *bool  `json:"openWorldHint,omitempty"`
+}
+
+type ToolOutputSchema struct {
+	Type       string         `json:"type"`
+	Properties map[string]any `json:"properties,omitempty"`
+	Required   []string       `json:"required,omitempty"`
 }
 
 type FunctionParameters struct {
