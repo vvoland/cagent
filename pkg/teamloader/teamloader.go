@@ -166,7 +166,7 @@ func Load(ctx context.Context, path string, runtimeConfig config.RuntimeConfig) 
 		}
 
 		if len(agentTools) > 0 {
-			if agentConfig.CodeMode || runtimeConfig.GlobalCodeMode {
+			if agentConfig.CodeModeTools || runtimeConfig.GlobalCodeMode {
 				codemodeTool := codemode.Wrap(agentTools)
 				opts = append(opts, agent.WithToolSets(codemodeTool))
 			} else {
