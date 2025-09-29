@@ -151,6 +151,11 @@ func (c *Client) ListTools(ctx context.Context, toolFilter []string) ([]tools.To
 					IdempotentHint:  t.Annotations.IdempotentHint,
 					OpenWorldHint:   t.Annotations.OpenWorldHint,
 				},
+				OutputSchema: tools.ToolOutputSchema{
+					Type:       t.OutputSchema.Type,
+					Properties: t.OutputSchema.Properties,
+					Required:   t.OutputSchema.Required,
+				},
 			},
 		}
 		toolsList = append(toolsList, tool)
