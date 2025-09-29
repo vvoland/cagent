@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/mark3labs/mcp-go/client"
@@ -15,14 +16,48 @@ type manager struct {
 	emitAuthRequired         func(serverURL, serverType, status string)
 	resumeAuthorizeOauthFlow chan bool
 	resumeOauthCodeReceived  chan string
+	callbackServer           *CallbackServer
+	serverMutex              sync.Mutex
+	redirectURI              string
+	port                     int
 }
 
-// NewManager creates a new OAuth manager
-func NewManager(emitAuthRequired func(serverURL, serverType, status string)) Manager {
-	return &manager{
+// NewManager creates a new OAuth manager with optional port configuration
+func NewManager(emitAuthRequired func(serverURL, serverType, status string), opts ...ManagerOption) Manager {
+	m := &manager{
 		emitAuthRequired:         emitAuthRequired,
 		resumeAuthorizeOauthFlow: make(chan bool),
 		resumeOauthCodeReceived:  make(chan string),
+		port:                     8083,
+	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(m)
+	}
+
+	// Set redirect URI based on port
+	if m.redirectURI == "" {
+		m.redirectURI = fmt.Sprintf("http://localhost:%d/oauth-callback", m.port)
+	}
+
+	return m
+}
+
+// ManagerOption configures the OAuth manager
+type ManagerOption func(*manager)
+
+// WithPort sets the callback server port
+func WithPort(port int) ManagerOption {
+	return func(m *manager) {
+		m.port = port
+	}
+}
+
+// WithRedirectURI sets a custom redirect URI
+func WithRedirectURI(uri string) ManagerOption {
+	return func(m *manager) {
+		m.redirectURI = uri
 	}
 }
 
@@ -136,8 +171,13 @@ func (m *manager) performOAuthAuthorization(ctx context.Context, sessionID strin
 	slog.Debug("Waiting for OAuth authorization code")
 	var code string
 
-	// Check if we have a global callback server running
-	if callbackServer := GetGlobalCallbackServer(); callbackServer != nil {
+	// Ensure callback server is started if needed
+	if err := m.ensureCallbackServer(ctx); err != nil {
+		slog.Warn("Failed to start callback server, falling back to manual input", "error", err)
+	}
+
+	// Check if we have a callback server running (either global or our own)
+	if callbackServer := m.getCallbackServer(); callbackServer != nil {
 		slog.Debug("Using callback server for OAuth authorization")
 		// Wait for callback from the browser
 		callbackCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
@@ -186,5 +226,64 @@ func (m *manager) performOAuthAuthorization(ctx context.Context, sessionID strin
 	}
 
 	slog.Info("OAuth authorization completed successfully")
+	return nil
+}
+
+// ensureCallbackServer starts the callback server if it's not already running
+func (m *manager) ensureCallbackServer(ctx context.Context) error {
+	m.serverMutex.Lock()
+	defer m.serverMutex.Unlock()
+
+	// Check if there's already a global callback server
+	if globalServer := GetGlobalCallbackServer(); globalServer != nil {
+		slog.Debug("Using existing global callback server")
+		return nil
+	}
+
+	// Check if we already have our own server
+	if m.callbackServer != nil {
+		slog.Debug("Callback server already started")
+		return nil
+	}
+
+	// Create and start new callback server
+	slog.Debug("Starting OAuth callback server on demand", "port", m.port)
+	m.callbackServer = NewCallbackServer(m.port)
+	if err := m.callbackServer.Start(ctx); err != nil {
+		return fmt.Errorf("failed to start OAuth callback server: %w", err)
+	}
+
+	// Set as global server so other components can use it
+	SetGlobalCallbackServer(m.callbackServer)
+
+	slog.Debug("OAuth callback server started successfully", "port", m.port)
+	return nil
+}
+
+// getCallbackServer returns the active callback server (either global or local)
+func (m *manager) getCallbackServer() *CallbackServer {
+	// Prefer global server first
+	if globalServer := GetGlobalCallbackServer(); globalServer != nil {
+		return globalServer
+	}
+
+	// Fall back to our local server
+	return m.callbackServer
+}
+
+// Cleanup stops the callback server if we own it
+func (m *manager) Cleanup(ctx context.Context) error {
+	m.serverMutex.Lock()
+	defer m.serverMutex.Unlock()
+
+	if m.callbackServer != nil {
+		slog.Debug("Stopping OAuth callback server")
+		if err := m.callbackServer.Stop(ctx); err != nil {
+			slog.Error("Failed to stop OAuth callback server", "error", err)
+			return err
+		}
+		m.callbackServer = nil
+	}
+
 	return nil
 }

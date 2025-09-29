@@ -23,7 +23,6 @@ import (
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/evaluation"
-	"github.com/docker/cagent/pkg/oauth"
 	"github.com/docker/cagent/pkg/remote"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
@@ -179,31 +178,6 @@ func doRunCommand(ctx context.Context, args []string, exec bool) error {
 				return err
 			}
 			agentFilename = tmpFile.Name()
-		}
-
-		// Set up OAuth redirect URI for CLI/TUI mode
-		if runConfig.RedirectURI == "" {
-			runConfig.RedirectURI = "http://localhost:8083/oauth-callback"
-			slog.Debug("Set default OAuth redirect URI for CLI/TUI mode", "redirectURI", runConfig.RedirectURI)
-
-			// Start OAuth callback server for CLI/TUI mode
-			callbackServer := oauth.NewCallbackServer(8083)
-			err := callbackServer.Start(ctx)
-			if err != nil {
-				slog.Warn("Failed to start OAuth callback server", "error", err)
-			} else {
-				defer func() {
-					shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					defer cancel()
-					if err := callbackServer.Stop(shutdownCtx); err != nil {
-						slog.Error("Failed to stop OAuth callback server", "error", err)
-					}
-				}()
-				slog.Debug("Started OAuth callback server", "port", 8083)
-
-				// Set up global callback server for OAuth manager
-				oauth.SetGlobalCallbackServer(callbackServer)
-			}
 		}
 
 		agents, err = teamloader.Load(ctx, agentFilename, runConfig)

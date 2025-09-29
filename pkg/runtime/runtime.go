@@ -140,6 +140,11 @@ func (r *runtime) handleOAuthAuthorizationFlow(ctx context.Context, sess *sessio
 			events <- AuthorizationRequired(serverURL, serverType, status)
 		}
 		r.oauthManager = oauth.NewManager(emitAuthRequired)
+		defer func() {
+			if cleanupErr := r.oauthManager.Cleanup(ctx); cleanupErr != nil {
+				slog.Error("Failed to cleanup OAuth manager", "error", cleanupErr)
+			}
+		}()
 	}
 
 	return r.oauthManager.HandleAuthorizationFlow(ctx, sess.ID, oauthRequiredErr)
