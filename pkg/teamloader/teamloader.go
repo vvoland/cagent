@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/docker/cagent/pkg/agent"
+	"github.com/docker/cagent/pkg/codemode"
 	"github.com/docker/cagent/pkg/config"
 	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/environment"
@@ -158,12 +159,20 @@ func Load(ctx context.Context, path string, runtimeConfig config.RuntimeConfig) 
 		if !ok {
 			return nil, fmt.Errorf("agent '%s' not found in configuration", name)
 		}
+
 		agentTools, err := getToolsForAgent(ctx, &a, parentDir, sharedTools, models[0], env, runtimeConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tools: %w", err)
 		}
 
-		opts = append(opts, agent.WithToolSets(agentTools...))
+		if len(agentTools) > 0 {
+			if agentConfig.CodeMode || runtimeConfig.GlobalCodeMode {
+				codemodeTool := codemode.Wrap(agentTools)
+				opts = append(opts, agent.WithToolSets(codemodeTool))
+			} else {
+				opts = append(opts, agent.WithToolSets(agentTools...))
+			}
+		}
 
 		ag := agent.New(name, agentConfig.Instruction, opts...)
 		agents = append(agents, ag)

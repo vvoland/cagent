@@ -71,7 +71,6 @@ This toolset provides comprehensive filesystem operations with built-in security
 
 ### Common Patterns
 - Always check if directories exist before creating files
-- Use directory_tree for exploring unfamiliar directory structures
 - Prefer read_multiple_files for batch operations
 - Use search_files_content for finding specific code or text
 

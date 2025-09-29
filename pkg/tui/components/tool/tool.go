@@ -105,9 +105,12 @@ func (mv *toolModel) Render(width int) string {
 	content := fmt.Sprintf("%s %s", icon(msg.ToolStatus), styles.HighlightStyle.Render(displayName))
 
 	if msg.ToolCall.Function.Arguments != "" {
-		if msg.ToolCall.Function.Name == "search_files" {
+		switch msg.ToolCall.Function.Name {
+		case "search_files":
 			content += " " + render_search_files(msg.ToolCall)
-		} else {
+		case "run_tools_with_javascript":
+			content += " " + render_run_tools_with_javascript(msg.ToolCall)
+		default:
 			lines := wrapLines(msg.ToolCall.Function.Arguments, mv.width-2)
 			content += "\n" + strings.Join(lines, "\n")
 		}

@@ -17,6 +17,7 @@ type AgentConfig struct {
 	SubAgents          []string  `json:"sub_agents,omitempty"`
 	AddDate            bool      `json:"add_date,omitempty"`
 	AddEnvironmentInfo bool      `json:"add_environment_info,omitempty"`
+	CodeMode           bool      `json:"code_mode,omitempty"`
 	MaxIterations      int       `json:"max_iterations,omitempty"`
 	NumHistoryItems    int       `json:"num_history_items,omitempty"`
 }
