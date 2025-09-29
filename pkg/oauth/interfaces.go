@@ -12,6 +12,9 @@ type Manager interface {
 
 	// SendAuthorizationCode sends the OAuth authorization code after user has completed the OAuth flow
 	SendAuthorizationCode(ctx context.Context, code string) error
+
+	// Cleanup stops any owned resources like callback servers
+	Cleanup(ctx context.Context) error
 }
 
 // ServerInfoProvider interface for toolsets that can provide server information
