@@ -221,11 +221,11 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case *runtime.PartialToolCallEvent:
 		// When we first receive a tool call, show it immediately in pending state
 		spinnerCmd := p.setWorking(true)
-		cmd := p.messages.AddOrUpdateToolCall(msg.AgentName, msg.ToolCall, types.ToolStatusPending)
+		cmd := p.messages.AddOrUpdateToolCall(msg.AgentName, msg.ToolCall, msg.ToolDefinition, types.ToolStatusPending)
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
 	case *runtime.ToolCallConfirmationEvent:
 		spinnerCmd := p.setWorking(false) // Stop working indicator during confirmation
-		cmd := p.messages.AddOrUpdateToolCall(msg.AgentName, msg.ToolCall, types.ToolStatusConfirmation)
+		cmd := p.messages.AddOrUpdateToolCall(msg.AgentName, msg.ToolCall, msg.ToolDefinition, types.ToolStatusConfirmation)
 
 		// Open tool confirmation dialog
 		dialogCmd := core.CmdHandler(dialog.OpenDialogMsg{
@@ -235,7 +235,7 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd, dialogCmd)
 	case *runtime.ToolCallEvent:
 		spinnerCmd := p.setWorking(true)
-		cmd := p.messages.AddOrUpdateToolCall(msg.AgentName, msg.ToolCall, types.ToolStatusRunning)
+		cmd := p.messages.AddOrUpdateToolCall(msg.AgentName, msg.ToolCall, msg.ToolDefinition, types.ToolStatusRunning)
 
 		// Check if this is a todo-related tool call and update sidebar
 		toolName := msg.ToolCall.Function.Name
