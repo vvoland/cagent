@@ -331,6 +331,10 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 							},
 							"description": "Array of file paths to read",
 						},
+						"json": map[string]any{
+							"type":        "boolean",
+							"description": "Whether to return the result as JSON",
+						},
 					},
 					Required: []string{"paths"},
 				},
@@ -874,32 +878,66 @@ func (t *FilesystemTool) handleReadFile(_ context.Context, toolCall tools.ToolCa
 func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args struct {
 		Paths []string `json:"paths"`
+		Json  bool     `json:"json"`
 	}
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
 		return nil, fmt.Errorf("failed to parse arguments: %w", err)
 	}
 
-	var result strings.Builder
+	type PathContent struct {
+		Path    string `json:"path"`
+		Content string `json:"content"`
+	}
+
+	var contents []PathContent
+
 	for _, path := range args.Paths {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
 
 		if err := t.isPathAllowed(path); err != nil {
-			result.WriteString(fmt.Sprintf("=== %s ===\nError: %s\n\n", path, err))
+			contents = append(contents, PathContent{
+				Path:    path,
+				Content: fmt.Sprintf("Error: %s", err),
+			})
 			continue
 		}
 
 		content, err := os.ReadFile(path)
 		if err != nil {
-			result.WriteString(fmt.Sprintf("=== %s ===\nError reading file: %s\n\n", path, err))
+			contents = append(contents, PathContent{
+				Path:    path,
+				Content: fmt.Sprintf("Error reading file: %s", err),
+			})
 			continue
 		}
 
-		result.WriteString(fmt.Sprintf("=== %s ===\n%s\n\n", path, string(content)))
+		contents = append(contents, PathContent{
+			Path:    path,
+			Content: string(content),
+		})
 	}
 
-	return &tools.ToolCallResult{Output: result.String()}, nil
+	if args.Json {
+		jsonResult, err := json.MarshalIndent(contents, "", "  ")
+		if err != nil {
+			return &tools.ToolCallResult{Output: fmt.Sprintf("Error formatting JSON: %s", err)}, nil
+		}
+
+		return &tools.ToolCallResult{
+			Output: string(jsonResult),
+		}, nil
+	}
+
+	var result strings.Builder
+	for _, content := range contents {
+		result.WriteString(fmt.Sprintf("=== %s ===\n%s\n\n", content.Path, content.Content))
+	}
+
+	return &tools.ToolCallResult{
+		Output: result.String(),
+	}, nil
 }
 
 type SearchFilesArgs struct {
