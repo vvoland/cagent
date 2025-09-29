@@ -73,21 +73,17 @@ type ErrorResponse struct {
 }
 
 // parseToolCall safely converts an any to tools.ToolCall
-func parseToolCall(data any) (tools.ToolCall, error) {
+func parseToolCall(data, toolDefinition []byte) (tools.ToolCall, tools.Tool, error) {
 	var toolCall tools.ToolCall
-
-	// Convert the any to JSON and then unmarshal it into tools.ToolCall
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return toolCall, fmt.Errorf("failed to marshal tool call data: %w", err)
+	if err := json.Unmarshal(data, &toolCall); err != nil {
+		return tools.ToolCall{}, tools.Tool{}, fmt.Errorf("failed to unmarshal tool call: %w", err)
+	}
+	var toolDef tools.Tool
+	if err := json.Unmarshal(toolDefinition, &toolDef); err != nil {
+		return tools.ToolCall{}, tools.Tool{}, fmt.Errorf("failed to unmarshal tool definition: %w", err)
 	}
 
-	err = json.Unmarshal(jsonData, &toolCall)
-	if err != nil {
-		return toolCall, fmt.Errorf("failed to unmarshal tool call: %w", err)
-	}
-
-	return toolCall, nil
+	return toolCall, toolDef, nil
 }
 
 // doRequest performs an HTTP request and handles common response patterns
@@ -342,24 +338,26 @@ func (c *Client) runAgentWithAgentName(ctx context.Context, sessionID, agent, ag
 				switch event["type"] {
 				case "user_message":
 					eventChan <- UserMessage(event["message"].(string))
-				case "tool_call":
-					if toolCall, err := parseToolCall(event["tool_call"]); err == nil {
-						eventChan <- ToolCall(toolCall, event["agent_name"].(string))
-					}
 				case "tool_call_confirmation":
-					if toolCall, err := parseToolCall(event["tool_call"]); err == nil {
-						eventChan <- ToolCallConfirmation(toolCall, event["agent_name"].(string))
+					if toolCall, toolDef, err := parseToolCall(event["tool_call"].([]byte), event["tool_definition"].([]byte)); err == nil {
+						eventChan <- ToolCallConfirmation(toolCall, toolDef, event["agent_name"].(string))
+					}
+				case "partial_tool_call":
+					if toolCall, toolDef, err := parseToolCall(event["tool_call"].([]byte), event["tool_definition"].([]byte)); err == nil {
+						eventChan <- PartialToolCall(toolCall, toolDef, event["agent_name"].(string))
+					}
+				case "tool_call":
+					if toolCall, toolDef, err := parseToolCall(event["tool_call"].([]byte), event["tool_definition"].([]byte)); err == nil {
+						eventChan <- ToolCall(toolCall, toolDef, event["agent_name"].(string))
 					}
 				case "tool_call_response":
-					if toolCall, err := parseToolCall(event["tool_call"]); err == nil {
+					if toolCall, _, err := parseToolCall(event["tool_call"].([]byte), event["tool_definition"].([]byte)); err == nil {
 						eventChan <- ToolCallResponse(toolCall, event["response"].(string), event["agent_name"].(string))
 					}
-				case "agent_choice":
-					eventChan <- AgentChoice(event["agent_name"].(string), event["content"].(string))
 				case "agent_choice_reasoning":
 					eventChan <- AgentChoiceReasoning(event["agent_name"].(string), event["content"].(string))
-				case "error":
-					eventChan <- Error(event["error"].(string))
+				case "agent_choice":
+					eventChan <- AgentChoice(event["agent_name"].(string), event["content"].(string))
 				case "stream_started":
 					eventChan <- StreamStarted(sessionID, event["agent_name"].(string))
 				case "stream_stopped":
@@ -386,10 +384,8 @@ func (c *Client) runAgentWithAgentName(ctx context.Context, sessionID, agent, ag
 					eventChan <- SessionSummary(event["session_id"].(string), event["summary"].(string))
 				case "shell":
 					eventChan <- ShellOutput(event["output"].(string))
-				case "partial_tool_call":
-					if toolCall, err := parseToolCall(event["tool_call"]); err == nil {
-						eventChan <- PartialToolCall(toolCall, event["agent_name"].(string))
-					}
+				case "error":
+					eventChan <- Error(event["error"].(string))
 				}
 			}
 		}

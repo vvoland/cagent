@@ -32,7 +32,7 @@ type Model interface {
 	AddErrorMessage(content string) tea.Cmd
 	AddAssistantMessage() tea.Cmd
 	AddSeparatorMessage() tea.Cmd
-	AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, status types.ToolStatus) tea.Cmd
+	AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, toolDef tools.Tool, status types.ToolStatus) tea.Cmd
 	AddToolResult(msg *runtime.ToolCallResponseEvent, status types.ToolStatus) tea.Cmd
 	AppendToLastMessage(agentName string, messageType types.MessageType, content string) tea.Cmd
 	ClearMessages()
@@ -523,7 +523,7 @@ func (m *model) AddSeparatorMessage() tea.Cmd {
 }
 
 // AddOrUpdateToolCall adds a tool call or updates existing one with the given status
-func (m *model) AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, status types.ToolStatus) tea.Cmd {
+func (m *model) AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, toolDef tools.Tool, status types.ToolStatus) tea.Cmd {
 	// First try to update existing tool by ID
 	for i := len(m.messages) - 1; i >= 0; i-- {
 		msg := &m.messages[i]
@@ -544,10 +544,11 @@ func (m *model) AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, s
 
 	// Create new tool call
 	msg := types.Message{
-		Type:       types.MessageTypeToolCall,
-		Sender:     agentName,
-		ToolCall:   toolCall,
-		ToolStatus: status,
+		Type:           types.MessageTypeToolCall,
+		Sender:         agentName,
+		ToolCall:       toolCall,
+		ToolDefinition: toolDef,
+		ToolStatus:     status,
 	}
 	m.messages = append(m.messages, msg)
 
@@ -652,7 +653,8 @@ func (m *model) ScrollToBottom() tea.Cmd {
 func (m *model) PlainTextTranscript() string {
 	var builder strings.Builder
 
-	for _, msg := range m.messages {
+	for i := range m.messages {
+		msg := m.messages[i]
 		switch msg.Type {
 		case types.MessageTypeUser:
 			writeTranscriptSection(&builder, "User", msg.Content)

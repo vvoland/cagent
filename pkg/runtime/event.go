@@ -36,31 +36,34 @@ func (e *UserMessageEvent) GetAgentName() string {
 
 func (e *UserMessageEvent) isEvent() {}
 
-// ToolCallEvent is sent when a tool call is received
 // PartialToolCallEvent is sent when a tool call is first received (partial/complete)
 type PartialToolCallEvent struct {
-	Type     string         `json:"type"`
-	ToolCall tools.ToolCall `json:"tool_call"`
+	Type           string         `json:"type"`
+	ToolCall       tools.ToolCall `json:"tool_call"`
+	ToolDefinition tools.Tool     `json:"tool_definition"`
 	AgentContext
 }
 
-func PartialToolCall(toolCall tools.ToolCall, agentName string) Event {
+func PartialToolCall(toolCall tools.ToolCall, toolDefinition tools.Tool, agentName string) Event {
 	return &PartialToolCallEvent{
-		Type:         "partial_tool_call",
-		ToolCall:     toolCall,
-		AgentContext: AgentContext{AgentName: agentName},
+		Type:           "partial_tool_call",
+		ToolCall:       toolCall,
+		ToolDefinition: toolDefinition,
+		AgentContext:   AgentContext{AgentName: agentName},
 	}
 }
 
 func (e *PartialToolCallEvent) isEvent() {}
 
+// ToolCallEvent is sent when a tool call is received
 type ToolCallEvent struct {
-	Type     string         `json:"type"`
-	ToolCall tools.ToolCall `json:"tool_call"`
+	Type           string         `json:"type"`
+	ToolCall       tools.ToolCall `json:"tool_call"`
+	ToolDefinition tools.Tool     `json:"tool_definition"`
 	AgentContext
 }
 
-func ToolCall(toolCall tools.ToolCall, agentName string) Event {
+func ToolCall(toolCall tools.ToolCall, toolDefinition tools.Tool, agentName string) Event {
 	return &ToolCallEvent{
 		Type:         "tool_call",
 		ToolCall:     toolCall,
@@ -71,16 +74,18 @@ func ToolCall(toolCall tools.ToolCall, agentName string) Event {
 func (e *ToolCallEvent) isEvent() {}
 
 type ToolCallConfirmationEvent struct {
-	Type     string         `json:"type"`
-	ToolCall tools.ToolCall `json:"tool_call"`
+	Type           string         `json:"type"`
+	ToolCall       tools.ToolCall `json:"tool_call"`
+	ToolDefinition tools.Tool     `json:"tool_definition"`
 	AgentContext
 }
 
-func ToolCallConfirmation(toolCall tools.ToolCall, agentName string) Event {
+func ToolCallConfirmation(toolCall tools.ToolCall, toolDefinition tools.Tool, agentName string) Event {
 	return &ToolCallConfirmationEvent{
-		Type:         "tool_call_confirmation",
-		ToolCall:     toolCall,
-		AgentContext: AgentContext{AgentName: agentName},
+		Type:           "tool_call_confirmation",
+		ToolCall:       toolCall,
+		ToolDefinition: toolDefinition,
+		AgentContext:   AgentContext{AgentName: agentName},
 	}
 }
 func (e *ToolCallConfirmationEvent) isEvent() {}

@@ -262,7 +262,7 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 			}
 
 			slog.Debug("Processing stream", "agent", a.Name())
-			calls, content, reasoningContent, stopped, err := r.handleStream(ctx, stream, a, sess, m, events)
+			calls, content, reasoningContent, stopped, err := r.handleStream(ctx, stream, a, agentTools, sess, m, events)
 			if err != nil {
 				// Treat context cancellation as a graceful stop
 				if errors.Is(err, context.Canceled) {
@@ -426,7 +426,7 @@ func (r *runtime) Run(ctx context.Context, sess *session.Session) ([]session.Mes
 }
 
 // handleStream handles the stream processing
-func (r *runtime) handleStream(ctx context.Context, stream chat.MessageStream, a *agent.Agent, sess *session.Session, m *modelsdev.Model, events chan Event) (calls []tools.ToolCall, content, reasoningContent string, stopped bool, err error) {
+func (r *runtime) handleStream(ctx context.Context, stream chat.MessageStream, a *agent.Agent, agentTools []tools.Tool, sess *session.Session, m *modelsdev.Model, events chan Event) (calls []tools.ToolCall, content, reasoningContent string, stopped bool, err error) {
 	defer stream.Close()
 
 	var fullContent strings.Builder
@@ -516,7 +516,15 @@ func (r *runtime) handleStream(ctx context.Context, stream chat.MessageStream, a
 
 				// Emit PartialToolCallEvent when we first get the function name
 				if shouldEmitPartial {
-					events <- PartialToolCall(toolCalls[idx], a.Name())
+					// TODO: clean this up, it's gross
+					tool := tools.Tool{}
+					for _, t := range agentTools {
+						if t.Function.Name == toolCalls[idx].Function.Name {
+							tool = t
+							break
+						}
+					}
+					events <- PartialToolCall(toolCalls[idx], tool, a.Name())
 					emittedPartialEvents[deltaToolCall.ID] = true
 				}
 			}
@@ -563,7 +571,14 @@ func (r *runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 				r.runAgentTool(callCtx, handler, sess, toolCall, events, a)
 			} else {
 				slog.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
-				events <- ToolCallConfirmation(toolCall, a.Name())
+				events <- ToolCallConfirmation(toolCall, tools.Tool{
+					Function: &tools.FunctionDefinition{
+						Annotations: tools.ToolAnnotation{
+							// TODO: We need to handle the transfer task tool better
+							Title: "Transfer Task",
+						},
+					},
+				}, a.Name())
 
 				select {
 				case cType := <-r.resumeChan:
@@ -607,7 +622,7 @@ func (r *runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 				r.runTool(callCtx, tool, toolCall, events, sess, a)
 			} else {
 				slog.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
-				events <- ToolCallConfirmation(toolCall, a.Name())
+				events <- ToolCallConfirmation(toolCall, tool, a.Name())
 				select {
 				case cType := <-r.resumeChan:
 					switch cType {
@@ -653,7 +668,7 @@ func (r *runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.T
 	))
 	defer span.End()
 
-	events <- ToolCall(toolCall, a.Name())
+	events <- ToolCall(toolCall, tool, a.Name())
 	start := time.Now()
 	res, err := tool.Handler(ctx, toolCall)
 	duration := time.Since(start)
@@ -706,7 +721,14 @@ func (r *runtime) runAgentTool(ctx context.Context, handler ToolHandler, sess *s
 	))
 	defer span.End()
 
-	events <- ToolCall(toolCall, a.Name())
+	events <- ToolCall(toolCall, tools.Tool{
+		Function: &tools.FunctionDefinition{
+			Annotations: tools.ToolAnnotation{
+				// TODO: We need to handle the transfer task tool better
+				Title: "Transfer Task",
+			},
+		},
+	}, a.Name())
 	start := time.Now()
 	res, err := handler(ctx, sess, toolCall, events)
 	duration := time.Since(start)
