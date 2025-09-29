@@ -871,7 +871,7 @@ func (t *FilesystemTool) handleReadFile(_ context.Context, toolCall tools.ToolCa
 	return &tools.ToolCallResult{Output: string(content)}, nil
 }
 
-func (t *FilesystemTool) handleReadMultipleFiles(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args struct {
 		Paths []string `json:"paths"`
 	}
@@ -881,6 +881,10 @@ func (t *FilesystemTool) handleReadMultipleFiles(_ context.Context, toolCall too
 
 	var result strings.Builder
 	for _, path := range args.Paths {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+
 		if err := t.isPathAllowed(path); err != nil {
 			result.WriteString(fmt.Sprintf("=== %s ===\nError: %s\n\n", path, err))
 			continue
