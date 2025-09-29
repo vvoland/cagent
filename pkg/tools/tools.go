@@ -50,6 +50,7 @@ type ToolAnnotation struct {
 
 type ToolOutputSchema struct {
 	Type       string         `json:"type"`
+	Items      map[string]any `json:"items,omitempty"`
 	Properties map[string]any `json:"properties,omitempty"`
 	Required   []string       `json:"required,omitempty"`
 }
