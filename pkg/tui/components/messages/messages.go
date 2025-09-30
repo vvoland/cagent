@@ -225,7 +225,7 @@ func (m *model) SetSize(width, height int) tea.Cmd {
 
 	// Initialize or update renderer
 	if r, err := glamour.NewTermRenderer(
-		glamour.WithWordWrap(width),
+		glamour.WithWordWrap(min(width, 120)),
 		glamour.WithStyles(customDarkStyle),
 	); err == nil {
 		m.renderer = r
