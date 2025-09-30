@@ -203,10 +203,16 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
 	case *runtime.AgentChoiceEvent:
 		cmd := p.messages.AppendToLastMessage(msg.AgentName, types.MessageTypeAssistant, msg.Content)
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
+		if p.messages.IsAtBottom() {
+			return p, tea.Batch(cmd, p.messages.ScrollToBottom())
+		}
+		return p, cmd
 	case *runtime.AgentChoiceReasoningEvent:
 		cmd := p.messages.AppendToLastMessage(msg.AgentName, types.MessageTypeAssistantReasoning, msg.Content)
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
+		if p.messages.IsAtBottom() {
+			return p, tea.Batch(cmd, p.messages.ScrollToBottom())
+		}
+		return p, cmd
 	case *runtime.SessionTitleEvent:
 		p.sessionTitle = msg.Title
 	case *runtime.TokenUsageEvent:
