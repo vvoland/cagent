@@ -40,6 +40,7 @@ type Model interface {
 	AddShellOutputMessage(content string) tea.Cmd
 	AddSystemMessage(content string) tea.Cmd
 	PlainTextTranscript() string
+	IsAtBottom() bool
 }
 
 // renderedItem represents a cached rendered message with position information
@@ -426,8 +427,8 @@ func (m *model) invalidateAllItems() {
 	m.totalHeight = 0
 }
 
-// isAtBottom returns true if the viewport is at the bottom
-func (m *model) isAtBottom() bool {
+// IsAtBottom returns true if the viewport is at the bottom
+func (m *model) IsAtBottom() bool {
 	if len(m.messages) == 0 {
 		return true
 	}
@@ -435,6 +436,11 @@ func (m *model) isAtBottom() bool {
 	totalHeight := lipgloss.Height(m.rendered) - 1
 	maxScrollOffset := max(0, totalHeight-m.height)
 	return m.scrollOffset >= maxScrollOffset
+}
+
+// isAtBottom is kept as a private method for internal use
+func (m *model) isAtBottom() bool {
+	return m.IsAtBottom()
 }
 
 // AddUserMessage adds a user message to the chat
@@ -568,25 +574,15 @@ func (m *model) AppendToLastMessage(agentName string, messageType types.MessageT
 	if len(m.messages) == 0 {
 		return nil
 	}
+
 	lastIdx := len(m.messages) - 1
 	lastMsg := &m.messages[lastIdx]
 
 	if lastMsg.Type == messageType {
-		wasAtBottom := m.isAtBottom()
 		lastMsg.Content += content
-		lastMsg.Sender = agentName
-		// Update the corresponding view
 		m.views[lastIdx].(message.Model).SetMessage(lastMsg)
 		m.invalidateItem(lastIdx)
-
-		var cmds []tea.Cmd
-		if wasAtBottom {
-			cmds = append(cmds, func() tea.Msg {
-				m.scrollToBottom()
-				return nil
-			})
-		}
-		return tea.Batch(cmds...)
+		return nil
 	} else {
 		// Create new assistant message
 		msg := types.Message{
@@ -594,23 +590,16 @@ func (m *model) AppendToLastMessage(agentName string, messageType types.MessageT
 			Content: content,
 			Sender:  agentName,
 		}
-		wasAtBottom := m.isAtBottom()
 		m.messages = append(m.messages, msg)
 
 		view := m.createMessageView(&msg)
 		m.views = append(m.views, view)
 
-		var cmds []tea.Cmd
+		var cmd tea.Cmd
 		if initCmd := view.Init(); initCmd != nil {
-			cmds = append(cmds, initCmd)
+			cmd = initCmd
 		}
-		if wasAtBottom {
-			cmds = append(cmds, func() tea.Msg {
-				m.scrollToBottom()
-				return nil
-			})
-		}
-		return tea.Batch(cmds...)
+		return cmd
 	}
 }
 
