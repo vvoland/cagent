@@ -589,14 +589,10 @@ func (m *model) AppendToLastMessage(agentName string, messageType types.MessageT
 		lastMsg.Content += content
 		lastMsg.Sender = agentName
 		// Update the corresponding view
-		view := m.createMessageView(lastMsg)
-		m.views[lastIdx] = view
+		m.views[lastIdx].(message.Model).SetMessage(lastMsg)
 		m.invalidateItem(lastIdx)
 
 		var cmds []tea.Cmd
-		if initCmd := view.Init(); initCmd != nil {
-			cmds = append(cmds, initCmd)
-		}
 		if wasAtBottom {
 			cmds = append(cmds, func() tea.Msg {
 				m.scrollToBottom()
