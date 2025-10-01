@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/codemode"
@@ -318,6 +319,14 @@ func createTool(ctx context.Context, toolset latest.Toolset, a *latest.AgentConf
 		}
 
 		return builtin.NewFilesystemTool([]string{wd}, opts...), nil
+
+	case toolset.Type == "fetch":
+		var opts []builtin.FetchToolOption
+		if toolset.Timeout > 0 {
+			timeout := time.Duration(toolset.Timeout) * time.Second
+			opts = append(opts, builtin.WithTimeout(timeout))
+		}
+		return builtin.NewFetchTool(opts...), nil
 
 	case toolset.Type == "mcp" && toolset.Ref != "":
 		mcpServerName := gateway.ParseServerRef(toolset.Ref)

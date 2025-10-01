@@ -189,7 +189,8 @@
             "memory",
             "filesystem",
             "shell",
-            "todo"
+            "todo",
+            "fetch"
           ]
         },
         "ref": {
@@ -278,7 +279,8 @@
                 "todo",
                 "think",
                 "memory",
-                "script"
+                "script",
+                "fetch"
               ]
             }
           }

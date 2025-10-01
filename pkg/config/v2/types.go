@@ -92,6 +92,9 @@ type Toolset struct {
 
 	// For the `filesystem` tool - post-edit commands
 	PostEdit []PostEditConfig `json:"post_edit,omitempty"`
+
+	// For the `fetch` tool
+	Timeout int `json:"timeout,omitempty"`
 }
 
 func (t *Toolset) UnmarshalYAML(unmarshal func(any) error) error {
