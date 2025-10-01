@@ -20,6 +20,7 @@ type AgentConfig struct {
 	CodeModeTools      bool      `json:"code_mode_tools,omitempty"`
 	MaxIterations      int       `json:"max_iterations,omitempty"`
 	NumHistoryItems    int       `json:"num_history_items,omitempty"`
+	AddPromptFiles     []string  `json:"add_prompt_files,omitempty" yaml:"add_prompt_files,omitempty"`
 }
 
 // ModelConfig represents the configuration for a model

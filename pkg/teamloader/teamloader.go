@@ -148,6 +148,7 @@ func Load(ctx context.Context, path string, runtimeConfig config.RuntimeConfig) 
 			agent.WithDescription(agentConfig.Description),
 			agent.WithAddDate(agentConfig.AddDate),
 			agent.WithAddEnvironmentInfo(agentConfig.AddEnvironmentInfo),
+			agent.WithAddPromptFiles(agentConfig.AddPromptFiles),
 			agent.WithMaxIterations(agentConfig.MaxIterations),
 			agent.WithNumHistoryItems(agentConfig.NumHistoryItems),
 		}

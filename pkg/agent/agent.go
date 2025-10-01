@@ -41,6 +41,7 @@ type Agent struct {
 	addEnvironmentInfo bool
 	maxIterations      int
 	numHistoryItems    int
+	addPromptFiles     []string
 	toolWrapper        toolWrapper
 	memoryManager      memorymanager.Manager
 }
@@ -83,6 +84,10 @@ func (a *Agent) MaxIterations() int {
 
 func (a *Agent) NumHistoryItems() int {
 	return a.numHistoryItems
+}
+
+func (a *Agent) AddPromptFiles() []string {
+	return a.addPromptFiles
 }
 
 // Description returns the agent's description

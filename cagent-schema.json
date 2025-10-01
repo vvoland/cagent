@@ -85,6 +85,13 @@
           "type": "integer",
           "description": "Number of history items to keep",
           "minimum": 0
+        },
+        "add_prompt_files": {
+          "type": "array",
+          "description": "List of prompt files to add",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false
