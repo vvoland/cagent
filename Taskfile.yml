@@ -9,7 +9,7 @@ vars:
   GIT_COMMIT:
     sh: git rev-parse HEAD
   GO_SOURCES: "**/*.go"
-  BUILD_ARGS: '--build-arg GIT_TAG="{{.GIT_TAG}}" --build-arg GIT_COMMIT="{{.GIT_COMMIT}}" --build-arg BUILD_DATE="{{.BUILD_DATE}}"'
+  BUILD_ARGS: '--build-arg GIT_TAG="{{.GIT_TAG}}" --build-arg GIT_COMMIT="{{.GIT_COMMIT}}"'
   LDFLAGS: '-X "github.com/docker/cagent/pkg/version.Version={{.GIT_TAG}}" -X "github.com/docker/cagent/pkg/version.Commit={{.GIT_COMMIT}}"'
 
 tasks:

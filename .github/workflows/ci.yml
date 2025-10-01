@@ -132,4 +132,3 @@ jobs:
           build-args: |
             GIT_TAG=${{ github.ref_name }}
             GIT_COMMIT=${{ github.sha }}
-            BUILD_DATE=${{ steps.meta.outputs.created || github.event.repository.updated_at || format('YYYY-MM-DD') }}
