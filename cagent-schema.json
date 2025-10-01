@@ -8,7 +8,7 @@
     "version": {
       "type": "string",
       "description": "Configuration version",
-      "enum": ["2", "v2"],
+      "enum": ["2"],
       "examples": ["2"]
     },
     "agents": {
@@ -240,9 +240,12 @@
         "shell": {
           "type": "object",
           "description": "Shell script configurations (for script tool)",
-          "additionalProperties": {
-            "$ref": "#/definitions/ScriptShellToolConfig"
-          }
+          "patternProperties": {
+            "^[A-Za-z_][A-Za-z0-9_\\-]*$": {
+              "$ref": "#/definitions/ScriptShellToolConfig"
+            }
+        },
+          "additionalProperties": false
         },
         "post_edit": {
           "type": "array",
@@ -342,7 +345,6 @@
           "description": "Working directory for the command"
         }
       },
-      "required": ["cmd", "description", "required"],
       "additionalProperties": false
     },
     "PostEditConfig": {
