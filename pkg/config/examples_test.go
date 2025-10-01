@@ -11,7 +11,7 @@ import (
 
 func TestParseExamples(t *testing.T) {
 	var files []string
-	err := filepath.WalkDir("../../examples", func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(filepath.Join("..", "..", "examples"), func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
