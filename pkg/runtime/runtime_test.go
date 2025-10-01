@@ -417,3 +417,23 @@ func TestSessionWithoutUserMessage(t *testing.T) {
 	require.True(t, hasEventType(t, events, &StreamStoppedEvent{}), "Expected StreamStoppedEvent")
 	require.False(t, hasEventType(t, events, &UserMessageEvent{}), "Should not have UserMessageEvent when SendUserMessage is false")
 }
+
+func TestNewRuntime_NoAgentsError(t *testing.T) {
+	tm := team.New()
+
+	_, err := New(tm, WithModelStore(mockModelStore{}))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no agents loaded")
+}
+
+func TestNewRuntime_InvalidCurrentAgentError(t *testing.T) {
+	// Create a team with a single agent named "root"
+	root := agent.New("root", "You are a test agent")
+	tm := team.New(team.WithAgents(root))
+
+	// Ask for a non-existent current agent
+	_, err := New(tm, WithCurrentAgent("other"), WithModelStore(mockModelStore{}))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "agent \"other\" not found")
+	require.Contains(t, err.Error(), "root") // available agents listed in error
+}
