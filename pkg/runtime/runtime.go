@@ -124,6 +124,18 @@ func New(agents *team.Team, opts ...Opt) (Runtime, error) {
 		opt(r)
 	}
 
+	// Validate that we have at least one agent and that the current agent exists
+	if r.team == nil || r.team.Size() == 0 {
+		return nil, fmt.Errorf("no agents loaded; ensure your agent configuration defines at least one agent")
+	}
+	if r.team.Agent(r.currentAgent) == nil {
+		names := strings.Join(r.team.AgentNames(), ", ")
+		if names == "" {
+			names = "(none)"
+		}
+		return nil, fmt.Errorf("agent %q not found in team; available agents: %s", r.currentAgent, names)
+	}
+
 	slog.Debug("Creating new runtime", "agent", r.currentAgent, "available_agents", agents.Size())
 
 	return r, nil
