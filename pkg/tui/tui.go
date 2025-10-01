@@ -247,19 +247,13 @@ func (a *appModel) View() tea.View {
 
 	baseView := lipgloss.JoinVertical(lipgloss.Top, components...)
 
-	// Create layered view if there is a dialog
 	if a.dialog.HasDialog() {
-		// Create background layer with the base view
 		baseLayer := lipgloss.NewLayer(baseView)
+		dialogLayers := a.dialog.GetLayers()
 
-		// Get dialog layers
-		dialogLayer := a.dialog.GetLayer()
-
-		// Combine all layers
 		allLayers := []*lipgloss.Layer{baseLayer}
-		allLayers = append(allLayers, dialogLayer)
+		allLayers = append(allLayers, dialogLayers...)
 
-		// Create and render canvas
 		canvas := lipgloss.NewCanvas(allLayers...)
 		return toFullscreenView(canvas.Render())
 	}
