@@ -296,9 +296,13 @@ func createTool(ctx context.Context, toolset latest.Toolset, a *latest.AgentConf
 		return builtin.NewScriptShellTool(toolset.Shell, env), nil
 
 	case toolset.Type == "filesystem":
-		wd, err := os.Getwd()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get working directory: %w", err)
+		wd := runtimeConfig.WorkingDir
+		if wd == "" {
+			var err error
+			wd, err = os.Getwd()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get working directory: %w", err)
+			}
 		}
 
 		opts := []builtin.FileSystemOpt{builtin.WithAllowedTools(toolset.Tools)}

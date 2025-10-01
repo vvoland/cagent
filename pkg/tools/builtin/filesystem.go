@@ -483,6 +483,10 @@ func (t *FilesystemTool) isPathAllowed(path string) error {
 		return fmt.Errorf("unable to resolve absolute path: %w", err)
 	}
 
+	if len(t.allowedDirectories) == 0 {
+		return fmt.Errorf("no allowed directories configured")
+	}
+
 	for _, allowedDir := range t.allowedDirectories {
 		allowedAbs, err := filepath.Abs(allowedDir)
 		if err != nil {
