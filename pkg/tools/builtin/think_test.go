@@ -141,3 +141,15 @@ func TestThinkTool_StartStop(t *testing.T) {
 	err = tool.Stop()
 	require.NoError(t, err)
 }
+
+func TestThinkTool_OutputSchema(t *testing.T) {
+	tool := NewThinkTool()
+
+	allTools, err := tool.Tools(t.Context())
+	require.NoError(t, err)
+	require.NotEmpty(t, allTools)
+
+	for _, tool := range allTools {
+		assert.NotEmpty(t, tool.Function.OutputSchema.Type)
+	}
+}
