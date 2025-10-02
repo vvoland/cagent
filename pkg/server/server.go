@@ -924,6 +924,7 @@ func (s *Server) runAgent(c echo.Context) error {
 		var opts []runtime.Opt = []runtime.Opt{
 			runtime.WithCurrentAgent(currentAgent),
 			runtime.WithManagedOAuth(false),
+			runtime.WithRootSessionID(sess.ID),
 		}
 		rt, err = runtime.New(t, opts...)
 		if err != nil {
@@ -931,6 +932,7 @@ func (s *Server) runAgent(c echo.Context) error {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create runtime"})
 		}
 		s.runtimes[sess.ID] = rt
+		slog.Debug("Runtime created for session", "session_id", sess.ID)
 	}
 
 	var messages []api.Message
