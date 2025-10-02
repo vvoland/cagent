@@ -62,6 +62,7 @@ type runtime struct {
 	toolMap           map[string]ToolHandler
 	team              *team.Team
 	currentAgent      string
+	rootSessionID     string // Root session ID for OAuth state encoding (preserved across sub-sessions)
 	resumeChan        chan ResumeType
 	oauthManager      oauth.Manager
 	tracer            trace.Tracer
@@ -81,6 +82,12 @@ func WithCurrentAgent(agentName string) Opt {
 func WithManagedOAuth(managed bool) Opt {
 	return func(r *runtime) {
 		r.managedOAuth = managed
+	}
+}
+
+func WithRootSessionID(sessionID string) Opt {
+	return func(r *runtime) {
+		r.rootSessionID = sessionID
 	}
 }
 
@@ -167,7 +174,16 @@ func (r *runtime) handleOAuthAuthorizationFlow(ctx context.Context, sess *sessio
 		}()
 	}
 
-	return r.oauthManager.HandleAuthorizationFlow(ctx, sess.ID, oauthRequiredErr)
+	// Use rootSessionID for OAuth state encoding to ensure callback can find the runtime
+	// This is important when OAuth is triggered from a sub-session during task transfer
+	sessionIDForOAuth := r.rootSessionID
+	if sessionIDForOAuth == "" {
+		// Fallback to current session ID if rootSessionID wasn't set (backward compatibility)
+		sessionIDForOAuth = sess.ID
+		slog.Warn("rootSessionID not set, using current session ID for OAuth", "session_id", sess.ID)
+	}
+
+	return r.oauthManager.HandleAuthorizationFlow(ctx, sessionIDForOAuth, oauthRequiredErr)
 }
 
 func (r *runtime) finalizeEventChannel(ctx context.Context, sess *session.Session, events chan Event) {
