@@ -9,7 +9,6 @@ import (
 
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/runtime"
-	"github.com/docker/cagent/pkg/telemetry"
 	"github.com/docker/cagent/pkg/tui/components/statusbar"
 	"github.com/docker/cagent/pkg/tui/dialog"
 	chatpage "github.com/docker/cagent/pkg/tui/page/chat"
@@ -77,7 +76,6 @@ func New(a *app.App) tea.Model {
 
 // Init initializes the application
 func (a *appModel) Init() tea.Cmd {
-	telemetry.TrackCommand("tui", []string{"init"})
 	return tea.Batch(
 		// Initialize dialog system
 		a.dialog.Init(),
