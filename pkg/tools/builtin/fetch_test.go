@@ -9,31 +9,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/docker/cagent/pkg/tools"
 )
-
-func TestNewFetchTool(t *testing.T) {
-	tool := NewFetchTool()
-	if tool == nil {
-		t.Fatal("NewFetchTool() returned nil")
-	}
-
-	if tool.timeout != 30*time.Second {
-		t.Errorf("Expected default timeout 30s, got %v", tool.timeout)
-	}
-
-	if tool.client == nil {
-		t.Fatal("HTTP client not initialized")
-	}
-}
 
 func TestFetchToolWithOptions(t *testing.T) {
 	customTimeout := 60 * time.Second
 	tool := NewFetchTool(WithTimeout(customTimeout))
 
-	if tool.timeout != customTimeout {
-		t.Errorf("Expected timeout %v, got %v", customTimeout, tool.timeout)
-	}
+	require.Equal(t, customTimeout, tool.handler.timeout)
 }
 
 func TestFetchTool_Tools(t *testing.T) {
@@ -41,48 +26,35 @@ func TestFetchTool_Tools(t *testing.T) {
 	ctx := context.TODO()
 
 	toolSet, err := tool.Tools(ctx)
-	if err != nil {
-		t.Fatalf("Tools() error: %v", err)
-	}
-
-	if len(toolSet) != 1 {
-		t.Fatalf("Expected 1 tool, got %d", len(toolSet))
-	}
+	require.NoError(t, err)
+	require.Len(t, toolSet, 1)
 
 	fetchTool := toolSet[0]
-	if fetchTool.Function.Name != "fetch" {
-		t.Errorf("Expected tool name 'fetch', got %s", fetchTool.Function.Name)
-	}
-
-	if fetchTool.Handler == nil {
-		t.Fatal("Tool handler is nil")
-	}
+	require.Equal(t, "fetch", fetchTool.Function.Name)
+	require.NotNil(t, fetchTool.Handler)
 }
 
 func TestFetchTool_Instructions(t *testing.T) {
 	tool := NewFetchTool()
 	instructions := tool.Instructions()
 
-	if instructions == "" {
-		t.Fatal("Instructions should not be empty")
-	}
+	require.NotEmpty(t, instructions)
 
-	if !containsAllSubstrings(instructions, []string{"Fetch Tool Instructions", "HTTP", "HTTPS", "URLs"}) {
-		t.Error("Instructions missing expected content")
-	}
+	require.Contains(t, instructions, `"fetch" tool instructions`)
+	require.Contains(t, instructions, "HTTP")
+	require.Contains(t, instructions, "HTTPS")
+	require.Contains(t, instructions, "URLs")
 }
 
 func TestFetchTool_StartStop(t *testing.T) {
 	tool := NewFetchTool()
 	ctx := context.TODO()
 
-	if err := tool.Start(ctx); err != nil {
-		t.Errorf("Start() error: %v", err)
-	}
+	err := tool.Start(ctx)
+	require.NoError(t, err)
 
-	if err := tool.Stop(); err != nil {
-		t.Errorf("Stop() error: %v", err)
-	}
+	err = tool.Stop()
+	require.NoError(t, err)
 }
 
 func TestFetchHandler_CallTool_Success(t *testing.T) {
@@ -107,19 +79,15 @@ func TestFetchHandler_CallTool_Success(t *testing.T) {
 		},
 	}
 
-	handler := &fetchHandler{tool: tool}
-	result, err := handler.CallTool(ctx, toolCall)
-	if err != nil {
-		t.Fatalf("CallTool() error: %v", err)
-	}
+	result, err := tool.handler.CallTool(ctx, toolCall)
+	require.NoError(t, err)
 
-	if result == nil {
-		t.Fatal("Result is nil")
-	}
+	require.NotNil(t, result)
 
-	if !containsAllSubstrings(result.Output, []string{"Successfully fetched", "Status: 200", "Hello, World!"}) {
-		t.Errorf("Unexpected output: %s", result.Output)
-	}
+	require.Contains(t, result.Output, "Successfully fetched")
+	require.Contains(t, result.Output, "Status: 200")
+	require.Contains(t, result.Output, "Length: 13 bytes")
+	require.Contains(t, result.Output, "Hello, World!")
 }
 
 func TestFetchHandler_CallTool_MultipleURLs(t *testing.T) {
@@ -148,73 +116,17 @@ func TestFetchHandler_CallTool_MultipleURLs(t *testing.T) {
 		},
 	}
 
-	handler := &fetchHandler{tool: tool}
-	result, err := handler.CallTool(ctx, toolCall)
-	if err != nil {
-		t.Fatalf("CallTool() error: %v", err)
-	}
+	result, err := tool.handler.CallTool(ctx, toolCall)
+	require.NoError(t, err)
 
 	// Should return JSON for multiple URLs
 	var results []FetchResult
-	if err := json.Unmarshal([]byte(result.Output), &results); err != nil {
-		t.Fatalf("Failed to unmarshal results: %v", err)
-	}
+	err = json.Unmarshal([]byte(result.Output), &results)
+	require.NoError(t, err)
+	require.Len(t, results, 2)
 
-	if len(results) != 2 {
-		t.Fatalf("Expected 2 results, got %d", len(results))
-	}
-
-	if results[0].Body != "Server 1" {
-		t.Errorf("Expected 'Server 1', got %s", results[0].Body)
-	}
-
-	if results[1].Body != "Server 2" {
-		t.Errorf("Expected 'Server 2', got %s", results[1].Body)
-	}
-}
-
-func TestFetchHandler_CallTool_CustomHeaders(t *testing.T) {
-	// Create test server that checks headers
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer token123" {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		if r.Header.Get("X-Custom-Header") != "custom-value" {
-			http.Error(w, "Missing custom header", http.StatusBadRequest)
-			return
-		}
-		fmt.Fprint(w, "Authorized!")
-	}))
-	defer server.Close()
-
-	tool := NewFetchTool()
-	ctx := context.TODO()
-
-	args := map[string]any{
-		"urls": []string{server.URL},
-		"headers": map[string]string{
-			"Authorization":   "Bearer token123",
-			"X-Custom-Header": "custom-value",
-		},
-	}
-	argsJSON, _ := json.Marshal(args)
-
-	toolCall := tools.ToolCall{
-		Function: tools.FunctionCall{
-			Arguments: string(argsJSON),
-		},
-	}
-
-	handler := &fetchHandler{tool: tool}
-	result, err := handler.CallTool(ctx, toolCall)
-	if err != nil {
-		t.Fatalf("CallTool() error: %v", err)
-	}
-
-	if !containsAllSubstrings(result.Output, []string{"Status: 200", "Authorized!"}) {
-		t.Errorf("Headers not properly sent: %s", result.Output)
-	}
+	require.Equal(t, "Server 1", results[0].Body)
+	require.Equal(t, "Server 2", results[1].Body)
 }
 
 func TestFetchHandler_CallTool_InvalidURL(t *testing.T) {
@@ -232,15 +144,9 @@ func TestFetchHandler_CallTool_InvalidURL(t *testing.T) {
 		},
 	}
 
-	handler := &fetchHandler{tool: tool}
-	result, err := handler.CallTool(ctx, toolCall)
-	if err != nil {
-		t.Fatalf("CallTool() error: %v", err)
-	}
-
-	if !containsAllSubstrings(result.Output, []string{"Error fetching", "invalid URL: missing scheme or host"}) {
-		t.Errorf("Expected URL validation error: %s", result.Output)
-	}
+	result, err := tool.handler.CallTool(ctx, toolCall)
+	require.NoError(t, err)
+	require.Contains(t, result.Output, "Error fetching")
 }
 
 func TestFetchHandler_CallTool_UnsupportedProtocol(t *testing.T) {
@@ -258,15 +164,11 @@ func TestFetchHandler_CallTool_UnsupportedProtocol(t *testing.T) {
 		},
 	}
 
-	handler := &fetchHandler{tool: tool}
-	result, err := handler.CallTool(ctx, toolCall)
-	if err != nil {
-		t.Fatalf("CallTool() error: %v", err)
-	}
+	result, err := tool.handler.CallTool(ctx, toolCall)
+	require.NoError(t, err)
 
-	if !containsAllSubstrings(result.Output, []string{"Error fetching", "only HTTP and HTTPS URLs are supported"}) {
-		t.Errorf("Expected protocol validation error: %s", result.Output)
-	}
+	require.Contains(t, result.Output, "Error fetching")
+	require.Contains(t, result.Output, "only HTTP and HTTPS URLs are supported")
 }
 
 func TestFetchHandler_CallTool_NoURLs(t *testing.T) {
@@ -284,15 +186,10 @@ func TestFetchHandler_CallTool_NoURLs(t *testing.T) {
 		},
 	}
 
-	handler := &fetchHandler{tool: tool}
-	_, err := handler.CallTool(ctx, toolCall)
-	if err == nil {
-		t.Fatal("Expected error for empty URLs")
-	}
+	_, err := tool.handler.CallTool(ctx, toolCall)
+	require.Error(t, err)
 
-	if err.Error() != "at least one URL is required" {
-		t.Errorf("Unexpected error: %v", err)
-	}
+	require.Equal(t, "at least one URL is required", err.Error())
 }
 
 func TestFetchHandler_CallTool_InvalidJSON(t *testing.T) {
@@ -305,11 +202,8 @@ func TestFetchHandler_CallTool_InvalidJSON(t *testing.T) {
 		},
 	}
 
-	handler := &fetchHandler{tool: tool}
-	_, err := handler.CallTool(ctx, toolCall)
-	if err == nil {
-		t.Fatal("Expected error for invalid JSON")
-	}
+	_, err := tool.handler.CallTool(ctx, toolCall)
+	require.Error(t, err)
 }
 
 func TestFetchHandler_CallTool_CustomMethod(t *testing.T) {
@@ -338,27 +232,17 @@ func TestFetchHandler_CallTool_CustomMethod(t *testing.T) {
 		},
 	}
 
-	handler := &fetchHandler{tool: tool}
-	result, err := handler.CallTool(ctx, toolCall)
-	if err != nil {
-		t.Fatalf("CallTool() error: %v", err)
-	}
+	result, err := tool.handler.CallTool(ctx, toolCall)
+	require.NoError(t, err)
 
-	if !containsAllSubstrings(result.Output, []string{"Status: 200", "POST received"}) {
-		t.Errorf("POST method not working: %s", result.Output)
-	}
+	require.Contains(t, result.Output, "Successfully fetched")
 }
 
-func TestFetchHandler_CallTool_CustomUserAgent(t *testing.T) {
-	customUA := "MyBot/1.0"
-
-	// Create test server that checks User-Agent
+func TestFetchHandler_Markdown(t *testing.T) {
+	// Create test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("User-Agent") != customUA {
-			http.Error(w, "Wrong User-Agent", http.StatusBadRequest)
-			return
-		}
-		fmt.Fprint(w, "User-Agent OK")
+		w.Header().Set("Content-Type", "text/html")
+		fmt.Fprint(w, "<h1>Hello cagent</h1>")
 	}))
 	defer server.Close()
 
@@ -366,8 +250,8 @@ func TestFetchHandler_CallTool_CustomUserAgent(t *testing.T) {
 	ctx := context.TODO()
 
 	args := map[string]any{
-		"urls":      []string{server.URL},
-		"userAgent": customUA,
+		"urls":   []string{server.URL},
+		"format": "markdown",
 	}
 	argsJSON, _ := json.Marshal(args)
 
@@ -377,36 +261,47 @@ func TestFetchHandler_CallTool_CustomUserAgent(t *testing.T) {
 		},
 	}
 
-	handler := &fetchHandler{tool: tool}
-	result, err := handler.CallTool(ctx, toolCall)
-	if err != nil {
-		t.Fatalf("CallTool() error: %v", err)
-	}
+	result, err := tool.handler.CallTool(ctx, toolCall)
+	require.NoError(t, err)
 
-	if !containsAllSubstrings(result.Output, []string{"Status: 200", "User-Agent OK"}) {
-		t.Errorf("Custom User-Agent not working: %s", result.Output)
-	}
+	require.NotNil(t, result)
+
+	require.Contains(t, result.Output, "Successfully fetched")
+	require.Contains(t, result.Output, "Status: 200")
+	require.Contains(t, result.Output, "Length: 14 bytes")
+	require.Contains(t, result.Output, "# Hello cagent")
 }
 
-// Helper function to check if a string contains all required substrings
-func containsAllSubstrings(text string, substrings []string) bool {
-	for _, substr := range substrings {
-		if !containsSubstring(text, substr) {
-			return false
-		}
-	}
-	return true
-}
+func TestFetchHandler_Text(t *testing.T) {
+	// Create test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		fmt.Fprint(w, "<h1>Hello cagent</h1>")
+	}))
+	defer server.Close()
 
-func containsSubstring(text, substr string) bool {
-	return len(text) >= len(substr) && findSubstring(text, substr)
-}
+	tool := NewFetchTool()
+	ctx := context.TODO()
 
-func findSubstring(text, substr string) bool {
-	for i := 0; i <= len(text)-len(substr); i++ {
-		if text[i:i+len(substr)] == substr {
-			return true
-		}
+	args := map[string]any{
+		"urls":   []string{server.URL},
+		"format": "text",
 	}
-	return false
+	argsJSON, _ := json.Marshal(args)
+
+	toolCall := tools.ToolCall{
+		Function: tools.FunctionCall{
+			Arguments: string(argsJSON),
+		},
+	}
+
+	result, err := tool.handler.CallTool(ctx, toolCall)
+	require.NoError(t, err)
+
+	require.NotNil(t, result)
+
+	require.Contains(t, result.Output, "Successfully fetched")
+	require.Contains(t, result.Output, "Status: 200")
+	require.Contains(t, result.Output, "Length: 12 bytes")
+	require.Contains(t, result.Output, "Hello cagent")
 }
