@@ -1060,13 +1060,14 @@ func (s *Server) resumeCodeReceivedOauth(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": fmt.Sprintf("runtime not found: %s", sessionID)})
 	}
 
-	// Send the authorization code to the runtime's OAuth channel
-	if err := rt.ResumeCodeReceived(c.Request().Context(), code); err != nil {
+	// Send the authorization code and state to the runtime's OAuth channel
+	// The state will be validated in the OAuth manager to ensure it matches the original state
+	if err := rt.ResumeCodeReceived(c.Request().Context(), code, state); err != nil {
 		slog.Error("Failed to send OAuth code to runtime", "session_id", sessionID, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "OAuth flow not in progress"})
 	}
 
-	slog.Debug("OAuth authorization code sent to runtime", "session_id", sessionID)
+	slog.Debug("OAuth authorization code and state sent to runtime", "session_id", sessionID)
 
 	return c.JSON(http.StatusOK, map[string]string{"message": "OAuth code received"})
 }
