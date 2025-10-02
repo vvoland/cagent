@@ -237,17 +237,29 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		content += "\n\n" + "Today's date: " + time.Now().Format("2006-01-02")
 	}
 
-	if a.AddEnvironmentInfo() {
-		wd := s.WorkingDir
-		if wd == "" {
-			var err error
-			wd, err = os.Getwd()
-			if err != nil {
-				slog.Error("getting current working directory for environment info", "error", err)
-			}
+	wd := s.WorkingDir
+	if wd == "" {
+		var err error
+		wd, err = os.Getwd()
+		if err != nil {
+			slog.Error("getting current working directory for environment info", "error", err)
 		}
-		if wd != "" {
+	}
+	if wd != "" {
+		if a.AddEnvironmentInfo() {
 			content += "\n\n" + getEnvironmentInfo(wd)
+		}
+
+		for _, prompt := range a.AddPromptFiles() {
+			additionalPrompt, err := readPromptFile(wd, prompt)
+			if err != nil {
+				slog.Error("reading prompt file", "file", prompt, "error", err)
+				continue
+			}
+
+			if additionalPrompt == "" {
+				content += "\n\n" + additionalPrompt
+			}
 		}
 	}
 
