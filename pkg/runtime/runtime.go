@@ -53,8 +53,8 @@ type Runtime interface {
 	Summarize(ctx context.Context, sess *session.Session, events chan Event)
 	// ResumeStartAuthorizationFlow signals that user confirmation has been given to start the OAuth flow
 	ResumeStartAuthorizationFlow(_ context.Context, confirmation bool)
-	// ResumeCodeReceived sends the OAuth authorization code to the runtime after user has completed the OAuth flow in their browser
-	ResumeCodeReceived(_ context.Context, code string) error
+	// ResumeCodeReceived sends the OAuth authorization code and state to the runtime after user has completed the OAuth flow in their browser
+	ResumeCodeReceived(_ context.Context, code, state string) error
 }
 
 // runtime manages the execution of agents
@@ -427,11 +427,11 @@ func (r *runtime) ResumeStartAuthorizationFlow(ctx context.Context, confirmation
 	}
 }
 
-func (r *runtime) ResumeCodeReceived(ctx context.Context, code string) error {
-	slog.Debug("Sending OAuth authorization code to runtime", "agent", r.currentAgent)
+func (r *runtime) ResumeCodeReceived(ctx context.Context, code, state string) error {
+	slog.Debug("Sending OAuth authorization code and state to runtime", "agent", r.currentAgent)
 
 	if r.oauthManager != nil {
-		return r.oauthManager.SendAuthorizationCode(ctx, code)
+		return r.oauthManager.SendAuthorizationCode(ctx, code, state)
 	}
 
 	return fmt.Errorf("OAuth flow not in progress")
