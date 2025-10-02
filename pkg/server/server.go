@@ -79,6 +79,8 @@ func New(sessionStore session.Store, runConfig config.RuntimeConfig, teams map[s
 
 	group := e.Group("/api")
 
+	// Health check endpoint
+	group.GET("/ping", s.ping)
 	// List all available agents
 	group.GET("/agents", s.getAgents)
 	// Get an agent by id
@@ -136,6 +138,10 @@ func (s *Server) Serve(_ context.Context, ln net.Listener) error {
 	}
 
 	return nil
+}
+
+func (s *Server) ping(c echo.Context) error {
+	return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (s *Server) getDesktopToken(c echo.Context) error {
