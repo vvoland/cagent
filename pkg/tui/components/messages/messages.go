@@ -35,7 +35,6 @@ type Model interface {
 	AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, toolDef tools.Tool, status types.ToolStatus) tea.Cmd
 	AddToolResult(msg *runtime.ToolCallResponseEvent, status types.ToolStatus) tea.Cmd
 	AppendToLastMessage(agentName string, messageType types.MessageType, content string) tea.Cmd
-	ClearMessages()
 	ScrollToBottom() tea.Cmd
 	AddShellOutputMessage(content string) tea.Cmd
 	AddSystemMessage(content string) tea.Cmd
@@ -73,7 +72,7 @@ type model struct {
 // New creates a new message list component
 func New(a *app.App) Model {
 	return &model{
-		width:         80,
+		width:         120,
 		height:        24,
 		app:           a,
 		renderedItems: make(map[int]renderedItem),
@@ -601,16 +600,6 @@ func (m *model) AppendToLastMessage(agentName string, messageType types.MessageT
 		}
 		return cmd
 	}
-}
-
-// ClearMessages clears all messages
-func (m *model) ClearMessages() {
-	m.messages = nil
-	m.views = nil
-	m.scrollOffset = 0
-	m.rendered = ""
-	m.totalHeight = 0
-	m.renderedItems = make(map[int]renderedItem)
 }
 
 // ScrollToBottom scrolls to the bottom of the chat

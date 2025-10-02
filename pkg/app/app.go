@@ -22,6 +22,7 @@ type App struct {
 	firstMessage     *string
 	events           chan tea.Msg
 	throttleDuration time.Duration
+	cancel           context.CancelFunc
 }
 
 func New(title, agentFilename string, rt runtime.Runtime, agents *team.Team, sess *session.Session, firstMessage *string) *App {
@@ -50,7 +51,8 @@ func (a *App) Title() string {
 }
 
 // Run one agent loop
-func (a *App) Run(ctx context.Context, message string) {
+func (a *App) Run(ctx context.Context, cancel context.CancelFunc, message string) {
+	a.cancel = cancel
 	go func() {
 		// Special shell command
 		if strings.HasPrefix(message, "!") {
@@ -62,6 +64,9 @@ func (a *App) Run(ctx context.Context, message string) {
 		// User message
 		a.session.AddMessage(session.UserMessage(a.agentFilename, message))
 		for event := range a.runtime.RunStream(ctx, a.session) {
+			if ctx.Err() != nil {
+				return
+			}
 			a.events <- event
 		}
 	}()
@@ -86,6 +91,24 @@ func (a *App) Subscribe(ctx context.Context, program *tea.Program) {
 func (a *App) Resume(confirmationType string) {
 	if a.runtime != nil {
 		a.runtime.Resume(context.Background(), confirmationType)
+	}
+}
+
+func (a *App) NewSession() {
+	if a.cancel != nil {
+		a.cancel()
+		a.cancel = nil
+	}
+	a.session = session.New()
+}
+
+func (a *App) CompactSession() {
+	if a.runtime != nil && a.session != nil {
+		events := make(chan runtime.Event, 100)
+		a.runtime.Summarize(context.Background(), a.session, events)
+		for event := range events {
+			a.events <- event
+		}
 	}
 }
 
