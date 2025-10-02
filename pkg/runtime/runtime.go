@@ -161,17 +161,25 @@ func (r *runtime) registerDefaultTools() {
 
 // handleOAuthAuthorizationFlow handles a single OAuth authorization flow
 func (r *runtime) handleOAuthAuthorizationFlow(ctx context.Context, sess *session.Session, oauthRequiredErr *oauth.AuthorizationRequiredError, events chan Event) error {
-	// Create OAuth manager if it doesn't exist
+	// Create emitAuthRequired callback with current events channel
+	emitAuthRequired := func(serverURL, serverType, status string) {
+		events <- AuthorizationRequired(serverURL, serverType, status, r.currentAgent)
+	}
+
+	// Create OAuth manager if it doesn't exist, or update callback if it does
 	if r.oauthManager == nil {
-		emitAuthRequired := func(serverURL, serverType, status string) {
-			events <- AuthorizationRequired(serverURL, serverType, status, r.currentAgent)
-		}
 		r.oauthManager = oauth.NewManager(emitAuthRequired, oauth.WithManagedServer(r.managedOAuth))
 		defer func() {
 			if cleanupErr := r.oauthManager.Cleanup(ctx); cleanupErr != nil {
 				slog.Error("Failed to cleanup OAuth manager", "error", cleanupErr)
 			}
 		}()
+	} else {
+		// Update the callback to use the current events channel
+		// This is important when OAuth manager is reused across sub-sessions (e.g., during task transfer)
+		// If we don't update the callback, events may be sent to a closed channel by a previous session
+		slog.Debug("Reusing existing OAuth manager, updating callback with current events channel")
+		r.oauthManager.UpdateEmitCallback(emitAuthRequired)
 	}
 
 	// Use rootSessionID for OAuth state encoding to ensure callback can find the runtime
