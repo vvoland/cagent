@@ -159,41 +159,6 @@ func (r *runtime) registerDefaultTools() {
 	slog.Debug("Registered default tools", "count", len(r.toolMap))
 }
 
-// handleOAuthAuthorizationFlow handles a single OAuth authorization flow
-func (r *runtime) handleOAuthAuthorizationFlow(ctx context.Context, sess *session.Session, oauthRequiredErr *oauth.AuthorizationRequiredError, events chan Event) error {
-	// Create emitAuthRequired callback with current events channel
-	emitAuthRequired := func(serverURL, serverType, status string) {
-		events <- AuthorizationRequired(serverURL, serverType, status, r.currentAgent)
-	}
-
-	// Create OAuth manager if it doesn't exist, or update callback if it does
-	if r.oauthManager == nil {
-		r.oauthManager = oauth.NewManager(emitAuthRequired, oauth.WithManagedServer(r.managedOAuth))
-		defer func() {
-			if cleanupErr := r.oauthManager.Cleanup(ctx); cleanupErr != nil {
-				slog.Error("Failed to cleanup OAuth manager", "error", cleanupErr)
-			}
-		}()
-	} else {
-		// Update the callback to use the current events channel
-		// This is important when OAuth manager is reused across sub-sessions (e.g., during task transfer)
-		// If we don't update the callback, events may be sent to a closed channel by a previous session
-		slog.Debug("Reusing existing OAuth manager, updating callback with current events channel")
-		r.oauthManager.UpdateEmitCallback(emitAuthRequired)
-	}
-
-	// Use rootSessionID for OAuth state encoding to ensure callback can find the runtime
-	// This is important when OAuth is triggered from a sub-session during task transfer
-	sessionIDForOAuth := r.rootSessionID
-	if sessionIDForOAuth == "" {
-		// Fallback to current session ID if rootSessionID wasn't set (backward compatibility)
-		sessionIDForOAuth = sess.ID
-		slog.Warn("rootSessionID not set, using current session ID for OAuth", "session_id", sess.ID)
-	}
-
-	return r.oauthManager.HandleAuthorizationFlow(ctx, sessionIDForOAuth, oauthRequiredErr)
-}
-
 func (r *runtime) finalizeEventChannel(ctx context.Context, sess *session.Session, events chan Event) {
 	defer close(events)
 
@@ -381,43 +346,54 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 }
 
 func (r *runtime) getTools(ctx context.Context, sess *session.Session, events chan Event, a *agent.Agent, sessionSpan trace.Span) ([]tools.Tool, error) {
-	// Retry loop for getting agent tools with OAuth handling
+	// Create emitAuthRequired callback with current events channel
+	emitAuthRequired := func(serverURL, serverType, status string) {
+		events <- AuthorizationRequired(serverURL, serverType, status, r.currentAgent)
+	}
+
+	// Create OAuth manager if it doesn't exist, or update callback if it does
+	if r.oauthManager == nil {
+		r.oauthManager = oauth.NewManager(emitAuthRequired, oauth.WithManagedServer(r.managedOAuth))
+		defer func() {
+			if cleanupErr := r.oauthManager.Cleanup(ctx); cleanupErr != nil {
+				slog.Error("Failed to cleanup OAuth manager", "error", cleanupErr)
+			}
+		}()
+	} else {
+		// Update the callback to use the current events channel
+		// This is important when OAuth manager is reused across sub-sessions (e.g., during task transfer)
+		// If we don't update the callback, events may be sent to a closed channel by a previous session
+		slog.Debug("Reusing existing OAuth manager, updating callback with current events channel")
+		r.oauthManager.UpdateEmitCallback(emitAuthRequired)
+	}
+
+	// Use rootSessionID for OAuth state encoding to ensure callback can find the runtime
+	// This is important when OAuth is triggered from a sub-session during task transfer
+	sessionIDForOAuth := r.rootSessionID
+	if sessionIDForOAuth == "" {
+		// Fallback to current session ID if rootSessionID wasn't set (backward compatibility)
+		sessionIDForOAuth = sess.ID
+		slog.Warn("rootSessionID not set, using current session ID for OAuth", "session_id", sess.ID)
+	}
+
+	// Execute tool retrieval with automatic OAuth handling
 	var agentTools []tools.Tool
-	for {
-		var err error
-		agentTools, err = a.Tools(ctx)
+	err := r.oauthManager.ExecuteWithOAuth(ctx, sessionIDForOAuth, func() error {
+		tools, err := a.Tools(ctx)
 		if err != nil {
 			slog.Error("Failed to get agent tools", "agent", a.Name(), "error", err)
 			sessionSpan.RecordError(err)
 			sessionSpan.SetStatus(codes.Error, "failed to get tools")
 			telemetry.RecordError(ctx, err.Error())
-
-			// Check if this is an OAuth authorization error with server info
-			if err, ok := oauth.MayBeOAuthError(err); ok {
-				oauthRequiredErr := err.(*oauth.AuthorizationRequiredError)
-				// Handle OAuth authorization flow
-				oauthFlowErr := r.handleOAuthAuthorizationFlow(ctx, sess, oauthRequiredErr, events)
-				if oauthFlowErr != nil {
-					if errors.Is(oauthFlowErr, context.Canceled) || errors.Is(oauthFlowErr, context.DeadlineExceeded) {
-						slog.Debug("Context cancelled during OAuth authorization", "agent", a.Name())
-						return nil, oauthFlowErr
-					}
-					slog.Error("OAuth authorization process failed", "agent", a.Name(), "error", oauthFlowErr)
-					return nil, oauthFlowErr
-				}
-
-				slog.Debug("OAuth authorization completed, retrying tool retrieval", "agent", a.Name(), "server", oauthRequiredErr.ServerURL)
-				// Continue the loop to retry getting tools
-				continue
-			} else {
-				// Non-OAuth error, cannot recover
-				return nil, err
-			}
-		} else {
-			// Successfully retrieved tools, exit the retry loop
-			break
+			return err
 		}
+		agentTools = tools
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
+
 	slog.Debug("Retrieved agent tools", "agent", a.Name(), "tool_count", len(agentTools))
 	return agentTools, nil
 }
