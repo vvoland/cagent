@@ -159,6 +159,35 @@ func (r *runtime) registerDefaultTools() {
 	slog.Debug("Registered default tools", "count", len(r.toolMap))
 }
 
+// ensureOAuthManager ensures the OAuth manager is initialized and configured with the current events channel.
+// Returns a cleanup function that should be deferred by the caller.
+func (r *runtime) ensureOAuthManager(ctx context.Context, events chan Event) func() {
+	// Create emitAuthRequired callback with current events channel
+	emitAuthRequired := func(serverURL, serverType, status string) {
+		events <- AuthorizationRequired(serverURL, serverType, status, r.currentAgent)
+	}
+
+	// Create OAuth manager if it doesn't exist, or update callback if it does
+	if r.oauthManager == nil {
+		r.oauthManager = oauth.NewManager(emitAuthRequired, oauth.WithManagedServer(r.managedOAuth))
+	} else {
+		// Update the callback to use the current events channel
+		// This is important when OAuth manager is reused across sub-sessions (e.g., during task transfer)
+		// If we don't update the callback, events may be sent to a closed channel by a previous session
+		slog.Debug("Reusing existing OAuth manager, updating callback with current events channel")
+		r.oauthManager.UpdateEmitCallback(emitAuthRequired)
+	}
+
+	// Return cleanup function for caller to defer
+	return func() {
+		if r.oauthManager != nil {
+			if cleanupErr := r.oauthManager.Cleanup(ctx); cleanupErr != nil {
+				slog.Error("Failed to cleanup OAuth manager", "error", cleanupErr)
+			}
+		}
+	}
+}
+
 func (r *runtime) finalizeEventChannel(ctx context.Context, sess *session.Session, events chan Event) {
 	defer close(events)
 
@@ -346,26 +375,7 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 }
 
 func (r *runtime) getTools(ctx context.Context, sess *session.Session, events chan Event, a *agent.Agent, sessionSpan trace.Span) ([]tools.Tool, error) {
-	// Create emitAuthRequired callback with current events channel
-	emitAuthRequired := func(serverURL, serverType, status string) {
-		events <- AuthorizationRequired(serverURL, serverType, status, r.currentAgent)
-	}
-
-	// Create OAuth manager if it doesn't exist, or update callback if it does
-	if r.oauthManager == nil {
-		r.oauthManager = oauth.NewManager(emitAuthRequired, oauth.WithManagedServer(r.managedOAuth))
-		defer func() {
-			if cleanupErr := r.oauthManager.Cleanup(ctx); cleanupErr != nil {
-				slog.Error("Failed to cleanup OAuth manager", "error", cleanupErr)
-			}
-		}()
-	} else {
-		// Update the callback to use the current events channel
-		// This is important when OAuth manager is reused across sub-sessions (e.g., during task transfer)
-		// If we don't update the callback, events may be sent to a closed channel by a previous session
-		slog.Debug("Reusing existing OAuth manager, updating callback with current events channel")
-		r.oauthManager.UpdateEmitCallback(emitAuthRequired)
-	}
+	defer r.ensureOAuthManager(ctx, events)()
 
 	// Use rootSessionID for OAuth state encoding to ensure callback can find the runtime
 	// This is important when OAuth is triggered from a sub-session during task transfer
