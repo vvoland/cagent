@@ -774,7 +774,6 @@ func (r *runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.T
 // runAgentTool executes runtime-provided tools like transfer_task.
 // These are internal tools that do not make external calls requiring OAuth,
 // so they don't need to be wrapped with ExecuteWithOAuth.
-// Only external toolset tools (MCP, remote services) may require OAuth during execution.
 func (r *runtime) runAgentTool(ctx context.Context, handler ToolHandler, sess *session.Session, toolCall tools.ToolCall, events chan Event, a *agent.Agent) {
 	// Start a child span for runtime-provided tool handler execution
 	ctx, span := r.startSpan(ctx, "runtime.tool.handler.runtime", trace.WithAttributes(
