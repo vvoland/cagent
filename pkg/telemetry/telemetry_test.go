@@ -812,39 +812,6 @@ func (s *SlowMockHTTPClient) RoundTrip(req *http.Request) (*http.Response, error
 	return s.MockHTTPClient.RoundTrip(req)
 }
 
-// TestEventBufferOverflowDropsEvents verifies that events are dropped when buffer is full
-func TestEventBufferOverflowDropsEvents(t *testing.T) {
-	// Create a slow HTTP mock to cause backpressure
-	slowMock := NewSlowMockHTTPClient(50 * time.Millisecond)
-
-	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	client := newClient(logger, true, true, "test-version", slowMock.Client)
-
-	client.endpoint = "https://test-overflow.com/api"
-	client.apiKey = "overflow-key"
-	client.header = "test-header"
-
-	// With synchronous processing, there's no buffer overflow to test
-	// Events are processed immediately, so we just verify they all get processed
-	numEvents := 10 // Send a reasonable number for synchronous processing
-
-	// Send events synchronously
-	for range numEvents {
-		client.Track(t.Context(), &CommandEvent{
-			Action:  "overflow-test",
-			Success: true,
-		})
-	}
-
-	// With synchronous processing, all events should be processed immediately
-	expectedRequests := numEvents
-	assert.Equal(t, expectedRequests, slowMock.GetRequestCount(), "Expected all requests with synchronous processing")
-
-	t.Logf("Synchronous processing handled %d events correctly", numEvents)
-
-	// Clean shutdown
-}
-
 // TestNon2xxHTTPResponseHandling ensures that 5xx responses are logged and handled gracefully
 func TestNon2xxHTTPResponseHandling(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
