@@ -183,12 +183,16 @@ func (m *manager) performOAuthAuthorization(ctx context.Context, sessionID strin
 	slog.Debug("Waiting for OAuth authorization code")
 	var code string
 
-	// Ensure callback server is started if needed
-	if err := m.ensureCallbackServer(ctx); err != nil {
-		slog.Warn("Failed to start callback server, falling back to manual input", "error", err)
-	}
-
 	if m.managedServer {
+		// Ensure callback server is started if needed
+		if err := m.ensureCallbackServer(ctx); err != nil {
+			slog.Warn("Failed to start callback server, falling back to manual input", "error", err)
+		}
+
+		defer func() {
+			SetGlobalCallbackServer(nil)
+		}()
+
 		// Check if we have a callback server running (either global or our own)
 		if callbackServer := m.getCallbackServer(); callbackServer != nil {
 			slog.Debug("Using callback server for OAuth authorization")
