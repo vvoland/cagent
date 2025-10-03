@@ -693,6 +693,9 @@ func (r *runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 	}
 }
 
+// runTool executes agent tools from toolsets (MCP, filesystem, etc.).
+// Tool execution may require OAuth authorization, so the handler call is wrapped
+// with ExecuteWithOAuth to automatically handle authorization flows and retries.
 func (r *runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.ToolCall, events chan Event, sess *session.Session, a *agent.Agent) {
 	// Start a child span for the actual tool handler execution
 	ctx, span := r.startSpan(ctx, "runtime.tool.handler", trace.WithAttributes(
@@ -703,10 +706,32 @@ func (r *runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.T
 	))
 	defer span.End()
 
+	defer r.ensureOAuthManager(ctx, events)()
+
+	// Resolve session ID for OAuth state encoding
+	sessionIDForOAuth := r.rootSessionID
+	if sessionIDForOAuth == "" {
+		sessionIDForOAuth = sess.ID
+	}
+
 	events <- ToolCall(toolCall, tool, a.Name())
+
+	var res *tools.ToolCallResult
+	var err error
+	var duration time.Duration
+
+	// Execute tool with OAuth handling
 	start := time.Now()
-	res, err := tool.Handler(ctx, toolCall)
-	duration := time.Since(start)
+	oauthErr := r.oauthManager.ExecuteWithOAuth(ctx, sessionIDForOAuth, func() error {
+		var handlerErr error
+		res, handlerErr = tool.Handler(ctx, toolCall)
+		return handlerErr
+	})
+	duration = time.Since(start)
+
+	if oauthErr != nil {
+		err = oauthErr
+	}
 
 	telemetry.RecordToolCall(ctx, toolCall.Function.Name, sess.ID, a.Name(), duration, err)
 
@@ -746,6 +771,10 @@ func (r *runtime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.T
 	sess.AddMessage(session.NewAgentMessage(a, &toolResponseMsg))
 }
 
+// runAgentTool executes runtime-provided tools like transfer_task.
+// These are internal tools that do not make external calls requiring OAuth,
+// so they don't need to be wrapped with ExecuteWithOAuth.
+// Only external toolset tools (MCP, remote services) may require OAuth during execution.
 func (r *runtime) runAgentTool(ctx context.Context, handler ToolHandler, sess *session.Session, toolCall tools.ToolCall, events chan Event, a *agent.Agent) {
 	// Start a child span for runtime-provided tool handler execution
 	ctx, span := r.startSpan(ctx, "runtime.tool.handler.runtime", trace.WithAttributes(
