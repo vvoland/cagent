@@ -349,7 +349,7 @@ func createTool(ctx context.Context, toolset latest.Toolset, a *latest.AgentConf
 			headers[k] = expanded
 		}
 
-		return mcp.NewToolsetRemote(toolset.Remote.URL, toolset.Remote.TransportType, headers, toolset.Tools, runtimeConfig.RedirectURI)
+		return mcp.NewRemoteToolset(toolset.Remote.URL, toolset.Remote.TransportType, headers, toolset.Tools, runtimeConfig.RedirectURI)
 
 	default:
 		return nil, fmt.Errorf("unknown toolset type: %s", toolset.Type)
