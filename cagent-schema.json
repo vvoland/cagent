@@ -201,6 +201,10 @@
             "fetch"
           ]
         },
+        "instruction": {
+          "type": "string",
+          "description": "Additional instruction on how to use this toolset"
+        },
         "ref": {
           "type": "string",
           "description": "Reference to external tool (e.g., docker:context7)",
