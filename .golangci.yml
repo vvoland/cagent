@@ -25,6 +25,7 @@ linters:
     - unused
     - usestdlibvars
     - forbidigo
+    - iotamixing
   settings:
     forbidigo:
       forbid:
