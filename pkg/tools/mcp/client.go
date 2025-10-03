@@ -16,7 +16,6 @@ import (
 )
 
 type mcpClient interface {
-	Start(ctx context.Context) error
 	Initialize(ctx context.Context, request mcp.InitializeRequest) (*mcp.InitializeResult, error)
 	ListTools(ctx context.Context, request mcp.ListToolsRequest) (*mcp.ListToolsResult, error)
 	ListPrompts(ctx context.Context, request mcp.ListPromptsRequest) (*mcp.ListPromptsResult, error)
@@ -37,13 +36,7 @@ type Client struct {
 }
 
 // Start initializes and starts the MCP server connection
-func (c *Client) Start(ctx context.Context) error {
-	slog.Debug("Starting MCP client", c.logType, c.logId)
-
-	if err := c.client.Start(ctx); err != nil {
-		return err
-	}
-
+func (c *Client) Initialize(ctx context.Context) (*mcp.InitializeResult, error) {
 	slog.Debug("Initializing MCP client", c.logType, c.logId)
 	initRequest := mcp.InitializeRequest{}
 	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
@@ -52,9 +45,11 @@ func (c *Client) Start(ctx context.Context) error {
 		Version: "1.0.0",
 	}
 
+	var result *mcp.InitializeResult
 	const maxRetries = 3
 	for attempt := 0; ; attempt++ {
-		_, err := c.client.Initialize(ctx, initRequest)
+		var err error
+		result, err = c.client.Initialize(ctx, initRequest)
 		if err == nil {
 			break
 		}
@@ -64,23 +59,23 @@ func (c *Client) Start(ctx context.Context) error {
 		// Only retry when initialization fails due to sending the initialized notification.
 		if !isInitNotificationSendError(err) {
 			slog.Error("Failed to initialize MCP client", "error", err)
-			return fmt.Errorf("failed to initialize MCP client: %w", err)
+			return nil, fmt.Errorf("failed to initialize MCP client: %w", err)
 		}
 		if attempt >= maxRetries {
 			slog.Error("Failed to initialize MCP client after retries", "error", err)
-			return fmt.Errorf("failed to initialize MCP client after retries: %w", err)
+			return nil, fmt.Errorf("failed to initialize MCP client after retries: %w", err)
 		}
 		backoff := time.Duration(200*(attempt+1)) * time.Millisecond
 		slog.Debug("MCP initialize failed to send initialized notification; retrying", "id", c.logId, "attempt", attempt+1, "backoff_ms", backoff.Milliseconds())
 		select {
 		case <-time.After(backoff):
 		case <-ctx.Done():
-			return fmt.Errorf("failed to initialize MCP client: %w", ctx.Err())
+			return nil, fmt.Errorf("failed to initialize MCP client: %w", ctx.Err())
 		}
 	}
 
 	slog.Debug("MCP client started and initialized successfully")
-	return nil
+	return result, nil
 }
 
 // isInitNotificationSendError returns true if initialization failed while sending the

@@ -208,7 +208,19 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 	go func() {
 		telemetry.RecordSessionStart(ctx, r.currentAgent, sess.ID)
 
+		ctx, sessionSpan := r.startSpan(ctx, "runtime.session", trace.WithAttributes(
+			attribute.String("agent", r.currentAgent),
+			attribute.String("session.id", sess.ID),
+		))
+		defer sessionSpan.End()
+
 		a := r.team.Agent(r.currentAgent)
+
+		agentTools, err := r.getTools(ctx, sess, events, a, sessionSpan)
+		if err != nil {
+			events <- Error(fmt.Sprintf("failed to get tools: %v", err))
+			return
+		}
 
 		messages := sess.GetMessages(a)
 		if sess.SendUserMessage {
@@ -219,23 +231,11 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 
 		defer r.finalizeEventChannel(ctx, sess, events)
 
-		ctx, sessionSpan := r.startSpan(ctx, "runtime.session", trace.WithAttributes(
-			attribute.String("agent", r.currentAgent),
-			attribute.String("session.id", sess.ID),
-		))
-		defer sessionSpan.End()
-
 		r.registerDefaultTools()
 
 		iteration := 0
 		// Use a runtime copy of maxIterations so we don't modify the session's persistent config
 		runtimeMaxIterations := sess.MaxIterations
-
-		agentTools, err := r.getTools(ctx, sess, events, a, sessionSpan)
-		if err != nil {
-			events <- Error(fmt.Sprintf("failed to get tools: %v", err))
-			return
-		}
 
 		for {
 			// Check iteration limit

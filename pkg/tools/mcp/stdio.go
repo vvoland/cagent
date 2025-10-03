@@ -68,10 +68,6 @@ func newStdioCmdClient(command string, env, args []string) *stdioMCPClient {
 	}
 }
 
-func (c *stdioMCPClient) Start(context.Context) error {
-	return nil
-}
-
 func (c *stdioMCPClient) Initialize(ctx context.Context, request mcp.InitializeRequest) (*mcp.InitializeResult, error) { //nolint:gocritic
 	if c.initialized.Load() {
 		return nil, errors.New("client already initialized")

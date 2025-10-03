@@ -238,7 +238,7 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 			return nil, err
 		}
 
-		t = append(t, tool)
+		t = append(t, WithInstructions(tool, a.Instruction))
 	}
 
 	return t, nil
