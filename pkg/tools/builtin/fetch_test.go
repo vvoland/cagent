@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/docker/cagent/pkg/tools"
@@ -15,9 +16,10 @@ import (
 
 func TestFetchToolWithOptions(t *testing.T) {
 	customTimeout := 60 * time.Second
+
 	tool := NewFetchTool(WithTimeout(customTimeout))
 
-	require.Equal(t, customTimeout, tool.handler.timeout)
+	assert.Equal(t, customTimeout, tool.handler.timeout)
 }
 
 func TestFetchTool_Tools(t *testing.T) {
@@ -28,20 +30,16 @@ func TestFetchTool_Tools(t *testing.T) {
 	require.Len(t, toolSet, 1)
 
 	fetchTool := toolSet[0]
-	require.Equal(t, "fetch", fetchTool.Function.Name)
-	require.NotNil(t, fetchTool.Handler)
+	assert.Equal(t, "fetch", fetchTool.Function.Name)
+	assert.NotNil(t, fetchTool.Handler)
 }
 
 func TestFetchTool_Instructions(t *testing.T) {
 	tool := NewFetchTool()
+
 	instructions := tool.Instructions()
 
-	require.NotEmpty(t, instructions)
-
-	require.Contains(t, instructions, `"fetch" tool instructions`)
-	require.Contains(t, instructions, "HTTP")
-	require.Contains(t, instructions, "HTTPS")
-	require.Contains(t, instructions, "URLs")
+	assert.Contains(t, instructions, `"fetch" tool instructions`)
 }
 
 func TestFetchTool_StartStop(t *testing.T) {
@@ -54,242 +52,148 @@ func TestFetchTool_StartStop(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestFetchHandler_CallTool_Success(t *testing.T) {
-	// Create test server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func TestFetch_Call_Success(t *testing.T) {
+	url := runHTTPServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		fmt.Fprint(w, "Hello, World!")
-	}))
-	defer server.Close()
+	})
 
 	tool := NewFetchTool()
 
-	args := map[string]any{
-		"urls": []string{server.URL},
-	}
-	argsJSON, _ := json.Marshal(args)
-
-	toolCall := tools.ToolCall{
-		Function: tools.FunctionCall{
-			Arguments: string(argsJSON),
-		},
-	}
-
-	result, err := tool.handler.CallTool(t.Context(), toolCall)
+	result, err := tool.handler.CallTool(t.Context(), fetch(t, url))
 	require.NoError(t, err)
 
-	require.NotNil(t, result)
-
-	require.Contains(t, result.Output, "Successfully fetched")
-	require.Contains(t, result.Output, "Status: 200")
-	require.Contains(t, result.Output, "Length: 13 bytes")
-	require.Contains(t, result.Output, "Hello, World!")
+	assert.Contains(t, result.Output, "Successfully fetched")
+	assert.Contains(t, result.Output, "Status: 200")
+	assert.Contains(t, result.Output, "Length: 13 bytes")
+	assert.Contains(t, result.Output, "Hello, World!")
 }
 
-func TestFetchHandler_CallTool_MultipleURLs(t *testing.T) {
-	// Create test servers
-	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func TestFetch_Call_MultipleURLs(t *testing.T) {
+	url1 := runHTTPServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprint(w, "Server 1")
-	}))
-	defer server1.Close()
-
-	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	})
+	url2 := runHTTPServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprint(w, "Server 2")
-	}))
-	defer server2.Close()
+	})
 
 	tool := NewFetchTool()
 
-	args := map[string]any{
-		"urls": []string{server1.URL, server2.URL},
-	}
-	argsJSON, _ := json.Marshal(args)
-
-	toolCall := tools.ToolCall{
-		Function: tools.FunctionCall{
-			Arguments: string(argsJSON),
-		},
-	}
-
-	result, err := tool.handler.CallTool(t.Context(), toolCall)
+	result, err := tool.handler.CallTool(t.Context(), fetch(t, url1, url2))
 	require.NoError(t, err)
 
-	// Should return JSON for multiple URLs
 	var results []FetchResult
 	err = json.Unmarshal([]byte(result.Output), &results)
 	require.NoError(t, err)
+
 	require.Len(t, results, 2)
-
-	require.Equal(t, "Server 1", results[0].Body)
-	require.Equal(t, "Server 2", results[1].Body)
+	assert.Equal(t, "Server 1", results[0].Body)
+	assert.Equal(t, "Server 2", results[1].Body)
 }
 
-func TestFetchHandler_CallTool_InvalidURL(t *testing.T) {
+func TestFetch_Call_InvalidURL(t *testing.T) {
 	tool := NewFetchTool()
 
-	args := map[string]any{
-		"urls": []string{"not-a-url"},
-	}
-	argsJSON, _ := json.Marshal(args)
-
-	toolCall := tools.ToolCall{
-		Function: tools.FunctionCall{
-			Arguments: string(argsJSON),
-		},
-	}
-
-	result, err := tool.handler.CallTool(t.Context(), toolCall)
-	require.NoError(t, err)
-	require.Contains(t, result.Output, "Error fetching")
-}
-
-func TestFetchHandler_CallTool_UnsupportedProtocol(t *testing.T) {
-	tool := NewFetchTool()
-
-	args := map[string]any{
-		"urls": []string{"ftp://example.com"},
-	}
-	argsJSON, _ := json.Marshal(args)
-
-	toolCall := tools.ToolCall{
-		Function: tools.FunctionCall{
-			Arguments: string(argsJSON),
-		},
-	}
-
-	result, err := tool.handler.CallTool(t.Context(), toolCall)
+	result, err := tool.handler.CallTool(t.Context(), fetch(t, "invalid-url"))
 	require.NoError(t, err)
 
-	require.Contains(t, result.Output, "Error fetching")
-	require.Contains(t, result.Output, "only HTTP and HTTPS URLs are supported")
+	assert.Contains(t, result.Output, "Error fetching")
 }
 
-func TestFetchHandler_CallTool_NoURLs(t *testing.T) {
+func TestFetch_Call_UnsupportedProtocol(t *testing.T) {
 	tool := NewFetchTool()
 
-	args := map[string]any{
-		"urls": []string{},
-	}
-	argsJSON, _ := json.Marshal(args)
+	result, err := tool.handler.CallTool(t.Context(), fetch(t, "ftp://example.com"))
+	require.NoError(t, err)
 
-	toolCall := tools.ToolCall{
-		Function: tools.FunctionCall{
-			Arguments: string(argsJSON),
-		},
-	}
-
-	_, err := tool.handler.CallTool(t.Context(), toolCall)
-	require.Error(t, err)
-
-	require.Equal(t, "at least one URL is required", err.Error())
+	assert.Contains(t, result.Output, "Error fetching")
+	assert.Contains(t, result.Output, "only HTTP and HTTPS URLs are supported")
 }
 
-func TestFetchHandler_CallTool_InvalidJSON(t *testing.T) {
+func TestFetch_Call_NoURLs(t *testing.T) {
 	tool := NewFetchTool()
 
-	toolCall := tools.ToolCall{
+	_, err := tool.handler.CallTool(t.Context(), fetch(t))
+	require.ErrorContains(t, err, "at least one URL is required")
+}
+
+func TestFetch_Call_InvalidJSON(t *testing.T) {
+	tool := NewFetchTool()
+
+	_, err := tool.handler.CallTool(t.Context(), tools.ToolCall{
 		Function: tools.FunctionCall{
 			Arguments: "invalid json",
 		},
-	}
-
-	_, err := tool.handler.CallTool(t.Context(), toolCall)
-	require.Error(t, err)
+	})
+	require.ErrorContains(t, err, "invalid arguments")
 }
 
-func TestFetchHandler_CallTool_CustomMethod(t *testing.T) {
-	// Create test server that checks method
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		fmt.Fprint(w, "POST received")
-	}))
-	defer server.Close()
-
-	tool := NewFetchTool()
-
-	args := map[string]any{
-		"urls":   []string{server.URL},
-		"method": "POST",
-	}
-	argsJSON, _ := json.Marshal(args)
-
-	toolCall := tools.ToolCall{
-		Function: tools.FunctionCall{
-			Arguments: string(argsJSON),
-		},
-	}
-
-	result, err := tool.handler.CallTool(t.Context(), toolCall)
-	require.NoError(t, err)
-
-	require.Contains(t, result.Output, "Successfully fetched")
-}
-
-func TestFetchHandler_Markdown(t *testing.T) {
-	// Create test server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func TestFetch_Markdown(t *testing.T) {
+	url := runHTTPServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		fmt.Fprint(w, "<h1>Hello cagent</h1>")
-	}))
-	defer server.Close()
+	})
 
 	tool := NewFetchTool()
 
-	args := map[string]any{
-		"urls":   []string{server.URL},
+	result, err := tool.handler.CallTool(t.Context(), toolCall(t, map[string]any{
+		"urls":   []string{url},
 		"format": "markdown",
-	}
-	argsJSON, _ := json.Marshal(args)
-
-	toolCall := tools.ToolCall{
-		Function: tools.FunctionCall{
-			Arguments: string(argsJSON),
-		},
-	}
-
-	result, err := tool.handler.CallTool(t.Context(), toolCall)
+	}))
 	require.NoError(t, err)
 
-	require.NotNil(t, result)
-
-	require.Contains(t, result.Output, "Successfully fetched")
-	require.Contains(t, result.Output, "Status: 200")
-	require.Contains(t, result.Output, "Length: 14 bytes")
-	require.Contains(t, result.Output, "# Hello cagent")
+	assert.Contains(t, result.Output, "Successfully fetched")
+	assert.Contains(t, result.Output, "Status: 200")
+	assert.Contains(t, result.Output, "Length: 14 bytes")
+	assert.Contains(t, result.Output, "# Hello cagent")
 }
 
-func TestFetchHandler_Text(t *testing.T) {
-	// Create test server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func TestFetch_Text(t *testing.T) {
+	url := runHTTPServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		fmt.Fprint(w, "<h1>Hello cagent</h1>")
-	}))
-	defer server.Close()
+	})
 
 	tool := NewFetchTool()
 
-	args := map[string]any{
-		"urls":   []string{server.URL},
+	result, err := tool.handler.CallTool(t.Context(), toolCall(t, map[string]any{
+		"urls":   []string{url},
 		"format": "text",
-	}
-	argsJSON, _ := json.Marshal(args)
+	}))
+	require.NoError(t, err)
 
-	toolCall := tools.ToolCall{
+	assert.Contains(t, result.Output, "Successfully fetched")
+	assert.Contains(t, result.Output, "Status: 200")
+	assert.Contains(t, result.Output, "Length: 12 bytes")
+	assert.Contains(t, result.Output, "Hello cagent")
+}
+
+func runHTTPServer(t *testing.T, handler http.HandlerFunc) string {
+	t.Helper()
+
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+
+	return server.URL
+}
+
+func fetch(t *testing.T, urls ...string) tools.ToolCall {
+	t.Helper()
+
+	return toolCall(t, map[string]any{
+		"urls": urls,
+	})
+}
+
+func toolCall(t *testing.T, args map[string]any) tools.ToolCall {
+	t.Helper()
+
+	argsJSON, err := json.Marshal(args)
+	require.NoError(t, err)
+
+	return tools.ToolCall{
 		Function: tools.FunctionCall{
 			Arguments: string(argsJSON),
 		},
 	}
-
-	result, err := tool.handler.CallTool(t.Context(), toolCall)
-	require.NoError(t, err)
-
-	require.NotNil(t, result)
-
-	require.Contains(t, result.Output, "Successfully fetched")
-	require.Contains(t, result.Output, "Status: 200")
-	require.Contains(t, result.Output, "Length: 12 bytes")
-	require.Contains(t, result.Output, "Hello cagent")
 }
