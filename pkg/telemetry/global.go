@@ -69,12 +69,7 @@ func ensureGlobalTelemetryInitialized() {
 		// Use the version set by SetGlobalTelemetryVersion or default
 		version := globalTelemetryVersion
 
-		// Try to initialize telemetry
-		client, err := NewClient(logger, enabled, debugMode, version)
-		if err != nil {
-			// If initialization fails, create a disabled client
-			client, _ = NewClient(logger, false, debugMode, version)
-		}
+		client := newClient(logger, enabled, debugMode, version)
 
 		globalToolTelemetryClient = client
 

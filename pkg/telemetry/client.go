@@ -42,7 +42,7 @@ func (tl *telemetryLogger) Enabled(ctx context.Context, level slog.Level) bool {
 	return tl.logger.Enabled(ctx, level)
 }
 
-func newClient(logger *slog.Logger, enabled, debugMode bool, version string, customHttpClient ...*http.Client) (*Client, error) {
+func newClient(logger *slog.Logger, enabled, debugMode bool, version string, customHttpClient ...*http.Client) *Client {
 	telemetryLogger := NewTelemetryLogger(logger)
 
 	if !enabled {
@@ -50,7 +50,7 @@ func newClient(logger *slog.Logger, enabled, debugMode bool, version string, cus
 			logger:  telemetryLogger,
 			enabled: false,
 			version: version,
-		}, nil
+		}
 	}
 
 	header := "x-api-key"
@@ -87,5 +87,5 @@ func newClient(logger *slog.Logger, enabled, debugMode bool, version string, cus
 		telemetryLogger.Debug("Enabled:", enabled)
 	}
 
-	return client, nil
+	return client
 }
