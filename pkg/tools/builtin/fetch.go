@@ -47,8 +47,7 @@ func (h *fetchHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*
 		Timeout: h.timeout,
 	}
 	if params.Timeout > 0 {
-		timeout := time.Duration(params.Timeout) * time.Second
-		client = &http.Client{Timeout: timeout}
+		client.Timeout = time.Duration(params.Timeout) * time.Second
 	}
 
 	var results []FetchResult
