@@ -83,9 +83,7 @@ func newClient(logger *slog.Logger, enabled, debugMode bool, version string, cus
 		version:    version,
 	}
 
-	if debugMode {
-		telemetryLogger.Debug("Enabled:", enabled)
-	}
+	telemetryLogger.Debug("Enabled:", enabled)
 
 	return client
 }
