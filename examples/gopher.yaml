@@ -3,7 +3,7 @@ version: "2"
 
 agents:
   root:
-    model: anthropic/claude-sonnet-4-0
+    model: anthropic/claude-sonnet-4-5
     description: Expert Golang developer specializing in improving code quality.
     instruction: |
       Your main goal is to help users with go code-related tasks by examining, modifying, and validating code changes.
