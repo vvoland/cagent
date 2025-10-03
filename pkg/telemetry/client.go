@@ -42,7 +42,7 @@ func (tl *telemetryLogger) Enabled(ctx context.Context, level slog.Level) bool {
 	return tl.logger.Enabled(ctx, level)
 }
 
-func NewClient(logger *slog.Logger, enabled, debugMode bool, version string, customHttpClient ...*http.Client) (*Client, error) {
+func newClient(logger *slog.Logger, enabled, debugMode bool, version string, customHttpClient ...*http.Client) (*Client, error) {
 	telemetryLogger := NewTelemetryLogger(logger)
 
 	if !enabled {
