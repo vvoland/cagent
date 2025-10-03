@@ -1,7 +1,6 @@
 package builtin
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -23,9 +22,8 @@ func TestFetchToolWithOptions(t *testing.T) {
 
 func TestFetchTool_Tools(t *testing.T) {
 	tool := NewFetchTool()
-	ctx := context.TODO()
 
-	toolSet, err := tool.Tools(ctx)
+	toolSet, err := tool.Tools(t.Context())
 	require.NoError(t, err)
 	require.Len(t, toolSet, 1)
 
@@ -48,9 +46,8 @@ func TestFetchTool_Instructions(t *testing.T) {
 
 func TestFetchTool_StartStop(t *testing.T) {
 	tool := NewFetchTool()
-	ctx := context.TODO()
 
-	err := tool.Start(ctx)
+	err := tool.Start(t.Context())
 	require.NoError(t, err)
 
 	err = tool.Stop()
@@ -66,7 +63,6 @@ func TestFetchHandler_CallTool_Success(t *testing.T) {
 	defer server.Close()
 
 	tool := NewFetchTool()
-	ctx := context.TODO()
 
 	args := map[string]any{
 		"urls": []string{server.URL},
@@ -79,7 +75,7 @@ func TestFetchHandler_CallTool_Success(t *testing.T) {
 		},
 	}
 
-	result, err := tool.handler.CallTool(ctx, toolCall)
+	result, err := tool.handler.CallTool(t.Context(), toolCall)
 	require.NoError(t, err)
 
 	require.NotNil(t, result)
@@ -103,7 +99,6 @@ func TestFetchHandler_CallTool_MultipleURLs(t *testing.T) {
 	defer server2.Close()
 
 	tool := NewFetchTool()
-	ctx := context.TODO()
 
 	args := map[string]any{
 		"urls": []string{server1.URL, server2.URL},
@@ -116,7 +111,7 @@ func TestFetchHandler_CallTool_MultipleURLs(t *testing.T) {
 		},
 	}
 
-	result, err := tool.handler.CallTool(ctx, toolCall)
+	result, err := tool.handler.CallTool(t.Context(), toolCall)
 	require.NoError(t, err)
 
 	// Should return JSON for multiple URLs
@@ -131,7 +126,6 @@ func TestFetchHandler_CallTool_MultipleURLs(t *testing.T) {
 
 func TestFetchHandler_CallTool_InvalidURL(t *testing.T) {
 	tool := NewFetchTool()
-	ctx := context.TODO()
 
 	args := map[string]any{
 		"urls": []string{"not-a-url"},
@@ -144,14 +138,13 @@ func TestFetchHandler_CallTool_InvalidURL(t *testing.T) {
 		},
 	}
 
-	result, err := tool.handler.CallTool(ctx, toolCall)
+	result, err := tool.handler.CallTool(t.Context(), toolCall)
 	require.NoError(t, err)
 	require.Contains(t, result.Output, "Error fetching")
 }
 
 func TestFetchHandler_CallTool_UnsupportedProtocol(t *testing.T) {
 	tool := NewFetchTool()
-	ctx := context.TODO()
 
 	args := map[string]any{
 		"urls": []string{"ftp://example.com"},
@@ -164,7 +157,7 @@ func TestFetchHandler_CallTool_UnsupportedProtocol(t *testing.T) {
 		},
 	}
 
-	result, err := tool.handler.CallTool(ctx, toolCall)
+	result, err := tool.handler.CallTool(t.Context(), toolCall)
 	require.NoError(t, err)
 
 	require.Contains(t, result.Output, "Error fetching")
@@ -173,7 +166,6 @@ func TestFetchHandler_CallTool_UnsupportedProtocol(t *testing.T) {
 
 func TestFetchHandler_CallTool_NoURLs(t *testing.T) {
 	tool := NewFetchTool()
-	ctx := context.TODO()
 
 	args := map[string]any{
 		"urls": []string{},
@@ -186,7 +178,7 @@ func TestFetchHandler_CallTool_NoURLs(t *testing.T) {
 		},
 	}
 
-	_, err := tool.handler.CallTool(ctx, toolCall)
+	_, err := tool.handler.CallTool(t.Context(), toolCall)
 	require.Error(t, err)
 
 	require.Equal(t, "at least one URL is required", err.Error())
@@ -194,7 +186,6 @@ func TestFetchHandler_CallTool_NoURLs(t *testing.T) {
 
 func TestFetchHandler_CallTool_InvalidJSON(t *testing.T) {
 	tool := NewFetchTool()
-	ctx := context.TODO()
 
 	toolCall := tools.ToolCall{
 		Function: tools.FunctionCall{
@@ -202,7 +193,7 @@ func TestFetchHandler_CallTool_InvalidJSON(t *testing.T) {
 		},
 	}
 
-	_, err := tool.handler.CallTool(ctx, toolCall)
+	_, err := tool.handler.CallTool(t.Context(), toolCall)
 	require.Error(t, err)
 }
 
@@ -218,7 +209,6 @@ func TestFetchHandler_CallTool_CustomMethod(t *testing.T) {
 	defer server.Close()
 
 	tool := NewFetchTool()
-	ctx := context.TODO()
 
 	args := map[string]any{
 		"urls":   []string{server.URL},
@@ -232,7 +222,7 @@ func TestFetchHandler_CallTool_CustomMethod(t *testing.T) {
 		},
 	}
 
-	result, err := tool.handler.CallTool(ctx, toolCall)
+	result, err := tool.handler.CallTool(t.Context(), toolCall)
 	require.NoError(t, err)
 
 	require.Contains(t, result.Output, "Successfully fetched")
@@ -247,7 +237,6 @@ func TestFetchHandler_Markdown(t *testing.T) {
 	defer server.Close()
 
 	tool := NewFetchTool()
-	ctx := context.TODO()
 
 	args := map[string]any{
 		"urls":   []string{server.URL},
@@ -261,7 +250,7 @@ func TestFetchHandler_Markdown(t *testing.T) {
 		},
 	}
 
-	result, err := tool.handler.CallTool(ctx, toolCall)
+	result, err := tool.handler.CallTool(t.Context(), toolCall)
 	require.NoError(t, err)
 
 	require.NotNil(t, result)
@@ -281,7 +270,6 @@ func TestFetchHandler_Text(t *testing.T) {
 	defer server.Close()
 
 	tool := NewFetchTool()
-	ctx := context.TODO()
 
 	args := map[string]any{
 		"urls":   []string{server.URL},
@@ -295,7 +283,7 @@ func TestFetchHandler_Text(t *testing.T) {
 		},
 	}
 
-	result, err := tool.handler.CallTool(ctx, toolCall)
+	result, err := tool.handler.CallTool(t.Context(), toolCall)
 	require.NoError(t, err)
 
 	require.NotNil(t, result)
