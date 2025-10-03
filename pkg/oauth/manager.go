@@ -69,8 +69,37 @@ func WithManagedServer(managed bool) ManagerOption {
 	}
 }
 
-// HandleAuthorizationFlow handles a single OAuth authorization flow
-func (m *manager) HandleAuthorizationFlow(ctx context.Context, sessionID string, oauthErr *AuthorizationRequiredError) error {
+// ExecuteWithOAuth wraps an operation that may require OAuth authorization with automatic retry logic.
+// If the operation fails with an OAuth authorization error, it handles the OAuth flow and retries the operation.
+func (m *manager) ExecuteWithOAuth(ctx context.Context, sessionID string, operation func() error) error {
+	for {
+		err := operation()
+		if err == nil {
+			return nil
+		}
+
+		// Check if this is an OAuth authorization error
+		oauthErr, isOAuthError := MayBeOAuthError(err)
+		if !isOAuthError {
+			// Not an OAuth error, cannot recover
+			return err
+		}
+
+		// Handle OAuth authorization flow
+		authorizationRequiredErr := oauthErr.(*AuthorizationRequiredError)
+		oauthFlowErr := m.handleAuthorizationFlow(ctx, sessionID, authorizationRequiredErr)
+		if oauthFlowErr != nil {
+			return oauthFlowErr
+		}
+
+		slog.Debug("OAuth authorization completed, retrying operation", "server", authorizationRequiredErr.ServerURL)
+		// Continue the loop to retry the operation
+	}
+}
+
+// handleAuthorizationFlow requests user approval and performs the OAuth authorization flow.
+// This is an internal method called by ExecuteWithOAuth when an operation requires OAuth.
+func (m *manager) handleAuthorizationFlow(ctx context.Context, sessionID string, oauthErr *AuthorizationRequiredError) error {
 	m.emitAuthRequired(oauthErr.ServerURL, oauthErr.ServerType, "pending")
 
 	slog.Debug("Waiting for OAuth authorization to start", "server", oauthErr.ServerURL, "type", oauthErr.ServerType)
