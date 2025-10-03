@@ -19,22 +19,22 @@ func NewTelemetryLogger(logger *slog.Logger) *telemetryLogger {
 
 // Debug logs a debug message with "[Telemetry]" prefix
 func (tl *telemetryLogger) Debug(msg string, args ...any) {
-	tl.logger.Debug("🔎 [Telemetry] "+msg, args...)
+	tl.logger.Debug("[Telemetry] "+msg, args...)
 }
 
 // Info logs an info message with "[Telemetry]" prefix
 func (tl *telemetryLogger) Info(msg string, args ...any) {
-	tl.logger.Info("💬 [Telemetry] "+msg, args...)
+	tl.logger.Info("[Telemetry] "+msg, args...)
 }
 
 // Warn logs a warning message with "[Telemetry]" prefix
 func (tl *telemetryLogger) Warn(msg string, args ...any) {
-	tl.logger.Warn("⚠️ [Telemetry] "+msg, args...)
+	tl.logger.Warn("[Telemetry] "+msg, args...)
 }
 
 // Error logs an error message with "[Telemetry]" prefix
 func (tl *telemetryLogger) Error(msg string, args ...any) {
-	tl.logger.Error("❌ [Telemetry] "+msg, args...)
+	tl.logger.Error("[Telemetry] "+msg, args...)
 }
 
 // Enabled returns whether the logger is enabled for the given level
