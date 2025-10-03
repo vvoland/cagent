@@ -87,7 +87,7 @@ func (m *manager) ExecuteWithOAuth(ctx context.Context, sessionID string, operat
 
 		// Handle OAuth authorization flow
 		authorizationRequiredErr := oauthErr.(*AuthorizationRequiredError)
-		oauthFlowErr := m.HandleAuthorizationFlow(ctx, sessionID, authorizationRequiredErr)
+		oauthFlowErr := m.handleAuthorizationFlow(ctx, sessionID, authorizationRequiredErr)
 		if oauthFlowErr != nil {
 			return oauthFlowErr
 		}
@@ -97,8 +97,9 @@ func (m *manager) ExecuteWithOAuth(ctx context.Context, sessionID string, operat
 	}
 }
 
-// HandleAuthorizationFlow handles a single OAuth authorization flow
-func (m *manager) HandleAuthorizationFlow(ctx context.Context, sessionID string, oauthErr *AuthorizationRequiredError) error {
+// handleAuthorizationFlow requests user approval and performs the OAuth authorization flow.
+// This is an internal method called by ExecuteWithOAuth when an operation requires OAuth.
+func (m *manager) handleAuthorizationFlow(ctx context.Context, sessionID string, oauthErr *AuthorizationRequiredError) error {
 	m.emitAuthRequired(oauthErr.ServerURL, oauthErr.ServerType, "pending")
 
 	slog.Debug("Waiting for OAuth authorization to start", "server", oauthErr.ServerURL, "type", oauthErr.ServerType)
