@@ -9,18 +9,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `task build` - Build the application binary 
 - `task test` - Run Go tests
 - `task lint` - Run golangci-lint
+- `task format` - Format code
 - `task link` - Create symlink to ~/bin for easy access
 
 ### Docker Operations
 
 - `task build-image` - Build Docker image
+- `task push-image` - Build and push Docker image
 - `task build-local` - Build binaries for local platform using Docker
 - `task cross` - Build cross-platform binaries using Docker
 
 ### Running cagent
 
-- `./bin/cagent run <config.yaml>` - Run agent with configuration
+- `./bin/cagent run <config.yaml>` - Run agent with configuration (uses TUI by default)
+- `./bin/cagent run <config.yaml> --tui=false` - Run in CLI mode
 - `./bin/cagent run <config.yaml> -a <agent_name>` - Run specific agent
+- `./bin/cagent exec <config.yaml>` - Execute agent without TUI
 
 ### Single Test Execution
 
@@ -47,20 +51,21 @@ cagent is a multi-agent AI system with hierarchical agent structure and pluggabl
 - **Tool execution**: Handles tool calls and coordinates between agents and external tools
 - **Session management**: Maintains conversation state and message history
 - **Task delegation**: Routes tasks between agents using transfer_task tool
+- **Remote runtime support**: Can connect to remote runtime servers
 
 #### Configuration System (`pkg/config/`)
 
 - **YAML-based configuration**: Declarative agent, model, and tool definitions
-- **Agent properties**: name, model, description, instruction, sub_agents, toolsets, think, todo, memory, add_date, add_environment_info
-- **Model providers**: openai, anthropic, dmr with configurable parameters
-- **Tool configuration**: MCP tools (local stdio and remote), builtin tools (filesystem, shell)
+- **Agent properties**: name, model, description, instruction, sub_agents, toolsets, add_date, add_environment_info, code_mode_tools, max_iterations, num_history_items
+- **Model providers**: openai, anthropic, gemini, dmr with configurable parameters
+- **Tool configuration**: MCP tools (local stdio and remote), builtin tools (filesystem, shell, think, todo, memory, etc.)
 
 #### Command Layer (`cmd/root/`)
 
-- **Multiple interfaces**: CLI (`run.go`), TUI (`tui.go`), API (`api.go`)
-- **Interactive commands**: `/exit`, `/reset`, `/eval` during sessions
+- **Multiple interfaces**: CLI (`run.go`), TUI (default for `run` command), API (`api.go`)
+- **Interactive commands**: `/exit`, `/reset`, `/eval`, `/usage`, `/compact` during sessions
 - **Debug support**: `--debug` flag for detailed logging
-- **MCP server mode**: SSE-based transport for external MCP clients like Claude Code
+- **Gateway mode**: SSE-based transport for external MCP clients like Claude Code
 
 ### Tool System (`pkg/tools/`)
 
@@ -72,11 +77,14 @@ cagent is a multi-agent AI system with hierarchical agent structure and pluggabl
 - **transfer_task**: Agent-to-agent task delegation
 - **filesystem**: File operations
 - **shell**: Command execution
+- **script**: Custom shell scripts
+- **fetch**: HTTP requests
 
 #### MCP Integration
 
 - **Local MCP servers**: stdio-based tools via command execution
 - **Remote MCP servers**: SSE/streamable transport for remote tools
+- **Docker-based MCP**: Reference MCP servers from Docker images (e.g., `docker:github-official`)
 - **Tool filtering**: Optional tool whitelisting per agent
 
 ### Key Patterns
@@ -84,9 +92,11 @@ cagent is a multi-agent AI system with hierarchical agent structure and pluggabl
 #### Agent Configuration
 
 ```yaml
+version: "2"
+
 agents:
   root:
-    model: model_ref
+    model: model_ref  # Can be inline like "openai/gpt-4o" or reference defined models
     description: purpose
     instruction: detailed_behavior
     sub_agents: [list]
@@ -95,8 +105,14 @@ agents:
       - type: think
       - type: todo
       - type: memory
-        path: { path: string }
+        path: ./path/to/db
       - ...
+
+models:
+  model_ref:
+    provider: anthropic
+    model: claude-sonnet-4-0
+    max_tokens: 64000
 ```
 
 #### Task Delegation Flow
@@ -124,7 +140,7 @@ agents:
 ### Configuration Validation
 
 - All agent references must exist in config
-- Model references must be defined
+- Model references can be inline (e.g., `openai/gpt-4o`) or defined in models section
 - Tool configurations validated at startup
 
 ### Adding New Features
@@ -134,15 +150,9 @@ agents:
 - Add configuration support if needed
 - Consider both CLI and TUI interface impacts, along with API server impacts
 
-### Key Patterns
-
-#### Agent Reference Formatting
-
-- **File agents**: Use relative path from agents directory (e.g., `agent.yaml`)
-- **Store agents**: Use full Docker image reference with tag (e.g., `user/agent:latest`)
-- **Explicit agent_ref field**: MCP responses include unambiguous agent reference for tool calls
-
 ## Model Provider Configuration Examples
+
+Models can be referenced inline (e.g., `openai/gpt-4o`) or defined explicitly:
 
 ### OpenAI
 
@@ -175,6 +185,15 @@ models:
     temperature: 0.5
 ```
 
+### DMR
+
+```yaml
+models:
+  dmr:
+    provider: dmr
+    model: ai/llama3.2
+```
+
 ## Tool Configuration Examples
 
 ### Local MCP Server (stdio)
@@ -186,7 +205,7 @@ toolsets:
     args: ["-m", "mcp_server"]
     tools: ["specific_tool"] # optional filtering
     env:
-      - "API_KEY=value"
+      API_KEY: "value"
 ```
 
 ### Remote MCP Server (SSE)
@@ -201,6 +220,16 @@ toolsets:
         Authorization: "Bearer token"
 ```
 
+### Docker-based MCP Server
+
+```yaml
+toolsets:
+  - type: mcp
+    ref: docker:github-official
+    instruction: |
+      Use these tools to help with GitHub tasks.
+```
+
 ### Memory Tool with Custom Path
 
 ```yaml
@@ -209,14 +238,30 @@ toolsets:
     path: "./agent_memory.db"
 ```
 
+### Shell Tool
+
+```yaml
+toolsets:
+  - type: shell
+```
+
+### Filesystem Tool
+
+```yaml
+toolsets:
+  - type: filesystem
+```
+
 ## Common Development Patterns
 
 ### Agent Hierarchy Example
 
 ```yaml
+version: "2"
+
 agents:
   root:
-    model: claude
+    model: anthropic/claude-sonnet-4-0
     description: "Main coordinator"
     sub_agents: ["researcher", "writer"]
     toolsets:
@@ -224,25 +269,28 @@ agents:
       - type: think
 
   researcher:
-    model: gpt4
+    model: openai/gpt-4o
     description: "Research specialist"
     toolsets:
       - type: mcp
-        command: "web_search_tool"
+        ref: docker:search-tools
 
   writer:
-    model: claude
+    model: anthropic/claude-sonnet-4-0
     description: "Writing specialist"
     toolsets:
       - type: filesystem
       - type: memory
+        path: ./writer_memory.db
 ```
 
 ### Session Commands During CLI Usage
 
 - `/exit` - End the session
 - `/reset` - Clear session history
-- `/eval <expression>` - Evaluate expression (debug mode)
+- `/usage` - Show token usage statistics
+- `/compact` - Generate summary and compact session history
+- `/eval` - Save evaluation data
 
 ## File Locations and Patterns
 
@@ -254,11 +302,13 @@ agents:
 - `pkg/model/provider/` - AI provider implementations
 - `pkg/session/` - Conversation state management
 - `pkg/config/` - YAML configuration parsing and validation
-- `pkg/mcpserver/` - MCP protocol server implementation
+- `pkg/gateway/` - MCP gateway/server implementation
+- `pkg/tui/` - Terminal User Interface components
+- `pkg/api/` - API server implementation
 
 ### Configuration File Locations
 
-- `examples/config/` - Sample agent configurations
+- `examples/` - Sample agent configurations
 - Root directory - Main project configurations (`Taskfile.yml`, `go.mod`)
 
 ### Environment Variables
@@ -266,17 +316,26 @@ agents:
 - `OPENAI_API_KEY` - OpenAI authentication
 - `ANTHROPIC_API_KEY` - Anthropic authentication
 - `GOOGLE_API_KEY` - Google/Gemini authentication
-- `MCP_SSE_ENDPOINT` - Override MCP test endpoint
+- `TELEMETRY_ENABLED` - Control telemetry (set to false to disable)
+- `CAGENT_HIDE_TELEMETRY_BANNER` - Hide telemetry banner message
+- `CAGENT_HIDE_FEEDBACK_LINK` - Hide feedback link
 
 ## Debugging and Troubleshooting
 
 ### Debug Mode
 
 - Add `--debug` flag to any command for detailed logging
+- Logs written to `~/.cagent/cagent.debug.log` by default
+- Use `--log-file <path>` to specify custom log location
 - Example: `./bin/cagent run config.yaml --debug`
+
+### OpenTelemetry Tracing
+
+- Add `--otel` flag to enable OpenTelemetry tracing
+- Example: `./bin/cagent run config.yaml --otel`
 
 ### Common Issues
 
 - **Agent not found**: Check agent name matches config file agent definitions
 - **Tool startup failures**: Verify MCP tool commands and dependencies are available
-- **Multi-tenant sessions**: Remember all MCP clients currently share sessions
+- **Model not found**: Ensure model is defined in config or use inline format (provider/model)
