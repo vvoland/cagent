@@ -32,8 +32,8 @@ func NewToolsetCommand(command string, args, env, toolFilter []string) *Toolset 
 	}
 }
 
-// NewToolsetRemote creates a new MCP toolset from a remote MCP Server.
-func NewToolsetRemote(url, transport string, headers map[string]string, toolFilter []string, redirectURI string) (*Toolset, error) {
+// NewRemoteToolset creates a new MCP toolset from a remote MCP Server.
+func NewRemoteToolset(url, transport string, headers map[string]string, toolFilter []string, redirectURI string) (*Toolset, error) {
 	slog.Debug("Creating Remote MCP toolset", "url", url, "transport", transport, "headers", headers, "toolFilter", toolFilter, "redirectURI", redirectURI)
 
 	tokenStore := GetTokenStore(url)

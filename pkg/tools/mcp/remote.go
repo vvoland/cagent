@@ -78,40 +78,28 @@ func NewRemoteClient(url, transportType string, headers map[string]string, redir
 	var c *client.Client
 	var err error
 
-	if requiresOAuth {
-		oauthConfig := client.OAuthConfig{
-			RedirectURI: redirectURI,
-			TokenStore:  tokenStore,
-			PKCEEnabled: true,
-		}
+	oauthConfig := client.OAuthConfig{
+		RedirectURI: redirectURI,
+		TokenStore:  tokenStore,
+		PKCEEnabled: true,
+	}
 
-		if transportType == "sse" {
-			c, err = client.NewOAuthSSEClient(url, oauthConfig)
-			if err != nil {
-				slog.Error("Failed to create OAuth SSE remote MCP client", "error", err)
-				return nil, fmt.Errorf("failed to create OAuth SSE remote MCP client: %w", err)
-			}
-		} else {
-			c, err = client.NewOAuthStreamableHttpClient(url, oauthConfig)
-			if err != nil {
-				slog.Error("Failed to create OAuth streamable remote MCP client", "error", err)
-				return nil, fmt.Errorf("failed to create OAuth streamable remote MCP client: %w", err)
-			}
+	if transportType == "sse" {
+		options := []transport.ClientOption{transport.WithHeaders(headers)}
+		if requiresOAuth {
+			options = append(options, transport.WithOAuth(oauthConfig))
 		}
+		c, err = client.NewSSEMCPClient(url, options...)
 	} else {
-		if transportType == "sse" {
-			c, err = client.NewSSEMCPClient(url, client.WithHeaders(headers))
-			if err != nil {
-				slog.Error("Failed to create sse remote MCP client", "error", err)
-				return nil, fmt.Errorf("failed to create sse remote MCP client: %w", err)
-			}
-		} else {
-			c, err = client.NewStreamableHttpClient(url, transport.WithHTTPHeaders(headers))
-			if err != nil {
-				slog.Error("Failed to create streamable remote MCP client", "error", err)
-				return nil, fmt.Errorf("failed to create streamable remote MCP client: %w", err)
-			}
+		options := []transport.StreamableHTTPCOption{transport.WithHTTPHeaders(headers)}
+		if requiresOAuth {
+			options = append(options, transport.WithHTTPOAuth(oauthConfig))
 		}
+		c, err = client.NewStreamableHttpClient(url, options...)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create MCP client: %w", err)
 	}
 
 	slog.Debug("Created remote MCP client successfully", "url", url, "transport", transportType, "requiresOAuth", requiresOAuth)
