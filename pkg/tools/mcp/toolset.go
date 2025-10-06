@@ -112,6 +112,13 @@ func (ts *Toolset) Start(ctx context.Context) error {
 		//
 		// Only retry when initialization fails due to sending the initialized notification.
 		if !isInitNotificationSendError(err) {
+			if client.IsOAuthAuthorizationRequiredError(err) {
+				return &oauth.AuthorizationRequiredError{
+					Err:        err,
+					ServerURL:  ts.logId,
+					ServerType: ts.logType,
+				}
+			}
 			slog.Error("Failed to initialize MCP client", "error", err)
 			return fmt.Errorf("failed to initialize MCP client: %w", err)
 		}
