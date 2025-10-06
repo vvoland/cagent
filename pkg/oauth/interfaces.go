@@ -21,8 +21,3 @@ type Manager interface {
 	// Cleanup stops any owned resources like callback servers
 	Cleanup(ctx context.Context) error
 }
-
-// ServerInfoProvider interface for toolsets that can provide server information
-type ServerInfoProvider interface {
-	GetServerInfo() (serverURL, serverType string)
-}
