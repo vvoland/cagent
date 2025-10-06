@@ -118,7 +118,7 @@ func Load(ctx context.Context, path string, runtimeConfig config.RuntimeConfig) 
 	)
 
 	// Load the agent's configuration
-	cfg, err := config.LoadConfigSecure(fileName, parentDir)
+	cfg, err := config.LoadConfigSecureDeprecated(fileName, parentDir)
 	if err != nil {
 		return nil, err
 	}

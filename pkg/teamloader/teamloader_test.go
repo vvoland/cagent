@@ -2,6 +2,7 @@ package teamloader
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -61,7 +62,9 @@ func TestCheckRequiredEnvVars(t *testing.T) {
 		t.Run(test.yaml, func(t *testing.T) {
 			t.Parallel()
 
-			cfg, err := config.LoadConfigSecure(test.yaml, "testdata")
+			root := openRoot(t, "testdata")
+
+			cfg, err := config.LoadConfig(test.yaml, root)
 			require.NoError(t, err)
 
 			err = checkRequiredEnvVars(t.Context(), cfg, &noEnvProvider{}, config.RuntimeConfig{})
@@ -79,7 +82,9 @@ func TestCheckRequiredEnvVars(t *testing.T) {
 func TestCheckRequiredEnvVarsWithModelGateway(t *testing.T) {
 	t.Parallel()
 
-	cfg, err := config.LoadConfigSecure("all.yaml", "testdata")
+	root := openRoot(t, "testdata")
+
+	cfg, err := config.LoadConfig("all.yaml", root)
 	require.NoError(t, err)
 
 	err = checkRequiredEnvVars(t.Context(), cfg, &noEnvProvider{}, config.RuntimeConfig{
@@ -87,4 +92,14 @@ func TestCheckRequiredEnvVarsWithModelGateway(t *testing.T) {
 	})
 
 	require.NoError(t, err)
+}
+
+func openRoot(t *testing.T, dir string) *os.Root {
+	t.Helper()
+
+	root, err := os.OpenRoot(dir)
+	require.NoError(t, err)
+	t.Cleanup(func() { root.Close() })
+
+	return root
 }
