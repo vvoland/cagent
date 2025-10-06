@@ -2,7 +2,9 @@ package teamloader
 
 import (
 	"context"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -94,6 +96,40 @@ func TestCheckRequiredEnvVarsWithModelGateway(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestLoadExamples(t *testing.T) {
+	// Collect the missing env vars.
+	missingEnvs := map[string]bool{}
+
+	for _, file := range collectExamples(t) {
+		t.Run(file, func(t *testing.T) {
+			_, err := Load(t.Context(), file, config.RuntimeConfig{})
+			if err != nil {
+				envErr := &environment.RequiredEnvError{}
+				require.ErrorAs(t, err, &envErr)
+
+				for _, env := range envErr.Missing {
+					missingEnvs[env] = true
+				}
+			}
+		})
+	}
+
+	for name := range missingEnvs {
+		t.Setenv(name, "dummy")
+	}
+
+	// Load all the examples.
+	for _, file := range collectExamples(t) {
+		t.Run(file, func(t *testing.T) {
+			t.Parallel()
+
+			teams, err := Load(t.Context(), file, config.RuntimeConfig{})
+			require.NoError(t, err)
+			require.NotEmpty(t, teams)
+		})
+	}
+}
+
 func openRoot(t *testing.T, dir string) *os.Root {
 	t.Helper()
 
@@ -102,4 +138,23 @@ func openRoot(t *testing.T, dir string) *os.Root {
 	t.Cleanup(func() { root.Close() })
 
 	return root
+}
+
+func collectExamples(t *testing.T) []string {
+	t.Helper()
+
+	var files []string
+	err := filepath.WalkDir(filepath.Join("..", "..", "examples"), func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() && filepath.Ext(path) == ".yaml" {
+			files = append(files, path)
+		}
+		return nil
+	})
+	require.NoError(t, err)
+	assert.NotEmpty(t, files)
+
+	return files
 }
