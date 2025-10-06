@@ -16,13 +16,13 @@ import (
 	"github.com/docker/cagent/pkg/api"
 	v2 "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/tools"
 )
 
 // Client is an HTTP client for the cagent server API
 type Client struct {
 	baseURL    *url.URL
 	httpClient *http.Client
+	registry   map[string]func() Event
 }
 
 // ClientOption is a function for configuring the Client
@@ -57,6 +57,25 @@ func NewClient(baseURL string, opts ...ClientOption) (*Client, error) {
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		registry: map[string]func() Event{
+			"user_message":           func() Event { return &UserMessageEvent{} },
+			"tool_call_confirmation": func() Event { return &ToolCallConfirmationEvent{} },
+			"partial_tool_call":      func() Event { return &PartialToolCallEvent{} },
+			"tool_call":              func() Event { return &ToolCallEvent{} },
+			"tool_call_response":     func() Event { return &ToolCallResponseEvent{} },
+			"agent_choice_reasoning": func() Event { return &AgentChoiceReasoningEvent{} },
+			"agent_choice":           func() Event { return &AgentChoiceEvent{} },
+			"stream_started":         func() Event { return &StreamStartedEvent{} },
+			"stream_stopped":         func() Event { return &StreamStoppedEvent{} },
+			"authorization_required": func() Event { return &AuthorizationRequiredEvent{} },
+			"session_compaction":     func() Event { return &SessionCompactionEvent{} },
+			"token_usage":            func() Event { return &TokenUsageEvent{} },
+			"max_iterations_reached": func() Event { return &MaxIterationsReachedEvent{} },
+			"session_title":          func() Event { return &SessionTitleEvent{} },
+			"session_summary":        func() Event { return &SessionSummaryEvent{} },
+			"shell":                  func() Event { return &ShellOutputEvent{} },
+			"error":                  func() Event { return &ErrorEvent{} },
+		},
 	}
 
 	for _, opt := range opts {
@@ -69,20 +88,6 @@ func NewClient(baseURL string, opts ...ClientOption) (*Client, error) {
 // ErrorResponse represents an error response from the API
 type ErrorResponse struct {
 	Error string `json:"error"`
-}
-
-// parseToolCall safely converts an any to tools.ToolCall
-func parseToolCall(data, toolDefinition []byte) (tools.ToolCall, tools.Tool, error) {
-	var toolCall tools.ToolCall
-	if err := json.Unmarshal(data, &toolCall); err != nil {
-		return tools.ToolCall{}, tools.Tool{}, fmt.Errorf("failed to unmarshal tool call: %w", err)
-	}
-	var toolDef tools.Tool
-	if err := json.Unmarshal(toolDefinition, &toolDef); err != nil {
-		return tools.ToolCall{}, tools.Tool{}, fmt.Errorf("failed to unmarshal tool definition: %w", err)
-	}
-
-	return toolCall, toolDef, nil
 }
 
 // doRequest performs an HTTP request and handles common response patterns
@@ -337,96 +342,24 @@ func (c *Client) runAgentWithAgentName(ctx context.Context, sessionID, agent, ag
 				Type string `json:"type"`
 			}
 			if err := json.Unmarshal(after, &baseEvent); err != nil {
+				slog.Debug("event", "error", err)
 				continue
 			}
 
-			switch baseEvent.Type {
-			case "user_message":
-				var e UserMessageEvent
-				if err := json.Unmarshal(after, &e); err == nil {
-					eventChan <- UserMessage(e.Message)
-				}
-			case "tool_call_confirmation":
-				var e ToolCallConfirmationEvent
-				if err := json.Unmarshal(after, &e); err == nil {
-					eventChan <- ToolCallConfirmation(e.ToolCall, e.ToolDefinition, e.AgentName)
-				}
-			case "partial_tool_call":
-				var e PartialToolCallEvent
-				if err := json.Unmarshal(after, &e); err == nil {
-					eventChan <- PartialToolCall(e.ToolCall, e.ToolDefinition, e.AgentName)
-				}
-			case "tool_call":
-				var e ToolCallEvent
-				if err := json.Unmarshal(after, &e); err == nil {
-					eventChan <- ToolCall(e.ToolCall, e.ToolDefinition, e.AgentName)
-				}
-			case "tool_call_response":
-				var e ToolCallResponseEvent
-				if err := json.Unmarshal(after, &e); err == nil {
-					eventChan <- ToolCallResponse(e.ToolCall, e.Response, e.AgentName)
-				}
-			case "agent_choice_reasoning":
-				var e AgentChoiceReasoningEvent
-				if err := json.Unmarshal(after, &e); err == nil {
-					eventChan <- AgentChoiceReasoning(e.AgentName, e.Content)
-				}
-			case "agent_choice":
-				var e AgentChoiceEvent
-				if err := json.Unmarshal(after, &e); err == nil {
-					eventChan <- AgentChoice(e.AgentName, e.Content)
-				}
-			case "stream_started":
-				var e StreamStartedEvent
-				if err := json.Unmarshal(after, &e); err == nil {
-					eventChan <- StreamStarted(sessionID, e.AgentName)
-				}
-			case "stream_stopped":
-				var e StreamStoppedEvent
-				if err := json.Unmarshal(after, &e); err == nil {
-					eventChan <- StreamStopped(sessionID, e.AgentName)
-				}
-			case "authorization_required":
-				var e AuthorizationRequiredEvent
-				if err := json.Unmarshal(after, &e); err == nil {
-					eventChan <- AuthorizationRequired(e.ServerURL, e.ServerType, e.Confirmation, e.AgentName)
-				}
-			case "session_compaction":
-				var e SessionCompactionEvent
-				if err := json.Unmarshal(after, &e); err == nil {
-					eventChan <- SessionCompaction(e.SessionID, e.Status, e.AgentName)
-				}
-			case "token_usage":
-				var e TokenUsageEvent
-				if err := json.Unmarshal(after, &e); err == nil {
-					eventChan <- TokenUsage(e.Usage.InputTokens, e.Usage.OutputTokens, e.Usage.ContextLength, e.Usage.ContextLimit, e.Usage.Cost)
-				}
-			case "max_iterations_reached":
-				var e MaxIterationsReachedEvent
-				if err := json.Unmarshal(after, &e); err == nil {
-					eventChan <- MaxIterationsReached(e.MaxIterations)
-				}
-			case "session_title":
-				var e SessionTitleEvent
-				if err := json.Unmarshal(after, &e); err == nil {
-					eventChan <- SessionTitle(e.SessionID, e.Title, e.AgentName)
-				}
-			case "session_summary":
-				var e SessionSummaryEvent
-				if err := json.Unmarshal(after, &e); err == nil {
-					eventChan <- SessionSummary(e.SessionID, e.Summary, e.AgentName)
-				}
-			case "shell":
-				var e ShellOutputEvent
-				if err := json.Unmarshal(after, &e); err == nil {
-					eventChan <- ShellOutput(e.Output)
-				}
-			case "error":
-				var e ErrorEvent
-				if err := json.Unmarshal(after, &e); err == nil {
-					eventChan <- Error(e.Error)
-				}
+			// Then unmarshal the full event
+			createEvent, found := c.registry[baseEvent.Type]
+			if !found {
+				slog.Debug("event", "invalid_type", baseEvent.Type)
+				continue
 			}
+
+			e := createEvent()
+			if err := json.Unmarshal(after, &e); err != nil {
+				slog.Debug("event", "error", err)
+				continue
+			}
+
+			eventChan <- e
 		}
 
 		if err := scanner.Err(); err != nil {
