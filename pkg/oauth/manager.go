@@ -2,6 +2,7 @@ package oauth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -78,21 +79,19 @@ func (m *manager) ExecuteWithOAuth(ctx context.Context, sessionID string, operat
 			return nil
 		}
 
-		// Check if this is an OAuth authorization error
-		oauthErr, isOAuthError := MayBeOAuthError(err)
-		if !isOAuthError {
+		var oauthErr *AuthorizationRequiredError
+		if isOAuthErr := errors.As(err, &oauthErr); !isOAuthErr {
 			// Not an OAuth error, cannot recover
 			return err
 		}
 
 		// Handle OAuth authorization flow
-		authorizationRequiredErr := oauthErr.(*AuthorizationRequiredError)
-		oauthFlowErr := m.handleAuthorizationFlow(ctx, sessionID, authorizationRequiredErr)
+		oauthFlowErr := m.handleAuthorizationFlow(ctx, sessionID, oauthErr)
 		if oauthFlowErr != nil {
 			return oauthFlowErr
 		}
 
-		slog.Debug("OAuth authorization completed, retrying operation", "server", authorizationRequiredErr.ServerURL)
+		slog.Debug("OAuth authorization completed, retrying operation", "server", oauthErr.ServerURL)
 		// Continue the loop to retry the operation
 	}
 }

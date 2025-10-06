@@ -11,8 +11,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
+
+	"github.com/docker/cagent/pkg/oauth"
+	"github.com/docker/cagent/pkg/tools"
 )
 
 type mcpClient interface {
@@ -73,10 +76,6 @@ func (ts *Toolset) Instructions() string {
 		panic("toolset not started")
 	}
 	return ts.instructions
-}
-
-func (ts *Toolset) GetServerInfo() (serverURL, serverType string) {
-	return ts.logId, ts.logType
 }
 
 func (ts *Toolset) Tools(ctx context.Context) ([]tools.Tool, error) {
@@ -184,7 +183,16 @@ func (ts *Toolset) Start(ctx context.Context) error {
 	slog.Debug("Starting MCP toolset", "server", ts.logId)
 
 	if err := ts.mcpClient.Start(ctx); err != nil {
-		return fmt.Errorf("starting MCP client: %w", err)
+		// When the MCP client is remote, Start() can fail due to OAuth authorization errors.
+		// Provide more context to the caller.
+		if client.IsOAuthAuthorizationRequiredError(err) {
+			return &oauth.AuthorizationRequiredError{
+				Err:        err,
+				ServerURL:  ts.logType,
+				ServerType: ts.logId,
+			}
+		}
+		return fmt.Errorf("failed to start MCP client: %w", err)
 	}
 
 	slog.Debug("Initializing MCP client", ts.logType, ts.logId)
