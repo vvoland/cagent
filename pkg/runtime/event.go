@@ -201,12 +201,10 @@ type SessionTitleEvent struct {
 
 func SessionTitle(sessionID, title, agentName string) Event {
 	return &SessionTitleEvent{
-		Type:      "session_title",
-		SessionID: sessionID,
-		Title:     title,
-		AgentContext: AgentContext{
-			AgentName: agentName,
-		},
+		Type:         "session_title",
+		SessionID:    sessionID,
+		Title:        title,
+		AgentContext: AgentContext{AgentName: agentName},
 	}
 }
 
@@ -219,12 +217,10 @@ type SessionSummaryEvent struct {
 
 func SessionSummary(sessionID, summary, agentName string) Event {
 	return &SessionSummaryEvent{
-		Type:      "session_summary",
-		SessionID: sessionID,
-		Summary:   summary,
-		AgentContext: AgentContext{
-			AgentName: agentName,
-		},
+		Type:         "session_summary",
+		SessionID:    sessionID,
+		Summary:      summary,
+		AgentContext: AgentContext{AgentName: agentName},
 	}
 }
 
@@ -237,12 +233,10 @@ type SessionCompactionEvent struct {
 
 func SessionCompaction(sessionID, status, agentName string) Event {
 	return &SessionCompactionEvent{
-		Type:      "session_compaction",
-		SessionID: sessionID,
-		Status:    status,
-		AgentContext: AgentContext{
-			AgentName: agentName,
-		},
+		Type:         "session_compaction",
+		SessionID:    sessionID,
+		Status:       status,
+		AgentContext: AgentContext{AgentName: agentName},
 	}
 }
 
