@@ -913,7 +913,7 @@ func (r *runtime) handleTaskTransfer(ctx context.Context, sess *session.Session,
 
 	s := session.New(
 		session.WithSystemMessage(memberAgentTask),
-		session.WithUserMessage("", "Follow the default instructions"),
+		session.WithImplicitUserMessage("", "Follow the default instructions"),
 		session.WithMaxIterations(subAgentMaxIter),
 	)
 	s.SendUserMessage = false
