@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -14,13 +15,13 @@ import (
 	"github.com/docker/cagent/pkg/filesystem"
 )
 
-func LoadConfigSecure(path, allowedDir string) (*latest.Config, error) {
-	validatedPath, err := ValidatePathInDirectory(path, allowedDir)
+func LoadConfigSecureDeprecated(path, allowedDir string) (*latest.Config, error) {
+	fs, err := os.OpenRoot(allowedDir)
 	if err != nil {
-		return nil, fmt.Errorf("path validation failed: %w", err)
+		return nil, fmt.Errorf("opening filesystem %s: %w", allowedDir, err)
 	}
 
-	return LoadConfig(validatedPath, filesystem.AllowAll)
+	return LoadConfig(path, fs)
 }
 
 func LoadConfig(path string, fs filesystem.FS) (*latest.Config, error) {

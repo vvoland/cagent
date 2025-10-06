@@ -101,6 +101,26 @@ agents:
 	require.Error(t, err)
 }
 
+func TestLoadConfigSecureDeprecated_InvalidPath(t *testing.T) {
+	tmp := t.TempDir()
+
+	validConfig := `version: 1
+agents:
+  root:
+    model: "openai/gpt-4"
+`
+
+	err := os.WriteFile(filepath.Join(tmp, "valid.yaml"), []byte(validConfig), 0o644)
+	require.NoError(t, err)
+
+	cfg, err := LoadConfigSecureDeprecated("valid.yaml", tmp)
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+
+	_, err = LoadConfigSecureDeprecated("../../../etc/passwd", tmp)
+	require.Error(t, err)
+}
+
 func TestValidationErrors(t *testing.T) {
 	tests := []struct {
 		name string

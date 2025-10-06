@@ -160,7 +160,7 @@ func (s *Server) getAgentConfig(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid agent ID"})
 	}
 
-	cfg, err := config.LoadConfigSecure(path, s.agentsDir)
+	cfg, err := config.LoadConfigSecureDeprecated(path, s.agentsDir)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "agent not found"})
 	}
@@ -190,7 +190,7 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 	}
 
 	// Load the target file content
-	currentConfig, err := config.LoadConfigSecure(path, s.agentsDir)
+	currentConfig, err := config.LoadConfigSecureDeprecated(path, s.agentsDir)
 	if err != nil {
 		slog.Error("Failed to load current config", "path", path, "error", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load current configuration"})
