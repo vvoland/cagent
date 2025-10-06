@@ -5,7 +5,6 @@ import (
 )
 
 type Event interface {
-	isEvent()
 	GetAgentName() string
 }
 
@@ -34,8 +33,6 @@ func (e *UserMessageEvent) GetAgentName() string {
 	return ""
 }
 
-func (e *UserMessageEvent) isEvent() {}
-
 // PartialToolCallEvent is sent when a tool call is first received (partial/complete)
 type PartialToolCallEvent struct {
 	Type           string         `json:"type"`
@@ -53,8 +50,6 @@ func PartialToolCall(toolCall tools.ToolCall, toolDefinition tools.Tool, agentNa
 	}
 }
 
-func (e *PartialToolCallEvent) isEvent() {}
-
 // ToolCallEvent is sent when a tool call is received
 type ToolCallEvent struct {
 	Type           string         `json:"type"`
@@ -71,8 +66,6 @@ func ToolCall(toolCall tools.ToolCall, toolDefinition tools.Tool, agentName stri
 	}
 }
 
-func (e *ToolCallEvent) isEvent() {}
-
 type ToolCallConfirmationEvent struct {
 	Type           string         `json:"type"`
 	ToolCall       tools.ToolCall `json:"tool_call"`
@@ -88,7 +81,6 @@ func ToolCallConfirmation(toolCall tools.ToolCall, toolDefinition tools.Tool, ag
 		AgentContext:   AgentContext{AgentName: agentName},
 	}
 }
-func (e *ToolCallConfirmationEvent) isEvent() {}
 
 type ToolCallResponseEvent struct {
 	Type     string         `json:"type"`
@@ -105,7 +97,6 @@ func ToolCallResponse(toolCall tools.ToolCall, response, agentName string) Event
 		AgentContext: AgentContext{AgentName: agentName},
 	}
 }
-func (e *ToolCallResponseEvent) isEvent() {}
 
 type StreamStartedEvent struct {
 	Type      string `json:"type"`
@@ -125,8 +116,6 @@ func (e *StreamStartedEvent) GetAgentName() string {
 	return e.AgentName
 }
 
-func (e *StreamStartedEvent) isEvent() {}
-
 type AgentChoiceEvent struct {
 	Type    string `json:"type"`
 	Content string `json:"content"`
@@ -140,7 +129,6 @@ func AgentChoice(agentName, content string) Event { //nolint:gocritic
 		AgentContext: AgentContext{AgentName: agentName},
 	}
 }
-func (e *AgentChoiceEvent) isEvent() {}
 
 type AgentChoiceReasoningEvent struct {
 	Type    string `json:"type"`
@@ -155,7 +143,6 @@ func AgentChoiceReasoning(agentName, content string) Event { //nolint:gocritic
 		AgentContext: AgentContext{AgentName: agentName},
 	}
 }
-func (e *AgentChoiceReasoningEvent) isEvent() {}
 
 type ErrorEvent struct {
 	Type  string `json:"type"`
@@ -169,7 +156,6 @@ func Error(msg string) Event {
 		Error: msg,
 	}
 }
-func (e *ErrorEvent) isEvent() {}
 
 type ShellOutputEvent struct {
 	Type   string `json:"type"`
@@ -182,7 +168,6 @@ func ShellOutput(output string) Event {
 		Output: output,
 	}
 }
-func (e *ShellOutputEvent) isEvent()             {}
 func (e *ShellOutputEvent) GetAgentName() string { return "" }
 
 type TokenUsageEvent struct {
@@ -211,7 +196,6 @@ func TokenUsage(inputTokens, outputTokens, contextLength, contextLimit int, cost
 		},
 	}
 }
-func (e *TokenUsageEvent) isEvent() {}
 
 type SessionTitleEvent struct {
 	Type      string `json:"type"`
@@ -230,7 +214,6 @@ func SessionTitle(sessionID, title, agentName string) Event {
 		},
 	}
 }
-func (e *SessionTitleEvent) isEvent() {}
 
 type SessionSummaryEvent struct {
 	Type      string `json:"type"`
@@ -249,7 +232,6 @@ func SessionSummary(sessionID, summary, agentName string) Event {
 		},
 	}
 }
-func (e *SessionSummaryEvent) isEvent() {}
 
 type SessionCompactionEvent struct {
 	Type      string `json:"type"`
@@ -268,7 +250,6 @@ func SessionCompaction(sessionID, status, agentName string) Event {
 		},
 	}
 }
-func (e *SessionCompactionEvent) isEvent() {}
 
 type StreamStoppedEvent struct {
 	Type      string `json:"type"`
@@ -288,8 +269,6 @@ func (e *StreamStoppedEvent) GetAgentName() string {
 	return e.AgentName
 }
 
-func (e *StreamStoppedEvent) isEvent() {}
-
 type AuthorizationRequiredEvent struct {
 	Type         string `json:"type"`
 	ServerURL    string `json:"server_url"`
@@ -308,8 +287,6 @@ func AuthorizationRequired(serverURL, serverType, confirmation, agentName string
 	}
 }
 
-func (e *AuthorizationRequiredEvent) isEvent() {}
-
 func (e *AuthorizationRequiredEvent) GetAgentName() string {
 	return ""
 }
@@ -326,8 +303,6 @@ func MaxIterationsReached(maxIterations int) Event {
 		MaxIterations: maxIterations,
 	}
 }
-
-func (e *MaxIterationsReachedEvent) isEvent() {}
 
 func (e *MaxIterationsReachedEvent) GetAgentName() string {
 	return e.AgentName
