@@ -13,9 +13,12 @@ import (
 
 	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown/v2"
 	"github.com/k3a/html2text"
+	"github.com/temoto/robotstxt"
 
 	"github.com/docker/cagent/pkg/tools"
 )
+
+const userAgent = "cagent/1.0"
 
 type FetchTool struct {
 	handler *fetchHandler
@@ -51,8 +54,12 @@ func (h *fetchHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*
 	}
 
 	var results []FetchResult
+
+	// Group URLs by host to fetch robots.txt once per host
+	robotsCache := make(map[string]bool)
+
 	for _, urlStr := range params.URLs {
-		result := h.fetchURL(ctx, client, urlStr, params.Format)
+		result := h.fetchURL(ctx, client, urlStr, params.Format, robotsCache)
 		results = append(results, result)
 	}
 
@@ -87,7 +94,7 @@ type FetchResult struct {
 	Error         string `json:"error,omitempty"`
 }
 
-func (h *fetchHandler) fetchURL(ctx context.Context, client *http.Client, urlStr, format string) FetchResult {
+func (h *fetchHandler) fetchURL(ctx context.Context, client *http.Client, urlStr, format string, robotsCache map[string]bool) FetchResult {
 	result := FetchResult{URL: urlStr}
 
 	// Validate URL
@@ -109,6 +116,19 @@ func (h *fetchHandler) fetchURL(ctx context.Context, client *http.Client, urlStr
 		return result
 	}
 
+	// Check robots.txt (with caching per host)
+	host := parsedURL.Host
+	allowed, cached := robotsCache[host]
+	if !cached {
+		allowed = h.checkRobotsAllowed(ctx, client, parsedURL, userAgent)
+		robotsCache[host] = allowed
+	}
+
+	if !allowed {
+		result.Error = "URL blocked by robots.txt"
+		return result
+	}
+
 	// Create request
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlStr, http.NoBody)
 	if err != nil {
@@ -117,7 +137,7 @@ func (h *fetchHandler) fetchURL(ctx context.Context, client *http.Client, urlStr
 	}
 
 	// Set User-Agent
-	req.Header.Set("User-Agent", "cagent/1.0")
+	req.Header.Set("User-Agent", userAgent)
 
 	switch format {
 	case "markdown":
@@ -176,6 +196,64 @@ func (h *fetchHandler) fetchURL(ctx context.Context, client *http.Client, urlStr
 	return result
 }
 
+func (h *fetchHandler) checkRobotsAllowed(ctx context.Context, client *http.Client, targetURL *url.URL, userAgent string) bool {
+	// Build robots.txt URL
+	robotsURL := &url.URL{
+		Scheme: targetURL.Scheme,
+		Host:   targetURL.Host,
+		Path:   "/robots.txt",
+	}
+
+	// Create request for robots.txt
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, robotsURL.String(), http.NoBody)
+	if err != nil {
+		// If we can't create request, allow the fetch
+		return true
+	}
+
+	req.Header.Set("User-Agent", userAgent)
+
+	// Create robots client with same timeout and transport as main client
+	robotsClient := &http.Client{
+		Timeout:   client.Timeout,   // Same timeout as main client
+		Transport: client.Transport, // Inherit proxy/transport settings
+	}
+
+	resp, err := robotsClient.Do(req)
+	if err != nil {
+		// If robots.txt is unreachable, allow the fetch
+		return true
+	}
+	defer resp.Body.Close()
+
+	// If robots.txt doesn't exist (404), allow the fetch
+	if resp.StatusCode == http.StatusNotFound {
+		return true
+	}
+
+	// For other non-200 status codes, fail the fetch
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
+
+	// Read robots.txt content (limit to 64KB)
+	robotsBody, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+	if err != nil {
+		// If we can't read robots.txt, fail the fetch
+		return false
+	}
+
+	// Parse robots.txt
+	robots, err := robotstxt.FromBytes(robotsBody)
+	if err != nil {
+		// If we can't parse robots.txt, fail the fetch
+		return false
+	}
+
+	// Check if the target URL path is allowed for our user agent
+	return robots.TestAgent(targetURL.Path, userAgent)
+}
+
 func htmlToMarkdown(html string) string {
 	markdown, err := htmltomarkdown.ConvertString(html)
 	if err != nil {
@@ -220,6 +298,7 @@ FEATURES
 - Support for multiple URLs in a single call
 - Returns response body and metadata (status code, content type, length)
 - Specify the output format (text, markdown, html)
+- Respects robots.txt restrictions
 
 USAGE TIPS
 - Use single URLs for simple content fetching
