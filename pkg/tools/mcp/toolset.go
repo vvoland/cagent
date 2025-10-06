@@ -71,6 +71,69 @@ func NewRemoteToolset(url, transport string, headers map[string]string, toolFilt
 	}, nil
 }
 
+func (ts *Toolset) Start(ctx context.Context) error {
+	if ts.started.Load() {
+		return errors.New("toolset already started")
+	}
+
+	slog.Debug("Starting MCP toolset", "server", ts.logId)
+
+	if err := ts.mcpClient.Start(ctx); err != nil {
+		// When the MCP client is remote, Start() can fail due to OAuth authorization errors.
+		// Provide more context to the caller.
+		if client.IsOAuthAuthorizationRequiredError(err) {
+			return &oauth.AuthorizationRequiredError{
+				Err:        err,
+				ServerURL:  ts.logType,
+				ServerType: ts.logId,
+			}
+		}
+		return fmt.Errorf("failed to start MCP client: %w", err)
+	}
+
+	slog.Debug("Initializing MCP client", ts.logType, ts.logId)
+	initRequest := mcp.InitializeRequest{}
+	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
+	initRequest.Params.ClientInfo = mcp.Implementation{
+		Name:    "cagent",
+		Version: "1.0.0",
+	}
+
+	var result *mcp.InitializeResult
+	const maxRetries = 3
+	for attempt := 0; ; attempt++ {
+		var err error
+		result, err = ts.mcpClient.Initialize(ctx, initRequest)
+		if err == nil {
+			break
+		}
+		// TODO(krissetto): This is a temporary fix to handle the case where the remote server hasn't finished its async init
+		// and we send the notifications/initialized message before the server is ready. Fix upstream in mcp-go if possible.
+		//
+		// Only retry when initialization fails due to sending the initialized notification.
+		if !isInitNotificationSendError(err) {
+			slog.Error("Failed to initialize MCP client", "error", err)
+			return fmt.Errorf("failed to initialize MCP client: %w", err)
+		}
+		if attempt >= maxRetries {
+			slog.Error("Failed to initialize MCP client after retries", "error", err)
+			return fmt.Errorf("failed to initialize MCP client after retries: %w", err)
+		}
+		backoff := time.Duration(200*(attempt+1)) * time.Millisecond
+		slog.Debug("MCP initialize failed to send initialized notification; retrying", "id", ts.logId, "attempt", attempt+1, "backoff_ms", backoff.Milliseconds())
+		select {
+		case <-time.After(backoff):
+		case <-ctx.Done():
+			return fmt.Errorf("failed to initialize MCP client: %w", ctx.Err())
+		}
+	}
+
+	slog.Debug("Started MCP toolset successfully", "server", ts.logId)
+	ts.instructions = result.Instructions
+	ts.started.Store(true)
+	return nil
+}
+
 func (ts *Toolset) Instructions() string {
 	if !ts.started.Load() {
 		panic("toolset not started")
@@ -173,69 +236,6 @@ func (ts *Toolset) callTool(ctx context.Context, toolCall tools.ToolCall) (*tool
 	slog.Debug("MCP tool call completed", "tool", toolCall.Function.Name, "output_length", len(result.Output))
 	slog.Debug(result.Output)
 	return result, nil
-}
-
-func (ts *Toolset) Start(ctx context.Context) error {
-	if ts.started.Load() {
-		return errors.New("toolset already started")
-	}
-
-	slog.Debug("Starting MCP toolset", "server", ts.logId)
-
-	if err := ts.mcpClient.Start(ctx); err != nil {
-		// When the MCP client is remote, Start() can fail due to OAuth authorization errors.
-		// Provide more context to the caller.
-		if client.IsOAuthAuthorizationRequiredError(err) {
-			return &oauth.AuthorizationRequiredError{
-				Err:        err,
-				ServerURL:  ts.logType,
-				ServerType: ts.logId,
-			}
-		}
-		return fmt.Errorf("failed to start MCP client: %w", err)
-	}
-
-	slog.Debug("Initializing MCP client", ts.logType, ts.logId)
-	initRequest := mcp.InitializeRequest{}
-	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
-	initRequest.Params.ClientInfo = mcp.Implementation{
-		Name:    "cagent",
-		Version: "1.0.0",
-	}
-
-	var result *mcp.InitializeResult
-	const maxRetries = 3
-	for attempt := 0; ; attempt++ {
-		var err error
-		result, err = ts.mcpClient.Initialize(ctx, initRequest)
-		if err == nil {
-			break
-		}
-		// TODO(krissetto): This is a temporary fix to handle the case where the remote server hasn't finished its async init
-		// and we send the notifications/initialized message before the server is ready. Fix upstream in mcp-go if possible.
-		//
-		// Only retry when initialization fails due to sending the initialized notification.
-		if !isInitNotificationSendError(err) {
-			slog.Error("Failed to initialize MCP client", "error", err)
-			return fmt.Errorf("failed to initialize MCP client: %w", err)
-		}
-		if attempt >= maxRetries {
-			slog.Error("Failed to initialize MCP client after retries", "error", err)
-			return fmt.Errorf("failed to initialize MCP client after retries: %w", err)
-		}
-		backoff := time.Duration(200*(attempt+1)) * time.Millisecond
-		slog.Debug("MCP initialize failed to send initialized notification; retrying", "id", ts.logId, "attempt", attempt+1, "backoff_ms", backoff.Milliseconds())
-		select {
-		case <-time.After(backoff):
-		case <-ctx.Done():
-			return fmt.Errorf("failed to initialize MCP client: %w", ctx.Err())
-		}
-	}
-
-	slog.Debug("Started MCP toolset successfully", "server", ts.logId)
-	ts.instructions = result.Instructions
-	ts.started.Store(true)
-	return nil
 }
 
 func (ts *Toolset) Stop() error {
