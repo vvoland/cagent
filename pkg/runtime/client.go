@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"strings"
 	"time"
 
 	"github.com/docker/cagent/pkg/api"
@@ -321,71 +320,111 @@ func (c *Client) runAgentWithAgentName(ctx context.Context, sessionID, agent, ag
 
 		scanner := bufio.NewScanner(resp.Body)
 		for scanner.Scan() {
-			line := scanner.Text()
-
-			if line == "" || strings.HasPrefix(line, ":") {
+			line := scanner.Bytes()
+			if len(line) == 0 || line[0] == ':' {
 				continue
 			}
 
-			if after, ok := strings.CutPrefix(line, "data: "); ok {
-				var event map[string]any
-				if err := json.Unmarshal([]byte(after), &event); err != nil {
-					continue
+			after, ok := bytes.CutPrefix(line, []byte("data: "))
+			if !ok {
+				continue
+			}
+
+			slog.Debug("event", "event", string(after))
+
+			// First unmarshal to get the type
+			var baseEvent struct {
+				Type string `json:"type"`
+			}
+			if err := json.Unmarshal(after, &baseEvent); err != nil {
+				continue
+			}
+
+			switch baseEvent.Type {
+			case "user_message":
+				var e UserMessageEvent
+				if err := json.Unmarshal(after, &e); err == nil {
+					eventChan <- UserMessage(e.Message)
 				}
-
-				slog.Debug("event", "event", after)
-
-				switch event["type"] {
-				case "user_message":
-					eventChan <- UserMessage(event["message"].(string))
-				case "tool_call_confirmation":
-					if toolCall, toolDef, err := parseToolCall(event["tool_call"].([]byte), event["tool_definition"].([]byte)); err == nil {
-						eventChan <- ToolCallConfirmation(toolCall, toolDef, event["agent_name"].(string))
-					}
-				case "partial_tool_call":
-					if toolCall, toolDef, err := parseToolCall(event["tool_call"].([]byte), event["tool_definition"].([]byte)); err == nil {
-						eventChan <- PartialToolCall(toolCall, toolDef, event["agent_name"].(string))
-					}
-				case "tool_call":
-					if toolCall, toolDef, err := parseToolCall(event["tool_call"].([]byte), event["tool_definition"].([]byte)); err == nil {
-						eventChan <- ToolCall(toolCall, toolDef, event["agent_name"].(string))
-					}
-				case "tool_call_response":
-					if toolCall, _, err := parseToolCall(event["tool_call"].([]byte), event["tool_definition"].([]byte)); err == nil {
-						eventChan <- ToolCallResponse(toolCall, event["response"].(string), event["agent_name"].(string))
-					}
-				case "agent_choice_reasoning":
-					eventChan <- AgentChoiceReasoning(event["agent_name"].(string), event["content"].(string))
-				case "agent_choice":
-					eventChan <- AgentChoice(event["agent_name"].(string), event["content"].(string))
-				case "stream_started":
-					eventChan <- StreamStarted(sessionID, event["agent_name"].(string))
-				case "stream_stopped":
-					eventChan <- StreamStopped(sessionID, event["agent_name"].(string))
-				case "authorization_required":
-					eventChan <- AuthorizationRequired(event["server_url"].(string), event["server_type"].(string), event["confirmation"].(string), event["agent_name"].(string))
-				case "session_compaction":
-					eventChan <- SessionCompaction(event["session_id"].(string), event["status"].(string), event["agent_name"].(string))
-				case "token_usage":
-					usage := event["usage"].(map[string]any)
-					inputTokens, _ := usage["input_tokens"].(float64)
-					outputTokens, _ := usage["output_tokens"].(float64)
-					contextLength, _ := usage["context_length"].(float64)
-					contextLimit, _ := usage["context_limit"].(float64)
-					cost, _ := usage["cost"].(float64)
-
-					eventChan <- TokenUsage(int(inputTokens), int(outputTokens), int(contextLength), int(contextLimit), cost)
-				case "max_iterations_reached":
-					maxIterations, _ := event["max_iterations"].(float64)
-					eventChan <- MaxIterationsReached(int(maxIterations))
-				case "session_title":
-					eventChan <- SessionTitle(event["session_id"].(string), event["title"].(string), event["agent_name"].(string))
-				case "session_summary":
-					eventChan <- SessionSummary(event["session_id"].(string), event["summary"].(string), event["agent_name"].(string))
-				case "shell":
-					eventChan <- ShellOutput(event["output"].(string))
-				case "error":
-					eventChan <- Error(event["error"].(string))
+			case "tool_call_confirmation":
+				var e ToolCallConfirmationEvent
+				if err := json.Unmarshal(after, &e); err == nil {
+					eventChan <- ToolCallConfirmation(e.ToolCall, e.ToolDefinition, e.AgentName)
+				}
+			case "partial_tool_call":
+				var e PartialToolCallEvent
+				if err := json.Unmarshal(after, &e); err == nil {
+					eventChan <- PartialToolCall(e.ToolCall, e.ToolDefinition, e.AgentName)
+				}
+			case "tool_call":
+				var e ToolCallEvent
+				if err := json.Unmarshal(after, &e); err == nil {
+					eventChan <- ToolCall(e.ToolCall, e.ToolDefinition, e.AgentName)
+				}
+			case "tool_call_response":
+				var e ToolCallResponseEvent
+				if err := json.Unmarshal(after, &e); err == nil {
+					eventChan <- ToolCallResponse(e.ToolCall, e.Response, e.AgentName)
+				}
+			case "agent_choice_reasoning":
+				var e AgentChoiceReasoningEvent
+				if err := json.Unmarshal(after, &e); err == nil {
+					eventChan <- AgentChoiceReasoning(e.AgentName, e.Content)
+				}
+			case "agent_choice":
+				var e AgentChoiceEvent
+				if err := json.Unmarshal(after, &e); err == nil {
+					eventChan <- AgentChoice(e.AgentName, e.Content)
+				}
+			case "stream_started":
+				var e StreamStartedEvent
+				if err := json.Unmarshal(after, &e); err == nil {
+					eventChan <- StreamStarted(sessionID, e.AgentName)
+				}
+			case "stream_stopped":
+				var e StreamStoppedEvent
+				if err := json.Unmarshal(after, &e); err == nil {
+					eventChan <- StreamStopped(sessionID, e.AgentName)
+				}
+			case "authorization_required":
+				var e AuthorizationRequiredEvent
+				if err := json.Unmarshal(after, &e); err == nil {
+					eventChan <- AuthorizationRequired(e.ServerURL, e.ServerType, e.Confirmation, e.AgentName)
+				}
+			case "session_compaction":
+				var e SessionCompactionEvent
+				if err := json.Unmarshal(after, &e); err == nil {
+					eventChan <- SessionCompaction(e.SessionID, e.Status, e.AgentName)
+				}
+			case "token_usage":
+				var e TokenUsageEvent
+				if err := json.Unmarshal(after, &e); err == nil {
+					eventChan <- TokenUsage(e.Usage.InputTokens, e.Usage.OutputTokens, e.Usage.ContextLength, e.Usage.ContextLimit, e.Usage.Cost)
+				}
+			case "max_iterations_reached":
+				var e MaxIterationsReachedEvent
+				if err := json.Unmarshal(after, &e); err == nil {
+					eventChan <- MaxIterationsReached(e.MaxIterations)
+				}
+			case "session_title":
+				var e SessionTitleEvent
+				if err := json.Unmarshal(after, &e); err == nil {
+					eventChan <- SessionTitle(e.SessionID, e.Title, e.AgentName)
+				}
+			case "session_summary":
+				var e SessionSummaryEvent
+				if err := json.Unmarshal(after, &e); err == nil {
+					eventChan <- SessionSummary(e.SessionID, e.Summary, e.AgentName)
+				}
+			case "shell":
+				var e ShellOutputEvent
+				if err := json.Unmarshal(after, &e); err == nil {
+					eventChan <- ShellOutput(e.Output)
+				}
+			case "error":
+				var e ErrorEvent
+				if err := json.Unmarshal(after, &e); err == nil {
+					eventChan <- Error(e.Error)
 				}
 			}
 		}
