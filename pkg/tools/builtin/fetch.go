@@ -18,6 +18,8 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
+const userAgent = "cagent/1.0"
+
 type FetchTool struct {
 	handler *fetchHandler
 }
@@ -30,10 +32,9 @@ type fetchHandler struct {
 
 func (h *fetchHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var params struct {
-		URLs             []string `json:"urls"`
-		Timeout          int      `json:"timeout,omitempty"`
-		Format           string   `json:"format,omitempty"`
-		IgnoreRobotsText bool     `json:"ignoreRobotsText,omitempty"`
+		URLs    []string `json:"urls"`
+		Timeout int      `json:"timeout,omitempty"`
+		Format  string   `json:"format,omitempty"`
 	}
 
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
@@ -53,8 +54,12 @@ func (h *fetchHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*
 	}
 
 	var results []FetchResult
+
+	// Group URLs by host to fetch robots.txt once per host
+	robotsCache := make(map[string]bool)
+
 	for _, urlStr := range params.URLs {
-		result := h.fetchURL(ctx, client, urlStr, params.Format, params.IgnoreRobotsText)
+		result := h.fetchURL(ctx, client, urlStr, params.Format, robotsCache)
 		results = append(results, result)
 	}
 
@@ -89,7 +94,7 @@ type FetchResult struct {
 	Error         string `json:"error,omitempty"`
 }
 
-func (h *fetchHandler) fetchURL(ctx context.Context, client *http.Client, urlStr, format string, ignoreRobotsText bool) FetchResult {
+func (h *fetchHandler) fetchURL(ctx context.Context, client *http.Client, urlStr, format string, robotsCache map[string]bool) FetchResult {
 	result := FetchResult{URL: urlStr}
 
 	// Validate URL
@@ -111,12 +116,17 @@ func (h *fetchHandler) fetchURL(ctx context.Context, client *http.Client, urlStr
 		return result
 	}
 
-	// Check robots.txt unless explicitly ignored
-	if !ignoreRobotsText {
-		if allowed := h.checkRobotsAllowed(ctx, client, parsedURL, "cagent/1.0"); !allowed {
-			result.Error = "URL blocked by robots.txt"
-			return result
-		}
+	// Check robots.txt (with caching per host)
+	host := parsedURL.Host
+	allowed, cached := robotsCache[host]
+	if !cached {
+		allowed = h.checkRobotsAllowed(ctx, client, parsedURL, userAgent)
+		robotsCache[host] = allowed
+	}
+
+	if !allowed {
+		result.Error = "URL blocked by robots.txt"
+		return result
 	}
 
 	// Create request
@@ -127,7 +137,7 @@ func (h *fetchHandler) fetchURL(ctx context.Context, client *http.Client, urlStr
 	}
 
 	// Set User-Agent
-	req.Header.Set("User-Agent", "cagent/1.0")
+	req.Header.Set("User-Agent", userAgent)
 
 	switch format {
 	case "markdown":
@@ -203,9 +213,9 @@ func (h *fetchHandler) checkRobotsAllowed(ctx context.Context, client *http.Clie
 
 	req.Header.Set("User-Agent", userAgent)
 
-	// Create robots client with shorter timeout but same transport as main client
+	// Create robots client with same timeout and transport as main client
 	robotsClient := &http.Client{
-		Timeout:   10 * time.Second, // Shorter timeout for robots.txt
+		Timeout:   client.Timeout,   // Same timeout as main client
 		Transport: client.Transport, // Inherit proxy/transport settings
 	}
 
@@ -216,23 +226,28 @@ func (h *fetchHandler) checkRobotsAllowed(ctx context.Context, client *http.Clie
 	}
 	defer resp.Body.Close()
 
-	// If robots.txt doesn't exist (404) or other error, allow the fetch
-	if resp.StatusCode != http.StatusOK {
+	// If robots.txt doesn't exist (404), allow the fetch
+	if resp.StatusCode == http.StatusNotFound {
 		return true
+	}
+
+	// For other non-200 status codes, fail the fetch
+	if resp.StatusCode != http.StatusOK {
+		return false
 	}
 
 	// Read robots.txt content (limit to 64KB)
 	robotsBody, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 	if err != nil {
-		// If we can't read robots.txt, allow the fetch
-		return true
+		// If we can't read robots.txt, fail the fetch
+		return false
 	}
 
 	// Parse robots.txt
 	robots, err := robotstxt.FromBytes(robotsBody)
 	if err != nil {
-		// If we can't parse robots.txt, allow the fetch
-		return true
+		// If we can't parse robots.txt, fail the fetch
+		return false
 	}
 
 	// Check if the target URL path is allowed for our user agent
@@ -283,12 +298,11 @@ FEATURES
 - Support for multiple URLs in a single call
 - Returns response body and metadata (status code, content type, length)
 - Specify the output format (text, markdown, html)
-- Respects robots.txt restrictions by default
+- Respects robots.txt restrictions
 
 USAGE TIPS
 - Use single URLs for simple content fetching
-- Use multiple URLs for batch operations
-- Set ignoreRobotsText to true to bypass robots.txt restrictions when needed`
+- Use multiple URLs for batch operations`
 }
 
 func (t *FetchTool) Tools(context.Context) ([]tools.Tool, error) {
@@ -322,10 +336,6 @@ func (t *FetchTool) Tools(context.Context) ([]tools.Tool, error) {
 							"description": "Request timeout in seconds (default: 30)",
 							"minimum":     1,
 							"maximum":     300,
-						},
-						"ignoreRobotsText": map[string]any{
-							"type":        "boolean",
-							"description": "Whether to ignore robots.txt restrictions (default: false)",
 						},
 					},
 					Required: []string{"urls", "format"},
