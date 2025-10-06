@@ -84,8 +84,8 @@ func (ts *Toolset) Start(ctx context.Context) error {
 		if client.IsOAuthAuthorizationRequiredError(err) {
 			return &oauth.AuthorizationRequiredError{
 				Err:        err,
-				ServerURL:  ts.logType,
-				ServerType: ts.logId,
+				ServerURL:  ts.logId,
+				ServerType: ts.logType,
 			}
 		}
 		return fmt.Errorf("failed to start MCP client: %w", err)
