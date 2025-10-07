@@ -153,12 +153,7 @@ func (s *Server) getDesktopToken(c echo.Context) error {
 
 func (s *Server) getAgentConfig(c echo.Context) error {
 	agentID := c.Param("id")
-
-	path, err := s.secureAgentPath(agentID)
-	if err != nil {
-		slog.Error("Invalid agent ID", "agentID", agentID, "error", err)
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid agent ID"})
-	}
+	path := toYaml(agentID)
 
 	cfg, err := config.LoadConfigSecureDeprecated(path, s.agentsDir)
 	if err != nil {
@@ -178,16 +173,7 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "filename is required"})
 	}
 
-	path, err := s.secureAgentPath(req.Filename)
-	if err != nil {
-		slog.Error("Invalid filename", "filename", req.Filename, "error", err)
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid filename"})
-	}
-
-	// Check if the file exists
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return c.JSON(http.StatusNotFound, map[string]string{"error": "agent not found"})
-	}
+	path := toYaml(req.Filename)
 
 	// Load the target file content
 	currentConfig, err := config.LoadConfigSecureDeprecated(path, s.agentsDir)
@@ -202,6 +188,12 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to apply new agent configuration"})
 	}
 	mergedConfig := *currentConfig
+
+	path, err = s.secureAgentPath(path)
+	if err != nil {
+		slog.Error("Invalid filename", "filename", req.Filename, "error", err)
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid filename"})
+	}
 
 	// Read current file to preserve shebang and metadata structure
 	currentContent, err := os.ReadFile(path)
@@ -1028,6 +1020,13 @@ func (s *Server) secureAgentPath(filename string) (string, error) {
 	}
 
 	return config.ValidatePathInDirectory(filename, s.agentsDir)
+}
+
+func toYaml(filename string) string {
+	if strings.HasSuffix(filename, ".yaml") || strings.HasSuffix(filename, ".yml") {
+		return filename
+	}
+	return filename + ".yaml"
 }
 
 func (s *Server) resumeStartOauth(c echo.Context) error {
