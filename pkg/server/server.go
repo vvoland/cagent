@@ -204,13 +204,9 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 
 	// Extract shebang and version lines if they exist
 	shebang := ""
-	versionLine := ""
-	currentLines := strings.Split(string(currentContent), "\n")
-	for i, line := range currentLines {
+	for i, line := range strings.Split(string(currentContent), "\n") {
 		if i == 0 && strings.HasPrefix(line, "#!/") {
-			shebang = line + "\n"
-		} else if strings.HasPrefix(line, "version:") {
-			versionLine = line + "\n"
+			shebang = line + "\n\n"
 			break
 		}
 	}
@@ -222,12 +218,15 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to generate merged YAML configuration"})
 	}
 
-	// Combine shebang, version, and merged YAML content
-	finalContent := shebang + versionLine
-	if shebang != "" || versionLine != "" {
-		finalContent += "\n"
+	// Combine shebang and merged YAML content
+	finalContent := shebang + string(yamlData)
+
+	// Make sure the content we are about to write is valid YAML
+	var tmpConfig latest.Config
+	if err := yaml.UnmarshalWithOptions([]byte(finalContent), &tmpConfig, yaml.Strict()); err != nil {
+		slog.Error("Failed to unmarshal final content", "error", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to validate YAML content"})
 	}
-	finalContent += string(yamlData)
 
 	// Write the updated configuration back to the file
 	if err := os.WriteFile(path, []byte(finalContent), 0o644); err != nil {
