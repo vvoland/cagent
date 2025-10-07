@@ -204,13 +204,10 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 
 	// Extract shebang and version lines if they exist
 	shebang := ""
-	versionLine := ""
 	currentLines := strings.Split(string(currentContent), "\n")
 	for i, line := range currentLines {
 		if i == 0 && strings.HasPrefix(line, "#!/") {
-			shebang = line + "\n"
-		} else if strings.HasPrefix(line, "version:") {
-			versionLine = line + "\n"
+			shebang = line + "\n\n"
 			break
 		}
 	}
@@ -222,12 +219,8 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to generate merged YAML configuration"})
 	}
 
-	// Combine shebang, version, and merged YAML content
-	finalContent := shebang + versionLine
-	if shebang != "" || versionLine != "" {
-		finalContent += "\n"
-	}
-	finalContent += string(yamlData)
+	// Combine shebang and merged YAML content
+	finalContent := shebang + string(yamlData)
 
 	// Write the updated configuration back to the file
 	if err := os.WriteFile(path, []byte(finalContent), 0o644); err != nil {
