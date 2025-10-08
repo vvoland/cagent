@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -20,62 +21,200 @@ import (
 	"github.com/docker/cagent/pkg/session"
 )
 
-func TestServerTODO(t *testing.T) {
+func TestServer_ListAgents(t *testing.T) {
+	// t.Parallel()
 	t.Setenv("OPENAI_API_KEY", "dummy")
+	t.Setenv("ANTHROPIC_API_KEY", "dummy")
+
 	ctx := t.Context()
+	lnPath := startServer(t, ctx, prepareAgentsDir(t, "pirate.yaml", "contradict.yaml", "multi_agents.yaml"))
 
-	agentsDir := prepareAgentsDir(t, "pirate.yaml")
-	lnPath := startServer(t, ctx, agentsDir)
+	buf := httpGET(t, ctx, lnPath, "/api/agents")
 
-	t.Run("list agents", func(t *testing.T) {
-		buf := httpGET(t, ctx, lnPath, "/api/agents")
+	var agents []api.Agent
+	unmarshal(t, buf, &agents)
 
-		var agents []any
-		unmarshal(t, buf, &agents)
+	assert.Len(t, agents, 3)
 
-		assert.NotEmpty(t, agents)
-	})
+	assert.Equal(t, "contradict.yaml", agents[0].Name)
+	assert.Equal(t, "Contrarian viewpoint provider", agents[0].Description)
+	assert.False(t, agents[0].Multi)
 
-	t.Run("get agent (no extension)", func(t *testing.T) {
-		buf := httpGET(t, ctx, lnPath, "/api/agents/pirate")
+	assert.Equal(t, "multi_agents.yaml", agents[1].Name)
+	assert.Equal(t, "Multi Agent", agents[1].Description)
+	assert.True(t, agents[1].Multi)
 
-		var cfg latest.Config
-		unmarshal(t, buf, &cfg)
+	assert.Equal(t, "pirate.yaml", agents[2].Name)
+	assert.Equal(t, "Talk like a pirate", agents[2].Description)
+	assert.False(t, agents[2].Multi)
+}
 
-		assert.NotEmpty(t, cfg.Version)
-		require.NotEmpty(t, cfg.Agents)
-		assert.Contains(t, cfg.Agents["root"].Instruction, "pirate")
-	})
+func TestServer_GetAgent_NoExtension(t *testing.T) {
+	t.Parallel()
 
-	t.Run("get agent", func(t *testing.T) {
-		buf := httpGET(t, ctx, lnPath, "/api/agents/pirate.yaml")
+	ctx := t.Context()
+	lnPath := startServer(t, ctx, prepareAgentsDir(t, "pirate.yaml"))
 
-		var cfg latest.Config
-		unmarshal(t, buf, &cfg)
+	buf := httpGET(t, ctx, lnPath, "/api/agents/pirate")
 
-		assert.NotEmpty(t, cfg.Version)
-		require.NotEmpty(t, cfg.Agents)
-		assert.Contains(t, cfg.Agents["root"].Instruction, "pirate")
-	})
+	var cfg latest.Config
+	unmarshal(t, buf, &cfg)
 
-	t.Run("get agent's yaml (no extension)", func(t *testing.T) {
-		content := httpGET(t, ctx, lnPath, "/api/agents/pirate/yaml")
-		assert.Contains(t, string(content), "pirate")
-	})
+	assert.NotEmpty(t, cfg.Version)
+	require.Len(t, cfg.Agents, 1)
+	assert.Contains(t, cfg.Agents["root"].Instruction, "pirate")
+}
 
-	t.Run("get agent's yaml", func(t *testing.T) {
-		content := httpGET(t, ctx, lnPath, "/api/agents/pirate.yaml/yaml")
-		assert.Contains(t, string(content), "pirate")
-	})
+func TestServer_GetAgent(t *testing.T) {
+	t.Parallel()
 
-	t.Run("list sessions", func(t *testing.T) {
-		buf := httpGET(t, ctx, lnPath, "/api/sessions")
+	ctx := t.Context()
+	lnPath := startServer(t, ctx, prepareAgentsDir(t, "pirate.yaml"))
 
-		var sessions []api.SessionsResponse
-		unmarshal(t, buf, &sessions)
+	buf := httpGET(t, ctx, lnPath, "/api/agents/pirate.yaml")
 
-		assert.Empty(t, sessions)
-	})
+	var cfg latest.Config
+	unmarshal(t, buf, &cfg)
+
+	assert.NotEmpty(t, cfg.Version)
+	require.Len(t, cfg.Agents, 1)
+	assert.Contains(t, cfg.Agents["root"].Instruction, "pirate")
+}
+
+func TestServer_GetSetYaml_NoExtension(t *testing.T) {
+	// t.Parallel()
+	t.Setenv("OPENAI_API_KEY", "dummy")
+
+	ctx := t.Context()
+	lnPath := startServer(t, ctx, prepareAgentsDir(t, "pirate.yaml"))
+
+	url := "/api/agents/pirate/yaml"
+	origContent := httpGET(t, ctx, lnPath, url)
+	assert.Contains(t, string(origContent), "pirate")
+
+	httpPUT(t, ctx, lnPath, url, origContent)
+	assert.Equal(t, origContent, httpGET(t, ctx, lnPath, url))
+
+	httpPUT(t, ctx, lnPath, url, []byte(`version: "2"`))
+	assert.Equal(t, []byte(`version: "2"`), httpGET(t, ctx, lnPath, url))
+}
+
+func TestServer_GetSetYaml(t *testing.T) {
+	// t.Parallel()
+	t.Setenv("OPENAI_API_KEY", "dummy")
+
+	ctx := t.Context()
+	lnPath := startServer(t, ctx, prepareAgentsDir(t, "pirate.yaml"))
+
+	url := "/api/agents/pirate.yaml/yaml"
+	origContent := httpGET(t, ctx, lnPath, url)
+	assert.Contains(t, string(origContent), "pirate")
+
+	httpPUT(t, ctx, lnPath, url, origContent)
+	assert.Equal(t, origContent, httpGET(t, ctx, lnPath, url))
+
+	httpPUT(t, ctx, lnPath, url, []byte(`version: "2"`))
+	assert.Equal(t, []byte(`version: "2"`), httpGET(t, ctx, lnPath, url))
+}
+
+func TestServer_Edit_Noop(t *testing.T) {
+	// t.Parallel()
+	t.Setenv("OPENAI_API_KEY", "dummy")
+
+	ctx := t.Context()
+	lnPath := startServer(t, ctx, prepareAgentsDir(t, "pirate.yaml"))
+
+	edit := api.EditAgentConfigRequest{
+		Filename:    "pirate.yaml",
+		AgentConfig: latest.Config{},
+	}
+	httpPUT(t, ctx, lnPath, "/api/agents/config", edit)
+
+	buf := httpGET(t, ctx, lnPath, "/api/agents/pirate.yaml")
+	var cfg latest.Config
+	unmarshal(t, buf, &cfg)
+	assert.NotEmpty(t, cfg.Version)
+	require.Len(t, cfg.Agents, 1)
+	assert.Contains(t, cfg.Agents["root"].Instruction, "pirate")
+}
+
+func TestServer_Edit_Instruction(t *testing.T) {
+	// t.Parallel()
+	t.Setenv("OPENAI_API_KEY", "dummy")
+
+	ctx := t.Context()
+	lnPath := startServer(t, ctx, prepareAgentsDir(t, "pirate.yaml"))
+
+	edit := api.EditAgentConfigRequest{
+		Filename: "pirate.yaml",
+		AgentConfig: latest.Config{
+			Agents: map[string]latest.AgentConfig{
+				"root": {
+					Instruction: "New Instructions",
+					Model:       "openai/gpt-4o",
+				},
+			},
+		},
+	}
+	httpPUT(t, ctx, lnPath, "/api/agents/config", edit)
+
+	buf := httpGET(t, ctx, lnPath, "/api/agents/pirate.yaml")
+	var cfg latest.Config
+	unmarshal(t, buf, &cfg)
+	assert.NotEmpty(t, cfg.Version)
+	require.Len(t, cfg.Agents, 1)
+	require.Len(t, cfg.Models, 1)
+	assert.Equal(t, "New Instructions", cfg.Agents["root"].Instruction)
+	assert.Empty(t, cfg.Agents["root"].Description)
+}
+
+func TestServer_Edit_OnlyOneSubAgent(t *testing.T) {
+	// t.Parallel()
+	t.Setenv("OPENAI_API_KEY", "dummy")
+	t.Setenv("ANTHROPIC_API_KEY", "dummy")
+
+	ctx := t.Context()
+	lnPath := startServer(t, ctx, prepareAgentsDir(t, "multi_agents.yaml"))
+
+	edit := api.EditAgentConfigRequest{
+		Filename: "multi_agents.yaml",
+		AgentConfig: latest.Config{
+			Agents: map[string]latest.AgentConfig{
+				"root": {
+					Instruction: "New Instructions",
+					Model:       "openai/gpt-4o",
+				},
+			},
+		},
+	}
+	httpPUT(t, ctx, lnPath, "/api/agents/config", edit)
+
+	buf := httpGET(t, ctx, lnPath, "/api/agents/multi_agents.yaml")
+	var cfg latest.Config
+	unmarshal(t, buf, &cfg)
+	assert.NotEmpty(t, cfg.Version)
+	require.Len(t, cfg.Agents, 3)
+	require.Len(t, cfg.Models, 2)
+	assert.Equal(t, "New Instructions", cfg.Agents["root"].Instruction)
+	assert.Empty(t, cfg.Agents["root"].Description)
+	assert.Equal(t, "Pirate", cfg.Agents["pirate"].Description)
+	assert.NotEmpty(t, cfg.Agents["pirate"].Instruction)
+	assert.Equal(t, "Contradict", cfg.Agents["contradict"].Description)
+	assert.NotEmpty(t, cfg.Agents["contradict"].Instruction)
+}
+
+func TestServer_ListSessions(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	lnPath := startServer(t, ctx, prepareAgentsDir(t, "pirate.yaml"))
+
+	buf := httpGET(t, ctx, lnPath, "/api/sessions")
+
+	var sessions []api.SessionsResponse
+	unmarshal(t, buf, &sessions)
+
+	assert.Empty(t, sessions)
 }
 
 func prepareAgentsDir(t *testing.T, testFiles ...string) string {
@@ -105,7 +244,7 @@ func startServer(t *testing.T, ctx context.Context, agentsDir string) string {
 	srv, err := New(store, runConfig, nil, WithAgentsDir(agentsDir))
 	require.NoError(t, err)
 
-	socketPath := "unix://" + filepath.Join(t.TempDir(), "test.sock")
+	socketPath := "unix://" + filepath.Join(t.TempDir(), "sock")
 	ln, err := Listen(ctx, socketPath)
 	require.NoError(t, err)
 	go func() {
@@ -120,6 +259,39 @@ func startServer(t *testing.T, ctx context.Context, agentsDir string) string {
 
 func httpGET(t *testing.T, ctx context.Context, socketPath, path string) []byte {
 	t.Helper()
+	return httpDo(t, ctx, http.MethodGet, socketPath, path, nil)
+}
+
+func httpPUT(t *testing.T, ctx context.Context, socketPath, path string, payload any) {
+	t.Helper()
+	httpDo(t, ctx, http.MethodPut, socketPath, path, payload)
+}
+
+func httpDo(t *testing.T, ctx context.Context, method, socketPath, path string, payload any) []byte {
+	t.Helper()
+
+	var (
+		body        io.Reader
+		contentType string
+	)
+	switch v := payload.(type) {
+	case nil:
+		body = http.NoBody
+	case []byte:
+		body = bytes.NewReader(v)
+	case string:
+		body = strings.NewReader(v)
+	default:
+		buf, err := json.Marshal(payload)
+		require.NoError(t, err)
+		body = bytes.NewReader(buf)
+		contentType = "application/json"
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, "http://_"+path, body)
+	require.NoError(t, err)
+
+	req.Header.Set("Content-Type", contentType)
 
 	client := &http.Client{
 		Transport: &http.Transport{
@@ -129,11 +301,6 @@ func httpGET(t *testing.T, ctx context.Context, socketPath, path string) []byte 
 			},
 		},
 	}
-
-	url := "http://_" + path
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
-	require.NoError(t, err)
-
 	resp, err := client.Do(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
@@ -141,6 +308,7 @@ func httpGET(t *testing.T, ctx context.Context, socketPath, path string) []byte 
 	buf, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
+	require.Less(t, resp.StatusCode, 400, string(buf))
 	return buf
 }
 
