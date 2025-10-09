@@ -62,8 +62,8 @@ func (t *ThinkTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "think",
 				Description: "Use the tool to think about something. It will not obtain new information or change the database, but just append the thought to the log. Use it when complex reasoning or some cache memory is needed.",
-				Annotations: tools.ToolAnnotation{
-					ReadOnlyHint: &[]bool{true}[0],
+				Annotations: tools.ToolAnnotations{
+					ReadOnlyHint: true,
 					Title:        "Think",
 				},
 				Parameters: tools.FunctionParameters{
@@ -76,7 +76,7 @@ func (t *ThinkTool) Tools(context.Context) ([]tools.Tool, error) {
 					},
 					Required: []string{"thought"},
 				},
-				OutputSchema: tools.ToOutputSchemaSchema(reflect.TypeFor[string]()),
+				OutputSchema: tools.ToOutputSchemaSchemaMust(reflect.TypeFor[string]()),
 			},
 			Handler: t.handler.CallTool,
 		},

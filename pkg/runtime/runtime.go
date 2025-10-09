@@ -598,7 +598,7 @@ func (r *runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 				slog.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
 				events <- ToolCallConfirmation(toolCall, tools.Tool{
 					Function: &tools.FunctionDefinition{
-						Annotations: tools.ToolAnnotation{
+						Annotations: tools.ToolAnnotations{
 							// TODO: We need to handle the transfer task tool better
 							Title: "Transfer Task",
 						},
@@ -642,7 +642,7 @@ func (r *runtime) processToolCalls(ctx context.Context, sess *session.Session, c
 			}
 			slog.Debug("Using agent tool handler", "tool", toolCall.Function.Name)
 
-			if sess.ToolsApproved || (tool.Function.Annotations.ReadOnlyHint != nil && *tool.Function.Annotations.ReadOnlyHint) {
+			if sess.ToolsApproved || tool.Function.Annotations.ReadOnlyHint {
 				slog.Debug("Tools approved, running tool", "tool", toolCall.Function.Name, "session_id", sess.ID)
 				r.runTool(callCtx, tool, toolCall, events, sess, a)
 			} else {
@@ -754,7 +754,7 @@ func (r *runtime) runAgentTool(ctx context.Context, handler ToolHandler, sess *s
 
 	events <- ToolCall(toolCall, tools.Tool{
 		Function: &tools.FunctionDefinition{
-			Annotations: tools.ToolAnnotation{
+			Annotations: tools.ToolAnnotations{
 				// TODO: We need to handle the transfer task tool better
 				Title: "Transfer Task",
 			},

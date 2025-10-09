@@ -28,8 +28,8 @@ func (t *TransferTaskTool) Tools(context.Context) ([]tools.Tool, error) {
 				Name: "transfer_task",
 				Description: `Use this function to transfer a task to the selected team member.
             You must provide a clear and concise description of the task the member should achieve AND the expected output.`,
-				Annotations: tools.ToolAnnotation{
-					ReadOnlyHint: &[]bool{true}[0],
+				Annotations: tools.ToolAnnotations{
+					ReadOnlyHint: true,
 					Title:        "Transfer Task",
 				},
 				Parameters: tools.FunctionParameters{

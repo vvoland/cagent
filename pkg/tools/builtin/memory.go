@@ -42,7 +42,7 @@ func (t *MemoryTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "add_memory",
 				Description: "Add a new memory to the database",
-				Annotations: tools.ToolAnnotation{
+				Annotations: tools.ToolAnnotations{
 					Title: "Add Memory",
 				},
 				Parameters: tools.FunctionParameters{
@@ -55,7 +55,7 @@ func (t *MemoryTool) Tools(context.Context) ([]tools.Tool, error) {
 					},
 					Required: []string{"memory"},
 				},
-				OutputSchema: tools.ToOutputSchemaSchema(reflect.TypeFor[string]()),
+				OutputSchema: tools.ToOutputSchemaSchemaMust(reflect.TypeFor[string]()),
 			},
 			Handler: t.handleAddMemory,
 		},
@@ -63,11 +63,11 @@ func (t *MemoryTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "get_memories",
 				Description: "Retrieve all stored memories",
-				Annotations: tools.ToolAnnotation{
-					ReadOnlyHint: &[]bool{true}[0],
+				Annotations: tools.ToolAnnotations{
+					ReadOnlyHint: true,
 					Title:        "Get Memories",
 				},
-				OutputSchema: tools.ToOutputSchemaSchema(reflect.TypeFor[[]database.UserMemory]()),
+				OutputSchema: tools.ToOutputSchemaSchemaMust(reflect.TypeFor[[]database.UserMemory]()),
 			},
 			Handler: t.handleGetMemories,
 		},
@@ -75,7 +75,7 @@ func (t *MemoryTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "delete_memory",
 				Description: "Delete a specific memory by ID",
-				Annotations: tools.ToolAnnotation{
+				Annotations: tools.ToolAnnotations{
 					Title: "Delete Memory",
 				},
 				Parameters: tools.FunctionParameters{
@@ -88,7 +88,7 @@ func (t *MemoryTool) Tools(context.Context) ([]tools.Tool, error) {
 					},
 					Required: []string{"id"},
 				},
-				OutputSchema: tools.ToOutputSchemaSchema(reflect.TypeFor[string]()),
+				OutputSchema: tools.ToOutputSchemaSchemaMust(reflect.TypeFor[string]()),
 			},
 			Handler: t.handleDeleteMemory,
 		},

@@ -38,25 +38,11 @@ type FunctionDefinition struct {
 	Description  string             `json:"description,omitempty"`
 	Strict       bool               `json:"strict,omitempty"`
 	Parameters   FunctionParameters `json:"parameters"`
-	Annotations  ToolAnnotation     `json:"annotations"`
-	OutputSchema ToolOutputSchema   `json:"outputSchema"`
+	Annotations  ToolAnnotations    `json:"annotations"`
+	OutputSchema any                `json:"outputSchema"`
 }
 
-type ToolAnnotation struct {
-	Title           string `json:"title,omitempty"`
-	ReadOnlyHint    *bool  `json:"readOnlyHint,omitempty"`
-	DestructiveHint *bool  `json:"destructiveHint,omitempty"`
-	IdempotentHint  *bool  `json:"idempotentHint,omitempty"`
-	OpenWorldHint   *bool  `json:"openWorldHint,omitempty"`
-}
-
-type ToolOutputSchema struct {
-	Ref        string         `json:"$ref,omitempty"`
-	Type       string         `json:"type"`
-	Items      map[string]any `json:"items,omitempty"`
-	Properties map[string]any `json:"properties,omitempty"`
-	Required   []string       `json:"required,omitempty"`
-}
+type ToolAnnotations mcp.ToolAnnotations
 
 type FunctionParameters struct {
 	Type       string         `json:"type"`

@@ -91,7 +91,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "create_directory",
 				Description: "Create a new directory or ensure a directory exists. Can create multiple nested directories in one operation.",
-				Annotations: tools.ToolAnnotation{
+				Annotations: tools.ToolAnnotations{
 					Title: "Create Directory",
 				},
 				Parameters: tools.FunctionParameters{
@@ -104,7 +104,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					},
 					Required: []string{"path"},
 				},
-				OutputSchema: tools.ToOutputSchemaSchema(reflect.TypeFor[string]()),
+				OutputSchema: tools.ToOutputSchemaSchemaMust(reflect.TypeFor[string]()),
 			},
 			Handler: t.handleCreateDirectory,
 		},
@@ -112,8 +112,8 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "directory_tree",
 				Description: "Get a recursive tree view of files and directories as a JSON structure.",
-				Annotations: tools.ToolAnnotation{
-					ReadOnlyHint: &[]bool{true}[0],
+				Annotations: tools.ToolAnnotations{
+					ReadOnlyHint: true,
 					Title:        "Directory Tree",
 				},
 				Parameters: tools.FunctionParameters{
@@ -130,7 +130,9 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					},
 					Required: []string{"path"},
 				},
-				OutputSchema: tools.ToOutputSchemaSchema(reflect.TypeFor[*TreeNode]()),
+				// We don't support recursive types yet
+				// OutputSchema: tools.ToOutputSchemaSchemaMust(reflect.TypeFor[*TreeNode]()),
+				OutputSchema: tools.ToOutputSchemaSchemaMust(reflect.TypeFor[any]()),
 			},
 			Handler: t.handleDirectoryTree,
 		},
@@ -138,7 +140,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "edit_file",
 				Description: "Make line-based edits to a text file. Each edit replaces exact line sequences with new content.",
-				Annotations: tools.ToolAnnotation{
+				Annotations: tools.ToolAnnotations{
 					Title: "Edit File",
 				},
 				Parameters: tools.FunctionParameters{
@@ -169,7 +171,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					},
 					Required: []string{"path", "edits"},
 				},
-				OutputSchema: tools.ToOutputSchemaSchema(reflect.TypeFor[string]()),
+				OutputSchema: tools.ToOutputSchemaSchemaMust(reflect.TypeFor[string]()),
 			},
 			Handler: t.handleEditFile,
 		},
@@ -177,8 +179,8 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "get_file_info",
 				Description: "Retrieve detailed metadata about a file or directory.",
-				Annotations: tools.ToolAnnotation{
-					ReadOnlyHint: &[]bool{true}[0],
+				Annotations: tools.ToolAnnotations{
+					ReadOnlyHint: true,
 					Title:        "Get File Info",
 				},
 				Parameters: tools.FunctionParameters{
@@ -191,7 +193,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					},
 					Required: []string{"path"},
 				},
-				OutputSchema: tools.ToOutputSchemaSchema(reflect.TypeFor[FileInfo]()),
+				OutputSchema: tools.ToOutputSchemaSchemaMust(reflect.TypeFor[FileInfo]()),
 			},
 			Handler: t.handleGetFileInfo,
 		},
@@ -199,11 +201,11 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "list_allowed_directories",
 				Description: "Returns a list of directories that the server has permission to access. Don't call if you access only the current working directory. It's always allowed.",
-				Annotations: tools.ToolAnnotation{
-					ReadOnlyHint: &[]bool{true}[0],
+				Annotations: tools.ToolAnnotations{
+					ReadOnlyHint: true,
 					Title:        "List Allowed Directories",
 				},
-				OutputSchema: tools.ToOutputSchemaSchema(reflect.TypeFor[[]string]()),
+				OutputSchema: tools.ToOutputSchemaSchemaMust(reflect.TypeFor[[]string]()),
 			},
 			Handler: t.handleListAllowedDirectories,
 		},
@@ -211,7 +213,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "add_allowed_directory",
 				Description: "Request to add a new directory to the allowed directories list. This requires explicit user consent for security reasons.",
-				Annotations: tools.ToolAnnotation{
+				Annotations: tools.ToolAnnotations{
 					Title: "Add Allowed Directory",
 				},
 				Parameters: tools.FunctionParameters{
@@ -232,7 +234,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					},
 					Required: []string{"path", "reason"},
 				},
-				OutputSchema: tools.ToOutputSchemaSchema(reflect.TypeFor[string]()),
+				OutputSchema: tools.ToOutputSchemaSchemaMust(reflect.TypeFor[string]()),
 			},
 			Handler: t.handleAddAllowedDirectory,
 		},
@@ -240,8 +242,8 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "list_directory",
 				Description: "Get a detailed listing of all files and directories in a specified path.",
-				Annotations: tools.ToolAnnotation{
-					ReadOnlyHint: &[]bool{true}[0],
+				Annotations: tools.ToolAnnotations{
+					ReadOnlyHint: true,
 					Title:        "List Directory",
 				},
 				Parameters: tools.FunctionParameters{
@@ -254,7 +256,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					},
 					Required: []string{"path"},
 				},
-				OutputSchema: tools.ToOutputSchemaSchema(reflect.TypeFor[string]()),
+				OutputSchema: tools.ToOutputSchemaSchemaMust(reflect.TypeFor[string]()),
 			},
 			Handler: t.handleListDirectory,
 		},
@@ -262,8 +264,8 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "list_directory_with_sizes",
 				Description: "Get a detailed listing of all files and directories in a specified path, including sizes.",
-				Annotations: tools.ToolAnnotation{
-					ReadOnlyHint: &[]bool{true}[0],
+				Annotations: tools.ToolAnnotations{
+					ReadOnlyHint: true,
 					Title:        "List Directory With Sizes",
 				},
 				Parameters: tools.FunctionParameters{
@@ -276,7 +278,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					},
 					Required: []string{"path"},
 				},
-				OutputSchema: tools.ToOutputSchemaSchema(reflect.TypeFor[string]()),
+				OutputSchema: tools.ToOutputSchemaSchemaMust(reflect.TypeFor[string]()),
 			},
 			Handler: t.handleListDirectoryWithSizes,
 		},
@@ -284,7 +286,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "move_file",
 				Description: "Move or rename files and directories.",
-				Annotations: tools.ToolAnnotation{
+				Annotations: tools.ToolAnnotations{
 					Title: "Move File",
 				},
 				Parameters: tools.FunctionParameters{
@@ -301,7 +303,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					},
 					Required: []string{"source", "destination"},
 				},
-				OutputSchema: tools.ToOutputSchemaSchema(reflect.TypeFor[string]()),
+				OutputSchema: tools.ToOutputSchemaSchemaMust(reflect.TypeFor[string]()),
 			},
 			Handler: t.handleMoveFile,
 		},
@@ -309,8 +311,8 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "read_file",
 				Description: "Read the complete contents of a file from the file system.",
-				Annotations: tools.ToolAnnotation{
-					ReadOnlyHint: &[]bool{true}[0],
+				Annotations: tools.ToolAnnotations{
+					ReadOnlyHint: true,
 					Title:        "Read File",
 				},
 				Parameters: tools.FunctionParameters{
@@ -323,7 +325,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					},
 					Required: []string{"path"},
 				},
-				OutputSchema: tools.ToOutputSchemaSchema(reflect.TypeFor[string]()),
+				OutputSchema: tools.ToOutputSchemaSchemaMust(reflect.TypeFor[string]()),
 			},
 			Handler: t.handleReadFile,
 		},
@@ -331,8 +333,8 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "read_multiple_files",
 				Description: "Read the contents of multiple files simultaneously.",
-				Annotations: tools.ToolAnnotation{
-					ReadOnlyHint: &[]bool{true}[0],
+				Annotations: tools.ToolAnnotations{
+					ReadOnlyHint: true,
 					Title:        "Read Multiple Files",
 				},
 				Parameters: tools.FunctionParameters{
@@ -353,7 +355,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					Required: []string{"paths"},
 				},
 				// TODO(dga): depends on the json param
-				OutputSchema: tools.ToOutputSchemaSchema(reflect.TypeFor[string]()),
+				OutputSchema: tools.ToOutputSchemaSchemaMust(reflect.TypeFor[string]()),
 			},
 			Handler: t.handleReadMultipleFiles,
 		},
@@ -361,8 +363,8 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "search_files",
 				Description: "Recursively search for files and directories matching a pattern. Prints the full paths of matching files and the total number of files found.",
-				Annotations: tools.ToolAnnotation{
-					ReadOnlyHint: &[]bool{true}[0],
+				Annotations: tools.ToolAnnotations{
+					ReadOnlyHint: true,
 					Title:        "Search Files",
 				},
 				Parameters: tools.FunctionParameters{
@@ -386,7 +388,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					},
 					Required: []string{"path", "pattern"},
 				},
-				OutputSchema: tools.ToOutputSchemaSchema(reflect.TypeFor[string]()),
+				OutputSchema: tools.ToOutputSchemaSchemaMust(reflect.TypeFor[string]()),
 			},
 			Handler: t.handleSearchFiles,
 		},
@@ -394,8 +396,8 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "search_files_content",
 				Description: "Searches for text or regex patterns in the content of files matching a GLOB pattern.",
-				Annotations: tools.ToolAnnotation{
-					ReadOnlyHint: &[]bool{true}[0],
+				Annotations: tools.ToolAnnotations{
+					ReadOnlyHint: true,
 					Title:        "Search Files Content",
 				},
 				Parameters: tools.FunctionParameters{
@@ -423,7 +425,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					},
 					Required: []string{"path", "query"},
 				},
-				OutputSchema: tools.ToOutputSchemaSchema(reflect.TypeFor[string]()),
+				OutputSchema: tools.ToOutputSchemaSchemaMust(reflect.TypeFor[string]()),
 			},
 			Handler: t.handleSearchFilesContent,
 		},
@@ -431,7 +433,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "write_file",
 				Description: "Create a new file or completely overwrite an existing file with new content.",
-				Annotations: tools.ToolAnnotation{
+				Annotations: tools.ToolAnnotations{
 					Title: "Write File",
 				},
 				Parameters: tools.FunctionParameters{
@@ -448,7 +450,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 					},
 					Required: []string{"path", "content"},
 				},
-				OutputSchema: tools.ToOutputSchemaSchema(reflect.TypeFor[string]()),
+				OutputSchema: tools.ToOutputSchemaSchemaMust(reflect.TypeFor[string]()),
 			},
 			Handler: t.handleWriteFile,
 		},

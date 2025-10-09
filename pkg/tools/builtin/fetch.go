@@ -312,8 +312,8 @@ func (t *FetchTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "fetch",
 				Description: "Fetch content from one or more HTTP/HTTPS URLs. Returns the response body and metadata.",
-				Annotations: tools.ToolAnnotation{
-					ReadOnlyHint: &[]bool{true}[0],
+				Annotations: tools.ToolAnnotations{
+					ReadOnlyHint: true,
 					Title:        "Fetch URLs",
 				},
 				Parameters: tools.FunctionParameters{
@@ -341,7 +341,7 @@ func (t *FetchTool) Tools(context.Context) ([]tools.Tool, error) {
 					},
 					Required: []string{"urls", "format"},
 				},
-				OutputSchema: tools.ToOutputSchemaSchema(reflect.TypeFor[string]()),
+				OutputSchema: tools.ToOutputSchemaSchemaMust(reflect.TypeFor[string]()),
 			},
 			Handler: t.handler.CallTool,
 		},

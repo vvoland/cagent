@@ -166,7 +166,7 @@ func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
 			Function: &tools.FunctionDefinition{
 				Name:        "shell",
 				Description: `Executes the given shell command in the user's default shell.`,
-				Annotations: tools.ToolAnnotation{
+				Annotations: tools.ToolAnnotations{
 					Title: "Run Shell Command",
 				},
 				Parameters: tools.FunctionParameters{
@@ -183,7 +183,7 @@ func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
 					},
 					Required: []string{"cmd", "cwd"},
 				},
-				OutputSchema: tools.ToOutputSchemaSchema(reflect.TypeFor[string]()),
+				OutputSchema: tools.ToOutputSchemaSchemaMust(reflect.TypeFor[string]()),
 			},
 			Handler: t.handler.CallTool,
 		},
