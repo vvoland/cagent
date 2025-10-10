@@ -335,28 +335,20 @@ func (c *Client) CreateChatCompletionStream(ctx context.Context, messages []chat
 		for i, tool := range requestTools {
 			// DMR requires the `description` key to be present; ensure a non-empty value
 			// NOTE(krissetto): workaround, remove when fixed upstream, this shouldn't be necceessary
-			desc := tool.Function.Description
+			desc := tool.Description
 			if desc == "" {
-				desc = "Function " + tool.Function.Name
+				desc = "Function " + tool.Name
 			}
 			fd := &openai.FunctionDefinition{
-				Name:        tool.Function.Name,
+				Name:        tool.Name,
 				Description: desc,
-				Strict:      tool.Function.Strict,
-			}
-			if len(tool.Function.Parameters.Properties) == 0 {
-				fd.Parameters = map[string]any{
-					"type":       "object",
-					"properties": map[string]any{},
-				}
-			} else {
-				fd.Parameters = sanitizeToolParameters(tool.Function.Parameters)
+				Parameters:  ConvertParametersToSchema(tool.Parameters),
 			}
 			request.Tools[i] = openai.Tool{
 				Type:     openai.ToolTypeFunction,
 				Function: fd,
 			}
-			slog.Debug("Added tool to DMR request", "tool_name", tool.Function.Name)
+			slog.Debug("Added tool to DMR request", "tool_name", tool.Name)
 		}
 		if c.config.ParallelToolCalls != nil {
 			request.ParallelToolCalls = *c.config.ParallelToolCalls
@@ -378,6 +370,18 @@ func (c *Client) CreateChatCompletionStream(ctx context.Context, messages []chat
 
 	slog.Debug("DMR chat completion stream created successfully", "model", c.config.Model, "base_url", c.baseURL)
 	return newStreamAdapter(stream, trackUsage), nil
+}
+
+// ConvertParametersToSchema converts parameters to DMR Schema format
+func ConvertParametersToSchema(params tools.FunctionParameters) any {
+	if len(params.Properties) == 0 {
+		return map[string]any{
+			"type":       "object",
+			"properties": map[string]any{},
+		}
+	}
+
+	return sanitizeToolParameters(params)
 }
 
 func (c *Client) CreateChatCompletion(ctx context.Context, messages []chat.Message) (string, error) {

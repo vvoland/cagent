@@ -250,14 +250,13 @@ func (c *Client) CreateChatCompletionStream(
 			request.Tools[i] = openai.Tool{
 				Type: openai.ToolTypeFunction,
 				Function: &openai.FunctionDefinition{
-					Name:        tool.Function.Name,
-					Description: tool.Function.Description,
-					Strict:      tool.Function.Strict,
-					Parameters:  tool.Function.Parameters,
+					Name:        tool.Name,
+					Description: tool.Description,
+					Parameters:  ConvertParametersToSchema(tool.Parameters),
 				},
 			}
 
-			slog.Debug("Added tool to OpenAI request", "tool_name", tool.Function.Name)
+			slog.Debug("Added tool to OpenAI request", "tool_name", tool.Name)
 		}
 		if c.config.ParallelToolCalls != nil {
 			request.ParallelToolCalls = *c.config.ParallelToolCalls
@@ -303,6 +302,11 @@ func (c *Client) CreateChatCompletionStream(
 
 	slog.Debug("OpenAI chat completion stream created successfully", "model", c.config.Model)
 	return newStreamAdapter(stream, trackUsage), nil
+}
+
+// ConvertParametersToSchema converts parameters to OpenAI Schema format
+func ConvertParametersToSchema(params tools.FunctionParameters) tools.FunctionParameters {
+	return params
 }
 
 func (c *Client) CreateChatCompletion(
