@@ -249,12 +249,18 @@ func (c *Client) CreateChatCompletionStream(
 		slog.Debug("Adding tools to OpenAI request", "tool_count", len(requestTools))
 		request.Tools = make([]openai.Tool, len(requestTools))
 		for i, tool := range requestTools {
+			parameters, err := ConvertParametersToSchema(tool.Parameters)
+			if err != nil {
+				slog.Debug("Failed to convert tool parameters to OpenAI schema", "tool_name", tool.Name, "error", err)
+				return nil, err
+			}
+
 			request.Tools[i] = openai.Tool{
 				Type: openai.ToolTypeFunction,
 				Function: &openai.FunctionDefinition{
 					Name:        tool.Name,
 					Description: tool.Description,
-					Parameters:  ConvertParametersToSchema(tool.Parameters),
+					Parameters:  parameters,
 				},
 			}
 
@@ -321,8 +327,8 @@ func (c *Client) CreateChatCompletionStream(
 }
 
 // ConvertParametersToSchema converts parameters to OpenAI Schema format
-func ConvertParametersToSchema(params tools.FunctionParameters) tools.FunctionParameters {
-	return params
+func ConvertParametersToSchema(params any) (any, error) {
+	return tools.SchemaToMap(params)
 }
 
 // isResponsesOnlyModel returns true for newer OpenAI models that use the Responses API

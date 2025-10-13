@@ -29,24 +29,32 @@ func TestThinkTool_Instructions(t *testing.T) {
 func TestThinkTool_Tools(t *testing.T) {
 	tool := NewThinkTool()
 
-	tls, err := tool.Tools(t.Context())
+	allTools, err := tool.Tools(t.Context())
 
 	require.NoError(t, err)
-	assert.Len(t, tls, 1)
+	assert.Len(t, allTools, 1)
 
 	// Verify think function
-	assert.Equal(t, "think", tls[0].Name)
-	assert.Contains(t, tls[0].Description, "Use the tool to think about something")
+	assert.Equal(t, "think", allTools[0].Name)
+	assert.Contains(t, allTools[0].Description, "Use the tool to think about something")
+	assert.NotNil(t, allTools[0].Handler)
 
 	// Check parameters
-	props := tls[0].Parameters.Properties
-	assert.Contains(t, props, "thought")
-
-	// Check required fields
-	assert.Contains(t, tls[0].Parameters.Required, "thought")
-
-	// Verify handler is provided
-	assert.NotNil(t, tls[0].Handler)
+	schema, err := json.Marshal(allTools[0].Parameters)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{
+	"type": "object",
+	"properties": {
+		"thought": {
+			"description": "The thought to think about",
+			"type": "string"
+		}
+	},
+	"additionalProperties": false,
+	"required": [
+		"thought"
+	]
+}`, string(schema))
 }
 
 func TestThinkTool_DisplayNames(t *testing.T) {
@@ -72,12 +80,11 @@ func TestThinkTool_Handler(t *testing.T) {
 	handler := tls[0].Handler
 
 	// Create tool call with thought
-	args := struct {
-		Thought string `json:"thought"`
-	}{
+	args := ThinkArgs{
 		Thought: "This is a test thought",
 	}
-	argsBytes, _ := json.Marshal(args)
+	argsBytes, err := json.Marshal(args)
+	require.NoError(t, err)
 
 	toolCall := tools.ToolCall{
 		Function: tools.FunctionCall{
@@ -95,7 +102,8 @@ func TestThinkTool_Handler(t *testing.T) {
 
 	// Add another thought
 	args.Thought = "Another thought"
-	argsBytes, _ = json.Marshal(args)
+	argsBytes, err = json.Marshal(args)
+	require.NoError(t, err)
 
 	toolCall.Function.Arguments = string(argsBytes)
 
@@ -150,6 +158,7 @@ func TestThinkTool_OutputSchema(t *testing.T) {
 	require.NotEmpty(t, allTools)
 
 	for _, tool := range allTools {
+		assert.NotNil(t, tool.Parameters)
 		assert.NotNil(t, tool.OutputSchema)
 	}
 }

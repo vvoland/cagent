@@ -4,14 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"slices"
 
 	"github.com/dop251/goja"
 
 	"github.com/docker/cagent/pkg/tools"
 )
 
-func (c *tool) runJavascript(ctx context.Context, script string) (string, error) {
+func (c *codeModeTool) runJavascript(ctx context.Context, script string) (string, error) {
 	vm := goja.New()
 
 	// Inject console object to the help the LLM debug its own code.
@@ -52,9 +51,9 @@ func callTool(ctx context.Context, tool tools.Tool) func(args map[string]any) (s
 	return func(args map[string]any) (string, error) {
 		nonNilArgs := make(map[string]any)
 		for k, v := range args {
-			if slices.Contains(tool.Parameters.Required, k) || v != nil {
-				nonNilArgs[k] = v
-			}
+			// if slices.Contains(tool.Parameters.Required, k) || v != nil {
+			nonNilArgs[k] = v
+			// }
 		}
 
 		arguments, err := json.Marshal(nonNilArgs)

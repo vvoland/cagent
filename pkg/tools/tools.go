@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -29,32 +28,15 @@ type ToolCallResult struct {
 type ToolType string
 
 type Tool struct {
-	Name         string             `json:"name"`
-	Description  string             `json:"description,omitempty"`
-	Parameters   FunctionParameters `json:"parameters"`
-	Annotations  ToolAnnotations    `json:"annotations"`
-	OutputSchema any                `json:"outputSchema"`
-	Handler      ToolHandler        `json:"-"`
+	Name         string          `json:"name"`
+	Description  string          `json:"description,omitempty"`
+	Parameters   any             `json:"parameters"`
+	Annotations  ToolAnnotations `json:"annotations"`
+	OutputSchema any             `json:"outputSchema"`
+	Handler      ToolHandler     `json:"-"`
 }
 
 type ToolAnnotations mcp.ToolAnnotations
-
-type FunctionParameters struct {
-	Type       string         `json:"type"`
-	Properties map[string]any `json:"properties"`
-	Required   []string       `json:"required,omitempty"`
-}
-
-func (fp FunctionParameters) MarshalJSON() ([]byte, error) {
-	type Alias FunctionParameters
-	if fp.Type == "" {
-		fp.Type = "object"
-	}
-	if fp.Properties == nil {
-		fp.Properties = map[string]any{}
-	}
-	return json.Marshal(Alias(fp))
-}
 
 type ElicitationResult struct {
 	Action  string         `json:"action"` // "accept", "decline", or "cancel"
