@@ -10,9 +10,9 @@ import (
 
 type Opt func(a *Agent)
 
-func WithInstruction(prompt string) Opt {
+func WithInstruction(instruction string) Opt {
 	return func(a *Agent) {
-		a.instruction = prompt
+		a.instruction = instruction
 	}
 }
 
@@ -29,11 +29,9 @@ func WithToolSets(toolSet ...tools.ToolSet) Opt {
 	}
 }
 
-func WithTools(tls ...tools.Tool) Opt {
+func WithTools(allTools ...tools.Tool) Opt {
 	return func(a *Agent) {
-		a.toolWrapper = toolWrapper{
-			allTools: tls,
-		}
+		a.tools = allTools
 	}
 }
 
@@ -82,9 +80,9 @@ func WithAddPromptFiles(addPromptFiles []string) Opt {
 	}
 }
 
-func WithMemoryManager(mm memorymanager.Manager) Opt {
+func WithMemoryManager(memoryManager memorymanager.Manager) Opt {
 	return func(a *Agent) {
-		a.memoryManager = mm
+		a.memoryManager = memoryManager
 	}
 }
 
