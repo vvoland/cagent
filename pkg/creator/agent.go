@@ -44,11 +44,11 @@ func (f *fsToolset) Stop() error {
 	return f.inner.Stop()
 }
 
-func (f *fsToolset) SetElicitationHandler(handler tools.ElicitationHandler) {
+func (f *fsToolset) SetElicitationHandler(tools.ElicitationHandler) {
 	// No-op, this tool does not use elicitation
 }
 
-func (f *fsToolset) SetOAuthSuccessHandler(handler func()) {
+func (f *fsToolset) SetOAuthSuccessHandler(func()) {
 	// No-op, this tool does not use OAuth
 }
 
@@ -90,7 +90,7 @@ func CreateAgent(ctx context.Context, baseDir, prompt string, runConfig config.R
 			Model:     "claude-sonnet-4-0",
 			MaxTokens: 64000,
 		},
-		environment.NewDefaultProvider(ctx),
+		environment.NewDefaultProvider(),
 		options.WithGateway(runConfig.ModelsGateway),
 	)
 	if err != nil {
@@ -157,13 +157,13 @@ func StreamCreateAgent(ctx context.Context, baseDir, prompt string, runConfig co
 		fmt.Printf("Using default model: %s\n", modelName)
 	}
 
-	// if the user provided a model override, lets use that by default for DMR
+	// if the user provided a model override, let's use that by default for DMR
 	// in the generated agentfile
 	if providerName == "dmr" && modelName == "" {
 		defaultModels["dmr"] = modelName
 	}
 
-	// If not using a models gateway, avoid selecting a provider the user can't run
+	// If not using a model gateway, avoid selecting a provider the user can't run
 	var usableProviders []string
 	if runConfig.ModelsGateway == "" {
 		if os.Getenv("OPENAI_API_KEY") != "" {
@@ -195,7 +195,7 @@ func StreamCreateAgent(ctx context.Context, baseDir, prompt string, runConfig co
 			Model:     modelName,
 			MaxTokens: maxTokens,
 		},
-		environment.NewDefaultProvider(ctx),
+		environment.NewDefaultProvider(),
 		options.WithGateway(runConfig.ModelsGateway),
 	)
 	if err != nil {

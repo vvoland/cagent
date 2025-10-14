@@ -118,7 +118,7 @@ func LoadWithOverrides(ctx context.Context, path string, runtimeConfig config.Ru
 
 	env := environment.NewMultiProvider(
 		envFilesProviders,
-		environment.NewDefaultProvider(ctx),
+		environment.NewDefaultProvider(),
 	)
 
 	// Load the agent's configuration
@@ -157,7 +157,7 @@ func LoadWithOverrides(ctx context.Context, path string, runtimeConfig config.Ru
 			agent.WithAddPromptFiles(agentConfig.AddPromptFiles),
 			agent.WithMaxIterations(agentConfig.MaxIterations),
 			agent.WithNumHistoryItems(agentConfig.NumHistoryItems),
-			agent.WithCommands(map[string]string(agentConfig.Commands)),
+			agent.WithCommands(agentConfig.Commands),
 		}
 		for _, model := range models {
 			opts = append(opts, agent.WithModel(model))

@@ -129,7 +129,7 @@ func (r *RemoteRuntime) Resume(ctx context.Context, confirmationType string) {
 }
 
 // Summarize generates a summary for the session
-func (r *RemoteRuntime) Summarize(ctx context.Context, sess *session.Session, events chan Event) {
+func (r *RemoteRuntime) Summarize(_ context.Context, sess *session.Session, events chan Event) {
 	slog.Debug("Summarize not yet implemented for remote runtime", "session_id", r.sessionID)
 	// TODO: Implement summarization by either:
 	// 1. Adding a summarization endpoint to the remote API
@@ -155,7 +155,7 @@ func (r *RemoteRuntime) convertSessionMessages(sess *session.Session) []api.Mess
 	return messages
 }
 
-// Resume allows resuming execution after user confirmation
+// ResumeStartAuthorizationFlow allows resuming execution after user confirmation
 func (r *RemoteRuntime) ResumeStartAuthorizationFlow(ctx context.Context, confirmationType bool) {
 	slog.Debug("Resuming remote runtime", "agent", r.currentAgent, "confirmation_type", confirmationType, "session_id", r.sessionID)
 
@@ -169,7 +169,7 @@ func (r *RemoteRuntime) ResumeStartAuthorizationFlow(ctx context.Context, confir
 	}
 }
 
-// Resume allows resuming execution after user confirmation
+// ResumeCodeReceived allows resuming execution after user confirmation
 func (r *RemoteRuntime) ResumeCodeReceived(ctx context.Context, code, state string) error {
 	slog.Debug("Resuming remote runtime", "agent", r.currentAgent, "code", code, "state", state, "session_id", r.sessionID)
 
