@@ -48,33 +48,42 @@ func renderRunToolsWithJavascript(toolCall tools.ToolCall, renderer *glamour.Ter
 }
 
 func renderEditFile(toolCall tools.ToolCall, width int) (string, string) {
-	var args struct {
-		Path  string `json:"path"`
-		Edits []struct {
-			OldText string `json:"oldText"`
-			NewText string `json:"newText"`
-		} `json:"edits"`
-	}
+	var args builtin.EditFileArgs
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
 		return "", ""
 	}
 
 	var output strings.Builder
-
-	if len(args.Edits) > 0 {
-		for i, edit := range args.Edits {
-			if i > 0 {
-				output.WriteString("\n\n")
-			}
-
-			if len(args.Edits) > 1 {
-				output.WriteString("Edit #" + string(rune(i+1+'0')) + ":\n")
-			}
-
-			diff := computeDiff(edit.OldText, edit.NewText)
-			output.WriteString(renderDiffWithSyntaxHighlight(diff, args.Path, width))
+	for i, edit := range args.Edits {
+		if i > 0 {
+			output.WriteString("\n\n")
 		}
+
+		if len(args.Edits) > 1 {
+			output.WriteString("Edit #" + string(rune(i+1+'0')) + ":\n")
+		}
+
+		diff := computeDiff(edit.OldText, edit.NewText)
+		output.WriteString(renderDiffWithSyntaxHighlight(diff, args.Path, width))
 	}
 
 	return output.String(), args.Path
+}
+
+func renderShell(toolCall tools.ToolCall, renderer *glamour.TermRenderer) string {
+	var args builtin.RunShellArgs
+	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
+		return ""
+	}
+
+	md, err := renderer.Render("```sh\n" + args.Cmd + "\n```")
+	if err != nil {
+		md = args.Cmd
+	}
+
+	if args.Cwd != "." {
+		md += "\n  In directory: " + args.Cwd + "\n"
+	}
+
+	return md
 }
