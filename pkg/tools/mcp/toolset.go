@@ -27,10 +27,8 @@ type mcpClient interface {
 
 // Toolset represents a set of MCP tools
 type Toolset struct {
-	mcpClient mcpClient
-	logType   string
-	logID     string
-
+	mcpClient    mcpClient
+	logID        string
 	instructions string
 	started      atomic.Bool
 }
@@ -43,7 +41,6 @@ func NewToolsetCommand(command string, args, env []string) *Toolset {
 
 	return &Toolset{
 		mcpClient: newStdioCmdClient(command, args, env),
-		logType:   "command",
 		logID:     command,
 	}
 }
@@ -54,7 +51,6 @@ func NewRemoteToolset(url, transport string, headers map[string]string, redirect
 
 	return &Toolset{
 		mcpClient: newRemoteClient(url, transport, headers, redirectURI, NewInMemoryTokenStore()),
-		logType:   "remote",
 		logID:     url,
 	}
 }
