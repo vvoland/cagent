@@ -50,13 +50,8 @@ func NewToolsetCommand(command string, args, env []string) *Toolset {
 func NewRemoteToolset(url, transport string, headers map[string]string, redirectURI string) (*Toolset, error) {
 	slog.Debug("Creating Remote MCP toolset", "url", url, "transport", transport, "headers", headers, "redirectURI", redirectURI)
 
-	tokenStore := NewInMemoryTokenStore()
-
-	// Create without elicitation handler initially - it will be set later by runtime
-	mcpClient := newRemoteClient(url, transport, headers, redirectURI, tokenStore)
-
 	return &Toolset{
-		mcpClient: mcpClient,
+		mcpClient: newRemoteClient(url, transport, headers, redirectURI, NewInMemoryTokenStore()),
 		logType:   "remote",
 		logID:     url,
 	}, nil
