@@ -65,8 +65,6 @@ type ElicitationRequestHandler func(ctx context.Context, message string, schema 
 type Runtime interface {
 	// CurrentAgent returns the currently active agent
 	CurrentAgent() *agent.Agent
-	// StopPendingProcesses stops all pending tool operations (e.g., running shell commands)
-	StopPendingProcesses(ctx context.Context) error
 	// RunStream starts the agent's interaction loop and returns a channel of events
 	RunStream(ctx context.Context, sess *session.Session) <-chan Event
 	// Run starts the agent's interaction loop and returns the final messages
@@ -178,10 +176,6 @@ func (r *runtime) CurrentAgent() *agent.Agent {
 	// We validated already that the agent exists
 	current, _ := r.team.Agent(r.currentAgent)
 	return current
-}
-
-func (r *runtime) StopPendingProcesses(ctx context.Context) error {
-	return r.team.StopToolSets(ctx)
 }
 
 // registerDefaultTools registers the default tool handlers

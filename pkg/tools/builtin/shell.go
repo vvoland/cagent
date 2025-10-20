@@ -1,14 +1,12 @@
 package builtin
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
-	"sync"
 
 	"github.com/docker/cagent/pkg/tools"
 )
@@ -25,8 +23,6 @@ type shellHandler struct {
 	shell           string
 	shellArgsPrefix []string
 	env             []string
-	mu              sync.Mutex
-	processes       []*os.Process
 }
 
 type RunShellArgs struct {
@@ -55,58 +51,21 @@ func (h *shellHandler) RunShell(ctx context.Context, toolCall tools.ToolCall) (*
 	// On Unix: create new process group so we can kill the entire tree
 	cmd.SysProcAttr = platformSpecificSysProcAttr()
 
-	// Note: On Windows, we would set CreationFlags, but that requires
-	// platform-specific code in a _windows.go file
-
-	// Capture output using buffers
-	var outBuf, errBuf bytes.Buffer
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
-
-	// Start the command so we can track it
-	if err := cmd.Start(); err != nil {
-		return &tools.ToolCallResult{
-			Output: fmt.Sprintf("Error starting command: %s", err),
-		}, nil
-	}
-
-	// Track the process for cleanup
-	h.mu.Lock()
-	h.processes = append(h.processes, cmd.Process)
-	h.mu.Unlock()
-
-	// Remove from tracking once complete
-	defer func() {
-		h.mu.Lock()
-		for i, p := range h.processes {
-			if p != nil && p.Pid == cmd.Process.Pid {
-				h.processes = append(h.processes[:i], h.processes[i+1:]...)
-				break
-			}
-		}
-		h.mu.Unlock()
-	}()
-
-	// Wait for the command to complete and get the result
-	err := cmd.Wait()
-
-	// Combine stdout and stderr
-	output := outBuf.String() + errBuf.String()
-
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return &tools.ToolCallResult{
-			Output: fmt.Sprintf("Error executing command: %s\nOutput: %s", err, output),
+			Output: fmt.Sprintf("Error executing command: %s\nOutput: %s", err, string(output)),
 		}, nil
 	}
 
-	if output == "" {
+	if len(output) == 0 {
 		return &tools.ToolCallResult{
 			Output: "<no output>",
 		}, nil
 	}
 
 	return &tools.ToolCallResult{
-		Output: output,
+		Output: fmt.Sprintf("Output: %s", string(output)),
 	}, nil
 }
 
@@ -236,18 +195,5 @@ func (t *ShellTool) Start(context.Context) error {
 }
 
 func (t *ShellTool) Stop(context.Context) error {
-	t.handler.mu.Lock()
-	defer t.handler.mu.Unlock()
-
-	// Kill all tracked processes
-	for _, proc := range t.handler.processes {
-		if proc != nil {
-			_ = kill(proc)
-		}
-	}
-
-	// Clear the processes list
-	t.handler.processes = nil
-
 	return nil
 }
