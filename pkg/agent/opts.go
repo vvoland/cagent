@@ -3,7 +3,6 @@ package agent
 import (
 	"sync/atomic"
 
-	"github.com/docker/cagent/pkg/memorymanager"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/tools"
 )
@@ -77,12 +76,6 @@ func WithAddEnvironmentInfo(addEnvironmentInfo bool) Opt {
 func WithAddPromptFiles(addPromptFiles []string) Opt {
 	return func(a *Agent) {
 		a.addPromptFiles = addPromptFiles
-	}
-}
-
-func WithMemoryManager(memoryManager memorymanager.Manager) Opt {
-	return func(a *Agent) {
-		a.memoryManager = memoryManager
 	}
 }
 
