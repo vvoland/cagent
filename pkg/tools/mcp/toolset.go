@@ -17,7 +17,6 @@ import (
 )
 
 type mcpClient interface {
-	Start(ctx context.Context) error
 	Initialize(ctx context.Context, request *mcp.InitializeRequest) (*mcp.InitializeResult, error)
 	ListTools(ctx context.Context, request *mcp.ListToolsParams) iter.Seq2[*mcp.Tool, error]
 	CallTool(ctx context.Context, request *mcp.CallToolParams) (*mcp.CallToolResult, error)
@@ -76,10 +75,6 @@ func (ts *Toolset) Start(ctx context.Context) error {
 	ctx = context.WithoutCancel(ctx)
 
 	slog.Debug("Starting MCP toolset", "server", ts.logID)
-
-	if err := ts.mcpClient.Start(ctx); err != nil {
-		return err
-	}
 
 	initRequest := &mcp.InitializeRequest{
 		Params: &mcp.InitializeParams{

@@ -24,10 +24,6 @@ func newStdioCmdClient(command string, args, env []string) *stdioMCPClient {
 	}
 }
 
-func (c *stdioMCPClient) Start(context.Context) error {
-	return nil
-}
-
 func (c *stdioMCPClient) Initialize(ctx context.Context, _ *mcp.InitializeRequest) (*mcp.InitializeResult, error) {
 	client := mcp.NewClient(&mcp.Implementation{
 		Name:    "cagent",
