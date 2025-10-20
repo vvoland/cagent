@@ -10,7 +10,7 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
-type Manager interface {
+type DB interface {
 	AddMemory(ctx context.Context, memory database.UserMemory) error
 	GetMemories(ctx context.Context) ([]database.UserMemory, error)
 	DeleteMemory(ctx context.Context, memory database.UserMemory) error
@@ -18,15 +18,15 @@ type Manager interface {
 
 type MemoryTool struct {
 	tools.ElicitationTool
-	manager Manager
+	db DB
 }
 
 // Make sure Memory Tool implements the ToolSet Interface
 var _ tools.ToolSet = (*MemoryTool)(nil)
 
-func NewMemoryTool(manager Manager) *MemoryTool {
+func NewMemoryTool(manager DB) *MemoryTool {
 	return &MemoryTool{
-		manager: manager,
+		db: manager,
 	}
 }
 
@@ -98,7 +98,7 @@ func (t *MemoryTool) handleAddMemory(ctx context.Context, toolCall tools.ToolCal
 		Memory:    args.Memory,
 	}
 
-	if err := t.manager.AddMemory(ctx, memory); err != nil {
+	if err := t.db.AddMemory(ctx, memory); err != nil {
 		return nil, fmt.Errorf("failed to add memory: %w", err)
 	}
 
@@ -108,7 +108,7 @@ func (t *MemoryTool) handleAddMemory(ctx context.Context, toolCall tools.ToolCal
 }
 
 func (t *MemoryTool) handleGetMemories(ctx context.Context, _ tools.ToolCall) (*tools.ToolCallResult, error) {
-	memories, err := t.manager.GetMemories(ctx)
+	memories, err := t.db.GetMemories(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get memories: %w", err)
 	}
@@ -133,7 +133,7 @@ func (t *MemoryTool) handleDeleteMemory(ctx context.Context, toolCall tools.Tool
 		ID: args.ID,
 	}
 
-	if err := t.manager.DeleteMemory(ctx, memory); err != nil {
+	if err := t.db.DeleteMemory(ctx, memory); err != nil {
 		return nil, fmt.Errorf("failed to delete memory: %w", err)
 	}
 

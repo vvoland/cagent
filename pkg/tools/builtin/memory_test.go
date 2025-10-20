@@ -15,35 +15,35 @@ import (
 )
 
 // Mock for memorymanager.Manager
-type MockMemoryManager struct {
+type MockDB struct {
 	mock.Mock
 }
 
-func (m *MockMemoryManager) AddMemory(ctx context.Context, memory database.UserMemory) error {
+func (m *MockDB) AddMemory(ctx context.Context, memory database.UserMemory) error {
 	args := m.Called(ctx, memory)
 	return args.Error(0)
 }
 
-func (m *MockMemoryManager) GetMemories(ctx context.Context) ([]database.UserMemory, error) {
+func (m *MockDB) GetMemories(ctx context.Context) ([]database.UserMemory, error) {
 	args := m.Called(ctx)
 	return args.Get(0).([]database.UserMemory), args.Error(1)
 }
 
-func (m *MockMemoryManager) DeleteMemory(ctx context.Context, memory database.UserMemory) error {
+func (m *MockDB) DeleteMemory(ctx context.Context, memory database.UserMemory) error {
 	args := m.Called(ctx, memory)
 	return args.Error(0)
 }
 
 func TestNewMemoryTool(t *testing.T) {
-	manager := new(MockMemoryManager)
+	manager := new(MockDB)
 	tool := NewMemoryTool(manager)
 
 	assert.NotNil(t, tool)
-	assert.Equal(t, manager, tool.manager)
+	assert.Equal(t, manager, tool.db)
 }
 
 func TestMemoryTool_Instructions(t *testing.T) {
-	manager := new(MockMemoryManager)
+	manager := new(MockDB)
 	tool := NewMemoryTool(manager)
 
 	instructions := tool.Instructions()
@@ -51,7 +51,7 @@ func TestMemoryTool_Instructions(t *testing.T) {
 }
 
 func TestMemoryTool_Tools(t *testing.T) {
-	manager := new(MockMemoryManager)
+	manager := new(MockDB)
 	tool := NewMemoryTool(manager)
 
 	allTools, err := tool.Tools(t.Context())
@@ -106,7 +106,7 @@ func TestMemoryTool_Tools(t *testing.T) {
 }
 
 func TestMemoryTool_DisplayNames(t *testing.T) {
-	manager := new(MockMemoryManager)
+	manager := new(MockDB)
 	tool := NewMemoryTool(manager)
 
 	all, err := tool.Tools(t.Context())
@@ -119,7 +119,7 @@ func TestMemoryTool_DisplayNames(t *testing.T) {
 }
 
 func TestMemoryTool_HandleAddMemory(t *testing.T) {
-	manager := new(MockMemoryManager)
+	manager := new(MockDB)
 	tool := NewMemoryTool(manager)
 
 	// Setup mock using database.UserMemory
@@ -151,7 +151,7 @@ func TestMemoryTool_HandleAddMemory(t *testing.T) {
 }
 
 func TestMemoryTool_HandleGetMemories(t *testing.T) {
-	manager := new(MockMemoryManager)
+	manager := new(MockDB)
 	tool := NewMemoryTool(manager)
 
 	// Setup mock using database.UserMemory
@@ -193,7 +193,7 @@ func TestMemoryTool_HandleGetMemories(t *testing.T) {
 }
 
 func TestMemoryTool_HandleDeleteMemory(t *testing.T) {
-	manager := new(MockMemoryManager)
+	manager := new(MockDB)
 	tool := NewMemoryTool(manager)
 
 	// Setup mock using database.UserMemory
@@ -225,7 +225,7 @@ func TestMemoryTool_HandleDeleteMemory(t *testing.T) {
 }
 
 func TestMemoryTool_InvalidArguments(t *testing.T) {
-	manager := new(MockMemoryManager)
+	manager := new(MockDB)
 	tool := NewMemoryTool(manager)
 
 	// Invalid JSON for add_memory
@@ -254,7 +254,7 @@ func TestMemoryTool_InvalidArguments(t *testing.T) {
 }
 
 func TestMemoryTool_StartStop(t *testing.T) {
-	manager := new(MockMemoryManager)
+	manager := new(MockDB)
 	tool := NewMemoryTool(manager)
 
 	// Test Start method
