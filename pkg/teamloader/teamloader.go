@@ -15,7 +15,6 @@ import (
 	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/gateway"
-	"github.com/docker/cagent/pkg/memory"
 	"github.com/docker/cagent/pkg/memory/database/sqlite"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/model/provider/options"
@@ -296,7 +295,7 @@ func createTool(ctx context.Context, toolset latest.Toolset, a *latest.AgentConf
 			return nil, fmt.Errorf("failed to create memory database: %w", err)
 		}
 
-		return builtin.NewMemoryTool(memory.NewManager(db)), nil
+		return builtin.NewMemoryTool(db), nil
 
 	case toolset.Type == "think":
 		return builtin.NewThinkTool(), nil

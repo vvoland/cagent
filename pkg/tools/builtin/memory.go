@@ -7,19 +7,24 @@ import (
 	"time"
 
 	"github.com/docker/cagent/pkg/memory/database"
-	"github.com/docker/cagent/pkg/memorymanager"
 	"github.com/docker/cagent/pkg/tools"
 )
 
+type Manager interface {
+	AddMemory(ctx context.Context, memory database.UserMemory) error
+	GetMemories(ctx context.Context) ([]database.UserMemory, error)
+	DeleteMemory(ctx context.Context, memory database.UserMemory) error
+}
+
 type MemoryTool struct {
 	tools.ElicitationTool
-	manager memorymanager.Manager
+	manager Manager
 }
 
 // Make sure Memory Tool implements the ToolSet Interface
 var _ tools.ToolSet = (*MemoryTool)(nil)
 
-func NewMemoryTool(manager memorymanager.Manager) *MemoryTool {
+func NewMemoryTool(manager Manager) *MemoryTool {
 	return &MemoryTool{
 		manager: manager,
 	}
