@@ -1,12 +1,14 @@
 package builtin
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 
 	"github.com/docker/cagent/pkg/tools"
 )
@@ -36,37 +38,67 @@ func (h *shellHandler) RunShell(ctx context.Context, toolCall tools.ToolCall) (*
 		return nil, fmt.Errorf("invalid arguments: %w", err)
 	}
 
-	cmd := exec.CommandContext(ctx, h.shell, append(h.shellArgsPrefix, params.Cmd)...)
+	cmd := exec.Command(h.shell, append(h.shellArgsPrefix, params.Cmd)...)
 	cmd.Env = h.env
 	if params.Cwd != "" {
 		cmd.Dir = params.Cwd
 	} else {
-		// Use the current working directory; avoid PWD on Windows (may be MSYS-style like /c/...)
 		if wd, err := os.Getwd(); err == nil {
 			cmd.Dir = wd
 		}
 	}
 
-	// Set up process group for proper cleanup
-	// On Unix: create new process group so we can kill the entire tree
 	cmd.SysProcAttr = platformSpecificSysProcAttr()
 
-	output, err := cmd.CombinedOutput()
+	var outBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &outBuf
+
+	if err := cmd.Start(); err != nil {
+		return &tools.ToolCallResult{
+			Output: fmt.Sprintf("Error starting command: %s", err),
+		}, nil
+	}
+
+	pg, err := createProcessGroup(cmd.Process)
 	if err != nil {
 		return &tools.ToolCallResult{
-			Output: fmt.Sprintf("Error executing command: %s\nOutput: %s", err, string(output)),
+			Output: fmt.Sprintf("Error creating process group: %s", err),
 		}, nil
 	}
 
-	if len(output) == 0 {
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
+
+	select {
+	case <-ctx.Done():
+		if cmd.Process != nil {
+			_ = kill(cmd.Process, pg)
+		}
 		return &tools.ToolCallResult{
-			Output: "<no output>",
+			Output: "Command cancelled",
+		}, nil
+	case err := <-done:
+		output := outBuf.String()
+
+		if err != nil {
+			return &tools.ToolCallResult{
+				Output: fmt.Sprintf("Error executing command: %s\nOutput: %s", err, output),
+			}, nil
+		}
+
+		if strings.TrimSpace(output) == "" {
+			return &tools.ToolCallResult{
+				Output: "<no output>",
+			}, nil
+		}
+
+		return &tools.ToolCallResult{
+			Output: fmt.Sprintf("Output: %s", output),
 		}, nil
 	}
-
-	return &tools.ToolCallResult{
-		Output: fmt.Sprintf("Output: %s", string(output)),
-	}, nil
 }
 
 func NewShellTool(env []string) *ShellTool {
