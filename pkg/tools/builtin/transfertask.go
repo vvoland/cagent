@@ -7,7 +7,7 @@ import (
 )
 
 type TransferTaskTool struct {
-	elicitationTool
+	tools.ElicitationTool
 }
 
 // Make sure Transfer Tool implements the ToolSet Interface

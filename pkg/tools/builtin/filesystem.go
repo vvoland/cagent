@@ -24,7 +24,7 @@ type PostEditConfig struct {
 }
 
 type FilesystemTool struct {
-	elicitationTool
+	tools.ElicitationTool
 
 	allowedDirectories []string
 	allowedTools       []string

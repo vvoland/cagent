@@ -15,7 +15,7 @@ import (
 )
 
 type ShellTool struct {
-	elicitationTool
+	tools.ElicitationTool
 	handler *shellHandler
 }
 

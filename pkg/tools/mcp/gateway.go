@@ -17,6 +17,8 @@ import (
 )
 
 type GatewayToolset struct {
+	tools.ElicitationTool
+
 	mcpServerName string
 	config        any
 	toolFilter    []string
@@ -111,14 +113,6 @@ func (t *GatewayToolset) Stop(ctx context.Context) error {
 	cleanUpConfigErr := t.cleanUpConfig()
 
 	return errors.Join(stopErr, cleanUpSecretsErr, cleanUpConfigErr)
-}
-
-func (t *GatewayToolset) SetElicitationHandler(tools.ElicitationHandler) {
-	// TODO: implement elicitations for the gateway
-}
-
-func (t *GatewayToolset) SetOAuthSuccessHandler(func()) {
-	// No-op, as the gateway does not support OAuth
 }
 
 func writeSecretsToFile(ctx context.Context, mcpServerName string, secrets []gateway.Secret, envProvider environment.Provider) (string, error) {
