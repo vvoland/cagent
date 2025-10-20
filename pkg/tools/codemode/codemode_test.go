@@ -165,6 +165,8 @@ func TestCodeModeTool_CallEcho(t *testing.T) {
 }
 
 type testToolSet struct {
+	tools.ElicitationTool
+
 	tools []tools.Tool
 	start int
 	stop  int
@@ -187,7 +189,3 @@ func (t *testToolSet) Stop(context.Context) error {
 	t.stop++
 	return nil
 }
-
-func (t *testToolSet) SetElicitationHandler(tools.ElicitationHandler) {}
-
-func (t *testToolSet) SetOAuthSuccessHandler(func()) {}

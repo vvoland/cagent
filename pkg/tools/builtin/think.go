@@ -10,7 +10,7 @@ import (
 )
 
 type ThinkTool struct {
-	elicitationTool
+	tools.ElicitationTool
 	handler *thinkHandler
 }
 

@@ -12,7 +12,7 @@ import (
 )
 
 type TodoTool struct {
-	elicitationTool
+	tools.ElicitationTool
 	handler *todoHandler
 }
 

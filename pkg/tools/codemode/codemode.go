@@ -35,6 +35,7 @@ func Wrap(toolsets ...tools.ToolSet) tools.ToolSet {
 }
 
 type codeModeTool struct {
+	tools.ElicitationTool
 	toolsets []tools.ToolSet
 }
 
@@ -127,12 +128,4 @@ func (c *codeModeTool) Stop(ctx context.Context) error {
 	}
 
 	return errors.Join(errs...)
-}
-
-func (c *codeModeTool) SetElicitationHandler(tools.ElicitationHandler) {
-	// No-op, this tool does not use elicitation
-}
-
-func (c *codeModeTool) SetOAuthSuccessHandler(func()) {
-	// No-op, this tool does not use OAuth
 }

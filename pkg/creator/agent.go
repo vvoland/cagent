@@ -27,6 +27,8 @@ import (
 var agentBuilderInstructions string
 
 type fsToolset struct {
+	tools.ElicitationTool
+
 	inner                    tools.ToolSet
 	originalWriteFileHandler tools.ToolHandler
 	path                     string
@@ -42,14 +44,6 @@ func (f *fsToolset) Start(ctx context.Context) error {
 
 func (f *fsToolset) Stop(ctx context.Context) error {
 	return f.inner.Stop(ctx)
-}
-
-func (f *fsToolset) SetElicitationHandler(tools.ElicitationHandler) {
-	// No-op, this tool does not use elicitation
-}
-
-func (f *fsToolset) SetOAuthSuccessHandler(func()) {
-	// No-op, this tool does not use OAuth
 }
 
 func (f *fsToolset) Tools(ctx context.Context) ([]tools.Tool, error) {

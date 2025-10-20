@@ -48,6 +48,16 @@ type ElicitationResult struct {
 // This allows the runtime to handle elicitation requests and propagate them to its own client
 type ElicitationHandler func(ctx context.Context, req *mcp.ElicitParams) (ElicitationResult, error)
 
+type ElicitationTool struct{}
+
+func (t *ElicitationTool) SetElicitationHandler(ElicitationHandler) {
+	// No-op, this tool does not use elicitation
+}
+
+func (t *ElicitationTool) SetOAuthSuccessHandler(func()) {
+	// No-op, this tool does not use OAuth
+}
+
 type ToolSet interface {
 	Tools(ctx context.Context) ([]Tool, error)
 	Instructions() string
