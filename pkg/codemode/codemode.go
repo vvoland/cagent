@@ -28,7 +28,7 @@ Available tools/functions:
 
 `
 
-func Wrap(toolsets []tools.ToolSet) tools.ToolSet {
+func Wrap(toolsets ...tools.ToolSet) tools.ToolSet {
 	return &codeModeTool{
 		toolsets: toolsets,
 	}

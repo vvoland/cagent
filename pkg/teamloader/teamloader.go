@@ -255,7 +255,7 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 	// This allows the agent to call multiple tools in a single response.
 	// It also allows to combine the results of multiple tools in a single response.
 	return []tools.ToolSet{
-		codemode.Wrap(t),
+		codemode.Wrap(t...),
 	}, nil
 }
 
