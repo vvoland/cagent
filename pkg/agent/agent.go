@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"math/rand"
 
-	"github.com/docker/cagent/pkg/memorymanager"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/tools"
 )
@@ -26,7 +25,6 @@ type Agent struct {
 	numHistoryItems    int
 	addPromptFiles     []string
 	tools              []tools.Tool
-	memoryManager      memorymanager.Manager
 	commands           map[string]string
 }
 

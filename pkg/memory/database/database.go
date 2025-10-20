@@ -13,12 +13,6 @@ type UserMemory struct {
 	Memory    string `description:"The content of the memory"`
 }
 
-type Memory interface {
-	AddMemory(ctx context.Context, memory UserMemory) error
-	GetMemories(ctx context.Context) ([]UserMemory, error)
-	DeleteMemory(ctx context.Context, memory UserMemory) error
-}
-
 type Database interface {
 	AddMemory(ctx context.Context, memory UserMemory) error
 	GetMemories(ctx context.Context) ([]UserMemory, error)
