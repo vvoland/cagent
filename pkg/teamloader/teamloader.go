@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/docker/cagent/pkg/agent"
-	"github.com/docker/cagent/pkg/codemode"
 	"github.com/docker/cagent/pkg/config"
 	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/environment"
@@ -24,6 +23,7 @@ import (
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
+	"github.com/docker/cagent/pkg/tools/codemode"
 	"github.com/docker/cagent/pkg/tools/mcp"
 )
 
