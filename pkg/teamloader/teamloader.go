@@ -2,7 +2,6 @@ package teamloader
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -140,14 +139,7 @@ func LoadWithOverrides(ctx context.Context, path string, runtimeConfig config.Ru
 	var agents []*agent.Agent
 	agentsByName := make(map[string]*agent.Agent)
 
-	for name := range cfg.Agents {
-		agentConfig := cfg.Agents[name]
-
-		models, err := getModelsForAgent(ctx, cfg, &agentConfig, env, runtimeConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get models: %w", err)
-		}
-
+	for name, agentConfig := range cfg.Agents {
 		opts := []agent.Opt{
 			agent.WithName(name),
 			agent.WithDescription(agentConfig.Description),
@@ -158,21 +150,21 @@ func LoadWithOverrides(ctx context.Context, path string, runtimeConfig config.Ru
 			agent.WithNumHistoryItems(agentConfig.NumHistoryItems),
 			agent.WithCommands(agentConfig.Commands),
 		}
+
+		models, err := getModelsForAgent(ctx, cfg, &agentConfig, env, runtimeConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get models: %w", err)
+		}
 		for _, model := range models {
 			opts = append(opts, agent.WithModel(model))
 		}
 
-		a, ok := cfg.Agents[name]
-		if !ok {
-			return nil, fmt.Errorf("agent '%s' not found in configuration", name)
-		}
-
-		agentTools, err := getToolsForAgent(ctx, &a, parentDir, env, runtimeConfig)
+		agentTools, err := getToolsForAgent(ctx, &agentConfig, parentDir, env, runtimeConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tools: %w", err)
 		}
 
-		if len(a.SubAgents) > 0 {
+		if len(agentConfig.SubAgents) > 0 {
 			agentTools = append(agentTools, builtin.NewTransferTaskTool())
 		}
 
@@ -238,7 +230,7 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 	for i := range a.Toolsets {
 		toolset := a.Toolsets[i]
 
-		tool, err := createTool(ctx, toolset, a, parentDir, envProvider, runtimeConfig)
+		tool, err := createTool(ctx, toolset, parentDir, envProvider, runtimeConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -258,7 +250,7 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 	}, nil
 }
 
-func createTool(ctx context.Context, toolset latest.Toolset, a *latest.AgentConfig, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig) (tools.ToolSet, error) {
+func createTool(ctx context.Context, toolset latest.Toolset, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig) (tools.ToolSet, error) {
 	env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), envProvider)
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
@@ -304,7 +296,6 @@ func createTool(ctx context.Context, toolset latest.Toolset, a *latest.AgentConf
 		return builtin.NewShellTool(env), nil
 
 	case toolset.Type == "script":
-		_, _ = json.Marshal(a)
 		if len(toolset.Shell) == 0 {
 			return nil, fmt.Errorf("shell is required for script toolset")
 		}
