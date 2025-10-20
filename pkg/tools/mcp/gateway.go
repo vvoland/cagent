@@ -17,8 +17,6 @@ import (
 )
 
 type GatewayToolset struct {
-	tools.ElicitationTool
-
 	mcpServerName string
 	config        any
 	envProvider   environment.Provider
@@ -151,4 +149,12 @@ func writeTempFile(nameTemplate string, content []byte) (string, error) {
 	}
 
 	return f.Name(), nil
+}
+
+func (t *GatewayToolset) SetElicitationHandler(handler tools.ElicitationHandler) {
+	t.cmdToolset.SetElicitationHandler(handler)
+}
+
+func (t *GatewayToolset) SetOAuthSuccessHandler(handler func()) {
+	t.cmdToolset.SetOAuthSuccessHandler(handler)
 }
