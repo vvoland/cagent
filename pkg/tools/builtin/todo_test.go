@@ -15,7 +15,7 @@ func TestNewTodoTool(t *testing.T) {
 
 	assert.NotNil(t, tool)
 	assert.NotNil(t, tool.handler)
-	assert.Empty(t, tool.handler.todos)
+	assert.Zero(t, tool.handler.todos.Length())
 }
 
 func TestTodoTool_Instructions(t *testing.T) {
@@ -152,8 +152,8 @@ func TestTodoTool_CreateTodo(t *testing.T) {
 	assert.Contains(t, result.Output, "Created todo [todo_1]: Test todo item")
 
 	// Verify todo was added to the handler's todos map
-	assert.Len(t, tool.handler.todos, 1)
-	todo, exists := tool.handler.todos["todo_1"]
+	assert.Equal(t, 1, tool.handler.todos.Length())
+	todo, exists := tool.handler.todos.Load("todo_1")
 	assert.True(t, exists)
 	assert.Equal(t, "Test todo item", todo.Description)
 	assert.Equal(t, "pending", todo.Status)
@@ -198,7 +198,7 @@ func TestTodoTool_CreateTodos(t *testing.T) {
 	assert.Contains(t, result.Output, "todo_3")
 
 	// Verify todos were added to the handler's todos map
-	assert.Len(t, tool.handler.todos, 3)
+	assert.Equal(t, 3, tool.handler.todos.Length())
 
 	// Create multiple todos
 	args = CreateTodosArgs{
@@ -222,7 +222,7 @@ func TestTodoTool_CreateTodos(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, result.Output, "Created 1 todos:")
 	assert.Contains(t, result.Output, "todo_4")
-	assert.Len(t, tool.handler.todos, 4)
+	assert.Equal(t, 4, tool.handler.todos.Length())
 }
 
 func TestTodoTool_UpdateTodo(t *testing.T) {
@@ -276,7 +276,7 @@ func TestTodoTool_UpdateTodo(t *testing.T) {
 	assert.Contains(t, result.Output, "Updated todo [todo_1] to status: [completed]")
 
 	// Verify todo status was updated
-	todo, exists := tool.handler.todos["todo_1"]
+	todo, exists := tool.handler.todos.Load("todo_1")
 	assert.True(t, exists)
 	assert.Equal(t, "completed", todo.Status)
 }

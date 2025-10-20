@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/docker/cagent/pkg/concurrent"
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -38,7 +39,7 @@ type UpdateTodoArgs struct {
 }
 
 type todoHandler struct {
-	todos map[string]Todo
+	todos *concurrent.Map[string, Todo]
 }
 
 var NewSharedTodoTool = sync.OnceValue(NewTodoTool)
@@ -46,7 +47,7 @@ var NewSharedTodoTool = sync.OnceValue(NewTodoTool)
 func NewTodoTool() *TodoTool {
 	return &TodoTool{
 		handler: &todoHandler{
-			todos: make(map[string]Todo),
+			todos: concurrent.NewMap[string, Todo](),
 		},
 	}
 }
@@ -78,12 +79,12 @@ func (h *todoHandler) createTodo(_ context.Context, toolCall tools.ToolCall) (*t
 		return nil, fmt.Errorf("invalid arguments: %w", err)
 	}
 
-	id := fmt.Sprintf("todo_%d", len(h.todos)+1)
-	h.todos[id] = Todo{
+	id := fmt.Sprintf("todo_%d", h.todos.Length()+1)
+	h.todos.Store(id, Todo{
 		ID:          id,
 		Description: params.Description,
 		Status:      "pending",
-	}
+	})
 
 	return &tools.ToolCallResult{
 		Output: fmt.Sprintf("Created todo [%s]: %s", id, params.Description),
@@ -97,14 +98,14 @@ func (h *todoHandler) createTodos(_ context.Context, toolCall tools.ToolCall) (*
 	}
 
 	ids := make([]string, len(params.Descriptions))
-	start := len(h.todos)
+	start := h.todos.Length()
 	for i, desc := range params.Descriptions {
 		id := fmt.Sprintf("todo_%d", start+i+1)
-		h.todos[id] = Todo{
+		h.todos.Store(id, Todo{
 			ID:          id,
 			Description: desc,
 			Status:      "pending",
-		}
+		})
 		ids[i] = id
 	}
 
@@ -127,13 +128,13 @@ func (h *todoHandler) updateTodo(_ context.Context, toolCall tools.ToolCall) (*t
 		return nil, fmt.Errorf("invalid arguments: %w", err)
 	}
 
-	todo, exists := h.todos[params.ID]
+	todo, exists := h.todos.Load(params.ID)
 	if !exists {
 		return nil, fmt.Errorf("todo [%s] not found", params.ID)
 	}
 
 	todo.Status = params.Status
-	h.todos[params.ID] = todo
+	h.todos.Store(params.ID, todo)
 
 	return &tools.ToolCallResult{
 		Output: fmt.Sprintf("Updated todo [%s] to status: [%s]", params.ID, params.Status),
@@ -144,10 +145,11 @@ func (h *todoHandler) listTodos(context.Context, tools.ToolCall) (*tools.ToolCal
 	var output strings.Builder
 	output.WriteString("Current todos:\n")
 
-	for _, todo := range h.todos {
+	h.todos.Range(func(_ string, todo Todo) bool {
 		output.WriteString(fmt.Sprintf("- [%s] %s (Status: %s)\n",
 			todo.ID, todo.Description, todo.Status))
-	}
+		return true
+	})
 
 	return &tools.ToolCallResult{
 		Output: output.String(),
