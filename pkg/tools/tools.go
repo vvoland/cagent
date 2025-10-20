@@ -6,7 +6,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-type ToolHandler = func(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error)
+type ToolHandler func(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error)
 
 type ToolCall struct {
 	ID       string       `json:"id,omitempty"`
