@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 
 	"github.com/dop251/goja"
 
@@ -66,11 +67,19 @@ func (c *codeModeTool) runJavascript(ctx context.Context, script string) (Script
 
 func callTool(ctx context.Context, tool tools.Tool) func(args map[string]any) (string, error) {
 	return func(args map[string]any) (string, error) {
+		var toolArgs struct {
+			Required []string `json:"required"`
+		}
+
+		if err := tools.ConvertSchema(tool.Parameters, &toolArgs); err != nil {
+			return "", err
+		}
+
 		nonNilArgs := make(map[string]any)
 		for k, v := range args {
-			// if slices.Contains(tool.Parameters.Required, k) || v != nil {
-			nonNilArgs[k] = v
-			// }
+			if slices.Contains(toolArgs.Required, k) || v != nil {
+				nonNilArgs[k] = v
+			}
 		}
 
 		arguments, err := json.Marshal(nonNilArgs)
