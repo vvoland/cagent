@@ -20,6 +20,8 @@ type mcpClient interface {
 	Initialize(ctx context.Context, request *mcp.InitializeRequest) (*mcp.InitializeResult, error)
 	ListTools(ctx context.Context, request *mcp.ListToolsParams) iter.Seq2[*mcp.Tool, error]
 	CallTool(ctx context.Context, request *mcp.CallToolParams) (*mcp.CallToolResult, error)
+	SetElicitationHandler(handler tools.ElicitationHandler)
+	SetOAuthSuccessHandler(handler func())
 	Close(ctx context.Context) error
 }
 
@@ -235,20 +237,10 @@ func processMCPContent(toolResult *mcp.CallToolResult) *tools.ToolCallResult {
 	}
 }
 
-// SetElicitationHandler sets the elicitation handler for remote MCP clients
-// This allows the runtime to provide a handler that propagates elicitation requests
 func (ts *Toolset) SetElicitationHandler(handler tools.ElicitationHandler) {
-	if remoteClient, ok := ts.mcpClient.(*remoteMCPClient); ok {
-		remoteClient.mu.Lock()
-		remoteClient.elicitationHandler = handler
-		remoteClient.mu.Unlock()
-	}
+	ts.mcpClient.SetElicitationHandler(handler)
 }
 
 func (ts *Toolset) SetOAuthSuccessHandler(handler func()) {
-	if remoteClient, ok := ts.mcpClient.(*remoteMCPClient); ok {
-		remoteClient.mu.Lock()
-		remoteClient.oauthSuccessHandler = handler
-		remoteClient.mu.Unlock()
-	}
+	ts.mcpClient.SetOAuthSuccessHandler(handler)
 }

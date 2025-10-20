@@ -6,6 +6,7 @@ import (
 	"iter"
 	"os/exec"
 
+	"github.com/docker/cagent/pkg/tools"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -68,3 +69,7 @@ func (c *stdioMCPClient) CallTool(ctx context.Context, request *mcp.CallToolPara
 
 	return c.session.CallTool(ctx, request)
 }
+
+func (c *stdioMCPClient) SetElicitationHandler(tools.ElicitationHandler) {}
+
+func (c *stdioMCPClient) SetOAuthSuccessHandler(func()) {}

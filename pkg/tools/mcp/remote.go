@@ -190,3 +190,17 @@ func (c *remoteMCPClient) requestUserConsent(ctx context.Context) (bool, error) 
 
 	return result.Action == "accept", nil
 }
+
+// SetElicitationHandler sets the elicitation handler for remote MCP clients
+// This allows the runtime to provide a handler that propagates elicitation requests
+func (c *remoteMCPClient) SetElicitationHandler(handler tools.ElicitationHandler) {
+	c.mu.Lock()
+	c.elicitationHandler = handler
+	c.mu.Unlock()
+}
+
+func (c *remoteMCPClient) SetOAuthSuccessHandler(handler func()) {
+	c.mu.Lock()
+	c.oauthSuccessHandler = handler
+	c.mu.Unlock()
+}
