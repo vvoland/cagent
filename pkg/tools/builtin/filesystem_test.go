@@ -1137,17 +1137,6 @@ func TestFilesystemTool_AddAllowedDirectory(t *testing.T) {
 	})
 }
 
-func TestFilesystemTool_FilterTools(t *testing.T) {
-	allowedDirs := []string{"/tmp"}
-	tool := NewFilesystemTool(allowedDirs, WithAllowedTools([]string{"list_allowed_directories"}))
-
-	allTools, err := tool.Tools(t.Context())
-	require.NoError(t, err)
-	require.Len(t, allTools, 1)
-	require.Equal(t, "list_allowed_directories", allTools[0].Name)
-	require.NotNil(t, allTools[0].Handler)
-}
-
 func TestMatchExcludePattern(t *testing.T) {
 	tests := []struct {
 		name     string

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"iter"
 	"log/slog"
-	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -27,10 +26,9 @@ type mcpClient interface {
 
 // Toolset represents a set of MCP tools
 type Toolset struct {
-	mcpClient  mcpClient
-	logType    string
-	logID      string
-	toolFilter []string
+	mcpClient mcpClient
+	logType   string
+	logID     string
 
 	instructions string
 	started      atomic.Bool
@@ -39,20 +37,19 @@ type Toolset struct {
 var _ tools.ToolSet = (*Toolset)(nil)
 
 // NewToolsetCommand creates a new MCP toolset from a command.
-func NewToolsetCommand(command string, args, env, toolFilter []string) *Toolset {
-	slog.Debug("Creating Stdio MCP toolset", "command", command, "args", args, "toolFilter", toolFilter)
+func NewToolsetCommand(command string, args, env []string) *Toolset {
+	slog.Debug("Creating Stdio MCP toolset", "command", command, "args", args)
 
 	return &Toolset{
-		mcpClient:  newStdioCmdClient(command, args, env),
-		logType:    "command",
-		logID:      command,
-		toolFilter: toolFilter,
+		mcpClient: newStdioCmdClient(command, args, env),
+		logType:   "command",
+		logID:     command,
 	}
 }
 
 // NewRemoteToolset creates a new MCP toolset from a remote MCP Server.
-func NewRemoteToolset(url, transport string, headers map[string]string, toolFilter []string, redirectURI string) (*Toolset, error) {
-	slog.Debug("Creating Remote MCP toolset", "url", url, "transport", transport, "headers", headers, "toolFilter", toolFilter, "redirectURI", redirectURI)
+func NewRemoteToolset(url, transport string, headers map[string]string, redirectURI string) (*Toolset, error) {
+	slog.Debug("Creating Remote MCP toolset", "url", url, "transport", transport, "headers", headers, "redirectURI", redirectURI)
 
 	tokenStore := NewInMemoryTokenStore()
 
@@ -60,10 +57,9 @@ func NewRemoteToolset(url, transport string, headers map[string]string, toolFilt
 	mcpClient := newRemoteClient(url, transport, headers, redirectURI, tokenStore)
 
 	return &Toolset{
-		mcpClient:  mcpClient,
-		logType:    "remote",
-		logID:      url,
-		toolFilter: toolFilter,
+		mcpClient: mcpClient,
+		logType:   "remote",
+		logID:     url,
 	}, nil
 }
 
@@ -141,7 +137,7 @@ func (ts *Toolset) Tools(ctx context.Context) ([]tools.Tool, error) {
 		return nil, errors.New("toolset not started")
 	}
 
-	slog.Debug("Listing MCP tools", "toolFilter", ts.toolFilter)
+	slog.Debug("Listing MCP tools")
 
 	resp := ts.mcpClient.ListTools(ctx, &mcp.ListToolsParams{})
 
@@ -149,12 +145,6 @@ func (ts *Toolset) Tools(ctx context.Context) ([]tools.Tool, error) {
 	for t, err := range resp {
 		if err != nil {
 			return nil, err
-		}
-
-		// If toolFilter is not empty, only include tools that are in the filter
-		if len(ts.toolFilter) > 0 && !slices.Contains(ts.toolFilter, t.Name) {
-			slog.Debug("Filtering out tool", "tool", t.Name)
-			continue
 		}
 
 		tool := tools.Tool{

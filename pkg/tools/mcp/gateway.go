@@ -21,7 +21,6 @@ type GatewayToolset struct {
 
 	mcpServerName string
 	config        any
-	toolFilter    []string
 	envProvider   environment.Provider
 
 	once           sync.Once
@@ -33,13 +32,12 @@ type GatewayToolset struct {
 
 var _ tools.ToolSet = (*GatewayToolset)(nil)
 
-func NewGatewayToolset(mcpServerName string, config any, toolFilter []string, envProvider environment.Provider) *GatewayToolset {
-	slog.Debug("Creating MCP Gateway toolset", "name", mcpServerName, "toolFilter", toolFilter)
+func NewGatewayToolset(mcpServerName string, config any, envProvider environment.Provider) *GatewayToolset {
+	slog.Debug("Creating MCP Gateway toolset", "name", mcpServerName)
 
 	return &GatewayToolset{
 		mcpServerName: mcpServerName,
 		config:        config,
-		toolFilter:    toolFilter,
 		envProvider:   envProvider,
 
 		cleanUpConfig:  func() error { return nil },
@@ -81,7 +79,7 @@ func (t *GatewayToolset) configureOnce(ctx context.Context) error {
 		"--secrets", fileSecrets,
 		"--config", fileConfig,
 	}
-	t.cmdToolset = NewToolsetCommand("docker", args, nil, t.toolFilter)
+	t.cmdToolset = NewToolsetCommand("docker", args, nil)
 
 	return nil
 }
