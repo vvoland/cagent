@@ -6,8 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-
-	"github.com/docker/cagent/pkg/sync"
+	"sync"
 )
 
 const DockerCatalogURL = "https://desktop.docker.com/mcp/catalog/v3/catalog.yaml"
@@ -43,7 +42,7 @@ func ServerSpec(_ context.Context, serverName string) (Server, error) {
 }
 
 // Read the MCP Catalog only once and cache the result.
-var readCatalogOnce = sync.OnceErr(func() (Catalog, error) {
+var readCatalogOnce = sync.OnceValues(func() (Catalog, error) {
 	// Use the JSON version because it's 3x time faster to parse than YAML.
 	url := strings.Replace(DockerCatalogURL, ".yaml", ".json", 1)
 
