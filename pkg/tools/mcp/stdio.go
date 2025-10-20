@@ -6,8 +6,9 @@ import (
 	"iter"
 	"os/exec"
 
-	"github.com/docker/cagent/pkg/tools"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/docker/cagent/pkg/tools"
 )
 
 type stdioMCPClient struct {
