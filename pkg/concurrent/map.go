@@ -28,6 +28,13 @@ func (m *Map[K, V]) Store(key K, value V) {
 	m.values[key] = value
 }
 
+func (m *Map[K, V]) Delete(key K) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	delete(m.values, key)
+}
+
 func (m *Map[K, V]) Length() int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

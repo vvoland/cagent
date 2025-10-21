@@ -3,6 +3,8 @@ package mcp
 import (
 	"fmt"
 	"time"
+
+	"github.com/docker/cagent/pkg/concurrent"
 )
 
 // OAuthTokenStore manages OAuth tokens
@@ -35,18 +37,18 @@ func (t *OAuthToken) IsExpired() bool {
 
 // InMemoryTokenStore implements OAuthTokenStore in memory
 type InMemoryTokenStore struct {
-	tokens map[string]*OAuthToken
+	tokens *concurrent.Map[string, *OAuthToken]
 }
 
 // NewInMemoryTokenStore creates a new in-memory token store
 func NewInMemoryTokenStore() OAuthTokenStore {
 	return &InMemoryTokenStore{
-		tokens: make(map[string]*OAuthToken),
+		tokens: concurrent.NewMap[string, *OAuthToken](),
 	}
 }
 
 func (s *InMemoryTokenStore) GetToken(resourceURL string) (*OAuthToken, error) {
-	token, ok := s.tokens[resourceURL]
+	token, ok := s.tokens.Load(resourceURL)
 	if !ok {
 		return nil, fmt.Errorf("no token found for resource: %s", resourceURL)
 	}
@@ -54,11 +56,11 @@ func (s *InMemoryTokenStore) GetToken(resourceURL string) (*OAuthToken, error) {
 }
 
 func (s *InMemoryTokenStore) StoreToken(resourceURL string, token *OAuthToken) error {
-	s.tokens[resourceURL] = token
+	s.tokens.Store(resourceURL, token)
 	return nil
 }
 
 func (s *InMemoryTokenStore) RemoveToken(resourceURL string) error {
-	delete(s.tokens, resourceURL)
+	s.tokens.Delete(resourceURL)
 	return nil
 }
