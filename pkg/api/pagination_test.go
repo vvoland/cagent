@@ -24,7 +24,7 @@ func createTestMessages(count int) []session.Message {
 			AgentName:     "test",
 			Message: chat.Message{
 				Role:      role,
-				Content:   "Message " + string(rune('A'+i)),
+				Content:   "Message " + strconv.Itoa(i),
 				CreatedAt: time.Now().Add(time.Duration(i) * time.Second).Format(time.RFC3339),
 			},
 		}
@@ -49,12 +49,10 @@ func TestPaginateMessages_FirstPage(t *testing.T) {
 	// Should get most recent 10 messages (for chat infinite scroll)
 	// For 100 messages, indices 90-99 should be returned
 	// Check that we got recent messages by verifying they're different from the old first messages
-	assert.NotEqual(t, "Message A", paginated[0].Message.Content) // Not the oldest message
-	assert.NotEqual(t, "Message J", paginated[9].Message.Content) // Not the 10th oldest message
-
-	// Verify these are actually the last 10 messages by checking against known patterns
-	// The createTestMessages function creates "Message " + char, where char is 'A' + index
-	// So message 90 would be beyond normal ASCII range, let's just verify the structure
+	assert.NotEqual(t, "Message 0", paginated[0].Message.Content) // Not the oldest message
+	assert.NotEqual(t, "Message 9", paginated[9].Message.Content) // Not the 10th oldest message
+	assert.Equal(t, "Message 90", paginated[0].Message.Content)   // Index 90
+	assert.Equal(t, "Message 99", paginated[9].Message.Content)   // Index 99
 }
 
 func TestPaginateMessages_WithBeforeCursorPagination(t *testing.T) {
@@ -70,8 +68,8 @@ func TestPaginateMessages_WithBeforeCursorPagination(t *testing.T) {
 
 	// Verify we got the end page
 	assert.Len(t, endPage, 10)
-	assert.Equal(t, "Message K", endPage[0].Message.Content) // Index 10 = 'K'
-	assert.Equal(t, "Message T", endPage[9].Message.Content) // Index 19 = 'T'
+	assert.Equal(t, "Message 10", endPage[0].Message.Content) // Index 10
+	assert.Equal(t, "Message 19", endPage[9].Message.Content) // Index 19
 
 	// Get previous page using before cursor (should give us messages 0-9)
 	prevPageParams := PaginationParams{
@@ -85,8 +83,8 @@ func TestPaginateMessages_WithBeforeCursorPagination(t *testing.T) {
 	assert.Empty(t, prevMeta.PrevCursor) // No more older messages
 
 	// Should get messages 0-9
-	assert.Equal(t, "Message A", prevPage[0].Message.Content) // Index 0 = 'A'
-	assert.Equal(t, "Message J", prevPage[9].Message.Content) // Index 9 = 'J'
+	assert.Equal(t, "Message 0", prevPage[0].Message.Content) // Index 0
+	assert.Equal(t, "Message 9", prevPage[9].Message.Content) // Index 9
 
 	// No overlap between pages
 	assert.NotEqual(t, endPage[0].Message.Content, prevPage[9].Message.Content)
@@ -110,8 +108,8 @@ func TestPaginateMessages_WithBeforeCursor(t *testing.T) {
 	assert.NotEmpty(t, meta.PrevCursor) // There are older messages
 
 	// Should get 10 messages before index 50 (indices 40-49)
-	assert.Equal(t, "Message "+string(rune('A'+40)), paginated[0].Message.Content)
-	assert.Equal(t, "Message "+string(rune('A'+49)), paginated[9].Message.Content)
+	assert.Equal(t, "Message "+strconv.Itoa(40), paginated[0].Message.Content)
+	assert.Equal(t, "Message "+strconv.Itoa(49), paginated[9].Message.Content)
 }
 
 func TestPaginateMessages_DefaultLimit(t *testing.T) {
@@ -173,8 +171,8 @@ func TestPaginateMessages_LastPage(t *testing.T) {
 	assert.Equal(t, 25, lastMeta.TotalMessages)
 
 	// Should get the first 5 messages
-	assert.Equal(t, "Message A", lastPage[0].Message.Content)
-	assert.Equal(t, "Message E", lastPage[4].Message.Content)
+	assert.Equal(t, "Message 0", lastPage[0].Message.Content)
+	assert.Equal(t, "Message 4", lastPage[4].Message.Content)
 }
 
 func TestPaginateMessages_BeforeFirstMessage(t *testing.T) {
