@@ -935,7 +935,6 @@ func (s *Server) getSession(c echo.Context) error {
 	params := api.PaginationParams{
 		Limit:  api.DefaultLimit,
 		Before: c.QueryParam("before"),
-		After:  c.QueryParam("after"),
 	}
 
 	if limitStr := c.QueryParam("limit"); limitStr != "" {

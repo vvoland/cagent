@@ -142,7 +142,6 @@ type PaginationMetadata struct {
 	TotalMessages int    `json:"total_messages"`        // Total number of messages in session
 	Limit         int    `json:"limit"`                 // Number of messages in this response
 	HasMore       bool   `json:"has_more"`              // Whether more messages exist
-	NextCursor    string `json:"next_cursor,omitempty"` // Cursor for next page
 	PrevCursor    string `json:"prev_cursor,omitempty"` // Cursor for previous page
 }
 

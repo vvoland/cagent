@@ -10,7 +10,6 @@ import (
 type PaginationParams struct {
 	Limit  int
 	Before string
-	After  string
 }
 
 const DefaultLimit = 50
@@ -28,7 +27,7 @@ func PaginateMessages(messages []session.Message, params PaginationParams) ([]se
 		limit = MaxLimit
 	}
 
-	var beforeIndex, afterIndex int
+	var beforeIndex int
 	var err error
 
 	if params.Before != "" {
@@ -38,28 +37,11 @@ func PaginateMessages(messages []session.Message, params PaginationParams) ([]se
 		}
 	}
 
-	if params.After != "" {
-		afterIndex, err = strconv.Atoi(params.After)
-		if err != nil {
-			return nil, nil, fmt.Errorf("invalid after cursor: %w", err)
-		}
-	}
-
 	startIdx := 0
 	endIdx := totalCount
 
-	if params.After != "" {
-		startIdx = afterIndex + 1
-		if startIdx >= totalCount {
-			return []session.Message{}, &PaginationMetadata{
-				TotalMessages: totalCount,
-				Limit:         0,
-				HasMore:       false,
-			}, nil
-		}
-	}
-
 	if params.Before != "" {
+		// Get messages before the cursor (older messages)
 		endIdx = beforeIndex
 		if endIdx <= 0 {
 			return []session.Message{}, &PaginationMetadata{
@@ -68,14 +50,13 @@ func PaginateMessages(messages []session.Message, params PaginationParams) ([]se
 				HasMore:       false,
 			}, nil
 		}
-	}
-
-	if params.Before != "" {
 		actualStart := max(endIdx-limit, startIdx)
 		startIdx = actualStart
 	} else {
-		actualEnd := min(startIdx+limit, endIdx)
-		endIdx = actualEnd
+		// Default: get most recent messages (for chat infinite scroll)
+		actualStart := max(totalCount-limit, 0)
+		startIdx = actualStart
+		endIdx = totalCount
 	}
 
 	paginatedMessages := messages[startIdx:endIdx]
@@ -86,15 +67,9 @@ func PaginateMessages(messages []session.Message, params PaginationParams) ([]se
 		HasMore:       false,
 	}
 
-	if params.Before != "" {
-		metadata.HasMore = startIdx > 0
-	} else {
-		metadata.HasMore = endIdx < totalCount
-	}
+	metadata.HasMore = startIdx > 0
 
 	if len(paginatedMessages) > 0 {
-		lastIdx := endIdx - 1
-		metadata.NextCursor = strconv.Itoa(lastIdx)
 		metadata.PrevCursor = strconv.Itoa(startIdx)
 	}
 
