@@ -2,7 +2,6 @@ package teamloader
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -15,7 +14,6 @@ import (
 	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/gateway"
-	"github.com/docker/cagent/pkg/memory"
 	"github.com/docker/cagent/pkg/memory/database/sqlite"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/model/provider/options"
@@ -141,14 +139,7 @@ func LoadWithOverrides(ctx context.Context, path string, runtimeConfig config.Ru
 	var agents []*agent.Agent
 	agentsByName := make(map[string]*agent.Agent)
 
-	for name := range cfg.Agents {
-		agentConfig := cfg.Agents[name]
-
-		models, err := getModelsForAgent(ctx, cfg, &agentConfig, env, runtimeConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get models: %w", err)
-		}
-
+	for name, agentConfig := range cfg.Agents {
 		opts := []agent.Opt{
 			agent.WithName(name),
 			agent.WithDescription(agentConfig.Description),
@@ -159,21 +150,21 @@ func LoadWithOverrides(ctx context.Context, path string, runtimeConfig config.Ru
 			agent.WithNumHistoryItems(agentConfig.NumHistoryItems),
 			agent.WithCommands(agentConfig.Commands),
 		}
+
+		models, err := getModelsForAgent(ctx, cfg, &agentConfig, env, runtimeConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get models: %w", err)
+		}
 		for _, model := range models {
 			opts = append(opts, agent.WithModel(model))
 		}
 
-		a, ok := cfg.Agents[name]
-		if !ok {
-			return nil, fmt.Errorf("agent '%s' not found in configuration", name)
-		}
-
-		agentTools, err := getToolsForAgent(ctx, &a, parentDir, env, runtimeConfig)
+		agentTools, err := getToolsForAgent(ctx, &agentConfig, parentDir, env, runtimeConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tools: %w", err)
 		}
 
-		if len(a.SubAgents) > 0 {
+		if len(agentConfig.SubAgents) > 0 {
 			agentTools = append(agentTools, builtin.NewTransferTaskTool())
 		}
 
@@ -239,12 +230,15 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 	for i := range a.Toolsets {
 		toolset := a.Toolsets[i]
 
-		tool, err := createTool(ctx, toolset, a, parentDir, envProvider, runtimeConfig)
+		tool, err := createTool(ctx, toolset, parentDir, envProvider, runtimeConfig)
 		if err != nil {
 			return nil, err
 		}
 
-		t = append(t, WithInstructions(tool, a.Instruction))
+		wrapped := WithToolsFilter(tool, toolset.Tools...)
+		wrapped = WithInstructions(wrapped, a.Instruction)
+
+		t = append(t, wrapped)
 	}
 
 	if !a.CodeModeTools && !runtimeConfig.GlobalCodeMode {
@@ -259,7 +253,7 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 	}, nil
 }
 
-func createTool(ctx context.Context, toolset latest.Toolset, a *latest.AgentConfig, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig) (tools.ToolSet, error) {
+func createTool(ctx context.Context, toolset latest.Toolset, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig) (tools.ToolSet, error) {
 	env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), envProvider)
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
@@ -296,7 +290,7 @@ func createTool(ctx context.Context, toolset latest.Toolset, a *latest.AgentConf
 			return nil, fmt.Errorf("failed to create memory database: %w", err)
 		}
 
-		return builtin.NewMemoryTool(memory.NewManager(db)), nil
+		return builtin.NewMemoryTool(db), nil
 
 	case toolset.Type == "think":
 		return builtin.NewThinkTool(), nil
@@ -305,7 +299,6 @@ func createTool(ctx context.Context, toolset latest.Toolset, a *latest.AgentConf
 		return builtin.NewShellTool(env), nil
 
 	case toolset.Type == "script":
-		_, _ = json.Marshal(a)
 		if len(toolset.Shell) == 0 {
 			return nil, fmt.Errorf("shell is required for script toolset")
 		}
@@ -322,7 +315,7 @@ func createTool(ctx context.Context, toolset latest.Toolset, a *latest.AgentConf
 			}
 		}
 
-		opts := []builtin.FileSystemOpt{builtin.WithAllowedTools(toolset.Tools)}
+		var opts []builtin.FileSystemOpt
 		if len(toolset.PostEdit) > 0 {
 			postEditConfigs := make([]builtin.PostEditConfig, len(toolset.PostEdit))
 			for i, pe := range toolset.PostEdit {
@@ -353,13 +346,13 @@ func createTool(ctx context.Context, toolset latest.Toolset, a *latest.AgentConf
 
 		// TODO(dga): until the MCP Gateway supports oauth with cagent, we fetch the remote url and directly connect to it.
 		if serverSpec.Type == "remote" {
-			return mcp.NewRemoteToolset(serverSpec.Remote.URL, serverSpec.Remote.TransportType, nil, toolset.Tools, runtimeConfig.RedirectURI)
+			return mcp.NewRemoteToolset(serverSpec.Remote.URL, serverSpec.Remote.TransportType, nil, runtimeConfig.RedirectURI), nil
 		}
 
-		return mcp.NewGatewayToolset(mcpServerName, toolset.Config, toolset.Tools, envProvider), nil
+		return mcp.NewGatewayToolset(ctx, mcpServerName, toolset.Config, envProvider)
 
 	case toolset.Type == "mcp" && toolset.Command != "":
-		return mcp.NewToolsetCommand(toolset.Command, toolset.Args, env, toolset.Tools), nil
+		return mcp.NewToolsetCommand(toolset.Command, toolset.Args, env), nil
 
 	case toolset.Type == "mcp" && toolset.Remote.URL != "":
 		headers := map[string]string{}
@@ -372,7 +365,7 @@ func createTool(ctx context.Context, toolset latest.Toolset, a *latest.AgentConf
 			headers[k] = expanded
 		}
 
-		return mcp.NewRemoteToolset(toolset.Remote.URL, toolset.Remote.TransportType, headers, toolset.Tools, runtimeConfig.RedirectURI)
+		return mcp.NewRemoteToolset(toolset.Remote.URL, toolset.Remote.TransportType, headers, runtimeConfig.RedirectURI), nil
 
 	default:
 		return nil, fmt.Errorf("unknown toolset type: %s", toolset.Type)

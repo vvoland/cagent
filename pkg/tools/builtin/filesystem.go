@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 
@@ -27,19 +26,12 @@ type FilesystemTool struct {
 	tools.ElicitationTool
 
 	allowedDirectories []string
-	allowedTools       []string
 	postEditCommands   []PostEditConfig
 }
 
 var _ tools.ToolSet = (*FilesystemTool)(nil)
 
 type FileSystemOpt func(*FilesystemTool)
-
-func WithAllowedTools(allowedTools []string) FileSystemOpt {
-	return func(t *FilesystemTool) {
-		t.allowedTools = allowedTools
-	}
-}
 
 func WithPostEditCommands(postEditCommands []PostEditConfig) FileSystemOpt {
 	return func(t *FilesystemTool) {
@@ -150,7 +142,7 @@ type EditFileArgs struct {
 }
 
 func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
-	tls := []tools.Tool{
+	return []tools.Tool{
 		{
 			Name:         "create_directory",
 			Category:     "filesystem",
@@ -337,20 +329,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 				Title: "Write File",
 			},
 		},
-	}
-
-	if len(t.allowedTools) == 0 {
-		return tls, nil
-	}
-
-	var allowedTools []tools.Tool
-	for _, tool := range tls {
-		if slices.Contains(t.allowedTools, tool.Name) {
-			allowedTools = append(allowedTools, tool)
-		}
-	}
-
-	return allowedTools, nil
+	}, nil
 }
 
 // executePostEditCommands executes any matching post-edit commands for the given file path

@@ -7,6 +7,8 @@ import (
 	"os/exec"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/docker/cagent/pkg/tools"
 )
 
 type stdioMCPClient struct {
@@ -22,10 +24,6 @@ func newStdioCmdClient(command string, args, env []string) *stdioMCPClient {
 		args:    args,
 		env:     env,
 	}
-}
-
-func (c *stdioMCPClient) Start(context.Context) error {
-	return nil
 }
 
 func (c *stdioMCPClient) Initialize(ctx context.Context, _ *mcp.InitializeRequest) (*mcp.InitializeResult, error) {
@@ -72,3 +70,7 @@ func (c *stdioMCPClient) CallTool(ctx context.Context, request *mcp.CallToolPara
 
 	return c.session.CallTool(ctx, request)
 }
+
+func (c *stdioMCPClient) SetElicitationHandler(tools.ElicitationHandler) {}
+
+func (c *stdioMCPClient) SetOAuthSuccessHandler(func()) {}
