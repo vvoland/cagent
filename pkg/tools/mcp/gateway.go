@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"os"
 	"strings"
-	"sync"
 
 	"github.com/goccy/go-yaml"
 
@@ -17,98 +16,74 @@ import (
 )
 
 type GatewayToolset struct {
-	mcpServerName string
-	config        any
-	envProvider   environment.Provider
-
-	once           sync.Once
-	initErr        error
-	cmdToolset     *Toolset
-	cleanUpConfig  func() error
-	cleanUpSecrets func() error
+	cmdToolset *Toolset
+	cleanUp    func() error
 }
 
 var _ tools.ToolSet = (*GatewayToolset)(nil)
 
-func NewGatewayToolset(mcpServerName string, config any, envProvider environment.Provider) *GatewayToolset {
+func NewGatewayToolset(ctx context.Context, mcpServerName string, config any, envProvider environment.Provider) (*GatewayToolset, error) {
 	slog.Debug("Creating MCP Gateway toolset", "name", mcpServerName)
 
-	return &GatewayToolset{
-		mcpServerName: mcpServerName,
-		config:        config,
-		envProvider:   envProvider,
-
-		cleanUpConfig:  func() error { return nil },
-		cleanUpSecrets: func() error { return nil },
+	// Check which secrets (env vars) are required by the MCP server.
+	secrets, err := gateway.RequiredEnvVars(ctx, mcpServerName)
+	if err != nil {
+		return nil, fmt.Errorf("reading which secrets the MCP server needs: %w", err)
 	}
+
+	// Make sure all the required secrets are available in the environment.
+	// TODO(dga): Ideally, the MCP gateway would use the same provider that we have.
+	fileSecrets, err := writeSecretsToFile(ctx, mcpServerName, secrets, envProvider)
+	if err != nil {
+		return nil, fmt.Errorf("writing secrets to file: %w", err)
+	}
+
+	fileConfig, err := writeConfigToFile(ctx, mcpServerName, config)
+	if err != nil {
+		os.Remove(fileSecrets)
+		return nil, fmt.Errorf("writing config to file: %w", err)
+	}
+
+	// Isolate ourselves from the MCP Toolkit config by always using the Docker MCP catalog and custom config and secrets.
+	// This improves shareability of agents.
+	args := []string{
+		"mcp", "gateway", "run",
+		"--servers", mcpServerName,
+		"--catalog", gateway.DockerCatalogURL,
+		"--secrets", fileSecrets,
+		"--config", fileConfig,
+	}
+
+	return &GatewayToolset{
+		cmdToolset: NewToolsetCommand("docker", args, nil),
+		cleanUp: func() error {
+			return errors.Join(os.Remove(fileSecrets), os.Remove(fileConfig))
+		},
+	}, nil
 }
 
 func (t *GatewayToolset) Instructions() string {
 	return t.cmdToolset.Instructions()
 }
 
-func (t *GatewayToolset) configureOnce(ctx context.Context) error {
-	// Check which secrets (env vars) are required by the MCP server.
-	secrets, err := gateway.RequiredEnvVars(ctx, t.mcpServerName)
-	if err != nil {
-		return fmt.Errorf("reading which secrets the MCP server needs: %w", err)
-	}
-
-	// Make sure all the required secrets are available in the environment.
-	// TODO(dga): Ideally, the MCP gateway would use the same provider that we have.
-	fileSecrets, err := writeSecretsToFile(ctx, t.mcpServerName, secrets, t.envProvider)
-	if err != nil {
-		return fmt.Errorf("writing secrets to file: %w", err)
-	}
-	t.cleanUpSecrets = func() error { return os.Remove(fileSecrets) }
-
-	fileConfig, err := writeConfigToFile(ctx, t.mcpServerName, t.config)
-	if err != nil {
-		return fmt.Errorf("writing config to file: %w", err)
-	}
-	t.cleanUpConfig = func() error { return os.Remove(fileConfig) }
-
-	// Isolate ourselves from the MCP Toolkit config by always using the Docker MCP catalog and custom config and secrets.
-	// This improves shareability of agents.
-	args := []string{
-		"mcp", "gateway", "run",
-		"--servers", t.mcpServerName,
-		"--catalog", gateway.DockerCatalogURL,
-		"--secrets", fileSecrets,
-		"--config", fileConfig,
-	}
-	t.cmdToolset = NewToolsetCommand("docker", args, nil)
-
-	return nil
-}
-
-func (t *GatewayToolset) ensureConfigured(ctx context.Context) error {
-	t.once.Do(func() {
-		t.initErr = t.configureOnce(ctx)
-	})
-	return t.initErr
-}
-
 func (t *GatewayToolset) Tools(ctx context.Context) ([]tools.Tool, error) {
-	if err := t.ensureConfigured(ctx); err != nil {
-		return nil, err
-	}
 	return t.cmdToolset.Tools(ctx)
 }
 
 func (t *GatewayToolset) Start(ctx context.Context) error {
-	if err := t.ensureConfigured(ctx); err != nil {
-		return err
-	}
 	return t.cmdToolset.Start(ctx)
 }
 
-func (t *GatewayToolset) Stop(ctx context.Context) error {
-	stopErr := t.cmdToolset.Stop(ctx)
-	cleanUpSecretsErr := t.cleanUpSecrets()
-	cleanUpConfigErr := t.cleanUpConfig()
+func (t *GatewayToolset) SetElicitationHandler(handler tools.ElicitationHandler) {
+	t.cmdToolset.SetElicitationHandler(handler)
+}
 
-	return errors.Join(stopErr, cleanUpSecretsErr, cleanUpConfigErr)
+func (t *GatewayToolset) SetOAuthSuccessHandler(handler func()) {
+	t.cmdToolset.SetOAuthSuccessHandler(handler)
+}
+
+func (t *GatewayToolset) Stop(ctx context.Context) error {
+	return errors.Join(t.cmdToolset.Stop(ctx), t.cleanUp())
 }
 
 func writeSecretsToFile(ctx context.Context, mcpServerName string, secrets []gateway.Secret, envProvider environment.Provider) (string, error) {
@@ -149,12 +124,4 @@ func writeTempFile(nameTemplate string, content []byte) (string, error) {
 	}
 
 	return f.Name(), nil
-}
-
-func (t *GatewayToolset) SetElicitationHandler(handler tools.ElicitationHandler) {
-	t.cmdToolset.SetElicitationHandler(handler)
-}
-
-func (t *GatewayToolset) SetOAuthSuccessHandler(handler func()) {
-	t.cmdToolset.SetOAuthSuccessHandler(handler)
 }

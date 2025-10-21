@@ -349,7 +349,7 @@ func createTool(ctx context.Context, toolset latest.Toolset, parentDir string, e
 			return mcp.NewRemoteToolset(serverSpec.Remote.URL, serverSpec.Remote.TransportType, nil, runtimeConfig.RedirectURI), nil
 		}
 
-		return mcp.NewGatewayToolset(mcpServerName, toolset.Config, envProvider), nil
+		return mcp.NewGatewayToolset(ctx, mcpServerName, toolset.Config, envProvider)
 
 	case toolset.Type == "mcp" && toolset.Command != "":
 		return mcp.NewToolsetCommand(toolset.Command, toolset.Args, env), nil
