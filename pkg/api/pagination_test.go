@@ -44,8 +44,7 @@ func TestPaginateMessages_FirstPage(t *testing.T) {
 	assert.Len(t, paginated, 10)
 	assert.Equal(t, 100, meta.TotalMessages)
 	assert.Equal(t, 10, meta.Limit)
-	assert.True(t, meta.HasMore)
-	assert.NotEmpty(t, meta.PrevCursor)
+	assert.NotEmpty(t, meta.PrevCursor) // More older messages available
 
 	// Should get most recent 10 messages (for chat infinite scroll)
 	// For 100 messages, indices 90-99 should be returned
@@ -83,7 +82,7 @@ func TestPaginateMessages_WithBeforeCursorPagination(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, prevPage, 10)
-	assert.False(t, prevMeta.HasMore) // No more older messages
+	assert.Empty(t, prevMeta.PrevCursor) // No more older messages
 
 	// Should get messages 0-9
 	assert.Equal(t, "Message A", prevPage[0].Message.Content) // Index 0 = 'A'
@@ -108,7 +107,7 @@ func TestPaginateMessages_WithBeforeCursor(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, paginated, 10)
-	assert.True(t, meta.HasMore) // There are older messages
+	assert.NotEmpty(t, meta.PrevCursor) // There are older messages
 
 	// Should get 10 messages before index 50 (indices 40-49)
 	assert.Equal(t, "Message "+string(rune('A'+40)), paginated[0].Message.Content)
@@ -155,7 +154,7 @@ func TestPaginateMessages_EmptyMessages(t *testing.T) {
 
 	assert.Empty(t, paginated)
 	assert.Equal(t, 0, meta.TotalMessages)
-	assert.False(t, meta.HasMore)
+	assert.Empty(t, meta.PrevCursor) // No messages at all
 }
 
 func TestPaginateMessages_LastPage(t *testing.T) {
@@ -169,8 +168,8 @@ func TestPaginateMessages_LastPage(t *testing.T) {
 	lastPage, lastMeta, err := PaginateMessages(messages, lastPageParams)
 	require.NoError(t, err)
 
-	assert.Len(t, lastPage, 5)        // Only 5 messages (0-4)
-	assert.False(t, lastMeta.HasMore) // No more older messages
+	assert.Len(t, lastPage, 5)           // Only 5 messages (0-4)
+	assert.Empty(t, lastMeta.PrevCursor) // No more older messages
 	assert.Equal(t, 25, lastMeta.TotalMessages)
 
 	// Should get the first 5 messages
@@ -193,7 +192,7 @@ func TestPaginateMessages_BeforeFirstMessage(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Empty(t, paginated)
-	assert.False(t, meta.HasMore)
+	assert.Empty(t, meta.PrevCursor) // No messages at all
 }
 
 func TestPaginateMessages_InvalidCursor(t *testing.T) {

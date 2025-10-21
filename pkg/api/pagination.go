@@ -41,19 +41,16 @@ func PaginateMessages(messages []session.Message, params PaginationParams) ([]se
 	endIdx := totalCount
 
 	if params.Before != "" {
-		// Get messages before the cursor (older messages)
 		endIdx = beforeIndex
 		if endIdx <= 0 {
 			return []session.Message{}, &PaginationMetadata{
 				TotalMessages: totalCount,
 				Limit:         0,
-				HasMore:       false,
 			}, nil
 		}
 		actualStart := max(endIdx-limit, startIdx)
 		startIdx = actualStart
 	} else {
-		// Default: get most recent messages (for chat infinite scroll)
 		actualStart := max(totalCount-limit, 0)
 		startIdx = actualStart
 		endIdx = totalCount
@@ -64,12 +61,10 @@ func PaginateMessages(messages []session.Message, params PaginationParams) ([]se
 	metadata := &PaginationMetadata{
 		TotalMessages: totalCount,
 		Limit:         len(paginatedMessages),
-		HasMore:       false,
 	}
 
-	metadata.HasMore = startIdx > 0
-
-	if len(paginatedMessages) > 0 {
+	// Only set cursor if there are more (older) messages available
+	if len(paginatedMessages) > 0 && startIdx > 0 {
 		metadata.PrevCursor = strconv.Itoa(startIdx)
 	}
 

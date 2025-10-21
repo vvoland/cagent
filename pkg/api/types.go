@@ -141,8 +141,7 @@ type SessionResponse struct {
 type PaginationMetadata struct {
 	TotalMessages int    `json:"total_messages"`        // Total number of messages in session
 	Limit         int    `json:"limit"`                 // Number of messages in this response
-	HasMore       bool   `json:"has_more"`              // Whether more messages exist
-	PrevCursor    string `json:"prev_cursor,omitempty"` // Cursor for previous page
+	PrevCursor    string `json:"prev_cursor,omitempty"` // Cursor for previous page (empty if no more messages)
 }
 
 // ResumeSessionRequest represents a request to resume a session
