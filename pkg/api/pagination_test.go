@@ -1,6 +1,7 @@
 package api
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -10,33 +11,6 @@ import (
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/session"
 )
-
-func TestEncodeDecode(t *testing.T) {
-	cursor := MessageCursor{
-		Timestamp: "2025-10-20T12:00:00Z",
-		Index:     42,
-	}
-
-	encoded, err := EncodeCursor(cursor)
-	require.NoError(t, err)
-	assert.NotEmpty(t, encoded)
-
-	decoded, err := DecodeCursor(encoded)
-	require.NoError(t, err)
-	assert.Equal(t, cursor.Timestamp, decoded.Timestamp)
-	assert.Equal(t, cursor.Index, decoded.Index)
-}
-
-func TestDecodeEmptyCursor(t *testing.T) {
-	decoded, err := DecodeCursor("")
-	require.NoError(t, err)
-	assert.Equal(t, MessageCursor{}, decoded)
-}
-
-func TestDecodeInvalidCursor(t *testing.T) {
-	_, err := DecodeCursor("not-valid-base64!")
-	assert.Error(t, err)
-}
 
 func createTestMessages(count int) []session.Message {
 	messages := make([]session.Message, count)
@@ -110,10 +84,7 @@ func TestPaginateMessages_WithBeforeCursor(t *testing.T) {
 	messages := createTestMessages(100)
 
 	// Get a page in the middle (starting at index 50)
-	middleCursor, _ := EncodeCursor(MessageCursor{
-		Timestamp: messages[50].Message.CreatedAt,
-		Index:     50,
-	})
+	middleCursor := strconv.Itoa(50)
 
 	params := PaginationParams{
 		Limit:  10,
@@ -207,10 +178,7 @@ func TestPaginateMessages_AfterLastMessage(t *testing.T) {
 	messages := createTestMessages(10)
 
 	// Create cursor pointing to last message
-	lastCursor, _ := EncodeCursor(MessageCursor{
-		Timestamp: messages[9].Message.CreatedAt,
-		Index:     9,
-	})
+	lastCursor := strconv.Itoa(9)
 
 	params := PaginationParams{
 		Limit: 10,
@@ -228,10 +196,7 @@ func TestPaginateMessages_BeforeFirstMessage(t *testing.T) {
 	messages := createTestMessages(10)
 
 	// Create cursor pointing to first message
-	firstCursor, _ := EncodeCursor(MessageCursor{
-		Timestamp: messages[0].Message.CreatedAt,
-		Index:     0,
-	})
+	firstCursor := strconv.Itoa(0)
 
 	params := PaginationParams{
 		Limit:  10,

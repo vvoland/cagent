@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/docker/cagent/pkg/session"
 )
@@ -27,18 +28,18 @@ func PaginateMessages(messages []session.Message, params PaginationParams) ([]se
 		limit = MaxLimit
 	}
 
-	var beforeCursor, afterCursor MessageCursor
+	var beforeIndex, afterIndex int
 	var err error
 
 	if params.Before != "" {
-		beforeCursor, err = DecodeCursor(params.Before)
+		beforeIndex, err = strconv.Atoi(params.Before)
 		if err != nil {
 			return nil, nil, fmt.Errorf("invalid before cursor: %w", err)
 		}
 	}
 
 	if params.After != "" {
-		afterCursor, err = DecodeCursor(params.After)
+		afterIndex, err = strconv.Atoi(params.After)
 		if err != nil {
 			return nil, nil, fmt.Errorf("invalid after cursor: %w", err)
 		}
@@ -48,7 +49,7 @@ func PaginateMessages(messages []session.Message, params PaginationParams) ([]se
 	endIdx := totalCount
 
 	if params.After != "" {
-		startIdx = afterCursor.Index + 1
+		startIdx = afterIndex + 1
 		if startIdx >= totalCount {
 			return []session.Message{}, &PaginationMetadata{
 				TotalMessages: totalCount,
@@ -59,7 +60,7 @@ func PaginateMessages(messages []session.Message, params PaginationParams) ([]se
 	}
 
 	if params.Before != "" {
-		endIdx = beforeCursor.Index
+		endIdx = beforeIndex
 		if endIdx <= 0 {
 			return []session.Message{}, &PaginationMetadata{
 				TotalMessages: totalCount,
@@ -92,20 +93,9 @@ func PaginateMessages(messages []session.Message, params PaginationParams) ([]se
 	}
 
 	if len(paginatedMessages) > 0 {
-		lastMsg := paginatedMessages[len(paginatedMessages)-1]
 		lastIdx := endIdx - 1
-		nextCursor := MessageCursor{
-			Timestamp: lastMsg.Message.CreatedAt,
-			Index:     lastIdx,
-		}
-		metadata.NextCursor, _ = EncodeCursor(nextCursor)
-
-		firstMsg := paginatedMessages[0]
-		prevCursor := MessageCursor{
-			Timestamp: firstMsg.Message.CreatedAt,
-			Index:     startIdx,
-		}
-		metadata.PrevCursor, _ = EncodeCursor(prevCursor)
+		metadata.NextCursor = strconv.Itoa(lastIdx)
+		metadata.PrevCursor = strconv.Itoa(startIdx)
 	}
 
 	return paginatedMessages, metadata, nil
