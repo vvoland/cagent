@@ -235,7 +235,10 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 			return nil, err
 		}
 
-		t = append(t, WithInstructions(tool, a.Instruction))
+		wrapped := WithToolsFilter(tool, toolset.Tools...)
+		wrapped = WithInstructions(wrapped, a.Instruction)
+
+		t = append(t, wrapped)
 	}
 
 	if !a.CodeModeTools && !runtimeConfig.GlobalCodeMode {
@@ -312,7 +315,7 @@ func createTool(ctx context.Context, toolset latest.Toolset, parentDir string, e
 			}
 		}
 
-		opts := []builtin.FileSystemOpt{builtin.WithAllowedTools(toolset.Tools)}
+		var opts []builtin.FileSystemOpt
 		if len(toolset.PostEdit) > 0 {
 			postEditConfigs := make([]builtin.PostEditConfig, len(toolset.PostEdit))
 			for i, pe := range toolset.PostEdit {
@@ -343,13 +346,13 @@ func createTool(ctx context.Context, toolset latest.Toolset, parentDir string, e
 
 		// TODO(dga): until the MCP Gateway supports oauth with cagent, we fetch the remote url and directly connect to it.
 		if serverSpec.Type == "remote" {
-			return mcp.NewRemoteToolset(serverSpec.Remote.URL, serverSpec.Remote.TransportType, nil, toolset.Tools, runtimeConfig.RedirectURI)
+			return mcp.NewRemoteToolset(serverSpec.Remote.URL, serverSpec.Remote.TransportType, nil, runtimeConfig.RedirectURI), nil
 		}
 
-		return mcp.NewGatewayToolset(mcpServerName, toolset.Config, toolset.Tools, envProvider), nil
+		return mcp.NewGatewayToolset(ctx, mcpServerName, toolset.Config, envProvider)
 
 	case toolset.Type == "mcp" && toolset.Command != "":
-		return mcp.NewToolsetCommand(toolset.Command, toolset.Args, env, toolset.Tools), nil
+		return mcp.NewToolsetCommand(toolset.Command, toolset.Args, env), nil
 
 	case toolset.Type == "mcp" && toolset.Remote.URL != "":
 		headers := map[string]string{}
@@ -362,7 +365,7 @@ func createTool(ctx context.Context, toolset latest.Toolset, parentDir string, e
 			headers[k] = expanded
 		}
 
-		return mcp.NewRemoteToolset(toolset.Remote.URL, toolset.Remote.TransportType, headers, toolset.Tools, runtimeConfig.RedirectURI)
+		return mcp.NewRemoteToolset(toolset.Remote.URL, toolset.Remote.TransportType, headers, runtimeConfig.RedirectURI), nil
 
 	default:
 		return nil, fmt.Errorf("unknown toolset type: %s", toolset.Type)

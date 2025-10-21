@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"iter"
 	"log/slog"
-	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -18,20 +17,18 @@ import (
 )
 
 type mcpClient interface {
-	Start(ctx context.Context) error
 	Initialize(ctx context.Context, request *mcp.InitializeRequest) (*mcp.InitializeResult, error)
 	ListTools(ctx context.Context, request *mcp.ListToolsParams) iter.Seq2[*mcp.Tool, error]
 	CallTool(ctx context.Context, request *mcp.CallToolParams) (*mcp.CallToolResult, error)
+	SetElicitationHandler(handler tools.ElicitationHandler)
+	SetOAuthSuccessHandler(handler func())
 	Close(ctx context.Context) error
 }
 
 // Toolset represents a set of MCP tools
 type Toolset struct {
-	mcpClient  mcpClient
-	logType    string
-	logID      string
-	toolFilter []string
-
+	mcpClient    mcpClient
+	logID        string
 	instructions string
 	started      atomic.Bool
 }
@@ -39,32 +36,23 @@ type Toolset struct {
 var _ tools.ToolSet = (*Toolset)(nil)
 
 // NewToolsetCommand creates a new MCP toolset from a command.
-func NewToolsetCommand(command string, args, env, toolFilter []string) *Toolset {
-	slog.Debug("Creating Stdio MCP toolset", "command", command, "args", args, "toolFilter", toolFilter)
+func NewToolsetCommand(command string, args, env []string) *Toolset {
+	slog.Debug("Creating Stdio MCP toolset", "command", command, "args", args)
 
 	return &Toolset{
-		mcpClient:  newStdioCmdClient(command, args, env),
-		logType:    "command",
-		logID:      command,
-		toolFilter: toolFilter,
+		mcpClient: newStdioCmdClient(command, args, env),
+		logID:     command,
 	}
 }
 
 // NewRemoteToolset creates a new MCP toolset from a remote MCP Server.
-func NewRemoteToolset(url, transport string, headers map[string]string, toolFilter []string, redirectURI string) (*Toolset, error) {
-	slog.Debug("Creating Remote MCP toolset", "url", url, "transport", transport, "headers", headers, "toolFilter", toolFilter, "redirectURI", redirectURI)
-
-	tokenStore := NewInMemoryTokenStore()
-
-	// Create without elicitation handler initially - it will be set later by runtime
-	mcpClient := newRemoteClient(url, transport, headers, redirectURI, tokenStore)
+func NewRemoteToolset(url, transport string, headers map[string]string, redirectURI string) *Toolset {
+	slog.Debug("Creating Remote MCP toolset", "url", url, "transport", transport, "headers", headers, "redirectURI", redirectURI)
 
 	return &Toolset{
-		mcpClient:  mcpClient,
-		logType:    "remote",
-		logID:      url,
-		toolFilter: toolFilter,
-	}, nil
+		mcpClient: newRemoteClient(url, transport, headers, redirectURI, NewInMemoryTokenStore()),
+		logID:     url,
+	}
 }
 
 func (ts *Toolset) Start(ctx context.Context) error {
@@ -80,10 +68,6 @@ func (ts *Toolset) Start(ctx context.Context) error {
 	ctx = context.WithoutCancel(ctx)
 
 	slog.Debug("Starting MCP toolset", "server", ts.logID)
-
-	if err := ts.mcpClient.Start(ctx); err != nil {
-		return err
-	}
 
 	initRequest := &mcp.InitializeRequest{
 		Params: &mcp.InitializeParams{
@@ -141,7 +125,7 @@ func (ts *Toolset) Tools(ctx context.Context) ([]tools.Tool, error) {
 		return nil, errors.New("toolset not started")
 	}
 
-	slog.Debug("Listing MCP tools", "toolFilter", ts.toolFilter)
+	slog.Debug("Listing MCP tools")
 
 	resp := ts.mcpClient.ListTools(ctx, &mcp.ListToolsParams{})
 
@@ -149,12 +133,6 @@ func (ts *Toolset) Tools(ctx context.Context) ([]tools.Tool, error) {
 	for t, err := range resp {
 		if err != nil {
 			return nil, err
-		}
-
-		// If toolFilter is not empty, only include tools that are in the filter
-		if len(ts.toolFilter) > 0 && !slices.Contains(ts.toolFilter, t.Name) {
-			slog.Debug("Filtering out tool", "tool", t.Name)
-			continue
 		}
 
 		tool := tools.Tool{
@@ -255,20 +233,10 @@ func processMCPContent(toolResult *mcp.CallToolResult) *tools.ToolCallResult {
 	}
 }
 
-// SetElicitationHandler sets the elicitation handler for remote MCP clients
-// This allows the runtime to provide a handler that propagates elicitation requests
 func (ts *Toolset) SetElicitationHandler(handler tools.ElicitationHandler) {
-	if remoteClient, ok := ts.mcpClient.(*remoteMCPClient); ok {
-		remoteClient.mu.Lock()
-		remoteClient.elicitationHandler = handler
-		remoteClient.mu.Unlock()
-	}
+	ts.mcpClient.SetElicitationHandler(handler)
 }
 
 func (ts *Toolset) SetOAuthSuccessHandler(handler func()) {
-	if remoteClient, ok := ts.mcpClient.(*remoteMCPClient); ok {
-		remoteClient.mu.Lock()
-		remoteClient.oauthSuccessHandler = handler
-		remoteClient.mu.Unlock()
-	}
+	ts.mcpClient.SetOAuthSuccessHandler(handler)
 }

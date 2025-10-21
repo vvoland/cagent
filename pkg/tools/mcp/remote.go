@@ -76,10 +76,6 @@ func (c *remoteMCPClient) handleElicitationRequest(ctx context.Context, req *mcp
 	}, nil
 }
 
-func (c *remoteMCPClient) Start(context.Context) error {
-	return nil
-}
-
 func (c *remoteMCPClient) Initialize(ctx context.Context, _ *mcp.InitializeRequest) (*mcp.InitializeResult, error) {
 	// Create HTTP client with OAuth support
 	httpClient := c.createHTTPClient()
@@ -193,4 +189,18 @@ func (c *remoteMCPClient) requestUserConsent(ctx context.Context) (bool, error) 
 	slog.Debug("Elicitation response received", "result", result)
 
 	return result.Action == "accept", nil
+}
+
+// SetElicitationHandler sets the elicitation handler for remote MCP clients
+// This allows the runtime to provide a handler that propagates elicitation requests
+func (c *remoteMCPClient) SetElicitationHandler(handler tools.ElicitationHandler) {
+	c.mu.Lock()
+	c.elicitationHandler = handler
+	c.mu.Unlock()
+}
+
+func (c *remoteMCPClient) SetOAuthSuccessHandler(handler func()) {
+	c.mu.Lock()
+	c.oauthSuccessHandler = handler
+	c.mu.Unlock()
 }
