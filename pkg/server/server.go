@@ -948,7 +948,7 @@ func (s *Server) getSession(c echo.Context) error {
 	paginatedMessages, pagination, err := api.PaginateMessages(allMessages, params)
 	if err != nil {
 		slog.Error("Failed to paginate messages", "error", err)
-		return jsonErr(c, http.StatusBadRequest, "invalid pagination parameters: "+err.Error())
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid pagination parameters: "+err.Error())
 	}
 
 	sr := api.SessionResponse{
