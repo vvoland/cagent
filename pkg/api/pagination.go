@@ -38,7 +38,7 @@ func PaginateMessages(messages []session.Message, params PaginationParams) ([]se
 	}
 
 	startIdx := 0
-	endIdx := totalCount
+	var endIdx int
 
 	if params.Before != "" {
 		endIdx = beforeIndex
