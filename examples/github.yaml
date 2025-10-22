@@ -13,6 +13,8 @@ agents:
         instruction: |
           {ORIGINAL_INSTRUCTIONS}
           Use these tools to help users with their GitHub-related tasks effectively.
+    commands:
+      whoami: "Who am I on GitHub?"
 
 models:
   claude:
