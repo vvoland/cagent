@@ -1,11 +1,10 @@
-package secrets
+package config
 
 import (
 	"context"
 	"fmt"
 	"sort"
 
-	"github.com/docker/cagent/pkg/config"
 	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/gateway"
@@ -15,7 +14,7 @@ import (
 // GatherMissingEnvVars finds out which environment variables are required by the models and tools.
 // This allows exiting early with a proper error message instead of failing later when trying to use a model or tool.
 // TODO(dga): This code contains lots of duplication and ought to be refactored.
-func GatherMissingEnvVars(ctx context.Context, cfg *latest.Config, env environment.Provider, runtimeConfig config.RuntimeConfig) ([]string, error) {
+func GatherMissingEnvVars(ctx context.Context, cfg *latest.Config, env environment.Provider, runtimeConfig RuntimeConfig) ([]string, error) {
 	requiredEnv := map[string]bool{}
 
 	// Models

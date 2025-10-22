@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/path"
 )
 
 type KeyValuePair struct {
@@ -29,20 +29,20 @@ func AbsolutePaths(parentDir string, relOrAbsPaths []string) ([]string, error) {
 }
 
 func AbsolutePath(parentDir, relOrAbsPath string) (string, error) {
-	path, err := expandTildePath(relOrAbsPath)
+	p, err := expandTildePath(relOrAbsPath)
 	if err != nil {
 		return "", err
 	}
 
 	// For absolute paths (including tilde-expanded ones), validate against directory traversal
-	if filepath.IsAbs(path) {
+	if filepath.IsAbs(p) {
 		if strings.Contains(relOrAbsPath, "..") {
 			return "", fmt.Errorf("invalid environment file path: path contains directory traversal sequences")
 		}
-		return path, nil
+		return p, nil
 	}
 
-	validatedPath, err := config.ValidatePathInDirectory(path, parentDir)
+	validatedPath, err := path.ValidatePathInDirectory(p, parentDir)
 	if err != nil {
 		return "", fmt.Errorf("invalid environment file path: %w", err)
 	}
@@ -51,9 +51,9 @@ func AbsolutePath(parentDir, relOrAbsPath string) (string, error) {
 }
 
 // expandTildePath expands ~ in file paths to the user's home directory
-func expandTildePath(path string) (string, error) {
-	if !strings.HasPrefix(path, "~") {
-		return path, nil
+func expandTildePath(p string) (string, error) {
+	if !strings.HasPrefix(p, "~") {
+		return p, nil
 	}
 
 	homeDir, err := os.UserHomeDir()
@@ -61,16 +61,16 @@ func expandTildePath(path string) (string, error) {
 		return "", fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
-	if path == "~" {
+	if p == "~" {
 		return homeDir, nil
 	}
 
-	if strings.HasPrefix(path, "~/") {
-		return filepath.Join(homeDir, path[2:]), nil
+	if strings.HasPrefix(p, "~/") {
+		return filepath.Join(homeDir, p[2:]), nil
 	}
 
 	// Handle ~username/ format - not commonly supported in this context
-	return "", fmt.Errorf("unsupported tilde expansion format: %s", path)
+	return "", fmt.Errorf("unsupported tilde expansion format: %s", p)
 }
 
 func ReadEnvFiles(absolutePaths []string) ([]KeyValuePair, error) {

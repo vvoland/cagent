@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	v0 "github.com/docker/cagent/pkg/config/v0"
 	v1 "github.com/docker/cagent/pkg/config/v1"
 	latest "github.com/docker/cagent/pkg/config/v2"
+	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/filesystem"
 )
 
@@ -53,6 +55,24 @@ func LoadConfig(path string, fs filesystem.FS) (*latest.Config, error) {
 	}
 
 	return &config, nil
+}
+
+// CheckRequiredEnvVars checks which environment variables are required by the models and tools.
+//
+// This allows exiting early with a proper error message instead of failing later when trying to use a model or tool.
+func CheckRequiredEnvVars(ctx context.Context, cfg *latest.Config, env environment.Provider, runtimeConfig RuntimeConfig) error {
+	requiredEnv, err := GatherMissingEnvVars(ctx, cfg, env, runtimeConfig)
+	if err != nil {
+		return fmt.Errorf("gathering required environment variables: %w", err)
+	}
+
+	if len(requiredEnv) == 0 {
+		return nil
+	}
+
+	return &environment.RequiredEnvError{
+		Missing: requiredEnv,
+	}
 }
 
 func parseCurrentVersion(dir string, data []byte, version any) (any, error) {
@@ -141,59 +161,4 @@ func validateConfig(cfg *latest.Config) error {
 
 func boolPtr(b bool) *bool {
 	return &b
-}
-
-func ValidatePathInDirectory(path, allowedDir string) (string, error) {
-	if path == "" {
-		return "", fmt.Errorf("empty path")
-	}
-
-	cleanPath := filepath.Clean(path)
-
-	if cleanPath == "" || cleanPath == "." {
-		return "", fmt.Errorf("empty or invalid path")
-	}
-
-	if filepath.IsAbs(cleanPath) && allowedDir == "" {
-		if strings.Contains(path, "..") {
-			return "", fmt.Errorf("path contains directory traversal sequences")
-		}
-		return cleanPath, nil
-	}
-
-	if allowedDir == "" {
-		if strings.HasPrefix(cleanPath, "..") {
-			return "", fmt.Errorf("path contains directory traversal sequences")
-		}
-		return cleanPath, nil
-	}
-
-	cleanAllowedDir := filepath.Clean(allowedDir)
-	absAllowedDir, err := filepath.Abs(cleanAllowedDir)
-	if err != nil {
-		return "", fmt.Errorf("invalid allowed directory: %w", err)
-	}
-
-	var targetPath string
-	if filepath.IsAbs(cleanPath) {
-		targetPath = cleanPath
-	} else {
-		targetPath = filepath.Join(absAllowedDir, cleanPath)
-	}
-
-	absTargetPath, err := filepath.Abs(targetPath)
-	if err != nil {
-		return "", fmt.Errorf("invalid path: %w", err)
-	}
-
-	relPath, err := filepath.Rel(absAllowedDir, absTargetPath)
-	if err != nil {
-		return "", fmt.Errorf("cannot determine relative path: %w", err)
-	}
-
-	if strings.HasPrefix(relPath, "..") {
-		return "", fmt.Errorf("path outside allowed directory: %s", path)
-	}
-
-	return absTargetPath, nil
 }

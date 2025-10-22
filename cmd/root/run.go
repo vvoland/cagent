@@ -192,7 +192,7 @@ func doRunCommand(ctx context.Context, args []string, exec bool) error {
 			runConfig.RedirectURI = "http://localhost:8083/oauth-callback"
 		}
 
-		agents, err = teamloader.LoadWithOverrides(ctx, agentFilename, runConfig, modelOverrides)
+		agents, err = teamloader.Load(ctx, agentFilename, runConfig, teamloader.WithModelOverrides(modelOverrides))
 		if err != nil {
 			return err
 		}
