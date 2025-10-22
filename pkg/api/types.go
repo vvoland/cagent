@@ -9,8 +9,9 @@ import (
 )
 
 type Message struct {
-	Role    chat.MessageRole `json:"role"`
-	Content string           `json:"content"`
+	Role         chat.MessageRole   `json:"role"`
+	Content      string             `json:"content"`
+	MultiContent []chat.MessagePart `json:"multi_content,omitempty"`
 }
 
 // Agent represents an agent in the API
