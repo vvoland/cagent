@@ -16,7 +16,6 @@ import (
 
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/filesystem"
-	"github.com/docker/cagent/pkg/secrets"
 )
 
 //go:embed Dockerfile.template
@@ -42,8 +41,8 @@ func BuildDockerImage(ctx context.Context, agentFilePath string, fs filesystem.F
 	}
 
 	// Analyze the config to find which secrets are needed
-	modelSecrets := secrets.GatherEnvVarsForModels(cfg)
-	toolSecrets, err := secrets.GatherEnvVarsForTools(ctx, cfg)
+	modelSecrets := config.GatherEnvVarsForModels(cfg)
+	toolSecrets, err := config.GatherEnvVarsForTools(ctx, cfg)
 	if err != nil {
 		return err
 	}

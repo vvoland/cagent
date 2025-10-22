@@ -17,7 +17,7 @@ import (
 	"github.com/docker/cagent/pkg/memory/database/sqlite"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/model/provider/options"
-	"github.com/docker/cagent/pkg/secrets"
+	"github.com/docker/cagent/pkg/path"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
@@ -80,7 +80,7 @@ func findAgentPaths(agentsPathOrDirectory string) ([]string, error) {
 // checkRequiredEnvVars checks which environment variables are required by the models and tools.
 // This allows exiting early with a proper error message instead of failing later when trying to use a model or tool.
 func checkRequiredEnvVars(ctx context.Context, cfg *latest.Config, env environment.Provider, runtimeConfig config.RuntimeConfig) error {
-	requiredEnv, err := secrets.GatherMissingEnvVars(ctx, cfg, env, runtimeConfig)
+	requiredEnv, err := config.GatherMissingEnvVars(ctx, cfg, env, runtimeConfig)
 	if err != nil {
 		return fmt.Errorf("gathering required environment variables: %w", err)
 	}
@@ -94,13 +94,28 @@ func checkRequiredEnvVars(ctx context.Context, cfg *latest.Config, env environme
 	}
 }
 
-func Load(ctx context.Context, path string, runtimeConfig config.RuntimeConfig) (*team.Team, error) {
-	return LoadWithOverrides(ctx, path, runtimeConfig, nil)
+type loadOptions struct {
+	modelOverrides []string
 }
 
-func LoadWithOverrides(ctx context.Context, path string, runtimeConfig config.RuntimeConfig, modelOverrides []string) (*team.Team, error) {
-	fileName := filepath.Base(path)
-	parentDir := filepath.Dir(path)
+type Opt func(*loadOptions) error
+
+func WithModelOverrides(overrides []string) Opt {
+	return func(opts *loadOptions) error {
+		opts.modelOverrides = overrides
+		return nil
+	}
+}
+
+func Load(ctx context.Context, p string, runtimeConfig config.RuntimeConfig, opts ...Opt) (*team.Team, error) {
+	var loadOptions loadOptions
+	for _, o := range opts {
+		if err := o(&loadOptions); err != nil {
+			return nil, err
+		}
+	}
+	fileName := filepath.Base(p)
+	parentDir := filepath.Dir(p)
 
 	// Make env file paths absolute relative to the agent config file.
 	var err error
@@ -126,7 +141,7 @@ func LoadWithOverrides(ctx context.Context, path string, runtimeConfig config.Ru
 	}
 
 	// Apply model overrides from CLI flags before checking required env vars
-	if err := config.ApplyModelOverrides(cfg, modelOverrides); err != nil {
+	if err := config.ApplyModelOverrides(cfg, loadOptions.modelOverrides); err != nil {
 		return nil, err
 	}
 
@@ -277,7 +292,7 @@ func createTool(ctx context.Context, toolset latest.Toolset, parentDir string, e
 			memoryPath = parentDir
 		}
 
-		validatedMemoryPath, err := config.ValidatePathInDirectory(toolset.Path, memoryPath)
+		validatedMemoryPath, err := path.ValidatePathInDirectory(toolset.Path, memoryPath)
 		if err != nil {
 			return nil, fmt.Errorf("invalid memory database path: %w", err)
 		}
