@@ -161,7 +161,7 @@ func doRunCommand(ctx context.Context, args []string, exec bool) error {
 			// Treat as an OCI image reference. Try local store first, otherwise pull then load.
 			a, err := fromStore(agentFilename)
 			if err != nil {
-				fmt.Println("Pulling agent ", agentFilename)
+				fmt.Println("Pulling agent", agentFilename)
 				if _, pullErr := remote.Pull(agentFilename); pullErr != nil {
 					return fmt.Errorf("failed to pull OCI image %s: %w", agentFilename, pullErr)
 				}

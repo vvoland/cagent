@@ -30,7 +30,7 @@ func NewPullCmd() *cobra.Command {
 func runPullCommand(registryRef string) error {
 	slog.Debug("Starting pull", "registry_ref", registryRef)
 
-	fmt.Println("Pulling agent ", registryRef)
+	fmt.Println("Pulling agent", registryRef)
 
 	var opts []crane.Option
 	_, err := remote.Pull(registryRef, opts...)
