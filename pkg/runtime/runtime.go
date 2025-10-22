@@ -238,22 +238,7 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 
 		messages := sess.GetMessages(a)
 		if sess.SendUserMessage {
-			lastMsg := messages[len(messages)-1]
-			// Extract content from the last message - handle both plain content and multi_content
-			userMessageText := lastMsg.Content
-			if userMessageText == "" && len(lastMsg.MultiContent) > 0 {
-				// Extract text parts from multi_content
-				var textParts []string
-				for _, part := range lastMsg.MultiContent {
-					if part.Type == chat.MessagePartTypeText && part.Text != "" {
-						textParts = append(textParts, part.Text)
-					}
-				}
-				if len(textParts) > 0 {
-					userMessageText = strings.Join(textParts, " ")
-				}
-			}
-			events <- UserMessage(userMessageText)
+			events <- UserMessage(messages[len(messages)-1].Content)
 		}
 
 		events <- StreamStarted(sess.ID, a.Name())
