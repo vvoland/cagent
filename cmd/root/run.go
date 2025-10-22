@@ -772,15 +772,7 @@ func createUserMessageWithAttachment(agentFilename, userContent, attachmentPath 
 		},
 	}
 
-	return &session.Message{
-		AgentFilename: agentFilename,
-		AgentName:     "",
-		Message: chat.Message{
-			Role:         chat.MessageRoleUser,
-			MultiContent: multiContent,
-			CreatedAt:    time.Now().Format(time.RFC3339),
-		},
-	}
+	return session.UserMessage(agentFilename, "", multiContent...)
 }
 
 // fileToDataURL converts a file to a data URL

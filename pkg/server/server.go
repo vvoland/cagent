@@ -23,7 +23,6 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 
 	"github.com/docker/cagent/pkg/api"
-	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config"
 	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/content"
@@ -1097,22 +1096,7 @@ func (s *Server) runAgent(c echo.Context) error {
 		}
 
 		for _, msg := range messages {
-			// Check if the message has multi-content (e.g., text + images)
-			if len(msg.MultiContent) > 0 {
-				// Create message with multi-content support
-				sess.AddMessage(&session.Message{
-					AgentFilename: agentFilename,
-					AgentName:     "",
-					Message: chat.Message{
-						Role:         msg.Role,
-						MultiContent: msg.MultiContent,
-						CreatedAt:    time.Now().Format(time.RFC3339),
-					},
-				})
-			} else {
-				// Plain text message
-				sess.AddMessage(session.UserMessage(agentFilename, msg.Content))
-			}
+			sess.AddMessage(session.UserMessage(agentFilename, msg.Content, msg.MultiContent...))
 		}
 	}
 
