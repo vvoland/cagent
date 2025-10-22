@@ -269,6 +269,11 @@ func httpPUT(t *testing.T, ctx context.Context, socketPath, path string, payload
 	httpDo(t, ctx, http.MethodPut, socketPath, path, payload)
 }
 
+func httpPOST(t *testing.T, ctx context.Context, socketPath, path string, payload any) []byte {
+	t.Helper()
+	return httpDo(t, ctx, http.MethodPost, socketPath, path, payload)
+}
+
 func httpDo(t *testing.T, ctx context.Context, method, socketPath, path string, payload any) []byte {
 	t.Helper()
 
