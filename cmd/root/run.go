@@ -446,6 +446,10 @@ func runWithoutTUI(ctx context.Context, agentFilename string, rt runtime.Runtime
 					}
 					llmIsTyping = true
 				}
+				// Add newline when transitioning from reasoning to regular content
+				if reasoningStarted {
+					fmt.Println()
+				}
 				reasoningStarted = false // Reset when regular content starts
 				fmt.Printf("%s", e.Content)
 			case *runtime.AgentChoiceReasoningEvent:
