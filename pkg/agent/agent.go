@@ -3,7 +3,6 @@ package agent
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"math/rand"
 
 	"github.com/docker/cagent/pkg/model/provider"
@@ -114,22 +113,6 @@ func (a *Agent) Tools(ctx context.Context) ([]tools.Tool, error) {
 	agentTools = append(agentTools, a.tools...)
 
 	return agentTools, nil
-}
-
-func (a *Agent) ToolDisplayName(ctx context.Context, toolName string) string {
-	allTools, err := a.Tools(ctx)
-	if err != nil {
-		slog.Error("Failed to get tools for display name", "agent", a.Name(), "error", err)
-		return toolName
-	}
-
-	for _, tool := range allTools {
-		if tool.Name == toolName {
-			return tool.DisplayName()
-		}
-	}
-
-	return toolName
 }
 
 func (a *Agent) ToolSets() []tools.ToolSet {
