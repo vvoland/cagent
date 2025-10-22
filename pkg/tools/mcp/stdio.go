@@ -2,12 +2,14 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"iter"
 	"os/exec"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/docker/cagent/pkg/desktop"
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -27,6 +29,11 @@ func newStdioCmdClient(command string, args, env []string) *stdioMCPClient {
 }
 
 func (c *stdioMCPClient) Initialize(ctx context.Context, _ *mcp.InitializeRequest) (*mcp.InitializeResult, error) {
+	// First, let's see if DD is running. This will help produce a better error message
+	if c.command == "docker" && !desktop.IsDockerDesktopRunning(ctx) {
+		return nil, errors.New("Docker Desktop is not running") //nolint:staticcheck // Don't lowercase Docker Desktop
+	}
+
 	client := mcp.NewClient(&mcp.Implementation{
 		Name:    "cagent",
 		Version: "1.0.0",
