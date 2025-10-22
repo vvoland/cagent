@@ -419,6 +419,7 @@ func runWithoutTUI(ctx context.Context, agentFilename string, rt runtime.Runtime
 		firstLoop := true
 		lastAgent := rt.CurrentAgent().Name()
 		llmIsTyping := false
+		reasoningStarted := false // Track if we've printed "Thinking:" prefix
 		var lastConfirmedToolCallID string
 		for event := range rt.RunStream(ctx, sess) {
 			agentName := event.GetAgentName()
@@ -433,6 +434,7 @@ func runWithoutTUI(ctx context.Context, agentFilename string, rt runtime.Runtime
 				printAgentName(agentName)
 				firstLoop = false
 				lastAgent = agentName
+				reasoningStarted = false // Reset reasoning state on agent change
 			}
 			switch e := event.(type) {
 			case *runtime.AgentChoiceEvent:
@@ -444,8 +446,19 @@ func runWithoutTUI(ctx context.Context, agentFilename string, rt runtime.Runtime
 					}
 					llmIsTyping = true
 				}
+				reasoningStarted = false // Reset when regular content starts
 				fmt.Printf("%s", e.Content)
 			case *runtime.AgentChoiceReasoningEvent:
+				if !reasoningStarted {
+					// First reasoning chunk: print prefix
+					prefix := "Thinking: "
+					if e.AgentName != "" && e.AgentName != "root" {
+						prefix = prefix + e.AgentName + ": "
+					}
+					fmt.Printf("\n%s", white(prefix))
+					reasoningStarted = true
+				}
+				// Continue printing reasoning content
 				fmt.Printf("%s", white(e.Content))
 			case *runtime.ToolCallConfirmationEvent:
 				if llmIsTyping {
