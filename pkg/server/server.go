@@ -793,19 +793,40 @@ func (s *Server) getAgents(c echo.Context) error {
 		slog.Error("Failed to refresh agents from disk", "error", err)
 	}
 
-	var agents []api.Agent
+	// DO NOT, under any circumstance, replace this with "var agents []api.Agent",
+	// we want to return an empty slice if there are no agents, not nil.
+	agents := []api.Agent{}
+
 	for id, t := range s.teams {
 		a, err := t.Agent("root")
 		if err != nil {
-			slog.Error("Agent root not found", "team", id)
-			continue
+			switch {
+			case t.Size() > 1:
+				agents = append(agents, api.Agent{
+					Name:  id,
+					Multi: true,
+				})
+			case t.Size() == 1:
+				a, err = t.Agent(t.AgentNames()[0])
+				if err != nil {
+					return echo.NewHTTPError(http.StatusInternalServerError, "failed to get agent")
+				}
+				agents = append(agents, api.Agent{
+					Name:        id,
+					Description: a.Description(),
+					Multi:       false,
+				})
+			default:
+				slog.Warn("Team has no agents", "team", id)
+				continue
+			}
+		} else {
+			agents = append(agents, api.Agent{
+				Name:        id,
+				Description: a.Description(),
+				Multi:       a.HasSubAgents(),
+			})
 		}
-
-		agents = append(agents, api.Agent{
-			Name:        id,
-			Description: a.Description(),
-			Multi:       a.HasSubAgents(),
-		})
 	}
 
 	// Sort agents by name
