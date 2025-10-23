@@ -79,14 +79,16 @@ func (t *ScriptShellTool) Tools(context.Context) ([]tools.Tool, error) {
 			description = fmt.Sprintf("Execute shell command: %s", cfg.Cmd)
 		}
 
+		inputSchema := map[string]any{
+			"type":       "object",
+			"properties": cfg.Args,
+			"required":   cfg.Required,
+		}
+
 		toolsList = append(toolsList, tools.Tool{
-			Name:        toolName,
-			Description: description,
-			Parameters: map[string]any{
-				"type":       "object",
-				"properties": cfg.Args,
-				"required":   cfg.Required,
-			},
+			Name:         toolName,
+			Description:  description,
+			Parameters:   inputSchema,
 			OutputSchema: tools.MustSchemaFor[string](),
 			Handler: func(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 				return t.execute(ctx, &cfg, toolCall)
