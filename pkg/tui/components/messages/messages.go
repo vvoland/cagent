@@ -370,9 +370,6 @@ func (m *model) ensureAllItemsRendered() {
 			allLines = append(allLines, "")
 			currentPosition += 1
 		}
-
-		// Update cache with position information
-		m.renderedItems[i] = item
 	}
 
 	m.rendered = strings.Join(allLines, "\n")
