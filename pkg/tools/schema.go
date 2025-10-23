@@ -43,6 +43,9 @@ func SchemaToMap(params any) (map[string]any, error) {
 	if m["properties"] == nil {
 		m["properties"] = map[string]any{}
 	}
+	if m["required"] == nil {
+		delete(m, "required")
+	}
 
 	return m, nil
 }

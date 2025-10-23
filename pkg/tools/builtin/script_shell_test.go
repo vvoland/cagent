@@ -2,6 +2,7 @@ package builtin
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,11 +33,11 @@ func TestNewScriptShellTool_ToolNoArg(t *testing.T) {
 	assert.Len(t, allTools, 1)
 
 	schema, err := json.Marshal(allTools[0].Parameters)
+	fmt.Println(string(schema))
 	require.NoError(t, err)
 	assert.JSONEq(t, `{
-	"properties": null,
-	"required": null,
-	"type": "object"
+	"type": "object",
+	"properties": {}
 }`, string(schema))
 }
 
@@ -50,6 +51,7 @@ func TestNewScriptShellTool_Tool(t *testing.T) {
 					"type":        "string",
 				},
 			},
+			Required: []string{"username"},
 		},
 	}
 
@@ -62,13 +64,13 @@ func TestNewScriptShellTool_Tool(t *testing.T) {
 	schema, err := json.Marshal(allTools[0].Parameters)
 	require.NoError(t, err)
 	assert.JSONEq(t, `{
+	"type": "object",
 	"properties": {
 		"username": {
 			"description": "GitHub username to get the repository list for",
 			"type": "string"
 		}
 	},
-	"required": null,
-	"type": "object"
+	"required": ["username"]
 }`, string(schema))
 }
