@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -12,9 +13,8 @@ import (
 )
 
 // GatherMissingEnvVars finds out which environment variables are required by the models and tools.
-// This allows exiting early with a proper error message instead of failing later when trying to use a model or tool.
-// TODO(dga): This code contains lots of duplication and ought to be refactored.
-func GatherMissingEnvVars(ctx context.Context, cfg *latest.Config, env environment.Provider, runtimeConfig RuntimeConfig) ([]string, error) {
+// It returns the missing variables and any non-fatal error encountered during tool discovery.
+func GatherMissingEnvVars(ctx context.Context, cfg *latest.Config, env environment.Provider, runtimeConfig RuntimeConfig) (missing []string, toolErr error) {
 	requiredEnv := map[string]bool{}
 
 	// Models
@@ -28,21 +28,21 @@ func GatherMissingEnvVars(ctx context.Context, cfg *latest.Config, env environme
 	// Tools
 	names, err := GatherEnvVarsForTools(ctx, cfg)
 	if err != nil {
-		return nil, err
-	}
-	for _, e := range names {
-		requiredEnv[e] = true
+		// Store tool preflight error but continue checking models
+		toolErr = err
+	} else {
+		for _, e := range names {
+			requiredEnv[e] = true
+		}
 	}
 
-	// Check for missing
-	var missing []string
 	for _, e := range mcpToSortedList(requiredEnv) {
 		if env.Get(ctx, e) == "" {
 			missing = append(missing, e)
 		}
 	}
 
-	return missing, nil
+	return missing, toolErr
 }
 
 func GatherEnvVarsForModels(cfg *latest.Config) []string {
@@ -74,13 +74,15 @@ func GatherEnvVarsForModels(cfg *latest.Config) []string {
 
 func GatherEnvVarsForTools(ctx context.Context, cfg *latest.Config) ([]string, error) {
 	requiredEnv := map[string]bool{}
+	var errs []error
 
 	for _, ref := range gatherMCPServerReferences(cfg) {
 		mcpServerName := gateway.ParseServerRef(ref)
 
 		secrets, err := gateway.RequiredEnvVars(ctx, mcpServerName)
 		if err != nil {
-			return nil, fmt.Errorf("reading which secrets the MCP server needs: %w", err)
+			errs = append(errs, fmt.Errorf("reading which secrets the MCP server needs for %s: %w", ref, err))
+			continue
 		}
 
 		for _, secret := range secrets {
@@ -88,6 +90,9 @@ func GatherEnvVarsForTools(ctx context.Context, cfg *latest.Config) ([]string, e
 		}
 	}
 
+	if len(errs) > 0 {
+		return mcpToSortedList(requiredEnv), fmt.Errorf("tool env preflight: %w", errors.Join(errs...))
+	}
 	return mcpToSortedList(requiredEnv), nil
 }
 

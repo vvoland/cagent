@@ -36,6 +36,7 @@ type Model interface {
 	AppendToLastMessage(agentName string, messageType types.MessageType, content string) tea.Cmd
 	ScrollToBottom() tea.Cmd
 	AddShellOutputMessage(content string) tea.Cmd
+	AddWarningMessage(content string) tea.Cmd
 	AddSystemMessage(content string) tea.Cmd
 	PlainTextTranscript() string
 	IsAtBottom() bool
@@ -428,6 +429,14 @@ func (m *model) AddErrorMessage(content string) tea.Cmd {
 func (m *model) AddShellOutputMessage(content string) tea.Cmd {
 	return m.addMessage(&types.Message{
 		Type:    types.MessageTypeShellOutput,
+		Content: content,
+	})
+}
+
+func (m *model) AddWarningMessage(content string) tea.Cmd {
+	// Create a new warning message
+	return m.addMessage(&types.Message{
+		Type:    types.MessageTypeWarning,
 		Content: content,
 	})
 }

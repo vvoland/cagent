@@ -1,6 +1,7 @@
 package teamloader
 
 import (
+	"context"
 	"io/fs"
 	"path/filepath"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/docker/cagent/pkg/config"
+	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/environment"
 )
 
@@ -29,6 +31,26 @@ func collectExamples(t *testing.T) []string {
 	assert.NotEmpty(t, files)
 
 	return files
+}
+
+type noEnvProvider struct{}
+
+func (p *noEnvProvider) Get(context.Context, string) string { return "" }
+
+func TestGetToolsForAgent_ContinuesOnCreateToolError(t *testing.T) {
+	t.Parallel()
+
+	// Agent with a bogus toolset type to force createTool error without network access
+	a := &latest.AgentConfig{
+		Instruction: "test",
+		Toolsets:    []latest.Toolset{{Type: "does-not-exist"}},
+	}
+
+	got, warnings := getToolsForAgent(t.Context(), a, ".", &noEnvProvider{}, config.RuntimeConfig{}, NewToolsetRegistry())
+
+	require.Empty(t, got)
+	require.NotEmpty(t, warnings)
+	require.Contains(t, warnings[0], "toolset does-not-exist failed")
 }
 
 func TestLoadExamples(t *testing.T) {

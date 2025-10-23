@@ -2,12 +2,14 @@ package runtime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/chat"
@@ -17,6 +19,34 @@ import (
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/tools"
 )
+
+type stubToolSet struct {
+	startErr     error
+	tools        []tools.Tool
+	listErr      error
+	instructions string
+}
+
+func newStubToolSet(startErr error, toolsList []tools.Tool, listErr error) tools.ToolSet {
+	return &stubToolSet{
+		startErr:     startErr,
+		tools:        toolsList,
+		listErr:      listErr,
+		instructions: "stub",
+	}
+}
+
+func (s *stubToolSet) Start(context.Context) error { return s.startErr }
+func (s *stubToolSet) Stop(context.Context) error  { return nil }
+func (s *stubToolSet) Tools(context.Context) ([]tools.Tool, error) {
+	if s.listErr != nil {
+		return nil, s.listErr
+	}
+	return s.tools, nil
+}
+func (s *stubToolSet) Instructions() string                           { return s.instructions }
+func (s *stubToolSet) SetElicitationHandler(tools.ElicitationHandler) {}
+func (s *stubToolSet) SetOAuthSuccessHandler(func())                  {}
 
 type mockStream struct {
 	responses []chat.MessageStreamResponse
@@ -514,6 +544,81 @@ func TestSessionWithoutUserMessage(t *testing.T) {
 	require.True(t, hasEventType(t, events, &StreamStartedEvent{}), "Expected StreamStartedEvent")
 	require.True(t, hasEventType(t, events, &StreamStoppedEvent{}), "Expected StreamStoppedEvent")
 	require.False(t, hasEventType(t, events, &UserMessageEvent{}), "Should not have UserMessageEvent when SendUserMessage is false")
+}
+
+// --- Tool setup failure handling tests ---
+
+func collectEvents(ch chan Event) []Event {
+	n := len(ch)
+	evs := make([]Event, 0, n)
+	for range n {
+		evs = append(evs, <-ch)
+	}
+	return evs
+}
+
+func hasWarningEvent(evs []Event) bool {
+	for _, e := range evs {
+		if _, ok := e.(*WarningEvent); ok {
+			return true
+		}
+	}
+	return false
+}
+
+func TestGetTools_WarningHandling(t *testing.T) {
+	tests := []struct {
+		name          string
+		toolsets      []tools.ToolSet
+		wantToolCount int
+		wantWarning   bool
+	}{
+		{
+			name:          "partial success warns once",
+			toolsets:      []tools.ToolSet{newStubToolSet(nil, []tools.Tool{{Name: "good", Parameters: map[string]any{}}}, nil), newStubToolSet(errors.New("boom"), nil, nil)},
+			wantToolCount: 1,
+			wantWarning:   true,
+		},
+		{
+			name:          "all fail on start warns once",
+			toolsets:      []tools.ToolSet{newStubToolSet(errors.New("s1"), nil, nil), newStubToolSet(errors.New("s2"), nil, nil)},
+			wantToolCount: 0,
+			wantWarning:   true,
+		},
+		{
+			name:          "list failure warns once",
+			toolsets:      []tools.ToolSet{newStubToolSet(nil, nil, errors.New("boom"))},
+			wantToolCount: 0,
+			wantWarning:   true,
+		},
+		{
+			name:          "no toolsets no warning",
+			toolsets:      nil,
+			wantToolCount: 0,
+			wantWarning:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := agent.New("root", "test", agent.WithToolSets(tt.toolsets...))
+			tm := team.New(team.WithAgents(root))
+			rt, err := New(tm, WithModelStore(mockModelStore{}))
+			require.NoError(t, err)
+
+			events := make(chan Event, 10)
+			sessionSpan := trace.SpanFromContext(t.Context())
+
+			// First call
+			tools1, err := rt.(*runtime).getTools(t.Context(), root, sessionSpan, events)
+			require.NoError(t, err)
+			require.Len(t, tools1, tt.wantToolCount)
+
+			rt.(*runtime).emitAgentWarnings(root, events)
+			evs := collectEvents(events)
+			require.Equal(t, tt.wantWarning, hasWarningEvent(evs), "warning event mismatch on first call")
+		})
+	}
 }
 
 func TestNewRuntime_NoAgentsError(t *testing.T) {
