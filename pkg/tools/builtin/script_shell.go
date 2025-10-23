@@ -79,14 +79,20 @@ func (t *ScriptShellTool) Tools(context.Context) ([]tools.Tool, error) {
 			description = fmt.Sprintf("Execute shell command: %s", cfg.Cmd)
 		}
 
+		inputSchema, err := tools.SchemaToMap(map[string]any{
+			"type":       "object",
+			"properties": cfg.Args,
+			"required":   cfg.Required,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("invalid schema for tool %s: %w", toolName, err)
+		}
+
 		toolsList = append(toolsList, tools.Tool{
-			Name:        toolName,
-			Description: description,
-			Parameters: map[string]any{
-				"type":       "object",
-				"properties": cfg.Args,
-				"required":   cfg.Required,
-			},
+			Name:         toolName,
+			Description:  description,
+			Parameters:   inputSchema,
+			OutputSchema: tools.MustSchemaFor[string](),
 			Handler: func(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 				return t.execute(ctx, &cfg, toolCall)
 			},
