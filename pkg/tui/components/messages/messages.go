@@ -46,7 +46,6 @@ type renderedItem struct {
 	id     int    // Message ID or index as int
 	view   string // Cached rendered content
 	height int    // Height in lines
-	start  int    // Starting line position in complete content
 	end    int    // Ending line position in complete content
 }
 
@@ -351,7 +350,6 @@ func (m *model) ensureAllItemsRendered() {
 		item := m.renderItem(i, view)
 
 		// Update position information
-		item.start = currentPosition
 		if item.height > 0 {
 			item.end = currentPosition + item.height - 1
 		} else {
