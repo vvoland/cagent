@@ -229,6 +229,12 @@ func WithWorkingDir(workingDir string) Opt {
 	}
 }
 
+func WithTitle(title string) Opt {
+	return func(s *Session) {
+		s.Title = title
+	}
+}
+
 // New creates a new agent session
 func New(opts ...Opt) *Session {
 	sessionID := uuid.New().String()

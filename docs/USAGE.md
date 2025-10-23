@@ -57,6 +57,9 @@ $ cagent exec config.yaml --yolo          # Run the agent once and auto-accept a
 $ cagent api config.yaml
 $ cagent api config.yaml --listen :8080
 
+# ACP Server (Agent Client Protocol via stdio)
+$ cagent acp config.yaml                 # Start ACP server on stdio
+
 # Other commands
 $ cagent new                          # Initialize new project
 $ cagent new --model openai/gpt-5-mini --max-tokens 32000  # Override max tokens during generation
