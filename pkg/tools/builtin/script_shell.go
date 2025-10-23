@@ -87,6 +87,7 @@ func (t *ScriptShellTool) Tools(context.Context) ([]tools.Tool, error) {
 				"properties": cfg.Args,
 				"required":   cfg.Required,
 			},
+			OutputSchema: tools.MustSchemaFor[string](),
 			Handler: func(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 				return t.execute(ctx, &cfg, toolCall)
 			},
