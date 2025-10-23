@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"runtime"
 	"sync"
-	"syscall"
 
 	"github.com/docker/cagent/pkg/tools"
 )
@@ -54,11 +53,8 @@ func (h *shellHandler) RunShell(ctx context.Context, toolCall tools.ToolCall) (*
 
 	// Set up process group for proper cleanup
 	// On Unix: create new process group so we can kill the entire tree
-	if runtime.GOOS != "windows" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{
-			Setpgid: true,
-		}
-	}
+	cmd.SysProcAttr = platformSpecificSysProcAttr()
+
 	// Note: On Windows, we would set CreationFlags, but that requires
 	// platform-specific code in a _windows.go file
 
@@ -245,22 +241,8 @@ func (t *ShellTool) Stop(context.Context) error {
 
 	// Kill all tracked processes
 	for _, proc := range t.handler.processes {
-		if proc == nil {
-			continue
-		}
-
-		// On Unix: kill the entire process group
-		// On Windows: terminate the process
-		if runtime.GOOS == "windows" {
-			// On Windows, we kill the process directly
-			_ = proc.Kill()
-		} else {
-			// On Unix, kill the process group (negative PID kills the group)
-			// We use SIGTERM first for graceful shutdown
-			_ = syscall.Kill(-proc.Pid, syscall.SIGTERM)
-
-			// Note: We could add a timeout and send SIGKILL if processes don't stop,
-			// but for now we'll just send SIGTERM
+		if proc != nil {
+			_ = kill(proc)
 		}
 	}
 
