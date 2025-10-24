@@ -126,30 +126,46 @@ func repairAnthropicSequencingBeta(msgs []anthropic.BetaMessageParam) []anthropi
 	}
 	repaired := make([]anthropic.BetaMessageParam, 0, len(msgs)+2)
 	for i := range msgs {
-		repaired = append(repaired, msgs[i])
-
 		m, ok := marshalToMapBeta(msgs[i])
 		if !ok || m["role"] != "assistant" {
+			repaired = append(repaired, msgs[i])
 			continue
 		}
 
 		toolUseIDs := collectToolUseIDs(contentArrayBeta(m))
 		if len(toolUseIDs) == 0 {
+			repaired = append(repaired, msgs[i])
 			continue
 		}
 
+		// Check if the next message is a user message with tool_results
+		needsSyntheticMessage := true
 		if i+1 < len(msgs) {
 			if next, ok := marshalToMapBeta(msgs[i+1]); ok && next["role"] == "user" {
 				toolResultIDs := collectToolResultIDs(contentArrayBeta(next))
+				// Remove tool_use IDs that have corresponding tool_results
 				for id := range toolResultIDs {
 					delete(toolUseIDs, id)
+				}
+				// If all tool_use IDs have results, no synthetic message needed
+				if len(toolUseIDs) == 0 {
+					needsSyntheticMessage = false
 				}
 			}
 		}
 
-		if len(toolUseIDs) > 0 {
+		// Append the assistant message first
+		repaired = append(repaired, msgs[i])
+
+		// If there are missing tool_results, insert a synthetic user message immediately after
+		if needsSyntheticMessage && len(toolUseIDs) > 0 {
+			slog.Debug("Inserting synthetic user message for missing tool_results",
+				"assistant_index", i,
+				"missing_count", len(toolUseIDs))
+
 			blocks := make([]anthropic.BetaContentBlockParamUnion, 0, len(toolUseIDs))
 			for id := range toolUseIDs {
+				slog.Debug("Creating synthetic tool_result", "tool_use_id", id)
 				blocks = append(blocks, anthropic.BetaContentBlockParamUnion{
 					OfToolResult: &anthropic.BetaToolResultBlockParam{
 						ToolUseID: id,
