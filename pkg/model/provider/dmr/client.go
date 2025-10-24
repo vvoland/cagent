@@ -74,6 +74,9 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, opts ...options.Opt
 				},
 			},
 		}
+	// NOTE(krissetto): Workaround for a bug in the DMR CLI v0.1.44
+	case endpoint == "http://:0/engines/v1/":
+		clientConfig.BaseURL = "http://127.0.0.1:12434/engines/v1/"
 	default:
 		// Docker CE
 		clientConfig.BaseURL = endpoint
