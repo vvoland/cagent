@@ -117,6 +117,8 @@ func (mv *messageModel) Render(width int) string {
 		return msg.Content
 	case types.MessageTypeSeparator:
 		return styles.MutedStyle.Render("•" + strings.Repeat("─", mv.width-3) + "•")
+	case types.MessageTypeCancelled:
+		return styles.WarningStyle.Render("⚠ stream cancelled ⚠")
 	case types.MessageTypeError:
 		return styles.ErrorStyle.Render("│ " + msg.Content)
 	case types.MessageTypeSystem:

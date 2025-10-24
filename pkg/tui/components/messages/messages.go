@@ -20,6 +20,11 @@ import (
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
+// StreamCancelledMsg notifies components that the stream has been cancelled
+type StreamCancelledMsg struct {
+	ShowMessage bool // Whether to show a cancellation message after cleanup
+}
+
 // Model represents a chat message list component
 type Model interface {
 	layout.Model
@@ -31,6 +36,7 @@ type Model interface {
 	AddErrorMessage(content string) tea.Cmd
 	AddAssistantMessage() tea.Cmd
 	AddSeparatorMessage() tea.Cmd
+	AddCancelledMessage() tea.Cmd
 	AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, toolDef tools.Tool, status types.ToolStatus) tea.Cmd
 	AddToolResult(msg *runtime.ToolCallResponseEvent, status types.ToolStatus) tea.Cmd
 	AppendToLastMessage(agentName string, messageType types.MessageType, content string) tea.Cmd
@@ -93,6 +99,12 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case StreamCancelledMsg:
+		// Handle stream cancellation internally
+		m.removeSpinner()
+		m.cancelPendingToolCalls()
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		cmd := m.SetSize(msg.Width, msg.Height)
 		if cmd != nil {
@@ -477,6 +489,19 @@ func (m *model) AddSeparatorMessage() tea.Cmd {
 	return view.Init()
 }
 
+// AddCancelledMessage adds a cancellation indicator to the chat
+func (m *model) AddCancelledMessage() tea.Cmd {
+	msg := types.Message{
+		Type: types.MessageTypeCancelled,
+	}
+	m.messages = append(m.messages, msg)
+
+	view := m.createMessageView(&msg)
+	m.views = append(m.views, view)
+
+	return view.Init()
+}
+
 // AddOrUpdateToolCall adds a tool call or updates existing one with the given status
 func (m *model) AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, toolDef tools.Tool, status types.ToolStatus) tea.Cmd {
 	// First try to update existing tool by ID
@@ -618,7 +643,7 @@ func (m *model) createMessageView(msg *types.Message) layout.Model {
 	return view
 }
 
-// removeSpinner removes the last message if it's an assistant message with empty content
+// removeSpinner removes the last message if it's a spinner
 func (m *model) removeSpinner() {
 	if len(m.messages) > 0 {
 		lastIdx := len(m.messages) - 1
@@ -629,8 +654,35 @@ func (m *model) removeSpinner() {
 			if len(m.views) > lastIdx {
 				m.views = m.views[:lastIdx]
 			}
-			m.invalidateItem(lastIdx)
+			// Invalidate all items since we've removed a message
+			m.invalidateAllItems()
 		}
+	}
+}
+
+// cancelPendingToolCalls removes any tool calls that are in pending or running state
+func (m *model) cancelPendingToolCalls() {
+	var newMessages []types.Message
+	var newViews []layout.Model
+
+	for i, msg := range m.messages {
+		shouldRemove := msg.Type == types.MessageTypeToolCall &&
+			(msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning)
+
+		if !shouldRemove {
+			newMessages = append(newMessages, msg)
+			if i < len(m.views) {
+				newViews = append(newViews, m.views[i])
+			}
+		}
+	}
+
+	// Only update if something was actually removed
+	if len(newMessages) != len(m.messages) {
+		m.messages = newMessages
+		m.views = newViews
+		// Invalidate all items since we've removed messages
+		m.invalidateAllItems()
 	}
 }
 

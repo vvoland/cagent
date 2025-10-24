@@ -13,6 +13,7 @@ const (
 	MessageTypeError
 	MessageTypeShellOutput
 	MessageTypeSeparator
+	MessageTypeCancelled
 	MessageTypeToolCall
 	MessageTypeToolResult
 	MessageTypeSystem
