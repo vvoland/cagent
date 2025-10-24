@@ -98,6 +98,10 @@ func (a *App) NewSession() {
 	a.session = session.New()
 }
 
+func (a *App) Session() *session.Session {
+	return a.session
+}
+
 func (a *App) CompactSession() {
 	if a.runtime != nil && a.session != nil {
 		events := make(chan runtime.Event, 100)

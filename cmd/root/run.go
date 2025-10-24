@@ -618,9 +618,9 @@ func runUserCommand(userInput string, sess *session.Session, rt runtime.Runtime,
 	case "/exit":
 		os.Exit(0)
 	case "/eval":
-		err := evaluation.Save(sess)
+		evalFile, err := evaluation.Save(sess)
 		if err == nil {
-			fmt.Printf("%s\n", yellow("Evaluation saved"))
+			fmt.Printf("%s\n", yellow("Evaluation saved to file %s", evalFile))
 			return true, err
 		}
 		return true, nil

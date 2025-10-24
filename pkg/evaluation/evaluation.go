@@ -165,9 +165,9 @@ func toolTrajectoryScore(expectedToolMessages, actualToolMessages []session.Mess
 	return score / float64(len(expectedToolMessages))
 }
 
-func Save(sess *session.Session) error {
+func Save(sess *session.Session) (string, error) {
 	if err := os.MkdirAll("evals", 0o755); err != nil {
-		return err
+		return "", err
 	}
 
 	fileName := sess.ID + ".json"
@@ -182,11 +182,12 @@ func Save(sess *session.Session) error {
 		}
 	}
 
-	file, err := os.Create(filepath.Join("evals", fileName))
+	evalFile := filepath.Join("evals", fileName)
+	file, err := os.Create(evalFile)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer file.Close()
 
-	return json.NewEncoder(file).Encode(sess)
+	return evalFile, json.NewEncoder(file).Encode(sess)
 }

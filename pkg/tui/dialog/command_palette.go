@@ -133,7 +133,7 @@ func (d *commandPaletteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if selectedCmd.Execute != nil {
 					cmds = append(cmds, selectedCmd.Execute())
 				}
-				return d, tea.Batch(cmds...)
+				return d, tea.Sequence(cmds...)
 			}
 			return d, nil
 
