@@ -2,7 +2,6 @@ package anthropic
 
 import (
 	"encoding/json"
-	"log/slog"
 	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -16,10 +15,13 @@ import (
 // - Thinking blocks can appear anywhere in the conversation (not required to be first)
 // - Always include the complete, unmodified thinking block from previous assistant turns
 // - interleaved parameter is kept for API compatibility but always true
+//
+// Important: Anthropic API requires that all tool_result blocks corresponding to tool_use
+// blocks from the same assistant message MUST be grouped into a single user message.
 func convertBetaMessages(messages []chat.Message) []anthropic.BetaMessageParam {
 	var betaMessages []anthropic.BetaMessageParam
 
-	for i := range messages {
+	for i := 0; i < len(messages); i++ {
 		msg := &messages[i]
 		if msg.Role == chat.MessageRoleSystem {
 			// System messages handled separately
@@ -137,19 +139,42 @@ func convertBetaMessages(messages []chat.Message) []anthropic.BetaMessageParam {
 			continue
 		}
 		if msg.Role == chat.MessageRoleTool {
-			betaMessages = append(betaMessages, anthropic.BetaMessageParam{
-				Role: anthropic.BetaMessageParamRoleUser,
-				Content: []anthropic.BetaContentBlockParamUnion{
-					{
-						OfToolResult: &anthropic.BetaToolResultBlockParam{
-							ToolUseID: msg.ToolCallID,
-							Content: []anthropic.BetaToolResultBlockParamContentUnion{
-								{OfText: &anthropic.BetaTextBlockParam{Text: strings.TrimSpace(msg.Content)}},
-							},
+			// Collect consecutive tool messages and merge them into a single user message
+			// This is required by Anthropic API: all tool_result blocks for tool_use blocks
+			// from the same assistant message must be in the same user message
+			toolResultBlocks := []anthropic.BetaContentBlockParamUnion{
+				{
+					OfToolResult: &anthropic.BetaToolResultBlockParam{
+						ToolUseID: msg.ToolCallID,
+						Content: []anthropic.BetaToolResultBlockParamContentUnion{
+							{OfText: &anthropic.BetaTextBlockParam{Text: strings.TrimSpace(msg.Content)}},
 						},
 					},
 				},
+			}
+
+			// Look ahead for consecutive tool messages and merge them
+			j := i + 1
+			for j < len(messages) && messages[j].Role == chat.MessageRoleTool {
+				toolResultBlocks = append(toolResultBlocks, anthropic.BetaContentBlockParamUnion{
+					OfToolResult: &anthropic.BetaToolResultBlockParam{
+						ToolUseID: messages[j].ToolCallID,
+						Content: []anthropic.BetaToolResultBlockParamContentUnion{
+							{OfText: &anthropic.BetaTextBlockParam{Text: strings.TrimSpace(messages[j].Content)}},
+						},
+					},
+				})
+				j++
+			}
+
+			// Add the merged user message with all tool results
+			betaMessages = append(betaMessages, anthropic.BetaMessageParam{
+				Role:    anthropic.BetaMessageParamRoleUser,
+				Content: toolResultBlocks,
 			})
+
+			// Skip the messages we've already processed
+			i = j - 1
 			continue
 		}
 	}
@@ -168,17 +193,27 @@ func extractBetaSystemBlocks(messages []chat.Message) []anthropic.BetaTextBlockP
 
 // convertBetaTools converts tools to Beta API format
 func convertBetaTools(t []tools.Tool) ([]anthropic.BetaToolUnionParam, error) {
-	regularTools, err := convertTools(t)
-	if err != nil {
-		slog.Error("Failed to convert tools for Anthropic Beta request", "error", err)
-		return nil, err
-	}
+	betaTools := make([]anthropic.BetaToolUnionParam, len(t))
 
-	betaTools := make([]anthropic.BetaToolUnionParam, len(regularTools))
-
-	for i, tool := range regularTools {
-		if err := tools.ConvertSchema(tool, &betaTools[i]); err != nil {
+	for i, tool := range t {
+		inputSchema, err := ConvertParametersToSchema(tool.Parameters)
+		if err != nil {
 			return nil, err
+		}
+
+		// Convert to BetaToolInputSchemaParam
+		var betaInputSchema anthropic.BetaToolInputSchemaParam
+		if err := tools.ConvertSchema(inputSchema, &betaInputSchema); err != nil {
+			return nil, err
+		}
+
+		// Create BetaToolParam and wrap it in BetaToolUnionParam
+		betaTools[i] = anthropic.BetaToolUnionParam{
+			OfTool: &anthropic.BetaToolParam{
+				Name:        tool.Name,
+				Description: anthropic.String(tool.Description),
+				InputSchema: betaInputSchema,
+			},
 		}
 	}
 
