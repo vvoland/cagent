@@ -8,7 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-	"sync"
+	"strings"
 
 	"github.com/docker/cagent/pkg/tools"
 )
@@ -25,8 +25,6 @@ type shellHandler struct {
 	shell           string
 	shellArgsPrefix []string
 	env             []string
-	mu              sync.Mutex
-	processes       []*os.Process
 }
 
 type RunShellArgs struct {
@@ -40,74 +38,67 @@ func (h *shellHandler) RunShell(ctx context.Context, toolCall tools.ToolCall) (*
 		return nil, fmt.Errorf("invalid arguments: %w", err)
 	}
 
-	cmd := exec.CommandContext(ctx, h.shell, append(h.shellArgsPrefix, params.Cmd)...)
+	cmd := exec.Command(h.shell, append(h.shellArgsPrefix, params.Cmd)...)
 	cmd.Env = h.env
 	if params.Cwd != "" {
 		cmd.Dir = params.Cwd
 	} else {
-		// Use the current working directory; avoid PWD on Windows (may be MSYS-style like /c/...)
 		if wd, err := os.Getwd(); err == nil {
 			cmd.Dir = wd
 		}
 	}
 
-	// Set up process group for proper cleanup
-	// On Unix: create new process group so we can kill the entire tree
 	cmd.SysProcAttr = platformSpecificSysProcAttr()
 
-	// Note: On Windows, we would set CreationFlags, but that requires
-	// platform-specific code in a _windows.go file
-
-	// Capture output using buffers
-	var outBuf, errBuf bytes.Buffer
+	var outBuf bytes.Buffer
 	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
+	cmd.Stderr = &outBuf
 
-	// Start the command so we can track it
 	if err := cmd.Start(); err != nil {
 		return &tools.ToolCallResult{
 			Output: fmt.Sprintf("Error starting command: %s", err),
 		}, nil
 	}
 
-	// Track the process for cleanup
-	h.mu.Lock()
-	h.processes = append(h.processes, cmd.Process)
-	h.mu.Unlock()
-
-	// Remove from tracking once complete
-	defer func() {
-		h.mu.Lock()
-		for i, p := range h.processes {
-			if p != nil && p.Pid == cmd.Process.Pid {
-				h.processes = append(h.processes[:i], h.processes[i+1:]...)
-				break
-			}
-		}
-		h.mu.Unlock()
-	}()
-
-	// Wait for the command to complete and get the result
-	err := cmd.Wait()
-
-	// Combine stdout and stderr
-	output := outBuf.String() + errBuf.String()
-
+	pg, err := createProcessGroup(cmd.Process)
 	if err != nil {
 		return &tools.ToolCallResult{
-			Output: fmt.Sprintf("Error executing command: %s\nOutput: %s", err, output),
+			Output: fmt.Sprintf("Error creating process group: %s", err),
 		}, nil
 	}
 
-	if output == "" {
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
+
+	select {
+	case <-ctx.Done():
+		if cmd.Process != nil {
+			_ = kill(cmd.Process, pg)
+		}
 		return &tools.ToolCallResult{
-			Output: "<no output>",
+			Output: "Command cancelled",
+		}, nil
+	case err := <-done:
+		output := outBuf.String()
+
+		if err != nil {
+			return &tools.ToolCallResult{
+				Output: fmt.Sprintf("Error executing command: %s\nOutput: %s", err, output),
+			}, nil
+		}
+
+		if strings.TrimSpace(output) == "" {
+			return &tools.ToolCallResult{
+				Output: "<no output>",
+			}, nil
+		}
+
+		return &tools.ToolCallResult{
+			Output: fmt.Sprintf("Output: %s", output),
 		}, nil
 	}
-
-	return &tools.ToolCallResult{
-		Output: output,
-	}, nil
 }
 
 func NewShellTool(env []string) *ShellTool {
@@ -236,18 +227,5 @@ func (t *ShellTool) Start(context.Context) error {
 }
 
 func (t *ShellTool) Stop(context.Context) error {
-	t.handler.mu.Lock()
-	defer t.handler.mu.Unlock()
-
-	// Kill all tracked processes
-	for _, proc := range t.handler.processes {
-		if proc != nil {
-			_ = kill(proc)
-		}
-	}
-
-	// Clear the processes list
-	t.handler.processes = nil
-
 	return nil
 }
