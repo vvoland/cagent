@@ -55,7 +55,8 @@ type chatPage struct {
 	// State
 	focusedPanel FocusedPanel
 
-	msgCancel context.CancelFunc
+	msgCancel       context.CancelFunc
+	streamCancelled bool
 
 	// Key map
 	keyMap KeyMap
@@ -153,13 +154,8 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return p, nil
 		case key.Matches(msg, p.keyMap.Cancel):
 			// Cancel current message processing if active
-			if p.msgCancel != nil {
-				p.msgCancel()
-				p.msgCancel = nil
-			}
-			// Stop progress bar if active
-			p.stopProgressBar()
-			return p, nil
+			cmd := p.cancelStream(true)
+			return p, cmd
 		}
 
 		// Route other keys to focused component
@@ -186,6 +182,20 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := p.processMessage(msg.Content)
 		return p, cmd
 
+	case messages.StreamCancelledMsg:
+		model, cmd := p.messages.Update(msg)
+		p.messages = model.(messages.Model)
+
+		var cmds []tea.Cmd
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+		if msg.ShowMessage {
+			cmds = append(cmds, p.messages.AddCancelledMessage())
+		}
+		cmds = append(cmds, p.messages.ScrollToBottom())
+		return p, tea.Batch(cmds...)
+
 	// Runtime events
 	case *runtime.ErrorEvent:
 		cmd := p.messages.AddErrorMessage(msg.Error)
@@ -203,17 +213,24 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := p.messages.AddUserMessage(msg.Message)
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
 	case *runtime.StreamStartedEvent:
+		p.streamCancelled = false
 		spinnerCmd := p.setWorking(true)
 		cmd := p.messages.AddAssistantMessage()
 		p.startProgressBar()
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
 	case *runtime.AgentChoiceEvent:
+		if p.streamCancelled {
+			return p, nil
+		}
 		cmd := p.messages.AppendToLastMessage(msg.AgentName, types.MessageTypeAssistant, msg.Content)
 		if p.messages.IsAtBottom() {
 			return p, tea.Batch(cmd, p.messages.ScrollToBottom())
 		}
 		return p, cmd
 	case *runtime.AgentChoiceReasoningEvent:
+		if p.streamCancelled {
+			return p, nil
+		}
 		cmd := p.messages.AppendToLastMessage(msg.AgentName, types.MessageTypeAssistantReasoning, msg.Content)
 		if p.messages.IsAtBottom() {
 			return p, tea.Batch(cmd, p.messages.ScrollToBottom())
@@ -229,6 +246,7 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if p.msgCancel != nil {
 			p.msgCancel = nil
 		}
+		p.streamCancelled = false
 		p.stopProgressBar()
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
 	case *runtime.PartialToolCallEvent:
@@ -429,6 +447,24 @@ func (p *chatPage) switchFocus() {
 	}
 }
 
+// cancelStream cancels the current stream and cleans up associated state
+func (p *chatPage) cancelStream(showCancelMessage bool) tea.Cmd {
+	if p.msgCancel == nil {
+		return nil
+	}
+
+	p.msgCancel()
+	p.msgCancel = nil
+	p.streamCancelled = true
+	p.stopProgressBar()
+
+	// Send StreamCancelledMsg to all components to handle cleanup
+	return tea.Batch(
+		core.CmdHandler(messages.StreamCancelledMsg{ShowMessage: showCancelMessage}),
+		p.setWorking(false),
+	)
+}
+
 // processMessage processes a message with the runtime
 func (p *chatPage) processMessage(content string) tea.Cmd {
 	if p.msgCancel != nil {
@@ -465,10 +501,8 @@ func (p *chatPage) CopySessionToClipboard() tea.Cmd {
 
 // CompactSession generates a summary and compacts the session history
 func (p *chatPage) CompactSession() tea.Cmd {
-	if p.msgCancel != nil {
-		p.msgCancel()
-		p.msgCancel = nil
-	}
+	// Cancel any active stream without showing cancellation message
+	p.cancelStream(false)
 
 	p.app.CompactSession()
 
