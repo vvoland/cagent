@@ -5,7 +5,12 @@ agents:
   root:
     model: anthropic/claude-sonnet-4-5
     description: Search the web
-    instruction: examples/bio.yaml
+    instruction: |
+      You search the Web for information using Brave and fetch.
+      Always share your sources.
     toolsets:
+      - type: fetch
       - type: mcp
-        ref: docker:duckduckgo
+        ref: docker:brave
+        env:
+          brave.api_key: ${BRAVE_API_KEY}
