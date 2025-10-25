@@ -89,6 +89,9 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		requestOptions = append(requestOptions,
 			option.WithAPIKey(authToken),
 		)
+		if cfg.BaseURL != "" {
+			requestOptions = append(requestOptions, option.WithBaseURL(cfg.BaseURL))
+		}
 	} else {
 		authToken := desktop.GetToken(ctx)
 		if authToken == "" {
