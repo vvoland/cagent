@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"sort"
 	"time"
 
 	"github.com/charmbracelet/bubbles/v2/help"
@@ -293,7 +294,7 @@ func toFullscreenView(content string) tea.View {
 
 // buildCommandCategories builds the list of command categories for the command palette
 func (a *appModel) buildCommandCategories() []dialog.CommandCategory {
-	return []dialog.CommandCategory{
+	categories := []dialog.CommandCategory{
 		{
 			Name: "Session",
 			Commands: []dialog.Command{
@@ -342,4 +343,41 @@ func (a *appModel) buildCommandCategories() []dialog.CommandCategory {
 			},
 		},
 	}
+
+	// Add agent commands if available
+	agentCommands := a.application.CurrentAgentCommands()
+	if len(agentCommands) > 0 {
+		// Sort command names for consistent display
+		names := make([]string, 0, len(agentCommands))
+		for name := range agentCommands {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+
+		// Build command list
+		commands := make([]dialog.Command, 0, len(agentCommands))
+		for _, name := range names {
+			prompt := agentCommands[name]
+			cmdText := "/" + name
+
+			// Capture cmdText in closure properly
+			commandText := cmdText
+			commands = append(commands, dialog.Command{
+				ID:          "agent.command." + name,
+				Label:       commandText,
+				Description: prompt,
+				Category:    "Agent Commands",
+				Execute: func() tea.Cmd {
+					return a.chatPage.ExecuteCommand(commandText)
+				},
+			})
+		}
+
+		categories = append(categories, dialog.CommandCategory{
+			Name:     "Agent Commands",
+			Commands: commands,
+		})
+	}
+
+	return categories
 }
