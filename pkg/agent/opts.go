@@ -97,6 +97,14 @@ func WithCommands(commands map[string]string) Opt {
 	}
 }
 
+func WithLoadTimeWarnings(warnings []string) Opt {
+	return func(a *Agent) {
+		for _, w := range warnings {
+			a.addToolWarning(w)
+		}
+	}
+}
+
 type StartableToolSet struct {
 	tools.ToolSet
 	started atomic.Bool

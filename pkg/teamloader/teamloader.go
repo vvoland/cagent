@@ -265,18 +265,19 @@ func findAgentPaths(agentsPathOrDirectory string) ([]string, error) {
 // checkRequiredEnvVars checks which environment variables are required by the models and tools.
 // This allows exiting early with a proper error message instead of failing later when trying to use a model or tool.
 func checkRequiredEnvVars(ctx context.Context, cfg *latest.Config, env environment.Provider, runtimeConfig config.RuntimeConfig) error {
-	requiredEnv, err := config.GatherMissingEnvVars(ctx, cfg, env, runtimeConfig)
-	if err != nil {
-		return fmt.Errorf("gathering required environment variables: %w", err)
+	missing, toolErr := config.GatherMissingEnvVars(ctx, cfg, env, runtimeConfig)
+
+	// If there's a tool preflight error, log it but continue
+	if toolErr != nil {
+		slog.Warn("Failed to preflight toolset environment variables; continuing", "error", toolErr)
 	}
 
-	if len(requiredEnv) == 0 {
-		return nil
+	// Return error if there are missing environment variables
+	if len(missing) > 0 {
+		return &environment.RequiredEnvError{Missing: missing}
 	}
 
-	return &environment.RequiredEnvError{
-		Missing: requiredEnv,
-	}
+	return nil
 }
 
 type loadOptions struct {
@@ -371,9 +372,9 @@ func Load(ctx context.Context, p string, runtimeConfig config.RuntimeConfig, opt
 			opts = append(opts, agent.WithModel(model))
 		}
 
-		agentTools, err := getToolsForAgent(ctx, &agentConfig, parentDir, env, runtimeConfig, loadOpts.toolsetRegistry)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get tools: %w", err)
+		agentTools, warnings := getToolsForAgent(ctx, &agentConfig, parentDir, env, runtimeConfig, loadOpts.toolsetRegistry)
+		if len(warnings) > 0 {
+			opts = append(opts, agent.WithLoadTimeWarnings(warnings))
 		}
 
 		if len(agentConfig.SubAgents) > 0 {
@@ -436,31 +437,35 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 }
 
 // getToolsForAgent returns the tool definitions for an agent based on its configuration
-func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig, registry *ToolsetRegistry) ([]tools.ToolSet, error) {
-	var t []tools.ToolSet
+func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig, registry *ToolsetRegistry) ([]tools.ToolSet, []string) {
+	var (
+		toolSets []tools.ToolSet
+		warnings []string
+	)
 
 	for i := range a.Toolsets {
 		toolset := a.Toolsets[i]
 
 		tool, err := registry.CreateTool(ctx, toolset, parentDir, envProvider, runtimeConfig)
 		if err != nil {
-			return nil, err
+			// Collect error but continue loading other toolsets
+			slog.Warn("Toolset configuration failed; skipping", "type", toolset.Type, "ref", toolset.Ref, "command", toolset.Command, "error", err)
+			warnings = append(warnings, fmt.Sprintf("toolset %s failed: %v", toolset.Type, err))
+			continue
 		}
 
 		wrapped := WithToolsFilter(tool, toolset.Tools...)
 		wrapped = WithInstructions(wrapped, a.Instruction)
 
-		t = append(t, wrapped)
-	}
-
-	if !a.CodeModeTools && !runtimeConfig.GlobalCodeMode {
-		return t, nil
+		toolSets = append(toolSets, wrapped)
 	}
 
 	// Wrap all tools in a single Code Mode toolset.
 	// This allows the agent to call multiple tools in a single response.
 	// It also allows to combine the results of multiple tools in a single response.
-	return []tools.ToolSet{
-		codemode.Wrap(t...),
-	}, nil
+	if a.CodeModeTools || runtimeConfig.GlobalCodeMode {
+		toolSets = []tools.ToolSet{codemode.Wrap(toolSets...)}
+	}
+
+	return toolSets, warnings
 }

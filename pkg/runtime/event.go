@@ -168,6 +168,20 @@ func ShellOutput(output string) Event {
 	}
 }
 
+type WarningEvent struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
+	AgentContext
+}
+
+func Warning(message, agentName string) Event {
+	return &WarningEvent{
+		Type:         "warning",
+		Message:      message,
+		AgentContext: AgentContext{AgentName: agentName},
+	}
+}
+
 type TokenUsageEvent struct {
 	Type  string `json:"type"`
 	Usage *Usage `json:"usage"`

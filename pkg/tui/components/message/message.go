@@ -121,6 +121,8 @@ func (mv *messageModel) Render(width int) string {
 		return styles.WarningStyle.Render("⚠ stream cancelled ⚠")
 	case types.MessageTypeError:
 		return styles.ErrorStyle.Render("│ " + msg.Content)
+	case types.MessageTypeWarning:
+		return styles.WarningStyle.Render(msg.Content)
 	case types.MessageTypeSystem:
 		return styles.MutedStyle.Render("ℹ " + msg.Content)
 	default:

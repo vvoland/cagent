@@ -217,6 +217,9 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 
 		// Set elicitation handler on all MCP toolsets before getting tools
 		a := r.CurrentAgent()
+
+		r.emitAgentWarnings(a, events)
+
 		for _, toolset := range a.ToolSets() {
 			toolset.SetElicitationHandler(r.elicitationHandler)
 			toolset.SetOAuthSuccessHandler(func() {
@@ -398,9 +401,8 @@ func (r *runtime) RunStream(ctx context.Context, sess *session.Session) <-chan E
 	return events
 }
 
+// getTools executes tool retrieval with automatic OAuth handling
 func (r *runtime) getTools(ctx context.Context, a *agent.Agent, sessionSpan trace.Span, events chan Event) ([]tools.Tool, error) {
-	// Execute tool retrieval with automatic OAuth handling
-	var agentTools []tools.Tool
 	shouldEmitMCPInit := events != nil && len(a.ToolSets()) > 0
 	if shouldEmitMCPInit {
 		events <- MCPInitStarted(a.Name())
@@ -411,7 +413,7 @@ func (r *runtime) getTools(ctx context.Context, a *agent.Agent, sessionSpan trac
 		}
 	}()
 
-	tls, err := a.Tools(ctx)
+	agentTools, err := a.Tools(ctx)
 	if err != nil {
 		slog.Error("Failed to get agent tools", "agent", a.Name(), "error", err)
 		sessionSpan.RecordError(err)
@@ -419,10 +421,35 @@ func (r *runtime) getTools(ctx context.Context, a *agent.Agent, sessionSpan trac
 		telemetry.RecordError(ctx, err.Error())
 		return nil, err
 	}
-	agentTools = tls
 
 	slog.Debug("Retrieved agent tools", "agent", a.Name(), "tool_count", len(agentTools))
 	return agentTools, nil
+}
+
+func (r *runtime) emitAgentWarnings(a *agent.Agent, events chan Event) {
+	warnings := a.DrainWarnings()
+	if len(warnings) == 0 {
+		return
+	}
+
+	slog.Warn("Tool setup partially failed; continuing", "agent", a.Name(), "warnings", warnings)
+
+	if events != nil {
+		events <- Warning(formatToolWarning(a, warnings), r.currentAgent)
+	}
+}
+
+func formatToolWarning(a *agent.Agent, warnings []string) string {
+	var builder strings.Builder
+	builder.WriteString(fmt.Sprintf("Some toolsets failed to initialize for agent '%s'.\n\n", a.Name()))
+	builder.WriteString("Details:\n\n")
+	for _, warning := range warnings {
+		builder.WriteString("- ")
+		builder.WriteString(warning)
+		builder.WriteByte('\n')
+	}
+
+	return strings.TrimSuffix(builder.String(), "\n")
 }
 
 func (r *runtime) Resume(_ context.Context, confirmationType string) {

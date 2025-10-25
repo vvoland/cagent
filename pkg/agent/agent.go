@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math/rand"
 
 	"github.com/docker/cagent/pkg/model/provider"
@@ -25,6 +26,7 @@ type Agent struct {
 	addPromptFiles     []string
 	tools              []tools.Tool
 	commands           map[string]string
+	pendingWarnings    []string
 }
 
 // New creates a new agent
@@ -97,15 +99,19 @@ func (a *Agent) Model() provider.Provider {
 
 // Tools returns the tools available to this agent
 func (a *Agent) Tools(ctx context.Context) ([]tools.Tool, error) {
-	if err := a.ensureToolSetsAreStarted(ctx); err != nil {
-		return nil, err
-	}
+	a.ensureToolSetsAreStarted(ctx)
 
 	var agentTools []tools.Tool
 	for _, toolSet := range a.toolsets {
+		if !toolSet.started.Load() {
+			// Toolset failed to start; skip it
+			continue
+		}
 		ta, err := toolSet.Tools(ctx)
 		if err != nil {
-			return nil, err
+			slog.Warn("Toolset listing failed; skipping", "agent", a.Name(), "toolset", fmt.Sprintf("%T", toolSet.ToolSet), "error", err)
+			a.addToolWarning(fmt.Sprintf("%T list failed: %v", toolSet.ToolSet, err))
+			continue
 		}
 		agentTools = append(agentTools, ta...)
 	}
@@ -130,7 +136,7 @@ func (a *Agent) Commands() map[string]string {
 	return a.commands
 }
 
-func (a *Agent) ensureToolSetsAreStarted(ctx context.Context) error {
+func (a *Agent) ensureToolSetsAreStarted(ctx context.Context) {
 	for _, toolSet := range a.toolsets {
 		// Skip if toolset is already started
 		if toolSet.started.Load() {
@@ -138,14 +144,32 @@ func (a *Agent) ensureToolSetsAreStarted(ctx context.Context) error {
 		}
 
 		if err := toolSet.Start(ctx); err != nil {
-			return err
+			slog.Warn("Toolset start failed; skipping", "agent", a.Name(), "toolset", fmt.Sprintf("%T", toolSet.ToolSet), "error", err)
+			a.addToolWarning(fmt.Sprintf("%T start failed: %v", toolSet.ToolSet, err))
+			continue
 		}
 
 		// Mark toolset as started
 		toolSet.started.Store(true)
 	}
+}
 
-	return nil
+// addToolWarning records a warning generated while loading or starting toolsets.
+func (a *Agent) addToolWarning(msg string) {
+	if msg == "" {
+		return
+	}
+	a.pendingWarnings = append(a.pendingWarnings, msg)
+}
+
+// DrainWarnings returns pending warnings and clears them.
+func (a *Agent) DrainWarnings() []string {
+	if len(a.pendingWarnings) == 0 {
+		return nil
+	}
+	warnings := a.pendingWarnings
+	a.pendingWarnings = nil
+	return warnings
 }
 
 func (a *Agent) StopToolSets(ctx context.Context) error {
