@@ -25,6 +25,10 @@ type StreamCancelledMsg struct {
 	ShowMessage bool // Whether to show a cancellation message after cleanup
 }
 
+type EvalSavedMsg struct {
+	File string
+}
+
 // Model represents a chat message list component
 type Model interface {
 	layout.Model
@@ -104,7 +108,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.removeSpinner()
 		m.cancelPendingToolCalls()
 		return m, nil
-
+	case EvalSavedMsg:
+		m.AddSystemMessage(fmt.Sprintf("Eval saved to file %s", msg.File))
+		cmd := m.ScrollToBottom()
+		return m, cmd
 	case tea.WindowSizeMsg:
 		cmd := m.SetSize(msg.Width, msg.Height)
 		if cmd != nil {

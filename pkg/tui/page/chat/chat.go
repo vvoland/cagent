@@ -187,9 +187,8 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		p.messages = model.(messages.Model)
 
 		var cmds []tea.Cmd
-		if cmd != nil {
-			cmds = append(cmds, cmd)
-		}
+		cmds = append(cmds, cmd)
+
 		if msg.ShowMessage {
 			cmds = append(cmds, p.messages.AddCancelledMessage())
 		}

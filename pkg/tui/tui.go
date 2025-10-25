@@ -9,7 +9,9 @@ import (
 	"github.com/charmbracelet/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/app"
+	"github.com/docker/cagent/pkg/evaluation"
 	"github.com/docker/cagent/pkg/runtime"
+	"github.com/docker/cagent/pkg/tui/components/messages"
 	"github.com/docker/cagent/pkg/tui/components/statusbar"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/dialog"
@@ -325,6 +327,16 @@ func (a *appModel) buildCommandCategories() []dialog.CommandCategory {
 					Category:    "Session",
 					Execute: func() tea.Cmd {
 						return a.chatPage.CopySessionToClipboard()
+					},
+				},
+				{
+					ID:          "session.eval",
+					Label:       "Eval",
+					Description: "Create an evaluation report for the current conversation",
+					Category:    "Session",
+					Execute: func() tea.Cmd {
+						evalFile, _ := evaluation.Save(a.application.Session())
+						return core.CmdHandler(messages.EvalSavedMsg{File: evalFile})
 					},
 				},
 			},
