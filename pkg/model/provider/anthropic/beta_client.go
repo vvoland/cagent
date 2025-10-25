@@ -38,6 +38,16 @@ func (c *Client) createBetaStream(
 		}
 	}
 
+	sys := extractBetaSystemBlocks(messages)
+
+	if used, err := countAnthropicTokensBeta(ctx, client, anthropic.Model(c.ModelConfig.Model), converted, sys, allTools); err == nil {
+		configuredMaxTokens := maxTokens
+		maxTokens = clampMaxTokens(anthropicContextLimit(c.ModelConfig.Model), used, maxTokens)
+		if maxTokens < configuredMaxTokens {
+			slog.Warn("Anthropic Beta API max_tokens clamped to", "max_tokens", maxTokens)
+		}
+	}
+
 	params := anthropic.BetaMessageNewParams{
 		Model:     anthropic.Model(c.ModelConfig.Model),
 		MaxTokens: maxTokens,
@@ -47,7 +57,7 @@ func (c *Client) createBetaStream(
 	}
 
 	// Populate proper Anthropic system prompt from input messages
-	if sys := extractBetaSystemBlocks(messages); len(sys) > 0 {
+	if len(sys) > 0 {
 		params.System = sys
 	}
 
@@ -201,4 +211,43 @@ func contentArrayBeta(m map[string]any) []any {
 		return a
 	}
 	return nil
+}
+
+// countAnthropicTokensBeta calls Anthropic's Count Tokens API for the provided Beta API payload
+// and returns the number of input tokens.
+func countAnthropicTokensBeta(
+	ctx context.Context,
+	client anthropic.Client,
+	model anthropic.Model,
+	messages []anthropic.BetaMessageParam,
+	system []anthropic.BetaTextBlockParam,
+	anthropicTools []anthropic.BetaToolUnionParam,
+) (int64, error) {
+	params := anthropic.BetaMessageCountTokensParams{
+		Model:    model,
+		Messages: messages,
+	}
+	if len(system) > 0 {
+		params.System = anthropic.BetaMessageCountTokensParamsSystemUnion{
+			OfBetaTextBlockArray: system,
+		}
+	}
+	if len(anthropicTools) > 0 {
+		// Convert BetaToolUnionParam to BetaMessageCountTokensParamsToolUnion
+		toolParams := make([]anthropic.BetaMessageCountTokensParamsToolUnion, len(anthropicTools))
+		for i, tool := range anthropicTools {
+			if tool.OfTool != nil {
+				toolParams[i] = anthropic.BetaMessageCountTokensParamsToolUnion{
+					OfTool: tool.OfTool,
+				}
+			}
+		}
+		params.Tools = toolParams
+	}
+
+	result, err := client.Beta.Messages.CountTokens(ctx, params)
+	if err != nil {
+		return 0, err
+	}
+	return result.InputTokens, nil
 }

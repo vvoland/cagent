@@ -150,9 +150,8 @@ func (c *Client) CreateChatCompletionStream(
 
 	maxTokens := int64(c.ModelConfig.MaxTokens)
 	if maxTokens == 0 {
-		maxTokens = 8192 // min output limit for anthropic models >= 3.5
+		maxTokens = 8192 // Default output budget when not specified
 	}
-
 	// Build a fresh client per request when using the gateway
 	client := c.client
 	if c.useGateway {
@@ -180,6 +179,15 @@ func (c *Client) CreateChatCompletionStream(
 			return nil, err
 		}
 	}
+	// Preflight-cap max_tokens using Anthropic's count-tokens API
+	sys := extractSystemBlocks(messages)
+	if used, err := countAnthropicTokens(ctx, client, anthropic.Model(c.ModelConfig.Model), converted, sys, allTools); err == nil {
+		configuredMaxTokens := maxTokens
+		maxTokens = clampMaxTokens(anthropicContextLimit(c.ModelConfig.Model), used, maxTokens)
+		if maxTokens < configuredMaxTokens {
+			slog.Warn("Anthropic API max_tokens clamped to", "max_tokens", maxTokens)
+		}
+	}
 
 	params := anthropic.MessageNewParams{
 		Model:     anthropic.Model(c.ModelConfig.Model),
@@ -189,7 +197,7 @@ func (c *Client) CreateChatCompletionStream(
 	}
 
 	// Populate proper Anthropic system prompt from input messages
-	if sys := extractSystemBlocks(messages); len(sys) > 0 {
+	if len(sys) > 0 {
 		params.System = sys
 	}
 
@@ -226,9 +234,9 @@ func (c *Client) CreateChatCompletionStream(
 	}
 
 	stream := client.Messages.NewStreaming(ctx, params)
+	ad := newStreamAdapter(stream)
 	slog.Debug("Anthropic chat completion stream created successfully", "model", c.ModelConfig.Model)
-
-	return newStreamAdapter(stream), nil
+	return ad, nil
 }
 
 func convertMessages(messages []chat.Message) []anthropic.MessageParam {
@@ -450,6 +458,10 @@ func ConvertParametersToSchema(params any) (anthropic.ToolInputSchemaParam, erro
 	return schema, nil
 }
 
+func (c *Client) ID() string {
+	return c.ModelConfig.Provider + "/" + c.ModelConfig.Model
+}
+
 // validateAnthropicSequencing verifies that for every assistant message that includes
 // one or more tool_use blocks, the immediately following message is a user message
 // that includes tool_result blocks for all those tool_use IDs (grouped into that single message).
@@ -589,4 +601,65 @@ func differenceIDs(a, b map[string]struct{}) []string {
 		}
 	}
 	return missing
+}
+
+// anthropicContextLimit returns a reasonable default context window for Anthropic models.
+// We default to 200k tokens, which is what 3.5-4.5 models support; adjust as needed over time.
+func anthropicContextLimit(model string) int64 {
+	_ = model
+	return 200000
+}
+
+// clampMaxTokens returns the effective max_tokens value after capping to the
+// remaining context window (limit - used - safety), clamped to at least 1.
+func clampMaxTokens(limit, used, configured int64) int64 {
+	const safety = int64(1024)
+
+	remaining := limit - used - safety
+	if remaining < 1 {
+		remaining = 1
+	}
+	if configured > remaining {
+		return remaining
+	}
+	return configured
+}
+
+// countAnthropicTokens calls Anthropic's Count Tokens API for the provided payload
+// and returns the number of input tokens.
+func countAnthropicTokens(
+	ctx context.Context,
+	client anthropic.Client,
+	model anthropic.Model,
+	messages []anthropic.MessageParam,
+	system []anthropic.TextBlockParam,
+	anthropicTools []anthropic.ToolUnionParam,
+) (int64, error) {
+	params := anthropic.MessageCountTokensParams{
+		Model:    model,
+		Messages: messages,
+	}
+	if len(system) > 0 {
+		params.System = anthropic.MessageCountTokensParamsSystemUnion{
+			OfTextBlockArray: system,
+		}
+	}
+	if len(anthropicTools) > 0 {
+		// Convert ToolUnionParam to MessageCountTokensToolUnionParam
+		toolParams := make([]anthropic.MessageCountTokensToolUnionParam, len(anthropicTools))
+		for i, tool := range anthropicTools {
+			if tool.OfTool != nil {
+				toolParams[i] = anthropic.MessageCountTokensToolUnionParam{
+					OfTool: tool.OfTool,
+				}
+			}
+		}
+		params.Tools = toolParams
+	}
+
+	result, err := client.Messages.CountTokens(ctx, params)
+	if err != nil {
+		return 0, err
+	}
+	return result.InputTokens, nil
 }
