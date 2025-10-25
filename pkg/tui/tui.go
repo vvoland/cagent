@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"sort"
 	"time"
 
 	"github.com/charmbracelet/bubbles/v2/help"
@@ -347,17 +346,8 @@ func (a *appModel) buildCommandCategories() []dialog.CommandCategory {
 	// Add agent commands if available
 	agentCommands := a.application.CurrentAgentCommands()
 	if len(agentCommands) > 0 {
-		// Sort command names for consistent display
-		names := make([]string, 0, len(agentCommands))
-		for name := range agentCommands {
-			names = append(names, name)
-		}
-		sort.Strings(names)
-
-		// Build command list
 		commands := make([]dialog.Command, 0, len(agentCommands))
-		for _, name := range names {
-			prompt := agentCommands[name]
+		for name, prompt := range agentCommands {
 			cmdText := "/" + name
 
 			// Capture cmdText in closure properly
