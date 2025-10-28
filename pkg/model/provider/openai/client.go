@@ -14,6 +14,7 @@ import (
 	"github.com/docker/cagent/pkg/chat"
 	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/environment"
+	"github.com/docker/cagent/pkg/httpclient"
 	"github.com/docker/cagent/pkg/model/provider/base"
 	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/tools"
@@ -71,6 +72,8 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 			openaiConfig.BaseURL = cfg.BaseURL
 		}
 
+		openaiConfig.HTTPClient = httpclient.NewHttpClient()
+
 		// TODO: Move this logic to ProviderAliases as a config function
 		if cfg.ProviderOpts != nil {
 			switch cfg.Provider { //nolint:gocritic
@@ -106,6 +109,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 
 			openaiConfig := openai.DefaultConfig(authToken)
 			openaiConfig.BaseURL = gateway + "/v1"
+			openaiConfig.HTTPClient = httpclient.NewHttpClient()
 
 			return openai.NewClientWithConfig(openaiConfig), nil
 		}

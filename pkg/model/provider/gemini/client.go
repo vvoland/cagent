@@ -14,6 +14,7 @@ import (
 	"github.com/docker/cagent/pkg/chat"
 	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/environment"
+	"github.com/docker/cagent/pkg/httpclient"
 	"github.com/docker/cagent/pkg/model/provider/base"
 	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/tools"
@@ -49,8 +50,9 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		}
 
 		client, err := genai.NewClient(ctx, &genai.ClientConfig{
-			APIKey:  apiKey,
-			Backend: genai.BackendGeminiAPI,
+			APIKey:     apiKey,
+			Backend:    genai.BackendGeminiAPI,
+			HTTPClient: httpclient.NewHttpClient(),
 		})
 		if err != nil {
 			return nil, err
@@ -75,8 +77,9 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 			}
 
 			return genai.NewClient(ctx, &genai.ClientConfig{
-				APIKey:  authToken,
-				Backend: genai.BackendGeminiAPI,
+				APIKey:     authToken,
+				Backend:    genai.BackendGeminiAPI,
+				HTTPClient: httpclient.NewHttpClient(),
 				HTTPOptions: genai.HTTPOptions{
 					BaseURL: gateway,
 					Headers: http.Header{
