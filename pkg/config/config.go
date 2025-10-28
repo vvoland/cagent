@@ -3,6 +3,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -61,18 +62,20 @@ func LoadConfig(path string, fs filesystem.FS) (*latest.Config, error) {
 //
 // This allows exiting early with a proper error message instead of failing later when trying to use a model or tool.
 func CheckRequiredEnvVars(ctx context.Context, cfg *latest.Config, env environment.Provider, runtimeConfig RuntimeConfig) error {
-	requiredEnv, err := GatherMissingEnvVars(ctx, cfg, env, runtimeConfig)
+	missing, err := gatherMissingEnvVars(ctx, cfg, env, runtimeConfig)
 	if err != nil {
-		return fmt.Errorf("gathering required environment variables: %w", err)
+		// If there's a tool preflight error, log it but continue
+		slog.Warn("Failed to preflight toolset environment variables; continuing", "error", err)
 	}
 
-	if len(requiredEnv) == 0 {
-		return nil
+	// Return error if there are missing environment variables
+	if len(missing) > 0 {
+		return &environment.RequiredEnvError{
+			Missing: missing,
+		}
 	}
 
-	return &environment.RequiredEnvError{
-		Missing: requiredEnv,
-	}
+	return nil
 }
 
 func parseCurrentVersion(dir string, data []byte, version any) (any, error) {

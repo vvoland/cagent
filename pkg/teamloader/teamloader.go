@@ -262,24 +262,6 @@ func findAgentPaths(agentsPathOrDirectory string) ([]string, error) {
 	return agents, nil
 }
 
-// checkRequiredEnvVars checks which environment variables are required by the models and tools.
-// This allows exiting early with a proper error message instead of failing later when trying to use a model or tool.
-func checkRequiredEnvVars(ctx context.Context, cfg *latest.Config, env environment.Provider, runtimeConfig config.RuntimeConfig) error {
-	missing, toolErr := config.GatherMissingEnvVars(ctx, cfg, env, runtimeConfig)
-
-	// If there's a tool preflight error, log it but continue
-	if toolErr != nil {
-		slog.Warn("Failed to preflight toolset environment variables; continuing", "error", toolErr)
-	}
-
-	// Return error if there are missing environment variables
-	if len(missing) > 0 {
-		return &environment.RequiredEnvError{Missing: missing}
-	}
-
-	return nil
-}
-
 type loadOptions struct {
 	modelOverrides  []string
 	toolsetRegistry *ToolsetRegistry
@@ -344,7 +326,7 @@ func Load(ctx context.Context, p string, runtimeConfig config.RuntimeConfig, opt
 	}
 
 	// Early check for required env vars before loading models and tools.
-	if err := checkRequiredEnvVars(ctx, cfg, env, runtimeConfig); err != nil {
+	if err := config.CheckRequiredEnvVars(ctx, cfg, env, runtimeConfig); err != nil {
 		return nil, err
 	}
 
