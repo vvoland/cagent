@@ -172,7 +172,7 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return p, nil
 
-	case tea.MouseWheelMsg:
+	case tea.MouseWheelMsg, tea.MouseClickMsg, tea.MouseMotionMsg, tea.MouseReleaseMsg:
 		// Always forward mouse wheel events to the chat component for scrolling
 		model, cmd := p.messages.Update(msg)
 		p.messages = model.(messages.Model)
