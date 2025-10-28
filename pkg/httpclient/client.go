@@ -54,6 +54,18 @@ func WithProxiedBaseURL(value string) Opt {
 	}
 }
 
+func WithProvider(provider string) Opt {
+	return func(o *HTTPOptions) {
+		o.Header.Set("X-Cagent-Provider", provider)
+	}
+}
+
+func WithModel(model string) Opt {
+	return func(o *HTTPOptions) {
+		o.Header.Set("X-Cagent-Model", model)
+	}
+}
+
 type userAgentTransport struct {
 	httpOptions HTTPOptions
 	rt          http.RoundTripper

@@ -84,6 +84,8 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 				Backend: genai.BackendGeminiAPI,
 				HTTPClient: httpclient.NewHTTPClient(
 					httpclient.WithProxiedBaseURL(defaultsTo(cfg.BaseURL, "https://generativelanguage.googleapis.com/")),
+					httpclient.WithProvider(cfg.Provider),
+					httpclient.WithModel(cfg.Model),
 				),
 				HTTPOptions: genai.HTTPOptions{
 					BaseURL: gateway,
