@@ -22,6 +22,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/tool"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
@@ -989,14 +990,9 @@ func (m *model) highlightLine(line string, startCol, endCol int) string {
 		return line
 	}
 
-	// TODO(rumpl): move style to styles.go
-	selectionStyle := lipgloss.NewStyle().
-		Background(lipgloss.Color("237")).
-		Foreground(lipgloss.Color("255"))
-
 	runes := []rune(plainLine)
 	before := string(runes[:startRuneIdx])
-	selected := selectionStyle.Render(string(runes[startRuneIdx:endRuneIdx]))
+	selected := styles.SelectionStyle.Render(string(runes[startRuneIdx:endRuneIdx]))
 	after := ""
 	if endRuneIdx < len(runes) {
 		after = string(runes[endRuneIdx:])

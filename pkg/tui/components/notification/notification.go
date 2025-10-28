@@ -75,13 +75,10 @@ func (n *Notification) View() string {
 		return ""
 	}
 
-	notificationStyle := styles.BaseStyle.
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(styles.SuccessStyle.GetForeground()).
-		Padding(0, 1).
-		MaxWidth(maxWidth)
-
-	return notificationStyle.Render(n.text)
+	return styles.
+		NotificationStyle.
+		MaxWidth(maxWidth).
+		Render(n.text)
 }
 
 func (n *Notification) GetLayer() *lipgloss.Layer {
