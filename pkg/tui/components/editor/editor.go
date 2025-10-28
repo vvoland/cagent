@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/v2/textarea"
 	tea "github.com/charmbracelet/bubbletea/v2"
 
+	"github.com/docker/cagent/pkg/history"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/styles"
@@ -22,6 +23,7 @@ type Editor interface {
 	layout.Sizeable
 	layout.Focusable
 	layout.Help
+	SetHistory(history *history.History)
 	SetWorking(working bool) tea.Cmd
 }
 
@@ -31,6 +33,10 @@ type editor struct {
 	width    int
 	height   int
 	working  bool
+
+	history         *history.History
+	historyDraft    string
+	browsingHistory bool
 }
 
 // New creates a new editor component
@@ -71,13 +77,24 @@ func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			value := e.textarea.Value()
 			if value != "" && !e.working {
 				e.textarea.Reset()
-				return e, core.CmdHandler(SendMsg{
-					Content: value,
-				})
+				e.resetHistoryNavigation()
+				return e, core.CmdHandler(SendMsg{Content: value})
 			}
 			return e, nil
 		case "ctrl+c":
 			return e, tea.Quit
+		case "up":
+			if e.navigateHistory(true) {
+				return e, nil
+			}
+		case "down":
+			if e.navigateHistory(false) {
+				return e, nil
+			}
+		default:
+			if e.browsingHistory {
+				e.resetHistoryNavigation()
+			}
 		}
 	}
 
@@ -140,4 +157,58 @@ func (e *editor) Help() help.KeyMap {
 func (e *editor) SetWorking(working bool) tea.Cmd {
 	e.working = working
 	return nil
+}
+
+func (e *editor) SetHistory(history *history.History) {
+	e.history = history
+}
+
+func (e *editor) navigateHistory(previous bool) bool {
+	if e.history == nil || len(e.history.Messages) == 0 {
+		return false
+	}
+
+	// Only trigger history navigation when the input is a single line.
+	if e.textarea.LineCount() > 1 {
+		return false
+	}
+
+	if !e.browsingHistory {
+		e.historyDraft = e.textarea.Value()
+		e.browsingHistory = true
+		// Ensure navigation starts from the most recent entry.
+		for e.history.Next() != "" {
+		}
+	}
+
+	var entry string
+	if previous {
+		entry = e.history.Previous()
+	} else {
+		entry = e.history.Next()
+		if entry == "" {
+			e.textarea.SetValue(e.historyDraft)
+			e.textarea.MoveToEnd()
+			e.resetHistoryNavigation()
+			return true
+		}
+	}
+
+	if entry == "" {
+		return true
+	}
+
+	e.textarea.SetValue(entry)
+	e.textarea.MoveToEnd()
+	return true
+}
+
+func (e *editor) resetHistoryNavigation() {
+	e.browsingHistory = false
+	e.historyDraft = ""
+	if e.history == nil {
+		return
+	}
+	for e.history.Next() != "" {
+	}
 }

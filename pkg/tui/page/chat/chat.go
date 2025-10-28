@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/app"
+	"github.com/docker/cagent/pkg/history"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/tui/components/editor"
 	"github.com/docker/cagent/pkg/tui/components/messages"
@@ -65,6 +66,8 @@ type chatPage struct {
 	title string
 	app   *app.App
 
+	history *history.History
+
 	// Cached layout dimensions
 	chatHeight  int
 	inputHeight int
@@ -92,14 +95,23 @@ func defaultKeyMap() KeyMap {
 
 // New creates a new chat page
 func New(a *app.App) Page {
+	historyStore, err := history.New()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to initialize command history: %v\n", err)
+	}
+
+	ed := editor.New()
+	ed.SetHistory(historyStore)
+
 	return &chatPage{
 		title:        a.Title(),
 		sidebar:      sidebar.New(),
 		messages:     messages.New(a),
-		editor:       editor.New(),
+		editor:       ed,
 		focusedPanel: PanelEditor,
 		app:          a,
 		keyMap:       defaultKeyMap(),
+		history:      historyStore,
 	}
 }
 
@@ -180,6 +192,11 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return p, cmd
 
 	case editor.SendMsg:
+		if p.history != nil {
+			if err := p.history.Add(msg.Content); err != nil {
+				fmt.Fprintf(os.Stderr, "failed to persist command history: %v\n", err)
+			}
+		}
 		cmd := p.processMessage(msg.Content)
 		return p, cmd
 
