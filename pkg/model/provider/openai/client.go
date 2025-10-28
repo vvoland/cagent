@@ -111,6 +111,8 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 			openaiConfig.BaseURL = gateway + "/v1"
 			openaiConfig.HTTPClient = httpclient.NewHTTPClient(
 				httpclient.WithProxiedBaseURL(defaultsTo(cfg.BaseURL, "https://api.openai.com/v1")),
+				httpclient.WithProvider(cfg.Provider),
+				httpclient.WithModel(cfg.Model),
 			)
 
 			return openai.NewClientWithConfig(openaiConfig), nil

@@ -112,6 +112,8 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 				option.WithBaseURL(gateway),
 				option.WithHTTPClient(httpclient.NewHTTPClient(
 					httpclient.WithProxiedBaseURL(defaultsTo(cfg.BaseURL, "https://api.anthropic.com/")),
+					httpclient.WithProvider(cfg.Provider),
+					httpclient.WithModel(cfg.Model),
 				)),
 			), nil
 		}
