@@ -53,6 +53,9 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 			APIKey:     apiKey,
 			Backend:    genai.BackendGeminiAPI,
 			HTTPClient: httpclient.NewHttpClient(),
+			HTTPOptions: genai.HTTPOptions{
+				BaseURL: cfg.BaseURL,
+			},
 		})
 		if err != nil {
 			return nil, err
