@@ -12,6 +12,7 @@ import (
 	"github.com/docker/cagent/pkg/evaluation"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/tui/components/messages"
+	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/components/statusbar"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/dialog"
@@ -41,8 +42,9 @@ type appModel struct {
 	width, height   int
 	keyMap          KeyMap
 
-	chatPage  chatpage.Page
-	statusBar statusbar.StatusBar
+	chatPage     chatpage.Page
+	statusBar    statusbar.StatusBar
+	notification notification.Notification
 
 	// Dialog system
 	dialog dialog.Manager
@@ -75,10 +77,11 @@ func DefaultKeyMap() KeyMap {
 // New creates and initializes a new TUI application model
 func New(a *app.App) tea.Model {
 	t := &appModel{
-		chatPage:    chatpage.New(a),
-		keyMap:      DefaultKeyMap(),
-		dialog:      dialog.New(),
-		application: a,
+		chatPage:     chatpage.New(a),
+		keyMap:       DefaultKeyMap(),
+		dialog:       dialog.New(),
+		notification: notification.New(),
+		application:  a,
 	}
 
 	t.statusBar = statusbar.New(t)
@@ -118,6 +121,11 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		a.wWidth, a.wHeight = msg.Width, msg.Height
 		cmd := a.handleWindowResize(msg.Width, msg.Height)
+		return a, cmd
+
+	case notification.ShowMsg, notification.HideMsg:
+		updated, cmd := a.notification.Update(msg)
+		a.notification = updated
 		return a, cmd
 
 	case tea.KeyPressMsg:
@@ -197,6 +205,9 @@ func (a *appModel) handleWindowResize(width, height int) tea.Cmd {
 	// Update status bar width
 	a.statusBar.SetWidth(a.width)
 
+	// Update notification size
+	a.notification.SetSize(a.width, a.height)
+
 	return tea.Batch(cmds...)
 }
 
@@ -271,12 +282,27 @@ func (a *appModel) View() tea.View {
 
 	baseView := lipgloss.JoinVertical(lipgloss.Top, components...)
 
-	if a.dialog.HasDialog() {
-		baseLayer := lipgloss.NewLayer(baseView)
-		dialogLayers := a.dialog.GetLayers()
+	// Check if we need to render any overlays (dialogs or notifications)
+	hasOverlays := a.dialog.HasDialog() || a.notification.IsVisible()
 
-		allLayers := []*lipgloss.Layer{baseLayer}
-		allLayers = append(allLayers, dialogLayers...)
+	if hasOverlays {
+		baseLayer := lipgloss.NewLayer(baseView)
+		var allLayers []*lipgloss.Layer
+		allLayers = append(allLayers, baseLayer)
+
+		// Add dialog layers
+		if a.dialog.HasDialog() {
+			dialogLayers := a.dialog.GetLayers()
+			allLayers = append(allLayers, dialogLayers...)
+		}
+
+		// Add notification layer (should be on top)
+		if a.notification.IsVisible() {
+			notificationLayer := a.notification.GetLayer()
+			if notificationLayer != nil {
+				allLayers = append(allLayers, notificationLayer)
+			}
+		}
 
 		canvas := lipgloss.NewCanvas(allLayers...)
 		return toFullscreenView(canvas.Render())
