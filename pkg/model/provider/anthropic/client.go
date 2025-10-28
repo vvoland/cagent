@@ -14,6 +14,7 @@ import (
 	"github.com/docker/cagent/pkg/chat"
 	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/environment"
+	"github.com/docker/cagent/pkg/httpclient"
 	"github.com/docker/cagent/pkg/model/provider/base"
 	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/tools"
@@ -81,6 +82,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		slog.Debug("Anthropic API key found, creating client")
 		requestOptions := []option.RequestOption{
 			option.WithAPIKey(authToken),
+			option.WithHTTPClient(httpclient.NewHTTPClient()),
 		}
 		if cfg.BaseURL != "" {
 			requestOptions = append(requestOptions, option.WithBaseURL(cfg.BaseURL))
@@ -108,6 +110,9 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 				option.WithAuthToken(authToken),
 				option.WithAPIKey(authToken),
 				option.WithBaseURL(gateway),
+				option.WithHTTPClient(httpclient.NewHTTPClient(
+					httpclient.WithProxiedBaseURL(defaultsTo(cfg.BaseURL, "https://api.anthropic.com/")),
+				)),
 			), nil
 		}
 	}
@@ -653,4 +658,11 @@ func countAnthropicTokens(
 		return 0, err
 	}
 	return result.InputTokens, nil
+}
+
+func defaultsTo(value, defaultValue string) string {
+	if value != "" {
+		return value
+	}
+	return defaultValue
 }
