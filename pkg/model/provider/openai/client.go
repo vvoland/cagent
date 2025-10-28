@@ -72,7 +72,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 			openaiConfig.BaseURL = cfg.BaseURL
 		}
 
-		openaiConfig.HTTPClient = httpclient.NewHttpClient()
+		openaiConfig.HTTPClient = httpclient.NewHTTPClient()
 
 		// TODO: Move this logic to ProviderAliases as a config function
 		if cfg.ProviderOpts != nil {
@@ -109,7 +109,9 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 
 			openaiConfig := openai.DefaultConfig(authToken)
 			openaiConfig.BaseURL = gateway + "/v1"
-			openaiConfig.HTTPClient = httpclient.NewHttpClient()
+			openaiConfig.HTTPClient = httpclient.NewHTTPClient(
+				httpclient.WithProxiedBaseURL(defaultsTo(cfg.BaseURL, "https://api.openai.com/v1")),
+			)
 
 			return openai.NewClientWithConfig(openaiConfig), nil
 		}
@@ -392,4 +394,11 @@ type jsonSchema map[string]any
 
 func (j jsonSchema) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any(j))
+}
+
+func defaultsTo(value, defaultValue string) string {
+	if value != "" {
+		return value
+	}
+	return defaultValue
 }

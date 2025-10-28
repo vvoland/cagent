@@ -52,7 +52,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		client, err := genai.NewClient(ctx, &genai.ClientConfig{
 			APIKey:     apiKey,
 			Backend:    genai.BackendGeminiAPI,
-			HTTPClient: httpclient.NewHttpClient(),
+			HTTPClient: httpclient.NewHTTPClient(),
 			HTTPOptions: genai.HTTPOptions{
 				BaseURL: cfg.BaseURL,
 			},
@@ -80,9 +80,11 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 			}
 
 			return genai.NewClient(ctx, &genai.ClientConfig{
-				APIKey:     authToken,
-				Backend:    genai.BackendGeminiAPI,
-				HTTPClient: httpclient.NewHttpClient(),
+				APIKey:  authToken,
+				Backend: genai.BackendGeminiAPI,
+				HTTPClient: httpclient.NewHTTPClient(
+					httpclient.WithProxiedBaseURL(defaultsTo(cfg.BaseURL, "https://generativelanguage.googleapis.com/")),
+				),
 				HTTPOptions: genai.HTTPOptions{
 					BaseURL: gateway,
 					Headers: http.Header{
@@ -345,4 +347,11 @@ func (c *Client) CreateChatCompletionStream(
 	// Build a fresh client per request when using the gateway
 	iter := client.Models.GenerateContentStream(ctx, c.ModelConfig.Model, contents, config)
 	return NewStreamAdapter(iter, c.ModelConfig.Model), nil
+}
+
+func defaultsTo(value, defaultValue string) string {
+	if value != "" {
+		return value
+	}
+	return defaultValue
 }
