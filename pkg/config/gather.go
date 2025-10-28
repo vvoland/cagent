@@ -12,9 +12,9 @@ import (
 	"github.com/docker/cagent/pkg/model/provider"
 )
 
-// GatherMissingEnvVars finds out which environment variables are required by the models and tools.
+// gatherMissingEnvVars finds out which environment variables are required by the models and tools.
 // It returns the missing variables and any non-fatal error encountered during tool discovery.
-func GatherMissingEnvVars(ctx context.Context, cfg *latest.Config, env environment.Provider, runtimeConfig RuntimeConfig) (missing []string, toolErr error) {
+func gatherMissingEnvVars(ctx context.Context, cfg *latest.Config, env environment.Provider, runtimeConfig RuntimeConfig) (missing []string, toolErr error) {
 	requiredEnv := map[string]bool{}
 
 	// Models
