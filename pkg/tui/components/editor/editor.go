@@ -17,6 +17,14 @@ type SendMsg struct {
 	Content string
 }
 
+// historyNavigation describes which direction we want to pull from history.
+type historyNavigation int
+
+const (
+	NAVIGATEPREVIOUS historyNavigation = iota
+	NAVIGATENEXT
+)
+
 // Editor represents an input editor component
 type Editor interface {
 	layout.Model
@@ -34,8 +42,11 @@ type editor struct {
 	height   int
 	working  bool
 
-	history         *history.History
-	draftInput      string
+	// history is the shared command store backing up/down navigation.
+	history *history.History
+	// draftInput holds the user's unsent text while they browse history.
+	draftInput string
+	// historyBrowsing marks that we're currently showing history entries.
 	historyBrowsing bool
 }
 
@@ -85,13 +96,13 @@ func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c":
 			return e, tea.Quit
 		case "up":
-			// Step backward through command history when browsing.
-			if e.navigateHistory(true) {
+			// Consume the key when we replace the buffer with an older command.
+			if e.navigateHistory(NAVIGATEPREVIOUS) {
 				return e, nil
 			}
 		case "down":
-			// Step forward through command history when browsing.
-			if e.navigateHistory(false) {
+			// Consume the key when we replace the buffer with a newer command.
+			if e.navigateHistory(NAVIGATENEXT) {
 				return e, nil
 			}
 		default:
@@ -167,7 +178,9 @@ func (e *editor) SetHistory(history *history.History) {
 	e.history = history
 }
 
-func (e *editor) navigateHistory(previous bool) bool {
+func (e *editor) navigateHistory(direction historyNavigation) bool {
+	// Returning true tells Update to stop Bubble Tea's default cursor handling,
+	// because we've already replaced the textarea content for this key press.
 	if !e.canBrowseHistory() {
 		return false
 	}
@@ -177,10 +190,11 @@ func (e *editor) navigateHistory(previous bool) bool {
 	}
 
 	var entry string
-	if previous {
+	switch direction {
+	case NAVIGATEPREVIOUS:
 		// Up arrow walks toward older commands.
 		entry = e.history.Previous()
-	} else {
+	case NAVIGATENEXT:
 		// Down arrow walks toward newer commands.
 		entry = e.history.Next()
 		if entry == "" {
@@ -188,6 +202,8 @@ func (e *editor) navigateHistory(previous bool) bool {
 			e.restoreDraftFromHistory()
 			return true
 		}
+	default:
+		return false
 	}
 
 	if entry == "" {
@@ -196,11 +212,14 @@ func (e *editor) navigateHistory(previous bool) bool {
 
 	// Replace the input with the selected history entry.
 	e.textarea.SetValue(entry)
+	// Place the cursor at the end so the user can immediately append or send.
 	e.textarea.MoveToEnd()
 	return true
 }
 
 func (e *editor) canBrowseHistory() bool {
+	// We only take over arrow keys when there's at least one history entry and
+	// the textarea is a single line (multi-line inputs retain normal movement).
 	return e.history != nil &&
 		len(e.history.Messages) > 0 &&
 		e.textarea.LineCount() == 1
@@ -210,8 +229,10 @@ func (e *editor) beginHistoryBrowse() {
 	if e.history == nil {
 		return
 	}
+	// Capture the in-progress text so we can restore it after browsing.
 	e.draftInput = e.textarea.Value()
 	e.historyBrowsing = true
+	// Start from the newest entry so the first "up" pulls the latest command.
 	e.moveHistoryCursorToLatest()
 }
 
@@ -234,6 +255,8 @@ func (e *editor) moveHistoryCursorToLatest() {
 	if e.history == nil {
 		return
 	}
+	// Advance until Next returns empty, which positions the cursor just after
+	// the most recent saved command.
 	for e.history.Next() != "" {
 	}
 }
