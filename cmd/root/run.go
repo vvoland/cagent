@@ -417,7 +417,7 @@ func runWithoutTUI(ctx context.Context, agentFilename string, rt runtime.Runtime
 		sess.AddMessage(createUserMessageWithAttachment(agentFilename, messageText, finalAttachPath))
 
 		firstLoop := true
-		lastAgent := rt.CurrentAgent().Name()
+		lastAgent := rt.CurrentAgentName()
 		llmIsTyping := false
 		reasoningStarted := false // Track if we've printed "Thinking:" prefix
 		var lastConfirmedToolCallID string

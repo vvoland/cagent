@@ -610,11 +610,11 @@ func TestGetTools_WarningHandling(t *testing.T) {
 			sessionSpan := trace.SpanFromContext(t.Context())
 
 			// First call
-			tools1, err := rt.(*runtime).getTools(t.Context(), root, sessionSpan, events)
+			tools1, err := rt.getTools(t.Context(), root, sessionSpan, events)
 			require.NoError(t, err)
 			require.Len(t, tools1, tt.wantToolCount)
 
-			rt.(*runtime).emitAgentWarnings(root, events)
+			rt.emitAgentWarnings(root, events)
 			evs := collectEvents(events)
 			require.Equal(t, tt.wantWarning, hasWarningEvent(evs), "warning event mismatch on first call")
 		})
@@ -648,7 +648,7 @@ func TestProcessToolCalls_UnknownTool_NoToolResultMessage(t *testing.T) {
 	require.NoError(t, err)
 
 	// Register default tools (contains only transfer_task) to ensure unknown tool isn't matched
-	rt.(*runtime).registerDefaultTools()
+	rt.registerDefaultTools()
 
 	sess := session.New(session.WithUserMessage("", "Start"))
 
@@ -662,7 +662,7 @@ func TestProcessToolCalls_UnknownTool_NoToolResultMessage(t *testing.T) {
 	events := make(chan Event, 10)
 
 	// No agentTools provided and runtime toolMap doesn't have this tool name
-	rt.(*runtime).processToolCalls(t.Context(), sess, calls, nil, events)
+	rt.processToolCalls(t.Context(), sess, calls, nil, events)
 
 	// Drain events channel
 	close(events)
