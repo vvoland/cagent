@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"os/exec"
-	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea/v2"
@@ -51,45 +50,13 @@ func (a *App) Title() string {
 }
 
 // CurrentAgentCommands returns the commands for the active agent
-func (a *App) CurrentAgentCommands() map[string]string {
-	if localRuntime, ok := a.runtime.(*runtime.LocalRuntime); ok {
-		agent := localRuntime.CurrentAgent()
-		if agent == nil {
-			return nil
-		}
-
-		return agent.Commands()
-	}
-
-	// TODO(dga): not properly implemented for remote agents
-	return map[string]string{}
+func (a *App) CurrentAgentCommands(ctx context.Context) map[string]string {
+	return a.runtime.CurrentAgentCommands(ctx)
 }
 
 // ResolveCommand converts /command to its prompt text
-func (a *App) ResolveCommand(input string) string {
-	if !strings.HasPrefix(input, "/") {
-		return input
-	}
-
-	trimmed := strings.TrimSpace(input)
-	parts := strings.Fields(trimmed)
-	if len(parts) == 0 {
-		return input
-	}
-
-	cmdName := strings.TrimPrefix(parts[0], "/")
-	commands := a.CurrentAgentCommands()
-
-	if prompt, ok := commands[cmdName]; ok {
-		// If there are additional arguments, append them to the prompt
-		if len(parts) > 1 {
-			args := strings.Join(parts[1:], " ")
-			return prompt + " " + args
-		}
-		return prompt
-	}
-
-	return input
+func (a *App) ResolveCommand(ctx context.Context, userInput string) string {
+	return runtime.ResolveCommand(ctx, a.runtime, userInput)
 }
 
 // Run one agent loop

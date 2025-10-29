@@ -109,7 +109,7 @@
           }
         },
         "commands": {
-          "description": "Named prompts for quick-start commands used with --command/-c",
+          "description": "Named prompts for /commands",
           "oneOf": [
             {
               "type": "object",

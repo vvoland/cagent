@@ -96,7 +96,7 @@ During CLI sessions, you can use special commands:
 | `add_date`             | boolean      | Add current date to context                                     | ✗        |
 | `add_environment_info` | boolean      | Add information about the environment (working dir, OS, git...) | ✗        |
 | `max_iterations`       | int          | Specifies how many times the agent can loop when using tools    | ✗        |
-| `commands`             | object/array | Named prompts for quick-start commands (used with `--command`)  | ✗        |
+| `commands`             | object/array | Named prompts for /commands                                     | ✗        |
 
 #### Example
 
@@ -118,7 +118,6 @@ agents:
 
 ### Running with named commands
 
-- Use `--command` (or `-c`) to send a predefined prompt from the agent config as the first message.
 - Example YAML forms supported:
 
 ```yaml
@@ -136,8 +135,8 @@ commands:
 Run:
 
 ```bash
-cagent run ./agent.yaml -c df
-cagent run ./agent.yaml --command ls
+cagent run ./agent.yaml /df
+cagent run ./agent.yaml /ls
 ```
 
 ### Model Properties
