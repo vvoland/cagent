@@ -24,6 +24,10 @@ func NewAPICmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			telemetry.TrackCommand("api", args)
+
+			// Make sure no question is ever asked to the user in api mode.
+			os.Stdin = nil
+
 			return runHTTP(cmd, args)
 		},
 	}
