@@ -645,15 +645,20 @@ func runUserCommand(userInput string, sess *session.Session, rt runtime.Runtime,
 		// Process events and show the summary
 		close(events)
 		summaryGenerated := false
+		hasWarning := false
 		for event := range events {
-			if summaryEvent, ok := event.(*runtime.SessionSummaryEvent); ok {
+			switch e := event.(type) {
+			case *runtime.SessionSummaryEvent:
 				fmt.Printf("%s\n", yellow("Summary generated and added to session"))
-				fmt.Printf("Summary: %s\n", summaryEvent.Summary)
+				fmt.Printf("Summary: %s\n", e.Summary)
 				summaryGenerated = true
+			case *runtime.WarningEvent:
+				fmt.Printf("%s\n", yellow("Warning: "+e.Message))
+				hasWarning = true
 			}
 		}
 
-		if !summaryGenerated {
+		if !summaryGenerated && !hasWarning {
 			fmt.Printf("%s\n", yellow("No summary generated"))
 		}
 

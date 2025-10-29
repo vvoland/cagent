@@ -1046,6 +1046,13 @@ func (r *runtime) Summarize(ctx context.Context, sess *session.Session, events c
 	// Create conversation history for summarization
 	var conversationHistory strings.Builder
 	messages := sess.GetAllMessages()
+
+	// Check if session is empty
+	if len(messages) == 0 {
+		slog.Debug("Session is empty, nothing to summarize", "session_id", sess.ID)
+		events <- &WarningEvent{Message: "Session is empty. Start a conversation before compacting."}
+		return
+	}
 	for i := range messages {
 		role := "Unknown"
 		switch messages[i].Message.Role {
