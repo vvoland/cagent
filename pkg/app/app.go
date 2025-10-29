@@ -149,6 +149,7 @@ func (a *App) CompactSession() {
 	if a.runtime != nil && a.session != nil {
 		events := make(chan runtime.Event, 100)
 		a.runtime.Summarize(context.Background(), a.session, events)
+		close(events)
 		for event := range events {
 			a.events <- event
 		}
