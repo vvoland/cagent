@@ -67,6 +67,8 @@ type chatPage struct {
 	app   *app.App
 
 	history *history.History
+	// Track the most recently stored command to prevent duplicate entries.
+	lastHistoryEntry string
 
 	// Cached layout dimensions
 	chatHeight  int
@@ -95,15 +97,17 @@ func defaultKeyMap() KeyMap {
 
 // New creates a new chat page
 func New(a *app.App) Page {
+	// Load persisted command history shared with the editor.
 	historyStore, err := history.New()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to initialize command history: %v\n", err)
 	}
 
 	ed := editor.New()
+	// Give the editor access to the shared history for navigation.
 	ed.SetHistory(historyStore)
 
-	return &chatPage{
+	page := &chatPage{
 		title:        a.Title(),
 		sidebar:      sidebar.New(),
 		messages:     messages.New(a),
@@ -113,6 +117,12 @@ func New(a *app.App) Page {
 		keyMap:       defaultKeyMap(),
 		history:      historyStore,
 	}
+
+	if historyStore != nil && len(historyStore.Messages) > 0 {
+		page.lastHistoryEntry = historyStore.Messages[len(historyStore.Messages)-1]
+	}
+
+	return page
 }
 
 // Init initializes the chat page
@@ -192,9 +202,12 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return p, cmd
 
 	case editor.SendMsg:
-		if p.history != nil {
+		// Persist every submitted command before handing it to the runtime.
+		if p.history != nil && msg.Content != p.lastHistoryEntry {
 			if err := p.history.Add(msg.Content); err != nil {
 				fmt.Fprintf(os.Stderr, "failed to persist command history: %v\n", err)
+			} else {
+				p.lastHistoryEntry = msg.Content
 			}
 		}
 		cmd := p.processMessage(msg.Content)

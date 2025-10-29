@@ -35,8 +35,8 @@ type editor struct {
 	working  bool
 
 	history         *history.History
-	historyDraft    string
-	browsingHistory bool
+	draftInput      string
+	historyBrowsing bool
 }
 
 // New creates a new editor component
@@ -76,24 +76,28 @@ func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			value := e.textarea.Value()
 			if value != "" && !e.working {
+				// Treat enter as send: clear input and exit history browse state.
 				e.textarea.Reset()
-				e.resetHistoryNavigation()
+				e.endHistoryBrowse()
 				return e, core.CmdHandler(SendMsg{Content: value})
 			}
 			return e, nil
 		case "ctrl+c":
 			return e, tea.Quit
 		case "up":
+			// Step backward through command history when browsing.
 			if e.navigateHistory(true) {
 				return e, nil
 			}
 		case "down":
+			// Step forward through command history when browsing.
 			if e.navigateHistory(false) {
 				return e, nil
 			}
 		default:
-			if e.browsingHistory {
-				e.resetHistoryNavigation()
+			// Any other key exits history browsing so input becomes fresh text.
+			if e.historyBrowsing {
+				e.endHistoryBrowse()
 			}
 		}
 	}
@@ -164,32 +168,24 @@ func (e *editor) SetHistory(history *history.History) {
 }
 
 func (e *editor) navigateHistory(previous bool) bool {
-	if e.history == nil || len(e.history.Messages) == 0 {
+	if !e.canBrowseHistory() {
 		return false
 	}
 
-	// Only trigger history navigation when the input is a single line.
-	if e.textarea.LineCount() > 1 {
-		return false
-	}
-
-	if !e.browsingHistory {
-		e.historyDraft = e.textarea.Value()
-		e.browsingHistory = true
-		// Ensure navigation starts from the most recent entry.
-		for e.history.Next() != "" {
-		}
+	if !e.historyBrowsing {
+		e.beginHistoryBrowse()
 	}
 
 	var entry string
 	if previous {
+		// Up arrow walks toward older commands.
 		entry = e.history.Previous()
 	} else {
+		// Down arrow walks toward newer commands.
 		entry = e.history.Next()
 		if entry == "" {
-			e.textarea.SetValue(e.historyDraft)
-			e.textarea.MoveToEnd()
-			e.resetHistoryNavigation()
+			// Restore the draft when we step past the newest entry.
+			e.restoreDraftFromHistory()
 			return true
 		}
 	}
@@ -198,14 +194,43 @@ func (e *editor) navigateHistory(previous bool) bool {
 		return true
 	}
 
+	// Replace the input with the selected history entry.
 	e.textarea.SetValue(entry)
 	e.textarea.MoveToEnd()
 	return true
 }
 
-func (e *editor) resetHistoryNavigation() {
-	e.browsingHistory = false
-	e.historyDraft = ""
+func (e *editor) canBrowseHistory() bool {
+	return e.history != nil &&
+		len(e.history.Messages) > 0 &&
+		e.textarea.LineCount() == 1
+}
+
+func (e *editor) beginHistoryBrowse() {
+	if e.history == nil {
+		return
+	}
+	e.draftInput = e.textarea.Value()
+	e.historyBrowsing = true
+	e.moveHistoryCursorToLatest()
+}
+
+func (e *editor) restoreDraftFromHistory() {
+	e.textarea.SetValue(e.draftInput)
+	e.textarea.MoveToEnd()
+	e.endHistoryBrowse()
+}
+
+func (e *editor) endHistoryBrowse() {
+	e.historyBrowsing = false
+	e.draftInput = ""
+	if e.history == nil {
+		return
+	}
+	e.moveHistoryCursorToLatest()
+}
+
+func (e *editor) moveHistoryCursorToLatest() {
 	if e.history == nil {
 		return
 	}
