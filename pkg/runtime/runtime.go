@@ -65,6 +65,8 @@ type ElicitationRequestHandler func(ctx context.Context, message string, schema 
 type Runtime interface {
 	// CurrentAgentName returns the name of the currently active agent
 	CurrentAgentName() string
+	// CurrentAgentCommands returns the commands for the active agent
+	CurrentAgentCommands(ctx context.Context) map[string]string
 	// RunStream starts the agent's interaction loop and returns a channel of events
 	RunStream(ctx context.Context, sess *session.Session) <-chan Event
 	// Run starts the agent's interaction loop and returns the final messages
@@ -174,6 +176,10 @@ func New(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 
 func (r *LocalRuntime) CurrentAgentName() string {
 	return r.currentAgent
+}
+
+func (r *LocalRuntime) CurrentAgentCommands(context.Context) map[string]string {
+	return r.CurrentAgent().Commands()
 }
 
 // CurrentAgent returns the current agent

@@ -62,6 +62,21 @@ func (r *RemoteRuntime) CurrentAgentName() string {
 	return r.currentAgent
 }
 
+func (r *RemoteRuntime) CurrentAgentCommands(ctx context.Context) map[string]string {
+	cfg, err := r.client.GetAgent(ctx, r.agentFilename)
+	if err != nil {
+		return map[string]string{}
+	}
+
+	for agentName, agent := range cfg.Agents {
+		if agentName == r.currentAgent {
+			return agent.Commands
+		}
+	}
+
+	return map[string]string{}
+}
+
 // RunStream starts the agent's interaction loop and returns a channel of events
 func (r *RemoteRuntime) RunStream(ctx context.Context, sess *session.Session) <-chan Event {
 	slog.Debug("Starting remote runtime stream", "agent", r.currentAgent, "session_id", r.sessionID)

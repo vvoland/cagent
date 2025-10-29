@@ -96,7 +96,7 @@ func New(a *app.App) Page {
 		title:        a.Title(),
 		sidebar:      sidebar.New(),
 		messages:     messages.New(a),
-		editor:       editor.New(a.ResolveCommand),
+		editor:       editor.New(),
 		focusedPanel: PanelEditor,
 		app:          a,
 		keyMap:       defaultKeyMap(),
@@ -477,9 +477,12 @@ func (p *chatPage) processMessage(content string) tea.Cmd {
 	var ctx context.Context
 	ctx, p.msgCancel = context.WithCancel(context.Background())
 
-	if strings.HasPrefix(content, "!") {
+	switch {
+	case strings.HasPrefix(content, "!"):
 		p.app.RunBangCommand(ctx, content[1:])
-	} else {
+	case strings.HasPrefix(content, "/"):
+		p.app.Run(ctx, p.msgCancel, p.app.ResolveCommand(ctx, content))
+	default:
 		p.app.Run(ctx, p.msgCancel, content)
 	}
 

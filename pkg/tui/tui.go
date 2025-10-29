@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"time"
 
 	"github.com/charmbracelet/bubbles/v2/help"
@@ -226,7 +227,7 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
 		return tea.Quit
 	case key.Matches(msg, a.keyMap.CommandPalette):
 		// Open command palette
-		categories := a.buildCommandCategories()
+		categories := a.buildCommandCategories(context.Background())
 		return core.CmdHandler(dialog.OpenDialogMsg{
 			Model: dialog.NewCommandPaletteDialog(categories),
 		})
@@ -320,7 +321,7 @@ func toFullscreenView(content string) tea.View {
 }
 
 // buildCommandCategories builds the list of command categories for the command palette
-func (a *appModel) buildCommandCategories() []dialog.CommandCategory {
+func (a *appModel) buildCommandCategories(ctx context.Context) []dialog.CommandCategory {
 	categories := []dialog.CommandCategory{
 		{
 			Name: "Session",
@@ -372,7 +373,7 @@ func (a *appModel) buildCommandCategories() []dialog.CommandCategory {
 	}
 
 	// Add agent commands if available
-	agentCommands := a.application.CurrentAgentCommands()
+	agentCommands := a.application.CurrentAgentCommands(ctx)
 	if len(agentCommands) > 0 {
 		commands := make([]dialog.Command, 0, len(agentCommands))
 		for name, prompt := range agentCommands {
