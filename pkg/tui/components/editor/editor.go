@@ -31,7 +31,7 @@ type Editor interface {
 	layout.Sizeable
 	layout.Focusable
 	layout.Help
-	SetHistory(history *history.History)
+	SetHistory(hist *history.History)
 	SetWorking(working bool) tea.Cmd
 }
 
@@ -43,7 +43,7 @@ type editor struct {
 	working  bool
 
 	// history is the shared command store backing up/down navigation.
-	history *history.History
+	hist *history.History
 	// draftInput holds the user's unsent text while they browse history.
 	draftInput string
 	// historyBrowsing marks that we're currently showing history entries.
@@ -174,8 +174,8 @@ func (e *editor) SetWorking(working bool) tea.Cmd {
 	return nil
 }
 
-func (e *editor) SetHistory(history *history.History) {
-	e.history = history
+func (e *editor) SetHistory(hist *history.History) {
+	e.hist = hist
 }
 
 func (e *editor) navigateHistory(direction historyNavigation) bool {
@@ -193,10 +193,10 @@ func (e *editor) navigateHistory(direction historyNavigation) bool {
 	switch direction {
 	case NAVIGATEPREVIOUS:
 		// Up arrow walks toward older commands.
-		entry = e.history.Previous()
+		entry = e.hist.Previous()
 	case NAVIGATENEXT:
 		// Down arrow walks toward newer commands.
-		entry = e.history.Next()
+		entry = e.hist.Next()
 		if entry == "" {
 			// Restore the draft when we step past the newest entry.
 			e.restoreDraftFromHistory()
@@ -220,13 +220,13 @@ func (e *editor) navigateHistory(direction historyNavigation) bool {
 func (e *editor) canBrowseHistory() bool {
 	// We only take over arrow keys when there's at least one history entry and
 	// the textarea is a single line (multi-line inputs retain normal movement).
-	return e.history != nil &&
-		len(e.history.Messages) > 0 &&
+	return e.hist != nil &&
+		len(e.hist.Messages) > 0 &&
 		e.textarea.LineCount() == 1
 }
 
 func (e *editor) beginHistoryBrowse() {
-	if e.history == nil {
+	if e.hist == nil {
 		return
 	}
 	// Capture the in-progress text so we can restore it after browsing.
@@ -245,18 +245,18 @@ func (e *editor) restoreDraftFromHistory() {
 func (e *editor) endHistoryBrowse() {
 	e.historyBrowsing = false
 	e.draftInput = ""
-	if e.history == nil {
+	if e.hist == nil {
 		return
 	}
 	e.moveHistoryCursorToLatest()
 }
 
 func (e *editor) moveHistoryCursorToLatest() {
-	if e.history == nil {
+	if e.hist == nil {
 		return
 	}
 	// Advance until Next returns empty, which positions the cursor just after
 	// the most recent saved command.
-	for e.history.Next() != "" {
+	for e.hist.Next() != "" {
 	}
 }
