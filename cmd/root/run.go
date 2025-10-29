@@ -279,7 +279,7 @@ func doRunCommand(ctx context.Context, args []string, exec bool) error {
 		}
 
 		remoteRt, err := runtime.NewRemoteRuntime(remoteClient,
-			runtime.WithRemoteCurrentAgent("root"),
+			runtime.WithRemoteCurrentAgent(agentName),
 			runtime.WithRemoteAgentFilename(args[0]),
 		)
 		if err != nil {
