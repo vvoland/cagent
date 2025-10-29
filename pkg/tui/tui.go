@@ -321,7 +321,7 @@ func toFullscreenView(content string) tea.View {
 
 // buildCommandCategories builds the list of command categories for the command palette
 func (a *appModel) buildCommandCategories() []dialog.CommandCategory {
-	return []dialog.CommandCategory{
+	categories := []dialog.CommandCategory{
 		{
 			Name: "Session",
 			Commands: []dialog.Command{
@@ -370,4 +370,38 @@ func (a *appModel) buildCommandCategories() []dialog.CommandCategory {
 			},
 		},
 	}
+
+	// Add agent commands if available
+	agentCommands := a.application.CurrentAgentCommands()
+	if len(agentCommands) > 0 {
+		commands := make([]dialog.Command, 0, len(agentCommands))
+		for name, prompt := range agentCommands {
+			cmdText := "/" + name
+
+			// Truncate long descriptions to fit on one line
+			description := prompt
+			if len(description) > 60 {
+				description = description[:57] + "..."
+			}
+
+			// Capture cmdText in closure properly
+			commandText := cmdText
+			commands = append(commands, dialog.Command{
+				ID:          "agent.command." + name,
+				Label:       commandText,
+				Description: description,
+				Category:    "Agent Commands",
+				Execute: func() tea.Cmd {
+					return a.chatPage.ExecuteCommand(commandText)
+				},
+			})
+		}
+
+		categories = append(categories, dialog.CommandCategory{
+			Name:     "Agent Commands",
+			Commands: commands,
+		})
+	}
+
+	return categories
 }
