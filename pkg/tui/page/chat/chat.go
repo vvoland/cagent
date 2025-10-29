@@ -96,7 +96,7 @@ func New(a *app.App) Page {
 		title:        a.Title(),
 		sidebar:      sidebar.New(),
 		messages:     messages.New(a),
-		editor:       editor.New(),
+		editor:       editor.New(a.ResolveCommand),
 		focusedPanel: PanelEditor,
 		app:          a,
 		keyMap:       defaultKeyMap(),
@@ -180,9 +180,7 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return p, cmd
 
 	case editor.SendMsg:
-		// Resolve agent commands (if any)
-		content := p.app.ResolveCommand(msg.Content)
-		cmd := p.processMessage(content)
+		cmd := p.processMessage(msg.Content)
 		return p, cmd
 
 	case messages.StreamCancelledMsg:
