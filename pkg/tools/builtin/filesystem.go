@@ -976,6 +976,12 @@ func (t *FilesystemTool) handleWriteFile(ctx context.Context, toolCall tools.Too
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
 	}
 
+	// Create parent directory structure if it doesn't exist
+	dir := filepath.Dir(args.Path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return &tools.ToolCallResult{Output: fmt.Sprintf("Error creating directory structure: %s", err)}, nil
+	}
+
 	if err := os.WriteFile(args.Path, []byte(args.Content), 0o644); err != nil {
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error writing file: %s", err)}, nil
 	}
