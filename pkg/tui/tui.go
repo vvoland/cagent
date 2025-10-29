@@ -227,7 +227,9 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, a.keyMap.CommandPalette):
 		// Open command palette
 		categories := a.buildCommandCategories()
-		return dialog.OpenCommandPalette(categories)
+		return core.CmdHandler(dialog.OpenDialogMsg{
+			Model: dialog.NewCommandPaletteDialog(categories),
+		})
 	default:
 		updated, cmd := a.chatPage.Update(msg)
 		a.chatPage = updated.(chatpage.Page)
