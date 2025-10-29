@@ -283,11 +283,8 @@ func (d *commandPaletteDialog) Position() (row, col int) {
 
 	maxHeight := min(d.height*70/100, 30)
 
-	// Estimate dialog height
-	dialogHeight := min(8+len(d.filtered), maxHeight)
-
 	// Center the dialog
-	row = max(0, (d.height-dialogHeight)/2)
+	row = max(0, (d.height-maxHeight)/2)
 	col = max(0, (d.width-dialogWidth)/2)
 	return row, col
 }
@@ -297,11 +294,4 @@ func (d *commandPaletteDialog) SetSize(width, height int) tea.Cmd {
 	d.width = width
 	d.height = height
 	return nil
-}
-
-// OpenCommandPalette returns a command to open the command palette
-func OpenCommandPalette(categories []CommandCategory) tea.Cmd {
-	return core.CmdHandler(OpenDialogMsg{
-		Model: NewCommandPaletteDialog(categories),
-	})
 }
