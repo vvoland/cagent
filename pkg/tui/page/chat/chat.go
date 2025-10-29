@@ -17,6 +17,7 @@ import (
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/tui/components/editor"
 	"github.com/docker/cagent/pkg/tui/components/messages"
+	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/components/sidebar"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
@@ -522,17 +523,15 @@ func (p *chatPage) processMessage(content string) tea.Cmd {
 func (p *chatPage) CopySessionToClipboard() tea.Cmd {
 	transcript := p.messages.PlainTextTranscript()
 	if transcript == "" {
-		cmd := p.messages.AddSystemMessage("Conversation is empty; nothing copied.")
-		return tea.Batch(cmd, p.messages.ScrollToBottom())
+		cmd := core.CmdHandler(notification.ShowMsg{Text: "Conversation is empty; nothing copied."})
+		return cmd
 	}
 
 	if err := clipboard.WriteAll(transcript); err != nil {
-		cmd := p.messages.AddSystemMessage("Failed to copy conversation: " + err.Error())
-		return tea.Batch(cmd, p.messages.ScrollToBottom())
+		return core.CmdHandler(notification.ShowMsg{Text: "Failed to copy conversation: " + err.Error()})
 	}
 
-	cmd := p.messages.AddSystemMessage("Conversation copied to clipboard.")
-	return tea.Batch(cmd, p.messages.ScrollToBottom())
+	return core.CmdHandler(notification.ShowMsg{Text: "Conversation copied to clipboard."})
 }
 
 // CompactSession generates a summary and compacts the session history

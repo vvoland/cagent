@@ -16,7 +16,6 @@ const (
 	MessageTypeCancelled
 	MessageTypeToolCall
 	MessageTypeToolResult
-	MessageTypeSystem
 	MessageTypeWarning
 )
 

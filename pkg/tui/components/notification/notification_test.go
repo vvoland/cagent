@@ -9,8 +9,7 @@ import (
 func TestNotification_InitialState(t *testing.T) {
 	n := New()
 
-	require.Equal(t, StateHidden, n.state)
-	require.Empty(t, n.text)
+	require.Empty(t, n.items)
 	require.False(t, n.IsVisible())
 }
 
@@ -19,8 +18,8 @@ func TestNotification_Show(t *testing.T) {
 
 	updated, _ := n.Update(ShowMsg{Text: "Test notification"})
 
-	require.Equal(t, StateVisible, updated.state)
-	require.Equal(t, "Test notification", updated.text)
+	require.Len(t, updated.items, 1)
+	require.Equal(t, "Test notification", updated.items[0].Text)
 	require.True(t, updated.IsVisible())
 	require.NotEmpty(t, updated.View())
 }
@@ -29,10 +28,11 @@ func TestNotification_Hide(t *testing.T) {
 	n := New()
 
 	updated, _ := n.Update(ShowMsg{Text: "Test"})
+	require.Len(t, updated.items, 1)
+
 	updated, _ = updated.Update(HideMsg{})
 
-	require.Equal(t, StateHidden, updated.state)
-	require.Empty(t, updated.text)
+	require.Empty(t, updated.items)
 	require.False(t, updated.IsVisible())
 	require.Empty(t, updated.View())
 }

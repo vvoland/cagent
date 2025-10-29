@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/charmbracelet/bubbles/v2/help"
@@ -12,7 +13,6 @@ import (
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/evaluation"
 	"github.com/docker/cagent/pkg/runtime"
-	"github.com/docker/cagent/pkg/tui/components/messages"
 	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/components/statusbar"
 	"github.com/docker/cagent/pkg/tui/core"
@@ -299,12 +299,8 @@ func (a *appModel) View() tea.View {
 			allLayers = append(allLayers, dialogLayers...)
 		}
 
-		// Add notification layer (should be on top)
 		if a.notification.IsVisible() {
-			notificationLayer := a.notification.GetLayer()
-			if notificationLayer != nil {
-				allLayers = append(allLayers, notificationLayer)
-			}
+			allLayers = append(allLayers, a.notification.GetLayer())
 		}
 
 		canvas := lipgloss.NewCanvas(allLayers...)
@@ -365,7 +361,7 @@ func (a *appModel) buildCommandCategories(ctx context.Context) []dialog.CommandC
 					Category:    "Session",
 					Execute: func() tea.Cmd {
 						evalFile, _ := evaluation.Save(a.application.Session())
-						return core.CmdHandler(messages.EvalSavedMsg{File: evalFile})
+						return core.CmdHandler(notification.ShowMsg{Text: fmt.Sprintf("Eval saved to file %s", evalFile)})
 					},
 				},
 			},

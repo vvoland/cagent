@@ -1,6 +1,7 @@
 package notification
 
 import (
+	"sync/atomic"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea/v2"
@@ -12,33 +13,35 @@ import (
 const (
 	defaultDuration     = 3 * time.Second
 	notificationPadding = 2
-	maxWidth            = 50
 )
+
+var nextID atomic.Uint64
 
 type ShowMsg struct {
 	Text string
 }
 
-type HideMsg struct{}
+type HideMsg struct {
+	ID uint64 // If 0, hides all notifications (backward compatibility)
+}
 
-type State int
+// notificationItem represents a single notification
+type notificationItem struct {
+	ID       uint64
+	Text     string
+	TimerCmd tea.Cmd
+}
 
-const (
-	StateHidden State = iota
-	StateVisible
-)
-
-// Notification represents a notification component that displays
-// a message in the bottom right corner of the screen
+// Notification represents a notification manager that displays
+// multiple stacked messages in the bottom right corner of the screen
 type Notification struct {
 	width, height int
-	text          string
-	state         State
+	items         []notificationItem
 }
 
 func New() Notification {
 	return Notification{
-		state: StateHidden,
+		items: make([]notificationItem, 0),
 	}
 }
 
@@ -55,15 +58,33 @@ func (n *Notification) Update(msg tea.Msg) (Notification, tea.Cmd) {
 		return *n, nil
 
 	case ShowMsg:
-		n.text = msg.Text
-		n.state = StateVisible
-		return *n, tea.Tick(defaultDuration, func(t time.Time) tea.Msg {
-			return HideMsg{}
+		id := nextID.Add(1)
+		item := notificationItem{
+			ID:   id,
+			Text: msg.Text,
+		}
+
+		item.TimerCmd = tea.Tick(defaultDuration, func(t time.Time) tea.Msg {
+			return HideMsg{ID: id}
 		})
 
+		n.items = append([]notificationItem{item}, n.items...)
+
+		return *n, item.TimerCmd
+
 	case HideMsg:
-		n.state = StateHidden
-		n.text = ""
+		if msg.ID == 0 {
+			n.items = nil
+			return *n, nil
+		}
+
+		newItems := make([]notificationItem, 0, len(n.items))
+		for _, item := range n.items {
+			if item.ID != msg.ID {
+				newItems = append(newItems, item)
+			}
+		}
+		n.items = newItems
 		return *n, nil
 	}
 
@@ -71,18 +92,22 @@ func (n *Notification) Update(msg tea.Msg) (Notification, tea.Cmd) {
 }
 
 func (n *Notification) View() string {
-	if n.state == StateHidden || n.text == "" {
+	if len(n.items) == 0 {
 		return ""
 	}
 
-	return styles.
-		NotificationStyle.
-		MaxWidth(maxWidth).
-		Render(n.text)
+	var views []string
+	for i := len(n.items) - 1; i >= 0; i-- {
+		item := n.items[i]
+		view := styles.NotificationStyle.Render(item.Text)
+		views = append(views, view)
+	}
+
+	return lipgloss.JoinVertical(lipgloss.Right, views...)
 }
 
 func (n *Notification) GetLayer() *lipgloss.Layer {
-	if n.state == StateHidden || n.text == "" {
+	if len(n.items) == 0 {
 		return nil
 	}
 
@@ -105,5 +130,5 @@ func (n *Notification) position() (row, col int) {
 }
 
 func (n *Notification) IsVisible() bool {
-	return n.state != StateHidden
+	return len(n.items) > 0
 }
