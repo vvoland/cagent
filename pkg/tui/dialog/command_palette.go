@@ -246,7 +246,6 @@ func (d *commandPaletteDialog) View() string {
 	}
 
 	help := styles.DialogHelpStyle.
-		MarginTop(1).
 		Width(contentWidth).
 		Render("↑/↓ navigate • enter execute • esc close")
 

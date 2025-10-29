@@ -110,7 +110,7 @@ var (
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(BorderSecondary).
 			Foreground(TextPrimary).
-			Padding(2, 3).
+			Padding(1, 2).
 			Align(lipgloss.Left)
 
 	DialogWarningStyle = BaseStyle.
