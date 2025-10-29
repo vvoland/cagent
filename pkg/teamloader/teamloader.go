@@ -438,6 +438,7 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 
 		wrapped := WithToolsFilter(tool, toolset.Tools...)
 		wrapped = WithInstructions(wrapped, toolset.Instruction)
+		wrapped = WithToon(wrapped, toolset.Toon)
 
 		toolSets = append(toolSets, wrapped)
 	}
