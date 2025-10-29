@@ -457,6 +457,37 @@ func TestFilesystemTool_WriteFile(t *testing.T) {
 	assert.Contains(t, result.Output, "not within allowed directories")
 }
 
+func TestFilesystemTool_WriteFile_NestedDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+	tool := NewFilesystemTool([]string{tmpDir})
+
+	handler := getToolHandler(t, tool, "write_file")
+
+	// Write to a nested path that doesn't exist
+	nestedFile := filepath.Join(tmpDir, "a", "b", "c", "test.txt")
+	content := "Hello, nested world!"
+
+	args := map[string]any{
+		"path":    nestedFile,
+		"content": content,
+	}
+	result := callHandler(t, handler, args)
+
+	// Verify success
+	assert.Contains(t, result.Output, "File written successfully")
+	assert.FileExists(t, nestedFile)
+
+	// Verify content
+	writtenContent, err := os.ReadFile(nestedFile)
+	require.NoError(t, err)
+	assert.Equal(t, content, string(writtenContent))
+
+	// Verify directories were created
+	assert.DirExists(t, filepath.Join(tmpDir, "a"))
+	assert.DirExists(t, filepath.Join(tmpDir, "a", "b"))
+	assert.DirExists(t, filepath.Join(tmpDir, "a", "b", "c"))
+}
+
 func TestFilesystemTool_ReadFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	tool := NewFilesystemTool([]string{tmpDir})
