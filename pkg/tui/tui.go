@@ -299,12 +299,8 @@ func (a *appModel) View() tea.View {
 			allLayers = append(allLayers, dialogLayers...)
 		}
 
-		// Add notification layer (should be on top)
 		if a.notification.IsVisible() {
-			notificationLayer := a.notification.GetLayer()
-			if notificationLayer != nil {
-				allLayers = append(allLayers, notificationLayer)
-			}
+			allLayers = append(allLayers, a.notification.GetLayer())
 		}
 
 		canvas := lipgloss.NewCanvas(allLayers...)
