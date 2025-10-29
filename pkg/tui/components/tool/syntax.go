@@ -5,7 +5,6 @@ import (
 
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
-	chromastyles "github.com/alecthomas/chroma/v2/styles"
 	"github.com/aymanbagabas/go-udiff"
 	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/mattn/go-runewidth"
@@ -21,11 +20,7 @@ func syntaxHighlight(code, filePath string) []chromaToken {
 	}
 	lexer = chroma.Coalesce(lexer)
 
-	style := chromastyles.Get("monokai")
-	if style == nil {
-		style = chromastyles.Fallback
-	}
-
+	style := styles.ChromaStyle()
 	iterator, err := lexer.Tokenise(nil, code)
 	if err != nil {
 		return []chromaToken{{Text: code, Style: lipgloss.NewStyle()}}
@@ -57,13 +52,11 @@ func chromaToLipgloss(tokenType chroma.TokenType, style *chroma.Style) lipgloss.
 	lipStyle := lipgloss.NewStyle()
 
 	if entry.Colour.IsSet() {
-		color := entry.Colour.String()
-		lipStyle = lipStyle.Foreground(lipgloss.Color(color))
+		lipStyle = lipStyle.Foreground(lipgloss.Color(entry.Colour.String()))
 	}
 
 	if entry.Background.IsSet() {
-		color := entry.Background.String()
-		lipStyle = lipStyle.Background(lipgloss.Color(color))
+		lipStyle = lipStyle.Background(lipgloss.Color(entry.Background.String()))
 	}
 
 	if entry.Bold == chroma.Yes {

@@ -1,50 +1,123 @@
 package styles
 
 import (
+	"strings"
+
+	"github.com/alecthomas/chroma/v2"
 	"github.com/charmbracelet/bubbles/v2/textarea"
+	"github.com/charmbracelet/glamour/v2/ansi"
 	"github.com/charmbracelet/lipgloss/v2"
+)
+
+const (
+	defaultListIndent = 2
+	defaultMargin     = 2
+)
+
+// Color hex values (used throughout the file)
+const (
+	// Primary colors
+	ColorAccentBlue      = "#7AA2F7" // Soft blue
+	ColorMutedBlue       = "#565F89" // Dark blue-grey
+	ColorBackgroundAlt   = "#24283B" // Slightly lighter background
+	ColorBorderSecondary = "#414868" // Dark blue-grey
+	ColorTextPrimary     = "#C0CAF5" // Light blue-white
+	ColorTextSecondary   = "#9AA5CE" // Medium blue-grey
+	ColorSuccessGreen    = "#9ECE6A" // Soft green
+	ColorErrorRed        = "#F7768E" // Soft red
+	ColorWarningYellow   = "#E0AF68" // Soft yellow
+
+	// Background colors
+	ColorBackground = "#1A1B26" // Dark blue-black
+
+	// Status colors
+	ColorInfoCyan = "#7DCFFF" // Soft cyan
+
+	// Diff colors
+	ColorDiffAddBg    = "#20303B" // Dark blue-green
+	ColorDiffRemoveBg = "#3C2A2A" // Dark red-brown
+
+	// Interactive element colors
+	ColorSelected = "#364A82" // Dark blue for selected items
+	ColorHover    = "#2D3F5F" // Slightly lighter than selected
+)
+
+// Chroma syntax highlighting colors (Monokai theme)
+const (
+	ChromaErrorFgColor             = "#F1F1F1"
+	ChromaSuccessColor             = "#00D787"
+	ChromaErrorBgColor             = "#F05B5B"
+	ChromaCommentColor             = "#676767"
+	ChromaCommentPreprocColor      = "#FF875F"
+	ChromaKeywordColor             = "#00AAFF"
+	ChromaKeywordReservedColor     = "#FF5FD2"
+	ChromaKeywordNamespaceColor    = "#FF5F87"
+	ChromaKeywordTypeColor         = "#6E6ED8"
+	ChromaOperatorColor            = "#EF8080"
+	ChromaPunctuationColor         = "#E8E8A8"
+	ChromaNameBuiltinColor         = "#FF8EC7"
+	ChromaNameTagColor             = "#B083EA"
+	ChromaNameAttributeColor       = "#7A7AE6"
+	ChromaNameDecoratorColor       = "#FFFF87"
+	ChromaLiteralNumberColor       = "#6EEFC0"
+	ChromaLiteralStringColor       = "#C69669"
+	ChromaLiteralStringEscapeColor = "#AFFFD7"
+	ChromaGenericDeletedColor      = "#FD5B5B"
+	ChromaGenericSubheadingColor   = "#777777"
+	ChromaBackgroundColor          = "#373737"
+)
+
+// ANSI color codes (8-bit color codes)
+const (
+	ANSIColor252 = "252"
+	ANSIColor39  = "39"
+	ANSIColor63  = "63"
+	ANSIColor35  = "35"
+	ANSIColor212 = "212"
+	ANSIColor243 = "243"
+	ANSIColor244 = "244"
 )
 
 // Tokyo Night-inspired Color Palette
 var (
 	// Background colors
-	Background    = lipgloss.Color("#1a1b26") // Dark blue-black
-	BackgroundAlt = lipgloss.Color("#24283b") // Slightly lighter background
+	Background    = lipgloss.Color(ColorBackground)
+	BackgroundAlt = lipgloss.Color(ColorBackgroundAlt)
 
 	// Primary accent colors
-	Accent    = lipgloss.Color("#7aa2f7") // Soft blue
-	AccentDim = lipgloss.Color("#565f89") // Dimmed blue
+	Accent    = lipgloss.Color(ColorAccentBlue)
+	AccentDim = lipgloss.Color(ColorMutedBlue)
 
 	// Status colors - softer, more professional
-	Success = lipgloss.Color("#9ece6a") // Soft green
-	Error   = lipgloss.Color("#f7768e") // Soft red
-	Warning = lipgloss.Color("#e0af68") // Soft yellow
-	Info    = lipgloss.Color("#7dcfff") // Soft cyan
+	Success = lipgloss.Color(ColorSuccessGreen)
+	Error   = lipgloss.Color(ColorErrorRed)
+	Warning = lipgloss.Color(ColorWarningYellow)
+	Info    = lipgloss.Color(ColorInfoCyan)
 
 	// Text hierarchy
-	TextPrimary   = lipgloss.Color("#c0caf5") // Light blue-white
-	TextSecondary = lipgloss.Color("#9aa5ce") // Medium blue-grey
-	TextMuted     = lipgloss.Color("#565f89") // Dark blue-grey
-	TextSubtle    = lipgloss.Color("#414868") // Very dark blue-grey
+	TextPrimary   = lipgloss.Color(ColorTextPrimary)
+	TextSecondary = lipgloss.Color(ColorTextSecondary)
+	TextMuted     = lipgloss.Color(ColorMutedBlue)
+	TextSubtle    = lipgloss.Color(ColorBorderSecondary)
 
 	// Border colors
-	BorderPrimary   = lipgloss.Color("#7aa2f7") // Soft blue
-	BorderSecondary = lipgloss.Color("#414868") // Dark blue-grey
-	BorderMuted     = lipgloss.Color("#24283b") // Very dark blue
-	BorderWarning   = lipgloss.Color("#e0af68") // Soft yellow for warnings
-	BorderError     = lipgloss.Color("#f7768e") // Soft red for errors
+	BorderPrimary   = lipgloss.Color(ColorAccentBlue)
+	BorderSecondary = lipgloss.Color(ColorBorderSecondary)
+	BorderMuted     = lipgloss.Color(ColorBackgroundAlt)
+	BorderWarning   = lipgloss.Color(ColorWarningYellow)
+	BorderError     = lipgloss.Color(ColorErrorRed)
 
 	// Diff colors (matching glamour/markdown "dark" theme)
-	DiffAddBg    = lipgloss.Color("#20303b") // Dark blue-green
-	DiffRemoveBg = lipgloss.Color("#3c2a2a") // Dark red-brown
-	DiffAddFg    = lipgloss.Color("#9ece6a") // Soft green
-	DiffRemoveFg = lipgloss.Color("#f7768e") // Soft red
+	DiffAddBg    = lipgloss.Color(ColorDiffAddBg)
+	DiffRemoveBg = lipgloss.Color(ColorDiffRemoveBg)
+	DiffAddFg    = lipgloss.Color(ColorSuccessGreen)
+	DiffRemoveFg = lipgloss.Color(ColorErrorRed)
 
 	// Interactive element colors
-	Selected         = lipgloss.Color("#364a82") // Dark blue for selected items
-	SelectedFg       = lipgloss.Color("#c0caf5") // Light text on selected
-	Hover            = lipgloss.Color("#2d3f5f") // Slightly lighter than selected
-	PlaceholderColor = lipgloss.Color("#565f89") // Muted for placeholders
+	Selected         = lipgloss.Color(ColorSelected)
+	SelectedFg       = lipgloss.Color(ColorTextPrimary)
+	Hover            = lipgloss.Color(ColorHover)
+	PlaceholderColor = lipgloss.Color(ColorMutedBlue)
 )
 
 // Base Styles
@@ -261,3 +334,316 @@ var (
 		Background(Selected).
 		Foreground(SelectedFg)
 )
+
+func toChroma(style ansi.StylePrimitive) string {
+	var s []string
+
+	if style.Color != nil {
+		s = append(s, *style.Color)
+	}
+	if style.BackgroundColor != nil {
+		s = append(s, "bg:"+*style.BackgroundColor)
+	}
+	if *style.Italic {
+		s = append(s, "italic")
+	}
+	if *style.Bold {
+		s = append(s, "bold")
+	}
+	if *style.Underline {
+		s = append(s, "underline")
+	}
+
+	return strings.Join(s, " ")
+}
+
+func getChromaTheme() chroma.StyleEntries {
+	md := MarkdownStyle().CodeBlock
+	return chroma.StyleEntries{
+		chroma.Text:                toChroma(md.Chroma.Text),
+		chroma.Error:               toChroma(md.Chroma.Error),
+		chroma.Comment:             toChroma(md.Chroma.Comment),
+		chroma.CommentPreproc:      toChroma(md.Chroma.CommentPreproc),
+		chroma.Keyword:             toChroma(md.Chroma.Keyword),
+		chroma.KeywordReserved:     toChroma(md.Chroma.KeywordReserved),
+		chroma.KeywordNamespace:    toChroma(md.Chroma.KeywordNamespace),
+		chroma.KeywordType:         toChroma(md.Chroma.KeywordType),
+		chroma.Operator:            toChroma(md.Chroma.Operator),
+		chroma.Punctuation:         toChroma(md.Chroma.Punctuation),
+		chroma.Name:                toChroma(md.Chroma.Name),
+		chroma.NameBuiltin:         toChroma(md.Chroma.NameBuiltin),
+		chroma.NameTag:             toChroma(md.Chroma.NameTag),
+		chroma.NameAttribute:       toChroma(md.Chroma.NameAttribute),
+		chroma.NameClass:           toChroma(md.Chroma.NameClass),
+		chroma.NameDecorator:       toChroma(md.Chroma.NameDecorator),
+		chroma.NameFunction:        toChroma(md.Chroma.NameFunction),
+		chroma.LiteralNumber:       toChroma(md.Chroma.LiteralNumber),
+		chroma.LiteralString:       toChroma(md.Chroma.LiteralString),
+		chroma.LiteralStringEscape: toChroma(md.Chroma.LiteralStringEscape),
+		chroma.GenericDeleted:      toChroma(md.Chroma.GenericDeleted),
+		chroma.GenericEmph:         toChroma(md.Chroma.GenericEmph),
+		chroma.GenericInserted:     toChroma(md.Chroma.GenericInserted),
+		chroma.GenericStrong:       toChroma(md.Chroma.GenericStrong),
+		chroma.GenericSubheading:   toChroma(md.Chroma.GenericSubheading),
+		chroma.Background:          toChroma(md.Chroma.Background),
+	}
+}
+
+func ChromaStyle() *chroma.Style {
+	style, err := chroma.NewStyle("cagent", getChromaTheme())
+	if err != nil {
+		panic(err)
+	}
+	return style
+}
+
+func MarkdownStyle() ansi.StyleConfig {
+	h1Color := ColorAccentBlue
+	h2Color := ColorAccentBlue
+	h3Color := ColorTextSecondary
+	h4Color := ColorTextSecondary
+	h5Color := ColorTextSecondary
+	h6Color := ColorMutedBlue
+	linkColor := ColorAccentBlue
+	strongColor := ColorTextPrimary
+	codeColor := ColorTextPrimary
+	codeBgColor := ColorBackgroundAlt
+	blockquoteColor := ColorTextSecondary
+	listColor := ColorTextPrimary
+	hrColor := ColorBorderSecondary
+	codeBg := ColorBackgroundAlt
+
+	customDarkStyle := ansi.StyleConfig{
+		Document: ansi.StyleBlock{
+			StylePrimitive: ansi.StylePrimitive{
+				BlockPrefix: "",
+				BlockSuffix: "",
+				Color:       stringPtr(ANSIColor252),
+			},
+			Margin: uintPtr(0),
+		},
+		BlockQuote: ansi.StyleBlock{
+			StylePrimitive: ansi.StylePrimitive{
+				Color: &blockquoteColor,
+			},
+			Indent:      uintPtr(1),
+			IndentToken: nil,
+		},
+		List: ansi.StyleList{
+			LevelIndent: defaultListIndent,
+		},
+		Heading: ansi.StyleBlock{
+			StylePrimitive: ansi.StylePrimitive{
+				BlockSuffix: "\n",
+				Color:       stringPtr(ANSIColor39),
+				Bold:        boolPtr(true),
+			},
+		},
+		H1: ansi.StyleBlock{
+			StylePrimitive: ansi.StylePrimitive{
+				Prefix:          " ",
+				Suffix:          " ",
+				Color:           &h1Color,
+				BackgroundColor: stringPtr(ANSIColor63),
+				Bold:            boolPtr(true),
+			},
+		},
+		H2: ansi.StyleBlock{
+			StylePrimitive: ansi.StylePrimitive{
+				Prefix: "## ",
+				Color:  &h2Color,
+			},
+		},
+		H3: ansi.StyleBlock{
+			StylePrimitive: ansi.StylePrimitive{
+				Prefix: "### ",
+				Color:  &h3Color,
+			},
+		},
+		H4: ansi.StyleBlock{
+			StylePrimitive: ansi.StylePrimitive{
+				Prefix: "#### ",
+				Color:  &h4Color,
+			},
+		},
+		H5: ansi.StyleBlock{
+			StylePrimitive: ansi.StylePrimitive{
+				Prefix: "##### ",
+				Color:  &h5Color,
+			},
+		},
+		H6: ansi.StyleBlock{
+			StylePrimitive: ansi.StylePrimitive{
+				Prefix: "###### ",
+				Color:  &h6Color,
+				Bold:   boolPtr(false),
+			},
+		},
+		Strikethrough: ansi.StylePrimitive{
+			CrossedOut: boolPtr(true),
+		},
+		Emph: ansi.StylePrimitive{
+			Italic: boolPtr(true),
+		},
+		Strong: ansi.StylePrimitive{
+			Color: &strongColor,
+			Bold:  boolPtr(true),
+		},
+		HorizontalRule: ansi.StylePrimitive{
+			Color:  &hrColor,
+			Format: "\n--------\n",
+		},
+		Item: ansi.StylePrimitive{
+			BlockPrefix: "• ",
+		},
+		Enumeration: ansi.StylePrimitive{
+			BlockPrefix: ". ",
+		},
+		Task: ansi.StyleTask{
+			StylePrimitive: ansi.StylePrimitive{},
+			Ticked:         "[✓] ",
+			Unticked:       "[ ] ",
+		},
+		Link: ansi.StylePrimitive{
+			Color:     &linkColor,
+			Underline: boolPtr(true),
+		},
+		LinkText: ansi.StylePrimitive{
+			Color: stringPtr(ANSIColor35),
+			Bold:  boolPtr(true),
+		},
+		Image: ansi.StylePrimitive{
+			Color:     stringPtr(ANSIColor212),
+			Underline: boolPtr(true),
+		},
+		ImageText: ansi.StylePrimitive{
+			Color:  stringPtr(ANSIColor243),
+			Format: "Image: {{.text}} →",
+		},
+		Code: ansi.StyleBlock{
+			StylePrimitive: ansi.StylePrimitive{
+				Prefix:          " ",
+				Suffix:          " ",
+				Color:           &codeColor,
+				BackgroundColor: &codeBgColor,
+			},
+		},
+		CodeBlock: ansi.StyleCodeBlock{
+			StyleBlock: ansi.StyleBlock{
+				StylePrimitive: ansi.StylePrimitive{
+					Color: stringPtr(ANSIColor244),
+				},
+				Margin: uintPtr(defaultMargin),
+			},
+			Theme: "monokai",
+			Chroma: &ansi.Chroma{
+				Text: ansi.StylePrimitive{
+					Color: stringPtr(ColorTextPrimary),
+				},
+				Error: ansi.StylePrimitive{
+					Color:           stringPtr(ChromaErrorFgColor),
+					BackgroundColor: stringPtr(ChromaErrorBgColor),
+				},
+				Comment: ansi.StylePrimitive{
+					Color: stringPtr(ChromaCommentColor),
+				},
+				CommentPreproc: ansi.StylePrimitive{
+					Color: stringPtr(ChromaCommentPreprocColor),
+				},
+				Keyword: ansi.StylePrimitive{
+					Color: stringPtr(ChromaKeywordColor),
+				},
+				KeywordReserved: ansi.StylePrimitive{
+					Color: stringPtr(ChromaKeywordReservedColor),
+				},
+				KeywordNamespace: ansi.StylePrimitive{
+					Color: stringPtr(ChromaKeywordNamespaceColor),
+				},
+				KeywordType: ansi.StylePrimitive{
+					Color: stringPtr(ChromaKeywordTypeColor),
+				},
+				Operator: ansi.StylePrimitive{
+					Color: stringPtr(ChromaOperatorColor),
+				},
+				Punctuation: ansi.StylePrimitive{
+					Color: stringPtr(ChromaPunctuationColor),
+				},
+				Name: ansi.StylePrimitive{
+					Color: stringPtr(ColorTextPrimary),
+				},
+				NameBuiltin: ansi.StylePrimitive{
+					Color: stringPtr(ChromaNameBuiltinColor),
+				},
+				NameTag: ansi.StylePrimitive{
+					Color: stringPtr(ChromaNameTagColor),
+				},
+				NameAttribute: ansi.StylePrimitive{
+					Color: stringPtr(ChromaNameAttributeColor),
+				},
+				NameClass: ansi.StylePrimitive{
+					Color:     stringPtr(ChromaErrorFgColor),
+					Underline: boolPtr(true),
+					Bold:      boolPtr(true),
+				},
+				NameDecorator: ansi.StylePrimitive{
+					Color: stringPtr(ChromaNameDecoratorColor),
+				},
+				NameFunction: ansi.StylePrimitive{
+					Color: stringPtr(ChromaSuccessColor),
+				},
+				LiteralNumber: ansi.StylePrimitive{
+					Color: stringPtr(ChromaLiteralNumberColor),
+				},
+				LiteralString: ansi.StylePrimitive{
+					Color: stringPtr(ChromaLiteralStringColor),
+				},
+				LiteralStringEscape: ansi.StylePrimitive{
+					Color: stringPtr(ChromaLiteralStringEscapeColor),
+				},
+				GenericDeleted: ansi.StylePrimitive{
+					Color: stringPtr(ChromaGenericDeletedColor),
+				},
+				GenericEmph: ansi.StylePrimitive{
+					Italic: boolPtr(true),
+				},
+				GenericInserted: ansi.StylePrimitive{
+					Color: stringPtr(ChromaSuccessColor),
+				},
+				GenericStrong: ansi.StylePrimitive{
+					Bold: boolPtr(true),
+				},
+				GenericSubheading: ansi.StylePrimitive{
+					Color: stringPtr(ChromaGenericSubheadingColor),
+				},
+				Background: ansi.StylePrimitive{
+					BackgroundColor: stringPtr(ChromaBackgroundColor),
+				},
+			},
+		},
+		Table: ansi.StyleTable{
+			StyleBlock: ansi.StyleBlock{
+				StylePrimitive: ansi.StylePrimitive{},
+			},
+		},
+		DefinitionDescription: ansi.StylePrimitive{
+			BlockPrefix: "\n🠶 ",
+		},
+	}
+
+	customDarkStyle.List.Color = &listColor
+	customDarkStyle.CodeBlock.BackgroundColor = &codeBg
+
+	return customDarkStyle
+}
+
+func uintPtr(u uint) *uint {
+	return &u
+}
+
+func boolPtr(b bool) *bool {
+	return &b
+}
+
+func stringPtr(s string) *string {
+	return &s
+}
