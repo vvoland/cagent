@@ -27,7 +27,6 @@ func TestPlainTextTranscript(t *testing.T) {
 				Content:  "Result",
 			},
 			{Type: types.MessageTypeError, Content: "Oops"},
-			{Type: types.MessageTypeSystem, Content: "Should be ignored"},
 		},
 	}
 

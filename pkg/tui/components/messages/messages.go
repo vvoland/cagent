@@ -31,10 +31,6 @@ type StreamCancelledMsg struct {
 	ShowMessage bool // Whether to show a cancellation message after cleanup
 }
 
-type EvalSavedMsg struct {
-	File string
-}
-
 // AutoScrollTickMsg triggers auto-scroll during selection
 type AutoScrollTickMsg struct {
 	Direction int // -1 for up, 1 for down
@@ -58,7 +54,6 @@ type Model interface {
 	ScrollToBottom() tea.Cmd
 	AddShellOutputMessage(content string) tea.Cmd
 	AddWarningMessage(content string) tea.Cmd
-	AddSystemMessage(content string) tea.Cmd
 	PlainTextTranscript() string
 	IsAtBottom() bool
 }
@@ -151,10 +146,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.removeSpinner()
 		m.cancelPendingToolCalls()
 		return m, nil
-	case EvalSavedMsg:
-		m.AddSystemMessage(fmt.Sprintf("Eval saved to file %s", msg.File))
-		cmd := m.ScrollToBottom()
-		return m, cmd
 	case tea.WindowSizeMsg:
 		cmd := m.SetSize(msg.Width, msg.Height)
 		if cmd != nil {
@@ -523,13 +514,6 @@ func (m *model) AddWarningMessage(content string) tea.Cmd {
 	// Create a new warning message
 	return m.addMessage(&types.Message{
 		Type:    types.MessageTypeWarning,
-		Content: content,
-	})
-}
-
-func (m *model) AddSystemMessage(content string) tea.Cmd {
-	return m.addMessage(&types.Message{
-		Type:    types.MessageTypeSystem,
 		Content: content,
 	})
 }
