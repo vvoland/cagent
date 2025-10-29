@@ -7,6 +7,7 @@ require (
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.4.0
 	github.com/Microsoft/go-winio v0.6.2
 	github.com/alecthomas/chroma/v2 v2.20.0
+	github.com/alpkeskin/gotoon v0.1.0
 	github.com/anthropics/anthropic-sdk-go v1.14.0
 	github.com/atotto/clipboard v0.1.4
 	github.com/aymanbagabas/go-udiff v0.3.1
@@ -47,7 +48,6 @@ require (
 	cloud.google.com/go/auth v0.16.5 // indirect
 	cloud.google.com/go/compute/metadata v0.8.0 // indirect
 	github.com/JohannesKaufmann/dom v0.2.0 // indirect
-	github.com/alpkeskin/gotoon v0.1.0 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/charmbracelet/colorprofile v0.3.2 // indirect
