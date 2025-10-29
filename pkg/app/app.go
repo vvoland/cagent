@@ -52,16 +52,17 @@ func (a *App) Title() string {
 
 // CurrentAgentCommands returns the commands for the active agent
 func (a *App) CurrentAgentCommands() map[string]string {
-	if a.runtime == nil {
-		return nil
+	if localRuntime, ok := a.runtime.(*runtime.LocalRuntime); ok {
+		agent := localRuntime.CurrentAgent()
+		if agent == nil {
+			return nil
+		}
+
+		return agent.Commands()
 	}
 
-	agent := a.runtime.CurrentAgent()
-	if agent == nil {
-		return nil
-	}
-
-	return agent.Commands()
+	// TODO(dga): not properly implemented for remote agents
+	return map[string]string{}
 }
 
 // ResolveCommand converts /command to its prompt text
