@@ -14,6 +14,7 @@ import (
 	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/gateway"
+	"github.com/docker/cagent/pkg/js"
 	"github.com/docker/cagent/pkg/memory/database/sqlite"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/model/provider/options"
@@ -109,19 +110,6 @@ func createMemoryTool(ctx context.Context, toolset latest.Toolset, parentDir str
 
 func createThinkTool(ctx context.Context, toolset latest.Toolset, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig) (tools.ToolSet, error) {
 	return builtin.NewThinkTool(), nil
-}
-
-// expandCommandPlaceholders expands environment variable placeholders in command values.
-// Undefined variables are allowed and will expand to empty strings, enabling users to
-// only define the environment variables needed for the commands they actually use.
-func expandCommandPlaceholders(ctx context.Context, commands map[string]string, envProvider environment.Provider) map[string]string {
-	expanded := map[string]string{}
-
-	for name, value := range commands {
-		expanded[name] = environment.ExpandLenient(ctx, value, envProvider)
-	}
-
-	return expanded
 }
 
 func createShellTool(ctx context.Context, toolset latest.Toolset, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig) (tools.ToolSet, error) {
@@ -356,7 +344,7 @@ func Load(ctx context.Context, p string, runtimeConfig config.RuntimeConfig, opt
 			agent.WithAddPromptFiles(agentConfig.AddPromptFiles),
 			agent.WithMaxIterations(agentConfig.MaxIterations),
 			agent.WithNumHistoryItems(agentConfig.NumHistoryItems),
-			agent.WithCommands(expandCommandPlaceholders(ctx, agentConfig.Commands, env)),
+			agent.WithCommands(js.Expand(ctx, agentConfig.Commands, env)),
 		}
 
 		models, err := getModelsForAgent(ctx, cfg, &agentConfig, env, runtimeConfig)
