@@ -385,7 +385,7 @@ func (m *model) shouldCacheMessage(index int) bool {
 		return msg.ToolStatus == types.ToolStatusCompleted || msg.ToolStatus == types.ToolStatusError
 	case types.MessageTypeToolResult:
 		return true
-	case types.MessageTypeAssistant:
+	case types.MessageTypeAssistant, types.MessageTypeAssistantReasoning:
 		// Only cache assistant messages that have content (completed streaming)
 		// Empty assistant messages have spinners and need constant re-rendering
 		return strings.Trim(msg.Content, "\r\n\t ") != ""
