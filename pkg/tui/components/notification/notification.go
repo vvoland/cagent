@@ -141,8 +141,16 @@ func (n *Notification) View() string {
 			maxWidth = min(maxNotificationWidth, n.width-notificationPadding*2)
 		}
 
-		// Wrap text using lipgloss Width style - lipgloss will automatically wrap
-		view := style.Width(maxWidth).Render(text)
+		// Only constrain width if text actually exceeds maxWidth
+		textWidth := lipgloss.Width(text)
+		var view string
+		if textWidth > maxWidth {
+			// Wrap text using lipgloss Width style - lipgloss will automatically wrap
+			view = style.Width(maxWidth).Render(text)
+		} else {
+			// Use natural width for short text
+			view = style.Render(text)
+		}
 		views = append(views, view)
 	}
 
