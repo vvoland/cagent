@@ -1084,31 +1084,14 @@ func (s *Server) runAgent(c echo.Context) error {
 		slog.Debug("Runtime created for session", "session_id", sess.ID)
 	}
 
-	if cmd := strings.TrimSpace(c.QueryParam("command")); cmd != "" {
-		cmds := agent.Commands()
-		if len(cmds) == 0 {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("agent '%s' has no commands", currentAgent)})
-		}
-		text, ok := cmds[cmd]
-		if !ok {
-			var names []string
-			for k := range cmds {
-				names = append(names, k)
-			}
-			sort.Strings(names)
-			return echo.NewHTTPError(http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("unknown command '%s'. Available: %s", cmd, strings.Join(names, ", "))})
-		}
-		sess.AddMessage(session.UserMessage(agentFilename, text))
-	} else {
-		// Receive messages from the API client
-		var messages []api.Message
-		if err := json.NewDecoder(c.Request().Body).Decode(&messages); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
-		}
+	// Receive messages from the API client
+	var messages []api.Message
+	if err := json.NewDecoder(c.Request().Body).Decode(&messages); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
+	}
 
-		for _, msg := range messages {
-			sess.AddMessage(session.UserMessage(agentFilename, msg.Content, msg.MultiContent...))
-		}
+	for _, msg := range messages {
+		sess.AddMessage(session.UserMessage(agentFilename, msg.Content, msg.MultiContent...))
 	}
 
 	if err := s.sessionStore.UpdateSession(c.Request().Context(), sess); err != nil {
