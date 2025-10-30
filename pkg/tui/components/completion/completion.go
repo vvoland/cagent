@@ -20,6 +20,7 @@ type Item struct {
 	Label       string
 	Description string
 	Value       string
+	Execute     func() tea.Cmd
 }
 
 type OpenMsg struct {
@@ -37,7 +38,8 @@ type QueryMsg struct {
 }
 
 type SelectedMsg struct {
-	Value string
+	Value   string
+	Execute func() tea.Cmd
 }
 
 type matchResult struct {
@@ -154,7 +156,7 @@ func (c *manager) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, c.keyMap.Enter):
 			c.visible = false
-			return c, core.CmdHandler(SelectedMsg{Value: c.filteredItems[c.selected].Value})
+			return c, core.CmdHandler(SelectedMsg{Value: c.filteredItems[c.selected].Value, Execute: c.filteredItems[c.selected].Execute})
 		case key.Matches(msg, c.keyMap.Escape):
 			c.visible = false
 			return c, core.CmdHandler(ClosedMsg{})
@@ -177,6 +179,14 @@ func (c *manager) View() string {
 		visibleStart := c.scrollOffset
 		visibleEnd := min(c.scrollOffset+maxItems, len(c.filteredItems))
 
+		maxLabelLen := 0
+		for i := visibleStart; i < visibleEnd; i++ {
+			labelLen := len(c.filteredItems[i].Label)
+			if labelLen > maxLabelLen {
+				maxLabelLen = labelLen
+			}
+		}
+
 		for i := visibleStart; i < visibleEnd; i++ {
 			item := c.filteredItems[i]
 			isSelected := i == c.selected
@@ -188,7 +198,9 @@ func (c *manager) View() string {
 				itemStyle = styles.CompletionNormalStyle
 			}
 
-			text := item.Label
+			// Pad label to maxLabelLen so descriptions align
+			paddedLabel := item.Label + strings.Repeat(" ", maxLabelLen+1-len(item.Label))
+			text := paddedLabel
 			if item.Description != "" {
 				text += " " + styles.CompletionDescStyle.Render(item.Description)
 			}

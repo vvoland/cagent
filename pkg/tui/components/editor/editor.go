@@ -8,9 +8,10 @@ import (
 	"github.com/charmbracelet/bubbles/v2/textarea"
 	tea "github.com/charmbracelet/bubbletea/v2"
 
-	"github.com/docker/cagent/pkg/fsx"
+	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/history"
 	"github.com/docker/cagent/pkg/tui/components/completion"
+	"github.com/docker/cagent/pkg/tui/components/editor/completions"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/styles"
@@ -54,10 +55,13 @@ type editor struct {
 	historyBrowsing bool
 	// completionWord stores the word being completed
 	completionWord string
+	// completions are the available completions
+	completions       []completions.Completion
+	currentCompletion completions.Completion
 }
 
 // New creates a new editor component
-func New() Editor {
+func New(a *app.App) Editor {
 	ta := textarea.New()
 	ta.SetStyles(styles.InputStyle)
 	ta.Placeholder = "Type your message here..."
@@ -70,7 +74,8 @@ func New() Editor {
 	ta.KeyMap.InsertNewline.SetEnabled(true) // Enable newline insertion
 
 	return &editor{
-		textarea: ta,
+		textarea:    ta,
+		completions: completions.Completions(a),
 	}
 }
 
@@ -88,15 +93,24 @@ func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return e, nil
 	case completion.SelectedMsg:
 		currentValue := e.textarea.Value()
-
 		lastIdx := strings.LastIndex(currentValue, e.completionWord)
-
-		if lastIdx >= 0 {
-			newValue := currentValue[:lastIdx-1] + msg.Value + currentValue[lastIdx+len(e.completionWord):]
-			e.textarea.SetValue(newValue)
-			e.textarea.MoveToEnd()
+		if e.currentCompletion.AutoSubmit() {
+			if lastIdx >= 0 {
+				newValue := currentValue[:lastIdx-1]
+				e.textarea.SetValue(newValue)
+				e.textarea.MoveToEnd()
+			}
+			if msg.Execute != nil {
+				return e, msg.Execute()
+			}
+		} else {
+			if lastIdx >= 0 {
+				newValue := currentValue[:lastIdx-1] + msg.Value + currentValue[lastIdx+len(e.completionWord):]
+				e.textarea.SetValue(newValue)
+				e.textarea.MoveToEnd()
+			}
+			return e, nil
 		}
-
 		return e, nil
 	case completion.ClosedMsg:
 		e.completionWord = ""
@@ -128,8 +142,13 @@ func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return e, nil
 			}
 		default:
-			if msg.String() == "@" {
-				cmds = append(cmds, e.startFileCompletion())
+			for _, completion := range e.completions {
+				if msg.String() == completion.Trigger() {
+					if completion.RequiresEmptyEditor() && e.textarea.Value() != "" {
+						continue
+					}
+					cmds = append(cmds, e.startCompletion(completion))
+				}
 			}
 
 			// Any other key exits history browsing so input becomes fresh text.
@@ -146,11 +165,12 @@ func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		if keyMsg.String() == "space" {
 			e.completionWord = ""
+			e.currentCompletion = nil
 			cmds = append(cmds, core.CmdHandler(completion.CloseMsg{}))
 		}
 
 		currentWord := e.textarea.Word()
-		if strings.HasPrefix(currentWord, "@") {
+		if e.currentCompletion != nil && strings.HasPrefix(currentWord, e.currentCompletion.Trigger()) {
 			e.completionWord = currentWord[1:]
 			cmds = append(cmds, core.CmdHandler(completion.QueryMsg{Query: e.completionWord}))
 		} else {
@@ -160,6 +180,13 @@ func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return e, tea.Batch(cmds...)
+}
+
+func (e *editor) startCompletion(c completions.Completion) tea.Cmd {
+	e.currentCompletion = c
+	return core.CmdHandler(completion.OpenMsg{
+		Items: c.Items(),
+	})
 }
 
 // View renders the component
@@ -220,24 +247,6 @@ func (e *editor) SetWorking(working bool) tea.Cmd {
 
 func (e *editor) SetHistory(hist *history.History) {
 	e.hist = hist
-}
-
-func (e *editor) startFileCompletion() tea.Cmd {
-	files, err := fsx.ListDirectory(".", 0)
-	if err != nil {
-		return nil
-	}
-	items := make([]completion.Item, len(files))
-	for i, f := range files {
-		items[i] = completion.Item{
-			Label: f,
-			Value: f,
-		}
-	}
-
-	return core.CmdHandler(completion.OpenMsg{
-		Items: items,
-	})
 }
 
 func (e *editor) navigateHistory(direction historyNavigation) bool {
