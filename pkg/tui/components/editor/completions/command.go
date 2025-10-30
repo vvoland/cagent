@@ -9,8 +9,7 @@ import (
 )
 
 type commandCompletion struct {
-	app   *app.App
-	items []completion.Item
+	app *app.App
 }
 
 func NewCommandCompletion(a *app.App) Completion {
