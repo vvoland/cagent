@@ -319,6 +319,11 @@ var (
 				Border(lipgloss.RoundedBorder()).
 				BorderForeground(Info).
 				Padding(0, 1)
+
+	NotificationErrorStyle = BaseStyle.
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(Error).
+				Padding(0, 1)
 )
 
 // Deprecated styles (kept for backward compatibility)
