@@ -344,13 +344,13 @@ func toChroma(style ansi.StylePrimitive) string {
 	if style.BackgroundColor != nil {
 		s = append(s, "bg:"+*style.BackgroundColor)
 	}
-	if *style.Italic {
+	if style.Italic != nil && *style.Italic {
 		s = append(s, "italic")
 	}
-	if *style.Bold {
+	if style.Bold != nil && *style.Bold {
 		s = append(s, "bold")
 	}
-	if *style.Underline {
+	if style.Underline != nil && *style.Underline {
 		s = append(s, "underline")
 	}
 
