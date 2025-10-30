@@ -18,7 +18,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/statusbar"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/dialog"
-	chatpage "github.com/docker/cagent/pkg/tui/page/chat"
+	"github.com/docker/cagent/pkg/tui/page/chat"
 	"github.com/docker/cagent/pkg/tui/styles"
 )
 
@@ -44,7 +44,7 @@ type appModel struct {
 	width, height   int
 	keyMap          KeyMap
 
-	chatPage  chatpage.Page
+	chatPage  chat.Page
 	statusBar statusbar.StatusBar
 
 	notification notification.Manager
@@ -87,7 +87,7 @@ func New(a *app.App) tea.Model {
 	}
 
 	t.statusBar = statusbar.New(t)
-	t.chatPage = chatpage.New(a, t.builtInSessionCommands())
+	t.chatPage = chat.New(a, t.builtInSessionCommands())
 
 	return t
 }
@@ -145,7 +145,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// Otherwise forward to chat page
 		updated, cmd := a.chatPage.Update(msg)
-		a.chatPage = updated.(chatpage.Page)
+		a.chatPage = updated.(chat.Page)
 		return a, cmd
 
 	case error:
@@ -156,7 +156,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if _, isRuntimeEvent := msg.(runtime.Event); isRuntimeEvent {
 			// Always forward runtime events to chat page
 			updated, cmd := a.chatPage.Update(msg)
-			a.chatPage = updated.(chatpage.Page)
+			a.chatPage = updated.(chat.Page)
 			return a, cmd
 		}
 
@@ -178,7 +178,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		updated, cmd = a.chatPage.Update(msg)
 		cmds = append(cmds, cmd)
 
-		a.chatPage = updated.(chatpage.Page)
+		a.chatPage = updated.(chat.Page)
 
 		return a, tea.Batch(cmds...)
 	}
@@ -209,7 +209,7 @@ func (a *appModel) handleWindowResize(width, height int) tea.Cmd {
 	} else {
 		// Fallback: send window size message
 		updated, cmd := a.chatPage.Update(tea.WindowSizeMsg{Width: a.width, Height: a.height})
-		a.chatPage = updated.(chatpage.Page)
+		a.chatPage = updated.(chat.Page)
 		if cmd != nil {
 			cmds = append(cmds, cmd)
 		}
@@ -248,7 +248,7 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
 
 			// Also send to chat page/editor so user can continue typing
 			updated, cmd := a.chatPage.Update(msg)
-			a.chatPage = updated.(chatpage.Page)
+			a.chatPage = updated.(chat.Page)
 			cmds = append(cmds, cmd)
 
 			return tea.Batch(cmds...)
@@ -267,7 +267,7 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
 		})
 	default:
 		updated, cmd := a.chatPage.Update(msg)
-		a.chatPage = updated.(chatpage.Page)
+		a.chatPage = updated.(chat.Page)
 		return cmd
 	}
 }
@@ -364,7 +364,7 @@ func (a *appModel) builtInSessionCommands() []dialog.Command {
 			Category:     "Session",
 			Execute: func() tea.Cmd {
 				a.application.NewSession()
-				a.chatPage = chatpage.New(a.application, a.builtInSessionCommands())
+				a.chatPage = chat.New(a.application, a.builtInSessionCommands())
 				a.dialog = dialog.New()
 				a.statusBar = statusbar.New(a.chatPage)
 
