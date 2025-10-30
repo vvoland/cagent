@@ -144,6 +144,9 @@ func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		default:
 			for _, completion := range e.completions {
 				if msg.String() == completion.Trigger() {
+					if completion.RequiresEmptyEditor() && e.textarea.Value() != "" {
+						continue
+					}
 					cmds = append(cmds, e.startCompletion(completion))
 				}
 			}

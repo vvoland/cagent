@@ -9,6 +9,7 @@ type Completion interface {
 	Trigger() string
 	Items() []completion.Item
 	AutoSubmit() bool
+	RequiresEmptyEditor() bool
 }
 
 func Completions(a *app.App) []Completion {

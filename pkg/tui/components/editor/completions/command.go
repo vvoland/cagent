@@ -22,6 +22,10 @@ func (c *commandCompletion) AutoSubmit() bool {
 	return true
 }
 
+func (c *commandCompletion) RequiresEmptyEditor() bool {
+	return true
+}
+
 func (c *commandCompletion) Trigger() string {
 	return "/"
 }

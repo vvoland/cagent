@@ -15,6 +15,10 @@ func (c *fileCompletion) AutoSubmit() bool {
 	return false
 }
 
+func (c *fileCompletion) RequiresEmptyEditor() bool {
+	return false
+}
+
 func (c *fileCompletion) Trigger() string {
 	return "@"
 }
