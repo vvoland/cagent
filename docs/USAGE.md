@@ -114,41 +114,27 @@ agents:
     commands: # Either mapping or list of singleton maps
       df: "check how much free space i have on my disk"
       ls: "list the files in the current directory"
+      greet: "Say hello to $USER and ask how their day is going"
+      analyze: "Analyze the project named $PROJECT_NAME in the $ENVIRONMENT environment"
 ```
 
-### Running with named commands
-
-- Example YAML forms supported:
-
-```yaml
-commands:
-  df: "check how much free space i have on my disk"
-  ls: "list the files in the current directory"
-  greet: "Say hello to $USER and ask how their day is going"
-  analyze: "Analyze the project named $PROJECT_NAME in the $ENVIRONMENT environment"
-```
-
-```yaml
-commands:
-  - df: "check how much free space i have on my disk"
-  - ls: "list the files in the current directory"
-  - greet: "Say hello to $USER and ask how their day is going"
-```
-
-Commands support environment variable placeholders using `$VARIABLE_NAME` or `${VARIABLE_NAME}` syntax.
-
-Run:
+### Running named commands
 
 ```bash
 cagent run ./agent.yaml /df
 cagent run ./agent.yaml /ls
+
+export USER=alice
+cagent run ./agent.yaml /greet
+
+export PROJECT_NAME=myproject
+export ENVIRONMENT=production
+cagent run ./agent.yaml /analyze
 ```
 
-**Environment Variable Expansion:**
 - Placeholders are expanded during agent loading using available environment variables
 - Undefined variables expand to empty strings (no error is thrown)
 - Both `$VAR` and `${VAR}` syntax are supported
-- This allows dynamic command configuration without manual string interpolation
 
 ### Model Properties
 

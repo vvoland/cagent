@@ -115,14 +115,12 @@ func createThinkTool(ctx context.Context, toolset latest.Toolset, parentDir stri
 // Undefined variables are allowed and will expand to empty strings, enabling users to
 // only define the environment variables needed for the commands they actually use.
 func expandCommandPlaceholders(ctx context.Context, commands map[string]string, envProvider environment.Provider) map[string]string {
-	if len(commands) == 0 {
-		return commands
-	}
+	expanded := map[string]string{}
 
-	expanded := make(map[string]string, len(commands))
 	for name, value := range commands {
 		expanded[name] = environment.ExpandLenient(ctx, value, envProvider)
 	}
+
 	return expanded
 }
 
@@ -350,9 +348,6 @@ func Load(ctx context.Context, p string, runtimeConfig config.RuntimeConfig, opt
 	agentsByName := make(map[string]*agent.Agent)
 
 	for name, agentConfig := range cfg.Agents {
-		// Expand environment variable placeholders in commands
-		expandedCommands := expandCommandPlaceholders(ctx, agentConfig.Commands, env)
-
 		opts := []agent.Opt{
 			agent.WithName(name),
 			agent.WithDescription(agentConfig.Description),
@@ -361,7 +356,7 @@ func Load(ctx context.Context, p string, runtimeConfig config.RuntimeConfig, opt
 			agent.WithAddPromptFiles(agentConfig.AddPromptFiles),
 			agent.WithMaxIterations(agentConfig.MaxIterations),
 			agent.WithNumHistoryItems(agentConfig.NumHistoryItems),
-			agent.WithCommands(expandedCommands),
+			agent.WithCommands(expandCommandPlaceholders(ctx, agentConfig.Commands, env)),
 		}
 
 		models, err := getModelsForAgent(ctx, cfg, &agentConfig, env, runtimeConfig)
