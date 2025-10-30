@@ -195,12 +195,6 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return p, cmd
 
 	case editor.SendMsg:
-		// Persist every submitted command before handing it to the runtime.
-		if p.history != nil {
-			if err := p.history.Add(msg.Content); err != nil {
-				fmt.Fprintf(os.Stderr, "failed to persist command history: %v\n", err)
-			}
-		}
 		cmd := p.processMessage(msg.Content)
 		return p, cmd
 
@@ -498,10 +492,13 @@ func (p *chatPage) processMessage(content string) tea.Cmd {
 	var ctx context.Context
 	ctx, p.msgCancel = context.WithCancel(context.Background())
 
-	switch {
-	case strings.HasPrefix(content, "!"):
+	if strings.HasPrefix(content, "!") {
 		p.app.RunBangCommand(ctx, content[1:])
-	case strings.HasPrefix(content, "/"):
+		return p.messages.ScrollToBottom()
+	}
+
+	// Handle /commands
+	if strings.HasPrefix(content, "/") {
 		// Try builtin session command first
 		for _, sessionCommand := range p.sessionCommands {
 			if sessionCommand.SlashCommand == content && sessionCommand.Execute != nil {
@@ -509,11 +506,18 @@ func (p *chatPage) processMessage(content string) tea.Cmd {
 			}
 		}
 
-		// Then user-defined commands
-		p.app.Run(ctx, p.msgCancel, p.app.ResolveCommand(ctx, content))
-	default:
-		p.app.Run(ctx, p.msgCancel, content)
+		// Then try app-level commands
+		content = p.app.ResolveCommand(ctx, content)
 	}
+
+	// Persist to history
+	if p.history != nil {
+		if err := p.history.Add(content); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to persist command history: %v\n", err)
+		}
+	}
+
+	p.app.Run(ctx, p.msgCancel, content)
 
 	return p.messages.ScrollToBottom()
 }
