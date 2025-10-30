@@ -114,8 +114,8 @@ agents:
     commands: # Either mapping or list of singleton maps
       df: "check how much free space i have on my disk"
       ls: "list the files in the current directory"
-      greet: "Say hello to $USER and ask how their day is going"
-      analyze: "Analyze the project named $PROJECT_NAME in the $ENVIRONMENT environment"
+      greet: "Say hello to ${env.USER} and ask how their day is going"
+      analyze: "Analyze the project named ${env.PROJECT_NAME || 'demo'} in the ${env.ENVIRONMENT || 'stage'} environment"
 ```
 
 ### Running named commands
@@ -132,9 +132,9 @@ export ENVIRONMENT=production
 cagent run ./agent.yaml /analyze
 ```
 
-- Placeholders are expanded during agent loading using available environment variables
-- Undefined variables expand to empty strings (no error is thrown)
-- Both `$VAR` and `${VAR}` syntax are supported
+- Commands are evaluated as Javascript Template literals.
+- During evaluation, the `env` object contains the user's environment.
+- Undefined environment variables expand to empty strings (no error is thrown).
 
 ### Model Properties
 
