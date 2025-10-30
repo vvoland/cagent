@@ -13,6 +13,7 @@ import (
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/evaluation"
 	"github.com/docker/cagent/pkg/runtime"
+	"github.com/docker/cagent/pkg/tui/commands"
 	"github.com/docker/cagent/pkg/tui/components/completion"
 	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/components/statusbar"
@@ -87,7 +88,7 @@ func New(a *app.App) tea.Model {
 	}
 
 	t.statusBar = statusbar.New(t)
-	t.chatPage = chat.New(a, t.builtInSessionCommands())
+	t.chatPage = chat.New(a, commands.BuiltInSessionCommands())
 
 	return t
 }
@@ -147,6 +148,27 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		updated, cmd := a.chatPage.Update(msg)
 		a.chatPage = updated.(chat.Page)
 		return a, cmd
+
+	case commands.NewSessionMsg:
+		a.application.NewSession()
+		a.chatPage = chat.New(a.application, commands.BuiltInSessionCommands())
+		a.dialog = dialog.New()
+		a.statusBar = statusbar.New(a.chatPage)
+
+		return a, tea.Batch(a.Init(), a.handleWindowResize(a.wWidth, a.wHeight))
+
+	case commands.EvalSessionMsg:
+		evalFile, _ := evaluation.Save(a.application.Session())
+		return a, core.CmdHandler(notification.ShowMsg{Text: fmt.Sprintf("Eval saved to file %s", evalFile)})
+
+	case commands.CompactSessionMsg:
+		return a, a.chatPage.CompactSession()
+
+	case commands.CopySessionToClipboardMsg:
+		return a, a.chatPage.CopySessionToClipboard()
+
+	case commands.AgentCommandMsg:
+		return a, a.chatPage.ExecuteCommand(msg.Command)
 
 	case error:
 		a.err = msg
@@ -261,7 +283,7 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
 		return tea.Quit
 	case key.Matches(msg, a.keyMap.CommandPalette):
 		// Open command palette
-		categories := a.buildCommandCategories(context.Background())
+		categories := commands.BuildCommandCategories(context.Background(), a.application)
 		return core.CmdHandler(dialog.OpenDialogMsg{
 			Model: dialog.NewCommandPaletteDialog(categories),
 		})
@@ -352,99 +374,4 @@ func toFullscreenView(content string) tea.View {
 	view := tea.NewView(content)
 	view.BackgroundColor = styles.Background
 	return view
-}
-
-func (a *appModel) builtInSessionCommands() []dialog.Command {
-	return []dialog.Command{
-		{
-			ID:           "session.new",
-			Label:        "New",
-			SlashCommand: "/new",
-			Description:  "Start a new conversation",
-			Category:     "Session",
-			Execute: func() tea.Cmd {
-				a.application.NewSession()
-				a.chatPage = chat.New(a.application, a.builtInSessionCommands())
-				a.dialog = dialog.New()
-				a.statusBar = statusbar.New(a.chatPage)
-
-				return tea.Batch(a.Init(), a.handleWindowResize(a.wWidth, a.wHeight))
-			},
-		},
-		{
-			ID:           "session.compact",
-			Label:        "Compact",
-			SlashCommand: "/compact",
-			Description:  "Summarize the current conversation",
-			Category:     "Session",
-			Execute: func() tea.Cmd {
-				return a.chatPage.CompactSession()
-			},
-		},
-		{
-			ID:           "session.clipboard",
-			Label:        "Copy",
-			SlashCommand: "/copy",
-			Description:  "Copy the current conversation to the clipboard",
-			Category:     "Session",
-			Execute: func() tea.Cmd {
-				return a.chatPage.CopySessionToClipboard()
-			},
-		},
-		{
-			ID:           "session.eval",
-			Label:        "Eval",
-			SlashCommand: "/eval",
-			Description:  "Create an evaluation report for the current conversation",
-			Category:     "Session",
-			Execute: func() tea.Cmd {
-				evalFile, _ := evaluation.Save(a.application.Session())
-				return core.CmdHandler(notification.ShowMsg{Text: fmt.Sprintf("Eval saved to file %s", evalFile)})
-			},
-		},
-	}
-}
-
-// buildCommandCategories builds the list of command categories for the command palette
-func (a *appModel) buildCommandCategories(ctx context.Context) []dialog.CommandCategory {
-	categories := []dialog.CommandCategory{
-		{
-			Name:     "Session",
-			Commands: a.builtInSessionCommands(),
-		},
-	}
-
-	// Add agent commands if available
-	agentCommands := a.application.CurrentAgentCommands(ctx)
-	if len(agentCommands) > 0 {
-		commands := make([]dialog.Command, 0, len(agentCommands))
-		for name, prompt := range agentCommands {
-			cmdText := "/" + name
-
-			// Truncate long descriptions to fit on one line
-			description := prompt
-			if len(description) > 60 {
-				description = description[:57] + "..."
-			}
-
-			// Capture cmdText in closure properly
-			commandText := cmdText
-			commands = append(commands, dialog.Command{
-				ID:          "agent.command." + name,
-				Label:       commandText,
-				Description: description,
-				Category:    "Agent Commands",
-				Execute: func() tea.Cmd {
-					return a.chatPage.ExecuteCommand(commandText)
-				},
-			})
-		}
-
-		categories = append(categories, dialog.CommandCategory{
-			Name:     "Agent Commands",
-			Commands: commands,
-		})
-	}
-
-	return categories
 }
