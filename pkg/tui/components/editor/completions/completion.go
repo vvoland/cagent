@@ -1,6 +1,9 @@
 package completions
 
-import "github.com/docker/cagent/pkg/tui/components/completion"
+import (
+	"github.com/docker/cagent/pkg/app"
+	"github.com/docker/cagent/pkg/tui/components/completion"
+)
 
 type Completion interface {
 	Trigger() string
@@ -8,9 +11,9 @@ type Completion interface {
 	AutoSubmit() bool
 }
 
-func Completions() []Completion {
+func Completions(a *app.App) []Completion {
 	return []Completion{
-		NewCommandCompletion(),
+		NewCommandCompletion(a),
 		NewFileCompletion(),
 	}
 }

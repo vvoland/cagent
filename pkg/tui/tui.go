@@ -15,6 +15,7 @@ import (
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/tui/commands"
 	"github.com/docker/cagent/pkg/tui/components/completion"
+	"github.com/docker/cagent/pkg/tui/components/editor"
 	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/components/statusbar"
 	"github.com/docker/cagent/pkg/tui/core"
@@ -168,7 +169,8 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.chatPage.CopySessionToClipboard()
 
 	case commands.AgentCommandMsg:
-		return a, a.chatPage.ExecuteCommand(msg.Command)
+		resolvedCommand := a.application.ResolveCommand(context.Background(), msg.Command)
+		return a, core.CmdHandler(editor.SendMsg{Content: resolvedCommand})
 
 	case error:
 		a.err = msg
@@ -282,7 +284,6 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
 		a.chatPage.Cleanup()
 		return tea.Quit
 	case key.Matches(msg, a.keyMap.CommandPalette):
-		// Open command palette
 		categories := commands.BuildCommandCategories(context.Background(), a.application)
 		return core.CmdHandler(dialog.OpenDialogMsg{
 			Model: dialog.NewCommandPaletteDialog(categories),

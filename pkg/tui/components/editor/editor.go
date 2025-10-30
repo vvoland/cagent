@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/v2/textarea"
 	tea "github.com/charmbracelet/bubbletea/v2"
 
+	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/history"
 	"github.com/docker/cagent/pkg/tui/components/completion"
 	"github.com/docker/cagent/pkg/tui/components/editor/completions"
@@ -60,7 +61,7 @@ type editor struct {
 }
 
 // New creates a new editor component
-func New() Editor {
+func New(a *app.App) Editor {
 	ta := textarea.New()
 	ta.SetStyles(styles.InputStyle)
 	ta.Placeholder = "Type your message here..."
@@ -74,7 +75,7 @@ func New() Editor {
 
 	return &editor{
 		textarea:    ta,
-		completions: completions.Completions(),
+		completions: completions.Completions(a),
 	}
 }
 

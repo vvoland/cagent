@@ -92,37 +92,35 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 		},
 	}
 
-	// Add agent commands if available
 	agentCommands := application.CurrentAgentCommands(ctx)
-	if len(agentCommands) > 0 {
-		commands := make([]Item, 0, len(agentCommands))
-		for name, prompt := range agentCommands {
-			cmdText := "/" + name
+	if len(agentCommands) == 0 {
+		return categories
+	}
 
-			// Truncate long descriptions to fit on one line
-			description := prompt
-			if len(description) > 60 {
-				description = description[:57] + "..."
-			}
+	commands := make([]Item, 0, len(agentCommands))
+	for name, prompt := range agentCommands {
 
-			// Capture cmdText in closure properly
-			commandText := cmdText
-			commands = append(commands, Item{
-				ID:          "agent.command." + name,
-				Label:       commandText,
-				Description: description,
-				Category:    "Agent Commands",
-				Execute: func() tea.Cmd {
-					return core.CmdHandler(AgentCommandMsg{Command: commandText})
-				},
-			})
+		// Truncate long descriptions to fit on one line
+		description := prompt
+		if len(description) > 60 {
+			description = description[:57] + "..."
 		}
 
-		categories = append(categories, Category{
-			Name:     "Agent Commands",
-			Commands: commands,
+		commands = append(commands, Item{
+			ID:          "agent.command." + name,
+			Label:       name,
+			Description: description,
+			Category:    "Agent Commands",
+			Execute: func() tea.Cmd {
+				return core.CmdHandler(AgentCommandMsg{Command: "/" + name})
+			},
 		})
 	}
+
+	categories = append(categories, Category{
+		Name:     "Agent Commands",
+		Commands: commands,
+	})
 
 	return categories
 }

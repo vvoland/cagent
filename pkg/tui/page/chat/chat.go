@@ -41,7 +41,6 @@ type Page interface {
 	layout.Help
 	CompactSession() tea.Cmd
 	CopySessionToClipboard() tea.Cmd
-	ExecuteCommand(commandText string) tea.Cmd
 	Cleanup()
 }
 
@@ -96,7 +95,7 @@ func defaultKeyMap() KeyMap {
 
 // New creates a new chat page
 func New(a *app.App) Page {
-	ed := editor.New()
+	ed := editor.New(a)
 
 	historyStore, err := history.New()
 	if err != nil {
@@ -529,13 +528,6 @@ func (p *chatPage) CompactSession() tea.Cmd {
 	p.app.CompactSession()
 
 	return p.messages.ScrollToBottom()
-}
-
-// ExecuteCommand sends a command text as a message (used by command palette)
-func (p *chatPage) ExecuteCommand(commandText string) tea.Cmd {
-	return func() tea.Msg {
-		return editor.SendMsg{Content: commandText}
-	}
 }
 
 func (p *chatPage) Cleanup() {
