@@ -10,6 +10,7 @@ type Completion interface {
 
 func Completions() []Completion {
 	return []Completion{
+		NewCommandCompletion(),
 		NewFileCompletion(),
 	}
 }
