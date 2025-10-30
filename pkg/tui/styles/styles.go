@@ -321,6 +321,30 @@ var (
 				Padding(0, 1)
 )
 
+// Completion Styles
+var (
+	CompletionBoxStyle = BaseStyle.
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(BorderSecondary).
+				Padding(0, 1)
+
+	CompletionSelectedStyle = BaseStyle.
+				Foreground(TextPrimary).
+				Bold(true)
+
+	CompletionNormalStyle = BaseStyle.
+				Foreground(TextPrimary)
+
+	CompletionDescStyle = BaseStyle.
+				Foreground(TextSecondary).
+				Italic(true)
+
+	CompletionNoResultsStyle = BaseStyle.
+					Foreground(TextMuted).
+					Italic(true).
+					Align(lipgloss.Center)
+)
+
 // Deprecated styles (kept for backward compatibility)
 var (
 	StatusStyle = MutedStyle
