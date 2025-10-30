@@ -1,4 +1,4 @@
-package root
+package cli
 
 import (
 	"context"
@@ -27,7 +27,7 @@ var (
 	bold = color.New(color.Bold).SprintfFunc()
 )
 
-// confirmation result types
+// ConfirmationResult represents the result of a user confirmation prompt
 type ConfirmationResult string
 
 const (
@@ -37,21 +37,33 @@ const (
 	ConfirmationAbort          ConfirmationResult = "abort"
 )
 
-// text utility functions
+// Color formatting functions (exported for use by other packages)
+var (
+	Blue   = blue
+	Yellow = yellow
+	Red    = red
+	White  = white
+	Green  = green
+	Bold   = bold
+)
 
-func printWelcomeMessage() {
-	fmt.Printf("\n%s\n%s\n\n", blue("------- Welcome to %s! -------", bold(AppName)), white("(Ctrl+C to stop the agent and exit)"))
+// PrintWelcomeMessage prints the welcome message
+func PrintWelcomeMessage(appName string) {
+	fmt.Printf("\n%s\n%s\n\n", blue("------- Welcome to %s! -------", bold(appName)), white("(Ctrl+C to stop the agent and exit)"))
 }
 
-func printError(err error) {
+// PrintError prints an error message
+func PrintError(err error) {
 	fmt.Println(red("❌ %s", err))
 }
 
-func printAgentName(agentName string) {
+// PrintAgentName prints the agent name header
+func PrintAgentName(agentName string) {
 	fmt.Printf("\n%s\n", blue("--- Agent: %s ---", bold(agentName)))
 }
 
-func printToolCall(toolCall tools.ToolCall, colorFunc ...func(format string, a ...any) string) {
+// PrintToolCall prints a tool call
+func PrintToolCall(toolCall tools.ToolCall, colorFunc ...func(format string, a ...any) string) {
 	c := white
 	if len(colorFunc) > 0 && colorFunc[0] != nil {
 		c = colorFunc[0]
@@ -59,9 +71,10 @@ func printToolCall(toolCall tools.ToolCall, colorFunc ...func(format string, a .
 	fmt.Printf("\nCalling %s\n", c("%s%s", bold(toolCall.Function.Name), formatToolCallArguments(toolCall.Function.Arguments)))
 }
 
-func printToolCallWithConfirmation(ctx context.Context, toolCall tools.ToolCall, rd io.Reader) ConfirmationResult {
+// PrintToolCallWithConfirmation prints a tool call and prompts for confirmation
+func PrintToolCallWithConfirmation(ctx context.Context, toolCall tools.ToolCall, rd io.Reader) ConfirmationResult {
 	fmt.Printf("\n%s\n", bold(yellow("🛠️ Tool call requires confirmation 🛠️")))
-	printToolCall(toolCall, color.New(color.FgWhite).SprintfFunc())
+	PrintToolCall(toolCall, color.New(color.FgWhite).SprintfFunc())
 	fmt.Printf("\n%s", bold(yellow("Can I run this tool? ([y]es/[a]ll/[n]o): ")))
 
 	// Try single-character input from stdin in raw mode (no Enter required)
@@ -116,11 +129,13 @@ func printToolCallWithConfirmation(ctx context.Context, toolCall tools.ToolCall,
 	}
 }
 
-func printToolCallResponse(toolCall tools.ToolCall, response string) {
+// PrintToolCallResponse prints a tool call response
+func PrintToolCallResponse(toolCall tools.ToolCall, response string) {
 	fmt.Printf("\n%s\n", white("%s response%s", bold(toolCall.Function.Name), formatToolCallResponse(response)))
 }
 
-func promptMaxIterationsContinue(ctx context.Context, maxIterations int) ConfirmationResult {
+// PromptMaxIterationsContinue prompts the user to continue after max iterations
+func PromptMaxIterationsContinue(ctx context.Context, maxIterations int) ConfirmationResult {
 	fmt.Printf("\n%s\n", yellow("⚠️  Maximum iterations (%d) reached. The agent may be stuck in a loop.", maxIterations))
 	fmt.Printf("%s\n", white("This can happen with smaller or less capable models."))
 	fmt.Printf("\n%s (y/n): ", blue("Do you want to continue for 10 more iterations?"))
@@ -141,7 +156,8 @@ func promptMaxIterationsContinue(ctx context.Context, maxIterations int) Confirm
 	}
 }
 
-func promptOAuthAuthorization(ctx context.Context, serverURL string) ConfirmationResult {
+// PromptOAuthAuthorization prompts the user for OAuth authorization
+func PromptOAuthAuthorization(ctx context.Context, serverURL string) ConfirmationResult {
 	fmt.Printf("\n%s\n", yellow("🔐 OAuth Authorization Required"))
 	fmt.Printf("%s %s (remote)\n", white("Server:"), blue(serverURL))
 	fmt.Printf("%s\n", white("This server requires OAuth authentication to access its tools."))
