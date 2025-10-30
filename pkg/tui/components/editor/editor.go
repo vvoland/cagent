@@ -8,9 +8,9 @@ import (
 	"github.com/charmbracelet/bubbles/v2/textarea"
 	tea "github.com/charmbracelet/bubbletea/v2"
 
-	"github.com/docker/cagent/pkg/fsx"
 	"github.com/docker/cagent/pkg/history"
 	"github.com/docker/cagent/pkg/tui/components/completion"
+	"github.com/docker/cagent/pkg/tui/components/editor/completions"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/styles"
@@ -54,6 +54,8 @@ type editor struct {
 	historyBrowsing bool
 	// completionWord stores the word being completed
 	completionWord string
+	// completions are the available completions
+	completions []completions.Completion
 }
 
 // New creates a new editor component
@@ -70,7 +72,8 @@ func New() Editor {
 	ta.KeyMap.InsertNewline.SetEnabled(true) // Enable newline insertion
 
 	return &editor{
-		textarea: ta,
+		textarea:    ta,
+		completions: completions.Completions(),
 	}
 }
 
@@ -128,8 +131,10 @@ func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return e, nil
 			}
 		default:
-			if msg.String() == "@" {
-				cmds = append(cmds, e.startFileCompletion())
+			for _, completion := range e.completions {
+				if msg.String() == completion.Trigger() {
+					cmds = append(cmds, e.startCompletion(completion))
+				}
 			}
 
 			// Any other key exits history browsing so input becomes fresh text.
@@ -160,6 +165,12 @@ func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return e, tea.Batch(cmds...)
+}
+
+func (e *editor) startCompletion(c completions.Completion) tea.Cmd {
+	return core.CmdHandler(completion.OpenMsg{
+		Items: c.Items(),
+	})
 }
 
 // View renders the component
@@ -220,24 +231,6 @@ func (e *editor) SetWorking(working bool) tea.Cmd {
 
 func (e *editor) SetHistory(hist *history.History) {
 	e.hist = hist
-}
-
-func (e *editor) startFileCompletion() tea.Cmd {
-	files, err := fsx.ListDirectory(".", 0)
-	if err != nil {
-		return nil
-	}
-	items := make([]completion.Item, len(files))
-	for i, f := range files {
-		items[i] = completion.Item{
-			Label: f,
-			Value: f,
-		}
-	}
-
-	return core.CmdHandler(completion.OpenMsg{
-		Items: items,
-	})
 }
 
 func (e *editor) navigateHistory(direction historyNavigation) bool {
