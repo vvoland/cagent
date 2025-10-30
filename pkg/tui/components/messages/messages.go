@@ -908,7 +908,7 @@ func (m *model) copySelectionToClipboard() tea.Cmd {
 	}
 
 	if err := clipboard.WriteAll(selectedText); err != nil {
-		return core.CmdHandler(notification.ShowMsg{Text: "Failed to copy: " + err.Error()})
+		return core.CmdHandler(notification.ShowMsg{Text: "Failed to copy: " + err.Error(), Type: notification.TypeError})
 	}
 
 	return core.CmdHandler(notification.ShowMsg{Text: "Text copied to clipboard"})

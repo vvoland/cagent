@@ -1,6 +1,7 @@
 package notification
 
 import (
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -11,14 +12,25 @@ import (
 )
 
 const (
-	defaultDuration     = 3 * time.Second
-	notificationPadding = 2
+	defaultDuration      = 3 * time.Second
+	notificationPadding  = 2
+	maxNotificationWidth = 80 // Maximum width to prevent covering too much screen
 )
 
 var nextID atomic.Uint64
 
+// Type represents the type of notification
+type Type int
+
+const (
+	TypeSuccess Type = iota
+	TypeInfo
+	TypeError
+)
+
 type ShowMsg struct {
 	Text string
+	Type Type // Defaults to TypeSuccess for backward compatibility
 }
 
 type HideMsg struct {
@@ -29,6 +41,7 @@ type HideMsg struct {
 type notificationItem struct {
 	ID       uint64
 	Text     string
+	Type     Type
 	TimerCmd tea.Cmd
 }
 
@@ -59,9 +72,18 @@ func (n *Notification) Update(msg tea.Msg) (Notification, tea.Cmd) {
 
 	case ShowMsg:
 		id := nextID.Add(1)
+		notifType := msg.Type
+		// Auto-detect error type for backward compatibility when Type is not set
+		if notifType == TypeSuccess && msg.Text != "" {
+			textLower := strings.ToLower(msg.Text)
+			if strings.Contains(textLower, "failed") || strings.Contains(textLower, "error") {
+				notifType = TypeError
+			}
+		}
 		item := notificationItem{
 			ID:   id,
 			Text: msg.Text,
+			Type: notifType,
 		}
 
 		item.TimerCmd = tea.Tick(defaultDuration, func(t time.Time) tea.Msg {
@@ -99,7 +121,36 @@ func (n *Notification) View() string {
 	var views []string
 	for i := len(n.items) - 1; i >= 0; i-- {
 		item := n.items[i]
-		view := styles.NotificationStyle.Render(item.Text)
+
+		// Select style based on notification type
+		var style lipgloss.Style
+		switch item.Type {
+		case TypeError:
+			style = styles.NotificationErrorStyle
+		case TypeInfo:
+			style = styles.NotificationInfoStyle
+		default:
+			style = styles.NotificationStyle
+		}
+
+		// Apply max width constraint and word wrapping
+		text := item.Text
+		maxWidth := maxNotificationWidth
+		if n.width > 0 {
+			// Use smaller of maxNotificationWidth or available width minus padding
+			maxWidth = min(maxNotificationWidth, n.width-notificationPadding*2)
+		}
+
+		// Only constrain width if text actually exceeds maxWidth
+		textWidth := lipgloss.Width(text)
+		var view string
+		if textWidth > maxWidth {
+			// Wrap text using lipgloss Width style - lipgloss will automatically wrap
+			view = style.Width(maxWidth).Render(text)
+		} else {
+			// Use natural width for short text
+			view = style.Render(text)
+		}
 		views = append(views, view)
 	}
 

@@ -530,7 +530,7 @@ func (p *chatPage) CopySessionToClipboard() tea.Cmd {
 	}
 
 	if err := clipboard.WriteAll(transcript); err != nil {
-		return core.CmdHandler(notification.ShowMsg{Text: "Failed to copy conversation: " + err.Error()})
+		return core.CmdHandler(notification.ShowMsg{Text: "Failed to copy conversation: " + err.Error(), Type: notification.TypeError})
 	}
 
 	return core.CmdHandler(notification.ShowMsg{Text: "Conversation copied to clipboard."})
