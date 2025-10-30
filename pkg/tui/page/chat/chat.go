@@ -67,7 +67,8 @@ type chatPage struct {
 	title string
 	app   *app.App
 
-	history *history.History
+	history         *history.History
+	sessionCommands []dialog.Command
 
 	// Cached layout dimensions
 	chatHeight  int
@@ -95,7 +96,7 @@ func defaultKeyMap() KeyMap {
 }
 
 // New creates a new chat page
-func New(a *app.App) Page {
+func New(a *app.App, sessionCommands []dialog.Command) Page {
 	ed := editor.New()
 
 	historyStore, err := history.New()
@@ -105,14 +106,15 @@ func New(a *app.App) Page {
 	ed.SetHistory(historyStore)
 
 	return &chatPage{
-		title:        a.Title(),
-		sidebar:      sidebar.New(),
-		messages:     messages.New(a),
-		editor:       ed,
-		focusedPanel: PanelEditor,
-		app:          a,
-		keyMap:       defaultKeyMap(),
-		history:      historyStore,
+		title:           a.Title(),
+		sidebar:         sidebar.New(),
+		messages:        messages.New(a),
+		editor:          ed,
+		focusedPanel:    PanelEditor,
+		app:             a,
+		keyMap:          defaultKeyMap(),
+		history:         historyStore,
+		sessionCommands: sessionCommands,
 	}
 }
 
@@ -500,6 +502,14 @@ func (p *chatPage) processMessage(content string) tea.Cmd {
 	case strings.HasPrefix(content, "!"):
 		p.app.RunBangCommand(ctx, content[1:])
 	case strings.HasPrefix(content, "/"):
+		// Try builtin session command first
+		for _, sessionCommand := range p.sessionCommands {
+			if sessionCommand.SlashCommand == content && sessionCommand.Execute != nil {
+				return sessionCommand.Execute()
+			}
+		}
+
+		// Then user-defined commands
 		p.app.Run(ctx, p.msgCancel, p.app.ResolveCommand(ctx, content))
 	default:
 		p.app.Run(ctx, p.msgCancel, content)

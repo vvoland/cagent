@@ -78,7 +78,6 @@ func DefaultKeyMap() KeyMap {
 // New creates and initializes a new TUI application model
 func New(a *app.App) tea.Model {
 	t := &appModel{
-		chatPage:     chatpage.New(a),
 		keyMap:       DefaultKeyMap(),
 		dialog:       dialog.New(),
 		notification: notification.New(),
@@ -86,6 +85,7 @@ func New(a *app.App) tea.Model {
 	}
 
 	t.statusBar = statusbar.New(t)
+	t.chatPage = chatpage.New(a, t.builtInSessionCommands())
 
 	return t
 }
@@ -316,55 +316,63 @@ func toFullscreenView(content string) tea.View {
 	return view
 }
 
+func (a *appModel) builtInSessionCommands() []dialog.Command {
+	return []dialog.Command{
+		{
+			ID:           "session.new",
+			Label:        "New",
+			SlashCommand: "/new",
+			Description:  "Start a new conversation",
+			Category:     "Session",
+			Execute: func() tea.Cmd {
+				a.application.NewSession()
+				a.chatPage = chatpage.New(a.application, a.builtInSessionCommands())
+				a.dialog = dialog.New()
+				a.statusBar = statusbar.New(a.chatPage)
+
+				return tea.Batch(a.Init(), a.handleWindowResize(a.wWidth, a.wHeight))
+			},
+		},
+		{
+			ID:           "session.compact",
+			Label:        "Compact",
+			SlashCommand: "/compact",
+			Description:  "Summarize the current conversation",
+			Category:     "Session",
+			Execute: func() tea.Cmd {
+				return a.chatPage.CompactSession()
+			},
+		},
+		{
+			ID:           "session.clipboard",
+			Label:        "Copy",
+			SlashCommand: "/copy",
+			Description:  "Copy the current conversation to the clipboard",
+			Category:     "Session",
+			Execute: func() tea.Cmd {
+				return a.chatPage.CopySessionToClipboard()
+			},
+		},
+		{
+			ID:           "session.eval",
+			Label:        "Eval",
+			SlashCommand: "/eval",
+			Description:  "Create an evaluation report for the current conversation",
+			Category:     "Session",
+			Execute: func() tea.Cmd {
+				evalFile, _ := evaluation.Save(a.application.Session())
+				return core.CmdHandler(notification.ShowMsg{Text: fmt.Sprintf("Eval saved to file %s", evalFile)})
+			},
+		},
+	}
+}
+
 // buildCommandCategories builds the list of command categories for the command palette
 func (a *appModel) buildCommandCategories(ctx context.Context) []dialog.CommandCategory {
 	categories := []dialog.CommandCategory{
 		{
-			Name: "Session",
-			Commands: []dialog.Command{
-				{
-					ID:          "session.new",
-					Label:       "New ",
-					Description: "Start a new conversation",
-					Category:    "Session",
-					Execute: func() tea.Cmd {
-						a.application.NewSession()
-						a.chatPage = chatpage.New(a.application)
-						a.dialog = dialog.New()
-						a.statusBar = statusbar.New(a.chatPage)
-
-						return tea.Batch(a.Init(), a.handleWindowResize(a.wWidth, a.wHeight))
-					},
-				},
-				{
-					ID:          "session.compact",
-					Label:       "Compact",
-					Description: "Summarize the current conversation",
-					Category:    "Session",
-					Execute: func() tea.Cmd {
-						return a.chatPage.CompactSession()
-					},
-				},
-				{
-					ID:          "session.clipboard",
-					Label:       "Copy",
-					Description: "Copy the current conversation to the clipboard",
-					Category:    "Session",
-					Execute: func() tea.Cmd {
-						return a.chatPage.CopySessionToClipboard()
-					},
-				},
-				{
-					ID:          "session.eval",
-					Label:       "Eval",
-					Description: "Create an evaluation report for the current conversation",
-					Category:    "Session",
-					Execute: func() tea.Cmd {
-						evalFile, _ := evaluation.Save(a.application.Session())
-						return core.CmdHandler(notification.ShowMsg{Text: fmt.Sprintf("Eval saved to file %s", evalFile)})
-					},
-				},
-			},
+			Name:     "Session",
+			Commands: a.builtInSessionCommands(),
 		},
 	}
 

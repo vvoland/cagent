@@ -19,11 +19,12 @@ type CommandExecuteMsg struct {
 
 // Command represents a single command in the palette
 type Command struct {
-	ID          string
-	Label       string
-	Description string
-	Category    string
-	Execute     func() tea.Cmd
+	ID           string
+	Label        string
+	Description  string
+	Category     string
+	SlashCommand string
+	Execute      func() tea.Cmd
 }
 
 // CommandCategory represents a category of commands
