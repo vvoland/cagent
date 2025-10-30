@@ -945,7 +945,8 @@ func (m *model) applySelectionHighlight(lines []string, viewportStartLine int) [
 		case absoluteLine == startLine:
 			// Start of multi-line selection
 			plainLine := ansi.Strip(line)
-			lineWidth := runewidth.StringWidth(plainLine)
+			trimmedLine := strings.TrimRight(plainLine, " \t")
+			lineWidth := runewidth.StringWidth(trimmedLine)
 			highlighted[i] = m.highlightLine(line, startCol, lineWidth)
 		case absoluteLine == endLine:
 			// End of multi-line selection
@@ -953,7 +954,8 @@ func (m *model) applySelectionHighlight(lines []string, viewportStartLine int) [
 		default:
 			// Middle of multi-line selection
 			plainLine := ansi.Strip(line)
-			lineWidth := runewidth.StringWidth(plainLine)
+			trimmedLine := strings.TrimRight(plainLine, " \t")
+			lineWidth := runewidth.StringWidth(trimmedLine)
 			highlighted[i] = m.highlightLine(line, 0, lineWidth)
 		}
 	}
