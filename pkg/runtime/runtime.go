@@ -1060,7 +1060,6 @@ func (r *LocalRuntime) Summarize(ctx context.Context, sess *session.Session, eve
 
 	// Check if session is empty
 	if len(messages) == 0 {
-		slog.Debug("Session is empty, nothing to summarize", "session_id", sess.ID)
 		events <- &WarningEvent{Message: "Session is empty. Start a conversation before compacting."}
 		return
 	}

@@ -223,7 +223,7 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := p.messages.AddShellOutputMessage(msg.Output)
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
 	case *runtime.WarningEvent:
-		cmd := p.messages.AddWarningMessage(msg.Message)
+		cmd := core.CmdHandler(notification.ShowMsg{Text: msg.Message, Type: notification.TypeWarning})
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
 	case *runtime.UserMessageEvent:
 		cmd := p.messages.AddUserMessage(msg.Message)

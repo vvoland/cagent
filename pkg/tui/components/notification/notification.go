@@ -24,6 +24,7 @@ type Type int
 
 const (
 	TypeSuccess Type = iota
+	TypeWarning
 	TypeInfo
 	TypeError
 )
@@ -127,6 +128,8 @@ func (n *Manager) View() string {
 		switch item.Type {
 		case TypeError:
 			style = styles.NotificationErrorStyle
+		case TypeWarning:
+			style = styles.NotificationWarningStyle
 		case TypeInfo:
 			style = styles.NotificationInfoStyle
 		default:

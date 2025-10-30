@@ -4,8 +4,9 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea/v2"
-	"github.com/docker/cagent/pkg/tui/commands"
 	"github.com/stretchr/testify/require"
+
+	"github.com/docker/cagent/pkg/tui/commands"
 )
 
 var categories = []commands.Category{

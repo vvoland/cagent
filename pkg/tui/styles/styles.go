@@ -320,6 +320,11 @@ var (
 				BorderForeground(Info).
 				Padding(0, 1)
 
+	NotificationWarningStyle = BaseStyle.
+					Border(lipgloss.RoundedBorder()).
+					BorderForeground(Warning).
+					Padding(0, 1)
+
 	NotificationErrorStyle = BaseStyle.
 				Border(lipgloss.RoundedBorder()).
 				BorderForeground(Error).
