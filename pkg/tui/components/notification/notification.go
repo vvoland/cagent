@@ -45,25 +45,25 @@ type notificationItem struct {
 	TimerCmd tea.Cmd
 }
 
-// Notification represents a notification manager that displays
+// Manager represents a notification manager that displays
 // multiple stacked messages in the bottom right corner of the screen
-type Notification struct {
+type Manager struct {
 	width, height int
 	items         []notificationItem
 }
 
-func New() Notification {
-	return Notification{
+func New() Manager {
+	return Manager{
 		items: make([]notificationItem, 0),
 	}
 }
 
-func (n *Notification) SetSize(width, height int) {
+func (n *Manager) SetSize(width, height int) {
 	n.width = width
 	n.height = height
 }
 
-func (n *Notification) Update(msg tea.Msg) (Notification, tea.Cmd) {
+func (n *Manager) Update(msg tea.Msg) (Manager, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		n.width = msg.Width
@@ -113,7 +113,7 @@ func (n *Notification) Update(msg tea.Msg) (Notification, tea.Cmd) {
 	return *n, nil
 }
 
-func (n *Notification) View() string {
+func (n *Manager) View() string {
 	if len(n.items) == 0 {
 		return ""
 	}
@@ -157,7 +157,7 @@ func (n *Notification) View() string {
 	return lipgloss.JoinVertical(lipgloss.Right, views...)
 }
 
-func (n *Notification) GetLayer() *lipgloss.Layer {
+func (n *Manager) GetLayer() *lipgloss.Layer {
 	if len(n.items) == 0 {
 		return nil
 	}
@@ -168,7 +168,7 @@ func (n *Notification) GetLayer() *lipgloss.Layer {
 	return lipgloss.NewLayer(view).X(col).Y(row)
 }
 
-func (n *Notification) position() (row, col int) {
+func (n *Manager) position() (row, col int) {
 	notificationView := n.View()
 	viewHeight := lipgloss.Height(notificationView)
 	viewWidth := lipgloss.Width(notificationView)
@@ -180,6 +180,6 @@ func (n *Notification) position() (row, col int) {
 	return row, col
 }
 
-func (n *Notification) IsVisible() bool {
+func (n *Manager) Open() bool {
 	return len(n.items) > 0
 }

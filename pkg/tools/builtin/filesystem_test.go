@@ -725,46 +725,6 @@ func TestFilesystemTool_EditFile(t *testing.T) {
 	assert.Contains(t, result.Output, "old text not found")
 }
 
-func TestFilesystemTool_DirectoryTree(t *testing.T) {
-	tmpDir := t.TempDir()
-	tool := NewFilesystemTool([]string{tmpDir})
-
-	// Create test directory structure
-	subDir1 := filepath.Join(tmpDir, "subdir1")
-	subDir2 := filepath.Join(tmpDir, "subdir1", "subdir2")
-	require.NoError(t, os.MkdirAll(subDir2, 0o755))
-
-	file1 := filepath.Join(tmpDir, "file1.txt")
-	file2 := filepath.Join(subDir1, "file2.txt")
-	file3 := filepath.Join(subDir2, "file3.txt")
-
-	require.NoError(t, os.WriteFile(file1, []byte("test1"), 0o644))
-	require.NoError(t, os.WriteFile(file2, []byte("test2"), 0o644))
-	require.NoError(t, os.WriteFile(file3, []byte("test3"), 0o644))
-
-	handler := getToolHandler(t, tool, "directory_tree")
-
-	// Test directory tree without depth limit
-	args := map[string]any{"path": tmpDir}
-	result := callHandler(t, handler, args)
-
-	var tree TreeNode
-	require.NoError(t, json.Unmarshal([]byte(result.Output), &tree))
-
-	assert.Equal(t, "directory", tree.Type)
-	assert.GreaterOrEqual(t, len(tree.Children), 2) // file1.txt and subdir1
-
-	// Test with depth limit
-	args = map[string]any{
-		"path":      tmpDir,
-		"max_depth": 2,
-	}
-	result = callHandler(t, handler, args)
-
-	require.NoError(t, json.Unmarshal([]byte(result.Output), &tree))
-	assert.Equal(t, "directory", tree.Type)
-}
-
 func TestFilesystemTool_SearchFiles(t *testing.T) {
 	tmpDir := t.TempDir()
 

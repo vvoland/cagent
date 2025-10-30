@@ -1,12 +1,16 @@
 package editor
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/bubbles/v2/help"
 	"github.com/charmbracelet/bubbles/v2/key"
 	"github.com/charmbracelet/bubbles/v2/textarea"
 	tea "github.com/charmbracelet/bubbletea/v2"
 
+	"github.com/docker/cagent/pkg/fsx"
 	"github.com/docker/cagent/pkg/history"
+	"github.com/docker/cagent/pkg/tui/components/completion"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/styles"
@@ -35,7 +39,7 @@ type Editor interface {
 	SetWorking(working bool) tea.Cmd
 }
 
-// editor implements Editor
+// editor implements [Editor]
 type editor struct {
 	textarea *textarea.Model
 	width    int
@@ -48,6 +52,8 @@ type editor struct {
 	draftInput string
 	// historyBrowsing marks that we're currently showing history entries.
 	historyBrowsing bool
+	// completionWord stores the word being completed
+	completionWord string
 }
 
 // New creates a new editor component
@@ -75,9 +81,25 @@ func (e *editor) Init() tea.Cmd {
 
 // Update handles messages and updates the component state
 func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		e.textarea.SetWidth(msg.Width - 2)
+		return e, nil
+	case completion.SelectedMsg:
+		currentValue := e.textarea.Value()
+
+		lastIdx := strings.LastIndex(currentValue, e.completionWord)
+
+		if lastIdx >= 0 {
+			newValue := currentValue[:lastIdx-1] + msg.Value + currentValue[lastIdx+len(e.completionWord):]
+			e.textarea.SetValue(newValue)
+			e.textarea.MoveToEnd()
+		}
+
+		return e, nil
+	case completion.ClosedMsg:
+		e.completionWord = ""
 		return e, nil
 	case tea.KeyPressMsg:
 		switch msg.String() {
@@ -106,6 +128,10 @@ func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return e, nil
 			}
 		default:
+			if msg.String() == "@" {
+				cmds = append(cmds, e.startFileCompletion())
+			}
+
 			// Any other key exits history browsing so input becomes fresh text.
 			if e.historyBrowsing {
 				e.endHistoryBrowse()
@@ -115,7 +141,25 @@ func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	var cmd tea.Cmd
 	e.textarea, cmd = e.textarea.Update(msg)
-	return e, cmd
+	cmds = append(cmds, cmd)
+
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		if keyMsg.String() == "space" {
+			e.completionWord = ""
+			cmds = append(cmds, core.CmdHandler(completion.CloseMsg{}))
+		}
+
+		currentWord := e.textarea.Word()
+		if strings.HasPrefix(currentWord, "@") {
+			e.completionWord = currentWord[1:]
+			cmds = append(cmds, core.CmdHandler(completion.QueryMsg{Query: e.completionWord}))
+		} else {
+			e.completionWord = ""
+			cmds = append(cmds, core.CmdHandler(completion.CloseMsg{}))
+		}
+	}
+
+	return e, tea.Batch(cmds...)
 }
 
 // View renders the component
@@ -178,6 +222,24 @@ func (e *editor) SetHistory(hist *history.History) {
 	e.hist = hist
 }
 
+func (e *editor) startFileCompletion() tea.Cmd {
+	files, err := fsx.ListDirectory(".", 0)
+	if err != nil {
+		return nil
+	}
+	items := make([]completion.Item, len(files))
+	for i, f := range files {
+		items[i] = completion.Item{
+			Label: f,
+			Value: f,
+		}
+	}
+
+	return core.CmdHandler(completion.OpenMsg{
+		Items: items,
+	})
+}
+
 func (e *editor) navigateHistory(direction historyNavigation) bool {
 	// Returning true tells Update to stop Bubble Tea's default cursor handling,
 	// because we've already replaced the textarea content for this key press.
@@ -220,9 +282,7 @@ func (e *editor) navigateHistory(direction historyNavigation) bool {
 func (e *editor) canBrowseHistory() bool {
 	// We only take over arrow keys when there's at least one history entry and
 	// the textarea is a single line (multi-line inputs retain normal movement).
-	return e.hist != nil &&
-		len(e.hist.Messages) > 0 &&
-		e.textarea.LineCount() == 1
+	return e.hist != nil && e.textarea.Value() == ""
 }
 
 func (e *editor) beginHistoryBrowse() {

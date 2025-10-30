@@ -13,6 +13,7 @@ import (
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/evaluation"
 	"github.com/docker/cagent/pkg/runtime"
+	"github.com/docker/cagent/pkg/tui/components/completion"
 	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/components/statusbar"
 	"github.com/docker/cagent/pkg/tui/core"
@@ -43,12 +44,12 @@ type appModel struct {
 	width, height   int
 	keyMap          KeyMap
 
-	chatPage     chatpage.Page
-	statusBar    statusbar.StatusBar
-	notification notification.Notification
+	chatPage  chatpage.Page
+	statusBar statusbar.StatusBar
 
-	// Dialog system
-	dialog dialog.Manager
+	notification notification.Manager
+	dialog       dialog.Manager
+	completions  completion.Manager
 
 	// State
 	ready bool
@@ -81,6 +82,7 @@ func New(a *app.App) tea.Model {
 		keyMap:       DefaultKeyMap(),
 		dialog:       dialog.New(),
 		notification: notification.New(),
+		completions:  completion.New(),
 		application:  a,
 	}
 
@@ -122,6 +124,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		a.wWidth, a.wHeight = msg.Width, msg.Height
 		cmd := a.handleWindowResize(msg.Width, msg.Height)
+		a.completions.Update(msg)
 		return a, cmd
 
 	case notification.ShowMsg, notification.HideMsg:
@@ -135,7 +138,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.MouseWheelMsg:
 		// If dialogs are active, they get priority for mouse events
-		if a.dialog.HasDialog() {
+		if a.dialog.Open() {
 			u, dialogCmd := a.dialog.Update(msg)
 			a.dialog = u.(dialog.Manager)
 			return a, dialogCmd
@@ -159,16 +162,25 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// For other messages, check if dialogs should handle them first
 		// If dialogs are active, they get priority for input
-		if a.dialog.HasDialog() {
+		if a.dialog.Open() {
 			u, dialogCmd := a.dialog.Update(msg)
 			a.dialog = u.(dialog.Manager)
 			return a, dialogCmd
 		}
 
-		// Otherwise, forward to chat page
-		updated, cmd := a.chatPage.Update(msg)
+		var cmds []tea.Cmd
+		var cmd tea.Cmd
+
+		updated, cmd := a.completions.Update(msg)
+		cmds = append(cmds, cmd)
+		a.completions = updated.(completion.Manager)
+
+		updated, cmd = a.chatPage.Update(msg)
+		cmds = append(cmds, cmd)
+
 		a.chatPage = updated.(chatpage.Page)
-		return a, cmd
+
+		return a, tea.Batch(cmds...)
 	}
 }
 
@@ -212,13 +224,35 @@ func (a *appModel) handleWindowResize(width, height int) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// handleKeyPressMsg processes keyboard input
 func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
-	// If dialogs are active, they handle key input first
-	if a.dialog.HasDialog() {
+	if a.dialog.Open() {
 		u, dialogCmd := a.dialog.Update(msg)
 		a.dialog = u.(dialog.Manager)
 		return dialogCmd
+	}
+
+	if a.completions.Open() {
+		// Check if this is a navigation key that the completion manager should handle
+		switch msg.String() {
+		case "up", "down", "enter", "esc":
+			// Let completion manager handle navigation keys
+			u, completionCmd := a.completions.Update(msg)
+			a.completions = u.(completion.Manager)
+			return completionCmd
+		default:
+			// For all other keys (typing), send to both completion (for filtering) and editor
+			var cmds []tea.Cmd
+			u, completionCmd := a.completions.Update(msg)
+			a.completions = u.(completion.Manager)
+			cmds = append(cmds, completionCmd)
+
+			// Also send to chat page/editor so user can continue typing
+			updated, cmd := a.chatPage.Update(msg)
+			a.chatPage = updated.(chatpage.Page)
+			cmds = append(cmds, cmd)
+
+			return tea.Batch(cmds...)
+		}
 	}
 
 	switch {
@@ -285,8 +319,7 @@ func (a *appModel) View() tea.View {
 
 	baseView := lipgloss.JoinVertical(lipgloss.Top, components...)
 
-	// Check if we need to render any overlays (dialogs or notifications)
-	hasOverlays := a.dialog.HasDialog() || a.notification.IsVisible()
+	hasOverlays := a.dialog.Open() || a.notification.Open() || a.completions.Open()
 
 	if hasOverlays {
 		baseLayer := lipgloss.NewLayer(baseView)
@@ -294,13 +327,18 @@ func (a *appModel) View() tea.View {
 		allLayers = append(allLayers, baseLayer)
 
 		// Add dialog layers
-		if a.dialog.HasDialog() {
+		if a.dialog.Open() {
 			dialogLayers := a.dialog.GetLayers()
 			allLayers = append(allLayers, dialogLayers...)
 		}
 
-		if a.notification.IsVisible() {
+		if a.notification.Open() {
 			allLayers = append(allLayers, a.notification.GetLayer())
+		}
+
+		if a.completions.Open() {
+			layers := a.completions.GetLayers()
+			allLayers = append(allLayers, layers...)
 		}
 
 		canvas := lipgloss.NewCanvas(allLayers...)
