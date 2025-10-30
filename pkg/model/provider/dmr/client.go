@@ -409,7 +409,16 @@ func (c *Client) CreateChatCompletionStream(ctx context.Context, messages []chat
 
 // ConvertParametersToSchema converts parameters to DMR Schema format
 func ConvertParametersToSchema(params any) (any, error) {
-	return tools.SchemaToMap(params)
+	m, err := tools.SchemaToMap(params)
+	if err != nil {
+		return nil, err
+	}
+
+	// DMR models tend to dislike `additionalProperties` in the schema
+	// e.g. ai/qwen3 and ai/gpt-oss
+	delete(m, "additionalProperties")
+
+	return m, nil
 }
 
 func parseDMRProviderOpts(cfg *latest.ModelConfig) (contextSize int, runtimeFlags []string) {

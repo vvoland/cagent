@@ -43,6 +43,7 @@ const schemaJSON = `
         "type": "string"
       }
     },
+	"additionalProperties": false,
     "required": ["repo"]
 }`
 
@@ -239,6 +240,7 @@ func TestSchemaForOpenai(t *testing.T) {
 			"type": "string"
 		}
 	},
+	"additionalProperties": false,
 	"required": ["repo"]
 }`, string(schemaJSON))
 }
