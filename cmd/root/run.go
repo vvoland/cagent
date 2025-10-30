@@ -549,6 +549,7 @@ func runWithoutTUI(ctx context.Context, agentFilename string, rt runtime.Runtime
 	return nil
 }
 
+// TODO: This is a duplication of builtInSessionCommands() in pkg/tui/tui.go
 func runUserCommand(userInput string, sess *session.Session, rt runtime.Runtime, ctx context.Context) (bool, error) {
 	yellow := color.New(color.FgYellow).SprintfFunc()
 	switch userInput {
@@ -565,7 +566,7 @@ func runUserCommand(userInput string, sess *session.Session, rt runtime.Runtime,
 		fmt.Printf("%s\n", yellow("Input tokens: %d", sess.InputTokens))
 		fmt.Printf("%s\n", yellow("Output tokens: %d", sess.OutputTokens))
 		return true, nil
-	case "/reset":
+	case "/new":
 		// Reset session items
 		sess.Messages = []session.Item{}
 		return true, nil

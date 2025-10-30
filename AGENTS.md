@@ -280,10 +280,9 @@ agents:
 
 ### Session Commands During CLI Usage
 
-- `/exit` - End the session
-- `/reset` - Clear session history
-- `/usage` - Show token usage statistics
+- `/new` - Clear session history
 - `/compact` - Generate summary and compact session history
+- `/copy` - Show token usage statistics
 - `/eval` - Save evaluation data
 
 ## File Locations and Patterns
