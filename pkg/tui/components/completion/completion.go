@@ -179,6 +179,14 @@ func (c *manager) View() string {
 		visibleStart := c.scrollOffset
 		visibleEnd := min(c.scrollOffset+maxItems, len(c.filteredItems))
 
+		maxLabelLen := 0
+		for i := visibleStart; i < visibleEnd; i++ {
+			labelLen := len(c.filteredItems[i].Label)
+			if labelLen > maxLabelLen {
+				maxLabelLen = labelLen
+			}
+		}
+
 		for i := visibleStart; i < visibleEnd; i++ {
 			item := c.filteredItems[i]
 			isSelected := i == c.selected
@@ -190,7 +198,9 @@ func (c *manager) View() string {
 				itemStyle = styles.CompletionNormalStyle
 			}
 
-			text := item.Label
+			// Pad label to maxLabelLen so descriptions align
+			paddedLabel := item.Label + strings.Repeat(" ", maxLabelLen+1-len(item.Label))
+			text := paddedLabel
 			if item.Description != "" {
 				text += " " + styles.CompletionDescStyle.Render(item.Description)
 			}
