@@ -88,7 +88,7 @@ func New(a *app.App) tea.Model {
 	}
 
 	t.statusBar = statusbar.New(t)
-	t.chatPage = chat.New(a, commands.BuiltInSessionCommands())
+	t.chatPage = chat.New(a)
 
 	return t
 }
@@ -151,7 +151,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case commands.NewSessionMsg:
 		a.application.NewSession()
-		a.chatPage = chat.New(a.application, commands.BuiltInSessionCommands())
+		a.chatPage = chat.New(a.application)
 		a.dialog = dialog.New()
 		a.statusBar = statusbar.New(a.chatPage)
 

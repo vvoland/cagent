@@ -20,6 +20,7 @@ type Item struct {
 	Label       string
 	Description string
 	Value       string
+	Execute     func() tea.Cmd
 }
 
 type OpenMsg struct {
@@ -37,7 +38,8 @@ type QueryMsg struct {
 }
 
 type SelectedMsg struct {
-	Value string
+	Value   string
+	Execute func() tea.Cmd
 }
 
 type matchResult struct {
@@ -154,7 +156,7 @@ func (c *manager) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, c.keyMap.Enter):
 			c.visible = false
-			return c, core.CmdHandler(SelectedMsg{Value: c.filteredItems[c.selected].Value})
+			return c, core.CmdHandler(SelectedMsg{Value: c.filteredItems[c.selected].Value, Execute: c.filteredItems[c.selected].Execute})
 		case key.Matches(msg, c.keyMap.Escape):
 			c.visible = false
 			return c, core.CmdHandler(ClosedMsg{})

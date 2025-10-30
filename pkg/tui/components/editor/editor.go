@@ -1,7 +1,6 @@
 package editor
 
 import (
-	"log/slog"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/v2/help"
@@ -93,18 +92,23 @@ func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return e, nil
 	case completion.SelectedMsg:
 		currentValue := e.textarea.Value()
-
 		lastIdx := strings.LastIndex(currentValue, e.completionWord)
-
-		if lastIdx >= 0 {
-			newValue := currentValue[:lastIdx-1] + msg.Value + currentValue[lastIdx+len(e.completionWord):]
-			e.textarea.SetValue(newValue)
-			e.textarea.MoveToEnd()
-		}
-
-		slog.Debug("auto submit", "auto submit", e.currentCompletion.AutoSubmit())
 		if e.currentCompletion.AutoSubmit() {
-			return e, core.CmdHandler(SendMsg{Content: msg.Value})
+			if lastIdx >= 0 {
+				newValue := currentValue[:lastIdx-1]
+				e.textarea.SetValue(newValue)
+				e.textarea.MoveToEnd()
+			}
+			if msg.Execute != nil {
+				return e, msg.Execute()
+			}
+		} else {
+			if lastIdx >= 0 {
+				newValue := currentValue[:lastIdx-1] + msg.Value + currentValue[lastIdx+len(e.completionWord):]
+				e.textarea.SetValue(newValue)
+				e.textarea.MoveToEnd()
+			}
+			return e, nil
 		}
 		return e, nil
 	case completion.ClosedMsg:
@@ -162,7 +166,7 @@ func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		currentWord := e.textarea.Word()
-		if strings.HasPrefix(currentWord, "@") {
+		if e.currentCompletion != nil && strings.HasPrefix(currentWord, e.currentCompletion.Trigger()) {
 			e.completionWord = currentWord[1:]
 			cmds = append(cmds, core.CmdHandler(completion.QueryMsg{Query: e.completionWord}))
 		} else {

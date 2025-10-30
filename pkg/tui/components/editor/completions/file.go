@@ -5,18 +5,18 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/completion"
 )
 
-type fileCompletion struct {
-	trigger string
-}
+type fileCompletion struct{}
 
 func NewFileCompletion() Completion {
-	return &fileCompletion{
-		trigger: "@",
-	}
+	return &fileCompletion{}
+}
+
+func (c *fileCompletion) AutoSubmit() bool {
+	return false
 }
 
 func (c *fileCompletion) Trigger() string {
-	return c.trigger
+	return "@"
 }
 
 func (c *fileCompletion) Items() []completion.Item {
@@ -33,8 +33,4 @@ func (c *fileCompletion) Items() []completion.Item {
 	}
 
 	return items
-}
-
-func (c *fileCompletion) AutoSubmit() bool {
-	return false
 }

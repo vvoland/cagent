@@ -67,8 +67,7 @@ type chatPage struct {
 	title string
 	app   *app.App
 
-	history         *history.History
-	sessionCommands []dialog.Command
+	history *history.History
 
 	// Cached layout dimensions
 	chatHeight  int
@@ -96,7 +95,7 @@ func defaultKeyMap() KeyMap {
 }
 
 // New creates a new chat page
-func New(a *app.App, sessionCommands []dialog.Command) Page {
+func New(a *app.App) Page {
 	ed := editor.New()
 
 	historyStore, err := history.New()
@@ -106,15 +105,14 @@ func New(a *app.App, sessionCommands []dialog.Command) Page {
 	ed.SetHistory(historyStore)
 
 	return &chatPage{
-		title:           a.Title(),
-		sidebar:         sidebar.New(),
-		messages:        messages.New(a),
-		editor:          ed,
-		focusedPanel:    PanelEditor,
-		app:             a,
-		keyMap:          defaultKeyMap(),
-		history:         historyStore,
-		sessionCommands: sessionCommands,
+		title:        a.Title(),
+		sidebar:      sidebar.New(),
+		messages:     messages.New(a),
+		editor:       ed,
+		focusedPanel: PanelEditor,
+		app:          a,
+		keyMap:       defaultKeyMap(),
+		history:      historyStore,
 	}
 }
 

@@ -7,7 +7,6 @@ import (
 
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/tui/core"
-	"github.com/docker/cagent/pkg/tui/dialog"
 )
 
 // Session commands
@@ -23,8 +22,24 @@ type AgentCommandMsg struct {
 	Command string
 }
 
-func BuiltInSessionCommands() []dialog.Command {
-	return []dialog.Command{
+// CommandCategory represents a category of commands
+type Category struct {
+	Name     string
+	Commands []Item
+}
+
+// Command represents a single command in the palette
+type Item struct {
+	ID           string
+	Label        string
+	Description  string
+	Category     string
+	SlashCommand string
+	Execute      func() tea.Cmd
+}
+
+func BuiltInSessionCommands() []Item {
+	return []Item{
 		{
 			ID:           "session.new",
 			Label:        "New",
@@ -69,8 +84,8 @@ func BuiltInSessionCommands() []dialog.Command {
 }
 
 // BuildCommandCategories builds the list of command categories for the command palette
-func BuildCommandCategories(ctx context.Context, application *app.App) []dialog.CommandCategory {
-	categories := []dialog.CommandCategory{
+func BuildCommandCategories(ctx context.Context, application *app.App) []Category {
+	categories := []Category{
 		{
 			Name:     "Session",
 			Commands: BuiltInSessionCommands(),
@@ -80,7 +95,7 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []dialog.
 	// Add agent commands if available
 	agentCommands := application.CurrentAgentCommands(ctx)
 	if len(agentCommands) > 0 {
-		commands := make([]dialog.Command, 0, len(agentCommands))
+		commands := make([]Item, 0, len(agentCommands))
 		for name, prompt := range agentCommands {
 			cmdText := "/" + name
 
@@ -92,7 +107,7 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []dialog.
 
 			// Capture cmdText in closure properly
 			commandText := cmdText
-			commands = append(commands, dialog.Command{
+			commands = append(commands, Item{
 				ID:          "agent.command." + name,
 				Label:       commandText,
 				Description: description,
@@ -103,7 +118,7 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []dialog.
 			})
 		}
 
-		categories = append(categories, dialog.CommandCategory{
+		categories = append(categories, Category{
 			Name:     "Agent Commands",
 			Commands: commands,
 		})

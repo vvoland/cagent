@@ -4,13 +4,14 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/docker/cagent/pkg/tui/commands"
 	"github.com/stretchr/testify/require"
 )
 
-var categories = []CommandCategory{
+var categories = []commands.Category{
 	{
 		Name: "Session",
-		Commands: []Command{
+		Commands: []commands.Item{
 			{
 				ID:          "session.new",
 				Label:       "New Session",

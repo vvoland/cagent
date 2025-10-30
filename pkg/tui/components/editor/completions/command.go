@@ -1,16 +1,17 @@
 package completions
 
-import "github.com/docker/cagent/pkg/tui/components/completion"
+import (
+	"github.com/docker/cagent/pkg/tui/commands"
+	"github.com/docker/cagent/pkg/tui/components/completion"
+)
 
 type commandCompletion struct {
-	trigger string
-	items   []completion.Item
+	items []completion.Item
 }
 
 func NewCommandCompletion() Completion {
 	return &commandCompletion{
-		trigger: "/",
-		items:   []completion.Item{},
+		items: []completion.Item{},
 	}
 }
 
@@ -19,20 +20,18 @@ func (c *commandCompletion) AutoSubmit() bool {
 }
 
 func (c *commandCompletion) Trigger() string {
-	return c.trigger
+	return "/"
 }
 
 func (c *commandCompletion) Items() []completion.Item {
-	return []completion.Item{
-		{
-			Label:       "New",
-			Description: "Start a new conversation",
-			Value:       "/new",
-		},
-		{
-			Label:       "Compact",
-			Description: "Summarize the current conversation",
-			Value:       "/compact",
-		},
+	items := make([]completion.Item, len(commands.BuiltInSessionCommands()))
+	for i, command := range commands.BuiltInSessionCommands() {
+		items[i] = completion.Item{
+			Label:       command.Label,
+			Description: command.Description,
+			Value:       command.SlashCommand,
+			Execute:     command.Execute,
+		}
 	}
+	return items
 }
