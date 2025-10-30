@@ -111,6 +111,19 @@ func createThinkTool(ctx context.Context, toolset latest.Toolset, parentDir stri
 	return builtin.NewThinkTool(), nil
 }
 
+// expandCommandPlaceholders expands environment variable placeholders in command values.
+// Undefined variables are allowed and will expand to empty strings, enabling users to
+// only define the environment variables needed for the commands they actually use.
+func expandCommandPlaceholders(ctx context.Context, commands map[string]string, envProvider environment.Provider) map[string]string {
+	expanded := map[string]string{}
+
+	for name, value := range commands {
+		expanded[name] = environment.ExpandLenient(ctx, value, envProvider)
+	}
+
+	return expanded
+}
+
 func createShellTool(ctx context.Context, toolset latest.Toolset, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig) (tools.ToolSet, error) {
 	env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), envProvider)
 	if err != nil {
@@ -343,7 +356,7 @@ func Load(ctx context.Context, p string, runtimeConfig config.RuntimeConfig, opt
 			agent.WithAddPromptFiles(agentConfig.AddPromptFiles),
 			agent.WithMaxIterations(agentConfig.MaxIterations),
 			agent.WithNumHistoryItems(agentConfig.NumHistoryItems),
-			agent.WithCommands(agentConfig.Commands),
+			agent.WithCommands(expandCommandPlaceholders(ctx, agentConfig.Commands, env)),
 		}
 
 		models, err := getModelsForAgent(ctx, cfg, &agentConfig, env, runtimeConfig)
