@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"log/slog"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/v2/help"
@@ -55,7 +56,8 @@ type editor struct {
 	// completionWord stores the word being completed
 	completionWord string
 	// completions are the available completions
-	completions []completions.Completion
+	completions       []completions.Completion
+	currentCompletion completions.Completion
 }
 
 // New creates a new editor component
@@ -100,6 +102,10 @@ func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			e.textarea.MoveToEnd()
 		}
 
+		slog.Debug("auto submit", "auto submit", e.currentCompletion.AutoSubmit())
+		if e.currentCompletion.AutoSubmit() {
+			return e, core.CmdHandler(SendMsg{Content: msg.Value})
+		}
 		return e, nil
 	case completion.ClosedMsg:
 		e.completionWord = ""
@@ -151,6 +157,7 @@ func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		if keyMsg.String() == "space" {
 			e.completionWord = ""
+			e.currentCompletion = nil
 			cmds = append(cmds, core.CmdHandler(completion.CloseMsg{}))
 		}
 
@@ -168,6 +175,7 @@ func (e *editor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (e *editor) startCompletion(c completions.Completion) tea.Cmd {
+	e.currentCompletion = c
 	return core.CmdHandler(completion.OpenMsg{
 		Items: c.Items(),
 	})

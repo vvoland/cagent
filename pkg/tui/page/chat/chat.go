@@ -497,19 +497,6 @@ func (p *chatPage) processMessage(content string) tea.Cmd {
 		return p.messages.ScrollToBottom()
 	}
 
-	// Handle /commands
-	if strings.HasPrefix(content, "/") {
-		// Try builtin session command first
-		for _, sessionCommand := range p.sessionCommands {
-			if sessionCommand.SlashCommand == content && sessionCommand.Execute != nil {
-				return sessionCommand.Execute()
-			}
-		}
-
-		// Then try app-level commands
-		content = p.app.ResolveCommand(ctx, content)
-	}
-
 	// Persist to history
 	if p.history != nil {
 		if err := p.history.Add(content); err != nil {
