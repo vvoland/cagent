@@ -72,6 +72,7 @@ type selectionState struct {
 	endLine         int
 	endCol          int
 	mouseButtonDown bool
+	mouseY          int // Screen Y coordinate for autoscroll
 }
 
 // start initializes a new selection at the given position
@@ -156,6 +157,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Button == tea.MouseLeft {
 			line, col := m.mouseToLineCol(msg.X, msg.Y)
 			m.selection.start(line, col)
+			m.selection.mouseY = msg.Y // Store screen Y for autoscroll
 		}
 		return m, nil
 
@@ -163,6 +165,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.selection.mouseButtonDown && m.selection.active {
 			line, col := m.mouseToLineCol(msg.X, msg.Y)
 			m.selection.update(line, col)
+			m.selection.mouseY = msg.Y // Store screen Y for autoscroll
 
 			cmd := m.autoScroll()
 			return m, cmd
@@ -1009,23 +1012,31 @@ func (m *model) autoScroll() tea.Cmd {
 	const scrollThreshold = 2
 	direction := 0
 
-	if m.selection.endCol < scrollThreshold && m.scrollOffset > 0 {
-		// Scroll up
+	// Use stored screen Y coordinate to check if mouse is in autoscroll region
+	// mouseToLineCol subtracts 2 for header, so viewport-relative Y is mouseY - 2
+	viewportY := m.selection.mouseY - 2
+
+	// Ensure viewportY is valid (can't be negative or beyond viewport)
+	if viewportY < 0 {
+		viewportY = 0
+	}
+
+	if viewportY < scrollThreshold && m.scrollOffset > 0 {
+		// Scroll up - mouse is near top of viewport
 		direction = -1
 		m.scrollUp()
-		if m.selection.endLine > 0 {
-			m.selection.endLine--
-		}
-	} else if m.selection.endCol >= m.height-scrollThreshold {
-		// Scroll down
+		// Update endLine to reflect new scroll position
+		// When scrolling up, content moves up, so mouse points to a line that's 1 less in absolute terms
+		m.selection.endLine = max(0, m.selection.endLine-1)
+	} else if viewportY >= m.height-scrollThreshold && viewportY < m.height {
+		// Scroll down - mouse is near bottom of viewport
 		maxScrollOffset := max(0, m.totalHeight-m.height)
 		if m.scrollOffset < maxScrollOffset {
 			direction = 1
 			m.scrollDown()
-			lines := strings.Split(m.rendered, "\n")
-			if m.selection.endLine < len(lines)-1 {
-				m.selection.endLine++
-			}
+			// Update endLine to reflect new scroll position
+			// When scrolling down, content moves down, so mouse points to a line that's 1 more in absolute terms
+			m.selection.endLine++
 		}
 	}
 
