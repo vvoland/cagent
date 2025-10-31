@@ -3,8 +3,9 @@ package root
 import (
 	"context"
 
-	"github.com/docker/cagent/pkg/telemetry"
 	"github.com/spf13/cobra"
+
+	"github.com/docker/cagent/pkg/telemetry"
 )
 
 func NewExecCmd() *cobra.Command {
