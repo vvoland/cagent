@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/todo"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/styles"
@@ -185,7 +186,7 @@ func (d *toolConfirmationDialog) View() string {
 
 	// Arguments section
 	var argumentsSection string
-	if d.toolCall.Function.Name == "create_todos" || d.toolCall.Function.Name == "create_todo" {
+	if d.toolCall.Function.Name == builtin.ToolNameCreateTodos || d.toolCall.Function.Name == builtin.ToolNameCreateTodo {
 		argumentsSection = d.renderTodo(contentWidth)
 	} else {
 		argumentsSection = d.renderArguments(contentWidth)
@@ -315,7 +316,7 @@ func (d *toolConfirmationDialog) Position() (row, col int) {
 	}
 
 	// Add height for todo preview section if todo-related tools
-	if d.toolCall.Function.Name == "create_todos" || d.toolCall.Function.Name == "create_todo" && d.toolCall.Function.Arguments != "" {
+	if d.toolCall.Function.Name == builtin.ToolNameCreateTodos || d.toolCall.Function.Name == builtin.ToolNameCreateTodo && d.toolCall.Function.Arguments != "" {
 		// Add height for preview section header and content
 		// Rough estimation: 2 lines for header + variable lines for todos
 		dialogHeight += 6

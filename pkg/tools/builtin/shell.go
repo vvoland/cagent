@@ -13,6 +13,8 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
+const ToolNameShell = "shell"
+
 type ShellTool struct {
 	tools.ElicitationTool
 	handler *shellHandler
@@ -209,7 +211,7 @@ Commands that exit with non-zero status codes will return error information alon
 func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
 	return []tools.Tool{
 		{
-			Name:         "shell",
+			Name:         ToolNameShell,
 			Category:     "shell",
 			Description:  `Executes the given shell command in the user's default shell.`,
 			Parameters:   tools.MustSchemaFor[RunShellArgs](),
