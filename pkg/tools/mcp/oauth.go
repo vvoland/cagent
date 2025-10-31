@@ -11,13 +11,13 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"os/exec"
 	"regexp"
-	"runtime"
 	"strings"
 	"time"
 
 	"golang.org/x/oauth2"
+
+	"github.com/docker/cagent/pkg/browser"
 )
 
 // resourceMetadataFromWWWAuth extracts resource metadata URL from WWW-Authenticate header
@@ -221,7 +221,7 @@ func exchangeCodeForToken(ctx context.Context, tokenEndpoint, code, codeVerifier
 
 // requestAuthorizationCode requests the user to open the authorization URL and waits for the callback
 func requestAuthorizationCode(ctx context.Context, authURL string, callbackServer *CallbackServer, expectedState string) (string, string, error) {
-	if err := openBrowser(ctx, authURL); err != nil {
+	if err := browser.Open(ctx, authURL); err != nil {
 		return "", "", err
 	}
 
@@ -235,32 +235,6 @@ func requestAuthorizationCode(ctx context.Context, authURL string, callbackServe
 	}
 
 	return code, state, nil
-}
-
-func openBrowser(ctx context.Context, urlToOpen string) error {
-	var cmd string
-	var args []string
-
-	switch runtime.GOOS {
-	case "windows":
-		cmd = "rundll32"
-		args = []string{"url.dll,FileProtocolHandler", urlToOpen}
-	case "darwin":
-		cmd = "open"
-		args = []string{urlToOpen}
-	case "linux":
-		cmd = "xdg-open"
-		args = []string{urlToOpen}
-	default:
-		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
-	}
-
-	err := exec.CommandContext(ctx, cmd, args...).Start()
-	if err != nil {
-		return fmt.Errorf("failed to open browser: %w", err)
-	}
-
-	return nil
 }
 
 // registerClient performs dynamic client registration

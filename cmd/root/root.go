@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/environment"
+	"github.com/docker/cagent/pkg/feedback"
 	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/telemetry"
 	"github.com/docker/cagent/pkg/version"
@@ -84,7 +85,7 @@ func NewRootCmd() *cobra.Command {
 				})))
 			}
 			if cmd.DisplayName() != "exec" && os.Getenv("CAGENT_HIDE_FEEDBACK_LINK") != "1" {
-				_, _ = cmd.OutOrStdout().Write([]byte("\nFor any feedback, please visit: " + FeedbackLink + "\n\n"))
+				_, _ = cmd.OutOrStdout().Write([]byte("\nFor any feedback, please visit: " + feedback.FeedbackLink + "\n\n"))
 			}
 
 			telemetry.SetGlobalTelemetryDebugMode(debugMode)
@@ -146,7 +147,7 @@ For any feedback, please visit: %s
 We collect anonymous usage data to help improve cagent. To disable:
   - Set environment variable: TELEMETRY_ENABLED=false
 
-`, FeedbackLink)
+`, feedback.FeedbackLink)
 		_, _ = os.Stderr.WriteString(startupMsg)
 	}
 

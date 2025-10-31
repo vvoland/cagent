@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/app"
+	"github.com/docker/cagent/pkg/browser"
 	"github.com/docker/cagent/pkg/evaluation"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/tui/commands"
@@ -171,6 +172,10 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case commands.AgentCommandMsg:
 		resolvedCommand := a.application.ResolveCommand(context.Background(), msg.Command)
 		return a, core.CmdHandler(editor.SendMsg{Content: resolvedCommand})
+
+	case commands.OpenURLMsg:
+		_ = browser.Open(context.Background(), msg.URL)
+		return a, nil
 
 	case error:
 		a.err = msg
