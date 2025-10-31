@@ -74,12 +74,6 @@ func runCommand(ctx context.Context, args []string) error {
 	return doRunCommand(ctx, args, false)
 }
 
-func execCommand(ctx context.Context, args []string) error {
-	telemetry.TrackCommand("exec", args)
-	setupOtel(ctx)
-	return doRunCommand(ctx, args, true)
-}
-
 func agentFile(agentFilename string) string {
 	// Try to resolve as an alias first
 	if aliasStore, err := aliases.Load(); err == nil {
@@ -113,7 +107,6 @@ func setupOtel(ctx context.Context) {
 			slog.Debug("OpenTelemetry SDK initialized successfully")
 		}
 	}
-
 }
 
 func doRunCommand(ctx context.Context, args []string, exec bool) error {
