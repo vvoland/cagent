@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"slices"
 )
 
 type History struct {
@@ -33,13 +32,18 @@ func New() (*History, error) {
 }
 
 func (h *History) Add(message string) error {
-	// Avoid duplicate messages
-	if slices.Contains(h.Messages, message) {
-		return nil
+	// Add the message last but avoid duplicate messages
+	var messages []string
+	for _, msg := range h.Messages {
+		if msg != message {
+			messages = append(messages, msg)
+		}
 	}
+	messages = append(messages, message)
 
-	h.Messages = append(h.Messages, message)
+	h.Messages = messages
 	h.current = len(h.Messages)
+
 	return h.save()
 }
 
