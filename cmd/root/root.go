@@ -84,9 +84,6 @@ func NewRootCmd() *cobra.Command {
 					}(),
 				})))
 			}
-			if cmd.DisplayName() != "exec" && os.Getenv("CAGENT_HIDE_FEEDBACK_LINK") != "1" {
-				_, _ = cmd.OutOrStdout().Write([]byte("\nFor any feedback, please visit: " + feedback.FeedbackLink + "\n\n"))
-			}
 
 			telemetry.SetGlobalTelemetryDebugMode(debugMode)
 			return nil
