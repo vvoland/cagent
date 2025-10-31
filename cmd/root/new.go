@@ -135,12 +135,12 @@ func NewNewCmd() *cobra.Command {
 					result := cli.PromptMaxIterationsContinue(ctx, e.MaxIterations)
 					switch result {
 					case cli.ConfirmationApprove:
-						rt.Resume(ctx, string(runtime.ResumeTypeApprove))
+						rt.Resume(ctx, runtime.ResumeTypeApprove)
 					case cli.ConfirmationReject:
-						rt.Resume(ctx, string(runtime.ResumeTypeReject))
+						rt.Resume(ctx, runtime.ResumeTypeReject)
 						return nil
 					case cli.ConfirmationAbort:
-						rt.Resume(ctx, string(runtime.ResumeTypeReject))
+						rt.Resume(ctx, runtime.ResumeTypeReject)
 					}
 				}
 			}

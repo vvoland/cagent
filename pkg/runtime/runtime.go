@@ -72,7 +72,7 @@ type Runtime interface {
 	// Run starts the agent's interaction loop and returns the final messages
 	Run(ctx context.Context, sess *session.Session) ([]session.Message, error)
 	// Resume allows resuming execution after user confirmation
-	Resume(ctx context.Context, confirmationType string)
+	Resume(ctx context.Context, confirmationType ResumeType)
 	// Summarize generates a summary for the session
 	Summarize(ctx context.Context, sess *session.Session, events chan Event)
 	// ResumeElicitation sends an elicitation response back to a waiting elicitation request
@@ -463,14 +463,14 @@ func formatToolWarning(a *agent.Agent, warnings []string) string {
 	return strings.TrimSuffix(builder.String(), "\n")
 }
 
-func (r *LocalRuntime) Resume(_ context.Context, confirmationType string) {
+func (r *LocalRuntime) Resume(_ context.Context, confirmationType ResumeType) {
 	slog.Debug("Resuming runtime", "agent", r.currentAgent, "confirmation_type", confirmationType)
 
 	cType := ResumeTypeApproveSession
 	switch confirmationType {
-	case "approve":
+	case ResumeTypeApprove:
 		cType = ResumeTypeApprove
-	case "reject":
+	case ResumeTypeReject:
 		cType = ResumeTypeReject
 	}
 

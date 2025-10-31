@@ -10,11 +10,17 @@ import (
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
 
-	"github.com/docker/cagent/pkg/app"
+	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tui/components/todo"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/styles"
+)
+
+type (
+	RuntimeResumeMsg struct {
+		Response runtime.ResumeType
+	}
 )
 
 // ToolConfirmationResponse represents the user's response to tool confirmation
@@ -26,7 +32,6 @@ type ToolConfirmationResponse struct {
 type toolConfirmationDialog struct {
 	width, height int
 	toolCall      tools.ToolCall
-	app           *app.App
 	keyMap        toolConfirmationKeyMap
 }
 
@@ -63,10 +68,9 @@ func defaultToolConfirmationKeyMap() toolConfirmationKeyMap {
 }
 
 // NewToolConfirmationDialog creates a new tool confirmation dialog
-func NewToolConfirmationDialog(toolCall tools.ToolCall, appInstance *app.App) Dialog {
+func NewToolConfirmationDialog(toolCall tools.ToolCall) Dialog {
 	return &toolConfirmationDialog{
 		toolCall: toolCall,
-		app:      appInstance,
 		keyMap:   defaultToolConfirmationKeyMap(),
 	}
 }
@@ -87,20 +91,11 @@ func (d *toolConfirmationDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, d.keyMap.Yes):
-			if d.app != nil {
-				d.app.Resume("approve")
-			}
-			return d, core.CmdHandler(CloseDialogMsg{})
+			return d, tea.Sequence(core.CmdHandler(CloseDialogMsg{}), core.CmdHandler(RuntimeResumeMsg{Response: runtime.ResumeTypeApprove}))
 		case key.Matches(msg, d.keyMap.No):
-			if d.app != nil {
-				d.app.Resume("reject")
-			}
-			return d, core.CmdHandler(CloseDialogMsg{})
+			return d, tea.Sequence(core.CmdHandler(CloseDialogMsg{}), core.CmdHandler(RuntimeResumeMsg{Response: runtime.ResumeTypeReject}))
 		case key.Matches(msg, d.keyMap.All):
-			if d.app != nil {
-				d.app.Resume("approve-session")
-			}
-			return d, core.CmdHandler(CloseDialogMsg{})
+			return d, tea.Sequence(core.CmdHandler(CloseDialogMsg{}), core.CmdHandler(RuntimeResumeMsg{Response: runtime.ResumeTypeApproveSession}))
 		}
 
 		if msg.String() == "ctrl+c" {
