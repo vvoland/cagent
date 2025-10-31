@@ -6,6 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea/v2"
 
 	"github.com/docker/cagent/pkg/app"
+	"github.com/docker/cagent/pkg/feedback"
 	"github.com/docker/cagent/pkg/tui/core"
 )
 
@@ -36,6 +37,10 @@ type Item struct {
 	Category     string
 	SlashCommand string
 	Execute      func() tea.Cmd
+}
+
+type OpenURLMsg struct {
+	URL string
 }
 
 func BuiltInSessionCommands() []Item {
@@ -83,12 +88,39 @@ func BuiltInSessionCommands() []Item {
 	}
 }
 
+func builtInFeedbackCommands() []Item {
+	return []Item{
+		{
+			ID:          "feedback.bug",
+			Label:       "Report Bug",
+			Description: "Report a bug or issue",
+			Category:    "Feedback",
+			Execute: func() tea.Cmd {
+				return core.CmdHandler(OpenURLMsg{URL: "https://github.com/docker/cagent/issues/new/choose"})
+			},
+		},
+		{
+			ID:          "feedback.feeedback",
+			Label:       "Give Feedback",
+			Description: "Provide feedback about cagent",
+			Category:    "Feedback",
+			Execute: func() tea.Cmd {
+				return core.CmdHandler(OpenURLMsg{URL: feedback.FeedbackLink})
+			},
+		},
+	}
+}
+
 // BuildCommandCategories builds the list of command categories for the command palette
 func BuildCommandCategories(ctx context.Context, application *app.App) []Category {
 	categories := []Category{
 		{
 			Name:     "Session",
 			Commands: BuiltInSessionCommands(),
+		},
+		{
+			Name:     "Feedback",
+			Commands: builtInFeedbackCommands(),
 		},
 	}
 
