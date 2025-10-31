@@ -97,10 +97,20 @@ func New(a *app.App) tea.Model {
 
 // Init initializes the application
 func (a *appModel) Init() tea.Cmd {
-	return tea.Batch(
+	cmds := []tea.Cmd{
 		a.dialog.Init(),
 		a.chatPage.Init(),
-	)
+	}
+
+	if firstMessage := a.application.FirstMessage(); firstMessage != nil {
+		cmds = append(cmds, func() tea.Msg {
+			return editor.SendMsg{
+				Content: a.application.ResolveCommand(context.Background(), *firstMessage),
+			}
+		})
+	}
+
+	return tea.Batch(cmds...)
 }
 
 // Help returns help information
