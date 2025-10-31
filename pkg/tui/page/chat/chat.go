@@ -95,19 +95,16 @@ func defaultKeyMap() KeyMap {
 
 // New creates a new chat page
 func New(a *app.App) Page {
-	ed := editor.New(a)
-
 	historyStore, err := history.New()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to initialize command history: %v\n", err)
 	}
-	ed.SetHistory(historyStore)
 
 	return &chatPage{
 		title:        a.Title(),
 		sidebar:      sidebar.New(),
 		messages:     messages.New(a),
-		editor:       ed,
+		editor:       editor.New(a, historyStore),
 		focusedPanel: PanelEditor,
 		app:          a,
 		keyMap:       defaultKeyMap(),
