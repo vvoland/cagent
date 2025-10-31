@@ -50,7 +50,9 @@ func NewRunCmd() *cobra.Command {
   cagent run ./echo.yaml "INSTRUCTIONS"
   echo "INSTRUCTIONS" | cagent run ./echo.yaml -`,
 		Args: cobra.RangeArgs(1, 2),
-		RunE: runCommand,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runCommand(cmd.Context(), args)
+		},
 	}
 
 	cmd.PersistentFlags().StringVarP(&agentName, "agent", "a", "root", "Name of the agent to run")
@@ -66,21 +68,19 @@ func NewRunCmd() *cobra.Command {
 	return cmd
 }
 
-func runCommand(cmd *cobra.Command, args []string) error {
+func runCommand(ctx context.Context, args []string) error {
 	telemetry.TrackCommand("run", args)
-	return doRunCommand(cmd.Context(), args, false)
+	setupOtel(ctx)
+	return doRunCommand(ctx, args, false)
 }
 
-func execCommand(cmd *cobra.Command, args []string) error {
+func execCommand(ctx context.Context, args []string) error {
 	telemetry.TrackCommand("exec", args)
-	return doRunCommand(cmd.Context(), args, true)
+	setupOtel(ctx)
+	return doRunCommand(ctx, args, true)
 }
 
-func doRunCommand(ctx context.Context, args []string, exec bool) error {
-	slog.Debug("Starting agent", "agent", agentName, "debug_mode", debugMode)
-
-	agentFilename := args[0]
-
+func agentFile(agentFilename string) string {
 	// Try to resolve as an alias first
 	if aliasStore, err := aliases.Load(); err == nil {
 		if resolvedPath, ok := aliasStore.Get(agentFilename); ok {
@@ -89,12 +89,15 @@ func doRunCommand(ctx context.Context, args []string, exec bool) error {
 		}
 	}
 
-	if !strings.Contains(agentFilename, "\n") && (strings.Contains(agentFilename, ".yaml") || strings.Contains(agentFilename, ".yml")) {
+	if strings.Contains(agentFilename, ".yaml") || strings.Contains(agentFilename, ".yml") {
 		if abs, err := filepath.Abs(agentFilename); err == nil {
 			agentFilename = abs
 		}
 	}
+	return agentFilename
+}
 
+func setupOtel(ctx context.Context) {
 	if enableOtel {
 		shutdown, err := initOTelSDK(ctx)
 		if err != nil {
@@ -110,6 +113,13 @@ func doRunCommand(ctx context.Context, args []string, exec bool) error {
 			slog.Debug("OpenTelemetry SDK initialized successfully")
 		}
 	}
+
+}
+
+func doRunCommand(ctx context.Context, args []string, exec bool) error {
+	slog.Debug("Starting agent", "agent", agentName, "debug_mode", debugMode)
+
+	agentFilename := agentFile(args[0])
 
 	// If working-dir was provided, validate and change process working directory
 	if workingDir != "" {
