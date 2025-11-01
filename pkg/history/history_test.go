@@ -88,3 +88,47 @@ func TestHistory_EdgeCases(t *testing.T) {
 	assert.Equal(t, "only", h.Previous()) // Should stay at the beginning
 	assert.Empty(t, h.Next())             // Should return empty when going past the end
 }
+
+func TestHistory_StayAtTheBeginning(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	h, err := New()
+	require.NoError(t, err)
+
+	require.NoError(t, h.Add("first"))
+
+	assert.Equal(t, "first", h.Previous())
+	assert.Equal(t, "first", h.Previous())
+}
+
+func TestHistory_NoDuplicateMessages(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	h, err := New()
+	require.NoError(t, err)
+
+	require.NoError(t, h.Add("first"))
+	require.NoError(t, h.Add("second"))
+	require.NoError(t, h.Add("second"))
+
+	assert.Equal(t, "second", h.Previous())
+	assert.Equal(t, "first", h.Previous())
+	assert.Equal(t, "first", h.Previous())
+}
+
+func TestHistory_MoveDuplicateLast(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	h, err := New()
+	require.NoError(t, err)
+
+	require.NoError(t, h.Add("first"))
+	require.NoError(t, h.Add("second"))
+	require.NoError(t, h.Add("third"))
+	require.NoError(t, h.Add("first"))
+
+	assert.Equal(t, "first", h.Previous())
+	assert.Equal(t, "third", h.Previous())
+	assert.Equal(t, "second", h.Previous())
+	assert.Equal(t, "second", h.Previous())
+}

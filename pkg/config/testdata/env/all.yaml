@@ -7,7 +7,7 @@ agents:
   dmr:
     model: dmr/ai/gemma3-qat:12B
     instruction: Always answer by talking like a pirate.
-  openai:
+  gpt:
     model: openai/gpt-4o
     instruction: Always answer by talking like a pirate.
   gemini:

@@ -72,6 +72,7 @@ type selectionState struct {
 	endLine         int
 	endCol          int
 	mouseButtonDown bool
+	mouseY          int // Screen Y coordinate for autoscroll
 }
 
 // start initializes a new selection at the given position
@@ -156,6 +157,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Button == tea.MouseLeft {
 			line, col := m.mouseToLineCol(msg.X, msg.Y)
 			m.selection.start(line, col)
+			m.selection.mouseY = msg.Y // Store screen Y for autoscroll
 		}
 		return m, nil
 
@@ -163,6 +165,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.selection.mouseButtonDown && m.selection.active {
 			line, col := m.mouseToLineCol(msg.X, msg.Y)
 			m.selection.update(line, col)
+			m.selection.mouseY = msg.Y // Store screen Y for autoscroll
 
 			cmd := m.autoScroll()
 			return m, cmd
@@ -848,50 +851,33 @@ func (m *model) extractSelectedText() string {
 		endLine = len(lines) - 1
 	}
 
-	// Single line selection
-	if startLine == endLine {
-		if startLine < len(lines) {
-			line := ansi.Strip(lines[startLine])
-			// Convert display width to rune indices
-			startIdx := displayWidthToRuneIndex(line, startCol)
-			endIdx := displayWidthToRuneIndex(line, endCol)
-			runes := []rune(line)
-			if startIdx < len(runes) && startIdx < endIdx {
-				if endIdx > len(runes) {
-					endIdx = len(runes)
-				}
-				return string(runes[startIdx:endIdx])
-			}
-		}
-		return ""
-	}
-
-	// Multi-line selection
 	var result strings.Builder
 	for i := startLine; i <= endLine && i < len(lines); i++ {
 		line := ansi.Strip(lines[i])
 		runes := []rune(line)
 
+		var lineText string
 		switch i {
 		case startLine:
 			// First line: from startCol to end
 			startIdx := displayWidthToRuneIndex(line, startCol)
 			if startIdx < len(runes) {
-				result.WriteString(string(runes[startIdx:]))
+				lineText = strings.TrimSpace(string(runes[startIdx:]))
 			}
 		case endLine:
 			// Last line: from start to endCol
 			endIdx := min(displayWidthToRuneIndex(line, endCol), len(runes))
-			result.WriteString(string(runes[:endIdx]))
+			lineText = strings.TrimSpace(string(runes[:endIdx]))
 		default:
 			// Middle lines: entire line
-			result.WriteString(line)
+			lineText = strings.TrimSpace(line)
 		}
 
-		// Add newline except for last line
-		if i < endLine {
-			result.WriteString("\n")
+		if lineText != "" {
+			result.WriteString(lineText)
 		}
+
+		result.WriteString("\n")
 	}
 
 	return result.String()
@@ -908,7 +894,7 @@ func (m *model) copySelectionToClipboard() tea.Cmd {
 	}
 
 	if err := clipboard.WriteAll(selectedText); err != nil {
-		return core.CmdHandler(notification.ShowMsg{Text: "Failed to copy: " + err.Error()})
+		return core.CmdHandler(notification.ShowMsg{Text: "Failed to copy: " + err.Error(), Type: notification.TypeError})
 	}
 
 	return core.CmdHandler(notification.ShowMsg{Text: "Text copied to clipboard"})
@@ -945,7 +931,8 @@ func (m *model) applySelectionHighlight(lines []string, viewportStartLine int) [
 		case absoluteLine == startLine:
 			// Start of multi-line selection
 			plainLine := ansi.Strip(line)
-			lineWidth := runewidth.StringWidth(plainLine)
+			trimmedLine := strings.TrimRight(plainLine, " \t")
+			lineWidth := runewidth.StringWidth(trimmedLine)
 			highlighted[i] = m.highlightLine(line, startCol, lineWidth)
 		case absoluteLine == endLine:
 			// End of multi-line selection
@@ -953,7 +940,8 @@ func (m *model) applySelectionHighlight(lines []string, viewportStartLine int) [
 		default:
 			// Middle of multi-line selection
 			plainLine := ansi.Strip(line)
-			lineWidth := runewidth.StringWidth(plainLine)
+			trimmedLine := strings.TrimRight(plainLine, " \t")
+			lineWidth := runewidth.StringWidth(trimmedLine)
 			highlighted[i] = m.highlightLine(line, 0, lineWidth)
 		}
 	}
@@ -1007,23 +995,31 @@ func (m *model) autoScroll() tea.Cmd {
 	const scrollThreshold = 2
 	direction := 0
 
-	if m.selection.endCol < scrollThreshold && m.scrollOffset > 0 {
-		// Scroll up
+	// Use stored screen Y coordinate to check if mouse is in autoscroll region
+	// mouseToLineCol subtracts 2 for header, so viewport-relative Y is mouseY - 2
+	viewportY := m.selection.mouseY - 2
+
+	// Ensure viewportY is valid (can't be negative or beyond viewport)
+	if viewportY < 0 {
+		viewportY = 0
+	}
+
+	if viewportY < scrollThreshold && m.scrollOffset > 0 {
+		// Scroll up - mouse is near top of viewport
 		direction = -1
 		m.scrollUp()
-		if m.selection.endLine > 0 {
-			m.selection.endLine--
-		}
-	} else if m.selection.endCol >= m.height-scrollThreshold {
-		// Scroll down
+		// Update endLine to reflect new scroll position
+		// When scrolling up, content moves up, so mouse points to a line that's 1 less in absolute terms
+		m.selection.endLine = max(0, m.selection.endLine-1)
+	} else if viewportY >= m.height-scrollThreshold && viewportY < m.height {
+		// Scroll down - mouse is near bottom of viewport
 		maxScrollOffset := max(0, m.totalHeight-m.height)
 		if m.scrollOffset < maxScrollOffset {
 			direction = 1
 			m.scrollDown()
-			lines := strings.Split(m.rendered, "\n")
-			if m.selection.endLine < len(lines)-1 {
-				m.selection.endLine++
-			}
+			// Update endLine to reflect new scroll position
+			// When scrolling down, content moves down, so mouse points to a line that's 1 more in absolute terms
+			m.selection.endLine++
 		}
 	}
 

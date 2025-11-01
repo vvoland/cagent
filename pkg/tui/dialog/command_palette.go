@@ -8,37 +8,22 @@ import (
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
 
+	"github.com/docker/cagent/pkg/tui/commands"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/styles"
 )
 
 // CommandExecuteMsg is sent when a command is selected
 type CommandExecuteMsg struct {
-	Command Command
-}
-
-// Command represents a single command in the palette
-type Command struct {
-	ID           string
-	Label        string
-	Description  string
-	Category     string
-	SlashCommand string
-	Execute      func() tea.Cmd
-}
-
-// CommandCategory represents a category of commands
-type CommandCategory struct {
-	Name     string
-	Commands []Command
+	Command commands.Item
 }
 
 // commandPaletteDialog implements Dialog for the command palette
 type commandPaletteDialog struct {
 	width, height int
 	textInput     textinput.Model
-	categories    []CommandCategory
-	filtered      []Command
+	categories    []commands.Category
+	filtered      []commands.Item
 	selected      int
 	keyMap        commandPaletteKeyMap
 }
@@ -74,7 +59,7 @@ func defaultCommandPaletteKeyMap() commandPaletteKeyMap {
 }
 
 // NewCommandPaletteDialog creates a new command palette dialog
-func NewCommandPaletteDialog(categories []CommandCategory) Dialog {
+func NewCommandPaletteDialog(categories []commands.Category) Dialog {
 	ti := textinput.New()
 	ti.Placeholder = "Type to search commands..."
 	ti.Focus()
@@ -82,7 +67,7 @@ func NewCommandPaletteDialog(categories []CommandCategory) Dialog {
 	ti.SetWidth(50)
 
 	// Build initial filtered list (all commands)
-	var allCommands []Command
+	var allCommands []commands.Item
 	for _, cat := range categories {
 		allCommands = append(allCommands, cat.Commands...)
 	}
@@ -159,7 +144,7 @@ func (d *commandPaletteDialog) filterCommands() {
 
 	if query == "" {
 		// Show all commands
-		d.filtered = make([]Command, 0)
+		d.filtered = make([]commands.Item, 0)
 		for _, cat := range d.categories {
 			d.filtered = append(d.filtered, cat.Commands...)
 		}
@@ -167,7 +152,7 @@ func (d *commandPaletteDialog) filterCommands() {
 		return
 	}
 
-	d.filtered = make([]Command, 0)
+	d.filtered = make([]commands.Item, 0)
 	for _, cat := range d.categories {
 		for _, cmd := range cat.Commands {
 			if strings.Contains(strings.ToLower(cmd.Label), query) ||
@@ -202,7 +187,7 @@ func (d *commandPaletteDialog) View() string {
 	var commandList []string
 	maxItems := maxHeight - 8
 
-	categoryMap := make(map[string][]Command)
+	categoryMap := make(map[string][]commands.Item)
 	categoryOrder := make([]string, 0)
 
 	for _, cmd := range d.filtered {
@@ -220,12 +205,10 @@ func (d *commandPaletteDialog) View() string {
 			break
 		}
 
-		commands := categoryMap[catName]
-
 		commandList = append(commandList, styles.PaletteCategoryStyle.Render(catName))
 		itemCount++
 
-		for _, cmd := range commands {
+		for _, cmd := range categoryMap[catName] {
 			if itemCount >= maxItems {
 				break
 			}
@@ -265,7 +248,7 @@ func (d *commandPaletteDialog) View() string {
 }
 
 // renderCommand renders a single command in the list
-func (d *commandPaletteDialog) renderCommand(cmd Command, selected bool) string {
+func (d *commandPaletteDialog) renderCommand(cmd commands.Item, selected bool) string {
 	text := "  " + cmd.Label
 	if cmd.Description != "" {
 		text += " - " + cmd.Description

@@ -1,6 +1,7 @@
 package notification
 
 import (
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -11,14 +12,26 @@ import (
 )
 
 const (
-	defaultDuration     = 3 * time.Second
-	notificationPadding = 2
+	defaultDuration      = 3 * time.Second
+	notificationPadding  = 2
+	maxNotificationWidth = 80 // Maximum width to prevent covering too much screen
 )
 
 var nextID atomic.Uint64
 
+// Type represents the type of notification
+type Type int
+
+const (
+	TypeSuccess Type = iota
+	TypeWarning
+	TypeInfo
+	TypeError
+)
+
 type ShowMsg struct {
 	Text string
+	Type Type // Defaults to TypeSuccess for backward compatibility
 }
 
 type HideMsg struct {
@@ -29,28 +42,29 @@ type HideMsg struct {
 type notificationItem struct {
 	ID       uint64
 	Text     string
+	Type     Type
 	TimerCmd tea.Cmd
 }
 
-// Notification represents a notification manager that displays
+// Manager represents a notification manager that displays
 // multiple stacked messages in the bottom right corner of the screen
-type Notification struct {
+type Manager struct {
 	width, height int
 	items         []notificationItem
 }
 
-func New() Notification {
-	return Notification{
+func New() Manager {
+	return Manager{
 		items: make([]notificationItem, 0),
 	}
 }
 
-func (n *Notification) SetSize(width, height int) {
+func (n *Manager) SetSize(width, height int) {
 	n.width = width
 	n.height = height
 }
 
-func (n *Notification) Update(msg tea.Msg) (Notification, tea.Cmd) {
+func (n *Manager) Update(msg tea.Msg) (Manager, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		n.width = msg.Width
@@ -59,9 +73,18 @@ func (n *Notification) Update(msg tea.Msg) (Notification, tea.Cmd) {
 
 	case ShowMsg:
 		id := nextID.Add(1)
+		notifType := msg.Type
+		// Auto-detect error type for backward compatibility when Type is not set
+		if notifType == TypeSuccess && msg.Text != "" {
+			textLower := strings.ToLower(msg.Text)
+			if strings.Contains(textLower, "failed") || strings.Contains(textLower, "error") {
+				notifType = TypeError
+			}
+		}
 		item := notificationItem{
 			ID:   id,
 			Text: msg.Text,
+			Type: notifType,
 		}
 
 		item.TimerCmd = tea.Tick(defaultDuration, func(t time.Time) tea.Msg {
@@ -91,7 +114,7 @@ func (n *Notification) Update(msg tea.Msg) (Notification, tea.Cmd) {
 	return *n, nil
 }
 
-func (n *Notification) View() string {
+func (n *Manager) View() string {
 	if len(n.items) == 0 {
 		return ""
 	}
@@ -99,14 +122,45 @@ func (n *Notification) View() string {
 	var views []string
 	for i := len(n.items) - 1; i >= 0; i-- {
 		item := n.items[i]
-		view := styles.NotificationStyle.Render(item.Text)
+
+		// Select style based on notification type
+		var style lipgloss.Style
+		switch item.Type {
+		case TypeError:
+			style = styles.NotificationErrorStyle
+		case TypeWarning:
+			style = styles.NotificationWarningStyle
+		case TypeInfo:
+			style = styles.NotificationInfoStyle
+		default:
+			style = styles.NotificationStyle
+		}
+
+		// Apply max width constraint and word wrapping
+		text := item.Text
+		maxWidth := maxNotificationWidth
+		if n.width > 0 {
+			// Use smaller of maxNotificationWidth or available width minus padding
+			maxWidth = min(maxNotificationWidth, n.width-notificationPadding*2)
+		}
+
+		// Only constrain width if text actually exceeds maxWidth
+		textWidth := lipgloss.Width(text)
+		var view string
+		if textWidth > maxWidth {
+			// Wrap text using lipgloss Width style - lipgloss will automatically wrap
+			view = style.Width(maxWidth).Render(text)
+		} else {
+			// Use natural width for short text
+			view = style.Render(text)
+		}
 		views = append(views, view)
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Right, views...)
 }
 
-func (n *Notification) GetLayer() *lipgloss.Layer {
+func (n *Manager) GetLayer() *lipgloss.Layer {
 	if len(n.items) == 0 {
 		return nil
 	}
@@ -117,7 +171,7 @@ func (n *Notification) GetLayer() *lipgloss.Layer {
 	return lipgloss.NewLayer(view).X(col).Y(row)
 }
 
-func (n *Notification) position() (row, col int) {
+func (n *Manager) position() (row, col int) {
 	notificationView := n.View()
 	viewHeight := lipgloss.Height(notificationView)
 	viewWidth := lipgloss.Width(notificationView)
@@ -129,6 +183,6 @@ func (n *Notification) position() (row, col int) {
 	return row, col
 }
 
-func (n *Notification) IsVisible() bool {
+func (n *Manager) Open() bool {
 	return len(n.items) > 0
 }

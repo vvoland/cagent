@@ -25,6 +25,7 @@ import (
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/telemetry"
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools/builtin"
 )
 
 type ResumeType string
@@ -72,7 +73,7 @@ type Runtime interface {
 	// Run starts the agent's interaction loop and returns the final messages
 	Run(ctx context.Context, sess *session.Session) ([]session.Message, error)
 	// Resume allows resuming execution after user confirmation
-	Resume(ctx context.Context, confirmationType string)
+	Resume(ctx context.Context, confirmationType ResumeType)
 	// Summarize generates a summary for the session
 	Summarize(ctx context.Context, sess *session.Session, events chan Event)
 	// ResumeElicitation sends an elicitation response back to a waiting elicitation request
@@ -192,7 +193,7 @@ func (r *LocalRuntime) CurrentAgent() *agent.Agent {
 // registerDefaultTools registers the default tool handlers
 func (r *LocalRuntime) registerDefaultTools() {
 	slog.Debug("Registering default tools")
-	r.toolMap["transfer_task"] = r.handleTaskTransfer
+	r.toolMap[builtin.ToolNameTransferTask] = r.handleTaskTransfer
 	slog.Debug("Registered default tools", "count", len(r.toolMap))
 }
 
@@ -463,14 +464,14 @@ func formatToolWarning(a *agent.Agent, warnings []string) string {
 	return strings.TrimSuffix(builder.String(), "\n")
 }
 
-func (r *LocalRuntime) Resume(_ context.Context, confirmationType string) {
+func (r *LocalRuntime) Resume(_ context.Context, confirmationType ResumeType) {
 	slog.Debug("Resuming runtime", "agent", r.currentAgent, "confirmation_type", confirmationType)
 
 	cType := ResumeTypeApproveSession
 	switch confirmationType {
-	case "approve":
+	case ResumeTypeApprove:
 		cType = ResumeTypeApprove
-	case "reject":
+	case ResumeTypeReject:
 		cType = ResumeTypeReject
 	}
 
@@ -682,7 +683,7 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 				},
 			}
 			slog.Debug("Using runtime tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
-			if sess.ToolsApproved || toolCall.Function.Name == "transfer_task" {
+			if sess.ToolsApproved || toolCall.Function.Name == builtin.ToolNameTransferTask {
 				r.runAgentTool(callCtx, handler, sess, toolCall, tool, events, a)
 			} else {
 				slog.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
@@ -1060,7 +1061,6 @@ func (r *LocalRuntime) Summarize(ctx context.Context, sess *session.Session, eve
 
 	// Check if session is empty
 	if len(messages) == 0 {
-		slog.Debug("Session is empty, nothing to summarize", "session_id", sess.ID)
 		events <- &WarningEvent{Message: "Session is empty. Start a conversation before compacting."}
 		return
 	}

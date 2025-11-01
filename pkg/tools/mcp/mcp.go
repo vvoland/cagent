@@ -115,7 +115,8 @@ func (ts *Toolset) Start(ctx context.Context) error {
 
 func (ts *Toolset) Instructions() string {
 	if !ts.started.Load() {
-		panic("toolset not started")
+		// TODO: this should never happen...
+		return ""
 	}
 	return ts.instructions
 }

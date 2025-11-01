@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/glamour/v2"
 
 	"github.com/docker/cagent/pkg/app"
+	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
@@ -37,7 +38,7 @@ func (mv *toolModel) SetSize(width, height int) tea.Cmd {
 
 // New creates a new tool view
 func New(msg *types.Message, a *app.App, renderer *glamour.TermRenderer) layout.Model {
-	if msg.ToolCall.Function.Name == "transfer_task" {
+	if msg.ToolCall.Function.Name == builtin.ToolNameTransferTask {
 		return &transferTaskModel{
 			msg: msg,
 		}
@@ -106,7 +107,7 @@ func (mv *toolModel) View() string {
 
 	if msg.ToolCall.Function.Arguments != "" {
 		switch msg.ToolCall.Function.Name {
-		case "edit_file":
+		case builtin.ToolNameEditFile:
 			diff, path := renderEditFile(msg.ToolCall, mv.width-4)
 			if diff != "" {
 				var editFile string

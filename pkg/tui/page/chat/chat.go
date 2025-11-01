@@ -41,7 +41,6 @@ type Page interface {
 	layout.Help
 	CompactSession() tea.Cmd
 	CopySessionToClipboard() tea.Cmd
-	ExecuteCommand(commandText string) tea.Cmd
 	Cleanup()
 }
 
@@ -67,8 +66,7 @@ type chatPage struct {
 	title string
 	app   *app.App
 
-	history         *history.History
-	sessionCommands []dialog.Command
+	history *history.History
 
 	// Cached layout dimensions
 	chatHeight  int
@@ -96,46 +94,32 @@ func defaultKeyMap() KeyMap {
 }
 
 // New creates a new chat page
-func New(a *app.App, sessionCommands []dialog.Command) Page {
-	ed := editor.New()
-
+func New(a *app.App) Page {
 	historyStore, err := history.New()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to initialize command history: %v\n", err)
 	}
-	ed.SetHistory(historyStore)
 
 	return &chatPage{
-		title:           a.Title(),
-		sidebar:         sidebar.New(),
-		messages:        messages.New(a),
-		editor:          ed,
-		focusedPanel:    PanelEditor,
-		app:             a,
-		keyMap:          defaultKeyMap(),
-		history:         historyStore,
-		sessionCommands: sessionCommands,
+		title:        a.Title(),
+		sidebar:      sidebar.New(),
+		messages:     messages.New(a),
+		editor:       editor.New(a, historyStore),
+		focusedPanel: PanelEditor,
+		app:          a,
+		keyMap:       defaultKeyMap(),
+		history:      historyStore,
 	}
 }
 
 // Init initializes the chat page
 func (p *chatPage) Init() tea.Cmd {
-	cmds := []tea.Cmd{
+	return tea.Batch(
 		p.sidebar.Init(),
 		p.messages.Init(),
 		p.editor.Init(),
 		p.editor.Focus(),
-	}
-
-	if firstMessage := p.app.FirstMessage(); firstMessage != nil {
-		cmds = append(cmds, func() tea.Msg {
-			return editor.SendMsg{
-				Content: *firstMessage,
-			}
-		})
-	}
-
-	return tea.Batch(cmds...)
+	)
 }
 
 // Update handles messages and updates the page state
@@ -225,7 +209,7 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := p.messages.AddShellOutputMessage(msg.Output)
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
 	case *runtime.WarningEvent:
-		cmd := p.messages.AddWarningMessage(msg.Message)
+		cmd := core.CmdHandler(notification.ShowMsg{Text: msg.Message, Type: notification.TypeWarning})
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
 	case *runtime.UserMessageEvent:
 		cmd := p.messages.AddUserMessage(msg.Message)
@@ -278,7 +262,7 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Open tool confirmation dialog
 		dialogCmd := core.CmdHandler(dialog.OpenDialogMsg{
-			Model: dialog.NewToolConfirmationDialog(msg.ToolCall, p.app),
+			Model: dialog.NewToolConfirmationDialog(msg.ToolCall),
 		})
 
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd, dialogCmd)
@@ -497,19 +481,6 @@ func (p *chatPage) processMessage(content string) tea.Cmd {
 		return p.messages.ScrollToBottom()
 	}
 
-	// Handle /commands
-	if strings.HasPrefix(content, "/") {
-		// Try builtin session command first
-		for _, sessionCommand := range p.sessionCommands {
-			if sessionCommand.SlashCommand == content && sessionCommand.Execute != nil {
-				return sessionCommand.Execute()
-			}
-		}
-
-		// Then try app-level commands
-		content = p.app.ResolveCommand(ctx, content)
-	}
-
 	// Persist to history
 	if p.history != nil {
 		if err := p.history.Add(content); err != nil {
@@ -530,7 +501,7 @@ func (p *chatPage) CopySessionToClipboard() tea.Cmd {
 	}
 
 	if err := clipboard.WriteAll(transcript); err != nil {
-		return core.CmdHandler(notification.ShowMsg{Text: "Failed to copy conversation: " + err.Error()})
+		return core.CmdHandler(notification.ShowMsg{Text: "Failed to copy conversation: " + err.Error(), Type: notification.TypeError})
 	}
 
 	return core.CmdHandler(notification.ShowMsg{Text: "Conversation copied to clipboard."})
@@ -544,13 +515,6 @@ func (p *chatPage) CompactSession() tea.Cmd {
 	p.app.CompactSession()
 
 	return p.messages.ScrollToBottom()
-}
-
-// ExecuteCommand sends a command text as a message (used by command palette)
-func (p *chatPage) ExecuteCommand(commandText string) tea.Cmd {
-	return func() tea.Msg {
-		return editor.SendMsg{Content: commandText}
-	}
 }
 
 func (p *chatPage) Cleanup() {

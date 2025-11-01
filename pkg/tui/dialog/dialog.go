@@ -29,7 +29,7 @@ type Manager interface {
 	tea.Model
 
 	GetLayers() []*lipgloss.Layer
-	HasDialog() bool
+	Open() bool
 }
 
 // manager implements Manager
@@ -130,8 +130,8 @@ func (d *manager) handleCloseAll() (tea.Model, tea.Cmd) {
 	return d, nil
 }
 
-// HasDialog returns true if there is at least one active dialog
-func (d *manager) HasDialog() bool {
+// Open returns true if there is at least one active dialog
+func (d *manager) Open() bool {
 	return len(d.dialogStack) > 0
 }
 

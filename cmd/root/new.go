@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/creator"
 	"github.com/docker/cagent/pkg/input"
 	"github.com/docker/cagent/pkg/runtime"
@@ -54,19 +55,19 @@ func NewNewCmd() *cobra.Command {
 					switch {
 					case os.Getenv("ANTHROPIC_API_KEY") != "":
 						modelProvider = "anthropic"
-						fmt.Printf("%s\n\n", white("ANTHROPIC_API_KEY found, using Anthropic"))
+						fmt.Printf("%s\n\n", cli.White("ANTHROPIC_API_KEY found, using Anthropic"))
 					case os.Getenv("OPENAI_API_KEY") != "":
 						modelProvider = "openai"
-						fmt.Printf("%s\n\n", white("OPENAI_API_KEY found, using OpenAI"))
+						fmt.Printf("%s\n\n", cli.White("OPENAI_API_KEY found, using OpenAI"))
 					case os.Getenv("GOOGLE_API_KEY") != "":
 						modelProvider = "google"
-						fmt.Printf("%s\n\n", white("GOOGLE_API_KEY found, using Google"))
+						fmt.Printf("%s\n\n", cli.White("GOOGLE_API_KEY found, using Google"))
 					default:
 						modelProvider = "dmr"
-						fmt.Printf("%s\n\n", yellow("⚠️ No provider credentials found, defaulting to Docker Model Runner (DMR)"))
+						fmt.Printf("%s\n\n", cli.Yellow("⚠️ No provider credentials found, defaulting to Docker Model Runner (DMR)"))
 					}
 					if modelParam == "" {
-						fmt.Printf("%s\n\n", white("use \"--model provider/model\" to use a different model"))
+						fmt.Printf("%s\n\n", cli.White("use \"--model provider/model\" to use a different model"))
 					}
 				} else {
 					// Using Models Gateway; default to Anthropic if not specified
@@ -78,10 +79,10 @@ func NewNewCmd() *cobra.Command {
 			if len(args) > 0 {
 				prompt = strings.Join(args, " ")
 			} else {
-				fmt.Printf("%s\n", blue("------- Welcome to %s! -------", bold(AppName)))
-				fmt.Printf("%s\n\n", white("         (Ctrl+C to exit)"))
-				fmt.Printf("%s\n\n", blue("What should your agent/agent team do? (describe its purpose)"))
-				fmt.Print(blue("> "))
+				fmt.Printf("%s\n", cli.Blue("------- Welcome to %s! -------", cli.Bold(AppName)))
+				fmt.Printf("%s\n\n", cli.White("         (Ctrl+C to exit)"))
+				fmt.Printf("%s\n\n", cli.Blue("What should your agent/agent team do? (describe its purpose)"))
+				fmt.Print(cli.Blue("> "))
 
 				var err error
 				prompt, err = input.ReadLine(ctx, os.Stdin)
@@ -112,34 +113,34 @@ func NewNewCmd() *cobra.Command {
 						fmt.Println()
 						llmIsTyping = false
 					}
-					printToolCall(e.ToolCall)
+					cli.PrintToolCall(e.ToolCall)
 				case *runtime.ToolCallResponseEvent:
 					if llmIsTyping {
 						fmt.Println()
 						llmIsTyping = false
 					}
-					printToolCallResponse(e.ToolCall, e.Response)
+					cli.PrintToolCallResponse(e.ToolCall, e.Response)
 				case *runtime.ErrorEvent:
 					if llmIsTyping {
 						fmt.Println()
 						llmIsTyping = false
 					}
-					printError(fmt.Errorf("%s", e.Error))
+					cli.PrintError(fmt.Errorf("%s", e.Error))
 				case *runtime.MaxIterationsReachedEvent:
 					if llmIsTyping {
 						fmt.Println()
 						llmIsTyping = false
 					}
 
-					result := promptMaxIterationsContinue(ctx, e.MaxIterations)
+					result := cli.PromptMaxIterationsContinue(ctx, e.MaxIterations)
 					switch result {
-					case ConfirmationApprove:
-						rt.Resume(ctx, string(runtime.ResumeTypeApprove))
-					case ConfirmationReject:
-						rt.Resume(ctx, string(runtime.ResumeTypeReject))
+					case cli.ConfirmationApprove:
+						rt.Resume(ctx, runtime.ResumeTypeApprove)
+					case cli.ConfirmationReject:
+						rt.Resume(ctx, runtime.ResumeTypeReject)
 						return nil
-					case ConfirmationAbort:
-						rt.Resume(ctx, string(runtime.ResumeTypeReject))
+					case cli.ConfirmationAbort:
+						rt.Resume(ctx, runtime.ResumeTypeReject)
 					}
 				}
 			}

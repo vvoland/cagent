@@ -998,7 +998,7 @@ func (s *Server) resumeSession(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("runtime not found: %s", sessionID))
 	}
 
-	rt.Resume(c.Request().Context(), req.Confirmation)
+	rt.Resume(c.Request().Context(), runtime.ResumeType(req.Confirmation))
 
 	return c.JSON(http.StatusOK, map[string]string{"message": "session resumed"})
 }
