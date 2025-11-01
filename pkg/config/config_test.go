@@ -50,7 +50,7 @@ func TestMigrate_v0_v1_provider(t *testing.T) {
 	cfg, err := LoadConfig("provider_v0.yaml", root)
 	require.NoError(t, err)
 
-	assert.Equal(t, "openai", cfg.Models["openai"].Provider)
+	assert.Equal(t, "openai", cfg.Models["gpt"].Provider)
 }
 
 func TestMigrate_v1_provider(t *testing.T) {
@@ -61,7 +61,7 @@ func TestMigrate_v1_provider(t *testing.T) {
 	cfg, err := LoadConfig("provider_v1.yaml", root)
 	require.NoError(t, err)
 
-	assert.Equal(t, "openai", cfg.Models["openai"].Provider)
+	assert.Equal(t, "openai", cfg.Models["gpt"].Provider)
 }
 
 func TestMigrate_v0_v1_todo(t *testing.T) {

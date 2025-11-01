@@ -3,7 +3,7 @@ version: "2"
 
 agents:
   root:
-    model: openai
+    model: gpt
     description: Expert Python developer and code generator
     instruction: |
       You are an expert Python developer and code generator.
@@ -42,7 +42,7 @@ agents:
       - type: shell
 
 models:
-  openai:
+  gpt:
     provider: openai
     model: gpt-4o
     temperature: 0.7
