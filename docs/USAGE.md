@@ -178,14 +178,14 @@ Examples (OpenAI):
 
 ```yaml
 models:
-  openai:
+  gpt:
     provider: openai
     model: gpt-5-mini
     thinking_budget: low
 
 agents:
   root:
-    model: openai
+    model: gpt
     instruction: you are a helpful assistant
 ```
 
@@ -265,7 +265,7 @@ See `examples/thinking_budget.yaml` for a complete runnable demo.
 
 # OpenAI
 models:
-  openai:
+  gpt:
     provider: openai
     model: gpt-5-mini
 

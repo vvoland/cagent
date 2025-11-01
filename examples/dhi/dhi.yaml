@@ -78,10 +78,6 @@ agents:
       - type: todo
 
 models:
-  openai:
-    provider: openai
-    model: gpt-4o
-
   claude:
     provider: anthropic
     model: claude-3-7-sonnet-latest
