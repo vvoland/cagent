@@ -114,22 +114,12 @@ func New(a *app.App) Page {
 
 // Init initializes the chat page
 func (p *chatPage) Init() tea.Cmd {
-	cmds := []tea.Cmd{
+	return tea.Batch(
 		p.sidebar.Init(),
 		p.messages.Init(),
 		p.editor.Init(),
 		p.editor.Focus(),
-	}
-
-	if firstMessage := p.app.FirstMessage(); firstMessage != nil {
-		cmds = append(cmds, func() tea.Msg {
-			return editor.SendMsg{
-				Content: *firstMessage,
-			}
-		})
-	}
-
-	return tea.Batch(cmds...)
+	)
 }
 
 // Update handles messages and updates the page state
