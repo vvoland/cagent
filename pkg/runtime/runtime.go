@@ -25,6 +25,7 @@ import (
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/telemetry"
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools/builtin"
 )
 
 type ResumeType string
@@ -192,7 +193,7 @@ func (r *LocalRuntime) CurrentAgent() *agent.Agent {
 // registerDefaultTools registers the default tool handlers
 func (r *LocalRuntime) registerDefaultTools() {
 	slog.Debug("Registering default tools")
-	r.toolMap["transfer_task"] = r.handleTaskTransfer
+	r.toolMap[builtin.ToolNameTransferTask] = r.handleTaskTransfer
 	slog.Debug("Registered default tools", "count", len(r.toolMap))
 }
 
@@ -682,7 +683,7 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 				},
 			}
 			slog.Debug("Using runtime tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
-			if sess.ToolsApproved || toolCall.Function.Name == "transfer_task" {
+			if sess.ToolsApproved || toolCall.Function.Name == builtin.ToolNameTransferTask {
 				r.runAgentTool(callCtx, handler, sess, toolCall, tool, events, a)
 			} else {
 				slog.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
