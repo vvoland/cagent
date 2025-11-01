@@ -2,7 +2,7 @@ version: "2"
 
 agents:
   root:
-    model: moonshotai/Kimi-K2-Instruct
+    model: grok-model
     description: A helpful AI assistant powered by Nebius
     instruction: |
       You are a LLM model, a helpful and maximally truthful AI built by Moonshotai.
