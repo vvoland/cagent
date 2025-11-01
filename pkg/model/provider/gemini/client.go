@@ -251,9 +251,9 @@ func (c *Client) buildConfig() *genai.GenerateContentConfig {
 		}
 	}
 
-	if c.ModelOptions.StructuredOutput != nil {
+	if structuredOutput := c.ModelOptions.StructuredOutput(); structuredOutput != nil {
 		config.ResponseMIMEType = "application/json"
-		config.ResponseJsonSchema = c.ModelOptions.StructuredOutput.Schema
+		config.ResponseJsonSchema = structuredOutput.Schema
 	}
 
 	return config

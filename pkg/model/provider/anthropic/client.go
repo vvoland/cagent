@@ -121,7 +121,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 
 	slog.Debug("Anthropic client created successfully", "model", cfg.Model)
 
-	if globalOptions.StructuredOutput != nil {
+	if globalOptions.StructuredOutput() != nil {
 		return &Client{}, errors.New("anthropic does not support native structured_output")
 	}
 

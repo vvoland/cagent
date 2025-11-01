@@ -283,17 +283,18 @@ func (c *Client) CreateChatCompletionStream(
 	}
 
 	// Apply structured output configuration
-	if c.ModelOptions.StructuredOutput != nil {
+	if structuredOutput := c.ModelOptions.StructuredOutput(); structuredOutput != nil {
+		slog.Debug("OpenAI request using structured output", "name", structuredOutput.Name, "strict", structuredOutput.Strict)
+
 		request.ResponseFormat = &openai.ChatCompletionResponseFormat{
 			Type: openai.ChatCompletionResponseFormatTypeJSONSchema,
 			JSONSchema: &openai.ChatCompletionResponseFormatJSONSchema{
-				Name:        c.ModelOptions.StructuredOutput.Name,
-				Description: c.ModelOptions.StructuredOutput.Description,
-				Schema:      jsonSchema(c.ModelOptions.StructuredOutput.Schema),
-				Strict:      c.ModelOptions.StructuredOutput.Strict,
+				Name:        structuredOutput.Name,
+				Description: structuredOutput.Description,
+				Schema:      jsonSchema(structuredOutput.Schema),
+				Strict:      structuredOutput.Strict,
 			},
 		}
-		slog.Debug("OpenAI request using structured output", "name", c.ModelOptions.StructuredOutput.Name, "strict", c.ModelOptions.StructuredOutput.Strict)
 	}
 
 	// Log the request in JSON format for debugging
