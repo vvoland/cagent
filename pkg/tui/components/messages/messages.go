@@ -851,50 +851,33 @@ func (m *model) extractSelectedText() string {
 		endLine = len(lines) - 1
 	}
 
-	// Single line selection
-	if startLine == endLine {
-		if startLine < len(lines) {
-			line := ansi.Strip(lines[startLine])
-			// Convert display width to rune indices
-			startIdx := displayWidthToRuneIndex(line, startCol)
-			endIdx := displayWidthToRuneIndex(line, endCol)
-			runes := []rune(line)
-			if startIdx < len(runes) && startIdx < endIdx {
-				if endIdx > len(runes) {
-					endIdx = len(runes)
-				}
-				return string(runes[startIdx:endIdx])
-			}
-		}
-		return ""
-	}
-
-	// Multi-line selection
 	var result strings.Builder
 	for i := startLine; i <= endLine && i < len(lines); i++ {
 		line := ansi.Strip(lines[i])
 		runes := []rune(line)
 
+		var lineText string
 		switch i {
 		case startLine:
 			// First line: from startCol to end
 			startIdx := displayWidthToRuneIndex(line, startCol)
 			if startIdx < len(runes) {
-				result.WriteString(string(runes[startIdx:]))
+				lineText = strings.TrimSpace(string(runes[startIdx:]))
 			}
 		case endLine:
 			// Last line: from start to endCol
 			endIdx := min(displayWidthToRuneIndex(line, endCol), len(runes))
-			result.WriteString(string(runes[:endIdx]))
+			lineText = strings.TrimSpace(string(runes[:endIdx]))
 		default:
 			// Middle lines: entire line
-			result.WriteString(line)
+			lineText = strings.TrimSpace(line)
 		}
 
-		// Add newline except for last line
-		if i < endLine {
-			result.WriteString("\n")
+		if lineText != "" {
+			result.WriteString(lineText)
 		}
+
+		result.WriteString("\n")
 	}
 
 	return result.String()
