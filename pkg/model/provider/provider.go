@@ -9,6 +9,7 @@ import (
 	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/model/provider/anthropic"
+	"github.com/docker/cagent/pkg/model/provider/base"
 	"github.com/docker/cagent/pkg/model/provider/dmr"
 	"github.com/docker/cagent/pkg/model/provider/gemini"
 	"github.com/docker/cagent/pkg/model/provider/openai"
@@ -52,10 +53,8 @@ type Provider interface {
 		messages []chat.Message,
 		tools []tools.Tool,
 	) (chat.MessageStream, error)
-	// Options returns the effective model options used by this provider
-	Options() options.ModelOptions
-	// MaxTokens returns the maximum tokens configured for this provider
-	MaxTokens() int
+	// BaseConfig returns the base configuration of this provider
+	BaseConfig() base.Config
 }
 
 func New(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider, opts ...options.Opt) (Provider, error) {
