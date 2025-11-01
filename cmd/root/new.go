@@ -1,18 +1,19 @@
 package root
 
 import (
-	"fmt"
 	"os"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/cli"
+	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/creator"
-	"github.com/docker/cagent/pkg/input"
 	"github.com/docker/cagent/pkg/runtime"
+	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/telemetry"
+	"github.com/docker/cagent/pkg/tui"
 )
 
 type newFlags struct {
@@ -36,8 +37,6 @@ func newNewCmd() *cobra.Command {
 	cmd.PersistentFlags().IntVar(&flags.maxTokensParam, "max-tokens", 0, "Override max_tokens for the selected model (0 = default)")
 	cmd.PersistentFlags().IntVar(&flags.maxIterationsParam, "max-iterations", 0, "Maximum number of agentic loop iterations to prevent infinite loops (default: 20 for DMR, unlimited for other providers)")
 
-	addRuntimeConfigFlags(cmd, &flags.runConfig)
-
 	return cmd
 }
 
@@ -45,7 +44,6 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
 	telemetry.TrackCommand("new", args)
 
 	ctx := cmd.Context()
-	out := cli.NewPrinter(cmd.OutOrStdout())
 
 	var model string         // final model name
 	var modelProvider string // final provider name
@@ -55,7 +53,7 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
 	if idx := strings.Index(f.modelParam, "/"); idx > 0 {
 		candidate := strings.ToLower(f.modelParam[:idx])
 		switch candidate {
-		case "anthropic", "openai", "google", "dmr":
+		case "anthropic", "openai", "google", "mistral", "dmr":
 			derivedProvider = candidate
 			model = f.modelParam[idx+1:]
 		}
@@ -66,27 +64,17 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
 		modelProvider = derivedProvider
 	} else {
 		if f.runConfig.ModelsGateway == "" {
-			// Prefer Anthropic, then OpenAI, then Google based on available API keys
-			// default to DMR if no provider credentials are found
 			switch {
 			case os.Getenv("ANTHROPIC_API_KEY") != "":
 				modelProvider = "anthropic"
-				out.Printf("%s\n\n", "ANTHROPIC_API_KEY found, using Anthropic")
 			case os.Getenv("OPENAI_API_KEY") != "":
 				modelProvider = "openai"
-				out.Printf("%s\n\n", "OPENAI_API_KEY found, using OpenAI")
 			case os.Getenv("GOOGLE_API_KEY") != "":
 				modelProvider = "google"
-				out.Printf("%s\n\n", "GOOGLE_API_KEY found, using Google")
 			case os.Getenv("MISTRAL_API_KEY") != "":
 				modelProvider = "mistral"
-				out.Printf("%s\n\n", "MISTRAL_API_KEY found, using Mistral")
 			default:
 				modelProvider = "dmr"
-				out.Printf("%s\n\n", "⚠️ No provider credentials found, defaulting to Docker Model Runner (DMR)")
-			}
-			if f.modelParam == "" {
-				out.Printf("%s\n\n", "use \"--model provider/model\" to use a different model")
 			}
 		} else {
 			// Using Models Gateway; default to Anthropic if not specified
@@ -94,76 +82,44 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	prompt := ""
-	if len(args) > 0 {
-		prompt = strings.Join(args, " ")
-	} else {
-		out.Printf("------- Welcome to %s! -------\n", AppName)
-		out.Printf("%s\n\n", "         (Ctrl+C to exit)")
-		out.Printf("%s\n\n", "What should your agent/agent team do? (describe its purpose)")
-		out.Print("> ")
-
-		var err error
-		prompt, err = input.ReadLine(ctx, os.Stdin)
-		if err != nil {
-			return fmt.Errorf("failed to read purpose: %w", err)
-		}
-		prompt = strings.TrimSpace(prompt)
-		out.Println()
+	t, err := creator.Agent(ctx, ".", f.runConfig, modelProvider, f.maxTokensParam, model)
+	if err != nil {
+		return err
 	}
-
-	events, rt, err := creator.StreamCreateAgent(ctx, ".", prompt, f.runConfig, modelProvider, model, f.maxTokensParam, f.maxIterationsParam)
+	rt, err := runtime.New(t)
 	if err != nil {
 		return err
 	}
 
-	llmIsTyping := false
-
-	for event := range events {
-		switch e := event.(type) {
-		case *runtime.AgentChoiceEvent:
-			if !llmIsTyping {
-				out.Println()
-				llmIsTyping = true
-			}
-			out.Printf("%s", e.Content)
-		case *runtime.ToolCallEvent:
-			if llmIsTyping {
-				out.Println()
-				llmIsTyping = false
-			}
-			out.PrintToolCall(e.ToolCall)
-		case *runtime.ToolCallResponseEvent:
-			if llmIsTyping {
-				out.Println()
-				llmIsTyping = false
-			}
-			out.PrintToolCallResponse(e.ToolCall, e.Response)
-		case *runtime.ErrorEvent:
-			if llmIsTyping {
-				out.Println()
-				llmIsTyping = false
-			}
-			out.PrintError(fmt.Errorf("%s", e.Error))
-		case *runtime.MaxIterationsReachedEvent:
-			if llmIsTyping {
-				out.Println()
-				llmIsTyping = false
-			}
-
-			result := out.PromptMaxIterationsContinue(ctx, e.MaxIterations)
-			switch result {
-			case cli.ConfirmationApprove:
-				rt.Resume(ctx, runtime.ResumeTypeApprove)
-			case cli.ConfirmationReject:
-				rt.Resume(ctx, runtime.ResumeTypeReject)
-				return nil
-			case cli.ConfirmationAbort:
-				rt.Resume(ctx, runtime.ResumeTypeReject)
-			}
-		}
+	var prompt *string
+	opts := []session.Opt{
+		session.WithTitle("New agent"),
+		session.WithMaxIterations(f.maxIterationsParam),
+		session.WithToolsApproved(true),
 	}
-	out.Println()
-	out.Println()
-	return nil
+	if len(args) > 0 {
+		arg := strings.Join(args, " ")
+		opts = append(opts, session.WithUserMessage("", arg))
+		prompt = &arg
+	}
+
+	sess := session.New(opts...)
+
+	a := app.New("cagent", "", rt, t, sess, prompt)
+	m := tui.New(a)
+
+	progOpts := []tea.ProgramOption{
+		tea.WithAltScreen(),
+		tea.WithContext(ctx),
+		tea.WithFilter(tui.MouseEventFilter),
+		tea.WithMouseCellMotion(),
+		tea.WithMouseAllMotion(),
+	}
+
+	p := tea.NewProgram(m, progOpts...)
+
+	go a.Subscribe(ctx, p)
+
+	_, err = p.Run()
+	return err
 }
