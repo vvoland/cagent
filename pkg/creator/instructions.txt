@@ -159,15 +159,15 @@ Multiple MCP Servers can be configured when multiple tools are useful.
 version: "2"
 
 agents:
-    root:
-        ...
-        toolsets:
-        - type: mcp
-          ref: docker:duckduckgo
-        - type: mcp
-          ref: docker:youtube_transcript
-        - type: mcp
-          ref: docker:other
+  root:
+    ...
+    toolsets:
+    - type: mcp
+      ref: docker:duckduckgo
+    - type: mcp
+      ref: docker:youtube_transcript
+    - type: mcp
+      ref: docker:other
 ```
 
 ### Model Configuration
@@ -176,7 +176,7 @@ agents:
 version: "2"
 
 models:
-model_name:
+  model_name:
     provider: string # Provider: openai, anthropic, dmr
     model: string # Model name: gpt-4o, claude-3-7-sonnet-latest
     max_tokens: integer # Response length limit
