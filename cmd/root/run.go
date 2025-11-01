@@ -50,7 +50,13 @@ func NewRunCmd() *cobra.Command {
   echo "INSTRUCTIONS" | cagent run ./echo.yaml -`,
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCommand(cmd.Context(), args)
+			ctx := cmd.Context()
+			out := cli.NewPrinter(cmd.OutOrStdout())
+
+			telemetry.TrackCommand("run", args)
+			setupOtel(ctx)
+
+			return runOrExec(ctx, out, args, false)
 		},
 	}
 
@@ -67,12 +73,6 @@ func NewRunCmd() *cobra.Command {
 	return cmd
 }
 
-func runCommand(ctx context.Context, args []string) error {
-	telemetry.TrackCommand("run", args)
-	setupOtel(ctx)
-	return doRunCommand(ctx, args, false)
-}
-
 func setupOtel(ctx context.Context) {
 	if enableOtel {
 		if err := initOTelSDK(ctx); err != nil {
@@ -83,7 +83,7 @@ func setupOtel(ctx context.Context) {
 	}
 }
 
-func doRunCommand(ctx context.Context, args []string, exec bool) error {
+func runOrExec(ctx context.Context, out *cli.Printer, args []string, exec bool) error {
 	slog.Debug("Starting agent", "agent", agentName, "debug_mode", debugMode)
 
 	if err := validateRemoteFlag(exec); err != nil {
@@ -119,11 +119,11 @@ func doRunCommand(ctx context.Context, args []string, exec bool) error {
 	}
 
 	if exec {
-		return handleExecMode(ctx, agentFileName, rt, sess, args)
+		return handleExecMode(ctx, out, agentFileName, rt, sess, args)
 	}
 
 	if !useTUI {
-		return handleCLIMode(ctx, agentFileName, rt, sess, args)
+		return handleCLIMode(ctx, out, agentFileName, rt, sess, args)
 	}
 
 	return handleTUIMode(ctx, agentFileName, rt, t, sess, args)
@@ -293,7 +293,7 @@ func createLocalRuntimeAndSession(t *team.Team) (runtime.Runtime, *session.Sessi
 	return localRt, sess, nil
 }
 
-func handleExecMode(ctx context.Context, agentFilename string, rt runtime.Runtime, sess *session.Session, args []string) error {
+func handleExecMode(ctx context.Context, out *cli.Printer, agentFilename string, rt runtime.Runtime, sess *session.Session, args []string) error {
 	execArgs := []string{"exec"}
 	if len(args) == 2 {
 		execArgs = append(execArgs, args[1])
@@ -302,11 +302,11 @@ func handleExecMode(ctx context.Context, agentFilename string, rt runtime.Runtim
 	}
 
 	if dryRun {
-		fmt.Println("Dry run mode enabled. Agent initialized but will not execute.")
+		out.Println("Dry run mode enabled. Agent initialized but will not execute.")
 		return nil
 	}
 
-	err := cli.Run(ctx, cli.Config{
+	err := cli.Run(ctx, out, cli.Config{
 		AppName:        AppName,
 		AttachmentPath: attachmentPath,
 	}, agentFilename, rt, sess, execArgs)
@@ -316,8 +316,8 @@ func handleExecMode(ctx context.Context, agentFilename string, rt runtime.Runtim
 	return err
 }
 
-func handleCLIMode(ctx context.Context, agentFilename string, rt runtime.Runtime, sess *session.Session, args []string) error {
-	err := cli.Run(ctx, cli.Config{
+func handleCLIMode(ctx context.Context, out *cli.Printer, agentFilename string, rt runtime.Runtime, sess *session.Session, args []string) error {
+	err := cli.Run(ctx, out, cli.Config{
 		AppName:        AppName,
 		AttachmentPath: attachmentPath,
 	}, agentFilename, rt, sess, args)

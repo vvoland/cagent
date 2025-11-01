@@ -2,6 +2,7 @@ package root
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -22,15 +23,15 @@ func NewPullCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			telemetry.TrackCommand("pull", args)
-			return runPullCommand(args[0])
+			return runPullCommand(cmd.OutOrStdout(), args[0])
 		},
 	}
 }
 
-func runPullCommand(registryRef string) error {
+func runPullCommand(out io.Writer, registryRef string) error {
 	slog.Debug("Starting pull", "registry_ref", registryRef)
 
-	fmt.Println("Pulling agent", registryRef)
+	fmt.Fprintln(out, "Pulling agent", registryRef)
 
 	var opts []crane.Option
 	_, err := remote.Pull(registryRef, opts...)
@@ -50,7 +51,7 @@ func runPullCommand(registryRef string) error {
 		return err
 	}
 
-	fmt.Printf("Agent saved to %s\n", fileName)
+	fmt.Fprintf(out, "Agent saved to %s\n", fileName)
 
 	return nil
 }

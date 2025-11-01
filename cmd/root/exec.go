@@ -1,10 +1,9 @@
 package root
 
 import (
-	"context"
-
 	"github.com/spf13/cobra"
 
+	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/telemetry"
 )
 
@@ -14,7 +13,13 @@ func NewExecCmd() *cobra.Command {
 		Short: "Execute an agent",
 		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return execCommand(cmd.Context(), args)
+			ctx := cmd.Context()
+			out := cli.NewPrinter(cmd.OutOrStdout())
+
+			telemetry.TrackCommand("exec", args)
+			setupOtel(ctx)
+
+			return runOrExec(ctx, out, args, true)
 		},
 	}
 
@@ -30,10 +35,4 @@ func NewExecCmd() *cobra.Command {
 	addRuntimeConfigFlags(cmd)
 
 	return cmd
-}
-
-func execCommand(ctx context.Context, args []string) error {
-	telemetry.TrackCommand("exec", args)
-	setupOtel(ctx)
-	return doRunCommand(ctx, args, true)
 }
