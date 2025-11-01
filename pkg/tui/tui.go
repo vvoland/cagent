@@ -177,6 +177,10 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		_ = browser.Open(context.Background(), msg.URL)
 		return a, nil
 
+	case dialog.RuntimeResumeMsg:
+		a.application.Resume(msg.Response)
+		return a, nil
+
 	case error:
 		a.err = msg
 		return a, nil
