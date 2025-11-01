@@ -950,25 +950,32 @@ func (m *model) applySelectionHighlight(lines []string, viewportStartLine int) [
 }
 
 func (m *model) highlightLine(line string, startCol, endCol int) string {
+	// Get plain text for boundary checks
 	plainLine := ansi.Strip(line)
+	plainWidth := runewidth.StringWidth(plainLine)
 
-	startRuneIdx := displayWidthToRuneIndex(plainLine, startCol)
-	endRuneIdx := displayWidthToRuneIndex(plainLine, endCol)
-
-	if startRuneIdx >= len([]rune(plainLine)) {
+	// Validate and normalize boundaries
+	if startCol >= plainWidth {
 		return line
 	}
-	if startRuneIdx >= endRuneIdx {
+	if startCol >= endCol {
 		return line
 	}
-
-	runes := []rune(plainLine)
-	before := string(runes[:startRuneIdx])
-	selected := styles.SelectionStyle.Render(string(runes[startRuneIdx:endRuneIdx]))
-	after := ""
-	if endRuneIdx < len(runes) {
-		after = string(runes[endRuneIdx:])
+	if endCol > plainWidth {
+		endCol = plainWidth
 	}
+
+	// Extract the three parts while preserving ANSI codes
+	// before: from start to startCol (preserves original styling)
+	before := ansi.Cut(line, 0, startCol)
+
+	// selected: from startCol to endCol (strip styling, apply selection style)
+	selectedText := ansi.Cut(line, startCol, endCol)
+	selectedPlain := ansi.Strip(selectedText)
+	selected := styles.SelectionStyle.Render(selectedPlain)
+
+	// after: from endCol to end (preserves original styling)
+	after := ansi.Cut(line, endCol, plainWidth)
 
 	return before + selected + after
 }
