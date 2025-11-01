@@ -13,7 +13,7 @@ import (
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/model/provider/options"
+	"github.com/docker/cagent/pkg/model/provider/base"
 	"github.com/docker/cagent/pkg/modelsdev"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
@@ -143,7 +143,7 @@ func (m *mockProvider) CreateChatCompletionStream(context.Context, []chat.Messag
 	return m.stream, nil
 }
 
-func (m *mockProvider) Options() options.ModelOptions { return options.ModelOptions{} }
+func (m *mockProvider) BaseConfig() base.Config { return base.Config{} }
 
 func (m *mockProvider) MaxTokens() int { return 0 }
 
@@ -157,7 +157,7 @@ func (m *mockProviderWithError) CreateChatCompletionStream(context.Context, []ch
 	return nil, fmt.Errorf("simulated error creating chat completion stream")
 }
 
-func (m *mockProviderWithError) Options() options.ModelOptions { return options.ModelOptions{} }
+func (m *mockProviderWithError) BaseConfig() base.Config { return base.Config{} }
 
 func (m *mockProviderWithError) MaxTokens() int { return 0 }
 
@@ -453,7 +453,7 @@ func (p *queueProvider) CreateChatCompletionStream(context.Context, []chat.Messa
 	return s, nil
 }
 
-func (p *queueProvider) Options() options.ModelOptions { return options.ModelOptions{} }
+func (p *queueProvider) BaseConfig() base.Config { return base.Config{} }
 
 func (p *queueProvider) MaxTokens() int { return 0 }
 

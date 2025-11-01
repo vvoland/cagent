@@ -107,7 +107,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, opts ...options.Opt
 
 	return &Client{
 		Config: base.Config{
-			ModelConfig:  cfg,
+			ModelConfig:  *cfg,
 			ModelOptions: globalOptions,
 		},
 		client:  openai.NewClientWithConfig(clientConfig),

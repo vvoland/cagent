@@ -31,7 +31,7 @@ type Client struct {
 // models:provider_opts:interleaved_thinking: true
 func (c *Client) interleavedThinkingEnabled() bool {
 	// Default to false if not provided
-	if c == nil || c.ModelConfig == nil || len(c.ModelConfig.ProviderOpts) == 0 {
+	if c == nil || len(c.ModelConfig.ProviderOpts) == 0 {
 		return false
 	}
 	v, ok := c.ModelConfig.ProviderOpts["interleaved_thinking"]
@@ -127,8 +127,9 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 
 	return &Client{
 		Config: base.Config{
-			ModelConfig:  cfg,
+			ModelConfig:  *cfg,
 			ModelOptions: globalOptions,
+			Env:          env,
 		},
 		clientFn: clientFn,
 	}, nil
