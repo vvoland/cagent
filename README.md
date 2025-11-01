@@ -100,7 +100,7 @@ See [the USAGE docs](./docs/USAGE.md#tool-configuration) for more detailed infor
 - **🔄 Smart delegation** - Agents can automatically route tasks to the most suitable specialist.
 - **📝 YAML configuration** - Declarative model and agent configuration.
 - **💭 Advanced reasoning** - Built-in "think", "todo" and "memory" tools for complex problem-solving.
-- **🌐 Multiple AI providers** - Support for OpenAI, Anthropic, Gemini, xAI and [Docker Model Runner](https://docs.docker.com/ai/model-runner/).
+- **🌐 Multiple AI providers** - Support for OpenAI, Anthropic, Gemini, xA, Nebius and [Docker Model Runner](https://docs.docker.com/ai/model-runner/).
 
 ## 🚀 Quick Start 🚀
 
@@ -145,6 +145,9 @@ export GOOGLE_API_KEY=your_api_key_here
 
 # For xAI models
 export XAI_API_KEY=your_api_key_here
+
+# For Nebius models
+export NEBIUS_API_KEY=your_api_key_here
 ```
 
 ### Run Agents!
