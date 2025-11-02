@@ -232,7 +232,7 @@ func (a *appModel) handleWindowResize(width, height int) tea.Cmd {
 	var cmds []tea.Cmd
 
 	// Update dimensions
-	a.width, a.height = width, height-2 // Account for status bar
+	a.width, a.height = width, height-1 // Account for status bar
 
 	if !a.ready {
 		a.ready = true
