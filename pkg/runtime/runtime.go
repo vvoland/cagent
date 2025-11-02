@@ -415,7 +415,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 
 // getTools executes tool retrieval with automatic OAuth handling
 func (r *LocalRuntime) getTools(ctx context.Context, a *agent.Agent, sessionSpan trace.Span, events chan Event) ([]tools.Tool, error) {
-	shouldEmitMCPInit := events != nil && len(a.ToolSets()) > 0
+	shouldEmitMCPInit := len(a.ToolSets()) > 0
 	if shouldEmitMCPInit {
 		events <- MCPInitStarted(a.Name())
 	}
