@@ -6,11 +6,7 @@ import (
 	"github.com/docker/cagent/pkg/config"
 )
 
-var (
-	listenAddr string
-	sessionDB  string
-	runConfig  config.RuntimeConfig
-)
+var runConfig config.RuntimeConfig
 
 func addRuntimeConfigFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringSliceVar(&runConfig.EnvFiles, "env-from-file", nil, "Set environment variables from file")

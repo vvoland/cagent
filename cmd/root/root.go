@@ -63,7 +63,6 @@ func isFirstRun() bool {
 	return true // Successfully created marker, this is first run
 }
 
-// NewRootCmd creates the root command for cagent
 func NewRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cagent",
@@ -105,22 +104,21 @@ func NewRootCmd() *cobra.Command {
 	cmd.PersistentFlags().BoolVarP(&enableOtel, "otel", "o", false, "Enable OpenTelemetry tracing")
 	cmd.PersistentFlags().StringVar(&logFilePath, "log-file", "", "Path to debug log file (default: ~/.cagent/cagent.debug.log; only used with --debug)")
 
-	cmd.AddCommand(NewVersionCmd())
-	cmd.AddCommand(NewRunCmd())
-	cmd.AddCommand(NewExecCmd())
-	cmd.AddCommand(NewNewCmd())
-	cmd.AddCommand(NewAPICmd())
-	cmd.AddCommand(NewACPCmd())
-	cmd.AddCommand(NewEvalCmd())
-	cmd.AddCommand(NewPushCmd())
-	cmd.AddCommand(NewPullCmd())
-	cmd.AddCommand(NewReadmeCmd())
-	cmd.AddCommand(NewDebugCmd())
-	cmd.AddCommand(NewFeedbackCmd())
-	cmd.AddCommand(NewCatalogCmd())
-	cmd.AddCommand(NewBuildCmd())
-	cmd.AddCommand(NewPrintCmd())
-	cmd.AddCommand(NewAliasCmd())
+	cmd.AddCommand(newVersionCmd())
+	cmd.AddCommand(newRunCmd())
+	cmd.AddCommand(newExecCmd())
+	cmd.AddCommand(newNewCmd())
+	cmd.AddCommand(newAPICmd())
+	cmd.AddCommand(newACPCmd())
+	cmd.AddCommand(newEvalCmd())
+	cmd.AddCommand(newPushCmd())
+	cmd.AddCommand(newPullCmd())
+	cmd.AddCommand(newDebugCmd())
+	cmd.AddCommand(newFeedbackCmd())
+	cmd.AddCommand(newCatalogCmd())
+	cmd.AddCommand(newBuildCmd())
+	cmd.AddCommand(newPrintCmd())
+	cmd.AddCommand(newAliasCmd())
 
 	return cmd
 }

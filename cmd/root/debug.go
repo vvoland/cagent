@@ -6,26 +6,27 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/teamloader"
+	"github.com/docker/cagent/pkg/telemetry"
 )
 
-// NewDebugCmd creates a command that prints the debug information about cagent.
-func NewDebugCmd() *cobra.Command {
+func newDebugCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:    "debug",
-		Hidden: true,
+		Use: "debug",
 	}
 
 	cmd.AddCommand(&cobra.Command{
 		Use:   "toolsets <agent-name>",
 		Short: "Debug the toolsets of an agent",
 		Args:  cobra.ExactArgs(1),
-		RunE:  debugToolsetsCommand,
+		RunE:  runDebugToolsetsCommand,
 	})
 
 	return cmd
 }
 
-func debugToolsetsCommand(cmd *cobra.Command, args []string) error {
+func runDebugToolsetsCommand(cmd *cobra.Command, args []string) error {
+	telemetry.TrackCommand("debug", append([]string{"toolsets"}, args...))
+
 	ctx := cmd.Context()
 	agentFilename := args[0]
 
