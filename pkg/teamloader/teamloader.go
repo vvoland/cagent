@@ -156,8 +156,7 @@ func createFilesystemTool(ctx context.Context, toolset latest.Toolset, parentDir
 		opts = append(opts, builtin.WithPostEditCommands(postEditConfigs))
 	}
 
-	opts = append(opts, builtin.WithAllowedDirectories(append(toolset.AllowedDirectories, wd)))
-	return builtin.NewFilesystemTool(opts...), nil
+	return builtin.NewFilesystemTool([]string{wd}, opts...), nil
 }
 
 func createFetchTool(ctx context.Context, toolset latest.Toolset, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig) (tools.ToolSet, error) {

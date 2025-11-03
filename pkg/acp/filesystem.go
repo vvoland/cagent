@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/coder/acp-go-sdk"
@@ -31,16 +32,18 @@ func getSessionID(ctx context.Context) (string, bool) {
 // and edit_file to use the ACP connection for file operations
 type FilesystemToolset struct {
 	*builtin.FilesystemTool
-	agent *Agent
+	agent       *Agent
+	workindgDir string
 }
 
 var _ tools.ToolSet = (*FilesystemToolset)(nil)
 
 // NewFilesystemToolset creates a new ACP-specific filesystem toolset
-func NewFilesystemToolset(agent *Agent, opts ...builtin.FileSystemOpt) *FilesystemToolset {
+func NewFilesystemToolset(agent *Agent, workingDir string, opts ...builtin.FileSystemOpt) *FilesystemToolset {
 	return &FilesystemToolset{
-		FilesystemTool: builtin.NewFilesystemTool(opts...),
+		FilesystemTool: builtin.NewFilesystemTool([]string{workingDir}, opts...),
 		agent:          agent,
+		workindgDir:    workingDir,
 	}
 }
 
@@ -78,7 +81,7 @@ func (t *FilesystemToolset) handleReadFile(ctx context.Context, toolCall tools.T
 
 	resp, err := t.agent.conn.ReadTextFile(ctx, acp.ReadTextFileRequest{
 		SessionId: acp.SessionId(sessionID),
-		Path:      args.Path,
+		Path:      filepath.Join(t.workindgDir, args.Path),
 	})
 	if err != nil {
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error reading file: %s", err)}, nil
@@ -123,7 +126,7 @@ func (t *FilesystemToolset) handleEditFile(ctx context.Context, toolCall tools.T
 
 	resp, err := t.agent.conn.ReadTextFile(ctx, acp.ReadTextFileRequest{
 		SessionId: acp.SessionId(sessionID),
-		Path:      args.Path,
+		Path:      filepath.Join(t.workindgDir, args.Path),
 	})
 	if err != nil {
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error reading file: %s", err)}, nil
@@ -140,7 +143,7 @@ func (t *FilesystemToolset) handleEditFile(ctx context.Context, toolCall tools.T
 
 	_, err = t.agent.conn.WriteTextFile(ctx, acp.WriteTextFileRequest{
 		SessionId: acp.SessionId(sessionID),
-		Path:      args.Path,
+		Path:      filepath.Join(t.workindgDir, args.Path),
 		Content:   modifiedContent,
 	})
 	if err != nil {

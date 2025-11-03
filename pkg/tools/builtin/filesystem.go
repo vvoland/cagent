@@ -57,15 +57,10 @@ func WithPostEditCommands(postEditCommands []PostEditConfig) FileSystemOpt {
 	}
 }
 
-func WithAllowedDirectories(directories []string) FileSystemOpt {
-	return func(t *FilesystemTool) {
-		t.allowedDirectories = append(t.allowedDirectories, directories...)
+func NewFilesystemTool(allowedDirectories []string, opts ...FileSystemOpt) *FilesystemTool {
+	t := &FilesystemTool{
+		allowedDirectories: allowedDirectories,
 	}
-}
-
-func NewFilesystemTool(opts ...FileSystemOpt) *FilesystemTool {
-	t := &FilesystemTool{}
-
 	for _, opt := range opts {
 		opt(t)
 	}
