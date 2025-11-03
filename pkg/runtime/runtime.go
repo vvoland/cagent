@@ -1019,9 +1019,10 @@ func (r *LocalRuntime) generateSessionTitle(ctx context.Context, sess *session.S
 		team.WithID("title-generator"),
 		team.WithAgents(agent.New("root", systemPrompt, agent.WithModel(titleModel))),
 	)
-	titleSession := session.New(session.WithSystemMessage(systemPrompt))
-	titleSession.AddMessage(session.UserMessage("", userPrompt))
-	titleSession.Title = "Generating title..."
+	titleSession := session.New(
+		session.WithUserMessage("", userPrompt),
+		session.WithTitle("Generating title..."),
+	)
 
 	titleRuntime, err := New(newTeam, WithSessionCompaction(false))
 	if err != nil {
