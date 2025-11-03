@@ -40,7 +40,7 @@ require (
 	golang.org/x/oauth2 v0.32.0
 	golang.org/x/sys v0.37.0
 	golang.org/x/term v0.36.0
-	google.golang.org/genai v1.31.0
+	google.golang.org/genai v1.33.0
 	modernc.org/sqlite v1.39.1
 )
 
