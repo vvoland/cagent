@@ -10,17 +10,16 @@ import (
 	"github.com/docker/cagent/pkg/telemetry"
 )
 
-// NewReadmeCmd creates a command that prints the README of an agent.
-func NewReadmeCmd() *cobra.Command {
+func newReadmeCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "readme <agent-name>",
 		Short: "Print the README of an agent",
 		Args:  cobra.ExactArgs(1),
-		RunE:  readmeAgentCommand,
+		RunE:  readmeReadmeCommand,
 	}
 }
 
-func readmeAgentCommand(_ *cobra.Command, args []string) error {
+func readmeReadmeCommand(_ *cobra.Command, args []string) error {
 	telemetry.TrackCommand("readme", args)
 
 	agentFilename := args[0]

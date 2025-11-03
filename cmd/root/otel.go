@@ -3,6 +3,7 @@ package root
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
@@ -14,6 +15,16 @@ import (
 )
 
 const AppName = "cagent"
+
+func setupOtel(ctx context.Context) {
+	if enableOtel {
+		if err := initOTelSDK(ctx); err != nil {
+			slog.Warn("Failed to initialize OpenTelemetry SDK", "error", err)
+		} else {
+			slog.Debug("OpenTelemetry SDK initialized successfully")
+		}
+	}
+}
 
 // initOTelSDK initializes OpenTelemetry SDK with OTLP exporter
 func initOTelSDK(ctx context.Context) (err error) {

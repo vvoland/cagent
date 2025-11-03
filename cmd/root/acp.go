@@ -10,17 +10,13 @@ import (
 	"github.com/docker/cagent/pkg/telemetry"
 )
 
-// NewACPCmd creates a new acp command
-func NewACPCmd() *cobra.Command {
+func newACPCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "acp <agent-file>",
 		Short: "Start an ACP (Agent Client Protocol) server",
 		Long:  `Start an ACP server that exposes the agent via the Agent Client Protocol`,
 		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			telemetry.TrackCommand("acp", args)
-			return runACP(cmd, args)
-		},
+		RunE:  runACPCommand,
 	}
 
 	addGatewayFlags(cmd)
@@ -29,7 +25,9 @@ func NewACPCmd() *cobra.Command {
 	return cmd
 }
 
-func runACP(cmd *cobra.Command, args []string) error {
+func runACPCommand(cmd *cobra.Command, args []string) error {
+	telemetry.TrackCommand("acp", args)
+
 	ctx := cmd.Context()
 	agentFilename := args[0]
 

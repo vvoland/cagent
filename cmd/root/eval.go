@@ -10,7 +10,7 @@ import (
 	"github.com/docker/cagent/pkg/telemetry"
 )
 
-func NewEvalCmd() *cobra.Command {
+func newEvalCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "eval <agent-name> <eval-dir>",
 		Short: "Run evaluations for an agent",

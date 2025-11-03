@@ -14,8 +14,7 @@ import (
 	"github.com/docker/cagent/pkg/telemetry"
 )
 
-// NewAliasCmd creates a new alias command for managing aliases
-func NewAliasCmd() *cobra.Command {
+func newAliasCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "alias",
 		Short: "Manage aliases for agents",
@@ -40,55 +39,42 @@ func NewAliasCmd() *cobra.Command {
 	return cmd
 }
 
-// newAliasAddCmd creates the add subcommand
 func newAliasAddCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "add <alias-name> <agent-path>",
 		Short: "Add a new alias",
 		Args:  cobra.ExactArgs(2),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			telemetry.TrackCommand("alias", append([]string{"add"}, args...))
-			out := cli.NewPrinter(cmd.OutOrStdout())
-
-			return createAlias(out, args[0], args[1])
-		},
+		RunE:  runAliasAddCommand,
 	}
 }
 
-// newAliasListCmd creates the list subcommand
 func newAliasListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
 		Short:   "List all registered aliases",
 		Args:    cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			telemetry.TrackCommand("alias", []string{"list"})
-			out := cli.NewPrinter(cmd.OutOrStdout())
-
-			return listAliases(out)
-		},
+		RunE:    runAliasListCommand,
 	}
 }
 
-// newAliasRemoveCmd creates the remove subcommand
 func newAliasRemoveCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "remove <alias-name>",
 		Aliases: []string{"rm"},
 		Short:   "Remove a registered alias",
 		Args:    cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			telemetry.TrackCommand("alias", append([]string{"remove"}, args...))
-			out := cli.NewPrinter(cmd.OutOrStdout())
-
-			return removeAlias(out, args[0])
-		},
+		RunE:    runAliasRemoveCommand,
 	}
 }
 
-// createAlias creates a new alias
-func createAlias(out *cli.Printer, name, agentPath string) error {
+func runAliasAddCommand(cmd *cobra.Command, args []string) error {
+	telemetry.TrackCommand("alias", append([]string{"add"}, args...))
+
+	out := cli.NewPrinter(cmd.OutOrStdout())
+	name := args[0]
+	agentPath := args[1]
+
 	// Load existing aliases
 	s, err := aliases.Load()
 	if err != nil {
@@ -117,26 +103,11 @@ func createAlias(out *cli.Printer, name, agentPath string) error {
 	return nil
 }
 
-// removeAlias removes an alias
-func removeAlias(out *cli.Printer, name string) error {
-	s, err := aliases.Load()
-	if err != nil {
-		return fmt.Errorf("failed to load aliases: %w", err)
-	}
+func runAliasListCommand(cmd *cobra.Command, args []string) error {
+	telemetry.TrackCommand("alias", append([]string{"list"}, args...))
 
-	if !s.Delete(name) {
-		return fmt.Errorf("alias '%s' not found", name)
-	}
+	out := cli.NewPrinter(cmd.OutOrStdout())
 
-	if err := s.Save(); err != nil {
-		return fmt.Errorf("failed to save aliases: %w", err)
-	}
-
-	out.Printf("Alias '%s' removed successfully\n", name)
-	return nil
-}
-
-func listAliases(out *cli.Printer) error {
 	s, err := aliases.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load aliases: %w", err)
@@ -174,6 +145,29 @@ func listAliases(out *cli.Printer) error {
 
 	out.Print("\nRun an alias with: cagent run <alias>\n")
 
+	return nil
+}
+
+func runAliasRemoveCommand(cmd *cobra.Command, args []string) error {
+	telemetry.TrackCommand("alias", append([]string{"remove"}, args...))
+
+	out := cli.NewPrinter(cmd.OutOrStdout())
+	name := args[0]
+
+	s, err := aliases.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load aliases: %w", err)
+	}
+
+	if !s.Delete(name) {
+		return fmt.Errorf("alias '%s' not found", name)
+	}
+
+	if err := s.Save(); err != nil {
+		return fmt.Errorf("failed to save aliases: %w", err)
+	}
+
+	out.Printf("Alias '%s' removed successfully\n", name)
 	return nil
 }
 

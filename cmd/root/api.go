@@ -15,38 +15,42 @@ import (
 	"github.com/docker/cagent/pkg/telemetry"
 )
 
-// NewAPICmd creates a new api command
-func NewAPICmd() *cobra.Command {
+type apiFlags struct {
+	listenAddr string
+	sessionDB  string
+}
+
+func newAPICmd() *cobra.Command {
+	var flags apiFlags
+
 	cmd := &cobra.Command{
 		Use:   "api <agent-file>|<agents-dir>",
 		Short: "Start the API server",
 		Long:  `Start the API server that exposes the agent via an HTTP API`,
 		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			telemetry.TrackCommand("api", args)
-
-			// Make sure no question is ever asked to the user in api mode.
-			os.Stdin = nil
-
-			return runHTTP(cmd, args)
-		},
+		RunE:  flags.runAPICommand,
 	}
 
-	cmd.PersistentFlags().StringVarP(&listenAddr, "listen", "l", ":8080", "Address to listen on")
-	cmd.PersistentFlags().StringVarP(&sessionDB, "session-db", "s", "session.db", "Path to the session database")
+	cmd.PersistentFlags().StringVarP(&flags.listenAddr, "listen", "l", ":8080", "Address to listen on")
+	cmd.PersistentFlags().StringVarP(&flags.sessionDB, "session-db", "s", "session.db", "Path to the session database")
 	addGatewayFlags(cmd)
 	addRuntimeConfigFlags(cmd)
 
 	return cmd
 }
 
-func runHTTP(cmd *cobra.Command, args []string) error {
+func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
+	telemetry.TrackCommand("api", args)
+
 	ctx := cmd.Context()
 	agentsPath := args[0]
 
-	ln, err := server.Listen(ctx, listenAddr)
+	// Make sure no question is ever asked to the user in api mode.
+	os.Stdin = nil
+
+	ln, err := server.Listen(ctx, f.listenAddr)
 	if err != nil {
-		return fmt.Errorf("failed to listen on %s: %w", listenAddr, err)
+		return fmt.Errorf("failed to listen on %s: %w", f.listenAddr, err)
 	}
 	go func() {
 		<-ctx.Done()
@@ -54,14 +58,14 @@ func runHTTP(cmd *cobra.Command, args []string) error {
 	}()
 
 	if _, ok := ln.(*net.TCPListener); ok {
-		slog.Info("Listening on http://localhost" + listenAddr)
+		slog.Info("Listening on http://localhost" + f.listenAddr)
 	} else {
-		slog.Info("Listening on " + listenAddr)
+		slog.Info("Listening on " + f.listenAddr)
 	}
 
 	slog.Debug("Starting server", "agents", agentsPath, "debug_mode", debugMode)
 
-	sessionStore, err := session.NewSQLiteSessionStore(sessionDB)
+	sessionStore, err := session.NewSQLiteSessionStore(f.sessionDB)
 	if err != nil {
 		return fmt.Errorf("failed to create session store: %w", err)
 	}
