@@ -47,42 +47,65 @@ var (
 	Bold   = bold
 )
 
+type Printer struct {
+	out io.Writer
+}
+
+func NewPrinter(out io.Writer) *Printer {
+	return &Printer{
+		out: out,
+	}
+}
+
+func (p *Printer) Println(a ...any) {
+	fmt.Fprintln(p.out, a...)
+}
+
+func (p *Printer) Print(a ...any) {
+	fmt.Fprint(p.out, a...)
+}
+
+func (p *Printer) Printf(format string, a ...any) (n int, err error) {
+	return fmt.Fprintf(p.out, format, a...)
+}
+
 // PrintWelcomeMessage prints the welcome message
-func PrintWelcomeMessage(appName string) {
-	fmt.Printf("\n%s\n%s\n\n", blue("------- Welcome to %s! -------", bold(appName)), white("(Ctrl+C to stop the agent and exit)"))
+func (p *Printer) PrintWelcomeMessage(appName string) {
+	p.Printf("\n%s\n%s\n\n", blue("------- Welcome to %s! -------", bold(appName)), white("(Ctrl+C to stop the agent and exit)"))
 }
 
 // PrintError prints an error message
-func PrintError(err error) {
-	fmt.Println(red("❌ %s", err))
+func (p *Printer) PrintError(err error) {
+	p.Print(red("❌ %s", err))
 }
 
 // PrintAgentName prints the agent name header
-func PrintAgentName(agentName string) {
-	fmt.Printf("\n%s\n", blue("--- Agent: %s ---", bold(agentName)))
+func (p *Printer) PrintAgentName(agentName string) {
+	p.Printf("\n%s\n", blue("--- Agent: %s ---", bold(agentName)))
 }
 
 // PrintToolCall prints a tool call
-func PrintToolCall(toolCall tools.ToolCall, colorFunc ...func(format string, a ...any) string) {
+func (p *Printer) PrintToolCall(toolCall tools.ToolCall, colorFunc ...func(format string, a ...any) string) {
 	c := white
 	if len(colorFunc) > 0 && colorFunc[0] != nil {
 		c = colorFunc[0]
 	}
-	fmt.Printf("\nCalling %s\n", c("%s%s", bold(toolCall.Function.Name), formatToolCallArguments(toolCall.Function.Arguments)))
+	p.Printf("\nCalling %s\n", c("%s%s", bold(toolCall.Function.Name), formatToolCallArguments(toolCall.Function.Arguments)))
 }
 
 // PrintToolCallWithConfirmation prints a tool call and prompts for confirmation
-func PrintToolCallWithConfirmation(ctx context.Context, toolCall tools.ToolCall, rd io.Reader) ConfirmationResult {
-	fmt.Printf("\n%s\n", bold(yellow("🛠️ Tool call requires confirmation 🛠️")))
-	PrintToolCall(toolCall, color.New(color.FgWhite).SprintfFunc())
-	fmt.Printf("\n%s", bold(yellow("Can I run this tool? ([y]es/[a]ll/[n]o): ")))
+func (p *Printer) PrintToolCallWithConfirmation(ctx context.Context, toolCall tools.ToolCall, rd io.Reader) ConfirmationResult {
+	p.Printf("\n%s\n", bold(yellow("🛠️ Tool call requires confirmation 🛠️")))
+	p.PrintToolCall(toolCall, color.New(color.FgWhite).SprintfFunc())
+	p.Printf("\n%s", bold(yellow("Can I run this tool? ([y]es/[a]ll/[n]o): ")))
 
 	// Try single-character input from stdin in raw mode (no Enter required)
 	fd := int(os.Stdin.Fd())
 	if oldState, err := term.MakeRaw(fd); err == nil {
 		defer func() {
 			if err := term.Restore(fd, oldState); err != nil {
-				fmt.Printf("\n%s\n", yellow("Failed to restore terminal state: %v", err))
+				p.
+					Printf("\n%s\n", yellow("Failed to restore terminal state: %v", err))
 			}
 		}()
 		buf := make([]byte, 1)
@@ -92,13 +115,13 @@ func PrintToolCallWithConfirmation(ctx context.Context, toolCall tools.ToolCall,
 			}
 			switch buf[0] {
 			case 'y', 'Y':
-				fmt.Print(bold("Yes 👍"))
+				p.Print(bold("Yes 👍"))
 				return ConfirmationApprove
 			case 'a', 'A':
-				fmt.Print(bold("Yes to all 👍"))
+				p.Print(bold("Yes to all 👍"))
 				return ConfirmationApproveSession
 			case 'n', 'N':
-				fmt.Print(bold("No 👎"))
+				p.Print(bold("No 👎"))
 				return ConfirmationReject
 			case 3: // Ctrl+C
 				return ConfirmationAbort
@@ -130,54 +153,62 @@ func PrintToolCallWithConfirmation(ctx context.Context, toolCall tools.ToolCall,
 }
 
 // PrintToolCallResponse prints a tool call response
-func PrintToolCallResponse(toolCall tools.ToolCall, response string) {
-	fmt.Printf("\n%s\n", white("%s response%s", bold(toolCall.Function.Name), formatToolCallResponse(response)))
+func (p *Printer) PrintToolCallResponse(toolCall tools.ToolCall, response string) {
+	p.Printf("\n%s\n", white("%s response%s", bold(toolCall.Function.Name), formatToolCallResponse(response)))
 }
 
 // PromptMaxIterationsContinue prompts the user to continue after max iterations
-func PromptMaxIterationsContinue(ctx context.Context, maxIterations int) ConfirmationResult {
-	fmt.Printf("\n%s\n", yellow("⚠️  Maximum iterations (%d) reached. The agent may be stuck in a loop.", maxIterations))
-	fmt.Printf("%s\n", white("This can happen with smaller or less capable models."))
-	fmt.Printf("\n%s (y/n): ", blue("Do you want to continue for 10 more iterations?"))
+func (p *Printer) PromptMaxIterationsContinue(ctx context.Context, maxIterations int) ConfirmationResult {
+	p.Printf("\n%s\n", yellow("⚠️  Maximum iterations (%d) reached. The agent may be stuck in a loop.", maxIterations))
+	p.Printf("%s\n", white("This can happen with smaller or less capable models."))
+	p.Printf("\n%s (y/n): ", blue("Do you want to continue for 10 more iterations?"))
 
 	response, err := input.ReadLine(ctx, os.Stdin)
 	if err != nil {
-		fmt.Printf("\n%s\n", red("Failed to read input, exiting..."))
+		p.
+			Printf("\n%s\n", red("Failed to read input, exiting..."))
 		return ConfirmationAbort
 	}
 
 	response = strings.TrimSpace(strings.ToLower(response))
 	if response == "y" || response == "yes" {
-		fmt.Printf("%s\n\n", green("✓ Continuing..."))
+		p.
+			Printf("%s\n\n", green("✓ Continuing..."))
 		return ConfirmationApprove
 	} else {
-		fmt.Printf("%s\n\n", white("Exiting..."))
+		p.
+			Printf("%s\n\n", white("Exiting..."))
 		return ConfirmationReject
 	}
 }
 
 // PromptOAuthAuthorization prompts the user for OAuth authorization
-func PromptOAuthAuthorization(ctx context.Context, serverURL string) ConfirmationResult {
-	fmt.Printf("\n%s\n", yellow("🔐 OAuth Authorization Required"))
-	fmt.Printf("%s %s (remote)\n", white("Server:"), blue(serverURL))
-	fmt.Printf("%s\n", white("This server requires OAuth authentication to access its tools."))
-	fmt.Printf("%s\n", white("Your browser will open automatically to complete the authorization."))
-	fmt.Printf("\n%s (y/n): ", blue("Do you want to authorize access?"))
+func (p *Printer) PromptOAuthAuthorization(ctx context.Context, serverURL string) ConfirmationResult {
+	p.Printf("\n%s\n", yellow("🔐 OAuth Authorization Required"))
+	p.Printf("%s %s (remote)\n", white("Server:"), blue(serverURL))
+	p.Printf("%s\n", white("This server requires OAuth authentication to access its tools."))
+	p.Printf("%s\n", white("Your browser will open automatically to complete the authorization."))
+	p.Printf("\n%s (y/n): ", blue("Do you want to authorize access?"))
 
 	response, err := input.ReadLine(ctx, os.Stdin)
 	if err != nil {
-		fmt.Printf("\n%s\n", red("Failed to read input, aborting authorization..."))
+		p.
+			Printf("\n%s\n", red("Failed to read input, aborting authorization..."))
 		return ConfirmationAbort
 	}
 
 	response = strings.TrimSpace(strings.ToLower(response))
 	if response == "y" || response == "yes" {
-		fmt.Printf("%s\n", green("✓ Starting OAuth authorization..."))
-		fmt.Printf("%s\n", white("Please complete the authorization in your browser."))
-		fmt.Printf("%s\n\n", white("Once completed, the agent will continue automatically."))
+		p.
+			Printf("%s\n", green("✓ Starting OAuth authorization..."))
+		p.
+			Printf("%s\n", white("Please complete the authorization in your browser."))
+		p.
+			Printf("%s\n\n", white("Once completed, the agent will continue automatically."))
 		return ConfirmationApprove
 	} else {
-		fmt.Printf("%s\n\n", white("Authorization declined. Exiting..."))
+		p.
+			Printf("%s\n\n", white("Authorization declined. Exiting..."))
 		return ConfirmationReject
 	}
 }

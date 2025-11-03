@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/aliases"
+	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/telemetry"
 )
 
@@ -45,9 +46,11 @@ func newAliasAddCmd() *cobra.Command {
 		Use:   "add <alias-name> <agent-path>",
 		Short: "Add a new alias",
 		Args:  cobra.ExactArgs(2),
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			telemetry.TrackCommand("alias", append([]string{"add"}, args...))
-			return createAlias(args[0], args[1])
+			out := cli.NewPrinter(cmd.OutOrStdout())
+
+			return createAlias(out, args[0], args[1])
 		},
 	}
 }
@@ -59,9 +62,11 @@ func newAliasListCmd() *cobra.Command {
 		Aliases: []string{"ls"},
 		Short:   "List all registered aliases",
 		Args:    cobra.NoArgs,
-		RunE: func(*cobra.Command, []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			telemetry.TrackCommand("alias", []string{"list"})
-			return listAliases()
+			out := cli.NewPrinter(cmd.OutOrStdout())
+
+			return listAliases(out)
 		},
 	}
 }
@@ -73,15 +78,17 @@ func newAliasRemoveCmd() *cobra.Command {
 		Aliases: []string{"rm"},
 		Short:   "Remove a registered alias",
 		Args:    cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			telemetry.TrackCommand("alias", append([]string{"remove"}, args...))
-			return removeAlias(args[0])
+			out := cli.NewPrinter(cmd.OutOrStdout())
+
+			return removeAlias(out, args[0])
 		},
 	}
 }
 
 // createAlias creates a new alias
-func createAlias(name, agentPath string) error {
+func createAlias(out *cli.Printer, name, agentPath string) error {
 	// Load existing aliases
 	s, err := aliases.Load()
 	if err != nil {
@@ -102,16 +109,16 @@ func createAlias(name, agentPath string) error {
 		return fmt.Errorf("failed to save aliases: %w", err)
 	}
 
-	fmt.Printf("Alias '%s' created successfully\n", name)
-	fmt.Printf("  Alias: %s\n", name)
-	fmt.Printf("  Agent: %s\n", absAgentPath)
-	fmt.Printf("\nYou can now run: cagent run %s\n", name)
+	out.Printf("Alias '%s' created successfully\n", name)
+	out.Printf("  Alias: %s\n", name)
+	out.Printf("  Agent: %s\n", absAgentPath)
+	out.Printf("\nYou can now run: cagent run %s\n", name)
 
 	return nil
 }
 
 // removeAlias removes an alias
-func removeAlias(name string) error {
+func removeAlias(out *cli.Printer, name string) error {
 	s, err := aliases.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load aliases: %w", err)
@@ -125,11 +132,11 @@ func removeAlias(name string) error {
 		return fmt.Errorf("failed to save aliases: %w", err)
 	}
 
-	fmt.Printf("Alias '%s' removed successfully\n", name)
+	out.Printf("Alias '%s' removed successfully\n", name)
 	return nil
 }
 
-func listAliases() error {
+func listAliases(out *cli.Printer) error {
 	s, err := aliases.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load aliases: %w", err)
@@ -137,12 +144,12 @@ func listAliases() error {
 
 	allAliases := s.List()
 	if len(allAliases) == 0 {
-		fmt.Println("No aliases registered.")
-		fmt.Println("\nCreate an alias with: cagent alias add <name> <agent-path>")
+		out.Println("No aliases registered.")
+		out.Println("\nCreate an alias with: cagent alias add <name> <agent-path>")
 		return nil
 	}
 
-	fmt.Printf("Registered aliases (%d):\n\n", len(allAliases))
+	out.Printf("Registered aliases (%d):\n\n", len(allAliases))
 
 	// Sort aliases by name for consistent output
 	names := make([]string, 0, len(allAliases))
@@ -162,10 +169,10 @@ func listAliases() error {
 	for _, name := range names {
 		path := allAliases[name]
 		padding := strings.Repeat(" ", maxLen-len(name))
-		fmt.Printf("  %s%s → %s\n", name, padding, path)
+		out.Printf("  %s%s → %s\n", name, padding, path)
 	}
 
-	fmt.Printf("\nRun an alias with: cagent run <alias>\n")
+	out.Print("\nRun an alias with: cagent run <alias>\n")
 
 	return nil
 }

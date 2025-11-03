@@ -18,7 +18,7 @@ func NewFeedbackCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			telemetry.TrackCommand("feedback", args)
-			fmt.Println("Feel free to give feedback:\n", feedback.FeedbackLink)
+			fmt.Fprintln(cmd.OutOrStdout(), "Feel free to give feedback:\n", feedback.FeedbackLink)
 		},
 	}
 }

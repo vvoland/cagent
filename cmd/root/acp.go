@@ -2,7 +2,6 @@ package root
 
 import (
 	"log/slog"
-	"os"
 
 	acpsdk "github.com/coder/acp-go-sdk"
 	"github.com/spf13/cobra"
@@ -37,7 +36,7 @@ func runACP(cmd *cobra.Command, args []string) error {
 	slog.Debug("Starting ACP server", "agent_file", agentFilename, "debug_mode", debugMode)
 
 	acpAgent := acp.NewAgent(agentFilename, runConfig)
-	conn := acpsdk.NewAgentSideConnection(acpAgent, os.Stdout, os.Stdin)
+	conn := acpsdk.NewAgentSideConnection(acpAgent, cmd.OutOrStdout(), cmd.InOrStdin())
 	conn.SetLogger(slog.Default())
 	acpAgent.SetAgentConnection(conn)
 	defer acpAgent.Stop(ctx)

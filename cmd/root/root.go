@@ -7,10 +7,8 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/spf13/cobra"
 
@@ -75,7 +73,7 @@ func NewRootCmd() *cobra.Command {
 			// Initialize logging before anything else so logs don't break TUI
 			if err := setupLogging(cmd); err != nil {
 				// If logging setup fails, fall back to stderr so we still get logs
-				slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+				slog.SetDefault(slog.New(slog.NewTextHandler(cmd.ErrOrStderr(), &slog.HandlerOptions{
 					Level: func() slog.Level {
 						if debugMode {
 							return slog.LevelDebug
@@ -127,10 +125,7 @@ func NewRootCmd() *cobra.Command {
 	return cmd
 }
 
-func Execute() error {
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
-
+func Execute(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer, args ...string) error {
 	// Set the version for automatic telemetry initialization
 	telemetry.SetGlobalTelemetryVersion(version.Version)
 
@@ -145,10 +140,15 @@ We collect anonymous usage data to help improve cagent. To disable:
   - Set environment variable: TELEMETRY_ENABLED=false
 
 `, feedback.FeedbackLink)
-		_, _ = os.Stderr.WriteString(startupMsg)
+		fmt.Fprint(stderr, startupMsg)
 	}
 
 	rootCmd := NewRootCmd()
+	rootCmd.SetArgs(args)
+	rootCmd.SetIn(stdin)
+	rootCmd.SetOut(stdout)
+	rootCmd.SetErr(stderr)
+
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		envErr := &environment.RequiredEnvError{}
 		runtimeErr := RuntimeError{}
@@ -157,18 +157,18 @@ We collect anonymous usage data to help improve cagent. To disable:
 		case ctx.Err() != nil:
 			return ctx.Err()
 		case errors.As(err, &envErr):
-			fmt.Fprintln(os.Stderr, "The following environment variables must be set:")
+			fmt.Fprintln(stderr, "The following environment variables must be set:")
 			for _, v := range envErr.Missing {
-				fmt.Fprintf(os.Stderr, " - %s\n", v)
+				fmt.Fprintf(stderr, " - %s\n", v)
 			}
-			fmt.Fprintln(os.Stderr, "\nEither:\n - Set those environment variables before running cagent\n - Run cagent with --env-from-file\n - Store those secrets using one of the built-in environment variable providers.")
+			fmt.Fprintln(stderr, "\nEither:\n - Set those environment variables before running cagent\n - Run cagent with --env-from-file\n - Store those secrets using one of the built-in environment variable providers.")
 		case errors.As(err, &runtimeErr):
 			// Runtime errors have already been printed by the command itself
 			// Don't print them again or show usage
 		default:
 			// Command line usage errors - show the error and usage
-			fmt.Fprintln(os.Stderr, err)
-			fmt.Fprintln(os.Stderr)
+			fmt.Fprintln(stderr, err)
+			fmt.Fprintln(stderr)
 			if strings.HasPrefix(err.Error(), "unknown command ") || strings.HasPrefix(err.Error(), "accepts ") {
 				_ = rootCmd.Usage()
 			}
