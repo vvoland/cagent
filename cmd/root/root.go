@@ -84,6 +84,7 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddCommand(newNewCmd())
 	cmd.AddCommand(newAPICmd())
 	cmd.AddCommand(newACPCmd())
+	cmd.AddCommand(newMCPCmd())
 	cmd.AddCommand(newEvalCmd())
 	cmd.AddCommand(newPushCmd())
 	cmd.AddCommand(newPullCmd())
