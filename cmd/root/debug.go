@@ -5,11 +5,18 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/telemetry"
 )
 
+type debugFlags struct {
+	runConfig config.RuntimeConfig
+}
+
 func newDebugCmd() *cobra.Command {
+	var flags debugFlags
+
 	cmd := &cobra.Command{
 		Use: "debug",
 	}
@@ -18,20 +25,22 @@ func newDebugCmd() *cobra.Command {
 		Use:   "toolsets <agent-name>",
 		Short: "Debug the toolsets of an agent",
 		Args:  cobra.ExactArgs(1),
-		RunE:  runDebugToolsetsCommand,
+		RunE:  flags.runDebugToolsetsCommand,
 	})
+
+	addRuntimeConfigFlags(cmd, &flags.runConfig)
 
 	return cmd
 }
 
-func runDebugToolsetsCommand(cmd *cobra.Command, args []string) error {
+func (f *debugFlags) runDebugToolsetsCommand(cmd *cobra.Command, args []string) error {
 	telemetry.TrackCommand("debug", append([]string{"toolsets"}, args...))
 
 	ctx := cmd.Context()
 	agentFilename := args[0]
 
 	slog.Info("Loading agent", "agent", agentFilename)
-	team, err := teamloader.Load(ctx, agentFilename, runConfig)
+	team, err := teamloader.Load(ctx, agentFilename, f.runConfig)
 	if err != nil {
 		return err
 	}

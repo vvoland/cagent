@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/docker/cagent/pkg/config"
 )
 
 const (
@@ -19,8 +21,6 @@ type gatewayConfig struct {
 	mainGateway string
 }
 
-var gwConfig gatewayConfig
-
 func canonize(endpoint string) string {
 	return strings.TrimSpace(strings.TrimSuffix(endpoint, "/"))
 }
@@ -31,7 +31,9 @@ func logEnvvarShadowing(flagValue, varName, flagName string) {
 	}
 }
 
-func addGatewayFlags(cmd *cobra.Command) {
+func addGatewayFlags(cmd *cobra.Command, runConfig *config.RuntimeConfig) {
+	var gwConfig gatewayConfig
+
 	cmd.PersistentFlags().StringVar(&gwConfig.mainGateway, flagGateway, "", "Set the gateway address to use for models and tool calls")
 	cmd.PersistentFlags().StringVar(&runConfig.ModelsGateway, flagModelsGateway, "", "Set the models gateway address")
 
