@@ -19,52 +19,15 @@ import (
 	"github.com/docker/cagent/pkg/version"
 )
 
-// RuntimeError wraps runtime errors to distinguish them from usage errors
-type RuntimeError struct {
-	Err error
-}
-
-func (e RuntimeError) Error() string {
-	return e.Err.Error()
-}
-
-func (e RuntimeError) Unwrap() error {
-	return e.Err
-}
-
-var (
+type rootFlags struct {
+	enableOtel  bool
 	debugMode   bool
 	logFilePath string
 	logFile     *os.File
-)
-
-// isFirstRun checks if this is the first time cagent is being run
-// It creates a marker file in the user's config directory
-func isFirstRun() bool {
-	configDir := paths.GetConfigDir()
-	markerFile := filepath.Join(configDir, ".cagent_first_run")
-
-	// Check if marker file exists
-	if _, err := os.Stat(markerFile); err == nil {
-		return false // File exists, not first run
-	}
-
-	// Create marker file to indicate this run has happened
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
-		return false // Can't create config dir, assume not first run
-	}
-
-	if err := os.WriteFile(markerFile, []byte(""), 0o644); err != nil {
-		return false // Can't create marker file, assume not first run
-	}
-
-	return true // Successfully created marker, this is first run
 }
 
 func NewRootCmd() *cobra.Command {
-	var (
-		enableOtel bool
-	)
+	var flags rootFlags
 
 	cmd := &cobra.Command{
 		Use:   "cagent",
@@ -72,11 +35,11 @@ func NewRootCmd() *cobra.Command {
 		Long:  `cagent is a command-line tool for running AI agents`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// Initialize logging before anything else so logs don't break TUI
-			if err := setupLogging(cmd); err != nil {
+			if err := flags.setupLogging(cmd); err != nil {
 				// If logging setup fails, fall back to stderr so we still get logs
 				slog.SetDefault(slog.New(slog.NewTextHandler(cmd.ErrOrStderr(), &slog.HandlerOptions{
 					Level: func() slog.Level {
-						if debugMode {
+						if flags.debugMode {
 							return slog.LevelDebug
 						}
 						return slog.LevelInfo
@@ -84,9 +47,9 @@ func NewRootCmd() *cobra.Command {
 				})))
 			}
 
-			telemetry.SetGlobalTelemetryDebugMode(debugMode)
+			telemetry.SetGlobalTelemetryDebugMode(flags.debugMode)
 
-			if enableOtel {
+			if flags.enableOtel {
 				if err := initOTelSDK(cmd.Context()); err != nil {
 					slog.Warn("Failed to initialize OpenTelemetry SDK", "error", err)
 				} else {
@@ -97,8 +60,8 @@ func NewRootCmd() *cobra.Command {
 			return nil
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
-			if logFile != nil {
-				_ = logFile.Close()
+			if flags.logFile != nil {
+				_ = flags.logFile.Close()
 			}
 			return nil
 		},
@@ -111,9 +74,9 @@ func NewRootCmd() *cobra.Command {
 	}
 
 	// Add persistent debug flag available to all commands
-	cmd.PersistentFlags().BoolVarP(&debugMode, "debug", "d", false, "Enable debug logging")
-	cmd.PersistentFlags().BoolVarP(&enableOtel, "otel", "o", false, "Enable OpenTelemetry tracing")
-	cmd.PersistentFlags().StringVar(&logFilePath, "log-file", "", "Path to debug log file (default: ~/.cagent/cagent.debug.log; only used with --debug)")
+	cmd.PersistentFlags().BoolVarP(&flags.debugMode, "debug", "d", false, "Enable debug logging")
+	cmd.PersistentFlags().BoolVarP(&flags.enableOtel, "otel", "o", false, "Enable OpenTelemetry tracing")
+	cmd.PersistentFlags().StringVar(&flags.logFilePath, "log-file", "", "Path to debug log file (default: ~/.cagent/cagent.debug.log; only used with --debug)")
 
 	cmd.AddCommand(newVersionCmd())
 	cmd.AddCommand(newRunCmd())
@@ -192,9 +155,9 @@ We collect anonymous usage data to help improve cagent. To disable:
 // setupLogging configures slog logging behavior.
 // When --debug is enabled, logs are written to a single file <dataDir>/cagent.debug.log (append mode),
 // or to the file specified by --log-file. When in the TUI, structured logs are suppressed if not in --debug mode
-func setupLogging(cmd *cobra.Command) error {
+func (f *rootFlags) setupLogging(cmd *cobra.Command) error {
 	level := slog.LevelInfo
-	if debugMode {
+	if f.debugMode {
 		level = slog.LevelDebug
 	}
 
@@ -209,9 +172,9 @@ func setupLogging(cmd *cobra.Command) error {
 	}
 
 	var writer io.Writer
-	if debugMode {
+	if f.debugMode {
 		// Determine path from flag or default to <dataDir>/cagent.debug.log
-		path := strings.TrimSpace(logFilePath)
+		path := strings.TrimSpace(f.logFilePath)
 		if path == "" {
 			dataDir := paths.GetDataDir()
 			path = filepath.Join(dataDir, "cagent.debug.log")
@@ -235,17 +198,17 @@ func setupLogging(cmd *cobra.Command) error {
 		}
 
 		// Open file for appending
-		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		logFile, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 		if err != nil {
 			return err
 		}
-		logFile = f
+		f.logFile = logFile
 
 		// In debug mode, write to file; mirror to stderr when not in TUI
 		if useTUI {
-			writer = f
+			writer = logFile
 		} else {
-			writer = io.MultiWriter(f, os.Stderr)
+			writer = io.MultiWriter(logFile, os.Stderr)
 		}
 	} else {
 		// Non-debug: discard logs in TUI to keep interface clean, else stderr
@@ -258,4 +221,40 @@ func setupLogging(cmd *cobra.Command) error {
 
 	slog.SetDefault(slog.New(slog.NewTextHandler(writer, &slog.HandlerOptions{Level: level})))
 	return nil
+}
+
+// RuntimeError wraps runtime errors to distinguish them from usage errors
+type RuntimeError struct {
+	Err error
+}
+
+func (e RuntimeError) Error() string {
+	return e.Err.Error()
+}
+
+func (e RuntimeError) Unwrap() error {
+	return e.Err
+}
+
+// isFirstRun checks if this is the first time cagent is being run
+// It creates a marker file in the user's config directory
+func isFirstRun() bool {
+	configDir := paths.GetConfigDir()
+	markerFile := filepath.Join(configDir, ".cagent_first_run")
+
+	// Check if marker file exists
+	if _, err := os.Stat(markerFile); err == nil {
+		return false // File exists, not first run
+	}
+
+	// Create marker file to indicate this run has happened
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		return false // Can't create config dir, assume not first run
+	}
+
+	if err := os.WriteFile(markerFile, []byte(""), 0o644); err != nil {
+		return false // Can't create marker file, assume not first run
+	}
+
+	return true // Successfully created marker, this is first run
 }
