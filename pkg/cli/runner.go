@@ -123,11 +123,11 @@ func Run(ctx context.Context, out *Printer, cfg Config, agentFilename string, rt
 					if e.AgentName != "" && e.AgentName != "root" {
 						prefix = prefix + e.AgentName + ": "
 					}
-					out.Printf("\n%s", White(prefix))
+					out.Printf("\n%s", prefix)
 					reasoningStarted = true
 				}
 				// Continue printing reasoning content
-				out.Printf("%s", White(e.Content))
+				out.Print(e.Content)
 			case *runtime.ToolCallConfirmationEvent:
 				if llmIsTyping {
 					out.Println()
@@ -223,7 +223,7 @@ func Run(ctx context.Context, out *Printer, cfg Config, agentFilename string, rt
 
 		// If the loop ended due to Ctrl+C, inform the user succinctly
 		if ctx.Err() != nil {
-			out.Println(Yellow("\n⚠️  agent stopped  ⚠️"))
+			out.Println("\n⚠️  agent stopped  ⚠️")
 		}
 
 		// Wrap runtime errors to prevent duplicate error messages and usage display
@@ -253,9 +253,10 @@ func Run(ctx context.Context, out *Printer, cfg Config, agentFilename string, rt
 		firstQuestion := true
 		for {
 			if !firstQuestion {
-				out.Print("\n\n")
+				out.Println()
+				out.Println()
 			}
-			out.Print(Blue("> "))
+			out.Print("> ")
 			firstQuestion = false
 
 			line, err := input.ReadLine(ctx, os.Stdin)
@@ -285,13 +286,13 @@ func runUserCommand(out *Printer, userInput string, sess *session.Session, rt ru
 	case "/eval":
 		evalFile, err := evaluation.Save(sess)
 		if err == nil {
-			out.Printf("%s\n", Yellow("Evaluation saved to file %s", evalFile))
+			out.Println("Evaluation saved to file:", evalFile)
 			return true, err
 		}
 		return true, nil
 	case "/usage":
-		out.Printf("%s\n", Yellow("Input tokens: %d", sess.InputTokens))
-		out.Printf("%s\n", Yellow("Output tokens: %d", sess.OutputTokens))
+		out.Println("Input tokens:", sess.InputTokens)
+		out.Println("Output tokens:", sess.OutputTokens)
 		return true, nil
 	case "/new":
 		// Reset session items
@@ -299,7 +300,7 @@ func runUserCommand(out *Printer, userInput string, sess *session.Session, rt ru
 		return true, nil
 	case "/compact":
 		// Generate a summary of the session and compact the history
-		out.Printf("%s\n", Yellow("Generating summary..."))
+		out.Println("Generating summary...")
 
 		// Create a channel to capture summary events
 		events := make(chan runtime.Event, 100)
@@ -314,17 +315,17 @@ func runUserCommand(out *Printer, userInput string, sess *session.Session, rt ru
 		for event := range events {
 			switch e := event.(type) {
 			case *runtime.SessionSummaryEvent:
-				out.Printf("%s\n", Yellow("Summary generated and added to session"))
-				out.Printf("Summary: %s\n", e.Summary)
+				out.Println("Summary generated and added to session")
+				out.Println("Summary:", e.Summary)
 				summaryGenerated = true
 			case *runtime.WarningEvent:
-				out.Printf("%s\n", Yellow("Warning: "+e.Message))
+				out.Println("Warning:", e.Message)
 				hasWarning = true
 			}
 		}
 
 		if !summaryGenerated && !hasWarning {
-			out.Printf("%s\n", Yellow("No summary generated"))
+			out.Println("No summary generated")
 		}
 
 		return true, nil

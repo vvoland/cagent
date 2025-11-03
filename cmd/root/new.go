@@ -71,19 +71,19 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
 			switch {
 			case os.Getenv("ANTHROPIC_API_KEY") != "":
 				modelProvider = "anthropic"
-				out.Printf("%s\n\n", cli.White("ANTHROPIC_API_KEY found, using Anthropic"))
+				out.Printf("%s\n\n", "ANTHROPIC_API_KEY found, using Anthropic")
 			case os.Getenv("OPENAI_API_KEY") != "":
 				modelProvider = "openai"
-				out.Printf("%s\n\n", cli.White("OPENAI_API_KEY found, using OpenAI"))
+				out.Printf("%s\n\n", "OPENAI_API_KEY found, using OpenAI")
 			case os.Getenv("GOOGLE_API_KEY") != "":
 				modelProvider = "google"
-				out.Printf("%s\n\n", cli.White("GOOGLE_API_KEY found, using Google"))
+				out.Printf("%s\n\n", "GOOGLE_API_KEY found, using Google")
 			default:
 				modelProvider = "dmr"
-				out.Printf("%s\n\n", cli.Yellow("⚠️ No provider credentials found, defaulting to Docker Model Runner (DMR)"))
+				out.Printf("%s\n\n", "⚠️ No provider credentials found, defaulting to Docker Model Runner (DMR)")
 			}
 			if f.modelParam == "" {
-				out.Printf("%s\n\n", cli.White("use \"--model provider/model\" to use a different model"))
+				out.Printf("%s\n\n", "use \"--model provider/model\" to use a different model")
 			}
 		} else {
 			// Using Models Gateway; default to Anthropic if not specified
@@ -95,10 +95,10 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		prompt = strings.Join(args, " ")
 	} else {
-		out.Printf("%s\n", cli.Blue("------- Welcome to %s! -------", cli.Bold(AppName)))
-		out.Printf("%s\n\n", cli.White("         (Ctrl+C to exit)"))
-		out.Printf("%s\n\n", cli.Blue("What should your agent/agent team do? (describe its purpose)"))
-		out.Print(cli.Blue("> "))
+		out.Printf("------- Welcome to %s! -------\n", AppName)
+		out.Printf("%s\n\n", "         (Ctrl+C to exit)")
+		out.Printf("%s\n\n", "What should your agent/agent team do? (describe its purpose)")
+		out.Print("> ")
 
 		var err error
 		prompt, err = input.ReadLine(ctx, os.Stdin)
