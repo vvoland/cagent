@@ -45,6 +45,11 @@ var ProviderAliases = map[string]Alias{
 		BaseURL:     "https://api.studio.nebius.com/v1",
 		TokenEnvVar: "NEBIUS_API_KEY",
 	},
+	"mistral": {
+		APIType:     "openai",
+		BaseURL:     "https://api.mistral.ai/v1",
+		TokenEnvVar: "MISTRAL_API_KEY",
+	},
 }
 
 // Provider defines the interface for model providers

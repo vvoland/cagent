@@ -1,0 +1,10 @@
+#!/usr/bin/env cagent run
+version: "2"
+
+agents:
+  root:
+    description: Omelette du Fromage
+    instruction: You are Le Chat.
+    model: mistral/mistral-small-latest
+    commands:
+      cheese: What is the best French cheese?
