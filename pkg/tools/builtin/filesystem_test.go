@@ -14,16 +14,15 @@ import (
 )
 
 func TestNewFilesystemTool(t *testing.T) {
-	tmpDir := t.TempDir()
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}))
+	allowedDirs := []string{"/tmp", "/var/tmp"}
+	tool := NewFilesystemTool(allowedDirs)
 
 	assert.NotNil(t, tool)
-	assert.Equal(t, []string{tmpDir}, tool.allowedDirectories)
+	assert.Equal(t, allowedDirs, tool.allowedDirectories)
 }
 
 func TestFilesystemTool_Instructions(t *testing.T) {
-	tmpDir := t.TempDir()
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}))
+	tool := NewFilesystemTool([]string{"/tmp"})
 	instructions := tool.Instructions()
 
 	assert.Contains(t, instructions, "Filesystem Tool Instructions")
@@ -32,8 +31,7 @@ func TestFilesystemTool_Instructions(t *testing.T) {
 }
 
 func TestFilesystemTool_Tools(t *testing.T) {
-	tmpDir := t.TempDir()
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}))
+	tool := NewFilesystemTool([]string{"/tmp"})
 	allTools, err := tool.Tools(t.Context())
 
 	require.NoError(t, err)
@@ -374,7 +372,7 @@ func TestFilesystemTool_Tools(t *testing.T) {
 }
 
 func TestFilesystemTool_DisplayNames(t *testing.T) {
-	tool := NewFilesystemTool()
+	tool := NewFilesystemTool([]string{"/tmp"})
 
 	all, err := tool.Tools(t.Context())
 	require.NoError(t, err)
@@ -387,7 +385,7 @@ func TestFilesystemTool_DisplayNames(t *testing.T) {
 
 func TestFilesystemTool_IsPathAllowed(t *testing.T) {
 	tmpDir := t.TempDir()
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}))
+	tool := NewFilesystemTool([]string{tmpDir})
 
 	// Test allowed path
 	allowedPath := filepath.Join(tmpDir, "subdir", "file.txt")
@@ -403,7 +401,7 @@ func TestFilesystemTool_IsPathAllowed(t *testing.T) {
 
 func TestFilesystemTool_CreateDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}))
+	tool := NewFilesystemTool([]string{tmpDir})
 
 	handler := getToolHandler(t, tool, "create_directory")
 
@@ -426,7 +424,7 @@ func TestFilesystemTool_CreateDirectory(t *testing.T) {
 
 func TestFilesystemTool_WriteFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}))
+	tool := NewFilesystemTool([]string{tmpDir})
 
 	handler := getToolHandler(t, tool, "write_file")
 
@@ -461,7 +459,7 @@ func TestFilesystemTool_WriteFile(t *testing.T) {
 
 func TestFilesystemTool_WriteFile_NestedDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}))
+	tool := NewFilesystemTool([]string{tmpDir})
 
 	handler := getToolHandler(t, tool, "write_file")
 
@@ -492,7 +490,7 @@ func TestFilesystemTool_WriteFile_NestedDirectory(t *testing.T) {
 
 func TestFilesystemTool_ReadFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}))
+	tool := NewFilesystemTool([]string{tmpDir})
 
 	// Create test file
 	testFile := filepath.Join(tmpDir, "test.txt")
@@ -525,7 +523,7 @@ func TestFilesystemTool_ReadFile(t *testing.T) {
 
 func TestFilesystemTool_ReadMultipleFiles(t *testing.T) {
 	tmpDir := t.TempDir()
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}))
+	tool := NewFilesystemTool([]string{tmpDir})
 
 	// Create test files
 	file1 := filepath.Join(tmpDir, "file1.txt")
@@ -558,7 +556,7 @@ func TestFilesystemTool_ReadMultipleFiles(t *testing.T) {
 
 func TestFilesystemTool_ListDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}))
+	tool := NewFilesystemTool([]string{tmpDir})
 
 	// Create test files and directories
 	testFile := filepath.Join(tmpDir, "test.txt")
@@ -586,7 +584,7 @@ func TestFilesystemTool_ListDirectory(t *testing.T) {
 
 func TestFilesystemTool_ListDirectoryWithSizes(t *testing.T) {
 	tmpDir := t.TempDir()
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}))
+	tool := NewFilesystemTool([]string{tmpDir})
 
 	// Create test files and directories
 	testFile := filepath.Join(tmpDir, "test.txt")
@@ -608,7 +606,7 @@ func TestFilesystemTool_ListDirectoryWithSizes(t *testing.T) {
 
 func TestFilesystemTool_GetFileInfo(t *testing.T) {
 	tmpDir := t.TempDir()
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}))
+	tool := NewFilesystemTool([]string{tmpDir})
 
 	// Create test file
 	testFile := filepath.Join(tmpDir, "test.txt")
@@ -638,7 +636,7 @@ func TestFilesystemTool_GetFileInfo(t *testing.T) {
 
 func TestFilesystemTool_MoveFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}))
+	tool := NewFilesystemTool([]string{tmpDir})
 
 	// Create test file
 	sourceFile := filepath.Join(tmpDir, "source.txt")
@@ -679,7 +677,7 @@ func TestFilesystemTool_MoveFile(t *testing.T) {
 
 func TestFilesystemTool_EditFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}))
+	tool := NewFilesystemTool([]string{tmpDir})
 
 	// Create test file
 	testFile := filepath.Join(tmpDir, "test.txt")
@@ -739,7 +737,7 @@ func TestFilesystemTool_SearchFiles(t *testing.T) {
 	require.NoError(t, os.Mkdir(subDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(subDir, "test_sub.txt"), []byte("sub"), 0o644))
 
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}))
+	tool := NewFilesystemTool([]string{tmpDir})
 	handler := getToolHandler(t, tool, "search_files")
 
 	// Test search for files containing "asdf"
@@ -778,7 +776,7 @@ func TestFilesystemTool_SearchFiles(t *testing.T) {
 
 func TestFilesystemTool_SearchFilesContent(t *testing.T) {
 	tmpDir := t.TempDir()
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}))
+	tool := NewFilesystemTool([]string{tmpDir})
 
 	// Create test files with different content
 	file1Content := "This is a test file\nwith multiple lines\ncontaining test data"
@@ -840,7 +838,7 @@ func TestFilesystemTool_SearchFiles_RecursivePattern(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "child", "third.txt"), []byte("third"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "child", "ignored"), []byte("ignored"), 0o644))
 
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}))
+	tool := NewFilesystemTool([]string{tmpDir})
 	handler := getToolHandler(t, tool, "search_files")
 
 	// Test search for files containing ".txt" files
@@ -857,7 +855,7 @@ func TestFilesystemTool_SearchFiles_RecursivePattern(t *testing.T) {
 
 func TestFilesystemTool_ListAllowedDirectories(t *testing.T) {
 	allowedDirs := []string{"/tmp", "/var/tmp", "/home/user"}
-	tool := NewFilesystemTool(WithAllowedDirectories(allowedDirs))
+	tool := NewFilesystemTool(allowedDirs)
 
 	handler := getToolHandler(t, tool, "list_allowed_directories")
 
@@ -873,7 +871,7 @@ func TestFilesystemTool_ListAllowedDirectories(t *testing.T) {
 
 func TestFilesystemTool_InvalidArguments(t *testing.T) {
 	tmpDir := t.TempDir()
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}))
+	tool := NewFilesystemTool([]string{tmpDir})
 
 	handler := getToolHandler(t, tool, "write_file")
 
@@ -891,9 +889,7 @@ func TestFilesystemTool_InvalidArguments(t *testing.T) {
 }
 
 func TestFilesystemTool_StartStop(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}))
+	tool := NewFilesystemTool([]string{"/tmp"})
 
 	// Test Start method
 	err := tool.Start(t.Context())
@@ -920,7 +916,7 @@ func main() {
 			Cmd:  "touch $path.formatted",
 		},
 	}
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}), WithPostEditCommands(postEditConfigs))
+	tool := NewFilesystemTool([]string{tmpDir}, WithPostEditCommands(postEditConfigs))
 
 	formattedFile := testFile + ".formatted"
 	t.Run("write_file", func(t *testing.T) {
@@ -1019,7 +1015,7 @@ func TestFilesystemTool_AddAllowedDirectory(t *testing.T) {
 	tmpDir2 := t.TempDir()
 
 	// Create filesystem tool with only tmpDir1 initially allowed
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir1}))
+	tool := NewFilesystemTool([]string{tmpDir1})
 	handler := getToolHandler(t, tool, "add_allowed_directory")
 
 	t.Run("request consent for new directory", func(t *testing.T) {
@@ -1214,8 +1210,7 @@ func TestMatchExcludePattern(t *testing.T) {
 }
 
 func TestFilesystemTool_OutputSchema(t *testing.T) {
-	tmpDir := t.TempDir()
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}))
+	tool := NewFilesystemTool(nil)
 
 	allTools, err := tool.Tools(t.Context())
 	require.NoError(t, err)
@@ -1227,8 +1222,7 @@ func TestFilesystemTool_OutputSchema(t *testing.T) {
 }
 
 func TestFilesystemTool_ParametersAreObjects(t *testing.T) {
-	tmpDir := t.TempDir()
-	tool := NewFilesystemTool(WithAllowedDirectories([]string{tmpDir}))
+	tool := NewFilesystemTool(nil)
 
 	allTools, err := tool.Tools(t.Context())
 	require.NoError(t, err)

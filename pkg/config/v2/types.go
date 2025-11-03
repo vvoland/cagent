@@ -120,8 +120,7 @@ type Toolset struct {
 	Shell map[string]ScriptShellToolConfig `json:"shell,omitempty"`
 
 	// For the `filesystem` tool - post-edit commands
-	PostEdit           []PostEditConfig `json:"post_edit,omitempty"`
-	AllowedDirectories []string         `json:"allowed_directories,omitempty"`
+	PostEdit []PostEditConfig `json:"post_edit,omitempty"`
 
 	// For the `fetch` tool
 	Timeout int `json:"timeout,omitempty"`
