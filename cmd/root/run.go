@@ -74,8 +74,6 @@ func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	out := cli.NewPrinter(cmd.OutOrStdout())
 
-	setupOtel(ctx)
-
 	return f.runOrExec(ctx, out, args, false)
 }
 

@@ -34,7 +34,6 @@ func (e RuntimeError) Unwrap() error {
 
 var (
 	debugMode   bool
-	enableOtel  bool
 	logFilePath string
 	logFile     *os.File
 )
@@ -63,6 +62,10 @@ func isFirstRun() bool {
 }
 
 func NewRootCmd() *cobra.Command {
+	var (
+		enableOtel bool
+	)
+
 	cmd := &cobra.Command{
 		Use:   "cagent",
 		Short: "cagent - AI agent runner",
@@ -82,6 +85,15 @@ func NewRootCmd() *cobra.Command {
 			}
 
 			telemetry.SetGlobalTelemetryDebugMode(debugMode)
+
+			if enableOtel {
+				if err := initOTelSDK(cmd.Context()); err != nil {
+					slog.Warn("Failed to initialize OpenTelemetry SDK", "error", err)
+				} else {
+					slog.Debug("OpenTelemetry SDK initialized successfully")
+				}
+			}
+
 			return nil
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
