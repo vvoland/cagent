@@ -18,6 +18,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/messages"
 	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/components/sidebar"
+	"github.com/docker/cagent/pkg/tui/components/tool"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/dialog"
@@ -147,6 +148,12 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return p, tea.Batch(cmds...)
 
 	case tea.KeyPressMsg:
+		if msg.String() == "ctrl+t" {
+			model, cmd := p.messages.Update(tool.ToggleDiffViewMsg{})
+			p.messages = model.(messages.Model)
+			return p, cmd
+		}
+
 		switch {
 		case key.Matches(msg, p.keyMap.Tab):
 			p.switchFocus()

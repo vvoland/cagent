@@ -37,6 +37,14 @@ const (
 	ColorDiffAddBg    = "#20303B" // Dark blue-green
 	ColorDiffRemoveBg = "#3C2A2A" // Dark red-brown
 
+	// Line number and UI element colors
+	ColorLineNumber = "#565F89" // Muted blue-grey (same as ColorMutedBlue)
+	ColorSeparator  = "#414868" // Dark blue-grey (same as ColorBorderSecondary)
+
+	// Word-level diff highlight colors (visible but not harsh)
+	ColorDiffWordAddBg    = "#2D4F3F" // Medium dark teal with green tint
+	ColorDiffWordRemoveBg = "#4F2D3A" // Medium dark burgundy with red tint
+
 	// Interactive element colors
 	ColorSelected = "#364A82" // Dark blue for selected items
 	ColorHover    = "#2D3F5F" // Slightly lighter than selected
@@ -112,6 +120,10 @@ var (
 	DiffRemoveBg = lipgloss.Color(ColorDiffRemoveBg)
 	DiffAddFg    = lipgloss.Color(ColorSuccessGreen)
 	DiffRemoveFg = lipgloss.Color(ColorErrorRed)
+
+	// UI element colors
+	LineNumber = lipgloss.Color(ColorLineNumber)
+	Separator  = lipgloss.Color(ColorSeparator)
 
 	// Interactive element colors
 	Selected         = lipgloss.Color(ColorSelected)
@@ -269,6 +281,12 @@ var (
 	DiffUnchangedStyle = lipgloss.NewStyle()
 
 	DiffContextStyle = BaseStyle
+)
+
+// Syntax highlighting UI element styles
+var (
+	LineNumberStyle = BaseStyle.Foreground(LineNumber)
+	SeparatorStyle  = BaseStyle.Foreground(Separator)
 )
 
 // Tool Call Styles
