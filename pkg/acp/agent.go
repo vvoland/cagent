@@ -59,7 +59,7 @@ func (a *Agent) Stop(ctx context.Context) {
 	}
 }
 
-// SetConnection sets the ACP connection
+// SetAgentConnection sets the ACP connection
 func (a *Agent) SetAgentConnection(conn *acp.AgentSideConnection) {
 	a.conn = conn
 }
@@ -325,7 +325,7 @@ func (a *Agent) handleToolCallConfirmation(ctx context.Context, acpSess *Session
 func (a *Agent) handleMaxIterationsReached(ctx context.Context, acpSess *Session, e *runtime.MaxIterationsReachedEvent) error {
 	permResp, err := a.conn.RequestPermission(ctx, acp.RequestPermissionRequest{
 		SessionId: acp.SessionId(acpSess.id),
-		ToolCall: acp.ToolCallUpdate{
+		ToolCall: acp.RequestPermissionToolCall{
 			ToolCallId: acp.ToolCallId("max_iterations"),
 			Title:      acp.Ptr(fmt.Sprintf("Maximum iterations (%d) reached", e.MaxIterations)),
 			Kind:       acp.Ptr(acp.ToolKindExecute),
@@ -391,7 +391,7 @@ func buildToolCallComplete(toolCall tools.ToolCall, output string) acp.SessionUp
 }
 
 // buildToolCallUpdate creates a tool call update for permission requests
-func buildToolCallUpdate(toolCall tools.ToolCall, tool tools.Tool, status acp.ToolCallStatus) acp.ToolCallUpdate {
+func buildToolCallUpdate(toolCall tools.ToolCall, tool tools.Tool, status acp.ToolCallStatus) acp.RequestPermissionToolCall {
 	kind := acp.ToolKindExecute
 	title := tool.Annotations.Title
 	if title == "" {
@@ -402,7 +402,7 @@ func buildToolCallUpdate(toolCall tools.ToolCall, tool tools.Tool, status acp.To
 		kind = acp.ToolKindRead
 	}
 
-	return acp.ToolCallUpdate{
+	return acp.RequestPermissionToolCall{
 		ToolCallId: acp.ToolCallId(toolCall.ID),
 		Title:      acp.Ptr(title),
 		Kind:       acp.Ptr(kind),

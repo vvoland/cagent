@@ -16,7 +16,7 @@ require (
 	github.com/charmbracelet/glamour/v2 v2.0.0-20250811143442-a27abb32f018
 	github.com/charmbracelet/lipgloss/v2 v2.0.0-beta.3.0.20250917201909-41ff0bf215ea
 	github.com/charmbracelet/x/ansi v0.10.2
-	github.com/coder/acp-go-sdk v0.4.9
+	github.com/coder/acp-go-sdk v0.6.3
 	github.com/dop251/goja v0.0.0-20251008123653-cf18d89f3cf6
 	github.com/fatih/color v1.18.0
 	github.com/goccy/go-yaml v1.18.0
