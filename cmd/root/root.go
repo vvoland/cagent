@@ -113,7 +113,6 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddCommand(newEvalCmd())
 	cmd.AddCommand(newPushCmd())
 	cmd.AddCommand(newPullCmd())
-	cmd.AddCommand(newReadmeCmd())
 	cmd.AddCommand(newDebugCmd())
 	cmd.AddCommand(newFeedbackCmd())
 	cmd.AddCommand(newCatalogCmd())
