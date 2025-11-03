@@ -33,7 +33,6 @@ func (e RuntimeError) Unwrap() error {
 }
 
 var (
-	agentName   string
 	debugMode   bool
 	enableOtel  bool
 	logFilePath string

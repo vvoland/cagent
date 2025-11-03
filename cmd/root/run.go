@@ -17,6 +17,7 @@ import (
 	"github.com/docker/cagent/pkg/aliases"
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/cli"
+	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/remote"
 	"github.com/docker/cagent/pkg/runtime"
@@ -28,6 +29,7 @@ import (
 )
 
 type runExecFlags struct {
+	agentName      string
 	workingDir     string
 	autoApprove    bool
 	attachmentPath string
@@ -35,6 +37,7 @@ type runExecFlags struct {
 	remoteAddress  string
 	modelOverrides []string
 	dryRun         bool
+	runConfig      config.RuntimeConfig
 }
 
 func newRunCmd() *cobra.Command {
@@ -52,15 +55,15 @@ func newRunCmd() *cobra.Command {
 		RunE: flags.runRunCommand,
 	}
 
-	cmd.PersistentFlags().StringVarP(&agentName, "agent", "a", "root", "Name of the agent to run")
+	cmd.PersistentFlags().StringVarP(&flags.agentName, "agent", "a", "root", "Name of the agent to run")
 	cmd.PersistentFlags().StringVar(&flags.workingDir, "working-dir", "", "Set the working directory for the session (applies to tools and relative paths)")
 	cmd.PersistentFlags().BoolVar(&flags.autoApprove, "yolo", false, "Automatically approve all tool calls without prompting")
 	cmd.PersistentFlags().StringVar(&flags.attachmentPath, "attach", "", "Attach an image file to the message")
 	cmd.PersistentFlags().BoolVar(&flags.useTUI, "tui", true, "Run the agent with a Terminal User Interface (TUI)")
 	cmd.PersistentFlags().StringVar(&flags.remoteAddress, "remote", "", "Use remote runtime with specified address (only supported with TUI)")
 	cmd.PersistentFlags().StringArrayVar(&flags.modelOverrides, "model", nil, "Override agent model: [agent=]provider/model (repeatable)")
-	addGatewayFlags(cmd)
-	addRuntimeConfigFlags(cmd)
+
+	addRuntimeConfigFlags(cmd, &flags.runConfig)
 
 	return cmd
 }
@@ -77,7 +80,7 @@ func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
 }
 
 func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []string, exec bool) error {
-	slog.Debug("Starting agent", "agent", agentName, "debug_mode", debugMode)
+	slog.Debug("Starting agent", "agent", f.agentName)
 
 	if err := f.validateRemoteFlag(exec); err != nil {
 		return err
@@ -211,11 +214,11 @@ func (f *runExecFlags) resolveAgentFile(ctx context.Context, agentFilename strin
 }
 
 func (f *runExecFlags) loadAgents(ctx context.Context, agentFilename string) (*team.Team, error) {
-	if runConfig.RedirectURI == "" {
-		runConfig.RedirectURI = "http://localhost:8083/oauth-callback"
+	if f.runConfig.RedirectURI == "" {
+		f.runConfig.RedirectURI = "http://localhost:8083/oauth-callback"
 	}
 
-	t, err := teamloader.Load(ctx, agentFilename, runConfig, teamloader.WithModelOverrides(f.modelOverrides))
+	t, err := teamloader.Load(ctx, agentFilename, f.runConfig, teamloader.WithModelOverrides(f.modelOverrides))
 	if err != nil {
 		return nil, err
 	}
@@ -251,19 +254,19 @@ func (f *runExecFlags) createRemoteRuntimeAndSession(ctx context.Context, origin
 	}
 
 	remoteRt, err := runtime.NewRemoteRuntime(remoteClient,
-		runtime.WithRemoteCurrentAgent(agentName),
+		runtime.WithRemoteCurrentAgent(f.agentName),
 		runtime.WithRemoteAgentFilename(originalFilename),
 	)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create remote runtime: %w", err)
 	}
 
-	slog.Debug("Using remote runtime", "address", f.remoteAddress, "agent", agentName)
+	slog.Debug("Using remote runtime", "address", f.remoteAddress, "agent", f.agentName)
 	return remoteRt, sess, nil
 }
 
 func (f *runExecFlags) createLocalRuntimeAndSession(t *team.Team) (runtime.Runtime, *session.Session, error) {
-	agent, err := t.Agent(agentName)
+	agent, err := t.Agent(f.agentName)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -274,7 +277,7 @@ func (f *runExecFlags) createLocalRuntimeAndSession(t *team.Team) (runtime.Runti
 	tracer := otel.Tracer(AppName)
 
 	localRt, err := runtime.New(t,
-		runtime.WithCurrentAgent(agentName),
+		runtime.WithCurrentAgent(f.agentName),
 		runtime.WithTracer(tracer),
 		runtime.WithRootSessionID(sess.ID),
 	)
@@ -282,7 +285,7 @@ func (f *runExecFlags) createLocalRuntimeAndSession(t *team.Team) (runtime.Runti
 		return nil, nil, fmt.Errorf("failed to create runtime: %w", err)
 	}
 
-	slog.Debug("Using local runtime", "agent", agentName)
+	slog.Debug("Using local runtime", "agent", f.agentName)
 	return localRt, sess, nil
 }
 

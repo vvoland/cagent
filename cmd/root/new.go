@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/cli"
+	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/creator"
 	"github.com/docker/cagent/pkg/input"
 	"github.com/docker/cagent/pkg/runtime"
@@ -18,6 +19,7 @@ type newFlags struct {
 	modelParam         string
 	maxTokensParam     int
 	maxIterationsParam int
+	runConfig          config.RuntimeConfig
 }
 
 func newNewCmd() *cobra.Command {
@@ -29,10 +31,12 @@ func newNewCmd() *cobra.Command {
 		Long:  `Create a new agent configuration by asking questions and generating a YAML file`,
 		RunE:  flags.runNewCommand,
 	}
-	addGatewayFlags(cmd)
+
 	cmd.PersistentFlags().StringVar(&flags.modelParam, "model", "", "Model to use, optionally as provider/model where provider is one of: anthropic, openai, google, dmr. If omitted, provider is auto-selected based on available credentials or gateway")
 	cmd.PersistentFlags().IntVar(&flags.maxTokensParam, "max-tokens", 0, "Override max_tokens for the selected model (0 = default)")
 	cmd.PersistentFlags().IntVar(&flags.maxIterationsParam, "max-iterations", 0, "Maximum number of agentic loop iterations to prevent infinite loops (default: 20 for DMR, unlimited for other providers)")
+
+	addRuntimeConfigFlags(cmd, &flags.runConfig)
 
 	return cmd
 }
@@ -61,7 +65,7 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
 	if derivedProvider != "" {
 		modelProvider = derivedProvider
 	} else {
-		if runConfig.ModelsGateway == "" {
+		if f.runConfig.ModelsGateway == "" {
 			// Prefer Anthropic, then OpenAI, then Google based on available API keys
 			// default to DMR if no provider credentials are found
 			switch {
@@ -105,7 +109,7 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
 		out.Println()
 	}
 
-	events, rt, err := creator.StreamCreateAgent(ctx, ".", prompt, runConfig, modelProvider, model, f.maxTokensParam, f.maxIterationsParam)
+	events, rt, err := creator.StreamCreateAgent(ctx, ".", prompt, f.runConfig, modelProvider, model, f.maxTokensParam, f.maxIterationsParam)
 	if err != nil {
 		return err
 	}

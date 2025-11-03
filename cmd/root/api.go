@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/server"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/teamloader"
@@ -18,6 +19,7 @@ import (
 type apiFlags struct {
 	listenAddr string
 	sessionDB  string
+	runConfig  config.RuntimeConfig
 }
 
 func newAPICmd() *cobra.Command {
@@ -33,8 +35,8 @@ func newAPICmd() *cobra.Command {
 
 	cmd.PersistentFlags().StringVarP(&flags.listenAddr, "listen", "l", ":8080", "Address to listen on")
 	cmd.PersistentFlags().StringVarP(&flags.sessionDB, "session-db", "s", "session.db", "Path to the session database")
-	addGatewayFlags(cmd)
-	addRuntimeConfigFlags(cmd)
+
+	addRuntimeConfigFlags(cmd, &flags.runConfig)
 
 	return cmd
 }
@@ -63,7 +65,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 		slog.Info("Listening on " + f.listenAddr)
 	}
 
-	slog.Debug("Starting server", "agents", agentsPath, "debug_mode", debugMode)
+	slog.Debug("Starting server", "agents", agentsPath)
 
 	sessionStore, err := session.NewSQLiteSessionStore(f.sessionDB)
 	if err != nil {
@@ -82,7 +84,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 		opts = append(opts, server.WithAgentsDir(filepath.Dir(agentsPath)))
 	}
 
-	teams, err := teamloader.LoadTeams(ctx, agentsPath, runConfig)
+	teams, err := teamloader.LoadTeams(ctx, agentsPath, f.runConfig)
 	if err != nil {
 		return fmt.Errorf("failed to load teams: %w", err)
 	}
@@ -94,7 +96,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
-	s, err := server.New(sessionStore, runConfig, teams, opts...)
+	s, err := server.New(sessionStore, f.runConfig, teams, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create server: %w", err)
 	}

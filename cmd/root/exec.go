@@ -17,7 +17,7 @@ func newExecCmd() *cobra.Command {
 		RunE:  flags.runExecCommand,
 	}
 
-	cmd.PersistentFlags().StringVarP(&agentName, "agent", "a", "root", "Name of the agent to run")
+	cmd.PersistentFlags().StringVarP(&flags.agentName, "agent", "a", "root", "Name of the agent to run")
 	cmd.PersistentFlags().StringVar(&flags.workingDir, "working-dir", "", "Set the working directory for the session (applies to tools and relative paths)")
 	cmd.PersistentFlags().BoolVar(&flags.autoApprove, "yolo", false, "Automatically approve all tool calls without prompting")
 	cmd.PersistentFlags().StringVar(&flags.attachmentPath, "attach", "", "Attach an image file to the message")
@@ -25,8 +25,7 @@ func newExecCmd() *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&flags.dryRun, "dry-run", false, "Initialize the agent without executing anything")
 	_ = cmd.PersistentFlags().MarkHidden("dry-run")
 
-	addGatewayFlags(cmd)
-	addRuntimeConfigFlags(cmd)
+	addRuntimeConfigFlags(cmd, &flags.runConfig)
 
 	return cmd
 }

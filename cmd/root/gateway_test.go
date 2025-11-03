@@ -107,10 +107,6 @@ func TestGatewayLogic(t *testing.T) {
 				t.Setenv(key, value)
 			}
 
-			// Reset global variables
-			runConfig = config.RuntimeConfig{}
-			gwConfig = gatewayConfig{}
-
 			// Create a test command with gateway flags
 			cmd := &cobra.Command{
 				Use: "test",
@@ -121,7 +117,8 @@ func TestGatewayLogic(t *testing.T) {
 			}
 
 			// Add gateway flags (this is the actual function being tested)
-			addGatewayFlags(cmd)
+			runConfig := config.RuntimeConfig{}
+			addGatewayFlags(cmd, &runConfig)
 
 			// Set command arguments and execute
 			cmd.SetArgs(tt.args)
