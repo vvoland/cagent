@@ -6,10 +6,14 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"time"
 
+	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/spf13/cobra"
 
+	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/remote"
 	"github.com/docker/cagent/pkg/server"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/teamloader"
@@ -17,9 +21,10 @@ import (
 )
 
 type apiFlags struct {
-	listenAddr string
-	sessionDB  string
-	runConfig  config.RuntimeConfig
+	listenAddr       string
+	sessionDB        string
+	pullIntervalMins int
+	runConfig        config.RuntimeConfig
 }
 
 func newAPICmd() *cobra.Command {
@@ -35,10 +40,19 @@ func newAPICmd() *cobra.Command {
 
 	cmd.PersistentFlags().StringVarP(&flags.listenAddr, "listen", "l", ":8080", "Address to listen on")
 	cmd.PersistentFlags().StringVarP(&flags.sessionDB, "session-db", "s", "session.db", "Path to the session database")
-
+	cmd.PersistentFlags().IntVar(&flags.pullIntervalMins, "pull-interval", 0, "Auto-pull OCI reference every N minutes (0 = disabled)")
 	addRuntimeConfigFlags(cmd, &flags.runConfig)
 
 	return cmd
+}
+
+// isOCIReference checks if the input is a valid OCI reference
+func isOCIReference(input string) bool {
+	if agentfile.IsLocalFile(input) {
+		return false
+	}
+	_, err := name.ParseReference(input)
+	return err == nil
 }
 
 func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
@@ -49,6 +63,15 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 
 	// Make sure no question is ever asked to the user in api mode.
 	os.Stdin = nil
+
+	if f.pullIntervalMins > 0 && !isOCIReference(agentsPath) {
+		return fmt.Errorf("--pull-interval flag can only be used with OCI references, not local files")
+	}
+
+	resolvedPath, err := agentfile.Resolve(ctx, agentsPath)
+	if err != nil {
+		return err
+	}
 
 	ln, err := server.Listen(ctx, f.listenAddr)
 	if err != nil {
@@ -65,7 +88,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 		slog.Info("Listening on " + f.listenAddr)
 	}
 
-	slog.Debug("Starting server", "agents", agentsPath)
+	slog.Debug("Starting server", "agents", resolvedPath)
 
 	sessionStore, err := session.NewSQLiteSessionStore(f.sessionDB)
 	if err != nil {
@@ -74,17 +97,17 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 
 	var opts []server.Opt
 
-	stat, err := os.Stat(agentsPath)
+	stat, err := os.Stat(resolvedPath)
 	if err != nil {
 		return fmt.Errorf("failed to stat agents path: %w", err)
 	}
 	if stat.IsDir() {
-		opts = append(opts, server.WithAgentsDir(agentsPath))
+		opts = append(opts, server.WithAgentsDir(resolvedPath))
 	} else {
-		opts = append(opts, server.WithAgentsDir(filepath.Dir(agentsPath)))
+		opts = append(opts, server.WithAgentsDir(filepath.Dir(resolvedPath)))
 	}
 
-	teams, err := teamloader.LoadTeams(ctx, agentsPath, f.runConfig)
+	teams, err := teamloader.LoadTeams(ctx, resolvedPath, f.runConfig)
 	if err != nil {
 		return fmt.Errorf("failed to load teams: %w", err)
 	}
@@ -99,6 +122,42 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 	s, err := server.New(sessionStore, f.runConfig, teams, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create server: %w", err)
+	}
+
+	// Start background auto-pull for OCI references if enabled
+	if f.pullIntervalMins > 0 {
+		go func() {
+			ticker := time.NewTicker(time.Duration(f.pullIntervalMins) * time.Minute)
+			defer ticker.Stop()
+
+			slog.Info("Auto-pull enabled for OCI reference", "reference", agentsPath, "interval_minutes", f.pullIntervalMins)
+
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					slog.Info("Auto-pulling OCI reference", "reference", agentsPath)
+					if _, err := remote.Pull(agentsPath); err != nil {
+						slog.Error("Failed to auto-pull OCI reference", "reference", agentsPath, "error", err)
+						continue
+					}
+
+					// Resolve the OCI reference to get the updated file path
+					newResolvedPath, err := agentfile.Resolve(ctx, agentsPath)
+					if err != nil {
+						slog.Error("Failed to resolve OCI reference after pull", "reference", agentsPath, "error", err)
+						continue
+					}
+
+					if err := s.ReloadTeams(ctx, newResolvedPath); err != nil {
+						slog.Error("Failed to reload teams", "reference", agentsPath, "error", err)
+					} else {
+						slog.Info("Successfully reloaded teams from updated OCI reference", "reference", agentsPath)
+					}
+				}
+			}
+		}()
 	}
 
 	return s.Serve(ctx, ln)

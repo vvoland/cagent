@@ -1,25 +1,21 @@
 package root
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
 
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel"
 
-	"github.com/docker/cagent/pkg/aliases"
+	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/content"
-	"github.com/docker/cagent/pkg/remote"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
@@ -149,68 +145,13 @@ func (f *runExecFlags) setupWorkingDirectory() error {
 	return nil
 }
 
-// resolveAgentFile resolves an agent file reference (local file or OCI image) to a local file path
+// resolveAgentFile is a wrapper method that calls the agentfile.Resolve function
+// after checking for remote address
 func (f *runExecFlags) resolveAgentFile(ctx context.Context, agentFilename string) (string, error) {
 	if f.remoteAddress != "" {
 		return agentFilename, nil
 	}
-	// Try to resolve as an alias first
-	if aliasStore, err := aliases.Load(); err == nil {
-		if resolvedPath, ok := aliasStore.Get(agentFilename); ok {
-			slog.Debug("Resolved alias", "alias", agentFilename, "path", resolvedPath)
-			agentFilename = resolvedPath
-		}
-	}
-
-	ext := strings.ToLower(filepath.Ext(agentFilename))
-	if ext == ".yaml" || ext == ".yml" || strings.HasPrefix(agentFilename, "/dev/fd/") {
-		// Treat as local YAML file: resolve to absolute path so later chdir doesn't break it
-		// TODO(rumpl): Why are we checking for newlines here?
-		if !strings.Contains(agentFilename, "\n") {
-			if abs, err := filepath.Abs(agentFilename); err == nil {
-				agentFilename = abs
-			}
-		}
-		if !fileExists(agentFilename) {
-			return "", fmt.Errorf("agent file not found: %s", agentFilename)
-		}
-		return agentFilename, nil
-	}
-
-	// Treat as an OCI image reference. Try local store first, otherwise pull then load.
-	a, err := fromStore(agentFilename)
-	if err != nil {
-		fmt.Println("Pulling agent", agentFilename)
-		if _, pullErr := remote.Pull(agentFilename); pullErr != nil {
-			return "", fmt.Errorf("failed to pull OCI image %s: %w", agentFilename, pullErr)
-		}
-		// Retry after pull
-		a, err = fromStore(agentFilename)
-		if err != nil {
-			return "", fmt.Errorf("failed to load agent from store after pull: %w", err)
-		}
-	}
-
-	// Write the fetched content to a temporary YAML file
-	tmpFile, err := os.CreateTemp("", "agentfile-*.yaml")
-	if err != nil {
-		return "", err
-	}
-	tmpFilename := tmpFile.Name()
-	if _, err := tmpFile.WriteString(a); err != nil {
-		tmpFile.Close()
-		os.Remove(tmpFilename)
-		return "", err
-	}
-	if err := tmpFile.Close(); err != nil {
-		os.Remove(tmpFilename)
-		return "", err
-	}
-	go func() {
-		<-ctx.Done()
-		os.Remove(tmpFilename)
-	}()
-	return tmpFilename, nil
+	return agentfile.Resolve(ctx, agentFilename)
 }
 
 func (f *runExecFlags) loadAgents(ctx context.Context, agentFilename string) (*team.Team, error) {
@@ -363,42 +304,4 @@ func handleTUIMode(ctx context.Context, agentFilename string, rt runtime.Runtime
 
 	_, err = p.Run()
 	return err
-}
-
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	exists := err == nil
-	return exists
-}
-
-func fromStore(reference string) (string, error) {
-	store, err := content.NewStore()
-	if err != nil {
-		return "", err
-	}
-
-	img, err := store.GetArtifactImage(reference)
-	if err != nil {
-		return "", err
-	}
-
-	layers, err := img.Layers()
-	if err != nil {
-		return "", err
-	}
-
-	var buf bytes.Buffer
-	layer := layers[0]
-	b, err := layer.Uncompressed()
-	if err != nil {
-		return "", err
-	}
-
-	_, err = io.Copy(&buf, b)
-	if err != nil {
-		return "", err
-	}
-	b.Close()
-
-	return buf.String(), nil
 }

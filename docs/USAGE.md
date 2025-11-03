@@ -56,6 +56,9 @@ $ cagent exec config.yaml --yolo          # Run the agent once and auto-accept a
 # API Server (HTTP REST API)
 $ cagent api config.yaml
 $ cagent api config.yaml --listen :8080
+$ cagent api ociReference # start API from oci reference 
+## start API from oci reference, auto-pull every 10 mins and reload if a new team was pulled
+$ cagent api ociReference --pull-interval 10
 
 # ACP Server (Agent Client Protocol via stdio)
 $ cagent acp config.yaml                 # Start ACP server on stdio

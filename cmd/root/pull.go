@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/spf13/cobra"
 
+	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/remote"
 	"github.com/docker/cagent/pkg/telemetry"
@@ -39,7 +40,7 @@ func runPullCommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to pull artifact: %w", err)
 	}
 
-	yamlFile, err := fromStore(registryRef)
+	yamlFile, err := agentfile.FromStore(registryRef)
 	if err != nil {
 		return fmt.Errorf("failed to get agent yaml: %w", err)
 	}
