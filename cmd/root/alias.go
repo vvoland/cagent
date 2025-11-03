@@ -143,7 +143,7 @@ func runAliasListCommand(cmd *cobra.Command, args []string) error {
 		out.Printf("  %s%s → %s\n", name, padding, path)
 	}
 
-	out.Print("\nRun an alias with: cagent run <alias>\n")
+	out.Println("\nRun an alias with: cagent run <alias>")
 
 	return nil
 }

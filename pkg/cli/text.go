@@ -15,18 +15,6 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
-var (
-	// Let's disable the colors in non TUI mode.
-	// (dga): I kept those functions in case we find a proper way to use them in both dark and light modes.
-	blue   = fmt.Sprintf
-	yellow = fmt.Sprintf
-	red    = fmt.Sprintf
-	white  = fmt.Sprintf
-	green  = fmt.Sprintf
-
-	bold = color.New(color.Bold).SprintfFunc()
-)
-
 // ConfirmationResult represents the result of a user confirmation prompt
 type ConfirmationResult string
 
@@ -37,15 +25,7 @@ const (
 	ConfirmationAbort          ConfirmationResult = "abort"
 )
 
-// Color formatting functions (exported for use by other packages)
-var (
-	Blue   = blue
-	Yellow = yellow
-	Red    = red
-	White  = white
-	Green  = green
-	Bold   = bold
-)
+var bold = color.New(color.Bold).SprintfFunc()
 
 type Printer struct {
 	out io.Writer
@@ -71,41 +51,36 @@ func (p *Printer) Printf(format string, a ...any) (n int, err error) {
 
 // PrintWelcomeMessage prints the welcome message
 func (p *Printer) PrintWelcomeMessage(appName string) {
-	p.Printf("\n%s\n%s\n\n", blue("------- Welcome to %s! -------", bold(appName)), white("(Ctrl+C to stop the agent and exit)"))
+	p.Printf("\n------- Welcome to %s! -------\n(Ctrl+C to stop the agent and exit)\n\n", bold(appName))
 }
 
 // PrintError prints an error message
 func (p *Printer) PrintError(err error) {
-	p.Print(red("❌ %s", err))
+	p.Printf("❌ %s", err)
 }
 
 // PrintAgentName prints the agent name header
 func (p *Printer) PrintAgentName(agentName string) {
-	p.Printf("\n%s\n", blue("--- Agent: %s ---", bold(agentName)))
+	p.Printf("\n--- Agent: %s ---\n", bold(agentName))
 }
 
 // PrintToolCall prints a tool call
-func (p *Printer) PrintToolCall(toolCall tools.ToolCall, colorFunc ...func(format string, a ...any) string) {
-	c := white
-	if len(colorFunc) > 0 && colorFunc[0] != nil {
-		c = colorFunc[0]
-	}
-	p.Printf("\nCalling %s\n", c("%s%s", bold(toolCall.Function.Name), formatToolCallArguments(toolCall.Function.Arguments)))
+func (p *Printer) PrintToolCall(toolCall tools.ToolCall) {
+	p.Printf("\nCalling %s%s\n", bold(toolCall.Function.Name), formatToolCallArguments(toolCall.Function.Arguments))
 }
 
 // PrintToolCallWithConfirmation prints a tool call and prompts for confirmation
 func (p *Printer) PrintToolCallWithConfirmation(ctx context.Context, toolCall tools.ToolCall, rd io.Reader) ConfirmationResult {
-	p.Printf("\n%s\n", bold(yellow("🛠️ Tool call requires confirmation 🛠️")))
-	p.PrintToolCall(toolCall, color.New(color.FgWhite).SprintfFunc())
-	p.Printf("\n%s", bold(yellow("Can I run this tool? ([y]es/[a]ll/[n]o): ")))
+	p.Printf("\n%s\n", bold("🛠️ Tool call requires confirmation 🛠️"))
+	p.PrintToolCall(toolCall)
+	p.Printf("\n%s", bold("Can I run this tool? ([y]es/[a]ll/[n]o): "))
 
 	// Try single-character input from stdin in raw mode (no Enter required)
 	fd := int(os.Stdin.Fd())
 	if oldState, err := term.MakeRaw(fd); err == nil {
 		defer func() {
 			if err := term.Restore(fd, oldState); err != nil {
-				p.
-					Printf("\n%s\n", yellow("Failed to restore terminal state: %v", err))
+				p.Printf("\nFailed to restore terminal state: %v\n", err)
 			}
 		}()
 		buf := make([]byte, 1)
@@ -154,61 +129,53 @@ func (p *Printer) PrintToolCallWithConfirmation(ctx context.Context, toolCall to
 
 // PrintToolCallResponse prints a tool call response
 func (p *Printer) PrintToolCallResponse(toolCall tools.ToolCall, response string) {
-	p.Printf("\n%s\n", white("%s response%s", bold(toolCall.Function.Name), formatToolCallResponse(response)))
+	p.Printf("\n%s response%s\n", bold(toolCall.Function.Name), formatToolCallResponse(response))
 }
 
 // PromptMaxIterationsContinue prompts the user to continue after max iterations
 func (p *Printer) PromptMaxIterationsContinue(ctx context.Context, maxIterations int) ConfirmationResult {
-	p.Printf("\n%s\n", yellow("⚠️  Maximum iterations (%d) reached. The agent may be stuck in a loop.", maxIterations))
-	p.Printf("%s\n", white("This can happen with smaller or less capable models."))
-	p.Printf("\n%s (y/n): ", blue("Do you want to continue for 10 more iterations?"))
+	p.Printf("\n⚠️  Maximum iterations (%d) reached. The agent may be stuck in a loop.\n", maxIterations)
+	p.Printf("%s\n", "This can happen with smaller or less capable models.")
+	p.Printf("\n%s (y/n): ", "Do you want to continue for 10 more iterations?")
 
 	response, err := input.ReadLine(ctx, os.Stdin)
 	if err != nil {
-		p.
-			Printf("\n%s\n", red("Failed to read input, exiting..."))
+		p.Println("\nFailed to read input, exiting...")
 		return ConfirmationAbort
 	}
 
 	response = strings.TrimSpace(strings.ToLower(response))
 	if response == "y" || response == "yes" {
-		p.
-			Printf("%s\n\n", green("✓ Continuing..."))
+		p.Print("✓ Continuing...\n\n")
 		return ConfirmationApprove
 	} else {
-		p.
-			Printf("%s\n\n", white("Exiting..."))
+		p.Print("Exiting...\n\n")
 		return ConfirmationReject
 	}
 }
 
 // PromptOAuthAuthorization prompts the user for OAuth authorization
 func (p *Printer) PromptOAuthAuthorization(ctx context.Context, serverURL string) ConfirmationResult {
-	p.Printf("\n%s\n", yellow("🔐 OAuth Authorization Required"))
-	p.Printf("%s %s (remote)\n", white("Server:"), blue(serverURL))
-	p.Printf("%s\n", white("This server requires OAuth authentication to access its tools."))
-	p.Printf("%s\n", white("Your browser will open automatically to complete the authorization."))
-	p.Printf("\n%s (y/n): ", blue("Do you want to authorize access?"))
+	p.Println("\n🔐 OAuth Authorization Required")
+	p.Println("Server:", serverURL, "(remote)")
+	p.Println("This server requires OAuth authentication to access its tools.")
+	p.Println("Your browser will open automatically to complete the authorization.")
+	p.Printf("\n%s (y/n): ", "Do you want to authorize access?")
 
 	response, err := input.ReadLine(ctx, os.Stdin)
 	if err != nil {
-		p.
-			Printf("\n%s\n", red("Failed to read input, aborting authorization..."))
+		p.Printf("\n%s\n", "Failed to read input, aborting authorization...")
 		return ConfirmationAbort
 	}
 
 	response = strings.TrimSpace(strings.ToLower(response))
 	if response == "y" || response == "yes" {
-		p.
-			Printf("%s\n", green("✓ Starting OAuth authorization..."))
-		p.
-			Printf("%s\n", white("Please complete the authorization in your browser."))
-		p.
-			Printf("%s\n\n", white("Once completed, the agent will continue automatically."))
+		p.Println("✓ Starting OAuth authorization...")
+		p.Println("Please complete the authorization in your browser.")
+		p.Print("Once completed, the agent will continue automatically.\n\n")
 		return ConfirmationApprove
 	} else {
-		p.
-			Printf("%s\n\n", white("Authorization declined. Exiting..."))
+		p.Print("Authorization declined. Exiting...\n\n")
 		return ConfirmationReject
 	}
 }
