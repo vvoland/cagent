@@ -19,6 +19,7 @@ import (
 	"github.com/docker/cagent/pkg/config"
 	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/cagent/pkg/teamloader"
 )
 
 func TestServer_ListAgents(t *testing.T) {
@@ -215,6 +216,401 @@ func TestServer_ListSessions(t *testing.T) {
 	unmarshal(t, buf, &sessions)
 
 	assert.Empty(t, sessions)
+}
+
+func TestServer_ReloadTeams(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "dummy")
+	t.Setenv("ANTHROPIC_API_KEY", "dummy")
+
+	ctx := t.Context()
+
+	// Create initial agents directory with pirate agent
+	agentsDir1 := prepareAgentsDir(t, "pirate.yaml")
+
+	var store mockStore
+	var runConfig config.RuntimeConfig
+
+	// Load initial teams
+	teams, err := teamloader.LoadTeams(ctx, agentsDir1, runConfig)
+	require.NoError(t, err)
+
+	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir1))
+	require.NoError(t, err)
+
+	// Verify initial state - should have pirate agent
+	initialTeamsCount := srv.countTeams()
+	hasPirate := srv.hasTeam("pirate.yaml")
+
+	assert.Equal(t, 1, initialTeamsCount)
+	assert.True(t, hasPirate, "should have pirate agent initially")
+
+	// Create a new agents directory with different agents
+	agentsDir2 := prepareAgentsDir(t, "contradict.yaml", "multi_agents.yaml")
+
+	// Reload teams from the new directory
+	err = srv.ReloadTeams(ctx, agentsDir2)
+	require.NoError(t, err)
+
+	// Verify teams were reloaded
+	newTeamsCount := srv.countTeams()
+	hasPirateAfter := srv.hasTeam("pirate.yaml")
+	hasContradict := srv.hasTeam("contradict.yaml")
+	hasMulti := srv.hasTeam("multi_agents.yaml")
+
+	assert.Equal(t, 2, newTeamsCount, "should have 2 agents after reload")
+	assert.False(t, hasPirateAfter, "pirate agent should be removed")
+	assert.True(t, hasContradict, "should have contradict agent")
+	assert.True(t, hasMulti, "should have multi_agents agent")
+}
+
+func TestServer_ReloadTeams_Concurrent(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "dummy")
+	t.Setenv("ANTHROPIC_API_KEY", "dummy")
+
+	ctx := t.Context()
+
+	agentsDir := prepareAgentsDir(t, "pirate.yaml")
+
+	var store mockStore
+	var runConfig config.RuntimeConfig
+
+	// Load initial teams
+	teams, err := teamloader.LoadTeams(ctx, agentsDir, runConfig)
+	require.NoError(t, err)
+
+	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
+	require.NoError(t, err)
+
+	// Create another directory for reloading
+	agentsDir2 := prepareAgentsDir(t, "contradict.yaml")
+
+	// Test concurrent access: read teams while reloading
+	done := make(chan bool)
+	go func() {
+		for range 100 {
+			_ = srv.countTeams()
+		}
+		done <- true
+	}()
+
+	err = srv.ReloadTeams(ctx, agentsDir2)
+	require.NoError(t, err)
+
+	err = srv.ReloadTeams(ctx, agentsDir)
+	require.NoError(t, err)
+
+	<-done
+
+	// Verify final state matches last reload
+	hasPirate := srv.hasTeam("pirate.yaml")
+
+	assert.True(t, hasPirate, "should have pirate agent after final reload")
+}
+
+func TestServer_ReloadTeams_InvalidPath(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "dummy")
+
+	ctx := t.Context()
+
+	agentsDir := prepareAgentsDir(t, "pirate.yaml")
+
+	var store mockStore
+	var runConfig config.RuntimeConfig
+
+	// Load initial teams
+	teams, err := teamloader.LoadTeams(ctx, agentsDir, runConfig)
+	require.NoError(t, err)
+
+	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
+	require.NoError(t, err)
+
+	// Try to reload from non-existent path
+	err = srv.ReloadTeams(ctx, "/nonexistent/path")
+	require.Error(t, err)
+
+	// Verify original teams are still intact
+	teamsCount := srv.countTeams()
+	hasPirate := srv.hasTeam("pirate.yaml")
+
+	assert.Equal(t, 1, teamsCount, "should still have original team")
+	assert.True(t, hasPirate, "should still have pirate agent")
+}
+
+func TestServer_RefreshAgentsFromDisk_AddNewAgent(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "dummy")
+	t.Setenv("ANTHROPIC_API_KEY", "dummy")
+
+	ctx := t.Context()
+
+	// Start with only pirate agent
+	agentsDir := prepareAgentsDir(t, "pirate.yaml")
+
+	var store mockStore
+	var runConfig config.RuntimeConfig
+
+	teams, err := teamloader.LoadTeams(ctx, agentsDir, runConfig)
+	require.NoError(t, err)
+
+	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
+	require.NoError(t, err)
+
+	// Verify initial state
+	initialCount := srv.countTeams()
+	hasPirate := srv.hasTeam("pirate.yaml")
+	hasContradict := srv.hasTeam("contradict.yaml")
+
+	assert.Equal(t, 1, initialCount)
+	assert.True(t, hasPirate)
+	assert.False(t, hasContradict)
+
+	// Add a new agent to the directory
+	buf, err := os.ReadFile(filepath.Join("testdata", "contradict.yaml"))
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(agentsDir, "contradict.yaml"), buf, 0o600)
+	require.NoError(t, err)
+
+	// Refresh agents from disk
+	err = srv.refreshAgentsFromDisk(ctx)
+	require.NoError(t, err)
+
+	// Verify new agent was added
+	newCount := srv.countTeams()
+	hasPirateAfter := srv.hasTeam("pirate.yaml")
+	hasContradictAfter := srv.hasTeam("contradict.yaml")
+
+	assert.Equal(t, 2, newCount, "should have 2 agents after refresh")
+	assert.True(t, hasPirateAfter, "pirate agent should still exist")
+	assert.True(t, hasContradictAfter, "contradict agent should be added")
+}
+
+func TestServer_RefreshAgentsFromDisk_RemoveAgent(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "dummy")
+	t.Setenv("ANTHROPIC_API_KEY", "dummy")
+
+	ctx := t.Context()
+
+	// Start with two agents
+	agentsDir := prepareAgentsDir(t, "pirate.yaml", "contradict.yaml")
+
+	var store mockStore
+	var runConfig config.RuntimeConfig
+
+	teams, err := teamloader.LoadTeams(ctx, agentsDir, runConfig)
+	require.NoError(t, err)
+
+	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
+	require.NoError(t, err)
+
+	// Verify initial state
+	initialCount := srv.countTeams()
+	hasPirate := srv.hasTeam("pirate.yaml")
+	hasContradict := srv.hasTeam("contradict.yaml")
+
+	assert.Equal(t, 2, initialCount)
+	assert.True(t, hasPirate)
+	assert.True(t, hasContradict)
+
+	// Remove contradict agent from disk
+	err = os.Remove(filepath.Join(agentsDir, "contradict.yaml"))
+	require.NoError(t, err)
+
+	// Refresh agents from disk
+	err = srv.refreshAgentsFromDisk(ctx)
+	require.NoError(t, err)
+
+	// Verify agent was removed
+	newCount := srv.countTeams()
+	hasPirateAfter := srv.hasTeam("pirate.yaml")
+	hasContradictAfter := srv.hasTeam("contradict.yaml")
+
+	assert.Equal(t, 1, newCount, "should have 1 agent after refresh")
+	assert.True(t, hasPirateAfter, "pirate agent should still exist")
+	assert.False(t, hasContradictAfter, "contradict agent should be removed")
+}
+
+func TestServer_RefreshAgentsFromDisk_UpdateAgent(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "dummy")
+
+	ctx := t.Context()
+
+	// Start with pirate agent
+	agentsDir := prepareAgentsDir(t, "pirate.yaml")
+
+	var store mockStore
+	var runConfig config.RuntimeConfig
+
+	teams, err := teamloader.LoadTeams(ctx, agentsDir, runConfig)
+	require.NoError(t, err)
+
+	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
+	require.NoError(t, err)
+
+	// Get initial agent
+	initialTeam, exists := srv.getTeam("pirate.yaml")
+	require.True(t, exists)
+	require.NotNil(t, initialTeam)
+
+	initialAgent, err := initialTeam.Agent("root")
+	require.NoError(t, err)
+	initialInstruction := initialAgent.Instruction()
+
+	// Modify the agent file on disk
+	modifiedConfig := `version: "2"
+agents:
+  root:
+    model: openai/gpt-4o
+    description: "Updated pirate"
+    instruction: "You are an UPDATED pirate. Talk like a pirate in all your responses."
+`
+	err = os.WriteFile(filepath.Join(agentsDir, "pirate.yaml"), []byte(modifiedConfig), 0o600)
+	require.NoError(t, err)
+
+	// Refresh agents from disk
+	err = srv.refreshAgentsFromDisk(ctx)
+	require.NoError(t, err)
+
+	// Verify agent was updated
+	updatedTeam, exists := srv.getTeam("pirate.yaml")
+	require.True(t, exists)
+	require.NotNil(t, updatedTeam)
+
+	updatedAgent, err := updatedTeam.Agent("root")
+	require.NoError(t, err)
+	updatedInstruction := updatedAgent.Instruction()
+
+	assert.NotEqual(t, initialInstruction, updatedInstruction, "instruction should be updated")
+	assert.Contains(t, updatedInstruction, "UPDATED", "should have updated instruction")
+}
+
+func TestServer_RefreshAgentsFromDisk_MultipleChanges(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "dummy")
+	t.Setenv("ANTHROPIC_API_KEY", "dummy")
+
+	ctx := t.Context()
+
+	// Start with pirate and contradict agents
+	agentsDir := prepareAgentsDir(t, "pirate.yaml", "contradict.yaml")
+
+	var store mockStore
+	var runConfig config.RuntimeConfig
+
+	teams, err := teamloader.LoadTeams(ctx, agentsDir, runConfig)
+	require.NoError(t, err)
+
+	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
+	require.NoError(t, err)
+
+	// Verify initial state
+	initialCount := srv.countTeams()
+	assert.Equal(t, 2, initialCount)
+
+	// Remove contradict, add multi_agents
+	err = os.Remove(filepath.Join(agentsDir, "contradict.yaml"))
+	require.NoError(t, err)
+
+	buf, err := os.ReadFile(filepath.Join("testdata", "multi_agents.yaml"))
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(agentsDir, "multi_agents.yaml"), buf, 0o600)
+	require.NoError(t, err)
+
+	// Refresh agents from disk
+	err = srv.refreshAgentsFromDisk(ctx)
+	require.NoError(t, err)
+
+	// Verify changes
+	newCount := srv.countTeams()
+	hasPirate := srv.hasTeam("pirate.yaml")
+	hasContradict := srv.hasTeam("contradict.yaml")
+	hasMulti := srv.hasTeam("multi_agents.yaml")
+
+	assert.Equal(t, 2, newCount, "should have 2 agents")
+	assert.True(t, hasPirate, "pirate agent should still exist")
+	assert.False(t, hasContradict, "contradict agent should be removed")
+	assert.True(t, hasMulti, "multi_agents should be added")
+}
+
+func TestServer_RefreshAgentsFromDisk_NoChanges(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "dummy")
+
+	ctx := t.Context()
+
+	agentsDir := prepareAgentsDir(t, "pirate.yaml")
+
+	var store mockStore
+	var runConfig config.RuntimeConfig
+
+	teams, err := teamloader.LoadTeams(ctx, agentsDir, runConfig)
+	require.NoError(t, err)
+
+	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
+	require.NoError(t, err)
+
+	// Get initial state
+	initialCount := srv.countTeams()
+
+	// Refresh without any changes
+	err = srv.refreshAgentsFromDisk(ctx)
+	require.NoError(t, err)
+
+	// Verify state unchanged
+	newCount := srv.countTeams()
+	exists := srv.hasTeam("pirate.yaml")
+
+	assert.Equal(t, initialCount, newCount, "count should be unchanged")
+	assert.True(t, exists, "team should still exist")
+	// Note: team will be a different instance due to reload, but that's expected
+}
+
+func TestServer_RefreshAgentsFromDisk_EmptyDir(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "dummy")
+
+	ctx := t.Context()
+
+	// Start with one agent
+	agentsDir := prepareAgentsDir(t, "pirate.yaml")
+
+	var store mockStore
+	var runConfig config.RuntimeConfig
+
+	teams, err := teamloader.LoadTeams(ctx, agentsDir, runConfig)
+	require.NoError(t, err)
+
+	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
+	require.NoError(t, err)
+
+	// Remove all agents
+	err = os.Remove(filepath.Join(agentsDir, "pirate.yaml"))
+	require.NoError(t, err)
+
+	// Refresh with empty directory
+	err = srv.refreshAgentsFromDisk(ctx)
+	require.NoError(t, err)
+
+	// Verify all agents removed
+	count := srv.countTeams()
+
+	assert.Equal(t, 0, count, "should have no agents")
+}
+
+func TestServer_RefreshAgentsFromDisk_NoAgentsDir(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "dummy")
+
+	ctx := t.Context()
+
+	var store mockStore
+	var runConfig config.RuntimeConfig
+
+	// Create server without agentsDir
+	srv, err := New(store, runConfig, nil)
+	require.NoError(t, err)
+
+	// Refresh should be no-op
+	err = srv.refreshAgentsFromDisk(ctx)
+	require.NoError(t, err)
+
+	count := srv.countTeams()
+
+	assert.Equal(t, 0, count)
 }
 
 func prepareAgentsDir(t *testing.T, testFiles ...string) string {
