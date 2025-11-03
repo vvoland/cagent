@@ -8,7 +8,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.2
 	github.com/alecthomas/chroma/v2 v2.20.0
 	github.com/alpkeskin/gotoon v0.1.0
-	github.com/anthropics/anthropic-sdk-go v1.14.0
+	github.com/anthropics/anthropic-sdk-go v1.16.0
 	github.com/atotto/clipboard v0.1.4
 	github.com/aymanbagabas/go-udiff v0.3.1
 	github.com/charmbracelet/bubbles/v2 v2.0.0-beta.1.0.20250820203609-601216f68ee2
@@ -27,7 +27,7 @@ require (
 	github.com/k3a/html2text v1.2.1
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/mattn/go-runewidth v0.0.19
-	github.com/modelcontextprotocol/go-sdk v1.0.0
+	github.com/modelcontextprotocol/go-sdk v1.1.0
 	github.com/sashabaranov/go-openai v1.41.2
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.1
@@ -40,7 +40,7 @@ require (
 	golang.org/x/oauth2 v0.32.0
 	golang.org/x/sys v0.37.0
 	golang.org/x/term v0.36.0
-	google.golang.org/genai v1.31.0
+	google.golang.org/genai v1.33.0
 	modernc.org/sqlite v1.39.1
 )
 
