@@ -232,7 +232,7 @@ func (a *appModel) handleWindowResize(width, height int) tea.Cmd {
 	var cmds []tea.Cmd
 
 	// Update dimensions
-	a.width, a.height = width, height-2 // Account for status bar
+	a.width, a.height = width, height-1 // Account for status bar
 
 	if !a.ready {
 		a.ready = true
@@ -245,18 +245,8 @@ func (a *appModel) handleWindowResize(width, height int) tea.Cmd {
 		cmds = append(cmds, cmd)
 	}
 
-	// Update chat page
-	if sizable, ok := a.chatPage.(interface{ SetSize(int, int) tea.Cmd }); ok {
-		cmd := sizable.SetSize(a.width, a.height)
-		cmds = append(cmds, cmd)
-	} else {
-		// Fallback: send window size message
-		updated, cmd := a.chatPage.Update(tea.WindowSizeMsg{Width: a.width, Height: a.height})
-		a.chatPage = updated.(chat.Page)
-		if cmd != nil {
-			cmds = append(cmds, cmd)
-		}
-	}
+	cmd = a.chatPage.SetSize(a.width, a.height)
+	cmds = append(cmds, cmd)
 
 	// Update status bar width
 	a.statusBar.SetWidth(a.width)
