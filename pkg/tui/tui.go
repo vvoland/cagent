@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/v2/help"
 	"github.com/charmbracelet/bubbles/v2/key"
 	tea "github.com/charmbracelet/bubbletea/v2"
@@ -177,7 +178,16 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.chatPage.CompactSession()
 
 	case commands.CopySessionToClipboardMsg:
-		return a, a.chatPage.CopySessionToClipboard()
+		transcript := a.application.PlainTextTranscript()
+		if transcript == "" {
+			return a, core.CmdHandler(notification.ShowMsg{Text: "Conversation is empty; nothing copied."})
+		}
+
+		if err := clipboard.WriteAll(transcript); err != nil {
+			return a, core.CmdHandler(notification.ShowMsg{Text: "Failed to copy conversation: " + err.Error(), Type: notification.TypeError})
+		}
+
+		return a, core.CmdHandler(notification.ShowMsg{Text: "Conversation copied to clipboard."})
 
 	case commands.AgentCommandMsg:
 		resolvedCommand := a.application.ResolveCommand(context.Background(), msg.Command)

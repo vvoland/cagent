@@ -131,6 +131,10 @@ func (a *App) ResumeStartOAuth(bool) {
 	}
 }
 
+func (a *App) PlainTextTranscript() string {
+	return transcript(a.session)
+}
+
 // throttleEvents buffers and merges rapid events to prevent UI flooding
 func (a *App) throttleEvents(ctx context.Context, in <-chan tea.Msg) <-chan tea.Msg {
 	out := make(chan tea.Msg, 128)
