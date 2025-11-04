@@ -210,7 +210,7 @@ func (f *runExecFlags) createLocalRuntimeAndSession(t *team.Team) (runtime.Runti
 
 	sess := session.New(
 		session.WithMaxIterations(agent.MaxIterations()),
-		session.WithToolsApproved(true),
+		session.WithToolsApproved(f.autoApprove),
 	)
 
 	localRt, err := runtime.New(t,
