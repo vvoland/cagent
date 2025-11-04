@@ -859,6 +859,14 @@ func (m *model) extractSelectedText() string {
 		var lineText string
 		switch i {
 		case startLine:
+			if startLine == endLine {
+				startIdx := displayWidthToRuneIndex(line, startCol)
+				endIdx := min(displayWidthToRuneIndex(line, endCol), len(runes))
+				if startIdx < len(runes) && startIdx < endIdx {
+					lineText = strings.TrimSpace(string(runes[startIdx:endIdx]))
+				}
+				break
+			}
 			// First line: from startCol to end
 			startIdx := displayWidthToRuneIndex(line, startCol)
 			if startIdx < len(runes) {
@@ -888,7 +896,7 @@ func (m *model) copySelectionToClipboard() tea.Cmd {
 		return nil
 	}
 
-	selectedText := m.extractSelectedText()
+	selectedText := strings.TrimSpace(m.extractSelectedText())
 	if selectedText == "" {
 		return nil
 	}
