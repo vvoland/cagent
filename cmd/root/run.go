@@ -6,7 +6,6 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/spf13/cobra"
@@ -120,27 +119,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 }
 
 func (f *runExecFlags) setupWorkingDirectory() error {
-	if f.workingDir == "" {
-		return nil
-	}
-
-	absWd, err := filepath.Abs(f.workingDir)
-	if err != nil {
-		return fmt.Errorf("invalid working directory: %w", err)
-	}
-
-	info, err := os.Stat(absWd)
-	if err != nil || !info.IsDir() {
-		return fmt.Errorf("working directory does not exist or is not a directory: %s", absWd)
-	}
-
-	if err := os.Chdir(absWd); err != nil {
-		return fmt.Errorf("failed to change working directory: %w", err)
-	}
-
-	_ = os.Setenv("PWD", absWd)
-	slog.Debug("Working directory set", "dir", absWd)
-	return nil
+	return setupWorkingDirectory(f.workingDir)
 }
 
 // resolveAgentFile is a wrapper method that calls the agentfile.Resolve function
