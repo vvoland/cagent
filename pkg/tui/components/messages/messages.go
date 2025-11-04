@@ -145,7 +145,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case StreamCancelledMsg:
 		// Handle stream cancellation internally
 		m.removeSpinner()
-		m.cancelPendingToolCalls()
+		m.removePendingToolCallMessages()
 		return m, nil
 	case tea.WindowSizeMsg:
 		cmd := m.SetSize(msg.Width, msg.Height)
@@ -730,8 +730,8 @@ func (m *model) removeSpinner() {
 	}
 }
 
-// cancelPendingToolCalls removes any tool calls that are in pending or running state
-func (m *model) cancelPendingToolCalls() {
+// removePendingToolCallMessages removes any tool call messages that are in pending or running state
+func (m *model) removePendingToolCallMessages() {
 	var newMessages []types.Message
 	var newViews []layout.Model
 
