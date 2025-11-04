@@ -31,6 +31,10 @@ type FocusedPanel string
 const (
 	PanelChat   FocusedPanel = "chat"
 	PanelEditor FocusedPanel = "editor"
+
+	sidebarWidth = 40
+	// Hide sidebar if window width is less than this
+	minWindowWidth = 120
 )
 
 // Page represents the main chat page
@@ -45,7 +49,6 @@ type Page interface {
 // chatPage implements Page
 type chatPage struct {
 	width, height int
-	sessionTitle  string
 
 	// Components
 	sidebar  sidebar.Model
@@ -61,8 +64,7 @@ type chatPage struct {
 	// Key map
 	keyMap KeyMap
 
-	title string
-	app   *app.App
+	app *app.App
 
 	history *history.History
 
@@ -86,7 +88,7 @@ func defaultKeyMap() KeyMap {
 		),
 		Cancel: key.NewBinding(
 			key.WithKeys("esc"),
-			key.WithHelp("esc", "cancel stream"),
+			key.WithHelp("esc", "cancel"),
 		),
 	}
 }
@@ -99,7 +101,6 @@ func New(a *app.App) Page {
 	}
 
 	return &chatPage{
-		title:        a.Title(),
 		sidebar:      sidebar.New(),
 		messages:     messages.New(a),
 		editor:       editor.New(a, historyStore),
@@ -230,8 +231,6 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return p, tea.Batch(cmd, p.messages.ScrollToBottom())
 		}
 		return p, cmd
-	case *runtime.SessionTitleEvent:
-		p.sessionTitle = msg.Title
 	case *runtime.TokenUsageEvent:
 		p.sidebar.SetTokenUsage(msg.Usage)
 	case *runtime.StreamStoppedEvent:
@@ -319,34 +318,50 @@ func (p *chatPage) setWorking(working bool) tea.Cmd {
 
 // View renders the chat page
 func (p *chatPage) View() string {
-	// Header
-	headerText := p.title
-	header := styles.HeaderStyle.Render(headerText + " " + p.sessionTitle)
-
 	// Main chat content area (without input)
-	// Calculate chat width (85% of available width)
 	innerWidth := p.width // subtract app style padding
-	sidebarWidth := int(float64(innerWidth) * 0.15)
-	chatWidth := innerWidth - sidebarWidth
 
-	chatView := styles.ChatStyle.
-		Height(p.chatHeight).
-		Width(chatWidth).
-		Render(p.messages.View())
+	var bodyContent string
 
-	// Sidebar with explicit height constraint to prevent disappearing during scroll
-	sidebarView := lipgloss.NewStyle().
-		Width(sidebarWidth).
-		Height(p.chatHeight).
-		Align(lipgloss.Left, lipgloss.Top).
-		Render(p.sidebar.View())
+	if p.width >= minWindowWidth {
+		chatWidth := innerWidth - sidebarWidth
 
-	// Create horizontal layout with chat content and sidebar
-	bodyContent := lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		chatView,
-		sidebarView,
-	)
+		chatView := styles.ChatStyle.
+			Height(p.chatHeight).
+			Width(chatWidth).
+			Render(p.messages.View())
+
+		sidebarView := lipgloss.NewStyle().
+			Width(sidebarWidth).
+			Height(p.chatHeight).
+			Align(lipgloss.Left, lipgloss.Top).
+			Render(p.sidebar.View())
+
+		bodyContent = lipgloss.JoinHorizontal(
+			lipgloss.Left,
+			chatView,
+			sidebarView,
+		)
+	} else {
+		sidebarWidth, sidebarHeight := p.sidebar.GetSize()
+
+		chatView := styles.ChatStyle.
+			Height(p.chatHeight).
+			Width(innerWidth).
+			Render(p.messages.View())
+
+		sidebarView := lipgloss.NewStyle().
+			Width(sidebarWidth).
+			Height(sidebarHeight).
+			Align(lipgloss.Left, lipgloss.Top).
+			Render(p.sidebar.View())
+
+		bodyContent = lipgloss.JoinVertical(
+			lipgloss.Top,
+			sidebarView,
+			chatView,
+		)
+	}
 
 	// Input field spans full width below everything
 	input := p.editor.View()
@@ -354,7 +369,6 @@ func (p *chatPage) View() string {
 	// Create a full-height layout with header, body, and input
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
-		header,
 		bodyContent,
 		input,
 	)
@@ -364,7 +378,6 @@ func (p *chatPage) View() string {
 		Render(content)
 }
 
-// SetSize sets the dimensions of the chat page
 func (p *chatPage) SetSize(width, height int) tea.Cmd {
 	p.width = width
 	p.height = height
@@ -378,19 +391,27 @@ func (p *chatPage) SetSize(width, height int) tea.Cmd {
 	// Calculate available space, ensuring status bar remains visible
 	availableHeight := height - headerHeight
 	p.inputHeight = editorHeight + 2 // account for editor padding
-	p.chatHeight = availableHeight - p.inputHeight
 
 	// Account for horizontal padding in width
 	innerWidth := width - 2 // subtract left/right padding
 
-	// Calculate sidebar and main content widths (15% sidebar, 85% main)
-	sidebarWidth := int(float64(innerWidth) * 0.15)
-	mainWidth := innerWidth - sidebarWidth
+	var mainWidth int
+	const horizontalSidebarHeight = 3
+	if width >= minWindowWidth {
+		mainWidth = innerWidth - sidebarWidth
+		p.chatHeight = availableHeight - p.inputHeight
+		p.sidebar.SetMode(sidebar.ModeVertical)
+		cmds = append(cmds, p.sidebar.SetSize(sidebarWidth, p.chatHeight))
+	} else {
+		mainWidth = innerWidth
+		p.chatHeight = availableHeight - p.inputHeight - horizontalSidebarHeight
+		p.sidebar.SetMode(sidebar.ModeHorizontal)
+		cmds = append(cmds, p.sidebar.SetSize(width, horizontalSidebarHeight))
+	}
 
 	// Set component sizes
 	cmds = append(cmds,
 		p.messages.SetSize(mainWidth, p.chatHeight),
-		p.sidebar.SetSize(sidebarWidth, p.chatHeight),
 		p.editor.SetSize(innerWidth, editorHeight), // Use calculated editor height
 	)
 
@@ -409,12 +430,8 @@ func (p *chatPage) Bindings() []key.Binding {
 		p.keyMap.Cancel,
 	}
 
-	// Add focused component bindings
-	switch p.focusedPanel {
-	case PanelChat:
+	if p.focusedPanel == PanelChat {
 		bindings = append(bindings, p.messages.Bindings()...)
-	case PanelEditor:
-		bindings = append(bindings, p.editor.Bindings()...)
 	}
 
 	return bindings

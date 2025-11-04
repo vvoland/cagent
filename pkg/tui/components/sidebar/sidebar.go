@@ -16,6 +16,13 @@ import (
 	"github.com/docker/cagent/pkg/tui/styles"
 )
 
+type Mode int
+
+const (
+	ModeVertical Mode = iota
+	ModeHorizontal
+)
+
 // Model represents a sidebar component
 type Model interface {
 	layout.Model
@@ -24,26 +31,31 @@ type Model interface {
 	SetTokenUsage(usage *runtime.Usage)
 	SetTodos(toolCall tools.ToolCall) error
 	SetWorking(working bool) tea.Cmd
+	SetMode(mode Mode)
+	GetSize() (width, height int)
 }
 
 // model implements Model
 type model struct {
-	width    int
-	height   int
-	usage    *runtime.Usage
-	todoComp *todo.Component
-	working  bool
-	mcpInit  bool
-	spinner  spinner.Model
+	width        int
+	height       int
+	usage        *runtime.Usage
+	todoComp     *todo.Component
+	working      bool
+	mcpInit      bool
+	spinner      spinner.Model
+	mode         Mode
+	sessionTitle string
 }
 
 func New() Model {
 	return &model{
-		width:    20,
-		height:   24,
-		usage:    &runtime.Usage{},
-		todoComp: todo.NewComponent(),
-		spinner:  spinner.New(spinner.WithSpinner(spinner.Dot)),
+		width:        20,
+		height:       24,
+		usage:        &runtime.Usage{},
+		todoComp:     todo.NewComponent(),
+		spinner:      spinner.New(spinner.WithSpinner(spinner.Dot)),
+		sessionTitle: "New session",
 	}
 }
 
@@ -106,6 +118,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case *runtime.MCPInitFinishedEvent:
 		m.mcpInit = false
 		return m, nil
+	case *runtime.SessionTitleEvent:
+		m.sessionTitle = msg.Title
+		return m, nil
 	default:
 		if m.working || m.mcpInit {
 			var cmd tea.Cmd
@@ -118,34 +133,29 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View renders the component
 func (m *model) View() string {
-	// Calculate token usage metrics
-	totalTokens := m.usage.InputTokens + m.usage.OutputTokens
-	var usagePercent float64
-	if m.usage.ContextLimit > 0 {
-		usagePercent = (float64(m.usage.ContextLength) / float64(m.usage.ContextLimit)) * 100
+	if m.mode == ModeVertical {
+		return m.verticalView()
 	}
 
-	// Build top content (title + pwd + token usage)
-	topContent := ""
+	return m.horizontalView()
+}
+
+func (m *model) horizontalView() string {
+	pwd := getCurrentWorkingDirectory()
+	gapWidth := m.width - lipgloss.Width(pwd) - lipgloss.Width(m.tokenUsage()) - 2
+	title := m.sessionTitle + " " + m.workingIndicator()
+	return lipgloss.JoinVertical(lipgloss.Top, title, fmt.Sprintf("%s%*s%s", styles.MutedStyle.Render(pwd), gapWidth, "", m.tokenUsage()))
+}
+
+func (m *model) verticalView() string {
+	topContent := m.sessionTitle
 
 	if pwd := getCurrentWorkingDirectory(); pwd != "" {
 		topContent += styles.MutedStyle.Render(pwd) + "\n\n"
 	}
 
-	percentageText := styles.MutedStyle.Render(fmt.Sprintf("%.0f%%", usagePercent))
-	totalTokensText := styles.SubtleStyle.Render(fmt.Sprintf("(%s)", formatTokenCount(totalTokens)))
-	costText := styles.MutedStyle.Render(fmt.Sprintf("$%.2f", m.usage.Cost))
-
-	topContent += fmt.Sprintf("%s %s %s", percentageText, totalTokensText, costText)
-	// Add working/initializing indicator if active
-	if m.mcpInit || m.working {
-		label := "Working..."
-		if m.mcpInit {
-			label = "Initializing MCP servers..."
-		}
-		indicator := styles.ActiveStyle.Render(m.spinner.View() + " " + label)
-		topContent += "\n" + indicator
-	}
+	topContent += m.tokenUsage()
+	topContent += "\n" + m.workingIndicator()
 
 	m.todoComp.SetSize(m.width)
 	todoContent := strings.TrimSuffix(m.todoComp.Render(), "\n")
@@ -169,6 +179,33 @@ func (m *model) View() string {
 		Render(topContent)
 }
 
+func (m *model) workingIndicator() string {
+	if m.mcpInit || m.working {
+		label := "Working..."
+		if m.mcpInit {
+			label = "Initializing MCP servers..."
+		}
+		indicator := styles.ActiveStyle.Render(m.spinner.View() + label)
+		return indicator
+	}
+
+	return ""
+}
+
+func (m *model) tokenUsage() string {
+	totalTokens := m.usage.InputTokens + m.usage.OutputTokens
+	var usagePercent float64
+	if m.usage.ContextLimit > 0 {
+		usagePercent = (float64(m.usage.ContextLength) / float64(m.usage.ContextLimit)) * 100
+	}
+
+	percentageText := styles.MutedStyle.Render(fmt.Sprintf("%.0f%%", usagePercent))
+	totalTokensText := styles.SubtleStyle.Render(fmt.Sprintf("(%s)", formatTokenCount(totalTokens)))
+	costText := styles.MutedStyle.Render(fmt.Sprintf("$%.2f", m.usage.Cost))
+
+	return fmt.Sprintf("%s %s %s", percentageText, totalTokensText, costText)
+}
+
 // SetSize sets the dimensions of the component
 func (m *model) SetSize(width, height int) tea.Cmd {
 	m.width = width
@@ -180,4 +217,8 @@ func (m *model) SetSize(width, height int) tea.Cmd {
 // GetSize returns the current dimensions
 func (m *model) GetSize() (width, height int) {
 	return m.width, m.height
+}
+
+func (m *model) SetMode(mode Mode) {
+	m.mode = mode
 }
