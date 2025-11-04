@@ -1007,7 +1007,10 @@ func (s *Server) createSession(c echo.Context) error {
 	}
 
 	var opts []session.Opt
-	opts = append(opts, session.WithMaxIterations(sessionTemplate.MaxIterations))
+	opts = append(opts,
+		session.WithMaxIterations(sessionTemplate.MaxIterations),
+		session.WithToolsApproved(sessionTemplate.ToolsApproved),
+	)
 
 	if wd := strings.TrimSpace(sessionTemplate.WorkingDir); wd != "" {
 		absWd, err := filepath.Abs(wd)
@@ -1028,7 +1031,6 @@ func (s *Server) createSession(c echo.Context) error {
 	}
 
 	sess := session.New(opts...)
-	sess.ToolsApproved = sessionTemplate.ToolsApproved
 
 	if err := s.sessionStore.AddSession(c.Request().Context(), sess); err != nil {
 		slog.Error("Failed to persist session", "session_id", sess.ID, "error", err)

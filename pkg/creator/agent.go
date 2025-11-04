@@ -112,8 +112,10 @@ func CreateAgent(ctx context.Context, baseDir, prompt string, runConfig config.R
 		return "", "", fmt.Errorf("failed to create runtime: %w", err)
 	}
 
-	sess := session.New(session.WithUserMessage("", prompt))
-	sess.ToolsApproved = true
+	sess := session.New(
+		session.WithUserMessage("", prompt),
+		session.WithToolsApproved(true),
+	)
 
 	messages, err := rt.Run(ctx, sess)
 	if err != nil {
@@ -237,8 +239,8 @@ func StreamCreateAgent(ctx context.Context, baseDir, prompt string, runConfig co
 	sess := session.New(
 		session.WithUserMessage("", prompt),
 		session.WithMaxIterations(maxIterations),
+		session.WithToolsApproved(true),
 	)
-	sess.ToolsApproved = true
 
 	events := rt.RunStream(ctx, sess)
 	return events, rt, nil
