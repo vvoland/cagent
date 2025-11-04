@@ -97,6 +97,11 @@ func (a *Agent) Model() provider.Provider {
 	return a.models[rand.Intn(len(a.models))]
 }
 
+// Commands returns the named commands configured for this agent.
+func (a *Agent) Commands() map[string]string {
+	return a.commands
+}
+
 // Tools returns the tools available to this agent
 func (a *Agent) Tools(ctx context.Context) ([]tools.Tool, error) {
 	a.ensureToolSetsAreStarted(ctx)
@@ -129,11 +134,6 @@ func (a *Agent) ToolSets() []tools.ToolSet {
 	}
 
 	return toolSets
-}
-
-// Commands returns the named commands configured for this agent.
-func (a *Agent) Commands() map[string]string {
-	return a.commands
 }
 
 func (a *Agent) ensureToolSetsAreStarted(ctx context.Context) {
