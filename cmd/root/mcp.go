@@ -56,10 +56,6 @@ func (f *mcpFlags) runMCP(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if f.runConfig.RedirectURI == "" {
-		f.runConfig.RedirectURI = "http://localhost:8083/oauth-callback"
-	}
-
 	t, err := teamloader.Load(ctx, agentFilename, f.runConfig)
 	if err != nil {
 		return fmt.Errorf("failed to load agents: %w", err)
