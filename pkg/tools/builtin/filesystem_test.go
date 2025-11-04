@@ -836,3 +836,248 @@ func TestFilesystemTool_ParametersAreObjects(t *testing.T) {
 		assert.Equal(t, "object", m["type"])
 	}
 }
+
+func TestFilesystemTool_IgnoreVCS_Default(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create .git directory
+	gitDir := filepath.Join(tmpDir, ".git")
+	require.NoError(t, os.Mkdir(gitDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(gitDir, "config"), []byte("git config"), 0o644))
+
+	// Create regular file
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test content"), 0o644))
+
+	// Create tool with default VCS ignoring (true)
+	tool := NewFilesystemTool([]string{tmpDir}, WithIgnoreVCS(true))
+	handler := getToolHandler(t, tool, "search_files")
+
+	args := map[string]any{
+		"path":    tmpDir,
+		"pattern": "*",
+	}
+	result := callHandler(t, handler, args)
+
+	// Should find test.txt but not .git directory
+	assert.Contains(t, result.Output, "test.txt")
+	assert.NotContains(t, result.Output, ".git")
+}
+
+func TestFilesystemTool_IgnoreVCS_Disabled(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create .git directory
+	gitDir := filepath.Join(tmpDir, ".git")
+	require.NoError(t, os.Mkdir(gitDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(gitDir, "config"), []byte("git config"), 0o644))
+
+	// Create regular file
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test content"), 0o644))
+
+	// Create tool with VCS ignoring disabled
+	tool := NewFilesystemTool([]string{tmpDir}, WithIgnoreVCS(false))
+	handler := getToolHandler(t, tool, "search_files")
+
+	args := map[string]any{
+		"path":    tmpDir,
+		"pattern": "*",
+	}
+	result := callHandler(t, handler, args)
+
+	// Should find both test.txt and .git files
+	assert.Contains(t, result.Output, "test.txt")
+	assert.Contains(t, result.Output, ".git")
+}
+
+func TestFilesystemTool_GitignorePatterns(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create .gitignore
+	gitignoreContent := `*.log
+node_modules/
+build/
+temp_*
+!important.log
+`
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte(gitignoreContent), 0o644))
+
+	// Create test files
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "debug.log"), []byte("log"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "important.log"), []byte("important"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "temp_file.txt"), []byte("temp"), 0o644))
+
+	// Create directories
+	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, "node_modules"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "node_modules", "package.json"), []byte("{}"), 0o644))
+	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, "build"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "build", "output.js"), []byte("code"), 0o644))
+
+	// Create tool with VCS ignoring enabled
+	tool := NewFilesystemTool([]string{tmpDir}, WithIgnoreVCS(true))
+	handler := getToolHandler(t, tool, "search_files")
+
+	args := map[string]any{
+		"path":    tmpDir,
+		"pattern": "*",
+	}
+	result := callHandler(t, handler, args)
+
+	// Should respect gitignore patterns
+	assert.Contains(t, result.Output, "test.txt")
+	assert.Contains(t, result.Output, "important.log") // negated pattern
+	assert.NotContains(t, result.Output, "debug.log")  // ignored
+	assert.NotContains(t, result.Output, "temp_file")  // ignored
+	assert.NotContains(t, result.Output, "node_modules") // ignored directory
+	assert.NotContains(t, result.Output, "build")        // ignored directory
+}
+
+func TestFilesystemTool_SearchContent_WithGitignore(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create .gitignore
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte("*.log\n"), 0o644))
+
+	// Create files
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "source.txt"), []byte("findme"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "debug.log"), []byte("findme"), 0o644))
+
+	tool := NewFilesystemTool([]string{tmpDir}, WithIgnoreVCS(true))
+	handler := getToolHandler(t, tool, "search_files_content")
+
+	args := map[string]any{
+		"path":     tmpDir,
+		"query":    "findme",
+		"is_regex": false,
+	}
+	result := callHandler(t, handler, args)
+
+	// Should find in source.txt but not in debug.log
+	assert.Contains(t, result.Output, "source.txt")
+	assert.NotContains(t, result.Output, "debug.log")
+}
+
+func TestFilesystemTool_NestedGitignore(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create root .gitignore
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte("*.log\n"), 0o644))
+
+	// Create subdirectory with its own .gitignore
+	subDir := filepath.Join(tmpDir, "subdir")
+	require.NoError(t, os.Mkdir(subDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(subDir, ".gitignore"), []byte("*.tmp\n"), 0o644))
+
+	// Create files
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "root.txt"), []byte("test"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "root.log"), []byte("log"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(subDir, "sub.txt"), []byte("test"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(subDir, "sub.log"), []byte("log"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(subDir, "sub.tmp"), []byte("temp"), 0o644))
+
+	tool := NewFilesystemTool([]string{tmpDir}, WithIgnoreVCS(true))
+	handler := getToolHandler(t, tool, "search_files")
+
+	args := map[string]any{
+		"path":    tmpDir,
+		"pattern": "*",
+	}
+	result := callHandler(t, handler, args)
+
+	// Should respect both gitignore files
+	assert.Contains(t, result.Output, "root.txt")
+	assert.Contains(t, result.Output, "sub.txt")
+	assert.NotContains(t, result.Output, "root.log") // ignored by root .gitignore
+	assert.NotContains(t, result.Output, "sub.log")  // ignored by root .gitignore
+	assert.NotContains(t, result.Output, "sub.tmp")  // ignored by subdir .gitignore
+}
+
+func TestFilesystemTool_ListDirectory_IgnoresVCS(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create .git directory
+	gitDir := filepath.Join(tmpDir, ".git")
+	require.NoError(t, os.Mkdir(gitDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(gitDir, "config"), []byte("git config"), 0o644))
+
+	// Create regular files
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte("test"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte("test"), 0o644))
+
+	// Create tool with VCS ignoring enabled
+	tool := NewFilesystemTool([]string{tmpDir}, WithIgnoreVCS(true))
+	handler := getToolHandler(t, tool, "list_directory")
+
+	args := map[string]any{
+		"path": tmpDir,
+	}
+	result := callHandler(t, handler, args)
+
+	// Should list regular files but not .git
+	assert.Contains(t, result.Output, "file1.txt")
+	assert.Contains(t, result.Output, "file2.txt")
+	assert.NotContains(t, result.Output, ".git")
+}
+
+func TestFilesystemTool_ListDirectoryWithSizes_IgnoresVCS(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create .git directory
+	gitDir := filepath.Join(tmpDir, ".git")
+	require.NoError(t, os.Mkdir(gitDir, 0o755))
+
+	// Create regular file
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "readme.md"), []byte("content"), 0o644))
+
+	// Create tool with VCS ignoring enabled
+	tool := NewFilesystemTool([]string{tmpDir}, WithIgnoreVCS(true))
+	handler := getToolHandler(t, tool, "list_directory_with_sizes")
+
+	args := map[string]any{
+		"path": tmpDir,
+	}
+	result := callHandler(t, handler, args)
+
+	// Should list regular files with sizes but not .git
+	assert.Contains(t, result.Output, "readme.md")
+	assert.Contains(t, result.Output, "bytes")
+	assert.NotContains(t, result.Output, ".git")
+}
+
+func TestFilesystemTool_DirectoryTree_IgnoresVCS(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create .git directory
+	gitDir := filepath.Join(tmpDir, ".git")
+	require.NoError(t, os.Mkdir(gitDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(gitDir, "HEAD"), []byte("ref: refs/heads/main"), 0o644))
+
+	// Create regular directory structure
+	srcDir := filepath.Join(tmpDir, "src")
+	require.NoError(t, os.Mkdir(srcDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "main.go"), []byte("package main"), 0o644))
+
+	// Create tool with VCS ignoring enabled
+	tool := NewFilesystemTool([]string{tmpDir}, WithIgnoreVCS(true))
+	handler := getToolHandler(t, tool, "directory_tree")
+
+	args := map[string]any{
+		"path": tmpDir,
+	}
+	result := callHandler(t, handler, args)
+
+	// Parse JSON result
+	var tree map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result.Output), &tree))
+
+	// Should include src but not .git
+	children := tree["children"].([]any)
+	var childNames []string
+	for _, child := range children {
+		childMap := child.(map[string]any)
+		childNames = append(childNames, childMap["name"].(string))
+	}
+
+	assert.Contains(t, childNames, "src")
+	assert.NotContains(t, childNames, ".git")
+}
