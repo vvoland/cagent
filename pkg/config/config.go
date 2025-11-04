@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/goccy/go-yaml"
@@ -27,8 +26,6 @@ func LoadConfigSecureDeprecated(path, allowedDir string) (*latest.Config, error)
 }
 
 func LoadConfig(path string, fs filesystem.FS) (*latest.Config, error) {
-	dir := filepath.Dir(path)
-
 	data, err := fs.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading config file: %w", err)
@@ -37,11 +34,11 @@ func LoadConfig(path string, fs filesystem.FS) (*latest.Config, error) {
 	var raw struct {
 		Version any `yaml:"version"`
 	}
-	if err := yaml.UnmarshalWithOptions(data, &raw, yaml.ReferenceDirs(dir)); err != nil {
+	if err := yaml.UnmarshalWithOptions(data, &raw); err != nil {
 		return nil, fmt.Errorf("looking for version in config file %s\n%s", path, yaml.FormatError(err, true, true))
 	}
 
-	oldConfig, err := parseCurrentVersion(dir, data, raw.Version)
+	oldConfig, err := parseCurrentVersion(data, raw.Version)
 	if err != nil {
 		return nil, fmt.Errorf("parsing config file %s\n%s", path, yaml.FormatError(err, true, true))
 	}
@@ -78,8 +75,8 @@ func CheckRequiredEnvVars(ctx context.Context, cfg *latest.Config, env environme
 	return nil
 }
 
-func parseCurrentVersion(dir string, data []byte, version any) (any, error) {
-	options := []yaml.DecodeOption{yaml.Strict(), yaml.ReferenceDirs(dir)}
+func parseCurrentVersion(data []byte, version any) (any, error) {
+	options := []yaml.DecodeOption{yaml.Strict()}
 
 	switch version {
 	case nil, "0", 0:
