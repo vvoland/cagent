@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	gitignore "github.com/denormal/go-gitignore"
+	"github.com/denormal/go-gitignore"
 	"github.com/docker/cagent/pkg/fsx"
 	"github.com/docker/cagent/pkg/tools"
 )
@@ -461,22 +461,23 @@ func (t *FilesystemTool) shouldIgnorePath(path string) bool {
 
 	// Find the appropriate gitignore matcher for this path
 	for allowedDir, matcher := range t.gitignoreMatchers {
-		if strings.HasPrefix(absPath, allowedDir) {
-			// Create a relative path from the repository root for matching
-			relPath, err := filepath.Rel(allowedDir, absPath)
-			if err != nil {
-				return false
-			}
+		if !strings.HasPrefix(absPath, allowedDir) {
+			continue
+		}
+		// Create a relative path from the repository root for matching
+		relPath, err := filepath.Rel(allowedDir, absPath)
+		if err != nil {
+			return false
+		}
 
-			// Check if the path is a directory
-			info, err := os.Stat(path)
-			isDir := err == nil && info.IsDir()
+		// Check if the path is a directory
+		info, err := os.Stat(path)
+		isDir := err == nil && info.IsDir()
 
-			// Check if path matches gitignore patterns
-			match := matcher.Relative(relPath, isDir)
-			if match != nil && match.Ignore() {
-				return true
-			}
+		// Check if path matches gitignore patterns
+		match := matcher.Relative(relPath, isDir)
+		if match != nil && match.Ignore() {
+			return true
 		}
 	}
 
