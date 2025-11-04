@@ -3,7 +3,6 @@ package root
 import (
 	"fmt"
 	"log/slog"
-	"net"
 	"os"
 	"path/filepath"
 	"time"
@@ -82,11 +81,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 		_ = ln.Close()
 	}()
 
-	if _, ok := ln.(*net.TCPListener); ok {
-		slog.Info("Listening on http://localhost" + f.listenAddr)
-	} else {
-		slog.Info("Listening on " + f.listenAddr)
-	}
+	slog.Info("Listening on " + ln.Addr().String())
 
 	slog.Debug("Starting server", "agents", resolvedPath)
 
