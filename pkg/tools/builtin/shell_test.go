@@ -55,6 +55,10 @@ func TestShellTool_Tools(t *testing.T) {
 		"cwd": {
 			"description": "The working directory to execute the command in",
 			"type": "string"
+		},
+		"timeout": {
+			"description": "Command execution timeout in seconds (default: 30)",
+			"type": "integer"
 		}
 	},
 	"additionalProperties": false,
