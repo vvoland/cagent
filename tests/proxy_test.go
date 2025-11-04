@@ -103,6 +103,13 @@ func handle(transport http.RoundTripper) echo.HandlerFunc {
 				req.Header.Del("Authorization")
 				req.Header.Set("X-Goog-Api-Key", os.Getenv("GOOGLE_API_KEY"))
 			}
+		case "https://api.mistral.ai/v1":
+			toTargetURL = func(req *http.Request) string {
+				return "https://api.mistral.ai" + req.URL.Redacted()
+			}
+			updateHeaders = func(req *http.Request) {
+				req.Header.Set("Authorization", "Bearer "+os.Getenv("MISTRAL_API_KEY"))
+			}
 		default:
 			return echo.NewHTTPError(http.StatusBadRequest, "unknown service host "+host)
 		}
@@ -124,7 +131,7 @@ func handle(transport http.RoundTripper) echo.HandlerFunc {
 
 		resp, err := client.Do(req)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to runrequest")
+			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to run request"+err.Error())
 		}
 		defer resp.Body.Close()
 
