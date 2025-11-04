@@ -311,7 +311,6 @@ agents:
 - `GOOGLE_API_KEY` - Google/Gemini authentication
 - `TELEMETRY_ENABLED` - Control telemetry (set to false to disable)
 - `CAGENT_HIDE_TELEMETRY_BANNER` - Hide telemetry banner message
-- `CAGENT_HIDE_FEEDBACK_LINK` - Hide feedback link
 
 ## Debugging and Troubleshooting
 
