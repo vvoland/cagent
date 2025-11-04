@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/v2/help"
 	"github.com/charmbracelet/bubbles/v2/key"
 	tea "github.com/charmbracelet/bubbletea/v2"
@@ -40,7 +39,6 @@ type Page interface {
 	layout.Sizeable
 	layout.Help
 	CompactSession() tea.Cmd
-	CopySessionToClipboard() tea.Cmd
 	Cleanup()
 }
 
@@ -485,20 +483,6 @@ func (p *chatPage) processMessage(content string) tea.Cmd {
 	p.app.Run(ctx, p.msgCancel, content)
 
 	return p.messages.ScrollToBottom()
-}
-
-func (p *chatPage) CopySessionToClipboard() tea.Cmd {
-	transcript := p.messages.PlainTextTranscript()
-	if transcript == "" {
-		cmd := core.CmdHandler(notification.ShowMsg{Text: "Conversation is empty; nothing copied."})
-		return cmd
-	}
-
-	if err := clipboard.WriteAll(transcript); err != nil {
-		return core.CmdHandler(notification.ShowMsg{Text: "Failed to copy conversation: " + err.Error(), Type: notification.TypeError})
-	}
-
-	return core.CmdHandler(notification.ShowMsg{Text: "Conversation copied to clipboard."})
 }
 
 // CompactSession generates a summary and compacts the session history

@@ -1,7 +1,6 @@
 package messages
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -51,10 +50,9 @@ type Model interface {
 	AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, toolDef tools.Tool, status types.ToolStatus) tea.Cmd
 	AddToolResult(msg *runtime.ToolCallResponseEvent, status types.ToolStatus) tea.Cmd
 	AppendToLastMessage(agentName string, messageType types.MessageType, content string) tea.Cmd
-	ScrollToBottom() tea.Cmd
 	AddShellOutputMessage(content string) tea.Cmd
-	AddWarningMessage(content string) tea.Cmd
-	PlainTextTranscript() string
+
+	ScrollToBottom() tea.Cmd
 	IsAtBottom() bool
 }
 
@@ -145,7 +143,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case StreamCancelledMsg:
 		// Handle stream cancellation internally
 		m.removeSpinner()
-		m.cancelPendingToolCalls()
+		m.removePendingToolCallMessages()
 		return m, nil
 	case tea.WindowSizeMsg:
 		cmd := m.SetSize(msg.Width, msg.Height)
@@ -513,14 +511,6 @@ func (m *model) AddShellOutputMessage(content string) tea.Cmd {
 	})
 }
 
-func (m *model) AddWarningMessage(content string) tea.Cmd {
-	// Create a new warning message
-	return m.addMessage(&types.Message{
-		Type:    types.MessageTypeWarning,
-		Content: content,
-	})
-}
-
 // AddAssistantMessage adds an assistant message to the chat
 func (m *model) AddAssistantMessage() tea.Cmd {
 	return m.addMessage(&types.Message{
@@ -678,37 +668,6 @@ func (m *model) ScrollToBottom() tea.Cmd {
 	}
 }
 
-// PlainTextTranscript returns the conversation as plain text suitable for copying
-func (m *model) PlainTextTranscript() string {
-	var builder strings.Builder
-
-	for i := range m.messages {
-		msg := m.messages[i]
-		switch msg.Type {
-		case types.MessageTypeUser:
-			writeTranscriptSection(&builder, "User", msg.Content)
-		case types.MessageTypeAssistant:
-			label := assistantLabel(msg.Sender)
-			writeTranscriptSection(&builder, label, msg.Content)
-		case types.MessageTypeAssistantReasoning:
-			label := assistantLabel(msg.Sender) + " (thinking)"
-			writeTranscriptSection(&builder, label, msg.Content)
-		case types.MessageTypeShellOutput:
-			writeTranscriptSection(&builder, "Shell Output", msg.Content)
-		case types.MessageTypeError:
-			writeTranscriptSection(&builder, "Error", msg.Content)
-		case types.MessageTypeToolCall:
-			callLabel := toolCallLabel(msg)
-			writeTranscriptSection(&builder, callLabel, formatToolCallContent(msg))
-		case types.MessageTypeToolResult:
-			resultLabel := toolResultLabel(msg)
-			writeTranscriptSection(&builder, resultLabel, msg.Content)
-		}
-	}
-
-	return strings.TrimSpace(builder.String())
-}
-
 func (m *model) createToolCallView(msg *types.Message) layout.Model {
 	view := tool.New(msg, m.app, markdown.NewRenderer(m.width))
 	view.SetSize(m.width, 0)
@@ -738,8 +697,8 @@ func (m *model) removeSpinner() {
 	}
 }
 
-// cancelPendingToolCalls removes any tool calls that are in pending or running state
-func (m *model) cancelPendingToolCalls() {
+// removePendingToolCallMessages removes any tool call messages that are in pending or running state
+func (m *model) removePendingToolCallMessages() {
 	var newMessages []types.Message
 	var newViews []layout.Model
 
@@ -762,57 +721,6 @@ func (m *model) cancelPendingToolCalls() {
 		// Invalidate all items since we've removed messages
 		m.invalidateAllItems()
 	}
-}
-
-func assistantLabel(sender string) string {
-	trimmed := strings.TrimSpace(sender)
-	if trimmed == "" || trimmed == "root" {
-		return "Assistant"
-	}
-	return trimmed
-}
-
-func writeTranscriptSection(builder *strings.Builder, title, content string) {
-	text := strings.TrimSpace(content)
-	if text == "" {
-		return
-	}
-	if builder.Len() > 0 {
-		builder.WriteString("\n\n")
-	}
-	builder.WriteString(title)
-	builder.WriteString(":\n")
-	builder.WriteString(text)
-}
-
-func toolCallLabel(msg types.Message) string {
-	name := strings.TrimSpace(msg.ToolCall.Function.Name)
-	if name == "" {
-		return "Tool Call"
-	}
-	return fmt.Sprintf("Tool Call (%s)", name)
-}
-
-func formatToolCallContent(msg types.Message) string {
-	sender := assistantLabel(msg.Sender)
-	name := strings.TrimSpace(msg.ToolCall.Function.Name)
-	if name == "" {
-		name = "tool"
-	}
-	var parts []string
-	parts = append(parts, fmt.Sprintf("%s invoked %s", sender, name))
-	if args := strings.TrimSpace(msg.ToolCall.Function.Arguments); args != "" {
-		parts = append(parts, "Arguments:", args)
-	}
-	return strings.Join(parts, "\n")
-}
-
-func toolResultLabel(msg types.Message) string {
-	name := strings.TrimSpace(msg.ToolCall.Function.Name)
-	if name == "" {
-		return "Tool Result"
-	}
-	return fmt.Sprintf("Tool Result (%s)", name)
 }
 
 // mouseToLineCol converts mouse position to line/column in rendered content
@@ -1012,12 +920,7 @@ func (m *model) autoScroll() tea.Cmd {
 
 	// Use stored screen Y coordinate to check if mouse is in autoscroll region
 	// mouseToLineCol subtracts 2 for header, so viewport-relative Y is mouseY - 2
-	viewportY := m.selection.mouseY - 2
-
-	// Ensure viewportY is valid (can't be negative or beyond viewport)
-	if viewportY < 0 {
-		viewportY = 0
-	}
+	viewportY := max(m.selection.mouseY-2, 0)
 
 	if viewportY < scrollThreshold && m.scrollOffset > 0 {
 		// Scroll up - mouse is near top of viewport
