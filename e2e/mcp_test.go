@@ -10,7 +10,7 @@ import (
 	"github.com/docker/cagent/pkg/teamloader"
 )
 
-func TestMCPSingleAgent(t *testing.T) {
+func TestMCP_SingleAgent(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
@@ -31,7 +31,7 @@ func TestMCPSingleAgent(t *testing.T) {
 	assert.Equal(t, "2+2 equals 4.", output.Response)
 }
 
-func TestMCPMultiAgent(t *testing.T) {
+func TestMCP_MultiAgent(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
@@ -49,5 +49,5 @@ func TestMCPMultiAgent(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	assert.Equal(t, "Hello!", output.Response)
+	assert.Equal(t, "Hello, nice to meet you.", output.Response)
 }
