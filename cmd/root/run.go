@@ -283,7 +283,7 @@ func handleTUIMode(ctx context.Context, agentFilename string, rt runtime.Runtime
 		return err
 	}
 
-	a := app.New("cagent", agentFilename, rt, t, sess, firstMessage)
+	a := app.New(agentFilename, rt, t, sess, firstMessage)
 	m := tui.New(a)
 
 	progOpts := []tea.ProgramOption{

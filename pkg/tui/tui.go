@@ -316,21 +316,6 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
 
 // View renders the complete application interface
 func (a *appModel) View() tea.View {
-	// Handle minimum window size
-	if a.wWidth < 25 || a.wHeight < 15 {
-		return toFullscreenView(styles.CenterStyle.
-			Width(a.wWidth).
-			Height(a.wHeight).
-			Render(
-				styles.BorderStyle.
-					Padding(1, 1).
-					Foreground(lipgloss.Color("#ffffff")).
-					BorderForeground(lipgloss.Color("#ff5f87")).
-					Render("Window too small!"),
-			),
-		)
-	}
-
 	// Show error if present
 	if a.err != nil {
 		return toFullscreenView(styles.ErrorStyle.Render(a.err.Error()))

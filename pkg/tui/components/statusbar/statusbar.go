@@ -50,7 +50,7 @@ func (s *StatusBar) formatHelpString(bindings []key.Binding) string {
 
 // View renders the status bar
 func (s *StatusBar) View() string {
-	versionText := styles.MutedStyle.Render(version.Version)
+	versionText := styles.MutedStyle.Render("cagent " + version.Version)
 
 	var helpText string
 	if s.help != nil {
