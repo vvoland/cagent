@@ -241,6 +241,12 @@ func WithToolsApproved(toolsApproved bool) Opt {
 	}
 }
 
+func WithSendUserMessage(sendUserMessage bool) Opt {
+	return func(s *Session) {
+		s.SendUserMessage = sendUserMessage
+	}
+}
+
 // New creates a new agent session
 func New(opts ...Opt) *Session {
 	sessionID := uuid.New().String()

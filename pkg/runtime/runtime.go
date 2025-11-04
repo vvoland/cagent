@@ -966,8 +966,8 @@ func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Ses
 		session.WithMaxIterations(child.MaxIterations()),
 		session.WithTitle("Transferred task"),
 		session.WithToolsApproved(sess.ToolsApproved),
+		session.WithSendUserMessage(false),
 	)
-	s.SendUserMessage = false
 
 	for event := range r.RunStream(ctx, s) {
 		evts <- event
