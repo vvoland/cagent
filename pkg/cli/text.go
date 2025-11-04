@@ -164,7 +164,7 @@ func (p *Printer) PromptOAuthAuthorization(ctx context.Context, serverURL string
 
 	response, err := input.ReadLine(ctx, os.Stdin)
 	if err != nil {
-		p.Printf("\n%s\n", "Failed to read input, aborting authorization...")
+		p.Println("\nFailed to read input, aborting authorization...")
 		return ConfirmationAbort
 	}
 
