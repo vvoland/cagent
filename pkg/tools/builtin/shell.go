@@ -92,6 +92,7 @@ func (h *shellHandler) RunShell(ctx context.Context, toolCall tools.ToolCall) (*
 		if cmd.Process != nil {
 			_ = kill(cmd.Process, pg)
 		}
+		output := outBuf.String()
 		// Check if parent context was cancelled or if it was a timeout
 		if ctx.Err() != nil {
 			// Parent context was cancelled
@@ -101,7 +102,7 @@ func (h *shellHandler) RunShell(ctx context.Context, toolCall tools.ToolCall) (*
 		}
 		// Timeout occurred
 		return &tools.ToolCallResult{
-			Output: fmt.Sprintf("Command timed out after %v", effectiveTimeout),
+			Output: fmt.Sprintf("Command timed out after %v\nOutput: %s", effectiveTimeout, output),
 		}, nil
 	case err := <-done:
 		output := outBuf.String()
