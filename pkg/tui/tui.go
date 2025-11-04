@@ -69,10 +69,6 @@ type KeyMap struct {
 // DefaultKeyMap returns the default global key bindings
 func DefaultKeyMap() KeyMap {
 	return KeyMap{
-		Quit: key.NewBinding(
-			key.WithKeys("ctrl+c"),
-			key.WithHelp("ctrl+c", "quit"),
-		),
 		CommandPalette: key.NewBinding(
 			key.WithKeys("ctrl+p"),
 			key.WithHelp("ctrl+p", "command palette"),

@@ -3,8 +3,6 @@ package editor
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/v2/help"
-	"github.com/charmbracelet/bubbles/v2/key"
 	"github.com/charmbracelet/bubbles/v2/textarea"
 	tea "github.com/charmbracelet/bubbletea/v2"
 
@@ -27,7 +25,6 @@ type Editor interface {
 	layout.Model
 	layout.Sizeable
 	layout.Focusable
-	layout.Help
 	SetWorking(working bool) tea.Cmd
 }
 
@@ -201,21 +198,6 @@ func (e *editor) Focus() tea.Cmd {
 func (e *editor) Blur() tea.Cmd {
 	e.textarea.Blur()
 	return nil
-}
-
-// Bindings returns key bindings for the component
-func (e *editor) Bindings() []key.Binding {
-	return []key.Binding{
-		key.NewBinding(
-			key.WithKeys("enter"),
-			key.WithHelp("enter", "send"),
-		),
-	}
-}
-
-// Help returns the help information
-func (e *editor) Help() help.KeyMap {
-	return core.NewSimpleHelp(e.Bindings())
 }
 
 func (e *editor) SetWorking(working bool) tea.Cmd {

@@ -88,7 +88,7 @@ func defaultKeyMap() KeyMap {
 		),
 		Cancel: key.NewBinding(
 			key.WithKeys("esc"),
-			key.WithHelp("esc", "cancel stream"),
+			key.WithHelp("esc", "cancel"),
 		),
 	}
 }
@@ -430,12 +430,8 @@ func (p *chatPage) Bindings() []key.Binding {
 		p.keyMap.Cancel,
 	}
 
-	// Add focused component bindings
-	switch p.focusedPanel {
-	case PanelChat:
+	if p.focusedPanel == PanelChat {
 		bindings = append(bindings, p.messages.Bindings()...)
-	case PanelEditor:
-		bindings = append(bindings, p.editor.Bindings()...)
 	}
 
 	return bindings
