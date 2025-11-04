@@ -107,7 +107,7 @@ func (f *mcpFlags) runMCP(cmd *cobra.Command, args []string) error {
 			},
 		}
 
-		mcp.AddTool(server, toolDef, createToolHandler(t, agentName, agentFilename))
+		mcp.AddTool(server, toolDef, CreateToolHandler(t, agentName, agentFilename))
 	}
 
 	slog.Debug("MCP server starting with stdio transport")
@@ -127,7 +127,7 @@ type ToolOutput struct {
 	Response string `json:"response" jsonschema:"the response from the agent"`
 }
 
-func createToolHandler(t *team.Team, agentName, agentFilename string) func(context.Context, *mcp.CallToolRequest, ToolInput) (*mcp.CallToolResult, ToolOutput, error) {
+func CreateToolHandler(t *team.Team, agentName, agentFilename string) func(context.Context, *mcp.CallToolRequest, ToolInput) (*mcp.CallToolResult, ToolOutput, error) {
 	return func(ctx context.Context, req *mcp.CallToolRequest, input ToolInput) (*mcp.CallToolResult, ToolOutput, error) {
 		slog.Debug("MCP tool called", "agent", agentName, "message", input.Message)
 

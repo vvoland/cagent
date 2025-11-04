@@ -1,13 +1,12 @@
-package tests
+package e2e_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/teamloader"
@@ -17,14 +16,9 @@ func TestRuntime_BasicMistral(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	svr := startRecordingAIProxy(t)
+	_, runtimeConfig := startRecordingAIProxy(t)
 
-	team, err := teamloader.Load(ctx, "testdata/basic.yaml", config.RuntimeConfig{
-		ModelsGateway: svr.URL,
-		DefaultEnvProvider: &testEnvProvider{
-			environment.DockerDesktopTokenEnv: "DUMMY",
-		},
-	}, teamloader.WithModelOverrides([]string{"mistral/mistral-small"}))
+	team, err := teamloader.Load(ctx, "testdata/basic.yaml", runtimeConfig, teamloader.WithModelOverrides([]string{"mistral/mistral-small"}))
 	require.NoError(t, err)
 
 	rt, err := runtime.New(team)
@@ -37,4 +31,10 @@ func TestRuntime_BasicMistral(t *testing.T) {
 	response := sess.GetLastAssistantMessageContent()
 	assert.Equal(t, `It seems like "djordje" is a name, most likely of Slavic origin. It is commonly spelled as "Đorđe" in Serbian language, and it means "farmer" or "earthworker". It is a masculine given name, and it is quite popular in Serbia, Montenegro, and other countries in the region. Without more context, it's hard to say exactly who "djordje" is, as it could refer to any person by that name.`, response)
 	assert.Equal(t, `"Inquiry About the Identity of 'Djordje'"`, sess.Title)
+}
+
+type testEnvProvider map[string]string
+
+func (p *testEnvProvider) Get(_ context.Context, name string) string {
+	return (*p)[name]
 }

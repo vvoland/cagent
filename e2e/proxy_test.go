@@ -1,8 +1,7 @@
-package tests
+package e2e_test
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"log/slog"
 	"maps"
@@ -17,13 +16,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/dnaeon/go-vcr.v4/pkg/cassette"
 	"gopkg.in/dnaeon/go-vcr.v4/pkg/recorder"
+
+	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/environment"
 )
-
-type testEnvProvider map[string]string
-
-func (p *testEnvProvider) Get(_ context.Context, name string) string {
-	return (*p)[name]
-}
 
 func removeHeadersHook(i *cassette.Interaction) error {
 	i.Request.Headers = map[string][]string{}
@@ -48,7 +44,7 @@ func customMatcher(t *testing.T) recorder.MatcherFunc {
 	}
 }
 
-func startRecordingAIProxy(t *testing.T) *httptest.Server {
+func startRecordingAIProxy(t *testing.T) (*httptest.Server, config.RuntimeConfig) {
 	t.Helper()
 
 	transport, err := recorder.New(filepath.Join("testdata", "cassettes", t.Name()),
@@ -67,7 +63,12 @@ func startRecordingAIProxy(t *testing.T) *httptest.Server {
 	httpServer := httptest.NewServer(e)
 	t.Cleanup(httpServer.Close)
 
-	return httpServer
+	return httpServer, config.RuntimeConfig{
+		ModelsGateway: httpServer.URL,
+		DefaultEnvProvider: &testEnvProvider{
+			environment.DockerDesktopTokenEnv: "DUMMY",
+		},
+	}
 }
 
 func handle(transport http.RoundTripper) echo.HandlerFunc {

@@ -1,4 +1,4 @@
-package tests
+package e2e_test
 
 import (
 	"testing"
@@ -6,8 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/teamloader"
@@ -17,14 +15,9 @@ func TestRuntime_BasicOpenAI(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	svr := startRecordingAIProxy(t)
+	_, runtimeConfig := startRecordingAIProxy(t)
 
-	team, err := teamloader.Load(ctx, "testdata/basic.yaml", config.RuntimeConfig{
-		ModelsGateway: svr.URL,
-		DefaultEnvProvider: &testEnvProvider{
-			environment.DockerDesktopTokenEnv: "DUMMY",
-		},
-	})
+	team, err := teamloader.Load(ctx, "testdata/basic.yaml", runtimeConfig)
 	require.NoError(t, err)
 
 	rt, err := runtime.New(team)
