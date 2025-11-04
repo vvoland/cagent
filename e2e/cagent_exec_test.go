@@ -42,6 +42,12 @@ Serbian equivalent of the name George.`,
 		out)
 }
 
+func TestExec_ToolCallsNeedAcceptance(t *testing.T) {
+	out := cagentExec(t, "testdata/file_writer.yaml", "Create a hello.txt file with \"Hello, World!\" content. Try only once. On error, exit without further message.")
+
+	require.Contains(t, out, `Can I run this tool? ([y]es/[a]ll/[n]o)`)
+}
+
 func cagentExec(t *testing.T, moreArgs ...string) string {
 	t.Helper()
 
