@@ -108,6 +108,34 @@ agents:
 See [the USAGE docs](./docs/USAGE.md#tool-configuration) for more detailed
 information and examples
 
+### Exposing agents as MCP tools
+
+`cagent` can expose agents as MCP tools via the `cagent mcp` command, allowing other MCP clients to use your agents.
+
+Each agent in your configuration becomes an MCP tool with its description.
+
+```bash
+# Start MCP server with local file
+cagent mcp ./examples/dev-team.yaml
+
+# Or use an OCI artifact
+cagent mcp agentcatalog/pirate
+```
+
+This exposes each agent as a tool (e.g., `root`, `designer`, `awesome_engineer`) that MCP clients can call:
+
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "designer",
+    "arguments": {
+      "message": "Design a login page"
+    }
+  }
+}
+```
+
 ### 🎯 Key Features
 
 - **🏗️ Multi-agent architecture** - Create specialized agents for different

@@ -1,4 +1,4 @@
-package tests
+package e2e_test
 
 import (
 	"bytes"
@@ -55,7 +55,7 @@ func cagentExec(t *testing.T, moreArgs ...string) string {
 	args = append(args, "--env-from-file", dotEnv)
 
 	// Start a recording AI proxy to record and replay traffic.
-	svr := startRecordingAIProxy(t)
+	svr, _ := startRecordingAIProxy(t)
 	args = append(args, "--models-gateway", svr.URL)
 
 	// Run cagent exec
