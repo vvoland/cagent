@@ -135,6 +135,9 @@ type Toolset struct {
 
 	APIConfig APIToolConfig `json:"api_config"`
 
+	// For the `filesystem` tool - VCS integration
+	IgnoreVCS *bool `json:"ignore_vcs,omitempty"`
+
 	// For the `fetch` tool
 	Timeout int `json:"timeout,omitempty"`
 }

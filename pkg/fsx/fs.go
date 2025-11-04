@@ -11,7 +11,7 @@ type TreeNode struct {
 	Children []*TreeNode `json:"children,omitempty"`
 }
 
-func DirectoryTree(path string, isPathAllowed func(string) error, maxDepth, currentDepth int) (*TreeNode, error) {
+func DirectoryTree(path string, isPathAllowed func(string) error, shouldIgnore func(string) bool, maxDepth, currentDepth int) (*TreeNode, error) {
 	if maxDepth > 0 && currentDepth >= maxDepth {
 		return nil, nil
 	}
@@ -41,7 +41,12 @@ func DirectoryTree(path string, isPathAllowed func(string) error, maxDepth, curr
 				continue // Skip disallowed paths
 			}
 
-			childNode, err := DirectoryTree(childPath, isPathAllowed, maxDepth, currentDepth+1)
+			// Skip if should be ignored (VCS, gitignore, etc.)
+			if shouldIgnore != nil && shouldIgnore(childPath) {
+				continue
+			}
+
+			childNode, err := DirectoryTree(childPath, isPathAllowed, shouldIgnore, maxDepth, currentDepth+1)
 			if err != nil || childNode == nil {
 				continue
 			}
@@ -55,7 +60,7 @@ func DirectoryTree(path string, isPathAllowed func(string) error, maxDepth, curr
 func ListDirectory(path string, maxDept int) ([]string, error) {
 	var files []string
 
-	tree, err := DirectoryTree(path, func(string) error { return nil }, maxDept, 0)
+	tree, err := DirectoryTree(path, func(string) error { return nil }, nil, maxDept, 0)
 	if err != nil {
 		return nil, err
 	}

@@ -59,11 +59,13 @@ require (
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/charmbracelet/x/termios v0.1.1 // indirect
 	github.com/charmbracelet/x/windows v0.2.2 // indirect
-	github.com/clipperhouse/displaywidth v0.4.1 // indirect
-	github.com/clipperhouse/stringish v0.1.1 // indirect
-	github.com/clipperhouse/uax29/v2 v2.3.0 // indirect
-	github.com/containerd/stargz-snapshotter/estargz v0.16.3 // indirect
+    github.com/clipperhouse/displaywidth v0.4.1 // indirect
+    github.com/clipperhouse/stringish v0.1.1 // indirect
+    github.com/clipperhouse/uax29/v2 v2.3.0 // indirect
+    github.com/containerd/stargz-snapshotter/estargz v0.17.0 // indirect
+    github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/denormal/go-gitignore v0.0.0-20180930084346-ae8ad1d07817 // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/docker/cli v28.2.2+incompatible // indirect
 	github.com/docker/distribution v2.8.3+incompatible // indirect
