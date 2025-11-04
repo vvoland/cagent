@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tui/types"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPlainTextTranscript(t *testing.T) {
@@ -49,7 +50,5 @@ Result
 
 Error:
 Oops`
-	if got := m.PlainTextTranscript(); got != expected {
-		t.Fatalf("unexpected transcript:\nexpected:\n%q\n\ngot:\n%q", expected, got)
-	}
+	assert.Equal(t, expected, m.PlainTextTranscript())
 }
