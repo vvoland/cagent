@@ -2,6 +2,7 @@ package e2e_test
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"log/slog"
 	"maps"
@@ -189,4 +190,10 @@ func isStreamResponse(resp *http.Response) bool {
 	return strings.Contains(ct, "application/octet-stream") ||
 		strings.Contains(ct, "application/x-ndjson") ||
 		strings.Contains(ct, "application/stream+json")
+}
+
+type testEnvProvider map[string]string
+
+func (p *testEnvProvider) Get(_ context.Context, name string) string {
+	return (*p)[name]
 }

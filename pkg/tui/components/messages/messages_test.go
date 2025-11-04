@@ -3,6 +3,8 @@ package messages
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tui/types"
 )
@@ -49,7 +51,5 @@ Result
 
 Error:
 Oops`
-	if got := m.PlainTextTranscript(); got != expected {
-		t.Fatalf("unexpected transcript:\nexpected:\n%q\n\ngot:\n%q", expected, got)
-	}
+	assert.Equal(t, expected, m.PlainTextTranscript())
 }

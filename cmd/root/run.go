@@ -153,10 +153,6 @@ func (f *runExecFlags) resolveAgentFile(ctx context.Context, agentFilename strin
 }
 
 func (f *runExecFlags) loadAgents(ctx context.Context, agentFilename string) (*team.Team, error) {
-	if f.runConfig.RedirectURI == "" {
-		f.runConfig.RedirectURI = "http://localhost:8083/oauth-callback"
-	}
-
 	t, err := teamloader.Load(ctx, agentFilename, f.runConfig, teamloader.WithModelOverrides(f.modelOverrides))
 	if err != nil {
 		return nil, err
