@@ -16,6 +16,7 @@ const (
 	MessageTypeCancelled
 	MessageTypeToolCall
 	MessageTypeToolResult
+	MessageTypeWelcome
 )
 
 // ToolStatus represents the status of a tool call

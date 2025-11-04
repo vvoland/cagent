@@ -14,6 +14,7 @@ import (
 type Agent struct {
 	name               string
 	description        string
+	welcomeMessage     string
 	instruction        string
 	toolsets           []*StartableToolSet
 	models             []provider.Provider
@@ -75,6 +76,11 @@ func (a *Agent) AddPromptFiles() []string {
 // Description returns the agent's description
 func (a *Agent) Description() string {
 	return a.description
+}
+
+// WelcomeMessage returns the agent's welcome message
+func (a *Agent) WelcomeMessage() string {
+	return a.welcomeMessage
 }
 
 // SubAgents returns the list of sub-agent names

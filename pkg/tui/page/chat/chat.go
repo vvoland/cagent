@@ -114,12 +114,22 @@ func New(a *app.App) Page {
 
 // Init initializes the chat page
 func (p *chatPage) Init() tea.Cmd {
-	return tea.Batch(
+	var cmds []tea.Cmd
+
+	// Add welcome message if present
+	welcomeMsg := p.app.CurrentWelcomeMessage(context.Background())
+	if welcomeMsg != "" {
+		cmds = append(cmds, p.messages.AddWelcomeMessage(welcomeMsg))
+	}
+
+	cmds = append(cmds,
 		p.sidebar.Init(),
 		p.messages.Init(),
 		p.editor.Init(),
 		p.editor.Focus(),
 	)
+
+	return tea.Batch(cmds...)
 }
 
 // Update handles messages and updates the page state

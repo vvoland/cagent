@@ -117,6 +117,13 @@ func (mv *messageModel) Render(width int) string {
 		return styles.MutedStyle.Render("•" + strings.Repeat("─", mv.width-3) + "•")
 	case types.MessageTypeCancelled:
 		return styles.WarningStyle.Render("⚠ stream cancelled ⚠")
+	case types.MessageTypeWelcome:
+		// Render welcome message with a distinct style
+		rendered, err := markdown.NewRenderer(width).Render(msg.Content)
+		if err != nil {
+			return styles.MutedStyle.Render(msg.Content)
+		}
+		return styles.MutedStyle.Render(strings.TrimRight(rendered, "\n\r\t "))
 	case types.MessageTypeError:
 		return styles.ErrorStyle.Render("│ " + msg.Content)
 	default:

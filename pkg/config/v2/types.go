@@ -16,6 +16,7 @@ type Config struct {
 type AgentConfig struct {
 	Model              string            `json:"model,omitempty"`
 	Description        string            `json:"description,omitempty"`
+	WelcomeMessage     string            `json:"welcome_message,omitempty"`
 	Toolsets           []Toolset         `json:"toolsets,omitempty"`
 	Instruction        string            `json:"instruction,omitempty"`
 	SubAgents          []string          `json:"sub_agents,omitempty"`

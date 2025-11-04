@@ -351,6 +351,7 @@ func Load(ctx context.Context, p string, runtimeConfig config.RuntimeConfig, opt
 		opts := []agent.Opt{
 			agent.WithName(name),
 			agent.WithDescription(agentConfig.Description),
+			agent.WithWelcomeMessage(agentConfig.WelcomeMessage),
 			agent.WithAddDate(agentConfig.AddDate),
 			agent.WithAddEnvironmentInfo(agentConfig.AddEnvironmentInfo),
 			agent.WithAddPromptFiles(agentConfig.AddPromptFiles),

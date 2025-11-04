@@ -48,6 +48,7 @@ type Model interface {
 	AddAssistantMessage() tea.Cmd
 	AddSeparatorMessage() tea.Cmd
 	AddCancelledMessage() tea.Cmd
+	AddWelcomeMessage(content string) tea.Cmd
 	AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, toolDef tools.Tool, status types.ToolStatus) tea.Cmd
 	AddToolResult(msg *runtime.ToolCallResponseEvent, status types.ToolStatus) tea.Cmd
 	AppendToLastMessage(agentName string, messageType types.MessageType, content string) tea.Cmd
@@ -591,6 +592,24 @@ func (m *model) AddSeparatorMessage() tea.Cmd {
 func (m *model) AddCancelledMessage() tea.Cmd {
 	msg := types.Message{
 		Type: types.MessageTypeCancelled,
+	}
+	m.messages = append(m.messages, msg)
+
+	view := m.createMessageView(&msg)
+	m.views = append(m.views, view)
+
+	return view.Init()
+}
+
+// AddWelcomeMessage adds a welcome message to the chat
+func (m *model) AddWelcomeMessage(content string) tea.Cmd {
+	if content == "" {
+		return nil
+	}
+
+	msg := types.Message{
+		Type:    types.MessageTypeWelcome,
+		Content: content,
 	}
 	m.messages = append(m.messages, msg)
 
