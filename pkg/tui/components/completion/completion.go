@@ -221,7 +221,7 @@ func (c *manager) GetLayers() []*lipgloss.Layer {
 	view := c.View()
 	viewHeight := lipgloss.Height(view)
 
-	editorHeight := 5
+	editorHeight := 4
 	yPos := max(c.height-viewHeight-editorHeight-1, 0)
 
 	return []*lipgloss.Layer{

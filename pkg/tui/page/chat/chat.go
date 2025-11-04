@@ -385,26 +385,24 @@ func (p *chatPage) SetSize(width, height int) tea.Cmd {
 	var cmds []tea.Cmd
 
 	// Calculate heights accounting for padding
-	headerHeight := 3 // header + top/bottom padding
 	editorHeight := 3 // fixed 3 lines for multi-line input
 
 	// Calculate available space, ensuring status bar remains visible
-	availableHeight := height - headerHeight
-	p.inputHeight = editorHeight + 2 // account for editor padding
+	p.inputHeight = editorHeight + 3 // account for editor padding
 
 	// Account for horizontal padding in width
 	innerWidth := width - 2 // subtract left/right padding
 
 	var mainWidth int
-	const horizontalSidebarHeight = 3
 	if width >= minWindowWidth {
 		mainWidth = innerWidth - sidebarWidth
-		p.chatHeight = availableHeight - p.inputHeight
+		p.chatHeight = height - p.inputHeight
 		p.sidebar.SetMode(sidebar.ModeVertical)
 		cmds = append(cmds, p.sidebar.SetSize(sidebarWidth, p.chatHeight))
 	} else {
+		const horizontalSidebarHeight = 3
 		mainWidth = innerWidth
-		p.chatHeight = availableHeight - p.inputHeight - horizontalSidebarHeight
+		p.chatHeight = height - p.inputHeight - horizontalSidebarHeight
 		p.sidebar.SetMode(sidebar.ModeHorizontal)
 		cmds = append(cmds, p.sidebar.SetSize(width, horizontalSidebarHeight))
 	}
