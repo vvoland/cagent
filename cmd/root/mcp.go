@@ -43,10 +43,6 @@ func newMCPCmd() *cobra.Command {
 
 func (f *mcpFlags) runMCPCommand(cmd *cobra.Command, args []string) error {
 	telemetry.TrackCommand("mcp", args)
-	return f.runMCP(cmd, args)
-}
-
-func (f *mcpFlags) runMCP(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
 	slog.Debug("Starting MCP server", "agent_ref", args[0])
