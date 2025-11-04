@@ -309,6 +309,7 @@ agents:
 - `OPENAI_API_KEY` - OpenAI authentication
 - `ANTHROPIC_API_KEY` - Anthropic authentication
 - `GOOGLE_API_KEY` - Google/Gemini authentication
+- `MISTRAL_API_KEY` - Mistral authentication
 - `TELEMETRY_ENABLED` - Control telemetry (set to false to disable)
 - `CAGENT_HIDE_TELEMETRY_BANNER` - Hide telemetry banner message
 

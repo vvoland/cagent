@@ -27,6 +27,7 @@ task build
 export OPENAI_API_KEY=your_api_key_here    # For OpenAI models
 export ANTHROPIC_API_KEY=your_api_key_here # For Anthopic models
 export GOOGLE_API_KEY=your_api_key_here    # For Gemini models
+export MISTRAL_API_KEY=your_api_key_here   # For Mistral models
 
 # Run with a sample configuration
 ./bin/cagent run examples/code.yaml
