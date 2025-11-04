@@ -135,8 +135,8 @@ func (p *Printer) PrintToolCallResponse(toolCall tools.ToolCall, response string
 // PromptMaxIterationsContinue prompts the user to continue after max iterations
 func (p *Printer) PromptMaxIterationsContinue(ctx context.Context, maxIterations int) ConfirmationResult {
 	p.Printf("\n⚠️  Maximum iterations (%d) reached. The agent may be stuck in a loop.\n", maxIterations)
-	p.Printf("%s\n", "This can happen with smaller or less capable models.")
-	p.Printf("\n%s (y/n): ", "Do you want to continue for 10 more iterations?")
+	p.Println("This can happen with smaller or less capable models.")
+	p.Println("\nDo you want to continue for 10 more iterations? (y/n):")
 
 	response, err := input.ReadLine(ctx, os.Stdin)
 	if err != nil {
