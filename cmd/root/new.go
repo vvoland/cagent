@@ -78,6 +78,9 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
 			case os.Getenv("GOOGLE_API_KEY") != "":
 				modelProvider = "google"
 				out.Printf("%s\n\n", "GOOGLE_API_KEY found, using Google")
+			case os.Getenv("MISTRAL_API_KEY") != "":
+				modelProvider = "mistral"
+				out.Printf("%s\n\n", "MISTRAL_API_KEY found, using Mistral")
 			default:
 				modelProvider = "dmr"
 				out.Printf("%s\n\n", "⚠️ No provider credentials found, defaulting to Docker Model Runner (DMR)")

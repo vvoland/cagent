@@ -13,8 +13,17 @@ import (
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/teamloader"
+	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/version"
 )
+
+type ToolInput struct {
+	Message string `json:"message" jsonschema:"the message to send to the agent"`
+}
+
+type ToolOutput struct {
+	Response string `json:"response" jsonschema:"the response from the agent"`
+}
 
 func StartMCPServer(ctx context.Context, agentFilename string, runConfig config.RuntimeConfig) error {
 	slog.Debug("Starting MCP server", "agent_ref", agentFilename)
@@ -57,18 +66,10 @@ func StartMCPServer(ctx context.Context, agentFilename string, runConfig config.
 		slog.Debug("Adding MCP tool", "agent", agentName, "description", description)
 
 		toolDef := &mcp.Tool{
-			Name:        agentName,
-			Description: description,
-			InputSchema: map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"message": map[string]any{
-						"type":        "string",
-						"description": "The message to send to the agent",
-					},
-				},
-				"required": []string{"message"},
-			},
+			Name:         agentName,
+			Description:  description,
+			InputSchema:  tools.MustSchemaFor[ToolInput](),
+			OutputSchema: tools.MustSchemaFor[ToolOutput](),
 		}
 
 		mcp.AddTool(server, toolDef, CreateToolHandler(t, agentName, agentFilename))
@@ -81,14 +82,6 @@ func StartMCPServer(ctx context.Context, agentFilename string, runConfig config.
 	}
 
 	return nil
-}
-
-type ToolInput struct {
-	Message string `json:"message" jsonschema:"the message to send to the agent"`
-}
-
-type ToolOutput struct {
-	Response string `json:"response" jsonschema:"the response from the agent"`
 }
 
 func CreateToolHandler(t *team.Team, agentName, agentFilename string) func(context.Context, *mcp.CallToolRequest, ToolInput) (*mcp.CallToolResult, ToolOutput, error) {
@@ -104,8 +97,8 @@ func CreateToolHandler(t *team.Team, agentName, agentFilename string) func(conte
 			session.WithTitle("MCP tool call"),
 			session.WithMaxIterations(agent.MaxIterations()),
 			session.WithUserMessage(agentFilename, input.Message),
+			session.WithToolsApproved(true),
 		)
-		sess.ToolsApproved = true
 
 		rt, err := runtime.New(t,
 			runtime.WithCurrentAgent(agentName),

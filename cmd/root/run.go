@@ -181,8 +181,10 @@ func (f *runExecFlags) createRemoteRuntimeAndSession(ctx context.Context, origin
 		return nil, nil, fmt.Errorf("failed to create remote client: %w", err)
 	}
 
-	sessTemplate := session.New()
-	sessTemplate.ToolsApproved = f.autoApprove
+	sessTemplate := session.New(
+		session.WithToolsApproved(f.autoApprove),
+	)
+
 	sess, err := remoteClient.CreateSession(ctx, sessTemplate)
 	if err != nil {
 		return nil, nil, err
@@ -206,14 +208,14 @@ func (f *runExecFlags) createLocalRuntimeAndSession(t *team.Team) (runtime.Runti
 		return nil, nil, err
 	}
 
-	sess := session.New(session.WithMaxIterations(agent.MaxIterations()))
-	sess.ToolsApproved = f.autoApprove
-
-	tracer := otel.Tracer(AppName)
+	sess := session.New(
+		session.WithMaxIterations(agent.MaxIterations()),
+		session.WithToolsApproved(true),
+	)
 
 	localRt, err := runtime.New(t,
 		runtime.WithCurrentAgent(f.agentName),
-		runtime.WithTracer(tracer),
+		runtime.WithTracer(otel.Tracer(AppName)),
 		runtime.WithRootSessionID(sess.ID),
 	)
 	if err != nil {

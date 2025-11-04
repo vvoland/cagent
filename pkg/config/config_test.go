@@ -215,6 +215,10 @@ func TestCheckRequiredEnvVars(t *testing.T) {
 			expectedMissing: []string{"GOOGLE_API_KEY"},
 		},
 		{
+			yaml:            "mistral_inline.yaml",
+			expectedMissing: []string{"MISTRAL_API_KEY"},
+		},
+		{
 			yaml:            "dmr_inline.yaml",
 			expectedMissing: []string{},
 		},
@@ -231,12 +235,16 @@ func TestCheckRequiredEnvVars(t *testing.T) {
 			expectedMissing: []string{"GOOGLE_API_KEY"},
 		},
 		{
+			yaml:            "mistral_model.yaml",
+			expectedMissing: []string{"MISTRAL_API_KEY"},
+		},
+		{
 			yaml:            "dmr_model.yaml",
 			expectedMissing: []string{},
 		},
 		{
 			yaml:            "all.yaml",
-			expectedMissing: []string{"ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "OPENAI_API_KEY"},
+			expectedMissing: []string{"ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "MISTRAL_API_KEY", "OPENAI_API_KEY"},
 		},
 	}
 	for _, test := range tests {

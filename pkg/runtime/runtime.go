@@ -964,10 +964,10 @@ func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Ses
 		session.WithSystemMessage(memberAgentTask),
 		session.WithImplicitUserMessage("", "Follow the default instructions"),
 		session.WithMaxIterations(child.MaxIterations()),
+		session.WithTitle("Transferred task"),
+		session.WithToolsApproved(sess.ToolsApproved),
+		session.WithSendUserMessage(false),
 	)
-	s.SendUserMessage = false
-	s.Title = "Transferred task"
-	s.ToolsApproved = sess.ToolsApproved
 
 	for event := range r.RunStream(ctx, s) {
 		evts <- event

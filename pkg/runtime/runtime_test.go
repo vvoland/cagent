@@ -536,8 +536,9 @@ func TestCompactionOccursAfterToolResultsWhenToolUsePresent(t *testing.T) {
 func TestSessionWithoutUserMessage(t *testing.T) {
 	stream := newStreamBuilder().AddContent("OK").AddStopWithUsage(1, 1).Build()
 
-	sess := session.New()
-	sess.SendUserMessage = false
+	sess := session.New(
+		session.WithSendUserMessage(false),
+	)
 
 	events := runSession(t, sess, stream)
 
