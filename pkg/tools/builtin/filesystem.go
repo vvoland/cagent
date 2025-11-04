@@ -74,12 +74,12 @@ func NewFilesystemTool(allowedDirectories []string, opts ...FileSystemOpt) *File
 	for _, opt := range opts {
 		opt(t)
 	}
-	
+
 	// Initialize gitignore matchers if VCS ignoring is enabled
 	if t.ignoreVCS {
 		t.initGitignoreMatchers()
 	}
-	
+
 	return t
 }
 
@@ -696,7 +696,7 @@ func (t *FilesystemTool) handleListDirectory(_ context.Context, toolCall tools.T
 		if t.shouldIgnorePath(entryPath) {
 			continue
 		}
-		
+
 		if entry.IsDir() {
 			result.WriteString(fmt.Sprintf("DIR  %s\n", entry.Name()))
 		} else {
@@ -729,7 +729,7 @@ func (t *FilesystemTool) handleListDirectoryWithSizes(_ context.Context, toolCal
 		if t.shouldIgnorePath(entryPath) {
 			continue
 		}
-		
+
 		info, err := entry.Info()
 		if err != nil {
 			continue

@@ -925,9 +925,9 @@ temp_*
 
 	// Should respect gitignore patterns
 	assert.Contains(t, result.Output, "test.txt")
-	assert.Contains(t, result.Output, "important.log") // negated pattern
-	assert.NotContains(t, result.Output, "debug.log")  // ignored
-	assert.NotContains(t, result.Output, "temp_file")  // ignored
+	assert.Contains(t, result.Output, "important.log")   // negated pattern
+	assert.NotContains(t, result.Output, "debug.log")    // ignored
+	assert.NotContains(t, result.Output, "temp_file")    // ignored
 	assert.NotContains(t, result.Output, "node_modules") // ignored directory
 	assert.NotContains(t, result.Output, "build")        // ignored directory
 }
