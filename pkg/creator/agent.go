@@ -171,6 +171,9 @@ func StreamCreateAgent(ctx context.Context, baseDir, prompt string, runConfig co
 		if os.Getenv("GOOGLE_API_KEY") != "" {
 			usableProviders = append(usableProviders, "google")
 		}
+		if os.Getenv("MISTRAL_API_KEY") != "" {
+			usableProviders = append(usableProviders, "mistral")
+		}
 		// DMR runs locally by default; include it when not using a gateway
 		usableProviders = append(usableProviders, "dmr")
 	}
