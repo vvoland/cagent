@@ -3,9 +3,10 @@ package messages
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tui/types"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestPlainTextTranscript(t *testing.T) {
