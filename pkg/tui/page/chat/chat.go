@@ -405,13 +405,13 @@ func (p *chatPage) SetSize(width, height int) tea.Cmd {
 		mainWidth = innerWidth - sidebarWidth
 		p.chatHeight = height - p.inputHeight
 		p.sidebar.SetMode(sidebar.ModeVertical)
-		cmds = append(cmds, p.sidebar.SetSize(sidebarWidth, p.chatHeight))
+		cmds = append(cmds, p.sidebar.SetSize(sidebarWidth, p.chatHeight), p.messages.SetPosition(0, 0))
 	} else {
 		const horizontalSidebarHeight = 3
 		mainWidth = innerWidth
 		p.chatHeight = height - p.inputHeight - horizontalSidebarHeight
 		p.sidebar.SetMode(sidebar.ModeHorizontal)
-		cmds = append(cmds, p.sidebar.SetSize(width, horizontalSidebarHeight))
+		cmds = append(cmds, p.sidebar.SetSize(width, horizontalSidebarHeight), p.messages.SetPosition(0, horizontalSidebarHeight))
 	}
 
 	// Set component sizes
