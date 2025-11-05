@@ -17,6 +17,10 @@ type Focusable interface {
 	Blur() tea.Cmd
 }
 
+type Positionable interface {
+	SetPosition(x, y int) tea.Cmd
+}
+
 // Help represents components that provide help information
 type Help interface {
 	Bindings() []key.Binding

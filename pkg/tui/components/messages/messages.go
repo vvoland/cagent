@@ -41,6 +41,7 @@ type Model interface {
 	layout.Sizeable
 	layout.Focusable
 	layout.Help
+	layout.Positionable
 
 	AddUserMessage(content string) tea.Cmd
 	AddErrorMessage(content string) tea.Cmd
@@ -111,6 +112,8 @@ type model struct {
 	selection selectionState
 
 	splitDiffView bool
+
+	xPos, yPos int
 }
 
 // New creates a new message list component
@@ -327,6 +330,12 @@ func (m *model) SetSize(width, height int) tea.Cmd {
 
 	// Size changes may affect item rendering, invalidate all items
 	m.invalidateAllItems()
+	return nil
+}
+
+func (m *model) SetPosition(x, y int) tea.Cmd {
+	m.xPos = x
+	m.yPos = y
 	return nil
 }
 
@@ -746,12 +755,11 @@ func (m *model) removePendingToolCallMessages() {
 
 // mouseToLineCol converts mouse position to line/column in rendered content
 func (m *model) mouseToLineCol(x, y int) (line, col int) {
-	// Adjust for header (2 lines: text + bottom padding)
-	adjustedY := max(0, y-2)
+	adjustedY := max(0, y-m.yPos)
 	line = m.scrollOffset + adjustedY
 
 	// Adjust for left padding (1 column from AppStyle)
-	adjustedX := max(0, x-1)
+	adjustedX := max(0, x-1-m.xPos)
 	col = adjustedX
 
 	return line, col
