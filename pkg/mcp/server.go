@@ -7,6 +7,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
@@ -54,23 +55,28 @@ func StartMCPServer(ctx context.Context, out *cli.Printer, agentFilename string,
 	slog.Debug("Adding MCP tools for agents", "count", len(agentNames))
 
 	for _, agentName := range agentNames {
-		agent, err := t.Agent(agentName)
+		ag, err := t.Agent(agentName)
 		if err != nil {
 			return fmt.Errorf("failed to get agent %s: %w", agentName, err)
 		}
 
-		description := agent.Description()
+		description := ag.Description()
 		if description == "" {
 			description = fmt.Sprintf("Run the %s agent", agentName)
 		}
 
 		slog.Debug("Adding MCP tool", "agent", agentName, "description", description)
 
+		readOnly, err := isReadOnlyAgent(ctx, ag)
+		if err != nil {
+			return fmt.Errorf("failed to determine if agent %s is read-only: %w", agentName, err)
+		}
+
 		toolDef := &mcp.Tool{
 			Name:        agentName,
 			Description: description,
 			Annotations: &mcp.ToolAnnotations{
-				ReadOnlyHint: len(agent.ToolSets()) == 0,
+				ReadOnlyHint: readOnly,
 			},
 			InputSchema:  tools.MustSchemaFor[ToolInput](),
 			OutputSchema: tools.MustSchemaFor[ToolOutput](),
@@ -92,14 +98,14 @@ func CreateToolHandler(t *team.Team, agentName, agentFilename string) func(conte
 	return func(ctx context.Context, req *mcp.CallToolRequest, input ToolInput) (*mcp.CallToolResult, ToolOutput, error) {
 		slog.Debug("MCP tool called", "agent", agentName, "message", input.Message)
 
-		agent, err := t.Agent(agentName)
+		ag, err := t.Agent(agentName)
 		if err != nil {
 			return nil, ToolOutput{}, fmt.Errorf("failed to get agent: %w", err)
 		}
 
 		sess := session.New(
 			session.WithTitle("MCP tool call"),
-			session.WithMaxIterations(agent.MaxIterations()),
+			session.WithMaxIterations(ag.MaxIterations()),
 			session.WithUserMessage(agentFilename, input.Message),
 			session.WithToolsApproved(true),
 		)
@@ -127,4 +133,19 @@ func CreateToolHandler(t *team.Team, agentName, agentFilename string) func(conte
 
 		return nil, ToolOutput{Response: result}, nil
 	}
+}
+
+func isReadOnlyAgent(ctx context.Context, ag *agent.Agent) (bool, error) {
+	allTolls, err := ag.Tools(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	for _, tool := range allTolls {
+		if !tool.Annotations.ReadOnlyHint {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
