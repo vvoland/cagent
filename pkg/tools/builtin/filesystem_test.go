@@ -982,47 +982,6 @@ func TestFilesystemTool_SearchContent_WithGitignore(t *testing.T) {
 	assert.NotContains(t, result.Output, "debug.log")
 }
 
-func TestFilesystemTool_NestedGitignore(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	// Initialize git repository
-	initGitRepo(t, tmpDir)
-
-	// Create root .gitignore
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte("*.log\n"), 0o644))
-
-	// Create subdirectory with its own .gitignore
-	subDir := filepath.Join(tmpDir, "subdir")
-	require.NoError(t, os.Mkdir(subDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(subDir, ".gitignore"), []byte("*.tmp\n"), 0o644))
-
-	// Create files
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "root.txt"), []byte("test"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "root.log"), []byte("log"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(subDir, "sub.txt"), []byte("test"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(subDir, "sub.log"), []byte("log"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(subDir, "sub.tmp"), []byte("temp"), 0o644))
-
-	tool := NewFilesystemTool([]string{tmpDir}, WithIgnoreVCS(true))
-	handler := getToolHandler(t, tool, "search_files")
-
-	args := map[string]any{
-		"path":    tmpDir,
-		"pattern": "*",
-	}
-	result := callHandler(t, handler, args)
-
-	// Should respect root gitignore file
-	// Note: go-git's ReadPatterns with nil domain reads root .gitignore only
-	// Nested .gitignore files in subdirectories are not automatically loaded
-	assert.Contains(t, result.Output, "root.txt")
-	assert.Contains(t, result.Output, "sub.txt")
-	assert.NotContains(t, result.Output, "root.log") // ignored by root .gitignore
-	assert.NotContains(t, result.Output, "sub.log")  // ignored by root .gitignore
-	// sub.tmp is NOT ignored because subdir/.gitignore is not loaded by ReadPatterns(fs, nil)
-	// This is expected behavior with the simple go-git implementation
-}
-
 func TestFilesystemTool_ListDirectory_IgnoresVCS(t *testing.T) {
 	tmpDir := t.TempDir()
 

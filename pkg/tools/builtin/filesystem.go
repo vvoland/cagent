@@ -13,10 +13,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/cagent/pkg/fsx"
-	"github.com/docker/cagent/pkg/tools"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
+
+	"github.com/docker/cagent/pkg/fsx"
+	"github.com/docker/cagent/pkg/tools"
 )
 
 const (
