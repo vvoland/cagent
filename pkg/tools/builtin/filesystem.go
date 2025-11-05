@@ -13,9 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/denormal/go-gitignore"
 	"github.com/docker/cagent/pkg/fsx"
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 )
 
 const (
@@ -47,7 +48,7 @@ type FilesystemTool struct {
 	allowedDirectories []string
 	postEditCommands   []PostEditConfig
 	ignoreVCS          bool
-	gitignoreMatchers  map[string]gitignore.GitIgnore
+	repoMatchers       map[string]gitignore.Matcher // map from repo root to matcher
 }
 
 var _ tools.ToolSet = (*FilesystemTool)(nil)
@@ -69,7 +70,7 @@ func WithIgnoreVCS(ignoreVCS bool) FileSystemOpt {
 func NewFilesystemTool(allowedDirectories []string, opts ...FileSystemOpt) *FilesystemTool {
 	t := &FilesystemTool{
 		allowedDirectories: allowedDirectories,
-		gitignoreMatchers:  make(map[string]gitignore.GitIgnore),
+		repoMatchers:       make(map[string]gitignore.Matcher),
 	}
 	for _, opt := range opts {
 		opt(t)
@@ -426,18 +427,39 @@ func (t *FilesystemTool) initGitignoreMatchers() {
 			continue
 		}
 
-		// Look for .gitignore file in this directory
-		gitignorePath := filepath.Join(absDir, ".gitignore")
-		if _, err := os.Stat(gitignorePath); err == nil {
-			// .gitignore exists, parse it using NewRepository which handles nested .gitignore files
-			matcher, err := gitignore.NewRepository(absDir)
-			if err != nil {
-				slog.Warn("Failed to parse .gitignore", "path", gitignorePath, "error", err)
-				continue
-			}
-			t.gitignoreMatchers[absDir] = matcher
-			slog.Debug("Loaded .gitignore patterns", "directory", absDir)
+		// PlainOpen automatically searches up the directory tree for .git
+		repo, err := git.PlainOpen(absDir)
+		if err != nil {
+			slog.Debug("No git repository found", "directory", absDir)
+			continue
 		}
+
+		// Get the worktree
+		worktree, err := repo.Worktree()
+		if err != nil {
+			slog.Warn("Failed to get worktree", "path", absDir, "error", err)
+			continue
+		}
+
+		// Get the repository root path
+		repoRoot := worktree.Filesystem.Root()
+
+		// Skip if we already have a matcher for this repository
+		if _, exists := t.repoMatchers[repoRoot]; exists {
+			continue
+		}
+
+		// Read gitignore patterns from the repository
+		patterns, err := gitignore.ReadPatterns(worktree.Filesystem, nil)
+		if err != nil {
+			slog.Warn("Failed to read gitignore patterns", "path", repoRoot, "error", err)
+			continue
+		}
+
+		// Create a matcher from the patterns
+		matcher := gitignore.NewMatcher(patterns)
+		t.repoMatchers[repoRoot] = matcher
+		slog.Debug("Loaded gitignore patterns", "repository", repoRoot)
 	}
 }
 
@@ -460,12 +482,13 @@ func (t *FilesystemTool) shouldIgnorePath(path string) bool {
 	}
 
 	// Find the appropriate gitignore matcher for this path
-	for allowedDir, matcher := range t.gitignoreMatchers {
-		if !strings.HasPrefix(absPath, allowedDir) {
+	for repoRoot, matcher := range t.repoMatchers {
+		if !strings.HasPrefix(absPath, repoRoot) {
 			continue
 		}
+
 		// Create a relative path from the repository root for matching
-		relPath, err := filepath.Rel(allowedDir, absPath)
+		relPath, err := filepath.Rel(repoRoot, absPath)
 		if err != nil {
 			return false
 		}
@@ -474,9 +497,11 @@ func (t *FilesystemTool) shouldIgnorePath(path string) bool {
 		info, err := os.Stat(path)
 		isDir := err == nil && info.IsDir()
 
-		// Check if path matches gitignore patterns
-		match := matcher.Relative(relPath, isDir)
-		if match != nil && match.Ignore() {
+		// Use go-git matcher - pass relative path as single element in array
+		// Normalize to forward slashes as git expects
+		normalizedRelPath := filepath.ToSlash(relPath)
+		matched := matcher.Match([]string{normalizedRelPath}, isDir)
+		if matched {
 			return true
 		}
 	}
