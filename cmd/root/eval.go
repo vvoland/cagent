@@ -1,10 +1,9 @@
 package root
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
+	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/evaluation"
 	"github.com/docker/cagent/pkg/teamloader"
@@ -33,6 +32,8 @@ func newEvalCmd() *cobra.Command {
 func (f *evalFlags) runEvalCommand(cmd *cobra.Command, args []string) error {
 	telemetry.TrackCommand("eval", args)
 
+	out := cli.NewPrinter(cmd.OutOrStdout())
+
 	agents, err := teamloader.Load(cmd.Context(), args[0], f.runConfig)
 	if err != nil {
 		return err
@@ -44,9 +45,9 @@ func (f *evalFlags) runEvalCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, evalResult := range evalResults {
-		fmt.Printf("Eval file: %s\n", evalResult.EvalFile)
-		fmt.Printf("Tool trajectory score: %f\n", evalResult.Score.ToolTrajectoryScore)
-		fmt.Printf("Rouge-1 score: %f\n", evalResult.Score.Rouge1Score)
+		out.Printf("Eval file: %s\n", evalResult.EvalFile)
+		out.Printf("Tool trajectory score: %f\n", evalResult.Score.ToolTrajectoryScore)
+		out.Printf("Rouge-1 score: %f\n", evalResult.Score.Rouge1Score)
 	}
 
 	return nil
