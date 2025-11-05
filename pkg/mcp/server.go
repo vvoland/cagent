@@ -27,7 +27,7 @@ type ToolOutput struct {
 }
 
 func StartMCPServer(ctx context.Context, out *cli.Printer, agentFilename string, runConfig config.RuntimeConfig) error {
-	slog.Debug("Starting MCP server", "agent_ref", agentFilename)
+	slog.Debug("Starting MCP server", "agent", agentFilename)
 
 	agentFilename, err := agentfile.Resolve(ctx, out, agentFilename)
 	if err != nil {
@@ -67,8 +67,11 @@ func StartMCPServer(ctx context.Context, out *cli.Printer, agentFilename string,
 		slog.Debug("Adding MCP tool", "agent", agentName, "description", description)
 
 		toolDef := &mcp.Tool{
-			Name:         agentName,
-			Description:  description,
+			Name:        agentName,
+			Description: description,
+			Annotations: &mcp.ToolAnnotations{
+				ReadOnlyHint: len(agent.ToolSets()) == 0,
+			},
 			InputSchema:  tools.MustSchemaFor[ToolInput](),
 			OutputSchema: tools.MustSchemaFor[ToolOutput](),
 		}
