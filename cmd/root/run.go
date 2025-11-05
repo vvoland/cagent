@@ -83,24 +83,27 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 		return err
 	}
 
-	agentFileName, err := f.resolveAgentFile(ctx, args[0])
-	if err != nil {
-		return err
-	}
-
-	t, err := f.loadAgents(ctx, agentFileName)
-	if err != nil {
-		return err
-	}
+	agentFileName := ""
 
 	var rt runtime.Runtime
 	var sess *session.Session
+	var err error
 	if f.remoteAddress != "" {
 		rt, sess, err = f.createRemoteRuntimeAndSession(ctx, args[0])
 		if err != nil {
 			return err
 		}
 	} else {
+		agentFileName, err = f.resolveAgentFile(ctx, args[0])
+		if err != nil {
+			return err
+		}
+
+		t, err := f.loadAgents(ctx, agentFileName)
+		if err != nil {
+			return err
+		}
+
 		rt, sess, err = f.createLocalRuntimeAndSession(t)
 		if err != nil {
 			return err
@@ -115,7 +118,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 		return f.handleCLIMode(ctx, out, agentFileName, rt, sess, args)
 	}
 
-	return handleTUIMode(ctx, agentFileName, rt, t, sess, args)
+	return handleTUIMode(ctx, agentFileName, rt, sess, args)
 }
 
 func (f *runExecFlags) setupWorkingDirectory() error {
@@ -256,13 +259,13 @@ func readInitialMessage(args []string) (*string, error) {
 	return &args[1], nil
 }
 
-func handleTUIMode(ctx context.Context, agentFilename string, rt runtime.Runtime, t *team.Team, sess *session.Session, args []string) error {
+func handleTUIMode(ctx context.Context, agentFilename string, rt runtime.Runtime, sess *session.Session, args []string) error {
 	firstMessage, err := readInitialMessage(args)
 	if err != nil {
 		return err
 	}
 
-	a := app.New(agentFilename, rt, t, sess, firstMessage)
+	a := app.New(agentFilename, rt, sess, firstMessage)
 	m := tui.New(a)
 
 	progOpts := []tea.ProgramOption{
