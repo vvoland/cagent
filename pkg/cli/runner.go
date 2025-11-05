@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -397,7 +398,7 @@ func createUserMessageWithAttachment(agentFilename, userContent, attachmentPath 
 	// Convert file to data URL
 	dataURL, err := fileToDataURL(attachmentPath)
 	if err != nil {
-		fmt.Printf("Warning: Failed to attach file %s: %v\n", attachmentPath, err)
+		slog.Warn("Failed to attach file", "path", attachmentPath, "error", err)
 		return session.UserMessage(agentFilename, userContent)
 	}
 

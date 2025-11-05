@@ -3,6 +3,7 @@ package root
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/filesystem"
 	"github.com/docker/cagent/pkg/oci"
 	"github.com/docker/cagent/pkg/telemetry"
@@ -33,11 +34,14 @@ func newBuildCmd() *cobra.Command {
 func (f *buildFlags) runBuildCommand(cmd *cobra.Command, args []string) error {
 	telemetry.TrackCommand("build", args)
 
+	ctx := cmd.Context()
+	out := cli.NewPrinter(cmd.OutOrStdout())
+
 	agentFilePath := args[0]
 	dockerImageName := ""
 	if len(args) > 1 {
 		dockerImageName = args[1]
 	}
 
-	return oci.BuildDockerImage(cmd.Context(), agentFilePath, filesystem.AllowAll, dockerImageName, f.opts)
+	return oci.BuildDockerImage(ctx, out, agentFilePath, filesystem.AllowAll, dockerImageName, f.opts)
 }

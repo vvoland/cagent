@@ -8,6 +8,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/docker/cagent/pkg/agentfile"
+	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
@@ -25,10 +26,10 @@ type ToolOutput struct {
 	Response string `json:"response" jsonschema:"the response from the agent"`
 }
 
-func StartMCPServer(ctx context.Context, agentFilename string, runConfig config.RuntimeConfig) error {
+func StartMCPServer(ctx context.Context, out *cli.Printer, agentFilename string, runConfig config.RuntimeConfig) error {
 	slog.Debug("Starting MCP server", "agent_ref", agentFilename)
 
-	agentFilename, err := agentfile.Resolve(ctx, agentFilename)
+	agentFilename, err := agentfile.Resolve(ctx, out, agentFilename)
 	if err != nil {
 		return err
 	}

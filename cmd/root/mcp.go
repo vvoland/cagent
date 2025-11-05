@@ -3,6 +3,7 @@ package root
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/mcp"
 	"github.com/docker/cagent/pkg/telemetry"
@@ -35,11 +36,13 @@ func newMCPCmd() *cobra.Command {
 
 func (f *mcpFlags) runMCPCommand(cmd *cobra.Command, args []string) error {
 	telemetry.TrackCommand("mcp", args)
+
 	ctx := cmd.Context()
+	out := cli.NewPrinter(cmd.OutOrStdout())
 
 	if err := setupWorkingDirectory(f.workingDir); err != nil {
 		return err
 	}
 
-	return mcp.StartMCPServer(ctx, args[0], f.runConfig)
+	return mcp.StartMCPServer(ctx, out, args[0], f.runConfig)
 }

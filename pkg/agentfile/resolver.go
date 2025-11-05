@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/docker/cagent/pkg/aliases"
+	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/remote"
 )
@@ -55,7 +56,7 @@ func OciRefToFilename(ociRef string) string {
 }
 
 // Resolve resolves an agent file reference (local file or OCI image) to a local file path
-func Resolve(ctx context.Context, agentFilename string) (string, error) {
+func Resolve(ctx context.Context, out *cli.Printer, agentFilename string) (string, error) {
 	originalOCIRef := agentFilename // Store the original for OCI ref tracking
 
 	// Try to resolve as an alias first
@@ -83,7 +84,7 @@ func Resolve(ctx context.Context, agentFilename string) (string, error) {
 	// Treat as an OCI image reference. Try local store first, otherwise pull then load.
 	a, err := FromStore(agentFilename)
 	if err != nil {
-		fmt.Println("Pulling agent", agentFilename)
+		out.Println("Pulling agent", agentFilename)
 		if _, pullErr := remote.Pull(agentFilename); pullErr != nil {
 			return "", fmt.Errorf("failed to pull OCI image %s: %w", agentFilename, pullErr)
 		}

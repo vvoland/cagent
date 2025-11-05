@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/agentfile"
+	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/remote"
 	"github.com/docker/cagent/pkg/server"
@@ -58,6 +59,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 	telemetry.TrackCommand("api", args)
 
 	ctx := cmd.Context()
+	out := cli.NewPrinter(cmd.OutOrStdout())
 	agentsPath := args[0]
 
 	// Make sure no question is ever asked to the user in api mode.
@@ -67,7 +69,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("--pull-interval flag can only be used with OCI references, not local files")
 	}
 
-	resolvedPath, err := agentfile.Resolve(ctx, agentsPath)
+	resolvedPath, err := agentfile.Resolve(ctx, out, agentsPath)
 	if err != nil {
 		return err
 	}
@@ -139,7 +141,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 					}
 
 					// Resolve the OCI reference to get the updated file path
-					newResolvedPath, err := agentfile.Resolve(ctx, agentsPath)
+					newResolvedPath, err := agentfile.Resolve(ctx, out, agentsPath)
 					if err != nil {
 						slog.Error("Failed to resolve OCI reference after pull", "reference", agentsPath, "error", err)
 						continue
