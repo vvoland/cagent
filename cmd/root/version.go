@@ -19,9 +19,10 @@ func newVersionCmd() *cobra.Command {
 	}
 }
 
-func runVersionCommand(_ *cobra.Command, args []string) {
+func runVersionCommand(cmd *cobra.Command, args []string) {
 	telemetry.TrackCommand("version", args)
 
-	fmt.Printf("cagent version %s\n", version.Version)
-	fmt.Printf("Commit: %s\n", version.Commit)
+	out := cmd.OutOrStdout()
+	fmt.Fprintf(out, "cagent version %s\n", version.Version)
+	fmt.Fprintf(out, "Commit: %s\n", version.Commit)
 }
