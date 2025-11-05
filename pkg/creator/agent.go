@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -91,7 +92,7 @@ func CreateAgent(ctx context.Context, baseDir, prompt string, runConfig config.R
 		return "", "", fmt.Errorf("failed to create LLM client: %w", err)
 	}
 
-	fmt.Println("Generating agent configuration....")
+	slog.Info("Generating agent configuration....")
 
 	fsToolset := fsToolset{inner: builtin.NewFilesystemTool([]string{baseDir})}
 	fileName := filepath.Base(fsToolset.path)
@@ -142,7 +143,7 @@ func Agent(ctx context.Context, baseDir string, runConfig config.RuntimeConfig, 
 	if modelNameOverride != "" {
 		modelName = modelNameOverride
 	} else {
-		fmt.Printf("Using default model: %s\n", modelName)
+		slog.Info("Using default model: " + modelName)
 	}
 
 	// If not using a model gateway, avoid selecting a provider the user can't run
