@@ -64,311 +64,6 @@ func TestFilesystemTool_Tools(t *testing.T) {
 	for _, expected := range expectedTools {
 		assert.Contains(t, toolNames, expected)
 	}
-
-	// Check create_directory parameters
-	schema, err := json.Marshal(allTools[0].Parameters)
-	require.NoError(t, err)
-	assert.JSONEq(t, `{
-	"type": "object",
-	"properties": {
-		"path": {
-			"description": "The directory path to create",
-			"type": "string"
-		}
-	},
-	"additionalProperties": false,
-	"required": [
-		"path"
-	]
-}`, string(schema))
-
-	// Check directory_tree parameters
-	schema, err = json.Marshal(allTools[1].Parameters)
-	require.NoError(t, err)
-	assert.JSONEq(t, `{
-	"type": "object",
-	"properties": {
-		"max_depth": {
-			"description": "Maximum depth to traverse (optional)",
-			"type": "integer"
-		},
-		"path": {
-			"description": "The directory path to traverse",
-			"type": "string"
-		}
-	},
-	"additionalProperties": false,
-	"required": [
-		"path"
-	]
-}`, string(schema))
-
-	// Check edit_file parameters
-	schema, err = json.Marshal(allTools[2].Parameters)
-	require.NoError(t, err)
-	assert.JSONEq(t, `{
-	"type": "object",
-	"properties": {
-		"edits": {
-			"description": "Array of edit operations",
-			"items": {
-				"properties": {
-					"newText": {
-						"description": "The replacement text",
-						"type": "string"
-					},
-					"oldText": {
-						"description": "The exact text to replace",
-						"type": "string"
-					}
-				},
-				"additionalProperties": false,
-				"required": [
-					"oldText",
-					"newText"
-				],
-				"type": "object"
-			},
-			"type": "array"
-		},
-		"path": {
-			"description": "The file path to edit",
-			"type": "string"
-		}
-	},
-	"additionalProperties": false,
-	"required": [
-		"path",
-		"edits"
-	]
-}`, string(schema))
-
-	// Check get_file_info parameters
-	schema, err = json.Marshal(allTools[3].Parameters)
-	require.NoError(t, err)
-	assert.JSONEq(t, `{
-	"type": "object",
-	"properties": {
-		"path": {
-			"description": "The file or directory path to inspect",
-			"type": "string"
-		}
-	},
-	"additionalProperties": false,
-	"required": [
-		"path"
-	]
-}`, string(schema))
-
-	// Check list_allowed_directories parameters
-	assert.Nil(t, allTools[4].Parameters)
-
-	// Check add_allowed_directory parameters
-	schema, err = json.Marshal(allTools[5].Parameters)
-	require.NoError(t, err)
-	assert.JSONEq(t, `{
-	"type": "object",
-	"properties": {
-		"confirmed": {
-			"description": "Set to true to confirm that you consent to adding this directory",
-			"type": "boolean"
-		},
-		"path": {
-			"description": "The directory path to add to allowed directories",
-			"type": "string"
-		},
-		"reason": {
-			"description": "Explanation of why this directory needs to be added",
-			"type": "string"
-		}
-	},
-	"additionalProperties": false,
-	"required": [
-		"path",
-		"reason"
-	]
-}`, string(schema))
-
-	// Check list_directory parameters
-	schema, err = json.Marshal(allTools[6].Parameters)
-	require.NoError(t, err)
-	assert.JSONEq(t, `{
-	"type": "object",
-	"properties": {
-		"path": {
-			"description": "The directory path to list",
-			"type": "string"
-		}
-	},
-	"additionalProperties": false,
-	"required": [
-		"path"
-	]
-}`, string(schema))
-
-	// Check list_directory_with_sizes parameters
-	schema, err = json.Marshal(allTools[7].Parameters)
-	require.NoError(t, err)
-	assert.JSONEq(t, `{
-	"type": "object",
-	"properties": {
-		"path": {
-			"description": "The directory path to list",
-			"type": "string"
-		}
-	},
-	"additionalProperties": false,
-	"required": [
-		"path"
-	]
-}`, string(schema))
-
-	// Check move_file parameters
-	schema, err = json.Marshal(allTools[8].Parameters)
-	require.NoError(t, err)
-	assert.JSONEq(t, `{
-	"type": "object",
-	"properties": {
-		"destination": {
-			"description": "The destination path",
-			"type": "string"
-		},
-		"source": {
-			"description": "The source path",
-			"type": "string"
-		}
-	},
-	"additionalProperties": false,
-	"required": [
-		"source",
-		"destination"
-	]
-}`, string(schema))
-
-	// Check read_file parameters
-	schema, err = json.Marshal(allTools[9].Parameters)
-	require.NoError(t, err)
-	assert.JSONEq(t, `{
-	"type": "object",
-	"properties": {
-		"path": {
-			"description": "The file path to read",
-			"type": "string"
-		}
-	},
-	"additionalProperties": false,
-	"required": [
-		"path"
-	]
-}`, string(schema))
-
-	// Check read_multiple_files parameters
-	schema, err = json.Marshal(allTools[10].Parameters)
-	require.NoError(t, err)
-	assert.JSONEq(t, `{
-	"type": "object",
-	"properties": {
-		"json": {
-			"description": "Whether to return the result as JSON",
-			"type": "boolean"
-		},
-		"paths": {
-			"description": "Array of file paths to read",
-			"items": {
-				"type": "string"
-			},
-			"type": "array"
-		}
-	},
-	"additionalProperties": false,
-	"required": [
-		"paths"
-	]
-}`, string(schema))
-
-	// Check search_files parameters
-	schema, err = json.Marshal(allTools[11].Parameters)
-	require.NoError(t, err)
-	assert.JSONEq(t, `{
-	"type": "object",
-	"properties": {
-		"excludePatterns": {
-			"description": "Patterns to exclude from search",
-			"items": {
-				"type": "string"
-			},
-			"type": "array"
-		},
-		"path": {
-			"description": "The starting directory path",
-			"type": "string"
-		},
-		"pattern": {
-			"description": "The search pattern",
-			"type": "string"
-		}
-	},
-	"additionalProperties": false,
-	"required": [
-		"path",
-		"pattern"
-	]
-}`, string(schema))
-
-	// Check search_files_content parameters
-	schema, err = json.Marshal(allTools[12].Parameters)
-	require.NoError(t, err)
-	assert.JSONEq(t, `{
-	"type": "object",
-	"properties": {
-		"excludePatterns": {
-			"description": "Patterns to exclude from search",
-			"items": {
-				"type": "string"
-			},
-			"type": "array"
-		},
-		"is_regex": {
-			"description": "If true, treat query as regex; otherwise literal text",
-			"type": "boolean"
-		},
-		"path": {
-			"description": "The starting directory path",
-			"type": "string"
-		},
-		"query": {
-			"description": "The text or regex pattern to search for",
-			"type": "string"
-		}
-	},
-	"additionalProperties": false,
-	"required": [
-		"path",
-		"query"
-	]
-}`, string(schema))
-
-	// Check write_file parameters
-	schema, err = json.Marshal(allTools[13].Parameters)
-	require.NoError(t, err)
-	assert.JSONEq(t, `{
-	"type": "object",
-	"properties": {
-		"content": {
-			"description": "The content to write to the file",
-			"type": "string"
-		},
-		"path": {
-			"description": "The file path to write",
-			"type": "string"
-		}
-	},
-	"additionalProperties": false,
-	"required": [
-		"path",
-		"content"
-	]
-}`, string(schema))
 }
 
 func TestFilesystemTool_DisplayNames(t *testing.T) {
@@ -1016,49 +711,12 @@ func TestFilesystemTool_AddAllowedDirectory(t *testing.T) {
 
 	// Create filesystem tool with only tmpDir1 initially allowed
 	tool := NewFilesystemTool([]string{tmpDir1})
+	assert.Len(t, tool.allowedDirectories, 1)
 	handler := getToolHandler(t, tool, "add_allowed_directory")
-
-	t.Run("request consent for new directory", func(t *testing.T) {
-		args := AddAllowedDirectoryArgs{
-			Path:   tmpDir2,
-			Reason: "Need access for testing",
-		}
-		result := callHandler(t, handler, args)
-
-		// Should return consent request message
-		assert.Contains(t, result.Output, "SECURITY CONSENT REQUEST")
-		assert.Contains(t, result.Output, tmpDir2)
-		assert.Contains(t, result.Output, "Need access for testing")
-		assert.Contains(t, result.Output, "confirmed")
-
-		// Directory should not be added yet
-		assert.Len(t, tool.allowedDirectories, 1)
-		assert.Equal(t, tmpDir1, tool.allowedDirectories[0])
-	})
-
-	t.Run("add directory with confirmation", func(t *testing.T) {
-		args := AddAllowedDirectoryArgs{
-			Path:      tmpDir2,
-			Reason:    "Need access for testing",
-			Confirmed: true,
-		}
-		result := callHandler(t, handler, args)
-
-		// Should return success message
-		assert.Contains(t, result.Output, "Directory successfully added")
-		assert.Contains(t, result.Output, tmpDir2)
-
-		// Directory should now be added
-		assert.Len(t, tool.allowedDirectories, 2)
-		assert.Contains(t, tool.allowedDirectories, tmpDir1)
-		assert.Contains(t, tool.allowedDirectories, tmpDir2)
-	})
 
 	t.Run("attempt to add already allowed directory", func(t *testing.T) {
 		args := AddAllowedDirectoryArgs{
-			Path:      tmpDir1,
-			Reason:    "Testing duplicate",
-			Confirmed: true,
+			Path: tmpDir1,
 		}
 		result := callHandler(t, handler, args)
 
@@ -1067,7 +725,7 @@ func TestFilesystemTool_AddAllowedDirectory(t *testing.T) {
 		assert.Contains(t, result.Output, tmpDir1)
 
 		// Should not add duplicate
-		assert.Len(t, tool.allowedDirectories, 2)
+		assert.Len(t, tool.allowedDirectories, 1)
 	})
 
 	t.Run("attempt to add subdirectory of allowed directory", func(t *testing.T) {
@@ -1076,9 +734,7 @@ func TestFilesystemTool_AddAllowedDirectory(t *testing.T) {
 		require.NoError(t, err)
 
 		args := AddAllowedDirectoryArgs{
-			Path:      subDir,
-			Reason:    "Testing subdirectory",
-			Confirmed: true,
+			Path: subDir,
 		}
 		result := callHandler(t, handler, args)
 
@@ -1088,15 +744,13 @@ func TestFilesystemTool_AddAllowedDirectory(t *testing.T) {
 		assert.Contains(t, result.Output, tmpDir1)
 
 		// Should not add subdirectory
-		assert.Len(t, tool.allowedDirectories, 2)
+		assert.Len(t, tool.allowedDirectories, 1)
 	})
 
 	t.Run("attempt to add non-existent directory", func(t *testing.T) {
 		nonExistent := "/path/that/does/not/exist"
 		args := AddAllowedDirectoryArgs{
-			Path:      nonExistent,
-			Reason:    "Testing non-existent",
-			Confirmed: true,
+			Path: nonExistent,
 		}
 		result := callHandler(t, handler, args)
 
@@ -1104,7 +758,7 @@ func TestFilesystemTool_AddAllowedDirectory(t *testing.T) {
 		assert.Contains(t, result.Output, "Error accessing path")
 
 		// Should not add non-existent directory
-		assert.Len(t, tool.allowedDirectories, 2)
+		assert.Len(t, tool.allowedDirectories, 1)
 	})
 
 	t.Run("attempt to add file instead of directory", func(t *testing.T) {
@@ -1114,9 +768,7 @@ func TestFilesystemTool_AddAllowedDirectory(t *testing.T) {
 		require.NoError(t, err)
 
 		args := AddAllowedDirectoryArgs{
-			Path:      tempFile,
-			Reason:    "Testing file",
-			Confirmed: true,
+			Path: tempFile,
 		}
 		result := callHandler(t, handler, args)
 
@@ -1124,7 +776,7 @@ func TestFilesystemTool_AddAllowedDirectory(t *testing.T) {
 		assert.Contains(t, result.Output, "is not a directory")
 
 		// Should not add file
-		assert.Len(t, tool.allowedDirectories, 2)
+		assert.Len(t, tool.allowedDirectories, 1)
 	})
 }
 

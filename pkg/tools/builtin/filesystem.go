@@ -108,9 +108,7 @@ type GetFileInfoArgs struct {
 }
 
 type AddAllowedDirectoryArgs struct {
-	Path      string `json:"path" jsonschema:"The directory path to add to allowed directories"`
-	Reason    string `json:"reason" jsonschema:"Explanation of why this directory needs to be added"`
-	Confirmed bool   `json:"confirmed,omitempty" jsonschema:"Set to true to confirm that you consent to adding this directory"`
+	Path string `json:"path" jsonschema:"The directory path to add to allowed directories"`
 }
 
 type WriteFileArgs struct {
@@ -574,38 +572,12 @@ func (t *FilesystemTool) handleAddAllowedDirectory(_ context.Context, toolCall t
 		}
 	}
 
-	// If not confirmed, show consent request
-	if !args.Confirmed {
-		consentMsg := fmt.Sprintf(`SECURITY CONSENT REQUEST
-
-The agent is requesting permission to add a new directory to the allowed filesystem access list:
-
-Path: %s
-Reason: %s
-
-This will grant the agent read/write access to this directory and all its subdirectories.
-
-IMPORTANT: Only grant this permission if:
-1. You trust this request and understand the security implications
-2. The directory contains files the agent legitimately needs to access
-3. The directory doesn't contain sensitive personal data or system files
-
-To proceed, call this tool again with the same parameters but add "confirmed": true
-To deny, do not call the tool again.
-
-Current allowed directories:
-%s`, absPath, args.Reason, strings.Join(t.allowedDirectories, "\n"))
-
-		return &tools.ToolCallResult{Output: consentMsg}, nil
-	}
-
 	// User has confirmed, add the directory
 	return t.addAllowedDirectory(absPath)
 }
 
 // addAllowedDirectory adds a directory to the allowed directories list
 func (t *FilesystemTool) addAllowedDirectory(absPath string) (*tools.ToolCallResult, error) {
-	// Add the directory to the allowed list
 	t.allowedDirectories = append(t.allowedDirectories, absPath)
 
 	successMsg := fmt.Sprintf(`Directory successfully added to allowed directories list.
