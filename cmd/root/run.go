@@ -94,7 +94,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 			return err
 		}
 	} else {
-		agentFileName, err = f.resolveAgentFile(ctx, args[0])
+		agentFileName, err = f.resolveAgentFile(ctx, out, args[0])
 		if err != nil {
 			return err
 		}
@@ -127,11 +127,11 @@ func (f *runExecFlags) setupWorkingDirectory() error {
 
 // resolveAgentFile is a wrapper method that calls the agentfile.Resolve function
 // after checking for remote address
-func (f *runExecFlags) resolveAgentFile(ctx context.Context, agentFilename string) (string, error) {
+func (f *runExecFlags) resolveAgentFile(ctx context.Context, out *cli.Printer, agentFilename string) (string, error) {
 	if f.remoteAddress != "" {
 		return agentFilename, nil
 	}
-	return agentfile.Resolve(ctx, agentFilename)
+	return agentfile.Resolve(ctx, out, agentFilename)
 }
 
 func (f *runExecFlags) loadAgents(ctx context.Context, agentFilename string) (*team.Team, error) {

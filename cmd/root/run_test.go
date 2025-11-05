@@ -78,7 +78,7 @@ agents:
 	defer cancel()
 
 	// Test resolving a local file
-	resolved, err := agentfile.Resolve(ctx, yamlFile)
+	resolved, err := agentfile.Resolve(ctx, nil, yamlFile)
 	require.NoError(t, err)
 
 	// Should return absolute path
@@ -115,7 +115,7 @@ agents:
 	defer cancel()
 
 	// First resolution
-	resolved1, err := agentfile.Resolve(ctx, ociRef)
+	resolved1, err := agentfile.Resolve(ctx, nil, ociRef)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resolved1)
 
@@ -132,7 +132,7 @@ agents:
 	firstResolvedPath := resolved1
 
 	// Second resolution (simulating a reload)
-	resolved2, err := agentfile.Resolve(ctx, ociRef)
+	resolved2, err := agentfile.Resolve(ctx, nil, ociRef)
 	require.NoError(t, err)
 
 	// Should return the SAME filename
@@ -158,7 +158,7 @@ agents:
 	require.NoError(t, err)
 
 	// Third resolution (simulating reload after update)
-	resolved3, err := agentfile.Resolve(ctx, ociRef)
+	resolved3, err := agentfile.Resolve(ctx, nil, ociRef)
 	require.NoError(t, err)
 
 	// Should STILL use the same filename
@@ -211,10 +211,10 @@ agents:
 	defer cancel()
 
 	// Resolve both OCI refs
-	resolved1, err := agentfile.Resolve(ctx, ociRef1)
+	resolved1, err := agentfile.Resolve(ctx, nil, ociRef1)
 	require.NoError(t, err)
 
-	resolved2, err := agentfile.Resolve(ctx, ociRef2)
+	resolved2, err := agentfile.Resolve(ctx, nil, ociRef2)
 	require.NoError(t, err)
 
 	// Should have DIFFERENT filenames
@@ -262,7 +262,7 @@ agents:
 	ctx, cancel := context.WithCancel(t.Context())
 
 	// Resolve the OCI ref
-	resolved, err := agentfile.Resolve(ctx, ociRef)
+	resolved, err := agentfile.Resolve(ctx, nil, ociRef)
 	require.NoError(t, err)
 	assert.FileExists(t, resolved)
 
