@@ -426,41 +426,45 @@ func (t *FilesystemTool) initGitignoreMatchers() {
 			slog.Warn("Failed to get absolute path for allowed directory", "dir", allowedDir, "error", err)
 			continue
 		}
-
-		// PlainOpen automatically searches up the directory tree for .git
-		repo, err := git.PlainOpen(absDir)
-		if err != nil {
-			slog.Debug("No git repository found", "directory", absDir)
-			continue
-		}
-
-		// Get the worktree
-		worktree, err := repo.Worktree()
-		if err != nil {
-			slog.Warn("Failed to get worktree", "path", absDir, "error", err)
-			continue
-		}
-
-		// Get the repository root path
-		repoRoot := worktree.Filesystem.Root()
-
-		// Skip if we already have a matcher for this repository
-		if _, exists := t.repoMatchers[repoRoot]; exists {
-			continue
-		}
-
-		// Read gitignore patterns from the repository
-		patterns, err := gitignore.ReadPatterns(worktree.Filesystem, nil)
-		if err != nil {
-			slog.Warn("Failed to read gitignore patterns", "path", repoRoot, "error", err)
-			continue
-		}
-
-		// Create a matcher from the patterns
-		matcher := gitignore.NewMatcher(patterns)
-		t.repoMatchers[repoRoot] = matcher
-		slog.Debug("Loaded gitignore patterns", "repository", repoRoot)
+		t.loadMatcherForDirectory(absDir)
 	}
+}
+
+// loadMatcherForDirectory loads a gitignore matcher for a specific directory
+func (t *FilesystemTool) loadMatcherForDirectory(absDir string) {
+	// PlainOpen automatically searches up the directory tree for .git
+	repo, err := git.PlainOpen(absDir)
+	if err != nil {
+		slog.Debug("No git repository found", "directory", absDir)
+		return
+	}
+
+	// Get the worktree
+	worktree, err := repo.Worktree()
+	if err != nil {
+		slog.Warn("Failed to get worktree", "path", absDir, "error", err)
+		return
+	}
+
+	// Get the repository root path
+	repoRoot := worktree.Filesystem.Root()
+
+	// Skip if we already have a matcher for this repository
+	if _, exists := t.repoMatchers[repoRoot]; exists {
+		return
+	}
+
+	// Read gitignore patterns from the repository
+	patterns, err := gitignore.ReadPatterns(worktree.Filesystem, nil)
+	if err != nil {
+		slog.Warn("Failed to read gitignore patterns", "path", repoRoot, "error", err)
+		return
+	}
+
+	// Create a matcher from the patterns
+	matcher := gitignore.NewMatcher(patterns)
+	t.repoMatchers[repoRoot] = matcher
+	slog.Debug("Loaded gitignore patterns", "repository", repoRoot)
 }
 
 // shouldIgnorePath checks if a path should be ignored based on VCS rules
@@ -687,6 +691,11 @@ func (t *FilesystemTool) handleAddAllowedDirectory(_ context.Context, toolCall t
 // addAllowedDirectory adds a directory to the allowed directories list
 func (t *FilesystemTool) addAllowedDirectory(absPath string) (*tools.ToolCallResult, error) {
 	t.allowedDirectories = append(t.allowedDirectories, absPath)
+
+	// Load gitignore matcher for the new directory if VCS ignoring is enabled
+	if t.ignoreVCS {
+		t.loadMatcherForDirectory(absPath)
+	}
 
 	successMsg := fmt.Sprintf(`Directory successfully added to allowed directories list.
 
