@@ -109,6 +109,8 @@ type model struct {
 	totalHeight   int                  // Total height of all content in lines
 
 	selection selectionState
+
+	splitDiffView bool
 }
 
 // New creates a new message list component
@@ -118,6 +120,7 @@ func New(a *app.App) Model {
 		height:        24,
 		app:           a,
 		renderedItems: make(map[int]renderedItem),
+		splitDiffView: true,
 	}
 }
 
@@ -215,6 +218,24 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 		return m, nil
+
+	case tool.ToggleDiffViewMsg:
+		m.splitDiffView = !m.splitDiffView
+
+		var cmds []tea.Cmd
+		for i, view := range m.views {
+			updatedView, cmd := view.Update(tool.ToggleDiffViewMsg{})
+			if updatedView != nil {
+				m.views[i] = updatedView.(layout.Model)
+			}
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+		}
+
+		m.invalidateAllItems()
+
+		return m, tea.Batch(cmds...)
 
 	case tea.KeyPressMsg:
 		switch msg.String() {
@@ -410,7 +431,7 @@ func (m *model) renderItem(index int, view layout.Model) renderedItem {
 
 	// Render the item (always for dynamic content, or when not cached)
 	rendered := view.View()
-	height := strings.Count(rendered, "\n") + 1
+	height := lipgloss.Height(rendered)
 	if rendered == "" {
 		height = 0
 	}
@@ -669,7 +690,7 @@ func (m *model) ScrollToBottom() tea.Cmd {
 }
 
 func (m *model) createToolCallView(msg *types.Message) layout.Model {
-	view := tool.New(msg, m.app, markdown.NewRenderer(m.width))
+	view := tool.New(msg, m.app, markdown.NewRenderer(m.width), m.splitDiffView)
 	view.SetSize(m.width, 0)
 	return view
 }

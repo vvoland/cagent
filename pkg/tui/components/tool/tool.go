@@ -16,6 +16,8 @@ import (
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
+type ToggleDiffViewMsg struct{}
+
 // toolModel implements Model
 type toolModel struct {
 	message *types.Message
@@ -27,6 +29,8 @@ type toolModel struct {
 	height int
 
 	app *app.App
+
+	splitDiffView bool
 }
 
 // SetSize implements Model.
@@ -37,7 +41,7 @@ func (mv *toolModel) SetSize(width, height int) tea.Cmd {
 }
 
 // New creates a new tool view
-func New(msg *types.Message, a *app.App, renderer *glamour.TermRenderer) layout.Model {
+func New(msg *types.Message, a *app.App, renderer *glamour.TermRenderer, splitDiffView bool) layout.Model {
 	if msg.ToolCall.Function.Name == builtin.ToolNameTransferTask {
 		return &transferTaskModel{
 			msg: msg,
@@ -45,12 +49,13 @@ func New(msg *types.Message, a *app.App, renderer *glamour.TermRenderer) layout.
 	}
 
 	return &toolModel{
-		message:  msg,
-		width:    80,
-		height:   1,
-		spinner:  spinner.New(spinner.WithSpinner(spinner.Points)),
-		renderer: renderer,
-		app:      a,
+		message:       msg,
+		width:         80,
+		height:        1,
+		spinner:       spinner.New(spinner.WithSpinner(spinner.Points)),
+		renderer:      renderer,
+		app:           a,
+		splitDiffView: splitDiffView,
 	}
 }
 
@@ -72,9 +77,12 @@ func (mv *toolModel) Init() tea.Cmd {
 	return nil
 }
 
-// Update handles messages and updates the message view state
 func (mv *toolModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Handle spinner updates for empty assistant messages or pending/running tools
+	if _, ok := msg.(ToggleDiffViewMsg); ok {
+		mv.splitDiffView = !mv.splitDiffView
+		return mv, nil
+	}
+
 	switch mv.message.Type {
 	case types.MessageTypeAssistant:
 		if mv.message.Content == "" {
@@ -95,12 +103,9 @@ func (mv *toolModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (mv *toolModel) View() string {
 	msg := mv.message
-
 	displayName := msg.ToolDefinition.DisplayName()
-
 	content := fmt.Sprintf("%s %s", icon(msg.ToolStatus), styles.HighlightStyle.Render(displayName))
 
-	// Add spinner for pending and running tools
 	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
 		content += " " + mv.spinner.View()
 	}
@@ -108,7 +113,7 @@ func (mv *toolModel) View() string {
 	if msg.ToolCall.Function.Arguments != "" {
 		switch msg.ToolCall.Function.Name {
 		case builtin.ToolNameEditFile:
-			diff, path := renderEditFile(msg.ToolCall, mv.width-4)
+			diff, path := renderEditFile(msg.ToolCall, mv.width-4, mv.splitDiffView)
 			if diff != "" {
 				var editFile string
 				editFile += styles.ToolCallArgKey.Render("path:")
@@ -121,7 +126,6 @@ func (mv *toolModel) View() string {
 		}
 	}
 
-	// Add tool result content if available (for completed tools with content)
 	var resultContent string
 	if (msg.ToolStatus == types.ToolStatusCompleted || msg.ToolStatus == types.ToolStatusError) && msg.Content != "" {
 		var content string
@@ -141,7 +145,6 @@ func (mv *toolModel) View() string {
 		// Wrap long lines to fit the component width
 		lines := wrapLines(content, availableWidth)
 
-		// Take only first 10 lines after wrapping
 		header := "output"
 		if len(lines) > 10 {
 			lines = lines[:10]
