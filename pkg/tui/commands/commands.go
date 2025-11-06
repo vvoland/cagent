@@ -100,7 +100,7 @@ func builtInFeedbackCommands() []Item {
 			},
 		},
 		{
-			ID:          "feedback.feeedback",
+			ID:          "feedback.feedback",
 			Label:       "Give Feedback",
 			Description: "Provide feedback about cagent",
 			Category:    "Feedback",

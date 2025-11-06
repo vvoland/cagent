@@ -175,7 +175,7 @@ Determine how much the model should think by setting the `thinking_budget`
 
 - **OpenAI**: use effort levels — `minimal`, `low`, `medium`, `high`
 - **Anthropic**: set an integer token budget. Range is 1024–32768; must be strictly less than `max_tokens`.
-- **Google (Gemini)**: set an integer token budget. `0` -> disable thinking, `-1` -> dynamic thinking (model decides). Most models: 0–24576 tokens. Gemini 2.5 Pro: 128–32768 tokens (and cannot disabled thinking). 
+- **Google (Gemini)**: set an integer token budget. `0` -> disable thinking, `-1` -> dynamic thinking (model decides). Most models: 0–24576 tokens. Gemini 2.5 Pro: 128–32768 tokens (and cannot disable thinking). 
 
 Examples (OpenAI):
 

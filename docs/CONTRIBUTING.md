@@ -13,7 +13,7 @@ If you're hacking on `cagent`, or just want to be on the bleeding edge, then bui
 - Go 1.25 or higher
 - API key(s) for your chosen AI provider (OpenAI, Anthropic, Gemini, etc.)
 - [Task 3.44 or higher](https://taskfile.dev/installation/)
-- [`golangci-lint`](https://golangci-lint.run/docs/welcome/install/#binaries`)
+- [`golangci-lint`](https://golangci-lint.run/docs/welcome/install/#binaries)
 
 ##### Build commands
 
@@ -25,7 +25,7 @@ task build
 
 # Set keys for remote inference services
 export OPENAI_API_KEY=your_api_key_here    # For OpenAI models
-export ANTHROPIC_API_KEY=your_api_key_here # For Anthopic models
+export ANTHROPIC_API_KEY=your_api_key_here # For Anthropic models
 export GOOGLE_API_KEY=your_api_key_here    # For Gemini models
 export MISTRAL_API_KEY=your_api_key_here   # For Mistral models
 
