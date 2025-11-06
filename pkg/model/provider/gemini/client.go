@@ -214,14 +214,21 @@ func convertMessagesToGemini(messages []chat.Message) []*genai.Content {
 
 // buildConfig creates GenerateContentConfig from model config
 func (c *Client) buildConfig() *genai.GenerateContentConfig {
-	config := &genai.GenerateContentConfig{
-		Temperature:      genai.Ptr(float32(c.ModelConfig.Temperature)),
-		TopP:             genai.Ptr(float32(c.ModelConfig.TopP)),
-		FrequencyPenalty: genai.Ptr(float32(c.ModelConfig.FrequencyPenalty)),
-		PresencePenalty:  genai.Ptr(float32(c.ModelConfig.PresencePenalty)),
-	}
+	config := &genai.GenerateContentConfig{}
 	if c.ModelConfig.MaxTokens > 0 {
 		config.MaxOutputTokens = int32(c.ModelConfig.MaxTokens)
+	}
+	if c.ModelConfig.Temperature != nil {
+		config.Temperature = genai.Ptr(float32(*c.ModelConfig.Temperature))
+	}
+	if c.ModelConfig.TopP != nil {
+		config.TopP = genai.Ptr(float32(*c.ModelConfig.TopP))
+	}
+	if c.ModelConfig.FrequencyPenalty != nil {
+		config.FrequencyPenalty = genai.Ptr(float32(*c.ModelConfig.FrequencyPenalty))
+	}
+	if c.ModelConfig.PresencePenalty != nil {
+		config.PresencePenalty = genai.Ptr(float32(*c.ModelConfig.PresencePenalty))
 	}
 
 	// Apply thinking budget for Gemini models using token-based configuration.

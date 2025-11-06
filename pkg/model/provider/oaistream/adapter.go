@@ -5,7 +5,10 @@ This is a shared adapter for OpenAI-compatible streams.
 */
 
 import (
-	"github.com/sashabaranov/go-openai"
+	"io"
+
+	"github.com/openai/openai-go/v3"
+	"github.com/openai/openai-go/v3/packages/ssestream"
 
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/tools"
@@ -13,13 +16,13 @@ import (
 
 // StreamAdapter adapts the OpenAI stream to our interface
 type StreamAdapter struct {
-	stream           *openai.ChatCompletionStream
+	stream           *ssestream.Stream[openai.ChatCompletionChunk]
 	lastFinishReason chat.FinishReason
 	toolCalls        map[int]string
 	trackUsage       bool
 }
 
-func NewStreamAdapter(stream *openai.ChatCompletionStream, trackUsage bool) *StreamAdapter {
+func NewStreamAdapter(stream *ssestream.Stream[openai.ChatCompletionChunk], trackUsage bool) *StreamAdapter {
 	return &StreamAdapter{
 		stream:     stream,
 		toolCalls:  make(map[int]string),
@@ -29,33 +32,40 @@ func NewStreamAdapter(stream *openai.ChatCompletionStream, trackUsage bool) *Str
 
 // Recv gets the next completion chunk
 func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
-	openaiResponse, err := a.stream.Recv()
-	if err != nil {
-		return chat.MessageStreamResponse{}, err
+	if !a.stream.Next() {
+		err := a.stream.Err()
+		if err != nil {
+			return chat.MessageStreamResponse{}, err
+		}
+		return chat.MessageStreamResponse{}, io.EOF
 	}
+
+	openaiResponse := a.stream.Current()
 
 	// Convert the OpenAI response to our generic format
 	response := chat.MessageStreamResponse{
 		ID:      openaiResponse.ID,
-		Object:  openaiResponse.Object,
+		Object:  string(openaiResponse.Object),
 		Created: openaiResponse.Created,
 		Model:   openaiResponse.Model,
 		Choices: make([]chat.MessageStreamChoice, len(openaiResponse.Choices)),
 	}
 
-	if openaiResponse.Usage != nil {
+	// Check if Usage field is present using the JSON metadata
+	if openaiResponse.JSON.Usage.Valid() {
+		usage := openaiResponse.Usage
 		response.Usage = &chat.Usage{
-			InputTokens:        openaiResponse.Usage.PromptTokens,
-			OutputTokens:       openaiResponse.Usage.CompletionTokens,
+			InputTokens:        int(usage.PromptTokens),
+			OutputTokens:       int(usage.CompletionTokens),
 			CachedInputTokens:  0,
 			CachedOutputTokens: 0,
 			ReasoningTokens:    0,
 		}
-		if openaiResponse.Usage.PromptTokensDetails != nil {
-			response.Usage.CachedInputTokens = openaiResponse.Usage.PromptTokensDetails.CachedTokens
+		if usage.JSON.PromptTokensDetails.Valid() {
+			response.Usage.CachedInputTokens = int(usage.PromptTokensDetails.CachedTokens)
 		}
-		if openaiResponse.Usage.CompletionTokensDetails != nil {
-			response.Usage.ReasoningTokens = openaiResponse.Usage.CompletionTokensDetails.ReasoningTokens
+		if usage.JSON.CompletionTokensDetails.Valid() {
+			response.Usage.ReasoningTokens = int(usage.CompletionTokensDetails.ReasoningTokens)
 		}
 		// Use the tracked finish reason instead of hardcoding stop
 		finishReason := a.lastFinishReason
@@ -69,7 +79,7 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 				FinishReason: finishReason,
 			})
 		} else {
-			// Other openai-compatible providers DO resturn a choice with finish reason...
+			// Other openai-compatible providers DO return a choice with finish reason...
 			response.Choices[0].FinishReason = finishReason
 		}
 		if finishReason == chat.FinishReasonStop {
@@ -80,31 +90,34 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 	// Convert the choices
 	for i := range openaiResponse.Choices {
 		choice := &openaiResponse.Choices[i]
-		if a.trackUsage && (choice.FinishReason == openai.FinishReasonStop || choice.FinishReason == openai.FinishReasonLength) {
-			choice.FinishReason = openai.FinishReasonNull
+
+		finishReasonStr := choice.FinishReason
+		if a.trackUsage && (finishReasonStr == "stop" || finishReasonStr == "length") {
+			finishReasonStr = ""
 		}
 
-		finishReason := chat.FinishReason(choice.FinishReason)
+		finishReason := chat.FinishReason(finishReasonStr)
 		// Track the finish reason for when we get usage info
 		if finishReason != chat.FinishReasonNull && finishReason != "" {
 			a.lastFinishReason = finishReason
 		}
 
 		response.Choices[i] = chat.MessageStreamChoice{
-			Index:        choice.Index,
+			Index:        int(choice.Index),
 			FinishReason: finishReason,
 			Delta: chat.MessageDelta{
-				Role:             choice.Delta.Role,
-				Content:          choice.Delta.Content,
-				ReasoningContent: choice.Delta.ReasoningContent,
+				Role:    choice.Delta.Role,
+				Content: choice.Delta.Content,
+				// ReasoningContent not available in this SDK version
 			},
 		}
 
 		// Convert function call if present
-		if choice.Delta.FunctionCall != nil {
+		if choice.Delta.JSON.FunctionCall.Valid() {
+			funcCall := choice.Delta.FunctionCall //nolint:staticcheck // deprecated but still needed for compatibility
 			response.Choices[i].Delta.FunctionCall = &tools.FunctionCall{
-				Name:      choice.Delta.FunctionCall.Name,
-				Arguments: choice.Delta.FunctionCall.Arguments,
+				Name:      funcCall.Name,
+				Arguments: funcCall.Arguments,
 			}
 		}
 
@@ -113,10 +126,11 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 			response.Choices[i].Delta.ToolCalls = make([]tools.ToolCall, len(choice.Delta.ToolCalls))
 			for j, toolCall := range choice.Delta.ToolCalls {
 				id := toolCall.ID
-				if existing, ok := a.toolCalls[*toolCall.Index]; ok {
+				index := int(toolCall.Index)
+				if existing, ok := a.toolCalls[index]; ok && id == "" {
 					id = existing
-				} else {
-					a.toolCalls[*toolCall.Index] = id
+				} else if id != "" {
+					a.toolCalls[index] = id
 				}
 
 				response.Choices[i].Delta.ToolCalls[j] = tools.ToolCall{
@@ -136,5 +150,5 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 
 // Close closes the stream
 func (a *StreamAdapter) Close() {
-	a.stream.Close()
+	_ = a.stream.Close()
 }

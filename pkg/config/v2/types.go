@@ -31,16 +31,16 @@ type AgentConfig struct {
 
 // ModelConfig represents the configuration for a model
 type ModelConfig struct {
-	Provider          string  `json:"provider,omitempty"`
-	Model             string  `json:"model,omitempty"`
-	Temperature       float64 `json:"temperature,omitempty"`
-	MaxTokens         int     `json:"max_tokens,omitempty"`
-	TopP              float64 `json:"top_p,omitempty"`
-	FrequencyPenalty  float64 `json:"frequency_penalty,omitempty"`
-	PresencePenalty   float64 `json:"presence_penalty,omitempty"`
-	BaseURL           string  `json:"base_url,omitempty"`
-	ParallelToolCalls *bool   `json:"parallel_tool_calls,omitempty"`
-	TokenKey          string  `json:"token_key,omitempty"`
+	Provider          string   `json:"provider,omitempty"`
+	Model             string   `json:"model,omitempty"`
+	Temperature       *float64 `json:"temperature,omitempty"`
+	MaxTokens         int      `json:"max_tokens,omitempty"`
+	TopP              *float64 `json:"top_p,omitempty"`
+	FrequencyPenalty  *float64 `json:"frequency_penalty,omitempty"`
+	PresencePenalty   *float64 `json:"presence_penalty,omitempty"`
+	BaseURL           string   `json:"base_url,omitempty"`
+	ParallelToolCalls *bool    `json:"parallel_tool_calls,omitempty"`
+	TokenKey          string   `json:"token_key,omitempty"`
 	// ProviderOpts allows provider-specific options. Currently used for "dmr" provider only.
 	ProviderOpts map[string]any `json:"provider_opts,omitempty"`
 	TrackUsage   *bool          `json:"track_usage,omitempty"`

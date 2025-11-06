@@ -28,7 +28,7 @@ func TestMCP_SingleAgent(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	assert.Equal(t, "2+2 equals 4.", output.Response)
+	assert.Equal(t, "2 + 2 equals 4.", output.Response)
 }
 
 func TestMCP_MultiAgent(t *testing.T) {
@@ -49,5 +49,5 @@ func TestMCP_MultiAgent(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	assert.Equal(t, "Hello, nice to meet you.", output.Response)
+	assert.Equal(t, "Hello — how can I help you today?", output.Response)
 }

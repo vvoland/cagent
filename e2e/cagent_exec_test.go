@@ -12,34 +12,34 @@ import (
 	"github.com/docker/cagent/cmd/root"
 )
 
-func TestExec_BasicOpenAI(t *testing.T) {
-	out := cagentExec(t, "testdata/basic.yaml", "Who's djordje?")
+func TestExec_OpenAI(t *testing.T) {
+	out := cagentExec(t, "testdata/basic.yaml", "What's 2+2?")
 
-	require.Equal(t, `
---- Agent: root ---
-
-Djordje is a common Serbian given name. It may refer to different individuals depending on the context. If you provide more information or details, I can help you identify the specific Djordje you are referring to.`,
-		out)
+	require.Equal(t, "\n--- Agent: root ---\n\n2 + 2 equals 4.", out)
 }
 
-func TestExec_BasicAnthropic(t *testing.T) {
-	out := cagentExec(t, "testdata/basic.yaml", "--model=anthropic/claude-sonnet-4-0", "Who's djordje?. Be super concise.")
+func TestExec_OpenAI_gpt5(t *testing.T) {
+	out := cagentExec(t, "testdata/basic.yaml", "--model=openai/gpt-5", "What's 2+2?")
 
-	require.Equal(t, `
---- Agent: root ---
-
-I need more context. There are many people named Djordje (a Serbian name). Could you specify which Djordje you're asking about?`,
-		out)
+	require.Equal(t, "\n--- Agent: root ---\n\n4", out)
 }
 
-func TestExec_BasicGemini(t *testing.T) {
-	out := cagentExec(t, "testdata/basic.yaml", "--model=google/gemini-2.5-flash", "Who's djordje?. Be super concise.")
+func TestExec_Anthropic(t *testing.T) {
+	out := cagentExec(t, "testdata/basic.yaml", "--model=anthropic/claude-sonnet-4-0", "What's 2+2?")
 
-	require.Equal(t, `
---- Agent: root ---
+	require.Equal(t, "\n--- Agent: root ---\n\n2 + 2 = 4", out)
+}
 
-Serbian equivalent of the name George.`,
-		out)
+func TestExec_Gemini(t *testing.T) {
+	out := cagentExec(t, "testdata/basic.yaml", "--model=google/gemini-2.5-flash", "What's 2+2?")
+
+	require.Equal(t, "\n--- Agent: root ---\n\n2+2=4", out)
+}
+
+func TestExec_Mistral(t *testing.T) {
+	out := cagentExec(t, "testdata/basic.yaml", "--model=mistral/mistral-small", "What's 2+2?")
+
+	require.Equal(t, "\n--- Agent: root ---\n\nThe sum of 2 + 2 is 4.", out)
 }
 
 func TestExec_ToolCallsNeedAcceptance(t *testing.T) {

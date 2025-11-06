@@ -23,13 +23,13 @@ func TestRuntime_OpenAI_Basic(t *testing.T) {
 	rt, err := runtime.New(team)
 	require.NoError(t, err)
 
-	sess := session.New(session.WithUserMessage("", "Who's djordje?"))
+	sess := session.New(session.WithUserMessage("", "What's 2+2?"))
 	_, err = rt.Run(ctx, sess)
 	require.NoError(t, err)
 
 	response := sess.GetLastAssistantMessageContent()
-	assert.Equal(t, "Djordje is a popular given name in some Eastern European countries, such as Serbia. If you have more specific information or context, I'd be happy to help further.", response)
-	assert.Equal(t, "Understanding identity: Who is Djordje?", sess.Title)
+	assert.Equal(t, "2 + 2 equals 4.", response)
+	assert.Equal(t, "Basic Arithmetic: Addition of 2 and 2", sess.Title)
 }
 
 func TestRuntime_Mistral_Basic(t *testing.T) {
@@ -44,11 +44,11 @@ func TestRuntime_Mistral_Basic(t *testing.T) {
 	rt, err := runtime.New(team)
 	require.NoError(t, err)
 
-	sess := session.New(session.WithUserMessage("", "Who's djordje?"))
+	sess := session.New(session.WithUserMessage("", "What's 2+2?"))
 	_, err = rt.Run(ctx, sess)
 	require.NoError(t, err)
 
 	response := sess.GetLastAssistantMessageContent()
-	assert.Equal(t, `It seems like "djordje" is a name, most likely of Slavic origin. It is commonly spelled as "Đorđe" in Serbian language, and it means "farmer" or "earthworker". It is a masculine given name, and it is quite popular in Serbia, Montenegro, and other countries in the region. Without more context, it's hard to say exactly who "djordje" is, as it could refer to any person by that name.`, response)
-	assert.Equal(t, `"Inquiry About the Identity of 'Djordje'"`, sess.Title)
+	assert.Equal(t, "The sum of 2 + 2 is 4.", response)
+	assert.Equal(t, "Math Basics: Simple Addition", sess.Title)
 }
