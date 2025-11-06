@@ -59,4 +59,5 @@ agents:
         config:
           path: .
     commands:
-      fix-lint: "fix the lint issues"
+      fix-lint: "Fix the lint issues"
+      remove-comments-tests: "Remove useless comments in test files (*_test.go)"

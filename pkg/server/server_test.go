@@ -224,7 +224,6 @@ func TestServer_ReloadTeams(t *testing.T) {
 
 	ctx := t.Context()
 
-	// Create initial agents directory with pirate agent
 	agentsDir1 := prepareAgentsDir(t, "pirate.yaml")
 
 	var store mockStore
@@ -237,21 +236,18 @@ func TestServer_ReloadTeams(t *testing.T) {
 	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir1))
 	require.NoError(t, err)
 
-	// Verify initial state - should have pirate agent
 	initialTeamsCount := srv.countTeams()
 	hasPirate := srv.hasTeam("pirate.yaml")
 
 	assert.Equal(t, 1, initialTeamsCount)
 	assert.True(t, hasPirate, "should have pirate agent initially")
 
-	// Create a new agents directory with different agents
 	agentsDir2 := prepareAgentsDir(t, "contradict.yaml", "multi_agents.yaml")
 
 	// Reload teams from the new directory
 	err = srv.ReloadTeams(ctx, agentsDir2)
 	require.NoError(t, err)
 
-	// Verify teams were reloaded
 	newTeamsCount := srv.countTeams()
 	hasPirateAfter := srv.hasTeam("pirate.yaml")
 	hasContradict := srv.hasTeam("contradict.yaml")
@@ -281,10 +277,8 @@ func TestServer_ReloadTeams_Concurrent(t *testing.T) {
 	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
 	require.NoError(t, err)
 
-	// Create another directory for reloading
 	agentsDir2 := prepareAgentsDir(t, "contradict.yaml")
 
-	// Test concurrent access: read teams while reloading
 	done := make(chan bool)
 	go func() {
 		for range 100 {
@@ -301,7 +295,6 @@ func TestServer_ReloadTeams_Concurrent(t *testing.T) {
 
 	<-done
 
-	// Verify final state matches last reload
 	hasPirate := srv.hasTeam("pirate.yaml")
 
 	assert.True(t, hasPirate, "should have pirate agent after final reload")
@@ -328,7 +321,6 @@ func TestServer_ReloadTeams_InvalidPath(t *testing.T) {
 	err = srv.ReloadTeams(ctx, "/nonexistent/path")
 	require.Error(t, err)
 
-	// Verify original teams are still intact
 	teamsCount := srv.countTeams()
 	hasPirate := srv.hasTeam("pirate.yaml")
 
@@ -354,7 +346,6 @@ func TestServer_RefreshAgentsFromDisk_AddNewAgent(t *testing.T) {
 	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
 	require.NoError(t, err)
 
-	// Verify initial state
 	initialCount := srv.countTeams()
 	hasPirate := srv.hasTeam("pirate.yaml")
 	hasContradict := srv.hasTeam("contradict.yaml")
@@ -363,7 +354,6 @@ func TestServer_RefreshAgentsFromDisk_AddNewAgent(t *testing.T) {
 	assert.True(t, hasPirate)
 	assert.False(t, hasContradict)
 
-	// Add a new agent to the directory
 	buf, err := os.ReadFile(filepath.Join("testdata", "contradict.yaml"))
 	require.NoError(t, err)
 	err = os.WriteFile(filepath.Join(agentsDir, "contradict.yaml"), buf, 0o600)
@@ -373,7 +363,6 @@ func TestServer_RefreshAgentsFromDisk_AddNewAgent(t *testing.T) {
 	err = srv.refreshAgentsFromDisk(ctx)
 	require.NoError(t, err)
 
-	// Verify new agent was added
 	newCount := srv.countTeams()
 	hasPirateAfter := srv.hasTeam("pirate.yaml")
 	hasContradictAfter := srv.hasTeam("contradict.yaml")
@@ -401,7 +390,6 @@ func TestServer_RefreshAgentsFromDisk_RemoveAgent(t *testing.T) {
 	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
 	require.NoError(t, err)
 
-	// Verify initial state
 	initialCount := srv.countTeams()
 	hasPirate := srv.hasTeam("pirate.yaml")
 	hasContradict := srv.hasTeam("contradict.yaml")
@@ -418,7 +406,6 @@ func TestServer_RefreshAgentsFromDisk_RemoveAgent(t *testing.T) {
 	err = srv.refreshAgentsFromDisk(ctx)
 	require.NoError(t, err)
 
-	// Verify agent was removed
 	newCount := srv.countTeams()
 	hasPirateAfter := srv.hasTeam("pirate.yaml")
 	hasContradictAfter := srv.hasTeam("contradict.yaml")
@@ -445,7 +432,6 @@ func TestServer_RefreshAgentsFromDisk_UpdateAgent(t *testing.T) {
 	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
 	require.NoError(t, err)
 
-	// Get initial agent
 	initialTeam, exists := srv.getTeam("pirate.yaml")
 	require.True(t, exists)
 	require.NotNil(t, initialTeam)
@@ -469,7 +455,6 @@ agents:
 	err = srv.refreshAgentsFromDisk(ctx)
 	require.NoError(t, err)
 
-	// Verify agent was updated
 	updatedTeam, exists := srv.getTeam("pirate.yaml")
 	require.True(t, exists)
 	require.NotNil(t, updatedTeam)
@@ -500,7 +485,6 @@ func TestServer_RefreshAgentsFromDisk_MultipleChanges(t *testing.T) {
 	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
 	require.NoError(t, err)
 
-	// Verify initial state
 	initialCount := srv.countTeams()
 	assert.Equal(t, 2, initialCount)
 
@@ -517,7 +501,6 @@ func TestServer_RefreshAgentsFromDisk_MultipleChanges(t *testing.T) {
 	err = srv.refreshAgentsFromDisk(ctx)
 	require.NoError(t, err)
 
-	// Verify changes
 	newCount := srv.countTeams()
 	hasPirate := srv.hasTeam("pirate.yaml")
 	hasContradict := srv.hasTeam("contradict.yaml")
@@ -545,14 +528,12 @@ func TestServer_RefreshAgentsFromDisk_NoChanges(t *testing.T) {
 	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
 	require.NoError(t, err)
 
-	// Get initial state
 	initialCount := srv.countTeams()
 
 	// Refresh without any changes
 	err = srv.refreshAgentsFromDisk(ctx)
 	require.NoError(t, err)
 
-	// Verify state unchanged
 	newCount := srv.countTeams()
 	exists := srv.hasTeam("pirate.yaml")
 
@@ -586,7 +567,6 @@ func TestServer_RefreshAgentsFromDisk_EmptyDir(t *testing.T) {
 	err = srv.refreshAgentsFromDisk(ctx)
 	require.NoError(t, err)
 
-	// Verify all agents removed
 	count := srv.countTeams()
 
 	assert.Equal(t, 0, count, "should have no agents")
@@ -600,7 +580,6 @@ func TestServer_RefreshAgentsFromDisk_NoAgentsDir(t *testing.T) {
 	var store mockStore
 	var runConfig config.RuntimeConfig
 
-	// Create server without agentsDir
 	srv, err := New(store, runConfig, nil)
 	require.NoError(t, err)
 

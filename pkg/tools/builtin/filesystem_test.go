@@ -82,12 +82,10 @@ func TestFilesystemTool_IsPathAllowed(t *testing.T) {
 	tmpDir := t.TempDir()
 	tool := NewFilesystemTool([]string{tmpDir})
 
-	// Test allowed path
 	allowedPath := filepath.Join(tmpDir, "subdir", "file.txt")
 	err := tool.isPathAllowed(allowedPath)
 	require.NoError(t, err)
 
-	// Test disallowed path
 	disallowedPath := "/etc/passwd"
 	err = tool.isPathAllowed(disallowedPath)
 	require.Error(t, err)
@@ -100,7 +98,6 @@ func TestFilesystemTool_CreateDirectory(t *testing.T) {
 
 	handler := getToolHandler(t, tool, "create_directory")
 
-	// Test successful directory creation
 	newDir := filepath.Join(tmpDir, "test", "nested", "dir")
 	args := map[string]any{"path": newDir}
 	result := callHandler(t, handler, args)
@@ -108,7 +105,6 @@ func TestFilesystemTool_CreateDirectory(t *testing.T) {
 	assert.Contains(t, result.Output, "Directory created successfully")
 	assert.DirExists(t, newDir)
 
-	// Test disallowed path
 	disallowedDir := "/etc/test"
 	args = map[string]any{"path": disallowedDir}
 	result = callHandler(t, handler, args)
@@ -123,7 +119,6 @@ func TestFilesystemTool_WriteFile(t *testing.T) {
 
 	handler := getToolHandler(t, tool, "write_file")
 
-	// Test successful file write
 	testFile := filepath.Join(tmpDir, "test.txt")
 	content := "Hello, World!"
 	args := map[string]any{
@@ -135,12 +130,10 @@ func TestFilesystemTool_WriteFile(t *testing.T) {
 	assert.Contains(t, result.Output, "File written successfully")
 	assert.FileExists(t, testFile)
 
-	// Verify content
 	writtenContent, err := os.ReadFile(testFile)
 	require.NoError(t, err)
 	assert.Equal(t, content, string(writtenContent))
 
-	// Test disallowed path
 	disallowedFile := "/etc/test.txt"
 	args = map[string]any{
 		"path":    disallowedFile,
@@ -168,16 +161,13 @@ func TestFilesystemTool_WriteFile_NestedDirectory(t *testing.T) {
 	}
 	result := callHandler(t, handler, args)
 
-	// Verify success
 	assert.Contains(t, result.Output, "File written successfully")
 	assert.FileExists(t, nestedFile)
 
-	// Verify content
 	writtenContent, err := os.ReadFile(nestedFile)
 	require.NoError(t, err)
 	assert.Equal(t, content, string(writtenContent))
 
-	// Verify directories were created
 	assert.DirExists(t, filepath.Join(tmpDir, "a"))
 	assert.DirExists(t, filepath.Join(tmpDir, "a", "b"))
 	assert.DirExists(t, filepath.Join(tmpDir, "a", "b", "c"))
@@ -187,27 +177,23 @@ func TestFilesystemTool_ReadFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	tool := NewFilesystemTool([]string{tmpDir})
 
-	// Create test file
 	testFile := filepath.Join(tmpDir, "test.txt")
 	content := "Hello, World!"
 	require.NoError(t, os.WriteFile(testFile, []byte(content), 0o644))
 
 	handler := getToolHandler(t, tool, "read_file")
 
-	// Test successful file read
 	args := map[string]any{"path": testFile}
 	result := callHandler(t, handler, args)
 
 	assert.Equal(t, content, result.Output)
 
-	// Test non-existent file
 	nonExistentFile := filepath.Join(tmpDir, "nonexistent.txt")
 	args = map[string]any{"path": nonExistentFile}
 	result = callHandler(t, handler, args)
 
 	assert.Contains(t, result.Output, "Error reading file")
 
-	// Test disallowed path
 	disallowedFile := "/etc/passwd"
 	args = map[string]any{"path": disallowedFile}
 	result = callHandler(t, handler, args)
@@ -220,7 +206,6 @@ func TestFilesystemTool_ReadMultipleFiles(t *testing.T) {
 	tmpDir := t.TempDir()
 	tool := NewFilesystemTool([]string{tmpDir})
 
-	// Create test files
 	file1 := filepath.Join(tmpDir, "file1.txt")
 	file2 := filepath.Join(tmpDir, "file2.txt")
 	content1 := "Content 1"
@@ -231,7 +216,6 @@ func TestFilesystemTool_ReadMultipleFiles(t *testing.T) {
 
 	handler := getToolHandler(t, tool, "read_multiple_files")
 
-	// Test successful multiple file read
 	args := map[string]any{"paths": []string{file1, file2}}
 	result := callHandler(t, handler, args)
 
@@ -240,7 +224,6 @@ func TestFilesystemTool_ReadMultipleFiles(t *testing.T) {
 	assert.Contains(t, result.Output, "=== "+file2+" ===")
 	assert.Contains(t, result.Output, content2)
 
-	// Test with non-existent file
 	nonExistentFile := filepath.Join(tmpDir, "nonexistent.txt")
 	args = map[string]any{"paths": []string{file1, nonExistentFile}}
 	result = callHandler(t, handler, args)
@@ -253,7 +236,6 @@ func TestFilesystemTool_ListDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
 	tool := NewFilesystemTool([]string{tmpDir})
 
-	// Create test files and directories
 	testFile := filepath.Join(tmpDir, "test.txt")
 	testDir := filepath.Join(tmpDir, "testdir")
 
@@ -262,14 +244,12 @@ func TestFilesystemTool_ListDirectory(t *testing.T) {
 
 	handler := getToolHandler(t, tool, "list_directory")
 
-	// Test successful directory listing
 	args := map[string]any{"path": tmpDir}
 	result := callHandler(t, handler, args)
 
 	assert.Contains(t, result.Output, "FILE test.txt")
 	assert.Contains(t, result.Output, "DIR  testdir")
 
-	// Test non-existent directory
 	nonExistentDir := filepath.Join(tmpDir, "nonexistent")
 	args = map[string]any{"path": nonExistentDir}
 	result = callHandler(t, handler, args)
@@ -281,7 +261,6 @@ func TestFilesystemTool_ListDirectoryWithSizes(t *testing.T) {
 	tmpDir := t.TempDir()
 	tool := NewFilesystemTool([]string{tmpDir})
 
-	// Create test files and directories
 	testFile := filepath.Join(tmpDir, "test.txt")
 	testDir := filepath.Join(tmpDir, "testdir")
 	content := "Hello World"
@@ -291,7 +270,6 @@ func TestFilesystemTool_ListDirectoryWithSizes(t *testing.T) {
 
 	handler := getToolHandler(t, tool, "list_directory_with_sizes")
 
-	// Test successful directory listing with sizes
 	args := map[string]any{"path": tmpDir}
 	result := callHandler(t, handler, args)
 
@@ -303,14 +281,12 @@ func TestFilesystemTool_GetFileInfo(t *testing.T) {
 	tmpDir := t.TempDir()
 	tool := NewFilesystemTool([]string{tmpDir})
 
-	// Create test file
 	testFile := filepath.Join(tmpDir, "test.txt")
 	content := "Hello, World!"
 	require.NoError(t, os.WriteFile(testFile, []byte(content), 0o644))
 
 	handler := getToolHandler(t, tool, "get_file_info")
 
-	// Test successful file info
 	args := map[string]any{"path": testFile}
 	result := callHandler(t, handler, args)
 
@@ -321,7 +297,6 @@ func TestFilesystemTool_GetFileInfo(t *testing.T) {
 	assert.InDelta(t, len(content), fileInfo["size"], 0.0)
 	assert.Equal(t, false, fileInfo["isDir"])
 
-	// Test directory info
 	args = map[string]any{"path": tmpDir}
 	result = callHandler(t, handler, args)
 
@@ -333,7 +308,6 @@ func TestFilesystemTool_MoveFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	tool := NewFilesystemTool([]string{tmpDir})
 
-	// Create test file
 	sourceFile := filepath.Join(tmpDir, "source.txt")
 	destFile := filepath.Join(tmpDir, "dest.txt")
 	content := "Hello, World!"
@@ -341,7 +315,6 @@ func TestFilesystemTool_MoveFile(t *testing.T) {
 
 	handler := getToolHandler(t, tool, "move_file")
 
-	// Test successful file move
 	args := map[string]any{
 		"source":      sourceFile,
 		"destination": destFile,
@@ -352,12 +325,10 @@ func TestFilesystemTool_MoveFile(t *testing.T) {
 	assert.NoFileExists(t, sourceFile)
 	assert.FileExists(t, destFile)
 
-	// Verify content preserved
 	movedContent, err := os.ReadFile(destFile)
 	require.NoError(t, err)
 	assert.Equal(t, content, string(movedContent))
 
-	// Test move to existing file (should fail)
 	anotherFile := filepath.Join(tmpDir, "another.txt")
 	require.NoError(t, os.WriteFile(anotherFile, []byte("test"), 0o644))
 
@@ -374,14 +345,12 @@ func TestFilesystemTool_EditFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	tool := NewFilesystemTool([]string{tmpDir})
 
-	// Create test file
 	testFile := filepath.Join(tmpDir, "test.txt")
 	originalContent := "Hello World\nThis is a test\nGoodbye World"
 	require.NoError(t, os.WriteFile(testFile, []byte(originalContent), 0o644))
 
 	handler := getToolHandler(t, tool, "edit_file")
 
-	// Test successful file edit
 	args := map[string]any{
 		"path": testFile,
 		"edits": []map[string]any{
@@ -399,13 +368,11 @@ func TestFilesystemTool_EditFile(t *testing.T) {
 
 	assert.Contains(t, result.Output, "File edited successfully")
 
-	// Verify changes
 	editedContent, err := os.ReadFile(testFile)
 	require.NoError(t, err)
 	expected := "Hi Universe\nThis is a test\nSee you later"
 	assert.Equal(t, expected, string(editedContent))
 
-	// Test edit with non-existent text
 	args = map[string]any{
 		"path": testFile,
 		"edits": []map[string]any{
@@ -423,7 +390,6 @@ func TestFilesystemTool_EditFile(t *testing.T) {
 func TestFilesystemTool_SearchFiles(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create test files
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.log"), []byte("log"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "data.txt"), []byte("data"), 0o644))
@@ -435,7 +401,6 @@ func TestFilesystemTool_SearchFiles(t *testing.T) {
 	tool := NewFilesystemTool([]string{tmpDir})
 	handler := getToolHandler(t, tool, "search_files")
 
-	// Test search for files containing "asdf"
 	args := map[string]any{
 		"path":    tmpDir,
 		"pattern": "asdf",
@@ -446,7 +411,6 @@ func TestFilesystemTool_SearchFiles(t *testing.T) {
 	assert.Len(t, lines, 1) // Should find test.txt, test.log, and test_sub.txt
 	assert.Contains(t, lines, "No files found")
 
-	// Test search for files containing "test"
 	args = map[string]any{
 		"path":    tmpDir,
 		"pattern": "test",
@@ -457,7 +421,6 @@ func TestFilesystemTool_SearchFiles(t *testing.T) {
 	assert.Contains(t, result.Output, "3 files found:\n")
 	assert.Len(t, lines, 3+1) // Should find test.txt, test.log, and test_sub.txt
 
-	// Test search with exclude patterns
 	args = map[string]any{
 		"path":            tmpDir,
 		"pattern":         "test",
@@ -473,7 +436,6 @@ func TestFilesystemTool_SearchFilesContent(t *testing.T) {
 	tmpDir := t.TempDir()
 	tool := NewFilesystemTool([]string{tmpDir})
 
-	// Create test files with different content
 	file1Content := "This is a test file\nwith multiple lines\ncontaining test data"
 	file2Content := "Another file\nwith different content\nno matching terms here"
 	file3Content := "Final file\nhas test in it\nand more test content"
@@ -484,7 +446,6 @@ func TestFilesystemTool_SearchFilesContent(t *testing.T) {
 
 	handler := getToolHandler(t, tool, "search_files_content")
 
-	// Test literal text search
 	args := map[string]any{
 		"path":     tmpDir,
 		"pattern":  "*.txt",
@@ -499,7 +460,6 @@ func TestFilesystemTool_SearchFilesContent(t *testing.T) {
 	assert.Contains(t, result.Output, "file3.txt:3:")
 	assert.NotContains(t, result.Output, "file2.txt")
 
-	// Test regex search
 	args = map[string]any{
 		"path":     tmpDir,
 		"pattern":  "*.txt",
@@ -510,7 +470,6 @@ func TestFilesystemTool_SearchFilesContent(t *testing.T) {
 
 	assert.Contains(t, result.Output, "file1.txt:3:")
 
-	// Test invalid regex
 	args = map[string]any{
 		"path":     tmpDir,
 		"pattern":  "*.txt",
@@ -525,7 +484,6 @@ func TestFilesystemTool_SearchFilesContent(t *testing.T) {
 func TestFilesystemTool_SearchFiles_RecursivePattern(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create test files
 	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, "child"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "first.txt"), []byte("first"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "ignored"), []byte("ignored"), 0o644))
@@ -536,7 +494,6 @@ func TestFilesystemTool_SearchFiles_RecursivePattern(t *testing.T) {
 	tool := NewFilesystemTool([]string{tmpDir})
 	handler := getToolHandler(t, tool, "search_files")
 
-	// Test search for files containing ".txt" files
 	args := map[string]any{
 		"path":    tmpDir,
 		"pattern": "*.txt",
@@ -554,7 +511,6 @@ func TestFilesystemTool_ListAllowedDirectories(t *testing.T) {
 
 	handler := getToolHandler(t, tool, "list_allowed_directories")
 
-	// Test listing allowed directories
 	args := map[string]any{}
 	result := callHandler(t, handler, args)
 
@@ -570,7 +526,6 @@ func TestFilesystemTool_InvalidArguments(t *testing.T) {
 
 	handler := getToolHandler(t, tool, "write_file")
 
-	// Test invalid JSON
 	toolCall := tools.ToolCall{
 		Function: tools.FunctionCall{
 			Name:      "write_file",
@@ -586,11 +541,9 @@ func TestFilesystemTool_InvalidArguments(t *testing.T) {
 func TestFilesystemTool_StartStop(t *testing.T) {
 	tool := NewFilesystemTool([]string{"/tmp"})
 
-	// Test Start method
 	err := tool.Start(t.Context())
 	require.NoError(t, err)
 
-	// Test Stop method
 	err = tool.Stop(t.Context())
 	require.NoError(t, err)
 }
@@ -663,7 +616,6 @@ func main() {
 		require.NoError(t, err)
 		assert.Contains(t, editResult.Output, "File edited successfully")
 
-		// Check that post-edit was run again
 		_, err = os.Stat(formattedFile)
 		require.NoError(t, err, "Post-edit command should have run after edit")
 	})
@@ -705,11 +657,9 @@ func callHandler(t *testing.T, handler tools.ToolHandler, args any) *tools.ToolC
 }
 
 func TestFilesystemTool_AddAllowedDirectory(t *testing.T) {
-	// Create temporary directories for testing
 	tmpDir1 := t.TempDir()
 	tmpDir2 := t.TempDir()
 
-	// Create filesystem tool with only tmpDir1 initially allowed
 	tool := NewFilesystemTool([]string{tmpDir1})
 	assert.Len(t, tool.allowedDirectories, 1)
 	handler := getToolHandler(t, tool, "add_allowed_directory")
@@ -762,7 +712,6 @@ func TestFilesystemTool_AddAllowedDirectory(t *testing.T) {
 	})
 
 	t.Run("attempt to add file instead of directory", func(t *testing.T) {
-		// Create a file
 		tempFile := filepath.Join(tmpDir2, "testfile.txt")
 		err := os.WriteFile(tempFile, []byte("test"), 0o644)
 		require.NoError(t, err)

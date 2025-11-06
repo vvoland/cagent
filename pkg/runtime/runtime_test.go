@@ -344,7 +344,6 @@ func TestErrorEvent(t *testing.T) {
 	require.IsType(t, &ErrorEvent{}, events[2])
 	require.IsType(t, &StreamStoppedEvent{}, events[3])
 
-	// Check the error message contains our test error
 	errorEvent := events[2].(*ErrorEvent)
 	require.Contains(t, errorEvent.Error, "simulated error")
 }
@@ -529,7 +528,6 @@ func TestCompactionOccursAfterToolResultsWhenToolUsePresent(t *testing.T) {
 	require.NotEqual(t, -1, toolRespIdx, "expected a ToolCallResponseEvent")
 	require.NotEqual(t, -1, compactionStartIdx, "expected a SessionCompaction start event")
 
-	// Assert compaction is triggered only after tool results have been appended
 	require.Greater(t, compactionStartIdx, toolRespIdx, "compaction should occur after tool results when tool_use is present")
 }
 
@@ -631,7 +629,6 @@ func TestNewRuntime_NoAgentsError(t *testing.T) {
 }
 
 func TestNewRuntime_InvalidCurrentAgentError(t *testing.T) {
-	// Create a team with a single agent named "root"
 	root := agent.New("root", "You are a test agent")
 	tm := team.New(team.WithAgents(root))
 
@@ -641,7 +638,6 @@ func TestNewRuntime_InvalidCurrentAgentError(t *testing.T) {
 }
 
 func TestSummarize_EmptySession(t *testing.T) {
-	// Create a runtime with a simple agent
 	prov := &mockProvider{id: "test/mock-model", stream: &mockStream{}}
 	root := agent.New("root", "You are a test agent", agent.WithModel(prov))
 	tm := team.New(team.WithAgents(root))
@@ -649,7 +645,6 @@ func TestSummarize_EmptySession(t *testing.T) {
 	rt, err := New(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
-	// Create an empty session (no messages)
 	sess := session.New()
 	sess.Title = "Empty Session Test"
 
@@ -703,7 +698,6 @@ func TestProcessToolCalls_UnknownTool_NoToolResultMessage(t *testing.T) {
 	for range events {
 	}
 
-	// Verify no tool result message was added for the unknown tool
 	var sawToolMsg bool
 	for _, it := range sess.Messages {
 		if it.IsMessage() && it.Message.Message.Role == chat.MessageRoleTool && it.Message.Message.ToolCallID == "tool-unknown-1" {

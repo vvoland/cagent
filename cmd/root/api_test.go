@@ -7,7 +7,6 @@ import (
 )
 
 func TestIsOCIReference(t *testing.T) {
-	// Create a temporary directory to test existing paths
 	tmpDir := t.TempDir()
 
 	tests := []struct {
