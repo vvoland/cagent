@@ -1,6 +1,8 @@
 package root
 
 import (
+	"io"
+
 	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/cli"
@@ -38,7 +40,7 @@ func (f *mcpFlags) runMCPCommand(cmd *cobra.Command, args []string) error {
 	telemetry.TrackCommand("mcp", args)
 
 	ctx := cmd.Context()
-	out := cli.NewPrinter(cmd.OutOrStdout())
+	out := cli.NewPrinter(io.Discard)
 
 	if err := setupWorkingDirectory(f.workingDir); err != nil {
 		return err
