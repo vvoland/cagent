@@ -136,12 +136,12 @@ func CreateToolHandler(t *team.Team, agentName, agentFilename string) func(conte
 }
 
 func isReadOnlyAgent(ctx context.Context, ag *agent.Agent) (bool, error) {
-	allTolls, err := ag.Tools(ctx)
+	allTools, err := ag.Tools(ctx)
 	if err != nil {
 		return false, err
 	}
 
-	for _, tool := range allTolls {
+	for _, tool := range allTools {
 		if !tool.Annotations.ReadOnlyHint {
 			return false, nil
 		}

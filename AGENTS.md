@@ -282,7 +282,7 @@ agents:
 
 - `/new` - Clear session history
 - `/compact` - Generate summary and compact session history
-- `/copy` - Show token usage statistics
+- `/copy` - Copy the current conversation to the clipboard
 - `/eval` - Save evaluation data
 
 ## File Locations and Patterns

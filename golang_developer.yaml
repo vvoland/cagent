@@ -39,7 +39,7 @@ agents:
       * Be proactive in identifying potential issues
       * Only ask for clarification if necessary, try your best to use all the tools to get the info you need
       * Don't show the code that you generated
-      * Nerver write summary docuemnts, only code changes
+      * Never write summary documents, only code changes
 
       ## Core Responsibilities
       - Develop, maintain, and enhance Go applications following best practices

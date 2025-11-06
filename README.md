@@ -55,7 +55,7 @@ Toolkit](https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/) and
 [catalog](https://docs.docker.com/ai/mcp-catalog-and-toolkit/catalog/)
 
 Here, we're giving the same basic agent from the example above access to a
-**containerized** `duckduckgo` mcp server and it's tools by using Docker's MCP
+**containerized** `duckduckgo` mcp server and its tools by using Docker's MCP
 Gateway:
 
 ```yaml
@@ -78,7 +78,7 @@ any required settings/secrets/authentication using the [Docker MCP
 Toolkit](https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/#example-use-the-github-official-mcp-server)
 in Docker Desktop.
 
-Aside from the containerized MCP severs the Docker MCP Gateway provides, any
+Aside from the containerized MCP servers the Docker MCP Gateway provides, any
 standard MCP server can be used with cagent!
 
 Here's an example similar to the above but adding `read_file` and `write_file`
@@ -184,7 +184,7 @@ to find it (configuration varies by platform).
 ### **Set your API keys**
 
 Based on the models you configure your agents to use, you will need to set the
-corresponding provider API key accordingly, all theses keys are optional, you
+corresponding provider API key accordingly, all these keys are optional, you
 will likely need at least one of these, though:
 
 ```bash
