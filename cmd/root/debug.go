@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/telemetry"
@@ -37,9 +38,9 @@ func (f *debugFlags) runDebugToolsetsCommand(cmd *cobra.Command, args []string) 
 	telemetry.TrackCommand("debug", append([]string{"toolsets"}, args...))
 
 	ctx := cmd.Context()
+	out := cli.NewPrinter(cmd.OutOrStdout())
 	agentFilename := args[0]
 
-	slog.Info("Loading agent", "agent", agentFilename)
 	team, err := teamloader.Load(ctx, agentFilename, f.runConfig)
 	if err != nil {
 		return err
@@ -52,19 +53,23 @@ func (f *debugFlags) runDebugToolsetsCommand(cmd *cobra.Command, args []string) 
 			continue
 		}
 
-		slog.Info("Query tools", "name", agent.Name())
 		tools, err := agent.Tools(ctx)
 		if err != nil {
 			slog.Error("Failed to query tools", "name", agent.Name(), "error", err)
 			continue
 		}
 
+		if len(tools) == 0 {
+			out.Printf("No tools for %s\n", agent.Name())
+			continue
+		}
+
+		out.Printf("%d tool(s) for %s:\n", len(tools), agent.Name())
 		for _, tool := range tools {
-			slog.Info("Tool found", "name", tool.Name)
+			out.Println(" +", tool.Name)
 		}
 	}
 
-	slog.Info("Stopping toolsets", "agent", agentFilename)
 	if err := team.StopToolSets(ctx); err != nil {
 		slog.Error("Failed to stop tool sets", "error", err)
 	}
