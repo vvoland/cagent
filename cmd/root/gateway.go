@@ -29,7 +29,7 @@ func addGatewayFlags(cmd *cobra.Command, runConfig *config.RuntimeConfig) {
 	cmd.PersistentFlags().StringVar(&runConfig.ModelsGateway, flagModelsGateway, "", "Set the models gateway address")
 
 	persistentPreRunE := cmd.PersistentPreRunE
-	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+	cmd.PersistentPreRunE = func(_ *cobra.Command, args []string) error {
 		if gateway := os.Getenv(envModelsGateway); gateway != "" {
 			logEnvvarShadowing(runConfig.ModelsGateway, envModelsGateway, flagModelsGateway)
 			runConfig.ModelsGateway = gateway
