@@ -2,7 +2,7 @@
 
 ## Development environment setup
 
-> We currently support `cagent` development on macOS and linux based systems. Windows support coming soon
+> We currently support `cagent` development on macOS and Linux-based systems. Windows support coming soon
 
 #### Build from source
 
@@ -45,7 +45,7 @@ Binary builds can also be made using `docker` itself.
 
 Start a build via docker using `task build-local` (for only your local architecture), or use `task cross` to build for all supported platforms.  
 
-Builds done via `docker` will the placed in the `./dist` directory
+Builds done via `docker` will be placed in the `./dist` directory
 
 ```sh
 $ task build-local

@@ -48,7 +48,7 @@ tools and services.
 It supports three transport types: `stdio`, `http` and `sse`.
 
 Giving an agent access to tools via MCP is a quick way to greatly improve its
-capabilities, the quality of its results and its general useful-ness.
+capabilities, the quality of its results and its general usefulness.
 
 Get started quickly with the [Docker MCP
 Toolkit](https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/) and
