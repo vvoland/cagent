@@ -4,11 +4,11 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/atotto/clipboard"
-	"github.com/charmbracelet/bubbles/v2/help"
-	"github.com/charmbracelet/bubbles/v2/key"
-	tea "github.com/charmbracelet/bubbletea/v2"
-	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/mattn/go-runewidth"
 
@@ -142,7 +142,7 @@ func (m *model) Init() tea.Cmd {
 }
 
 // Update handles messages and updates the component state
-func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
@@ -152,13 +152,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.removePendingToolCallMessages()
 		return m, nil
 	case tea.WindowSizeMsg:
-		cmd := m.SetSize(msg.Width, msg.Height)
-		if cmd != nil {
-			cmds = append(cmds, cmd)
-		}
+		cmds = append(cmds, m.SetSize(msg.Width, msg.Height))
+
+	case tea.LayerHitMsg:
 
 	case tea.MouseClickMsg:
 		if msg.Button == tea.MouseLeft {
+			m.xPos, m.yPos = msg.X, msg.Y
 			line, col := m.mouseToLineCol(msg.X, msg.Y)
 			m.selection.start(line, col)
 			m.selection.mouseY = msg.Y // Store screen Y for autoscroll
@@ -228,12 +228,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmds []tea.Cmd
 		for i, view := range m.views {
 			updatedView, cmd := view.Update(tool.ToggleDiffViewMsg{})
-			if updatedView != nil {
-				m.views[i] = updatedView.(layout.Model)
-			}
-			if cmd != nil {
-				cmds = append(cmds, cmd)
-			}
+			m.views[i] = updatedView
+			cmds = append(cmds, cmd)
 		}
 
 		m.invalidateAllItems()
@@ -269,12 +265,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Forward updates to all message views
 	for i, view := range m.views {
 		updatedView, cmd := view.Update(msg)
-		if updatedView != nil {
-			m.views[i] = updatedView.(layout.Model)
-		}
-		if cmd != nil {
-			cmds = append(cmds, cmd)
-		}
+		m.views[i] = updatedView
+		cmds = append(cmds, cmd)
 	}
 
 	return m, tea.Batch(cmds...)

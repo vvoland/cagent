@@ -3,10 +3,10 @@ package styles
 import (
 	"strings"
 
+	"charm.land/bubbles/v2/textarea"
+	"charm.land/lipgloss/v2"
 	"github.com/alecthomas/chroma/v2"
-	"github.com/charmbracelet/bubbles/v2/textarea"
 	"github.com/charmbracelet/glamour/v2/ansi"
-	"github.com/charmbracelet/lipgloss/v2"
 )
 
 const (
