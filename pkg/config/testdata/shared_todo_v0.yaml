@@ -1,3 +1,5 @@
+version: "0"
+
 agents:
   root:
     model: gpt

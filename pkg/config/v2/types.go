@@ -1,8 +1,8 @@
 package v2
 
-import (
-	"github.com/docker/cagent/pkg/config/types"
-)
+import "github.com/docker/cagent/pkg/config/types"
+
+const Version = "2"
 
 // Config represents the entire configuration file
 type Config struct {
