@@ -87,6 +87,16 @@ type ScriptShellToolConfig struct {
 	WorkingDir string            `json:"working_dir,omitempty"`
 }
 
+type APIToolConfig struct {
+	Instruction string            `json:"instruction,omitempty"`
+	Name        string            `json:"name,omitempty"`
+	Required    []string          `json:"required,omitempty"`
+	Args        map[string]any    `json:"args,omitempty"`
+	Endpoint    string            `json:"endpoint,omitempty"`
+	Method      string            `json:"method,omitempty"`
+	Headers     map[string]string `json:"headers,omitempty"`
+}
+
 // PostEditConfig represents a post-edit command configuration
 type PostEditConfig struct {
 	Path string `json:"path"`
@@ -121,6 +131,8 @@ type Toolset struct {
 
 	// For the `filesystem` tool - post-edit commands
 	PostEdit []PostEditConfig `json:"post_edit,omitempty"`
+
+	APIConfig APIToolConfig `json:"api_config"`
 
 	// For the `fetch` tool
 	Timeout int `json:"timeout,omitempty"`
