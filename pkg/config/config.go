@@ -11,7 +11,8 @@ import (
 
 	v0 "github.com/docker/cagent/pkg/config/v0"
 	v1 "github.com/docker/cagent/pkg/config/v1"
-	latest "github.com/docker/cagent/pkg/config/v2"
+	latest "github.com/docker/cagent/pkg/config/v2" //nolint:staticcheck // This is used everywhere we reference the latest version
+	v2 "github.com/docker/cagent/pkg/config/v2"     //nolint:staticcheck // This is used for migrations to v2
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/filesystem"
 )
@@ -32,10 +33,13 @@ func LoadConfig(path string, fs filesystem.FS) (*latest.Config, error) {
 	}
 
 	var raw struct {
-		Version any `yaml:"version"`
+		Version string `yaml:"version,omitempty"`
 	}
 	if err := yaml.UnmarshalWithOptions(data, &raw); err != nil {
 		return nil, fmt.Errorf("looking for version in config file %s\n%s", path, yaml.FormatError(err, true, true))
+	}
+	if raw.Version == "" {
+		raw.Version = latest.Version
 	}
 
 	oldConfig, err := parseCurrentVersion(data, raw.Version)
@@ -47,6 +51,8 @@ func LoadConfig(path string, fs filesystem.FS) (*latest.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("migrating config: %w", err)
 	}
+
+	config.Version = raw.Version
 
 	if err := validateConfig(&config); err != nil {
 		return nil, err
@@ -75,22 +81,24 @@ func CheckRequiredEnvVars(ctx context.Context, cfg *latest.Config, env environme
 	return nil
 }
 
-func parseCurrentVersion(data []byte, version any) (any, error) {
+func parseCurrentVersion(data []byte, version string) (any, error) {
 	options := []yaml.DecodeOption{yaml.Strict()}
 
 	switch version {
-	case nil, "0", 0:
+	case v0.Version:
 		var cfg v0.Config
 		err := yaml.UnmarshalWithOptions(data, &cfg, options...)
 		return cfg, err
-	case "1", 1:
+	case v1.Version:
 		var cfg v1.Config
 		err := yaml.UnmarshalWithOptions(data, &cfg, options...)
 		return cfg, err
-	default:
-		var cfg latest.Config
+	case v2.Version:
+		var cfg v2.Config
 		err := yaml.UnmarshalWithOptions(data, &cfg, options...)
 		return cfg, err
+	default:
+		return nil, fmt.Errorf("unsupported config version: %v", version)
 	}
 }
 

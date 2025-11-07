@@ -59,8 +59,6 @@ Here, we're giving the same basic agent from the example above access to a
 Gateway:
 
 ```yaml
-version: "2"
-
 agents:
   root:
     model: openai/gpt-5-mini
@@ -85,8 +83,6 @@ Here's an example similar to the above but adding `read_file` and `write_file`
 tools from the `rust-mcp-filesystem` MCP server:
 
 ```yaml
-version: "2"
-
 agents:
   root:
     model: openai/gpt-5-mini

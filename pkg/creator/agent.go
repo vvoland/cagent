@@ -176,7 +176,6 @@ func Agent(ctx context.Context, baseDir string, runConfig config.RuntimeConfig, 
 			suggestedMaxTokens = 16000
 		}
 		instructions += fmt.Sprintf(`
-		version: "2"
 		models:
 			%s:
 				provider: %s

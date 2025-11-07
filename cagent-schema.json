@@ -9,16 +9,14 @@
       "type": "string",
       "description": "Configuration version",
       "enum": [
+        "0",
         "1",
-        "2",
-        "v1",
-        "v2"
+        "2"
       ],
       "examples": [
+        "0",
         "1",
-        "2",
-        "v1",
-        "v2"
+        "2"
       ]
     },
     "agents": {

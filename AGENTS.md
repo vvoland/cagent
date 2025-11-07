@@ -80,8 +80,6 @@ cagent is a multi-agent AI system with hierarchical agent structure and pluggabl
 #### Agent Configuration
 
 ```yaml
-version: "2"
-
 agents:
   root:
     model: model_ref # Can be inline like "openai/gpt-4o" or reference defined models
@@ -251,8 +249,6 @@ toolsets:
 ### Agent Hierarchy Example
 
 ```yaml
-version: "2"
-
 agents:
   root:
     model: anthropic/claude-sonnet-4-0
