@@ -62,7 +62,6 @@ func TestOciRefToFilename(t *testing.T) {
 }
 
 func TestResolveAgentFile_LocalFile(t *testing.T) {
-	// Create a temporary YAML file
 	tmpDir := t.TempDir()
 	yamlFile := filepath.Join(tmpDir, "test-agent.yaml")
 	yamlContent := `version: "1"
@@ -77,7 +76,6 @@ agents:
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
-	// Test resolving a local file
 	resolved, err := agentfile.Resolve(ctx, nil, yamlFile)
 	require.NoError(t, err)
 
@@ -88,14 +86,12 @@ agents:
 }
 
 func TestResolveAgentFile_OCIRef_ConsistentFilename(t *testing.T) {
-	// Set up a test OCI store in the default location
 	storeDir := t.TempDir()
 	t.Setenv("CAGENT_CONTENT_STORE", storeDir)
 
 	store, err := content.NewStore()
 	require.NoError(t, err)
 
-	// Create a test agent YAML file
 	agentContent := `version: "1"
 agents:
   root:
@@ -119,7 +115,6 @@ agents:
 	require.NoError(t, err)
 	assert.NotEmpty(t, resolved1)
 
-	// Verify the file exists and has correct content
 	content1, err := os.ReadFile(resolved1)
 	require.NoError(t, err)
 	assert.Equal(t, agentContent, string(content1))
@@ -139,7 +134,6 @@ agents:
 	assert.Equal(t, resolved1, resolved2, "Subsequent resolutions should return the same file path")
 	assert.Equal(t, filepath.Base(resolved1), filepath.Base(resolved2), "Filenames should be identical")
 
-	// Verify the content is still correct
 	content2, err := os.ReadFile(resolved2)
 	require.NoError(t, err)
 	assert.Equal(t, agentContent, string(content2))
@@ -171,14 +165,12 @@ agents:
 }
 
 func TestResolveAgentFile_MultipleOCIRefs_DifferentFilenames(t *testing.T) {
-	// Set up a test OCI store in the default location
 	storeDir := t.TempDir()
 	t.Setenv("CAGENT_CONTENT_STORE", storeDir)
 
 	store, err := content.NewStore()
 	require.NoError(t, err)
 
-	// Create two different agent YAML files
 	agent1Content := `version: "1"
 agents:
   root:
@@ -221,7 +213,6 @@ agents:
 	assert.NotEqual(t, resolved1, resolved2, "Different OCI refs should produce different file paths")
 	assert.NotEqual(t, filepath.Base(resolved1), filepath.Base(resolved2), "Different OCI refs should produce different filenames")
 
-	// Verify each has correct content
 	content1, err := os.ReadFile(resolved1)
 	require.NoError(t, err)
 	assert.Equal(t, agent1Content, string(content1))
@@ -230,20 +221,17 @@ agents:
 	require.NoError(t, err)
 	assert.Equal(t, agent2Content, string(content2))
 
-	// Verify filenames match expected pattern
 	assert.Equal(t, agentfile.OciRefToFilename(ociRef1), filepath.Base(resolved1))
 	assert.Equal(t, agentfile.OciRefToFilename(ociRef2), filepath.Base(resolved2))
 }
 
 func TestResolveAgentFile_ContextCancellation(t *testing.T) {
-	// Set up a test OCI store in the default location
 	storeDir := t.TempDir()
 	t.Setenv("CAGENT_CONTENT_STORE", storeDir)
 
 	store, err := content.NewStore()
 	require.NoError(t, err)
 
-	// Create a test agent YAML file
 	agentContent := `version: "1"
 agents:
   root:

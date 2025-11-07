@@ -11,7 +11,6 @@ import (
 )
 
 func TestNewShellTool(t *testing.T) {
-	// Test with SHELL env var set
 	t.Setenv("SHELL", "/bin/bash")
 	tool := NewShellTool(nil)
 
@@ -19,7 +18,6 @@ func TestNewShellTool(t *testing.T) {
 	assert.NotNil(t, tool.handler)
 	assert.Equal(t, "/bin/bash", tool.handler.shell)
 
-	// Test with no SHELL env var
 	t.Setenv("SHELL", "")
 	tool = NewShellTool(nil)
 
@@ -39,7 +37,6 @@ func TestShellTool_Tools(t *testing.T) {
 		assert.NotNil(t, tool.Handler)
 		assert.Equal(t, "shell", tool.Category)
 	}
-	// Verify bash function
 	assert.Equal(t, "shell", allTools[0].Name)
 	assert.Contains(t, allTools[0].Description, "Executes the given shell command")
 
@@ -85,14 +82,12 @@ func TestShellTool_HandlerEcho(t *testing.T) {
 	// This is a simple test that should work on most systems
 	tool := NewShellTool(nil)
 
-	// Get handler from tool
 	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
 	require.Len(t, tls, 1)
 
 	handler := tls[0].Handler
 
-	// Create tool call for a simple echo command
 	args := RunShellArgs{
 		Cmd: "echo 'hello world'",
 		Cwd: "",
@@ -107,10 +102,8 @@ func TestShellTool_HandlerEcho(t *testing.T) {
 		},
 	}
 
-	// Call handler
 	result, err := handler(t.Context(), toolCall)
 
-	// Verify
 	require.NoError(t, err)
 	assert.Contains(t, result.Output, "hello world")
 }
@@ -119,14 +112,12 @@ func TestShellTool_HandlerWithCwd(t *testing.T) {
 	// This test verifies the cwd parameter works
 	tool := NewShellTool(nil)
 
-	// Get handler from tool
 	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
 	require.Len(t, tls, 1)
 
 	handler := tls[0].Handler
 
-	// Create tool call for pwd command with specific cwd
 	tmpDir := t.TempDir() // Create a temporary directory for testing
 
 	args := RunShellArgs{
@@ -143,10 +134,8 @@ func TestShellTool_HandlerWithCwd(t *testing.T) {
 		},
 	}
 
-	// Call handler
 	result, err := handler(t.Context(), toolCall)
 
-	// Verify
 	require.NoError(t, err)
 	// The output might contain extra newlines or other characters,
 	// so we just check if it contains the temp dir path
@@ -157,14 +146,12 @@ func TestShellTool_HandlerError(t *testing.T) {
 	// This test verifies error handling
 	tool := NewShellTool(nil)
 
-	// Get handler from tool
 	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
 	require.Len(t, tls, 1)
 
 	handler := tls[0].Handler
 
-	// Create tool call for a command that should fail
 	args := RunShellArgs{
 		Cmd: "command_that_does_not_exist",
 		Cwd: "",
@@ -179,10 +166,8 @@ func TestShellTool_HandlerError(t *testing.T) {
 		},
 	}
 
-	// Call handler
 	result, err := handler(t.Context(), toolCall)
 
-	// Verify
 	require.NoError(t, err, "Handler should not return an error")
 	assert.Contains(t, result.Output, "Error executing command")
 }
@@ -190,7 +175,6 @@ func TestShellTool_HandlerError(t *testing.T) {
 func TestShellTool_InvalidArguments(t *testing.T) {
 	tool := NewShellTool(nil)
 
-	// Get handler from tool
 	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
 	require.Len(t, tls, 1)
@@ -213,11 +197,9 @@ func TestShellTool_InvalidArguments(t *testing.T) {
 func TestShellTool_StartStop(t *testing.T) {
 	tool := NewShellTool(nil)
 
-	// Test Start method
 	err := tool.Start(t.Context())
 	require.NoError(t, err)
 
-	// Test Stop method
 	err = tool.Stop(t.Context())
 	require.NoError(t, err)
 }
