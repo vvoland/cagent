@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/atotto/clipboard"
-	"github.com/charmbracelet/bubbles/v2/help"
-	"github.com/charmbracelet/bubbles/v2/key"
-	tea "github.com/charmbracelet/bubbletea/v2"
-	"github.com/charmbracelet/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/browser"
@@ -247,9 +247,7 @@ func (a *appModel) handleWindowResize(width, height int) tea.Cmd {
 	// Update dialog system
 	u, cmd := a.dialog.Update(tea.WindowSizeMsg{Width: width, Height: height})
 	a.dialog = u.(dialog.Manager)
-	if cmd != nil {
-		cmds = append(cmds, cmd)
-	}
+	cmds = append(cmds, cmd)
 
 	cmd = a.chatPage.SetSize(a.width, a.height)
 	cmds = append(cmds, cmd)
@@ -373,6 +371,9 @@ func (a *appModel) View() tea.View {
 
 func toFullscreenView(content string) tea.View {
 	view := tea.NewView(content)
+	view.AltScreen = true
+	view.MouseMode = tea.MouseModeCellMotion
 	view.BackgroundColor = styles.Background
+
 	return view
 }
