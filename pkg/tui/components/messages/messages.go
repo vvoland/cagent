@@ -155,11 +155,8 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		cmds = append(cmds, m.SetSize(msg.Width, msg.Height))
 
-	case tea.LayerHitMsg:
-
 	case tea.MouseClickMsg:
 		if msg.Button == tea.MouseLeft {
-			m.xPos, m.yPos = msg.X, msg.Y
 			line, col := m.mouseToLineCol(msg.X, msg.Y)
 			m.selection.start(line, col)
 			m.selection.mouseY = msg.Y // Store screen Y for autoscroll
@@ -766,12 +763,12 @@ func (m *model) removePendingToolCallMessages() {
 
 // mouseToLineCol converts mouse position to line/column in rendered content
 func (m *model) mouseToLineCol(x, y int) (line, col int) {
-	adjustedY := max(0, y-m.yPos)
-	line = m.scrollOffset + adjustedY
-
 	// Adjust for left padding (1 column from AppStyle)
 	adjustedX := max(0, x-1-m.xPos)
 	col = adjustedX
+
+	adjustedY := max(0, y-m.yPos)
+	line = m.scrollOffset + adjustedY
 
 	return line, col
 }
