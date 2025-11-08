@@ -278,15 +278,15 @@ var (
 			Background(DiffRemoveBg).
 			Foreground(DiffRemoveFg)
 
-	DiffUnchangedStyle = lipgloss.NewStyle()
+	DiffUnchangedStyle = BaseStyle.Background(BackgroundAlt)
 
 	DiffContextStyle = BaseStyle
 )
 
 // Syntax highlighting UI element styles
 var (
-	LineNumberStyle = BaseStyle.Foreground(LineNumber)
-	SeparatorStyle  = BaseStyle.Foreground(Separator)
+	LineNumberStyle = BaseStyle.Foreground(LineNumber).Background(BackgroundAlt)
+	SeparatorStyle  = BaseStyle.Foreground(Separator).Background(BackgroundAlt)
 )
 
 // Tool Call Styles

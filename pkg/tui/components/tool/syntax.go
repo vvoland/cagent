@@ -166,9 +166,9 @@ func renderLine(content string, kind udiff.OpKind, filePath string, width int) s
 	tokens := syntaxHighlight(content, filePath)
 	lineStyle := getLineStyle(kind)
 
-	rendered := renderTokensWithStyle(tokens, lineStyle, kind)
+	rendered := renderTokensWithStyle(tokens, lineStyle)
 
-	return padToWidth(rendered, width, lineStyle, kind)
+	return padToWidth(rendered, width, lineStyle)
 }
 
 // renderSplitSide renders one side of a split diff
@@ -176,7 +176,8 @@ func renderSplitSide(line *udiff.Line, lineNum int, filePath string, width int) 
 	lineNumStr := formatLineNum(line, lineNum)
 
 	if line == nil {
-		return styles.LineNumberStyle.Render(lineNumStr) + strings.Repeat(" ", width)
+		emptySpace := styles.DiffUnchangedStyle.Render(strings.Repeat(" ", width))
+		return styles.LineNumberStyle.Render(lineNumStr) + emptySpace
 	}
 
 	content := prepareContent(line.Content, width)
@@ -186,30 +187,23 @@ func renderSplitSide(line *udiff.Line, lineNum int, filePath string, width int) 
 }
 
 // renderTokensWithStyle applies consistent styling to tokens
-func renderTokensWithStyle(tokens []chromaToken, lineStyle lipgloss.Style, kind udiff.OpKind) string {
+func renderTokensWithStyle(tokens []chromaToken, lineStyle lipgloss.Style) string {
 	var output strings.Builder
 
 	for _, token := range tokens {
-		if kind != udiff.Equal {
-			styledToken := token.Style.Background(lineStyle.GetBackground())
-			output.WriteString(styledToken.Render(token.Text))
-		} else {
-			output.WriteString(token.Style.Render(token.Text))
-		}
+		styledToken := token.Style.Background(lineStyle.GetBackground())
+		output.WriteString(styledToken.Render(token.Text))
 	}
 
 	return output.String()
 }
 
 // padToWidth adds padding to reach the desired width
-func padToWidth(content string, width int, style lipgloss.Style, kind udiff.OpKind) string {
+func padToWidth(content string, width int, style lipgloss.Style) string {
 	currentWidth := ansi.StringWidth(content)
 	if paddingNeeded := width - currentWidth; paddingNeeded > 0 {
 		padding := strings.Repeat(" ", paddingNeeded)
-		if kind != udiff.Equal {
-			return content + style.Render(padding)
-		}
-		return content + padding
+		return content + style.Render(padding)
 	}
 	return content
 }
@@ -217,7 +211,8 @@ func padToWidth(content string, width int, style lipgloss.Style, kind udiff.OpKi
 // ensureWidth ensures a line has consistent width
 func ensureWidth(line string, width int) string {
 	if lineWidth := ansi.StringWidth(line); lineWidth < width {
-		return line + strings.Repeat(" ", width-lineWidth)
+		padding := styles.DiffUnchangedStyle.Render(strings.Repeat(" ", width-lineWidth))
+		return line + padding
 	}
 	return line
 }
@@ -253,8 +248,10 @@ func pairDiffLines(lines []udiff.Line, fromLine, toLine int) []linePair {
 		switch line.Kind {
 		case udiff.Equal:
 			pairs = append(pairs, linePair{
-				old: line, new: line,
-				oldLineNum: oldLineNum, newLineNum: newLineNum,
+				old:        line,
+				new:        line,
+				oldLineNum: oldLineNum,
+				newLineNum: newLineNum,
 			})
 			oldLineNum++
 			newLineNum++
@@ -263,8 +260,10 @@ func pairDiffLines(lines []udiff.Line, fromLine, toLine int) []linePair {
 			// Check if next line is an insert to pair them
 			if i+1 < len(lines) && lines[i+1].Kind == udiff.Insert {
 				pairs = append(pairs, linePair{
-					old: line, new: &lines[i+1],
-					oldLineNum: oldLineNum, newLineNum: newLineNum,
+					old:        line,
+					new:        &lines[i+1],
+					oldLineNum: oldLineNum,
+					newLineNum: newLineNum,
 				})
 				oldLineNum++
 				newLineNum++
@@ -272,7 +271,8 @@ func pairDiffLines(lines []udiff.Line, fromLine, toLine int) []linePair {
 			} else {
 				// Unpaired delete
 				pairs = append(pairs, linePair{
-					old: line, new: nil,
+					old:        line,
+					new:        nil,
 					oldLineNum: oldLineNum,
 				})
 				oldLineNum++
@@ -281,7 +281,8 @@ func pairDiffLines(lines []udiff.Line, fromLine, toLine int) []linePair {
 		case udiff.Insert:
 			// Unpaired insert (paired inserts are handled above)
 			pairs = append(pairs, linePair{
-				old: nil, new: line,
+				old:        nil,
+				new:        line,
 				newLineNum: newLineNum,
 			})
 			newLineNum++
