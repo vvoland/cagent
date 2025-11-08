@@ -59,6 +59,10 @@
           "type": "string",
           "description": "Description of the agent"
         },
+        "welcome_message": {
+          "type": "string",
+          "description": "Optional welcome message to display when the agent starts"
+        },
         "toolsets": {
           "type": "array",
           "description": "List of toolsets available to the agent",
