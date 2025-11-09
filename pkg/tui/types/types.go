@@ -14,7 +14,6 @@ const (
 	MessageTypeSpinner
 	MessageTypeError
 	MessageTypeShellOutput
-	MessageTypeSeparator
 	MessageTypeCancelled
 	MessageTypeToolCall
 	MessageTypeToolResult

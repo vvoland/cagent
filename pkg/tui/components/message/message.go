@@ -109,8 +109,6 @@ func (mv *messageModel) Render(width int) string {
 			return strings.TrimRight(rendered, "\n\r\t ")
 		}
 		return msg.Content
-	case types.MessageTypeSeparator:
-		return styles.MutedStyle.Render("•" + strings.Repeat("─", mv.width-3) + "•")
 	case types.MessageTypeCancelled:
 		return styles.WarningStyle.Render("⚠ stream cancelled ⚠")
 	case types.MessageTypeWelcome:

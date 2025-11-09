@@ -47,7 +47,6 @@ type Model interface {
 	AddUserMessage(content string) tea.Cmd
 	AddErrorMessage(content string) tea.Cmd
 	AddAssistantMessage() tea.Cmd
-	AddSeparatorMessage() tea.Cmd
 	AddCancelledMessage() tea.Cmd
 	AddWelcomeMessage(content string) tea.Cmd
 	AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, toolDef tools.Tool, status types.ToolStatus) tea.Cmd
@@ -411,7 +410,7 @@ func (m *model) shouldCacheMessage(index int) bool {
 		// Only cache assistant messages that have content (completed streaming)
 		// Empty assistant messages have spinners and need constant re-rendering
 		return strings.Trim(msg.Content, "\r\n\t ") != ""
-	case types.MessageTypeUser, types.MessageTypeSeparator:
+	case types.MessageTypeUser:
 		// Always cache static content
 		return true
 	default:
@@ -562,20 +561,6 @@ func (m *model) addMessage(msg *types.Message) tea.Cmd {
 	}
 
 	return tea.Batch(cmds...)
-}
-
-// AddSeparatorMessage adds a separator message to the chat
-func (m *model) AddSeparatorMessage() tea.Cmd {
-	m.removeSpinner()
-	msg := types.Message{
-		Type: types.MessageTypeSeparator,
-	}
-	m.messages = append(m.messages, msg)
-
-	view := m.createMessageView(&msg)
-	m.views = append(m.views, view)
-
-	return view.Init()
 }
 
 // AddCancelledMessage adds a cancellation indicator to the chat

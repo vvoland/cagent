@@ -248,13 +248,12 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		p.sidebar.SetTokenUsage(msg.Usage)
 	case *runtime.StreamStoppedEvent:
 		spinnerCmd := p.setWorking(false)
-		cmd := p.messages.AddSeparatorMessage()
 		if p.msgCancel != nil {
 			p.msgCancel = nil
 		}
 		p.streamCancelled = false
 		p.stopProgressBar()
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
+		return p, tea.Batch(p.messages.ScrollToBottom(), spinnerCmd)
 	case *runtime.PartialToolCallEvent:
 		// When we first receive a tool call, show it immediately in pending state
 		spinnerCmd := p.setWorking(true)
