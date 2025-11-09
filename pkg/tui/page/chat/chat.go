@@ -18,7 +18,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/messages"
 	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/components/sidebar"
-	"github.com/docker/cagent/pkg/tui/components/tool"
+	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/dialog"
@@ -95,15 +95,15 @@ func defaultKeyMap() KeyMap {
 }
 
 // New creates a new chat page
-func New(a *app.App) Page {
+func New(a *app.App, sessionState *types.SessionState) Page {
 	historyStore, err := history.New()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to initialize command history: %v\n", err)
 	}
 
 	return &chatPage{
-		sidebar:      sidebar.New(),
-		messages:     messages.New(a),
+		sidebar:      sidebar.New(sessionState.TodoManager),
+		messages:     messages.New(a, sessionState),
 		editor:       editor.New(a, historyStore),
 		focusedPanel: PanelEditor,
 		app:          a,
@@ -159,7 +159,7 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+t" {
-			model, cmd := p.messages.Update(tool.ToggleDiffViewMsg{})
+			model, cmd := p.messages.Update(editfile.ToggleDiffViewMsg{})
 			p.messages = model.(messages.Model)
 			return p, cmd
 		}

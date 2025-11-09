@@ -1,7 +1,9 @@
-package tool
+package editfile
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -11,6 +13,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/mattn/go-runewidth"
 
+	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/styles"
 )
 
@@ -30,6 +34,87 @@ type linePair struct {
 	new        *udiff.Line
 	oldLineNum int
 	newLineNum int
+}
+
+// renderEditFile renders edit_file tool arguments
+func renderEditFile(toolCall tools.ToolCall, width int, splitView bool) string {
+	var args builtin.EditFileArgs
+	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
+		return ""
+	}
+
+	var output strings.Builder
+	for i, edit := range args.Edits {
+		if i > 0 {
+			output.WriteString("\n\n")
+		}
+
+		if len(args.Edits) > 1 {
+			output.WriteString("Edit #" + string(rune(i+1+'0')) + ":\n")
+		}
+
+		diff := computeDiff(args.Path, edit.OldText, edit.NewText)
+		if splitView {
+			output.WriteString(renderSplitDiffWithSyntaxHighlight(diff, args.Path, width))
+		} else {
+			output.WriteString(renderDiffWithSyntaxHighlight(diff, args.Path, width))
+		}
+	}
+
+	return output.String()
+}
+
+// computeDiff computes a diff between old and new text
+func computeDiff(path, oldText, newText string) []*udiff.Hunk {
+	currentContent, err := os.ReadFile(path)
+	if err != nil {
+		return []*udiff.Hunk{}
+	}
+
+	// Generate the old contents by applying inverse diff, the current file has
+	// newText applied, so we need to reverse it
+	oldContent := strings.Replace(string(currentContent), newText, oldText, 1)
+
+	// Now compute diff between old (reconstructed) and new (complete file)
+	edits := udiff.Strings(oldContent, string(currentContent))
+
+	diff, err := udiff.ToUnifiedDiff("old", "new", oldContent, edits, 3)
+	if err != nil {
+		return []*udiff.Hunk{}
+	}
+
+	return normalizeDiff(diff.Hunks)
+}
+
+func normalizeDiff(diff []*udiff.Hunk) []*udiff.Hunk {
+	for _, hunk := range diff {
+		if len(hunk.Lines) == 0 {
+			continue
+		}
+
+		normalized := make([]udiff.Line, 0, len(hunk.Lines))
+		for i := 0; i < len(hunk.Lines); i++ {
+			line := hunk.Lines[i]
+
+			if line.Kind == udiff.Delete && i+1 < len(hunk.Lines) {
+				next := hunk.Lines[i+1]
+				if next.Kind == udiff.Insert && line.Content == next.Content {
+					normalized = append(normalized, udiff.Line{
+						Kind:    udiff.Equal,
+						Content: line.Content,
+					})
+					i++
+					continue
+				}
+			}
+
+			normalized = append(normalized, line)
+		}
+
+		hunk.Lines = normalized
+	}
+
+	return diff
 }
 
 // syntaxHighlight applies syntax highlighting to code and returns styled text

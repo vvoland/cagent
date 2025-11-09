@@ -19,6 +19,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/message"
 	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/components/tool"
+	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/styles"
@@ -112,19 +113,19 @@ type model struct {
 
 	selection selectionState
 
-	splitDiffView bool
+	sessionState *types.SessionState
 
 	xPos, yPos int
 }
 
 // New creates a new message list component
-func New(a *app.App) Model {
+func New(a *app.App, sessionState *types.SessionState) Model {
 	return &model{
 		width:         120,
 		height:        24,
 		app:           a,
 		renderedItems: make(map[int]renderedItem),
-		splitDiffView: true,
+		sessionState:  sessionState,
 	}
 }
 
@@ -220,12 +221,12 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case tool.ToggleDiffViewMsg:
-		m.splitDiffView = !m.splitDiffView
+	case editfile.ToggleDiffViewMsg:
+		m.sessionState.ToggleSplitDiffView()
 
 		var cmds []tea.Cmd
 		for i, view := range m.views {
-			updatedView, cmd := view.Update(tool.ToggleDiffViewMsg{})
+			updatedView, cmd := view.Update(editfile.ToggleDiffViewMsg{})
 			m.views[i] = updatedView
 			cmds = append(cmds, cmd)
 		}
@@ -707,7 +708,7 @@ func (m *model) ScrollToBottom() tea.Cmd {
 }
 
 func (m *model) createToolCallView(msg *types.Message) layout.Model {
-	view := tool.New(msg, m.app, markdown.NewRenderer(m.width), m.splitDiffView)
+	view := tool.New(msg, m.app, markdown.NewRenderer(m.width), m.sessionState)
 	view.SetSize(m.width, 0)
 	return view
 }

@@ -11,9 +11,10 @@ import (
 
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/tools"
-	"github.com/docker/cagent/pkg/tui/components/todo"
+	"github.com/docker/cagent/pkg/tui/components/tool/todotool"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/styles"
+	"github.com/docker/cagent/pkg/tui/types"
 )
 
 type Mode int
@@ -40,7 +41,7 @@ type model struct {
 	width        int
 	height       int
 	usage        *runtime.Usage
-	todoComp     *todo.Component
+	todoComp     *todotool.SidebarComponent
 	working      bool
 	mcpInit      bool
 	spinner      spinner.Model
@@ -48,12 +49,12 @@ type model struct {
 	sessionTitle string
 }
 
-func New() Model {
+func New(manager *types.TodoManager) Model {
 	return &model{
 		width:        20,
 		height:       24,
 		usage:        &runtime.Usage{},
-		todoComp:     todo.NewComponent(),
+		todoComp:     todotool.NewSidebarComponent(manager),
 		spinner:      spinner.New(spinner.WithSpinner(spinner.Dot)),
 		sessionTitle: "New session",
 	}

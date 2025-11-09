@@ -24,6 +24,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/dialog"
 	"github.com/docker/cagent/pkg/tui/page/chat"
 	"github.com/docker/cagent/pkg/tui/styles"
+	"github.com/docker/cagent/pkg/tui/types"
 )
 
 var lastMouseEvent time.Time
@@ -55,6 +56,9 @@ type appModel struct {
 	dialog       dialog.Manager
 	completions  completion.Manager
 
+	// Session state
+	sessionState *types.SessionState
+
 	// State
 	ready bool
 	err   error
@@ -78,16 +82,19 @@ func DefaultKeyMap() KeyMap {
 
 // New creates and initializes a new TUI application model
 func New(a *app.App) tea.Model {
+	sessionState := types.NewSessionState()
+
 	t := &appModel{
 		keyMap:       DefaultKeyMap(),
 		dialog:       dialog.New(),
 		notification: notification.New(),
 		completions:  completion.New(),
 		application:  a,
+		sessionState: sessionState,
 	}
 
 	t.statusBar = statusbar.New(t)
-	t.chatPage = chat.New(a)
+	t.chatPage = chat.New(a, sessionState)
 
 	return t
 }
@@ -160,7 +167,8 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case commands.NewSessionMsg:
 		a.application.NewSession()
-		a.chatPage = chat.New(a.application)
+		a.sessionState = types.NewSessionState()
+		a.chatPage = chat.New(a.application, a.sessionState)
 		a.dialog = dialog.New()
 		a.statusBar = statusbar.New(a.chatPage)
 

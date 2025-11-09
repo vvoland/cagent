@@ -13,10 +13,11 @@ import (
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
-	"github.com/docker/cagent/pkg/tui/components/todo"
+	"github.com/docker/cagent/pkg/tui/components/tool/todotool"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/styles"
+	"github.com/docker/cagent/pkg/tui/types"
 )
 
 type (
@@ -205,7 +206,9 @@ func (d *toolConfirmationDialog) View() string {
 }
 
 func (d *toolConfirmationDialog) renderTodo(contentWidth int) string {
-	todoComponent := todo.NewComponent()
+	// Create a temporary TodoManager for preview
+	tempManager := types.NewTodoManager()
+	todoComponent := todotool.NewSidebarComponent(tempManager)
 	todoComponent.SetSize(contentWidth)
 
 	err := todoComponent.SetTodos(d.toolCall)
