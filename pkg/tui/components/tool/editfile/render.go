@@ -16,6 +16,7 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/styles"
+	"github.com/docker/cagent/pkg/tui/types"
 )
 
 const (
@@ -37,7 +38,7 @@ type linePair struct {
 }
 
 // renderEditFile renders edit_file tool arguments
-func renderEditFile(toolCall tools.ToolCall, width int, splitView bool) string {
+func renderEditFile(toolCall tools.ToolCall, width int, splitView bool, toolStatus types.ToolStatus) string {
 	var args builtin.EditFileArgs
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
 		return ""
@@ -53,7 +54,7 @@ func renderEditFile(toolCall tools.ToolCall, width int, splitView bool) string {
 			output.WriteString("Edit #" + string(rune(i+1+'0')) + ":\n")
 		}
 
-		diff := computeDiff(args.Path, edit.OldText, edit.NewText)
+		diff := computeDiff(args.Path, edit.OldText, edit.NewText, toolStatus)
 		if splitView {
 			output.WriteString(renderSplitDiffWithSyntaxHighlight(diff, args.Path, width))
 		} else {
@@ -65,18 +66,30 @@ func renderEditFile(toolCall tools.ToolCall, width int, splitView bool) string {
 }
 
 // computeDiff computes a diff between old and new text
-func computeDiff(path, oldText, newText string) []*udiff.Hunk {
+// For confirmation status: reads current file (old) and applies edit to get new content
+// For result status: reads current file (new) and reconstructs old content by reversing the edit
+func computeDiff(path, oldText, newText string, toolStatus types.ToolStatus) []*udiff.Hunk {
 	currentContent, err := os.ReadFile(path)
 	if err != nil {
 		return []*udiff.Hunk{}
 	}
 
-	// Generate the old contents by applying inverse diff, the current file has
-	// newText applied, so we need to reverse it
-	oldContent := strings.Replace(string(currentContent), newText, oldText, 1)
+	var oldContent, newContent string
 
-	// Now compute diff between old (reconstructed) and new (complete file)
-	edits := udiff.Strings(oldContent, string(currentContent))
+	if toolStatus == types.ToolStatusConfirmation {
+		// During confirmation: file hasn't been modified yet
+		// currentContent is the old content, we need to compute what new would be
+		oldContent = string(currentContent)
+		newContent = strings.Replace(oldContent, oldText, newText, 1)
+	} else {
+		// After execution: file has been modified
+		// currentContent is the new content, we need to reconstruct old
+		newContent = string(currentContent)
+		oldContent = strings.Replace(newContent, newText, oldText, 1)
+	}
+
+	// Now compute diff between old and new
+	edits := udiff.Strings(oldContent, newContent)
 
 	diff, err := udiff.ToUnifiedDiff("old", "new", oldContent, edits, 3)
 	if err != nil {

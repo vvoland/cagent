@@ -60,11 +60,6 @@ func (c *Component) Init() tea.Cmd {
 
 // Update implements [layout.Model].
 func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
-	// if _, ok := msg.(ToggleDiffViewMsg); ok {
-	// 	c.sessionState.ToggleSplitDiffView()
-	// 	return c, nil
-	// }
-
 	// Handle spinner updates
 	if c.message.ToolStatus == types.ToolStatusPending || c.message.ToolStatus == types.ToolStatusRunning {
 		var cmd tea.Cmd
@@ -91,7 +86,7 @@ func (c *Component) View() string {
 	}
 
 	if msg.ToolCall.Function.Arguments != "" {
-		content += "\n\n" + styles.ToolCallResult.Render(renderEditFile(msg.ToolCall, c.width-4, c.sessionState.SplitDiffView))
+		content += "\n\n" + styles.ToolCallResult.Render(renderEditFile(msg.ToolCall, c.width-4, c.sessionState.SplitDiffView, msg.ToolStatus))
 	}
 
 	var resultContent string

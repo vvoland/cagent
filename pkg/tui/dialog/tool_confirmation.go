@@ -8,7 +8,6 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/runtime"
-	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/markdown"
 	"github.com/docker/cagent/pkg/tui/components/tool"
 	"github.com/docker/cagent/pkg/tui/core"
@@ -17,8 +16,6 @@ import (
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
-
-// TODO(rumpl): use the tool factory to render the tool in the confirmation dialog
 
 type (
 	RuntimeResumeMsg struct {
@@ -117,6 +114,9 @@ func (d *toolConfirmationDialog) View() string {
 	// Content width (accounting for padding and borders)
 	contentWidth := dialogWidth - 6
 
+	// Calculate max height (80% of screen height)
+	maxDialogHeight := (d.height * 80) / 100
+
 	dialogStyle := styles.DialogStyle.Width(dialogWidth)
 
 	// Title
@@ -131,7 +131,10 @@ func (d *toolConfirmationDialog) View() string {
 		Render(strings.Repeat("─", separatorWidth))
 
 	a := types.Message{
-		ToolCall: d.msg.ToolCall,
+		ToolCall:       d.msg.ToolCall,
+		ToolDefinition: d.msg.ToolDefinition,
+		Type:           types.MessageTypeToolCall,
+		ToolStatus:     types.ToolStatusConfirmation,
 	}
 	view := tool.New(&a, markdown.NewRenderer(contentWidth), d.sessionState)
 	view.SetSize(contentWidth, 0)
@@ -150,27 +153,53 @@ func (d *toolConfirmationDialog) View() string {
 	parts = append(parts, "", question, "", options)
 
 	content := lipgloss.JoinVertical(lipgloss.Left, parts...)
+
+	// Apply max height constraint if needed
+	contentHeight := lipgloss.Height(content)
+	if contentHeight > maxDialogHeight-4 { // Account for dialog padding/border
+		// Limit the arguments section height
+		availableHeight := maxDialogHeight - 4 - lipgloss.Height(title) - lipgloss.Height(separator) - lipgloss.Height(question) - lipgloss.Height(options) - 4 // spacing
+		if availableHeight > 0 && argumentsSection != "" {
+			argumentsSection = d.truncateToHeight(argumentsSection, availableHeight)
+
+			// Rebuild content with truncated arguments
+			parts = []string{title, separator}
+			if argumentsSection != "" {
+				parts = append(parts, "", argumentsSection)
+			}
+			parts = append(parts, "", question, "", options)
+			content = lipgloss.JoinVertical(lipgloss.Left, parts...)
+		}
+	}
+
 	return dialogStyle.Render(content)
+}
+
+// truncateToHeight truncates content to fit within the specified height,
+// adding an ellipsis indicator at the end
+func (d *toolConfirmationDialog) truncateToHeight(content string, maxHeight int) string {
+	if maxHeight <= 0 {
+		return ""
+	}
+
+	lines := strings.Split(content, "\n")
+	if len(lines) <= maxHeight {
+		return content
+	}
+
+	// Reserve last line for truncation indicator
+	truncatedLines := lines[:maxHeight-1]
+	truncatedLines = append(truncatedLines, styles.MutedStyle.Render("... (content truncated)"))
+	return strings.Join(truncatedLines, "\n")
 }
 
 // Position calculates the position to center the dialog
 func (d *toolConfirmationDialog) Position() (row, col int) {
 	dialogWidth := d.width * 70 / 100
 
-	// Estimate dialog height based on content
-	dialogHeight := 12 // Base height for title, tool name, question, and options
-	if d.msg.ToolCall.Function.Arguments != "" {
-		// Add height for arguments section
-		// Rough estimation: 3 lines for header + arguments
-		dialogHeight += 5
-	}
-
-	// Add height for todo preview section if todo-related tools
-	if d.msg.ToolCall.Function.Name == builtin.ToolNameCreateTodos || d.msg.ToolCall.Function.Name == builtin.ToolNameCreateTodo && d.msg.ToolCall.Function.Arguments != "" {
-		// Add height for preview section header and content
-		// Rough estimation: 2 lines for header + variable lines for todos
-		dialogHeight += 6
-	}
+	// Calculate actual dialog height by rendering it
+	renderedDialog := d.View()
+	dialogHeight := lipgloss.Height(renderedDialog)
 
 	// Ensure dialog stays on screen
 	row = max(0, (d.height-dialogHeight)/2)
