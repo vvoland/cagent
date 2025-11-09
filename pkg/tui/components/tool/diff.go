@@ -25,5 +25,36 @@ func computeDiff(path, oldText, newText string) []*udiff.Hunk {
 		return []*udiff.Hunk{}
 	}
 
-	return diff.Hunks
+	return normalizeDiff(diff.Hunks)
+}
+
+func normalizeDiff(diff []*udiff.Hunk) []*udiff.Hunk {
+	for _, hunk := range diff {
+		if len(hunk.Lines) == 0 {
+			continue
+		}
+
+		normalized := make([]udiff.Line, 0, len(hunk.Lines))
+		for i := 0; i < len(hunk.Lines); i++ {
+			line := hunk.Lines[i]
+
+			if line.Kind == udiff.Delete && i+1 < len(hunk.Lines) {
+				next := hunk.Lines[i+1]
+				if next.Kind == udiff.Insert && line.Content == next.Content {
+					normalized = append(normalized, udiff.Line{
+						Kind:    udiff.Equal,
+						Content: line.Content,
+					})
+					i++
+					continue
+				}
+			}
+
+			normalized = append(normalized, line)
+		}
+
+		hunk.Lines = normalized
+	}
+
+	return diff
 }
