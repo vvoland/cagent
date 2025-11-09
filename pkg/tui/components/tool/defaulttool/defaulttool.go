@@ -7,7 +7,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/glamour/v2"
 
-	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/service"
@@ -29,7 +28,6 @@ type Component struct {
 // New creates a new default tool component.
 func New(
 	msg *types.Message,
-	_ *app.App,
 	renderer *glamour.TermRenderer,
 	_ *service.SessionState,
 ) layout.Model {

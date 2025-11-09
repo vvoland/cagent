@@ -224,16 +224,8 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case editfile.ToggleDiffViewMsg:
 		m.sessionState.ToggleSplitDiffView()
 
-		var cmds []tea.Cmd
-		for i, view := range m.views {
-			updatedView, cmd := view.Update(editfile.ToggleDiffViewMsg{})
-			m.views[i] = updatedView
-			cmds = append(cmds, cmd)
-		}
-
 		m.invalidateAllItems()
-
-		return m, tea.Batch(cmds...)
+		return m, nil
 
 	case tea.KeyPressMsg:
 		switch msg.String() {
@@ -694,7 +686,7 @@ func (m *model) ScrollToBottom() tea.Cmd {
 }
 
 func (m *model) createToolCallView(msg *types.Message) layout.Model {
-	view := tool.New(msg, m.app, markdown.NewRenderer(m.width), m.sessionState)
+	view := tool.New(msg, markdown.NewRenderer(m.width), m.sessionState)
 	view.SetSize(m.width, 0)
 	return view
 }

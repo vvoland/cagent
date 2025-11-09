@@ -3,7 +3,6 @@ package tool
 import (
 	"github.com/charmbracelet/glamour/v2"
 
-	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/tool/defaulttool"
 	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
@@ -33,17 +32,16 @@ func NewFactory(registry *Registry) *Factory {
 // Create creates a tool component for the given message.
 func (f *Factory) Create(
 	msg *types.Message,
-	a *app.App,
 	renderer *glamour.TermRenderer,
 	sessionState *service.SessionState,
 ) layout.Model {
 	toolName := msg.ToolCall.Function.Name
 
 	if builder, ok := f.registry.Get(toolName); ok {
-		return builder(msg, a, renderer, sessionState)
+		return builder(msg, renderer, sessionState)
 	}
 
-	return defaulttool.New(msg, a, renderer, sessionState)
+	return defaulttool.New(msg, renderer, sessionState)
 }
 
 var (
@@ -54,12 +52,10 @@ var (
 func newDefaultRegistry() *Registry {
 	registry := NewRegistry()
 
-	registry.Register(builtin.ToolNameEditFile, editfile.New)
 	registry.Register(builtin.ToolNameTransferTask, transfertask.New)
+	registry.Register(builtin.ToolNameEditFile, editfile.New)
 	registry.Register(builtin.ToolNameWriteFile, writefile.New)
 	registry.Register(builtin.ToolNameReadFile, readfile.New)
-
-	// Register unified todo tool component for all todo operations
 	registry.Register(builtin.ToolNameCreateTodo, todotool.New)
 	registry.Register(builtin.ToolNameCreateTodos, todotool.New)
 	registry.Register(builtin.ToolNameUpdateTodo, todotool.New)
@@ -68,13 +64,10 @@ func newDefaultRegistry() *Registry {
 	return registry
 }
 
-// New creates a tool component using the default factory.
-// This is the public API that maintains backward compatibility.
 func New(
 	msg *types.Message,
-	a *app.App,
 	renderer *glamour.TermRenderer,
 	sessionState *service.SessionState,
 ) layout.Model {
-	return defaultFactory.Create(msg, a, renderer, sessionState)
+	return defaultFactory.Create(msg, renderer, sessionState)
 }

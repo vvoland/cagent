@@ -234,7 +234,6 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		updated, cmd = a.chatPage.Update(msg)
 		cmds = append(cmds, cmd)
-
 		a.chatPage = updated.(chat.Page)
 
 		return a, tea.Batch(cmds...)

@@ -8,7 +8,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/glamour/v2"
 
-	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core/layout"
@@ -17,11 +16,9 @@ import (
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
-// ToggleDiffViewMsg is a message to toggle diff view mode
 type ToggleDiffViewMsg struct{}
 
 // Component is a specialized component for rendering edit_file tool calls.
-// It provides enhanced visualization with diff views (unified or split).
 type Component struct {
 	message      *types.Message
 	renderer     *glamour.TermRenderer
@@ -31,10 +28,8 @@ type Component struct {
 	sessionState *service.SessionState
 }
 
-// New creates a new edit file component.
 func New(
 	msg *types.Message,
-	a *app.App,
 	renderer *glamour.TermRenderer,
 	sessionState *service.SessionState,
 ) layout.Model {
@@ -48,14 +43,14 @@ func New(
 	}
 }
 
-// SetSize implements layout.Model.
+// SetSize implements [layout.Model].
 func (c *Component) SetSize(width, height int) tea.Cmd {
 	c.width = width
 	c.height = height
 	return nil
 }
 
-// Init implements layout.Model.
+// Init implements [layout.Model].
 func (c *Component) Init() tea.Cmd {
 	if c.message.ToolStatus == types.ToolStatusPending || c.message.ToolStatus == types.ToolStatusRunning {
 		return c.spinner.Tick
@@ -63,13 +58,12 @@ func (c *Component) Init() tea.Cmd {
 	return nil
 }
 
-// Update implements layout.Model.
+// Update implements [layout.Model].
 func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
-	// Handle toggle diff view message
-	if _, ok := msg.(ToggleDiffViewMsg); ok {
-		c.sessionState.ToggleSplitDiffView()
-		return c, nil
-	}
+	// if _, ok := msg.(ToggleDiffViewMsg); ok {
+	// 	c.sessionState.ToggleSplitDiffView()
+	// 	return c, nil
+	// }
 
 	// Handle spinner updates
 	if c.message.ToolStatus == types.ToolStatusPending || c.message.ToolStatus == types.ToolStatusRunning {
@@ -81,7 +75,7 @@ func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	return c, nil
 }
 
-// View implements layout.Model.
+// View implements [layout.Model].
 func (c *Component) View() string {
 	msg := c.message
 	var args builtin.EditFileArgs

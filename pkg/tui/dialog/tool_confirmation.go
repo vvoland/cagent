@@ -1,9 +1,6 @@
 package dialog
 
 import (
-	"encoding/json"
-	"fmt"
-	"sort"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -11,13 +8,14 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/runtime"
-	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
-	"github.com/docker/cagent/pkg/tui/components/tool/todotool"
+	"github.com/docker/cagent/pkg/tui/components/markdown"
+	"github.com/docker/cagent/pkg/tui/components/tool"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
+	"github.com/docker/cagent/pkg/tui/types"
 )
 
 // TODO(rumpl): use the tool factory to render the tool in the confirmation dialog
@@ -33,14 +31,14 @@ type ToolConfirmationResponse struct {
 	Response string // "approve", "reject", or "approve-session"
 }
 
-// toolConfirmationDialog implements DialogModel for tool confirmation
 type toolConfirmationDialog struct {
 	width, height int
-	toolCall      tools.ToolCall
+	msg           *runtime.ToolCallConfirmationEvent
 	keyMap        toolConfirmationKeyMap
+	sessionState  *service.SessionState
 }
 
-// SetSize implements Dialog.
+// SetSize implements [Dialog].
 func (d *toolConfirmationDialog) SetSize(width, height int) tea.Cmd {
 	d.width = width
 	d.height = height
@@ -73,10 +71,11 @@ func defaultToolConfirmationKeyMap() toolConfirmationKeyMap {
 }
 
 // NewToolConfirmationDialog creates a new tool confirmation dialog
-func NewToolConfirmationDialog(toolCall tools.ToolCall) Dialog {
+func NewToolConfirmationDialog(msg *runtime.ToolCallConfirmationEvent, sessionState *service.SessionState) Dialog {
 	return &toolConfirmationDialog{
-		toolCall: toolCall,
-		keyMap:   defaultToolConfirmationKeyMap(),
+		msg:          msg,
+		sessionState: sessionState,
+		keyMap:       defaultToolConfirmationKeyMap(),
 	}
 }
 
@@ -111,56 +110,9 @@ func (d *toolConfirmationDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	return d, nil
 }
 
-// wrapText wraps text to fit within the specified width
-func wrapText(text string, width int) string {
-	if width <= 0 {
-		return text
-	}
-
-	words := strings.Fields(text)
-	if len(words) == 0 {
-		return text
-	}
-
-	var result strings.Builder
-	var currentLine strings.Builder
-
-	for _, word := range words {
-		switch {
-		case currentLine.Len() == 0:
-			currentLine.WriteString(word)
-		case currentLine.Len()+1+len(word) <= width:
-			currentLine.WriteString(" " + word)
-		default:
-			if result.Len() > 0 {
-				result.WriteString("\n")
-			}
-			result.WriteString(currentLine.String())
-			currentLine.Reset()
-			currentLine.WriteString(word)
-		}
-	}
-
-	if currentLine.Len() > 0 {
-		if result.Len() > 0 {
-			result.WriteString("\n")
-		}
-		result.WriteString(currentLine.String())
-	}
-
-	return result.String()
-}
-
 // View renders the tool confirmation dialog
 func (d *toolConfirmationDialog) View() string {
-	// Calculate dialog width based on screen size but with min/max constraints
-	dialogWidth := d.width * 60 / 100 // 60% of screen width
-	if dialogWidth < 50 {
-		dialogWidth = 50
-	}
-	if dialogWidth > 80 {
-		dialogWidth = 80
-	}
+	dialogWidth := d.width * 70 / 100
 
 	// Content width (accounting for padding and borders)
 	contentWidth := dialogWidth - 6
@@ -178,24 +130,18 @@ func (d *toolConfirmationDialog) View() string {
 		Width(contentWidth).
 		Render(strings.Repeat("─", separatorWidth))
 
-	// Tool name
-	toolLabel := styles.DialogLabelStyle.Render("Tool: ")
-	toolName := styles.DialogValueStyle.Render(d.toolCall.Function.Name)
-	toolInfo := lipgloss.JoinHorizontal(lipgloss.Left, toolLabel, toolName)
-
-	// Arguments section
-	var argumentsSection string
-	if d.toolCall.Function.Name == builtin.ToolNameCreateTodos || d.toolCall.Function.Name == builtin.ToolNameCreateTodo {
-		argumentsSection = d.renderTodo(contentWidth)
-	} else {
-		argumentsSection = d.renderArguments(contentWidth)
+	a := types.Message{
+		ToolCall: d.msg.ToolCall,
 	}
+	view := tool.New(&a, markdown.NewRenderer(contentWidth), d.sessionState)
+	view.SetSize(contentWidth, 0)
+	argumentsSection := view.View()
 
 	question := styles.DialogQuestionStyle.Width(contentWidth).Render("Do you want to allow this tool call?")
 	options := styles.DialogOptionsStyle.Width(contentWidth).Render("[Y]es    [N]o    [A]ll (approve all tools this session)")
 
 	// Combine all parts with proper spacing
-	parts := []string{title, separator, toolInfo}
+	parts := []string{title, separator}
 
 	if argumentsSection != "" {
 		parts = append(parts, "", argumentsSection)
@@ -207,117 +153,20 @@ func (d *toolConfirmationDialog) View() string {
 	return dialogStyle.Render(content)
 }
 
-func (d *toolConfirmationDialog) renderTodo(contentWidth int) string {
-	// Create a temporary TodoManager for preview
-	tempManager := service.NewTodoManager()
-	todoComponent := todotool.NewSidebarComponent(tempManager)
-	todoComponent.SetSize(contentWidth)
-
-	err := todoComponent.SetTodos(d.toolCall)
-	if err != nil {
-		return ""
-	}
-	return todoComponent.Render()
-}
-
-func (d *toolConfirmationDialog) renderArguments(contentWidth int) string {
-	if d.toolCall.Function.Arguments == "" {
-		return ""
-	}
-
-	argumentsHeader := styles.DialogLabelStyle.Render("Arguments:")
-
-	var arguments map[string]any
-	if err := json.Unmarshal([]byte(d.toolCall.Function.Arguments), &arguments); err != nil {
-		// If JSON unmarshaling fails, truncate and wrap the raw arguments
-		rawArgs := d.toolCall.Function.Arguments
-		if len(rawArgs) > 150 {
-			rawArgs = rawArgs[:150] + "..."
-		}
-
-		formattedArgs := styles.DialogContentStyle.Render("  " + wrapText(rawArgs, contentWidth-2))
-		return lipgloss.JoinVertical(lipgloss.Left, argumentsHeader, "", formattedArgs)
-	}
-
-	// Sort arguments by key to ensure consistent order
-	keys := make([]string, 0, len(arguments))
-	for k := range arguments {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	var argLines []string
-	for _, k := range keys {
-		v := arguments[k]
-
-		// Format key
-		formattedKey := styles.DialogValueStyle.Render(k + ":")
-
-		// Format value
-		var valueStr string
-		if vStr, ok := v.(string); ok {
-			valueStr = vStr
-		} else {
-			valueBytes, _ := json.MarshalIndent(v, "", "  ")
-			valueStr = string(valueBytes)
-		}
-
-		// Truncate very long values before wrapping
-		maxValueLength := 200
-		if len(valueStr) > maxValueLength {
-			valueStr = valueStr[:maxValueLength] + "..."
-		}
-
-		// Wrap long values
-		// Account for key, colon, spaces, and indent
-		availableWidth := max(contentWidth-len(k)-6, 20)
-		wrappedValue := wrapText(valueStr, availableWidth)
-
-		// Limit to maximum 3 lines for readability
-		valueLines := strings.Split(wrappedValue, "\n")
-		if len(valueLines) > 3 {
-			valueLines = valueLines[:3]
-			if len(valueLines[2]) > availableWidth-3 {
-				valueLines[2] = valueLines[2][:availableWidth-3] + "..."
-			} else {
-				valueLines[2] += "..."
-			}
-			wrappedValue = strings.Join(valueLines, "\n")
-		}
-
-		// Indent wrapped lines
-		valueLines = strings.Split(wrappedValue, "\n")
-		if len(valueLines) > 1 {
-			for i := 1; i < len(valueLines); i++ {
-				valueLines[i] = "    " + valueLines[i]
-			}
-			wrappedValue = strings.Join(valueLines, "\n")
-		}
-
-		valueStyled := styles.DialogContentStyle.Render(wrappedValue)
-
-		argLines = append(argLines, fmt.Sprintf("  %s %s", formattedKey, valueStyled))
-	}
-
-	formattedArgs := strings.Join(argLines, "\n")
-	return lipgloss.JoinVertical(lipgloss.Left, argumentsHeader, "", formattedArgs)
-}
-
 // Position calculates the position to center the dialog
 func (d *toolConfirmationDialog) Position() (row, col int) {
-	// Calculate dialog width (same logic as in View())
-	dialogWidth := min(max(d.width*60/100, 50), 80)
+	dialogWidth := d.width * 70 / 100
 
 	// Estimate dialog height based on content
 	dialogHeight := 12 // Base height for title, tool name, question, and options
-	if d.toolCall.Function.Arguments != "" {
+	if d.msg.ToolCall.Function.Arguments != "" {
 		// Add height for arguments section
 		// Rough estimation: 3 lines for header + arguments
 		dialogHeight += 5
 	}
 
 	// Add height for todo preview section if todo-related tools
-	if d.toolCall.Function.Name == builtin.ToolNameCreateTodos || d.toolCall.Function.Name == builtin.ToolNameCreateTodo && d.toolCall.Function.Arguments != "" {
+	if d.msg.ToolCall.Function.Name == builtin.ToolNameCreateTodos || d.msg.ToolCall.Function.Name == builtin.ToolNameCreateTodo && d.msg.ToolCall.Function.Arguments != "" {
 		// Add height for preview section header and content
 		// Rough estimation: 2 lines for header + variable lines for todos
 		dialogHeight += 6

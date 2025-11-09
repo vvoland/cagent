@@ -8,7 +8,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/glamour/v2"
 
-	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core/layout"
@@ -31,7 +30,6 @@ type Component struct {
 // This component handles create, create_multiple, list, and update operations.
 func New(
 	msg *types.Message,
-	_ *app.App,
 	renderer *glamour.TermRenderer,
 	_ *service.SessionState,
 ) layout.Model {

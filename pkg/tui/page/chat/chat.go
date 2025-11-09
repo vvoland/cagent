@@ -57,6 +57,8 @@ type chatPage struct {
 	messages messages.Model
 	editor   editor.Editor
 
+	sessionState *service.SessionState
+
 	// State
 	focusedPanel FocusedPanel
 
@@ -106,6 +108,7 @@ func New(a *app.App, sessionState *service.SessionState) Page {
 		app:          a,
 		keyMap:       defaultKeyMap(),
 		history:      historyStore,
+		sessionState: sessionState,
 	}
 }
 
@@ -266,7 +269,7 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 		// Open tool confirmation dialog
 		dialogCmd := core.CmdHandler(dialog.OpenDialogMsg{
-			Model: dialog.NewToolConfirmationDialog(msg.ToolCall),
+			Model: dialog.NewToolConfirmationDialog(msg, p.sessionState),
 		})
 
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd, dialogCmd)
