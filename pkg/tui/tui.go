@@ -75,7 +75,7 @@ func DefaultKeyMap() KeyMap {
 	return KeyMap{
 		CommandPalette: key.NewBinding(
 			key.WithKeys("ctrl+p"),
-			key.WithHelp("ctrl+p", "command palette"),
+			key.WithHelp("ctrl+p", "commands"),
 		),
 	}
 }
