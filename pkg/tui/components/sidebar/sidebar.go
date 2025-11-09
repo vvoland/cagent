@@ -143,13 +143,17 @@ func (m *model) View() string {
 
 func (m *model) horizontalView() string {
 	pwd := getCurrentWorkingDirectory()
+
+	wi := m.workingIndicator()
+	titleGapWidth := m.width - lipgloss.Width(m.sessionTitle) - lipgloss.Width(wi) - 2
+	title := fmt.Sprintf("%s%*s%s", m.sessionTitle, titleGapWidth, "", m.workingIndicator())
+
 	gapWidth := m.width - lipgloss.Width(pwd) - lipgloss.Width(m.tokenUsage()) - 2
-	title := m.sessionTitle + " " + m.workingIndicator()
 	return lipgloss.JoinVertical(lipgloss.Top, title, fmt.Sprintf("%s%*s%s", styles.MutedStyle.Render(pwd), gapWidth, "", m.tokenUsage()))
 }
 
 func (m *model) verticalView() string {
-	topContent := m.sessionTitle
+	topContent := m.sessionTitle + "\n"
 
 	if pwd := getCurrentWorkingDirectory(); pwd != "" {
 		topContent += styles.MutedStyle.Render(pwd) + "\n\n"
