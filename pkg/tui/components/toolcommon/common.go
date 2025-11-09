@@ -8,7 +8,6 @@ import (
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
-// Icon returns the status icon for a tool
 func Icon(status types.ToolStatus) string {
 	switch status {
 	case types.ToolStatusPending:
@@ -26,8 +25,6 @@ func Icon(status types.ToolStatus) string {
 	}
 }
 
-// FormatToolResult formats tool result content for display.
-// It handles JSON formatting and line wrapping, and truncates long output.
 func FormatToolResult(content string, width int) string {
 	var formattedContent string
 	var m map[string]any
@@ -39,11 +36,9 @@ func FormatToolResult(content string, width int) string {
 		formattedContent = string(buf)
 	}
 
-	// Calculate available width for content (accounting for padding)
 	padding := styles.ToolCallResult.Padding().GetHorizontalPadding()
 	availableWidth := max(width-2-padding, 10) // Minimum readable width
 
-	// Wrap long lines to fit the component width
 	lines := wrapLines(formattedContent, availableWidth)
 
 	header := "output"
@@ -53,7 +48,6 @@ func FormatToolResult(content string, width int) string {
 		lines = append(lines, wrapLines("...", availableWidth)...)
 	}
 
-	// Join the lines back
 	trimmedContent := strings.Join(lines, "\n")
 	if trimmedContent != "" {
 		return "\n" + styles.ToolCallResult.Render(styles.ToolCallResultKey.Render("\n-> "+header+":")+"\n"+trimmedContent)
@@ -62,7 +56,6 @@ func FormatToolResult(content string, width int) string {
 	return ""
 }
 
-// wrapLines wraps long lines to fit within the specified width
 func wrapLines(text string, width int) []string {
 	if width <= 0 {
 		return strings.Split(text, "\n")

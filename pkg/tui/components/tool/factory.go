@@ -22,14 +22,12 @@ type Factory struct {
 	registry *Registry
 }
 
-// NewFactory creates a new component factory with the given registry.
 func NewFactory(registry *Registry) *Factory {
 	return &Factory{
 		registry: registry,
 	}
 }
 
-// Create creates a tool component for the given message.
 func (f *Factory) Create(
 	msg *types.Message,
 	renderer *glamour.TermRenderer,

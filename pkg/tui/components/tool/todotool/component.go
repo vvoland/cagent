@@ -42,14 +42,12 @@ func New(
 	}
 }
 
-// SetSize implements [layout.Model].
 func (c *Component) SetSize(width, height int) tea.Cmd {
 	c.width = width
 	c.height = height
 	return nil
 }
 
-// Init implements [layout.Model].
 func (c *Component) Init() tea.Cmd {
 	if c.message.ToolStatus == types.ToolStatusPending || c.message.ToolStatus == types.ToolStatusRunning {
 		return c.spinner.Tick
@@ -57,7 +55,6 @@ func (c *Component) Init() tea.Cmd {
 	return nil
 }
 
-// Update implements [layout.Model].
 func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	if c.message.ToolStatus == types.ToolStatusPending || c.message.ToolStatus == types.ToolStatusRunning {
 		var cmd tea.Cmd
@@ -68,7 +65,6 @@ func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	return c, nil
 }
 
-// View implements [layout.Model].
 func (c *Component) View() string {
 	msg := c.message
 	toolName := msg.ToolCall.Function.Name
@@ -88,7 +84,6 @@ func (c *Component) View() string {
 	}
 }
 
-// renderCreate renders the create_todo operation
 func (c *Component) renderCreate() string {
 	msg := c.message
 	displayName := msg.ToolDefinition.DisplayName()
@@ -117,7 +112,6 @@ func (c *Component) renderCreate() string {
 	return styles.BaseStyle.PaddingLeft(2).PaddingTop(1).Render(content + resultContent)
 }
 
-// renderCreateMultiple renders the create_todos operation
 func (c *Component) renderCreateMultiple() string {
 	msg := c.message
 	displayName := msg.ToolDefinition.DisplayName()
@@ -148,7 +142,6 @@ func (c *Component) renderCreateMultiple() string {
 	return styles.BaseStyle.PaddingLeft(2).PaddingTop(1).Render(content + resultContent)
 }
 
-// renderList renders the list_todos operation
 func (c *Component) renderList() string {
 	msg := c.message
 	displayName := msg.ToolDefinition.DisplayName()
@@ -186,7 +179,6 @@ func (c *Component) renderList() string {
 	return styles.BaseStyle.PaddingLeft(2).PaddingTop(1).Render(content)
 }
 
-// renderUpdate renders the update_todo operation
 func (c *Component) renderUpdate() string {
 	msg := c.message
 	displayName := msg.ToolDefinition.DisplayName()
@@ -218,7 +210,6 @@ func (c *Component) renderUpdate() string {
 	return styles.BaseStyle.PaddingLeft(2).PaddingTop(1).Render(content + resultContent)
 }
 
-// renderDefault provides a fallback rendering for unknown tool types
 func (c *Component) renderDefault() string {
 	msg := c.message
 	displayName := msg.ToolDefinition.DisplayName()

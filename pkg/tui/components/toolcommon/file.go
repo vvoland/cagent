@@ -12,20 +12,18 @@ import (
 
 const maxPreviewLines = 10
 
-// getLanguageFromPath extracts the file extension to use as language hint for syntax highlighting
 func getLanguageFromPath(path string) string {
 	ext := filepath.Ext(path)
 	if ext == "" {
 		return ""
 	}
-	// Remove the leading dot
+
 	return strings.TrimPrefix(ext, ".")
 }
 
 func RenderFile(path, content string, renderer *glamour.TermRenderer) string {
 	lines := strings.Split(content, "\n")
 
-	// Get first 10 lines
 	previewLines := lines
 	var truncated bool
 	if len(lines) > maxPreviewLines {

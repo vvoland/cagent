@@ -23,23 +23,18 @@ type Registry struct {
 	builders map[string]ComponentBuilder
 }
 
-// NewRegistry creates a new component registry.
 func NewRegistry() *Registry {
 	return &Registry{
 		builders: make(map[string]ComponentBuilder),
 	}
 }
 
-// Register adds a component builder for a tool name.
-// If a builder already exists for this tool name, it will be replaced.
 func (r *Registry) Register(toolName string, builder ComponentBuilder) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.builders[toolName] = builder
 }
 
-// Get retrieves a component builder for a tool name.
-// Returns the builder and true if found, nil and false otherwise.
 func (r *Registry) Get(toolName string) (ComponentBuilder, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

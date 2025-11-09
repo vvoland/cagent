@@ -43,14 +43,12 @@ func New(
 	}
 }
 
-// SetSize implements [layout.Model].
 func (c *Component) SetSize(width, height int) tea.Cmd {
 	c.width = width
 	c.height = height
 	return nil
 }
 
-// Init implements [layout.Model].
 func (c *Component) Init() tea.Cmd {
 	if c.message.ToolStatus == types.ToolStatusPending || c.message.ToolStatus == types.ToolStatusRunning {
 		return c.spinner.Tick
@@ -58,9 +56,7 @@ func (c *Component) Init() tea.Cmd {
 	return nil
 }
 
-// Update implements [layout.Model].
 func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
-	// Handle spinner updates
 	if c.message.ToolStatus == types.ToolStatusPending || c.message.ToolStatus == types.ToolStatusRunning {
 		var cmd tea.Cmd
 		c.spinner, cmd = c.spinner.Update(msg)
@@ -70,7 +66,6 @@ func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	return c, nil
 }
 
-// View implements [layout.Model].
 func (c *Component) View() string {
 	msg := c.message
 	var args builtin.EditFileArgs

@@ -9,7 +9,6 @@ import (
 	"github.com/docker/cagent/pkg/tui/styles"
 )
 
-// renderToolArgs renders tool arguments
 func renderToolArgs(toolCall tools.ToolCall, width int) string {
 	decoder := json.NewDecoder(strings.NewReader(toolCall.Function.Arguments))
 

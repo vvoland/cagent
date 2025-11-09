@@ -30,22 +30,18 @@ func New(
 	}
 }
 
-// SetSize implements [layout.Model].
 func (c *Component) SetSize(width, height int) tea.Cmd {
 	return nil
 }
 
-// Init implements [layout.Model].
 func (c *Component) Init() tea.Cmd {
 	return nil
 }
 
-// Update implements [layout.Model].
 func (c *Component) Update(tea.Msg) (layout.Model, tea.Cmd) {
 	return c, nil
 }
 
-// View implements [layout.Model].
 func (c *Component) View() string {
 	var params builtin.TransferTaskArgs
 	if err := json.Unmarshal([]byte(c.message.ToolCall.Function.Arguments), &params); err != nil {

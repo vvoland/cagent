@@ -25,12 +25,10 @@ func NewSidebarComponent(manager *service.TodoManager) *SidebarComponent {
 	}
 }
 
-// SetSize sets the component width
 func (c *SidebarComponent) SetSize(width int) {
 	c.width = width
 }
 
-// SetTodos sets the todo from a tool call, handles create_todo, create_todos, update_todo
 func (c *SidebarComponent) SetTodos(toolCall tools.ToolCall) error {
 	params, err := parseTodoArgs(toolCall)
 	if err != nil {

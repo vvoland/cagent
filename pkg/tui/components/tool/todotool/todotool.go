@@ -6,7 +6,6 @@ import (
 	"github.com/docker/cagent/pkg/tui/styles"
 )
 
-// renderTodoIcon returns the icon and style for a todo status
 func renderTodoIcon(status string) (string, lipgloss.Style) {
 	switch status {
 	case "pending":
