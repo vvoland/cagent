@@ -7,8 +7,10 @@ import (
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/tool/defaulttool"
 	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
+	"github.com/docker/cagent/pkg/tui/components/tool/readfile"
 	"github.com/docker/cagent/pkg/tui/components/tool/todotool"
 	"github.com/docker/cagent/pkg/tui/components/tool/transfertask"
+	"github.com/docker/cagent/pkg/tui/components/tool/writefile"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/types"
 )
@@ -51,8 +53,10 @@ var (
 func newDefaultRegistry() *Registry {
 	registry := NewRegistry()
 
-	registry.Register("edit_file", editfile.New)
-	registry.Register("transfer_task", transfertask.New)
+	registry.Register(builtin.ToolNameEditFile, editfile.New)
+	registry.Register(builtin.ToolNameTransferTask, transfertask.New)
+	registry.Register(builtin.ToolNameWriteFile, writefile.New)
+	registry.Register(builtin.ToolNameReadFile, readfile.New)
 
 	// Register unified todo tool component for all todo operations
 	registry.Register(builtin.ToolNameCreateTodo, todotool.New)
