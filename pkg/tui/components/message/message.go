@@ -78,11 +78,7 @@ func (mv *messageModel) Render(width int) string {
 	case types.MessageTypeSpinner:
 		return mv.spinner.View()
 	case types.MessageTypeUser:
-		if rendered, err := markdown.NewRenderer(width - len(styles.UserMessageBorderStyle.Render(""))).Render(msg.Content); err == nil {
-			return styles.UserMessageBorderStyle.Render(strings.TrimRight(rendered, "\n\r\t "))
-		}
-
-		return msg.Content
+		return styles.UserMessageBorderStyle.Width(width - 1).Render(msg.Content)
 	case types.MessageTypeAssistant:
 		if msg.Content == "" {
 			return mv.spinner.View()
