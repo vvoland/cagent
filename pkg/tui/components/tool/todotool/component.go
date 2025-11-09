@@ -12,6 +12,7 @@ import (
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
@@ -19,31 +20,27 @@ import (
 // Component represents a unified todo tool component that handles all todo operations.
 // It determines which operation to display based on the tool call name.
 type Component struct {
-	message      *types.Message
-	app          *app.App
-	sessionState *types.SessionState
-	renderer     *glamour.TermRenderer
-	spinner      spinner.Model
-	width        int
-	height       int
+	message  *types.Message
+	renderer *glamour.TermRenderer
+	spinner  spinner.Model
+	width    int
+	height   int
 }
 
 // New creates a new unified todo component.
 // This component handles create, create_multiple, list, and update operations.
 func New(
 	msg *types.Message,
-	a *app.App,
+	_ *app.App,
 	renderer *glamour.TermRenderer,
-	sessionState *types.SessionState,
+	_ *service.SessionState,
 ) layout.Model {
 	return &Component{
-		message:      msg,
-		app:          a,
-		sessionState: sessionState,
-		renderer:     renderer,
-		spinner:      spinner.New(spinner.WithSpinner(spinner.Points)),
-		width:        80,
-		height:       1,
+		message:  msg,
+		renderer: renderer,
+		spinner:  spinner.New(spinner.WithSpinner(spinner.Points)),
+		width:    80,
+		height:   1,
 	}
 }
 

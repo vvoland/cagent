@@ -7,19 +7,18 @@ import (
 
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
+	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
 // SidebarComponent represents the todo display component for the sidebar
-// This maintains the original sidebar todo component functionality
 type SidebarComponent struct {
-	manager *types.TodoManager
+	manager *service.TodoManager
 	width   int
 }
 
-// NewSidebarComponent creates a new sidebar todo component with an external manager
-func NewSidebarComponent(manager *types.TodoManager) *SidebarComponent {
+func NewSidebarComponent(manager *service.TodoManager) *SidebarComponent {
 	return &SidebarComponent{
 		manager: manager,
 		width:   20,
@@ -77,11 +76,9 @@ func (c *SidebarComponent) Render() string {
 	return content.String()
 }
 
-// renderTodoLine renders a single todo line with icon and description
 func renderTodoLine(todo types.Todo, maxWidth int) string {
 	icon, style := renderTodoIcon(todo.Status)
 
-	// Truncate description to fit width
 	description := todo.Description
 	maxDescWidth := max(maxWidth-2, 3)
 	if len(description) > maxDescWidth {
@@ -93,7 +90,6 @@ func renderTodoLine(todo types.Todo, maxWidth int) string {
 	return fmt.Sprintf("%s %s", styledIcon, styledDescription)
 }
 
-// parseTodoArgs parses todo tool arguments based on tool name
 func parseTodoArgs(toolCall tools.ToolCall) (any, error) {
 	toolName := toolCall.Function.Name
 	arguments := toolCall.Function.Arguments
@@ -118,13 +114,12 @@ func parseTodoArgs(toolCall tools.ToolCall) (any, error) {
 		}
 		return params, nil
 	case builtin.ToolNameListTodos:
-		return nil, nil // list_todos has no arguments
+		return nil, nil
 	default:
 		return nil, fmt.Errorf("unknown tool name: %s", toolName)
 	}
 }
 
-// generateTodoID generates a new todo ID based on existing todos
 func generateTodoID(todos []types.Todo) string {
 	return fmt.Sprintf("todo_%d", len(todos)+1)
 }

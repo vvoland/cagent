@@ -22,6 +22,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/dialog"
+	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
@@ -91,7 +92,7 @@ func defaultKeyMap() KeyMap {
 }
 
 // New creates a new chat page
-func New(a *app.App, sessionState *types.SessionState) Page {
+func New(a *app.App, sessionState *service.SessionState) Page {
 	historyStore, err := history.New()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to initialize command history: %v\n", err)

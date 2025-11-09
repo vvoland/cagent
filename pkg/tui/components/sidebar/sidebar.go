@@ -13,8 +13,8 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tui/components/tool/todotool"
 	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
-	"github.com/docker/cagent/pkg/tui/types"
 )
 
 type Mode int
@@ -49,7 +49,7 @@ type model struct {
 	sessionTitle string
 }
 
-func New(manager *types.TodoManager) Model {
+func New(manager *service.TodoManager) Model {
 	return &model{
 		width:        20,
 		height:       24,

@@ -16,9 +16,11 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/tool/todotool"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
-	"github.com/docker/cagent/pkg/tui/types"
 )
+
+// TODO(rumpl): use the tool factory to render the tool in the confirmation dialog
 
 type (
 	RuntimeResumeMsg struct {
@@ -207,7 +209,7 @@ func (d *toolConfirmationDialog) View() string {
 
 func (d *toolConfirmationDialog) renderTodo(contentWidth int) string {
 	// Create a temporary TodoManager for preview
-	tempManager := types.NewTodoManager()
+	tempManager := service.NewTodoManager()
 	todoComponent := todotool.NewSidebarComponent(tempManager)
 	todoComponent.SetSize(contentWidth)
 

@@ -22,6 +22,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
@@ -112,13 +113,13 @@ type model struct {
 
 	selection selectionState
 
-	sessionState *types.SessionState
+	sessionState *service.SessionState
 
 	xPos, yPos int
 }
 
 // New creates a new message list component
-func New(a *app.App, sessionState *types.SessionState) Model {
+func New(a *app.App, sessionState *service.SessionState) Model {
 	return &model{
 		width:         120,
 		height:        24,

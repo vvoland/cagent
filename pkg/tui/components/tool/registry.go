@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
@@ -15,7 +16,7 @@ type ComponentBuilder func(
 	msg *types.Message,
 	app *app.App,
 	renderer *glamour.TermRenderer,
-	sessionState *types.SessionState,
+	sessionState *service.SessionState,
 ) layout.Model
 
 // Registry manages tool component builders.

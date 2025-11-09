@@ -12,6 +12,7 @@ import (
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
@@ -23,12 +24,11 @@ type ToggleDiffViewMsg struct{}
 // It provides enhanced visualization with diff views (unified or split).
 type Component struct {
 	message      *types.Message
-	app          *app.App
 	renderer     *glamour.TermRenderer
 	spinner      spinner.Model
 	width        int
 	height       int
-	sessionState *types.SessionState
+	sessionState *service.SessionState
 }
 
 // New creates a new edit file component.
@@ -36,11 +36,10 @@ func New(
 	msg *types.Message,
 	a *app.App,
 	renderer *glamour.TermRenderer,
-	sessionState *types.SessionState,
+	sessionState *service.SessionState,
 ) layout.Model {
 	return &Component{
 		message:      msg,
-		app:          a,
 		renderer:     renderer,
 		spinner:      spinner.New(spinner.WithSpinner(spinner.Points)),
 		width:        80,

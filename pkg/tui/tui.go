@@ -23,8 +23,8 @@ import (
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/dialog"
 	"github.com/docker/cagent/pkg/tui/page/chat"
+	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
-	"github.com/docker/cagent/pkg/tui/types"
 )
 
 var lastMouseEvent time.Time
@@ -57,7 +57,7 @@ type appModel struct {
 	completions  completion.Manager
 
 	// Session state
-	sessionState *types.SessionState
+	sessionState *service.SessionState
 
 	// State
 	ready bool
@@ -82,7 +82,7 @@ func DefaultKeyMap() KeyMap {
 
 // New creates and initializes a new TUI application model
 func New(a *app.App) tea.Model {
-	sessionState := types.NewSessionState()
+	sessionState := service.NewSessionState()
 
 	t := &appModel{
 		keyMap:       DefaultKeyMap(),
@@ -167,7 +167,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case commands.NewSessionMsg:
 		a.application.NewSession()
-		a.sessionState = types.NewSessionState()
+		a.sessionState = service.NewSessionState()
 		a.chatPage = chat.New(a.application, a.sessionState)
 		a.dialog = dialog.New()
 		a.statusBar = statusbar.New(a.chatPage)

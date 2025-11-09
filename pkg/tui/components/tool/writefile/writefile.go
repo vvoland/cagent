@@ -12,31 +12,28 @@ import (
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
 // Component is a specialized component for rendering write_file tool calls.
-// It provides enhanced visualization with markdown rendering for the first 10 lines.
 type Component struct {
 	message  *types.Message
-	app      *app.App
 	renderer *glamour.TermRenderer
 	spinner  spinner.Model
 	width    int
 	height   int
 }
 
-// New creates a new write file component.
 func New(
 	msg *types.Message,
-	a *app.App,
+	_ *app.App,
 	renderer *glamour.TermRenderer,
-	_ *types.SessionState,
+	_ *service.SessionState,
 ) layout.Model {
 	return &Component{
 		message:  msg,
-		app:      a,
 		renderer: renderer,
 		spinner:  spinner.New(spinner.WithSpinner(spinner.Points)),
 		width:    80,
@@ -44,14 +41,14 @@ func New(
 	}
 }
 
-// SetSize implements layout.Model.
+// SetSize implements [layout.Model].
 func (c *Component) SetSize(width, height int) tea.Cmd {
 	c.width = width
 	c.height = height
 	return nil
 }
 
-// Init implements layout.Model.
+// Init implements [layout.Model].
 func (c *Component) Init() tea.Cmd {
 	if c.message.ToolStatus == types.ToolStatusPending || c.message.ToolStatus == types.ToolStatusRunning {
 		return c.spinner.Tick
@@ -59,7 +56,7 @@ func (c *Component) Init() tea.Cmd {
 	return nil
 }
 
-// Update implements layout.Model.
+// Update implements [layout.Model].
 func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	// Handle spinner updates
 	if c.message.ToolStatus == types.ToolStatusPending || c.message.ToolStatus == types.ToolStatusRunning {
@@ -71,7 +68,7 @@ func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	return c, nil
 }
 
-// View implements layout.Model.
+// View implements [layout.Model].
 func (c *Component) View() string {
 	msg := c.message
 	var args builtin.WriteFileArgs

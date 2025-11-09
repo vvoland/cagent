@@ -12,6 +12,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/tool/transfertask"
 	"github.com/docker/cagent/pkg/tui/components/tool/writefile"
 	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
@@ -34,7 +35,7 @@ func (f *Factory) Create(
 	msg *types.Message,
 	a *app.App,
 	renderer *glamour.TermRenderer,
-	sessionState *types.SessionState,
+	sessionState *service.SessionState,
 ) layout.Model {
 	toolName := msg.ToolCall.Function.Name
 
@@ -73,7 +74,7 @@ func New(
 	msg *types.Message,
 	a *app.App,
 	renderer *glamour.TermRenderer,
-	sessionState *types.SessionState,
+	sessionState *service.SessionState,
 ) layout.Model {
 	return defaultFactory.Create(msg, a, renderer, sessionState)
 }

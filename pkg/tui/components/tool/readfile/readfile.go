@@ -12,15 +12,14 @@ import (
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
 // Component is a specialized component for rendering read_file tool calls.
-// It provides enhanced visualization with markdown rendering for the first 10 lines of the result.
 type Component struct {
 	message  *types.Message
-	app      *app.App
 	renderer *glamour.TermRenderer
 	spinner  spinner.Model
 	width    int
@@ -30,13 +29,12 @@ type Component struct {
 // New creates a new read file component.
 func New(
 	msg *types.Message,
-	a *app.App,
+	_ *app.App,
 	renderer *glamour.TermRenderer,
-	sessionState *types.SessionState,
+	_ *service.SessionState,
 ) layout.Model {
 	return &Component{
 		message:  msg,
-		app:      a,
 		renderer: renderer,
 		spinner:  spinner.New(spinner.WithSpinner(spinner.Points)),
 		width:    80,

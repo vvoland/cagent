@@ -10,6 +10,7 @@ import (
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
@@ -18,30 +19,26 @@ import (
 // that don't have a specialized component registered.
 // It provides a standard visualization with tool name, arguments, and results.
 type Component struct {
-	message      *types.Message
-	app          *app.App
-	renderer     *glamour.TermRenderer
-	spinner      spinner.Model
-	width        int
-	height       int
-	sessionState *types.SessionState
+	message  *types.Message
+	renderer *glamour.TermRenderer
+	spinner  spinner.Model
+	width    int
+	height   int
 }
 
 // New creates a new default tool component.
 func New(
 	msg *types.Message,
-	a *app.App,
+	_ *app.App,
 	renderer *glamour.TermRenderer,
-	sessionState *types.SessionState,
+	_ *service.SessionState,
 ) layout.Model {
 	return &Component{
-		message:      msg,
-		app:          a,
-		renderer:     renderer,
-		spinner:      spinner.New(spinner.WithSpinner(spinner.Points)),
-		width:        80,
-		height:       1,
-		sessionState: sessionState,
+		message:  msg,
+		renderer: renderer,
+		spinner:  spinner.New(spinner.WithSpinner(spinner.Points)),
+		width:    80,
+		height:   1,
 	}
 }
 
