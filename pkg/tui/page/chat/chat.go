@@ -90,6 +90,9 @@ func defaultKeyMap() KeyMap {
 			key.WithKeys("tab"),
 			key.WithHelp("tab", "switch focus"),
 		),
+		Cancel: key.NewBinding(
+			key.WithKeys("esc"),
+		),
 	}
 }
 
