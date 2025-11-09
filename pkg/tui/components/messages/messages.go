@@ -56,7 +56,6 @@ type Model interface {
 	AddShellOutputMessage(content string) tea.Cmd
 
 	ScrollToBottom() tea.Cmd
-	IsAtBottom() bool
 }
 
 // renderedItem represents a cached rendered message with position information
@@ -124,6 +123,17 @@ func New(a *app.App, sessionState *service.SessionState) Model {
 		width:         120,
 		height:        24,
 		app:           a,
+		renderedItems: make(map[int]renderedItem),
+		sessionState:  sessionState,
+	}
+}
+
+// NewScrollableView creates a simple scrollable view for displaying messages in dialogs
+// This is a lightweight version that doesn't require app or session state management
+func NewScrollableView(width, height int, sessionState *service.SessionState) Model {
+	return &model{
+		width:         width,
+		height:        height,
 		renderedItems: make(map[int]renderedItem),
 		sessionState:  sessionState,
 	}
@@ -396,7 +406,9 @@ func (m *model) shouldCacheMessage(index int) bool {
 
 	switch msg.Type {
 	case types.MessageTypeToolCall:
-		return msg.ToolStatus == types.ToolStatusCompleted || msg.ToolStatus == types.ToolStatusError
+		return msg.ToolStatus == types.ToolStatusCompleted ||
+			msg.ToolStatus == types.ToolStatusError ||
+			msg.ToolStatus == types.ToolStatusConfirmation
 	case types.MessageTypeToolResult:
 		return true
 	case types.MessageTypeAssistant, types.MessageTypeAssistantReasoning:
@@ -486,8 +498,8 @@ func (m *model) invalidateAllItems() {
 	m.totalHeight = 0
 }
 
-// IsAtBottom returns true if the viewport is at the bottom
-func (m *model) IsAtBottom() bool {
+// isAtBottom returns true if the viewport is at the bottom
+func (m *model) isAtBottom() bool {
 	if len(m.messages) == 0 {
 		return true
 	}
@@ -495,11 +507,6 @@ func (m *model) IsAtBottom() bool {
 	totalHeight := lipgloss.Height(m.rendered) - 1
 	maxScrollOffset := max(0, totalHeight-m.height)
 	return m.scrollOffset >= maxScrollOffset
-}
-
-// isAtBottom is kept as a private method for internal use
-func (m *model) isAtBottom() bool {
-	return m.IsAtBottom()
 }
 
 // AddUserMessage adds a user message to the chat

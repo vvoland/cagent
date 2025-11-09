@@ -8,8 +8,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/runtime"
-	"github.com/docker/cagent/pkg/tui/components/markdown"
-	"github.com/docker/cagent/pkg/tui/components/tool"
+	"github.com/docker/cagent/pkg/tui/components/messages"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/service"
@@ -33,12 +32,41 @@ type toolConfirmationDialog struct {
 	msg           *runtime.ToolCallConfirmationEvent
 	keyMap        toolConfirmationKeyMap
 	sessionState  *service.SessionState
+	scrollView    messages.Model
 }
 
 // SetSize implements [Dialog].
 func (d *toolConfirmationDialog) SetSize(width, height int) tea.Cmd {
 	d.width = width
 	d.height = height
+
+	// Calculate dialog dimensions
+	dialogWidth := width * 70 / 100
+	contentWidth := dialogWidth - 6
+	maxDialogHeight := (height * 80) / 100
+
+	titleStyle := styles.DialogTitleStyle.Width(contentWidth)
+	title := titleStyle.Render("Tool Confirmation")
+	titleHeight := lipgloss.Height(title)
+
+	separatorWidth := max(contentWidth-10, 20)
+	separator := styles.DialogSeparatorStyle.
+		Align(lipgloss.Center).
+		Width(contentWidth).
+		Render(strings.Repeat("─", separatorWidth))
+	separatorHeight := lipgloss.Height(separator)
+
+	question := styles.DialogQuestionStyle.Width(contentWidth).Render("Do you want to allow this tool call?")
+	questionHeight := lipgloss.Height(question)
+
+	options := styles.DialogOptionsStyle.Width(contentWidth).Render("[Y]es    [N]o    [A]ll (approve all tools this session)")
+	optionsHeight := lipgloss.Height(options)
+
+	// Calculate available height for scroll view
+	// Total = maxDialogHeight - title - separator - 2 empty lines - question - empty line - options - 4 (dialog padding/border)
+	availableHeight := max(maxDialogHeight-titleHeight-separatorHeight-2-questionHeight-1-optionsHeight-4, 5)
+	d.scrollView.SetSize(contentWidth, availableHeight)
+
 	return nil
 }
 
@@ -69,16 +97,28 @@ func defaultToolConfirmationKeyMap() toolConfirmationKeyMap {
 
 // NewToolConfirmationDialog creates a new tool confirmation dialog
 func NewToolConfirmationDialog(msg *runtime.ToolCallConfirmationEvent, sessionState *service.SessionState) Dialog {
+	// Create scrollable view with initial size (will be updated in SetSize)
+	scrollView := messages.NewScrollableView(100, 20, sessionState)
+
+	// Add the tool call message to the view
+	scrollView.AddOrUpdateToolCall(
+		"", // agentName - empty for dialog context
+		msg.ToolCall,
+		msg.ToolDefinition,
+		types.ToolStatusConfirmation,
+	)
+
 	return &toolConfirmationDialog{
 		msg:          msg,
 		sessionState: sessionState,
 		keyMap:       defaultToolConfirmationKeyMap(),
+		scrollView:   scrollView,
 	}
 }
 
 // Init initializes the tool confirmation dialog
 func (d *toolConfirmationDialog) Init() tea.Cmd {
-	return nil
+	return d.scrollView.Init()
 }
 
 // Update handles messages for the tool confirmation dialog
@@ -87,7 +127,8 @@ func (d *toolConfirmationDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		d.width = msg.Width
 		d.height = msg.Height
-		return d, nil
+		cmd := d.SetSize(msg.Width, msg.Height)
+		return d, cmd
 
 	case tea.KeyPressMsg:
 		switch {
@@ -102,6 +143,20 @@ func (d *toolConfirmationDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		if msg.String() == "ctrl+c" {
 			return d, tea.Quit
 		}
+
+		// Forward scrolling keys to the scroll view
+		switch msg.String() {
+		case "up", "k", "down", "j", "pgup", "pgdown", "home", "end":
+			updatedScrollView, cmd := d.scrollView.Update(msg)
+			d.scrollView = updatedScrollView.(messages.Model)
+			return d, cmd
+		}
+
+	case tea.MouseWheelMsg:
+		// Forward mouse wheel events to scroll view
+		updatedScrollView, cmd := d.scrollView.Update(msg)
+		d.scrollView = updatedScrollView.(messages.Model)
+		return d, cmd
 	}
 
 	return d, nil
@@ -113,9 +168,6 @@ func (d *toolConfirmationDialog) View() string {
 
 	// Content width (accounting for padding and borders)
 	contentWidth := dialogWidth - 6
-
-	// Calculate max height (80% of screen height)
-	maxDialogHeight := (d.height * 80) / 100
 
 	dialogStyle := styles.DialogStyle.Width(dialogWidth)
 
@@ -130,15 +182,8 @@ func (d *toolConfirmationDialog) View() string {
 		Width(contentWidth).
 		Render(strings.Repeat("─", separatorWidth))
 
-	a := types.Message{
-		ToolCall:       d.msg.ToolCall,
-		ToolDefinition: d.msg.ToolDefinition,
-		Type:           types.MessageTypeToolCall,
-		ToolStatus:     types.ToolStatusConfirmation,
-	}
-	view := tool.New(&a, markdown.NewRenderer(contentWidth), d.sessionState)
-	view.SetSize(contentWidth, 0)
-	argumentsSection := view.View()
+	// Get scrollable tool call view
+	argumentsSection := d.scrollView.View()
 
 	question := styles.DialogQuestionStyle.Width(contentWidth).Render("Do you want to allow this tool call?")
 	options := styles.DialogOptionsStyle.Width(contentWidth).Render("[Y]es    [N]o    [A]ll (approve all tools this session)")
@@ -154,43 +199,7 @@ func (d *toolConfirmationDialog) View() string {
 
 	content := lipgloss.JoinVertical(lipgloss.Left, parts...)
 
-	// Apply max height constraint if needed
-	contentHeight := lipgloss.Height(content)
-	if contentHeight > maxDialogHeight-4 { // Account for dialog padding/border
-		// Limit the arguments section height
-		availableHeight := maxDialogHeight - 4 - lipgloss.Height(title) - lipgloss.Height(separator) - lipgloss.Height(question) - lipgloss.Height(options) - 4 // spacing
-		if availableHeight > 0 && argumentsSection != "" {
-			argumentsSection = d.truncateToHeight(argumentsSection, availableHeight)
-
-			// Rebuild content with truncated arguments
-			parts = []string{title, separator}
-			if argumentsSection != "" {
-				parts = append(parts, "", argumentsSection)
-			}
-			parts = append(parts, "", question, "", options)
-			content = lipgloss.JoinVertical(lipgloss.Left, parts...)
-		}
-	}
-
 	return dialogStyle.Render(content)
-}
-
-// truncateToHeight truncates content to fit within the specified height,
-// adding an ellipsis indicator at the end
-func (d *toolConfirmationDialog) truncateToHeight(content string, maxHeight int) string {
-	if maxHeight <= 0 {
-		return ""
-	}
-
-	lines := strings.Split(content, "\n")
-	if len(lines) <= maxHeight {
-		return content
-	}
-
-	// Reserve last line for truncation indicator
-	truncatedLines := lines[:maxHeight-1]
-	truncatedLines = append(truncatedLines, styles.MutedStyle.Render("... (content truncated)"))
-	return strings.Join(truncatedLines, "\n")
 }
 
 // Position calculates the position to center the dialog

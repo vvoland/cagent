@@ -214,39 +214,33 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	// Runtime events
 	case *runtime.ErrorEvent:
 		cmd := p.messages.AddErrorMessage(msg.Error)
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
+		return p, cmd
 	case *runtime.ShellOutputEvent:
 		cmd := p.messages.AddShellOutputMessage(msg.Output)
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
+		return p, cmd
 	case *runtime.WarningEvent:
 		cmd := core.CmdHandler(notification.ShowMsg{Text: msg.Message, Type: notification.TypeWarning})
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
+		return p, cmd
 	case *runtime.UserMessageEvent:
 		cmd := p.messages.AddUserMessage(msg.Message)
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
+		return p, cmd
 	case *runtime.StreamStartedEvent:
 		p.streamCancelled = false
 		spinnerCmd := p.setWorking(true)
 		cmd := p.messages.AddAssistantMessage()
 		p.startProgressBar()
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
+		return p, tea.Batch(cmd, spinnerCmd)
 	case *runtime.AgentChoiceEvent:
 		if p.streamCancelled {
 			return p, nil
 		}
 		cmd := p.messages.AppendToLastMessage(msg.AgentName, types.MessageTypeAssistant, msg.Content)
-		if p.messages.IsAtBottom() {
-			return p, tea.Batch(cmd, p.messages.ScrollToBottom())
-		}
 		return p, cmd
 	case *runtime.AgentChoiceReasoningEvent:
 		if p.streamCancelled {
 			return p, nil
 		}
 		cmd := p.messages.AppendToLastMessage(msg.AgentName, types.MessageTypeAssistantReasoning, msg.Content)
-		if p.messages.IsAtBottom() {
-			return p, tea.Batch(cmd, p.messages.ScrollToBottom())
-		}
 		return p, cmd
 	case *runtime.TokenUsageEvent:
 		p.sidebar.SetTokenUsage(msg.Usage)
