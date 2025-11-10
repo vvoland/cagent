@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/agentfile"
@@ -46,15 +45,6 @@ func newAPICmd() *cobra.Command {
 	return cmd
 }
 
-// isOCIReference checks if the input is a valid OCI reference
-func isOCIReference(input string) bool {
-	if agentfile.IsLocalFile(input) {
-		return false
-	}
-	_, err := name.ParseReference(input)
-	return err == nil
-}
-
 func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 	telemetry.TrackCommand("api", args)
 
@@ -65,7 +55,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 	// Make sure no question is ever asked to the user in api mode.
 	os.Stdin = nil
 
-	if f.pullIntervalMins > 0 && !isOCIReference(agentsPath) {
+	if f.pullIntervalMins > 0 && !agentfile.IsOCIReference(agentsPath) {
 		return fmt.Errorf("--pull-interval flag can only be used with OCI references, not local files")
 	}
 
