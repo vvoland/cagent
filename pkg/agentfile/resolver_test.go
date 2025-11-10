@@ -1,4 +1,4 @@
-package root
+package agentfile
 
 import (
 	"context"
@@ -10,12 +10,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/oci"
 )
 
 func TestOciRefToFilename(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		ociRef   string
@@ -55,13 +56,18 @@ func TestOciRefToFilename(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := agentfile.OciRefToFilename(tt.ociRef)
+			t.Parallel()
+
+			result := OciRefToFilename(tt.ociRef)
+
 			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
 
 func TestResolveAgentFile_LocalFile(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	yamlFile := filepath.Join(tmpDir, "test-agent.yaml")
 	yamlContent := `version: "1"
@@ -76,10 +82,9 @@ agents:
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
-	resolved, err := agentfile.Resolve(ctx, nil, yamlFile)
+	resolved, err := Resolve(ctx, nil, yamlFile)
 	require.NoError(t, err)
 
-	// Should return absolute path
 	absPath, err := filepath.Abs(yamlFile)
 	require.NoError(t, err)
 	assert.Equal(t, absPath, resolved)
@@ -111,7 +116,7 @@ agents:
 	defer cancel()
 
 	// First resolution
-	resolved1, err := agentfile.Resolve(ctx, nil, ociRef)
+	resolved1, err := Resolve(ctx, nil, ociRef)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resolved1)
 
@@ -120,14 +125,14 @@ agents:
 	assert.Equal(t, agentContent, string(content1))
 
 	// Expected filename based on OCI ref
-	expectedFilename := agentfile.OciRefToFilename(ociRef)
+	expectedFilename := OciRefToFilename(ociRef)
 	assert.Equal(t, expectedFilename, filepath.Base(resolved1))
 
 	// Store the first resolved path
 	firstResolvedPath := resolved1
 
 	// Second resolution (simulating a reload)
-	resolved2, err := agentfile.Resolve(ctx, nil, ociRef)
+	resolved2, err := Resolve(ctx, nil, ociRef)
 	require.NoError(t, err)
 
 	// Should return the SAME filename
@@ -152,7 +157,7 @@ agents:
 	require.NoError(t, err)
 
 	// Third resolution (simulating reload after update)
-	resolved3, err := agentfile.Resolve(ctx, nil, ociRef)
+	resolved3, err := Resolve(ctx, nil, ociRef)
 	require.NoError(t, err)
 
 	// Should STILL use the same filename
@@ -203,10 +208,10 @@ agents:
 	defer cancel()
 
 	// Resolve both OCI refs
-	resolved1, err := agentfile.Resolve(ctx, nil, ociRef1)
+	resolved1, err := Resolve(ctx, nil, ociRef1)
 	require.NoError(t, err)
 
-	resolved2, err := agentfile.Resolve(ctx, nil, ociRef2)
+	resolved2, err := Resolve(ctx, nil, ociRef2)
 	require.NoError(t, err)
 
 	// Should have DIFFERENT filenames
@@ -221,8 +226,8 @@ agents:
 	require.NoError(t, err)
 	assert.Equal(t, agent2Content, string(content2))
 
-	assert.Equal(t, agentfile.OciRefToFilename(ociRef1), filepath.Base(resolved1))
-	assert.Equal(t, agentfile.OciRefToFilename(ociRef2), filepath.Base(resolved2))
+	assert.Equal(t, OciRefToFilename(ociRef1), filepath.Base(resolved1))
+	assert.Equal(t, OciRefToFilename(ociRef2), filepath.Base(resolved2))
 }
 
 func TestResolveAgentFile_ContextCancellation(t *testing.T) {
@@ -250,7 +255,7 @@ agents:
 	ctx, cancel := context.WithCancel(t.Context())
 
 	// Resolve the OCI ref
-	resolved, err := agentfile.Resolve(ctx, nil, ociRef)
+	resolved, err := Resolve(ctx, nil, ociRef)
 	require.NoError(t, err)
 	assert.FileExists(t, resolved)
 
