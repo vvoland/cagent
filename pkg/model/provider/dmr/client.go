@@ -15,7 +15,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sashabaranov/go-openai"
+	"github.com/openai/openai-go/v3"
+	"github.com/openai/openai-go/v3/option"
+	"github.com/openai/openai-go/v3/packages/param"
+	"github.com/openai/openai-go/v3/shared"
 	"golang.org/x/term"
 
 	"github.com/docker/cagent/pkg/chat"
@@ -30,7 +33,7 @@ import (
 // It implements the provider.Provider interface
 type Client struct {
 	base.Config
-	client  *openai.Client
+	client  openai.Client
 	baseURL string
 }
 
@@ -62,34 +65,37 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, opts ...options.Opt
 		}
 	}
 
-	clientConfig := openai.DefaultConfig("")
+	var clientOptions []option.RequestOption
+	var baseURL string
 
 	switch {
 	case cfg.BaseURL != "":
-		clientConfig.BaseURL = cfg.BaseURL
+		baseURL = cfg.BaseURL
 	case os.Getenv("MODEL_RUNNER_HOST") != "":
-		clientConfig.BaseURL = os.Getenv("MODEL_RUNNER_HOST")
+		baseURL = os.Getenv("MODEL_RUNNER_HOST")
 	case inContainer():
 		// This won't work with Docker CE but we have no way to detect that from inside the container.
-		clientConfig.BaseURL = "http://model-runner.docker.internal/engines/v1/"
+		baseURL = "http://model-runner.docker.internal/engines/v1/"
 	case endpoint == "http://model-runner.docker.internal/engines/v1/":
 		// Docker Desktop
-		clientConfig.BaseURL = "http://_/exp/vDD4.40/engines/v1"
-		clientConfig.HTTPClient = &http.Client{
+		baseURL = "http://_/exp/vDD4.40/engines/v1"
+		clientOptions = append(clientOptions, option.WithHTTPClient(&http.Client{
 			Transport: &http.Transport{
 				DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 					var d net.Dialer
 					return d.DialContext(ctx, "unix", "/var/run/docker.sock")
 				},
 			},
-		}
+		}))
 	// NOTE(krissetto): Workaround for a bug in the DMR CLI v0.1.44
 	case endpoint == "http://:0/engines/v1/":
-		clientConfig.BaseURL = "http://127.0.0.1:12434/engines/v1/"
+		baseURL = "http://127.0.0.1:12434/engines/v1/"
 	default:
 		// Docker CE
-		clientConfig.BaseURL = endpoint
+		baseURL = endpoint
 	}
+
+	clientOptions = append(clientOptions, option.WithBaseURL(baseURL), option.WithAPIKey("")) // DMR doesn't need auth
 
 	// Build runtime flags from ModelConfig and engine
 	contextSize, providerRuntimeFlags := parseDMRProviderOpts(cfg)
@@ -103,15 +109,15 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, opts ...options.Opt
 		slog.Debug("docker model configure skipped or failed", "error", err)
 	}
 
-	slog.Debug("DMR client created successfully", "model", cfg.Model, "base_url", clientConfig.BaseURL)
+	slog.Debug("DMR client created successfully", "model", cfg.Model, "base_url", baseURL)
 
 	return &Client{
 		Config: base.Config{
 			ModelConfig:  *cfg,
 			ModelOptions: globalOptions,
 		},
-		client:  openai.NewClientWithConfig(clientConfig),
-		baseURL: clientConfig.BaseURL,
+		client:  openai.NewClient(clientOptions...),
+		baseURL: baseURL,
 	}, nil
 }
 
@@ -120,25 +126,22 @@ func inContainer() bool {
 	return err == nil && finfo.Mode().IsRegular()
 }
 
-func convertMultiContent(multiContent []chat.MessagePart) []openai.ChatMessagePart {
-	openaiMultiContent := make([]openai.ChatMessagePart, len(multiContent))
+func convertMultiContent(multiContent []chat.MessagePart) []openai.ChatCompletionContentPartUnionParam {
+	parts := make([]openai.ChatCompletionContentPartUnionParam, len(multiContent))
 	for i, part := range multiContent {
-		openaiPart := openai.ChatMessagePart{
-			Type: openai.ChatMessagePartType(part.Type),
-			Text: part.Text,
-		}
-
-		// Handle image URL conversion
-		if part.Type == chat.MessagePartTypeImageURL && part.ImageURL != nil {
-			openaiPart.ImageURL = &openai.ChatMessageImageURL{
-				URL:    part.ImageURL.URL,
-				Detail: openai.ImageURLDetail(part.ImageURL.Detail),
+		switch part.Type {
+		case chat.MessagePartTypeText:
+			parts[i] = openai.TextContentPart(part.Text)
+		case chat.MessagePartTypeImageURL:
+			if part.ImageURL != nil {
+				parts[i] = openai.ImageContentPart(openai.ChatCompletionContentPartImageImageURLParam{
+					URL:    part.ImageURL.URL,
+					Detail: string(part.ImageURL.Detail),
+				})
 			}
 		}
-
-		openaiMultiContent[i] = openaiPart
 	}
-	return openaiMultiContent
+	return parts
 }
 
 // mergeRuntimeFlagsPreferUser merges derived engine flags (the ones under `models:` e.g. `temperature`)
@@ -217,8 +220,8 @@ func mergeRuntimeFlagsPreferUser(derived, user []string) (out, warnings []string
 	return out, warnings
 }
 
-func convertMessages(messages []chat.Message) []openai.ChatCompletionMessage {
-	openaiMessages := make([]openai.ChatCompletionMessage, 0, len(messages))
+func convertMessages(messages []chat.Message) []openai.ChatCompletionMessageParamUnion {
+	openaiMessages := make([]openai.ChatCompletionMessageParamUnion, 0, len(messages))
 	for i := range messages {
 		msg := &messages[i]
 
@@ -227,75 +230,177 @@ func convertMessages(messages []chat.Message) []openai.ChatCompletionMessage {
 			continue
 		}
 
-		openaiMessage := openai.ChatCompletionMessage{
-			Role:       string(msg.Role),
-			Name:       msg.Name,
-			ToolCallID: msg.ToolCallID,
-		}
+		var openaiMessage openai.ChatCompletionMessageParamUnion
 
-		if len(msg.MultiContent) == 0 {
-			openaiMessage.Content = msg.Content
-		} else {
-			openaiMessage.MultiContent = convertMultiContent(msg.MultiContent)
-		}
-
-		if msg.FunctionCall != nil {
-			openaiMessage.FunctionCall = &openai.FunctionCall{
-				Name:      msg.FunctionCall.Name,
-				Arguments: msg.FunctionCall.Arguments,
+		switch msg.Role {
+		case chat.MessageRoleSystem:
+			if len(msg.MultiContent) == 0 {
+				openaiMessage = openai.SystemMessage(msg.Content)
+			} else {
+				// Convert multi-content for system messages
+				textParts := make([]openai.ChatCompletionContentPartTextParam, 0)
+				for _, part := range msg.MultiContent {
+					if part.Type == chat.MessagePartTypeText {
+						textParts = append(textParts, openai.ChatCompletionContentPartTextParam{
+							Text: part.Text,
+						})
+					}
+				}
+				openaiMessage = openai.SystemMessage(textParts)
 			}
-		}
 
-		for _, call := range msg.ToolCalls {
-			openaiMessage.ToolCalls = append(openaiMessage.ToolCalls, openai.ToolCall{
-				ID:   call.ID,
-				Type: openai.ToolType(call.Type),
-				Function: openai.FunctionCall{
-					Name:      call.Function.Name,
-					Arguments: call.Function.Arguments,
-				},
-			})
+		case chat.MessageRoleUser:
+			if len(msg.MultiContent) == 0 {
+				openaiMessage = openai.UserMessage(msg.Content)
+			} else {
+				openaiMessage = openai.UserMessage(convertMultiContent(msg.MultiContent))
+			}
+
+		case chat.MessageRoleAssistant:
+			assistantParam := openai.ChatCompletionAssistantMessageParam{}
+
+			if len(msg.MultiContent) == 0 {
+				if msg.Content != "" {
+					assistantParam.Content.OfString = param.NewOpt(msg.Content)
+				}
+			} else {
+				// Convert multi-content for assistant messages
+				contentParts := make([]openai.ChatCompletionAssistantMessageParamContentArrayOfContentPartUnion, 0)
+				for _, part := range msg.MultiContent {
+					if part.Type == chat.MessagePartTypeText {
+						contentParts = append(contentParts, openai.ChatCompletionAssistantMessageParamContentArrayOfContentPartUnion{
+							OfText: &openai.ChatCompletionContentPartTextParam{
+								Text: part.Text,
+							},
+						})
+					}
+				}
+				if len(contentParts) > 0 {
+					assistantParam.Content.OfArrayOfContentParts = contentParts
+				}
+			}
+
+			if msg.Name != "" {
+				assistantParam.Name = param.NewOpt(msg.Name)
+			}
+
+			if msg.FunctionCall != nil {
+				assistantParam.FunctionCall.Name = msg.FunctionCall.Name           //nolint:staticcheck // deprecated but still needed for compatibility
+				assistantParam.FunctionCall.Arguments = msg.FunctionCall.Arguments //nolint:staticcheck // deprecated but still needed for compatibility
+			}
+
+			if len(msg.ToolCalls) > 0 {
+				toolCalls := make([]openai.ChatCompletionMessageToolCallUnionParam, len(msg.ToolCalls))
+				for j, toolCall := range msg.ToolCalls {
+					toolCalls[j] = openai.ChatCompletionMessageToolCallUnionParam{
+						OfFunction: &openai.ChatCompletionMessageFunctionToolCallParam{
+							ID: toolCall.ID,
+							Function: openai.ChatCompletionMessageFunctionToolCallFunctionParam{
+								Name:      toolCall.Function.Name,
+								Arguments: toolCall.Function.Arguments,
+							},
+						},
+					}
+				}
+				assistantParam.ToolCalls = toolCalls
+			}
+
+			openaiMessage.OfAssistant = &assistantParam
+
+		case chat.MessageRoleTool:
+			toolParam := openai.ChatCompletionToolMessageParam{
+				ToolCallID: msg.ToolCallID,
+			}
+
+			if len(msg.MultiContent) == 0 {
+				toolParam.Content.OfString = param.NewOpt(msg.Content)
+			} else {
+				// Convert multi-content for tool messages
+				textParts := make([]openai.ChatCompletionContentPartTextParam, 0)
+				for _, part := range msg.MultiContent {
+					if part.Type == chat.MessagePartTypeText {
+						textParts = append(textParts, openai.ChatCompletionContentPartTextParam{
+							Text: part.Text,
+						})
+					}
+				}
+				toolParam.Content.OfArrayOfContentParts = textParts
+			}
+
+			openaiMessage.OfTool = &toolParam
 		}
 
 		openaiMessages = append(openaiMessages, openaiMessage)
 	}
 
-	var mergedMessages []openai.ChatCompletionMessage
+	var mergedMessages []openai.ChatCompletionMessageParamUnion
 
 	for i := 0; i < len(openaiMessages); i++ {
 		currentMsg := openaiMessages[i]
 
-		if currentMsg.Role == string(chat.MessageRoleSystem) || currentMsg.Role == string(chat.MessageRoleUser) {
+		// Check if current message is system or user
+		currentRole := currentMsg.GetRole()
+		if currentRole != nil && (*currentRole == "system" || *currentRole == "user") {
 			var mergedContent string
-			var mergedMultiContent []openai.ChatMessagePart
+			var mergedMultiContent []openai.ChatCompletionContentPartUnionParam
 			j := i
 
-			for j < len(openaiMessages) && openaiMessages[j].Role == currentMsg.Role {
+			for j < len(openaiMessages) {
 				msgToMerge := openaiMessages[j]
+				msgRole := msgToMerge.GetRole()
+				if msgRole == nil || *msgRole != *currentRole {
+					break
+				}
 
-				if len(msgToMerge.MultiContent) == 0 {
+				content := msgToMerge.GetContent()
+				// Try to extract string content
+				switch v := content.AsAny().(type) {
+				case *string:
 					if mergedContent != "" {
 						mergedContent += "\n"
 					}
-					mergedContent += msgToMerge.Content
-				} else {
-					mergedMultiContent = append(mergedMultiContent, msgToMerge.MultiContent...)
+					mergedContent += *v
+				case *[]openai.ChatCompletionContentPartUnionParam:
+					if v != nil {
+						mergedMultiContent = append(mergedMultiContent, *v...)
+					}
+				case *[]openai.ChatCompletionContentPartTextParam:
+					// Convert text parts to union params
+					if v != nil {
+						for _, textPart := range *v {
+							mergedMultiContent = append(mergedMultiContent, openai.ChatCompletionContentPartUnionParam{
+								OfText: &openai.ChatCompletionContentPartTextParam{
+									Text: textPart.Text,
+								},
+							})
+						}
+					}
 				}
 				j++
 			}
 
-			mergedMessage := openai.ChatCompletionMessage{
-				Role: currentMsg.Role,
-			}
-
-			if len(mergedMultiContent) == 0 {
-				mergedMessage.Content = mergedContent
+			var mergedMessage openai.ChatCompletionMessageParamUnion
+			if *currentRole == "system" {
+				if len(mergedMultiContent) == 0 {
+					mergedMessage = openai.SystemMessage(mergedContent)
+				} else {
+					textParts := make([]openai.ChatCompletionContentPartTextParam, 0)
+					for _, part := range mergedMultiContent {
+						if part.OfText != nil {
+							textParts = append(textParts, *part.OfText)
+						}
+					}
+					mergedMessage = openai.SystemMessage(textParts)
+				}
 			} else {
-				mergedMessage.MultiContent = mergedMultiContent
+				if len(mergedMultiContent) == 0 {
+					mergedMessage = openai.UserMessage(mergedContent)
+				} else {
+					mergedMessage = openai.UserMessage(mergedMultiContent)
+				}
 			}
 
 			mergedMessages = append(mergedMessages, mergedMessage)
-
 			i = j - 1
 		} else {
 			mergedMessages = append(mergedMessages, currentMsg)
@@ -322,32 +427,40 @@ func (c *Client) CreateChatCompletionStream(ctx context.Context, messages []chat
 
 	trackUsage := c.ModelConfig.TrackUsage == nil || *c.ModelConfig.TrackUsage
 
-	request := openai.ChatCompletionRequest{
-		Model:            c.ModelConfig.Model,
-		Messages:         convertMessages(messages),
-		Temperature:      float32(c.ModelConfig.Temperature),
-		TopP:             float32(c.ModelConfig.TopP),
-		FrequencyPenalty: float32(c.ModelConfig.FrequencyPenalty),
-		PresencePenalty:  float32(c.ModelConfig.PresencePenalty),
-		Stream:           true,
-		StreamOptions: &openai.StreamOptions{
-			IncludeUsage: trackUsage,
+	params := openai.ChatCompletionNewParams{
+		Model:    c.ModelConfig.Model,
+		Messages: convertMessages(messages),
+		StreamOptions: openai.ChatCompletionStreamOptionsParam{
+			IncludeUsage: openai.Bool(trackUsage),
 		},
+	}
+
+	if c.ModelConfig.Temperature != nil {
+		params.Temperature = openai.Float(*c.ModelConfig.Temperature)
+	}
+	if c.ModelConfig.TopP != nil {
+		params.TopP = openai.Float(*c.ModelConfig.TopP)
+	}
+	if c.ModelConfig.FrequencyPenalty != nil {
+		params.FrequencyPenalty = openai.Float(*c.ModelConfig.FrequencyPenalty)
+	}
+	if c.ModelConfig.PresencePenalty != nil {
+		params.PresencePenalty = openai.Float(*c.ModelConfig.PresencePenalty)
 	}
 
 	// Only set ParallelToolCalls when tools are present; matches OpenAI provider behavior
 	if len(requestTools) > 0 && c.ModelConfig.ParallelToolCalls != nil {
-		request.ParallelToolCalls = *c.ModelConfig.ParallelToolCalls
+		params.ParallelToolCalls = openai.Bool(*c.ModelConfig.ParallelToolCalls)
 	}
 
 	if c.ModelConfig.MaxTokens > 0 {
-		request.MaxTokens = c.ModelConfig.MaxTokens
+		params.MaxTokens = openai.Int(int64(c.ModelConfig.MaxTokens))
 		slog.Debug("DMR request configured with max tokens", "max_tokens", c.ModelConfig.MaxTokens)
 	}
 
 	if len(requestTools) > 0 {
 		slog.Debug("Adding tools to DMR request", "tool_count", len(requestTools))
-		request.Tools = make([]openai.Tool, len(requestTools))
+		toolsParam := make([]openai.ChatCompletionToolUnionParam, len(requestTools))
 		for i, tool := range requestTools {
 			// DMR requires the `description` key to be present; ensure a non-empty value
 			// NOTE(krissetto): workaround, remove when fixed upstream, this shouldn't be necceessary
@@ -362,24 +475,27 @@ func (c *Client) CreateChatCompletionStream(ctx context.Context, messages []chat
 				return nil, fmt.Errorf("failed to convert tool parameters to DMR schema for tool %s: %w", tool.Name, err)
 			}
 
-			fd := &openai.FunctionDefinition{
+			paramsMap, ok := parameters.(map[string]any)
+			if !ok {
+				slog.Error("Converted parameters is not a map", "tool", tool.Name)
+				return nil, fmt.Errorf("converted parameters is not a map for tool %s", tool.Name)
+			}
+
+			toolsParam[i] = openai.ChatCompletionFunctionTool(shared.FunctionDefinitionParam{
 				Name:        tool.Name,
-				Description: desc,
-				Parameters:  parameters,
-			}
-			request.Tools[i] = openai.Tool{
-				Type:     openai.ToolTypeFunction,
-				Function: fd,
-			}
-			slog.Debug("Added tool to DMR request", "tool_name", tool.Name)
+				Description: openai.String(desc),
+				Parameters:  shared.FunctionParameters(paramsMap),
+			})
 		}
+		params.Tools = toolsParam
+
 		if c.ModelConfig.ParallelToolCalls != nil {
-			request.ParallelToolCalls = *c.ModelConfig.ParallelToolCalls
+			params.ParallelToolCalls = openai.Bool(*c.ModelConfig.ParallelToolCalls)
 		}
 	}
 
 	// Log the request in JSON format for debugging
-	if requestJSON, err := json.Marshal(request); err == nil {
+	if requestJSON, err := json.Marshal(params); err == nil {
 		slog.Debug("DMR chat completion request", "request", string(requestJSON))
 	} else {
 		slog.Error("Failed to marshal DMR request to JSON", "error", err)
@@ -387,22 +503,17 @@ func (c *Client) CreateChatCompletionStream(ctx context.Context, messages []chat
 	if structuredOutput := c.ModelOptions.StructuredOutput(); structuredOutput != nil {
 		slog.Debug("Adding structured output to DMR request", "structured_output", structuredOutput)
 
-		request.ResponseFormat = &openai.ChatCompletionResponseFormat{
-			Type: openai.ChatCompletionResponseFormatTypeJSONSchema,
-			JSONSchema: &openai.ChatCompletionResponseFormatJSONSchema{
+		params.ResponseFormat.OfJSONSchema = &openai.ResponseFormatJSONSchemaParam{
+			JSONSchema: openai.ResponseFormatJSONSchemaJSONSchemaParam{
 				Name:        structuredOutput.Name,
-				Description: structuredOutput.Description,
+				Description: openai.String(structuredOutput.Description),
 				Schema:      jsonSchema(structuredOutput.Schema),
-				Strict:      structuredOutput.Strict,
+				Strict:      openai.Bool(structuredOutput.Strict),
 			},
 		}
 	}
 
-	stream, err := c.client.CreateChatCompletionStream(ctx, request)
-	if err != nil {
-		slog.Error("DMR stream creation failed", "error", err, "model", c.ModelConfig.Model, "base_url", c.baseURL)
-		return nil, err
-	}
+	stream := c.client.Chat.Completions.NewStreaming(ctx, params)
 
 	slog.Debug("DMR chat completion stream created successfully", "model", c.ModelConfig.Model, "base_url", c.baseURL)
 	return newStreamAdapter(stream, trackUsage), nil
@@ -591,17 +702,17 @@ func buildRuntimeFlagsFromModelConfig(engine string, cfg *latest.ModelConfig) []
 	switch eng {
 	// runtime flags mapping for more engines can be added here as needed
 	case "llama.cpp":
-		if cfg.Temperature > 0 {
-			flags = append(flags, "--temp", strconv.FormatFloat(cfg.Temperature, 'f', -1, 64))
+		if cfg.Temperature != nil {
+			flags = append(flags, "--temp", strconv.FormatFloat(*cfg.Temperature, 'f', -1, 64))
 		}
-		if cfg.TopP > 0 {
-			flags = append(flags, "--top-p", strconv.FormatFloat(cfg.TopP, 'f', -1, 64))
+		if cfg.TopP != nil {
+			flags = append(flags, "--top-p", strconv.FormatFloat(*cfg.TopP, 'f', -1, 64))
 		}
-		if cfg.FrequencyPenalty > 0 {
-			flags = append(flags, "--frequency-penalty", strconv.FormatFloat(cfg.FrequencyPenalty, 'f', -1, 64))
+		if cfg.FrequencyPenalty != nil {
+			flags = append(flags, "--frequency-penalty", strconv.FormatFloat(*cfg.FrequencyPenalty, 'f', -1, 64))
 		}
-		if cfg.PresencePenalty > 0 {
-			flags = append(flags, "--presence-penalty", strconv.FormatFloat(cfg.PresencePenalty, 'f', -1, 64))
+		if cfg.PresencePenalty != nil {
+			flags = append(flags, "--presence-penalty", strconv.FormatFloat(*cfg.PresencePenalty, 'f', -1, 64))
 		}
 		// Note: Context size already handled via --context-size during `docker model configure`
 	default:

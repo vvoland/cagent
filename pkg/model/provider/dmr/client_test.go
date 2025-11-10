@@ -39,10 +39,10 @@ func TestBuildDockerConfigureArgs(t *testing.T) {
 
 func TestBuildRuntimeFlagsFromModelConfig_LlamaCpp(t *testing.T) {
 	flags := buildRuntimeFlagsFromModelConfig("llama.cpp", &latest.ModelConfig{
-		Temperature:      0.6,
-		TopP:             0.95,
-		FrequencyPenalty: 0.2,
-		PresencePenalty:  0.1,
+		Temperature:      floatPtr(0.6),
+		TopP:             floatPtr(0.95),
+		FrequencyPenalty: floatPtr(0.2),
+		PresencePenalty:  floatPtr(0.1),
 	})
 
 	assert.Equal(t, []string{"--temp", "0.6", "--top-p", "0.95", "--frequency-penalty", "0.2", "--presence-penalty", "0.1"}, flags)
@@ -50,8 +50,8 @@ func TestBuildRuntimeFlagsFromModelConfig_LlamaCpp(t *testing.T) {
 
 func TestIntegrateFlagsWithProviderOptsOrder(t *testing.T) {
 	cfg := &latest.ModelConfig{
-		Temperature: 0.6,
-		TopP:        0.9,
+		Temperature: floatPtr(0.6),
+		TopP:        floatPtr(0.9),
 		MaxTokens:   4096,
 		ProviderOpts: map[string]any{
 			"runtime_flags": []string{"--threads", "6"},
@@ -78,4 +78,8 @@ func TestMergeRuntimeFlagsPreferUser_WarnsAndPrefersUser(t *testing.T) {
 
 	// Derived conflicting flags should be dropped, user ones kept and appended
 	assert.Equal(t, []string{"--top-p", "0.8", "--temp", "0.7", "--threads", "8"}, merged)
+}
+
+func floatPtr(f float64) *float64 {
+	return &f
 }
