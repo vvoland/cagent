@@ -40,17 +40,19 @@ func WithBaseDir(baseDir string) Opt {
 
 // NewStore creates a new content store
 func NewStore(opts ...Opt) (*Store, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("getting home directory: %w", err)
-	}
-
-	baseDir := filepath.Join(homeDir, ".cagent", "store")
-
-	store := &Store{baseDir: baseDir}
+	store := &Store{}
 
 	for _, opt := range opts {
 		opt(store)
+	}
+
+	if store.baseDir == "" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("getting home directory: %w", err)
+		}
+
+		store.baseDir = filepath.Join(homeDir, ".cagent", "store")
 	}
 
 	if err := os.MkdirAll(store.baseDir, 0o755); err != nil {
