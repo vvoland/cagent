@@ -23,7 +23,6 @@ func newExecCmd() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&flags.attachmentPath, "attach", "", "Attach an image file to the message")
 	cmd.PersistentFlags().StringArrayVar(&flags.modelOverrides, "model", nil, "Override agent model: [agent=]provider/model (repeatable)")
 	cmd.PersistentFlags().BoolVar(&flags.dryRun, "dry-run", false, "Initialize the agent without executing anything")
-	_ = cmd.PersistentFlags().MarkHidden("dry-run")
 
 	addRuntimeConfigFlags(cmd, &flags.runConfig)
 
