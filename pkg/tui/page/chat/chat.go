@@ -18,10 +18,11 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/messages"
 	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/components/sidebar"
-	"github.com/docker/cagent/pkg/tui/components/tool"
+	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/dialog"
+	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
@@ -56,6 +57,8 @@ type chatPage struct {
 	messages messages.Model
 	editor   editor.Editor
 
+	sessionState *service.SessionState
+
 	// State
 	focusedPanel FocusedPanel
 
@@ -89,26 +92,26 @@ func defaultKeyMap() KeyMap {
 		),
 		Cancel: key.NewBinding(
 			key.WithKeys("esc"),
-			key.WithHelp("esc", "cancel"),
 		),
 	}
 }
 
 // New creates a new chat page
-func New(a *app.App) Page {
+func New(a *app.App, sessionState *service.SessionState) Page {
 	historyStore, err := history.New()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to initialize command history: %v\n", err)
 	}
 
 	return &chatPage{
-		sidebar:      sidebar.New(),
-		messages:     messages.New(a),
+		sidebar:      sidebar.New(sessionState.TodoManager),
+		messages:     messages.New(a, sessionState),
 		editor:       editor.New(a, historyStore),
 		focusedPanel: PanelEditor,
 		app:          a,
 		keyMap:       defaultKeyMap(),
 		history:      historyStore,
+		sessionState: sessionState,
 	}
 }
 
@@ -159,7 +162,7 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+t" {
-			model, cmd := p.messages.Update(tool.ToggleDiffViewMsg{})
+			model, cmd := p.messages.Update(editfile.ToggleDiffViewMsg{})
 			p.messages = model.(messages.Model)
 			return p, cmd
 		}
@@ -214,51 +217,44 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	// Runtime events
 	case *runtime.ErrorEvent:
 		cmd := p.messages.AddErrorMessage(msg.Error)
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
+		return p, cmd
 	case *runtime.ShellOutputEvent:
 		cmd := p.messages.AddShellOutputMessage(msg.Output)
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
+		return p, cmd
 	case *runtime.WarningEvent:
 		cmd := core.CmdHandler(notification.ShowMsg{Text: msg.Message, Type: notification.TypeWarning})
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
+		return p, cmd
 	case *runtime.UserMessageEvent:
 		cmd := p.messages.AddUserMessage(msg.Message)
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom())
+		return p, cmd
 	case *runtime.StreamStartedEvent:
 		p.streamCancelled = false
 		spinnerCmd := p.setWorking(true)
 		cmd := p.messages.AddAssistantMessage()
 		p.startProgressBar()
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
+		return p, tea.Batch(cmd, spinnerCmd)
 	case *runtime.AgentChoiceEvent:
 		if p.streamCancelled {
 			return p, nil
 		}
 		cmd := p.messages.AppendToLastMessage(msg.AgentName, types.MessageTypeAssistant, msg.Content)
-		if p.messages.IsAtBottom() {
-			return p, tea.Batch(cmd, p.messages.ScrollToBottom())
-		}
 		return p, cmd
 	case *runtime.AgentChoiceReasoningEvent:
 		if p.streamCancelled {
 			return p, nil
 		}
 		cmd := p.messages.AppendToLastMessage(msg.AgentName, types.MessageTypeAssistantReasoning, msg.Content)
-		if p.messages.IsAtBottom() {
-			return p, tea.Batch(cmd, p.messages.ScrollToBottom())
-		}
 		return p, cmd
 	case *runtime.TokenUsageEvent:
 		p.sidebar.SetTokenUsage(msg.Usage)
 	case *runtime.StreamStoppedEvent:
 		spinnerCmd := p.setWorking(false)
-		cmd := p.messages.AddSeparatorMessage()
 		if p.msgCancel != nil {
 			p.msgCancel = nil
 		}
 		p.streamCancelled = false
 		p.stopProgressBar()
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
+		return p, tea.Batch(p.messages.ScrollToBottom(), spinnerCmd)
 	case *runtime.PartialToolCallEvent:
 		// When we first receive a tool call, show it immediately in pending state
 		spinnerCmd := p.setWorking(true)
@@ -270,7 +266,7 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 		// Open tool confirmation dialog
 		dialogCmd := core.CmdHandler(dialog.OpenDialogMsg{
-			Model: dialog.NewToolConfirmationDialog(msg.ToolCall),
+			Model: dialog.NewToolConfirmationDialog(msg, p.sessionState),
 		})
 
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd, dialogCmd)

@@ -17,10 +17,10 @@ func platformSpecificSysProcAttr() *syscall.SysProcAttr {
 	}
 }
 
-func createProcessGroup(proc *os.Process) (*processGroup, error) {
+func createProcessGroup(_ *os.Process) (*processGroup, error) {
 	return &processGroup{}, nil
 }
 
-func kill(proc *os.Process, pg *processGroup) error {
+func kill(proc *os.Process, _ *processGroup) error {
 	return syscall.Kill(-proc.Pid, syscall.SIGTERM)
 }

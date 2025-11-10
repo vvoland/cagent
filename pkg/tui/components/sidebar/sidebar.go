@@ -11,8 +11,9 @@ import (
 
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/tools"
-	"github.com/docker/cagent/pkg/tui/components/todo"
+	"github.com/docker/cagent/pkg/tui/components/tool/todotool"
 	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
 )
 
@@ -40,7 +41,7 @@ type model struct {
 	width        int
 	height       int
 	usage        *runtime.Usage
-	todoComp     *todo.Component
+	todoComp     *todotool.SidebarComponent
 	working      bool
 	mcpInit      bool
 	spinner      spinner.Model
@@ -48,12 +49,12 @@ type model struct {
 	sessionTitle string
 }
 
-func New() Model {
+func New(manager *service.TodoManager) Model {
 	return &model{
 		width:        20,
 		height:       24,
 		usage:        &runtime.Usage{},
-		todoComp:     todo.NewComponent(),
+		todoComp:     todotool.NewSidebarComponent(manager),
 		spinner:      spinner.New(spinner.WithSpinner(spinner.Dot)),
 		sessionTitle: "New session",
 	}
@@ -142,13 +143,17 @@ func (m *model) View() string {
 
 func (m *model) horizontalView() string {
 	pwd := getCurrentWorkingDirectory()
+
+	wi := m.workingIndicator()
+	titleGapWidth := m.width - lipgloss.Width(m.sessionTitle) - lipgloss.Width(wi) - 2
+	title := fmt.Sprintf("%s%*s%s", m.sessionTitle, titleGapWidth, "", m.workingIndicator())
+
 	gapWidth := m.width - lipgloss.Width(pwd) - lipgloss.Width(m.tokenUsage()) - 2
-	title := m.sessionTitle + " " + m.workingIndicator()
 	return lipgloss.JoinVertical(lipgloss.Top, title, fmt.Sprintf("%s%*s%s", styles.MutedStyle.Render(pwd), gapWidth, "", m.tokenUsage()))
 }
 
 func (m *model) verticalView() string {
-	topContent := m.sessionTitle
+	topContent := m.sessionTitle + "\n"
 
 	if pwd := getCurrentWorkingDirectory(); pwd != "" {
 		topContent += styles.MutedStyle.Render(pwd) + "\n\n"

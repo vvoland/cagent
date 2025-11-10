@@ -1,6 +1,8 @@
 package types
 
-import "github.com/docker/cagent/pkg/tools"
+import (
+	"github.com/docker/cagent/pkg/tools"
+)
 
 // MessageType represents different types of messages
 type MessageType int
@@ -12,7 +14,6 @@ const (
 	MessageTypeSpinner
 	MessageTypeError
 	MessageTypeShellOutput
-	MessageTypeSeparator
 	MessageTypeCancelled
 	MessageTypeToolCall
 	MessageTypeToolResult
@@ -38,4 +39,11 @@ type Message struct {
 	ToolCall       tools.ToolCall // Associated tool call for tool messages
 	ToolDefinition tools.Tool     // Definition of the tool being called
 	ToolStatus     ToolStatus     // Status for tool calls
+}
+
+// Todo represents a single todo item
+type Todo struct {
+	ID          string `json:"id"`
+	Description string `json:"description"`
+	Status      string `json:"status"`
 }

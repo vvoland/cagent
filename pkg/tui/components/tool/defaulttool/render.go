@@ -1,4 +1,4 @@
-package tool
+package defaulttool
 
 import (
 	"encoding/json"
@@ -6,36 +6,8 @@ import (
 	"strings"
 
 	"github.com/docker/cagent/pkg/tools"
-	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/styles"
 )
-
-func renderEditFile(toolCall tools.ToolCall, width int, splitView bool) (string, string) {
-	var args builtin.EditFileArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-		return "", ""
-	}
-
-	var output strings.Builder
-	for i, edit := range args.Edits {
-		if i > 0 {
-			output.WriteString("\n\n")
-		}
-
-		if len(args.Edits) > 1 {
-			output.WriteString("Edit #" + string(rune(i+1+'0')) + ":\n")
-		}
-
-		diff := computeDiff(args.Path, edit.OldText, edit.NewText)
-		if splitView {
-			output.WriteString(renderSplitDiffWithSyntaxHighlight(diff, args.Path, width))
-		} else {
-			output.WriteString(renderDiffWithSyntaxHighlight(diff, args.Path, width))
-		}
-	}
-
-	return output.String(), args.Path
-}
 
 func renderToolArgs(toolCall tools.ToolCall, width int) string {
 	decoder := json.NewDecoder(strings.NewReader(toolCall.Function.Arguments))

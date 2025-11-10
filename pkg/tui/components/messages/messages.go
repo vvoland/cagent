@@ -19,8 +19,10 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/message"
 	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/components/tool"
+	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
@@ -46,7 +48,6 @@ type Model interface {
 	AddUserMessage(content string) tea.Cmd
 	AddErrorMessage(content string) tea.Cmd
 	AddAssistantMessage() tea.Cmd
-	AddSeparatorMessage() tea.Cmd
 	AddCancelledMessage() tea.Cmd
 	AddWelcomeMessage(content string) tea.Cmd
 	AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, toolDef tools.Tool, status types.ToolStatus) tea.Cmd
@@ -55,7 +56,6 @@ type Model interface {
 	AddShellOutputMessage(content string) tea.Cmd
 
 	ScrollToBottom() tea.Cmd
-	IsAtBottom() bool
 }
 
 // renderedItem represents a cached rendered message with position information
@@ -112,19 +112,30 @@ type model struct {
 
 	selection selectionState
 
-	splitDiffView bool
+	sessionState *service.SessionState
 
 	xPos, yPos int
 }
 
 // New creates a new message list component
-func New(a *app.App) Model {
+func New(a *app.App, sessionState *service.SessionState) Model {
 	return &model{
 		width:         120,
 		height:        24,
 		app:           a,
 		renderedItems: make(map[int]renderedItem),
-		splitDiffView: true,
+		sessionState:  sessionState,
+	}
+}
+
+// NewScrollableView creates a simple scrollable view for displaying messages in dialogs
+// This is a lightweight version that doesn't require app or session state management
+func NewScrollableView(width, height int, sessionState *service.SessionState) Model {
+	return &model{
+		width:         width,
+		height:        height,
+		renderedItems: make(map[int]renderedItem),
+		sessionState:  sessionState,
 	}
 }
 
@@ -220,19 +231,11 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case tool.ToggleDiffViewMsg:
-		m.splitDiffView = !m.splitDiffView
-
-		var cmds []tea.Cmd
-		for i, view := range m.views {
-			updatedView, cmd := view.Update(tool.ToggleDiffViewMsg{})
-			m.views[i] = updatedView
-			cmds = append(cmds, cmd)
-		}
+	case editfile.ToggleDiffViewMsg:
+		m.sessionState.ToggleSplitDiffView()
 
 		m.invalidateAllItems()
-
-		return m, tea.Batch(cmds...)
+		return m, nil
 
 	case tea.KeyPressMsg:
 		switch msg.String() {
@@ -403,14 +406,16 @@ func (m *model) shouldCacheMessage(index int) bool {
 
 	switch msg.Type {
 	case types.MessageTypeToolCall:
-		return msg.ToolStatus == types.ToolStatusCompleted || msg.ToolStatus == types.ToolStatusError
+		return msg.ToolStatus == types.ToolStatusCompleted ||
+			msg.ToolStatus == types.ToolStatusError ||
+			msg.ToolStatus == types.ToolStatusConfirmation
 	case types.MessageTypeToolResult:
 		return true
 	case types.MessageTypeAssistant, types.MessageTypeAssistantReasoning:
 		// Only cache assistant messages that have content (completed streaming)
 		// Empty assistant messages have spinners and need constant re-rendering
 		return strings.Trim(msg.Content, "\r\n\t ") != ""
-	case types.MessageTypeUser, types.MessageTypeSeparator:
+	case types.MessageTypeUser:
 		// Always cache static content
 		return true
 	default:
@@ -493,8 +498,8 @@ func (m *model) invalidateAllItems() {
 	m.totalHeight = 0
 }
 
-// IsAtBottom returns true if the viewport is at the bottom
-func (m *model) IsAtBottom() bool {
+// isAtBottom returns true if the viewport is at the bottom
+func (m *model) isAtBottom() bool {
 	if len(m.messages) == 0 {
 		return true
 	}
@@ -502,11 +507,6 @@ func (m *model) IsAtBottom() bool {
 	totalHeight := lipgloss.Height(m.rendered) - 1
 	maxScrollOffset := max(0, totalHeight-m.height)
 	return m.scrollOffset >= maxScrollOffset
-}
-
-// isAtBottom is kept as a private method for internal use
-func (m *model) isAtBottom() bool {
-	return m.IsAtBottom()
 }
 
 // AddUserMessage adds a user message to the chat
@@ -561,20 +561,6 @@ func (m *model) addMessage(msg *types.Message) tea.Cmd {
 	}
 
 	return tea.Batch(cmds...)
-}
-
-// AddSeparatorMessage adds a separator message to the chat
-func (m *model) AddSeparatorMessage() tea.Cmd {
-	m.removeSpinner()
-	msg := types.Message{
-		Type: types.MessageTypeSeparator,
-	}
-	m.messages = append(m.messages, msg)
-
-	view := m.createMessageView(&msg)
-	m.views = append(m.views, view)
-
-	return view.Init()
 }
 
 // AddCancelledMessage adds a cancellation indicator to the chat
@@ -707,7 +693,7 @@ func (m *model) ScrollToBottom() tea.Cmd {
 }
 
 func (m *model) createToolCallView(msg *types.Message) layout.Model {
-	view := tool.New(msg, m.app, markdown.NewRenderer(m.width), m.splitDiffView)
+	view := tool.New(msg, markdown.NewRenderer(m.width), m.sessionState)
 	view.SetSize(m.width, 0)
 	return view
 }

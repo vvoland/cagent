@@ -183,10 +183,12 @@ var (
 				Padding(0, 1)
 
 	UserMessageBorderStyle = BaseStyle.
-				PaddingLeft(1).
+				Padding(1, 2).
 				BorderLeft(true).
 				BorderStyle(lipgloss.ThickBorder()).
-				BorderForeground(BorderPrimary)
+				BorderForeground(BorderPrimary).
+				Bold(true).
+				Background(BackgroundAlt)
 )
 
 // Dialog Styles

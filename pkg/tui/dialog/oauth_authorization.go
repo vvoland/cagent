@@ -13,7 +13,6 @@ import (
 	"github.com/docker/cagent/pkg/tui/styles"
 )
 
-// oauthAuthorizationDialog implements DialogModel for OAuth authorization confirmation
 type oauthAuthorizationDialog struct {
 	width, height int
 	serverURL     string
@@ -21,7 +20,7 @@ type oauthAuthorizationDialog struct {
 	keyMap        oauthAuthorizationKeyMap
 }
 
-// SetSize implements Dialog.
+// SetSize implements [Dialog].
 func (d *oauthAuthorizationDialog) SetSize(width, height int) tea.Cmd {
 	d.width = width
 	d.height = height

@@ -1,9 +1,6 @@
 package dialog
 
 import (
-	"encoding/json"
-	"fmt"
-	"sort"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -11,12 +8,12 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/runtime"
-	"github.com/docker/cagent/pkg/tools"
-	"github.com/docker/cagent/pkg/tools/builtin"
-	"github.com/docker/cagent/pkg/tui/components/todo"
+	"github.com/docker/cagent/pkg/tui/components/messages"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
+	"github.com/docker/cagent/pkg/tui/types"
 )
 
 type (
@@ -30,17 +27,46 @@ type ToolConfirmationResponse struct {
 	Response string // "approve", "reject", or "approve-session"
 }
 
-// toolConfirmationDialog implements DialogModel for tool confirmation
 type toolConfirmationDialog struct {
 	width, height int
-	toolCall      tools.ToolCall
+	msg           *runtime.ToolCallConfirmationEvent
 	keyMap        toolConfirmationKeyMap
+	sessionState  *service.SessionState
+	scrollView    messages.Model
 }
 
-// SetSize implements Dialog.
+// SetSize implements [Dialog].
 func (d *toolConfirmationDialog) SetSize(width, height int) tea.Cmd {
 	d.width = width
 	d.height = height
+
+	// Calculate dialog dimensions
+	dialogWidth := width * 70 / 100
+	contentWidth := dialogWidth - 6
+	maxDialogHeight := (height * 80) / 100
+
+	titleStyle := styles.DialogTitleStyle.Width(contentWidth)
+	title := titleStyle.Render("Tool Confirmation")
+	titleHeight := lipgloss.Height(title)
+
+	separatorWidth := max(contentWidth-10, 20)
+	separator := styles.DialogSeparatorStyle.
+		Align(lipgloss.Center).
+		Width(contentWidth).
+		Render(strings.Repeat("─", separatorWidth))
+	separatorHeight := lipgloss.Height(separator)
+
+	question := styles.DialogQuestionStyle.Width(contentWidth).Render("Do you want to allow this tool call?")
+	questionHeight := lipgloss.Height(question)
+
+	options := styles.DialogOptionsStyle.Width(contentWidth).Render("[Y]es    [N]o    [A]ll (approve all tools this session)")
+	optionsHeight := lipgloss.Height(options)
+
+	// Calculate available height for scroll view
+	// Total = maxDialogHeight - title - separator - 2 empty lines - question - empty line - options - 4 (dialog padding/border)
+	availableHeight := max(maxDialogHeight-titleHeight-separatorHeight-2-questionHeight-1-optionsHeight-4, 5)
+	d.scrollView.SetSize(contentWidth, availableHeight)
+
 	return nil
 }
 
@@ -70,16 +96,29 @@ func defaultToolConfirmationKeyMap() toolConfirmationKeyMap {
 }
 
 // NewToolConfirmationDialog creates a new tool confirmation dialog
-func NewToolConfirmationDialog(toolCall tools.ToolCall) Dialog {
+func NewToolConfirmationDialog(msg *runtime.ToolCallConfirmationEvent, sessionState *service.SessionState) Dialog {
+	// Create scrollable view with initial size (will be updated in SetSize)
+	scrollView := messages.NewScrollableView(100, 20, sessionState)
+
+	// Add the tool call message to the view
+	scrollView.AddOrUpdateToolCall(
+		"", // agentName - empty for dialog context
+		msg.ToolCall,
+		msg.ToolDefinition,
+		types.ToolStatusConfirmation,
+	)
+
 	return &toolConfirmationDialog{
-		toolCall: toolCall,
-		keyMap:   defaultToolConfirmationKeyMap(),
+		msg:          msg,
+		sessionState: sessionState,
+		keyMap:       defaultToolConfirmationKeyMap(),
+		scrollView:   scrollView,
 	}
 }
 
 // Init initializes the tool confirmation dialog
 func (d *toolConfirmationDialog) Init() tea.Cmd {
-	return nil
+	return d.scrollView.Init()
 }
 
 // Update handles messages for the tool confirmation dialog
@@ -88,7 +127,8 @@ func (d *toolConfirmationDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		d.width = msg.Width
 		d.height = msg.Height
-		return d, nil
+		cmd := d.SetSize(msg.Width, msg.Height)
+		return d, cmd
 
 	case tea.KeyPressMsg:
 		switch {
@@ -103,61 +143,28 @@ func (d *toolConfirmationDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		if msg.String() == "ctrl+c" {
 			return d, tea.Quit
 		}
+
+		// Forward scrolling keys to the scroll view
+		switch msg.String() {
+		case "up", "k", "down", "j", "pgup", "pgdown", "home", "end":
+			updatedScrollView, cmd := d.scrollView.Update(msg)
+			d.scrollView = updatedScrollView.(messages.Model)
+			return d, cmd
+		}
+
+	case tea.MouseWheelMsg:
+		// Forward mouse wheel events to scroll view
+		updatedScrollView, cmd := d.scrollView.Update(msg)
+		d.scrollView = updatedScrollView.(messages.Model)
+		return d, cmd
 	}
 
 	return d, nil
 }
 
-// wrapText wraps text to fit within the specified width
-func wrapText(text string, width int) string {
-	if width <= 0 {
-		return text
-	}
-
-	words := strings.Fields(text)
-	if len(words) == 0 {
-		return text
-	}
-
-	var result strings.Builder
-	var currentLine strings.Builder
-
-	for _, word := range words {
-		switch {
-		case currentLine.Len() == 0:
-			currentLine.WriteString(word)
-		case currentLine.Len()+1+len(word) <= width:
-			currentLine.WriteString(" " + word)
-		default:
-			if result.Len() > 0 {
-				result.WriteString("\n")
-			}
-			result.WriteString(currentLine.String())
-			currentLine.Reset()
-			currentLine.WriteString(word)
-		}
-	}
-
-	if currentLine.Len() > 0 {
-		if result.Len() > 0 {
-			result.WriteString("\n")
-		}
-		result.WriteString(currentLine.String())
-	}
-
-	return result.String()
-}
-
 // View renders the tool confirmation dialog
 func (d *toolConfirmationDialog) View() string {
-	// Calculate dialog width based on screen size but with min/max constraints
-	dialogWidth := d.width * 60 / 100 // 60% of screen width
-	if dialogWidth < 50 {
-		dialogWidth = 50
-	}
-	if dialogWidth > 80 {
-		dialogWidth = 80
-	}
+	dialogWidth := d.width * 70 / 100
 
 	// Content width (accounting for padding and borders)
 	contentWidth := dialogWidth - 6
@@ -175,24 +182,14 @@ func (d *toolConfirmationDialog) View() string {
 		Width(contentWidth).
 		Render(strings.Repeat("─", separatorWidth))
 
-	// Tool name
-	toolLabel := styles.DialogLabelStyle.Render("Tool: ")
-	toolName := styles.DialogValueStyle.Render(d.toolCall.Function.Name)
-	toolInfo := lipgloss.JoinHorizontal(lipgloss.Left, toolLabel, toolName)
-
-	// Arguments section
-	var argumentsSection string
-	if d.toolCall.Function.Name == builtin.ToolNameCreateTodos || d.toolCall.Function.Name == builtin.ToolNameCreateTodo {
-		argumentsSection = d.renderTodo(contentWidth)
-	} else {
-		argumentsSection = d.renderArguments(contentWidth)
-	}
+	// Get scrollable tool call view
+	argumentsSection := d.scrollView.View()
 
 	question := styles.DialogQuestionStyle.Width(contentWidth).Render("Do you want to allow this tool call?")
 	options := styles.DialogOptionsStyle.Width(contentWidth).Render("[Y]es    [N]o    [A]ll (approve all tools this session)")
 
 	// Combine all parts with proper spacing
-	parts := []string{title, separator, toolInfo}
+	parts := []string{title, separator}
 
 	if argumentsSection != "" {
 		parts = append(parts, "", argumentsSection)
@@ -201,122 +198,17 @@ func (d *toolConfirmationDialog) View() string {
 	parts = append(parts, "", question, "", options)
 
 	content := lipgloss.JoinVertical(lipgloss.Left, parts...)
+
 	return dialogStyle.Render(content)
-}
-
-func (d *toolConfirmationDialog) renderTodo(contentWidth int) string {
-	todoComponent := todo.NewComponent()
-	todoComponent.SetSize(contentWidth)
-
-	err := todoComponent.SetTodos(d.toolCall)
-	if err != nil {
-		return ""
-	}
-	return todoComponent.Render()
-}
-
-func (d *toolConfirmationDialog) renderArguments(contentWidth int) string {
-	if d.toolCall.Function.Arguments == "" {
-		return ""
-	}
-
-	argumentsHeader := styles.DialogLabelStyle.Render("Arguments:")
-
-	var arguments map[string]any
-	if err := json.Unmarshal([]byte(d.toolCall.Function.Arguments), &arguments); err != nil {
-		// If JSON unmarshaling fails, truncate and wrap the raw arguments
-		rawArgs := d.toolCall.Function.Arguments
-		if len(rawArgs) > 150 {
-			rawArgs = rawArgs[:150] + "..."
-		}
-
-		formattedArgs := styles.DialogContentStyle.Render("  " + wrapText(rawArgs, contentWidth-2))
-		return lipgloss.JoinVertical(lipgloss.Left, argumentsHeader, "", formattedArgs)
-	}
-
-	// Sort arguments by key to ensure consistent order
-	keys := make([]string, 0, len(arguments))
-	for k := range arguments {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	var argLines []string
-	for _, k := range keys {
-		v := arguments[k]
-
-		// Format key
-		formattedKey := styles.DialogValueStyle.Render(k + ":")
-
-		// Format value
-		var valueStr string
-		if vStr, ok := v.(string); ok {
-			valueStr = vStr
-		} else {
-			valueBytes, _ := json.MarshalIndent(v, "", "  ")
-			valueStr = string(valueBytes)
-		}
-
-		// Truncate very long values before wrapping
-		maxValueLength := 200
-		if len(valueStr) > maxValueLength {
-			valueStr = valueStr[:maxValueLength] + "..."
-		}
-
-		// Wrap long values
-		// Account for key, colon, spaces, and indent
-		availableWidth := max(contentWidth-len(k)-6, 20)
-		wrappedValue := wrapText(valueStr, availableWidth)
-
-		// Limit to maximum 3 lines for readability
-		valueLines := strings.Split(wrappedValue, "\n")
-		if len(valueLines) > 3 {
-			valueLines = valueLines[:3]
-			if len(valueLines[2]) > availableWidth-3 {
-				valueLines[2] = valueLines[2][:availableWidth-3] + "..."
-			} else {
-				valueLines[2] += "..."
-			}
-			wrappedValue = strings.Join(valueLines, "\n")
-		}
-
-		// Indent wrapped lines
-		valueLines = strings.Split(wrappedValue, "\n")
-		if len(valueLines) > 1 {
-			for i := 1; i < len(valueLines); i++ {
-				valueLines[i] = "    " + valueLines[i]
-			}
-			wrappedValue = strings.Join(valueLines, "\n")
-		}
-
-		valueStyled := styles.DialogContentStyle.Render(wrappedValue)
-
-		argLines = append(argLines, fmt.Sprintf("  %s %s", formattedKey, valueStyled))
-	}
-
-	formattedArgs := strings.Join(argLines, "\n")
-	return lipgloss.JoinVertical(lipgloss.Left, argumentsHeader, "", formattedArgs)
 }
 
 // Position calculates the position to center the dialog
 func (d *toolConfirmationDialog) Position() (row, col int) {
-	// Calculate dialog width (same logic as in View())
-	dialogWidth := min(max(d.width*60/100, 50), 80)
+	dialogWidth := d.width * 70 / 100
 
-	// Estimate dialog height based on content
-	dialogHeight := 12 // Base height for title, tool name, question, and options
-	if d.toolCall.Function.Arguments != "" {
-		// Add height for arguments section
-		// Rough estimation: 3 lines for header + arguments
-		dialogHeight += 5
-	}
-
-	// Add height for todo preview section if todo-related tools
-	if d.toolCall.Function.Name == builtin.ToolNameCreateTodos || d.toolCall.Function.Name == builtin.ToolNameCreateTodo && d.toolCall.Function.Arguments != "" {
-		// Add height for preview section header and content
-		// Rough estimation: 2 lines for header + variable lines for todos
-		dialogHeight += 6
-	}
+	// Calculate actual dialog height by rendering it
+	renderedDialog := d.View()
+	dialogHeight := lipgloss.Height(renderedDialog)
 
 	// Ensure dialog stays on screen
 	row = max(0, (d.height-dialogHeight)/2)

@@ -1,7 +1,9 @@
-package tool
+package editfile
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -11,7 +13,10 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/mattn/go-runewidth"
 
+	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/styles"
+	"github.com/docker/cagent/pkg/tui/types"
 )
 
 const (
@@ -32,7 +37,95 @@ type linePair struct {
 	newLineNum int
 }
 
-// syntaxHighlight applies syntax highlighting to code and returns styled text
+func renderEditFile(toolCall tools.ToolCall, width int, splitView bool, toolStatus types.ToolStatus) string {
+	var args builtin.EditFileArgs
+	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
+		return ""
+	}
+
+	var output strings.Builder
+	for i, edit := range args.Edits {
+		if i > 0 {
+			output.WriteString("\n\n")
+		}
+
+		if len(args.Edits) > 1 {
+			output.WriteString("Edit #" + string(rune(i+1+'0')) + ":\n")
+		}
+
+		diff := computeDiff(args.Path, edit.OldText, edit.NewText, toolStatus)
+		if splitView {
+			output.WriteString(renderSplitDiffWithSyntaxHighlight(diff, args.Path, width))
+		} else {
+			output.WriteString(renderDiffWithSyntaxHighlight(diff, args.Path, width))
+		}
+	}
+
+	return output.String()
+}
+
+func computeDiff(path, oldText, newText string, toolStatus types.ToolStatus) []*udiff.Hunk {
+	currentContent, err := os.ReadFile(path)
+	if err != nil {
+		return []*udiff.Hunk{}
+	}
+
+	var oldContent, newContent string
+
+	if toolStatus == types.ToolStatusConfirmation {
+		// During confirmation: file hasn't been modified yet
+		// currentContent is the old content, we need to compute what new would be
+		oldContent = string(currentContent)
+		newContent = strings.Replace(oldContent, oldText, newText, 1)
+	} else {
+		// After execution: file has been modified
+		// currentContent is the new content, we need to reconstruct old
+		newContent = string(currentContent)
+		oldContent = strings.Replace(newContent, newText, oldText, 1)
+	}
+
+	// Now compute diff between old and new
+	edits := udiff.Strings(oldContent, newContent)
+
+	diff, err := udiff.ToUnifiedDiff("old", "new", oldContent, edits, 3)
+	if err != nil {
+		return []*udiff.Hunk{}
+	}
+
+	return normalizeDiff(diff.Hunks)
+}
+
+func normalizeDiff(diff []*udiff.Hunk) []*udiff.Hunk {
+	for _, hunk := range diff {
+		if len(hunk.Lines) == 0 {
+			continue
+		}
+
+		normalized := make([]udiff.Line, 0, len(hunk.Lines))
+		for i := 0; i < len(hunk.Lines); i++ {
+			line := hunk.Lines[i]
+
+			if line.Kind == udiff.Delete && i+1 < len(hunk.Lines) {
+				next := hunk.Lines[i+1]
+				if next.Kind == udiff.Insert && line.Content == next.Content {
+					normalized = append(normalized, udiff.Line{
+						Kind:    udiff.Equal,
+						Content: line.Content,
+					})
+					i++
+					continue
+				}
+			}
+
+			normalized = append(normalized, line)
+		}
+
+		hunk.Lines = normalized
+	}
+
+	return diff
+}
+
 func syntaxHighlight(code, filePath string) []chromaToken {
 	lexer := lexers.Match(filePath)
 	if lexer == nil {
@@ -80,7 +173,6 @@ func chromaToLipgloss(tokenType chroma.TokenType, style *chroma.Style) lipgloss.
 	return lipStyle
 }
 
-// renderDiffWithSyntaxHighlight renders a unified diff view
 func renderDiffWithSyntaxHighlight(diff []*udiff.Hunk, filePath string, width int) string {
 	var output strings.Builder
 	contentWidth := width - lineNumWidth
@@ -103,7 +195,6 @@ func renderDiffWithSyntaxHighlight(diff []*udiff.Hunk, filePath string, width in
 	return strings.TrimSuffix(output.String(), "\n")
 }
 
-// renderSplitDiffWithSyntaxHighlight renders a split diff view with old/new side-by-side
 func renderSplitDiffWithSyntaxHighlight(diff []*udiff.Hunk, filePath string, width int) string {
 	// Fall back to unified diff if terminal is too narrow
 	separator := styles.SeparatorStyle.Render(" │ ")
@@ -131,7 +222,6 @@ func renderSplitDiffWithSyntaxHighlight(diff []*udiff.Hunk, filePath string, wid
 	return strings.TrimSuffix(output.String(), "\n")
 }
 
-// getDisplayLineNumber returns the appropriate line number and updates counters
 func getDisplayLineNumber(line *udiff.Line, oldLineNum, newLineNum *int) int {
 	switch line.Kind {
 	case udiff.Delete:
@@ -151,7 +241,6 @@ func getDisplayLineNumber(line *udiff.Line, oldLineNum, newLineNum *int) int {
 	return 0
 }
 
-// prepareContent normalizes content for display
 func prepareContent(content string, maxWidth int) string {
 	content = strings.ReplaceAll(content, "\t", strings.Repeat(" ", tabWidth))
 	content = strings.TrimRight(content, "\n")
@@ -161,7 +250,6 @@ func prepareContent(content string, maxWidth int) string {
 	return content
 }
 
-// renderLine renders a line with syntax highlighting and appropriate styling
 func renderLine(content string, kind udiff.OpKind, filePath string, width int) string {
 	tokens := syntaxHighlight(content, filePath)
 	lineStyle := getLineStyle(kind)
@@ -171,7 +259,6 @@ func renderLine(content string, kind udiff.OpKind, filePath string, width int) s
 	return padToWidth(rendered, width, lineStyle)
 }
 
-// renderSplitSide renders one side of a split diff
 func renderSplitSide(line *udiff.Line, lineNum int, filePath string, width int) string {
 	lineNumStr := formatLineNum(line, lineNum)
 
@@ -186,7 +273,6 @@ func renderSplitSide(line *udiff.Line, lineNum int, filePath string, width int) 
 	return styles.LineNumberStyle.Render(lineNumStr) + styledContent
 }
 
-// renderTokensWithStyle applies consistent styling to tokens
 func renderTokensWithStyle(tokens []chromaToken, lineStyle lipgloss.Style) string {
 	var output strings.Builder
 
@@ -198,7 +284,6 @@ func renderTokensWithStyle(tokens []chromaToken, lineStyle lipgloss.Style) strin
 	return output.String()
 }
 
-// padToWidth adds padding to reach the desired width
 func padToWidth(content string, width int, style lipgloss.Style) string {
 	currentWidth := ansi.StringWidth(content)
 	if paddingNeeded := width - currentWidth; paddingNeeded > 0 {
@@ -208,7 +293,6 @@ func padToWidth(content string, width int, style lipgloss.Style) string {
 	return content
 }
 
-// ensureWidth ensures a line has consistent width
 func ensureWidth(line string, width int) string {
 	if lineWidth := ansi.StringWidth(line); lineWidth < width {
 		padding := styles.DiffUnchangedStyle.Render(strings.Repeat(" ", width-lineWidth))
@@ -217,7 +301,6 @@ func ensureWidth(line string, width int) string {
 	return line
 }
 
-// getLineStyle returns the style for a diff line type
 func getLineStyle(kind udiff.OpKind) lipgloss.Style {
 	switch kind {
 	case udiff.Delete:
@@ -229,7 +312,6 @@ func getLineStyle(kind udiff.OpKind) lipgloss.Style {
 	}
 }
 
-// formatLineNum formats a line number or returns empty space
 func formatLineNum(line *udiff.Line, lineNum int) string {
 	if line == nil {
 		return strings.Repeat(" ", lineNumWidth)
@@ -237,7 +319,6 @@ func formatLineNum(line *udiff.Line, lineNum int) string {
 	return fmt.Sprintf("%4d ", lineNum)
 }
 
-// pairDiffLines pairs old and new lines for split view rendering
 func pairDiffLines(lines []udiff.Line, fromLine, toLine int) []linePair {
 	var pairs []linePair
 	oldLineNum, newLineNum := fromLine, toLine

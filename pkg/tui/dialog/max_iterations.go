@@ -15,7 +15,6 @@ import (
 	"github.com/docker/cagent/pkg/tui/styles"
 )
 
-// maxIterationsDialog implements DialogModel for max iterations confirmation
 type maxIterationsDialog struct {
 	width, height int
 	maxIterations int
@@ -23,7 +22,7 @@ type maxIterationsDialog struct {
 	keyMap        maxIterationsKeyMap
 }
 
-// SetSize implements Dialog.
+// SetSize implements [Dialog].
 func (d *maxIterationsDialog) SetSize(width, height int) tea.Cmd {
 	d.width = width
 	d.height = height
