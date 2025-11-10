@@ -10,11 +10,22 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/google/go-containerregistry/pkg/name"
+
 	"github.com/docker/cagent/pkg/aliases"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/remote"
 )
+
+// IsOCIReference checks if the input is a valid OCI reference
+func IsOCIReference(input string) bool {
+	if IsLocalFile(input) {
+		return false
+	}
+	_, err := name.ParseReference(input)
+	return err == nil
+}
 
 // IsLocalFile checks if the input is a local file
 func IsLocalFile(input string) bool {
