@@ -77,13 +77,19 @@ func (e *editor) Init() tea.Cmd {
 }
 
 var (
+	// ansiRegexp matches ANSI escape sequences so they can be removed when
+	// computing layout measurements.
 	ansiRegexp = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
 )
 
+// stripANSI removes ANSI escape sequences from the provided string so width
+// calculations can be performed on plain text.
 func stripANSI(s string) string {
 	return ansiRegexp.ReplaceAllString(s, "")
 }
 
+// lineHasContent reports whether the rendered line has user input after the
+// prompt has been stripped.
 func lineHasContent(line, prompt string) bool {
 	plain := stripANSI(line)
 	if prompt != "" && strings.HasPrefix(plain, prompt) {
@@ -93,6 +99,8 @@ func lineHasContent(line, prompt string) bool {
 	return strings.TrimSpace(plain) != ""
 }
 
+// lastInputLine returns the content of the final line from the textarea value,
+// which is the portion eligible for suggestions.
 func lastInputLine(value string) string {
 	if idx := strings.LastIndex(value, "\n"); idx >= 0 {
 		return value[idx+1:]
@@ -100,6 +108,8 @@ func lastInputLine(value string) string {
 	return value
 }
 
+// applySuggestionOverlay draws the inline suggestion on top of the textarea
+// view using the configured ghost style.
 func (e *editor) applySuggestionOverlay(view string) string {
 	lines := strings.Split(view, "\n")
 	targetLine := -1
@@ -129,6 +139,8 @@ func (e *editor) applySuggestionOverlay(view string) string {
 	return canvas.Render()
 }
 
+// refreshSuggestion updates the cached suggestion to reflect the current
+// textarea value and available history entries.
 func (e *editor) refreshSuggestion() {
 	if e.hist == nil {
 		e.clearSuggestion()
@@ -158,6 +170,7 @@ func (e *editor) refreshSuggestion() {
 	e.setCursorHidden(true)
 }
 
+// clearSuggestion removes any pending suggestion and restores the cursor.
 func (e *editor) clearSuggestion() {
 	if !e.hasSuggestion && !e.cursorHidden {
 		return
@@ -167,6 +180,8 @@ func (e *editor) clearSuggestion() {
 	e.setCursorHidden(false)
 }
 
+// setCursorHidden toggles the virtual cursor so the ghost suggestion can be
+// displayed without visual conflicts.
 func (e *editor) setCursorHidden(hidden bool) {
 	if e.cursorHidden == hidden || e.textarea == nil {
 		return
@@ -176,6 +191,8 @@ func (e *editor) setCursorHidden(hidden bool) {
 	e.textarea.SetVirtualCursor(!hidden)
 }
 
+// AcceptSuggestion applies the current suggestion into the textarea value and
+// returns true when a suggestion was committed.
 func (e *editor) AcceptSuggestion() bool {
 	if !e.hasSuggestion || e.suggestion == "" {
 		return false
