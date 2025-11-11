@@ -147,14 +147,14 @@ func (c *Client) doRequest(ctx context.Context, method, endpoint string, body, r
 // GetAgents retrieves all available agents
 func (c *Client) GetAgents(ctx context.Context) ([]api.Agent, error) {
 	var agents []api.Agent
-	err := c.doRequest(ctx, "GET", "/api/agents", nil, &agents)
+	err := c.doRequest(ctx, http.MethodGet, "/api/agents", nil, &agents)
 	return agents, err
 }
 
 // GetAgent retrieves an agent by ID
 func (c *Client) GetAgent(ctx context.Context, id string) (*v2.Config, error) {
 	var config v2.Config
-	err := c.doRequest(ctx, "GET", "/api/agents/"+id, nil, &config)
+	err := c.doRequest(ctx, http.MethodGet, "/api/agents/"+id, nil, &config)
 	return &config, err
 }
 
@@ -162,7 +162,7 @@ func (c *Client) GetAgent(ctx context.Context, id string) (*v2.Config, error) {
 func (c *Client) CreateAgent(ctx context.Context, prompt string) (*api.CreateAgentResponse, error) {
 	req := api.CreateAgentRequest{Prompt: prompt}
 	var resp api.CreateAgentResponse
-	err := c.doRequest(ctx, "POST", "/api/agents", req, &resp)
+	err := c.doRequest(ctx, http.MethodPost, "/api/agents", req, &resp)
 	return &resp, err
 }
 
@@ -175,7 +175,7 @@ func (c *Client) CreateAgentConfig(ctx context.Context, filename, model, descrip
 		Instruction: instruction,
 	}
 	var resp api.CreateAgentConfigResponse
-	err := c.doRequest(ctx, "POST", "/api/agents/config", req, &resp)
+	err := c.doRequest(ctx, http.MethodPost, "/api/agents/config", req, &resp)
 	return &resp, err
 }
 
@@ -194,14 +194,14 @@ func (c *Client) EditAgentConfig(ctx context.Context, filename string, config v2
 func (c *Client) ImportAgent(ctx context.Context, filePath string) (*api.ImportAgentResponse, error) {
 	req := api.ImportAgentRequest{FilePath: filePath}
 	var resp api.ImportAgentResponse
-	err := c.doRequest(ctx, "POST", "/api/agents/import", req, &resp)
+	err := c.doRequest(ctx, http.MethodPost, "/api/agents/import", req, &resp)
 	return &resp, err
 }
 
 // ExportAgents exports multiple agents as a zip file
 func (c *Client) ExportAgents(ctx context.Context) (*api.ExportAgentsResponse, error) {
 	var resp api.ExportAgentsResponse
-	err := c.doRequest(ctx, "POST", "/api/agents/export", nil, &resp)
+	err := c.doRequest(ctx, http.MethodPost, "/api/agents/export", nil, &resp)
 	return &resp, err
 }
 
@@ -209,7 +209,7 @@ func (c *Client) ExportAgents(ctx context.Context) (*api.ExportAgentsResponse, e
 func (c *Client) PullAgent(ctx context.Context, name string) (*api.PullAgentResponse, error) {
 	req := api.PullAgentRequest{Name: name}
 	var resp api.PullAgentResponse
-	err := c.doRequest(ctx, "POST", "/api/agents/pull", req, &resp)
+	err := c.doRequest(ctx, http.MethodPost, "/api/agents/pull", req, &resp)
 	return &resp, err
 }
 
@@ -217,7 +217,7 @@ func (c *Client) PullAgent(ctx context.Context, name string) (*api.PullAgentResp
 func (c *Client) PushAgent(ctx context.Context, filepath, tag string) (*api.PushAgentResponse, error) {
 	req := api.PushAgentRequest{Filepath: filepath, Tag: tag}
 	var resp api.PushAgentResponse
-	err := c.doRequest(ctx, "POST", "/api/agents/push", req, &resp)
+	err := c.doRequest(ctx, http.MethodPost, "/api/agents/push", req, &resp)
 	return &resp, err
 }
 
@@ -232,28 +232,28 @@ func (c *Client) DeleteAgent(ctx context.Context, filePath string) (*api.DeleteA
 // GetSessions retrieves all sessions
 func (c *Client) GetSessions(ctx context.Context) ([]api.SessionsResponse, error) {
 	var sessions []api.SessionsResponse
-	err := c.doRequest(ctx, "GET", "/api/sessions", nil, &sessions)
+	err := c.doRequest(ctx, http.MethodGet, "/api/sessions", nil, &sessions)
 	return sessions, err
 }
 
 // GetSession retrieves a session by ID
 func (c *Client) GetSession(ctx context.Context, id string) (*api.SessionResponse, error) {
 	var sess api.SessionResponse
-	err := c.doRequest(ctx, "GET", "/api/sessions/"+id, nil, &sess)
+	err := c.doRequest(ctx, http.MethodGet, "/api/sessions/"+id, nil, &sess)
 	return &sess, err
 }
 
 // CreateSession creates a new session
 func (c *Client) CreateSession(ctx context.Context, sessTemplate *session.Session) (*session.Session, error) {
 	var sess session.Session
-	err := c.doRequest(ctx, "POST", "/api/sessions", sessTemplate, &sess)
+	err := c.doRequest(ctx, http.MethodPost, "/api/sessions", sessTemplate, &sess)
 	return &sess, err
 }
 
 // ResumeSession resumes a session by ID
 func (c *Client) ResumeSession(ctx context.Context, id, confirmation string) error {
 	req := api.ResumeSessionRequest{Confirmation: confirmation}
-	return c.doRequest(ctx, "POST", "/api/sessions/"+id+"/resume", req, nil)
+	return c.doRequest(ctx, http.MethodPost, "/api/sessions/"+id+"/resume", req, nil)
 }
 
 // DeleteSession deletes a session by ID
@@ -264,7 +264,7 @@ func (c *Client) DeleteSession(ctx context.Context, id string) error {
 // GetDesktopToken retrieves a desktop authentication token
 func (c *Client) GetDesktopToken(ctx context.Context) (*api.DesktopTokenResponse, error) {
 	var resp api.DesktopTokenResponse
-	err := c.doRequest(ctx, "GET", "/api/desktop/token", nil, &resp)
+	err := c.doRequest(ctx, http.MethodGet, "/api/desktop/token", nil, &resp)
 	return &resp, err
 }
 
@@ -375,15 +375,15 @@ func (c *Client) runAgentWithAgentName(ctx context.Context, sessionID, agent, ag
 
 func (c *Client) ResumeStartAuthorizationFlow(ctx context.Context, id string, confirmation bool) error {
 	req := api.ResumeStartOauthRequest{Confirmation: confirmation}
-	return c.doRequest(ctx, "POST", "/api/"+id+"/resumeStartOauth", req, nil)
+	return c.doRequest(ctx, http.MethodPost, "/api/"+id+"/resumeStartOauth", req, nil)
 }
 
 func (c *Client) ResumeCodeReceived(ctx context.Context, code, state string) error {
 	req := api.ResumeCodeReceivedOauthRequest{Code: code, State: state}
-	return c.doRequest(ctx, "POST", "/api/resumeCodeReceivedOauth", req, nil)
+	return c.doRequest(ctx, http.MethodPost, "/api/resumeCodeReceivedOauth", req, nil)
 }
 
 func (c *Client) ResumeElicitation(ctx context.Context, action string, content map[string]any) error {
 	req := api.ResumeElicitationRequest{Action: action, Content: content}
-	return c.doRequest(ctx, "POST", "/api/resumeElicitation", req, nil)
+	return c.doRequest(ctx, http.MethodPost, "/api/resumeElicitation", req, nil)
 }
