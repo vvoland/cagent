@@ -52,12 +52,7 @@ tasks:
 
   test:
     desc: Run tests
-    env:
-      OPENAI_API_KEY:
-      ANTHROPIC_API_KEY:
-      GOOGLE_API_KEY:
-      MISTRAL_API_KEY:
-    cmd: go test ./...
+    cmd: OPENAI_API_KEY= ANTHROPIC_API_KEY= GOOGLE_API_KEY= MISTRAL_API_KEY= go test {{.CLI_ARGS}} ./...
 
   build-local:
     desc: Build binaries for local host platform
