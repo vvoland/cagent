@@ -404,7 +404,12 @@
         "api_config": {
           "$ref": "#/definitions/ApiConfig",
           "description": "API tool configuration"
-        }
+        },
+        "ignore_vcs": {
+          "type": "boolean",
+          "description": "Whether to ignore VCS files (.git directories and .gitignore patterns) in filesystem operations. Default: true",
+          "default": true
+        }   
       },
       "additionalProperties": false,
       "anyOf": [

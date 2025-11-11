@@ -13,6 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
+
 	"github.com/docker/cagent/pkg/fsx"
 	"github.com/docker/cagent/pkg/tools"
 )
@@ -45,6 +48,8 @@ type FilesystemTool struct {
 
 	allowedDirectories []string
 	postEditCommands   []PostEditConfig
+	ignoreVCS          bool
+	repoMatchers       map[string]gitignore.Matcher // map from repo root to matcher
 }
 
 var _ tools.ToolSet = (*FilesystemTool)(nil)
@@ -57,13 +62,26 @@ func WithPostEditCommands(postEditCommands []PostEditConfig) FileSystemOpt {
 	}
 }
 
+func WithIgnoreVCS(ignoreVCS bool) FileSystemOpt {
+	return func(t *FilesystemTool) {
+		t.ignoreVCS = ignoreVCS
+	}
+}
+
 func NewFilesystemTool(allowedDirectories []string, opts ...FileSystemOpt) *FilesystemTool {
 	t := &FilesystemTool{
 		allowedDirectories: allowedDirectories,
+		repoMatchers:       make(map[string]gitignore.Matcher),
 	}
 	for _, opt := range opts {
 		opt(t)
 	}
+
+	// Initialize gitignore matchers if VCS ignoring is enabled
+	if t.ignoreVCS {
+		t.initGitignoreMatchers()
+	}
+
 	return t
 }
 
@@ -401,6 +419,101 @@ func (t *FilesystemTool) isPathAllowed(path string) error {
 	return fmt.Errorf("path %s is not within allowed directories", path)
 }
 
+// initGitignoreMatchers initializes gitignore matchers for each allowed directory
+func (t *FilesystemTool) initGitignoreMatchers() {
+	for _, allowedDir := range t.allowedDirectories {
+		absDir, err := filepath.Abs(allowedDir)
+		if err != nil {
+			slog.Warn("Failed to get absolute path for allowed directory", "dir", allowedDir, "error", err)
+			continue
+		}
+		t.loadMatcherForDirectory(absDir)
+	}
+}
+
+// loadMatcherForDirectory loads a gitignore matcher for a specific directory
+func (t *FilesystemTool) loadMatcherForDirectory(absDir string) {
+	// PlainOpen automatically searches up the directory tree for .git
+	repo, err := git.PlainOpen(absDir)
+	if err != nil {
+		slog.Debug("No git repository found", "directory", absDir)
+		return
+	}
+
+	// Get the worktree
+	worktree, err := repo.Worktree()
+	if err != nil {
+		slog.Warn("Failed to get worktree", "path", absDir, "error", err)
+		return
+	}
+
+	// Get the repository root path
+	repoRoot := worktree.Filesystem.Root()
+
+	// Skip if we already have a matcher for this repository
+	if _, exists := t.repoMatchers[repoRoot]; exists {
+		return
+	}
+
+	// Read gitignore patterns from the repository
+	patterns, err := gitignore.ReadPatterns(worktree.Filesystem, nil)
+	if err != nil {
+		slog.Warn("Failed to read gitignore patterns", "path", repoRoot, "error", err)
+		return
+	}
+
+	// Create a matcher from the patterns
+	matcher := gitignore.NewMatcher(patterns)
+	t.repoMatchers[repoRoot] = matcher
+	slog.Debug("Loaded gitignore patterns", "repository", repoRoot)
+}
+
+// shouldIgnorePath checks if a path should be ignored based on VCS rules
+func (t *FilesystemTool) shouldIgnorePath(path string) bool {
+	if !t.ignoreVCS {
+		return false
+	}
+
+	// Always ignore .git directories and their contents
+	normalizedPath := filepath.ToSlash(path)
+	if strings.Contains(normalizedPath, "/.git/") || strings.HasSuffix(normalizedPath, "/.git") {
+		return true
+	}
+
+	// Check gitignore patterns
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+
+	// Find the appropriate gitignore matcher for this path
+	for repoRoot, matcher := range t.repoMatchers {
+		if !strings.HasPrefix(absPath, repoRoot) {
+			continue
+		}
+
+		// Create a relative path from the repository root for matching
+		relPath, err := filepath.Rel(repoRoot, absPath)
+		if err != nil {
+			return false
+		}
+
+		// Check if the path is a directory
+		info, err := os.Stat(path)
+		isDir := err == nil && info.IsDir()
+
+		// Use go-git matcher - pass relative path as single element in array
+		// Normalize to forward slashes as git expects
+		normalizedRelPath := filepath.ToSlash(relPath)
+		matched := matcher.Match([]string{normalizedRelPath}, isDir)
+		if matched {
+			return true
+		}
+	}
+
+	return false
+}
+
 // Handler implementations
 
 func (t *FilesystemTool) handleCreateDirectory(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
@@ -430,7 +543,7 @@ func (t *FilesystemTool) handleDirectoryTree(_ context.Context, toolCall tools.T
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
 	}
 
-	tree, err := fsx.DirectoryTree(args.Path, t.isPathAllowed, args.MaxDepth, 0)
+	tree, err := fsx.DirectoryTree(args.Path, t.isPathAllowed, t.shouldIgnorePath, args.MaxDepth, 0)
 	if err != nil {
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error building directory tree: %s", err)}, nil
 	}
@@ -580,6 +693,11 @@ func (t *FilesystemTool) handleAddAllowedDirectory(_ context.Context, toolCall t
 func (t *FilesystemTool) addAllowedDirectory(absPath string) (*tools.ToolCallResult, error) {
 	t.allowedDirectories = append(t.allowedDirectories, absPath)
 
+	// Load gitignore matcher for the new directory if VCS ignoring is enabled
+	if t.ignoreVCS {
+		t.loadMatcherForDirectory(absPath)
+	}
+
 	successMsg := fmt.Sprintf(`Directory successfully added to allowed directories list.
 
 Added: %s
@@ -609,6 +727,12 @@ func (t *FilesystemTool) handleListDirectory(_ context.Context, toolCall tools.T
 
 	var result strings.Builder
 	for _, entry := range entries {
+		// Check if entry should be ignored by VCS rules
+		entryPath := filepath.Join(args.Path, entry.Name())
+		if t.shouldIgnorePath(entryPath) {
+			continue
+		}
+
 		if entry.IsDir() {
 			result.WriteString(fmt.Sprintf("DIR  %s\n", entry.Name()))
 		} else {
@@ -636,6 +760,12 @@ func (t *FilesystemTool) handleListDirectoryWithSizes(_ context.Context, toolCal
 
 	var result strings.Builder
 	for _, entry := range entries {
+		// Check if entry should be ignored by VCS rules
+		entryPath := filepath.Join(args.Path, entry.Name())
+		if t.shouldIgnorePath(entryPath) {
+			continue
+		}
+
 		info, err := entry.Info()
 		if err != nil {
 			continue
@@ -777,6 +907,14 @@ func (t *FilesystemTool) handleSearchFiles(_ context.Context, toolCall tools.Too
 			return nil // Skip disallowed paths
 		}
 
+		// Check VCS ignore rules
+		if t.shouldIgnorePath(path) {
+			if d.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
+
 		// Check exclude patterns against relative path from search root
 		relPath, err := filepath.Rel(args.Path, path)
 		if err != nil {
@@ -837,6 +975,14 @@ func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, toolCall to
 		}
 
 		if err := t.isPathAllowed(path); err != nil {
+			return nil
+		}
+
+		// Check VCS ignore rules
+		if t.shouldIgnorePath(path) {
+			if d.IsDir() {
+				return fs.SkipDir
+			}
 			return nil
 		}
 

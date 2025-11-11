@@ -146,6 +146,15 @@ func createFilesystemTool(ctx context.Context, toolset latest.Toolset, parentDir
 	}
 
 	var opts []builtin.FileSystemOpt
+
+	// Handle ignore_vcs configuration (default to true)
+	ignoreVCS := true
+	if toolset.IgnoreVCS != nil {
+		ignoreVCS = *toolset.IgnoreVCS
+	}
+	opts = append(opts, builtin.WithIgnoreVCS(ignoreVCS))
+
+	// Handle post-edit commands
 	if len(toolset.PostEdit) > 0 {
 		postEditConfigs := make([]builtin.PostEditConfig, len(toolset.PostEdit))
 		for i, pe := range toolset.PostEdit {
