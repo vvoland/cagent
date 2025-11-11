@@ -10,6 +10,7 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
+	"github.com/anthropics/anthropic-sdk-go/packages/param"
 
 	"github.com/docker/cagent/pkg/chat"
 	latest "github.com/docker/cagent/pkg/config/v2"
@@ -193,6 +194,13 @@ func (c *Client) CreateChatCompletionStream(
 		MaxTokens: maxTokens,
 		Messages:  converted,
 		Tools:     allTools,
+	}
+
+	if c.ModelConfig.Temperature != nil {
+		params.Temperature = param.NewOpt(*c.ModelConfig.Temperature)
+	}
+	if c.ModelConfig.TopP != nil {
+		params.TopP = param.NewOpt(*c.ModelConfig.TopP)
 	}
 
 	// Populate proper Anthropic system prompt from input messages
