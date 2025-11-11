@@ -325,7 +325,8 @@ var (
 			Color: Accent,
 		},
 	}
-	EditorStyle = BaseStyle.Padding(2, 0, 0, 0)
+	EditorStyle          = BaseStyle.Padding(2, 0, 0, 0)
+	SuggestionGhostStyle = BaseStyle.Foreground(TextMuted)
 )
 
 // Notification Styles

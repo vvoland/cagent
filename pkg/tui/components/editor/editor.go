@@ -1,10 +1,13 @@
 package editor
 
 import (
+	"regexp"
 	"strings"
 
 	"charm.land/bubbles/v2/textarea"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"github.com/mattn/go-runewidth"
 
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/history"
@@ -26,6 +29,7 @@ type Editor interface {
 	layout.Sizeable
 	layout.Focusable
 	SetWorking(working bool) tea.Cmd
+	AcceptSuggestion() bool
 }
 
 // editor implements [Editor]
@@ -41,6 +45,10 @@ type editor struct {
 	// completionWord stores the word being completed
 	completionWord    string
 	currentCompletion completions.Completion
+
+	suggestion    string
+	hasSuggestion bool
+	cursorHidden  bool
 }
 
 // New creates a new editor component
@@ -66,6 +74,120 @@ func New(a *app.App, hist *history.History) Editor {
 // Init initializes the component
 func (e *editor) Init() tea.Cmd {
 	return textarea.Blink
+}
+
+var (
+	ansiRegexp = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
+)
+
+func stripANSI(s string) string {
+	return ansiRegexp.ReplaceAllString(s, "")
+}
+
+func lineHasContent(line, prompt string) bool {
+	plain := stripANSI(line)
+	if prompt != "" && strings.HasPrefix(plain, prompt) {
+		plain = strings.TrimPrefix(plain, prompt)
+	}
+
+	return strings.TrimSpace(plain) != ""
+}
+
+func lastInputLine(value string) string {
+	if idx := strings.LastIndex(value, "\n"); idx >= 0 {
+		return value[idx+1:]
+	}
+	return value
+}
+
+func (e *editor) applySuggestionOverlay(view string) string {
+	lines := strings.Split(view, "\n")
+	targetLine := -1
+	for i := len(lines) - 1; i >= 0; i-- {
+		if lineHasContent(lines[i], e.textarea.Prompt) {
+			targetLine = i
+			break
+		}
+	}
+
+	if targetLine == -1 {
+		return view
+	}
+
+	currentLine := lastInputLine(e.textarea.Value())
+	promptWidth := runewidth.StringWidth(stripANSI(e.textarea.Prompt))
+	textWidth := runewidth.StringWidth(currentLine)
+
+	ghost := styles.SuggestionGhostStyle.Render(e.suggestion)
+
+	baseLayer := lipgloss.NewLayer(view)
+	overlay := lipgloss.NewLayer(ghost).
+		X(promptWidth + textWidth).
+		Y(targetLine)
+
+	canvas := lipgloss.NewCanvas(baseLayer, overlay)
+	return canvas.Render()
+}
+
+func (e *editor) refreshSuggestion() {
+	if e.hist == nil {
+		e.clearSuggestion()
+		return
+	}
+
+	current := e.textarea.Value()
+	if current == "" {
+		e.clearSuggestion()
+		return
+	}
+
+	match := e.hist.LatestMatch(current)
+
+	if match == "" || match == current || len(match) <= len(current) {
+		e.clearSuggestion()
+		return
+	}
+
+	e.suggestion = match[len(current):]
+	if e.suggestion == "" {
+		e.clearSuggestion()
+		return
+	}
+
+	e.hasSuggestion = true
+	e.setCursorHidden(true)
+}
+
+func (e *editor) clearSuggestion() {
+	if !e.hasSuggestion && !e.cursorHidden {
+		return
+	}
+	e.hasSuggestion = false
+	e.suggestion = ""
+	e.setCursorHidden(false)
+}
+
+func (e *editor) setCursorHidden(hidden bool) {
+	if e.cursorHidden == hidden || e.textarea == nil {
+		return
+	}
+
+	e.cursorHidden = hidden
+	e.textarea.SetVirtualCursor(!hidden)
+}
+
+func (e *editor) AcceptSuggestion() bool {
+	if !e.hasSuggestion || e.suggestion == "" {
+		return false
+	}
+
+	current := e.textarea.Value()
+	e.textarea.SetValue(current + e.suggestion)
+	e.textarea.MoveToEnd()
+
+	e.clearSuggestion()
+
+	return true
 }
 
 // Update handles messages and updates the component state
@@ -108,6 +230,7 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			value := e.textarea.Value()
 			if value != "" && !e.working {
 				e.textarea.Reset()
+				e.refreshSuggestion()
 				return e, core.CmdHandler(SendMsg{Content: value})
 			}
 			return e, nil
@@ -116,10 +239,12 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		case "up":
 			e.textarea.SetValue(e.hist.Previous())
 			e.textarea.MoveToEnd()
+			e.refreshSuggestion()
 			return e, nil
 		case "down":
 			e.textarea.SetValue(e.hist.Next())
 			e.textarea.MoveToEnd()
+			e.refreshSuggestion()
 			return e, nil
 		default:
 			for _, completion := range e.completions {
@@ -154,6 +279,8 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		}
 	}
 
+	e.refreshSuggestion()
+
 	return e, tea.Batch(cmds...)
 }
 
@@ -166,7 +293,13 @@ func (e *editor) startCompletion(c completions.Completion) tea.Cmd {
 
 // View renders the component
 func (e *editor) View() string {
-	return styles.EditorStyle.Render(e.textarea.View())
+	view := e.textarea.View()
+
+	if e.hasSuggestion && e.suggestion != "" {
+		view = e.applySuggestionOverlay(view)
+	}
+
+	return styles.EditorStyle.Render(view)
 }
 
 // SetSize sets the dimensions of the component
