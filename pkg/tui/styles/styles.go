@@ -328,6 +328,12 @@ var (
 	EditorStyle = BaseStyle.Padding(2, 0, 0, 0)
 )
 
+// Scrollbar
+var (
+	TrackStyle = lipgloss.NewStyle().Foreground(BorderSecondary)
+	ThumbStyle = lipgloss.NewStyle().Foreground(Accent)
+)
+
 // Notification Styles
 var (
 	NotificationStyle = BaseStyle.
