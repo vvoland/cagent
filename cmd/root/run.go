@@ -65,6 +65,7 @@ func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 	cmd.PersistentFlags().BoolVar(&flags.autoApprove, "yolo", false, "Automatically approve all tool calls without prompting")
 	cmd.PersistentFlags().StringVar(&flags.attachmentPath, "attach", "", "Attach an image file to the message")
 	cmd.PersistentFlags().StringArrayVar(&flags.modelOverrides, "model", nil, "Override agent model: [agent=]provider/model (repeatable)")
+	cmd.PersistentFlags().BoolVar(&flags.dryRun, "dry-run", false, "Initialize the agent without executing anything")
 }
 
 func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
@@ -112,6 +113,11 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 		if err != nil {
 			return err
 		}
+	}
+
+	if f.dryRun {
+		out.Println("Dry run mode enabled. Agent initialized but will not execute.")
+		return nil
 	}
 
 	if exec {
@@ -218,11 +224,6 @@ func (f *runExecFlags) handleExecMode(ctx context.Context, out *cli.Printer, age
 		execArgs = append(execArgs, args[1])
 	} else {
 		execArgs = append(execArgs, "Follow the default instructions")
-	}
-
-	if f.dryRun {
-		out.Println("Dry run mode enabled. Agent initialized but will not execute.")
-		return nil
 	}
 
 	err := cli.Run(ctx, out, cli.Config{

@@ -17,8 +17,6 @@ func newExecCmd() *cobra.Command {
 		RunE:  flags.runExecCommand,
 	}
 
-	cmd.PersistentFlags().BoolVar(&flags.dryRun, "dry-run", false, "Initialize the agent without executing anything")
-
 	addRunOrExecFlags(cmd, &flags)
 	addRuntimeConfigFlags(cmd, &flags.runConfig)
 
