@@ -99,7 +99,7 @@ func (s *selectionState) end() {
 
 // model implements Model
 type model struct {
-	messages []types.Message
+	messages []*types.Message
 	views    []layout.Model
 	width    int
 	height   int
@@ -342,7 +342,7 @@ func (m *model) View() string {
 // SetSize sets the dimensions of the component
 func (m *model) SetSize(width, height int) tea.Cmd {
 	// Reserve 1 character for scrollbar
-	m.width = width - 1
+	m.width = width - 2
 	m.height = height
 
 	for _, view := range m.views {
@@ -548,31 +548,20 @@ func (m *model) isAtBottom() bool {
 
 // AddUserMessage adds a user message to the chat
 func (m *model) AddUserMessage(content string) tea.Cmd {
-	return m.addMessage(&types.Message{
-		Type:    types.MessageTypeUser,
-		Content: content,
-	})
+	return m.addMessage(types.User(content))
 }
 
 func (m *model) AddErrorMessage(content string) tea.Cmd {
-	return m.addMessage(&types.Message{
-		Type:    types.MessageTypeError,
-		Content: content,
-	})
+	return m.addMessage(types.Error(content))
 }
 
 func (m *model) AddShellOutputMessage(content string) tea.Cmd {
-	return m.addMessage(&types.Message{
-		Type:    types.MessageTypeShellOutput,
-		Content: content,
-	})
+	return m.addMessage(types.ShellOutput(content))
 }
 
 // AddAssistantMessage adds an assistant message to the chat
 func (m *model) AddAssistantMessage() tea.Cmd {
-	return m.addMessage(&types.Message{
-		Type: types.MessageTypeSpinner,
-	})
+	return m.addMessage(types.Spinner())
 }
 
 func (m *model) addMessage(msg *types.Message) tea.Cmd {
@@ -580,7 +569,7 @@ func (m *model) addMessage(msg *types.Message) tea.Cmd {
 
 	wasAtBottom := m.isAtBottom()
 
-	m.messages = append(m.messages, *msg)
+	m.messages = append(m.messages, msg)
 
 	view := m.createMessageView(msg)
 	m.views = append(m.views, view)
@@ -602,12 +591,10 @@ func (m *model) addMessage(msg *types.Message) tea.Cmd {
 
 // AddCancelledMessage adds a cancellation indicator to the chat
 func (m *model) AddCancelledMessage() tea.Cmd {
-	msg := types.Message{
-		Type: types.MessageTypeCancelled,
-	}
+	msg := types.Cancelled()
 	m.messages = append(m.messages, msg)
 
-	view := m.createMessageView(&msg)
+	view := m.createMessageView(msg)
 	m.views = append(m.views, view)
 
 	return view.Init()
@@ -618,14 +605,10 @@ func (m *model) AddWelcomeMessage(content string) tea.Cmd {
 	if content == "" {
 		return nil
 	}
-
-	msg := types.Message{
-		Type:    types.MessageTypeWelcome,
-		Content: content,
-	}
+	msg := types.Welcome(content)
 	m.messages = append(m.messages, msg)
 
-	view := m.createMessageView(&msg)
+	view := m.createMessageView(msg)
 	m.views = append(m.views, view)
 
 	return view.Init()
@@ -635,7 +618,7 @@ func (m *model) AddWelcomeMessage(content string) tea.Cmd {
 func (m *model) AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, toolDef tools.Tool, status types.ToolStatus) tea.Cmd {
 	// First try to update existing tool by ID
 	for i := len(m.messages) - 1; i >= 0; i-- {
-		msg := &m.messages[i]
+		msg := m.messages[i]
 		if msg.ToolCall.ID == toolCall.ID {
 			msg.ToolStatus = status
 			if toolCall.Function.Arguments != "" {
@@ -653,16 +636,10 @@ func (m *model) AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, t
 	m.removeSpinner()
 
 	// Create new tool call
-	msg := types.Message{
-		Type:           types.MessageTypeToolCall,
-		Sender:         agentName,
-		ToolCall:       toolCall,
-		ToolDefinition: toolDef,
-		ToolStatus:     status,
-	}
+	msg := types.ToolCallMessage(agentName, toolCall, toolDef, status)
 	m.messages = append(m.messages, msg)
 
-	view := m.createToolCallView(&msg)
+	view := m.createToolCallView(msg)
 	m.views = append(m.views, view)
 
 	return view.Init()
@@ -671,9 +648,9 @@ func (m *model) AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, t
 // AddToolResult adds tool result to the most recent matching tool call
 func (m *model) AddToolResult(msg *runtime.ToolCallResponseEvent, status types.ToolStatus) tea.Cmd {
 	for i := len(m.messages) - 1; i >= 0; i-- {
-		toolMessage := &m.messages[i]
+		toolMessage := m.messages[i]
 		if toolMessage.ToolCall.ID == msg.ToolCall.ID {
-			toolMessage.Content = msg.Response
+			toolMessage.Content = strings.ReplaceAll(msg.Response, "\t", "    ")
 			toolMessage.ToolStatus = status
 			m.invalidateItem(i)
 
@@ -694,7 +671,7 @@ func (m *model) AppendToLastMessage(agentName string, messageType types.MessageT
 	}
 
 	lastIdx := len(m.messages) - 1
-	lastMsg := &m.messages[lastIdx]
+	lastMsg := m.messages[lastIdx]
 
 	if lastMsg.Type == messageType {
 		lastMsg.Content += content
@@ -702,15 +679,10 @@ func (m *model) AppendToLastMessage(agentName string, messageType types.MessageT
 		m.invalidateItem(lastIdx)
 		return nil
 	} else {
-		// Create new assistant message
-		msg := types.Message{
-			Type:    messageType,
-			Content: content,
-			Sender:  agentName,
-		}
+		msg := types.Agent(messageType, agentName, content)
 		m.messages = append(m.messages, msg)
 
-		view := m.createMessageView(&msg)
+		view := m.createMessageView(msg)
 		m.views = append(m.views, view)
 
 		var cmd tea.Cmd
@@ -730,7 +702,9 @@ func (m *model) ScrollToBottom() tea.Cmd {
 }
 
 func (m *model) createToolCallView(msg *types.Message) layout.Model {
-	view := tool.New(msg, markdown.NewRenderer(m.width), m.sessionState)
+	// TODO: -3 because of the padding in the tool calls, we should really make
+	// our own layout system and stop messing around with these magic numbers
+	view := tool.New(msg, markdown.NewRenderer(m.width-3), m.sessionState)
 	view.SetSize(m.width, 0)
 	return view
 }
@@ -760,7 +734,7 @@ func (m *model) removeSpinner() {
 
 // removePendingToolCallMessages removes any tool call messages that are in pending or running state
 func (m *model) removePendingToolCallMessages() {
-	var newMessages []types.Message
+	var newMessages []*types.Message
 	var newViews []layout.Model
 
 	for i, msg := range m.messages {

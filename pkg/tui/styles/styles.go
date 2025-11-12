@@ -161,9 +161,7 @@ var (
 
 // Layout Styles
 var (
-	HeaderStyle        = BaseStyle.Foreground(Accent).Padding(0, 0, 1, 0)
-	PaddedContentStyle = BaseStyle.Padding(1, 2)
-	CenterStyle        = BaseStyle.Align(lipgloss.Center, lipgloss.Center)
+	CenterStyle = BaseStyle.Align(lipgloss.Center, lipgloss.Center)
 )
 
 // Border Styles
@@ -294,18 +292,18 @@ var (
 // Tool Call Styles
 var (
 	ToolCallArgs = BaseStyle.
-			PaddingLeft(1).
-			BorderLeft(true).
-			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(BorderSecondary)
+		// PaddingLeft(1).
+		BorderLeft(true).
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(BorderSecondary)
 
 	ToolCallArgKey = BaseStyle.Bold(true).Foreground(TextSecondary)
 
 	ToolCallResult = BaseStyle.
-			PaddingLeft(1).
-			BorderLeft(true).
-			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(BorderSecondary)
+		// PaddingLeft(1).
+		BorderLeft(true).
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(BorderSecondary)
 
 	ToolCallResultKey = BaseStyle.Bold(true).Foreground(TextSecondary)
 )
