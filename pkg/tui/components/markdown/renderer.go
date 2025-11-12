@@ -10,7 +10,7 @@ func NewRenderer(width int) *glamour.TermRenderer {
 	style := styles.MarkdownStyle()
 
 	r, _ := glamour.NewTermRenderer(
-		glamour.WithWordWrap(min(width, 120)),
+		glamour.WithWordWrap(width),
 		glamour.WithStyles(style),
 	)
 	return r
