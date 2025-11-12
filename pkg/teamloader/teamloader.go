@@ -337,7 +337,12 @@ func Load(ctx context.Context, p string, runtimeConfig config.RuntimeConfig, opt
 	env := environment.NewMultiProvider(envFilesProviders, defaultEnvProvider)
 
 	// Load the agent's configuration
-	cfg, err := config.LoadConfigSecureDeprecated(fileName, parentDir)
+	fs, err := os.OpenRoot(parentDir)
+	if err != nil {
+		return nil, fmt.Errorf("opening filesystem %s: %w", parentDir, err)
+	}
+
+	cfg, err := config.LoadConfig(fileName, fs)
 	if err != nil {
 		return nil, err
 	}
