@@ -19,8 +19,8 @@ interactions:
     proto_major: 2
     proto_minor: 0
     content_length: -1
-    body: "data: {\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"2+2=4\"}],\"role\": \"model\"},\"finishReason\": \"STOP\",\"index\": 0}],\"usageMetadata\": {\"promptTokenCount\": 35,\"candidatesTokenCount\": 5,\"totalTokenCount\": 86,\"promptTokensDetails\": [{\"modality\": \"TEXT\",\"tokenCount\": 35}],\"thoughtsTokenCount\": 46},\"modelVersion\": \"gemini-2.5-flash\",\"responseId\": \"WM4NaY27K_fqkdUP3_q7iA8\"}\r\n\r\n"
+    body: "data: {\"candidates\": [{\"content\": {\"parts\": [{\"text\": \"2 + 2 = 4\"}],\"role\": \"model\"},\"finishReason\": \"STOP\",\"index\": 0}],\"usageMetadata\": {\"promptTokenCount\": 35,\"candidatesTokenCount\": 7,\"totalTokenCount\": 62,\"promptTokensDetails\": [{\"modality\": \"TEXT\",\"tokenCount\": 35}],\"thoughtsTokenCount\": 20},\"modelVersion\": \"gemini-2.5-flash\",\"responseId\": \"KbsUaZ_aC72vnsEPyNaRiAk\"}\r\n\r\n"
     headers: {}
     status: 200 OK
     code: 200
-    duration: 700.886458ms
+    duration: 753.598125ms

@@ -429,6 +429,13 @@ func extractSystemBlocks(messages []chat.Message) []anthropic.TextBlockParam {
 			systemBlocks = append(systemBlocks, anthropic.TextBlockParam{Text: txt})
 		}
 	}
+
+	if len(systemBlocks) != 0 {
+		sb := systemBlocks[len(systemBlocks)-1]
+		sb.CacheControl = anthropic.NewCacheControlEphemeralParam()
+		systemBlocks[len(systemBlocks)-1] = sb
+	}
+
 	return systemBlocks
 }
 
@@ -446,6 +453,11 @@ func convertTools(tooles []tools.Tool) ([]anthropic.ToolUnionParam, error) {
 			Description: anthropic.String(tool.Description),
 			InputSchema: inputSchema,
 		}
+	}
+	if len(toolParams) != 0 {
+		tp := toolParams[len(toolParams)-1]
+		tp.CacheControl = anthropic.NewCacheControlEphemeralParam()
+		toolParams[len(toolParams)-1] = tp
 	}
 	anthropicTools := make([]anthropic.ToolUnionParam, len(toolParams))
 	for i := range toolParams {
