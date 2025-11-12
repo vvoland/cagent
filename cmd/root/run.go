@@ -50,17 +50,21 @@ func newRunCmd() *cobra.Command {
 		RunE: flags.runRunCommand,
 	}
 
+	cmd.PersistentFlags().BoolVar(&flags.useTUI, "tui", true, "Run the agent with a Terminal User Interface (TUI)")
+	cmd.PersistentFlags().StringVar(&flags.remoteAddress, "remote", "", "Use remote runtime with specified address (only supported with TUI)")
+
+	addRunOrExecFlags(cmd, &flags)
+	addRuntimeConfigFlags(cmd, &flags.runConfig)
+
+	return cmd
+}
+
+func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 	cmd.PersistentFlags().StringVarP(&flags.agentName, "agent", "a", "root", "Name of the agent to run")
 	cmd.PersistentFlags().StringVar(&flags.workingDir, "working-dir", "", "Set the working directory for the session (applies to tools and relative paths)")
 	cmd.PersistentFlags().BoolVar(&flags.autoApprove, "yolo", false, "Automatically approve all tool calls without prompting")
 	cmd.PersistentFlags().StringVar(&flags.attachmentPath, "attach", "", "Attach an image file to the message")
-	cmd.PersistentFlags().BoolVar(&flags.useTUI, "tui", true, "Run the agent with a Terminal User Interface (TUI)")
-	cmd.PersistentFlags().StringVar(&flags.remoteAddress, "remote", "", "Use remote runtime with specified address (only supported with TUI)")
 	cmd.PersistentFlags().StringArrayVar(&flags.modelOverrides, "model", nil, "Override agent model: [agent=]provider/model (repeatable)")
-
-	addRuntimeConfigFlags(cmd, &flags.runConfig)
-
-	return cmd
 }
 
 func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
