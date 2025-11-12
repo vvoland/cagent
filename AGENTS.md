@@ -10,8 +10,7 @@
 
 ### Running cagent
 
-- `./bin/cagent run <config.yaml>` - Run agent with configuration (uses TUI by default)
-- `./bin/cagent run <config.yaml> --tui=false` - Run in CLI mode
+- `./bin/cagent run <config.yaml>` - Run agent with configuration
 - `./bin/cagent run <config.yaml> -a <agent_name>` - Run specific agent
 - `./bin/cagent exec <config.yaml>` - Execute agent without TUI
 

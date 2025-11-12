@@ -28,7 +28,6 @@ type runExecFlags struct {
 	workingDir     string
 	autoApprove    bool
 	attachmentPath string
-	useTUI         bool
 	remoteAddress  string
 	modelOverrides []string
 	dryRun         bool
@@ -50,8 +49,7 @@ func newRunCmd() *cobra.Command {
 		RunE: flags.runRunCommand,
 	}
 
-	cmd.PersistentFlags().BoolVar(&flags.useTUI, "tui", true, "Run the agent with a Terminal User Interface (TUI)")
-	cmd.PersistentFlags().StringVar(&flags.remoteAddress, "remote", "", "Use remote runtime with specified address (only supported with TUI)")
+	cmd.PersistentFlags().StringVar(&flags.remoteAddress, "remote", "", "Use remote runtime with specified address")
 
 	addRunOrExecFlags(cmd, &flags)
 	addRuntimeConfigFlags(cmd, &flags.runConfig)
@@ -79,10 +77,6 @@ func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
 
 func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []string, exec bool) error {
 	slog.Debug("Starting agent", "agent", f.agentName)
-
-	if err := f.validateRemoteFlag(exec); err != nil {
-		return err
-	}
 
 	if err := f.setupWorkingDirectory(); err != nil {
 		return err
@@ -124,11 +118,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 		return f.handleExecMode(ctx, out, agentFileName, rt, sess, args)
 	}
 
-	if !f.useTUI {
-		return f.handleCLIMode(ctx, out, agentFileName, rt, sess, args)
-	}
-
-	return handleTUIMode(ctx, agentFileName, rt, sess, args)
+	return handleRunMode(ctx, agentFileName, rt, sess, args)
 }
 
 func (f *runExecFlags) setupWorkingDirectory() error {
@@ -158,13 +148,6 @@ func (f *runExecFlags) loadAgents(ctx context.Context, agentFilename string) (*t
 	}()
 
 	return t, nil
-}
-
-func (f *runExecFlags) validateRemoteFlag(exec bool) error {
-	if f.remoteAddress != "" && (!f.useTUI || exec) {
-		return fmt.Errorf("--remote flag can only be used with TUI mode")
-	}
-	return nil
 }
 
 func (f *runExecFlags) createRemoteRuntimeAndSession(ctx context.Context, originalFilename string) (runtime.Runtime, *session.Session, error) {
@@ -236,17 +219,6 @@ func (f *runExecFlags) handleExecMode(ctx context.Context, out *cli.Printer, age
 	return err
 }
 
-func (f *runExecFlags) handleCLIMode(ctx context.Context, out *cli.Printer, agentFilename string, rt runtime.Runtime, sess *session.Session, args []string) error {
-	err := cli.Run(ctx, out, cli.Config{
-		AppName:        AppName,
-		AttachmentPath: f.attachmentPath,
-	}, agentFilename, rt, sess, args)
-	if cliErr, ok := err.(cli.RuntimeError); ok {
-		return RuntimeError{Err: cliErr.Err}
-	}
-	return err
-}
-
 func readInitialMessage(args []string) (*string, error) {
 	if len(args) < 2 {
 		return nil, nil
@@ -264,7 +236,7 @@ func readInitialMessage(args []string) (*string, error) {
 	return &args[1], nil
 }
 
-func handleTUIMode(ctx context.Context, agentFilename string, rt runtime.Runtime, sess *session.Session, args []string) error {
+func handleRunMode(ctx context.Context, agentFilename string, rt runtime.Runtime, sess *session.Session, args []string) error {
 	firstMessage, err := readInitialMessage(args)
 	if err != nil {
 		return err
