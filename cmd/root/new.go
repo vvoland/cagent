@@ -86,6 +86,7 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	rt, err := runtime.New(t)
 	if err != nil {
 		return err

@@ -213,6 +213,9 @@ func Agent(ctx context.Context, baseDir string, runConfig config.RuntimeConfig, 
 				"root",
 				instructions,
 				agent.WithModel(llm),
+				agent.WithWelcomeMessage(`Hello! I'm here to create agents for you.
+				
+Can you explain to me what the agent will be used for?`),
 				agent.WithToolSets(
 					builtin.NewShellTool(os.Environ()),
 					&fsToolset,
