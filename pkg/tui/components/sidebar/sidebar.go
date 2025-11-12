@@ -5,12 +5,12 @@ import (
 	"os"
 	"strings"
 
-	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/components/tool/todotool"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/service"
@@ -44,7 +44,7 @@ type model struct {
 	todoComp     *todotool.SidebarComponent
 	working      bool
 	mcpInit      bool
-	spinner      spinner.Model
+	spinner      spinner.Spinner
 	mode         Mode
 	sessionTitle string
 }
@@ -55,7 +55,7 @@ func New(manager *service.TodoManager) Model {
 		height:       24,
 		usage:        &runtime.Usage{},
 		todoComp:     todotool.NewSidebarComponent(manager),
-		spinner:      spinner.New(spinner.WithSpinner(spinner.Dot)),
+		spinner:      spinner.New(spinner.ModeSpinnerOnly),
 		sessionTitle: "New session",
 	}
 }
@@ -76,8 +76,7 @@ func (m *model) SetTodos(toolCall tools.ToolCall) error {
 func (m *model) SetWorking(working bool) tea.Cmd {
 	m.working = working
 	if working {
-		// Start spinner when beginning to work
-		return m.spinner.Tick
+		return m.spinner.Init()
 	}
 	return nil
 }
@@ -115,7 +114,7 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return m, cmd
 	case *runtime.MCPInitStartedEvent:
 		m.mcpInit = true
-		return m, m.spinner.Tick
+		return m, m.spinner.Init()
 	case *runtime.MCPInitFinishedEvent:
 		m.mcpInit = false
 		return m, nil
@@ -125,7 +124,9 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	default:
 		if m.working || m.mcpInit {
 			var cmd tea.Cmd
-			m.spinner, cmd = m.spinner.Update(msg)
+			var model layout.Model
+			model, cmd = m.spinner.Update(msg)
+			m.spinner = model.(spinner.Spinner)
 			return m, cmd
 		}
 		return m, nil
@@ -190,7 +191,7 @@ func (m *model) workingIndicator() string {
 		if m.mcpInit {
 			label = "Initializing MCP servers..."
 		}
-		indicator := styles.ActiveStyle.Render(m.spinner.View() + label)
+		indicator := styles.ActiveStyle.Render(m.spinner.View() + " " + label)
 		return indicator
 	}
 

@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/glamour/v2"
 
 	"github.com/docker/cagent/pkg/tools/builtin"
+	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/service"
@@ -22,7 +22,7 @@ type ToggleDiffViewMsg struct{}
 type Component struct {
 	message      *types.Message
 	renderer     *glamour.TermRenderer
-	spinner      spinner.Model
+	spinner      spinner.Spinner
 	width        int
 	height       int
 	sessionState *service.SessionState
@@ -36,7 +36,7 @@ func New(
 	return &Component{
 		message:      msg,
 		renderer:     renderer,
-		spinner:      spinner.New(spinner.WithSpinner(spinner.Points)),
+		spinner:      spinner.New(spinner.ModeSpinnerOnly),
 		width:        80,
 		height:       1,
 		sessionState: sessionState,
@@ -51,7 +51,7 @@ func (c *Component) SetSize(width, height int) tea.Cmd {
 
 func (c *Component) Init() tea.Cmd {
 	if c.message.ToolStatus == types.ToolStatusPending || c.message.ToolStatus == types.ToolStatusRunning {
-		return c.spinner.Tick
+		return c.spinner.Init()
 	}
 	return nil
 }
@@ -59,7 +59,9 @@ func (c *Component) Init() tea.Cmd {
 func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	if c.message.ToolStatus == types.ToolStatusPending || c.message.ToolStatus == types.ToolStatusRunning {
 		var cmd tea.Cmd
-		c.spinner, cmd = c.spinner.Update(msg)
+		var model layout.Model
+		model, cmd = c.spinner.Update(msg)
+		c.spinner = model.(spinner.Spinner)
 		return c, cmd
 	}
 
