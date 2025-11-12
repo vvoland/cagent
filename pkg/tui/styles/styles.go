@@ -326,6 +326,8 @@ var (
 		},
 	}
 	EditorStyle = BaseStyle.Padding(2, 0, 0, 0)
+	// SuggestionGhostStyle renders inline auto-complete hints in a muted tone.
+	SuggestionGhostStyle = BaseStyle.Foreground(TextMuted)
 )
 
 // Scrollbar

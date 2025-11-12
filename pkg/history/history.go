@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type History struct {
@@ -79,6 +80,25 @@ func (h *History) Next() string {
 
 	h.current++
 	return h.Messages[h.current]
+}
+
+// LatestMatch returns the most recent history entry that extends the provided
+// prefix, or the latest message when no prefix is supplied.
+func (h *History) LatestMatch(prefix string) string {
+	if prefix == "" {
+		if len(h.Messages) == 0 {
+			return ""
+		}
+		return h.Messages[len(h.Messages)-1]
+	}
+
+	for i := len(h.Messages) - 1; i >= 0; i-- {
+		if strings.HasPrefix(h.Messages[i], prefix) && len(h.Messages[i]) > len(prefix) {
+			return h.Messages[i]
+		}
+	}
+
+	return ""
 }
 
 func (h *History) save() error {

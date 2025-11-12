@@ -161,6 +161,12 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return p, tea.Batch(cmds...)
 
 	case tea.KeyPressMsg:
+		if msg.String() == "tab" && p.focusedPanel == PanelEditor {
+			if p.editor.AcceptSuggestion() {
+				return p, nil
+			}
+		}
+
 		if msg.String() == "ctrl+t" {
 			model, cmd := p.messages.Update(editfile.ToggleDiffViewMsg{})
 			p.messages = model.(messages.Model)
