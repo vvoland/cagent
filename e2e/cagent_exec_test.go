@@ -33,7 +33,7 @@ func TestExec_Anthropic(t *testing.T) {
 func TestExec_Gemini(t *testing.T) {
 	out := cagentExec(t, "testdata/basic.yaml", "--model=google/gemini-2.5-flash", "What's 2+2?")
 
-	require.Equal(t, "\n--- Agent: root ---\n\n2+2=4", out)
+	require.Equal(t, "\n--- Agent: root ---\n\n2 + 2 = 4", out)
 }
 
 func TestExec_Mistral(t *testing.T) {
