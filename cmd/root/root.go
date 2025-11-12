@@ -35,7 +35,7 @@ func NewRootCmd() *cobra.Command {
 		Long:  `cagent is a command-line tool for running AI agents`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// Initialize logging before anything else so logs don't break TUI
-			if err := flags.setupLogging(cmd); err != nil {
+			if err := flags.setupLogging(); err != nil {
 				// If logging setup fails, fall back to stderr so we still get logs
 				slog.SetDefault(slog.New(slog.NewTextHandler(cmd.ErrOrStderr(), &slog.HandlerOptions{
 					Level: func() slog.Level {
@@ -156,72 +156,30 @@ We collect anonymous usage data to help improve cagent. To disable:
 
 // setupLogging configures slog logging behavior.
 // When --debug is enabled, logs are written to a single file <dataDir>/cagent.debug.log (append mode),
-// or to the file specified by --log-file. When in the TUI, structured logs are suppressed if not in --debug mode
-func (f *rootFlags) setupLogging(cmd *cobra.Command) error {
-	level := slog.LevelInfo
-	if f.debugMode {
-		level = slog.LevelDebug
+// or to the file specified by --log-file.
+func (f *rootFlags) setupLogging() error {
+	if !f.debugMode {
+		slog.SetDefault(slog.New(slog.DiscardHandler))
+		return nil
 	}
 
-	// Determine if TUI is enabled for the run command
-	useTUI := false
-	if cmd != nil && cmd.Name() == "run" {
-		if f := cmd.Flags().Lookup("tui"); f != nil {
-			if v, err := cmd.Flags().GetBool("tui"); err == nil {
-				useTUI = v
-			}
-		}
+	path := strings.TrimSpace(f.logFilePath)
+	if path == "" {
+		path = filepath.Join(paths.GetDataDir(), "cagent.debug.log")
 	}
 
-	var writer io.Writer
-	if f.debugMode {
-		// Determine path from flag or default to <dataDir>/cagent.debug.log
-		path := strings.TrimSpace(f.logFilePath)
-		if path == "" {
-			dataDir := paths.GetDataDir()
-			path = filepath.Join(dataDir, "cagent.debug.log")
-		} else {
-			if path == "~" || strings.HasPrefix(path, "~/") {
-				homeDir, err := os.UserHomeDir()
-				if err == nil {
-					path = filepath.Join(homeDir, strings.TrimPrefix(path, "~/"))
-				}
-			} else if strings.HasPrefix(path, "~\\") { // Windows-style path expansion
-				homeDir, err := os.UserHomeDir()
-				if err == nil {
-					path = filepath.Join(homeDir, strings.TrimPrefix(path, "~\\"))
-				}
-			}
-		}
-
-		// Ensure directory exists
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			return err
-		}
-
-		// Open file for appending
-		logFile, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-		if err != nil {
-			return err
-		}
-		f.logFile = logFile
-
-		// In debug mode, write to file; mirror to stderr when not in TUI
-		if useTUI {
-			writer = logFile
-		} else {
-			writer = io.MultiWriter(logFile, os.Stderr)
-		}
-	} else {
-		// Non-debug: discard logs in TUI to keep interface clean, else stderr
-		if useTUI {
-			writer = io.Discard
-		} else {
-			writer = os.Stderr
-		}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
 	}
 
-	slog.SetDefault(slog.New(slog.NewTextHandler(writer, &slog.HandlerOptions{Level: level})))
+	logFile, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	f.logFile = logFile
+
+	slog.SetDefault(slog.New(slog.NewTextHandler(logFile, &slog.HandlerOptions{Level: slog.LevelDebug})))
+
 	return nil
 }
 
