@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 
 	"github.com/goccy/go-yaml"
@@ -16,15 +15,6 @@ import (
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/filesystem"
 )
-
-func LoadConfigSecureDeprecated(path, allowedDir string) (*latest.Config, error) {
-	fs, err := os.OpenRoot(allowedDir)
-	if err != nil {
-		return nil, fmt.Errorf("opening filesystem %s: %w", allowedDir, err)
-	}
-
-	return LoadConfig(path, fs)
-}
 
 func LoadConfig(path string, fs filesystem.FS) (*latest.Config, error) {
 	data, err := fs.ReadFile(path)
