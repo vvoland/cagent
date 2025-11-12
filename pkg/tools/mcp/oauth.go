@@ -363,7 +363,7 @@ func (t *oauthTransport) handleOAuthFlow(ctx context.Context, authServer, wwwAut
 		resourceURL = authServer + "/.well-known/oauth-protected-resource"
 	}
 
-	resp, err := http.DefaultClient.Get(resourceURL)
+	resp, err := http.Get(resourceURL)
 	if err != nil {
 		return err
 	}

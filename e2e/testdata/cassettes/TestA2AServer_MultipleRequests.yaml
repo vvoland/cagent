@@ -1,0 +1,43 @@
+---
+version: 2
+interactions:
+- id: 0
+  request:
+    proto: HTTP/1.1
+    proto_major: 1
+    proto_minor: 1
+    content_length: 0
+    host: api.openai.com
+    body: "{\"messages\":[{\"content\":\"You are a knowledgeable assistant that helps users with various tasks.\\nBe helpful, accurate, and concise in your responses.\\n\",\"role\":\"system\"},{\"content\":\"Say 'hello' in one word.\",\"role\":\"user\"}],\"model\":\"gpt-3.5-turbo\",\"stream_options\":{\"include_usage\":true},\"stream\":true}"
+    url: https://api.openai.com/v1/chat/completions
+    method: POST
+  response:
+    proto: HTTP/2.0
+    proto_major: 2
+    proto_minor: 0
+    content_length: -1
+    body: "data: {\"id\":\"chatcmpl-Cb1ciVzo7PY6pnChoULywtw7ccGot\",\"object\":\"chat.completion.chunk\",\"created\":1762940412,\"model\":\"gpt-3.5-turbo-0125\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\",\"refusal\":null},\"logprobs\":null,\"finish_reason\":null}],\"usage\":null,\"obfuscation\":\"G0DsHqYV\"}\n\ndata: {\"id\":\"chatcmpl-Cb1ciVzo7PY6pnChoULywtw7ccGot\",\"object\":\"chat.completion.chunk\",\"created\":1762940412,\"model\":\"gpt-3.5-turbo-0125\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Greetings\"},\"logprobs\":null,\"finish_reason\":null}],\"usage\":null,\"obfuscation\":\"J\"}\n\ndata: {\"id\":\"chatcmpl-Cb1ciVzo7PY6pnChoULywtw7ccGot\",\"object\":\"chat.completion.chunk\",\"created\":1762940412,\"model\":\"gpt-3.5-turbo-0125\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\".\"},\"logprobs\":null,\"finish_reason\":null}],\"usage\":null,\"obfuscation\":\"tA1Qok3G6\"}\n\ndata: {\"id\":\"chatcmpl-Cb1ciVzo7PY6pnChoULywtw7ccGot\",\"object\":\"chat.completion.chunk\",\"created\":1762940412,\"model\":\"gpt-3.5-turbo-0125\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{},\"logprobs\":null,\"finish_reason\":\"stop\"}],\"usage\":null,\"obfuscation\":\"taao\"}\n\ndata: {\"id\":\"chatcmpl-Cb1ciVzo7PY6pnChoULywtw7ccGot\",\"object\":\"chat.completion.chunk\",\"created\":1762940412,\"model\":\"gpt-3.5-turbo-0125\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[],\"usage\":{\"prompt_tokens\":42,\"completion_tokens\":2,\"total_tokens\":44,\"prompt_tokens_details\":{\"cached_tokens\":0,\"audio_tokens\":0},\"completion_tokens_details\":{\"reasoning_tokens\":0,\"audio_tokens\":0,\"accepted_prediction_tokens\":0,\"rejected_prediction_tokens\":0}},\"obfuscation\":\"4pgN2aFuCJ\"}\n\ndata: [DONE]\n\n"
+    headers: {}
+    status: 200 OK
+    code: 200
+    duration: 532.881542ms
+- id: 1
+  request:
+    proto: HTTP/1.1
+    proto_major: 1
+    proto_minor: 1
+    content_length: 0
+    host: api.openai.com
+    body: "{\"messages\":[{\"content\":\"You are a knowledgeable assistant that helps users with various tasks.\\nBe helpful, accurate, and concise in your responses.\\n\",\"role\":\"system\"},{\"content\":\"Say 'goodbye' in one word.\",\"role\":\"user\"}],\"model\":\"gpt-3.5-turbo\",\"stream_options\":{\"include_usage\":true},\"stream\":true}"
+    url: https://api.openai.com/v1/chat/completions
+    method: POST
+  response:
+    proto: HTTP/2.0
+    proto_major: 2
+    proto_minor: 0
+    content_length: -1
+    body: "data: {\"id\":\"chatcmpl-Cb1cjM34A6SS0uTSzv05cxlRF5ga4\",\"object\":\"chat.completion.chunk\",\"created\":1762940413,\"model\":\"gpt-3.5-turbo-0125\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\",\"refusal\":null},\"logprobs\":null,\"finish_reason\":null}],\"usage\":null,\"obfuscation\":\"Z6Lxgojh\"}\n\ndata: {\"id\":\"chatcmpl-Cb1cjM34A6SS0uTSzv05cxlRF5ga4\",\"object\":\"chat.completion.chunk\",\"created\":1762940413,\"model\":\"gpt-3.5-turbo-0125\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\"F\"},\"logprobs\":null,\"finish_reason\":null}],\"usage\":null,\"obfuscation\":\"2sN0XTsgQ\"}\n\ndata: {\"id\":\"chatcmpl-Cb1cjM34A6SS0uTSzv05cxlRF5ga4\",\"object\":\"chat.completion.chunk\",\"created\":1762940413,\"model\":\"gpt-3.5-turbo-0125\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\"are\"},\"logprobs\":null,\"finish_reason\":null}],\"usage\":null,\"obfuscation\":\"nppT4AT\"}\n\ndata: {\"id\":\"chatcmpl-Cb1cjM34A6SS0uTSzv05cxlRF5ga4\",\"object\":\"chat.completion.chunk\",\"created\":1762940413,\"model\":\"gpt-3.5-turbo-0125\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\"well\"},\"logprobs\":null,\"finish_reason\":null}],\"usage\":null,\"obfuscation\":\"J4aYuh\"}\n\ndata: {\"id\":\"chatcmpl-Cb1cjM34A6SS0uTSzv05cxlRF5ga4\",\"object\":\"chat.completion.chunk\",\"created\":1762940413,\"model\":\"gpt-3.5-turbo-0125\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\".\"},\"logprobs\":null,\"finish_reason\":null}],\"usage\":null,\"obfuscation\":\"Wg8Sr4V3U\"}\n\ndata: {\"id\":\"chatcmpl-Cb1cjM34A6SS0uTSzv05cxlRF5ga4\",\"object\":\"chat.completion.chunk\",\"created\":1762940413,\"model\":\"gpt-3.5-turbo-0125\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{},\"logprobs\":null,\"finish_reason\":\"stop\"}],\"usage\":null,\"obfuscation\":\"lW1s\"}\n\ndata: {\"id\":\"chatcmpl-Cb1cjM34A6SS0uTSzv05cxlRF5ga4\",\"object\":\"chat.completion.chunk\",\"created\":1762940413,\"model\":\"gpt-3.5-turbo-0125\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[],\"usage\":{\"prompt_tokens\":43,\"completion_tokens\":4,\"total_tokens\":47,\"prompt_tokens_details\":{\"cached_tokens\":0,\"audio_tokens\":0},\"completion_tokens_details\":{\"reasoning_tokens\":0,\"audio_tokens\":0,\"accepted_prediction_tokens\":0,\"rejected_prediction_tokens\":0}},\"obfuscation\":\"kQTdPPPvSH\"}\n\ndata: [DONE]\n\n"
+    headers: {}
+    status: 200 OK
+    code: 200
+    duration: 459.405833ms
