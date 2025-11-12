@@ -13,8 +13,13 @@ func newExecCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "exec <agent-name>",
 		Short: "Execute an agent",
-		Args:  cobra.RangeArgs(1, 2),
-		RunE:  flags.runExecCommand,
+		Long:  "Execute an agent (Single user message / No TUI)",
+		Example: `  cagent exec ./agent.yaml
+  cagent exec ./team.yaml --agent root
+  cagent exec ./echo.yaml "INSTRUCTIONS"
+  echo "INSTRUCTIONS" | cagent exec ./echo.yaml -`,
+		Args: cobra.RangeArgs(1, 2),
+		RunE: flags.runExecCommand,
 	}
 
 	addRunOrExecFlags(cmd, &flags)
