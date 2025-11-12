@@ -13,17 +13,16 @@ func newExecCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "exec <agent-name>",
 		Short: "Execute an agent",
-		Args:  cobra.RangeArgs(1, 2),
-		RunE:  flags.runExecCommand,
+		Long:  "Execute an agent (Single user message / No TUI)",
+		Example: `  cagent exec ./agent.yaml
+  cagent exec ./team.yaml --agent root
+  cagent exec ./echo.yaml "INSTRUCTIONS"
+  echo "INSTRUCTIONS" | cagent exec ./echo.yaml -`,
+		Args: cobra.RangeArgs(1, 2),
+		RunE: flags.runExecCommand,
 	}
 
-	cmd.PersistentFlags().StringVarP(&flags.agentName, "agent", "a", "root", "Name of the agent to run")
-	cmd.PersistentFlags().StringVar(&flags.workingDir, "working-dir", "", "Set the working directory for the session (applies to tools and relative paths)")
-	cmd.PersistentFlags().BoolVar(&flags.autoApprove, "yolo", false, "Automatically approve all tool calls without prompting")
-	cmd.PersistentFlags().StringVar(&flags.attachmentPath, "attach", "", "Attach an image file to the message")
-	cmd.PersistentFlags().StringArrayVar(&flags.modelOverrides, "model", nil, "Override agent model: [agent=]provider/model (repeatable)")
-	cmd.PersistentFlags().BoolVar(&flags.dryRun, "dry-run", false, "Initialize the agent without executing anything")
-
+	addRunOrExecFlags(cmd, &flags)
 	addRuntimeConfigFlags(cmd, &flags.runConfig)
 
 	return cmd

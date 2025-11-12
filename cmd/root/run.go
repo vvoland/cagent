@@ -28,7 +28,6 @@ type runExecFlags struct {
 	workingDir     string
 	autoApprove    bool
 	attachmentPath string
-	useTUI         bool
 	remoteAddress  string
 	modelOverrides []string
 	dryRun         bool
@@ -50,17 +49,20 @@ func newRunCmd() *cobra.Command {
 		RunE: flags.runRunCommand,
 	}
 
+	addRunOrExecFlags(cmd, &flags)
+	addRuntimeConfigFlags(cmd, &flags.runConfig)
+
+	return cmd
+}
+
+func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 	cmd.PersistentFlags().StringVarP(&flags.agentName, "agent", "a", "root", "Name of the agent to run")
 	cmd.PersistentFlags().StringVar(&flags.workingDir, "working-dir", "", "Set the working directory for the session (applies to tools and relative paths)")
 	cmd.PersistentFlags().BoolVar(&flags.autoApprove, "yolo", false, "Automatically approve all tool calls without prompting")
 	cmd.PersistentFlags().StringVar(&flags.attachmentPath, "attach", "", "Attach an image file to the message")
-	cmd.PersistentFlags().BoolVar(&flags.useTUI, "tui", true, "Run the agent with a Terminal User Interface (TUI)")
-	cmd.PersistentFlags().StringVar(&flags.remoteAddress, "remote", "", "Use remote runtime with specified address (only supported with TUI)")
 	cmd.PersistentFlags().StringArrayVar(&flags.modelOverrides, "model", nil, "Override agent model: [agent=]provider/model (repeatable)")
-
-	addRuntimeConfigFlags(cmd, &flags.runConfig)
-
-	return cmd
+	cmd.PersistentFlags().BoolVar(&flags.dryRun, "dry-run", false, "Initialize the agent without executing anything")
+	cmd.PersistentFlags().StringVar(&flags.remoteAddress, "remote", "", "Use remote runtime with specified address")
 }
 
 func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
@@ -74,10 +76,6 @@ func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
 
 func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []string, exec bool) error {
 	slog.Debug("Starting agent", "agent", f.agentName)
-
-	if err := f.validateRemoteFlag(exec); err != nil {
-		return err
-	}
 
 	if err := f.setupWorkingDirectory(); err != nil {
 		return err
@@ -110,15 +108,16 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 		}
 	}
 
+	if f.dryRun {
+		out.Println("Dry run mode enabled. Agent initialized but will not execute.")
+		return nil
+	}
+
 	if exec {
 		return f.handleExecMode(ctx, out, agentFileName, rt, sess, args)
 	}
 
-	if !f.useTUI {
-		return f.handleCLIMode(ctx, out, agentFileName, rt, sess, args)
-	}
-
-	return handleTUIMode(ctx, agentFileName, rt, sess, args)
+	return handleRunMode(ctx, agentFileName, rt, sess, args)
 }
 
 func (f *runExecFlags) setupWorkingDirectory() error {
@@ -148,13 +147,6 @@ func (f *runExecFlags) loadAgents(ctx context.Context, agentFilename string) (*t
 	}()
 
 	return t, nil
-}
-
-func (f *runExecFlags) validateRemoteFlag(exec bool) error {
-	if f.remoteAddress != "" && (!f.useTUI || exec) {
-		return fmt.Errorf("--remote flag can only be used with TUI mode")
-	}
-	return nil
 }
 
 func (f *runExecFlags) createRemoteRuntimeAndSession(ctx context.Context, originalFilename string) (runtime.Runtime, *session.Session, error) {
@@ -216,26 +208,10 @@ func (f *runExecFlags) handleExecMode(ctx context.Context, out *cli.Printer, age
 		execArgs = append(execArgs, "Follow the default instructions")
 	}
 
-	if f.dryRun {
-		out.Println("Dry run mode enabled. Agent initialized but will not execute.")
-		return nil
-	}
-
 	err := cli.Run(ctx, out, cli.Config{
 		AppName:        AppName,
 		AttachmentPath: f.attachmentPath,
 	}, agentFilename, rt, sess, execArgs)
-	if cliErr, ok := err.(cli.RuntimeError); ok {
-		return RuntimeError{Err: cliErr.Err}
-	}
-	return err
-}
-
-func (f *runExecFlags) handleCLIMode(ctx context.Context, out *cli.Printer, agentFilename string, rt runtime.Runtime, sess *session.Session, args []string) error {
-	err := cli.Run(ctx, out, cli.Config{
-		AppName:        AppName,
-		AttachmentPath: f.attachmentPath,
-	}, agentFilename, rt, sess, args)
 	if cliErr, ok := err.(cli.RuntimeError); ok {
 		return RuntimeError{Err: cliErr.Err}
 	}
@@ -259,7 +235,7 @@ func readInitialMessage(args []string) (*string, error) {
 	return &args[1], nil
 }
 
-func handleTUIMode(ctx context.Context, agentFilename string, rt runtime.Runtime, sess *session.Session, args []string) error {
+func handleRunMode(ctx context.Context, agentFilename string, rt runtime.Runtime, sess *session.Session, args []string) error {
 	firstMessage, err := readInitialMessage(args)
 	if err != nil {
 		return err
