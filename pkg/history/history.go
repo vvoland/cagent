@@ -85,13 +85,10 @@ func (h *History) Next() string {
 // LatestMatch returns the most recent history entry that extends the provided
 // prefix, or the latest message when no prefix is supplied.
 func (h *History) LatestMatch(prefix string) string {
-
 	if prefix == "" {
 		if len(h.Messages) == 0 {
-
 			return ""
 		}
-
 		return h.Messages[len(h.Messages)-1]
 	}
 

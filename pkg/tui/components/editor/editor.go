@@ -18,6 +18,10 @@ import (
 	"github.com/docker/cagent/pkg/tui/styles"
 )
 
+// ansiRegexp matches ANSI escape sequences so they can be removed when
+// computing layout measurements.
+var ansiRegexp = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
+
 // SendMsg represents a message to send
 type SendMsg struct {
 	Content string
@@ -75,12 +79,6 @@ func New(a *app.App, hist *history.History) Editor {
 func (e *editor) Init() tea.Cmd {
 	return textarea.Blink
 }
-
-var (
-	// ansiRegexp matches ANSI escape sequences so they can be removed when
-	// computing layout measurements.
-	ansiRegexp = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
-)
 
 // stripANSI removes ANSI escape sequences from the provided string so width
 // calculations can be performed on plain text.
