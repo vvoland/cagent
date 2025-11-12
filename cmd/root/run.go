@@ -49,8 +49,6 @@ func newRunCmd() *cobra.Command {
 		RunE: flags.runRunCommand,
 	}
 
-	cmd.PersistentFlags().StringVar(&flags.remoteAddress, "remote", "", "Use remote runtime with specified address")
-
 	addRunOrExecFlags(cmd, &flags)
 	addRuntimeConfigFlags(cmd, &flags.runConfig)
 
@@ -64,6 +62,7 @@ func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 	cmd.PersistentFlags().StringVar(&flags.attachmentPath, "attach", "", "Attach an image file to the message")
 	cmd.PersistentFlags().StringArrayVar(&flags.modelOverrides, "model", nil, "Override agent model: [agent=]provider/model (repeatable)")
 	cmd.PersistentFlags().BoolVar(&flags.dryRun, "dry-run", false, "Initialize the agent without executing anything")
+	cmd.PersistentFlags().StringVar(&flags.remoteAddress, "remote", "", "Use remote runtime with specified address")
 }
 
 func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
