@@ -5,10 +5,10 @@ import (
 	"regexp"
 	"strings"
 
-	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/docker/cagent/pkg/tui/components/markdown"
+	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
@@ -27,7 +27,7 @@ type messageModel struct {
 	width   int
 	height  int
 	focused bool
-	spinner spinner.Model
+	spinner spinner.Spinner
 }
 
 // New creates a new message view
@@ -37,7 +37,7 @@ func New(msg *types.Message) *messageModel {
 		width:   80, // Default width
 		height:  1,  // Will be calculated
 		focused: false,
-		spinner: spinner.New(spinner.WithSpinner(spinner.Points)),
+		spinner: spinner.New(spinner.ModeBoth),
 	}
 }
 
@@ -46,7 +46,7 @@ func New(msg *types.Message) *messageModel {
 // Init initializes the message view
 func (mv *messageModel) Init() tea.Cmd {
 	if mv.message.Type == types.MessageTypeSpinner {
-		return mv.spinner.Tick
+		return mv.spinner.Tick()
 	}
 	return nil
 }
@@ -58,11 +58,10 @@ func (mv *messageModel) SetMessage(msg *types.Message) {
 // Update handles messages and updates the message view state
 func (mv *messageModel) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	if mv.message.Type == types.MessageTypeSpinner {
-		var cmd tea.Cmd
-		mv.spinner, cmd = mv.spinner.Update(msg)
+		s, cmd := mv.spinner.Update(msg)
+		mv.spinner = s.(spinner.Spinner)
 		return mv, cmd
 	}
-
 	return mv, nil
 }
 

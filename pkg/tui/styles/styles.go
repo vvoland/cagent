@@ -27,6 +27,11 @@ const (
 	ColorErrorRed        = "#F7768E" // Soft red
 	ColorWarningYellow   = "#E0AF68" // Soft yellow
 
+	// Spinner glow colors (transition from base blue towards white)
+	ColorSpinnerDim       = "#9AB8F9" // Lighter blue
+	ColorSpinnerBright    = "#B8CFFB" // Much lighter blue
+	ColorSpinnerBrightest = "#D6E5FC" // Very light blue, near white
+
 	// Background colors
 	ColorBackground = "#1A1B26" // Dark blue-black
 
@@ -393,6 +398,15 @@ var (
 	SelectionStyle = BaseStyle.
 		Background(Selected).
 		Foreground(SelectedFg)
+)
+
+// Spinner Styles
+var (
+	SpinnerCharStyle          = BaseStyle.Foreground(Accent)
+	SpinnerTextBrightestStyle = BaseStyle.Foreground(lipgloss.Color(ColorSpinnerBrightest))
+	SpinnerTextBrightStyle    = BaseStyle.Foreground(lipgloss.Color(ColorSpinnerBright))
+	SpinnerTextDimStyle       = BaseStyle.Foreground(lipgloss.Color(ColorSpinnerDim))
+	SpinnerTextDimmestStyle   = BaseStyle.Foreground(Accent)
 )
 
 func toChroma(style ansi.StylePrimitive) string {
