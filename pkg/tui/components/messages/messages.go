@@ -18,6 +18,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/markdown"
 	"github.com/docker/cagent/pkg/tui/components/message"
 	"github.com/docker/cagent/pkg/tui/components/notification"
+	"github.com/docker/cagent/pkg/tui/components/scrollbar"
 	"github.com/docker/cagent/pkg/tui/components/tool"
 	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
 	"github.com/docker/cagent/pkg/tui/core"
@@ -113,6 +114,7 @@ type model struct {
 	selection selectionState
 
 	sessionState *service.SessionState
+	scrollbar    *scrollbar.Model
 
 	xPos, yPos int
 }
@@ -125,6 +127,7 @@ func New(a *app.App, sessionState *service.SessionState) Model {
 		app:           a,
 		renderedItems: make(map[int]renderedItem),
 		sessionState:  sessionState,
+		scrollbar:     scrollbar.New(),
 	}
 }
 
@@ -136,6 +139,7 @@ func NewScrollableView(width, height int, sessionState *service.SessionState) Mo
 		height:        height,
 		renderedItems: make(map[int]renderedItem),
 		sessionState:  sessionState,
+		scrollbar:     scrollbar.New(),
 	}
 }
 
@@ -167,6 +171,10 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		cmds = append(cmds, m.SetSize(msg.Width, msg.Height))
 
 	case tea.MouseClickMsg:
+		if m.isMouseOnScrollbar(msg.X, msg.Y) {
+			return m.handleScrollbarUpdate(msg)
+		}
+
 		if msg.Button == tea.MouseLeft {
 			line, col := m.mouseToLineCol(msg.X, msg.Y)
 			m.selection.start(line, col)
@@ -175,6 +183,10 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.MouseMotionMsg:
+		if m.scrollbar.IsDragging() {
+			return m.handleScrollbarUpdate(msg)
+		}
+
 		if m.selection.mouseButtonDown && m.selection.active {
 			line, col := m.mouseToLineCol(msg.X, msg.Y)
 			m.selection.update(line, col)
@@ -186,6 +198,10 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.MouseReleaseMsg:
+		if updated, cmd := m.handleScrollbarUpdate(msg); cmd != nil {
+			return updated, cmd
+		}
+
 		if msg.Button == tea.MouseLeft && m.selection.mouseButtonDown {
 			if m.selection.active {
 				line, col := m.mouseToLineCol(msg.X, msg.Y)
@@ -222,6 +238,8 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 				}
 			}
 		}
+		// Sync scrollbar with new scroll offset
+		m.scrollbar.SetScrollOffset(m.scrollOffset)
 		return m, nil
 
 	case AutoScrollTickMsg:
@@ -289,6 +307,9 @@ func (m *model) View() string {
 	maxScrollOffset := max(0, m.totalHeight-m.height)
 	m.scrollOffset = max(0, min(m.scrollOffset, maxScrollOffset))
 
+	m.scrollbar.SetDimensions(m.height, m.totalHeight)
+	m.scrollbar.SetScrollOffset(m.scrollOffset)
+
 	// Extract visible portion from complete rendered content
 	lines := strings.Split(m.rendered, "\n")
 	if len(lines) == 0 {
@@ -308,18 +329,28 @@ func (m *model) View() string {
 		visibleLines = m.applySelectionHighlight(visibleLines, startLine)
 	}
 
-	return strings.Join(visibleLines, "\n")
+	contentView := strings.Join(visibleLines, "\n")
+	scrollbarView := m.scrollbar.View()
+
+	if scrollbarView != "" {
+		return lipgloss.JoinHorizontal(lipgloss.Top, contentView, scrollbarView)
+	}
+
+	return contentView
 }
 
 // SetSize sets the dimensions of the component
 func (m *model) SetSize(width, height int) tea.Cmd {
-	m.width = width
+	// Reserve 1 character for scrollbar
+	m.width = width - 1
 	m.height = height
 
-	// Update all views with new size
 	for _, view := range m.views {
-		view.SetSize(width, 0)
+		view.SetSize(m.width, 0)
 	}
+
+	// Account for AppStyle padding (1 char on left)
+	m.scrollbar.SetPosition(1+m.xPos+m.width, m.yPos)
 
 	// Size changes may affect item rendering, invalidate all items
 	m.invalidateAllItems()
@@ -371,28 +402,34 @@ const defaultScrollAmount = 1
 
 func (m *model) scrollUp() {
 	if m.scrollOffset > 0 {
-		m.scrollOffset = max(0, m.scrollOffset-defaultScrollAmount)
+		m.setScrollOffset(max(0, m.scrollOffset-defaultScrollAmount))
 	}
 }
 
 func (m *model) scrollDown() {
-	m.scrollOffset += defaultScrollAmount
+	m.setScrollOffset(m.scrollOffset + defaultScrollAmount)
 }
 
 func (m *model) scrollPageUp() {
-	m.scrollOffset = max(0, m.scrollOffset-m.height)
+	m.setScrollOffset(max(0, m.scrollOffset-m.height))
 }
 
 func (m *model) scrollPageDown() {
-	m.scrollOffset += m.height
+	m.setScrollOffset(m.scrollOffset + m.height)
 }
 
 func (m *model) scrollToTop() {
-	m.scrollOffset = 0
+	m.setScrollOffset(0)
 }
 
 func (m *model) scrollToBottom() {
-	m.scrollOffset = 9_999_999 // Will be clamped in View()
+	m.setScrollOffset(9_999_999) // Will be clamped in View()
+}
+
+// setScrollOffset updates scroll offset and syncs with scrollbar
+func (m *model) setScrollOffset(offset int) {
+	m.scrollOffset = offset
+	m.scrollbar.SetScrollOffset(offset)
 }
 
 // shouldCacheMessage determines if a message should be cached based on its type and content.
@@ -971,4 +1008,22 @@ func (m *model) autoScroll() tea.Cmd {
 	return tea.Tick(20*time.Millisecond, func(time.Time) tea.Msg {
 		return AutoScrollTickMsg{Direction: direction}
 	})
+}
+
+func (m *model) isMouseOnScrollbar(x, y int) bool {
+	if m.totalHeight <= m.height {
+		return false
+	}
+
+	// Account for AppStyle padding (1 char on left)
+	// Scrollbar is positioned at: padding + xPos + width
+	scrollbarX := 1 + m.xPos + m.width
+	return x == scrollbarX && y >= m.yPos && y < m.yPos+m.height
+}
+
+func (m *model) handleScrollbarUpdate(msg tea.Msg) (layout.Model, tea.Cmd) {
+	sb, cmd := m.scrollbar.Update(msg)
+	m.scrollbar = sb
+	m.scrollOffset = m.scrollbar.GetScrollOffset()
+	return m, cmd
 }
