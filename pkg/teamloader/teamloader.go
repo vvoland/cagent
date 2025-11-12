@@ -95,7 +95,14 @@ func WithToolsetRegistry(registry *ToolsetRegistry) Opt {
 	}
 }
 
+// Load loads an agent team from the given file path.
+// Prefers LoadFrom for more control over the source.
 func Load(ctx context.Context, p string, runtimeConfig config.RuntimeConfig, opts ...Opt) (*team.Team, error) {
+	return LoadFrom(ctx, NewFileSource(p), runtimeConfig, opts...)
+}
+
+// LoadFrom loads an agent team from the given source
+func LoadFrom(ctx context.Context, source AgentSource, runtimeConfig config.RuntimeConfig, opts ...Opt) (*team.Team, error) {
 	var loadOpts loadOptions
 	loadOpts.toolsetRegistry = NewDefaultToolsetRegistry()
 
@@ -105,8 +112,8 @@ func Load(ctx context.Context, p string, runtimeConfig config.RuntimeConfig, opt
 		}
 	}
 
-	fileName := filepath.Base(p)
-	parentDir := filepath.Dir(p)
+	fileName := source.Name()
+	parentDir := source.ParentDir()
 
 	// Make env file paths absolute relative to the agent config file.
 	var err error
@@ -127,12 +134,12 @@ func Load(ctx context.Context, p string, runtimeConfig config.RuntimeConfig, opt
 	env := environment.NewMultiProvider(envFilesProviders, defaultEnvProvider)
 
 	// Load the agent's configuration
-	fs, err := os.OpenRoot(parentDir)
+	data, err := source.Read()
 	if err != nil {
-		return nil, fmt.Errorf("opening filesystem %s: %w", parentDir, err)
+		return nil, fmt.Errorf("reading config file: %w", err)
 	}
 
-	cfg, err := config.LoadConfig(fileName, fs)
+	cfg, err := config.LoadConfigBytes(data)
 	if err != nil {
 		return nil, err
 	}

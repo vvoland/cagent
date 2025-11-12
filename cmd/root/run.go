@@ -86,18 +86,21 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 	var rt runtime.Runtime
 	var sess *session.Session
 	var err error
-	if f.remoteAddress != "" {
-		rt, sess, err = f.createRemoteRuntimeAndSession(ctx, args[0])
+	switch {
+	case f.remoteAddress != "":
+		agentFileName = args[0]
+		rt, sess, err = f.createRemoteRuntimeAndSession(ctx, agentFileName)
 		if err != nil {
 			return err
 		}
-	} else {
+
+	default:
 		agentFileName, err = f.resolveAgentFile(ctx, out, args[0])
 		if err != nil {
 			return err
 		}
 
-		t, err := f.loadAgents(ctx, agentFileName)
+		t, err := f.loadAgentFrom(ctx, teamloader.NewFileSource(agentFileName))
 		if err != nil {
 			return err
 		}
@@ -133,8 +136,8 @@ func (f *runExecFlags) resolveAgentFile(ctx context.Context, out *cli.Printer, a
 	return agentfile.Resolve(ctx, out, agentFilename)
 }
 
-func (f *runExecFlags) loadAgents(ctx context.Context, agentFilename string) (*team.Team, error) {
-	t, err := teamloader.Load(ctx, agentFilename, f.runConfig, teamloader.WithModelOverrides(f.modelOverrides))
+func (f *runExecFlags) loadAgentFrom(ctx context.Context, source teamloader.AgentSource) (*team.Team, error) {
+	t, err := teamloader.LoadFrom(ctx, source, f.runConfig, teamloader.WithModelOverrides(f.modelOverrides))
 	if err != nil {
 		return nil, err
 	}
