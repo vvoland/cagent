@@ -1,6 +1,8 @@
 package types
 
 import (
+	"strings"
+
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -39,6 +41,64 @@ type Message struct {
 	ToolCall       tools.ToolCall // Associated tool call for tool messages
 	ToolDefinition tools.Tool     // Definition of the tool being called
 	ToolStatus     ToolStatus     // Status for tool calls
+}
+
+func Agent(typ MessageType, agentName, content string) *Message {
+	return &Message{
+		Type:    typ,
+		Sender:  agentName,
+		Content: strings.ReplaceAll(content, "\t", "    "),
+	}
+}
+
+func ShellOutput(content string) *Message {
+	return &Message{
+		Type:    MessageTypeShellOutput,
+		Content: strings.ReplaceAll(content, "\t", "    "),
+	}
+}
+
+func Spinner() *Message {
+	return &Message{
+		Type: MessageTypeSpinner,
+	}
+}
+
+func Error(content string) *Message {
+	return &Message{
+		Type:    MessageTypeError,
+		Content: strings.ReplaceAll(content, "\t", "    "),
+	}
+}
+
+func User(content string) *Message {
+	return &Message{
+		Type:    MessageTypeUser,
+		Content: strings.ReplaceAll(content, "\t", "    "),
+	}
+}
+
+func Cancelled() *Message {
+	return &Message{
+		Type: MessageTypeCancelled,
+	}
+}
+
+func Welcome(content string) *Message {
+	return &Message{
+		Type:    MessageTypeWelcome,
+		Content: strings.ReplaceAll(content, "\t", "    "),
+	}
+}
+
+func ToolCallMessage(agentName string, toolCall tools.ToolCall, toolDef tools.Tool, status ToolStatus) *Message {
+	return &Message{
+		Type:           MessageTypeToolCall,
+		Sender:         agentName,
+		ToolCall:       toolCall,
+		ToolDefinition: toolDef,
+		ToolStatus:     status,
+	}
 }
 
 // Todo represents a single todo item
