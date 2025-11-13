@@ -14,12 +14,12 @@ import (
 	"github.com/docker/cagent/pkg/config"
 	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/environment"
-	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/model/provider/anthropic"
 	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
+	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
 )
@@ -77,7 +77,7 @@ func (f *fsToolset) customWriteFileHandler(ctx context.Context, toolCall tools.T
 	return f.originalWriteFileHandler(ctx, toolCall)
 }
 
-func CreateAgent(ctx context.Context, baseDir, prompt string, runConfig config.RuntimeConfig) (out, path string, err error) {
+func CreateAgent(ctx context.Context, baseDir, prompt string, runConfig *config.RuntimeConfig) (out, path string, err error) {
 	llm, err := anthropic.NewClient(
 		ctx,
 		&latest.ModelConfig{
@@ -126,101 +126,64 @@ func CreateAgent(ctx context.Context, baseDir, prompt string, runConfig config.R
 	return messages[len(messages)-1].Message.Content, fsToolset.path, nil
 }
 
-func Agent(ctx context.Context, baseDir string, runConfig config.RuntimeConfig, providerName string, maxTokensOverride int, modelNameOverride string) (*team.Team, error) {
-	defaultModels := map[string]string{
-		"openai":    "gpt-5-mini",
-		"anthropic": "claude-sonnet-4-0",
-		"google":    "gemini-2.5-flash",
-		"dmr":       "ai/qwen3:latest",
-	}
-	var modelName string
-	if _, ok := defaultModels[providerName]; ok {
-		modelName = defaultModels[providerName]
-	} else {
-		modelName = defaultModels["anthropic"]
-	}
-
-	if modelNameOverride != "" {
-		modelName = modelNameOverride
-	} else {
-		slog.Info("Using default model: " + modelName)
-	}
-
-	// If not using a model gateway, avoid selecting a provider the user can't run
-	var usableProviders []string
-	if runConfig.ModelsGateway == "" {
-		if os.Getenv("OPENAI_API_KEY") != "" {
-			usableProviders = append(usableProviders, "openai")
-		}
-		if os.Getenv("ANTHROPIC_API_KEY") != "" {
-			usableProviders = append(usableProviders, "anthropic")
-		}
-		if os.Getenv("GOOGLE_API_KEY") != "" {
-			usableProviders = append(usableProviders, "google")
-		}
-		if os.Getenv("MISTRAL_API_KEY") != "" {
-			usableProviders = append(usableProviders, "mistral")
-		}
-		// DMR runs locally by default; include it when not using a gateway
-		usableProviders = append(usableProviders, "dmr")
-	}
-
-	fsToolset := fsToolset{inner: builtin.NewFilesystemTool([]string{baseDir})}
-	fileName := filepath.Base(fsToolset.path)
+func Agent(ctx context.Context, runConfig *config.RuntimeConfig, modelNameOverride string) (*team.Team, error) {
+	usableProviders := config.AvailableProviders(ctx, runConfig.ModelsGateway, runConfig.EnvProvider())
 
 	// Provide soft guidance to prefer the selected providers
-	instructions := agentBuilderInstructions + "\n\nPreferred model providers to use: " + strings.Join(usableProviders, ", ") + ". You must always use one or more of the following model configurations: \n"
+	instructions := agentBuilderInstructions
+	instructions += "\n\nPreferred model providers to use: " + strings.Join(usableProviders, ", ")
+	instructions += ". You must always use one or more of the following model configurations: \n"
+
 	for _, provider := range usableProviders {
-		suggestedMaxTokens := 64000
-		if provider == "dmr" {
-			suggestedMaxTokens = 16000
-		}
+		model := config.DefaultModels[provider]
+		maxTokens := config.PreferredMaxTokens(provider)
 		instructions += fmt.Sprintf(`
 		models:
 			%s:
 				provider: %s
 				model: %s
-				max_tokens: %d\n`, provider, provider, defaultModels[provider], suggestedMaxTokens)
+				max_tokens: %d\n`, provider, provider, model, maxTokens)
 	}
 
-	// Use 16k for DMR to limit memory costs
-	maxTokens := 64000
-	if providerName == "dmr" {
-		maxTokens = 16000
-	}
-	if maxTokensOverride > 0 {
-		maxTokens = maxTokensOverride
-	}
+	// Define a new agent configuration
+	newAgentConfig := latest.Config{
+		Agents: map[string]latest.AgentConfig{
+			"root": {
+				WelcomeMessage: `Hello! I'm here to create agents for you.
 
-	llm, err := provider.New(
-		ctx,
-		&latest.ModelConfig{
-			Provider:  providerName,
-			Model:     modelName,
-			MaxTokens: maxTokens,
+Can you explain to me what the agent will be used for?`,
+				Instruction: instructions,
+				Model:       "auto",
+				Toolsets: []latest.Toolset{
+					{Type: "shell"},
+					{Type: "filesystem"},
+				},
+			},
 		},
-		environment.NewDefaultProvider(),
-		options.WithGateway(runConfig.ModelsGateway),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create LLM client: %w", err)
 	}
 
-	newTeam := team.New(
-		team.WithID(fileName),
-		team.WithAgents(
-			agent.New(
-				"root",
-				instructions,
-				agent.WithModel(llm),
-				agent.WithWelcomeMessage(`Hello! I'm here to create agents for you.
-				
-Can you explain to me what the agent will be used for?`),
-				agent.WithToolSets(
-					builtin.NewShellTool(os.Environ()),
-					&fsToolset,
-				),
-			)))
+	configAsJSON, err := json.Marshal(newAgentConfig)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling config: %w", err)
+	}
 
-	return newTeam, nil
+	// Custom tool registry to include fsToolset
+	fsToolset := fsToolset{
+		inner: builtin.NewFilesystemTool([]string{runConfig.WorkingDir}),
+	}
+	fileName := filepath.Base(fsToolset.path)
+
+	registry := teamloader.NewDefaultToolsetRegistry()
+	registry.Register("filesystem", func(context.Context, latest.Toolset, string, *config.RuntimeConfig) (tools.ToolSet, error) {
+		return &fsToolset, nil
+	})
+
+	return teamloader.LoadFrom(
+		ctx,
+		teamloader.NewBytesSource(runConfig.WorkingDir, configAsJSON),
+		runConfig,
+		teamloader.WithModelOverrides([]string{modelNameOverride}),
+		teamloader.WithToolsetRegistry(registry),
+		teamloader.WithID(fileName),
+	)
 }

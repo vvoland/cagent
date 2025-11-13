@@ -55,7 +55,7 @@ func customMatcher(t *testing.T) recorder.MatcherFunc {
 	}
 }
 
-func startRecordingAIProxy(t *testing.T) (*httptest.Server, config.RuntimeConfig) {
+func startRecordingAIProxy(t *testing.T) (*httptest.Server, *config.RuntimeConfig) {
 	t.Helper()
 
 	transport, err := recorder.New(filepath.Join("testdata", "cassettes", t.Name()),
@@ -74,9 +74,9 @@ func startRecordingAIProxy(t *testing.T) (*httptest.Server, config.RuntimeConfig
 	httpServer := httptest.NewServer(e)
 	t.Cleanup(httpServer.Close)
 
-	return httpServer, config.RuntimeConfig{
+	return httpServer, &config.RuntimeConfig{
 		ModelsGateway: httpServer.URL,
-		DefaultEnvProvider: &testEnvProvider{
+		EnvProviderForTests: &testEnvProvider{
 			environment.DockerDesktopTokenEnv: "DUMMY",
 		},
 	}

@@ -70,12 +70,21 @@ func OciRefToFilename(ociRef string) string {
 func Resolve(ctx context.Context, out *cli.Printer, agentFilename string) (string, error) {
 	originalOCIRef := agentFilename // Store the original for OCI ref tracking
 
+	if agentFilename == "" {
+		agentFilename = "default"
+	}
+
 	// Try to resolve as an alias first
 	if aliasStore, err := aliases.Load(); err == nil {
 		if resolvedPath, ok := aliasStore.Get(agentFilename); ok {
 			slog.Debug("Resolved alias", "alias", agentFilename, "path", resolvedPath)
 			agentFilename = resolvedPath
 		}
+	}
+
+	// "default" is either a user defined alias or the default (embedded) agent
+	if agentFilename == "default" {
+		return "default", nil
 	}
 
 	if IsLocalFile(agentFilename) {

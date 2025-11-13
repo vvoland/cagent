@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 
 	"github.com/goccy/go-yaml"
 
@@ -16,16 +15,16 @@ import (
 	"github.com/docker/cagent/pkg/filesystem"
 )
 
-func LoadConfig(path string, fs filesystem.FS) (*latest.Config, error) {
+func LoadConfig(ctx context.Context, path string, fs filesystem.FS) (*latest.Config, error) {
 	data, err := fs.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading config file %s: %w", path, err)
 	}
 
-	return LoadConfigBytes(data)
+	return LoadConfigBytes(ctx, data)
 }
 
-func LoadConfigBytes(data []byte) (*latest.Config, error) {
+func LoadConfigBytes(ctx context.Context, data []byte) (*latest.Config, error) {
 	var raw struct {
 		Version string `yaml:"version,omitempty"`
 	}
@@ -58,8 +57,8 @@ func LoadConfigBytes(data []byte) (*latest.Config, error) {
 // CheckRequiredEnvVars checks which environment variables are required by the models and tools.
 //
 // This allows exiting early with a proper error message instead of failing later when trying to use a model or tool.
-func CheckRequiredEnvVars(ctx context.Context, cfg *latest.Config, env environment.Provider, runtimeConfig RuntimeConfig) error {
-	missing, err := gatherMissingEnvVars(ctx, cfg, env, runtimeConfig)
+func CheckRequiredEnvVars(ctx context.Context, cfg *latest.Config, modelsGateway string, env environment.Provider) error {
+	missing, err := gatherMissingEnvVars(ctx, cfg, modelsGateway, env)
 	if err != nil {
 		// If there's a tool preflight error, log it but continue
 		slog.Warn("Failed to preflight toolset environment variables; continuing", "error", err)
@@ -131,25 +130,12 @@ func validateConfig(cfg *latest.Config) error {
 		}
 	}
 
+	if err := ensureModelsExist(cfg); err != nil {
+		return err
+	}
+
 	for agentName := range cfg.Agents {
 		agent := cfg.Agents[agentName]
-
-		modelNames := strings.SplitSeq(agent.Model, ",")
-		for modelName := range modelNames {
-			if _, exists := cfg.Models[modelName]; exists {
-				continue
-			}
-
-			provider, model, ok := strings.Cut(modelName, "/")
-			if !ok {
-				return fmt.Errorf("agent '%s' references non-existent model '%s'", agentName, modelName)
-			}
-
-			cfg.Models[modelName] = latest.ModelConfig{
-				Provider: provider,
-				Model:    model,
-			}
-		}
 
 		for _, subAgentName := range agent.SubAgents {
 			if _, exists := cfg.Agents[subAgentName]; !exists {

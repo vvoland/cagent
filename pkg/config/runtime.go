@@ -1,11 +1,53 @@
 package config
 
-import "github.com/docker/cagent/pkg/environment"
+import (
+	"log/slog"
+	"sync"
+
+	"github.com/docker/cagent/pkg/environment"
+)
 
 type RuntimeConfig struct {
-	DefaultEnvProvider environment.Provider
-	EnvFiles           []string
-	ModelsGateway      string
-	GlobalCodeMode     bool
-	WorkingDir         string
+	EnvProviderForTests environment.Provider
+	EnvFiles            []string
+	ModelsGateway       string
+	GlobalCodeMode      bool
+	WorkingDir          string
+
+	envProvider     environment.Provider
+	envProviderLock sync.Mutex
+}
+
+func (runConfig *RuntimeConfig) EnvProvider() environment.Provider {
+	if runConfig.EnvProviderForTests != nil {
+		return runConfig.EnvProviderForTests
+	}
+
+	runConfig.envProviderLock.Lock()
+	defer runConfig.envProviderLock.Unlock()
+
+	env := runConfig.computedEnvProvider()
+	runConfig.envProvider = env
+	return env
+}
+
+func (runConfig *RuntimeConfig) computedEnvProvider() environment.Provider {
+	defaultEnv := environment.NewDefaultProvider()
+
+	// Make env file paths absolute relative to the working directory.
+	var err error
+	runConfig.EnvFiles, err = environment.AbsolutePaths(runConfig.WorkingDir, runConfig.EnvFiles)
+	if err != nil {
+		slog.Error("Failed to make env file paths absolute", "error", err)
+		return defaultEnv
+	}
+
+	envFilesProviders, err := environment.NewEnvFilesProvider(runConfig.EnvFiles)
+	if err != nil {
+		slog.Error("Failed to read env files", "error", err)
+		return defaultEnv
+	}
+
+	// Update the env provider to include env files
+	return environment.NewMultiProvider(envFilesProviders, defaultEnv)
 }

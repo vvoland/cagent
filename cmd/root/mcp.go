@@ -13,8 +13,7 @@ import (
 )
 
 type mcpFlags struct {
-	workingDir string
-	runConfig  config.RuntimeConfig
+	runConfig config.RuntimeConfig
 }
 
 func newMCPCmd() *cobra.Command {
@@ -32,7 +31,6 @@ func newMCPCmd() *cobra.Command {
 		RunE:    flags.runMCPCommand,
 	}
 
-	cmd.PersistentFlags().StringVar(&flags.workingDir, "working-dir", "", "Set the working directory for the session (applies to tools and relative paths)")
 	addRuntimeConfigFlags(cmd, &flags.runConfig)
 
 	return cmd
@@ -44,14 +42,10 @@ func (f *mcpFlags) runMCPCommand(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	out := cli.NewPrinter(io.Discard)
 
-	if err := setupWorkingDirectory(f.workingDir); err != nil {
-		return err
-	}
-
 	agentFilename, err := agentfile.Resolve(ctx, out, args[0])
 	if err != nil {
 		return err
 	}
 
-	return mcp.StartMCPServer(ctx, out, agentFilename, f.runConfig)
+	return mcp.StartMCPServer(ctx, out, agentFilename, &f.runConfig)
 }

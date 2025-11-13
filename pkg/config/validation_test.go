@@ -18,11 +18,11 @@ agents:
 	err := tmp.WriteFile("valid.yaml", []byte(validConfig), 0o644)
 	require.NoError(t, err)
 
-	cfg, err := LoadConfig("valid.yaml", tmp)
+	cfg, err := LoadConfig(t.Context(), "valid.yaml", tmp)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
-	_, err = LoadConfig("../../../etc/passwd", tmp)
+	_, err = LoadConfig(t.Context(), "../../../etc/passwd", tmp)
 	require.Error(t, err)
 }
 
@@ -51,7 +51,7 @@ func TestValidationErrors(t *testing.T) {
 
 			root := openRoot(t, "testdata")
 
-			_, err := LoadConfig(tt.path, root)
+			_, err := LoadConfig(t.Context(), tt.path, root)
 			require.Error(t, err)
 		})
 	}

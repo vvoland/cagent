@@ -86,6 +86,9 @@ func ensureModelsExist(cfg *v2.Config) error {
 
 		modelNames := strings.SplitSeq(agentConfig.Model, ",")
 		for modelName := range modelNames {
+			if modelName == "auto" {
+				continue
+			}
 			if _, exists := cfg.Models[modelName]; exists {
 				continue
 			}

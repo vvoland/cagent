@@ -20,7 +20,7 @@ import (
 )
 
 // ToolsetCreator is a function that creates a toolset based on the provided configuration
-type ToolsetCreator func(ctx context.Context, toolset latest.Toolset, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig) (tools.ToolSet, error)
+type ToolsetCreator func(ctx context.Context, toolset latest.Toolset, parentDir string, runtimeConfig *config.RuntimeConfig) (tools.ToolSet, error)
 
 // ToolsetRegistry manages the registration of toolset creators by type
 type ToolsetRegistry struct {
@@ -46,12 +46,12 @@ func (r *ToolsetRegistry) Get(toolsetType string) (ToolsetCreator, bool) {
 }
 
 // CreateTool creates a toolset using the registered creator for the given type
-func (r *ToolsetRegistry) CreateTool(ctx context.Context, toolset latest.Toolset, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig) (tools.ToolSet, error) {
+func (r *ToolsetRegistry) CreateTool(ctx context.Context, toolset latest.Toolset, parentDir string, runtimeConfig *config.RuntimeConfig) (tools.ToolSet, error) {
 	creator, ok := r.Get(toolset.Type)
 	if !ok {
 		return nil, fmt.Errorf("unknown toolset type: %s", toolset.Type)
 	}
-	return creator(ctx, toolset, parentDir, envProvider, runtimeConfig)
+	return creator(ctx, toolset, parentDir, runtimeConfig)
 }
 
 func NewDefaultToolsetRegistry() *ToolsetRegistry {
@@ -69,14 +69,14 @@ func NewDefaultToolsetRegistry() *ToolsetRegistry {
 	return r
 }
 
-func createTodoTool(ctx context.Context, toolset latest.Toolset, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig) (tools.ToolSet, error) {
+func createTodoTool(ctx context.Context, toolset latest.Toolset, parentDir string, runtimeConfig *config.RuntimeConfig) (tools.ToolSet, error) {
 	if toolset.Shared {
 		return builtin.NewSharedTodoTool(), nil
 	}
 	return builtin.NewTodoTool(), nil
 }
 
-func createMemoryTool(ctx context.Context, toolset latest.Toolset, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig) (tools.ToolSet, error) {
+func createMemoryTool(ctx context.Context, toolset latest.Toolset, parentDir string, runtimeConfig *config.RuntimeConfig) (tools.ToolSet, error) {
 	var memoryPath string
 	if filepath.IsAbs(toolset.Path) {
 		memoryPath = ""
@@ -102,12 +102,12 @@ func createMemoryTool(ctx context.Context, toolset latest.Toolset, parentDir str
 	return builtin.NewMemoryTool(db), nil
 }
 
-func createThinkTool(ctx context.Context, toolset latest.Toolset, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig) (tools.ToolSet, error) {
+func createThinkTool(ctx context.Context, toolset latest.Toolset, parentDir string, runtimeConfig *config.RuntimeConfig) (tools.ToolSet, error) {
 	return builtin.NewThinkTool(), nil
 }
 
-func createShellTool(ctx context.Context, toolset latest.Toolset, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig) (tools.ToolSet, error) {
-	env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), envProvider)
+func createShellTool(ctx context.Context, toolset latest.Toolset, parentDir string, runtimeConfig *config.RuntimeConfig) (tools.ToolSet, error) {
+	env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), runtimeConfig.EnvProvider())
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
 	}
@@ -115,12 +115,12 @@ func createShellTool(ctx context.Context, toolset latest.Toolset, parentDir stri
 	return builtin.NewShellTool(env), nil
 }
 
-func createScriptTool(ctx context.Context, toolset latest.Toolset, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig) (tools.ToolSet, error) {
+func createScriptTool(ctx context.Context, toolset latest.Toolset, parentDir string, runtimeConfig *config.RuntimeConfig) (tools.ToolSet, error) {
 	if len(toolset.Shell) == 0 {
 		return nil, fmt.Errorf("shell is required for script toolset")
 	}
 
-	env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), envProvider)
+	env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), runtimeConfig.EnvProvider())
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
 	}
@@ -128,7 +128,7 @@ func createScriptTool(ctx context.Context, toolset latest.Toolset, parentDir str
 	return builtin.NewScriptShellTool(toolset.Shell, env), nil
 }
 
-func createFilesystemTool(ctx context.Context, toolset latest.Toolset, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig) (tools.ToolSet, error) {
+func createFilesystemTool(ctx context.Context, toolset latest.Toolset, parentDir string, runtimeConfig *config.RuntimeConfig) (tools.ToolSet, error) {
 	wd := runtimeConfig.WorkingDir
 	if wd == "" {
 		var err error
@@ -162,17 +162,17 @@ func createFilesystemTool(ctx context.Context, toolset latest.Toolset, parentDir
 	return builtin.NewFilesystemTool([]string{wd}, opts...), nil
 }
 
-func createAPITool(ctx context.Context, toolset latest.Toolset, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig) (tools.ToolSet, error) {
+func createAPITool(ctx context.Context, toolset latest.Toolset, parentDir string, runtimeConfig *config.RuntimeConfig) (tools.ToolSet, error) {
 	if toolset.APIConfig.Endpoint == "" {
 		return nil, fmt.Errorf("api tool requires an endpoint in api_config")
 	}
 
-	toolset.APIConfig.Headers = js.Expand(ctx, toolset.APIConfig.Headers, envProvider)
+	toolset.APIConfig.Headers = js.Expand(ctx, toolset.APIConfig.Headers, runtimeConfig.EnvProvider())
 
 	return builtin.NewAPITool(toolset.APIConfig), nil
 }
 
-func createFetchTool(ctx context.Context, toolset latest.Toolset, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig) (tools.ToolSet, error) {
+func createFetchTool(ctx context.Context, toolset latest.Toolset, parentDir string, runtimeConfig *config.RuntimeConfig) (tools.ToolSet, error) {
 	var opts []builtin.FetchToolOption
 	if toolset.Timeout > 0 {
 		timeout := time.Duration(toolset.Timeout) * time.Second
@@ -181,7 +181,7 @@ func createFetchTool(ctx context.Context, toolset latest.Toolset, parentDir stri
 	return builtin.NewFetchTool(opts...), nil
 }
 
-func createMCPTool(ctx context.Context, toolset latest.Toolset, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig) (tools.ToolSet, error) {
+func createMCPTool(ctx context.Context, toolset latest.Toolset, parentDir string, runtimeConfig *config.RuntimeConfig) (tools.ToolSet, error) {
 	// MCP tool has three different modes: ref, command, and remote
 	if toolset.Ref != "" {
 		mcpServerName := gateway.ParseServerRef(toolset.Ref)
@@ -195,11 +195,11 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, parentDir string
 			return mcp.NewRemoteToolset(serverSpec.Remote.URL, serverSpec.Remote.TransportType, nil), nil
 		}
 
-		return mcp.NewGatewayToolset(ctx, mcpServerName, toolset.Config, envProvider)
+		return mcp.NewGatewayToolset(ctx, mcpServerName, toolset.Config, runtimeConfig.EnvProvider())
 	}
 
 	if toolset.Command != "" {
-		env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), envProvider)
+		env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), runtimeConfig.EnvProvider())
 		if err != nil {
 			return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
 		}
@@ -210,7 +210,7 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, parentDir string
 	if toolset.Remote.URL != "" {
 		headers := map[string]string{}
 		for k, v := range toolset.Remote.Headers {
-			expanded, err := environment.Expand(ctx, v, envProvider)
+			expanded, err := environment.Expand(ctx, v, runtimeConfig.EnvProvider())
 			if err != nil {
 				return nil, fmt.Errorf("failed to expand header '%s': %w", k, err)
 			}

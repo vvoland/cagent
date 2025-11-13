@@ -71,6 +71,38 @@ $ cagent pull docker.io/user/agent    # Pull agent from registry
 $ cagent push docker.io/user/agent    # Push agent to registry
 ```
 
+#### Default agent
+
+cagent handles a special case for a **default** agent. Running `cagent run` or `cagent run default`
+will quickly open the TUI on a default, basic agent. This agent is capabablt and has a few tools
+but is not a replacement for a more specialized agent. It's here for when you don't think you need
+a special agent.
+
+#### Aliases
+
+When using the same agent over and over again, from different working directories, it can be cumbersome
+to run `cagent run /full/path/to/the/agent`.
+
+That's where `aliases` come in handy. You can define has many short aliases as you want to full
+agent file paths of names.
+
+```bash
+cagent alias ls           # List the aliases
+
+cagent alias add pirate /full/path/to/the/pirate.yaml
+cagent run pirate
+
+cagent alias add other ociReference
+cagent run other
+```
+
+It's even possible to replace the `default` agent with `aliases`:
+
+```bash
+cagent alias add default /full/path/to/the/pirate.yaml
+cagent run                # Runs the pirate.yaml agent
+```
+
 ### Interface-Specific Features
 
 #### CLI Interactive Commands

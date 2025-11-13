@@ -43,7 +43,7 @@ func TestParseExamples(t *testing.T) {
 		t.Run(file, func(t *testing.T) {
 			t.Parallel()
 
-			cfg, err := LoadConfig(file, filesystem.AllowAll)
+			cfg, err := LoadConfig(t.Context(), file, filesystem.AllowAll)
 
 			require.NoError(t, err)
 			require.Equal(t, latest.Version, cfg.Version, "Version should be %d in %s", latest.Version, file)

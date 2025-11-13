@@ -7,7 +7,7 @@ import (
 )
 
 func TestV2Commands_AllForms(t *testing.T) {
-	cfg, err := LoadConfig("commands_v2.yaml", openRoot(t, "testdata"))
+	cfg, err := LoadConfig(t.Context(), "commands_v2.yaml", openRoot(t, "testdata"))
 	require.NoError(t, err)
 	// map form
 	cmdsMap := cfg.Agents["root"].Commands
@@ -22,7 +22,7 @@ func TestV2Commands_AllForms(t *testing.T) {
 }
 
 func TestMigrate_v1_Commands_AllForms(t *testing.T) {
-	cfg, err := LoadConfig("commands_v1.yaml", openRoot(t, "testdata"))
+	cfg, err := LoadConfig(t.Context(), "commands_v1.yaml", openRoot(t, "testdata"))
 	require.NoError(t, err)
 	// map form
 	cmdsMap := cfg.Agents["root"].Commands
@@ -37,7 +37,7 @@ func TestMigrate_v1_Commands_AllForms(t *testing.T) {
 }
 
 func TestMigrate_v0_Commands_AllForms(t *testing.T) {
-	cfg, err := LoadConfig("commands_v0.yaml", openRoot(t, "testdata"))
+	cfg, err := LoadConfig(t.Context(), "commands_v0.yaml", openRoot(t, "testdata"))
 	require.NoError(t, err)
 	// map form
 	cmdsMap := cfg.Agents["root"].Commands

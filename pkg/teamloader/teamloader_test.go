@@ -46,7 +46,11 @@ func TestGetToolsForAgent_ContinuesOnCreateToolError(t *testing.T) {
 		Toolsets:    []latest.Toolset{{Type: "does-not-exist"}},
 	}
 
-	got, warnings := getToolsForAgent(t.Context(), a, ".", &noEnvProvider{}, config.RuntimeConfig{}, NewToolsetRegistry())
+	runConfig := config.RuntimeConfig{
+		EnvProviderForTests: &noEnvProvider{},
+	}
+
+	got, warnings := getToolsForAgent(t.Context(), a, ".", &runConfig, NewToolsetRegistry())
 
 	require.Empty(t, got)
 	require.NotEmpty(t, warnings)
@@ -57,7 +61,7 @@ func TestLoadExamples(t *testing.T) {
 	// Collect the missing env vars.
 	missingEnvs := map[string]bool{}
 
-	var runtimeConfig config.RuntimeConfig
+	runtimeConfig := &config.RuntimeConfig{}
 
 	for _, file := range collectExamples(t) {
 		t.Run(file, func(t *testing.T) {
@@ -84,9 +88,17 @@ func TestLoadExamples(t *testing.T) {
 
 			teams, err := Load(t.Context(), file, runtimeConfig)
 			require.NoError(t, err)
-			require.NotEmpty(t, teams)
+			assert.NotEmpty(t, teams)
 		})
 	}
+}
+
+func TestLoadDefaultAgent(t *testing.T) {
+	t.Parallel()
+
+	teams, err := Load(t.Context(), "../../cmd/root/default-agent.yaml", &config.RuntimeConfig{})
+	require.NoError(t, err)
+	require.NotEmpty(t, teams)
 }
 
 func TestOverrideModel(t *testing.T) {
@@ -116,7 +128,7 @@ func TestOverrideModel(t *testing.T) {
 		t.Run(test.expected, func(t *testing.T) {
 			t.Parallel()
 
-			team, err := Load(t.Context(), "testdata/basic.yaml", config.RuntimeConfig{}, WithModelOverrides(test.overrides))
+			team, err := Load(t.Context(), "testdata/basic.yaml", &config.RuntimeConfig{}, WithModelOverrides(test.overrides))
 			if test.expectedErr != "" {
 				require.Contains(t, err.Error(), test.expectedErr)
 			} else {
@@ -130,7 +142,7 @@ func TestOverrideModel(t *testing.T) {
 }
 
 func TestToolsetInstructions(t *testing.T) {
-	team, err := Load(t.Context(), "testdata/tool-instruction.yaml", config.RuntimeConfig{})
+	team, err := Load(t.Context(), "testdata/tool-instruction.yaml", &config.RuntimeConfig{})
 	require.NoError(t, err)
 
 	agent, err := team.Agent("root")

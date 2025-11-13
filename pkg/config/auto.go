@@ -1,0 +1,58 @@
+package config
+
+import (
+	"context"
+
+	latest "github.com/docker/cagent/pkg/config/v2"
+	"github.com/docker/cagent/pkg/environment"
+)
+
+var DefaultModels = map[string]string{
+	"openai":    "gpt-5-mini",
+	"anthropic": "claude-sonnet-4-0",
+	"google":    "gemini-2.5-flash",
+	"dmr":       "ai/qwen3:latest",
+	"mistral":   "mistral-small-latest",
+}
+
+func AvailableProviders(ctx context.Context, modelsGateway string, env environment.Provider) []string {
+	providers := []string{}
+
+	if modelsGateway == "" {
+		switch {
+		case env.Get(ctx, "ANTHROPIC_API_KEY") != "":
+			providers = append(providers, "anthropic")
+		case env.Get(ctx, "OPENAI_API_KEY") != "":
+			providers = append(providers, "openai")
+		case env.Get(ctx, "GOOGLE_API_KEY") != "":
+			providers = append(providers, "google")
+		case env.Get(ctx, "MISTRAL_API_KEY") != "":
+			providers = append(providers, "mistral")
+		default:
+			providers = append(providers, "dmr")
+		}
+	} else {
+		// Default to anthropic when using a gateway
+		providers = append(providers, "anthropic")
+	}
+
+	return providers
+}
+
+func AutoModelConfig(ctx context.Context, modelsGateway string, env environment.Provider) latest.ModelConfig {
+	availableProviders := AvailableProviders(ctx, modelsGateway, env)
+	firstAvailable := availableProviders[0]
+
+	return latest.ModelConfig{
+		Provider:  firstAvailable,
+		Model:     DefaultModels[firstAvailable],
+		MaxTokens: PreferredMaxTokens(firstAvailable),
+	}
+}
+
+func PreferredMaxTokens(provider string) int {
+	if provider == "dmr" {
+		return 16000
+	}
+	return 64000
+}

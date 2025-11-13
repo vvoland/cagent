@@ -23,7 +23,7 @@ type Agent struct {
 	conn          *acp.AgentSideConnection
 	team          *team.Team
 	agentFilename string
-	runtimeConfig config.RuntimeConfig
+	runtimeConfig *config.RuntimeConfig
 	sessions      map[string]*Session
 	mu            sync.Mutex
 }
@@ -39,7 +39,7 @@ type Session struct {
 }
 
 // NewAgent creates a new ACP agent
-func NewAgent(agentFilename string, runtimeConfig config.RuntimeConfig) *Agent {
+func NewAgent(agentFilename string, runtimeConfig *config.RuntimeConfig) *Agent {
 	return &Agent{
 		agentFilename: agentFilename,
 		runtimeConfig: runtimeConfig,

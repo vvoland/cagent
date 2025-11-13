@@ -99,7 +99,12 @@ func runAliasAddCommand(cmd *cobra.Command, args []string) error {
 	out.Printf("Alias '%s' created successfully\n", name)
 	out.Printf("  Alias: %s\n", name)
 	out.Printf("  Agent: %s\n", absAgentPath)
-	out.Printf("\nYou can now run: cagent run %s\n", name)
+
+	if name == "default" {
+		out.Printf("\nYou can now run: cagent run %s (or even cagent run)\n", name)
+	} else {
+		out.Printf("\nYou can now run: cagent run %s\n", name)
+	}
 
 	return nil
 }
