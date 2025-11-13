@@ -18,15 +18,14 @@ type remoteMCPClient struct {
 	url                 string
 	transportType       string
 	headers             map[string]string
-	redirectURI         string
 	tokenStore          OAuthTokenStore
 	elicitationHandler  tools.ElicitationHandler
 	oauthSuccessHandler func()
 	mu                  sync.RWMutex
 }
 
-func newRemoteClient(url, transportType string, headers map[string]string, redirectURI string, tokenStore OAuthTokenStore) *remoteMCPClient {
-	slog.Debug("Creating remote MCP client", "url", url, "transport", transportType, "headers", headers, "redirectURI", redirectURI)
+func newRemoteClient(url, transportType string, headers map[string]string, tokenStore OAuthTokenStore) *remoteMCPClient {
+	slog.Debug("Creating remote MCP client", "url", url, "transport", transportType, "headers", headers)
 
 	if tokenStore == nil {
 		tokenStore = NewInMemoryTokenStore()
@@ -36,7 +35,6 @@ func newRemoteClient(url, transportType string, headers map[string]string, redir
 		url:           url,
 		transportType: transportType,
 		headers:       headers,
-		redirectURI:   redirectURI,
 		tokenStore:    tokenStore,
 	}
 }

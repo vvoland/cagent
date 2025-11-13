@@ -46,11 +46,11 @@ func NewToolsetCommand(command string, args, env []string) *Toolset {
 }
 
 // NewRemoteToolset creates a new MCP toolset from a remote MCP Server.
-func NewRemoteToolset(url, transport string, headers map[string]string, redirectURI string) *Toolset {
-	slog.Debug("Creating Remote MCP toolset", "url", url, "transport", transport, "headers", headers, "redirectURI", redirectURI)
+func NewRemoteToolset(url, transport string, headers map[string]string) *Toolset {
+	slog.Debug("Creating Remote MCP toolset", "url", url, "transport", transport, "headers", headers)
 
 	return &Toolset{
-		mcpClient: newRemoteClient(url, transport, headers, redirectURI, NewInMemoryTokenStore()),
+		mcpClient: newRemoteClient(url, transport, headers, NewInMemoryTokenStore()),
 		logID:     url,
 	}
 }
