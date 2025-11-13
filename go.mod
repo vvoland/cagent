@@ -4,7 +4,7 @@ go 1.25.3
 
 require (
 	charm.land/bubbles/v2 v2.0.0-beta.1.0.20251104200223-da0b892d1759
-	charm.land/bubbletea/v2 v2.0.0-rc.1
+	charm.land/bubbletea/v2 v2.0.0-rc.1.0.20251106195925-579e174cd7fa
 	charm.land/lipgloss/v2 v2.0.0-beta.3.0.20251106193318-19329a3e8410
 	dario.cat/mergo v1.0.2
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.4.0
