@@ -155,17 +155,6 @@ type DesktopTokenResponse struct {
 	Token string `json:"token"`
 }
 
-// ResumeStartOauthRequest represents the user approval to start the OAuth flow
-type ResumeStartOauthRequest struct {
-	Confirmation bool `json:"confirmation"`
-}
-
-// ResumeCodeReceivedOauthRequest represents the response from getting the OAuth URL with code and state
-type ResumeCodeReceivedOauthRequest struct {
-	Code  string `json:"code"`
-	State string `json:"state"`
-}
-
 // ResumeElicitationRequest represents a request to resume with an elicitation response
 type ResumeElicitationRequest struct {
 	Action  string         `json:"action"`  // "accept", "decline", or "cancel"

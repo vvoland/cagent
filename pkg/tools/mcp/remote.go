@@ -21,11 +21,12 @@ type remoteMCPClient struct {
 	tokenStore          OAuthTokenStore
 	elicitationHandler  tools.ElicitationHandler
 	oauthSuccessHandler func()
+	managed             bool
 	mu                  sync.RWMutex
 }
 
-func newRemoteClient(url, transportType string, headers map[string]string, tokenStore OAuthTokenStore) *remoteMCPClient {
-	slog.Debug("Creating remote MCP client", "url", url, "transport", transportType, "headers", headers)
+func newRemoteClient(url, transportType string, headers map[string]string, tokenStore OAuthTokenStore, managed bool) *remoteMCPClient {
+	slog.Debug("Creating remote MCP client", "url", url, "transport", transportType, "headers", headers, "managed", managed)
 
 	if tokenStore == nil {
 		tokenStore = NewInMemoryTokenStore()
@@ -36,6 +37,7 @@ func newRemoteClient(url, transportType string, headers map[string]string, token
 		transportType: transportType,
 		headers:       headers,
 		tokenStore:    tokenStore,
+		managed:       managed,
 	}
 }
 
@@ -69,7 +71,7 @@ func (c *remoteMCPClient) handleElicitationRequest(ctx context.Context, req *mcp
 	}
 
 	return &mcp.ElicitResult{
-		Action:  result.Action,
+		Action:  string(result.Action),
 		Content: result.Content,
 	}, nil
 }
@@ -129,6 +131,7 @@ func (c *remoteMCPClient) createHTTPClient() *http.Client {
 			client:     c,
 			tokenStore: c.tokenStore,
 			baseURL:    c.url,
+			managed:    c.managed,
 		},
 	}
 }
@@ -170,25 +173,6 @@ func (c *remoteMCPClient) CallTool(ctx context.Context, params *mcp.CallToolPara
 	return session.CallTool(ctx, params)
 }
 
-// requestUserConsent requests user consent to start the OAuth flow via elicitation
-func (c *remoteMCPClient) requestUserConsent(ctx context.Context) (bool, error) {
-	result, err := c.requestElicitation(ctx, &mcp.ElicitParams{
-		Message:         fmt.Sprintf("The MCP server at %s requires OAuth authorization. Do you want to proceed?", c.url),
-		RequestedSchema: nil,
-		Meta: map[string]any{
-			"cagent/type":       "oauth_consent",
-			"cagent/server_url": c.url,
-		},
-	})
-	if err != nil {
-		return false, err
-	}
-
-	slog.Debug("Elicitation response received", "result", result)
-
-	return result.Action == "accept", nil
-}
-
 // SetElicitationHandler sets the elicitation handler for remote MCP clients
 // This allows the runtime to provide a handler that propagates elicitation requests
 func (c *remoteMCPClient) SetElicitationHandler(handler tools.ElicitationHandler) {
@@ -200,5 +184,13 @@ func (c *remoteMCPClient) SetElicitationHandler(handler tools.ElicitationHandler
 func (c *remoteMCPClient) SetOAuthSuccessHandler(handler func()) {
 	c.mu.Lock()
 	c.oauthSuccessHandler = handler
+	c.mu.Unlock()
+}
+
+// SetManagedOAuth sets whether OAuth should be handled in managed mode
+// In managed mode, the client handles the OAuth flow instead of the server
+func (c *remoteMCPClient) SetManagedOAuth(managed bool) {
+	c.mu.Lock()
+	c.managed = managed
 	c.mu.Unlock()
 }

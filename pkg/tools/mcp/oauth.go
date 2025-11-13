@@ -2,22 +2,20 @@ package mcp
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strings"
 	"time"
 
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"golang.org/x/oauth2"
 
-	"github.com/docker/cagent/pkg/browser"
+	"github.com/docker/cagent/pkg/tools"
 )
 
 // resourceMetadataFromWWWAuth extracts resource metadata URL from WWW-Authenticate header
@@ -38,8 +36,8 @@ type protectedResourceMetadata struct {
 	ResourceSigningAlgValuesSupported []string `json:"resource_signing_alg_values_supported,omitempty"`
 }
 
-// authorizationServerMetadata represents OAuth 2.0 Authorization Server Metadata (RFC 8414)
-type authorizationServerMetadata struct {
+// AuthorizationServerMetadata represents OAuth 2.0 Authorization Server Metadata (RFC 8414)
+type AuthorizationServerMetadata struct {
 	Issuer                                 string   `json:"issuer"`
 	AuthorizationEndpoint                  string   `json:"authorization_endpoint"`
 	TokenEndpoint                          string   `json:"token_endpoint"`
@@ -56,7 +54,7 @@ type authorizationServerMetadata struct {
 	CodeChallengeMethodsSupported          []string `json:"code_challenge_methods_supported,omitempty"`
 }
 
-func (o *oauth) getAuthorizationServerMetadata(ctx context.Context, authServerURL string) (*authorizationServerMetadata, error) {
+func (o *oauth) getAuthorizationServerMetadata(ctx context.Context, authServerURL string) (*AuthorizationServerMetadata, error) {
 	// Build well-known metadata URL
 	metadataURL := authServerURL
 	if !strings.HasSuffix(authServerURL, "/.well-known/oauth-authorization-server") {
@@ -99,7 +97,7 @@ func (o *oauth) getAuthorizationServerMetadata(ctx context.Context, authServerUR
 		return nil, fmt.Errorf("unexpected status %d from %s", resp.StatusCode, metadataURL)
 	}
 
-	var metadata authorizationServerMetadata
+	var metadata AuthorizationServerMetadata
 	if err := json.NewDecoder(resp.Body).Decode(&metadata); err != nil {
 		return nil, fmt.Errorf("failed to decode metadata from %s: %w", metadataURL, err)
 	}
@@ -108,7 +106,7 @@ func (o *oauth) getAuthorizationServerMetadata(ctx context.Context, authServerUR
 }
 
 // validateAndFillDefaults validates required fields and fills in defaults
-func validateAndFillDefaults(metadata *authorizationServerMetadata, authServerURL string) *authorizationServerMetadata {
+func validateAndFillDefaults(metadata *AuthorizationServerMetadata, authServerURL string) *AuthorizationServerMetadata {
 	if metadata.Issuer == "" {
 		metadata.Issuer = authServerURL
 	}
@@ -143,8 +141,8 @@ func validateAndFillDefaults(metadata *authorizationServerMetadata, authServerUR
 }
 
 // createDefaultMetadata creates minimal metadata when discovery fails
-func createDefaultMetadata(authServerURL string) *authorizationServerMetadata {
-	return &authorizationServerMetadata{
+func createDefaultMetadata(authServerURL string) *AuthorizationServerMetadata {
+	return &AuthorizationServerMetadata{
 		Issuer:                                 authServerURL,
 		AuthorizationEndpoint:                  authServerURL + "/authorize",
 		TokenEndpoint:                          authServerURL + "/token",
@@ -156,140 +154,6 @@ func createDefaultMetadata(authServerURL string) *authorizationServerMetadata {
 		RevocationEndpointAuthMethodsSupported: []string{"client_secret_basic"},
 		CodeChallengeMethodsSupported:          []string{"S256"},
 	}
-}
-
-func generateState() (string, error) {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return base64.RawURLEncoding.EncodeToString(b), nil
-}
-
-func buildAuthorizationURL(authEndpoint, clientID, redirectURI, state, codeChallenge, resourceURL string) string {
-	params := url.Values{}
-	params.Set("response_type", "code")
-	params.Set("client_id", clientID)
-	params.Set("redirect_uri", redirectURI)
-	params.Set("state", state)
-	params.Set("code_challenge", codeChallenge)
-	params.Set("code_challenge_method", "S256")
-	params.Set("resource", resourceURL) // RFC 8707: Resource Indicators
-	return authEndpoint + "?" + params.Encode()
-}
-
-func exchangeCodeForToken(ctx context.Context, tokenEndpoint, code, codeVerifier, clientID, clientSecret, redirectURI string) (*OAuthToken, error) {
-	data := url.Values{}
-	data.Set("grant_type", "authorization_code")
-	data.Set("code", code)
-	data.Set("redirect_uri", redirectURI)
-	data.Set("client_id", clientID)
-	data.Set("code_verifier", codeVerifier)
-	if clientSecret != "" {
-		data.Set("client_secret", clientSecret)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenEndpoint, strings.NewReader(data.Encode()))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create token request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to exchange code for token: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("token exchange failed with status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var token OAuthToken
-	if err := json.NewDecoder(resp.Body).Decode(&token); err != nil {
-		return nil, fmt.Errorf("failed to decode token response: %w", err)
-	}
-
-	if token.ExpiresIn > 0 {
-		token.ExpiresAt = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
-	}
-
-	return &token, nil
-}
-
-// requestAuthorizationCode requests the user to open the authorization URL and waits for the callback
-func requestAuthorizationCode(ctx context.Context, authURL string, callbackServer *CallbackServer, expectedState string) (string, string, error) {
-	if err := browser.Open(ctx, authURL); err != nil {
-		return "", "", err
-	}
-
-	code, state, err := callbackServer.WaitForCallback(ctx)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to receive authorization callback: %w", err)
-	}
-
-	if state != expectedState {
-		return "", "", fmt.Errorf("state mismatch: expected %s, got %s", expectedState, state)
-	}
-
-	return code, state, nil
-}
-
-// registerClient performs dynamic client registration
-func registerClient(ctx context.Context, authMetadata *authorizationServerMetadata, redirectURI string, scopes []string) (clientID, clientSecret string, err error) {
-	if authMetadata.RegistrationEndpoint == "" {
-		return "", "", fmt.Errorf("authorization server does not support dynamic client registration")
-	}
-
-	reqBody := map[string]any{
-		"redirect_uris": []string{redirectURI},
-		"client_name":   "cagent",
-		"grant_types":   []string{"authorization_code"},
-		"response_types": []string{
-			"code",
-		},
-	}
-	if len(scopes) > 0 {
-		reqBody["scope"] = strings.Join(scopes, " ")
-	}
-
-	bodyBytes, err := json.Marshal(reqBody)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to marshal registration request: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, authMetadata.RegistrationEndpoint, strings.NewReader(string(bodyBytes)))
-	if err != nil {
-		return "", "", fmt.Errorf("failed to create registration request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to register client: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return "", "", fmt.Errorf("client registration failed with status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var respBody struct {
-		ClientID     string `json:"client_id"`
-		ClientSecret string `json:"client_secret,omitempty"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
-		return "", "", fmt.Errorf("failed to decode registration response: %w", err)
-	}
-
-	if respBody.ClientID == "" {
-		return "", "", fmt.Errorf("registration response missing client_id")
-	}
-
-	return respBody.ClientID, respBody.ClientSecret, nil
 }
 
 func resourceMetadataFromWWWAuth(wwwAuth string) string {
@@ -307,6 +171,7 @@ type oauthTransport struct {
 	client     *remoteMCPClient
 	tokenStore OAuthTokenStore
 	baseURL    string
+	managed    bool
 }
 
 func (t *oauthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -354,6 +219,14 @@ func (t *oauthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 // handleOAuthFlow performs the OAuth flow when a 401 response is received
 func (t *oauthTransport) handleOAuthFlow(ctx context.Context, authServer, wwwAuth string) error {
+	if t.managed {
+		return t.handleManagedOAuthFlow(ctx, authServer, wwwAuth)
+	}
+
+	return t.handleUnmanagedOAuthFlow(ctx, authServer, wwwAuth)
+}
+
+func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer, wwwAuth string) error {
 	slog.Debug("Starting OAuth flow for server", "url", t.baseURL)
 
 	var resourceURL string
@@ -415,7 +288,7 @@ func (t *oauthTransport) handleOAuthFlow(ctx context.Context, authServer, wwwAut
 
 	if authServerMetadata.RegistrationEndpoint != "" {
 		slog.Debug("Attempting dynamic client registration")
-		clientID, clientSecret, err = registerClient(ctx, authServerMetadata, redirectURI, nil)
+		clientID, clientSecret, err = RegisterClient(ctx, authServerMetadata, redirectURI, nil)
 		if err != nil {
 			slog.Debug("Dynamic registration failed", "error", err)
 			// TODO(rumpl): fall back to requesting client ID from user
@@ -426,15 +299,15 @@ func (t *oauthTransport) handleOAuthFlow(ctx context.Context, authServer, wwwAut
 		return errors.New("authorization server does not support dynamic client registration")
 	}
 
-	state, err := generateState()
+	state, err := GenerateState()
 	if err != nil {
 		return fmt.Errorf("failed to generate state: %w", err)
 	}
 
 	callbackServer.SetExpectedState(state)
-	verifier := oauth2.GenerateVerifier()
+	verifier := GeneratePKCEVerifier()
 
-	authURL := buildAuthorizationURL(
+	authURL := BuildAuthorizationURL(
 		authServerMetadata.AuthorizationEndpoint,
 		clientID,
 		redirectURI,
@@ -443,18 +316,27 @@ func (t *oauthTransport) handleOAuthFlow(ctx context.Context, authServer, wwwAut
 		t.baseURL,
 	)
 
-	// Request user consent via elicitation
-	consent, err := t.client.requestUserConsent(ctx)
+	result, err := t.client.requestElicitation(ctx, &mcpsdk.ElicitParams{
+		Message:         fmt.Sprintf("The MCP server at %s requires OAuth authorization. Do you want to proceed?", t.baseURL),
+		RequestedSchema: nil,
+		Meta: map[string]any{
+			"cagent/type":       "oauth_flow",
+			"cagent/server_url": t.baseURL,
+		},
+	})
 	if err != nil {
-		return fmt.Errorf("failed to get user consent: %w", err)
+		return fmt.Errorf("failed to send elicitation request: %w", err)
 	}
-	if !consent {
+
+	slog.Debug("Elicitation response received", "result", result)
+
+	if result.Action != tools.ElicitationActionAccept {
 		return fmt.Errorf("user declined OAuth authorization")
 	}
 
 	slog.Debug("Requesting authorization code", "url", authURL)
 
-	code, receivedState, err := requestAuthorizationCode(ctx, authURL, callbackServer, state)
+	code, receivedState, err := RequestAuthorizationCode(ctx, authURL, callbackServer, state)
 	if err != nil {
 		return fmt.Errorf("failed to get authorization code: %w", err)
 	}
@@ -464,7 +346,7 @@ func (t *oauthTransport) handleOAuthFlow(ctx context.Context, authServer, wwwAut
 	}
 
 	slog.Debug("Exchanging authorization code for token")
-	token, err := exchangeCodeForToken(
+	token, err := ExchangeCodeForToken(
 		ctx,
 		authServerMetadata.TokenEndpoint,
 		code,
@@ -485,5 +367,104 @@ func (t *oauthTransport) handleOAuthFlow(ctx context.Context, authServer, wwwAut
 	t.client.oauthSuccess()
 
 	slog.Debug("OAuth flow completed successfully")
+	return nil
+}
+
+// handleUnmanagedOAuthFlow performs the OAuth flow for remote/unmanaged scenarios
+// where the client handles the OAuth interaction instead of us
+func (t *oauthTransport) handleUnmanagedOAuthFlow(ctx context.Context, authServer, wwwAuth string) error {
+	slog.Debug("Starting unmanaged OAuth flow for server", "url", t.baseURL)
+
+	// Extract resource URL from WWW-Authenticate header
+	var resourceURL string
+	resourceURL = resourceMetadataFromWWWAuth(wwwAuth)
+	slog.Debug("Extracted resource URL from WWW-Authenticate header", "resource_url", resourceURL)
+	if resourceURL == "" {
+		resourceURL = authServer + "/.well-known/oauth-protected-resource"
+	}
+
+	resp, err := http.Get(resourceURL)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
+		return err
+	}
+	var resourceMetadata protectedResourceMetadata
+	if resp.StatusCode == http.StatusOK {
+		if err := json.NewDecoder(resp.Body).Decode(&resourceMetadata); err != nil {
+			return err
+		}
+	}
+
+	if len(resourceMetadata.AuthorizationServers) == 0 {
+		slog.Debug("No authorization servers in resource metadata, using auth server from WWW-Authenticate header")
+		resourceMetadata.AuthorizationServers = []string{authServer}
+	}
+
+	oauth := &oauth{metadataClient: &http.Client{Timeout: 5 * time.Second}}
+	authServerMetadata, err := oauth.getAuthorizationServerMetadata(ctx, resourceMetadata.AuthorizationServers[0])
+	if err != nil {
+		return fmt.Errorf("failed to fetch authorization server metadata: %w", err)
+	}
+
+	slog.Debug("Sending OAuth elicitation request to client")
+
+	result, err := t.client.requestElicitation(ctx, &mcpsdk.ElicitParams{
+		Message:         fmt.Sprintf("OAuth authorization required for %s", t.baseURL),
+		RequestedSchema: nil,
+		Meta: map[string]any{
+			"cagent/type":          "oauth_flow",
+			"cagent/server_url":    t.baseURL,
+			"auth_server":          resourceMetadata.AuthorizationServers[0],
+			"auth_server_metadata": authServerMetadata,
+			"resource_metadata":    resourceMetadata,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to send elicitation request: %w", err)
+	}
+
+	slog.Debug("Received elicitation response from client", "action", result.Action)
+
+	if result.Action != tools.ElicitationActionAccept {
+		return fmt.Errorf("OAuth flow declined or cancelled by client")
+	}
+	if result.Content == nil {
+		return fmt.Errorf("no token received from client")
+	}
+
+	tokenData := result.Content
+
+	token := &OAuthToken{}
+
+	if accessToken, ok := tokenData["access_token"].(string); ok {
+		token.AccessToken = accessToken
+	} else {
+		return fmt.Errorf("access_token missing or invalid in client response")
+	}
+
+	if tokenType, ok := tokenData["token_type"].(string); ok {
+		token.TokenType = tokenType
+	}
+
+	if expiresIn, ok := tokenData["expires_in"].(float64); ok {
+		token.ExpiresIn = int(expiresIn)
+		token.ExpiresAt = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
+	}
+
+	if refreshToken, ok := tokenData["refresh_token"].(string); ok {
+		token.RefreshToken = refreshToken
+	}
+	if err := t.tokenStore.StoreToken(t.baseURL, token); err != nil {
+		return fmt.Errorf("failed to store token: %w", err)
+	}
+
+	// Notify the runtime that the OAuth flow was successful
+	t.client.oauthSuccess()
+
+	slog.Debug("Managed OAuth flow completed successfully")
 	return nil
 }

@@ -293,14 +293,14 @@ func ElicitationRequest(message string, schema any, meta map[string]any, agentNa
 func (e *ElicitationRequestEvent) GetAgentName() string { return e.AgentName }
 
 type AuthorizationEvent struct {
-	Type         string `json:"type"`
-	Confirmation string `json:"confirmation"` // only "confirmed"
+	Type         string                  `json:"type"`
+	Confirmation tools.ElicitationAction `json:"confirmation"`
 	AgentContext
 }
 
 func (e *AuthorizationEvent) GetAgentName() string { return "" }
 
-func Authorization(confirmation, agentName string) Event {
+func Authorization(confirmation tools.ElicitationAction, agentName string) Event {
 	return &AuthorizationEvent{
 		Type:         "authorization_event",
 		Confirmation: confirmation,

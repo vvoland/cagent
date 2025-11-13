@@ -39,9 +39,17 @@ type Tool struct {
 
 type ToolAnnotations mcp.ToolAnnotations
 
+type ElicitationAction string
+
+const (
+	ElicitationActionAccept  ElicitationAction = "accept"
+	ElicitationActionDecline ElicitationAction = "decline"
+	ElicitationActionCancel  ElicitationAction = "cancel"
+)
+
 type ElicitationResult struct {
-	Action  string         `json:"action"` // "accept", "decline", or "cancel"
-	Content map[string]any `json:"content,omitempty"`
+	Action  ElicitationAction `json:"action"`
+	Content map[string]any    `json:"content,omitempty"`
 }
 
 // ElicitationHandler is a function type that handles elicitation requests from the MCP server
@@ -58,6 +66,10 @@ func (t *ElicitationTool) SetOAuthSuccessHandler(func()) {
 	// No-op, this tool does not use OAuth
 }
 
+func (t *ElicitationTool) SetManagedOAuth(bool) {
+	// No-op, this tool does not use OAuth
+}
+
 type ToolSet interface {
 	Tools(ctx context.Context) ([]Tool, error)
 	Instructions() string
@@ -65,4 +77,5 @@ type ToolSet interface {
 	Stop(ctx context.Context) error
 	SetElicitationHandler(handler ElicitationHandler)
 	SetOAuthSuccessHandler(handler func())
+	SetManagedOAuth(managed bool)
 }

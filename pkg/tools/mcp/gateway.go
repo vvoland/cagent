@@ -82,6 +82,10 @@ func (t *GatewayToolset) SetOAuthSuccessHandler(handler func()) {
 	t.cmdToolset.SetOAuthSuccessHandler(handler)
 }
 
+func (t *GatewayToolset) SetManagedOAuth(managed bool) {
+	t.cmdToolset.SetManagedOAuth(managed)
+}
+
 func (t *GatewayToolset) Stop(ctx context.Context) error {
 	return errors.Join(t.cmdToolset.Stop(ctx), t.cleanUp())
 }

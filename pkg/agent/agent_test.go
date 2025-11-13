@@ -37,6 +37,7 @@ func (s *stubToolSet) Tools(context.Context) ([]tools.Tool, error) {
 func (s *stubToolSet) Instructions() string                           { return s.instructions }
 func (s *stubToolSet) SetElicitationHandler(tools.ElicitationHandler) {}
 func (s *stubToolSet) SetOAuthSuccessHandler(func())                  {}
+func (s *stubToolSet) SetManagedOAuth(bool)                           {}
 
 func TestAgentTools(t *testing.T) {
 	tests := []struct {

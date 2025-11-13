@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/cagent/pkg/tools"
 )
 
 type App struct {
@@ -87,9 +88,12 @@ func (a *App) Subscribe(ctx context.Context, program *tea.Program) {
 
 // Resume resumes the runtime with the given confirmation type
 func (a *App) Resume(resumeType runtime.ResumeType) {
-	if a.runtime != nil {
-		a.runtime.Resume(context.Background(), resumeType)
-	}
+	a.runtime.Resume(context.Background(), resumeType)
+}
+
+// ResumeElicitation resumes an elicitation request with the given action and content
+func (a *App) ResumeElicitation(ctx context.Context, action tools.ElicitationAction, content map[string]any) error {
+	return a.runtime.ResumeElicitation(ctx, action, content)
 }
 
 func (a *App) NewSession() {
@@ -105,21 +109,13 @@ func (a *App) Session() *session.Session {
 }
 
 func (a *App) CompactSession() {
-	if a.runtime != nil && a.session != nil {
+	if a.session != nil {
 		events := make(chan runtime.Event, 100)
 		a.runtime.Summarize(context.Background(), a.session, events)
 		close(events)
 		for event := range events {
 			a.events <- event
 		}
-	}
-}
-
-// ResumeStartOAuth resumes the runtime with OAuth authorization confirmation
-func (a *App) ResumeStartOAuth(bool) {
-	if a.runtime != nil {
-		// TODO(rumpl): handle the error
-		_ = a.runtime.ResumeElicitation(context.Background(), "accept", nil)
 	}
 }
 

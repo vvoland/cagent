@@ -22,6 +22,7 @@ type mcpClient interface {
 	CallTool(ctx context.Context, request *mcp.CallToolParams) (*mcp.CallToolResult, error)
 	SetElicitationHandler(handler tools.ElicitationHandler)
 	SetOAuthSuccessHandler(handler func())
+	SetManagedOAuth(managed bool)
 	Close(ctx context.Context) error
 }
 
@@ -50,7 +51,7 @@ func NewRemoteToolset(url, transport string, headers map[string]string) *Toolset
 	slog.Debug("Creating Remote MCP toolset", "url", url, "transport", transport, "headers", headers)
 
 	return &Toolset{
-		mcpClient: newRemoteClient(url, transport, headers, NewInMemoryTokenStore()),
+		mcpClient: newRemoteClient(url, transport, headers, NewInMemoryTokenStore(), false),
 		logID:     url,
 	}
 }
@@ -240,4 +241,8 @@ func (ts *Toolset) SetElicitationHandler(handler tools.ElicitationHandler) {
 
 func (ts *Toolset) SetOAuthSuccessHandler(handler func()) {
 	ts.mcpClient.SetOAuthSuccessHandler(handler)
+}
+
+func (ts *Toolset) SetManagedOAuth(managed bool) {
+	ts.mcpClient.SetManagedOAuth(managed)
 }

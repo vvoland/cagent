@@ -81,3 +81,5 @@ func (c *stdioMCPClient) CallTool(ctx context.Context, request *mcp.CallToolPara
 func (c *stdioMCPClient) SetElicitationHandler(tools.ElicitationHandler) {}
 
 func (c *stdioMCPClient) SetOAuthSuccessHandler(func()) {}
+
+func (c *stdioMCPClient) SetManagedOAuth(bool) {}
