@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -31,17 +32,26 @@ func removeHeadersHook(i *cassette.Interaction) error {
 func customMatcher(t *testing.T) recorder.MatcherFunc {
 	t.Helper()
 
+	callIDRegex := regexp.MustCompile(`call_[a-z0-9\-]+`)
+
 	return func(r *http.Request, i cassette.Request) bool {
 		if r.Body == nil || r.Body == http.NoBody {
 			return cassette.DefaultMatcher(r, i)
 		}
+		if r.Method != i.Method {
+			return false
+		}
+		if r.URL.String() != i.URL {
+			return false
+		}
 
 		reqBody, err := io.ReadAll(r.Body)
 		require.NoError(t, err)
-
 		r.Body.Close()
 		r.Body = io.NopCloser(bytes.NewBuffer(reqBody))
-		return r.Method == i.Method && r.URL.String() == i.URL && string(reqBody) == i.Body
+
+		// Ignore Gemini's functionResponse's names
+		return callIDRegex.ReplaceAllString(string(reqBody), "call_ID") == callIDRegex.ReplaceAllString(i.Body, "call_ID")
 	}
 }
 
