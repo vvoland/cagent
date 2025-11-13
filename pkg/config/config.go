@@ -19,14 +19,18 @@ import (
 func LoadConfig(path string, fs filesystem.FS) (*latest.Config, error) {
 	data, err := fs.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("reading config file: %w", err)
+		return nil, fmt.Errorf("reading config file %s: %w", path, err)
 	}
 
+	return LoadConfigBytes(data)
+}
+
+func LoadConfigBytes(data []byte) (*latest.Config, error) {
 	var raw struct {
 		Version string `yaml:"version,omitempty"`
 	}
 	if err := yaml.UnmarshalWithOptions(data, &raw); err != nil {
-		return nil, fmt.Errorf("looking for version in config file %s\n%s", path, yaml.FormatError(err, true, true))
+		return nil, fmt.Errorf("looking for version in config file\n%s", yaml.FormatError(err, true, true))
 	}
 	if raw.Version == "" {
 		raw.Version = latest.Version
@@ -34,7 +38,7 @@ func LoadConfig(path string, fs filesystem.FS) (*latest.Config, error) {
 
 	oldConfig, err := parseCurrentVersion(data, raw.Version)
 	if err != nil {
-		return nil, fmt.Errorf("parsing config file %s\n%s", path, yaml.FormatError(err, true, true))
+		return nil, fmt.Errorf("parsing config file\n%s", yaml.FormatError(err, true, true))
 	}
 
 	config, err := migrateToLatestConfig(oldConfig)
