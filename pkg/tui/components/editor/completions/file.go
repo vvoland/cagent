@@ -24,10 +24,22 @@ func (c *fileCompletion) Trigger() string {
 }
 
 func (c *fileCompletion) Items() []completion.Item {
-	files, err := fsx.ListDirectory(".", 0)
+	// Try to create VCS matcher for current directory
+	vcsMatcher, err := fsx.NewVCSMatcher(".")
+
+	// Prepare shouldIgnore function
+	var shouldIgnore func(string) bool
+	if err == nil && vcsMatcher != nil {
+		shouldIgnore = vcsMatcher.ShouldIgnore
+	}
+	// If vcsMatcher is nil (not in git repo), shouldIgnore stays nil = show all files
+
+	// Get files with optional VCS filtering
+	files, err := fsx.ListDirectory(".", 0, shouldIgnore)
 	if err != nil {
 		return nil
 	}
+
 	items := make([]completion.Item, len(files))
 	for i, f := range files {
 		items[i] = completion.Item{
