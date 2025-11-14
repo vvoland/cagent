@@ -3,10 +3,12 @@ package root
 import (
 	"log/slog"
 
+	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/filesystem"
 	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/telemetry"
 )
@@ -25,6 +27,12 @@ func newDebugCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(&cobra.Command{
+		Use:   "config <agent-name>",
+		Short: "Print the canonical form of an agent's configuration file",
+		Args:  cobra.ExactArgs(1),
+		RunE:  flags.runDebugConfigCommand,
+	})
+	cmd.AddCommand(&cobra.Command{
 		Use:   "toolsets <agent-name>",
 		Short: "Debug the toolsets of an agent",
 		Args:  cobra.ExactArgs(1),
@@ -34,6 +42,19 @@ func newDebugCmd() *cobra.Command {
 	addRuntimeConfigFlags(cmd, &flags.runConfig)
 
 	return cmd
+}
+
+func (f *debugFlags) runDebugConfigCommand(cmd *cobra.Command, args []string) error {
+	telemetry.TrackCommand("debug", append([]string{"config"}, args...))
+
+	agentFilename := args[0]
+
+	cfg, err := config.LoadConfig(agentFilename, filesystem.AllowAll)
+	if err != nil {
+		return err
+	}
+
+	return yaml.NewEncoder(cmd.OutOrStdout()).Encode(cfg)
 }
 
 func (f *debugFlags) runDebugToolsetsCommand(cmd *cobra.Command, args []string) error {
