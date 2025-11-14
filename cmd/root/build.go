@@ -17,10 +17,11 @@ func newBuildCmd() *cobra.Command {
 	var flags buildFlags
 
 	cmd := &cobra.Command{
-		Use:   "build <agent-file> [docker-image-name]",
-		Short: "Build a Docker image for the agent",
-		Args:  cobra.RangeArgs(1, 2),
-		RunE:  flags.runBuildCommand,
+		Use:     "build <agent-file> [docker-image-name]",
+		Short:   "Build a Docker image for the agent",
+		Args:    cobra.RangeArgs(1, 2),
+		GroupID: "advanced",
+		RunE:    flags.runBuildCommand,
 	}
 
 	cmd.PersistentFlags().BoolVar(&flags.opts.DryRun, "dry-run", false, "only print the generated Dockerfile")

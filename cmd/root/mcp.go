@@ -26,8 +26,9 @@ func newMCPCmd() *cobra.Command {
 		Example: `  cagent mcp ./agent.yaml
   cagent mcp ./team.yaml
   cagent mcp agentcatalog/pirate`,
-		Args: cobra.ExactArgs(1),
-		RunE: flags.runMCPCommand,
+		Args:    cobra.ExactArgs(1),
+		GroupID: "server",
+		RunE:    flags.runMCPCommand,
 	}
 
 	cmd.PersistentFlags().StringVar(&flags.workingDir, "working-dir", "", "Set the working directory for the session (applies to tools and relative paths)")

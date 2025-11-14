@@ -18,10 +18,11 @@ func newEvalCmd() *cobra.Command {
 	var flags evalFlags
 
 	cmd := &cobra.Command{
-		Use:   "eval <agent-name> <eval-dir>",
-		Short: "Run evaluations for an agent",
-		Args:  cobra.ExactArgs(2),
-		RunE:  flags.runEvalCommand,
+		Use:     "eval <agent-name> <eval-dir>",
+		Short:   "Run evaluations for an agent",
+		GroupID: "advanced",
+		Args:    cobra.ExactArgs(2),
+		RunE:    flags.runEvalCommand,
 	}
 
 	addRuntimeConfigFlags(cmd, &flags.runConfig)

@@ -19,8 +19,9 @@ func newDebugCmd() *cobra.Command {
 	var flags debugFlags
 
 	cmd := &cobra.Command{
-		Use:   "debug",
-		Short: "Debug tools",
+		Use:     "debug",
+		Short:   "Debug tools",
+		GroupID: "advanced",
 	}
 
 	cmd.AddCommand(&cobra.Command{

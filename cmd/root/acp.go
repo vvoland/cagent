@@ -27,8 +27,9 @@ func newACPCmd() *cobra.Command {
 		Long:  `Start an ACP server that exposes the agent via the Agent Client Protocol`,
 		Example: `  cagent acp ./agent.yaml
   cagent acp agentcatalog/pirate`,
-		Args: cobra.ExactArgs(1),
-		RunE: flags.runACPCommand,
+		Args:    cobra.ExactArgs(1),
+		GroupID: "server",
+		RunE:    flags.runACPCommand,
 	}
 
 	addRuntimeConfigFlags(cmd, &flags.runConfig)

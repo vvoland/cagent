@@ -29,8 +29,9 @@ func newA2ACmd() *cobra.Command {
 		Example: `  cagent a2a ./agent.yaml
   cagent a2a ./team.yaml --port 8080
   cagent a2a agentcatalog/pirate --port 9000`,
-		Args: cobra.ExactArgs(1),
-		RunE: flags.runA2ACommand,
+		Args:    cobra.ExactArgs(1),
+		GroupID: "server",
+		RunE:    flags.runA2ACommand,
 	}
 
 	cmd.PersistentFlags().StringVarP(&flags.agentName, "agent", "a", "root", "Name of the agent to run")

@@ -96,6 +96,11 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddCommand(newPrintCmd())
 	cmd.AddCommand(newAliasCmd())
 
+	// Define groups
+	cmd.AddGroup(&cobra.Group{ID: "core", Title: "Core Commands:"})
+	cmd.AddGroup(&cobra.Group{ID: "advanced", Title: "Advanced Commands:"})
+	cmd.AddGroup(&cobra.Group{ID: "server", Title: "Server Commands:"})
+
 	return cmd
 }
 

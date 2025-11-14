@@ -30,6 +30,7 @@ func newAliasCmd() *cobra.Command {
 
   # Remove an alias
   cagent alias remove code`,
+		GroupID: "advanced",
 	}
 
 	cmd.AddCommand(newAliasAddCmd())

@@ -11,10 +11,11 @@ import (
 
 func newPrintCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "print <agent-file>",
-		Short: "Print the canonical form of an agent file",
-		Args:  cobra.ExactArgs(1),
-		RunE:  runPrintCommand,
+		Use:     "print <agent-file>",
+		Short:   "Print the canonical form of an agent file",
+		Args:    cobra.ExactArgs(1),
+		GroupID: "advanced",
+		RunE:    runPrintCommand,
 	}
 }
 

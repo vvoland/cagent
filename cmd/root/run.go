@@ -45,8 +45,9 @@ func newRunCmd() *cobra.Command {
   cagent run ./team.yaml --agent root
   cagent run ./echo.yaml "INSTRUCTIONS"
   echo "INSTRUCTIONS" | cagent run ./echo.yaml -`,
-		Args: cobra.RangeArgs(1, 2),
-		RunE: flags.runRunCommand,
+		GroupID: "core",
+		Args:    cobra.RangeArgs(1, 2),
+		RunE:    flags.runRunCommand,
 	}
 
 	addRunOrExecFlags(cmd, &flags)
