@@ -57,10 +57,10 @@ func DirectoryTree(path string, isPathAllowed func(string) error, shouldIgnore f
 	return node, nil
 }
 
-func ListDirectory(path string, maxDept int) ([]string, error) {
+func ListDirectory(path string, maxDepth int, shouldIgnore func(string) bool) ([]string, error) {
 	var files []string
 
-	tree, err := DirectoryTree(path, func(string) error { return nil }, nil, maxDept, 0)
+	tree, err := DirectoryTree(path, func(string) error { return nil }, shouldIgnore, maxDepth, 0)
 	if err != nil {
 		return nil, err
 	}
