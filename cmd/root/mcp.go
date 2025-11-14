@@ -21,8 +21,8 @@ func newMCPCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "mcp <agent-file>",
-		Short: "Start an MCP (Model Context Protocol) server",
-		Long:  `Start an MCP server that exposes agents as MCP tools via stdio`,
+		Short: "Start an agent as an MCP (Model Context Protocol) server",
+		Long:  `Start an stdio MCP server that exposes the agent via the Model Context Protocol`,
 		Example: `  cagent mcp ./agent.yaml
   cagent mcp ./team.yaml
   cagent mcp agentcatalog/pirate`,

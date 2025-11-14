@@ -57,7 +57,6 @@ func (f *acpFlags) runACPCommand(cmd *cobra.Command, args []string) error {
 	defer acpAgent.Stop(ctx)
 
 	slog.Debug("acp started, waiting for conn")
-
 	<-conn.Done()
 
 	return nil

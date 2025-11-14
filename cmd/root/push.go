@@ -17,12 +17,9 @@ func newPushCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "push <agent file> <reference>",
 		Short: "Push an agent to an OCI registry",
-		Long: `Push an agent to an OCI registry.
-
-The local identifier can be either a reference (tag) or a digest that was returned
-from the build command.`,
-		Args: cobra.ExactArgs(2),
-		RunE: runPushCommand,
+		Long:  "Push an agent configuration file to an OCI registry",
+		Args:  cobra.ExactArgs(2),
+		RunE:  runPushCommand,
 	}
 }
 

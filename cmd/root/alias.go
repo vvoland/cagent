@@ -17,7 +17,7 @@ import (
 func newAliasCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "alias",
-		Short: "Manage aliases for agents",
+		Short: "Manage aliases",
 		Long:  `Create and manage aliases for agent configurations or catalog references.`,
 		Example: `  # Create an alias for a catalog agent
   cagent alias add code agentcatalog/notion-expert
