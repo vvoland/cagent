@@ -48,5 +48,7 @@ func (c *Component) View() string {
 		return "" // TODO: Partial tool call
 	}
 
-	return c.message.Sender + " -> " + params.Agent + ": " + styles.MutedStyle.Render(params.Task)
+	badge := styles.TransferBadgeStyle.Render(c.message.Sender + " -> " + params.Agent + ": ")
+	content := styles.MutedStyle.PaddingLeft(2).Render(params.Task)
+	return badge + "\n" + content
 }
