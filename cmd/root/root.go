@@ -32,7 +32,9 @@ func NewRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cagent",
 		Short: "cagent - AI agent runner",
-		Long:  `cagent is a command-line tool for running AI agents`,
+		Long:  "cagent is a command-line tool for running AI agents",
+		Example: `  cagent run ./agent.yaml
+  cagent run agentcatalog/pirate`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// Initialize logging before anything else so logs don't break TUI
 			if err := flags.setupLogging(); err != nil {
@@ -93,8 +95,12 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddCommand(newFeedbackCmd())
 	cmd.AddCommand(newCatalogCmd())
 	cmd.AddCommand(newBuildCmd())
-	cmd.AddCommand(newPrintCmd())
 	cmd.AddCommand(newAliasCmd())
+
+	// Define groups
+	cmd.AddGroup(&cobra.Group{ID: "core", Title: "Core Commands:"})
+	cmd.AddGroup(&cobra.Group{ID: "advanced", Title: "Advanced Commands:"})
+	cmd.AddGroup(&cobra.Group{ID: "server", Title: "Server Commands:"})
 
 	return cmd
 }

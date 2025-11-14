@@ -17,11 +17,12 @@ import (
 
 func newPullCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "pull <registry-ref>",
-		Short: "Pull an artifact from Docker Hub",
-		Long:  `Pull an artifact from Docker Hub`,
-		Args:  cobra.ExactArgs(1),
-		RunE:  runPullCommand,
+		Use:     "pull <registry-ref>",
+		Short:   "Pull an agent from an OCI registry",
+		Long:    "Pull an agent configuration file from an OCI registry",
+		GroupID: "core",
+		Args:    cobra.ExactArgs(1),
+		RunE:    runPullCommand,
 	}
 }
 

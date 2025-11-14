@@ -3,6 +3,7 @@ package root
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/evaluation"
@@ -18,10 +19,11 @@ func newEvalCmd() *cobra.Command {
 	var flags evalFlags
 
 	cmd := &cobra.Command{
-		Use:   "eval <agent-name> <eval-dir>",
-		Short: "Run evaluations for an agent",
-		Args:  cobra.ExactArgs(2),
-		RunE:  flags.runEvalCommand,
+		Use:     "eval <agent-file>|<registry-ref> <eval-dir>",
+		Short:   "Run evaluations for an agent",
+		GroupID: "advanced",
+		Args:    cobra.ExactArgs(2),
+		RunE:    flags.runEvalCommand,
 	}
 
 	addRuntimeConfigFlags(cmd, &flags.runConfig)
@@ -32,9 +34,15 @@ func newEvalCmd() *cobra.Command {
 func (f *evalFlags) runEvalCommand(cmd *cobra.Command, args []string) error {
 	telemetry.TrackCommand("eval", args)
 
+	ctx := cmd.Context()
 	out := cli.NewPrinter(cmd.OutOrStdout())
 
-	agents, err := teamloader.Load(cmd.Context(), args[0], f.runConfig)
+	agentFilename, err := agentfile.Resolve(ctx, out, args[0])
+	if err != nil {
+		return err
+	}
+
+	agents, err := teamloader.Load(cmd.Context(), agentFilename, f.runConfig)
 	if err != nil {
 		return err
 	}

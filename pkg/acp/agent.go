@@ -40,12 +40,11 @@ type Session struct {
 
 // NewAgent creates a new ACP agent
 func NewAgent(agentFilename string, runtimeConfig config.RuntimeConfig) *Agent {
-	agent := &Agent{
+	return &Agent{
 		agentFilename: agentFilename,
 		runtimeConfig: runtimeConfig,
 		sessions:      make(map[string]*Session),
 	}
-	return agent
 }
 
 // Stop stops the agent and its toolsets

@@ -30,11 +30,12 @@ func newAPICmd() *cobra.Command {
 	var flags apiFlags
 
 	cmd := &cobra.Command{
-		Use:   "api <agent-file>|<agents-dir>",
-		Short: "Start the API server",
-		Long:  `Start the API server that exposes the agent via an HTTP API`,
-		Args:  cobra.ExactArgs(1),
-		RunE:  flags.runAPICommand,
+		Use:     "api <agent-file>|<agents-dir>",
+		Short:   "Start the cagent API server",
+		Long:    `Start the API server that exposes the agent via a cagent-specific HTTP API`,
+		GroupID: "server",
+		Args:    cobra.ExactArgs(1),
+		RunE:    flags.runAPICommand,
 	}
 
 	cmd.PersistentFlags().StringVarP(&flags.listenAddr, "listen", "l", ":8080", "Address to listen on")

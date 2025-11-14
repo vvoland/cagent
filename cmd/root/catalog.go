@@ -17,8 +17,9 @@ import (
 
 func newCatalogCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "catalog",
-		Short: "Manage the agent catalog",
+		Use:     "catalog",
+		Short:   "Manage the agent catalog",
+		GroupID: "advanced",
 	}
 
 	cmd.AddCommand(newCatalogListCmd())

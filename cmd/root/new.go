@@ -27,10 +27,11 @@ func newNewCmd() *cobra.Command {
 	var flags newFlags
 
 	cmd := &cobra.Command{
-		Use:   "new",
-		Short: "Create a new agent configuration",
-		Long:  `Create a new agent configuration by asking questions and generating a YAML file`,
-		RunE:  flags.runNewCommand,
+		Use:     "new",
+		Short:   "Create a new agent configuration",
+		Long:    `Create a new agent configuration by asking questions and generating a YAML file`,
+		GroupID: "core",
+		RunE:    flags.runNewCommand,
 	}
 
 	cmd.PersistentFlags().StringVar(&flags.modelParam, "model", "", "Model to use, optionally as provider/model where provider is one of: anthropic, openai, google, dmr. If omitted, provider is auto-selected based on available credentials or gateway")

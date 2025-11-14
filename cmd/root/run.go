@@ -38,15 +38,16 @@ func newRunCmd() *cobra.Command {
 	var flags runExecFlags
 
 	cmd := &cobra.Command{
-		Use:   "run <agent-name> [message|-]",
+		Use:   "run <agent-file>|<registry-ref> [message|-]",
 		Short: "Run an agent",
-		Long:  `Run an agent with the specified configuration and prompt`,
+		Long:  "Run an agent with the specified configuration and prompt",
 		Example: `  cagent run ./agent.yaml
   cagent run ./team.yaml --agent root
   cagent run ./echo.yaml "INSTRUCTIONS"
   echo "INSTRUCTIONS" | cagent run ./echo.yaml -`,
-		Args: cobra.RangeArgs(1, 2),
-		RunE: flags.runRunCommand,
+		GroupID: "core",
+		Args:    cobra.RangeArgs(1, 2),
+		RunE:    flags.runRunCommand,
 	}
 
 	addRunOrExecFlags(cmd, &flags)
