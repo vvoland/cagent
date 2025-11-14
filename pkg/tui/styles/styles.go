@@ -38,6 +38,10 @@ const (
 	// Status colors
 	ColorInfoCyan = "#7DCFFF" // Soft cyan
 
+	// Badge colors
+	ColorAgentBadge    = "#BB9AF7" // Soft purple
+	ColorTransferBadge = "#7DCFFF" // Soft cyan
+
 	// Diff colors
 	ColorDiffAddBg    = "#20303B" // Dark blue-green
 	ColorDiffRemoveBg = "#3C2A2A" // Dark red-brown
@@ -135,6 +139,10 @@ var (
 	SelectedFg       = lipgloss.Color(ColorTextPrimary)
 	Hover            = lipgloss.Color(ColorHover)
 	PlaceholderColor = lipgloss.Color(ColorMutedBlue)
+
+	// Badge colors
+	AgentBadge    = lipgloss.Color(ColorAgentBadge)
+	TransferBadge = lipgloss.Color(ColorTransferBadge)
 )
 
 // Base Styles
@@ -384,6 +392,19 @@ var (
 					Foreground(TextMuted).
 					Italic(true).
 					Align(lipgloss.Center)
+)
+
+// Agent and transfer badge styles
+var (
+	AgentBadgeStyle = BaseStyle.
+			Foreground(AgentBadge).
+			Bold(true).
+			Padding(0, 1)
+
+	TransferBadgeStyle = BaseStyle.
+				Foreground(TransferBadge).
+				Bold(true).
+				Padding(0, 1)
 )
 
 // Deprecated styles (kept for backward compatibility)

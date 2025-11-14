@@ -673,7 +673,7 @@ func (m *model) AppendToLastMessage(agentName string, messageType types.MessageT
 	lastIdx := len(m.messages) - 1
 	lastMsg := m.messages[lastIdx]
 
-	if lastMsg.Type == messageType {
+	if lastMsg.Type == messageType && lastMsg.Sender == agentName {
 		lastMsg.Content += content
 		m.views[lastIdx].(message.Model).SetMessage(lastMsg)
 		m.invalidateItem(lastIdx)

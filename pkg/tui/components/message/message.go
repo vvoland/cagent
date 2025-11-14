@@ -83,26 +83,26 @@ func (mv *messageModel) Render(width int) string {
 			return mv.spinner.View()
 		}
 
-		text := senderPrefix(msg.Sender) + msg.Content
-		rendered, err := markdown.NewRenderer(width).Render(text)
+		rendered, err := markdown.NewRenderer(width).Render(msg.Content)
 		if err != nil {
-			return text
+			return senderPrefix(msg.Sender) + msg.Content
 		}
 
-		return strings.TrimRight(rendered, "\n\r\t ")
+		return senderPrefix(msg.Sender) + strings.TrimRight(rendered, "\n\r\t ")
 	case types.MessageTypeAssistantReasoning:
 		if msg.Content == "" {
 			return mv.spinner.View()
 		}
-		text := "Thinking: " + senderPrefix(msg.Sender) + msg.Content
 		// Render through the markdown renderer to ensure proper wrapping to width
-		rendered, err := markdown.NewRenderer(width).Render(text)
+		rendered, err := markdown.NewRenderer(width).Render(msg.Content)
 		if err != nil {
+			text := "Thinking: " + senderPrefix(msg.Sender) + msg.Content
 			return styles.MutedStyle.Italic(true).Render(text)
 		}
 		// Strip ANSI from inner rendering so muted style fully applies
 		clean := stripANSI(strings.TrimRight(rendered, "\n\r\t "))
-		return styles.MutedStyle.Italic(true).Render(clean)
+		thinkingText := "Thinking: " + senderPrefix(msg.Sender) + clean
+		return styles.MutedStyle.Italic(true).Render(thinkingText)
 	case types.MessageTypeShellOutput:
 		if rendered, err := markdown.NewRenderer(width).Render(fmt.Sprintf("```console\n%s\n```", msg.Content)); err == nil {
 			return strings.TrimRight(rendered, "\n\r\t ")
@@ -125,10 +125,10 @@ func (mv *messageModel) Render(width int) string {
 }
 
 func senderPrefix(sender string) string {
-	if sender == "" || sender == "root" {
+	if sender == "" {
 		return ""
 	}
-	return fmt.Sprintf("%s: ", sender)
+	return styles.AgentBadgeStyle.Render("["+sender+"]") + "\n\n"
 }
 
 // Height calculates the height needed for this message view
