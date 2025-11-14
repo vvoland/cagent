@@ -28,6 +28,7 @@ func newPullCmd() *cobra.Command {
 func runPullCommand(cmd *cobra.Command, args []string) error {
 	telemetry.TrackCommand("pull", args)
 
+	ctx := cmd.Context()
 	out := cli.NewPrinter(cmd.OutOrStdout())
 	registryRef := args[0]
 	slog.Debug("Starting pull", "registry_ref", registryRef)
@@ -35,7 +36,7 @@ func runPullCommand(cmd *cobra.Command, args []string) error {
 	out.Println("Pulling agent", registryRef)
 
 	var opts []crane.Option
-	_, err := remote.Pull(registryRef, opts...)
+	_, err := remote.Pull(ctx, registryRef, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to pull artifact: %w", err)
 	}
