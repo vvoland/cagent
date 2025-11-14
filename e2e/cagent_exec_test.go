@@ -67,11 +67,9 @@ func TestExec_Mistral(t *testing.T) {
 }
 
 func TestExec_Mistral_ToolCall(t *testing.T) {
-	t.Skip("This is awkard")
-
 	out := cagentExec(t, "testdata/fs_tools.yaml", "--model=mistral/mistral-small", "How many files in testdata/working_dir? Only output the number.")
 
-	require.Equal(t, "\n--- Agent: root ---\n", out)
+	require.Equal(t, "\n--- Agent: root ---\n\nCalling list_directory(path: \"testdata/working_dir\")\n\nlist_directory response → \"FILE README.me\\n\"\n\n1", out)
 }
 
 func TestExec_ToolCallsNeedAcceptance(t *testing.T) {

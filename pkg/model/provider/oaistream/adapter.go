@@ -51,42 +51,6 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		Choices: make([]chat.MessageStreamChoice, len(openaiResponse.Choices)),
 	}
 
-	// Check if Usage field is present using the JSON metadata
-	if openaiResponse.JSON.Usage.Valid() {
-		usage := openaiResponse.Usage
-		response.Usage = &chat.Usage{
-			InputTokens:        int(usage.PromptTokens),
-			OutputTokens:       int(usage.CompletionTokens),
-			CachedInputTokens:  0,
-			CachedOutputTokens: 0,
-			ReasoningTokens:    0,
-		}
-		if usage.JSON.PromptTokensDetails.Valid() {
-			response.Usage.CachedInputTokens = int(usage.PromptTokensDetails.CachedTokens)
-		}
-		if usage.JSON.CompletionTokensDetails.Valid() {
-			response.Usage.ReasoningTokens = int(usage.CompletionTokensDetails.ReasoningTokens)
-		}
-		// Use the tracked finish reason instead of hardcoding stop
-		finishReason := a.lastFinishReason
-		if finishReason == chat.FinishReasonNull || finishReason == "" {
-			finishReason = chat.FinishReasonStop
-		}
-		// OPENAI returns the usage without a finish reason or a choice, so we fake it here
-		// and create a new choice for the last event in the stream
-		if len(openaiResponse.Choices) == 0 {
-			response.Choices = append(response.Choices, chat.MessageStreamChoice{
-				FinishReason: finishReason,
-			})
-		} else {
-			// Other openai-compatible providers DO return a choice with finish reason...
-			response.Choices[0].FinishReason = finishReason
-		}
-		if finishReason == chat.FinishReasonStop {
-			return response, nil
-		}
-	}
-
 	// Convert the choices
 	for i := range openaiResponse.Choices {
 		choice := &openaiResponse.Choices[i]
@@ -142,6 +106,42 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 					},
 				}
 			}
+		}
+	}
+
+	// Check if Usage field is present using the JSON metadata
+	if openaiResponse.JSON.Usage.Valid() {
+		usage := openaiResponse.Usage
+		response.Usage = &chat.Usage{
+			InputTokens:        int(usage.PromptTokens),
+			OutputTokens:       int(usage.CompletionTokens),
+			CachedInputTokens:  0,
+			CachedOutputTokens: 0,
+			ReasoningTokens:    0,
+		}
+		if usage.JSON.PromptTokensDetails.Valid() {
+			response.Usage.CachedInputTokens = int(usage.PromptTokensDetails.CachedTokens)
+		}
+		if usage.JSON.CompletionTokensDetails.Valid() {
+			response.Usage.ReasoningTokens = int(usage.CompletionTokensDetails.ReasoningTokens)
+		}
+		// Use the tracked finish reason instead of hardcoding stop
+		finishReason := a.lastFinishReason
+		if finishReason == chat.FinishReasonNull || finishReason == "" {
+			finishReason = chat.FinishReasonStop
+		}
+		// OPENAI returns the usage without a finish reason or a choice, so we fake it here
+		// and create a new choice for the last event in the stream
+		if len(openaiResponse.Choices) == 0 {
+			response.Choices = append(response.Choices, chat.MessageStreamChoice{
+				FinishReason: finishReason,
+			})
+		} else {
+			// Other openai-compatible providers DO return a choice with finish reason...
+			response.Choices[0].FinishReason = finishReason
+		}
+		if finishReason == chat.FinishReasonStop {
+			return response, nil
 		}
 	}
 
