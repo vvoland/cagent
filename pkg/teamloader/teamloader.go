@@ -180,13 +180,7 @@ func LoadFrom(ctx context.Context, source AgentSource, runtimeConfig *config.Run
 			opts = append(opts, agent.WithLoadTimeWarnings(warnings))
 		}
 
-		if len(agentConfig.SubAgents) > 0 {
-			agentTools = append(agentTools, builtin.NewTransferTaskTool())
-		}
-
-		if len(agentTools) > 0 {
-			opts = append(opts, agent.WithToolSets(agentTools...))
-		}
+		opts = append(opts, agent.WithToolSets(agentTools...))
 
 		ag := agent.New(name, agentConfig.Instruction, opts...)
 		agents = append(agents, ag)
@@ -271,6 +265,10 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 		wrapped = WithToon(wrapped, toolset.Toon)
 
 		toolSets = append(toolSets, wrapped)
+	}
+
+	if len(a.SubAgents) > 0 {
+		toolSets = append(toolSets, builtin.NewTransferTaskTool())
 	}
 
 	// Wrap all tools in a single Code Mode toolset.
