@@ -74,7 +74,7 @@ $ cagent push docker.io/user/agent    # Push agent to registry
 #### Default agent
 
 cagent handles a special case for a **default** agent. Running `cagent run` or `cagent run default`
-will quickly open the TUI on a default, basic agent. This agent is capabablt and has a few tools
+will quickly open the TUI on a default, basic agent. This agent is capable and has a few tools
 but is not a replacement for a more specialized agent. It's here for when you don't think you need
 a special agent.
 

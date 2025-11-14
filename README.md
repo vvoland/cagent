@@ -1,6 +1,6 @@
 # 🤖 `cagent` 🤖
 
-> A powerful, easy to use, customizable multi-agent runtime that orchestrates AI
+> A powerful, easy-to-use, customizable multi-agent runtime that orchestrates AI
 > agents with specialized capabilities and tools, and the interactions between
 > agents.
 
@@ -9,7 +9,7 @@
 ## ✨ What is `cagent`? ✨
 
 `cagent` lets you create and run intelligent AI agents, where each agent has
-specialized knowledge, tools, and capabilities.
+specialized knowledge, tools and capabilities.
 
 Think of it as allowing you to quickly build, share and run a team of virtual
 experts that collaborate to solve complex problems for you.
@@ -23,7 +23,7 @@ expected** ⚠️
 
 Example [basic_agent.yaml](/examples/basic_agent.yaml):
 
-Creating agents with cagent is very simple. They are described in a short yaml
+Creating agents with cagent is straightforward. They are described in a short .yaml
 file, like this one:
 
 ```yaml
@@ -162,7 +162,7 @@ $ brew install cagent
 #### Using binary releases
 
 [Prebuilt binaries](https://github.com/docker/cagent/releases) for Windows,
-macOS and Linux can be found on the releases page of the [project's GitHub
+macOS and Linux can be found on the release page of the [project's GitHub
 repository](https://github.com/docker/cagent/releases)
 
 Once you've downloaded the appropriate binary for your platform, you may need to
@@ -285,7 +285,7 @@ The default base_url `cagent` will use for DMR providers is
 `http://localhost:12434/engines/llama.cpp/v1`. DMR itself might need to be
 enabled via [Docker Desktop's
 settings](https://docs.docker.com/ai/model-runner/get-started/#enable-dmr-in-docker-desktop)
-on MacOS and Windows, and via command line on [Docker CE on
+on macOS and Windows, and via the command-line on [Docker CE on
 Linux](https://docs.docker.com/ai/model-runner/get-started/#enable-dmr-in-docker-engine).
 
 See the [DMR Provider documentation](docs/USAGE.md#dmr-docker-model-runner-provider-usage) for more details on runtime flags and speculative decoding options.
@@ -297,14 +297,14 @@ teams using a single prompt!
 `cagent` has a built-in agent dedicated to this task.
 
 To use the feature, you must have an Anthropic, OpenAI or Google API key
-available in your environment, or specify a local model to run with DMR (Docker
+available in your environment or specify a local model to run with DMR (Docker
 Model Runner).
 
 You can choose what provider and model gets used by passing the `--model
 provider/modelname` flag to `cagent new`
 
 If `--model` is unspecified, `cagent new` will automatically choose between
-these 3 providers in order based on the first api key it finds in your
+these three providers in order based on the first api key it finds in your
 environment.
 
 ```sh
@@ -373,7 +373,7 @@ Pulling agents from Docker Hub is also just one `cagent pull` command away.
 cagent pull creek/pirate
 ```
 
-`cagent` will pull the image, extract the yaml file and place it in your working
+`cagent` will pull the image, extract the .yaml file and place it in your working
 directory for ease of use.
 
 `cagent run creek.yaml` will run your newly pulled agent

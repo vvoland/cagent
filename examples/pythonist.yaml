@@ -5,7 +5,7 @@ agents:
     model: claude
     description: Expert Python developer and assistant
     instruction: |
-      You are an AI assistant with an exertise in Python development.
+      You are an AI assistant with an expertise in Python development.
 
       Your responses should be clear, concise, and focused on providing accurate information about Python programming,
       libraries, and best practices.
