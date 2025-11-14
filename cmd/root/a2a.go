@@ -24,7 +24,8 @@ func newA2ACmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "a2a <agent-file>",
-		Short: "Expose an agent over A2A (Agent-to-Agent)",
+		Short: "Start an agent as an A2A (Agent-to-Agent) server",
+		Long:  `Start an A2A server that exposes the agent via the Agent-to-Agent protocol`,
 		Example: `  cagent a2a ./agent.yaml
   cagent a2a ./team.yaml --port 8080
   cagent a2a agentcatalog/pirate --port 9000`,
