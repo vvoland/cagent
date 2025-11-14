@@ -51,7 +51,7 @@ func (f *acpFlags) runACPCommand(cmd *cobra.Command, args []string) error {
 
 	slog.Debug("Starting ACP server", "agent_file", agentFilename)
 
-	acpAgent := acp.NewAgent(agentFilename, f.runConfig)
+	acpAgent := acp.NewAgent(agentFilename, &f.runConfig)
 	conn := acpsdk.NewAgentSideConnection(acpAgent, cmd.OutOrStdout(), cmd.InOrStdin())
 	conn.SetLogger(slog.Default())
 	acpAgent.SetAgentConnection(conn)

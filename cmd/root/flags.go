@@ -21,6 +21,7 @@ func addRuntimeConfigFlags(cmd *cobra.Command, runConfig *config.RuntimeConfig) 
 	addGatewayFlags(cmd, runConfig)
 	cmd.PersistentFlags().StringSliceVar(&runConfig.EnvFiles, "env-from-file", nil, "Set environment variables from file")
 	cmd.PersistentFlags().BoolVar(&runConfig.GlobalCodeMode, "code-mode-tools", false, "Provide a single tool to call other tools via Javascript")
+	cmd.PersistentFlags().StringVar(&runConfig.WorkingDir, "working-dir", "", "Set the working directory for the session (applies to tools and relative paths)")
 }
 
 func setupWorkingDirectory(workingDir string) error {
@@ -70,6 +71,11 @@ func addGatewayFlags(cmd *cobra.Command, runConfig *config.RuntimeConfig) {
 
 		// Ensure the gateway url is canonical.
 		runConfig.ModelsGateway = canonize(runConfig.ModelsGateway)
+
+		// Setup working directory
+		if err := setupWorkingDirectory(runConfig.WorkingDir); err != nil {
+			return err
+		}
 
 		// First call the original persistentPreRunE if it exists (from this command)
 		if persistentPreRunE != nil {

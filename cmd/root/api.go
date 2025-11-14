@@ -95,7 +95,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 		opts = append(opts, server.WithAgentsDir(filepath.Dir(resolvedPath)))
 	}
 
-	teams, err := teamloader.LoadTeams(ctx, resolvedPath, f.runConfig)
+	teams, err := teamloader.LoadTeams(ctx, resolvedPath, &f.runConfig)
 	if err != nil {
 		return fmt.Errorf("failed to load teams: %w", err)
 	}
@@ -107,7 +107,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
-	s, err := server.New(sessionStore, f.runConfig, teams, opts...)
+	s, err := server.New(sessionStore, &f.runConfig, teams, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create server: %w", err)
 	}

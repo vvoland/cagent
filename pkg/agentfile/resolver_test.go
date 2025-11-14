@@ -2,6 +2,7 @@ package agentfile
 
 import (
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,6 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/docker/cagent/pkg/aliases"
+	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/oci"
 )
@@ -369,4 +372,85 @@ func TestIsOCIReference(t *testing.T) {
 			assert.Equal(t, tt.expected, result, "isOCIReference(%q) = %v, want %v", tt.input, result, tt.expected)
 		})
 	}
+}
+
+func TestResolveAgentFile_EmptyIsDefault(t *testing.T) {
+	t.Parallel()
+
+	resolved, err := Resolve(t.Context(), nil, "")
+
+	require.NoError(t, err)
+	assert.Equal(t, "default", resolved)
+}
+
+func TestResolveAgentFile_DefaultIsDefault(t *testing.T) {
+	t.Parallel()
+
+	resolved, err := Resolve(t.Context(), nil, "default")
+
+	require.NoError(t, err)
+	assert.Equal(t, "default", resolved)
+}
+
+func TestResolveAgentFile_ReplaceAliasWithActualFile(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Prepare an aliased file: alias -> [xxx]/pirate.yaml
+	wd := t.TempDir()
+	aliasedAgentFile := filepath.Join(wd, "pirate.yaml")
+	require.NoError(t, os.WriteFile(aliasedAgentFile, []byte(`some config`), 0o644))
+
+	all, err := aliases.Load()
+	require.NoError(t, err)
+	all.Set("other", "another_file.yaml")
+	all.Set("alias", aliasedAgentFile)
+	require.NoError(t, all.Save())
+
+	resolved, err := Resolve(t.Context(), cli.NewPrinter(io.Discard), "alias")
+
+	require.NoError(t, err)
+	assert.Equal(t, aliasedAgentFile, resolved)
+}
+
+func TestResolveAgentFile_ReplaceDefaultAliasWithActualFile(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Prepare an aliased file: alias -> [xxx]/pirate.yaml
+	wd := t.TempDir()
+	aliasedAgentFile := filepath.Join(wd, "pirate.yaml")
+	require.NoError(t, os.WriteFile(aliasedAgentFile, []byte(`some config`), 0o644))
+
+	all, err := aliases.Load()
+	require.NoError(t, err)
+	all.Set("other", "another_file.yaml")
+	all.Set("default", aliasedAgentFile)
+	require.NoError(t, all.Save())
+
+	resolved, err := Resolve(t.Context(), cli.NewPrinter(io.Discard), "default")
+
+	require.NoError(t, err)
+	assert.Equal(t, aliasedAgentFile, resolved)
+}
+
+func TestResolveAgentFile_ReplaceEmptyAliasWithActualFile(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Prepare an aliased file: alias -> [xxx]/pirate.yaml
+	wd := t.TempDir()
+	aliasedAgentFile := filepath.Join(wd, "pirate.yaml")
+	require.NoError(t, os.WriteFile(aliasedAgentFile, []byte(`some config`), 0o644))
+
+	all, err := aliases.Load()
+	require.NoError(t, err)
+	all.Set("other", "another_file.yaml")
+	all.Set("default", aliasedAgentFile)
+	require.NoError(t, all.Save())
+
+	resolved, err := Resolve(t.Context(), cli.NewPrinter(io.Discard), "")
+
+	require.NoError(t, err)
+	assert.Equal(t, aliasedAgentFile, resolved)
 }

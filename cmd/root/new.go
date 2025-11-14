@@ -1,7 +1,6 @@
 package root
 
 import (
-	"os"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -18,7 +17,6 @@ import (
 
 type newFlags struct {
 	modelParam         string
-	maxTokensParam     int
 	maxIterationsParam int
 	runConfig          config.RuntimeConfig
 }
@@ -35,8 +33,8 @@ func newNewCmd() *cobra.Command {
 	}
 
 	cmd.PersistentFlags().StringVar(&flags.modelParam, "model", "", "Model to use, optionally as provider/model where provider is one of: anthropic, openai, google, dmr. If omitted, provider is auto-selected based on available credentials or gateway")
-	cmd.PersistentFlags().IntVar(&flags.maxTokensParam, "max-tokens", 0, "Override max_tokens for the selected model (0 = default)")
 	cmd.PersistentFlags().IntVar(&flags.maxIterationsParam, "max-iterations", 0, "Maximum number of agentic loop iterations to prevent infinite loops (default: 20 for DMR, unlimited for other providers)")
+	addRuntimeConfigFlags(cmd, &flags.runConfig)
 
 	return cmd
 }
@@ -46,44 +44,7 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
 
 	ctx := cmd.Context()
 
-	var model string         // final model name
-	var modelProvider string // final provider name
-
-	// Parse provider from --model if specified as "provider/model" where provider is recognized
-	derivedProvider := ""
-	if idx := strings.Index(f.modelParam, "/"); idx > 0 {
-		candidate := strings.ToLower(f.modelParam[:idx])
-		switch candidate {
-		case "anthropic", "openai", "google", "mistral", "dmr":
-			derivedProvider = candidate
-			model = f.modelParam[idx+1:]
-		}
-	}
-
-	// Determine provider
-	if derivedProvider != "" {
-		modelProvider = derivedProvider
-	} else {
-		if f.runConfig.ModelsGateway == "" {
-			switch {
-			case os.Getenv("ANTHROPIC_API_KEY") != "":
-				modelProvider = "anthropic"
-			case os.Getenv("OPENAI_API_KEY") != "":
-				modelProvider = "openai"
-			case os.Getenv("GOOGLE_API_KEY") != "":
-				modelProvider = "google"
-			case os.Getenv("MISTRAL_API_KEY") != "":
-				modelProvider = "mistral"
-			default:
-				modelProvider = "dmr"
-			}
-		} else {
-			// Using Models Gateway; default to Anthropic if not specified
-			modelProvider = "anthropic"
-		}
-	}
-
-	t, err := creator.Agent(ctx, ".", f.runConfig, modelProvider, f.maxTokensParam, model)
+	t, err := creator.Agent(ctx, &f.runConfig, f.modelParam)
 	if err != nil {
 		return err
 	}

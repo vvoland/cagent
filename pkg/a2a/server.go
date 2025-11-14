@@ -22,7 +22,7 @@ import (
 	"github.com/docker/cagent/pkg/version"
 )
 
-func Start(ctx context.Context, out *cli.Printer, agentFilename, agentName string, runConfig config.RuntimeConfig, ln net.Listener) error {
+func Start(ctx context.Context, out *cli.Printer, agentFilename, agentName string, runConfig *config.RuntimeConfig, ln net.Listener) error {
 	slog.Debug("Starting A2A server", "agent", agentFilename, "addr", ln.Addr().String())
 
 	t, err := teamloader.Load(ctx, agentFilename, runConfig)

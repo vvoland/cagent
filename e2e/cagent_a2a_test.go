@@ -218,7 +218,7 @@ func TestA2AServer_MultiAgent(t *testing.T) {
 	t.Logf("Multi-agent response: %s", string(responseBody))
 }
 
-func startA2AServer(t *testing.T, agentFile string, runConfig config.RuntimeConfig) a2a.AgentCard {
+func startA2AServer(t *testing.T, agentFile string, runConfig *config.RuntimeConfig) a2a.AgentCard {
 	t.Helper()
 
 	var lc net.ListenConfig

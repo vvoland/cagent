@@ -29,7 +29,7 @@ type Options struct {
 }
 
 func BuildDockerImage(ctx context.Context, out *cli.Printer, agentFilePath string, fs filesystem.FS, dockerImageName string, opts Options) error {
-	cfg, err := config.LoadConfig(agentFilePath, fs)
+	cfg, err := config.LoadConfig(ctx, agentFilePath, fs)
 	if err != nil {
 		return err
 	}

@@ -227,13 +227,13 @@ func TestServer_ReloadTeams(t *testing.T) {
 	agentsDir1 := prepareAgentsDir(t, "pirate.yaml")
 
 	var store mockStore
-	var runConfig config.RuntimeConfig
+	runConfig := config.RuntimeConfig{}
 
 	// Load initial teams
-	teams, err := teamloader.LoadTeams(ctx, agentsDir1, runConfig)
+	teams, err := teamloader.LoadTeams(ctx, agentsDir1, &runConfig)
 	require.NoError(t, err)
 
-	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir1))
+	srv, err := New(store, &runConfig, teams, WithAgentsDir(agentsDir1))
 	require.NoError(t, err)
 
 	initialTeamsCount := srv.countTeams()
@@ -268,13 +268,13 @@ func TestServer_ReloadTeams_Concurrent(t *testing.T) {
 	agentsDir := prepareAgentsDir(t, "pirate.yaml")
 
 	var store mockStore
-	var runConfig config.RuntimeConfig
+	runConfig := config.RuntimeConfig{}
 
 	// Load initial teams
-	teams, err := teamloader.LoadTeams(ctx, agentsDir, runConfig)
+	teams, err := teamloader.LoadTeams(ctx, agentsDir, &runConfig)
 	require.NoError(t, err)
 
-	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
+	srv, err := New(store, &runConfig, teams, WithAgentsDir(agentsDir))
 	require.NoError(t, err)
 
 	agentsDir2 := prepareAgentsDir(t, "contradict.yaml")
@@ -308,13 +308,13 @@ func TestServer_ReloadTeams_InvalidPath(t *testing.T) {
 	agentsDir := prepareAgentsDir(t, "pirate.yaml")
 
 	var store mockStore
-	var runConfig config.RuntimeConfig
+	runConfig := config.RuntimeConfig{}
 
 	// Load initial teams
-	teams, err := teamloader.LoadTeams(ctx, agentsDir, runConfig)
+	teams, err := teamloader.LoadTeams(ctx, agentsDir, &runConfig)
 	require.NoError(t, err)
 
-	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
+	srv, err := New(store, &runConfig, teams, WithAgentsDir(agentsDir))
 	require.NoError(t, err)
 
 	// Try to reload from non-existent path
@@ -338,12 +338,12 @@ func TestServer_RefreshAgentsFromDisk_AddNewAgent(t *testing.T) {
 	agentsDir := prepareAgentsDir(t, "pirate.yaml")
 
 	var store mockStore
-	var runConfig config.RuntimeConfig
+	runConfig := config.RuntimeConfig{}
 
-	teams, err := teamloader.LoadTeams(ctx, agentsDir, runConfig)
+	teams, err := teamloader.LoadTeams(ctx, agentsDir, &runConfig)
 	require.NoError(t, err)
 
-	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
+	srv, err := New(store, &runConfig, teams, WithAgentsDir(agentsDir))
 	require.NoError(t, err)
 
 	initialCount := srv.countTeams()
@@ -382,12 +382,12 @@ func TestServer_RefreshAgentsFromDisk_RemoveAgent(t *testing.T) {
 	agentsDir := prepareAgentsDir(t, "pirate.yaml", "contradict.yaml")
 
 	var store mockStore
-	var runConfig config.RuntimeConfig
+	runConfig := config.RuntimeConfig{}
 
-	teams, err := teamloader.LoadTeams(ctx, agentsDir, runConfig)
+	teams, err := teamloader.LoadTeams(ctx, agentsDir, &runConfig)
 	require.NoError(t, err)
 
-	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
+	srv, err := New(store, &runConfig, teams, WithAgentsDir(agentsDir))
 	require.NoError(t, err)
 
 	initialCount := srv.countTeams()
@@ -424,12 +424,12 @@ func TestServer_RefreshAgentsFromDisk_UpdateAgent(t *testing.T) {
 	agentsDir := prepareAgentsDir(t, "pirate.yaml")
 
 	var store mockStore
-	var runConfig config.RuntimeConfig
+	runConfig := config.RuntimeConfig{}
 
-	teams, err := teamloader.LoadTeams(ctx, agentsDir, runConfig)
+	teams, err := teamloader.LoadTeams(ctx, agentsDir, &runConfig)
 	require.NoError(t, err)
 
-	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
+	srv, err := New(store, &runConfig, teams, WithAgentsDir(agentsDir))
 	require.NoError(t, err)
 
 	initialTeam, exists := srv.getTeam("pirate.yaml")
@@ -477,12 +477,12 @@ func TestServer_RefreshAgentsFromDisk_MultipleChanges(t *testing.T) {
 	agentsDir := prepareAgentsDir(t, "pirate.yaml", "contradict.yaml")
 
 	var store mockStore
-	var runConfig config.RuntimeConfig
+	runConfig := config.RuntimeConfig{}
 
-	teams, err := teamloader.LoadTeams(ctx, agentsDir, runConfig)
+	teams, err := teamloader.LoadTeams(ctx, agentsDir, &runConfig)
 	require.NoError(t, err)
 
-	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
+	srv, err := New(store, &runConfig, teams, WithAgentsDir(agentsDir))
 	require.NoError(t, err)
 
 	initialCount := srv.countTeams()
@@ -520,12 +520,12 @@ func TestServer_RefreshAgentsFromDisk_NoChanges(t *testing.T) {
 	agentsDir := prepareAgentsDir(t, "pirate.yaml")
 
 	var store mockStore
-	var runConfig config.RuntimeConfig
+	runConfig := config.RuntimeConfig{}
 
-	teams, err := teamloader.LoadTeams(ctx, agentsDir, runConfig)
+	teams, err := teamloader.LoadTeams(ctx, agentsDir, &runConfig)
 	require.NoError(t, err)
 
-	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
+	srv, err := New(store, &runConfig, teams, WithAgentsDir(agentsDir))
 	require.NoError(t, err)
 
 	initialCount := srv.countTeams()
@@ -551,12 +551,12 @@ func TestServer_RefreshAgentsFromDisk_EmptyDir(t *testing.T) {
 	agentsDir := prepareAgentsDir(t, "pirate.yaml")
 
 	var store mockStore
-	var runConfig config.RuntimeConfig
+	runConfig := config.RuntimeConfig{}
 
-	teams, err := teamloader.LoadTeams(ctx, agentsDir, runConfig)
+	teams, err := teamloader.LoadTeams(ctx, agentsDir, &runConfig)
 	require.NoError(t, err)
 
-	srv, err := New(store, runConfig, teams, WithAgentsDir(agentsDir))
+	srv, err := New(store, &runConfig, teams, WithAgentsDir(agentsDir))
 	require.NoError(t, err)
 
 	// Remove all agents
@@ -578,9 +578,9 @@ func TestServer_RefreshAgentsFromDisk_NoAgentsDir(t *testing.T) {
 	ctx := t.Context()
 
 	var store mockStore
-	var runConfig config.RuntimeConfig
+	runConfig := config.RuntimeConfig{}
 
-	srv, err := New(store, runConfig, nil)
+	srv, err := New(store, &runConfig, nil)
 	require.NoError(t, err)
 
 	// Refresh should be no-op
@@ -614,9 +614,9 @@ func startServer(t *testing.T, ctx context.Context, agentsDir string) string {
 	t.Helper()
 
 	var store mockStore
-	var runConfig config.RuntimeConfig
+	runConfig := config.RuntimeConfig{}
 
-	srv, err := New(store, runConfig, nil, WithAgentsDir(agentsDir))
+	srv, err := New(store, &runConfig, nil, WithAgentsDir(agentsDir))
 	require.NoError(t, err)
 
 	socketPath := "unix://" + filepath.Join(t.TempDir(), "sock")

@@ -7,11 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/config"
 	latest "github.com/docker/cagent/pkg/config/v2"
-	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/js"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/model/provider/options"
@@ -22,7 +22,7 @@ import (
 )
 
 // LoadTeams loads all agent teams from the given directory or file path
-func LoadTeams(ctx context.Context, agentsPathOrDirectory string, runtimeConfig config.RuntimeConfig) (map[string]*team.Team, error) {
+func LoadTeams(ctx context.Context, agentsPathOrDirectory string, runtimeConfig *config.RuntimeConfig) (map[string]*team.Team, error) {
 	teams := make(map[string]*team.Team)
 
 	agentPaths, err := findAgentPaths(agentsPathOrDirectory)
@@ -74,6 +74,7 @@ func findAgentPaths(agentsPathOrDirectory string) ([]string, error) {
 }
 
 type loadOptions struct {
+	id              string
 	modelOverrides  []string
 	toolsetRegistry *ToolsetRegistry
 }
@@ -95,14 +96,22 @@ func WithToolsetRegistry(registry *ToolsetRegistry) Opt {
 	}
 }
 
+// WithID allows using a custom team ID
+func WithID(id string) Opt {
+	return func(opts *loadOptions) error {
+		opts.id = id
+		return nil
+	}
+}
+
 // Load loads an agent team from the given file path.
 // Prefers LoadFrom for more control over the source.
-func Load(ctx context.Context, p string, runtimeConfig config.RuntimeConfig, opts ...Opt) (*team.Team, error) {
+func Load(ctx context.Context, p string, runtimeConfig *config.RuntimeConfig, opts ...Opt) (*team.Team, error) {
 	return LoadFrom(ctx, NewFileSource(p), runtimeConfig, opts...)
 }
 
 // LoadFrom loads an agent team from the given source
-func LoadFrom(ctx context.Context, source AgentSource, runtimeConfig config.RuntimeConfig, opts ...Opt) (*team.Team, error) {
+func LoadFrom(ctx context.Context, source AgentSource, runtimeConfig *config.RuntimeConfig, opts ...Opt) (*team.Team, error) {
 	var loadOpts loadOptions
 	loadOpts.toolsetRegistry = NewDefaultToolsetRegistry()
 
@@ -114,24 +123,7 @@ func LoadFrom(ctx context.Context, source AgentSource, runtimeConfig config.Runt
 
 	fileName := source.Name()
 	parentDir := source.ParentDir()
-
-	// Make env file paths absolute relative to the agent config file.
-	var err error
-	runtimeConfig.EnvFiles, err = environment.AbsolutePaths(parentDir, runtimeConfig.EnvFiles)
-	if err != nil {
-		return nil, err
-	}
-
-	envFilesProviders, err := environment.NewEnvFilesProvider(runtimeConfig.EnvFiles)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read env files: %w", err)
-	}
-
-	defaultEnvProvider := runtimeConfig.DefaultEnvProvider
-	if defaultEnvProvider == nil {
-		defaultEnvProvider = environment.NewDefaultProvider()
-	}
-	env := environment.NewMultiProvider(envFilesProviders, defaultEnvProvider)
+	env := runtimeConfig.EnvProvider()
 
 	// Load the agent's configuration
 	data, err := source.Read()
@@ -139,7 +131,7 @@ func LoadFrom(ctx context.Context, source AgentSource, runtimeConfig config.Runt
 		return nil, fmt.Errorf("reading config file: %w", err)
 	}
 
-	cfg, err := config.LoadConfigBytes(data)
+	cfg, err := config.LoadConfigBytes(ctx, data)
 	if err != nil {
 		return nil, err
 	}
@@ -150,13 +142,17 @@ func LoadFrom(ctx context.Context, source AgentSource, runtimeConfig config.Runt
 	}
 
 	// Early check for required env vars before loading models and tools.
-	if err := config.CheckRequiredEnvVars(ctx, cfg, env, runtimeConfig); err != nil {
+	if err := config.CheckRequiredEnvVars(ctx, cfg, runtimeConfig.ModelsGateway, env); err != nil {
 		return nil, err
 	}
 
 	// Load agents
 	var agents []*agent.Agent
 	agentsByName := make(map[string]*agent.Agent)
+
+	autoModel := sync.OnceValue(func() latest.ModelConfig {
+		return config.AutoModelConfig(ctx, runtimeConfig.ModelsGateway, env)
+	})
 
 	for name, agentConfig := range cfg.Agents {
 		opts := []agent.Opt{
@@ -171,7 +167,7 @@ func LoadFrom(ctx context.Context, source AgentSource, runtimeConfig config.Runt
 			agent.WithCommands(js.Expand(ctx, agentConfig.Commands, env)),
 		}
 
-		models, err := getModelsForAgent(ctx, cfg, &agentConfig, env, runtimeConfig)
+		models, err := getModelsForAgent(ctx, cfg, &agentConfig, autoModel, runtimeConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get models: %w", err)
 		}
@@ -179,7 +175,7 @@ func LoadFrom(ctx context.Context, source AgentSource, runtimeConfig config.Runt
 			opts = append(opts, agent.WithModel(model))
 		}
 
-		agentTools, warnings := getToolsForAgent(ctx, &agentConfig, parentDir, env, runtimeConfig, loadOpts.toolsetRegistry)
+		agentTools, warnings := getToolsForAgent(ctx, &agentConfig, parentDir, runtimeConfig, loadOpts.toolsetRegistry)
 		if len(warnings) > 0 {
 			opts = append(opts, agent.WithLoadTimeWarnings(warnings))
 		}
@@ -215,24 +211,33 @@ func LoadFrom(ctx context.Context, source AgentSource, runtimeConfig config.Runt
 		}
 	}
 
-	return team.New(team.WithID(fileName), team.WithAgents(agents...)), nil
+	id := loadOpts.id
+	if id == "" {
+		id = fileName
+	}
+
+	return team.New(team.WithID(id), team.WithAgents(agents...)), nil
 }
 
-func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentConfig, env environment.Provider, runtimeConfig config.RuntimeConfig) ([]provider.Provider, error) {
+func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentConfig, autoModelFn func() latest.ModelConfig, runtimeConfig *config.RuntimeConfig) ([]provider.Provider, error) {
 	var models []provider.Provider
 
 	for name := range strings.SplitSeq(a.Model, ",") {
 		modelCfg, exists := cfg.Models[name]
 		if !exists {
-			return nil, fmt.Errorf("model '%s' not found in configuration", name)
+			if name == "auto" {
+				modelCfg = autoModelFn()
+			} else {
+				return nil, fmt.Errorf("model '%s' not found in configuration", name)
+			}
 		}
 
-		opts := []options.Opt{options.WithGateway(runtimeConfig.ModelsGateway)}
-		if a.StructuredOutput != nil {
-			opts = append(opts, options.WithStructuredOutput(a.StructuredOutput))
-		}
-
-		model, err := provider.New(ctx, &modelCfg, env, opts...)
+		model, err := provider.New(ctx,
+			&modelCfg,
+			runtimeConfig.EnvProvider(),
+			options.WithGateway(runtimeConfig.ModelsGateway),
+			options.WithStructuredOutput(a.StructuredOutput),
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -244,7 +249,7 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 }
 
 // getToolsForAgent returns the tool definitions for an agent based on its configuration
-func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir string, envProvider environment.Provider, runtimeConfig config.RuntimeConfig, registry *ToolsetRegistry) ([]tools.ToolSet, []string) {
+func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir string, runtimeConfig *config.RuntimeConfig, registry *ToolsetRegistry) ([]tools.ToolSet, []string) {
 	var (
 		toolSets []tools.ToolSet
 		warnings []string
@@ -253,7 +258,7 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 	for i := range a.Toolsets {
 		toolset := a.Toolsets[i]
 
-		tool, err := registry.CreateTool(ctx, toolset, parentDir, envProvider, runtimeConfig)
+		tool, err := registry.CreateTool(ctx, toolset, parentDir, runtimeConfig)
 		if err != nil {
 			// Collect error but continue loading other toolsets
 			slog.Warn("Toolset configuration failed; skipping", "type", toolset.Type, "ref", toolset.Ref, "command", toolset.Command, "error", err)

@@ -17,7 +17,7 @@ func TestAutoRegisterModels(t *testing.T) {
 
 	root := openRoot(t, "testdata")
 
-	cfg, err := LoadConfig("autoregister.yaml", root)
+	cfg, err := LoadConfig(t.Context(), "autoregister.yaml", root)
 	require.NoError(t, err)
 
 	assert.Len(t, cfg.Models, 2)
@@ -32,7 +32,7 @@ func TestAutoRegisterAlloy(t *testing.T) {
 
 	root := openRoot(t, "testdata")
 
-	cfg, err := LoadConfig("autoregister_alloy.yaml", root)
+	cfg, err := LoadConfig(t.Context(), "autoregister_alloy.yaml", root)
 	require.NoError(t, err)
 
 	assert.Len(t, cfg.Models, 2)
@@ -47,7 +47,7 @@ func TestMigrate_v0_v1_provider(t *testing.T) {
 
 	root := openRoot(t, "testdata")
 
-	cfg, err := LoadConfig("provider_v0.yaml", root)
+	cfg, err := LoadConfig(t.Context(), "provider_v0.yaml", root)
 	require.NoError(t, err)
 
 	assert.Equal(t, "openai", cfg.Models["gpt"].Provider)
@@ -58,7 +58,7 @@ func TestMigrate_v1_provider(t *testing.T) {
 
 	root := openRoot(t, "testdata")
 
-	cfg, err := LoadConfig("provider_v1.yaml", root)
+	cfg, err := LoadConfig(t.Context(), "provider_v1.yaml", root)
 	require.NoError(t, err)
 
 	assert.Equal(t, "openai", cfg.Models["gpt"].Provider)
@@ -69,7 +69,7 @@ func TestMigrate_v0_v1_todo(t *testing.T) {
 
 	root := openRoot(t, "testdata")
 
-	cfg, err := LoadConfig("todo_v0.yaml", root)
+	cfg, err := LoadConfig(t.Context(), "todo_v0.yaml", root)
 	require.NoError(t, err)
 
 	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
@@ -83,7 +83,7 @@ func TestMigrate_v1_todo(t *testing.T) {
 
 	root := openRoot(t, "testdata")
 
-	cfg, err := LoadConfig("todo_v1.yaml", root)
+	cfg, err := LoadConfig(t.Context(), "todo_v1.yaml", root)
 	require.NoError(t, err)
 
 	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
@@ -97,7 +97,7 @@ func TestMigrate_v0_v1_shared_todo(t *testing.T) {
 
 	root := openRoot(t, "testdata")
 
-	cfg, err := LoadConfig("shared_todo_v0.yaml", root)
+	cfg, err := LoadConfig(t.Context(), "shared_todo_v0.yaml", root)
 	require.NoError(t, err)
 
 	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
@@ -111,7 +111,7 @@ func TestMigrate_v1_shared_todo(t *testing.T) {
 
 	root := openRoot(t, "testdata")
 
-	cfg, err := LoadConfig("shared_todo_v1.yaml", root)
+	cfg, err := LoadConfig(t.Context(), "shared_todo_v1.yaml", root)
 	require.NoError(t, err)
 
 	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
@@ -125,7 +125,7 @@ func TestMigrate_v0_v1_think(t *testing.T) {
 
 	root := openRoot(t, "testdata")
 
-	cfg, err := LoadConfig("think_v0.yaml", root)
+	cfg, err := LoadConfig(t.Context(), "think_v0.yaml", root)
 	require.NoError(t, err)
 
 	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
@@ -138,7 +138,7 @@ func TestMigrate_v1_think(t *testing.T) {
 
 	root := openRoot(t, "testdata")
 
-	cfg, err := LoadConfig("think_v1.yaml", root)
+	cfg, err := LoadConfig(t.Context(), "think_v1.yaml", root)
 	require.NoError(t, err)
 
 	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
@@ -151,7 +151,7 @@ func TestMigrate_v0_v1_memory(t *testing.T) {
 
 	root := openRoot(t, "testdata")
 
-	cfg, err := LoadConfig("memory_v0.yaml", root)
+	cfg, err := LoadConfig(t.Context(), "memory_v0.yaml", root)
 	require.NoError(t, err)
 
 	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
@@ -165,7 +165,7 @@ func TestMigrate_v1_memory(t *testing.T) {
 
 	root := openRoot(t, "testdata")
 
-	cfg, err := LoadConfig("memory_v1.yaml", root)
+	cfg, err := LoadConfig(t.Context(), "memory_v1.yaml", root)
 	require.NoError(t, err)
 
 	assert.Len(t, cfg.Agents["root"].Toolsets, 2)
@@ -179,7 +179,7 @@ func TestMigrate_v1(t *testing.T) {
 
 	root := openRoot(t, "testdata")
 
-	_, err := LoadConfig("v1.yaml", root)
+	_, err := LoadConfig(t.Context(), "v1.yaml", root)
 	require.NoError(t, err)
 }
 
@@ -253,10 +253,10 @@ func TestCheckRequiredEnvVars(t *testing.T) {
 
 			root := openRoot(t, "testdata/env")
 
-			cfg, err := LoadConfig(test.yaml, root)
+			cfg, err := LoadConfig(t.Context(), test.yaml, root)
 			require.NoError(t, err)
 
-			err = CheckRequiredEnvVars(t.Context(), cfg, &noEnvProvider{}, RuntimeConfig{})
+			err = CheckRequiredEnvVars(t.Context(), cfg, "", &noEnvProvider{})
 
 			if len(test.expectedMissing) == 0 {
 				require.NoError(t, err)
@@ -273,12 +273,10 @@ func TestCheckRequiredEnvVarsWithModelGateway(t *testing.T) {
 
 	root := openRoot(t, "testdata/env")
 
-	cfg, err := LoadConfig("all.yaml", root)
+	cfg, err := LoadConfig(t.Context(), "all.yaml", root)
 	require.NoError(t, err)
 
-	err = CheckRequiredEnvVars(t.Context(), cfg, &noEnvProvider{}, RuntimeConfig{
-		ModelsGateway: "gateway:8080",
-	})
+	err = CheckRequiredEnvVars(t.Context(), cfg, "gateway:8080", &noEnvProvider{})
 
 	require.NoError(t, err)
 }

@@ -14,10 +14,9 @@ import (
 )
 
 type a2aFlags struct {
-	agentName  string
-	workingDir string
-	port       int
-	runConfig  config.RuntimeConfig
+	agentName string
+	port      int
+	runConfig config.RuntimeConfig
 }
 
 func newA2ACmd() *cobra.Command {
@@ -36,7 +35,6 @@ func newA2ACmd() *cobra.Command {
 	}
 
 	cmd.PersistentFlags().StringVarP(&flags.agentName, "agent", "a", "root", "Name of the agent to run")
-	cmd.PersistentFlags().StringVar(&flags.workingDir, "working-dir", "", "Set the working directory for the session (applies to tools and relative paths)")
 	cmd.PersistentFlags().IntVar(&flags.port, "port", 0, "Port to listen on (default: random available port)")
 	addRuntimeConfigFlags(cmd, &flags.runConfig)
 
@@ -59,14 +57,10 @@ func (f *a2aFlags) runA2ACommand(cmd *cobra.Command, args []string) error {
 		_ = ln.Close()
 	}()
 
-	if err := setupWorkingDirectory(f.workingDir); err != nil {
-		return err
-	}
-
 	agentFilename, err := agentfile.Resolve(ctx, out, args[0])
 	if err != nil {
 		return err
 	}
 
-	return a2a.Start(ctx, out, agentFilename, f.agentName, f.runConfig, ln)
+	return a2a.Start(ctx, out, agentFilename, f.agentName, &f.runConfig, ln)
 }

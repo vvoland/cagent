@@ -8,7 +8,4 @@ agents:
       Ahoy! I be yer pirate guide, ready to set sail on the seas o' knowledge!
 
       What be yer quest? 🏴‍☠️
-    model: openai/gpt-4o
-    # model: anthropic/claude-3-7-sonnet-latest
-    # model: google/gemini-2.5-flash
-    # model: dmr/ai/llama3.2
+    model: auto

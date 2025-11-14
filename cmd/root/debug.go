@@ -56,7 +56,7 @@ func (f *debugFlags) runDebugConfigCommand(cmd *cobra.Command, args []string) er
 		return err
 	}
 
-	cfg, err := config.LoadConfig(agentFilename, filesystem.AllowAll)
+	cfg, err := config.LoadConfig(ctx, agentFilename, filesystem.AllowAll)
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func (f *debugFlags) runDebugToolsetsCommand(cmd *cobra.Command, args []string) 
 		return err
 	}
 
-	team, err := teamloader.Load(ctx, agentFilename, f.runConfig)
+	team, err := teamloader.Load(ctx, agentFilename, &f.runConfig)
 	if err != nil {
 		return err
 	}

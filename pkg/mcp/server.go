@@ -27,7 +27,7 @@ type ToolOutput struct {
 	Response string `json:"response" jsonschema:"the response from the agent"`
 }
 
-func StartMCPServer(ctx context.Context, out *cli.Printer, agentFilename string, runConfig config.RuntimeConfig) error {
+func StartMCPServer(ctx context.Context, out *cli.Printer, agentFilename string, runConfig *config.RuntimeConfig) error {
 	slog.Debug("Starting MCP server", "agent", agentFilename)
 
 	agentFilename, err := agentfile.Resolve(ctx, out, agentFilename)

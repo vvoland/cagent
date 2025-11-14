@@ -2,6 +2,7 @@ package root
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"io"
 	"log/slog"
@@ -23,9 +24,11 @@ import (
 	"github.com/docker/cagent/pkg/tui"
 )
 
+//go:embed default-agent.yaml
+var defaultAgent []byte
+
 type runExecFlags struct {
 	agentName      string
-	workingDir     string
 	autoApprove    bool
 	attachmentPath string
 	remoteAddress  string
@@ -38,15 +41,16 @@ func newRunCmd() *cobra.Command {
 	var flags runExecFlags
 
 	cmd := &cobra.Command{
-		Use:   "run <agent-file>|<registry-ref> [message|-]",
+		Use:   "run [<agent-file>|<registry-ref>] [message|-]",
 		Short: "Run an agent",
 		Long:  "Run an agent with the specified configuration and prompt",
 		Example: `  cagent run ./agent.yaml
   cagent run ./team.yaml --agent root
+  cagent run # built-in default agent
   cagent run ./echo.yaml "INSTRUCTIONS"
   echo "INSTRUCTIONS" | cagent run ./echo.yaml -`,
 		GroupID: "core",
-		Args:    cobra.RangeArgs(1, 2),
+		Args:    cobra.RangeArgs(0, 2),
 		RunE:    flags.runRunCommand,
 	}
 
@@ -58,7 +62,6 @@ func newRunCmd() *cobra.Command {
 
 func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 	cmd.PersistentFlags().StringVarP(&flags.agentName, "agent", "a", "root", "Name of the agent to run")
-	cmd.PersistentFlags().StringVar(&flags.workingDir, "working-dir", "", "Set the working directory for the session (applies to tools and relative paths)")
 	cmd.PersistentFlags().BoolVar(&flags.autoApprove, "yolo", false, "Automatically approve all tool calls without prompting")
 	cmd.PersistentFlags().StringVar(&flags.attachmentPath, "attach", "", "Attach an image file to the message")
 	cmd.PersistentFlags().StringArrayVar(&flags.modelOverrides, "model", nil, "Override agent model: [agent=]provider/model (repeatable)")
@@ -78,30 +81,35 @@ func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
 func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []string, exec bool) error {
 	slog.Debug("Starting agent", "agent", f.agentName)
 
-	if err := f.setupWorkingDirectory(); err != nil {
-		return err
+	var agentFileName string
+	if len(args) > 0 {
+		agentFileName = args[0]
 	}
 
-	agentFileName := ""
-
-	var rt runtime.Runtime
-	var sess *session.Session
-	var err error
-	switch {
-	case f.remoteAddress != "":
-		agentFileName = args[0]
+	var (
+		rt   runtime.Runtime
+		sess *session.Session
+		err  error
+	)
+	if f.remoteAddress != "" {
 		rt, sess, err = f.createRemoteRuntimeAndSession(ctx, agentFileName)
 		if err != nil {
 			return err
 		}
-
-	default:
-		agentFileName, err = f.resolveAgentFile(ctx, out, args[0])
+	} else {
+		agentFileName, err := agentfile.Resolve(ctx, out, agentFileName)
 		if err != nil {
 			return err
 		}
 
-		t, err := f.loadAgentFrom(ctx, teamloader.NewFileSource(agentFileName))
+		var source teamloader.AgentSource
+		if agentFileName == "default" {
+			source = teamloader.NewBytesSource(f.runConfig.WorkingDir, defaultAgent)
+		} else {
+			source = teamloader.NewFileSource(agentFileName)
+		}
+
+		t, err := f.loadAgentFrom(ctx, source)
 		if err != nil {
 			return err
 		}
@@ -124,21 +132,8 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 	return handleRunMode(ctx, agentFileName, rt, sess, args)
 }
 
-func (f *runExecFlags) setupWorkingDirectory() error {
-	return setupWorkingDirectory(f.workingDir)
-}
-
-// resolveAgentFile is a wrapper method that calls the agentfile.Resolve function
-// after checking for remote address
-func (f *runExecFlags) resolveAgentFile(ctx context.Context, out *cli.Printer, agentFilename string) (string, error) {
-	if f.remoteAddress != "" {
-		return agentFilename, nil
-	}
-	return agentfile.Resolve(ctx, out, agentFilename)
-}
-
 func (f *runExecFlags) loadAgentFrom(ctx context.Context, source teamloader.AgentSource) (*team.Team, error) {
-	t, err := teamloader.LoadFrom(ctx, source, f.runConfig, teamloader.WithModelOverrides(f.modelOverrides))
+	t, err := teamloader.LoadFrom(ctx, source, &f.runConfig, teamloader.WithModelOverrides(f.modelOverrides))
 	if err != nil {
 		return nil, err
 	}

@@ -14,11 +14,11 @@ import (
 
 // gatherMissingEnvVars finds out which environment variables are required by the models and tools.
 // It returns the missing variables and any non-fatal error encountered during tool discovery.
-func gatherMissingEnvVars(ctx context.Context, cfg *latest.Config, env environment.Provider, runtimeConfig RuntimeConfig) (missing []string, toolErr error) {
+func gatherMissingEnvVars(ctx context.Context, cfg *latest.Config, modelsGateway string, env environment.Provider) (missing []string, toolErr error) {
 	requiredEnv := map[string]bool{}
 
 	// Models
-	if runtimeConfig.ModelsGateway == "" {
+	if modelsGateway == "" {
 		names := GatherEnvVarsForModels(cfg)
 		for _, e := range names {
 			requiredEnv[e] = true

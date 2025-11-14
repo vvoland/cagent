@@ -44,7 +44,7 @@ type Server struct {
 	runtimeCancels map[string]context.CancelFunc
 	cancelsMu      sync.RWMutex
 	sessionStore   session.Store
-	runConfig      config.RuntimeConfig
+	runConfig      *config.RuntimeConfig
 	teams          map[string]*team.Team
 	teamsMu        sync.RWMutex
 	agentsDir      string
@@ -66,7 +66,7 @@ func WithAgentsDir(dir string) Opt {
 	}
 }
 
-func New(sessionStore session.Store, runConfig config.RuntimeConfig, teams map[string]*team.Team, opts ...Opt) (*Server, error) {
+func New(sessionStore session.Store, runConfig *config.RuntimeConfig, teams map[string]*team.Team, opts ...Opt) (*Server, error) {
 	e := echo.New()
 	e.Use(middleware.CORS())
 	e.Use(middleware.Logger())
@@ -229,7 +229,7 @@ func (s *Server) getAgentConfig(c echo.Context) error {
 	agentID := c.Param("id")
 	p := addYamlExt(agentID)
 
-	cfg, err := config.LoadConfig(p, s.rootFS)
+	cfg, err := config.LoadConfig(c.Request().Context(), p, s.rootFS)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusNotFound, "agent not found")
 	}
@@ -322,7 +322,7 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 	p := addYamlExt(req.Filename)
 
 	// Load the target file content
-	currentConfig, err := config.LoadConfig(p, s.rootFS)
+	currentConfig, err := config.LoadConfig(c.Request().Context(), p, s.rootFS)
 	if err != nil {
 		slog.Error("Failed to load current config", "path", p, "error", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to load current configuration")
