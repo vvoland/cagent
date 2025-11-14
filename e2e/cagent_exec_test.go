@@ -19,7 +19,7 @@ func TestExec_OpenAI(t *testing.T) {
 }
 
 func TestExec_OpenAI_ToolCall(t *testing.T) {
-	t.Skip("flaky because of tool call ordering")
+	t.Skip("flaky because of tool call arguments ordering, see #797")
 
 	out := cagentExec(t, "testdata/fs_tools.yaml", "How many files in testdata/working_dir? Only output the number.")
 
@@ -39,7 +39,7 @@ func TestExec_Anthropic(t *testing.T) {
 }
 
 func TestExec_Anthropic_ToolCall(t *testing.T) {
-	t.Skip("flaky because of tool call ordering")
+	t.Skip("flaky because of tool call arguments ordering, see #797")
 
 	out := cagentExec(t, "testdata/fs_tools.yaml", "--model=anthropic/claude-sonnet-4-0", "How many files in testdata/working_dir? Only output the number.")
 
@@ -53,7 +53,7 @@ func TestExec_Gemini(t *testing.T) {
 }
 
 func TestExec_Gemini_ToolCall(t *testing.T) {
-	t.Skip("flaky because of tool call ordering")
+	t.Skip("flaky because of tool call arguments ordering, see #797")
 
 	out := cagentExec(t, "testdata/fs_tools.yaml", "--model=google/gemini-2.5-flash", "How many files in testdata/working_dir? Only output the number.")
 
