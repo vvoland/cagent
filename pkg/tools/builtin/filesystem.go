@@ -13,9 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
-
 	"github.com/docker/cagent/pkg/fsx"
 	"github.com/docker/cagent/pkg/tools"
 )
@@ -49,7 +46,7 @@ type FilesystemTool struct {
 	allowedDirectories []string
 	postEditCommands   []PostEditConfig
 	ignoreVCS          bool
-	repoMatchers       map[string]gitignore.Matcher // map from repo root to matcher
+	repoMatchers       map[string]*fsx.VCSMatcher // map from repo root to matcher
 }
 
 var _ tools.ToolSet = (*FilesystemTool)(nil)
@@ -71,7 +68,7 @@ func WithIgnoreVCS(ignoreVCS bool) FileSystemOpt {
 func NewFilesystemTool(allowedDirectories []string, opts ...FileSystemOpt) *FilesystemTool {
 	t := &FilesystemTool{
 		allowedDirectories: allowedDirectories,
-		repoMatchers:       make(map[string]gitignore.Matcher),
+		repoMatchers:       make(map[string]*fsx.VCSMatcher),
 	}
 	for _, opt := range opts {
 		opt(t)
@@ -433,39 +430,25 @@ func (t *FilesystemTool) initGitignoreMatchers() {
 
 // loadMatcherForDirectory loads a gitignore matcher for a specific directory
 func (t *FilesystemTool) loadMatcherForDirectory(absDir string) {
-	// PlainOpen automatically searches up the directory tree for .git
-	repo, err := git.PlainOpen(absDir)
+	// Use the shared VCS matcher from fsx package
+	matcher, err := fsx.NewVCSMatcher(absDir)
 	if err != nil {
-		slog.Debug("No git repository found", "directory", absDir)
+		slog.Warn("Failed to create VCS matcher", "path", absDir, "error", err)
 		return
 	}
 
-	// Get the worktree
-	worktree, err := repo.Worktree()
-	if err != nil {
-		slog.Warn("Failed to get worktree", "path", absDir, "error", err)
+	// If no matcher (not in a git repo), just return
+	if matcher == nil {
 		return
 	}
-
-	// Get the repository root path
-	repoRoot := worktree.Filesystem.Root()
 
 	// Skip if we already have a matcher for this repository
-	if _, exists := t.repoMatchers[repoRoot]; exists {
+	if _, exists := t.repoMatchers[matcher.RepoRoot()]; exists {
 		return
 	}
 
-	// Read gitignore patterns from the repository
-	patterns, err := gitignore.ReadPatterns(worktree.Filesystem, nil)
-	if err != nil {
-		slog.Warn("Failed to read gitignore patterns", "path", repoRoot, "error", err)
-		return
-	}
-
-	// Create a matcher from the patterns
-	matcher := gitignore.NewMatcher(patterns)
-	t.repoMatchers[repoRoot] = matcher
-	slog.Debug("Loaded gitignore patterns", "repository", repoRoot)
+	// Store the matcher
+	t.repoMatchers[matcher.RepoRoot()] = matcher
 }
 
 // shouldIgnorePath checks if a path should be ignored based on VCS rules
@@ -480,33 +463,10 @@ func (t *FilesystemTool) shouldIgnorePath(path string) bool {
 		return true
 	}
 
-	// Check gitignore patterns
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return false
-	}
-
-	// Find the appropriate gitignore matcher for this path
-	for repoRoot, matcher := range t.repoMatchers {
-		if !strings.HasPrefix(absPath, repoRoot) {
-			continue
-		}
-
-		// Create a relative path from the repository root for matching
-		relPath, err := filepath.Rel(repoRoot, absPath)
-		if err != nil {
-			return false
-		}
-
-		// Check if the path is a directory
-		info, err := os.Stat(path)
-		isDir := err == nil && info.IsDir()
-
-		// Use go-git matcher - pass relative path as single element in array
-		// Normalize to forward slashes as git expects
-		normalizedRelPath := filepath.ToSlash(relPath)
-		matched := matcher.Match([]string{normalizedRelPath}, isDir)
-		if matched {
+	// Check gitignore patterns using VCS matchers
+	for _, matcher := range t.repoMatchers {
+		// Delegate to the VCSMatcher's ShouldIgnore method
+		if matcher.ShouldIgnore(path) {
 			return true
 		}
 	}
