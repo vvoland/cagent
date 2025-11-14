@@ -32,7 +32,9 @@ func NewRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cagent",
 		Short: "cagent - AI agent runner",
-		Long:  `cagent is a command-line tool for running AI agents`,
+		Long:  "cagent is a command-line tool for running AI agents",
+		Example: `  cagent run ./agent.yaml
+  cagent run agentcatalog/pirate`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// Initialize logging before anything else so logs don't break TUI
 			if err := flags.setupLogging(); err != nil {

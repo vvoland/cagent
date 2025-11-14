@@ -3,6 +3,7 @@ package root
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/filesystem"
 	"github.com/docker/cagent/pkg/oci"
@@ -17,7 +18,7 @@ func newBuildCmd() *cobra.Command {
 	var flags buildFlags
 
 	cmd := &cobra.Command{
-		Use:     "build <agent-file> [docker-image-name]",
+		Use:     "build <agent-file>|<registry-ref> [docker-image-name]",
 		Short:   "Build a Docker image for the agent",
 		Args:    cobra.RangeArgs(1, 2),
 		GroupID: "advanced",
@@ -38,11 +39,15 @@ func (f *buildFlags) runBuildCommand(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	out := cli.NewPrinter(cmd.OutOrStdout())
 
-	agentFilePath := args[0]
+	agentFilename, err := agentfile.Resolve(ctx, out, args[0])
+	if err != nil {
+		return err
+	}
+
 	dockerImageName := ""
 	if len(args) > 1 {
 		dockerImageName = args[1]
 	}
 
-	return oci.BuildDockerImage(ctx, out, agentFilePath, filesystem.AllowAll, dockerImageName, f.opts)
+	return oci.BuildDockerImage(ctx, out, agentFilename, filesystem.AllowAll, dockerImageName, f.opts)
 }

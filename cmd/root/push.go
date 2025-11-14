@@ -15,7 +15,7 @@ import (
 
 func newPushCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "push <agent file> <reference>",
+		Use:     "push <agent-file> <registry-ref>",
 		Short:   "Push an agent to an OCI registry",
 		Long:    "Push an agent configuration file to an OCI registry",
 		GroupID: "core",

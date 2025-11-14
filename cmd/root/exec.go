@@ -11,7 +11,7 @@ func newExecCmd() *cobra.Command {
 	var flags runExecFlags
 
 	cmd := &cobra.Command{
-		Use:   "exec <agent-name>",
+		Use:   "exec <agent-file>|<registry-ref>",
 		Short: "Execute an agent",
 		Long:  "Execute an agent (Single user message / No TUI)",
 		Example: `  cagent exec ./agent.yaml

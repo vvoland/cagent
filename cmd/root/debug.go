@@ -6,6 +6,7 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
 
+	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/filesystem"
@@ -27,13 +28,13 @@ func newDebugCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(&cobra.Command{
-		Use:   "config <agent-name>",
+		Use:   "config <agent-file>|<registry-ref>",
 		Short: "Print the canonical form of an agent's configuration file",
 		Args:  cobra.ExactArgs(1),
 		RunE:  flags.runDebugConfigCommand,
 	})
 	cmd.AddCommand(&cobra.Command{
-		Use:   "toolsets <agent-name>",
+		Use:   "toolsets <agent-file>|<registry-ref>",
 		Short: "Debug the toolsets of an agent",
 		Args:  cobra.ExactArgs(1),
 		RunE:  flags.runDebugToolsetsCommand,
@@ -47,7 +48,13 @@ func newDebugCmd() *cobra.Command {
 func (f *debugFlags) runDebugConfigCommand(cmd *cobra.Command, args []string) error {
 	telemetry.TrackCommand("debug", append([]string{"config"}, args...))
 
-	agentFilename := args[0]
+	ctx := cmd.Context()
+	out := cli.NewPrinter(cmd.OutOrStdout())
+
+	agentFilename, err := agentfile.Resolve(ctx, out, args[0])
+	if err != nil {
+		return err
+	}
 
 	cfg, err := config.LoadConfig(agentFilename, filesystem.AllowAll)
 	if err != nil {
@@ -62,7 +69,11 @@ func (f *debugFlags) runDebugToolsetsCommand(cmd *cobra.Command, args []string) 
 
 	ctx := cmd.Context()
 	out := cli.NewPrinter(cmd.OutOrStdout())
-	agentFilename := args[0]
+
+	agentFilename, err := agentfile.Resolve(ctx, out, args[0])
+	if err != nil {
+		return err
+	}
 
 	team, err := teamloader.Load(ctx, agentFilename, f.runConfig)
 	if err != nil {
