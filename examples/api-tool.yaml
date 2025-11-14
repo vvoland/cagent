@@ -14,7 +14,7 @@ agents:
     toolsets:
       - type: api
         api_config:
-          instruction: Get todos
+          instruction: Get daily puzzle
           name: daily-puzzle
           endpoint: https://api.chess.com/pub/puzzle
           method: GET
