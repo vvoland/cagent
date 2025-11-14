@@ -312,7 +312,7 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 				continue
 			}
 
-			if additionalPrompt == "" {
+			if additionalPrompt != "" {
 				content += "\n\n" + additionalPrompt
 			}
 		}
