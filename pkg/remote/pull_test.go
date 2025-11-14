@@ -15,12 +15,12 @@ import (
 )
 
 func TestPullNonExistentRegistry(t *testing.T) {
-	_, err := Pull("registry.example.com/non-existent:latest")
+	_, err := Pull(t.Context(), "registry.example.com/non-existent:latest")
 	require.Error(t, err)
 }
 
 func TestPullWithOptions(t *testing.T) {
-	_, err := Pull("registry.example.com/test:latest", crane.Insecure)
+	_, err := Pull(t.Context(), "registry.example.com/test:latest", crane.Insecure)
 	require.Error(t, err)
 }
 
