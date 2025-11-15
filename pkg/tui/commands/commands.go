@@ -16,6 +16,7 @@ type (
 	EvalSessionMsg            struct{}
 	CompactSessionMsg         struct{}
 	CopySessionToClipboardMsg struct{}
+	ToggleYoloMsg             struct{}
 )
 
 // Agent commands
@@ -83,6 +84,16 @@ func BuiltInSessionCommands() []Item {
 			Category:     "Session",
 			Execute: func() tea.Cmd {
 				return core.CmdHandler(EvalSessionMsg{})
+			},
+		},
+		{
+			ID:           "session.yolo",
+			Label:        "Yolo",
+			SlashCommand: "/yolo",
+			Description:  "Toggle automatic approval of tool calls",
+			Category:     "Session",
+			Execute: func() tea.Cmd {
+				return core.CmdHandler(ToggleYoloMsg{})
 			},
 		},
 	}
