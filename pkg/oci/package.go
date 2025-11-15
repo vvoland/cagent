@@ -1,24 +1,29 @@
 package oci
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	latest "github.com/docker/cagent/pkg/config/v2"
+	"github.com/goccy/go-yaml"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/static"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 
+	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/path"
+	"github.com/docker/cagent/pkg/version"
 )
 
 // PackageFileAsOCIToStore creates an OCI artifact from a file and stores it in the content store
-func PackageFileAsOCIToStore(filePath, artifactRef string, store *content.Store) (string, error) {
+func PackageFileAsOCIToStore(ctx context.Context, filePath, artifactRef string, store *content.Store) (string, error) {
 	if !strings.Contains(artifactRef, ":") {
 		artifactRef += ":latest"
 	}
@@ -34,6 +39,31 @@ func PackageFileAsOCIToStore(filePath, artifactRef string, store *content.Store)
 		return "", fmt.Errorf("reading file: %w", err)
 	}
 
+	cfg, err := config.LoadConfigBytes(ctx, data)
+	if err != nil {
+		return "", fmt.Errorf("loading config: %w", err)
+	}
+
+	// Make sure we push a yaml with the latest version
+	cfg.Version = latest.Version
+	data, err = yaml.MarshalWithOptions(cfg, yaml.Indent(2))
+	if err != nil {
+		return "", fmt.Errorf("marshaling config: %w", err)
+	}
+
+	// Prepare OCI annotations
+	annotations := map[string]string{
+		"io.docker.cagent.version":             version.Version,
+		"org.opencontainers.image.created":     time.Now().Format(time.RFC3339),
+		"org.opencontainers.image.description": fmt.Sprintf("OCI artifact containing %s", filepath.Base(validatedPath)),
+	}
+	if author := cfg.Metadata.Author; author != "" {
+		annotations["org.opencontainers.image.authors"] = author
+	}
+	if license := cfg.Metadata.License; license != "" {
+		annotations["org.opencontainers.image.licenses"] = license
+	}
+
 	layer := static.NewLayer(data, types.OCIUncompressedLayer)
 	img, err := mutate.AppendLayers(empty.Image, layer)
 	if err != nil {
@@ -42,11 +72,7 @@ func PackageFileAsOCIToStore(filePath, artifactRef string, store *content.Store)
 
 	// Convert to OCI manifest format to support annotations
 	img = mutate.MediaType(img, types.OCIManifestSchema1)
-
-	img = mutate.Annotations(img, map[string]string{
-		"org.opencontainers.image.created":     time.Now().Format(time.RFC3339),
-		"org.opencontainers.image.description": fmt.Sprintf("OCI artifact containing %s", filepath.Base(validatedPath)),
-	}).(v1.Image)
+	img = mutate.Annotations(img, annotations).(v1.Image)
 
 	digest, err := store.StoreArtifact(img, artifactRef)
 	if err != nil {
