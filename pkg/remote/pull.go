@@ -32,6 +32,9 @@ func Pull(ctx context.Context, registryRef string, opts ...crane.Option) (string
 	localRef := ref.Context().RepositoryStr() + ":" + ref.Identifier()
 	if meta, metaErr := store.GetArtifactMetadata(localRef); metaErr == nil {
 		if meta.Digest == remoteDigest {
+			if !hasCagentAnnotation(meta.Annotations) {
+				return "", fmt.Errorf("artifact %s found in store wasn't created by cagent", localRef)
+			}
 			return meta.Digest, nil
 		}
 	}
@@ -41,10 +44,23 @@ func Pull(ctx context.Context, registryRef string, opts ...crane.Option) (string
 		return "", fmt.Errorf("pulling image from registry %s: %w", registryRef, err)
 	}
 
+	manifest, err := img.Manifest()
+	if err != nil {
+		return "", fmt.Errorf("getting manifest from pulled image: %w", err)
+	}
+	if !hasCagentAnnotation(manifest.Annotations) {
+		return "", fmt.Errorf("artifact %s found in store wasn't created by cagent", localRef)
+	}
+
 	digest, err := store.StoreArtifact(img, localRef)
 	if err != nil {
 		return "", fmt.Errorf("storing artifact in content store: %w", err)
 	}
 
 	return digest, nil
+}
+
+func hasCagentAnnotation(annotations map[string]string) bool {
+	_, exists := annotations["io.docker.cagent.version"]
+	return exists
 }

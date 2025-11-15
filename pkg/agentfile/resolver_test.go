@@ -112,7 +112,7 @@ agents:
 
 	// Package as OCI artifact
 	ociRef := "test.registry.io/myorg/testagent:v1"
-	_, err = oci.PackageFileAsOCIToStore(agentFile, ociRef, store)
+	_, err = oci.PackageFileAsOCIToStore(t.Context(), agentFile, ociRef, store)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
@@ -156,7 +156,7 @@ agents:
 `
 	updatedFile := filepath.Join(t.TempDir(), "updated-agent.yaml")
 	require.NoError(t, os.WriteFile(updatedFile, []byte(updatedContent), 0o644))
-	_, err = oci.PackageFileAsOCIToStore(updatedFile, ociRef, store)
+	_, err = oci.PackageFileAsOCIToStore(t.Context(), updatedFile, ociRef, store)
 	require.NoError(t, err)
 
 	// Third resolution (simulating reload after update)
@@ -202,9 +202,9 @@ agents:
 	// Package as different OCI artifacts
 	ociRef1 := "test.io/org/agent1:v1"
 	ociRef2 := "test.io/org/agent2:v1"
-	_, err = oci.PackageFileAsOCIToStore(agent1File, ociRef1, store)
+	_, err = oci.PackageFileAsOCIToStore(t.Context(), agent1File, ociRef1, store)
 	require.NoError(t, err)
-	_, err = oci.PackageFileAsOCIToStore(agent2File, ociRef2, store)
+	_, err = oci.PackageFileAsOCIToStore(t.Context(), agent2File, ociRef2, store)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
@@ -252,7 +252,7 @@ agents:
 
 	// Package as OCI artifact
 	ociRef := "test.io/cleanup/agent:v1"
-	_, err = oci.PackageFileAsOCIToStore(agentFile, ociRef, store)
+	_, err = oci.PackageFileAsOCIToStore(t.Context(), agentFile, ociRef, store)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(t.Context())

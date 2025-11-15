@@ -22,7 +22,7 @@ description: "Test application"
 	require.NoError(t, err)
 
 	tag := "test-app:v1.0.0"
-	digest, err := PackageFileAsOCIToStore(testFile, tag, store)
+	digest, err := PackageFileAsOCIToStore(t.Context(), testFile, tag, store)
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, digest)
@@ -54,7 +54,7 @@ description: "Test application"
 func TestPackageFileAsOCIToStoreMissingFile(t *testing.T) {
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
 	require.NoError(t, err)
-	_, err = PackageFileAsOCIToStore("/non/existent/file.txt", "test:latest", store)
+	_, err = PackageFileAsOCIToStore(t.Context(), "/non/existent/file.txt", "test:latest", store)
 	require.Error(t, err)
 }
 
@@ -64,7 +64,7 @@ func TestPackageFileAsOCIToStoreInvalidTag(t *testing.T) {
 
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
 	require.NoError(t, err)
-	_, err = PackageFileAsOCIToStore(testFile, "", store)
+	_, err = PackageFileAsOCIToStore(t.Context(), testFile, "", store)
 	require.Error(t, err)
 }
 
@@ -106,7 +106,7 @@ func TestPackageFileAsOCIToStoreDifferentFileTypes(t *testing.T) {
 			require.NoError(t, os.WriteFile(testFile, []byte(tc.content), 0o644))
 
 			// Package the file as OCI artifact
-			digest, err := PackageFileAsOCIToStore(testFile, tc.tag, store)
+			digest, err := PackageFileAsOCIToStore(t.Context(), testFile, tc.tag, store)
 			require.NoError(t, err)
 
 			digests = append(digests, digest)

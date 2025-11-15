@@ -769,7 +769,7 @@ func (s *Server) pushAgent(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to create content store")
 	}
 
-	digest, err := oci.PackageFileAsOCIToStore(validatedFilepath, req.Tag, store)
+	digest, err := oci.PackageFileAsOCIToStore(c.Request().Context(), validatedFilepath, req.Tag, store)
 	if err != nil {
 		slog.Error("Failed to build artifact", "filepath", validatedFilepath, "tag", req.Tag, "error", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to build artifact")

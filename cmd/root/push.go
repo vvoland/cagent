@@ -27,6 +27,7 @@ func newPushCmd() *cobra.Command {
 func runPushCommand(cmd *cobra.Command, args []string) error {
 	telemetry.TrackCommand("push", args)
 
+	ctx := cmd.Context()
 	filePath := args[0]
 	tag := args[1]
 	out := cli.NewPrinter(cmd.OutOrStdout())
@@ -36,7 +37,7 @@ func runPushCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	_, err = oci.PackageFileAsOCIToStore(filePath, tag, store)
+	_, err = oci.PackageFileAsOCIToStore(ctx, filePath, tag, store)
 	if err != nil {
 		return fmt.Errorf("failed to build artifact: %w", err)
 	}
