@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/wk8/go-ordered-map/v2"
 	"golang.org/x/term"
 
 	"github.com/docker/cagent/pkg/input"
@@ -185,15 +186,41 @@ func formatToolCallArguments(arguments string) string {
 		return "()"
 	}
 
-	// Parse JSON to validate it and reformat
-	var parsed any
-	if err := json.Unmarshal([]byte(arguments), &parsed); err != nil {
-		// If JSON parsing fails, return the original string
-		return fmt.Sprintf("(%s)", arguments)
+	// Is is a map?
+	kv := orderedmap.New[string, any]()
+	if err := json.Unmarshal([]byte(arguments), &kv); err == nil {
+		if kv.Len() == 0 {
+			return "()"
+		}
+
+		var (
+			parts     []string
+			multiline bool
+		)
+
+		for key, value := range kv.FromOldest() {
+			formatted := formatJSONValue(key, value)
+			parts = append(parts, formatted)
+
+			multiline = multiline || strings.Contains(formatted, "\n")
+		}
+
+		if len(parts) == 1 && !multiline {
+			return fmt.Sprintf("(%s)", parts[0])
+		}
+
+		return fmt.Sprintf("(\n  %s\n)", strings.Join(parts, "\n  "))
 	}
 
-	// Custom format that handles multiline strings better
-	return formatParsedJSON(parsed)
+	// Maybe some other JSON type?
+	var parsed any
+	if err := json.Unmarshal([]byte(arguments), &parsed); err == nil {
+		formatted, _ := json.MarshalIndent(parsed, "", "  ")
+		return fmt.Sprintf("(%s)", string(formatted))
+	}
+
+	// JSON parsing failed
+	return fmt.Sprintf("(%s)", arguments)
 }
 
 func formatToolCallResponse(response string) string {
