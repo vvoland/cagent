@@ -1,6 +1,6 @@
 module github.com/docker/cagent
 
-go 1.25.3
+go 1.25.4
 
 require (
 	charm.land/bubbles/v2 v2.0.0-beta.1.0.20251104200223-da0b892d1759
