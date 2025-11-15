@@ -239,6 +239,10 @@ func (c *manager) GetLayers() []*lipgloss.Layer {
 func (c *manager) filterItems(query string) {
 	if query == "" {
 		c.filteredItems = c.items
+		// Reset selection when clearing the query
+		if c.selected >= len(c.filteredItems) {
+			c.selected = max(0, len(c.filteredItems)-1)
+		}
 		return
 	}
 
@@ -272,5 +276,17 @@ func (c *manager) filterItems(query string) {
 	c.filteredItems = make([]Item, 0, len(matches))
 	for _, match := range matches {
 		c.filteredItems = append(c.filteredItems, match.item)
+	}
+
+	// Adjust selection if it's beyond the filtered list
+	if c.selected >= len(c.filteredItems) {
+		c.selected = max(0, len(c.filteredItems)-1)
+	}
+
+	// Adjust scroll offset to ensure selected item is visible
+	if c.selected < c.scrollOffset {
+		c.scrollOffset = c.selected
+	} else if c.selected >= c.scrollOffset+maxItems {
+		c.scrollOffset = max(0, c.selected-maxItems+1)
 	}
 }
