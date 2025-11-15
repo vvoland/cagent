@@ -35,20 +35,18 @@ func PackageFileAsOCIToStore(filePath, artifactRef string, store *content.Store)
 	}
 
 	layer := static.NewLayer(data, types.OCIUncompressedLayer)
-
-	img := empty.Image
-
-	img, err = mutate.AppendLayers(img, layer)
+	img, err := mutate.AppendLayers(empty.Image, layer)
 	if err != nil {
 		return "", fmt.Errorf("appending layer: %w", err)
 	}
 
-	annotations := map[string]string{
+	// Convert to OCI manifest format to support annotations
+	img = mutate.MediaType(img, types.OCIManifestSchema1)
+
+	img = mutate.Annotations(img, map[string]string{
 		"org.opencontainers.image.created":     time.Now().Format(time.RFC3339),
 		"org.opencontainers.image.description": fmt.Sprintf("OCI artifact containing %s", filepath.Base(validatedPath)),
-	}
-
-	img = mutate.Annotations(img, annotations).(v1.Image)
+	}).(v1.Image)
 
 	digest, err := store.StoreArtifact(img, artifactRef)
 	if err != nil {

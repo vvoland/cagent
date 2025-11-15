@@ -43,6 +43,12 @@ description: "Test application"
 
 	assert.Equal(t, tag, metadata.Reference)
 	assert.Equal(t, digest, metadata.Digest)
+
+	// Verify annotations are present
+	require.NotNil(t, metadata.Annotations)
+	assert.Contains(t, metadata.Annotations, "org.opencontainers.image.created")
+	assert.Contains(t, metadata.Annotations, "org.opencontainers.image.description")
+	assert.Equal(t, "OCI artifact containing test.yaml", metadata.Annotations["org.opencontainers.image.description"])
 }
 
 func TestPackageFileAsOCIToStoreMissingFile(t *testing.T) {
