@@ -193,6 +193,17 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return a, core.CmdHandler(notification.ShowMsg{Text: "Conversation copied to clipboard."})
 
+	case commands.ToggleYoloMsg:
+		sess := a.application.Session()
+		sess.ToolsApproved = !sess.ToolsApproved
+		var statusText string
+		if sess.ToolsApproved {
+			statusText = "Yolo mode enabled: tools will be auto-approved"
+		} else {
+			statusText = "Yolo mode disabled: tools will require confirmation"
+		}
+		return a, core.CmdHandler(notification.ShowMsg{Text: statusText})
+
 	case commands.AgentCommandMsg:
 		resolvedCommand := a.application.ResolveCommand(context.Background(), msg.Command)
 		return a, core.CmdHandler(editor.SendMsg{Content: resolvedCommand})

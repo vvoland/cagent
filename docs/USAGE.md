@@ -115,6 +115,7 @@ During CLI sessions, you can use special commands:
 | `/reset`   | Clear conversation history                  |
 | `/eval`    | Save current conversation for evaluation    |
 | `/compact` | Compact conversation to lower context usage |
+| `/yolo`    | Toggle automatic approval of tool calls     |
 
 ## 🔧 Configuration Reference
 
