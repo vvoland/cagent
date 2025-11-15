@@ -34,6 +34,7 @@ require (
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.1
 	github.com/temoto/robotstxt v1.1.2
+	github.com/wk8/go-ordered-map/v2 v2.1.9-0.20250401010720-46d686821e33
 	github.com/xeipuuv/gojsonschema v1.2.0
 	go.opentelemetry.io/otel v1.38.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.38.0
@@ -56,6 +57,8 @@ require (
 	github.com/JohannesKaufmann/dom v0.2.0 // indirect
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
+	github.com/bahlo/generic-list-go v0.2.0 // indirect
+	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/charmbracelet/colorprofile v0.3.3 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20251106193841-7889546fc720 // indirect
@@ -97,6 +100,7 @@ require (
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
+	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/microcosm-cc/bluemonday v1.0.27 // indirect

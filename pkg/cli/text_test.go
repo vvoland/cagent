@@ -47,9 +47,12 @@ func TestFormatToolCallArguments_Empty(t *testing.T) {
 }
 
 func TestFormatToolCallArguments_Map(t *testing.T) {
-	formatted := formatToolCallArguments(`{"text": "hello"}`)
+	formatted := formatToolCallArguments(`{"first": "hello", "second": 42}`)
 
-	assert.Equal(t, `(text: "hello")`, formatted)
+	assert.Equal(t, `(
+  first: "hello"
+  second: 42
+)`, formatted)
 }
 
 func TestFormatToolCallArguments_MapOfArray(t *testing.T) {
