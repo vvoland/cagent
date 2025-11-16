@@ -349,3 +349,62 @@ func MCPInitFinished(agentName string) Event {
 		AgentContext: AgentContext{AgentName: agentName},
 	}
 }
+
+// AgentInfoEvent is sent when agent information is available or changes
+type AgentInfoEvent struct {
+	Type        string `json:"type"`
+	AgentName   string `json:"agent_name"`
+	Model       string `json:"model"`
+	Description string `json:"description"`
+	AgentContext
+}
+
+func AgentInfo(agentName, model, description string) Event {
+	return &AgentInfoEvent{
+		Type:         "agent_info",
+		AgentName:    agentName,
+		Model:        model,
+		Description:  description,
+		AgentContext: AgentContext{AgentName: agentName},
+	}
+}
+
+// TeamInfoEvent is sent when team information is available
+type TeamInfoEvent struct {
+	Type             string   `json:"type"`
+	AvailableAgents  []string `json:"available_agents"`
+	CurrentAgent     string   `json:"current_agent"`
+	AgentContext
+}
+
+func TeamInfo(availableAgents []string, currentAgent string) Event {
+	return &TeamInfoEvent{
+		Type:            "team_info",
+		AvailableAgents: availableAgents,
+		CurrentAgent:    currentAgent,
+		AgentContext:    AgentContext{AgentName: currentAgent},
+	}
+}
+
+// AgentSwitchingEvent is sent when agent switching starts or stops
+type AgentSwitchingEvent struct {
+	Type      string `json:"type"`
+	Switching bool   `json:"switching"`
+	FromAgent string `json:"from_agent,omitempty"`
+	ToAgent   string `json:"to_agent,omitempty"`
+	AgentContext
+}
+
+func AgentSwitching(switching bool, fromAgent, toAgent string) Event {
+	currentAgent := fromAgent
+	if toAgent != "" {
+		currentAgent = toAgent
+	}
+	return &AgentSwitchingEvent{
+		Type:         "agent_switching",
+		Switching:    switching,
+		FromAgent:    fromAgent,
+		ToAgent:      toAgent,
+		AgentContext: AgentContext{AgentName: currentAgent},
+	}
+}

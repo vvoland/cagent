@@ -236,6 +236,17 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		// Set elicitation handler on all MCP toolsets before getting tools
 		a := r.CurrentAgent()
 
+		// Emit agent information for sidebar display
+		var modelID string
+		if model := a.Model(); model != nil {
+			modelID = model.ID()
+		}
+		events <- AgentInfo(a.Name(), modelID, a.Description())
+
+		// Emit team information
+		availableAgents := r.team.AgentNames()
+		events <- TeamInfo(availableAgents, r.currentAgent)
+
 		r.emitAgentWarnings(a, events)
 
 		for _, toolset := range a.ToolSets() {
@@ -950,8 +961,35 @@ func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Ses
 	slog.Debug("Transferring task to agent", "from_agent", a.Name(), "to_agent", params.Agent, "task", params.Task)
 
 	ca := r.currentAgent
+
+	// Emit agent switching start event
+	evts <- AgentSwitching(true, ca, params.Agent)
+
 	r.currentAgent = params.Agent
-	defer func() { r.currentAgent = ca }()
+	defer func() {
+		r.currentAgent = ca
+
+		// Emit agent switching end event
+		evts <- AgentSwitching(false, params.Agent, ca)
+
+		// Restore original agent info in sidebar
+		if originalAgent, err := r.team.Agent(ca); err == nil {
+			var modelID string
+			if model := originalAgent.Model(); model != nil {
+				modelID = model.ID()
+			}
+			evts <- AgentInfo(originalAgent.Name(), modelID, originalAgent.Description())
+		}
+	}()
+
+	// Emit agent info for the new agent
+	if newAgent, err := r.team.Agent(params.Agent); err == nil {
+		var modelID string
+		if model := newAgent.Model(); model != nil {
+			modelID = model.ID()
+		}
+		evts <- AgentInfo(newAgent.Name(), modelID, newAgent.Description())
+	}
 
 	memberAgentTask := "You are a member of a team of agents. Your goal is to complete the following task:"
 	memberAgentTask += fmt.Sprintf("\n\n<task>\n%s\n</task>", params.Task)
