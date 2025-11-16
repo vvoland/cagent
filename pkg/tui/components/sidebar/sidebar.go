@@ -229,18 +229,18 @@ func (m *model) verticalView() string {
 		topContent += styles.MutedStyle.Render(pwd) + "\n\n"
 	}
 
+	topContent += m.tokenUsage()
+	topContent += "\n" + m.workingIndicator()
+
 	// Add agent information
 	if agentInfo := m.agentInfo(); agentInfo != "" {
-		topContent += agentInfo + "\n\n"
+		topContent += "\n\n" + agentInfo
 	}
 
 	// Add toolset information
 	if toolsetInfo := m.toolsetInfo(); toolsetInfo != "" {
-		topContent += toolsetInfo + "\n\n"
+		topContent += "\n\n" + toolsetInfo
 	}
-
-	topContent += m.tokenUsage()
-	topContent += "\n" + m.workingIndicator()
 
 	m.todoComp.SetSize(m.width)
 	todoContent := strings.TrimSuffix(m.todoComp.Render(), "\n")
@@ -366,7 +366,7 @@ func (m *model) toolsetInfo() string {
 			if i > 0 {
 				content.WriteString(", ")
 			}
-			content.WriteString(styles.ActiveStyle.Render("🔄 " + tool))
+			content.WriteString(styles.ActiveStyle.Render("[>] " + tool))
 		}
 	}
 

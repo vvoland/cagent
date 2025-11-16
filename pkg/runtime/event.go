@@ -371,9 +371,9 @@ func AgentInfo(agentName, model, description string) Event {
 
 // TeamInfoEvent is sent when team information is available
 type TeamInfoEvent struct {
-	Type             string   `json:"type"`
-	AvailableAgents  []string `json:"available_agents"`
-	CurrentAgent     string   `json:"current_agent"`
+	Type            string   `json:"type"`
+	AvailableAgents []string `json:"available_agents"`
+	CurrentAgent    string   `json:"current_agent"`
 	AgentContext
 }
 
