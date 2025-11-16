@@ -211,6 +211,9 @@ func TestSimple(t *testing.T) {
 	events := runSession(t, sess, stream)
 
 	expectedEvents := []Event{
+		AgentInfo("root", "test/mock-model", ""),
+		TeamInfo([]string{"root"}, "root"),
+		ToolsetInfo(0, "root"),
 		UserMessage("Hi"),
 		StreamStarted(sess.ID, "root"),
 		AgentChoice("root", "Hello"),
@@ -236,6 +239,9 @@ func TestMultipleContentChunks(t *testing.T) {
 	events := runSession(t, sess, stream)
 
 	expectedEvents := []Event{
+		AgentInfo("root", "test/mock-model", ""),
+		TeamInfo([]string{"root"}, "root"),
+		ToolsetInfo(0, "root"),
 		UserMessage("Please greet me"),
 		StreamStarted(sess.ID, "root"),
 		AgentChoice("root", "Hello "),
@@ -263,6 +269,9 @@ func TestWithReasoning(t *testing.T) {
 	events := runSession(t, sess, stream)
 
 	expectedEvents := []Event{
+		AgentInfo("root", "test/mock-model", ""),
+		TeamInfo([]string{"root"}, "root"),
+		ToolsetInfo(0, "root"),
 		UserMessage("Hi"),
 		StreamStarted(sess.ID, "root"),
 		AgentChoiceReasoning("root", "Let me think about this..."),
@@ -289,6 +298,9 @@ func TestMixedContentAndReasoning(t *testing.T) {
 	events := runSession(t, sess, stream)
 
 	expectedEvents := []Event{
+		AgentInfo("root", "test/mock-model", ""),
+		TeamInfo([]string{"root"}, "root"),
+		ToolsetInfo(0, "root"),
 		UserMessage("Hi there"),
 		StreamStarted(sess.ID, "root"),
 		AgentChoiceReasoning("root", "The user wants a greeting"),
@@ -338,13 +350,16 @@ func TestErrorEvent(t *testing.T) {
 		events = append(events, ev)
 	}
 
-	require.Len(t, events, 4)
-	require.IsType(t, &UserMessageEvent{}, events[0])
-	require.IsType(t, &StreamStartedEvent{}, events[1])
-	require.IsType(t, &ErrorEvent{}, events[2])
-	require.IsType(t, &StreamStoppedEvent{}, events[3])
+	require.Len(t, events, 7)
+	require.IsType(t, &AgentInfoEvent{}, events[0])
+	require.IsType(t, &TeamInfoEvent{}, events[1])
+	require.IsType(t, &ToolsetInfoEvent{}, events[2])
+	require.IsType(t, &UserMessageEvent{}, events[3])
+	require.IsType(t, &StreamStartedEvent{}, events[4])
+	require.IsType(t, &ErrorEvent{}, events[5])
+	require.IsType(t, &StreamStoppedEvent{}, events[6])
 
-	errorEvent := events[2].(*ErrorEvent)
+	errorEvent := events[5].(*ErrorEvent)
 	require.Contains(t, errorEvent.Error, "simulated error")
 }
 
@@ -374,9 +389,12 @@ func TestContextCancellation(t *testing.T) {
 		events = append(events, ev)
 	}
 
-	require.GreaterOrEqual(t, len(events), 2)
-	require.IsType(t, &UserMessageEvent{}, events[0])
-	require.IsType(t, &StreamStartedEvent{}, events[1])
+	require.GreaterOrEqual(t, len(events), 5)
+	require.IsType(t, &AgentInfoEvent{}, events[0])
+	require.IsType(t, &TeamInfoEvent{}, events[1])
+	require.IsType(t, &ToolsetInfoEvent{}, events[2])
+	require.IsType(t, &UserMessageEvent{}, events[3])
+	require.IsType(t, &StreamStartedEvent{}, events[4])
 	require.IsType(t, &StreamStoppedEvent{}, events[len(events)-1])
 }
 
