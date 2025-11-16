@@ -408,3 +408,35 @@ func AgentSwitching(switching bool, fromAgent, toAgent string) Event {
 		AgentContext: AgentContext{AgentName: currentAgent},
 	}
 }
+
+// ToolsetInfoEvent is sent when toolset information is available
+type ToolsetInfoEvent struct {
+	Type           string `json:"type"`
+	AvailableTools int    `json:"available_tools"`
+	AgentContext
+}
+
+func ToolsetInfo(availableTools int, agentName string) Event {
+	return &ToolsetInfoEvent{
+		Type:           "toolset_info",
+		AvailableTools: availableTools,
+		AgentContext:   AgentContext{AgentName: agentName},
+	}
+}
+
+// ToolStatusEvent is sent when a tool's execution status changes
+type ToolStatusEvent struct {
+	Type     string `json:"type"`
+	ToolName string `json:"tool_name"`
+	Status   string `json:"status"` // running, completed, failed
+	AgentContext
+}
+
+func ToolStatus(toolName, status, agentName string) Event {
+	return &ToolStatusEvent{
+		Type:         "tool_status",
+		ToolName:     toolName,
+		Status:       status,
+		AgentContext: AgentContext{AgentName: agentName},
+	}
+}

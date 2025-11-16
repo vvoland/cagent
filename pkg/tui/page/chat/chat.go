@@ -259,6 +259,10 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		p.sidebar.SetTeamInfo(msg.AvailableAgents)
 	case *runtime.AgentSwitchingEvent:
 		p.sidebar.SetAgentSwitching(msg.Switching)
+	case *runtime.ToolsetInfoEvent:
+		p.sidebar.SetToolsetInfo(msg.AvailableTools)
+	case *runtime.ToolStatusEvent:
+		p.sidebar.SetToolStatus(msg.ToolName, msg.Status)
 	case *runtime.StreamStoppedEvent:
 		spinnerCmd := p.setWorking(false)
 		if p.msgCancel != nil {

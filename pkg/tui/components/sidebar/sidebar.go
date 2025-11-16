@@ -36,6 +36,8 @@ type Model interface {
 	SetAgentInfo(agentName, model, description string)
 	SetTeamInfo(availableAgents []string)
 	SetAgentSwitching(switching bool)
+	SetToolsetInfo(availableTools int)
+	SetToolStatus(toolName, status string)
 	GetSize() (width, height int)
 }
 
@@ -55,16 +57,20 @@ type model struct {
 	agentDescription string
 	availableAgents  []string
 	agentSwitching   bool
+	availableTools   int
+	activeTools      []string
+	toolExecutions   map[string]string // tool name -> status (running, completed, failed)
 }
 
 func New(manager *service.TodoManager) Model {
 	return &model{
-		width:        20,
-		height:       24,
-		usage:        &runtime.Usage{},
-		todoComp:     todotool.NewSidebarComponent(manager),
-		spinner:      spinner.New(spinner.ModeSpinnerOnly),
-		sessionTitle: "New session",
+		width:          20,
+		height:         24,
+		usage:          &runtime.Usage{},
+		todoComp:       todotool.NewSidebarComponent(manager),
+		spinner:        spinner.New(spinner.ModeSpinnerOnly),
+		sessionTitle:   "New session",
+		toolExecutions: make(map[string]string),
 	}
 }
 
@@ -104,6 +110,29 @@ func (m *model) SetTeamInfo(availableAgents []string) {
 // SetAgentSwitching sets whether an agent switch is in progress
 func (m *model) SetAgentSwitching(switching bool) {
 	m.agentSwitching = switching
+}
+
+// SetToolsetInfo sets the number of available tools
+func (m *model) SetToolsetInfo(availableTools int) {
+	m.availableTools = availableTools
+}
+
+// SetToolStatus updates the status of a specific tool
+func (m *model) SetToolStatus(toolName, status string) {
+	if m.toolExecutions == nil {
+		m.toolExecutions = make(map[string]string)
+	}
+
+	// Update tool status
+	m.toolExecutions[toolName] = status
+
+	// Update active tools list
+	m.activeTools = nil
+	for tool, stat := range m.toolExecutions {
+		if stat == "running" {
+			m.activeTools = append(m.activeTools, tool)
+		}
+	}
 }
 
 // formatTokenCount formats a token count with K/M suffixes for readability
@@ -155,6 +184,12 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case *runtime.AgentSwitchingEvent:
 		m.SetAgentSwitching(msg.Switching)
 		return m, nil
+	case *runtime.ToolsetInfoEvent:
+		m.SetToolsetInfo(msg.AvailableTools)
+		return m, nil
+	case *runtime.ToolStatusEvent:
+		m.SetToolStatus(msg.ToolName, msg.Status)
+		return m, nil
 	default:
 		if m.working || m.mcpInit {
 			var cmd tea.Cmd
@@ -197,6 +232,11 @@ func (m *model) verticalView() string {
 	// Add agent information
 	if agentInfo := m.agentInfo(); agentInfo != "" {
 		topContent += agentInfo + "\n\n"
+	}
+
+	// Add toolset information
+	if toolsetInfo := m.toolsetInfo(); toolsetInfo != "" {
+		topContent += toolsetInfo + "\n\n"
 	}
 
 	topContent += m.tokenUsage()
@@ -299,6 +339,68 @@ func (m *model) agentInfo() string {
 		}
 
 		content.WriteString(styles.SubtleStyle.Render(description))
+	}
+
+	return content.String()
+}
+
+// toolsetInfo renders the current toolset status information
+func (m *model) toolsetInfo() string {
+	if m.availableTools == 0 {
+		return ""
+	}
+
+	var content strings.Builder
+
+	// Tools header
+	content.WriteString(styles.HighlightStyle.Render("TOOLS"))
+	content.WriteString("\n")
+
+	// Available tools count
+	content.WriteString(styles.MutedStyle.Render(fmt.Sprintf("%d tools available", m.availableTools)))
+
+	// Active/running tools
+	if len(m.activeTools) > 0 {
+		content.WriteString("\n")
+		for i, tool := range m.activeTools {
+			if i > 0 {
+				content.WriteString(", ")
+			}
+			content.WriteString(styles.ActiveStyle.Render("🔄 " + tool))
+		}
+	}
+
+	// Tool execution summary
+	runningCount := len(m.activeTools)
+	completedCount := 0
+	failedCount := 0
+
+	for _, status := range m.toolExecutions {
+		switch status {
+		case "completed":
+			completedCount++
+		case "failed":
+			failedCount++
+		}
+	}
+
+	if runningCount > 0 || completedCount > 0 || failedCount > 0 {
+		content.WriteString("\n")
+		statusParts := []string{}
+
+		if runningCount > 0 {
+			statusParts = append(statusParts, fmt.Sprintf("%d running", runningCount))
+		}
+		if completedCount > 0 {
+			statusParts = append(statusParts, fmt.Sprintf("%d completed", completedCount))
+		}
+		if failedCount > 0 {
+			statusParts = append(statusParts, fmt.Sprintf("%d failed", failedCount))
+		}
+
+		if len(statusParts) > 0 {
+			content.WriteString(styles.SubtleStyle.Render(strings.Join(statusParts, ", ")))
+		}
 	}
 
 	return content.String()

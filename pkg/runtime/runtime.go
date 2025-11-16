@@ -262,6 +262,9 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			return
 		}
 
+		// Emit toolset information
+		events <- ToolsetInfo(len(agentTools), r.currentAgent)
+
 		messages := sess.GetMessages(a)
 		if sess.SendUserMessage {
 			events <- UserMessage(messages[len(messages)-1].Content)
@@ -800,6 +803,9 @@ func (r *LocalRuntime) runTool(ctx context.Context, tool tools.Tool, toolCall to
 
 	events <- ToolCall(toolCall, tool, a.Name())
 
+	// Emit tool status: running
+	events <- ToolStatus(toolCall.Function.Name, "running", a.Name())
+
 	var res *tools.ToolCallResult
 	var err error
 	var duration time.Duration
@@ -814,6 +820,8 @@ func (r *LocalRuntime) runTool(ctx context.Context, tool tools.Tool, toolCall to
 			// Synthesize a cancellation response so the transcript remains consistent
 			res = &tools.ToolCallResult{Output: "The tool call was canceled by the user."}
 			span.SetStatus(codes.Ok, "tool handler canceled by user")
+			// Emit tool status: failed (cancelled)
+			events <- ToolStatus(toolCall.Function.Name, "failed", a.Name())
 		} else {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "tool handler error")
@@ -821,10 +829,14 @@ func (r *LocalRuntime) runTool(ctx context.Context, tool tools.Tool, toolCall to
 			res = &tools.ToolCallResult{
 				Output: fmt.Sprintf("Error calling tool: %v", err),
 			}
+			// Emit tool status: failed
+			events <- ToolStatus(toolCall.Function.Name, "failed", a.Name())
 		}
 	} else {
 		span.SetStatus(codes.Ok, "tool handler completed")
 		slog.Debug("Agent tool call completed", "tool", toolCall.Function.Name, "output_length", len(res.Output))
+		// Emit tool status: completed
+		events <- ToolStatus(toolCall.Function.Name, "completed", a.Name())
 	}
 
 	events <- ToolCallResponse(toolCall, tool, res.Output, a.Name())
