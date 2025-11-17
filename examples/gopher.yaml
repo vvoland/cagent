@@ -60,3 +60,4 @@ agents:
     commands:
       fix-lint: "Fix the lint issues"
       remove-comments-tests: "Remove useless comments in test files (*_test.go)"
+      commit: "Git commit the changes with a meaningful message"
