@@ -89,6 +89,9 @@ jobs:
         with:
           version: 3.x
 
+      - name: Create bin directory
+        run: mkdir -p $HOME/bin
+
       - name: Build
         run: task build
 
