@@ -277,7 +277,7 @@ if err != nil {
 }
 
 // For YAML errors, use formatted output
-if err := yaml.UnmarshalWithOptions(data, &raw); err != nil {
+if err := yaml.Unmarshal(data, &raw); err != nil {
     return nil, fmt.Errorf("parsing config:\n%s", yaml.FormatError(err, true, true))
 }
 

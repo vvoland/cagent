@@ -487,7 +487,7 @@ func TestResolveAgentFile_OCIRef_HasAVersion(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, resolved)
 
-	content, err := os.ReadFile(resolved)
+	storedContent, err := os.ReadFile(resolved)
 	require.NoError(t, err)
 	assert.Equal(t, `version: "2"
 agents:
@@ -495,5 +495,5 @@ agents:
     model: auto
     description: Test OCI agent
     instruction: You are a test OCI agent
-`, string(content))
+`, string(storedContent))
 }

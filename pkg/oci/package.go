@@ -47,7 +47,7 @@ func PackageFileAsOCIToStore(ctx context.Context, filePath, artifactRef string, 
 	var raw struct {
 		Version string `yaml:"version,omitempty"`
 	}
-	if err := yaml.UnmarshalWithOptions(data, &raw); err != nil {
+	if err := yaml.Unmarshal(data, &raw); err != nil {
 		return "", fmt.Errorf("looking for version in config file\n%s", yaml.FormatError(err, true, true))
 	}
 	// Make sure we push a yaml with a version (Use latest if missing)

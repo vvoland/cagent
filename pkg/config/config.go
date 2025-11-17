@@ -28,7 +28,7 @@ func LoadConfigBytes(ctx context.Context, data []byte) (*latest.Config, error) {
 	var raw struct {
 		Version string `yaml:"version,omitempty"`
 	}
-	if err := yaml.UnmarshalWithOptions(data, &raw); err != nil {
+	if err := yaml.Unmarshal(data, &raw); err != nil {
 		return nil, fmt.Errorf("looking for version in config file\n%s", yaml.FormatError(err, true, true))
 	}
 	if raw.Version == "" {
