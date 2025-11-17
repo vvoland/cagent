@@ -19,7 +19,7 @@ import (
 
 const (
 	ToolNameShell              = "shell"
-	ToolNameRunShellBackground = "run_shell_background"
+	ToolNameRunShellBackground = "run_background_job"
 	ToolNameListBackgroundJobs = "list_background_jobs"
 	ToolNameViewBackgroundJob  = "view_background_job"
 	ToolNameStopBackgroundJob  = "stop_background_job"
@@ -556,7 +556,7 @@ Run long-running processes in the background while continuing with other tasks. 
 
 ## Background Job Tools
 
-**run_shell_background**: Start a command in the background
+**run_background_job**: Start a command in the background
 - Parameters: cmd (required), cwd (optional, defaults to ".")
 - Returns: Job ID for tracking
 
@@ -616,8 +616,8 @@ Use list_background_jobs to see all jobs with their status
 { "cmd": "docker run --rm -p 5432:5432 postgres:latest", "cwd": "." }
 
 **Multiple services pattern:**
-1. Start backend: run_shell_background with server command
-2. Start frontend: run_shell_background with dev server
+1. Start backend: run_background_job with server command
+2. Start frontend: run_background_job with dev server
 3. Perform tasks: use other tools while services run
 4. Check logs: view_background_job to see service output
 5. Cleanup: stop_background_job for each service (or let agent cleanup automatically)`

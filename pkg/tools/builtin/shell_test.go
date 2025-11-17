@@ -243,10 +243,9 @@ func TestShellTool_RunBackgroundJob(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, tls, 5)
 
-	// Find the run_shell_background tool
 	var handler tools.ToolHandler
 	for _, tl := range tls {
-		if tl.Name == "run_shell_background" {
+		if tl.Name == "run_background_job" {
 			handler = tl.Handler
 			break
 		}
@@ -261,7 +260,7 @@ func TestShellTool_RunBackgroundJob(t *testing.T) {
 
 	toolCall := tools.ToolCall{
 		Function: tools.FunctionCall{
-			Name:      "run_shell_background",
+			Name:      "run_background_job",
 			Arguments: string(argsBytes),
 		},
 	}
@@ -285,7 +284,7 @@ func TestShellTool_ListBackgroundJobs(t *testing.T) {
 
 	var runHandler, listHandler tools.ToolHandler
 	for _, tl := range tls {
-		if tl.Name == "run_shell_background" {
+		if tl.Name == "run_background_job" {
 			runHandler = tl.Handler
 		}
 		if tl.Name == "list_background_jobs" {
@@ -304,7 +303,7 @@ func TestShellTool_ListBackgroundJobs(t *testing.T) {
 
 	_, err = runHandler(t.Context(), tools.ToolCall{
 		Function: tools.FunctionCall{
-			Name:      "run_shell_background",
+			Name:      "run_background_job",
 			Arguments: string(argsBytes),
 		},
 	})
