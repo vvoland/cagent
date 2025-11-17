@@ -3,6 +3,7 @@ package builtin
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,7 +33,7 @@ func TestShellTool_Tools(t *testing.T) {
 	allTools, err := tool.Tools(t.Context())
 
 	require.NoError(t, err)
-	assert.Len(t, allTools, 1)
+	assert.Len(t, allTools, 5)
 	for _, tool := range allTools {
 		assert.NotNil(t, tool.Handler)
 		assert.Equal(t, "shell", tool.Category)
@@ -84,7 +85,7 @@ func TestShellTool_HandlerEcho(t *testing.T) {
 
 	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
-	require.Len(t, tls, 1)
+	require.Len(t, tls, 5)
 
 	handler := tls[0].Handler
 
@@ -114,7 +115,7 @@ func TestShellTool_HandlerWithCwd(t *testing.T) {
 
 	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
-	require.Len(t, tls, 1)
+	require.Len(t, tls, 5)
 
 	handler := tls[0].Handler
 
@@ -148,7 +149,7 @@ func TestShellTool_HandlerError(t *testing.T) {
 
 	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
-	require.Len(t, tls, 1)
+	require.Len(t, tls, 5)
 
 	handler := tls[0].Handler
 
@@ -177,7 +178,7 @@ func TestShellTool_InvalidArguments(t *testing.T) {
 
 	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
-	require.Len(t, tls, 1)
+	require.Len(t, tls, 5)
 
 	handler := tls[0].Handler
 
@@ -229,4 +230,99 @@ func TestShellTool_ParametersAreObjects(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "object", m["type"])
 	}
+}
+
+// Minimal tests for background job features
+func TestShellTool_RunBackgroundJob(t *testing.T) {
+	tool := NewShellTool(nil)
+	err := tool.Start(t.Context())
+	require.NoError(t, err)
+	defer func() { _ = tool.Stop(t.Context()) }()
+
+	tls, err := tool.Tools(t.Context())
+	require.NoError(t, err)
+	require.Len(t, tls, 5)
+
+	// Find the run_shell_background tool
+	var handler tools.ToolHandler
+	for _, tl := range tls {
+		if tl.Name == "run_shell_background" {
+			handler = tl.Handler
+			break
+		}
+	}
+	require.NotNil(t, handler)
+
+	args := RunShellBackgroundArgs{
+		Cmd: "echo test",
+	}
+	argsBytes, err := json.Marshal(args)
+	require.NoError(t, err)
+
+	toolCall := tools.ToolCall{
+		Function: tools.FunctionCall{
+			Name:      "run_shell_background",
+			Arguments: string(argsBytes),
+		},
+	}
+
+	result, err := handler(t.Context(), toolCall)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Contains(t, result.Output, "Background job started with ID:")
+}
+
+func TestShellTool_ListBackgroundJobs(t *testing.T) {
+	tool := NewShellTool(nil)
+	err := tool.Start(t.Context())
+	require.NoError(t, err)
+	defer func() { _ = tool.Stop(t.Context()) }()
+
+	tls, err := tool.Tools(t.Context())
+	require.NoError(t, err)
+	require.Len(t, tls, 5)
+
+	var runHandler, listHandler tools.ToolHandler
+	for _, tl := range tls {
+		if tl.Name == "run_shell_background" {
+			runHandler = tl.Handler
+		}
+		if tl.Name == "list_background_jobs" {
+			listHandler = tl.Handler
+		}
+	}
+	require.NotNil(t, runHandler)
+	require.NotNil(t, listHandler)
+
+	// Start a background job first
+	args := RunShellBackgroundArgs{
+		Cmd: "echo test",
+	}
+	argsBytes, err := json.Marshal(args)
+	require.NoError(t, err)
+
+	_, err = runHandler(t.Context(), tools.ToolCall{
+		Function: tools.FunctionCall{
+			Name:      "run_shell_background",
+			Arguments: string(argsBytes),
+		},
+	})
+	require.NoError(t, err)
+
+	// Wait for job to complete
+	time.Sleep(500 * time.Millisecond)
+
+	// List background jobs
+	listResult, err := listHandler(t.Context(), tools.ToolCall{
+		Function: tools.FunctionCall{
+			Name:      "list_background_jobs",
+			Arguments: "{}",
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, listResult)
+	assert.Contains(t, listResult.Output, "Background Jobs:")
+	assert.Contains(t, listResult.Output, "ID: job_")
 }

@@ -9,12 +9,21 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/docker/cagent/pkg/concurrent"
 	"github.com/docker/cagent/pkg/tools"
 )
 
-const ToolNameShell = "shell"
+const (
+	ToolNameShell              = "shell"
+	ToolNameRunShellBackground = "run_shell_background"
+	ToolNameListBackgroundJobs = "list_background_jobs"
+	ToolNameViewBackgroundJob  = "view_background_job"
+	ToolNameStopBackgroundJob  = "stop_background_job"
+)
 
 type ShellTool struct {
 	tools.ElicitationTool
@@ -29,12 +38,97 @@ type shellHandler struct {
 	shellArgsPrefix []string
 	env             []string
 	timeout         time.Duration
+	jobs            *concurrent.Map[string, *backgroundJob]
+	jobCounter      atomic.Int64
+}
+
+// Job status constants
+const (
+	statusRunning int32 = iota
+	statusCompleted
+	statusStopped
+	statusFailed
+)
+
+// backgroundJob tracks a background shell command
+type backgroundJob struct {
+	id           string
+	cmd          string
+	cwd          string
+	process      *os.Process
+	processGroup *processGroup
+	outputMu     sync.RWMutex
+	output       *bytes.Buffer
+	startTime    time.Time
+	status       atomic.Int32
+	exitCode     int
+	err          error
+}
+
+// limitedWriter wraps a buffer and stops writing after maxSize bytes
+type limitedWriter struct {
+	mu      sync.Mutex
+	buf     *bytes.Buffer
+	written int64
+	maxSize int64
+}
+
+func (lw *limitedWriter) Write(p []byte) (n int, err error) {
+	lw.mu.Lock()
+	defer lw.mu.Unlock()
+
+	if lw.written >= lw.maxSize {
+		return len(p), nil // Discard but report success
+	}
+
+	remaining := lw.maxSize - lw.written
+	toWrite := int64(len(p))
+	if toWrite > remaining {
+		toWrite = remaining
+	}
+
+	n, err = lw.buf.Write(p[:toWrite])
+	lw.written += int64(n)
+
+	if err == nil && int64(n) < int64(len(p)) {
+		return len(p), nil // Report full write even if truncated
+	}
+	return n, err
 }
 
 type RunShellArgs struct {
 	Cmd     string `json:"cmd" jsonschema:"The shell command to execute"`
 	Cwd     string `json:"cwd" jsonschema:"The working directory to execute the command in"`
 	Timeout int    `json:"timeout,omitempty" jsonschema:"Command execution timeout in seconds (default: 30)"`
+}
+
+type RunShellBackgroundArgs struct {
+	Cmd string `json:"cmd" jsonschema:"The shell command to execute in the background"`
+	Cwd string `json:"cwd" jsonschema:"The working directory to execute the command in"`
+}
+
+type ViewBackgroundJobArgs struct {
+	JobID string `json:"job_id" jsonschema:"The ID of the background job to view"`
+}
+
+type StopBackgroundJobArgs struct {
+	JobID string `json:"job_id" jsonschema:"The ID of the background job to stop"`
+}
+
+// statusToString converts job status constant to string
+func statusToString(status int32) string {
+	switch status {
+	case statusRunning:
+		return "running"
+	case statusCompleted:
+		return "completed"
+	case statusStopped:
+		return "stopped"
+	case statusFailed:
+		return "failed"
+	default:
+		return "unknown"
+	}
 }
 
 func (h *shellHandler) RunShell(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
@@ -125,6 +219,208 @@ func (h *shellHandler) RunShell(ctx context.Context, toolCall tools.ToolCall) (*
 	}
 }
 
+func (h *shellHandler) RunShellBackground(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+	var params RunShellBackgroundArgs
+	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
+		return nil, fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	// Generate unique job ID
+	counter := h.jobCounter.Add(1)
+	jobID := fmt.Sprintf("job_%d_%d", time.Now().Unix(), counter)
+
+	// Setup command (no context - background jobs run independently)
+	cmd := exec.Command(h.shell, append(h.shellArgsPrefix, params.Cmd)...)
+	cmd.Env = h.env
+	if params.Cwd != "" {
+		cmd.Dir = params.Cwd
+	} else {
+		if wd, err := os.Getwd(); err == nil {
+			cmd.Dir = wd
+		}
+	}
+
+	cmd.SysProcAttr = platformSpecificSysProcAttr()
+
+	// Create output buffer with 10MB limit
+	outputBuf := &bytes.Buffer{}
+	limitedWriter := &limitedWriter{buf: outputBuf, maxSize: 10 * 1024 * 1024}
+	cmd.Stdout = limitedWriter
+	cmd.Stderr = limitedWriter
+
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		return &tools.ToolCallResult{
+			Output: fmt.Sprintf("Error starting background command: %s", err),
+		}, nil
+	}
+
+	// Create process group
+	pg, err := createProcessGroup(cmd.Process)
+	if err != nil {
+		_ = kill(cmd.Process, pg)
+		return &tools.ToolCallResult{
+			Output: fmt.Sprintf("Error creating process group: %s", err),
+		}, nil
+	}
+
+	// Create and store job
+	job := &backgroundJob{
+		id:           jobID,
+		cmd:          params.Cmd,
+		cwd:          params.Cwd,
+		process:      cmd.Process,
+		processGroup: pg,
+		output:       outputBuf,
+		startTime:    time.Now(),
+	}
+	job.status.Store(statusRunning)
+	h.jobs.Store(jobID, job)
+
+	// Monitor job completion in background
+	go func() {
+		err := cmd.Wait()
+
+		job.outputMu.Lock()
+		defer job.outputMu.Unlock()
+
+		// Don't overwrite if already stopped
+		if job.status.Load() == statusStopped {
+			return
+		}
+
+		if err != nil {
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				job.exitCode = exitErr.ExitCode()
+				job.status.Store(statusFailed)
+			} else {
+				job.exitCode = -1
+				job.status.Store(statusFailed)
+			}
+			job.err = err
+		} else {
+			job.exitCode = 0
+			job.status.Store(statusCompleted)
+		}
+	}()
+
+	return &tools.ToolCallResult{
+		Output: fmt.Sprintf("Background job started with ID: %s\nCommand: %s\nWorking directory: %s",
+			jobID, params.Cmd, params.Cwd),
+	}, nil
+}
+
+func (h *shellHandler) ListBackgroundJobs(_ context.Context, _ tools.ToolCall) (*tools.ToolCallResult, error) {
+	var output strings.Builder
+	output.WriteString("Background Jobs:\n\n")
+
+	jobCount := 0
+	h.jobs.Range(func(jobID string, job *backgroundJob) bool {
+		jobCount++
+		status := job.status.Load()
+		statusStr := statusToString(status)
+
+		elapsed := time.Since(job.startTime).Round(time.Second)
+		output.WriteString(fmt.Sprintf("ID: %s\n", jobID))
+		output.WriteString(fmt.Sprintf("  Command: %s\n", job.cmd))
+		output.WriteString(fmt.Sprintf("  Status: %s\n", statusStr))
+		output.WriteString(fmt.Sprintf("  Runtime: %s\n", elapsed))
+		if status != statusRunning {
+			job.outputMu.RLock()
+			output.WriteString(fmt.Sprintf("  Exit Code: %d\n", job.exitCode))
+			job.outputMu.RUnlock()
+		}
+		output.WriteString("\n")
+		return true
+	})
+
+	if jobCount == 0 {
+		output.WriteString("No background jobs found.\n")
+	}
+
+	return &tools.ToolCallResult{
+		Output: output.String(),
+	}, nil
+}
+
+func (h *shellHandler) ViewBackgroundJob(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+	var params ViewBackgroundJobArgs
+	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
+		return nil, fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	job, exists := h.jobs.Load(params.JobID)
+	if !exists {
+		return &tools.ToolCallResult{
+			Output: fmt.Sprintf("Job not found: %s", params.JobID),
+		}, nil
+	}
+
+	status := job.status.Load()
+	statusStr := statusToString(status)
+
+	job.outputMu.RLock()
+	output := job.output.String()
+	exitCode := job.exitCode
+	job.outputMu.RUnlock()
+
+	var result strings.Builder
+	result.WriteString(fmt.Sprintf("Job ID: %s\n", job.id))
+	result.WriteString(fmt.Sprintf("Command: %s\n", job.cmd))
+	result.WriteString(fmt.Sprintf("Status: %s\n", statusStr))
+	result.WriteString(fmt.Sprintf("Runtime: %s\n", time.Since(job.startTime).Round(time.Second)))
+	if status != statusRunning {
+		result.WriteString(fmt.Sprintf("Exit Code: %d\n", exitCode))
+	}
+	result.WriteString("\n--- Output ---\n")
+	if output == "" {
+		result.WriteString("<no output>\n")
+	} else {
+		result.WriteString(output)
+		if len(output) >= 10*1024*1024 {
+			result.WriteString("\n\n[Output truncated at 10MB limit]")
+		}
+	}
+
+	return &tools.ToolCallResult{
+		Output: result.String(),
+	}, nil
+}
+
+func (h *shellHandler) StopBackgroundJob(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+	var params StopBackgroundJobArgs
+	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
+		return nil, fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	job, exists := h.jobs.Load(params.JobID)
+	if !exists {
+		return &tools.ToolCallResult{
+			Output: fmt.Sprintf("Job not found: %s", params.JobID),
+		}, nil
+	}
+
+	// Try to transition from running to stopped
+	if !job.status.CompareAndSwap(statusRunning, statusStopped) {
+		currentStatus := job.status.Load()
+		statusStr := statusToString(currentStatus)
+		return &tools.ToolCallResult{
+			Output: fmt.Sprintf("Job %s is not running (current status: %s)", params.JobID, statusStr),
+		}, nil
+	}
+
+	// Kill the process
+	if err := kill(job.process, job.processGroup); err != nil {
+		return &tools.ToolCallResult{
+			Output: fmt.Sprintf("Job %s marked as stopped, but error killing process: %s", params.JobID, err),
+		}, nil
+	}
+
+	return &tools.ToolCallResult{
+		Output: fmt.Sprintf("Job %s stopped successfully", params.JobID),
+	}, nil
+}
+
 func NewShellTool(env []string) *ShellTool {
 	var shell string
 	var argsPrefix []string
@@ -161,6 +457,7 @@ func NewShellTool(env []string) *ShellTool {
 			shellArgsPrefix: argsPrefix,
 			env:             env,
 			timeout:         30 * time.Second,
+			jobs:            concurrent.NewMap[string, *backgroundJob](),
 		},
 	}
 }
@@ -236,7 +533,94 @@ EOF" }
 ## Error Handling
 
 Commands that exit with non-zero status codes will return error information along with any output produced before failure.
-Commands that exceed their timeout will be terminated automatically.`
+Commands that exceed their timeout will be terminated automatically.
+
+---
+
+# Background Jobs
+
+Run long-running processes in the background while continuing with other tasks. Perfect for starting servers, watching files, or any process that needs to run alongside other operations.
+
+## When to Use Background Jobs
+
+**Use background jobs for:**
+- Starting web servers, databases, or other services
+- Running file watchers or live reload tools
+- Long-running processes that other tasks depend on
+- Commands that produce continuous output over time
+
+**Don't use background jobs for:**
+- Quick commands that complete in seconds
+- Commands where you need immediate results
+- One-time operations (use regular shell tool instead)
+
+## Background Job Tools
+
+**run_shell_background**: Start a command in the background
+- Parameters: cmd (required), cwd (optional, defaults to ".")
+- Returns: Job ID for tracking
+
+**list_background_jobs**: List all background jobs
+- No parameters required
+- Returns: Status, runtime, and command for each job
+
+**view_background_job**: View output of a specific job
+- Parameters: job_id (required)
+- Returns: Current output and job status
+
+**stop_background_job**: Stop a running job
+- Parameters: job_id (required)
+- Terminates the process and all child processes
+
+## Background Job Workflow
+
+**1. Start a background job:**
+{ "cmd": "npm start", "cwd": "frontend" }
+→ Returns job ID (e.g., "job_1731772800_1")
+
+**2. Check running jobs:**
+Use list_background_jobs to see all jobs with their status
+
+**3. View job output:**
+{ "job_id": "job_1731772800_1" }
+→ Shows current output and status
+
+**4. Stop job when done:**
+{ "job_id": "job_1731772800_1" }
+→ Terminates the process and all child processes
+
+## Important Characteristics
+
+**Output Buffering**: Each job captures up to 10MB of output. Beyond this limit, new output is discarded to prevent memory issues.
+
+**Process Groups**: Background jobs and all their child processes are managed as a group. Stopping a job terminates the entire process tree.
+
+**Environment Inheritance**: Jobs inherit environment variables from when they are started. Changes after job start don't affect running jobs.
+
+**Automatic Cleanup**: All background jobs are automatically terminated when the agent stops.
+
+**Job Persistence**: Job history is kept in memory until agent stops. Completed jobs remain queryable.
+
+## Background Job Examples
+
+**Start a web server:**
+{ "cmd": "python -m http.server 8000", "cwd": "." }
+
+**Start a development server:**
+{ "cmd": "npm run dev", "cwd": "frontend" }
+
+**Run a file watcher:**
+{ "cmd": "go run . watch", "cwd": "." }
+
+**Start a database:**
+{ "cmd": "docker run --rm -p 5432:5432 postgres:latest", "cwd": "." }
+
+**Multiple services pattern:**
+1. Start backend: run_shell_background with server command
+2. Start frontend: run_shell_background with dev server
+3. Perform tasks: use other tools while services run
+4. Check logs: view_background_job to see service output
+5. Cleanup: stop_background_job for each service (or let agent cleanup automatically)`
 }
 
 func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
@@ -252,6 +636,51 @@ func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
 				Title: "Run Shell Command",
 			},
 		},
+		{
+			Name:         ToolNameRunShellBackground,
+			Category:     "shell",
+			Description:  `Starts a shell command in the background and returns immediately with a job ID. Use this for long-running processes like servers, watches, or any command that should run while other tasks are performed.`,
+			Parameters:   tools.MustSchemaFor[RunShellBackgroundArgs](),
+			OutputSchema: tools.MustSchemaFor[string](),
+			Handler:      t.handler.RunShellBackground,
+			Annotations: tools.ToolAnnotations{
+				Title: "Run Shell Command in Background",
+			},
+		},
+		{
+			Name:         ToolNameListBackgroundJobs,
+			Category:     "shell",
+			Description:  `Lists all background jobs with their status, runtime, and other information.`,
+			OutputSchema: tools.MustSchemaFor[string](),
+			Handler:      t.handler.ListBackgroundJobs,
+			Annotations: tools.ToolAnnotations{
+				Title:        "List Background Jobs",
+				ReadOnlyHint: true,
+			},
+		},
+		{
+			Name:         ToolNameViewBackgroundJob,
+			Category:     "shell",
+			Description:  `Views the output and status of a specific background job by job ID.`,
+			Parameters:   tools.MustSchemaFor[ViewBackgroundJobArgs](),
+			OutputSchema: tools.MustSchemaFor[string](),
+			Handler:      t.handler.ViewBackgroundJob,
+			Annotations: tools.ToolAnnotations{
+				Title:        "View Background Job Output",
+				ReadOnlyHint: true,
+			},
+		},
+		{
+			Name:         ToolNameStopBackgroundJob,
+			Category:     "shell",
+			Description:  `Stops a running background job by job ID. The process and all its child processes will be terminated.`,
+			Parameters:   tools.MustSchemaFor[StopBackgroundJobArgs](),
+			OutputSchema: tools.MustSchemaFor[string](),
+			Handler:      t.handler.StopBackgroundJob,
+			Annotations: tools.ToolAnnotations{
+				Title: "Stop Background Job",
+			},
+		},
 	}, nil
 }
 
@@ -260,5 +689,12 @@ func (t *ShellTool) Start(context.Context) error {
 }
 
 func (t *ShellTool) Stop(context.Context) error {
+	// Terminate all running background jobs
+	t.handler.jobs.Range(func(_ string, job *backgroundJob) bool {
+		if job.status.CompareAndSwap(statusRunning, statusStopped) {
+			_ = kill(job.process, job.processGroup)
+		}
+		return true
+	})
 	return nil
 }
