@@ -349,3 +349,94 @@ func MCPInitFinished(agentName string) Event {
 		AgentContext: AgentContext{AgentName: agentName},
 	}
 }
+
+// AgentInfoEvent is sent when agent information is available or changes
+type AgentInfoEvent struct {
+	Type        string `json:"type"`
+	AgentName   string `json:"agent_name"`
+	Model       string `json:"model"`
+	Description string `json:"description"`
+	AgentContext
+}
+
+func AgentInfo(agentName, model, description string) Event {
+	return &AgentInfoEvent{
+		Type:         "agent_info",
+		AgentName:    agentName,
+		Model:        model,
+		Description:  description,
+		AgentContext: AgentContext{AgentName: agentName},
+	}
+}
+
+// TeamInfoEvent is sent when team information is available
+type TeamInfoEvent struct {
+	Type            string   `json:"type"`
+	AvailableAgents []string `json:"available_agents"`
+	CurrentAgent    string   `json:"current_agent"`
+	AgentContext
+}
+
+func TeamInfo(availableAgents []string, currentAgent string) Event {
+	return &TeamInfoEvent{
+		Type:            "team_info",
+		AvailableAgents: availableAgents,
+		CurrentAgent:    currentAgent,
+		AgentContext:    AgentContext{AgentName: currentAgent},
+	}
+}
+
+// AgentSwitchingEvent is sent when agent switching starts or stops
+type AgentSwitchingEvent struct {
+	Type      string `json:"type"`
+	Switching bool   `json:"switching"`
+	FromAgent string `json:"from_agent,omitempty"`
+	ToAgent   string `json:"to_agent,omitempty"`
+	AgentContext
+}
+
+func AgentSwitching(switching bool, fromAgent, toAgent string) Event {
+	currentAgent := fromAgent
+	if toAgent != "" {
+		currentAgent = toAgent
+	}
+	return &AgentSwitchingEvent{
+		Type:         "agent_switching",
+		Switching:    switching,
+		FromAgent:    fromAgent,
+		ToAgent:      toAgent,
+		AgentContext: AgentContext{AgentName: currentAgent},
+	}
+}
+
+// ToolsetInfoEvent is sent when toolset information is available
+type ToolsetInfoEvent struct {
+	Type           string `json:"type"`
+	AvailableTools int    `json:"available_tools"`
+	AgentContext
+}
+
+func ToolsetInfo(availableTools int, agentName string) Event {
+	return &ToolsetInfoEvent{
+		Type:           "toolset_info",
+		AvailableTools: availableTools,
+		AgentContext:   AgentContext{AgentName: agentName},
+	}
+}
+
+// ToolStatusEvent is sent when a tool's execution status changes
+type ToolStatusEvent struct {
+	Type     string `json:"type"`
+	ToolName string `json:"tool_name"`
+	Status   string `json:"status"` // running, completed, failed
+	AgentContext
+}
+
+func ToolStatus(toolName, status, agentName string) Event {
+	return &ToolStatusEvent{
+		Type:         "tool_status",
+		ToolName:     toolName,
+		Status:       status,
+		AgentContext: AgentContext{AgentName: agentName},
+	}
+}

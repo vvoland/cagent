@@ -33,30 +33,44 @@ type Model interface {
 	SetTodos(toolCall tools.ToolCall) error
 	SetWorking(working bool) tea.Cmd
 	SetMode(mode Mode)
+	SetAgentInfo(agentName, model, description string)
+	SetTeamInfo(availableAgents []string)
+	SetAgentSwitching(switching bool)
+	SetToolsetInfo(availableTools int)
+	SetToolStatus(toolName, status string)
 	GetSize() (width, height int)
 }
 
 // model implements Model
 type model struct {
-	width        int
-	height       int
-	usage        *runtime.Usage
-	todoComp     *todotool.SidebarComponent
-	working      bool
-	mcpInit      bool
-	spinner      spinner.Spinner
-	mode         Mode
-	sessionTitle string
+	width            int
+	height           int
+	usage            *runtime.Usage
+	todoComp         *todotool.SidebarComponent
+	working          bool
+	mcpInit          bool
+	spinner          spinner.Spinner
+	mode             Mode
+	sessionTitle     string
+	currentAgent     string
+	agentModel       string
+	agentDescription string
+	availableAgents  []string
+	agentSwitching   bool
+	availableTools   int
+	activeTools      []string
+	toolExecutions   map[string]string // tool name -> status (running, completed, failed)
 }
 
 func New(manager *service.TodoManager) Model {
 	return &model{
-		width:        20,
-		height:       24,
-		usage:        &runtime.Usage{},
-		todoComp:     todotool.NewSidebarComponent(manager),
-		spinner:      spinner.New(spinner.ModeSpinnerOnly),
-		sessionTitle: "New session",
+		width:          20,
+		height:         24,
+		usage:          &runtime.Usage{},
+		todoComp:       todotool.NewSidebarComponent(manager),
+		spinner:        spinner.New(spinner.ModeSpinnerOnly),
+		sessionTitle:   "New session",
+		toolExecutions: make(map[string]string),
 	}
 }
 
@@ -79,6 +93,46 @@ func (m *model) SetWorking(working bool) tea.Cmd {
 		return m.spinner.Init()
 	}
 	return nil
+}
+
+// SetAgentInfo sets the current agent information
+func (m *model) SetAgentInfo(agentName, model, description string) {
+	m.currentAgent = agentName
+	m.agentModel = model
+	m.agentDescription = description
+}
+
+// SetTeamInfo sets the available agents in the team
+func (m *model) SetTeamInfo(availableAgents []string) {
+	m.availableAgents = availableAgents
+}
+
+// SetAgentSwitching sets whether an agent switch is in progress
+func (m *model) SetAgentSwitching(switching bool) {
+	m.agentSwitching = switching
+}
+
+// SetToolsetInfo sets the number of available tools
+func (m *model) SetToolsetInfo(availableTools int) {
+	m.availableTools = availableTools
+}
+
+// SetToolStatus updates the status of a specific tool
+func (m *model) SetToolStatus(toolName, status string) {
+	if m.toolExecutions == nil {
+		m.toolExecutions = make(map[string]string)
+	}
+
+	// Update tool status
+	m.toolExecutions[toolName] = status
+
+	// Update active tools list
+	m.activeTools = nil
+	for tool, stat := range m.toolExecutions {
+		if stat == "running" {
+			m.activeTools = append(m.activeTools, tool)
+		}
+	}
 }
 
 // formatTokenCount formats a token count with K/M suffixes for readability
@@ -121,6 +175,21 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case *runtime.SessionTitleEvent:
 		m.sessionTitle = msg.Title
 		return m, nil
+	case *runtime.AgentInfoEvent:
+		m.SetAgentInfo(msg.AgentName, msg.Model, msg.Description)
+		return m, nil
+	case *runtime.TeamInfoEvent:
+		m.SetTeamInfo(msg.AvailableAgents)
+		return m, nil
+	case *runtime.AgentSwitchingEvent:
+		m.SetAgentSwitching(msg.Switching)
+		return m, nil
+	case *runtime.ToolsetInfoEvent:
+		m.SetToolsetInfo(msg.AvailableTools)
+		return m, nil
+	case *runtime.ToolStatusEvent:
+		m.SetToolStatus(msg.ToolName, msg.Status)
+		return m, nil
 	default:
 		if m.working || m.mcpInit {
 			var cmd tea.Cmd
@@ -162,6 +231,16 @@ func (m *model) verticalView() string {
 
 	topContent += m.tokenUsage()
 	topContent += "\n" + m.workingIndicator()
+
+	// Add agent information
+	if agentInfo := m.agentInfo(); agentInfo != "" {
+		topContent += "\n\n" + agentInfo
+	}
+
+	// Add toolset information
+	if toolsetInfo := m.toolsetInfo(); toolsetInfo != "" {
+		topContent += "\n\n" + toolsetInfo
+	}
 
 	m.todoComp.SetSize(m.width)
 	todoContent := strings.TrimSuffix(m.todoComp.Render(), "\n")
@@ -210,6 +289,121 @@ func (m *model) tokenUsage() string {
 	costText := styles.MutedStyle.Render(fmt.Sprintf("$%.2f", m.usage.Cost))
 
 	return fmt.Sprintf("%s %s %s", percentageText, totalTokensText, costText)
+}
+
+// agentInfo renders the current agent information
+func (m *model) agentInfo() string {
+	if m.currentAgent == "" {
+		return ""
+	}
+
+	var content strings.Builder
+
+	// Agent name with highlight and switching indicator
+	agentTitle := "AGENT"
+	if m.agentSwitching {
+		agentTitle = "AGENT ↔" // switching indicator
+	}
+	content.WriteString(styles.HighlightStyle.Render(agentTitle))
+	content.WriteString("\n")
+
+	// Current agent name
+	agentName := m.currentAgent
+	if m.agentSwitching {
+		agentName = "⟳ " + agentName // switching icon
+	}
+	content.WriteString(styles.MutedStyle.Render(agentName))
+
+	// Team info if multiple agents available
+	if len(m.availableAgents) > 1 {
+		content.WriteString("\n")
+		teamInfo := fmt.Sprintf("Team: %d agents", len(m.availableAgents))
+		content.WriteString(styles.SubtleStyle.Render(teamInfo))
+	}
+
+	// Model info if available
+	if m.agentModel != "" {
+		content.WriteString("\n")
+		content.WriteString(styles.SubtleStyle.Render("Model: " + m.agentModel))
+	}
+
+	// Agent description if available
+	if m.agentDescription != "" {
+		content.WriteString("\n")
+
+		// Truncate description for sidebar display
+		description := m.agentDescription
+		maxDescWidth := max(m.width-4, 20) // Leave margin for styling
+		if len(description) > maxDescWidth {
+			description = description[:maxDescWidth-3] + "..."
+		}
+
+		content.WriteString(styles.SubtleStyle.Render(description))
+	}
+
+	return content.String()
+}
+
+// toolsetInfo renders the current toolset status information
+func (m *model) toolsetInfo() string {
+	if m.availableTools == 0 {
+		return ""
+	}
+
+	var content strings.Builder
+
+	// Tools header
+	content.WriteString(styles.HighlightStyle.Render("TOOLS"))
+	content.WriteString("\n")
+
+	// Available tools count
+	content.WriteString(styles.MutedStyle.Render(fmt.Sprintf("%d tools available", m.availableTools)))
+
+	// Active/running tools
+	if len(m.activeTools) > 0 {
+		content.WriteString("\n")
+		for i, tool := range m.activeTools {
+			if i > 0 {
+				content.WriteString(", ")
+			}
+			content.WriteString(styles.ActiveStyle.Render("[>] " + tool))
+		}
+	}
+
+	// Tool execution summary
+	runningCount := len(m.activeTools)
+	completedCount := 0
+	failedCount := 0
+
+	for _, status := range m.toolExecutions {
+		switch status {
+		case "completed":
+			completedCount++
+		case "failed":
+			failedCount++
+		}
+	}
+
+	if runningCount > 0 || completedCount > 0 || failedCount > 0 {
+		content.WriteString("\n")
+		statusParts := []string{}
+
+		if runningCount > 0 {
+			statusParts = append(statusParts, fmt.Sprintf("%d running", runningCount))
+		}
+		if completedCount > 0 {
+			statusParts = append(statusParts, fmt.Sprintf("%d completed", completedCount))
+		}
+		if failedCount > 0 {
+			statusParts = append(statusParts, fmt.Sprintf("%d failed", failedCount))
+		}
+
+		if len(statusParts) > 0 {
+			content.WriteString(styles.SubtleStyle.Render(strings.Join(statusParts, ", ")))
+		}
+	}
+
+	return content.String()
 }
 
 // SetSize sets the dimensions of the component
