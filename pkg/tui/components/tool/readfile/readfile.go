@@ -18,25 +18,23 @@ import (
 
 // Component is a specialized component for rendering read_file tool calls.
 type Component struct {
-	message  *types.Message
-	renderer *glamour.TermRenderer
-	spinner  spinner.Spinner
-	width    int
-	height   int
+	message *types.Message
+	spinner spinner.Spinner
+	width   int
+	height  int
 }
 
 // New creates a new read file component.
 func New(
 	msg *types.Message,
-	renderer *glamour.TermRenderer,
+	_ *glamour.TermRenderer,
 	_ *service.SessionState,
 ) layout.Model {
 	return &Component{
-		message:  msg,
-		renderer: renderer,
-		spinner:  spinner.New(spinner.ModeSpinnerOnly),
-		width:    80,
-		height:   1,
+		message: msg,
+		spinner: spinner.New(spinner.ModeSpinnerOnly),
+		width:   80,
+		height:  1,
 	}
 }
 
@@ -79,10 +77,5 @@ func (c *Component) View() string {
 		content += " " + c.spinner.View()
 	}
 
-	var resultContent string
-	if (msg.ToolStatus == types.ToolStatusCompleted || msg.ToolStatus == types.ToolStatusError) && msg.Content != "" {
-		resultContent = "\n\n" + styles.ToolCallResult.Render(toolcommon.RenderFile(args.Path, msg.Content, c.renderer))
-	}
-
-	return styles.BaseStyle.PaddingLeft(2).Render(content + resultContent)
+	return styles.BaseStyle.PaddingLeft(2).Render(content)
 }
