@@ -63,7 +63,7 @@ func (c *SidebarComponent) Render() string {
 	}
 
 	var content strings.Builder
-	content.WriteString(styles.HighlightStyle.Render("TODOs"))
+	content.WriteString(styles.HighlightStyle.Render("TODOS"))
 	content.WriteString("\n")
 
 	for _, todo := range c.manager.GetTodos() {
