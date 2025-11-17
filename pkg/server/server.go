@@ -36,6 +36,7 @@ import (
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/teamloader"
+	"github.com/docker/cagent/pkg/tools"
 )
 
 type Server struct {
@@ -1295,7 +1296,7 @@ func (s *Server) elicitation(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": fmt.Sprintf("runtime not found: %s", sessionID)})
 	}
 
-	if err := rt.ResumeElicitation(c.Request().Context(), req.Action, req.Content); err != nil {
+	if err := rt.ResumeElicitation(c.Request().Context(), tools.ElicitationAction(req.Action), req.Content); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to resume elicitation: %v", err))
 	}
 

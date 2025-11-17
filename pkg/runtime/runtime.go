@@ -36,7 +36,7 @@ type modelStore interface {
 
 // ElicitationResult represents the result of an elicitation request
 type ElicitationResult struct {
-	Action  string         // "accept", "decline", or "cancel"
+	Action  tools.ElicitationAction
 	Content map[string]any // The submitted form data (only present when action is "accept")
 }
 
@@ -79,7 +79,7 @@ type Runtime interface {
 	// Summarize generates a summary for the session
 	Summarize(ctx context.Context, sess *session.Session, events chan Event)
 	// ResumeElicitation sends an elicitation response back to a waiting elicitation request
-	ResumeElicitation(_ context.Context, action string, content map[string]any) error
+	ResumeElicitation(_ context.Context, action tools.ElicitationAction, content map[string]any) error
 }
 
 // LocalRuntime manages the execution of agents
@@ -252,8 +252,9 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		for _, toolset := range a.ToolSets() {
 			toolset.SetElicitationHandler(r.elicitationHandler)
 			toolset.SetOAuthSuccessHandler(func() {
-				events <- Authorization("confirmed", r.currentAgent)
+				events <- Authorization(tools.ElicitationActionAccept, r.currentAgent)
 			})
+			toolset.SetManagedOAuth(r.managedOAuth)
 		}
 
 		agentTools, err := r.getTools(ctx, a, sessionSpan, events)
@@ -504,7 +505,7 @@ func (r *LocalRuntime) Resume(_ context.Context, confirmationType ResumeType) {
 }
 
 // ResumeElicitation sends an elicitation response back to a waiting elicitation request
-func (r *LocalRuntime) ResumeElicitation(ctx context.Context, action string, content map[string]any) error {
+func (r *LocalRuntime) ResumeElicitation(ctx context.Context, action tools.ElicitationAction, content map[string]any) error {
 	slog.Debug("Resuming runtime with elicitation response", "agent", r.currentAgent, "action", action)
 
 	result := ElicitationResult{

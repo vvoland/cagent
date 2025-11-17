@@ -1,6 +1,7 @@
 package dialog
 
 import (
+	"context"
 	"fmt"
 
 	"charm.land/bubbles/v2/key"
@@ -8,6 +9,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/app"
+	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/styles"
@@ -72,14 +74,10 @@ func (d *oauthAuthorizationDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, d.keyMap.Yes):
-			if d.app != nil {
-				d.app.ResumeStartOAuth(true)
-			}
+			_ = d.app.ResumeElicitation(context.Background(), tools.ElicitationActionAccept, nil)
 			return d, core.CmdHandler(CloseDialogMsg{})
 		case key.Matches(msg, d.keyMap.No):
-			if d.app != nil {
-				d.app.ResumeStartOAuth(false)
-			}
+			_ = d.app.ResumeElicitation(context.Background(), tools.ElicitationActionDecline, nil)
 			return d, core.CmdHandler(CloseDialogMsg{})
 		}
 

@@ -315,6 +315,7 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 		return p, tea.Batch(spinnerCmd, dialogCmd)
 	case *runtime.ElicitationRequestEvent:
+		// TODO: handle normal elicitation requsets
 		spinnerCmd := p.setWorking(false)
 
 		serverURL := msg.Meta["cagent/server_url"].(string)
@@ -323,7 +324,6 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		})
 
 		return p, tea.Batch(spinnerCmd, dialogCmd)
-
 	}
 
 	sidebarModel, sidebarCmd := p.sidebar.Update(msg)

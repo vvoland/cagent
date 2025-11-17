@@ -16,6 +16,7 @@ import (
 	"github.com/docker/cagent/pkg/api"
 	v2 "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/cagent/pkg/tools"
 )
 
 // Client is an HTTP client for the cagent server API
@@ -373,17 +374,7 @@ func (c *Client) runAgentWithAgentName(ctx context.Context, sessionID, agent, ag
 	return eventChan, nil
 }
 
-func (c *Client) ResumeStartAuthorizationFlow(ctx context.Context, id string, confirmation bool) error {
-	req := api.ResumeStartOauthRequest{Confirmation: confirmation}
-	return c.doRequest(ctx, http.MethodPost, "/api/"+id+"/resumeStartOauth", req, nil)
-}
-
-func (c *Client) ResumeCodeReceived(ctx context.Context, code, state string) error {
-	req := api.ResumeCodeReceivedOauthRequest{Code: code, State: state}
-	return c.doRequest(ctx, http.MethodPost, "/api/resumeCodeReceivedOauth", req, nil)
-}
-
-func (c *Client) ResumeElicitation(ctx context.Context, action string, content map[string]any) error {
-	req := api.ResumeElicitationRequest{Action: action, Content: content}
-	return c.doRequest(ctx, http.MethodPost, "/api/resumeElicitation", req, nil)
+func (c *Client) ResumeElicitation(ctx context.Context, sessionID string, action tools.ElicitationAction, content map[string]any) error {
+	req := api.ResumeElicitationRequest{Action: string(action), Content: content}
+	return c.doRequest(ctx, http.MethodPost, "/api/sessions/"+sessionID+"/elicitation", req, nil)
 }
