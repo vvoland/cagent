@@ -200,6 +200,12 @@ var (
 				BorderForeground(BorderPrimary).
 				Bold(true).
 				Background(BackgroundAlt)
+
+	WelcomeMessageBorderStyle = BaseStyle.
+					Padding(1, 2).
+					BorderLeft(true).
+					BorderStyle(lipgloss.DoubleBorder()).
+					Bold(true)
 )
 
 // Dialog Styles
