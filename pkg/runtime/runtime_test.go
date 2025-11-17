@@ -745,7 +745,7 @@ func TestEmitStartupInfo(t *testing.T) {
 	events := make(chan Event, 10)
 
 	// Call EmitStartupInfo
-	rt.EmitStartupInfo(context.Background(), events)
+	rt.EmitStartupInfo(t.Context(), events)
 	close(events)
 
 	// Collect events
@@ -765,7 +765,7 @@ func TestEmitStartupInfo(t *testing.T) {
 
 	// Test that calling EmitStartupInfo again doesn't emit duplicate events
 	events2 := make(chan Event, 10)
-	rt.EmitStartupInfo(context.Background(), events2)
+	rt.EmitStartupInfo(t.Context(), events2)
 	close(events2)
 
 	var collectedEvents2 []Event
