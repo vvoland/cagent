@@ -44,11 +44,19 @@ func PackageFileAsOCIToStore(ctx context.Context, filePath, artifactRef string, 
 		return "", fmt.Errorf("loading config: %w", err)
 	}
 
-	// Make sure we push a yaml with the latest version
-	cfg.Version = latest.Version
-	data, err = yaml.MarshalWithOptions(cfg, yaml.Indent(2))
-	if err != nil {
-		return "", fmt.Errorf("marshaling config: %w", err)
+	var raw struct {
+		Version string `yaml:"version,omitempty"`
+	}
+	if err := yaml.UnmarshalWithOptions(data, &raw); err != nil {
+		return "", fmt.Errorf("looking for version in config file\n%s", yaml.FormatError(err, true, true))
+	}
+	// Make sure we push a yaml with a version (Use latest if missing)
+	if raw.Version == "" {
+		cfg.Version = latest.Version
+		data, err = yaml.MarshalWithOptions(cfg, yaml.Indent(2))
+		if err != nil {
+			return "", fmt.Errorf("marshaling config: %w", err)
+		}
 	}
 
 	// Prepare OCI annotations

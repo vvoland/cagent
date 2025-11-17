@@ -125,7 +125,13 @@ agents:
 
 	content1, err := os.ReadFile(resolved1)
 	require.NoError(t, err)
-	assert.Equal(t, agentContent, string(content1))
+	assert.Equal(t, `version: "1"
+agents:
+  root:
+    model: openai/gpt-4o
+    description: Test OCI agent
+    instruction: You are a test OCI agent
+`, string(content1))
 
 	// Expected filename based on OCI ref
 	expectedFilename := OciRefToFilename(ociRef)
@@ -453,4 +459,41 @@ func TestResolveAgentFile_ReplaceEmptyAliasWithActualFile(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, aliasedAgentFile, resolved)
+}
+
+func TestResolveAgentFile_OCIRef_HasAVersion(t *testing.T) {
+	storeDir := t.TempDir()
+	t.Setenv("CAGENT_CONTENT_STORE", storeDir)
+
+	store, err := content.NewStore()
+	require.NoError(t, err)
+
+	agentContent := `agents:
+  root:
+    model: auto
+    description: Test OCI agent
+    instruction: You are a test OCI agent
+`
+	agentFile := filepath.Join(t.TempDir(), "oci-agent.yaml")
+	require.NoError(t, os.WriteFile(agentFile, []byte(agentContent), 0o644))
+
+	// Package as OCI artifact
+	ociRef := "test.registry.io/myorg/testagent:v1"
+	_, err = oci.PackageFileAsOCIToStore(t.Context(), agentFile, ociRef, store)
+	require.NoError(t, err)
+
+	// First resolution
+	resolved, err := Resolve(t.Context(), nil, ociRef)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resolved)
+
+	content, err := os.ReadFile(resolved)
+	require.NoError(t, err)
+	assert.Equal(t, `version: "2"
+agents:
+  root:
+    model: auto
+    description: Test OCI agent
+    instruction: You are a test OCI agent
+`, string(content))
 }
