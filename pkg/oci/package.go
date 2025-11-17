@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/goccy/go-yaml"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -17,6 +16,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 
 	"github.com/docker/cagent/pkg/config"
+	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/path"
 	"github.com/docker/cagent/pkg/version"
