@@ -244,18 +244,9 @@ func (m *model) verticalView() string {
 
 	m.todoComp.SetSize(m.width)
 	todoContent := strings.TrimSuffix(m.todoComp.Render(), "\n")
-
-	// Calculate available height for content
-	availableHeight := m.height - 2 // Account for borders
-	topHeight := strings.Count(topContent, "\n") + 1
-	todoHeight := strings.Count(todoContent, "\n") + 1
-
-	// Calculate padding needed to push todos to bottom
-	paddingHeight := max(availableHeight-topHeight-todoHeight, 0)
-	for range paddingHeight {
-		topContent += "\n"
+	if todoContent != "" {
+		topContent += "\n\n" + todoContent
 	}
-	topContent += todoContent
 
 	return styles.BaseStyle.
 		Width(m.width).
