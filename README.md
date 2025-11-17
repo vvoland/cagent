@@ -132,6 +132,8 @@ This exposes each agent as a tool (e.g., `root`, `designer`, `awesome_engineer`)
 }
 ```
 
+See [MCP Mode documentation](./docs/MCP-MODE.md) for detailed instructions on exposing your agents through MCP with Claude Desktop, Claude Code, and other MCP clients.
+
 ### 🎯 Key Features
 
 - **🏗️ Multi-agent architecture** - Create specialized agents for different
