@@ -320,11 +320,11 @@ func (h *shellHandler) ListBackgroundJobs(_ context.Context, _ tools.ToolCall) (
 		status := job.status.Load()
 		statusStr := statusToString(status)
 
-		runtime := time.Since(job.startTime).Round(time.Second)
+		elapsed := time.Since(job.startTime).Round(time.Second)
 		output.WriteString(fmt.Sprintf("ID: %s\n", jobID))
 		output.WriteString(fmt.Sprintf("  Command: %s\n", job.cmd))
 		output.WriteString(fmt.Sprintf("  Status: %s\n", statusStr))
-		output.WriteString(fmt.Sprintf("  Runtime: %s\n", runtime))
+		output.WriteString(fmt.Sprintf("  Runtime: %s\n", elapsed))
 		if status != statusRunning {
 			job.outputMu.RLock()
 			output.WriteString(fmt.Sprintf("  Exit Code: %d\n", job.exitCode))

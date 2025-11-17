@@ -237,7 +237,7 @@ func TestShellTool_RunBackgroundJob(t *testing.T) {
 	tool := NewShellTool(nil)
 	err := tool.Start(t.Context())
 	require.NoError(t, err)
-	defer tool.Stop(t.Context())
+	defer func() { _ = tool.Stop(t.Context()) }()
 
 	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
@@ -277,7 +277,7 @@ func TestShellTool_ListBackgroundJobs(t *testing.T) {
 	tool := NewShellTool(nil)
 	err := tool.Start(t.Context())
 	require.NoError(t, err)
-	defer tool.Stop(t.Context())
+	defer func() { _ = tool.Stop(t.Context()) }()
 
 	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
