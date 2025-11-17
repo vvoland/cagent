@@ -695,7 +695,7 @@ func (s *Server) pullAgent(c echo.Context) error {
 	}
 
 	slog.Info("Pulling agent", "name", req.Name)
-	_, err := remote.Pull(c.Request().Context(), req.Name)
+	_, err := remote.Pull(c.Request().Context(), req.Name, false)
 	if err != nil {
 		slog.Error("Failed to pull agent", "name", req.Name, "error", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to pull agent")

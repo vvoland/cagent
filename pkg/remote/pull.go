@@ -11,7 +11,7 @@ import (
 )
 
 // Pull pulls an artifact from a registry and stores it in the content store
-func Pull(ctx context.Context, registryRef string, opts ...crane.Option) (string, error) {
+func Pull(ctx context.Context, registryRef string, force bool, opts ...crane.Option) (string, error) {
 	opts = append(opts, crane.WithContext(ctx))
 
 	ref, err := name.ParseReference(registryRef)
@@ -30,12 +30,14 @@ func Pull(ctx context.Context, registryRef string, opts ...crane.Option) (string
 	}
 
 	localRef := ref.Context().RepositoryStr() + ":" + ref.Identifier()
-	if meta, metaErr := store.GetArtifactMetadata(localRef); metaErr == nil {
-		if meta.Digest == remoteDigest {
-			if !hasCagentAnnotation(meta.Annotations) {
-				return "", fmt.Errorf("artifact %s found in store wasn't created by cagent", localRef)
+	if !force {
+		if meta, metaErr := store.GetArtifactMetadata(localRef); metaErr == nil {
+			if meta.Digest == remoteDigest {
+				if !hasCagentAnnotation(meta.Annotations) {
+					return "", fmt.Errorf("artifact %s found in store wasn't created by cagent", localRef)
+				}
+				return meta.Digest, nil
 			}
-			return meta.Digest, nil
 		}
 	}
 
@@ -49,7 +51,7 @@ func Pull(ctx context.Context, registryRef string, opts ...crane.Option) (string
 		return "", fmt.Errorf("getting manifest from pulled image: %w", err)
 	}
 	if !hasCagentAnnotation(manifest.Annotations) {
-		return "", fmt.Errorf("artifact %s found in store wasn't created by cagent", localRef)
+		return "", fmt.Errorf("artifact %s wasn't created by cagent", localRef)
 	}
 
 	digest, err := store.StoreArtifact(img, localRef)

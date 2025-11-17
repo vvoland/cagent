@@ -126,7 +126,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 					return
 				case <-ticker.C:
 					slog.Info("Auto-pulling OCI reference", "reference", agentsPath)
-					if _, err := remote.Pull(ctx, agentsPath); err != nil {
+					if _, err := remote.Pull(ctx, agentsPath, false); err != nil {
 						slog.Error("Failed to auto-pull OCI reference", "reference", agentsPath, "error", err)
 						continue
 					}

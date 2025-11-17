@@ -15,18 +15,28 @@ import (
 	"github.com/docker/cagent/pkg/telemetry"
 )
 
+type pullFlags struct {
+	force bool
+}
+
 func newPullCmd() *cobra.Command {
-	return &cobra.Command{
+	var flags pullFlags
+
+	cmd := &cobra.Command{
 		Use:     "pull <registry-ref>",
 		Short:   "Pull an agent from an OCI registry",
 		Long:    "Pull an agent configuration file from an OCI registry",
 		GroupID: "core",
 		Args:    cobra.ExactArgs(1),
-		RunE:    runPullCommand,
+		RunE:    flags.runPullCommand,
 	}
+
+	cmd.PersistentFlags().BoolVar(&flags.force, "force", false, "Force pull even if the configuration already exists locally")
+
+	return cmd
 }
 
-func runPullCommand(cmd *cobra.Command, args []string) error {
+func (f *pullFlags) runPullCommand(cmd *cobra.Command, args []string) error {
 	telemetry.TrackCommand("pull", args)
 
 	ctx := cmd.Context()
@@ -37,7 +47,7 @@ func runPullCommand(cmd *cobra.Command, args []string) error {
 	out.Println("Pulling agent", registryRef)
 
 	var opts []crane.Option
-	_, err := remote.Pull(ctx, registryRef, opts...)
+	_, err := remote.Pull(ctx, registryRef, f.force, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to pull artifact: %w", err)
 	}
