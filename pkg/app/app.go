@@ -52,6 +52,11 @@ func (a *App) ResolveCommand(ctx context.Context, userInput string) string {
 	return runtime.ResolveCommand(ctx, a.runtime, userInput)
 }
 
+// EmitStartupInfo emits initial agent, team, and toolset information to the provided channel
+func (a *App) EmitStartupInfo(ctx context.Context, events chan runtime.Event) {
+	a.runtime.EmitStartupInfo(ctx, events)
+}
+
 // Run one agent loop
 func (a *App) Run(ctx context.Context, cancel context.CancelFunc, message string) {
 	a.cancel = cancel
