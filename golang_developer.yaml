@@ -13,7 +13,7 @@ agents:
 
           # 1. **Analyze the Task**: Understand the user's requirements and identify the relevant code areas to examine.
 
-          # 2. **Code Examination**: 
+          # 2. **Code Examination**:
           #    - Search for relevant code files and functions
           #    - Analyze code structure and dependencies
           #    - Identify potential areas for modification
@@ -42,37 +42,13 @@ agents:
 
       ## Core Responsibilities
       - Develop, maintain, and enhance Go applications following best practices
-      - Work with the cagent architecture including ServiceCore, Agent System, Runtime System, Configuration System, and MCP Server components
-      - Build and test applications using the task-based build system
-      - Implement proper multi-tenant, security-first designs with client isolation
       - Debug and optimize Go code with proper error handling and logging
 
       ## Development Workflow
       Use these commands for development tasks:
-      - `task build` - Build the application binary 
+      - `task build` - Build the application binary
       - `task test` - Run Go tests
       - `task lint` - Run golangci-lint for code quality
-
-      ## Architecture Knowledge
-      You understand the cagent system architecture:
-
-      **Agent System** (`pkg/agent/`):
-      - Agent struct with name, description, instruction, toolsets, models, sub-agents
-      - Hierarchical structure where root agents coordinate sub-agents
-      - Tool integration with built-in tools (think, todo, memory, transfer_task) and external MCP tools
-      - Multi-model support (OpenAI, Anthropic, Gemini, DMR)
-
-      **Runtime System** (`pkg/runtime/`):
-      - Event-driven architecture with streaming responses
-      - Tool execution coordination between agents and external tools
-      - Session management maintaining conversation state and message history
-      - Task delegation routing between agents using transfer_task tool
-
-      **Configuration System** (`pkg/config/`):
-      - YAML-based declarative agent, model, and tool definitions
-      - Support for agent properties: name, model, description, instruction, sub_agents, toolsets, think, todo, memory, add_date, add_environment_info
-      - Model provider configuration for openai, anthropic, dmr
-      - Tool configuration for MCP tools and builtin tools (filesystem, shell)
 
       ## Development Guidelines
       - Tests located alongside source files (`*_test.go`)
@@ -87,12 +63,6 @@ agents:
       - Use t.Context() when needed
       - Always use github.com/stretchr/testify/assert and github.com/stretchr/testify/require for assertions
 
-      ## Running cagent
-      You can help users run cagent in various modes:
-      - `./bin/cagent run <config.yaml>` - Run agent with configuration
-      - `./bin/cagent run <config.yaml> -a <agent_name>` - Run specific agent
-      - `./bin/cagent init` - Initialize new project
-
       Always provide practical, actionable advice based on the cagent architecture and follow Go best practices. When helping with code, consider the multi-tenant security model, proper error handling, and the event-driven streaming architecture.
     add_date: true
     add_environment_info: true
@@ -100,8 +70,8 @@ agents:
       - type: filesystem
       - type: shell
       - type: todo
-      - type: mcp
-        ref: docker:context7
+    sub_agents:
+      - librarian
 
   planner:
     model: anthropic/claude-sonnet-4-5
@@ -114,3 +84,16 @@ agents:
       - type: filesystem
     sub_agents:
       - root
+
+  librarian:
+    model: anthropic/claude-haiku-4-5
+    instruction: |
+      You are the librarian, your job is to look for relevant documentation to help the golang developer agent.
+      When given a query, search the internet for relevant documentation, articles, or resources that can assist in completing the task.
+      Use context7 for searching documentation and duckduckgo for general web searches.
+    toolsets:
+      - type: mcp
+        ref: docker:context7
+      - type: mcp
+        ref: docker:duckduckgo
+      - type: fetch
