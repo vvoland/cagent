@@ -105,7 +105,7 @@ func Resolve(ctx context.Context, out *cli.Printer, agentFilename string) (strin
 	a, err := FromStore(agentFilename)
 	if err != nil {
 		out.Println("Pulling agent", agentFilename)
-		if _, pullErr := remote.Pull(ctx, agentFilename); pullErr != nil {
+		if _, pullErr := remote.Pull(ctx, agentFilename, false); pullErr != nil {
 			return "", fmt.Errorf("failed to pull OCI image %s: %w", agentFilename, pullErr)
 		}
 		// Retry after pull

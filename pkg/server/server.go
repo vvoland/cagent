@@ -696,7 +696,7 @@ func (s *Server) pullAgent(c echo.Context) error {
 	}
 
 	slog.Info("Pulling agent", "name", req.Name)
-	_, err := remote.Pull(c.Request().Context(), req.Name)
+	_, err := remote.Pull(c.Request().Context(), req.Name, false)
 	if err != nil {
 		slog.Error("Failed to pull agent", "name", req.Name, "error", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to pull agent")
@@ -770,7 +770,7 @@ func (s *Server) pushAgent(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to create content store")
 	}
 
-	digest, err := oci.PackageFileAsOCIToStore(validatedFilepath, req.Tag, store)
+	digest, err := oci.PackageFileAsOCIToStore(c.Request().Context(), validatedFilepath, req.Tag, store)
 	if err != nil {
 		slog.Error("Failed to build artifact", "filepath", validatedFilepath, "tag", req.Tag, "error", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to build artifact")
