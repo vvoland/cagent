@@ -726,3 +726,53 @@ func TestProcessToolCalls_UnknownTool_NoToolResultMessage(t *testing.T) {
 	}
 	require.False(t, sawToolMsg, "no tool result should be added for unknown tool; this reproduces invalid sequencing state")
 }
+
+func TestEmitStartupInfo(t *testing.T) {
+	// Create a simple agent with mock provider
+	prov := &mockProvider{id: "test/startup-model", stream: &mockStream{}}
+	root := agent.New("startup-test-agent", "You are a startup test agent",
+		agent.WithModel(prov),
+		agent.WithDescription("This is a startup test agent"))
+	other := agent.New("other-agent", "You are another agent",
+		agent.WithModel(prov),
+		agent.WithDescription("This is another agent"))
+	tm := team.New(team.WithAgents(root, other))
+
+	rt, err := New(tm, WithCurrentAgent("startup-test-agent"), WithModelStore(mockModelStore{}))
+	require.NoError(t, err)
+
+	// Create a channel to collect events
+	events := make(chan Event, 10)
+
+	// Call EmitStartupInfo
+	rt.EmitStartupInfo(context.Background(), events)
+	close(events)
+
+	// Collect events
+	var collectedEvents []Event
+	for event := range events {
+		collectedEvents = append(collectedEvents, event)
+	}
+
+	// Verify expected events are emitted
+	expectedEvents := []Event{
+		AgentInfo("startup-test-agent", "test/startup-model", "This is a startup test agent"),
+		TeamInfo([]string{"startup-test-agent", "other-agent"}, "startup-test-agent"),
+		ToolsetInfo(0, "startup-test-agent"), // No tools configured
+	}
+
+	require.Equal(t, expectedEvents, collectedEvents)
+
+	// Test that calling EmitStartupInfo again doesn't emit duplicate events
+	events2 := make(chan Event, 10)
+	rt.EmitStartupInfo(context.Background(), events2)
+	close(events2)
+
+	var collectedEvents2 []Event
+	for event := range events2 {
+		collectedEvents2 = append(collectedEvents2, event)
+	}
+
+	// Should be empty due to deduplication
+	require.Empty(t, collectedEvents2, "EmitStartupInfo should not emit duplicate events")
+}

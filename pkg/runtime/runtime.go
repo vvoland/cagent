@@ -70,6 +70,8 @@ type Runtime interface {
 	CurrentAgentCommands(ctx context.Context) map[string]string
 	// CurrentWelcomeMessage returns the welcome message for the active agent
 	CurrentWelcomeMessage(ctx context.Context) string
+	// EmitStartupInfo emits initial agent, team, and toolset information for immediate display
+	EmitStartupInfo(ctx context.Context, events chan Event)
 	// RunStream starts the agent's interaction loop and returns a channel of events
 	RunStream(ctx context.Context, sess *session.Session) <-chan Event
 	// Run starts the agent's interaction loop and returns the final messages
@@ -93,6 +95,7 @@ type LocalRuntime struct {
 	modelsStore                 modelStore
 	sessionCompaction           bool
 	managedOAuth                bool
+	startupInfoEmitted          bool                   // Track if startup info has been emitted to avoid unnecessary duplication
 	elicitationRequestCh        chan ElicitationResult // Channel for receiving elicitation responses
 	elicitationEventsChannel    chan Event             // Current events channel for sending elicitation requests
 	elicitationEventsChannelMux sync.RWMutex           // Protects elicitationEventsChannel
@@ -194,6 +197,43 @@ func (r *LocalRuntime) CurrentAgent() *agent.Agent {
 	// We validated already that the agent exists
 	current, _ := r.team.Agent(r.currentAgent)
 	return current
+}
+
+// EmitStartupInfo emits initial agent, team, and toolset information for immediate sidebar display
+func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, events chan Event) {
+	// Prevent duplicate emissions
+	if r.startupInfoEmitted {
+		return
+	}
+
+	a := r.CurrentAgent()
+
+	// Emit agent information for sidebar display
+	var modelID string
+	if model := a.Model(); model != nil {
+		modelID = model.ID()
+	}
+	events <- AgentInfo(a.Name(), modelID, a.Description())
+
+	// Emit team information
+	availableAgents := r.team.AgentNames()
+	events <- TeamInfo(availableAgents, r.currentAgent)
+
+	// Emit agent warnings (if any)
+	r.emitAgentWarnings(a, events)
+
+	agentTools, err := a.Tools(ctx)
+	if err != nil {
+		slog.Warn("Failed to get agent tools during startup", "agent", a.Name(), "error", err)
+		// Emit toolset info with 0 tools if we can't get them
+		events <- ToolsetInfo(0, r.currentAgent)
+		r.startupInfoEmitted = true
+		return
+	}
+
+	// Emit toolset information
+	events <- ToolsetInfo(len(agentTools), r.currentAgent)
+	r.startupInfoEmitted = true
 }
 
 // registerDefaultTools registers the default tool handlers
