@@ -3,6 +3,7 @@ package js
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/dop251/goja"
 
@@ -17,13 +18,36 @@ func (e jsEnv) Has(string) bool             { return true }
 func (e jsEnv) Delete(string) bool          { return true }
 func (e jsEnv) Keys() []string              { return nil }
 
-func Expand(ctx context.Context, kv map[string]string, env environment.Provider) map[string]string {
+type Expander struct {
+	env environment.Provider
+
+	vm   *goja.Runtime
+	lock sync.Once
+}
+
+func NewJsExpander(env environment.Provider) *Expander {
+	return &Expander{
+		env: env,
+	}
+}
+
+func (exp *Expander) jsRuntime(ctx context.Context) *goja.Runtime {
+	exp.lock.Do(func() {
+		vm := goja.New()
+		_ = vm.Set("env", vm.NewDynamicObject(jsEnv(func(k string) goja.Value {
+			return vm.ToValue(exp.env.Get(ctx, k))
+		})))
+
+		exp.vm = vm
+	})
+
+	return exp.vm
+}
+
+func (exp *Expander) ExpandMap(ctx context.Context, kv map[string]string) map[string]string {
 	expanded := map[string]string{}
 
-	vm := goja.New()
-	_ = vm.Set("env", vm.NewDynamicObject(jsEnv(func(k string) goja.Value {
-		return vm.ToValue(env.Get(ctx, k))
-	})))
+	vm := exp.jsRuntime(ctx)
 
 	for k, v := range kv {
 		result, err := vm.RunString("`" + v + "`")
@@ -36,6 +60,17 @@ func Expand(ctx context.Context, kv map[string]string, env environment.Provider)
 	}
 
 	return expanded
+}
+
+func (exp *Expander) Expand(ctx context.Context, text string) string {
+	vm := exp.jsRuntime(ctx)
+
+	result, err := vm.RunString("`" + text + "`")
+	if err != nil {
+		return text
+	}
+
+	return fmt.Sprintf("%v", result.Export())
 }
 
 func ExpandString(ctx context.Context, str string, values map[string]string) (string, error) {
