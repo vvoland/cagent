@@ -154,17 +154,19 @@ func LoadFrom(ctx context.Context, source AgentSource, runtimeConfig *config.Run
 		return config.AutoModelConfig(ctx, runtimeConfig.ModelsGateway, env)
 	})
 
+	expander := js.NewJsExpander(env)
+
 	for name, agentConfig := range cfg.Agents {
 		opts := []agent.Opt{
 			agent.WithName(name),
-			agent.WithDescription(js.Expand(ctx, agentConfig.Description, env)),
-			agent.WithWelcomeMessage(js.Expand(ctx, agentConfig.WelcomeMessage, env)),
+			agent.WithDescription(expander.Expand(ctx, agentConfig.Description)),
+			agent.WithWelcomeMessage(expander.Expand(ctx, agentConfig.WelcomeMessage)),
 			agent.WithAddDate(agentConfig.AddDate),
 			agent.WithAddEnvironmentInfo(agentConfig.AddEnvironmentInfo),
 			agent.WithAddPromptFiles(agentConfig.AddPromptFiles),
 			agent.WithMaxIterations(agentConfig.MaxIterations),
 			agent.WithNumHistoryItems(agentConfig.NumHistoryItems),
-			agent.WithCommands(js.ExpandMap(ctx, agentConfig.Commands, env)),
+			agent.WithCommands(expander.ExpandMap(ctx, agentConfig.Commands)),
 		}
 
 		models, err := getModelsForAgent(ctx, cfg, &agentConfig, autoModel, runtimeConfig)

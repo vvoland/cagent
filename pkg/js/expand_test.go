@@ -8,6 +8,8 @@ import (
 )
 
 func TestExpand(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		commands string
@@ -64,7 +66,8 @@ func TestExpand(t *testing.T) {
 
 			env := testEnvProvider(tt.envVars)
 
-			result := Expand(t.Context(), tt.commands, &env)
+			expander := NewJsExpander(&env)
+			result := expander.Expand(t.Context(), tt.commands)
 
 			assert.Equal(t, tt.expected, result)
 		})
@@ -78,13 +81,38 @@ func TestExpandMap(t *testing.T) {
 		"USER": "alice",
 	})
 
-	result := ExpandMap(t.Context(), map[string]string{
+	expander := NewJsExpander(&env)
+	result := expander.ExpandMap(t.Context(), map[string]string{
 		"none":   "List all files",
 		"simple": "Say hello to ${env.USER}",
-	}, &env)
+	})
 
 	assert.Equal(t, map[string]string{
 		"none":   "List all files",
+		"simple": "Say hello to alice",
+	}, result)
+}
+
+func TestExpandMap_Reuse(t *testing.T) {
+	t.Parallel()
+
+	env := testEnvProvider(map[string]string{
+		"USER": "alice",
+	})
+
+	expander := NewJsExpander(&env)
+
+	result := expander.ExpandMap(t.Context(), map[string]string{
+		"none": "List all files",
+	})
+	assert.Equal(t, map[string]string{
+		"none": "List all files",
+	}, result)
+
+	result = expander.ExpandMap(t.Context(), map[string]string{
+		"simple": "Say hello to ${env.USER}",
+	})
+	assert.Equal(t, map[string]string{
 		"simple": "Say hello to alice",
 	}, result)
 }
@@ -94,7 +122,8 @@ func TestExpandMap_Empty(t *testing.T) {
 
 	env := testEnvProvider(map[string]string{})
 
-	result := ExpandMap(t.Context(), map[string]string{}, &env)
+	expander := NewJsExpander(&env)
+	result := expander.ExpandMap(t.Context(), map[string]string{})
 
 	assert.Empty(t, result)
 }
