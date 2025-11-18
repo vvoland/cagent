@@ -3,8 +3,8 @@ module github.com/docker/cagent
 go 1.25.4
 
 require (
-	charm.land/bubbles/v2 v2.0.0-beta.1.0.20251104200223-da0b892d1759
-	charm.land/bubbletea/v2 v2.0.0-rc.1.0.20251106195925-579e174cd7fa
+	charm.land/bubbles/v2 v2.0.0-rc.1
+	charm.land/bubbletea/v2 v2.0.0-rc.1.0.20251117161017-15f884bd2973
 	charm.land/lipgloss/v2 v2.0.0-beta.3.0.20251106193318-19329a3e8410
 	dario.cat/mergo v1.0.2
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.4.0
@@ -16,7 +16,7 @@ require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/aymanbagabas/go-udiff v0.3.1
 	github.com/charmbracelet/glamour/v2 v2.0.0-20251106195642-800eb8175930
-	github.com/charmbracelet/x/ansi v0.11.0
+	github.com/charmbracelet/x/ansi v0.11.1
 	github.com/coder/acp-go-sdk v0.6.3
 	github.com/dop251/goja v0.0.0-20251103141225-af2ceb9156d7
 	github.com/fatih/color v1.18.0
@@ -61,12 +61,12 @@ require (
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/charmbracelet/colorprofile v0.3.3 // indirect
-	github.com/charmbracelet/ultraviolet v0.0.0-20251106193841-7889546fc720 // indirect
-	github.com/charmbracelet/x/exp/slice v0.0.0-20250327172914-2fdc97757edf // indirect
+	github.com/charmbracelet/ultraviolet v0.0.0-20251116181749-377898bcce38 // indirect
+	github.com/charmbracelet/x/exp/slice v0.0.0-20251113172435-cef867b85f6a // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/charmbracelet/x/termios v0.1.1 // indirect
 	github.com/charmbracelet/x/windows v0.2.2 // indirect
-	github.com/clipperhouse/displaywidth v0.4.1 // indirect
+	github.com/clipperhouse/displaywidth v0.5.0 // indirect
 	github.com/clipperhouse/stringish v0.1.1 // indirect
 	github.com/clipperhouse/uax29/v2 v2.3.0 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
@@ -141,7 +141,7 @@ require (
 	golang.org/x/crypto v0.43.0 // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	golang.org/x/net v0.46.0 // indirect
-	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/sync v0.18.0 // indirect
 	golang.org/x/text v0.30.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251014184007-4626949a642f // indirect

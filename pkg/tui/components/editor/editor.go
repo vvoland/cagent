@@ -38,7 +38,7 @@ type Editor interface {
 
 // editor implements [Editor]
 type editor struct {
-	textarea *textarea.Model
+	textarea textarea.Model
 	hist     *history.History
 	width    int
 	height   int
@@ -181,7 +181,7 @@ func (e *editor) clearSuggestion() {
 // setCursorHidden toggles the virtual cursor so the ghost suggestion can be
 // displayed without visual conflicts.
 func (e *editor) setCursorHidden(hidden bool) {
-	if e.cursorHidden == hidden || e.textarea == nil {
+	if e.cursorHidden == hidden {
 		return
 	}
 
