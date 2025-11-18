@@ -33,6 +33,13 @@
         "$ref": "#/definitions/ModelConfig"
       }
     },
+    "rag": {
+      "type": "object",
+      "description": "Map of RAG (Retrieval-Augmented Generation) configurations",
+      "additionalProperties": {
+        "$ref": "#/definitions/RAGConfig"
+      }
+    },
     "metadata": {
       "$ref": "#/definitions/Metadata",
       "description": "Configuration metadata"
@@ -188,6 +195,13 @@
             "schema"
           ],
           "additionalProperties": false
+        },
+        "rag": {
+          "type": "array",
+          "description": "List of RAG sources to use for this agent",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false
@@ -623,6 +637,185 @@
         "name",
         "endpoint",
         "method"
+      ],
+      "additionalProperties": false
+    },
+    "RAGConfig": {
+      "type": "object",
+      "description": "RAG (Retrieval-Augmented Generation) configuration for document search and retrieval with pluggable strategies. Multiple strategies enable hybrid retrieval and reranking.",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Description of the RAG source"
+        },
+        "docs": {
+          "type": "array",
+          "description": "Shared document paths or directories indexed by all strategies",
+          "items": {
+            "type": "string"
+          }
+        },
+        "strategies": {
+          "type": "array",
+          "description": "Array of retrieval strategy configurations. Each strategy can have different parameters based on its type.",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "description": "Retrieval strategy configuration with type-specific parameters. Structured fields are limited; additional parameters are passed through as-is for strategy-specific use.",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "description": "Retrieval strategy type",
+                "enum": ["chunked-embeddings", "bm25"]
+              },
+              "model": {
+                "type": "string",
+                "description": "Embedding model reference for chunked-embeddings strategies (looked up in models map, or 'auto' for automatic selection)",
+                "examples": ["openai/text-embedding-3-small", "dmr/embeddinggemma", "auto"]
+              },
+              "docs": {
+                "type": "array",
+                "description": "Additional documents for this strategy only (augments shared docs)",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "database": {
+                "type": "string",
+                "description": "Database path or connection string. Currently only simple string values are supported (e.g., './vector.db', './bm25.db')."
+              },
+              "similarity_metric": {
+                "type": "string",
+                "description": "Similarity metric (chunked-embeddings only). Currently only 'cosine_similarity' is implemented.",
+                "enum": ["cosine_similarity"]
+              },
+              "vector_dimensions": {
+                "type": "integer",
+                "description": "Vector dimensions for embeddings (chunked-embeddings only). Must match your embedding model's output dimensions and is required for chunked-embeddings strategies.",
+                "minimum": 1,
+                "examples": [1536, 3072, 1024, 768]
+              },
+              "k1": {
+                "type": "number",
+                "description": "BM25 term frequency saturation (bm25 only, typically 1.2-2.0)",
+                "minimum": 0
+              },
+              "b": {
+                "type": "number",
+                "description": "BM25 length normalization (bm25 only, 0-1, typically 0.75)",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "threshold": {
+                "type": "number",
+                "description": "Minimum score threshold (0-1 for chunked-embeddings, unbounded for bm25)",
+                "minimum": 0
+              },
+              "limit": {
+                "type": "integer",
+                "description": "Max results from this strategy (candidates for fusion). If unset, defaults to 5 in the implementation.",
+                "minimum": 1
+              },
+              "chunking": {
+                "type": "object",
+                "description": "Text chunking configuration",
+                "properties": {
+                  "size": {
+                    "type": "integer",
+                    "description": "Chunk size in characters. If unset, defaults to 1000 in the implementation.",
+                    "minimum": 1
+                  },
+                  "overlap": {
+                    "type": "integer",
+                    "description": "Overlap between chunks in characters. If unset, defaults to 75 in the implementation.",
+                    "minimum": 0
+                  },
+                  "respect_word_boundaries": {
+                    "type": "boolean",
+                    "description": "When true, chunks will split on the nearest whitespace boundary instead of at the exact character limit, preventing words from being truncated."
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "results": {
+          "type": "object",
+          "description": "Result post-processing configuration (fusion, deduplication, limiting). If omitted, sensible defaults are applied in code.",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "description": "Maximum number of results to return (top K)",
+              "minimum": 1,
+              "default": 15
+            },
+            "fusion": {
+              "type": "object",
+              "description": "Configuration for combining results from multiple strategies. If omitted and multiple strategies are configured, Reciprocal Rank Fusion (rrf) with k=60 is used.",
+              "properties": {
+                "strategy": {
+                  "type": "string",
+                  "description": "Fusion strategy to use",
+                  "enum": [
+                    "rrf",
+                    "reciprocal_rank_fusion",
+                    "weighted",
+                    "max"
+                  ],
+                  "default": "rrf",
+                  "examples": [
+                    "rrf",
+                    "weighted"
+                  ]
+                },
+                "k": {
+                  "type": "integer",
+                  "description": "RRF smoothing parameter k (only for RRF strategy)",
+                  "minimum": 1,
+                  "default": 60
+                },
+                "weights": {
+                  "type": "object",
+                  "description": "Strategy weights for weighted fusion (strategy name -> weight)",
+                  "additionalProperties": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "examples": [
+                    {
+                      "chunked-embeddings": 0.7,
+                      "bm25": 0.3
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            "deduplicate": {
+              "type": "boolean",
+              "description": "Remove duplicate documents across strategies",
+              "default": true
+            },
+            "include_score": {
+              "type": "boolean",
+              "description": "Include relevance scores in results",
+              "default": false
+            },
+            "return_full_content": {
+              "type": "boolean",
+              "description": "Return full document content instead of just the matched chunk. The full document is read directly from the file system.",
+              "default": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "strategies"
       ],
       "additionalProperties": false
     }

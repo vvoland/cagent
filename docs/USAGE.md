@@ -622,6 +622,237 @@ them to delegate tasks to other agents:
 transfer_task(agent="developer", task="Create a login form", expected_output="HTML and CSS code")
 ```
 
+## RAG (Retrieval-Augmented Generation)
+
+Give your agents access to document knowledge bases using cagent's modular RAG system. It supports:
+- Background indexing of files;
+- Re-indexing on file changes;
+- Using one or more retrieval strategies that can be used individually or combined for hybrid search.
+
+### RAG Configuration
+
+Configure RAG sources at the top level of your config, then reference them in agents:
+
+```yaml
+rag:
+  my_docs:
+    description: "Technical documentation knowledge base"
+    docs: [./documents, ./some-doc.md]
+    strategies:
+      - type: chunked-embeddings
+        model: openai/text-embedding-3-small
+        database: ./docs.db
+        vector_dimensions: 1536
+
+agents:
+  root:
+    model: openai/gpt-4o
+    instruction: |
+      You are an assistant with access to an internal knowledge base.
+      Use the knowledge base to gather context before answering user questions
+    rag: [my_docs]  # Reference the RAG source
+```
+
+### Retrieval Strategies
+
+#### Chunked-Embeddings Strategy (Semantic Search)
+
+Uses embedding models for semantic similarity:
+
+```yaml
+rag:
+  semantic_search:
+    docs: [./knowledge_base]
+    strategies:
+      - type: chunked-embeddings
+        model: openai/text-embedding-3-small
+        database: ./vector.db
+        vector_dimensions: 1536
+        similarity_metric: cosine_similarity
+        threshold: 0.5
+        limit: 10
+        batch_size: 50
+        max_embedding_concurrency: 3
+        chunking:
+          size: 1000
+          overlap: 100
+```
+
+**Best for:** Understanding intent, synonyms, paraphrasing, multilingual queries
+
+#### BM25 Strategy (Keyword Search)
+
+Uses traditional keyword matching:
+
+```yaml
+rag:
+  keyword_search:
+    docs: [./knowledge_base]
+    strategies:
+      - type: bm25
+        database: ./bm25.db
+        k1: 1.5                    # Term frequency saturation
+        b: 0.75                    # Length normalization
+        threshold: 0.3             # Minimum BM25 score
+        limit: 10
+        chunking:
+          size: 1000
+          overlap: 100
+```
+
+**Best for:** Exact terms, technical jargon, proper nouns, code
+
+### Hybrid Retrieval
+
+Combine multiple strategies for best results:
+
+```yaml
+rag:
+  hybrid_search:
+    docs: [./shared_docs]           # Documents indexed by all strategies
+    
+    strategies:
+      - type: chunked-embeddings
+        model: embedder
+        docs: [./pdfs]                # Additional chunked-embeddings-specific docs
+        database: ./vector.db
+        threshold: 0.5
+        limit: 20                     # Retrieve 20 candidates
+        chunking: {size: 1000, overlap: 100}
+      
+      - type: bm25
+        docs: [./code]                # Additional BM25-specific docs
+        database: ./bm25.db
+        k1: 1.5
+        b: 0.75
+        threshold: 0.3
+        limit: 15                     # Retrieve 15 candidates
+        chunking: {size: 1000, overlap: 100}
+    
+    results:
+      fusion:
+        strategy: rrf               # Reciprocal Rank Fusion
+        k: 60
+      deduplicate: true
+      limit: 5                      # Final top 5 results
+
+agents:
+  root:
+    model: openai/gpt-4o
+    rag: [hybrid_search]
+```
+
+**Features:**
+- **Parallel execution**: Strategies run concurrently (total time = max, not sum)
+- **Per-strategy docs**: Different content for different strategies
+- **Multi-level limits**: Strategy limits control fusion input, final limit controls output
+- **Automatic fusion**: Combines results intelligently
+
+### Fusion Strategies
+
+When using multiple retrieval strategies, choose how to combine results:
+
+#### Reciprocal Rank Fusion (RRF) - Recommended
+
+```yaml
+results:
+  fusion:
+    strategy: rrf
+    k: 60  # Smoothing parameter (higher = more uniform ranking)
+```
+
+**Best for:** Combining different retrieval methods. Rank-based, doesn't require score normalization.
+
+#### Weighted Fusion
+
+```yaml
+results:
+  fusion:
+    strategy: weighted
+    weights:
+      chunked-embeddings: 0.7
+      bm25: 0.3
+```
+
+**Best for:** When you know which strategy performs better for your use case.
+
+#### Max Score Fusion
+
+```yaml
+results:
+  fusion:
+    strategy: max
+```
+
+**Best for:** Strategies using the same scoring scale. Takes maximum score.
+
+### RAG Configuration Reference
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `docs` | []string | Document paths/directories (shared across strategies) |
+| `description` | string | Human-readable description |
+| `strategies` | []object | Array of strategy configurations |
+| `results` | object | Post-processing configuration |
+
+**Strategy Configuration:**
+- `type`: Strategy type (`chunked-embeddings`, `bm25`)
+- `docs`: Strategy-specific documents (optional, augments shared docs)
+- `database`: Database configuration (path to local sqlite db)
+- `chunking`: Chunking configuration
+- `limit`: Max results from this strategy (for fusion)
+
+**Chunked-Embeddings Strategy Parameters:**
+- `model` (required): Embedding model reference
+- `database`: Database configuration  
+  - simple string path to local sqlite db (e.g. `./vector.db`)
+- `similarity_metric`: Similarity metric (only `cosine_similarity` now, `euclidean_distance`, `dot_product`, etc to come in the future)
+- `threshold`: Minimum similarity (0–1, default: `0.5`)
+- `limit`: Max candidates from this strategy for fusion input (default: `5`)
+- `batch_size`: Number of chunks per embedding request (default: `50`)
+- `max_embedding_concurrency`: Maximum concurrent embedding batch requests (default: `3`)
+- `chunking.size`: Chunk size in characters (default: `1000`)
+- `chunking.overlap`: Overlap between chunks (default: `75`)
+
+**BM25 Strategy:**
+- `database`: Database configuration (same formats as chunked-embeddings)
+- `k1`: Term frequency saturation (recommended range: `1.2–2.0`, default: `1.5`)
+- `b`: Length normalization (`0–1`, default: `0.75`)
+- `threshold`: Minimum BM25 score (default: `0.0`)
+- `limit`: Max candidates from this strategy for fusion input (default: `5`)
+- `chunking.size`: Chunk size in characters (default: `1000`)
+- `chunking.overlap`: Overlap between chunks (default: `75`)
+
+**Results:**
+- `limit`: Final number of results (default: `15`)
+- `deduplicate`: Remove duplicates (default: `true`)
+- `fusion.strategy`: rrf, weighted, or max
+- `fusion.k`: RRF parameter
+- `fusion.weights`: Weights for weighted fusion
+- `return_full_content`: When `true`, return full document contents instead of just matched chunks (default: `false`)
+
+### Debugging RAG
+
+Enable debug logging to see detailed retrieval and fusion information:
+
+```bash
+./bin/cagent run config.yaml --debug --log-file cagent.debug
+```
+
+Look for logs tagged with:
+- `[RAG Manager]` - Overall operations
+- `[Chunked-Embeddings Strategy]` - Chunked-embeddings retrieval
+- `[BM25 Strategy]` - BM25 retrieval
+- `[RRF Fusion]` / `[Weighted Fusion]` / `[Max Fusion]` - Result fusion
+
+### RAG Examples
+
+See `examples/` directory:
+- `examples/rag_vector.yaml` - Chunked-embeddings strategy only
+- `examples/rag_bm25.yaml` - BM25 strategy only
+- `examples/rag_hybrid.yaml` - Hybrid retrieval
+- `examples/rag_advanced.yaml` - Advanced configuration
+
 ## Examples
 
 ### Development Team

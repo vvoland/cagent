@@ -145,6 +145,8 @@ See [MCP Mode documentation](./docs/MCP-MODE.md) for detailed instructions on ex
 - **📝 YAML configuration** - Declarative model and agent configuration.
 - **💭 Advanced reasoning** - Built-in "think", "todo" and "memory" tools for
   complex problem-solving.
+- **🔍 RAG (Retrieval-Augmented Generation)** - Pluggable retrieval strategies
+  (chunked_embeddings, BM25, more to come..) with hybrid retrieval and fusion support.
 - **🌐 Multiple AI providers** - Support for OpenAI, Anthropic, Gemini, xA,
   Mistral, Nebius and [Docker Model
   Runner](https://docs.docker.com/ai/model-runner/).
@@ -291,6 +293,89 @@ on macOS and Windows, and via the command-line on [Docker CE on
 Linux](https://docs.docker.com/ai/model-runner/get-started/#enable-dmr-in-docker-engine).
 
 See the [DMR Provider documentation](docs/USAGE.md#dmr-docker-model-runner-provider-usage) for more details on runtime flags and speculative decoding options.
+
+## RAG (Retrieval-Augmented Generation)
+
+Give your agents access to your documents with cagent's modular RAG system. It supports multiple retrieval strategies that can be used individually or combined for hybrid search.
+
+### Quick RAG Example
+
+```yaml
+models:
+  embedder:
+    provider: openai
+    model: text-embedding-3-small
+
+rag:
+  my_knowledge_base:
+    docs: [./documents, ./pdfs]
+    strategies:
+      - type: chunked-embeddings
+        model: embedder
+        threshold: 0.5
+        chunking:
+          size: 1000
+          overlap: 100
+    results:
+      limit: 5
+
+agents:
+  root:
+    model: openai/gpt-4o
+    instruction: |
+      You are an assistant with access to an internal knowledge base.
+      Use the knowledge base to gather context before answering user questions
+    rag: [my_knowledge_base]
+```
+
+### Hybrid Retrieval (Chunked-Embeddings + BM25)
+
+Combine semantic search (chunked-embeddings) with keyword search (BM25) for best results:
+
+```yaml
+rag:
+  hybrid_search:
+    docs: [./shared_docs]
+    
+    strategies:
+      - type: chunked-embeddings
+        model: embedder
+        threshold: 0.5
+        limit: 20
+        chunking:
+          size: 1000
+          overlap: 100
+      
+      - type: bm25
+        k1: 1.5
+        b: 0.75
+        threshold: 0.3
+        limit: 15
+        chunking:
+          size: 1000
+          overlap: 100
+    
+    results:
+      fusion:
+        strategy: rrf  # Reciprocal Rank Fusion
+        k: 60
+      deduplicate: true
+      limit: 5
+
+agents:
+  root:
+    model: openai/gpt-4o
+    rag: [hybrid_search]
+```
+
+**Features:**
+- **Multiple strategies**: Vector (semantic), BM25 (keyword), or both
+- **Parallel execution**: Strategies run concurrently for fast results
+- **Pluggable fusion**: RRF, weighted, or max score combining
+- **Per-strategy configuration**: Different thresholds, limits, and documents
+- **Auto file watching**: Reindex automatically on file changes
+
+See the [RAG documentation](docs/RAG.md) for complete details, examples, and debugging guides.
 
 ## Quickly generate agents and agent teams with `cagent new`
 
