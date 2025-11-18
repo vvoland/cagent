@@ -25,7 +25,7 @@ require (
 	github.com/google/go-containerregistry v0.20.6
 	github.com/google/jsonschema-go v0.3.0
 	github.com/google/uuid v1.6.0
-	github.com/junegunn/fzf v0.66.1
+	github.com/junegunn/fzf v0.67.0
 	github.com/k3a/html2text v1.2.1
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/mattn/go-runewidth v0.0.19
@@ -44,10 +44,10 @@ require (
 	golang.org/x/sys v0.38.0
 	golang.org/x/term v0.37.0
 	google.golang.org/adk v0.1.0
-	google.golang.org/genai v1.35.0
+	google.golang.org/genai v1.36.0
 	gopkg.in/dnaeon/go-vcr.v4 v4.0.5
 	gotest.tools/v3 v3.5.2
-	modernc.org/sqlite v1.40.0
+	modernc.org/sqlite v1.40.1
 )
 
 require (
