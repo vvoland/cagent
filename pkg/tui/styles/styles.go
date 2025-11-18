@@ -18,9 +18,9 @@ const (
 const (
 	// Primary colors
 	ColorAccentBlue      = "#7AA2F7" // Soft blue
-	ColorMutedBlue       = "#565F89" // Dark blue-grey
+	ColorMutedBlue       = "#8B95C1" // Dark blue-grey
 	ColorBackgroundAlt   = "#24283B" // Slightly lighter background
-	ColorBorderSecondary = "#414868" // Dark blue-grey
+	ColorBorderSecondary = "#6B75A8" // Dark blue-grey
 	ColorTextPrimary     = "#C0CAF5" // Light blue-white
 	ColorTextSecondary   = "#9AA5CE" // Medium blue-grey
 	ColorSuccessGreen    = "#9ECE6A" // Soft green
