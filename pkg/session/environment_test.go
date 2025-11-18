@@ -3,7 +3,6 @@ package session
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -63,7 +62,8 @@ func TestGetEnvironmentInfo(t *testing.T) {
 	<env>
 	Working directory: ` + dir + `
 	Is directory a git repo: ` + gitStatus + `
-	Platform: ` + runtime.GOOS + `
+	Operating System: ` + getOperatingSystem() + `
+	CPU Architecture: ` + getArchitecture() + `
 	</env>`
 
 			assert.Equal(t, expected, info)
@@ -86,7 +86,8 @@ func TestGetEnvironmentInfoIntegration(t *testing.T) {
 	assert.Contains(t, info, "<env>")
 	assert.Contains(t, info, "</env>")
 	assert.Contains(t, info, "Working directory: "+wd)
-	assert.Contains(t, info, "Platform: "+runtime.GOOS)
+	assert.Contains(t, info, "Operating System: "+getOperatingSystem())
+	assert.Contains(t, info, "CPU Architecture: "+getArchitecture())
 
 	if isGitRepo(wd) {
 		assert.Contains(t, info, "Is directory a git repo: Yes")

@@ -12,8 +12,9 @@ func getEnvironmentInfo(workingDir string) string {
 	<env>
 	Working directory: %s
 	Is directory a git repo: %s
-	Platform: %s
-	</env>`, workingDir, boolToYesNo(isGitRepo(workingDir)), runtime.GOOS)
+	Operating System: %s
+	CPU Architecture: %s
+	</env>`, workingDir, boolToYesNo(isGitRepo(workingDir)), getOperatingSystem(), getArchitecture())
 }
 
 // boolToYesNo converts a boolean to "Yes" or "No" string
@@ -22,4 +23,28 @@ func boolToYesNo(b bool) string {
 		return "Yes"
 	}
 	return "No"
+}
+
+func getOperatingSystem() string {
+	switch runtime.GOOS {
+	case "darwin":
+		return "MacOS"
+	case "window":
+		return "Windows"
+	case "linux":
+		return "Linux"
+	default:
+		return runtime.GOOS
+	}
+}
+
+func getArchitecture() string {
+	switch runtime.GOARCH {
+	case "amd64":
+		return "x64"
+	case "arm64":
+		return "arm64"
+	default:
+		return runtime.GOARCH
+	}
 }
