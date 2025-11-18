@@ -32,7 +32,9 @@ func WithAgents(agents ...*agent.Agent) Opt {
 }
 
 func New(opts ...Opt) *Team {
-	t := &Team{agents: make(map[string]*agent.Agent)}
+	t := &Team{
+		agents: make(map[string]*agent.Agent),
+	}
 	for _, opt := range opts {
 		opt(t)
 	}
@@ -49,18 +51,13 @@ func (t *Team) AgentNames() []string {
 }
 
 func (t *Team) Agent(name string) (*agent.Agent, error) {
-	if len(t.agents) == 0 {
+	if t.Size() == 0 {
 		return nil, errors.New("no agents loaded; ensure your agent configuration defines at least one agent")
 	}
 
 	found, ok := t.agents[name]
 	if !ok {
-		var names []string
-		for n := range t.agents {
-			names = append(names, n)
-		}
-
-		return nil, fmt.Errorf("agent not found: %s (available agents: %s)", name, strings.Join(names, ", "))
+		return nil, fmt.Errorf("agent not found: %s (available agents: %s)", name, strings.Join(t.AgentNames(), ", "))
 	}
 
 	return found, nil
