@@ -22,3 +22,19 @@ func (c *Config) ID() string {
 func (c *Config) BaseConfig() Config {
 	return *c
 }
+
+// EmbeddingResult contains the embedding and usage information
+type EmbeddingResult struct {
+	Embedding   []float64
+	InputTokens int
+	TotalTokens int
+	Cost        float64
+}
+
+// BatchEmbeddingResult contains multiple embeddings and usage information
+type BatchEmbeddingResult struct {
+	Embeddings  [][]float64
+	InputTokens int
+	TotalTokens int
+	Cost        float64
+}

@@ -7,6 +7,7 @@ import (
 	"io"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace"
@@ -15,6 +16,9 @@ import (
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/model/provider/base"
 	"github.com/docker/cagent/pkg/modelsdev"
+	"github.com/docker/cagent/pkg/rag"
+	"github.com/docker/cagent/pkg/rag/database"
+	"github.com/docker/cagent/pkg/rag/strategy"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/tools"
@@ -218,7 +222,7 @@ func TestSimple(t *testing.T) {
 		UserMessage("Hi"),
 		StreamStarted(sess.ID, "root"),
 		AgentChoice("root", "Hello"),
-		TokenUsage(3, 2, 5, 0, 0),
+		TokenUsage(3, 2, 5, 0, 0, "root"),
 		StreamStopped(sess.ID, "root"),
 	}
 
@@ -250,7 +254,7 @@ func TestMultipleContentChunks(t *testing.T) {
 		AgentChoice("root", "how "),
 		AgentChoice("root", "are "),
 		AgentChoice("root", "you?"),
-		TokenUsage(8, 12, 20, 0, 0),
+		TokenUsage(8, 12, 20, 0, 0, "root"),
 		StreamStopped(sess.ID, "root"),
 	}
 
@@ -278,7 +282,7 @@ func TestWithReasoning(t *testing.T) {
 		AgentChoiceReasoning("root", "Let me think about this..."),
 		AgentChoiceReasoning("root", " I should respond politely."),
 		AgentChoice("root", "Hello, how can I help you?"),
-		TokenUsage(10, 15, 25, 0, 0),
+		TokenUsage(10, 15, 25, 0, 0, "root"),
 		StreamStopped(sess.ID, "root"),
 	}
 
@@ -308,7 +312,7 @@ func TestMixedContentAndReasoning(t *testing.T) {
 		AgentChoice("root", "Hello!"),
 		AgentChoiceReasoning("root", " I should be friendly"),
 		AgentChoice("root", " How can I help you today?"),
-		TokenUsage(15, 20, 35, 0, 0),
+		TokenUsage(15, 20, 35, 0, 0, "root"),
 		StreamStopped(sess.ID, "root"),
 	}
 
@@ -397,6 +401,104 @@ func TestContextCancellation(t *testing.T) {
 	require.IsType(t, &UserMessageEvent{}, events[3])
 	require.IsType(t, &StreamStartedEvent{}, events[4])
 	require.IsType(t, &StreamStoppedEvent{}, events[len(events)-1])
+}
+
+// stubRAGStrategy is a minimal implementation of strategy.Strategy for testing RAG initialization.
+type stubRAGStrategy struct{}
+
+func (s *stubRAGStrategy) Initialize(ctx context.Context, docPaths []string, chunkSize, chunkOverlap int, respectWordBoundaries bool) error {
+	return nil
+}
+
+func (s *stubRAGStrategy) Query(ctx context.Context, query string, numResults int, threshold float64) ([]database.SearchResult, error) {
+	return nil, nil
+}
+
+func (s *stubRAGStrategy) CheckAndReindexChangedFiles(ctx context.Context, docPaths []string, chunkSize, chunkOverlap int, respectWordBoundaries bool) error {
+	return nil
+}
+
+func (s *stubRAGStrategy) StartFileWatcher(ctx context.Context, docPaths []string, chunkSize, chunkOverlap int, respectWordBoundaries bool) error {
+	return nil
+}
+
+func (s *stubRAGStrategy) Close() error { return nil }
+
+func TestStartBackgroundRAGInit_StopsForwardingAfterContextCancel(t *testing.T) {
+	t.Parallel()
+
+	baseCtx := t.Context()
+	ctx, cancel := context.WithCancel(baseCtx)
+	defer cancel()
+
+	// Build a RAG manager with a stub strategy and a controllable event channel.
+	strategyEvents := make(chan strategy.Event, 10)
+	mgr, err := rag.New(
+		ctx,
+		"test-rag",
+		rag.Config{
+			StrategyConfigs: []strategy.Config{
+				{
+					Name:     "stub",
+					Strategy: &stubRAGStrategy{},
+					Docs:     nil,
+				},
+			},
+		},
+		strategyEvents,
+	)
+	require.NoError(t, err)
+	defer func() {
+		_ = mgr.Close()
+	}()
+
+	tm := team.New(team.WithRAGManagers(map[string]*rag.Manager{
+		"default": mgr,
+	}))
+
+	rt := &LocalRuntime{
+		team:         tm,
+		currentAgent: "root",
+	}
+
+	eventsCh := make(chan Event, 10)
+
+	// Start background RAG init with event forwarding.
+	rt.StartBackgroundRAGInit(ctx, func(ev Event) {
+		eventsCh <- ev
+	})
+
+	// Emit a "ready" event and ensure it is forwarded.
+	strategyEvents <- strategy.Event{
+		Type:         "ready",
+		StrategyName: "stub",
+	}
+
+	select {
+	case <-eventsCh:
+		// ok: at least one event forwarded
+	case <-time.After(2 * time.Second):
+		t.Fatalf("expected RAG event to be forwarded before cancellation")
+	}
+
+	// Cancel the context and ensure no further events are forwarded.
+	cancel()
+
+	// Give the forwarder time to observe cancellation.
+	time.Sleep(100 * time.Millisecond)
+
+	// Emit another event; it should NOT be forwarded.
+	strategyEvents <- strategy.Event{
+		Type:         "ready",
+		StrategyName: "stub",
+	}
+
+	select {
+	case ev := <-eventsCh:
+		t.Fatalf("expected no events after cancellation, got %T", ev)
+	case <-time.After(200 * time.Millisecond):
+		// success: no events forwarded
+	}
 }
 
 func TestToolCallVariations(t *testing.T) {

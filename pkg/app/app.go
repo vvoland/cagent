@@ -22,8 +22,8 @@ type App struct {
 	cancel           context.CancelFunc
 }
 
-func New(agentFilename string, rt runtime.Runtime, sess *session.Session, firstMessage *string) *App {
-	return &App{
+func New(ctx context.Context, agentFilename string, rt runtime.Runtime, sess *session.Session, firstMessage *string) *App {
+	app := &App{
 		agentFilename:    agentFilename,
 		runtime:          rt,
 		session:          sess,
@@ -31,6 +31,17 @@ func New(agentFilename string, rt runtime.Runtime, sess *session.Session, firstM
 		events:           make(chan tea.Msg, 128),
 		throttleDuration: 50 * time.Millisecond, // Throttle rapid events
 	}
+
+	// If the runtime supports background RAG initialization, start it
+	// and forward events to the TUI. Remote runtimes typically handle RAG server-side
+	// and won't implement this optional interface.
+	if ragRuntime, ok := rt.(runtime.RAGInitializer); ok {
+		go ragRuntime.StartBackgroundRAGInit(ctx, func(event runtime.Event) {
+			app.events <- event
+		})
+	}
+
+	return app
 }
 
 func (a *App) FirstMessage() *string {

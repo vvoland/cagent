@@ -67,6 +67,21 @@ type Provider interface {
 	BaseConfig() base.Config
 }
 
+// EmbeddingProvider defines the interface for providers that support embeddings.
+type EmbeddingProvider interface {
+	Provider
+	// CreateEmbedding generates an embedding vector for the given text with usage tracking.
+	CreateEmbedding(ctx context.Context, text string) (*base.EmbeddingResult, error)
+}
+
+// BatchEmbeddingProvider defines the interface for providers that support batch embeddings.
+type BatchEmbeddingProvider interface {
+	EmbeddingProvider
+	// CreateBatchEmbedding generates embedding vectors for multiple texts with usage tracking.
+	// Returns embeddings in the same order as input texts.
+	CreateBatchEmbedding(ctx context.Context, texts []string) (*base.BatchEmbeddingResult, error)
+}
+
 func New(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider, opts ...options.Opt) (Provider, error) {
 	slog.Debug("Creating model provider", "type", cfg.Provider, "model", cfg.Model)
 

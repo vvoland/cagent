@@ -240,7 +240,7 @@ func handleRunMode(ctx context.Context, agentFilename string, rt runtime.Runtime
 		return err
 	}
 
-	a := app.New(agentFilename, rt, sess, firstMessage)
+	a := app.New(ctx, agentFilename, rt, sess, firstMessage)
 	m := tui.New(a)
 
 	progOpts := []tea.ProgramOption{

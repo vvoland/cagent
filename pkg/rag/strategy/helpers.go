@@ -1,0 +1,187 @@
+package strategy
+
+import (
+	"log/slog"
+	"path/filepath"
+	"strings"
+
+	v2 "github.com/docker/cagent/pkg/config/v2"
+	"github.com/docker/cagent/pkg/paths"
+)
+
+// Helper functions for common operations
+
+// MergeDocPaths merges shared docs with strategy-specific docs and makes them absolute
+func MergeDocPaths(sharedDocs, strategyDocs []string, parentDir string) []string {
+	seen := make(map[string]bool)
+	var result []string
+
+	// Add shared docs first
+	for _, doc := range sharedDocs {
+		absPath := makeAbsolute(doc, parentDir)
+		if !seen[absPath] {
+			seen[absPath] = true
+			result = append(result, absPath)
+		}
+	}
+
+	// Add strategy-specific docs
+	for _, doc := range strategyDocs {
+		absPath := makeAbsolute(doc, parentDir)
+		if !seen[absPath] {
+			seen[absPath] = true
+			result = append(result, absPath)
+		}
+	}
+
+	return result
+}
+
+// ResolveDatabasePath resolves database configuration to a path
+func ResolveDatabasePath(dbCfg v2.RAGDatabaseConfig, parentDir, defaultName string) (string, error) {
+	if dbCfg.IsEmpty() {
+		// Use default path in data directory
+		return filepath.Join(paths.GetDataDir(), defaultName), nil
+	}
+
+	dbStr, err := dbCfg.AsString()
+	if err != nil {
+		return "", err
+	}
+
+	// If it's a connection string (has ://), return as-is
+	if strings.Contains(dbStr, "://") {
+		return dbStr, nil
+	}
+
+	// If it's a relative file path, make it absolute
+	if !filepath.IsAbs(dbStr) {
+		return filepath.Join(parentDir, dbStr), nil
+	}
+
+	return dbStr, nil
+}
+
+// GetParam gets a parameter from the config Params map.
+// It includes numeric coercion so YAML numbers (which may be decoded as int, int64,
+// uint64 or float64) can be safely read as either int or float64 without callers
+// needing to worry about the concrete type.
+func GetParam[T any](params map[string]any, key string, defaultValue T) T {
+	raw, ok := params[key]
+	if !ok {
+		return defaultValue
+	}
+
+	var zero T
+
+	switch any(zero).(type) {
+	case int:
+		switch v := raw.(type) {
+		case int:
+			return any(v).(T)
+		case int64:
+			return any(int(v)).(T)
+		case uint64:
+			return any(int(v)).(T)
+		case float64:
+			return any(int(v)).(T)
+		default:
+			return defaultValue
+		}
+	case float64:
+		switch v := raw.(type) {
+		case float64:
+			return any(v).(T)
+		case int:
+			return any(float64(v)).(T)
+		case int64:
+			return any(float64(v)).(T)
+		case uint64:
+			return any(float64(v)).(T)
+		default:
+			return defaultValue
+		}
+	default:
+		if typed, ok := raw.(T); ok {
+			return typed
+		}
+		return defaultValue
+	}
+}
+
+// GetParamPtr gets a parameter pointer from the config Params map
+func GetParamPtr[T any](params map[string]any, key string) *T {
+	raw, ok := params[key]
+	if !ok {
+		return nil
+	}
+
+	var zero T
+
+	switch any(zero).(type) {
+	case int:
+		switch v := raw.(type) {
+		case int:
+			val := any(v).(T)
+			return &val
+		case int64:
+			val := any(int(v)).(T)
+			return &val
+		case uint64:
+			val := any(int(v)).(T)
+			return &val
+		case float64:
+			val := any(int(v)).(T)
+			return &val
+		default:
+			return nil
+		}
+	case float64:
+		switch v := raw.(type) {
+		case float64:
+			val := any(v).(T)
+			return &val
+		case int:
+			val := any(float64(v)).(T)
+			return &val
+		case int64:
+			val := any(float64(v)).(T)
+			return &val
+		case uint64:
+			val := any(float64(v)).(T)
+			return &val
+		default:
+			return nil
+		}
+	default:
+		if typed, ok := raw.(T); ok {
+			return &typed
+		}
+		return nil
+	}
+}
+
+// makeAbsolute makes a path absolute relative to parentDir
+func makeAbsolute(path, parentDir string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+	return filepath.Join(parentDir, path)
+}
+
+// EmitEvent sends an event to the events channel using non-blocking send
+// This prevents strategies from hanging if the event channel is full or not ready
+// Automatically sets the StrategyName field in the event
+func EmitEvent(events chan<- Event, event Event, strategyName string) {
+	if events != nil {
+		// Set the strategy name in the event
+		event.StrategyName = strategyName
+
+		select {
+		case events <- event:
+		default:
+			// Channel full or not ready, drop event to avoid blocking
+			slog.Warn("RAG event channel full, dropping event", "strategy", strategyName, "event_type", event.Type)
+		}
+	}
+}

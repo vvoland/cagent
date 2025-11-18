@@ -500,6 +500,7 @@ func (c *Client) CreateChatCompletionStream(ctx context.Context, messages []chat
 	} else {
 		slog.Error("Failed to marshal DMR request to JSON", "error", err)
 	}
+
 	if structuredOutput := c.ModelOptions.StructuredOutput(); structuredOutput != nil {
 		slog.Debug("Adding structured output to DMR request", "structured_output", structuredOutput)
 
@@ -517,6 +518,116 @@ func (c *Client) CreateChatCompletionStream(ctx context.Context, messages []chat
 
 	slog.Debug("DMR chat completion stream created successfully", "model", c.ModelConfig.Model, "base_url", c.baseURL)
 	return newStreamAdapter(stream, trackUsage), nil
+}
+
+// CreateEmbedding generates an embedding vector for the given text with usage tracking.
+func (c *Client) CreateEmbedding(ctx context.Context, text string) (*base.EmbeddingResult, error) {
+	slog.Debug("Creating DMR embedding", "model", c.ModelConfig.Model, "text_length", len(text), "base_url", c.baseURL)
+
+	params := openai.EmbeddingNewParams{
+		Input: openai.EmbeddingNewParamsInputUnion{
+			OfArrayOfStrings: []string{text},
+		},
+		Model: c.ModelConfig.Model,
+	}
+
+	response, err := c.client.Embeddings.New(ctx, params)
+	if err != nil {
+		slog.Error("DMR embedding request failed", "error", err)
+		return nil, fmt.Errorf("failed to create embedding: %w", err)
+	}
+
+	if len(response.Data) == 0 {
+		return nil, fmt.Errorf("no embedding returned from DMR")
+	}
+
+	// Convert []float32 to []float64
+	embedding32 := response.Data[0].Embedding
+	embedding := make([]float64, len(embedding32))
+	for i, v := range embedding32 {
+		embedding[i] = float64(v)
+	}
+
+	// Extract usage information
+	inputTokens := int(response.Usage.PromptTokens)
+	totalTokens := int(response.Usage.TotalTokens)
+
+	// DMR is local/free, so cost is 0
+	cost := 0.0
+
+	slog.Debug("DMR embedding created successfully",
+		"dimension", len(embedding),
+		"input_tokens", inputTokens,
+		"total_tokens", totalTokens)
+
+	return &base.EmbeddingResult{
+		Embedding:   embedding,
+		InputTokens: inputTokens,
+		TotalTokens: totalTokens,
+		Cost:        cost,
+	}, nil
+}
+
+// CreateBatchEmbedding generates embedding vectors for multiple texts with usage tracking.
+func (c *Client) CreateBatchEmbedding(ctx context.Context, texts []string) (*base.BatchEmbeddingResult, error) {
+	if len(texts) == 0 {
+		return &base.BatchEmbeddingResult{
+			Embeddings:  [][]float64{},
+			InputTokens: 0,
+			TotalTokens: 0,
+			Cost:        0,
+		}, nil
+	}
+
+	slog.Debug("Creating DMR batch embeddings", "model", c.ModelConfig.Model, "batch_size", len(texts), "base_url", c.baseURL)
+
+	params := openai.EmbeddingNewParams{
+		Input: openai.EmbeddingNewParamsInputUnion{
+			OfArrayOfStrings: texts,
+		},
+		Model: c.ModelConfig.Model,
+	}
+
+	response, err := c.client.Embeddings.New(ctx, params)
+	if err != nil {
+		slog.Error("DMR batch embedding request failed", "error", err)
+		return nil, fmt.Errorf("failed to create batch embeddings: %w", err)
+	}
+
+	if len(response.Data) != len(texts) {
+		return nil, fmt.Errorf("expected %d embeddings, got %d", len(texts), len(response.Data))
+	}
+
+	// Convert embeddings from []float32 to [][]float64
+	embeddings := make([][]float64, len(response.Data))
+	for i, data := range response.Data {
+		embedding32 := data.Embedding
+		embedding := make([]float64, len(embedding32))
+		for j, v := range embedding32 {
+			embedding[j] = float64(v)
+		}
+		embeddings[i] = embedding
+	}
+
+	// Extract usage information
+	inputTokens := int(response.Usage.PromptTokens)
+	totalTokens := int(response.Usage.TotalTokens)
+
+	// DMR is local/free, so cost is 0
+	cost := 0.0
+
+	slog.Debug("DMR batch embeddings created successfully",
+		"batch_size", len(embeddings),
+		"dimension", len(embeddings[0]),
+		"input_tokens", inputTokens,
+		"total_tokens", totalTokens)
+
+	return &base.BatchEmbeddingResult{
+		Embeddings:  embeddings,
+		InputTokens: inputTokens,
+		TotalTokens: totalTokens,
+		Cost:        cost,
+	}, nil
 }
 
 // ConvertParametersToSchema converts parameters to DMR Schema format
