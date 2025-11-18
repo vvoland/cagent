@@ -10,57 +10,51 @@ import (
 func TestExpand(t *testing.T) {
 	tests := []struct {
 		name     string
-		commands map[string]string
+		commands string
 		envVars  map[string]string
-		expected map[string]string
+		expected string
 	}{
 		{
 			name:     "no placeholder",
-			commands: map[string]string{"simple": "List all files"},
+			commands: "List all files",
 			envVars:  map[string]string{},
-			expected: map[string]string{"simple": "List all files"},
+			expected: "List all files",
 		},
 		{
 			name:     "single placeholder",
-			commands: map[string]string{"greet": "Say hello to ${env.USER}"},
+			commands: "Say hello to ${env.USER}",
 			envVars:  map[string]string{"USER": "alice"},
-			expected: map[string]string{"greet": "Say hello to alice"},
+			expected: "Say hello to alice",
 		},
 		{
 			name:     "multiple placeholders",
-			commands: map[string]string{"analyze": "Analyze ${env.PROJECT_NAME} in ${env.ENVIRONMENT}"},
+			commands: "Analyze ${env.PROJECT_NAME} in ${env.ENVIRONMENT}",
 			envVars:  map[string]string{"PROJECT_NAME": "myproject", "ENVIRONMENT": "production"},
-			expected: map[string]string{"analyze": "Analyze myproject in production"},
+			expected: "Analyze myproject in production",
 		},
 		{
 			name:     "missing env var expands to empty string",
-			commands: map[string]string{"test": "Check ${env.MISSING_VAR} status"},
+			commands: "Check ${env.MISSING_VAR} status",
 			envVars:  map[string]string{},
-			expected: map[string]string{"test": "Check  status"},
+			expected: "Check  status",
 		},
 		{
 			name:     "ternary operator",
-			commands: map[string]string{"test": "${env.NAME == 'bob' ? 'Yes' : 'No'}"},
+			commands: "${env.NAME == 'bob' ? 'Yes' : 'No'}",
 			envVars:  map[string]string{"NAME": "bob"},
-			expected: map[string]string{"test": "Yes"},
+			expected: "Yes",
 		},
 		{
 			name:     "default value (found)",
-			commands: map[string]string{"test": "${env.NAME || 'UNKNOWN'}"},
+			commands: "${env.NAME || 'UNKNOWN'}",
 			envVars:  map[string]string{"NAME": "bob"},
-			expected: map[string]string{"test": "bob"},
+			expected: "bob",
 		},
 		{
 			name:     "default value (not found)",
-			commands: map[string]string{"test": "${env.NAME || 'UNKNOWN'}"},
+			commands: "${env.NAME || 'UNKNOWN'}",
 			envVars:  map[string]string{},
-			expected: map[string]string{"test": "UNKNOWN"},
-		},
-		{
-			name:     "empty commands",
-			commands: map[string]string{},
-			envVars:  map[string]string{},
-			expected: map[string]string{},
+			expected: "UNKNOWN",
 		},
 	}
 
@@ -75,6 +69,34 @@ func TestExpand(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestExpandMap(t *testing.T) {
+	t.Parallel()
+
+	env := testEnvProvider(map[string]string{
+		"USER": "alice",
+	})
+
+	result := ExpandMap(t.Context(), map[string]string{
+		"none":   "List all files",
+		"simple": "Say hello to ${env.USER}",
+	}, &env)
+
+	assert.Equal(t, map[string]string{
+		"none":   "List all files",
+		"simple": "Say hello to alice",
+	}, result)
+}
+
+func TestExpandMap_Empty(t *testing.T) {
+	t.Parallel()
+
+	env := testEnvProvider(map[string]string{})
+
+	result := ExpandMap(t.Context(), map[string]string{}, &env)
+
+	assert.Empty(t, result)
 }
 
 type testEnvProvider map[string]string

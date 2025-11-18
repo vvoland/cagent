@@ -167,7 +167,7 @@ func createAPITool(ctx context.Context, toolset latest.Toolset, parentDir string
 		return nil, fmt.Errorf("api tool requires an endpoint in api_config")
 	}
 
-	toolset.APIConfig.Headers = js.Expand(ctx, toolset.APIConfig.Headers, runtimeConfig.EnvProvider())
+	toolset.APIConfig.Headers = js.ExpandMap(ctx, toolset.APIConfig.Headers, runtimeConfig.EnvProvider())
 
 	return builtin.NewAPITool(toolset.APIConfig), nil
 }

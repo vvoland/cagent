@@ -17,7 +17,7 @@ func (e jsEnv) Has(string) bool             { return true }
 func (e jsEnv) Delete(string) bool          { return true }
 func (e jsEnv) Keys() []string              { return nil }
 
-func Expand(ctx context.Context, kv map[string]string, env environment.Provider) map[string]string {
+func ExpandMap(ctx context.Context, kv map[string]string, env environment.Provider) map[string]string {
 	expanded := map[string]string{}
 
 	vm := goja.New()
@@ -36,6 +36,20 @@ func Expand(ctx context.Context, kv map[string]string, env environment.Provider)
 	}
 
 	return expanded
+}
+
+func Expand(ctx context.Context, text string, env environment.Provider) string {
+	vm := goja.New()
+	_ = vm.Set("env", vm.NewDynamicObject(jsEnv(func(k string) goja.Value {
+		return vm.ToValue(env.Get(ctx, k))
+	})))
+
+	result, err := vm.RunString("`" + text + "`")
+	if err != nil {
+		return text
+	}
+
+	return fmt.Sprintf("%v", result.Export())
 }
 
 func ExpandString(ctx context.Context, str string, values map[string]string) (string, error) {
