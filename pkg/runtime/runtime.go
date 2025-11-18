@@ -106,6 +106,7 @@ type streamResult struct {
 	Content           string
 	ReasoningContent  string
 	ThinkingSignature string // Used with Anthropic's extended thinking feature
+	ThoughtSignature  []byte
 	Stopped           bool
 }
 
@@ -422,6 +423,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 					Content:           res.Content,
 					ReasoningContent:  res.ReasoningContent,
 					ThinkingSignature: res.ThinkingSignature,
+					ThoughtSignature:  res.ThoughtSignature,
 					ToolCalls:         res.Calls,
 					CreatedAt:         time.Now().Format(time.RFC3339),
 				}
@@ -585,6 +587,7 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 	var fullContent strings.Builder
 	var fullReasoningContent strings.Builder
 	var thinkingSignature string
+	var thoughtSignature []byte
 	var toolCalls []tools.ToolCall
 	// Track which tool call indices we've already emitted partial events for
 	emittedPartialEvents := make(map[string]bool)
@@ -620,12 +623,18 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 			continue
 		}
 		choice := response.Choices[0]
+
+		if len(choice.Delta.ThoughtSignature) > 0 {
+			thoughtSignature = choice.Delta.ThoughtSignature
+		}
+
 		if choice.FinishReason == chat.FinishReasonStop || choice.FinishReason == chat.FinishReasonLength {
 			return streamResult{
 				Calls:             toolCalls,
 				Content:           fullContent.String(),
 				ReasoningContent:  fullReasoningContent.String(),
 				ThinkingSignature: thinkingSignature,
+				ThoughtSignature:  thoughtSignature,
 				Stopped:           true,
 			}, nil
 		}
@@ -715,6 +724,7 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 		Content:           fullContent.String(),
 		ReasoningContent:  fullReasoningContent.String(),
 		ThinkingSignature: thinkingSignature,
+		ThoughtSignature:  thoughtSignature,
 		Stopped:           stoppedDueToNoOutput,
 	}, nil
 }
