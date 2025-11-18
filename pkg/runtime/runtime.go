@@ -1097,7 +1097,23 @@ func (r *LocalRuntime) generateSessionTitle(ctx context.Context, sess *session.S
 	messages := sess.GetAllMessages()
 	for i := range messages {
 		if messages[i].Message.Role == chat.MessageRoleUser {
-			conversationHistory.WriteString(fmt.Sprintf("\n%s: %s", messages[i].Message.Role, messages[i].Message.Content))
+			if len(messages[i].Message.MultiContent) > 0 {
+				hasContent := false
+				for _, part := range messages[i].Message.MultiContent {
+					if part.Type == chat.MessagePartTypeText && part.Text != "" {
+						conversationHistory.WriteString(fmt.Sprintf("\n%s: %s", messages[i].Message.Role, part.Text))
+						hasContent = true
+					} else if part.Type == chat.MessagePartTypeImageURL {
+						conversationHistory.WriteString(" [with attached image]")
+						hasContent = true
+					}
+				}
+				if !hasContent {
+					conversationHistory.WriteString(fmt.Sprintf("\n%s: [attachment]", messages[i].Message.Role))
+				}
+			} else {
+				conversationHistory.WriteString(fmt.Sprintf("\n%s: %s", messages[i].Message.Role, messages[i].Message.Content))
+			}
 			break
 		}
 	}
