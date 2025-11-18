@@ -728,8 +728,6 @@ func TestProcessToolCalls_UnknownTool_NoToolResultMessage(t *testing.T) {
 }
 
 func TestEmitStartupInfo(t *testing.T) {
-	t.Skip("This test is flaky. See #848 for details.")
-
 	// Create a simple agent with mock provider
 	prov := &mockProvider{id: "test/startup-model", stream: &mockStream{}}
 	root := agent.New("startup-test-agent", "You are a startup test agent",
@@ -759,7 +757,7 @@ func TestEmitStartupInfo(t *testing.T) {
 	// Verify expected events are emitted
 	expectedEvents := []Event{
 		AgentInfo("startup-test-agent", "test/startup-model", "This is a startup test agent"),
-		TeamInfo([]string{"startup-test-agent", "other-agent"}, "startup-test-agent"),
+		TeamInfo([]string{"other-agent", "startup-test-agent"}, "startup-test-agent"),
 		ToolsetInfo(0, "startup-test-agent"), // No tools configured
 	}
 

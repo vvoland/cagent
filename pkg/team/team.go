@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/docker/cagent/pkg/agent"
@@ -43,6 +44,7 @@ func (t *Team) AgentNames() []string {
 	for name := range t.agents {
 		names = append(names, name)
 	}
+	slices.Sort(names)
 	return names
 }
 
