@@ -186,9 +186,14 @@ func (g *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		// Handle text and thoughts separately so TUI can render them distinctly
 		var textContent string
 		var reasoningText string
+		var thoughtSignature []byte
 		for _, candidate := range res.resp.Candidates {
 			if candidate.Content != nil {
 				for _, part := range candidate.Content.Parts {
+					if len(part.ThoughtSignature) > 0 {
+						thoughtSignature = part.ThoughtSignature
+					}
+
 					if part.Text != "" {
 						if part.Thought {
 							reasoningText += part.Text
@@ -204,6 +209,9 @@ func (g *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		}
 		if textContent != "" {
 			resp.Choices[0].Delta.Content = textContent
+		}
+		if len(thoughtSignature) > 0 {
+			resp.Choices[0].Delta.ThoughtSignature = thoughtSignature
 		}
 
 		// Handle function calls

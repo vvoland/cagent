@@ -144,7 +144,12 @@ func convertMessagesToGemini(messages []chat.Message) []*genai.Content {
 
 			// Add text content if present
 			if msg.Content != "" {
-				parts = append(parts, genai.NewPartFromText(msg.Content))
+				contentPart := genai.NewPartFromText(msg.Content)
+				// Set ThoughtSignature on the text part if present
+				if len(msg.ThoughtSignature) > 0 {
+					contentPart.ThoughtSignature = msg.ThoughtSignature
+				}
+				parts = append(parts, contentPart)
 			}
 
 			// Add function calls
@@ -155,7 +160,12 @@ func convertMessagesToGemini(messages []chat.Message) []*genai.Content {
 					_ = json.Unmarshal([]byte(tc.Function.Arguments), &args)
 				}
 
-				parts = append(parts, genai.NewPartFromFunctionCall(tc.Function.Name, args))
+				fc := genai.NewPartFromFunctionCall(tc.Function.Name, args)
+				// Set ThoughtSignature on function call if present
+				if len(msg.ThoughtSignature) > 0 {
+					fc.ThoughtSignature = msg.ThoughtSignature
+				}
+				parts = append(parts, fc)
 			}
 
 			contents = append(contents, genai.NewContentFromParts(parts, role))
@@ -167,7 +177,12 @@ func convertMessagesToGemini(messages []chat.Message) []*genai.Content {
 			parts := make([]*genai.Part, 0, len(msg.MultiContent))
 			for _, part := range msg.MultiContent {
 				if part.Type == chat.MessagePartTypeText {
-					parts = append(parts, genai.NewPartFromText(part.Text))
+					textPart := genai.NewPartFromText(part.Text)
+					// Set ThoughtSignature on the text part if present
+					if len(msg.ThoughtSignature) > 0 {
+						textPart.ThoughtSignature = msg.ThoughtSignature
+					}
+					parts = append(parts, textPart)
 				} else if part.Type == chat.MessagePartTypeImageURL && part.ImageURL != nil {
 					// For Gemini, we need to extract base64 data from data URL and convert to bytes
 					// Based on: https://ai.google.dev/gemini-api/docs/vision
@@ -206,7 +221,12 @@ func convertMessagesToGemini(messages []chat.Message) []*genai.Content {
 				contents = append(contents, genai.NewContentFromParts(parts, role))
 			}
 		} else if msg.Content != "" {
-			contents = append(contents, genai.NewContentFromText(msg.Content, role))
+			// Create a text part and set ThoughtSignature if present
+			contentPart := genai.NewPartFromText(msg.Content)
+			if len(msg.ThoughtSignature) > 0 {
+				contentPart.ThoughtSignature = msg.ThoughtSignature
+			}
+			contents = append(contents, genai.NewContentFromParts([]*genai.Part{contentPart}, role))
 		}
 	}
 	return contents
