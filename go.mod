@@ -25,7 +25,7 @@ require (
 	github.com/google/go-containerregistry v0.20.6
 	github.com/google/jsonschema-go v0.3.0
 	github.com/google/uuid v1.6.0
-	github.com/junegunn/fzf v0.66.1
+	github.com/junegunn/fzf v0.67.0
 	github.com/k3a/html2text v1.2.1
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/mattn/go-runewidth v0.0.19
