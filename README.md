@@ -147,7 +147,7 @@ See [MCP Mode documentation](./docs/MCP-MODE.md) for detailed instructions on ex
   complex problem-solving.
 - **🔍 RAG (Retrieval-Augmented Generation)** - Pluggable retrieval strategies
   (chunked_embeddings, BM25, more to come..) with hybrid retrieval and fusion support.
-- **🌐 Multiple AI providers** - Support for OpenAI, Anthropic, Gemini, xA,
+- **🌐 Multiple AI providers** - Support for OpenAI, Anthropic, Gemini, xAI,
   Mistral, Nebius and [Docker Model
   Runner](https://docs.docker.com/ai/model-runner/).
 
