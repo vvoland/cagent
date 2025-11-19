@@ -3,7 +3,6 @@ package tui
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
@@ -26,21 +25,6 @@ import (
 	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
 )
-
-var lastMouseEvent time.Time
-
-// MouseEventFilter filters mouse events to prevent spam
-func MouseEventFilter(_ tea.Model, msg tea.Msg) tea.Msg {
-	switch msg.(type) {
-	case tea.MouseWheelMsg, tea.MouseMotionMsg, tea.MouseMsg:
-		now := time.Now()
-		if now.Sub(lastMouseEvent) < 20*time.Millisecond {
-			return nil
-		}
-		lastMouseEvent = now
-	}
-	return msg
-}
 
 // appModel represents the main application model
 type appModel struct {
