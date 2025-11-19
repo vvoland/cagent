@@ -26,6 +26,7 @@ import (
 	"github.com/docker/cagent/pkg/telemetry"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
+	mcptools "github.com/docker/cagent/pkg/tools/mcp"
 )
 
 type ResumeType string
@@ -70,6 +71,8 @@ type Runtime interface {
 	CurrentAgentCommands(ctx context.Context) map[string]string
 	// CurrentWelcomeMessage returns the welcome message for the active agent
 	CurrentWelcomeMessage(ctx context.Context) string
+	// CurrentMCPPrompts returns the available MCP prompts from active toolsets
+	CurrentMCPPrompts(ctx context.Context) map[string]mcptools.PromptInfo
 	// EmitStartupInfo emits initial agent, team, and toolset information for immediate display
 	EmitStartupInfo(ctx context.Context, events chan Event)
 	// RunStream starts the agent's interaction loop and returns a channel of events
@@ -191,6 +194,83 @@ func (r *LocalRuntime) CurrentAgentCommands(context.Context) map[string]string {
 
 func (r *LocalRuntime) CurrentWelcomeMessage(ctx context.Context) string {
 	return r.CurrentAgent().WelcomeMessage()
+}
+
+// CurrentMCPPrompts returns the available MCP prompts from all active MCP toolsets
+// for the current agent. It discovers prompts by calling ListPrompts on each MCP toolset
+// and aggregates the results into a map keyed by prompt name.
+func (r *LocalRuntime) CurrentMCPPrompts(ctx context.Context) map[string]mcptools.PromptInfo {
+	prompts := make(map[string]mcptools.PromptInfo)
+
+	// Get the current agent to access its toolsets
+	currentAgent := r.CurrentAgent()
+	if currentAgent == nil {
+		slog.Warn("No current agent available for MCP prompt discovery")
+		return prompts
+	}
+
+	// Iterate through all toolsets of the current agent
+	for _, toolset := range currentAgent.ToolSets() {
+		// Check if this toolset is an MCP toolset by type assertion
+		if mcpToolset, ok := toolset.(*mcptools.Toolset); ok {
+			// Discover prompts from this MCP toolset
+			mcpPrompts := r.discoverMCPPrompts(ctx, mcpToolset)
+
+			// Merge prompts into the result map
+			// If there are name conflicts, the later toolset's prompt will override
+			for name, promptInfo := range mcpPrompts {
+				prompts[name] = promptInfo
+			}
+		}
+	}
+
+	slog.Debug("Discovered MCP prompts", "agent", currentAgent.Name(), "prompt_count", len(prompts))
+	return prompts
+}
+
+// discoverMCPPrompts queries an MCP toolset for available prompts and converts them
+// to PromptInfo structures. This method handles the MCP protocol communication
+// and gracefully handles any errors during prompt discovery.
+func (r *LocalRuntime) discoverMCPPrompts(ctx context.Context, toolset *mcptools.Toolset) map[string]mcptools.PromptInfo {
+	prompts := make(map[string]mcptools.PromptInfo)
+
+	// Check if the toolset is started (required for MCP operations)
+	// Note: We need to implement IsStarted() method on the MCP Toolset if it doesn't exist
+	// For now, we'll proceed and handle any errors from ListPrompts
+
+	// Call ListPrompts on the MCP toolset
+	// Note: We need to implement this method on the Toolset to expose MCP prompt functionality
+	mcpPrompts, err := toolset.ListPrompts(ctx)
+	if err != nil {
+		slog.Warn("Failed to list MCP prompts from toolset", "error", err)
+		return prompts
+	}
+
+	// Convert MCP prompts to our internal format
+	for _, mcpPrompt := range mcpPrompts {
+		promptInfo := mcptools.PromptInfo{
+			Name:        mcpPrompt.Name,
+			Description: mcpPrompt.Description,
+			Arguments:   make([]mcptools.PromptArgument, 0),
+		}
+
+		// Convert MCP prompt arguments if they exist
+		if mcpPrompt.Arguments != nil {
+			for _, arg := range mcpPrompt.Arguments {
+				promptArg := mcptools.PromptArgument{
+					Name:        arg.Name,
+					Description: arg.Description,
+					Required:    arg.Required,
+				}
+				promptInfo.Arguments = append(promptInfo.Arguments, promptArg)
+			}
+		}
+
+		prompts[mcpPrompt.Name] = promptInfo
+		slog.Debug("Discovered MCP prompt", "name", mcpPrompt.Name, "args_count", len(promptInfo.Arguments))
+	}
+
+	return prompts
 }
 
 // CurrentAgent returns the current agent
