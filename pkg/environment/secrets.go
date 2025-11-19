@@ -23,6 +23,10 @@ func (p *RunSecretsProvider) Get(_ context.Context, name string) string {
 
 	buf, err := os.ReadFile(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return ""
+		}
+
 		// Ignore error
 		slog.Debug("Failed to find secret in /run/secrets", "error", err)
 		return ""
