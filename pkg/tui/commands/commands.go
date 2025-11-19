@@ -131,36 +131,33 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 	}
 
 	agentCommands := application.CurrentAgentCommands(ctx)
-	if len(agentCommands) == 0 {
-		return categories
-	}
+	if len(agentCommands) > 0 {
+		commands := make([]Item, 0, len(agentCommands))
+		for name, prompt := range agentCommands {
 
-	commands := make([]Item, 0, len(agentCommands))
-	for name, prompt := range agentCommands {
+			// Truncate long descriptions to fit on one line
+			description := prompt
+			if len(description) > 60 {
+				description = description[:57] + "..."
+			}
 
-		// Truncate long descriptions to fit on one line
-		description := prompt
-		if len(description) > 60 {
-			description = description[:57] + "..."
+			commands = append(commands, Item{
+				ID:          "agent.command." + name,
+				Label:       name,
+				Description: description,
+				Category:    "Agent Commands",
+				Execute: func() tea.Cmd {
+					return core.CmdHandler(AgentCommandMsg{Command: "/" + name})
+				},
+			})
 		}
 
-		commands = append(commands, Item{
-			ID:          "agent.command." + name,
-			Label:       name,
-			Description: description,
-			Category:    "Agent Commands",
-			Execute: func() tea.Cmd {
-				return core.CmdHandler(AgentCommandMsg{Command: "/" + name})
-			},
+		categories = append(categories, Category{
+			Name:     "Agent Commands",
+			Commands: commands,
 		})
 	}
 
-	categories = append(categories, Category{
-		Name:     "Agent Commands",
-		Commands: commands,
-	})
-
-	// Add MCP Prompts category
 	mcpPrompts := application.CurrentMCPPrompts(ctx)
 	if len(mcpPrompts) > 0 {
 		mcpCommands := make([]Item, 0, len(mcpPrompts))

@@ -209,8 +209,15 @@ func (r *LocalRuntime) CurrentMCPPrompts(ctx context.Context) map[string]mcptool
 
 	// Iterate through all toolsets of the current agent
 	for _, toolset := range currentAgent.ToolSets() {
-		// Check if this toolset is an MCP toolset by type assertion
-		if mcpToolset, ok := toolset.(*mcptools.Toolset); ok {
+		var innerToolset tools.ToolSet
+		if startableTS, ok := toolset.(*agent.StartableToolSet); ok {
+			innerToolset = startableTS.ToolSet
+			slog.Debug("Unwrapped StartableToolSet", "inner_type", fmt.Sprintf("%T", innerToolset))
+		} else {
+			innerToolset = toolset
+		}
+
+		if mcpToolset, ok := innerToolset.(*mcptools.Toolset); ok {
 			// Discover prompts from this MCP toolset
 			mcpPrompts := r.discoverMCPPrompts(ctx, mcpToolset)
 
@@ -219,6 +226,8 @@ func (r *LocalRuntime) CurrentMCPPrompts(ctx context.Context) map[string]mcptool
 			for name, promptInfo := range mcpPrompts {
 				prompts[name] = promptInfo
 			}
+		} else {
+			slog.Debug("Inner toolset is not an MCP toolset", "type", fmt.Sprintf("%T", innerToolset))
 		}
 	}
 
