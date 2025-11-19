@@ -71,8 +71,6 @@ type Runtime interface {
 	CurrentAgentCommands(ctx context.Context) map[string]string
 	// CurrentWelcomeMessage returns the welcome message for the active agent
 	CurrentWelcomeMessage(ctx context.Context) string
-	// CurrentMCPPrompts returns the available MCP prompts from active toolsets
-	CurrentMCPPrompts(ctx context.Context) map[string]mcptools.PromptInfo
 	// EmitStartupInfo emits initial agent, team, and toolset information for immediate display
 	EmitStartupInfo(ctx context.Context, events chan Event)
 	// RunStream starts the agent's interaction loop and returns a channel of events

@@ -52,7 +52,10 @@ func (a *App) CurrentAgentCommands(ctx context.Context) map[string]string {
 
 // CurrentMCPPrompts returns the available MCP prompts for the active agent
 func (a *App) CurrentMCPPrompts(ctx context.Context) map[string]mcptools.PromptInfo {
-	return a.runtime.CurrentMCPPrompts(ctx)
+	if localRuntime, ok := a.runtime.(*runtime.LocalRuntime); ok {
+		return localRuntime.CurrentMCPPrompts(ctx)
+	}
+	return make(map[string]mcptools.PromptInfo)
 }
 
 // ExecuteMCPPrompt executes an MCP prompt with provided arguments and returns the content

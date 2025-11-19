@@ -78,18 +78,6 @@ func (r *RemoteRuntime) CurrentWelcomeMessage(ctx context.Context) string {
 	return r.readCurrentAgentConfig(ctx).WelcomeMessage
 }
 
-// CurrentMCPPrompts returns available MCP prompts for remote runtime.
-// Note: Remote runtime currently does not support MCP prompt discovery,
-// as it operates through a remote agent service rather than direct MCP connections.
-// This method returns an empty map for interface compatibility.
-func (r *RemoteRuntime) CurrentMCPPrompts(ctx context.Context) map[string]mcp.PromptInfo {
-	// Remote runtime doesn't directly manage MCP toolsets, so we return empty
-	// The remote agent service would need to expose MCP prompts through its API
-	// for this functionality to work with remote runtime
-	slog.Debug("MCP prompts not supported in remote runtime", "agent", r.currentAgent)
-	return make(map[string]mcp.PromptInfo)
-}
-
 // EmitStartupInfo emits initial agent, team, and toolset information for immediate sidebar display
 func (r *RemoteRuntime) EmitStartupInfo(ctx context.Context, events chan Event) {
 	agentConfig := r.readCurrentAgentConfig(ctx)
