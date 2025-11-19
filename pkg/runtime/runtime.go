@@ -29,6 +29,23 @@ import (
 	mcptools "github.com/docker/cagent/pkg/tools/mcp"
 )
 
+// UnwrapMCPToolset extracts an MCP toolset from a potentially wrapped StartableToolSet.
+// Returns the MCP toolset if found, or nil if the toolset is not an MCP toolset.
+func UnwrapMCPToolset(toolset tools.ToolSet) *mcptools.Toolset {
+	var innerToolset tools.ToolSet
+	if startableTS, ok := toolset.(*agent.StartableToolSet); ok {
+		innerToolset = startableTS.ToolSet
+	} else {
+		innerToolset = toolset
+	}
+
+	if mcpToolset, ok := innerToolset.(*mcptools.Toolset); ok {
+		return mcpToolset
+	}
+
+	return nil
+}
+
 type ResumeType string
 
 type modelStore interface {
@@ -209,15 +226,8 @@ func (r *LocalRuntime) CurrentMCPPrompts(ctx context.Context) map[string]mcptool
 
 	// Iterate through all toolsets of the current agent
 	for _, toolset := range currentAgent.ToolSets() {
-		var innerToolset tools.ToolSet
-		if startableTS, ok := toolset.(*agent.StartableToolSet); ok {
-			innerToolset = startableTS.ToolSet
-			slog.Debug("Unwrapped StartableToolSet", "inner_type", fmt.Sprintf("%T", innerToolset))
-		} else {
-			innerToolset = toolset
-		}
-
-		if mcpToolset, ok := innerToolset.(*mcptools.Toolset); ok {
+		if mcpToolset := UnwrapMCPToolset(toolset); mcpToolset != nil {
+			slog.Debug("Found MCP toolset", "toolset", mcpToolset)
 			// Discover prompts from this MCP toolset
 			mcpPrompts := r.discoverMCPPrompts(ctx, mcpToolset)
 
@@ -227,7 +237,7 @@ func (r *LocalRuntime) CurrentMCPPrompts(ctx context.Context) map[string]mcptool
 				prompts[name] = promptInfo
 			}
 		} else {
-			slog.Debug("Inner toolset is not an MCP toolset", "type", fmt.Sprintf("%T", innerToolset))
+			slog.Debug("Toolset is not an MCP toolset", "type", fmt.Sprintf("%T", toolset))
 		}
 	}
 
