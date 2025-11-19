@@ -85,20 +85,33 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 
 	var opts []server.Opt
 
-	stat, err := os.Stat(resolvedPath)
-	if err != nil {
-		return fmt.Errorf("failed to stat agents path: %w", err)
-	}
-	if stat.IsDir() {
-		opts = append(opts, server.WithAgentsDir(resolvedPath))
-	} else {
-		opts = append(opts, server.WithAgentsDir(filepath.Dir(resolvedPath)))
+	if !agentfile.IsOCIReference(agentsPath) {
+		// Local files/dirs: set agentsPath for single-file reload, agentsDir for write ops
+		opts = append(opts, server.WithAgentsPath(agentsPath))
+
+		stat, err := os.Stat(resolvedPath)
+		if err != nil {
+			return fmt.Errorf("failed to stat agents path: %w", err)
+		}
+		if stat.IsDir() {
+			opts = append(opts, server.WithAgentsDir(resolvedPath))
+		} else {
+			opts = append(opts, server.WithAgentsDir(filepath.Dir(resolvedPath)))
+		}
 	}
 
 	teams, err := teamloader.LoadTeams(ctx, resolvedPath, &f.runConfig)
 	if err != nil {
 		return fmt.Errorf("failed to load teams: %w", err)
 	}
+
+	// For OCI refs: clean up the temp file immediately after loading
+	// We don't need it anymore since teams are now in memory
+	if agentfile.IsOCIReference(agentsPath) {
+		_ = os.Remove(resolvedPath)
+		slog.Debug("Cleaned up temporary OCI file", "path", resolvedPath)
+	}
+
 	defer func() {
 		for _, team := range teams {
 			if err := team.StopToolSets(ctx); err != nil {

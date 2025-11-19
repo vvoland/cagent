@@ -49,6 +49,7 @@ type Server struct {
 	teams          map[string]*team.Team
 	teamsMu        sync.RWMutex
 	agentsDir      string
+	agentsPath     string // For local files: specific file path to reload (instead of scanning agentsDir)
 	rootFS         *os.Root
 }
 
@@ -63,6 +64,13 @@ func WithAgentsDir(dir string) Opt {
 
 		s.agentsDir = dir
 		s.rootFS = rootFs
+		return nil
+	}
+}
+
+func WithAgentsPath(agentPath string) Opt {
+	return func(s *Server) error {
+		s.agentsPath = agentPath
 		return nil
 	}
 }
@@ -154,6 +162,12 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 	}
 
 	return nil
+}
+
+// hasAgentsDir returns true if the server has a local agents directory.
+// Returns false for OCI reference-based servers, which load from memory.
+func (s *Server) hasAgentsDir() bool {
+	return s.agentsDir != "" && s.rootFS != nil
 }
 
 // getTeam retrieves a team by key with read lock
@@ -259,6 +273,10 @@ func (s *Server) getAgentConfigYAML(c echo.Context) error {
 }
 
 func (s *Server) editAgentConfigYAML(c echo.Context) error {
+	if !s.hasAgentsDir() {
+		return echo.NewHTTPError(http.StatusMethodNotAllowed, "write operations not supported for read-only OCI references")
+	}
+
 	agentID := c.Param("id")
 	p := addYamlExt(agentID)
 
@@ -311,6 +329,10 @@ func (s *Server) editAgentConfigYAML(c echo.Context) error {
 }
 
 func (s *Server) editAgentConfig(c echo.Context) error {
+	if !s.hasAgentsDir() {
+		return echo.NewHTTPError(http.StatusMethodNotAllowed, "write operations not supported for read-only OCI references")
+	}
+
 	var req api.EditAgentConfigRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
@@ -397,6 +419,10 @@ func (s *Server) editAgentConfig(c echo.Context) error {
 }
 
 func (s *Server) createAgent(c echo.Context) error {
+	if !s.hasAgentsDir() {
+		return echo.NewHTTPError(http.StatusMethodNotAllowed, "write operations not supported for read-only OCI references")
+	}
+
 	var req api.CreateAgentRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
@@ -427,6 +453,10 @@ func (s *Server) createAgent(c echo.Context) error {
 }
 
 func (s *Server) createAgentConfig(c echo.Context) error {
+	if !s.hasAgentsDir() {
+		return echo.NewHTTPError(http.StatusMethodNotAllowed, "write operations not supported for read-only OCI references")
+	}
+
 	var req api.CreateAgentConfigRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
@@ -519,6 +549,10 @@ func (s *Server) createAgentConfig(c echo.Context) error {
 }
 
 func (s *Server) importAgent(c echo.Context) error {
+	if !s.hasAgentsDir() {
+		return echo.NewHTTPError(http.StatusMethodNotAllowed, "write operations not supported for read-only OCI references")
+	}
+
 	var req api.ImportAgentRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
@@ -613,6 +647,10 @@ func (s *Server) importAgent(c echo.Context) error {
 }
 
 func (s *Server) exportAgents(c echo.Context) error {
+	if !s.hasAgentsDir() {
+		return echo.NewHTTPError(http.StatusMethodNotAllowed, "write operations not supported for read-only OCI references")
+	}
+
 	// Create zip file in the agents directory
 	zipFileName := fmt.Sprintf("agents_export_%d.zip", time.Now().Unix())
 	zipPath := filepath.Join(s.agentsDir, zipFileName)
@@ -793,6 +831,10 @@ func (s *Server) pushAgent(c echo.Context) error {
 }
 
 func (s *Server) deleteAgent(c echo.Context) error {
+	if !s.hasAgentsDir() {
+		return echo.NewHTTPError(http.StatusMethodNotAllowed, "write operations not supported for read-only OCI references")
+	}
+
 	var req api.DeleteAgentRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
@@ -851,8 +893,12 @@ func (s *Server) deleteAgent(c echo.Context) error {
 
 func (s *Server) getAgents(c echo.Context) error {
 	// Refresh agents from disk to get the latest configurations
-	if err := s.refreshAgentsFromDisk(c.Request().Context()); err != nil {
-		slog.Error("Failed to refresh agents from disk", "error", err)
+	// Only refresh for local files/dirs (hasAgentsDir == true)
+	// OCI refs are immutable and loaded into memory, updates handled via ReloadTeams()
+	if s.hasAgentsDir() {
+		if err := s.refreshAgentsFromDisk(c.Request().Context()); err != nil {
+			slog.Error("Failed to refresh agents from disk", "error", err)
+		}
 	}
 
 	// DO NOT, under any circumstance, replace this with "var agents []api.Agent",
@@ -904,13 +950,21 @@ func (s *Server) getAgents(c echo.Context) error {
 }
 
 func (s *Server) refreshAgentsFromDisk(ctx context.Context) error {
-	if s.agentsDir == "" {
+	// Use agentsPath if set (for specific files), otherwise fall back to agentsDir
+	// Note: OCI references are handled via ReloadTeams() and never call this function
+	// (see getAgents() which skips refresh for OCI refs)
+	pathToLoad := s.agentsPath
+	if pathToLoad == "" {
+		pathToLoad = s.agentsDir
+	}
+
+	if pathToLoad == "" {
 		return nil
 	}
 
-	slog.Debug("Refreshing agents from disk", "agentsDir", s.agentsDir)
+	slog.Debug("Refreshing agents from disk", "path", pathToLoad)
 
-	newTeams, err := teamloader.LoadTeams(ctx, s.agentsDir, s.runConfig)
+	newTeams, err := teamloader.LoadTeams(ctx, pathToLoad, s.runConfig)
 	if err != nil {
 		return fmt.Errorf("failed to load teams: %w", err)
 	}
@@ -1147,9 +1201,28 @@ func (s *Server) runAgent(c echo.Context) error {
 	rc := s.runConfig
 	rc.WorkingDir = sess.WorkingDir
 
-	t, err := teamloader.Load(c.Request().Context(), filepath.Join(s.agentsDir, p), rc)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to load agent for session")
+	// Load team - either reload from disk (local) or use in-memory team (OCI refs)
+	var t *team.Team
+
+	if s.hasAgentsDir() {
+		// Has local agents path or directory: reload from disk to pick up changes
+		loadPath := s.agentsPath
+		if loadPath == "" {
+			loadPath = filepath.Join(s.agentsDir, p)
+		}
+
+		var loadErr error
+		t, loadErr = teamloader.Load(c.Request().Context(), loadPath, rc)
+		if loadErr != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to load agent for session")
+		}
+	} else {
+		// No local directory: use the already-loaded team from memory (OCI refs)
+		var exists bool
+		t, exists = s.getTeam(p)
+		if !exists {
+			return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("agent not found: %s", agentFilename))
+		}
 	}
 
 	agent, err := t.Agent(currentAgent)
