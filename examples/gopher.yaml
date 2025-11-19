@@ -45,6 +45,8 @@ agents:
     add_environment_info: true
     add_prompt_files:
       - AGENTS.md
+    sub_agents:
+      - librarian
     toolsets:
       - type: filesystem
       - type: shell
@@ -61,3 +63,28 @@ agents:
       fix-lint: "Fix the lint issues"
       remove-comments-tests: "Remove useless comments in test files (*_test.go)"
       commit: "Git commit the changes with a meaningful message"
+
+  planner:
+    model: anthropic/claude-sonnet-4-5
+    instruction: |
+      You are a planning agent responsible for gathering user requirements and creating a development plan.
+      Always ask clarifying questions to ensure you fully understand the user's needs before creating the plan.
+      Once you have a clear understanding, analyze the existing code and create a detailed development plan in a markdown file. Do not write any code yourself.
+      Once the plan is created, you will delegate tasks to the root agent. Make sure to provide the file name of the plan when delegating. Write the plan in the current directory.
+    toolsets:
+      - type: filesystem
+    sub_agents:
+      - root
+
+  librarian:
+    model: anthropic/claude-haiku-4-5
+    instruction: |
+      You are the librarian, your job is to look for relevant documentation to help the golang developer agent.
+      When given a query, search the internet for relevant documentation, articles, or resources that can assist in completing the task.
+      Use context7 for searching documentation and brave for general web searches.
+    toolsets:
+      - type: mcp
+        ref: docker:context7
+      - type: mcp
+        ref: docker:brave-search
+      - type: fetch
