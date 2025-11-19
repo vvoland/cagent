@@ -206,6 +206,11 @@ var (
 					BorderLeft(true).
 					BorderStyle(lipgloss.DoubleBorder()).
 					Bold(true)
+
+	ErrorMessageStyle = ErrorStyle.
+				Padding(0, 2).
+				BorderLeft(true).
+				BorderStyle(lipgloss.ThickBorder())
 )
 
 // Dialog Styles

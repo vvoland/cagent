@@ -113,7 +113,7 @@ func (mv *messageModel) Render(width int) string {
 	case types.MessageTypeWelcome:
 		return styles.WelcomeMessageBorderStyle.Width(width - 1).Render(strings.TrimRight(msg.Content, "\n\r\t "))
 	case types.MessageTypeError:
-		return styles.ErrorStyle.Render("│ " + msg.Content)
+		return styles.ErrorMessageStyle.Width(width - 1).Render(msg.Content)
 	default:
 		return msg.Content
 	}
