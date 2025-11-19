@@ -21,6 +21,7 @@ import (
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/modelsdev"
+	"github.com/docker/cagent/pkg/rag"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/telemetry"
@@ -29,10 +30,6 @@ import (
 )
 
 type ResumeType string
-
-type modelStore interface {
-	GetModel(ctx context.Context, modelID string) (*modelsdev.Model, error)
-}
 
 // ElicitationResult represents the result of an elicitation request
 type ElicitationResult struct {
@@ -84,6 +81,16 @@ type Runtime interface {
 	ResumeElicitation(_ context.Context, action tools.ElicitationAction, content map[string]any) error
 }
 
+type ModelStore interface {
+	GetModel(ctx context.Context, modelID string) (*modelsdev.Model, error)
+}
+
+// RAGInitializer is implemented by runtimes that support background RAG initialization.
+// Local runtimes use this to start indexing early; remote runtimes typically do not.
+type RAGInitializer interface {
+	StartBackgroundRAGInit(ctx context.Context, sendEvent func(Event))
+}
+
 // LocalRuntime manages the execution of agents
 type LocalRuntime struct {
 	toolMap                     map[string]ToolHandler
@@ -92,13 +99,15 @@ type LocalRuntime struct {
 	rootSessionID               string // Root session ID for OAuth state encoding (preserved across sub-sessions)
 	resumeChan                  chan ResumeType
 	tracer                      trace.Tracer
-	modelsStore                 modelStore
+	modelsStore                 ModelStore
 	sessionCompaction           bool
 	managedOAuth                bool
 	startupInfoEmitted          bool                   // Track if startup info has been emitted to avoid unnecessary duplication
 	elicitationRequestCh        chan ElicitationResult // Channel for receiving elicitation responses
 	elicitationEventsChannel    chan Event             // Current events channel for sending elicitation requests
 	elicitationEventsChannelMux sync.RWMutex           // Protects elicitationEventsChannel
+	ragInitialized              bool                   // Track if RAG was initialized early
+	ragInitMux                  sync.Mutex             // Protects ragInitialized
 }
 
 type streamResult struct {
@@ -143,7 +152,7 @@ func WithSessionCompaction(sessionCompaction bool) Opt {
 	}
 }
 
-func WithModelStore(store modelStore) Opt {
+func WithModelStore(store ModelStore) Opt {
 	return func(r *LocalRuntime) {
 		r.modelsStore = store
 	}
@@ -179,6 +188,126 @@ func New(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 	slog.Debug("Creating new runtime", "agent", r.currentAgent, "available_agents", agents.Size())
 
 	return r, nil
+}
+
+// StartBackgroundRAGInit initializes RAG in background and forwards events
+// Should be called early (e.g., by App) to start indexing before RunStream
+func (r *LocalRuntime) StartBackgroundRAGInit(ctx context.Context, sendEvent func(Event)) {
+	ragManagers := r.team.RAGManagers()
+	if len(ragManagers) == 0 {
+		return
+	}
+
+	// Check if already initialized
+	r.ragInitMux.Lock()
+	if r.ragInitialized {
+		r.ragInitMux.Unlock()
+		return
+	}
+	r.ragInitialized = true
+	r.ragInitMux.Unlock()
+
+	slog.Debug("Starting background RAG initialization with event forwarding", "manager_count", len(ragManagers))
+
+	// Set up event forwarding BEFORE starting initialization
+	// This ensures all events are captured
+	r.forwardRAGEvents(ctx, ragManagers, sendEvent)
+
+	// Now start initialization (events will be forwarded)
+	r.team.InitializeRAG(ctx)
+	r.team.StartRAGFileWatchers(ctx)
+}
+
+// forwardRAGEvents forwards RAG manager events to the given callback
+// Consolidates duplicated event forwarding logic
+func (r *LocalRuntime) forwardRAGEvents(ctx context.Context, ragManagers map[string]*rag.Manager, sendEvent func(Event)) {
+	for _, mgr := range ragManagers {
+		go func(mgr *rag.Manager) {
+			ragName := mgr.Name()
+			slog.Debug("Starting RAG event forwarder goroutine", "rag", ragName)
+			for {
+				select {
+				case <-ctx.Done():
+					slog.Debug("RAG event forwarder stopped", "rag", ragName)
+					return
+				case ragEvent, ok := <-mgr.Events():
+					if !ok {
+						slog.Debug("RAG events channel closed", "rag", ragName)
+						return
+					}
+
+					agentName := r.currentAgent
+					slog.Debug("Forwarding RAG event", "type", ragEvent.Type, "rag", ragName, "agent", agentName)
+
+					switch ragEvent.Type {
+					case "indexing_started":
+						sendEvent(RAGIndexingStarted(ragName, ragEvent.StrategyName, agentName))
+					case "indexing_progress":
+						if ragEvent.Progress != nil {
+							sendEvent(RAGIndexingProgress(ragName, ragEvent.StrategyName, ragEvent.Progress.Current, ragEvent.Progress.Total, agentName))
+						}
+					case "indexing_completed":
+						sendEvent(RAGIndexingCompleted(ragName, ragEvent.StrategyName, agentName))
+					case "usage":
+						// Convert RAG usage to TokenUsageEvent so TUI displays it
+						sendEvent(TokenUsage(
+							ragEvent.TotalTokens, // input tokens (embeddings)
+							0,                    // output tokens (0 for embeddings)
+							ragEvent.TotalTokens, // context length
+							0,                    // context limit (not applicable)
+							ragEvent.Cost,
+							agentName,
+						))
+					case "ready":
+						sendEvent(RAGReady(ragName, agentName))
+					case "error":
+						if ragEvent.Error != nil {
+							sendEvent(Error(fmt.Sprintf("RAG %s error: %v", ragName, ragEvent.Error)))
+						}
+					default:
+						// Log unhandled events for debugging
+						slog.Debug("Unhandled RAG event type", "type", ragEvent.Type, "rag", ragName)
+					}
+				}
+			}
+		}(mgr)
+	}
+}
+
+// InitializeRAG is called within RunStream as a fallback when background init wasn't used
+// (e.g., for exec command or API mode where there's no App)
+func (r *LocalRuntime) InitializeRAG(ctx context.Context, events chan Event) {
+	r.ragInitMux.Lock()
+	alreadyInit := r.ragInitialized
+	r.ragInitMux.Unlock()
+
+	// If already initialized via StartBackgroundRAGInit, skip entirely
+	// Event forwarding was already set up there
+	if alreadyInit {
+		slog.Debug("RAG already initialized, event forwarding already active", "manager_count", len(r.team.RAGManagers()))
+		return
+	}
+
+	ragManagers := r.team.RAGManagers()
+	if len(ragManagers) == 0 {
+		return
+	}
+
+	slog.Debug("Setting up RAG initialization (fallback path for non-TUI)", "manager_count", len(ragManagers))
+
+	// Mark as initialized
+	r.ragInitMux.Lock()
+	r.ragInitialized = true
+	r.ragInitMux.Unlock()
+
+	// Set up event forwarding BEFORE starting initialization
+	r.forwardRAGEvents(ctx, ragManagers, func(event Event) {
+		events <- event
+	})
+
+	// Start initialization and file watchers
+	r.team.InitializeRAG(ctx)
+	r.team.StartRAGFileWatchers(ctx)
 }
 
 func (r *LocalRuntime) CurrentAgentName() string {
@@ -287,6 +416,9 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		// Emit team information
 		availableAgents := r.team.AgentNames()
 		events <- TeamInfo(availableAgents, r.currentAgent)
+
+		// Initialize RAG and forward events
+		r.InitializeRAG(ctx, events)
 
 		r.emitAgentWarnings(a, events)
 
@@ -438,7 +570,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			if m != nil {
 				contextLimit = m.Limit.Context
 			}
-			events <- TokenUsage(sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.Cost)
+			events <- TokenUsage(sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.Cost, r.currentAgent)
 
 			if m != nil && r.sessionCompaction {
 				if sess.InputTokens+sess.OutputTokens > int(float64(contextLimit)*0.9) {
@@ -447,7 +579,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 					if len(res.Calls) == 0 {
 						events <- SessionCompaction(sess.ID, "start", r.currentAgent)
 						r.Summarize(ctx, sess, events)
-						events <- TokenUsage(sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.Cost)
+						events <- TokenUsage(sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.Cost, r.currentAgent)
 						events <- SessionCompaction(sess.ID, "completed", r.currentAgent)
 					}
 				}
@@ -461,7 +593,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				if sess.InputTokens+sess.OutputTokens > int(float64(contextLimit)*0.9) {
 					events <- SessionCompaction(sess.ID, "start", r.currentAgent)
 					r.Summarize(ctx, sess, events)
-					events <- TokenUsage(sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.Cost)
+					events <- TokenUsage(sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.Cost, r.currentAgent)
 					events <- SessionCompaction(sess.ID, "completed", r.currentAgent)
 				}
 			}

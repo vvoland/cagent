@@ -56,3 +56,22 @@ func PreferredMaxTokens(provider string) int {
 	}
 	return 64000
 }
+
+// AutoEmbeddingModelConfigs returns the ordered list of embedding-capable models
+// to try when a RAG strategy uses `model: auto` for embeddings.
+//
+// The priority is:
+//  1. OpenAI -> text-embedding-3-small model
+//  2. DMR -> Google's embeddinggemma model (via Docker Model Runner)
+func AutoEmbeddingModelConfigs() []latest.ModelConfig {
+	return []latest.ModelConfig{
+		{
+			Provider: "openai",
+			Model:    "text-embedding-3-small",
+		},
+		{
+			Provider: "dmr",
+			Model:    "ai/embeddinggemma",
+		},
+	}
+}

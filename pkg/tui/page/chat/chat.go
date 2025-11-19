@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -229,6 +230,14 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return p, cmd
 	case *runtime.WarningEvent:
 		cmd := core.CmdHandler(notification.ShowMsg{Text: msg.Message, Type: notification.TypeWarning})
+		return p, cmd
+	case *runtime.RAGIndexingStartedEvent, *runtime.RAGIndexingProgressEvent, *runtime.RAGIndexingCompletedEvent, *runtime.RAGReadyEvent:
+		// Forward RAG events to sidebar
+		slog.Debug("Chat page forwarding RAG event to sidebar", "event_type", fmt.Sprintf("%T", msg))
+		var model layout.Model
+		var cmd tea.Cmd
+		model, cmd = p.sidebar.Update(msg)
+		p.sidebar = model.(sidebar.Model)
 		return p, cmd
 	case *runtime.UserMessageEvent:
 		cmd := p.messages.AddUserMessage(msg.Message)

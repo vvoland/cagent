@@ -81,28 +81,62 @@ func ensureModelsExist(cfg *v2.Config) error {
 		cfg.Models = map[string]v2.ModelConfig{}
 	}
 
+	// Ensure models referenced by agents exist
 	for agentName := range cfg.Agents {
 		agentConfig := cfg.Agents[agentName]
 
 		modelNames := strings.SplitSeq(agentConfig.Model, ",")
 		for modelName := range modelNames {
-			if modelName == "auto" {
-				continue
-			}
-			if _, exists := cfg.Models[modelName]; exists {
-				continue
-			}
-
-			providerName, model, ok := strings.Cut(modelName, "/")
-			if !ok {
-				return fmt.Errorf("agent '%s' references non-existent model '%s'", agentName, modelName)
-			}
-
-			cfg.Models[modelName] = v2.ModelConfig{
-				Provider: providerName,
-				Model:    model,
+			if err := ensureSingleModelExists(cfg, modelName, fmt.Sprintf("agent '%s'", agentName)); err != nil {
+				return err
 			}
 		}
+	}
+
+	// Ensure models referenced by RAG strategies exist
+	for ragName, ragCfg := range cfg.RAG {
+		for _, stratCfg := range ragCfg.Strategies {
+			rawModel, ok := stratCfg.Params["model"]
+			if !ok {
+				continue
+			}
+
+			modelName, ok := rawModel.(string)
+			if !ok {
+				return fmt.Errorf("RAG strategy '%s' in RAG '%s' has non-string model value", stratCfg.Type, ragName)
+			}
+
+			if err := ensureSingleModelExists(cfg, modelName, fmt.Sprintf("RAG strategy '%s' in RAG '%s'", stratCfg.Type, ragName)); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// ensureSingleModelExists normalizes shorthand model IDs like "openai/gpt-5-mini"
+// into full entries in cfg.Models so they can be reused by agents, RAG, and other
+// subsystems without duplicating parsing logic.
+func ensureSingleModelExists(cfg *v2.Config, modelName, context string) error {
+	modelName = strings.TrimSpace(modelName)
+	if modelName == "" || modelName == "auto" {
+		// "auto" is handled dynamically at runtime and does not need a config entry.
+		return nil
+	}
+
+	if _, exists := cfg.Models[modelName]; exists {
+		return nil
+	}
+
+	providerName, model, ok := strings.Cut(modelName, "/")
+	if !ok || providerName == "" || model == "" {
+		return fmt.Errorf("%s references non-existent model '%s'", context, modelName)
+	}
+
+	cfg.Models[modelName] = v2.ModelConfig{
+		Provider: providerName,
+		Model:    model,
 	}
 
 	return nil

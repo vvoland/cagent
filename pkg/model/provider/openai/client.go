@@ -404,6 +404,109 @@ func isResponsesOnlyModel(model string) bool {
 	return false
 }
 
+// CreateEmbedding generates an embedding vector for the given text
+func (c *Client) CreateEmbedding(ctx context.Context, text string) (*base.EmbeddingResult, error) {
+	slog.Debug("Creating OpenAI embedding", "model", c.ModelConfig.Model, "text_length", len(text))
+
+	batchResult, err := c.CreateBatchEmbedding(ctx, []string{text})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(batchResult.Embeddings) == 0 {
+		return nil, fmt.Errorf("no embedding returned from OpenAI")
+	}
+
+	embedding := batchResult.Embeddings[0]
+
+	slog.Debug("OpenAI embedding created successfully",
+		"dimension", len(embedding),
+		"input_tokens", batchResult.InputTokens,
+		"total_tokens", batchResult.TotalTokens)
+
+	return &base.EmbeddingResult{
+		Embedding:   embedding,
+		InputTokens: batchResult.InputTokens,
+		TotalTokens: batchResult.TotalTokens,
+		Cost:        batchResult.Cost,
+	}, nil
+}
+
+// CreateBatchEmbedding generates embedding vectors for multiple texts.
+//
+// OpenAI supports up to 2048 inputs per request
+func (c *Client) CreateBatchEmbedding(ctx context.Context, texts []string) (*base.BatchEmbeddingResult, error) {
+	if len(texts) == 0 {
+		return &base.BatchEmbeddingResult{
+			Embeddings:  [][]float64{},
+			InputTokens: 0,
+			TotalTokens: 0,
+			Cost:        0,
+		}, nil
+	}
+
+	const maxBatchSize = 2048
+	if len(texts) > maxBatchSize {
+		return nil, fmt.Errorf("batch size %d exceeds OpenAI limit of %d", len(texts), maxBatchSize)
+	}
+
+	slog.Debug("Creating OpenAI batch embeddings", "model", c.ModelConfig.Model, "batch_size", len(texts))
+
+	client, err := c.clientFn(ctx)
+	if err != nil {
+		slog.Error("Failed to create OpenAI client for batch embedding", "error", err)
+		return nil, err
+	}
+
+	params := openai.EmbeddingNewParams{
+		Input: openai.EmbeddingNewParamsInputUnion{
+			OfArrayOfStrings: texts,
+		},
+		Model: c.ModelConfig.Model,
+	}
+
+	response, err := client.Embeddings.New(ctx, params)
+	if err != nil {
+		slog.Error("OpenAI batch embedding request failed", "error", err)
+		return nil, fmt.Errorf("failed to create batch embeddings: %w", err)
+	}
+
+	if len(response.Data) != len(texts) {
+		return nil, fmt.Errorf("expected %d embeddings, got %d", len(texts), len(response.Data))
+	}
+
+	// Convert embeddings from []float32 to [][]float64
+	embeddings := make([][]float64, len(response.Data))
+	for i, data := range response.Data {
+		embedding32 := data.Embedding
+		embedding := make([]float64, len(embedding32))
+		for j, v := range embedding32 {
+			embedding[j] = float64(v)
+		}
+		embeddings[i] = embedding
+	}
+
+	// Extract usage information
+	inputTokens := int(response.Usage.PromptTokens)
+	totalTokens := int(response.Usage.TotalTokens)
+
+	// Cost calculation is handled at the strategy level using models.dev pricing
+	// Provider just returns token counts
+
+	slog.Debug("OpenAI batch embeddings created successfully",
+		"batch_size", len(embeddings),
+		"dimension", len(embeddings[0]),
+		"input_tokens", inputTokens,
+		"total_tokens", totalTokens)
+
+	return &base.BatchEmbeddingResult{
+		Embeddings:  embeddings,
+		InputTokens: inputTokens,
+		TotalTokens: totalTokens,
+		Cost:        0, // Cost calculated at strategy level
+	}, nil
+}
+
 func isOpenAIReasoningModel(model string) bool {
 	m := strings.ToLower(model)
 	if strings.HasPrefix(m, "o1") || strings.HasPrefix(m, "o3") || strings.HasPrefix(m, "o4") {

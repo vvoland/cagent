@@ -3,10 +3,11 @@ dist
 .task
 .DS_Store
 evals
-*.db
+*.db*
 /cagent
 .crush
 .vscode
+*.debug
 
 # agents
 agent.yaml

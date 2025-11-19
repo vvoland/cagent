@@ -2,7 +2,9 @@ package sidebar
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
+	"sort"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -41,6 +43,13 @@ type Model interface {
 	GetSize() (width, height int)
 }
 
+// ragIndexingState tracks per-strategy indexing progress
+type ragIndexingState struct {
+	current int
+	total   int
+	spinner spinner.Spinner
+}
+
 // model implements Model
 type model struct {
 	width            int
@@ -49,6 +58,7 @@ type model struct {
 	todoComp         *todotool.SidebarComponent
 	working          bool
 	mcpInit          bool
+	ragIndexing      map[string]*ragIndexingState // strategy name -> indexing state
 	spinner          spinner.Spinner
 	mode             Mode
 	sessionTitle     string
@@ -70,6 +80,7 @@ func New(manager *service.TodoManager) Model {
 		todoComp:       todotool.NewSidebarComponent(manager),
 		spinner:        spinner.New(spinner.ModeSpinnerOnly),
 		sessionTitle:   "New session",
+		ragIndexing:    make(map[string]*ragIndexingState),
 		toolExecutions: make(map[string]string),
 	}
 }
@@ -172,6 +183,38 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case *runtime.MCPInitFinishedEvent:
 		m.mcpInit = false
 		return m, nil
+	case *runtime.RAGIndexingStartedEvent:
+		// Use composite key: "ragName/strategyName" to differentiate strategies within same RAG manager
+		key := msg.RAGName + "/" + msg.StrategyName
+		slog.Debug("Sidebar received RAG indexing started event", "rag", msg.RAGName, "strategy", msg.StrategyName, "key", key)
+		state := &ragIndexingState{
+			spinner: spinner.New(spinner.ModeSpinnerOnly),
+		}
+		m.ragIndexing[key] = state
+		return m, state.spinner.Init()
+	case *runtime.RAGIndexingProgressEvent:
+		key := msg.RAGName + "/" + msg.StrategyName
+		slog.Debug("Sidebar received RAG indexing progress event", "rag", msg.RAGName, "strategy", msg.StrategyName, "current", msg.Current, "total", msg.Total)
+		if state, exists := m.ragIndexing[key]; exists {
+			state.current = msg.Current
+			state.total = msg.Total
+		}
+		return m, nil
+	case *runtime.RAGIndexingCompletedEvent:
+		key := msg.RAGName + "/" + msg.StrategyName
+		slog.Debug("Sidebar received RAG indexing completed event", "rag", msg.RAGName, "strategy", msg.StrategyName)
+		delete(m.ragIndexing, key)
+		return m, nil
+	case *runtime.RAGReadyEvent:
+		// Kept for backward compatibility, but indexing_completed now handles this
+		// For RAGReadyEvent, we don't have strategy name, so delete all keys with this RAG name prefix
+		slog.Debug("Sidebar received RAG ready event", "rag", msg.RAGName)
+		for key := range m.ragIndexing {
+			if strings.HasPrefix(key, msg.RAGName+"/") {
+				delete(m.ragIndexing, key)
+			}
+		}
+		return m, nil
 	case *runtime.SessionTitleEvent:
 		m.sessionTitle = msg.Title
 		return m, nil
@@ -191,12 +234,28 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		m.SetToolStatus(msg.ToolName, msg.Status)
 		return m, nil
 	default:
+		var cmds []tea.Cmd
+
+		// Update main spinner for working/mcpInit states
 		if m.working || m.mcpInit {
 			var cmd tea.Cmd
 			var model layout.Model
 			model, cmd = m.spinner.Update(msg)
 			m.spinner = model.(spinner.Spinner)
-			return m, cmd
+			cmds = append(cmds, cmd)
+		}
+
+		// Update each RAG indexing spinner
+		for _, state := range m.ragIndexing {
+			var cmd tea.Cmd
+			var model layout.Model
+			model, cmd = state.spinner.Update(msg)
+			state.spinner = model.(spinner.Spinner)
+			cmds = append(cmds, cmd)
+		}
+
+		if len(cmds) > 0 {
+			return m, tea.Batch(cmds...)
 		}
 		return m, nil
 	}
@@ -214,9 +273,9 @@ func (m *model) View() string {
 func (m *model) horizontalView() string {
 	pwd := getCurrentWorkingDirectory()
 
-	wi := m.workingIndicator()
+	wi := m.workingIndicatorHorizontal()
 	titleGapWidth := m.width - lipgloss.Width(m.sessionTitle) - lipgloss.Width(wi) - 2
-	title := fmt.Sprintf("%s%*s%s", m.sessionTitle, titleGapWidth, "", m.workingIndicator())
+	title := fmt.Sprintf("%s%*s%s", m.sessionTitle, titleGapWidth, "", wi)
 
 	gapWidth := m.width - lipgloss.Width(pwd) - lipgloss.Width(m.tokenUsage()) - 2
 	return lipgloss.JoinVertical(lipgloss.Top, title, fmt.Sprintf("%s%*s%s", styles.MutedStyle.Render(pwd), gapWidth, "", m.tokenUsage()))
@@ -256,16 +315,161 @@ func (m *model) verticalView() string {
 }
 
 func (m *model) workingIndicator() string {
-	if m.mcpInit || m.working {
-		label := "Working..."
-		if m.mcpInit {
-			label = "Initializing MCP servers..."
-		}
-		indicator := styles.ActiveStyle.Render(m.spinner.View() + " " + label)
-		return indicator
+	var indicators []string
+
+	// Add working indicator if agent is processing
+	if m.working {
+		indicators = append(indicators, styles.ActiveStyle.Render(m.spinner.View()+" "+"Working..."))
 	}
 
-	return ""
+	// Add MCP init indicator if initializing
+	if m.mcpInit {
+		indicators = append(indicators, styles.ActiveStyle.Render(m.spinner.View()+" "+"Initializing MCP servers..."))
+	}
+
+	// Add RAG indexing indicators for each active indexing operation
+	// Group strategies by RAG source to avoid repeating the source name
+	ragGroups := make(map[string][]struct {
+		strategyName string
+		state        *ragIndexingState
+	})
+
+	for key, state := range m.ragIndexing {
+		parts := strings.Split(key, "/")
+		if len(parts) == 2 {
+			ragName := parts[0]
+			if ragGroups[ragName] == nil {
+				ragGroups[ragName] = []struct {
+					strategyName string
+					state        *ragIndexingState
+				}{}
+			}
+			ragGroups[ragName] = append(ragGroups[ragName], struct {
+				strategyName string
+				state        *ragIndexingState
+			}{parts[1], state})
+		}
+	}
+
+	// Display each RAG source with its strategies (sorted for stable display)
+	ragNames := make([]string, 0, len(ragGroups))
+	for ragName := range ragGroups {
+		ragNames = append(ragNames, ragName)
+	}
+	sort.Strings(ragNames)
+
+	for _, ragName := range ragNames {
+		strategies := ragGroups[ragName]
+		displayRagName := strings.ReplaceAll(ragName, "_", " ")
+
+		// Sort strategies by name for stable display
+		sort.Slice(strategies, func(i, j int) bool {
+			return strategies[i].strategyName < strategies[j].strategyName
+		})
+
+		// First line: RAG source name with spinner
+		spinnerView := strategies[0].state.spinner.View()
+		ragNameStyled := styles.BoldStyle.Render(displayRagName)
+		line1 := fmt.Sprintf("%s Indexing %s", spinnerView, ragNameStyled)
+		indicators = append(indicators, styles.ActiveStyle.Render(line1))
+
+		// Following lines: each strategy with progress, indented with subtle emphasis
+		for _, strategy := range strategies {
+			displayStratName := strings.ReplaceAll(strategy.strategyName, "-", " ")
+			progress := ""
+			if strategy.state.total > 0 {
+				progress = fmt.Sprintf(" [%d/%d]", strategy.state.current, strategy.state.total)
+			}
+			stratNameStyled := styles.BoldStyle.Render(displayStratName)
+			line := fmt.Sprintf("  • %s%s", stratNameStyled, progress)
+			indicators = append(indicators, line)
+		}
+	}
+
+	if len(indicators) == 0 {
+		return ""
+	}
+
+	return strings.Join(indicators, "\n")
+}
+
+// workingIndicatorHorizontal returns a single-line version of the working indicator for horizontal mode
+func (m *model) workingIndicatorHorizontal() string {
+	var labels []string
+
+	// Add working indicator if agent is processing
+	if m.working {
+		labels = append(labels, "Working...")
+	}
+
+	// Add MCP init indicator if initializing
+	if m.mcpInit {
+		labels = append(labels, "Initializing MCP servers...")
+	}
+
+	// Add RAG indexing labels for each active indexing operation
+	// Group strategies by RAG source to avoid repeating the source name
+	ragGroups := make(map[string][]struct {
+		strategyName string
+		state        *ragIndexingState
+	})
+
+	for key, state := range m.ragIndexing {
+		parts := strings.Split(key, "/")
+		if len(parts) == 2 {
+			ragName := parts[0]
+			if ragGroups[ragName] == nil {
+				ragGroups[ragName] = []struct {
+					strategyName string
+					state        *ragIndexingState
+				}{}
+			}
+			ragGroups[ragName] = append(ragGroups[ragName], struct {
+				strategyName string
+				state        *ragIndexingState
+			}{parts[1], state})
+		}
+	}
+
+	// Display each RAG source with its strategies (sorted for stable display)
+	ragNames := make([]string, 0, len(ragGroups))
+	for ragName := range ragGroups {
+		ragNames = append(ragNames, ragName)
+	}
+	sort.Strings(ragNames)
+
+	for _, ragName := range ragNames {
+		strategies := ragGroups[ragName]
+		displayRagName := strings.ReplaceAll(ragName, "_", " ")
+
+		// Sort strategies by name for stable display
+		sort.Slice(strategies, func(i, j int) bool {
+			return strategies[i].strategyName < strategies[j].strategyName
+		})
+
+		// First line: RAG source name (bold for emphasis)
+		ragNameStyled := styles.BoldStyle.Render(displayRagName)
+		labels = append(labels, fmt.Sprintf("Indexing %s", ragNameStyled))
+
+		// Following lines: each strategy with progress, indented with bullet
+		for _, strategy := range strategies {
+			displayStratName := strings.ReplaceAll(strategy.strategyName, "-", " ")
+			progress := ""
+			if strategy.state.total > 0 {
+				progress = fmt.Sprintf(" [%d/%d]", strategy.state.current, strategy.state.total)
+			}
+			stratNameStyled := styles.BoldStyle.Render(displayStratName)
+			labels = append(labels, fmt.Sprintf("  • %s%s", stratNameStyled, progress))
+		}
+	}
+
+	if len(labels) == 0 {
+		return ""
+	}
+
+	// For horizontal mode, show all labels separated by " | "
+	label := strings.Join(labels, " | ")
+	return styles.ActiveStyle.Render(m.spinner.View() + " " + label)
 }
 
 func (m *model) tokenUsage() string {

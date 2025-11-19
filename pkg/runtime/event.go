@@ -196,7 +196,7 @@ type Usage struct {
 	Cost          float64 `json:"cost"`
 }
 
-func TokenUsage(inputTokens, outputTokens, contextLength, contextLimit int, cost float64) Event {
+func TokenUsage(inputTokens, outputTokens, contextLength, contextLimit int, cost float64, agentName string) Event {
 	return &TokenUsageEvent{
 		Type: "token_usage",
 		Usage: &Usage{
@@ -206,6 +206,7 @@ func TokenUsage(inputTokens, outputTokens, contextLength, contextLimit int, cost
 			OutputTokens:  outputTokens,
 			Cost:          cost,
 		},
+		AgentContext: AgentContext{AgentName: agentName},
 	}
 }
 
@@ -437,6 +438,73 @@ func ToolStatus(toolName, status, agentName string) Event {
 		Type:         "tool_status",
 		ToolName:     toolName,
 		Status:       status,
+		AgentContext: AgentContext{AgentName: agentName},
+	}
+}
+
+// RAG lifecycle events
+type RAGIndexingStartedEvent struct {
+	Type         string `json:"type"`
+	RAGName      string `json:"rag_name"`
+	StrategyName string `json:"strategy_name"`
+	AgentContext
+}
+
+func RAGIndexingStarted(ragName, strategyName, agentName string) Event {
+	return &RAGIndexingStartedEvent{
+		Type:         "rag_indexing_started",
+		RAGName:      ragName,
+		StrategyName: strategyName,
+		AgentContext: AgentContext{AgentName: agentName},
+	}
+}
+
+type RAGIndexingProgressEvent struct {
+	Type         string `json:"type"`
+	RAGName      string `json:"rag_name"`
+	StrategyName string `json:"strategy_name"`
+	Current      int    `json:"current"`
+	Total        int    `json:"total"`
+	AgentContext
+}
+
+func RAGIndexingProgress(ragName, strategyName string, current, total int, agentName string) Event {
+	return &RAGIndexingProgressEvent{
+		Type:         "rag_indexing_progress",
+		RAGName:      ragName,
+		StrategyName: strategyName,
+		Current:      current,
+		Total:        total,
+		AgentContext: AgentContext{AgentName: agentName},
+	}
+}
+
+type RAGIndexingCompletedEvent struct {
+	Type         string `json:"type"`
+	RAGName      string `json:"rag_name"`
+	StrategyName string `json:"strategy_name"`
+	AgentContext
+}
+
+func RAGIndexingCompleted(ragName, strategyName, agentName string) Event {
+	return &RAGIndexingCompletedEvent{
+		Type:         "rag_indexing_completed",
+		RAGName:      ragName,
+		StrategyName: strategyName,
+		AgentContext: AgentContext{AgentName: agentName},
+	}
+}
+
+type RAGReadyEvent struct {
+	Type    string `json:"type"`
+	RAGName string `json:"rag_name"`
+	AgentContext
+}
+
+func RAGReady(ragName, agentName string) Event {
+	return &RAGReadyEvent{
+		Type:         "rag_ready",
+		RAGName:      ragName,
 		AgentContext: AgentContext{AgentName: agentName},
 	}
 }

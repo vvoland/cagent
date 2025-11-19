@@ -15,6 +15,7 @@ import (
 	"github.com/docker/cagent/pkg/js"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/model/provider/options"
+	"github.com/docker/cagent/pkg/rag"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
@@ -146,6 +147,16 @@ func LoadFrom(ctx context.Context, source AgentSource, runtimeConfig *config.Run
 		return nil, err
 	}
 
+	// Create RAG managers
+	ragManagers, err := rag.NewManagers(ctx, cfg, rag.ManagersBuildConfig{
+		ParentDir:     parentDir,
+		ModelsGateway: runtimeConfig.ModelsGateway,
+		Env:           env,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create RAG managers: %w", err)
+	}
+
 	// Load agents
 	var agents []*agent.Agent
 	agentsByName := make(map[string]*agent.Agent)
@@ -182,6 +193,14 @@ func LoadFrom(ctx context.Context, source AgentSource, runtimeConfig *config.Run
 			opts = append(opts, agent.WithLoadTimeWarnings(warnings))
 		}
 
+		// Add RAG tool if agent has RAG sources
+		if len(agentConfig.RAG) > 0 {
+			ragTool := createRAGToolForAgent(&agentConfig, ragManagers)
+			if ragTool != nil {
+				agentTools = append(agentTools, ragTool)
+			}
+		}
+
 		opts = append(opts, agent.WithToolSets(agentTools...))
 
 		ag := agent.New(name, agentConfig.Instruction, opts...)
@@ -212,7 +231,11 @@ func LoadFrom(ctx context.Context, source AgentSource, runtimeConfig *config.Run
 		id = fileName
 	}
 
-	return team.New(team.WithID(id), team.WithAgents(agents...)), nil
+	return team.New(
+		team.WithID(id),
+		team.WithAgents(agents...),
+		team.WithRAGManagers(ragManagers),
+	), nil
 }
 
 func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentConfig, autoModelFn func() latest.ModelConfig, runtimeConfig *config.RuntimeConfig) ([]provider.Provider, error) {
@@ -281,4 +304,27 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 	}
 
 	return toolSets, warnings
+}
+
+// createRAGToolForAgent creates a RAG tool for an agent with its referenced RAG sources
+func createRAGToolForAgent(agentConfig *latest.AgentConfig, allManagers map[string]*rag.Manager) tools.ToolSet {
+	if len(agentConfig.RAG) == 0 {
+		return nil
+	}
+
+	// Filter managers for this agent
+	agentManagers := make(map[string]*rag.Manager)
+	for _, ragName := range agentConfig.RAG {
+		if mgr, exists := allManagers[ragName]; exists {
+			agentManagers[ragName] = mgr
+		} else {
+			slog.Error("RAG source not found", "rag_source", ragName)
+		}
+	}
+
+	if len(agentManagers) == 0 {
+		return nil
+	}
+
+	return builtin.NewRAGTool(agentManagers)
 }
