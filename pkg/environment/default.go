@@ -1,9 +1,11 @@
 package environment
 
 func NewDefaultProvider() Provider {
-	var providers []Provider
-
-	providers = append(providers, NewOsEnvProvider(), NewRunSecretsProvider())
+	providers := []Provider{
+		NewOsEnvProvider(),
+		NewRunSecretsProvider(),
+		NewDockerDesktopProvider(),
+	}
 
 	// Append pass provider at the end if available
 	if passProvider, err := NewPassProvider(); err == nil {
@@ -14,9 +16,6 @@ func NewDefaultProvider() Provider {
 	if keychainProvider, err := NewKeychainProvider(); err == nil {
 		providers = append(providers, keychainProvider)
 	}
-
-	// Append Docker Desktop provider last
-	providers = append(providers, NewDockerDesktopProvider())
 
 	return NewMultiProvider(providers...)
 }
