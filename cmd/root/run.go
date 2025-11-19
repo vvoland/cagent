@@ -245,7 +245,6 @@ func handleRunMode(ctx context.Context, agentFilename string, rt runtime.Runtime
 
 	progOpts := []tea.ProgramOption{
 		tea.WithContext(ctx),
-		tea.WithFilter(tui.MouseEventFilter),
 	}
 
 	p := tea.NewProgram(m, progOpts...)

@@ -73,7 +73,6 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
 
 	progOpts := []tea.ProgramOption{
 		tea.WithContext(ctx),
-		tea.WithFilter(tui.MouseEventFilter),
 	}
 
 	p := tea.NewProgram(m, progOpts...)

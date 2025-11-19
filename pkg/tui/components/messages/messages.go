@@ -199,7 +199,7 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.MouseWheelMsg:
-		const mouseScrollAmount = 3
+		const mouseScrollAmount = 2
 		buttonStr := msg.Button.String()
 
 		switch buttonStr {
