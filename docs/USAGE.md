@@ -546,11 +546,11 @@ toolsets:
 
 ### Installing MCP Tools
 
-Example installation of local tools with `cargo` or `npm`:
+Example installation of local tools with `npm`:
 
 ```bash
 # Install Rust-based MCP filesystem tool
-cargo install rust-mcp-filesystem
+npm i -g @rustmcp/rust-mcp-filesystem@latest
 
 # Install other popular MCP tools
 npm install -g @modelcontextprotocol/server-filesystem
