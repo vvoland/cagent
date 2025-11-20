@@ -86,17 +86,15 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 	var opts []server.Opt
 
 	if !agentfile.IsOCIReference(agentsPath) {
-		// Local files/dirs: set agentsPath for single-file reload, agentsDir for write ops
-		opts = append(opts, server.WithAgentsPath(agentsPath))
-
 		stat, err := os.Stat(resolvedPath)
 		if err != nil {
 			return fmt.Errorf("failed to stat agents path: %w", err)
 		}
 		if stat.IsDir() {
+			// For directories: only set agentsDir, not agentsPath
 			opts = append(opts, server.WithAgentsDir(resolvedPath))
 		} else {
-			opts = append(opts, server.WithAgentsDir(filepath.Dir(resolvedPath)))
+			opts = append(opts, server.WithAgentsPath(resolvedPath), server.WithAgentsDir(filepath.Dir(resolvedPath)))
 		}
 	}
 
