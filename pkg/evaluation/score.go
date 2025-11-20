@@ -67,18 +67,20 @@ func rouge1(expected, actual string) float64 {
 }
 
 func toolTrajectoryScore(expectedToolMessages, actualToolMessages []session.Message) float64 {
+	maximum := 0.0
 	score := 0.0
 
-	for i := range expectedToolMessages {
+	for i := range min(len(expectedToolMessages), len(actualToolMessages)) {
 		expected := expectedToolMessages[i]
 		actual := actualToolMessages[i]
 
 		for j := range actual.Message.ToolCalls {
+			maximum += 1.0
 			if actual.Message.ToolCalls[j].Function.Name == expected.Message.ToolCalls[j].Function.Name {
 				score += 1.0
 			}
 		}
 	}
 
-	return score / float64(len(expectedToolMessages))
+	return score / maximum
 }
