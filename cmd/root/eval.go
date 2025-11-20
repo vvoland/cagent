@@ -52,16 +52,11 @@ func (f *evalFlags) runEvalCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	results, err := evaluation.Evaluate(ctx, agents, evalsDir)
-	if err != nil {
-		return err
-	}
-
-	for _, result := range results {
+	_, err = evaluation.Evaluate(ctx, agents, evalsDir, func(result evaluation.Result) {
 		out.Printf("Eval file: %s\n", result.EvalFile)
 		out.Printf("Tool trajectory score: %f\n", result.Score.ToolTrajectoryScore)
 		out.Printf("Rouge-1 score: %f\n", result.Score.Rouge1Score)
-	}
 
-	return nil
+	})
+	return err
 }

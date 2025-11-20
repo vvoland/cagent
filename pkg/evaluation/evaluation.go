@@ -22,7 +22,7 @@ type Result struct {
 	EvalFile string
 }
 
-func Evaluate(ctx context.Context, t *team.Team, evalsDir string) ([]Result, error) {
+func Evaluate(ctx context.Context, t *team.Team, evalsDir string, onResult func(Result)) ([]Result, error) {
 	evalFiles, err := os.ReadDir(evalsDir)
 	if err != nil {
 		return nil, err
@@ -56,11 +56,13 @@ func Evaluate(ctx context.Context, t *team.Team, evalsDir string) ([]Result, err
 		}
 
 		score := score(evals[i].GetAllMessages(), actualMessages)
-
-		results = append(results, Result{
+		result := Result{
 			Score:    score,
 			EvalFile: evals[i].ID,
-		})
+		}
+		onResult(result)
+
+		results = append(results, result)
 	}
 
 	return results, nil
