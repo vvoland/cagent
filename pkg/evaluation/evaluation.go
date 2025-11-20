@@ -3,7 +3,6 @@ package evaluation
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -169,31 +168,4 @@ func toolTrajectoryScore(expectedToolMessages, actualToolMessages []session.Mess
 	}
 
 	return score / float64(len(expectedToolMessages))
-}
-
-func Save(sess *session.Session) (string, error) {
-	if err := os.MkdirAll("evals", 0o755); err != nil {
-		return "", err
-	}
-
-	fileName := sess.ID + ".json"
-	if _, err := os.Stat("evals/" + fileName); err == nil {
-		number := 1
-		for {
-			fileName = fmt.Sprintf("%s_%d.json", sess.ID, number)
-			if _, err := os.Stat("evals/" + fileName); err != nil {
-				break
-			}
-			number++
-		}
-	}
-
-	evalFile := filepath.Join("evals", fileName)
-	file, err := os.Create(evalFile)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	return evalFile, json.NewEncoder(file).Encode(sess)
 }
