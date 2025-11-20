@@ -1,15 +1,18 @@
 # Simple eval
 
-This is a simple agent that have an eval session saved in the `evals` directory, to run the eval you can:
+This is a simple agent that has two eval sessions saved in the `evals` directory, to run the eval you can:
 
 ```console
-$ cagent eval agent.yaml ./evals
+$ cagent eval demo.yaml ./evals
 ```
 
 This will output something like
 
 ```console
-Eval file: 0463e7b4-d332-4bdb-97c2-8c092a32cde3
+Eval file: 41b179a2-ed19-4ae2-a45d-95775aaa90f7
 Tool trajectory score: 1.000000
-Rouge-1 score: 0.695652
+Rouge-1 score: 0.521739
+Eval file: 5d83e247-061f-4462-9b2d-240facde45f3
+Tool trajectory score: 1.000000
+Rouge-1 score: 0.829268
 ```
