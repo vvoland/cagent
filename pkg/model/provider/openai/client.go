@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strings"
 
 	"github.com/openai/openai-go/v3"
@@ -98,17 +99,26 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 				return nil, errors.New("failed to get Docker Desktop token for Gateway")
 			}
 
-			var clientOptions []option.RequestOption
-			clientOptions = append(clientOptions, option.WithAPIKey(authToken), option.WithBaseURL(gateway+"/v1"))
+			url, err := url.Parse(gateway)
+			if err != nil {
+				return nil, fmt.Errorf("invalid gateway URL: %w", err)
+			}
+			baseURL := fmt.Sprintf("%s://%s%s/v1/", url.Scheme, url.Host, url.Path)
 
+			// Configure a custom HTTP client to inject headers and query params used by the Gateway.
 			httpClient := httpclient.NewHTTPClient(
 				httpclient.WithProxiedBaseURL(defaultsTo(cfg.BaseURL, "https://api.openai.com/v1")),
 				httpclient.WithProvider(cfg.Provider),
 				httpclient.WithModel(cfg.Model),
+				httpclient.WithQuery(url.Query()),
 			)
-			clientOptions = append(clientOptions, option.WithHTTPClient(httpClient))
 
-			client := openai.NewClient(clientOptions...)
+			client := openai.NewClient(
+				option.WithAPIKey(authToken),
+				option.WithBaseURL(baseURL),
+				option.WithHTTPClient(httpClient),
+			)
+
 			return &client, nil
 		}
 	}

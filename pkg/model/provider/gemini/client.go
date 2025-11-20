@@ -5,8 +5,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"google.golang.org/genai"
@@ -79,6 +81,12 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 				return nil, errors.New("failed to get Docker Desktop token for Gateway")
 			}
 
+			url, err := url.Parse(gateway)
+			if err != nil {
+				return nil, fmt.Errorf("invalid gateway URL: %w", err)
+			}
+			baseURL := fmt.Sprintf("%s://%s%s/", url.Scheme, url.Host, url.Path)
+
 			return genai.NewClient(ctx, &genai.ClientConfig{
 				APIKey:  authToken,
 				Backend: genai.BackendGeminiAPI,
@@ -86,9 +94,10 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 					httpclient.WithProxiedBaseURL(defaultsTo(cfg.BaseURL, "https://generativelanguage.googleapis.com/")),
 					httpclient.WithProvider(cfg.Provider),
 					httpclient.WithModel(cfg.Model),
+					httpclient.WithQuery(url.Query()),
 				),
 				HTTPOptions: genai.HTTPOptions{
-					BaseURL: gateway,
+					BaseURL: baseURL,
 					Headers: http.Header{
 						"Authorization": []string{"Bearer " + authToken},
 					},
