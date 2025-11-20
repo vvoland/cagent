@@ -18,6 +18,7 @@ type Score struct {
 	ToolTrajectoryScore float64
 	Rouge1Score         float64
 }
+
 type Result struct {
 	Score    Score
 	EvalFile string
@@ -35,10 +36,12 @@ func Evaluate(ctx context.Context, t *team.Team, evalsDir string) ([]Result, err
 		if err != nil {
 			return nil, err
 		}
+
 		var sess session.Session
 		if err := json.Unmarshal(evalFile, &sess); err != nil {
 			return nil, err
 		}
+
 		evals = append(evals, sess)
 	}
 

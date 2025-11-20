@@ -36,8 +36,10 @@ func (f *evalFlags) runEvalCommand(cmd *cobra.Command, args []string) error {
 
 	ctx := cmd.Context()
 	out := cli.NewPrinter(cmd.OutOrStdout())
+	agentFilename := args[0]
+	evalsDir := args[1]
 
-	agentFilename, err := agentfile.Resolve(ctx, out, args[0])
+	agentFilename, err := agentfile.Resolve(ctx, out, agentFilename)
 	if err != nil {
 		return err
 	}
@@ -47,15 +49,15 @@ func (f *evalFlags) runEvalCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	evalResults, err := evaluation.Evaluate(ctx, agents, args[1])
+	results, err := evaluation.Evaluate(ctx, agents, evalsDir)
 	if err != nil {
 		return err
 	}
 
-	for _, evalResult := range evalResults {
-		out.Printf("Eval file: %s\n", evalResult.EvalFile)
-		out.Printf("Tool trajectory score: %f\n", evalResult.Score.ToolTrajectoryScore)
-		out.Printf("Rouge-1 score: %f\n", evalResult.Score.Rouge1Score)
+	for _, result := range results {
+		out.Printf("Eval file: %s\n", result.EvalFile)
+		out.Printf("Tool trajectory score: %f\n", result.Score.ToolTrajectoryScore)
+		out.Printf("Rouge-1 score: %f\n", result.Score.Rouge1Score)
 	}
 
 	return nil
