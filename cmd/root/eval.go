@@ -19,10 +19,10 @@ func newEvalCmd() *cobra.Command {
 	var flags evalFlags
 
 	cmd := &cobra.Command{
-		Use:     "eval <agent-file>|<registry-ref> <eval-dir>",
+		Use:     "eval <agent-file>|<registry-ref> [<eval-dir>|./evals]",
 		Short:   "Run evaluations for an agent",
 		GroupID: "advanced",
-		Args:    cobra.ExactArgs(2),
+		Args:    cobra.RangeArgs(1, 2),
 		RunE:    flags.runEvalCommand,
 	}
 
@@ -37,7 +37,10 @@ func (f *evalFlags) runEvalCommand(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	out := cli.NewPrinter(cmd.OutOrStdout())
 	agentFilename := args[0]
-	evalsDir := args[1]
+	evalsDir := "./evals"
+	if len(args) >= 2 {
+		evalsDir = args[1]
+	}
 
 	agentFilename, err := agentfile.Resolve(ctx, out, agentFilename)
 	if err != nil {
