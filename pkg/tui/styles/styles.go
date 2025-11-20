@@ -57,6 +57,9 @@ const (
 	// Interactive element colors
 	ColorSelected = "#364A82" // Dark blue for selected items
 	ColorHover    = "#2D3F5F" // Slightly lighter than selected
+
+	// AutoCompleteGhost colors
+	ColorSuggestionGhost = "#6B6B6B"
 )
 
 // Chroma syntax highlighting colors (Monokai theme)
@@ -349,7 +352,8 @@ var (
 	}
 	EditorStyle = BaseStyle.Padding(2, 0, 0, 0)
 	// SuggestionGhostStyle renders inline auto-complete hints in a muted tone.
-	SuggestionGhostStyle = BaseStyle.Foreground(TextMuted)
+	// Use a distinct grey so suggestion text is visually separate from the user's input.
+	SuggestionGhostStyle = BaseStyle.Foreground(lipgloss.Color(ColorSuggestionGhost))
 )
 
 // Scrollbar
