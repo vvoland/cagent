@@ -30,6 +30,10 @@ func Evaluate(ctx context.Context, t *team.Team, evalsDir string, onResult func(
 
 	var evals []session.Session
 	for _, evalFile := range evalFiles {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+
 		evalFile, err := os.ReadFile(filepath.Join(evalsDir, evalFile.Name()))
 		if err != nil {
 			return nil, err
@@ -45,6 +49,10 @@ func Evaluate(ctx context.Context, t *team.Team, evalsDir string, onResult func(
 
 	var results []Result
 	for i := range evals {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+
 		rt, err := runtime.New(t)
 		if err != nil {
 			return nil, err
