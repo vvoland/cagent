@@ -775,18 +775,22 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 		if len(choice.Delta.ToolCalls) > 0 {
 			// Process each tool call delta
 			for _, deltaToolCall := range choice.Delta.ToolCalls {
-				idx := 0
-				for _, toolCall := range toolCalls {
+				// Find existing tool call by ID, or create a new one
+				idx := -1
+				for i, toolCall := range toolCalls {
 					if toolCall.ID == deltaToolCall.ID {
+						idx = i
 						break
 					}
-					idx++
 				}
 
-				if idx >= len(toolCalls) {
-					newToolCalls := make([]tools.ToolCall, idx+1)
-					copy(newToolCalls, toolCalls)
-					toolCalls = newToolCalls
+				// If tool call doesn't exist yet, append it
+				if idx == -1 {
+					idx = len(toolCalls)
+					toolCalls = append(toolCalls, tools.ToolCall{
+						ID:   deltaToolCall.ID,
+						Type: deltaToolCall.Type,
+					})
 				}
 
 				// Check if we should emit a partial event for this tool call

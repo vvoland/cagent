@@ -1,0 +1,23 @@
+---
+version: 2
+interactions:
+- id: 0
+  request:
+    proto: HTTP/1.1
+    proto_major: 1
+    proto_minor: 1
+    content_length: 0
+    host: api.openai.com
+    body: "{\"messages\":[{\"content\":\"You are a knowledgeable assistant that helps users with various tasks.\\nBe helpful, accurate, and concise in your responses.\\n\",\"role\":\"system\"},{\"content\":\"What's 2+2?\",\"role\":\"user\"}],\"model\":\"gpt-5.1\",\"stream_options\":{\"include_usage\":true},\"stream\":true}"
+    url: https://api.openai.com/v1/chat/completions
+    method: POST
+  response:
+    proto: HTTP/2.0
+    proto_major: 2
+    proto_minor: 0
+    content_length: -1
+    body: "data: {\"id\":\"chatcmpl-CdtLW4hejZ5BPp87iKox4LUkfUlOg\",\"object\":\"chat.completion.chunk\",\"created\":1763623578,\"model\":\"gpt-5.1-2025-11-13\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\",\"refusal\":null},\"finish_reason\":null}],\"usage\":null,\"obfuscation\":\"KW0qGO0A\"}\n\ndata: {\"id\":\"chatcmpl-CdtLW4hejZ5BPp87iKox4LUkfUlOg\",\"object\":\"chat.completion.chunk\",\"created\":1763623578,\"model\":\"gpt-5.1-2025-11-13\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\"2\"},\"finish_reason\":null}],\"usage\":null,\"obfuscation\":\"EwQWkLJ0X\"}\n\ndata: {\"id\":\"chatcmpl-CdtLW4hejZ5BPp87iKox4LUkfUlOg\",\"object\":\"chat.completion.chunk\",\"created\":1763623578,\"model\":\"gpt-5.1-2025-11-13\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\" +\"},\"finish_reason\":null}],\"usage\":null,\"obfuscation\":\"ob3PhUlm\"}\n\ndata: {\"id\":\"chatcmpl-CdtLW4hejZ5BPp87iKox4LUkfUlOg\",\"object\":\"chat.completion.chunk\",\"created\":1763623578,\"model\":\"gpt-5.1-2025-11-13\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\" \"},\"finish_reason\":null}],\"usage\":null,\"obfuscation\":\"465wYHOVN\"}\n\ndata: {\"id\":\"chatcmpl-CdtLW4hejZ5BPp87iKox4LUkfUlOg\",\"object\":\"chat.completion.chunk\",\"created\":1763623578,\"model\":\"gpt-5.1-2025-11-13\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\"2\"},\"finish_reason\":null}],\"usage\":null,\"obfuscation\":\"7HYqF8nSN\"}\n\ndata: {\"id\":\"chatcmpl-CdtLW4hejZ5BPp87iKox4LUkfUlOg\",\"object\":\"chat.completion.chunk\",\"created\":1763623578,\"model\":\"gpt-5.1-2025-11-13\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\" =\"},\"finish_reason\":null}],\"usage\":null,\"obfuscation\":\"3jgrjBb1\"}\n\ndata: {\"id\":\"chatcmpl-CdtLW4hejZ5BPp87iKox4LUkfUlOg\",\"object\":\"chat.completion.chunk\",\"created\":1763623578,\"model\":\"gpt-5.1-2025-11-13\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\" \"},\"finish_reason\":null}],\"usage\":null,\"obfuscation\":\"0wAkV9QNO\"}\n\ndata: {\"id\":\"chatcmpl-CdtLW4hejZ5BPp87iKox4LUkfUlOg\",\"object\":\"chat.completion.chunk\",\"created\":1763623578,\"model\":\"gpt-5.1-2025-11-13\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\"4\"},\"finish_reason\":null}],\"usage\":null,\"obfuscation\":\"ffgEmoEog\"}\n\ndata: {\"id\":\"chatcmpl-CdtLW4hejZ5BPp87iKox4LUkfUlOg\",\"object\":\"chat.completion.chunk\",\"created\":1763623578,\"model\":\"gpt-5.1-2025-11-13\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\".\"},\"finish_reason\":null}],\"usage\":null,\"obfuscation\":\"Jartskj6l\"}\n\ndata: {\"id\":\"chatcmpl-CdtLW4hejZ5BPp87iKox4LUkfUlOg\",\"object\":\"chat.completion.chunk\",\"created\":1763623578,\"model\":\"gpt-5.1-2025-11-13\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":null,\"obfuscation\":\"RRHY\"}\n\ndata: {\"id\":\"chatcmpl-CdtLW4hejZ5BPp87iKox4LUkfUlOg\",\"object\":\"chat.completion.chunk\",\"created\":1763623578,\"model\":\"gpt-5.1-2025-11-13\",\"service_tier\":\"default\",\"system_fingerprint\":null,\"choices\":[],\"usage\":{\"prompt_tokens\":39,\"completion_tokens\":17,\"total_tokens\":56,\"prompt_tokens_details\":{\"cached_tokens\":0,\"audio_tokens\":0},\"completion_tokens_details\":{\"reasoning_tokens\":0,\"audio_tokens\":0,\"accepted_prediction_tokens\":0,\"rejected_prediction_tokens\":0}},\"obfuscation\":\"23BJCSwQd\"}\n\ndata: [DONE]\n\n"
+    headers: {}
+    status: 200 OK
+    code: 200
+    duration: 1.04982225s
