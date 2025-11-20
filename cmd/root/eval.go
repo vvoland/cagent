@@ -42,12 +42,12 @@ func (f *evalFlags) runEvalCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	agents, err := teamloader.Load(cmd.Context(), agentFilename, &f.runConfig)
+	agents, err := teamloader.Load(ctx, agentFilename, &f.runConfig)
 	if err != nil {
 		return err
 	}
 
-	evalResults, err := evaluation.Evaluate(cmd.Context(), agents, args[1])
+	evalResults, err := evaluation.Evaluate(ctx, agents, args[1])
 	if err != nil {
 		return err
 	}
