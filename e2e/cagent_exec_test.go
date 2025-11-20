@@ -30,6 +30,18 @@ func TestExec_OpenAI_gpt5(t *testing.T) {
 	require.Equal(t, "\n--- Agent: root ---\n\n4", out)
 }
 
+func TestExec_OpenAI_gpt5_1(t *testing.T) {
+	out := cagentExec(t, "testdata/basic.yaml", "--model=openai/gpt-5.1", "What's 2+2?")
+
+	require.Equal(t, "\n--- Agent: root ---\n\n2 + 2 = 4.", out)
+}
+
+func TestExec_OpenAI_gpt5_codex(t *testing.T) {
+	out := cagentExec(t, "testdata/basic.yaml", "--model=openai/gpt-5-codex", "What's 2+2?")
+
+	require.Equal(t, "\n--- Agent: root ---\n\n2 + 2 equals 4.", out)
+}
+
 func TestExec_Anthropic(t *testing.T) {
 	out := cagentExec(t, "testdata/basic.yaml", "--model=anthropic/claude-sonnet-4-0", "What's 2+2?")
 

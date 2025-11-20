@@ -11,6 +11,7 @@ import (
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
 	"github.com/openai/openai-go/v3/packages/param"
+	"github.com/openai/openai-go/v3/responses"
 	"github.com/openai/openai-go/v3/shared"
 
 	"github.com/docker/cagent/pkg/chat"
@@ -270,6 +271,10 @@ func (c *Client) CreateChatCompletionStream(
 		"message_count", len(messages),
 		"tool_count", len(requestTools))
 
+	if c.ModelConfig.Provider == "openai" && strings.Contains(c.ModelConfig.Model, "-codex") {
+		return c.CreateResponseStream(ctx, messages, requestTools)
+	}
+
 	if len(messages) == 0 {
 		slog.Error("OpenAI stream creation failed", "error", "at least one message is required")
 		return nil, errors.New("at least one message is required")
@@ -318,16 +323,10 @@ func (c *Client) CreateChatCompletionStream(
 				return nil, err
 			}
 
-			paramsMap, ok := parameters.(map[string]any)
-			if !ok {
-				slog.Error("Converted parameters is not a map", "tool", tool.Name)
-				return nil, fmt.Errorf("converted parameters is not a map for tool %s", tool.Name)
-			}
-
 			toolsParam[i] = openai.ChatCompletionFunctionTool(shared.FunctionDefinitionParam{
 				Name:        tool.Name,
 				Description: openai.String(tool.Description),
-				Parameters:  shared.FunctionParameters(paramsMap),
+				Parameters:  parameters,
 			})
 
 			slog.Debug("Added tool to OpenAI request", "tool_name", tool.Name)
@@ -383,25 +382,224 @@ func (c *Client) CreateChatCompletionStream(
 	return newStreamAdapter(stream, trackUsage), nil
 }
 
-// ConvertParametersToSchema converts parameters to OpenAI Schema format
-func ConvertParametersToSchema(params any) (any, error) {
-	return tools.SchemaToMap(params)
+func (c *Client) CreateResponseStream(
+	ctx context.Context,
+	messages []chat.Message,
+	requestTools []tools.Tool,
+) (chat.MessageStream, error) {
+	slog.Debug("Creating OpenAI responses stream", "model", c.ModelConfig.Model)
+
+	if len(messages) == 0 {
+		slog.Error("OpenAI responses stream creation failed", "error", "at least one message is required")
+		return nil, errors.New("at least one message is required")
+	}
+
+	client, err := c.clientFn(ctx)
+	if err != nil {
+		slog.Error("Failed to create OpenAI client", "error", err)
+		return nil, err
+	}
+
+	input := convertMessagesToResponseInput(messages)
+
+	params := responses.ResponseNewParams{
+		Model: c.ModelConfig.Model,
+	}
+	params.Input.OfInputItemList = input
+
+	if c.ModelConfig.Temperature != nil {
+		params.Temperature = param.NewOpt(*c.ModelConfig.Temperature)
+	}
+	if c.ModelConfig.TopP != nil {
+		params.TopP = param.NewOpt(*c.ModelConfig.TopP)
+	}
+
+	if maxToken := c.ModelConfig.MaxTokens; maxToken > 0 {
+		params.MaxOutputTokens = param.NewOpt(int64(maxToken))
+		slog.Debug("OpenAI responses request configured with max output tokens", "max_output_tokens", maxToken)
+	}
+
+	if len(requestTools) > 0 {
+		slog.Debug("Adding tools to OpenAI responses request", "tool_count", len(requestTools))
+		toolsParam := make([]responses.ToolUnionParam, len(requestTools))
+		for i, tool := range requestTools {
+			parameters, err := ConvertParametersToSchema(tool.Parameters)
+			if err != nil {
+				slog.Debug("Failed to convert tool parameters to OpenAI schema", "tool_name", tool.Name, "error", err)
+				return nil, err
+			}
+
+			// The Response API requires every parameter to be required
+			parameters = makeAllRequired(parameters)
+
+			toolsParam[i] = responses.ToolUnionParam{
+				OfFunction: &responses.FunctionToolParam{
+					Name:        tool.Name,
+					Description: param.NewOpt(tool.Description),
+					Parameters:  parameters,
+					Strict:      param.NewOpt(true),
+				},
+			}
+
+			slog.Debug("Added tool to OpenAI responses request", "tool_name", tool.Name)
+		}
+		params.Tools = toolsParam
+
+		if c.ModelConfig.ParallelToolCalls != nil {
+			params.ParallelToolCalls = param.NewOpt(*c.ModelConfig.ParallelToolCalls)
+		}
+	}
+
+	// Apply structured output configuration
+	if structuredOutput := c.ModelOptions.StructuredOutput(); structuredOutput != nil {
+		slog.Debug("OpenAI responses request using structured output", "name", structuredOutput.Name, "strict", structuredOutput.Strict)
+
+		params.Text.Format.OfJSONSchema = &responses.ResponseFormatTextJSONSchemaConfigParam{
+			Name:        structuredOutput.Name,
+			Description: param.NewOpt(structuredOutput.Description),
+			Schema:      jsonSchema(structuredOutput.Schema),
+			Strict:      param.NewOpt(structuredOutput.Strict),
+		}
+	}
+
+	// Log the request in JSON format for debugging
+	if requestJSON, err := json.Marshal(params); err == nil {
+		slog.Debug("OpenAI responses request", "request", string(requestJSON))
+	} else {
+		slog.Error("Failed to marshal OpenAI responses request to JSON", "error", err)
+	}
+
+	stream := client.Responses.NewStreaming(ctx, params)
+
+	slog.Debug("OpenAI responses stream created successfully", "model", c.ModelConfig.Model)
+	return newResponseStreamAdapter(stream, c.ModelConfig.TrackUsage == nil || *c.ModelConfig.TrackUsage), nil
 }
 
-// isResponsesOnlyModel returns true for newer OpenAI models that use the Responses API
-// and expect max_completion_tokens/max_output_tokens instead of max_tokens
-func isResponsesOnlyModel(model string) bool {
-	m := strings.ToLower(model)
-	if strings.HasPrefix(m, "gpt-4.1") {
-		return true
+func convertMessagesToResponseInput(messages []chat.Message) []responses.ResponseInputItemUnionParam {
+	var input []responses.ResponseInputItemUnionParam
+	for _, msg := range messages {
+		// Skip invalid messages
+		if msg.Role == chat.MessageRoleAssistant && len(msg.ToolCalls) == 0 && len(msg.MultiContent) == 0 && strings.TrimSpace(msg.Content) == "" {
+			continue
+		}
+
+		var item responses.ResponseInputItemUnionParam
+
+		switch msg.Role {
+		case chat.MessageRoleUser:
+			if len(msg.MultiContent) == 0 {
+				item.OfMessage = &responses.EasyInputMessageParam{
+					Role: responses.EasyInputMessageRoleUser,
+					Content: responses.EasyInputMessageContentUnionParam{
+						OfString: param.NewOpt(msg.Content),
+					},
+				}
+			} else {
+				// Convert multi-content for user messages
+				contentParts := make([]responses.ResponseInputContentUnionParam, 0, len(msg.MultiContent))
+				for _, part := range msg.MultiContent {
+					switch part.Type {
+					case chat.MessagePartTypeText:
+						contentParts = append(contentParts, responses.ResponseInputContentUnionParam{
+							OfInputText: &responses.ResponseInputTextParam{
+								Text: part.Text,
+							},
+						})
+					case chat.MessagePartTypeImageURL:
+						if part.ImageURL != nil {
+							detail := responses.ResponseInputImageContentDetailAuto
+							switch part.ImageURL.Detail {
+							case chat.ImageURLDetailHigh:
+								detail = responses.ResponseInputImageContentDetailHigh
+							case chat.ImageURLDetailLow:
+								detail = responses.ResponseInputImageContentDetailLow
+							}
+							contentParts = append(contentParts, responses.ResponseInputContentUnionParam{
+								OfInputImage: &responses.ResponseInputImageParam{
+									ImageURL: param.NewOpt(part.ImageURL.URL),
+									Detail:   responses.ResponseInputImageDetail(detail),
+								},
+							})
+						}
+					}
+				}
+				item.OfInputMessage = &responses.ResponseInputItemMessageParam{
+					Role:    "user",
+					Content: contentParts,
+				}
+			}
+
+		case chat.MessageRoleAssistant:
+			if len(msg.ToolCalls) == 0 {
+				// Simple assistant message
+				item.OfMessage = &responses.EasyInputMessageParam{
+					Role: responses.EasyInputMessageRoleAssistant,
+					Content: responses.EasyInputMessageContentUnionParam{
+						OfString: param.NewOpt(msg.Content),
+					},
+				}
+			} else {
+				// Assistant message with tool calls - convert to response input item with function calls
+				for _, toolCall := range msg.ToolCalls {
+					if toolCall.Type == "function" {
+						funcCallItem := responses.ResponseInputItemUnionParam{
+							OfFunctionCall: &responses.ResponseFunctionToolCallParam{
+								CallID:    toolCall.ID,
+								Name:      toolCall.Function.Name,
+								Arguments: toolCall.Function.Arguments,
+							},
+						}
+						input = append(input, funcCallItem)
+					}
+				}
+				continue // Don't add the assistant message itself
+			}
+
+		case chat.MessageRoleSystem:
+			if len(msg.MultiContent) == 0 {
+				item.OfInputMessage = &responses.ResponseInputItemMessageParam{
+					Role: "system",
+					Content: []responses.ResponseInputContentUnionParam{
+						{
+							OfInputText: &responses.ResponseInputTextParam{
+								Text: msg.Content,
+							},
+						},
+					},
+				}
+			} else {
+				// Convert multi-content for system messages
+				contentParts := make([]responses.ResponseInputContentUnionParam, 0, len(msg.MultiContent))
+				for _, part := range msg.MultiContent {
+					if part.Type == chat.MessagePartTypeText {
+						contentParts = append(contentParts, responses.ResponseInputContentUnionParam{
+							OfInputText: &responses.ResponseInputTextParam{
+								Text: part.Text,
+							},
+						})
+					}
+				}
+				item.OfInputMessage = &responses.ResponseInputItemMessageParam{
+					Role:    "system",
+					Content: contentParts,
+				}
+			}
+
+		case chat.MessageRoleTool:
+			// Tool response message - convert to function call output
+			item.OfFunctionCallOutput = &responses.ResponseInputItemFunctionCallOutputParam{
+				CallID: msg.ToolCallID,
+				Output: responses.ResponseInputItemFunctionCallOutputOutputUnionParam{
+					OfString: param.NewOpt(msg.Content),
+				},
+			}
+		}
+
+		if item.OfMessage != nil || item.OfInputMessage != nil || item.OfFunctionCall != nil || item.OfFunctionCallOutput != nil {
+			input = append(input, item)
+		}
 	}
-	if strings.HasPrefix(m, "o1") || strings.HasPrefix(m, "o3") || strings.HasPrefix(m, "o4") {
-		return true
-	}
-	if strings.HasPrefix(m, "gpt-5") {
-		return true
-	}
-	return false
+	return input
 }
 
 // CreateEmbedding generates an embedding vector for the given text
@@ -505,6 +703,22 @@ func (c *Client) CreateBatchEmbedding(ctx context.Context, texts []string) (*bas
 		TotalTokens: totalTokens,
 		Cost:        0, // Cost calculated at strategy level
 	}, nil
+}
+
+// isResponsesOnlyModel returns true for newer OpenAI models that use the Responses API
+// and expect max_completion_tokens/max_output_tokens instead of max_tokens
+func isResponsesOnlyModel(model string) bool {
+	m := strings.ToLower(model)
+	if strings.HasPrefix(m, "gpt-4.1") {
+		return true
+	}
+	if strings.HasPrefix(m, "o1") || strings.HasPrefix(m, "o3") || strings.HasPrefix(m, "o4") {
+		return true
+	}
+	if strings.HasPrefix(m, "gpt-5") {
+		return true
+	}
+	return false
 }
 
 func isOpenAIReasoningModel(model string) bool {
