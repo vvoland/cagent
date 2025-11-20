@@ -1,0 +1,68 @@
+{
+    "id": "41b179a2-ed19-4ae2-a45d-95775aaa90f7",
+    "title": "Counting Files in Local Folder",
+    "messages": [
+        {
+            "message": {
+                "agentFilename": "./agent.yaml",
+                "agentName": "",
+                "message": {
+                    "role": "user",
+                    "content": "How many files in the local folder?",
+                    "created_at": "2025-11-20T12:51:05+01:00"
+                }
+            }
+        },
+        {
+            "message": {
+                "agentFilename": "",
+                "agentName": "root",
+                "message": {
+                    "role": "assistant",
+                    "content": "",
+                    "tool_calls": [
+                        {
+                            "id": "call_VUQE0PAUhRbKpFFoVdNY1XTx",
+                            "type": "function",
+                            "function": {
+                                "name": "list_directory",
+                                "arguments": "{\"path\":\"./\"}"
+                            }
+                        }
+                    ],
+                    "created_at": "2025-11-20T12:51:06+01:00"
+                }
+            }
+        },
+        {
+            "message": {
+                "agentFilename": "",
+                "agentName": "root",
+                "message": {
+                    "role": "tool",
+                    "content": "FILE README.md\nFILE agent.yaml\n",
+                    "tool_call_id": "call_VUQE0PAUhRbKpFFoVdNY1XTx",
+                    "created_at": "2025-11-20T12:51:06+01:00"
+                }
+            }
+        },
+        {
+            "message": {
+                "agentFilename": "",
+                "agentName": "root",
+                "message": {
+                    "role": "assistant",
+                    "content": "There are 2 files in the local folder:\n\n1. `README.md`\n2. `agent.yaml`",
+                    "created_at": "2025-11-20T12:51:06+01:00"
+                }
+            }
+        }
+    ],
+    "created_at": "2025-11-20T12:50:48.32142+01:00",
+    "tools_approved": false,
+    "SendUserMessage": true,
+    "max_iterations": 0,
+    "input_tokens": 918,
+    "output_tokens": 23,
+    "cost": 0.0048850000000000005
+}

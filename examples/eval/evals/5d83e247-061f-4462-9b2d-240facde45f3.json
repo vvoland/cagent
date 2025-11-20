@@ -1,0 +1,68 @@
+{
+    "id": "5d83e247-061f-4462-9b2d-240facde45f3",
+    "title": "Checking the Content of README.md File",
+    "messages": [
+        {
+            "message": {
+                "agentFilename": "./demo.yaml",
+                "agentName": "",
+                "message": {
+                    "role": "user",
+                    "content": "Is README.md empty?",
+                    "created_at": "2025-11-20T12:53:33+01:00"
+                }
+            }
+        },
+        {
+            "message": {
+                "agentFilename": "",
+                "agentName": "root",
+                "message": {
+                    "role": "assistant",
+                    "content": "",
+                    "tool_calls": [
+                        {
+                            "id": "call_JRY589fOnxlErcyqhH6UG4tJ",
+                            "type": "function",
+                            "function": {
+                                "name": "read_file",
+                                "arguments": "{\"path\":\"README.md\"}"
+                            }
+                        }
+                    ],
+                    "created_at": "2025-11-20T12:53:34+01:00"
+                }
+            }
+        },
+        {
+            "message": {
+                "agentFilename": "",
+                "agentName": "root",
+                "message": {
+                    "role": "tool",
+                    "content": "# Simple eval\n\nThis is a simple agent that has two eval sessions saved in the `evals` directory, to run the eval you can:\n\n```console\n$ cagent eval demo.yaml ./evals\n```\n\nThis will output something like\n\n```console\nEval file: 41b179a2-ed19-4ae2-a45d-95775aaa90f7\nTool trajectory score: 1.000000\nRouge-1 score: 0.521739\n```\n",
+                    "tool_call_id": "call_JRY589fOnxlErcyqhH6UG4tJ",
+                    "created_at": "2025-11-20T12:53:34+01:00"
+                }
+            }
+        },
+        {
+            "message": {
+                "agentFilename": "",
+                "agentName": "root",
+                "message": {
+                    "role": "assistant",
+                    "content": "The `README.md` file is not empty. It contains information about running a simple evaluation using a specific agent and includes example output.",
+                    "created_at": "2025-11-20T12:53:35+01:00"
+                }
+            }
+        }
+    ],
+    "created_at": "2025-11-20T12:53:32.334516+01:00",
+    "tools_approved": false,
+    "SendUserMessage": true,
+    "max_iterations": 0,
+    "input_tokens": 1012,
+    "output_tokens": 28,
+    "cost": 0.0051725
+}

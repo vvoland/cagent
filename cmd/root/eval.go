@@ -19,10 +19,10 @@ func newEvalCmd() *cobra.Command {
 	var flags evalFlags
 
 	cmd := &cobra.Command{
-		Use:     "eval <agent-file>|<registry-ref> <eval-dir>",
+		Use:     "eval <agent-file>|<registry-ref> [<eval-dir>|./evals]",
 		Short:   "Run evaluations for an agent",
 		GroupID: "advanced",
-		Args:    cobra.ExactArgs(2),
+		Args:    cobra.RangeArgs(1, 2),
 		RunE:    flags.runEvalCommand,
 	}
 
@@ -36,27 +36,26 @@ func (f *evalFlags) runEvalCommand(cmd *cobra.Command, args []string) error {
 
 	ctx := cmd.Context()
 	out := cli.NewPrinter(cmd.OutOrStdout())
+	agentFilename := args[0]
+	evalsDir := "./evals"
+	if len(args) >= 2 {
+		evalsDir = args[1]
+	}
 
-	agentFilename, err := agentfile.Resolve(ctx, out, args[0])
+	agentFilename, err := agentfile.Resolve(ctx, out, agentFilename)
 	if err != nil {
 		return err
 	}
 
-	agents, err := teamloader.Load(cmd.Context(), agentFilename, &f.runConfig)
+	agents, err := teamloader.Load(ctx, agentFilename, &f.runConfig)
 	if err != nil {
 		return err
 	}
 
-	evalResults, err := evaluation.Evaluate(cmd.Context(), agents, args[1])
-	if err != nil {
-		return err
-	}
-
-	for _, evalResult := range evalResults {
-		out.Printf("Eval file: %s\n", evalResult.EvalFile)
-		out.Printf("Tool trajectory score: %f\n", evalResult.Score.ToolTrajectoryScore)
-		out.Printf("Rouge-1 score: %f\n", evalResult.Score.Rouge1Score)
-	}
-
-	return nil
+	_, err = evaluation.Evaluate(ctx, agents, evalsDir, func(result evaluation.Result) {
+		out.Printf("Eval file: %s\n", result.EvalFile)
+		out.Printf("Tool trajectory score: %f\n", result.Score.ToolTrajectoryScore)
+		out.Printf("Rouge-1 score: %f\n", result.Score.Rouge1Score)
+	})
+	return err
 }
