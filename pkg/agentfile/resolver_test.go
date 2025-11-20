@@ -497,3 +497,364 @@ agents:
     instruction: You are a test OCI agent
 `, string(storedContent))
 }
+
+// TestResolveAgentFile_OCIRef_CachedUpToDate tests the optimization where
+// if local cache matches remote digest, we don't reload from store
+func TestResolveAgentFile_OCIRef_CachedUpToDate(t *testing.T) {
+	storeDir := t.TempDir()
+	t.Setenv("CAGENT_CONTENT_STORE", storeDir)
+
+	store, err := content.NewStore()
+	require.NoError(t, err)
+
+	agentContent := `version: "1"
+agents:
+  root:
+    model: openai/gpt-4o
+    description: Cached agent test
+    instruction: You are a test agent for cache optimization
+`
+	agentFile := filepath.Join(t.TempDir(), "cached-agent.yaml")
+	require.NoError(t, os.WriteFile(agentFile, []byte(agentContent), 0o644))
+
+	// Package as OCI artifact
+	ociRef := "test.registry.io/myorg/cached-agent:v1"
+	digest, err := oci.PackageFileAsOCIToStore(t.Context(), agentFile, ociRef, store)
+	require.NoError(t, err)
+	require.NotEmpty(t, digest, "Digest should not be empty")
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	// First resolution - should load from store
+	resolved1, err := Resolve(ctx, nil, ociRef)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resolved1)
+
+	content1, err := os.ReadFile(resolved1)
+	require.NoError(t, err)
+	assert.Contains(t, string(content1), "Cached agent test")
+
+	// Get the digest from metadata to verify it matches
+	meta, err := store.GetArtifactMetadata(ociRef)
+	require.NoError(t, err)
+	assert.Equal(t, digest, meta.Digest, "Stored digest should match package digest")
+
+	// Second resolution - digest hasn't changed, should use cached version
+	// The optimization means we don't call FromStore a second time
+	resolved2, err := Resolve(ctx, nil, ociRef)
+	require.NoError(t, err)
+
+	// Should resolve to the same file (deterministic filename from OCI ref)
+	assert.Equal(t, resolved1, resolved2)
+
+	content2, err := os.ReadFile(resolved2)
+	require.NoError(t, err)
+	assert.Equal(t, string(content1), string(content2))
+}
+
+// TestResolveAgentFile_OCIRef_ContentUpdated tests that when remote content
+// changes (different digest), we reload from store
+func TestResolveAgentFile_OCIRef_ContentUpdated(t *testing.T) {
+	storeDir := t.TempDir()
+	t.Setenv("CAGENT_CONTENT_STORE", storeDir)
+
+	store, err := content.NewStore()
+	require.NoError(t, err)
+
+	// Initial content
+	agentContent1 := `version: "1"
+agents:
+  root:
+    model: openai/gpt-4o
+    description: Original agent
+    instruction: Original instruction
+`
+	agentFile1 := filepath.Join(t.TempDir(), "agent-v1.yaml")
+	require.NoError(t, os.WriteFile(agentFile1, []byte(agentContent1), 0o644))
+
+	ociRef := "test.registry.io/myorg/updating-agent:latest"
+	digest1, err := oci.PackageFileAsOCIToStore(t.Context(), agentFile1, ociRef, store)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+
+	// First resolution
+	resolved1, err := Resolve(ctx, nil, ociRef)
+	require.NoError(t, err)
+
+	content1, err := os.ReadFile(resolved1)
+	require.NoError(t, err)
+	assert.Contains(t, string(content1), "Original agent")
+
+	// Update the content with different data
+	agentContent2 := `version: "1"
+agents:
+  root:
+    model: anthropic/claude-sonnet-4-0
+    description: Updated agent
+    instruction: Updated instruction
+`
+	agentFile2 := filepath.Join(t.TempDir(), "agent-v2.yaml")
+	require.NoError(t, os.WriteFile(agentFile2, []byte(agentContent2), 0o644))
+
+	// Re-package with same OCI ref but different content
+	digest2, err := oci.PackageFileAsOCIToStore(t.Context(), agentFile2, ociRef, store)
+	require.NoError(t, err)
+	assert.NotEqual(t, digest1, digest2, "Digests should differ for different content")
+
+	// Second resolution - should detect digest change and reload
+	resolved2, err := Resolve(ctx, nil, ociRef)
+	require.NoError(t, err)
+
+	// Should use same filename (based on OCI ref)
+	assert.Equal(t, resolved1, resolved2)
+
+	// But content should be updated
+	content2, err := os.ReadFile(resolved2)
+	require.NoError(t, err)
+	assert.Contains(t, string(content2), "Updated agent")
+	assert.NotContains(t, string(content2), "Original agent")
+}
+
+// TestResolveAgentFile_OCIRef_DigestComparison verifies digest comparison
+// logic by checking metadata before and after resolution
+func TestResolveAgentFile_OCIRef_DigestComparison(t *testing.T) {
+	storeDir := t.TempDir()
+	t.Setenv("CAGENT_CONTENT_STORE", storeDir)
+
+	store, err := content.NewStore()
+	require.NoError(t, err)
+
+	agentContent := `version: "1"
+agents:
+  root:
+    model: openai/gpt-4o
+    description: Digest test agent
+    instruction: Testing digest logic
+`
+	agentFile := filepath.Join(t.TempDir(), "digest-agent.yaml")
+	require.NoError(t, os.WriteFile(agentFile, []byte(agentContent), 0o644))
+
+	ociRef := "test.registry.io/myorg/digest-test:v1"
+	expectedDigest, err := oci.PackageFileAsOCIToStore(t.Context(), agentFile, ociRef, store)
+	require.NoError(t, err)
+
+	// Verify metadata exists before resolution
+	meta, err := store.GetArtifactMetadata(ociRef)
+	require.NoError(t, err)
+	assert.Equal(t, expectedDigest, meta.Digest)
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	// Resolve - should compare digests internally
+	resolved, err := Resolve(ctx, nil, ociRef)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resolved)
+
+	// Verify metadata still matches after resolution
+	meta2, err := store.GetArtifactMetadata(ociRef)
+	require.NoError(t, err)
+	assert.Equal(t, expectedDigest, meta2.Digest)
+	assert.Equal(t, meta.Digest, meta2.Digest)
+
+	// Verify content is correct
+	fileContent, err := os.ReadFile(resolved)
+	require.NoError(t, err)
+	assert.Contains(t, string(fileContent), "Digest test agent")
+}
+
+// TestResolveAgentFile_OCIRef_NoLocalCache tests the case where no local
+// cache exists, so we must load from store after pull
+func TestResolveAgentFile_OCIRef_NoLocalCache(t *testing.T) {
+	storeDir := t.TempDir()
+	t.Setenv("CAGENT_CONTENT_STORE", storeDir)
+
+	store, err := content.NewStore()
+	require.NoError(t, err)
+
+	agentContent := `version: "1"
+agents:
+  root:
+    model: openai/gpt-4o
+    description: Fresh pull agent
+    instruction: Testing fresh pull
+`
+	agentFile := filepath.Join(t.TempDir(), "fresh-agent.yaml")
+	require.NoError(t, os.WriteFile(agentFile, []byte(agentContent), 0o644))
+
+	// Package in store but don't access it yet
+	ociRef := "test.registry.io/myorg/fresh-agent:v1"
+	_, err = oci.PackageFileAsOCIToStore(t.Context(), agentFile, ociRef, store)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	// Resolution should work even though we haven't called FromStore manually yet
+	resolved, err := Resolve(ctx, nil, ociRef)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resolved)
+
+	// Content should be correct
+	fileContent, err := os.ReadFile(resolved)
+	require.NoError(t, err)
+	assert.Contains(t, string(fileContent), "Fresh pull agent")
+}
+
+func TestResolveAgentFile_Directory(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	// Should resolve directory to absolute path
+	resolved, err := Resolve(ctx, nil, tmpDir)
+	require.NoError(t, err)
+
+	absPath, err := filepath.Abs(tmpDir)
+	require.NoError(t, err)
+	assert.Equal(t, absPath, resolved)
+}
+
+func TestResolveAgentFile_DirectoryWithAgentYaml(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	agentContent := `version: "1"
+agents:
+  root:
+    model: openai/gpt-4o
+    description: Test agent in directory
+    instruction: You are a test agent
+`
+	agentFile := filepath.Join(tmpDir, "agent.yaml")
+	require.NoError(t, os.WriteFile(agentFile, []byte(agentContent), 0o644))
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	// Resolving directory should return directory path
+	resolved, err := Resolve(ctx, nil, tmpDir)
+	require.NoError(t, err)
+
+	absPath, err := filepath.Abs(tmpDir)
+	require.NoError(t, err)
+	assert.Equal(t, absPath, resolved)
+}
+
+func TestResolveAgentFile_RelativeDirectory(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	agentContent := `version: "1"
+agents:
+  root:
+    model: openai/gpt-4o
+    description: Test agent
+    instruction: You are a test agent
+`
+	agentFile := filepath.Join(tmpDir, "agent.yaml")
+	require.NoError(t, os.WriteFile(agentFile, []byte(agentContent), 0o644))
+
+	// Change to temp directory and use relative path
+	originalWd, err := os.Getwd()
+	require.NoError(t, err)
+	defer func() {
+		if err := os.Chdir(originalWd); err != nil {
+			t.Logf("Failed to restore working directory: %v", err)
+		}
+	}()
+
+	require.NoError(t, os.Chdir(tmpDir))
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	// Resolve relative path "."
+	resolved, err := Resolve(ctx, nil, ".")
+	require.NoError(t, err)
+
+	absPath, err := filepath.Abs(".")
+	require.NoError(t, err)
+	assert.Equal(t, absPath, resolved)
+}
+
+func TestResolveAgentFile_NonExistentDirectory(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	nonExistentDir := filepath.Join(tmpDir, "does-not-exist")
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	// Should try to treat as OCI reference and fail
+	_, err := Resolve(ctx, nil, nonExistentDir)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to pull OCI image")
+}
+
+func TestResolveAgentFile_DirectoryVsFile(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+
+	// Create a directory
+	subDir := filepath.Join(tmpDir, "subdir")
+	require.NoError(t, os.Mkdir(subDir, 0o755))
+
+	// Create a file with same name but .yaml extension
+	yamlFile := filepath.Join(tmpDir, "subdir.yaml")
+	yamlContent := `version: "1"
+agents:
+  root:
+    model: openai/gpt-4o
+    description: Test agent file
+    instruction: You are a test agent
+`
+	require.NoError(t, os.WriteFile(yamlFile, []byte(yamlContent), 0o644))
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	// Resolve directory
+	resolvedDir, err := Resolve(ctx, nil, subDir)
+	require.NoError(t, err)
+	absDirPath, err := filepath.Abs(subDir)
+	require.NoError(t, err)
+	assert.Equal(t, absDirPath, resolvedDir)
+
+	// Resolve file
+	resolvedFile, err := Resolve(ctx, nil, yamlFile)
+	require.NoError(t, err)
+	absFilePath, err := filepath.Abs(yamlFile)
+	require.NoError(t, err)
+	assert.Equal(t, absFilePath, resolvedFile)
+
+	// They should be different paths
+	assert.NotEqual(t, resolvedDir, resolvedFile)
+}
+
+func TestResolveAgentFile_EmptyDirectory(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	emptyDir := filepath.Join(tmpDir, "empty")
+	require.NoError(t, os.Mkdir(emptyDir, 0o755))
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	// Should still resolve the directory path
+	resolved, err := Resolve(ctx, nil, emptyDir)
+	require.NoError(t, err)
+
+	absPath, err := filepath.Abs(emptyDir)
+	require.NoError(t, err)
+	assert.Equal(t, absPath, resolved)
+}

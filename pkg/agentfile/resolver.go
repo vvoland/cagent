@@ -67,6 +67,7 @@ func OciRefToFilename(ociRef string) string {
 }
 
 // Resolve resolves an agent file reference (local file or OCI image) to a local file path
+// For OCI references, always checks remote for updates but falls back to local cache if offline
 func Resolve(ctx context.Context, out *cli.Printer, agentFilename string) (string, error) {
 	originalOCIRef := agentFilename // Store the original for OCI ref tracking
 
@@ -101,18 +102,40 @@ func Resolve(ctx context.Context, out *cli.Printer, agentFilename string) (strin
 		return agentFilename, nil
 	}
 
-	// Treat as an OCI image reference. Try local store first, otherwise pull then load.
-	a, err := FromStore(agentFilename)
+	// Treat as an OCI image reference
+	// Check if we have a local copy (without loading content)
+	store, err := content.NewStore()
 	if err != nil {
-		out.Println("Pulling agent", agentFilename)
-		if _, pullErr := remote.Pull(ctx, agentFilename, false); pullErr != nil {
+		return "", fmt.Errorf("failed to create content store: %w", err)
+	}
+
+	_, metaErr := store.GetArtifactMetadata(agentFilename)
+	hasLocal := metaErr == nil
+
+	if out != nil {
+		if hasLocal {
+			out.Printf("Checking for updates to OCI reference %s...\n", agentFilename)
+		} else {
+			out.Printf("Pulling OCI reference %s...\n", agentFilename)
+		}
+	}
+
+	// Try to pull from remote (only pulls if digest changed)
+	if _, pullErr := remote.Pull(ctx, agentFilename, false); pullErr != nil {
+		if !hasLocal {
+			// No local copy and can't pull, error out
 			return "", fmt.Errorf("failed to pull OCI image %s: %w", agentFilename, pullErr)
 		}
-		// Retry after pull
-		a, err = FromStore(agentFilename)
-		if err != nil {
-			return "", fmt.Errorf("failed to load agent from store after pull: %w", err)
+		slog.Debug("Failed to check for OCI reference updates, using cached version", "ref", agentFilename, "error", pullErr)
+		if out != nil {
+			out.Println("Using cached version of", agentFilename)
 		}
+	}
+
+	// Load the agent contents from the store
+	a, err := FromStore(agentFilename)
+	if err != nil {
+		return "", fmt.Errorf("failed to load agent from store: %w", err)
 	}
 
 	filename := OciRefToFilename(originalOCIRef)
