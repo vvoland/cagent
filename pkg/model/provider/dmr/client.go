@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
@@ -27,6 +28,13 @@ import (
 	"github.com/docker/cagent/pkg/model/provider/base"
 	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/tools"
+)
+
+const (
+	// dmrInferencePrefix mirrors github.com/docker/model-runner/pkg/inference.InferencePrefix.
+	dmrInferencePrefix = "/engines"
+	// dmrExperimentalEndpointsPrefix mirrors github.com/docker/model-runner/pkg/inference.ExperimentalEndpointsPrefix.
+	dmrExperimentalEndpointsPrefix = "/exp/vDD4.40"
 )
 
 // Client represents an DMR client wrapper
@@ -65,35 +73,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, opts ...options.Opt
 		}
 	}
 
-	var clientOptions []option.RequestOption
-	var baseURL string
-
-	switch {
-	case cfg.BaseURL != "":
-		baseURL = cfg.BaseURL
-	case os.Getenv("MODEL_RUNNER_HOST") != "":
-		baseURL = os.Getenv("MODEL_RUNNER_HOST")
-	case inContainer():
-		// This won't work with Docker CE but we have no way to detect that from inside the container.
-		baseURL = "http://model-runner.docker.internal/engines/v1/"
-	case endpoint == "http://model-runner.docker.internal/engines/v1/":
-		// Docker Desktop
-		baseURL = "http://_/exp/vDD4.40/engines/v1"
-		clientOptions = append(clientOptions, option.WithHTTPClient(&http.Client{
-			Transport: &http.Transport{
-				DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-					var d net.Dialer
-					return d.DialContext(ctx, "unix", "/var/run/docker.sock")
-				},
-			},
-		}))
-	// NOTE(krissetto): Workaround for a bug in the DMR CLI v0.1.44
-	case endpoint == "http://:0/engines/v1/":
-		baseURL = "http://127.0.0.1:12434/engines/v1/"
-	default:
-		// Docker CE
-		baseURL = endpoint
-	}
+	baseURL, clientOptions := resolveDMRBaseURL(cfg, endpoint)
 
 	clientOptions = append(clientOptions, option.WithBaseURL(baseURL), option.WithAPIKey("")) // DMR doesn't need auth
 
@@ -124,6 +104,94 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, opts ...options.Opt
 func inContainer() bool {
 	finfo, err := os.Stat("/.dockerenv")
 	return err == nil && finfo.Mode().IsRegular()
+}
+
+// resolveDMRBaseURL determines the correct base URL and HTTP options to talk to
+// Docker Model Runner, mirroring the behavior of the `docker model` CLI as
+// closely as possible.
+//
+// High‑level rules:
+//   - If the user explicitly configured a BaseURL or MODEL_RUNNER_HOST, use that.
+//   - For Desktop endpoints (model-runner.docker.internal) on the host, route
+//     through the Docker Engine experimental endpoints prefix over the Unix socket.
+//   - For standalone / offload endpoints like http://172.17.0.1:12435/engines/v1/,
+//     use localhost:<port>/engines/v1/ on the host, and the gateway IP:port inside containers.
+//   - Keep a small compatibility workaround for the legacy http://:0/engines/v1/ endpoint.
+func resolveDMRBaseURL(cfg *latest.ModelConfig, endpoint string) (string, []option.RequestOption) {
+	var clientOptions []option.RequestOption
+
+	if cfg != nil && cfg.BaseURL != "" {
+		return cfg.BaseURL, clientOptions
+	}
+	if host := os.Getenv("MODEL_RUNNER_HOST"); host != "" {
+		trimmed := strings.TrimRight(host, "/")
+		return trimmed + dmrInferencePrefix + "/v1/", clientOptions
+	}
+
+	ep := strings.TrimSpace(endpoint)
+
+	// Legacy bug workaround: old DMR versions <= 0.1.44 could report http://:0/engines/v1/.
+	if ep == "http://:0/engines/v1/" {
+		// Use the default port on localhost.
+		return "http://127.0.0.1:12434" + dmrInferencePrefix + "/v1/", clientOptions
+	}
+
+	// If we don't have a usable endpoint, fall back to sensible defaults.
+	if ep == "" {
+		if inContainer() {
+			// In a container with no endpoint info, assume Docker Desktop's internal host.
+			return "http://model-runner.docker.internal" + dmrInferencePrefix + "/v1/", clientOptions
+		}
+		// On the host with no endpoint info: default to the standard local Moby port.
+		return "http://127.0.0.1:12434" + dmrInferencePrefix + "/v1/", clientOptions
+	}
+
+	u, err := url.Parse(ep)
+	if err != nil {
+		slog.Debug("failed to parse DMR endpoint, falling back to defaults", "endpoint", ep, "error", err)
+		if inContainer() {
+			return "http://model-runner.docker.internal" + dmrInferencePrefix + "/v1/", clientOptions
+		}
+		return "http://127.0.0.1:12434" + dmrInferencePrefix + "/v1/", clientOptions
+	}
+
+	host := u.Hostname()
+	port := u.Port()
+
+	if host == "model-runner.docker.internal" && !inContainer() {
+		// Build "http://_/exp/vDD4.40/engines/v1" using the shared experimental prefix.
+		expPrefix := strings.TrimPrefix(dmrExperimentalEndpointsPrefix, "/")
+		baseURL := fmt.Sprintf("http://_/%s%s/v1", expPrefix, dmrInferencePrefix)
+
+		clientOptions = append(clientOptions, option.WithHTTPClient(&http.Client{
+			Transport: &http.Transport{
+				DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+					var d net.Dialer
+					return d.DialContext(ctx, "unix", "/var/run/docker.sock")
+				},
+			},
+		}))
+
+		return baseURL, clientOptions
+	}
+
+	if port == "" {
+		// Default port when the status output omits it.
+		port = "12434"
+	}
+
+	if inContainer() {
+		baseURL := ep
+		if !strings.HasSuffix(baseURL, "/") {
+			baseURL += "/"
+		}
+		return baseURL, clientOptions
+	}
+
+	// Host case – always talk to localhost:<port>/engines/v1/, even if the status
+	// endpoint uses a gateway IP like 172.17.0.1.
+	baseURL := fmt.Sprintf("http://127.0.0.1:%s%s/v1/", port, dmrInferencePrefix)
+	return baseURL, clientOptions
 }
 
 func convertMultiContent(multiContent []chat.MessagePart) []openai.ChatCompletionContentPartUnionParam {
