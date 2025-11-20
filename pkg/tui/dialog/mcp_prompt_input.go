@@ -63,14 +63,11 @@ func defaultMCPPromptInputKeyMap() mcpPromptInputKeyMap {
 
 // NewMCPPromptInputDialog creates a new MCP prompt input dialog
 func NewMCPPromptInputDialog(promptName string, promptInfo mcptools.PromptInfo) Dialog {
-	// Create text inputs for each required argument
+	// Create text inputs for all arguments (both required and optional)
 	var inputs []textinput.Model
 	var arguments []mcptools.PromptArgument
 
 	for _, arg := range promptInfo.Arguments {
-		if !arg.Required {
-			continue
-		}
 		ti := textinput.New()
 		ti.Placeholder = arg.Description
 		ti.CharLimit = 500
