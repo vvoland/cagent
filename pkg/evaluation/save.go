@@ -29,5 +29,7 @@ func Save(sess *session.Session) (string, error) {
 	}
 	defer file.Close()
 
-	return evalFile, json.NewEncoder(file).Encode(sess)
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	return evalFile, encoder.Encode(sess)
 }
