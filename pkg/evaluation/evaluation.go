@@ -77,7 +77,10 @@ func runLoop(ctx context.Context, rt *runtime.LocalRuntime, eval *session.Sessio
 		}
 	}
 
-	sess := session.New(session.WithMaxIterations(rt.CurrentAgent().MaxIterations()))
+	sess := session.New(
+		session.WithToolsApproved(true),
+		session.WithMaxIterations(rt.CurrentAgent().MaxIterations()),
+	)
 	for i := range userMessages {
 		sess.AddMessage(&userMessages[i])
 		_, err := rt.Run(ctx, sess)
