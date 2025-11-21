@@ -730,17 +730,6 @@ func TestHTTPRequestVerification(t *testing.T) {
 	})
 }
 
-// SlowMockHTTPClient creates artificial backpressure by adding delays
-type SlowMockHTTPClient struct {
-	*MockHTTPClient
-	delay time.Duration
-}
-
-func (s *SlowMockHTTPClient) RoundTrip(req *http.Request) (*http.Response, error) {
-	time.Sleep(s.delay) // Add artificial delay
-	return s.MockHTTPClient.RoundTrip(req)
-}
-
 // TestNon2xxHTTPResponseHandling ensures that 5xx responses are logged and handled gracefully
 func TestNon2xxHTTPResponseHandling(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))

@@ -14,7 +14,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 
 	v2 "github.com/docker/cagent/pkg/config/v2"
-	chunk "github.com/docker/cagent/pkg/rag/chunk"
+	"github.com/docker/cagent/pkg/rag/chunk"
 	"github.com/docker/cagent/pkg/rag/database"
 )
 

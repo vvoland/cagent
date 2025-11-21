@@ -16,7 +16,7 @@ var DefaultModels = map[string]string{
 }
 
 func AvailableProviders(ctx context.Context, modelsGateway string, env environment.Provider) []string {
-	providers := []string{}
+	var providers []string
 
 	if modelsGateway == "" {
 		switch {
