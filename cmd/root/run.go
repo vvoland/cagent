@@ -8,12 +8,10 @@ import (
 	"log/slog"
 	"os"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel"
 
 	"github.com/docker/cagent/pkg/agentfile"
-	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/runtime"
@@ -21,7 +19,6 @@ import (
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/telemetry"
-	"github.com/docker/cagent/pkg/tui"
 )
 
 //go:embed default-agent.yaml
@@ -240,17 +237,5 @@ func handleRunMode(ctx context.Context, agentFilename string, rt runtime.Runtime
 		return err
 	}
 
-	a := app.New(ctx, agentFilename, rt, sess, firstMessage)
-	m := tui.New(a)
-
-	progOpts := []tea.ProgramOption{
-		tea.WithContext(ctx),
-	}
-
-	p := tea.NewProgram(m, progOpts...)
-
-	go a.Subscribe(ctx, p)
-
-	_, err = p.Run()
-	return err
+	return runTUI(ctx, agentFilename, rt, sess, firstMessage)
 }
