@@ -197,6 +197,16 @@ func (s *Session) GetLastAssistantMessageContent() string {
 	return ""
 }
 
+func (s *Session) GetLastUserMessageContent() string {
+	messages := s.GetAllMessages()
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Message.Role == chat.MessageRoleUser {
+			return strings.TrimSpace(messages[i].Message.Content)
+		}
+	}
+	return ""
+}
+
 type Opt func(s *Session)
 
 func WithUserMessage(agentFilename, content string) Opt {

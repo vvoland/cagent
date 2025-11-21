@@ -28,8 +28,8 @@ func TestRuntime_OpenAI_Basic(t *testing.T) {
 	require.NoError(t, err)
 
 	response := sess.GetLastAssistantMessageContent()
-	assert.Equal(t, "2 + 2 equals 4.", response)
-	assert.Equal(t, "Basic Arithmetic: Addition of 2 and 2", sess.Title)
+	assert.Equal(t, "2 + 2 is equal to 4.", response)
+	assert.Equal(t, "Simple Math Calculation", sess.Title)
 }
 
 func TestRuntime_Mistral_Basic(t *testing.T) {
@@ -50,5 +50,5 @@ func TestRuntime_Mistral_Basic(t *testing.T) {
 
 	response := sess.GetLastAssistantMessageContent()
 	assert.Equal(t, "The sum of 2 + 2 is 4.", response)
-	assert.Equal(t, "Math Basics: Simple Addition", sess.Title)
+	assert.Equal(t, "Basic Arithmetic: Sum of 2 and 2", sess.Title)
 }
