@@ -16,10 +16,11 @@ import (
 	latest "github.com/docker/cagent/pkg/config/v3"
 	"github.com/docker/cagent/pkg/rag/chunk"
 	"github.com/docker/cagent/pkg/rag/database"
+	"github.com/docker/cagent/pkg/rag/types"
 )
 
 // NewBM25FromConfig creates a BM25 strategy from configuration
-func NewBM25FromConfig(ctx context.Context, cfg latest.RAGStrategyConfig, buildCtx BuildContext, events chan<- Event) (*Config, error) {
+func NewBM25FromConfig(ctx context.Context, cfg latest.RAGStrategyConfig, buildCtx BuildContext, events chan<- types.Event) (*Config, error) {
 	// Get optional parameters with defaults
 	k1 := GetParam(cfg.Params, "k1", 1.5)
 	bParam := GetParam(cfg.Params, "b", 0.75)
@@ -101,7 +102,7 @@ type BM25Strategy struct {
 	fileHashes map[string]string
 	watcher    *fsnotify.Watcher
 	watcherMu  sync.Mutex
-	events     chan<- Event
+	events     chan<- types.Event
 
 	// BM25 parameters
 	k1           float64 // term frequency saturation parameter (typically 1.2 to 2.0)
@@ -111,7 +112,7 @@ type BM25Strategy struct {
 }
 
 // NewBM25Strategy creates a new BM25-based retrieval strategy
-func NewBM25Strategy(name string, db database.Database, events chan<- Event, k1, b float64) *BM25Strategy {
+func NewBM25Strategy(name string, db database.Database, events chan<- types.Event, k1, b float64) *BM25Strategy {
 	return &BM25Strategy{
 		name:       name,
 		db:         db,
@@ -142,7 +143,7 @@ func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunkS
 	slog.Debug("Collecting files", "strategy", s.name, "paths", docPaths)
 	files, err := s.processor.CollectFiles(docPaths)
 	if err != nil {
-		s.emitEvent(Event{Type: "error", Error: err})
+		s.emitEvent(types.Event{Type: "error", Error: err})
 		return fmt.Errorf("failed to collect files: %w", err)
 	}
 
@@ -191,7 +192,7 @@ func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunkS
 		return nil
 	}
 
-	s.emitEvent(Event{Type: "indexing_started"})
+	s.emitEvent(types.Event{Type: "indexing_started"})
 
 	indexed := 0
 	for _, status := range fileStatuses {
@@ -207,9 +208,9 @@ func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunkS
 
 		indexed++
 
-		s.emitEvent(Event{
+		s.emitEvent(types.Event{
 			Type: "indexing_progress",
-			Progress: &Progress{
+			Progress: &types.Progress{
 				Current: indexed,
 				Total:   filesToIndex,
 			},
@@ -230,7 +231,7 @@ func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunkS
 		slog.Error("Failed to calculate average document length", "error", err)
 	}
 
-	s.emitEvent(Event{Type: "indexing_completed"})
+	s.emitEvent(types.Event{Type: "indexing_completed"})
 
 	slog.Info("BM25 strategy initialization completed",
 		"name", s.name,
@@ -716,6 +717,6 @@ func (s *BM25Strategy) watchLoop(ctx context.Context, _ []string, chunkSize, chu
 	}
 }
 
-func (s *BM25Strategy) emitEvent(event Event) {
+func (s *BM25Strategy) emitEvent(event types.Event) {
 	EmitEvent(s.events, event, s.name)
 }

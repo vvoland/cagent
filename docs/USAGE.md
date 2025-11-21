@@ -714,7 +714,7 @@ rag:
     strategies:
       - type: chunked-embeddings
         model: embedder
-        docs: [./pdfs]                # Additional chunked-embeddings-specific docs
+        docs: [./docs]                # Additional chunked-embeddings-specific docs
         database: ./vector.db
         threshold: 0.5
         limit: 20                     # Retrieve 20 candidates
@@ -786,6 +786,155 @@ results:
 
 **Best for:** Strategies using the same scoring scale. Takes maximum score.
 
+### Result Reranking
+
+Reranking re-scores retrieved documents using a specialized model to improve relevance. This is applied **after** retrieval and fusion, but **before** the final limit.
+
+#### Why Rerank?
+
+Initial retrieval strategies (embeddings, BM25) are fast but approximate. Reranking uses a more sophisticated model to:
+- Improve relevance scoring accuracy
+- Apply domain-specific criteria
+- Consider document metadata (source, recency, type)
+- Filter low-quality results
+
+#### Provider Support
+
+| Provider   | Implementation                          | Recommended Use Case         |
+|------------|-----------------------------------------|------------------------------|
+| DMR        | Native `/rerank` endpoint               | Production (fast, efficient) |
+| OpenAI     | Chat completion + structured outputs    | Flexible, criteria-based     |
+| Anthropic  | Beta API + structured outputs           | Complex relevance rules      |
+| Gemini     | Structured outputs                      | Cost-effective scoring       |
+
+#### Basic Reranking Configuration
+
+```yaml
+rag:
+  docs_with_reranking:
+    docs: [./knowledge_base]
+    strategies:
+      - type: chunked-embeddings
+        model: openai/text-embedding-3-small
+        limit: 20  # Retrieve more candidates for reranking
+    
+    results:
+      reranking:
+        model: openai/gpt-4o-mini
+      limit: 5  # Final results after reranking
+```
+
+#### Advanced Reranking Configuration
+
+```yaml
+rag:
+  advanced_reranking:
+    docs: [./documents]
+    strategies:
+      - type: chunked-embeddings
+        model: embedder
+        limit: 20
+    
+    results:
+      reranking:
+        model: openai/gpt-4o-mini
+        
+        # top_k: Only rerank top K results (optional)
+        # Useful for cost optimization when retrieving many documents
+        # Set to 0 or omit to rerank all results
+        top_k: 10
+        
+        # threshold: Minimum relevance score (0.0-1.0) after reranking (default: 0.5)
+        # Results below threshold are filtered out
+        # Applied before final limit
+        threshold: 0.3
+        
+        # criteria: Domain-specific relevance guidance (optional)
+        # The model receives metadata: source path, chunk index, created_at
+        # Use this to guide scoring based on source, recency, or content type
+        criteria: |
+          When scoring relevance, prioritize:
+          - Content from official documentation over blog posts
+          - Recent information (check created_at dates)
+          - Practical examples and implementation details
+          - Documents from docs/ directory when available
+      
+      deduplicate: true
+      limit: 5
+```
+
+#### DMR Native Reranking
+
+DMR offers a native reranking endpoint:
+
+```yaml
+models:
+  dmr-reranker:
+    provider: dmr
+    model: hf.co/ggml-org/qwen3-reranker-0.6b-q8_0-gguf # reranking specific model
+    # Note: Native reranking doesn't support criteria parameter
+
+rag:
+  knowledge_base:
+    docs: [./documents]
+    strategies:
+      - type: chunked-embeddings
+        model: embedder
+        limit: 20
+    
+    results:
+      reranking:
+        model: dmr-reranker
+        threshold: 0.5
+      limit: 5
+```
+
+#### Reranking Model Configuration
+
+Configure sampling parameters for deterministic or creative scoring. Note that temperature defaults to 0.0 for reranking when not explicitly set:
+
+```yaml
+models:
+  # Deterministic reranking (default behavior)
+  openai-rerank:
+    provider: openai
+    model: gpt-4o-mini
+    # temperature: 0.0  # Default for reranking (explicit setting optional)
+    max_tokens: 16384
+  
+  # Anthropic with structured outputs
+  claude-rerank:
+    provider: anthropic
+    model: claude-sonnet-4-5 # model needs to support structured outputs
+    # temperature: 0.0  # Default for reranking
+    max_tokens: 16384
+  
+  # Gemini reranking
+  gemini-rerank:
+    provider: google
+    model: gemini-2.5-flash
+    # temperature: 0.0  # Default for reranking
+    max_tokens: 16384
+```
+
+#### Reranking Configuration Reference
+
+| Field        | Type    | Description                                                           | Default |
+|--------------|---------|-----------------------------------------------------------------------|---------|
+| `model`      | string  | Model reference for reranking                                         | -       |
+| `top_k`      | int     | Only rerank top K results (0 = rerank all)                            | 0       |
+| `threshold`  | float   | Minimum score (0.0-1.0) after reranking                               | 0.5     |
+| `criteria`   | string  | Domain-specific relevance guidance (not supported by DMR native)      | ""      |
+
+**Notes:**
+- Reranking adds latency but significantly improves result quality
+- Use `top_k` to trade quality for speed and cost
+- Temperature defaults to 0.0 for deterministic scoring when not explicitly set (OpenAI, Anthropic, Gemini)
+- Default threshold of 0.5 filters documents with negative logits (sigmoid < 0.5 = not relevant)
+- DMR native reranking is fastest but doesn't support custom criteria
+- Criteria works with OpenAI, Anthropic, and Gemini (chat-based reranking using structured-outputs)
+- Fallback: If reranking fails, original post-fusion retrieval scores are used
+
 ### RAG Configuration Reference
 
 | Field | Type | Description |
@@ -829,6 +978,11 @@ results:
 - `fusion.strategy`: rrf, weighted, or max
 - `fusion.k`: RRF parameter
 - `fusion.weights`: Weights for weighted fusion
+- `reranking`: Optional reranking configuration (see [Result Reranking](#result-reranking) section)
+  - `reranking.model`: Model reference for reranking
+  - `reranking.top_k`: Only rerank top K results (default: `0` = rerank all)
+  - `reranking.threshold`: Minimum score after reranking (default: `0.0`)
+  - `reranking.criteria`: Domain-specific relevance guidance (optional, not supported by DMR native)
 - `return_full_content`: When `true`, return full document contents instead of just matched chunks (default: `false`)
 
 ### Debugging RAG
@@ -844,14 +998,15 @@ Look for logs tagged with:
 - `[Chunked-Embeddings Strategy]` - Chunked-embeddings retrieval
 - `[BM25 Strategy]` - BM25 retrieval
 - `[RRF Fusion]` / `[Weighted Fusion]` / `[Max Fusion]` - Result fusion
+- `[Reranker]` - Reranking operations and score adjustments
 
 ### RAG Examples
 
-See `examples/` directory:
-- `examples/rag_vector.yaml` - Chunked-embeddings strategy only
-- `examples/rag_bm25.yaml` - BM25 strategy only
-- `examples/rag_hybrid.yaml` - Hybrid retrieval
-- `examples/rag_advanced.yaml` - Advanced configuration
+See `examples/rag/` directory:
+- `examples/rag/bm25.yaml` - BM25 strategy only
+- `examples/rag/hybrid.yaml` - Hybrid retrieval (chunked-embeddings + BM25)
+- `examples/rag/reranking.yaml` - Reranking with various providers
+- `examples/rag/reranking_full_example.yaml` - Complete reranking configuration reference
 
 ## Examples
 

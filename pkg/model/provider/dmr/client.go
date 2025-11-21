@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -15,6 +16,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
@@ -27,6 +29,7 @@ import (
 	"github.com/docker/cagent/pkg/input"
 	"github.com/docker/cagent/pkg/model/provider/base"
 	"github.com/docker/cagent/pkg/model/provider/options"
+	"github.com/docker/cagent/pkg/rag/types"
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -41,8 +44,9 @@ const (
 // It implements the provider.Provider interface
 type Client struct {
 	base.Config
-	client  openai.Client
-	baseURL string
+	client     openai.Client
+	baseURL    string
+	httpClient *http.Client
 }
 
 // NewClient creates a new DMR client from the provided configuration
@@ -73,9 +77,14 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, opts ...options.Opt
 		}
 	}
 
-	baseURL, clientOptions := resolveDMRBaseURL(cfg, endpoint)
+	baseURL, clientOptions, httpClient := resolveDMRBaseURL(cfg, endpoint)
 
 	clientOptions = append(clientOptions, option.WithBaseURL(baseURL), option.WithAPIKey("")) // DMR doesn't need auth
+
+	// Ensure we always have a non-nil HTTP client for both OpenAI adapter and direct HTTP calls (rerank).
+	if httpClient == nil {
+		httpClient = &http.Client{}
+	}
 
 	// Build runtime flags from ModelConfig and engine
 	contextSize, providerRuntimeFlags, specOpts := parseDMRProviderOpts(cfg)
@@ -96,8 +105,9 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, opts ...options.Opt
 			ModelConfig:  *cfg,
 			ModelOptions: globalOptions,
 		},
-		client:  openai.NewClient(clientOptions...),
-		baseURL: baseURL,
+		client:     openai.NewClient(clientOptions...),
+		baseURL:    baseURL,
+		httpClient: httpClient,
 	}, nil
 }
 
@@ -117,15 +127,18 @@ func inContainer() bool {
 //   - For standalone / offload endpoints like http://172.17.0.1:12435/engines/v1/,
 //     use localhost:<port>/engines/v1/ on the host, and the gateway IP:port inside containers.
 //   - Keep a small compatibility workaround for the legacy http://:0/engines/v1/ endpoint.
-func resolveDMRBaseURL(cfg *latest.ModelConfig, endpoint string) (string, []option.RequestOption) {
+//
+// It also returns an *http.Client when a custom transport (e.g., Docker Unix socket) is needed.
+func resolveDMRBaseURL(cfg *latest.ModelConfig, endpoint string) (string, []option.RequestOption, *http.Client) {
 	var clientOptions []option.RequestOption
+	var httpClient *http.Client
 
 	if cfg != nil && cfg.BaseURL != "" {
-		return cfg.BaseURL, clientOptions
+		return cfg.BaseURL, clientOptions, httpClient
 	}
 	if host := os.Getenv("MODEL_RUNNER_HOST"); host != "" {
 		trimmed := strings.TrimRight(host, "/")
-		return trimmed + dmrInferencePrefix + "/v1/", clientOptions
+		return trimmed + dmrInferencePrefix + "/v1/", clientOptions, httpClient
 	}
 
 	ep := strings.TrimSpace(endpoint)
@@ -133,26 +146,26 @@ func resolveDMRBaseURL(cfg *latest.ModelConfig, endpoint string) (string, []opti
 	// Legacy bug workaround: old DMR versions <= 0.1.44 could report http://:0/engines/v1/.
 	if ep == "http://:0/engines/v1/" {
 		// Use the default port on localhost.
-		return "http://127.0.0.1:12434" + dmrInferencePrefix + "/v1/", clientOptions
+		return "http://127.0.0.1:12434" + dmrInferencePrefix + "/v1/", clientOptions, httpClient
 	}
 
 	// If we don't have a usable endpoint, fall back to sensible defaults.
 	if ep == "" {
 		if inContainer() {
 			// In a container with no endpoint info, assume Docker Desktop's internal host.
-			return "http://model-runner.docker.internal" + dmrInferencePrefix + "/v1/", clientOptions
+			return "http://model-runner.docker.internal" + dmrInferencePrefix + "/v1/", clientOptions, httpClient
 		}
 		// On the host with no endpoint info: default to the standard local Moby port.
-		return "http://127.0.0.1:12434" + dmrInferencePrefix + "/v1/", clientOptions
+		return "http://127.0.0.1:12434" + dmrInferencePrefix + "/v1/", clientOptions, httpClient
 	}
 
 	u, err := url.Parse(ep)
 	if err != nil {
 		slog.Debug("failed to parse DMR endpoint, falling back to defaults", "endpoint", ep, "error", err)
 		if inContainer() {
-			return "http://model-runner.docker.internal" + dmrInferencePrefix + "/v1/", clientOptions
+			return "http://model-runner.docker.internal" + dmrInferencePrefix + "/v1/", clientOptions, httpClient
 		}
-		return "http://127.0.0.1:12434" + dmrInferencePrefix + "/v1/", clientOptions
+		return "http://127.0.0.1:12434" + dmrInferencePrefix + "/v1/", clientOptions, httpClient
 	}
 
 	host := u.Hostname()
@@ -163,16 +176,18 @@ func resolveDMRBaseURL(cfg *latest.ModelConfig, endpoint string) (string, []opti
 		expPrefix := strings.TrimPrefix(dmrExperimentalEndpointsPrefix, "/")
 		baseURL := fmt.Sprintf("http://_/%s%s/v1", expPrefix, dmrInferencePrefix)
 
-		clientOptions = append(clientOptions, option.WithHTTPClient(&http.Client{
+		httpClient = &http.Client{
 			Transport: &http.Transport{
 				DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 					var d net.Dialer
 					return d.DialContext(ctx, "unix", "/var/run/docker.sock")
 				},
 			},
-		}))
+		}
 
-		return baseURL, clientOptions
+		clientOptions = append(clientOptions, option.WithHTTPClient(httpClient))
+
+		return baseURL, clientOptions, httpClient
 	}
 
 	if port == "" {
@@ -185,13 +200,13 @@ func resolveDMRBaseURL(cfg *latest.ModelConfig, endpoint string) (string, []opti
 		if !strings.HasSuffix(baseURL, "/") {
 			baseURL += "/"
 		}
-		return baseURL, clientOptions
+		return baseURL, clientOptions, httpClient
 	}
 
 	// Host case – always talk to localhost:<port>/engines/v1/, even if the status
 	// endpoint uses a gateway IP like 172.17.0.1.
 	baseURL := fmt.Sprintf("http://127.0.0.1:%s%s/v1/", port, dmrInferencePrefix)
-	return baseURL, clientOptions
+	return baseURL, clientOptions, httpClient
 }
 
 func convertMultiContent(multiContent []chat.MessagePart) []openai.ChatCompletionContentPartUnionParam {
@@ -698,6 +713,262 @@ func (c *Client) CreateBatchEmbedding(ctx context.Context, texts []string) (*bas
 	}, nil
 }
 
+// Rerank scores documents by relevance to the query using a reranking model.
+// Returns relevance scores in the same order as input documents.
+func (c *Client) Rerank(ctx context.Context, query string, documents []types.Document, criteria string) ([]float64, error) {
+	startTime := time.Now()
+
+	if len(documents) == 0 {
+		return []float64{}, nil
+	}
+
+	// DMR uses a native /rerank endpoint that doesn't support custom criteria or metadata
+	// Log a warning if criteria was provided but cannot be used
+	if criteria != "" {
+		slog.Warn("DMR reranking does not support custom criteria",
+			"model", c.ModelConfig.Model,
+			"criteria_length", len(criteria))
+	}
+
+	// Extract content strings from Document structs for DMR native endpoint
+	// The native endpoint only accepts string content, not metadata
+	documentStrings := make([]string, len(documents))
+	totalDocLength := 0
+	for i, doc := range documents {
+		documentStrings[i] = doc.Content
+		totalDocLength += len(doc.Content)
+	}
+
+	// Extract base URL without /engines/v1/ suffix for logging and URL construction
+	parsedURL, parseErr := url.Parse(c.baseURL)
+	if parseErr != nil {
+		slog.Error("DMR rerank invalid base URL", "base_url", c.baseURL, "error", parseErr)
+		return nil, fmt.Errorf("invalid base URL: %w", parseErr)
+	}
+
+	scheme := parsedURL.Scheme
+	if scheme == "" {
+		scheme = "http"
+	}
+	host := parsedURL.Host
+	if host == "" {
+		host = "127.0.0.1:12434"
+	}
+
+	baseURL := fmt.Sprintf("%s://%s", scheme, host)
+
+	slog.Debug("DMR reranking request",
+		"model", c.ModelConfig.Model,
+		"base_url", baseURL,
+		"query_length", len(query),
+		"num_documents", len(documents),
+		"total_doc_length", totalDocLength,
+		"avg_doc_length", totalDocLength/len(documents))
+
+	// Prepare rerank request
+	type rerankRequest struct {
+		Model     string   `json:"model"`
+		Query     string   `json:"query"`
+		Documents []string `json:"documents"`
+	}
+
+	type rerankResponse struct {
+		Results []struct {
+			Index          int     `json:"index"`
+			RelevanceScore float64 `json:"relevance_score"`
+		} `json:"results"`
+		Usage struct {
+			PromptTokens int `json:"prompt_tokens"`
+			TotalTokens  int `json:"total_tokens"`
+		} `json:"usage,omitempty"`
+	}
+
+	reqBody := rerankRequest{
+		Model:     c.ModelConfig.Model,
+		Query:     query,
+		Documents: documentStrings,
+	}
+
+	reqData, err := json.Marshal(reqBody)
+	if err != nil {
+		slog.Error("DMR rerank request marshaling failed", "error", err)
+		return nil, fmt.Errorf("failed to marshal rerank request: %w", err)
+	}
+
+	// Make HTTP request to rerank endpoint
+	// Rerank endpoint is at the base host level: http://host:port/rerank
+	// Not under /engines/v1/ like chat/embeddings
+	rerankURL := fmt.Sprintf("%s/rerank", baseURL)
+
+	slog.Debug("DMR reranking HTTP request",
+		"base_url", baseURL,
+		"rerank_url", rerankURL,
+		"method", http.MethodPost,
+		"payload_size", len(reqData))
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, rerankURL, bytes.NewReader(reqData))
+	if err != nil {
+		slog.Error("DMR rerank request creation failed", "url", rerankURL, "error", err)
+		return nil, fmt.Errorf("failed to create rerank request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		slog.Error("DMR rerank HTTP request failed",
+			"base_url", baseURL,
+			"rerank_url", rerankURL,
+			"error", err)
+		return nil, fmt.Errorf("rerank request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	slog.Debug("DMR rerank HTTP response",
+		"base_url", baseURL,
+		"status_code", resp.StatusCode,
+		"status", resp.Status)
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		slog.Error("DMR rerank request failed",
+			"base_url", baseURL,
+			"rerank_url", rerankURL,
+			"status_code", resp.StatusCode,
+			"status", resp.Status,
+			"response_body", string(body))
+		return nil, fmt.Errorf("rerank request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var rerankResp rerankResponse
+	if err := json.NewDecoder(resp.Body).Decode(&rerankResp); err != nil {
+		slog.Error("DMR rerank response decoding failed",
+			"model", c.ModelConfig.Model,
+			"base_url", baseURL,
+			"error", err)
+		return nil, fmt.Errorf("failed to decode rerank response: %w", err)
+	}
+
+	if len(rerankResp.Results) != len(documents) {
+		slog.Error("DMR rerank result count mismatch",
+			"model", c.ModelConfig.Model,
+			"base_url", baseURL,
+			"expected", len(documents),
+			"received", len(rerankResp.Results))
+		return nil, fmt.Errorf("expected %d rerank scores, got %d", len(documents), len(rerankResp.Results))
+	}
+
+	// Extract scores in order
+	scores := make([]float64, len(documents))
+	var minScore, maxScore float64
+	firstScore := true
+
+	for _, result := range rerankResp.Results {
+		if result.Index < 0 || result.Index >= len(documents) {
+			slog.Error("DMR rerank invalid result index",
+				"model", c.ModelConfig.Model,
+				"base_url", baseURL,
+				"index", result.Index,
+				"max_valid_index", len(documents)-1)
+			return nil, fmt.Errorf("invalid result index %d", result.Index)
+		}
+		scores[result.Index] = result.RelevanceScore
+
+		// Track score statistics (raw logits)
+		if firstScore {
+			minScore = result.RelevanceScore
+			maxScore = result.RelevanceScore
+			firstScore = false
+		} else {
+			if result.RelevanceScore < minScore {
+				minScore = result.RelevanceScore
+			}
+			if result.RelevanceScore > maxScore {
+				maxScore = result.RelevanceScore
+			}
+		}
+	}
+
+	// Log raw logit statistics
+	rawSum := 0.0
+	for _, s := range scores {
+		rawSum += s
+	}
+	rawAvgScore := rawSum / float64(len(scores))
+
+	slog.Debug("DMR reranking raw logits",
+		"model", c.ModelConfig.Model,
+		"base_url", baseURL,
+		"raw_min_score", minScore,
+		"raw_max_score", maxScore,
+		"raw_avg_score", rawAvgScore)
+
+	// Normalize scores to [0, 1] range using sigmoid normalization
+	// Sigmoid: 1 / (1 + exp(-x)) preserves absolute magnitude information
+	// Unlike min-max, this allows thresholds to work consistently across queries:
+	// - Positive logits → 0.5 to 1.0 (relevant)
+	// - Zero logit → 0.5 (neutral)
+	// - Negative logits → 0.0 to 0.5 (irrelevant)
+	// This matches the behavior of OpenAI/Anthropic which use LLMs to generate [0,1] scores
+	if len(scores) > 0 {
+		for i := range scores {
+			scores[i] = sigmoid(scores[i])
+		}
+		slog.Debug("DMR reranking normalized scores using sigmoid",
+			"model", c.ModelConfig.Model,
+			"base_url", baseURL,
+			"normalization", "sigmoid")
+	}
+
+	// Calculate normalized statistics
+	sumScore := 0.0
+	normalizedMin := 1.0
+	normalizedMax := 0.0
+	for _, s := range scores {
+		sumScore += s
+		if s < normalizedMin {
+			normalizedMin = s
+		}
+		if s > normalizedMax {
+			normalizedMax = s
+		}
+	}
+	avgScore := sumScore / float64(len(scores))
+
+	totalDuration := time.Since(startTime)
+
+	slog.Debug("DMR reranking complete",
+		"model", c.ModelConfig.Model,
+		"base_url", baseURL,
+		"num_scores", len(scores),
+		"normalized_min_score", normalizedMin,
+		"normalized_max_score", normalizedMax,
+		"normalized_avg_score", avgScore,
+		"prompt_tokens", rerankResp.Usage.PromptTokens,
+		"total_tokens", rerankResp.Usage.TotalTokens,
+		"duration_ms", totalDuration.Milliseconds())
+
+	// Log top 3 normalized scores for debugging
+	if len(scores) > 0 {
+		slog.Debug("DMR rerank top normalized scores",
+			"top_1", scores[0],
+			"top_2", func() float64 {
+				if len(scores) > 1 {
+					return scores[1]
+				}
+				return 0
+			}(),
+			"top_3", func() float64 {
+				if len(scores) > 2 {
+					return scores[2]
+				}
+				return 0
+			}())
+	}
+
+	return scores, nil
+}
+
 // ConvertParametersToSchema converts parameters to DMR Schema format
 func ConvertParametersToSchema(params any) (any, error) {
 	m, err := tools.SchemaToMap(params)
@@ -988,4 +1259,11 @@ type jsonSchema map[string]any
 
 func (j jsonSchema) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any(j))
+}
+
+// sigmoid applies the sigmoid function to normalize a raw logit score to [0, 1]
+// Formula: 1 / (1 + exp(-x))
+// This preserves absolute magnitude: positive scores → >0.5, negative scores → <0.5
+func sigmoid(x float64) float64 {
+	return 1.0 / (1.0 + math.Exp(-x))
 }

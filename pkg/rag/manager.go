@@ -9,7 +9,9 @@ import (
 
 	"github.com/docker/cagent/pkg/rag/database"
 	"github.com/docker/cagent/pkg/rag/fusion"
+	"github.com/docker/cagent/pkg/rag/rerank"
 	"github.com/docker/cagent/pkg/rag/strategy"
+	"github.com/docker/cagent/pkg/rag/types"
 )
 
 // Config represents RAG manager configuration in domain terms,
@@ -24,10 +26,18 @@ type Config struct {
 
 // ResultsConfig captures result-postprocessing behavior for the manager.
 type ResultsConfig struct {
-	Limit             int  // Maximum number of results to return (top K)
-	Deduplicate       bool // Remove duplicate entries based on final content
-	IncludeScore      bool // Include relevance scores in results (if/when used)
-	ReturnFullContent bool // Return full document content instead of just matched chunks
+	Limit             int              // Maximum number of results to return (top K)
+	Deduplicate       bool             // Remove duplicate entries based on final content
+	IncludeScore      bool             // Include relevance scores in results (if/when used)
+	ReturnFullContent bool             // Return full document content instead of just matched chunks
+	RerankingConfig   *RerankingConfig // Optional reranking configuration
+}
+
+// RerankingConfig holds configuration for result reranking
+type RerankingConfig struct {
+	Reranker  rerank.Reranker // The reranker instance (already configured)
+	TopK      int             // Optional: only rerank top K results (0 = rerank all)
+	Threshold float64         // Optional: minimum score threshold after reranking
 }
 
 // Manager orchestrates RAG operations using pluggable strategies
@@ -38,7 +48,8 @@ type Manager struct {
 	strategies      map[string]strategy.Strategy // Map of strategy name -> strategy instance
 	strategyConfigs map[string]strategy.Config   // Store configs for per-strategy operations
 	fusion          fusion.Fusion                // Fusion strategy for combining multi-strategy results
-	events          <-chan strategy.Event        // Shared event channel from strategies
+	reranker        rerank.Reranker              // Optional reranker for result re-scoring
+	events          <-chan types.Event           // Shared event channel from strategies and other RAG operations
 }
 
 // FusionConfig holds configuration for result fusion
@@ -51,7 +62,7 @@ type FusionConfig struct {
 // New creates a new RAG manager with one or more strategies.
 // Pass multiple strategy configs to enable hybrid retrieval.
 // The strategyEvents channel should be shared across all strategies for this manager.
-func New(_ context.Context, name string, config Config, strategyEvents <-chan strategy.Event) (*Manager, error) {
+func New(_ context.Context, name string, config Config, strategyEvents <-chan types.Event) (*Manager, error) {
 	if len(config.StrategyConfigs) == 0 {
 		return nil, fmt.Errorf("at least one strategy required")
 	}
@@ -95,12 +106,23 @@ func New(_ context.Context, name string, config Config, strategyEvents <-chan st
 		strategyConfigMap[sc.Name] = sc
 	}
 
+	// Extract reranker if configured
+	var reranker rerank.Reranker
+	if config.Results.RerankingConfig != nil {
+		reranker = config.Results.RerankingConfig.Reranker
+		slog.Debug("[RAG Manager] Reranking enabled",
+			"rag_name", name,
+			"top_k", config.Results.RerankingConfig.TopK,
+			"threshold", config.Results.RerankingConfig.Threshold)
+	}
+
 	m := &Manager{
 		name:            name,
 		config:          config,
 		strategies:      strategyMap,
 		strategyConfigs: strategyConfigMap,
 		fusion:          fusionStrategy,
+		reranker:        reranker,
 		events:          strategyEvents,
 	}
 
@@ -187,13 +209,7 @@ func (m *Manager) Query(ctx context.Context, query string) ([]database.SearchRes
 				"strategy_limit", strategyCfg.Limit,
 				"strategy_threshold", strategyCfg.Threshold)
 
-			// For single strategy, use global result limit if defined
-			limit := m.config.Results.Limit
-			if limit == 0 {
-				limit = strategyCfg.Limit
-			}
-
-			results, err := strategyImpl.Query(ctx, query, limit, strategyCfg.Threshold)
+			results, err := strategyImpl.Query(ctx, query, strategyCfg.Limit, strategyCfg.Threshold)
 			if err != nil {
 				slog.Error("[RAG Manager] Strategy query failed",
 					"rag_name", m.name,
@@ -206,6 +222,41 @@ func (m *Manager) Query(ctx context.Context, query string) ([]database.SearchRes
 				"rag_name", m.name,
 				"strategy", strategyName,
 				"num_results", len(results))
+
+			// Apply reranking if configured
+			if m.reranker != nil {
+				beforeCount := len(results)
+				slog.Debug("[RAG Manager] Applying reranking to single-strategy results",
+					"rag_name", m.name,
+					"strategy", strategyName,
+					"result_count_before", beforeCount)
+
+				rerankedResults, rerankErr := m.reranker.Rerank(ctx, query, results)
+				if rerankErr != nil {
+					slog.Warn("[RAG Manager] Reranking failed, using original results",
+						"rag_name", m.name,
+						"strategy", strategyName,
+						"error", rerankErr)
+					// Continue with original results rather than failing completely
+				} else {
+					results = rerankedResults
+					slog.Debug("[RAG Manager] Reranked single-strategy results",
+						"rag_name", m.name,
+						"strategy", strategyName,
+						"result_count_before", beforeCount,
+						"result_count_after", len(results),
+						"filtered", beforeCount-len(results))
+				}
+			}
+
+			if limit := m.config.Results.Limit; limit > 0 && len(results) > limit {
+				slog.Debug("[RAG Manager] Truncating to global result limit",
+					"rag_name", m.name,
+					"strategy", strategyName,
+					"before", len(results),
+					"after", limit)
+				results = results[:limit]
+			}
 
 			// Reconstruct full documents if configured
 			if m.config.Results.ReturnFullContent {
@@ -302,6 +353,29 @@ func (m *Manager) Query(ctx context.Context, query string) ([]database.SearchRes
 		"fused_results", len(fusedResults),
 		"result_limit", m.config.Results.Limit)
 
+	// Apply reranking if configured (before limit and deduplication)
+	if m.reranker != nil {
+		beforeCount := len(fusedResults)
+		slog.Debug("[RAG Manager] Applying reranking to fused results",
+			"rag_name", m.name,
+			"result_count_before", beforeCount)
+
+		rerankedResults, rerankErr := m.reranker.Rerank(ctx, query, fusedResults)
+		if rerankErr != nil {
+			slog.Warn("[RAG Manager] Reranking failed, using original fused results",
+				"rag_name", m.name,
+				"error", rerankErr)
+			// Continue with original fused results rather than failing completely
+		} else {
+			fusedResults = rerankedResults
+			slog.Debug("[RAG Manager] Reranked fused results",
+				"rag_name", m.name,
+				"result_count_before", beforeCount,
+				"result_count_after", len(fusedResults),
+				"filtered", beforeCount-len(fusedResults))
+		}
+	}
+
 	// Apply result limit if configured
 	if limit := m.config.Results.Limit; limit > 0 && len(fusedResults) > limit {
 		slog.Debug("[RAG Manager] Truncating to result limit",
@@ -363,8 +437,8 @@ func (m *Manager) StartFileWatcher(ctx context.Context) error {
 	return nil
 }
 
-// Events returns the event channel shared by all strategies for this manager.
-func (m *Manager) Events() <-chan strategy.Event {
+// Events returns the event channel shared by all strategies and RAG operations for this manager.
+func (m *Manager) Events() <-chan types.Event {
 	return m.events
 }
 

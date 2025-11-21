@@ -21,6 +21,8 @@ import (
 	"github.com/docker/cagent/pkg/httpclient"
 	"github.com/docker/cagent/pkg/model/provider/base"
 	"github.com/docker/cagent/pkg/model/provider/options"
+	"github.com/docker/cagent/pkg/rag/prompts"
+	"github.com/docker/cagent/pkg/rag/types"
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -716,6 +718,196 @@ func (c *Client) CreateBatchEmbedding(ctx context.Context, texts []string) (*bas
 		TotalTokens: totalTokens,
 		Cost:        0, // Cost calculated at strategy level
 	}, nil
+}
+
+// Rerank scores documents by relevance to the query using an OpenAI chat model.
+// It returns relevance scores in the same order as input documents.
+func (c *Client) Rerank(ctx context.Context, query string, documents []types.Document, criteria string) ([]float64, error) {
+	startMsg := "OpenAI reranking request"
+	if len(documents) == 0 {
+		slog.Debug(startMsg, "model", c.ModelConfig.Model, "num_documents", 0)
+		return []float64{}, nil
+	}
+
+	slog.Debug(startMsg,
+		"model", c.ModelConfig.Model,
+		"query_length", len(query),
+		"num_documents", len(documents),
+		"has_criteria", criteria != "")
+
+	client, err := c.clientFn(ctx)
+	if err != nil {
+		slog.Error("Failed to create OpenAI client for reranking", "error", err)
+		return nil, err
+	}
+
+	// Build user prompt with query and numbered documents (including metadata)
+	userPrompt := prompts.BuildRerankDocumentsPrompt(query, documents)
+
+	// Build system prompt with OpenAI-specific JSON format instructions
+	jsonFormatInstruction := `You MUST respond with ONLY valid JSON in this exact format and nothing else:
+{"scores":[s0,s1,...,sN]} where there is exactly one numeric score per document in order.`
+	systemPrompt := prompts.BuildRerankSystemPrompt(documents, criteria, c.ModelConfig.ProviderOpts, jsonFormatInstruction)
+
+	params := openai.ChatCompletionNewParams{
+		Model: c.ModelConfig.Model,
+		Messages: []openai.ChatCompletionMessageParamUnion{
+			openai.SystemMessage(systemPrompt),
+			openai.UserMessage(userPrompt),
+		},
+	}
+
+	// Apply model-level sampling settings consistently with other OpenAI calls.
+	// For reranking, default temperature to 0 for deterministic scoring if not explicitly set.
+	if c.ModelConfig.Temperature != nil {
+		params.Temperature = openai.Float(*c.ModelConfig.Temperature)
+	} else {
+		params.Temperature = openai.Float(0.0)
+	}
+	if c.ModelConfig.TopP != nil {
+		params.TopP = openai.Float(*c.ModelConfig.TopP)
+	}
+	if c.ModelConfig.FrequencyPenalty != nil {
+		params.FrequencyPenalty = openai.Float(*c.ModelConfig.FrequencyPenalty)
+	}
+	if c.ModelConfig.PresencePenalty != nil {
+		params.PresencePenalty = openai.Float(*c.ModelConfig.PresencePenalty)
+	}
+
+	// We intentionally do NOT set max_tokens here because newer OpenAI models
+	// (e.g., gpt-4.1, o-series, gpt-5) may reject max_tokens on the
+	// chat.completions endpoint, preferring max_completion_tokens instead.
+	// The response is a small JSON object, so relying on model defaults is fine.
+
+	// Use OpenAI's structured outputs to enforce a stable JSON shape:
+	// { "scores": [number, ...] }
+	schema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"scores": map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "number",
+				},
+			},
+		},
+		"required":             []string{"scores"},
+		"additionalProperties": false,
+	}
+	params.ResponseFormat.OfJSONSchema = &openai.ResponseFormatJSONSchemaParam{
+		JSONSchema: openai.ResponseFormatJSONSchemaJSONSchemaParam{
+			Name:        "rerank_scores",
+			Description: openai.String("Relevance scores for each document, in input order."),
+			Schema:      jsonSchema(schema),
+			Strict:      openai.Bool(false),
+		},
+	}
+
+	resp, err := client.Chat.Completions.New(ctx, params)
+	if err != nil {
+		slog.Error("OpenAI rerank request failed", "error", err)
+		return nil, fmt.Errorf("openai rerank request failed: %w", err)
+	}
+
+	if len(resp.Choices) == 0 {
+		return nil, errors.New("openai rerank response contained no choices")
+	}
+
+	raw, err := extractOpenAIContentAsString(resp.Choices[0].Message)
+	if err != nil {
+		slog.Error("Failed to extract OpenAI rerank content", "error", err)
+		return nil, err
+	}
+
+	scores, err := parseRerankScores(raw, len(documents))
+	if err != nil {
+		slog.Error("Failed to parse OpenAI rerank scores", "error", err)
+		return nil, err
+	}
+
+	slog.Debug("OpenAI reranking complete",
+		"model", c.ModelConfig.Model,
+		"num_scores", len(scores))
+
+	return scores, nil
+}
+
+// extractOpenAIContentAsString flattens a ChatCompletion message into a single string
+// by inspecting its JSON representation. This avoids depending on internal union types.
+func extractOpenAIContentAsString(msg openai.ChatCompletionMessage) (string, error) {
+	b, err := json.Marshal(msg)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal OpenAI message: %w", err)
+	}
+
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		return "", fmt.Errorf("failed to unmarshal OpenAI message: %w", err)
+	}
+
+	content, ok := m["content"]
+	if !ok || content == nil {
+		return "", errors.New("openai message has no content")
+	}
+
+	// Content may be a simple string or an array of parts.
+	switch v := content.(type) {
+	case string:
+		return v, nil
+	case []any:
+		var out strings.Builder
+		for _, item := range v {
+			part, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			// For text parts, Anthropic-style union uses {"type":"text","text":"..."}
+			if t, _ := part["type"].(string); t == "text" {
+				if txt, _ := part["text"].(string); txt != "" {
+					out.WriteString(txt)
+				}
+			}
+		}
+		return out.String(), nil
+	default:
+		return "", fmt.Errorf("unsupported OpenAI content JSON type %T", v)
+	}
+}
+
+// parseRerankScores parses a JSON payload of the form {"scores":[...]} and validates length.
+func parseRerankScores(raw string, expected int) ([]float64, error) {
+	type rerankResponse struct {
+		Scores []float64 `json:"scores"`
+	}
+
+	raw = strings.TrimSpace(raw)
+
+	tryParse := func(s string) ([]float64, error) {
+		var rr rerankResponse
+		if err := json.Unmarshal([]byte(s), &rr); err != nil {
+			return nil, err
+		}
+		if len(rr.Scores) != expected {
+			return nil, fmt.Errorf("expected %d scores, got %d", expected, len(rr.Scores))
+		}
+		return rr.Scores, nil
+	}
+
+	// First attempt: parse whole string as JSON.
+	if scores, err := tryParse(raw); err == nil {
+		return scores, nil
+	}
+
+	// Fallback: extract the first {...} block and try again, in case the model added prose.
+	start := strings.Index(raw, "{")
+	end := strings.LastIndex(raw, "}")
+	if start >= 0 && end > start {
+		if scores, err := tryParse(raw[start : end+1]); err == nil {
+			return scores, nil
+		}
+	}
+
+	return nil, fmt.Errorf("invalid rerank JSON: %s", raw)
 }
 
 // isResponsesOnlyModel returns true for newer OpenAI models that use the Responses API

@@ -146,7 +146,7 @@ See [MCP Mode documentation](./docs/MCP-MODE.md) for detailed instructions on ex
 - **💭 Advanced reasoning** - Built-in "think", "todo" and "memory" tools for
   complex problem-solving.
 - **🔍 RAG (Retrieval-Augmented Generation)** - Pluggable retrieval strategies
-  (chunked_embeddings, BM25, more to come..) with hybrid retrieval and fusion support.
+  (chunked_embeddings, BM25, more to come..) with hybrid retrieval, fusion, and result reranking support.
 - **🌐 Multiple AI providers** - Support for OpenAI, Anthropic, Gemini, xAI,
   Mistral, Nebius and [Docker Model
   Runner](https://docs.docker.com/ai/model-runner/).
@@ -372,10 +372,38 @@ agents:
 - **Multiple strategies**: Vector (semantic), BM25 (keyword), or both
 - **Parallel execution**: Strategies run concurrently for fast results
 - **Pluggable fusion**: RRF, weighted, or max score combining
+- **Result reranking**: Re-score results with specialized models for improved relevance
 - **Per-strategy configuration**: Different thresholds, limits, and documents
 - **Auto file watching**: Reindex automatically on file changes
 
-See the [RAG documentation](docs/RAG.md) for complete details, examples, and debugging guides.
+### Result Reranking
+
+Improve search quality by re-scoring retrieved results with a reranking model:
+
+```yaml
+rag:
+  knowledge_base:
+    docs: [./documents]
+    strategies:
+      - type: chunked-embeddings
+        model: openai/text-embedding-3-small
+        limit: 20  # Retrieve more candidates for reranking
+    
+    results:
+      reranking:
+        model: openai/gpt-4.1-mini   # Any chat model or DMR reranker
+        top_k: 10                   # Only rerank top 10 (optional)
+        threshold: 0.3              # Filter low-scoring results (optional)
+        criteria: |                 # Domain-specific relevance guidance (optional, not used with DMR reranking specific models)
+          Prioritize recent documentation and practical examples.
+          Documents from official sources are more relevant.
+      limit: 5  # Final top results after reranking
+```
+
+**Supported providers:** DMR (native `/rerank` endpoint), OpenAI, Anthropic, Gemini (via structured outputs)  
+**Note:** Temperature defaults to 0.0 for more deterministic scoring when not explicitly set.
+
+See the [RAG documentation in USAGE.md](docs/USAGE.md#rag-configuration) for complete details, examples, and debugging guides.
 
 ## Quickly generate agents and agent teams with `cagent new`
 

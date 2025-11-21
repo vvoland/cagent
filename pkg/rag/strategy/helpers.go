@@ -7,6 +7,7 @@ import (
 
 	latest "github.com/docker/cagent/pkg/config/v3"
 	"github.com/docker/cagent/pkg/paths"
+	"github.com/docker/cagent/pkg/rag/types"
 )
 
 // Helper functions for common operations
@@ -172,7 +173,7 @@ func makeAbsolute(path, parentDir string) string {
 // EmitEvent sends an event to the events channel using non-blocking send
 // This prevents strategies from hanging if the event channel is full or not ready
 // Automatically sets the StrategyName field in the event
-func EmitEvent(events chan<- Event, event Event, strategyName string) {
+func EmitEvent(events chan<- types.Event, event types.Event, strategyName string) {
 	if events != nil {
 		// Set the strategy name in the event
 		event.StrategyName = strategyName
