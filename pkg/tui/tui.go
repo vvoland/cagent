@@ -65,7 +65,7 @@ func DefaultKeyMap() KeyMap {
 }
 
 // New creates and initializes a new TUI application model
-func New(a *app.App) tea.Model {
+func New(ctx context.Context, a *app.App) tea.Model {
 	sessionState := service.NewSessionState()
 
 	t := &appModel{
@@ -79,6 +79,12 @@ func New(a *app.App) tea.Model {
 
 	t.statusBar = statusbar.New(t)
 	t.chatPage = chat.New(a, sessionState)
+
+	// Make sure to stop the progress bar when the app quits abruptly.
+	go func() {
+		<-ctx.Done()
+		t.chatPage.Cleanup()
+	}()
 
 	return t
 }
