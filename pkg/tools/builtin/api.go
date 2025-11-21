@@ -15,10 +15,6 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
-const (
-	ToolNameAPI = "api"
-)
-
 type APITool struct {
 	tools.ElicitationTool
 	handler *apiHandler

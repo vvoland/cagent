@@ -278,17 +278,17 @@ func (a *Agent) handleToolCallConfirmation(ctx context.Context, acpSess *Session
 			{
 				Kind:     acp.PermissionOptionKindAllowOnce,
 				Name:     "Allow this action",
-				OptionId: acp.PermissionOptionId("allow"),
+				OptionId: "allow",
 			},
 			{
 				Kind:     acp.PermissionOptionKindAllowAlways,
 				Name:     "Allow and remember my choice",
-				OptionId: acp.PermissionOptionId("allow-always"),
+				OptionId: "allow-always",
 			},
 			{
 				Kind:     acp.PermissionOptionKindRejectOnce,
 				Name:     "Skip this action",
-				OptionId: acp.PermissionOptionId("reject"),
+				OptionId: "reject",
 			},
 		},
 	})

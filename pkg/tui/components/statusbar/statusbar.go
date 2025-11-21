@@ -40,10 +40,6 @@ func (s *StatusBar) formatHelpString(bindings []key.Binding) string {
 		}
 	}
 
-	if len(helpParts) == 0 {
-		return ""
-	}
-
 	// Join with proper spacing between key bindings
 	return strings.Join(helpParts, "  ")
 }

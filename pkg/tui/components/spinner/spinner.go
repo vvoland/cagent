@@ -85,38 +85,40 @@ func (s Spinner) Init() tea.Cmd {
 	return s.Tick()
 }
 
-func (s Spinner) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
-	if msg, ok := msg.(tickMsg); ok {
-		if msg.ID > 0 && msg.ID != s.id {
-			return s, nil
-		}
-		if msg.tag > 0 && msg.tag != s.tag {
-			return s, nil
-		}
-		s.tag++
-
-		s.frame++
-
-		if s.pauseFrames > 0 {
-			s.pauseFrames--
-			if s.pauseFrames == 0 {
-				s.direction = -1
-			}
-		} else {
-			s.lightPosition += s.direction
-
-			if s.direction == 1 && s.lightPosition > len(s.currentMessage)+2 {
-				s.pauseFrames = 6
-			}
-
-			if s.direction == -1 && s.lightPosition < -3 {
-				s.direction = 1
-			}
-		}
-
-		return s, s.Tick()
+func (s Spinner) Update(message tea.Msg) (layout.Model, tea.Cmd) {
+	msg, ok := message.(tickMsg)
+	if !ok {
+		return s, nil
 	}
-	return s, nil
+
+	if msg.ID > 0 && msg.ID != s.id {
+		return s, nil
+	}
+	if msg.tag > 0 && msg.tag != s.tag {
+		return s, nil
+	}
+
+	s.tag++
+	s.frame++
+
+	if s.pauseFrames > 0 {
+		s.pauseFrames--
+		if s.pauseFrames == 0 {
+			s.direction = -1
+		}
+	} else {
+		s.lightPosition += s.direction
+
+		if s.direction == 1 && s.lightPosition > len(s.currentMessage)+2 {
+			s.pauseFrames = 6
+		}
+
+		if s.direction == -1 && s.lightPosition < -3 {
+			s.direction = 1
+		}
+	}
+
+	return s, s.Tick()
 }
 
 func (s Spinner) View() string {
