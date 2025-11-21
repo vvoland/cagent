@@ -5,13 +5,18 @@ import (
 )
 
 type DockerHubInfo struct {
-	Email         string   `json:"email,omitempty"`
-	Organizations []string `json:"organizations,omitempty"`
-	PlanName      string   `json:"planName"`
+	Username string `json:"id"`
+	Email    string `json:"email,omitempty"`
 }
 
 func GetToken(ctx context.Context) string {
 	var token string
 	_ = ClientBackend.Get(ctx, "/registry/token", &token)
 	return token
+}
+
+func GetUserInfo(ctx context.Context) DockerHubInfo {
+	var info DockerHubInfo
+	_ = ClientBackend.Get(ctx, "/registry/username", &info)
+	return info
 }
