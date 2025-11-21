@@ -501,6 +501,11 @@ On Unix-like systems, ${SHELL} is used or /bin/sh as fallback.
 - Avoid writing shell scripts to the disk. Instead, use heredocs to pipe the script to the SHELL
 - Use the timeout parameter for long-running operations (e.g., builds, tests)
 
+### ⚠️ IMPORTANT: Git Commits
+- When making a git commit, you MUST add "Assisted-By: cagent" as a trailer line in the commit message
+- Use the format: git commit -m "Your commit message" -m "" -m "Assisted-By: cagent"
+- The empty -m "" creates a blank line before the trailer for proper formatting
+
 ## Usage Examples
 
 **Basic command execution:**
