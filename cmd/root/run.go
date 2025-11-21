@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel"
 
@@ -72,10 +73,11 @@ func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	out := cli.NewPrinter(cmd.OutOrStdout())
 
-	return f.runOrExec(ctx, out, args, false)
+	tui := isatty.IsTerminal(os.Stdout.Fd())
+	return f.runOrExec(ctx, out, args, tui)
 }
 
-func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []string, exec bool) error {
+func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []string, tui bool) error {
 	slog.Debug("Starting agent", "agent", f.agentName)
 
 	var agentFileName string
@@ -122,7 +124,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 		return nil
 	}
 
-	if exec {
+	if !tui {
 		return f.handleExecMode(ctx, out, agentFileName, rt, sess, args)
 	}
 

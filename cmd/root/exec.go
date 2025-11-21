@@ -35,5 +35,6 @@ func (f *runExecFlags) runExecCommand(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	out := cli.NewPrinter(cmd.OutOrStdout())
 
-	return f.runOrExec(ctx, out, args, true)
+	tui := false
+	return f.runOrExec(ctx, out, args, tui)
 }
