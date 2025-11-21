@@ -34,7 +34,7 @@ func TestStreamAdapter_FunctionCalls(t *testing.T) {
 			fn(mockResp, nil)
 		}
 
-		adapter := NewStreamAdapter(iter, "test-model")
+		adapter := NewStreamAdapter(iter, "test-model", true)
 
 		// Read the response
 		resp, err := adapter.Recv()
