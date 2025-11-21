@@ -9,7 +9,8 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/wk8/go-ordered-map/v2"
+	"github.com/mattn/go-isatty"
+	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"golang.org/x/term"
 
 	"github.com/docker/cagent/pkg/input"
@@ -75,6 +76,10 @@ func (p *Printer) PrintToolCallWithConfirmation(ctx context.Context, toolCall to
 	p.Printf("\n%s\n", bold("🛠️ Tool call requires confirmation 🛠️"))
 	p.PrintToolCall(toolCall)
 	p.Printf("\n%s", bold("Can I run this tool? ([y]es/[a]ll/[n]o): "))
+
+	if !isatty.IsTerminal(os.Stdout.Fd()) {
+		return ConfirmationReject
+	}
 
 	// Try single-character input from stdin in raw mode (no Enter required)
 	fd := int(os.Stdin.Fd())
