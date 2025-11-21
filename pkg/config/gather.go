@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	latest "github.com/docker/cagent/pkg/config/v2"
 	"github.com/docker/cagent/pkg/environment"
@@ -48,25 +49,29 @@ func gatherMissingEnvVars(ctx context.Context, cfg *latest.Config, modelsGateway
 func GatherEnvVarsForModels(cfg *latest.Config) []string {
 	requiredEnv := map[string]bool{}
 
-	for name := range cfg.Models {
-		model := cfg.Models[name]
+	// Inspect only the models that are actually used by agents
+	for agentName := range cfg.Agents {
+		modelNames := strings.SplitSeq(cfg.Agents[agentName].Model, ",")
+		for modelName := range modelNames {
+			model := cfg.Models[modelName]
 
-		// Use the token environment variable from the alias if available
-		if alias, exists := provider.ProviderAliases[model.Provider]; exists {
-			if alias.TokenEnvVar != "" {
-				requiredEnv[alias.TokenEnvVar] = true
-			}
-		} else {
-			// Fallback to hardcoded mappings for unknown providers
-			switch model.Provider {
-			case "openai":
-				requiredEnv["OPENAI_API_KEY"] = true
-			case "anthropic":
-				requiredEnv["ANTHROPIC_API_KEY"] = true
-			case "google":
-				requiredEnv["GOOGLE_API_KEY"] = true
-			case "mistral":
-				requiredEnv["MISTRAL_API_KEY"] = true
+			// Use the token environment variable from the alias if available
+			if alias, exists := provider.ProviderAliases[model.Provider]; exists {
+				if alias.TokenEnvVar != "" {
+					requiredEnv[alias.TokenEnvVar] = true
+				}
+			} else {
+				// Fallback to hardcoded mappings for unknown providers
+				switch model.Provider {
+				case "openai":
+					requiredEnv["OPENAI_API_KEY"] = true
+				case "anthropic":
+					requiredEnv["ANTHROPIC_API_KEY"] = true
+				case "google":
+					requiredEnv["GOOGLE_API_KEY"] = true
+				case "mistral":
+					requiredEnv["MISTRAL_API_KEY"] = true
+				}
 			}
 		}
 	}
