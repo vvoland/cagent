@@ -8,14 +8,24 @@ import (
 )
 
 type RuntimeConfig struct {
-	EnvProviderForTests environment.Provider
-	EnvFiles            []string
-	ModelsGateway       string
-	GlobalCodeMode      bool
-	WorkingDir          string
+	Config
 
-	envProvider     environment.Provider
-	envProviderLock sync.Mutex
+	EnvProviderForTests environment.Provider
+	envProvider         environment.Provider
+	envProviderLock     sync.Mutex
+}
+
+type Config struct {
+	EnvFiles       []string
+	ModelsGateway  string
+	GlobalCodeMode bool
+	WorkingDir     string
+}
+
+func (runConfig *RuntimeConfig) Clone() *RuntimeConfig {
+	return &RuntimeConfig{
+		Config: runConfig.Config,
+	}
 }
 
 func (runConfig *RuntimeConfig) EnvProvider() environment.Provider {

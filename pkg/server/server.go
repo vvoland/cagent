@@ -1181,7 +1181,7 @@ func (s *Server) runAgent(c echo.Context) error {
 	p := addYamlExt(agentFilename)
 
 	// Copy runConfig and inject per-session working dir override
-	rc := s.runConfig
+	rc := s.runConfig.Clone()
 	rc.WorkingDir = sess.WorkingDir
 
 	// Load team - either reload from disk (local) or use in-memory team (OCI refs)
