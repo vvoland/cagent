@@ -370,6 +370,7 @@ func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, events chan Event) {
 func (r *LocalRuntime) registerDefaultTools() {
 	slog.Debug("Registering default tools")
 	r.toolMap[builtin.ToolNameTransferTask] = r.handleTaskTransfer
+	r.toolMap[builtin.ToolNameHandoff] = r.handleHandoff
 	slog.Debug("Registered default tools", "count", len(r.toolMap))
 }
 
@@ -455,6 +456,24 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		runtimeMaxIterations := sess.MaxIterations
 
 		for {
+			// Set elicitation handler on all MCP toolsets before getting tools
+			a := r.CurrentAgent()
+
+			r.emitAgentWarnings(a, events)
+
+			for _, toolset := range a.ToolSets() {
+				toolset.SetElicitationHandler(r.elicitationHandler)
+				toolset.SetOAuthSuccessHandler(func() {
+					events <- Authorization("confirmed", r.currentAgent)
+				})
+			}
+
+			agentTools, err := r.getTools(ctx, a, sessionSpan, events)
+			if err != nil {
+				events <- Error(fmt.Sprintf("failed to get tools: %v", err))
+				return
+			}
+
 			// Check iteration limit
 			if runtimeMaxIterations > 0 && iteration >= runtimeMaxIterations {
 				slog.Debug("Maximum iterations reached", "agent", a.Name(), "iterations", iteration, "max", runtimeMaxIterations)
@@ -890,7 +909,8 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 				},
 			}
 			slog.Debug("Using runtime tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
-			if sess.ToolsApproved || toolCall.Function.Name == builtin.ToolNameTransferTask {
+			// TODO: make this better, these tols define themselves as read-only
+			if sess.ToolsApproved || toolCall.Function.Name == builtin.ToolNameTransferTask || toolCall.Function.Name == builtin.ToolNameHandoff {
 				r.runAgentTool(callCtx, handler, sess, toolCall, tool, events, a)
 			} else {
 				slog.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
@@ -1231,6 +1251,24 @@ func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Ses
 	span.SetStatus(codes.Ok, "task transfer completed")
 	return &tools.ToolCallResult{
 		Output: s.GetLastAssistantMessageContent(),
+	}, nil
+}
+
+func (r *LocalRuntime) handleHandoff(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, evts chan Event) (*tools.ToolCallResult, error) {
+	var params builtin.HandoffArgs
+	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
+		return nil, fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	ca := r.currentAgent
+	next, err := r.team.Agent(params.Agent)
+	if err != nil {
+		return nil, err
+	}
+
+	r.currentAgent = next.Name()
+	return &tools.ToolCallResult{
+		Output: fmt.Sprintf("The agent %s handed off the conversation to you, look at the history of the conversation and continue where it left off. Once you are done with your task or if the user asks you, handoff the conversation back to %s.", ca, ca),
 	}, nil
 }
 

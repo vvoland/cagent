@@ -1,0 +1,17 @@
+agents:
+  root:
+    model: anthropic/claude-sonnet-4-5
+    description: The best agent
+    instruction: |
+      You are a helpful assistant that can hand off tasks to other agents.
+      Look at the descriptions ofthe avaiable agents, if any of them is better suited to answer the user question, you must call the handoff tool to transfer the task to that agent.
+    handoffs:
+      - web_search
+
+  web_search:
+    model: openai/gpt-4o
+    description: An agent specialized in web searching and information retrieval.
+    instruction: You are an agent specialized in web searching and information retrieval.
+    toolsets:
+      - type: mcp
+        ref: docker:duckduckgo

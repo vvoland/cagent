@@ -208,11 +208,9 @@ func LoadFrom(ctx context.Context, source AgentSource, runtimeConfig *config.Run
 		agentsByName[name] = ag
 	}
 
+	// Connect sub-agents and handoff agents
 	for name := range cfg.Agents {
 		agentConfig := cfg.Agents[name]
-		if len(agentConfig.SubAgents) == 0 {
-			continue
-		}
 
 		subAgents := make([]*agent.Agent, 0, len(agentConfig.SubAgents))
 		for _, subName := range agentConfig.SubAgents {
@@ -223,6 +221,17 @@ func LoadFrom(ctx context.Context, source AgentSource, runtimeConfig *config.Run
 
 		if a, exists := agentsByName[name]; exists && len(subAgents) > 0 {
 			agent.WithSubAgents(subAgents...)(a)
+		}
+
+		handoffs := make([]*agent.Agent, 0, len(agentConfig.Handoffs))
+		for _, handoffName := range agentConfig.Handoffs {
+			if handoffAgent, exists := agentsByName[handoffName]; exists {
+				handoffs = append(handoffs, handoffAgent)
+			}
+		}
+
+		if a, exists := agentsByName[name]; exists && len(handoffs) > 0 {
+			agent.WithHandoffs(handoffs...)(a)
 		}
 	}
 
@@ -294,6 +303,9 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 
 	if len(a.SubAgents) > 0 {
 		toolSets = append(toolSets, builtin.NewTransferTaskTool())
+	}
+	if len(a.Handoffs) > 0 {
+		toolSets = append(toolSets, builtin.NewHandoffTool())
 	}
 
 	// Wrap all tools in a single Code Mode toolset.
