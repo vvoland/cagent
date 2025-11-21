@@ -74,7 +74,7 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
 
 func runTUI(ctx context.Context, agentFilename string, rt runtime.Runtime, sess *session.Session, firstMessage *string) error {
 	a := app.New(ctx, agentFilename, rt, sess, firstMessage)
-	m := tui.New(a)
+	m := tui.New(ctx, a)
 
 	progOpts := []tea.ProgramOption{
 		tea.WithContext(ctx),
