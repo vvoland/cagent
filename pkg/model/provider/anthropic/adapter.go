@@ -13,14 +13,16 @@ import (
 
 // streamAdapter adapts the Anthropic stream to our interface
 type streamAdapter struct {
-	stream   *ssestream.Stream[anthropic.MessageStreamEventUnion]
-	toolCall bool
-	toolID   string
+	stream     *ssestream.Stream[anthropic.MessageStreamEventUnion]
+	trackUsage bool
+	toolCall   bool
+	toolID     string
 }
 
-func newStreamAdapter(stream *ssestream.Stream[anthropic.MessageStreamEventUnion]) *streamAdapter {
+func newStreamAdapter(stream *ssestream.Stream[anthropic.MessageStreamEventUnion], trackUsage bool) *streamAdapter {
 	return &streamAdapter{
-		stream: stream,
+		stream:     stream,
+		trackUsage: trackUsage,
 	}
 }
 
@@ -96,11 +98,13 @@ func (a *streamAdapter) Recv() (chat.MessageStreamResponse, error) {
 			return response, fmt.Errorf("unknown delta type: %T", deltaVariant)
 		}
 	case anthropic.MessageDeltaEvent:
-		response.Usage = &chat.Usage{
-			InputTokens:        int(eventVariant.Usage.InputTokens),
-			OutputTokens:       int(eventVariant.Usage.OutputTokens),
-			CachedInputTokens:  int(eventVariant.Usage.CacheReadInputTokens),
-			CachedOutputTokens: int(eventVariant.Usage.CacheCreationInputTokens),
+		if a.trackUsage {
+			response.Usage = &chat.Usage{
+				InputTokens:        int(eventVariant.Usage.InputTokens),
+				OutputTokens:       int(eventVariant.Usage.OutputTokens),
+				CachedInputTokens:  int(eventVariant.Usage.CacheReadInputTokens),
+				CachedOutputTokens: int(eventVariant.Usage.CacheCreationInputTokens),
+			}
 		}
 	case anthropic.MessageStopEvent:
 		if a.toolCall {

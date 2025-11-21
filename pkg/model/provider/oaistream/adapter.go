@@ -111,20 +111,23 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 
 	// Check if Usage field is present using the JSON metadata
 	if openaiResponse.JSON.Usage.Valid() {
-		usage := openaiResponse.Usage
-		response.Usage = &chat.Usage{
-			InputTokens:        int(usage.PromptTokens),
-			OutputTokens:       int(usage.CompletionTokens),
-			CachedInputTokens:  0,
-			CachedOutputTokens: 0,
-			ReasoningTokens:    0,
+		if a.trackUsage {
+			usage := openaiResponse.Usage
+			response.Usage = &chat.Usage{
+				InputTokens:        int(usage.PromptTokens),
+				OutputTokens:       int(usage.CompletionTokens),
+				CachedInputTokens:  0,
+				CachedOutputTokens: 0,
+				ReasoningTokens:    0,
+			}
+			if usage.JSON.PromptTokensDetails.Valid() {
+				response.Usage.CachedInputTokens = int(usage.PromptTokensDetails.CachedTokens)
+			}
+			if usage.JSON.CompletionTokensDetails.Valid() {
+				response.Usage.ReasoningTokens = int(usage.CompletionTokensDetails.ReasoningTokens)
+			}
 		}
-		if usage.JSON.PromptTokensDetails.Valid() {
-			response.Usage.CachedInputTokens = int(usage.PromptTokensDetails.CachedTokens)
-		}
-		if usage.JSON.CompletionTokensDetails.Valid() {
-			response.Usage.ReasoningTokens = int(usage.CompletionTokensDetails.ReasoningTokens)
-		}
+
 		// Use the tracked finish reason instead of hardcoding stop
 		finishReason := a.lastFinishReason
 		if finishReason == chat.FinishReasonNull || finishReason == "" {

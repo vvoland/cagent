@@ -256,7 +256,9 @@ func (c *Client) CreateChatCompletionStream(
 	}
 
 	stream := client.Messages.NewStreaming(ctx, params)
-	ad := newStreamAdapter(stream)
+	trackUsage := c.ModelConfig.TrackUsage == nil || *c.ModelConfig.TrackUsage
+	ad := newStreamAdapter(stream, trackUsage)
+
 	slog.Debug("Anthropic chat completion stream created successfully", "model", c.ModelConfig.Model)
 	return ad, nil
 }

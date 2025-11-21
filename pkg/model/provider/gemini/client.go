@@ -388,7 +388,8 @@ func (c *Client) CreateChatCompletionStream(
 
 	// Build a fresh client per request when using the gateway
 	iter := client.Models.GenerateContentStream(ctx, c.ModelConfig.Model, contents, config)
-	return NewStreamAdapter(iter, c.ModelConfig.Model), nil
+	trackUsage := c.ModelConfig.TrackUsage == nil || *c.ModelConfig.TrackUsage
+	return NewStreamAdapter(iter, c.ModelConfig.Model, trackUsage), nil
 }
 
 // Rerank scores documents by relevance to the query using Gemini's structured

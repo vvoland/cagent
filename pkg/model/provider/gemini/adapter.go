@@ -19,6 +19,7 @@ import (
 type StreamAdapter struct {
 	ch           chan result
 	model        string
+	trackUsage   bool
 	mu           sync.Mutex
 	lastResponse *genai.GenerateContentResponse // Store last response for final message
 }
@@ -30,10 +31,11 @@ type result struct {
 }
 
 // NewStreamAdapter constructs a StreamAdapter from Gemini's iterator
-func NewStreamAdapter(iter func(func(*genai.GenerateContentResponse, error) bool), model string) *StreamAdapter {
+func NewStreamAdapter(iter func(func(*genai.GenerateContentResponse, error) bool), model string, trackUsage bool) *StreamAdapter {
 	adapter := &StreamAdapter{
-		ch:    make(chan result),
-		model: model,
+		ch:         make(chan result),
+		model:      model,
+		trackUsage: trackUsage,
 	}
 
 	go func() {
@@ -173,7 +175,7 @@ func (g *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		resp.ID = res.resp.ResponseID
 
 		// Handle token usage if present
-		if res.resp.UsageMetadata != nil {
+		if res.resp.UsageMetadata != nil && g.trackUsage {
 			resp.Usage = &chat.Usage{
 				InputTokens:        int(res.resp.UsageMetadata.PromptTokenCount),
 				OutputTokens:       int(res.resp.UsageMetadata.CandidatesTokenCount),
