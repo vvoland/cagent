@@ -9,7 +9,7 @@ import (
 	"syscall"
 
 	"github.com/docker/cagent/pkg/agent"
-	latest "github.com/docker/cagent/pkg/config/v2"
+	latest "github.com/docker/cagent/pkg/config/v3"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/model/provider/openai"
 	"github.com/docker/cagent/pkg/runtime"

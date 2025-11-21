@@ -13,13 +13,13 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 
-	v2 "github.com/docker/cagent/pkg/config/v2"
+	latest "github.com/docker/cagent/pkg/config/v3"
 	"github.com/docker/cagent/pkg/rag/chunk"
 	"github.com/docker/cagent/pkg/rag/database"
 )
 
 // NewBM25FromConfig creates a BM25 strategy from configuration
-func NewBM25FromConfig(ctx context.Context, cfg v2.RAGStrategyConfig, buildCtx BuildContext, events chan<- Event) (*Config, error) {
+func NewBM25FromConfig(ctx context.Context, cfg latest.RAGStrategyConfig, buildCtx BuildContext, events chan<- Event) (*Config, error) {
 	// Get optional parameters with defaults
 	k1 := GetParam(cfg.Params, "k1", 1.5)
 	bParam := GetParam(cfg.Params, "b", 0.75)

@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/docker/cagent/pkg/api"
-	v2 "github.com/docker/cagent/pkg/config/v2"
+	latest "github.com/docker/cagent/pkg/config/v3"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/tools"
 )
@@ -153,8 +153,8 @@ func (c *Client) GetAgents(ctx context.Context) ([]api.Agent, error) {
 }
 
 // GetAgent retrieves an agent by ID
-func (c *Client) GetAgent(ctx context.Context, id string) (*v2.Config, error) {
-	var config v2.Config
+func (c *Client) GetAgent(ctx context.Context, id string) (*latest.Config, error) {
+	var config latest.Config
 	err := c.doRequest(ctx, http.MethodGet, "/api/agents/"+id, nil, &config)
 	return &config, err
 }
@@ -181,7 +181,7 @@ func (c *Client) CreateAgentConfig(ctx context.Context, filename, model, descrip
 }
 
 // EditAgentConfig edits an agent configuration
-func (c *Client) EditAgentConfig(ctx context.Context, filename string, config v2.Config) (*api.EditAgentConfigResponse, error) {
+func (c *Client) EditAgentConfig(ctx context.Context, filename string, config latest.Config) (*api.EditAgentConfigResponse, error) {
 	req := api.EditAgentConfigRequest{
 		AgentConfig: config,
 		Filename:    filename,

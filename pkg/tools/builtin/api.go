@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"time"
 
-	latest "github.com/docker/cagent/pkg/config/v2"
+	latest "github.com/docker/cagent/pkg/config/v3"
 	"github.com/docker/cagent/pkg/js"
 	"github.com/docker/cagent/pkg/tools"
 )

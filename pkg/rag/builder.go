@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	latest "github.com/docker/cagent/pkg/config/v2"
+	latest "github.com/docker/cagent/pkg/config/v3"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/rag/strategy"
 )

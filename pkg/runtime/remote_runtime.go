@@ -11,7 +11,7 @@ import (
 
 	"github.com/docker/cagent/pkg/api"
 	"github.com/docker/cagent/pkg/chat"
-	latest "github.com/docker/cagent/pkg/config/v2"
+	latest "github.com/docker/cagent/pkg/config/v3"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/tools"

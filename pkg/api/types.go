@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/docker/cagent/pkg/chat"
-	v2 "github.com/docker/cagent/pkg/config/v2"
+	latest "github.com/docker/cagent/pkg/config/v3"
 	"github.com/docker/cagent/pkg/session"
 )
 
@@ -47,8 +47,8 @@ type CreateAgentConfigResponse struct {
 
 // EditAgentConfigRequest represents a request to edit an agent config
 type EditAgentConfigRequest struct {
-	AgentConfig v2.Config `json:"agent_config"`
-	Filename    string    `json:"filename"`
+	AgentConfig latest.Config `json:"agent_config"`
+	Filename    string        `json:"filename"`
 }
 
 // EditAgentConfigResponse represents the response from editing an agent config

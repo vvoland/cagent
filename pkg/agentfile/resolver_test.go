@@ -489,7 +489,7 @@ func TestResolveAgentFile_OCIRef_HasAVersion(t *testing.T) {
 
 	storedContent, err := os.ReadFile(resolved)
 	require.NoError(t, err)
-	assert.Equal(t, `version: "2"
+	assert.Equal(t, `version: "3"
 agents:
   root:
     model: auto

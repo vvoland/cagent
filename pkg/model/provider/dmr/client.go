@@ -23,7 +23,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/docker/cagent/pkg/chat"
-	latest "github.com/docker/cagent/pkg/config/v2"
+	latest "github.com/docker/cagent/pkg/config/v3"
 	"github.com/docker/cagent/pkg/input"
 	"github.com/docker/cagent/pkg/model/provider/base"
 	"github.com/docker/cagent/pkg/model/provider/options"
