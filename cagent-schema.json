@@ -92,6 +92,13 @@
             "type": "string"
           }
         },
+        "handoffs": {
+          "type": "array",
+          "description": "List of agents this agent can hand off the conversation to",
+          "items": {
+            "type": "string"
+          }
+        },
         "add_date": {
           "type": "boolean",
           "description": "Whether to add date information"
@@ -662,17 +669,26 @@
           "items": {
             "type": "object",
             "description": "Retrieval strategy configuration with type-specific parameters. Structured fields are limited; additional parameters are passed through as-is for strategy-specific use.",
-            "required": ["type"],
+            "required": [
+              "type"
+            ],
             "properties": {
               "type": {
                 "type": "string",
                 "description": "Retrieval strategy type",
-                "enum": ["chunked-embeddings", "bm25"]
+                "enum": [
+                  "chunked-embeddings",
+                  "bm25"
+                ]
               },
               "model": {
                 "type": "string",
                 "description": "Embedding model reference for chunked-embeddings strategies (looked up in models map, or 'auto' for automatic selection)",
-                "examples": ["openai/text-embedding-3-small", "dmr/embeddinggemma", "auto"]
+                "examples": [
+                  "openai/text-embedding-3-small",
+                  "dmr/embeddinggemma",
+                  "auto"
+                ]
               },
               "docs": {
                 "type": "array",
@@ -688,13 +704,20 @@
               "similarity_metric": {
                 "type": "string",
                 "description": "Similarity metric (chunked-embeddings only). Currently only 'cosine_similarity' is implemented.",
-                "enum": ["cosine_similarity"]
+                "enum": [
+                  "cosine_similarity"
+                ]
               },
               "vector_dimensions": {
                 "type": "integer",
                 "description": "Vector dimensions for embeddings (chunked-embeddings only). Must match your embedding model's output dimensions and is required for chunked-embeddings strategies.",
                 "minimum": 1,
-                "examples": [1536, 3072, 1024, 768]
+                "examples": [
+                  1536,
+                  3072,
+                  1024,
+                  768
+                ]
               },
               "k1": {
                 "type": "number",

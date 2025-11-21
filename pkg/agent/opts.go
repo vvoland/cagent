@@ -67,6 +67,12 @@ func WithSubAgents(subAgents ...*Agent) Opt {
 	}
 }
 
+func WithHandoffs(handoffs ...*Agent) Opt {
+	return func(a *Agent) {
+		a.handoffs = handoffs
+	}
+}
+
 func WithAddDate(addDate bool) Opt {
 	return func(a *Agent) {
 		a.addDate = addDate
