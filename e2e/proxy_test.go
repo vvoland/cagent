@@ -75,7 +75,9 @@ func startRecordingAIProxy(t *testing.T) (*httptest.Server, *config.RuntimeConfi
 	t.Cleanup(httpServer.Close)
 
 	return httpServer, &config.RuntimeConfig{
-		ModelsGateway: httpServer.URL,
+		Config: config.Config{
+			ModelsGateway: httpServer.URL,
+		},
 		EnvProviderForTests: &testEnvProvider{
 			environment.DockerDesktopTokenEnv: "DUMMY",
 		},
