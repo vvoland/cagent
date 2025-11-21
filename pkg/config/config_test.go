@@ -198,6 +198,8 @@ type noEnvProvider struct{}
 func (p *noEnvProvider) Get(context.Context, string) string { return "" }
 
 func TestCheckRequiredEnvVars(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		yaml            string
 		expectedMissing []string
@@ -245,6 +247,10 @@ func TestCheckRequiredEnvVars(t *testing.T) {
 		{
 			yaml:            "all.yaml",
 			expectedMissing: []string{"ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "MISTRAL_API_KEY", "OPENAI_API_KEY"},
+		},
+		{
+			yaml:            "openai_and_unused_mistral_model.yaml",
+			expectedMissing: []string{"OPENAI_API_KEY"},
 		},
 	}
 	for _, test := range tests {
