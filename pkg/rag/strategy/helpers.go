@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	v2 "github.com/docker/cagent/pkg/config/v2"
+	latest "github.com/docker/cagent/pkg/config/v3"
 	"github.com/docker/cagent/pkg/paths"
 )
 
@@ -38,7 +38,7 @@ func MergeDocPaths(sharedDocs, strategyDocs []string, parentDir string) []string
 }
 
 // ResolveDatabasePath resolves database configuration to a path
-func ResolveDatabasePath(dbCfg v2.RAGDatabaseConfig, parentDir, defaultName string) (string, error) {
+func ResolveDatabasePath(dbCfg latest.RAGDatabaseConfig, parentDir, defaultName string) (string, error) {
 	if dbCfg.IsEmpty() {
 		// Use default path in data directory
 		return filepath.Join(paths.GetDataDir(), defaultName), nil

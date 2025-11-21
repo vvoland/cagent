@@ -12,7 +12,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 
 	"github.com/docker/cagent/pkg/config"
-	v2 "github.com/docker/cagent/pkg/config/v2"
+	latest "github.com/docker/cagent/pkg/config/v3"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/modelsdev"
@@ -22,7 +22,7 @@ import (
 )
 
 // NewChunkedEmbeddingsFromConfig creates a chunked-embeddings strategy from configuration
-func NewChunkedEmbeddingsFromConfig(ctx context.Context, cfg v2.RAGStrategyConfig, buildCtx BuildContext, events chan<- Event) (*Config, error) {
+func NewChunkedEmbeddingsFromConfig(ctx context.Context, cfg latest.RAGStrategyConfig, buildCtx BuildContext, events chan<- Event) (*Config, error) {
 	// Extract required parameters
 	modelName := GetParam(cfg.Params, "model", "")
 	if modelName == "" {
@@ -31,7 +31,7 @@ func NewChunkedEmbeddingsFromConfig(ctx context.Context, cfg v2.RAGStrategyConfi
 
 	// Get or create embedding model
 	var embedModel provider.Provider
-	var modelCfg v2.ModelConfig
+	var modelCfg latest.ModelConfig
 	var err error
 
 	if modelName == "auto" {
@@ -161,7 +161,7 @@ func createAutoEmbeddingModel(ctx context.Context, buildCtx BuildContext) (provi
 
 	for _, autoModelCfg := range config.AutoEmbeddingModelConfigs() {
 		// Convert to v2.ModelConfig so we use the same type everywhere in RAG.
-		modelCfg := v2.ModelConfig{
+		modelCfg := latest.ModelConfig{
 			Provider: autoModelCfg.Provider,
 			Model:    autoModelCfg.Model,
 		}

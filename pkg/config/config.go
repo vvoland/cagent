@@ -9,8 +9,9 @@ import (
 
 	v0 "github.com/docker/cagent/pkg/config/v0"
 	v1 "github.com/docker/cagent/pkg/config/v1"
-	latest "github.com/docker/cagent/pkg/config/v2" //nolint:staticcheck // This is used everywhere we reference the latest version
-	v2 "github.com/docker/cagent/pkg/config/v2"     //nolint:staticcheck // This is used for migrations to v2
+	v2 "github.com/docker/cagent/pkg/config/v2"
+	latest "github.com/docker/cagent/pkg/config/v3" //nolint:staticcheck // This is used everywhere we reference the latest version
+	v3 "github.com/docker/cagent/pkg/config/v3"     //nolint:staticcheck // This is used for migrations to v3
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/filesystem"
 )
@@ -90,6 +91,10 @@ func parseCurrentVersion(data []byte, version string) (any, error) {
 		var cfg v2.Config
 		err := yaml.UnmarshalWithOptions(data, &cfg, options...)
 		return cfg, err
+	case v3.Version:
+		var cfg v3.Config
+		err := yaml.UnmarshalWithOptions(data, &cfg, options...)
+		return cfg, err
 	default:
 		return nil, fmt.Errorf("unsupported config version: %v", version)
 	}
@@ -106,7 +111,14 @@ func migrateToLatestConfig(c any) (latest.Config, error) {
 			continue
 		}
 		if old, ok := c.(v1.Config); ok {
-			c, err = latest.UpgradeFrom(old)
+			c, err = v2.UpgradeFrom(old)
+			if err != nil {
+				return latest.Config{}, err
+			}
+			continue
+		}
+		if old, ok := c.(v2.Config); ok {
+			c, err = v3.UpgradeFrom(old)
 			if err != nil {
 				return latest.Config{}, err
 			}

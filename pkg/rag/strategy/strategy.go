@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	v2 "github.com/docker/cagent/pkg/config/v2"
+	latest "github.com/docker/cagent/pkg/config/v3"
 	"github.com/docker/cagent/pkg/environment"
 )
 
@@ -13,14 +13,14 @@ type BuildContext struct {
 	RAGName       string
 	ParentDir     string
 	SharedDocs    []string
-	Models        map[string]v2.ModelConfig
+	Models        map[string]latest.ModelConfig
 	Env           environment.Provider
 	ModelsGateway string
 }
 
 // BuildStrategy builds a strategy from config
 // Explicitly dispatches to the appropriate constructor based on type
-func BuildStrategy(ctx context.Context, cfg v2.RAGStrategyConfig, buildCtx BuildContext, events chan<- Event) (*Config, error) {
+func BuildStrategy(ctx context.Context, cfg latest.RAGStrategyConfig, buildCtx BuildContext, events chan<- Event) (*Config, error) {
 	switch cfg.Type {
 	case "chunked-embeddings":
 		return NewChunkedEmbeddingsFromConfig(ctx, cfg, buildCtx, events)

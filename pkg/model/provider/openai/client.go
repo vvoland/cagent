@@ -16,7 +16,7 @@ import (
 	"github.com/openai/openai-go/v3/shared"
 
 	"github.com/docker/cagent/pkg/chat"
-	latest "github.com/docker/cagent/pkg/config/v2"
+	latest "github.com/docker/cagent/pkg/config/v3"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/httpclient"
 	"github.com/docker/cagent/pkg/model/provider/base"

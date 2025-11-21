@@ -11,7 +11,7 @@ import (
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/config"
-	latest "github.com/docker/cagent/pkg/config/v2"
+	latest "github.com/docker/cagent/pkg/config/v3"
 	"github.com/docker/cagent/pkg/js"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/model/provider/options"
