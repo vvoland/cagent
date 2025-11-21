@@ -1,6 +1,7 @@
 package root
 
 import (
+	"context"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -54,7 +55,7 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	var prompt *string
+	var firstMessage *string
 	opts := []session.Opt{
 		session.WithTitle("New agent"),
 		session.WithMaxIterations(f.maxIterationsParam),
@@ -63,12 +64,16 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		arg := strings.Join(args, " ")
 		opts = append(opts, session.WithUserMessage("", arg))
-		prompt = &arg
+		firstMessage = &arg
 	}
 
 	sess := session.New(opts...)
 
-	a := app.New(ctx, "", rt, sess, prompt)
+	return runTUI(ctx, "", rt, sess, firstMessage)
+}
+
+func runTUI(ctx context.Context, agentFilename string, rt runtime.Runtime, sess *session.Session, firstMessage *string) error {
+	a := app.New(ctx, agentFilename, rt, sess, firstMessage)
 	m := tui.New(a)
 
 	progOpts := []tea.ProgramOption{
@@ -79,6 +84,6 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
 
 	go a.Subscribe(ctx, p)
 
-	_, err = p.Run()
+	_, err := p.Run()
 	return err
 }
