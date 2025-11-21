@@ -113,6 +113,7 @@ type LocalRuntime struct {
 	elicitationEventsChannelMux sync.RWMutex           // Protects elicitationEventsChannel
 	ragInitialized              bool                   // Track if RAG was initialized early
 	ragInitMux                  sync.Mutex             // Protects ragInitialized
+	titleGenerationWg           sync.WaitGroup         // Wait group for title generation
 }
 
 type streamResult struct {
@@ -404,9 +405,8 @@ func (r *LocalRuntime) finalizeEventChannel(ctx context.Context, sess *session.S
 
 	telemetry.RecordSessionEnd(ctx)
 
-	if sess.Title == "" && len(sess.GetAllMessages()) > 0 {
-		r.generateSessionTitle(ctx, sess, events)
-	}
+	// Wait for title generation if it's in progress
+	r.titleGenerationWg.Wait()
 }
 
 // RunStream starts the agent's interaction loop and returns a channel of events
@@ -473,6 +473,12 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		defer r.finalizeEventChannel(ctx, sess, events)
 
 		r.registerDefaultTools()
+
+		if sess.Title == "" {
+			r.titleGenerationWg.Go(func() {
+				r.generateSessionTitle(ctx, sess, events)
+			})
+		}
 
 		iteration := 0
 		// Use a runtime copy of maxIterations so we don't modify the session's persistent config
@@ -1289,44 +1295,19 @@ func (r *LocalRuntime) handleHandoff(ctx context.Context, sess *session.Session,
 	}, nil
 }
 
-// generateSessionTitle generates a title for the session based on the conversation history
+// generateSessionTitle generates a title for the session based on the first user message
 func (r *LocalRuntime) generateSessionTitle(ctx context.Context, sess *session.Session, events chan Event) {
 	slog.Debug("Generating title for session", "session_id", sess.ID)
 
-	// Create conversation history summary
-	var conversationHistory strings.Builder
-	messages := sess.GetAllMessages()
-	for i := range messages {
-		if messages[i].Message.Role == chat.MessageRoleUser {
-			if len(messages[i].Message.MultiContent) > 0 {
-				hasContent := false
-				for _, part := range messages[i].Message.MultiContent {
-					if part.Type == chat.MessagePartTypeText && part.Text != "" {
-						conversationHistory.WriteString(fmt.Sprintf("\n%s: %s", messages[i].Message.Role, part.Text))
-						hasContent = true
-					} else if part.Type == chat.MessagePartTypeImageURL {
-						conversationHistory.WriteString(" [with attached image]")
-						hasContent = true
-					}
-				}
-				if !hasContent {
-					conversationHistory.WriteString(fmt.Sprintf("\n%s: [attachment]", messages[i].Message.Role))
-				}
-			} else {
-				conversationHistory.WriteString(fmt.Sprintf("\n%s: %s", messages[i].Message.Role, messages[i].Message.Content))
-			}
-			break
-		}
-	}
-
-	if conversationHistory.Len() == 0 {
+	firstUserMessage := sess.GetLastUserMessageContent()
+	if firstUserMessage == "" {
 		slog.Error("Failed generating session title: no user message found in session", "session_id", sess.ID)
 		events <- SessionTitle(sess.ID, "Untitled", r.currentAgent)
 		return
 	}
 
 	systemPrompt := "You are a helpful AI assistant that generates concise, descriptive titles for conversations. You will be given a conversation history and asked to create a title that captures the main topic."
-	userPrompt := fmt.Sprintf("Based on the following message a user sent to an AI assistant, generate a short, descriptive title (maximum 50 characters) that captures the main topic or purpose of the conversation. Return ONLY the title text, nothing else.\n\nUser message:%s\n\n", conversationHistory.String())
+	userPrompt := fmt.Sprintf("Based on the following message a user sent to an AI assistant, generate a short, descriptive title (maximum 50 characters) that captures the main topic or purpose of the conversation. Return ONLY the title text, nothing else.\n\nUser message: %s\n\n", firstUserMessage)
 
 	titleModel := provider.CloneWithOptions(ctx, r.CurrentAgent().Model(), options.WithStructuredOutput(nil))
 	newTeam := team.New(
