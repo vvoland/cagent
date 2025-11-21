@@ -14,6 +14,7 @@ import (
 	"github.com/docker/cagent/pkg/model/provider/gemini"
 	"github.com/docker/cagent/pkg/model/provider/openai"
 	"github.com/docker/cagent/pkg/model/provider/options"
+	"github.com/docker/cagent/pkg/rag/types"
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -80,6 +81,18 @@ type BatchEmbeddingProvider interface {
 	// CreateBatchEmbedding generates embedding vectors for multiple texts with usage tracking.
 	// Returns embeddings in the same order as input texts.
 	CreateBatchEmbedding(ctx context.Context, texts []string) (*base.BatchEmbeddingResult, error)
+}
+
+// RerankingProvider defines the interface for providers that support reranking.
+// Reranking models score query-document pairs to assess relevance.
+type RerankingProvider interface {
+	Provider
+	// Rerank scores documents by relevance to the query.
+	// Returns relevance scores in the same order as input documents.
+	// Scores are typically in [0, 1] range where higher means more relevant.
+	// criteria: Optional domain-specific guidance for relevance scoring (appended to base prompt)
+	// documents: Array of types.Document with content and metadata
+	Rerank(ctx context.Context, query string, documents []types.Document, criteria string) ([]float64, error)
 }
 
 func New(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider, opts ...options.Opt) (Provider, error) {

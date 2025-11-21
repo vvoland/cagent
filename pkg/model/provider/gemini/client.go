@@ -19,6 +19,8 @@ import (
 	"github.com/docker/cagent/pkg/httpclient"
 	"github.com/docker/cagent/pkg/model/provider/base"
 	"github.com/docker/cagent/pkg/model/provider/options"
+	"github.com/docker/cagent/pkg/rag/prompts"
+	"github.com/docker/cagent/pkg/rag/types"
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -387,6 +389,156 @@ func (c *Client) CreateChatCompletionStream(
 	// Build a fresh client per request when using the gateway
 	iter := client.Models.GenerateContentStream(ctx, c.ModelConfig.Model, contents, config)
 	return NewStreamAdapter(iter, c.ModelConfig.Model), nil
+}
+
+// Rerank scores documents by relevance to the query using Gemini's structured
+// output feature. It returns relevance scores in the same order as input documents.
+func (c *Client) Rerank(ctx context.Context, query string, documents []types.Document, criteria string) ([]float64, error) {
+	const logPrefix = "Gemini reranking request"
+
+	if len(documents) == 0 {
+		slog.Debug(logPrefix, "model", c.ModelConfig.Model, "num_documents", 0)
+		return []float64{}, nil
+	}
+
+	slog.Debug(logPrefix,
+		"model", c.ModelConfig.Model,
+		"query_length", len(query),
+		"num_documents", len(documents),
+		"has_criteria", criteria != "")
+
+	client, err := c.clientFn(ctx)
+	if err != nil {
+		slog.Error("Failed to create Gemini client for reranking", "error", err)
+		return nil, err
+	}
+
+	// Build user prompt with query and numbered documents (including metadata)
+	userPrompt := prompts.BuildRerankDocumentsPrompt(query, documents)
+
+	// Build system prompt with Gemini-specific JSON format instructions
+	jsonFormatInstruction := `Return a JSON object with a "scores" array containing one number per document, in order.`
+	systemPrompt := prompts.BuildRerankSystemPrompt(documents, criteria, c.ModelConfig.ProviderOpts, jsonFormatInstruction)
+
+	// Create a single user turn that includes both system-like instruction and data.
+	content := genai.NewContentFromParts(
+		[]*genai.Part{
+			genai.NewPartFromText(systemPrompt),
+			genai.NewPartFromText(userPrompt),
+		},
+		genai.RoleUser,
+	)
+
+	// Use Gemini's structured output feature to enforce the JSON schema.
+	// This eliminates the need for fallback parsing strategies.
+	schema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"scores": map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "number",
+				},
+			},
+		},
+		"required": []string{"scores"},
+	}
+
+	// Start with standard config from model definition (respects max_tokens,
+	// temperature, top_p, etc. from the model config).
+	// If the user hasn't configured these, we rely on Gemini API defaults.
+	cfg := c.buildConfig()
+
+	// Override with reranking-specific structured output schema.
+	cfg.ResponseMIMEType = "application/json"
+	cfg.ResponseJsonSchema = schema
+
+	// For reranking, default temperature to 0 for deterministic scoring if not explicitly set.
+	if c.ModelConfig.Temperature == nil {
+		cfg.Temperature = genai.Ptr(float32(0.0))
+	}
+
+	// Disable thinking for reranking - we want quick, deterministic scoring
+	// without wasting tokens on internal reasoning. This overrides any
+	// thinking_budget from the model config for this specific use case.
+	cfg.ThinkingConfig = &genai.ThinkingConfig{
+		IncludeThoughts: false,
+	}
+
+	resp, err := client.Models.GenerateContent(ctx, c.ModelConfig.Model, []*genai.Content{content}, cfg)
+	if err != nil {
+		slog.Error("Gemini rerank request failed", "error", err)
+		return nil, fmt.Errorf("gemini rerank request failed: %w", err)
+	}
+
+	// Check if the request was blocked by safety filters
+	if resp.PromptFeedback != nil && resp.PromptFeedback.BlockReason != "" {
+		return nil, fmt.Errorf("gemini blocked request: %v", resp.PromptFeedback.BlockReason)
+	}
+
+	rawJSON, err := extractGeminiStructuredJSON(resp)
+	if err != nil {
+		slog.Error("Failed to extract Gemini structured JSON", "error", err)
+		return nil, err
+	}
+
+	scores, err := parseRerankScoresStrict(rawJSON, len(documents))
+	if err != nil {
+		slog.Error("Failed to parse Gemini rerank scores", "error", err)
+		return nil, err
+	}
+
+	slog.Debug("Gemini reranking complete",
+		"model", c.ModelConfig.Model,
+		"num_scores", len(scores))
+
+	return scores, nil
+}
+
+// extractGeminiStructuredJSON extracts the JSON string from a
+// GenerateContentResponse with structured output enabled.
+func extractGeminiStructuredJSON(resp *genai.GenerateContentResponse) (string, error) {
+	if resp == nil {
+		return "", errors.New("gemini response is nil")
+	}
+
+	if len(resp.Candidates) == 0 {
+		return "", errors.New("gemini response has no candidates")
+	}
+
+	for _, cand := range resp.Candidates {
+		if cand == nil || cand.Content == nil {
+			continue
+		}
+
+		for _, part := range cand.Content.Parts {
+			if part != nil && part.Text != "" {
+				return part.Text, nil
+			}
+		}
+	}
+
+	return "", errors.New("no text part found in Gemini response for structured JSON")
+}
+
+// parseRerankScoresStrict parses a JSON payload of the form {"scores":[...]}
+// and validates length. This version does NOT have fallback parsing since
+// structured outputs guarantee valid JSON.
+func parseRerankScoresStrict(raw string, expected int) ([]float64, error) {
+	type rerankResponse struct {
+		Scores []float64 `json:"scores"`
+	}
+
+	var rr rerankResponse
+	if err := json.Unmarshal([]byte(strings.TrimSpace(raw)), &rr); err != nil {
+		return nil, fmt.Errorf("failed to parse rerank JSON: %w", err)
+	}
+
+	if len(rr.Scores) != expected {
+		return nil, fmt.Errorf("expected %d scores, got %d", expected, len(rr.Scores))
+	}
+
+	return rr.Scores, nil
 }
 
 func defaultsTo(value, defaultValue string) string {

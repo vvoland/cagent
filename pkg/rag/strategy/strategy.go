@@ -6,6 +6,7 @@ import (
 
 	latest "github.com/docker/cagent/pkg/config/v3"
 	"github.com/docker/cagent/pkg/environment"
+	"github.com/docker/cagent/pkg/rag/types"
 )
 
 // BuildContext contains everything needed to build a strategy
@@ -20,7 +21,7 @@ type BuildContext struct {
 
 // BuildStrategy builds a strategy from config
 // Explicitly dispatches to the appropriate constructor based on type
-func BuildStrategy(ctx context.Context, cfg latest.RAGStrategyConfig, buildCtx BuildContext, events chan<- Event) (*Config, error) {
+func BuildStrategy(ctx context.Context, cfg latest.RAGStrategyConfig, buildCtx BuildContext, events chan<- types.Event) (*Config, error) {
 	switch cfg.Type {
 	case "chunked-embeddings":
 		return NewChunkedEmbeddingsFromConfig(ctx, cfg, buildCtx, events)

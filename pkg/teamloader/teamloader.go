@@ -152,6 +152,7 @@ func LoadFrom(ctx context.Context, source AgentSource, runtimeConfig *config.Run
 		ParentDir:     parentDir,
 		ModelsGateway: runtimeConfig.ModelsGateway,
 		Env:           env,
+		Models:        cfg.Models,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create RAG managers: %w", err)

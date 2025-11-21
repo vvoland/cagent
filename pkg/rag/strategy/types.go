@@ -26,24 +26,6 @@ type Strategy interface {
 	Close() error
 }
 
-// Event represents a strategy lifecycle event. It is the canonical RAG event type
-// used by strategies, the RAG manager, and the runtime.
-type Event struct {
-	Type         string
-	StrategyName string // Name of the strategy emitting the event
-	Message      string
-	Progress     *Progress
-	Error        error
-	TotalTokens  int     // For usage events
-	Cost         float64 // For usage events
-}
-
-// Progress represents progress within a multi-step operation (e.g., indexing).
-type Progress struct {
-	Current int
-	Total   int
-}
-
 // Config contains a strategy and its runtime configuration.
 type Config struct {
 	Name                  string

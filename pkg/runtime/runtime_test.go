@@ -19,6 +19,7 @@ import (
 	"github.com/docker/cagent/pkg/rag"
 	"github.com/docker/cagent/pkg/rag/database"
 	"github.com/docker/cagent/pkg/rag/strategy"
+	ragtypes "github.com/docker/cagent/pkg/rag/types"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/tools"
@@ -432,7 +433,7 @@ func TestStartBackgroundRAGInit_StopsForwardingAfterContextCancel(t *testing.T) 
 	defer cancel()
 
 	// Build a RAG manager with a stub strategy and a controllable event channel.
-	strategyEvents := make(chan strategy.Event, 10)
+	strategyEvents := make(chan ragtypes.Event, 10)
 	mgr, err := rag.New(
 		ctx,
 		"test-rag",
@@ -469,7 +470,7 @@ func TestStartBackgroundRAGInit_StopsForwardingAfterContextCancel(t *testing.T) 
 	})
 
 	// Emit a "ready" event and ensure it is forwarded.
-	strategyEvents <- strategy.Event{
+	strategyEvents <- ragtypes.Event{
 		Type:         "ready",
 		StrategyName: "stub",
 	}
@@ -488,7 +489,7 @@ func TestStartBackgroundRAGInit_StopsForwardingAfterContextCancel(t *testing.T) 
 	time.Sleep(100 * time.Millisecond)
 
 	// Emit another event; it should NOT be forwarded.
-	strategyEvents <- strategy.Event{
+	strategyEvents <- ragtypes.Event{
 		Type:         "ready",
 		StrategyName: "stub",
 	}

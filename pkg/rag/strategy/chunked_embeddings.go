@@ -19,10 +19,11 @@ import (
 	"github.com/docker/cagent/pkg/rag/chunk"
 	"github.com/docker/cagent/pkg/rag/database"
 	"github.com/docker/cagent/pkg/rag/embed"
+	"github.com/docker/cagent/pkg/rag/types"
 )
 
 // NewChunkedEmbeddingsFromConfig creates a chunked-embeddings strategy from configuration
-func NewChunkedEmbeddingsFromConfig(ctx context.Context, cfg latest.RAGStrategyConfig, buildCtx BuildContext, events chan<- Event) (*Config, error) {
+func NewChunkedEmbeddingsFromConfig(ctx context.Context, cfg latest.RAGStrategyConfig, buildCtx BuildContext, events chan<- types.Event) (*Config, error) {
 	// Extract required parameters
 	modelName := GetParam(cfg.Params, "model", "")
 	if modelName == "" {
@@ -43,7 +44,8 @@ func NewChunkedEmbeddingsFromConfig(ctx context.Context, cfg latest.RAGStrategyC
 		// For auto, model ID will be determined from embedModel.ID()
 	} else {
 		// Look up model in config
-		modelCfg, exists := buildCtx.Models[modelName]
+		var exists bool
+		modelCfg, exists = buildCtx.Models[modelName]
 		if !exists {
 			return nil, fmt.Errorf("model '%s' not found for chunked-embeddings strategy", modelName)
 		}
@@ -113,10 +115,13 @@ func NewChunkedEmbeddingsFromConfig(ctx context.Context, cfg latest.RAGStrategyC
 	maxConcurrency := GetParam(cfg.Params, "max_embedding_concurrency", 3)
 
 	// Get full model ID for pricing lookup
-	modelID := modelCfg.Provider + "/" + modelCfg.Model
+	var modelID string
 	if modelName == "auto" {
 		// For auto models, determine the ID from what was created
 		modelID = embedModel.ID()
+	} else {
+		// For defined models, construct ID from config
+		modelID = modelCfg.Provider + "/" + modelCfg.Model
 	}
 
 	// Create models.dev store for pricing (separate from runtime's store)
@@ -192,7 +197,7 @@ type VectorStrategy struct {
 	fileHashes       map[string]string
 	watcher          *fsnotify.Watcher
 	watcherMu        sync.Mutex
-	events           chan<- Event
+	events           chan<- types.Event
 	similarityMetric string
 	indexingTokens   int     // Track tokens used during indexing
 	indexingCost     float64 // Track cost during indexing
@@ -205,7 +210,7 @@ type modelStore interface {
 }
 
 // NewVectorStrategy creates a new vector-based retrieval strategy with models.dev pricing
-func NewVectorStrategy(name string, embedModel provider.Provider, db database.Database, events chan<- Event, similarityMetric string, batchSize, maxConcurrency int, modelID string, modelsStore modelStore) *VectorStrategy {
+func NewVectorStrategy(name string, embedModel provider.Provider, db database.Database, events chan<- types.Event, similarityMetric string, batchSize, maxConcurrency int, modelID string, modelsStore modelStore) *VectorStrategy {
 	emb := embed.New(embedModel, embed.WithBatchSize(batchSize), embed.WithMaxConcurrency(maxConcurrency))
 
 	s := &VectorStrategy{
@@ -230,7 +235,7 @@ func NewVectorStrategy(name string, embedModel provider.Provider, db database.Da
 		s.indexingCost += cost
 
 		// Emit usage event with CUMULATIVE totals for TUI
-		s.emitEvent(Event{
+		s.emitEvent(types.Event{
 			Type:        "usage",
 			TotalTokens: s.indexingTokens, // Cumulative tokens
 			Cost:        s.indexingCost,   // Cumulative cost
@@ -282,7 +287,7 @@ func (s *VectorStrategy) Initialize(ctx context.Context, docPaths []string, chun
 	slog.Debug("Collecting files", "strategy", s.name, "paths", docPaths)
 	files, err := s.processor.CollectFiles(docPaths)
 	if err != nil {
-		s.emitEvent(Event{Type: "error", Error: err})
+		s.emitEvent(types.Event{Type: "error", Error: err})
 		return fmt.Errorf("failed to collect files: %w", err)
 	}
 
@@ -340,7 +345,7 @@ func (s *VectorStrategy) Initialize(ctx context.Context, docPaths []string, chun
 		return nil
 	}
 
-	s.emitEvent(Event{Type: "indexing_started"})
+	s.emitEvent(types.Event{Type: "indexing_started"})
 
 	// Index files that need it
 	indexed := 0
@@ -358,9 +363,9 @@ func (s *VectorStrategy) Initialize(ctx context.Context, docPaths []string, chun
 
 		indexed++
 
-		s.emitEvent(Event{
+		s.emitEvent(types.Event{
 			Type: "indexing_progress",
-			Progress: &Progress{
+			Progress: &types.Progress{
 				Current: indexed,
 				Total:   filesToIndex,
 			},
@@ -376,7 +381,7 @@ func (s *VectorStrategy) Initialize(ctx context.Context, docPaths []string, chun
 		slog.Error("Failed to cleanup orphaned documents", "error", err)
 	}
 
-	s.emitEvent(Event{Type: "indexing_completed"})
+	s.emitEvent(types.Event{Type: "indexing_completed"})
 
 	slog.Info("Chunked-embeddings strategy initialization completed",
 		"name", s.name,
@@ -725,16 +730,16 @@ func (s *VectorStrategy) watchLoop(ctx context.Context, docPaths []string, chunk
 		}
 
 		if len(filesToReindex) > 0 {
-			s.emitEvent(Event{
+			s.emitEvent(types.Event{
 				Type:    "indexing_started",
 				Message: fmt.Sprintf("Re-indexing %d changed file(s)", len(filesToReindex)),
 			})
 
 			for i, file := range filesToReindex {
-				s.emitEvent(Event{
+				s.emitEvent(types.Event{
 					Type:    "indexing_progress",
 					Message: fmt.Sprintf("Re-indexing: %s", filepath.Base(file)),
-					Progress: &Progress{
+					Progress: &types.Progress{
 						Current: i + 1,
 						Total:   len(filesToReindex),
 					},
@@ -742,7 +747,7 @@ func (s *VectorStrategy) watchLoop(ctx context.Context, docPaths []string, chunk
 
 				if err := s.indexFile(ctx, file, chunkSize, chunkOverlap, respectWordBoundaries); err != nil {
 					slog.Error("Failed to re-index file", "path", file, "error", err)
-					s.emitEvent(Event{
+					s.emitEvent(types.Event{
 						Type:    "error",
 						Message: fmt.Sprintf("Failed to re-index: %s", filepath.Base(file)),
 						Error:   err,
@@ -754,7 +759,7 @@ func (s *VectorStrategy) watchLoop(ctx context.Context, docPaths []string, chunk
 				slog.Error("Failed to cleanup orphaned documents", "error", err)
 			}
 
-			s.emitEvent(Event{
+			s.emitEvent(types.Event{
 				Type:    "indexing_completed",
 				Message: fmt.Sprintf("Re-indexed %d file(s)", len(filesToReindex)),
 			})
@@ -824,7 +829,7 @@ func (s *VectorStrategy) cleanupOrphanedDocumentsFromDisk(ctx context.Context, d
 	return s.cleanupOrphanedDocuments(ctx, seenFiles)
 }
 
-func (s *VectorStrategy) emitEvent(event Event) {
+func (s *VectorStrategy) emitEvent(event types.Event) {
 	EmitEvent(s.events, event, s.name)
 }
 

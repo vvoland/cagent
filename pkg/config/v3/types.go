@@ -382,13 +382,77 @@ type RAGChunkingConfig struct {
 	RespectWordBoundaries bool `json:"respect_word_boundaries,omitempty"`
 }
 
+// UnmarshalYAML implements custom unmarshaling to apply sensible defaults for chunking
+func (c *RAGChunkingConfig) UnmarshalYAML(unmarshal func(any) error) error {
+	// Use a struct with pointer to distinguish "not set" from "explicitly set to false"
+	var raw struct {
+		Size                  int   `yaml:"size"`
+		Overlap               int   `yaml:"overlap"`
+		RespectWordBoundaries *bool `yaml:"respect_word_boundaries"`
+	}
+
+	if err := unmarshal(&raw); err != nil {
+		return err
+	}
+
+	c.Size = raw.Size
+	c.Overlap = raw.Overlap
+
+	// Apply default of true for RespectWordBoundaries if not explicitly set
+	if raw.RespectWordBoundaries != nil {
+		c.RespectWordBoundaries = *raw.RespectWordBoundaries
+	} else {
+		c.RespectWordBoundaries = true
+	}
+
+	return nil
+}
+
 // RAGResultsConfig represents result post-processing configuration (common across strategies)
 type RAGResultsConfig struct {
-	Limit             int              `json:"limit,omitempty"`               // Maximum number of results to return (top K)
-	Fusion            *RAGFusionConfig `json:"fusion,omitempty"`              // How to combine results from multiple strategies
-	Deduplicate       bool             `json:"deduplicate,omitempty"`         // Remove duplicate documents across strategies
-	IncludeScore      bool             `json:"include_score,omitempty"`       // Include relevance scores in results
-	ReturnFullContent bool             `json:"return_full_content,omitempty"` // Return full document content instead of just matched chunks
+	Limit             int                 `json:"limit,omitempty"`               // Maximum number of results to return (top K)
+	Fusion            *RAGFusionConfig    `json:"fusion,omitempty"`              // How to combine results from multiple strategies
+	Reranking         *RAGRerankingConfig `json:"reranking,omitempty"`           // Optional reranking configuration
+	Deduplicate       bool                `json:"deduplicate,omitempty"`         // Remove duplicate documents across strategies
+	IncludeScore      bool                `json:"include_score,omitempty"`       // Include relevance scores in results
+	ReturnFullContent bool                `json:"return_full_content,omitempty"` // Return full document content instead of just matched chunks
+}
+
+// RAGRerankingConfig represents reranking configuration
+type RAGRerankingConfig struct {
+	Model     string  `json:"model"`               // Model reference for reranking (e.g., "hf.co/ggml-org/Qwen3-Reranker-0.6B-Q8_0-GGUF")
+	TopK      int     `json:"top_k,omitempty"`     // Optional: only rerank top K results (0 = rerank all)
+	Threshold float64 `json:"threshold,omitempty"` // Optional: minimum score threshold after reranking (default: 0.5)
+	Criteria  string  `json:"criteria,omitempty"`  // Optional: domain-specific relevance criteria to guide scoring
+}
+
+// UnmarshalYAML implements custom unmarshaling to apply sensible defaults for reranking
+func (r *RAGRerankingConfig) UnmarshalYAML(unmarshal func(any) error) error {
+	// Use a struct with pointer to distinguish "not set" from "explicitly set to 0"
+	var raw struct {
+		Model     string   `yaml:"model"`
+		TopK      int      `yaml:"top_k"`
+		Threshold *float64 `yaml:"threshold"`
+		Criteria  string   `yaml:"criteria"`
+	}
+
+	if err := unmarshal(&raw); err != nil {
+		return err
+	}
+
+	r.Model = raw.Model
+	r.TopK = raw.TopK
+	r.Criteria = raw.Criteria
+
+	// Apply default threshold of 0.5 if not explicitly set
+	// This filters documents with negative logits (sigmoid < 0.5 = not relevant)
+	if raw.Threshold != nil {
+		r.Threshold = *raw.Threshold
+	} else {
+		r.Threshold = 0.5
+	}
+
+	return nil
 }
 
 // defaultRAGResultsConfig returns the default results configuration
@@ -404,11 +468,12 @@ func defaultRAGResultsConfig() RAGResultsConfig {
 // UnmarshalYAML implements custom unmarshaling so we can apply sensible defaults
 func (r *RAGResultsConfig) UnmarshalYAML(unmarshal func(any) error) error {
 	var raw struct {
-		Limit             int              `json:"limit,omitempty"`
-		Fusion            *RAGFusionConfig `json:"fusion,omitempty"`
-		Deduplicate       *bool            `json:"deduplicate,omitempty"`
-		IncludeScore      *bool            `json:"include_score,omitempty"`
-		ReturnFullContent *bool            `json:"return_full_content,omitempty"`
+		Limit             int                 `json:"limit,omitempty"`
+		Fusion            *RAGFusionConfig    `json:"fusion,omitempty"`
+		Reranking         *RAGRerankingConfig `json:"reranking,omitempty"`
+		Deduplicate       *bool               `json:"deduplicate,omitempty"`
+		IncludeScore      *bool               `json:"include_score,omitempty"`
+		ReturnFullContent *bool               `json:"return_full_content,omitempty"`
 	}
 
 	if err := unmarshal(&raw); err != nil {
@@ -423,6 +488,7 @@ func (r *RAGResultsConfig) UnmarshalYAML(unmarshal func(any) error) error {
 		r.Limit = raw.Limit
 	}
 	r.Fusion = raw.Fusion
+	r.Reranking = raw.Reranking
 
 	if raw.Deduplicate != nil {
 		r.Deduplicate = *raw.Deduplicate

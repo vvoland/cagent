@@ -382,6 +382,32 @@ type RAGChunkingConfig struct {
 	RespectWordBoundaries bool `json:"respect_word_boundaries,omitempty"`
 }
 
+// UnmarshalYAML implements custom unmarshaling to apply sensible defaults for chunking
+func (c *RAGChunkingConfig) UnmarshalYAML(unmarshal func(any) error) error {
+	// Use a struct with pointer to distinguish "not set" from "explicitly set to false"
+	var raw struct {
+		Size                  int   `yaml:"size"`
+		Overlap               int   `yaml:"overlap"`
+		RespectWordBoundaries *bool `yaml:"respect_word_boundaries"`
+	}
+
+	if err := unmarshal(&raw); err != nil {
+		return err
+	}
+
+	c.Size = raw.Size
+	c.Overlap = raw.Overlap
+
+	// Apply default of true for RespectWordBoundaries if not explicitly set
+	if raw.RespectWordBoundaries != nil {
+		c.RespectWordBoundaries = *raw.RespectWordBoundaries
+	} else {
+		c.RespectWordBoundaries = true
+	}
+
+	return nil
+}
+
 // RAGResultsConfig represents result post-processing configuration (common across strategies)
 type RAGResultsConfig struct {
 	Limit             int              `json:"limit,omitempty"`               // Maximum number of results to return (top K)
