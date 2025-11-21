@@ -87,15 +87,20 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 			}
 			baseURL := fmt.Sprintf("%s://%s%s/", url.Scheme, url.Host, url.Path)
 
+			httpOptions := []httpclient.Opt{
+				httpclient.WithProxiedBaseURL(defaultsTo(cfg.BaseURL, "https://generativelanguage.googleapis.com/")),
+				httpclient.WithProvider(cfg.Provider),
+				httpclient.WithModel(cfg.Model),
+				httpclient.WithQuery(url.Query()),
+			}
+			if globalOptions.GeneratingTitle() {
+				httpOptions = append(httpOptions, httpclient.WithHeader("X-Cagent-GeneratingTitle", "1"))
+			}
+
 			return genai.NewClient(ctx, &genai.ClientConfig{
-				APIKey:  authToken,
-				Backend: genai.BackendGeminiAPI,
-				HTTPClient: httpclient.NewHTTPClient(
-					httpclient.WithProxiedBaseURL(defaultsTo(cfg.BaseURL, "https://generativelanguage.googleapis.com/")),
-					httpclient.WithProvider(cfg.Provider),
-					httpclient.WithModel(cfg.Model),
-					httpclient.WithQuery(url.Query()),
-				),
+				APIKey:     authToken,
+				Backend:    genai.BackendGeminiAPI,
+				HTTPClient: httpclient.NewHTTPClient(httpOptions...),
 				HTTPOptions: genai.HTTPOptions{
 					BaseURL: baseURL,
 					Headers: http.Header{

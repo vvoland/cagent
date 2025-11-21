@@ -7,6 +7,7 @@ import (
 type ModelOptions struct {
 	gateway          string
 	structuredOutput *latest.StructuredOutput
+	generatingTitle  bool
 }
 
 func (c *ModelOptions) Gateway() string {
@@ -15,6 +16,10 @@ func (c *ModelOptions) Gateway() string {
 
 func (c *ModelOptions) StructuredOutput() *latest.StructuredOutput {
 	return c.structuredOutput
+}
+
+func (c *ModelOptions) GeneratingTitle() bool {
+	return c.generatingTitle
 }
 
 type Opt func(*ModelOptions)
@@ -31,6 +36,12 @@ func WithStructuredOutput(structuredOutput *latest.StructuredOutput) Opt {
 	}
 }
 
+func WithGeneratingTitle() Opt {
+	return func(cfg *ModelOptions) {
+		cfg.generatingTitle = true
+	}
+}
+
 // FromModelOptions converts a concrete ModelOptions value into a slice of
 // Opt configuration functions. Later Opts override earlier ones when applied.
 func FromModelOptions(m ModelOptions) []Opt {
@@ -40,6 +51,9 @@ func FromModelOptions(m ModelOptions) []Opt {
 	}
 	if m.structuredOutput != nil {
 		out = append(out, WithStructuredOutput(m.structuredOutput))
+	}
+	if m.generatingTitle {
+		out = append(out, WithGeneratingTitle())
 	}
 	return out
 }
