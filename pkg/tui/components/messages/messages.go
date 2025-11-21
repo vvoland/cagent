@@ -520,6 +520,7 @@ func (m *model) AddUserMessage(content string) tea.Cmd {
 }
 
 func (m *model) AddErrorMessage(content string) tea.Cmd {
+	m.removeSpinner()
 	return m.addMessage(types.Error(content))
 }
 
