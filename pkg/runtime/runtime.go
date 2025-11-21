@@ -53,8 +53,13 @@ const (
 	ResumeTypeReject         ResumeType = "reject"
 )
 
-// ToolHandler is a function type for handling tool calls
-type ToolHandler func(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, events chan Event) (*tools.ToolCallResult, error)
+// ToolHandlerFunc is a function type for handling tool calls
+type ToolHandlerFunc func(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, events chan Event) (*tools.ToolCallResult, error)
+
+type ToolHandler struct {
+	handler ToolHandlerFunc
+	tool    tools.Tool
+}
 
 // ElicitationRequestHandler is a function type for handling elicitation requests
 type ElicitationRequestHandler func(ctx context.Context, message string, schema map[string]any) (map[string]any, error)
@@ -369,8 +374,26 @@ func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, events chan Event) {
 // registerDefaultTools registers the default tool handlers
 func (r *LocalRuntime) registerDefaultTools() {
 	slog.Debug("Registering default tools")
-	r.toolMap[builtin.ToolNameTransferTask] = r.handleTaskTransfer
-	r.toolMap[builtin.ToolNameHandoff] = r.handleHandoff
+
+	tt := builtin.NewTransferTaskTool()
+	ht := builtin.NewHandoffTool()
+	ttTools, _ := tt.Tools(context.TODO())
+	htTools, _ := ht.Tools(context.TODO())
+	allTools := append(ttTools, htTools...)
+
+	handlers := map[string]ToolHandlerFunc{
+		builtin.ToolNameTransferTask: r.handleTaskTransfer,
+		builtin.ToolNameHandoff:      r.handleHandoff,
+	}
+
+	for _, t := range allTools {
+		if h, exists := handlers[t.Name]; exists {
+			r.toolMap[t.Name] = ToolHandler{handler: h, tool: t}
+		} else {
+			slog.Warn("No handler found for default tool", "tool", t.Name)
+		}
+	}
+
 	slog.Debug("Registered default tools", "count", len(r.toolMap))
 }
 
@@ -900,43 +923,37 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 		))
 
 		slog.Debug("Processing tool call", "agent", a.Name(), "tool", toolCall.Function.Name, "session_id", sess.ID)
-		handler, exists := r.toolMap[toolCall.Function.Name]
+		def, exists := r.toolMap[toolCall.Function.Name]
 		if exists {
-			tool := tools.Tool{
-				Annotations: tools.ToolAnnotations{
-					// TODO: We need to handle the transfer task tool better
-					Title: "Transfer Task",
-				},
-			}
 			slog.Debug("Using runtime tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
-			// TODO: make this better, these tols define themselves as read-only
-			if sess.ToolsApproved || toolCall.Function.Name == builtin.ToolNameTransferTask || toolCall.Function.Name == builtin.ToolNameHandoff {
-				r.runAgentTool(callCtx, handler, sess, toolCall, tool, events, a)
+			// TODO: make this better, these tools define themselves as read-only
+			if sess.ToolsApproved || def.tool.Annotations.ReadOnlyHint {
+				r.runAgentTool(callCtx, def.handler, sess, toolCall, def.tool, events, a)
 			} else {
 				slog.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
 
-				events <- ToolCallConfirmation(toolCall, tool, a.Name())
+				events <- ToolCallConfirmation(toolCall, def.tool, a.Name())
 
 				select {
 				case cType := <-r.resumeChan:
 					switch cType {
 					case ResumeTypeApprove:
 						slog.Debug("Resume signal received, approving tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
-						r.runAgentTool(callCtx, handler, sess, toolCall, tool, events, a)
+						r.runAgentTool(callCtx, def.handler, sess, toolCall, def.tool, events, a)
 					case ResumeTypeApproveSession:
 						slog.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name, "session_id", sess.ID)
 						sess.ToolsApproved = true
-						r.runAgentTool(callCtx, handler, sess, toolCall, tool, events, a)
+						r.runAgentTool(callCtx, def.handler, sess, toolCall, def.tool, events, a)
 					case ResumeTypeReject:
 						slog.Debug("Resume signal received, rejecting tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
-						r.addToolRejectedResponse(sess, toolCall, tool, events)
+						r.addToolRejectedResponse(sess, toolCall, def.tool, events)
 					}
 				case <-callCtx.Done():
 					slog.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
 					// Synthesize cancellation responses for the current and any remaining tool calls
-					r.addToolCancelledResponse(sess, toolCall, tool, events)
+					r.addToolCancelledResponse(sess, toolCall, def.tool, events)
 					for j := i + 1; j < len(calls); j++ {
-						r.addToolCancelledResponse(sess, calls[j], tool, events)
+						r.addToolCancelledResponse(sess, calls[j], def.tool, events)
 					}
 					callSpan.SetStatus(codes.Ok, "tool call canceled by user")
 					return
@@ -1063,7 +1080,7 @@ func (r *LocalRuntime) runTool(ctx context.Context, tool tools.Tool, toolCall to
 	sess.AddMessage(session.NewAgentMessage(a, &toolResponseMsg))
 }
 
-func (r *LocalRuntime) runAgentTool(ctx context.Context, handler ToolHandler, sess *session.Session, toolCall tools.ToolCall, tool tools.Tool, events chan Event, a *agent.Agent) {
+func (r *LocalRuntime) runAgentTool(ctx context.Context, handler ToolHandlerFunc, sess *session.Session, toolCall tools.ToolCall, tool tools.Tool, events chan Event, a *agent.Agent) {
 	// Start a child span for runtime-provided tool handler execution
 	ctx, span := r.startSpan(ctx, "runtime.tool.handler.runtime", trace.WithAttributes(
 		attribute.String("tool.name", toolCall.Function.Name),
