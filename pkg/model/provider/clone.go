@@ -16,6 +16,7 @@ func CloneWithOptions(ctx context.Context, base Provider, opts ...options.Opt) P
 	// Preserve existing options, then apply overrides. Later opts take precedence.
 	baseOpts := options.FromModelOptions(config.ModelOptions)
 	mergedOpts := append(baseOpts, opts...)
+	mergedOpts = append(mergedOpts, options.WithGeneratingTitle())
 
 	clone, err := New(ctx, &config.ModelConfig, config.Env, mergedOpts...)
 	if err != nil {
