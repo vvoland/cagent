@@ -121,6 +121,9 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 				httpclient.WithModel(cfg.Model),
 				httpclient.WithQuery(url.Query()),
 			}
+			if globalOptions.GeneratingTitle() {
+				httpOptions = append(httpOptions, httpclient.WithHeader("X-Cagent-GeneratingTitle", "1"))
+			}
 
 			client := anthropic.NewClient(
 				option.WithAuthToken(authToken),
