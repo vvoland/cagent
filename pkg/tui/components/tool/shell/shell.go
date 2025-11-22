@@ -2,7 +2,6 @@ package shell
 
 import (
 	"encoding/json"
-	"fmt"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/glamour/v2"
@@ -65,15 +64,8 @@ func (c *Component) View() string {
 	msg := c.message
 	var args builtin.RunShellArgs
 	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &args); err != nil {
-		return ""
+		return toolcommon.RenderTool(toolcommon.Icon(msg.ToolStatus), msg.ToolDefinition.DisplayName(), c.spinner.View(), "", c.width)
 	}
 
-	displayName := msg.ToolDefinition.DisplayName()
-	content := fmt.Sprintf("%s %s %s", toolcommon.Icon(msg.ToolStatus), styles.HighlightStyle.Render(displayName), styles.MutedStyle.Render(args.Cmd))
-
-	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
-		content += " " + c.spinner.View()
-	}
-
-	return styles.RenderComposite(styles.ToolMessageStyle.Width(c.width-1), content)
+	return toolcommon.RenderTool(toolcommon.Icon(msg.ToolStatus), msg.ToolDefinition.DisplayName(), styles.MutedStyle.Render(args.Cmd), "", c.width)
 }

@@ -1,8 +1,6 @@
 package defaulttool
 
 import (
-	"fmt"
-
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/glamour/v2"
 
@@ -68,14 +66,14 @@ func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 func (c *Component) View() string {
 	msg := c.message
 	displayName := msg.ToolDefinition.DisplayName()
-	content := fmt.Sprintf("%s %s", toolcommon.Icon(msg.ToolStatus), styles.HighlightStyle.Render(displayName))
 
-	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
-		content += " " + c.spinner.View()
+	var argsContent string
+	if msg.ToolCall.Function.Arguments != "" {
+		argsContent = renderToolArgs(msg.ToolCall, c.width-3)
 	}
 
-	if msg.ToolCall.Function.Arguments != "" {
-		content += "\n" + renderToolArgs(msg.ToolCall, c.width-3)
+	if argsContent == "" {
+		return toolcommon.RenderTool(toolcommon.Icon(msg.ToolStatus), msg.ToolDefinition.DisplayName(), c.spinner.View(), "", c.width)
 	}
 
 	var resultContent string
@@ -83,5 +81,5 @@ func (c *Component) View() string {
 		resultContent = toolcommon.FormatToolResult(msg.Content, c.width)
 	}
 
-	return styles.RenderComposite(styles.ToolMessageStyle.Width(c.width-1), content+resultContent)
+	return toolcommon.RenderTool(toolcommon.Icon(msg.ToolStatus), styles.HighlightStyle.Render(displayName), argsContent, resultContent, c.width)
 }
