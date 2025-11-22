@@ -19,11 +19,10 @@ import (
 // Component represents a unified todo tool component that handles all todo operations.
 // It determines which operation to display based on the tool call name.
 type Component struct {
-	message  *types.Message
-	renderer *glamour.TermRenderer
-	spinner  spinner.Spinner
-	width    int
-	height   int
+	message *types.Message
+	spinner spinner.Spinner
+	width   int
+	height  int
 }
 
 // New creates a new unified todo component.
@@ -34,11 +33,10 @@ func New(
 	_ *service.SessionState,
 ) layout.Model {
 	return &Component{
-		message:  msg,
-		renderer: renderer,
-		spinner:  spinner.New(spinner.ModeSpinnerOnly),
-		width:    80,
-		height:   1,
+		message: msg,
+		spinner: spinner.New(spinner.ModeSpinnerOnly),
+		width:   80,
+		height:  1,
 	}
 }
 
