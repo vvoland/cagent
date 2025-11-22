@@ -238,16 +238,55 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return e, nil
 	case tea.KeyPressMsg:
 		switch msg.String() {
-		case "enter":
+		// Handle send/newline keys:
+		// - Enter: submit current input (if textarea inserted a newline, submit previous buffer).
+		// - Shift+Enter: insert newline when supported by terminal.
+		// - Ctrl+J: fallback to insert '\n' when Shift+Enter isn’t reported.
+
+		case "enter", "shift+enter", "ctrl+j":
 			if !e.textarea.Focused() {
 				return e, nil
 			}
+
+			prev := e.textarea.Value()
+			e.textarea, _ = e.textarea.Update(msg)
+
 			value := e.textarea.Value()
+
+			// If the textarea inserted a newline due to plain Enter, submit the previous value.
+			if value != prev && msg.String() == "enter" {
+				if prev != "" && !e.working {
+					e.textarea.SetValue(prev)
+					e.textarea.MoveToEnd()
+					e.textarea.Reset()
+					e.refreshSuggestion()
+					return e, core.CmdHandler(SendMsg{Content: prev})
+				}
+				return e, nil
+			}
+
+			// Shift+Enter: insert newline when supported by terminal (textarea handles it).
+			if value != prev {
+				e.refreshSuggestion()
+				return e, nil
+			}
+
+			// Ctrl+J fallback: append LF to the buffer (always works across TTYs).
+			if msg.String() == "ctrl+j" {
+				current := e.textarea.Value()
+				e.textarea.SetValue(current + "\n")
+				e.textarea.MoveToEnd()
+				e.refreshSuggestion()
+				return e, nil
+			}
+
+			// Normal Enter submit (no textarea change): send current value.
 			if value != "" && !e.working {
 				e.textarea.Reset()
 				e.refreshSuggestion()
 				return e, core.CmdHandler(SendMsg{Content: value})
 			}
+
 			return e, nil
 		case "ctrl+c":
 			return e, tea.Quit

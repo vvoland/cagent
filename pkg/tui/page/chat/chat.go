@@ -80,8 +80,10 @@ type chatPage struct {
 
 // KeyMap defines key bindings for the chat page
 type KeyMap struct {
-	Tab    key.Binding
-	Cancel key.Binding
+	Tab          key.Binding
+	Cancel       key.Binding
+	ShiftNewline key.Binding
+	CtrlJ        key.Binding
 }
 
 // defaultKeyMap returns the default key bindings
@@ -93,6 +95,12 @@ func defaultKeyMap() KeyMap {
 		),
 		Cancel: key.NewBinding(
 			key.WithKeys("esc"),
+		),
+		// Show newline help in footer. Terminals that support Shift+Enter will use it.
+		// Ctrl+J acts as a fallback on terminals that don't distinguish Shift+Enter.
+		ShiftNewline: key.NewBinding(
+			key.WithKeys("shift+enter", "ctrl+j"),
+			key.WithHelp("shift+enter / ctrl+j", "newline"),
 		),
 	}
 }
@@ -464,6 +472,8 @@ func (p *chatPage) Bindings() []key.Binding {
 	bindings := []key.Binding{
 		p.keyMap.Tab,
 		p.keyMap.Cancel,
+		// show newline hints in the global footer
+		p.keyMap.ShiftNewline,
 	}
 
 	if p.focusedPanel == PanelChat {
