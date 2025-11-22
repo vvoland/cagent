@@ -25,7 +25,7 @@ import (
 
 	"github.com/docker/cagent/pkg/api"
 	"github.com/docker/cagent/pkg/config"
-	latest "github.com/docker/cagent/pkg/config/v3"
+	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/creator"
 	"github.com/docker/cagent/pkg/desktop"

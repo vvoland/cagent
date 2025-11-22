@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/docker/cagent/pkg/chat"
-	latest "github.com/docker/cagent/pkg/config/v3"
+	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/session"
 )
 

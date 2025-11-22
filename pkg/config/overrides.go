@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	latest "github.com/docker/cagent/pkg/config/v3"
+	"github.com/docker/cagent/pkg/config/latest"
 )
 
 // ApplyModelOverrides applies CLI model overrides to the configuration

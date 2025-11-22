@@ -7,11 +7,7 @@ import (
 
 	"github.com/goccy/go-yaml"
 
-	v0 "github.com/docker/cagent/pkg/config/v0"
-	v1 "github.com/docker/cagent/pkg/config/v1"
-	v2 "github.com/docker/cagent/pkg/config/v2"
-	latest "github.com/docker/cagent/pkg/config/v3" //nolint:staticcheck // This is used everywhere we reference the latest version
-	v3 "github.com/docker/cagent/pkg/config/v3"     //nolint:staticcheck // This is used for migrations to v3
+	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/filesystem"
 )
@@ -76,57 +72,24 @@ func CheckRequiredEnvVars(ctx context.Context, cfg *latest.Config, modelsGateway
 }
 
 func parseCurrentVersion(data []byte, version string) (any, error) {
-	options := []yaml.DecodeOption{yaml.Strict()}
-
-	switch version {
-	case v0.Version:
-		var cfg v0.Config
-		err := yaml.UnmarshalWithOptions(data, &cfg, options...)
-		return cfg, err
-	case v1.Version:
-		var cfg v1.Config
-		err := yaml.UnmarshalWithOptions(data, &cfg, options...)
-		return cfg, err
-	case v2.Version:
-		var cfg v2.Config
-		err := yaml.UnmarshalWithOptions(data, &cfg, options...)
-		return cfg, err
-	case v3.Version:
-		var cfg v3.Config
-		err := yaml.UnmarshalWithOptions(data, &cfg, options...)
-		return cfg, err
-	default:
+	parser, found := Parsers()[version]
+	if !found {
 		return nil, fmt.Errorf("unsupported config version: %v", version)
 	}
+	return parser(data)
 }
 
 func migrateToLatestConfig(c any) (latest.Config, error) {
 	var err error
-	for {
-		if old, ok := c.(v0.Config); ok {
-			c, err = v1.UpgradeFrom(old)
-			if err != nil {
-				return latest.Config{}, err
-			}
-			continue
-		}
-		if old, ok := c.(v1.Config); ok {
-			c, err = v2.UpgradeFrom(old)
-			if err != nil {
-				return latest.Config{}, err
-			}
-			continue
-		}
-		if old, ok := c.(v2.Config); ok {
-			c, err = v3.UpgradeFrom(old)
-			if err != nil {
-				return latest.Config{}, err
-			}
-			continue
-		}
 
-		return c.(latest.Config), nil
+	for _, upgrade := range Upgrades() {
+		c, err = upgrade(c)
+		if err != nil {
+			return latest.Config{}, err
+		}
 	}
+
+	return c.(latest.Config), nil
 }
 
 func validateConfig(cfg *latest.Config) error {
