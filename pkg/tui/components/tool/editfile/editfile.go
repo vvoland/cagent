@@ -21,7 +21,6 @@ type ToggleDiffViewMsg struct{}
 // Component is a specialized component for rendering edit_file tool calls.
 type Component struct {
 	message      *types.Message
-	renderer     *glamour.TermRenderer
 	spinner      spinner.Spinner
 	width        int
 	height       int
@@ -30,12 +29,11 @@ type Component struct {
 
 func New(
 	msg *types.Message,
-	renderer *glamour.TermRenderer,
+	_ *glamour.TermRenderer,
 	sessionState *service.SessionState,
 ) layout.Model {
 	return &Component{
 		message:      msg,
-		renderer:     renderer,
 		spinner:      spinner.New(spinner.ModeSpinnerOnly),
 		width:        80,
 		height:       1,
