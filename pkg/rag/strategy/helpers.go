@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	latest "github.com/docker/cagent/pkg/config/v3"
+	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/rag/types"
 )

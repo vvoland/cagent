@@ -13,6 +13,7 @@ import (
 
 	"github.com/docker/cagent/pkg/aliases"
 	"github.com/docker/cagent/pkg/cli"
+	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/oci"
 )
@@ -489,7 +490,7 @@ func TestResolveAgentFile_OCIRef_HasAVersion(t *testing.T) {
 
 	storedContent, err := os.ReadFile(resolved)
 	require.NoError(t, err)
-	assert.Equal(t, `version: "3"
+	assert.Equal(t, `version: "`+latest.Version+`"
 agents:
   root:
     model: auto

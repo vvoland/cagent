@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/docker/cagent/pkg/chat"
-	latest "github.com/docker/cagent/pkg/config/v3"
+	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/model/provider/anthropic"
 	"github.com/docker/cagent/pkg/model/provider/base"

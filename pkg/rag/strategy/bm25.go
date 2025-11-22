@@ -13,7 +13,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 
-	latest "github.com/docker/cagent/pkg/config/v3"
+	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/rag/chunk"
 	"github.com/docker/cagent/pkg/rag/database"
 	"github.com/docker/cagent/pkg/rag/types"

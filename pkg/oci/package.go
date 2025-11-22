@@ -16,7 +16,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 
 	"github.com/docker/cagent/pkg/config"
-	latest "github.com/docker/cagent/pkg/config/v3"
+	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/path"
 	"github.com/docker/cagent/pkg/version"

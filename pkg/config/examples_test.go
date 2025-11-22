@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xeipuuv/gojsonschema"
 
-	latest "github.com/docker/cagent/pkg/config/v3"
+	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/filesystem"
 	"github.com/docker/cagent/pkg/modelsdev"
 )

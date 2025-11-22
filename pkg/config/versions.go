@@ -1,0 +1,28 @@
+package config
+
+import (
+	"github.com/docker/cagent/pkg/config/latest"
+	v0 "github.com/docker/cagent/pkg/config/v0"
+	v1 "github.com/docker/cagent/pkg/config/v1"
+	v2 "github.com/docker/cagent/pkg/config/v2"
+)
+
+func Parsers() map[string]func([]byte) (any, error) {
+	return map[string]func([]byte) (any, error){
+		v0.Version: func(d []byte) (any, error) { return v0.Parse(d) },
+		v1.Version: func(d []byte) (any, error) { return v1.Parse(d) },
+		v2.Version: func(d []byte) (any, error) { return v2.Parse(d) },
+
+		latest.Version: func(d []byte) (any, error) { return latest.Parse(d) },
+	}
+}
+
+func Upgrades() []func(any) (any, error) {
+	return []func(any) (any, error){
+		v0.UpgradeIfNeeded,
+		v1.UpgradeIfNeeded,
+		v2.UpgradeIfNeeded,
+
+		latest.UpgradeIfNeeded,
+	}
+}

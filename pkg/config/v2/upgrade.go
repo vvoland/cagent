@@ -4,10 +4,15 @@ import (
 	"errors"
 
 	"github.com/docker/cagent/pkg/config/types"
-	v1 "github.com/docker/cagent/pkg/config/v1"
+	previous "github.com/docker/cagent/pkg/config/v1"
 )
 
-func UpgradeFrom(old v1.Config) (Config, error) {
+func UpgradeIfNeeded(c any) (any, error) {
+	old, ok := c.(previous.Config)
+	if !ok {
+		return c, nil
+	}
+
 	if len(old.Env) > 0 {
 		return Config{}, errors.New("top-level Env is not supported anymore")
 	}

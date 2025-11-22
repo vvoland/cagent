@@ -12,7 +12,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 
 	"github.com/docker/cagent/pkg/config"
-	latest "github.com/docker/cagent/pkg/config/v3"
+	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/modelsdev"

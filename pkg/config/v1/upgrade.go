@@ -2,10 +2,15 @@ package v1
 
 import (
 	"github.com/docker/cagent/pkg/config/types"
-	v0 "github.com/docker/cagent/pkg/config/v0"
+	previous "github.com/docker/cagent/pkg/config/v0"
 )
 
-func UpgradeFrom(old v0.Config) (Config, error) {
+func UpgradeIfNeeded(c any) (any, error) {
+	old, ok := c.(previous.Config)
+	if !ok {
+		return c, nil
+	}
+
 	var config Config
 	types.CloneThroughJSON(old, &config)
 

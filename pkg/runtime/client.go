@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/docker/cagent/pkg/api"
-	latest "github.com/docker/cagent/pkg/config/v3"
+	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/tools"
 )

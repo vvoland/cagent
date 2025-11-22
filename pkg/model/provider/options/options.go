@@ -1,7 +1,7 @@
 package options
 
 import (
-	latest "github.com/docker/cagent/pkg/config/v3"
+	"github.com/docker/cagent/pkg/config/latest"
 )
 
 type ModelOptions struct {
