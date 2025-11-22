@@ -2,7 +2,6 @@ package defaulttool
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/glamour/v2"
 
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
@@ -25,7 +24,6 @@ type Component struct {
 // New creates a new default tool component.
 func New(
 	msg *types.Message,
-	_ *glamour.TermRenderer,
 	_ *service.SessionState,
 ) layout.Model {
 	return &Component{

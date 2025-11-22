@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/glamour/v2"
 
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/spinner"
@@ -26,7 +25,6 @@ type Component struct {
 // New creates a new read file component.
 func New(
 	msg *types.Message,
-	_ *glamour.TermRenderer,
 	_ *service.SessionState,
 ) layout.Model {
 	return &Component{

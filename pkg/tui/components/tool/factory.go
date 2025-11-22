@@ -37,10 +37,10 @@ func (f *Factory) Create(
 	toolName := msg.ToolCall.Function.Name
 
 	if builder, ok := f.registry.Get(toolName); ok {
-		return builder(msg, renderer, sessionState)
+		return builder(msg, sessionState)
 	}
 
-	return defaulttool.New(msg, renderer, sessionState)
+	return defaulttool.New(msg, sessionState)
 }
 
 var (
