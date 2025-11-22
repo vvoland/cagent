@@ -15,18 +15,16 @@ import (
 
 // Component is a specialized component for rendering transfer_task tool calls.
 type Component struct {
-	message  *types.Message
-	renderer *glamour.TermRenderer
+	message *types.Message
 }
 
 func New(
 	msg *types.Message,
-	renderer *glamour.TermRenderer,
+	_ *glamour.TermRenderer,
 	_ *service.SessionState,
 ) layout.Model {
 	return &Component{
-		message:  msg,
-		renderer: renderer,
+		message: msg,
 	}
 }
 
