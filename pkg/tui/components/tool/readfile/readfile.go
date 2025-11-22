@@ -77,5 +77,5 @@ func (c *Component) View() string {
 		content += " " + c.spinner.View()
 	}
 
-	return styles.BaseStyle.Render(content)
+	return styles.RenderComposite(styles.ToolMessageStyle.Width(c.width-1), content)
 }

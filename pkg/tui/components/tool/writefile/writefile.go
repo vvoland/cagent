@@ -78,14 +78,5 @@ func (c *Component) View() string {
 		content += " " + c.spinner.View()
 	}
 
-	if msg.ToolCall.Function.Arguments != "" {
-		content += "\n\n" + styles.ToolCallResult.Render(toolcommon.RenderFile(args.Path, args.Content, c.renderer))
-	}
-
-	var resultContent string
-	if (msg.ToolStatus == types.ToolStatusCompleted || msg.ToolStatus == types.ToolStatusError) && msg.Content != "" {
-		resultContent = toolcommon.FormatToolResult(msg.Content, c.width)
-	}
-
-	return styles.BaseStyle.Render(content + resultContent)
+	return styles.RenderComposite(styles.ToolMessageStyle.Width(c.width-1), content)
 }

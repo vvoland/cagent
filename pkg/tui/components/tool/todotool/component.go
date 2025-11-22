@@ -82,7 +82,7 @@ func (c *Component) View() string {
 	case builtin.ToolNameUpdateTodo:
 		return c.renderUpdate()
 	default:
-		return c.renderDefault()
+		panic("Unsupported todo tool: " + toolName)
 	}
 }
 
@@ -106,12 +106,7 @@ func (c *Component) renderCreate() string {
 		}
 	}
 
-	var resultContent string
-	if (msg.ToolStatus == types.ToolStatusCompleted || msg.ToolStatus == types.ToolStatusError) && msg.Content != "" {
-		resultContent = "\n" + styles.MutedStyle.Render(msg.Content)
-	}
-
-	return styles.BaseStyle.Render(content + resultContent)
+	return styles.RenderComposite(styles.ToolMessageStyle.Width(c.width-1), content)
 }
 
 func (c *Component) renderCreateMultiple() string {
@@ -136,12 +131,7 @@ func (c *Component) renderCreateMultiple() string {
 		}
 	}
 
-	var resultContent string
-	if (msg.ToolStatus == types.ToolStatusCompleted || msg.ToolStatus == types.ToolStatusError) && msg.Content != "" {
-		resultContent = "\n" + styles.MutedStyle.Render(msg.Content)
-	}
-
-	return styles.BaseStyle.Render(content + resultContent)
+	return styles.RenderComposite(styles.ToolMessageStyle.Width(c.width-1), content)
 }
 
 func (c *Component) renderList() string {
@@ -178,7 +168,7 @@ func (c *Component) renderList() string {
 		content += "\n" + strings.Join(styledLines, "\n")
 	}
 
-	return styles.BaseStyle.Render(content)
+	return styles.RenderComposite(styles.ToolMessageStyle.Width(c.width-1), content)
 }
 
 func (c *Component) renderUpdate() string {
@@ -192,39 +182,18 @@ func (c *Component) renderUpdate() string {
 
 	if msg.ToolCall.Function.Arguments != "" {
 		params, err := parseTodoArgs(msg.ToolCall)
-		if err == nil {
-			if updateParams, ok := params.(builtin.UpdateTodoArgs); ok {
-				icon, style := renderTodoIcon(updateParams.Status)
-				todoLine := fmt.Sprintf("\n%s %s → %s",
-					style.Render(icon),
-					style.Render(updateParams.ID),
-					style.Render(updateParams.Status))
-				content += todoLine
-			}
+		if err != nil {
+			return ""
+		}
+		if updateParams, ok := params.(builtin.UpdateTodoArgs); ok {
+			icon, style := renderTodoIcon(updateParams.Status)
+			todoLine := fmt.Sprintf(" %s %s → %s",
+				style.Render(icon),
+				style.Render(updateParams.ID),
+				style.Render(updateParams.Status))
+			content += todoLine
 		}
 	}
 
-	var resultContent string
-	if (msg.ToolStatus == types.ToolStatusCompleted || msg.ToolStatus == types.ToolStatusError) && msg.Content != "" {
-		resultContent = "\n" + styles.MutedStyle.Render(msg.Content)
-	}
-
-	return styles.BaseStyle.Render(content + resultContent)
-}
-
-func (c *Component) renderDefault() string {
-	msg := c.message
-	displayName := msg.ToolDefinition.DisplayName()
-	content := fmt.Sprintf("%s %s", toolcommon.Icon(msg.ToolStatus), styles.HighlightStyle.Render(displayName))
-
-	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
-		content += " " + c.spinner.View()
-	}
-
-	var resultContent string
-	if (msg.ToolStatus == types.ToolStatusCompleted || msg.ToolStatus == types.ToolStatusError) && msg.Content != "" {
-		resultContent = "\n" + styles.MutedStyle.Render(msg.Content)
-	}
-
-	return styles.BaseStyle.Render(content + resultContent)
+	return styles.RenderComposite(styles.ToolMessageStyle.Width(c.width-1), content)
 }
