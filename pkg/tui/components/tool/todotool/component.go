@@ -111,7 +111,7 @@ func (c *Component) renderCreate() string {
 		resultContent = "\n" + styles.MutedStyle.Render(msg.Content)
 	}
 
-	return styles.BaseStyle.PaddingLeft(2).PaddingTop(1).Render(content + resultContent)
+	return styles.BaseStyle.Render(content + resultContent)
 }
 
 func (c *Component) renderCreateMultiple() string {
@@ -141,7 +141,7 @@ func (c *Component) renderCreateMultiple() string {
 		resultContent = "\n" + styles.MutedStyle.Render(msg.Content)
 	}
 
-	return styles.BaseStyle.PaddingLeft(2).PaddingTop(1).Render(content + resultContent)
+	return styles.BaseStyle.Render(content + resultContent)
 }
 
 func (c *Component) renderList() string {
@@ -178,7 +178,7 @@ func (c *Component) renderList() string {
 		content += "\n" + strings.Join(styledLines, "\n")
 	}
 
-	return styles.BaseStyle.PaddingLeft(2).PaddingTop(1).Render(content)
+	return styles.BaseStyle.Render(content)
 }
 
 func (c *Component) renderUpdate() string {
@@ -209,7 +209,7 @@ func (c *Component) renderUpdate() string {
 		resultContent = "\n" + styles.MutedStyle.Render(msg.Content)
 	}
 
-	return styles.BaseStyle.PaddingLeft(2).PaddingTop(1).Render(content + resultContent)
+	return styles.BaseStyle.Render(content + resultContent)
 }
 
 func (c *Component) renderDefault() string {
@@ -226,5 +226,5 @@ func (c *Component) renderDefault() string {
 		resultContent = "\n" + styles.MutedStyle.Render(msg.Content)
 	}
 
-	return styles.BaseStyle.PaddingLeft(2).PaddingTop(1).Render(content + resultContent)
+	return styles.BaseStyle.Render(content + resultContent)
 }

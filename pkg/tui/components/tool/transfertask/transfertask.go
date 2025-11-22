@@ -49,6 +49,6 @@ func (c *Component) View() string {
 	}
 
 	badge := styles.TransferBadgeStyle.Render(c.message.Sender + " -> " + params.Agent + ": ")
-	content := styles.MutedStyle.PaddingLeft(2).Render(params.Task)
+	content := styles.MutedStyle.Render(params.Task)
 	return badge + "\n" + content
 }

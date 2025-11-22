@@ -83,5 +83,5 @@ func (c *Component) View() string {
 		resultContent = toolcommon.FormatToolResult(msg.Content, c.width)
 	}
 
-	return styles.BaseStyle.PaddingLeft(2).PaddingTop(1).Render(content + resultContent)
+	return styles.BaseStyle.Render(content + resultContent)
 }

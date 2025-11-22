@@ -77,5 +77,5 @@ func (c *Component) View() string {
 		content += " " + c.spinner.View()
 	}
 
-	return styles.BaseStyle.PaddingLeft(2).Render(content)
+	return styles.BaseStyle.Render(content)
 }
