@@ -17,24 +17,22 @@ import (
 
 // Component is a specialized component for rendering write_file tool calls.
 type Component struct {
-	message  *types.Message
-	renderer *glamour.TermRenderer
-	spinner  spinner.Spinner
-	width    int
-	height   int
+	message *types.Message
+	spinner spinner.Spinner
+	width   int
+	height  int
 }
 
 func New(
 	msg *types.Message,
-	renderer *glamour.TermRenderer,
+	_ *glamour.TermRenderer,
 	_ *service.SessionState,
 ) layout.Model {
 	return &Component{
-		message:  msg,
-		renderer: renderer,
-		spinner:  spinner.New(spinner.ModeSpinnerOnly),
-		width:    80,
-		height:   1,
+		message: msg,
+		spinner: spinner.New(spinner.ModeSpinnerOnly),
+		width:   80,
+		height:  1,
 	}
 }
 
