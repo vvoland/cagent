@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 
 	"charm.land/lipgloss/v2"
 	"github.com/alecthomas/chroma/v2"
@@ -23,6 +25,11 @@ const (
 	tabWidth     = 4
 	lineNumWidth = 5
 	minWidth     = 80
+)
+
+var (
+	lexerCache   = make(map[string]chroma.Lexer)
+	lexerCacheMu sync.RWMutex
 )
 
 type chromaToken struct {
@@ -127,11 +134,25 @@ func normalizeDiff(diff []*udiff.Hunk) []*udiff.Hunk {
 }
 
 func syntaxHighlight(code, filePath string) []chromaToken {
-	lexer := lexers.Match(filePath)
-	if lexer == nil {
-		lexer = lexers.Fallback
+	ext := filepath.Ext(filePath)
+
+	// Try to get lexer from cache
+	lexerCacheMu.RLock()
+	lexer, ok := lexerCache[ext]
+	lexerCacheMu.RUnlock()
+
+	if !ok {
+		// Cache miss - compute and store
+		lexer = lexers.Match(filePath)
+		if lexer == nil {
+			lexer = lexers.Fallback
+		}
+		lexer = chroma.Coalesce(lexer)
+
+		lexerCacheMu.Lock()
+		lexerCache[ext] = lexer
+		lexerCacheMu.Unlock()
 	}
-	lexer = chroma.Coalesce(lexer)
 
 	style := styles.ChromaStyle()
 	iterator, err := lexer.Tokenise(nil, code)
