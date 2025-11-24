@@ -102,10 +102,9 @@ func (m *VCSMatcher) ShouldIgnore(path string) bool {
 	info, err := os.Stat(path)
 	isDir := err == nil && info.IsDir()
 
-	// Use go-git matcher - pass relative path as single element in array
-	// Normalize to forward slashes as git expects
 	normalizedRelPath := filepath.ToSlash(relPath)
-	matched := m.matcher.Match([]string{normalizedRelPath}, isDir)
+	pathComponents := strings.Split(normalizedRelPath, "/")
+	matched := m.matcher.Match(pathComponents, isDir)
 
 	return matched
 }
