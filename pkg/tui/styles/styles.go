@@ -321,17 +321,10 @@ var (
 				BorderForeground(BorderSecondary).
 				Background(BackgroundAlt)
 
-	ToolCallArgs = BaseStyle.
-			BorderLeft(true).
-			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(BorderSecondary)
+	ToolCallArgs   = BaseStyle
+	ToolCallResult = BaseStyle
 
 	ToolCallArgKey = BaseStyle.Bold(true).Foreground(TextSecondary)
-
-	ToolCallResult = BaseStyle.
-			BorderLeft(true).
-			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(BorderSecondary)
 
 	ToolCallResultKey = BaseStyle.
 				Bold(true).
