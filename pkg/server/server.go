@@ -23,6 +23,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
+	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/api"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/config/latest"
@@ -48,6 +49,8 @@ type Server struct {
 	runConfig      *config.RuntimeConfig
 	teams          map[string]*team.Team
 	teamsMu        sync.RWMutex
+	ociRef         string // OCI reference, set once at startup for OCI-based servers
+	ociTeamKey     string
 	agentsDir      string
 	agentsPath     string // For local files: specific file path to reload (instead of scanning agentsDir)
 	rootFS         *os.Root
@@ -71,6 +74,19 @@ func WithAgentsDir(dir string) Opt {
 func WithAgentsPath(agentPath string) Opt {
 	return func(s *Server) error {
 		s.agentsPath = agentPath
+		return nil
+	}
+}
+
+func WithOCIRef(teamKey, ociRef string) Opt {
+	return func(s *Server) error {
+		if teamKey == "" || ociRef == "" {
+			return nil
+		}
+
+		s.ociTeamKey = teamKey
+		s.ociRef = ociRef
+
 		return nil
 	}
 }
@@ -215,6 +231,13 @@ func (s *Server) replaceAllTeams(teams map[string]*team.Team) map[string]*team.T
 	oldTeams := s.teams
 	s.teams = teams
 	return oldTeams
+}
+
+func (s *Server) getOCIRef(key string) (string, bool) {
+	if s.ociRef == "" || s.ociTeamKey != key {
+		return "", false
+	}
+	return s.ociRef, true
 }
 
 // countTeams returns the number of teams with read lock
@@ -1188,27 +1211,9 @@ func (s *Server) runAgent(c echo.Context) error {
 	rc.WorkingDir = sess.WorkingDir
 
 	// Load team - either reload from disk (local) or use in-memory team (OCI refs)
-	var t *team.Team
-
-	if s.hasAgentsDir() {
-		// Has local agents path or directory: reload from disk to pick up changes
-		loadPath := s.agentsPath
-		if loadPath == "" {
-			loadPath = filepath.Join(s.agentsDir, p)
-		}
-
-		var loadErr error
-		t, loadErr = teamloader.Load(c.Request().Context(), loadPath, rc)
-		if loadErr != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to load agent for session: %v", loadErr))
-		}
-	} else {
-		// No local directory: use the already-loaded team from memory (OCI refs)
-		var exists bool
-		t, exists = s.getTeam(p)
-		if !exists {
-			return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("agent not found: %s", agentFilename))
-		}
+	t, err := s.loadTeamForSession(c.Request().Context(), p, sess, rc)
+	if err != nil {
+		return err
 	}
 
 	agent, err := t.Agent(currentAgent)
@@ -1284,6 +1289,55 @@ func (s *Server) runAgent(c echo.Context) error {
 	}
 
 	return nil
+}
+
+// loadTeamForSession loads the appropriate team for a session, handling both
+// local files (always reload) and OCI refs (reload only if session has custom workingDir).
+func (s *Server) loadTeamForSession(ctx context.Context, agentFilename string, sess *session.Session, rc *config.RuntimeConfig) (*team.Team, error) {
+	if s.hasAgentsDir() {
+		// Has local agents path or directory: reload from disk to pick up changes
+		loadPath := s.agentsPath
+		if loadPath == "" {
+			loadPath = filepath.Join(s.agentsDir, agentFilename)
+		}
+
+		t, err := teamloader.Load(ctx, loadPath, rc)
+		if err != nil {
+			return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to load agent for session: %v", err))
+		}
+		return t, nil
+	}
+
+	// No local directory: use the already-loaded team from memory (OCI refs)
+	t, exists := s.getTeam(agentFilename)
+	if !exists {
+		return nil, echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("agent not found: %s", agentFilename))
+	}
+
+	// If session has a custom working dir, reload the agent to pick it up
+	if sess.WorkingDir != "" {
+		if ociRef, ok := s.getOCIRef(agentFilename); ok {
+			yamlContent, err := agentfile.FromStore(ociRef)
+			if err != nil {
+				slog.Error("Failed to load OCI agent from store", "agent", agentFilename, "oci_ref", ociRef, "error", err)
+				return t, nil // Fall back to cached team
+			}
+
+			reloaded, err := teamloader.LoadFrom(
+				ctx,
+				teamloader.NewBytesSource(sess.WorkingDir, []byte(yamlContent)),
+				rc,
+				teamloader.WithID(agentFilename),
+			)
+			if err != nil {
+				slog.Error("Failed to reload OCI agent with session working dir", "agent", agentFilename, "error", err)
+				return t, nil // Fall back to cached team
+			}
+			return reloaded, nil
+		}
+	}
+
+	return t, nil
 }
 
 func fromStore(reference string) (string, error) {

@@ -103,11 +103,16 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load teams: %w", err)
 	}
 
-	// For OCI refs: clean up the temp file immediately after loading
-	// We don't need it anymore since teams are now in memory
+	// For OCI refs: store the reference for later per-session reloading, then clean up temp file
 	if agentfile.IsOCIReference(agentsPath) {
-		_ = os.Remove(resolvedPath)
-		slog.Debug("Cleaned up temporary OCI file", "path", resolvedPath)
+		teamKey := filepath.Base(resolvedPath)
+		opts = append(opts, server.WithOCIRef(teamKey, agentsPath))
+
+		if err := os.Remove(resolvedPath); err != nil {
+			slog.Warn("Failed to remove temporary OCI file", "path", resolvedPath, "error", err)
+		} else {
+			slog.Debug("Cleaned up temporary OCI file", "path", resolvedPath)
+		}
 	}
 
 	defer func() {
