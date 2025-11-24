@@ -1,7 +1,10 @@
 package latest
 
 import (
+	"encoding/json"
 	"fmt"
+
+	"github.com/goccy/go-yaml"
 
 	"github.com/docker/cagent/pkg/config/types"
 )
@@ -194,6 +197,49 @@ func (t *ThinkingBudget) UnmarshalYAML(unmarshal func(any) error) error {
 	return nil
 }
 
+// MarshalYAML implements custom marshaling to output simple string or int format
+func (t ThinkingBudget) MarshalYAML() ([]byte, error) {
+	// If Effort string is set (non-empty), marshal as string
+	if t.Effort != "" {
+		return yaml.Marshal(t.Effort)
+	}
+
+	// Otherwise marshal as integer (includes 0, -1, and positive values)
+	return yaml.Marshal(t.Tokens)
+}
+
+// MarshalJSON implements custom marshaling to output simple string or int format
+// This ensures JSON and YAML have the same flattened format for consistency
+func (t ThinkingBudget) MarshalJSON() ([]byte, error) {
+	// If Effort string is set (non-empty), marshal as string
+	if t.Effort != "" {
+		return []byte(fmt.Sprintf("%q", t.Effort)), nil
+	}
+
+	// Otherwise marshal as integer (includes 0, -1, and positive values)
+	return []byte(fmt.Sprintf("%d", t.Tokens)), nil
+}
+
+// UnmarshalJSON implements custom unmarshaling to accept simple string or int format
+// This ensures JSON and YAML have the same flattened format for consistency
+func (t *ThinkingBudget) UnmarshalJSON(data []byte) error {
+	// Try integer tokens first
+	var n int
+	if err := json.Unmarshal(data, &n); err == nil {
+		*t = ThinkingBudget{Tokens: n}
+		return nil
+	}
+
+	// Try string level
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		*t = ThinkingBudget{Effort: s}
+		return nil
+	}
+
+	return nil
+}
+
 // StructuredOutput defines a JSON schema for structured output
 type StructuredOutput struct {
 	// Name is the name of the response format
@@ -281,6 +327,105 @@ func (s *RAGStrategyConfig) UnmarshalYAML(unmarshal func(any) error) error {
 	s.Params = raw
 
 	return nil
+}
+
+// MarshalYAML implements custom marshaling to flatten Params into parent level
+func (s RAGStrategyConfig) MarshalYAML() ([]byte, error) {
+	result := s.buildFlattenedMap()
+	return yaml.Marshal(result)
+}
+
+// MarshalJSON implements custom marshaling to flatten Params into parent level
+// This ensures JSON and YAML have the same flattened format for consistency
+func (s RAGStrategyConfig) MarshalJSON() ([]byte, error) {
+	result := s.buildFlattenedMap()
+	return json.Marshal(result)
+}
+
+// UnmarshalJSON implements custom unmarshaling to capture all extra fields into Params
+// This ensures JSON and YAML have the same flattened format for consistency
+func (s *RAGStrategyConfig) UnmarshalJSON(data []byte) error {
+	// First unmarshal into a map to capture everything
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	// Extract known fields
+	if t, ok := raw["type"].(string); ok {
+		s.Type = t
+		delete(raw, "type")
+	}
+
+	if docs, ok := raw["docs"].([]any); ok {
+		s.Docs = make([]string, len(docs))
+		for i, d := range docs {
+			if str, ok := d.(string); ok {
+				s.Docs[i] = str
+			}
+		}
+		delete(raw, "docs")
+	}
+
+	if dbRaw, ok := raw["database"]; ok {
+		if dbStr, ok := dbRaw.(string); ok {
+			var db RAGDatabaseConfig
+			db.value = dbStr
+			s.Database = db
+		}
+		delete(raw, "database")
+	}
+
+	if chunkRaw, ok := raw["chunking"]; ok {
+		// Re-marshal and unmarshal chunking config
+		chunkBytes, _ := json.Marshal(chunkRaw)
+		var chunk RAGChunkingConfig
+		if err := json.Unmarshal(chunkBytes, &chunk); err == nil {
+			s.Chunking = chunk
+		}
+		delete(raw, "chunking")
+	}
+
+	if limit, ok := raw["limit"].(float64); ok {
+		s.Limit = int(limit)
+		delete(raw, "limit")
+	}
+
+	// Everything else goes into Params for strategy-specific configuration
+	s.Params = raw
+
+	return nil
+}
+
+// buildFlattenedMap creates a flattened map representation for marshaling
+// Used by both MarshalYAML and MarshalJSON to ensure consistent format
+func (s RAGStrategyConfig) buildFlattenedMap() map[string]any {
+	result := make(map[string]any)
+
+	if s.Type != "" {
+		result["type"] = s.Type
+	}
+	if len(s.Docs) > 0 {
+		result["docs"] = s.Docs
+	}
+	if !s.Database.IsEmpty() {
+		dbStr, _ := s.Database.AsString()
+		result["database"] = dbStr
+	}
+	// Only include chunking if any fields are set
+	if s.Chunking.Size > 0 || s.Chunking.Overlap > 0 || s.Chunking.RespectWordBoundaries {
+		result["chunking"] = s.Chunking
+	}
+	if s.Limit > 0 {
+		result["limit"] = s.Limit
+	}
+
+	// Flatten Params into the same level
+	for k, v := range s.Params {
+		result[k] = v
+	}
+
+	return result
 }
 
 // unmarshalDatabaseConfig handles DatabaseConfig unmarshaling from raw YAML data.
