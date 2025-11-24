@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"slices"
 	"sort"
 
 	"github.com/docker/cagent/pkg/tools"
@@ -56,5 +57,42 @@ func makeAllRequired(schema map[string]any) map[string]any {
 
 	schema["required"] = newRequired
 	schema["additionalProperties"] = false
+	return schema
+}
+
+// In Docker Desktop 4.52, the MCP Gateway produces an invalid tools shema for `mcp-config-set`.
+func fixSchemaArrayItems(schema map[string]any) map[string]any {
+	propertiesValue, ok := schema["properties"]
+	if !ok {
+		return schema
+	}
+
+	properties, ok := propertiesValue.(map[string]any)
+	if !ok {
+		return schema
+	}
+
+	for _, propValue := range properties {
+		prop, ok := propValue.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		checkForMissingItems := false
+		switch t := prop["type"].(type) {
+		case string:
+			checkForMissingItems = t == "array"
+		case []string:
+			checkForMissingItems = slices.Contains(t, "array")
+		}
+		if !checkForMissingItems {
+			continue
+		}
+
+		if _, ok := prop["items"]; !ok {
+			prop["items"] = map[string]any{"type": "object"}
+		}
+	}
+
 	return schema
 }

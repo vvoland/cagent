@@ -338,6 +338,9 @@ func (c *Client) CreateChatCompletionStream(
 				return nil, err
 			}
 
+			// Fix missing item types in arrays
+			parameters = fixSchemaArrayItems(parameters)
+
 			toolsParam[i] = openai.ChatCompletionFunctionTool(shared.FunctionDefinitionParam{
 				Name:        tool.Name,
 				Description: openai.String(tool.Description),
@@ -446,6 +449,9 @@ func (c *Client) CreateResponseStream(
 
 			// The Response API requires every parameter to be required
 			parameters = makeAllRequired(parameters)
+
+			// Fix missing item types in arrays
+			parameters = fixSchemaArrayItems(parameters)
 
 			toolsParam[i] = responses.ToolUnionParam{
 				OfFunction: &responses.FunctionToolParam{

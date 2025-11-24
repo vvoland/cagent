@@ -53,3 +53,61 @@ func TestMakeAllRequired_NilSchema(t *testing.T) {
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"additionalProperties":false,"properties":{},"type":"object","required":[]}`, string(buf))
 }
+
+func TestFixSchemaArrayItems(t *testing.T) {
+	schema := `{
+  "properties": {
+    "arguments": {
+      "description": "Arguments to pass to the tool (can be any valid JSON value)",
+      "type": [
+        "string",
+        "number",
+        "boolean",
+        "object",
+        "array",
+        "null"
+      ]
+    },
+    "name": {
+      "description": "Name of the tool to execute",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "type": "object"
+}`
+
+	schemaMap := map[string]any{}
+	err := json.Unmarshal([]byte(schema), &schemaMap)
+	require.NoError(t, err)
+
+	updatedSchema := fixSchemaArrayItems(schemaMap)
+	buf, err := json.Marshal(updatedSchema)
+	require.NoError(t, err)
+
+	assert.JSONEq(t, `{
+  "properties": {
+    "arguments": {
+      "description": "Arguments to pass to the tool (can be any valid JSON value)",
+      "type": [
+        "string",
+        "number",
+        "boolean",
+        "object",
+        "array",
+        "null"
+      ]
+    },
+    "name": {
+      "description": "Name of the tool to execute",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "type": "object"
+}`, string(buf))
+}
