@@ -18,13 +18,15 @@ type stdioMCPClient struct {
 	args    []string
 	env     []string
 	session *mcp.ClientSession
+	cwd     string
 }
 
-func newStdioCmdClient(command string, args, env []string) *stdioMCPClient {
+func newStdioCmdClient(command string, args, env []string, cwd string) *stdioMCPClient {
 	return &stdioMCPClient{
 		command: command,
 		args:    args,
 		env:     env,
+		cwd:     cwd,
 	}
 }
 
@@ -41,6 +43,7 @@ func (c *stdioMCPClient) Initialize(ctx context.Context, _ *mcp.InitializeReques
 
 	cmd := exec.CommandContext(ctx, c.command, c.args...)
 	cmd.Env = c.env
+	cmd.Dir = c.cwd
 	session, err := client.Connect(ctx, &mcp.CommandTransport{
 		Command: cmd,
 	}, nil)

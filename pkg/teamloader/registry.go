@@ -80,7 +80,7 @@ func createMemoryTool(ctx context.Context, toolset latest.Toolset, parentDir str
 	var memoryPath string
 	if filepath.IsAbs(toolset.Path) {
 		memoryPath = ""
-	} else if wd, err := os.Getwd(); err == nil {
+	} else if wd := runtimeConfig.WorkingDir; wd != "" {
 		memoryPath = wd
 	} else {
 		memoryPath = parentDir
@@ -112,7 +112,7 @@ func createShellTool(ctx context.Context, toolset latest.Toolset, parentDir stri
 		return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
 	}
 	env = append(env, os.Environ()...)
-	return builtin.NewShellTool(env), nil
+	return builtin.NewShellTool(env, runtimeConfig), nil
 }
 
 func createScriptTool(ctx context.Context, toolset latest.Toolset, parentDir string, runtimeConfig *config.RuntimeConfig) (tools.ToolSet, error) {
@@ -193,10 +193,10 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, parentDir string
 
 		// TODO(dga): until the MCP Gateway supports oauth with cagent, we fetch the remote url and directly connect to it.
 		if serverSpec.Type == "remote" {
-			return mcp.NewRemoteToolset(serverSpec.Remote.URL, serverSpec.Remote.TransportType, nil), nil
+			return mcp.NewRemoteToolset(serverSpec.Remote.URL, serverSpec.Remote.TransportType, nil, runtimeConfig.WorkingDir), nil
 		}
 
-		return mcp.NewGatewayToolset(ctx, mcpServerName, toolset.Config, runtimeConfig.EnvProvider())
+		return mcp.NewGatewayToolset(ctx, mcpServerName, toolset.Config, runtimeConfig.EnvProvider(), runtimeConfig.WorkingDir)
 	}
 
 	if toolset.Command != "" {
@@ -205,7 +205,7 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, parentDir string
 			return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
 		}
 		env = append(env, os.Environ()...)
-		return mcp.NewToolsetCommand(toolset.Command, toolset.Args, env), nil
+		return mcp.NewToolsetCommand(toolset.Command, toolset.Args, env, runtimeConfig.WorkingDir), nil
 	}
 
 	if toolset.Remote.URL != "" {
@@ -219,7 +219,7 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, parentDir string
 			headers[k] = expanded
 		}
 
-		return mcp.NewRemoteToolset(toolset.Remote.URL, toolset.Remote.TransportType, headers), nil
+		return mcp.NewRemoteToolset(toolset.Remote.URL, toolset.Remote.TransportType, headers, runtimeConfig.WorkingDir), nil
 	}
 
 	return nil, fmt.Errorf("mcp toolset requires either ref, command, or remote configuration")

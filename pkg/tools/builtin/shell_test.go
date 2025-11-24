@@ -8,19 +8,20 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/tools"
 )
 
 func TestNewShellTool(t *testing.T) {
 	t.Setenv("SHELL", "/bin/bash")
-	tool := NewShellTool(nil)
+	tool := NewShellTool(nil, &config.RuntimeConfig{Config: config.Config{WorkingDir: "/tmp"}})
 
 	assert.NotNil(t, tool)
 	assert.NotNil(t, tool.handler)
 	assert.Equal(t, "/bin/bash", tool.handler.shell)
 
 	t.Setenv("SHELL", "")
-	tool = NewShellTool(nil)
+	tool = NewShellTool(nil, &config.RuntimeConfig{Config: config.Config{WorkingDir: "/tmp"}})
 
 	assert.NotNil(t, tool)
 	assert.NotNil(t, tool.handler)
@@ -28,7 +29,7 @@ func TestNewShellTool(t *testing.T) {
 }
 
 func TestShellTool_Tools(t *testing.T) {
-	tool := NewShellTool(nil)
+	tool := NewShellTool(nil, &config.RuntimeConfig{Config: config.Config{WorkingDir: "/tmp"}})
 
 	allTools, err := tool.Tools(t.Context())
 
@@ -68,7 +69,7 @@ func TestShellTool_Tools(t *testing.T) {
 }
 
 func TestShellTool_DisplayNames(t *testing.T) {
-	tool := NewShellTool(nil)
+	tool := NewShellTool(nil, &config.RuntimeConfig{Config: config.Config{WorkingDir: "/tmp"}})
 
 	all, err := tool.Tools(t.Context())
 	require.NoError(t, err)
@@ -81,7 +82,7 @@ func TestShellTool_DisplayNames(t *testing.T) {
 
 func TestShellTool_HandlerEcho(t *testing.T) {
 	// This is a simple test that should work on most systems
-	tool := NewShellTool(nil)
+	tool := NewShellTool(nil, &config.RuntimeConfig{Config: config.Config{WorkingDir: "/tmp"}})
 
 	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
@@ -111,7 +112,7 @@ func TestShellTool_HandlerEcho(t *testing.T) {
 
 func TestShellTool_HandlerWithCwd(t *testing.T) {
 	// This test verifies the cwd parameter works
-	tool := NewShellTool(nil)
+	tool := NewShellTool(nil, &config.RuntimeConfig{Config: config.Config{WorkingDir: "/tmp"}})
 
 	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
@@ -145,7 +146,7 @@ func TestShellTool_HandlerWithCwd(t *testing.T) {
 
 func TestShellTool_HandlerError(t *testing.T) {
 	// This test verifies error handling
-	tool := NewShellTool(nil)
+	tool := NewShellTool(nil, &config.RuntimeConfig{Config: config.Config{WorkingDir: "/tmp"}})
 
 	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
@@ -174,7 +175,7 @@ func TestShellTool_HandlerError(t *testing.T) {
 }
 
 func TestShellTool_InvalidArguments(t *testing.T) {
-	tool := NewShellTool(nil)
+	tool := NewShellTool(nil, &config.RuntimeConfig{Config: config.Config{WorkingDir: "/tmp"}})
 
 	tls, err := tool.Tools(t.Context())
 	require.NoError(t, err)
@@ -196,7 +197,7 @@ func TestShellTool_InvalidArguments(t *testing.T) {
 }
 
 func TestShellTool_StartStop(t *testing.T) {
-	tool := NewShellTool(nil)
+	tool := NewShellTool(nil, &config.RuntimeConfig{Config: config.Config{WorkingDir: "/tmp"}})
 
 	err := tool.Start(t.Context())
 	require.NoError(t, err)
@@ -206,7 +207,7 @@ func TestShellTool_StartStop(t *testing.T) {
 }
 
 func TestShellTool_OutputSchema(t *testing.T) {
-	tool := NewShellTool(nil)
+	tool := NewShellTool(nil, &config.RuntimeConfig{Config: config.Config{WorkingDir: "/tmp"}})
 
 	allTools, err := tool.Tools(t.Context())
 	require.NoError(t, err)
@@ -218,7 +219,7 @@ func TestShellTool_OutputSchema(t *testing.T) {
 }
 
 func TestShellTool_ParametersAreObjects(t *testing.T) {
-	tool := NewShellTool(nil)
+	tool := NewShellTool(nil, &config.RuntimeConfig{Config: config.Config{WorkingDir: "/tmp"}})
 
 	allTools, err := tool.Tools(t.Context())
 	require.NoError(t, err)
@@ -234,7 +235,7 @@ func TestShellTool_ParametersAreObjects(t *testing.T) {
 
 // Minimal tests for background job features
 func TestShellTool_RunBackgroundJob(t *testing.T) {
-	tool := NewShellTool(nil)
+	tool := NewShellTool(nil, &config.RuntimeConfig{Config: config.Config{WorkingDir: "/tmp"}})
 	err := tool.Start(t.Context())
 	require.NoError(t, err)
 	defer func() { _ = tool.Stop(t.Context()) }()
@@ -273,7 +274,7 @@ func TestShellTool_RunBackgroundJob(t *testing.T) {
 }
 
 func TestShellTool_ListBackgroundJobs(t *testing.T) {
-	tool := NewShellTool(nil)
+	tool := NewShellTool(nil, &config.RuntimeConfig{Config: config.Config{WorkingDir: "/tmp"}})
 	err := tool.Start(t.Context())
 	require.NoError(t, err)
 	defer func() { _ = tool.Stop(t.Context()) }()

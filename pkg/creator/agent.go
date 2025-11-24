@@ -104,7 +104,7 @@ func CreateAgent(ctx context.Context, baseDir, prompt string, runConfig *config.
 				agentBuilderInstructions,
 				agent.WithModel(llm),
 				agent.WithToolSets(
-					builtin.NewShellTool(os.Environ()),
+					builtin.NewShellTool(os.Environ(), runConfig),
 					&fsToolset,
 				),
 			)))

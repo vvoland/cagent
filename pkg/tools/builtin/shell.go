@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/docker/cagent/pkg/concurrent"
+	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -38,6 +39,7 @@ type shellHandler struct {
 	shellArgsPrefix []string
 	env             []string
 	timeout         time.Duration
+	workingDir      string
 	jobs            *concurrent.Map[string, *backgroundJob]
 	jobCounter      atomic.Int64
 }
@@ -149,12 +151,9 @@ func (h *shellHandler) RunShell(ctx context.Context, toolCall tools.ToolCall) (*
 
 	cmd := exec.Command(h.shell, append(h.shellArgsPrefix, params.Cmd)...)
 	cmd.Env = h.env
+	cmd.Dir = h.workingDir
 	if params.Cwd != "" {
 		cmd.Dir = params.Cwd
-	} else {
-		if wd, err := os.Getwd(); err == nil {
-			cmd.Dir = wd
-		}
 	}
 
 	cmd.SysProcAttr = platformSpecificSysProcAttr()
@@ -232,12 +231,9 @@ func (h *shellHandler) RunShellBackground(ctx context.Context, toolCall tools.To
 	// Setup command (no context - background jobs run independently)
 	cmd := exec.Command(h.shell, append(h.shellArgsPrefix, params.Cmd)...)
 	cmd.Env = h.env
+	cmd.Dir = h.workingDir
 	if params.Cwd != "" {
 		cmd.Dir = params.Cwd
-	} else {
-		if wd, err := os.Getwd(); err == nil {
-			cmd.Dir = wd
-		}
 	}
 
 	cmd.SysProcAttr = platformSpecificSysProcAttr()
@@ -421,7 +417,7 @@ func (h *shellHandler) StopBackgroundJob(_ context.Context, toolCall tools.ToolC
 	}, nil
 }
 
-func NewShellTool(env []string) *ShellTool {
+func NewShellTool(env []string, runtimeConfig *config.RuntimeConfig) *ShellTool {
 	var shell string
 	var argsPrefix []string
 
@@ -458,6 +454,7 @@ func NewShellTool(env []string) *ShellTool {
 			env:             env,
 			timeout:         30 * time.Second,
 			jobs:            concurrent.NewMap[string, *backgroundJob](),
+			workingDir:      runtimeConfig.WorkingDir,
 		},
 	}
 }

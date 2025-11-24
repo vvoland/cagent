@@ -22,7 +22,7 @@ type GatewayToolset struct {
 
 var _ tools.ToolSet = (*GatewayToolset)(nil)
 
-func NewGatewayToolset(ctx context.Context, mcpServerName string, config any, envProvider environment.Provider) (*GatewayToolset, error) {
+func NewGatewayToolset(ctx context.Context, mcpServerName string, config any, envProvider environment.Provider, cwd string) (*GatewayToolset, error) {
 	slog.Debug("Creating MCP Gateway toolset", "name", mcpServerName)
 
 	// Check which secrets (env vars) are required by the MCP server.
@@ -55,7 +55,7 @@ func NewGatewayToolset(ctx context.Context, mcpServerName string, config any, en
 	}
 
 	return &GatewayToolset{
-		cmdToolset: NewToolsetCommand("docker", args, nil),
+		cmdToolset: NewToolsetCommand("docker", args, nil, cwd),
 		cleanUp: func() error {
 			return errors.Join(os.Remove(fileSecrets), os.Remove(fileConfig))
 		},

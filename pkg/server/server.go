@@ -101,8 +101,6 @@ func New(sessionStore session.Store, runConfig *config.RuntimeConfig, teams map[
 
 	group := e.Group("/api")
 
-	// Health check endpoint
-	group.GET("/ping", s.ping)
 	// List all available agents
 	group.GET("/agents", s.getAgents)
 	// Get an agent by id
@@ -127,6 +125,9 @@ func New(sessionStore session.Store, runConfig *config.RuntimeConfig, teams map[
 	group.POST("/agents/push", s.pushAgent)
 	// Delete an agent by file path
 	group.DELETE("/agents", s.deleteAgent)
+
+	// SESSIONS
+
 	// List all sessions
 	group.GET("/sessions", s.getSessions)
 	// Get sessions by agent filename
@@ -135,18 +136,20 @@ func New(sessionStore session.Store, runConfig *config.RuntimeConfig, teams map[
 	group.GET("/sessions/:id", s.getSession)
 	// Resume a session by id
 	group.POST("/sessions/:id/resume", s.resumeSession)
-	// Create a new session and run an agent loop
+	// Create a new session
 	group.POST("/sessions", s.createSession)
 	// Delete a session
 	group.DELETE("/sessions/:id", s.deleteSession)
-
 	// Run an agent loop
 	group.POST("/sessions/:id/agent/:agent", s.runAgent)
 	group.POST("/sessions/:id/agent/:agent/:agent_name", s.runAgent)
-
 	group.POST("/sessions/:id/elicitation", s.elicitation)
 
+	// MISC
+
 	group.GET("/desktop/token", s.getDesktopToken)
+	// Health check endpoint
+	group.GET("/ping", s.ping)
 
 	return s, nil
 }
