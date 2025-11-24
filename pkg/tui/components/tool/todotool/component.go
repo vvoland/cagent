@@ -147,13 +147,19 @@ func (c *Component) renderList() string {
 				switch {
 				case strings.Contains(line, "(Status: pending)"):
 					icon, style := renderTodoIcon("pending")
-					styledLines = append(styledLines, style.Render(icon)+" "+style.Render(strings.TrimSuffix(strings.TrimSpace(line[2:]), " (Status: pending)")))
+					descStyle := renderTodoDescriptionStyle("pending")
+					desc := strings.TrimSuffix(strings.TrimSpace(line[2:]), " (Status: pending)")
+					styledLines = append(styledLines, style.Render(icon)+" "+descStyle.Render(desc))
 				case strings.Contains(line, "(Status: in-progress)"):
 					icon, style := renderTodoIcon("in-progress")
-					styledLines = append(styledLines, style.Render(icon)+" "+style.Render(strings.TrimSuffix(strings.TrimSpace(line[2:]), " (Status: in-progress)")))
+					descStyle := renderTodoDescriptionStyle("in-progress")
+					desc := strings.TrimSuffix(strings.TrimSpace(line[2:]), " (Status: in-progress)")
+					styledLines = append(styledLines, style.Render(icon)+" "+descStyle.Render(desc))
 				case strings.Contains(line, "(Status: completed)"):
 					icon, style := renderTodoIcon("completed")
-					styledLines = append(styledLines, style.Render(icon)+" "+style.Render(strings.TrimSuffix(strings.TrimSpace(line[2:]), " (Status: completed)")))
+					descStyle := renderTodoDescriptionStyle("completed")
+					desc := strings.TrimSuffix(strings.TrimSpace(line[2:]), " (Status: completed)")
+					styledLines = append(styledLines, style.Render(icon)+" "+descStyle.Render(desc))
 				default:
 					styledLines = append(styledLines, line)
 				}

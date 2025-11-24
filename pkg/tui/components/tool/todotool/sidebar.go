@@ -75,7 +75,8 @@ func (c *SidebarComponent) Render() string {
 }
 
 func renderTodoLine(todo types.Todo, maxWidth int) string {
-	icon, style := renderTodoIcon(todo.Status)
+	icon, iconStyle := renderTodoIcon(todo.Status)
+	descStyle := renderTodoDescriptionStyle(todo.Status)
 
 	description := todo.Description
 	maxDescWidth := max(maxWidth-2, 3)
@@ -83,8 +84,8 @@ func renderTodoLine(todo types.Todo, maxWidth int) string {
 		description = description[:maxDescWidth-3] + "..."
 	}
 
-	styledIcon := style.Render(icon)
-	styledDescription := style.Render(description)
+	styledIcon := iconStyle.Render(icon)
+	styledDescription := descStyle.Render(description)
 	return fmt.Sprintf("%s %s", styledIcon, styledDescription)
 }
 

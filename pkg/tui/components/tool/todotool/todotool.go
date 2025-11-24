@@ -18,3 +18,16 @@ func renderTodoIcon(status string) (string, lipgloss.Style) {
 		return "?", styles.BaseStyle
 	}
 }
+
+func renderTodoDescriptionStyle(status string) lipgloss.Style {
+	switch status {
+	case "pending":
+		return styles.PendingStyle
+	case "in-progress":
+		return styles.InProgressStyle
+	case "completed":
+		return styles.MutedStyle.Strikethrough(true)
+	default:
+		return styles.BaseStyle
+	}
+}
