@@ -37,17 +37,17 @@ type Toolset struct {
 var _ tools.ToolSet = (*Toolset)(nil)
 
 // NewToolsetCommand creates a new MCP toolset from a command.
-func NewToolsetCommand(command string, args, env []string) *Toolset {
+func NewToolsetCommand(command string, args, env []string, cwd string) *Toolset {
 	slog.Debug("Creating Stdio MCP toolset", "command", command, "args", args)
 
 	return &Toolset{
-		mcpClient: newStdioCmdClient(command, args, env),
+		mcpClient: newStdioCmdClient(command, args, env, cwd),
 		logID:     command,
 	}
 }
 
 // NewRemoteToolset creates a new MCP toolset from a remote MCP Server.
-func NewRemoteToolset(url, transport string, headers map[string]string) *Toolset {
+func NewRemoteToolset(url, transport string, headers map[string]string, cwd string) *Toolset {
 	slog.Debug("Creating Remote MCP toolset", "url", url, "transport", transport, "headers", headers)
 
 	return &Toolset{

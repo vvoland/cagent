@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/docker/cagent/pkg/agent"
+	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/model/provider/openai"
@@ -46,7 +47,7 @@ func run(ctx context.Context) error {
 				"root",
 				"You are an expert hacker",
 				agent.WithModel(llm),
-				agent.WithToolSets(builtin.NewShellTool(os.Environ())),
+				agent.WithToolSets(builtin.NewShellTool(os.Environ(), &config.RuntimeConfig{Config: config.Config{WorkingDir: "/tmp"}})),
 			),
 		),
 	)
