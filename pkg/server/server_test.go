@@ -19,7 +19,10 @@ import (
 	"github.com/docker/cagent/pkg/api"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/config/latest"
+	"github.com/docker/cagent/pkg/content"
+	"github.com/docker/cagent/pkg/oci"
 	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/teamloader"
 )
 
@@ -674,9 +677,9 @@ agents:
 	count := srv.countTeams()
 	assert.Equal(t, 1, count, "should only load from agentsPath")
 
-	team, exists := srv.getTeam("pirate.yaml")
+	tm, exists := srv.getTeam("pirate.yaml")
 	require.True(t, exists)
-	agent, err := team.Agent("root")
+	agent, err := tm.Agent("root")
 	require.NoError(t, err)
 	assert.Contains(t, agent.Instruction(), "MODIFIED", "should have loaded modified pirate from agentsPath")
 
@@ -744,10 +747,10 @@ agents:
 	assert.Equal(t, 1, count, "should only have the OCI agent, not files from /tmp")
 
 	// Verify it's the correct agent
-	team, exists := srv.getTeam("docker.io_myorg_pirate_v1.yaml")
+	tm, exists := srv.getTeam("docker.io_myorg_pirate_v1.yaml")
 	require.True(t, exists, "should have the OCI agent")
 
-	agent, err := team.Agent("root")
+	agent, err := tm.Agent("root")
 	require.NoError(t, err)
 	assert.Contains(t, agent.Instruction(), "pirate", "should be the pirate agent")
 
@@ -934,4 +937,181 @@ type mockStore struct {
 
 func (s mockStore) GetSessions(context.Context) ([]*session.Session, error) {
 	return nil, nil
+}
+
+// TestServer_OCIRef_WithOCIRefCaching verifies that OCI agents store their
+// reference so per-session working directories can reload from the content store.
+func TestServer_OCIRef_WithOCIRefCaching(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "dummy")
+
+	runConfig := config.RuntimeConfig{}
+	teams := map[string]*team.Team{}
+
+	ociFilename := "docker.io_myorg_pirate_v1.yaml"
+	ociRef := "docker.io/myorg/pirate:v1"
+
+	var store mockStore
+	srv, err := New(store, &runConfig, teams, WithOCIRef(ociFilename, ociRef))
+	require.NoError(t, err)
+
+	// Verify that the OCI ref was cached
+	cachedRef, exists := srv.getOCIRef(ociFilename)
+	require.True(t, exists, "OCI ref should be cached")
+	assert.Equal(t, ociRef, cachedRef, "cached ref should match original")
+}
+
+// TestServer_LocalAgent_HasAgentsDirSet verifies that local file/directory agents
+// have hasAgentsDir() == true, ensuring they reload from disk (not use OCI path).
+func TestServer_LocalAgent_HasAgentsDirSet(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "dummy")
+
+	ctx := t.Context()
+	runConfig := config.RuntimeConfig{}
+
+	// Test 1: Directory of agents
+	agentsDir := prepareAgentsDir(t, "pirate.yaml")
+	teams, err := teamloader.LoadTeams(ctx, agentsDir, &runConfig)
+	require.NoError(t, err)
+
+	var store mockStore
+	srv, err := New(store, &runConfig, teams, WithAgentsDir(agentsDir))
+	require.NoError(t, err)
+
+	assert.True(t, srv.hasAgentsDir(), "directory of agents should have agentsDir set")
+	assert.Empty(t, srv.ociRef, "local agents should not have OCI ref")
+	assert.Empty(t, srv.ociTeamKey, "local agents should not have OCI team key")
+
+	// Test 2: Single file agent
+	agentFile := filepath.Join(agentsDir, "pirate.yaml")
+	teams2, err := teamloader.LoadTeams(ctx, agentFile, &runConfig)
+	require.NoError(t, err)
+
+	srv2, err := New(store, &runConfig, teams2,
+		WithAgentsPath(agentFile),
+		WithAgentsDir(filepath.Dir(agentFile)))
+	require.NoError(t, err)
+
+	assert.True(t, srv2.hasAgentsDir(), "single file agent should have agentsDir set")
+	assert.Empty(t, srv2.ociRef, "local agents should not have OCI ref")
+	assert.Empty(t, srv2.ociTeamKey, "local agents should not have OCI team key")
+}
+
+// TestServer_loadTeamForSession_LocalAgent verifies that local agents always reload from disk.
+func TestServer_loadTeamForSession_LocalAgent(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "dummy")
+
+	ctx := t.Context()
+	runConfig := config.RuntimeConfig{}
+
+	agentsDir := prepareAgentsDir(t, "pirate.yaml")
+	teams, err := teamloader.LoadTeams(ctx, agentsDir, &runConfig)
+	require.NoError(t, err)
+
+	var store mockStore
+	srv, err := New(store, &runConfig, teams, WithAgentsDir(agentsDir))
+	require.NoError(t, err)
+
+	sess := session.New()
+	rc := runConfig.Clone()
+
+	// Call the extracted method
+	tm, err := srv.loadTeamForSession(ctx, "pirate.yaml", sess, rc)
+	require.NoError(t, err)
+	require.NotNil(t, tm)
+
+	agent, err := tm.Agent("root")
+	require.NoError(t, err)
+	assert.Contains(t, agent.Instruction(), "pirate")
+}
+
+// TestServer_loadTeamForSession_OCIRef_NoWorkingDir verifies OCI agents use cached team
+// when session has no custom working directory.
+func TestServer_loadTeamForSession_OCIRef_NoWorkingDir(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "dummy")
+
+	ctx := t.Context()
+	tmpDir := t.TempDir()
+
+	pirateContent, err := os.ReadFile(filepath.Join("testdata", "pirate.yaml"))
+	require.NoError(t, err)
+
+	ociFilename := "docker.io_myorg_pirate_v1.yaml"
+	ociFile := filepath.Join(tmpDir, ociFilename)
+	err = os.WriteFile(ociFile, pirateContent, 0o600)
+	require.NoError(t, err)
+
+	ociRef := "docker.io/myorg/pirate:v1"
+	runConfig := config.RuntimeConfig{}
+	teams, err := teamloader.LoadTeams(ctx, ociFile, &runConfig)
+	require.NoError(t, err)
+
+	var store mockStore
+	srv, err := New(store, &runConfig, teams, WithOCIRef(ociFilename, ociRef))
+	require.NoError(t, err)
+
+	// Session without working dir
+	sess := session.New()
+	rc := runConfig.Clone()
+
+	// Should use cached team
+	tm, err := srv.loadTeamForSession(ctx, ociFilename, sess, rc)
+	require.NoError(t, err)
+	require.NotNil(t, tm)
+
+	// Verify it's the same team instance (pointer equality)
+	cachedTeam, _ := srv.getTeam(ociFilename)
+	assert.Same(t, cachedTeam, tm, "should return cached team when no custom workingDir")
+}
+
+// TestServer_loadTeamForSession_OCIRef_WithWorkingDir verifies OCI agents reload
+// when session has a custom working directory (requires content store).
+func TestServer_loadTeamForSession_OCIRef_WithWorkingDir(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "dummy")
+
+	ctx := t.Context()
+	tmpDir := t.TempDir()
+
+	// Create agent with filesystem tool to show working dir matters
+	agentWithFS := `version: "2"
+agents:
+  root:
+    model: openai/gpt-4o
+    instruction: Test agent
+    toolsets:
+      - type: filesystem`
+
+	ociFilename := "docker.io_test_fs_v1.yaml"
+	ociFile := filepath.Join(tmpDir, ociFilename)
+	err := os.WriteFile(ociFile, []byte(agentWithFS), 0o600)
+	require.NoError(t, err)
+
+	// Push to content store so FromStore can retrieve it
+	ociRef := "docker.io/test/fs:v1"
+	contentStore, err := content.NewStore()
+	require.NoError(t, err)
+	_, err = oci.PackageFileAsOCIToStore(ctx, ociFile, ociRef, contentStore)
+	require.NoError(t, err)
+
+	runConfig := config.RuntimeConfig{}
+	teams, err := teamloader.LoadTeams(ctx, ociFile, &runConfig)
+	require.NoError(t, err)
+
+	var sessionStore mockStore
+	srv, err := New(sessionStore, &runConfig, teams, WithOCIRef(ociFilename, ociRef))
+	require.NoError(t, err)
+
+	// Session WITH working dir
+	customWorkingDir := t.TempDir()
+	sess := session.New(session.WithWorkingDir(customWorkingDir))
+	rc := runConfig.Clone()
+	rc.WorkingDir = customWorkingDir
+
+	// Should reload from content store
+	tm, err := srv.loadTeamForSession(ctx, ociFilename, sess, rc)
+	require.NoError(t, err)
+	require.NotNil(t, tm)
+
+	// Verify it's NOT the same team instance (was reloaded)
+	cachedTeam, _ := srv.getTeam(ociFilename)
+	assert.NotSame(t, cachedTeam, tm, "should return new team instance when custom workingDir is set")
 }
