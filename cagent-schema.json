@@ -432,6 +432,31 @@
           "type": "boolean",
           "description": "Whether to ignore VCS files (.git directories and .gitignore patterns) in filesystem operations. Default: true",
           "default": true
+        },
+        "defer": {
+          "description": "Enable deferred loading for tools in this toolset. Set to true to defer all tools, or an array of tool names to defer only those tools. Deferred tools are not loaded into the agent's context immediately, but can be discovered and loaded on-demand using search_tool and add_tool.",
+          "oneOf": [
+            {
+              "type": "boolean",
+              "description": "Set to true to defer all tools"
+            },
+            {
+              "type": "array",
+              "description": "Array of tool names to defer",
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
+          "examples": [
+            true,
+            ["read_file", "write_file"]
+          ]
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "Timeout in seconds for the fetch tool",
+          "minimum": 1
         }
       },
       "additionalProperties": false,

@@ -284,6 +284,8 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 		warnings []string
 	)
 
+	deferredToolset := builtin.NewDeferredToolset()
+
 	for i := range a.Toolsets {
 		toolset := a.Toolsets[i]
 
@@ -299,7 +301,23 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 		wrapped = WithInstructions(wrapped, toolset.Instruction)
 		wrapped = WithToon(wrapped, toolset.Toon)
 
+		// Handle deferred tools
+		if !toolset.Defer.IsEmpty() {
+			deferredToolset.AddSource(wrapped, toolset.Defer.DeferAll, toolset.Defer.Tools)
+			if toolset.Defer.DeferAll {
+				// Don't add the wrapped toolset to toolSets - all its tools are deferred
+				// TODO: maybe we _do_ want to add this toolset since it has instructions?
+				continue
+			} else {
+				wrapped = WithToolsExcludeFilter(wrapped, toolset.Defer.Tools...)
+			}
+		}
+
 		toolSets = append(toolSets, wrapped)
+	}
+
+	if deferredToolset.HasSources() {
+		toolSets = append(toolSets, deferredToolset)
 	}
 
 	if len(a.SubAgents) > 0 {
