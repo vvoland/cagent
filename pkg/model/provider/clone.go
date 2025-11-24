@@ -18,7 +18,18 @@ func CloneWithOptions(ctx context.Context, base Provider, opts ...options.Opt) P
 	mergedOpts := append(baseOpts, opts...)
 	mergedOpts = append(mergedOpts, options.WithGeneratingTitle())
 
-	clone, err := New(ctx, &config.ModelConfig, config.Env, mergedOpts...)
+	// Apply max_tokens override if present in options
+	// We need to apply it to the ModelConfig itself since that's what providers use
+	modelConfig := config.ModelConfig
+	for _, opt := range mergedOpts {
+		tempOpts := &options.ModelOptions{}
+		opt(tempOpts)
+		if maxTokens := tempOpts.MaxTokens(); maxTokens != nil {
+			modelConfig.MaxTokens = *maxTokens
+		}
+	}
+
+	clone, err := New(ctx, &modelConfig, config.Env, mergedOpts...)
 	if err != nil {
 		slog.Debug("Failed to clone provider; using base provider", "error", err, "id", base.ID())
 		return base
