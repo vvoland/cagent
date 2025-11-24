@@ -115,6 +115,9 @@ type model struct {
 	sessionState *service.SessionState
 
 	xPos, yPos int
+
+	// User scroll state
+	userHasScrolled bool // True when user manually scrolls away from bottom
 }
 
 // New creates a new message list component
@@ -204,21 +207,33 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 		switch buttonStr {
 		case "wheelup":
+			m.userHasScrolled = true
 			for range mouseScrollAmount {
-				m.scrollUp()
+				m.setScrollOffset(max(0, m.scrollOffset-defaultScrollAmount))
 			}
 		case "wheeldown":
+			m.userHasScrolled = true
 			for range mouseScrollAmount {
-				m.scrollDown()
+				m.setScrollOffset(m.scrollOffset + defaultScrollAmount)
+			}
+			// Reset userHasScrolled if we've reached the bottom
+			if m.isAtBottom() {
+				m.userHasScrolled = false
 			}
 		default:
 			if msg.Y < 0 {
+				m.userHasScrolled = true
 				for range min(-msg.Y, mouseScrollAmount) {
-					m.scrollUp()
+					m.setScrollOffset(max(0, m.scrollOffset-defaultScrollAmount))
 				}
 			} else if msg.Y > 0 {
+				m.userHasScrolled = true
 				for range min(msg.Y, mouseScrollAmount) {
-					m.scrollDown()
+					m.setScrollOffset(m.scrollOffset + defaultScrollAmount)
+				}
+				// Reset userHasScrolled if we've reached the bottom
+				if m.isAtBottom() {
+					m.userHasScrolled = false
 				}
 			}
 		}
@@ -278,6 +293,9 @@ func (m *model) View() string {
 		return ""
 	}
 
+	// Store previous total height to detect content growth
+	prevTotalHeight := m.totalHeight
+
 	// Ensure all items are rendered and positioned
 	m.ensureAllItemsRendered()
 
@@ -287,7 +305,13 @@ func (m *model) View() string {
 
 	// Calculate viewport bounds
 	maxScrollOffset := max(0, m.totalHeight-m.height)
-	m.scrollOffset = max(0, min(m.scrollOffset, maxScrollOffset))
+
+	// If content has grown and user hasn't manually scrolled, keep at bottom
+	if !m.userHasScrolled && m.totalHeight > prevTotalHeight {
+		m.scrollOffset = maxScrollOffset
+	} else {
+		m.scrollOffset = max(0, min(m.scrollOffset, maxScrollOffset))
+	}
 
 	// Extract visible portion from complete rendered content
 	lines := strings.Split(m.rendered, "\n")
@@ -371,27 +395,41 @@ const defaultScrollAmount = 1
 
 func (m *model) scrollUp() {
 	if m.scrollOffset > 0 {
+		m.userHasScrolled = true
 		m.setScrollOffset(max(0, m.scrollOffset-defaultScrollAmount))
 	}
 }
 
 func (m *model) scrollDown() {
+	m.userHasScrolled = true
 	m.setScrollOffset(m.scrollOffset + defaultScrollAmount)
+	// Reset userHasScrolled if we've reached the bottom
+	if m.isAtBottom() {
+		m.userHasScrolled = false
+	}
 }
 
 func (m *model) scrollPageUp() {
+	m.userHasScrolled = true
 	m.setScrollOffset(max(0, m.scrollOffset-m.height))
 }
 
 func (m *model) scrollPageDown() {
+	m.userHasScrolled = true
 	m.setScrollOffset(m.scrollOffset + m.height)
+	// Reset userHasScrolled if we've reached the bottom
+	if m.isAtBottom() {
+		m.userHasScrolled = false
+	}
 }
 
 func (m *model) scrollToTop() {
+	m.userHasScrolled = true
 	m.setScrollOffset(0)
 }
 
 func (m *model) scrollToBottom() {
+	m.userHasScrolled = false
 	m.setScrollOffset(9_999_999) // Will be clamped in View()
 }
 
@@ -536,7 +574,8 @@ func (m *model) AddAssistantMessage() tea.Cmd {
 func (m *model) addMessage(msg *types.Message) tea.Cmd {
 	m.clearSelection()
 
-	wasAtBottom := m.isAtBottom()
+	// Only auto-scroll if user hasn't manually scrolled away
+	shouldAutoScroll := !m.userHasScrolled
 
 	m.messages = append(m.messages, msg)
 
@@ -548,7 +587,7 @@ func (m *model) addMessage(msg *types.Message) tea.Cmd {
 		cmds = append(cmds, initCmd)
 	}
 
-	if wasAtBottom {
+	if shouldAutoScroll {
 		cmds = append(cmds, func() tea.Msg {
 			m.scrollToBottom()
 			return nil
@@ -646,26 +685,21 @@ func (m *model) AppendToLastMessage(agentName string, messageType types.MessageT
 		lastMsg.Content += content
 		m.views[lastIdx].(message.Model).SetMessage(lastMsg)
 		m.invalidateItem(lastIdx)
+		// Content will auto-scroll in View() if user hasn't scrolled
 		return nil
 	} else {
-		msg := types.Agent(messageType, agentName, content)
-		m.messages = append(m.messages, msg)
-
-		view := m.createMessageView(msg)
-		m.views = append(m.views, view)
-
-		var cmd tea.Cmd
-		if initCmd := view.Init(); initCmd != nil {
-			cmd = initCmd
-		}
-		return cmd
+		// Creating a new message, use addMessage for proper auto-scroll
+		return m.addMessage(types.Agent(messageType, agentName, content))
 	}
 }
 
 // ScrollToBottom scrolls to the bottom of the chat
+// It only scrolls if the user hasn't manually scrolled away from the bottom
 func (m *model) ScrollToBottom() tea.Cmd {
 	return func() tea.Msg {
-		m.scrollToBottom()
+		if !m.userHasScrolled {
+			m.scrollToBottom()
+		}
 		return nil
 	}
 }
