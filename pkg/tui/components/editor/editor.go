@@ -53,6 +53,8 @@ type editor struct {
 	suggestion    string
 	hasSuggestion bool
 	cursorHidden  bool
+	// userTyped tracks whether the user has manually typed content (vs loaded from history)
+	userTyped bool
 }
 
 // New creates a new editor component
@@ -259,6 +261,7 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 					e.textarea.SetValue(prev)
 					e.textarea.MoveToEnd()
 					e.textarea.Reset()
+					e.userTyped = false // Reset after sending
 					e.refreshSuggestion()
 					return e, core.CmdHandler(SendMsg{Content: prev})
 				}
@@ -283,6 +286,7 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			// Normal Enter submit (no textarea change): send current value.
 			if value != "" && !e.working {
 				e.textarea.Reset()
+				e.userTyped = false // Reset after sending
 				e.refreshSuggestion()
 				return e, core.CmdHandler(SendMsg{Content: value})
 			}
@@ -291,15 +295,23 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		case "ctrl+c":
 			return e, tea.Quit
 		case "up":
-			e.textarea.SetValue(e.hist.Previous())
-			e.textarea.MoveToEnd()
-			e.refreshSuggestion()
-			return e, nil
+			// Only navigate history if the user hasn't manually typed content
+			if !e.userTyped {
+				e.textarea.SetValue(e.hist.Previous())
+				e.textarea.MoveToEnd()
+				e.refreshSuggestion()
+				return e, nil
+			}
+			// Otherwise, let the textarea handle cursor navigation
 		case "down":
-			e.textarea.SetValue(e.hist.Next())
-			e.textarea.MoveToEnd()
-			e.refreshSuggestion()
-			return e, nil
+			// Only navigate history if the user hasn't manually typed content
+			if !e.userTyped {
+				e.textarea.SetValue(e.hist.Next())
+				e.textarea.MoveToEnd()
+				e.refreshSuggestion()
+				return e, nil
+			}
+			// Otherwise, let the textarea handle cursor navigation
 		default:
 			for _, completion := range e.completions {
 				if msg.String() == completion.Trigger() {
@@ -312,11 +324,22 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		}
 	}
 
+	prevValue := e.textarea.Value()
 	var cmd tea.Cmd
 	e.textarea, cmd = e.textarea.Update(msg)
 	cmds = append(cmds, cmd)
 
+	// If the value changed due to user input (not history navigation), mark as user typed
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		// Check if content changed and it wasn't a history navigation key
+		if e.textarea.Value() != prevValue && keyMsg.String() != "up" && keyMsg.String() != "down" {
+			e.userTyped = true
+		}
+
+		// Also check if textarea became empty - reset userTyped flag
+		if e.textarea.Value() == "" {
+			e.userTyped = false
+		}
 		if keyMsg.String() == "space" {
 			e.completionWord = ""
 			e.currentCompletion = nil
