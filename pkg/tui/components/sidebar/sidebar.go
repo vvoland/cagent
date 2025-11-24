@@ -565,39 +565,6 @@ func (m *model) toolsetInfo() string {
 		}
 	}
 
-	// Tool execution summary
-	runningCount := len(m.activeTools)
-	completedCount := 0
-	failedCount := 0
-
-	for _, status := range m.toolExecutions {
-		switch status {
-		case "completed":
-			completedCount++
-		case "failed":
-			failedCount++
-		}
-	}
-
-	if runningCount > 0 || completedCount > 0 || failedCount > 0 {
-		content.WriteString("\n")
-		statusParts := []string{}
-
-		if runningCount > 0 {
-			statusParts = append(statusParts, fmt.Sprintf("%d running", runningCount))
-		}
-		if completedCount > 0 {
-			statusParts = append(statusParts, fmt.Sprintf("%d completed", completedCount))
-		}
-		if failedCount > 0 {
-			statusParts = append(statusParts, fmt.Sprintf("%d failed", failedCount))
-		}
-
-		if len(statusParts) > 0 {
-			content.WriteString(styles.SubtleStyle.Render(strings.Join(statusParts, ", ")))
-		}
-	}
-
 	return content.String()
 }
 
