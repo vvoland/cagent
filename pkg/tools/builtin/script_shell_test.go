@@ -11,7 +11,8 @@ import (
 )
 
 func TestNewScriptShellTool_Empty(t *testing.T) {
-	tool := NewScriptShellTool(nil, nil)
+	tool, err := NewScriptShellTool(nil, nil)
+	require.NoError(t, err)
 
 	allTools, err := tool.Tools(t.Context())
 	require.NoError(t, err)
@@ -25,7 +26,8 @@ func TestNewScriptShellTool_ToolNoArg(t *testing.T) {
 		},
 	}
 
-	tool := NewScriptShellTool(shellTools, nil)
+	tool, err := NewScriptShellTool(shellTools, nil)
+	require.NoError(t, err)
 
 	allTools, err := tool.Tools(t.Context())
 	require.NoError(t, err)
@@ -53,7 +55,8 @@ func TestNewScriptShellTool_Tool(t *testing.T) {
 		},
 	}
 
-	tool := NewScriptShellTool(shellTools, nil)
+	tool, err := NewScriptShellTool(shellTools, nil)
+	require.NoError(t, err)
 
 	allTools, err := tool.Tools(t.Context())
 	require.NoError(t, err)
@@ -71,4 +74,44 @@ func TestNewScriptShellTool_Tool(t *testing.T) {
 	},
 	"required": ["username"]
 }`, string(schema))
+}
+
+func TestNewScriptShellTool_Typo(t *testing.T) {
+	shellTools := map[string]latest.ScriptShellToolConfig{
+		"docker_images": {
+			Description: "List running Docker containers",
+			Cmd:         "docker images $image",
+			Args: map[string]any{
+				"img": map[string]any{
+					"description": "Docker image to list",
+					"type":        "string",
+				},
+			},
+			Required: []string{"img"},
+		},
+	}
+
+	tool, err := NewScriptShellTool(shellTools, nil)
+	require.Nil(t, tool)
+	require.ErrorContains(t, err, "tool 'docker_images' uses undefined args: [image]")
+}
+
+func TestNewScriptShellTool_MissingRequired(t *testing.T) {
+	shellTools := map[string]latest.ScriptShellToolConfig{
+		"docker_images": {
+			Description: "List running Docker containers",
+			Cmd:         "docker images $image",
+			Args: map[string]any{
+				"image": map[string]any{
+					"description": "Docker image to list",
+					"type":        "string",
+				},
+			},
+			Required: []string{"img"},
+		},
+	}
+
+	tool, err := NewScriptShellTool(shellTools, nil)
+	require.Nil(t, tool)
+	require.ErrorContains(t, err, "tool 'docker_images' has required arg 'img' which is not defined in args")
 }

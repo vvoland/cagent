@@ -125,7 +125,7 @@ func createScriptTool(ctx context.Context, toolset latest.Toolset, parentDir str
 		return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
 	}
 	env = append(env, os.Environ()...)
-	return builtin.NewScriptShellTool(toolset.Shell, env), nil
+	return builtin.NewScriptShellTool(toolset.Shell, env)
 }
 
 func createFilesystemTool(ctx context.Context, toolset latest.Toolset, parentDir string, runtimeConfig *config.RuntimeConfig) (tools.ToolSet, error) {

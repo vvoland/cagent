@@ -21,20 +21,48 @@ type ScriptShellTool struct {
 
 var _ tools.ToolSet = (*ScriptShellTool)(nil)
 
-func NewScriptShellTool(shellTools map[string]latest.ScriptShellToolConfig, env []string) *ScriptShellTool {
-	for _, tool := range shellTools {
-		// If no required array was set, all arguments are required
-		if tool.Required == nil {
-			tool.Required = make([]string, len(tool.Args))
-			for argName := range tool.Args {
-				tool.Required = append(tool.Required, argName)
-			}
+func NewScriptShellTool(shellTools map[string]latest.ScriptShellToolConfig, env []string) (*ScriptShellTool, error) {
+	for toolName, tool := range shellTools {
+		if err := validateConfig(toolName, tool); err != nil {
+			return nil, err
 		}
 	}
+
 	return &ScriptShellTool{
 		shellTools: shellTools,
 		env:        env,
+	}, nil
+}
+
+func validateConfig(toolName string, tool latest.ScriptShellToolConfig) error {
+	// If no required array was set, all arguments are required
+	if tool.Required == nil {
+		tool.Required = make([]string, len(tool.Args))
+		for argName := range tool.Args {
+			tool.Required = append(tool.Required, argName)
+		}
 	}
+
+	// Check for typos in args
+	var missingArgs []string
+	os.Expand(tool.Cmd, func(varName string) string {
+		if _, ok := tool.Args[varName]; !ok {
+			missingArgs = append(missingArgs, varName)
+		}
+		return ""
+	})
+	if len(missingArgs) > 0 {
+		return fmt.Errorf("tool '%s' uses undefined args: %v", toolName, missingArgs)
+	}
+
+	// Check that all required args are defined
+	for _, reqArg := range tool.Required {
+		if _, ok := tool.Args[reqArg]; !ok {
+			return fmt.Errorf("tool '%s' has required arg '%s' which is not defined in args", toolName, reqArg)
+		}
+	}
+
+	return nil
 }
 
 func (t *ScriptShellTool) Instructions() string {
