@@ -559,7 +559,6 @@ func (p *chatPage) cancelStream(showCancelMessage bool) tea.Cmd {
 	)
 }
 
-
 // processMessage processes a message with the runtime
 func (p *chatPage) processMessage(content string) tea.Cmd {
 	if p.msgCancel != nil {
