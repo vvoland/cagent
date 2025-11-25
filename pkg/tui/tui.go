@@ -173,6 +173,11 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.completions.Update(msg)
 		return a, cmd
 
+	case tea.KeyboardEnhancementsMsg:
+		updated, cmd := a.chatPage.Update(msg)
+		a.chatPage = updated.(chat.Page)
+		return a, cmd
+
 	case notification.ShowMsg, notification.HideMsg:
 		updated, cmd := a.notification.Update(msg)
 		a.notification = updated

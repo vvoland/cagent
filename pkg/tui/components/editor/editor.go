@@ -55,6 +55,8 @@ type editor struct {
 	cursorHidden  bool
 	// userTyped tracks whether the user has manually typed content (vs loaded from history)
 	userTyped bool
+	// keyboardEnhancementsSupported tracks whether the terminal supports keyboard enhancements
+	keyboardEnhancementsSupported bool
 }
 
 // New creates a new editor component
@@ -68,13 +70,19 @@ func New(a *app.App, hist *history.History) Editor {
 	ta.SetHeight(3) // Set minimum 3 lines for multi-line input
 	ta.Focus()
 	ta.ShowLineNumbers = false
-	ta.KeyMap.InsertNewline.SetEnabled(true) // Enable newline insertion
 
-	return &editor{
+	e := &editor{
 		textarea:    ta,
 		hist:        hist,
 		completions: completions.Completions(a),
+		// Default to no keyboard enhancements; ctrl+j will be used until we know otherwise
+		keyboardEnhancementsSupported: false,
 	}
+
+	// Configure initial keybinding (ctrl+j for legacy terminals)
+	e.configureNewlineKeybinding()
+
+	return e
 }
 
 // Init initializes the component
@@ -207,10 +215,30 @@ func (e *editor) AcceptSuggestion() bool {
 	return true
 }
 
+// configureNewlineKeybinding sets up the appropriate newline keybinding
+// based on terminal keyboard enhancement support.
+func (e *editor) configureNewlineKeybinding() {
+	// Configure textarea's InsertNewline binding based on terminal capabilities
+	if e.keyboardEnhancementsSupported {
+		// Modern terminals: bind both shift+enter and ctrl+j
+		e.textarea.KeyMap.InsertNewline.SetKeys("shift+enter", "ctrl+j")
+		e.textarea.KeyMap.InsertNewline.SetEnabled(true)
+	} else {
+		// Legacy terminals: only ctrl+j works
+		e.textarea.KeyMap.InsertNewline.SetKeys("ctrl+j")
+		e.textarea.KeyMap.InsertNewline.SetEnabled(true)
+	}
+}
+
 // Update handles messages and updates the component state
 func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
+	case tea.KeyboardEnhancementsMsg:
+		// Track keyboard enhancement support and configure newline keybinding accordingly
+		e.keyboardEnhancementsSupported = msg.Flags != 0
+		e.configureNewlineKeybinding()
+		return e, nil
 	case tea.WindowSizeMsg:
 		e.textarea.SetWidth(msg.Width - 2)
 		return e, nil
@@ -266,51 +294,42 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		switch msg.String() {
 		// Handle send/newline keys:
 		// - Enter: submit current input (if textarea inserted a newline, submit previous buffer).
-		// - Shift+Enter: insert newline when supported by terminal.
-		// - Ctrl+J: fallback to insert '\n' when Shift+Enter isn’t reported.
+		// - Shift+Enter: insert newline when keyboard enhancements are supported.
+		// - Ctrl+J: fallback to insert '\n' when keyboard enhancements are not supported.
 
 		case "enter", "shift+enter", "ctrl+j":
 			if !e.textarea.Focused() {
 				return e, nil
 			}
 
+			// Let textarea process the key - it handles newlines via InsertNewline binding
 			prev := e.textarea.Value()
 			e.textarea, _ = e.textarea.Update(msg)
-
 			value := e.textarea.Value()
 
-			// If the textarea inserted a newline due to plain Enter, submit the previous value.
+			// If textarea inserted a newline (shift+enter or ctrl+j), just refresh and return
+			if value != prev && msg.String() != "enter" {
+				e.refreshSuggestion()
+				return e, nil
+			}
+
+			// If plain enter and textarea inserted a newline, submit the previous value
 			if value != prev && msg.String() == "enter" {
 				if prev != "" && !e.working {
 					e.textarea.SetValue(prev)
 					e.textarea.MoveToEnd()
 					e.textarea.Reset()
-					e.userTyped = false // Reset after sending
+					e.userTyped = false
 					e.refreshSuggestion()
 					return e, core.CmdHandler(SendMsg{Content: prev})
 				}
 				return e, nil
 			}
 
-			// Shift+Enter: insert newline when supported by terminal (textarea handles it).
-			if value != prev {
-				e.refreshSuggestion()
-				return e, nil
-			}
-
-			// Ctrl+J fallback: append LF to the buffer (always works across TTYs).
-			if msg.String() == "ctrl+j" {
-				current := e.textarea.Value()
-				e.textarea.SetValue(current + "\n")
-				e.textarea.MoveToEnd()
-				e.refreshSuggestion()
-				return e, nil
-			}
-
-			// Normal Enter submit (no textarea change): send current value.
+			// Normal enter submit: send current value
 			if value != "" && !e.working {
 				e.textarea.Reset()
-				e.userTyped = false // Reset after sending
+				e.userTyped = false
 				e.refreshSuggestion()
 				return e, core.CmdHandler(SendMsg{Content: value})
 			}
