@@ -1,8 +1,16 @@
 #!/usr/bin/env cagent run
 
+models:
+  claude:
+    provider: anthropic
+    model: claude-opus-4-5
+  haiku:
+    provider: anthropic
+    model: claude-haiku-4-5
+    
 agents:
   root:
-    model: anthropic/claude-sonnet-4-5
+    model: claude
     description: Expert Golang Developer specialized in implementing features and improving code quality.
     instruction: |
       **Goal:**
@@ -65,7 +73,7 @@ agents:
       commit: "Git commit the changes with a meaningful message"
 
   planner:
-    model: anthropic/claude-sonnet-4-5
+    model: claude
     instruction: |
       You are a planning agent responsible for gathering user requirements and creating a development plan.
       Always ask clarifying questions to ensure you fully understand the user's needs before creating the plan.
@@ -77,7 +85,7 @@ agents:
       - root
 
   librarian:
-    model: anthropic/claude-haiku-4-5
+    model: haiku
     instruction: |
       You are the librarian, your job is to look for relevant documentation to help the golang developer agent.
       When given a query, search the internet for relevant documentation, articles, or resources that can assist in completing the task.
