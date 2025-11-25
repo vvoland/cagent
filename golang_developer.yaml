@@ -1,8 +1,52 @@
 #!/usr/bin/env cagent run
+version: "2"
+
+metadata:
+  author: Djordje Lukic
+  readme: |
+    This is a team of agents you can use to code things in cagent.
+
+    The team consists of:
+    - A **root** golang developer agent that codes.
+    - A **planner** agent that gathers requirements from the user and creates a development plan before delegating tasks to the golang developer.
+    - A **librarian** agent that searches for relevant documentation to assist the golang developer.
+
+    To quickly change the model to a bigger one, use `cagent run --model opus golang_developer.yaml`.
+
+    Different ways you can use this team:
+    1. Directly ask the **root** golang developer to help you with a coding task.
+    ```console
+    cagent run golang_developer.yaml
+    ```
+
+    With the help of the librarian:
+    ```console
+    cagent run --agent root golang_developer.yaml 'Fix the bug in pkg/fsx/vcs.go related to gitignore matching, ask the librarian for relevant documentation if needed.'
+    ```
+
+    2. Use the **planner** to gather requirements and create a development plan before coding.
+    ```console
+    cagent run --agent planner golang_developer.yaml 
+    ```
+
+    The planner will create a plan in a markdown file and delegate tasks to the golang developer. 
+
+    Pro tip: ask the planner to wait for you to modify and approve the plan before delegating tasks:
+
+models:
+  opus:
+    provider: anthropic
+    model: claude-opus-4-5
+  sonnet:
+    provider: anthropic
+    model: claude-sonnet-4-5
+  haiku:
+    provider: anthropic
+    model: claude-haiku-4-5
 
 agents:
   root:
-    model: anthropic/claude-sonnet-4-5
+    model: sonnet
     description: Expert Golang developer specializing in the cagent multi-agent AI system architecture
     instruction: |
       Your main goal is to help users with code-related tasks by examining, modifying, and validating code changes.
@@ -74,7 +118,7 @@ agents:
       - librarian
 
   planner:
-    model: anthropic/claude-sonnet-4-5
+    model: sonnet
     instruction: |
       You are a planning agent responsible for gathering user requirements and creating a development plan.
       Always ask clarifying questions to ensure you fully understand the user's needs before creating the plan.
@@ -86,7 +130,7 @@ agents:
       - root
 
   librarian:
-    model: anthropic/claude-haiku-4-5
+    model: haiku
     instruction: |
       You are the librarian, your job is to look for relevant documentation to help the golang developer agent.
       When given a query, search the internet for relevant documentation, articles, or resources that can assist in completing the task.
