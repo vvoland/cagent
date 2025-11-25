@@ -1034,6 +1034,53 @@ func TestFilesystemTool_ListDirectoryWithSizes_IgnoresVCS(t *testing.T) {
 	assert.NotContains(t, result.Output, ".git")
 }
 
+func TestFilesystemTool_SubdirectoryGitignorePatterns(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Initialize git repository
+	initGitRepo(t, tmpDir)
+
+	// Create root .gitignore that ignores *.log files
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte("*.log\n"), 0o644))
+
+	// Create subdirectory with its own .gitignore
+	subDir := filepath.Join(tmpDir, "subdir")
+	require.NoError(t, os.Mkdir(subDir, 0o755))
+
+	// Subdirectory .gitignore ignores *.tmp files (only applies to subdir)
+	require.NoError(t, os.WriteFile(filepath.Join(subDir, ".gitignore"), []byte("*.tmp\n"), 0o644))
+
+	// Create test files in root
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "root.txt"), []byte("root"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "root.log"), []byte("log"), 0o644)) // ignored by root .gitignore
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "root.tmp"), []byte("tmp"), 0o644)) // NOT ignored (subdir .gitignore doesn't apply here)
+
+	// Create test files in subdirectory
+	require.NoError(t, os.WriteFile(filepath.Join(subDir, "sub.txt"), []byte("sub"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(subDir, "sub.log"), []byte("log"), 0o644)) // ignored by root .gitignore
+	require.NoError(t, os.WriteFile(filepath.Join(subDir, "sub.tmp"), []byte("tmp"), 0o644)) // ignored by subdir .gitignore
+
+	// Create tool with VCS ignoring enabled
+	tool := NewFilesystemTool([]string{tmpDir}, WithIgnoreVCS(true))
+	handler := getToolHandler(t, tool, "search_files")
+
+	args := map[string]any{
+		"path":    tmpDir,
+		"pattern": "*",
+	}
+	result := callHandler(t, handler, args)
+
+	// Root files
+	assert.Contains(t, result.Output, "root.txt")    // not ignored
+	assert.NotContains(t, result.Output, "root.log") // ignored by root .gitignore
+	assert.Contains(t, result.Output, "root.tmp")    // NOT ignored - subdir .gitignore doesn't apply to root
+
+	// Subdirectory files
+	assert.Contains(t, result.Output, "sub.txt")    // not ignored
+	assert.NotContains(t, result.Output, "sub.log") // ignored by root .gitignore
+	assert.NotContains(t, result.Output, "sub.tmp") // ignored by subdir .gitignore
+}
+
 func TestFilesystemTool_DirectoryTree_IgnoresVCS(t *testing.T) {
 	tmpDir := t.TempDir()
 
