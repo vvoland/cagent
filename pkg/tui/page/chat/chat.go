@@ -76,6 +76,9 @@ type chatPage struct {
 	// Cached layout dimensions
 	chatHeight  int
 	inputHeight int
+
+	// keyboardEnhancementsSupported tracks whether the terminal supports keyboard enhancements
+	keyboardEnhancementsSupported bool
 }
 
 // KeyMap defines key bindings for the chat page
@@ -112,7 +115,7 @@ func New(a *app.App, sessionState *service.SessionState) Page {
 		fmt.Fprintf(os.Stderr, "failed to initialize command history: %v\n", err)
 	}
 
-	return &chatPage{
+	p := &chatPage{
 		sidebar:      sidebar.New(sessionState.TodoManager),
 		messages:     messages.New(a, sessionState),
 		editor:       editor.New(a, historyStore),
@@ -121,7 +124,14 @@ func New(a *app.App, sessionState *service.SessionState) Page {
 		keyMap:       defaultKeyMap(),
 		history:      historyStore,
 		sessionState: sessionState,
+		// Default to no keyboard enhancements (will be updated if msg is received)
+		keyboardEnhancementsSupported: false,
 	}
+
+	// Initialize help text with default (ctrl+j)
+	p.updateNewlineHelp()
+
+	return p
 }
 
 // Init initializes the chat page
@@ -149,6 +159,15 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case tea.KeyboardEnhancementsMsg:
+		// Track keyboard enhancement support and update help text
+		p.keyboardEnhancementsSupported = msg.Flags != 0
+		p.updateNewlineHelp()
+		// Forward to editor
+		editorModel, editorCmd := p.editor.Update(msg)
+		p.editor = editorModel.(editor.Editor)
+		return p, editorCmd
+
 	case tea.WindowSizeMsg:
 		cmd := p.SetSize(msg.Width, msg.Height)
 		cmds = append(cmds, cmd)
@@ -504,6 +523,24 @@ func (p *chatPage) switchFocus() {
 	}
 }
 
+// updateNewlineHelp updates the help text for the newline shortcut
+// based on keyboard enhancement support.
+func (p *chatPage) updateNewlineHelp() {
+	if p.keyboardEnhancementsSupported {
+		// When keyboard enhancements are supported, show both options
+		p.keyMap.ShiftNewline = key.NewBinding(
+			key.WithKeys("shift+enter", "ctrl+j"),
+			key.WithHelp("shift+enter / ctrl+j", "newline"),
+		)
+	} else {
+		// When not supported, only ctrl+j works
+		p.keyMap.ShiftNewline = key.NewBinding(
+			key.WithKeys("ctrl+j"),
+			key.WithHelp("ctrl+j", "newline"),
+		)
+	}
+}
+
 // cancelStream cancels the current stream and cleans up associated state
 func (p *chatPage) cancelStream(showCancelMessage bool) tea.Cmd {
 	if p.msgCancel == nil {
@@ -521,6 +558,7 @@ func (p *chatPage) cancelStream(showCancelMessage bool) tea.Cmd {
 		p.setWorking(false),
 	)
 }
+
 
 // processMessage processes a message with the runtime
 func (p *chatPage) processMessage(content string) tea.Cmd {
