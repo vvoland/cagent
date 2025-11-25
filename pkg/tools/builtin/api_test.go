@@ -120,3 +120,57 @@ func TestAPITool_Headers(t *testing.T) {
 	assert.Equal(t, "secret-key", ts.receivedHeaders.Get("X-API-Key"))
 	assert.Equal(t, "another-value", ts.receivedHeaders.Get("X-Another-Header"))
 }
+
+func TestAPITool_DefaultOutputSchema(t *testing.T) {
+	t.Parallel()
+
+	tool := NewAPITool(latest.APIToolConfig{
+		Name:     "default-schema",
+		Method:   http.MethodGet,
+		Endpoint: "https://example.com/api",
+	})
+
+	toolsList, err := tool.Tools(t.Context())
+	require.NoError(t, err)
+	require.Len(t, toolsList, 1)
+
+	schema, ok := toolsList[0].OutputSchema.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "string", schema["type"])
+}
+
+func TestAPITool_CustomOutputSchema(t *testing.T) {
+	t.Parallel()
+
+	customSchema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"first_name": map[string]any{"type": "string"},
+			"last_name":  map[string]any{"type": "string"},
+			"age":        map[string]any{"type": "number"},
+		},
+		"required": []string{"first_name", "last_name"},
+	}
+
+	tool := NewAPITool(latest.APIToolConfig{
+		Name:         "user-info",
+		Method:       http.MethodGet,
+		Endpoint:     "https://example.com/api/users/${id}",
+		Required:     []string{"id"},
+		Args:         map[string]any{"id": map[string]any{"type": "number"}},
+		OutputSchema: customSchema,
+	})
+
+	toolsList, err := tool.Tools(t.Context())
+	require.NoError(t, err)
+	require.Len(t, toolsList, 1)
+
+	schema, ok := toolsList[0].OutputSchema.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "object", schema["type"])
+
+	props, ok := schema["properties"].(map[string]any)
+	require.True(t, ok)
+	assert.Contains(t, props, "first_name")
+	assert.Contains(t, props, "age")
+}

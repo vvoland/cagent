@@ -106,6 +106,8 @@ type APIToolConfig struct {
 	Endpoint    string            `json:"endpoint,omitempty"`
 	Method      string            `json:"method,omitempty"`
 	Headers     map[string]string `json:"headers,omitempty"`
+	// OutputSchema optionally describes the API response as JSON Schema for MCP/Code Mode consumers; runtime still returns the raw string body.
+	OutputSchema map[string]any `json:"output_schema,omitempty"`
 }
 
 // PostEditConfig represents a post-edit command configuration
