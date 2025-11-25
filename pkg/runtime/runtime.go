@@ -1295,6 +1295,18 @@ func (r *LocalRuntime) handleHandoff(ctx context.Context, sess *session.Session,
 	}, nil
 }
 
+// truncateTitle truncates a title to maxLength characters, adding an ellipsis if needed
+func truncateTitle(title string, maxLength int) string {
+	if len(title) <= maxLength {
+		return title
+	}
+	// Ensure we have room for the ellipsis
+	if maxLength < 3 {
+		return "..."
+	}
+	return title[:maxLength-3] + "..."
+}
+
 // generateSessionTitle generates a title for the session based on the first user message
 func (r *LocalRuntime) generateSessionTitle(ctx context.Context, sess *session.Session, events chan Event) {
 	slog.Debug("Generating title for session", "session_id", sess.ID)
@@ -1309,7 +1321,7 @@ func (r *LocalRuntime) generateSessionTitle(ctx context.Context, sess *session.S
 	systemPrompt := "You are a helpful AI assistant that generates concise, descriptive titles for conversations. You will be given a conversation history and asked to create a title that captures the main topic."
 	userPrompt := fmt.Sprintf("Based on the following message a user sent to an AI assistant, generate a short, descriptive title (maximum 50 characters) that captures the main topic or purpose of the conversation. Return ONLY the title text, nothing else.\n\nUser message: %s\n\n", firstUserMessage)
 
-	titleModel := provider.CloneWithOptions(ctx, r.CurrentAgent().Model(), options.WithStructuredOutput(nil))
+	titleModel := provider.CloneWithOptions(ctx, r.CurrentAgent().Model(), options.WithStructuredOutput(nil), options.WithMaxTokens(100))
 	newTeam := team.New(
 		team.WithID("title-generator"),
 		team.WithAgents(agent.New("root", systemPrompt, agent.WithModel(titleModel))),
@@ -1337,6 +1349,8 @@ func (r *LocalRuntime) generateSessionTitle(ctx context.Context, sess *session.S
 	if title == "" {
 		return
 	}
+	// Truncate title to 50 characters with ellipsis if needed
+	title = truncateTitle(title, 50)
 	sess.Title = title
 	slog.Debug("Generated session title", "session_id", sess.ID, "title", title)
 	events <- SessionTitle(sess.ID, title, r.currentAgent)
