@@ -1,0 +1,141 @@
+package builtin
+
+import (
+	"context"
+	"encoding/json"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/docker/cagent/pkg/tools"
+)
+
+type mockToolSet struct {
+	tools.ElicitationTool
+	toolList []tools.Tool
+}
+
+func (m *mockToolSet) Tools(_ context.Context) ([]tools.Tool, error) {
+	return m.toolList, nil
+}
+
+func (m *mockToolSet) Instructions() string {
+	return "Mock toolset instructions"
+}
+
+func (m *mockToolSet) Start(_ context.Context) error {
+	return nil
+}
+
+func (m *mockToolSet) Stop(_ context.Context) error {
+	return nil
+}
+
+func TestDeferredToolset_SearchTool(t *testing.T) {
+	ctx := t.Context()
+	mockTools := &mockToolSet{
+		toolList: []tools.Tool{
+			{Name: "create_file", Description: "Creates a new file"},
+			{Name: "read_file", Description: "Reads file content"},
+			{Name: "delete_file", Description: "Deletes a file"},
+		},
+	}
+
+	dt := NewDeferredToolset()
+	dt.AddSource(mockTools, true, nil)
+	err := dt.Start(ctx)
+	require.NoError(t, err)
+
+	_, err = dt.Tools(ctx)
+	require.NoError(t, err)
+
+	t.Run("search by name", func(t *testing.T) {
+		args, _ := json.Marshal(SearchToolArgs{Query: "create"})
+		result, err := dt.handleSearchTool(ctx, tools.ToolCall{
+			Function: tools.FunctionCall{Arguments: string(args)},
+		})
+
+		require.NoError(t, err)
+		assert.Contains(t, result.Output, "create_file")
+		assert.NotContains(t, result.Output, "read_file")
+	})
+
+	t.Run("search by description", func(t *testing.T) {
+		args, _ := json.Marshal(SearchToolArgs{Query: "content"})
+		result, err := dt.handleSearchTool(ctx, tools.ToolCall{
+			Function: tools.FunctionCall{Arguments: string(args)},
+		})
+
+		require.NoError(t, err)
+		assert.Contains(t, result.Output, "read_file")
+	})
+
+	t.Run("search no results", func(t *testing.T) {
+		args, _ := json.Marshal(SearchToolArgs{Query: "nonexistent"})
+		result, err := dt.handleSearchTool(ctx, tools.ToolCall{
+			Function: tools.FunctionCall{Arguments: string(args)},
+		})
+
+		require.NoError(t, err)
+		assert.Contains(t, result.Output, "No deferred tools found")
+	})
+}
+
+func TestDeferredToolset_AddTool(t *testing.T) {
+	ctx := t.Context()
+	mockTools := &mockToolSet{
+		toolList: []tools.Tool{
+			{Name: "tool1", Description: "First tool"},
+			{Name: "tool2", Description: "Second tool"},
+		},
+	}
+
+	dt := NewDeferredToolset()
+	dt.AddSource(mockTools, true, nil)
+	err := dt.Start(ctx)
+	require.NoError(t, err)
+
+	initialTools, err := dt.Tools(ctx)
+	require.NoError(t, err)
+	assert.Len(t, initialTools, 2)
+	t.Run("add existing deferred tool", func(t *testing.T) {
+		args, _ := json.Marshal(AddToolArgs{Name: "tool1"})
+		result, err := dt.handleAddTool(ctx, tools.ToolCall{
+			Function: tools.FunctionCall{Arguments: string(args)},
+		})
+
+		require.NoError(t, err)
+		assert.Contains(t, result.Output, "has been activated")
+
+		currentTools, err := dt.Tools(ctx)
+		require.NoError(t, err)
+		assert.Len(t, currentTools, 3) // search_tool, add_tool, tool1
+
+		toolNames := make([]string, len(currentTools))
+		for i, tool := range currentTools {
+			toolNames[i] = tool.Name
+		}
+		assert.Contains(t, toolNames, "tool1")
+	})
+
+	t.Run("add already active tool", func(t *testing.T) {
+		args, _ := json.Marshal(AddToolArgs{Name: "tool1"})
+		result, err := dt.handleAddTool(ctx, tools.ToolCall{
+			Function: tools.FunctionCall{Arguments: string(args)},
+		})
+
+		require.NoError(t, err)
+		assert.Contains(t, result.Output, "already active")
+	})
+
+	t.Run("add non-existent tool", func(t *testing.T) {
+		args, _ := json.Marshal(AddToolArgs{Name: "nonexistent"})
+		result, err := dt.handleAddTool(ctx, tools.ToolCall{
+			Function: tools.FunctionCall{Arguments: string(args)},
+		})
+
+		require.NoError(t, err)
+		assert.Contains(t, result.Output, "not found")
+	})
+}

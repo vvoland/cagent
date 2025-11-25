@@ -8,6 +8,8 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
+// WithToolsFilter creates a toolset that only includes the specified tools.
+// If no tool names are provided, all tools are included.
 func WithToolsFilter(inner tools.ToolSet, toolNames ...string) tools.ToolSet {
 	if len(toolNames) == 0 {
 		return inner
@@ -16,12 +18,28 @@ func WithToolsFilter(inner tools.ToolSet, toolNames ...string) tools.ToolSet {
 	return &filterTools{
 		ToolSet:   inner,
 		toolNames: toolNames,
+		exclude:   false,
+	}
+}
+
+// WithToolsExcludeFilter creates a toolset that excludes the specified tools.
+// If no tool names are provided, all tools are included.
+func WithToolsExcludeFilter(inner tools.ToolSet, toolNames ...string) tools.ToolSet {
+	if len(toolNames) == 0 {
+		return inner
+	}
+
+	return &filterTools{
+		ToolSet:   inner,
+		toolNames: toolNames,
+		exclude:   true,
 	}
 }
 
 type filterTools struct {
 	tools.ToolSet
 	toolNames []string
+	exclude   bool
 }
 
 func (f *filterTools) Tools(ctx context.Context) ([]tools.Tool, error) {
@@ -32,7 +50,11 @@ func (f *filterTools) Tools(ctx context.Context) ([]tools.Tool, error) {
 
 	var filtered []tools.Tool
 	for _, tool := range allTools {
-		if !slices.Contains(f.toolNames, tool.Name) {
+		contains := slices.Contains(f.toolNames, tool.Name)
+
+		// Exclude mode: keep only tools NOT in the list
+		// Include mode: keep only tools in the list
+		if (f.exclude && contains) || (!f.exclude && !contains) {
 			slog.Debug("Filtering out tool", "tool", tool.Name)
 			continue
 		}

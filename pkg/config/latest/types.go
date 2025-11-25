@@ -121,6 +121,8 @@ type Toolset struct {
 	Instruction string   `json:"instruction,omitempty"`
 	Toon        string   `json:"toon,omitempty"`
 
+	Defer DeferConfig `json:"defer,omitempty" yaml:"defer,omitempty"`
+
 	// For the `mcp` tool
 	Command string   `json:"command,omitempty"`
 	Args    []string `json:"args,omitempty"`
@@ -166,6 +168,49 @@ type Remote struct {
 	URL           string            `json:"url"`
 	TransportType string            `json:"transport_type,omitempty"`
 	Headers       map[string]string `json:"headers,omitempty"`
+}
+
+// DeferConfig represents the deferred loading configuration for a toolset.
+// It can be either a boolean (true to defer all tools) or a slice of strings
+// (list of tool names to defer).
+type DeferConfig struct {
+	// DeferAll is true when all tools should be deferred
+	DeferAll bool `json:"-"`
+	// Tools is the list of specific tool names to defer (empty if DeferAll is true)
+	Tools []string `json:"-"`
+}
+
+func (d DeferConfig) IsEmpty() bool {
+	return !d.DeferAll && len(d.Tools) == 0
+}
+
+func (d *DeferConfig) UnmarshalYAML(unmarshal func(any) error) error {
+	var b bool
+	if err := unmarshal(&b); err == nil {
+		d.DeferAll = b
+		d.Tools = nil
+		return nil
+	}
+
+	var tools []string
+	if err := unmarshal(&tools); err == nil {
+		d.DeferAll = false
+		d.Tools = tools
+		return nil
+	}
+
+	return nil
+}
+
+func (d DeferConfig) MarshalYAML() ([]byte, error) {
+	if d.DeferAll {
+		return yaml.Marshal(true)
+	}
+	if len(d.Tools) == 0 {
+		// Return false for empty config - this will be omitted by yaml encoder
+		return yaml.Marshal(false)
+	}
+	return yaml.Marshal(d.Tools)
 }
 
 // ThinkingBudget represents reasoning budget configuration.
