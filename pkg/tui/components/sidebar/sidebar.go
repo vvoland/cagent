@@ -92,14 +92,14 @@ func (m *model) Init() tea.Cmd {
 }
 
 func (m *model) SetTokenUsage(event *runtime.TokenUsageEvent) {
-	if event == nil || event.Usage == nil || event.SessionID == "" || event.AgentContext.AgentName == "" {
+	if event == nil || event.Usage == nil || event.SessionID == "" || event.AgentName == "" {
 		return
 	}
 
 	// Store/replace by session ID (each event has cumulative totals for that session)
 	usage := *event.Usage
 	m.sessionUsage[event.SessionID] = &usage
-	m.sessionAgent[event.SessionID] = event.AgentContext.AgentName
+	m.sessionAgent[event.SessionID] = event.AgentName
 }
 
 func (m *model) SetTodos(toolCall tools.ToolCall) error {
