@@ -214,6 +214,30 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		e.textarea.SetWidth(msg.Width - 2)
 		return e, nil
+
+	// Handle mouse events
+	case tea.MouseWheelMsg:
+		// Forward mouse wheel as cursor movements to textarea for scrolling
+		// This bypasses history navigation and allows viewport scrolling
+		switch msg.Button.String() {
+		case "wheelup":
+			// Move cursor up (scrolls viewport if needed)
+			e.textarea.CursorUp()
+		case "wheeldown":
+			// Move cursor down (scrolls viewport if needed)
+			e.textarea.CursorDown()
+		}
+		return e, nil
+
+	case tea.MouseClickMsg, tea.MouseMotionMsg, tea.MouseReleaseMsg:
+		var cmd tea.Cmd
+		e.textarea, cmd = e.textarea.Update(msg)
+		// Give focus to editor on click
+		if _, ok := msg.(tea.MouseClickMsg); ok {
+			return e, tea.Batch(cmd, e.Focus())
+		}
+		return e, cmd
+
 	case completion.SelectedMsg:
 		currentValue := e.textarea.Value()
 		lastIdx := strings.LastIndex(currentValue, e.completionWord)

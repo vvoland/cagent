@@ -207,7 +207,14 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return p, nil
 
 	case tea.MouseWheelMsg, tea.MouseClickMsg, tea.MouseMotionMsg, tea.MouseReleaseMsg:
-		// Always forward mouse wheel events to the chat component for scrolling
+		// Route mouse events based on Y coordinate - editor is at bottom of screen
+		if p.isMouseOverEditor(msg) {
+			// Forward to editor for scrolling and interaction
+			model, cmd := p.editor.Update(msg)
+			p.editor = model.(editor.Editor)
+			return p, cmd
+		}
+		// Otherwise forward to messages component for chat scrolling
 		model, cmd := p.messages.Update(msg)
 		p.messages = model.(messages.Model)
 		return p, cmd
@@ -560,6 +567,32 @@ func (p *chatPage) CompactSession() tea.Cmd {
 
 func (p *chatPage) Cleanup() {
 	p.stopProgressBar()
+}
+
+// isMouseOverEditor checks if a mouse event occurred within the editor's area.
+// The editor is positioned at the bottom of the screen.
+func (p *chatPage) isMouseOverEditor(msg tea.Msg) bool {
+	// Calculate editor's Y position bounds
+	editorStartY := p.height - p.inputHeight
+	editorEndY := p.height
+
+	// Extract Y coordinate based on message type
+	var mouseY int
+	switch m := msg.(type) {
+	case tea.MouseWheelMsg:
+		mouseY = m.Y
+	case tea.MouseClickMsg:
+		mouseY = m.Y
+	case tea.MouseMotionMsg:
+		mouseY = m.Y
+	case tea.MouseReleaseMsg:
+		mouseY = m.Y
+	default:
+		return false
+	}
+
+	// Check if mouse Y is within editor bounds
+	return mouseY >= editorStartY && mouseY < editorEndY
 }
 
 // See: https://conemu.github.io/en/AnsiEscapeCodes.html#ConEmu_specific_OSC
