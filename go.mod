@@ -12,7 +12,7 @@ require (
 	github.com/a2aproject/a2a-go v0.3.2
 	github.com/alecthomas/chroma/v2 v2.20.0
 	github.com/alpkeskin/gotoon v0.1.1
-	github.com/anthropics/anthropic-sdk-go v1.18.1
+	github.com/anthropics/anthropic-sdk-go v1.19.0
 	github.com/atotto/clipboard v0.1.4
 	github.com/aymanbagabas/go-udiff v0.3.1
 	github.com/charmbracelet/glamour/v2 v2.0.0-20251106195642-800eb8175930
@@ -23,6 +23,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-git/go-git/v5 v5.16.4
 	github.com/goccy/go-yaml v1.18.0
+	github.com/google/go-cmp v0.7.0
 	github.com/google/go-containerregistry v0.20.6
 	github.com/google/jsonschema-go v0.3.0
 	github.com/google/uuid v1.6.0
@@ -89,7 +90,6 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
-	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/pprof v0.0.0-20250317173921-a4b03ec1a45e // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/safehtml v0.1.0 // indirect
