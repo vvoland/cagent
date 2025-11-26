@@ -39,7 +39,6 @@ type Model interface {
 	SetTeamInfo(availableAgents []string)
 	SetAgentSwitching(switching bool)
 	SetToolsetInfo(availableTools int)
-	SetToolStatus(toolName, status string)
 	GetSize() (width, height int)
 }
 
@@ -69,21 +68,18 @@ type model struct {
 	availableAgents  []string
 	agentSwitching   bool
 	availableTools   int
-	activeTools      []string
-	toolExecutions   map[string]string // tool name -> status (running, completed, failed)
 }
 
 func New(manager *service.TodoManager) Model {
 	return &model{
-		width:          20,
-		height:         24,
-		sessionUsage:   make(map[string]*runtime.Usage),
-		sessionAgent:   make(map[string]string),
-		todoComp:       todotool.NewSidebarComponent(manager),
-		spinner:        spinner.New(spinner.ModeSpinnerOnly),
-		sessionTitle:   "New session",
-		ragIndexing:    make(map[string]*ragIndexingState),
-		toolExecutions: make(map[string]string),
+		width:        20,
+		height:       24,
+		sessionUsage: make(map[string]*runtime.Usage),
+		sessionAgent: make(map[string]string),
+		todoComp:     todotool.NewSidebarComponent(manager),
+		spinner:      spinner.New(spinner.ModeSpinnerOnly),
+		sessionTitle: "New session",
+		ragIndexing:  make(map[string]*ragIndexingState),
 	}
 }
 
@@ -135,24 +131,6 @@ func (m *model) SetAgentSwitching(switching bool) {
 // SetToolsetInfo sets the number of available tools
 func (m *model) SetToolsetInfo(availableTools int) {
 	m.availableTools = availableTools
-}
-
-// SetToolStatus updates the status of a specific tool
-func (m *model) SetToolStatus(toolName, status string) {
-	if m.toolExecutions == nil {
-		m.toolExecutions = make(map[string]string)
-	}
-
-	// Update tool status
-	m.toolExecutions[toolName] = status
-
-	// Update active tools list
-	m.activeTools = nil
-	for tool, stat := range m.toolExecutions {
-		if stat == "running" {
-			m.activeTools = append(m.activeTools, tool)
-		}
-	}
 }
 
 // formatTokenCount formats a token count with K/M suffixes for readability
@@ -260,9 +238,6 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case *runtime.ToolsetInfoEvent:
 		m.SetToolsetInfo(msg.AvailableTools)
 		return m, nil
-	case *runtime.ToolStatusEvent:
-		m.SetToolStatus(msg.ToolName, msg.Status)
-		return m, nil
 	default:
 		var cmds []tea.Cmd
 
@@ -313,36 +288,39 @@ func (m *model) horizontalView() string {
 }
 
 func (m *model) verticalView() string {
-	topContent := m.sessionTitle + "\n"
-
+	var main []string
+	main = append(main, m.sessionTitle)
 	if pwd := getCurrentWorkingDirectory(); pwd != "" {
-		topContent += styles.MutedStyle.Render(pwd) + "\n\n"
+		main = append(main, styles.MutedStyle.Render(pwd))
+	}
+	if working := m.workingIndicator(); working != "" {
+		main = append(main, working)
+	} else {
+		main = append(main, "") // spacer for layout consistency
 	}
 
-	topContent += m.tokenUsage()
-	topContent += "\n" + m.workingIndicator()
-
-	// Add agent information
+	var more []string
 	if agentInfo := m.agentInfo(); agentInfo != "" {
-		topContent += "\n\n" + agentInfo
+		more = append(more, agentInfo)
 	}
-
-	// Add toolset information
 	if toolsetInfo := m.toolsetInfo(); toolsetInfo != "" {
-		topContent += "\n\n" + toolsetInfo
+		more = append(more, toolsetInfo)
+	}
+	if usage := m.tokenUsage(); usage != "" {
+		more = append(more, usage)
 	}
 
 	m.todoComp.SetSize(m.width)
 	todoContent := strings.TrimSuffix(m.todoComp.Render(), "\n")
 	if todoContent != "" {
-		topContent += "\n\n" + todoContent
+		more = append(more, todoContent)
 	}
 
 	return styles.BaseStyle.
 		Width(m.width).
 		Height(m.height-2).
 		Align(lipgloss.Left, lipgloss.Top).
-		Render(topContent)
+		Render(strings.Join(main, "\n") + "\n\n" + strings.Join(more, "\n\n"))
 }
 
 func (m *model) workingIndicator() string {
@@ -515,51 +493,15 @@ func (m *model) tokenUsage() string {
 		totalCost += usage.Cost
 	}
 
-	agentTotals := make(map[string]*runtime.Usage)
-	for sessionID, usage := range m.sessionUsage {
-		agent := m.sessionAgent[sessionID]
-		if agent == "" {
-			continue
-		}
-		if existing, ok := agentTotals[agent]; ok {
-			existing.InputTokens += usage.InputTokens
-			existing.OutputTokens += usage.OutputTokens
-			existing.Cost += usage.Cost
-		} else {
-			u := *usage
-			agentTotals[agent] = &u
-		}
-	}
-
 	var b strings.Builder
-	b.WriteString(styles.HighlightStyle.Render("TOTAL USAGE"))
-	b.WriteString("\n  ")
-	line := fmt.Sprintf("Tokens: %s | Cost: $%s", formatTokenCount(totalTokens), formatCost(totalCost))
+	b.WriteString(styles.HighlightStyle.Render("Usage"))
+	b.WriteString("\n")
+	b.WriteString(styles.MutedStyle.Render(fmt.Sprintf("Tokens: %s", formatTokenCount(totalTokens))))
+	b.WriteString("\n")
+	b.WriteString(styles.MutedStyle.Render(fmt.Sprintf("Cost: $%s", formatCost(totalCost))))
 	if ctxText, ok := m.contextPercent(); ok {
-		line = fmt.Sprintf("%s | %s", line, ctxText)
-	}
-	b.WriteString(line)
-
-	b.WriteString("\n--------------------------------\n")
-	b.WriteString(styles.HighlightStyle.Render("SESSION BREAKDOWN"))
-
-	agentNames := make([]string, 0, len(agentTotals))
-	for name := range agentTotals {
-		agentNames = append(agentNames, name)
-	}
-	sort.Strings(agentNames)
-
-	if len(agentNames) == 0 {
-		b.WriteString("\n  ")
-		b.WriteString(styles.SubtleStyle.Render("No usage yet"))
-		return b.String()
-	}
-
-	for _, name := range agentNames {
-		usage := agentTotals[name]
-		tokens := usage.InputTokens + usage.OutputTokens
-		b.WriteString(fmt.Sprintf("\n  %s", styles.SubtleStyle.Render(name)))
-		b.WriteString(fmt.Sprintf("\n    Tokens: %s | Cost: $%s", formatTokenCount(tokens), formatCost(usage.Cost)))
+		b.WriteString("\n")
+		b.WriteString(styles.MutedStyle.Render(ctxText))
 	}
 
 	return b.String()
@@ -594,9 +536,9 @@ func (m *model) agentInfo() string {
 	var content strings.Builder
 
 	// Agent name with highlight and switching indicator
-	agentTitle := "AGENT"
+	agentTitle := "Agent"
 	if m.agentSwitching {
-		agentTitle = "AGENT ↔" // switching indicator
+		agentTitle += " ↔" // switching indicator
 	}
 	content.WriteString(styles.HighlightStyle.Render(agentTitle))
 	content.WriteString("\n")
@@ -645,25 +587,8 @@ func (m *model) toolsetInfo() string {
 	}
 
 	var content strings.Builder
-
-	// Tools header
-	content.WriteString(styles.HighlightStyle.Render("TOOLS"))
-	content.WriteString("\n")
-
-	// Available tools count
-	content.WriteString(styles.MutedStyle.Render(fmt.Sprintf("%d tools available", m.availableTools)))
-
-	// Active/running tools
-	if len(m.activeTools) > 0 {
-		content.WriteString("\n")
-		for i, tool := range m.activeTools {
-			if i > 0 {
-				content.WriteString(", ")
-			}
-			content.WriteString(styles.ActiveStyle.Render("[>] " + tool))
-		}
-	}
-
+	content.WriteString(styles.HighlightStyle.Render("Tools"))
+	content.WriteString(styles.MutedStyle.Render(fmt.Sprintf("\n%d tools available", m.availableTools)))
 	return content.String()
 }
 
