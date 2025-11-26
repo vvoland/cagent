@@ -8,12 +8,15 @@ import (
 	acpsdk "github.com/coder/acp-go-sdk"
 
 	"github.com/docker/cagent/pkg/agentfile"
-	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 )
 
-func Run(ctx context.Context, agentFilename string, out *cli.Printer, stdin io.Reader, stdout io.Writer, runConfig *config.RuntimeConfig) error {
-	agentFilename, err := agentfile.Resolve(ctx, out, agentFilename)
+type discardOutput struct{}
+
+func (d *discardOutput) Printf(string, ...any) {}
+
+func Run(ctx context.Context, agentFilename string, stdin io.Reader, stdout io.Writer, runConfig *config.RuntimeConfig) error {
+	agentFilename, err := agentfile.Resolve(ctx, &discardOutput{}, agentFilename)
 	if err != nil {
 		return err
 	}

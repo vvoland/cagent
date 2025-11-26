@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	a2aserver "github.com/docker/cagent/pkg/a2a"
-	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 )
 
@@ -227,8 +226,7 @@ func startA2AServer(t *testing.T, agentFile string, runConfig *config.RuntimeCon
 	require.NoError(t, err)
 
 	go func() {
-		out := cli.NewPrinter(io.Discard)
-		_ = a2aserver.Run(t.Context(), out, agentFile, "root", runConfig, ln)
+		_ = a2aserver.Run(t.Context(), agentFile, "root", runConfig, ln)
 	}()
 
 	port := ln.Addr().(*net.TCPAddr).Port

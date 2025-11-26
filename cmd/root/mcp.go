@@ -1,11 +1,8 @@
 package root
 
 import (
-	"io"
-
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/mcp"
 	"github.com/docker/cagent/pkg/telemetry"
@@ -40,7 +37,6 @@ func (f *mcpFlags) runMCPCommand(cmd *cobra.Command, args []string) error {
 
 	ctx := cmd.Context()
 	agentFilename := args[0]
-	out := cli.NewPrinter(io.Discard)
 
-	return mcp.StartMCPServer(ctx, out, agentFilename, &f.runConfig)
+	return mcp.StartMCPServer(ctx, agentFilename, &f.runConfig)
 }

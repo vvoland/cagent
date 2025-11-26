@@ -13,62 +13,17 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 
 	"github.com/docker/cagent/pkg/aliases"
-	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/remote"
 )
 
-// IsOCIReference checks if the input is a valid OCI reference
-func IsOCIReference(input string) bool {
-	if IsLocalFile(input) {
-		return false
-	}
-	_, err := name.ParseReference(input)
-	return err == nil
-}
-
-// IsLocalFile checks if the input is a local file
-func IsLocalFile(input string) bool {
-	ext := strings.ToLower(filepath.Ext(input))
-	// Check for YAML file extensions or file descriptors
-	if ext == ".yaml" || ext == ".yml" || strings.HasPrefix(input, "/dev/fd/") {
-		return true
-	}
-	// Check if it exists as a file on disk
-	return fileExists(input)
-}
-
-// OciRefToFilename converts an OCI reference to a safe, consistent filename
-// Examples:
-//   - "docker.io/myorg/agent:v1" -> "docker.io_myorg_agent_v1.yaml"
-//   - "localhost:5000/test" -> "localhost_5000_test.yaml"
-func OciRefToFilename(ociRef string) string {
-	// Replace characters that are invalid in filenames with underscores
-	// Keep the structure recognizable but filesystem-safe
-	safe := strings.NewReplacer(
-		"/", "_",
-		":", "_",
-		"@", "_",
-		"\\", "_",
-		"*", "_",
-		"?", "_",
-		"\"", "_",
-		"<", "_",
-		">", "_",
-		"|", "_",
-	).Replace(ociRef)
-
-	// Ensure it has .yaml extension
-	if !strings.HasSuffix(safe, ".yaml") {
-		safe += ".yaml"
-	}
-
-	return safe
+type Printer interface {
+	Printf(format string, a ...any)
 }
 
 // Resolve resolves an agent file reference (local file or OCI image) to a local file path
 // For OCI references, always checks remote for updates but falls back to local cache if offline
-func Resolve(ctx context.Context, out *cli.Printer, agentFilename string) (string, error) {
+func Resolve(ctx context.Context, out Printer, agentFilename string) (string, error) {
 	originalOCIRef := agentFilename // Store the original for OCI ref tracking
 
 	if agentFilename == "" {
@@ -128,7 +83,7 @@ func Resolve(ctx context.Context, out *cli.Printer, agentFilename string) (strin
 		}
 		slog.Debug("Failed to check for OCI reference updates, using cached version", "ref", agentFilename, "error", pullErr)
 		if out != nil {
-			out.Println("Using cached version of", agentFilename)
+			out.Printf("Using cached version of %s\n", agentFilename)
 		}
 	}
 
@@ -194,4 +149,52 @@ func FromStore(reference string) (string, error) {
 	b.Close()
 
 	return buf.String(), nil
+}
+
+// IsOCIReference checks if the input is a valid OCI reference
+func IsOCIReference(input string) bool {
+	if IsLocalFile(input) {
+		return false
+	}
+	_, err := name.ParseReference(input)
+	return err == nil
+}
+
+// IsLocalFile checks if the input is a local file
+func IsLocalFile(input string) bool {
+	ext := strings.ToLower(filepath.Ext(input))
+	// Check for YAML file extensions or file descriptors
+	if ext == ".yaml" || ext == ".yml" || strings.HasPrefix(input, "/dev/fd/") {
+		return true
+	}
+	// Check if it exists as a file on disk
+	return fileExists(input)
+}
+
+// OciRefToFilename converts an OCI reference to a safe, consistent filename
+// Examples:
+//   - "docker.io/myorg/agent:v1" -> "docker.io_myorg_agent_v1.yaml"
+//   - "localhost:5000/test" -> "localhost_5000_test.yaml"
+func OciRefToFilename(ociRef string) string {
+	// Replace characters that are invalid in filenames with underscores
+	// Keep the structure recognizable but filesystem-safe
+	safe := strings.NewReplacer(
+		"/", "_",
+		":", "_",
+		"@", "_",
+		"\\", "_",
+		"*", "_",
+		"?", "_",
+		"\"", "_",
+		"<", "_",
+		">", "_",
+		"|", "_",
+	).Replace(ociRef)
+
+	// Ensure it has .yaml extension
+	if !strings.HasSuffix(safe, ".yaml") {
+		safe += ".yaml"
+	}
+
+	return safe
 }

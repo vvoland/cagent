@@ -9,7 +9,6 @@ import (
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/agentfile"
-	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
@@ -27,10 +26,14 @@ type ToolOutput struct {
 	Response string `json:"response" jsonschema:"the response from the agent"`
 }
 
-func StartMCPServer(ctx context.Context, out *cli.Printer, agentFilename string, runConfig *config.RuntimeConfig) error {
+type discardOutput struct{}
+
+func (d *discardOutput) Printf(string, ...any) {}
+
+func StartMCPServer(ctx context.Context, agentFilename string, runConfig *config.RuntimeConfig) error {
 	slog.Debug("Starting MCP server", "agent", agentFilename)
 
-	agentFilename, err := agentfile.Resolve(ctx, out, agentFilename)
+	agentFilename, err := agentfile.Resolve(ctx, &discardOutput{}, agentFilename)
 	if err != nil {
 		return err
 	}
