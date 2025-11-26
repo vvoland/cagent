@@ -629,26 +629,22 @@ func (s *Server) loadTeamForSession(ctx context.Context, agentFilename string, s
 	}
 
 	// If session has a custom working dir, reload the agent to pick it up
-	if sess.WorkingDir != "" {
-		if ociRef, ok := s.getOCIRef(agentFilename); ok {
-			yamlContent, err := agentfile.FromStore(ociRef)
-			if err != nil {
-				slog.Error("Failed to load OCI agent from store", "agent", agentFilename, "oci_ref", ociRef, "error", err)
-				return t, nil // Fall back to cached team
-			}
-
-			reloaded, err := teamloader.LoadFrom(
-				ctx,
-				teamloader.NewBytesSource([]byte(yamlContent)),
-				rc,
-				teamloader.WithID(agentFilename),
-			)
-			if err != nil {
-				slog.Error("Failed to reload OCI agent with session working dir", "agent", agentFilename, "error", err)
-				return t, nil // Fall back to cached team
-			}
-			return reloaded, nil
+	if ociRef, ok := s.getOCIRef(agentFilename); ok && sess.WorkingDir != "" {
+		yamlContent, err := agentfile.FromStore(ociRef)
+		if err != nil {
+			return nil, err
 		}
+
+		reloaded, err := teamloader.LoadFrom(
+			ctx,
+			teamloader.NewBytesSource([]byte(yamlContent)),
+			rc,
+			teamloader.WithID(agentFilename),
+		)
+		if err != nil {
+			return nil, err
+		}
+		return reloaded, nil
 	}
 
 	return t, nil
