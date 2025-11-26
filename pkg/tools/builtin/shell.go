@@ -100,13 +100,13 @@ func (lw *limitedWriter) Write(p []byte) (n int, err error) {
 
 type RunShellArgs struct {
 	Cmd     string `json:"cmd" jsonschema:"The shell command to execute"`
-	Cwd     string `json:"cwd" jsonschema:"The working directory to execute the command in"`
+	Cwd     string `json:"cwd,omitempty" jsonschema:"The working directory to execute the command in (default: \".\")"`
 	Timeout int    `json:"timeout,omitempty" jsonschema:"Command execution timeout in seconds (default: 30)"`
 }
 
 type RunShellBackgroundArgs struct {
 	Cmd string `json:"cmd" jsonschema:"The shell command to execute in the background"`
-	Cwd string `json:"cwd" jsonschema:"The working directory to execute the command in"`
+	Cwd string `json:"cwd,omitempty" jsonschema:"The working directory to execute the command in (default: \".\")"`
 }
 
 type ViewBackgroundJobArgs struct {
