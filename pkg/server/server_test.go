@@ -26,6 +26,21 @@ import (
 	"github.com/docker/cagent/pkg/teamloader"
 )
 
+// countTeams returns the number of teams with read lock
+func (s *Server) countTeams() int {
+	s.teamsMu.RLock()
+	defer s.teamsMu.RUnlock()
+	return len(s.teams)
+}
+
+// hasTeam checks if a team exists with read lock
+func (s *Server) hasTeam(key string) bool {
+	s.teamsMu.RLock()
+	defer s.teamsMu.RUnlock()
+	_, exists := s.teams[key]
+	return exists
+}
+
 func TestServer_ListAgents(t *testing.T) {
 	// t.Parallel()
 	t.Setenv("OPENAI_API_KEY", "dummy")
@@ -84,128 +99,6 @@ func TestServer_GetAgent(t *testing.T) {
 	assert.NotEmpty(t, cfg.Version)
 	require.Len(t, cfg.Agents, 1)
 	assert.Contains(t, cfg.Agents["root"].Instruction, "pirate")
-}
-
-func TestServer_GetSetYaml_NoExtension(t *testing.T) {
-	// t.Parallel()
-	t.Setenv("OPENAI_API_KEY", "dummy")
-
-	ctx := t.Context()
-	lnPath := startServer(t, ctx, prepareAgentsDir(t, "pirate.yaml"))
-
-	url := "/api/agents/pirate/yaml"
-	origContent := httpGET(t, ctx, lnPath, url)
-	assert.Contains(t, string(origContent), "pirate")
-
-	httpPUT(t, ctx, lnPath, url, origContent)
-	assert.Equal(t, origContent, httpGET(t, ctx, lnPath, url))
-
-	httpPUT(t, ctx, lnPath, url, []byte(`version: "2"`))
-	assert.Equal(t, []byte(`version: "2"`), httpGET(t, ctx, lnPath, url))
-}
-
-func TestServer_GetSetYaml(t *testing.T) {
-	// t.Parallel()
-	t.Setenv("OPENAI_API_KEY", "dummy")
-
-	ctx := t.Context()
-	lnPath := startServer(t, ctx, prepareAgentsDir(t, "pirate.yaml"))
-
-	url := "/api/agents/pirate.yaml/yaml"
-	origContent := httpGET(t, ctx, lnPath, url)
-	assert.Contains(t, string(origContent), "pirate")
-
-	httpPUT(t, ctx, lnPath, url, origContent)
-	assert.Equal(t, origContent, httpGET(t, ctx, lnPath, url))
-
-	httpPUT(t, ctx, lnPath, url, []byte(`version: "2"`))
-	assert.Equal(t, []byte(`version: "2"`), httpGET(t, ctx, lnPath, url))
-}
-
-func TestServer_Edit_Noop(t *testing.T) {
-	// t.Parallel()
-	t.Setenv("OPENAI_API_KEY", "dummy")
-
-	ctx := t.Context()
-	lnPath := startServer(t, ctx, prepareAgentsDir(t, "pirate.yaml"))
-
-	edit := api.EditAgentConfigRequest{
-		Filename:    "pirate.yaml",
-		AgentConfig: latest.Config{},
-	}
-	httpPUT(t, ctx, lnPath, "/api/agents/config", edit)
-
-	buf := httpGET(t, ctx, lnPath, "/api/agents/pirate.yaml")
-	var cfg latest.Config
-	unmarshal(t, buf, &cfg)
-	assert.NotEmpty(t, cfg.Version)
-	require.Len(t, cfg.Agents, 1)
-	assert.Contains(t, cfg.Agents["root"].Instruction, "pirate")
-}
-
-func TestServer_Edit_Instruction(t *testing.T) {
-	// t.Parallel()
-	t.Setenv("OPENAI_API_KEY", "dummy")
-
-	ctx := t.Context()
-	lnPath := startServer(t, ctx, prepareAgentsDir(t, "pirate.yaml"))
-
-	edit := api.EditAgentConfigRequest{
-		Filename: "pirate.yaml",
-		AgentConfig: latest.Config{
-			Agents: map[string]latest.AgentConfig{
-				"root": {
-					Instruction: "New Instructions",
-					Model:       "openai/gpt-4o",
-				},
-			},
-		},
-	}
-	httpPUT(t, ctx, lnPath, "/api/agents/config", edit)
-
-	buf := httpGET(t, ctx, lnPath, "/api/agents/pirate.yaml")
-	var cfg latest.Config
-	unmarshal(t, buf, &cfg)
-	assert.NotEmpty(t, cfg.Version)
-	require.Len(t, cfg.Agents, 1)
-	require.Len(t, cfg.Models, 1)
-	assert.Equal(t, "New Instructions", cfg.Agents["root"].Instruction)
-	assert.Empty(t, cfg.Agents["root"].Description)
-}
-
-func TestServer_Edit_OnlyOneSubAgent(t *testing.T) {
-	// t.Parallel()
-	t.Setenv("OPENAI_API_KEY", "dummy")
-	t.Setenv("ANTHROPIC_API_KEY", "dummy")
-
-	ctx := t.Context()
-	lnPath := startServer(t, ctx, prepareAgentsDir(t, "multi_agents.yaml"))
-
-	edit := api.EditAgentConfigRequest{
-		Filename: "multi_agents.yaml",
-		AgentConfig: latest.Config{
-			Agents: map[string]latest.AgentConfig{
-				"root": {
-					Instruction: "New Instructions",
-					Model:       "openai/gpt-4o",
-				},
-			},
-		},
-	}
-	httpPUT(t, ctx, lnPath, "/api/agents/config", edit)
-
-	buf := httpGET(t, ctx, lnPath, "/api/agents/multi_agents.yaml")
-	var cfg latest.Config
-	unmarshal(t, buf, &cfg)
-	assert.NotEmpty(t, cfg.Version)
-	require.Len(t, cfg.Agents, 3)
-	require.Len(t, cfg.Models, 2)
-	assert.Equal(t, "New Instructions", cfg.Agents["root"].Instruction)
-	assert.Empty(t, cfg.Agents["root"].Description)
-	assert.Equal(t, "Pirate", cfg.Agents["pirate"].Description)
-	assert.NotEmpty(t, cfg.Agents["pirate"].Instruction)
-	assert.Equal(t, "Contradict", cfg.Agents["contradict"].Description)
-	assert.NotEmpty(t, cfg.Agents["contradict"].Instruction)
 }
 
 func TestServer_ListSessions(t *testing.T) {
@@ -873,11 +766,6 @@ func startServer(t *testing.T, ctx context.Context, agentsDir string) string {
 func httpGET(t *testing.T, ctx context.Context, socketPath, path string) []byte {
 	t.Helper()
 	return httpDo(t, ctx, http.MethodGet, socketPath, path, nil)
-}
-
-func httpPUT(t *testing.T, ctx context.Context, socketPath, path string, payload any) {
-	t.Helper()
-	httpDo(t, ctx, http.MethodPut, socketPath, path, payload)
 }
 
 func httpDo(t *testing.T, ctx context.Context, method, socketPath, path string, payload any) []byte {
