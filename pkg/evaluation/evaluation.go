@@ -6,10 +6,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
+	"github.com/docker/cagent/pkg/teamloader"
 )
 
 type Score struct {
@@ -22,7 +25,30 @@ type Result struct {
 	EvalFile string
 }
 
-func Evaluate(ctx context.Context, t *team.Team, evalsDir string, onResult func(Result)) ([]Result, error) {
+type Printer interface {
+	Printf(format string, a ...any)
+}
+
+func Evaluate(ctx context.Context, out Printer, agentFilename, evalsDir string, runConfig *config.RuntimeConfig) error {
+	agentFilename, err := agentfile.Resolve(ctx, out, agentFilename)
+	if err != nil {
+		return err
+	}
+
+	agents, err := teamloader.Load(ctx, agentFilename, runConfig)
+	if err != nil {
+		return err
+	}
+
+	_, err = runEvaluations(ctx, agents, evalsDir, func(result Result) {
+		out.Printf("Eval file: %s\n", result.EvalFile)
+		out.Printf("Tool trajectory score: %f\n", result.Score.ToolTrajectoryScore)
+		out.Printf("Rouge-1 score: %f\n", result.Score.Rouge1Score)
+	})
+	return err
+}
+
+func runEvaluations(ctx context.Context, t *team.Team, evalsDir string, onResult func(Result)) ([]Result, error) {
 	evalFiles, err := os.ReadDir(evalsDir)
 	if err != nil {
 		return nil, err

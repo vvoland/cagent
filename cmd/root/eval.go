@@ -3,11 +3,9 @@ package root
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/evaluation"
-	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/telemetry"
 )
 
@@ -42,20 +40,5 @@ func (f *evalFlags) runEvalCommand(cmd *cobra.Command, args []string) error {
 		evalsDir = args[1]
 	}
 
-	agentFilename, err := agentfile.Resolve(ctx, out, agentFilename)
-	if err != nil {
-		return err
-	}
-
-	agents, err := teamloader.Load(ctx, agentFilename, &f.runConfig)
-	if err != nil {
-		return err
-	}
-
-	_, err = evaluation.Evaluate(ctx, agents, evalsDir, func(result evaluation.Result) {
-		out.Printf("Eval file: %s\n", result.EvalFile)
-		out.Printf("Tool trajectory score: %f\n", result.Score.ToolTrajectoryScore)
-		out.Printf("Rouge-1 score: %f\n", result.Score.Rouge1Score)
-	})
-	return err
+	return evaluation.Evaluate(ctx, out, agentFilename, evalsDir, &f.runConfig)
 }
