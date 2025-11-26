@@ -2,13 +2,10 @@ package root
 
 import (
 	"io"
-	"log/slog"
 
-	acpsdk "github.com/coder/acp-go-sdk"
 	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/acp"
-	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/telemetry"
@@ -45,24 +42,5 @@ func (f *acpFlags) runACPCommand(cmd *cobra.Command, args []string) error {
 	agentFilename := args[0]
 	out := cli.NewPrinter(io.Discard)
 
-	agentFilename, err := agentfile.Resolve(ctx, out, agentFilename)
-	if err != nil {
-		return err
-	}
-
-	slog.Debug("Starting ACP server", "agent_file", agentFilename)
-
-	acpAgent := acp.NewAgent(agentFilename, &f.runConfig)
-	conn := acpsdk.NewAgentSideConnection(acpAgent, cmd.OutOrStdout(), cmd.InOrStdin())
-	conn.SetLogger(slog.Default())
-	acpAgent.SetAgentConnection(conn)
-	defer acpAgent.Stop(ctx)
-
-	slog.Debug("acp started, waiting for conn")
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-conn.Done():
-		return nil
-	}
+	return acp.Run(ctx, agentFilename, out, cmd.InOrStdin(), cmd.OutOrStdout(), &f.runConfig)
 }

@@ -228,7 +228,7 @@ func startA2AServer(t *testing.T, agentFile string, runConfig *config.RuntimeCon
 
 	go func() {
 		out := cli.NewPrinter(io.Discard)
-		_ = a2aserver.Start(t.Context(), out, agentFile, "root", runConfig, ln)
+		_ = a2aserver.Run(t.Context(), out, agentFile, "root", runConfig, ln)
 	}()
 
 	port := ln.Addr().(*net.TCPAddr).Port

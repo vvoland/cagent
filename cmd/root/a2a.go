@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/a2a"
-	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/server"
@@ -58,10 +57,5 @@ func (f *a2aFlags) runA2ACommand(cmd *cobra.Command, args []string) error {
 		_ = ln.Close()
 	}()
 
-	agentFilename, err = agentfile.Resolve(ctx, out, agentFilename)
-	if err != nil {
-		return err
-	}
-
-	return a2a.Start(ctx, out, agentFilename, f.agentName, &f.runConfig, ln)
+	return a2a.Run(ctx, out, agentFilename, f.agentName, &f.runConfig, ln)
 }

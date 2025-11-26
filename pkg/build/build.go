@@ -1,4 +1,4 @@
-package oci
+package build
 
 import (
 	"bytes"
@@ -13,6 +13,7 @@ import (
 
 	"github.com/goccy/go-yaml"
 
+	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/filesystem"
@@ -28,7 +29,12 @@ type Options struct {
 	Pull    bool
 }
 
-func BuildDockerImage(ctx context.Context, out *cli.Printer, agentFilename string, fs filesystem.FS, dockerImageName string, opts Options) error {
+func DockerImage(ctx context.Context, out *cli.Printer, agentFilename string, fs filesystem.FS, dockerImageName string, opts Options) error {
+	agentFilename, err := agentfile.Resolve(ctx, out, agentFilename)
+	if err != nil {
+		return err
+	}
+
 	cfg, err := config.LoadConfig(ctx, agentFilename, fs)
 	if err != nil {
 		return err
