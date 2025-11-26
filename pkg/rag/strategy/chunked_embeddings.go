@@ -719,6 +719,16 @@ func (s *VectorStrategy) watchLoop(ctx context.Context, docPaths []string, chunk
 
 		filesToReindex := make([]string, 0)
 		for _, file := range changedFiles {
+			// Check if the file matches any of the configured document paths/patterns
+			matches, matchErr := s.processor.Matches(file, docPaths)
+			if matchErr != nil {
+				slog.Error("Failed to match path", "file", file, "error", matchErr)
+				continue
+			}
+			if !matches {
+				continue
+			}
+
 			needsIndexing, err := s.needsIndexing(ctx, file)
 			if err != nil {
 				slog.Debug("File no longer exists or inaccessible", "path", file, "error", err)
@@ -790,6 +800,12 @@ func (s *VectorStrategy) watchLoop(ctx context.Context, docPaths []string, chunk
 					slog.Debug("Could not watch new path", "path", event.Name, "error", err)
 				}
 				s.watcherMu.Unlock()
+			}
+
+			// Early filter: only track changes for files that match configured doc patterns
+			matches, err := s.processor.Matches(event.Name, docPaths)
+			if err != nil || !matches {
+				continue
 			}
 
 			pendingMu.Lock()

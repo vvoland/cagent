@@ -8,12 +8,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/bmatcuk/doublestar/v4"
 )
 
 // Chunk represents a piece of text from a document
 type Chunk struct {
-	Index   int
-	Content string
+	Index    int
+	Content  string
+	Metadata map[string]string
 }
 
 // Processor handles document processing
@@ -189,35 +192,132 @@ func (p *Processor) CollectFiles(paths []string) ([]string, error) {
 	var files []string
 	seen := make(map[string]bool)
 
-	for _, path := range paths {
-		info, err := os.Stat(path)
+	for _, pattern := range paths {
+		expanded, err := p.expandPattern(pattern)
 		if err != nil {
-			if os.IsNotExist(err) {
-				// Path doesn't exist, skip it (might have been deleted)
-				continue
-			}
-			return nil, fmt.Errorf("failed to stat %s: %w", path, err)
+			return nil, err
+		}
+		if len(expanded) == 0 {
+			expanded = []string{pattern}
 		}
 
-		if info.IsDir() {
-			err := filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
-				if err != nil {
-					return err
-				}
-				if !info.IsDir() && !seen[p] {
-					files = append(files, p)
-					seen[p] = true
-				}
-				return nil
-			})
+		for _, entry := range expanded {
+			normalized := normalizePath(entry)
+
+			info, err := os.Stat(normalized)
 			if err != nil {
-				return nil, fmt.Errorf("failed to walk directory %s: %w", path, err)
+				if os.IsNotExist(err) {
+					continue
+				}
+				return nil, fmt.Errorf("failed to stat %s: %w", entry, err)
 			}
-		} else if !seen[path] {
-			files = append(files, path)
-			seen[path] = true
+
+			if info.IsDir() {
+				err := filepath.Walk(normalized, func(p string, info os.FileInfo, err error) error {
+					if err != nil {
+						return err
+					}
+					if info.IsDir() {
+						return nil
+					}
+					filePath := normalizePath(p)
+					if !seen[filePath] {
+						files = append(files, filePath)
+						seen[filePath] = true
+					}
+					return nil
+				})
+				if err != nil {
+					return nil, fmt.Errorf("failed to walk directory %s: %w", normalized, err)
+				}
+				continue
+			}
+
+			if !seen[normalized] {
+				files = append(files, normalized)
+				seen[normalized] = true
+			}
 		}
 	}
 
 	return files, nil
+}
+
+// Matches reports whether the given path matches any configured document path or glob pattern.
+// To be used in file watchers to determine if a new/changed file matches the glob patterns or not.
+func (p *Processor) Matches(path string, patterns []string) (bool, error) {
+	if len(patterns) == 0 {
+		return false, nil
+	}
+
+	cleanPath := normalizePath(path)
+
+	for _, pattern := range patterns {
+		if pattern == "" {
+			continue
+		}
+
+		normalizedPattern := normalizePath(pattern)
+
+		if hasGlob(pattern) {
+			match, err := doublestar.PathMatch(normalizedPattern, cleanPath)
+			if err != nil {
+				return false, fmt.Errorf("invalid glob pattern %q: %w", pattern, err)
+			}
+			if match {
+				return true, nil
+			}
+			continue
+		}
+
+		info, err := os.Stat(normalizedPattern)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return false, fmt.Errorf("failed to stat %s: %w", normalizedPattern, err)
+		}
+
+		if info.IsDir() {
+			if cleanPath == normalizedPattern || strings.HasPrefix(cleanPath, normalizedPattern+string(os.PathSeparator)) {
+				return true, nil
+			}
+			continue
+		}
+
+		if cleanPath == normalizedPattern {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func (p *Processor) expandPattern(pattern string) ([]string, error) {
+	if !hasGlob(pattern) {
+		return []string{normalizePath(pattern)}, nil
+	}
+
+	matches, err := doublestar.FilepathGlob(pattern)
+	if err != nil {
+		return nil, fmt.Errorf("invalid glob pattern %q: %w", pattern, err)
+	}
+
+	results := make([]string, 0, len(matches))
+	for _, match := range matches {
+		results = append(results, normalizePath(match))
+	}
+
+	return results, nil
+}
+
+func hasGlob(pattern string) bool {
+	return strings.ContainsAny(pattern, "*?[")
+}
+
+func normalizePath(p string) string {
+	if abs, err := filepath.Abs(p); err == nil {
+		return filepath.Clean(abs)
+	}
+	return filepath.Clean(p)
 }
