@@ -16,7 +16,6 @@ func CloneWithOptions(ctx context.Context, base Provider, opts ...options.Opt) P
 	// Preserve existing options, then apply overrides. Later opts take precedence.
 	baseOpts := options.FromModelOptions(config.ModelOptions)
 	mergedOpts := append(baseOpts, opts...)
-	mergedOpts = append(mergedOpts, options.WithGeneratingTitle())
 
 	// Apply max_tokens override if present in options
 	// We need to apply it to the ModelConfig itself since that's what providers use
