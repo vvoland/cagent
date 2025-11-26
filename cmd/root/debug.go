@@ -49,9 +49,10 @@ func (f *debugFlags) runDebugConfigCommand(cmd *cobra.Command, args []string) er
 	telemetry.TrackCommand("debug", append([]string{"config"}, args...))
 
 	ctx := cmd.Context()
+	agentFilename := args[0]
 	out := cli.NewPrinter(cmd.OutOrStdout())
 
-	agentFilename, err := agentfile.Resolve(ctx, out, args[0])
+	agentFilename, err := agentfile.Resolve(ctx, out, agentFilename)
 	if err != nil {
 		return err
 	}
@@ -68,9 +69,10 @@ func (f *debugFlags) runDebugToolsetsCommand(cmd *cobra.Command, args []string) 
 	telemetry.TrackCommand("debug", append([]string{"toolsets"}, args...))
 
 	ctx := cmd.Context()
+	agentFilename := args[0]
 	out := cli.NewPrinter(cmd.OutOrStdout())
 
-	agentFilename, err := agentfile.Resolve(ctx, out, args[0])
+	agentFilename, err := agentfile.Resolve(ctx, out, agentFilename)
 	if err != nil {
 		return err
 	}

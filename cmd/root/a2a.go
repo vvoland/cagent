@@ -45,6 +45,7 @@ func (f *a2aFlags) runA2ACommand(cmd *cobra.Command, args []string) error {
 	telemetry.TrackCommand("a2a", args)
 
 	ctx := cmd.Context()
+	agentFilename := args[0]
 	out := cli.NewPrinter(cmd.OutOrStdout())
 
 	// Listen as early as possible
@@ -57,7 +58,7 @@ func (f *a2aFlags) runA2ACommand(cmd *cobra.Command, args []string) error {
 		_ = ln.Close()
 	}()
 
-	agentFilename, err := agentfile.Resolve(ctx, out, args[0])
+	agentFilename, err = agentfile.Resolve(ctx, out, agentFilename)
 	if err != nil {
 		return err
 	}

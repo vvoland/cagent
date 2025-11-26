@@ -37,9 +37,10 @@ func (f *buildFlags) runBuildCommand(cmd *cobra.Command, args []string) error {
 	telemetry.TrackCommand("build", args)
 
 	ctx := cmd.Context()
+	agentFilename := args[0]
 	out := cli.NewPrinter(cmd.OutOrStdout())
 
-	agentFilename, err := agentfile.Resolve(ctx, out, args[0])
+	agentFilename, err := agentfile.Resolve(ctx, out, agentFilename)
 	if err != nil {
 		return err
 	}

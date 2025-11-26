@@ -40,9 +40,10 @@ func (f *mcpFlags) runMCPCommand(cmd *cobra.Command, args []string) error {
 	telemetry.TrackCommand("mcp", args)
 
 	ctx := cmd.Context()
+	agentFilename := args[0]
 	out := cli.NewPrinter(io.Discard)
 
-	agentFilename, err := agentfile.Resolve(ctx, out, args[0])
+	agentFilename, err := agentfile.Resolve(ctx, out, agentFilename)
 	if err != nil {
 		return err
 	}
