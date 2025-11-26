@@ -82,7 +82,7 @@ func StartMCPServer(ctx context.Context, out *cli.Printer, agentFilename string,
 			OutputSchema: tools.MustSchemaFor[ToolOutput](),
 		}
 
-		mcp.AddTool(server, toolDef, CreateToolHandler(t, agentName, agentFilename))
+		mcp.AddTool(server, toolDef, CreateToolHandler(t, agentName))
 	}
 
 	slog.Debug("MCP server starting with stdio transport")
@@ -94,7 +94,7 @@ func StartMCPServer(ctx context.Context, out *cli.Printer, agentFilename string,
 	return nil
 }
 
-func CreateToolHandler(t *team.Team, agentName, agentFilename string) func(context.Context, *mcp.CallToolRequest, ToolInput) (*mcp.CallToolResult, ToolOutput, error) {
+func CreateToolHandler(t *team.Team, agentName string) func(context.Context, *mcp.CallToolRequest, ToolInput) (*mcp.CallToolResult, ToolOutput, error) {
 	return func(ctx context.Context, req *mcp.CallToolRequest, input ToolInput) (*mcp.CallToolResult, ToolOutput, error) {
 		slog.Debug("MCP tool called", "agent", agentName, "message", input.Message)
 
