@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestExpand(t *testing.T) {
@@ -57,6 +58,18 @@ func TestExpand(t *testing.T) {
 			commands: "${env.NAME || 'UNKNOWN'}",
 			envVars:  map[string]string{},
 			expected: "UNKNOWN",
+		},
+		{
+			name:     "backticks in template (markdown code fence)",
+			commands: "Here is code:\n```\n${env.CODE}\n```\nEnd.",
+			envVars:  map[string]string{"CODE": "fmt.Println()"},
+			expected: "Here is code:\n```\nfmt.Println()\n```\nEnd.",
+		},
+		{
+			name:     "multiple backticks",
+			commands: "Use `inline` and ```block``` code",
+			envVars:  map[string]string{},
+			expected: "Use `inline` and ```block``` code",
 		},
 	}
 
@@ -126,6 +139,63 @@ func TestExpandMap_Empty(t *testing.T) {
 	result := expander.ExpandMap(t.Context(), map[string]string{})
 
 	assert.Empty(t, result)
+}
+
+func TestExpandString(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		template string
+		values   map[string]string
+		expected string
+		wantErr  bool
+	}{
+		{
+			name:     "simple substitution",
+			template: "Hello ${name}!",
+			values:   map[string]string{"name": "World"},
+			expected: "Hello World!",
+		},
+		{
+			name:     "multiple values",
+			template: "File: ${path} (chunk ${index})",
+			values:   map[string]string{"path": "/foo/bar.go", "index": "0"},
+			expected: "File: /foo/bar.go (chunk 0)",
+		},
+		{
+			name:     "backticks in template are preserved",
+			template: "Code:\n```\n${content}\n```",
+			values:   map[string]string{"content": "func main() {}"},
+			expected: "Code:\n```\nfunc main() {}\n```",
+		},
+		{
+			name:     "backticks in value are preserved",
+			template: "The code is: ${code}",
+			values:   map[string]string{"code": "use `fmt.Println()`"},
+			expected: "The code is: use `fmt.Println()`",
+		},
+		{
+			name:     "semantic prompt with code fence",
+			template: "Summarize:\n```\n${content}\n```\nBe concise.",
+			values:   map[string]string{"content": "package main\n\nfunc main() {\n\tfmt.Println(`hello`)\n}"},
+			expected: "Summarize:\n```\npackage main\n\nfunc main() {\n\tfmt.Println(`hello`)\n}\n```\nBe concise.",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			result, err := ExpandString(t.Context(), tt.template, tt.values)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }
 
 type testEnvProvider map[string]string

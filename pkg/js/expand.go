@@ -3,12 +3,23 @@ package js
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/dop251/goja"
 
 	"github.com/docker/cagent/pkg/environment"
 )
+
+// escapeForTemplateLiteral escapes characters that have special meaning in
+// JavaScript template literals
+func escapeForTemplateLiteral(s string) string {
+	// Escape backticks so they don't terminate the template literal.
+	// Also escape backslashes that precede backticks to avoid double-escaping issues.
+	s = strings.ReplaceAll(s, "\\`", "\\\\`") // First escape already-escaped backticks
+	s = strings.ReplaceAll(s, "`", "\\`")     // Then escape remaining backticks
+	return s
+}
 
 type jsEnv func(string) goja.Value
 
@@ -50,7 +61,7 @@ func (exp *Expander) ExpandMap(ctx context.Context, kv map[string]string) map[st
 	vm := exp.jsRuntime(ctx)
 
 	for k, v := range kv {
-		result, err := vm.RunString("`" + v + "`")
+		result, err := vm.RunString("`" + escapeForTemplateLiteral(v) + "`")
 		if err != nil {
 			expanded[k] = v
 			continue
@@ -65,7 +76,7 @@ func (exp *Expander) ExpandMap(ctx context.Context, kv map[string]string) map[st
 func (exp *Expander) Expand(ctx context.Context, text string) string {
 	vm := exp.jsRuntime(ctx)
 
-	result, err := vm.RunString("`" + text + "`")
+	result, err := vm.RunString("`" + escapeForTemplateLiteral(text) + "`")
 	if err != nil {
 		return text
 	}
@@ -80,7 +91,7 @@ func ExpandString(ctx context.Context, str string, values map[string]string) (st
 		_ = vm.Set(k, v)
 	}
 
-	expanded, err := vm.RunString("`" + str + "`")
+	expanded, err := vm.RunString("`" + escapeForTemplateLiteral(str) + "`")
 	if err != nil {
 		return "", err
 	}
