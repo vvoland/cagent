@@ -28,8 +28,8 @@ type Options struct {
 	Pull    bool
 }
 
-func BuildDockerImage(ctx context.Context, out *cli.Printer, agentFilePath string, fs filesystem.FS, dockerImageName string, opts Options) error {
-	cfg, err := config.LoadConfig(ctx, agentFilePath, fs)
+func BuildDockerImage(ctx context.Context, out *cli.Printer, agentFilename string, fs filesystem.FS, dockerImageName string, opts Options) error {
+	cfg, err := config.LoadConfig(ctx, agentFilename, fs)
 	if err != nil {
 		return err
 	}

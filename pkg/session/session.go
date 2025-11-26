@@ -209,9 +209,9 @@ func (s *Session) GetLastUserMessageContent() string {
 
 type Opt func(s *Session)
 
-func WithUserMessage(agentFilename, content string) Opt {
+func WithUserMessage(content string) Opt {
 	return func(s *Session) {
-		s.AddMessage(UserMessage(agentFilename, content))
+		s.AddMessage(UserMessage("", content))
 	}
 }
 

@@ -23,7 +23,7 @@ import (
 )
 
 func Start(ctx context.Context, out *cli.Printer, agentFilename, agentName string, runConfig *config.RuntimeConfig, ln net.Listener) error {
-	slog.Debug("Starting A2A server", "agent", agentFilename, "addr", ln.Addr().String())
+	slog.Debug("Starting A2A server", "agent", agentName, "addr", ln.Addr().String())
 
 	t, err := teamloader.Load(ctx, agentFilename, runConfig)
 	if err != nil {

@@ -107,8 +107,8 @@ func WithID(id string) Opt {
 
 // Load loads an agent team from the given file path.
 // Prefers LoadFrom for more control over the source.
-func Load(ctx context.Context, p string, runtimeConfig *config.RuntimeConfig, opts ...Opt) (*team.Team, error) {
-	return LoadFrom(ctx, NewFileSource(p), runtimeConfig, opts...)
+func Load(ctx context.Context, agentFilename string, runtimeConfig *config.RuntimeConfig, opts ...Opt) (*team.Team, error) {
+	return LoadFrom(ctx, NewFileSource(agentFilename), runtimeConfig, opts...)
 }
 
 // LoadFrom loads an agent team from the given source

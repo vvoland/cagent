@@ -212,7 +212,7 @@ func TestSimple(t *testing.T) {
 		AddStopWithUsage(3, 2).
 		Build()
 
-	sess := session.New(session.WithUserMessage("", "Hi"))
+	sess := session.New(session.WithUserMessage("Hi"))
 
 	events := runSession(t, sess, stream)
 
@@ -240,7 +240,7 @@ func TestMultipleContentChunks(t *testing.T) {
 		AddStopWithUsage(8, 12).
 		Build()
 
-	sess := session.New(session.WithUserMessage("", "Please greet me"))
+	sess := session.New(session.WithUserMessage("Please greet me"))
 
 	events := runSession(t, sess, stream)
 
@@ -270,7 +270,7 @@ func TestWithReasoning(t *testing.T) {
 		AddStopWithUsage(10, 15).
 		Build()
 
-	sess := session.New(session.WithUserMessage("", "Hi"))
+	sess := session.New(session.WithUserMessage("Hi"))
 
 	events := runSession(t, sess, stream)
 
@@ -299,7 +299,7 @@ func TestMixedContentAndReasoning(t *testing.T) {
 		AddStopWithUsage(15, 20).
 		Build()
 
-	sess := session.New(session.WithUserMessage("", "Hi there"))
+	sess := session.New(session.WithUserMessage("Hi there"))
 
 	events := runSession(t, sess, stream)
 
@@ -327,7 +327,7 @@ func TestToolCallSequence(t *testing.T) {
 		AddStopWithUsage(5, 8).
 		Build()
 
-	sess := session.New(session.WithUserMessage("", "Please use the test tool"))
+	sess := session.New(session.WithUserMessage("Please use the test tool"))
 
 	events := runSession(t, sess, stream)
 
@@ -346,7 +346,7 @@ func TestErrorEvent(t *testing.T) {
 	rt, err := New(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
-	sess := session.New(session.WithUserMessage("", "Hi"))
+	sess := session.New(session.WithUserMessage("Hi"))
 	sess.Title = "Unit Test"
 
 	evCh := rt.RunStream(t.Context(), sess)
@@ -382,7 +382,7 @@ func TestContextCancellation(t *testing.T) {
 	rt, err := New(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
-	sess := session.New(session.WithUserMessage("", "Hi"))
+	sess := session.New(session.WithUserMessage("Hi"))
 	sess.Title = "Unit Test"
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -547,7 +547,7 @@ func TestToolCallVariations(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			stream := tt.streamBuilder().Build()
-			sess := session.New(session.WithUserMessage("", "Use tools"))
+			sess := session.New(session.WithUserMessage("Use tools"))
 			events := runSession(t, sess, stream)
 
 			require.True(t, hasEventType(t, events, &PartialToolCallEvent{}), "Expected PartialToolCallEvent for %s", tt.description)
@@ -621,7 +621,7 @@ func TestCompactionOccursAfterToolResultsWhenToolUsePresent(t *testing.T) {
 	rt, err := New(tm, WithSessionCompaction(true), WithModelStore(mockModelStoreWithLimit{limit: 100}))
 	require.NoError(t, err)
 
-	sess := session.New(session.WithUserMessage("", "Start"))
+	sess := session.New(session.WithUserMessage("Start"))
 	events := rt.RunStream(t.Context(), sess)
 
 	// Collect events
@@ -801,7 +801,7 @@ func TestProcessToolCalls_UnknownTool_NoToolResultMessage(t *testing.T) {
 	// Register default tools (contains only transfer_task) to ensure unknown tool isn't matched
 	rt.registerDefaultTools()
 
-	sess := session.New(session.WithUserMessage("", "Start"))
+	sess := session.New(session.WithUserMessage("Start"))
 
 	// Simulate a model-issued tool call to a non-existent tool
 	calls := []tools.ToolCall{{

@@ -46,7 +46,7 @@ func runCAgent(ctx agent.InvocationContext, t *team.Team, agentName string, a *c
 
 		// Create a cagent session
 		sess := session.New(
-			session.WithUserMessage("", message),
+			session.WithUserMessage(message),
 			session.WithMaxIterations(a.MaxIterations()),
 			session.WithToolsApproved(true),
 		)

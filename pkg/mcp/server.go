@@ -8,7 +8,6 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/docker/cagent/pkg/agent"
-	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/runtime"
@@ -29,11 +28,6 @@ type ToolOutput struct {
 
 func StartMCPServer(ctx context.Context, out *cli.Printer, agentFilename string, runConfig *config.RuntimeConfig) error {
 	slog.Debug("Starting MCP server", "agent", agentFilename)
-
-	agentFilename, err := agentfile.Resolve(ctx, out, agentFilename)
-	if err != nil {
-		return err
-	}
 
 	t, err := teamloader.Load(ctx, agentFilename, runConfig)
 	if err != nil {
@@ -82,7 +76,7 @@ func StartMCPServer(ctx context.Context, out *cli.Printer, agentFilename string,
 			OutputSchema: tools.MustSchemaFor[ToolOutput](),
 		}
 
-		mcp.AddTool(server, toolDef, CreateToolHandler(t, agentName, agentFilename))
+		mcp.AddTool(server, toolDef, CreateToolHandler(t, agentName))
 	}
 
 	slog.Debug("MCP server starting with stdio transport")
@@ -94,7 +88,7 @@ func StartMCPServer(ctx context.Context, out *cli.Printer, agentFilename string,
 	return nil
 }
 
-func CreateToolHandler(t *team.Team, agentName, agentFilename string) func(context.Context, *mcp.CallToolRequest, ToolInput) (*mcp.CallToolResult, ToolOutput, error) {
+func CreateToolHandler(t *team.Team, agentName string) func(context.Context, *mcp.CallToolRequest, ToolInput) (*mcp.CallToolResult, ToolOutput, error) {
 	return func(ctx context.Context, req *mcp.CallToolRequest, input ToolInput) (*mcp.CallToolResult, ToolOutput, error) {
 		slog.Debug("MCP tool called", "agent", agentName, "message", input.Message)
 
@@ -106,7 +100,7 @@ func CreateToolHandler(t *team.Team, agentName, agentFilename string) func(conte
 		sess := session.New(
 			session.WithTitle("MCP tool call"),
 			session.WithMaxIterations(ag.MaxIterations()),
-			session.WithUserMessage(agentFilename, input.Message),
+			session.WithUserMessage(input.Message),
 			session.WithToolsApproved(true),
 		)
 

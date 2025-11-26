@@ -80,7 +80,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	sess := session.New(session.WithUserMessage("", "What is 1 + 2?"))
+	sess := session.New(session.WithUserMessage("What is 1 + 2?"))
 
 	messages, err := rt.Run(ctx, sess)
 	if err != nil {
