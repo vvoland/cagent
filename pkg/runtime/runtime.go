@@ -1418,7 +1418,13 @@ func (r *LocalRuntime) generateSessionTitle(ctx context.Context, sess *session.S
 	systemPrompt := "You are a helpful AI assistant that generates concise, descriptive titles for conversations. You will be given a conversation history and asked to create a title that captures the main topic."
 	userPrompt := fmt.Sprintf("Based on the following message a user sent to an AI assistant, generate a short, descriptive title (maximum 50 characters) that captures the main topic or purpose of the conversation. Return ONLY the title text, nothing else.\n\nUser message: %s\n\n", firstUserMessage)
 
-	titleModel := provider.CloneWithOptions(ctx, r.CurrentAgent().Model(), options.WithStructuredOutput(nil), options.WithMaxTokens(100))
+	titleModel := provider.CloneWithOptions(
+		ctx,
+		r.CurrentAgent().Model(),
+		options.WithStructuredOutput(nil),
+		options.WithMaxTokens(100),
+		options.WithGeneratingTitle(),
+	)
 	newTeam := team.New(
 		team.WithID("title-generator"),
 		team.WithAgents(agent.New("root", systemPrompt, agent.WithModel(titleModel))),

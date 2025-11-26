@@ -94,8 +94,12 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, opts ...options.Opt
 		slog.Warn(w)
 	}
 	slog.Debug("DMR provider_opts parsed", "model", cfg.Model, "context_size", contextSize, "runtime_flags", finalFlags, "speculative_opts", specOpts, "engine", engine)
-	if err := configureDockerModel(ctx, cfg.Model, contextSize, finalFlags, specOpts); err != nil {
-		slog.Debug("docker model configure skipped or failed", "error", err)
+	// Skip model configuration when generating titles to avoid reconfiguring the model
+	// with different settings (e.g., smaller max_tokens) that would affect the main agent.
+	if !globalOptions.GeneratingTitle() {
+		if err := configureDockerModel(ctx, cfg.Model, contextSize, finalFlags, specOpts); err != nil {
+			slog.Debug("docker model configure skipped or failed", "error", err)
+		}
 	}
 
 	slog.Debug("DMR client created successfully", "model", cfg.Model, "base_url", baseURL)
