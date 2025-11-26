@@ -12,6 +12,19 @@ import (
 	"github.com/docker/cagent/pkg/filesystem"
 )
 
+type Source interface {
+	Read() ([]byte, error)
+}
+
+func LoadConfigFrom(ctx context.Context, source Source) (*latest.Config, error) {
+	data, err := source.Read()
+	if err != nil {
+		return nil, err
+	}
+
+	return LoadConfigBytes(ctx, data)
+}
+
 func LoadConfig(ctx context.Context, path string, fs filesystem.FS) (*latest.Config, error) {
 	data, err := fs.ReadFile(path)
 	if err != nil {
