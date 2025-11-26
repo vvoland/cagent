@@ -3,6 +3,7 @@ package agentfile
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"fmt"
 	"io"
 	"log/slog"
@@ -15,10 +16,28 @@ import (
 	"github.com/docker/cagent/pkg/aliases"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/remote"
+	"github.com/docker/cagent/pkg/teamloader"
 )
+
+//go:embed default-agent.yaml
+var defaultAgent []byte
 
 type Printer interface {
 	Printf(format string, a ...any)
+}
+
+// ResolveSource resolves an agent file reference (local file or OCI image) to a local file path
+// For OCI references, always checks remote for updates but falls back to local cache if offline
+func ResolveSource(ctx context.Context, out Printer, agentFilename string) (teamloader.AgentSource, error) {
+	resolvedPath, err := Resolve(ctx, out, agentFilename)
+	if err != nil {
+		return nil, err
+	}
+
+	if resolvedPath == "default" {
+		return teamloader.NewBytesSource(defaultAgent), nil
+	}
+	return teamloader.NewFileSource(resolvedPath), nil
 }
 
 // Resolve resolves an agent file reference (local file or OCI image) to a local file path

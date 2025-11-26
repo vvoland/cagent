@@ -16,12 +16,12 @@ type discardOutput struct{}
 func (d *discardOutput) Printf(string, ...any) {}
 
 func Run(ctx context.Context, agentFilename string, stdin io.Reader, stdout io.Writer, runConfig *config.RuntimeConfig) error {
+	slog.Debug("Starting ACP server", "agent", agentFilename)
+
 	agentFilename, err := agentfile.Resolve(ctx, &discardOutput{}, agentFilename)
 	if err != nil {
 		return err
 	}
-
-	slog.Debug("Starting ACP server", "agent_file", agentFilename)
 
 	acpAgent := NewAgent(agentFilename, runConfig)
 	conn := acpsdk.NewAgentSideConnection(acpAgent, stdout, stdin)

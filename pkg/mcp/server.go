@@ -33,12 +33,12 @@ func (d *discardOutput) Printf(string, ...any) {}
 func StartMCPServer(ctx context.Context, agentFilename string, runConfig *config.RuntimeConfig) error {
 	slog.Debug("Starting MCP server", "agent", agentFilename)
 
-	agentFilename, err := agentfile.Resolve(ctx, &discardOutput{}, agentFilename)
+	agentSource, err := agentfile.ResolveSource(ctx, &discardOutput{}, agentFilename)
 	if err != nil {
 		return err
 	}
 
-	t, err := teamloader.Load(ctx, agentFilename, runConfig)
+	t, err := teamloader.LoadFrom(ctx, agentSource, runConfig)
 	if err != nil {
 		return fmt.Errorf("failed to load agents: %w", err)
 	}

@@ -2,7 +2,6 @@ package root
 
 import (
 	"context"
-	_ "embed"
 	"fmt"
 	"io"
 	"log/slog"
@@ -21,9 +20,6 @@ import (
 	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/telemetry"
 )
-
-//go:embed default-agent.yaml
-var defaultAgent []byte
 
 type runExecFlags struct {
 	agentName      string
@@ -96,19 +92,12 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 			return err
 		}
 	} else {
-		agentFileName, err := agentfile.Resolve(ctx, out, agentFileName)
+		agentSource, err := agentfile.ResolveSource(ctx, out, agentFileName)
 		if err != nil {
 			return err
 		}
 
-		var source teamloader.AgentSource
-		if agentFileName == "default" {
-			source = teamloader.NewBytesSource(defaultAgent)
-		} else {
-			source = teamloader.NewFileSource(agentFileName)
-		}
-
-		t, err := f.loadAgentFrom(ctx, source)
+		t, err := f.loadAgentFrom(ctx, agentSource)
 		if err != nil {
 			return err
 		}

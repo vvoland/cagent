@@ -29,12 +29,12 @@ func (d *discardOutput) Printf(string, ...any) {}
 func Run(ctx context.Context, agentFilename, agentName string, runConfig *config.RuntimeConfig, ln net.Listener) error {
 	slog.Debug("Starting A2A server", "agent", agentName, "addr", ln.Addr().String())
 
-	agentFilename, err := agentfile.Resolve(ctx, &discardOutput{}, agentFilename)
+	agentSource, err := agentfile.ResolveSource(ctx, &discardOutput{}, agentFilename)
 	if err != nil {
 		return err
 	}
 
-	t, err := teamloader.Load(ctx, agentFilename, runConfig)
+	t, err := teamloader.LoadFrom(ctx, agentSource, runConfig)
 	if err != nil {
 		return fmt.Errorf("failed to load agents: %w", err)
 	}
