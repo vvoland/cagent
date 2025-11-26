@@ -197,12 +197,10 @@ func LoadFrom(ctx context.Context, source AgentSource, runtimeConfig *config.Run
 			opts = append(opts, agent.WithLoadTimeWarnings(warnings))
 		}
 
-		// Add RAG tool if agent has RAG sources
+		// Add RAG tools if agent has RAG sources
 		if len(agentConfig.RAG) > 0 {
-			ragTool := createRAGToolForAgent(&agentConfig, ragManagers)
-			if ragTool != nil {
-				agentTools = append(agentTools, ragTool)
-			}
+			ragTools := createRAGToolsForAgent(&agentConfig, ragManagers)
+			agentTools = append(agentTools, ragTools...)
 		}
 
 		opts = append(opts, agent.WithToolSets(agentTools...))
@@ -340,25 +338,38 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 	return toolSets, warnings
 }
 
-// createRAGToolForAgent creates a RAG tool for an agent with its referenced RAG sources
-func createRAGToolForAgent(agentConfig *latest.AgentConfig, allManagers map[string]*rag.Manager) tools.ToolSet {
+// createRAGToolsForAgent creates RAG tools for an agent, one for each referenced RAG source
+func createRAGToolsForAgent(agentConfig *latest.AgentConfig, allManagers map[string]*rag.Manager) []tools.ToolSet {
 	if len(agentConfig.RAG) == 0 {
 		return nil
 	}
 
-	// Filter managers for this agent
-	agentManagers := make(map[string]*rag.Manager)
+	var ragTools []tools.ToolSet
+
 	for _, ragName := range agentConfig.RAG {
-		if mgr, exists := allManagers[ragName]; exists {
-			agentManagers[ragName] = mgr
-		} else {
+		mgr, exists := allManagers[ragName]
+		if !exists {
 			slog.Error("RAG source not found", "rag_source", ragName)
+			continue
 		}
+
+		// Use custom tool name if configured, otherwise use the RAG source name
+		toolName := mgr.ToolName()
+		if toolName == "" {
+			toolName = ragName
+		}
+
+		// Create a separate tool for this RAG source
+		ragTool := builtin.NewRAGTool(mgr, toolName)
+		ragTools = append(ragTools, ragTool)
+
+		slog.Debug("Created RAG tool for agent",
+			"rag_source", ragName,
+			"tool_name", toolName,
+			"manager_name", mgr.Name(),
+			"description", mgr.Description(),
+			"instruction", mgr.ToolInstruction())
 	}
 
-	if len(agentManagers) == 0 {
-		return nil
-	}
-
-	return builtin.NewRAGTool(agentManagers)
+	return ragTools
 }

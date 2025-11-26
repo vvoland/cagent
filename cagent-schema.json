@@ -683,9 +683,24 @@
       "type": "object",
       "description": "RAG (Retrieval-Augmented Generation) configuration for document search and retrieval with pluggable strategies. Multiple strategies enable hybrid retrieval and reranking.",
       "properties": {
-        "description": {
-          "type": "string",
-          "description": "Description of the RAG source"
+        "tool": {
+          "type": "object",
+          "description": "Tool configuration for the RAG source",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Custom name for the tool (defaults to RAG source name if not specified)"
+            },
+            "description": {
+              "type": "string",
+              "description": "Description of what the tool does (shown to the LLM when selecting tools)"
+            },
+            "instruction": {
+              "type": "string",
+              "description": "Instruction on how the RAG tool should be used effectively (shown in system prompt)"
+            }
+          },
+          "additionalProperties": false
         },
         "docs": {
           "type": "array",
@@ -709,8 +724,8 @@
                 "type": "string",
                 "description": "Retrieval strategy type",
                 "enum": [
-                  "chunked-embeddings",
-                  "bm25"
+                  "bm25",
+                  "chunked-embeddings"
                 ]
               },
               "model": {

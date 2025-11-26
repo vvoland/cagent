@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/docker/cagent/pkg/rag/database"
 	"github.com/docker/cagent/pkg/rag/fusion"
@@ -14,10 +15,17 @@ import (
 	"github.com/docker/cagent/pkg/rag/types"
 )
 
+// ToolConfig represents tool-specific configuration
+type ToolConfig struct {
+	Name        string
+	Description string
+	Instruction string
+}
+
 // Config represents RAG manager configuration in domain terms,
 // independent of any particular config schema version.
 type Config struct {
-	Description     string
+	Tool            ToolConfig
 	Docs            []string
 	Results         ResultsConfig
 	FusionConfig    *FusionConfig
@@ -156,7 +164,13 @@ func (m *Manager) Initialize(ctx context.Context) error {
 				"chunk_size", strategyCfg.ChunkSize,
 				"chunk_overlap", strategyCfg.ChunkOverlap)
 
+			start := time.Now()
 			err := strategyImpl.Initialize(ctx, strategyCfg.Docs, strategyCfg.ChunkSize, strategyCfg.ChunkOverlap, strategyCfg.RespectWordBoundaries)
+			indexDuration := time.Since(start)
+			slog.Debug("[RAG Manager] Strategy indexing duration",
+				"rag_name", m.name,
+				"strategy", strategyName,
+				"duration", indexDuration)
 			if err != nil {
 				slog.Error("[RAG Manager] Strategy initialization failed",
 					"rag_name", m.name,
@@ -472,7 +486,17 @@ func (m *Manager) Name() string {
 
 // Description returns the RAG source description
 func (m *Manager) Description() string {
-	return m.config.Description
+	return m.config.Tool.Description
+}
+
+// ToolName returns the custom tool name for this RAG source
+func (m *Manager) ToolName() string {
+	return m.config.Tool.Name
+}
+
+// ToolInstruction returns the tool instruction for this RAG source
+func (m *Manager) ToolInstruction() string {
+	return m.config.Tool.Instruction
 }
 
 // deduplicateResults removes duplicate entries from the result set.
