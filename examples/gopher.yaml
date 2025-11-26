@@ -86,6 +86,7 @@ agents:
 
   librarian:
     model: haiku
+    description: Documentation librarian. Can search the Web and look for relevant documentation to help the golang developer agent.
     instruction: |
       You are the librarian, your job is to look for relevant documentation to help the golang developer agent.
       When given a query, search the internet for relevant documentation, articles, or resources that can assist in completing the task.
@@ -94,5 +95,5 @@ agents:
       - type: mcp
         ref: docker:context7
       - type: mcp
-        ref: docker:brave-search
+        ref: docker:brave
       - type: fetch
