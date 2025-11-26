@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 
 	"github.com/docker/cagent/pkg/content"
-	"github.com/docker/cagent/pkg/reference"
 	"github.com/docker/cagent/pkg/remote"
 )
 
@@ -95,7 +94,6 @@ func (a ociSource) ParentDir() string {
 }
 
 func (a ociSource) Read(ctx context.Context) ([]byte, error) {
-	// Treat as an OCI image reference
 	// Check if we have a local copy (without loading content)
 	store, err := content.NewStore()
 	if err != nil {
@@ -119,15 +117,6 @@ func (a ociSource) Read(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load agent from store: %w", err)
 	}
-
-	filename := reference.OciRefToFilename(a.reference)
-	tmpFilename := filepath.Join(os.TempDir(), filename)
-	defer os.Remove(tmpFilename)
-	if err := os.WriteFile(tmpFilename, []byte(af), 0o644); err != nil {
-		return nil, fmt.Errorf("failed to write agent file: %w", err)
-	}
-
-	slog.Debug("Resolved OCI reference to file", "oci_ref", a.reference, "file", tmpFilename)
 
 	return []byte(af), nil
 }
