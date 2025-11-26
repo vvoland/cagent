@@ -469,9 +469,9 @@ func TestStartBackgroundRAGInit_StopsForwardingAfterContextCancel(t *testing.T) 
 		eventsCh <- ev
 	})
 
-	// Emit a "ready" event and ensure it is forwarded.
+	// Emit an "indexing_completed" event and ensure it is forwarded.
 	strategyEvents <- ragtypes.Event{
-		Type:         "ready",
+		Type:         "indexing_completed",
 		StrategyName: "stub",
 	}
 
@@ -490,7 +490,7 @@ func TestStartBackgroundRAGInit_StopsForwardingAfterContextCancel(t *testing.T) 
 
 	// Emit another event; it should NOT be forwarded.
 	strategyEvents <- ragtypes.Event{
-		Type:         "ready",
+		Type:         "indexing_completed",
 		StrategyName: "stub",
 	}
 

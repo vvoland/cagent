@@ -265,7 +265,7 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case *runtime.WarningEvent:
 		cmd := core.CmdHandler(notification.ShowMsg{Text: msg.Message, Type: notification.TypeWarning})
 		return p, cmd
-	case *runtime.RAGIndexingStartedEvent, *runtime.RAGIndexingProgressEvent, *runtime.RAGIndexingCompletedEvent, *runtime.RAGReadyEvent:
+	case *runtime.RAGIndexingStartedEvent, *runtime.RAGIndexingProgressEvent, *runtime.RAGIndexingCompletedEvent:
 		// Forward RAG events to sidebar
 		slog.Debug("Chat page forwarding RAG event to sidebar", "event_type", fmt.Sprintf("%T", msg))
 		var model layout.Model

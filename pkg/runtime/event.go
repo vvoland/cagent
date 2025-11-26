@@ -479,17 +479,3 @@ func RAGIndexingCompleted(ragName, strategyName, agentName string) Event {
 		AgentContext: AgentContext{AgentName: agentName},
 	}
 }
-
-type RAGReadyEvent struct {
-	Type    string `json:"type"`
-	RAGName string `json:"rag_name"`
-	AgentContext
-}
-
-func RAGReady(ragName, agentName string) Event {
-	return &RAGReadyEvent{
-		Type:         "rag_ready",
-		RAGName:      ragName,
-		AgentContext: AgentContext{AgentName: agentName},
-	}
-}

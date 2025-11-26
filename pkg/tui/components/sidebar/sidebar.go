@@ -213,16 +213,6 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		slog.Debug("Sidebar received RAG indexing completed event", "rag", msg.RAGName, "strategy", msg.StrategyName)
 		delete(m.ragIndexing, key)
 		return m, nil
-	case *runtime.RAGReadyEvent:
-		// Kept for backward compatibility, but indexing_completed now handles this
-		// For RAGReadyEvent, we don't have strategy name, so delete all keys with this RAG name prefix
-		slog.Debug("Sidebar received RAG ready event", "rag", msg.RAGName)
-		for key := range m.ragIndexing {
-			if strings.HasPrefix(key, msg.RAGName+"/") {
-				delete(m.ragIndexing, key)
-			}
-		}
-		return m, nil
 	case *runtime.SessionTitleEvent:
 		m.sessionTitle = msg.Title
 		return m, nil
@@ -376,13 +366,12 @@ func (m *model) workingIndicator() string {
 			return strategies[i].strategyName < strategies[j].strategyName
 		})
 
-		// First line: RAG source name with spinner
-		spinnerView := strategies[0].state.spinner.View()
+		// Display RAG source name as header
 		ragNameStyled := styles.BoldStyle.Render(displayRagName)
-		line1 := fmt.Sprintf("%s Indexing %s", spinnerView, ragNameStyled)
-		indicators = append(indicators, styles.ActiveStyle.Render(line1))
+		header := fmt.Sprintf("Indexing %s", ragNameStyled)
+		indicators = append(indicators, styles.ActiveStyle.Render(header))
 
-		// Following lines: each strategy with progress, indented with subtle emphasis
+		// Following lines: each strategy with its own spinner and progress
 		for _, strategy := range strategies {
 			displayStratName := strings.ReplaceAll(strategy.strategyName, "-", " ")
 			progress := ""
@@ -390,7 +379,9 @@ func (m *model) workingIndicator() string {
 				progress = fmt.Sprintf(" [%d/%d]", strategy.state.current, strategy.state.total)
 			}
 			stratNameStyled := styles.BoldStyle.Render(displayStratName)
-			line := fmt.Sprintf("  • %s%s", stratNameStyled, progress)
+			// Show spinner for each strategy
+			spinnerView := strategy.state.spinner.View()
+			line := fmt.Sprintf("  %s %s%s", spinnerView, stratNameStyled, progress)
 			indicators = append(indicators, line)
 		}
 	}
