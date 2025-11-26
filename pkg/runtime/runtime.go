@@ -283,8 +283,6 @@ func (r *LocalRuntime) forwardRAGEvents(ctx context.Context, ragManagers map[str
 							0,                    // context limit (not applicable)
 							ragEvent.Cost,
 						))
-					case "ready":
-						sendEvent(RAGReady(ragName, agentName))
 					case "error":
 						if ragEvent.Error != nil {
 							sendEvent(Error(fmt.Sprintf("RAG %s error: %v", ragName, ragEvent.Error)))
