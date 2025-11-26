@@ -74,9 +74,8 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 		_ = ln.Close()
 	}()
 
-	slog.Info("Listening on " + ln.Addr().String())
-
-	slog.Debug("Starting server", "agents", resolvedPath)
+	out.Println("Listening on " + ln.Addr().String())
+	slog.Debug("Starting server", "agents", resolvedPath, "addr", ln.Addr().String())
 
 	sessionStore, err := session.NewSQLiteSessionStore(f.sessionDB)
 	if err != nil {
