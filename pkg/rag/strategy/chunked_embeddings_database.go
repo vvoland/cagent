@@ -13,15 +13,18 @@ import (
 	"github.com/docker/cagent/pkg/rag/database"
 )
 
-// VectorDatabase implements a SQLite database for vector embeddings storage
-type VectorDatabase struct {
+// chunkedVectorDB implements vectorStoreDB for the chunked-embeddings strategy.
+// It stores document chunks with their embedding vectors (no semantic summaries).
+type chunkedVectorDB struct {
 	db               *sql.DB
 	vectorDimensions int
+	tablePrefix      string
+	filesTable       string
+	chunksTable      string
 }
 
-// NewVectorDatabase creates a new SQLite database for vector embeddings
-func NewVectorDatabase(dbPath string, vectorDimensions int) (*VectorDatabase, error) {
-	// Ensure parent directory exists
+// newChunkedVectorDB creates a new SQLite database for chunked vector embeddings.
+func newChunkedVectorDB(dbPath string, vectorDimensions int, strategyName string) (*chunkedVectorDB, error) {
 	if err := ensureDir(dbPath); err != nil {
 		return nil, fmt.Errorf("failed to create database directory: %w", err)
 	}
@@ -31,66 +34,67 @@ func NewVectorDatabase(dbPath string, vectorDimensions int) (*VectorDatabase, er
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	// Configure connection pool
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 	db.SetConnMaxLifetime(0)
 
-	vectorDB := &VectorDatabase{
+	tablePrefix := sanitizeTableName(strategyName)
+
+	cdb := &chunkedVectorDB{
 		db:               db,
 		vectorDimensions: vectorDimensions,
+		tablePrefix:      tablePrefix,
+		filesTable:       tablePrefix + "_files",
+		chunksTable:      tablePrefix + "_chunks",
 	}
 
-	// Create schema
-	if err := vectorDB.createSchema(); err != nil {
+	if err := cdb.createSchema(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to create schema: %w", err)
 	}
 
-	slog.Info("Vector database initialized",
+	slog.Info("Chunked vector database initialized",
 		"vector_dimensions", vectorDimensions,
-		"path", dbPath)
+		"path", dbPath,
+		"table_prefix", tablePrefix)
 
-	return vectorDB, nil
+	return cdb, nil
 }
 
-// createSchema creates the database schema for vector embeddings
-func (d *VectorDatabase) createSchema() error {
-	schema := `
-	-- File-level metadata (stored once per file, not per chunk)
-	CREATE TABLE IF NOT EXISTS files (
+func (d *chunkedVectorDB) createSchema() error {
+	schema := fmt.Sprintf(`
+	CREATE TABLE IF NOT EXISTS %s (
 		source_path TEXT PRIMARY KEY,
 		file_hash TEXT NOT NULL,
 		indexed_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
-	CREATE INDEX IF NOT EXISTS idx_file_hash ON files(file_hash);
+	CREATE INDEX IF NOT EXISTS idx_%s_file_hash ON %s(file_hash);
 	
-	-- Chunk-level data with embeddings
-	CREATE TABLE IF NOT EXISTS chunks (
+	CREATE TABLE IF NOT EXISTS %s (
 		source_path TEXT NOT NULL,
 		chunk_index INTEGER NOT NULL,
 		content TEXT NOT NULL,
 		embedding BLOB NOT NULL,
 		PRIMARY KEY (source_path, chunk_index),
-		FOREIGN KEY (source_path) REFERENCES files(source_path) ON DELETE CASCADE
+		FOREIGN KEY (source_path) REFERENCES %s(source_path) ON DELETE CASCADE
 	);
-	`
+	`, d.filesTable, d.tablePrefix, d.filesTable, d.chunksTable, d.filesTable)
 
 	_, err := d.db.Exec(schema)
 	return err
 }
 
-// AddDocument adds or updates a document with its vector embedding
-func (d *VectorDatabase) AddDocument(ctx context.Context, doc database.Document) error {
-	// Validate vector dimensions
-	if len(doc.Embedding) == 0 {
+// AddDocumentWithEmbedding implements vectorStoreDB.
+// For chunked-embeddings, the embeddingInput parameter is ignored.
+func (d *chunkedVectorDB) AddDocumentWithEmbedding(ctx context.Context, doc database.Document, embedding []float64, _ string) error {
+	if len(embedding) == 0 {
 		return fmt.Errorf("embedding is required for vector database")
 	}
-	if len(doc.Embedding) != d.vectorDimensions {
-		return fmt.Errorf("embedding dimension mismatch: got %d, expected %d", len(doc.Embedding), d.vectorDimensions)
+	if len(embedding) != d.vectorDimensions {
+		return fmt.Errorf("embedding dimension mismatch: got %d, expected %d", len(embedding), d.vectorDimensions)
 	}
 
-	embJSON, err := json.Marshal(doc.Embedding)
+	embJSON, err := json.Marshal(embedding)
 	if err != nil {
 		return fmt.Errorf("failed to marshal embedding: %w", err)
 	}
@@ -99,27 +103,23 @@ func (d *VectorDatabase) AddDocument(ctx context.Context, doc database.Document)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer func() {
-		_ = tx.Rollback()
-	}()
+	defer func() { _ = tx.Rollback() }()
 
-	// Upsert file metadata (stores file_hash once, not on every chunk)
 	_, err = tx.ExecContext(ctx,
-		`INSERT INTO files (source_path, file_hash, indexed_at)
+		fmt.Sprintf(`INSERT INTO %s (source_path, file_hash, indexed_at)
 		 VALUES (?, ?, CURRENT_TIMESTAMP)
 		 ON CONFLICT(source_path) 
-		 DO UPDATE SET file_hash = excluded.file_hash, indexed_at = CURRENT_TIMESTAMP`,
+		 DO UPDATE SET file_hash = excluded.file_hash, indexed_at = CURRENT_TIMESTAMP`, d.filesTable),
 		doc.SourcePath, doc.FileHash)
 	if err != nil {
 		return fmt.Errorf("failed to upsert file metadata: %w", err)
 	}
 
-	// Upsert chunk data
 	_, err = tx.ExecContext(ctx,
-		`INSERT INTO chunks (source_path, chunk_index, content, embedding)
+		fmt.Sprintf(`INSERT INTO %s (source_path, chunk_index, content, embedding)
 		 VALUES (?, ?, ?, ?)
 		 ON CONFLICT(source_path, chunk_index) 
-		 DO UPDATE SET content = excluded.content, embedding = excluded.embedding`,
+		 DO UPDATE SET content = excluded.content, embedding = excluded.embedding`, d.chunksTable),
 		doc.SourcePath, doc.ChunkIndex, doc.Content, embJSON)
 	if err != nil {
 		return fmt.Errorf("failed to upsert chunk: %w", err)
@@ -128,21 +128,13 @@ func (d *VectorDatabase) AddDocument(ctx context.Context, doc database.Document)
 	return tx.Commit()
 }
 
-// DeleteDocumentsByPath deletes all documents from a specific source file
-func (d *VectorDatabase) DeleteDocumentsByPath(ctx context.Context, sourcePath string) error {
-	// Delete file record (chunks cascade automatically via FK)
-	_, err := d.db.ExecContext(ctx, "DELETE FROM files WHERE source_path = ?", sourcePath)
-	return err
-}
-
-// SearchSimilar finds documents similar to the query embedding using cosine similarity
-func (d *VectorDatabase) SearchSimilar(ctx context.Context, queryEmbedding []float64, limit int) ([]database.SearchResult, error) {
-	// Join files and chunks - file metadata stored once, not duplicated per chunk
-	query := `
+// SearchSimilarVectors implements vectorStoreDB.
+func (d *chunkedVectorDB) SearchSimilarVectors(ctx context.Context, queryEmbedding []float64, limit int) ([]VectorSearchResultData, error) {
+	query := fmt.Sprintf(`
 	SELECT c.source_path, c.chunk_index, c.content, c.embedding, f.file_hash, f.indexed_at
-	FROM chunks c
-	JOIN files f ON c.source_path = f.source_path
-	`
+	FROM %s c
+	JOIN %s f ON c.source_path = f.source_path
+	`, d.chunksTable, d.filesTable)
 
 	rows, err := d.db.QueryContext(ctx, query)
 	if err != nil {
@@ -150,7 +142,7 @@ func (d *VectorDatabase) SearchSimilar(ctx context.Context, queryEmbedding []flo
 	}
 	defer rows.Close()
 
-	var results []database.SearchResult
+	var results []VectorSearchResultData
 	for rows.Next() {
 		var doc database.Document
 		var embJSON []byte
@@ -160,7 +152,6 @@ func (d *VectorDatabase) SearchSimilar(ctx context.Context, queryEmbedding []flo
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 
-		// Generate document ID for compatibility
 		doc.ID = fmt.Sprintf("%s_%d", doc.SourcePath, doc.ChunkIndex)
 
 		var embedding []float64
@@ -169,8 +160,9 @@ func (d *VectorDatabase) SearchSimilar(ctx context.Context, queryEmbedding []flo
 		}
 
 		similarity := database.CosineSimilarity(queryEmbedding, embedding)
-		results = append(results, database.SearchResult{
+		results = append(results, VectorSearchResultData{
 			Document:   doc,
+			Embedding:  embedding,
 			Similarity: similarity,
 		})
 	}
@@ -179,12 +171,10 @@ func (d *VectorDatabase) SearchSimilar(ctx context.Context, queryEmbedding []flo
 		return nil, fmt.Errorf("error iterating rows: %w", err)
 	}
 
-	// Sort by similarity (highest first)
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].Similarity > results[j].Similarity
 	})
 
-	// Limit results
 	if len(results) > limit {
 		results = results[:limit]
 	}
@@ -192,45 +182,20 @@ func (d *VectorDatabase) SearchSimilar(ctx context.Context, queryEmbedding []flo
 	return results, nil
 }
 
-// GetDocumentsByPath retrieves all documents from a specific source file
-func (d *VectorDatabase) GetDocumentsByPath(ctx context.Context, sourcePath string) ([]database.Document, error) {
-	rows, err := d.db.QueryContext(ctx,
-		`SELECT c.source_path, c.chunk_index, c.content, f.file_hash, f.indexed_at
-		 FROM chunks c
-		 JOIN files f ON c.source_path = f.source_path
-		 WHERE c.source_path = ?`,
-		sourcePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query documents: %w", err)
-	}
-	defer rows.Close()
-
-	var docs []database.Document
-	for rows.Next() {
-		var doc database.Document
-		if err := rows.Scan(&doc.SourcePath, &doc.ChunkIndex, &doc.Content,
-			&doc.FileHash, &doc.CreatedAt); err != nil {
-			return nil, fmt.Errorf("failed to scan row: %w", err)
-		}
-		// Generate document ID for compatibility
-		doc.ID = fmt.Sprintf("%s_%d", doc.SourcePath, doc.ChunkIndex)
-		docs = append(docs, doc)
-	}
-
-	return docs, rows.Err()
+func (d *chunkedVectorDB) DeleteDocumentsByPath(ctx context.Context, sourcePath string) error {
+	_, err := d.db.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s WHERE source_path = ?", d.filesTable), sourcePath)
+	return err
 }
 
-// GetFileMetadata retrieves metadata for a specific source file
-func (d *VectorDatabase) GetFileMetadata(ctx context.Context, sourcePath string) (*database.FileMetadata, error) {
+func (d *chunkedVectorDB) GetFileMetadata(ctx context.Context, sourcePath string) (*database.FileMetadata, error) {
 	var metadata database.FileMetadata
 
-	// Get file metadata and count chunks
 	err := d.db.QueryRowContext(ctx,
-		`SELECT f.source_path, f.file_hash, f.indexed_at, COUNT(c.chunk_index) as chunk_count
-		 FROM files f
-		 LEFT JOIN chunks c ON f.source_path = c.source_path
+		fmt.Sprintf(`SELECT f.source_path, f.file_hash, f.indexed_at, COUNT(c.chunk_index) as chunk_count
+		 FROM %s f
+		 LEFT JOIN %s c ON f.source_path = c.source_path
 		 WHERE f.source_path = ?
-		 GROUP BY f.source_path, f.file_hash, f.indexed_at`,
+		 GROUP BY f.source_path, f.file_hash, f.indexed_at`, d.filesTable, d.chunksTable),
 		sourcePath).Scan(&metadata.SourcePath, &metadata.FileHash, &metadata.LastIndexed, &metadata.ChunkCount)
 
 	if err == sql.ErrNoRows {
@@ -243,25 +208,22 @@ func (d *VectorDatabase) GetFileMetadata(ctx context.Context, sourcePath string)
 	return &metadata, nil
 }
 
-// SetFileMetadata stores or updates metadata for a source file
-func (d *VectorDatabase) SetFileMetadata(ctx context.Context, metadata database.FileMetadata) error {
-	// Update file metadata
+func (d *chunkedVectorDB) SetFileMetadata(ctx context.Context, metadata database.FileMetadata) error {
 	_, err := d.db.ExecContext(ctx,
-		`INSERT INTO files (source_path, file_hash, indexed_at)
+		fmt.Sprintf(`INSERT INTO %s (source_path, file_hash, indexed_at)
 		 VALUES (?, ?, CURRENT_TIMESTAMP)
 		 ON CONFLICT(source_path) 
-		 DO UPDATE SET file_hash = excluded.file_hash, indexed_at = CURRENT_TIMESTAMP`,
+		 DO UPDATE SET file_hash = excluded.file_hash, indexed_at = CURRENT_TIMESTAMP`, d.filesTable),
 		metadata.SourcePath, metadata.FileHash)
 	return err
 }
 
-// GetAllFileMetadata retrieves metadata for all indexed files
-func (d *VectorDatabase) GetAllFileMetadata(ctx context.Context) ([]database.FileMetadata, error) {
+func (d *chunkedVectorDB) GetAllFileMetadata(ctx context.Context) ([]database.FileMetadata, error) {
 	rows, err := d.db.QueryContext(ctx,
-		`SELECT f.source_path, f.file_hash, f.indexed_at, COUNT(c.chunk_index) as chunk_count
-		 FROM files f
-		 LEFT JOIN chunks c ON f.source_path = c.source_path
-		 GROUP BY f.source_path, f.file_hash, f.indexed_at`)
+		fmt.Sprintf(`SELECT f.source_path, f.file_hash, f.indexed_at, COUNT(c.chunk_index) as chunk_count
+		 FROM %s f
+		 LEFT JOIN %s c ON f.source_path = c.source_path
+		 GROUP BY f.source_path, f.file_hash, f.indexed_at`, d.filesTable, d.chunksTable))
 	if err != nil {
 		return nil, fmt.Errorf("failed to query file metadata: %w", err)
 	}
@@ -279,20 +241,14 @@ func (d *VectorDatabase) GetAllFileMetadata(ctx context.Context) ([]database.Fil
 	return metadata, rows.Err()
 }
 
-// DeleteFileMetadata deletes metadata for a specific source file
-func (d *VectorDatabase) DeleteFileMetadata(ctx context.Context, sourcePath string) error {
-	// Delete file record (chunks cascade automatically via FK)
-	_, err := d.db.ExecContext(ctx, "DELETE FROM files WHERE source_path = ?", sourcePath)
+func (d *chunkedVectorDB) DeleteFileMetadata(ctx context.Context, sourcePath string) error {
+	_, err := d.db.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s WHERE source_path = ?", d.filesTable), sourcePath)
 	return err
 }
 
-// Close closes the database connection
-func (d *VectorDatabase) Close() error {
-	// Checkpoint WAL to merge changes into main database file
-	// This reduces .db-wal file size and ensures clean shutdown
+func (d *chunkedVectorDB) Close() error {
 	if _, err := d.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
 		slog.Warn("Failed to checkpoint WAL before close", "error", err)
 	}
-
 	return d.db.Close()
 }

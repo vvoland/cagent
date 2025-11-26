@@ -25,6 +25,6 @@ rag:
       - ./rag/blork_field_guide.txt
     strategies:
       - type: chunked-embeddings
-        model: openai/text-embedding-3-small
+        embedding_model: openai/text-embedding-3-small
         database: ./rag/chunked_embeddings.db
         vector_dimensions: 1536

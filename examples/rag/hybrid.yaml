@@ -25,7 +25,7 @@ rag:
     strategies:
       # Chunked embeddings strategy for semantic search
       - type: chunked-embeddings
-        model: openai/text-embedding-3-small
+        embedding_model: openai/text-embedding-3-small
         docs:
           - ./docs                            # Additional docs for chunked-embeddings strategy only
         database: ./chunked_embeddings.db     # chunked-embeddings database to use; path to local sqlite database

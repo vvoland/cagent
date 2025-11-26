@@ -31,7 +31,7 @@ rag:
 
     strategies:
       - type: chunked-embeddings
-        model: openai-embedder
+        embedding_model: openai-embedder
         database: ./chunked_embeddings.db
         similarity_metric: cosine_similarity
         chunking:

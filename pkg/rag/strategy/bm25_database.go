@@ -13,14 +13,17 @@ import (
 	"github.com/docker/cagent/pkg/rag/database"
 )
 
-// BM25Database implements a simple database for BM25 strategy (no vectors needed)
-type BM25Database struct {
-	db *sql.DB
+// bm25DB implements the database for BM25 strategy (no vectors needed).
+// Uses the base Document type without embeddings.
+type bm25DB struct {
+	db            *sql.DB
+	tablePrefix   string
+	docsTable     string
+	metadataTable string
 }
 
-// NewBM25Database creates a new SQLite database for BM25 strategy
-func NewBM25Database(dbPath string) (*BM25Database, error) {
-	// Ensure parent directory exists
+// newBM25DB creates a new SQLite database for BM25 strategy.
+func newBM25DB(dbPath, strategyName string) (*bm25DB, error) {
 	if err := ensureDir(dbPath); err != nil {
 		return nil, fmt.Errorf("failed to create database directory: %w", err)
 	}
@@ -30,29 +33,32 @@ func NewBM25Database(dbPath string) (*BM25Database, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	// Configure connection pool
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 	db.SetConnMaxLifetime(0)
 
-	bm25DB := &BM25Database{db: db}
+	tablePrefix := sanitizeTableName(strategyName)
 
-	// Create schema
-	if err := bm25DB.createSchema(); err != nil {
+	bdb := &bm25DB{
+		db:            db,
+		tablePrefix:   tablePrefix,
+		docsTable:     tablePrefix + "_documents",
+		metadataTable: tablePrefix + "_file_metadata",
+	}
+
+	if err := bdb.createSchema(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to create schema: %w", err)
 	}
 
-	slog.Info("BM25 database initialized", "path", dbPath)
+	slog.Info("BM25 database initialized", "path", dbPath, "table_prefix", tablePrefix)
 
-	return bm25DB, nil
+	return bdb, nil
 }
 
-// createSchema creates the simple schema for BM25 (no vectors)
-func (d *BM25Database) createSchema() error {
-	schema := `
-	-- Document metadata (no vectors needed for BM25)
-	CREATE TABLE IF NOT EXISTS documents (
+func (d *bm25DB) createSchema() error {
+	schema := fmt.Sprintf(`
+	CREATE TABLE IF NOT EXISTS %s (
 		id TEXT PRIMARY KEY,
 		source_path TEXT NOT NULL,
 		chunk_index INTEGER NOT NULL,
@@ -61,38 +67,38 @@ func (d *BM25Database) createSchema() error {
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		UNIQUE(source_path, chunk_index)
 	);
-	CREATE INDEX IF NOT EXISTS idx_source_path ON documents(source_path);
-	CREATE INDEX IF NOT EXISTS idx_file_hash ON documents(file_hash);
-	CREATE INDEX IF NOT EXISTS idx_content_fts ON documents(content);
+	CREATE INDEX IF NOT EXISTS idx_%s_source_path ON %s(source_path);
+	CREATE INDEX IF NOT EXISTS idx_%s_file_hash ON %s(file_hash);
+	CREATE INDEX IF NOT EXISTS idx_%s_content_fts ON %s(content);
 	
-	-- File metadata for incremental indexing
-	CREATE TABLE IF NOT EXISTS file_metadata (
+	CREATE TABLE IF NOT EXISTS %s (
 		source_path TEXT PRIMARY KEY,
 		file_hash TEXT NOT NULL,
 		last_indexed DATETIME DEFAULT CURRENT_TIMESTAMP,
 		chunk_count INTEGER DEFAULT 0
 	);
-	CREATE INDEX IF NOT EXISTS idx_metadata_hash ON file_metadata(file_hash);
-	`
+	CREATE INDEX IF NOT EXISTS idx_%s_metadata_hash ON %s(file_hash);
+	`, d.docsTable,
+		d.tablePrefix, d.docsTable,
+		d.tablePrefix, d.docsTable,
+		d.tablePrefix, d.docsTable,
+		d.metadataTable,
+		d.tablePrefix, d.metadataTable)
 
 	_, err := d.db.Exec(schema)
 	return err
 }
 
-// AddDocument adds or updates a document (no embedding needed)
-func (d *BM25Database) AddDocument(ctx context.Context, doc database.Document) error {
+func (d *bm25DB) AddDocument(ctx context.Context, doc database.Document) error {
 	tx, err := d.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer func() {
-		_ = tx.Rollback()
-	}()
+	defer func() { _ = tx.Rollback() }()
 
-	// Check if document exists
 	var exists bool
 	err = tx.QueryRowContext(ctx,
-		"SELECT 1 FROM documents WHERE source_path = ? AND chunk_index = ?",
+		fmt.Sprintf("SELECT 1 FROM %s WHERE source_path = ? AND chunk_index = ?", d.docsTable),
 		doc.SourcePath, doc.ChunkIndex).Scan(&exists)
 
 	if err != nil && err != sql.ErrNoRows {
@@ -100,19 +106,17 @@ func (d *BM25Database) AddDocument(ctx context.Context, doc database.Document) e
 	}
 
 	if exists {
-		// Update existing
 		_, err = tx.ExecContext(ctx,
-			`UPDATE documents SET content = ?, file_hash = ?, created_at = CURRENT_TIMESTAMP 
-			 WHERE source_path = ? AND chunk_index = ?`,
+			fmt.Sprintf(`UPDATE %s SET content = ?, file_hash = ?, created_at = CURRENT_TIMESTAMP 
+			 WHERE source_path = ? AND chunk_index = ?`, d.docsTable),
 			doc.Content, doc.FileHash, doc.SourcePath, doc.ChunkIndex)
 		if err != nil {
 			return fmt.Errorf("failed to update document: %w", err)
 		}
 	} else {
-		// Insert new
 		_, err = tx.ExecContext(ctx,
-			`INSERT INTO documents (id, source_path, chunk_index, content, file_hash)
-			 VALUES (?, ?, ?, ?, ?)`,
+			fmt.Sprintf(`INSERT INTO %s (id, source_path, chunk_index, content, file_hash)
+			 VALUES (?, ?, ?, ?, ?)`, d.docsTable),
 			doc.ID, doc.SourcePath, doc.ChunkIndex, doc.Content, doc.FileHash)
 		if err != nil {
 			return fmt.Errorf("failed to insert document: %w", err)
@@ -122,49 +126,18 @@ func (d *BM25Database) AddDocument(ctx context.Context, doc database.Document) e
 	return tx.Commit()
 }
 
-// DeleteDocumentsByPath deletes all documents from a specific source file
-func (d *BM25Database) DeleteDocumentsByPath(ctx context.Context, sourcePath string) error {
-	_, err := d.db.ExecContext(ctx, "DELETE FROM documents WHERE source_path = ?", sourcePath)
+func (d *bm25DB) DeleteDocumentsByPath(ctx context.Context, sourcePath string) error {
+	_, err := d.db.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s WHERE source_path = ?", d.docsTable), sourcePath)
 	return err
 }
 
-// SearchSimilar is not used by BM25 (it does its own scoring)
-// This just returns all documents for BM25 to score
-func (d *BM25Database) SearchSimilar(ctx context.Context, _ []float64, limit int) ([]database.SearchResult, error) {
-	query := `
+func (d *bm25DB) GetAllDocuments(ctx context.Context) ([]database.Document, error) {
+	query := fmt.Sprintf(`
 	SELECT id, source_path, chunk_index, content, file_hash, created_at
-	FROM documents
-	LIMIT ?
-	`
+	FROM %s
+	`, d.docsTable)
 
-	rows, err := d.db.QueryContext(ctx, query, limit)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query documents: %w", err)
-	}
-	defer rows.Close()
-
-	var results []database.SearchResult
-	for rows.Next() {
-		var doc database.Document
-		if err := rows.Scan(&doc.ID, &doc.SourcePath, &doc.ChunkIndex, &doc.Content,
-			&doc.FileHash, &doc.CreatedAt); err != nil {
-			return nil, fmt.Errorf("failed to scan row: %w", err)
-		}
-
-		results = append(results, database.SearchResult{
-			Document:   doc,
-			Similarity: 0, // BM25 calculates its own scores
-		})
-	}
-
-	return results, rows.Err()
-}
-
-// GetDocumentsByPath retrieves all documents from a specific source file
-func (d *BM25Database) GetDocumentsByPath(ctx context.Context, sourcePath string) ([]database.Document, error) {
-	rows, err := d.db.QueryContext(ctx,
-		"SELECT id, source_path, chunk_index, content, file_hash, created_at FROM documents WHERE source_path = ?",
-		sourcePath)
+	rows, err := d.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query documents: %w", err)
 	}
@@ -183,11 +156,10 @@ func (d *BM25Database) GetDocumentsByPath(ctx context.Context, sourcePath string
 	return docs, rows.Err()
 }
 
-// GetFileMetadata retrieves metadata for a specific source file
-func (d *BM25Database) GetFileMetadata(ctx context.Context, sourcePath string) (*database.FileMetadata, error) {
+func (d *bm25DB) GetFileMetadata(ctx context.Context, sourcePath string) (*database.FileMetadata, error) {
 	var metadata database.FileMetadata
 	err := d.db.QueryRowContext(ctx,
-		"SELECT source_path, file_hash, last_indexed, chunk_count FROM file_metadata WHERE source_path = ?",
+		fmt.Sprintf("SELECT source_path, file_hash, last_indexed, chunk_count FROM %s WHERE source_path = ?", d.metadataTable),
 		sourcePath).Scan(&metadata.SourcePath, &metadata.FileHash, &metadata.LastIndexed, &metadata.ChunkCount)
 
 	if err == sql.ErrNoRows {
@@ -200,25 +172,23 @@ func (d *BM25Database) GetFileMetadata(ctx context.Context, sourcePath string) (
 	return &metadata, nil
 }
 
-// SetFileMetadata stores or updates metadata for a source file
-func (d *BM25Database) SetFileMetadata(ctx context.Context, metadata database.FileMetadata) error {
-	query := `
-	INSERT INTO file_metadata (source_path, file_hash, last_indexed, chunk_count)
+func (d *bm25DB) SetFileMetadata(ctx context.Context, metadata database.FileMetadata) error {
+	query := fmt.Sprintf(`
+	INSERT INTO %s (source_path, file_hash, last_indexed, chunk_count)
 	VALUES (?, ?, CURRENT_TIMESTAMP, ?)
 	ON CONFLICT(source_path) DO UPDATE SET
 		file_hash = excluded.file_hash,
 		last_indexed = CURRENT_TIMESTAMP,
 		chunk_count = excluded.chunk_count
-	`
+	`, d.metadataTable)
 
 	_, err := d.db.ExecContext(ctx, query, metadata.SourcePath, metadata.FileHash, metadata.ChunkCount)
 	return err
 }
 
-// GetAllFileMetadata retrieves metadata for all indexed files
-func (d *BM25Database) GetAllFileMetadata(ctx context.Context) ([]database.FileMetadata, error) {
+func (d *bm25DB) GetAllFileMetadata(ctx context.Context) ([]database.FileMetadata, error) {
 	rows, err := d.db.QueryContext(ctx,
-		"SELECT source_path, file_hash, last_indexed, chunk_count FROM file_metadata")
+		fmt.Sprintf("SELECT source_path, file_hash, last_indexed, chunk_count FROM %s", d.metadataTable))
 	if err != nil {
 		return nil, fmt.Errorf("failed to query file metadata: %w", err)
 	}
@@ -236,20 +206,15 @@ func (d *BM25Database) GetAllFileMetadata(ctx context.Context) ([]database.FileM
 	return metadata, rows.Err()
 }
 
-// DeleteFileMetadata deletes metadata for a specific source file
-func (d *BM25Database) DeleteFileMetadata(ctx context.Context, sourcePath string) error {
-	_, err := d.db.ExecContext(ctx, "DELETE FROM file_metadata WHERE source_path = ?", sourcePath)
+func (d *bm25DB) DeleteFileMetadata(ctx context.Context, sourcePath string) error {
+	_, err := d.db.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s WHERE source_path = ?", d.metadataTable), sourcePath)
 	return err
 }
 
-// Close closes the database connection
-func (d *BM25Database) Close() error {
-	// Checkpoint WAL to merge changes into main database file
-	// This reduces .db-wal file size and ensures clean shutdown
+func (d *bm25DB) Close() error {
 	if _, err := d.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
 		slog.Warn("Failed to checkpoint WAL before close", "error", err)
 	}
-
 	return d.db.Close()
 }
 
@@ -265,4 +230,22 @@ func ensureDir(filePath string) error {
 	}
 
 	return nil
+}
+
+// sanitizeTableName converts a strategy name into a valid SQLite table name prefix.
+func sanitizeTableName(name string) string {
+	result := make([]byte, 0, len(name))
+	for i := range len(name) {
+		c := name[i]
+		switch {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9', c == '_':
+			result = append(result, c)
+		case c == '-':
+			result = append(result, '_')
+		}
+	}
+	if len(result) == 0 {
+		return "default"
+	}
+	return string(result)
 }
