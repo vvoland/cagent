@@ -532,7 +532,7 @@ func (m *model) tokenUsage() string {
 	}
 
 	var b strings.Builder
-	b.WriteString(styles.HighlightStyle.Render("TOTAL USAGE"))
+	b.WriteString(styles.HighlightStyle.Render("Usage"))
 	b.WriteString("\n  ")
 	line := fmt.Sprintf("Tokens: %s | Cost: $%s", formatTokenCount(totalTokens), formatCost(totalCost))
 	if ctxText, ok := m.contextPercent(); ok {
@@ -541,7 +541,7 @@ func (m *model) tokenUsage() string {
 	b.WriteString(line)
 
 	b.WriteString("\n--------------------------------\n")
-	b.WriteString(styles.HighlightStyle.Render("SESSION BREAKDOWN"))
+	b.WriteString(styles.HighlightStyle.Render("Session breakdown"))
 
 	agentNames := make([]string, 0, len(agentTotals))
 	for name := range agentTotals {
@@ -594,9 +594,9 @@ func (m *model) agentInfo() string {
 	var content strings.Builder
 
 	// Agent name with highlight and switching indicator
-	agentTitle := "AGENT"
+	agentTitle := "Agent"
 	if m.agentSwitching {
-		agentTitle = "AGENT ↔" // switching indicator
+		agentTitle += " ↔" // switching indicator
 	}
 	content.WriteString(styles.HighlightStyle.Render(agentTitle))
 	content.WriteString("\n")
@@ -647,7 +647,7 @@ func (m *model) toolsetInfo() string {
 	var content strings.Builder
 
 	// Tools header
-	content.WriteString(styles.HighlightStyle.Render("TOOLS"))
+	content.WriteString(styles.HighlightStyle.Render("Tools"))
 	content.WriteString("\n")
 
 	// Available tools count
