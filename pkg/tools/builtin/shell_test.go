@@ -52,7 +52,7 @@ func TestShellTool_Tools(t *testing.T) {
 			"type": "string"
 		},
 		"cwd": {
-			"description": "The working directory to execute the command in",
+			"description": "The working directory to execute the command in (default: \".\")",
 			"type": "string"
 		},
 		"timeout": {
@@ -62,8 +62,7 @@ func TestShellTool_Tools(t *testing.T) {
 	},
 	"additionalProperties": false,
 	"required": [
-		"cmd",
-		"cwd"
+		"cmd"
 	]
 }`, string(schema))
 }
