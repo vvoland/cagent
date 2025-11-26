@@ -38,7 +38,7 @@ func PackageFileAsOCIToStore(ctx context.Context, agentFilename, artifactRef str
 	var raw struct {
 		Version string `yaml:"version,omitempty"`
 	}
-	data, err := source.Read()
+	data, err := source.Read(ctx)
 	if err != nil {
 		return "", fmt.Errorf("reading file: %w", err)
 	}

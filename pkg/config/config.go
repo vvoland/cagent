@@ -13,11 +13,11 @@ import (
 )
 
 type Source interface {
-	Read() ([]byte, error)
+	Read(ctx context.Context) ([]byte, error)
 }
 
 func LoadConfigFrom(ctx context.Context, source Source) (*latest.Config, error) {
-	data, err := source.Read()
+	data, err := source.Read(ctx)
 	if err != nil {
 		return nil, err
 	}

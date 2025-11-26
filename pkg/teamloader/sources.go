@@ -1,6 +1,7 @@
 package teamloader
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,7 +10,7 @@ import (
 type AgentSource interface {
 	Name() string
 	ParentDir() string
-	Read() ([]byte, error)
+	Read(ctx context.Context) ([]byte, error)
 }
 
 // fileSource is used to load an agent configuration from a YAML file.
@@ -31,7 +32,7 @@ func (a fileSource) ParentDir() string {
 	return filepath.Dir(a.path)
 }
 
-func (a fileSource) Read() ([]byte, error) {
+func (a fileSource) Read(context.Context) ([]byte, error) {
 	parentDir := a.ParentDir()
 	fs, err := os.OpenRoot(parentDir)
 	if err != nil {
@@ -66,6 +67,6 @@ func (a bytesSource) ParentDir() string {
 	return ""
 }
 
-func (a bytesSource) Read() ([]byte, error) {
+func (a bytesSource) Read(context.Context) ([]byte, error) {
 	return a.data, nil
 }
