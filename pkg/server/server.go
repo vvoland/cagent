@@ -20,6 +20,7 @@ import (
 
 	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/api"
+	"github.com/docker/cagent/pkg/concurrent"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
@@ -30,13 +31,12 @@ import (
 
 type Server struct {
 	e              *echo.Echo
-	runtimes       map[string]runtime.Runtime
+	runtimes       *concurrent.Map[string, runtime.Runtime]
 	runtimeCancels map[string]context.CancelFunc
 	cancelsMu      sync.RWMutex
 	sessionStore   session.Store
 	runConfig      *config.RuntimeConfig
-	teams          map[string]*team.Team
-	teamsMu        sync.RWMutex
+	teams          *concurrent.Map[string, *team.Team]
 	ociRef         string // OCI reference, set once at startup for OCI-based servers
 	ociTeamKey     string
 	agentsDir      string
@@ -84,17 +84,18 @@ func New(sessionStore session.Store, runConfig *config.RuntimeConfig, teams map[
 	e.Use(middleware.CORS())
 	e.Use(middleware.Logger())
 
-	if teams == nil {
-		teams = make(map[string]*team.Team)
+	ts := concurrent.NewMap[string, *team.Team]()
+	for key, t := range teams {
+		ts.Store(key, t)
 	}
 
 	s := &Server{
 		e:              e,
-		runtimes:       make(map[string]runtime.Runtime),
+		runtimes:       concurrent.NewMap[string, runtime.Runtime](),
 		runtimeCancels: make(map[string]context.CancelFunc),
 		sessionStore:   sessionStore,
 		runConfig:      runConfig,
-		teams:          teams,
+		teams:          ts,
 	}
 
 	for _, opt := range opts {
@@ -160,29 +161,26 @@ func (s *Server) hasAgentsDir() bool {
 
 // getTeam retrieves a team by key with read lock
 func (s *Server) getTeam(key string) (*team.Team, bool) {
-	s.teamsMu.RLock()
-	defer s.teamsMu.RUnlock()
-	t, exists := s.teams[key]
+	t, exists := s.teams.Load(key)
 	return t, exists
 }
 
-// getTeams returns a snapshot of all teams with read lock
 func (s *Server) getTeams() map[string]*team.Team {
-	s.teamsMu.RLock()
-	defer s.teamsMu.RUnlock()
-	teams := make(map[string]*team.Team, len(s.teams))
-	for k, v := range s.teams {
-		teams[k] = v
-	}
+	teams := make(map[string]*team.Team, s.teams.Length())
+	s.teams.Range(func(key string, value *team.Team) bool {
+		teams[key] = value
+		return true
+	})
 	return teams
 }
 
 // replaceAllTeams replaces the entire teams map with write lock, returns old teams
 func (s *Server) replaceAllTeams(teams map[string]*team.Team) map[string]*team.Team {
-	s.teamsMu.Lock()
-	defer s.teamsMu.Unlock()
-	oldTeams := s.teams
-	s.teams = teams
+	oldTeams := s.getTeams()
+	s.teams = concurrent.NewMap[string, *team.Team]()
+	for key, team := range teams {
+		s.teams.Store(key, team)
+	}
 	return oldTeams
 }
 
@@ -236,9 +234,7 @@ func (s *Server) getAgents(c echo.Context) error {
 	// we want to return an empty slice if there are no agents, not nil.
 	agents := []api.Agent{}
 
-	// Manually lock the mutex to safely iterate over teams
-	s.teamsMu.RLock()
-	for id, t := range s.teams {
+	s.teams.Range(func(id string, t *team.Team) bool {
 		a, err := t.Agent("root")
 		if err != nil {
 			switch {
@@ -250,8 +246,8 @@ func (s *Server) getAgents(c echo.Context) error {
 			case t.Size() == 1:
 				a, err = t.Agent(t.AgentNames()[0])
 				if err != nil {
-					s.teamsMu.RUnlock()
-					return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to get agent for team %s: %v", id, err))
+					slog.Debug("Team has no agents", "team", id)
+					return true
 				}
 				agents = append(agents, api.Agent{
 					Name:        id,
@@ -260,7 +256,7 @@ func (s *Server) getAgents(c echo.Context) error {
 				})
 			default:
 				slog.Warn("Team has no agents", "team", id)
-				continue
+				return true
 			}
 		} else {
 			agents = append(agents, api.Agent{
@@ -269,8 +265,8 @@ func (s *Server) getAgents(c echo.Context) error {
 				Multi:       a.HasSubAgents(),
 			})
 		}
-	}
-	s.teamsMu.RUnlock()
+		return true
+	})
 
 	// Sort agents by name
 	sort.Slice(agents, func(i, j int) bool {
@@ -474,7 +470,7 @@ func (s *Server) resumeSession(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
 	}
 
-	rt, exists := s.runtimes[sessionID]
+	rt, exists := s.runtimes.Load(sessionID)
 	if !exists {
 		return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("runtime not found: %s", sessionID))
 	}
@@ -497,9 +493,9 @@ func (s *Server) deleteSession(c echo.Context) error {
 	s.cancelsMu.Unlock()
 
 	// Clean up the runtime
-	if _, exists := s.runtimes[sessionID]; exists {
+	if _, exists := s.runtimes.Load(sessionID); exists {
 		slog.Debug("Removing runtime for session", "session_id", sessionID)
-		delete(s.runtimes, sessionID)
+		s.runtimes.Delete(sessionID)
 	}
 
 	// Delete the session from storage
@@ -585,7 +581,7 @@ func (s *Server) runAgent(c echo.Context) error {
 }
 
 func (s *Server) runtimeForSession(ctx context.Context, sess *session.Session, agentFilename, currentAgent string, rc *config.RuntimeConfig) (runtime.Runtime, error) {
-	rt, exists := s.runtimes[sess.ID]
+	rt, exists := s.runtimes.Load(sess.ID)
 	if exists {
 		return rt, nil
 	}
@@ -611,7 +607,7 @@ func (s *Server) runtimeForSession(ctx context.Context, sess *session.Session, a
 		slog.Error("Failed to create runtime", "error", err)
 		return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to create runtime: %v", err))
 	}
-	s.runtimes[sess.ID] = rt
+	s.runtimes.Store(sess.ID, rt)
 	slog.Debug("Runtime created for session", "session_id", sess.ID)
 
 	return rt, nil
@@ -680,7 +676,7 @@ func (s *Server) elicitation(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
 	}
 
-	rt, exists := s.runtimes[sessionID]
+	rt, exists := s.runtimes.Load(sessionID)
 	if !exists {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": fmt.Sprintf("runtime not found: %s", sessionID)})
 	}
