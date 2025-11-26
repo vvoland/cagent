@@ -22,7 +22,7 @@ func LoadConfigFrom(ctx context.Context, source Source) (*latest.Config, error) 
 		return nil, err
 	}
 
-	return LoadConfigBytes(ctx, data)
+	return loadConfigBytes(data)
 }
 
 func LoadConfig(ctx context.Context, path string, fs filesystem.FS) (*latest.Config, error) {
@@ -31,10 +31,10 @@ func LoadConfig(ctx context.Context, path string, fs filesystem.FS) (*latest.Con
 		return nil, fmt.Errorf("reading config file %s: %w", path, err)
 	}
 
-	return LoadConfigBytes(ctx, data)
+	return loadConfigBytes(data)
 }
 
-func LoadConfigBytes(ctx context.Context, data []byte) (*latest.Config, error) {
+func loadConfigBytes(data []byte) (*latest.Config, error) {
 	var raw struct {
 		Version string `yaml:"version,omitempty"`
 	}
