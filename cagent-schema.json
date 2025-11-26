@@ -665,6 +665,11 @@
           "items": {
             "type": "string"
           }
+        },
+        "output_schema": {
+          "type": "object",
+          "description": "JSON Schema describing the API tool's output. Used by MCP/Code Mode; tool responses are still returned as strings at runtime.",
+          "additionalProperties": true
         }
       },
       "required": [

@@ -128,13 +128,22 @@ func (t *APITool) Tools(context.Context) ([]tools.Tool, error) {
 		return nil, fmt.Errorf("only HTTP and HTTPS URLs are supported")
 	}
 
+	outputSchema := tools.MustSchemaFor[string]()
+	if t.config.OutputSchema != nil {
+		var err error
+		outputSchema, err = tools.SchemaToMap(t.config.OutputSchema)
+		if err != nil {
+			return nil, fmt.Errorf("invalid output_schema: %w", err)
+		}
+	}
+
 	return []tools.Tool{
 		{
 			Name:         t.config.Name,
 			Category:     "api",
 			Description:  t.config.Instruction,
 			Parameters:   inputSchema,
-			OutputSchema: tools.MustSchemaFor[string](),
+			OutputSchema: outputSchema,
 			Handler:      t.handler.CallTool,
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
