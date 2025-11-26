@@ -106,7 +106,7 @@ func CreateToolHandler(t *team.Team, agentName, agentFilename string) func(conte
 		sess := session.New(
 			session.WithTitle("MCP tool call"),
 			session.WithMaxIterations(ag.MaxIterations()),
-			session.WithUserMessage(agentFilename, input.Message),
+			session.WithUserMessage(input.Message),
 			session.WithToolsApproved(true),
 		)
 

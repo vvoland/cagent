@@ -1424,7 +1424,7 @@ func (r *LocalRuntime) generateSessionTitle(ctx context.Context, sess *session.S
 		team.WithAgents(agent.New("root", systemPrompt, agent.WithModel(titleModel))),
 	)
 	titleSession := session.New(
-		session.WithUserMessage("", userPrompt),
+		session.WithUserMessage(userPrompt),
 		session.WithTitle("Generating title..."),
 	)
 

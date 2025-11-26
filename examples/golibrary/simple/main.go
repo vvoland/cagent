@@ -52,7 +52,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	sess := session.New(session.WithUserMessage("", "How are you doing?"))
+	sess := session.New(session.WithUserMessage("How are you doing?"))
 
 	messages, err := rt.Run(ctx, sess)
 	if err != nil {

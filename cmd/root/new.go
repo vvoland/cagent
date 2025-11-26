@@ -63,7 +63,7 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
 	}
 	if len(args) > 0 {
 		arg := strings.Join(args, " ")
-		opts = append(opts, session.WithUserMessage("", arg))
+		opts = append(opts, session.WithUserMessage(arg))
 		firstMessage = &arg
 	}
 

@@ -51,7 +51,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	sess := session.New(session.WithUserMessage("", "How are you doing?"))
+	sess := session.New(session.WithUserMessage("How are you doing?"))
 
 	events := rt.RunStream(ctx, sess)
 	for event := range events {

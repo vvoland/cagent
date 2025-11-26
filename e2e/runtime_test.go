@@ -23,7 +23,7 @@ func TestRuntime_OpenAI_Basic(t *testing.T) {
 	rt, err := runtime.New(team)
 	require.NoError(t, err)
 
-	sess := session.New(session.WithUserMessage("", "What's 2+2?"))
+	sess := session.New(session.WithUserMessage("What's 2+2?"))
 	_, err = rt.Run(ctx, sess)
 	require.NoError(t, err)
 
@@ -44,7 +44,7 @@ func TestRuntime_Mistral_Basic(t *testing.T) {
 	rt, err := runtime.New(team)
 	require.NoError(t, err)
 
-	sess := session.New(session.WithUserMessage("", "What's 2+2?"))
+	sess := session.New(session.WithUserMessage("What's 2+2?"))
 	_, err = rt.Run(ctx, sess)
 	require.NoError(t, err)
 

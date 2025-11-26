@@ -22,7 +22,7 @@ func TestResponseAPIToolCallHandling(t *testing.T) {
 		AddStopWithUsage(10, 15).
 		Build()
 
-	sess := session.New(session.WithUserMessage("", "Search for test"))
+	sess := session.New(session.WithUserMessage("Search for test"))
 
 	events := runSession(t, sess, stream)
 
@@ -55,7 +55,7 @@ func TestResponseAPIMultipleToolCalls(t *testing.T) {
 		AddStopWithUsage(20, 30).
 		Build()
 
-	sess := session.New(session.WithUserMessage("", "Search and calculate"))
+	sess := session.New(session.WithUserMessage("Search and calculate"))
 
 	events := runSession(t, sess, stream)
 

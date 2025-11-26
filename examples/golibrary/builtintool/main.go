@@ -56,7 +56,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	sess := session.New(session.WithUserMessage("", "Tell me a story about my current directory"))
+	sess := session.New(session.WithUserMessage("Tell me a story about my current directory"))
 
 	messages, err := rt.Run(ctx, sess)
 	if err != nil {

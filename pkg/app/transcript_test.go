@@ -11,14 +11,14 @@ import (
 )
 
 func TestSimple(t *testing.T) {
-	sess := session.New(session.WithUserMessage("", "Hello"))
+	sess := session.New(session.WithUserMessage("Hello"))
 	content := transcript(sess)
 	golden.Assert(t, content, "simple.golden")
 }
 
 func TestAssistantMessage(t *testing.T) {
 	sess := session.New(
-		session.WithUserMessage("", "Hello"),
+		session.WithUserMessage("Hello"),
 	)
 	sess.AddMessage(&session.Message{
 		AgentName: "root",
@@ -33,7 +33,7 @@ func TestAssistantMessage(t *testing.T) {
 
 func TestAssistantMessageWithReasoning(t *testing.T) {
 	sess := session.New(
-		session.WithUserMessage("", "Hello"),
+		session.WithUserMessage("Hello"),
 	)
 	sess.AddMessage(&session.Message{
 		AgentName: "root",
@@ -49,7 +49,7 @@ func TestAssistantMessageWithReasoning(t *testing.T) {
 
 func TestToolCalls(t *testing.T) {
 	sess := session.New(
-		session.WithUserMessage("", "Hello"),
+		session.WithUserMessage("Hello"),
 	)
 	sess.AddMessage(&session.Message{
 		AgentName: "root",

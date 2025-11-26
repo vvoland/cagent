@@ -114,7 +114,7 @@ func CreateAgent(ctx context.Context, baseDir, prompt string, runConfig *config.
 	}
 
 	sess := session.New(
-		session.WithUserMessage("", prompt),
+		session.WithUserMessage(prompt),
 		session.WithToolsApproved(true),
 	)
 
