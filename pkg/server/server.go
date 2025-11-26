@@ -18,10 +18,10 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
-	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/api"
 	"github.com/docker/cagent/pkg/concurrent"
 	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
@@ -554,9 +554,14 @@ func (s *Server) loadTeamForSession(ctx context.Context, agentFilename string, s
 		return t, nil
 	}
 
+	store, err := content.NewStore()
+	if err != nil {
+		return nil, err
+	}
+
 	// If session has a custom working dir, reload the agent to pick it up
 	if ociRef, ok := s.getOCIRef(agentFilename); ok && sess.WorkingDir != "" {
-		yamlContent, err := agentfile.FromStore(ociRef)
+		yamlContent, err := store.GetArtifact(ociRef)
 		if err != nil {
 			return nil, err
 		}

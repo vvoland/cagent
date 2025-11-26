@@ -1,11 +1,9 @@
 package agentfile
 
 import (
-	"bytes"
 	"context"
 	_ "embed"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -15,6 +13,7 @@ import (
 
 	"github.com/docker/cagent/pkg/aliases"
 	"github.com/docker/cagent/pkg/content"
+	"github.com/docker/cagent/pkg/reference"
 	"github.com/docker/cagent/pkg/remote"
 	"github.com/docker/cagent/pkg/teamloader"
 )
@@ -107,12 +106,12 @@ func Resolve(ctx context.Context, out Printer, agentFilename string) (string, er
 	}
 
 	// Load the agent contents from the store
-	a, err := FromStore(agentFilename)
+	a, err := store.GetArtifact(agentFilename)
 	if err != nil {
 		return "", fmt.Errorf("failed to load agent from store: %w", err)
 	}
 
-	filename := OciRefToFilename(originalOCIRef)
+	filename := reference.OciRefToFilename(originalOCIRef)
 	tmpFilename := filepath.Join(os.TempDir(), filename)
 
 	if err := os.WriteFile(tmpFilename, []byte(a), 0o644); err != nil {
@@ -137,39 +136,6 @@ func fileExists(path string) bool {
 	return exists
 }
 
-// FromStore loads an agent configuration from the OCI content store
-func FromStore(reference string) (string, error) {
-	store, err := content.NewStore()
-	if err != nil {
-		return "", err
-	}
-
-	img, err := store.GetArtifactImage(reference)
-	if err != nil {
-		return "", err
-	}
-
-	layers, err := img.Layers()
-	if err != nil {
-		return "", err
-	}
-
-	var buf bytes.Buffer
-	layer := layers[0]
-	b, err := layer.Uncompressed()
-	if err != nil {
-		return "", err
-	}
-
-	_, err = io.Copy(&buf, b)
-	if err != nil {
-		return "", err
-	}
-	b.Close()
-
-	return buf.String(), nil
-}
-
 // IsOCIReference checks if the input is a valid OCI reference
 func IsOCIReference(input string) bool {
 	if IsLocalFile(input) {
@@ -188,32 +154,4 @@ func IsLocalFile(input string) bool {
 	}
 	// Check if it exists as a file on disk
 	return fileExists(input)
-}
-
-// OciRefToFilename converts an OCI reference to a safe, consistent filename
-// Examples:
-//   - "docker.io/myorg/agent:v1" -> "docker.io_myorg_agent_v1.yaml"
-//   - "localhost:5000/test" -> "localhost_5000_test.yaml"
-func OciRefToFilename(ociRef string) string {
-	// Replace characters that are invalid in filenames with underscores
-	// Keep the structure recognizable but filesystem-safe
-	safe := strings.NewReplacer(
-		"/", "_",
-		":", "_",
-		"@", "_",
-		"\\", "_",
-		"*", "_",
-		"?", "_",
-		"\"", "_",
-		"<", "_",
-		">", "_",
-		"|", "_",
-	).Replace(ociRef)
-
-	// Ensure it has .yaml extension
-	if !strings.HasSuffix(safe, ".yaml") {
-		safe += ".yaml"
-	}
-
-	return safe
 }

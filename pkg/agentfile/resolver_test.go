@@ -14,6 +14,7 @@ import (
 	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/oci"
+	"github.com/docker/cagent/pkg/reference"
 )
 
 func TestOciRefToFilename(t *testing.T) {
@@ -60,7 +61,7 @@ func TestOciRefToFilename(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			result := OciRefToFilename(tt.ociRef)
+			result := reference.OciRefToFilename(tt.ociRef)
 
 			assert.Equal(t, tt.expected, result)
 		})
@@ -133,7 +134,7 @@ agents:
 `, string(content1))
 
 	// Expected filename based on OCI ref
-	expectedFilename := OciRefToFilename(ociRef)
+	expectedFilename := reference.OciRefToFilename(ociRef)
 	assert.Equal(t, expectedFilename, filepath.Base(resolved1))
 
 	// Store the first resolved path
@@ -234,8 +235,8 @@ agents:
 	require.NoError(t, err)
 	assert.Equal(t, agent2Content, string(content2))
 
-	assert.Equal(t, OciRefToFilename(ociRef1), filepath.Base(resolved1))
-	assert.Equal(t, OciRefToFilename(ociRef2), filepath.Base(resolved2))
+	assert.Equal(t, reference.OciRefToFilename(ociRef1), filepath.Base(resolved1))
+	assert.Equal(t, reference.OciRefToFilename(ociRef2), filepath.Base(resolved2))
 }
 
 func TestResolveAgentFile_ContextCancellation(t *testing.T) {
