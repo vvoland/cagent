@@ -213,7 +213,7 @@ func (h *shellHandler) RunShell(ctx context.Context, toolCall tools.ToolCall) (*
 		}
 
 		return &tools.ToolCallResult{
-			Output: fmt.Sprintf("Output: %s", output),
+			Output: output,
 		}, nil
 	}
 }
