@@ -73,7 +73,6 @@ func (a *betaStreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 			}
 			if block.Signature != "" {
 				response.Choices[0].Delta.ThinkingSignature = block.Signature
-				slog.Debug("Received thinking signature (start)", "signature", block.Signature)
 			}
 		}
 	case anthropic.BetaRawContentBlockDeltaEvent:
@@ -95,7 +94,6 @@ func (a *betaStreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		case anthropic.BetaSignatureDelta:
 			// Signature delta is for thinking blocks - capture it so we can replay thinking in history
 			response.Choices[0].Delta.ThinkingSignature = deltaVariant.Signature
-			slog.Debug("Received thinking signature", "signature", deltaVariant.Signature)
 		default:
 			return response, fmt.Errorf("unknown delta type: %T", deltaVariant)
 		}
