@@ -39,7 +39,6 @@ type Model interface {
 	SetTeamInfo(availableAgents []string)
 	SetAgentSwitching(switching bool)
 	SetToolsetInfo(availableTools int)
-	SetToolStatus(toolName, status string)
 	GetSize() (width, height int)
 }
 
@@ -69,21 +68,18 @@ type model struct {
 	availableAgents  []string
 	agentSwitching   bool
 	availableTools   int
-	activeTools      []string
-	toolExecutions   map[string]string // tool name -> status (running, completed, failed)
 }
 
 func New(manager *service.TodoManager) Model {
 	return &model{
-		width:          20,
-		height:         24,
-		sessionUsage:   make(map[string]*runtime.Usage),
-		sessionAgent:   make(map[string]string),
-		todoComp:       todotool.NewSidebarComponent(manager),
-		spinner:        spinner.New(spinner.ModeSpinnerOnly),
-		sessionTitle:   "New session",
-		ragIndexing:    make(map[string]*ragIndexingState),
-		toolExecutions: make(map[string]string),
+		width:        20,
+		height:       24,
+		sessionUsage: make(map[string]*runtime.Usage),
+		sessionAgent: make(map[string]string),
+		todoComp:     todotool.NewSidebarComponent(manager),
+		spinner:      spinner.New(spinner.ModeSpinnerOnly),
+		sessionTitle: "New session",
+		ragIndexing:  make(map[string]*ragIndexingState),
 	}
 }
 
@@ -135,24 +131,6 @@ func (m *model) SetAgentSwitching(switching bool) {
 // SetToolsetInfo sets the number of available tools
 func (m *model) SetToolsetInfo(availableTools int) {
 	m.availableTools = availableTools
-}
-
-// SetToolStatus updates the status of a specific tool
-func (m *model) SetToolStatus(toolName, status string) {
-	if m.toolExecutions == nil {
-		m.toolExecutions = make(map[string]string)
-	}
-
-	// Update tool status
-	m.toolExecutions[toolName] = status
-
-	// Update active tools list
-	m.activeTools = nil
-	for tool, stat := range m.toolExecutions {
-		if stat == "running" {
-			m.activeTools = append(m.activeTools, tool)
-		}
-	}
 }
 
 // formatTokenCount formats a token count with K/M suffixes for readability
@@ -259,9 +237,6 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return m, nil
 	case *runtime.ToolsetInfoEvent:
 		m.SetToolsetInfo(msg.AvailableTools)
-		return m, nil
-	case *runtime.ToolStatusEvent:
-		m.SetToolStatus(msg.ToolName, msg.Status)
 		return m, nil
 	default:
 		var cmds []tea.Cmd
@@ -645,24 +620,11 @@ func (m *model) toolsetInfo() string {
 	}
 
 	var content strings.Builder
-
-	// Tools header
 	content.WriteString(styles.HighlightStyle.Render("Tools"))
 	content.WriteString("\n")
 
-	// Available tools count
 	content.WriteString(styles.MutedStyle.Render(fmt.Sprintf("%d tools available", m.availableTools)))
-
-	// Active/running tools
-	if len(m.activeTools) > 0 {
-		content.WriteString("\n")
-		for i, tool := range m.activeTools {
-			if i > 0 {
-				content.WriteString(", ")
-			}
-			content.WriteString(styles.ActiveStyle.Render("[>] " + tool))
-		}
-	}
+	content.WriteString("\n")
 
 	return content.String()
 }
