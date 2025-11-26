@@ -9,7 +9,6 @@ import (
 	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/filesystem"
 	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/telemetry"
 )
@@ -49,14 +48,15 @@ func (f *debugFlags) runDebugConfigCommand(cmd *cobra.Command, args []string) er
 	telemetry.TrackCommand("debug", append([]string{"config"}, args...))
 
 	ctx := cmd.Context()
+	agentFilename := args[0]
 	out := cli.NewPrinter(cmd.OutOrStdout())
 
-	agentFilename, err := agentfile.Resolve(ctx, out, args[0])
+	agentSource, err := agentfile.ResolveSource(ctx, out, agentFilename)
 	if err != nil {
 		return err
 	}
 
-	cfg, err := config.LoadConfig(ctx, agentFilename, filesystem.AllowAll)
+	cfg, err := config.LoadConfigFrom(ctx, agentSource)
 	if err != nil {
 		return err
 	}
@@ -68,14 +68,15 @@ func (f *debugFlags) runDebugToolsetsCommand(cmd *cobra.Command, args []string) 
 	telemetry.TrackCommand("debug", append([]string{"toolsets"}, args...))
 
 	ctx := cmd.Context()
+	agentFilename := args[0]
 	out := cli.NewPrinter(cmd.OutOrStdout())
 
-	agentFilename, err := agentfile.Resolve(ctx, out, args[0])
+	agentSource, err := agentfile.ResolveSource(ctx, out, agentFilename)
 	if err != nil {
 		return err
 	}
 
-	team, err := teamloader.Load(ctx, agentFilename, &f.runConfig)
+	team, err := teamloader.LoadFrom(ctx, agentSource, &f.runConfig)
 	if err != nil {
 		return err
 	}

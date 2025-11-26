@@ -96,7 +96,7 @@ func TestLoadExamples(t *testing.T) {
 func TestLoadDefaultAgent(t *testing.T) {
 	t.Parallel()
 
-	teams, err := Load(t.Context(), "../../cmd/root/default-agent.yaml", &config.RuntimeConfig{})
+	teams, err := Load(t.Context(), "../../pkg/agentfile/default-agent.yaml", &config.RuntimeConfig{})
 	require.NoError(t, err)
 	require.NotEmpty(t, teams)
 }

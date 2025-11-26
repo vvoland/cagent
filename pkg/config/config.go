@@ -12,16 +12,29 @@ import (
 	"github.com/docker/cagent/pkg/filesystem"
 )
 
+type Source interface {
+	Read(ctx context.Context) ([]byte, error)
+}
+
+func LoadConfigFrom(ctx context.Context, source Source) (*latest.Config, error) {
+	data, err := source.Read(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return loadConfigBytes(data)
+}
+
 func LoadConfig(ctx context.Context, path string, fs filesystem.FS) (*latest.Config, error) {
 	data, err := fs.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading config file %s: %w", path, err)
 	}
 
-	return LoadConfigBytes(ctx, data)
+	return loadConfigBytes(data)
 }
 
-func LoadConfigBytes(ctx context.Context, data []byte) (*latest.Config, error) {
+func loadConfigBytes(data []byte) (*latest.Config, error) {
 	var raw struct {
 		Version string `yaml:"version,omitempty"`
 	}

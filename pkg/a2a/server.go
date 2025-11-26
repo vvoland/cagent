@@ -16,16 +16,25 @@ import (
 	"google.golang.org/adk/server/adka2a"
 	"google.golang.org/adk/session"
 
-	"github.com/docker/cagent/pkg/cli"
+	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/version"
 )
 
-func Start(ctx context.Context, out *cli.Printer, agentFilename, agentName string, runConfig *config.RuntimeConfig, ln net.Listener) error {
+type discardOutput struct{}
+
+func (d *discardOutput) Printf(string, ...any) {}
+
+func Run(ctx context.Context, agentFilename, agentName string, runConfig *config.RuntimeConfig, ln net.Listener) error {
 	slog.Debug("Starting A2A server", "agent", agentName, "addr", ln.Addr().String())
 
-	t, err := teamloader.Load(ctx, agentFilename, runConfig)
+	agentSource, err := agentfile.ResolveSource(ctx, &discardOutput{}, agentFilename)
+	if err != nil {
+		return err
+	}
+
+	t, err := teamloader.LoadFrom(ctx, agentSource, runConfig)
 	if err != nil {
 		return fmt.Errorf("failed to load agents: %w", err)
 	}
@@ -42,7 +51,7 @@ func Start(ctx context.Context, out *cli.Printer, agentFilename, agentName strin
 
 	baseURL := &url.URL{Scheme: "http", Host: ln.Addr().String()}
 
-	out.Println("A2A server listening on", baseURL.String())
+	slog.Debug("A2A server listening", "url", baseURL.String())
 
 	agentPath := "/invoke"
 	agentCard := &a2a.AgentCard{

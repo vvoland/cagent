@@ -2,7 +2,6 @@ package agentfile
 
 import (
 	"context"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/docker/cagent/pkg/aliases"
-	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/oci"
@@ -414,7 +412,7 @@ func TestResolveAgentFile_ReplaceAliasWithActualFile(t *testing.T) {
 	all.Set("alias", aliasedAgentFile)
 	require.NoError(t, all.Save())
 
-	resolved, err := Resolve(t.Context(), cli.NewPrinter(io.Discard), "alias")
+	resolved, err := Resolve(t.Context(), &discardOutput{}, "alias")
 
 	require.NoError(t, err)
 	assert.Equal(t, aliasedAgentFile, resolved)
@@ -435,7 +433,7 @@ func TestResolveAgentFile_ReplaceDefaultAliasWithActualFile(t *testing.T) {
 	all.Set("default", aliasedAgentFile)
 	require.NoError(t, all.Save())
 
-	resolved, err := Resolve(t.Context(), cli.NewPrinter(io.Discard), "default")
+	resolved, err := Resolve(t.Context(), &discardOutput{}, "default")
 
 	require.NoError(t, err)
 	assert.Equal(t, aliasedAgentFile, resolved)
@@ -456,7 +454,7 @@ func TestResolveAgentFile_ReplaceEmptyAliasWithActualFile(t *testing.T) {
 	all.Set("default", aliasedAgentFile)
 	require.NoError(t, all.Save())
 
-	resolved, err := Resolve(t.Context(), cli.NewPrinter(io.Discard), "")
+	resolved, err := Resolve(t.Context(), &discardOutput{}, "")
 
 	require.NoError(t, err)
 	assert.Equal(t, aliasedAgentFile, resolved)
@@ -859,3 +857,7 @@ func TestResolveAgentFile_EmptyDirectory(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, absPath, resolved)
 }
+
+type discardOutput struct{}
+
+func (d *discardOutput) Printf(string, ...any) {}

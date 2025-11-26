@@ -60,11 +60,6 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("--pull-interval flag can only be used with OCI references, not local files")
 	}
 
-	resolvedPath, err := agentfile.Resolve(ctx, out, agentsPath)
-	if err != nil {
-		return err
-	}
-
 	ln, err := server.Listen(ctx, f.listenAddr)
 	if err != nil {
 		return fmt.Errorf("failed to listen on %s: %w", f.listenAddr, err)
@@ -75,7 +70,13 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 	}()
 
 	out.Println("Listening on " + ln.Addr().String())
-	slog.Debug("Starting server", "agents", resolvedPath, "addr", ln.Addr().String())
+
+	slog.Debug("Starting server", "agents", agentsPath, "addr", ln.Addr().String())
+
+	resolvedPath, err := agentfile.Resolve(ctx, out, agentsPath)
+	if err != nil {
+		return err
+	}
 
 	sessionStore, err := session.NewSQLiteSessionStore(f.sessionDB)
 	if err != nil {

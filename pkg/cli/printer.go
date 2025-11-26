@@ -47,8 +47,8 @@ func (p *Printer) Print(a ...any) {
 	fmt.Fprint(p.out, a...)
 }
 
-func (p *Printer) Printf(format string, a ...any) (n int, err error) {
-	return fmt.Fprintf(p.out, format, a...)
+func (p *Printer) Printf(format string, a ...any) {
+	fmt.Fprintf(p.out, format, a...)
 }
 
 // PrintWelcomeMessage prints the welcome message
