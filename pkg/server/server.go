@@ -21,7 +21,6 @@ import (
 	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/api"
 	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/desktop"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
@@ -132,11 +131,10 @@ func New(sessionStore session.Store, runConfig *config.RuntimeConfig, teams map[
 	group.POST("/sessions/:id/agent/:agent/:agent_name", s.runAgent)
 	group.POST("/sessions/:id/elicitation", s.elicitation)
 
-	// MISC
-
-	group.GET("/desktop/token", s.getDesktopToken)
 	// Health check endpoint
-	group.GET("/ping", s.ping)
+	group.GET("/ping", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
+	})
 
 	return s, nil
 }
@@ -193,30 +191,6 @@ func (s *Server) getOCIRef(key string) (string, bool) {
 		return "", false
 	}
 	return s.ociRef, true
-}
-
-// countTeams returns the number of teams with read lock
-func (s *Server) countTeams() int {
-	s.teamsMu.RLock()
-	defer s.teamsMu.RUnlock()
-	return len(s.teams)
-}
-
-// hasTeam checks if a team exists with read lock
-func (s *Server) hasTeam(key string) bool {
-	s.teamsMu.RLock()
-	defer s.teamsMu.RUnlock()
-	_, exists := s.teams[key]
-	return exists
-}
-
-func (s *Server) ping(c echo.Context) error {
-	return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
-}
-
-func (s *Server) getDesktopToken(c echo.Context) error {
-	authToken := desktop.GetToken(c.Request().Context())
-	return c.JSON(http.StatusOK, map[string]string{"token": authToken})
 }
 
 // API handlers

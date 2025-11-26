@@ -26,6 +26,21 @@ import (
 	"github.com/docker/cagent/pkg/teamloader"
 )
 
+// countTeams returns the number of teams with read lock
+func (s *Server) countTeams() int {
+	s.teamsMu.RLock()
+	defer s.teamsMu.RUnlock()
+	return len(s.teams)
+}
+
+// hasTeam checks if a team exists with read lock
+func (s *Server) hasTeam(key string) bool {
+	s.teamsMu.RLock()
+	defer s.teamsMu.RUnlock()
+	_, exists := s.teams[key]
+	return exists
+}
+
 func TestServer_ListAgents(t *testing.T) {
 	// t.Parallel()
 	t.Setenv("OPENAI_API_KEY", "dummy")
