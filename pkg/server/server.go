@@ -12,7 +12,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -32,8 +31,7 @@ import (
 type Server struct {
 	e              *echo.Echo
 	runtimes       *concurrent.Map[string, runtime.Runtime]
-	runtimeCancels map[string]context.CancelFunc
-	cancelsMu      sync.RWMutex
+	runtimeCancels *concurrent.Map[string, context.CancelFunc]
 	sessionStore   session.Store
 	runConfig      *config.RuntimeConfig
 	teams          *concurrent.Map[string, *team.Team]
@@ -92,7 +90,7 @@ func New(sessionStore session.Store, runConfig *config.RuntimeConfig, teams map[
 	s := &Server{
 		e:              e,
 		runtimes:       concurrent.NewMap[string, runtime.Runtime](),
-		runtimeCancels: make(map[string]context.CancelFunc),
+		runtimeCancels: concurrent.NewMap[string, context.CancelFunc](),
 		sessionStore:   sessionStore,
 		runConfig:      runConfig,
 		teams:          ts,
@@ -484,13 +482,11 @@ func (s *Server) deleteSession(c echo.Context) error {
 	sessionID := c.Param("id")
 
 	// Cancel the runtime context if it's still running
-	s.cancelsMu.Lock()
-	if cancel, exists := s.runtimeCancels[sessionID]; exists {
+	if cancel, exists := s.runtimeCancels.Load(sessionID); exists {
 		slog.Debug("Cancelling runtime for session", "session_id", sessionID)
 		cancel()
-		delete(s.runtimeCancels, sessionID)
+		s.runtimeCancels.Delete(sessionID)
 	}
-	s.cancelsMu.Unlock()
 
 	// Clean up the runtime
 	if _, exists := s.runtimes.Load(sessionID); exists {
@@ -554,13 +550,9 @@ func (s *Server) runAgent(c echo.Context) error {
 
 	// Create a cancellable context for this stream
 	streamCtx, cancel := context.WithCancel(c.Request().Context())
-	s.cancelsMu.Lock()
-	s.runtimeCancels[sess.ID] = cancel
-	s.cancelsMu.Unlock()
+	s.runtimeCancels.Store(sess.ID, cancel)
 	defer func() {
-		s.cancelsMu.Lock()
-		delete(s.runtimeCancels, sess.ID)
-		s.cancelsMu.Unlock()
+		s.runtimeCancels.Delete(sess.ID)
 	}()
 
 	streamChan := rt.RunStream(streamCtx, sess)
