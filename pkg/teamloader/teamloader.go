@@ -123,8 +123,11 @@ func LoadFrom(ctx context.Context, source AgentSource, runtimeConfig *config.Run
 	}
 
 	fileName := source.Name()
-	parentDir := source.ParentDir()
 	env := runtimeConfig.EnvProvider()
+	parentDir := source.ParentDir()
+	if parentDir == "" {
+		parentDir = runtimeConfig.WorkingDir
+	}
 
 	// Load the agent's configuration
 	data, err := source.Read()
