@@ -288,36 +288,39 @@ func (m *model) horizontalView() string {
 }
 
 func (m *model) verticalView() string {
-	topContent := m.sessionTitle + "\n"
-
+	var main []string
+	main = append(main, m.sessionTitle)
 	if pwd := getCurrentWorkingDirectory(); pwd != "" {
-		topContent += styles.MutedStyle.Render(pwd) + "\n\n"
+		main = append(main, styles.MutedStyle.Render(pwd))
+	}
+	if working := m.workingIndicator(); working != "" {
+		main = append(main, working)
+	} else {
+		main = append(main, "") // spacer for layout consistency
 	}
 
-	topContent += m.tokenUsage()
-	topContent += "\n" + m.workingIndicator()
-
-	// Add agent information
+	var more []string
 	if agentInfo := m.agentInfo(); agentInfo != "" {
-		topContent += "\n\n" + agentInfo
+		more = append(more, agentInfo)
 	}
-
-	// Add toolset information
 	if toolsetInfo := m.toolsetInfo(); toolsetInfo != "" {
-		topContent += "\n\n" + toolsetInfo
+		more = append(more, toolsetInfo)
+	}
+	if usage := m.tokenUsage(); usage != "" {
+		more = append(more, usage)
 	}
 
 	m.todoComp.SetSize(m.width)
 	todoContent := strings.TrimSuffix(m.todoComp.Render(), "\n")
 	if todoContent != "" {
-		topContent += "\n\n" + todoContent
+		more = append(more, todoContent)
 	}
 
 	return styles.BaseStyle.
 		Width(m.width).
 		Height(m.height-2).
 		Align(lipgloss.Left, lipgloss.Top).
-		Render(topContent)
+		Render(strings.Join(main, "\n") + "\n\n" + strings.Join(more, "\n\n"))
 }
 
 func (m *model) workingIndicator() string {
@@ -490,51 +493,15 @@ func (m *model) tokenUsage() string {
 		totalCost += usage.Cost
 	}
 
-	agentTotals := make(map[string]*runtime.Usage)
-	for sessionID, usage := range m.sessionUsage {
-		agent := m.sessionAgent[sessionID]
-		if agent == "" {
-			continue
-		}
-		if existing, ok := agentTotals[agent]; ok {
-			existing.InputTokens += usage.InputTokens
-			existing.OutputTokens += usage.OutputTokens
-			existing.Cost += usage.Cost
-		} else {
-			u := *usage
-			agentTotals[agent] = &u
-		}
-	}
-
 	var b strings.Builder
 	b.WriteString(styles.HighlightStyle.Render("Usage"))
-	b.WriteString("\n  ")
-	line := fmt.Sprintf("Tokens: %s | Cost: $%s", formatTokenCount(totalTokens), formatCost(totalCost))
+	b.WriteString("\n")
+	b.WriteString(styles.MutedStyle.Render(fmt.Sprintf("Tokens: %s", formatTokenCount(totalTokens))))
+	b.WriteString("\n")
+	b.WriteString(styles.MutedStyle.Render(fmt.Sprintf("Cost: $%s", formatCost(totalCost))))
 	if ctxText, ok := m.contextPercent(); ok {
-		line = fmt.Sprintf("%s | %s", line, ctxText)
-	}
-	b.WriteString(line)
-
-	b.WriteString("\n--------------------------------\n")
-	b.WriteString(styles.HighlightStyle.Render("Session breakdown"))
-
-	agentNames := make([]string, 0, len(agentTotals))
-	for name := range agentTotals {
-		agentNames = append(agentNames, name)
-	}
-	sort.Strings(agentNames)
-
-	if len(agentNames) == 0 {
-		b.WriteString("\n  ")
-		b.WriteString(styles.SubtleStyle.Render("No usage yet"))
-		return b.String()
-	}
-
-	for _, name := range agentNames {
-		usage := agentTotals[name]
-		tokens := usage.InputTokens + usage.OutputTokens
-		b.WriteString(fmt.Sprintf("\n  %s", styles.SubtleStyle.Render(name)))
-		b.WriteString(fmt.Sprintf("\n    Tokens: %s | Cost: $%s", formatTokenCount(tokens), formatCost(usage.Cost)))
+		b.WriteString("\n")
+		b.WriteString(styles.MutedStyle.Render(ctxText))
 	}
 
 	return b.String()
@@ -621,11 +588,7 @@ func (m *model) toolsetInfo() string {
 
 	var content strings.Builder
 	content.WriteString(styles.HighlightStyle.Render("Tools"))
-	content.WriteString("\n")
-
-	content.WriteString(styles.MutedStyle.Render(fmt.Sprintf("%d tools available", m.availableTools)))
-	content.WriteString("\n")
-
+	content.WriteString(styles.MutedStyle.Render(fmt.Sprintf("\n%d tools available", m.availableTools)))
 	return content.String()
 }
 
