@@ -525,7 +525,7 @@ func (s *Server) runAgent(c echo.Context) error {
 
 	rt, err := s.runtimeForSession(c.Request().Context(), sess, agentFilename, currentAgent, rc)
 	if err != nil {
-		return err
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to get runtime for session: %v", err))
 	}
 
 	// Receive messages from the API client
@@ -617,15 +617,9 @@ func (s *Server) loadTeamForSession(ctx context.Context, agentFilename string, s
 
 		t, err := teamloader.Load(ctx, loadPath, rc)
 		if err != nil {
-			return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to load agent for session: %v", err))
+			return nil, err
 		}
 		return t, nil
-	}
-
-	// No local directory: use the already-loaded team from memory (OCI refs)
-	t, exists := s.getTeam(agentFilename)
-	if !exists {
-		return nil, echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("agent not found: %s", agentFilename))
 	}
 
 	// If session has a custom working dir, reload the agent to pick it up
@@ -645,6 +639,12 @@ func (s *Server) loadTeamForSession(ctx context.Context, agentFilename string, s
 			return nil, err
 		}
 		return reloaded, nil
+	}
+
+	// No local directory: use the already-loaded team from memory (OCI refs)
+	t, exists := s.getTeam(agentFilename)
+	if !exists {
+		return nil, fmt.Errorf("agent not found: %s", agentFilename)
 	}
 
 	return t, nil
