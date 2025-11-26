@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -67,12 +68,11 @@ func WithAgentsPath(agentPath string) Opt {
 func WithOCIRef(teamKey, ociRef string) Opt {
 	return func(s *Server) error {
 		if teamKey == "" || ociRef == "" {
-			return nil
+			return errors.New("teamKey and ociRef must be provided for OCI-based server")
 		}
 
 		s.ociTeamKey = teamKey
 		s.ociRef = ociRef
-
 		return nil
 	}
 }
