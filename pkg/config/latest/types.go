@@ -326,7 +326,7 @@ type RAGStrategyConfig struct {
 
 	// Strategy-specific parameters (arbitrary key-value pairs)
 	// Examples:
-	// - chunked-embeddings: model, similarity_metric, threshold, vector_dimensions
+	// - chunked-embeddings: embedding_model, similarity_metric, threshold, vector_dimensions
 	// - bm25: k1, b, threshold
 	Params map[string]any // Flattened into parent JSON
 }

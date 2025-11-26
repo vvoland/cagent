@@ -1,52 +1,35 @@
 package database
 
 import (
-	"context"
 	"math"
 )
 
-// Document represents a chunk of text with its embedding
+// Document represents a chunk of text - the base type returned by all RAG strategies.
+// Strategy-specific fields (embeddings, semantic summaries) are handled internally
+// by each strategy and don't need to be exposed here.
 type Document struct {
-	ID         string    `json:"id"`
-	SourcePath string    `json:"source_path"`
-	ChunkIndex int       `json:"chunk_index"`
-	Content    string    `json:"content"`
-	Embedding  []float64 `json:"-"`
-	FileHash   string    `json:"file_hash"`
-	CreatedAt  string    `json:"created_at"`
+	ID         string `json:"id"`
+	SourcePath string `json:"source_path"`
+	ChunkIndex int    `json:"chunk_index"`
+	Content    string `json:"content"`
+	FileHash   string `json:"file_hash"`
+	CreatedAt  string `json:"created_at"`
 }
 
-// SearchResult represents a document with its similarity score
+// SearchResult represents a document with its relevance score.
+// This is the common return type for all Strategy.Query() implementations.
 type SearchResult struct {
 	Document   Document `json:"document"`
 	Similarity float64  `json:"similarity"`
 }
 
-// FileMetadata represents metadata about an indexed file
+// FileMetadata represents metadata about an indexed file.
+// Used for change detection and incremental indexing.
 type FileMetadata struct {
 	SourcePath  string
 	FileHash    string
 	LastIndexed string
 	ChunkCount  int
-}
-
-// Database interface for RAG operations
-// Implementations: SQLite (sqlite.go), PostgreSQL (future), Pinecone (future), etc.
-type Database interface {
-	// Document operations
-	AddDocument(ctx context.Context, doc Document) error
-	DeleteDocumentsByPath(ctx context.Context, sourcePath string) error
-	SearchSimilar(ctx context.Context, queryEmbedding []float64, limit int) ([]SearchResult, error)
-	GetDocumentsByPath(ctx context.Context, sourcePath string) ([]Document, error)
-
-	// File metadata operations (for change detection and incremental indexing)
-	GetFileMetadata(ctx context.Context, sourcePath string) (*FileMetadata, error)
-	SetFileMetadata(ctx context.Context, metadata FileMetadata) error
-	GetAllFileMetadata(ctx context.Context) ([]FileMetadata, error)
-	DeleteFileMetadata(ctx context.Context, sourcePath string) error
-
-	// Resource management
-	Close() error
 }
 
 // Helper functions

@@ -44,8 +44,9 @@ func NewBM25FromConfig(ctx context.Context, cfg latest.RAGStrategyConfig, buildC
 		return nil, fmt.Errorf("invalid database config: %w", err)
 	}
 
-	// Create BM25-specific database (no vectors needed)
-	db, err := NewBM25Database(dbPath)
+	// Create BM25-specific database (no vectors needed).
+	// Pass strategy type as table prefix so multiple strategies can share the same DB file.
+	db, err := newBM25DB(dbPath, cfg.Type)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create database: %w", err)
 	}
@@ -66,14 +67,14 @@ func NewBM25FromConfig(ctx context.Context, cfg latest.RAGStrategyConfig, buildC
 		"chunk_overlap", chunkOverlap,
 		"respect_word_boundaries", respectWordBoundaries)
 	if chunkSize == 0 {
-		chunkSize = 1000
+		chunkSize = 1500 // General text: good paragraph/section size
 	}
 	if chunkOverlap == 0 {
 		chunkOverlap = 75
 	}
 
 	// Create strategy
-	strategy := NewBM25Strategy(
+	strategy := newBM25Strategy(
 		"bm25",
 		db,
 		events,
@@ -97,7 +98,7 @@ func NewBM25FromConfig(ctx context.Context, cfg latest.RAGStrategyConfig, buildC
 // BM25 is a ranking function that uses term frequency and inverse document frequency
 type BM25Strategy struct {
 	name       string
-	db         database.Database
+	db         *bm25DB
 	processor  *chunk.Processor
 	fileHashes map[string]string
 	watcher    *fsnotify.Watcher
@@ -111,8 +112,8 @@ type BM25Strategy struct {
 	docCount     int     // total number of documents
 }
 
-// NewBM25Strategy creates a new BM25-based retrieval strategy
-func NewBM25Strategy(name string, db database.Database, events chan<- types.Event, k1, b float64) *BM25Strategy {
+// newBM25Strategy creates a new BM25-based retrieval strategy
+func newBM25Strategy(name string, db *bm25DB, events chan<- types.Event, k1, b float64) *BM25Strategy {
 	return &BM25Strategy{
 		name:       name,
 		db:         db,
@@ -460,19 +461,10 @@ func (s *BM25Strategy) calculateBM25Score(queryTerms []string, doc database.Docu
 }
 
 func (s *BM25Strategy) getAllDocuments(ctx context.Context) ([]database.Document, error) {
-	// This is a placeholder - you'd need to add a method to the database interface
-	// For now, we'll use SearchSimilar with an empty embedding to get all docs
-	// In production, add a proper GetAllDocuments method to the database interface
-	results, err := s.db.SearchSimilar(ctx, []float64{}, 10000)
+	docs, err := s.db.GetAllDocuments(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	docs := make([]database.Document, len(results))
-	for i, result := range results {
-		docs[i] = result.Document
-	}
-
 	s.docCount = len(docs)
 	return docs, nil
 }
@@ -550,13 +542,11 @@ func (s *BM25Strategy) indexFile(ctx context.Context, filePath string, chunkSize
 			continue
 		}
 
-		// For BM25, we don't need embeddings, but we still store the document
 		doc := database.Document{
 			ID:         fmt.Sprintf("%s_%d_%d", filePath, chunk.Index, time.Now().UnixNano()),
 			SourcePath: filePath,
 			ChunkIndex: chunk.Index,
 			Content:    chunk.Content,
-			Embedding:  []float64{}, // Empty embedding for BM25
 			FileHash:   fileHash,
 		}
 

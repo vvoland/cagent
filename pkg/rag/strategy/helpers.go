@@ -1,6 +1,7 @@
 package strategy
 
 import (
+	"fmt"
 	"log/slog"
 	"path/filepath"
 	"strings"
@@ -184,5 +185,50 @@ func EmitEvent(events chan<- types.Event, event types.Event, strategyName string
 			// Channel full or not ready, drop event to avoid blocking
 			slog.Warn("RAG event channel full, dropping event", "strategy", strategyName, "event_type", event.Type)
 		}
+	}
+}
+
+// ResolveModelConfig resolves a model reference into a ModelConfig.
+// Supports "provider/model" inline references or named references into the models map.
+func ResolveModelConfig(ref string, models map[string]latest.ModelConfig) (latest.ModelConfig, error) {
+	// Try inline "provider/model" format first
+	if parts := strings.SplitN(ref, "/", 2); len(parts) == 2 {
+		return latest.ModelConfig{
+			Provider: parts[0],
+			Model:    parts[1],
+		}, nil
+	}
+
+	// Try named reference
+	if cfg, ok := models[ref]; ok {
+		return cfg, nil
+	}
+
+	return latest.ModelConfig{}, fmt.Errorf("model %q not found", ref)
+}
+
+// ChunkingConfig holds chunking parameters.
+type ChunkingConfig struct {
+	Size                  int
+	Overlap               int
+	RespectWordBoundaries bool
+}
+
+// ParseChunkingConfig extracts chunking configuration from RAGStrategyConfig.
+func ParseChunkingConfig(cfg latest.RAGStrategyConfig) ChunkingConfig {
+	chunkSize := cfg.Chunking.Size
+	if chunkSize == 0 {
+		chunkSize = 1500
+	}
+
+	chunkOverlap := cfg.Chunking.Overlap
+	if chunkOverlap == 0 {
+		chunkOverlap = 75
+	}
+
+	return ChunkingConfig{
+		Size:                  chunkSize,
+		Overlap:               chunkOverlap,
+		RespectWordBoundaries: cfg.Chunking.RespectWordBoundaries,
 	}
 }
