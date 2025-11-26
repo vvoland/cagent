@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -12,7 +13,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -20,6 +20,7 @@ import (
 
 	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/api"
+	"github.com/docker/cagent/pkg/concurrent"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
@@ -30,13 +31,11 @@ import (
 
 type Server struct {
 	e              *echo.Echo
-	runtimes       map[string]runtime.Runtime
-	runtimeCancels map[string]context.CancelFunc
-	cancelsMu      sync.RWMutex
+	runtimes       *concurrent.Map[string, runtime.Runtime]
+	runtimeCancels *concurrent.Map[string, context.CancelFunc]
 	sessionStore   session.Store
 	runConfig      *config.RuntimeConfig
-	teams          map[string]*team.Team
-	teamsMu        sync.RWMutex
+	teams          *concurrent.Map[string, *team.Team]
 	ociRef         string // OCI reference, set once at startup for OCI-based servers
 	ociTeamKey     string
 	agentsDir      string
@@ -69,12 +68,11 @@ func WithAgentsPath(agentPath string) Opt {
 func WithOCIRef(teamKey, ociRef string) Opt {
 	return func(s *Server) error {
 		if teamKey == "" || ociRef == "" {
-			return nil
+			return errors.New("teamKey and ociRef must be provided for OCI-based server")
 		}
 
 		s.ociTeamKey = teamKey
 		s.ociRef = ociRef
-
 		return nil
 	}
 }
@@ -84,17 +82,18 @@ func New(sessionStore session.Store, runConfig *config.RuntimeConfig, teams map[
 	e.Use(middleware.CORS())
 	e.Use(middleware.Logger())
 
-	if teams == nil {
-		teams = make(map[string]*team.Team)
+	ts := concurrent.NewMap[string, *team.Team]()
+	for key, t := range teams {
+		ts.Store(key, t)
 	}
 
 	s := &Server{
 		e:              e,
-		runtimes:       make(map[string]runtime.Runtime),
-		runtimeCancels: make(map[string]context.CancelFunc),
+		runtimes:       concurrent.NewMap[string, runtime.Runtime](),
+		runtimeCancels: concurrent.NewMap[string, context.CancelFunc](),
 		sessionStore:   sessionStore,
 		runConfig:      runConfig,
-		teams:          teams,
+		teams:          ts,
 	}
 
 	for _, opt := range opts {
@@ -160,29 +159,26 @@ func (s *Server) hasAgentsDir() bool {
 
 // getTeam retrieves a team by key with read lock
 func (s *Server) getTeam(key string) (*team.Team, bool) {
-	s.teamsMu.RLock()
-	defer s.teamsMu.RUnlock()
-	t, exists := s.teams[key]
+	t, exists := s.teams.Load(key)
 	return t, exists
 }
 
-// getTeams returns a snapshot of all teams with read lock
 func (s *Server) getTeams() map[string]*team.Team {
-	s.teamsMu.RLock()
-	defer s.teamsMu.RUnlock()
-	teams := make(map[string]*team.Team, len(s.teams))
-	for k, v := range s.teams {
-		teams[k] = v
-	}
+	teams := make(map[string]*team.Team, s.teams.Length())
+	s.teams.Range(func(key string, value *team.Team) bool {
+		teams[key] = value
+		return true
+	})
 	return teams
 }
 
 // replaceAllTeams replaces the entire teams map with write lock, returns old teams
 func (s *Server) replaceAllTeams(teams map[string]*team.Team) map[string]*team.Team {
-	s.teamsMu.Lock()
-	defer s.teamsMu.Unlock()
-	oldTeams := s.teams
-	s.teams = teams
+	oldTeams := s.getTeams()
+	s.teams = concurrent.NewMap[string, *team.Team]()
+	for key, team := range teams {
+		s.teams.Store(key, team)
+	}
 	return oldTeams
 }
 
@@ -236,9 +232,7 @@ func (s *Server) getAgents(c echo.Context) error {
 	// we want to return an empty slice if there are no agents, not nil.
 	agents := []api.Agent{}
 
-	// Manually lock the mutex to safely iterate over teams
-	s.teamsMu.RLock()
-	for id, t := range s.teams {
+	s.teams.Range(func(id string, t *team.Team) bool {
 		a, err := t.Agent("root")
 		if err != nil {
 			switch {
@@ -250,8 +244,8 @@ func (s *Server) getAgents(c echo.Context) error {
 			case t.Size() == 1:
 				a, err = t.Agent(t.AgentNames()[0])
 				if err != nil {
-					s.teamsMu.RUnlock()
-					return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to get agent for team %s: %v", id, err))
+					slog.Debug("Team has no agents", "team", id)
+					return true
 				}
 				agents = append(agents, api.Agent{
 					Name:        id,
@@ -260,7 +254,7 @@ func (s *Server) getAgents(c echo.Context) error {
 				})
 			default:
 				slog.Warn("Team has no agents", "team", id)
-				continue
+				return true
 			}
 		} else {
 			agents = append(agents, api.Agent{
@@ -269,8 +263,8 @@ func (s *Server) getAgents(c echo.Context) error {
 				Multi:       a.HasSubAgents(),
 			})
 		}
-	}
-	s.teamsMu.RUnlock()
+		return true
+	})
 
 	// Sort agents by name
 	sort.Slice(agents, func(i, j int) bool {
@@ -320,6 +314,7 @@ func (s *Server) refreshAgentsFromDisk(ctx context.Context) error {
 // ReloadTeams loads teams from the specified path and replaces the current teams.
 // This method is thread-safe and ensures ongoing requests are not interrupted.
 func (s *Server) ReloadTeams(ctx context.Context, agentPath string) error {
+	// TODO(rumpl): this is completely broken and needs fixing, it is only reloading teams but it's IS NOT reloading runtimes.
 	newTeams, err := teamloader.LoadTeams(ctx, agentPath, s.runConfig)
 	if err != nil {
 		return fmt.Errorf("failed to load teams: %w", err)
@@ -473,7 +468,7 @@ func (s *Server) resumeSession(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
 	}
 
-	rt, exists := s.runtimes[sessionID]
+	rt, exists := s.runtimes.Load(sessionID)
 	if !exists {
 		return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("runtime not found: %s", sessionID))
 	}
@@ -487,18 +482,16 @@ func (s *Server) deleteSession(c echo.Context) error {
 	sessionID := c.Param("id")
 
 	// Cancel the runtime context if it's still running
-	s.cancelsMu.Lock()
-	if cancel, exists := s.runtimeCancels[sessionID]; exists {
+	if cancel, exists := s.runtimeCancels.Load(sessionID); exists {
 		slog.Debug("Cancelling runtime for session", "session_id", sessionID)
 		cancel()
-		delete(s.runtimeCancels, sessionID)
+		s.runtimeCancels.Delete(sessionID)
 	}
-	s.cancelsMu.Unlock()
 
 	// Clean up the runtime
-	if _, exists := s.runtimes[sessionID]; exists {
+	if _, exists := s.runtimes.Load(sessionID); exists {
 		slog.Debug("Removing runtime for session", "session_id", sessionID)
-		delete(s.runtimes, sessionID)
+		s.runtimes.Delete(sessionID)
 	}
 
 	// Delete the session from storage
@@ -526,43 +519,13 @@ func (s *Server) runAgent(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("session not found: %v", err))
 	}
 
-	p := addYamlExt(agentFilename)
-
 	// Copy runConfig and inject per-session working dir override
 	rc := s.runConfig.Clone()
 	rc.WorkingDir = sess.WorkingDir
 
-	// Load team - either reload from disk (local) or use in-memory team (OCI refs)
-	t, err := s.loadTeamForSession(c.Request().Context(), p, sess, rc)
+	rt, err := s.runtimeForSession(c.Request().Context(), sess, agentFilename, currentAgent, rc)
 	if err != nil {
-		return err
-	}
-
-	agent, err := t.Agent(currentAgent)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("agent not found: %v", err))
-	}
-
-	// Only set max iterations the first time the session is run
-	// since on creation we can accept an empty sessionTemplate
-	if len(sess.Messages) == 0 && sess.MaxIterations == 0 && agent.MaxIterations() > 0 {
-		sess.MaxIterations = agent.MaxIterations()
-	}
-
-	rt, exists := s.runtimes[sess.ID]
-	if !exists {
-		opts := []runtime.Opt{
-			runtime.WithCurrentAgent(currentAgent),
-			runtime.WithManagedOAuth(false),
-			runtime.WithRootSessionID(sess.ID),
-		}
-		rt, err = runtime.New(t, opts...)
-		if err != nil {
-			slog.Error("Failed to create runtime", "error", err)
-			return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to create runtime: %v", err))
-		}
-		s.runtimes[sess.ID] = rt
-		slog.Debug("Runtime created for session", "session_id", sess.ID)
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to get runtime for session: %v", err))
 	}
 
 	// Receive messages from the API client
@@ -587,13 +550,9 @@ func (s *Server) runAgent(c echo.Context) error {
 
 	// Create a cancellable context for this stream
 	streamCtx, cancel := context.WithCancel(c.Request().Context())
-	s.cancelsMu.Lock()
-	s.runtimeCancels[sess.ID] = cancel
-	s.cancelsMu.Unlock()
+	s.runtimeCancels.Store(sess.ID, cancel)
 	defer func() {
-		s.cancelsMu.Lock()
-		delete(s.runtimeCancels, sess.ID)
-		s.cancelsMu.Unlock()
+		s.runtimeCancels.Delete(sess.ID)
 	}()
 
 	streamChan := rt.RunStream(streamCtx, sess)
@@ -613,6 +572,39 @@ func (s *Server) runAgent(c echo.Context) error {
 	return nil
 }
 
+func (s *Server) runtimeForSession(ctx context.Context, sess *session.Session, agentFilename, currentAgent string, rc *config.RuntimeConfig) (runtime.Runtime, error) {
+	rt, exists := s.runtimes.Load(sess.ID)
+	if exists {
+		return rt, nil
+	}
+
+	t, err := s.loadTeamForSession(ctx, agentFilename, sess, rc)
+	if err != nil {
+		return nil, err
+	}
+
+	agent, err := t.Agent(currentAgent)
+	if err != nil {
+		return nil, echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("agent not found: %v", err))
+	}
+	sess.MaxIterations = agent.MaxIterations()
+
+	opts := []runtime.Opt{
+		runtime.WithCurrentAgent(currentAgent),
+		runtime.WithManagedOAuth(false),
+		runtime.WithRootSessionID(sess.ID),
+	}
+	rt, err = runtime.New(t, opts...)
+	if err != nil {
+		slog.Error("Failed to create runtime", "error", err)
+		return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to create runtime: %v", err))
+	}
+	s.runtimes.Store(sess.ID, rt)
+	slog.Debug("Runtime created for session", "session_id", sess.ID)
+
+	return rt, nil
+}
+
 // loadTeamForSession loads the appropriate team for a session, handling both
 // local files (always reload) and OCI refs (reload only if session has custom workingDir).
 func (s *Server) loadTeamForSession(ctx context.Context, agentFilename string, sess *session.Session, rc *config.RuntimeConfig) (*team.Team, error) {
@@ -625,38 +617,34 @@ func (s *Server) loadTeamForSession(ctx context.Context, agentFilename string, s
 
 		t, err := teamloader.Load(ctx, loadPath, rc)
 		if err != nil {
-			return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to load agent for session: %v", err))
+			return nil, err
 		}
 		return t, nil
+	}
+
+	// If session has a custom working dir, reload the agent to pick it up
+	if ociRef, ok := s.getOCIRef(agentFilename); ok && sess.WorkingDir != "" {
+		yamlContent, err := agentfile.FromStore(ociRef)
+		if err != nil {
+			return nil, err
+		}
+
+		reloaded, err := teamloader.LoadFrom(
+			ctx,
+			teamloader.NewBytesSource([]byte(yamlContent)),
+			rc,
+			teamloader.WithID(agentFilename),
+		)
+		if err != nil {
+			return nil, err
+		}
+		return reloaded, nil
 	}
 
 	// No local directory: use the already-loaded team from memory (OCI refs)
 	t, exists := s.getTeam(agentFilename)
 	if !exists {
-		return nil, echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("agent not found: %s", agentFilename))
-	}
-
-	// If session has a custom working dir, reload the agent to pick it up
-	if sess.WorkingDir != "" {
-		if ociRef, ok := s.getOCIRef(agentFilename); ok {
-			yamlContent, err := agentfile.FromStore(ociRef)
-			if err != nil {
-				slog.Error("Failed to load OCI agent from store", "agent", agentFilename, "oci_ref", ociRef, "error", err)
-				return t, nil // Fall back to cached team
-			}
-
-			reloaded, err := teamloader.LoadFrom(
-				ctx,
-				teamloader.NewBytesSource([]byte(yamlContent)),
-				rc,
-				teamloader.WithID(agentFilename),
-			)
-			if err != nil {
-				slog.Error("Failed to reload OCI agent with session working dir", "agent", agentFilename, "error", err)
-				return t, nil // Fall back to cached team
-			}
-			return reloaded, nil
-		}
+		return nil, fmt.Errorf("agent not found: %s", agentFilename)
 	}
 
 	return t, nil
@@ -676,7 +664,7 @@ func (s *Server) elicitation(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
 	}
 
-	rt, exists := s.runtimes[sessionID]
+	rt, exists := s.runtimes.Load(sessionID)
 	if !exists {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": fmt.Sprintf("runtime not found: %s", sessionID)})
 	}

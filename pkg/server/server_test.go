@@ -26,18 +26,9 @@ import (
 	"github.com/docker/cagent/pkg/teamloader"
 )
 
-// countTeams returns the number of teams with read lock
-func (s *Server) countTeams() int {
-	s.teamsMu.RLock()
-	defer s.teamsMu.RUnlock()
-	return len(s.teams)
-}
-
-// hasTeam checks if a team exists with read lock
-func (s *Server) hasTeam(key string) bool {
-	s.teamsMu.RLock()
-	defer s.teamsMu.RUnlock()
-	_, exists := s.teams[key]
+func hasTeam(t *testing.T, s *Server, key string) bool {
+	t.Helper()
+	_, exists := s.teams.Load(key)
 	return exists
 }
 
@@ -133,8 +124,8 @@ func TestServer_ReloadTeams(t *testing.T) {
 	srv, err := New(store, &runConfig, teams, WithAgentsDir(agentsDir1))
 	require.NoError(t, err)
 
-	initialTeamsCount := srv.countTeams()
-	hasPirate := srv.hasTeam("pirate.yaml")
+	initialTeamsCount := srv.teams.Length()
+	hasPirate := hasTeam(t, srv, "pirate.yaml")
 
 	assert.Equal(t, 1, initialTeamsCount)
 	assert.True(t, hasPirate, "should have pirate agent initially")
@@ -145,10 +136,10 @@ func TestServer_ReloadTeams(t *testing.T) {
 	err = srv.ReloadTeams(ctx, agentsDir2)
 	require.NoError(t, err)
 
-	newTeamsCount := srv.countTeams()
-	hasPirateAfter := srv.hasTeam("pirate.yaml")
-	hasContradict := srv.hasTeam("contradict.yaml")
-	hasMulti := srv.hasTeam("multi_agents.yaml")
+	newTeamsCount := srv.teams.Length()
+	hasPirateAfter := hasTeam(t, srv, "pirate.yaml")
+	hasContradict := hasTeam(t, srv, "contradict.yaml")
+	hasMulti := hasTeam(t, srv, "multi_agents.yaml")
 
 	assert.Equal(t, 2, newTeamsCount, "should have 2 agents after reload")
 	assert.False(t, hasPirateAfter, "pirate agent should be removed")
@@ -179,7 +170,7 @@ func TestServer_ReloadTeams_Concurrent(t *testing.T) {
 	done := make(chan bool)
 	go func() {
 		for range 100 {
-			_ = srv.countTeams()
+			_ = srv.teams.Length()
 		}
 		done <- true
 	}()
@@ -192,7 +183,7 @@ func TestServer_ReloadTeams_Concurrent(t *testing.T) {
 
 	<-done
 
-	hasPirate := srv.hasTeam("pirate.yaml")
+	hasPirate := hasTeam(t, srv, "pirate.yaml")
 
 	assert.True(t, hasPirate, "should have pirate agent after final reload")
 }
@@ -218,8 +209,8 @@ func TestServer_ReloadTeams_InvalidPath(t *testing.T) {
 	err = srv.ReloadTeams(ctx, "/nonexistent/path")
 	require.Error(t, err)
 
-	teamsCount := srv.countTeams()
-	hasPirate := srv.hasTeam("pirate.yaml")
+	teamsCount := srv.teams.Length()
+	hasPirate := hasTeam(t, srv, "pirate.yaml")
 
 	assert.Equal(t, 1, teamsCount, "should still have original team")
 	assert.True(t, hasPirate, "should still have pirate agent")
@@ -243,9 +234,9 @@ func TestServer_RefreshAgentsFromDisk_AddNewAgent(t *testing.T) {
 	srv, err := New(store, &runConfig, teams, WithAgentsDir(agentsDir))
 	require.NoError(t, err)
 
-	initialCount := srv.countTeams()
-	hasPirate := srv.hasTeam("pirate.yaml")
-	hasContradict := srv.hasTeam("contradict.yaml")
+	initialCount := srv.teams.Length()
+	hasPirate := hasTeam(t, srv, "pirate.yaml")
+	hasContradict := hasTeam(t, srv, "contradict.yaml")
 
 	assert.Equal(t, 1, initialCount)
 	assert.True(t, hasPirate)
@@ -260,9 +251,9 @@ func TestServer_RefreshAgentsFromDisk_AddNewAgent(t *testing.T) {
 	err = srv.refreshAgentsFromDisk(ctx)
 	require.NoError(t, err)
 
-	newCount := srv.countTeams()
-	hasPirateAfter := srv.hasTeam("pirate.yaml")
-	hasContradictAfter := srv.hasTeam("contradict.yaml")
+	newCount := srv.teams.Length()
+	hasPirateAfter := hasTeam(t, srv, "pirate.yaml")
+	hasContradictAfter := hasTeam(t, srv, "contradict.yaml")
 
 	assert.Equal(t, 2, newCount, "should have 2 agents after refresh")
 	assert.True(t, hasPirateAfter, "pirate agent should still exist")
@@ -287,9 +278,9 @@ func TestServer_RefreshAgentsFromDisk_RemoveAgent(t *testing.T) {
 	srv, err := New(store, &runConfig, teams, WithAgentsDir(agentsDir))
 	require.NoError(t, err)
 
-	initialCount := srv.countTeams()
-	hasPirate := srv.hasTeam("pirate.yaml")
-	hasContradict := srv.hasTeam("contradict.yaml")
+	initialCount := srv.teams.Length()
+	hasPirate := hasTeam(t, srv, "pirate.yaml")
+	hasContradict := hasTeam(t, srv, "contradict.yaml")
 
 	assert.Equal(t, 2, initialCount)
 	assert.True(t, hasPirate)
@@ -303,9 +294,9 @@ func TestServer_RefreshAgentsFromDisk_RemoveAgent(t *testing.T) {
 	err = srv.refreshAgentsFromDisk(ctx)
 	require.NoError(t, err)
 
-	newCount := srv.countTeams()
-	hasPirateAfter := srv.hasTeam("pirate.yaml")
-	hasContradictAfter := srv.hasTeam("contradict.yaml")
+	newCount := srv.teams.Length()
+	hasPirateAfter := hasTeam(t, srv, "pirate.yaml")
+	hasContradictAfter := hasTeam(t, srv, "contradict.yaml")
 
 	assert.Equal(t, 1, newCount, "should have 1 agent after refresh")
 	assert.True(t, hasPirateAfter, "pirate agent should still exist")
@@ -382,7 +373,7 @@ func TestServer_RefreshAgentsFromDisk_MultipleChanges(t *testing.T) {
 	srv, err := New(store, &runConfig, teams, WithAgentsDir(agentsDir))
 	require.NoError(t, err)
 
-	initialCount := srv.countTeams()
+	initialCount := srv.teams.Length()
 	assert.Equal(t, 2, initialCount)
 
 	// Remove contradict, add multi_agents
@@ -398,10 +389,10 @@ func TestServer_RefreshAgentsFromDisk_MultipleChanges(t *testing.T) {
 	err = srv.refreshAgentsFromDisk(ctx)
 	require.NoError(t, err)
 
-	newCount := srv.countTeams()
-	hasPirate := srv.hasTeam("pirate.yaml")
-	hasContradict := srv.hasTeam("contradict.yaml")
-	hasMulti := srv.hasTeam("multi_agents.yaml")
+	newCount := srv.teams.Length()
+	hasPirate := hasTeam(t, srv, "pirate.yaml")
+	hasContradict := hasTeam(t, srv, "contradict.yaml")
+	hasMulti := hasTeam(t, srv, "multi_agents.yaml")
 
 	assert.Equal(t, 2, newCount, "should have 2 agents")
 	assert.True(t, hasPirate, "pirate agent should still exist")
@@ -425,14 +416,14 @@ func TestServer_RefreshAgentsFromDisk_NoChanges(t *testing.T) {
 	srv, err := New(store, &runConfig, teams, WithAgentsDir(agentsDir))
 	require.NoError(t, err)
 
-	initialCount := srv.countTeams()
+	initialCount := srv.teams.Length()
 
 	// Refresh without any changes
 	err = srv.refreshAgentsFromDisk(ctx)
 	require.NoError(t, err)
 
-	newCount := srv.countTeams()
-	exists := srv.hasTeam("pirate.yaml")
+	newCount := srv.teams.Length()
+	exists := hasTeam(t, srv, "pirate.yaml")
 
 	assert.Equal(t, initialCount, newCount, "count should be unchanged")
 	assert.True(t, exists, "team should still exist")
@@ -464,7 +455,7 @@ func TestServer_RefreshAgentsFromDisk_EmptyDir(t *testing.T) {
 	err = srv.refreshAgentsFromDisk(ctx)
 	require.NoError(t, err)
 
-	count := srv.countTeams()
+	count := srv.teams.Length()
 
 	assert.Equal(t, 0, count, "should have no agents")
 }
@@ -484,7 +475,7 @@ func TestServer_RefreshAgentsFromDisk_NoAgentsDir(t *testing.T) {
 	err = srv.refreshAgentsFromDisk(ctx)
 	require.NoError(t, err)
 
-	count := srv.countTeams()
+	count := srv.teams.Length()
 
 	assert.Equal(t, 0, count)
 }
@@ -516,16 +507,16 @@ func TestServer_RefreshAgentsFromDisk_WithAgentsPath(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	initialCount := srv.countTeams()
+	initialCount := srv.teams.Length()
 	assert.Equal(t, 3, initialCount, "should start with 3 agents")
 
 	err = srv.refreshAgentsFromDisk(ctx)
 	require.NoError(t, err)
 
-	newCount := srv.countTeams()
-	hasPirate := srv.hasTeam("pirate.yaml")
-	hasContradict := srv.hasTeam("contradict.yaml")
-	hasMulti := srv.hasTeam("multi_agents.yaml")
+	newCount := srv.teams.Length()
+	hasPirate := hasTeam(t, srv, "pirate.yaml")
+	hasContradict := hasTeam(t, srv, "contradict.yaml")
+	hasMulti := hasTeam(t, srv, "multi_agents.yaml")
 
 	assert.Equal(t, 1, newCount, "should only have 1 agent after refresh (from agentsPath)")
 	assert.True(t, hasPirate, "should have pirate agent from agentsPath")
@@ -567,7 +558,7 @@ agents:
 	err = srv.refreshAgentsFromDisk(ctx)
 	require.NoError(t, err)
 
-	count := srv.countTeams()
+	count := srv.teams.Length()
 	assert.Equal(t, 1, count, "should only load from agentsPath")
 
 	tm, exists := srv.getTeam("pirate.yaml")
@@ -636,7 +627,7 @@ agents:
 	require.NoError(t, err)
 
 	// Critical assertion: only the OCI agent should be loaded, not noise files
-	count := srv.countTeams()
+	count := srv.teams.Length()
 	assert.Equal(t, 1, count, "should only have the OCI agent, not files from /tmp")
 
 	// Verify it's the correct agent
