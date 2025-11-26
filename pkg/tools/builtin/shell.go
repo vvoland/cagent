@@ -151,9 +151,9 @@ func (h *shellHandler) RunShell(ctx context.Context, toolCall tools.ToolCall) (*
 
 	cmd := exec.Command(h.shell, append(h.shellArgsPrefix, params.Cmd)...)
 	cmd.Env = h.env
-	cmd.Dir = h.workingDir
-	if params.Cwd != "" {
-		cmd.Dir = params.Cwd
+	cmd.Dir = params.Cwd
+	if params.Cwd == "" || params.Cwd == "." {
+		cmd.Dir = h.workingDir
 	}
 
 	cmd.SysProcAttr = platformSpecificSysProcAttr()
@@ -231,9 +231,9 @@ func (h *shellHandler) RunShellBackground(ctx context.Context, toolCall tools.To
 	// Setup command (no context - background jobs run independently)
 	cmd := exec.Command(h.shell, append(h.shellArgsPrefix, params.Cmd)...)
 	cmd.Env = h.env
-	cmd.Dir = h.workingDir
-	if params.Cwd != "" {
-		cmd.Dir = params.Cwd
+	cmd.Dir = params.Cwd
+	if params.Cwd == "" || params.Cwd == "." {
+		cmd.Dir = h.workingDir
 	}
 
 	cmd.SysProcAttr = platformSpecificSysProcAttr()
