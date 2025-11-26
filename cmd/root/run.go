@@ -103,7 +103,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 
 		var source teamloader.AgentSource
 		if agentFileName == "default" {
-			source = teamloader.NewBytesSource(f.runConfig.WorkingDir, defaultAgent)
+			source = teamloader.NewBytesSource(defaultAgent)
 		} else {
 			source = teamloader.NewFileSource(agentFileName)
 		}

@@ -1325,7 +1325,7 @@ func (s *Server) loadTeamForSession(ctx context.Context, agentFilename string, s
 
 			reloaded, err := teamloader.LoadFrom(
 				ctx,
-				teamloader.NewBytesSource(sess.WorkingDir, []byte(yamlContent)),
+				teamloader.NewBytesSource([]byte(yamlContent)),
 				rc,
 				teamloader.WithID(agentFilename),
 			)

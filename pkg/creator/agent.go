@@ -180,7 +180,7 @@ Can you explain to me what the agent will be used for?`,
 
 	return teamloader.LoadFrom(
 		ctx,
-		teamloader.NewBytesSource(runConfig.WorkingDir, configAsJSON),
+		teamloader.NewBytesSource(configAsJSON),
 		runConfig,
 		teamloader.WithModelOverrides([]string{modelNameOverride}),
 		teamloader.WithToolsetRegistry(registry),

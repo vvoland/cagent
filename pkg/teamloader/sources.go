@@ -49,18 +49,12 @@ func (a fileSource) Read() ([]byte, error) {
 
 // bytesSource is used to load an agent configuration from a []byte.
 type bytesSource struct {
-	workingDir string
-	data       []byte
+	data []byte
 }
 
-func NewBytesSource(workingDir string, data []byte) AgentSource {
-	// TODO(dga): this is not perfect but ok for now
-	if workingDir == "" {
-		workingDir = "."
-	}
+func NewBytesSource(data []byte) AgentSource {
 	return bytesSource{
-		workingDir: workingDir,
-		data:       data,
+		data: data,
 	}
 }
 
@@ -69,7 +63,7 @@ func (a bytesSource) Name() string {
 }
 
 func (a bytesSource) ParentDir() string {
-	return a.workingDir
+	return ""
 }
 
 func (a bytesSource) Read() ([]byte, error) {
