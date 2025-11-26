@@ -134,9 +134,7 @@ func TestAPITool_DefaultOutputSchema(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, toolsList, 1)
 
-	schema, ok := toolsList[0].OutputSchema.(map[string]any)
-	require.True(t, ok)
-	assert.Equal(t, "string", schema["type"])
+	assert.Equal(t, tools.MustSchemaFor[string](), toolsList[0].OutputSchema)
 }
 
 func TestAPITool_CustomOutputSchema(t *testing.T) {
