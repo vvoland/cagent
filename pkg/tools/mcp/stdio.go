@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"iter"
 	"os/exec"
+	"runtime"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -32,7 +33,8 @@ func newStdioCmdClient(command string, args, env []string, cwd string) *stdioMCP
 
 func (c *stdioMCPClient) Initialize(ctx context.Context, _ *mcp.InitializeRequest) (*mcp.InitializeResult, error) {
 	// First, let's see if DD is running. This will help produce a better error message
-	if c.command == "docker" && !desktop.IsDockerDesktopRunning(ctx) {
+	// Skip this check on Linux where Docker runs natively without Docker Desktop
+	if c.command == "docker" && runtime.GOOS != "linux" && !desktop.IsDockerDesktopRunning(ctx) {
 		return nil, errors.New("Docker Desktop is not running") //nolint:staticcheck // Don't lowercase Docker Desktop
 	}
 
