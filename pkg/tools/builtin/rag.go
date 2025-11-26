@@ -10,28 +10,26 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
-const (
-	ToolNameQueryRAG = "query_documents"
-)
-
-// RAGTool provides document querying capabilities
+// RAGTool provides document querying capabilities for a single RAG source
 type RAGTool struct {
 	tools.ElicitationTool
-	managers map[string]*rag.Manager
+	manager  *rag.Manager
+	toolName string
 }
 
 var _ tools.ToolSet = (*RAGTool)(nil)
 
-// NewRAGTool creates a new RAG tool with the given managers
-func NewRAGTool(managers map[string]*rag.Manager) *RAGTool {
+// NewRAGTool creates a new RAG tool for a single RAG manager
+// toolName is the name to use for the tool (typically from config or manager name)
+func NewRAGTool(manager *rag.Manager, toolName string) *RAGTool {
 	return &RAGTool{
-		managers: managers,
+		manager:  manager,
+		toolName: toolName,
 	}
 }
 
 type QueryRAGArgs struct {
-	Query  string `json:"query"  jsonschema:"The search query to find relevant documents"`
-	Source string `json:"source,omitempty" jsonschema:"Optional name of a specific knowledge base to query; if omitted, searches all knowledge bases"`
+	Query string `json:"query" jsonschema:"Search query"`
 }
 
 type QueryResult struct {
@@ -42,36 +40,65 @@ type QueryResult struct {
 }
 
 func (t *RAGTool) Instructions() string {
-	if len(t.managers) == 0 {
-		return ""
+	if t.manager != nil {
+		instruction := t.manager.ToolInstruction()
+		if instruction != "" {
+			return instruction
+		}
 	}
 
-	instruction := "## Document Knowledge Bases\n\nYou have access to the following document knowledge bases:\n\n"
-	for name, mgr := range t.managers {
-		instruction += fmt.Sprintf("- **%s**: %s\n", name, mgr.Description())
-	}
-	instruction += "\nUse the `query_documents` tool to search these knowledge bases for relevant information.\n"
-	instruction += "You can optionally set the `source` argument to one of the names above to query a single knowledge base; "
-	instruction += "leave `source` empty to search across all knowledge bases."
-
-	return instruction
+	// Default instruction if none provided
+	return fmt.Sprintf("Search documents in %s to find relevant code or documentation. "+
+		"Provide a clear search query describing what you need.", t.toolName)
 }
 
 func (t *RAGTool) Tools(context.Context) ([]tools.Tool, error) {
-	return []tools.Tool{
-		{
-			Name:         ToolNameQueryRAG,
-			Category:     "knowledge",
-			Description:  "Search document knowledge bases for relevant information. Returns the most relevant document chunks based on semantic similarity.",
-			Parameters:   tools.MustSchemaFor[QueryRAGArgs](),
-			OutputSchema: tools.MustSchemaFor[[]QueryResult](),
-			Handler:      t.handleQueryRAG,
-			Annotations: tools.ToolAnnotations{
-				ReadOnlyHint: true,
-				Title:        "Query Documents",
-			},
+	var description string
+	if t.manager != nil {
+		description = t.manager.Description()
+	}
+	if description == "" {
+		description = fmt.Sprintf("Search project documents from %s to find relevant code or documentation. "+
+			"Provide a natural language query describing what you need. "+
+			"Returns the most relevant document chunks with file paths.", t.toolName)
+	}
+
+	paramsSchema := tools.MustSchemaFor[QueryRAGArgs]()
+	outputSchema := tools.MustSchemaFor[[]QueryResult]()
+
+	// Log schemas for debugging
+	if paramsJSON, err := json.Marshal(paramsSchema); err == nil {
+		slog.Debug("RAG tool parameters schema",
+			"tool_name", t.toolName,
+			"schema", string(paramsJSON))
+	}
+	if outputJSON, err := json.Marshal(outputSchema); err == nil {
+		slog.Debug("RAG tool output schema",
+			"tool_name", t.toolName,
+			"schema", string(outputJSON))
+	}
+
+	tool := tools.Tool{
+		Name:         t.toolName,
+		Category:     "knowledge",
+		Description:  description,
+		Parameters:   paramsSchema,
+		OutputSchema: outputSchema,
+		Handler:      t.handleQueryRAG,
+		Annotations: tools.ToolAnnotations{
+			ReadOnlyHint: true,
+			Title:        fmt.Sprintf("Query %s", t.toolName),
 		},
-	}, nil
+	}
+
+	slog.Debug("RAG tool registered",
+		"tool_name", tool.Name,
+		"category", tool.Category,
+		"description", description,
+		"title", tool.Annotations.Title,
+		"read_only", tool.Annotations.ReadOnlyHint)
+
+	return []tools.Tool{tool}, nil
 }
 
 func (t *RAGTool) handleQueryRAG(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
@@ -84,68 +111,24 @@ func (t *RAGTool) handleQueryRAG(ctx context.Context, toolCall tools.ToolCall) (
 		return nil, fmt.Errorf("query cannot be empty")
 	}
 
-	// If a specific source is provided, restrict the query to that knowledge base
-	if args.Source != "" {
-		mgr, ok := t.managers[args.Source]
-		if !ok {
-			return nil, fmt.Errorf("unknown source %q; must be one of the configured RAG sources", args.Source)
-		}
-
-		results, err := mgr.Query(ctx, args.Query)
-		if err != nil {
-			return nil, fmt.Errorf("RAG query failed for source %q: %w", args.Source, err)
-		}
-
-		allResults := make([]QueryResult, 0, len(results))
-		for _, result := range results {
-			allResults = append(allResults, QueryResult{
-				SourcePath: result.Document.SourcePath,
-				Content:    result.Document.Content,
-				Similarity: result.Similarity,
-				ChunkIndex: result.Document.ChunkIndex,
-			})
-		}
-
-		sortResults(allResults)
-
-		maxResults := 10
-		if len(allResults) > maxResults {
-			allResults = allResults[:maxResults]
-		}
-
-		resultJSON, err := json.Marshal(allResults)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal results: %w", err)
-		}
-
-		return &tools.ToolCallResult{
-			Output: string(resultJSON),
-		}, nil
+	results, err := t.manager.Query(ctx, args.Query)
+	if err != nil {
+		slog.Error("RAG query failed", "rag", t.manager.Name(), "error", err)
+		return nil, fmt.Errorf("RAG query failed: %w", err)
 	}
 
-	// No specific source: query all RAG managers and combine results
-	var allResults []QueryResult
-	for name, mgr := range t.managers {
-		results, err := mgr.Query(ctx, args.Query)
-		if err != nil {
-			slog.Error("RAG query failed", "rag", name, "error", err)
-			continue
-		}
-
-		for _, result := range results {
-			allResults = append(allResults, QueryResult{
-				SourcePath: result.Document.SourcePath,
-				Content:    result.Document.Content,
-				Similarity: result.Similarity,
-				ChunkIndex: result.Document.ChunkIndex,
-			})
-		}
+	allResults := make([]QueryResult, 0, len(results))
+	for _, result := range results {
+		allResults = append(allResults, QueryResult{
+			SourcePath: result.Document.SourcePath,
+			Content:    result.Document.Content,
+			Similarity: result.Similarity,
+			ChunkIndex: result.Document.ChunkIndex,
+		})
 	}
 
-	// Sort by similarity (already sorted per manager, but we need to sort combined results)
 	sortResults(allResults)
 
-	// Limit to top results across all managers
 	maxResults := 10
 	if len(allResults) > maxResults {
 		allResults = allResults[:maxResults]

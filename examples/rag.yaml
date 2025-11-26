@@ -18,7 +18,8 @@ models:
 
 rag:
   blork_knowledge_base:
-    description: documents about the blorks
+    tool:
+      description: documents about the blorks
     docs:
       - ./rag/docs
       - ./rag/blork_field_guide.txt

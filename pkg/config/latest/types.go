@@ -299,13 +299,20 @@ type StructuredOutput struct {
 	Strict bool `json:"strict,omitempty"`
 }
 
+// RAGToolConfig represents tool-specific configuration for a RAG source
+type RAGToolConfig struct {
+	Name        string `json:"name,omitempty"`        // Custom name for the tool (defaults to RAG source name if empty)
+	Description string `json:"description,omitempty"` // Tool description (what the tool does)
+	Instruction string `json:"instruction,omitempty"` // Tool instruction (how to use the tool effectively)
+}
+
 // RAGConfig represents a RAG (Retrieval-Augmented Generation) configuration
 // Uses a unified strategies array for flexible, extensible configuration
 type RAGConfig struct {
-	Description string              `json:"description,omitempty"`
-	Docs        []string            `json:"docs,omitempty"`       // Shared documents across all strategies
-	Strategies  []RAGStrategyConfig `json:"strategies,omitempty"` // Array of strategy configurations
-	Results     RAGResultsConfig    `json:"results,omitempty"`
+	Tool       RAGToolConfig       `json:"tool,omitempty"`       // Tool configuration
+	Docs       []string            `json:"docs,omitempty"`       // Shared documents across all strategies
+	Strategies []RAGStrategyConfig `json:"strategies,omitempty"` // Array of strategy configurations
+	Results    RAGResultsConfig    `json:"results,omitempty"`
 }
 
 // RAGStrategyConfig represents a single retrieval strategy configuration

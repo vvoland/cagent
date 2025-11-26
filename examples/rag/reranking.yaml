@@ -23,7 +23,8 @@ agents:
 
 rag:
   knowledge_base:
-    description: to be used to search for information about blorks
+    tool:
+      description: to be used to search for information about blorks
     docs:
       - ./docs
       - ./blork_field_guide.txt

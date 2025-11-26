@@ -10,7 +10,8 @@ agents:
 
 rag:
   blork_knowledge_base:
-    description: keyword-based search for blork documents
+    tool:
+      description: keyword-based search for blork documents
     docs:
       - ./docs
       - ./blork_field_guide.txt

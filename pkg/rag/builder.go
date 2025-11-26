@@ -116,7 +116,11 @@ func buildManagerConfig(
 	fusionCfg := buildManagerFusionConfig(ragCfg, strategyConfigs)
 
 	return Config{
-		Description:     ragCfg.Description,
+		Tool: ToolConfig{
+			Name:        ragCfg.Tool.Name,
+			Description: ragCfg.Tool.Description,
+			Instruction: ragCfg.Tool.Instruction,
+		},
 		Docs:            GetAbsolutePaths(buildCfg.ParentDir, ragCfg.Docs),
 		Results:         results,
 		FusionConfig:    fusionCfg,

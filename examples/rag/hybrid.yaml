@@ -18,10 +18,10 @@ agents:
 
 rag:
   knowledge_base:
-    description: to be used to search for information about blorks
+    tool: 
+      description: to be used to search for information about blorks
     docs:
       - ./blork_field_guide.txt   # Shared across both strategies
-
     strategies:
       # Chunked embeddings strategy for semantic search
       - type: chunked-embeddings
@@ -39,7 +39,6 @@ rag:
           size: 1000
           overlap: 100
           respect_word_boundaries: true
-      
       # BM25 strategy for keyword matching
       - type: bm25
         docs:
@@ -53,7 +52,6 @@ rag:
           size: 1000
           overlap: 100
           respect_word_boundaries: true
-
     # Results fusion and limiting
     results:
       fusion:                          # Configures how to combine the results from the different strategies
