@@ -15,6 +15,7 @@ require (
 	github.com/anthropics/anthropic-sdk-go v1.19.0
 	github.com/atotto/clipboard v0.1.4
 	github.com/aymanbagabas/go-udiff v0.3.1
+	github.com/bmatcuk/doublestar/v4 v4.9.1
 	github.com/charmbracelet/glamour/v2 v2.0.0-20251106195642-800eb8175930
 	github.com/charmbracelet/x/ansi v0.11.1
 	github.com/coder/acp-go-sdk v0.6.3

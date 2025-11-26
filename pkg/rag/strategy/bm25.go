@@ -643,7 +643,7 @@ func (s *BM25Strategy) addPathToWatcher(path string) error {
 	return nil
 }
 
-func (s *BM25Strategy) watchLoop(ctx context.Context, _ []string, chunkSize, chunkOverlap int, respectWordBoundaries bool) {
+func (s *BM25Strategy) watchLoop(ctx context.Context, docPaths []string, chunkSize, chunkOverlap int, respectWordBoundaries bool) {
 	var debounceTimer *time.Timer
 	debounceDuration := 2 * time.Second
 	pendingChanges := make(map[string]bool)
@@ -663,11 +663,22 @@ func (s *BM25Strategy) watchLoop(ctx context.Context, _ []string, chunkSize, chu
 		}
 
 		for _, file := range changedFiles {
+			// Check if the file matches any of the configured document paths/patterns
+			matches, matchErr := s.processor.Matches(file, docPaths)
+			if matchErr != nil {
+				slog.Error("Failed to match path", "file", file, "error", matchErr)
+				continue
+			}
+			if !matches {
+				continue
+			}
+
 			needsIndexing, err := s.needsIndexing(ctx, file)
 			if err != nil || !needsIndexing {
 				continue
 			}
 
+			slog.Debug("Indexing file", "path", file, "strategy", s.name)
 			if err := s.indexFile(ctx, file, chunkSize, chunkOverlap, respectWordBoundaries); err != nil {
 				slog.Error("Failed to re-index file", "path", file, "error", err)
 			}
@@ -697,6 +708,12 @@ func (s *BM25Strategy) watchLoop(ctx context.Context, _ []string, chunkSize, chu
 				s.watcherMu.Lock()
 				_ = s.addPathToWatcher(event.Name)
 				s.watcherMu.Unlock()
+			}
+
+			// Early filter: only track changes for files that match configured doc patterns
+			matches, err := s.processor.Matches(event.Name, docPaths)
+			if err != nil || !matches {
+				continue
 			}
 
 			pendingMu.Lock()
