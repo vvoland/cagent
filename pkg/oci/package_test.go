@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/content"
 )
 
@@ -23,8 +24,11 @@ agents:
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
 	require.NoError(t, err)
 
+	source, err := agentfile.Resolve(t.Context(), testFile)
+	require.NoError(t, err)
+
 	tag := "test-app:v1.0.0"
-	digest, err := PackageFileAsOCIToStore(t.Context(), testFile, tag, store)
+	digest, err := PackageFileAsOCIToStore(t.Context(), source, tag, store)
 	require.NoError(t, err)
 	assert.NotEmpty(t, digest)
 	t.Cleanup(func() {
@@ -50,19 +54,15 @@ agents:
 	assert.Equal(t, "OCI artifact containing test.yaml", metadata.Annotations["org.opencontainers.image.description"])
 }
 
-func TestPackageFileAsOCIToStoreMissingFile(t *testing.T) {
-	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
-	require.NoError(t, err)
-	_, err = PackageFileAsOCIToStore(t.Context(), "/non/existent/file.txt", "test:latest", store)
-	require.Error(t, err)
-}
-
 func TestPackageFileAsOCIToStoreInvalidTag(t *testing.T) {
 	testFile := filepath.Join(t.TempDir(), "test.txt")
 	require.NoError(t, os.WriteFile(testFile, []byte("test content"), 0o644))
 
+	source, err := agentfile.Resolve(t.Context(), testFile)
+	require.NoError(t, err)
+
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
 	require.NoError(t, err)
-	_, err = PackageFileAsOCIToStore(t.Context(), testFile, "", store)
+	_, err = PackageFileAsOCIToStore(t.Context(), source, "", store)
 	require.Error(t, err)
 }

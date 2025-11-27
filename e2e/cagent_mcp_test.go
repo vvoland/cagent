@@ -15,9 +15,11 @@ func TestMCP_SingleAgent(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	_, runtimeConfig := startRecordingAIProxy(t)
+	source, err := agentfile.Resolve(ctx, "testdata/basic.yaml")
+	require.NoError(t, err)
 
-	team, err := teamloader.Load(ctx, agentfile.NewFileSource("testdata/basic.yaml"), runtimeConfig)
+	_, runtimeConfig := startRecordingAIProxy(t)
+	team, err := teamloader.Load(ctx, source, runtimeConfig)
 	require.NoError(t, err, "Failed to load agent")
 	t.Cleanup(func() {
 		require.NoError(t, team.StopToolSets(ctx))
@@ -36,9 +38,11 @@ func TestMCP_MultiAgent(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	_, runtimeConfig := startRecordingAIProxy(t)
+	source, err := agentfile.Resolve(ctx, "testdata/multi.yaml")
+	require.NoError(t, err)
 
-	team, err := teamloader.Load(ctx, agentfile.NewFileSource("testdata/multi.yaml"), runtimeConfig)
+	_, runtimeConfig := startRecordingAIProxy(t)
+	team, err := teamloader.Load(ctx, source, runtimeConfig)
 	require.NoError(t, err, "Failed to load team")
 	t.Cleanup(func() {
 		require.NoError(t, team.StopToolSets(ctx))

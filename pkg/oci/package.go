@@ -22,13 +22,11 @@ import (
 )
 
 // PackageFileAsOCIToStore creates an OCI artifact from a file and stores it in the content store
-func PackageFileAsOCIToStore(ctx context.Context, agentFilename, artifactRef string, store *content.Store) (string, error) {
+func PackageFileAsOCIToStore(ctx context.Context, source agentfile.AgentSource, artifactRef string, store *content.Store) (string, error) {
 	if !strings.Contains(artifactRef, ":") {
 		artifactRef += ":latest"
 	}
 
-	agentFilename = filepath.Clean(agentFilename)
-	source := agentfile.NewFileSource(agentFilename)
 	cfg, err := config.Load(ctx, source)
 	if err != nil {
 		return "", fmt.Errorf("loading config: %w", err)
@@ -59,7 +57,7 @@ func PackageFileAsOCIToStore(ctx context.Context, agentFilename, artifactRef str
 	annotations := map[string]string{
 		"io.docker.cagent.version":             version.Version,
 		"org.opencontainers.image.created":     time.Now().Format(time.RFC3339),
-		"org.opencontainers.image.description": fmt.Sprintf("OCI artifact containing %s", filepath.Base(agentFilename)),
+		"org.opencontainers.image.description": fmt.Sprintf("OCI artifact containing %s", filepath.Base(source.Name())),
 	}
 	if author := cfg.Metadata.Author; author != "" {
 		annotations["org.opencontainers.image.authors"] = author
