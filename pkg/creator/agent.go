@@ -5,18 +5,10 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"log/slog"
-	"os"
 	"strings"
 
-	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/environment"
-	"github.com/docker/cagent/pkg/model/provider/anthropic"
-	"github.com/docker/cagent/pkg/model/provider/options"
-	"github.com/docker/cagent/pkg/runtime"
-	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/tools"
@@ -74,53 +66,6 @@ func (f *fsToolset) customWriteFileHandler(ctx context.Context, toolCall tools.T
 	f.path = args.Path
 
 	return f.originalWriteFileHandler(ctx, toolCall)
-}
-
-func CreateAgent(ctx context.Context, baseDir, prompt string, runConfig *config.RuntimeConfig) (out, path string, err error) {
-	llm, err := anthropic.NewClient(
-		ctx,
-		&latest.ModelConfig{
-			Provider:  "anthropic",
-			Model:     "claude-sonnet-4-0",
-			MaxTokens: 64000,
-		},
-		environment.NewDefaultProvider(),
-		options.WithGateway(runConfig.ModelsGateway),
-	)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to create LLM client: %w", err)
-	}
-
-	slog.Info("Generating agent configuration....")
-
-	fsToolset := fsToolset{inner: builtin.NewFilesystemTool([]string{baseDir})}
-	newTeam := team.New(
-		team.WithAgents(
-			agent.New(
-				"root",
-				agentBuilderInstructions,
-				agent.WithModel(llm),
-				agent.WithToolSets(
-					builtin.NewShellTool(os.Environ(), runConfig),
-					&fsToolset,
-				),
-			)))
-	rt, err := runtime.New(newTeam)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to create runtime: %w", err)
-	}
-
-	sess := session.New(
-		session.WithUserMessage(prompt),
-		session.WithToolsApproved(true),
-	)
-
-	messages, err := rt.Run(ctx, sess)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to run session: %w", err)
-	}
-
-	return messages[len(messages)-1].Message.Content, fsToolset.path, nil
 }
 
 func Agent(ctx context.Context, runConfig *config.RuntimeConfig, modelNameOverride string) (*team.Team, error) {

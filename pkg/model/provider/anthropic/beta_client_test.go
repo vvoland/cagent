@@ -59,8 +59,8 @@ func TestCountAnthropicTokensBeta_Success(t *testing.T) {
 
 // TestCountAnthropicTokensBeta_NoAPIKey tests error when API key is missing
 func TestCountAnthropicTokensBeta_NoAPIKey(t *testing.T) {
-	messages := []anthropic.BetaMessageParam{}
-	system := []anthropic.BetaTextBlockParam{}
+	var messages []anthropic.BetaMessageParam
+	var system []anthropic.BetaTextBlockParam
 
 	client := anthropic.NewClient(
 		option.WithAPIKey("test-key"),
@@ -80,8 +80,8 @@ func TestCountAnthropicTokensBeta_ServerError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	messages := []anthropic.BetaMessageParam{}
-	system := []anthropic.BetaTextBlockParam{}
+	var messages []anthropic.BetaMessageParam
+	var system []anthropic.BetaTextBlockParam
 
 	client := anthropic.NewClient(
 		option.WithAPIKey("test-key"),
@@ -111,8 +111,8 @@ func TestCountAnthropicTokensBeta_WithTools(t *testing.T) {
 	}))
 	defer server.Close()
 
-	messages := []anthropic.BetaMessageParam{}
-	system := []anthropic.BetaTextBlockParam{}
+	var messages []anthropic.BetaMessageParam
+	var system []anthropic.BetaTextBlockParam
 	tools := []anthropic.BetaToolUnionParam{
 		{OfTool: &anthropic.BetaToolParam{
 			Name:        "test_tool",

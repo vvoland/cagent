@@ -407,19 +407,19 @@ func TestContextCancellation(t *testing.T) {
 // stubRAGStrategy is a minimal implementation of strategy.Strategy for testing RAG initialization.
 type stubRAGStrategy struct{}
 
-func (s *stubRAGStrategy) Initialize(ctx context.Context, docPaths []string, chunkSize, chunkOverlap int, respectWordBoundaries bool) error {
+func (s *stubRAGStrategy) Initialize(context.Context, []string, int, int, bool) error {
 	return nil
 }
 
-func (s *stubRAGStrategy) Query(ctx context.Context, query string, numResults int, threshold float64) ([]database.SearchResult, error) {
+func (s *stubRAGStrategy) Query(context.Context, string, int, float64) ([]database.SearchResult, error) {
 	return nil, nil
 }
 
-func (s *stubRAGStrategy) CheckAndReindexChangedFiles(ctx context.Context, docPaths []string, chunkSize, chunkOverlap int, respectWordBoundaries bool) error {
+func (s *stubRAGStrategy) CheckAndReindexChangedFiles(context.Context, []string, int, int, bool) error {
 	return nil
 }
 
-func (s *stubRAGStrategy) StartFileWatcher(ctx context.Context, docPaths []string, chunkSize, chunkOverlap int, respectWordBoundaries bool) error {
+func (s *stubRAGStrategy) StartFileWatcher(context.Context, []string, int, int, bool) error {
 	return nil
 }
 

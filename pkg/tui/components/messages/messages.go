@@ -15,7 +15,6 @@ import (
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/tools"
-	"github.com/docker/cagent/pkg/tui/components/markdown"
 	"github.com/docker/cagent/pkg/tui/components/message"
 	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/components/tool"
@@ -705,9 +704,7 @@ func (m *model) ScrollToBottom() tea.Cmd {
 }
 
 func (m *model) createToolCallView(msg *types.Message) layout.Model {
-	// TODO: -3 because of the padding in the tool calls, we should really make
-	// our own layout system and stop messing around with these magic numbers
-	view := tool.New(msg, markdown.NewRenderer(m.width-3), m.sessionState)
+	view := tool.New(msg, m.sessionState)
 	view.SetSize(m.width, 0)
 	return view
 }

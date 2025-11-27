@@ -21,7 +21,6 @@ import (
 )
 
 func TestServer_ListAgents(t *testing.T) {
-	// t.Parallel()
 	t.Setenv("OPENAI_API_KEY", "dummy")
 	t.Setenv("ANTHROPIC_API_KEY", "dummy")
 
@@ -46,6 +45,14 @@ func TestServer_ListAgents(t *testing.T) {
 	assert.Contains(t, agents[2].Name, "pirate.yaml")
 	assert.Equal(t, "Talk like a pirate", agents[2].Description)
 	assert.False(t, agents[2].Multi)
+}
+
+func TestServer_EmptyList(t *testing.T) {
+	ctx := t.Context()
+	lnPath := startServer(t, ctx, prepareAgentsDir(t))
+
+	buf := httpGET(t, ctx, lnPath, "/api/agents")
+	assert.Equal(t, "[]\n", string(buf)) // We don't want null, but an empty array
 }
 
 func TestServer_ListSessions(t *testing.T) {

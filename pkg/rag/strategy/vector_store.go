@@ -522,14 +522,9 @@ func (s *VectorStore) indexFile(ctx context.Context, filePath string, chunkSize,
 		return fmt.Errorf("failed to delete old documents: %w", err)
 	}
 
-	var chunks []chunk.Chunk
-
-	if chunks == nil {
-		var err error
-		chunks, err = s.processor.ProcessFile(filePath, chunkSize, chunkOverlap, respectWordBoundaries)
-		if err != nil {
-			return fmt.Errorf("failed to process file: %w", err)
-		}
+	chunks, err := s.processor.ProcessFile(filePath, chunkSize, chunkOverlap, respectWordBoundaries)
+	if err != nil {
+		return fmt.Errorf("failed to process file: %w", err)
 	}
 
 	// Filter out empty chunks

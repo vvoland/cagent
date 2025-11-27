@@ -23,13 +23,13 @@ type (
 	OpenURLMsg                = messages.OpenURLMsg
 )
 
-// CommandCategory represents a category of commands
+// Category represents a category of commands
 type Category struct {
 	Name     string
 	Commands []Item
 }
 
-// Command represents a single command in the palette
+// Item represents a single command in the palette
 type Item struct {
 	ID           string
 	Label        string
@@ -111,7 +111,7 @@ func builtInFeedbackCommands() []Item {
 			Description: "Provide feedback about cagent",
 			Category:    "Feedback",
 			Execute: func() tea.Cmd {
-				return core.CmdHandler(OpenURLMsg{URL: feedback.FeedbackLink})
+				return core.CmdHandler(OpenURLMsg{URL: feedback.Link})
 			},
 		},
 	}

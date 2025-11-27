@@ -11,7 +11,7 @@ type mockEnvProvider struct {
 	envVars map[string]string
 }
 
-func (m *mockEnvProvider) Get(ctx context.Context, name string) string {
+func (m *mockEnvProvider) Get(_ context.Context, name string) string {
 	return m.envVars[name]
 }
 

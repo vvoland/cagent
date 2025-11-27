@@ -87,7 +87,7 @@ type AddToolArgs struct {
 	Name string `json:"name" jsonschema:"The name of the tool to activate"`
 }
 
-func (d *DeferredToolset) handleSearchTool(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (d *DeferredToolset) handleSearchTool(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args SearchToolArgs
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
 		return nil, fmt.Errorf("failed to parse arguments: %w", err)
@@ -127,7 +127,7 @@ func (d *DeferredToolset) handleSearchTool(ctx context.Context, toolCall tools.T
 	}, nil
 }
 
-func (d *DeferredToolset) handleAddTool(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (d *DeferredToolset) handleAddTool(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args AddToolArgs
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
 		return nil, fmt.Errorf("failed to parse arguments: %w", err)
@@ -157,7 +157,7 @@ func (d *DeferredToolset) handleAddTool(ctx context.Context, toolCall tools.Tool
 	}, nil
 }
 
-func (d *DeferredToolset) Tools(ctx context.Context) ([]tools.Tool, error) {
+func (d *DeferredToolset) Tools(context.Context) ([]tools.Tool, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
@@ -223,6 +223,6 @@ func (d *DeferredToolset) Start(ctx context.Context) error {
 	return nil
 }
 
-func (d *DeferredToolset) Stop(ctx context.Context) error {
+func (d *DeferredToolset) Stop(context.Context) error {
 	return nil
 }

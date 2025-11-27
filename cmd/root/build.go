@@ -5,7 +5,6 @@ import (
 
 	"github.com/docker/cagent/pkg/build"
 	"github.com/docker/cagent/pkg/cli"
-	"github.com/docker/cagent/pkg/filesystem"
 	"github.com/docker/cagent/pkg/telemetry"
 )
 
@@ -44,5 +43,5 @@ func (f *buildFlags) runBuildCommand(cmd *cobra.Command, args []string) error {
 		dockerImageName = args[1]
 	}
 
-	return build.DockerImage(ctx, out, agentFilename, filesystem.AllowAll, dockerImageName, f.opts)
+	return build.DockerImage(ctx, out, agentFilename, dockerImageName, f.opts)
 }

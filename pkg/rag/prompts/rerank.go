@@ -21,7 +21,7 @@ func BuildRerankDocumentsPrompt(query string, documents []types.Document) string
 		// Add metadata if present
 		if doc.SourcePath != "" || len(doc.Metadata) > 0 {
 			fmt.Fprintf(&b, " (")
-			parts := []string{}
+			var parts []string
 
 			if doc.SourcePath != "" {
 				parts = append(parts, fmt.Sprintf("source: %s", doc.SourcePath))

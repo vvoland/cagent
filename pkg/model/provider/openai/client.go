@@ -478,7 +478,7 @@ func (c *Client) CreateResponseStream(
 		params.Text.Format.OfJSONSchema = &responses.ResponseFormatTextJSONSchemaConfigParam{
 			Name:        structuredOutput.Name,
 			Description: param.NewOpt(structuredOutput.Description),
-			Schema:      jsonSchema(structuredOutput.Schema),
+			Schema:      structuredOutput.Schema,
 			Strict:      param.NewOpt(structuredOutput.Strict),
 		}
 	}
@@ -699,9 +699,7 @@ func (c *Client) CreateBatchEmbedding(ctx context.Context, texts []string) (*bas
 	for i, data := range response.Data {
 		embedding32 := data.Embedding
 		embedding := make([]float64, len(embedding32))
-		for j, v := range embedding32 {
-			embedding[j] = float64(v)
-		}
+		copy(embedding, embedding32)
 		embeddings[i] = embedding
 	}
 

@@ -341,7 +341,7 @@ func (r *LocalRuntime) CurrentAgentCommands(context.Context) map[string]string {
 	return r.CurrentAgent().Commands()
 }
 
-func (r *LocalRuntime) CurrentWelcomeMessage(ctx context.Context) string {
+func (r *LocalRuntime) CurrentWelcomeMessage(context.Context) string {
 	return r.CurrentAgent().WelcomeMessage()
 }
 
@@ -1363,7 +1363,7 @@ func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Ses
 	}, nil
 }
 
-func (r *LocalRuntime) handleHandoff(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, evts chan Event) (*tools.ToolCallResult, error) {
+func (r *LocalRuntime) handleHandoff(_ context.Context, _ *session.Session, toolCall tools.ToolCall, _ chan Event) (*tools.ToolCallResult, error) {
 	var params builtin.HandoffArgs
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
 		return nil, fmt.Errorf("invalid arguments: %w", err)

@@ -4,5 +4,4 @@
 !./**/*.template
 !./**/*.go
 !./**/*.txt
-!./**/*.txt
 !/pkg/config/default-agent.yaml

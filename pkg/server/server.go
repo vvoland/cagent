@@ -38,7 +38,7 @@ type Server struct {
 
 type Opt func(*Server) error
 
-func New(sessionStore session.Store, runConfig *config.RuntimeConfig, agentSources config.Sources, opts ...Opt) (*Server, error) {
+func New(sessionStore session.Store, runConfig *config.RuntimeConfig, agentSources config.Sources) (*Server, error) {
 	e := echo.New()
 	e.Use(middleware.CORS())
 	e.Use(middleware.Logger())

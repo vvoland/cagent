@@ -89,7 +89,7 @@ func (a *Agent) Initialize(ctx context.Context, params acp.InitializeRequest) (a
 }
 
 // NewSession implements [acp.Agent]
-func (a *Agent) NewSession(ctx context.Context, params acp.NewSessionRequest) (acp.NewSessionResponse, error) {
+func (a *Agent) NewSession(context.Context, acp.NewSessionRequest) (acp.NewSessionResponse, error) {
 	sid := uuid.New().String()
 	slog.Debug("ACP NewSession called", "session_id", sid)
 
@@ -110,19 +110,19 @@ func (a *Agent) NewSession(ctx context.Context, params acp.NewSessionRequest) (a
 }
 
 // Authenticate implements [acp.Agent]
-func (a *Agent) Authenticate(ctx context.Context, params acp.AuthenticateRequest) (acp.AuthenticateResponse, error) {
+func (a *Agent) Authenticate(context.Context, acp.AuthenticateRequest) (acp.AuthenticateResponse, error) {
 	slog.Debug("ACP Authenticate called")
 	return acp.AuthenticateResponse{}, nil
 }
 
 // LoadSession implements [acp.Agent] (optional, not supported)
-func (a *Agent) LoadSession(ctx context.Context, params acp.LoadSessionRequest) (acp.LoadSessionResponse, error) {
+func (a *Agent) LoadSession(context.Context, acp.LoadSessionRequest) (acp.LoadSessionResponse, error) {
 	slog.Debug("ACP LoadSession called (not supported)")
 	return acp.LoadSessionResponse{}, fmt.Errorf("load session not supported")
 }
 
 // Cancel implements [acp.Agent]
-func (a *Agent) Cancel(ctx context.Context, params acp.CancelNotification) error {
+func (a *Agent) Cancel(_ context.Context, params acp.CancelNotification) error {
 	sid := string(params.SessionId)
 	slog.Debug("ACP Cancel called", "session_id", sid)
 
@@ -138,7 +138,7 @@ func (a *Agent) Cancel(ctx context.Context, params acp.CancelNotification) error
 }
 
 // Prompt implements [acp.Agent]
-func (a *Agent) Prompt(ctx context.Context, params acp.PromptRequest) (acp.PromptResponse, error) {
+func (a *Agent) Prompt(_ context.Context, params acp.PromptRequest) (acp.PromptResponse, error) {
 	sid := string(params.SessionId)
 	slog.Debug("ACP Prompt called", "session_id", sid)
 
@@ -201,7 +201,7 @@ func (a *Agent) Prompt(ctx context.Context, params acp.PromptRequest) (acp.Promp
 }
 
 // SetSessionMode implements acp.Agent (optional)
-func (a *Agent) SetSessionMode(ctx context.Context, params acp.SetSessionModeRequest) (acp.SetSessionModeResponse, error) {
+func (a *Agent) SetSessionMode(context.Context, acp.SetSessionModeRequest) (acp.SetSessionModeResponse, error) {
 	// We don't implement session modes, cagent agents have only one mode (for now? ;) ).
 	return acp.SetSessionModeResponse{}, nil
 }
@@ -325,7 +325,7 @@ func (a *Agent) handleMaxIterationsReached(ctx context.Context, acpSess *Session
 	permResp, err := a.conn.RequestPermission(ctx, acp.RequestPermissionRequest{
 		SessionId: acp.SessionId(acpSess.id),
 		ToolCall: acp.RequestPermissionToolCall{
-			ToolCallId: acp.ToolCallId("max_iterations"),
+			ToolCallId: "max_iterations",
 			Title:      acp.Ptr(fmt.Sprintf("Maximum iterations (%d) reached", e.MaxIterations)),
 			Kind:       acp.Ptr(acp.ToolKindExecute),
 			Status:     acp.Ptr(acp.ToolCallStatusPending),
@@ -334,12 +334,12 @@ func (a *Agent) handleMaxIterationsReached(ctx context.Context, acpSess *Session
 			{
 				Kind:     acp.PermissionOptionKindAllowOnce,
 				Name:     "Continue",
-				OptionId: acp.PermissionOptionId("continue"),
+				OptionId: "continue",
 			},
 			{
 				Kind:     acp.PermissionOptionKindRejectOnce,
 				Name:     "Stop",
-				OptionId: acp.PermissionOptionId("stop"),
+				OptionId: "stop",
 			},
 		},
 	})

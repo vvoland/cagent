@@ -53,12 +53,6 @@ func Load(ctx context.Context, agentSource config.Source, runConfig *config.Runt
 		}
 	}
 
-	env := runConfig.EnvProvider()
-	parentDir := agentSource.ParentDir()
-	if parentDir == "" {
-		parentDir = runConfig.WorkingDir
-	}
-
 	// Load the agent's configuration
 	cfg, err := config.Load(ctx, agentSource)
 	if err != nil {
@@ -71,11 +65,16 @@ func Load(ctx context.Context, agentSource config.Source, runConfig *config.Runt
 	}
 
 	// Early check for required env vars before loading models and tools.
+	env := runConfig.EnvProvider()
 	if err := config.CheckRequiredEnvVars(ctx, cfg, runConfig.ModelsGateway, env); err != nil {
 		return nil, err
 	}
 
 	// Create RAG managers
+	parentDir := agentSource.ParentDir()
+	if parentDir == "" {
+		parentDir = runConfig.WorkingDir
+	}
 	ragManagers, err := rag.NewManagers(ctx, cfg, rag.ManagersBuildConfig{
 		ParentDir:     parentDir,
 		ModelsGateway: runConfig.ModelsGateway,

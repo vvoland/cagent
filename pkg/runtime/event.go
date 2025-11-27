@@ -328,7 +328,7 @@ func (e *MaxIterationsReachedEvent) GetAgentName() string {
 	return e.AgentName
 }
 
-// MCP initialization lifecycle events
+// MCPInitStartedEvent is for MCP initialization lifecycle events
 type MCPInitStartedEvent struct {
 	Type string `json:"type"`
 	AgentContext
@@ -427,7 +427,7 @@ func ToolsetInfo(availableTools int, agentName string) Event {
 	}
 }
 
-// RAG lifecycle events
+// RAGIndexingStartedEvent is for RAG lifecycle events
 type RAGIndexingStartedEvent struct {
 	Type         string `json:"type"`
 	RAGName      string `json:"rag_name"`

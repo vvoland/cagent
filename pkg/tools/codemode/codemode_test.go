@@ -170,7 +170,7 @@ type testToolSet struct {
 	stop  int
 }
 
-func (t *testToolSet) Tools(ctx context.Context) ([]tools.Tool, error) {
+func (t *testToolSet) Tools(context.Context) ([]tools.Tool, error) {
 	return t.tools, nil
 }
 
