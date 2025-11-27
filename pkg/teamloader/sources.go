@@ -3,8 +3,12 @@ package teamloader
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
+
+	"github.com/docker/cagent/pkg/content"
+	"github.com/docker/cagent/pkg/remote"
 )
 
 type AgentSource interface {
@@ -12,6 +16,8 @@ type AgentSource interface {
 	ParentDir() string
 	Read(ctx context.Context) ([]byte, error)
 }
+
+type AgentSources map[string]AgentSource
 
 // fileSource is used to load an agent configuration from a YAML file.
 type fileSource struct {
@@ -69,4 +75,50 @@ func (a bytesSource) ParentDir() string {
 
 func (a bytesSource) Read(context.Context) ([]byte, error) {
 	return a.data, nil
+}
+
+type ociSource struct {
+	reference string
+}
+
+func NewOCISource(ref string) AgentSource {
+	return ociSource{
+		reference: ref,
+	}
+}
+
+func (a ociSource) Name() string {
+	return a.reference
+}
+
+func (a ociSource) ParentDir() string {
+	return ""
+}
+
+func (a ociSource) Read(ctx context.Context) ([]byte, error) {
+	// Check if we have a local copy (without loading content)
+	store, err := content.NewStore()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create content store: %w", err)
+	}
+
+	_, metaErr := store.GetArtifactMetadata(a.reference)
+	hasLocal := metaErr == nil
+
+	// Try to pull from remote (only pulls if digest changed)
+	if _, pullErr := remote.Pull(ctx, a.reference, false); pullErr != nil {
+		if !hasLocal {
+			// No local copy and can't pull, error out
+			return nil, fmt.Errorf("failed to pull OCI image %s: %w", a.reference, pullErr)
+		}
+		slog.Debug("Failed to check for OCI reference updates, using cached version", "ref", a.reference, "error", pullErr)
+	}
+
+	// Load the agent contents from the store
+	af, err := store.GetArtifact(a.reference)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load agent from store: %w", err)
+	}
+
+	return []byte(af), nil
 }

@@ -1,11 +1,9 @@
 package agentfile
 
 import (
-	"bytes"
 	"context"
 	_ "embed"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -14,8 +12,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 
 	"github.com/docker/cagent/pkg/aliases"
-	"github.com/docker/cagent/pkg/content"
-	"github.com/docker/cagent/pkg/remote"
+	"github.com/docker/cagent/pkg/reference"
 	"github.com/docker/cagent/pkg/teamloader"
 )
 
@@ -28,23 +25,68 @@ type Printer interface {
 
 // ResolveSource resolves an agent file reference (local file or OCI image) to a local file path
 // For OCI references, always checks remote for updates but falls back to local cache if offline
-func ResolveSource(ctx context.Context, out Printer, agentFilename string) (teamloader.AgentSource, error) {
-	resolvedPath, err := Resolve(ctx, out, agentFilename)
+func ResolveSources(ctx context.Context, out Printer, agentFilename string) (teamloader.AgentSources, error) {
+	resolvedPath, err := resolve(agentFilename)
 	if err != nil {
+		if IsOCIReference(agentFilename) {
+			return map[string]teamloader.AgentSource{reference.OciRefToFilename(agentFilename): teamloader.NewOCISource(agentFilename)}, nil
+		}
+		return nil, err
+	}
+
+	if resolvedPath == "default" {
+		return map[string]teamloader.AgentSource{"default": teamloader.NewBytesSource(defaultAgent)}, nil
+	}
+	if isLocalFile(resolvedPath) {
+		return map[string]teamloader.AgentSource{resolvedPath: teamloader.NewFileSource(resolvedPath)}, nil
+	}
+	if dirExists(resolvedPath) {
+		sources := make(teamloader.AgentSources)
+		entries, err := os.ReadDir(resolvedPath)
+		if err != nil {
+			return nil, fmt.Errorf("reading agents directory %s: %w", resolvedPath, err)
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			ext := strings.ToLower(filepath.Ext(entry.Name()))
+			if ext != ".yaml" && ext != ".yml" {
+				continue
+			}
+			a := filepath.Join(resolvedPath, entry.Name())
+			sources[a], err = ResolveSource(ctx, out, a)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return sources, nil
+	}
+	return map[string]teamloader.AgentSource{resolvedPath: teamloader.NewOCISource(agentFilename)}, nil
+}
+
+// ResolveSource resolves an agent file reference (local file or OCI image) to a local file path
+// For OCI references, always checks remote for updates but falls back to local cache if offline
+func ResolveSource(ctx context.Context, out Printer, agentFilename string) (teamloader.AgentSource, error) {
+	resolvedPath, err := resolve(agentFilename)
+	if err != nil {
+		if IsOCIReference(agentFilename) {
+			return teamloader.NewOCISource(agentFilename), nil
+		}
 		return nil, err
 	}
 
 	if resolvedPath == "default" {
 		return teamloader.NewBytesSource(defaultAgent), nil
 	}
-	return teamloader.NewFileSource(resolvedPath), nil
+	if isLocalFile(resolvedPath) {
+		return teamloader.NewFileSource(resolvedPath), nil
+	}
+	return teamloader.NewOCISource(agentFilename), nil
 }
 
-// Resolve resolves an agent file reference (local file or OCI image) to a local file path
-// For OCI references, always checks remote for updates but falls back to local cache if offline
-func Resolve(ctx context.Context, out Printer, agentFilename string) (string, error) {
-	originalOCIRef := agentFilename // Store the original for OCI ref tracking
-
+// resolve resolves an agent reference, handling aliases and defaults
+func resolve(agentFilename string) (string, error) {
 	if agentFilename == "" {
 		agentFilename = "default"
 	}
@@ -62,125 +104,39 @@ func Resolve(ctx context.Context, out Printer, agentFilename string) (string, er
 		return "default", nil
 	}
 
-	if IsLocalFile(agentFilename) {
-		// Treat as local YAML file: resolve to absolute path so later chdir doesn't break it
-		// TODO(rumpl): Why are we checking for newlines here?
-		if !strings.Contains(agentFilename, "\n") {
-			if abs, err := filepath.Abs(agentFilename); err == nil {
-				agentFilename = abs
-			}
-		}
-		if !fileExists(agentFilename) {
-			return "", fmt.Errorf("agent file not found: %s", agentFilename)
-		}
-		return agentFilename, nil
-	}
-
-	// Treat as an OCI image reference
-	// Check if we have a local copy (without loading content)
-	store, err := content.NewStore()
+	abs, err := filepath.Abs(agentFilename)
 	if err != nil {
-		return "", fmt.Errorf("failed to create content store: %w", err)
+		return "", err
 	}
 
-	_, metaErr := store.GetArtifactMetadata(agentFilename)
-	hasLocal := metaErr == nil
-
-	if out != nil {
-		if hasLocal {
-			out.Printf("Checking for updates to OCI reference %s...\n", agentFilename)
-		} else {
-			out.Printf("Pulling OCI reference %s...\n", agentFilename)
-		}
-	}
-
-	// Try to pull from remote (only pulls if digest changed)
-	if _, pullErr := remote.Pull(ctx, agentFilename, false); pullErr != nil {
-		if !hasLocal {
-			// No local copy and can't pull, error out
-			return "", fmt.Errorf("failed to pull OCI image %s: %w", agentFilename, pullErr)
-		}
-		slog.Debug("Failed to check for OCI reference updates, using cached version", "ref", agentFilename, "error", pullErr)
-		if out != nil {
-			out.Printf("Using cached version of %s\n", agentFilename)
-		}
-	}
-
-	// Load the agent contents from the store
-	a, err := FromStore(agentFilename)
-	if err != nil {
-		return "", fmt.Errorf("failed to load agent from store: %w", err)
-	}
-
-	filename := OciRefToFilename(originalOCIRef)
-	tmpFilename := filepath.Join(os.TempDir(), filename)
-
-	if err := os.WriteFile(tmpFilename, []byte(a), 0o644); err != nil {
-		return "", fmt.Errorf("failed to write agent file: %w", err)
-	}
-
-	slog.Debug("Resolved OCI reference to file", "oci_ref", originalOCIRef, "file", tmpFilename)
-
-	go func() {
-		<-ctx.Done()
-		os.Remove(tmpFilename)
-		slog.Debug("Cleaned up OCI reference file", "file", tmpFilename)
-	}()
-
-	return tmpFilename, nil
+	return abs, nil
 }
 
 // fileExists checks if a file exists at the given path
 func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	exists := err == nil
+	s, err := os.Stat(path)
+	exists := err == nil && !s.IsDir()
 	return exists
 }
 
-// FromStore loads an agent configuration from the OCI content store
-func FromStore(reference string) (string, error) {
-	store, err := content.NewStore()
-	if err != nil {
-		return "", err
-	}
-
-	img, err := store.GetArtifactImage(reference)
-	if err != nil {
-		return "", err
-	}
-
-	layers, err := img.Layers()
-	if err != nil {
-		return "", err
-	}
-
-	var buf bytes.Buffer
-	layer := layers[0]
-	b, err := layer.Uncompressed()
-	if err != nil {
-		return "", err
-	}
-
-	_, err = io.Copy(&buf, b)
-	if err != nil {
-		return "", err
-	}
-	b.Close()
-
-	return buf.String(), nil
+// fileExists checks if a file exists at the given path
+func dirExists(path string) bool {
+	s, err := os.Stat(path)
+	exists := err == nil && s.IsDir()
+	return exists
 }
 
 // IsOCIReference checks if the input is a valid OCI reference
 func IsOCIReference(input string) bool {
-	if IsLocalFile(input) {
+	if isLocalFile(input) {
 		return false
 	}
 	_, err := name.ParseReference(input)
 	return err == nil
 }
 
-// IsLocalFile checks if the input is a local file
-func IsLocalFile(input string) bool {
+// isLocalFile checks if the input is a local file
+func isLocalFile(input string) bool {
 	ext := strings.ToLower(filepath.Ext(input))
 	// Check for YAML file extensions or file descriptors
 	if ext == ".yaml" || ext == ".yml" || strings.HasPrefix(input, "/dev/fd/") {
@@ -188,32 +144,4 @@ func IsLocalFile(input string) bool {
 	}
 	// Check if it exists as a file on disk
 	return fileExists(input)
-}
-
-// OciRefToFilename converts an OCI reference to a safe, consistent filename
-// Examples:
-//   - "docker.io/myorg/agent:v1" -> "docker.io_myorg_agent_v1.yaml"
-//   - "localhost:5000/test" -> "localhost_5000_test.yaml"
-func OciRefToFilename(ociRef string) string {
-	// Replace characters that are invalid in filenames with underscores
-	// Keep the structure recognizable but filesystem-safe
-	safe := strings.NewReplacer(
-		"/", "_",
-		":", "_",
-		"@", "_",
-		"\\", "_",
-		"*", "_",
-		"?", "_",
-		"\"", "_",
-		"<", "_",
-		">", "_",
-		"|", "_",
-	).Replace(ociRef)
-
-	// Ensure it has .yaml extension
-	if !strings.HasSuffix(safe, ".yaml") {
-		safe += ".yaml"
-	}
-
-	return safe
 }

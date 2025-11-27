@@ -4,18 +4,14 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
-	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/remote"
 	"github.com/docker/cagent/pkg/server"
 	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/telemetry"
 )
 
@@ -73,96 +69,21 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 
 	slog.Debug("Starting server", "agents", agentsPath, "addr", ln.Addr().String())
 
-	resolvedPath, err := agentfile.Resolve(ctx, out, agentsPath)
-	if err != nil {
-		return err
-	}
-
 	sessionStore, err := session.NewSQLiteSessionStore(f.sessionDB)
 	if err != nil {
 		return fmt.Errorf("failed to create session store: %w", err)
 	}
 
-	var opts []server.Opt
-
-	if !agentfile.IsOCIReference(agentsPath) {
-		stat, err := os.Stat(resolvedPath)
-		if err != nil {
-			return fmt.Errorf("failed to stat agents path: %w", err)
-		}
-		if stat.IsDir() {
-			// For directories: only set agentsDir, not agentsPath
-			opts = append(opts, server.WithAgentsDir(resolvedPath))
-		} else {
-			opts = append(opts, server.WithAgentsPath(resolvedPath), server.WithAgentsDir(filepath.Dir(resolvedPath)))
-		}
-	}
-
-	teams, err := teamloader.LoadTeams(ctx, resolvedPath, &f.runConfig)
+	sources, err := agentfile.ResolveSources(ctx, nil, agentsPath)
 	if err != nil {
-		return fmt.Errorf("failed to load teams: %w", err)
+		return fmt.Errorf("failed to resolve agent sources: %w", err)
 	}
-
-	// For OCI refs: store the reference for later per-session reloading, then clean up temp file
-	if agentfile.IsOCIReference(agentsPath) {
-		teamKey := filepath.Base(resolvedPath)
-		opts = append(opts, server.WithOCIRef(teamKey, agentsPath))
-
-		if err := os.Remove(resolvedPath); err != nil {
-			slog.Warn("Failed to remove temporary OCI file", "path", resolvedPath, "error", err)
-		} else {
-			slog.Debug("Cleaned up temporary OCI file", "path", resolvedPath)
-		}
-	}
-
-	defer func() {
-		for _, team := range teams {
-			if err := team.StopToolSets(ctx); err != nil {
-				slog.Error("Failed to stop tool sets", "error", err)
-			}
-		}
-	}()
-
-	s, err := server.New(sessionStore, &f.runConfig, teams, opts...)
+	s, err := server.New(sessionStore, &f.runConfig, sources)
 	if err != nil {
 		return fmt.Errorf("failed to create server: %w", err)
 	}
 
-	// Start background auto-pull for OCI references if enabled
-	if f.pullIntervalMins > 0 {
-		go func() {
-			ticker := time.NewTicker(time.Duration(f.pullIntervalMins) * time.Minute)
-			defer ticker.Stop()
-
-			slog.Info("Auto-pull enabled for OCI reference", "reference", agentsPath, "interval_minutes", f.pullIntervalMins)
-
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-ticker.C:
-					slog.Info("Auto-pulling OCI reference", "reference", agentsPath)
-					if _, err := remote.Pull(ctx, agentsPath, false); err != nil {
-						slog.Error("Failed to auto-pull OCI reference", "reference", agentsPath, "error", err)
-						continue
-					}
-
-					// Resolve the OCI reference to get the updated file path
-					newResolvedPath, err := agentfile.Resolve(ctx, out, agentsPath)
-					if err != nil {
-						slog.Error("Failed to resolve OCI reference after pull", "reference", agentsPath, "error", err)
-						continue
-					}
-
-					if err := s.ReloadTeams(ctx, newResolvedPath); err != nil {
-						slog.Error("Failed to reload teams", "reference", agentsPath, "error", err)
-					} else {
-						slog.Info("Successfully reloaded teams from updated OCI reference", "reference", agentsPath)
-					}
-				}
-			}
-		}()
-	}
+	// TODO(rumpl): implement pull interval
 
 	return s.Serve(ctx, ln)
 }

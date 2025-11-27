@@ -1,10 +1,12 @@
 package content
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -152,6 +154,33 @@ func (s *Store) GetArtifactMetadata(identifier string) (*ArtifactMetadata, error
 	}
 
 	return s.loadMetadata(digest)
+}
+
+func (s *Store) GetArtifact(identifier string) (string, error) {
+	img, err := s.GetArtifactImage(identifier)
+	if err != nil {
+		return "", err
+	}
+
+	layers, err := img.Layers()
+	if err != nil {
+		return "", err
+	}
+
+	var buf bytes.Buffer
+	layer := layers[0]
+	b, err := layer.Uncompressed()
+	if err != nil {
+		return "", err
+	}
+
+	_, err = io.Copy(&buf, b)
+	if err != nil {
+		return "", err
+	}
+	b.Close()
+
+	return buf.String(), nil
 }
 
 // ListArtifacts returns a list of all stored artifacts

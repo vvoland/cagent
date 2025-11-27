@@ -22,7 +22,7 @@ import (
 type Agent struct {
 	conn          *acp.AgentSideConnection
 	team          *team.Team
-	agentFilename string
+	source        teamloader.AgentSource
 	runtimeConfig *config.RuntimeConfig
 	sessions      map[string]*Session
 	mu            sync.Mutex
@@ -39,9 +39,9 @@ type Session struct {
 }
 
 // NewAgent creates a new ACP agent
-func NewAgent(agentFilename string, runtimeConfig *config.RuntimeConfig) *Agent {
+func NewAgent(source teamloader.AgentSource, runtimeConfig *config.RuntimeConfig) *Agent {
 	return &Agent{
-		agentFilename: agentFilename,
+		source:        source,
 		runtimeConfig: runtimeConfig,
 		sessions:      make(map[string]*Session),
 	}
@@ -69,7 +69,7 @@ func (a *Agent) Initialize(ctx context.Context, params acp.InitializeRequest) (a
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	t, err := teamloader.Load(ctx, a.agentFilename, a.runtimeConfig, teamloader.WithToolsetRegistry(createToolsetRegistry(a)))
+	t, err := teamloader.LoadFrom(ctx, a.source, a.runtimeConfig, teamloader.WithToolsetRegistry(createToolsetRegistry(a)))
 	if err != nil {
 		return acp.InitializeResponse{}, fmt.Errorf("failed to load teams: %w", err)
 	}

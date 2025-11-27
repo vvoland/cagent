@@ -11,19 +11,15 @@ import (
 	"github.com/docker/cagent/pkg/config"
 )
 
-type discardOutput struct{}
-
-func (d *discardOutput) Printf(string, ...any) {}
-
 func Run(ctx context.Context, agentFilename string, stdin io.Reader, stdout io.Writer, runConfig *config.RuntimeConfig) error {
 	slog.Debug("Starting ACP server", "agent", agentFilename)
 
-	agentFilename, err := agentfile.Resolve(ctx, &discardOutput{}, agentFilename)
+	source, err := agentfile.ResolveSource(ctx, nil, agentFilename)
 	if err != nil {
 		return err
 	}
 
-	acpAgent := NewAgent(agentFilename, runConfig)
+	acpAgent := NewAgent(source, runConfig)
 	conn := acpsdk.NewAgentSideConnection(acpAgent, stdout, stdin)
 	conn.SetLogger(slog.Default())
 	acpAgent.SetAgentConnection(conn)
