@@ -98,7 +98,7 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 // API handlers
 
 func (s *Server) getAgents(c echo.Context) error {
-	var agents []api.Agent
+	agents := []api.Agent{}
 	for k, agentSource := range s.agentSources {
 		slog.Debug("API source", "source", agentSource.Name())
 
