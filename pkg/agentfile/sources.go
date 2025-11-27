@@ -77,13 +77,14 @@ func (a bytesSource) Read(context.Context) ([]byte, error) {
 	return a.data, nil
 }
 
+// ociSource is used to load an agent configuration from an OCI artifact.
 type ociSource struct {
 	reference string
 }
 
-func NewOCISource(ref string) AgentSource {
+func NewOCISource(reference string) AgentSource {
 	return ociSource{
-		reference: ref,
+		reference: reference,
 	}
 }
 
