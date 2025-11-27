@@ -1,9 +1,12 @@
 # syntax=docker/dockerfile:1
 
+ARG GO_VERSION="1.25.4"
+ARG ALPINE_VERSION="3.22"
+
 # xx is a helper for cross-compilation
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.7.0 AS xx
 
-FROM --platform=$BUILDPLATFORM golang:1.25.4-alpine3.22 AS builder-base
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine${ALPINE_VERSION} AS builder-base
 COPY --from=xx / /
 WORKDIR /src
 RUN --mount=type=cache,target=/go/pkg/mod \
