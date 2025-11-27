@@ -111,7 +111,7 @@ func builtInFeedbackCommands() []Item {
 			Description: "Provide feedback about cagent",
 			Category:    "Feedback",
 			Execute: func() tea.Cmd {
-				return core.CmdHandler(OpenURLMsg{URL: feedback.FeedbackLink})
+				return core.CmdHandler(OpenURLMsg{URL: feedback.Link})
 			},
 		},
 	}

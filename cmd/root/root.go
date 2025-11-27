@@ -119,7 +119,7 @@ For any feedback, please visit: %s
 We collect anonymous usage data to help improve cagent. To disable:
   - Set environment variable: TELEMETRY_ENABLED=false
 
-`, feedback.FeedbackLink)
+`, feedback.Link)
 		fmt.Fprint(stderr, startupMsg)
 	}
 
