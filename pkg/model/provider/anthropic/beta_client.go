@@ -45,14 +45,6 @@ func (c *Client) createBetaStream(
 
 	sys := extractBetaSystemBlocks(messages)
 
-	if used, err := countAnthropicTokensBeta(ctx, client, anthropic.Model(c.ModelConfig.Model), converted, sys, allTools); err == nil {
-		configuredMaxTokens := maxTokens
-		maxTokens = clampMaxTokens(anthropicContextLimit(c.ModelConfig.Model), used, maxTokens)
-		if maxTokens < configuredMaxTokens {
-			slog.Warn("Anthropic Beta API max_tokens clamped to", "max_tokens", maxTokens)
-		}
-	}
-
 	params := anthropic.BetaMessageNewParams{
 		Model:     anthropic.Model(c.ModelConfig.Model),
 		MaxTokens: maxTokens,
@@ -104,9 +96,28 @@ func (c *Client) createBetaStream(
 		"message_count", len(params.Messages))
 
 	stream := client.Beta.Messages.NewStreaming(ctx, params)
-	slog.Debug("Anthropic Beta API chat completion stream created successfully", "model", c.ModelConfig.Model)
+	ad := newBetaStreamAdapter(stream)
 
-	return newBetaStreamAdapter(stream), nil
+	// Set up single retry for context length errors
+	ad.retryFn = func() *betaStreamAdapter {
+		used, err := countAnthropicTokensBeta(ctx, client, anthropic.Model(c.ModelConfig.Model), converted, sys, allTools)
+		if err != nil {
+			slog.Warn("Failed to count tokens for retry, skipping", "error", err)
+			return nil
+		}
+		newMaxTokens := clampMaxTokens(anthropicContextLimit(c.ModelConfig.Model), used, maxTokens)
+		if newMaxTokens >= maxTokens {
+			slog.Warn("Token count does not require clamping, not retrying")
+			return nil
+		}
+		slog.Warn("Retrying with clamped max_tokens after context length error", "original", maxTokens, "clamped", newMaxTokens, "used", used)
+		retryParams := params
+		retryParams.MaxTokens = newMaxTokens
+		return newBetaStreamAdapter(client.Beta.Messages.NewStreaming(ctx, retryParams))
+	}
+
+	slog.Debug("Anthropic Beta API chat completion stream created successfully", "model", c.ModelConfig.Model)
+	return ad, nil
 }
 
 // validateAnthropicSequencingBeta performs the same validation as standard API but for Beta payloads

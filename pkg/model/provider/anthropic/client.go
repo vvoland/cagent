@@ -194,15 +194,7 @@ func (c *Client) CreateChatCompletionStream(
 			return nil, err
 		}
 	}
-	// Preflight-cap max_tokens using Anthropic's count-tokens API
 	sys := extractSystemBlocks(messages)
-	if used, err := countAnthropicTokens(ctx, client, anthropic.Model(c.ModelConfig.Model), converted, sys, allTools); err == nil {
-		configuredMaxTokens := maxTokens
-		maxTokens = clampMaxTokens(anthropicContextLimit(c.ModelConfig.Model), used, maxTokens)
-		if maxTokens < configuredMaxTokens {
-			slog.Warn("Anthropic API max_tokens clamped to", "max_tokens", maxTokens)
-		}
-	}
 
 	params := anthropic.MessageNewParams{
 		Model:     anthropic.Model(c.ModelConfig.Model),
@@ -258,6 +250,24 @@ func (c *Client) CreateChatCompletionStream(
 	stream := client.Messages.NewStreaming(ctx, params)
 	trackUsage := c.ModelConfig.TrackUsage == nil || *c.ModelConfig.TrackUsage
 	ad := newStreamAdapter(stream, trackUsage)
+
+	// Set up single retry for context length errors
+	ad.retryFn = func() *streamAdapter {
+		used, err := countAnthropicTokens(ctx, client, anthropic.Model(c.ModelConfig.Model), converted, sys, allTools)
+		if err != nil {
+			slog.Warn("Failed to count tokens for retry, skipping", "error", err)
+			return nil
+		}
+		newMaxTokens := clampMaxTokens(anthropicContextLimit(c.ModelConfig.Model), used, maxTokens)
+		if newMaxTokens >= maxTokens {
+			slog.Warn("Token count does not require clamping, not retrying")
+			return nil
+		}
+		slog.Warn("Retrying with clamped max_tokens after context length error", "original max_tokens", maxTokens, "clamped max_tokens", newMaxTokens, "used tokens", used)
+		retryParams := params
+		retryParams.MaxTokens = newMaxTokens
+		return newStreamAdapter(client.Messages.NewStreaming(ctx, retryParams), trackUsage)
+	}
 
 	slog.Debug("Anthropic chat completion stream created successfully", "model", c.ModelConfig.Model)
 	return ad, nil

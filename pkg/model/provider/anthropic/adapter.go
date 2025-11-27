@@ -1,11 +1,16 @@
 package anthropic
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/packages/ssestream"
+	"github.com/anthropics/anthropic-sdk-go/shared"
 
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/tools"
@@ -17,6 +22,9 @@ type streamAdapter struct {
 	trackUsage bool
 	toolCall   bool
 	toolID     string
+	// For single retry on context length error
+	retryFn func() *streamAdapter
+	retried bool
 }
 
 func newStreamAdapter(stream *ssestream.Stream[anthropic.MessageStreamEventUnion], trackUsage bool) *streamAdapter {
@@ -26,11 +34,54 @@ func newStreamAdapter(stream *ssestream.Stream[anthropic.MessageStreamEventUnion
 	}
 }
 
+// isContextLengthError checks if the error indicates context window exceeded.
+// Anthropic returns HTTP 400 with type "invalid_request_error" for context length issues.
+// Unfortunately there's no specific error code - we must check the message.
+func isContextLengthError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	var apiErr *anthropic.Error
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
+		return false
+	}
+
+	// Parse the error response to get the structured error object
+	var errResp struct {
+		Error shared.ErrorObjectUnion `json:"error"`
+	}
+	if json.Unmarshal([]byte(apiErr.RawJSON()), &errResp) != nil {
+		return false
+	}
+
+	// Check if it's an invalid_request_error with a context-length message
+	if errResp.Error.Type != "invalid_request_error" {
+		return false
+	}
+
+	msg := errResp.Error.Message
+	return strings.Contains(msg, "prompt is too long") ||
+		strings.Contains(msg, "too many tokens") ||
+		strings.Contains(msg, "context length") ||
+		strings.Contains(msg, "maximum context")
+}
+
 // Recv gets the next completion chunk
 func (a *streamAdapter) Recv() (chat.MessageStreamResponse, error) {
 	if !a.stream.Next() {
-		if a.stream.Err() != nil {
-			return chat.MessageStreamResponse{}, a.stream.Err()
+		err := a.stream.Err()
+		// Single retry on context length error
+		if err != nil && !a.retried && a.retryFn != nil && isContextLengthError(err) {
+			a.retried = true
+			if retry := a.retryFn(); retry != nil {
+				a.stream.Close()
+				a.stream = retry.stream
+				return a.Recv()
+			}
+		}
+		if err != nil {
+			return chat.MessageStreamResponse{}, err
 		}
 		return chat.MessageStreamResponse{}, io.EOF
 	}
