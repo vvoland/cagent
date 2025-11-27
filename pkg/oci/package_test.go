@@ -24,11 +24,11 @@ agents:
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
 	require.NoError(t, err)
 
-	source, err := agentfile.Resolve(agentFilename)
+	agentSource, err := agentfile.Resolve(agentFilename)
 	require.NoError(t, err)
 
 	tag := "test-app:v1.0.0"
-	digest, err := PackageFileAsOCIToStore(t.Context(), source, tag, store)
+	digest, err := PackageFileAsOCIToStore(t.Context(), agentSource, tag, store)
 	require.NoError(t, err)
 	assert.NotEmpty(t, digest)
 	t.Cleanup(func() {
@@ -58,11 +58,11 @@ func TestPackageFileAsOCIToStoreInvalidTag(t *testing.T) {
 	agentFilename := filepath.Join(t.TempDir(), "test.txt")
 	require.NoError(t, os.WriteFile(agentFilename, []byte("test content"), 0o644))
 
-	source, err := agentfile.Resolve(agentFilename)
+	agentSource, err := agentfile.Resolve(agentFilename)
 	require.NoError(t, err)
 
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
 	require.NoError(t, err)
-	_, err = PackageFileAsOCIToStore(t.Context(), source, "", store)
+	_, err = PackageFileAsOCIToStore(t.Context(), agentSource, "", store)
 	require.Error(t, err)
 }

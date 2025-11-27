@@ -66,10 +66,10 @@ func TestLoadExamples(t *testing.T) {
 
 	for _, agentFilename := range collectExamples(t) {
 		t.Run(agentFilename, func(t *testing.T) {
-			source, err := agentfile.Resolve(agentFilename)
+			agentSource, err := agentfile.Resolve(agentFilename)
 			require.NoError(t, err)
 
-			_, err = Load(t.Context(), source, runtimeConfig)
+			_, err = Load(t.Context(), agentSource, runtimeConfig)
 			if err != nil {
 				envErr := &environment.RequiredEnvError{}
 				require.ErrorAs(t, err, &envErr)
@@ -90,10 +90,10 @@ func TestLoadExamples(t *testing.T) {
 		t.Run(agentFilename, func(t *testing.T) {
 			t.Parallel()
 
-			source, err := agentfile.Resolve(agentFilename)
+			agentSource, err := agentfile.Resolve(agentFilename)
 			require.NoError(t, err)
 
-			teams, err := Load(t.Context(), source, runtimeConfig)
+			teams, err := Load(t.Context(), agentSource, runtimeConfig)
 			require.NoError(t, err)
 			assert.NotEmpty(t, teams)
 		})
@@ -103,10 +103,10 @@ func TestLoadExamples(t *testing.T) {
 func TestLoadDefaultAgent(t *testing.T) {
 	t.Parallel()
 
-	source, err := agentfile.Resolve("../../pkg/agentfile/default-agent.yaml")
+	agentSource, err := agentfile.Resolve("../../pkg/agentfile/default-agent.yaml")
 	require.NoError(t, err)
 
-	teams, err := Load(t.Context(), source, &config.RuntimeConfig{})
+	teams, err := Load(t.Context(), agentSource, &config.RuntimeConfig{})
 	require.NoError(t, err)
 	require.NotEmpty(t, teams)
 }
@@ -138,10 +138,10 @@ func TestOverrideModel(t *testing.T) {
 		t.Run(test.expected, func(t *testing.T) {
 			t.Parallel()
 
-			source, err := agentfile.Resolve("testdata/basic.yaml")
+			agentSource, err := agentfile.Resolve("testdata/basic.yaml")
 			require.NoError(t, err)
 
-			team, err := Load(t.Context(), source, &config.RuntimeConfig{}, WithModelOverrides(test.overrides))
+			team, err := Load(t.Context(), agentSource, &config.RuntimeConfig{}, WithModelOverrides(test.overrides))
 			if test.expectedErr != "" {
 				require.Contains(t, err.Error(), test.expectedErr)
 			} else {
@@ -155,10 +155,10 @@ func TestOverrideModel(t *testing.T) {
 }
 
 func TestToolsetInstructions(t *testing.T) {
-	source, err := agentfile.Resolve("testdata/tool-instruction.yaml")
+	agentSource, err := agentfile.Resolve("testdata/tool-instruction.yaml")
 	require.NoError(t, err)
 
-	team, err := Load(t.Context(), source, &config.RuntimeConfig{})
+	team, err := Load(t.Context(), agentSource, &config.RuntimeConfig{})
 	require.NoError(t, err)
 
 	agent, err := team.Agent("root")

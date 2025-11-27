@@ -38,12 +38,12 @@ func runPushCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	source, err := agentfile.Resolve(agentFilename)
+	agentSource, err := agentfile.Resolve(agentFilename)
 	if err != nil {
 		return fmt.Errorf("resolving agent file: %w", err)
 	}
 
-	_, err = oci.PackageFileAsOCIToStore(ctx, source, tag, store)
+	_, err = oci.PackageFileAsOCIToStore(ctx, agentSource, tag, store)
 	if err != nil {
 		return fmt.Errorf("failed to build artifact: %w", err)
 	}

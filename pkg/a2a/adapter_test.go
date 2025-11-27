@@ -15,10 +15,10 @@ import (
 func TestNewCAgentAdapter(t *testing.T) {
 	t.Setenv("OPENAI_API_KEY", "DUMMY")
 
-	source, err := agentfile.Resolve("testdata/basic.yaml")
+	agentSource, err := agentfile.Resolve("testdata/basic.yaml")
 	require.NoError(t, err)
 
-	team, err := teamloader.Load(t.Context(), source, &config.RuntimeConfig{})
+	team, err := teamloader.Load(t.Context(), agentSource, &config.RuntimeConfig{})
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, team.StopToolSets(t.Context()))
@@ -34,10 +34,10 @@ func TestNewCAgentAdapter(t *testing.T) {
 func TestNewCAgentAdapter_NonExistent(t *testing.T) {
 	t.Setenv("OPENAI_API_KEY", "DUMMY")
 
-	source, err := agentfile.Resolve("testdata/basic.yaml")
+	agentSource, err := agentfile.Resolve("testdata/basic.yaml")
 	require.NoError(t, err)
 
-	team, err := teamloader.Load(t.Context(), source, &config.RuntimeConfig{})
+	team, err := teamloader.Load(t.Context(), agentSource, &config.RuntimeConfig{})
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, team.StopToolSets(t.Context()))
