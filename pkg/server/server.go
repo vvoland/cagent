@@ -101,7 +101,7 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 func (s *Server) getAgents(c echo.Context) error {
 	agents := []api.Agent{}
 	for k, agentSource := range s.agentSources {
-		slog.Debug("API source", "key", k, "source", agentSource.Name())
+		slog.Debug("API source", "source", agentSource.Name())
 
 		c, err := config.Load(c.Request().Context(), agentSource)
 		if err != nil {
@@ -391,15 +391,12 @@ func (s *Server) runtimeForSession(ctx context.Context, sess *session.Session, a
 }
 
 func (s *Server) loadTeam(ctx context.Context, agentFilename string, rc *config.RuntimeConfig) (*team.Team, error) {
-	for key, agentSource := range s.agentSources {
-		if key != agentFilename {
-			continue
-		}
-
-		return teamloader.Load(ctx, agentSource, rc)
+	agentSource, found := s.agentSources[agentFilename]
+	if !found {
+		return nil, fmt.Errorf("agent not found: %s", agentFilename)
 	}
 
-	return nil, fmt.Errorf("agent not found: %s", agentFilename)
+	return teamloader.Load(ctx, agentSource, rc)
 }
 
 func (s *Server) elicitation(c echo.Context) error {
