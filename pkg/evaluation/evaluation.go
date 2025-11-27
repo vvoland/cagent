@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/runtime"
@@ -20,8 +22,9 @@ type Score struct {
 }
 
 type Result struct {
-	Score    Score
-	EvalFile string
+	FirstMessage string
+	Score        Score
+	EvalFile     string
 }
 
 type Printer interface {
@@ -40,14 +43,51 @@ func Evaluate(ctx context.Context, out Printer, agentFilename, evalsDir string, 
 	}
 
 	_, err = runEvaluations(ctx, agents, evalsDir, func(result Result) {
+		out.Printf("---\n")
+		out.Printf("First message: %s\n", result.FirstMessage)
 		out.Printf("Eval file: %s\n", result.EvalFile)
 		out.Printf("Tool trajectory score: %f\n", result.Score.ToolTrajectoryScore)
 		out.Printf("Rouge-1 score: %f\n", result.Score.Rouge1Score)
+		out.Printf("\n")
 	})
 	return err
 }
 
 func runEvaluations(ctx context.Context, t *team.Team, evalsDir string, onResult func(Result)) ([]Result, error) {
+	evals, err := loadEvalSessions(ctx, evalsDir)
+	if err != nil {
+		return nil, err
+	}
+
+	// Each eval gets a channel; results print in order as they complete.
+	chans := make([]chan Result, len(evals))
+	errs, ctx := errgroup.WithContext(ctx)
+	errs.SetLimit(4)
+
+	for i := range evals {
+		chans[i] = make(chan Result, 1)
+		errs.Go(func() error {
+			result, err := runSingleEvaluation(ctx, t, &evals[i])
+			if err == nil {
+				chans[i] <- result
+			}
+			return err
+		})
+	}
+
+	var results []Result
+	for _, ch := range chans {
+		if result, ok := <-ch; ok {
+			results = append(results, result)
+			onResult(result)
+		}
+	}
+
+	return results, errs.Wait()
+}
+
+// loadEvalSessions reads all evaluation session files from the given directory.
+func loadEvalSessions(ctx context.Context, evalsDir string) ([]session.Session, error) {
 	evalFiles, err := os.ReadDir(evalsDir)
 	if err != nil {
 		return nil, err
@@ -59,46 +99,41 @@ func runEvaluations(ctx context.Context, t *team.Team, evalsDir string, onResult
 			return nil, ctx.Err()
 		}
 
-		evalFile, err := os.ReadFile(filepath.Join(evalsDir, evalFile.Name()))
+		data, err := os.ReadFile(filepath.Join(evalsDir, evalFile.Name()))
 		if err != nil {
 			return nil, err
 		}
 
 		var sess session.Session
-		if err := json.Unmarshal(evalFile, &sess); err != nil {
+		if err := json.Unmarshal(data, &sess); err != nil {
 			return nil, err
 		}
 
 		evals = append(evals, sess)
 	}
 
-	var results []Result
-	for i := range evals {
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
+	return evals, nil
+}
 
-		rt, err := runtime.New(t)
-		if err != nil {
-			return nil, err
-		}
-
-		actualMessages, err := runLoop(ctx, rt, &evals[i])
-		if err != nil {
-			return nil, err
-		}
-
-		score := score(evals[i].GetAllMessages(), actualMessages)
-		result := Result{
-			Score:    score,
-			EvalFile: evals[i].ID,
-		}
-		onResult(result)
-
-		results = append(results, result)
+// runSingleEvaluation runs a single evaluation and returns the result.
+func runSingleEvaluation(ctx context.Context, t *team.Team, eval *session.Session) (Result, error) {
+	rt, err := runtime.New(t)
+	if err != nil {
+		return Result{}, err
 	}
 
-	return results, nil
+	actualMessages, err := runLoop(ctx, rt, eval)
+	if err != nil {
+		return Result{}, err
+	}
+
+	evalMessages := eval.GetAllMessages()
+
+	return Result{
+		FirstMessage: evalMessages[0].Message.Content,
+		Score:        score(evalMessages, actualMessages),
+		EvalFile:     eval.ID,
+	}, nil
 }
 
 func runLoop(ctx context.Context, rt *runtime.LocalRuntime, eval *session.Session) ([]session.Message, error) {
