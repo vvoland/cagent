@@ -35,10 +35,14 @@ tasks:
 
   lint:
     desc: Run golangci-lint
-    cmd: golangci-lint run
+    cmds:
+      - golangci-lint run
+      - go mod tidy --diff >/dev/null | (echo "go.mod/go.sum files are not tidy" && exit 1)
     sources:
       - "{{.GO_SOURCES}}"
       - ".golangci.yml"
+      - "go.mod"
+      - "go.sum"
 
   format:
     desc: Format code
