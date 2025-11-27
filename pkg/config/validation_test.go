@@ -1,13 +1,15 @@
 package config
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
 func TestLoadConfig_InvalidPath(t *testing.T) {
-	tmp := openRoot(t, t.TempDir())
+	tmp := t.TempDir()
+	tmpRoot := openRoot(t, tmp)
 
 	validConfig := `version: 1
 agents:
@@ -15,18 +17,20 @@ agents:
     model: "openai/gpt-4"
 `
 
-	err := tmp.WriteFile("valid.yaml", []byte(validConfig), 0o644)
+	err := tmpRoot.WriteFile("valid.yaml", []byte(validConfig), 0o644)
 	require.NoError(t, err)
 
-	cfg, err := LoadConfig(t.Context(), "valid.yaml", tmp)
+	cfg, err := Load(t.Context(), fileSource(filepath.Join(tmp, "valid.yaml")))
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
-	_, err = LoadConfig(t.Context(), "../../../etc/passwd", tmp)
+	_, err = Load(t.Context(), fileSource(filepath.Join(tmp, "../../../etc/passwd"))) //nolint: gocritic // testing invalid path
 	require.Error(t, err)
 }
 
 func TestValidationErrors(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		path string
@@ -49,9 +53,7 @@ func TestValidationErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			root := openRoot(t, "testdata")
-
-			_, err := LoadConfig(t.Context(), tt.path, root)
+			_, err := Load(t.Context(), fileSource(filepath.Join("testdata", tt.path)))
 			require.Error(t, err)
 		})
 	}

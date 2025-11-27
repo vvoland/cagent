@@ -39,7 +39,7 @@ func DockerImage(ctx context.Context, out Printer, agentFilename string, fs file
 		return err
 	}
 
-	cfg, err := config.LoadConfigFrom(ctx, agentSource)
+	cfg, err := config.Load(ctx, agentSource)
 	if err != nil {
 		return err
 	}

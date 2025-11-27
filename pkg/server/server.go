@@ -195,7 +195,12 @@ func (s *Server) getAgentConfig(c echo.Context) error {
 	agentID := c.Param("id")
 	p := addYamlExt(agentID)
 
-	cfg, err := config.LoadConfig(c.Request().Context(), p, s.rootFS)
+	data, err := s.rootFS.ReadFile(p)
+	if err != nil {
+		return fmt.Errorf("reading config file %s: %w", p, err)
+	}
+
+	cfg, err := config.Load(c.Request().Context(), teamloader.NewBytesSource(data))
 	if err != nil {
 		slog.Error("Failed to load config", "error", err)
 		return echo.NewHTTPError(http.StatusNotFound, "agent not found")

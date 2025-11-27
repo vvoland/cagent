@@ -29,7 +29,7 @@ func PackageFileAsOCIToStore(ctx context.Context, agentFilename, artifactRef str
 
 	agentFilename = filepath.Clean(agentFilename)
 	source := teamloader.NewFileSource(agentFilename)
-	cfg, err := config.LoadConfigFrom(ctx, source)
+	cfg, err := config.Load(ctx, source)
 	if err != nil {
 		return "", fmt.Errorf("loading config: %w", err)
 	}
