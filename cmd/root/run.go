@@ -11,7 +11,6 @@ import (
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel"
 
-	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/runtime"
@@ -92,7 +91,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 			return err
 		}
 	} else {
-		agentSource, err := agentfile.Resolve(agentFileName)
+		agentSource, err := config.Resolve(agentFileName)
 		if err != nil {
 			return err
 		}
@@ -120,7 +119,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 	return handleRunMode(ctx, rt, sess, args)
 }
 
-func (f *runExecFlags) loadAgentFrom(ctx context.Context, agentSource agentfile.Source) (*team.Team, error) {
+func (f *runExecFlags) loadAgentFrom(ctx context.Context, agentSource config.Source) (*team.Team, error) {
 	t, err := teamloader.Load(ctx, agentSource, &f.runConfig, teamloader.WithModelOverrides(f.modelOverrides))
 	if err != nil {
 		return nil, err

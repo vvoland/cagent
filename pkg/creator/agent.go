@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/docker/cagent/pkg/agent"
-	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/environment"
@@ -177,7 +176,7 @@ Can you explain to me what the agent will be used for?`,
 
 	return teamloader.Load(
 		ctx,
-		agentfile.NewBytesSource("creator", configAsJSON),
+		config.NewBytesSource("creator", configAsJSON),
 		runConfig,
 		teamloader.WithModelOverrides([]string{modelNameOverride}),
 		teamloader.WithToolsetRegistry(registry),

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/agentfile"
+	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/content"
 )
 
@@ -24,7 +24,7 @@ agents:
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
 	require.NoError(t, err)
 
-	agentSource, err := agentfile.Resolve(agentFilename)
+	agentSource, err := config.Resolve(agentFilename)
 	require.NoError(t, err)
 
 	tag := "test-app:v1.0.0"
@@ -58,7 +58,7 @@ func TestPackageFileAsOCIToStoreInvalidTag(t *testing.T) {
 	agentFilename := filepath.Join(t.TempDir(), "test.txt")
 	require.NoError(t, os.WriteFile(agentFilename, []byte("test content"), 0o644))
 
-	agentSource, err := agentfile.Resolve(agentFilename)
+	agentSource, err := config.Resolve(agentFilename)
 	require.NoError(t, err)
 
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))

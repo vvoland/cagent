@@ -14,7 +14,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/static"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 
-	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/content"
@@ -22,7 +21,7 @@ import (
 )
 
 // PackageFileAsOCIToStore creates an OCI artifact from a file and stores it in the content store
-func PackageFileAsOCIToStore(ctx context.Context, agentSource agentfile.Source, artifactRef string, store *content.Store) (string, error) {
+func PackageFileAsOCIToStore(ctx context.Context, agentSource config.Source, artifactRef string, store *content.Store) (string, error) {
 	if !strings.Contains(artifactRef, ":") {
 		artifactRef += ":latest"
 	}

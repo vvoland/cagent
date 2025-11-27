@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/agentfile"
+	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/mcp"
 	"github.com/docker/cagent/pkg/teamloader"
 )
@@ -15,7 +15,7 @@ func TestMCP_SingleAgent(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	agentSource, err := agentfile.Resolve("testdata/basic.yaml")
+	agentSource, err := config.Resolve("testdata/basic.yaml")
 	require.NoError(t, err)
 
 	_, runConfig := startRecordingAIProxy(t)
@@ -38,7 +38,7 @@ func TestMCP_MultiAgent(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	agentSource, err := agentfile.Resolve("testdata/multi.yaml")
+	agentSource, err := config.Resolve("testdata/multi.yaml")
 	require.NoError(t, err)
 
 	_, runConfig := startRecordingAIProxy(t)

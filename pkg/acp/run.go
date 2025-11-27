@@ -7,14 +7,13 @@ import (
 
 	acpsdk "github.com/coder/acp-go-sdk"
 
-	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/config"
 )
 
 func Run(ctx context.Context, agentFilename string, stdin io.Reader, stdout io.Writer, runConfig *config.RuntimeConfig) error {
 	slog.Debug("Starting ACP server", "agent", agentFilename)
 
-	agentSource, err := agentfile.Resolve(agentFilename)
+	agentSource, err := config.Resolve(agentFilename)
 	if err != nil {
 		return err
 	}

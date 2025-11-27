@@ -17,7 +17,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
-	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/api"
 	"github.com/docker/cagent/pkg/concurrent"
 	"github.com/docker/cagent/pkg/config"
@@ -34,12 +33,12 @@ type Server struct {
 	runtimeCancels *concurrent.Map[string, context.CancelFunc]
 	sessionStore   session.Store
 	runConfig      *config.RuntimeConfig
-	agentSources   agentfile.Sources
+	agentSources   config.Sources
 }
 
 type Opt func(*Server) error
 
-func New(sessionStore session.Store, runConfig *config.RuntimeConfig, agentSources agentfile.Sources, opts ...Opt) (*Server, error) {
+func New(sessionStore session.Store, runConfig *config.RuntimeConfig, agentSources config.Sources, opts ...Opt) (*Server, error) {
 	e := echo.New()
 	e.Use(middleware.CORS())
 	e.Use(middleware.Logger())

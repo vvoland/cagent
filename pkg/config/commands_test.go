@@ -9,7 +9,7 @@ import (
 )
 
 func TestV2Commands_AllForms(t *testing.T) {
-	cfg, err := Load(t.Context(), fileSource("testdata/commands_v2.yaml"))
+	cfg, err := Load(t.Context(), testfileSource("testdata/commands_v2.yaml"))
 	require.NoError(t, err)
 
 	cmdsMap := cfg.Agents["root"].Commands
@@ -24,7 +24,7 @@ func TestV2Commands_AllForms(t *testing.T) {
 }
 
 func TestMigrate_v1_Commands_AllForms(t *testing.T) {
-	cfg, err := Load(t.Context(), fileSource("testdata/commands_v1.yaml"))
+	cfg, err := Load(t.Context(), testfileSource("testdata/commands_v1.yaml"))
 	require.NoError(t, err)
 
 	cmdsMap := cfg.Agents["root"].Commands
@@ -39,7 +39,7 @@ func TestMigrate_v1_Commands_AllForms(t *testing.T) {
 }
 
 func TestMigrate_v0_Commands_AllForms(t *testing.T) {
-	cfg, err := Load(t.Context(), fileSource("testdata/commands_v0.yaml"))
+	cfg, err := Load(t.Context(), testfileSource("testdata/commands_v0.yaml"))
 	require.NoError(t, err)
 
 	cmdsMap := cfg.Agents["root"].Commands
@@ -53,8 +53,8 @@ func TestMigrate_v0_Commands_AllForms(t *testing.T) {
 	require.Empty(t, cfg.Agents["yet_another_agent"].Commands)
 }
 
-type fileSource string
+type testfileSource string
 
-func (s fileSource) Read(context.Context) ([]byte, error) {
+func (s testfileSource) Read(context.Context) ([]byte, error) {
 	return os.ReadFile(string(s))
 }

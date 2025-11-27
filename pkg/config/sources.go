@@ -1,4 +1,4 @@
-package agentfile
+package config
 
 import (
 	"context"

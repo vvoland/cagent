@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/cli"
+	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/oci"
 	"github.com/docker/cagent/pkg/remote"
@@ -38,7 +38,7 @@ func runPushCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	agentSource, err := agentfile.Resolve(agentFilename)
+	agentSource, err := config.Resolve(agentFilename)
 	if err != nil {
 		return fmt.Errorf("resolving agent file: %w", err)
 	}

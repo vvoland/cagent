@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/environment"
@@ -66,7 +65,7 @@ func TestLoadExamples(t *testing.T) {
 
 	for _, agentFilename := range collectExamples(t) {
 		t.Run(agentFilename, func(t *testing.T) {
-			agentSource, err := agentfile.Resolve(agentFilename)
+			agentSource, err := config.Resolve(agentFilename)
 			require.NoError(t, err)
 
 			_, err = Load(t.Context(), agentSource, runConfig)
@@ -90,7 +89,7 @@ func TestLoadExamples(t *testing.T) {
 		t.Run(agentFilename, func(t *testing.T) {
 			t.Parallel()
 
-			agentSource, err := agentfile.Resolve(agentFilename)
+			agentSource, err := config.Resolve(agentFilename)
 			require.NoError(t, err)
 
 			teams, err := Load(t.Context(), agentSource, runConfig)
@@ -103,7 +102,7 @@ func TestLoadExamples(t *testing.T) {
 func TestLoadDefaultAgent(t *testing.T) {
 	t.Parallel()
 
-	agentSource, err := agentfile.Resolve("../../pkg/agentfile/default-agent.yaml")
+	agentSource, err := config.Resolve("../../pkg/config/default-agent.yaml")
 	require.NoError(t, err)
 
 	teams, err := Load(t.Context(), agentSource, &config.RuntimeConfig{})
@@ -138,7 +137,7 @@ func TestOverrideModel(t *testing.T) {
 		t.Run(test.expected, func(t *testing.T) {
 			t.Parallel()
 
-			agentSource, err := agentfile.Resolve("testdata/basic.yaml")
+			agentSource, err := config.Resolve("testdata/basic.yaml")
 			require.NoError(t, err)
 
 			team, err := Load(t.Context(), agentSource, &config.RuntimeConfig{}, WithModelOverrides(test.overrides))
@@ -155,7 +154,7 @@ func TestOverrideModel(t *testing.T) {
 }
 
 func TestToolsetInstructions(t *testing.T) {
-	agentSource, err := agentfile.Resolve("testdata/tool-instruction.yaml")
+	agentSource, err := config.Resolve("testdata/tool-instruction.yaml")
 	require.NoError(t, err)
 
 	team, err := Load(t.Context(), agentSource, &config.RuntimeConfig{})

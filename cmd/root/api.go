@@ -7,7 +7,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/server"
@@ -52,7 +51,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 	// Make sure no question is ever asked to the user in api mode.
 	os.Stdin = nil
 
-	if f.pullIntervalMins > 0 && !agentfile.IsOCIReference(agentsPath) {
+	if f.pullIntervalMins > 0 && !config.IsOCIReference(agentsPath) {
 		return fmt.Errorf("--pull-interval flag can only be used with OCI references, not local files")
 	}
 
@@ -74,7 +73,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create session store: %w", err)
 	}
 
-	sources, err := agentfile.ResolveSources(agentsPath)
+	sources, err := config.ResolveSources(agentsPath)
 	if err != nil {
 		return fmt.Errorf("failed to resolve agent sources: %w", err)
 	}

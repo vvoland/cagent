@@ -5,4 +5,4 @@
 !./**/*.go
 !./**/*.txt
 !./**/*.txt
-!/pkg/agentfile/default-agent.yaml
+!/pkg/config/default-agent.yaml
