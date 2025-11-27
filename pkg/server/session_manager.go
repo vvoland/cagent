@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -19,13 +20,23 @@ import (
 type sessionManager struct {
 	runtimes *concurrent.Map[string, runtime.Runtime]
 	sources  config.Sources
+
+	refreshInterval time.Duration
 }
 
-func newSessionManager(sources config.Sources) *sessionManager {
-	return &sessionManager{
-		runtimes: concurrent.NewMap[string, runtime.Runtime](),
-		sources:  sources,
+func newSessionManager(sources config.Sources, refreshInterval time.Duration) *sessionManager {
+	loaders := make(config.Sources)
+	for name, source := range sources {
+		loaders[name] = newSourceLoader(source, refreshInterval)
 	}
+
+	sm := &sessionManager{
+		runtimes:        concurrent.NewMap[string, runtime.Runtime](),
+		sources:         loaders,
+		refreshInterval: refreshInterval,
+	}
+
+	return sm
 }
 
 func (sm *sessionManager) runtimeForSession(ctx context.Context, sess *session.Session, agentFilename, currentAgent string, rc *config.RuntimeConfig) (runtime.Runtime, error) {
