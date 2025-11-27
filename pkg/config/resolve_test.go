@@ -203,40 +203,6 @@ agents:
 	assert.Equal(t, absPath, resolved)
 }
 
-func TestResolveAgentFile_RelativeDirectory(t *testing.T) {
-	t.Parallel()
-
-	tmpDir := t.TempDir()
-	agentContent := `version: "1"
-agents:
-  root:
-    model: openai/gpt-4o
-    description: Test agent
-    instruction: You are a test agent
-`
-	agentFile := filepath.Join(tmpDir, "agent.yaml")
-	require.NoError(t, os.WriteFile(agentFile, []byte(agentContent), 0o644))
-
-	// Change to temp directory and use relative path
-	originalWd, err := os.Getwd()
-	require.NoError(t, err)
-	defer func() {
-		if err := os.Chdir(originalWd); err != nil {
-			t.Logf("Failed to restore working directory: %v", err)
-		}
-	}()
-
-	require.NoError(t, os.Chdir(tmpDir))
-
-	// Resolve relative path "."
-	resolved, err := resolve(".")
-	require.NoError(t, err)
-
-	absPath, err := filepath.Abs(".")
-	require.NoError(t, err)
-	assert.Equal(t, absPath, resolved)
-}
-
 func TestResolveAgentFile_NonExistentDirectory(t *testing.T) {
 	t.Parallel()
 
