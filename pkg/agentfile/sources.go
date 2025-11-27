@@ -1,4 +1,4 @@
-package teamloader
+package agentfile
 
 import (
 	"context"

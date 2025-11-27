@@ -10,6 +10,7 @@ import (
 	"github.com/coder/acp-go-sdk"
 	"github.com/google/uuid"
 
+	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
@@ -20,7 +21,7 @@ import (
 
 // Agent implements the ACP Agent interface for cagent
 type Agent struct {
-	source        teamloader.AgentSource
+	source        agentfile.AgentSource
 	runtimeConfig *config.RuntimeConfig
 	sessions      map[string]*Session
 
@@ -40,7 +41,7 @@ type Session struct {
 }
 
 // NewAgent creates a new ACP agent
-func NewAgent(source teamloader.AgentSource, runtimeConfig *config.RuntimeConfig) *Agent {
+func NewAgent(source agentfile.AgentSource, runtimeConfig *config.RuntimeConfig) *Agent {
 	return &Agent{
 		source:        source,
 		runtimeConfig: runtimeConfig,

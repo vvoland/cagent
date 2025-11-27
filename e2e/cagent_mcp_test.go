@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/mcp"
 	"github.com/docker/cagent/pkg/teamloader"
 )
@@ -16,7 +17,7 @@ func TestMCP_SingleAgent(t *testing.T) {
 	ctx := t.Context()
 	_, runtimeConfig := startRecordingAIProxy(t)
 
-	team, err := teamloader.Load(ctx, teamloader.NewFileSource("testdata/basic.yaml"), runtimeConfig)
+	team, err := teamloader.Load(ctx, agentfile.NewFileSource("testdata/basic.yaml"), runtimeConfig)
 	require.NoError(t, err, "Failed to load agent")
 	t.Cleanup(func() {
 		require.NoError(t, team.StopToolSets(ctx))
@@ -37,7 +38,7 @@ func TestMCP_MultiAgent(t *testing.T) {
 	ctx := t.Context()
 	_, runtimeConfig := startRecordingAIProxy(t)
 
-	team, err := teamloader.Load(ctx, teamloader.NewFileSource("testdata/multi.yaml"), runtimeConfig)
+	team, err := teamloader.Load(ctx, agentfile.NewFileSource("testdata/multi.yaml"), runtimeConfig)
 	require.NoError(t, err, "Failed to load team")
 	t.Cleanup(func() {
 		require.NoError(t, team.StopToolSets(ctx))

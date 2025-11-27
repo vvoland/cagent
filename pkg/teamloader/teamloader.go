@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/docker/cagent/pkg/agent"
+	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/js"
@@ -43,7 +44,7 @@ func WithToolsetRegistry(registry *ToolsetRegistry) Opt {
 }
 
 // Load loads an agent team from the given source
-func Load(ctx context.Context, source AgentSource, runtimeConfig *config.RuntimeConfig, opts ...Opt) (*team.Team, error) {
+func Load(ctx context.Context, source agentfile.AgentSource, runtimeConfig *config.RuntimeConfig, opts ...Opt) (*team.Team, error) {
 	var loadOpts loadOptions
 	loadOpts.toolsetRegistry = NewDefaultToolsetRegistry()
 

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/environment"
@@ -65,7 +66,7 @@ func TestLoadExamples(t *testing.T) {
 
 	for _, file := range collectExamples(t) {
 		t.Run(file, func(t *testing.T) {
-			_, err := Load(t.Context(), NewFileSource(file), runtimeConfig)
+			_, err := Load(t.Context(), agentfile.NewFileSource(file), runtimeConfig)
 			if err != nil {
 				envErr := &environment.RequiredEnvError{}
 				require.ErrorAs(t, err, &envErr)
@@ -86,7 +87,7 @@ func TestLoadExamples(t *testing.T) {
 		t.Run(file, func(t *testing.T) {
 			t.Parallel()
 
-			teams, err := Load(t.Context(), NewFileSource(file), runtimeConfig)
+			teams, err := Load(t.Context(), agentfile.NewFileSource(file), runtimeConfig)
 			require.NoError(t, err)
 			assert.NotEmpty(t, teams)
 		})
@@ -96,7 +97,7 @@ func TestLoadExamples(t *testing.T) {
 func TestLoadDefaultAgent(t *testing.T) {
 	t.Parallel()
 
-	teams, err := Load(t.Context(), NewFileSource("../../pkg/agentfile/default-agent.yaml"), &config.RuntimeConfig{})
+	teams, err := Load(t.Context(), agentfile.NewFileSource("../../pkg/agentfile/default-agent.yaml"), &config.RuntimeConfig{})
 	require.NoError(t, err)
 	require.NotEmpty(t, teams)
 }
@@ -128,7 +129,7 @@ func TestOverrideModel(t *testing.T) {
 		t.Run(test.expected, func(t *testing.T) {
 			t.Parallel()
 
-			team, err := Load(t.Context(), NewFileSource("testdata/basic.yaml"), &config.RuntimeConfig{}, WithModelOverrides(test.overrides))
+			team, err := Load(t.Context(), agentfile.NewFileSource("testdata/basic.yaml"), &config.RuntimeConfig{}, WithModelOverrides(test.overrides))
 			if test.expectedErr != "" {
 				require.Contains(t, err.Error(), test.expectedErr)
 			} else {
@@ -142,7 +143,7 @@ func TestOverrideModel(t *testing.T) {
 }
 
 func TestToolsetInstructions(t *testing.T) {
-	team, err := Load(t.Context(), NewFileSource("testdata/tool-instruction.yaml"), &config.RuntimeConfig{})
+	team, err := Load(t.Context(), agentfile.NewFileSource("testdata/tool-instruction.yaml"), &config.RuntimeConfig{})
 	require.NoError(t, err)
 
 	agent, err := team.Agent("root")

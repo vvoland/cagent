@@ -14,10 +14,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/static"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 
+	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/content"
-	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/version"
 )
 
@@ -28,7 +28,7 @@ func PackageFileAsOCIToStore(ctx context.Context, agentFilename, artifactRef str
 	}
 
 	agentFilename = filepath.Clean(agentFilename)
-	source := teamloader.NewFileSource(agentFilename)
+	source := agentfile.NewFileSource(agentFilename)
 	cfg, err := config.Load(ctx, source)
 	if err != nil {
 		return "", fmt.Errorf("loading config: %w", err)

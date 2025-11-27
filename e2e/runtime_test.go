@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/teamloader"
@@ -17,7 +18,7 @@ func TestRuntime_OpenAI_Basic(t *testing.T) {
 	ctx := t.Context()
 	_, runtimeConfig := startRecordingAIProxy(t)
 
-	team, err := teamloader.Load(ctx, teamloader.NewFileSource("testdata/basic.yaml"), runtimeConfig)
+	team, err := teamloader.Load(ctx, agentfile.NewFileSource("testdata/basic.yaml"), runtimeConfig)
 	require.NoError(t, err)
 
 	rt, err := runtime.New(team)
@@ -38,7 +39,7 @@ func TestRuntime_Mistral_Basic(t *testing.T) {
 	ctx := t.Context()
 	_, runtimeConfig := startRecordingAIProxy(t)
 
-	team, err := teamloader.Load(ctx, teamloader.NewFileSource("testdata/basic.yaml"), runtimeConfig, teamloader.WithModelOverrides([]string{"mistral/mistral-small"}))
+	team, err := teamloader.Load(ctx, agentfile.NewFileSource("testdata/basic.yaml"), runtimeConfig, teamloader.WithModelOverrides([]string{"mistral/mistral-small"}))
 	require.NoError(t, err)
 
 	rt, err := runtime.New(team)
