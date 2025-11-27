@@ -31,7 +31,7 @@ func NewFileSource(path string) AgentSource {
 }
 
 func (a fileSource) Name() string {
-	return filepath.Base(a.path)
+	return a.path
 }
 
 func (a fileSource) ParentDir() string {
@@ -45,7 +45,7 @@ func (a fileSource) Read(context.Context) ([]byte, error) {
 		return nil, fmt.Errorf("opening filesystem %s: %w", parentDir, err)
 	}
 
-	fileName := a.Name()
+	fileName := filepath.Base(a.path)
 	data, err := fs.ReadFile(fileName)
 	if err != nil {
 		return nil, fmt.Errorf("reading config file %s: %w", fileName, err)
