@@ -22,8 +22,9 @@ type Score struct {
 }
 
 type Result struct {
-	Score    Score
-	EvalFile string
+	FirstMessage string
+	Score        Score
+	EvalFile     string
 }
 
 type Printer interface {
@@ -42,9 +43,12 @@ func Evaluate(ctx context.Context, out Printer, agentFilename, evalsDir string, 
 	}
 
 	_, err = runEvaluations(ctx, agents, evalsDir, func(result Result) {
+		out.Printf("---\n")
+		out.Printf("First message: %s\n", result.FirstMessage)
 		out.Printf("Eval file: %s\n", result.EvalFile)
 		out.Printf("Tool trajectory score: %f\n", result.Score.ToolTrajectoryScore)
 		out.Printf("Rouge-1 score: %f\n", result.Score.Rouge1Score)
+		out.Printf("\n")
 	})
 	return err
 }
@@ -123,9 +127,12 @@ func runSingleEvaluation(ctx context.Context, t *team.Team, eval *session.Sessio
 		return Result{}, err
 	}
 
+	evalMessages := eval.GetAllMessages()
+
 	return Result{
-		Score:    score(eval.GetAllMessages(), actualMessages),
-		EvalFile: eval.ID,
+		FirstMessage: evalMessages[0].Message.Content,
+		Score:        score(evalMessages, actualMessages),
+		EvalFile:     eval.ID,
 	}, nil
 }
 
