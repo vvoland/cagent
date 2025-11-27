@@ -136,7 +136,7 @@ func TestPaginateMessages_MaxLimit(t *testing.T) {
 }
 
 func TestPaginateMessages_EmptyMessages(t *testing.T) {
-	messages := []session.Message{}
+	var messages []session.Message
 
 	params := PaginationParams{
 		Limit: 10,
