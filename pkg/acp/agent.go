@@ -20,12 +20,13 @@ import (
 
 // Agent implements the ACP Agent interface for cagent
 type Agent struct {
-	conn          *acp.AgentSideConnection
-	team          *team.Team
 	source        teamloader.AgentSource
 	runtimeConfig *config.RuntimeConfig
 	sessions      map[string]*Session
-	mu            sync.Mutex
+
+	conn *acp.AgentSideConnection
+	team *team.Team
+	mu   sync.Mutex
 }
 
 var _ acp.Agent = (*Agent)(nil)
