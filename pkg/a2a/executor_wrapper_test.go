@@ -15,12 +15,12 @@ type mockQueue struct {
 	events []a2a.Event
 }
 
-func (m *mockQueue) Write(ctx context.Context, event a2a.Event) error {
+func (m *mockQueue) Write(_ context.Context, event a2a.Event) error {
 	m.events = append(m.events, event)
 	return nil
 }
 
-func (m *mockQueue) Read(ctx context.Context) (a2a.Event, error) {
+func (m *mockQueue) Read(context.Context) (a2a.Event, error) {
 	return nil, nil
 }
 

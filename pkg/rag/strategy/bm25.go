@@ -20,7 +20,7 @@ import (
 )
 
 // NewBM25FromConfig creates a BM25 strategy from configuration
-func NewBM25FromConfig(ctx context.Context, cfg latest.RAGStrategyConfig, buildCtx BuildContext, events chan<- types.Event) (*Config, error) {
+func NewBM25FromConfig(_ context.Context, cfg latest.RAGStrategyConfig, buildCtx BuildContext, events chan<- types.Event) (*Config, error) {
 	// Get optional parameters with defaults
 	k1 := GetParam(cfg.Params, "k1", 1.5)
 	bParam := GetParam(cfg.Params, "b", 0.75)

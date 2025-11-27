@@ -1,8 +1,6 @@
 package tool
 
 import (
-	"github.com/charmbracelet/glamour/v2"
-
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/tool/defaulttool"
 	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
@@ -29,11 +27,7 @@ func NewFactory(registry *Registry) *Factory {
 	}
 }
 
-func (f *Factory) Create(
-	msg *types.Message,
-	renderer *glamour.TermRenderer,
-	sessionState *service.SessionState,
-) layout.Model {
+func (f *Factory) Create(msg *types.Message, sessionState *service.SessionState) layout.Model {
 	toolName := msg.ToolCall.Function.Name
 
 	if builder, ok := f.registry.Get(toolName); ok {
@@ -64,10 +58,6 @@ func newDefaultRegistry() *Registry {
 	return registry
 }
 
-func New(
-	msg *types.Message,
-	renderer *glamour.TermRenderer,
-	sessionState *service.SessionState,
-) layout.Model {
-	return defaultFactory.Create(msg, renderer, sessionState)
+func New(msg *types.Message, sessionState *service.SessionState) layout.Model {
+	return defaultFactory.Create(msg, sessionState)
 }

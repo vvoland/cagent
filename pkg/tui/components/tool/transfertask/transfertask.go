@@ -26,7 +26,7 @@ func New(
 	}
 }
 
-func (c *Component) SetSize(width, height int) tea.Cmd {
+func (c *Component) SetSize(int, int) tea.Cmd {
 	return nil
 }
 

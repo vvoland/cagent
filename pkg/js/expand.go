@@ -84,7 +84,7 @@ func (exp *Expander) Expand(ctx context.Context, text string) string {
 	return fmt.Sprintf("%v", result.Export())
 }
 
-func ExpandString(ctx context.Context, str string, values map[string]string) (string, error) {
+func ExpandString(_ context.Context, str string, values map[string]string) (string, error) {
 	vm := goja.New()
 
 	for k, v := range values {

@@ -699,9 +699,7 @@ func (c *Client) CreateBatchEmbedding(ctx context.Context, texts []string) (*bas
 	for i, data := range response.Data {
 		embedding32 := data.Embedding
 		embedding := make([]float64, len(embedding32))
-		for j, v := range embedding32 {
-			embedding[j] = v
-		}
+		copy(embedding, embedding32)
 		embeddings[i] = embedding
 	}
 

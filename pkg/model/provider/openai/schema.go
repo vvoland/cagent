@@ -32,7 +32,7 @@ func makeAllRequired(schema map[string]any) map[string]any {
 	}
 
 	// We can't use a nil 'required' attribute
-	var newRequired []any
+	newRequired := []any{}
 
 	// Sort property names for deterministic output
 	var propNames []string

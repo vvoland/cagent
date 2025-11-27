@@ -218,7 +218,7 @@ func (h *shellHandler) RunShell(ctx context.Context, toolCall tools.ToolCall) (*
 	}
 }
 
-func (h *shellHandler) RunShellBackground(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (h *shellHandler) RunShellBackground(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var params RunShellBackgroundArgs
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
 		return nil, fmt.Errorf("invalid arguments: %w", err)

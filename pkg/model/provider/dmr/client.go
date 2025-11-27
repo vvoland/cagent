@@ -631,9 +631,7 @@ func (c *Client) CreateEmbedding(ctx context.Context, text string) (*base.Embedd
 	// Convert []float32 to []float64
 	embedding32 := response.Data[0].Embedding
 	embedding := make([]float64, len(embedding32))
-	for i, v := range embedding32 {
-		embedding[i] = v
-	}
+	copy(embedding, embedding32)
 
 	// Extract usage information
 	inputTokens := int(response.Usage.PromptTokens)
@@ -690,9 +688,7 @@ func (c *Client) CreateBatchEmbedding(ctx context.Context, texts []string) (*bas
 	for i, data := range response.Data {
 		embedding32 := data.Embedding
 		embedding := make([]float64, len(embedding32))
-		for j, v := range embedding32 {
-			embedding[j] = v
-		}
+		copy(embedding, embedding32)
 		embeddings[i] = embedding
 	}
 

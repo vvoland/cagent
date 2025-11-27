@@ -14,7 +14,6 @@ import (
 	"github.com/goccy/go-yaml"
 
 	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/filesystem"
 )
 
 //go:embed Dockerfile.template
@@ -31,7 +30,7 @@ type Printer interface {
 	Println(a ...any)
 }
 
-func DockerImage(ctx context.Context, out Printer, agentFilename string, fs filesystem.FS, dockerImageName string, opts Options) error {
+func DockerImage(ctx context.Context, out Printer, agentFilename, dockerImageName string, opts Options) error {
 	agentSource, err := config.Resolve(agentFilename)
 	if err != nil {
 		return err
