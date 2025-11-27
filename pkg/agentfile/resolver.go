@@ -3,6 +3,7 @@ package agentfile
 import (
 	"context"
 	_ "embed"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 
 	"github.com/docker/cagent/pkg/aliases"
+	"github.com/docker/cagent/pkg/reference"
 	"github.com/docker/cagent/pkg/teamloader"
 )
 
@@ -23,9 +25,54 @@ type Printer interface {
 
 // ResolveSource resolves an agent file reference (local file or OCI image) to a local file path
 // For OCI references, always checks remote for updates but falls back to local cache if offline
-func ResolveSource(ctx context.Context, out Printer, agentFilename string) (teamloader.AgentSource, error) {
-	resolvedPath, err := Resolve(ctx, out, agentFilename)
+func ResolveSources(ctx context.Context, out Printer, agentFilename string) (teamloader.AgentSources, error) {
+	resolvedPath, err := resolve(agentFilename)
 	if err != nil {
+		if IsOCIReference(agentFilename) {
+			return map[string]teamloader.AgentSource{reference.OciRefToFilename(agentFilename): teamloader.NewOCISource(agentFilename)}, nil
+		}
+		return nil, err
+	}
+
+	if resolvedPath == "default" {
+		return map[string]teamloader.AgentSource{"default": teamloader.NewBytesSource(defaultAgent)}, nil
+	}
+	if isLocalFile(resolvedPath) {
+		return map[string]teamloader.AgentSource{resolvedPath: teamloader.NewFileSource(resolvedPath)}, nil
+	}
+	if dirExists(resolvedPath) {
+		sources := make(teamloader.AgentSources)
+		entries, err := os.ReadDir(resolvedPath)
+		if err != nil {
+			return nil, fmt.Errorf("reading agents directory %s: %w", resolvedPath, err)
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			ext := strings.ToLower(filepath.Ext(entry.Name()))
+			if ext != ".yaml" && ext != ".yml" {
+				continue
+			}
+			a := filepath.Join(resolvedPath, entry.Name())
+			sources[a], err = ResolveSource(ctx, out, a)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return sources, nil
+	}
+	return map[string]teamloader.AgentSource{resolvedPath: teamloader.NewOCISource(agentFilename)}, nil
+}
+
+// ResolveSource resolves an agent file reference (local file or OCI image) to a local file path
+// For OCI references, always checks remote for updates but falls back to local cache if offline
+func ResolveSource(ctx context.Context, out Printer, agentFilename string) (teamloader.AgentSource, error) {
+	resolvedPath, err := resolve(agentFilename)
+	if err != nil {
+		if IsOCIReference(agentFilename) {
+			return teamloader.NewOCISource(agentFilename), nil
+		}
 		return nil, err
 	}
 
@@ -35,11 +82,11 @@ func ResolveSource(ctx context.Context, out Printer, agentFilename string) (team
 	if isLocalFile(resolvedPath) {
 		return teamloader.NewFileSource(resolvedPath), nil
 	}
-	return teamloader.NewOCISource(resolvedPath), nil
+	return teamloader.NewOCISource(agentFilename), nil
 }
 
-// Resolve resolves an agent file reference (local file or OCI image) to a local file path
-func Resolve(ctx context.Context, out Printer, agentFilename string) (string, error) {
+// resolve resolves an agent reference, handling aliases and defaults
+func resolve(agentFilename string) (string, error) {
 	if agentFilename == "" {
 		agentFilename = "default"
 	}
@@ -57,13 +104,25 @@ func Resolve(ctx context.Context, out Printer, agentFilename string) (string, er
 		return "default", nil
 	}
 
-	return agentFilename, nil
+	abs, err := filepath.Abs(agentFilename)
+	if err != nil {
+		return "", err
+	}
+
+	return abs, nil
 }
 
 // fileExists checks if a file exists at the given path
 func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	exists := err == nil
+	s, err := os.Stat(path)
+	exists := err == nil && !s.IsDir()
+	return exists
+}
+
+// fileExists checks if a file exists at the given path
+func dirExists(path string) bool {
+	s, err := os.Stat(path)
+	exists := err == nil && s.IsDir()
 	return exists
 }
 

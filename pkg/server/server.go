@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -21,7 +20,6 @@ import (
 	"github.com/docker/cagent/pkg/api"
 	"github.com/docker/cagent/pkg/concurrent"
 	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
@@ -35,50 +33,15 @@ type Server struct {
 	runtimeCancels *concurrent.Map[string, context.CancelFunc]
 	sessionStore   session.Store
 	runConfig      *config.RuntimeConfig
-	teams          *concurrent.Map[string, *team.Team]
-	ociRef         string // OCI reference, set once at startup for OCI-based servers
-	ociTeamKey     string
-	agentsDir      string
-	agentsPath     string // For local files: specific file path to reload (instead of scanning agentsDir)
+	apiSources     teamloader.AgentSources
 }
 
 type Opt func(*Server) error
 
-func WithAgentsDir(dir string) Opt {
-	return func(s *Server) error {
-		s.agentsDir = dir
-		return nil
-	}
-}
-
-func WithAgentsPath(agentPath string) Opt {
-	return func(s *Server) error {
-		s.agentsPath = agentPath
-		return nil
-	}
-}
-
-func WithOCIRef(teamKey, ociRef string) Opt {
-	return func(s *Server) error {
-		if teamKey == "" || ociRef == "" {
-			return errors.New("teamKey and ociRef must be provided for OCI-based server")
-		}
-
-		s.ociTeamKey = teamKey
-		s.ociRef = ociRef
-		return nil
-	}
-}
-
-func New(sessionStore session.Store, runConfig *config.RuntimeConfig, teams map[string]*team.Team, opts ...Opt) (*Server, error) {
+func New(sessionStore session.Store, runConfig *config.RuntimeConfig, agentSources teamloader.AgentSources, opts ...Opt) (*Server, error) {
 	e := echo.New()
 	e.Use(middleware.CORS())
 	e.Use(middleware.Logger())
-
-	ts := concurrent.NewMap[string, *team.Team]()
-	for key, t := range teams {
-		ts.Store(key, t)
-	}
 
 	s := &Server{
 		e:              e,
@@ -86,13 +49,7 @@ func New(sessionStore session.Store, runConfig *config.RuntimeConfig, teams map[
 		runtimeCancels: concurrent.NewMap[string, context.CancelFunc](),
 		sessionStore:   sessionStore,
 		runConfig:      runConfig,
-		teams:          ts,
-	}
-
-	for _, opt := range opts {
-		if err := opt(s); err != nil {
-			return nil, err
-		}
+		apiSources:     agentSources,
 	}
 
 	group := e.Group("/api")
@@ -138,93 +95,46 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 	return nil
 }
 
-// hasAgentsDir returns true if the server has a local agents directory.
-// Returns false for OCI reference-based servers, which load from memory.
-func (s *Server) hasAgentsDir() bool {
-	return s.agentsDir != ""
-}
-
-// getTeam retrieves a team by key with read lock
-func (s *Server) getTeam(key string) (*team.Team, bool) {
-	t, exists := s.teams.Load(key)
-	return t, exists
-}
-
-func (s *Server) getTeams() map[string]*team.Team {
-	teams := make(map[string]*team.Team, s.teams.Length())
-	s.teams.Range(func(key string, value *team.Team) bool {
-		teams[key] = value
-		return true
-	})
-	return teams
-}
-
-// replaceAllTeams replaces the entire teams map with write lock, returns old teams
-func (s *Server) replaceAllTeams(teams map[string]*team.Team) map[string]*team.Team {
-	oldTeams := s.getTeams()
-	s.teams = concurrent.NewMap[string, *team.Team]()
-	for key, team := range teams {
-		s.teams.Store(key, team)
-	}
-	return oldTeams
-}
-
-func (s *Server) getOCIRef(key string) (string, bool) {
-	if s.ociRef == "" || s.ociTeamKey != key {
-		return "", false
-	}
-	return s.ociRef, true
-}
-
 // API handlers
 
 func (s *Server) getAgents(c echo.Context) error {
-	// Refresh agents from disk to get the latest configurations
-	// Only refresh for local files/dirs (hasAgentsDir == true)
-	// OCI refs are immutable and loaded into memory, updates handled via ReloadTeams()
-	if s.hasAgentsDir() {
-		if err := s.refreshAgentsFromDisk(c.Request().Context()); err != nil {
-			slog.Error("Failed to refresh agents from disk", "error", err)
+	agents := []api.Agent{}
+	for k, v := range s.apiSources {
+		slog.Debug("API source", "key", k, "source", v.Name())
+
+		c, err := config.Load(c.Request().Context(), v)
+		if err != nil {
+			slog.Error("Failed to load config from API source", "key", k, "error", err)
+			continue
+		}
+
+		var desc string
+		if a, ok := c.Agents["root"]; ok {
+			desc = a.Description
+		} else {
+			for _, agent := range c.Agents {
+				desc = agent.Description
+				break
+			}
+		}
+		switch {
+		case len(c.Agents) > 1:
+			agents = append(agents, api.Agent{
+				Name:        k,
+				Multi:       true,
+				Description: desc,
+			})
+		case len(c.Agents) == 1:
+			agents = append(agents, api.Agent{
+				Name:        k,
+				Multi:       false,
+				Description: desc,
+			})
+		default:
+			slog.Warn("No agents found in config from API source", "key", k)
+			continue
 		}
 	}
-
-	// DO NOT, under any circumstance, replace this with "var agents []api.Agent",
-	// we want to return an empty slice if there are no agents, not nil.
-	agents := []api.Agent{}
-
-	s.teams.Range(func(id string, t *team.Team) bool {
-		a, err := t.Agent("root")
-		if err != nil {
-			switch {
-			case t.Size() > 1:
-				agents = append(agents, api.Agent{
-					Name:  id,
-					Multi: true,
-				})
-			case t.Size() == 1:
-				a, err = t.Agent(t.AgentNames()[0])
-				if err != nil {
-					slog.Debug("Team has no agents", "team", id)
-					return true
-				}
-				agents = append(agents, api.Agent{
-					Name:        id,
-					Description: a.Description(),
-					Multi:       false,
-				})
-			default:
-				slog.Warn("Team has no agents", "team", id)
-				return true
-			}
-		} else {
-			agents = append(agents, api.Agent{
-				Name:        id,
-				Description: a.Description(),
-				Multi:       a.HasSubAgents(),
-			})
-		}
-		return true
-	})
 
 	// Sort agents by name
 	sort.Slice(agents, func(i, j int) bool {
@@ -232,64 +142,6 @@ func (s *Server) getAgents(c echo.Context) error {
 	})
 
 	return c.JSON(http.StatusOK, agents)
-}
-
-func (s *Server) refreshAgentsFromDisk(ctx context.Context) error {
-	// Use agentsPath if set (for specific files), otherwise fall back to agentsDir
-	// Note: OCI references are handled via ReloadTeams() and never call this function
-	// (see getAgents() which skips refresh for OCI refs)
-	pathToLoad := s.agentsPath
-	if pathToLoad == "" {
-		pathToLoad = s.agentsDir
-	}
-
-	if pathToLoad == "" {
-		return nil
-	}
-
-	slog.Debug("Refreshing agents from disk", "path", pathToLoad)
-
-	newTeams, err := teamloader.LoadTeams(ctx, pathToLoad, s.runConfig)
-	if err != nil {
-		return fmt.Errorf("failed to load teams: %w", err)
-	}
-
-	oldTeams := s.getTeams()
-
-	for id, oldTeam := range oldTeams {
-		if _, exists := newTeams[id]; !exists {
-			// Team no longer exists on disk, stop its tool sets
-			slog.Info("Stopping tool sets for removed team", "team", id)
-			if err := oldTeam.StopToolSets(ctx); err != nil {
-				slog.Error("Failed to stop tool sets for removed team", "team", id, "error", err)
-			}
-		}
-	}
-
-	s.replaceAllTeams(newTeams)
-
-	return nil
-}
-
-// ReloadTeams loads teams from the specified path and replaces the current teams.
-// This method is thread-safe and ensures ongoing requests are not interrupted.
-func (s *Server) ReloadTeams(ctx context.Context, agentPath string) error {
-	// TODO(rumpl): this is completely broken and needs fixing, it is only reloading teams but it's IS NOT reloading runtimes.
-	newTeams, err := teamloader.LoadTeams(ctx, agentPath, s.runConfig)
-	if err != nil {
-		return fmt.Errorf("failed to load teams: %w", err)
-	}
-
-	oldTeams := s.replaceAllTeams(newTeams)
-
-	// Stop old teams' toolsets after releasing the lock to avoid blocking requests
-	for id, oldTeam := range oldTeams {
-		if err := oldTeam.StopToolSets(ctx); err != nil {
-			slog.Error("Failed to stop tool sets for old team", "team", id, "error", err)
-		}
-	}
-
-	return nil
 }
 
 func (s *Server) getSessions(c echo.Context) error {
@@ -510,7 +362,7 @@ func (s *Server) runtimeForSession(ctx context.Context, sess *session.Session, a
 		return rt, nil
 	}
 
-	t, err := s.loadTeamForSession(ctx, agentFilename, sess, rc)
+	t, err := s.loadTeam(ctx, agentFilename, rc)
 	if err != nil {
 		return nil, err
 	}
@@ -537,54 +389,24 @@ func (s *Server) runtimeForSession(ctx context.Context, sess *session.Session, a
 	return rt, nil
 }
 
-// loadTeamForSession loads the appropriate team for a session, handling both
-// local files (always reload) and OCI refs (reload only if session has custom workingDir).
-func (s *Server) loadTeamForSession(ctx context.Context, agentFilename string, sess *session.Session, rc *config.RuntimeConfig) (*team.Team, error) {
-	if s.hasAgentsDir() {
-		// Has local agents path or directory: reload from disk to pick up changes
-		loadPath := s.agentsPath
-		if loadPath == "" {
-			loadPath = filepath.Join(s.agentsDir, agentFilename)
+func (s *Server) loadTeam(ctx context.Context, agentFilename string, rc *config.RuntimeConfig) (*team.Team, error) {
+	for key, t := range s.apiSources {
+		fmt.Println(key, agentFilename)
+		if key == agentFilename {
+			loadedTeam, err := teamloader.LoadFrom(
+				ctx,
+				t,
+				rc,
+				teamloader.WithID(agentFilename),
+			)
+			if err != nil {
+				return nil, err
+			}
+			return loadedTeam, nil
 		}
-
-		t, err := teamloader.Load(ctx, loadPath, rc)
-		if err != nil {
-			return nil, err
-		}
-		return t, nil
 	}
 
-	store, err := content.NewStore()
-	if err != nil {
-		return nil, err
-	}
-
-	// If session has a custom working dir, reload the agent to pick it up
-	if ociRef, ok := s.getOCIRef(agentFilename); ok && sess.WorkingDir != "" {
-		yamlContent, err := store.GetArtifact(ociRef)
-		if err != nil {
-			return nil, err
-		}
-
-		reloaded, err := teamloader.LoadFrom(
-			ctx,
-			teamloader.NewBytesSource([]byte(yamlContent)),
-			rc,
-			teamloader.WithID(agentFilename),
-		)
-		if err != nil {
-			return nil, err
-		}
-		return reloaded, nil
-	}
-
-	// No local directory: use the already-loaded team from memory (OCI refs)
-	t, exists := s.getTeam(agentFilename)
-	if !exists {
-		return nil, fmt.Errorf("agent not found: %s", agentFilename)
-	}
-
-	return t, nil
+	return nil, fmt.Errorf("agent not found: %s", agentFilename)
 }
 
 func (s *Server) elicitation(c echo.Context) error {

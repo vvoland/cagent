@@ -17,6 +17,8 @@ type AgentSource interface {
 	Read(ctx context.Context) ([]byte, error)
 }
 
+type AgentSources map[string]AgentSource
+
 // fileSource is used to load an agent configuration from a YAML file.
 type fileSource struct {
 	path string
