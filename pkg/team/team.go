@@ -13,18 +13,11 @@ import (
 )
 
 type Team struct {
-	ID          string
 	agents      map[string]*agent.Agent
 	ragManagers map[string]*rag.Manager
 }
 
 type Opt func(*Team)
-
-func WithID(id string) Opt {
-	return func(t *Team) {
-		t.ID = id
-	}
-}
 
 func WithAgents(agents ...*agent.Agent) Opt {
 	return func(t *Team) {

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/docker/cagent/pkg/agent"
@@ -95,9 +94,7 @@ func CreateAgent(ctx context.Context, baseDir, prompt string, runConfig *config.
 	slog.Info("Generating agent configuration....")
 
 	fsToolset := fsToolset{inner: builtin.NewFilesystemTool([]string{baseDir})}
-	fileName := filepath.Base(fsToolset.path)
 	newTeam := team.New(
-		team.WithID(fileName),
 		team.WithAgents(
 			agent.New(
 				"root",
@@ -171,7 +168,6 @@ Can you explain to me what the agent will be used for?`,
 	fsToolset := fsToolset{
 		inner: builtin.NewFilesystemTool([]string{runConfig.WorkingDir}),
 	}
-	fileName := filepath.Base(fsToolset.path)
 
 	registry := teamloader.NewDefaultToolsetRegistry()
 	registry.Register("filesystem", func(context.Context, latest.Toolset, string, *config.RuntimeConfig) (tools.ToolSet, error) {
@@ -184,6 +180,5 @@ Can you explain to me what the agent will be used for?`,
 		runConfig,
 		teamloader.WithModelOverrides([]string{modelNameOverride}),
 		teamloader.WithToolsetRegistry(registry),
-		teamloader.WithID(fileName),
 	)
 }

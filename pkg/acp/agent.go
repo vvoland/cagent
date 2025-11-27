@@ -74,7 +74,7 @@ func (a *Agent) Initialize(ctx context.Context, params acp.InitializeRequest) (a
 		return acp.InitializeResponse{}, fmt.Errorf("failed to load teams: %w", err)
 	}
 	a.team = t
-	slog.Debug("Teams loaded successfully", "team_id", t.ID, "agent_count", t.Size())
+	slog.Debug("Teams loaded successfully", "source", a.source.Name(), "agent_count", t.Size())
 
 	return acp.InitializeResponse{
 		ProtocolVersion: acp.ProtocolVersionNumber,

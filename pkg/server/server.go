@@ -391,19 +391,11 @@ func (s *Server) runtimeForSession(ctx context.Context, sess *session.Session, a
 
 func (s *Server) loadTeam(ctx context.Context, agentFilename string, rc *config.RuntimeConfig) (*team.Team, error) {
 	for key, t := range s.apiSources {
-		fmt.Println(key, agentFilename)
-		if key == agentFilename {
-			loadedTeam, err := teamloader.LoadFrom(
-				ctx,
-				t,
-				rc,
-				teamloader.WithID(agentFilename),
-			)
-			if err != nil {
-				return nil, err
-			}
-			return loadedTeam, nil
+		if key != agentFilename {
+			continue
 		}
+
+		return teamloader.LoadFrom(ctx, t, rc)
 	}
 
 	return nil, fmt.Errorf("agent not found: %s", agentFilename)
