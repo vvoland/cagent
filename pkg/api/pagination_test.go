@@ -20,8 +20,7 @@ func createTestMessages(count int) []session.Message {
 			role = chat.MessageRoleAssistant
 		}
 		messages[i] = session.Message{
-			AgentFilename: "test.yaml",
-			AgentName:     "test",
+			AgentName: "test",
 			Message: chat.Message{
 				Role:      role,
 				Content:   "Message " + strconv.Itoa(i),

@@ -18,7 +18,6 @@ import (
 
 	"github.com/docker/cagent/pkg/api"
 	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/content"
 	"github.com/docker/cagent/pkg/oci"
 	"github.com/docker/cagent/pkg/session"
@@ -58,38 +57,6 @@ func TestServer_ListAgents(t *testing.T) {
 	assert.Equal(t, "pirate.yaml", agents[2].Name)
 	assert.Equal(t, "Talk like a pirate", agents[2].Description)
 	assert.False(t, agents[2].Multi)
-}
-
-func TestServer_GetAgent_NoExtension(t *testing.T) {
-	t.Parallel()
-
-	ctx := t.Context()
-	lnPath := startServer(t, ctx, prepareAgentsDir(t, "pirate.yaml"))
-
-	buf := httpGET(t, ctx, lnPath, "/api/agents/pirate")
-
-	var cfg latest.Config
-	unmarshal(t, buf, &cfg)
-
-	assert.NotEmpty(t, cfg.Version)
-	require.Len(t, cfg.Agents, 1)
-	assert.Contains(t, cfg.Agents["root"].Instruction, "pirate")
-}
-
-func TestServer_GetAgent(t *testing.T) {
-	t.Parallel()
-
-	ctx := t.Context()
-	lnPath := startServer(t, ctx, prepareAgentsDir(t, "pirate.yaml"))
-
-	buf := httpGET(t, ctx, lnPath, "/api/agents/pirate.yaml")
-
-	var cfg latest.Config
-	unmarshal(t, buf, &cfg)
-
-	assert.NotEmpty(t, cfg.Version)
-	require.Len(t, cfg.Agents, 1)
-	assert.Contains(t, cfg.Agents["root"].Instruction, "pirate")
 }
 
 func TestServer_ListSessions(t *testing.T) {
@@ -680,15 +647,6 @@ func TestServer_WriteOperations_OCIRef_MethodNotAllowed(t *testing.T) {
 	}()
 
 	baseURL := fmt.Sprintf("http://%s", ln.Addr().String())
-
-	// Test editAgentConfig returns 405
-	t.Run("editAgentConfig", func(t *testing.T) {
-		reqBody := `{"filename":"pirate.yaml","agent_config":{"agents":{"root":{"description":"Modified"}}}}`
-		resp, err := http.Post(baseURL+"/api/agents/config", "application/json", strings.NewReader(reqBody))
-		require.NoError(t, err)
-		defer resp.Body.Close()
-		assert.Equal(t, http.StatusMethodNotAllowed, resp.StatusCode, "should return 405 for write operations on OCI refs")
-	})
 
 	// Test createAgent returns 405
 	t.Run("createAgent", func(t *testing.T) {

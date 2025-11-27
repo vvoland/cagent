@@ -40,20 +40,13 @@ type Server struct {
 	ociTeamKey     string
 	agentsDir      string
 	agentsPath     string // For local files: specific file path to reload (instead of scanning agentsDir)
-	rootFS         *os.Root
 }
 
 type Opt func(*Server) error
 
 func WithAgentsDir(dir string) Opt {
 	return func(s *Server) error {
-		rootFs, err := os.OpenRoot(dir)
-		if err != nil {
-			return fmt.Errorf("failed to open root filesystem at %s: %w", dir, err)
-		}
-
 		s.agentsDir = dir
-		s.rootFS = rootFs
 		return nil
 	}
 }
@@ -106,17 +99,11 @@ func New(sessionStore session.Store, runConfig *config.RuntimeConfig, teams map[
 
 	// List all available agents
 	group.GET("/agents", s.getAgents)
-	// Get an agent by id
-	group.GET("/agents/:id", s.getAgentConfig)
-	// Get an agent's raw YAML configuration by id
-	group.GET("/agents/:id/yaml", s.getAgentConfigYAML)
 
 	// SESSIONS
 
 	// List all sessions
 	group.GET("/sessions", s.getSessions)
-	// Get sessions by agent filename
-	group.GET("/sessions/agent/:id", s.getSessionsByAgent)
 	// Get a session by id
 	group.GET("/sessions/:id", s.getSession)
 	// Resume a session by id
@@ -154,7 +141,7 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 // hasAgentsDir returns true if the server has a local agents directory.
 // Returns false for OCI reference-based servers, which load from memory.
 func (s *Server) hasAgentsDir() bool {
-	return s.agentsDir != "" && s.rootFS != nil
+	return s.agentsDir != ""
 }
 
 // getTeam retrieves a team by key with read lock
@@ -190,38 +177,6 @@ func (s *Server) getOCIRef(key string) (string, bool) {
 }
 
 // API handlers
-
-func (s *Server) getAgentConfig(c echo.Context) error {
-	agentID := c.Param("id")
-	p := addYamlExt(agentID)
-
-	data, err := s.rootFS.ReadFile(p)
-	if err != nil {
-		return fmt.Errorf("reading config file %s: %w", p, err)
-	}
-
-	cfg, err := config.Load(c.Request().Context(), teamloader.NewBytesSource(data))
-	if err != nil {
-		slog.Error("Failed to load config", "error", err)
-		return echo.NewHTTPError(http.StatusNotFound, "agent not found")
-	}
-
-	return c.JSON(http.StatusOK, cfg)
-}
-
-func (s *Server) getAgentConfigYAML(c echo.Context) error {
-	agentID := c.Param("id")
-	p := addYamlExt(agentID)
-
-	// Read the YAML file
-	yamlContent, err := s.rootFS.ReadFile(p)
-	if err != nil {
-		slog.Error("Failed to read agent YAML file", "path", p, "error", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to read agent file")
-	}
-
-	return c.String(http.StatusOK, string(yamlContent))
-}
 
 func (s *Server) getAgents(c echo.Context) error {
 	// Refresh agents from disk to get the latest configurations
@@ -346,41 +301,13 @@ func (s *Server) getSessions(c echo.Context) error {
 	responses := make([]api.SessionsResponse, len(sessions))
 	for i, sess := range sessions {
 		responses[i] = api.SessionsResponse{
-			ID:                         sess.ID,
-			Title:                      sess.Title,
-			CreatedAt:                  sess.CreatedAt.Format(time.RFC3339),
-			NumMessages:                len(sess.GetAllMessages()),
-			InputTokens:                sess.InputTokens,
-			OutputTokens:               sess.OutputTokens,
-			GetMostRecentAgentFilename: sess.GetMostRecentAgentFilename(),
-			WorkingDir:                 sess.WorkingDir,
-		}
-	}
-	return c.JSON(http.StatusOK, responses)
-}
-
-func (s *Server) getSessionsByAgent(c echo.Context) error {
-	agentFilename := c.Param("id")
-	if agentFilename == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "id parameter is required")
-	}
-
-	sessions, err := s.sessionStore.GetSessionsByAgent(c.Request().Context(), agentFilename)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to get sessions for agent: %v", err))
-	}
-
-	responses := make([]api.SessionsResponse, len(sessions))
-	for i, sess := range sessions {
-		responses[i] = api.SessionsResponse{
-			ID:                         sess.ID,
-			Title:                      sess.Title,
-			CreatedAt:                  sess.CreatedAt.Format(time.RFC3339),
-			NumMessages:                len(sess.GetAllMessages()),
-			InputTokens:                sess.InputTokens,
-			OutputTokens:               sess.OutputTokens,
-			GetMostRecentAgentFilename: sess.GetMostRecentAgentFilename(),
-			WorkingDir:                 sess.WorkingDir,
+			ID:           sess.ID,
+			Title:        sess.Title,
+			CreatedAt:    sess.CreatedAt.Format(time.RFC3339),
+			NumMessages:  len(sess.GetAllMessages()),
+			InputTokens:  sess.InputTokens,
+			OutputTokens: sess.OutputTokens,
+			WorkingDir:   sess.WorkingDir,
 		}
 	}
 	return c.JSON(http.StatusOK, responses)
@@ -540,7 +467,7 @@ func (s *Server) runAgent(c echo.Context) error {
 	}
 
 	for _, msg := range messages {
-		sess.AddMessage(session.UserMessage(agentFilename, msg.Content, msg.MultiContent...))
+		sess.AddMessage(session.UserMessage(msg.Content, msg.MultiContent...))
 	}
 
 	if err := s.sessionStore.UpdateSession(c.Request().Context(), sess); err != nil {
@@ -653,13 +580,6 @@ func (s *Server) loadTeamForSession(ctx context.Context, agentFilename string, s
 	}
 
 	return t, nil
-}
-
-func addYamlExt(filename string) string {
-	if strings.HasSuffix(filename, ".yaml") || strings.HasSuffix(filename, ".yml") {
-		return filename
-	}
-	return filename + ".yaml"
 }
 
 func (s *Server) elicitation(c echo.Context) error {
