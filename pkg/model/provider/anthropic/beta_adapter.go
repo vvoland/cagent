@@ -17,6 +17,9 @@ type betaStreamAdapter struct {
 	stream   *ssestream.Stream[anthropic.BetaRawMessageStreamEventUnion]
 	toolCall bool
 	toolID   string
+	// For single retry on context length error
+	retryFn func() *betaStreamAdapter
+	retried bool
 }
 
 // newBetaStreamAdapter creates a new Beta stream adapter
@@ -29,8 +32,18 @@ func newBetaStreamAdapter(stream *ssestream.Stream[anthropic.BetaRawMessageStrea
 // Recv gets the next completion chunk from the Beta stream
 func (a *betaStreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 	if !a.stream.Next() {
-		if a.stream.Err() != nil {
-			return chat.MessageStreamResponse{}, a.stream.Err()
+		err := a.stream.Err()
+		// Single retry on context length error
+		if err != nil && !a.retried && a.retryFn != nil && isContextLengthError(err) {
+			a.retried = true
+			if retry := a.retryFn(); retry != nil {
+				a.stream.Close()
+				a.stream = retry.stream
+				return a.Recv()
+			}
+		}
+		if err != nil {
+			return chat.MessageStreamResponse{}, err
 		}
 		return chat.MessageStreamResponse{}, io.EOF
 	}
