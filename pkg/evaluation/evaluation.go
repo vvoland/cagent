@@ -35,7 +35,7 @@ func Evaluate(ctx context.Context, out Printer, agentFilename, evalsDir string, 
 		return err
 	}
 
-	agents, err := teamloader.LoadFrom(ctx, agentSource, runConfig)
+	agents, err := teamloader.Load(ctx, agentSource, runConfig)
 	if err != nil {
 		return err
 	}

@@ -34,7 +34,7 @@ func Run(ctx context.Context, agentFilename, agentName string, runConfig *config
 		return err
 	}
 
-	t, err := teamloader.LoadFrom(ctx, agentSource, runConfig)
+	t, err := teamloader.Load(ctx, agentSource, runConfig)
 	if err != nil {
 		return fmt.Errorf("failed to load agents: %w", err)
 	}

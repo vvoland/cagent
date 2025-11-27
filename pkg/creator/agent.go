@@ -174,7 +174,7 @@ Can you explain to me what the agent will be used for?`,
 		return &fsToolset, nil
 	})
 
-	return teamloader.LoadFrom(
+	return teamloader.Load(
 		ctx,
 		teamloader.NewBytesSource(configAsJSON),
 		runConfig,

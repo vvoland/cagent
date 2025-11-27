@@ -69,7 +69,7 @@ func (a *Agent) Initialize(ctx context.Context, params acp.InitializeRequest) (a
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	t, err := teamloader.LoadFrom(ctx, a.source, a.runtimeConfig, teamloader.WithToolsetRegistry(createToolsetRegistry(a)))
+	t, err := teamloader.Load(ctx, a.source, a.runtimeConfig, teamloader.WithToolsetRegistry(createToolsetRegistry(a)))
 	if err != nil {
 		return acp.InitializeResponse{}, fmt.Errorf("failed to load teams: %w", err)
 	}

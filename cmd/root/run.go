@@ -121,7 +121,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 }
 
 func (f *runExecFlags) loadAgentFrom(ctx context.Context, source teamloader.AgentSource) (*team.Team, error) {
-	t, err := teamloader.LoadFrom(ctx, source, &f.runConfig, teamloader.WithModelOverrides(f.modelOverrides))
+	t, err := teamloader.Load(ctx, source, &f.runConfig, teamloader.WithModelOverrides(f.modelOverrides))
 	if err != nil {
 		return nil, err
 	}

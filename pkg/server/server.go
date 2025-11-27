@@ -395,7 +395,7 @@ func (s *Server) loadTeam(ctx context.Context, agentFilename string, rc *config.
 			continue
 		}
 
-		return teamloader.LoadFrom(ctx, t, rc)
+		return teamloader.Load(ctx, t, rc)
 	}
 
 	return nil, fmt.Errorf("agent not found: %s", agentFilename)

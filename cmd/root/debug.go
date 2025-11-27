@@ -76,7 +76,7 @@ func (f *debugFlags) runDebugToolsetsCommand(cmd *cobra.Command, args []string) 
 		return err
 	}
 
-	team, err := teamloader.LoadFrom(ctx, agentSource, &f.runConfig)
+	team, err := teamloader.Load(ctx, agentSource, &f.runConfig)
 	if err != nil {
 		return err
 	}
