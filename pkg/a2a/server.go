@@ -22,14 +22,10 @@ import (
 	"github.com/docker/cagent/pkg/version"
 )
 
-type discardOutput struct{}
-
-func (d *discardOutput) Printf(string, ...any) {}
-
 func Run(ctx context.Context, agentFilename, agentName string, runConfig *config.RuntimeConfig, ln net.Listener) error {
 	slog.Debug("Starting A2A server", "agent", agentName, "addr", ln.Addr().String())
 
-	agentSource, err := agentfile.Resolve(ctx, &discardOutput{}, agentFilename)
+	agentSource, err := agentfile.Resolve(ctx, agentFilename)
 	if err != nil {
 		return err
 	}

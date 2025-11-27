@@ -14,7 +14,7 @@ import (
 func Run(ctx context.Context, agentFilename string, stdin io.Reader, stdout io.Writer, runConfig *config.RuntimeConfig) error {
 	slog.Debug("Starting ACP server", "agent", agentFilename)
 
-	source, err := agentfile.Resolve(ctx, nil, agentFilename)
+	source, err := agentfile.Resolve(ctx, agentFilename)
 	if err != nil {
 		return err
 	}

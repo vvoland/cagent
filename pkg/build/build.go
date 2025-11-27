@@ -29,12 +29,11 @@ type Options struct {
 }
 
 type Printer interface {
-	Printf(format string, a ...any)
 	Println(a ...any)
 }
 
 func DockerImage(ctx context.Context, out Printer, agentFilename string, fs filesystem.FS, dockerImageName string, opts Options) error {
-	agentSource, err := agentfile.Resolve(ctx, out, agentFilename)
+	agentSource, err := agentfile.Resolve(ctx, agentFilename)
 	if err != nil {
 		return err
 	}
