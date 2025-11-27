@@ -9,23 +9,22 @@ type (
 	ToggleYoloMsg             struct{}
 )
 
-// Agent command message
+// AgentCommandMsg command message
 type AgentCommandMsg struct {
 	Command string
 }
 
-// MCP Prompt command message
+// MCPPromptMsg command message
 type MCPPromptMsg struct {
 	PromptName string
 	Arguments  map[string]string
 }
 
-// URL opening message
+// OpenURLMsg is a url for opening message
 type OpenURLMsg struct {
 	URL string
 }
 
-// Dialog messages
 type ShowMCPPromptInputMsg struct {
 	PromptName string
 	PromptInfo any // mcptools.PromptInfo but avoiding import cycles
