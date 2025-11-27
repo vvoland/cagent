@@ -56,7 +56,7 @@ func (f *debugFlags) runDebugConfigCommand(cmd *cobra.Command, args []string) er
 		return err
 	}
 
-	cfg, err := config.LoadConfigFrom(ctx, agentSource)
+	cfg, err := config.Load(ctx, agentSource)
 	if err != nil {
 		return err
 	}

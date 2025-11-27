@@ -12,7 +12,6 @@ import (
 	"github.com/xeipuuv/gojsonschema"
 
 	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/filesystem"
 	"github.com/docker/cagent/pkg/modelsdev"
 )
 
@@ -43,7 +42,7 @@ func TestParseExamples(t *testing.T) {
 		t.Run(file, func(t *testing.T) {
 			t.Parallel()
 
-			cfg, err := LoadConfig(t.Context(), file, filesystem.AllowAll)
+			cfg, err := Load(t.Context(), fileSource(file))
 
 			require.NoError(t, err)
 			require.Equal(t, latest.Version, cfg.Version, "Version should be %d in %s", latest.Version, file)
