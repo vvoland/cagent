@@ -30,7 +30,7 @@ type Printer interface {
 }
 
 func Evaluate(ctx context.Context, out Printer, agentFilename, evalsDir string, runConfig *config.RuntimeConfig) error {
-	agentSource, err := agentfile.ResolveSource(ctx, out, agentFilename)
+	agentSource, err := agentfile.Resolve(ctx, out, agentFilename)
 	if err != nil {
 		return err
 	}

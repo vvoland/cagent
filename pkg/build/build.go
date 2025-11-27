@@ -34,7 +34,7 @@ type Printer interface {
 }
 
 func DockerImage(ctx context.Context, out Printer, agentFilename string, fs filesystem.FS, dockerImageName string, opts Options) error {
-	agentSource, err := agentfile.ResolveSource(ctx, out, agentFilename)
+	agentSource, err := agentfile.Resolve(ctx, out, agentFilename)
 	if err != nil {
 		return err
 	}

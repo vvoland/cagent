@@ -29,7 +29,7 @@ func (d *discardOutput) Printf(string, ...any) {}
 func Run(ctx context.Context, agentFilename, agentName string, runConfig *config.RuntimeConfig, ln net.Listener) error {
 	slog.Debug("Starting A2A server", "agent", agentName, "addr", ln.Addr().String())
 
-	agentSource, err := agentfile.ResolveSource(ctx, &discardOutput{}, agentFilename)
+	agentSource, err := agentfile.Resolve(ctx, &discardOutput{}, agentFilename)
 	if err != nil {
 		return err
 	}

@@ -55,7 +55,7 @@ func ResolveSources(ctx context.Context, out Printer, agentFilename string) (tea
 				continue
 			}
 			a := filepath.Join(resolvedPath, entry.Name())
-			sources[a], err = ResolveSource(ctx, out, a)
+			sources[a], err = Resolve(ctx, out, a)
 			if err != nil {
 				return nil, err
 			}
@@ -65,9 +65,9 @@ func ResolveSources(ctx context.Context, out Printer, agentFilename string) (tea
 	return map[string]teamloader.AgentSource{resolvedPath: teamloader.NewOCISource(agentFilename)}, nil
 }
 
-// ResolveSource resolves an agent file reference (local file or OCI image) to a local file path
+// Resolve resolves an agent file reference (local file or OCI image) to a local file path
 // For OCI references, always checks remote for updates but falls back to local cache if offline
-func ResolveSource(ctx context.Context, out Printer, agentFilename string) (teamloader.AgentSource, error) {
+func Resolve(ctx context.Context, out Printer, agentFilename string) (teamloader.AgentSource, error) {
 	resolvedPath, err := resolve(agentFilename)
 	if err != nil {
 		if IsOCIReference(agentFilename) {

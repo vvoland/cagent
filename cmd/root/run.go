@@ -92,7 +92,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 			return err
 		}
 	} else {
-		agentSource, err := agentfile.ResolveSource(ctx, out, agentFileName)
+		agentSource, err := agentfile.Resolve(ctx, out, agentFileName)
 		if err != nil {
 			return err
 		}
