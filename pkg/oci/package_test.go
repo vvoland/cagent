@@ -13,18 +13,18 @@ import (
 )
 
 func TestPackageFileAsOCIToStore(t *testing.T) {
-	testFile := filepath.Join(t.TempDir(), "test.yaml")
+	agentFilename := filepath.Join(t.TempDir(), "test.yaml")
 	testContent := `version: "2"
 agents:
   root:
     model: auto
     description: A helpful AI assistant
 `
-	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0o644))
+	require.NoError(t, os.WriteFile(agentFilename, []byte(testContent), 0o644))
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
 	require.NoError(t, err)
 
-	source, err := agentfile.Resolve(t.Context(), testFile)
+	source, err := agentfile.Resolve(agentFilename)
 	require.NoError(t, err)
 
 	tag := "test-app:v1.0.0"
@@ -55,10 +55,10 @@ agents:
 }
 
 func TestPackageFileAsOCIToStoreInvalidTag(t *testing.T) {
-	testFile := filepath.Join(t.TempDir(), "test.txt")
-	require.NoError(t, os.WriteFile(testFile, []byte("test content"), 0o644))
+	agentFilename := filepath.Join(t.TempDir(), "test.txt")
+	require.NoError(t, os.WriteFile(agentFilename, []byte("test content"), 0o644))
 
-	source, err := agentfile.Resolve(t.Context(), testFile)
+	source, err := agentfile.Resolve(agentFilename)
 	require.NoError(t, err)
 
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))

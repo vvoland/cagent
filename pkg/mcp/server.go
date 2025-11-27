@@ -29,7 +29,7 @@ type ToolOutput struct {
 func StartMCPServer(ctx context.Context, agentFilename string, runConfig *config.RuntimeConfig) error {
 	slog.Debug("Starting MCP server", "agent", agentFilename)
 
-	agentSource, err := agentfile.Resolve(ctx, agentFilename)
+	agentSource, err := agentfile.Resolve(agentFilename)
 	if err != nil {
 		return err
 	}

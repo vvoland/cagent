@@ -16,7 +16,7 @@ func TestRuntime_OpenAI_Basic(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	source, err := agentfile.Resolve(ctx, "testdata/basic.yaml")
+	source, err := agentfile.Resolve("testdata/basic.yaml")
 	require.NoError(t, err)
 
 	_, runtimeConfig := startRecordingAIProxy(t)
@@ -39,7 +39,7 @@ func TestRuntime_Mistral_Basic(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	source, err := agentfile.Resolve(ctx, "testdata/basic.yaml")
+	source, err := agentfile.Resolve("testdata/basic.yaml")
 	require.NoError(t, err)
 
 	_, runtimeConfig := startRecordingAIProxy(t)

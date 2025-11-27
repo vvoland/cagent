@@ -74,7 +74,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create session store: %w", err)
 	}
 
-	sources, err := agentfile.ResolveSources(ctx, agentsPath)
+	sources, err := agentfile.ResolveSources(agentsPath)
 	if err != nil {
 		return fmt.Errorf("failed to resolve agent sources: %w", err)
 	}

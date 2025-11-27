@@ -1,7 +1,6 @@
 package agentfile
 
 import (
-	"context"
 	_ "embed"
 	"fmt"
 	"log/slog"
@@ -24,7 +23,7 @@ type Printer interface {
 
 // ResolveSource resolves an agent file reference (local file or OCI image) to a local file path
 // For OCI references, always checks remote for updates but falls back to local cache if offline
-func ResolveSources(ctx context.Context, agentFilename string) (AgentSources, error) {
+func ResolveSources(agentFilename string) (AgentSources, error) {
 	resolvedPath, err := resolve(agentFilename)
 	if err != nil {
 		if IsOCIReference(agentFilename) {
@@ -54,7 +53,7 @@ func ResolveSources(ctx context.Context, agentFilename string) (AgentSources, er
 				continue
 			}
 			a := filepath.Join(resolvedPath, entry.Name())
-			sources[a], err = Resolve(ctx, a)
+			sources[a], err = Resolve(a)
 			if err != nil {
 				return nil, err
 			}
@@ -66,7 +65,7 @@ func ResolveSources(ctx context.Context, agentFilename string) (AgentSources, er
 
 // Resolve resolves an agent file reference (local file or OCI image) to a local file path
 // For OCI references, always checks remote for updates but falls back to local cache if offline
-func Resolve(ctx context.Context, agentFilename string) (AgentSource, error) {
+func Resolve(agentFilename string) (AgentSource, error) {
 	resolvedPath, err := resolve(agentFilename)
 	if err != nil {
 		if IsOCIReference(agentFilename) {
