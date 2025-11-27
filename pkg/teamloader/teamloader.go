@@ -44,7 +44,7 @@ func WithToolsetRegistry(registry *ToolsetRegistry) Opt {
 }
 
 // Load loads an agent team from the given source
-func Load(ctx context.Context, source agentfile.AgentSource, runtimeConfig *config.RuntimeConfig, opts ...Opt) (*team.Team, error) {
+func Load(ctx context.Context, agentSource agentfile.AgentSource, runtimeConfig *config.RuntimeConfig, opts ...Opt) (*team.Team, error) {
 	var loadOpts loadOptions
 	loadOpts.toolsetRegistry = NewDefaultToolsetRegistry()
 
@@ -55,13 +55,13 @@ func Load(ctx context.Context, source agentfile.AgentSource, runtimeConfig *conf
 	}
 
 	env := runtimeConfig.EnvProvider()
-	parentDir := source.ParentDir()
+	parentDir := agentSource.ParentDir()
 	if parentDir == "" {
 		parentDir = runtimeConfig.WorkingDir
 	}
 
 	// Load the agent's configuration
-	cfg, err := config.Load(ctx, source)
+	cfg, err := config.Load(ctx, agentSource)
 	if err != nil {
 		return nil, err
 	}

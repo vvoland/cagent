@@ -34,7 +34,7 @@ type Server struct {
 	runtimeCancels *concurrent.Map[string, context.CancelFunc]
 	sessionStore   session.Store
 	runConfig      *config.RuntimeConfig
-	apiSources     agentfile.AgentSources
+	agentSources   agentfile.AgentSources
 }
 
 type Opt func(*Server) error
@@ -50,7 +50,7 @@ func New(sessionStore session.Store, runConfig *config.RuntimeConfig, agentSourc
 		runtimeCancels: concurrent.NewMap[string, context.CancelFunc](),
 		sessionStore:   sessionStore,
 		runConfig:      runConfig,
-		apiSources:     agentSources,
+		agentSources:   agentSources,
 	}
 
 	group := e.Group("/api")
@@ -100,10 +100,10 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 
 func (s *Server) getAgents(c echo.Context) error {
 	agents := []api.Agent{}
-	for k, v := range s.apiSources {
-		slog.Debug("API source", "key", k, "source", v.Name())
+	for k, agentSource := range s.agentSources {
+		slog.Debug("API source", "key", k, "source", agentSource.Name())
 
-		c, err := config.Load(c.Request().Context(), v)
+		c, err := config.Load(c.Request().Context(), agentSource)
 		if err != nil {
 			slog.Error("Failed to load config from API source", "key", k, "error", err)
 			continue
@@ -391,7 +391,7 @@ func (s *Server) runtimeForSession(ctx context.Context, sess *session.Session, a
 }
 
 func (s *Server) loadTeam(ctx context.Context, agentFilename string, rc *config.RuntimeConfig) (*team.Team, error) {
-	for key, t := range s.apiSources {
+	for key, t := range s.agentSources {
 		if key != agentFilename {
 			continue
 		}
