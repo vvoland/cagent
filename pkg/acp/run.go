@@ -14,12 +14,12 @@ import (
 func Run(ctx context.Context, agentFilename string, stdin io.Reader, stdout io.Writer, runConfig *config.RuntimeConfig) error {
 	slog.Debug("Starting ACP server", "agent", agentFilename)
 
-	source, err := agentfile.Resolve(ctx, agentFilename)
+	agentSource, err := agentfile.Resolve(ctx, agentFilename)
 	if err != nil {
 		return err
 	}
 
-	acpAgent := NewAgent(source, runConfig)
+	acpAgent := NewAgent(agentSource, runConfig)
 	conn := acpsdk.NewAgentSideConnection(acpAgent, stdout, stdin)
 	conn.SetLogger(slog.Default())
 	acpAgent.SetAgentConnection(conn)
