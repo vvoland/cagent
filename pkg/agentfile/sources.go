@@ -11,20 +11,20 @@ import (
 	"github.com/docker/cagent/pkg/remote"
 )
 
-type AgentSource interface {
+type Source interface {
 	Name() string
 	ParentDir() string
 	Read(ctx context.Context) ([]byte, error)
 }
 
-type AgentSources map[string]AgentSource
+type Sources map[string]Source
 
 // fileSource is used to load an agent configuration from a YAML file.
 type fileSource struct {
 	path string
 }
 
-func NewFileSource(path string) AgentSource {
+func NewFileSource(path string) Source {
 	return fileSource{
 		path: path,
 	}
@@ -60,7 +60,7 @@ type bytesSource struct {
 	data []byte
 }
 
-func NewBytesSource(name string, data []byte) AgentSource {
+func NewBytesSource(name string, data []byte) Source {
 	return bytesSource{
 		name: name,
 		data: data,
@@ -84,7 +84,7 @@ type ociSource struct {
 	reference string
 }
 
-func NewOCISource(reference string) AgentSource {
+func NewOCISource(reference string) Source {
 	return ociSource{
 		reference: reference,
 	}

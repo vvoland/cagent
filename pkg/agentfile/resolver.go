@@ -23,27 +23,27 @@ type Printer interface {
 
 // ResolveSource resolves an agent file reference (local file or OCI image) to a local file path
 // For OCI references, always checks remote for updates but falls back to local cache if offline
-func ResolveSources(agentFilename string) (AgentSources, error) {
+func ResolveSources(agentFilename string) (Sources, error) {
 	resolvedPath, err := resolve(agentFilename)
 	if err != nil {
 		if IsOCIReference(agentFilename) {
-			return map[string]AgentSource{reference.OciRefToFilename(agentFilename): NewOCISource(agentFilename)}, nil
+			return map[string]Source{reference.OciRefToFilename(agentFilename): NewOCISource(agentFilename)}, nil
 		}
 		return nil, err
 	}
 
 	if resolvedPath == "default" {
-		return map[string]AgentSource{
+		return map[string]Source{
 			"default": NewBytesSource("default", defaultAgent),
 		}, nil
 	}
 
 	if isLocalFile(resolvedPath) {
-		return map[string]AgentSource{resolvedPath: NewFileSource(resolvedPath)}, nil
+		return map[string]Source{resolvedPath: NewFileSource(resolvedPath)}, nil
 	}
 
 	if dirExists(resolvedPath) {
-		sources := make(AgentSources)
+		sources := make(Sources)
 		entries, err := os.ReadDir(resolvedPath)
 		if err != nil {
 			return nil, fmt.Errorf("reading agents directory %s: %w", resolvedPath, err)
@@ -64,12 +64,12 @@ func ResolveSources(agentFilename string) (AgentSources, error) {
 		}
 		return sources, nil
 	}
-	return map[string]AgentSource{resolvedPath: NewOCISource(agentFilename)}, nil
+	return map[string]Source{resolvedPath: NewOCISource(agentFilename)}, nil
 }
 
 // Resolve resolves an agent file reference (local file or OCI image) to a local file path
 // For OCI references, always checks remote for updates but falls back to local cache if offline
-func Resolve(agentFilename string) (AgentSource, error) {
+func Resolve(agentFilename string) (Source, error) {
 	resolvedPath, err := resolve(agentFilename)
 	if err != nil {
 		if IsOCIReference(agentFilename) {

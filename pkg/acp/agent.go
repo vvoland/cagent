@@ -21,7 +21,7 @@ import (
 
 // Agent implements the ACP Agent interface for cagent
 type Agent struct {
-	agentSource   agentfile.AgentSource
+	agentSource   agentfile.Source
 	runtimeConfig *config.RuntimeConfig
 	sessions      map[string]*Session
 
@@ -41,7 +41,7 @@ type Session struct {
 }
 
 // NewAgent creates a new ACP agent
-func NewAgent(agentSource agentfile.AgentSource, runtimeConfig *config.RuntimeConfig) *Agent {
+func NewAgent(agentSource agentfile.Source, runtimeConfig *config.RuntimeConfig) *Agent {
 	return &Agent{
 		agentSource:   agentSource,
 		runtimeConfig: runtimeConfig,

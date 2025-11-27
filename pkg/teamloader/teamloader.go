@@ -44,7 +44,7 @@ func WithToolsetRegistry(registry *ToolsetRegistry) Opt {
 }
 
 // Load loads an agent team from the given source
-func Load(ctx context.Context, agentSource agentfile.AgentSource, runtimeConfig *config.RuntimeConfig, opts ...Opt) (*team.Team, error) {
+func Load(ctx context.Context, agentSource agentfile.Source, runtimeConfig *config.RuntimeConfig, opts ...Opt) (*team.Team, error) {
 	var loadOpts loadOptions
 	loadOpts.toolsetRegistry = NewDefaultToolsetRegistry()
 
