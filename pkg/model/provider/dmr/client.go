@@ -571,7 +571,7 @@ func (c *Client) CreateChatCompletionStream(ctx context.Context, messages []chat
 			toolsParam[i] = openai.ChatCompletionFunctionTool(shared.FunctionDefinitionParam{
 				Name:        tool.Name,
 				Description: openai.String(desc),
-				Parameters:  shared.FunctionParameters(paramsMap),
+				Parameters:  paramsMap,
 			})
 		}
 		params.Tools = toolsParam
@@ -632,7 +632,7 @@ func (c *Client) CreateEmbedding(ctx context.Context, text string) (*base.Embedd
 	embedding32 := response.Data[0].Embedding
 	embedding := make([]float64, len(embedding32))
 	for i, v := range embedding32 {
-		embedding[i] = float64(v)
+		embedding[i] = v
 	}
 
 	// Extract usage information
@@ -691,7 +691,7 @@ func (c *Client) CreateBatchEmbedding(ctx context.Context, texts []string) (*bas
 		embedding32 := data.Embedding
 		embedding := make([]float64, len(embedding32))
 		for j, v := range embedding32 {
-			embedding[j] = float64(v)
+			embedding[j] = v
 		}
 		embeddings[i] = embedding
 	}

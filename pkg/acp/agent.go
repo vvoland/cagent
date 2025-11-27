@@ -325,7 +325,7 @@ func (a *Agent) handleMaxIterationsReached(ctx context.Context, acpSess *Session
 	permResp, err := a.conn.RequestPermission(ctx, acp.RequestPermissionRequest{
 		SessionId: acp.SessionId(acpSess.id),
 		ToolCall: acp.RequestPermissionToolCall{
-			ToolCallId: acp.ToolCallId("max_iterations"),
+			ToolCallId: "max_iterations",
 			Title:      acp.Ptr(fmt.Sprintf("Maximum iterations (%d) reached", e.MaxIterations)),
 			Kind:       acp.Ptr(acp.ToolKindExecute),
 			Status:     acp.Ptr(acp.ToolCallStatusPending),
@@ -334,12 +334,12 @@ func (a *Agent) handleMaxIterationsReached(ctx context.Context, acpSess *Session
 			{
 				Kind:     acp.PermissionOptionKindAllowOnce,
 				Name:     "Continue",
-				OptionId: acp.PermissionOptionId("continue"),
+				OptionId: "continue",
 			},
 			{
 				Kind:     acp.PermissionOptionKindRejectOnce,
 				Name:     "Stop",
-				OptionId: acp.PermissionOptionId("stop"),
+				OptionId: "stop",
 			},
 		},
 	})
