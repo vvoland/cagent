@@ -25,8 +25,8 @@ type Alias struct {
 	TokenEnvVar string // Environment variable name for the API token
 }
 
-// ProviderAliases maps provider names to their corresponding configurations
-var ProviderAliases = map[string]Alias{
+// Aliases maps provider names to their corresponding configurations
+var Aliases = map[string]Alias{
 	"requesty": {
 		APIType:     "openai",
 		BaseURL:     "https://router.requesty.ai/v1",
@@ -101,7 +101,7 @@ func New(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider,
 	// Apply provider alias defaults to the config
 	enhancedCfg := applyProviderDefaults(cfg)
 	apiType := ""
-	if alias, exists := ProviderAliases[cfg.Provider]; exists {
+	if alias, exists := Aliases[cfg.Provider]; exists {
 		apiType = alias.APIType
 	}
 
@@ -134,7 +134,7 @@ func applyProviderDefaults(cfg *latest.ModelConfig) *latest.ModelConfig {
 	enhancedCfg := *cfg
 
 	// Check if provider has alias configuration
-	if alias, exists := ProviderAliases[cfg.Provider]; exists {
+	if alias, exists := Aliases[cfg.Provider]; exists {
 		// Set default base URL if not already specified
 		if enhancedCfg.BaseURL == "" && alias.BaseURL != "" {
 			enhancedCfg.BaseURL = alias.BaseURL
@@ -157,7 +157,7 @@ func resolveProviderType(provider, apiType string) string {
 	}
 
 	// Check if provider has an alias mapping
-	if resolved, exists := ProviderAliases[provider]; exists {
+	if resolved, exists := Aliases[provider]; exists {
 		return resolved.APIType
 	}
 

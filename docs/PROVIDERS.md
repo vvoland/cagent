@@ -2,10 +2,10 @@
 
 ## Add provider alias
 
-Add a new `Alias` to `ProviderAliases` [`pkg/model/provider/provider.go`](https://github.com/docker/cagent/blob/main/pkg/model/provider/provider.go)
+Add a new `Alias` to `Aliases` [`pkg/model/provider/provider.go`](https://github.com/docker/cagent/blob/main/pkg/model/provider/provider.go)
 
 ```go
-var ProviderAliases = map[string]Alias{
+var Aliases = map[string]Alias{
  "requesty": {
   APIType:     "openai",
   BaseURL:     "https://router.requesty.ai/v1",

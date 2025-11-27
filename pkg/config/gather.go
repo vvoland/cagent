@@ -56,7 +56,7 @@ func GatherEnvVarsForModels(cfg *latest.Config) []string {
 			model := cfg.Models[modelName]
 
 			// Use the token environment variable from the alias if available
-			if alias, exists := provider.ProviderAliases[model.Provider]; exists {
+			if alias, exists := provider.Aliases[model.Provider]; exists {
 				if alias.TokenEnvVar != "" {
 					requiredEnv[alias.TokenEnvVar] = true
 				}
