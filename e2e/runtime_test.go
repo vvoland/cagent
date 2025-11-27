@@ -19,8 +19,8 @@ func TestRuntime_OpenAI_Basic(t *testing.T) {
 	agentSource, err := agentfile.Resolve("testdata/basic.yaml")
 	require.NoError(t, err)
 
-	_, runtimeConfig := startRecordingAIProxy(t)
-	team, err := teamloader.Load(ctx, agentSource, runtimeConfig)
+	_, runConfig := startRecordingAIProxy(t)
+	team, err := teamloader.Load(ctx, agentSource, runConfig)
 	require.NoError(t, err)
 
 	rt, err := runtime.New(team)
@@ -42,8 +42,8 @@ func TestRuntime_Mistral_Basic(t *testing.T) {
 	agentSource, err := agentfile.Resolve("testdata/basic.yaml")
 	require.NoError(t, err)
 
-	_, runtimeConfig := startRecordingAIProxy(t)
-	team, err := teamloader.Load(ctx, agentSource, runtimeConfig, teamloader.WithModelOverrides([]string{"mistral/mistral-small"}))
+	_, runConfig := startRecordingAIProxy(t)
+	team, err := teamloader.Load(ctx, agentSource, runConfig, teamloader.WithModelOverrides([]string{"mistral/mistral-small"}))
 	require.NoError(t, err)
 
 	rt, err := runtime.New(team)

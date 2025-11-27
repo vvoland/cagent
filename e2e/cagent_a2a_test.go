@@ -41,8 +41,8 @@ type Part struct {
 func TestA2AServer_AgentCard(t *testing.T) {
 	t.Parallel()
 
-	_, runtimeConfig := startRecordingAIProxy(t)
-	agentCard := startA2AServer(t, "testdata/basic.yaml", runtimeConfig)
+	_, runConfig := startRecordingAIProxy(t)
+	agentCard := startA2AServer(t, "testdata/basic.yaml", runConfig)
 
 	assert.Equal(t, "root", agentCard.Name)
 	assert.NotEmpty(t, agentCard.Description)
@@ -55,8 +55,8 @@ func TestA2AServer_AgentCard(t *testing.T) {
 func TestA2AServer_Invoke(t *testing.T) {
 	t.Parallel()
 
-	_, runtimeConfig := startRecordingAIProxy(t)
-	agentCard := startA2AServer(t, "testdata/basic.yaml", runtimeConfig)
+	_, runConfig := startRecordingAIProxy(t)
+	agentCard := startA2AServer(t, "testdata/basic.yaml", runConfig)
 
 	requestID := "test-request-1"
 	jsonRPCRequest := map[string]any{
@@ -111,8 +111,8 @@ func TestA2AServer_Invoke(t *testing.T) {
 func TestA2AServer_MultipleRequests(t *testing.T) {
 	t.Parallel()
 
-	_, runtimeConfig := startRecordingAIProxy(t)
-	agentCard := startA2AServer(t, "testdata/basic.yaml", runtimeConfig)
+	_, runConfig := startRecordingAIProxy(t)
+	agentCard := startA2AServer(t, "testdata/basic.yaml", runConfig)
 
 	messages := []string{
 		"Say 'hello' in one word.",
@@ -169,8 +169,8 @@ func TestA2AServer_MultipleRequests(t *testing.T) {
 func TestA2AServer_MultiAgent(t *testing.T) {
 	t.Parallel()
 
-	_, runtimeConfig := startRecordingAIProxy(t)
-	agentCard := startA2AServer(t, "testdata/multi.yaml", runtimeConfig)
+	_, runConfig := startRecordingAIProxy(t)
+	agentCard := startA2AServer(t, "testdata/multi.yaml", runConfig)
 
 	requestID := "test-multi-1"
 	jsonRPCRequest := map[string]any{

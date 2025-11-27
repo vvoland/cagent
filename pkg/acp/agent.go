@@ -21,9 +21,9 @@ import (
 
 // Agent implements the ACP Agent interface for cagent
 type Agent struct {
-	agentSource   agentfile.Source
-	runtimeConfig *config.RuntimeConfig
-	sessions      map[string]*Session
+	agentSource agentfile.Source
+	runConfig   *config.RuntimeConfig
+	sessions    map[string]*Session
 
 	conn *acp.AgentSideConnection
 	team *team.Team
@@ -41,11 +41,11 @@ type Session struct {
 }
 
 // NewAgent creates a new ACP agent
-func NewAgent(agentSource agentfile.Source, runtimeConfig *config.RuntimeConfig) *Agent {
+func NewAgent(agentSource agentfile.Source, runConfig *config.RuntimeConfig) *Agent {
 	return &Agent{
-		agentSource:   agentSource,
-		runtimeConfig: runtimeConfig,
-		sessions:      make(map[string]*Session),
+		agentSource: agentSource,
+		runConfig:   runConfig,
+		sessions:    make(map[string]*Session),
 	}
 }
 
@@ -71,7 +71,7 @@ func (a *Agent) Initialize(ctx context.Context, params acp.InitializeRequest) (a
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	t, err := teamloader.Load(ctx, a.agentSource, a.runtimeConfig, teamloader.WithToolsetRegistry(createToolsetRegistry(a)))
+	t, err := teamloader.Load(ctx, a.agentSource, a.runConfig, teamloader.WithToolsetRegistry(createToolsetRegistry(a)))
 	if err != nil {
 		return acp.InitializeResponse{}, fmt.Errorf("failed to load teams: %w", err)
 	}

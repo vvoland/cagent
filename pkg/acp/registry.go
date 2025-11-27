@@ -14,8 +14,8 @@ import (
 func createToolsetRegistry(agent *Agent) *teamloader.ToolsetRegistry {
 	registry := teamloader.NewDefaultToolsetRegistry()
 
-	registry.Register("filesystem", func(ctx context.Context, toolset latest.Toolset, parentDir string, runtimeConfig *config.RuntimeConfig) (tools.ToolSet, error) {
-		wd := runtimeConfig.WorkingDir
+	registry.Register("filesystem", func(ctx context.Context, toolset latest.Toolset, parentDir string, runConfig *config.RuntimeConfig) (tools.ToolSet, error) {
+		wd := runConfig.WorkingDir
 		if wd == "" {
 			var err error
 			wd, err = os.Getwd()

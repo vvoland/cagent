@@ -62,14 +62,14 @@ func TestLoadExamples(t *testing.T) {
 	// Collect the missing env vars.
 	missingEnvs := map[string]bool{}
 
-	runtimeConfig := &config.RuntimeConfig{}
+	runConfig := &config.RuntimeConfig{}
 
 	for _, agentFilename := range collectExamples(t) {
 		t.Run(agentFilename, func(t *testing.T) {
 			agentSource, err := agentfile.Resolve(agentFilename)
 			require.NoError(t, err)
 
-			_, err = Load(t.Context(), agentSource, runtimeConfig)
+			_, err = Load(t.Context(), agentSource, runConfig)
 			if err != nil {
 				envErr := &environment.RequiredEnvError{}
 				require.ErrorAs(t, err, &envErr)
@@ -93,7 +93,7 @@ func TestLoadExamples(t *testing.T) {
 			agentSource, err := agentfile.Resolve(agentFilename)
 			require.NoError(t, err)
 
-			teams, err := Load(t.Context(), agentSource, runtimeConfig)
+			teams, err := Load(t.Context(), agentSource, runConfig)
 			require.NoError(t, err)
 			assert.NotEmpty(t, teams)
 		})

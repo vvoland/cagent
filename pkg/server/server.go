@@ -357,13 +357,13 @@ func (s *Server) runAgent(c echo.Context) error {
 	return nil
 }
 
-func (s *Server) runtimeForSession(ctx context.Context, sess *session.Session, agentFilename, currentAgent string, rc *config.RuntimeConfig) (runtime.Runtime, error) {
+func (s *Server) runtimeForSession(ctx context.Context, sess *session.Session, agentFilename, currentAgent string, runConfig *config.RuntimeConfig) (runtime.Runtime, error) {
 	rt, exists := s.runtimes.Load(sess.ID)
 	if exists {
 		return rt, nil
 	}
 
-	t, err := s.loadTeam(ctx, agentFilename, rc)
+	t, err := s.loadTeam(ctx, agentFilename, runConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -390,13 +390,13 @@ func (s *Server) runtimeForSession(ctx context.Context, sess *session.Session, a
 	return rt, nil
 }
 
-func (s *Server) loadTeam(ctx context.Context, agentFilename string, rc *config.RuntimeConfig) (*team.Team, error) {
+func (s *Server) loadTeam(ctx context.Context, agentFilename string, runConfig *config.RuntimeConfig) (*team.Team, error) {
 	agentSource, found := s.agentSources[agentFilename]
 	if !found {
 		return nil, fmt.Errorf("agent not found: %s", agentFilename)
 	}
 
-	return teamloader.Load(ctx, agentSource, rc)
+	return teamloader.Load(ctx, agentSource, runConfig)
 }
 
 func (s *Server) elicitation(c echo.Context) error {
