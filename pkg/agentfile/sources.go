@@ -56,17 +56,19 @@ func (a fileSource) Read(context.Context) ([]byte, error) {
 
 // bytesSource is used to load an agent configuration from a []byte.
 type bytesSource struct {
+	name string
 	data []byte
 }
 
-func NewBytesSource(data []byte) AgentSource {
+func NewBytesSource(name string, data []byte) AgentSource {
 	return bytesSource{
+		name: name,
 		data: data,
 	}
 }
 
 func (a bytesSource) Name() string {
-	return ""
+	return a.name
 }
 
 func (a bytesSource) ParentDir() string {

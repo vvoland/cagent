@@ -33,11 +33,15 @@ func ResolveSources(agentFilename string) (AgentSources, error) {
 	}
 
 	if resolvedPath == "default" {
-		return map[string]AgentSource{"default": NewBytesSource(defaultAgent)}, nil
+		return map[string]AgentSource{
+			"default": NewBytesSource("default", defaultAgent),
+		}, nil
 	}
+
 	if isLocalFile(resolvedPath) {
 		return map[string]AgentSource{resolvedPath: NewFileSource(resolvedPath)}, nil
 	}
+
 	if dirExists(resolvedPath) {
 		sources := make(AgentSources)
 		entries, err := os.ReadDir(resolvedPath)
@@ -75,7 +79,7 @@ func Resolve(agentFilename string) (AgentSource, error) {
 	}
 
 	if resolvedPath == "default" {
-		return NewBytesSource(defaultAgent), nil
+		return NewBytesSource(resolvedPath, defaultAgent), nil
 	}
 	if isLocalFile(resolvedPath) {
 		return NewFileSource(resolvedPath), nil

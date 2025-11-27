@@ -177,7 +177,7 @@ Can you explain to me what the agent will be used for?`,
 
 	return teamloader.Load(
 		ctx,
-		agentfile.NewBytesSource(configAsJSON),
+		agentfile.NewBytesSource("creator", configAsJSON),
 		runConfig,
 		teamloader.WithModelOverrides([]string{modelNameOverride}),
 		teamloader.WithToolsetRegistry(registry),
