@@ -38,7 +38,7 @@ type Config struct {
 }
 
 // Run executes an agent in non-TUI mode, handling user input and runtime events
-func Run(ctx context.Context, out *Printer, cfg Config, agentFilename string, rt runtime.Runtime, sess *session.Session, args []string) error {
+func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess *session.Session, args []string) error {
 	// Create a cancellable context for this agentic loop and wire Ctrl+C to cancel it
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -79,7 +79,7 @@ func Run(ctx context.Context, out *Printer, cfg Config, agentFilename string, rt
 			finalAttachPath = cfg.AttachmentPath
 		}
 
-		sess.AddMessage(createUserMessageWithAttachment(agentFilename, messageText, finalAttachPath))
+		sess.AddMessage(createUserMessageWithAttachment(messageText, finalAttachPath))
 
 		firstLoop := true
 		lastAgent := rt.CurrentAgentName()
@@ -390,16 +390,16 @@ func parseAttachCommand(userInput string) (messageText, attachPath string) {
 }
 
 // createUserMessageWithAttachment creates a user message with optional image attachment
-func createUserMessageWithAttachment(agentFilename, userContent, attachmentPath string) *session.Message {
+func createUserMessageWithAttachment(userContent, attachmentPath string) *session.Message {
 	if attachmentPath == "" {
-		return session.UserMessage(agentFilename, userContent)
+		return session.UserMessage(userContent)
 	}
 
 	// Convert file to data URL
 	dataURL, err := fileToDataURL(attachmentPath)
 	if err != nil {
 		slog.Warn("Failed to attach file", "path", attachmentPath, "error", err)
-		return session.UserMessage(agentFilename, userContent)
+		return session.UserMessage(userContent)
 	}
 
 	// Ensure we have some text content when attaching a file
@@ -423,7 +423,7 @@ func createUserMessageWithAttachment(agentFilename, userContent, attachmentPath 
 		},
 	}
 
-	return session.UserMessage(agentFilename, "", multiContent...)
+	return session.UserMessage("", multiContent...)
 }
 
 // fileToDataURL converts a file to a data URL

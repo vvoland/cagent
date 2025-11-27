@@ -16,7 +16,6 @@ import (
 )
 
 type App struct {
-	agentFilename    string
 	runtime          runtime.Runtime
 	session          *session.Session
 	firstMessage     *string
@@ -25,9 +24,8 @@ type App struct {
 	cancel           context.CancelFunc
 }
 
-func New(ctx context.Context, agentFilename string, rt runtime.Runtime, sess *session.Session, firstMessage *string) *App {
+func New(ctx context.Context, rt runtime.Runtime, sess *session.Session, firstMessage *string) *App {
 	app := &App{
-		agentFilename:    agentFilename,
 		runtime:          rt,
 		session:          sess,
 		firstMessage:     firstMessage,
@@ -129,7 +127,7 @@ func (a *App) EmitStartupInfo(ctx context.Context, events chan runtime.Event) {
 func (a *App) Run(ctx context.Context, cancel context.CancelFunc, message string) {
 	a.cancel = cancel
 	go func() {
-		a.session.AddMessage(session.UserMessage(a.agentFilename, message))
+		a.session.AddMessage(session.UserMessage(message))
 		for event := range a.runtime.RunStream(ctx, a.session) {
 			if ctx.Err() != nil {
 				return

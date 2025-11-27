@@ -1335,7 +1335,7 @@ func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Ses
 
 	s := session.New(
 		session.WithSystemMessage(memberAgentTask),
-		session.WithImplicitUserMessage("", "Follow the default instructions"),
+		session.WithImplicitUserMessage("Follow the default instructions"),
 		session.WithMaxIterations(child.MaxIterations()),
 		session.WithTitle("Transferred task"),
 		session.WithToolsApproved(sess.ToolsApproved),
@@ -1489,7 +1489,7 @@ func (r *LocalRuntime) Summarize(ctx context.Context, sess *session.Session, eve
 	)
 
 	summarySession := session.New(session.WithSystemMessage(systemPrompt))
-	summarySession.AddMessage(session.UserMessage("", userPrompt))
+	summarySession.AddMessage(session.UserMessage(userPrompt))
 	summarySession.Title = "Generating summary..."
 
 	summaryRuntime, err := New(newTeam, WithSessionCompaction(false))

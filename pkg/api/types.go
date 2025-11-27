@@ -115,14 +115,13 @@ type DeleteAgentResponse struct {
 
 // SessionsResponse represents a session in the sessions list
 type SessionsResponse struct {
-	ID                         string `json:"id"`
-	Title                      string `json:"title"`
-	CreatedAt                  string `json:"created_at"`
-	NumMessages                int    `json:"num_messages"`
-	InputTokens                int    `json:"input_tokens"`
-	OutputTokens               int    `json:"output_tokens"`
-	GetMostRecentAgentFilename string `json:"most_recent_agent_filename"`
-	WorkingDir                 string `json:"working_dir,omitempty"`
+	ID           string `json:"id"`
+	Title        string `json:"title"`
+	CreatedAt    string `json:"created_at"`
+	NumMessages  int    `json:"num_messages"`
+	InputTokens  int    `json:"input_tokens"`
+	OutputTokens int    `json:"output_tokens"`
+	WorkingDir   string `json:"working_dir,omitempty"`
 }
 
 // SessionResponse represents a detailed session

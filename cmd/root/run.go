@@ -114,10 +114,10 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 	}
 
 	if !tui {
-		return f.handleExecMode(ctx, out, agentFileName, rt, sess, args)
+		return f.handleExecMode(ctx, out, rt, sess, args)
 	}
 
-	return handleRunMode(ctx, agentFileName, rt, sess, args)
+	return handleRunMode(ctx, rt, sess, args)
 }
 
 func (f *runExecFlags) loadAgentFrom(ctx context.Context, source teamloader.AgentSource) (*team.Team, error) {
@@ -187,7 +187,7 @@ func (f *runExecFlags) createLocalRuntimeAndSession(t *team.Team) (runtime.Runti
 	return localRt, sess, nil
 }
 
-func (f *runExecFlags) handleExecMode(ctx context.Context, out *cli.Printer, agentFilename string, rt runtime.Runtime, sess *session.Session, args []string) error {
+func (f *runExecFlags) handleExecMode(ctx context.Context, out *cli.Printer, rt runtime.Runtime, sess *session.Session, args []string) error {
 	execArgs := []string{"exec"}
 	if len(args) == 2 {
 		execArgs = append(execArgs, args[1])
@@ -198,7 +198,7 @@ func (f *runExecFlags) handleExecMode(ctx context.Context, out *cli.Printer, age
 	err := cli.Run(ctx, out, cli.Config{
 		AppName:        AppName,
 		AttachmentPath: f.attachmentPath,
-	}, agentFilename, rt, sess, execArgs)
+	}, rt, sess, execArgs)
 	if cliErr, ok := err.(cli.RuntimeError); ok {
 		return RuntimeError{Err: cliErr.Err}
 	}
@@ -222,11 +222,11 @@ func readInitialMessage(args []string) (*string, error) {
 	return &args[1], nil
 }
 
-func handleRunMode(ctx context.Context, agentFilename string, rt runtime.Runtime, sess *session.Session, args []string) error {
+func handleRunMode(ctx context.Context, rt runtime.Runtime, sess *session.Session, args []string) error {
 	firstMessage, err := readInitialMessage(args)
 	if err != nil {
 		return err
 	}
 
-	return runTUI(ctx, agentFilename, rt, sess, firstMessage)
+	return runTUI(ctx, rt, sess, firstMessage)
 }

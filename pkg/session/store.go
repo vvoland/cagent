@@ -30,7 +30,6 @@ type Store interface {
 	AddSession(ctx context.Context, session *Session) error
 	GetSession(ctx context.Context, id string) (*Session, error)
 	GetSessions(ctx context.Context) ([]*Session, error)
-	GetSessionsByAgent(ctx context.Context, agentFilename string) ([]*Session, error)
 	DeleteSession(ctx context.Context, id string) error
 	UpdateSession(ctx context.Context, session *Session) error
 }
@@ -124,7 +123,7 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 	if err := json.Unmarshal([]byte(messagesJSON), &messages); err != nil {
 		return nil, err
 	}
-	if len(messages) > 0 && messages[0].AgentFilename == "" {
+	if len(messages) > 0 {
 		if err := json.Unmarshal([]byte(messagesJSON), &items); err != nil {
 			return nil, err
 		}
@@ -211,7 +210,7 @@ func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error
 		if err := json.Unmarshal([]byte(messagesJSON), &messages); err != nil {
 			return nil, err
 		}
-		if len(messages) > 0 && messages[0].AgentFilename == "" {
+		if len(messages) > 0 {
 			if err := json.Unmarshal([]byte(messagesJSON), &items); err != nil {
 				return nil, err
 			}
@@ -272,32 +271,6 @@ func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error
 	}
 
 	return sessions, nil
-}
-
-// GetSessionsByAgent retrieves all sessions for a specific agent
-func (s *SQLiteSessionStore) GetSessionsByAgent(ctx context.Context, agentFilename string) ([]*Session, error) {
-	allSessions, err := s.GetSessions(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var filteredSessions []*Session
-	for _, session := range allSessions {
-		// Check if any message in this session belongs to the specified agent
-		hasAgentMessage := false
-		for _, item := range session.Messages {
-			if item.Message != nil && item.Message.AgentFilename == agentFilename {
-				hasAgentMessage = true
-				break
-			}
-		}
-
-		if hasAgentMessage {
-			filteredSessions = append(filteredSessions, session)
-		}
-	}
-
-	return filteredSessions, nil
 }
 
 // DeleteSession deletes a session by ID

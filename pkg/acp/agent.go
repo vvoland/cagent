@@ -181,7 +181,7 @@ func (a *Agent) Prompt(ctx context.Context, params acp.PromptRequest) (acp.Promp
 	}
 
 	if userContent != "" {
-		acpSess.sess.AddMessage(session.UserMessage(a.agentFilename, userContent))
+		acpSess.sess.AddMessage(session.UserMessage(userContent))
 	}
 
 	// Run the agent and stream updates

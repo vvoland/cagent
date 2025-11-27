@@ -72,19 +72,17 @@ type Session struct {
 
 // Message is a message from an agent
 type Message struct {
-	AgentFilename string       `json:"agentFilename"`
-	AgentName     string       `json:"agentName"` // TODO: rename to agent_name
-	Message       chat.Message `json:"message"`
+	AgentName string       `json:"agentName"` // TODO: rename to agent_name
+	Message   chat.Message `json:"message"`
 	// Implicit is an optional field to indicate if the message shouldn't be shown to the user. It's needed for special  situations
 	// like when an agent transfers a task to another agent - new session is created with a default user message, but this shouldn't be shown to the user.
 	// Such messages should be marked as true
 	Implicit bool `json:"implicit,omitempty"`
 }
 
-func ImplicitUserMessage(agentFilename, content string) *Message {
+func ImplicitUserMessage(content string) *Message {
 	return &Message{
-		AgentFilename: agentFilename,
-		AgentName:     "",
+		AgentName: "",
 		Message: chat.Message{
 			Role:      chat.MessageRoleUser,
 			Content:   content,
@@ -94,7 +92,7 @@ func ImplicitUserMessage(agentFilename, content string) *Message {
 	}
 }
 
-func UserMessage(agentFilename, content string, multiContent ...chat.MessagePart) *Message {
+func UserMessage(content string, multiContent ...chat.MessagePart) *Message {
 	var msg chat.Message
 
 	if len(multiContent) > 0 {
@@ -114,24 +112,21 @@ func UserMessage(agentFilename, content string, multiContent ...chat.MessagePart
 	}
 
 	return &Message{
-		AgentFilename: agentFilename,
-		AgentName:     "",
-		Message:       msg,
+		AgentName: "",
+		Message:   msg,
 	}
 }
 
 func NewAgentMessage(a *agent.Agent, message *chat.Message) *Message {
 	return &Message{
-		AgentFilename: "",
-		AgentName:     a.Name(),
-		Message:       *message,
+		AgentName: a.Name(),
+		Message:   *message,
 	}
 }
 
 func SystemMessage(content string) *Message {
 	return &Message{
-		AgentFilename: "",
-		AgentName:     "",
+		AgentName: "",
 		Message: chat.Message{
 			Role:      chat.MessageRoleSystem,
 			Content:   content,
@@ -211,13 +206,13 @@ type Opt func(s *Session)
 
 func WithUserMessage(content string) Opt {
 	return func(s *Session) {
-		s.AddMessage(UserMessage("", content))
+		s.AddMessage(UserMessage(content))
 	}
 }
 
-func WithImplicitUserMessage(agentFilename, content string) Opt {
+func WithImplicitUserMessage(content string) Opt {
 	return func(s *Session) {
-		s.AddMessage(ImplicitUserMessage(agentFilename, content))
+		s.AddMessage(ImplicitUserMessage(content))
 	}
 }
 
@@ -412,23 +407,6 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		"max_history_items", maxItems)
 
 	return trimmed
-}
-
-func (s *Session) GetMostRecentAgentFilename() string {
-	// Check items in reverse order
-	for i := len(s.Messages) - 1; i >= 0; i-- {
-		item := s.Messages[i]
-		if item.IsMessage() {
-			if agentFilename := item.Message.AgentFilename; agentFilename != "" {
-				return agentFilename
-			}
-		} else if item.IsSubSession() {
-			if filename := item.SubSession.GetMostRecentAgentFilename(); filename != "" {
-				return filename
-			}
-		}
-	}
-	return ""
 }
 
 // trimMessages ensures we don't exceed the maximum number of messages while maintaining

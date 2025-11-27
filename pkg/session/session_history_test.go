@@ -51,7 +51,7 @@ func TestSessionNumHistoryItems(t *testing.T) {
 
 			s := New()
 			for i := range tt.messageCount {
-				s.AddMessage(UserMessage("", fmt.Sprintf("Message %d", i)))
+				s.AddMessage(UserMessage(fmt.Sprintf("Message %d", i)))
 				s.AddMessage(&Message{
 					AgentName: "test-agent",
 					Message: chat.Message{
@@ -243,7 +243,7 @@ func TestNumHistoryItemsConfiguration(t *testing.T) {
 				agent.WithNumHistoryItems(tc.configValue))
 
 			s := New()
-			s.AddMessage(UserMessage("", "test"))
+			s.AddMessage(UserMessage("test"))
 
 			// The actual limit used should be reflected in debug logs
 			// For this test, we just verify the agent configuration
