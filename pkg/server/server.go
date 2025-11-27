@@ -33,12 +33,12 @@ type Server struct {
 	runtimeCancels *concurrent.Map[string, context.CancelFunc]
 	sessionStore   session.Store
 	runConfig      *config.RuntimeConfig
-	apiSources     teamloader.AgentSources
+	agentSources   config.Sources
 }
 
 type Opt func(*Server) error
 
-func New(sessionStore session.Store, runConfig *config.RuntimeConfig, agentSources teamloader.AgentSources, opts ...Opt) (*Server, error) {
+func New(sessionStore session.Store, runConfig *config.RuntimeConfig, agentSources config.Sources, opts ...Opt) (*Server, error) {
 	e := echo.New()
 	e.Use(middleware.CORS())
 	e.Use(middleware.Logger())
@@ -49,7 +49,7 @@ func New(sessionStore session.Store, runConfig *config.RuntimeConfig, agentSourc
 		runtimeCancels: concurrent.NewMap[string, context.CancelFunc](),
 		sessionStore:   sessionStore,
 		runConfig:      runConfig,
-		apiSources:     agentSources,
+		agentSources:   agentSources,
 	}
 
 	group := e.Group("/api")
@@ -99,10 +99,10 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 
 func (s *Server) getAgents(c echo.Context) error {
 	agents := []api.Agent{}
-	for k, v := range s.apiSources {
-		slog.Debug("API source", "key", k, "source", v.Name())
+	for k, agentSource := range s.agentSources {
+		slog.Debug("API source", "source", agentSource.Name())
 
-		c, err := config.Load(c.Request().Context(), v)
+		c, err := config.Load(c.Request().Context(), agentSource)
 		if err != nil {
 			slog.Error("Failed to load config from API source", "key", k, "error", err)
 			continue
@@ -356,13 +356,13 @@ func (s *Server) runAgent(c echo.Context) error {
 	return nil
 }
 
-func (s *Server) runtimeForSession(ctx context.Context, sess *session.Session, agentFilename, currentAgent string, rc *config.RuntimeConfig) (runtime.Runtime, error) {
+func (s *Server) runtimeForSession(ctx context.Context, sess *session.Session, agentFilename, currentAgent string, runConfig *config.RuntimeConfig) (runtime.Runtime, error) {
 	rt, exists := s.runtimes.Load(sess.ID)
 	if exists {
 		return rt, nil
 	}
 
-	t, err := s.loadTeam(ctx, agentFilename, rc)
+	t, err := s.loadTeam(ctx, agentFilename, runConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -389,24 +389,13 @@ func (s *Server) runtimeForSession(ctx context.Context, sess *session.Session, a
 	return rt, nil
 }
 
-func (s *Server) loadTeam(ctx context.Context, agentFilename string, rc *config.RuntimeConfig) (*team.Team, error) {
-	for key, t := range s.apiSources {
-		fmt.Println(key, agentFilename)
-		if key == agentFilename {
-			loadedTeam, err := teamloader.LoadFrom(
-				ctx,
-				t,
-				rc,
-				teamloader.WithID(agentFilename),
-			)
-			if err != nil {
-				return nil, err
-			}
-			return loadedTeam, nil
-		}
+func (s *Server) loadTeam(ctx context.Context, agentFilename string, runConfig *config.RuntimeConfig) (*team.Team, error) {
+	agentSource, found := s.agentSources[agentFilename]
+	if !found {
+		return nil, fmt.Errorf("agent not found: %s", agentFilename)
 	}
 
-	return nil, fmt.Errorf("agent not found: %s", agentFilename)
+	return teamloader.Load(ctx, agentSource, runConfig)
 }
 
 func (s *Server) elicitation(c echo.Context) error {

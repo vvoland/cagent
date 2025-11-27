@@ -17,19 +17,16 @@ import (
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/content"
-	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/version"
 )
 
 // PackageFileAsOCIToStore creates an OCI artifact from a file and stores it in the content store
-func PackageFileAsOCIToStore(ctx context.Context, agentFilename, artifactRef string, store *content.Store) (string, error) {
+func PackageFileAsOCIToStore(ctx context.Context, agentSource config.Source, artifactRef string, store *content.Store) (string, error) {
 	if !strings.Contains(artifactRef, ":") {
 		artifactRef += ":latest"
 	}
 
-	agentFilename = filepath.Clean(agentFilename)
-	source := teamloader.NewFileSource(agentFilename)
-	cfg, err := config.Load(ctx, source)
+	cfg, err := config.Load(ctx, agentSource)
 	if err != nil {
 		return "", fmt.Errorf("loading config: %w", err)
 	}
@@ -38,7 +35,7 @@ func PackageFileAsOCIToStore(ctx context.Context, agentFilename, artifactRef str
 	var raw struct {
 		Version string `yaml:"version,omitempty"`
 	}
-	data, err := source.Read(ctx)
+	data, err := agentSource.Read(ctx)
 	if err != nil {
 		return "", fmt.Errorf("reading file: %w", err)
 	}
@@ -59,7 +56,7 @@ func PackageFileAsOCIToStore(ctx context.Context, agentFilename, artifactRef str
 	annotations := map[string]string{
 		"io.docker.cagent.version":             version.Version,
 		"org.opencontainers.image.created":     time.Now().Format(time.RFC3339),
-		"org.opencontainers.image.description": fmt.Sprintf("OCI artifact containing %s", filepath.Base(agentFilename)),
+		"org.opencontainers.image.description": fmt.Sprintf("OCI artifact containing %s", filepath.Base(agentSource.Name())),
 	}
 	if author := cfg.Metadata.Author; author != "" {
 		annotations["org.opencontainers.image.authors"] = author

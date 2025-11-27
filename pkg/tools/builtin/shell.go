@@ -417,7 +417,7 @@ func (h *shellHandler) StopBackgroundJob(_ context.Context, toolCall tools.ToolC
 	}, nil
 }
 
-func NewShellTool(env []string, runtimeConfig *config.RuntimeConfig) *ShellTool {
+func NewShellTool(env []string, runConfig *config.RuntimeConfig) *ShellTool {
 	var shell string
 	var argsPrefix []string
 
@@ -454,7 +454,7 @@ func NewShellTool(env []string, runtimeConfig *config.RuntimeConfig) *ShellTool 
 			env:             env,
 			timeout:         30 * time.Second,
 			jobs:            concurrent.NewMap[string, *backgroundJob](),
-			workingDir:      runtimeConfig.WorkingDir,
+			workingDir:      runConfig.WorkingDir,
 		},
 	}
 }

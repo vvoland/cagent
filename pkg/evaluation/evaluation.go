@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/runtime"
@@ -30,12 +29,12 @@ type Printer interface {
 }
 
 func Evaluate(ctx context.Context, out Printer, agentFilename, evalsDir string, runConfig *config.RuntimeConfig) error {
-	agentSource, err := agentfile.ResolveSource(ctx, out, agentFilename)
+	agentSource, err := config.Resolve(agentFilename)
 	if err != nil {
 		return err
 	}
 
-	agents, err := teamloader.LoadFrom(ctx, agentSource, runConfig)
+	agents, err := teamloader.Load(ctx, agentSource, runConfig)
 	if err != nil {
 		return err
 	}

@@ -1,4 +1,4 @@
-package teamloader
+package config
 
 import (
 	"context"
@@ -11,27 +11,27 @@ import (
 	"github.com/docker/cagent/pkg/remote"
 )
 
-type AgentSource interface {
+type Source interface {
 	Name() string
 	ParentDir() string
 	Read(ctx context.Context) ([]byte, error)
 }
 
-type AgentSources map[string]AgentSource
+type Sources map[string]Source
 
 // fileSource is used to load an agent configuration from a YAML file.
 type fileSource struct {
 	path string
 }
 
-func NewFileSource(path string) AgentSource {
+func NewFileSource(path string) Source {
 	return fileSource{
 		path: path,
 	}
 }
 
 func (a fileSource) Name() string {
-	return filepath.Base(a.path)
+	return a.path
 }
 
 func (a fileSource) ParentDir() string {
@@ -45,7 +45,7 @@ func (a fileSource) Read(context.Context) ([]byte, error) {
 		return nil, fmt.Errorf("opening filesystem %s: %w", parentDir, err)
 	}
 
-	fileName := a.Name()
+	fileName := filepath.Base(a.path)
 	data, err := fs.ReadFile(fileName)
 	if err != nil {
 		return nil, fmt.Errorf("reading config file %s: %w", fileName, err)
@@ -56,17 +56,19 @@ func (a fileSource) Read(context.Context) ([]byte, error) {
 
 // bytesSource is used to load an agent configuration from a []byte.
 type bytesSource struct {
+	name string
 	data []byte
 }
 
-func NewBytesSource(data []byte) AgentSource {
+func NewBytesSource(name string, data []byte) Source {
 	return bytesSource{
+		name: name,
 		data: data,
 	}
 }
 
 func (a bytesSource) Name() string {
-	return ""
+	return a.name
 }
 
 func (a bytesSource) ParentDir() string {
@@ -77,13 +79,14 @@ func (a bytesSource) Read(context.Context) ([]byte, error) {
 	return a.data, nil
 }
 
+// ociSource is used to load an agent configuration from an OCI artifact.
 type ociSource struct {
 	reference string
 }
 
-func NewOCISource(ref string) AgentSource {
+func NewOCISource(reference string) Source {
 	return ociSource{
-		reference: ref,
+		reference: reference,
 	}
 }
 

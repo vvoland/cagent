@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/api"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/session"
@@ -87,7 +86,7 @@ func startServer(t *testing.T, ctx context.Context, agentsDir string) string {
 	var store mockStore
 	runConfig := config.RuntimeConfig{}
 
-	sources, err := agentfile.ResolveSources(ctx, nil, agentsDir)
+	sources, err := config.ResolveSources(agentsDir)
 	require.NoError(t, err)
 	srv, err := New(store, &runConfig, sources)
 	require.NoError(t, err)

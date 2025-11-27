@@ -6,7 +6,6 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/teamloader"
@@ -49,9 +48,8 @@ func (f *debugFlags) runDebugConfigCommand(cmd *cobra.Command, args []string) er
 
 	ctx := cmd.Context()
 	agentFilename := args[0]
-	out := cli.NewPrinter(cmd.OutOrStdout())
 
-	agentSource, err := agentfile.ResolveSource(ctx, out, agentFilename)
+	agentSource, err := config.Resolve(agentFilename)
 	if err != nil {
 		return err
 	}
@@ -71,12 +69,12 @@ func (f *debugFlags) runDebugToolsetsCommand(cmd *cobra.Command, args []string) 
 	agentFilename := args[0]
 	out := cli.NewPrinter(cmd.OutOrStdout())
 
-	agentSource, err := agentfile.ResolveSource(ctx, out, agentFilename)
+	agentSource, err := config.Resolve(agentFilename)
 	if err != nil {
 		return err
 	}
 
-	team, err := teamloader.LoadFrom(ctx, agentSource, &f.runConfig)
+	team, err := teamloader.Load(ctx, agentSource, &f.runConfig)
 	if err != nil {
 		return err
 	}

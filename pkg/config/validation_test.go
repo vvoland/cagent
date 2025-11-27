@@ -20,11 +20,11 @@ agents:
 	err := tmpRoot.WriteFile("valid.yaml", []byte(validConfig), 0o644)
 	require.NoError(t, err)
 
-	cfg, err := Load(t.Context(), fileSource(filepath.Join(tmp, "valid.yaml")))
+	cfg, err := Load(t.Context(), testfileSource(filepath.Join(tmp, "valid.yaml")))
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
-	_, err = Load(t.Context(), fileSource(filepath.Join(tmp, "../../../etc/passwd"))) //nolint: gocritic // testing invalid path
+	_, err = Load(t.Context(), testfileSource(filepath.Join(tmp, "../../../etc/passwd"))) //nolint: gocritic // testing invalid path
 	require.Error(t, err)
 }
 
@@ -53,7 +53,7 @@ func TestValidationErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := Load(t.Context(), fileSource(filepath.Join("testdata", tt.path)))
+			_, err := Load(t.Context(), testfileSource(filepath.Join("testdata", tt.path)))
 			require.Error(t, err)
 		})
 	}

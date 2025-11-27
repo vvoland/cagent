@@ -20,12 +20,13 @@ import (
 
 // Agent implements the ACP Agent interface for cagent
 type Agent struct {
-	conn          *acp.AgentSideConnection
-	team          *team.Team
-	source        teamloader.AgentSource
-	runtimeConfig *config.RuntimeConfig
-	sessions      map[string]*Session
-	mu            sync.Mutex
+	agentSource config.Source
+	runConfig   *config.RuntimeConfig
+	sessions    map[string]*Session
+
+	conn *acp.AgentSideConnection
+	team *team.Team
+	mu   sync.Mutex
 }
 
 var _ acp.Agent = (*Agent)(nil)
@@ -39,11 +40,11 @@ type Session struct {
 }
 
 // NewAgent creates a new ACP agent
-func NewAgent(source teamloader.AgentSource, runtimeConfig *config.RuntimeConfig) *Agent {
+func NewAgent(agentSource config.Source, runConfig *config.RuntimeConfig) *Agent {
 	return &Agent{
-		source:        source,
-		runtimeConfig: runtimeConfig,
-		sessions:      make(map[string]*Session),
+		agentSource: agentSource,
+		runConfig:   runConfig,
+		sessions:    make(map[string]*Session),
 	}
 }
 
@@ -69,12 +70,12 @@ func (a *Agent) Initialize(ctx context.Context, params acp.InitializeRequest) (a
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	t, err := teamloader.LoadFrom(ctx, a.source, a.runtimeConfig, teamloader.WithToolsetRegistry(createToolsetRegistry(a)))
+	t, err := teamloader.Load(ctx, a.agentSource, a.runConfig, teamloader.WithToolsetRegistry(createToolsetRegistry(a)))
 	if err != nil {
 		return acp.InitializeResponse{}, fmt.Errorf("failed to load teams: %w", err)
 	}
 	a.team = t
-	slog.Debug("Teams loaded successfully", "team_id", t.ID, "agent_count", t.Size())
+	slog.Debug("Teams loaded successfully", "source", a.agentSource.Name(), "agent_count", t.Size())
 
 	return acp.InitializeResponse{
 		ProtocolVersion: acp.ProtocolVersionNumber,

@@ -13,7 +13,6 @@ import (
 
 	"github.com/goccy/go-yaml"
 
-	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/filesystem"
 )
@@ -29,12 +28,11 @@ type Options struct {
 }
 
 type Printer interface {
-	Printf(format string, a ...any)
 	Println(a ...any)
 }
 
 func DockerImage(ctx context.Context, out Printer, agentFilename string, fs filesystem.FS, dockerImageName string, opts Options) error {
-	agentSource, err := agentfile.ResolveSource(ctx, out, agentFilename)
+	agentSource, err := config.Resolve(agentFilename)
 	if err != nil {
 		return err
 	}

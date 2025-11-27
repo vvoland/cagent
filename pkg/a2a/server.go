@@ -16,25 +16,20 @@ import (
 	"google.golang.org/adk/server/adka2a"
 	"google.golang.org/adk/session"
 
-	"github.com/docker/cagent/pkg/agentfile"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/version"
 )
 
-type discardOutput struct{}
-
-func (d *discardOutput) Printf(string, ...any) {}
-
 func Run(ctx context.Context, agentFilename, agentName string, runConfig *config.RuntimeConfig, ln net.Listener) error {
 	slog.Debug("Starting A2A server", "agent", agentName, "addr", ln.Addr().String())
 
-	agentSource, err := agentfile.ResolveSource(ctx, &discardOutput{}, agentFilename)
+	agentSource, err := config.Resolve(agentFilename)
 	if err != nil {
 		return err
 	}
 
-	t, err := teamloader.LoadFrom(ctx, agentSource, runConfig)
+	t, err := teamloader.Load(ctx, agentSource, runConfig)
 	if err != nil {
 		return fmt.Errorf("failed to load agents: %w", err)
 	}

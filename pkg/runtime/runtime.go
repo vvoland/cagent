@@ -1415,7 +1415,6 @@ func (r *LocalRuntime) generateSessionTitle(ctx context.Context, sess *session.S
 		options.WithGeneratingTitle(),
 	)
 	newTeam := team.New(
-		team.WithID("title-generator"),
 		team.WithAgents(agent.New("root", systemPrompt, agent.WithModel(titleModel))),
 	)
 	titleSession := session.New(
@@ -1484,7 +1483,6 @@ func (r *LocalRuntime) Summarize(ctx context.Context, sess *session.Session, eve
 	userPrompt := fmt.Sprintf("Based on the following conversation between a user and an AI assistant, create a comprehensive summary that captures:\n- The main topics discussed\n- Key information exchanged\n- Decisions made or conclusions reached\n- Important outcomes or results\n\nProvide a well-structured summary (2-4 paragraphs) that someone could read to understand what happened in this conversation. Return ONLY the summary text, nothing else.\n\nConversation history:%s\n\nGenerate a summary for this conversation:", conversationHistory.String())
 	newModel := provider.CloneWithOptions(ctx, r.CurrentAgent().Model(), options.WithStructuredOutput(nil))
 	newTeam := team.New(
-		team.WithID("summary-generator"),
 		team.WithAgents(agent.New("root", systemPrompt, agent.WithModel(newModel))),
 	)
 
