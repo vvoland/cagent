@@ -35,7 +35,7 @@ func (c *fileCompletion) Items() []completion.Item {
 	// If vcsMatcher is nil (not in git repo), shouldIgnore stays nil = show all files
 
 	// Get files with optional VCS filtering
-	files, err := fsx.ListDirectory(".", 0, shouldIgnore)
+	files, err := fsx.ListDirectory(".", shouldIgnore)
 	if err != nil {
 		return nil
 	}

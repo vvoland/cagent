@@ -11,12 +11,13 @@ type TreeNode struct {
 	Children []*TreeNode `json:"children,omitempty"`
 }
 
-func DirectoryTree(path string, isPathAllowed func(string) error, shouldIgnore func(string) bool, maxDepth int) (*TreeNode, error) {
-	return directoryTree(path, isPathAllowed, shouldIgnore, maxDepth, 0)
+func DirectoryTree(path string, isPathAllowed func(string) error, shouldIgnore func(string) bool, maxItems int) (*TreeNode, error) {
+	itemCount := 0
+	return directoryTree(path, isPathAllowed, shouldIgnore, maxItems, &itemCount)
 }
 
-func directoryTree(path string, isPathAllowed func(string) error, shouldIgnore func(string) bool, maxDepth, currentDepth int) (*TreeNode, error) {
-	if maxDepth > 0 && currentDepth >= maxDepth {
+func directoryTree(path string, isPathAllowed func(string) error, shouldIgnore func(string) bool, maxItems int, itemCount *int) (*TreeNode, error) {
+	if maxItems > 0 && *itemCount >= maxItems {
 		return nil, nil
 	}
 
@@ -29,6 +30,8 @@ func directoryTree(path string, isPathAllowed func(string) error, shouldIgnore f
 		Name: filepath.Base(path),
 		Type: "file",
 	}
+
+	*itemCount++
 
 	if info.IsDir() {
 		node.Type = "directory"
@@ -50,7 +53,7 @@ func directoryTree(path string, isPathAllowed func(string) error, shouldIgnore f
 				continue
 			}
 
-			childNode, err := directoryTree(childPath, isPathAllowed, shouldIgnore, maxDepth, currentDepth+1)
+			childNode, err := directoryTree(childPath, isPathAllowed, shouldIgnore, maxItems, itemCount)
 			if err != nil || childNode == nil {
 				continue
 			}
@@ -61,8 +64,8 @@ func directoryTree(path string, isPathAllowed func(string) error, shouldIgnore f
 	return node, nil
 }
 
-func ListDirectory(path string, maxDepth int, shouldIgnore func(string) bool) ([]string, error) {
-	tree, err := DirectoryTree(path, func(string) error { return nil }, shouldIgnore, maxDepth)
+func ListDirectory(path string, shouldIgnore func(string) bool) ([]string, error) {
+	tree, err := DirectoryTree(path, func(string) error { return nil }, shouldIgnore, 0)
 	if err != nil {
 		return nil, err
 	}

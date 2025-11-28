@@ -105,8 +105,7 @@ This toolset provides comprehensive filesystem operations with built-in security
 }
 
 type DirectoryTreeArgs struct {
-	Path     string `json:"path" jsonschema:"The directory path to traverse"`
-	MaxDepth int    `json:"max_depth,omitempty" jsonschema:"Maximum depth to traverse (optional)"`
+	Path string `json:"path" jsonschema:"The directory path to traverse"`
 }
 
 type AddAllowedDirectoryArgs struct {
@@ -422,7 +421,7 @@ func (t *FilesystemTool) handleDirectoryTree(_ context.Context, toolCall tools.T
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
 	}
 
-	tree, err := fsx.DirectoryTree(args.Path, t.isPathAllowed, t.shouldIgnorePath, args.MaxDepth)
+	tree, err := fsx.DirectoryTree(args.Path, t.isPathAllowed, t.shouldIgnorePath, maxFiles)
 	if err != nil {
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error building directory tree: %s", err)}, nil
 	}
