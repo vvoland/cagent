@@ -146,7 +146,7 @@ See [MCP Mode documentation](./docs/MCP-MODE.md) for detailed instructions on ex
 - **💭 Advanced reasoning** - Built-in "think", "todo" and "memory" tools for
   complex problem-solving.
 - **🔍 RAG (Retrieval-Augmented Generation)** - Pluggable retrieval strategies
-  (chunked_embeddings, BM25, more to come..) with hybrid retrieval, fusion, and result reranking support.
+  (BM25, chunked-embeddings, semantic-embeddings) with hybrid retrieval, result fusion and reranking support.
 - **🌐 Multiple AI providers** - Support for OpenAI, Anthropic, Gemini, xAI,
   Mistral, Nebius and [Docker Model
   Runner](https://docs.docker.com/ai/model-runner/).
@@ -369,7 +369,7 @@ agents:
 ```
 
 **Features:**
-- **Multiple strategies**: Vector (semantic), BM25 (keyword), or both
+- **Multiple strategies**: Vector embeddings, semantic embeddings, BM25 (keyword), or combinations
 - **Parallel execution**: Strategies run concurrently for fast results
 - **Pluggable fusion**: RRF, weighted, or max score combining
 - **Result reranking**: Re-score results with specialized models for improved relevance

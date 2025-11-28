@@ -25,9 +25,11 @@ func BuildStrategy(ctx context.Context, cfg latest.RAGStrategyConfig, buildCtx B
 	switch cfg.Type {
 	case "chunked-embeddings":
 		return NewChunkedEmbeddingsFromConfig(ctx, cfg, buildCtx, events)
+	case "semantic-embeddings":
+		return NewSemanticEmbeddingsFromConfig(ctx, cfg, buildCtx, events)
 	case "bm25":
 		return NewBM25FromConfig(ctx, cfg, buildCtx, events)
 	default:
-		return nil, fmt.Errorf("unknown strategy type: %s (available: chunked-embeddings, bm25)", cfg.Type)
+		return nil, fmt.Errorf("unknown strategy type: %s (available: chunked-embeddings, semantic-embeddings, bm25)", cfg.Type)
 	}
 }

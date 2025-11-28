@@ -680,6 +680,39 @@ rag:
 
 **Best for:** Understanding intent, synonyms, paraphrasing, multilingual queries
 
+#### Semantic-Embeddings Strategy (LLM-Enhanced Semantic Search)
+
+Uses an LLM to generate semantic summaries of each chunk before embedding, capturing meaning and intent rather than raw text:
+
+```yaml
+rag:
+  code_search:
+    docs: [./src, ./pkg]
+    strategies:
+      - type: semantic-embeddings
+        embedding_model: openai/text-embedding-3-small
+        vector_dimensions: 1536
+        chat_model: openai/gpt-4o-mini        # LLM for generating summaries
+        database: ./semantic.db
+        threshold: 0.3
+        limit: 10
+        ast_context: true                     # Include AST metadata in prompts
+        chunking:
+          size: 1000
+          code_aware: true                    # AST-aware chunking for best results
+```
+
+**Best for:** Code search, understanding intent, finding implementations by what they do rather than exact names
+
+**Trade-offs:** Higher quality retrieval but slower indexing (LLM call per chunk) and additional API costs
+
+**Parameters:**
+- `embedding_model` (required): Embedding model for vector similarity
+- `chat_model` (required): Chat model to generate semantic summaries
+- `vector_dimensions` (required): Embedding vector dimensions
+- `semantic_prompt`: Custom prompt template (uses `${path}`, `${content}`, `${ast_context}` placeholders)
+- `ast_context`: Include TreeSitter AST metadata in prompts (default: `false`)
+
 #### BM25 Strategy (Keyword Search)
 
 Uses traditional keyword matching:
@@ -945,7 +978,7 @@ models:
 | `results` | object | Post-processing configuration |
 
 **Strategy Configuration:**
-- `type`: Strategy type (`chunked-embeddings`, `bm25`)
+- `type`: Strategy type (`chunked-embeddings`, `semantic-embeddings`, `bm25`)
 - `docs`: Strategy-specific documents (optional, augments shared docs)
 - `database`: Database configuration (path to local sqlite db)
 - `chunking`: Chunking configuration
@@ -962,6 +995,23 @@ models:
 - `max_embedding_concurrency`: Maximum concurrent embedding batch requests (default: `3`)
 - `chunking.size`: Chunk size in characters (default: `1000`)
 - `chunking.overlap`: Overlap between chunks (default: `75`)
+
+**Semantic-Embeddings Strategy:**
+- `embedding_model` (required): Embedding model reference (e.g., `openai/text-embedding-3-small`)
+- `chat_model` (required): Chat model for generating semantic summaries (e.g., `openai/gpt-4o-mini`)
+- `vector_dimensions` (required): Embedding vector dimensions (e.g., `1536` for text-embedding-3-small)
+- `database`: Database configuration (same formats as chunked-embeddings)
+- `semantic_prompt`: Custom prompt template using JS template literals (`${path}`, `${basename}`, `${chunk_index}`, `${content}`, `${ast_context}`)
+- `ast_context`: Include TreeSitter AST metadata in semantic prompts. Useful for code (default: `false`, best with `code_aware` chunking)
+- `similarity_metric`: Similarity metric (default: `cosine_similarity`)
+- `threshold`: Minimum similarity (0–1, default: `0.5`)
+- `limit`: Max candidates from this strategy for fusion input (default: `5`)
+- `embedding_batch_size`: Chunks per embedding request (default: `50`)
+- `max_embedding_concurrency`: Concurrent embedding/LLM requests (default: `3`)
+- `max_indexing_concurrency`: Concurrent file indexing (default: `3`)
+- `chunking.size`: Chunk size in characters (default: `1000`)
+- `chunking.overlap`: Overlap between chunks (default: `75`)
+- `chunking.code_aware`: Use AST-based chunking (default: `false`, if `true` the `chunking.overlap` will be ignored)
 
 **BM25 Strategy:**
 - `database`: Database configuration (same formats as chunked-embeddings)
@@ -1029,6 +1079,7 @@ Look for logs tagged with:
 See `examples/rag/` directory:
 - `examples/rag/bm25.yaml` - BM25 strategy only
 - `examples/rag/hybrid.yaml` - Hybrid retrieval (chunked-embeddings + BM25)
+- `examples/rag/semantic_embeddings.yaml` - Semantic-embeddings strategy with LLM summaries
 - `examples/rag/reranking.yaml` - Reranking with various providers
 - `examples/rag/reranking_full_example.yaml` - Complete reranking configuration reference
 
