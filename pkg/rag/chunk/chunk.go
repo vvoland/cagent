@@ -19,26 +19,21 @@ type Chunk struct {
 	Metadata map[string]string
 }
 
-// Processor handles document processing
-type Processor struct{}
-
-// New creates a new document processor
-func New() *Processor {
-	return &Processor{}
+// DocumentProcessor takes file content and returns chunks.
+// Config (size, overlap, etc.) is set at construction time.
+type DocumentProcessor interface {
+	Process(path string, content []byte) ([]Chunk, error)
 }
 
-// ProcessFile reads a file and splits it into chunks
-func (p *Processor) ProcessFile(path string, chunkSize, overlap int, respectWordBoundaries bool) ([]Chunk, error) {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
-	}
-
-	return p.ChunkText(string(content), chunkSize, overlap, respectWordBoundaries), nil
+// TextDocumentProcessor is the default text-based chunker
+type TextDocumentProcessor struct {
+	size                  int
+	overlap               int
+	respectWordBoundaries bool
 }
 
-// ChunkText splits text into overlapping chunks
-func (p *Processor) ChunkText(text string, size, overlap int, respectWordBoundaries bool) []Chunk {
+// NewTextDocumentProcessor creates a text-based document processor
+func NewTextDocumentProcessor(size, overlap int, respectWordBoundaries bool) *TextDocumentProcessor {
 	if size <= 0 {
 		size = 1000
 	}
@@ -48,7 +43,20 @@ func (p *Processor) ChunkText(text string, size, overlap int, respectWordBoundar
 	if overlap >= size {
 		overlap = size / 2
 	}
+	return &TextDocumentProcessor{
+		size:                  size,
+		overlap:               overlap,
+		respectWordBoundaries: respectWordBoundaries,
+	}
+}
 
+// Process implements DocumentProcessor for text-based chunking
+func (t *TextDocumentProcessor) Process(_ string, content []byte) ([]Chunk, error) {
+	return t.chunkText(string(content)), nil
+}
+
+// chunkText splits text into overlapping chunks
+func (t *TextDocumentProcessor) chunkText(text string) []Chunk {
 	var chunks []Chunk
 	runes := []rune(text)
 	totalLen := len(runes)
@@ -62,7 +70,7 @@ func (p *Processor) ChunkText(text string, size, overlap int, respectWordBoundar
 
 	for start < totalLen {
 		// Calculate end position (start + size, but not beyond document end)
-		end := start + size
+		end := start + t.size
 		if end > totalLen {
 			end = totalLen
 		}
@@ -72,14 +80,14 @@ func (p *Processor) ChunkText(text string, size, overlap int, respectWordBoundar
 		// For the final chunk (end == totalLen) we always take the remainder
 		// of the document as-is to avoid generating progressively smaller
 		// tail chunks.
-		if respectWordBoundaries && end > start && end < totalLen {
+		if t.respectWordBoundaries && end > start && end < totalLen {
 			// Limit search to the current chunk window.
 			target := end
 
 			// Backtrack from target to find whitespace; if none is found
 			// in a reasonable range, keep the original end so that we
 			// still make progress even for very long "words".
-			searchEnd := p.findNearestWhitespace(runes[start:target+1], target-start) + start
+			searchEnd := t.findNearestWhitespace(runes[start:target+1], target-start) + start
 			if searchEnd > start && searchEnd < end {
 				end = searchEnd
 			}
@@ -100,7 +108,7 @@ func (p *Processor) ChunkText(text string, size, overlap int, respectWordBoundar
 		}
 
 		// Next chunk starts at the end of the previous chunk minus overlap
-		nextStart := end - overlap
+		nextStart := end - t.overlap
 
 		// CRITICAL: Ensure we always make forward progress
 		// If nextStart would move us backward or keep us in place, advance by at least 1
@@ -111,14 +119,14 @@ func (p *Processor) ChunkText(text string, size, overlap int, respectWordBoundar
 		// When respecting word boundaries, make sure the next chunk
 		// does not start in the middle of a word. Move the start
 		// forward to the next whitespace, then to the next non-whitespace.
-		if respectWordBoundaries {
+		if t.respectWordBoundaries {
 			// Move forward until we hit whitespace or end-of-text
-			for nextStart < totalLen && !p.isWhitespace(runes[nextStart]) {
+			for nextStart < totalLen && !t.isWhitespace(runes[nextStart]) {
 				nextStart++
 			}
 			// Skip the whitespace itself so we start at the first character
 			// of the next word (if any).
-			for nextStart < totalLen && p.isWhitespace(runes[nextStart]) {
+			for nextStart < totalLen && t.isWhitespace(runes[nextStart]) {
 				nextStart++
 			}
 		}
@@ -131,7 +139,7 @@ func (p *Processor) ChunkText(text string, size, overlap int, respectWordBoundar
 
 // findNearestWhitespace finds the nearest whitespace boundary to the target position
 // It searches backward first (within a reasonable distance), then forward if needed
-func (p *Processor) findNearestWhitespace(runes []rune, target int) int {
+func (t *TextDocumentProcessor) findNearestWhitespace(runes []rune, target int) int {
 	// Don't search beyond 20% of the total length in either direction
 	maxSearchDistance := len(runes) / 5
 	if maxSearchDistance < 50 {
@@ -144,9 +152,9 @@ func (p *Processor) findNearestWhitespace(runes []rune, target int) int {
 	// Search backward first (prefer to keep chunks slightly smaller)
 	for i := 0; i < maxSearchDistance && target-i > 0; i++ {
 		pos := target - i
-		if p.isWhitespace(runes[pos]) {
+		if t.isWhitespace(runes[pos]) {
 			// Skip consecutive whitespace
-			for pos > 0 && p.isWhitespace(runes[pos-1]) {
+			for pos > 0 && t.isWhitespace(runes[pos-1]) {
 				pos--
 			}
 			return pos
@@ -156,7 +164,7 @@ func (p *Processor) findNearestWhitespace(runes []rune, target int) int {
 	// Search forward if no whitespace found backward
 	for i := 1; i < maxSearchDistance && target+i < len(runes); i++ {
 		pos := target + i
-		if p.isWhitespace(runes[pos]) {
+		if t.isWhitespace(runes[pos]) {
 			return pos
 		}
 	}
@@ -166,12 +174,23 @@ func (p *Processor) findNearestWhitespace(runes []rune, target int) int {
 }
 
 // isWhitespace checks if a rune is whitespace
-func (p *Processor) isWhitespace(r rune) bool {
+func (t *TextDocumentProcessor) isWhitespace(r rune) bool {
 	return r == ' ' || r == '\t' || r == '\n' || r == '\r'
 }
 
+// --- File utility functions (standalone, not tied to any processor) ---
+
+// ProcessFile reads a file and processes it using the given document processor
+func ProcessFile(dp DocumentProcessor, path string) ([]Chunk, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+	return dp.Process(path, content)
+}
+
 // FileHash calculates SHA256 hash of a file
-func (p *Processor) FileHash(path string) (string, error) {
+func FileHash(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return "", fmt.Errorf("failed to open file: %w", err)
@@ -188,12 +207,12 @@ func (p *Processor) FileHash(path string) (string, error) {
 
 // CollectFiles recursively collects all files from given paths
 // Skips paths that don't exist instead of returning an error
-func (p *Processor) CollectFiles(paths []string) ([]string, error) {
+func CollectFiles(paths []string) ([]string, error) {
 	var files []string
 	seen := make(map[string]bool)
 
 	for _, pattern := range paths {
-		expanded, err := p.expandPattern(pattern)
+		expanded, err := expandPattern(pattern)
 		if err != nil {
 			return nil, err
 		}
@@ -245,7 +264,7 @@ func (p *Processor) CollectFiles(paths []string) ([]string, error) {
 
 // Matches reports whether the given path matches any configured document path or glob pattern.
 // To be used in file watchers to determine if a new/changed file matches the glob patterns or not.
-func (p *Processor) Matches(path string, patterns []string) (bool, error) {
+func Matches(path string, patterns []string) (bool, error) {
 	if len(patterns) == 0 {
 		return false, nil
 	}
@@ -293,7 +312,7 @@ func (p *Processor) Matches(path string, patterns []string) (bool, error) {
 	return false, nil
 }
 
-func (p *Processor) expandPattern(pattern string) ([]string, error) {
+func expandPattern(pattern string) ([]string, error) {
 	if !hasGlob(pattern) {
 		return []string{normalizePath(pattern)}, nil
 	}

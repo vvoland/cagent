@@ -90,10 +90,9 @@ func TestCollectFiles_Globs(t *testing.T) {
 		},
 	}
 
-	p := New()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := p.CollectFiles(tt.paths)
+			got, err := CollectFiles(tt.paths)
 			require.NoError(t, err)
 
 			sort.Strings(got)
@@ -105,8 +104,6 @@ func TestCollectFiles_Globs(t *testing.T) {
 
 func TestChunkText_RespectWordBoundaries(t *testing.T) {
 	t.Parallel()
-
-	p := New()
 
 	tests := []struct {
 		name                  string
@@ -191,7 +188,9 @@ func TestChunkText_RespectWordBoundaries(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			chunks := p.ChunkText(tt.text, tt.size, tt.overlap, tt.respectWordBoundaries)
+			pp := NewTextDocumentProcessor(tt.size, tt.overlap, tt.respectWordBoundaries)
+			chunks, err := pp.Process("test.txt", []byte(tt.text))
+			require.NoError(t, err)
 
 			assert.NotEmpty(t, chunks)
 			if tt.validateFunc != nil {
@@ -204,11 +203,12 @@ func TestChunkText_RespectWordBoundaries(t *testing.T) {
 func TestChunkText_BackwardCompatibility(t *testing.T) {
 	t.Parallel()
 
-	p := New()
+	pp := NewTextDocumentProcessor(10, 2, false)
 
 	// Test that default behavior (respectWordBoundaries=false) still works as before
 	text := "This is a test text for chunking"
-	chunks := p.ChunkText(text, 10, 2, false)
+	chunks, err := pp.Process("test.txt", []byte(text))
+	require.NoError(t, err)
 
 	assert.NotEmpty(t, chunks)
 	assert.Greater(t, len(chunks), 1) // Should create multiple chunks
@@ -217,7 +217,7 @@ func TestChunkText_BackwardCompatibility(t *testing.T) {
 func TestFindNearestWhitespace(t *testing.T) {
 	t.Parallel()
 
-	p := New()
+	pp := NewTextDocumentProcessor(1000, 0, true)
 
 	tests := []struct {
 		name    string
@@ -250,7 +250,7 @@ func TestFindNearestWhitespace(t *testing.T) {
 			t.Parallel()
 
 			runes := []rune(tt.text)
-			pos := p.findNearestWhitespace(runes, tt.target)
+			pos := pp.findNearestWhitespace(runes, tt.target)
 
 			assert.LessOrEqual(t, pos, len(runes))
 			assert.GreaterOrEqual(t, pos, 0)

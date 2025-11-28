@@ -16,6 +16,7 @@ import (
 	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/rag/chunk"
 	"github.com/docker/cagent/pkg/rag/database"
+	"github.com/docker/cagent/pkg/rag/treesitter"
 	"github.com/docker/cagent/pkg/rag/types"
 )
 
@@ -57,21 +58,8 @@ func NewBM25FromConfig(_ context.Context, cfg latest.RAGStrategyConfig, buildCtx
 		limit = 5
 	}
 
-	// Extract chunking configuration with defaults
-	chunkSize := cfg.Chunking.Size
-	chunkOverlap := cfg.Chunking.Overlap
-	respectWordBoundaries := cfg.Chunking.RespectWordBoundaries
-	slog.Debug("Chunking config from YAML",
-		"strategy", "bm25",
-		"chunk_size", chunkSize,
-		"chunk_overlap", chunkOverlap,
-		"respect_word_boundaries", respectWordBoundaries)
-	if chunkSize == 0 {
-		chunkSize = 1500 // General text: good paragraph/section size
-	}
-	if chunkOverlap == 0 {
-		chunkOverlap = 75
-	}
+	// Parse chunking configuration
+	chunkingCfg := ParseChunkingConfig(cfg)
 
 	// Create strategy
 	strategy := newBM25Strategy(
@@ -80,30 +68,29 @@ func NewBM25FromConfig(_ context.Context, cfg latest.RAGStrategyConfig, buildCtx
 		events,
 		k1,
 		bParam,
+		chunkingCfg,
 	)
 
 	return &Config{
-		Name:                  "bm25",
-		Strategy:              strategy,
-		Docs:                  docs,
-		Limit:                 limit,
-		Threshold:             thresholdVal,
-		ChunkSize:             chunkSize,
-		ChunkOverlap:          chunkOverlap,
-		RespectWordBoundaries: respectWordBoundaries,
+		Name:      "bm25",
+		Strategy:  strategy,
+		Docs:      docs,
+		Limit:     limit,
+		Threshold: thresholdVal,
+		Chunking:  chunkingCfg,
 	}, nil
 }
 
 // BM25Strategy implements BM25 keyword-based retrieval
 // BM25 is a ranking function that uses term frequency and inverse document frequency
 type BM25Strategy struct {
-	name       string
-	db         *bm25DB
-	processor  *chunk.Processor
-	fileHashes map[string]string
-	watcher    *fsnotify.Watcher
-	watcherMu  sync.Mutex
-	events     chan<- types.Event
+	name         string
+	db           *bm25DB
+	docProcessor chunk.DocumentProcessor
+	fileHashes   map[string]string
+	watcher      *fsnotify.Watcher
+	watcherMu    sync.Mutex
+	events       chan<- types.Event
 
 	// BM25 parameters
 	k1           float64 // term frequency saturation parameter (typically 1.2 to 2.0)
@@ -113,26 +100,34 @@ type BM25Strategy struct {
 }
 
 // newBM25Strategy creates a new BM25-based retrieval strategy
-func newBM25Strategy(name string, db *bm25DB, events chan<- types.Event, k1, b float64) *BM25Strategy {
+func newBM25Strategy(name string, db *bm25DB, events chan<- types.Event, k1, b float64, chunking ChunkingConfig) *BM25Strategy {
+	// Create the appropriate document processor based on config
+	var dp chunk.DocumentProcessor
+	if chunking.CodeAware {
+		dp = treesitter.NewDocumentProcessor(chunking.Size, chunking.Overlap, chunking.RespectWordBoundaries)
+	} else {
+		dp = chunk.NewTextDocumentProcessor(chunking.Size, chunking.Overlap, chunking.RespectWordBoundaries)
+	}
+
 	return &BM25Strategy{
-		name:       name,
-		db:         db,
-		processor:  chunk.New(),
-		fileHashes: make(map[string]string),
-		events:     events,
-		k1:         k1,
-		b:          b,
+		name:         name,
+		db:           db,
+		docProcessor: dp,
+		fileHashes:   make(map[string]string),
+		events:       events,
+		k1:           k1,
+		b:            b,
 	}
 }
 
 // Initialize indexes all documents for BM25 retrieval
-func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunkSize, chunkOverlap int, respectWordBoundaries bool) error {
+func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunking ChunkingConfig) error {
 	slog.Info("Starting BM25 strategy initialization",
 		"name", s.name,
 		"doc_paths", docPaths,
-		"chunk_size", chunkSize,
-		"chunk_overlap", chunkOverlap,
-		"respect_word_boundaries", respectWordBoundaries)
+		"chunk_size", chunking.Size,
+		"chunk_overlap", chunking.Overlap,
+		"respect_word_boundaries", chunking.RespectWordBoundaries)
 
 	// Load existing file hashes
 	slog.Debug("Loading existing file hashes", "strategy", s.name)
@@ -142,7 +137,7 @@ func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunkS
 
 	// Collect all files
 	slog.Debug("Collecting files", "strategy", s.name, "paths", docPaths)
-	files, err := s.processor.CollectFiles(docPaths)
+	files, err := chunk.CollectFiles(docPaths)
 	if err != nil {
 		s.emitEvent(types.Event{Type: "error", Error: err})
 		return fmt.Errorf("failed to collect files: %w", err)
@@ -217,7 +212,7 @@ func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunkS
 			},
 		})
 
-		if err := s.indexFile(ctx, status.path, chunkSize, chunkOverlap, respectWordBoundaries); err != nil {
+		if err := s.indexFile(ctx, status.path); err != nil {
 			slog.Error("Failed to index file", "path", status.path, "error", err)
 			continue
 		}
@@ -293,8 +288,8 @@ func (s *BM25Strategy) Query(ctx context.Context, query string, numResults int, 
 }
 
 // CheckAndReindexChangedFiles checks for file changes and re-indexes if needed
-func (s *BM25Strategy) CheckAndReindexChangedFiles(ctx context.Context, docPaths []string, chunkSize, chunkOverlap int, respectWordBoundaries bool) error {
-	files, err := s.processor.CollectFiles(docPaths)
+func (s *BM25Strategy) CheckAndReindexChangedFiles(ctx context.Context, docPaths []string, chunking ChunkingConfig) error {
+	files, err := chunk.CollectFiles(docPaths)
 	if err != nil {
 		return fmt.Errorf("failed to collect files: %w", err)
 	}
@@ -312,7 +307,7 @@ func (s *BM25Strategy) CheckAndReindexChangedFiles(ctx context.Context, docPaths
 
 		if needsIndexing {
 			slog.Info("File changed, re-indexing", "path", filePath)
-			if err := s.indexFile(ctx, filePath, chunkSize, chunkOverlap, respectWordBoundaries); err != nil {
+			if err := s.indexFile(ctx, filePath); err != nil {
 				slog.Error("Failed to re-index file", "path", filePath, "error", err)
 			}
 		}
@@ -331,7 +326,7 @@ func (s *BM25Strategy) CheckAndReindexChangedFiles(ctx context.Context, docPaths
 }
 
 // StartFileWatcher starts monitoring files for changes
-func (s *BM25Strategy) StartFileWatcher(ctx context.Context, docPaths []string, chunkSize, chunkOverlap int, respectWordBoundaries bool) error {
+func (s *BM25Strategy) StartFileWatcher(ctx context.Context, docPaths []string, chunking ChunkingConfig) error {
 	s.watcherMu.Lock()
 	defer s.watcherMu.Unlock()
 
@@ -348,7 +343,7 @@ func (s *BM25Strategy) StartFileWatcher(ctx context.Context, docPaths []string, 
 		}
 	}
 
-	go s.watchLoop(ctx, docPaths, chunkSize, chunkOverlap, respectWordBoundaries)
+	go s.watchLoop(ctx, docPaths)
 
 	slog.Info("File watcher started", "strategy", s.name)
 	return nil
@@ -508,7 +503,7 @@ func (s *BM25Strategy) loadExistingHashes(ctx context.Context) error {
 }
 
 func (s *BM25Strategy) needsIndexing(_ context.Context, filePath string) (bool, error) {
-	currentHash, err := s.processor.FileHash(filePath)
+	currentHash, err := chunk.FileHash(filePath)
 	if err != nil {
 		return false, fmt.Errorf("failed to hash file: %w", err)
 	}
@@ -521,8 +516,8 @@ func (s *BM25Strategy) needsIndexing(_ context.Context, filePath string) (bool, 
 	return storedHash != currentHash, nil
 }
 
-func (s *BM25Strategy) indexFile(ctx context.Context, filePath string, chunkSize, chunkOverlap int, respectWordBoundaries bool) error {
-	fileHash, err := s.processor.FileHash(filePath)
+func (s *BM25Strategy) indexFile(ctx context.Context, filePath string) error {
+	fileHash, err := chunk.FileHash(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to hash file: %w", err)
 	}
@@ -531,7 +526,7 @@ func (s *BM25Strategy) indexFile(ctx context.Context, filePath string, chunkSize
 		return fmt.Errorf("failed to delete old documents: %w", err)
 	}
 
-	chunks, err := s.processor.ProcessFile(filePath, chunkSize, chunkOverlap, respectWordBoundaries)
+	chunks, err := chunk.ProcessFile(s.docProcessor, filePath)
 	if err != nil {
 		return fmt.Errorf("failed to process file: %w", err)
 	}
@@ -615,7 +610,7 @@ func (s *BM25Strategy) addPathToWatcher(path string) error {
 	}
 
 	if stat.IsDir() {
-		files, err := s.processor.CollectFiles([]string{absPath})
+		files, err := chunk.CollectFiles([]string{absPath})
 		if err != nil {
 			return fmt.Errorf("failed to collect files: %w", err)
 		}
@@ -633,7 +628,7 @@ func (s *BM25Strategy) addPathToWatcher(path string) error {
 	return nil
 }
 
-func (s *BM25Strategy) watchLoop(ctx context.Context, docPaths []string, chunkSize, chunkOverlap int, respectWordBoundaries bool) {
+func (s *BM25Strategy) watchLoop(ctx context.Context, docPaths []string) {
 	var debounceTimer *time.Timer
 	debounceDuration := 2 * time.Second
 	pendingChanges := make(map[string]bool)
@@ -654,7 +649,7 @@ func (s *BM25Strategy) watchLoop(ctx context.Context, docPaths []string, chunkSi
 
 		for _, file := range changedFiles {
 			// Check if the file matches any of the configured document paths/patterns
-			matches, matchErr := s.processor.Matches(file, docPaths)
+			matches, matchErr := chunk.Matches(file, docPaths)
 			if matchErr != nil {
 				slog.Error("Failed to match path", "file", file, "error", matchErr)
 				continue
@@ -669,7 +664,7 @@ func (s *BM25Strategy) watchLoop(ctx context.Context, docPaths []string, chunkSi
 			}
 
 			slog.Debug("Indexing file", "path", file, "strategy", s.name)
-			if err := s.indexFile(ctx, file, chunkSize, chunkOverlap, respectWordBoundaries); err != nil {
+			if err := s.indexFile(ctx, file); err != nil {
 				slog.Error("Failed to re-index file", "path", file, "error", err)
 			}
 		}
@@ -701,7 +696,7 @@ func (s *BM25Strategy) watchLoop(ctx context.Context, docPaths []string, chunkSi
 			}
 
 			// Early filter: only track changes for files that match configured doc patterns
-			matches, err := s.processor.Matches(event.Name, docPaths)
+			matches, err := chunk.Matches(event.Name, docPaths)
 			if err != nil || !matches {
 				continue
 			}

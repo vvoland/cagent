@@ -972,6 +972,30 @@ models:
 - `chunking.size`: Chunk size in characters (default: `1000`)
 - `chunking.overlap`: Overlap between chunks (default: `75`)
 
+**Code-Aware Chunking:**
+
+When indexing source code, you can enable code-aware chunking to produce semantically aligned chunks based on the code's AST (Abstract Syntax Tree). This keeps functions and methods intact rather than splitting them arbitrarily:
+
+```yaml
+rag:
+  codebase:
+    docs: [./src]
+    strategies:
+      - type: bm25
+        database: ./code.db
+        chunking:
+          size: 2000
+          code_aware: true  # Enable AST-based chunking
+```
+
+- `chunking.code_aware`: When `true`, uses tree-sitter for AST-based chunking (default: `false`), and `size` becomes indicative
+
+**Notes:**
+- Currently supports **Go** source files (`.go`). More languages will be added incrementally.
+- Falls back to plain text chunking for unsupported file types.
+- Produces chunks that align with code structure (functions, methods, type declarations).
+- Particularly useful for code search and retrieval tasks.
+
 **Results:**
 - `limit`: Final number of results (default: `15`)
 - `deduplicate`: Remove duplicates (default: `true`)

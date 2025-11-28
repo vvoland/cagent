@@ -518,6 +518,13 @@ func unmarshalChunkingConfig(src any, dst *RAGChunkingConfig) {
 			dst.RespectWordBoundaries = val
 		}
 	}
+
+	// Handle code_aware - YAML should give us a bool
+	if ca, ok := m["code_aware"]; ok {
+		if val, ok := ca.(bool); ok {
+			dst.CodeAware = val
+		}
+	}
 }
 
 // coerceToInt converts various numeric types to int
@@ -579,6 +586,11 @@ type RAGChunkingConfig struct {
 	Size                  int  `json:"size,omitempty"`
 	Overlap               int  `json:"overlap,omitempty"`
 	RespectWordBoundaries bool `json:"respect_word_boundaries,omitempty"`
+	// CodeAware enables code-aware chunking for source files. When true, the
+	// chunking strategy uses tree-sitter for AST-based chunking, producing
+	// semantically aligned chunks (e.g., whole functions). Falls back to
+	// plain text chunking for unsupported languages.
+	CodeAware bool `json:"code_aware,omitempty"`
 }
 
 // UnmarshalYAML implements custom unmarshaling to apply sensible defaults for chunking

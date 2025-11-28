@@ -161,11 +161,13 @@ func (m *Manager) Initialize(ctx context.Context) error {
 				"rag_name", m.name,
 				"strategy", strategyName,
 				"num_docs", len(strategyCfg.Docs),
-				"chunk_size", strategyCfg.ChunkSize,
-				"chunk_overlap", strategyCfg.ChunkOverlap)
+				"chunk_size", strategyCfg.Chunking.Size,
+				"chunk_overlap", strategyCfg.Chunking.Overlap,
+				"respect_word_boundaries", strategyCfg.Chunking.RespectWordBoundaries,
+				"code_aware", strategyCfg.Chunking.CodeAware)
 
 			start := time.Now()
-			err := strategyImpl.Initialize(ctx, strategyCfg.Docs, strategyCfg.ChunkSize, strategyCfg.ChunkOverlap, strategyCfg.RespectWordBoundaries)
+			err := strategyImpl.Initialize(ctx, strategyCfg.Docs, strategyCfg.Chunking)
 			indexDuration := time.Since(start)
 			slog.Debug("[RAG Manager] Strategy indexing duration",
 				"rag_name", m.name,
@@ -433,7 +435,7 @@ func getStrategyNames(stratMap map[string]strategy.Strategy) []string {
 func (m *Manager) CheckAndReindexChangedFiles(ctx context.Context) error {
 	for strategyName, strategyImpl := range m.strategies {
 		strategyCfg := m.strategyConfigs[strategyName]
-		if err := strategyImpl.CheckAndReindexChangedFiles(ctx, strategyCfg.Docs, strategyCfg.ChunkSize, strategyCfg.ChunkOverlap, strategyCfg.RespectWordBoundaries); err != nil {
+		if err := strategyImpl.CheckAndReindexChangedFiles(ctx, strategyCfg.Docs, strategyCfg.Chunking); err != nil {
 			return fmt.Errorf("strategy %s failed: %w", strategyName, err)
 		}
 	}
@@ -444,7 +446,7 @@ func (m *Manager) CheckAndReindexChangedFiles(ctx context.Context) error {
 func (m *Manager) StartFileWatcher(ctx context.Context) error {
 	for strategyName, strategyImpl := range m.strategies {
 		strategyCfg := m.strategyConfigs[strategyName]
-		if err := strategyImpl.StartFileWatcher(ctx, strategyCfg.Docs, strategyCfg.ChunkSize, strategyCfg.ChunkOverlap, strategyCfg.RespectWordBoundaries); err != nil {
+		if err := strategyImpl.StartFileWatcher(ctx, strategyCfg.Docs, strategyCfg.Chunking); err != nil {
 			return fmt.Errorf("strategy %s failed: %w", strategyName, err)
 		}
 	}
