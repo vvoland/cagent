@@ -66,7 +66,7 @@ func ResolveSources(agentsPath string) (Sources, error) {
 	}
 
 	return map[string]Source{
-		resolvedPath: NewOCISource(agentsPath),
+		reference.OciRefToFilename(agentsPath): NewOCISource(agentsPath),
 	}, nil
 }
 
