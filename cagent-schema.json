@@ -725,12 +725,13 @@
                 "description": "Retrieval strategy type",
                 "enum": [
                   "bm25",
-                  "chunked-embeddings"
+                  "chunked-embeddings",
+                  "semantic-embeddings"
                 ]
               },
               "embedding_model": {
                 "type": "string",
-                "description": "Embedding model reference for chunked-embeddings strategies (looked up in models map, or 'auto' for automatic selection)",
+                "description": "Embedding model reference for chunked-embeddings and semantic-embeddings strategies (looked up in models map, or 'auto' for automatic selection)",
                 "examples": [
                   "openai/text-embedding-3-small",
                   "dmr/embeddinggemma",
@@ -811,6 +812,41 @@
                   }
                 },
                 "additionalProperties": false
+              },
+              "embedding_batch_size": {
+                "type": "integer",
+                "description": "Number of text chunks to send to the embedding API in a single request (chunked-embeddings/semantic-embeddings only)",
+                "minimum": 1,
+                "default": 50
+              },
+              "max_embedding_concurrency": {
+                "type": "integer",
+                "description": "Maximum concurrent embedding batch API requests. For semantic-embeddings, also controls parallel LLM calls for generating chunk summaries.",
+                "minimum": 1,
+                "default": 3
+              },
+              "max_indexing_concurrency": {
+                "type": "integer",
+                "description": "Maximum number of files to index in parallel during initialization",
+                "minimum": 1,
+                "default": 3
+              },
+              "chat_model": {
+                "type": "string",
+                "description": "Chat model used to generate semantic representations for each chunk (semantic-embeddings only, required)",
+                "examples": [
+                  "anthropic/claude-sonnet-4-5",
+                  "openai/gpt-4o-mini"
+                ]
+              },
+              "semantic_prompt": {
+                "type": "string",
+                "description": "Custom prompt template for semantic LLM. Uses JavaScript template literal syntax with the following placeholders: ${path} (full source file path), ${basename} (base name of file), ${chunk_index} (numeric chunk index), ${content} (raw chunk content), ${ast_context} (AST metadata when ast_context is enabled). Only applicable to semantic-embeddings strategy."
+              },
+              "ast_context": {
+                "type": "boolean",
+                "description": "Include TreeSitter-derived AST metadata in the semantic prompt (semantic-embeddings only, requires chunking.code_aware for best results)",
+                "default": false
               }
             },
             "additionalProperties": true
