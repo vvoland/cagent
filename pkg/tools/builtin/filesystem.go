@@ -328,7 +328,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 		{
 			Name:         ToolNameSearchFiles,
 			Category:     "filesystem",
-			Description:  "Recursively search for files and directories matching a pattern. Prints the full paths of matching files and the total number of files found.",
+			Description:  "Recursively search for files and directories matching a pattern. Prints the full paths of matching files and the total number of files found. The pattern syntax is the same as Go's filepath.Match.",
 			Parameters:   tools.MustSchemaFor[SearchFilesArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
 			Handler:      t.handleSearchFiles,
