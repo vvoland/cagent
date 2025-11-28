@@ -3,11 +3,15 @@ package config
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/docker/cagent/pkg/content"
+	"github.com/docker/cagent/pkg/httpclient"
 	"github.com/docker/cagent/pkg/remote"
 )
 
@@ -124,4 +128,47 @@ func (a ociSource) Read(ctx context.Context) ([]byte, error) {
 	}
 
 	return []byte(af), nil
+}
+
+// urlSource is used to load an agent configuration from an HTTP/HTTPS URL.
+type urlSource struct {
+	url string
+}
+
+func NewURLSource(url string) Source {
+	return urlSource{
+		url: url,
+	}
+}
+
+func (a urlSource) Name() string {
+	return a.url
+}
+
+func (a urlSource) ParentDir() string {
+	return ""
+}
+
+func (a urlSource) Read(ctx context.Context) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.url, http.NoBody)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	resp, err := httpclient.NewHTTPClient().Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetching %s: %w", a.url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("fetching %s: %s", a.url, resp.Status)
+	}
+
+	return io.ReadAll(resp.Body)
+}
+
+// IsURLReference checks if the input is a valid HTTP/HTTPS URL.
+func IsURLReference(input string) bool {
+	return strings.HasPrefix(input, "http://") || strings.HasPrefix(input, "https://")
 }
