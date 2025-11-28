@@ -86,6 +86,7 @@ func NewChunkedEmbeddingsFromConfig(ctx context.Context, cfg latest.RAGStrategyC
 		EmbeddingConcurrency: maxConcurrency,
 		FileIndexConcurrency: fileIndexConcurrency,
 		Chunking:             chunkingCfg,
+		ShouldIgnore:         BuildShouldIgnore(buildCtx, cfg.Params),
 	})
 
 	return &Config{

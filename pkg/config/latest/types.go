@@ -309,10 +309,19 @@ type RAGToolConfig struct {
 // RAGConfig represents a RAG (Retrieval-Augmented Generation) configuration
 // Uses a unified strategies array for flexible, extensible configuration
 type RAGConfig struct {
-	Tool       RAGToolConfig       `json:"tool,omitempty"`       // Tool configuration
-	Docs       []string            `json:"docs,omitempty"`       // Shared documents across all strategies
-	Strategies []RAGStrategyConfig `json:"strategies,omitempty"` // Array of strategy configurations
+	Tool       RAGToolConfig       `json:"tool,omitempty"`        // Tool configuration
+	Docs       []string            `json:"docs,omitempty"`        // Shared documents across all strategies
+	RespectVCS *bool               `json:"respect_vcs,omitempty"` // Whether to respect VCS ignore files like .gitignore (default: true)
+	Strategies []RAGStrategyConfig `json:"strategies,omitempty"`  // Array of strategy configurations
 	Results    RAGResultsConfig    `json:"results,omitempty"`
+}
+
+// GetRespectVCS returns whether VCS ignore files should be respected, defaulting to true
+func (c *RAGConfig) GetRespectVCS() bool {
+	if c.RespectVCS == nil {
+		return true
+	}
+	return *c.RespectVCS
 }
 
 // RAGStrategyConfig represents a single retrieval strategy configuration

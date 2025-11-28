@@ -1,106 +1,12 @@
 package chunk
 
 import (
-	"os"
-	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestCollectFiles_Globs(t *testing.T) {
-	// Setup temporary directory with test files
-	tmpDir := t.TempDir()
-
-	// Create structure:
-	// tmpDir/
-	//   pkg/
-	//     a.go
-	//     b.txt
-	//     sub/
-	//       c.go
-	//   cmd/
-	//     main.go
-
-	dirs := []string{
-		filepath.Join(tmpDir, "pkg", "sub"),
-		filepath.Join(tmpDir, "cmd"),
-	}
-	for _, d := range dirs {
-		require.NoError(t, os.MkdirAll(d, 0o755))
-	}
-
-	files := map[string]string{
-		filepath.Join(tmpDir, "pkg", "a.go"):        "package pkg",
-		filepath.Join(tmpDir, "pkg", "b.txt"):       "text file",
-		filepath.Join(tmpDir, "pkg", "sub", "c.go"): "package sub",
-		filepath.Join(tmpDir, "cmd", "main.go"):     "package main",
-	}
-	for path, content := range files {
-		require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
-	}
-
-	tests := []struct {
-		name     string
-		paths    []string
-		expected []string
-	}{
-		{
-			name:  "Exact file path",
-			paths: []string{filepath.Join(tmpDir, "pkg", "a.go")},
-			expected: []string{
-				filepath.Join(tmpDir, "pkg", "a.go"),
-			},
-		},
-		{
-			name:  "Directory path (recursive)",
-			paths: []string{filepath.Join(tmpDir, "pkg")},
-			expected: []string{
-				filepath.Join(tmpDir, "pkg", "a.go"),
-				filepath.Join(tmpDir, "pkg", "b.txt"),
-				filepath.Join(tmpDir, "pkg", "sub", "c.go"),
-			},
-		},
-		{
-			name:  "Simple glob (*.go)",
-			paths: []string{filepath.Join(tmpDir, "pkg", "*.go")},
-			expected: []string{
-				filepath.Join(tmpDir, "pkg", "a.go"),
-			},
-		},
-		{
-			name:  "Recursive glob (**/*.go)",
-			paths: []string{filepath.Join(tmpDir, "pkg", "**", "*.go")},
-			expected: []string{
-				filepath.Join(tmpDir, "pkg", "a.go"),
-				filepath.Join(tmpDir, "pkg", "sub", "c.go"),
-			},
-		},
-		{
-			name:  "Multiple globs",
-			paths: []string{filepath.Join(tmpDir, "pkg", "**", "*.go"), filepath.Join(tmpDir, "cmd", "*.go")},
-			expected: []string{
-				filepath.Join(tmpDir, "pkg", "a.go"),
-				filepath.Join(tmpDir, "pkg", "sub", "c.go"),
-				filepath.Join(tmpDir, "cmd", "main.go"),
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := CollectFiles(tt.paths)
-			require.NoError(t, err)
-
-			sort.Strings(got)
-			sort.Strings(tt.expected)
-			assert.Equal(t, tt.expected, got)
-		})
-	}
-}
 
 func TestChunkText_RespectWordBoundaries(t *testing.T) {
 	t.Parallel()

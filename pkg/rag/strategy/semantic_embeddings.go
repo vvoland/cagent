@@ -155,6 +155,7 @@ func NewSemanticEmbeddingsFromConfig(ctx context.Context, cfg latest.RAGStrategy
 		EmbeddingConcurrency: maxConcurrency,
 		FileIndexConcurrency: fileIndexConcurrency,
 		Chunking:             chunkingCfg,
+		ShouldIgnore:         BuildShouldIgnore(buildCtx, cfg.Params),
 	})
 
 	// Create usage tracker for chat LLM calls

@@ -17,6 +17,7 @@ type BuildContext struct {
 	Models        map[string]latest.ModelConfig
 	Env           environment.Provider
 	ModelsGateway string
+	RespectVCS    bool // Whether to respect VCS ignore files (e.g., .gitignore) when collecting files
 }
 
 // BuildStrategy builds a strategy from config

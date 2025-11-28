@@ -709,6 +709,11 @@
             "type": "string"
           }
         },
+        "respect_vcs": {
+          "type": "boolean",
+          "description": "Whether to respect VCS ignore files (e.g., .gitignore) when collecting documents for indexing. When true (default), files matching ignore patterns will be excluded. Can be overridden per-strategy.",
+          "default": true
+        },
         "strategies": {
           "type": "array",
           "description": "Array of retrieval strategy configurations. Each strategy can have different parameters based on its type.",
@@ -830,6 +835,10 @@
                 "description": "Maximum number of files to index in parallel during initialization",
                 "minimum": 1,
                 "default": 3
+              },
+              "respect_vcs": {
+                "type": "boolean",
+                "description": "Override the RAG-level respect_vcs setting for this strategy only."
               },
               "chat_model": {
                 "type": "string",

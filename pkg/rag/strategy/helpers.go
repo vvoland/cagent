@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/docker/cagent/pkg/config/latest"
+	"github.com/docker/cagent/pkg/fsx"
 	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/rag/types"
 )
@@ -231,4 +232,35 @@ func ParseChunkingConfig(cfg latest.RAGStrategyConfig) ChunkingConfig {
 		RespectWordBoundaries: cfg.Chunking.RespectWordBoundaries,
 		CodeAware:             cfg.Chunking.CodeAware,
 	}
+}
+
+// BuildShouldIgnore creates a filter function based on BuildContext and optional strategy-level override.
+// Strategy params can override the RAG-level respect_vcs setting.
+// Returns nil if no filtering should be applied.
+func BuildShouldIgnore(buildCtx BuildContext, strategyParams map[string]any) func(path string) bool {
+	// Check for strategy-level override first
+	respectVCS := buildCtx.RespectVCS
+	if strategyParams != nil {
+		if override, ok := strategyParams["respect_vcs"].(bool); ok {
+			respectVCS = override
+		}
+	}
+
+	if !respectVCS {
+		return nil
+	}
+
+	// Try to create a VCS matcher for ignore file support (e.g., .gitignore)
+	matcher, err := fsx.NewVCSMatcher(buildCtx.ParentDir)
+	if err != nil {
+		slog.Warn("Failed to initialize VCS matcher", "error", err)
+		return nil
+	}
+	if matcher == nil {
+		// No VCS repository found - this is normal, not an error
+		return nil
+	}
+
+	slog.Debug("VCS ignore filtering enabled", "repo_root", matcher.RepoRoot())
+	return matcher.ShouldIgnore
 }

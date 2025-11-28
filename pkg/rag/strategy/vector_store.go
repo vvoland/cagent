@@ -13,6 +13,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/docker/cagent/pkg/fsx"
 	"github.com/docker/cagent/pkg/modelsdev"
 	"github.com/docker/cagent/pkg/rag/chunk"
 	"github.com/docker/cagent/pkg/rag/database"
@@ -54,6 +55,7 @@ type VectorStore struct {
 	watcher      *fsnotify.Watcher
 	watcherMu    sync.Mutex
 	events       chan<- types.Event
+	shouldIgnore func(path string) bool // Optional filter for gitignore support
 
 	similarityMetric string
 
@@ -116,6 +118,7 @@ type VectorStoreConfig struct {
 	EmbeddingConcurrency int
 	FileIndexConcurrency int
 	Chunking             ChunkingConfig
+	ShouldIgnore         func(path string) bool // Optional filter for gitignore support
 }
 
 // NewVectorStore creates a new vector store with the given configuration.
@@ -135,6 +138,7 @@ func NewVectorStore(cfg VectorStoreConfig) *VectorStore {
 		docProcessor:          dp,
 		fileHashes:            make(map[string]string),
 		events:                cfg.Events,
+		shouldIgnore:          cfg.ShouldIgnore,
 		similarityMetric:      cfg.SimilarityMetric,
 		modelID:               cfg.ModelID,
 		modelsStore:           cfg.ModelsStore,
@@ -227,7 +231,7 @@ func (s *VectorStore) Initialize(ctx context.Context, docPaths []string, chunkin
 
 	// Collect all files
 	slog.Debug("Collecting files", "strategy", s.name, "paths", docPaths)
-	files, err := chunk.CollectFiles(docPaths)
+	files, err := fsx.CollectFiles(docPaths, s.shouldIgnore)
 	if err != nil {
 		s.emitEvent(types.Event{Type: types.EventTypeError, Error: err})
 		return fmt.Errorf("failed to collect files: %w", err)
@@ -385,7 +389,7 @@ func (s *VectorStore) Query(ctx context.Context, query string, numResults int, t
 
 // CheckAndReindexChangedFiles checks for file changes and re-indexes if needed
 func (s *VectorStore) CheckAndReindexChangedFiles(ctx context.Context, docPaths []string, chunking ChunkingConfig) error {
-	files, err := chunk.CollectFiles(docPaths)
+	files, err := fsx.CollectFiles(docPaths, s.shouldIgnore)
 	if err != nil {
 		return fmt.Errorf("failed to collect files: %w", err)
 	}
@@ -698,7 +702,7 @@ func (s *VectorStore) cleanupOrphanedDocuments(ctx context.Context, seenFiles ma
 
 func (s *VectorStore) addPathToWatcher(path string) error {
 	// Resolve path(s) using Processor (handles globs, directories, files)
-	files, err := chunk.CollectFiles([]string{path})
+	files, err := fsx.CollectFiles([]string{path}, s.shouldIgnore)
 	if err != nil {
 		return fmt.Errorf("failed to collect files for watching: %w", err)
 	}
@@ -776,13 +780,18 @@ func (s *VectorStore) watchLoop(ctx context.Context, docPaths []string) {
 		filesToReindex := make([]string, 0)
 		for _, file := range changedFiles {
 			// Check if the file matches any of the configured document paths/patterns
-			matches, matchErr := chunk.Matches(file, docPaths)
+			matches, matchErr := fsx.Matches(file, docPaths)
 			if matchErr != nil {
 				slog.Error("Failed to match path", "file", file, "error", matchErr)
 				continue
 			}
 			if !matches {
 				slog.Debug("File changed but does not match configured docs, ignoring", "path", file)
+				continue
+			}
+			// Check if the file should be ignored (e.g., gitignore)
+			if s.shouldIgnore != nil && s.shouldIgnore(file) {
+				slog.Debug("File changed but is ignored by filter, skipping", "path", file)
 				continue
 			}
 
@@ -860,12 +869,16 @@ func (s *VectorStore) watchLoop(ctx context.Context, docPaths []string) {
 			}
 
 			// Early filter: only track changes for files that match configured doc patterns
-			matches, err := chunk.Matches(event.Name, docPaths)
+			matches, err := fsx.Matches(event.Name, docPaths)
 			if err != nil {
 				slog.Debug("Could not match path against doc patterns", "path", event.Name, "error", err)
 				continue
 			}
 			if !matches {
+				continue
+			}
+			// Skip files that should be ignored (e.g., gitignore)
+			if s.shouldIgnore != nil && s.shouldIgnore(event.Name) {
 				continue
 			}
 
@@ -893,7 +906,7 @@ func (s *VectorStore) watchLoop(ctx context.Context, docPaths []string) {
 }
 
 func (s *VectorStore) cleanupOrphanedDocumentsFromDisk(ctx context.Context, docPaths []string) error {
-	files, err := chunk.CollectFiles(docPaths)
+	files, err := fsx.CollectFiles(docPaths, s.shouldIgnore)
 	if err != nil {
 		return fmt.Errorf("failed to collect files: %w", err)
 	}
