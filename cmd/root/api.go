@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -77,12 +78,11 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to resolve agent sources: %w", err)
 	}
-	s, err := server.New(sessionStore, &f.runConfig, sources)
+
+	s, err := server.New(ctx, sessionStore, &f.runConfig, time.Duration(f.pullIntervalMins)*time.Minute, sources)
 	if err != nil {
 		return fmt.Errorf("failed to create server: %w", err)
 	}
-
-	// TODO(rumpl): implement pull interval
 
 	return s.Serve(ctx, ln)
 }

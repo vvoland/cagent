@@ -22,42 +22,34 @@ import (
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/team"
-	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/tools"
 )
 
 type Server struct {
 	e              *echo.Echo
-	runtimes       *concurrent.Map[string, runtime.Runtime]
 	runtimeCancels *concurrent.Map[string, context.CancelFunc]
 	sessionStore   session.Store
 	runConfig      *config.RuntimeConfig
-	agentSources   config.Sources
+	sm             *sessionManager
 }
 
-type Opt func(*Server) error
-
-func New(sessionStore session.Store, runConfig *config.RuntimeConfig, agentSources config.Sources) (*Server, error) {
+func New(ctx context.Context, sessionStore session.Store, runConfig *config.RuntimeConfig, refreshInterval time.Duration, agentSources config.Sources) (*Server, error) {
 	e := echo.New()
 	e.Use(middleware.CORS())
 	e.Use(middleware.Logger())
 
 	s := &Server{
 		e:              e,
-		runtimes:       concurrent.NewMap[string, runtime.Runtime](),
 		runtimeCancels: concurrent.NewMap[string, context.CancelFunc](),
 		sessionStore:   sessionStore,
 		runConfig:      runConfig,
-		agentSources:   agentSources,
+		sm:             newSessionManager(ctx, agentSources, refreshInterval),
 	}
 
 	group := e.Group("/api")
 
 	// List all available agents
 	group.GET("/agents", s.getAgents)
-
-	// SESSIONS
 
 	// List all sessions
 	group.GET("/sessions", s.getSessions)
@@ -95,11 +87,9 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 	return nil
 }
 
-// API handlers
-
 func (s *Server) getAgents(c echo.Context) error {
 	agents := []api.Agent{}
-	for k, agentSource := range s.agentSources {
+	for k, agentSource := range s.sm.sources {
 		slog.Debug("API source", "source", agentSource.Name())
 
 		c, err := config.Load(c.Request().Context(), agentSource)
@@ -252,7 +242,7 @@ func (s *Server) resumeSession(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
 	}
 
-	rt, exists := s.runtimes.Load(sessionID)
+	rt, exists := s.sm.runtimes.Load(sessionID)
 	if !exists {
 		return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("runtime not found: %s", sessionID))
 	}
@@ -273,9 +263,9 @@ func (s *Server) deleteSession(c echo.Context) error {
 	}
 
 	// Clean up the runtime
-	if _, exists := s.runtimes.Load(sessionID); exists {
+	if _, exists := s.sm.runtimes.Load(sessionID); exists {
 		slog.Debug("Removing runtime for session", "session_id", sessionID)
-		s.runtimes.Delete(sessionID)
+		s.sm.runtimes.Delete(sessionID)
 	}
 
 	// Delete the session from storage
@@ -307,7 +297,7 @@ func (s *Server) runAgent(c echo.Context) error {
 	rc := s.runConfig.Clone()
 	rc.WorkingDir = sess.WorkingDir
 
-	rt, err := s.runtimeForSession(c.Request().Context(), sess, agentFilename, currentAgent, rc)
+	rt, err := s.sm.runtimeForSession(c.Request().Context(), sess, agentFilename, currentAgent, rc)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to get runtime for session: %v", err))
 	}
@@ -332,7 +322,6 @@ func (s *Server) runAgent(c echo.Context) error {
 	c.Response().Header().Set("Connection", "keep-alive")
 	c.Response().WriteHeader(http.StatusOK)
 
-	// Create a cancellable context for this stream
 	streamCtx, cancel := context.WithCancel(c.Request().Context())
 	s.runtimeCancels.Store(sess.ID, cancel)
 	defer func() {
@@ -356,48 +345,6 @@ func (s *Server) runAgent(c echo.Context) error {
 	return nil
 }
 
-func (s *Server) runtimeForSession(ctx context.Context, sess *session.Session, agentFilename, currentAgent string, runConfig *config.RuntimeConfig) (runtime.Runtime, error) {
-	rt, exists := s.runtimes.Load(sess.ID)
-	if exists {
-		return rt, nil
-	}
-
-	t, err := s.loadTeam(ctx, agentFilename, runConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	agent, err := t.Agent(currentAgent)
-	if err != nil {
-		return nil, echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("agent not found: %v", err))
-	}
-	sess.MaxIterations = agent.MaxIterations()
-
-	opts := []runtime.Opt{
-		runtime.WithCurrentAgent(currentAgent),
-		runtime.WithManagedOAuth(false),
-		runtime.WithRootSessionID(sess.ID),
-	}
-	rt, err = runtime.New(t, opts...)
-	if err != nil {
-		slog.Error("Failed to create runtime", "error", err)
-		return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to create runtime: %v", err))
-	}
-	s.runtimes.Store(sess.ID, rt)
-	slog.Debug("Runtime created for session", "session_id", sess.ID)
-
-	return rt, nil
-}
-
-func (s *Server) loadTeam(ctx context.Context, agentFilename string, runConfig *config.RuntimeConfig) (*team.Team, error) {
-	agentSource, found := s.agentSources[agentFilename]
-	if !found {
-		return nil, fmt.Errorf("agent not found: %s", agentFilename)
-	}
-
-	return teamloader.Load(ctx, agentSource, runConfig)
-}
-
 func (s *Server) elicitation(c echo.Context) error {
 	sessionID := c.Param("id")
 	var req api.ResumeElicitationRequest
@@ -405,7 +352,7 @@ func (s *Server) elicitation(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
 	}
 
-	rt, exists := s.runtimes.Load(sessionID)
+	rt, exists := s.sm.runtimes.Load(sessionID)
 	if !exists {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": fmt.Sprintf("runtime not found: %s", sessionID)})
 	}
