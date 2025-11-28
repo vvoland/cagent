@@ -974,6 +974,7 @@ models:
 |-------|------|-------------|
 | `docs` | []string | Document paths/directories (shared across strategies) |
 | `description` | string | Human-readable description |
+| `respect_vcs` | boolean | Whether to respect VCS ignore files like .gitignore (default: `true`) |
 | `strategies` | []object | Array of strategy configurations |
 | `results` | object | Post-processing configuration |
 
@@ -983,6 +984,7 @@ models:
 - `database`: Database configuration (path to local sqlite db)
 - `chunking`: Chunking configuration
 - `limit`: Max results from this strategy (for fusion)
+- `respect_vcs`: Override RAG-level VCS ignore setting for this strategy only (optional)
 
 **Chunked-Embeddings Strategy Parameters:**
 - `model` (required): Embedding model reference

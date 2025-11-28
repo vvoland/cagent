@@ -47,6 +47,7 @@ func NewManagers(
 			Models:        buildCfg.Models,
 			Env:           buildCfg.Env,
 			ModelsGateway: buildCfg.ModelsGateway,
+			RespectVCS:    ragCfg.GetRespectVCS(),
 		}
 
 		strategyConfigs, strategyEvents, err := buildStrategyConfigs(ctx, ragCfg, strategyBuildCtx, ragName)

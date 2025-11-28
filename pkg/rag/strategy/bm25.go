@@ -14,6 +14,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 
 	"github.com/docker/cagent/pkg/config/latest"
+	"github.com/docker/cagent/pkg/fsx"
 	"github.com/docker/cagent/pkg/rag/chunk"
 	"github.com/docker/cagent/pkg/rag/database"
 	"github.com/docker/cagent/pkg/rag/treesitter"
@@ -69,6 +70,7 @@ func NewBM25FromConfig(_ context.Context, cfg latest.RAGStrategyConfig, buildCtx
 		k1,
 		bParam,
 		chunkingCfg,
+		BuildShouldIgnore(buildCtx, cfg.Params),
 	)
 
 	return &Config{
@@ -91,6 +93,7 @@ type BM25Strategy struct {
 	watcher      *fsnotify.Watcher
 	watcherMu    sync.Mutex
 	events       chan<- types.Event
+	shouldIgnore func(path string) bool // Optional filter for gitignore support
 
 	// BM25 parameters
 	k1           float64 // term frequency saturation parameter (typically 1.2 to 2.0)
@@ -100,7 +103,7 @@ type BM25Strategy struct {
 }
 
 // newBM25Strategy creates a new BM25-based retrieval strategy
-func newBM25Strategy(name string, db *bm25DB, events chan<- types.Event, k1, b float64, chunking ChunkingConfig) *BM25Strategy {
+func newBM25Strategy(name string, db *bm25DB, events chan<- types.Event, k1, b float64, chunking ChunkingConfig, shouldIgnore func(string) bool) *BM25Strategy {
 	// Create the appropriate document processor based on config
 	var dp chunk.DocumentProcessor
 	if chunking.CodeAware {
@@ -115,6 +118,7 @@ func newBM25Strategy(name string, db *bm25DB, events chan<- types.Event, k1, b f
 		docProcessor: dp,
 		fileHashes:   make(map[string]string),
 		events:       events,
+		shouldIgnore: shouldIgnore,
 		k1:           k1,
 		b:            b,
 	}
@@ -137,7 +141,7 @@ func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunki
 
 	// Collect all files
 	slog.Debug("Collecting files", "strategy", s.name, "paths", docPaths)
-	files, err := chunk.CollectFiles(docPaths)
+	files, err := fsx.CollectFiles(docPaths, s.shouldIgnore)
 	if err != nil {
 		s.emitEvent(types.Event{Type: types.EventTypeError, Error: err})
 		return fmt.Errorf("failed to collect files: %w", err)
@@ -289,7 +293,7 @@ func (s *BM25Strategy) Query(ctx context.Context, query string, numResults int, 
 
 // CheckAndReindexChangedFiles checks for file changes and re-indexes if needed
 func (s *BM25Strategy) CheckAndReindexChangedFiles(ctx context.Context, docPaths []string, chunking ChunkingConfig) error {
-	files, err := chunk.CollectFiles(docPaths)
+	files, err := fsx.CollectFiles(docPaths, s.shouldIgnore)
 	if err != nil {
 		return fmt.Errorf("failed to collect files: %w", err)
 	}
@@ -610,7 +614,7 @@ func (s *BM25Strategy) addPathToWatcher(path string) error {
 	}
 
 	if stat.IsDir() {
-		files, err := chunk.CollectFiles([]string{absPath})
+		files, err := fsx.CollectFiles([]string{absPath}, s.shouldIgnore)
 		if err != nil {
 			return fmt.Errorf("failed to collect files: %w", err)
 		}
@@ -649,12 +653,17 @@ func (s *BM25Strategy) watchLoop(ctx context.Context, docPaths []string) {
 
 		for _, file := range changedFiles {
 			// Check if the file matches any of the configured document paths/patterns
-			matches, matchErr := chunk.Matches(file, docPaths)
+			matches, matchErr := fsx.Matches(file, docPaths)
 			if matchErr != nil {
 				slog.Error("Failed to match path", "file", file, "error", matchErr)
 				continue
 			}
 			if !matches {
+				continue
+			}
+			// Check if the file should be ignored (e.g., gitignore)
+			if s.shouldIgnore != nil && s.shouldIgnore(file) {
+				slog.Debug("File changed but is ignored by filter, skipping", "path", file)
 				continue
 			}
 
@@ -696,8 +705,12 @@ func (s *BM25Strategy) watchLoop(ctx context.Context, docPaths []string) {
 			}
 
 			// Early filter: only track changes for files that match configured doc patterns
-			matches, err := chunk.Matches(event.Name, docPaths)
+			matches, err := fsx.Matches(event.Name, docPaths)
 			if err != nil || !matches {
+				continue
+			}
+			// Skip files that should be ignored (e.g., gitignore)
+			if s.shouldIgnore != nil && s.shouldIgnore(event.Name) {
 				continue
 			}
 

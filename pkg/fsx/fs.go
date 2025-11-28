@@ -58,26 +58,29 @@ func DirectoryTree(path string, isPathAllowed func(string) error, shouldIgnore f
 }
 
 func ListDirectory(path string, maxDepth int, shouldIgnore func(string) bool) ([]string, error) {
-	var files []string
-
 	tree, err := DirectoryTree(path, func(string) error { return nil }, shouldIgnore, maxDepth, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	var traverse func(node *TreeNode, currentPath string)
-	traverse = func(node *TreeNode, currentPath string) {
-		newPath := filepath.Join(currentPath, node.Name)
-		switch node.Type {
-		case "file":
-			files = append(files, newPath)
-		case "directory":
-			for _, child := range node.Children {
-				traverse(child, newPath)
-			}
+	var files []string
+	CollectFilesFromTree(tree, "", &files)
+	return files, nil
+}
+
+// CollectFilesFromTree recursively collects file paths from a DirectoryTree.
+// Pass basePath="" for relative paths, or a parent directory for absolute paths.
+func CollectFilesFromTree(node *TreeNode, basePath string, files *[]string) {
+	if node == nil {
+		return
+	}
+	fullPath := filepath.Join(basePath, node.Name)
+	switch node.Type {
+	case "file":
+		*files = append(*files, fullPath)
+	case "directory":
+		for _, child := range node.Children {
+			CollectFilesFromTree(child, fullPath, files)
 		}
 	}
-
-	traverse(tree, "")
-	return files, nil
 }
