@@ -53,7 +53,12 @@ COPY . ./
 RUN --mount=type=cache,target=/root/.cache,id=docker-ai-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod <<EOT
     set -ex
-    CC="zig cc -target x86_64-windows-gnu" CXX="zig c++ -target x86_64-windows-gnu" xx-go build -trimpath -ldflags "-s -w -X 'github.com/docker/cagent/pkg/version.Version=$GIT_TAG' -X 'github.com/docker/cagent/pkg/version.Commit=$GIT_COMMIT'" -o /binaries/cagent-$TARGETOS-$TARGETARCH .
+    if [ "$TARGETARCH" = "arm64" ]; then
+        ZIG_TARGET="aarch64-windows-gnu"
+    else
+        ZIG_TARGET="x86_64-windows-gnu"
+    fi
+    CC="zig cc -target $ZIG_TARGET" CXX="zig c++ -target $ZIG_TARGET" xx-go build -trimpath -ldflags "-s -w -X 'github.com/docker/cagent/pkg/version.Version=$GIT_TAG' -X 'github.com/docker/cagent/pkg/version.Commit=$GIT_COMMIT'" -o /binaries/cagent-$TARGETOS-$TARGETARCH .
     mv /binaries/cagent-$TARGETOS-$TARGETARCH /binaries/cagent-$TARGETOS-$TARGETARCH.exe
     xx-verify --static /binaries/cagent-windows-$TARGETARCH.exe
 EOT
