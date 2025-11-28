@@ -62,7 +62,7 @@ func (t *MemoryTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Add a new memory to the database",
 			Parameters:   tools.MustSchemaFor[AddMemoryArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handleAddMemory,
+			Handler:      NewHandler(t.handleAddMemory),
 			Annotations: tools.ToolAnnotations{
 				Title: "Add Memory",
 			},
@@ -72,7 +72,7 @@ func (t *MemoryTool) Tools(context.Context) ([]tools.Tool, error) {
 			Category:     "memory",
 			Description:  "Retrieve all stored memories",
 			OutputSchema: tools.MustSchemaFor[[]database.UserMemory](),
-			Handler:      t.handleGetMemories,
+			Handler:      NewHandler(t.handleGetMemories),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "Get Memories",
@@ -84,7 +84,7 @@ func (t *MemoryTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Delete a specific memory by ID",
 			Parameters:   tools.MustSchemaFor[DeleteMemoryArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handleDeleteMemory,
+			Handler:      NewHandler(t.handleDeleteMemory),
 			Annotations: tools.ToolAnnotations{
 				Title: "Delete Memory",
 			},
@@ -92,12 +92,7 @@ func (t *MemoryTool) Tools(context.Context) ([]tools.Tool, error) {
 	}, nil
 }
 
-func (t *MemoryTool) handleAddMemory(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args AddMemoryArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-		return nil, fmt.Errorf("failed to parse arguments: %w", err)
-	}
-
+func (t *MemoryTool) handleAddMemory(ctx context.Context, args AddMemoryArgs) (*tools.ToolCallResult, error) {
 	memory := database.UserMemory{
 		ID:        fmt.Sprintf("%d", time.Now().UnixNano()),
 		CreatedAt: time.Now().Format(time.RFC3339),
@@ -113,7 +108,7 @@ func (t *MemoryTool) handleAddMemory(ctx context.Context, toolCall tools.ToolCal
 	}, nil
 }
 
-func (t *MemoryTool) handleGetMemories(ctx context.Context, _ tools.ToolCall) (*tools.ToolCallResult, error) {
+func (t *MemoryTool) handleGetMemories(ctx context.Context, _ map[string]any) (*tools.ToolCallResult, error) {
 	memories, err := t.db.GetMemories(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get memories: %w", err)
@@ -129,12 +124,7 @@ func (t *MemoryTool) handleGetMemories(ctx context.Context, _ tools.ToolCall) (*
 	}, nil
 }
 
-func (t *MemoryTool) handleDeleteMemory(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args DeleteMemoryArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-		return nil, fmt.Errorf("failed to parse arguments: %w", err)
-	}
-
+func (t *MemoryTool) handleDeleteMemory(ctx context.Context, args DeleteMemoryArgs) (*tools.ToolCallResult, error) {
 	memory := database.UserMemory{
 		ID: args.ID,
 	}
