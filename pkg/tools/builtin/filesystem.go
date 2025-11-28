@@ -422,7 +422,7 @@ func (t *FilesystemTool) handleDirectoryTree(_ context.Context, toolCall tools.T
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
 	}
 
-	tree, err := fsx.DirectoryTree(args.Path, t.isPathAllowed, t.shouldIgnorePath, args.MaxDepth, 0)
+	tree, err := fsx.DirectoryTree(args.Path, t.isPathAllowed, t.shouldIgnorePath, args.MaxDepth)
 	if err != nil {
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error building directory tree: %s", err)}, nil
 	}
