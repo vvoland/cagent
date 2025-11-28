@@ -27,6 +27,11 @@ func (c *Client) createBetaStream(
 	requestTools []tools.Tool,
 	maxTokens int64,
 ) (chat.MessageStream, error) {
+	maxTokens, err := c.adjustMaxTokensForThinking(maxTokens)
+	if err != nil {
+		return nil, err
+	}
+
 	allTools, err := convertBetaTools(requestTools)
 	if err != nil {
 		slog.Error("Failed to convert tools for Anthropic Beta request", "error", err)

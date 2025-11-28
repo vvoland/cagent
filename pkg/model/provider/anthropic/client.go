@@ -29,6 +29,40 @@ type Client struct {
 	clientFn func(context.Context) (anthropic.Client, error)
 }
 
+// adjustMaxTokensForThinking checks if max_tokens needs adjustment for thinking_budget.
+// Anthropic's max_tokens represents the combined budget for thinking + output tokens.
+// Returns the adjusted maxTokens value and an error if user-set max_tokens is too low.
+func (c *Client) adjustMaxTokensForThinking(maxTokens int64) (int64, error) {
+	if c.ModelConfig.ThinkingBudget == nil || c.ModelConfig.ThinkingBudget.Tokens <= 0 {
+		return maxTokens, nil
+	}
+
+	thinkingTokens := int64(c.ModelConfig.ThinkingBudget.Tokens)
+	minRequired := thinkingTokens + 1024 // configured thinking budget + minimum output buffer
+
+	if maxTokens <= thinkingTokens {
+		userSetMaxTokens := c.ModelConfig.MaxTokens > 0
+		if userSetMaxTokens {
+			// User explicitly set max_tokens too low - return error
+			slog.Error("Anthropic: max_tokens must be greater than thinking_budget",
+				"max_tokens", maxTokens,
+				"thinking_budget", thinkingTokens)
+			return 0, fmt.Errorf("anthropic: max_tokens (%d) must be greater than thinking_budget (%d); increase max_tokens to at least %d",
+				maxTokens, thinkingTokens, minRequired)
+		}
+		// Auto-adjust when user didn't set max_tokens
+		slog.Info("Anthropic: auto-adjusting max_tokens to accommodate thinking_budget",
+			"original_max_tokens", maxTokens,
+			"thinking_budget", thinkingTokens,
+			"new_max_tokens", minRequired)
+		// return the configured thinking budget + 8192 because that's the default
+		// max_tokens value for anthropic models when unspecified by the user
+		return thinkingTokens + 8192, nil
+	}
+
+	return maxTokens, nil
+}
+
 // interleavedThinkingEnabled returns false unless explicitly enabled via
 // models:provider_opts:interleaved_thinking: true
 func (c *Client) interleavedThinkingEnabled() bool {
@@ -164,6 +198,11 @@ func (c *Client) CreateChatCompletionStream(
 		maxTokens = 8192 // Default output budget when not specified
 	}
 
+	maxTokens, err := c.adjustMaxTokensForThinking(maxTokens)
+	if err != nil {
+		return nil, err
+	}
+
 	client, err := c.clientFn(ctx)
 	if err != nil {
 		slog.Error("Failed to create Anthropic client", "error", err)
@@ -203,30 +242,38 @@ func (c *Client) CreateChatCompletionStream(
 		Tools:     allTools,
 	}
 
-	if c.ModelConfig.Temperature != nil {
-		params.Temperature = param.NewOpt(*c.ModelConfig.Temperature)
-	}
-	if c.ModelConfig.TopP != nil {
-		params.TopP = param.NewOpt(*c.ModelConfig.TopP)
-	}
-
 	// Populate proper Anthropic system prompt from input messages
 	if len(sys) > 0 {
 		params.System = sys
 	}
 
-	// Apply thinking budget
+	// Apply thinking budget first, as it affects whether we can set temperature
+	thinkingEnabled := false
 	if c.ModelConfig.ThinkingBudget != nil && c.ModelConfig.ThinkingBudget.Tokens > 0 {
 		thinkingTokens := int64(c.ModelConfig.ThinkingBudget.Tokens)
 		switch {
 		case thinkingTokens >= 1024 && thinkingTokens < maxTokens:
 			params.Thinking = anthropic.ThinkingConfigParamOfEnabled(thinkingTokens)
+			thinkingEnabled = true
 			slog.Debug("Anthropic API using thinking_budget (standard messages)", "budget_tokens", thinkingTokens)
 		case thinkingTokens >= maxTokens:
 			slog.Warn("Anthropic thinking_budget must be less than max_tokens, ignoring", "tokens", thinkingTokens, "max_tokens", maxTokens)
 		default:
 			slog.Warn("Anthropic thinking_budget below minimum (1024), ignoring", "tokens", thinkingTokens)
 		}
+	}
+
+	// Temperature and TopP cannot be set when extended thinking is enabled
+	// (Anthropic requires temperature=1.0 which is the default when thinking is on)
+	if !thinkingEnabled {
+		if c.ModelConfig.Temperature != nil {
+			params.Temperature = param.NewOpt(*c.ModelConfig.Temperature)
+		}
+		if c.ModelConfig.TopP != nil {
+			params.TopP = param.NewOpt(*c.ModelConfig.TopP)
+		}
+	} else if c.ModelConfig.Temperature != nil || c.ModelConfig.TopP != nil {
+		slog.Debug("Anthropic extended thinking enabled, ignoring temperature/top_p settings")
 	}
 
 	if len(requestTools) > 0 {
