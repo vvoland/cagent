@@ -9,11 +9,21 @@ type Document struct {
 	ChunkIndex int               // Position of this chunk within the source document (0-based)
 }
 
+type EventTye string
+
+const (
+	EventTypeIndexingStarted  EventTye = "indexing_started"
+	EventTypeIndexingProgress EventTye = "indexing_progress"
+	EventTypeIndexingComplete EventTye = "indexing_complete"
+	EventTypeUsage            EventTye = "usage"
+	EventTypeError            EventTye = "error"
+)
+
 // Event represents a RAG operation lifecycle event.
 // This is the canonical RAG event type used by strategies, reranking, fusion,
 // the RAG manager, and the runtime.
 type Event struct {
-	Type         string
+	Type         EventTye
 	StrategyName string // Name of the component emitting the event (strategy name, "reranker", "fusion", etc.)
 	Message      string
 	Progress     *Progress

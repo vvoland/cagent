@@ -139,7 +139,7 @@ func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunki
 	slog.Debug("Collecting files", "strategy", s.name, "paths", docPaths)
 	files, err := chunk.CollectFiles(docPaths)
 	if err != nil {
-		s.emitEvent(types.Event{Type: "error", Error: err})
+		s.emitEvent(types.Event{Type: types.EventTypeError, Error: err})
 		return fmt.Errorf("failed to collect files: %w", err)
 	}
 
@@ -188,7 +188,7 @@ func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunki
 		return nil
 	}
 
-	s.emitEvent(types.Event{Type: "indexing_started"})
+	s.emitEvent(types.Event{Type: types.EventTypeIndexingStarted})
 
 	indexed := 0
 	for _, status := range fileStatuses {
@@ -205,7 +205,7 @@ func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunki
 		indexed++
 
 		s.emitEvent(types.Event{
-			Type: "indexing_progress",
+			Type: types.EventTypeIndexingProgress,
 			Progress: &types.Progress{
 				Current: indexed,
 				Total:   filesToIndex,
@@ -227,7 +227,7 @@ func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunki
 		slog.Error("Failed to calculate average document length", "error", err)
 	}
 
-	s.emitEvent(types.Event{Type: "indexing_completed"})
+	s.emitEvent(types.Event{Type: types.EventTypeIndexingComplete})
 
 	slog.Info("BM25 strategy initialization completed",
 		"name", s.name,
