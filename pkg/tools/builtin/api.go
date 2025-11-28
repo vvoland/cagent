@@ -88,7 +88,7 @@ func (h *apiHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*to
 		return nil, fmt.Errorf("failed to read response body: %v", err)
 	}
 
-	return &tools.ToolCallResult{Output: string(body)}, nil
+	return &tools.ToolCallResult{Output: limitOutput(string(body))}, nil
 }
 
 type APIToolOption func(*APITool)

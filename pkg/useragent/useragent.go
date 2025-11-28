@@ -7,6 +7,4 @@ import (
 	"github.com/docker/cagent/pkg/version"
 )
 
-var (
-	Header = fmt.Sprintf("Cagent/%s (%s; %s)", version.Version, runtime.GOOS, runtime.GOARCH)
-)
+var Header = fmt.Sprintf("Cagent/%s (%s; %s)", version.Version, runtime.GOOS, runtime.GOARCH)

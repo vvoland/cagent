@@ -200,15 +200,12 @@ func (h *shellHandler) RunShell(ctx context.Context, toolCall tools.ToolCall) (*
 		}
 	}
 
-	if len(output) > maxOutputSize {
-		output = output[:maxOutputSize] + "\n\n[Output truncated: exceeded 30,000 character limit]"
-	}
 	if strings.TrimSpace(output) == "" {
 		output = "<no output>"
 	}
 
 	return &tools.ToolCallResult{
-		Output: output,
+		Output: limitOutput(output),
 	}, nil
 }
 
