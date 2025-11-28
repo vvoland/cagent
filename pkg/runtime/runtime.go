@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -130,9 +131,8 @@ type LocalRuntime struct {
 	elicitationRequestCh        chan ElicitationResult // Channel for receiving elicitation responses
 	elicitationEventsChannel    chan Event             // Current events channel for sending elicitation requests
 	elicitationEventsChannelMux sync.RWMutex           // Protects elicitationEventsChannel
-	ragInitialized              bool                   // Track if RAG was initialized early
-	ragInitMux                  sync.Mutex             // Protects ragInitialized
-	titleGenerationWg           sync.WaitGroup         // Wait group for title generation
+	ragInitialized              atomic.Bool
+	titleGenerationWg           sync.WaitGroup // Wait group for title generation
 }
 
 type streamResult struct {
@@ -218,19 +218,14 @@ func New(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 // StartBackgroundRAGInit initializes RAG in background and forwards events
 // Should be called early (e.g., by App) to start indexing before RunStream
 func (r *LocalRuntime) StartBackgroundRAGInit(ctx context.Context, sendEvent func(Event)) {
+	if r.ragInitialized.Swap(true) {
+		return
+	}
+
 	ragManagers := r.team.RAGManagers()
 	if len(ragManagers) == 0 {
 		return
 	}
-
-	// Check if already initialized
-	r.ragInitMux.Lock()
-	if r.ragInitialized {
-		r.ragInitMux.Unlock()
-		return
-	}
-	r.ragInitialized = true
-	r.ragInitMux.Unlock()
 
 	slog.Debug("Starting background RAG initialization with event forwarding", "manager_count", len(ragManagers))
 
@@ -301,13 +296,9 @@ func (r *LocalRuntime) forwardRAGEvents(ctx context.Context, ragManagers map[str
 // InitializeRAG is called within RunStream as a fallback when background init wasn't used
 // (e.g., for exec command or API mode where there's no App)
 func (r *LocalRuntime) InitializeRAG(ctx context.Context, events chan Event) {
-	r.ragInitMux.Lock()
-	alreadyInit := r.ragInitialized
-	r.ragInitMux.Unlock()
-
 	// If already initialized via StartBackgroundRAGInit, skip entirely
 	// Event forwarding was already set up there
-	if alreadyInit {
+	if r.ragInitialized.Swap(true) {
 		slog.Debug("RAG already initialized, event forwarding already active", "manager_count", len(r.team.RAGManagers()))
 		return
 	}
@@ -318,11 +309,6 @@ func (r *LocalRuntime) InitializeRAG(ctx context.Context, events chan Event) {
 	}
 
 	slog.Debug("Setting up RAG initialization (fallback path for non-TUI)", "manager_count", len(ragManagers))
-
-	// Mark as initialized
-	r.ragInitMux.Lock()
-	r.ragInitialized = true
-	r.ragInitMux.Unlock()
 
 	// Set up event forwarding BEFORE starting initialization
 	r.forwardRAGEvents(ctx, ragManagers, func(event Event) {
