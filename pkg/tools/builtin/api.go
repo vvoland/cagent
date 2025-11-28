@@ -13,6 +13,7 @@ import (
 	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/js"
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/useragent"
 )
 
 type APITool struct {
@@ -66,7 +67,7 @@ func (h *apiHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*to
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
 
-	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("User-Agent", useragent.Header)
 	if h.config.Method == http.MethodPost {
 		req.Header.Set("Content-Type", "application/json")
 	}
