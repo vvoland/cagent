@@ -190,14 +190,14 @@ type TokenUsageEvent struct {
 }
 
 type Usage struct {
-	InputTokens   int     `json:"input_tokens"`
-	OutputTokens  int     `json:"output_tokens"`
-	ContextLength int     `json:"context_length"`
-	ContextLimit  int     `json:"context_limit"`
+	InputTokens   int64   `json:"input_tokens"`
+	OutputTokens  int64   `json:"output_tokens"`
+	ContextLength int64   `json:"context_length"`
+	ContextLimit  int64   `json:"context_limit"`
 	Cost          float64 `json:"cost"`
 }
 
-func TokenUsage(sessionID, agentName string, inputTokens, outputTokens, contextLength, contextLimit int, cost float64) Event {
+func TokenUsage(sessionID, agentName string, inputTokens, outputTokens, contextLength, contextLimit int64, cost float64) Event {
 	return &TokenUsageEvent{
 		Type:      "token_usage",
 		SessionID: sessionID,

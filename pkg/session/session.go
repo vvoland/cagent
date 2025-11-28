@@ -65,8 +65,8 @@ type Session struct {
 	// If 0, there is no limit
 	MaxIterations int `json:"max_iterations"`
 
-	InputTokens  int     `json:"input_tokens"`
-	OutputTokens int     `json:"output_tokens"`
+	InputTokens  int64   `json:"input_tokens"`
+	OutputTokens int64   `json:"output_tokens"`
 	Cost         float64 `json:"cost"`
 }
 

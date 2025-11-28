@@ -56,7 +56,7 @@ type VectorStore struct {
 
 	similarityMetric string
 
-	indexingTokens int // Track tokens used during indexing
+	indexingTokens int64 // Track tokens used during indexing
 	indexingCost   float64
 
 	modelID     string // Full model ID (e.g., "openai/text-embedding-3-small") for pricing lookup
@@ -135,7 +135,7 @@ func NewVectorStore(cfg VectorStoreConfig) *VectorStore {
 
 	// Set usage handler to calculate cost from models.dev and emit events with CUMULATIVE totals
 	// This matches how chat completions calculate cost in runtime.go
-	cfg.Embedder.SetUsageHandler(func(tokens int, _ float64) {
+	cfg.Embedder.SetUsageHandler(func(tokens int64, _ float64) {
 		cost := s.calculateCost(context.Background(), tokens)
 		s.recordUsage(tokens, cost)
 	})
@@ -155,7 +155,7 @@ func (s *VectorStore) SetEmbeddingInputBuilder(builder EmbeddingInputBuilder) {
 }
 
 // calculateCost calculates embedding cost using models.dev pricing
-func (s *VectorStore) calculateCost(ctx context.Context, tokens int) float64 {
+func (s *VectorStore) calculateCost(ctx context.Context, tokens int64) float64 {
 	if s.modelsStore == nil || strings.HasPrefix(s.modelID, "dmr/") {
 		return 0
 	}
@@ -179,11 +179,11 @@ func (s *VectorStore) calculateCost(ctx context.Context, tokens int) float64 {
 
 // RecordUsage records usage and emits a usage event with cumulative totals.
 // This is exported so strategies can track additional usage (e.g., semantic LLM calls).
-func (s *VectorStore) RecordUsage(tokens int, cost float64) {
+func (s *VectorStore) RecordUsage(tokens int64, cost float64) {
 	s.recordUsage(tokens, cost)
 }
 
-func (s *VectorStore) recordUsage(tokens int, cost float64) {
+func (s *VectorStore) recordUsage(tokens int64, cost float64) {
 	if tokens == 0 && cost == 0 {
 		return
 	}
@@ -460,7 +460,7 @@ func (s *VectorStore) Close() error {
 }
 
 // GetIndexingUsage returns usage statistics from indexing
-func (s *VectorStore) GetIndexingUsage() (tokens int, cost float64) {
+func (s *VectorStore) GetIndexingUsage() (tokens int64, cost float64) {
 	return s.indexingTokens, s.indexingCost
 }
 

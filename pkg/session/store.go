@@ -136,12 +136,12 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 		return nil, err
 	}
 
-	inputTokens, err := strconv.Atoi(inputTokensStr)
+	inputTokens, err := strconv.ParseInt(inputTokensStr, 10, 64)
 	if err != nil {
 		return nil, err
 	}
 
-	outputTokens, err := strconv.Atoi(outputTokensStr)
+	outputTokens, err := strconv.ParseInt(outputTokensStr, 10, 64)
 	if err != nil {
 		return nil, err
 	}
@@ -223,12 +223,12 @@ func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error
 			return nil, err
 		}
 
-		inputTokens, err := strconv.Atoi(inputTokensStr)
+		inputTokens, err := strconv.ParseInt(inputTokensStr, 10, 64)
 		if err != nil {
 			return nil, err
 		}
 
-		outputTokens, err := strconv.Atoi(outputTokensStr)
+		outputTokens, err := strconv.ParseInt(outputTokensStr, 10, 64)
 		if err != nil {
 			return nil, err
 		}

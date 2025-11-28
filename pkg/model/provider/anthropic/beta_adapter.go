@@ -112,10 +112,10 @@ func (a *betaStreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		}
 	case anthropic.BetaRawMessageDeltaEvent:
 		response.Usage = &chat.Usage{
-			InputTokens:        int(eventVariant.Usage.InputTokens),
-			OutputTokens:       int(eventVariant.Usage.OutputTokens),
-			CachedInputTokens:  int(eventVariant.Usage.CacheReadInputTokens),
-			CachedOutputTokens: int(eventVariant.Usage.CacheCreationInputTokens),
+			InputTokens:       eventVariant.Usage.InputTokens,
+			OutputTokens:      eventVariant.Usage.OutputTokens,
+			CachedInputTokens: eventVariant.Usage.CacheReadInputTokens,
+			CacheWriteTokens:  eventVariant.Usage.CacheCreationInputTokens,
 		}
 	case anthropic.BetaRawMessageStopEvent:
 		if a.toolCall {

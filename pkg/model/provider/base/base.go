@@ -26,15 +26,15 @@ func (c *Config) BaseConfig() Config {
 // EmbeddingResult contains the embedding and usage information
 type EmbeddingResult struct {
 	Embedding   []float64
-	InputTokens int
-	TotalTokens int
+	InputTokens int64
+	TotalTokens int64
 	Cost        float64
 }
 
 // BatchEmbeddingResult contains multiple embeddings and usage information
 type BatchEmbeddingResult struct {
 	Embeddings  [][]float64
-	InputTokens int
-	TotalTokens int
+	InputTokens int64
+	TotalTokens int64
 	Cost        float64
 }

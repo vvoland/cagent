@@ -210,8 +210,9 @@ func (a *ResponseStreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		u := event.Response.Usage
 		if u.TotalTokens > 0 {
 			response.Usage = &chat.Usage{
-				InputTokens:  int(u.InputTokens),
-				OutputTokens: int(u.OutputTokens),
+				InputTokens:       u.InputTokens - u.InputTokensDetails.CachedTokens,
+				OutputTokens:      u.OutputTokens,
+				CachedInputTokens: u.InputTokensDetails.CachedTokens,
 			}
 		}
 		// Check if there were any tool calls in the output

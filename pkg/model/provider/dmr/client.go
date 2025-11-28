@@ -634,8 +634,8 @@ func (c *Client) CreateEmbedding(ctx context.Context, text string) (*base.Embedd
 	copy(embedding, embedding32)
 
 	// Extract usage information
-	inputTokens := int(response.Usage.PromptTokens)
-	totalTokens := int(response.Usage.TotalTokens)
+	inputTokens := response.Usage.PromptTokens
+	totalTokens := response.Usage.TotalTokens
 
 	// DMR is local/free, so cost is 0
 	cost := 0.0
@@ -657,10 +657,7 @@ func (c *Client) CreateEmbedding(ctx context.Context, text string) (*base.Embedd
 func (c *Client) CreateBatchEmbedding(ctx context.Context, texts []string) (*base.BatchEmbeddingResult, error) {
 	if len(texts) == 0 {
 		return &base.BatchEmbeddingResult{
-			Embeddings:  [][]float64{},
-			InputTokens: 0,
-			TotalTokens: 0,
-			Cost:        0,
+			Embeddings: [][]float64{},
 		}, nil
 	}
 
@@ -693,8 +690,8 @@ func (c *Client) CreateBatchEmbedding(ctx context.Context, texts []string) (*bas
 	}
 
 	// Extract usage information
-	inputTokens := int(response.Usage.PromptTokens)
-	totalTokens := int(response.Usage.TotalTokens)
+	inputTokens := response.Usage.PromptTokens
+	totalTokens := response.Usage.TotalTokens
 
 	// DMR is local/free, so cost is 0
 	cost := 0.0

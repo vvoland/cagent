@@ -710,14 +710,14 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				slog.Debug("Skipping empty assistant message (no content and no tool calls)", "agent", a.Name())
 			}
 
-			contextLimit := 0
+			var contextLimit int64
 			if m != nil {
-				contextLimit = m.Limit.Context
+				contextLimit = int64(m.Limit.Context)
 			}
 			events <- TokenUsage(sess.ID, r.currentAgent, sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.Cost)
 
 			if m != nil && r.sessionCompaction {
-				if sess.InputTokens+sess.OutputTokens > int(float64(contextLimit)*0.9) {
+				if sess.InputTokens+sess.OutputTokens > int64(float64(contextLimit)*0.9) {
 					// Avoid inserting a summary between assistant tool_use and tool_result messages.
 					// Defer compaction until after tool calls are processed in this iteration.
 					if len(res.Calls) == 0 {
@@ -734,7 +734,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			// If tool_use occurred, perform compaction after tool results are appended
 			// to avoid splitting assistant tool_use and user tool_result adjacency.
 			if m != nil && r.sessionCompaction && len(res.Calls) > 0 {
-				if sess.InputTokens+sess.OutputTokens > int(float64(contextLimit)*0.9) {
+				if sess.InputTokens+sess.OutputTokens > int64(float64(contextLimit)*0.9) {
 					events <- SessionCompaction(sess.ID, "start", r.currentAgent)
 					r.Summarize(ctx, sess, events)
 					events <- TokenUsage(sess.ID, r.currentAgent, sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.Cost)
@@ -879,20 +879,21 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 
 		if response.Usage != nil {
 			if m != nil {
-				sess.Cost += (float64(response.Usage.InputTokens)*m.Cost.Input +
-					float64(response.Usage.OutputTokens+response.Usage.ReasoningTokens)*m.Cost.Output +
+				cost := float64(response.Usage.InputTokens)*m.Cost.Input +
+					float64(response.Usage.OutputTokens)*m.Cost.Output +
 					float64(response.Usage.CachedInputTokens)*m.Cost.CacheRead +
-					float64(response.Usage.CachedOutputTokens)*m.Cost.CacheWrite) / 1e6
+					float64(response.Usage.CacheWriteTokens)*m.Cost.CacheWrite
+				sess.Cost += cost / 1e6
 			}
 
-			sess.InputTokens = response.Usage.InputTokens + response.Usage.CachedInputTokens
-			sess.OutputTokens = response.Usage.OutputTokens + response.Usage.CachedOutputTokens + response.Usage.ReasoningTokens
+			sess.InputTokens = response.Usage.InputTokens + response.Usage.CachedInputTokens + response.Usage.CacheWriteTokens
+			sess.OutputTokens = response.Usage.OutputTokens
 
 			modelName := "unknown"
 			if m != nil {
 				modelName = m.Name
 			}
-			telemetry.RecordTokenUsage(ctx, modelName, int64(response.Usage.InputTokens), int64(response.Usage.OutputTokens+response.Usage.ReasoningTokens), sess.Cost)
+			telemetry.RecordTokenUsage(ctx, modelName, sess.InputTokens, sess.OutputTokens, sess.Cost)
 		}
 
 		if len(response.Choices) == 0 {

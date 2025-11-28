@@ -14,9 +14,9 @@ import (
 // Embedder generates vector embeddings for text
 type Embedder struct {
 	provider       provider.Provider
-	usageHandler   func(tokens int, cost float64) // Callback to emit usage events
-	batchSize      int                            // Batch size for API calls
-	maxConcurrency int                            // Maximum concurrent embedding batch requests
+	usageHandler   func(tokens int64, cost float64) // Callback to emit usage events
+	batchSize      int                              // Batch size for API calls
+	maxConcurrency int                              // Maximum concurrent embedding batch requests
 }
 
 // Option is a functional option for configuring the Embedder
@@ -52,7 +52,7 @@ func New(p provider.Provider, opts ...Option) *Embedder {
 }
 
 // SetUsageHandler sets a callback to be called after each embedding with usage info
-func (e *Embedder) SetUsageHandler(handler func(tokens int, cost float64)) {
+func (e *Embedder) SetUsageHandler(handler func(tokens int64, cost float64)) {
 	e.usageHandler = handler
 }
 
