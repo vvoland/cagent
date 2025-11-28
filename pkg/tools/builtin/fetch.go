@@ -33,17 +33,13 @@ type fetchHandler struct {
 	timeout time.Duration
 }
 
-func (h *fetchHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var params struct {
-		URLs    []string `json:"urls"`
-		Timeout int      `json:"timeout,omitempty"`
-		Format  string   `json:"format,omitempty"`
-	}
+type FetchToolArgs struct {
+	URLs    []string `json:"urls"`
+	Timeout int      `json:"timeout,omitempty"`
+	Format  string   `json:"format,omitempty"`
+}
 
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
-		return nil, fmt.Errorf("invalid arguments: %w", err)
-	}
-
+func (h *fetchHandler) CallTool(ctx context.Context, params FetchToolArgs) (*tools.ToolCallResult, error) {
 	if len(params.URLs) == 0 {
 		return nil, fmt.Errorf("at least one URL is required")
 	}
@@ -338,7 +334,7 @@ func (t *FetchTool) Tools(context.Context) ([]tools.Tool, error) {
 				"required": []string{"urls", "format"},
 			},
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handler.CallTool,
+			Handler:      NewHandler(t.handler.CallTool),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "Fetch URLs",

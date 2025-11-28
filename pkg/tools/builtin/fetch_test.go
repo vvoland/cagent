@@ -98,7 +98,7 @@ func TestFetch_Call_Success(t *testing.T) {
 
 	tool := NewFetchTool()
 
-	result, err := tool.handler.CallTool(t.Context(), fetch(t, url))
+	result, err := tool.handler.CallTool(t.Context(), FetchToolArgs{URLs: []string{url}})
 	require.NoError(t, err)
 
 	assert.Contains(t, result.Output, "Successfully fetched")
@@ -117,7 +117,7 @@ func TestFetch_Call_MultipleURLs(t *testing.T) {
 
 	tool := NewFetchTool()
 
-	result, err := tool.handler.CallTool(t.Context(), fetch(t, url1, url2))
+	result, err := tool.handler.CallTool(t.Context(), FetchToolArgs{URLs: []string{url1, url2}})
 	require.NoError(t, err)
 
 	var results []FetchResult
@@ -132,18 +132,24 @@ func TestFetch_Call_MultipleURLs(t *testing.T) {
 func TestFetch_Call_InvalidURL(t *testing.T) {
 	tool := NewFetchTool()
 
-	result, err := tool.handler.CallTool(t.Context(), fetch(t, "invalid-url"))
+	result, err := tool.handler.CallTool(t.Context(), FetchToolArgs{
+		URLs: []string{
+			"invalid-url",
+		},
+	})
 	require.NoError(t, err)
-
 	assert.Contains(t, result.Output, "Error fetching")
 }
 
 func TestFetch_Call_UnsupportedProtocol(t *testing.T) {
 	tool := NewFetchTool()
 
-	result, err := tool.handler.CallTool(t.Context(), fetch(t, "ftp://example.com"))
+	result, err := tool.handler.CallTool(t.Context(), FetchToolArgs{
+		URLs: []string{
+			"ftp://example.com",
+		},
+	})
 	require.NoError(t, err)
-
 	assert.Contains(t, result.Output, "Error fetching")
 	assert.Contains(t, result.Output, "only HTTP and HTTPS URLs are supported")
 }
@@ -151,19 +157,8 @@ func TestFetch_Call_UnsupportedProtocol(t *testing.T) {
 func TestFetch_Call_NoURLs(t *testing.T) {
 	tool := NewFetchTool()
 
-	_, err := tool.handler.CallTool(t.Context(), fetch(t))
+	_, err := tool.handler.CallTool(t.Context(), FetchToolArgs{})
 	require.ErrorContains(t, err, "at least one URL is required")
-}
-
-func TestFetch_Call_InvalidJSON(t *testing.T) {
-	tool := NewFetchTool()
-
-	_, err := tool.handler.CallTool(t.Context(), tools.ToolCall{
-		Function: tools.FunctionCall{
-			Arguments: "invalid json",
-		},
-	})
-	require.ErrorContains(t, err, "invalid arguments")
 }
 
 func TestFetch_Markdown(t *testing.T) {
@@ -174,10 +169,10 @@ func TestFetch_Markdown(t *testing.T) {
 
 	tool := NewFetchTool()
 
-	result, err := tool.handler.CallTool(t.Context(), toolCall(t, map[string]any{
-		"urls":   []string{url},
-		"format": "markdown",
-	}))
+	result, err := tool.handler.CallTool(t.Context(), FetchToolArgs{
+		URLs:   []string{url},
+		Format: "markdown",
+	})
 	require.NoError(t, err)
 
 	assert.Contains(t, result.Output, "Successfully fetched")
@@ -194,10 +189,10 @@ func TestFetch_Text(t *testing.T) {
 
 	tool := NewFetchTool()
 
-	result, err := tool.handler.CallTool(t.Context(), toolCall(t, map[string]any{
-		"urls":   []string{url},
-		"format": "text",
-	}))
+	result, err := tool.handler.CallTool(t.Context(), FetchToolArgs{
+		URLs:   []string{url},
+		Format: "text",
+	})
 	require.NoError(t, err)
 
 	assert.Contains(t, result.Output, "Successfully fetched")
@@ -213,27 +208,6 @@ func runHTTPServer(t *testing.T, handler http.HandlerFunc) string {
 	t.Cleanup(server.Close)
 
 	return server.URL
-}
-
-func fetch(t *testing.T, urls ...string) tools.ToolCall {
-	t.Helper()
-
-	return toolCall(t, map[string]any{
-		"urls": urls,
-	})
-}
-
-func toolCall(t *testing.T, args map[string]any) tools.ToolCall {
-	t.Helper()
-
-	argsJSON, err := json.Marshal(args)
-	require.NoError(t, err)
-
-	return tools.ToolCall{
-		Function: tools.FunctionCall{
-			Arguments: string(argsJSON),
-		},
-	}
 }
 
 func TestFetch_RobotsAllowed(t *testing.T) {
@@ -254,10 +228,10 @@ func TestFetch_RobotsAllowed(t *testing.T) {
 	})
 
 	tool := NewFetchTool()
-	result, err := tool.handler.CallTool(t.Context(), toolCall(t, map[string]any{
-		"urls":   []string{url + "/allowed"},
-		"format": "text",
-	}))
+	result, err := tool.handler.CallTool(t.Context(), FetchToolArgs{
+		URLs:   []string{url + "/allowed"},
+		Format: "text",
+	})
 
 	require.NoError(t, err)
 	assert.Contains(t, result.Output, "Successfully fetched")
@@ -282,11 +256,10 @@ func TestFetch_RobotsBlocked(t *testing.T) {
 	})
 
 	tool := NewFetchTool()
-	result, err := tool.handler.CallTool(t.Context(), toolCall(t, map[string]any{
-		"urls":   []string{url + "/blocked"},
-		"format": "text",
-	}))
-
+	result, err := tool.handler.CallTool(t.Context(), FetchToolArgs{
+		URLs:   []string{url + "/blocked"},
+		Format: "text",
+	})
 	require.NoError(t, err)
 	assert.Contains(t, result.Output, "Error fetching")
 	assert.Contains(t, result.Output, "URL blocked by robots.txt")
@@ -307,10 +280,10 @@ func TestFetch_RobotsMissing(t *testing.T) {
 	})
 
 	tool := NewFetchTool()
-	result, err := tool.handler.CallTool(t.Context(), toolCall(t, map[string]any{
-		"urls":   []string{url + "/content"},
-		"format": "text",
-	}))
+	result, err := tool.handler.CallTool(t.Context(), FetchToolArgs{
+		URLs:   []string{url + "/content"},
+		Format: "text",
+	})
 
 	require.NoError(t, err)
 	assert.Contains(t, result.Output, "Successfully fetched")
