@@ -17,9 +17,16 @@ import (
 //go:embed default-agent.yaml
 var defaultAgent []byte
 
-// ResolveSources resolves an agent file reference (local file or OCI image) to a local file path
+// ResolveSources resolves an agent file reference (local file, URL, or OCI image) to sources
 // For OCI references, always checks remote for updates but falls back to local cache if offline
 func ResolveSources(agentsPath string) (Sources, error) {
+	// Handle URL references first (before resolve() which converts to absolute path)
+	if IsURLReference(agentsPath) {
+		return map[string]Source{
+			agentsPath: NewURLSource(agentsPath),
+		}, nil
+	}
+
 	resolvedPath, err := resolve(agentsPath)
 	if err != nil {
 		if IsOCIReference(agentsPath) {
@@ -70,9 +77,14 @@ func ResolveSources(agentsPath string) (Sources, error) {
 	}, nil
 }
 
-// Resolve resolves an agent file reference (local file or OCI image) to a local file path
+// Resolve resolves an agent file reference (local file, URL, or OCI image) to a source
 // For OCI references, always checks remote for updates but falls back to local cache if offline
 func Resolve(agentFilename string) (Source, error) {
+	// Handle URL references first (before resolve() which converts to absolute path)
+	if IsURLReference(agentFilename) {
+		return NewURLSource(agentFilename), nil
+	}
+
 	resolvedPath, err := resolve(agentFilename)
 	if err != nil {
 		if IsOCIReference(agentFilename) {

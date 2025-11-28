@@ -2,12 +2,19 @@ package config
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/docker/cagent/pkg/content"
+	"github.com/docker/cagent/pkg/httpclient"
+	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/remote"
 )
 
@@ -124,4 +131,115 @@ func (a ociSource) Read(ctx context.Context) ([]byte, error) {
 	}
 
 	return []byte(af), nil
+}
+
+// urlSource is used to load an agent configuration from an HTTP/HTTPS URL.
+type urlSource struct {
+	url string
+}
+
+func NewURLSource(url string) Source {
+	return urlSource{
+		url: url,
+	}
+}
+
+func (a urlSource) Name() string {
+	return a.url
+}
+
+func (a urlSource) ParentDir() string {
+	return ""
+}
+
+// getURLCacheDir returns the directory used to cache URL-based agent configurations.
+func getURLCacheDir() string {
+	return filepath.Join(paths.GetDataDir(), "url_cache")
+}
+
+func (a urlSource) Read(ctx context.Context) ([]byte, error) {
+	cacheDir := getURLCacheDir()
+	urlHash := hashURL(a.url)
+	cachePath := filepath.Join(cacheDir, urlHash)
+	etagPath := cachePath + ".etag"
+
+	// Read cached ETag if available
+	cachedETag := ""
+	if etagData, err := os.ReadFile(etagPath); err == nil {
+		cachedETag = string(etagData)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.url, http.NoBody)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	// Include If-None-Match header if we have a cached ETag
+	if cachedETag != "" {
+		req.Header.Set("If-None-Match", cachedETag)
+	}
+
+	resp, err := httpclient.NewHTTPClient().Do(req)
+	if err != nil {
+		// Network error - try to use cached version
+		if cachedData, cacheErr := os.ReadFile(cachePath); cacheErr == nil {
+			slog.Debug("Network error fetching URL, using cached version", "url", a.url, "error", err)
+			return cachedData, nil
+		}
+		return nil, fmt.Errorf("fetching %s: %w", a.url, err)
+	}
+	defer resp.Body.Close()
+
+	// 304 Not Modified - return cached content
+	if resp.StatusCode == http.StatusNotModified {
+		if cachedData, cacheErr := os.ReadFile(cachePath); cacheErr == nil {
+			slog.Debug("URL not modified, using cached version", "url", a.url)
+			return cachedData, nil
+		}
+		// Cache file missing despite 304, fall through to fetch again
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		// HTTP error - try to use cached version
+		if cachedData, cacheErr := os.ReadFile(cachePath); cacheErr == nil {
+			slog.Debug("HTTP error fetching URL, using cached version", "url", a.url, "status", resp.Status)
+			return cachedData, nil
+		}
+		return nil, fmt.Errorf("fetching %s: %s", a.url, resp.Status)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading response body: %w", err)
+	}
+
+	// Cache the response
+	if err := os.MkdirAll(cacheDir, 0o755); err == nil {
+		if err := os.WriteFile(cachePath, data, 0o644); err != nil {
+			slog.Debug("Failed to cache URL content", "url", a.url, "error", err)
+		}
+
+		// Save ETag if present
+		if etag := resp.Header.Get("ETag"); etag != "" {
+			if err := os.WriteFile(etagPath, []byte(etag), 0o644); err != nil {
+				slog.Debug("Failed to cache ETag", "url", a.url, "error", err)
+			}
+		} else {
+			// Remove stale ETag file if server no longer provides ETag
+			_ = os.Remove(etagPath)
+		}
+	}
+
+	return data, nil
+}
+
+// hashURL creates a safe filename from a URL.
+func hashURL(url string) string {
+	h := sha256.Sum256([]byte(url))
+	return hex.EncodeToString(h[:])
+}
+
+// IsURLReference checks if the input is a valid HTTP/HTTPS URL.
+func IsURLReference(input string) bool {
+	return strings.HasPrefix(input, "http://") || strings.HasPrefix(input, "https://")
 }
