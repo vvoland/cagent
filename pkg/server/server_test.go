@@ -95,7 +95,7 @@ func startServer(t *testing.T, ctx context.Context, agentsDir string) string {
 
 	sources, err := config.ResolveSources(agentsDir)
 	require.NoError(t, err)
-	srv, err := New(store, &runConfig, 0, sources)
+	srv, err := New(ctx, store, &runConfig, 0, sources)
 	require.NoError(t, err)
 
 	socketPath := "unix://" + filepath.Join(t.TempDir(), "sock")

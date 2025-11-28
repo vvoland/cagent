@@ -79,7 +79,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to resolve agent sources: %w", err)
 	}
 
-	s, err := server.New(sessionStore, &f.runConfig, time.Duration(f.pullIntervalMins)*time.Minute, sources)
+	s, err := server.New(ctx, sessionStore, &f.runConfig, time.Duration(f.pullIntervalMins)*time.Minute, sources)
 	if err != nil {
 		return fmt.Errorf("failed to create server: %w", err)
 	}

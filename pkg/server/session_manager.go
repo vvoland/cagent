@@ -24,10 +24,10 @@ type sessionManager struct {
 	refreshInterval time.Duration
 }
 
-func newSessionManager(sources config.Sources, refreshInterval time.Duration) *sessionManager {
+func newSessionManager(ctx context.Context, sources config.Sources, refreshInterval time.Duration) *sessionManager {
 	loaders := make(config.Sources)
 	for name, source := range sources {
-		loaders[name] = newSourceLoader(source, refreshInterval)
+		loaders[name] = newSourceLoader(ctx, source, refreshInterval)
 	}
 
 	sm := &sessionManager{

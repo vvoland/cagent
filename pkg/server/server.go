@@ -33,7 +33,7 @@ type Server struct {
 	sm             *sessionManager
 }
 
-func New(sessionStore session.Store, runConfig *config.RuntimeConfig, refreshInterval time.Duration, agentSources config.Sources) (*Server, error) {
+func New(ctx context.Context, sessionStore session.Store, runConfig *config.RuntimeConfig, refreshInterval time.Duration, agentSources config.Sources) (*Server, error) {
 	e := echo.New()
 	e.Use(middleware.CORS())
 	e.Use(middleware.Logger())
@@ -43,7 +43,7 @@ func New(sessionStore session.Store, runConfig *config.RuntimeConfig, refreshInt
 		runtimeCancels: concurrent.NewMap[string, context.CancelFunc](),
 		sessionStore:   sessionStore,
 		runConfig:      runConfig,
-		sm:             newSessionManager(agentSources, refreshInterval),
+		sm:             newSessionManager(ctx, agentSources, refreshInterval),
 	}
 
 	group := e.Group("/api")

@@ -1,0 +1,191 @@
+package server
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"testing/synctest"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+type mockSource struct {
+	name      string
+	parentDir string
+	data      []byte
+	err       error
+	readCount int
+}
+
+func (m *mockSource) Name() string {
+	return m.name
+}
+
+func (m *mockSource) ParentDir() string {
+	return m.parentDir
+}
+
+func (m *mockSource) Read(ctx context.Context) ([]byte, error) {
+	m.readCount++
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.data, nil
+}
+
+func TestSourceLoader_Read_WithRefreshInterval_BeforeExpiry(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		inner := &mockSource{
+			name: "test.yaml",
+			data: []byte("test data"),
+		}
+		ctx := t.Context()
+		refreshInterval := 100 * time.Millisecond
+		sl := newSourceLoader(ctx, inner, refreshInterval)
+
+		// Read should return cached data immediately
+		data, err := sl.Read(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, []byte("test data"), data)
+		assert.Equal(t, 1, inner.readCount) // No additional read
+
+		// Immediate second read - should return cached data
+		data, err = sl.Read(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, []byte("test data"), data)
+		assert.Equal(t, 1, inner.readCount)
+	})
+}
+
+func TestSourceLoader_Read_WithRefreshInterval_AfterExpiry(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		inner := &mockSource{
+			name: "test.yaml",
+			data: []byte("test data"),
+		}
+		ctx := t.Context()
+		refreshInterval := 100 * time.Millisecond
+		sl := newSourceLoader(ctx, inner, refreshInterval)
+
+		synctest.Wait()
+		time.Sleep(110 * time.Millisecond)
+		synctest.Wait()
+
+		// Read should refresh
+		data, err := sl.Read(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, []byte("test data"), data)
+		assert.Equal(t, 2, inner.readCount)
+	})
+}
+
+func TestSourceLoader_Read_Error(t *testing.T) {
+	t.Parallel()
+	expectedErr := errors.New("read error")
+	inner := &mockSource{
+		name: "test.yaml",
+		err:  expectedErr,
+	}
+	ctx := t.Context()
+	sl := newSourceLoader(ctx, inner, 0)
+
+	// Initial load failed
+	assert.Equal(t, 1, inner.readCount)
+
+	// Read should return the error from initial load
+	data, err := sl.Read(ctx)
+	require.Error(t, err)
+	assert.Equal(t, expectedErr, err)
+	assert.Nil(t, data)
+}
+
+func TestSourceLoader_Read_DataChanges(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		inner := &mockSource{
+			name: "test.yaml",
+			data: []byte("initial data"),
+		}
+		ctx := t.Context()
+		refreshInterval := 50 * time.Millisecond
+		sl := newSourceLoader(ctx, inner, refreshInterval)
+
+		// First read gets initial data
+		data, err := sl.Read(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, []byte("initial data"), data)
+
+		// Change the data in the mock
+		inner.data = []byte("updated data")
+
+		// Immediate read still gets old cached data
+		data, err = sl.Read(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, []byte("initial data"), data)
+
+		synctest.Wait()
+		time.Sleep(60 * time.Millisecond)
+		synctest.Wait()
+
+		// Read after interval should get updated data from background refresh
+		data, err = sl.Read(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, []byte("updated data"), data)
+	})
+}
+
+func TestSourceLoader_Read_ZeroRefreshInterval(t *testing.T) {
+	t.Parallel()
+	inner := &mockSource{
+		name: "test.yaml",
+		data: []byte("test data"),
+	}
+	ctx := t.Context()
+	sl := newSourceLoader(ctx, inner, 0)
+
+	initialReadCount := inner.readCount
+
+	// Multiple reads with zero refresh interval
+	for range 10 {
+		data, err := sl.Read(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, []byte("test data"), data)
+	}
+
+	// All reads should return cached data from startup
+	assert.Equal(t, initialReadCount, inner.readCount)
+}
+
+func TestSourceLoader_SuccessThenError(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		inner := &mockSource{
+			name: "test.yaml",
+			data: []byte("initial data"),
+		}
+		ctx := t.Context()
+		refreshInterval := 50 * time.Millisecond
+		sl := newSourceLoader(ctx, inner, refreshInterval)
+
+		// Initial read succeeds
+		data, err := sl.Read(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, []byte("initial data"), data)
+
+		// Introduce error
+		inner.err = errors.New("refresh error")
+
+		synctest.Wait()
+		time.Sleep(60 * time.Millisecond)
+		synctest.Wait()
+
+		// Should still return old cached data despite refresh error
+		data, err = sl.Read(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, []byte("initial data"), data)
+	})
+}
