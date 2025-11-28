@@ -478,14 +478,6 @@ func (t *FilesystemTool) handleEditFile(ctx context.Context, toolCall tools.Tool
 	return &tools.ToolCallResult{Output: fmt.Sprintf("File edited successfully. Changes:\n%s", strings.Join(changes, "\n"))}, nil
 }
 
-type FileInfo struct {
-	Name    string `json:"name"`
-	Size    int64  `json:"size"`
-	Mode    string `json:"mode"`
-	ModTime string `json:"modTime"`
-	IsDir   bool   `json:"isDir"`
-}
-
 func (t *FilesystemTool) handleListAllowedDirectories(context.Context, tools.ToolCall) (*tools.ToolCallResult, error) {
 	result, err := json.MarshalIndent(t.allowedDirectories, "", "  ")
 	if err != nil {
