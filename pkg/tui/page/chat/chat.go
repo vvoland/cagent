@@ -79,6 +79,10 @@ type chatPage struct {
 
 	// keyboardEnhancementsSupported tracks whether the terminal supports keyboard enhancements
 	keyboardEnhancementsSupported bool
+
+	// Resize handle state
+	isDraggingHandle bool
+	editorLines      int
 }
 
 // KeyMap defines key bindings for the chat page
@@ -126,6 +130,7 @@ func New(a *app.App, sessionState *service.SessionState) Page {
 		sessionState: sessionState,
 		// Default to no keyboard enhancements (will be updated if msg is received)
 		keyboardEnhancementsSupported: false,
+		editorLines:                   3,
 	}
 
 	// Initialize help text with default (ctrl+j)
@@ -225,10 +230,57 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 		return p, nil
 
-	case tea.MouseWheelMsg, tea.MouseClickMsg, tea.MouseMotionMsg, tea.MouseReleaseMsg:
-		// Route mouse events based on Y coordinate - editor is at bottom of screen
+	case tea.MouseClickMsg:
+		// Check if clicking on resize handle
+		if p.isMouseOnResizeHandle(msg) {
+			p.isDraggingHandle = true
+			return p, nil
+		}
+		// Route to appropriate component
 		if p.isMouseOverEditor(msg) {
-			// Forward to editor for scrolling and interaction
+			model, cmd := p.editor.Update(msg)
+			p.editor = model.(editor.Editor)
+			return p, cmd
+		}
+		model, cmd := p.messages.Update(msg)
+		p.messages = model.(messages.Model)
+		return p, cmd
+
+	case tea.MouseMotionMsg:
+		// Handle resize dragging
+		if p.isDraggingHandle {
+			resizeCmd := p.handleResize(msg.Y)
+			return p, resizeCmd
+		}
+		// Route to appropriate component
+		if p.isMouseOverEditor(msg) {
+			model, cmd := p.editor.Update(msg)
+			p.editor = model.(editor.Editor)
+			return p, cmd
+		}
+		model, cmd := p.messages.Update(msg)
+		p.messages = model.(messages.Model)
+		return p, cmd
+
+	case tea.MouseReleaseMsg:
+		// Stop dragging
+		if p.isDraggingHandle {
+			p.isDraggingHandle = false
+			return p, nil
+		}
+		// Route to appropriate component
+		if p.isMouseOverEditor(msg) {
+			model, cmd := p.editor.Update(msg)
+			p.editor = model.(editor.Editor)
+			return p, cmd
+		}
+		model, cmd := p.messages.Update(msg)
+		p.messages = model.(messages.Model)
+		return p, cmd
+
+	case tea.MouseWheelMsg:
+		// Route mouse wheel based on Y coordinate
+		if p.isMouseOverEditor(msg) {
 			model, cmd := p.editor.Update(msg)
 			p.editor = model.(editor.Editor)
 			return p, cmd
@@ -441,13 +493,17 @@ func (p *chatPage) View() string {
 		)
 	}
 
+	// Resize handle between messages and editor
+	resizeHandle := p.renderResizeHandle(innerWidth)
+
 	// Input field spans full width below everything
 	input := p.editor.View()
 
-	// Create a full-height layout with header, body, and input
+	// Create a full-height layout with header, body, resize handle, and input
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
 		bodyContent,
+		resizeHandle,
 		input,
 	)
 
@@ -463,7 +519,12 @@ func (p *chatPage) SetSize(width, height int) tea.Cmd {
 	var cmds []tea.Cmd
 
 	// Calculate heights accounting for padding
-	editorHeight := 3 // fixed 3 lines for multi-line input
+	// Clamp editor lines between 3 (min) and half screen (max)
+	minLines := 3
+	maxLines := max(3, (height-6)/2) // Leave room for messages
+	p.editorLines = max(minLines, min(p.editorLines, maxLines))
+
+	editorHeight := p.editorLines
 
 	// Calculate available space, ensuring status bar remains visible
 	p.inputHeight = editorHeight + 3 // account for editor padding
@@ -474,13 +535,13 @@ func (p *chatPage) SetSize(width, height int) tea.Cmd {
 	var mainWidth int
 	if width >= minWindowWidth {
 		mainWidth = innerWidth - sidebarWidth
-		p.chatHeight = height - p.inputHeight
+		p.chatHeight = height - p.inputHeight - 1 // -1 for resize handle
 		p.sidebar.SetMode(sidebar.ModeVertical)
 		cmds = append(cmds, p.sidebar.SetSize(sidebarWidth, p.chatHeight), p.messages.SetPosition(0, 0))
 	} else {
 		const horizontalSidebarHeight = 3
 		mainWidth = innerWidth
-		p.chatHeight = height - p.inputHeight - horizontalSidebarHeight
+		p.chatHeight = height - p.inputHeight - horizontalSidebarHeight - 1 // -1 for resize handle
 		p.sidebar.SetMode(sidebar.ModeHorizontal)
 		cmds = append(cmds, p.sidebar.SetSize(width, horizontalSidebarHeight), p.messages.SetPosition(0, horizontalSidebarHeight))
 	}
@@ -610,6 +671,58 @@ func (p *chatPage) CompactSession() tea.Cmd {
 
 func (p *chatPage) Cleanup() {
 	p.stopProgressBar()
+}
+
+// isMouseOnResizeHandle checks if a mouse event occurred on the resize handle.
+func (p *chatPage) isMouseOnResizeHandle(msg tea.Msg) bool {
+	// Resize handle is 1 line tall, positioned right above the editor
+	resizeHandleY := p.height - p.inputHeight - 1
+
+	var mouseY int
+	switch m := msg.(type) {
+	case tea.MouseClickMsg:
+		mouseY = m.Y
+	case tea.MouseMotionMsg:
+		mouseY = m.Y
+	default:
+		return false
+	}
+
+	return mouseY == resizeHandleY
+}
+
+// handleResize adjusts the editor height based on mouse Y position during drag.
+func (p *chatPage) handleResize(mouseY int) tea.Cmd {
+	// Calculate new editor height based on mouse position
+	// Editor starts at: height - inputHeight
+	// Mouse is at: mouseY
+	// New inputHeight should be: height - mouseY
+
+	newInputHeight := p.height - mouseY
+	// Account for padding (3 lines) to get editor lines
+	newEditorLines := newInputHeight - 3
+
+	// Clamp between min (3) and max (half screen)
+	minLines := 3
+	maxLines := max(3, (p.height-6)/2)
+	newEditorLines = max(minLines, min(newEditorLines, maxLines))
+
+	// Only update if changed
+	if newEditorLines != p.editorLines {
+		p.editorLines = newEditorLines
+		// Trigger resize
+		return p.SetSize(p.width, p.height)
+	}
+
+	return nil
+}
+
+// renderResizeHandle renders the horizontal resize handle between messages and editor.
+func (p *chatPage) renderResizeHandle(width int) string {
+	// Create a subtle resize handle using box drawing characters
+	handle := strings.Repeat("─", width)
+
+	return styles.ResizeHandleStyle.Render(handle)
 }
 
 // isMouseOverEditor checks if a mouse event occurred within the editor's area.
