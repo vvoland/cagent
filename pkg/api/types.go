@@ -119,8 +119,8 @@ type SessionsResponse struct {
 	Title        string `json:"title"`
 	CreatedAt    string `json:"created_at"`
 	NumMessages  int    `json:"num_messages"`
-	InputTokens  int    `json:"input_tokens"`
-	OutputTokens int    `json:"output_tokens"`
+	InputTokens  int64  `json:"input_tokens"`
+	OutputTokens int64  `json:"output_tokens"`
 	WorkingDir   string `json:"working_dir,omitempty"`
 }
 
@@ -131,8 +131,8 @@ type SessionResponse struct {
 	Messages      []session.Message   `json:"messages,omitempty"`
 	CreatedAt     time.Time           `json:"created_at"`
 	ToolsApproved bool                `json:"tools_approved"`
-	InputTokens   int                 `json:"input_tokens"`
-	OutputTokens  int                 `json:"output_tokens"`
+	InputTokens   int64               `json:"input_tokens"`
+	OutputTokens  int64               `json:"output_tokens"`
 	WorkingDir    string              `json:"working_dir,omitempty"`
 	Pagination    *PaginationMetadata `json:"pagination,omitempty"`
 }

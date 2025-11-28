@@ -125,7 +125,7 @@ func (b *streamBuilder) AddToolCallArguments(id, argsChunk string) *streamBuilde
 	return b
 }
 
-func (b *streamBuilder) AddStopWithUsage(input, output int) *streamBuilder {
+func (b *streamBuilder) AddStopWithUsage(input, output int64) *streamBuilder {
 	b.responses = append(b.responses, chat.MessageStreamResponse{
 		Choices: []chat.MessageStreamChoice{{
 			Index:        0,

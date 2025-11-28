@@ -18,7 +18,7 @@ type Event struct {
 	Message      string
 	Progress     *Progress
 	Error        error
-	TotalTokens  int     // For usage events
+	TotalTokens  int64   // For usage events
 	Cost         float64 // For usage events
 }
 

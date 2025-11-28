@@ -134,7 +134,7 @@ func (m *model) SetToolsetInfo(availableTools int) {
 }
 
 // formatTokenCount formats a token count with K/M suffixes for readability
-func formatTokenCount(count int) string {
+func formatTokenCount(count int64) string {
 	if count >= 1000000 {
 		return fmt.Sprintf("%.1fM", float64(count)/1000000)
 	} else if count >= 1000 {
@@ -477,7 +477,7 @@ func (m *model) tokenUsage() string {
 		return ""
 	}
 
-	var totalTokens int
+	var totalTokens int64
 	var totalCost float64
 	for _, usage := range m.sessionUsage {
 		totalTokens += usage.InputTokens + usage.OutputTokens
@@ -504,7 +504,7 @@ func (m *model) tokenUsageSummary() string {
 		return ""
 	}
 
-	var totalTokens int
+	var totalTokens int64
 	var totalCost float64
 	for _, usage := range m.sessionUsage {
 		totalTokens += usage.InputTokens + usage.OutputTokens

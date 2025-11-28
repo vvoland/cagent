@@ -114,17 +114,15 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		if a.trackUsage {
 			usage := openaiResponse.Usage
 			response.Usage = &chat.Usage{
-				InputTokens:        int(usage.PromptTokens),
-				OutputTokens:       int(usage.CompletionTokens),
-				CachedInputTokens:  0,
-				CachedOutputTokens: 0,
-				ReasoningTokens:    0,
+				InputTokens:  usage.PromptTokens,
+				OutputTokens: usage.CompletionTokens,
 			}
 			if usage.JSON.PromptTokensDetails.Valid() {
-				response.Usage.CachedInputTokens = int(usage.PromptTokensDetails.CachedTokens)
+				response.Usage.CachedInputTokens = usage.PromptTokensDetails.CachedTokens
+				response.Usage.InputTokens -= usage.PromptTokensDetails.CachedTokens
 			}
 			if usage.JSON.CompletionTokensDetails.Valid() {
-				response.Usage.ReasoningTokens = int(usage.CompletionTokensDetails.ReasoningTokens)
+				response.Usage.ReasoningTokens = usage.CompletionTokensDetails.ReasoningTokens
 			}
 		}
 

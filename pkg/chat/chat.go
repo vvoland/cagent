@@ -118,11 +118,11 @@ type MessageStreamResponse struct {
 }
 
 type Usage struct {
-	InputTokens        int `json:"input_tokens"`
-	OutputTokens       int `json:"output_tokens"`
-	CachedInputTokens  int `json:"cached_input_tokens"`
-	CachedOutputTokens int `json:"cached_output_tokens"`
-	ReasoningTokens    int `json:"reasoning_tokens,omitempty"`
+	InputTokens       int64 `json:"input_tokens"`
+	OutputTokens      int64 `json:"output_tokens"`
+	CachedInputTokens int64 `json:"cached_input_tokens"`
+	CacheWriteTokens  int64 `json:"cached_output_tokens"`
+	ReasoningTokens   int64 `json:"reasoning_tokens,omitempty"`
 }
 
 // MessageStream interface represents a stream of chat completions

@@ -657,10 +657,7 @@ func (c *Client) CreateEmbedding(ctx context.Context, text string) (*base.Embedd
 func (c *Client) CreateBatchEmbedding(ctx context.Context, texts []string) (*base.BatchEmbeddingResult, error) {
 	if len(texts) == 0 {
 		return &base.BatchEmbeddingResult{
-			Embeddings:  [][]float64{},
-			InputTokens: 0,
-			TotalTokens: 0,
-			Cost:        0,
+			Embeddings: [][]float64{},
 		}, nil
 	}
 
@@ -704,8 +701,8 @@ func (c *Client) CreateBatchEmbedding(ctx context.Context, texts []string) (*bas
 	}
 
 	// Extract usage information
-	inputTokens := int(response.Usage.PromptTokens)
-	totalTokens := int(response.Usage.TotalTokens)
+	inputTokens := response.Usage.PromptTokens
+	totalTokens := response.Usage.TotalTokens
 
 	// Cost calculation is handled at the strategy level using models.dev pricing
 	// Provider just returns token counts

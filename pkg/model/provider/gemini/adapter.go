@@ -177,11 +177,10 @@ func (g *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		// Handle token usage if present
 		if res.resp.UsageMetadata != nil && g.trackUsage {
 			resp.Usage = &chat.Usage{
-				InputTokens:        int(res.resp.UsageMetadata.PromptTokenCount),
-				OutputTokens:       int(res.resp.UsageMetadata.CandidatesTokenCount),
-				CachedInputTokens:  int(res.resp.UsageMetadata.CachedContentTokenCount),
-				CachedOutputTokens: 0, // Gemini doesn't provide cached output tokens
-				ReasoningTokens:    int(res.resp.UsageMetadata.ThoughtsTokenCount),
+				InputTokens:       int64(res.resp.UsageMetadata.PromptTokenCount),
+				OutputTokens:      int64(res.resp.UsageMetadata.CandidatesTokenCount),
+				CachedInputTokens: int64(res.resp.UsageMetadata.CachedContentTokenCount),
+				ReasoningTokens:   int64(res.resp.UsageMetadata.ThoughtsTokenCount),
 			}
 		}
 
