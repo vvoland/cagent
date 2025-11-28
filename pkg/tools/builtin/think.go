@@ -2,8 +2,6 @@ package builtin
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/docker/cagent/pkg/tools"
@@ -27,12 +25,7 @@ type ThinkArgs struct {
 	Thought string `json:"thought" jsonschema:"The thought to think about"`
 }
 
-func (h *thinkHandler) CallTool(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var params ThinkArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
-		return nil, fmt.Errorf("invalid arguments: %w", err)
-	}
-
+func (h *thinkHandler) CallTool(_ context.Context, params ThinkArgs) (*tools.ToolCallResult, error) {
 	h.thoughts = append(h.thoughts, params.Thought)
 	return &tools.ToolCallResult{
 		Output: "Thoughts:\n" + strings.Join(h.thoughts, "\n"),
@@ -66,7 +59,7 @@ func (t *ThinkTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Use the tool to think about something. It will not obtain new information or change the database, but just append the thought to the log. Use it when complex reasoning or some cache memory is needed.",
 			Parameters:   tools.MustSchemaFor[ThinkArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handler.CallTool,
+			Handler:      NewHandler(t.handler.CallTool),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "Think",
