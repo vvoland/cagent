@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools/builtin"
 )
 
 func TestCodeModeTool_Tools(t *testing.T) {
@@ -95,14 +96,16 @@ func TestCodeModeTool_StartStop(t *testing.T) {
 
 func TestCodeModeTool_CallHello(t *testing.T) {
 	tool := Wrap(&testToolSet{
-		tools: []tools.Tool{{
-			Name: "hello_world",
-			Handler: func(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-				return &tools.ToolCallResult{
-					Output: "Hello, World!",
-				}, nil
+		tools: []tools.Tool{
+			{
+				Name: "hello_world",
+				Handler: builtin.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
+					return &tools.ToolCallResult{
+						Output: "Hello, World!",
+					}, nil
+				}),
 			},
-		}},
+		},
 	})
 
 	allTools, err := tool.Tools(t.Context())
@@ -133,11 +136,11 @@ func TestCodeModeTool_CallEcho(t *testing.T) {
 	tool := Wrap(&testToolSet{
 		tools: []tools.Tool{{
 			Name: "echo",
-			Handler: func(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+			Handler: builtin.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
 				return &tools.ToolCallResult{
 					Output: "ECHO",
 				}, nil
-			},
+			}),
 			Parameters: tools.MustSchemaFor[EchoArgs](),
 		}},
 	})
