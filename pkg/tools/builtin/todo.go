@@ -2,7 +2,6 @@ package builtin
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -80,12 +79,7 @@ IMPORTANT: You MUST use these tools to track the progress of your tasks:
 This toolset is REQUIRED for maintaining task state and ensuring all steps are completed.`
 }
 
-func (h *todoHandler) createTodo(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var params CreateTodoArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
-		return nil, fmt.Errorf("invalid arguments: %w", err)
-	}
-
+func (h *todoHandler) createTodo(_ context.Context, params CreateTodoArgs) (*tools.ToolCallResult, error) {
 	id := fmt.Sprintf("todo_%d", h.todos.Length()+1)
 	h.todos.Store(id, Todo{
 		ID:          id,
@@ -98,12 +92,7 @@ func (h *todoHandler) createTodo(_ context.Context, toolCall tools.ToolCall) (*t
 	}, nil
 }
 
-func (h *todoHandler) createTodos(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var params CreateTodosArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
-		return nil, fmt.Errorf("invalid arguments: %w", err)
-	}
-
+func (h *todoHandler) createTodos(_ context.Context, params CreateTodosArgs) (*tools.ToolCallResult, error) {
 	ids := make([]string, len(params.Descriptions))
 	start := h.todos.Length()
 	for i, desc := range params.Descriptions {
@@ -129,12 +118,7 @@ func (h *todoHandler) createTodos(_ context.Context, toolCall tools.ToolCall) (*
 	}, nil
 }
 
-func (h *todoHandler) updateTodo(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var params UpdateTodoArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
-		return nil, fmt.Errorf("invalid arguments: %w", err)
-	}
-
+func (h *todoHandler) updateTodo(_ context.Context, params UpdateTodoArgs) (*tools.ToolCallResult, error) {
 	todo, exists := h.todos.Load(params.ID)
 	if !exists {
 		return nil, fmt.Errorf("todo [%s] not found", params.ID)
@@ -148,7 +132,7 @@ func (h *todoHandler) updateTodo(_ context.Context, toolCall tools.ToolCall) (*t
 	}, nil
 }
 
-func (h *todoHandler) listTodos(context.Context, tools.ToolCall) (*tools.ToolCallResult, error) {
+func (h *todoHandler) listTodos(_ context.Context, _ map[string]any) (*tools.ToolCallResult, error) {
 	var output strings.Builder
 	output.WriteString("Current todos:\n")
 
@@ -171,7 +155,7 @@ func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Create a new todo item with a description",
 			Parameters:   tools.MustSchemaFor[CreateTodoArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handler.createTodo,
+			Handler:      NewHandler(t.handler.createTodo),
 			Annotations: tools.ToolAnnotations{
 				Title:        "Create TODO",
 				ReadOnlyHint: true, // Technically not read-only but has practically no destructive side effects.
@@ -183,7 +167,7 @@ func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Create a list of new todo items with descriptions",
 			Parameters:   tools.MustSchemaFor[CreateTodosArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handler.createTodos,
+			Handler:      NewHandler(t.handler.createTodos),
 			Annotations: tools.ToolAnnotations{
 				Title:        "Create TODOs",
 				ReadOnlyHint: true, // Technically not read-only but has practically no destructive side effects.
@@ -195,7 +179,7 @@ func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Update the status of a todo item",
 			Parameters:   tools.MustSchemaFor[UpdateTodoArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handler.updateTodo,
+			Handler:      NewHandler(t.handler.updateTodo),
 			Annotations: tools.ToolAnnotations{
 				Title:        "Update TODO",
 				ReadOnlyHint: true, // Technically not read-only but has practically no destructive side effects.
@@ -206,7 +190,7 @@ func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 			Category:     "todo",
 			Description:  "List all current todos with their status",
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handler.listTodos,
+			Handler:      NewHandler(t.handler.listTodos),
 			Annotations: tools.ToolAnnotations{
 				Title:        "List TODOs",
 				ReadOnlyHint: true,
