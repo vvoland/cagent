@@ -156,12 +156,12 @@ func (t *ScriptShellTool) execute(ctx context.Context, toolConfig *latest.Script
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return &tools.ToolCallResult{
-			Output: fmt.Sprintf("Error executing command '%s': %s\nOutput: %s", toolConfig.Cmd, err, string(output)),
+			Output: fmt.Sprintf("Error executing command '%s': %s\nOutput: %s", toolConfig.Cmd, err, limitOutput(string(output))),
 		}, nil
 	}
 
 	return &tools.ToolCallResult{
-		Output: string(output),
+		Output: limitOutput(string(output)),
 	}, nil
 }
 
