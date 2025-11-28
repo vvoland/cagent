@@ -267,3 +267,13 @@ func TestResolveAgentFile_EmptyDirectory(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, absPath, resolved)
 }
+
+func TestResolveSources(t *testing.T) {
+	t.Parallel()
+
+	sources, err := ResolveSources("./testdata/v1.yaml")
+	require.NoError(t, err)
+
+	assert.Len(t, sources, 1)
+	require.Contains(t, sources, "v1.yaml")
+}
