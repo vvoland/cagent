@@ -49,42 +49,6 @@ func TestFilesystemTool_Instructions(t *testing.T) {
 	assert.Contains(t, instructions, "allowed directories")
 }
 
-func TestFilesystemTool_Tools(t *testing.T) {
-	tool := NewFilesystemTool([]string{"/tmp"})
-	allTools, err := tool.Tools(t.Context())
-
-	require.NoError(t, err)
-	assert.Len(t, allTools, 14)
-
-	expectedTools := []string{
-		"add_allowed_directory",
-		"create_directory",
-		"directory_tree",
-		"edit_file",
-		"get_file_info",
-		"list_allowed_directories",
-		"list_directory",
-		"list_directory_with_sizes",
-		"move_file",
-		"read_file",
-		"read_multiple_files",
-		"search_files",
-		"search_files_content",
-		"write_file",
-	}
-
-	var toolNames []string
-	for _, tool := range allTools {
-		toolNames = append(toolNames, tool.Name)
-		assert.NotNil(t, tool.Handler)
-		assert.Equal(t, "filesystem", tool.Category)
-	}
-
-	for _, expected := range expectedTools {
-		assert.Contains(t, toolNames, expected)
-	}
-}
-
 func TestFilesystemTool_DisplayNames(t *testing.T) {
 	tool := NewFilesystemTool([]string{"/tmp"})
 
@@ -109,27 +73,6 @@ func TestFilesystemTool_IsPathAllowed(t *testing.T) {
 	err = tool.isPathAllowed(disallowedPath)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not within allowed directories")
-}
-
-func TestFilesystemTool_CreateDirectory(t *testing.T) {
-	tmpDir := t.TempDir()
-	tool := NewFilesystemTool([]string{tmpDir})
-
-	handler := getToolHandler(t, tool, "create_directory")
-
-	newDir := filepath.Join(tmpDir, "test", "nested", "dir")
-	args := map[string]any{"path": newDir}
-	result := callHandler(t, handler, args)
-
-	assert.Contains(t, result.Output, "Directory created successfully")
-	assert.DirExists(t, newDir)
-
-	disallowedDir := "/etc/test"
-	args = map[string]any{"path": disallowedDir}
-	result = callHandler(t, handler, args)
-
-	assert.Contains(t, result.Output, "Error:")
-	assert.Contains(t, result.Output, "not within allowed directories")
 }
 
 func TestFilesystemTool_WriteFile(t *testing.T) {
@@ -274,90 +217,6 @@ func TestFilesystemTool_ListDirectory(t *testing.T) {
 	result = callHandler(t, handler, args)
 
 	assert.Contains(t, result.Output, "Error reading directory")
-}
-
-func TestFilesystemTool_ListDirectoryWithSizes(t *testing.T) {
-	tmpDir := t.TempDir()
-	tool := NewFilesystemTool([]string{tmpDir})
-
-	testFile := filepath.Join(tmpDir, "test.txt")
-	testDir := filepath.Join(tmpDir, "testdir")
-	content := "Hello World"
-
-	require.NoError(t, os.WriteFile(testFile, []byte(content), 0o644))
-	require.NoError(t, os.Mkdir(testDir, 0o755))
-
-	handler := getToolHandler(t, tool, "list_directory_with_sizes")
-
-	args := map[string]any{"path": tmpDir}
-	result := callHandler(t, handler, args)
-
-	assert.Contains(t, result.Output, "FILE test.txt (11 bytes)")
-	assert.Contains(t, result.Output, "DIR  testdir")
-}
-
-func TestFilesystemTool_GetFileInfo(t *testing.T) {
-	tmpDir := t.TempDir()
-	tool := NewFilesystemTool([]string{tmpDir})
-
-	testFile := filepath.Join(tmpDir, "test.txt")
-	content := "Hello, World!"
-	require.NoError(t, os.WriteFile(testFile, []byte(content), 0o644))
-
-	handler := getToolHandler(t, tool, "get_file_info")
-
-	args := map[string]any{"path": testFile}
-	result := callHandler(t, handler, args)
-
-	var fileInfo map[string]any
-	require.NoError(t, json.Unmarshal([]byte(result.Output), &fileInfo))
-
-	assert.Equal(t, "test.txt", fileInfo["name"])
-	assert.InDelta(t, len(content), fileInfo["size"], 0.0)
-	assert.Equal(t, false, fileInfo["isDir"])
-
-	args = map[string]any{"path": tmpDir}
-	result = callHandler(t, handler, args)
-
-	require.NoError(t, json.Unmarshal([]byte(result.Output), &fileInfo))
-	assert.Equal(t, true, fileInfo["isDir"])
-}
-
-func TestFilesystemTool_MoveFile(t *testing.T) {
-	tmpDir := t.TempDir()
-	tool := NewFilesystemTool([]string{tmpDir})
-
-	sourceFile := filepath.Join(tmpDir, "source.txt")
-	destFile := filepath.Join(tmpDir, "dest.txt")
-	content := "Hello, World!"
-	require.NoError(t, os.WriteFile(sourceFile, []byte(content), 0o644))
-
-	handler := getToolHandler(t, tool, "move_file")
-
-	args := map[string]any{
-		"source":      sourceFile,
-		"destination": destFile,
-	}
-	result := callHandler(t, handler, args)
-
-	assert.Contains(t, result.Output, "Successfully moved")
-	assert.NoFileExists(t, sourceFile)
-	assert.FileExists(t, destFile)
-
-	movedContent, err := os.ReadFile(destFile)
-	require.NoError(t, err)
-	assert.Equal(t, content, string(movedContent))
-
-	anotherFile := filepath.Join(tmpDir, "another.txt")
-	require.NoError(t, os.WriteFile(anotherFile, []byte("test"), 0o644))
-
-	args = map[string]any{
-		"source":      destFile,
-		"destination": anotherFile,
-	}
-	result = callHandler(t, handler, args)
-
-	assert.Contains(t, result.Output, "destination already exists")
 }
 
 func TestFilesystemTool_EditFile(t *testing.T) {
@@ -1006,31 +865,6 @@ func TestFilesystemTool_ListDirectory_IgnoresVCS(t *testing.T) {
 	// Should list regular files but not .git
 	assert.Contains(t, result.Output, "file1.txt")
 	assert.Contains(t, result.Output, "file2.txt")
-	assert.NotContains(t, result.Output, ".git")
-}
-
-func TestFilesystemTool_ListDirectoryWithSizes_IgnoresVCS(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	// Create .git directory
-	gitDir := filepath.Join(tmpDir, ".git")
-	require.NoError(t, os.Mkdir(gitDir, 0o755))
-
-	// Create regular file
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "readme.md"), []byte("content"), 0o644))
-
-	// Create tool with VCS ignoring enabled
-	tool := NewFilesystemTool([]string{tmpDir}, WithIgnoreVCS(true))
-	handler := getToolHandler(t, tool, "list_directory_with_sizes")
-
-	args := map[string]any{
-		"path": tmpDir,
-	}
-	result := callHandler(t, handler, args)
-
-	// Should list regular files with sizes but not .git
-	assert.Contains(t, result.Output, "readme.md")
-	assert.Contains(t, result.Output, "bytes")
 	assert.NotContains(t, result.Output, ".git")
 }
 
