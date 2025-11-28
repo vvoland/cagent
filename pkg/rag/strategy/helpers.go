@@ -207,18 +207,17 @@ func ResolveModelConfig(ref string, models map[string]latest.ModelConfig) (lates
 	return latest.ModelConfig{}, fmt.Errorf("model %q not found", ref)
 }
 
-// ChunkingConfig holds chunking parameters.
-type ChunkingConfig struct {
-	Size                  int
-	Overlap               int
-	RespectWordBoundaries bool
-}
-
 // ParseChunkingConfig extracts chunking configuration from RAGStrategyConfig.
 func ParseChunkingConfig(cfg latest.RAGStrategyConfig) ChunkingConfig {
 	chunkSize := cfg.Chunking.Size
 	if chunkSize == 0 {
-		chunkSize = 1500
+		// Use larger default for code-aware chunking since TreeSitter groups
+		// complete functions and benefits from more context
+		if cfg.Chunking.CodeAware {
+			chunkSize = 4000 // Code-aware: captures 2-4 medium functions per chunk
+		} else {
+			chunkSize = 1500 // General text: good paragraph/section size
+		}
 	}
 
 	chunkOverlap := cfg.Chunking.Overlap
@@ -230,5 +229,6 @@ func ParseChunkingConfig(cfg latest.RAGStrategyConfig) ChunkingConfig {
 		Size:                  chunkSize,
 		Overlap:               chunkOverlap,
 		RespectWordBoundaries: cfg.Chunking.RespectWordBoundaries,
+		CodeAware:             cfg.Chunking.CodeAware,
 	}
 }

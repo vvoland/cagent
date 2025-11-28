@@ -85,16 +85,15 @@ func NewChunkedEmbeddingsFromConfig(ctx context.Context, cfg latest.RAGStrategyC
 		ModelsStore:          embeddingCfg.ModelsStore,
 		EmbeddingConcurrency: maxConcurrency,
 		FileIndexConcurrency: fileIndexConcurrency,
+		Chunking:             chunkingCfg,
 	})
 
 	return &Config{
-		Name:                  strategyName,
-		Strategy:              store,
-		Docs:                  docs,
-		Limit:                 limit,
-		Threshold:             threshold,
-		ChunkSize:             chunkingCfg.Size,
-		ChunkOverlap:          chunkingCfg.Overlap,
-		RespectWordBoundaries: chunkingCfg.RespectWordBoundaries,
+		Name:      strategyName,
+		Strategy:  store,
+		Docs:      docs,
+		Limit:     limit,
+		Threshold: threshold,
+		Chunking:  chunkingCfg,
 	}, nil
 }

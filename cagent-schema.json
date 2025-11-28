@@ -728,7 +728,7 @@
                   "chunked-embeddings"
                 ]
               },
-              "model": {
+              "embedding_model": {
                 "type": "string",
                 "description": "Embedding model reference for chunked-embeddings strategies (looked up in models map, or 'auto' for automatic selection)",
                 "examples": [
@@ -804,6 +804,10 @@
                   "respect_word_boundaries": {
                     "type": "boolean",
                     "description": "When true, chunks will split on the nearest whitespace boundary instead of at the exact character limit, preventing words from being truncated."
+                  },
+                  "code_aware": {
+                    "type": "boolean",
+                    "description": "Enable code-aware chunking for source files. When true, the chunking strategy will prefer AST-based or language-aware processors when available (tree-sitter based), and fall back to plain text chunking for unsupported languages."
                   }
                 },
                 "additionalProperties": false

@@ -17,6 +17,7 @@ import (
 	"github.com/docker/cagent/pkg/rag/chunk"
 	"github.com/docker/cagent/pkg/rag/database"
 	"github.com/docker/cagent/pkg/rag/embed"
+	"github.com/docker/cagent/pkg/rag/treesitter"
 	"github.com/docker/cagent/pkg/rag/types"
 )
 
@@ -47,7 +48,7 @@ type VectorStore struct {
 	name         string
 	db           vectorStoreDB
 	embedder     *embed.Embedder
-	processor    *chunk.Processor
+	docProcessor chunk.DocumentProcessor
 	fileHashes   map[string]string
 	fileHashesMu sync.Mutex // Protects fileHashes map for concurrent access
 	watcher      *fsnotify.Watcher
@@ -114,15 +115,24 @@ type VectorStoreConfig struct {
 	ModelsStore          modelStore
 	EmbeddingConcurrency int
 	FileIndexConcurrency int
+	Chunking             ChunkingConfig
 }
 
 // NewVectorStore creates a new vector store with the given configuration.
 func NewVectorStore(cfg VectorStoreConfig) *VectorStore {
+	// Create the appropriate document processor based on config
+	var dp chunk.DocumentProcessor
+	if cfg.Chunking.CodeAware {
+		dp = treesitter.NewDocumentProcessor(cfg.Chunking.Size, cfg.Chunking.Overlap, cfg.Chunking.RespectWordBoundaries)
+	} else {
+		dp = chunk.NewTextDocumentProcessor(cfg.Chunking.Size, cfg.Chunking.Overlap, cfg.Chunking.RespectWordBoundaries)
+	}
+
 	s := &VectorStore{
 		name:                  cfg.Name,
 		db:                    cfg.Database,
 		embedder:              cfg.Embedder,
-		processor:             chunk.New(),
+		docProcessor:          dp,
 		fileHashes:            make(map[string]string),
 		events:                cfg.Events,
 		similarityMetric:      cfg.SimilarityMetric,
@@ -200,13 +210,14 @@ func (s *VectorStore) recordUsage(tokens int, cost float64) {
 }
 
 // Initialize indexes all documents
-func (s *VectorStore) Initialize(ctx context.Context, docPaths []string, chunkSize, chunkOverlap int, respectWordBoundaries bool) error {
+func (s *VectorStore) Initialize(ctx context.Context, docPaths []string, chunking ChunkingConfig) error {
 	slog.Info("Starting vector store initialization",
 		"name", s.name,
 		"doc_paths", docPaths,
-		"chunk_size", chunkSize,
-		"chunk_overlap", chunkOverlap,
-		"respect_word_boundaries", respectWordBoundaries)
+		"chunk_size", chunking.Size,
+		"chunk_overlap", chunking.Overlap,
+		"respect_word_boundaries", chunking.RespectWordBoundaries,
+		"code_aware", chunking.CodeAware)
 
 	// Load existing file hashes from metadata
 	slog.Debug("Loading existing file hashes", "strategy", s.name)
@@ -216,7 +227,7 @@ func (s *VectorStore) Initialize(ctx context.Context, docPaths []string, chunkSi
 
 	// Collect all files
 	slog.Debug("Collecting files", "strategy", s.name, "paths", docPaths)
-	files, err := s.processor.CollectFiles(docPaths)
+	files, err := chunk.CollectFiles(docPaths)
 	if err != nil {
 		s.emitEvent(types.Event{Type: "error", Error: err})
 		return fmt.Errorf("failed to collect files: %w", err)
@@ -300,7 +311,7 @@ func (s *VectorStore) Initialize(ctx context.Context, docPaths []string, chunkSi
 			}
 
 			// Index the file
-			if err := s.indexFile(gctx, status.path, chunkSize, chunkOverlap, respectWordBoundaries); err != nil {
+			if err := s.indexFile(gctx, status.path); err != nil {
 				slog.Error("Failed to index file", "path", status.path, "error", err)
 				// Don't return error - continue indexing other files
 				return nil
@@ -373,8 +384,8 @@ func (s *VectorStore) Query(ctx context.Context, query string, numResults int, t
 }
 
 // CheckAndReindexChangedFiles checks for file changes and re-indexes if needed
-func (s *VectorStore) CheckAndReindexChangedFiles(ctx context.Context, docPaths []string, chunkSize, chunkOverlap int, respectWordBoundaries bool) error {
-	files, err := s.processor.CollectFiles(docPaths)
+func (s *VectorStore) CheckAndReindexChangedFiles(ctx context.Context, docPaths []string, chunking ChunkingConfig) error {
+	files, err := chunk.CollectFiles(docPaths)
 	if err != nil {
 		return fmt.Errorf("failed to collect files: %w", err)
 	}
@@ -392,7 +403,7 @@ func (s *VectorStore) CheckAndReindexChangedFiles(ctx context.Context, docPaths 
 
 		if needsIndexing {
 			slog.Info("File changed, re-indexing", "path", filePath)
-			if err := s.indexFile(ctx, filePath, chunkSize, chunkOverlap, respectWordBoundaries); err != nil {
+			if err := s.indexFile(ctx, filePath); err != nil {
 				slog.Error("Failed to re-index file", "path", filePath, "error", err)
 			}
 		}
@@ -406,7 +417,7 @@ func (s *VectorStore) CheckAndReindexChangedFiles(ctx context.Context, docPaths 
 }
 
 // StartFileWatcher starts monitoring files for changes
-func (s *VectorStore) StartFileWatcher(ctx context.Context, docPaths []string, chunkSize, chunkOverlap int, respectWordBoundaries bool) error {
+func (s *VectorStore) StartFileWatcher(ctx context.Context, docPaths []string, chunking ChunkingConfig) error {
 	s.watcherMu.Lock()
 	defer s.watcherMu.Unlock()
 
@@ -424,7 +435,7 @@ func (s *VectorStore) StartFileWatcher(ctx context.Context, docPaths []string, c
 		slog.Debug("Watching path for changes", "strategy", s.name, "path", docPath)
 	}
 
-	go s.watchLoop(ctx, docPaths, chunkSize, chunkOverlap, respectWordBoundaries)
+	go s.watchLoop(ctx, docPaths)
 
 	slog.Info("File watcher started", "strategy", s.name, "paths", docPaths)
 	return nil
@@ -490,7 +501,7 @@ func (s *VectorStore) loadExistingHashes(ctx context.Context) error {
 }
 
 func (s *VectorStore) needsIndexing(_ context.Context, filePath string) (bool, error) {
-	currentHash, err := s.processor.FileHash(filePath)
+	currentHash, err := chunk.FileHash(filePath)
 	if err != nil {
 		return false, fmt.Errorf("failed to hash file: %w", err)
 	}
@@ -512,8 +523,8 @@ func (s *VectorStore) needsIndexing(_ context.Context, filePath string) (bool, e
 	return needsIndexing, nil
 }
 
-func (s *VectorStore) indexFile(ctx context.Context, filePath string, chunkSize, chunkOverlap int, respectWordBoundaries bool) error {
-	fileHash, err := s.processor.FileHash(filePath)
+func (s *VectorStore) indexFile(ctx context.Context, filePath string) error {
+	fileHash, err := chunk.FileHash(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to hash file: %w", err)
 	}
@@ -522,7 +533,7 @@ func (s *VectorStore) indexFile(ctx context.Context, filePath string, chunkSize,
 		return fmt.Errorf("failed to delete old documents: %w", err)
 	}
 
-	chunks, err := s.processor.ProcessFile(filePath, chunkSize, chunkOverlap, respectWordBoundaries)
+	chunks, err := chunk.ProcessFile(s.docProcessor, filePath)
 	if err != nil {
 		return fmt.Errorf("failed to process file: %w", err)
 	}
@@ -687,7 +698,7 @@ func (s *VectorStore) cleanupOrphanedDocuments(ctx context.Context, seenFiles ma
 
 func (s *VectorStore) addPathToWatcher(path string) error {
 	// Resolve path(s) using Processor (handles globs, directories, files)
-	files, err := s.processor.CollectFiles([]string{path})
+	files, err := chunk.CollectFiles([]string{path})
 	if err != nil {
 		return fmt.Errorf("failed to collect files for watching: %w", err)
 	}
@@ -734,7 +745,7 @@ func (s *VectorStore) addPathToWatcher(path string) error {
 	return nil
 }
 
-func (s *VectorStore) watchLoop(ctx context.Context, docPaths []string, chunkSize, chunkOverlap int, respectWordBoundaries bool) {
+func (s *VectorStore) watchLoop(ctx context.Context, docPaths []string) {
 	var debounceTimer *time.Timer
 	debounceDuration := 2 * time.Second
 	pendingChanges := make(map[string]bool)
@@ -765,7 +776,7 @@ func (s *VectorStore) watchLoop(ctx context.Context, docPaths []string, chunkSiz
 		filesToReindex := make([]string, 0)
 		for _, file := range changedFiles {
 			// Check if the file matches any of the configured document paths/patterns
-			matches, matchErr := s.processor.Matches(file, docPaths)
+			matches, matchErr := chunk.Matches(file, docPaths)
 			if matchErr != nil {
 				slog.Error("Failed to match path", "file", file, "error", matchErr)
 				continue
@@ -801,7 +812,7 @@ func (s *VectorStore) watchLoop(ctx context.Context, docPaths []string, chunkSiz
 					},
 				})
 
-				if err := s.indexFile(ctx, file, chunkSize, chunkOverlap, respectWordBoundaries); err != nil {
+				if err := s.indexFile(ctx, file); err != nil {
 					slog.Error("Failed to re-index file", "path", file, "error", err)
 					s.emitEvent(types.Event{
 						Type:    "error",
@@ -849,7 +860,7 @@ func (s *VectorStore) watchLoop(ctx context.Context, docPaths []string, chunkSiz
 			}
 
 			// Early filter: only track changes for files that match configured doc patterns
-			matches, err := s.processor.Matches(event.Name, docPaths)
+			matches, err := chunk.Matches(event.Name, docPaths)
 			if err != nil {
 				slog.Debug("Could not match path against doc patterns", "path", event.Name, "error", err)
 				continue
@@ -882,7 +893,7 @@ func (s *VectorStore) watchLoop(ctx context.Context, docPaths []string, chunkSiz
 }
 
 func (s *VectorStore) cleanupOrphanedDocumentsFromDisk(ctx context.Context, docPaths []string) error {
-	files, err := s.processor.CollectFiles(docPaths)
+	files, err := chunk.CollectFiles(docPaths)
 	if err != nil {
 		return fmt.Errorf("failed to collect files: %w", err)
 	}
