@@ -563,6 +563,7 @@ func (t *FilesystemTool) handleListDirectory(_ context.Context, toolCall tools.T
 	}
 
 	var result strings.Builder
+	count := 0
 	for _, entry := range entries {
 		// Check if entry should be ignored by VCS rules
 		entryPath := filepath.Join(args.Path, entry.Name())
@@ -574,6 +575,11 @@ func (t *FilesystemTool) handleListDirectory(_ context.Context, toolCall tools.T
 			result.WriteString(fmt.Sprintf("DIR  %s\n", entry.Name()))
 		} else {
 			result.WriteString(fmt.Sprintf("FILE %s\n", entry.Name()))
+		}
+		count++
+		if count >= maxFiles {
+			result.WriteString("...output truncated due to file limit...\n")
+			break
 		}
 	}
 
