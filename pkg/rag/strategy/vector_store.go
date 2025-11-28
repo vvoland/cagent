@@ -203,7 +203,7 @@ func (s *VectorStore) recordUsage(tokens int64, cost float64) {
 
 	// Emit usage event with CUMULATIVE totals for TUI
 	s.emitEvent(types.Event{
-		Type:        "usage",
+		Type:        types.EventTypeUsage,
 		TotalTokens: s.indexingTokens,
 		Cost:        s.indexingCost,
 	})
@@ -229,7 +229,7 @@ func (s *VectorStore) Initialize(ctx context.Context, docPaths []string, chunkin
 	slog.Debug("Collecting files", "strategy", s.name, "paths", docPaths)
 	files, err := chunk.CollectFiles(docPaths)
 	if err != nil {
-		s.emitEvent(types.Event{Type: "error", Error: err})
+		s.emitEvent(types.Event{Type: types.EventTypeError, Error: err})
 		return fmt.Errorf("failed to collect files: %w", err)
 	}
 
@@ -287,7 +287,7 @@ func (s *VectorStore) Initialize(ctx context.Context, docPaths []string, chunkin
 		return nil
 	}
 
-	s.emitEvent(types.Event{Type: "indexing_started"})
+	s.emitEvent(types.Event{Type: types.EventTypeIndexingStarted})
 
 	// Index files that need it in parallel
 	var indexed int
@@ -325,7 +325,7 @@ func (s *VectorStore) Initialize(ctx context.Context, docPaths []string, chunkin
 
 			// Emit progress event
 			s.emitEvent(types.Event{
-				Type: "indexing_progress",
+				Type: types.EventTypeIndexingProgress,
 				Progress: &types.Progress{
 					Current: current,
 					Total:   filesToIndex,
@@ -345,7 +345,7 @@ func (s *VectorStore) Initialize(ctx context.Context, docPaths []string, chunkin
 		slog.Error("Failed to cleanup orphaned documents", "error", err)
 	}
 
-	s.emitEvent(types.Event{Type: "indexing_completed"})
+	s.emitEvent(types.Event{Type: types.EventTypeIndexingComplete})
 
 	slog.Info("Vector store initialization completed",
 		"name", s.name,

@@ -22,6 +22,7 @@ import (
 	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/modelsdev"
 	"github.com/docker/cagent/pkg/rag"
+	ragtypes "github.com/docker/cagent/pkg/rag/types"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/telemetry"
@@ -264,15 +265,15 @@ func (r *LocalRuntime) forwardRAGEvents(ctx context.Context, ragManagers map[str
 					slog.Debug("Forwarding RAG event", "type", ragEvent.Type, "rag", ragName, "agent", agentName)
 
 					switch ragEvent.Type {
-					case "indexing_started":
+					case ragtypes.EventTypeIndexingStarted:
 						sendEvent(RAGIndexingStarted(ragName, ragEvent.StrategyName, agentName))
-					case "indexing_progress":
+					case ragtypes.EventTypeIndexingProgress:
 						if ragEvent.Progress != nil {
 							sendEvent(RAGIndexingProgress(ragName, ragEvent.StrategyName, ragEvent.Progress.Current, ragEvent.Progress.Total, agentName))
 						}
-					case "indexing_completed":
+					case ragtypes.EventTypeIndexingComplete:
 						sendEvent(RAGIndexingCompleted(ragName, ragEvent.StrategyName, agentName))
-					case "usage":
+					case ragtypes.EventTypeUsage:
 						// Convert RAG usage to TokenUsageEvent so TUI displays it
 						sendEvent(TokenUsage(
 							"",
@@ -283,7 +284,7 @@ func (r *LocalRuntime) forwardRAGEvents(ctx context.Context, ragManagers map[str
 							0,                    // context limit (not applicable)
 							ragEvent.Cost,
 						))
-					case "error":
+					case ragtypes.EventTypeError:
 						if ragEvent.Error != nil {
 							sendEvent(Error(fmt.Sprintf("RAG %s error: %v", ragName, ragEvent.Error)))
 						}
