@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-
-	"golang.org/x/sync/errgroup"
+	"sync"
+	"sync/atomic"
 
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config"
@@ -42,48 +42,46 @@ func Evaluate(ctx context.Context, out Printer, agentFilename, evalsDir string, 
 		return err
 	}
 
-	_, err = runEvaluations(ctx, agents, evalsDir, func(result Result) {
-		out.Printf("---\n")
+	evals, err := loadEvalSessions(ctx, evalsDir)
+	if err != nil {
+		return err
+	}
+
+	runEvals := make([]func() (Result, error), len(evals))
+	for i := range evals {
+		runEvals[i] = sync.OnceValues(func() (Result, error) {
+			return runSingleEvaluation(ctx, agents, &evals[i])
+		})
+	}
+
+	var index atomic.Int32
+	for range 4 {
+		go func() {
+			for {
+				i := index.Add(1) - 1
+				if i >= int32(len(evals)) {
+					break
+				}
+				_, _ = runEvals[i]()
+			}
+		}()
+	}
+
+	for i := range evals {
+		result, err := runEvals[i]()
+		if err != nil {
+			return err
+		}
+
+		out.Printf("--- %d\n", i)
 		out.Printf("First message: %s\n", result.FirstMessage)
 		out.Printf("Eval file: %s\n", result.EvalFile)
 		out.Printf("Tool trajectory score: %f\n", result.Score.ToolTrajectoryScore)
 		out.Printf("Rouge-1 score: %f\n", result.Score.Rouge1Score)
 		out.Printf("\n")
-	})
-	return err
-}
-
-func runEvaluations(ctx context.Context, t *team.Team, evalsDir string, onResult func(Result)) ([]Result, error) {
-	evals, err := loadEvalSessions(ctx, evalsDir)
-	if err != nil {
-		return nil, err
 	}
 
-	// Each eval gets a channel; results print in order as they complete.
-	chans := make([]chan Result, len(evals))
-	errs, ctx := errgroup.WithContext(ctx)
-	errs.SetLimit(4)
-
-	for i := range evals {
-		chans[i] = make(chan Result, 1)
-		errs.Go(func() error {
-			result, err := runSingleEvaluation(ctx, t, &evals[i])
-			if err == nil {
-				chans[i] <- result
-			}
-			return err
-		})
-	}
-
-	var results []Result
-	for _, ch := range chans {
-		if result, ok := <-ch; ok {
-			results = append(results, result)
-			onResult(result)
-		}
-	}
-
-	return results, errs.Wait()
+	return nil
 }
 
 // loadEvalSessions reads all evaluation session files from the given directory.
