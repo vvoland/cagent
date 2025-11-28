@@ -1,6 +1,7 @@
 package v2
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/docker/cagent/pkg/config/types"
@@ -187,6 +188,37 @@ func (t *ThinkingBudget) UnmarshalYAML(unmarshal func(any) error) error {
 	// Try string level
 	var s string
 	if err := unmarshal(&s); err == nil {
+		*t = ThinkingBudget{Effort: s}
+		return nil
+	}
+
+	return nil
+}
+
+// MarshalJSON implements custom marshaling to output simple string or int format
+// This ensures JSON serialization during config upgrades preserves the value correctly
+func (t ThinkingBudget) MarshalJSON() ([]byte, error) {
+	// If Effort string is set (non-empty), marshal as string
+	if t.Effort != "" {
+		return []byte(fmt.Sprintf("%q", t.Effort)), nil
+	}
+
+	// Otherwise marshal as integer (includes 0, -1, and positive values)
+	return []byte(fmt.Sprintf("%d", t.Tokens)), nil
+}
+
+// UnmarshalJSON implements custom unmarshaling to accept simple string or int format
+func (t *ThinkingBudget) UnmarshalJSON(data []byte) error {
+	// Try integer tokens first
+	var n int
+	if err := json.Unmarshal(data, &n); err == nil {
+		*t = ThinkingBudget{Tokens: n}
+		return nil
+	}
+
+	// Try string level
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
 		*t = ThinkingBudget{Effort: s}
 		return nil
 	}
