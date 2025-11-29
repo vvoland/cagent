@@ -79,6 +79,10 @@ type chatPage struct {
 
 	// keyboardEnhancementsSupported tracks whether the terminal supports keyboard enhancements
 	keyboardEnhancementsSupported bool
+
+	// Resizable editor state
+	isDragging  bool
+	editorLines int
 }
 
 // KeyMap defines key bindings for the chat page
@@ -126,6 +130,7 @@ func New(a *app.App, sessionState *service.SessionState) Page {
 		sessionState: sessionState,
 		// Default to no keyboard enhancements (will be updated if msg is received)
 		keyboardEnhancementsSupported: false,
+		editorLines:                   3,
 	}
 
 	// Initialize help text with default (ctrl+j)
@@ -225,17 +230,32 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 		return p, nil
 
-	case tea.MouseWheelMsg, tea.MouseClickMsg, tea.MouseMotionMsg, tea.MouseReleaseMsg:
-		// Route mouse events based on Y coordinate - editor is at bottom of screen
-		if p.isMouseOverEditor(msg) {
-			// Forward to editor for scrolling and interaction
-			model, cmd := p.editor.Update(msg)
-			p.editor = model.(editor.Editor)
+	case tea.MouseClickMsg:
+		if p.isOnResizeHandle(msg.Y) {
+			p.isDragging = true
+			return p, nil
+		}
+		cmd := p.routeMouseEvent(msg, msg.Y)
+		return p, cmd
+
+	case tea.MouseMotionMsg:
+		if p.isDragging {
+			cmd := p.handleResize(msg.Y)
 			return p, cmd
 		}
-		// Otherwise forward to messages component for chat scrolling
-		model, cmd := p.messages.Update(msg)
-		p.messages = model.(messages.Model)
+		cmd := p.routeMouseEvent(msg, msg.Y)
+		return p, cmd
+
+	case tea.MouseReleaseMsg:
+		if p.isDragging {
+			p.isDragging = false
+			return p, nil
+		}
+		cmd := p.routeMouseEvent(msg, msg.Y)
+		return p, cmd
+
+	case tea.MouseWheelMsg:
+		cmd := p.routeMouseEvent(msg, msg.Y)
 		return p, cmd
 
 	case editor.SendMsg:
@@ -441,13 +461,17 @@ func (p *chatPage) View() string {
 		)
 	}
 
+	// Resize handle between messages and editor
+	resizeHandle := p.renderResizeHandle(innerWidth)
+
 	// Input field spans full width below everything
 	input := p.editor.View()
 
-	// Create a full-height layout with header, body, and input
+	// Create a full-height layout with header, body, resize handle, and input
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
 		bodyContent,
+		resizeHandle,
 		input,
 	)
 
@@ -463,7 +487,12 @@ func (p *chatPage) SetSize(width, height int) tea.Cmd {
 	var cmds []tea.Cmd
 
 	// Calculate heights accounting for padding
-	editorHeight := 3 // fixed 3 lines for multi-line input
+	// Clamp editor lines between 3 (min) and half screen (max)
+	minLines := 3
+	maxLines := max(3, (height-6)/2) // Leave room for messages
+	p.editorLines = max(minLines, min(p.editorLines, maxLines))
+
+	editorHeight := p.editorLines
 
 	// Calculate available space, ensuring status bar remains visible
 	p.inputHeight = editorHeight + 3 // account for editor padding
@@ -474,13 +503,13 @@ func (p *chatPage) SetSize(width, height int) tea.Cmd {
 	var mainWidth int
 	if width >= minWindowWidth {
 		mainWidth = innerWidth - sidebarWidth
-		p.chatHeight = height - p.inputHeight
+		p.chatHeight = height - p.inputHeight - 1 // -1 for resize handle
 		p.sidebar.SetMode(sidebar.ModeVertical)
 		cmds = append(cmds, p.sidebar.SetSize(sidebarWidth, p.chatHeight), p.messages.SetPosition(0, 0))
 	} else {
 		const horizontalSidebarHeight = 3
 		mainWidth = innerWidth
-		p.chatHeight = height - p.inputHeight - horizontalSidebarHeight
+		p.chatHeight = height - p.inputHeight - horizontalSidebarHeight - 1 // -1 for resize handle
 		p.sidebar.SetMode(sidebar.ModeHorizontal)
 		cmds = append(cmds, p.sidebar.SetSize(width, horizontalSidebarHeight), p.messages.SetPosition(0, horizontalSidebarHeight))
 	}
@@ -612,30 +641,36 @@ func (p *chatPage) Cleanup() {
 	p.stopProgressBar()
 }
 
-// isMouseOverEditor checks if a mouse event occurred within the editor's area.
-// The editor is positioned at the bottom of the screen.
-func (p *chatPage) isMouseOverEditor(msg tea.Msg) bool {
-	// Calculate editor's Y position bounds
-	editorStartY := p.height - p.inputHeight
-	editorEndY := p.height
-
-	// Extract Y coordinate based on message type
-	var mouseY int
-	switch m := msg.(type) {
-	case tea.MouseWheelMsg:
-		mouseY = m.Y
-	case tea.MouseClickMsg:
-		mouseY = m.Y
-	case tea.MouseMotionMsg:
-		mouseY = m.Y
-	case tea.MouseReleaseMsg:
-		mouseY = m.Y
-	default:
-		return false
+// routeMouseEvent routes mouse events to editor (bottom) or messages (top) based on Y.
+func (p *chatPage) routeMouseEvent(msg tea.Msg, y int) tea.Cmd {
+	if y >= p.height-p.inputHeight {
+		model, cmd := p.editor.Update(msg)
+		p.editor = model.(editor.Editor)
+		return cmd
 	}
+	model, cmd := p.messages.Update(msg)
+	p.messages = model.(messages.Model)
+	return cmd
+}
 
-	// Check if mouse Y is within editor bounds
-	return mouseY >= editorStartY && mouseY < editorEndY
+// isOnResizeHandle checks if y is on the resize handle (1 line above editor).
+func (p *chatPage) isOnResizeHandle(y int) bool {
+	return y == p.height-p.inputHeight-1
+}
+
+// handleResize adjusts editor height based on drag position.
+func (p *chatPage) handleResize(y int) tea.Cmd {
+	newLines := max(3, min(p.height-y-3, (p.height-6)/2))
+	if newLines != p.editorLines {
+		p.editorLines = newLines
+		return p.SetSize(p.width, p.height)
+	}
+	return nil
+}
+
+// renderResizeHandle renders the draggable separator between messages and editor.
+func (p *chatPage) renderResizeHandle(width int) string {
+	return styles.ResizeHandleStyle.Render(strings.Repeat("─", width))
 }
 
 // See: https://conemu.github.io/en/AnsiEscapeCodes.html#ConEmu_specific_OSC

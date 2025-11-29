@@ -358,6 +358,13 @@ var (
 	ThumbStyle = lipgloss.NewStyle().Foreground(Accent)
 )
 
+// Resize Handle Style
+var (
+	ResizeHandleStyle = BaseStyle.
+		Foreground(BorderSecondary).
+		Background(BackgroundAlt)
+)
+
 // Notification Styles
 var (
 	NotificationStyle = BaseStyle.
