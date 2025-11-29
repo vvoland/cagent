@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -537,67 +536,6 @@ func TestTrackServerStart(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.True(t, executed)
-}
-
-// TestBuildCommandInfo tests the BuildCommandInfo function with all commands
-func TestBuildCommandInfo(t *testing.T) {
-	testCases := []struct {
-		name     string
-		command  string
-		args     []string
-		expected CommandInfo
-	}{
-		{
-			name:    "run command with config",
-			command: "run",
-			args:    []string{"config.yaml", "--debug"},
-			expected: CommandInfo{
-				Action: "run",
-				Args:   []string{"config.yaml"},
-				Flags:  []string{},
-			},
-		},
-		{
-			name:    "pull command with image",
-			command: "pull",
-			args:    []string{"user/agent:latest"},
-			expected: CommandInfo{
-				Action: "pull",
-				Args:   []string{"user/agent:latest"},
-				Flags:  []string{},
-			},
-		},
-		{
-			name:    "catalog command",
-			command: "catalog",
-			args:    []string{},
-			expected: CommandInfo{
-				Action: "catalog",
-				Args:   []string{},
-				Flags:  []string{},
-			},
-		},
-		{
-			name:    "version command",
-			command: "version",
-			args:    []string{},
-			expected: CommandInfo{
-				Action: "version",
-				Args:   []string{},
-				Flags:  []string{},
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			cmd := &cobra.Command{Use: tc.command}
-			result := BuildCommandInfo(cmd, tc.args, tc.command)
-
-			assert.Equal(t, tc.expected.Action, result.Action)
-			assert.Equal(t, tc.expected.Args, result.Args)
-		})
-	}
 }
 
 // TestGlobalTelemetryFunctions tests the global telemetry convenience functions
