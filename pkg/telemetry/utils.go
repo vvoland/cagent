@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/paths"
 )
@@ -99,55 +98,4 @@ type CommandInfo struct {
 	Action string
 	Args   []string
 	Flags  []string
-}
-
-// BuildCommandInfo extracts detailed command information for telemetry
-func BuildCommandInfo(cmd *cobra.Command, args []string, baseName string) CommandInfo {
-	info := CommandInfo{
-		Action: baseName,
-		Args:   []string{},
-		Flags:  []string{},
-	}
-
-	// Only capture arguments for specific commands where they provide valuable context
-	shouldCaptureArgs := baseName == "run" || baseName == "pull" || baseName == "catalog"
-
-	if shouldCaptureArgs {
-		// Add subcommands from args (first non-flag arguments)
-		for _, arg := range args {
-			if !strings.HasPrefix(arg, "-") {
-				info.Args = append(info.Args, arg)
-			} else {
-				// Stop at first flag
-				break
-			}
-		}
-	}
-
-	// Add important flags that provide context
-	if cmd.Flags() != nil {
-		// Check for help flag
-		if help, _ := cmd.Flags().GetBool("help"); help {
-			info.Flags = append(info.Flags, "--help")
-		}
-
-		// Check for version flag (if it exists)
-		if cmd.Flags().Lookup("version") != nil {
-			if version, _ := cmd.Flags().GetBool("version"); version {
-				info.Flags = append(info.Flags, "--version")
-			}
-		}
-
-		// Check for other commonly used flags (more relevant for run/pull commands)
-		if shouldCaptureArgs {
-			flagsToCheck := []string{"config", "agent", "model", "output", "format", "yolo"}
-			for _, flagName := range flagsToCheck {
-				if flag := cmd.Flags().Lookup(flagName); flag != nil && flag.Changed {
-					info.Flags = append(info.Flags, "--"+flagName)
-				}
-			}
-		}
-	}
-
-	return info
 }
