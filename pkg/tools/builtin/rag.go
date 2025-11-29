@@ -84,7 +84,7 @@ func (t *RAGTool) Tools(context.Context) ([]tools.Tool, error) {
 		Description:  description,
 		Parameters:   paramsSchema,
 		OutputSchema: outputSchema,
-		Handler:      t.handleQueryRAG,
+		Handler:      NewHandler(t.handleQueryRAG),
 		Annotations: tools.ToolAnnotations{
 			ReadOnlyHint: true,
 			Title:        fmt.Sprintf("Query %s", t.toolName),
@@ -101,12 +101,7 @@ func (t *RAGTool) Tools(context.Context) ([]tools.Tool, error) {
 	return []tools.Tool{tool}, nil
 }
 
-func (t *RAGTool) handleQueryRAG(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args QueryRAGArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-		return nil, fmt.Errorf("failed to parse arguments: %w", err)
-	}
-
+func (t *RAGTool) handleQueryRAG(ctx context.Context, args QueryRAGArgs) (*tools.ToolCallResult, error) {
 	if args.Query == "" {
 		return nil, fmt.Errorf("query cannot be empty")
 	}
