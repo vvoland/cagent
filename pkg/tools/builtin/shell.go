@@ -3,7 +3,6 @@ package builtin
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -133,12 +132,7 @@ func statusToString(status int32) string {
 	}
 }
 
-func (h *shellHandler) RunShell(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var params RunShellArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
-		return nil, fmt.Errorf("invalid arguments: %w", err)
-	}
-
+func (h *shellHandler) RunShell(ctx context.Context, params RunShellArgs) (*tools.ToolCallResult, error) {
 	// Determine effective timeout
 	effectiveTimeout := h.timeout
 	if params.Timeout > 0 {
@@ -209,12 +203,7 @@ func (h *shellHandler) RunShell(ctx context.Context, toolCall tools.ToolCall) (*
 	}, nil
 }
 
-func (h *shellHandler) RunShellBackground(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var params RunShellBackgroundArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
-		return nil, fmt.Errorf("invalid arguments: %w", err)
-	}
-
+func (h *shellHandler) RunShellBackground(_ context.Context, params RunShellBackgroundArgs) (*tools.ToolCallResult, error) {
 	// Generate unique job ID
 	counter := h.jobCounter.Add(1)
 	jobID := fmt.Sprintf("job_%d_%d", time.Now().Unix(), counter)
@@ -297,7 +286,7 @@ func (h *shellHandler) RunShellBackground(_ context.Context, toolCall tools.Tool
 	}, nil
 }
 
-func (h *shellHandler) ListBackgroundJobs(_ context.Context, _ tools.ToolCall) (*tools.ToolCallResult, error) {
+func (h *shellHandler) ListBackgroundJobs(_ context.Context, _ map[string]any) (*tools.ToolCallResult, error) {
 	var output strings.Builder
 	output.WriteString("Background Jobs:\n\n")
 
@@ -330,12 +319,7 @@ func (h *shellHandler) ListBackgroundJobs(_ context.Context, _ tools.ToolCall) (
 	}, nil
 }
 
-func (h *shellHandler) ViewBackgroundJob(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var params ViewBackgroundJobArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
-		return nil, fmt.Errorf("invalid arguments: %w", err)
-	}
-
+func (h *shellHandler) ViewBackgroundJob(_ context.Context, params ViewBackgroundJobArgs) (*tools.ToolCallResult, error) {
 	job, exists := h.jobs.Load(params.JobID)
 	if !exists {
 		return &tools.ToolCallResult{
@@ -374,12 +358,7 @@ func (h *shellHandler) ViewBackgroundJob(_ context.Context, toolCall tools.ToolC
 	}, nil
 }
 
-func (h *shellHandler) StopBackgroundJob(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var params StopBackgroundJobArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
-		return nil, fmt.Errorf("invalid arguments: %w", err)
-	}
-
+func (h *shellHandler) StopBackgroundJob(_ context.Context, params StopBackgroundJobArgs) (*tools.ToolCallResult, error) {
 	job, exists := h.jobs.Load(params.JobID)
 	if !exists {
 		return &tools.ToolCallResult{
@@ -626,7 +605,7 @@ func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  `Executes the given shell command in the user's default shell.`,
 			Parameters:   tools.MustSchemaFor[RunShellArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handler.RunShell,
+			Handler:      NewHandler(t.handler.RunShell),
 			Annotations: tools.ToolAnnotations{
 				Title: "Run Shell Command",
 			},
@@ -637,7 +616,7 @@ func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  `Starts a shell command in the background and returns immediately with a job ID. Use this for long-running processes like servers, watches, or any command that should run while other tasks are performed.`,
 			Parameters:   tools.MustSchemaFor[RunShellBackgroundArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handler.RunShellBackground,
+			Handler:      NewHandler(t.handler.RunShellBackground),
 			Annotations: tools.ToolAnnotations{
 				Title: "Run Shell Command in Background",
 			},
@@ -647,7 +626,7 @@ func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
 			Category:     "shell",
 			Description:  `Lists all background jobs with their status, runtime, and other information.`,
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handler.ListBackgroundJobs,
+			Handler:      NewHandler(t.handler.ListBackgroundJobs),
 			Annotations: tools.ToolAnnotations{
 				Title:        "List Background Jobs",
 				ReadOnlyHint: true,
@@ -659,7 +638,7 @@ func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  `Views the output and status of a specific background job by job ID.`,
 			Parameters:   tools.MustSchemaFor[ViewBackgroundJobArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handler.ViewBackgroundJob,
+			Handler:      NewHandler(t.handler.ViewBackgroundJob),
 			Annotations: tools.ToolAnnotations{
 				Title:        "View Background Job Output",
 				ReadOnlyHint: true,
@@ -671,7 +650,7 @@ func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  `Stops a running background job by job ID. The process and all its child processes will be terminated.`,
 			Parameters:   tools.MustSchemaFor[StopBackgroundJobArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handler.StopBackgroundJob,
+			Handler:      NewHandler(t.handler.StopBackgroundJob),
 			Annotations: tools.ToolAnnotations{
 				Title: "Stop Background Job",
 			},
