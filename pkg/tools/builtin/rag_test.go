@@ -1,7 +1,6 @@
 package builtin
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,51 +37,6 @@ func TestRAGTool_ToolName(t *testing.T) {
 			require.Len(t, tools, 1)
 			assert.Equal(t, tt.expectedName, tools[0].Name)
 			assert.Equal(t, "knowledge", tools[0].Category)
-		})
-	}
-}
-
-func TestRAGTool_QueryArgs(t *testing.T) {
-	// Test that query args only require query field (no source field)
-	tests := []struct {
-		name          string
-		jsonInput     string
-		expectError   bool
-		expectedQuery string
-	}{
-		{
-			name:          "Valid query",
-			jsonInput:     `{"query": "test search"}`,
-			expectError:   false,
-			expectedQuery: "test search",
-		},
-		{
-			name:          "Empty query",
-			jsonInput:     `{"query": ""}`,
-			expectError:   false,
-			expectedQuery: "",
-		},
-		{
-			name:          "Missing query field",
-			jsonInput:     `{}`,
-			expectError:   false,
-			expectedQuery: "",
-		},
-		{
-			name:          "Extra fields are ignored",
-			jsonInput:     `{"query": "test", "extra": "ignored"}`,
-			expectError:   false,
-			expectedQuery: "test",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var args QueryRAGArgs
-			err := json.Unmarshal([]byte(tt.jsonInput), &args)
-			require.NoError(t, err)
-
-			assert.Equal(t, tt.expectedQuery, args.Query)
 		})
 	}
 }

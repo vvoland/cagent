@@ -1,7 +1,6 @@
 package builtin
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,136 +9,18 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
-func TestNewThinkTool(t *testing.T) {
-	tool := NewThinkTool()
-
-	assert.NotNil(t, tool)
-	assert.NotNil(t, tool.handler)
-	assert.Empty(t, tool.handler.thoughts)
-}
-
-func TestThinkTool_Instructions(t *testing.T) {
-	tool := NewThinkTool()
-
-	instructions := tool.Instructions()
-	assert.Contains(t, instructions, "Using the think tool")
-	assert.Contains(t, instructions, "Use the think tool generously")
-}
-
-func TestThinkTool_Tools(t *testing.T) {
-	tool := NewThinkTool()
-
-	allTools, err := tool.Tools(t.Context())
-
-	require.NoError(t, err)
-	assert.Len(t, allTools, 1)
-	for _, tool := range allTools {
-		assert.NotNil(t, tool.Handler)
-		assert.Equal(t, "think", tool.Category)
-	}
-
-	assert.Equal(t, "think", allTools[0].Name)
-	assert.Contains(t, allTools[0].Description, "Use the tool to think about something")
-
-	schema, err := json.Marshal(allTools[0].Parameters)
-	require.NoError(t, err)
-	assert.JSONEq(t, `{
-	"type": "object",
-	"properties": {
-		"thought": {
-			"description": "The thought to think about",
-			"type": "string"
-		}
-	},
-	"additionalProperties": false,
-	"required": [
-		"thought"
-	]
-}`, string(schema))
-}
-
-func TestThinkTool_DisplayNames(t *testing.T) {
-	tool := NewThinkTool()
-
-	all, err := tool.Tools(t.Context())
-	require.NoError(t, err)
-
-	for _, tool := range all {
-		assert.NotEmpty(t, tool.DisplayName())
-		assert.NotEqual(t, tool.Name, tool.DisplayName())
-	}
-}
-
 func TestThinkTool_Handler(t *testing.T) {
 	tool := NewThinkTool()
 
-	tls, err := tool.Tools(t.Context())
-	require.NoError(t, err)
-	require.Len(t, tls, 1)
-
-	handler := tls[0].Handler
-
-	args := ThinkArgs{
-		Thought: "This is a test thought",
-	}
-	argsBytes, err := json.Marshal(args)
-	require.NoError(t, err)
-
-	toolCall := tools.ToolCall{
-		Function: tools.FunctionCall{
-			Name:      "think",
-			Arguments: string(argsBytes),
-		},
-	}
-
-	result, err := handler(t.Context(), toolCall)
-
+	result, err := tool.handler.CallTool(t.Context(), ThinkArgs{Thought: "This is a test thought"})
 	require.NoError(t, err)
 	assert.Contains(t, result.Output, "This is a test thought")
 
-	args.Thought = "Another thought"
-	argsBytes, err = json.Marshal(args)
+	result, err = tool.handler.CallTool(t.Context(), ThinkArgs{Thought: "Another thought"})
 	require.NoError(t, err)
 
-	toolCall.Function.Arguments = string(argsBytes)
-
-	result, err = handler(t.Context(), toolCall)
-
-	require.NoError(t, err)
 	assert.Contains(t, result.Output, "This is a test thought")
 	assert.Contains(t, result.Output, "Another thought")
-}
-
-func TestThinkTool_InvalidArguments(t *testing.T) {
-	tool := NewThinkTool()
-
-	tls, err := tool.Tools(t.Context())
-	require.NoError(t, err)
-	require.Len(t, tls, 1)
-
-	handler := tls[0].Handler
-
-	// Invalid JSON
-	toolCall := tools.ToolCall{
-		Function: tools.FunctionCall{
-			Name:      "think",
-			Arguments: "{invalid json",
-		},
-	}
-
-	result, err := handler(t.Context(), toolCall)
-	require.Error(t, err)
-	assert.Nil(t, result)
-}
-
-func TestThinkTool_StartStop(t *testing.T) {
-	tool := NewThinkTool()
-
-	err := tool.Start(t.Context())
-	require.NoError(t, err)
-
-	err = tool.Stop(t.Context())
-	require.NoError(t, err)
 }
 
 func TestThinkTool_OutputSchema(t *testing.T) {

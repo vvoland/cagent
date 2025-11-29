@@ -184,7 +184,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 				"required":             []string{"name", "type"},
 				"additionalProperties": false,
 			},
-			Handler: t.handleDirectoryTree,
+			Handler: NewHandler(t.handleDirectoryTree),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "Directory Tree",
@@ -196,7 +196,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Make line-based edits to a text file. Each edit replaces exact line sequences with new content.",
 			Parameters:   tools.MustSchemaFor[EditFileArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handleEditFile,
+			Handler:      NewHandler(t.handleEditFile),
 			Annotations: tools.ToolAnnotations{
 				Title: "Edit File",
 			},
@@ -206,7 +206,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Category:     "filesystem",
 			Description:  "Returns a list of directories that the server has permission to access. Don't call if you access only the current working directory. It's always allowed.",
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handleListAllowedDirectories,
+			Handler:      NewHandler(t.handleListAllowedDirectories),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "List Allowed Directories",
@@ -218,7 +218,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Request to add a new directory to the allowed directories list. This requires explicit user consent for security reasons.",
 			Parameters:   tools.MustSchemaFor[AddAllowedDirectoryArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handleAddAllowedDirectory,
+			Handler:      NewHandler(t.handleAddAllowedDirectory),
 			Annotations: tools.ToolAnnotations{
 				Title: "Add Allowed Directory",
 			},
@@ -229,7 +229,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Get a detailed listing of all files and directories in a specified path.",
 			Parameters:   tools.MustSchemaFor[ListDirectoryArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handleListDirectory,
+			Handler:      NewHandler(t.handleListDirectory),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "List Directory",
@@ -241,7 +241,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Read the complete contents of a file from the file system.",
 			Parameters:   tools.MustSchemaFor[ReadFileArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handleReadFile,
+			Handler:      NewHandler(t.handleReadFile),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "Read File",
@@ -254,7 +254,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Parameters:  tools.MustSchemaFor[ReadMultipleFilesArgs](),
 			// TODO(dga): depends on the json param
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handleReadMultipleFiles,
+			Handler:      NewHandler(t.handleReadMultipleFiles),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "Read Multiple Files",
@@ -266,7 +266,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Recursively search for files and directories matching a pattern. Prints the full paths of matching files and the total number of files found. The pattern syntax is the same as Go's filepath.Match.",
 			Parameters:   tools.MustSchemaFor[SearchFilesArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handleSearchFiles,
+			Handler:      NewHandler(t.handleSearchFiles),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "Search Files",
@@ -278,7 +278,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Searches for text or regex patterns in the content of files matching a GLOB pattern.",
 			Parameters:   tools.MustSchemaFor[SearchFilesContentArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handleSearchFilesContent,
+			Handler:      NewHandler(t.handleSearchFilesContent),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "Search Files Content",
@@ -290,7 +290,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Create a new file or completely overwrite an existing file with new content.",
 			Parameters:   tools.MustSchemaFor[WriteFileArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handleWriteFile,
+			Handler:      NewHandler(t.handleWriteFile),
 			Annotations: tools.ToolAnnotations{
 				Title: "Write File",
 			},
@@ -411,12 +411,7 @@ func (t *FilesystemTool) shouldIgnorePath(path string) bool {
 
 // Handler implementations
 
-func (t *FilesystemTool) handleDirectoryTree(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args DirectoryTreeArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-		return nil, fmt.Errorf("failed to parse arguments: %w", err)
-	}
-
+func (t *FilesystemTool) handleDirectoryTree(_ context.Context, args DirectoryTreeArgs) (*tools.ToolCallResult, error) {
 	if err := t.isPathAllowed(args.Path); err != nil {
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
 	}
@@ -434,12 +429,7 @@ func (t *FilesystemTool) handleDirectoryTree(_ context.Context, toolCall tools.T
 	return &tools.ToolCallResult{Output: string(result)}, nil
 }
 
-func (t *FilesystemTool) handleEditFile(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args EditFileArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-		return nil, fmt.Errorf("failed to parse arguments: %w", err)
-	}
-
+func (t *FilesystemTool) handleEditFile(ctx context.Context, args EditFileArgs) (*tools.ToolCallResult, error) {
 	if err := t.isPathAllowed(args.Path); err != nil {
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
 	}
@@ -477,8 +467,8 @@ func (t *FilesystemTool) handleEditFile(ctx context.Context, toolCall tools.Tool
 	return &tools.ToolCallResult{Output: fmt.Sprintf("File edited successfully. Changes:\n%s", strings.Join(changes, "\n"))}, nil
 }
 
-func (t *FilesystemTool) handleListAllowedDirectories(context.Context, tools.ToolCall) (*tools.ToolCallResult, error) {
-	result, err := json.MarshalIndent(t.allowedDirectories, "", "  ")
+func (t *FilesystemTool) handleListAllowedDirectories(context.Context, map[string]any) (*tools.ToolCallResult, error) {
+	result, err := json.Marshal(t.allowedDirectories)
 	if err != nil {
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error formatting directories: %s", err)}, nil
 	}
@@ -486,12 +476,7 @@ func (t *FilesystemTool) handleListAllowedDirectories(context.Context, tools.Too
 	return &tools.ToolCallResult{Output: string(result)}, nil
 }
 
-func (t *FilesystemTool) handleAddAllowedDirectory(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args AddAllowedDirectoryArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-		return nil, fmt.Errorf("failed to parse arguments: %w", err)
-	}
-
+func (t *FilesystemTool) handleAddAllowedDirectory(_ context.Context, args AddAllowedDirectoryArgs) (*tools.ToolCallResult, error) {
 	// Validate the path exists and is a directory
 	absPath, err := filepath.Abs(args.Path)
 	if err != nil {
@@ -547,12 +532,7 @@ Updated allowed directories:
 	return &tools.ToolCallResult{Output: successMsg}, nil
 }
 
-func (t *FilesystemTool) handleListDirectory(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args ListDirectoryArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-		return nil, fmt.Errorf("failed to parse arguments: %w", err)
-	}
-
+func (t *FilesystemTool) handleListDirectory(_ context.Context, args ListDirectoryArgs) (*tools.ToolCallResult, error) {
 	if err := t.isPathAllowed(args.Path); err != nil {
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
 	}
@@ -586,12 +566,7 @@ func (t *FilesystemTool) handleListDirectory(_ context.Context, toolCall tools.T
 	return &tools.ToolCallResult{Output: result.String()}, nil
 }
 
-func (t *FilesystemTool) handleReadFile(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args ReadFileArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-		return nil, fmt.Errorf("failed to parse arguments: %w", err)
-	}
-
+func (t *FilesystemTool) handleReadFile(_ context.Context, args ReadFileArgs) (*tools.ToolCallResult, error) {
 	if err := t.isPathAllowed(args.Path); err != nil {
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
 	}
@@ -604,12 +579,7 @@ func (t *FilesystemTool) handleReadFile(_ context.Context, toolCall tools.ToolCa
 	return &tools.ToolCallResult{Output: string(content)}, nil
 }
 
-func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args ReadMultipleFilesArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-		return nil, fmt.Errorf("failed to parse arguments: %w", err)
-	}
-
+func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadMultipleFilesArgs) (*tools.ToolCallResult, error) {
 	type PathContent struct {
 		Path    string `json:"path"`
 		Content string `json:"content"`
@@ -666,12 +636,7 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, toolCall t
 	}, nil
 }
 
-func (t *FilesystemTool) handleSearchFiles(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args SearchFilesArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-		return nil, fmt.Errorf("failed to parse arguments: %w", err)
-	}
-
+func (t *FilesystemTool) handleSearchFiles(_ context.Context, args SearchFilesArgs) (*tools.ToolCallResult, error) {
 	if err := t.isPathAllowed(args.Path); err != nil {
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
 	}
@@ -729,12 +694,7 @@ func (t *FilesystemTool) handleSearchFiles(_ context.Context, toolCall tools.Too
 	}, nil
 }
 
-func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args SearchFilesContentArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-		return nil, fmt.Errorf("failed to parse arguments: %w", err)
-	}
-
+func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, args SearchFilesContentArgs) (*tools.ToolCallResult, error) {
 	if err := t.isPathAllowed(args.Path); err != nil {
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
 	}
@@ -836,12 +796,7 @@ func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, toolCall to
 	return &tools.ToolCallResult{Output: strings.Join(results, "\n")}, nil
 }
 
-func (t *FilesystemTool) handleWriteFile(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args WriteFileArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-		return nil, fmt.Errorf("failed to parse arguments: %w", err)
-	}
-
+func (t *FilesystemTool) handleWriteFile(ctx context.Context, args WriteFileArgs) (*tools.ToolCallResult, error) {
 	if err := t.isPathAllowed(args.Path); err != nil {
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
 	}

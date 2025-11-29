@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools/builtin"
 )
 
 const prompt = `Run a Javascript script to call MCP tools.
@@ -77,12 +78,7 @@ func (c *codeModeTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 		Category:    "code mode",
 		Description: prompt + strings.Join(functionsDoc, "\n"),
 		Parameters:  tools.MustSchemaFor[RunToolsWithJavascriptArgs](),
-		Handler: func(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-			var args RunToolsWithJavascriptArgs
-			if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-				return nil, fmt.Errorf("parsing arguments: %w", err)
-			}
-
+		Handler: builtin.NewHandler(func(ctx context.Context, args RunToolsWithJavascriptArgs) (*tools.ToolCallResult, error) {
 			result, err := c.runJavascript(ctx, args.Script)
 			if err != nil {
 				return nil, err
@@ -96,7 +92,7 @@ func (c *codeModeTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 			return &tools.ToolCallResult{
 				Output: string(buf),
 			}, nil
-		},
+		}),
 		OutputSchema: tools.MustSchemaFor[ScriptResult](),
 		Annotations: tools.ToolAnnotations{
 			Title: "Run tools with Javascript",
