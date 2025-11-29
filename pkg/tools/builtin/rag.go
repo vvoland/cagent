@@ -154,7 +154,7 @@ func (t *RAGTool) Stop(context.Context) error {
 
 // sortResults sorts query results by similarity in descending order
 func sortResults(results []QueryResult) {
-	for i := 0; i < len(results); i++ {
+	for i := range results {
 		for j := i + 1; j < len(results); j++ {
 			if results[j].Similarity > results[i].Similarity {
 				results[i], results[j] = results[j], results[i]

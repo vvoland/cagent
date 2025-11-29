@@ -180,42 +180,33 @@ func (h *shellHandler) RunShell(ctx context.Context, toolCall tools.ToolCall) (*
 		done <- cmd.Wait()
 	}()
 
+	var output string
 	select {
 	case <-timeoutCtx.Done():
 		if cmd.Process != nil {
 			_ = kill(cmd.Process, pg)
 		}
-		output := outBuf.String()
-		// Check if parent context was cancelled or if it was a timeout
+
 		if ctx.Err() != nil {
-			// Parent context was cancelled
-			return &tools.ToolCallResult{
-				Output: "Command cancelled",
-			}, nil
+			output = "Command cancelled"
+		} else {
+			output = fmt.Sprintf("Command timed out after %v\nOutput: %s", effectiveTimeout, outBuf.String())
 		}
-		// Timeout occurred
-		return &tools.ToolCallResult{
-			Output: fmt.Sprintf("Command timed out after %v\nOutput: %s", effectiveTimeout, output),
-		}, nil
 	case err := <-done:
-		output := outBuf.String()
+		output = outBuf.String()
 
 		if err != nil {
-			return &tools.ToolCallResult{
-				Output: fmt.Sprintf("Error executing command: %s\nOutput: %s", err, output),
-			}, nil
+			output = fmt.Sprintf("Error executing command: %s\nOutput: %s", err, output)
 		}
-
-		if strings.TrimSpace(output) == "" {
-			return &tools.ToolCallResult{
-				Output: "<no output>",
-			}, nil
-		}
-
-		return &tools.ToolCallResult{
-			Output: output,
-		}, nil
 	}
+
+	if strings.TrimSpace(output) == "" {
+		output = "<no output>"
+	}
+
+	return &tools.ToolCallResult{
+		Output: limitOutput(output),
+	}, nil
 }
 
 func (h *shellHandler) RunShellBackground(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {

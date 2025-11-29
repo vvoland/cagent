@@ -15,11 +15,10 @@ import (
 	"github.com/temoto/robotstxt"
 
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/useragent"
 )
 
 const (
-	userAgent = "cagent/1.0"
-
 	ToolNameFetch = "fetch"
 )
 
@@ -124,7 +123,7 @@ func (h *fetchHandler) fetchURL(ctx context.Context, client *http.Client, urlStr
 	host := parsedURL.Host
 	allowed, cached := robotsCache[host]
 	if !cached {
-		allowed = h.checkRobotsAllowed(ctx, client, parsedURL, userAgent)
+		allowed = h.checkRobotsAllowed(ctx, client, parsedURL, useragent.Header)
 		robotsCache[host] = allowed
 	}
 
@@ -133,15 +132,13 @@ func (h *fetchHandler) fetchURL(ctx context.Context, client *http.Client, urlStr
 		return result
 	}
 
-	// Create request
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlStr, http.NoBody)
 	if err != nil {
 		result.Error = fmt.Sprintf("failed to create request: %v", err)
 		return result
 	}
 
-	// Set User-Agent
-	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("User-Agent", useragent.Header)
 
 	switch format {
 	case "markdown":

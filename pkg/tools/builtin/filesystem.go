@@ -11,27 +11,22 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/docker/cagent/pkg/fsx"
 	"github.com/docker/cagent/pkg/tools"
 )
 
 const (
-	ToolNameCreateDirectory        = "create_directory"
-	ToolNameDirectoryTree          = "directory_tree"
-	ToolNameEditFile               = "edit_file"
-	ToolNameGetFileInfo            = "get_file_info"
-	ToolNameListAllowedDirectories = "list_allowed_directories"
-	ToolNameAddAllowedDirectory    = "add_allowed_directory"
-	ToolNameListDirectory          = "list_directory"
-	ToolNameListDirectoryWithSizes = "list_directory_with_sizes"
-	ToolNameMoveFile               = "move_file"
 	ToolNameReadFile               = "read_file"
 	ToolNameReadMultipleFiles      = "read_multiple_files"
+	ToolNameEditFile               = "edit_file"
+	ToolNameWriteFile              = "write_file"
+	ToolNameListAllowedDirectories = "list_allowed_directories"
+	ToolNameAddAllowedDirectory    = "add_allowed_directory"
+	ToolNameDirectoryTree          = "directory_tree"
+	ToolNameListDirectory          = "list_directory"
 	ToolNameSearchFiles            = "search_files"
 	ToolNameSearchFilesContent     = "search_files_content"
-	ToolNameWriteFile              = "write_file"
 )
 
 // PostEditConfig represents a post-edit command configuration
@@ -109,17 +104,8 @@ This toolset provides comprehensive filesystem operations with built-in security
 - Use appropriate exclude patterns in search operations`
 }
 
-type CreateDirectoryArgs struct {
-	Path string `json:"path" jsonschema:"The directory path to create"`
-}
-
 type DirectoryTreeArgs struct {
-	Path     string `json:"path" jsonschema:"The directory path to traverse"`
-	MaxDepth int    `json:"max_depth,omitempty" jsonschema:"Maximum depth to traverse (optional)"`
-}
-
-type GetFileInfoArgs struct {
-	Path string `json:"path" jsonschema:"The file or directory path to inspect"`
+	Path string `json:"path" jsonschema:"The directory path to traverse"`
 }
 
 type AddAllowedDirectoryArgs struct {
@@ -149,11 +135,6 @@ type SearchFilesContentArgs struct {
 	ExcludePatterns []string `json:"excludePatterns,omitempty" jsonschema:"Patterns to exclude from search"`
 }
 
-type MoveFileArgs struct {
-	Source      string `json:"source" jsonschema:"The source path"`
-	Destination string `json:"destination" jsonschema:"The destination path"`
-}
-
 type ListDirectoryArgs struct {
 	Path string `json:"path" jsonschema:"The directory path to list"`
 }
@@ -174,17 +155,6 @@ type EditFileArgs struct {
 
 func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 	return []tools.Tool{
-		{
-			Name:         ToolNameCreateDirectory,
-			Category:     "filesystem",
-			Description:  "Create a new directory or ensure a directory exists. Can create multiple nested directories in one operation.",
-			Parameters:   tools.MustSchemaFor[CreateDirectoryArgs](),
-			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handleCreateDirectory,
-			Annotations: tools.ToolAnnotations{
-				Title: "Create Directory",
-			},
-		},
 		{
 			Name:        ToolNameDirectoryTree,
 			Category:    "filesystem",
@@ -232,18 +202,6 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			},
 		},
 		{
-			Name:         ToolNameGetFileInfo,
-			Category:     "filesystem",
-			Description:  "Retrieve detailed metadata about a file or directory.",
-			Parameters:   tools.MustSchemaFor[GetFileInfoArgs](),
-			OutputSchema: tools.MustSchemaFor[FileInfo](),
-			Handler:      t.handleGetFileInfo,
-			Annotations: tools.ToolAnnotations{
-				ReadOnlyHint: true,
-				Title:        "Get File Info",
-			},
-		},
-		{
 			Name:         ToolNameListAllowedDirectories,
 			Category:     "filesystem",
 			Description:  "Returns a list of directories that the server has permission to access. Don't call if you access only the current working directory. It's always allowed.",
@@ -275,29 +233,6 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "List Directory",
-			},
-		},
-		{
-			Name:         ToolNameListDirectoryWithSizes,
-			Category:     "filesystem",
-			Description:  "Get a detailed listing of all files and directories in a specified path, including sizes.",
-			Parameters:   tools.MustSchemaFor[ListDirectoryArgs](),
-			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handleListDirectoryWithSizes,
-			Annotations: tools.ToolAnnotations{
-				ReadOnlyHint: true,
-				Title:        "List Directory With Sizes",
-			},
-		},
-		{
-			Name:         ToolNameMoveFile,
-			Category:     "filesystem",
-			Description:  "Move or rename files and directories.",
-			Parameters:   tools.MustSchemaFor[MoveFileArgs](),
-			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handleMoveFile,
-			Annotations: tools.ToolAnnotations{
-				Title: "Move File",
 			},
 		},
 		{
@@ -476,23 +411,6 @@ func (t *FilesystemTool) shouldIgnorePath(path string) bool {
 
 // Handler implementations
 
-func (t *FilesystemTool) handleCreateDirectory(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args CreateDirectoryArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-		return nil, fmt.Errorf("failed to parse arguments: %w", err)
-	}
-
-	if err := t.isPathAllowed(args.Path); err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
-	}
-
-	if err := os.MkdirAll(args.Path, 0o755); err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error creating directory: %s", err)}, nil
-	}
-
-	return &tools.ToolCallResult{Output: fmt.Sprintf("Directory created successfully: %s", args.Path)}, nil
-}
-
 func (t *FilesystemTool) handleDirectoryTree(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args DirectoryTreeArgs
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
@@ -503,7 +421,7 @@ func (t *FilesystemTool) handleDirectoryTree(_ context.Context, toolCall tools.T
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
 	}
 
-	tree, err := fsx.DirectoryTree(args.Path, t.isPathAllowed, t.shouldIgnorePath, args.MaxDepth, 0)
+	tree, err := fsx.DirectoryTree(args.Path, t.isPathAllowed, t.shouldIgnorePath, maxFiles)
 	if err != nil {
 		return &tools.ToolCallResult{Output: fmt.Sprintf("Error building directory tree: %s", err)}, nil
 	}
@@ -557,47 +475,6 @@ func (t *FilesystemTool) handleEditFile(ctx context.Context, toolCall tools.Tool
 	}
 
 	return &tools.ToolCallResult{Output: fmt.Sprintf("File edited successfully. Changes:\n%s", strings.Join(changes, "\n"))}, nil
-}
-
-type FileInfo struct {
-	Name    string `json:"name"`
-	Size    int64  `json:"size"`
-	Mode    string `json:"mode"`
-	ModTime string `json:"modTime"`
-	IsDir   bool   `json:"isDir"`
-}
-
-func (t *FilesystemTool) handleGetFileInfo(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args struct {
-		Path string `json:"path"`
-	}
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-		return nil, fmt.Errorf("failed to parse arguments: %w", err)
-	}
-
-	if err := t.isPathAllowed(args.Path); err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
-	}
-
-	info, err := os.Stat(args.Path)
-	if err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error getting file info: %s", err)}, nil
-	}
-
-	fileInfo := FileInfo{
-		Name:    info.Name(),
-		Size:    info.Size(),
-		Mode:    info.Mode().String(),
-		ModTime: info.ModTime().Format(time.RFC3339),
-		IsDir:   info.IsDir(),
-	}
-
-	result, err := json.MarshalIndent(fileInfo, "", "  ")
-	if err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error formatting file info: %s", err)}, nil
-	}
-
-	return &tools.ToolCallResult{Output: string(result)}, nil
 }
 
 func (t *FilesystemTool) handleListAllowedDirectories(context.Context, tools.ToolCall) (*tools.ToolCallResult, error) {
@@ -686,6 +563,7 @@ func (t *FilesystemTool) handleListDirectory(_ context.Context, toolCall tools.T
 	}
 
 	var result strings.Builder
+	count := 0
 	for _, entry := range entries {
 		// Check if entry should be ignored by VCS rules
 		entryPath := filepath.Join(args.Path, entry.Name())
@@ -698,71 +576,14 @@ func (t *FilesystemTool) handleListDirectory(_ context.Context, toolCall tools.T
 		} else {
 			result.WriteString(fmt.Sprintf("FILE %s\n", entry.Name()))
 		}
-	}
-
-	return &tools.ToolCallResult{Output: result.String()}, nil
-}
-
-func (t *FilesystemTool) handleListDirectoryWithSizes(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args ListDirectoryArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-		return nil, fmt.Errorf("failed to parse arguments: %w", err)
-	}
-
-	if err := t.isPathAllowed(args.Path); err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
-	}
-
-	entries, err := os.ReadDir(args.Path)
-	if err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error reading directory: %s", err)}, nil
-	}
-
-	var result strings.Builder
-	for _, entry := range entries {
-		// Check if entry should be ignored by VCS rules
-		entryPath := filepath.Join(args.Path, entry.Name())
-		if t.shouldIgnorePath(entryPath) {
-			continue
-		}
-
-		info, err := entry.Info()
-		if err != nil {
-			continue
-		}
-
-		if entry.IsDir() {
-			result.WriteString(fmt.Sprintf("DIR  %s\n", entry.Name()))
-		} else {
-			result.WriteString(fmt.Sprintf("FILE %s (%d bytes)\n", entry.Name(), info.Size()))
+		count++
+		if count >= maxFiles {
+			result.WriteString("...output truncated due to file limit...\n")
+			break
 		}
 	}
 
 	return &tools.ToolCallResult{Output: result.String()}, nil
-}
-
-func (t *FilesystemTool) handleMoveFile(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args MoveFileArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-		return nil, fmt.Errorf("failed to parse arguments: %w", err)
-	}
-
-	if err := t.isPathAllowed(args.Source); err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error (source): %s", err)}, nil
-	}
-	if err := t.isPathAllowed(args.Destination); err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error (destination): %s", err)}, nil
-	}
-
-	if _, err := os.Stat(args.Destination); err == nil {
-		return &tools.ToolCallResult{Output: "Error: destination already exists"}, nil
-	}
-
-	if err := os.Rename(args.Source, args.Destination); err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error moving file: %s", err)}, nil
-	}
-
-	return &tools.ToolCallResult{Output: fmt.Sprintf("Successfully moved %s to %s", args.Source, args.Destination)}, nil
 }
 
 func (t *FilesystemTool) handleReadFile(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
@@ -889,7 +710,7 @@ func (t *FilesystemTool) handleSearchFiles(_ context.Context, toolCall tools.Too
 				return nil
 			}
 		}
-		if match(pattern, filepath.Base(path)) {
+		if match(pattern, filepath.Base(path)) && !d.IsDir() {
 			matches = append(matches, path)
 		}
 
