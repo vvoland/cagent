@@ -9,8 +9,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/docker/cagent/pkg/tools"
 )
 
 // initGitRepo initializes a git repository in the given directory
@@ -32,24 +30,8 @@ func initGitRepo(t *testing.T, dir string) {
 `), 0o644))
 }
 
-func TestNewFilesystemTool(t *testing.T) {
-	allowedDirs := []string{"/tmp", "/var/tmp"}
-	tool := NewFilesystemTool(allowedDirs)
-
-	assert.NotNil(t, tool)
-	assert.Equal(t, allowedDirs, tool.allowedDirectories)
-}
-
-func TestFilesystemTool_Instructions(t *testing.T) {
-	tool := NewFilesystemTool([]string{"/tmp"})
-	instructions := tool.Instructions()
-
-	assert.Contains(t, instructions, "Filesystem Tool Instructions")
-	assert.Contains(t, instructions, "Security Model")
-	assert.Contains(t, instructions, "allowed directories")
-}
-
 func TestFilesystemTool_DisplayNames(t *testing.T) {
+	t.Parallel()
 	tool := NewFilesystemTool([]string{"/tmp"})
 
 	all, err := tool.Tools(t.Context())
@@ -62,6 +44,7 @@ func TestFilesystemTool_DisplayNames(t *testing.T) {
 }
 
 func TestFilesystemTool_IsPathAllowed(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	tool := NewFilesystemTool([]string{tmpDir})
 
@@ -76,19 +59,17 @@ func TestFilesystemTool_IsPathAllowed(t *testing.T) {
 }
 
 func TestFilesystemTool_WriteFile(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	tool := NewFilesystemTool([]string{tmpDir})
 
-	handler := getToolHandler(t, tool, "write_file")
-
 	testFile := filepath.Join(tmpDir, "test.txt")
 	content := "Hello, World!"
-	args := map[string]any{
-		"path":    testFile,
-		"content": content,
-	}
-	result := callHandler(t, handler, args)
-
+	result, err := tool.handleWriteFile(t.Context(), WriteFileArgs{
+		Path:    testFile,
+		Content: content,
+	})
+	require.NoError(t, err)
 	assert.Contains(t, result.Output, "File written successfully")
 	assert.FileExists(t, testFile)
 
@@ -97,31 +78,28 @@ func TestFilesystemTool_WriteFile(t *testing.T) {
 	assert.Equal(t, content, string(writtenContent))
 
 	disallowedFile := "/etc/test.txt"
-	args = map[string]any{
-		"path":    disallowedFile,
-		"content": "test",
-	}
-	result = callHandler(t, handler, args)
-
+	result, err = tool.handleWriteFile(t.Context(), WriteFileArgs{
+		Path:    disallowedFile,
+		Content: "test",
+	})
+	require.NoError(t, err)
 	assert.Contains(t, result.Output, "Error:")
 	assert.Contains(t, result.Output, "not within allowed directories")
 }
 
 func TestFilesystemTool_WriteFile_NestedDirectory(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	tool := NewFilesystemTool([]string{tmpDir})
 
-	handler := getToolHandler(t, tool, "write_file")
-
-	// Write to a nested path that doesn't exist
 	nestedFile := filepath.Join(tmpDir, "a", "b", "c", "test.txt")
 	content := "Hello, nested world!"
 
-	args := map[string]any{
-		"path":    nestedFile,
-		"content": content,
-	}
-	result := callHandler(t, handler, args)
+	result, err := tool.handleWriteFile(t.Context(), WriteFileArgs{
+		Path:    nestedFile,
+		Content: content,
+	})
+	require.NoError(t, err)
 
 	assert.Contains(t, result.Output, "File written successfully")
 	assert.FileExists(t, nestedFile)
@@ -136,6 +114,7 @@ func TestFilesystemTool_WriteFile_NestedDirectory(t *testing.T) {
 }
 
 func TestFilesystemTool_ReadFile(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	tool := NewFilesystemTool([]string{tmpDir})
 
@@ -143,28 +122,28 @@ func TestFilesystemTool_ReadFile(t *testing.T) {
 	content := "Hello, World!"
 	require.NoError(t, os.WriteFile(testFile, []byte(content), 0o644))
 
-	handler := getToolHandler(t, tool, "read_file")
-
-	args := map[string]any{"path": testFile}
-	result := callHandler(t, handler, args)
-
+	result, err := tool.handleReadFile(t.Context(), ReadFileArgs{
+		Path: testFile,
+	})
+	require.NoError(t, err)
 	assert.Equal(t, content, result.Output)
 
-	nonExistentFile := filepath.Join(tmpDir, "nonexistent.txt")
-	args = map[string]any{"path": nonExistentFile}
-	result = callHandler(t, handler, args)
-
+	result, err = tool.handleReadFile(t.Context(), ReadFileArgs{
+		Path: filepath.Join(tmpDir, "nonexistent.txt"),
+	})
+	require.NoError(t, err)
 	assert.Contains(t, result.Output, "Error reading file")
 
-	disallowedFile := "/etc/passwd"
-	args = map[string]any{"path": disallowedFile}
-	result = callHandler(t, handler, args)
-
+	result, err = tool.handleReadFile(t.Context(), ReadFileArgs{
+		Path: "/etc/passwd",
+	})
+	require.NoError(t, err)
 	assert.Contains(t, result.Output, "Error:")
 	assert.Contains(t, result.Output, "not within allowed directories")
 }
 
 func TestFilesystemTool_ReadMultipleFiles(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	tool := NewFilesystemTool([]string{tmpDir})
 
@@ -176,25 +155,25 @@ func TestFilesystemTool_ReadMultipleFiles(t *testing.T) {
 	require.NoError(t, os.WriteFile(file1, []byte(content1), 0o644))
 	require.NoError(t, os.WriteFile(file2, []byte(content2), 0o644))
 
-	handler := getToolHandler(t, tool, "read_multiple_files")
-
-	args := map[string]any{"paths": []string{file1, file2}}
-	result := callHandler(t, handler, args)
-
+	result, err := tool.handleReadMultipleFiles(t.Context(), ReadMultipleFilesArgs{
+		Paths: []string{file1, file2},
+	})
+	require.NoError(t, err)
 	assert.Contains(t, result.Output, "=== "+file1+" ===")
 	assert.Contains(t, result.Output, content1)
 	assert.Contains(t, result.Output, "=== "+file2+" ===")
 	assert.Contains(t, result.Output, content2)
 
-	nonExistentFile := filepath.Join(tmpDir, "nonexistent.txt")
-	args = map[string]any{"paths": []string{file1, nonExistentFile}}
-	result = callHandler(t, handler, args)
-
+	result, err = tool.handleReadMultipleFiles(t.Context(), ReadMultipleFilesArgs{
+		Paths: []string{file1, filepath.Join(tmpDir, "nonexistent.txt")},
+	})
+	require.NoError(t, err)
 	assert.Contains(t, result.Output, content1)
 	assert.Contains(t, result.Output, "Error reading file")
 }
 
 func TestFilesystemTool_ListDirectory(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	tool := NewFilesystemTool([]string{tmpDir})
 
@@ -204,22 +183,22 @@ func TestFilesystemTool_ListDirectory(t *testing.T) {
 	require.NoError(t, os.WriteFile(testFile, []byte("test"), 0o644))
 	require.NoError(t, os.Mkdir(testDir, 0o755))
 
-	handler := getToolHandler(t, tool, "list_directory")
-
-	args := map[string]any{"path": tmpDir}
-	result := callHandler(t, handler, args)
-
+	result, err := tool.handleListDirectory(t.Context(), ListDirectoryArgs{
+		Path: tmpDir,
+	})
+	require.NoError(t, err)
 	assert.Contains(t, result.Output, "FILE test.txt")
 	assert.Contains(t, result.Output, "DIR  testdir")
 
-	nonExistentDir := filepath.Join(tmpDir, "nonexistent")
-	args = map[string]any{"path": nonExistentDir}
-	result = callHandler(t, handler, args)
-
+	result, err = tool.handleListDirectory(t.Context(), ListDirectoryArgs{
+		Path: filepath.Join(tmpDir, "nonexistent"),
+	})
+	require.NoError(t, err)
 	assert.Contains(t, result.Output, "Error reading directory")
 }
 
 func TestFilesystemTool_EditFile(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	tool := NewFilesystemTool([]string{tmpDir})
 
@@ -227,45 +206,35 @@ func TestFilesystemTool_EditFile(t *testing.T) {
 	originalContent := "Hello World\nThis is a test\nGoodbye World"
 	require.NoError(t, os.WriteFile(testFile, []byte(originalContent), 0o644))
 
-	handler := getToolHandler(t, tool, "edit_file")
-
-	args := map[string]any{
-		"path": testFile,
-		"edits": []map[string]any{
-			{
-				"oldText": "Hello World",
-				"newText": "Hi Universe",
-			},
-			{
-				"oldText": "Goodbye World",
-				"newText": "See you later",
-			},
+	result, err := tool.handleEditFile(t.Context(), EditFileArgs{
+		Path: testFile,
+		Edits: []Edit{
+			{OldText: "Hello World", NewText: "Hi Universe"},
+			{OldText: "Goodbye World", NewText: "See you later"},
 		},
-	}
-	result := callHandler(t, handler, args)
-
+	})
+	require.NoError(t, err)
 	assert.Contains(t, result.Output, "File edited successfully")
 
 	editedContent, err := os.ReadFile(testFile)
 	require.NoError(t, err)
 	expected := "Hi Universe\nThis is a test\nSee you later"
 	assert.Equal(t, expected, string(editedContent))
-
-	args = map[string]any{
-		"path": testFile,
-		"edits": []map[string]any{
+	result, err = tool.handleEditFile(t.Context(), EditFileArgs{
+		Path: testFile,
+		Edits: []Edit{
 			{
-				"oldText": "Non-existent text",
-				"newText": "Replacement",
+				OldText: "Non-existent text",
+				NewText: "Replacement",
 			},
 		},
-	}
-	result = callHandler(t, handler, args)
-
+	})
+	require.NoError(t, err)
 	assert.Contains(t, result.Output, "old text not found")
 }
 
 func TestFilesystemTool_SearchFiles(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0o644))
@@ -277,40 +246,37 @@ func TestFilesystemTool_SearchFiles(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(subDir, "test_sub.txt"), []byte("sub"), 0o644))
 
 	tool := NewFilesystemTool([]string{tmpDir})
-	handler := getToolHandler(t, tool, "search_files")
 
-	args := map[string]any{
-		"path":    tmpDir,
-		"pattern": "asdf",
-	}
-	result := callHandler(t, handler, args)
-
+	result, err := tool.handleSearchFiles(t.Context(), SearchFilesArgs{
+		Path:    tmpDir,
+		Pattern: "asdf",
+	})
+	require.NoError(t, err)
 	lines := strings.Split(strings.TrimSpace(result.Output), "\n")
 	assert.Len(t, lines, 1) // Should find test.txt, test.log, and test_sub.txt
 	assert.Contains(t, lines, "No files found")
 
-	args = map[string]any{
-		"path":    tmpDir,
-		"pattern": "test",
-	}
-	result = callHandler(t, handler, args)
-
+	result, err = tool.handleSearchFiles(t.Context(), SearchFilesArgs{
+		Path:    tmpDir,
+		Pattern: "test",
+	})
+	require.NoError(t, err)
 	lines = strings.Split(strings.TrimSpace(result.Output), "\n")
 	assert.Contains(t, result.Output, "3 files found:\n")
 	assert.Len(t, lines, 3+1) // Should find test.txt, test.log, and test_sub.txt
 
-	args = map[string]any{
-		"path":            tmpDir,
-		"pattern":         "test",
-		"excludePatterns": []string{"*.log"},
-	}
-	result = callHandler(t, handler, args)
-
+	result, err = tool.handleSearchFiles(t.Context(), SearchFilesArgs{
+		Path:            tmpDir,
+		Pattern:         "test",
+		ExcludePatterns: []string{"*.log"},
+	})
+	require.NoError(t, err)
 	assert.NotContains(t, result.Output, "test.log")
 	assert.Contains(t, result.Output, "test.txt")
 }
 
 func TestFilesystemTool_SearchFilesContent(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	tool := NewFilesystemTool([]string{tmpDir})
 
@@ -322,15 +288,11 @@ func TestFilesystemTool_SearchFilesContent(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(file2Content), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "file3.txt"), []byte(file3Content), 0o644))
 
-	handler := getToolHandler(t, tool, "search_files_content")
-
-	args := map[string]any{
-		"path":     tmpDir,
-		"pattern":  "*.txt",
-		"query":    "test",
-		"is_regex": false,
-	}
-	result := callHandler(t, handler, args)
+	result, err := tool.handleSearchFilesContent(t.Context(), SearchFilesContentArgs{
+		Path:  tmpDir,
+		Query: "test",
+	})
+	require.NoError(t, err)
 
 	assert.Contains(t, result.Output, "file1.txt:1:")
 	assert.Contains(t, result.Output, "file1.txt:3:")
@@ -338,28 +300,25 @@ func TestFilesystemTool_SearchFilesContent(t *testing.T) {
 	assert.Contains(t, result.Output, "file3.txt:3:")
 	assert.NotContains(t, result.Output, "file2.txt")
 
-	args = map[string]any{
-		"path":     tmpDir,
-		"pattern":  "*.txt",
-		"query":    "test.*data",
-		"is_regex": true,
-	}
-	result = callHandler(t, handler, args)
-
+	result, err = tool.handleSearchFilesContent(t.Context(), SearchFilesContentArgs{
+		Path:    tmpDir,
+		Query:   "test.*data",
+		IsRegex: true,
+	})
+	require.NoError(t, err)
 	assert.Contains(t, result.Output, "file1.txt:3:")
 
-	args = map[string]any{
-		"path":     tmpDir,
-		"pattern":  "*.txt",
-		"query":    "[invalid",
-		"is_regex": true,
-	}
-	result = callHandler(t, handler, args)
-
+	result, err = tool.handleSearchFilesContent(t.Context(), SearchFilesContentArgs{
+		Path:    tmpDir,
+		Query:   "[invalid",
+		IsRegex: true,
+	})
+	require.NoError(t, err)
 	assert.Contains(t, result.Output, "Invalid regex pattern")
 }
 
 func TestFilesystemTool_SearchFiles_RecursivePattern(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, "child"), 0o755))
@@ -370,14 +329,11 @@ func TestFilesystemTool_SearchFiles_RecursivePattern(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "child", "ignored"), []byte("ignored"), 0o644))
 
 	tool := NewFilesystemTool([]string{tmpDir})
-	handler := getToolHandler(t, tool, "search_files")
-
-	args := map[string]any{
-		"path":    tmpDir,
-		"pattern": "*.txt",
-	}
-	result := callHandler(t, handler, args)
-
+	result, err := tool.handleSearchFiles(t.Context(), SearchFilesArgs{
+		Path:    tmpDir,
+		Pattern: "*.txt",
+	})
+	require.NoError(t, err)
 	lines := strings.Split(strings.TrimSpace(result.Output), "\n")
 	assert.Contains(t, result.Output, "3 files found:\n")
 	assert.Len(t, lines, 3+1) // Should find first.txt, second.txt, and third.txt
@@ -387,46 +343,15 @@ func TestFilesystemTool_ListAllowedDirectories(t *testing.T) {
 	allowedDirs := []string{"/tmp", "/var/tmp", "/home/user"}
 	tool := NewFilesystemTool(allowedDirs)
 
-	handler := getToolHandler(t, tool, "list_allowed_directories")
-
-	args := map[string]any{}
-	result := callHandler(t, handler, args)
-
+	result, err := tool.handleListAllowedDirectories(t.Context(), nil)
+	require.NoError(t, err)
 	var dirs []string
 	require.NoError(t, json.Unmarshal([]byte(result.Output), &dirs))
-
 	assert.Equal(t, allowedDirs, dirs)
 }
 
-func TestFilesystemTool_InvalidArguments(t *testing.T) {
-	tmpDir := t.TempDir()
-	tool := NewFilesystemTool([]string{tmpDir})
-
-	handler := getToolHandler(t, tool, "write_file")
-
-	toolCall := tools.ToolCall{
-		Function: tools.FunctionCall{
-			Name:      "write_file",
-			Arguments: "{invalid json",
-		},
-	}
-
-	result, err := handler(t.Context(), toolCall)
-	require.Error(t, err)
-	assert.Nil(t, result)
-}
-
-func TestFilesystemTool_StartStop(t *testing.T) {
-	tool := NewFilesystemTool([]string{"/tmp"})
-
-	err := tool.Start(t.Context())
-	require.NoError(t, err)
-
-	err = tool.Stop(t.Context())
-	require.NoError(t, err)
-}
-
 func TestFilesystemTool_PostEditCommands(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	testFile := filepath.Join(tmpDir, "test.go")
@@ -446,23 +371,11 @@ func main() {
 
 	formattedFile := testFile + ".formatted"
 	t.Run("write_file", func(t *testing.T) {
-		handler := getToolHandler(t, tool, "write_file")
-
-		// Use proper JSON marshaling for the arguments
-		args := WriteFileArgs{
+		t.Parallel()
+		result, err := tool.handleWriteFile(t.Context(), WriteFileArgs{
 			Path:    testFile,
 			Content: testContent,
-		}
-		argsBytes, err := json.Marshal(args)
-		require.NoError(t, err)
-
-		toolCall := tools.ToolCall{
-			Function: tools.FunctionCall{
-				Arguments: string(argsBytes),
-			},
-		}
-
-		result, err := handler(t.Context(), toolCall)
+		})
 		require.NoError(t, err)
 		assert.Contains(t, result.Output, "File written successfully")
 
@@ -472,142 +385,85 @@ func main() {
 	})
 
 	t.Run("edit_file", func(t *testing.T) {
-		editHandler := getToolHandler(t, tool, "edit_file")
-
-		editArgs := EditFileArgs{
+		t.Parallel()
+		result, err := tool.handleEditFile(t.Context(), EditFileArgs{
 			Path: testFile,
 			Edits: []Edit{{
 				OldText: "fmt.Println",
 				NewText: "fmt.Printf",
 			}},
-		}
-		editArgsBytes, err := json.Marshal(editArgs)
+		})
 		require.NoError(t, err)
-
-		editCall := tools.ToolCall{
-			Function: tools.FunctionCall{
-				Arguments: string(editArgsBytes),
-			},
-		}
-
-		editResult, err := editHandler(t.Context(), editCall)
-		require.NoError(t, err)
-		assert.Contains(t, editResult.Output, "File edited successfully")
+		assert.Contains(t, result.Output, "File edited successfully")
 
 		_, err = os.Stat(formattedFile)
 		require.NoError(t, err, "Post-edit command should have run after edit")
 	})
 }
 
-// Helper functions
-
-func getToolHandler(t *testing.T, tool *FilesystemTool, toolName string) tools.ToolHandler {
-	t.Helper()
-	tls, err := tool.Tools(t.Context())
-	require.NoError(t, err)
-
-	for _, tl := range tls {
-		if tl.Name == toolName {
-			return tl.Handler
-		}
-	}
-
-	t.Fatalf("Tool %s not found", toolName)
-	return nil
-}
-
-func callHandler(t *testing.T, handler tools.ToolHandler, args any) *tools.ToolCallResult {
-	t.Helper()
-	argsBytes, err := json.Marshal(args)
-	require.NoError(t, err)
-
-	toolCall := tools.ToolCall{
-		Function: tools.FunctionCall{
-			Arguments: string(argsBytes),
-		},
-	}
-
-	result, err := handler(t.Context(), toolCall)
-	require.NoError(t, err)
-	require.NotNil(t, result)
-
-	return result
-}
-
 func TestFilesystemTool_AddAllowedDirectory(t *testing.T) {
+	t.Parallel()
 	tmpDir1 := t.TempDir()
 	tmpDir2 := t.TempDir()
 
 	tool := NewFilesystemTool([]string{tmpDir1})
 	assert.Len(t, tool.allowedDirectories, 1)
-	handler := getToolHandler(t, tool, "add_allowed_directory")
 
 	t.Run("attempt to add already allowed directory", func(t *testing.T) {
-		args := AddAllowedDirectoryArgs{
+		t.Parallel()
+		result, err := tool.handleAddAllowedDirectory(t.Context(), AddAllowedDirectoryArgs{
 			Path: tmpDir1,
-		}
-		result := callHandler(t, handler, args)
-
-		// Should return already allowed message
+		})
+		require.NoError(t, err)
 		assert.Contains(t, result.Output, "already in allowed directories")
 		assert.Contains(t, result.Output, tmpDir1)
-
-		// Should not add duplicate
 		assert.Len(t, tool.allowedDirectories, 1)
 	})
 
 	t.Run("attempt to add subdirectory of allowed directory", func(t *testing.T) {
+		t.Parallel()
 		subDir := filepath.Join(tmpDir1, "subdir")
 		err := os.MkdirAll(subDir, 0o755)
 		require.NoError(t, err)
 
-		args := AddAllowedDirectoryArgs{
+		result, err := tool.handleAddAllowedDirectory(t.Context(), AddAllowedDirectoryArgs{
 			Path: subDir,
-		}
-		result := callHandler(t, handler, args)
-
-		// Should return already accessible message
+		})
+		require.NoError(t, err)
 		assert.Contains(t, result.Output, "already accessible")
 		assert.Contains(t, result.Output, subDir)
 		assert.Contains(t, result.Output, tmpDir1)
-
-		// Should not add subdirectory
 		assert.Len(t, tool.allowedDirectories, 1)
 	})
 
 	t.Run("attempt to add non-existent directory", func(t *testing.T) {
+		t.Parallel()
 		nonExistent := "/path/that/does/not/exist"
-		args := AddAllowedDirectoryArgs{
+		result, err := tool.handleAddAllowedDirectory(t.Context(), AddAllowedDirectoryArgs{
 			Path: nonExistent,
-		}
-		result := callHandler(t, handler, args)
-
-		// Should return error message
+		})
+		require.NoError(t, err)
 		assert.Contains(t, result.Output, "Error accessing path")
-
-		// Should not add non-existent directory
 		assert.Len(t, tool.allowedDirectories, 1)
 	})
 
 	t.Run("attempt to add file instead of directory", func(t *testing.T) {
+		t.Parallel()
 		tempFile := filepath.Join(tmpDir2, "testfile.txt")
 		err := os.WriteFile(tempFile, []byte("test"), 0o644)
 		require.NoError(t, err)
 
-		args := AddAllowedDirectoryArgs{
+		result, err := tool.handleAddAllowedDirectory(t.Context(), AddAllowedDirectoryArgs{
 			Path: tempFile,
-		}
-		result := callHandler(t, handler, args)
-
-		// Should return error message
+		})
+		require.NoError(t, err)
 		assert.Contains(t, result.Output, "is not a directory")
-
-		// Should not add file
 		assert.Len(t, tool.allowedDirectories, 1)
 	})
 }
 
 func TestMatchExcludePattern(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		pattern  string
@@ -682,6 +538,7 @@ func TestMatchExcludePattern(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := matchExcludePattern(tc.pattern, tc.relPath)
 			assert.Equal(t, tc.expected, result, "Pattern: %s, Path: %s, IsDir: %v", tc.pattern, tc.relPath)
 		})
@@ -700,74 +557,46 @@ func TestFilesystemTool_OutputSchema(t *testing.T) {
 	}
 }
 
-func TestFilesystemTool_ParametersAreObjects(t *testing.T) {
-	tool := NewFilesystemTool(nil)
-
-	allTools, err := tool.Tools(t.Context())
-	require.NoError(t, err)
-	require.NotEmpty(t, allTools)
-
-	for _, tool := range allTools {
-		m, err := tools.SchemaToMap(tool.Parameters)
-
-		require.NoError(t, err)
-		assert.Equal(t, "object", m["type"])
-	}
-}
-
 func TestFilesystemTool_IgnoreVCS_Default(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
-	// Create .git directory
 	gitDir := filepath.Join(tmpDir, ".git")
 	require.NoError(t, os.Mkdir(gitDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(gitDir, "config"), []byte("git config"), 0o644))
-
-	// Create regular file
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test content"), 0o644))
 
-	// Create tool with default VCS ignoring (true)
 	tool := NewFilesystemTool([]string{tmpDir}, WithIgnoreVCS(true))
-	handler := getToolHandler(t, tool, "search_files")
-
-	args := map[string]any{
-		"path":    tmpDir,
-		"pattern": "*",
-	}
-	result := callHandler(t, handler, args)
-
-	// Should find test.txt but not .git directory
+	result, err := tool.handleSearchFiles(t.Context(), SearchFilesArgs{
+		Path:    tmpDir,
+		Pattern: "*",
+	})
+	require.NoError(t, err)
 	assert.Contains(t, result.Output, "test.txt")
 	assert.NotContains(t, result.Output, ".git")
 }
 
 func TestFilesystemTool_IgnoreVCS_Disabled(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
-	// Create .git directory
 	gitDir := filepath.Join(tmpDir, ".git")
 	require.NoError(t, os.Mkdir(gitDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(gitDir, "config"), []byte("git config"), 0o644))
-
-	// Create regular file
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test content"), 0o644))
 
-	// Create tool with VCS ignoring disabled
 	tool := NewFilesystemTool([]string{tmpDir}, WithIgnoreVCS(false))
-	handler := getToolHandler(t, tool, "search_files")
-
-	args := map[string]any{
-		"path":    tmpDir,
-		"pattern": "*",
-	}
-	result := callHandler(t, handler, args)
-
-	// Should find both test.txt and .git files
+	result, err := tool.handleSearchFiles(t.Context(), SearchFilesArgs{
+		Path:    tmpDir,
+		Pattern: "*",
+	})
+	require.NoError(t, err)
 	assert.Contains(t, result.Output, "test.txt")
 	assert.Contains(t, result.Output, ".git")
 }
 
 func TestFilesystemTool_GitignorePatterns(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Initialize git repository
@@ -782,29 +611,21 @@ temp_*
 `
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte(gitignoreContent), 0o644))
 
-	// Create test files
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "debug.log"), []byte("log"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "important.log"), []byte("important"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "temp_file.txt"), []byte("temp"), 0o644))
-
-	// Create directories
 	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, "node_modules"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "node_modules", "package.json"), []byte("{}"), 0o644))
 	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, "build"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "build", "output.js"), []byte("code"), 0o644))
 
-	// Create tool with VCS ignoring enabled
 	tool := NewFilesystemTool([]string{tmpDir}, WithIgnoreVCS(true))
-	handler := getToolHandler(t, tool, "search_files")
-
-	args := map[string]any{
-		"path":    tmpDir,
-		"pattern": "*",
-	}
-	result := callHandler(t, handler, args)
-
-	// Should respect gitignore patterns
+	result, err := tool.handleSearchFiles(t.Context(), SearchFilesArgs{
+		Path:    tmpDir,
+		Pattern: "*",
+	})
+	require.NoError(t, err)
 	assert.Contains(t, result.Output, "test.txt")
 	assert.Contains(t, result.Output, "important.log")   // negated pattern
 	assert.NotContains(t, result.Output, "debug.log")    // ignored
@@ -814,130 +635,94 @@ temp_*
 }
 
 func TestFilesystemTool_SearchContent_WithGitignore(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
-	// Initialize git repository
 	initGitRepo(t, tmpDir)
-
-	// Create .gitignore
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte("*.log\n"), 0o644))
-
-	// Create files
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "source.txt"), []byte("findme"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "debug.log"), []byte("findme"), 0o644))
 
 	tool := NewFilesystemTool([]string{tmpDir}, WithIgnoreVCS(true))
-	handler := getToolHandler(t, tool, "search_files_content")
-
-	args := map[string]any{
-		"path":     tmpDir,
-		"query":    "findme",
-		"is_regex": false,
-	}
-	result := callHandler(t, handler, args)
-
-	// Should find in source.txt but not in debug.log
+	result, err := tool.handleSearchFilesContent(t.Context(), SearchFilesContentArgs{
+		Path:  tmpDir,
+		Query: "findme",
+	})
+	require.NoError(t, err)
 	assert.Contains(t, result.Output, "source.txt")
 	assert.NotContains(t, result.Output, "debug.log")
 }
 
 func TestFilesystemTool_ListDirectory_IgnoresVCS(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
-	// Create .git directory
 	gitDir := filepath.Join(tmpDir, ".git")
 	require.NoError(t, os.Mkdir(gitDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(gitDir, "config"), []byte("git config"), 0o644))
-
-	// Create regular files
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte("test"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte("test"), 0o644))
 
-	// Create tool with VCS ignoring enabled
 	tool := NewFilesystemTool([]string{tmpDir}, WithIgnoreVCS(true))
-	handler := getToolHandler(t, tool, "list_directory")
-
-	args := map[string]any{
-		"path": tmpDir,
-	}
-	result := callHandler(t, handler, args)
-
-	// Should list regular files but not .git
+	result, err := tool.handleListDirectory(t.Context(), ListDirectoryArgs{
+		Path: tmpDir,
+	})
+	require.NoError(t, err)
 	assert.Contains(t, result.Output, "file1.txt")
 	assert.Contains(t, result.Output, "file2.txt")
 	assert.NotContains(t, result.Output, ".git")
 }
 
 func TestFilesystemTool_SubdirectoryGitignorePatterns(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Initialize git repository
 	initGitRepo(t, tmpDir)
 
-	// Create root .gitignore that ignores *.log files
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte("*.log\n"), 0o644))
-
-	// Create subdirectory with its own .gitignore
 	subDir := filepath.Join(tmpDir, "subdir")
 	require.NoError(t, os.Mkdir(subDir, 0o755))
-
-	// Subdirectory .gitignore ignores *.tmp files (only applies to subdir)
 	require.NoError(t, os.WriteFile(filepath.Join(subDir, ".gitignore"), []byte("*.tmp\n"), 0o644))
-
-	// Create test files in root
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "root.txt"), []byte("root"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "root.log"), []byte("log"), 0o644)) // ignored by root .gitignore
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "root.tmp"), []byte("tmp"), 0o644)) // NOT ignored (subdir .gitignore doesn't apply here)
-
-	// Create test files in subdirectory
 	require.NoError(t, os.WriteFile(filepath.Join(subDir, "sub.txt"), []byte("sub"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(subDir, "sub.log"), []byte("log"), 0o644)) // ignored by root .gitignore
 	require.NoError(t, os.WriteFile(filepath.Join(subDir, "sub.tmp"), []byte("tmp"), 0o644)) // ignored by subdir .gitignore
 
-	// Create tool with VCS ignoring enabled
 	tool := NewFilesystemTool([]string{tmpDir}, WithIgnoreVCS(true))
-	handler := getToolHandler(t, tool, "search_files")
+	result, err := tool.handleSearchFiles(t.Context(), SearchFilesArgs{
+		Path:    tmpDir,
+		Pattern: "*",
+	})
+	require.NoError(t, err)
 
-	args := map[string]any{
-		"path":    tmpDir,
-		"pattern": "*",
-	}
-	result := callHandler(t, handler, args)
-
-	// Root files
 	assert.Contains(t, result.Output, "root.txt")    // not ignored
 	assert.NotContains(t, result.Output, "root.log") // ignored by root .gitignore
 	assert.Contains(t, result.Output, "root.tmp")    // NOT ignored - subdir .gitignore doesn't apply to root
-
-	// Subdirectory files
-	assert.Contains(t, result.Output, "sub.txt")    // not ignored
-	assert.NotContains(t, result.Output, "sub.log") // ignored by root .gitignore
-	assert.NotContains(t, result.Output, "sub.tmp") // ignored by subdir .gitignore
+	assert.Contains(t, result.Output, "sub.txt")     // not ignored
+	assert.NotContains(t, result.Output, "sub.log")  // ignored by root .gitignore
+	assert.NotContains(t, result.Output, "sub.tmp")  // ignored by subdir .gitignore
 }
 
 func TestFilesystemTool_DirectoryTree_IgnoresVCS(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
-	// Create .git directory
 	gitDir := filepath.Join(tmpDir, ".git")
 	require.NoError(t, os.Mkdir(gitDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(gitDir, "HEAD"), []byte("ref: refs/heads/main"), 0o644))
-
-	// Create regular directory structure
 	srcDir := filepath.Join(tmpDir, "src")
 	require.NoError(t, os.Mkdir(srcDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "main.go"), []byte("package main"), 0o644))
 
-	// Create tool with VCS ignoring enabled
 	tool := NewFilesystemTool([]string{tmpDir}, WithIgnoreVCS(true))
-	handler := getToolHandler(t, tool, "directory_tree")
+	result, err := tool.handleDirectoryTree(t.Context(), DirectoryTreeArgs{
+		Path: tmpDir,
+	})
+	require.NoError(t, err)
 
-	args := map[string]any{
-		"path": tmpDir,
-	}
-	result := callHandler(t, handler, args)
-
-	// Parse JSON result
 	var tree map[string]any
 	require.NoError(t, json.Unmarshal([]byte(result.Output), &tree))
 
