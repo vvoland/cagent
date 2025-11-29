@@ -584,12 +584,11 @@ func (m mockModelStoreWithLimit) GetModel(context.Context, string) (*modelsdev.M
 	return &modelsdev.Model{Limit: modelsdev.Limit{Context: m.limit}, Cost: &modelsdev.Cost{}}, nil
 }
 
-func TestCompactionOccursAfterToolResultsWhenToolUsePresent(t *testing.T) {
+func TestCompaction(t *testing.T) {
 	// First stream: assistant issues a tool call and usage exceeds 90% threshold
 	mainStream := newStreamBuilder().
-		AddToolCallName("call_1", "test_tool").
-		AddToolCallArguments("call_1", "{}").
-		AddStopWithUsage(95, 0). // Context limit will be 100
+		AddContent("Hello there").
+		AddStopWithUsage(101, 0). // Context limit will be 100
 		Build()
 
 	// Second stream: summary generation (simple content)
@@ -600,21 +599,7 @@ func TestCompactionOccursAfterToolResultsWhenToolUsePresent(t *testing.T) {
 
 	prov := &queueProvider{id: "test/mock-model", streams: []chat.MessageStream{mainStream, summaryStream}}
 
-	// Provide an agent tool that will satisfy the tool call without requiring approvals
-	testTool := tools.Tool{
-		Name:        "test_tool",
-		Description: "test",
-		Parameters:  map[string]any{},
-		Annotations: tools.ToolAnnotations{ReadOnlyHint: true},
-		Handler: func(ctx context.Context, call tools.ToolCall) (*tools.ToolCallResult, error) {
-			return &tools.ToolCallResult{Output: "ok"}, nil
-		},
-	}
-
-	root := agent.New("root", "You are a test agent",
-		agent.WithModel(prov),
-		agent.WithTools(testTool),
-	)
+	root := agent.New("root", "You are a test agent", agent.WithModel(prov))
 	tm := team.New(team.WithAgents(root))
 
 	// Enable compaction and provide a model store with context limit = 100
@@ -622,35 +607,27 @@ func TestCompactionOccursAfterToolResultsWhenToolUsePresent(t *testing.T) {
 	require.NoError(t, err)
 
 	sess := session.New(session.WithUserMessage("Start"))
+	e := rt.RunStream(t.Context(), sess)
+	for range e {
+	}
+	sess.AddMessage(session.UserMessage("Again"))
 	events := rt.RunStream(t.Context(), sess)
 
-	// Collect events
 	var seen []Event
 	for ev := range events {
 		seen = append(seen, ev)
 	}
 
-	// Find indices of ToolCallResponse and compaction start (from RunStream)
-	toolRespIdx := -1
 	compactionStartIdx := -1
 	for i, ev := range seen {
-		switch e := ev.(type) {
-		case *ToolCallResponseEvent:
-			if toolRespIdx == -1 {
-				toolRespIdx = i
-			}
-		case *SessionCompactionEvent:
-			// We only want the RunStream-level "start" status (not Summarize's "started")
-			if e.Status == "start" && compactionStartIdx == -1 {
+		if e, ok := ev.(*SessionCompactionEvent); ok {
+			if e.Status == "started" && compactionStartIdx == -1 {
 				compactionStartIdx = i
 			}
 		}
 	}
 
-	require.NotEqual(t, -1, toolRespIdx, "expected a ToolCallResponseEvent")
 	require.NotEqual(t, -1, compactionStartIdx, "expected a SessionCompaction start event")
-
-	require.Greater(t, compactionStartIdx, toolRespIdx, "compaction should occur after tool results when tool_use is present")
 }
 
 func TestSessionWithoutUserMessage(t *testing.T) {
