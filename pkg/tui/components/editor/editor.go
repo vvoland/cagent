@@ -1,6 +1,9 @@
 package editor
 
 import (
+	"fmt"
+	"log/slog"
+	"os"
 	"regexp"
 	"strings"
 
@@ -24,7 +27,8 @@ var ansiRegexp = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
 
 // SendMsg represents a message to send
 type SendMsg struct {
-	Content string
+	Content        string // Full content sent to the agent (with file contents expanded)
+	DisplayContent string // Compact version for UI display (with @filename placeholders)
 }
 
 // Editor represents an input editor component
@@ -57,6 +61,11 @@ type editor struct {
 	userTyped bool
 	// keyboardEnhancementsSupported tracks whether the terminal supports keyboard enhancements
 	keyboardEnhancementsSupported bool
+	// fileRefs tracks @filename placeholders inserted via completion (handles spaces in filenames).
+	fileRefs []string
+	// pendingFileRef tracks the current @word being typed (for manual file ref detection).
+	// Only set when cursor is in a word starting with @, cleared when cursor leaves.
+	pendingFileRef string
 }
 
 // New creates a new editor component
@@ -284,6 +293,13 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 				e.textarea.SetValue(newValue)
 				e.textarea.MoveToEnd()
 			}
+			// Track file references when using @ completion, so we can distinguish from
+			// normal user input that may contain @smth as literal text to send (not a file reference)
+			if e.currentCompletion != nil && e.currentCompletion.Trigger() == "@" {
+				e.fileRefs = append(e.fileRefs, msg.Value)
+			}
+			// Clear history suggestion after selecting a completion
+			e.clearSuggestion()
 			return e, nil
 		}
 		return e, nil
@@ -316,22 +332,30 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			// If plain enter and textarea inserted a newline, submit the previous value
 			if value != prev && msg.String() == "enter" {
 				if prev != "" && !e.working {
+					displayContent := prev
+					e.tryAddFileRef(e.pendingFileRef) // Add any pending @filepath before send
+					e.pendingFileRef = ""
+					sendContent := e.appendFileAttachments(prev)
 					e.textarea.SetValue(prev)
 					e.textarea.MoveToEnd()
 					e.textarea.Reset()
 					e.userTyped = false
 					e.refreshSuggestion()
-					return e, core.CmdHandler(SendMsg{Content: prev})
+					return e, core.CmdHandler(SendMsg{Content: sendContent, DisplayContent: displayContent})
 				}
 				return e, nil
 			}
 
 			// Normal enter submit: send current value
 			if value != "" && !e.working {
+				displayContent := value
+				e.tryAddFileRef(e.pendingFileRef) // Add any pending @filepath before send
+				e.pendingFileRef = ""
+				sendContent := e.appendFileAttachments(value)
 				e.textarea.Reset()
 				e.userTyped = false
 				e.refreshSuggestion()
-				return e, core.CmdHandler(SendMsg{Content: value})
+				return e, core.CmdHandler(SendMsg{Content: sendContent, DisplayContent: displayContent})
 			}
 
 			return e, nil
@@ -383,13 +407,29 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		if e.textarea.Value() == "" {
 			e.userTyped = false
 		}
+
+		currentWord := e.textarea.Word()
+
+		// Track manual @filepath refs - only runs when we're in/leaving an @ word
+		if e.pendingFileRef != "" && currentWord != e.pendingFileRef {
+			// Left the @ word - try to add it as file ref
+			e.tryAddFileRef(e.pendingFileRef)
+			e.pendingFileRef = ""
+		}
+		if e.pendingFileRef == "" && strings.HasPrefix(currentWord, "@") && len(currentWord) > 1 {
+			// Entered an @ word - start tracking
+			e.pendingFileRef = currentWord
+		} else if e.pendingFileRef != "" && strings.HasPrefix(currentWord, "@") {
+			// Still in @ word but it changed (user typing more) - update tracking
+			e.pendingFileRef = currentWord
+		}
+
 		if keyMsg.String() == "space" {
 			e.completionWord = ""
 			e.currentCompletion = nil
 			cmds = append(cmds, core.CmdHandler(completion.CloseMsg{}))
 		}
 
-		currentWord := e.textarea.Word()
 		if e.currentCompletion != nil && strings.HasPrefix(currentWord, e.currentCompletion.Trigger()) {
 			e.completionWord = currentWord[1:]
 			cmds = append(cmds, core.CmdHandler(completion.QueryMsg{Query: e.completionWord}))
@@ -456,4 +496,70 @@ func (e *editor) Blur() tea.Cmd {
 func (e *editor) SetWorking(working bool) tea.Cmd {
 	e.working = working
 	return nil
+}
+
+// tryAddFileRef checks if word is a valid @filepath and adds it to fileRefs.
+// Called when cursor leaves a word to detect manually-typed file references.
+func (e *editor) tryAddFileRef(word string) {
+	// Must start with @ and look like a path (contains / or .)
+	if !strings.HasPrefix(word, "@") || len(word) < 2 {
+		return
+	}
+
+	path := word[1:] // strip @
+	if !strings.ContainsAny(path, "/.") {
+		return // not a path-like reference (e.g., @username)
+	}
+
+	// Check if it's an existing file (not directory)
+	info, err := os.Stat(path)
+	if err != nil || info.IsDir() {
+		return
+	}
+
+	// Avoid duplicates
+	for _, existing := range e.fileRefs {
+		if existing == word {
+			return
+		}
+	}
+
+	e.fileRefs = append(e.fileRefs, word)
+}
+
+// appendFileAttachments appends file contents as a structured attachments section.
+// Returns the original content unchanged if no valid file references exist.
+func (e *editor) appendFileAttachments(content string) string {
+	if len(e.fileRefs) == 0 {
+		return content
+	}
+
+	var attachments strings.Builder
+	for _, ref := range e.fileRefs {
+		if !strings.Contains(content, ref) {
+			continue
+		}
+
+		filename := strings.TrimPrefix(ref, "@")
+		info, err := os.Stat(filename)
+		if err != nil || info.IsDir() {
+			continue
+		}
+
+		data, err := os.ReadFile(filename)
+		if err != nil {
+			slog.Warn("failed to read file attachment", "path", filename, "error", err)
+			continue
+		}
+
+		attachments.WriteString(fmt.Sprintf("\n%s:\n```\n%s\n```\n", ref, string(data)))
+	}
+
+	e.fileRefs = nil
+
+	if attachments.Len() == 0 {
+		return content
+	}
+
+	return content + "\n\n<attachments>" + attachments.String() + "</attachments>"
 }

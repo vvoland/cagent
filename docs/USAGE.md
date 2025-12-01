@@ -105,6 +105,23 @@ cagent run                # Runs the pirate.yaml agent
 
 ### Interface-Specific Features
 
+#### File Attachments
+
+In the TUI, you can attach file contents to your message using the `@` trigger:
+
+1. Type `@` to open the file completion menu
+2. Start typing to filter files (respects `.gitignore`)
+3. Select a file to insert the reference (e.g., `@src/main.go`)
+4. When you send your message, the file contents are automatically expanded and attached at the end of your message, while `@somefile.txt` references stay in your message so the LLM can reference the file contents in the context of your question
+
+**Example:**
+```
+Explain what the code in @pkg/agent/agent.go does
+```
+
+The agent gets the full file contents and places them in a structured `<attachments>`
+block at the end of the message, while the UI doesn't display full file contents.
+
 #### CLI Interactive Commands
 
 During CLI sessions, you can use special commands:
