@@ -24,6 +24,12 @@ func TestExec_OpenAI_ToolCall(t *testing.T) {
 	require.Equal(t, "\n--- Agent: root ---\n\nCalling search_files(\n  path: \"testdata/working_dir\"\n  pattern: \"*\"\n)\n\nsearch_files response → \"1 files found:\\ntestdata/working_dir/README.me\"\n1", out)
 }
 
+func TestExec_OpenAI_HideToolCalls(t *testing.T) {
+	out := cagentExec(t, "testdata/fs_tools.yaml", "--hide-tool-calls", "How many files in testdata/working_dir? Only output the number.")
+
+	require.Equal(t, "\n--- Agent: root ---\n1", out)
+}
+
 func TestExec_OpenAI_gpt5(t *testing.T) {
 	out := cagentExec(t, "testdata/basic.yaml", "--model=openai/gpt-5", "What's 2+2?")
 

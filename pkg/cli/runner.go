@@ -35,6 +35,7 @@ func (e RuntimeError) Unwrap() error {
 type Config struct {
 	AppName        string
 	AttachmentPath string
+	HideToolCalls  bool
 }
 
 // Run executes an agent in non-TUI mode, handling user input and runtime events
@@ -121,11 +122,17 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 					continue
 				}
 			case *runtime.ToolCallEvent:
+				if cfg.HideToolCalls {
+					continue
+				}
 				// Only print if this wasn't already shown during confirmation
 				if e.ToolCall.ID != lastConfirmedToolCallID {
 					out.PrintToolCall(e.ToolCall)
 				}
 			case *runtime.ToolCallResponseEvent:
+				if cfg.HideToolCalls {
+					continue
+				}
 				out.PrintToolCallResponse(e.ToolCall, e.Response)
 				// Clear the confirmed ID after the tool completes
 				if e.ToolCall.ID == lastConfirmedToolCallID {
