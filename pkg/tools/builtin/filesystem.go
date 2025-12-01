@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/bmatcuk/doublestar/v4"
+
 	"github.com/docker/cagent/pkg/fsx"
 	"github.com/docker/cagent/pkg/tools"
 )
@@ -124,7 +126,7 @@ type ReadMultipleFilesArgs struct {
 
 type SearchFilesArgs struct {
 	Path            string   `json:"path" jsonschema:"The starting directory path"`
-	Pattern         string   `json:"pattern" jsonschema:"The search pattern"`
+	Pattern         string   `json:"pattern" jsonschema:"The glob pattern to match file names against"`
 	ExcludePatterns []string `json:"excludePatterns,omitempty" jsonschema:"Patterns to exclude from search"`
 }
 
@@ -642,7 +644,6 @@ func (t *FilesystemTool) handleSearchFiles(_ context.Context, args SearchFilesAr
 	}
 
 	var matches []string
-	pattern := strings.ToLower(args.Pattern)
 
 	err := filepath.WalkDir(args.Path, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -675,7 +676,7 @@ func (t *FilesystemTool) handleSearchFiles(_ context.Context, args SearchFilesAr
 				return nil
 			}
 		}
-		if match(pattern, filepath.Base(path)) && !d.IsDir() {
+		if match(args.Pattern, filepath.Base(path)) && !d.IsDir() {
 			matches = append(matches, path)
 		}
 
@@ -869,7 +870,7 @@ func matchExcludePattern(pattern, relPath string) bool {
 }
 
 func match(pattern, name string) bool {
-	matched, _ := filepath.Match(pattern, name)
+	matched, _ := doublestar.Match(pattern, name)
 	if matched {
 		return true
 	}
