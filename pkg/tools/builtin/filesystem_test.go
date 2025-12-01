@@ -237,6 +237,7 @@ func TestFilesystemTool_SearchFiles(t *testing.T) {
 	t.Parallel()
 	tmpDir := t.TempDir()
 
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte("FROM scratch"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.log"), []byte("log"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "data.txt"), []byte("data"), 0o644))
@@ -246,33 +247,82 @@ func TestFilesystemTool_SearchFiles(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(subDir, "test_sub.txt"), []byte("sub"), 0o644))
 
 	tool := NewFilesystemTool([]string{tmpDir})
+	tests := []struct {
+		name            string
+		pattern         string
+		excludePatterns []string
+		wantCount       int
+		wantContains    []string
+		wantNotContains []string
+	}{
+		{
+			name:            "no files found",
+			pattern:         "asdf",
+			wantCount:       0,
+			wantContains:    []string{"No files found"},
+			wantNotContains: nil,
+		},
+		{
+			name:            "all files found",
+			pattern:         "*",
+			wantCount:       0,
+			wantContains:    []string{"5 files found:\n"},
+			wantNotContains: nil,
+		},
+		{
+			name:            "all files found with dot",
+			pattern:         "*.*",
+			wantCount:       0,
+			wantContains:    []string{"4 files found:\n"},
+			wantNotContains: nil,
+		},
+		{
+			name:            "dockerfile pattern",
+			pattern:         "Dockerfile*",
+			wantCount:       1,
+			wantContains:    []string{"1 files found:\n", "Dockerfile"},
+			wantNotContains: nil,
+		},
+		{
+			name:            "test pattern finds all",
+			pattern:         "test",
+			wantCount:       3,
+			wantContains:    []string{"3 files found:\n"},
+			wantNotContains: nil,
+		},
+		{
+			name:            "test pattern with log exclusion",
+			pattern:         "test",
+			excludePatterns: []string{"*.log"},
+			wantCount:       2,
+			wantContains:    []string{"test.txt"},
+			wantNotContains: []string{"test.log"},
+		},
+	}
 
-	result, err := tool.handleSearchFiles(t.Context(), SearchFilesArgs{
-		Path:    tmpDir,
-		Pattern: "asdf",
-	})
-	require.NoError(t, err)
-	lines := strings.Split(strings.TrimSpace(result.Output), "\n")
-	assert.Len(t, lines, 1) // Should find test.txt, test.log, and test_sub.txt
-	assert.Contains(t, lines, "No files found")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result, err := tool.handleSearchFiles(t.Context(), SearchFilesArgs{
+				Path:            tmpDir,
+				Pattern:         tt.pattern,
+				ExcludePatterns: tt.excludePatterns,
+			})
+			require.NoError(t, err)
 
-	result, err = tool.handleSearchFiles(t.Context(), SearchFilesArgs{
-		Path:    tmpDir,
-		Pattern: "test",
-	})
-	require.NoError(t, err)
-	lines = strings.Split(strings.TrimSpace(result.Output), "\n")
-	assert.Contains(t, result.Output, "3 files found:\n")
-	assert.Len(t, lines, 3+1) // Should find test.txt, test.log, and test_sub.txt
+			for _, want := range tt.wantContains {
+				assert.Contains(t, result.Output, want)
+			}
+			for _, notWant := range tt.wantNotContains {
+				assert.NotContains(t, result.Output, notWant)
+			}
 
-	result, err = tool.handleSearchFiles(t.Context(), SearchFilesArgs{
-		Path:            tmpDir,
-		Pattern:         "test",
-		ExcludePatterns: []string{"*.log"},
-	})
-	require.NoError(t, err)
-	assert.NotContains(t, result.Output, "test.log")
-	assert.Contains(t, result.Output, "test.txt")
+			if tt.wantCount > 0 {
+				lines := strings.Split(strings.TrimSpace(result.Output), "\n")
+				assert.Len(t, lines, tt.wantCount+1) // +1 for the header line
+			}
+		})
+	}
 }
 
 func TestFilesystemTool_SearchFilesContent(t *testing.T) {
