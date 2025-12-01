@@ -83,7 +83,6 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 
 		firstLoop := true
 		lastAgent := rt.CurrentAgentName()
-		reasoningStarted := false // Track if we've printed "Thinking:" prefix
 		var lastConfirmedToolCallID string
 		for event := range rt.RunStream(ctx, sess) {
 			agentName := event.GetAgentName()
@@ -94,27 +93,11 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 				out.PrintAgentName(agentName)
 				firstLoop = false
 				lastAgent = agentName
-				reasoningStarted = false // Reset reasoning state on agent change
 			}
 			switch e := event.(type) {
 			case *runtime.AgentChoiceEvent:
-				// Add newline when transitioning from reasoning to regular content
-				if reasoningStarted {
-					out.Println()
-				}
-				reasoningStarted = false // Reset when regular content starts
 				out.Print(e.Content)
 			case *runtime.AgentChoiceReasoningEvent:
-				if !reasoningStarted {
-					// First reasoning chunk: print prefix
-					prefix := "Thinking: "
-					if e.AgentName != "" && e.AgentName != "root" {
-						prefix = prefix + e.AgentName + ": "
-					}
-					out.Printf("\n%s", prefix)
-					reasoningStarted = true
-				}
-				// Continue printing reasoning content
 				out.Print(e.Content)
 			case *runtime.ToolCallConfirmationEvent:
 				result := out.PrintToolCallWithConfirmation(ctx, e.ToolCall, rd)
