@@ -32,6 +32,13 @@ func score(expectedMessages, actualMessages []session.Message) Score {
 
 // https://medium.com/nlplanet/two-minutes-nlp-learn-the-rouge-metric-by-examples-f179cc285499
 func rouge1(expected, actual string) float64 {
+	if expected == "" && actual == "" {
+		return 1.0
+	}
+	if expected == "" || actual == "" {
+		return 0.0
+	}
+
 	expectedWords := strings.Fields(strings.ToLower(expected))
 	actualWords := strings.Fields(strings.ToLower(actual))
 
@@ -67,24 +74,36 @@ func rouge1(expected, actual string) float64 {
 }
 
 func toolTrajectoryScore(expectedToolMessages, actualToolMessages []session.Message) float64 {
-	maximum := 0.0
-	score := 0.0
+	countExpectedToolCalls := 0
+	for _, m := range expectedToolMessages {
+		countExpectedToolCalls += len(m.Message.ToolCalls)
+	}
 
+	countActualToolCalls := 0
+	for _, m := range actualToolMessages {
+		countActualToolCalls += len(m.Message.ToolCalls)
+	}
+
+	maximum := max(countExpectedToolCalls, countActualToolCalls)
+	if maximum == 0 {
+		return 1.0
+	}
+
+	score := 0.0
 	for i := range min(len(expectedToolMessages), len(actualToolMessages)) {
 		expected := expectedToolMessages[i]
 		actual := actualToolMessages[i]
 
-		for j := range actual.Message.ToolCalls {
-			maximum += 1.0
-			if j >= len(expected.Message.ToolCalls) {
+		for j := range expected.Message.ToolCalls {
+			if j >= len(actual.Message.ToolCalls) {
 				continue
 			}
 
-			if actual.Message.ToolCalls[j].Function.Name == expected.Message.ToolCalls[j].Function.Name {
+			if expected.Message.ToolCalls[j].Function.Name == actual.Message.ToolCalls[j].Function.Name {
 				score += 1.0
 			}
 		}
 	}
 
-	return score / maximum
+	return score / float64(maximum)
 }
