@@ -25,6 +25,7 @@ func newExecCmd() *cobra.Command {
 
 	addRunOrExecFlags(cmd, &flags)
 	addRuntimeConfigFlags(cmd, &flags.runConfig)
+	cmd.PersistentFlags().BoolVar(&flags.hideToolCalls, "hide-tool-calls", false, "Hide the tool calls in the output")
 
 	return cmd
 }

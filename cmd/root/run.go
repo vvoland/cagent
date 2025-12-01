@@ -28,6 +28,9 @@ type runExecFlags struct {
 	modelOverrides []string
 	dryRun         bool
 	runConfig      config.RuntimeConfig
+
+	// Exec only
+	hideToolCalls bool
 }
 
 func newRunCmd() *cobra.Command {
@@ -197,6 +200,7 @@ func (f *runExecFlags) handleExecMode(ctx context.Context, out *cli.Printer, rt 
 	err := cli.Run(ctx, out, cli.Config{
 		AppName:        AppName,
 		AttachmentPath: f.attachmentPath,
+		HideToolCalls:  f.hideToolCalls,
 	}, rt, sess, execArgs)
 	if cliErr, ok := err.(cli.RuntimeError); ok {
 		return RuntimeError{Err: cliErr.Err}

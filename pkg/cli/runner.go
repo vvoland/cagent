@@ -35,6 +35,7 @@ func (e RuntimeError) Unwrap() error {
 type Config struct {
 	AppName        string
 	AttachmentPath string
+	HideToolCalls  bool
 }
 
 // Run executes an agent in non-TUI mode, handling user input and runtime events
@@ -83,57 +84,23 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 
 		firstLoop := true
 		lastAgent := rt.CurrentAgentName()
-		llmIsTyping := false
-		reasoningStarted := false // Track if we've printed "Thinking:" prefix
 		var lastConfirmedToolCallID string
 		for event := range rt.RunStream(ctx, sess) {
 			agentName := event.GetAgentName()
 			if agentName != "" && (firstLoop || lastAgent != agentName) {
 				if !firstLoop {
-					if llmIsTyping {
-						out.Println()
-						llmIsTyping = false
-					}
 					out.Println()
 				}
 				out.PrintAgentName(agentName)
 				firstLoop = false
 				lastAgent = agentName
-				reasoningStarted = false // Reset reasoning state on agent change
 			}
 			switch e := event.(type) {
 			case *runtime.AgentChoiceEvent:
-				agentChanged := lastAgent != e.AgentName
-				if !llmIsTyping {
-					// Only add newline if we're not already typing
-					if !agentChanged {
-						out.Println()
-					}
-					llmIsTyping = true
-				}
-				// Add newline when transitioning from reasoning to regular content
-				if reasoningStarted {
-					out.Println()
-				}
-				reasoningStarted = false // Reset when regular content starts
 				out.Print(e.Content)
 			case *runtime.AgentChoiceReasoningEvent:
-				if !reasoningStarted {
-					// First reasoning chunk: print prefix
-					prefix := "Thinking: "
-					if e.AgentName != "" && e.AgentName != "root" {
-						prefix = prefix + e.AgentName + ": "
-					}
-					out.Printf("\n%s", prefix)
-					reasoningStarted = true
-				}
-				// Continue printing reasoning content
 				out.Print(e.Content)
 			case *runtime.ToolCallConfirmationEvent:
-				if llmIsTyping {
-					out.Println()
-					llmIsTyping = false
-				}
 				result := out.PrintToolCallWithConfirmation(ctx, e.ToolCall, rd)
 				// If interrupted, skip resuming; the runtime will notice context cancellation and stop
 				if ctx.Err() != nil {
@@ -155,18 +122,16 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 					continue
 				}
 			case *runtime.ToolCallEvent:
-				if llmIsTyping {
-					out.Println()
-					llmIsTyping = false
+				if cfg.HideToolCalls {
+					continue
 				}
 				// Only print if this wasn't already shown during confirmation
 				if e.ToolCall.ID != lastConfirmedToolCallID {
 					out.PrintToolCall(e.ToolCall)
 				}
 			case *runtime.ToolCallResponseEvent:
-				if llmIsTyping {
-					out.Println()
-					llmIsTyping = false
+				if cfg.HideToolCalls {
+					continue
 				}
 				out.PrintToolCallResponse(e.ToolCall, e.Response)
 				// Clear the confirmed ID after the tool completes
@@ -174,10 +139,6 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 					lastConfirmedToolCallID = ""
 				}
 			case *runtime.ErrorEvent:
-				if llmIsTyping {
-					out.Println()
-					llmIsTyping = false
-				}
 				lowerErr := strings.ToLower(e.Error)
 				if strings.Contains(lowerErr, "context cancel") && ctx.Err() != nil { // treat Ctrl+C cancellations as non-errors
 					lastErr = nil
@@ -186,11 +147,6 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 					out.PrintError(lastErr)
 				}
 			case *runtime.MaxIterationsReachedEvent:
-				if llmIsTyping {
-					out.Println()
-					llmIsTyping = false
-				}
-
 				result := out.PromptMaxIterationsContinue(ctx, e.MaxIterations)
 				switch result {
 				case ConfirmationApprove:
@@ -203,11 +159,6 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 					return nil
 				}
 			case *runtime.ElicitationRequestEvent:
-				if llmIsTyping {
-					out.Println()
-					llmIsTyping = false
-				}
-
 				serverURL := e.Meta["cagent/server_url"].(string)
 				result := out.PromptOAuthAuthorization(ctx, serverURL)
 				switch {
