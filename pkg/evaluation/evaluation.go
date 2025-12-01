@@ -22,9 +22,11 @@ type Score struct {
 }
 
 type Result struct {
+	EvalFile     string
 	FirstMessage string
 	Score        Score
-	EvalFile     string
+	Cost         float64
+	OutputTokens int64
 }
 
 type Printer interface {
@@ -78,6 +80,8 @@ func Evaluate(ctx context.Context, out Printer, agentFilename, evalsDir string, 
 		out.Printf("Eval file: %s\n", result.EvalFile)
 		out.Printf("Tool trajectory score: %f\n", result.Score.ToolTrajectoryScore)
 		out.Printf("Rouge-1 score: %f\n", result.Score.Rouge1Score)
+		out.Printf("Cost: %.2f\n", result.Cost)
+		out.Printf("Output tokens: %d\n", result.OutputTokens)
 		out.Printf("\n")
 	}
 
@@ -120,21 +124,24 @@ func runSingleEvaluation(ctx context.Context, t *team.Team, eval *session.Sessio
 		return Result{}, err
 	}
 
-	actualMessages, err := runLoop(ctx, rt, eval)
+	evalMessages := eval.GetAllMessages()
+
+	sess, err := runLoop(ctx, rt, eval)
 	if err != nil {
 		return Result{}, err
 	}
-
-	evalMessages := eval.GetAllMessages()
+	actualMessages := sess.GetAllMessages()
 
 	return Result{
+		EvalFile:     eval.ID,
 		FirstMessage: evalMessages[0].Message.Content,
 		Score:        score(evalMessages, actualMessages),
-		EvalFile:     eval.ID,
+		Cost:         sess.Cost,
+		OutputTokens: sess.OutputTokens,
 	}, nil
 }
 
-func runLoop(ctx context.Context, rt *runtime.LocalRuntime, eval *session.Session) ([]session.Message, error) {
+func runLoop(ctx context.Context, rt *runtime.LocalRuntime, eval *session.Session) (*session.Session, error) {
 	var userMessages []session.Message
 	allMessages := eval.GetAllMessages()
 	for i := range allMessages {
@@ -147,15 +154,15 @@ func runLoop(ctx context.Context, rt *runtime.LocalRuntime, eval *session.Sessio
 		session.WithToolsApproved(true),
 		session.WithMaxIterations(rt.CurrentAgent().MaxIterations()),
 	)
+
 	for i := range userMessages {
 		sess.AddMessage(&userMessages[i])
+
 		_, err := rt.Run(ctx, sess)
 		if err != nil {
 			return nil, err
 		}
-
-		// Note: rt.Run now returns all messages, but we use sess.GetAllMessages() instead
 	}
 
-	return sess.GetAllMessages(), nil
+	return sess, nil
 }
