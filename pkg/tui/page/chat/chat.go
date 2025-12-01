@@ -259,8 +259,17 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return p, cmd
 
 	case editor.SendMsg:
-		cmd := p.processMessage(msg.Content)
-		return p, cmd
+		// Add user message to UI immediately using the display content (with @filename placeholders)
+		displayCmd := p.messages.AddUserMessage(msg.DisplayContent)
+		// Persist display content to history (not expanded file contents)
+		if p.history != nil {
+			if err := p.history.Add(msg.DisplayContent); err != nil {
+				fmt.Fprintf(os.Stderr, "failed to persist command history: %v\n", err)
+			}
+		}
+		// Process the full content (with expanded files) for the agent
+		processCmd := p.processMessage(msg.Content)
+		return p, tea.Batch(displayCmd, processCmd)
 
 	case messages.StreamCancelledMsg:
 		model, cmd := p.messages.Update(msg)
@@ -294,8 +303,9 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		p.sidebar = model.(sidebar.Model)
 		return p, cmd
 	case *runtime.UserMessageEvent:
-		cmd := p.messages.AddUserMessage(msg.Message)
-		return p, cmd
+		// User message is already added in the SendMsg handler with display content,
+		// skip adding again from runtime event to avoid duplicates
+		return p, nil
 	case *runtime.StreamStartedEvent:
 		p.streamCancelled = false
 		spinnerCmd := p.setWorking(true)
@@ -613,13 +623,6 @@ func (p *chatPage) processMessage(content string) tea.Cmd {
 	if strings.HasPrefix(content, "!") {
 		p.app.RunBangCommand(ctx, content[1:])
 		return p.messages.ScrollToBottom()
-	}
-
-	// Persist to history
-	if p.history != nil {
-		if err := p.history.Add(content); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to persist command history: %v\n", err)
-		}
 	}
 
 	p.app.Run(ctx, p.msgCancel, content)

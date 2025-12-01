@@ -123,14 +123,20 @@ func (c *manager) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case QueryMsg:
 		c.query = msg.Query
 		c.filterItems(c.query)
+		if len(c.filteredItems) == 0 {
+			c.visible = false
+		}
 		return c, nil
 
 	case OpenMsg:
-		c.visible = true
 		c.items = msg.Items
 		c.selected = 0
 		c.scrollOffset = 0
 		c.filterItems(c.query)
+		c.visible = len(c.filteredItems) > 0
+		if !c.visible {
+			return c, nil
+		}
 		return c, core.CmdHandler(OpenedMsg{})
 
 	case CloseMsg:
@@ -157,6 +163,9 @@ func (c *manager) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 		case key.Matches(msg, c.keyMap.Enter):
 			c.visible = false
+			if len(c.filteredItems) == 0 || c.selected >= len(c.filteredItems) {
+				return c, core.CmdHandler(ClosedMsg{})
+			}
 			return c, core.CmdHandler(SelectedMsg{Value: c.filteredItems[c.selected].Value, Execute: c.filteredItems[c.selected].Execute})
 		case key.Matches(msg, c.keyMap.Escape):
 			c.visible = false

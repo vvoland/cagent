@@ -44,7 +44,7 @@ func (c *fileCompletion) Items() []completion.Item {
 	for i, f := range files {
 		items[i] = completion.Item{
 			Label: f,
-			Value: f,
+			Value: "@" + f, // Include @ prefix since completion handler removes trigger
 		}
 	}
 
