@@ -371,7 +371,6 @@ func main() {
 
 	formattedFile := testFile + ".formatted"
 	t.Run("write_file", func(t *testing.T) {
-		t.Parallel()
 		result, err := tool.handleWriteFile(t.Context(), WriteFileArgs{
 			Path:    testFile,
 			Content: testContent,
@@ -385,7 +384,6 @@ func main() {
 	})
 
 	t.Run("edit_file", func(t *testing.T) {
-		t.Parallel()
 		result, err := tool.handleEditFile(t.Context(), EditFileArgs{
 			Path: testFile,
 			Edits: []Edit{{
