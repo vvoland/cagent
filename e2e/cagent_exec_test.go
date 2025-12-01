@@ -15,67 +15,67 @@ import (
 func TestExec_OpenAI(t *testing.T) {
 	out := cagentExec(t, "testdata/basic.yaml", "What's 2+2?")
 
-	require.Equal(t, "\n--- Agent: root ---\n\n2 + 2 equals 4.", out)
+	require.Equal(t, "\n--- Agent: root ---\n2 + 2 equals 4.", out)
 }
 
 func TestExec_OpenAI_ToolCall(t *testing.T) {
 	out := cagentExec(t, "testdata/fs_tools.yaml", "How many files in testdata/working_dir? Only output the number.")
 
-	require.Equal(t, "\n--- Agent: root ---\n\nCalling search_files(\n  path: \"testdata/working_dir\"\n  pattern: \"*\"\n)\n\nsearch_files response → \"1 files found:\\ntestdata/working_dir/README.me\"\n\n1", out)
+	require.Equal(t, "\n--- Agent: root ---\n\nCalling search_files(\n  path: \"testdata/working_dir\"\n  pattern: \"*\"\n)\n\nsearch_files response → \"1 files found:\\ntestdata/working_dir/README.me\"\n1", out)
 }
 
 func TestExec_OpenAI_gpt5(t *testing.T) {
 	out := cagentExec(t, "testdata/basic.yaml", "--model=openai/gpt-5", "What's 2+2?")
 
-	require.Equal(t, "\n--- Agent: root ---\n\n4", out)
+	require.Equal(t, "\n--- Agent: root ---\n4", out)
 }
 
 func TestExec_OpenAI_gpt5_1(t *testing.T) {
 	out := cagentExec(t, "testdata/basic.yaml", "--model=openai/gpt-5.1", "What's 2+2?")
 
-	require.Equal(t, "\n--- Agent: root ---\n\n2 + 2 = 4.", out)
+	require.Equal(t, "\n--- Agent: root ---\n2 + 2 = 4.", out)
 }
 
 func TestExec_OpenAI_gpt5_codex(t *testing.T) {
 	out := cagentExec(t, "testdata/basic.yaml", "--model=openai/gpt-5-codex", "What's 2+2?")
 
-	require.Equal(t, "\n--- Agent: root ---\n\n2 + 2 equals 4.", out)
+	require.Equal(t, "\n--- Agent: root ---\n2 + 2 equals 4.", out)
 }
 
 func TestExec_Anthropic(t *testing.T) {
 	out := cagentExec(t, "testdata/basic.yaml", "--model=anthropic/claude-sonnet-4-0", "What's 2+2?")
 
-	require.Equal(t, "\n--- Agent: root ---\n\n2 + 2 = 4", out)
+	require.Equal(t, "\n--- Agent: root ---\n2 + 2 = 4", out)
 }
 
 func TestExec_Anthropic_ToolCall(t *testing.T) {
 	out := cagentExec(t, "testdata/fs_tools.yaml", "--model=anthropic/claude-sonnet-4-0", "How many files in testdata/working_dir? Only output the number.")
 
-	require.Equal(t, "\n--- Agent: root ---\n\nCalling list_directory(path: \"testdata/working_dir\")\n\nlist_directory response → \"FILE README.me\\n\"\n\n1", out)
+	require.Equal(t, "\n--- Agent: root ---\n\nCalling list_directory(path: \"testdata/working_dir\")\n\nlist_directory response → \"FILE README.me\\n\"\n1", out)
 }
 
 func TestExec_Gemini(t *testing.T) {
 	out := cagentExec(t, "testdata/basic.yaml", "--model=google/gemini-2.5-flash", "What's 2+2?")
 
-	require.Equal(t, "\n--- Agent: root ---\n\n2 + 2 = 4", out)
+	require.Equal(t, "\n--- Agent: root ---\n2 + 2 = 4", out)
 }
 
 func TestExec_Gemini_ToolCall(t *testing.T) {
 	out := cagentExec(t, "testdata/fs_tools.yaml", "--model=google/gemini-2.5-flash", "How many files in testdata/working_dir? Only output the number.")
 
-	require.Equal(t, "\n--- Agent: root ---\n\nCalling list_directory(path: \"testdata/working_dir\")\n\nlist_directory response → \"FILE README.me\\n\"\n\n1", out)
+	require.Equal(t, "\n--- Agent: root ---\n\nCalling list_directory(path: \"testdata/working_dir\")\n\nlist_directory response → \"FILE README.me\\n\"\n1", out)
 }
 
 func TestExec_Mistral(t *testing.T) {
 	out := cagentExec(t, "testdata/basic.yaml", "--model=mistral/mistral-small", "What's 2+2?")
 
-	require.Equal(t, "\n--- Agent: root ---\n\nThe sum of 2 + 2 is 4.", out)
+	require.Equal(t, "\n--- Agent: root ---\nThe sum of 2 + 2 is 4.", out)
 }
 
 func TestExec_Mistral_ToolCall(t *testing.T) {
 	out := cagentExec(t, "testdata/fs_tools.yaml", "--model=mistral/mistral-small", "How many files in testdata/working_dir? Only output the number.")
 
-	require.Equal(t, "\n--- Agent: root ---\n\nCalling list_directory(path: \"testdata/working_dir\")\n\nlist_directory response → \"FILE README.me\\n\"\n\n1", out)
+	require.Equal(t, "\n--- Agent: root ---\n\nCalling list_directory(path: \"testdata/working_dir\")\n\nlist_directory response → \"FILE README.me\\n\"\n1", out)
 }
 
 func TestExec_ToolCallsNeedAcceptance(t *testing.T) {
