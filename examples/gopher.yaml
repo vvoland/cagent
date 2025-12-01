@@ -62,7 +62,6 @@ agents:
       - type: mcp
         command: gopls
         args: ["mcp"]
-        tools: ["go_diagnostics", "go_file_context", "go_search", "go_symbol_references"]
       - type: mcp
         ref: docker:ast-grep
         config:
