@@ -76,6 +76,10 @@ func toolTrajectoryScore(expectedToolMessages, actualToolMessages []session.Mess
 
 		for j := range actual.Message.ToolCalls {
 			maximum += 1.0
+			if j >= len(expected.Message.ToolCalls) {
+				continue
+			}
+
 			if actual.Message.ToolCalls[j].Function.Name == expected.Message.ToolCalls[j].Function.Name {
 				score += 1.0
 			}
