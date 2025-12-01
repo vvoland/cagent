@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"charm.land/lipgloss/v2"
 	"github.com/alecthomas/chroma/v2"
@@ -204,12 +205,24 @@ func renderDiffWithSyntaxHighlight(diff []*udiff.Hunk, filePath string, width in
 
 		for _, line := range hunk.Lines {
 			lineNum := getDisplayLineNumber(&line, &oldLineNum, &newLineNum)
-			content := prepareContent(line.Content, contentWidth)
+			content := prepareContent(line.Content)
+			tokens := syntaxHighlight(content, filePath)
+			lineStyle := getLineStyle(line.Kind)
+			wrappedTokens := wrapTokens(tokens, contentWidth)
 
-			lineNumStr := styles.LineNumberStyle.Render(fmt.Sprintf("%4d ", lineNum))
-			styledLine := renderLine(content, line.Kind, filePath, contentWidth)
-
-			output.WriteString(lineNumStr + styledLine + "\n")
+			for i, tokenLine := range wrappedTokens {
+				var lineNumStr string
+				if i == 0 {
+					// Show line number only on first wrapped line
+					lineNumStr = styles.LineNumberStyle.Render(fmt.Sprintf("%4d ", lineNum))
+				} else {
+					// Use continuation indicator for wrapped lines
+					lineNumStr = styles.LineNumberStyle.Render("   → ")
+				}
+				rendered := renderTokensWithStyle(tokenLine, lineStyle)
+				padded := padToWidth(rendered, contentWidth, lineStyle)
+				output.WriteString(lineNumStr + padded + "\n")
+			}
 		}
 	}
 
@@ -230,13 +243,25 @@ func renderSplitDiffWithSyntaxHighlight(diff []*udiff.Hunk, filePath string, wid
 
 	for _, hunk := range diff {
 		for _, pair := range pairDiffLines(hunk.Lines, hunk.FromLine, hunk.ToLine) {
-			leftSide := renderSplitSide(pair.old, pair.oldLineNum, filePath, contentWidth)
-			rightSide := renderSplitSide(pair.new, pair.newLineNum, filePath, contentWidth)
+			leftLines := renderSplitSide(pair.old, pair.oldLineNum, filePath, contentWidth)
+			rightLines := renderSplitSide(pair.new, pair.newLineNum, filePath, contentWidth)
 
-			line := leftSide + separator + rightSide
-			line = ensureWidth(line, width)
+			// Ensure both sides have the same number of lines for alignment
+			maxLines := max(len(rightLines), len(leftLines))
 
-			output.WriteString(line + "\n")
+			// Pad shorter side with empty lines
+			for len(leftLines) < maxLines {
+				leftLines = append(leftLines, renderEmptySplitSide(contentWidth))
+			}
+			for len(rightLines) < maxLines {
+				rightLines = append(rightLines, renderEmptySplitSide(contentWidth))
+			}
+
+			for i := range maxLines {
+				line := leftLines[i] + separator + rightLines[i]
+				line = ensureWidth(line, width)
+				output.WriteString(line + "\n")
+			}
 		}
 	}
 
@@ -262,36 +287,111 @@ func getDisplayLineNumber(line *udiff.Line, oldLineNum, newLineNum *int) int {
 	return 0
 }
 
-func prepareContent(content string, maxWidth int) string {
+func prepareContent(content string) string {
 	content = strings.ReplaceAll(content, "\t", strings.Repeat(" ", tabWidth))
 	content = strings.TrimRight(content, "\n")
-	if runewidth.StringWidth(content) > maxWidth {
-		content = runewidth.Truncate(content, maxWidth-3, "...")
-	}
 	return content
 }
 
-func renderLine(content string, kind udiff.OpKind, filePath string, width int) string {
-	tokens := syntaxHighlight(content, filePath)
-	lineStyle := getLineStyle(kind)
-
-	rendered := renderTokensWithStyle(tokens, lineStyle)
-
-	return padToWidth(rendered, width, lineStyle)
-}
-
-func renderSplitSide(line *udiff.Line, lineNum int, filePath string, width int) string {
-	lineNumStr := formatLineNum(line, lineNum)
-
-	if line == nil {
-		emptySpace := styles.DiffUnchangedStyle.Render(strings.Repeat(" ", width))
-		return styles.LineNumberStyle.Render(lineNumStr) + emptySpace
+// wrapTokens wraps syntax-highlighted tokens into multiple lines
+// while preserving syntax highlighting across line breaks.
+func wrapTokens(tokens []chromaToken, maxWidth int) [][]chromaToken {
+	if maxWidth <= 0 || len(tokens) == 0 {
+		return [][]chromaToken{tokens}
 	}
 
-	content := prepareContent(line.Content, width)
-	styledContent := renderLine(content, line.Kind, filePath, width)
+	var lines [][]chromaToken
+	var currentLine []chromaToken
+	currentWidth := 0
 
-	return styles.LineNumberStyle.Render(lineNumStr) + styledContent
+	for _, token := range tokens {
+		text := token.Text
+		for text != "" {
+			// Calculate how many runes fit in remaining space
+			spaceLeft := maxWidth - currentWidth
+			if spaceLeft <= 0 {
+				lines = append(lines, currentLine)
+				currentLine = nil
+				currentWidth = 0
+				spaceLeft = maxWidth
+			}
+
+			// Find how much of the text fits
+			fitLen, fitWidth := 0, 0
+			for _, r := range text {
+				rw := runewidth.RuneWidth(r)
+				if fitWidth+rw > spaceLeft {
+					break
+				}
+				fitLen += utf8.RuneLen(r)
+				fitWidth += rw
+			}
+
+			if fitLen == 0 {
+				// Current line has content but can't fit even one char - wrap first
+				if currentWidth > 0 {
+					lines = append(lines, currentLine)
+					currentLine = nil
+					currentWidth = 0
+					continue
+				}
+				// Edge case: single char wider than maxWidth - take it anyway
+				r, size := utf8.DecodeRuneInString(text)
+				fitLen = size
+				fitWidth = runewidth.RuneWidth(r)
+			}
+
+			currentLine = append(currentLine, chromaToken{Text: text[:fitLen], Style: token.Style})
+			currentWidth += fitWidth
+			text = text[fitLen:]
+		}
+	}
+
+	if len(currentLine) > 0 {
+		lines = append(lines, currentLine)
+	}
+
+	if len(lines) == 0 {
+		return [][]chromaToken{tokens}
+	}
+
+	return lines
+}
+
+// renderSplitSide renders a split side with text wrapping support
+func renderSplitSide(line *udiff.Line, lineNum int, filePath string, width int) []string {
+	if line == nil {
+		return []string{renderEmptySplitSide(width)}
+	}
+
+	content := prepareContent(line.Content)
+	tokens := syntaxHighlight(content, filePath)
+	lineStyle := getLineStyle(line.Kind)
+	wrappedTokens := wrapTokens(tokens, width)
+
+	var result []string
+	for i, tokenLine := range wrappedTokens {
+		var lineNumStr string
+		if i == 0 {
+			// Show line number only on first wrapped line
+			lineNumStr = formatLineNum(line, lineNum)
+		} else {
+			// Use continuation indicator for wrapped lines
+			lineNumStr = "   → "
+		}
+		rendered := renderTokensWithStyle(tokenLine, lineStyle)
+		padded := padToWidth(rendered, width, lineStyle)
+		result = append(result, styles.LineNumberStyle.Render(lineNumStr)+padded)
+	}
+
+	return result
+}
+
+// renderEmptySplitSide renders an empty line for split view alignment
+func renderEmptySplitSide(width int) string {
+	lineNumStr := strings.Repeat(" ", lineNumWidth)
+	emptySpace := styles.DiffUnchangedStyle.Render(strings.Repeat(" ", width))
+	return styles.LineNumberStyle.Render(lineNumStr) + emptySpace
 }
 
 func renderTokensWithStyle(tokens []chromaToken, lineStyle lipgloss.Style) string {
