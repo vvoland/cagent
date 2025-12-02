@@ -57,7 +57,7 @@ tasks:
 
   build-local:
     desc: Build binaries for local host platform
-    cmd: docker buildx build --target=local {{.BUILD_ARGS}} --platform local --output=./dist .
+    cmd: docker buildx build --target=local {{.BUILD_ARGS}} --platform local --output=./dist . {{if eq OS "windows"}}&& mv ./dist/cagent ./dist/cagent.exe{{end}}
 
   cross:
     desc: Build binaries for multiple platforms

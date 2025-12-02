@@ -15,6 +15,10 @@ If you're hacking on `cagent`, or just want to be on the bleeding edge, then bui
 - [Task 3.44 or higher](https://taskfile.dev/installation/)
 - [`golangci-lint`](https://golangci-lint.run/docs/welcome/install/#binaries)
 
+> Note: On windows, we currently only support building from source via docker with `task build-local`  
+>
+> See [here](#building-with-docker) for more details
+
 ##### Build commands
 
 ```bash
