@@ -23,7 +23,7 @@ agents with specialized capabilities and tools. It features:
 After passing the last year+ building AI agents of various types, using a variety of software solutions and frameworks, we kept asking ourselves some of the same questions:
 
 - How can we make building and running useful agentic systems less of a hassle?
-- Most agents we build end up use many of the same building blocks. Can we re-use most of those building block and have declarative configurations for new agents?
+- Most agents we build end up using many of the same building blocks. Can we re-use most of those building block and have declarative configurations for new agents?
 - How can we package and share agents amongst each other as simply as possible without all the headaches?
 
 We really think we're getting somewhere as we build out the primitives of `cagent` so, in keeping with our love for open-source software in general, we decided to **share it and build it in the open** to allow the community at large to make use of our work and contribute to the future of the project itself. 
