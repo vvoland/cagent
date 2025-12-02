@@ -259,11 +259,15 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return p, cmd
 
 	case editor.SendMsg:
+		displayContent := msg.DisplayContent
+		if displayContent == "" {
+			displayContent = msg.Content
+		}
 		// Add user message to UI immediately using the display content (with @filename placeholders)
-		displayCmd := p.messages.AddUserMessage(msg.DisplayContent)
+		displayCmd := p.messages.AddUserMessage(displayContent)
 		// Persist display content to history (not expanded file contents)
 		if p.history != nil {
-			if err := p.history.Add(msg.DisplayContent); err != nil {
+			if err := p.history.Add(displayContent); err != nil {
 				fmt.Fprintf(os.Stderr, "failed to persist command history: %v\n", err)
 			}
 		}
