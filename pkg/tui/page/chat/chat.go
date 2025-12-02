@@ -259,22 +259,9 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return p, cmd
 
 	case editor.SendMsg:
-		displayContent := msg.DisplayContent
-		if displayContent == "" {
-			displayContent = msg.Content
-		}
-		// Add user message to UI immediately using the display content (with @filename placeholders)
-		displayCmd := p.messages.AddUserMessage(displayContent)
-		// Persist display content to history (not expanded file contents)
-		if p.history != nil {
-			if err := p.history.Add(displayContent); err != nil {
-				fmt.Fprintf(os.Stderr, "failed to persist command history: %v\n", err)
-			}
-		}
-		// Process the full content (with expanded files) for the agent
-		processCmd := p.processMessage(msg.Content)
-		return p, tea.Batch(displayCmd, processCmd)
-
+		slog.Debug(msg.Content)
+		cmd := p.processMessage(msg)
+		return p, cmd
 	case messages.StreamCancelledMsg:
 		model, cmd := p.messages.Update(msg)
 		p.messages = model.(messages.Model)
@@ -307,9 +294,8 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		p.sidebar = model.(sidebar.Model)
 		return p, cmd
 	case *runtime.UserMessageEvent:
-		// User message is already added in the SendMsg handler with display content,
-		// skip adding again from runtime event to avoid duplicates
-		return p, nil
+		cmd := p.messages.AddUserMessage(msg.Message)
+		return p, cmd
 	case *runtime.StreamStartedEvent:
 		p.streamCancelled = false
 		spinnerCmd := p.setWorking(true)
@@ -616,7 +602,7 @@ func (p *chatPage) cancelStream(showCancelMessage bool) tea.Cmd {
 }
 
 // processMessage processes a message with the runtime
-func (p *chatPage) processMessage(content string) tea.Cmd {
+func (p *chatPage) processMessage(msg editor.SendMsg) tea.Cmd {
 	if p.msgCancel != nil {
 		p.msgCancel()
 	}
@@ -624,12 +610,12 @@ func (p *chatPage) processMessage(content string) tea.Cmd {
 	var ctx context.Context
 	ctx, p.msgCancel = context.WithCancel(context.Background())
 
-	if strings.HasPrefix(content, "!") {
-		p.app.RunBangCommand(ctx, content[1:])
+	if strings.HasPrefix(msg.Content, "!") {
+		p.app.RunBangCommand(ctx, msg.Content[1:])
 		return p.messages.ScrollToBottom()
 	}
 
-	p.app.Run(ctx, p.msgCancel, content)
+	p.app.Run(ctx, p.msgCancel, msg.Content, msg.Attachments)
 
 	return p.messages.ScrollToBottom()
 }
