@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/tools"
@@ -124,10 +125,27 @@ func (a *App) EmitStartupInfo(ctx context.Context, events chan runtime.Event) {
 }
 
 // Run one agent loop
-func (a *App) Run(ctx context.Context, cancel context.CancelFunc, message string) {
+func (a *App) Run(ctx context.Context, cancel context.CancelFunc, message string, attachments map[string]string) {
 	a.cancel = cancel
 	go func() {
-		a.session.AddMessage(session.UserMessage(message))
+		if len(attachments) > 0 {
+			multiContent := []chat.MessagePart{
+				{
+					Type: chat.MessagePartTypeText,
+					Text: message,
+				},
+			}
+
+			for key, dataURL := range attachments {
+				multiContent = append(multiContent, chat.MessagePart{
+					Type: chat.MessagePartTypeText,
+					Text: fmt.Sprintf("Contents of %s: %s", key, dataURL),
+				})
+			}
+			a.session.AddMessage(session.UserMessage(message, multiContent...))
+		} else {
+			a.session.AddMessage(session.UserMessage(message))
+		}
 		for event := range a.runtime.RunStream(ctx, a.session) {
 			if ctx.Err() != nil {
 				return

@@ -1,10 +1,10 @@
 package editor
 
 import (
-	"fmt"
 	"log/slog"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/textarea"
@@ -27,8 +27,8 @@ var ansiRegexp = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
 
 // SendMsg represents a message to send
 type SendMsg struct {
-	Content        string // Full content sent to the agent (with file contents expanded)
-	DisplayContent string // Compact version for UI display (with @filename placeholders)
+	Content     string            // Full content sent to the agent (with file contents expanded)
+	Attachments map[string]string // Map of filename to content for attachments
 }
 
 // Editor represents an input editor component
@@ -332,30 +332,29 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			// If plain enter and textarea inserted a newline, submit the previous value
 			if value != prev && msg.String() == "enter" {
 				if prev != "" && !e.working {
-					displayContent := prev
 					e.tryAddFileRef(e.pendingFileRef) // Add any pending @filepath before send
 					e.pendingFileRef = ""
-					sendContent := e.appendFileAttachments(prev)
+					attachments := e.fileParts(prev)
 					e.textarea.SetValue(prev)
 					e.textarea.MoveToEnd()
 					e.textarea.Reset()
 					e.userTyped = false
 					e.refreshSuggestion()
-					return e, core.CmdHandler(SendMsg{Content: sendContent, DisplayContent: displayContent})
+					return e, core.CmdHandler(SendMsg{Content: prev, Attachments: attachments})
 				}
 				return e, nil
 			}
 
 			// Normal enter submit: send current value
 			if value != "" && !e.working {
-				displayContent := value
+				slog.Debug(value)
 				e.tryAddFileRef(e.pendingFileRef) // Add any pending @filepath before send
 				e.pendingFileRef = ""
-				sendContent := e.appendFileAttachments(value)
+				attachments := e.fileParts(value)
 				e.textarea.Reset()
 				e.userTyped = false
 				e.refreshSuggestion()
-				return e, core.CmdHandler(SendMsg{Content: sendContent, DisplayContent: displayContent})
+				return e, core.CmdHandler(SendMsg{Content: value, Attachments: attachments})
 			}
 
 			return e, nil
@@ -518,10 +517,8 @@ func (e *editor) tryAddFileRef(word string) {
 	}
 
 	// Avoid duplicates
-	for _, existing := range e.fileRefs {
-		if existing == word {
-			return
-		}
+	if slices.Contains(e.fileRefs, word) {
+		return
 	}
 
 	e.fileRefs = append(e.fileRefs, word)
@@ -529,12 +526,12 @@ func (e *editor) tryAddFileRef(word string) {
 
 // appendFileAttachments appends file contents as a structured attachments section.
 // Returns the original content unchanged if no valid file references exist.
-func (e *editor) appendFileAttachments(content string) string {
+func (e *editor) fileParts(content string) map[string]string {
 	if len(e.fileRefs) == 0 {
-		return content
+		return nil
 	}
 
-	var attachments strings.Builder
+	attachments := make(map[string]string)
 	for _, ref := range e.fileRefs {
 		if !strings.Contains(content, ref) {
 			continue
@@ -551,15 +548,10 @@ func (e *editor) appendFileAttachments(content string) string {
 			slog.Warn("failed to read file attachment", "path", filename, "error", err)
 			continue
 		}
-
-		attachments.WriteString(fmt.Sprintf("\n%s:\n```\n%s\n```\n", ref, string(data)))
+		attachments[ref] = string(data)
 	}
 
 	e.fileRefs = nil
 
-	if attachments.Len() == 0 {
-		return content
-	}
-
-	return content + "\n\n<attachments>" + attachments.String() + "</attachments>"
+	return attachments
 }

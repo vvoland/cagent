@@ -98,7 +98,7 @@ func UserMessage(content string, multiContent ...chat.MessagePart) *Message {
 	if len(multiContent) > 0 {
 		msg = chat.Message{
 			Role:         chat.MessageRoleUser,
-			Content:      "",
+			Content:      content,
 			MultiContent: multiContent,
 			CreatedAt:    time.Now().Format(time.RFC3339),
 		}

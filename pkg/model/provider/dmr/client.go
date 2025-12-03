@@ -367,10 +367,6 @@ func convertMessages(messages []chat.Message) []openai.ChatCompletionMessagePara
 				}
 			}
 
-			if msg.Name != "" {
-				assistantParam.Name = param.NewOpt(msg.Name)
-			}
-
 			if msg.FunctionCall != nil {
 				assistantParam.FunctionCall.Name = msg.FunctionCall.Name           //nolint:staticcheck // deprecated but still needed for compatibility
 				assistantParam.FunctionCall.Arguments = msg.FunctionCall.Arguments //nolint:staticcheck // deprecated but still needed for compatibility

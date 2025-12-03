@@ -3,35 +3,14 @@ package editor
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestAppendFileAttachments(t *testing.T) {
+func TestFileParts(t *testing.T) {
 	t.Parallel()
-
-	t.Run("no file refs returns content unchanged", func(t *testing.T) {
-		t.Parallel()
-		e := &editor{fileRefs: nil}
-		content := "hello world"
-
-		result := e.appendFileAttachments(content)
-
-		assert.Equal(t, content, result)
-	})
-
-	t.Run("empty file refs returns content unchanged", func(t *testing.T) {
-		t.Parallel()
-		e := &editor{fileRefs: []string{}}
-		content := "hello world"
-
-		result := e.appendFileAttachments(content)
-
-		assert.Equal(t, content, result)
-	})
 
 	t.Run("appends file content as attachment", func(t *testing.T) {
 		t.Parallel()
@@ -45,13 +24,9 @@ func TestAppendFileAttachments(t *testing.T) {
 		e := &editor{fileRefs: []string{ref}}
 		content := "analyze " + ref
 
-		result := e.appendFileAttachments(content)
+		result := e.fileParts(content)
 
-		assert.Contains(t, result, "analyze "+ref)
-		assert.Contains(t, result, "<attachments>")
-		assert.Contains(t, result, "</attachments>")
-		assert.Contains(t, result, ref+":")
-		assert.Contains(t, result, "file content here")
+		assert.Contains(t, result[ref], "file content here")
 		assert.Nil(t, e.fileRefs, "fileRefs should be cleared after expansion")
 	})
 
@@ -69,32 +44,10 @@ func TestAppendFileAttachments(t *testing.T) {
 		e := &editor{fileRefs: []string{ref1, ref2}}
 		content := "compare " + ref1 + " with " + ref2
 
-		result := e.appendFileAttachments(content)
+		result := e.fileParts(content)
 
-		assert.Contains(t, result, "compare "+ref1+" with "+ref2)
-		assert.Contains(t, result, ref1+":")
-		assert.Contains(t, result, "package first")
-		assert.Contains(t, result, ref2+":")
-		assert.Contains(t, result, "package second")
-		assert.Equal(t, 1, strings.Count(result, "<attachments>"))
-		assert.Equal(t, 1, strings.Count(result, "</attachments>"))
-	})
-
-	t.Run("skips refs not in content", func(t *testing.T) {
-		t.Parallel()
-
-		tmpDir := t.TempDir()
-		tmpFile := filepath.Join(tmpDir, "test.txt")
-		require.NoError(t, os.WriteFile(tmpFile, []byte("content"), 0o644))
-
-		ref := "@" + tmpFile
-		e := &editor{fileRefs: []string{ref}}
-		content := "message without the reference"
-
-		result := e.appendFileAttachments(content)
-
-		assert.Equal(t, content, result, "should return unchanged when ref not in content")
-		assert.Nil(t, e.fileRefs, "fileRefs should be cleared after expansion")
+		assert.Contains(t, result[ref1], "package first")
+		assert.Contains(t, result[ref2], "package second")
 	})
 
 	t.Run("skips nonexistent files", func(t *testing.T) {
@@ -104,9 +57,9 @@ func TestAppendFileAttachments(t *testing.T) {
 		e := &editor{fileRefs: []string{ref}}
 		content := "analyze " + ref
 
-		result := e.appendFileAttachments(content)
+		result := e.fileParts(content)
 
-		assert.Equal(t, content, result, "should return unchanged when file doesn't exist")
+		assert.Empty(t, result)
 		assert.Nil(t, e.fileRefs, "fileRefs should still be cleared")
 	})
 
@@ -118,9 +71,9 @@ func TestAppendFileAttachments(t *testing.T) {
 		e := &editor{fileRefs: []string{ref}}
 		content := "analyze " + ref
 
-		result := e.appendFileAttachments(content)
+		result := e.fileParts(content)
 
-		assert.Equal(t, content, result, "should return unchanged for directories")
+		assert.Empty(t, result)
 		assert.Nil(t, e.fileRefs, "fileRefs should be cleared after expansion")
 	})
 
@@ -136,12 +89,10 @@ func TestAppendFileAttachments(t *testing.T) {
 		e := &editor{fileRefs: []string{validRef, invalidRef}}
 		content := "check " + validRef + " and " + invalidRef
 
-		result := e.appendFileAttachments(content)
+		result := e.fileParts(content)
 
-		assert.Contains(t, result, "<attachments>")
-		assert.Contains(t, result, validRef+":")
-		assert.Contains(t, result, "valid content")
-		assert.NotContains(t, result, invalidRef+":")
+		assert.Contains(t, result[validRef], "valid content")
+		assert.NotContains(t, result, invalidRef)
 		assert.Nil(t, e.fileRefs, "fileRefs should be cleared after expansion")
 	})
 }
@@ -225,10 +176,9 @@ func TestTryAddFileRef(t *testing.T) {
 
 		// Verify both get attached
 		content := "compare @" + completedFile + " with @" + manualFile
-		result := e.appendFileAttachments(content)
+		result := e.fileParts(content)
 
-		assert.Contains(t, result, "package completed")
-		assert.Contains(t, result, "package manual")
-		assert.Equal(t, 1, strings.Count(result, "<attachments>"))
+		assert.Contains(t, result["@"+completedFile], "package completed")
+		assert.Contains(t, result["@"+manualFile], "package manual")
 	})
 }

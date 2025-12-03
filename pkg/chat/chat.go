@@ -34,14 +34,7 @@ type MessageImageURL struct {
 type Message struct {
 	Role         MessageRole   `json:"role"`
 	Content      string        `json:"content"`
-	Refusal      string        `json:"refusal,omitempty"`
 	MultiContent []MessagePart `json:"multi_content,omitempty"`
-
-	// This property isn't in the official documentation, but it's in
-	// the documentation for the official library for python:
-	// - https://github.com/openai/openai-python/blob/main/chatml.md
-	// - https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
-	Name string `json:"name,omitempty"`
 
 	// This property is used for the "reasoning" feature supported by deepseek-reasoner
 	// which is not in the official documentation.
