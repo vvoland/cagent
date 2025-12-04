@@ -72,7 +72,7 @@ COPY --from=builder /binaries/cagent-$TARGETOS-$TARGETARCH* cagent
 FROM scratch AS cross
 COPY --from=builder /binaries .
 
-FROM alpine
+FROM alpine:${ALPINE_VERSION}
 RUN apk add --no-cache ca-certificates docker-cli
 RUN addgroup -S cagent && adduser -S -G cagent cagent
 ARG TARGETOS TARGETARCH
