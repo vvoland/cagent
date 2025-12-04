@@ -126,22 +126,14 @@ type SessionsResponse struct {
 
 // SessionResponse represents a detailed session
 type SessionResponse struct {
-	ID            string              `json:"id"`
-	Title         string              `json:"title"`
-	Messages      []session.Message   `json:"messages,omitempty"`
-	CreatedAt     time.Time           `json:"created_at"`
-	ToolsApproved bool                `json:"tools_approved"`
-	InputTokens   int64               `json:"input_tokens"`
-	OutputTokens  int64               `json:"output_tokens"`
-	WorkingDir    string              `json:"working_dir,omitempty"`
-	Pagination    *PaginationMetadata `json:"pagination,omitempty"`
-}
-
-// PaginationMetadata contains pagination information
-type PaginationMetadata struct {
-	TotalMessages int    `json:"total_messages"`        // Total number of messages in session
-	Limit         int    `json:"limit"`                 // Number of messages in this response
-	PrevCursor    string `json:"prev_cursor,omitempty"` // Cursor for previous page (empty if no more messages)
+	ID            string            `json:"id"`
+	Title         string            `json:"title"`
+	Messages      []session.Message `json:"messages,omitempty"`
+	CreatedAt     time.Time         `json:"created_at"`
+	ToolsApproved bool              `json:"tools_approved"`
+	InputTokens   int64             `json:"input_tokens"`
+	OutputTokens  int64             `json:"output_tokens"`
+	WorkingDir    string            `json:"working_dir,omitempty"`
 }
 
 // ResumeSessionRequest represents a request to resume a session
