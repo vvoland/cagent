@@ -2,9 +2,10 @@
 
 ARG GO_VERSION="1.25.5"
 ARG ALPINE_VERSION="3.22"
+ARG XX_VERSION="1.9.0"
 
 # xx is a helper for cross-compilation
-FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.7.0 AS xx
+FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
 
 # osxcross contains the MacOSX cross toolchain for xx
 FROM crazymax/osxcross:15.5-debian AS osxcross
@@ -18,52 +19,28 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 ENV CGO_ENABLED=1
 
-
-ARG GIT_TAG
-ARG GIT_COMMIT
+FROM builder-base AS builder
+RUN apk add clang zig
+COPY . ./
 ARG TARGETPLATFORM
 ARG TARGETOS
 ARG TARGETARCH
-
-FROM builder-base AS builder-darwin
-RUN apk add clang
-COPY . ./
+RUN xx-apk add musl-dev
+ARG GIT_TAG
+ARG GIT_COMMIT
 RUN --mount=type=bind,from=osxcross,src=/osxsdk,target=/xx-sdk \
     --mount=type=cache,target=/root/.cache,id=docker-ai-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod <<EOT
     set -ex
-    xx-go build -trimpath -ldflags "-s -w -X 'github.com/docker/cagent/pkg/version.Version=$GIT_TAG' -X 'github.com/docker/cagent/pkg/version.Commit=$GIT_COMMIT'" -o /binaries/cagent-$TARGETOS-$TARGETARCH .
-    xx-verify --static /binaries/cagent-darwin-$TARGETARCH
-EOT
-
-FROM builder-base AS builder-linux
-RUN apk add clang
-RUN xx-apk add musl-dev gcc
-COPY . ./
-RUN --mount=type=cache,target=/root/.cache,id=docker-ai-$TARGETPLATFORM \
-    --mount=type=cache,target=/go/pkg/mod <<EOT
-    set -ex
-    xx-go build -trimpath -ldflags "-s -w -linkmode=external -extldflags '-static' -X 'github.com/docker/cagent/pkg/version.Version=$GIT_TAG' -X 'github.com/docker/cagent/pkg/version.Commit=$GIT_COMMIT'" -o /binaries/cagent-$TARGETOS-$TARGETARCH .
-    xx-verify --static /binaries/cagent-linux-$TARGETARCH
-EOT
-
-FROM builder-base AS builder-windows
-RUN apk add zig build-base
-COPY . ./
-RUN --mount=type=cache,target=/root/.cache,id=docker-ai-$TARGETPLATFORM \
-    --mount=type=cache,target=/go/pkg/mod <<EOT
-    set -ex
-    if [ "$TARGETARCH" = "arm64" ]; then
-        ZIG_TARGET="aarch64-windows-gnu"
-    else
-        ZIG_TARGET="x86_64-windows-gnu"
+    if [ "$TARGETOS" != "darwin" ]; then
+      export XX_GO_PREFER_C_COMPILER=zig
     fi
-    CC="zig cc -target $ZIG_TARGET" CXX="zig c++ -target $ZIG_TARGET" xx-go build -trimpath -ldflags "-s -w -X 'github.com/docker/cagent/pkg/version.Version=$GIT_TAG' -X 'github.com/docker/cagent/pkg/version.Commit=$GIT_COMMIT'" -o /binaries/cagent-$TARGETOS-$TARGETARCH .
-    mv /binaries/cagent-$TARGETOS-$TARGETARCH /binaries/cagent-$TARGETOS-$TARGETARCH.exe
-    xx-verify --static /binaries/cagent-windows-$TARGETARCH.exe
+    xx-go build -trimpath -ldflags "-s -w -X 'github.com/docker/cagent/pkg/version.Version=$GIT_TAG' -X 'github.com/docker/cagent/pkg/version.Commit=$GIT_COMMIT'" -o /binaries/cagent-$TARGETOS-$TARGETARCH .
+    xx-verify --static /binaries/cagent-$TARGETOS-$TARGETARCH
+    if [ "$TARGETOS" = "windows" ]; then
+      mv /binaries/cagent-$TARGETOS-$TARGETARCH /binaries/cagent-$TARGETOS-$TARGETARCH.exe
+    fi
 EOT
-
-FROM builder-$TARGETOS AS builder
 
 FROM scratch AS local
 ARG TARGETOS TARGETARCH
