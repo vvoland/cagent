@@ -430,7 +430,7 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		}
 
 		if e.currentCompletion != nil && strings.HasPrefix(currentWord, e.currentCompletion.Trigger()) {
-			e.completionWord = currentWord[1:]
+			e.completionWord = strings.TrimPrefix(currentWord, e.currentCompletion.Trigger())
 			cmds = append(cmds, core.CmdHandler(completion.QueryMsg{Query: e.completionWord}))
 		} else {
 			e.completionWord = ""
