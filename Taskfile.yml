@@ -20,6 +20,7 @@ tasks:
     deps: ["lint", "test", "build"]
 
   build:
+    aliases: [b]
     desc: Build the application binary
     cmds:
       - go build -ldflags "{{.LDFLAGS}}" -o {{.BUILD_DIR}}/{{.BINARY_NAME}} {{.MAIN_PKG}}
