@@ -197,11 +197,6 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 			}
 		}
 
-		// If the loop ended due to Ctrl+C, inform the user succinctly
-		if ctx.Err() != nil {
-			out.Println("\n⚠️  agent stopped  ⚠️")
-		}
-
 		// Wrap runtime errors to prevent duplicate error messages and usage display
 		if lastErr != nil {
 			return RuntimeError{Err: lastErr}
