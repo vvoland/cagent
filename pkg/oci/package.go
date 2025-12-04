@@ -64,6 +64,9 @@ func PackageFileAsOCIToStore(ctx context.Context, agentSource config.Source, art
 	if license := cfg.Metadata.License; license != "" {
 		annotations["org.opencontainers.image.licenses"] = license
 	}
+	if revision := cfg.Metadata.Version; revision != "" {
+		annotations["org.opencontainers.image.revision"] = revision
+	}
 
 	layer := static.NewLayer(data, types.OCIUncompressedLayer)
 	img, err := mutate.AppendLayers(empty.Image, layer)
