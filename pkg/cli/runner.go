@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/evaluation"
 	"github.com/docker/cagent/pkg/input"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
@@ -62,14 +61,6 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 		}
 
 		userInput = runtime.ResolveCommand(ctx, rt, userInput)
-
-		handled, err := runUserCommand(out, userInput, sess, rt, ctx)
-		if err != nil {
-			return err
-		}
-		if handled {
-			return nil
-		}
 
 		// Parse for /attach commands in the message
 		messageText, attachPath := parseAttachCommand(userInput)
@@ -227,63 +218,6 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 		return RuntimeError{Err: lastErr}
 	}
 	return nil
-}
-
-// runUserCommand handles built-in session commands
-// TODO: This is a duplication of builtInSessionCommands() in pkg/tui/tui.go
-func runUserCommand(out *Printer, userInput string, sess *session.Session, rt runtime.Runtime, ctx context.Context) (bool, error) {
-	switch userInput {
-	case "/exit":
-		os.Exit(0)
-	case "/eval":
-		evalFile, err := evaluation.Save(sess)
-		if err == nil {
-			out.Println("Evaluation saved to file:", evalFile)
-			return true, err
-		}
-		return true, nil
-	case "/usage":
-		out.Println("Input tokens:", sess.InputTokens)
-		out.Println("Output tokens:", sess.OutputTokens)
-		return true, nil
-	case "/new":
-		// Reset session items
-		sess.Messages = []session.Item{}
-		return true, nil
-	case "/compact":
-		// Generate a summary of the session and compact the history
-		out.Println("Generating summary...")
-
-		// Create a channel to capture summary events
-		events := make(chan runtime.Event, 100)
-
-		// Generate the summary
-		rt.Summarize(ctx, sess, events)
-
-		// Process events and show the summary
-		close(events)
-		summaryGenerated := false
-		hasWarning := false
-		for event := range events {
-			switch e := event.(type) {
-			case *runtime.SessionSummaryEvent:
-				out.Println("Summary generated and added to session")
-				out.Println("Summary:", e.Summary)
-				summaryGenerated = true
-			case *runtime.WarningEvent:
-				out.Println("Warning:", e.Message)
-				hasWarning = true
-			}
-		}
-
-		if !summaryGenerated && !hasWarning {
-			out.Println("No summary generated")
-		}
-
-		return true, nil
-	}
-
-	return false, nil
 }
 
 // parseAttachCommand parses user input for /attach commands
