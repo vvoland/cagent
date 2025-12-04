@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -34,7 +35,9 @@ func (e RuntimeError) Unwrap() error {
 type Config struct {
 	AppName        string
 	AttachmentPath string
+	AutoApprove    bool
 	HideToolCalls  bool
+	OutputJSON     bool
 }
 
 // Run executes an agent in non-TUI mode, handling user input and runtime events
@@ -72,6 +75,27 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 		}
 
 		sess.AddMessage(createUserMessageWithAttachment(messageText, finalAttachPath))
+
+		if cfg.OutputJSON {
+			for event := range rt.RunStream(ctx, sess) {
+				switch e := event.(type) {
+				case *runtime.ToolCallConfirmationEvent:
+					if !cfg.AutoApprove {
+						rt.Resume(ctx, runtime.ResumeTypeReject)
+					}
+				case *runtime.ErrorEvent:
+					return fmt.Errorf("%s", e.Error)
+				}
+
+				buf, err := json.Marshal(event)
+				if err != nil {
+					return err
+				}
+				out.Println(string(buf))
+			}
+
+			return nil
+		}
 
 		firstLoop := true
 		lastAgent := rt.CurrentAgentName()
@@ -162,11 +186,6 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 					return fmt.Errorf("OAuth authorization rejected by user")
 				}
 			}
-		}
-
-		// If the loop ended due to Ctrl+C, inform the user succinctly
-		if ctx.Err() != nil {
-			out.Println("\n⚠️  agent stopped  ⚠️")
 		}
 
 		// Wrap runtime errors to prevent duplicate error messages and usage display

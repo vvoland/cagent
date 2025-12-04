@@ -26,6 +26,7 @@ func newExecCmd() *cobra.Command {
 	addRunOrExecFlags(cmd, &flags)
 	addRuntimeConfigFlags(cmd, &flags.runConfig)
 	cmd.PersistentFlags().BoolVar(&flags.hideToolCalls, "hide-tool-calls", false, "Hide the tool calls in the output")
+	cmd.PersistentFlags().BoolVar(&flags.outputJSON, "json", false, "Output results in JSON format")
 
 	return cmd
 }
