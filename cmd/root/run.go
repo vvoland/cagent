@@ -31,6 +31,7 @@ type runExecFlags struct {
 
 	// Exec only
 	hideToolCalls bool
+	outputJSON    bool
 }
 
 func newRunCmd() *cobra.Command {
@@ -201,6 +202,8 @@ func (f *runExecFlags) handleExecMode(ctx context.Context, out *cli.Printer, rt 
 		AppName:        AppName,
 		AttachmentPath: f.attachmentPath,
 		HideToolCalls:  f.hideToolCalls,
+		OutputJSON:     f.outputJSON,
+		AutoApprove:    f.autoApprove,
 	}, rt, sess, execArgs)
 	if cliErr, ok := err.(cli.RuntimeError); ok {
 		return RuntimeError{Err: cliErr.Err}
