@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION="1.25.4"
+ARG GO_VERSION="1.25.5"
 ARG ALPINE_VERSION="3.22"
 
 # xx is a helper for cross-compilation
@@ -72,7 +72,7 @@ COPY --from=builder /binaries/cagent-$TARGETOS-$TARGETARCH* cagent
 FROM scratch AS cross
 COPY --from=builder /binaries .
 
-FROM alpine
+FROM alpine:${ALPINE_VERSION}
 RUN apk add --no-cache ca-certificates docker-cli
 RUN addgroup -S cagent && adduser -S -G cagent cagent
 ARG TARGETOS TARGETARCH
