@@ -9,18 +9,24 @@ import (
 	"github.com/docker/cagent/pkg/session"
 )
 
-func Save(sess *session.Session) (string, error) {
+func Save(sess *session.Session, filename string) (string, error) {
 	if err := os.MkdirAll("evals", 0o755); err != nil {
 		return "", err
 	}
 
-	evalFile := filepath.Join("evals", fmt.Sprintf("%s.json", sess.ID))
+	// Use provided filename if given, otherwise default to session ID
+	baseName := filename
+	if baseName == "" {
+		baseName = sess.ID
+	}
+
+	evalFile := filepath.Join("evals", fmt.Sprintf("%s.json", baseName))
 	for number := 1; ; number++ {
 		if _, err := os.Stat(evalFile); err != nil {
 			break
 		}
 
-		evalFile = filepath.Join("evals", fmt.Sprintf("%s_%d.json", sess.ID, number))
+		evalFile = filepath.Join("evals", fmt.Sprintf("%s_%d.json", baseName, number))
 	}
 
 	file, err := os.Create(evalFile)

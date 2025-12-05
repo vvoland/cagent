@@ -23,6 +23,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/dialog"
+	msgtypes "github.com/docker/cagent/pkg/tui/messages"
 	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
@@ -613,6 +614,26 @@ func (p *chatPage) processMessage(msg editor.SendMsg) tea.Cmd {
 	if strings.HasPrefix(msg.Content, "!") {
 		p.app.RunBangCommand(ctx, msg.Content[1:])
 		return p.messages.ScrollToBottom()
+	}
+
+	// Handle built-in slash commands that support arguments
+	if strings.HasPrefix(msg.Content, "/") {
+		cmd, rest, _ := strings.Cut(msg.Content, " ")
+		switch cmd {
+		case "/eval":
+			// Trim whitespace from the filename argument
+			filename := strings.TrimSpace(rest)
+			return core.CmdHandler(msgtypes.EvalSessionMsg{Filename: filename})
+		case "/new":
+			return core.CmdHandler(msgtypes.NewSessionMsg{})
+		case "/compact":
+			return core.CmdHandler(msgtypes.CompactSessionMsg{})
+		case "/copy":
+			return core.CmdHandler(msgtypes.CopySessionToClipboardMsg{})
+		case "/yolo":
+			return core.CmdHandler(msgtypes.ToggleYoloMsg{})
+		}
+		// If not a built-in command, fall through to let the app handle it (e.g., agent commands)
 	}
 
 	p.app.Run(ctx, p.msgCancel, msg.Content, msg.Attachments)
