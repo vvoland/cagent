@@ -478,7 +478,7 @@ func TestStartBackgroundRAGInit_StopsForwardingAfterContextCancel(t *testing.T) 
 	select {
 	case <-eventsCh:
 		// ok: at least one event forwarded
-	case <-time.After(2 * time.Second):
+	case <-time.After(100 * time.Millisecond):
 		t.Fatalf("expected RAG event to be forwarded before cancellation")
 	}
 
@@ -486,7 +486,7 @@ func TestStartBackgroundRAGInit_StopsForwardingAfterContextCancel(t *testing.T) 
 	cancel()
 
 	// Give the forwarder time to observe cancellation.
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	// Emit another event; it should NOT be forwarded.
 	strategyEvents <- ragtypes.Event{
@@ -497,7 +497,7 @@ func TestStartBackgroundRAGInit_StopsForwardingAfterContextCancel(t *testing.T) 
 	select {
 	case ev := <-eventsCh:
 		t.Fatalf("expected no events after cancellation, got %T", ev)
-	case <-time.After(200 * time.Millisecond):
+	case <-time.After(20 * time.Millisecond):
 		// success: no events forwarded
 	}
 }

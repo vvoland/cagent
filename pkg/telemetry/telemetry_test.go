@@ -129,7 +129,7 @@ func TestSessionTracking(t *testing.T) {
 	client.RecordSessionEnd(ctx)
 
 	// Wait for events to be processed
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 
 	requestCount := mockHTTP.GetRequestCount()
 	assert.Positive(t, requestCount, "Expected HTTP requests to be made for session tracking events")
@@ -160,14 +160,13 @@ func TestCommandTracking(t *testing.T) {
 	}
 	err := client.TrackCommand(t.Context(), cmdInfo, func(ctx context.Context) error {
 		executed = true
-		time.Sleep(10 * time.Millisecond)
 		return nil
 	})
 	require.NoError(t, err)
 	assert.True(t, executed)
 
 	// Wait for events to be processed
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 
 	requestCount := mockHTTP.GetRequestCount()
 	assert.Positive(t, requestCount, "Expected HTTP requests to be made for command tracking")
@@ -202,7 +201,7 @@ func TestCommandTrackingWithError(t *testing.T) {
 	assert.Equal(t, testErr, err)
 
 	// Wait for events to be processed
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 
 	requestCount := mockHTTP.GetRequestCount()
 	assert.Positive(t, requestCount, "Expected HTTP requests to be made for command error tracking")
@@ -479,9 +478,7 @@ func TestAllEventTypes(t *testing.T) {
 	client.RecordSessionEnd(ctx)
 
 	// Wait for events to be processed
-
-	// Give additional time for background processing
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 
 	requestCount := mockHTTP.GetRequestCount()
 	assert.Positive(t, requestCount, "Expected HTTP requests to be made for telemetry events")
@@ -530,8 +527,6 @@ func TestTrackServerStart(t *testing.T) {
 	}
 	err := client.TrackServerStart(t.Context(), cmdInfo, func(ctx context.Context) error {
 		executed = true
-		// Simulate server running briefly
-		time.Sleep(10 * time.Millisecond)
 		return nil
 	})
 	require.NoError(t, err)
@@ -598,8 +593,8 @@ func TestHTTPRequestVerification(t *testing.T) {
 
 		client.Track(ctx, event)
 
-		// Give additional time for background processing (race condition fix)
-		time.Sleep(100 * time.Millisecond)
+		// Give time for background processing
+		time.Sleep(20 * time.Millisecond)
 
 		// Debug output
 		t.Logf("HTTP requests captured: %d", mockHTTP.GetRequestCount())
@@ -688,8 +683,8 @@ func TestNon2xxHTTPResponseHandling(t *testing.T) {
 
 	client.Track(t.Context(), &CommandEvent{Action: "error-test", Success: true})
 
-	// Give more time for background processing
-	time.Sleep(100 * time.Millisecond)
+	// Give time for background processing
+	time.Sleep(20 * time.Millisecond)
 
 	requestCount := mockHTTP.GetRequestCount()
 	assert.Positive(t, requestCount, "Expected HTTP request to be made despite error response")
@@ -703,7 +698,7 @@ func TestNon2xxHTTPResponseHandling(t *testing.T) {
 
 	client.Track(t.Context(), &CommandEvent{Action: "not-found-test", Success: true})
 
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(20 * time.Millisecond)
 
 	finalRequestCount := mockHTTP.GetRequestCount()
 	assert.GreaterOrEqual(t, finalRequestCount, 2, "Expected at least 2 HTTP requests (500 + 404)")
