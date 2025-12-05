@@ -4,7 +4,7 @@
 > agents with specialized capabilities and tools, and the interactions between
 > agents.
 
-![cagent in action](docs/assets/cagent-run.gif)
+![cagent in action](docs/demo.gif)
 
 ## ✨ What is `cagent`? ✨
 
