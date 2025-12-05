@@ -1,4 +1,4 @@
-package transfertask
+package handoff
 
 import (
 	"encoding/json"
@@ -12,7 +12,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
-// Component is a specialized component for rendering transfer_task tool calls.
+// Component is a specialized component for rendering handoff tool calls.
 type Component struct {
 	message *types.Message
 }
@@ -39,12 +39,10 @@ func (c *Component) Update(tea.Msg) (layout.Model, tea.Cmd) {
 }
 
 func (c *Component) View() string {
-	var params builtin.TransferTaskArgs
+	var params builtin.HandoffArgs
 	if err := json.Unmarshal([]byte(c.message.ToolCall.Function.Arguments), &params); err != nil {
 		return "" // TODO: Partial tool call
 	}
 
-	badge := styles.AgentBadgeStyle.Render("["+c.message.Sender+"]") + styles.MutedStyle.Render("transfers task to") + styles.AgentBadgeStyle.Render("["+params.Agent+"]"+":")
-	content := styles.MutedStyle.Render(params.Task)
-	return badge + "\n\n" + content
+	return styles.AgentBadgeStyle.Render("["+c.message.Sender+"]") + styles.MutedStyle.Render("hands off to") + styles.AgentBadgeStyle.Render("["+params.Agent+"]")
 }
