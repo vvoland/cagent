@@ -699,7 +699,7 @@ func TestGetTools_WarningHandling(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			root := agent.New("root", "test", agent.WithToolSets(tt.toolsets...))
+			root := agent.New("root", "test", agent.WithToolSets(tt.toolsets...), agent.WithModel(&mockProvider{}))
 			tm := team.New(team.WithAgents(root))
 			rt, err := New(tm, WithModelStore(mockModelStore{}))
 			require.NoError(t, err)
@@ -769,7 +769,7 @@ func TestSummarize_EmptySession(t *testing.T) {
 
 func TestProcessToolCalls_UnknownTool_NoToolResultMessage(t *testing.T) {
 	// Build a runtime with a simple agent but no tools registered matching the call
-	root := agent.New("root", "You are a test agent")
+	root := agent.New("root", "You are a test agent", agent.WithModel(&mockProvider{}))
 	tm := team.New(team.WithAgents(root))
 
 	rt, err := New(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
@@ -855,67 +855,4 @@ func TestEmitStartupInfo(t *testing.T) {
 
 	// Should be empty due to deduplication
 	require.Empty(t, collectedEvents2, "EmitStartupInfo should not emit duplicate events")
-}
-
-func TestTruncateTitle(t *testing.T) {
-	tests := []struct {
-		name      string
-		title     string
-		maxLength int
-		expected  string
-	}{
-		{
-			name:      "title shorter than max length",
-			title:     "Short title",
-			maxLength: 50,
-			expected:  "Short title",
-		},
-		{
-			name:      "title exactly at max length",
-			title:     "This is exactly fifty characters in length now.",
-			maxLength: 50,
-			expected:  "This is exactly fifty characters in length now.",
-		},
-		{
-			name:      "title longer than max length",
-			title:     "This is a very long title that exceeds the maximum character limit",
-			maxLength: 50,
-			expected:  "This is a very long title that exceeds the maxi...",
-		},
-		{
-			name:      "very short max length",
-			title:     "Any title",
-			maxLength: 5,
-			expected:  "An...",
-		},
-		{
-			name:      "max length less than 3",
-			title:     "Any title",
-			maxLength: 2,
-			expected:  "...",
-		},
-		{
-			name:      "empty title",
-			title:     "",
-			maxLength: 50,
-			expected:  "",
-		},
-		{
-			name:      "title with unicode characters",
-			title:     "こんにちは、これは日本語のタイトルです。とても長いタイトルなので切り捨てられるはずです。",
-			maxLength: 50,
-			expected:  "こんにちは、これは日本語のタイトルです。とても長いタイトルなので切り捨てられるはずです。"[:47] + "...",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := truncateTitle(tt.title, tt.maxLength)
-			require.Equal(t, tt.expected, result)
-			// Only check length constraint if maxLength >= 3 (otherwise ellipsis alone is 3 chars)
-			if tt.maxLength >= 3 {
-				require.LessOrEqual(t, len(result), tt.maxLength)
-			}
-		})
-	}
 }

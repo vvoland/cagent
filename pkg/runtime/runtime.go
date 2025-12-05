@@ -132,7 +132,7 @@ type LocalRuntime struct {
 	elicitationEventsChannel    chan Event             // Current events channel for sending elicitation requests
 	elicitationEventsChannelMux sync.RWMutex           // Protects elicitationEventsChannel
 	ragInitialized              atomic.Bool
-	titleGenerationWg           sync.WaitGroup // Wait group for title generation
+	titleGen                    *titleGenerator
 }
 
 type streamResult struct {
@@ -209,6 +209,13 @@ func New(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 	if _, err = r.team.Agent(r.currentAgent); err != nil {
 		return nil, err
 	}
+
+	model := agents.Model()
+	if model == nil {
+		return nil, errors.New("no model found for the team; ensure at least one agent has a valid model")
+	}
+
+	r.titleGen = newTitleGenerator(model)
 
 	slog.Debug("Creating new runtime", "agent", r.currentAgent, "available_agents", agents.Size())
 
@@ -488,8 +495,7 @@ func (r *LocalRuntime) finalizeEventChannel(ctx context.Context, sess *session.S
 
 	telemetry.RecordSessionEnd(ctx)
 
-	// Wait for title generation if it's in progress
-	r.titleGenerationWg.Wait()
+	r.titleGen.Wait()
 }
 
 // RunStream starts the agent's interaction loop and returns a channel of events
@@ -543,7 +549,6 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			return
 		}
 
-		// Emit toolset information
 		events <- ToolsetInfo(len(agentTools), r.currentAgent)
 
 		messages := sess.GetMessages(a)
@@ -558,9 +563,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		r.registerDefaultTools()
 
 		if sess.Title == "" {
-			r.titleGenerationWg.Go(func() {
-				r.generateSessionTitle(ctx, sess, events)
-			})
+			r.titleGen.Generate(ctx, sess, events)
 		}
 
 		iteration := 0
@@ -1351,72 +1354,6 @@ func (r *LocalRuntime) handleHandoff(_ context.Context, _ *session.Session, tool
 	return &tools.ToolCallResult{
 		Output: fmt.Sprintf("The agent %s handed off the conversation to you, look at the history of the conversation and continue where it left off. Once you are done with your task or if the user asks you, handoff the conversation back to %s.", ca, ca),
 	}, nil
-}
-
-// truncateTitle truncates a title to maxLength characters, adding an ellipsis if needed
-func truncateTitle(title string, maxLength int) string {
-	if len(title) <= maxLength {
-		return title
-	}
-	// Ensure we have room for the ellipsis
-	if maxLength < 3 {
-		return "..."
-	}
-	return title[:maxLength-3] + "..."
-}
-
-// generateSessionTitle generates a title for the session based on the first user message
-func (r *LocalRuntime) generateSessionTitle(ctx context.Context, sess *session.Session, events chan Event) {
-	slog.Debug("Generating title for session", "session_id", sess.ID)
-
-	firstUserMessage := sess.GetLastUserMessageContent()
-	if firstUserMessage == "" {
-		slog.Error("Failed generating session title: no user message found in session", "session_id", sess.ID)
-		events <- SessionTitle(sess.ID, "Untitled", r.currentAgent)
-		return
-	}
-
-	systemPrompt := "You are a helpful AI assistant that generates concise, descriptive titles for conversations. You will be given a conversation history and asked to create a title that captures the main topic."
-	userPrompt := fmt.Sprintf("Based on the following message a user sent to an AI assistant, generate a short, descriptive title (maximum 50 characters) that captures the main topic or purpose of the conversation. Return ONLY the title text, nothing else.\n\nUser message: %s\n\n", firstUserMessage)
-
-	titleModel := provider.CloneWithOptions(
-		ctx,
-		r.CurrentAgent().Model(),
-		options.WithStructuredOutput(nil),
-		options.WithMaxTokens(100),
-		options.WithGeneratingTitle(),
-	)
-	newTeam := team.New(
-		team.WithAgents(agent.New("root", systemPrompt, agent.WithModel(titleModel))),
-	)
-	titleSession := session.New(
-		session.WithUserMessage(userPrompt),
-		session.WithTitle("Generating title..."),
-	)
-
-	titleRuntime, err := New(newTeam, WithSessionCompaction(false))
-	if err != nil {
-		slog.Error("Failed to create title generator runtime", "error", err)
-		return
-	}
-
-	// Run the title generation (this will be a simple back-and-forth)
-	_, err = titleRuntime.Run(ctx, titleSession)
-	if err != nil {
-		slog.Error("Failed to generate session title", "session_id", sess.ID, "error", err)
-		return
-	}
-
-	// Get the generated title from the last assistant message
-	title := titleSession.GetLastAssistantMessageContent()
-	if title == "" {
-		return
-	}
-	// Truncate title to 50 characters with ellipsis if needed
-	title = truncateTitle(title, 50)
-	sess.Title = title
-	slog.Debug("Generated session title", "session_id", sess.ID, "title", title)
-	events <- SessionTitle(sess.ID, title, r.currentAgent)
 }
 
 // Summarize generates a summary for the session based on the conversation history
