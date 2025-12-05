@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/docker/cagent/pkg/agent"
+	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/rag"
 )
 
@@ -64,6 +65,21 @@ func (t *Team) Agent(name string) (*agent.Agent, error) {
 	}
 
 	return found, nil
+}
+
+func (t *Team) Model() provider.Provider {
+	root, err := t.Agent("root")
+	if err == nil {
+		return root.Model()
+	}
+
+	for _, agentName := range t.AgentNames() {
+		a, err := t.Agent(agentName)
+		if err == nil {
+			return a.Model()
+		}
+	}
+	return nil
 }
 
 func (t *Team) Size() int {

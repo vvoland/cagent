@@ -219,12 +219,11 @@ type SessionTitleEvent struct {
 	AgentContext
 }
 
-func SessionTitle(sessionID, title, agentName string) Event {
+func SessionTitle(sessionID, title string) Event {
 	return &SessionTitleEvent{
-		Type:         "session_title",
-		SessionID:    sessionID,
-		Title:        title,
-		AgentContext: AgentContext{AgentName: agentName},
+		Type:      "session_title",
+		SessionID: sessionID,
+		Title:     title,
 	}
 }
 
