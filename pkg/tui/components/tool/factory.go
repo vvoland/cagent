@@ -9,6 +9,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/tool/shell"
 	"github.com/docker/cagent/pkg/tui/components/tool/todotool"
 	"github.com/docker/cagent/pkg/tui/components/tool/transfertask"
+	"github.com/docker/cagent/pkg/tui/components/tool/webtool"
 	"github.com/docker/cagent/pkg/tui/components/tool/writefile"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/service"
@@ -31,8 +32,16 @@ func NewFactory(registry *Registry) *Factory {
 func (f *Factory) Create(msg *types.Message, sessionState *service.SessionState) layout.Model {
 	toolName := msg.ToolCall.Function.Name
 
+	// First try to match by exact tool name
 	if builder, ok := f.registry.Get(toolName); ok {
 		return builder(msg, sessionState)
+	}
+
+	// Then try to match by category
+	if msg.ToolDefinition.Category != "" {
+		if builder, ok := f.registry.Get("category:" + msg.ToolDefinition.Category); ok {
+			return builder(msg, sessionState)
+		}
 	}
 
 	return defaulttool.New(msg, sessionState)
@@ -56,6 +65,10 @@ func newDefaultRegistry() *Registry {
 	registry.Register(builtin.ToolNameUpdateTodo, todotool.New)
 	registry.Register(builtin.ToolNameListTodos, todotool.New)
 	registry.Register(builtin.ToolNameShell, shell.New)
+
+	// Register category-based handlers
+	registry.Register("category:api", webtool.New)
+	registry.Register(builtin.ToolNameFetch, webtool.New)
 
 	return registry
 }
