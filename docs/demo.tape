@@ -11,6 +11,8 @@ Set Width 1800
 Set Height 1000
 Set PlaybackSpeed 2
 Set Padding 0
+Set WindowBar Colorful
+Set BorderRadius 10
 
 Type "cagent run ./examples/gopher.yaml" Sleep 3s Enter
 Sleep 1s
