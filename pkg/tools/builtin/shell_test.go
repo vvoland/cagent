@@ -2,7 +2,6 @@ package builtin
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -115,9 +114,7 @@ func TestShellTool_ListBackgroundJobs(t *testing.T) {
 	_, err = tool.handler.RunShellBackground(t.Context(), RunShellBackgroundArgs{Cmd: "echo test"})
 	require.NoError(t, err)
 
-	// Wait for job to complete
-	time.Sleep(500 * time.Millisecond)
-
+	// No need to wait - ListBackgroundJobs shows jobs regardless of status
 	listResult, err := tool.handler.ListBackgroundJobs(t.Context(), nil)
 
 	require.NoError(t, err)

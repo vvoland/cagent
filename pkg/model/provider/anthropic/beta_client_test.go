@@ -59,12 +59,20 @@ func TestCountAnthropicTokensBeta_Success(t *testing.T) {
 
 // TestCountAnthropicTokensBeta_NoAPIKey tests error when API key is missing
 func TestCountAnthropicTokensBeta_NoAPIKey(t *testing.T) {
+	// Use a test server that returns 401 Unauthorized
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"error": {"message": "invalid api key"}}`))
+	}))
+	defer server.Close()
+
 	var messages []anthropic.BetaMessageParam
 	var system []anthropic.BetaTextBlockParam
 
 	client := anthropic.NewClient(
-		option.WithAPIKey("test-key"),
-		// No base URL set
+		option.WithAPIKey("invalid-key"),
+		option.WithBaseURL(server.URL),
+		option.WithMaxRetries(0), // Disable retries to speed up test
 	)
 
 	tokens, err := countAnthropicTokensBeta(t.Context(), client, "claude-3-5-sonnet-20241022", messages, system, nil)
@@ -86,6 +94,7 @@ func TestCountAnthropicTokensBeta_ServerError(t *testing.T) {
 	client := anthropic.NewClient(
 		option.WithAPIKey("test-key"),
 		option.WithBaseURL(server.URL),
+		option.WithMaxRetries(0), // Disable retries to speed up test
 	)
 
 	tokens, err := countAnthropicTokensBeta(t.Context(), client, "claude-3-5-sonnet-20241022", messages, system, nil)

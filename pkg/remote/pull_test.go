@@ -1,6 +1,9 @@
 package remote
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/crane"
@@ -15,12 +18,28 @@ import (
 )
 
 func TestPullNonExistentRegistry(t *testing.T) {
-	_, err := Pull(t.Context(), "registry.example.com/non-existent:latest", false)
+	// Use a test server that returns 404 for fast failure
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	// Extract host:port from server URL (remove http://)
+	registry := strings.TrimPrefix(server.URL, "http://")
+	_, err := Pull(t.Context(), registry+"/non-existent:latest", false, crane.Insecure)
 	require.Error(t, err)
 }
 
 func TestPullWithOptions(t *testing.T) {
-	_, err := Pull(t.Context(), "registry.example.com/test:latest", false, crane.Insecure)
+	// Use a test server that returns 404 for fast failure
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	// Extract host:port from server URL (remove http://)
+	registry := strings.TrimPrefix(server.URL, "http://")
+	_, err := Pull(t.Context(), registry+"/test:latest", false, crane.Insecure)
 	require.Error(t, err)
 }
 
