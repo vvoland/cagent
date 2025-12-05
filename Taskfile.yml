@@ -92,3 +92,7 @@ tasks:
         vars: { AGENT: 'gopher' }
       - task: push-agent
         vars: { AGENT: 'mem' }
+
+  record-demo:
+    desc: Record demo gif
+    cmd: vhs ./docs/demo.tape
