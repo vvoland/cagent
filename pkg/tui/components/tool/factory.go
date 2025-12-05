@@ -4,6 +4,7 @@ import (
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/tool/defaulttool"
 	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
+	"github.com/docker/cagent/pkg/tui/components/tool/handoff"
 	"github.com/docker/cagent/pkg/tui/components/tool/readfile"
 	"github.com/docker/cagent/pkg/tui/components/tool/shell"
 	"github.com/docker/cagent/pkg/tui/components/tool/todotool"
@@ -46,6 +47,7 @@ func newDefaultRegistry() *Registry {
 	registry := NewRegistry()
 
 	registry.Register(builtin.ToolNameTransferTask, transfertask.New)
+	registry.Register(builtin.ToolNameHandoff, handoff.New)
 	registry.Register(builtin.ToolNameEditFile, editfile.New)
 	registry.Register(builtin.ToolNameWriteFile, writefile.New)
 	registry.Register(builtin.ToolNameReadFile, readfile.New)
