@@ -75,7 +75,7 @@ func BuiltInSessionCommands() []Item {
 			ID:           "session.eval",
 			Label:        "Eval",
 			SlashCommand: "/eval",
-			Description:  "Create an evaluation report for the current conversation",
+			Description:  "Create an evaluation report (usage: /eval [filename])",
 			Category:     "Session",
 			Execute: func() tea.Cmd {
 				return core.CmdHandler(EvalSessionMsg{})
