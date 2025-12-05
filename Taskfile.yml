@@ -53,6 +53,7 @@ tasks:
       - ".golangci.yml"
 
   test:
+    aliases: [t]
     desc: Run tests
     cmd: OPENAI_API_KEY= ANTHROPIC_API_KEY= GOOGLE_API_KEY= MISTRAL_API_KEY= go test {{.CLI_ARGS}} ./...
 
@@ -85,13 +86,13 @@ tasks:
     desc: Build dockerized agents
     deps:
       - task: push-agent
-        vars: { AGENT: 'pirate' }
+        vars: { AGENT: "pirate" }
       - task: push-agent
-        vars: { AGENT: 'github' }
+        vars: { AGENT: "github" }
       - task: push-agent
-        vars: { AGENT: 'gopher' }
+        vars: { AGENT: "gopher" }
       - task: push-agent
-        vars: { AGENT: 'mem' }
+        vars: { AGENT: "mem" }
 
   record-demo:
     desc: Record demo gif
