@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/docker/go-units"
 
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
@@ -152,19 +153,5 @@ func formatArgs(args map[string]any) string {
 
 // extractSummary tries to extract a meaningful summary from the API response
 func extractSummary(content string) string {
-	size := len(content)
-
-	// Convert to KB if >= 1024 bytes
-	if size >= 1024*1024 {
-		// Show in MB
-		mb := float64(size) / (1024 * 1024)
-		return fmt.Sprintf("Received %.1f MB", mb)
-	} else if size >= 1024 {
-		// Show in KB
-		kb := float64(size) / 1024
-		return fmt.Sprintf("Received %.1f KB", kb)
-	}
-
-	// Show in bytes for small responses
-	return fmt.Sprintf("Received %d bytes", size)
+	return fmt.Sprintf("Received %s", units.HumanSize(float64(len(content))))
 }
