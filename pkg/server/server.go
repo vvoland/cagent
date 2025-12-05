@@ -7,29 +7,20 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"os"
-	"path/filepath"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
 	"github.com/docker/cagent/pkg/api"
-	"github.com/docker/cagent/pkg/concurrent"
 	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/tools"
 )
 
 type Server struct {
-	e              *echo.Echo
-	runtimeCancels *concurrent.Map[string, context.CancelFunc]
-	sessionStore   session.Store
-	runConfig      *config.RuntimeConfig
-	sm             *sessionManager
+	e  *echo.Echo
+	sm *sessionManager
 }
 
 func New(ctx context.Context, sessionStore session.Store, runConfig *config.RuntimeConfig, refreshInterval time.Duration, agentSources config.Sources) (*Server, error) {
@@ -38,11 +29,8 @@ func New(ctx context.Context, sessionStore session.Store, runConfig *config.Runt
 	e.Use(middleware.Logger())
 
 	s := &Server{
-		e:              e,
-		runtimeCancels: concurrent.NewMap[string, context.CancelFunc](),
-		sessionStore:   sessionStore,
-		runConfig:      runConfig,
-		sm:             newSessionManager(ctx, agentSources, refreshInterval),
+		e:  e,
+		sm: newSessionManager(ctx, agentSources, sessionStore, refreshInterval, runConfig),
 	}
 
 	group := e.Group("/api")
@@ -56,6 +44,8 @@ func New(ctx context.Context, sessionStore session.Store, runConfig *config.Runt
 	group.GET("/sessions/:id", s.getSession)
 	// Resume a session by id
 	group.POST("/sessions/:id/resume", s.resumeSession)
+	// Toggle YOLO mode for a session
+	group.POST("/sessions/:id/tools/toggle", s.toggleSessionYolo)
 	// Create a new session
 	group.POST("/sessions", s.createSession)
 	// Delete a session
@@ -125,7 +115,6 @@ func (s *Server) getAgents(c echo.Context) error {
 		}
 	}
 
-	// Sort agents by name
 	sort.Slice(agents, func(i, j int) bool {
 		return agents[i].Name < agents[j].Name
 	})
@@ -134,7 +123,7 @@ func (s *Server) getAgents(c echo.Context) error {
 }
 
 func (s *Server) getSessions(c echo.Context) error {
-	sessions, err := s.sessionStore.GetSessions(c.Request().Context())
+	sessions, err := s.sm.GetSessions(c.Request().Context())
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to get sessions: %v", err))
 	}
@@ -160,34 +149,8 @@ func (s *Server) createSession(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
 	}
 
-	var opts []session.Opt
-	opts = append(opts,
-		session.WithMaxIterations(sessionTemplate.MaxIterations),
-		session.WithToolsApproved(sessionTemplate.ToolsApproved),
-	)
-
-	if wd := strings.TrimSpace(sessionTemplate.WorkingDir); wd != "" {
-		absWd, err := filepath.Abs(wd)
-		if err != nil {
-			slog.Error("Invalid working directory", "error", err)
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid working directory: %v", err))
-		}
-		info, err := os.Stat(absWd)
-		if err != nil {
-			slog.Error("Working directory not accessible", "error", err)
-			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("working directory not accessible: %v", err))
-		}
-		if !info.IsDir() {
-			slog.Error("Working directory is not a directory")
-			return echo.NewHTTPError(http.StatusBadRequest, "working directory must be a directory")
-		}
-		opts = append(opts, session.WithWorkingDir(absWd))
-	}
-
-	sess := session.New(opts...)
-
-	if err := s.sessionStore.AddSession(c.Request().Context(), sess); err != nil {
-		slog.Error("Failed to persist session", "session_id", sess.ID, "error", err)
+	sess, err := s.sm.CreateSession(c.Request().Context(), &sessionTemplate)
+	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to create session: %v", err))
 	}
 
@@ -195,7 +158,7 @@ func (s *Server) createSession(c echo.Context) error {
 }
 
 func (s *Server) getSession(c echo.Context) error {
-	sess, err := s.sessionStore.GetSession(c.Request().Context(), c.Param("id"))
+	sess, err := s.sm.GetSession(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("session not found: %v", err))
 	}
@@ -215,41 +178,29 @@ func (s *Server) getSession(c echo.Context) error {
 }
 
 func (s *Server) resumeSession(c echo.Context) error {
-	sessionID := c.Param("id")
 	var req api.ResumeSessionRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
 	}
 
-	rt, exists := s.sm.runtimes.Load(sessionID)
-	if !exists {
-		return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("runtime not found: %s", sessionID))
+	if err := s.sm.ResumeSession(c.Request().Context(), c.Param("id"), req.Confirmation); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to resume session: %v", err))
 	}
 
-	rt.Resume(c.Request().Context(), runtime.ResumeType(req.Confirmation))
-
 	return c.JSON(http.StatusOK, map[string]string{"message": "session resumed"})
+}
+
+func (s *Server) toggleSessionYolo(c echo.Context) error {
+	if err := s.sm.ToggleToolApproval(c.Request().Context(), c.Param("id")); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to toggle session tool approval mode: %v", err))
+	}
+	return c.JSON(http.StatusOK, nil)
 }
 
 func (s *Server) deleteSession(c echo.Context) error {
 	sessionID := c.Param("id")
 
-	// Cancel the runtime context if it's still running
-	if cancel, exists := s.runtimeCancels.Load(sessionID); exists {
-		slog.Debug("Cancelling runtime for session", "session_id", sessionID)
-		cancel()
-		s.runtimeCancels.Delete(sessionID)
-	}
-
-	// Clean up the runtime
-	if _, exists := s.sm.runtimes.Load(sessionID); exists {
-		slog.Debug("Removing runtime for session", "session_id", sessionID)
-		s.sm.runtimes.Delete(sessionID)
-	}
-
-	// Delete the session from storage
-	if err := s.sessionStore.DeleteSession(c.Request().Context(), sessionID); err != nil {
-		slog.Error("Failed to delete session", "session_id", sessionID, "error", err)
+	if err := s.sm.DeleteSession(c.Request().Context(), sessionID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to delete session: %v", err))
 	}
 
@@ -266,48 +217,20 @@ func (s *Server) runAgent(c echo.Context) error {
 
 	slog.Debug("Running agent", "agent_filename", agentFilename, "session_id", sessionID, "current_agent", currentAgent)
 
-	// Build a per-session team so Filesystem tool can be bound to session working dir
-	sess, err := s.sessionStore.GetSession(c.Request().Context(), sessionID)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("session not found: %v", err))
-	}
-
-	// Copy runConfig and inject per-session working dir override
-	rc := s.runConfig.Clone()
-	rc.WorkingDir = sess.WorkingDir
-
-	rt, err := s.sm.runtimeForSession(c.Request().Context(), sess, agentFilename, currentAgent, rc)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to get runtime for session: %v", err))
-	}
-
-	// Receive messages from the API client
 	var messages []api.Message
 	if err := json.NewDecoder(c.Request().Body).Decode(&messages); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
 	}
 
-	for _, msg := range messages {
-		sess.AddMessage(session.UserMessage(msg.Content, msg.MultiContent...))
-	}
-
-	if err := s.sessionStore.UpdateSession(c.Request().Context(), sess); err != nil {
-		slog.Error("Failed to update session in store", "session_id", sess.ID, "error", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to update session: %v", err))
+	streamChan, err := s.sm.RunSession(c.Request().Context(), sessionID, agentFilename, currentAgent, messages)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to run session: %v", err))
 	}
 
 	c.Response().Header().Set("Content-Type", "text/event-stream")
 	c.Response().Header().Set("Cache-Control", "no-cache")
 	c.Response().Header().Set("Connection", "keep-alive")
 	c.Response().WriteHeader(http.StatusOK)
-
-	streamCtx, cancel := context.WithCancel(c.Request().Context())
-	s.runtimeCancels.Store(sess.ID, cancel)
-	defer func() {
-		s.runtimeCancels.Delete(sess.ID)
-	}()
-
-	streamChan := rt.RunStream(streamCtx, sess)
 	for event := range streamChan {
 		data, err := json.Marshal(event)
 		if err != nil {
@@ -315,10 +238,6 @@ func (s *Server) runAgent(c echo.Context) error {
 		}
 		fmt.Fprintf(c.Response(), "data: %s\n\n", string(data))
 		c.Response().Flush()
-	}
-
-	if err := s.sessionStore.UpdateSession(c.Request().Context(), sess); err != nil {
-		slog.Error("Failed to final update session in store", "session_id", sess.ID, "error", err)
 	}
 
 	return nil
@@ -331,12 +250,7 @@ func (s *Server) elicitation(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
 	}
 
-	rt, exists := s.sm.runtimes.Load(sessionID)
-	if !exists {
-		return c.JSON(http.StatusNotFound, map[string]string{"error": fmt.Sprintf("runtime not found: %s", sessionID)})
-	}
-
-	if err := rt.ResumeElicitation(c.Request().Context(), tools.ElicitationAction(req.Action), req.Content); err != nil {
+	if err := s.sm.ResumeElicitation(c.Request().Context(), sessionID, req.Action, req.Content); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to resume elicitation: %v", err))
 	}
 
