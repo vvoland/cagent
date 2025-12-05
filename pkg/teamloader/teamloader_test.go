@@ -11,7 +11,6 @@ import (
 
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/environment"
 )
 
 func collectExamples(t *testing.T) []string {
@@ -58,34 +57,36 @@ func TestGetToolsForAgent_ContinuesOnCreateToolError(t *testing.T) {
 }
 
 func TestLoadExamples(t *testing.T) {
-	// Collect the missing env vars.
-	missingEnvs := map[string]bool{}
+	examples := collectExamples(t)
 
-	runConfig := &config.RuntimeConfig{}
+	// Collect required env vars from all examples by checking configs directly.
+	// This avoids calling Load() twice for each example.
+	missingEnvs := make(map[string]bool)
+	for _, agentFilename := range examples {
+		agentSource, err := config.Resolve(agentFilename)
+		require.NoError(t, err)
 
-	for _, agentFilename := range collectExamples(t) {
-		t.Run(agentFilename, func(t *testing.T) {
-			agentSource, err := config.Resolve(agentFilename)
-			require.NoError(t, err)
+		cfg, err := config.Load(t.Context(), agentSource)
+		require.NoError(t, err)
 
-			_, err = Load(t.Context(), agentSource, runConfig)
-			if err != nil {
-				envErr := &environment.RequiredEnvError{}
-				require.ErrorAs(t, err, &envErr)
+		for _, env := range config.GatherEnvVarsForModels(cfg) {
+			missingEnvs[env] = true
+		}
 
-				for _, env := range envErr.Missing {
-					missingEnvs[env] = true
-				}
-			}
-		})
+		toolEnvs, _ := config.GatherEnvVarsForTools(t.Context(), cfg)
+		for _, env := range toolEnvs {
+			missingEnvs[env] = true
+		}
 	}
 
 	for name := range missingEnvs {
 		t.Setenv(name, "dummy")
 	}
 
+	runConfig := &config.RuntimeConfig{}
+
 	// Load all the examples.
-	for _, agentFilename := range collectExamples(t) {
+	for _, agentFilename := range examples {
 		t.Run(agentFilename, func(t *testing.T) {
 			t.Parallel()
 
