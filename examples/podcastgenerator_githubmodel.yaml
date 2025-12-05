@@ -64,5 +64,4 @@ models:
     provider: openai
     model: openai/gpt-5
     base_url: https://models.github.ai/inference
-    env:
-      OPENAI_API_KEY: ${GITHUB_TOKEN} 
+    token_Key: ${GITHUB_TOKEN} 
