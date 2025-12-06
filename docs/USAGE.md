@@ -357,13 +357,21 @@ models:
 
 #### AWS Bedrock provider usage
 
-Bedrock uses the AWS SDK default credential chain for authentication:
+**Prerequisites:**
+- AWS account with Bedrock enabled in your region
+- Model access granted in the [Bedrock Console](https://console.aws.amazon.com/bedrock/) (some models require approval)
+- AWS credentials configured (see authentication below)
+
+**Authentication:**
+
+Bedrock uses the [AWS SDK default credential chain](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html#specifying-credentials), which checks these sources in order:
 
 1. Environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`)
 2. Shared credentials file (`~/.aws/credentials`)
-3. Shared config file (`~/.aws/config`)
-4. IAM roles (EC2, ECS, Lambda)
-5. Explicit `role_arn` in `provider_opts` for role assumption
+3. Shared config file (`~/.aws/config` with `AWS_PROFILE`)
+4. IAM instance roles (EC2, ECS, Lambda)
+
+You can also use `provider_opts.role_arn` for cross-account role assumption.
 
 **Basic usage with AWS profile:**
 
