@@ -29,8 +29,8 @@ experts that collaborate to solve complex problems for you.
   complex problem-solving.
 - **🔍 RAG (Retrieval-Augmented Generation)** - Pluggable retrieval strategies
   (BM25, chunked-embeddings, semantic-embeddings) with hybrid retrieval, result fusion and reranking support.
-- **🌐 AI provider agnostic** - Support for OpenAI, Anthropic, Gemini, xAI,
-  Mistral, Nebius and [Docker Model
+- **🌐 AI provider agnostic** - Support for OpenAI, Anthropic, Gemini, AWS
+  Bedrock, xAI, Mistral, Nebius and [Docker Model
   Runner](https://docs.docker.com/ai/model-runner/).
 
 ## Your First Agent
