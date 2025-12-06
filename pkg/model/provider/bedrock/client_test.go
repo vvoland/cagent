@@ -1,6 +1,8 @@
 package bedrock
 
 import (
+	"context"
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/config/latest"
+	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -249,4 +253,123 @@ func TestBearerTokenTransport(t *testing.T) {
 
 	// Verify the Authorization header was set correctly
 	assert.Equal(t, "Bearer test-api-key-12345", capturedAuth)
+}
+
+// Image URL conversion tests
+
+func TestConvertImageURL_NonDataURL(t *testing.T) {
+	t.Parallel()
+
+	imageURL := &chat.MessageImageURL{URL: "https://example.com/image.png"}
+	result := convertImageURL(imageURL)
+	assert.Nil(t, result)
+}
+
+func TestConvertImageURL_InvalidDataURLFormat(t *testing.T) {
+	t.Parallel()
+
+	// Missing comma separator
+	imageURL := &chat.MessageImageURL{URL: "data:image/pngbase64invaliddata"}
+	result := convertImageURL(imageURL)
+	assert.Nil(t, result)
+}
+
+func TestConvertImageURL_InvalidBase64(t *testing.T) {
+	t.Parallel()
+
+	imageURL := &chat.MessageImageURL{URL: "data:image/png;base64,not-valid-base64!!!"}
+	result := convertImageURL(imageURL)
+	assert.Nil(t, result)
+}
+
+func TestConvertImageURL_AllFormats(t *testing.T) {
+	t.Parallel()
+
+	validBase64 := base64.StdEncoding.EncodeToString([]byte("fake image data"))
+
+	testCases := []struct {
+		name           string
+		mimeType       string
+		expectedFormat types.ImageFormat
+	}{
+		{"JPEG", "image/jpeg", types.ImageFormatJpeg},
+		{"PNG", "image/png", types.ImageFormatPng},
+		{"GIF", "image/gif", types.ImageFormatGif},
+		{"WebP", "image/webp", types.ImageFormatWebp},
+		{"Unknown defaults to JPEG", "image/bmp", types.ImageFormatJpeg},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			imageURL := &chat.MessageImageURL{
+				URL: "data:" + tc.mimeType + ";base64," + validBase64,
+			}
+			result := convertImageURL(imageURL)
+			require.NotNil(t, result)
+
+			imageBlock, ok := result.(*types.ContentBlockMemberImage)
+			require.True(t, ok)
+			assert.Equal(t, tc.expectedFormat, imageBlock.Value.Format)
+		})
+	}
+}
+
+func TestConvertImageURL_ValidImage(t *testing.T) {
+	t.Parallel()
+
+	// Create a valid base64-encoded "image"
+	imageData := []byte{0x89, 0x50, 0x4E, 0x47} // PNG magic bytes
+	validBase64 := base64.StdEncoding.EncodeToString(imageData)
+
+	imageURL := &chat.MessageImageURL{
+		URL: "data:image/png;base64," + validBase64,
+	}
+
+	result := convertImageURL(imageURL)
+	require.NotNil(t, result)
+
+	imageBlock, ok := result.(*types.ContentBlockMemberImage)
+	require.True(t, ok)
+	assert.Equal(t, types.ImageFormatPng, imageBlock.Value.Format)
+
+	// Verify decoded data matches
+	source, ok := imageBlock.Value.Source.(*types.ImageSourceMemberBytes)
+	require.True(t, ok)
+	assert.Equal(t, imageData, source.Value)
+}
+
+// NewClient validation tests
+
+type mockEnvProvider struct {
+	values map[string]string
+}
+
+func (m *mockEnvProvider) Get(_ context.Context, key string) string {
+	if m.values == nil {
+		return ""
+	}
+	return m.values[key]
+}
+
+var _ environment.Provider = (*mockEnvProvider)(nil)
+
+func TestNewClient_NilConfig(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewClient(t.Context(), nil, &mockEnvProvider{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "model configuration is required")
+}
+
+func TestNewClient_WrongProvider(t *testing.T) {
+	t.Parallel()
+
+	cfg := &latest.ModelConfig{
+		Provider: "openai",
+		Model:    "gpt-4",
+	}
+	_, err := NewClient(t.Context(), cfg, &mockEnvProvider{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "model type must be 'bedrock'")
 }
