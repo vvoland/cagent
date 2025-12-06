@@ -177,6 +177,53 @@ func TestConvertMessages_MultiContent(t *testing.T) {
 	require.Len(t, bedrockMsgs[0].Content, 2)
 }
 
+func TestConvertMessages_ConsecutiveToolResults(t *testing.T) {
+	t.Parallel()
+
+	// Simulates scenario where assistant calls multiple tools and gets multiple results
+	msgs := []chat.Message{
+		{Role: chat.MessageRoleUser, Content: "Do two things"},
+		{
+			Role: chat.MessageRoleAssistant,
+			ToolCalls: []tools.ToolCall{
+				{ID: "tool-1", Function: tools.FunctionCall{Name: "action1", Arguments: "{}"}},
+				{ID: "tool-2", Function: tools.FunctionCall{Name: "action2", Arguments: "{}"}},
+			},
+		},
+		{Role: chat.MessageRoleTool, ToolCallID: "tool-1", Content: "Result 1"},
+		{Role: chat.MessageRoleTool, ToolCallID: "tool-2", Content: "Result 2"},
+		{Role: chat.MessageRoleUser, Content: "Continue"},
+	}
+
+	bedrockMsgs, _ := convertMessages(msgs)
+
+	// Expect: user, assistant, user (grouped tool results), user
+	require.Len(t, bedrockMsgs, 4)
+
+	// First message: user text
+	assert.Equal(t, types.ConversationRoleUser, bedrockMsgs[0].Role)
+
+	// Second message: assistant with tool calls
+	assert.Equal(t, types.ConversationRoleAssistant, bedrockMsgs[1].Role)
+	require.Len(t, bedrockMsgs[1].Content, 2) // Two tool use blocks
+
+	// Third message: user with GROUPED tool results (critical fix!)
+	assert.Equal(t, types.ConversationRoleUser, bedrockMsgs[2].Role)
+	require.Len(t, bedrockMsgs[2].Content, 2) // Both tool results in single message
+
+	// Verify both tool results are present
+	toolResult1, ok := bedrockMsgs[2].Content[0].(*types.ContentBlockMemberToolResult)
+	require.True(t, ok)
+	assert.Equal(t, "tool-1", *toolResult1.Value.ToolUseId)
+
+	toolResult2, ok := bedrockMsgs[2].Content[1].(*types.ContentBlockMemberToolResult)
+	require.True(t, ok)
+	assert.Equal(t, "tool-2", *toolResult2.Value.ToolUseId)
+
+	// Fourth message: user text
+	assert.Equal(t, types.ConversationRoleUser, bedrockMsgs[3].Role)
+}
+
 func TestBearerTokenTransport(t *testing.T) {
 	t.Parallel()
 

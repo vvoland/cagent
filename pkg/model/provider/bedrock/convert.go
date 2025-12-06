@@ -15,11 +15,15 @@ import (
 
 // convertMessages converts chat.Messages to Bedrock Message format
 // Returns (messages, system content blocks)
+//
+// Bedrock's Converse API requires that:
+// 1. Tool results must immediately follow the assistant message with tool_use
+// 2. Multiple consecutive tool results must be grouped into a single user message
 func convertMessages(messages []chat.Message) ([]types.Message, []types.SystemContentBlock) {
 	var bedrockMessages []types.Message
 	var systemBlocks []types.SystemContentBlock
 
-	for i := range messages {
+	for i := 0; i < len(messages); i++ {
 		msg := &messages[i]
 
 		switch msg.Role {
@@ -58,24 +62,34 @@ func convertMessages(messages []chat.Message) ([]types.Message, []types.SystemCo
 			}
 
 		case chat.MessageRoleTool:
-			// Tool results in Bedrock are user messages with ToolResultBlock
-			if msg.ToolCallID != "" {
-				bedrockMessages = append(bedrockMessages, types.Message{
-					Role: types.ConversationRoleUser,
-					Content: []types.ContentBlock{
-						&types.ContentBlockMemberToolResult{
-							Value: types.ToolResultBlock{
-								ToolUseId: aws.String(msg.ToolCallID),
-								Content: []types.ToolResultContentBlock{
-									&types.ToolResultContentBlockMemberText{
-										Value: msg.Content,
-									},
+			// Group consecutive tool results into a single user message
+			// This satisfies Bedrock's requirement that tool results immediately follow
+			// the assistant message with tool_use blocks
+			var toolResultBlocks []types.ContentBlock
+			j := i
+			for j < len(messages) && messages[j].Role == chat.MessageRoleTool {
+				if messages[j].ToolCallID != "" {
+					toolResultBlocks = append(toolResultBlocks, &types.ContentBlockMemberToolResult{
+						Value: types.ToolResultBlock{
+							ToolUseId: aws.String(messages[j].ToolCallID),
+							Content: []types.ToolResultContentBlock{
+								&types.ToolResultContentBlockMemberText{
+									Value: messages[j].Content,
 								},
 							},
 						},
-					},
+					})
+				}
+				j++
+			}
+			if len(toolResultBlocks) > 0 {
+				bedrockMessages = append(bedrockMessages, types.Message{
+					Role:    types.ConversationRoleUser,
+					Content: toolResultBlocks,
 				})
 			}
+			// Skip the messages we already processed
+			i = j - 1
 		}
 	}
 
