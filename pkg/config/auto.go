@@ -13,7 +13,7 @@ var DefaultModels = map[string]string{
 	"google":    "gemini-2.5-flash",
 	"dmr":       "ai/qwen3:latest",
 	"mistral":   "mistral-small-latest",
-	"bedrock":   "anthropic.claude-3-5-sonnet-20241022-v2:0",
+	"bedrock":   "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
 }
 
 func AvailableProviders(ctx context.Context, modelsGateway string, env environment.Provider) []string {
@@ -36,8 +36,10 @@ func AvailableProviders(ctx context.Context, modelsGateway string, env environme
 	if key, _ := env.Get(ctx, "MISTRAL_API_KEY"); key != "" {
 		providers = append(providers, "mistral")
 	}
-	// AWS Bedrock supports multiple authentication methods
-	if key, _ := env.Get(ctx, "AWS_ACCESS_KEY_ID"); key != "" {
+	// AWS Bedrock supports multiple authentication methods (API key, IAM credentials, profile, role)
+	if key, _ := env.Get(ctx, "AWS_BEARER_TOKEN_BEDROCK"); key != "" {
+		providers = append(providers, "bedrock")
+	} else if key, _ := env.Get(ctx, "AWS_ACCESS_KEY_ID"); key != "" {
 		providers = append(providers, "bedrock")
 	} else if key, _ := env.Get(ctx, "AWS_PROFILE"); key != "" {
 		providers = append(providers, "bedrock")

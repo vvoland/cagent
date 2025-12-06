@@ -346,7 +346,7 @@ models:
 models:
   claude-bedrock:
     provider: bedrock
-    model: us.anthropic.claude-3-5-sonnet-20241022-v2:0  # Cross-region inference profile
+    model: global.anthropic.claude-sonnet-4-5-20250929-v1:0  # Global inference profile
 
 # Docker Model Runner (DMR)
 models:
@@ -364,7 +364,27 @@ models:
 
 **Authentication:**
 
-Bedrock uses the [AWS SDK default credential chain](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html#specifying-credentials), which checks these sources in order:
+Bedrock supports two authentication methods:
+
+**Option 1: Bedrock API key** (simplest)
+
+Set the `AWS_BEARER_TOKEN_BEDROCK` environment variable or use `api_key` in provider_opts:
+
+```yaml
+models:
+  claude-bedrock:
+    provider: bedrock
+    model: global.anthropic.claude-sonnet-4-5-20250929-v1:0
+    provider_opts:
+      api_key: "your-bedrock-api-key"
+      region: us-east-1
+```
+
+Generate API keys in the [Bedrock Console](https://console.aws.amazon.com/bedrock/) under "API keys".
+
+**Option 2: AWS credentials** (default)
+
+Uses the [AWS SDK default credential chain](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html#specifying-credentials):
 
 1. Environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`)
 2. Shared credentials file (`~/.aws/credentials`)
@@ -379,7 +399,7 @@ You can also use `provider_opts.role_arn` for cross-account role assumption.
 models:
   claude-bedrock:
     provider: bedrock
-    model: us.anthropic.claude-3-5-sonnet-20241022-v2:0
+    model: global.anthropic.claude-sonnet-4-5-20250929-v1:0
     max_tokens: 64000
     provider_opts:
       profile: my-aws-profile
@@ -402,6 +422,7 @@ models:
 
 | Option | Type | Description | Default |
 |--------|------|-------------|---------|
+| `api_key` | string | Bedrock API key (alternative to `AWS_BEARER_TOKEN_BEDROCK` env var) | (none) |
 | `region` | string | AWS region | us-east-1 |
 | `profile` | string | AWS profile name | (default chain) |
 | `role_arn` | string | IAM role ARN for assume role | (none) |
@@ -411,22 +432,26 @@ models:
 
 **Supported models (via Converse API):**
 
-All Bedrock models that support the Converse API work with cagent, including:
+All Bedrock models that support the Converse API work with cagent. Use inference profile IDs for best availability:
 
-- **Anthropic Claude**: `anthropic.claude-3-5-sonnet-20241022-v2:0`, `anthropic.claude-3-haiku-20240307-v1:0`
-- **Amazon Titan**: `amazon.titan-text-premier-v1:0`
-- **Meta Llama**: `meta.llama3-2-90b-instruct-v1:0`
-- **Mistral**: `mistral.mistral-large-2407-v1:0`
+- **Anthropic Claude**: `global.anthropic.claude-sonnet-4-5-20250929-v1:0`, `us.anthropic.claude-haiku-4-5-20251001-v1:0`
+- **Amazon Nova**: `global.amazon.nova-2-lite-v1:0`
+- **Meta Llama**: `us.meta.llama3-2-90b-instruct-v1:0`
+- **Mistral**: `us.mistral.mistral-large-2407-v1:0`
 
-**Cross-region inference profiles:**
+**Inference profile prefixes:**
 
-Use region prefixes for cross-region inference: `us.`, `eu.`, etc.
+| Prefix | Routes to |
+|--------|-----------|
+| `global.` | All commercial AWS regions (recommended) |
+| `us.` | US regions only |
+| `eu.` | EU regions only (GDPR compliance) |
 
 ```yaml
 models:
-  claude-cross-region:
+  claude-global:
     provider: bedrock
-    model: us.anthropic.claude-3-5-sonnet-20241022-v2:0  # Routes to available US region
+    model: global.anthropic.claude-sonnet-4-5-20250929-v1:0  # Routes to any available region
 ```
 
 #### DMR (Docker Model Runner) provider usage

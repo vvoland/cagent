@@ -1,6 +1,8 @@
 package bedrock
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types"
@@ -173,4 +175,31 @@ func TestConvertMessages_MultiContent(t *testing.T) {
 
 	require.Len(t, bedrockMsgs, 1)
 	require.Len(t, bedrockMsgs[0].Content, 2)
+}
+
+func TestBearerTokenTransport(t *testing.T) {
+	t.Parallel()
+
+	// Create a test server to capture the Authorization header
+	var capturedAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedAuth = r.Header.Get("Authorization")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	// Create transport with bearer token
+	transport := &bearerTokenTransport{
+		token: "test-api-key-12345",
+		base:  http.DefaultTransport,
+	}
+
+	// Make a request through the transport
+	client := &http.Client{Transport: transport}
+	resp, err := client.Get(server.URL)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	// Verify the Authorization header was set correctly
+	assert.Equal(t, "Bearer test-api-key-12345", capturedAuth)
 }

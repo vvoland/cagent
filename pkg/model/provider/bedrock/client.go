@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -27,6 +28,17 @@ type Client struct {
 	bedrockClient *bedrockruntime.Client
 }
 
+// bearerTokenTransport adds Authorization header with bearer token to requests
+type bearerTokenTransport struct {
+	token string
+	base  http.RoundTripper
+}
+
+func (t *bearerTokenTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.Header.Set("Authorization", "Bearer "+t.token)
+	return t.base.RoundTrip(req)
+}
+
 // NewClient creates a new Bedrock client from the provided configuration
 func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider, opts ...options.Opt) (*Client, error) {
 	if cfg == nil {
@@ -44,6 +56,12 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		opt(&globalOptions)
 	}
 
+	// Check for Bedrock API key (simpler auth method)
+	bearerToken := env.Get(ctx, "AWS_BEARER_TOKEN_BEDROCK")
+	if bearerToken == "" {
+		bearerToken = getProviderOpt[string](cfg.ProviderOpts, "api_key")
+	}
+
 	// Build AWS config using default credential chain
 	awsCfg, err := buildAWSConfig(ctx, cfg, env)
 	if err != nil {
@@ -51,13 +69,33 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		return nil, fmt.Errorf("failed to build AWS config: %w", err)
 	}
 
-	// Create Bedrock Runtime client
-	bedrockClient := bedrockruntime.NewFromConfig(awsCfg, func(o *bedrockruntime.Options) {
-		// Support custom endpoint for VPC endpoints or testing
-		if endpoint := getProviderOpt[string](cfg.ProviderOpts, "endpoint_url"); endpoint != "" {
+	// Create Bedrock Runtime client with appropriate auth
+	var clientOpts []func(*bedrockruntime.Options)
+
+	// Support custom endpoint for VPC endpoints or testing
+	if endpoint := getProviderOpt[string](cfg.ProviderOpts, "endpoint_url"); endpoint != "" {
+		clientOpts = append(clientOpts, func(o *bedrockruntime.Options) {
 			o.BaseEndpoint = aws.String(endpoint)
-		}
-	})
+		})
+	}
+
+	// If bearer token is set, use it instead of SigV4
+	if bearerToken != "" {
+		slog.Debug("Bedrock using API key authentication")
+		clientOpts = append(clientOpts, func(o *bedrockruntime.Options) {
+			// Use anonymous credentials to skip SigV4 signing
+			o.Credentials = aws.AnonymousCredentials{}
+			// Add bearer token via custom HTTP client
+			o.HTTPClient = &http.Client{
+				Transport: &bearerTokenTransport{
+					token: bearerToken,
+					base:  http.DefaultTransport,
+				},
+			}
+		})
+	}
+
+	bedrockClient := bedrockruntime.NewFromConfig(awsCfg, clientOpts...)
 
 	slog.Debug("Bedrock client created successfully", "model", cfg.Model, "region", awsCfg.Region)
 
