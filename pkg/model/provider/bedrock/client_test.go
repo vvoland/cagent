@@ -373,3 +373,181 @@ func TestNewClient_WrongProvider(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "model type must be 'bedrock'")
 }
+
+// Interface compliance assertion
+var _ chat.MessageStream = (*streamAdapter)(nil)
+
+// Additional getProviderOpt tests
+
+func TestGetProviderOpt_TypeMismatch(t *testing.T) {
+	t.Parallel()
+
+	opts := map[string]any{
+		"region": "us-west-2", // string
+		"number": 42,          // int
+		"float":  3.14,        // float64
+		"bool":   true,        // bool
+	}
+
+	// Request wrong type - should return zero value
+	t.Run("string as int returns zero", func(t *testing.T) {
+		t.Parallel()
+		result := getProviderOpt[int](opts, "region")
+		assert.Equal(t, 0, result)
+	})
+
+	t.Run("int as string returns empty", func(t *testing.T) {
+		t.Parallel()
+		result := getProviderOpt[string](opts, "number")
+		assert.Empty(t, result)
+	})
+
+	t.Run("bool as string returns empty", func(t *testing.T) {
+		t.Parallel()
+		result := getProviderOpt[string](opts, "bool")
+		assert.Empty(t, result)
+	})
+}
+
+// buildAWSConfig tests
+
+func TestBuildAWSConfig_DefaultRegion(t *testing.T) {
+	t.Parallel()
+
+	cfg := &latest.ModelConfig{
+		Provider:     "bedrock",
+		Model:        "anthropic.claude-v2",
+		ProviderOpts: map[string]any{},
+	}
+
+	env := &mockEnvProvider{values: map[string]string{}}
+
+	awsCfg, err := buildAWSConfig(t.Context(), cfg, env)
+	require.NoError(t, err)
+
+	// Default region should be us-east-1
+	assert.Equal(t, "us-east-1", awsCfg.Region)
+}
+
+func TestBuildAWSConfig_RegionFromProviderOpts(t *testing.T) {
+	t.Parallel()
+
+	cfg := &latest.ModelConfig{
+		Provider: "bedrock",
+		Model:    "anthropic.claude-v2",
+		ProviderOpts: map[string]any{
+			"region": "eu-west-1",
+		},
+	}
+
+	env := &mockEnvProvider{values: map[string]string{}}
+
+	awsCfg, err := buildAWSConfig(t.Context(), cfg, env)
+	require.NoError(t, err)
+
+	assert.Equal(t, "eu-west-1", awsCfg.Region)
+}
+
+func TestBuildAWSConfig_RegionFromEnv(t *testing.T) {
+	t.Parallel()
+
+	cfg := &latest.ModelConfig{
+		Provider:     "bedrock",
+		Model:        "anthropic.claude-v2",
+		ProviderOpts: map[string]any{},
+	}
+
+	env := &mockEnvProvider{values: map[string]string{
+		"AWS_REGION": "ap-northeast-1",
+	}}
+
+	awsCfg, err := buildAWSConfig(t.Context(), cfg, env)
+	require.NoError(t, err)
+
+	assert.Equal(t, "ap-northeast-1", awsCfg.Region)
+}
+
+func TestBuildAWSConfig_ProviderOptsOverridesEnv(t *testing.T) {
+	t.Parallel()
+
+	cfg := &latest.ModelConfig{
+		Provider: "bedrock",
+		Model:    "anthropic.claude-v2",
+		ProviderOpts: map[string]any{
+			"region": "eu-central-1",
+		},
+	}
+
+	env := &mockEnvProvider{values: map[string]string{
+		"AWS_REGION": "us-west-2",
+	}}
+
+	awsCfg, err := buildAWSConfig(t.Context(), cfg, env)
+	require.NoError(t, err)
+
+	// provider_opts should take precedence
+	assert.Equal(t, "eu-central-1", awsCfg.Region)
+}
+
+// NewClient with valid config tests
+
+func TestNewClient_ValidConfig(t *testing.T) {
+	t.Parallel()
+
+	cfg := &latest.ModelConfig{
+		Provider: "bedrock",
+		Model:    "anthropic.claude-v2",
+		ProviderOpts: map[string]any{
+			"region": "us-east-1",
+		},
+	}
+
+	env := &mockEnvProvider{values: map[string]string{}}
+
+	client, err := NewClient(t.Context(), cfg, env)
+	require.NoError(t, err)
+	require.NotNil(t, client)
+
+	// Verify client was configured correctly
+	assert.Equal(t, "anthropic.claude-v2", client.ModelConfig.Model)
+	assert.Equal(t, "bedrock", client.ModelConfig.Provider)
+}
+
+func TestNewClient_WithBearerToken(t *testing.T) {
+	t.Parallel()
+
+	cfg := &latest.ModelConfig{
+		Provider: "bedrock",
+		Model:    "anthropic.claude-v2",
+		ProviderOpts: map[string]any{
+			"region":  "us-east-1",
+			"api_key": "test-bearer-token",
+		},
+	}
+
+	env := &mockEnvProvider{values: map[string]string{}}
+
+	client, err := NewClient(t.Context(), cfg, env)
+	require.NoError(t, err)
+	require.NotNil(t, client)
+}
+
+func TestNewClient_WithBearerTokenFromEnv(t *testing.T) {
+	t.Parallel()
+
+	cfg := &latest.ModelConfig{
+		Provider: "bedrock",
+		Model:    "anthropic.claude-v2",
+		ProviderOpts: map[string]any{
+			"region": "us-east-1",
+		},
+	}
+
+	env := &mockEnvProvider{values: map[string]string{
+		"AWS_BEARER_TOKEN_BEDROCK": "env-bearer-token",
+	}}
+
+	client, err := NewClient(t.Context(), cfg, env)
+	require.NoError(t, err)
+	require.NotNil(t, client)
+}
