@@ -43,6 +43,14 @@ func WithHeader(key, value string) Opt {
 	}
 }
 
+func WithHeaders(headers map[string]string) Opt {
+	return func(o *HTTPOptions) {
+		for k, v := range headers {
+			o.Header.Add(k, v)
+		}
+	}
+}
+
 func WithProxiedBaseURL(value string) Opt {
 	return func(o *HTTPOptions) {
 		o.Header.Set("X-Cagent-Forward", value)

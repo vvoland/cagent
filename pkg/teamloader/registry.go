@@ -15,6 +15,7 @@ import (
 	"github.com/docker/cagent/pkg/memory/database/sqlite"
 	"github.com/docker/cagent/pkg/path"
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools/a2a"
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tools/mcp"
 )
@@ -66,6 +67,7 @@ func NewDefaultToolsetRegistry() *ToolsetRegistry {
 	r.Register("fetch", createFetchTool)
 	r.Register("mcp", createMCPTool)
 	r.Register("api", createAPITool)
+	r.Register("a2a", createA2ATool)
 	return r
 }
 
@@ -223,4 +225,12 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 	}
 
 	return nil, fmt.Errorf("mcp toolset requires either ref, command, or remote configuration")
+}
+
+func createA2ATool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig) (tools.ToolSet, error) {
+	expander := js.NewJsExpander(runConfig.EnvProvider())
+
+	headers := expander.ExpandMap(ctx, toolset.APIConfig.Headers)
+
+	return a2a.NewToolset(toolset.Name, toolset.URL, headers), nil
 }

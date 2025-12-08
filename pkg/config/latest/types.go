@@ -133,6 +133,10 @@ type Toolset struct {
 	Remote  Remote   `json:"remote,omitempty"`
 	Config  any      `json:"config,omitempty"`
 
+	// For the `a2a` tool
+	Name string `json:"name,omitempty"`
+	URL  string `json:"url,omitempty"`
+
 	// For `shell`, `script` or `mcp` tools
 	Env map[string]string `json:"env,omitempty"`
 

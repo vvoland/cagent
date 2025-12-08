@@ -44,7 +44,7 @@ func TestA2AServer_AgentCard(t *testing.T) {
 	_, runConfig := startRecordingAIProxy(t)
 	agentCard := startA2AServer(t, "testdata/basic.yaml", runConfig)
 
-	assert.Equal(t, "root", agentCard.Name)
+	assert.Equal(t, "basic", agentCard.Name)
 	assert.NotEmpty(t, agentCard.Description)
 	assert.Equal(t, a2a.TransportProtocolJSONRPC, agentCard.PreferredTransport)
 	assert.Contains(t, agentCard.URL, "/invoke")
