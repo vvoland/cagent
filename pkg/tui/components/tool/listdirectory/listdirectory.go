@@ -3,11 +3,11 @@ package listdirectory
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
@@ -154,13 +154,8 @@ func shortenPath(path string) string {
 	}
 
 	// Replace home directory with ~
-	if home := os.Getenv("HOME"); home != "" && strings.HasPrefix(path, home) {
+	if home := paths.GetHomeDir(); home != "" && strings.HasPrefix(path, home) {
 		return "~" + strings.TrimPrefix(path, home)
-	}
-
-	// If path is ".", return current directory name or "."
-	if path == "." {
-		return "."
 	}
 
 	return path

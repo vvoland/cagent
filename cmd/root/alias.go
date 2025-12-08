@@ -2,7 +2,6 @@ package root
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/docker/cagent/pkg/aliases"
 	"github.com/docker/cagent/pkg/cli"
+	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/telemetry"
 )
 
@@ -183,9 +183,9 @@ func expandTilde(path string) (string, error) {
 		return path, nil
 	}
 
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
+	homeDir := paths.GetHomeDir()
+	if homeDir == "" {
+		return "", fmt.Errorf("failed to get user home directory")
 	}
 
 	return filepath.Join(homeDir, strings.TrimPrefix(path, "~/")), nil

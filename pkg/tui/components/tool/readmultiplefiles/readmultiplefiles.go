@@ -3,11 +3,11 @@ package readmultiplefiles
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
@@ -103,12 +103,12 @@ type fileSummary struct {
 }
 
 // formatSummaryLines creates a summary for each file
-func formatSummaryLines(paths []string, result string) []fileSummary {
-	if len(paths) == 0 {
+func formatSummaryLines(filePaths []string, result string) []fileSummary {
+	if len(filePaths) == 0 {
 		return nil
 	}
 
-	homeDir := getHomeDir()
+	homeDir := paths.GetHomeDir()
 
 	// Parse the result to count lines
 	type PathContent struct {
@@ -138,7 +138,7 @@ func formatSummaryLines(paths []string, result string) []fileSummary {
 
 	// Fall back to text format parsing
 	// Format is: === path ===\ncontent\n\n
-	summaries := make([]fileSummary, 0, len(paths))
+	summaries := make([]fileSummary, 0, len(filePaths))
 
 	// Split by "=== " to get sections
 	parts := strings.Split(result, "=== ")
@@ -186,7 +186,7 @@ func formatSummaryLines(paths []string, result string) []fileSummary {
 
 	if len(summaries) == 0 {
 		// Fallback: just list the files
-		for _, path := range paths {
+		for _, path := range filePaths {
 			shortPath := shortenPath(path, homeDir)
 			summaries = append(summaries, fileSummary{
 				displayName: fmt.Sprintf("Read(%s)", shortPath),
@@ -199,15 +199,15 @@ func formatSummaryLines(paths []string, result string) []fileSummary {
 }
 
 // formatFilesList formats a list of file paths for display
-func formatFilesList(paths []string) string {
-	if len(paths) == 0 {
+func formatFilesList(filePaths []string) string {
+	if len(filePaths) == 0 {
 		return ""
 	}
 
 	// Shorten paths by using home directory symbol
-	homeDir := getHomeDir()
-	shortened := make([]string, len(paths))
-	for i, p := range paths {
+	homeDir := paths.GetHomeDir()
+	shortened := make([]string, len(filePaths))
+	for i, p := range filePaths {
 		shortened[i] = shortenPath(p, homeDir)
 	}
 
@@ -225,14 +225,6 @@ func shortenPath(path, homeDir string) string {
 		return "~" + strings.TrimPrefix(path, homeDir)
 	}
 	return path
-}
-
-// getHomeDir returns the user's home directory
-func getHomeDir() string {
-	if home := os.Getenv("HOME"); home != "" {
-		return home
-	}
-	return ""
 }
 
 // countLines counts the number of lines in a string

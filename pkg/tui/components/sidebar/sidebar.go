@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tui/components/spinner"
@@ -169,7 +170,7 @@ func getCurrentWorkingDirectory() string {
 	}
 
 	// Replace home directory with ~/
-	if homeDir, err := os.UserHomeDir(); err == nil && strings.HasPrefix(pwd, homeDir) {
+	if homeDir := paths.GetHomeDir(); homeDir != "" && strings.HasPrefix(pwd, homeDir) {
 		pwd = "~" + pwd[len(homeDir):]
 	}
 
