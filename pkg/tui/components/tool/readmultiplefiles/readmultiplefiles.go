@@ -86,7 +86,7 @@ func (c *Component) View() string {
 
 	// Header line
 	icon := toolcommon.Icon(msg.ToolStatus)
-	content.WriteString(fmt.Sprintf("%s %s:\n", icon, "Read Multiple Files"))
+	content.WriteString(fmt.Sprintf("%s %s:\n", icon, styles.HighlightStyle.Render("Read Multiple Files")))
 
 	// Each file on its own line with checkmark
 	for _, summary := range summaries {
