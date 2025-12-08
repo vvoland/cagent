@@ -99,7 +99,7 @@ func (f *debugFlags) runDebugToolsetsCommand(cmd *cobra.Command, args []string) 
 
 		out.Printf("%d tool(s) for %s:\n", len(tools), agent.Name())
 		for _, tool := range tools {
-			out.Println(" +", tool.Name)
+			out.Println(" +", tool.Name, "-", tool.Description)
 		}
 	}
 

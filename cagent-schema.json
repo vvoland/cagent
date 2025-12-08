@@ -351,7 +351,8 @@
             "shell",
             "todo",
             "fetch",
-            "api"
+            "api",
+            "a2a"
           ]
         },
         "instruction": {
@@ -457,6 +458,15 @@
           "type": "integer",
           "description": "Timeout in seconds for the fetch tool",
           "minimum": 1
+        },
+        "url": {
+          "type": "string",
+          "description": "URL for the a2a tool",
+          "format": "uri"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name for the a2a tool"
         }
       },
       "additionalProperties": false,
@@ -518,6 +528,22 @@
             {
               "required": [
                 "api_config"
+              ]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "properties": {
+                "type": {
+                  "const": "a2a"
+                }
+              }
+            },
+            {
+              "required": [
+                "url"
               ]
             }
           ]

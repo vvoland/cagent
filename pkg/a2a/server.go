@@ -7,6 +7,8 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"path/filepath"
+	"strings"
 
 	"github.com/a2aproject/a2a-go/a2a"
 	"github.com/a2aproject/a2a-go/a2asrv"
@@ -48,11 +50,18 @@ func Run(ctx context.Context, agentFilename, agentName string, runConfig *config
 
 	slog.Debug("A2A server listening", "url", baseURL.String())
 
+	name := strings.TrimSuffix(filepath.Base(agentFilename), filepath.Ext(agentFilename))
+
 	agentPath := "/invoke"
 	agentCard := &a2a.AgentCard{
-		Name:               adkAgent.Name(),
-		Description:        adkAgent.Description(),
-		Skills:             adka2a.BuildAgentSkills(adkAgent),
+		Name:        name,
+		Description: adkAgent.Description(),
+		Skills: []a2a.AgentSkill{{
+			ID:          name,
+			Name:        "main",
+			Description: adkAgent.Description(),
+			Tags:        []string{"llm", "cagent"},
+		}},
 		PreferredTransport: a2a.TransportProtocolJSONRPC,
 		URL:                baseURL.JoinPath(agentPath).String(),
 		Capabilities:       a2a.AgentCapabilities{Streaming: true},
@@ -63,7 +72,7 @@ func Run(ctx context.Context, agentFilename, agentName string, runConfig *config
 
 	executor := newExecutorWrapper(adka2a.ExecutorConfig{
 		RunnerConfig: runner.Config{
-			AppName:        adkAgent.Name(),
+			AppName:        name,
 			Agent:          adkAgent,
 			SessionService: session.InMemoryService(),
 		},

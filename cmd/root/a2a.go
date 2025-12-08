@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/a2a"
+	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/server"
 	"github.com/docker/cagent/pkg/telemetry"
@@ -43,6 +44,7 @@ func (f *a2aFlags) runA2ACommand(cmd *cobra.Command, args []string) error {
 	telemetry.TrackCommand("a2a", args)
 
 	ctx := cmd.Context()
+	out := cli.NewPrinter(cmd.OutOrStdout())
 	agentFilename := args[0]
 
 	// Listen as early as possible
@@ -55,5 +57,6 @@ func (f *a2aFlags) runA2ACommand(cmd *cobra.Command, args []string) error {
 		_ = ln.Close()
 	}()
 
+	out.Println("Listening on", ln.Addr().String())
 	return a2a.Run(ctx, agentFilename, f.agentName, &f.runConfig, ln)
 }

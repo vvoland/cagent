@@ -25,7 +25,7 @@ func TestDebug_Toolsets_Todo(t *testing.T) {
 
 	output := cagentDebug(t, "toolsets", "testdata/todo_tools.yaml")
 
-	require.Equal(t, "2 tool(s) for root:\n + create_todo\n + list_todos\n", output)
+	require.Equal(t, "2 tool(s) for root:\n + create_todo - Create a new todo item with a description\n + list_todos - List all current todos with their status\n", output)
 }
 
 func cagentDebug(t *testing.T, moreArgs ...string) string {

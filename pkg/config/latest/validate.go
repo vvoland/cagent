@@ -57,11 +57,20 @@ func (t *Toolset) validate() error {
 	if t.Ref != "" && t.Type != "mcp" {
 		return errors.New("ref can only be used with type 'mcp'")
 	}
-	if (t.Remote.URL != "" || t.Remote.TransportType != "" || len(t.Remote.Headers) > 0) && t.Type != "mcp" {
+	if (t.Remote.URL != "" || t.Remote.TransportType != "") && t.Type != "mcp" {
 		return errors.New("remote can only be used with type 'mcp'")
+	}
+	if (len(t.Remote.Headers) > 0) && (t.Type != "mcp" && t.Type != "a2a") {
+		return errors.New("headers can only be used with type 'mcp' or 'a2a'")
 	}
 	if t.Config != nil && t.Type != "mcp" {
 		return errors.New("config can only be used with type 'mcp'")
+	}
+	if t.URL != "" && t.Type != "a2a" {
+		return errors.New("url can only be used with type 'a2a'")
+	}
+	if t.Name != "" && t.Type != "a2a" {
+		return errors.New("name can only be used with type 'a2a'")
 	}
 
 	switch t.Type {
@@ -89,6 +98,10 @@ func (t *Toolset) validate() error {
 
 		if t.Ref != "" && !strings.Contains(t.Ref, "docker:") {
 			return errors.New("only docker refs are supported for MCP tools, e.g., 'docker:context7'")
+		}
+	case "a2a":
+		if t.URL == "" {
+			return errors.New("a2a toolset requires a url to be set")
 		}
 	}
 
