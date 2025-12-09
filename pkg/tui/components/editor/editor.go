@@ -38,6 +38,10 @@ type Editor interface {
 	layout.Focusable
 	SetWorking(working bool) tea.Cmd
 	AcceptSuggestion() bool
+	// Value returns the current editor content
+	Value() string
+	// SetValue updates the editor content
+	SetValue(content string)
 }
 
 // editor implements [Editor]
@@ -495,6 +499,19 @@ func (e *editor) Blur() tea.Cmd {
 func (e *editor) SetWorking(working bool) tea.Cmd {
 	e.working = working
 	return nil
+}
+
+// Value returns the current editor content
+func (e *editor) Value() string {
+	return e.textarea.Value()
+}
+
+// SetValue updates the editor content and moves cursor to end
+func (e *editor) SetValue(content string) {
+	e.textarea.SetValue(content)
+	e.textarea.MoveToEnd()
+	e.userTyped = content != ""
+	e.refreshSuggestion()
 }
 
 // tryAddFileRef checks if word is a valid @filepath and adds it to fileRefs.
