@@ -57,8 +57,8 @@ func Run(ctx context.Context, agentFilename, agentName string, runConfig *config
 		Name:        name,
 		Description: adkAgent.Description(),
 		Skills: []a2a.AgentSkill{{
-			ID:          name,
-			Name:        "main",
+			ID:          fmt.Sprintf("%s_%s", name, agentName),
+			Name:        agentName,
 			Description: adkAgent.Description(),
 			Tags:        []string{"llm", "cagent"},
 		}},

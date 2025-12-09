@@ -48,7 +48,7 @@ func (f *mcpFlags) runMCPCommand(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	agentFilename := args[0]
 
-	if f.http {
+	if f.http || f.port != 0 {
 		ln, err := server.Listen(ctx, fmt.Sprintf(":%d", f.port))
 		if err != nil {
 			return fmt.Errorf("failed to bind to port %d: %w", f.port, err)

@@ -46,10 +46,8 @@ agents:
       - type: shell
       - type: filesystem
       - type: a2a
-        name: player_blue
         url: http://localhost:8080/
       - type: a2a
-        name: player_red
         url: http://localhost:8081/
 
   # BLUE Player

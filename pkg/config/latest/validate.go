@@ -69,8 +69,8 @@ func (t *Toolset) validate() error {
 	if t.URL != "" && t.Type != "a2a" {
 		return errors.New("url can only be used with type 'a2a'")
 	}
-	if t.Name != "" && t.Type != "a2a" {
-		return errors.New("name can only be used with type 'a2a'")
+	if t.Name != "" && (t.Type != "mcp" && t.Type != "a2a") {
+		return errors.New("name can only be used with type 'mcp' or 'a2a'")
 	}
 
 	switch t.Type {
