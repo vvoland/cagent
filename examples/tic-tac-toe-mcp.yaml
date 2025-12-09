@@ -7,12 +7,12 @@ metadata:
     The game master manages the game state, enforces the rules, and declares the winner or a draw.
     Each player agent makes moves based on the current state of the board.
 
-    The Game master talks to both players over A2A.
+    The Game master talks to both players over MCP.
 
     To run the demo:
-    cagent a2a --port 8080 ./examples/tic-tac-toe.yaml --agent player_blue
-    cagent a2a --port 8081 ./examples/tic-tac-toe.yaml --agent player_red
-    cagent run --yolo ./examples/tic-tac-toe.yaml 'Go!'
+    cagent mcp --http --port 8080 ./examples/tic-tac-toe-mcp.yaml --agent player_blue
+    cagent mcp --http --port 8081 ./examples/tic-tac-toe-mcp.yaml --agent player_red
+    cagent run --yolo ./examples/tic-tac-toe-mcp.yaml 'Go!'
 
 agents:
   # Game Master
@@ -45,12 +45,14 @@ agents:
     toolsets:
       - type: shell
       - type: filesystem
-      - type: a2a
-        name: player_blue
-        url: http://localhost:8080/
-      - type: a2a
-        name: player_red
-        url: http://localhost:8081/
+      - type: mcp
+        remote:
+          url: http://localhost:8080/
+          transport_type: streamable
+      - type: mcp
+        remote:
+          url: http://localhost:8081/
+          transport_type: streamable
 
   # BLUE Player
   player_blue:
