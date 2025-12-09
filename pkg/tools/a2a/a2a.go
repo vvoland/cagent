@@ -78,12 +78,12 @@ func (t *Toolset) Tools(_ context.Context) ([]tools.Tool, error) {
 
 	result := make([]tools.Tool, 0, len(skills))
 	for _, skill := range skills {
-		name := t.name
-		if name == "" {
-			name = skill.ID
-		}
+		name := skill.ID
 		if name == "" {
 			name = skill.Name
+		}
+		if t.name != "" {
+			name = fmt.Sprintf("%s_%s", t.name, name)
 		}
 		name = sanitizeToolName(name)
 

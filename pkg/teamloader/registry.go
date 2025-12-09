@@ -195,10 +195,10 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 
 		// TODO(dga): until the MCP Gateway supports oauth with cagent, we fetch the remote url and directly connect to it.
 		if serverSpec.Type == "remote" {
-			return mcp.NewRemoteToolset(serverSpec.Remote.URL, serverSpec.Remote.TransportType, nil), nil
+			return mcp.NewRemoteToolset(toolset.Name, serverSpec.Remote.URL, serverSpec.Remote.TransportType, nil), nil
 		}
 
-		return mcp.NewGatewayToolset(ctx, mcpServerName, toolset.Config, runConfig.EnvProvider(), runConfig.WorkingDir)
+		return mcp.NewGatewayToolset(ctx, toolset.Name, mcpServerName, toolset.Config, runConfig.EnvProvider(), runConfig.WorkingDir)
 	}
 
 	if toolset.Command != "" {
@@ -207,7 +207,7 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 			return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
 		}
 		env = append(env, os.Environ()...)
-		return mcp.NewToolsetCommand(toolset.Command, toolset.Args, env, runConfig.WorkingDir), nil
+		return mcp.NewToolsetCommand(toolset.Name, toolset.Command, toolset.Args, env, runConfig.WorkingDir), nil
 	}
 
 	if toolset.Remote.URL != "" {
@@ -221,7 +221,7 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 			headers[k] = expanded
 		}
 
-		return mcp.NewRemoteToolset(toolset.Remote.URL, toolset.Remote.TransportType, headers), nil
+		return mcp.NewRemoteToolset(toolset.Name, toolset.Remote.URL, toolset.Remote.TransportType, headers), nil
 	}
 
 	return nil, fmt.Errorf("mcp toolset requires either ref, command, or remote configuration")
