@@ -35,7 +35,7 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.1.0
 	github.com/openai/openai-go/v3 v3.10.0
 	github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	github.com/temoto/robotstxt v1.1.2
 	github.com/wk8/go-ordered-map/v2 v2.1.9-0.20250401010720-46d686821e33
@@ -49,7 +49,7 @@ require (
 	golang.org/x/sys v0.38.0
 	golang.org/x/term v0.37.0
 	google.golang.org/adk v0.2.0
-	google.golang.org/genai v1.36.0
+	google.golang.org/genai v1.38.0
 	gopkg.in/dnaeon/go-vcr.v4 v4.0.6
 	gotest.tools/v3 v3.5.2
 	modernc.org/sqlite v1.40.1
