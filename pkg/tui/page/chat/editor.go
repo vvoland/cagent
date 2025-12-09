@@ -13,6 +13,9 @@ import (
 	"github.com/docker/cagent/pkg/tui/core"
 )
 
+// editorDoneMsg is sent when the external editor finishes to trigger a TUI refresh.
+type editorDoneMsg struct{}
+
 // openExternalEditor opens the current editor content in an external editor.
 // It suspends the TUI, runs the editor, and returns the result.
 func (p *chatPage) openExternalEditor() tea.Cmd {
@@ -82,11 +85,11 @@ func (p *chatPage) openExternalEditor() tea.Cmd {
 		// If content is empty, just clear the editor
 		if strings.TrimSpace(content) == "" {
 			p.editor.SetValue("")
-			return nil
+			return editorDoneMsg{}
 		}
 
 		// Clear the editor and automatically submit the content
 		p.editor.SetValue(content)
-		return nil
+		return editorDoneMsg{}
 	})
 }
