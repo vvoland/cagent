@@ -88,10 +88,11 @@ type chatPage struct {
 
 // KeyMap defines key bindings for the chat page
 type KeyMap struct {
-	Tab          key.Binding
-	Cancel       key.Binding
-	ShiftNewline key.Binding
-	CtrlJ        key.Binding
+	Tab            key.Binding
+	Cancel         key.Binding
+	ShiftNewline   key.Binding
+	CtrlJ          key.Binding
+	ExternalEditor key.Binding
 }
 
 // defaultKeyMap returns the default key bindings
@@ -109,6 +110,10 @@ func defaultKeyMap() KeyMap {
 		ShiftNewline: key.NewBinding(
 			key.WithKeys("shift+enter", "ctrl+j"),
 			key.WithHelp("shift+enter / ctrl+j", "newline"),
+		),
+		ExternalEditor: key.NewBinding(
+			key.WithKeys("ctrl+g"),
+			key.WithHelp("ctrl+g", "edit in $EDITOR"),
 		),
 	}
 }
@@ -215,6 +220,10 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			// Cancel current message processing if active
 			cmd := p.cancelStream(true)
 			return p, cmd
+		case key.Matches(msg, p.keyMap.ExternalEditor):
+			// Open external editor with current editor content
+			cmd := p.openExternalEditor()
+			return p, cmd
 		}
 
 		// Route other keys to focused component
@@ -263,6 +272,7 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		slog.Debug(msg.Content)
 		cmd := p.processMessage(msg)
 		return p, cmd
+
 	case messages.StreamCancelledMsg:
 		model, cmd := p.messages.Update(msg)
 		p.messages = model.(messages.Model)
@@ -536,6 +546,7 @@ func (p *chatPage) Bindings() []key.Binding {
 		p.keyMap.Cancel,
 		// show newline hints in the global footer
 		p.keyMap.ShiftNewline,
+		p.keyMap.ExternalEditor,
 	}
 
 	if p.focusedPanel == PanelChat {
