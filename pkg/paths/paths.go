@@ -25,3 +25,13 @@ func GetDataDir() string {
 	}
 	return filepath.Join(homeDir, ".cagent")
 }
+
+// GetHomeDir returns the user's home directory
+// Returns empty string if the home directory cannot be determined
+func GetHomeDir() string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return homeDir
+}

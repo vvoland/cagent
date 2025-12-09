@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/docker/cagent/pkg/path"
+	"github.com/docker/cagent/pkg/paths"
 )
 
 type KeyValuePair struct {
@@ -56,9 +57,9 @@ func expandTildePath(p string) (string, error) {
 		return p, nil
 	}
 
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get user home directory: %w", err)
+	homeDir := paths.GetHomeDir()
+	if homeDir == "" {
+		return "", fmt.Errorf("failed to get user home directory")
 	}
 
 	if p == "~" {
