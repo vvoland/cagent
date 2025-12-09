@@ -104,7 +104,7 @@ func cagentExec(t *testing.T, moreArgs ...string) string {
 
 	// Start a recording AI proxy to record and replay traffic.
 	svr, _ := startRecordingAIProxy(t)
-	args = append(args, "--models-gateway", svr.URL)
+	args = append(args, "--models-gateway", svr.URL, "--session-db", "/tmp/session.db")
 
 	// Run cagent exec
 	var stdout bytes.Buffer

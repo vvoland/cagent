@@ -32,6 +32,10 @@ import (
 	mcptools "github.com/docker/cagent/pkg/tools/mcp"
 )
 
+type SessionStore interface {
+	UpdateSession(ctx context.Context, sess *session.Session) error
+}
+
 // UnwrapMCPToolset extracts an MCP toolset from a potentially wrapped StartableToolSet.
 // Returns the MCP toolset if found, or nil if the toolset is not an MCP toolset.
 func UnwrapMCPToolset(toolset tools.ToolSet) *mcptools.Toolset {
@@ -94,16 +98,18 @@ type Runtime interface {
 	CurrentWelcomeMessage(ctx context.Context) string
 	// EmitStartupInfo emits initial agent, team, and toolset information for immediate display
 	EmitStartupInfo(ctx context.Context, events chan Event)
+
 	// RunStream starts the agent's interaction loop and returns a channel of events
 	RunStream(ctx context.Context, sess *session.Session) <-chan Event
 	// Run starts the agent's interaction loop and returns the final messages
 	Run(ctx context.Context, sess *session.Session) ([]session.Message, error)
 	// Resume allows resuming execution after user confirmation
 	Resume(ctx context.Context, confirmationType ResumeType)
-	// Summarize generates a summary for the session
-	Summarize(ctx context.Context, sess *session.Session, events chan Event)
 	// ResumeElicitation sends an elicitation response back to a waiting elicitation request
 	ResumeElicitation(_ context.Context, action tools.ElicitationAction, content map[string]any) error
+
+	// Summarize generates a summary for the session
+	Summarize(ctx context.Context, sess *session.Session, events chan Event)
 }
 
 type ModelStore interface {
@@ -121,7 +127,6 @@ type LocalRuntime struct {
 	toolMap                     map[string]ToolHandler
 	team                        *team.Team
 	currentAgent                string
-	rootSessionID               string // Root session ID for OAuth state encoding (preserved across sub-sessions)
 	resumeChan                  chan ResumeType
 	tracer                      trace.Tracer
 	modelsStore                 ModelStore
@@ -133,6 +138,7 @@ type LocalRuntime struct {
 	elicitationEventsChannelMux sync.RWMutex           // Protects elicitationEventsChannel
 	ragInitialized              atomic.Bool
 	titleGen                    *titleGenerator
+	sessionStore                SessionStore
 }
 
 type streamResult struct {
@@ -158,12 +164,6 @@ func WithManagedOAuth(managed bool) Opt {
 	}
 }
 
-func WithRootSessionID(sessionID string) Opt {
-	return func(r *LocalRuntime) {
-		r.rootSessionID = sessionID
-	}
-}
-
 // WithTracer sets a custom OpenTelemetry tracer; if not provided, tracing is disabled (no-op).
 func WithTracer(t trace.Tracer) Opt {
 	return func(r *LocalRuntime) {
@@ -183,6 +183,12 @@ func WithModelStore(store ModelStore) Opt {
 	}
 }
 
+func WithSessionStore(store SessionStore) Opt {
+	return func(r *LocalRuntime) {
+		r.sessionStore = store
+	}
+}
+
 // New creates a new runtime for an agent and its team
 func New(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 	modelsStore, err := modelsdev.NewStore()
@@ -199,6 +205,7 @@ func New(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 		modelsStore:          modelsStore,
 		sessionCompaction:    true,
 		managedOAuth:         true,
+		sessionStore:         session.NewInMemorySessionStore(),
 	}
 
 	for _, opt := range opts {
@@ -610,6 +617,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 							CreatedAt: time.Now().Format(time.RFC3339),
 						}
 						sess.AddMessage(session.NewAgentMessage(a, &assistantMessage))
+						_ = r.sessionStore.UpdateSession(ctx, sess)
 						return
 					}
 				case <-ctx.Done():
@@ -707,6 +715,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				}
 
 				sess.AddMessage(session.NewAgentMessage(a, &assistantMessage))
+				_ = r.sessionStore.UpdateSession(ctx, sess)
 				slog.Debug("Added assistant message to session", "agent", a.Name(), "total_messages", len(sess.GetAllMessages()))
 			} else {
 				slog.Debug("Skipping empty assistant message (no content and no tool calls)", "agent", a.Name())
@@ -1023,14 +1032,14 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 						r.runAgentTool(callCtx, def.handler, sess, toolCall, def.tool, events, a)
 					case ResumeTypeReject:
 						slog.Debug("Resume signal received, rejecting tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
-						r.addToolRejectedResponse(sess, toolCall, def.tool, events)
+						r.addToolRejectedResponse(ctx, sess, toolCall, def.tool, events)
 					}
 				case <-callCtx.Done():
 					slog.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
 					// Synthesize cancellation responses for the current and any remaining tool calls
-					r.addToolCancelledResponse(sess, toolCall, def.tool, events)
+					r.addToolCancelledResponse(ctx, sess, toolCall, def.tool, events)
 					for j := i + 1; j < len(calls); j++ {
-						r.addToolCancelledResponse(sess, calls[j], def.tool, events)
+						r.addToolCancelledResponse(ctx, sess, calls[j], def.tool, events)
 					}
 					callSpan.SetStatus(codes.Ok, "tool call canceled by user")
 					return
@@ -1066,7 +1075,7 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 						r.runTool(callCtx, tool, toolCall, events, sess, a)
 					case ResumeTypeReject:
 						slog.Debug("Resume signal received, rejecting tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
-						r.addToolRejectedResponse(sess, toolCall, tool, events)
+						r.addToolRejectedResponse(ctx, sess, toolCall, tool, events)
 					}
 
 					slog.Debug("Added tool response to session", "tool", toolCall.Function.Name, "session_id", sess.ID, "total_messages", len(sess.GetAllMessages()))
@@ -1074,9 +1083,9 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 				case <-callCtx.Done():
 					slog.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
 					// Synthesize cancellation responses for the current and any remaining tool calls
-					r.addToolCancelledResponse(sess, toolCall, tool, events)
+					r.addToolCancelledResponse(ctx, sess, toolCall, tool, events)
 					for j := i + 1; j < len(calls); j++ {
-						r.addToolCancelledResponse(sess, calls[j], tool, events)
+						r.addToolCancelledResponse(ctx, sess, calls[j], tool, events)
 					}
 					callSpan.SetStatus(codes.Ok, "tool call canceled by user")
 					return
@@ -1146,6 +1155,7 @@ func (r *LocalRuntime) runTool(ctx context.Context, tool tools.Tool, toolCall to
 		CreatedAt:  time.Now().Format(time.RFC3339),
 	}
 	sess.AddMessage(session.NewAgentMessage(a, &toolResponseMsg))
+	_ = r.sessionStore.UpdateSession(ctx, sess)
 }
 
 func (r *LocalRuntime) runAgentTool(ctx context.Context, handler ToolHandlerFunc, sess *session.Session, toolCall tools.ToolCall, tool tools.Tool, events chan Event, a *agent.Agent) {
@@ -1199,9 +1209,10 @@ func (r *LocalRuntime) runAgentTool(ctx context.Context, handler ToolHandlerFunc
 		CreatedAt:  time.Now().Format(time.RFC3339),
 	}
 	sess.AddMessage(session.NewAgentMessage(a, &toolResponseMsg))
+	_ = r.sessionStore.UpdateSession(ctx, sess)
 }
 
-func (r *LocalRuntime) addToolRejectedResponse(sess *session.Session, toolCall tools.ToolCall, tool tools.Tool, events chan Event) {
+func (r *LocalRuntime) addToolRejectedResponse(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, tool tools.Tool, events chan Event) {
 	a := r.CurrentAgent()
 
 	result := "The user rejected the tool call."
@@ -1215,9 +1226,10 @@ func (r *LocalRuntime) addToolRejectedResponse(sess *session.Session, toolCall t
 		CreatedAt:  time.Now().Format(time.RFC3339),
 	}
 	sess.AddMessage(session.NewAgentMessage(a, &toolResponseMsg))
+	_ = r.sessionStore.UpdateSession(ctx, sess)
 }
 
-func (r *LocalRuntime) addToolCancelledResponse(sess *session.Session, toolCall tools.ToolCall, tool tools.Tool, events chan Event) {
+func (r *LocalRuntime) addToolCancelledResponse(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, tool tools.Tool, events chan Event) {
 	a := r.CurrentAgent()
 
 	result := "The tool call was canceled by the user."
@@ -1231,6 +1243,7 @@ func (r *LocalRuntime) addToolCancelledResponse(sess *session.Session, toolCall 
 		CreatedAt:  time.Now().Format(time.RFC3339),
 	}
 	sess.AddMessage(session.NewAgentMessage(a, &toolResponseMsg))
+	_ = r.sessionStore.UpdateSession(ctx, sess)
 }
 
 // startSpan wraps tracer.Start, returning a no-op span if the tracer is nil.
@@ -1418,6 +1431,7 @@ func (r *LocalRuntime) Summarize(ctx context.Context, sess *session.Session, eve
 	}
 	// Add the summary to the session as a summary item
 	sess.Messages = append(sess.Messages, session.Item{Summary: summary})
+	_ = r.sessionStore.UpdateSession(ctx, sess)
 	slog.Debug("Generated session summary", "session_id", sess.ID, "summary_length", len(summary))
 	events <- SessionSummary(sess.ID, summary, r.currentAgent)
 }

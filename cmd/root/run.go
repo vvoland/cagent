@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
@@ -28,6 +30,7 @@ type runExecFlags struct {
 	modelOverrides []string
 	dryRun         bool
 	runConfig      config.RuntimeConfig
+	sessionDB      string
 
 	// Exec only
 	hideToolCalls bool
@@ -64,6 +67,7 @@ func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 	cmd.PersistentFlags().StringArrayVar(&flags.modelOverrides, "model", nil, "Override agent model: [agent=]provider/model (repeatable)")
 	cmd.PersistentFlags().BoolVar(&flags.dryRun, "dry-run", false, "Initialize the agent without executing anything")
 	cmd.PersistentFlags().StringVar(&flags.remoteAddress, "remote", "", "Use remote runtime with specified address")
+	cmd.PersistentFlags().StringVarP(&flags.sessionDB, "session-db", "s", filepath.Join(paths.GetHomeDir(), ".cagent", "session.db"), "Path to the session database")
 }
 
 func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
@@ -105,7 +109,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 			return err
 		}
 
-		rt, sess, err = f.createLocalRuntimeAndSession(t)
+		rt, sess, err = f.createLocalRuntimeAndSession(ctx, t)
 		if err != nil {
 			return err
 		}
@@ -166,10 +170,24 @@ func (f *runExecFlags) createRemoteRuntimeAndSession(ctx context.Context, origin
 	return remoteRt, sess, nil
 }
 
-func (f *runExecFlags) createLocalRuntimeAndSession(t *team.Team) (runtime.Runtime, *session.Session, error) {
+func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, t *team.Team) (runtime.Runtime, *session.Session, error) {
 	agent, err := t.Agent(f.agentName)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	sessStore, err := session.NewSQLiteSessionStore(f.sessionDB)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create session store: %w", err)
+	}
+
+	localRt, err := runtime.New(t,
+		runtime.WithSessionStore(sessStore),
+		runtime.WithCurrentAgent(f.agentName),
+		runtime.WithTracer(otel.Tracer(AppName)),
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create runtime: %w", err)
 	}
 
 	sess := session.New(
@@ -177,13 +195,8 @@ func (f *runExecFlags) createLocalRuntimeAndSession(t *team.Team) (runtime.Runti
 		session.WithToolsApproved(f.autoApprove),
 	)
 
-	localRt, err := runtime.New(t,
-		runtime.WithCurrentAgent(f.agentName),
-		runtime.WithTracer(otel.Tracer(AppName)),
-		runtime.WithRootSessionID(sess.ID),
-	)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create runtime: %w", err)
+	if err := sessStore.AddSession(ctx, sess); err != nil {
+		return nil, nil, err
 	}
 
 	slog.Debug("Using local runtime", "agent", f.agentName)
