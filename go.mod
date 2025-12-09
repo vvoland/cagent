@@ -8,7 +8,7 @@ require (
 	charm.land/lipgloss/v2 v2.0.0-beta.3.0.20251119143523-0334bb4562ca
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.0
 	github.com/Microsoft/go-winio v0.6.2
-	github.com/a2aproject/a2a-go v0.3.2
+	github.com/a2aproject/a2a-go v0.3.3
 	github.com/alecthomas/chroma/v2 v2.20.0
 	github.com/alpkeskin/gotoon v0.1.1
 	github.com/anthropics/anthropic-sdk-go v1.19.0
@@ -33,9 +33,9 @@ require (
 	github.com/mattn/go-isatty v0.0.20
 	github.com/mattn/go-runewidth v0.0.19
 	github.com/modelcontextprotocol/go-sdk v1.1.0
-	github.com/openai/openai-go/v3 v3.9.0
+	github.com/openai/openai-go/v3 v3.10.0
 	github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	github.com/temoto/robotstxt v1.1.2
 	github.com/wk8/go-ordered-map/v2 v2.1.9-0.20250401010720-46d686821e33
@@ -49,7 +49,7 @@ require (
 	golang.org/x/sys v0.38.0
 	golang.org/x/term v0.37.0
 	google.golang.org/adk v0.2.0
-	google.golang.org/genai v1.36.0
+	google.golang.org/genai v1.38.0
 	gopkg.in/dnaeon/go-vcr.v4 v4.0.6
 	gotest.tools/v3 v3.5.2
 	modernc.org/sqlite v1.40.1
