@@ -294,7 +294,10 @@ func (c *Client) CreateChatCompletionStream(
 		slog.Debug("Request", "request", string(b))
 	}
 
-	stream := client.Messages.NewStreaming(ctx, params)
+	// Add fine-grained tool streaming beta header
+	betaHeader := option.WithHeader("anthropic-beta", "fine-grained-tool-streaming-2025-05-14")
+
+	stream := client.Messages.NewStreaming(ctx, params, betaHeader)
 	trackUsage := c.ModelConfig.TrackUsage == nil || *c.ModelConfig.TrackUsage
 	ad := newStreamAdapter(stream, trackUsage)
 
@@ -313,7 +316,7 @@ func (c *Client) CreateChatCompletionStream(
 		slog.Warn("Retrying with clamped max_tokens after context length error", "original max_tokens", maxTokens, "clamped max_tokens", newMaxTokens, "used tokens", used)
 		retryParams := params
 		retryParams.MaxTokens = newMaxTokens
-		return newStreamAdapter(client.Messages.NewStreaming(ctx, retryParams), trackUsage)
+		return newStreamAdapter(client.Messages.NewStreaming(ctx, retryParams, betaHeader), trackUsage)
 	}
 
 	slog.Debug("Anthropic chat completion stream created successfully", "model", c.ModelConfig.Model)
