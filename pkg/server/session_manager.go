@@ -132,6 +132,7 @@ func (sm *sessionManager) RunSession(ctx context.Context, sessionID, agentFilena
 	for _, msg := range messages {
 		sess.AddMessage(session.UserMessage(msg.Content, msg.MultiContent...))
 	}
+
 	if err := sm.sessionStore.UpdateSession(ctx, sess); err != nil {
 		return nil, err
 	}
@@ -228,7 +229,7 @@ func (sm *sessionManager) runtimeForSession(ctx context.Context, sess *session.S
 	opts := []runtime.Opt{
 		runtime.WithCurrentAgent(currentAgent),
 		runtime.WithManagedOAuth(false),
-		runtime.WithRootSessionID(sess.ID),
+		runtime.WithSessionStore(sm.sessionStore),
 	}
 	run, err := runtime.New(t, opts...)
 	if err != nil {

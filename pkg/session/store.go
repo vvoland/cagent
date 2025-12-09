@@ -9,6 +9,8 @@ import (
 	"time"
 
 	_ "modernc.org/sqlite"
+
+	"github.com/docker/cagent/pkg/concurrent"
 )
 
 var (
@@ -32,6 +34,68 @@ type Store interface {
 	GetSessions(ctx context.Context) ([]*Session, error)
 	DeleteSession(ctx context.Context, id string) error
 	UpdateSession(ctx context.Context, session *Session) error
+}
+
+type InMemorySessionStore struct {
+	sessions *concurrent.Map[string, *Session]
+}
+
+func NewInMemorySessionStore() Store {
+	return &InMemorySessionStore{
+		sessions: concurrent.NewMap[string, *Session](),
+	}
+}
+
+func (s *InMemorySessionStore) AddSession(ctx context.Context, session *Session) error {
+	if session.ID == "" {
+		return ErrEmptyID
+	}
+	s.sessions.Store(session.ID, session)
+	return nil
+}
+
+func (s *InMemorySessionStore) GetSession(ctx context.Context, id string) (*Session, error) {
+	if id == "" {
+		return nil, ErrEmptyID
+	}
+	session, exists := s.sessions.Load(id)
+	if !exists {
+		return nil, ErrNotFound
+	}
+	return session, nil
+}
+
+func (s *InMemorySessionStore) GetSessions(ctx context.Context) ([]*Session, error) {
+	sessions := make([]*Session, 0, s.sessions.Length())
+	s.sessions.Range(func(key string, value *Session) bool {
+		sessions = append(sessions, value)
+		return true
+	})
+	return sessions, nil
+}
+
+func (s *InMemorySessionStore) DeleteSession(ctx context.Context, id string) error {
+	if id == "" {
+		return ErrEmptyID
+	}
+	_, exists := s.sessions.Load(id)
+	if !exists {
+		return ErrNotFound
+	}
+	s.sessions.Delete(id)
+	return nil
+}
+
+func (s *InMemorySessionStore) UpdateSession(ctx context.Context, session *Session) error {
+	if session.ID == "" {
+		return ErrEmptyID
+	}
+	_, exists := s.sessions.Load(session.ID)
+	if !exists {
+		return ErrNotFound
+	}
+	s.sessions.Store(session.ID, session)
+	return nil
 }
 
 // SQLiteSessionStore implements Store using SQLite
