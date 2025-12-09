@@ -8,7 +8,7 @@ require (
 	charm.land/lipgloss/v2 v2.0.0-beta.3.0.20251119143523-0334bb4562ca
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.0
 	github.com/Microsoft/go-winio v0.6.2
-	github.com/a2aproject/a2a-go v0.3.2
+	github.com/a2aproject/a2a-go v0.3.3
 	github.com/alecthomas/chroma/v2 v2.20.0
 	github.com/alpkeskin/gotoon v0.1.1
 	github.com/anthropics/anthropic-sdk-go v1.19.0
