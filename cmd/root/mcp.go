@@ -51,6 +51,10 @@ func (f *mcpFlags) runMCPCommand(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to bind to port %d: %w", f.port, err)
 		}
+		go func() {
+			<-ctx.Done()
+			_ = ln.Close()
+		}()
 
 		return mcp.StartHTTPServer(ctx, agentFilename, &f.runConfig, ln)
 	}
