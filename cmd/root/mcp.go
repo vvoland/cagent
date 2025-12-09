@@ -12,6 +12,7 @@ import (
 )
 
 type mcpFlags struct {
+	agentName string
 	http      bool
 	port      int
 	runConfig config.RuntimeConfig
@@ -33,6 +34,7 @@ func newMCPCmd() *cobra.Command {
 		RunE:    flags.runMCPCommand,
 	}
 
+	cmd.PersistentFlags().StringVarP(&flags.agentName, "agent", "a", "", "Name of the agent to run (all agents if not specified)")
 	cmd.PersistentFlags().BoolVar(&flags.http, "http", false, "Use streaming HTTP transport instead of stdio")
 	cmd.PersistentFlags().IntVar(&flags.port, "port", 0, "Port to listen on when using HTTP transport (default: random available port)")
 	addRuntimeConfigFlags(cmd, &flags.runConfig)
@@ -52,8 +54,8 @@ func (f *mcpFlags) runMCPCommand(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to bind to port %d: %w", f.port, err)
 		}
 
-		return mcp.StartHTTPServer(ctx, agentFilename, &f.runConfig, ln)
+		return mcp.StartHTTPServer(ctx, agentFilename, f.agentName, &f.runConfig, ln)
 	}
 
-	return mcp.StartMCPServer(ctx, agentFilename, &f.runConfig)
+	return mcp.StartMCPServer(ctx, agentFilename, f.agentName, &f.runConfig)
 }

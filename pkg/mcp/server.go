@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"slices"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -27,10 +28,10 @@ type ToolOutput struct {
 	Response string `json:"response" jsonschema:"the response from the agent"`
 }
 
-func StartMCPServer(ctx context.Context, agentFilename string, runConfig *config.RuntimeConfig) error {
+func StartMCPServer(ctx context.Context, agentFilename, agentName string, runConfig *config.RuntimeConfig) error {
 	slog.Debug("Starting MCP server", "agent", agentFilename)
 
-	server, cleanup, err := createMCPServer(ctx, agentFilename, runConfig)
+	server, cleanup, err := createMCPServer(ctx, agentFilename, agentName, runConfig)
 	if err != nil {
 		return err
 	}
@@ -46,10 +47,10 @@ func StartMCPServer(ctx context.Context, agentFilename string, runConfig *config
 }
 
 // StartHTTPServer starts a streaming HTTP MCP server on the given listener
-func StartHTTPServer(ctx context.Context, agentFilename string, runConfig *config.RuntimeConfig, ln net.Listener) error {
+func StartHTTPServer(ctx context.Context, agentFilename, agentName string, runConfig *config.RuntimeConfig, ln net.Listener) error {
 	slog.Debug("Starting HTTP MCP server", "agent", agentFilename, "addr", ln.Addr())
 
-	server, cleanup, err := createMCPServer(ctx, agentFilename, runConfig)
+	server, cleanup, err := createMCPServer(ctx, agentFilename, agentName, runConfig)
 	if err != nil {
 		return err
 	}
@@ -79,7 +80,7 @@ func StartHTTPServer(ctx context.Context, agentFilename string, runConfig *confi
 	}
 }
 
-func createMCPServer(ctx context.Context, agentFilename string, runConfig *config.RuntimeConfig) (*mcp.Server, func(), error) {
+func createMCPServer(ctx context.Context, agentFilename, agentName string, runConfig *config.RuntimeConfig) (*mcp.Server, func(), error) {
 	agentSource, err := config.Resolve(agentFilename)
 	if err != nil {
 		return nil, nil, err
@@ -102,6 +103,14 @@ func createMCPServer(ctx context.Context, agentFilename string, runConfig *confi
 	}, nil)
 
 	agentNames := t.AgentNames()
+	if agentName != "" {
+		if !slices.Contains(agentNames, agentName) {
+			cleanup()
+			return nil, nil, fmt.Errorf("agent %s not found in %s", agentName, agentFilename)
+		}
+		agentNames = []string{agentName}
+	}
+
 	slog.Debug("Adding MCP tools for agents", "count", len(agentNames))
 
 	for _, agentName := range agentNames {
