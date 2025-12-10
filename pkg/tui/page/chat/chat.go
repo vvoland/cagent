@@ -39,7 +39,14 @@ const (
 	sidebarWidth = 40
 	// Hide sidebar if window width is less than this
 	minWindowWidth = 120
+	// Width of the draggable center portion of the resize handle
+	resizeHandleWidth = 8
 )
+
+// EditorHeightChangedMsg is emitted when the editor height changes (e.g., during resize)
+type EditorHeightChangedMsg struct {
+	Height int
+}
 
 // Page represents the main chat page
 type Page interface {
@@ -48,6 +55,8 @@ type Page interface {
 	layout.Help
 	CompactSession() tea.Cmd
 	Cleanup()
+	// GetInputHeight returns the current height of the editor/input area (including padding)
+	GetInputHeight() int
 }
 
 // chatPage implements Page
@@ -82,8 +91,9 @@ type chatPage struct {
 	keyboardEnhancementsSupported bool
 
 	// Resizable editor state
-	isDragging  bool
-	editorLines int
+	isDragging       bool
+	isHoveringHandle bool
+	editorLines      int
 }
 
 // KeyMap defines key bindings for the chat page
@@ -241,7 +251,7 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return p, nil
 
 	case tea.MouseClickMsg:
-		if p.isOnResizeHandle(msg.Y) {
+		if p.isOnResizeHandle(msg.X, msg.Y) {
 			p.isDragging = true
 			return p, nil
 		}
@@ -253,6 +263,7 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			cmd := p.handleResize(msg.Y)
 			return p, cmd
 		}
+		p.isHoveringHandle = p.isOnResizeLine(msg.Y)
 		cmd := p.routeMouseEvent(msg, msg.Y)
 		return p, cmd
 
@@ -498,37 +509,53 @@ func (p *chatPage) SetSize(width, height int) tea.Cmd {
 	var cmds []tea.Cmd
 
 	// Calculate heights accounting for padding
-	// Clamp editor lines between 3 (min) and half screen (max)
-	minLines := 3
-	maxLines := max(3, (height-6)/2) // Leave room for messages
+	// Clamp editor lines between 4 (min) and half screen (max)
+	minLines := 4
+	maxLines := max(minLines, (height-6)/2) // Leave room for messages
 	p.editorLines = max(minLines, min(p.editorLines, maxLines))
-
-	editorHeight := p.editorLines
-
-	// Calculate available space, ensuring status bar remains visible
-	p.inputHeight = editorHeight + 3 // account for editor padding
 
 	// Account for horizontal padding in width
 	innerWidth := width - 2 // subtract left/right padding
 
+	targetEditorHeight := p.editorLines
+	editorCmd := p.editor.SetSize(innerWidth, targetEditorHeight)
+	cmds = append(cmds, editorCmd)
+
+	_, actualEditorHeight := p.editor.GetSize()
+	p.inputHeight = actualEditorHeight
+
+	// Emit height change message so completion popup can adjust position
+	cmds = append(cmds, core.CmdHandler(EditorHeightChangedMsg{Height: actualEditorHeight}))
+
 	var mainWidth int
 	if width >= minWindowWidth {
 		mainWidth = innerWidth - sidebarWidth
-		p.chatHeight = height - p.inputHeight - 1 // -1 for resize handle
+		if mainWidth < 1 {
+			mainWidth = 1
+		}
+		p.chatHeight = max(1, height-actualEditorHeight-1) // -1 for resize handle
 		p.sidebar.SetMode(sidebar.ModeVertical)
-		cmds = append(cmds, p.sidebar.SetSize(sidebarWidth, p.chatHeight), p.messages.SetPosition(0, 0))
+		cmds = append(cmds,
+			p.sidebar.SetSize(sidebarWidth, p.chatHeight),
+			p.messages.SetPosition(0, 0),
+		)
 	} else {
 		const horizontalSidebarHeight = 3
 		mainWidth = innerWidth
-		p.chatHeight = height - p.inputHeight - horizontalSidebarHeight - 1 // -1 for resize handle
+		if mainWidth < 1 {
+			mainWidth = 1
+		}
+		p.chatHeight = max(1, height-actualEditorHeight-horizontalSidebarHeight-1) // -1 for resize handle
 		p.sidebar.SetMode(sidebar.ModeHorizontal)
-		cmds = append(cmds, p.sidebar.SetSize(width, horizontalSidebarHeight), p.messages.SetPosition(0, horizontalSidebarHeight))
+		cmds = append(cmds,
+			p.sidebar.SetSize(width, horizontalSidebarHeight),
+			p.messages.SetPosition(0, horizontalSidebarHeight),
+		)
 	}
 
 	// Set component sizes
 	cmds = append(cmds,
 		p.messages.SetSize(mainWidth, p.chatHeight),
-		p.editor.SetSize(innerWidth, editorHeight), // Use calculated editor height
 	)
 
 	return tea.Batch(cmds...)
@@ -537,6 +564,11 @@ func (p *chatPage) SetSize(width, height int) tea.Cmd {
 // GetSize returns the current dimensions
 func (p *chatPage) GetSize() (width, height int) {
 	return p.width, p.height
+}
+
+// GetInputHeight returns the current height of the editor/input area (including padding)
+func (p *chatPage) GetInputHeight() int {
+	return p.inputHeight
 }
 
 // Bindings returns key bindings for the chat page
@@ -664,28 +696,58 @@ func (p *chatPage) CompactSession() tea.Cmd {
 
 func (p *chatPage) Cleanup() {
 	p.stopProgressBar()
+	p.editor.Cleanup()
 }
 
 // routeMouseEvent routes mouse events to editor (bottom) or messages (top) based on Y.
 func (p *chatPage) routeMouseEvent(msg tea.Msg, y int) tea.Cmd {
-	if y >= p.height-p.inputHeight {
-		model, cmd := p.editor.Update(msg)
-		p.editor = model.(editor.Editor)
+	editorTop := p.height - p.inputHeight
+	if y < editorTop {
+		model, cmd := p.messages.Update(msg)
+		p.messages = model.(messages.Model)
 		return cmd
 	}
-	model, cmd := p.messages.Update(msg)
-	p.messages = model.(messages.Model)
+
+	// Check for banner clicks to open attachment preview
+	if click, ok := msg.(tea.MouseClickMsg); ok && click.Button == tea.MouseLeft {
+		editorTopPadding := styles.EditorStyle.GetPaddingTop()
+		localY := y - editorTop - editorTopPadding
+		if localY >= 0 && localY < p.editor.BannerHeight() {
+			localX := max(0, click.X-styles.AppPaddingLeft)
+			if preview, ok := p.editor.AttachmentAt(localX); ok {
+				return p.openAttachmentPreview(preview)
+			}
+		}
+	}
+
+	model, cmd := p.editor.Update(msg)
+	p.editor = model.(editor.Editor)
 	return cmd
 }
 
-// isOnResizeHandle checks if y is on the resize handle (1 line above editor).
-func (p *chatPage) isOnResizeHandle(y int) bool {
-	return y == p.height-p.inputHeight-1
+// isOnResizeLine checks if y is on the resize handle line.
+func (p *chatPage) isOnResizeLine(y int) bool {
+	// Use current editor height (includes dynamic banner) rather than cached value
+	_, editorHeight := p.editor.GetSize()
+	return y == p.height-editorHeight-1
+}
+
+// isOnResizeHandle checks if (x, y) is on the draggable center of the resize handle.
+func (p *chatPage) isOnResizeHandle(x, y int) bool {
+	if !p.isOnResizeLine(y) {
+		return false
+	}
+	// Only the center portion is draggable
+	center := p.width / 2
+	return x >= center-resizeHandleWidth/2 && x < center+resizeHandleWidth/2
 }
 
 // handleResize adjusts editor height based on drag position.
 func (p *chatPage) handleResize(y int) tea.Cmd {
-	newLines := max(3, min(p.height-y-3, (p.height-6)/2))
+	// Subtract EditorStyle padding to get internal content lines
+	editorPadding := styles.EditorStyle.GetVerticalFrameSize()
+	targetLines := p.height - y - 1 - editorPadding
+	newLines := max(3, min(targetLines, (p.height-6)/2))
 	if newLines != p.editorLines {
 		p.editorLines = newLines
 		return p.SetSize(p.width, p.height)
@@ -695,7 +757,32 @@ func (p *chatPage) handleResize(y int) tea.Cmd {
 
 // renderResizeHandle renders the draggable separator between messages and editor.
 func (p *chatPage) renderResizeHandle(width int) string {
+	if p.isHoveringHandle || p.isDragging {
+		// Show a small centered highlight when hovered or dragging
+		handleWidth := min(resizeHandleWidth, width)
+		sideWidth := (width - handleWidth) / 2
+		leftPart := strings.Repeat("─", sideWidth)
+		centerPart := strings.Repeat("─", handleWidth)
+		rightPart := strings.Repeat("─", width-sideWidth-handleWidth)
+
+		// Use brighter style when actively dragging
+		centerStyle := styles.ResizeHandleHoverStyle
+		if p.isDragging {
+			centerStyle = styles.ResizeHandleActiveStyle
+		}
+
+		return styles.ResizeHandleStyle.Render(leftPart) +
+			centerStyle.Render(centerPart) +
+			styles.ResizeHandleStyle.Render(rightPart)
+	}
+	// Simple thin line when not hovered
 	return styles.ResizeHandleStyle.Render(strings.Repeat("─", width))
+}
+
+func (p *chatPage) openAttachmentPreview(preview editor.AttachmentPreview) tea.Cmd {
+	return core.CmdHandler(dialog.OpenDialogMsg{
+		Model: dialog.NewAttachmentPreviewDialog(preview),
+	})
 }
 
 // See: https://conemu.github.io/en/AnsiEscapeCodes.html#ConEmu_specific_OSC
