@@ -270,6 +270,10 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.application.Resume(msg.Response)
 		return a, nil
 
+	case chat.EditorHeightChangedMsg:
+		a.completions.SetEditorBottom(msg.Height)
+		return a, nil
+
 	case error:
 		a.err = msg
 		return a, nil
@@ -323,6 +327,9 @@ func (a *appModel) handleWindowResize(width, height int) tea.Cmd {
 
 	cmd = a.chatPage.SetSize(a.width, a.height)
 	cmds = append(cmds, cmd)
+
+	// Update completion manager with actual editor height for popup positioning
+	a.completions.SetEditorBottom(a.chatPage.GetInputHeight())
 
 	// Update status bar width
 	a.statusBar.SetWidth(a.width)

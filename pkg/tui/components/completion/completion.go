@@ -22,6 +22,7 @@ type Item struct {
 	Description string
 	Value       string
 	Execute     func() tea.Cmd
+	Pinned      bool // Pinned items always appear at the top, in original order
 }
 
 type OpenMsg struct {
@@ -83,6 +84,9 @@ type Manager interface {
 
 	GetLayers() []*lipgloss.Layer
 	Open() bool
+	// SetEditorBottom sets the height from the bottom of the screen where the editor ends.
+	// This is used to position the completion popup above the editor.
+	SetEditorBottom(height int)
 }
 
 // manager represents an item completion component that manages completion state and UI
@@ -90,6 +94,7 @@ type manager struct {
 	keyMap        completionKeyMap
 	width         int
 	height        int
+	editorBottom  int // height from screen bottom where editor ends (for popup positioning)
 	items         []Item
 	filteredItems []Item
 	query         string
@@ -182,6 +187,10 @@ func (c *manager) SetSize(width, height int) tea.Cmd {
 	return nil
 }
 
+func (c *manager) SetEditorBottom(height int) {
+	c.editorBottom = height
+}
+
 func (c *manager) View() string {
 	if !c.visible {
 		return ""
@@ -237,11 +246,15 @@ func (c *manager) GetLayers() []*lipgloss.Layer {
 	view := c.View()
 	viewHeight := lipgloss.Height(view)
 
-	editorHeight := 4
+	// Use actual editor height if set, otherwise fall back to reasonable default
+	editorHeight := c.editorBottom
+	if editorHeight == 0 {
+		editorHeight = 4
+	}
 	yPos := max(c.height-viewHeight-editorHeight-1, 0)
 
 	return []*lipgloss.Layer{
-		lipgloss.NewLayer(view).SetContent(view).X(1).Y(yPos),
+		lipgloss.NewLayer(view).SetContent(view).X(styles.AppPaddingLeft).Y(yPos),
 	}
 }
 
@@ -256,6 +269,7 @@ func (c *manager) filterItems(query string) {
 	}
 
 	pattern := []rune(strings.ToLower(query))
+	var pinnedItems []Item
 	var matches []matchResult
 
 	for _, item := range c.items {
@@ -271,10 +285,15 @@ func (c *manager) filterItems(query string) {
 		)
 
 		if result.Start >= 0 {
-			matches = append(matches, matchResult{
-				item:  item,
-				score: result.Score,
-			})
+			if item.Pinned {
+				// Pinned items keep their original order at the top
+				pinnedItems = append(pinnedItems, item)
+			} else {
+				matches = append(matches, matchResult{
+					item:  item,
+					score: result.Score,
+				})
+			}
 		}
 	}
 
@@ -282,7 +301,9 @@ func (c *manager) filterItems(query string) {
 		return matches[i].score > matches[j].score
 	})
 
-	c.filteredItems = make([]Item, 0, len(matches))
+	// Build result: pinned items first, then sorted matches
+	c.filteredItems = make([]Item, 0, len(pinnedItems)+len(matches))
+	c.filteredItems = append(c.filteredItems, pinnedItems...)
 	for _, match := range matches {
 		c.filteredItems = append(c.filteredItems, match.item)
 	}
