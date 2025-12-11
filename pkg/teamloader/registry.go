@@ -198,7 +198,17 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 			return mcp.NewRemoteToolset(toolset.Name, serverSpec.Remote.URL, serverSpec.Remote.TransportType, nil), nil
 		}
 
-		return mcp.NewGatewayToolset(ctx, toolset.Name, mcpServerName, toolset.Config, runConfig.EnvProvider(), runConfig.WorkingDir)
+		env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), runConfig.EnvProvider())
+		if err != nil {
+			return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
+		}
+
+		envProvider := environment.NewMultiProvider(
+			environment.NewEnvListProvider(env),
+			runConfig.EnvProvider(),
+		)
+
+		return mcp.NewGatewayToolset(ctx, toolset.Name, mcpServerName, toolset.Config, envProvider, runConfig.WorkingDir)
 	}
 
 	if toolset.Command != "" {

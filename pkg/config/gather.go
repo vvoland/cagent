@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -85,17 +86,34 @@ func GatherEnvVarsForTools(ctx context.Context, cfg *latest.Config) ([]string, e
 	requiredEnv := map[string]bool{}
 	var errs []error
 
-	for _, ref := range gatherMCPServerReferences(cfg) {
-		mcpServerName := gateway.ParseServerRef(ref)
+	for i := range cfg.Agents {
+		agent := cfg.Agents[i]
 
-		secrets, err := gateway.RequiredEnvVars(ctx, mcpServerName)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("reading which secrets the MCP server needs for %s: %w", ref, err))
-			continue
-		}
+		for j := range agent.Toolsets {
+			toolSet := agent.Toolsets[j]
+			ref := toolSet.Ref
+			if toolSet.Type != "mcp" || ref == "" {
+				continue
+			}
 
-		for _, secret := range secrets {
-			requiredEnv[secret.Env] = true
+			mcpServerName := gateway.ParseServerRef(ref)
+			secrets, err := gateway.RequiredEnvVars(ctx, mcpServerName)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("reading which secrets the MCP server needs for %s: %w", ref, err))
+				continue
+			}
+
+			for _, secret := range secrets {
+				value, ok := toolSet.Env[secret.Env]
+				if !ok {
+					requiredEnv[secret.Env] = true
+				} else {
+					os.Expand(value, func(name string) string {
+						requiredEnv[name] = true
+						return ""
+					})
+				}
+			}
 		}
 	}
 
@@ -103,29 +121,6 @@ func GatherEnvVarsForTools(ctx context.Context, cfg *latest.Config) ([]string, e
 		return mcpToSortedList(requiredEnv), fmt.Errorf("tool env preflight: %w", errors.Join(errs...))
 	}
 	return mcpToSortedList(requiredEnv), nil
-}
-
-func gatherMCPServerReferences(cfg *latest.Config) []string {
-	servers := map[string]bool{}
-
-	for i := range cfg.Agents {
-		agent := cfg.Agents[i]
-		for j := range agent.Toolsets {
-			toolSet := agent.Toolsets[j]
-
-			if toolSet.Type == "mcp" && toolSet.Ref != "" {
-				servers[toolSet.Ref] = true
-			}
-		}
-	}
-
-	var list []string
-	for e := range servers {
-		list = append(list, e)
-	}
-	sort.Strings(list)
-
-	return list
 }
 
 func mcpToSortedList(requiredEnv map[string]bool) []string {
