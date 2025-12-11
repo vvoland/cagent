@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/fake"
 	"github.com/docker/cagent/pkg/server"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/telemetry"
@@ -19,6 +20,7 @@ type apiFlags struct {
 	listenAddr       string
 	sessionDB        string
 	pullIntervalMins int
+	fakeResponses    string
 	runConfig        config.RuntimeConfig
 }
 
@@ -37,6 +39,7 @@ func newAPICmd() *cobra.Command {
 	cmd.PersistentFlags().StringVarP(&flags.listenAddr, "listen", "l", ":8080", "Address to listen on")
 	cmd.PersistentFlags().StringVarP(&flags.sessionDB, "session-db", "s", "session.db", "Path to the session database")
 	cmd.PersistentFlags().IntVar(&flags.pullIntervalMins, "pull-interval", 0, "Auto-pull OCI reference every N minutes (0 = disabled)")
+	cmd.PersistentFlags().StringVar(&flags.fakeResponses, "fake", "", "Replay AI responses from cassette file (for testing)")
 	addRuntimeConfigFlags(cmd, &flags.runConfig)
 
 	return cmd
@@ -51,6 +54,22 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 
 	// Make sure no question is ever asked to the user in api mode.
 	os.Stdin = nil
+
+	// Start fake proxy if --fake is specified
+	if f.fakeResponses != "" {
+		proxyURL, cleanup, err := fake.StartProxy(f.fakeResponses)
+		if err != nil {
+			return fmt.Errorf("failed to start fake proxy: %w", err)
+		}
+		defer func() {
+			if err := cleanup(); err != nil {
+				slog.Error("Failed to cleanup fake proxy", "error", err)
+			}
+		}()
+
+		f.runConfig.ModelsGateway = proxyURL
+		slog.Info("Fake mode enabled", "cassette", f.fakeResponses, "proxy", proxyURL)
+	}
 
 	if f.pullIntervalMins > 0 && !config.IsOCIReference(agentsPath) {
 		return fmt.Errorf("--pull-interval flag can only be used with OCI references, not local files")
