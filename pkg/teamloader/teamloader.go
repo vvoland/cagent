@@ -96,6 +96,11 @@ func Load(ctx context.Context, agentSource config.Source, runConfig *config.Runt
 	expander := js.NewJsExpander(env)
 
 	for name, agentConfig := range cfg.Agents {
+		skillsEnabled := false
+		if agentConfig.Skills != nil {
+			skillsEnabled = *agentConfig.Skills
+		}
+
 		opts := []agent.Opt{
 			agent.WithName(name),
 			agent.WithDescription(expander.Expand(ctx, agentConfig.Description)),
@@ -106,6 +111,7 @@ func Load(ctx context.Context, agentSource config.Source, runConfig *config.Runt
 			agent.WithMaxIterations(agentConfig.MaxIterations),
 			agent.WithNumHistoryItems(agentConfig.NumHistoryItems),
 			agent.WithCommands(expander.ExpandMap(ctx, agentConfig.Commands)),
+			agent.WithSkillsEnabled(skillsEnabled),
 		}
 
 		models, err := getModelsForAgent(ctx, cfg, &agentConfig, autoModel, runConfig)

@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/skills"
 )
 
 // TODO: instead of trimming, we should compact the history when it nears the
@@ -335,6 +336,14 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 			if additionalPrompt != "" {
 				content += "\n\n" + additionalPrompt
 			}
+		}
+	}
+
+	// Add skills section if enabled
+	if a.SkillsEnabled() {
+		loadedSkills := skills.Load()
+		if len(loadedSkills) > 0 {
+			content += skills.BuildSkillsPrompt(loadedSkills)
 		}
 	}
 

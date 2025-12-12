@@ -47,6 +47,14 @@ func TestValidationErrors(t *testing.T) {
 			name: "post_edit in non filesystem toolset",
 			path: "invalid_post_edit_v2.yaml",
 		},
+		{
+			name: "skills enabled without filesystem toolset",
+			path: "skills_missing_filesystem.yaml",
+		},
+		{
+			name: "skills enabled without read_file tool",
+			path: "skills_missing_read_file.yaml",
+		},
 	}
 
 	for _, tt := range tests {
@@ -55,6 +63,38 @@ func TestValidationErrors(t *testing.T) {
 
 			_, err := Load(t.Context(), testfileSource(filepath.Join("testdata", tt.path)))
 			require.Error(t, err)
+		})
+	}
+}
+
+func TestValidSkillsConfiguration(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		path string
+	}{
+		{
+			name: "skills with all filesystem tools",
+			path: "skills_valid_all_tools.yaml",
+		},
+		{
+			name: "skills with explicit read_file tool",
+			path: "skills_valid_explicit_tools.yaml",
+		},
+		{
+			name: "skills disabled",
+			path: "skills_disabled.yaml",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg, err := Load(t.Context(), testfileSource(filepath.Join("testdata", tt.path)))
+			require.NoError(t, err)
+			require.NotNil(t, cfg)
 		})
 	}
 }

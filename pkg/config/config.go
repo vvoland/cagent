@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 
 	"github.com/goccy/go-yaml"
 
@@ -116,6 +117,10 @@ func validateConfig(cfg *latest.Config) error {
 				return fmt.Errorf("agent '%s' references non-existent sub-agent '%s'", agentName, subAgentName)
 			}
 		}
+
+		if err := validateSkillsConfiguration(agentName, &agent); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -123,4 +128,45 @@ func validateConfig(cfg *latest.Config) error {
 
 func boolPtr(b bool) *bool {
 	return &b
+}
+
+// validateSkillsConfiguration ensures that agents with skills enabled have the necessary tools
+func validateSkillsConfiguration(agentName string, agent *latest.AgentConfig) error {
+	// Check if skills are enabled
+	if agent.Skills == nil || !*agent.Skills {
+		return nil
+	}
+
+	// Skills are enabled, validate toolsets
+	hasFilesystemToolset := false
+	hasReadFileTool := false
+
+	for _, toolset := range agent.Toolsets {
+		if toolset.Type == "filesystem" {
+			hasFilesystemToolset = true
+
+			// Check if read_file tool is enabled
+			// If no specific tools are listed, all tools are enabled
+			if len(toolset.Tools) == 0 {
+				hasReadFileTool = true
+				break
+			}
+
+			// Check if read_file is in the tools list
+			if slices.Contains(toolset.Tools, "read_file") {
+				hasReadFileTool = true
+				break
+			}
+		}
+	}
+
+	if !hasFilesystemToolset {
+		return fmt.Errorf("agent '%s' has skills enabled but does not have a 'filesystem' toolset configured", agentName)
+	}
+
+	if !hasReadFileTool {
+		return fmt.Errorf("agent '%s' has skills enabled but the 'filesystem' toolset does not include the 'read_file' tool", agentName)
+	}
+
+	return nil
 }
