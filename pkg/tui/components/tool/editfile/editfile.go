@@ -79,7 +79,7 @@ func (c *Component) View() string {
 	}
 
 	if msg.ToolCall.Function.Arguments != "" {
-		content += "\n\n" + styles.ToolCallResult.Render(renderEditFile(msg.ToolCall, c.width-4, c.sessionState.SplitDiffView, msg.ToolStatus))
+		content += "\n\n" + styles.ToolCallResult.Render(renderEditFile(msg.ToolCall, c.width-1, c.sessionState.SplitDiffView, msg.ToolStatus))
 	}
 
 	var resultContent string
