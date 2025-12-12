@@ -48,15 +48,51 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 
 	var clientFn func(context.Context) (*genai.Client, error)
 	if gateway := globalOptions.Gateway(); gateway == "" {
-		apiKey := env.Get(ctx, "GOOGLE_API_KEY")
-		if apiKey == "" {
-			return nil, errors.New("GOOGLE_API_KEY environment variable is required")
+		var (
+			httpClient *http.Client
+			backend    genai.Backend
+			apiKey     string
+			project    string
+			location   string
+		)
+		// project/location take priority over API key, like in the genai client.
+		if cfg.ProviderOpts["project"] != nil || cfg.ProviderOpts["location"] != nil {
+			var err error
+
+			project, err = environment.Expand(ctx, providerOption(cfg, "project"), env)
+			if err != nil {
+				return nil, fmt.Errorf("expanding project: %w", err)
+			}
+			if project == "" {
+				return nil, errors.New("project must be set")
+			}
+
+			location, err = environment.Expand(ctx, providerOption(cfg, "location"), env)
+			if err != nil {
+				return nil, fmt.Errorf("expanding location: %w", err)
+			}
+			if location == "" {
+				return nil, errors.New("location must be set")
+			}
+
+			backend = genai.BackendVertexAI
+			httpClient = nil // Use default client
+		} else {
+			apiKey = env.Get(ctx, "GOOGLE_API_KEY")
+			if apiKey == "" {
+				return nil, errors.New("GOOGLE_API_KEY environment variable is required")
+			}
+
+			backend = genai.BackendGeminiAPI
+			httpClient = httpclient.NewHTTPClient()
 		}
 
 		client, err := genai.NewClient(ctx, &genai.ClientConfig{
 			APIKey:     apiKey,
-			Backend:    genai.BackendGeminiAPI,
-			HTTPClient: httpclient.NewHTTPClient(),
+			Project:    project,
+			Location:   location,
+			Backend:    backend,
+			HTTPClient: httpClient,
 			HTTPOptions: genai.HTTPOptions{
 				BaseURL: cfg.BaseURL,
 			},
@@ -547,4 +583,12 @@ func defaultsTo(value, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func providerOption(cfg *latest.ModelConfig, name string) string {
+	v := cfg.ProviderOpts[name]
+	if v, ok := v.(string); ok {
+		return v
+	}
+	return ""
 }

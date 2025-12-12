@@ -9,3 +9,7 @@ models:
   gemini:
     provider: google
     model: gemini-2-0
+    # For Vertex AI
+    # provider_opts:
+    #   project: my-gcp-project
+    #   location: us-central1
