@@ -71,7 +71,9 @@ func GatherEnvVarsForModels(cfg *latest.Config) []string {
 				case "anthropic":
 					requiredEnv["ANTHROPIC_API_KEY"] = true
 				case "google":
-					requiredEnv["GOOGLE_API_KEY"] = true
+					if model.ProviderOpts["project"] == nil && model.ProviderOpts["location"] == nil {
+						requiredEnv["GOOGLE_API_KEY"] = true
+					}
 				case "mistral":
 					requiredEnv["MISTRAL_API_KEY"] = true
 				}
