@@ -44,7 +44,7 @@ func TestRemoteClientCustomHeaders(t *testing.T) {
 		"Authorization": "Bearer custom-token",
 	}
 
-	client := newRemoteClient(server.URL, "sse", expectedHeaders, NewInMemoryTokenStore(), false)
+	client := newRemoteClient(server.URL, "sse", expectedHeaders, NewInMemoryTokenStore())
 
 	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()
@@ -94,7 +94,7 @@ func TestRemoteClientHeadersWithStreamable(t *testing.T) {
 		"X-Custom-Auth": "custom-auth-value",
 	}
 
-	client := newRemoteClient(server.URL, "streamable", expectedHeaders, NewInMemoryTokenStore(), false)
+	client := newRemoteClient(server.URL, "streamable", expectedHeaders, NewInMemoryTokenStore())
 
 	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()
@@ -137,7 +137,7 @@ func TestRemoteClientNoHeaders(t *testing.T) {
 	defer server.Close()
 
 	// Create remote client without custom headers (nil)
-	client := newRemoteClient(server.URL, "sse", nil, NewInMemoryTokenStore(), false)
+	client := newRemoteClient(server.URL, "sse", nil, NewInMemoryTokenStore())
 
 	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()
@@ -176,7 +176,7 @@ func TestRemoteClientEmptyHeaders(t *testing.T) {
 	defer server.Close()
 
 	// Create remote client with empty headers map
-	client := newRemoteClient(server.URL, "sse", map[string]string{}, NewInMemoryTokenStore(), false)
+	client := newRemoteClient(server.URL, "sse", map[string]string{}, NewInMemoryTokenStore())
 
 	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()

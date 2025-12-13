@@ -25,8 +25,8 @@ type remoteMCPClient struct {
 	mu                  sync.RWMutex
 }
 
-func newRemoteClient(url, transportType string, headers map[string]string, tokenStore OAuthTokenStore, managed bool) *remoteMCPClient {
-	slog.Debug("Creating remote MCP client", "url", url, "transport", transportType, "headers", headers, "managed", managed)
+func newRemoteClient(url, transportType string, headers map[string]string, tokenStore OAuthTokenStore) *remoteMCPClient {
+	slog.Debug("Creating remote MCP client", "url", url, "transport", transportType, "headers", headers)
 
 	if tokenStore == nil {
 		tokenStore = NewInMemoryTokenStore()
@@ -37,7 +37,7 @@ func newRemoteClient(url, transportType string, headers map[string]string, token
 		transportType: transportType,
 		headers:       headers,
 		tokenStore:    tokenStore,
-		managed:       managed,
+		managed:       false,
 	}
 }
 
