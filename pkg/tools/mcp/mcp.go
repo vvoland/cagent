@@ -56,7 +56,7 @@ func NewRemoteToolset(name, url, transport string, headers map[string]string) *T
 
 	return &Toolset{
 		name:      name,
-		mcpClient: newRemoteClient(url, transport, headers, NewInMemoryTokenStore(), false),
+		mcpClient: newRemoteClient(url, transport, headers, NewInMemoryTokenStore()),
 		logID:     url,
 	}
 }

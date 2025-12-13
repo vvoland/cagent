@@ -25,8 +25,8 @@ type remoteMCPClient struct {
 	mu                  sync.RWMutex
 }
 
-func newRemoteClient(url, transportType string, headers map[string]string, tokenStore OAuthTokenStore, managed bool) *remoteMCPClient {
-	slog.Debug("Creating remote MCP client", "url", url, "transport", transportType, "headers", headers, "managed", managed)
+func newRemoteClient(url, transportType string, headers map[string]string, tokenStore OAuthTokenStore) *remoteMCPClient {
+	slog.Debug("Creating remote MCP client", "url", url, "transport", transportType, "headers", headers)
 
 	if tokenStore == nil {
 		tokenStore = NewInMemoryTokenStore()
@@ -37,7 +37,7 @@ func newRemoteClient(url, transportType string, headers map[string]string, token
 		transportType: transportType,
 		headers:       headers,
 		tokenStore:    tokenStore,
-		managed:       managed,
+		managed:       false,
 	}
 }
 
@@ -123,16 +123,47 @@ func (c *remoteMCPClient) Initialize(ctx context.Context, _ *mcp.InitializeReque
 	return session.InitializeResult(), nil
 }
 
-// createHTTPClient creates an HTTP client with OAuth support
+// headerTransport is a RoundTripper that adds custom headers to all requests
+type headerTransport struct {
+	base    http.RoundTripper
+	headers map[string]string
+}
+
+func (t *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Clone the request to avoid modifying the original
+	req = req.Clone(req.Context())
+
+	// Add custom headers
+	for key, value := range t.headers {
+		req.Header.Set(key, value)
+	}
+
+	return t.base.RoundTrip(req)
+}
+
+// createHTTPClient creates an HTTP client with custom headers and OAuth support
 func (c *remoteMCPClient) createHTTPClient() *http.Client {
+	transport := http.DefaultTransport
+
+	// Add custom headers first
+	if len(c.headers) > 0 {
+		transport = &headerTransport{
+			base:    transport,
+			headers: c.headers,
+		}
+	}
+
+	// Then wrap with OAuth support
+	transport = &oauthTransport{
+		base:       transport,
+		client:     c,
+		tokenStore: c.tokenStore,
+		baseURL:    c.url,
+		managed:    c.managed,
+	}
+
 	return &http.Client{
-		Transport: &oauthTransport{
-			base:       http.DefaultTransport,
-			client:     c,
-			tokenStore: c.tokenStore,
-			baseURL:    c.url,
-			managed:    c.managed,
-		},
+		Transport: transport,
 	}
 }
 
