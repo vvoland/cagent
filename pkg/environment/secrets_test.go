@@ -71,3 +71,57 @@ func TestRunSecretsProvider(t *testing.T) {
 		})
 	}
 }
+
+func TestRunSecretsProvider_PathTraversal(t *testing.T) {
+	t.Parallel()
+
+	// Create a temporary directory structure
+	tmpDir := t.TempDir()
+
+	// Create a "secrets" subdirectory
+	secretsDir := filepath.Join(tmpDir, "secrets")
+	require.NoError(t, os.Mkdir(secretsDir, 0o755))
+
+	// Create a legitimate secret inside the secrets directory
+	secretFile := filepath.Join(secretsDir, "api_key")
+	require.NoError(t, os.WriteFile(secretFile, []byte("SECRET_VALUE"), 0o644))
+
+	// Create a sensitive file OUTSIDE the secrets directory (simulating /etc/passwd, etc.)
+	sensitiveFile := filepath.Join(tmpDir, "sensitive.txt")
+	require.NoError(t, os.WriteFile(sensitiveFile, []byte("SENSITIVE_DATA"), 0o644))
+
+	provider := &RunSecretsProvider{
+		root: secretsDir,
+	}
+
+	// Test 1: Normal access should work
+	result := provider.Get(t.Context(), "api_key")
+	assert.Equal(t, "SECRET_VALUE", result, "Normal secret access should work")
+
+	// Test 2: Path traversal with ../ should be blocked
+	result = provider.Get(t.Context(), "../sensitive.txt")
+	assert.Empty(t, result, "Path traversal with ../ should be blocked and return empty string")
+
+	// Test 3: Multiple path traversal levels
+	result = provider.Get(t.Context(), "../../sensitive.txt")
+	assert.Empty(t, result, "Multiple path traversal levels should be blocked")
+
+	// Test 4: Absolute path outside secrets dir should be blocked
+	result = provider.Get(t.Context(), sensitiveFile)
+	assert.Empty(t, result, "Absolute path outside secrets dir should be blocked")
+
+	// Test 5: Path with ../ that normalizes to valid path within directory
+	// This is NOT a vulnerability - it's proper path normalization
+	subDir := filepath.Join(secretsDir, "subdir")
+	require.NoError(t, os.Mkdir(subDir, 0o755))
+	subSecret := filepath.Join(subDir, "subsecret")
+	require.NoError(t, os.WriteFile(subSecret, []byte("SUB_VALUE"), 0o644))
+
+	// subdir/../api_key normalizes to api_key, which is valid
+	result = provider.Get(t.Context(), "subdir/../api_key")
+	assert.Equal(t, "SECRET_VALUE", result, "Path that normalizes to valid location should work")
+
+	// But accessing subsecret directly should work
+	result = provider.Get(t.Context(), "subdir/subsecret")
+	assert.Equal(t, "SUB_VALUE", result, "Subdirectory access should work")
+}
