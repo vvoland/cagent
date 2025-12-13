@@ -37,7 +37,7 @@ func NewScriptShellTool(shellTools map[string]latest.ScriptShellToolConfig, env 
 func validateConfig(toolName string, tool latest.ScriptShellToolConfig) error {
 	// If no required array was set, all arguments are required
 	if tool.Required == nil {
-		tool.Required = make([]string, len(tool.Args))
+		tool.Required = make([]string, 0, len(tool.Args))
 		for argName := range tool.Args {
 			tool.Required = append(tool.Required, argName)
 		}
