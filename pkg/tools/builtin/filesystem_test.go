@@ -58,6 +58,62 @@ func TestFilesystemTool_IsPathAllowed(t *testing.T) {
 	assert.Contains(t, err.Error(), "not within allowed directories")
 }
 
+// TestFilesystemTool_IsPathAllowed_SiblingDirectories tests the fix for issue #1076
+// It verifies that sibling directories with similar names don't bypass the allow-list
+func TestFilesystemTool_IsPathAllowed_SiblingDirectories(t *testing.T) {
+	t.Parallel()
+
+	// Create a temporary directory structure:
+	// - tmpRoot/project (allowed)
+	// - tmpRoot/project-secrets (should NOT be allowed)
+	// - tmpRoot/project2 (should NOT be allowed)
+	// - tmpRoot/projectx (should NOT be allowed)
+	tmpRoot := t.TempDir()
+
+	projectDir := filepath.Join(tmpRoot, "project")
+	projectSecretsDir := filepath.Join(tmpRoot, "project-secrets")
+	project2Dir := filepath.Join(tmpRoot, "project2")
+	projectXDir := filepath.Join(tmpRoot, "projectx")
+
+	require.NoError(t, os.Mkdir(projectDir, 0o755))
+	require.NoError(t, os.Mkdir(projectSecretsDir, 0o755))
+	require.NoError(t, os.Mkdir(project2Dir, 0o755))
+	require.NoError(t, os.Mkdir(projectXDir, 0o755))
+
+	// Only allow the "project" directory
+	tool := NewFilesystemTool([]string{projectDir})
+
+	// Test that subdirectories of allowed directory are accessible
+	allowedSubdir := filepath.Join(projectDir, "src", "main.go")
+	err := tool.isPathAllowed(allowedSubdir)
+	require.NoError(t, err, "Subdirectories of allowed directory should be accessible")
+
+	// Test that the allowed directory itself is accessible
+	err = tool.isPathAllowed(projectDir)
+	require.NoError(t, err, "Allowed directory itself should be accessible")
+
+	// Test that sibling directories with similar names are NOT accessible
+	siblingTests := []struct {
+		name string
+		path string
+	}{
+		{"project-secrets", filepath.Join(projectSecretsDir, "confidential.txt")},
+		{"project2", filepath.Join(project2Dir, "file.txt")},
+		{"projectx", filepath.Join(projectXDir, "file.txt")},
+		{"project-secrets dir", projectSecretsDir},
+		{"project2 dir", project2Dir},
+		{"projectx dir", projectXDir},
+	}
+
+	for _, tc := range siblingTests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tool.isPathAllowed(tc.path)
+			require.Error(t, err, "Sibling directory %s should NOT be accessible", tc.name)
+			assert.Contains(t, err.Error(), "not within allowed directories")
+		})
+	}
+}
+
 func TestFilesystemTool_WriteFile(t *testing.T) {
 	t.Parallel()
 	tmpDir := t.TempDir()
