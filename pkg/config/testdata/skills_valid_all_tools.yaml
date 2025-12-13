@@ -1,0 +1,8 @@
+version: "3"
+
+agents:
+  root:
+    model: openai/gpt-4o
+    skills: true
+    toolsets:
+      - type: filesystem

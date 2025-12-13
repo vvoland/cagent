@@ -38,6 +38,7 @@ type AgentConfig struct {
 	AddPromptFiles     []string          `json:"add_prompt_files,omitempty" yaml:"add_prompt_files,omitempty"`
 	Commands           types.Commands    `json:"commands,omitempty"`
 	StructuredOutput   *StructuredOutput `json:"structured_output,omitempty"`
+	Skills             *bool             `json:"skills,omitempty"`
 }
 
 // ModelConfig represents the configuration for a model

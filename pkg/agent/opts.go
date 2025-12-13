@@ -117,6 +117,12 @@ func WithLoadTimeWarnings(warnings []string) Opt {
 	}
 }
 
+func WithSkillsEnabled(enabled bool) Opt {
+	return func(a *Agent) {
+		a.skillsEnabled = enabled
+	}
+}
+
 type StartableToolSet struct {
 	tools.ToolSet
 	started atomic.Bool

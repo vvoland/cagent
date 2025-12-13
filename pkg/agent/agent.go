@@ -29,6 +29,7 @@ type Agent struct {
 	tools              []tools.Tool
 	commands           map[string]string
 	pendingWarnings    []string
+	skillsEnabled      bool
 }
 
 // New creates a new agent
@@ -112,6 +113,11 @@ func (a *Agent) Model() provider.Provider {
 // Commands returns the named commands configured for this agent.
 func (a *Agent) Commands() map[string]string {
 	return a.commands
+}
+
+// SkillsEnabled returns whether skills discovery is enabled for this agent.
+func (a *Agent) SkillsEnabled() bool {
+	return a.skillsEnabled
 }
 
 // Tools returns the tools available to this agent
