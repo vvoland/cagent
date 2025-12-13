@@ -345,7 +345,10 @@ func (t *FilesystemTool) isPathAllowed(path string) error {
 			continue
 		}
 
-		if strings.HasPrefix(absPath, allowedAbs) {
+		// Check if path matches exactly or is a subdirectory (with separator check)
+		// This prevents sibling directories with similar names from bypassing the check
+		// (e.g., /project-secrets when /project is allowed)
+		if absPath == allowedAbs || strings.HasPrefix(absPath, allowedAbs+string(filepath.Separator)) {
 			return nil
 		}
 	}
@@ -504,7 +507,8 @@ func (t *FilesystemTool) handleAddAllowedDirectory(_ context.Context, args AddAl
 			return &tools.ToolCallResult{Output: fmt.Sprintf("Directory %s is already in allowed directories list", absPath)}, nil
 		}
 		// Check if the requested path is already covered by an existing allowed directory
-		if strings.HasPrefix(absPath, allowedAbs) {
+		// Use proper separator check to prevent sibling directory bypass
+		if absPath == allowedAbs || strings.HasPrefix(absPath, allowedAbs+string(filepath.Separator)) {
 			return &tools.ToolCallResult{Output: fmt.Sprintf("Directory %s is already accessible (covered by %s)", absPath, allowedAbs)}, nil
 		}
 	}
