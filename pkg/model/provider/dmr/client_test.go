@@ -32,7 +32,7 @@ func TestNewClientWithWrongType(t *testing.T) {
 }
 
 func TestBuildDockerConfigureArgs(t *testing.T) {
-	args := buildDockerModelConfigureArgs("ai/qwen3:14B-Q6_K", 8192, []string{"--temp", "0.7", "--top-p", "0.9"}, nil)
+	args := buildDockerModelConfigureArgs("ai/qwen3:14B-Q6_K", int64Ptr(8192), []string{"--temp", "0.7", "--top-p", "0.9"}, nil)
 
 	assert.Equal(t, []string{"model", "configure", "--context-size=8192", "ai/qwen3:14B-Q6_K", "--", "--temp", "0.7", "--top-p", "0.9"}, args)
 }
@@ -52,7 +52,7 @@ func TestIntegrateFlagsWithProviderOptsOrder(t *testing.T) {
 	cfg := &latest.ModelConfig{
 		Temperature: floatPtr(0.6),
 		TopP:        floatPtr(0.9),
-		MaxTokens:   4096,
+		MaxTokens:   int64Ptr(4096),
 		ProviderOpts: map[string]any{
 			"runtime_flags": []string{"--threads", "6"},
 		},
@@ -84,13 +84,17 @@ func floatPtr(f float64) *float64 {
 	return &f
 }
 
+func int64Ptr(i int64) *int64 {
+	return &i
+}
+
 func TestBuildDockerConfigureArgsWithSpeculativeDecoding(t *testing.T) {
 	specOpts := &speculativeDecodingOpts{
 		draftModel:     "ai/qwen3:1B",
 		numTokens:      5,
 		acceptanceRate: 0.8,
 	}
-	args := buildDockerModelConfigureArgs("ai/qwen3:14B-Q6_K", 8192, []string{"--temp", "0.7"}, specOpts)
+	args := buildDockerModelConfigureArgs("ai/qwen3:14B-Q6_K", int64Ptr(8192), []string{"--temp", "0.7"}, specOpts)
 
 	assert.Equal(t, []string{
 		"model", "configure",
@@ -110,7 +114,7 @@ func TestBuildDockerConfigureArgsWithPartialSpeculativeDecoding(t *testing.T) {
 		numTokens:  5,
 		// acceptanceRate not set (0 value)
 	}
-	args := buildDockerModelConfigureArgs("ai/qwen3:14B-Q6_K", 0, nil, specOpts)
+	args := buildDockerModelConfigureArgs("ai/qwen3:14B-Q6_K", nil, nil, specOpts)
 
 	assert.Equal(t, []string{
 		"model", "configure",
@@ -122,7 +126,7 @@ func TestBuildDockerConfigureArgsWithPartialSpeculativeDecoding(t *testing.T) {
 
 func TestParseDMRProviderOptsWithSpeculativeDecoding(t *testing.T) {
 	cfg := &latest.ModelConfig{
-		MaxTokens: 4096,
+		MaxTokens: int64Ptr(4096),
 		ProviderOpts: map[string]any{
 			"speculative_draft_model":     "ai/qwen3:1B",
 			"speculative_num_tokens":      "5",
@@ -143,7 +147,7 @@ func TestParseDMRProviderOptsWithSpeculativeDecoding(t *testing.T) {
 
 func TestParseDMRProviderOptsWithoutSpeculativeDecoding(t *testing.T) {
 	cfg := &latest.ModelConfig{
-		MaxTokens: 4096,
+		MaxTokens: int64Ptr(4096),
 		ProviderOpts: map[string]any{
 			"runtime_flags": []string{"--threads", "8"},
 		},

@@ -50,11 +50,12 @@ func AutoModelConfig(ctx context.Context, modelsGateway string, env environment.
 	}
 }
 
-func PreferredMaxTokens(provider string) int {
+func PreferredMaxTokens(provider string) *int64 {
+	var mt int64 = 32000
 	if provider == "dmr" {
-		return 16000
+		mt = 16000
 	}
-	return 64000
+	return &mt
 }
 
 // AutoEmbeddingModelConfigs returns the ordered list of embedding-capable models

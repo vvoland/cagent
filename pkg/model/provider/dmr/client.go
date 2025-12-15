@@ -536,9 +536,9 @@ func (c *Client) CreateChatCompletionStream(ctx context.Context, messages []chat
 		params.ParallelToolCalls = openai.Bool(*c.ModelConfig.ParallelToolCalls)
 	}
 
-	if c.ModelConfig.MaxTokens > 0 {
-		params.MaxTokens = openai.Int(int64(c.ModelConfig.MaxTokens))
-		slog.Debug("DMR request configured with max tokens", "max_tokens", c.ModelConfig.MaxTokens)
+	if c.ModelConfig.MaxTokens != nil {
+		params.MaxTokens = openai.Int(*c.ModelConfig.MaxTokens)
+		slog.Debug("DMR request configured with max tokens", "max_tokens", *c.ModelConfig.MaxTokens)
 	}
 
 	if len(requestTools) > 0 {
@@ -982,9 +982,9 @@ type speculativeDecodingOpts struct {
 	acceptanceRate float64
 }
 
-func parseDMRProviderOpts(cfg *latest.ModelConfig) (contextSize int, runtimeFlags []string, specOpts *speculativeDecodingOpts) {
+func parseDMRProviderOpts(cfg *latest.ModelConfig) (contextSize *int64, runtimeFlags []string, specOpts *speculativeDecodingOpts) {
 	if cfg == nil {
-		return 0, nil, nil
+		return nil, nil, nil
 	}
 
 	// Context length is now sourced from the standard max_tokens field
@@ -1129,7 +1129,7 @@ func modelExists(ctx context.Context, model string) bool {
 	return true
 }
 
-func configureDockerModel(ctx context.Context, model string, contextSize int, runtimeFlags []string, specOpts *speculativeDecodingOpts) error {
+func configureDockerModel(ctx context.Context, model string, contextSize *int64, runtimeFlags []string, specOpts *speculativeDecodingOpts) error {
 	args := buildDockerModelConfigureArgs(model, contextSize, runtimeFlags, specOpts)
 
 	cmd := exec.CommandContext(ctx, "docker", args...)
@@ -1146,10 +1146,10 @@ func configureDockerModel(ctx context.Context, model string, contextSize int, ru
 
 // buildDockerModelConfigureArgs returns the argument vector passed to `docker` for model configuration.
 // It formats context size, speculative decoding options, and runtime flags consistently with the CLI contract.
-func buildDockerModelConfigureArgs(model string, contextSize int, runtimeFlags []string, specOpts *speculativeDecodingOpts) []string {
+func buildDockerModelConfigureArgs(model string, contextSize *int64, runtimeFlags []string, specOpts *speculativeDecodingOpts) []string {
 	args := []string{"model", "configure"}
-	if contextSize > 0 {
-		args = append(args, "--context-size="+strconv.Itoa(contextSize))
+	if contextSize != nil {
+		args = append(args, "--context-size="+strconv.FormatInt(*contextSize, 10))
 	}
 	if specOpts != nil {
 		if specOpts.draftModel != "" {

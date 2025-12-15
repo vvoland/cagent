@@ -339,14 +339,7 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []types.Doc
 		"additionalProperties": false,
 	}
 
-	// Use max_tokens from model config if specified, otherwise use a reasonable
-	// default (8192) that works for most reranking scenarios. Anthropic requires
-	// max_tokens to be set explicitly (unlike OpenAI which can rely on defaults).
-	maxTokens := int64(8192)
-	if c.ModelConfig.MaxTokens > 0 {
-		maxTokens = int64(c.ModelConfig.MaxTokens)
-	}
-
+	maxTokens := c.ModelOptions.MaxTokens()
 	params := anthropic.BetaMessageNewParams{
 		Model:     anthropic.Model(c.ModelConfig.Model),
 		MaxTokens: maxTokens,
