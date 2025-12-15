@@ -71,6 +71,48 @@ func TestExpand(t *testing.T) {
 			envVars:  map[string]string{},
 			expected: "Use `inline` and ```block``` code",
 		},
+		{
+			name:     "single backslash",
+			commands: "test\\value",
+			envVars:  map[string]string{},
+			expected: "test\\value",
+		},
+		{
+			name:     "backslash n (not newline)",
+			commands: "test\\nvalue",
+			envVars:  map[string]string{},
+			expected: "test\\nvalue",
+		},
+		{
+			name:     "backslash t (not tab)",
+			commands: "test\\tvalue",
+			envVars:  map[string]string{},
+			expected: "test\\tvalue",
+		},
+		{
+			name:     "windows path",
+			commands: "C:\\Users\\Alice\\Documents",
+			envVars:  map[string]string{},
+			expected: "C:\\Users\\Alice\\Documents",
+		},
+		{
+			name:     "network path",
+			commands: "\\\\server\\share\\file",
+			envVars:  map[string]string{},
+			expected: "\\\\server\\share\\file",
+		},
+		{
+			name:     "multiple backslashes",
+			commands: "test\\\\value",
+			envVars:  map[string]string{},
+			expected: "test\\\\value",
+		},
+		{
+			name:     "regex pattern with backslashes",
+			commands: "\\d+\\.\\d+",
+			envVars:  map[string]string{},
+			expected: "\\d+\\.\\d+",
+		},
 	}
 
 	for _, tt := range tests {
