@@ -124,6 +124,17 @@ type ReadMultipleFilesArgs struct {
 	JSON  bool     `json:"json,omitempty" jsonschema:"Whether to return the result as JSON"`
 }
 
+type ReadMultipleFilesEntry struct {
+	Path      string `json:"path"`
+	Content   string `json:"content"`
+	LineCount int    `json:"lineCount"`
+	Error     string `json:"error,omitempty"`
+}
+
+type ReadMultipleFilesMeta struct {
+	Files []ReadMultipleFilesEntry `json:"files"`
+}
+
 type SearchFilesArgs struct {
 	Path            string   `json:"path" jsonschema:"The starting directory path"`
 	Pattern         string   `json:"pattern" jsonschema:"The glob pattern to match file names against"`
@@ -604,26 +615,35 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadM
 	}
 
 	var contents []PathContent
+	meta := ReadMultipleFilesMeta{}
 
 	for _, path := range args.Paths {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
 
+		entry := ReadMultipleFilesEntry{Path: path}
+
 		if err := t.isPathAllowed(path); err != nil {
+			errMsg := fmt.Sprintf("Error: %s", err)
 			contents = append(contents, PathContent{
 				Path:    path,
-				Content: fmt.Sprintf("Error: %s", err),
+				Content: errMsg,
 			})
+			entry.Error = errMsg
+			meta.Files = append(meta.Files, entry)
 			continue
 		}
 
 		content, err := os.ReadFile(path)
 		if err != nil {
+			errMsg := fmt.Sprintf("Error reading file: %s", err)
 			contents = append(contents, PathContent{
 				Path:    path,
-				Content: fmt.Sprintf("Error reading file: %s", err),
+				Content: errMsg,
 			})
+			entry.Error = errMsg
+			meta.Files = append(meta.Files, entry)
 			continue
 		}
 
@@ -631,23 +651,30 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadM
 			Path:    path,
 			Content: string(content),
 		})
+		entry.Content = string(content)
+		entry.LineCount = strings.Count(string(content), "\n") + 1
+		meta.Files = append(meta.Files, entry)
 	}
 
+	var output string
 	if args.JSON {
 		jsonResult, err := json.MarshalIndent(contents, "", "  ")
 		if err != nil {
 			return tools.ResultError(fmt.Sprintf("Error formatting JSON: %s", err)), nil
 		}
-
-		return tools.ResultSuccess(string(jsonResult)), nil
+		output = string(jsonResult)
+	} else {
+		var result strings.Builder
+		for _, content := range contents {
+			result.WriteString(fmt.Sprintf("=== %s ===\n%s\n\n", content.Path, content.Content))
+		}
+		output = result.String()
 	}
 
-	var result strings.Builder
-	for _, content := range contents {
-		result.WriteString(fmt.Sprintf("=== %s ===\n%s\n\n", content.Path, content.Content))
-	}
-
-	return tools.ResultSuccess(result.String()), nil
+	return &tools.ToolCallResult{
+		Output: output,
+		Meta:   meta,
+	}, nil
 }
 
 func (t *FilesystemTool) handleSearchFiles(_ context.Context, args SearchFilesArgs) (*tools.ToolCallResult, error) {
