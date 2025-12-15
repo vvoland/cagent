@@ -632,10 +632,7 @@ func (m *model) AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, t
 				msg.ToolCall.Function.Arguments = toolCall.Function.Arguments
 			}
 			m.invalidateItem(i)
-
-			view := m.createToolCallView(msg)
-			m.views[i] = view
-			return view.Init()
+			return nil
 		}
 	}
 
