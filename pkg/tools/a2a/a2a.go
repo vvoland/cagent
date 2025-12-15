@@ -179,7 +179,8 @@ func (t *Toolset) createHandler() tools.ToolHandler {
 			result = "No response from agent"
 		}
 
-		return &tools.ToolCallResult{Output: result}, nil
+		// TODO(dga): could this be a tool call error?
+		return tools.ResultSuccess(result), nil
 	}
 }
 

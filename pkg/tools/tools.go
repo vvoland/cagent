@@ -20,7 +20,22 @@ type FunctionCall struct {
 }
 
 type ToolCallResult struct {
-	Output string `json:"output"`
+	Output  string `json:"output"`
+	IsError bool   `json:"isError,omitempty"`
+}
+
+func ResultError(output string) *ToolCallResult {
+	return &ToolCallResult{
+		Output:  output,
+		IsError: true,
+	}
+}
+
+func ResultSuccess(output string) *ToolCallResult {
+	return &ToolCallResult{
+		Output:  output,
+		IsError: false,
+	}
 }
 
 // OpenAI-like Tool Types

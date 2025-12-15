@@ -157,16 +157,12 @@ func (h *shellHandler) RunShell(ctx context.Context, params RunShellArgs) (*tool
 	cmd.Stderr = &outBuf
 
 	if err := cmd.Start(); err != nil {
-		return &tools.ToolCallResult{
-			Output: fmt.Sprintf("Error starting command: %s", err),
-		}, nil
+		return tools.ResultError(fmt.Sprintf("Error starting command: %s", err)), nil
 	}
 
 	pg, err := createProcessGroup(cmd.Process)
 	if err != nil {
-		return &tools.ToolCallResult{
-			Output: fmt.Sprintf("Error creating process group: %s", err),
-		}, nil
+		return tools.ResultError(fmt.Sprintf("Error creating process group: %s", err)), nil
 	}
 
 	done := make(chan error, 1)
@@ -198,9 +194,7 @@ func (h *shellHandler) RunShell(ctx context.Context, params RunShellArgs) (*tool
 		output = "<no output>"
 	}
 
-	return &tools.ToolCallResult{
-		Output: limitOutput(output),
-	}, nil
+	return tools.ResultSuccess(limitOutput(output)), nil
 }
 
 func (h *shellHandler) RunShellBackground(_ context.Context, params RunShellBackgroundArgs) (*tools.ToolCallResult, error) {
@@ -226,18 +220,14 @@ func (h *shellHandler) RunShellBackground(_ context.Context, params RunShellBack
 
 	// Start the command
 	if err := cmd.Start(); err != nil {
-		return &tools.ToolCallResult{
-			Output: fmt.Sprintf("Error starting background command: %s", err),
-		}, nil
+		return tools.ResultError(fmt.Sprintf("Error starting background command: %s", err)), nil
 	}
 
 	// Create process group
 	pg, err := createProcessGroup(cmd.Process)
 	if err != nil {
 		_ = kill(cmd.Process, pg)
-		return &tools.ToolCallResult{
-			Output: fmt.Sprintf("Error creating process group: %s", err),
-		}, nil
+		return tools.ResultError(fmt.Sprintf("Error creating process group: %s", err)), nil
 	}
 
 	// Create and store job
@@ -280,10 +270,8 @@ func (h *shellHandler) RunShellBackground(_ context.Context, params RunShellBack
 		}
 	}()
 
-	return &tools.ToolCallResult{
-		Output: fmt.Sprintf("Background job started with ID: %s\nCommand: %s\nWorking directory: %s",
-			jobID, params.Cmd, params.Cwd),
-	}, nil
+	return tools.ResultSuccess(fmt.Sprintf("Background job started with ID: %s\nCommand: %s\nWorking directory: %s",
+		jobID, params.Cmd, params.Cwd)), nil
 }
 
 func (h *shellHandler) ListBackgroundJobs(_ context.Context, _ map[string]any) (*tools.ToolCallResult, error) {
@@ -314,17 +302,13 @@ func (h *shellHandler) ListBackgroundJobs(_ context.Context, _ map[string]any) (
 		output.WriteString("No background jobs found.\n")
 	}
 
-	return &tools.ToolCallResult{
-		Output: output.String(),
-	}, nil
+	return tools.ResultSuccess(output.String()), nil
 }
 
 func (h *shellHandler) ViewBackgroundJob(_ context.Context, params ViewBackgroundJobArgs) (*tools.ToolCallResult, error) {
 	job, exists := h.jobs.Load(params.JobID)
 	if !exists {
-		return &tools.ToolCallResult{
-			Output: fmt.Sprintf("Job not found: %s", params.JobID),
-		}, nil
+		return tools.ResultError(fmt.Sprintf("Job not found: %s", params.JobID)), nil
 	}
 
 	status := job.status.Load()
@@ -353,38 +337,28 @@ func (h *shellHandler) ViewBackgroundJob(_ context.Context, params ViewBackgroun
 		}
 	}
 
-	return &tools.ToolCallResult{
-		Output: result.String(),
-	}, nil
+	return tools.ResultSuccess(result.String()), nil
 }
 
 func (h *shellHandler) StopBackgroundJob(_ context.Context, params StopBackgroundJobArgs) (*tools.ToolCallResult, error) {
 	job, exists := h.jobs.Load(params.JobID)
 	if !exists {
-		return &tools.ToolCallResult{
-			Output: fmt.Sprintf("Job not found: %s", params.JobID),
-		}, nil
+		return tools.ResultError(fmt.Sprintf("Job not found: %s", params.JobID)), nil
 	}
 
 	// Try to transition from running to stopped
 	if !job.status.CompareAndSwap(statusRunning, statusStopped) {
 		currentStatus := job.status.Load()
 		statusStr := statusToString(currentStatus)
-		return &tools.ToolCallResult{
-			Output: fmt.Sprintf("Job %s is not running (current status: %s)", params.JobID, statusStr),
-		}, nil
+		return tools.ResultError(fmt.Sprintf("Job %s is not running (current status: %s)", params.JobID, statusStr)), nil
 	}
 
 	// Kill the process
 	if err := kill(job.process, job.processGroup); err != nil {
-		return &tools.ToolCallResult{
-			Output: fmt.Sprintf("Job %s marked as stopped, but error killing process: %s", params.JobID, err),
-		}, nil
+		return tools.ResultError(fmt.Sprintf("Job %s marked as stopped, but error killing process: %s", params.JobID, err)), nil
 	}
 
-	return &tools.ToolCallResult{
-		Output: fmt.Sprintf("Job %s stopped successfully", params.JobID),
-	}, nil
+	return tools.ResultSuccess(fmt.Sprintf("Job %s stopped successfully", params.JobID)), nil
 }
 
 func NewShellTool(env []string, runConfig *config.RuntimeConfig) *ShellTool {

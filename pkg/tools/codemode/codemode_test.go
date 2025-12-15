@@ -100,9 +100,7 @@ func TestCodeModeTool_CallHello(t *testing.T) {
 			{
 				Name: "hello_world",
 				Handler: builtin.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
-					return &tools.ToolCallResult{
-						Output: "Hello, World!",
-					}, nil
+					return tools.ResultSuccess("Hello, World!"), nil
 				}),
 			},
 		},
@@ -137,9 +135,7 @@ func TestCodeModeTool_CallEcho(t *testing.T) {
 		tools: []tools.Tool{{
 			Name: "echo",
 			Handler: builtin.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
-				return &tools.ToolCallResult{
-					Output: "ECHO",
-				}, nil
+				return tools.ResultSuccess("ECHO"), nil
 			}),
 			Parameters: tools.MustSchemaFor[EchoArgs](),
 		}},

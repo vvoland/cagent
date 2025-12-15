@@ -40,9 +40,7 @@ func addNumbers(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResu
 
 	fmt.Println("Adding numbers", p.A, p.B)
 
-	return &tools.ToolCallResult{
-		Output: fmt.Sprintf("%d", p.A+p.B),
-	}, nil
+	return tools.ResultSuccess(fmt.Sprintf("%d", p.A+p.B)), nil
 }
 
 func run(ctx context.Context) error {

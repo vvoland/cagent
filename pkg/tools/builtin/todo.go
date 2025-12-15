@@ -87,9 +87,7 @@ func (h *todoHandler) createTodo(_ context.Context, params CreateTodoArgs) (*too
 		Status:      "pending",
 	})
 
-	return &tools.ToolCallResult{
-		Output: fmt.Sprintf("Created todo [%s]: %s", id, params.Description),
-	}, nil
+	return tools.ResultSuccess(fmt.Sprintf("Created todo [%s]: %s", id, params.Description)), nil
 }
 
 func (h *todoHandler) createTodos(_ context.Context, params CreateTodosArgs) (*tools.ToolCallResult, error) {
@@ -113,9 +111,7 @@ func (h *todoHandler) createTodos(_ context.Context, params CreateTodosArgs) (*t
 		output += fmt.Sprintf("[%s]", id)
 	}
 
-	return &tools.ToolCallResult{
-		Output: output,
-	}, nil
+	return tools.ResultSuccess(output), nil
 }
 
 func (h *todoHandler) updateTodo(_ context.Context, params UpdateTodoArgs) (*tools.ToolCallResult, error) {
@@ -127,9 +123,7 @@ func (h *todoHandler) updateTodo(_ context.Context, params UpdateTodoArgs) (*too
 	todo.Status = params.Status
 	h.todos.Store(params.ID, todo)
 
-	return &tools.ToolCallResult{
-		Output: fmt.Sprintf("Updated todo [%s] to status: [%s]", params.ID, params.Status),
-	}, nil
+	return tools.ResultSuccess(fmt.Sprintf("Updated todo [%s] to status: [%s]", params.ID, params.Status)), nil
 }
 
 func (h *todoHandler) listTodos(_ context.Context, _ map[string]any) (*tools.ToolCallResult, error) {
@@ -142,9 +136,7 @@ func (h *todoHandler) listTodos(_ context.Context, _ map[string]any) (*tools.Too
 		return true
 	})
 
-	return &tools.ToolCallResult{
-		Output: output.String(),
-	}, nil
+	return tools.ResultSuccess(output.String()), nil
 }
 
 func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {

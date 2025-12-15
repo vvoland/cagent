@@ -107,9 +107,7 @@ func (d *DeferredToolset) handleSearchTool(_ context.Context, args SearchToolArg
 	}
 
 	if len(results) == 0 {
-		return &tools.ToolCallResult{
-			Output: fmt.Sprintf("No deferred tools found matching '%s'", args.Query),
-		}, nil
+		return tools.ResultError(fmt.Sprintf("No deferred tools found matching '%s'", args.Query)), nil
 	}
 
 	output, err := json.MarshalIndent(results, "", "  ")
@@ -117,9 +115,7 @@ func (d *DeferredToolset) handleSearchTool(_ context.Context, args SearchToolArg
 		return nil, fmt.Errorf("failed to marshal results: %w", err)
 	}
 
-	return &tools.ToolCallResult{
-		Output: fmt.Sprintf("Found %d deferred tool(s):\n%s", len(results), string(output)),
-	}, nil
+	return tools.ResultSuccess(fmt.Sprintf("Found %d deferred tool(s):\n%s", len(results), string(output))), nil
 }
 
 func (d *DeferredToolset) handleAddTool(_ context.Context, args AddToolArgs) (*tools.ToolCallResult, error) {
@@ -127,24 +123,18 @@ func (d *DeferredToolset) handleAddTool(_ context.Context, args AddToolArgs) (*t
 	defer d.mu.Unlock()
 
 	if _, exists := d.activatedTools[args.Name]; exists {
-		return &tools.ToolCallResult{
-			Output: fmt.Sprintf("Tool '%s' is already active", args.Name),
-		}, nil
+		return tools.ResultSuccess(fmt.Sprintf("Tool '%s' is already active", args.Name)), nil
 	}
 
 	entry, exists := d.deferredTools[args.Name]
 	if !exists {
-		return &tools.ToolCallResult{
-			Output: fmt.Sprintf("Tool '%s' not found.", args.Name),
-		}, nil
+		return tools.ResultError(fmt.Sprintf("Tool '%s' not found.", args.Name)), nil
 	}
 
 	delete(d.deferredTools, args.Name)
 	d.activatedTools[args.Name] = entry.tool
 
-	return &tools.ToolCallResult{
-		Output: fmt.Sprintf("Tool '%s' has been activated and is now available for use.\n\nDescription: %s", args.Name, entry.tool.Description),
-	}, nil
+	return tools.ResultSuccess(fmt.Sprintf("Tool '%s' has been activated and is now available for use.\n\nDescription: %s", args.Name, entry.tool.Description)), nil
 }
 
 func (d *DeferredToolset) Tools(context.Context) ([]tools.Tool, error) {

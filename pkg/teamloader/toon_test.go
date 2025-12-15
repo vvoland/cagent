@@ -12,9 +12,7 @@ import (
 
 func mockHandler(output string) tools.ToolHandler {
 	return func(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-		return &tools.ToolCallResult{
-			Output: output,
-		}, nil
+		return tools.ResultSuccess(output), nil
 	}
 }
 

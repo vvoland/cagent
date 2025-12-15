@@ -240,9 +240,10 @@ func processMCPContent(toolResult *mcp.CallToolResult) *tools.ToolCallResult {
 		finalContent = "no output"
 	}
 
-	return &tools.ToolCallResult{
-		Output: finalContent,
+	if toolResult.IsError {
+		return tools.ResultError(finalContent)
 	}
+	return tools.ResultSuccess(finalContent)
 }
 
 func (ts *Toolset) SetElicitationHandler(handler tools.ElicitationHandler) {
