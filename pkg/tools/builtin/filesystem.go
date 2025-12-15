@@ -141,6 +141,12 @@ type ListDirectoryArgs struct {
 	Path string `json:"path" jsonschema:"The directory path to list"`
 }
 
+type ListDirectoryMeta struct {
+	Files     []string `json:"files"`
+	Dirs      []string `json:"dirs"`
+	Truncated bool     `json:"truncated"`
+}
+
 type ReadFileArgs struct {
 	Path string `json:"path" jsonschema:"The file path to read"`
 }
@@ -549,9 +555,9 @@ func (t *FilesystemTool) handleListDirectory(_ context.Context, args ListDirecto
 	}
 
 	var result strings.Builder
+	meta := ListDirectoryMeta{}
 	count := 0
 	for _, entry := range entries {
-		// Check if entry should be ignored by VCS rules
 		entryPath := filepath.Join(args.Path, entry.Name())
 		if t.shouldIgnorePath(entryPath) {
 			continue
@@ -559,17 +565,23 @@ func (t *FilesystemTool) handleListDirectory(_ context.Context, args ListDirecto
 
 		if entry.IsDir() {
 			result.WriteString(fmt.Sprintf("DIR  %s\n", entry.Name()))
+			meta.Dirs = append(meta.Dirs, entry.Name())
 		} else {
 			result.WriteString(fmt.Sprintf("FILE %s\n", entry.Name()))
+			meta.Files = append(meta.Files, entry.Name())
 		}
 		count++
 		if count >= maxFiles {
 			result.WriteString("...output truncated due to file limit...\n")
+			meta.Truncated = true
 			break
 		}
 	}
 
-	return tools.ResultSuccess(result.String()), nil
+	return &tools.ToolCallResult{
+		Output: result.String(),
+		Meta:   meta,
+	}, nil
 }
 
 func (t *FilesystemTool) handleReadFile(_ context.Context, args ReadFileArgs) (*tools.ToolCallResult, error) {
