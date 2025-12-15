@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -78,4 +79,21 @@ func TestExec_Record_AutoGeneratesFilename(t *testing.T) {
 	content, err := os.ReadFile(files[0])
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "interactions:", "cassette should contain interactions")
+}
+
+func TestAPI_FakeAndRecord_MutuallyExclusive(t *testing.T) {
+	args := []string{
+		"api",
+		"--fake=test.yaml",
+		"--record=output.yaml",
+		"testdata/basic.yaml",
+	}
+
+	var stdout, stderr bytes.Buffer
+	err := root.Execute(t.Context(), nil, &stdout, &stderr, args...)
+
+	require.Error(t, err)
+	assert.True(t,
+		strings.Contains(err.Error(), "fake") && strings.Contains(err.Error(), "record"),
+		"error should mention both flags: %v", err)
 }
