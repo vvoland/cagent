@@ -33,7 +33,7 @@ type runExecFlags struct {
 	sessionDB      string
 
 	// Shared between run and exec
-	recordPath string // Path to save recorded cassette (for --record flag)
+	recordPath string
 
 	// Exec only
 	hideToolCalls bool
@@ -73,7 +73,7 @@ func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 	cmd.PersistentFlags().StringVar(&flags.remoteAddress, "remote", "", "Use remote runtime with specified address")
 	cmd.PersistentFlags().StringVarP(&flags.sessionDB, "session-db", "s", filepath.Join(paths.GetHomeDir(), ".cagent", "session.db"), "Path to the session database")
 	cmd.PersistentFlags().StringVar(&flags.recordPath, "record", "", "Record AI API interactions to cassette file (auto-generates filename if empty)")
-	cmd.PersistentFlags().Lookup("record").NoOptDefVal = "true" // Allow --record without value
+	cmd.PersistentFlags().Lookup("record").NoOptDefVal = "true"
 }
 
 func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
