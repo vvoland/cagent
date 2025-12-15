@@ -10,6 +10,7 @@ import (
 	"maps"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"regexp"
 	"strings"
 
@@ -22,6 +23,30 @@ import (
 // It returns the proxy URL and a cleanup function that should be called when done.
 func StartProxy(cassettePath string) (string, func() error, error) {
 	return StartProxyWithOptions(cassettePath, recorder.ModeReplayOnly, nil, nil)
+}
+
+// StartRecordingProxy starts a proxy that records AI API interactions to a cassette file.
+// It injects API keys from environment variables for the actual API calls.
+// The recorded cassette can later be replayed using StartProxy.
+func StartRecordingProxy(cassettePath string) (string, func() error, error) {
+	return StartProxyWithOptions(cassettePath, recorder.ModeRecordOnce, nil, APIKeyHeaderUpdater)
+}
+
+// APIKeyHeaderUpdater injects API keys from environment variables into request headers.
+// This is used when recording API interactions to ensure real API calls succeed.
+func APIKeyHeaderUpdater(host string, req *http.Request) {
+	switch host {
+	case "https://api.openai.com/v1":
+		req.Header.Set("Authorization", "Bearer "+os.Getenv("OPENAI_API_KEY"))
+	case "https://api.anthropic.com":
+		req.Header.Del("Authorization")
+		req.Header.Set("X-Api-Key", os.Getenv("ANTHROPIC_API_KEY"))
+	case "https://generativelanguage.googleapis.com":
+		req.Header.Del("Authorization")
+		req.Header.Set("X-Goog-Api-Key", os.Getenv("GOOGLE_API_KEY"))
+	case "https://api.mistral.ai/v1":
+		req.Header.Set("Authorization", "Bearer "+os.Getenv("MISTRAL_API_KEY"))
+	}
 }
 
 // StartProxyWithOptions starts an internal HTTP proxy with configurable options.
