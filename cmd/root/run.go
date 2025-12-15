@@ -35,10 +35,12 @@ type runExecFlags struct {
 	runConfig      config.RuntimeConfig
 	sessionDB      string
 
+	// Shared between run and exec
+	recordPath string // Path to save recorded cassette (for --record flag)
+
 	// Exec only
 	hideToolCalls bool
 	outputJSON    bool
-	recordPath    string
 }
 
 func newRunCmd() *cobra.Command {
@@ -52,7 +54,8 @@ func newRunCmd() *cobra.Command {
   cagent run ./team.yaml --agent root
   cagent run # built-in default agent
   cagent run ./echo.yaml "INSTRUCTIONS"
-  echo "INSTRUCTIONS" | cagent run ./echo.yaml -`,
+  echo "INSTRUCTIONS" | cagent run ./echo.yaml -
+  cagent run ./agent.yaml --record  # Records session to auto-generated file`,
 		GroupID: "core",
 		Args:    cobra.RangeArgs(0, 2),
 		RunE:    flags.runRunCommand,
@@ -72,6 +75,8 @@ func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 	cmd.PersistentFlags().BoolVar(&flags.dryRun, "dry-run", false, "Initialize the agent without executing anything")
 	cmd.PersistentFlags().StringVar(&flags.remoteAddress, "remote", "", "Use remote runtime with specified address")
 	cmd.PersistentFlags().StringVarP(&flags.sessionDB, "session-db", "s", filepath.Join(paths.GetHomeDir(), ".cagent", "session.db"), "Path to the session database")
+	cmd.PersistentFlags().StringVar(&flags.recordPath, "record", "", "Record AI API interactions to cassette file (auto-generates filename if empty)")
+	cmd.PersistentFlags().Lookup("record").NoOptDefVal = "true" // Allow --record without value
 }
 
 func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
