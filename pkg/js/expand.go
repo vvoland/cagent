@@ -14,10 +14,10 @@ import (
 // escapeForTemplateLiteral escapes characters that have special meaning in
 // JavaScript template literals
 func escapeForTemplateLiteral(s string) string {
-	// Escape backticks so they don't terminate the template literal.
-	// Also escape backslashes that precede backticks to avoid double-escaping issues.
-	s = strings.ReplaceAll(s, "\\`", "\\\\`") // First escape already-escaped backticks
-	s = strings.ReplaceAll(s, "`", "\\`")     // Then escape remaining backticks
+	// Escape backslashes first (must be done before backticks to avoid double-escaping)
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	// Then escape backticks so they don't terminate the template literal
+	s = strings.ReplaceAll(s, "`", "\\`")
 	return s
 }
 
