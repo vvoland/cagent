@@ -2,9 +2,7 @@ package e2e_test
 
 import (
 	"context"
-	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -26,27 +24,11 @@ func startRecordingAIProxy(t *testing.T) (*httptest.Server, *config.RuntimeConfi
 		require.NoError(t, err)
 	})
 
-	// Header updater that adds real API keys for recording
-	headerUpdater := func(host string, req *http.Request) {
-		switch host {
-		case "https://api.openai.com/v1":
-			req.Header.Set("Authorization", "Bearer "+os.Getenv("OPENAI_API_KEY"))
-		case "https://api.anthropic.com":
-			req.Header.Del("Authorization")
-			req.Header.Set("X-Api-Key", os.Getenv("ANTHROPIC_API_KEY"))
-		case "https://generativelanguage.googleapis.com":
-			req.Header.Del("Authorization")
-			req.Header.Set("X-Goog-Api-Key", os.Getenv("GOOGLE_API_KEY"))
-		case "https://api.mistral.ai/v1":
-			req.Header.Set("Authorization", "Bearer "+os.Getenv("MISTRAL_API_KEY"))
-		}
-	}
-
 	proxyURL, cleanup, err := fake.StartProxyWithOptions(
 		cassettePath,
 		recorder.ModeRecordOnce,
 		matcher,
-		headerUpdater,
+		fake.APIKeyHeaderUpdater,
 	)
 	require.NoError(t, err)
 
