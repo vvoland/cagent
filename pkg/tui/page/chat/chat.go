@@ -651,6 +651,8 @@ func (p *chatPage) processMessage(msg editor.SendMsg) tea.Cmd {
 		p.msgCancel()
 	}
 
+	_ = p.history.Add(msg.Content)
+
 	var ctx context.Context
 	ctx, p.msgCancel = context.WithCancel(context.Background())
 

@@ -14,10 +14,31 @@ type History struct {
 	current int
 }
 
-func New() (*History, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return nil, err
+type options struct {
+	homeDir string
+}
+
+type Opt func(*options)
+
+func WithBaseDir(dir string) Opt {
+	return func(o *options) {
+		o.homeDir = dir
+	}
+}
+
+func New(opts ...Opt) (*History, error) {
+	o := &options{}
+	for _, opt := range opts {
+		opt(o)
+	}
+
+	homeDir := o.homeDir
+	if homeDir == "" {
+		var err error
+		homeDir, err = os.UserHomeDir()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	h := &History{
