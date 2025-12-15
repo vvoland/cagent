@@ -287,8 +287,8 @@ func convertMessagesToGemini(messages []chat.Message) []*genai.Content {
 // buildConfig creates GenerateContentConfig from model config
 func (c *Client) buildConfig() *genai.GenerateContentConfig {
 	config := &genai.GenerateContentConfig{}
-	if c.ModelConfig.MaxTokens > 0 {
-		config.MaxOutputTokens = int32(c.ModelConfig.MaxTokens)
+	if c.ModelConfig.MaxTokens != nil {
+		config.MaxOutputTokens = int32(*c.ModelConfig.MaxTokens)
 	}
 	if c.ModelConfig.Temperature != nil {
 		config.Temperature = genai.Ptr(float32(*c.ModelConfig.Temperature))

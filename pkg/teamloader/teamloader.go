@@ -13,12 +13,15 @@ import (
 	"github.com/docker/cagent/pkg/js"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/model/provider/options"
+	"github.com/docker/cagent/pkg/modelsdev"
 	"github.com/docker/cagent/pkg/rag"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tools/codemode"
 )
+
+var defaultMaxTokens int64 = 32000
 
 type loadOptions struct {
 	modelOverrides  []string
@@ -186,12 +189,31 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 			}
 		}
 
+		opts := []options.Opt{
+			options.WithGateway(runConfig.ModelsGateway),
+			options.WithStructuredOutput(a.StructuredOutput),
+		}
+
+		maxTokens := &defaultMaxTokens
+		modelsStore, err := modelsdev.NewStore()
+		if err != nil {
+			return nil, err
+		}
+		m, err := modelsStore.GetModel(ctx, modelCfg.Provider+"/"+modelCfg.Model)
+		if err == nil {
+			maxTokens = &m.Limit.Output
+		}
+		if maxTokens != nil {
+			opts = append(opts, options.WithMaxTokens(*maxTokens))
+		}
+
 		model, err := provider.New(ctx,
 			&modelCfg,
 			runConfig.EnvProvider(),
-			options.WithGateway(runConfig.ModelsGateway),
-			options.WithStructuredOutput(a.StructuredOutput),
+			opts...,
 		)
+
+		model.ID()
 		if err != nil {
 			return nil, err
 		}

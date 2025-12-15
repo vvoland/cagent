@@ -8,7 +8,7 @@ type ModelOptions struct {
 	gateway          string
 	structuredOutput *latest.StructuredOutput
 	generatingTitle  bool
-	maxTokens        *int
+	maxTokens        int64
 }
 
 func (c *ModelOptions) Gateway() string {
@@ -23,7 +23,7 @@ func (c *ModelOptions) GeneratingTitle() bool {
 	return c.generatingTitle
 }
 
-func (c *ModelOptions) MaxTokens() *int {
+func (c *ModelOptions) MaxTokens() int64 {
 	return c.maxTokens
 }
 
@@ -47,9 +47,9 @@ func WithGeneratingTitle() Opt {
 	}
 }
 
-func WithMaxTokens(maxTokens int) Opt {
+func WithMaxTokens(maxTokens int64) Opt {
 	return func(cfg *ModelOptions) {
-		cfg.maxTokens = &maxTokens
+		cfg.maxTokens = maxTokens
 	}
 }
 
@@ -66,8 +66,8 @@ func FromModelOptions(m ModelOptions) []Opt {
 	if m.generatingTitle {
 		out = append(out, WithGeneratingTitle())
 	}
-	if m.maxTokens != nil {
-		out = append(out, WithMaxTokens(*m.maxTokens))
+	if m.maxTokens != 0 {
+		out = append(out, WithMaxTokens(m.maxTokens))
 	}
 	return out
 }

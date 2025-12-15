@@ -175,7 +175,7 @@ func TestAutoModelConfig(t *testing.T) {
 			},
 			expectedProvider:  "anthropic",
 			expectedModel:     "claude-sonnet-4-0",
-			expectedMaxTokens: 64000,
+			expectedMaxTokens: 32000,
 		},
 		{
 			name: "openai provider",
@@ -184,7 +184,7 @@ func TestAutoModelConfig(t *testing.T) {
 			},
 			expectedProvider:  "openai",
 			expectedModel:     "gpt-5-mini",
-			expectedMaxTokens: 64000,
+			expectedMaxTokens: 32000,
 		},
 		{
 			name: "google provider",
@@ -193,7 +193,7 @@ func TestAutoModelConfig(t *testing.T) {
 			},
 			expectedProvider:  "google",
 			expectedModel:     "gemini-2.5-flash",
-			expectedMaxTokens: 64000,
+			expectedMaxTokens: 32000,
 		},
 		{
 			name: "mistral provider",
@@ -202,7 +202,7 @@ func TestAutoModelConfig(t *testing.T) {
 			},
 			expectedProvider:  "mistral",
 			expectedModel:     "mistral-small-latest",
-			expectedMaxTokens: 64000,
+			expectedMaxTokens: 32000,
 		},
 		{
 			name:              "dmr provider (no api keys)",
@@ -217,7 +217,7 @@ func TestAutoModelConfig(t *testing.T) {
 			gateway:           "gateway:8080",
 			expectedProvider:  "anthropic",
 			expectedModel:     "claude-sonnet-4-0",
-			expectedMaxTokens: 64000,
+			expectedMaxTokens: 32000,
 		},
 	}
 
@@ -229,7 +229,7 @@ func TestAutoModelConfig(t *testing.T) {
 
 			assert.Equal(t, tt.expectedProvider, modelConfig.Provider)
 			assert.Equal(t, tt.expectedModel, modelConfig.Model)
-			assert.Equal(t, tt.expectedMaxTokens, modelConfig.MaxTokens)
+			assert.Equal(t, int64(tt.expectedMaxTokens), *modelConfig.MaxTokens)
 		})
 	}
 }
@@ -239,7 +239,7 @@ func TestPreferredMaxTokens(t *testing.T) {
 
 	tests := []struct {
 		provider       string
-		expectedTokens int
+		expectedTokens int64
 	}{
 		{
 			provider:       "dmr",
@@ -247,23 +247,23 @@ func TestPreferredMaxTokens(t *testing.T) {
 		},
 		{
 			provider:       "openai",
-			expectedTokens: 64000,
+			expectedTokens: 32000,
 		},
 		{
 			provider:       "anthropic",
-			expectedTokens: 64000,
+			expectedTokens: 32000,
 		},
 		{
 			provider:       "google",
-			expectedTokens: 64000,
+			expectedTokens: 32000,
 		},
 		{
 			provider:       "mistral",
-			expectedTokens: 64000,
+			expectedTokens: 32000,
 		},
 		{
 			provider:       "unknown-provider",
-			expectedTokens: 64000,
+			expectedTokens: 32000,
 		},
 	}
 
@@ -273,7 +273,7 @@ func TestPreferredMaxTokens(t *testing.T) {
 
 			tokens := PreferredMaxTokens(tt.provider)
 
-			assert.Equal(t, tt.expectedTokens, tokens)
+			assert.Equal(t, tt.expectedTokens, *tokens)
 		})
 	}
 }
@@ -341,7 +341,7 @@ func TestAutoModelConfig_IntegrationWithDefaultModels(t *testing.T) {
 
 		assert.Equal(t, "dmr", modelConfig.Provider)
 		assert.Equal(t, DefaultModels["dmr"], modelConfig.Model)
-		assert.Equal(t, 16000, modelConfig.MaxTokens)
+		assert.Equal(t, int64(16000), *modelConfig.MaxTokens)
 	})
 }
 

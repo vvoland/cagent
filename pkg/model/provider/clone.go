@@ -23,9 +23,8 @@ func CloneWithOptions(ctx context.Context, base Provider, opts ...options.Opt) P
 	for _, opt := range mergedOpts {
 		tempOpts := &options.ModelOptions{}
 		opt(tempOpts)
-		if maxTokens := tempOpts.MaxTokens(); maxTokens != nil {
-			modelConfig.MaxTokens = *maxTokens
-		}
+		mt := tempOpts.MaxTokens()
+		modelConfig.MaxTokens = &mt
 	}
 
 	clone, err := New(ctx, &modelConfig, config.Env, mergedOpts...)

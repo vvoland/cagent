@@ -314,12 +314,12 @@ func (c *Client) CreateChatCompletionStream(
 		params.PresencePenalty = openai.Float(*c.ModelConfig.PresencePenalty)
 	}
 
-	if maxToken := c.ModelConfig.MaxTokens; maxToken > 0 {
+	if maxToken := c.ModelConfig.MaxTokens; maxToken != nil && *maxToken > 0 {
 		if !isResponsesOnlyModel(c.ModelConfig.Model) {
-			params.MaxTokens = openai.Int(int64(maxToken))
-			slog.Debug("OpenAI request configured with max tokens", "max_tokens", maxToken, "model", c.ModelConfig.Model)
+			params.MaxTokens = openai.Int(*maxToken)
+			slog.Debug("OpenAI request configured with max tokens", "max_tokens", *maxToken, "model", c.ModelConfig.Model)
 		} else {
-			params.MaxCompletionTokens = openai.Int(int64(maxToken))
+			params.MaxCompletionTokens = openai.Int(*maxToken)
 			slog.Debug("using max_completion_tokens instead of max_tokens for Responses-API models", "model", c.ModelConfig.Model)
 		}
 	}
@@ -428,8 +428,8 @@ func (c *Client) CreateResponseStream(
 		params.TopP = param.NewOpt(*c.ModelConfig.TopP)
 	}
 
-	if maxToken := c.ModelConfig.MaxTokens; maxToken > 0 {
-		params.MaxOutputTokens = param.NewOpt(int64(maxToken))
+	if maxToken := c.ModelConfig.MaxTokens; maxToken != nil && *maxToken > 0 {
+		params.MaxOutputTokens = param.NewOpt(*maxToken)
 		slog.Debug("OpenAI responses request configured with max output tokens", "max_output_tokens", maxToken)
 	}
 

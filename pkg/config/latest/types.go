@@ -46,7 +46,7 @@ type ModelConfig struct {
 	Provider          string   `json:"provider,omitempty"`
 	Model             string   `json:"model,omitempty"`
 	Temperature       *float64 `json:"temperature,omitempty"`
-	MaxTokens         int      `json:"max_tokens,omitempty"`
+	MaxTokens         *int64   `json:"max_tokens,omitempty"`
 	TopP              *float64 `json:"top_p,omitempty"`
 	FrequencyPenalty  *float64 `json:"frequency_penalty,omitempty"`
 	PresencePenalty   *float64 `json:"presence_penalty,omitempty"`

@@ -41,7 +41,7 @@ func (c *Client) adjustMaxTokensForThinking(maxTokens int64) (int64, error) {
 	minRequired := thinkingTokens + 1024 // configured thinking budget + minimum output buffer
 
 	if maxTokens <= thinkingTokens {
-		userSetMaxTokens := c.ModelConfig.MaxTokens > 0
+		userSetMaxTokens := c.ModelConfig.MaxTokens != nil
 		if userSetMaxTokens {
 			// User explicitly set max_tokens too low - return error
 			slog.Error("Anthropic: max_tokens must be greater than thinking_budget",
@@ -193,11 +193,7 @@ func (c *Client) CreateChatCompletionStream(
 		"message_count", len(messages),
 		"tool_count", len(requestTools))
 
-	maxTokens := int64(c.ModelConfig.MaxTokens)
-	if maxTokens == 0 {
-		maxTokens = 8192 // Default output budget when not specified
-	}
-
+	maxTokens := c.ModelOptions.MaxTokens()
 	maxTokens, err := c.adjustMaxTokensForThinking(maxTokens)
 	if err != nil {
 		return nil, err
