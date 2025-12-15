@@ -37,10 +37,11 @@ const (
 type Message struct {
 	Type           MessageType
 	Content        string
-	Sender         string         // Agent name for assistant messages
-	ToolCall       tools.ToolCall // Associated tool call for tool messages
-	ToolDefinition tools.Tool     // Definition of the tool being called
-	ToolStatus     ToolStatus     // Status for tool calls
+	Sender         string                // Agent name for assistant messages
+	ToolCall       tools.ToolCall        // Associated tool call for tool messages
+	ToolDefinition tools.Tool            // Definition of the tool being called
+	ToolStatus     ToolStatus            // Status for tool calls
+	ToolResult     *tools.ToolCallResult // Result of tool call (when completed)
 }
 
 func Agent(typ MessageType, agentName, content string) *Message {
@@ -99,11 +100,4 @@ func ToolCallMessage(agentName string, toolCall tools.ToolCall, toolDef tools.To
 		ToolDefinition: toolDef,
 		ToolStatus:     status,
 	}
-}
-
-// Todo represents a single todo item
-type Todo struct {
-	ID          string `json:"id"`
-	Description string `json:"description"`
-	Status      string `json:"status"`
 }

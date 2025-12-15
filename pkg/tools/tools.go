@@ -22,6 +22,7 @@ type FunctionCall struct {
 type ToolCallResult struct {
 	Output  string `json:"output"`
 	IsError bool   `json:"isError,omitempty"`
+	Meta    any    `json:"meta,omitempty"`
 }
 
 func ResultError(output string) *ToolCallResult {

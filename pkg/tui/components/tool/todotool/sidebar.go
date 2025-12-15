@@ -1,27 +1,23 @@
 package todotool
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
-	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
-	"github.com/docker/cagent/pkg/tui/types"
 )
 
 // SidebarComponent represents the todo display component for the sidebar
 type SidebarComponent struct {
-	manager *service.TodoManager
-	width   int
+	todos []builtin.Todo
+	width int
 }
 
-func NewSidebarComponent(manager *service.TodoManager) *SidebarComponent {
+func NewSidebarComponent() *SidebarComponent {
 	return &SidebarComponent{
-		manager: manager,
-		width:   20,
+		width: 20,
 	}
 }
 
@@ -29,36 +25,22 @@ func (c *SidebarComponent) SetSize(width int) {
 	c.width = width
 }
 
-func (c *SidebarComponent) SetTodos(toolCall tools.ToolCall) error {
-	params, err := parseTodoArgs(toolCall)
-	if err != nil {
-		return err
+func (c *SidebarComponent) SetTodos(result *tools.ToolCallResult) error {
+	if result == nil || result.Meta == nil {
+		return nil
 	}
 
-	toolName := toolCall.Function.Name
-	switch toolName {
-	case builtin.ToolNameCreateTodo:
-		p := params.(builtin.CreateTodoArgs)
-		newID := generateTodoID(c.manager.GetTodos())
-		c.manager.AddTodo(newID, p.Description, "pending")
-
-	case builtin.ToolNameCreateTodos:
-		p := params.(builtin.CreateTodosArgs)
-		for _, desc := range p.Descriptions {
-			newID := generateTodoID(c.manager.GetTodos())
-			c.manager.AddTodo(newID, desc, "pending")
-		}
-
-	case builtin.ToolNameUpdateTodo:
-		p := params.(builtin.UpdateTodoArgs)
-		c.manager.UpdateTodo(p.ID, p.Status)
+	todos, ok := result.Meta.([]builtin.Todo)
+	if !ok {
+		return nil
 	}
 
+	c.todos = todos
 	return nil
 }
 
 func (c *SidebarComponent) Render() string {
-	if len(c.manager.GetTodos()) == 0 {
+	if len(c.todos) == 0 {
 		return ""
 	}
 
@@ -66,7 +48,7 @@ func (c *SidebarComponent) Render() string {
 	content.WriteString(styles.HighlightStyle.Render("Todo"))
 	content.WriteString("\n")
 
-	for _, todo := range c.manager.GetTodos() {
+	for _, todo := range c.todos {
 		content.WriteString(renderTodoLine(todo, c.width))
 		content.WriteString("\n")
 	}
@@ -74,7 +56,7 @@ func (c *SidebarComponent) Render() string {
 	return content.String()
 }
 
-func renderTodoLine(todo types.Todo, maxWidth int) string {
+func renderTodoLine(todo builtin.Todo, maxWidth int) string {
 	icon, iconStyle := renderTodoIcon(todo.Status)
 	descStyle := renderTodoDescriptionStyle(todo.Status)
 
@@ -87,38 +69,4 @@ func renderTodoLine(todo types.Todo, maxWidth int) string {
 	styledIcon := iconStyle.Render(icon)
 	styledDescription := descStyle.Render(description)
 	return fmt.Sprintf("%s %s", styledIcon, styledDescription)
-}
-
-func parseTodoArgs(toolCall tools.ToolCall) (any, error) {
-	toolName := toolCall.Function.Name
-	arguments := toolCall.Function.Arguments
-
-	switch toolName {
-	case builtin.ToolNameCreateTodo:
-		var params builtin.CreateTodoArgs
-		if err := json.Unmarshal([]byte(arguments), &params); err != nil {
-			return nil, err
-		}
-		return params, nil
-	case builtin.ToolNameCreateTodos:
-		var params builtin.CreateTodosArgs
-		if err := json.Unmarshal([]byte(arguments), &params); err != nil {
-			return nil, err
-		}
-		return params, nil
-	case builtin.ToolNameUpdateTodo:
-		var params builtin.UpdateTodoArgs
-		if err := json.Unmarshal([]byte(arguments), &params); err != nil {
-			return nil, err
-		}
-		return params, nil
-	case builtin.ToolNameListTodos:
-		return nil, nil
-	default:
-		return nil, fmt.Errorf("unknown tool name: %s", toolName)
-	}
-}
-
-func generateTodoID(todos []types.Todo) string {
-	return fmt.Sprintf("todo_%d", len(todos)+1)
 }

@@ -2,7 +2,6 @@ package todotool
 
 import (
 	"fmt"
-	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -69,20 +68,16 @@ func (c *Component) View() string {
 
 	// Render based on tool type
 	switch toolName {
-	case builtin.ToolNameCreateTodo:
-		return c.renderCreate()
-	case builtin.ToolNameCreateTodos:
-		return c.renderCreateMultiple()
+	case builtin.ToolNameCreateTodo, builtin.ToolNameCreateTodos, builtin.ToolNameUpdateTodo:
+		return c.renderTodos()
 	case builtin.ToolNameListTodos:
 		return c.renderList()
-	case builtin.ToolNameUpdateTodo:
-		return c.renderUpdate()
 	default:
 		panic("Unsupported todo tool: " + toolName)
 	}
 }
 
-func (c *Component) renderCreate() string {
+func (c *Component) renderTodos() string {
 	msg := c.message
 	displayName := msg.ToolDefinition.DisplayName()
 	content := fmt.Sprintf("%s %s", toolcommon.Icon(msg.ToolStatus), styles.HighlightStyle.Render(displayName))
@@ -91,38 +86,12 @@ func (c *Component) renderCreate() string {
 		content += " " + c.spinner.View()
 	}
 
-	if msg.ToolCall.Function.Arguments != "" {
-		params, err := parseTodoArgs(msg.ToolCall)
-		if err == nil {
-			if createParams, ok := params.(builtin.CreateTodoArgs); ok {
-				icon, style := renderTodoIcon("pending")
-				todoLine := fmt.Sprintf("\n%s %s", style.Render(icon), style.Render(createParams.Description))
+	if msg.ToolResult != nil && msg.ToolResult.Meta != nil {
+		if todos, ok := msg.ToolResult.Meta.([]builtin.Todo); ok {
+			for _, todo := range todos {
+				icon, style := renderTodoIcon(todo.Status)
+				todoLine := fmt.Sprintf("\n%s %s", style.Render(icon), style.Render(todo.Description))
 				content += todoLine
-			}
-		}
-	}
-
-	return styles.RenderComposite(styles.ToolMessageStyle.Width(c.width-1), content)
-}
-
-func (c *Component) renderCreateMultiple() string {
-	msg := c.message
-	displayName := msg.ToolDefinition.DisplayName()
-	content := fmt.Sprintf("%s %s", toolcommon.Icon(msg.ToolStatus), styles.HighlightStyle.Render(displayName))
-
-	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
-		content += " " + c.spinner.View()
-	}
-
-	if msg.ToolCall.Function.Arguments != "" {
-		params, err := parseTodoArgs(msg.ToolCall)
-		if err == nil {
-			if createParams, ok := params.(builtin.CreateTodosArgs); ok {
-				icon, style := renderTodoIcon("pending")
-				for _, desc := range createParams.Descriptions {
-					todoLine := fmt.Sprintf("\n%s %s", style.Render(icon), style.Render(desc))
-					content += todoLine
-				}
 			}
 		}
 	}
@@ -139,61 +108,14 @@ func (c *Component) renderList() string {
 		content += " " + c.spinner.View()
 	}
 
-	if (msg.ToolStatus == types.ToolStatusCompleted || msg.ToolStatus == types.ToolStatusError) && msg.Content != "" {
-		lines := strings.Split(msg.Content, "\n")
-		var styledLines []string
-		for _, line := range lines {
-			if strings.HasPrefix(line, "- [") {
-				switch {
-				case strings.Contains(line, "(Status: pending)"):
-					icon, style := renderTodoIcon("pending")
-					descStyle := renderTodoDescriptionStyle("pending")
-					desc := strings.TrimSuffix(strings.TrimSpace(line[2:]), " (Status: pending)")
-					styledLines = append(styledLines, style.Render(icon)+" "+descStyle.Render(desc))
-				case strings.Contains(line, "(Status: in-progress)"):
-					icon, style := renderTodoIcon("in-progress")
-					descStyle := renderTodoDescriptionStyle("in-progress")
-					desc := strings.TrimSuffix(strings.TrimSpace(line[2:]), " (Status: in-progress)")
-					styledLines = append(styledLines, style.Render(icon)+" "+descStyle.Render(desc))
-				case strings.Contains(line, "(Status: completed)"):
-					icon, style := renderTodoIcon("completed")
-					descStyle := renderTodoDescriptionStyle("completed")
-					desc := strings.TrimSuffix(strings.TrimSpace(line[2:]), " (Status: completed)")
-					styledLines = append(styledLines, style.Render(icon)+" "+descStyle.Render(desc))
-				default:
-					styledLines = append(styledLines, line)
-				}
-			} else {
-				styledLines = append(styledLines, line)
+	if msg.ToolResult != nil && msg.ToolResult.Meta != nil {
+		if todos, ok := msg.ToolResult.Meta.([]builtin.Todo); ok {
+			for _, todo := range todos {
+				icon, style := renderTodoIcon(todo.Status)
+				descStyle := renderTodoDescriptionStyle(todo.Status)
+				todoLine := fmt.Sprintf("\n%s %s", style.Render(icon), descStyle.Render(todo.Description))
+				content += todoLine
 			}
-		}
-		content += "\n" + strings.Join(styledLines, "\n")
-	}
-
-	return styles.RenderComposite(styles.ToolMessageStyle.Width(c.width-1), content)
-}
-
-func (c *Component) renderUpdate() string {
-	msg := c.message
-	displayName := msg.ToolDefinition.DisplayName()
-	content := fmt.Sprintf("%s %s", toolcommon.Icon(msg.ToolStatus), styles.HighlightStyle.Render(displayName))
-
-	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
-		content += " " + c.spinner.View()
-	}
-
-	if msg.ToolCall.Function.Arguments != "" {
-		params, err := parseTodoArgs(msg.ToolCall)
-		if err != nil {
-			return ""
-		}
-		if updateParams, ok := params.(builtin.UpdateTodoArgs); ok {
-			icon, style := renderTodoIcon(updateParams.Status)
-			todoLine := fmt.Sprintf(" %s %s → %s",
-				style.Render(icon),
-				style.Render(updateParams.ID),
-				style.Render(updateParams.Status))
-			content += todoLine
 		}
 	}
 

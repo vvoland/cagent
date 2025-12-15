@@ -36,6 +36,14 @@ func TestTodoTool_CreateTodo(t *testing.T) {
 	assert.True(t, exists)
 	assert.Equal(t, "Test todo item", todo.Description)
 	assert.Equal(t, "pending", todo.Status)
+
+	// Verify Meta contains the created todo
+	metaTodos, ok := result.Meta.([]Todo)
+	require.True(t, ok, "Meta should be []Todo")
+	require.Len(t, metaTodos, 1)
+	assert.Equal(t, "todo_1", metaTodos[0].ID)
+	assert.Equal(t, "Test todo item", metaTodos[0].Description)
+	assert.Equal(t, "pending", metaTodos[0].Status)
 }
 
 func TestTodoTool_CreateTodos(t *testing.T) {
@@ -57,6 +65,20 @@ func TestTodoTool_CreateTodos(t *testing.T) {
 
 	assert.Equal(t, 3, tool.handler.todos.Length())
 
+	// Verify Meta contains all todos (order not guaranteed from map)
+	metaTodos, ok := result.Meta.([]Todo)
+	require.True(t, ok, "Meta should be []Todo")
+	require.Len(t, metaTodos, 3)
+
+	// Check all descriptions are present
+	descriptions := make(map[string]bool)
+	for _, todo := range metaTodos {
+		descriptions[todo.Description] = true
+	}
+	assert.True(t, descriptions["First todo item"])
+	assert.True(t, descriptions["Second todo item"])
+	assert.True(t, descriptions["Third todo item"])
+
 	result, err = tool.handler.createTodos(t.Context(), CreateTodosArgs{
 		Descriptions: []string{
 			"Last todo item",
@@ -67,6 +89,11 @@ func TestTodoTool_CreateTodos(t *testing.T) {
 	assert.Contains(t, result.Output, "Created 1 todos:")
 	assert.Contains(t, result.Output, "todo_4")
 	assert.Equal(t, 4, tool.handler.todos.Length())
+
+	// Verify Meta for second call contains all 4 todos
+	metaTodos, ok = result.Meta.([]Todo)
+	require.True(t, ok, "Meta should be []Todo")
+	require.Len(t, metaTodos, 4)
 }
 
 func TestTodoTool_UpdateTodo(t *testing.T) {
@@ -87,6 +114,14 @@ func TestTodoTool_UpdateTodo(t *testing.T) {
 	todo, exists := tool.handler.todos.Load("todo_1")
 	assert.True(t, exists)
 	assert.Equal(t, "completed", todo.Status)
+
+	// Verify Meta contains all todos with updated status
+	metaTodos, ok := result.Meta.([]Todo)
+	require.True(t, ok, "Meta should be []Todo")
+	require.Len(t, metaTodos, 1)
+	assert.Equal(t, "todo_1", metaTodos[0].ID)
+	assert.Equal(t, "Test todo item", metaTodos[0].Description)
+	assert.Equal(t, "completed", metaTodos[0].Status)
 }
 
 func TestTodoTool_ListTodos(t *testing.T) {
@@ -106,7 +141,7 @@ func TestTodoTool_ListTodos(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	result, err := tool.handler.listTodos(t.Context(), nil)
+	result, err := tool.handler.listTodos(t.Context(), tools.ToolCall{})
 
 	require.NoError(t, err)
 	assert.Contains(t, result.Output, "Current todos:")
@@ -114,16 +149,22 @@ func TestTodoTool_ListTodos(t *testing.T) {
 		assert.Contains(t, result.Output, todoDesc)
 		assert.Contains(t, result.Output, "Status: pending")
 	}
+
+	// Verify Meta contains all todos
+	metaTodos, ok := result.Meta.([]Todo)
+	require.True(t, ok, "Meta should be []Todo")
+	require.Len(t, metaTodos, 3)
 }
 
 func TestTodoTool_UpdateNonexistentTodo(t *testing.T) {
 	tool := NewTodoTool()
 
-	_, err := tool.handler.updateTodo(t.Context(), UpdateTodoArgs{
+	res, err := tool.handler.updateTodo(t.Context(), UpdateTodoArgs{
 		ID:     "nonexistent_todo",
 		Status: "completed",
 	})
-	assert.ErrorContains(t, err, "not found")
+	require.NoError(t, err)
+	require.True(t, res.IsError)
 }
 
 func TestTodoTool_OutputSchema(t *testing.T) {

@@ -656,6 +656,7 @@ func (m *model) AddToolResult(msg *runtime.ToolCallResponseEvent, status types.T
 		if toolMessage.ToolCall.ID == msg.ToolCall.ID {
 			toolMessage.Content = strings.ReplaceAll(msg.Response, "\t", "    ")
 			toolMessage.ToolStatus = status
+			toolMessage.ToolResult = msg.Result
 			m.invalidateItem(i)
 
 			view := m.createToolCallView(toolMessage)

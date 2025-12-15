@@ -16,7 +16,6 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/components/tool/todotool"
 	"github.com/docker/cagent/pkg/tui/core/layout"
-	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
 )
 
@@ -33,7 +32,7 @@ type Model interface {
 	layout.Sizeable
 
 	SetTokenUsage(event *runtime.TokenUsageEvent)
-	SetTodos(toolCall tools.ToolCall) error
+	SetTodos(result *tools.ToolCallResult) error
 	SetWorking(working bool) tea.Cmd
 	SetMode(mode Mode)
 	SetAgentInfo(agentName, model, description string)
@@ -71,13 +70,13 @@ type model struct {
 	availableTools   int
 }
 
-func New(manager *service.TodoManager) Model {
+func New() Model {
 	return &model{
 		width:        20,
 		height:       24,
 		sessionUsage: make(map[string]*runtime.Usage),
 		sessionAgent: make(map[string]string),
-		todoComp:     todotool.NewSidebarComponent(manager),
+		todoComp:     todotool.NewSidebarComponent(),
 		spinner:      spinner.New(spinner.ModeSpinnerOnly),
 		sessionTitle: "New session",
 		ragIndexing:  make(map[string]*ragIndexingState),
@@ -99,8 +98,8 @@ func (m *model) SetTokenUsage(event *runtime.TokenUsageEvent) {
 	m.sessionAgent[event.SessionID] = event.AgentName
 }
 
-func (m *model) SetTodos(toolCall tools.ToolCall) error {
-	return m.todoComp.SetTodos(toolCall)
+func (m *model) SetTodos(result *tools.ToolCallResult) error {
+	return m.todoComp.SetTodos(result)
 }
 
 // SetWorking sets the working state and returns a command to start the spinner if needed
