@@ -4,8 +4,6 @@ import (
 	"github.com/docker/cagent/pkg/config/latest"
 )
 
-const defaultMaxTokens = 32000
-
 type ModelOptions struct {
 	gateway          string
 	structuredOutput *latest.StructuredOutput
@@ -26,9 +24,6 @@ func (c *ModelOptions) GeneratingTitle() bool {
 }
 
 func (c *ModelOptions) MaxTokens() int64 {
-	if c.maxTokens == 0 {
-		return defaultMaxTokens
-	}
 	return c.maxTokens
 }
 
@@ -71,7 +66,8 @@ func FromModelOptions(m ModelOptions) []Opt {
 	if m.generatingTitle {
 		out = append(out, WithGeneratingTitle())
 	}
-	out = append(out, WithMaxTokens(m.maxTokens))
-
+	if m.maxTokens != 0 {
+		out = append(out, WithMaxTokens(m.maxTokens))
+	}
 	return out
 }

@@ -137,7 +137,7 @@ func TestParseDMRProviderOptsWithSpeculativeDecoding(t *testing.T) {
 
 	contextSize, runtimeFlags, specOpts := parseDMRProviderOpts(cfg)
 
-	assert.Equal(t, 4096, contextSize)
+	assert.Equal(t, int64(4096), *contextSize)
 	assert.Equal(t, []string{"--threads", "8"}, runtimeFlags)
 	require.NotNil(t, specOpts)
 	assert.Equal(t, "ai/qwen3:1B", specOpts.draftModel)
@@ -155,7 +155,7 @@ func TestParseDMRProviderOptsWithoutSpeculativeDecoding(t *testing.T) {
 
 	contextSize, runtimeFlags, specOpts := parseDMRProviderOpts(cfg)
 
-	assert.Equal(t, 4096, contextSize)
+	assert.Equal(t, int64(4096), *contextSize)
 	assert.Equal(t, []string{"--threads", "8"}, runtimeFlags)
 	assert.Nil(t, specOpts)
 }

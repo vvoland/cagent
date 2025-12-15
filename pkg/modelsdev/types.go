@@ -46,8 +46,8 @@ type Cost struct {
 
 // Limit represents the context and output limitations of a model
 type Limit struct {
-	Context int `json:"context"`
-	Output  int `json:"output"`
+	Context int   `json:"context"`
+	Output  int64 `json:"output"`
 }
 
 // Modalities represents the supported input and output types

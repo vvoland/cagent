@@ -8,44 +8,6 @@ interactions:
         proto_minor: 1
         content_length: 0
         host: api.mistral.ai
-        body: '{"messages":[{"content":"You are a helpful AI assistant that generates concise, descriptive titles for conversations. You will be given a conversation history and asked to create a title that captures the main topic.","role":"system"},{"content":"Based on the following message a user sent to an AI assistant, generate a short, descriptive title (maximum 50 characters) that captures the main topic or purpose of the conversation. Return ONLY the title text, nothing else.\n\nUser message: What''s 2+2?\n\n","role":"user"}],"model":"mistral-small","max_tokens":20,"stream_options":{"include_usage":true},"stream":true}'
-        url: https://api.mistral.ai/v1/chat/completions
-        method: POST
-      response:
-        proto: HTTP/2.0
-        proto_major: 2
-        proto_minor: 0
-        content_length: -1
-        body: |+
-            data: {"id":"64e7339a44a2476eb3de21fd5370b67e","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
-
-            data: {"id":"64e7339a44a2476eb3de21fd5370b67e","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"content":"Math"},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvw"}
-
-            data: {"id":"64e7339a44a2476eb3de21fd5370b67e","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"content":" Bas"},"finish_reason":null}],"p":"abcdefghijklmnopqrst"}
-
-            data: {"id":"64e7339a44a2476eb3de21fd5370b67e","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"content":"ics"},"finish_reason":null}],"p":"abcdefghijklmnop"}
-
-            data: {"id":"64e7339a44a2476eb3de21fd5370b67e","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"content":":"},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvwxyz0"}
-
-            data: {"id":"64e7339a44a2476eb3de21fd5370b67e","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"content":" Simple"},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvwx"}
-
-            data: {"id":"64e7339a44a2476eb3de21fd5370b67e","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"content":" Addition"},"finish_reason":null}],"p":"abcdefghijk"}
-
-            data: {"id":"64e7339a44a2476eb3de21fd5370b67e","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"content":""},"finish_reason":"stop"}],"usage":{"prompt_tokens":95,"total_tokens":102,"completion_tokens":7},"p":"abcdefghijklmnopqrstuvwxyz01234567"}
-
-            data: [DONE]
-
-        headers: {}
-        status: 200 OK
-        code: 200
-        duration: 170.585708ms
-    - id: 1
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        host: api.mistral.ai
         body: '{"messages":[{"content":"You are a knowledgeable assistant that helps users with various tasks.\nBe helpful, accurate, and concise in your responses.\n","role":"system"},{"content":"What''s 2+2?","role":"user"}],"model":"mistral-small","stream_options":{"include_usage":true},"stream":true}'
         url: https://api.mistral.ai/v1/chat/completions
         method: POST
@@ -55,37 +17,75 @@ interactions:
         proto_minor: 0
         content_length: -1
         body: |+
-            data: {"id":"7d923d77d213429980bd9cef9ea3c507","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
+            data: {"id":"b098591dec19412196af9c984d1fad31","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
 
-            data: {"id":"7d923d77d213429980bd9cef9ea3c507","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"content":"The"},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvwxyz"}
+            data: {"id":"b098591dec19412196af9c984d1fad31","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"content":"The"},"finish_reason":null}],"p":"abcdefghijk"}
 
-            data: {"id":"7d923d77d213429980bd9cef9ea3c507","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"content":" sum"},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvwx"}
+            data: {"id":"b098591dec19412196af9c984d1fad31","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"content":" sum"},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvwxyz0123456"}
 
-            data: {"id":"7d923d77d213429980bd9cef9ea3c507","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"content":" of"},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvwxyz0123456"}
+            data: {"id":"b098591dec19412196af9c984d1fad31","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"content":" of"},"finish_reason":null}],"p":"abcdefghijklmnopq"}
 
-            data: {"id":"7d923d77d213429980bd9cef9ea3c507","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"content":" "},"finish_reason":null}],"p":"abcdefghi"}
+            data: {"id":"b098591dec19412196af9c984d1fad31","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"content":" "},"finish_reason":null}],"p":"abc"}
 
-            data: {"id":"7d923d77d213429980bd9cef9ea3c507","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"content":"2"},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvwxyz01"}
+            data: {"id":"b098591dec19412196af9c984d1fad31","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"content":"2"},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvwxyz012"}
 
-            data: {"id":"7d923d77d213429980bd9cef9ea3c507","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"content":" +"},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvwxyz01234"}
+            data: {"id":"b098591dec19412196af9c984d1fad31","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"content":" +"},"finish_reason":null}],"p":"abcdefghijklmnopq"}
 
-            data: {"id":"7d923d77d213429980bd9cef9ea3c507","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"content":" "},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvwxyz0123456789"}
+            data: {"id":"b098591dec19412196af9c984d1fad31","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"content":" "},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvwxyz01234567"}
 
-            data: {"id":"7d923d77d213429980bd9cef9ea3c507","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"content":"2"},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvwxyz01"}
+            data: {"id":"b098591dec19412196af9c984d1fad31","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"content":"2"},"finish_reason":null}],"p":"ab"}
 
-            data: {"id":"7d923d77d213429980bd9cef9ea3c507","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"content":" is"},"finish_reason":null}],"p":"abcdefghijklmnopqrstuv"}
+            data: {"id":"b098591dec19412196af9c984d1fad31","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"content":" is"},"finish_reason":null}],"p":"abcdefghijk"}
 
-            data: {"id":"7d923d77d213429980bd9cef9ea3c507","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"content":" "},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvwxyz0"}
+            data: {"id":"b098591dec19412196af9c984d1fad31","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"content":" "},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvwx"}
 
-            data: {"id":"7d923d77d213429980bd9cef9ea3c507","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"content":"4"},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvwxyz012345"}
+            data: {"id":"b098591dec19412196af9c984d1fad31","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"content":"4"},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvwxy"}
 
-            data: {"id":"7d923d77d213429980bd9cef9ea3c507","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"content":"."},"finish_reason":null}],"p":"abcdefghijklmnopqrstu"}
+            data: {"id":"b098591dec19412196af9c984d1fad31","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"content":"."},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvwxyz01234"}
 
-            data: {"id":"7d923d77d213429980bd9cef9ea3c507","object":"chat.completion.chunk","created":1764948624,"model":"mistral-small","choices":[{"index":0,"delta":{"content":""},"finish_reason":"stop"}],"usage":{"prompt_tokens":35,"total_tokens":48,"completion_tokens":13},"p":"a"}
+            data: {"id":"b098591dec19412196af9c984d1fad31","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"content":""},"finish_reason":"stop"}],"usage":{"prompt_tokens":35,"total_tokens":48,"completion_tokens":13},"p":"abcdefghijklmnopqrstu"}
 
             data: [DONE]
 
         headers: {}
         status: 200 OK
         code: 200
-        duration: 395.9145ms
+        duration: 319.188041ms
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.mistral.ai
+        body: '{"messages":[{"content":"You are a helpful AI assistant that generates concise, descriptive titles for conversations. You will be given a conversation history and asked to create a title that captures the main topic.","role":"system"},{"content":"Based on the following message a user sent to an AI assistant, generate a short, descriptive title (maximum 50 characters) that captures the main topic or purpose of the conversation. Return ONLY the title text, nothing else.\n\nUser message: What''s 2+2?\n\n","role":"user"}],"model":"mistral-small","stream_options":{"include_usage":true},"stream":true}'
+        url: https://api.mistral.ai/v1/chat/completions
+        method: POST
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        body: |+
+            data: {"id":"807e7c11c2214b0c9de51138e033a47e","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
+
+            data: {"id":"807e7c11c2214b0c9de51138e033a47e","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"content":"Math"},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvwxyz0123456789"}
+
+            data: {"id":"807e7c11c2214b0c9de51138e033a47e","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"content":" Bas"},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvwxyz01234567"}
+
+            data: {"id":"807e7c11c2214b0c9de51138e033a47e","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"content":"ics"},"finish_reason":null}],"p":"a"}
+
+            data: {"id":"807e7c11c2214b0c9de51138e033a47e","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"content":":"},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvwxyz01234567"}
+
+            data: {"id":"807e7c11c2214b0c9de51138e033a47e","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"content":" Simple"},"finish_reason":null}],"p":"abcdefghijklmnopqrstuvwxyz0123456"}
+
+            data: {"id":"807e7c11c2214b0c9de51138e033a47e","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"content":" Addition"},"finish_reason":null}],"p":"abcdefghijklmnop"}
+
+            data: {"id":"807e7c11c2214b0c9de51138e033a47e","object":"chat.completion.chunk","created":1765813153,"model":"mistral-small","choices":[{"index":0,"delta":{"content":""},"finish_reason":"stop"}],"usage":{"prompt_tokens":95,"total_tokens":102,"completion_tokens":7},"p":"abcdefghijklmnopqrstu"}
+
+            data: [DONE]
+
+        headers: {}
+        status: 200 OK
+        code: 200
+        duration: 1.385184333s
