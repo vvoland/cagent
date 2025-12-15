@@ -418,30 +418,30 @@ func (t *FilesystemTool) shouldIgnorePath(path string) bool {
 
 func (t *FilesystemTool) handleDirectoryTree(_ context.Context, args DirectoryTreeArgs) (*tools.ToolCallResult, error) {
 	if err := t.isPathAllowed(args.Path); err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error: %s", err)), nil
 	}
 
 	tree, err := fsx.DirectoryTree(args.Path, t.isPathAllowed, t.shouldIgnorePath, maxFiles)
 	if err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error building directory tree: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error building directory tree: %s", err)), nil
 	}
 
 	result, err := json.MarshalIndent(tree, "", "  ")
 	if err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error formatting tree: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error formatting tree: %s", err)), nil
 	}
 
-	return &tools.ToolCallResult{Output: string(result)}, nil
+	return tools.ResultSuccess(string(result)), nil
 }
 
 func (t *FilesystemTool) handleEditFile(ctx context.Context, args EditFileArgs) (*tools.ToolCallResult, error) {
 	if err := t.isPathAllowed(args.Path); err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error: %s", err)), nil
 	}
 
 	content, err := os.ReadFile(args.Path)
 	if err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error reading file: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error reading file: %s", err)), nil
 	}
 
 	originalContent := string(content)
@@ -450,51 +450,51 @@ func (t *FilesystemTool) handleEditFile(ctx context.Context, args EditFileArgs) 
 	var changes []string
 	for i, edit := range args.Edits {
 		if !strings.Contains(modifiedContent, edit.OldText) {
-			return &tools.ToolCallResult{Output: fmt.Sprintf("Edit %d failed: old text not found", i+1)}, nil
+			return tools.ResultError(fmt.Sprintf("Edit %d failed: old text not found", i+1)), nil
 		}
 		modifiedContent = strings.Replace(modifiedContent, edit.OldText, edit.NewText, 1)
 		changes = append(changes, fmt.Sprintf("Edit %d: Replaced %d characters", i+1, len(edit.OldText)))
 	}
 
 	if err := os.WriteFile(args.Path, []byte(modifiedContent), 0o644); err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error writing file: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error writing file: %s", err)), nil
 	}
 
 	// Execute post-edit commands
 	if err := t.executePostEditCommands(ctx, args.Path); err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("File edited successfully but post-edit command failed: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("File edited successfully but post-edit command failed: %s", err)), nil
 	}
 
 	if len(changes) == 1 {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("File edited successfully. %s", strings.TrimPrefix(changes[0], "Edit 1: "))}, nil
+		return tools.ResultSuccess(fmt.Sprintf("File edited successfully. %s", strings.TrimPrefix(changes[0], "Edit 1: "))), nil
 	}
 
-	return &tools.ToolCallResult{Output: fmt.Sprintf("File edited successfully. Changes:\n%s", strings.Join(changes, "\n"))}, nil
+	return tools.ResultSuccess(fmt.Sprintf("File edited successfully. Changes:\n%s", strings.Join(changes, "\n"))), nil
 }
 
 func (t *FilesystemTool) handleListAllowedDirectories(context.Context, map[string]any) (*tools.ToolCallResult, error) {
 	result, err := json.Marshal(t.allowedDirectories)
 	if err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error formatting directories: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error formatting directories: %s", err)), nil
 	}
 
-	return &tools.ToolCallResult{Output: string(result)}, nil
+	return tools.ResultSuccess(string(result)), nil
 }
 
 func (t *FilesystemTool) handleAddAllowedDirectory(_ context.Context, args AddAllowedDirectoryArgs) (*tools.ToolCallResult, error) {
 	// Validate the path exists and is a directory
 	absPath, err := filepath.Abs(args.Path)
 	if err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error resolving path: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error resolving path: %s", err)), nil
 	}
 
 	info, err := os.Stat(absPath)
 	if err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error accessing path: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error accessing path: %s", err)), nil
 	}
 
 	if !info.IsDir() {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s is not a directory", absPath)}, nil
+		return tools.ResultError(fmt.Sprintf("Error: %s is not a directory", absPath)), nil
 	}
 
 	// Check if the directory is already allowed
@@ -504,12 +504,12 @@ func (t *FilesystemTool) handleAddAllowedDirectory(_ context.Context, args AddAl
 			continue
 		}
 		if allowedAbs == absPath {
-			return &tools.ToolCallResult{Output: fmt.Sprintf("Directory %s is already in allowed directories list", absPath)}, nil
+			return tools.ResultError(fmt.Sprintf("Directory %s is already in allowed directories list", absPath)), nil
 		}
 		// Check if the requested path is already covered by an existing allowed directory
 		// Use proper separator check to prevent sibling directory bypass
 		if absPath == allowedAbs || strings.HasPrefix(absPath, allowedAbs+string(filepath.Separator)) {
-			return &tools.ToolCallResult{Output: fmt.Sprintf("Directory %s is already accessible (covered by %s)", absPath, allowedAbs)}, nil
+			return tools.ResultSuccess(fmt.Sprintf("Directory %s is already accessible (covered by %s)", absPath, allowedAbs)), nil
 		}
 	}
 
@@ -535,17 +535,17 @@ The agent now has filesystem access to this directory and all its subdirectories
 Updated allowed directories:
 %s`, absPath, strings.Join(t.allowedDirectories, "\n"))
 
-	return &tools.ToolCallResult{Output: successMsg}, nil
+	return tools.ResultSuccess(successMsg), nil
 }
 
 func (t *FilesystemTool) handleListDirectory(_ context.Context, args ListDirectoryArgs) (*tools.ToolCallResult, error) {
 	if err := t.isPathAllowed(args.Path); err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error: %s", err)), nil
 	}
 
 	entries, err := os.ReadDir(args.Path)
 	if err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error reading directory: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error reading directory: %s", err)), nil
 	}
 
 	var result strings.Builder
@@ -569,20 +569,20 @@ func (t *FilesystemTool) handleListDirectory(_ context.Context, args ListDirecto
 		}
 	}
 
-	return &tools.ToolCallResult{Output: result.String()}, nil
+	return tools.ResultSuccess(result.String()), nil
 }
 
 func (t *FilesystemTool) handleReadFile(_ context.Context, args ReadFileArgs) (*tools.ToolCallResult, error) {
 	if err := t.isPathAllowed(args.Path); err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error: %s", err)), nil
 	}
 
 	content, err := os.ReadFile(args.Path)
 	if err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error reading file: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error reading file: %s", err)), nil
 	}
 
-	return &tools.ToolCallResult{Output: string(content)}, nil
+	return tools.ResultSuccess(string(content)), nil
 }
 
 func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadMultipleFilesArgs) (*tools.ToolCallResult, error) {
@@ -624,12 +624,10 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadM
 	if args.JSON {
 		jsonResult, err := json.MarshalIndent(contents, "", "  ")
 		if err != nil {
-			return &tools.ToolCallResult{Output: fmt.Sprintf("Error formatting JSON: %s", err)}, nil
+			return tools.ResultError(fmt.Sprintf("Error formatting JSON: %s", err)), nil
 		}
 
-		return &tools.ToolCallResult{
-			Output: string(jsonResult),
-		}, nil
+		return tools.ResultSuccess(string(jsonResult)), nil
 	}
 
 	var result strings.Builder
@@ -637,14 +635,12 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadM
 		result.WriteString(fmt.Sprintf("=== %s ===\n%s\n\n", content.Path, content.Content))
 	}
 
-	return &tools.ToolCallResult{
-		Output: result.String(),
-	}, nil
+	return tools.ResultSuccess(result.String()), nil
 }
 
 func (t *FilesystemTool) handleSearchFiles(_ context.Context, args SearchFilesArgs) (*tools.ToolCallResult, error) {
 	if err := t.isPathAllowed(args.Path); err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error: %s", err)), nil
 	}
 
 	var matches []string
@@ -687,21 +683,19 @@ func (t *FilesystemTool) handleSearchFiles(_ context.Context, args SearchFilesAr
 		return nil
 	})
 	if err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error searching files: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error searching files: %s", err)), nil
 	}
 
 	if len(matches) == 0 {
-		return &tools.ToolCallResult{Output: "No files found"}, nil
+		return tools.ResultSuccess("No files found"), nil
 	}
 
-	return &tools.ToolCallResult{
-		Output: fmt.Sprintf("%d files found:\n%s", len(matches), strings.Join(matches, "\n")),
-	}, nil
+	return tools.ResultSuccess(fmt.Sprintf("%d files found:\n%s", len(matches), strings.Join(matches, "\n"))), nil
 }
 
 func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, args SearchFilesContentArgs) (*tools.ToolCallResult, error) {
 	if err := t.isPathAllowed(args.Path); err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error: %s", err)), nil
 	}
 
 	var regex *regexp.Regexp
@@ -709,7 +703,7 @@ func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, args Search
 		var err error
 		regex, err = regexp.Compile(args.Query)
 		if err != nil {
-			return &tools.ToolCallResult{Output: fmt.Sprintf("Invalid regex pattern: %s", err)}, nil
+			return tools.ResultError(fmt.Sprintf("Invalid regex pattern: %s", err)), nil
 		}
 	}
 
@@ -791,37 +785,37 @@ func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, args Search
 		return nil
 	})
 	if err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error searching file contents: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error searching file contents: %s", err)), nil
 	}
 
 	if len(results) == 0 {
-		return &tools.ToolCallResult{Output: "No results found"}, nil
+		return tools.ResultSuccess("No results found"), nil
 	}
 
-	return &tools.ToolCallResult{Output: strings.Join(results, "\n")}, nil
+	return tools.ResultSuccess(strings.Join(results, "\n")), nil
 }
 
 func (t *FilesystemTool) handleWriteFile(ctx context.Context, args WriteFileArgs) (*tools.ToolCallResult, error) {
 	if err := t.isPathAllowed(args.Path); err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error: %s", err)), nil
 	}
 
 	// Create parent directory structure if it doesn't exist
 	dir := filepath.Dir(args.Path)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error creating directory structure: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error creating directory structure: %s", err)), nil
 	}
 
 	if err := os.WriteFile(args.Path, []byte(args.Content), 0o644); err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error writing file: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error writing file: %s", err)), nil
 	}
 
 	// Execute post-edit commands
 	if err := t.executePostEditCommands(ctx, args.Path); err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("File written successfully but post-edit command failed: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("File written successfully but post-edit command failed: %s", err)), nil
 	}
 
-	return &tools.ToolCallResult{Output: fmt.Sprintf("File written successfully: %s (%d bytes)", args.Path, len(args.Content))}, nil
+	return tools.ResultSuccess(fmt.Sprintf("File written successfully: %s (%d bytes)", args.Path, len(args.Content))), nil
 }
 
 func (t *FilesystemTool) Start(context.Context) error {

@@ -27,9 +27,7 @@ type ThinkArgs struct {
 
 func (h *thinkHandler) CallTool(_ context.Context, params ThinkArgs) (*tools.ToolCallResult, error) {
 	h.thoughts = append(h.thoughts, params.Thought)
-	return &tools.ToolCallResult{
-		Output: "Thoughts:\n" + strings.Join(h.thoughts, "\n"),
-	}, nil
+	return tools.ResultSuccess("Thoughts:\n" + strings.Join(h.thoughts, "\n")), nil
 }
 
 func NewThinkTool() *ThinkTool {

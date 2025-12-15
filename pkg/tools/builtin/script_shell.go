@@ -155,14 +155,10 @@ func (t *ScriptShellTool) execute(ctx context.Context, toolConfig *latest.Script
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return &tools.ToolCallResult{
-			Output: fmt.Sprintf("Error executing command '%s': %s\nOutput: %s", toolConfig.Cmd, err, limitOutput(string(output))),
-		}, nil
+		return tools.ResultError(fmt.Sprintf("Error executing command '%s': %s\nOutput: %s", toolConfig.Cmd, err, limitOutput(string(output)))), nil
 	}
 
-	return &tools.ToolCallResult{
-		Output: limitOutput(string(output)),
-	}, nil
+	return tools.ResultSuccess(limitOutput(string(output))), nil
 }
 
 func (t *ScriptShellTool) Start(context.Context) error {

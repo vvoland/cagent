@@ -89,9 +89,7 @@ func (c *codeModeTool) Tools(ctx context.Context) ([]tools.Tool, error) {
 				return nil, fmt.Errorf("marshaling script's result: %w", err)
 			}
 
-			return &tools.ToolCallResult{
-				Output: string(buf),
-			}, nil
+			return tools.ResultSuccess(string(buf)), nil
 		}),
 		OutputSchema: tools.MustSchemaFor[ScriptResult](),
 		Annotations: tools.ToolAnnotations{

@@ -134,9 +134,7 @@ func (t *RAGTool) handleQueryRAG(ctx context.Context, args QueryRAGArgs) (*tools
 		return nil, fmt.Errorf("failed to marshal results: %w", err)
 	}
 
-	return &tools.ToolCallResult{
-		Output: string(resultJSON),
-	}, nil
+	return tools.ResultSuccess(string(resultJSON)), nil
 }
 
 func (t *RAGTool) Start(context.Context) error {

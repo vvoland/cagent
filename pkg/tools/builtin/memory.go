@@ -103,9 +103,7 @@ func (t *MemoryTool) handleAddMemory(ctx context.Context, args AddMemoryArgs) (*
 		return nil, fmt.Errorf("failed to add memory: %w", err)
 	}
 
-	return &tools.ToolCallResult{
-		Output: fmt.Sprintf("Memory added successfully with ID: %s", memory.ID),
-	}, nil
+	return tools.ResultSuccess(fmt.Sprintf("Memory added successfully with ID: %s", memory.ID)), nil
 }
 
 func (t *MemoryTool) handleGetMemories(ctx context.Context, _ map[string]any) (*tools.ToolCallResult, error) {
@@ -119,9 +117,7 @@ func (t *MemoryTool) handleGetMemories(ctx context.Context, _ map[string]any) (*
 		return nil, fmt.Errorf("failed to marshal memories: %w", err)
 	}
 
-	return &tools.ToolCallResult{
-		Output: string(result),
-	}, nil
+	return tools.ResultSuccess(string(result)), nil
 }
 
 func (t *MemoryTool) handleDeleteMemory(ctx context.Context, args DeleteMemoryArgs) (*tools.ToolCallResult, error) {
@@ -133,9 +129,7 @@ func (t *MemoryTool) handleDeleteMemory(ctx context.Context, args DeleteMemoryAr
 		return nil, fmt.Errorf("failed to delete memory: %w", err)
 	}
 
-	return &tools.ToolCallResult{
-		Output: fmt.Sprintf("Memory with ID %s deleted successfully", args.ID),
-	}, nil
+	return tools.ResultSuccess(fmt.Sprintf("Memory with ID %s deleted successfully", args.ID)), nil
 }
 
 func (t *MemoryTool) Start(context.Context) error {

@@ -1125,15 +1125,13 @@ func (r *LocalRuntime) runTool(ctx context.Context, tool tools.Tool, toolCall to
 		if errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
 			slog.Debug("Tool handler canceled by context", "tool", toolCall.Function.Name, "agent", a.Name(), "session_id", sess.ID)
 			// Synthesize a cancellation response so the transcript remains consistent
-			res = &tools.ToolCallResult{Output: "The tool call was canceled by the user."}
+			res = tools.ResultError("The tool call was canceled by the user.")
 			span.SetStatus(codes.Ok, "tool handler canceled by user")
 		} else {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "tool handler error")
 			slog.Error("Error calling tool", "tool", toolCall.Function.Name, "error", err)
-			res = &tools.ToolCallResult{
-				Output: fmt.Sprintf("Error calling tool: %v", err),
-			}
+			res = tools.ResultError(fmt.Sprintf("Error calling tool: %v", err))
 		}
 	} else {
 		span.SetStatus(codes.Ok, "tool handler completed")
@@ -1346,9 +1344,7 @@ func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Ses
 	slog.Debug("Task transfer completed", "agent", params.Agent, "task", params.Task)
 
 	span.SetStatus(codes.Ok, "task transfer completed")
-	return &tools.ToolCallResult{
-		Output: s.GetLastAssistantMessageContent(),
-	}, nil
+	return tools.ResultSuccess(s.GetLastAssistantMessageContent()), nil
 }
 
 func (r *LocalRuntime) handleHandoff(_ context.Context, _ *session.Session, toolCall tools.ToolCall, _ chan Event) (*tools.ToolCallResult, error) {
@@ -1364,9 +1360,7 @@ func (r *LocalRuntime) handleHandoff(_ context.Context, _ *session.Session, tool
 	}
 
 	r.currentAgent = next.Name()
-	return &tools.ToolCallResult{
-		Output: fmt.Sprintf("The agent %s handed off the conversation to you, look at the history of the conversation and continue where it left off. Once you are done with your task or if the user asks you, handoff the conversation back to %s.", ca, ca),
-	}, nil
+	return tools.ResultSuccess(fmt.Sprintf("The agent %s handed off the conversation to you, look at the history of the conversation and continue where it left off. Once you are done with your task or if the user asks you, handoff the conversation back to %s.", ca, ca)), nil
 }
 
 // Summarize generates a summary for the session based on the conversation history

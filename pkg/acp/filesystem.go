@@ -76,7 +76,7 @@ func (t *FilesystemToolset) handleReadFile(ctx context.Context, toolCall tools.T
 
 	sessionID, ok := getSessionID(ctx)
 	if !ok {
-		return &tools.ToolCallResult{Output: "Error: session ID not found in context"}, nil
+		return tools.ResultError("Error: session ID not found in context"), nil
 	}
 
 	resp, err := t.agent.conn.ReadTextFile(ctx, acp.ReadTextFileRequest{
@@ -84,10 +84,10 @@ func (t *FilesystemToolset) handleReadFile(ctx context.Context, toolCall tools.T
 		Path:      filepath.Join(t.workindgDir, args.Path),
 	})
 	if err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error reading file: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error reading file: %s", err)), nil
 	}
 
-	return &tools.ToolCallResult{Output: resp.Content}, nil
+	return tools.ResultSuccess(resp.Content), nil
 }
 
 func (t *FilesystemToolset) handleWriteFile(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
@@ -98,7 +98,7 @@ func (t *FilesystemToolset) handleWriteFile(ctx context.Context, toolCall tools.
 
 	sessionID, ok := getSessionID(ctx)
 	if !ok {
-		return &tools.ToolCallResult{Output: "Error: session ID not found in context"}, nil
+		return tools.ResultError("Error: session ID not found in context"), nil
 	}
 
 	_, err := t.agent.conn.WriteTextFile(ctx, acp.WriteTextFileRequest{
@@ -107,10 +107,10 @@ func (t *FilesystemToolset) handleWriteFile(ctx context.Context, toolCall tools.
 		Content:   args.Content,
 	})
 	if err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error writing file: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error writing file: %s", err)), nil
 	}
 
-	return &tools.ToolCallResult{Output: "File written successfully"}, nil
+	return tools.ResultSuccess("File written successfully"), nil
 }
 
 func (t *FilesystemToolset) handleEditFile(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
@@ -121,7 +121,7 @@ func (t *FilesystemToolset) handleEditFile(ctx context.Context, toolCall tools.T
 
 	sessionID, ok := getSessionID(ctx)
 	if !ok {
-		return &tools.ToolCallResult{Output: "Error: session ID not found in context"}, nil
+		return tools.ResultError("Error: session ID not found in context"), nil
 	}
 
 	resp, err := t.agent.conn.ReadTextFile(ctx, acp.ReadTextFileRequest{
@@ -129,14 +129,14 @@ func (t *FilesystemToolset) handleEditFile(ctx context.Context, toolCall tools.T
 		Path:      filepath.Join(t.workindgDir, args.Path),
 	})
 	if err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error reading file: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error reading file: %s", err)), nil
 	}
 
 	modifiedContent := resp.Content
 
 	for i, edit := range args.Edits {
 		if !strings.Contains(modifiedContent, edit.OldText) {
-			return &tools.ToolCallResult{Output: fmt.Sprintf("Edit %d failed: old text not found", i+1)}, nil
+			return tools.ResultError(fmt.Sprintf("Edit %d failed: old text not found", i+1)), nil
 		}
 		modifiedContent = strings.Replace(modifiedContent, edit.OldText, edit.NewText, 1)
 	}
@@ -147,8 +147,8 @@ func (t *FilesystemToolset) handleEditFile(ctx context.Context, toolCall tools.T
 		Content:   modifiedContent,
 	})
 	if err != nil {
-		return &tools.ToolCallResult{Output: fmt.Sprintf("Error writing file: %s", err)}, nil
+		return tools.ResultError(fmt.Sprintf("Error writing file: %s", err)), nil
 	}
 
-	return &tools.ToolCallResult{Output: "File edited successfully"}, nil
+	return tools.ResultSuccess("File edited successfully"), nil
 }
