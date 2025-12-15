@@ -7,8 +7,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
-	"time"
 
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
@@ -16,7 +14,6 @@ import (
 
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/fake"
 	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
@@ -93,27 +90,11 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 	slog.Debug("Starting agent", "agent", f.agentName)
 
 	// Record AI API interactions to a cassette file if --record flag is specified.
-	if f.recordPath != "" {
-		recordPath := f.recordPath
-		if recordPath == "true" {
-			recordPath = fmt.Sprintf("cagent-recording-%d", time.Now().Unix())
-		} else {
-			recordPath = strings.TrimSuffix(recordPath, ".yaml")
-		}
-
-		proxyURL, cleanup, err := fake.StartRecordingProxy(recordPath)
-		if err != nil {
-			return fmt.Errorf("failed to start recording proxy: %w", err)
-		}
-		defer func() {
-			if err := cleanup(); err != nil {
-				slog.Error("Failed to cleanup recording proxy", "error", err)
-			}
-		}()
-
-		f.runConfig.ModelsGateway = proxyURL
-		out.Println(fmt.Sprintf("Recording mode enabled, cassette: %s.yaml", recordPath))
-		slog.Info("Recording mode enabled", "cassette", recordPath+".yaml", "proxy", proxyURL)
+	if cassettePath, cleanup, err := setupRecordingProxy(f.recordPath, &f.runConfig); err != nil {
+		return err
+	} else if cassettePath != "" {
+		defer cleanup()
+		out.Println("Recording mode enabled, cassette: " + cassettePath)
 	}
 
 	var agentFileName string

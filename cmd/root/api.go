@@ -21,6 +21,7 @@ type apiFlags struct {
 	sessionDB        string
 	pullIntervalMins int
 	fakeResponses    string
+	recordPath       string
 	runConfig        config.RuntimeConfig
 }
 
@@ -40,6 +41,8 @@ func newAPICmd() *cobra.Command {
 	cmd.PersistentFlags().StringVarP(&flags.sessionDB, "session-db", "s", "session.db", "Path to the session database")
 	cmd.PersistentFlags().IntVar(&flags.pullIntervalMins, "pull-interval", 0, "Auto-pull OCI reference every N minutes (0 = disabled)")
 	cmd.PersistentFlags().StringVar(&flags.fakeResponses, "fake", "", "Replay AI responses from cassette file (for testing)")
+	cmd.PersistentFlags().StringVar(&flags.recordPath, "record", "", "Record AI API interactions to cassette file")
+	cmd.MarkFlagsMutuallyExclusive("fake", "record")
 	addRuntimeConfigFlags(cmd, &flags.runConfig)
 
 	return cmd
@@ -69,6 +72,13 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 
 		f.runConfig.ModelsGateway = proxyURL
 		slog.Info("Fake mode enabled", "cassette", f.fakeResponses, "proxy", proxyURL)
+	}
+
+	// Start recording proxy if --record is specified
+	if _, cleanup, err := setupRecordingProxy(f.recordPath, &f.runConfig); err != nil {
+		return err
+	} else if cleanup != nil {
+		defer cleanup()
 	}
 
 	if f.pullIntervalMins > 0 && !config.IsOCIReference(agentsPath) {
