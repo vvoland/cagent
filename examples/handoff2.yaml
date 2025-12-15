@@ -1,0 +1,127 @@
+#!/usr/bin/env cagent run
+
+# Handoff Graph Diagram:
+#
+#            Root Agent  ────────────────────┐
+#                |                           |
+#        ┌───────┼────────┐                  |
+#        |                |                  |
+#        ↓                ↓                  |
+#   Web Search      Filesystem Search        |
+#        |                |                  |
+#        |        ┌───────┴───────┐          |
+#        |        |               |          ↑
+#        |    (if list)    (if contents)     ↑
+#        |        |               ↓          ↑
+#        |        ↓            Redactor      |
+#        |        |               ↓          |
+#        |        └───────┬───────┘          |
+#        |                ↓                  |
+#        |            Tabulator              |
+#        |                ↓                  |
+#        └────────┼───────┘                  |
+#                 ↓                          |
+#             Summarizer ────────────────────┘
+#
+
+agents:
+  root:
+    model: anthropic/claude-sonnet-4-5
+    description: Search coordinator that routes queries to appropriate search agents
+    instruction: |
+      You are a search coordinator that helps users find information.
+      Based on the user's query, determine whether they need:
+      - Web search: for general information, current events, or online resources
+      - Filesystem search: for searching local files, directories, or file contents
+      
+      Hand off to the appropriate agent based on the query type.
+      If the query is ambiguous, ask the user for clarification.
+    handoffs:
+      - web_search
+      - filesystem_search
+
+  web_search:
+    model: openai/gpt-4o
+    description: Specialized in web searching and information retrieval from the internet
+    instruction: |
+      You are an agent specialized in web searching and information retrieval.
+      Use the DuckDuckGo search tools to find relevant information on the web.
+      After gathering search results, hand off to the summarizer agent to present the findings.
+    toolsets:
+      - type: mcp
+        ref: docker:duckduckgo
+    handoffs:
+      - summarizer
+
+  filesystem_search:
+    model: openai/gpt-4o
+    description: Specialized in searching local filesystem, directories, and file contents
+    instruction: |
+      You are an agent specialized in searching the local filesystem.
+      Use filesystem tools to search for files, list directories, or read file contents.
+      
+      After performing your search:
+      - If the results are a list of files/directories (tabular data), hand off to the tabulator agent
+      - If the results are file contents (text from reading files), hand off to the redactor agent first
+      
+      Make your decision based on what type of data you've retrieved.
+    toolsets:
+      - type: filesystem
+    handoffs:
+      - tabulator
+      - redactor
+
+  redactor:
+    model: openai/gpt-4o-mini
+    description: Redacts sensitive information like API keys, passwords, and secrets from file contents
+    instruction: |
+      You are a security-focused agent that redacts sensitive information from file contents.
+      Look for and redact:
+      - API keys (look for patterns like "api_key", "API_KEY", "apikey")
+      - Passwords (look for "password", "passwd", "pwd")
+      - Secrets (look for "secret", "SECRET", "token", "TOKEN")
+      - Private keys (look for "-----BEGIN", "PRIVATE KEY")
+      - Email addresses (optional, based on context)
+      
+      Replace sensitive values with "[REDACTED]" or similar placeholders.
+      After redacting, hand off to the tabulator agent to format the results.
+    toolsets:
+      - type: filesystem
+    handoffs:
+      - tabulator
+
+  tabulator:
+    model: openai/gpt-4o-mini
+    description: Formats data into well-structured tables for presentation
+    instruction: |
+      You are an agent specialized in formatting data into tables.
+      Take the data you receive and format it as a clear, readable table.
+      Use markdown table format or ASCII table formatting.
+      
+      For file listings, create columns like: Name, Type, Size, Modified
+      For search results, create columns appropriate to the data.
+      For text content, format it as a single-column table or structured output.
+      
+      After formatting, hand off to the summarizer agent to present the final results.
+    toolsets:
+      - type: shell
+      - type: think
+    handoffs:
+      - summarizer
+
+  summarizer:
+    model: anthropic/claude-sonnet-4-5
+    description: Presents search results and summaries in a clear, organized format
+    instruction: |
+      You are the final presentation agent that summarizes and presents search results.
+      Take the information you receive from other agents and present it clearly to the user.
+      
+      - For web search results: Provide a summary with key findings and sources
+      - For filesystem results: Present the formatted table or redacted content clearly
+      - Always be concise and well-organized
+      - Include relevant context from the search process
+      
+      You are the final agent in the workflow - present the results and complete the task.
+    toolsets:
+      - type: think
+

@@ -1362,7 +1362,7 @@ func (r *LocalRuntime) handleHandoff(_ context.Context, _ *session.Session, tool
 	}
 
 	r.currentAgent = next.Name()
-	return tools.ResultSuccess(fmt.Sprintf("The agent %s handed off the conversation to you, look at the history of the conversation and continue where it left off. Once you are done with your task or if the user asks you, handoff the conversation back to %s.", ca, ca)), nil
+	return tools.ResultSuccess(fmt.Sprintf("The agent %s handed off the conversation to you. Look at the history of the conversation and continue where it left off. Complete your part of the task and hand off to the next appropriate agent in the workflow, or respond directly to the user if you are the final agent.", ca)), nil
 }
 
 // Summarize generates a summary for the session based on the conversation history
