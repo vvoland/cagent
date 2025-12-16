@@ -82,41 +82,31 @@ func (c *Component) View() string {
 	}
 
 	// For completed/error state, show concise summary
-	summary := formatSummary(msg.Content)
+	var meta *builtin.ListDirectoryMeta
+	if msg.ToolResult != nil {
+		if m, ok := msg.ToolResult.Meta.(builtin.ListDirectoryMeta); ok {
+			meta = &m
+		}
+	}
+	summary := formatSummary(meta)
 	params := styles.MutedStyle.Render(summary)
 
 	return toolcommon.RenderTool(toolcommon.Icon(msg.ToolStatus), displayName, params, "", c.width)
 }
 
-// formatSummary creates a concise summary of the directory listing
-func formatSummary(content string) string {
-	if content == "" {
+// formatSummary creates a concise summary of the directory listing from metadata
+func formatSummary(meta *builtin.ListDirectoryMeta) string {
+	if meta == nil {
 		return "empty directory"
 	}
 
-	// Count DIR and FILE entries
-	lines := strings.Split(strings.TrimSpace(content), "\n")
-	fileCount := 0
-	dirCount := 0
-	truncated := false
-
-	for _, line := range lines {
-		switch {
-		case strings.HasPrefix(line, "DIR  "):
-			dirCount++
-		case strings.HasPrefix(line, "FILE "):
-			fileCount++
-		case strings.Contains(line, "truncated"):
-			truncated = true
-		}
-	}
-
+	fileCount := len(meta.Files)
+	dirCount := len(meta.Dirs)
 	totalCount := fileCount + dirCount
 	if totalCount == 0 {
 		return "empty directory"
 	}
 
-	// Build the summary message
 	var parts []string
 	if fileCount > 0 {
 		parts = append(parts, fmt.Sprintf("%d file%s", fileCount, pluralize(fileCount)))
@@ -126,7 +116,7 @@ func formatSummary(content string) string {
 	}
 
 	result := fmt.Sprintf("found %s", strings.Join(parts, " and "))
-	if truncated {
+	if meta.Truncated {
 		result += " (truncated)"
 	}
 

@@ -48,6 +48,15 @@ type todoHandler struct {
 	todos *concurrent.Map[string, Todo]
 }
 
+func (h *todoHandler) allTodos() []Todo {
+	var todos []Todo
+	h.todos.Range(func(_ string, todo Todo) bool {
+		todos = append(todos, todo)
+		return true
+	})
+	return todos
+}
+
 var NewSharedTodoTool = sync.OnceValue(NewTodoTool)
 
 func NewTodoTool() *TodoTool {
@@ -81,17 +90,20 @@ This toolset is REQUIRED for maintaining task state and ensuring all steps are c
 
 func (h *todoHandler) createTodo(_ context.Context, params CreateTodoArgs) (*tools.ToolCallResult, error) {
 	id := fmt.Sprintf("todo_%d", h.todos.Length()+1)
-	h.todos.Store(id, Todo{
+	todo := Todo{
 		ID:          id,
 		Description: params.Description,
 		Status:      "pending",
-	})
+	}
+	h.todos.Store(id, todo)
 
-	return tools.ResultSuccess(fmt.Sprintf("Created todo [%s]: %s", id, params.Description)), nil
+	return &tools.ToolCallResult{
+		Output: fmt.Sprintf("Created todo [%s]: %s", id, params.Description),
+		Meta:   h.allTodos(),
+	}, nil
 }
 
 func (h *todoHandler) createTodos(_ context.Context, params CreateTodosArgs) (*tools.ToolCallResult, error) {
-	ids := make([]string, len(params.Descriptions))
 	start := h.todos.Length()
 	for i, desc := range params.Descriptions {
 		id := fmt.Sprintf("todo_%d", start+i+1)
@@ -100,43 +112,51 @@ func (h *todoHandler) createTodos(_ context.Context, params CreateTodosArgs) (*t
 			Description: desc,
 			Status:      "pending",
 		})
-		ids[i] = id
 	}
 
-	output := fmt.Sprintf("Created %d todos: ", len(params.Descriptions))
-	for i, id := range ids {
+	var output strings.Builder
+	fmt.Fprintf(&output, "Created %d todos: ", len(params.Descriptions))
+	for i := range params.Descriptions {
 		if i > 0 {
-			output += ", "
+			output.WriteString(", ")
 		}
-		output += fmt.Sprintf("[%s]", id)
+		fmt.Fprintf(&output, "[todo_%d]", start+i+1)
 	}
 
-	return tools.ResultSuccess(output), nil
+	return &tools.ToolCallResult{
+		Output: output.String(),
+		Meta:   h.allTodos(),
+	}, nil
 }
 
 func (h *todoHandler) updateTodo(_ context.Context, params UpdateTodoArgs) (*tools.ToolCallResult, error) {
 	todo, exists := h.todos.Load(params.ID)
 	if !exists {
-		return nil, fmt.Errorf("todo [%s] not found", params.ID)
+		return tools.ResultError(fmt.Sprintf("todo [%s] not found", params.ID)), nil
 	}
 
 	todo.Status = params.Status
 	h.todos.Store(params.ID, todo)
 
-	return tools.ResultSuccess(fmt.Sprintf("Updated todo [%s] to status: [%s]", params.ID, params.Status)), nil
+	return &tools.ToolCallResult{
+		Output: fmt.Sprintf("Updated todo [%s] to status: [%s]", params.ID, params.Status),
+		Meta:   h.allTodos(),
+	}, nil
 }
 
-func (h *todoHandler) listTodos(_ context.Context, _ map[string]any) (*tools.ToolCallResult, error) {
+func (h *todoHandler) listTodos(_ context.Context, _ tools.ToolCall) (*tools.ToolCallResult, error) {
 	var output strings.Builder
 	output.WriteString("Current todos:\n")
 
-	h.todos.Range(func(_ string, todo Todo) bool {
-		output.WriteString(fmt.Sprintf("- [%s] %s (Status: %s)\n",
-			todo.ID, todo.Description, todo.Status))
-		return true
-	})
+	todos := h.allTodos()
+	for _, todo := range todos {
+		fmt.Fprintf(&output, "- [%s] %s (Status: %s)\n", todo.ID, todo.Description, todo.Status)
+	}
 
-	return tools.ResultSuccess(output.String()), nil
+	return &tools.ToolCallResult{
+		Output: output.String(),
+		Meta:   todos,
+	}, nil
 }
 
 func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
@@ -182,7 +202,7 @@ func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 			Category:     "todo",
 			Description:  "List all current todos with their status",
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handler.listTodos),
+			Handler:      t.handler.listTodos,
 			Annotations: tools.ToolAnnotations{
 				Title:        "List TODOs",
 				ReadOnlyHint: true,

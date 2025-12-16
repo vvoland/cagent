@@ -124,6 +124,17 @@ type ReadMultipleFilesArgs struct {
 	JSON  bool     `json:"json,omitempty" jsonschema:"Whether to return the result as JSON"`
 }
 
+type ReadMultipleFilesEntry struct {
+	Path      string `json:"path"`
+	Content   string `json:"content"`
+	LineCount int    `json:"lineCount"`
+	Error     string `json:"error,omitempty"`
+}
+
+type ReadMultipleFilesMeta struct {
+	Files []ReadMultipleFilesEntry `json:"files"`
+}
+
 type SearchFilesArgs struct {
 	Path            string   `json:"path" jsonschema:"The starting directory path"`
 	Pattern         string   `json:"pattern" jsonschema:"The glob pattern to match file names against"`
@@ -139,6 +150,12 @@ type SearchFilesContentArgs struct {
 
 type ListDirectoryArgs struct {
 	Path string `json:"path" jsonschema:"The directory path to list"`
+}
+
+type ListDirectoryMeta struct {
+	Files     []string `json:"files"`
+	Dirs      []string `json:"dirs"`
+	Truncated bool     `json:"truncated"`
 }
 
 type ReadFileArgs struct {
@@ -549,9 +566,9 @@ func (t *FilesystemTool) handleListDirectory(_ context.Context, args ListDirecto
 	}
 
 	var result strings.Builder
+	meta := ListDirectoryMeta{}
 	count := 0
 	for _, entry := range entries {
-		// Check if entry should be ignored by VCS rules
 		entryPath := filepath.Join(args.Path, entry.Name())
 		if t.shouldIgnorePath(entryPath) {
 			continue
@@ -559,17 +576,23 @@ func (t *FilesystemTool) handleListDirectory(_ context.Context, args ListDirecto
 
 		if entry.IsDir() {
 			result.WriteString(fmt.Sprintf("DIR  %s\n", entry.Name()))
+			meta.Dirs = append(meta.Dirs, entry.Name())
 		} else {
 			result.WriteString(fmt.Sprintf("FILE %s\n", entry.Name()))
+			meta.Files = append(meta.Files, entry.Name())
 		}
 		count++
 		if count >= maxFiles {
 			result.WriteString("...output truncated due to file limit...\n")
+			meta.Truncated = true
 			break
 		}
 	}
 
-	return tools.ResultSuccess(result.String()), nil
+	return &tools.ToolCallResult{
+		Output: result.String(),
+		Meta:   meta,
+	}, nil
 }
 
 func (t *FilesystemTool) handleReadFile(_ context.Context, args ReadFileArgs) (*tools.ToolCallResult, error) {
@@ -592,26 +615,35 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadM
 	}
 
 	var contents []PathContent
+	meta := ReadMultipleFilesMeta{}
 
 	for _, path := range args.Paths {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
 
+		entry := ReadMultipleFilesEntry{Path: path}
+
 		if err := t.isPathAllowed(path); err != nil {
+			errMsg := fmt.Sprintf("Error: %s", err)
 			contents = append(contents, PathContent{
 				Path:    path,
-				Content: fmt.Sprintf("Error: %s", err),
+				Content: errMsg,
 			})
+			entry.Error = errMsg
+			meta.Files = append(meta.Files, entry)
 			continue
 		}
 
 		content, err := os.ReadFile(path)
 		if err != nil {
+			errMsg := fmt.Sprintf("Error reading file: %s", err)
 			contents = append(contents, PathContent{
 				Path:    path,
-				Content: fmt.Sprintf("Error reading file: %s", err),
+				Content: errMsg,
 			})
+			entry.Error = errMsg
+			meta.Files = append(meta.Files, entry)
 			continue
 		}
 
@@ -619,23 +651,30 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadM
 			Path:    path,
 			Content: string(content),
 		})
+		entry.Content = string(content)
+		entry.LineCount = strings.Count(string(content), "\n") + 1
+		meta.Files = append(meta.Files, entry)
 	}
 
+	var output string
 	if args.JSON {
 		jsonResult, err := json.MarshalIndent(contents, "", "  ")
 		if err != nil {
 			return tools.ResultError(fmt.Sprintf("Error formatting JSON: %s", err)), nil
 		}
-
-		return tools.ResultSuccess(string(jsonResult)), nil
+		output = string(jsonResult)
+	} else {
+		var result strings.Builder
+		for _, content := range contents {
+			result.WriteString(fmt.Sprintf("=== %s ===\n%s\n\n", content.Path, content.Content))
+		}
+		output = result.String()
 	}
 
-	var result strings.Builder
-	for _, content := range contents {
-		result.WriteString(fmt.Sprintf("=== %s ===\n%s\n\n", content.Path, content.Content))
-	}
-
-	return tools.ResultSuccess(result.String()), nil
+	return &tools.ToolCallResult{
+		Output: output,
+		Meta:   meta,
+	}, nil
 }
 
 func (t *FilesystemTool) handleSearchFiles(_ context.Context, args SearchFilesArgs) (*tools.ToolCallResult, error) {

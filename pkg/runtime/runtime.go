@@ -1138,7 +1138,7 @@ func (r *LocalRuntime) runTool(ctx context.Context, tool tools.Tool, toolCall to
 		slog.Debug("Agent tool call completed", "tool", toolCall.Function.Name, "output_length", len(res.Output))
 	}
 
-	events <- ToolCallResponse(toolCall, tool, res.Output, a.Name())
+	events <- ToolCallResponse(toolCall, tool, res, res.Output, a.Name())
 
 	// Ensure tool response content is not empty for API compatibility
 	content := res.Output
@@ -1173,29 +1173,23 @@ func (r *LocalRuntime) runAgentTool(ctx context.Context, handler ToolHandlerFunc
 
 	telemetry.RecordToolCall(ctx, toolCall.Function.Name, sess.ID, a.Name(), duration, err)
 
-	var output string
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
 			slog.Debug("Runtime tool handler canceled by context", "tool", toolCall.Function.Name, "agent", a.Name(), "session_id", sess.ID)
 			// Synthesize a cancellation response so the transcript remains consistent
-			output = "The tool call was canceled by the user."
+			res.Output = "The tool call was canceled by the user."
 			span.SetStatus(codes.Ok, "runtime tool handler canceled by user")
 		} else {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "runtime tool handler error")
-			output = fmt.Sprintf("error calling tool: %v", err)
 			slog.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
 		}
-	} else {
-		output = res.Output
-		span.SetStatus(codes.Ok, "runtime tool handler completed")
-		slog.Debug("Tool executed successfully", "tool", toolCall.Function.Name)
 	}
 
-	events <- ToolCallResponse(toolCall, tool, output, a.Name())
+	events <- ToolCallResponse(toolCall, tool, res, res.Output, a.Name())
 
 	// Ensure tool response content is not empty for API compatibility
-	content := output
+	content := res.Output
 	if strings.TrimSpace(content) == "" {
 		content = "(no output)"
 	}
@@ -1215,7 +1209,9 @@ func (r *LocalRuntime) addToolRejectedResponse(ctx context.Context, sess *sessio
 
 	result := "The user rejected the tool call."
 
-	events <- ToolCallResponse(toolCall, tool, result, a.Name())
+	events <- ToolCallResponse(toolCall, tool, &tools.ToolCallResult{
+		Output: result,
+	}, result, a.Name())
 
 	toolResponseMsg := chat.Message{
 		Role:       chat.MessageRoleTool,
@@ -1232,7 +1228,9 @@ func (r *LocalRuntime) addToolCancelledResponse(ctx context.Context, sess *sessi
 
 	result := "The tool call was canceled by the user."
 
-	events <- ToolCallResponse(toolCall, tool, result, a.Name())
+	events <- ToolCallResponse(toolCall, tool, &tools.ToolCallResult{
+		Output: result,
+	}, result, a.Name())
 
 	toolResponseMsg := chat.Message{
 		Role:       chat.MessageRoleTool,

@@ -136,7 +136,7 @@ func New(a *app.App, sessionState *service.SessionState) Page {
 	}
 
 	p := &chatPage{
-		sidebar:      sidebar.New(sessionState.TodoManager),
+		sidebar:      sidebar.New(),
 		messages:     messages.New(a, sessionState),
 		editor:       editor.New(a, historyStore),
 		focusedPanel: PanelEditor,
@@ -386,13 +386,8 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		cmd := p.messages.AddToolResult(msg, types.ToolStatusCompleted)
 
 		// Check if this is a todo-related tool call and update sidebar
-		if msg.ToolDefinition.Category == "todo" {
-			// Only update if the response doesn't contain an error
-			// Response starting with "Error calling tool:" indicates failure
-			// TODO: We should maybe use the mcp types, they have an "IsError" field.
-			if len(msg.Response) < 19 || msg.Response[:19] != "Error calling tool:" {
-				_ = p.sidebar.SetTodos(msg.ToolCall)
-			}
+		if msg.ToolDefinition.Category == "todo" && !msg.Result.IsError {
+			_ = p.sidebar.SetTodos(msg.Result)
 		}
 
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)

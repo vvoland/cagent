@@ -79,7 +79,13 @@ func (c *Component) View() string {
 	}
 
 	// For completed/error state, render header line followed by each file line
-	summaries := formatSummaryLines(args.Paths, msg.Content)
+	var meta *builtin.ReadMultipleFilesMeta
+	if msg.ToolResult != nil {
+		if m, ok := msg.ToolResult.Meta.(builtin.ReadMultipleFilesMeta); ok {
+			meta = &m
+		}
+	}
+	summaries := formatSummaryLines(meta)
 
 	// Build output with header and separate lines for each file
 	var content strings.Builder
@@ -102,97 +108,25 @@ type fileSummary struct {
 	params      string
 }
 
-// formatSummaryLines creates a summary for each file
-func formatSummaryLines(filePaths []string, result string) []fileSummary {
-	if len(filePaths) == 0 {
+// formatSummaryLines creates a summary for each file from metadata
+func formatSummaryLines(meta *builtin.ReadMultipleFilesMeta) []fileSummary {
+	if meta == nil || len(meta.Files) == 0 {
 		return nil
 	}
 
 	homeDir := paths.GetHomeDir()
+	summaries := make([]fileSummary, 0, len(meta.Files))
 
-	// Parse the result to count lines
-	type PathContent struct {
-		Path    string `json:"path"`
-		Content string `json:"content"`
-	}
-
-	// Try to parse as JSON first
-	var contents []PathContent
-	if err := json.Unmarshal([]byte(result), &contents); err == nil {
-		// JSON format
-		summaries := make([]fileSummary, 0, len(contents))
-		for _, content := range contents {
-			shortPath := shortenPath(content.Path, homeDir)
-			displayName := fmt.Sprintf("Read(%s)", shortPath)
-			var params string
-			if strings.HasPrefix(content.Content, "Error") {
-				params = content.Content
-			} else {
-				lineCount := countLines(content.Content)
-				params = fmt.Sprintf("Read %d lines", lineCount)
-			}
-			summaries = append(summaries, fileSummary{displayName: displayName, params: params})
-		}
-		return summaries
-	}
-
-	// Fall back to text format parsing
-	// Format is: === path ===\ncontent\n\n
-	summaries := make([]fileSummary, 0, len(filePaths))
-
-	// Split by "=== " to get sections
-	parts := strings.Split(result, "=== ")
-
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			continue
-		}
-
-		// Find the closing ===
-		endIdx := strings.Index(part, " ===")
-		if endIdx == -1 {
-			continue
-		}
-
-		path := part[:endIdx]
-		// Get content after " ===\n"
-		contentStart := endIdx + 4 // len(" ===")
-		if contentStart >= len(part) {
-			continue
-		}
-
-		// Skip the newline after ===
-		if contentStart < len(part) && part[contentStart] == '\n' {
-			contentStart++
-		}
-
-		content := ""
-		if contentStart < len(part) {
-			content = part[contentStart:]
-		}
-
-		shortPath := shortenPath(path, homeDir)
+	for _, file := range meta.Files {
+		shortPath := shortenPath(file.Path, homeDir)
 		displayName := fmt.Sprintf("Read(%s)", shortPath)
 		var params string
-		if strings.HasPrefix(content, "Error") {
-			params = strings.TrimSpace(content)
+		if file.Error != "" {
+			params = file.Error
 		} else {
-			lineCount := countLines(content)
-			params = fmt.Sprintf("Read %d lines", lineCount)
+			params = fmt.Sprintf("Read %d lines", file.LineCount)
 		}
 		summaries = append(summaries, fileSummary{displayName: displayName, params: params})
-	}
-
-	if len(summaries) == 0 {
-		// Fallback: just list the files
-		for _, path := range filePaths {
-			shortPath := shortenPath(path, homeDir)
-			summaries = append(summaries, fileSummary{
-				displayName: fmt.Sprintf("Read(%s)", shortPath),
-				params:      "",
-			})
-		}
 	}
 
 	return summaries
@@ -225,12 +159,4 @@ func shortenPath(path, homeDir string) string {
 		return "~" + strings.TrimPrefix(path, homeDir)
 	}
 	return path
-}
-
-// countLines counts the number of lines in a string
-func countLines(s string) int {
-	if s == "" {
-		return 0
-	}
-	return strings.Count(s, "\n") + 1
 }
