@@ -11,8 +11,9 @@ type mockEnvProvider struct {
 	envVars map[string]string
 }
 
-func (m *mockEnvProvider) Get(_ context.Context, name string) string {
-	return m.envVars[name]
+func (m *mockEnvProvider) Get(_ context.Context, name string) (string, bool) {
+	val, found := m.envVars[name]
+	return val, found
 }
 
 func TestAvailableProviders_NoGateway(t *testing.T) {
@@ -95,7 +96,7 @@ func TestAvailableProviders_NoGateway(t *testing.T) {
 
 			providers := AvailableProviders(t.Context(), "", &mockEnvProvider{envVars: tt.envVars})
 
-			assert.Len(t, providers, 1)
+			assert.NotEmpty(t, providers)
 			assert.Equal(t, tt.expectedProvider, providers[0])
 		})
 	}

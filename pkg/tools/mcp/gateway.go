@@ -93,8 +93,8 @@ func (t *GatewayToolset) Stop(ctx context.Context) error {
 func writeSecretsToFile(ctx context.Context, mcpServerName string, secrets []gateway.Secret, envProvider environment.Provider) (string, error) {
 	var secretValues []string
 	for _, secret := range secrets {
-		v := envProvider.Get(ctx, secret.Env)
-		if v == "" {
+		v, found := envProvider.Get(ctx, secret.Env)
+		if !found || v == "" {
 			return "", errors.New("missing environment variable " + secret.Env + " required by MCP server " + mcpServerName)
 		}
 

@@ -46,7 +46,8 @@ func (exp *Expander) jsRuntime(ctx context.Context) *goja.Runtime {
 	exp.lock.Do(func() {
 		vm := goja.New()
 		_ = vm.Set("env", vm.NewDynamicObject(jsEnv(func(k string) goja.Value {
-			return vm.ToValue(exp.env.Get(ctx, k))
+			v, _ := exp.env.Get(ctx, k)
+			return vm.ToValue(v)
 		})))
 
 		exp.vm = vm

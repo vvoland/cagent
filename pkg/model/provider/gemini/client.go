@@ -78,7 +78,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 			backend = genai.BackendVertexAI
 			httpClient = nil // Use default client
 		} else {
-			apiKey = env.Get(ctx, "GOOGLE_API_KEY")
+			apiKey, _ = env.Get(ctx, "GOOGLE_API_KEY")
 			if apiKey == "" {
 				return nil, errors.New("GOOGLE_API_KEY environment variable is required")
 			}
@@ -106,7 +106,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		}
 	} else {
 		// Fail fast if Docker Desktop's auth token isn't available
-		if env.Get(ctx, environment.DockerDesktopTokenEnv) == "" {
+		if token, _ := env.Get(ctx, environment.DockerDesktopTokenEnv); token == "" {
 			slog.Error("Gemini client creation failed", "error", "failed to get Docker Desktop's authentication token")
 			return nil, errors.New("sorry, you first need to sign in Docker Desktop to use the Docker AI Gateway")
 		}
@@ -114,7 +114,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		// When using a Gateway, tokens are short-lived.
 		clientFn = func(ctx context.Context) (*genai.Client, error) {
 			// Query a fresh auth token each time the client is used
-			authToken := env.Get(ctx, environment.DockerDesktopTokenEnv)
+			authToken, _ := env.Get(ctx, environment.DockerDesktopTokenEnv)
 			if authToken == "" {
 				return nil, errors.New("failed to get Docker Desktop token for Gateway")
 			}

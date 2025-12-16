@@ -51,7 +51,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		if key == "" {
 			key = "OPENAI_API_KEY"
 		}
-		authToken := env.Get(ctx, key)
+		authToken, _ := env.Get(ctx, key)
 		if authToken == "" {
 			return nil, fmt.Errorf("%s environment variable is required", key)
 		}
@@ -88,7 +88,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		}
 	} else {
 		// Fail fast if Docker Desktop's auth token isn't available
-		if env.Get(ctx, environment.DockerDesktopTokenEnv) == "" {
+		if token, _ := env.Get(ctx, environment.DockerDesktopTokenEnv); token == "" {
 			slog.Error("OpenAI client creation failed", "error", "failed to get Docker Desktop's authentication token")
 			return nil, errors.New("sorry, you first need to sign in Docker Desktop to use the Docker AI Gateway")
 		}
@@ -96,7 +96,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		// When using a Gateway, tokens are short-lived.
 		clientFn = func(ctx context.Context) (*openai.Client, error) {
 			// Query a fresh auth token each time the client is used
-			authToken := env.Get(ctx, environment.DockerDesktopTokenEnv)
+			authToken, _ := env.Get(ctx, environment.DockerDesktopTokenEnv)
 			if authToken == "" {
 				return nil, errors.New("failed to get Docker Desktop token for Gateway")
 			}

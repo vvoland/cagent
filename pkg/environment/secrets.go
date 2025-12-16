@@ -18,24 +18,24 @@ func NewRunSecretsProvider() *RunSecretsProvider {
 	}
 }
 
-func (p *RunSecretsProvider) Get(_ context.Context, name string) string {
+func (p *RunSecretsProvider) Get(_ context.Context, name string) (string, bool) {
 	// Validate the secret name to prevent path traversal
 	validatedPath, err := path.ValidatePathInDirectory(name, p.root)
 	if err != nil {
 		slog.Debug("Invalid secret name", "name", name, "error", err)
-		return ""
+		return "", false
 	}
 
 	buf, err := os.ReadFile(validatedPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return ""
+			return "", false
 		}
 
 		// Ignore error
 		slog.Debug("Failed to find secret in /run/secrets", "error", err)
-		return ""
+		return "", false
 	}
 
-	return string(buf)
+	return string(buf), true
 }

@@ -34,7 +34,7 @@ func NewKeychainProvider() (*KeychainProvider, error) {
 
 // Get retrieves the value of a secret by its service name from the macOS keychain.
 // It uses the `security find-generic-password -w -s <name>` command to fetch the password.
-func (p *KeychainProvider) Get(ctx context.Context, name string) string {
+func (p *KeychainProvider) Get(ctx context.Context, name string) (string, bool) {
 	cmd := exec.CommandContext(ctx, "security", "find-generic-password", "-w", "-s", name)
 
 	var out bytes.Buffer
@@ -46,8 +46,8 @@ func (p *KeychainProvider) Get(ctx context.Context, name string) string {
 	if err != nil {
 		// Ignore error
 		slog.Debug("Failed to find secret in keychain", "error", err)
-		return ""
+		return "", false
 	}
 
-	return strings.TrimSpace(out.String())
+	return strings.TrimSpace(out.String()), true
 }

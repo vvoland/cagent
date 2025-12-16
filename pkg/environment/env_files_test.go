@@ -20,12 +20,19 @@ func TestExpandAll(t *testing.T) {
 }
 
 func TestExpandAll_Error(t *testing.T) {
-	t.Setenv("UNKNOWN_VAR", "")
-
-	expanded, err := ExpandAll(t.Context(), []string{"$UNKNOWN_VAR"}, NewOsEnvProvider())
+	expanded, err := ExpandAll(t.Context(), []string{"$VAR_THAT_DOES_NOT_EXIST_12345"}, NewOsEnvProvider())
 
 	require.Error(t, err)
 	assert.Empty(t, expanded)
+}
+
+func TestExpandAll_EmptyValue(t *testing.T) {
+	t.Setenv("EMPTY_VAR", "")
+
+	expanded, err := ExpandAll(t.Context(), []string{"$EMPTY_VAR"}, NewOsEnvProvider())
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{""}, expanded)
 }
 
 func TestAbsolutePath(t *testing.T) {
