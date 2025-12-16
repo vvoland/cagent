@@ -1015,6 +1015,21 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 		slog.Debug("Processing tool call", "agent", a.Name(), "tool", toolCall.Function.Name, "session_id", sess.ID)
 		def, exists := r.toolMap[toolCall.Function.Name]
 		if exists {
+			// Validate that the tool is actually available to this agent
+			toolAvailable := false
+			for _, tool := range agentTools {
+				if tool.Name == toolCall.Function.Name {
+					toolAvailable = true
+					break
+				}
+			}
+			if !toolAvailable {
+				slog.Warn("Tool call rejected: tool not available to agent", "agent", a.Name(), "tool", toolCall.Function.Name, "session_id", sess.ID)
+				r.addToolRejectedResponse(ctx, sess, toolCall, def.tool, events)
+				callSpan.SetStatus(codes.Error, "tool not available to agent")
+				callSpan.End()
+				continue
+			}
 			slog.Debug("Using runtime tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
 			// TODO: make this better, these tools define themselves as read-only
 			if sess.ToolsApproved || def.tool.Annotations.ReadOnlyHint {
@@ -1356,13 +1371,39 @@ func (r *LocalRuntime) handleHandoff(_ context.Context, _ *session.Session, tool
 	}
 
 	ca := r.currentAgent
+	currentAgent, err := r.team.Agent(ca)
+	if err != nil {
+		return nil, fmt.Errorf("current agent not found: %w", err)
+	}
+
+	// Validate that the target agent is in the current agent's handoffs list
+	handoffs := currentAgent.Handoffs()
+	targetInHandoffs := false
+	for _, handoffAgent := range handoffs {
+		if handoffAgent.Name() == params.Agent {
+			targetInHandoffs = true
+			break
+		}
+	}
+	if !targetInHandoffs {
+		return nil, fmt.Errorf("agent %s cannot hand off to %s: target agent not in handoffs list", ca, params.Agent)
+	}
+
 	next, err := r.team.Agent(params.Agent)
 	if err != nil {
 		return nil, err
 	}
 
 	r.currentAgent = next.Name()
-	return tools.ResultSuccess(fmt.Sprintf("The agent %s handed off the conversation to you. Look at the history of the conversation and continue where it left off. Complete your part of the task and hand off to the next appropriate agent in the workflow, or respond directly to the user if you are the final agent.", ca)), nil
+	handoffMessage := "The agent " + ca + " handed off the conversation to you. " +
+		"Your available handoff agents and tools are specified in the system messages that follow. " +
+		"Only use those capabilities - do not attempt to use tools or hand off to agents that you see " +
+		"in the conversation history from previous agents, as those were available to different agents " +
+		"with different capabilities. Look at the conversation history for context, but only use the " +
+		"handoff agents and tools that are listed in your system messages below. " +
+		"Complete your part of the task and hand off to the next appropriate agent in your workflow " +
+		"(if any are available to you), or respond directly to the user if you are the final agent."
+	return tools.ResultSuccess(handoffMessage), nil
 }
 
 // Summarize generates a summary for the session based on the conversation history

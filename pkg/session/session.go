@@ -301,9 +301,20 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 			validAgentIDs = append(validAgentIDs, agent.Name())
 		}
 
+		handoffPrompt := "You are part of a multi-agent team. Your goal is to answer the user query in the most helpful way possible.\n\n" +
+			"Available agents in your team:\n" + agentsInfo + "\n" +
+			"You can hand off the conversation to any of these agents at any time by using the `handoff` function with their ID. " +
+			"The valid agent names are: " + strings.Join(validAgentIDs, ", ") + ".\n\n" +
+			"When to hand off:\n" +
+			"- If another agent's description indicates they are better suited for the current task or question\n" +
+			"- If the user explicitly asks for a specific agent\n" +
+			"- If you need specialized capabilities that another agent provides\n\n" +
+			"If you are the best agent to handle the current request based on your capabilities, respond directly. " +
+			"When handing off to another agent, only handoff without talking about the handoff."
+
 		messages = append(messages, chat.Message{
 			Role:    chat.MessageRoleSystem,
-			Content: "You are part of a multi-agent team. Your goal is to answer the user query in the most helpful way possible.\n\nAvailable agents in your team:\n" + agentsInfo + "\nYou can hand off the conversation to any of these agents at any time by using the `handoff` function with their ID. The valid agent names are: " + strings.Join(validAgentIDs, ", ") + ".\n\nWhen to hand off:\n- If another agent's description indicates they are better suited for the current task or question\n\n- If any of the tools of the agent indicate that this agent is able to respond correctly- If the user explicitly asks for a specific agent\n- If you need specialized capabilities that another agent provides\n\nIf you are the best agent to handle the current request based on your capabilities, respond directly. When handing off to another agent, only handoff without talking about the handoff.",
+			Content: handoffPrompt,
 		})
 	}
 
