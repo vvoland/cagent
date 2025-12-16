@@ -282,7 +282,7 @@ func (c *Client) CreateChatCompletionStream(
 		"message_count", len(messages),
 		"tool_count", len(requestTools))
 
-	if c.ModelConfig.Provider == "openai" && strings.Contains(c.ModelConfig.Model, "-codex") {
+	if c.ModelConfig.Provider == "openai" && (strings.Contains(c.ModelConfig.Model, "-codex") || strings.Contains(c.ModelConfig.Model, "-pro")) {
 		return c.CreateResponseStream(ctx, messages, requestTools)
 	}
 
