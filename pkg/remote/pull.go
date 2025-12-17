@@ -29,7 +29,7 @@ func Pull(ctx context.Context, registryRef string, force bool, opts ...crane.Opt
 		return "", fmt.Errorf("creating content store: %w", err)
 	}
 
-	localRef := ref.Context().RepositoryStr() + ":" + ref.Identifier()
+	localRef := ref.Context().RepositoryStr() + separator(ref) + ref.Identifier()
 	if !force {
 		if meta, metaErr := store.GetArtifactMetadata(localRef); metaErr == nil {
 			if meta.Digest == remoteDigest {
@@ -65,4 +65,13 @@ func Pull(ctx context.Context, registryRef string, force bool, opts ...crane.Opt
 func hasCagentAnnotation(annotations map[string]string) bool {
 	_, exists := annotations["io.docker.cagent.version"]
 	return exists
+}
+
+// separator returns the separator used between repository and identifier.
+// For digests it returns "@", for tags it returns ":".
+func separator(ref name.Reference) string {
+	if _, ok := ref.(name.Digest); ok {
+		return "@"
+	}
+	return ":"
 }
