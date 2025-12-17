@@ -14,6 +14,7 @@ import (
 
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/fake"
 	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
@@ -31,9 +32,8 @@ type runExecFlags struct {
 	dryRun         bool
 	runConfig      config.RuntimeConfig
 	sessionDB      string
-
-	// Shared between run and exec
-	recordPath string
+	recordPath     string
+	fakeResponses  string
 
 	// Exec only
 	hideToolCalls bool
@@ -72,8 +72,10 @@ func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 	cmd.PersistentFlags().BoolVar(&flags.dryRun, "dry-run", false, "Initialize the agent without executing anything")
 	cmd.PersistentFlags().StringVar(&flags.remoteAddress, "remote", "", "Use remote runtime with specified address")
 	cmd.PersistentFlags().StringVarP(&flags.sessionDB, "session-db", "s", filepath.Join(paths.GetHomeDir(), ".cagent", "session.db"), "Path to the session database")
+	cmd.PersistentFlags().StringVar(&flags.fakeResponses, "fake", "", "Replay AI responses from cassette file (for testing)")
 	cmd.PersistentFlags().StringVar(&flags.recordPath, "record", "", "Record AI API interactions to cassette file (auto-generates filename if empty)")
 	cmd.PersistentFlags().Lookup("record").NoOptDefVal = "true"
+	cmd.MarkFlagsMutuallyExclusive("fake", "record")
 }
 
 func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
@@ -89,17 +91,33 @@ func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
 func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []string, tui bool) error {
 	slog.Debug("Starting agent", "agent", f.agentName)
 
+	var agentFileName string
+	if len(args) > 0 {
+		agentFileName = args[0]
+	}
+
+	// Start fake proxy if --fake is specified
+	if f.fakeResponses != "" {
+		proxyURL, cleanup, err := fake.StartProxy(f.fakeResponses)
+		if err != nil {
+			return fmt.Errorf("failed to start fake proxy: %w", err)
+		}
+		defer func() {
+			if err := cleanup(); err != nil {
+				slog.Error("Failed to cleanup fake proxy", "error", err)
+			}
+		}()
+
+		f.runConfig.ModelsGateway = proxyURL
+		slog.Info("Fake mode enabled", "cassette", f.fakeResponses, "proxy", proxyURL)
+	}
+
 	// Record AI API interactions to a cassette file if --record flag is specified.
 	if cassettePath, cleanup, err := setupRecordingProxy(f.recordPath, &f.runConfig); err != nil {
 		return err
 	} else if cassettePath != "" {
 		defer cleanup()
 		out.Println("Recording mode enabled, cassette: " + cassettePath)
-	}
-
-	var agentFileName string
-	if len(args) > 0 {
-		agentFileName = args[0]
 	}
 
 	var (
