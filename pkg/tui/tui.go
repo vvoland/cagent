@@ -210,7 +210,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case messages.EvalSessionMsg:
 		evalFile, _ := evaluation.Save(a.application.Session(), msg.Filename)
-		return a, core.CmdHandler(notification.ShowMsg{Text: fmt.Sprintf("Eval saved to file %s", evalFile)})
+		return a, notification.SuccessCmd(fmt.Sprintf("Eval saved to file %s", evalFile))
 
 	case messages.CompactSessionMsg:
 		return a, a.chatPage.CompactSession()
@@ -218,14 +218,17 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.CopySessionToClipboardMsg:
 		transcript := a.application.PlainTextTranscript()
 		if transcript == "" {
-			return a, core.CmdHandler(notification.ShowMsg{Text: "Conversation is empty; nothing copied."})
+			return a, notification.SuccessCmd("Conversation is empty; nothing copied.")
 		}
 
-		if err := clipboard.WriteAll(transcript); err != nil {
-			return a, core.CmdHandler(notification.ShowMsg{Text: "Failed to copy conversation: " + err.Error(), Type: notification.TypeError})
-		}
-
-		return a, core.CmdHandler(notification.ShowMsg{Text: "Conversation copied to clipboard."})
+		return a, tea.Sequence(
+			tea.SetClipboard(transcript),
+			func() tea.Msg {
+				_ = clipboard.WriteAll(transcript)
+				return nil
+			},
+			notification.SuccessCmd("Conversation copied to clipboard."),
+		)
 
 	case messages.ToggleYoloMsg:
 		sess := a.application.Session()
@@ -236,7 +239,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			statusText = "Yolo mode disabled: tools will require confirmation"
 		}
-		return a, core.CmdHandler(notification.ShowMsg{Text: statusText})
+		return a, notification.SuccessCmd(statusText)
 
 	case messages.AgentCommandMsg:
 		resolvedCommand := a.application.ResolveCommand(context.Background(), msg.Command)
@@ -246,7 +249,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Convert the interface{} back to mcptools.PromptInfo
 		promptInfo, ok := msg.PromptInfo.(mcptools.PromptInfo)
 		if !ok {
-			return a, core.CmdHandler(notification.ShowMsg{Text: "Invalid prompt info"})
+			return a, notification.ErrorCmd("Invalid prompt info")
 		}
 		// Show the MCP prompt input dialog
 		return a, core.CmdHandler(dialog.OpenDialogMsg{
@@ -258,7 +261,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		promptContent, err := a.application.ExecuteMCPPrompt(context.Background(), msg.PromptName, msg.Arguments)
 		if err != nil {
 			errorMsg := fmt.Sprintf("Error executing MCP prompt '%s': %v", msg.PromptName, err)
-			return a, core.CmdHandler(notification.ShowMsg{Text: errorMsg})
+			return a, notification.ErrorCmd(errorMsg)
 		}
 		return a, core.CmdHandler(editor.SendMsg{Content: promptContent})
 

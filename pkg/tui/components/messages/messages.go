@@ -841,11 +841,14 @@ func (m *model) copySelectionToClipboard() tea.Cmd {
 		return nil
 	}
 
-	if err := clipboard.WriteAll(selectedText); err != nil {
-		return core.CmdHandler(notification.ShowMsg{Text: "Failed to copy: " + err.Error(), Type: notification.TypeError})
-	}
-
-	return core.CmdHandler(notification.ShowMsg{Text: "Text copied to clipboard"})
+	return tea.Sequence(
+		tea.SetClipboard(selectedText),
+		func() tea.Msg {
+			_ = clipboard.WriteAll(selectedText)
+			return nil
+		},
+		notification.SuccessCmd("Text copied to clipboard."),
+	)
 }
 
 func (m *model) clearSelection() {

@@ -10,7 +10,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/docker/cagent/pkg/tui/components/notification"
-	"github.com/docker/cagent/pkg/tui/core"
 )
 
 // editorDoneMsg is sent when the external editor finishes to trigger a TUI refresh.
@@ -24,20 +23,14 @@ func (p *chatPage) openExternalEditor() tea.Cmd {
 	// Create a temporary file with the current content
 	tmpFile, err := os.CreateTemp("", "cagent-*.md")
 	if err != nil {
-		return core.CmdHandler(notification.ShowMsg{
-			Text: fmt.Sprintf("Failed to create temp file: %v", err),
-			Type: notification.TypeError,
-		})
+		return notification.ErrorCmd(fmt.Sprintf("Failed to create temp file: %v", err))
 	}
 	tmpPath := tmpFile.Name()
 
 	if _, err := tmpFile.WriteString(content); err != nil {
 		tmpFile.Close()
 		os.Remove(tmpPath)
-		return core.CmdHandler(notification.ShowMsg{
-			Text: fmt.Sprintf("Failed to write temp file: %v", err),
-			Type: notification.TypeError,
-		})
+		return notification.ErrorCmd(fmt.Sprintf("Failed to write temp file: %v", err))
 	}
 	tmpFile.Close()
 
@@ -63,20 +56,14 @@ func (p *chatPage) openExternalEditor() tea.Cmd {
 	return tea.ExecProcess(cmd, func(err error) tea.Msg {
 		if err != nil {
 			os.Remove(tmpPath)
-			return core.CmdHandler(notification.ShowMsg{
-				Type: notification.TypeError,
-				Text: fmt.Sprintf("Editor error: %v", err),
-			})
+			return notification.ErrorCmd(fmt.Sprintf("Editor error: %v", err))
 		}
 
 		updatedContent, readErr := os.ReadFile(tmpPath)
 		os.Remove(tmpPath)
 
 		if readErr != nil {
-			return core.CmdHandler(notification.ShowMsg{
-				Text: fmt.Sprintf("Failed to read edited file: %v", readErr),
-				Type: notification.TypeError,
-			})
+			return notification.ErrorCmd(fmt.Sprintf("Failed to read edited file: %v", readErr))
 		}
 
 		// Trim trailing newline that editors often add
