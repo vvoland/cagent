@@ -70,7 +70,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 				if apiVersion, exists := cfg.ProviderOpts["api_version"]; exists {
 					slog.Debug("Setting API version", "api_version", apiVersion)
 					if apiVersionStr, ok := apiVersion.(string); ok {
-						clientOptions = append(clientOptions, option.WithHeader("api-version", apiVersionStr))
+						clientOptions = append(clientOptions, option.WithQueryAdd("api-version", apiVersionStr))
 					}
 				}
 			}
