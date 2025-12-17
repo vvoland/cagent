@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/styles"
 )
 
@@ -36,6 +37,27 @@ type ShowMsg struct {
 
 type HideMsg struct {
 	ID uint64 // If 0, hides all notifications (backward compatibility)
+}
+
+func SuccessCmd(text string) tea.Cmd {
+	return core.CmdHandler(ShowMsg{
+		Text: text,
+		Type: TypeSuccess,
+	})
+}
+
+func WarningCmd(text string) tea.Cmd {
+	return core.CmdHandler(ShowMsg{
+		Text: text,
+		Type: TypeWarning,
+	})
+}
+
+func ErrorCmd(text string) tea.Cmd {
+	return core.CmdHandler(ShowMsg{
+		Text: text,
+		Type: TypeError,
+	})
 }
 
 // notificationItem represents a single notification
