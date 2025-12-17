@@ -221,11 +221,14 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, notification.SuccessCmd("Conversation is empty; nothing copied.")
 		}
 
-		if err := clipboard.WriteAll(transcript); err != nil {
-			return a, notification.ErrorCmd("Failed to copy conversation: " + err.Error())
-		}
-
-		return a, notification.SuccessCmd("Conversation copied to clipboard.")
+		return a, tea.Sequence(
+			tea.SetClipboard(transcript),
+			func() tea.Msg {
+				_ = clipboard.WriteAll(transcript)
+				return nil
+			},
+			notification.SuccessCmd("Conversation copied to clipboard."),
+		)
 
 	case messages.ToggleYoloMsg:
 		sess := a.application.Session()

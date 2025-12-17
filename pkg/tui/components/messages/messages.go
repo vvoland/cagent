@@ -847,7 +847,7 @@ func (m *model) copySelectionToClipboard() tea.Cmd {
 			_ = clipboard.WriteAll(selectedText)
 			return nil
 		},
-		notification.SuccessCmd("Text copied to clipboard"),
+		notification.SuccessCmd("Text copied to clipboard."),
 	)
 }
 
