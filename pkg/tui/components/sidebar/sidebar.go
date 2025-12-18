@@ -286,6 +286,8 @@ func (m *model) verticalView() string {
 	}
 	if working := m.workingIndicator(); working != "" {
 		session = append(session, working)
+	} else {
+		session = append(session, "") // spacer for layout consistency
 	}
 
 	var main []string
@@ -306,7 +308,7 @@ func (m *model) verticalView() string {
 		main = append(main, todoContent)
 	}
 
-	return strings.Join(main, "\n\n")
+	return strings.Join(main, "\n")
 }
 
 func (m *model) workingIndicator() string {
@@ -397,7 +399,6 @@ func (m *model) workingIndicatorHorizontal() string {
 	if m.working {
 		labels = append(labels, "Working…")
 	}
-
 	// Add MCP init indicator if initializing
 	if m.mcpInit {
 		labels = append(labels, "Initializing MCP servers…")
