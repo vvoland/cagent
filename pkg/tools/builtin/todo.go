@@ -45,16 +45,7 @@ type UpdateTodoArgs struct {
 }
 
 type todoHandler struct {
-	todos *concurrent.Map[string, Todo]
-}
-
-func (h *todoHandler) allTodos() []Todo {
-	var todos []Todo
-	h.todos.Range(func(_ string, todo Todo) bool {
-		todos = append(todos, todo)
-		return true
-	})
-	return todos
+	todos *concurrent.Slice[Todo]
 }
 
 var NewSharedTodoTool = sync.OnceValue(NewTodoTool)
@@ -62,7 +53,7 @@ var NewSharedTodoTool = sync.OnceValue(NewTodoTool)
 func NewTodoTool() *TodoTool {
 	return &TodoTool{
 		handler: &todoHandler{
-			todos: concurrent.NewMap[string, Todo](),
+			todos: concurrent.NewSlice[Todo](),
 		},
 	}
 }
@@ -95,11 +86,11 @@ func (h *todoHandler) createTodo(_ context.Context, params CreateTodoArgs) (*too
 		Description: params.Description,
 		Status:      "pending",
 	}
-	h.todos.Store(id, todo)
+	h.todos.Append(todo)
 
 	return &tools.ToolCallResult{
 		Output: fmt.Sprintf("Created todo [%s]: %s", id, params.Description),
-		Meta:   h.allTodos(),
+		Meta:   h.todos.All(),
 	}, nil
 }
 
@@ -107,7 +98,7 @@ func (h *todoHandler) createTodos(_ context.Context, params CreateTodosArgs) (*t
 	start := h.todos.Length()
 	for i, desc := range params.Descriptions {
 		id := fmt.Sprintf("todo_%d", start+i+1)
-		h.todos.Store(id, Todo{
+		h.todos.Append(Todo{
 			ID:          id,
 			Description: desc,
 			Status:      "pending",
@@ -125,22 +116,24 @@ func (h *todoHandler) createTodos(_ context.Context, params CreateTodosArgs) (*t
 
 	return &tools.ToolCallResult{
 		Output: output.String(),
-		Meta:   h.allTodos(),
+		Meta:   h.todos.All(),
 	}, nil
 }
 
 func (h *todoHandler) updateTodo(_ context.Context, params UpdateTodoArgs) (*tools.ToolCallResult, error) {
-	todo, exists := h.todos.Load(params.ID)
-	if !exists {
+	_, idx := h.todos.Find(func(t Todo) bool { return t.ID == params.ID })
+	if idx == -1 {
 		return tools.ResultError(fmt.Sprintf("todo [%s] not found", params.ID)), nil
 	}
 
-	todo.Status = params.Status
-	h.todos.Store(params.ID, todo)
+	h.todos.Update(idx, func(t Todo) Todo {
+		t.Status = params.Status
+		return t
+	})
 
 	return &tools.ToolCallResult{
 		Output: fmt.Sprintf("Updated todo [%s] to status: [%s]", params.ID, params.Status),
-		Meta:   h.allTodos(),
+		Meta:   h.todos.All(),
 	}, nil
 }
 
@@ -148,14 +141,14 @@ func (h *todoHandler) listTodos(_ context.Context, _ tools.ToolCall) (*tools.Too
 	var output strings.Builder
 	output.WriteString("Current todos:\n")
 
-	todos := h.allTodos()
-	for _, todo := range todos {
+	h.todos.Range(func(_ int, todo Todo) bool {
 		fmt.Fprintf(&output, "- [%s] %s (Status: %s)\n", todo.ID, todo.Description, todo.Status)
-	}
+		return true
+	})
 
 	return &tools.ToolCallResult{
 		Output: output.String(),
-		Meta:   todos,
+		Meta:   h.todos.All(),
 	}, nil
 }
 
