@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"os"
-	"strings"
 
 	"github.com/docker/cagent/pkg/path"
 )
@@ -38,5 +37,5 @@ func (p *RunSecretsProvider) Get(_ context.Context, name string) string {
 		return ""
 	}
 
-	return strings.Split(string(buf), "\n")[0]
+	return string(buf)
 }
