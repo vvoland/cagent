@@ -2,6 +2,7 @@ package tool
 
 import (
 	"github.com/docker/cagent/pkg/tools/builtin"
+	"github.com/docker/cagent/pkg/tui/components/tool/api"
 	"github.com/docker/cagent/pkg/tui/components/tool/defaulttool"
 	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
 	"github.com/docker/cagent/pkg/tui/components/tool/handoff"
@@ -12,7 +13,6 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/tool/shell"
 	"github.com/docker/cagent/pkg/tui/components/tool/todotool"
 	"github.com/docker/cagent/pkg/tui/components/tool/transfertask"
-	"github.com/docker/cagent/pkg/tui/components/tool/webtool"
 	"github.com/docker/cagent/pkg/tui/components/tool/writefile"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/service"
@@ -71,10 +71,10 @@ func newDefaultRegistry() *Registry {
 	registry.Register(builtin.ToolNameUpdateTodo, todotool.New)
 	registry.Register(builtin.ToolNameListTodos, todotool.New)
 	registry.Register(builtin.ToolNameShell, shell.New)
+	registry.Register(builtin.ToolNameFetch, api.New)
 
 	// Register category-based handlers
-	registry.Register("category:api", webtool.New)
-	registry.Register(builtin.ToolNameFetch, webtool.New)
+	registry.Register("category:api", api.New)
 
 	return registry
 }

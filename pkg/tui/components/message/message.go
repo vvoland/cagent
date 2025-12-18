@@ -23,7 +23,9 @@ type Model interface {
 
 // messageModel implements Model
 type messageModel struct {
-	message *types.Message
+	message  *types.Message
+	previous *types.Message
+
 	width   int
 	height  int
 	focused bool
@@ -31,13 +33,14 @@ type messageModel struct {
 }
 
 // New creates a new message view
-func New(msg *types.Message) *messageModel {
+func New(msg, previous *types.Message) *messageModel {
 	return &messageModel{
-		message: msg,
-		width:   80, // Default width
-		height:  1,  // Will be calculated
-		focused: false,
-		spinner: spinner.New(spinner.ModeBoth),
+		message:  msg,
+		previous: previous,
+		width:    80, // Default width
+		height:   1,  // Will be calculated
+		focused:  false,
+		spinner:  spinner.New(spinner.ModeBoth),
 	}
 }
 
@@ -77,31 +80,39 @@ func (mv *messageModel) Render(width int) string {
 	case types.MessageTypeSpinner:
 		return mv.spinner.View()
 	case types.MessageTypeUser:
-		return styles.UserMessageBorderStyle.Width(width - 1).Render(msg.Content)
+		return styles.UserMessageStyle.Width(width - 1).Render(msg.Content)
 	case types.MessageTypeAssistant:
 		if msg.Content == "" {
 			return mv.spinner.View()
 		}
 
-		rendered, err := markdown.NewRenderer(width).Render(msg.Content)
+		rendered, err := markdown.NewRenderer(width - styles.AssistantMessageStyle.GetPaddingLeft()).Render(msg.Content)
 		if err != nil {
-			return senderPrefix(msg.Sender) + msg.Content
+			rendered = msg.Content
+		} else {
+			rendered = strings.TrimRight(rendered, "\n\r\t ")
 		}
 
-		return senderPrefix(msg.Sender) + strings.TrimRight(rendered, "\n\r\t ")
+		if mv.previous != nil && mv.previous.Type == msg.Type && mv.previous.Sender == msg.Sender {
+			return styles.AssistantMessageStyle.Render(rendered)
+		}
+
+		return mv.senderPrefix(msg.Sender) + styles.AssistantMessageStyle.Render(rendered)
 	case types.MessageTypeAssistantReasoning:
 		if msg.Content == "" {
 			return mv.spinner.View()
 		}
-		// Render through the markdown renderer to ensure proper wrapping to width
+
 		rendered, err := markdown.NewRenderer(width).Render(msg.Content)
 		if err != nil {
-			text := "Thinking: " + senderPrefix(msg.Sender) + msg.Content
+			text := "Thinking: " + mv.senderPrefix(msg.Sender) + msg.Content
 			return styles.MutedStyle.Italic(true).Render(text)
 		}
+
 		// Strip ANSI from inner rendering so muted style fully applies
 		clean := stripANSI(strings.TrimRight(rendered, "\n\r\t "))
-		thinkingText := "Thinking: " + senderPrefix(msg.Sender) + clean
+		thinkingText := "Thinking: " + mv.senderPrefix(msg.Sender) + clean
+
 		return styles.MutedStyle.Italic(true).Render(thinkingText)
 	case types.MessageTypeShellOutput:
 		if rendered, err := markdown.NewRenderer(width).Render(fmt.Sprintf("```console\n%s\n```", msg.Content)); err == nil {
@@ -111,7 +122,7 @@ func (mv *messageModel) Render(width int) string {
 	case types.MessageTypeCancelled:
 		return styles.WarningStyle.Render("⚠ stream cancelled ⚠")
 	case types.MessageTypeWelcome:
-		return styles.WelcomeMessageBorderStyle.Width(width - 1).Render(strings.TrimRight(msg.Content, "\n\r\t "))
+		return styles.WelcomeMessageStyle.Width(width - 1).Render(strings.TrimRight(msg.Content, "\n\r\t "))
 	case types.MessageTypeError:
 		return styles.ErrorMessageStyle.Width(width - 1).Render(msg.Content)
 	default:
@@ -119,11 +130,11 @@ func (mv *messageModel) Render(width int) string {
 	}
 }
 
-func senderPrefix(sender string) string {
+func (mv *messageModel) senderPrefix(sender string) string {
 	if sender == "" {
 		return ""
 	}
-	return styles.AgentBadgeStyle.Render("["+sender+"]") + "\n\n"
+	return styles.AgentBadgeStyle.Render(sender+" ▶") + "\n\n"
 }
 
 // Height calculates the height needed for this message view

@@ -138,7 +138,7 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 			// Truncate long descriptions to fit on one line
 			description := prompt
 			if len(description) > 60 {
-				description = description[:57] + "..."
+				description = description[:59] + "…"
 			}
 
 			commands = append(commands, Item{
@@ -187,7 +187,7 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 
 			// Truncate long descriptions to fit on one line
 			if len(description) > 55 {
-				description = description[:52] + "..."
+				description = description[:54] + "…"
 			}
 
 			// Create closure variables to capture current iteration values

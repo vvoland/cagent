@@ -10,7 +10,6 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/service"
-	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
@@ -60,10 +59,11 @@ func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 func (c *Component) View() string {
 	msg := c.message
+
 	var args builtin.RunShellArgs
 	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &args); err != nil {
-		return toolcommon.RenderTool(toolcommon.Icon(msg.ToolStatus), msg.ToolDefinition.DisplayName(), c.spinner.View(), "", c.width)
+		return toolcommon.RenderTool(msg, c.spinner, msg.ToolDefinition.DisplayName(), "", c.width)
 	}
 
-	return toolcommon.RenderTool(toolcommon.Icon(msg.ToolStatus), msg.ToolDefinition.DisplayName(), styles.MutedStyle.Render(args.Cmd), "", c.width)
+	return toolcommon.RenderTool(msg, c.spinner, msg.ToolDefinition.DisplayName()+" "+args.Cmd, "", c.width)
 }

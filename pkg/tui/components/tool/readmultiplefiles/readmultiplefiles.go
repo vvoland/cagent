@@ -69,13 +69,13 @@ func (c *Component) View() string {
 	// Parse arguments
 	var args builtin.ReadMultipleFilesArgs
 	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &args); err != nil {
-		return toolcommon.RenderTool(toolcommon.Icon(msg.ToolStatus), "Read Multiple Files", c.spinner.View(), "", c.width)
+		return toolcommon.RenderTool(msg, c.spinner, "Read Multiple Files", "", c.width)
 	}
 
 	// For pending/running state, show files being read
 	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
 		params := formatFilesList(args.Paths)
-		return toolcommon.RenderTool(toolcommon.Icon(msg.ToolStatus), "Read Multiple Files", params, c.spinner.View(), c.width)
+		return toolcommon.RenderTool(msg, c.spinner, "Read Multiple Files "+params, "", c.width)
 	}
 
 	// For completed/error state, render header line followed by each file line
@@ -85,18 +85,19 @@ func (c *Component) View() string {
 			meta = &m
 		}
 	}
-	summaries := formatSummaryLines(meta)
 
 	// Build output with header and separate lines for each file
 	var content strings.Builder
 
 	// Header line
-	icon := toolcommon.Icon(msg.ToolStatus)
-	content.WriteString(fmt.Sprintf("%s %s:\n", icon, styles.HighlightStyle.Render("Read Multiple Files")))
+	icon := toolcommon.Icon(msg, c.spinner)
 
 	// Each file on its own line with checkmark
-	for _, summary := range summaries {
-		content.WriteString(fmt.Sprintf("%s %s: %s\n", icon, summary.displayName, summary.params))
+	for _, summary := range formatSummaryLines(meta) {
+		if content.Len() > 0 {
+			content.WriteString("\n")
+		}
+		fmt.Fprintf(&content, "%s %s %s", icon, styles.ToolMessageStyle.Render(summary.displayName), summary.params)
 	}
 
 	// Apply tool message styling
@@ -118,15 +119,13 @@ func formatSummaryLines(meta *builtin.ReadMultipleFilesMeta) []fileSummary {
 	summaries := make([]fileSummary, 0, len(meta.Files))
 
 	for _, file := range meta.Files {
-		shortPath := shortenPath(file.Path, homeDir)
-		displayName := fmt.Sprintf("Read(%s)", shortPath)
-		var params string
+		params := shortenPath(file.Path, homeDir)
 		if file.Error != "" {
-			params = file.Error
+			params += " " + file.Error
 		} else {
-			params = fmt.Sprintf("Read %d lines", file.LineCount)
+			params += fmt.Sprintf(" %d lines", file.LineCount)
 		}
-		summaries = append(summaries, fileSummary{displayName: displayName, params: params})
+		summaries = append(summaries, fileSummary{displayName: "Read", params: params})
 	}
 
 	return summaries

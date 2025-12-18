@@ -14,6 +14,7 @@ import (
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tui/components/spinner"
+	"github.com/docker/cagent/pkg/tui/components/tab"
 	"github.com/docker/cagent/pkg/tui/components/tool/todotool"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/styles"
@@ -155,7 +156,7 @@ func (m *model) contextPercent() (string, bool) {
 	for _, usage := range m.sessionUsage {
 		if usage.ContextLimit > 0 {
 			percent := (float64(usage.ContextLength) / float64(usage.ContextLimit)) * 100
-			return fmt.Sprintf("Context: %.0f%%", percent), true
+			return fmt.Sprintf("%.0f%%", percent), true
 		}
 	}
 	return "", false
@@ -278,39 +279,34 @@ func (m *model) horizontalView() string {
 }
 
 func (m *model) verticalView() string {
-	var main []string
-	main = append(main, m.sessionTitle)
+	var session []string
+	session = append(session, m.sessionTitle)
 	if pwd := getCurrentWorkingDirectory(); pwd != "" {
-		main = append(main, styles.MutedStyle.Render(pwd))
+		session = append(session, "", styles.TabAccentStyle.Render(pwd))
 	}
 	if working := m.workingIndicator(); working != "" {
-		main = append(main, working)
-	} else {
-		main = append(main, "") // spacer for layout consistency
+		session = append(session, working)
 	}
 
-	var more []string
+	var main []string
+	main = append(main, m.renderTab("Session", strings.Join(session, "\n")))
 	if agentInfo := m.agentInfo(); agentInfo != "" {
-		more = append(more, agentInfo)
+		main = append(main, agentInfo)
 	}
 	if toolsetInfo := m.toolsetInfo(); toolsetInfo != "" {
-		more = append(more, toolsetInfo)
+		main = append(main, toolsetInfo)
 	}
 	if usage := m.tokenUsage(); usage != "" {
-		more = append(more, usage)
+		main = append(main, usage)
 	}
 
 	m.todoComp.SetSize(m.width)
 	todoContent := strings.TrimSuffix(m.todoComp.Render(), "\n")
 	if todoContent != "" {
-		more = append(more, todoContent)
+		main = append(main, todoContent)
 	}
 
-	return styles.BaseStyle.
-		Width(m.width).
-		Height(m.height-2).
-		Align(lipgloss.Left, lipgloss.Top).
-		Render(strings.Join(main, "\n") + "\n\n" + strings.Join(more, "\n\n"))
+	return strings.Join(main, "\n\n")
 }
 
 func (m *model) workingIndicator() string {
@@ -318,12 +314,12 @@ func (m *model) workingIndicator() string {
 
 	// Add working indicator if agent is processing
 	if m.working {
-		indicators = append(indicators, styles.ActiveStyle.Render(m.spinner.View()+" "+"Working..."))
+		indicators = append(indicators, styles.ActiveStyle.Render(m.spinner.View()+" "+"Working…"))
 	}
 
 	// Add MCP init indicator if initializing
 	if m.mcpInit {
-		indicators = append(indicators, styles.ActiveStyle.Render(m.spinner.View()+" "+"Initializing MCP servers..."))
+		indicators = append(indicators, styles.ActiveStyle.Render(m.spinner.View()+" "+"Initializing MCP servers…"))
 	}
 
 	// Add RAG indexing indicators for each active indexing operation
@@ -399,12 +395,12 @@ func (m *model) workingIndicatorHorizontal() string {
 
 	// Add working indicator if agent is processing
 	if m.working {
-		labels = append(labels, "Working...")
+		labels = append(labels, "Working…")
 	}
 
 	// Add MCP init indicator if initializing
 	if m.mcpInit {
-		labels = append(labels, "Initializing MCP servers...")
+		labels = append(labels, "Initializing MCP servers…")
 	}
 
 	// Add RAG indexing labels for each active indexing operation
@@ -484,18 +480,14 @@ func (m *model) tokenUsage() string {
 		totalCost += usage.Cost
 	}
 
-	var b strings.Builder
-	b.WriteString(styles.HighlightStyle.Render("Usage"))
-	b.WriteString("\n")
-	b.WriteString(styles.MutedStyle.Render(fmt.Sprintf("Tokens: %s", formatTokenCount(totalTokens))))
-	b.WriteString("\n")
-	b.WriteString(styles.MutedStyle.Render(fmt.Sprintf("Cost: $%s", formatCost(totalCost))))
+	var tokenUsage strings.Builder
+	fmt.Fprintf(&tokenUsage, "%s", formatTokenCount(totalTokens))
 	if ctxText, ok := m.contextPercent(); ok {
-		b.WriteString("\n")
-		b.WriteString(styles.MutedStyle.Render(ctxText))
+		fmt.Fprintf(&tokenUsage, " (%s)", ctxText)
 	}
+	fmt.Fprintf(&tokenUsage, " %s", styles.TabAccentStyle.Render("$"+formatCost(totalCost)))
 
-	return b.String()
+	return m.renderTab("Token Usage", tokenUsage.String())
 }
 
 // tokenUsageSummary returns a single-line summary for horizontal layout.
@@ -512,7 +504,7 @@ func (m *model) tokenUsageSummary() string {
 	}
 
 	if ctxText, ok := m.contextPercent(); ok {
-		return fmt.Sprintf("Tokens: %s | Cost: $%s | %s", formatTokenCount(totalTokens), formatCost(totalCost), ctxText)
+		return fmt.Sprintf("Tokens: %s | Cost: $%s | Context: %s", formatTokenCount(totalTokens), formatCost(totalCost), ctxText)
 	}
 
 	return fmt.Sprintf("Tokens: %s | Cost: $%s", formatTokenCount(totalTokens), formatCost(totalCost))
@@ -524,51 +516,46 @@ func (m *model) agentInfo() string {
 		return ""
 	}
 
-	var content strings.Builder
-
 	// Agent name with highlight and switching indicator
 	agentTitle := "Agent"
 	if m.agentSwitching {
 		agentTitle += " ↔" // switching indicator
 	}
-	content.WriteString(styles.HighlightStyle.Render(agentTitle))
-	content.WriteString("\n")
 
 	// Current agent name
 	agentName := m.currentAgent
 	if m.agentSwitching {
 		agentName = "⟳ " + agentName // switching icon
 	}
-	content.WriteString(styles.MutedStyle.Render(agentName))
 
-	// Team info if multiple agents available
-	if len(m.availableAgents) > 1 {
-		content.WriteString("\n")
-		teamInfo := fmt.Sprintf("Team: %d agents", len(m.availableAgents))
-		content.WriteString(styles.SubtleStyle.Render(teamInfo))
-	}
-
-	// Model info if available
-	if m.agentModel != "" {
-		content.WriteString("\n")
-		content.WriteString(styles.SubtleStyle.Render("Model: " + m.agentModel))
-	}
+	var content strings.Builder
+	content.WriteString(styles.TabAccentStyle.Render(agentName))
 
 	// Agent description if available
 	if m.agentDescription != "" {
-		content.WriteString("\n")
-
 		// Truncate description for sidebar display
 		description := m.agentDescription
 		maxDescWidth := max(m.width-4, 20) // Leave margin for styling
 		if len(description) > maxDescWidth {
-			description = description[:maxDescWidth-3] + "..."
+			description = description[:maxDescWidth-1] + "…"
 		}
 
-		content.WriteString(styles.SubtleStyle.Render(description))
+		fmt.Fprintf(&content, "\n%s", description)
 	}
 
-	return content.String()
+	// Team info if multiple agents available
+	if len(m.availableAgents) > 1 {
+		fmt.Fprintf(&content, "\nTeam: %d agents", len(m.availableAgents))
+	}
+
+	// Model info if available
+	if m.agentModel != "" {
+		provider, model, _ := strings.Cut(m.agentModel, "/")
+		fmt.Fprintf(&content, "\nProvider: %s", provider)
+		fmt.Fprintf(&content, "\nModel: %s", model)
+	}
+
+	return m.renderTab(agentTitle, content.String())
 }
 
 // toolsetInfo renders the current toolset status information
@@ -577,10 +564,7 @@ func (m *model) toolsetInfo() string {
 		return ""
 	}
 
-	var content strings.Builder
-	content.WriteString(styles.HighlightStyle.Render("Tools"))
-	content.WriteString(styles.MutedStyle.Render(fmt.Sprintf("\n%d tools available", m.availableTools)))
-	return content.String()
+	return m.renderTab("Tools", fmt.Sprintf("%d tools available", m.availableTools))
 }
 
 // SetSize sets the dimensions of the component
@@ -598,4 +582,8 @@ func (m *model) GetSize() (width, height int) {
 
 func (m *model) SetMode(mode Mode) {
 	m.mode = mode
+}
+
+func (m *model) renderTab(title, content string) string {
+	return tab.Render(title, content, m.width-2)
 }

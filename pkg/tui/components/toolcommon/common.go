@@ -5,18 +5,23 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
-func Icon(status types.ToolStatus) string {
-	switch status {
+func Icon(msg *types.Message, inProgress spinner.Spinner) string {
+	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
+		return inProgress.View()
+	}
+
+	switch msg.ToolStatus {
 	case types.ToolStatusPending:
 		return "⊙"
 	case types.ToolStatusRunning:
 		return "⚙"
 	case types.ToolStatusCompleted:
-		return styles.SuccessStyle.Render("✓")
+		return "✓"
 	case types.ToolStatusError:
 		return styles.ErrorStyle.Render("✗")
 	case types.ToolStatusConfirmation:
@@ -42,25 +47,26 @@ func FormatToolResult(content string, width int) string {
 
 	lines := wrapLines(formattedContent, availableWidth)
 
-	header := "output"
 	if len(lines) > 10 {
 		lines = lines[:10]
-		header = "output (truncated)"
-		lines = append(lines, wrapLines("...", availableWidth)...)
+		lines = append(lines, wrapLines("…", availableWidth)...)
 	}
 
 	trimmedContent := strings.Join(lines, "\n")
 	if trimmedContent != "" {
-		return styles.ToolCallResult.Render(styles.ToolCallResultKey.Render("\n-> "+header+":") + "\n" + trimmedContent)
+		return styles.ToolCallResult.Render(styles.ToolCallResultKey.Render("\n-> output:") + "\n" + trimmedContent)
 	}
 
 	return ""
 }
 
-func RenderTool(icon, name, params, result string, width int) string {
-	content := fmt.Sprintf("%s %s %s", icon, styles.HighlightStyle.Render(name), styles.MutedStyle.Render(params))
+func RenderTool(msg *types.Message, inProgress spinner.Spinner, name, result string, width int) string {
+	content := fmt.Sprintf("%s %s", Icon(msg, inProgress), name)
 	if result != "" {
-		content += "\n" + result
+		if strings.Count(name, "\n") > 0 {
+			content += "\n"
+		}
+		content += result
 	}
 	return styles.RenderComposite(styles.ToolMessageStyle.Width(width-1), content)
 }

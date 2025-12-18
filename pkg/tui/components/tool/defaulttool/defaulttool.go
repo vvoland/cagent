@@ -7,7 +7,6 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/service"
-	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
@@ -65,11 +64,11 @@ func (c *Component) View() string {
 
 	var argsContent string
 	if msg.ToolCall.Function.Arguments != "" {
-		argsContent = renderToolArgs(msg.ToolCall, c.width-3)
+		argsContent = renderToolArgs(msg.ToolCall, c.width-4-len(displayName), c.width-3)
 	}
 
 	if argsContent == "" {
-		return toolcommon.RenderTool(toolcommon.Icon(msg.ToolStatus), msg.ToolDefinition.DisplayName(), c.spinner.View(), "", c.width)
+		return toolcommon.RenderTool(msg, c.spinner, msg.ToolDefinition.DisplayName(), "", c.width)
 	}
 
 	var resultContent string
@@ -77,5 +76,5 @@ func (c *Component) View() string {
 		resultContent = toolcommon.FormatToolResult(msg.Content, c.width)
 	}
 
-	return toolcommon.RenderTool(toolcommon.Icon(msg.ToolStatus), styles.HighlightStyle.Render(displayName), argsContent, resultContent, c.width)
+	return toolcommon.RenderTool(msg, c.spinner, displayName+argsContent, resultContent, c.width)
 }

@@ -67,7 +67,7 @@ func (c *Component) View() string {
 	// Parse arguments
 	var args builtin.SearchFilesArgs
 	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &args); err != nil {
-		return toolcommon.RenderTool(toolcommon.Icon(msg.ToolStatus), msg.ToolDefinition.DisplayName(), c.spinner.View(), "", c.width)
+		return toolcommon.RenderTool(msg, c.spinner, msg.ToolDefinition.DisplayName(), "", c.width)
 	}
 
 	// Format display name with pattern
@@ -75,14 +75,13 @@ func (c *Component) View() string {
 
 	// For pending/running state, show spinner
 	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
-		return toolcommon.RenderTool(toolcommon.Icon(msg.ToolStatus), displayName, c.spinner.View(), "", c.width)
+		return toolcommon.RenderTool(msg, c.spinner, displayName, "", c.width)
 	}
 
 	// For completed/error state, show concise summary
 	summary := formatSummary(msg.Content)
-	params := fmt.Sprintf(": %s", summary)
 
-	return toolcommon.RenderTool(toolcommon.Icon(msg.ToolStatus), displayName, params, "", c.width)
+	return toolcommon.RenderTool(msg, c.spinner, displayName+" "+summary, "", c.width)
 }
 
 // formatSummary creates a concise summary of the search results

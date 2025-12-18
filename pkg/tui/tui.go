@@ -61,7 +61,7 @@ func DefaultKeyMap() KeyMap {
 	return KeyMap{
 		CommandPalette: key.NewBinding(
 			key.WithKeys("ctrl+p"),
-			key.WithHelp("ctrl+p", "commands"),
+			key.WithHelp("Ctrl+p", "commands"),
 		),
 	}
 }
@@ -403,7 +403,7 @@ func (a *appModel) View() tea.View {
 			styles.CenterStyle.
 				Width(a.wWidth).
 				Height(a.wHeight).
-				Render(styles.MutedStyle.Render("Loading...")),
+				Render(styles.MutedStyle.Render("Loading…")),
 		)
 	}
 

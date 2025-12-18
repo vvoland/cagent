@@ -34,8 +34,8 @@ func (s *StatusBar) formatHelpString(bindings []key.Binding) string {
 	var helpParts []string
 	for _, binding := range bindings {
 		if binding.Help().Key != "" && binding.Help().Desc != "" {
-			keyPart := styles.StatusStyle.Render(binding.Help().Key)
-			actionPart := styles.ActionStyle.Render(binding.Help().Desc)
+			keyPart := styles.HighlightWhiteStyle.Render(binding.Help().Key)
+			actionPart := styles.SecondaryStyle.Render(binding.Help().Desc)
 			helpParts = append(helpParts, keyPart+" "+actionPart)
 		}
 	}

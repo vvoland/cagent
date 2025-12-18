@@ -217,7 +217,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			OutputSchema: tools.MustSchemaFor[string](),
 			Handler:      NewHandler(t.handleEditFile),
 			Annotations: tools.ToolAnnotations{
-				Title: "Edit File",
+				Title: "Edit",
 			},
 		},
 		{
@@ -263,7 +263,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Handler:      NewHandler(t.handleReadFile),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
-				Title:        "Read File",
+				Title:        "Read",
 			},
 		},
 		{
@@ -311,7 +311,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			OutputSchema: tools.MustSchemaFor[string](),
 			Handler:      NewHandler(t.handleWriteFile),
 			Annotations: tools.ToolAnnotations{
-				Title: "Write File",
+				Title: "Write",
 			},
 		},
 	}, nil

@@ -581,7 +581,7 @@ func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
 			OutputSchema: tools.MustSchemaFor[string](),
 			Handler:      NewHandler(t.handler.RunShell),
 			Annotations: tools.ToolAnnotations{
-				Title: "Run Shell Command",
+				Title: "Shell",
 			},
 		},
 		{
@@ -592,7 +592,7 @@ func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
 			OutputSchema: tools.MustSchemaFor[string](),
 			Handler:      NewHandler(t.handler.RunShellBackground),
 			Annotations: tools.ToolAnnotations{
-				Title: "Run Shell Command in Background",
+				Title: "Background Job",
 			},
 		},
 		{
