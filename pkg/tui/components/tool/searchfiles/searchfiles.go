@@ -71,7 +71,7 @@ func (c *Component) View() string {
 	}
 
 	// Format display name with pattern
-	displayName := fmt.Sprintf("%s(%q)", msg.ToolDefinition.DisplayName(), args.Pattern)
+	displayName := fmt.Sprintf("%s %q", msg.ToolDefinition.DisplayName(), args.Pattern)
 
 	// For pending/running state, show spinner
 	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
