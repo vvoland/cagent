@@ -243,7 +243,8 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
-		return err
+		_, _ = io.ReadAll(resp.Body)
+		return errors.New("failed to fetch protected resource metadata")
 	}
 	var resourceMetadata protectedResourceMetadata
 	if resp.StatusCode == http.StatusOK {
@@ -390,7 +391,8 @@ func (t *oauthTransport) handleUnmanagedOAuthFlow(ctx context.Context, authServe
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
-		return err
+		_, _ = io.ReadAll(resp.Body)
+		return errors.New("failed to fetch protected resource metadata")
 	}
 	var resourceMetadata protectedResourceMetadata
 	if resp.StatusCode == http.StatusOK {
