@@ -54,6 +54,7 @@ func GatherEnvVarsForModels(cfg *latest.Config) []string {
 	for agentName := range cfg.Agents {
 		modelNames := strings.SplitSeq(cfg.Agents[agentName].Model, ",")
 		for modelName := range modelNames {
+			modelName = strings.TrimSpace(modelName)
 			model := cfg.Models[modelName]
 
 			if model.TokenKey != "" {
