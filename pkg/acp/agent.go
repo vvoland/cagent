@@ -138,7 +138,7 @@ func (a *Agent) Cancel(_ context.Context, params acp.CancelNotification) error {
 }
 
 // Prompt implements [acp.Agent]
-func (a *Agent) Prompt(_ context.Context, params acp.PromptRequest) (acp.PromptResponse, error) {
+func (a *Agent) Prompt(ctx context.Context, params acp.PromptRequest) (acp.PromptResponse, error) {
 	sid := string(params.SessionId)
 	slog.Debug("ACP Prompt called", "session_id", sid)
 
@@ -161,7 +161,7 @@ func (a *Agent) Prompt(_ context.Context, params acp.PromptRequest) (acp.PromptR
 	}
 
 	// Create a new context for this turn
-	turnCtx, cancel := context.WithCancel(context.Background())
+	turnCtx, cancel := context.WithCancel(ctx)
 	a.mu.Lock()
 	acpSess.cancel = cancel
 	a.mu.Unlock()
