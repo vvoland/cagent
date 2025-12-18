@@ -73,7 +73,7 @@ func (c *Component) View() string {
 
 	// Shorten the path for display
 	shortPath := shortenPath(args.Path)
-	displayName := fmt.Sprintf("%s(%s)", msg.ToolDefinition.DisplayName(), shortPath)
+	displayName := fmt.Sprintf("%s %s", msg.ToolDefinition.DisplayName(), shortPath)
 
 	// For pending/running state, show spinner
 	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
