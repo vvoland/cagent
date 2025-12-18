@@ -515,15 +515,17 @@ func (m *model) ensureAllItemsRendered() {
 
 	for i, view := range m.views {
 		item := m.renderItem(i, view)
-
-		// Add content to complete rendered string
-		if item.view != "" {
-			lines := strings.Split(item.view, "\n")
-			allLines = append(allLines, lines...)
+		if item.view == "" {
+			continue
 		}
 
+		// Add content to complete rendered string
+		view := strings.TrimSuffix(item.view, "\n")
+		lines := strings.Split(view, "\n")
+		allLines = append(allLines, lines...)
+
 		// Add separator between messages (but not after last message)
-		if i < len(m.views)-1 && item.view != "" {
+		if i < len(m.views)-1 {
 			allLines = append(allLines, "")
 		}
 	}
@@ -586,6 +588,7 @@ func (m *model) addMessage(msg *types.Message) tea.Cmd {
 	m.messages = append(m.messages, msg)
 
 	view := m.createMessageView(msg)
+	m.sessionState.PreviousMessage = msg
 	m.views = append(m.views, view)
 
 	var cmds []tea.Cmd
@@ -715,7 +718,7 @@ func (m *model) createToolCallView(msg *types.Message) layout.Model {
 }
 
 func (m *model) createMessageView(msg *types.Message) layout.Model {
-	view := message.New(msg)
+	view := message.New(msg, m.sessionState.PreviousMessage)
 	view.SetSize(m.width, 0)
 	return view
 }

@@ -66,17 +66,14 @@ func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 func (c *Component) View() string {
 	msg := c.message
+
 	var args builtin.EditFileArgs
 	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &args); err != nil {
 		return ""
 	}
 
 	displayName := msg.ToolDefinition.DisplayName()
-	content := fmt.Sprintf("%s %s %s", toolcommon.Icon(msg.ToolStatus), styles.HighlightStyle.Render(displayName), styles.MutedStyle.Render(args.Path))
-
-	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
-		content += " " + c.spinner.View()
-	}
+	content := fmt.Sprintf("%s %s %s", toolcommon.Icon(msg, c.spinner), styles.ToolMessageStyle.Render(displayName), styles.ToolMessageStyle.Render(args.Path))
 
 	if msg.ToolCall.Function.Arguments != "" {
 		content += "\n\n" + styles.ToolCallResult.Render(renderEditFile(msg.ToolCall, c.width-1, c.sessionState.SplitDiffView, msg.ToolStatus))

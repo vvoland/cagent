@@ -63,7 +63,7 @@ func (t *titleGenerator) generate(ctx context.Context, sess *session.Session, ev
 
 	titleSession := session.New(
 		session.WithUserMessage(userPrompt),
-		session.WithTitle("Generating title..."),
+		session.WithTitle("Generating title…"),
 	)
 
 	titleRuntime, err := New(newTeam, WithSessionCompaction(false))

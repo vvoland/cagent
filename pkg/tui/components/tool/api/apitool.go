@@ -1,4 +1,4 @@
-package webtool
+package api
 
 import (
 	"encoding/json"
@@ -62,25 +62,18 @@ func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 func (c *Component) View() string {
 	msg := c.message
 
-	// Parse the arguments to extract info about the API call
 	var args map[string]any
-	var progressText string
-
 	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &args); err != nil {
-		// If we can't parse, show spinner while running
-		if msg.ToolStatus == types.ToolStatusRunning {
-			progressText = c.spinner.View()
-		}
-		return toolcommon.RenderTool(toolcommon.Icon(msg.ToolStatus), msg.ToolDefinition.DisplayName(), progressText, "", c.width)
+		return toolcommon.RenderTool(msg, c.spinner, msg.ToolDefinition.DisplayName(), "", c.width)
 	}
-
-	// Extract argument summary for the tool call display
-	argsText := formatArgs(args)
 
 	// Build the display name with inline result
 	displayName := msg.ToolDefinition.DisplayName()
-	if argsText != "" {
-		displayName = displayName + "(" + styles.MutedStyle.Render(argsText) + ")"
+
+	// Extract argument summary for the tool call display
+	var params string
+	if argsText := formatArgs(args); argsText != "" {
+		params = "(" + argsText + ")"
 	}
 
 	// Add inline result/progress after the tool name
@@ -89,16 +82,16 @@ func (c *Component) View() string {
 		// While running, show what we're calling
 		endpoint := extractEndpoint(args)
 		if endpoint != "" {
-			displayName += styles.MutedStyle.Render(": Calling " + endpoint)
+			params += styles.MutedStyle.Render(": Calling " + endpoint)
 		}
 	case types.ToolStatusCompleted:
 		// When completed, show a brief summary inline
 		resultSummary := extractSummary(msg.Content)
-		displayName += styles.MutedStyle.Render(": " + resultSummary)
+		params += styles.MutedStyle.Render(": " + resultSummary)
 	}
 
 	// Render everything on one line
-	return toolcommon.RenderTool(toolcommon.Icon(msg.ToolStatus), displayName, "", "", c.width)
+	return toolcommon.RenderTool(msg, c.spinner, displayName+" "+params, "", c.width)
 }
 
 // extractEndpoint tries to find the endpoint/URL being called

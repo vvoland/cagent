@@ -2,6 +2,7 @@ package todotool
 
 import (
 	"fmt"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -68,8 +69,10 @@ func (c *Component) View() string {
 
 	// Render based on tool type
 	switch toolName {
-	case builtin.ToolNameCreateTodo, builtin.ToolNameCreateTodos, builtin.ToolNameUpdateTodo:
+	case builtin.ToolNameCreateTodo, builtin.ToolNameCreateTodos:
 		return c.renderTodos()
+	case builtin.ToolNameUpdateTodo:
+		return "" // We've got todos in the sidebar
 	case builtin.ToolNameListTodos:
 		return c.renderList()
 	default:
@@ -80,44 +83,28 @@ func (c *Component) View() string {
 func (c *Component) renderTodos() string {
 	msg := c.message
 	displayName := msg.ToolDefinition.DisplayName()
-	content := fmt.Sprintf("%s %s", toolcommon.Icon(msg.ToolStatus), styles.HighlightStyle.Render(displayName))
 
-	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
-		content += " " + c.spinner.View()
-	}
+	var content strings.Builder
+	fmt.Fprintf(&content, "%s %s", toolcommon.Icon(msg, c.spinner), styles.ToolMessageStyle.Render(displayName))
+
+	return styles.RenderComposite(styles.ToolMessageStyle.Width(c.width-1), content.String())
+}
+
+func (c *Component) renderList() string {
+	msg := c.message
+	displayName := msg.ToolDefinition.DisplayName()
+	var content strings.Builder
+	content.WriteString(fmt.Sprintf("%s %s", toolcommon.Icon(msg, c.spinner), styles.ToolMessageStyle.Render(displayName)))
 
 	if msg.ToolResult != nil && msg.ToolResult.Meta != nil {
 		if todos, ok := msg.ToolResult.Meta.([]builtin.Todo); ok {
 			for _, todo := range todos {
 				icon, style := renderTodoIcon(todo.Status)
 				todoLine := fmt.Sprintf("\n%s %s", style.Render(icon), style.Render(todo.Description))
-				content += todoLine
+				content.WriteString(todoLine)
 			}
 		}
 	}
 
-	return styles.RenderComposite(styles.ToolMessageStyle.Width(c.width-1), content)
-}
-
-func (c *Component) renderList() string {
-	msg := c.message
-	displayName := msg.ToolDefinition.DisplayName()
-	content := fmt.Sprintf("%s %s", toolcommon.Icon(msg.ToolStatus), styles.HighlightStyle.Render(displayName))
-
-	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
-		content += " " + c.spinner.View()
-	}
-
-	if msg.ToolResult != nil && msg.ToolResult.Meta != nil {
-		if todos, ok := msg.ToolResult.Meta.([]builtin.Todo); ok {
-			for _, todo := range todos {
-				icon, style := renderTodoIcon(todo.Status)
-				descStyle := renderTodoDescriptionStyle(todo.Status)
-				todoLine := fmt.Sprintf("\n%s %s", style.Render(icon), descStyle.Render(todo.Description))
-				content += todoLine
-			}
-		}
-	}
-
-	return styles.RenderComposite(styles.ToolMessageStyle.Width(c.width-1), content)
+	return styles.RenderComposite(styles.ToolMessageStyle.Width(c.width-1), content.String())
 }

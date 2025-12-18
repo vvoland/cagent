@@ -112,8 +112,8 @@ type editor struct {
 func New(a *app.App, hist *history.History) Editor {
 	ta := textarea.New()
 	ta.SetStyles(styles.InputStyle)
-	ta.Placeholder = "Type your message here..."
-	ta.Prompt = "│ "
+	ta.Placeholder = "Type your message here…"
+	ta.Prompt = ""
 	ta.CharLimit = -1
 	ta.SetWidth(50)
 	ta.SetHeight(3) // Set minimum 3 lines for multi-line input
@@ -557,7 +557,7 @@ func (e *editor) View() string {
 		view = lipgloss.JoinVertical(lipgloss.Left, bannerView, view)
 	}
 
-	return styles.EditorStyle.Render(view)
+	return styles.RenderComposite(styles.TabPrimaryStyle.Padding(0, 1).MarginBottom(1).Width(e.width), styles.EditorStyle.Render(view))
 }
 
 // SetSize sets the dimensions of the component

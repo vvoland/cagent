@@ -17,45 +17,50 @@ const (
 // Color hex values (used throughout the file)
 const (
 	// Primary colors
-	ColorAccentBlue      = "#7AA2F7" // Soft blue
-	ColorMutedBlue       = "#8B95C1" // Dark blue-grey
-	ColorBackgroundAlt   = "#24283B" // Slightly lighter background
-	ColorBorderSecondary = "#6B75A8" // Dark blue-grey
-	ColorTextPrimary     = "#C0CAF5" // Light blue-white
-	ColorTextSecondary   = "#9AA5CE" // Medium blue-grey
-	ColorSuccessGreen    = "#9ECE6A" // Soft green
-	ColorErrorRed        = "#F7768E" // Soft red
-	ColorWarningYellow   = "#E0AF68" // Soft yellow
+	ColorWhite           = "#E5F2FC"
+	ColorAccentBlue      = "#7AA2F7"
+	ColorMutedBlue       = "#8B95C1"
+	ColorMutedGray       = "#808080"
+	ColorBackgroundAlt   = "#24283B"
+	ColorBorderSecondary = "#6B75A8"
+	ColorTextPrimary     = "#C0C0C0"
+	ColorTextSecondary   = "#808080"
+	ColorSuccessGreen    = "#9ECE6A"
+	ColorErrorRed        = "#F7768E"
+	ColorWarningYellow   = "#E0AF68"
 
 	// Spinner glow colors (transition from base blue towards white)
-	ColorSpinnerDim       = "#9AB8F9" // Lighter blue
-	ColorSpinnerBright    = "#B8CFFB" // Much lighter blue
-	ColorSpinnerBrightest = "#D6E5FC" // Very light blue, near white
+	ColorSpinnerDim       = "#9AB8F9"
+	ColorSpinnerBright    = "#B8CFFB"
+	ColorSpinnerBrightest = "#D6E5FC"
 
 	// Background colors
-	ColorBackground = "#1A1B26" // Dark blue-black
+	ColorBackground = "#1C1C22"
 
 	// Status colors
-	ColorInfoCyan = "#7DCFFF" // Soft cyan
+	ColorInfoCyan  = "#7DCFFF"
+	ColorHighlight = "#99f868"
 
 	// Badge colors
-	ColorAgentBadge    = "#BB9AF7" // Soft purple
-	ColorTransferBadge = "#7DCFFF" // Soft cyan
+	ColorAgentBadge = "#1D63ED"
 
 	// Diff colors
-	ColorDiffAddBg    = "#20303B" // Dark blue-green
-	ColorDiffRemoveBg = "#3C2A2A" // Dark red-brown
+	ColorDiffAddBg    = "#20303B"
+	ColorDiffRemoveBg = "#3C2A2A"
 
 	// Line number and UI element colors
-	ColorLineNumber = "#565F89" // Muted blue-grey (same as ColorMutedBlue)
-	ColorSeparator  = "#414868" // Dark blue-grey (same as ColorBorderSecondary)
+	ColorLineNumber = "#565F89"
+	ColorSeparator  = "#414868"
 
 	// Interactive element colors
-	ColorSelected = "#364A82" // Dark blue for selected items
-	ColorHover    = "#2D3F5F" // Slightly lighter than selected
+	ColorSelected = "#364A82"
+	ColorHover    = "#2D3F5F"
 
 	// AutoCompleteGhost colors
 	ColorSuggestionGhost = "#6B6B6B"
+
+	// Tab colors
+	ColorTab = "#25252c"
 )
 
 // Chroma syntax highlighting colors (Monokai theme)
@@ -101,27 +106,27 @@ var (
 	BackgroundAlt = lipgloss.Color(ColorBackgroundAlt)
 
 	// Primary accent colors
-	Accent    = lipgloss.Color(ColorAccentBlue)
-	AccentDim = lipgloss.Color(ColorMutedBlue)
+	White  = lipgloss.Color(ColorWhite)
+	Accent = lipgloss.Color(ColorAccentBlue)
 
 	// Status colors - softer, more professional
-	Success = lipgloss.Color(ColorSuccessGreen)
-	Error   = lipgloss.Color(ColorErrorRed)
-	Warning = lipgloss.Color(ColorWarningYellow)
-	Info    = lipgloss.Color(ColorInfoCyan)
+	Success   = lipgloss.Color(ColorSuccessGreen)
+	Error     = lipgloss.Color(ColorErrorRed)
+	Warning   = lipgloss.Color(ColorWarningYellow)
+	Info      = lipgloss.Color(ColorInfoCyan)
+	Highlight = lipgloss.Color(ColorHighlight)
 
 	// Text hierarchy
 	TextPrimary   = lipgloss.Color(ColorTextPrimary)
 	TextSecondary = lipgloss.Color(ColorTextSecondary)
 	TextMuted     = lipgloss.Color(ColorMutedBlue)
-	TextSubtle    = lipgloss.Color(ColorBorderSecondary)
+	TextMutedGray = lipgloss.Color(ColorMutedGray)
 
 	// Border colors
 	BorderPrimary   = lipgloss.Color(ColorAccentBlue)
 	BorderSecondary = lipgloss.Color(ColorBorderSecondary)
 	BorderMuted     = lipgloss.Color(ColorBackgroundAlt)
 	BorderWarning   = lipgloss.Color(ColorWarningYellow)
-	BorderError     = lipgloss.Color(ColorErrorRed)
 
 	// Diff colors (matching glamour/markdown "dark" theme)
 	DiffAddBg    = lipgloss.Color(ColorDiffAddBg)
@@ -136,30 +141,33 @@ var (
 	// Interactive element colors
 	Selected         = lipgloss.Color(ColorSelected)
 	SelectedFg       = lipgloss.Color(ColorTextPrimary)
-	Hover            = lipgloss.Color(ColorHover)
-	PlaceholderColor = lipgloss.Color(ColorMutedBlue)
+	PlaceholderColor = lipgloss.Color(ColorMutedGray)
 
 	// Badge colors
-	AgentBadge    = lipgloss.Color(ColorAgentBadge)
-	TransferBadge = lipgloss.Color(ColorTransferBadge)
+	AgentBadgeFg = lipgloss.Color(ColorWhite)
+	AgentBadgeBg = lipgloss.Color(ColorAgentBadge)
+
+	// Tabs
+	TabBg        = lipgloss.Color(ColorTab)
+	TabPrimaryFg = lipgloss.Color(ColorMutedGray)
+	TabAccentFg  = lipgloss.Color(ColorHighlight)
 )
 
 // Base Styles
 const AppPaddingLeft = 1 // Keep in sync with AppStyle padding
 
 var (
-	BaseStyle = lipgloss.NewStyle().Foreground(TextPrimary)
+	NoStyle   = lipgloss.NewStyle()
+	BaseStyle = NoStyle.Foreground(TextPrimary)
 	AppStyle  = BaseStyle.Padding(0, 1, 0, AppPaddingLeft)
 )
 
 // Text Styles
 var (
-	HighlightStyle = BaseStyle.Foreground(Accent)
-	MutedStyle     = BaseStyle.Foreground(TextMuted)
-	SubtleStyle    = BaseStyle.Foreground(TextSubtle)
-	SecondaryStyle = BaseStyle.Foreground(TextSecondary)
-	BoldStyle      = BaseStyle.Bold(true)
-	ItalicStyle    = BaseStyle.Italic(true)
+	HighlightWhiteStyle = BaseStyle.Foreground(White).Bold(true)
+	MutedStyle          = BaseStyle.Foreground(TextMutedGray)
+	SecondaryStyle      = BaseStyle.Foreground(TextSecondary)
+	BoldStyle           = BaseStyle.Bold(true)
 )
 
 // Status Styles
@@ -169,8 +177,9 @@ var (
 	WarningStyle    = BaseStyle.Foreground(Warning)
 	InfoStyle       = BaseStyle.Foreground(Info)
 	ActiveStyle     = BaseStyle.Foreground(Success)
-	InProgressStyle = BaseStyle.Foreground(Warning)
-	PendingStyle    = BaseStyle.Foreground(TextSecondary)
+	ToBeDoneStyle   = BaseStyle.Foreground(TextPrimary)
+	InProgressStyle = BaseStyle.Foreground(Highlight)
+	CompletedStyle  = BaseStyle.Foreground(TextMutedGray)
 )
 
 // Layout Styles
@@ -180,21 +189,7 @@ var (
 
 // Border Styles
 var (
-	BorderStyle = BaseStyle.
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(BorderPrimary)
-
-	BorderedBoxStyle = BaseStyle.
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(BorderSecondary).
-				Padding(0, 1)
-
-	BorderedBoxFocusedStyle = BaseStyle.
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(BorderPrimary).
-				Padding(0, 1)
-
-	UserMessageBorderStyle = BaseStyle.
+	UserMessageStyle = BaseStyle.
 				Padding(1, 2).
 				BorderLeft(true).
 				BorderStyle(lipgloss.ThickBorder()).
@@ -202,11 +197,13 @@ var (
 				Bold(true).
 				Background(BackgroundAlt)
 
-	WelcomeMessageBorderStyle = BaseStyle.
-					Padding(1, 2).
-					BorderLeft(true).
-					BorderStyle(lipgloss.DoubleBorder()).
-					Bold(true)
+	AssistantMessageStyle = BaseStyle
+
+	WelcomeMessageStyle = BaseStyle.
+				Padding(1, 2).
+				BorderLeft(true).
+				BorderStyle(lipgloss.DoubleBorder()).
+				Bold(true)
 
 	ErrorMessageStyle = ErrorStyle.
 				Padding(0, 2).
@@ -251,14 +248,6 @@ var (
 	DialogSeparatorStyle = BaseStyle.
 				Foreground(BorderMuted)
 
-	DialogLabelStyle = BaseStyle.
-				Bold(true).
-				Foreground(TextMuted)
-
-	DialogValueStyle = BaseStyle.
-				Bold(true).
-				Foreground(TextSecondary)
-
 	DialogQuestionStyle = BaseStyle.
 				Bold(true).
 				Foreground(TextPrimary).
@@ -271,6 +260,19 @@ var (
 	DialogHelpStyle = BaseStyle.
 			Foreground(TextMuted).
 			Italic(true)
+
+	TabTitleStyle = BaseStyle.
+			Foreground(TabPrimaryFg)
+
+	TabStyle = TabPrimaryStyle.
+			Padding(1, 0)
+
+	TabPrimaryStyle = BaseStyle.
+			Foreground(TextPrimary)
+
+	TabAccentStyle = BaseStyle.
+			Foreground(TabAccentFg).
+			Background(TabBg)
 )
 
 // Command Palette Styles
@@ -288,9 +290,6 @@ var (
 				Bold(true).
 				Foreground(TextMuted).
 				MarginTop(1)
-
-	PaletteDescStyle = BaseStyle.
-				Foreground(TextMuted)
 )
 
 // Diff Styles (matching glamour markdown theme)
@@ -304,8 +303,6 @@ var (
 			Foreground(DiffRemoveFg)
 
 	DiffUnchangedStyle = BaseStyle.Background(BackgroundAlt)
-
-	DiffContextStyle = BaseStyle
 )
 
 // Syntax highlighting UI element styles
@@ -317,20 +314,21 @@ var (
 // Tool Call Styles
 var (
 	ToolMessageStyle = BaseStyle.
-				Padding(1).
-				BorderLeft(true).
-				BorderStyle(lipgloss.ThickBorder()).
-				BorderForeground(BorderSecondary).
-				Background(BackgroundAlt)
+				Foreground(TextMutedGray)
 
-	ToolCallArgs   = BaseStyle
-	ToolCallResult = BaseStyle
+	ToolCallArgs = ToolMessageStyle.
+			Padding(0, 0, 0, 2)
 
-	ToolCallArgKey = BaseStyle.Bold(true).Foreground(TextSecondary)
+	ToolCallResult = ToolMessageStyle.
+			Padding(0, 0, 0, 2)
+
+	ToolCallArgKey = BaseStyle.
+			Bold(true).
+			Foreground(TextMutedGray)
 
 	ToolCallResultKey = BaseStyle.
 				Bold(true).
-				Foreground(TextSecondary)
+				Foreground(TextMutedGray)
 )
 
 // Input Styles
@@ -348,7 +346,7 @@ var (
 			Color: Accent,
 		},
 	}
-	EditorStyle = BaseStyle.Padding(1, 0, 1, 0)
+	EditorStyle = BaseStyle.Padding(1, 0, 0, 0)
 	// SuggestionGhostStyle renders inline auto-complete hints in a muted tone.
 	// Use a distinct grey so suggestion text is visually separate from the user's input.
 	SuggestionGhostStyle = BaseStyle.Foreground(lipgloss.Color(ColorSuggestionGhost))
@@ -437,21 +435,15 @@ var (
 // Agent and transfer badge styles
 var (
 	AgentBadgeStyle = BaseStyle.
-			Foreground(AgentBadge).
-			Bold(true).
-			Padding(0, 1)
-
-	TransferBadgeStyle = BaseStyle.
-				Foreground(TransferBadge).
-				Bold(true).
-				Padding(0, 1)
+		Foreground(AgentBadgeFg).
+		Background(AgentBadgeBg).
+		Bold(true).
+		Padding(0, 1, 0, 1)
 )
 
 // Deprecated styles (kept for backward compatibility)
 var (
-	StatusStyle = MutedStyle
-	ActionStyle = SecondaryStyle
-	ChatStyle   = BaseStyle
+	ChatStyle = BaseStyle
 )
 
 // Selection Styles
@@ -535,10 +527,10 @@ func ChromaStyle() *chroma.Style {
 func MarkdownStyle() ansi.StyleConfig {
 	h1Color := ColorAccentBlue
 	h2Color := ColorAccentBlue
-	h3Color := ColorTextSecondary
-	h4Color := ColorTextSecondary
-	h5Color := ColorTextSecondary
-	h6Color := ColorMutedBlue
+	h3Color := ColorAccentBlue
+	h4Color := ColorAccentBlue
+	h5Color := ColorAccentBlue
+	h6Color := ColorAccentBlue
 	linkColor := ColorAccentBlue
 	strongColor := ColorTextPrimary
 	codeColor := ColorTextPrimary
@@ -576,11 +568,9 @@ func MarkdownStyle() ansi.StyleConfig {
 		},
 		H1: ansi.StyleBlock{
 			StylePrimitive: ansi.StylePrimitive{
-				Prefix:          " ",
-				Suffix:          " ",
-				Color:           &h1Color,
-				BackgroundColor: stringPtr(ANSIColor63),
-				Bold:            boolPtr(true),
+				Prefix: "## ",
+				Color:  &h1Color,
+				Bold:   boolPtr(true),
 			},
 		},
 		H2: ansi.StyleBlock{
@@ -611,7 +601,6 @@ func MarkdownStyle() ansi.StyleConfig {
 			StylePrimitive: ansi.StylePrimitive{
 				Prefix: "###### ",
 				Color:  &h6Color,
-				Bold:   boolPtr(false),
 			},
 		},
 		Strikethrough: ansi.StylePrimitive{

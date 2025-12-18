@@ -44,5 +44,5 @@ func (c *Component) View() string {
 		return "" // TODO: Partial tool call
 	}
 
-	return styles.AgentBadgeStyle.Render("["+c.message.Sender+"]") + styles.MutedStyle.Render("hands off to") + styles.AgentBadgeStyle.Render("["+params.Agent+"]")
+	return styles.AgentBadgeStyle.Render(c.message.Sender) + " ─► " + styles.AgentBadgeStyle.Render(params.Agent+" ▶")
 }

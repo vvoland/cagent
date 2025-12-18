@@ -66,10 +66,9 @@ func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 func (c *Component) View() string {
 	msg := c.message
 
-	// Parse arguments
 	var args builtin.ListDirectoryArgs
 	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &args); err != nil {
-		return toolcommon.RenderTool(toolcommon.Icon(msg.ToolStatus), msg.ToolDefinition.DisplayName(), c.spinner.View(), "", c.width)
+		return toolcommon.RenderTool(msg, c.spinner, msg.ToolDefinition.DisplayName(), "", c.width)
 	}
 
 	// Shorten the path for display
@@ -78,7 +77,7 @@ func (c *Component) View() string {
 
 	// For pending/running state, show spinner
 	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
-		return toolcommon.RenderTool(toolcommon.Icon(msg.ToolStatus), displayName, c.spinner.View(), "", c.width)
+		return toolcommon.RenderTool(msg, c.spinner, displayName, "", c.width)
 	}
 
 	// For completed/error state, show concise summary
@@ -91,7 +90,7 @@ func (c *Component) View() string {
 	summary := formatSummary(meta)
 	params := styles.MutedStyle.Render(summary)
 
-	return toolcommon.RenderTool(toolcommon.Icon(msg.ToolStatus), displayName, params, "", c.width)
+	return toolcommon.RenderTool(msg, c.spinner, displayName+" "+params, "", c.width)
 }
 
 // formatSummary creates a concise summary of the directory listing from metadata

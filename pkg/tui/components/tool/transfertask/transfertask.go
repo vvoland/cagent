@@ -44,7 +44,9 @@ func (c *Component) View() string {
 		return "" // TODO: Partial tool call
 	}
 
-	badge := styles.AgentBadgeStyle.Render("["+c.message.Sender+"]") + styles.MutedStyle.Render("transfers task to") + styles.AgentBadgeStyle.Render("["+params.Agent+"]"+":")
-	content := styles.MutedStyle.Render(params.Task)
-	return badge + "\n\n" + content
+	return styles.AgentBadgeStyle.Render(c.message.Sender) +
+		" calls " +
+		styles.AgentBadgeStyle.Render(params.Agent+" ▶") +
+		"\n\n" +
+		styles.ToolMessageStyle.Render("✓ "+params.Task)
 }

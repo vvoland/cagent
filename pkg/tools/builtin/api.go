@@ -148,7 +148,7 @@ func (t *APITool) Tools(context.Context) ([]tools.Tool, error) {
 			Handler:      t.handler.CallTool,
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
-				Title:        "API URLs",
+				Title:        defaultsTo(t.config.Name, "Query API"),
 			},
 		},
 	}, nil
@@ -160,4 +160,11 @@ func (t *APITool) Start(context.Context) error {
 
 func (t *APITool) Stop(context.Context) error {
 	return nil
+}
+
+func defaultsTo(value, defaultValue string) string {
+	if value != "" {
+		return value
+	}
+	return defaultValue
 }

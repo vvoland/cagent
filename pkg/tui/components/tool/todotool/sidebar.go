@@ -1,11 +1,11 @@
 package todotool
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
+	"github.com/docker/cagent/pkg/tui/components/tab"
 	"github.com/docker/cagent/pkg/tui/styles"
 )
 
@@ -44,29 +44,26 @@ func (c *SidebarComponent) Render() string {
 		return ""
 	}
 
-	var content strings.Builder
-	content.WriteString(styles.HighlightStyle.Render("Todo"))
-	content.WriteString("\n")
-
+	var lines []string
 	for _, todo := range c.todos {
-		content.WriteString(renderTodoLine(todo, c.width))
-		content.WriteString("\n")
+		lines = append(lines, c.renderTodoLine(todo))
 	}
 
-	return content.String()
+	return c.renderTab("TO-DO", strings.Join(lines, "\n"))
 }
 
-func renderTodoLine(todo builtin.Todo, maxWidth int) string {
-	icon, iconStyle := renderTodoIcon(todo.Status)
-	descStyle := renderTodoDescriptionStyle(todo.Status)
+func (c *SidebarComponent) renderTodoLine(todo builtin.Todo) string {
+	icon, style := renderTodoIcon(todo.Status)
 
 	description := todo.Description
-	maxDescWidth := max(maxWidth-2, 3)
+	maxDescWidth := max(c.width-6, 3)
 	if len(description) > maxDescWidth {
-		description = description[:maxDescWidth-3] + "..."
+		description = description[:maxDescWidth-1] + "…"
 	}
 
-	styledIcon := iconStyle.Render(icon)
-	styledDescription := descStyle.Render(description)
-	return fmt.Sprintf("%s %s", styledIcon, styledDescription)
+	return styles.TabPrimaryStyle.Render(style.Render(icon + " " + description))
+}
+
+func (c *SidebarComponent) renderTab(title, content string) string {
+	return tab.Render(title, content, c.width-2)
 }

@@ -18,7 +18,7 @@ func TestErrorMessageWrapping(t *testing.T) {
 		"It contains enough text to exceed typical terminal widths and demonstrate the wrapping behavior."
 
 	msg := types.Error(longError)
-	mv := New(msg)
+	mv := New(msg, nil)
 
 	// Set a narrow width to force wrapping
 	width := 50
@@ -48,7 +48,7 @@ func TestErrorMessageWithShortContent(t *testing.T) {
 
 	shortError := "Short error"
 	msg := types.Error(shortError)
-	mv := New(msg)
+	mv := New(msg, nil)
 
 	width := 80
 	mv.SetSize(width, 0)
@@ -68,7 +68,7 @@ func TestErrorMessagePreservesContent(t *testing.T) {
 
 	errorContent := "Error: Failed to connect to database\nConnection timeout after 30 seconds"
 	msg := types.Error(errorContent)
-	mv := New(msg)
+	mv := New(msg, nil)
 
 	width := 80
 	mv.SetSize(width, 0)

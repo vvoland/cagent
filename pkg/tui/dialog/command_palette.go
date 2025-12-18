@@ -62,7 +62,7 @@ func defaultCommandPaletteKeyMap() commandPaletteKeyMap {
 // NewCommandPaletteDialog creates a new command palette dialog
 func NewCommandPaletteDialog(categories []commands.Category) Dialog {
 	ti := textinput.New()
-	ti.Placeholder = "Type to search commands..."
+	ti.Placeholder = "Type to search commands…"
 	ti.Focus()
 	ti.CharLimit = 100
 	ti.SetWidth(50)

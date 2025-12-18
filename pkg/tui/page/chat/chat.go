@@ -110,7 +110,7 @@ func defaultKeyMap() KeyMap {
 	return KeyMap{
 		Tab: key.NewBinding(
 			key.WithKeys("tab"),
-			key.WithHelp("tab", "switch focus"),
+			key.WithHelp("TAB", "switch focus"),
 		),
 		Cancel: key.NewBinding(
 			key.WithKeys("esc"),
@@ -119,11 +119,11 @@ func defaultKeyMap() KeyMap {
 		// Ctrl+J acts as a fallback on terminals that don't distinguish Shift+Enter.
 		ShiftNewline: key.NewBinding(
 			key.WithKeys("shift+enter", "ctrl+j"),
-			key.WithHelp("shift+enter / ctrl+j", "newline"),
+			key.WithHelp("Shift+Enter / Ctrl+j", "newline"),
 		),
 		ExternalEditor: key.NewBinding(
 			key.WithKeys("ctrl+g"),
-			key.WithHelp("ctrl+g", "edit in $EDITOR"),
+			key.WithHelp("Ctrl+g", "edit in $EDITOR"),
 		),
 	}
 }
@@ -511,7 +511,7 @@ func (p *chatPage) SetSize(width, height int) tea.Cmd {
 	// Account for horizontal padding in width
 	innerWidth := width - 2 // subtract left/right padding
 
-	targetEditorHeight := p.editorLines
+	targetEditorHeight := p.editorLines - 1
 	editorCmd := p.editor.SetSize(innerWidth, targetEditorHeight)
 	cmds = append(cmds, editorCmd)
 
@@ -523,11 +523,8 @@ func (p *chatPage) SetSize(width, height int) tea.Cmd {
 
 	var mainWidth int
 	if width >= minWindowWidth {
-		mainWidth = innerWidth - sidebarWidth
-		if mainWidth < 1 {
-			mainWidth = 1
-		}
-		p.chatHeight = max(1, height-actualEditorHeight-1) // -1 for resize handle
+		mainWidth = max(innerWidth-sidebarWidth, 1)
+		p.chatHeight = max(1, height-actualEditorHeight-2) // -1 for resize handle, -1 for empty line before status bar
 		p.sidebar.SetMode(sidebar.ModeVertical)
 		cmds = append(cmds,
 			p.sidebar.SetSize(sidebarWidth, p.chatHeight),
@@ -535,11 +532,8 @@ func (p *chatPage) SetSize(width, height int) tea.Cmd {
 		)
 	} else {
 		const horizontalSidebarHeight = 3
-		mainWidth = innerWidth
-		if mainWidth < 1 {
-			mainWidth = 1
-		}
-		p.chatHeight = max(1, height-actualEditorHeight-horizontalSidebarHeight-1) // -1 for resize handle
+		mainWidth = max(innerWidth, 1)
+		p.chatHeight = max(1, height-actualEditorHeight-horizontalSidebarHeight-2) // -1 for resize handle, -1 for empty line before status bar
 		p.sidebar.SetMode(sidebar.ModeHorizontal)
 		cmds = append(cmds,
 			p.sidebar.SetSize(width, horizontalSidebarHeight),
@@ -570,13 +564,15 @@ func (p *chatPage) Bindings() []key.Binding {
 	bindings := []key.Binding{
 		p.keyMap.Tab,
 		p.keyMap.Cancel,
-		// show newline hints in the global footer
-		p.keyMap.ShiftNewline,
-		p.keyMap.ExternalEditor,
 	}
 
 	if p.focusedPanel == PanelChat {
 		bindings = append(bindings, p.messages.Bindings()...)
+	} else {
+		bindings = append(bindings,
+			p.keyMap.ShiftNewline,
+			p.keyMap.ExternalEditor,
+		)
 	}
 
 	return bindings
@@ -610,7 +606,7 @@ func (p *chatPage) updateNewlineHelp() {
 		// When keyboard enhancements are supported, show both options
 		p.keyMap.ShiftNewline = key.NewBinding(
 			key.WithKeys("shift+enter", "ctrl+j"),
-			key.WithHelp("shift+enter / ctrl+j", "newline"),
+			key.WithHelp("Shift+Enter", "newline"),
 		)
 	} else {
 		// When not supported, only ctrl+j works
@@ -725,7 +721,7 @@ func (p *chatPage) routeMouseEvent(msg tea.Msg, y int) tea.Cmd {
 func (p *chatPage) isOnResizeLine(y int) bool {
 	// Use current editor height (includes dynamic banner) rather than cached value
 	_, editorHeight := p.editor.GetSize()
-	return y == p.height-editorHeight-1
+	return y == p.height-editorHeight-2
 }
 
 // isOnResizeHandle checks if (x, y) is on the draggable center of the resize handle.
@@ -753,26 +749,22 @@ func (p *chatPage) handleResize(y int) tea.Cmd {
 
 // renderResizeHandle renders the draggable separator between messages and editor.
 func (p *chatPage) renderResizeHandle(width int) string {
-	if p.isHoveringHandle || p.isDragging {
-		// Show a small centered highlight when hovered or dragging
-		handleWidth := min(resizeHandleWidth, width)
-		sideWidth := (width - handleWidth) / 2
-		leftPart := strings.Repeat("─", sideWidth)
-		centerPart := strings.Repeat("─", handleWidth)
-		rightPart := strings.Repeat("─", width-sideWidth-handleWidth)
+	// Show a small centered highlight when hovered or dragging
+	handleWidth := min(resizeHandleWidth, width)
+	sideWidth := (width - handleWidth) / 2
+	leftPart := strings.Repeat("─", sideWidth)
+	centerPart := strings.Repeat("─", handleWidth)
+	rightPart := strings.Repeat("─", width-sideWidth-handleWidth-2)
 
-		// Use brighter style when actively dragging
-		centerStyle := styles.ResizeHandleHoverStyle
-		if p.isDragging {
-			centerStyle = styles.ResizeHandleActiveStyle
-		}
-
-		return styles.ResizeHandleStyle.Render(leftPart) +
-			centerStyle.Render(centerPart) +
-			styles.ResizeHandleStyle.Render(rightPart)
+	// Use brighter style when actively dragging
+	centerStyle := styles.ResizeHandleHoverStyle
+	if p.isDragging {
+		centerStyle = styles.ResizeHandleActiveStyle
 	}
-	// Simple thin line when not hovered
-	return styles.ResizeHandleStyle.Render(strings.Repeat("─", width))
+
+	return styles.ResizeHandleStyle.Render(leftPart) +
+		centerStyle.Render(centerPart) +
+		styles.ResizeHandleStyle.Render(rightPart)
 }
 
 func (p *chatPage) openAttachmentPreview(preview editor.AttachmentPreview) tea.Cmd {
