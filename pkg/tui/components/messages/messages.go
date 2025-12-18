@@ -331,6 +331,13 @@ func (m *model) View() string {
 		visibleLines = m.applySelectionHighlight(visibleLines, startLine)
 	}
 
+	// Ensure each line doesn't exceed the width to prevent layout overflow
+	for i, line := range visibleLines {
+		if ansi.StringWidth(line) > m.width {
+			visibleLines[i] = ansi.Truncate(line, m.width, "")
+		}
+	}
+
 	return strings.Join(visibleLines, "\n")
 }
 
