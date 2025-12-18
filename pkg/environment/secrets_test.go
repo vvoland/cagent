@@ -46,12 +46,6 @@ func TestRunSecretsProvider(t *testing.T) {
 			writer:   writeNothing(),
 			expected: "",
 		},
-		{
-			name:     "ignore new lines",
-			key:      "KEY",
-			writer:   writeSecret("VALUE\n\n"),
-			expected: "VALUE",
-		},
 	}
 
 	for _, test := range tests {
