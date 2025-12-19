@@ -729,18 +729,20 @@ func (m *model) createMessageView(msg *types.Message) layout.Model {
 
 // removeSpinner removes the last message if it's a spinner
 func (m *model) removeSpinner() {
-	if len(m.messages) > 0 {
-		lastIdx := len(m.messages) - 1
-		lastMessage := m.messages[lastIdx]
+	if len(m.messages) == 0 {
+		return
+	}
 
-		if lastMessage.Type == types.MessageTypeSpinner {
-			m.messages = m.messages[:lastIdx]
-			if len(m.views) > lastIdx {
-				m.views = m.views[:lastIdx]
-			}
-			// Invalidate all items since we've removed a message
-			m.invalidateAllItems()
+	lastIdx := len(m.messages) - 1
+	lastMessage := m.messages[lastIdx]
+
+	if lastMessage.Type == types.MessageTypeSpinner {
+		m.messages = m.messages[:lastIdx]
+		if len(m.views) > lastIdx {
+			m.views = m.views[:lastIdx]
 		}
+		// Invalidate all items since we've removed a message
+		m.invalidateAllItems()
 	}
 }
 
