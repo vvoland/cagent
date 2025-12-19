@@ -51,9 +51,7 @@ func (c *Component) Init() tea.Cmd {
 
 func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	if c.message.ToolStatus == types.ToolStatusPending || c.message.ToolStatus == types.ToolStatusRunning {
-		var cmd tea.Cmd
-		var model layout.Model
-		model, cmd = c.spinner.Update(msg)
+		model, cmd := c.spinner.Update(msg)
 		c.spinner = model.(spinner.Spinner)
 		return c, cmd
 	}

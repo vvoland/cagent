@@ -313,9 +313,7 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case *runtime.RAGIndexingStartedEvent, *runtime.RAGIndexingProgressEvent, *runtime.RAGIndexingCompletedEvent:
 		// Forward RAG events to sidebar
 		slog.Debug("Chat page forwarding RAG event to sidebar", "event_type", fmt.Sprintf("%T", msg))
-		var model layout.Model
-		var cmd tea.Cmd
-		model, cmd = p.sidebar.Update(msg)
+		model, cmd := p.sidebar.Update(msg)
 		p.sidebar = model.(sidebar.Model)
 		return p, cmd
 	case *runtime.UserMessageEvent:
@@ -428,8 +426,6 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	cmds = append(cmds, editorCmd)
 
 	if p.working {
-		// var cmd tea.Cmd
-		// var model layout.Model
 		model, cmd := p.spinner.Update(msg)
 		p.spinner = model.(spinner.Spinner)
 		cmds = append(cmds, cmd)
