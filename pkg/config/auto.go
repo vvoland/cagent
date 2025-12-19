@@ -16,25 +16,27 @@ var DefaultModels = map[string]string{
 }
 
 func AvailableProviders(ctx context.Context, modelsGateway string, env environment.Provider) []string {
+	if modelsGateway != "" {
+		// Default to anthropic when using a gateway
+		return []string{"anthropic"}
+	}
+
 	var providers []string
 
-	if modelsGateway == "" {
-		switch {
-		case env.Get(ctx, "ANTHROPIC_API_KEY") != "":
-			providers = append(providers, "anthropic")
-		case env.Get(ctx, "OPENAI_API_KEY") != "":
-			providers = append(providers, "openai")
-		case env.Get(ctx, "GOOGLE_API_KEY") != "":
-			providers = append(providers, "google")
-		case env.Get(ctx, "MISTRAL_API_KEY") != "":
-			providers = append(providers, "mistral")
-		default:
-			providers = append(providers, "dmr")
-		}
-	} else {
-		// Default to anthropic when using a gateway
+	if key, _ := env.Get(ctx, "ANTHROPIC_API_KEY"); key != "" {
 		providers = append(providers, "anthropic")
 	}
+	if key, _ := env.Get(ctx, "OPENAI_API_KEY"); key != "" {
+		providers = append(providers, "openai")
+	}
+	if key, _ := env.Get(ctx, "GOOGLE_API_KEY"); key != "" {
+		providers = append(providers, "google")
+	}
+	if key, _ := env.Get(ctx, "MISTRAL_API_KEY"); key != "" {
+		providers = append(providers, "mistral")
+	}
+
+	providers = append(providers, "dmr")
 
 	return providers
 }

@@ -34,7 +34,7 @@ func collectExamples(t *testing.T) []string {
 
 type noEnvProvider struct{}
 
-func (p *noEnvProvider) Get(context.Context, string) string { return "" }
+func (p *noEnvProvider) Get(context.Context, string) (string, bool) { return "", false }
 
 func TestGetToolsForAgent_ContinuesOnCreateToolError(t *testing.T) {
 	t.Parallel()

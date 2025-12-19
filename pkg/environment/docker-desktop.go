@@ -18,18 +18,18 @@ func NewDockerDesktopProvider() *DockerDesktopProvider {
 	return &DockerDesktopProvider{}
 }
 
-func (p *DockerDesktopProvider) Get(ctx context.Context, name string) string {
+func (p *DockerDesktopProvider) Get(ctx context.Context, name string) (string, bool) {
 	switch name {
 	case DockerDesktopEmail:
-		return desktop.GetUserInfo(ctx).Email
+		return desktop.GetUserInfo(ctx).Email, true
 
 	case DockerDesktopUsername:
-		return desktop.GetUserInfo(ctx).Username
+		return desktop.GetUserInfo(ctx).Username, true
 
 	case DockerDesktopTokenEnv:
-		return desktop.GetToken(ctx)
+		return desktop.GetToken(ctx), true
 
 	default:
-		return ""
+		return "", false
 	}
 }

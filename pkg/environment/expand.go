@@ -26,8 +26,8 @@ func Expand(ctx context.Context, value string, env Provider) (string, error) {
 	var err error
 
 	expanded := os.Expand(value, func(name string) string {
-		v := env.Get(ctx, name)
-		if v == "" {
+		v, found := env.Get(ctx, name)
+		if !found {
 			err = fmt.Errorf("environment variable %q not set", name)
 		}
 		return v

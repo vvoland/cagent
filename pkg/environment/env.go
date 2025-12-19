@@ -13,8 +13,8 @@ func NewOsEnvProvider() *OsEnvProvider {
 	return &OsEnvProvider{}
 }
 
-func (p *OsEnvProvider) Get(_ context.Context, name string) string {
-	return os.Getenv(name)
+func (p *OsEnvProvider) Get(_ context.Context, name string) (string, bool) {
+	return os.LookupEnv(name)
 }
 
 // EnvListProvider provides access a list of environment variables.
@@ -28,14 +28,14 @@ func NewEnvListProvider(env []string) *EnvListProvider {
 	}
 }
 
-func (p *EnvListProvider) Get(_ context.Context, name string) string {
+func (p *EnvListProvider) Get(_ context.Context, name string) (string, bool) {
 	for _, e := range p.env {
 		n, v, ok := strings.Cut(e, "=")
 		if ok && n == name {
-			return v
+			return v, true
 		}
 	}
-	return ""
+	return "", false
 }
 
 // EnvFilesProvider provides access env files.
@@ -54,12 +54,12 @@ func NewEnvFilesProvider(absEnvFiles []string) (*EnvFilesProvider, error) {
 	}, nil
 }
 
-func (p *EnvFilesProvider) Get(_ context.Context, name string) string {
+func (p *EnvFilesProvider) Get(_ context.Context, name string) (string, bool) {
 	for _, kv := range p.values {
 		if kv.Key == name {
-			return kv.Value
+			return kv.Value, true
 		}
 	}
 
-	return ""
+	return "", false
 }

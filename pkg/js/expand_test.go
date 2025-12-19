@@ -242,6 +242,7 @@ func TestExpandString(t *testing.T) {
 
 type testEnvProvider map[string]string
 
-func (p *testEnvProvider) Get(_ context.Context, name string) string {
-	return (*p)[name]
+func (p *testEnvProvider) Get(_ context.Context, name string) (string, bool) {
+	val, found := (*p)[name]
+	return val, found
 }

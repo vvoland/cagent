@@ -39,7 +39,7 @@ func gatherMissingEnvVars(ctx context.Context, cfg *latest.Config, modelsGateway
 	}
 
 	for _, e := range mcpToSortedList(requiredEnv) {
-		if env.Get(ctx, e) == "" {
+		if v, _ := env.Get(ctx, e); v == "" {
 			missing = append(missing, e)
 		}
 	}

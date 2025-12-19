@@ -169,7 +169,7 @@ func openRoot(t *testing.T, dir string) *os.Root {
 
 type noEnvProvider struct{}
 
-func (p *noEnvProvider) Get(context.Context, string) string { return "" }
+func (p *noEnvProvider) Get(context.Context, string) (string, bool) { return "", false }
 
 func TestCheckRequiredEnvVars(t *testing.T) {
 	t.Parallel()

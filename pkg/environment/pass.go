@@ -33,7 +33,7 @@ func NewPassProvider() (*PassProvider, error) {
 
 // Get retrieves the value of a secret by its name using the `pass` CLI.
 // The name corresponds to the path in the `pass` store.
-func (p *PassProvider) Get(ctx context.Context, name string) string {
+func (p *PassProvider) Get(ctx context.Context, name string) (string, bool) {
 	cmd := exec.CommandContext(ctx, "pass", "show", name)
 
 	var out bytes.Buffer
@@ -45,8 +45,8 @@ func (p *PassProvider) Get(ctx context.Context, name string) string {
 	if err != nil {
 		// Ignore error
 		slog.Debug("Failed to find secret in pass", "error", err)
-		return ""
+		return "", false
 	}
 
-	return strings.TrimSpace(out.String())
+	return strings.TrimSpace(out.String()), true
 }

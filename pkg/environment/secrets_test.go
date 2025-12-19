@@ -59,7 +59,7 @@ func TestRunSecretsProvider(t *testing.T) {
 			provider := &RunSecretsProvider{
 				root: tmp,
 			}
-			actual := provider.Get(t.Context(), test.key)
+			actual, _ := provider.Get(t.Context(), test.key)
 
 			assert.Equal(t, test.expected, actual)
 		})
@@ -89,20 +89,24 @@ func TestRunSecretsProvider_PathTraversal(t *testing.T) {
 	}
 
 	// Test 1: Normal access should work
-	result := provider.Get(t.Context(), "api_key")
+	result, found := provider.Get(t.Context(), "api_key")
 	assert.Equal(t, "SECRET_VALUE", result, "Normal secret access should work")
+	assert.True(t, found)
 
 	// Test 2: Path traversal with ../ should be blocked
-	result = provider.Get(t.Context(), "../sensitive.txt")
+	result, found = provider.Get(t.Context(), "../sensitive.txt")
 	assert.Empty(t, result, "Path traversal with ../ should be blocked and return empty string")
+	assert.False(t, found)
 
 	// Test 3: Multiple path traversal levels
-	result = provider.Get(t.Context(), "../../sensitive.txt")
+	result, found = provider.Get(t.Context(), "../../sensitive.txt")
 	assert.Empty(t, result, "Multiple path traversal levels should be blocked")
+	assert.False(t, found)
 
 	// Test 4: Absolute path outside secrets dir should be blocked
-	result = provider.Get(t.Context(), sensitiveFile)
+	result, found = provider.Get(t.Context(), sensitiveFile)
 	assert.Empty(t, result, "Absolute path outside secrets dir should be blocked")
+	assert.False(t, found)
 
 	// Test 5: Path with ../ that normalizes to valid path within directory
 	// This is NOT a vulnerability - it's proper path normalization
@@ -112,10 +116,12 @@ func TestRunSecretsProvider_PathTraversal(t *testing.T) {
 	require.NoError(t, os.WriteFile(subSecret, []byte("SUB_VALUE"), 0o644))
 
 	// subdir/../api_key normalizes to api_key, which is valid
-	result = provider.Get(t.Context(), "subdir/../api_key")
+	result, found = provider.Get(t.Context(), "subdir/../api_key")
 	assert.Equal(t, "SECRET_VALUE", result, "Path that normalizes to valid location should work")
+	assert.True(t, found)
 
 	// But accessing subsecret directly should work
-	result = provider.Get(t.Context(), "subdir/subsecret")
+	result, found = provider.Get(t.Context(), "subdir/subsecret")
 	assert.Equal(t, "SUB_VALUE", result, "Subdirectory access should work")
+	assert.True(t, found)
 }
