@@ -62,8 +62,8 @@ func (c *Component) View() string {
 
 	var args builtin.RunShellArgs
 	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &args); err != nil {
-		return toolcommon.RenderTool(msg, c.spinner, msg.ToolDefinition.DisplayName(), "", c.width)
+		return toolcommon.RenderTool(msg, c.spinner, "", "", c.width)
 	}
 
-	return toolcommon.RenderTool(msg, c.spinner, msg.ToolDefinition.DisplayName()+" "+args.Cmd, "", c.width)
+	return toolcommon.RenderTool(msg, c.spinner, args.Cmd, "", c.width)
 }

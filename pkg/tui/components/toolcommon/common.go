@@ -60,10 +60,14 @@ func FormatToolResult(content string, width int) string {
 	return ""
 }
 
-func RenderTool(msg *types.Message, inProgress spinner.Spinner, name, result string, width int) string {
+func RenderTool(msg *types.Message, inProgress spinner.Spinner, args, result string, width int) string {
+	name := msg.ToolDefinition.DisplayName()
 	content := fmt.Sprintf("%s %s", Icon(msg, inProgress), name)
+	if args != "" {
+		content += " " + args
+	}
 	if result != "" {
-		if strings.Count(name, "\n") > 0 {
+		if strings.Count(content, "\n") > 0 {
 			content += "\n"
 		}
 		content += result

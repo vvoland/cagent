@@ -64,11 +64,8 @@ func (c *Component) View() string {
 
 	var args map[string]any
 	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &args); err != nil {
-		return toolcommon.RenderTool(msg, c.spinner, msg.ToolDefinition.DisplayName(), "", c.width)
+		return toolcommon.RenderTool(msg, c.spinner, "", "", c.width)
 	}
-
-	// Build the display name with inline result
-	displayName := msg.ToolDefinition.DisplayName()
 
 	// Extract argument summary for the tool call display
 	var params string
@@ -91,7 +88,7 @@ func (c *Component) View() string {
 	}
 
 	// Render everything on one line
-	return toolcommon.RenderTool(msg, c.spinner, displayName+" "+params, "", c.width)
+	return toolcommon.RenderTool(msg, c.spinner, params, "", c.width)
 }
 
 // extractEndpoint tries to find the endpoint/URL being called

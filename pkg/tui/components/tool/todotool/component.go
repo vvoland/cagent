@@ -60,5 +60,5 @@ func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 func (c *Component) View() string {
 	// The TODOs are in the sidebar
-	return toolcommon.RenderTool(c.message, c.spinner, c.message.ToolDefinition.DisplayName(), "", c.width)
+	return toolcommon.RenderTool(c.message, c.spinner, "", "", c.width)
 }

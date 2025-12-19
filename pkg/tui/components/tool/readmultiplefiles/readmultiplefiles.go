@@ -69,13 +69,13 @@ func (c *Component) View() string {
 	// Parse arguments
 	var args builtin.ReadMultipleFilesArgs
 	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &args); err != nil {
-		return toolcommon.RenderTool(msg, c.spinner, "Read Multiple Files", "", c.width)
+		return toolcommon.RenderTool(msg, c.spinner, "", "", c.width)
 	}
 
 	// For pending/running state, show files being read
 	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
 		params := formatFilesList(args.Paths)
-		return toolcommon.RenderTool(msg, c.spinner, "Read Multiple Files "+params, "", c.width)
+		return toolcommon.RenderTool(msg, c.spinner, params, "", c.width)
 	}
 
 	// For completed/error state, render header line followed by each file line
