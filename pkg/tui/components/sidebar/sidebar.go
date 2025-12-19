@@ -39,6 +39,7 @@ type Model interface {
 	SetTeamInfo(availableAgents []string)
 	SetAgentSwitching(switching bool)
 	SetToolsetInfo(availableTools int)
+	SetYolo(yolo bool)
 	GetSize() (width, height int)
 }
 
@@ -57,6 +58,7 @@ type model struct {
 	sessionAgent     map[string]string         // sessionID -> agent name
 	todoComp         *todotool.SidebarComponent
 	mcpInit          bool
+	yolo             bool
 	ragIndexing      map[string]*ragIndexingState // strategy name -> indexing state
 	spinner          spinner.Spinner
 	mode             Mode
@@ -121,6 +123,10 @@ func (m *model) SetAgentSwitching(switching bool) {
 // SetToolsetInfo sets the number of available tools
 func (m *model) SetToolsetInfo(availableTools int) {
 	m.availableTools = availableTools
+}
+
+func (m *model) SetYolo(yolo bool) {
+	m.yolo = yolo
 }
 
 // formatTokenCount formats a token count with K/M suffixes for readability
@@ -264,17 +270,10 @@ func (m *model) horizontalView() string {
 }
 
 func (m *model) verticalView() string {
-	var session []string
-	session = append(session, m.sessionTitle)
-	if pwd := getCurrentWorkingDirectory(); pwd != "" {
-		session = append(session, "", styles.TabAccentStyle.Render(pwd))
-	}
-	if working := m.workingIndicator(); working != "" {
-		session = append(session, working)
-	}
-
 	var main []string
-	main = append(main, m.renderTab("Session", strings.Join(session, "\n")))
+	if sessionInfo := m.sessionInfo(); sessionInfo != "" {
+		main = append(main, sessionInfo)
+	}
 	if agentInfo := m.agentInfo(); agentInfo != "" {
 		main = append(main, agentInfo)
 	}
@@ -483,6 +482,23 @@ func (m *model) tokenUsageSummary() string {
 	}
 
 	return fmt.Sprintf("Tokens: %s | Cost: $%s", formatTokenCount(totalTokens), formatCost(totalCost))
+}
+
+func (m *model) sessionInfo() string {
+	var lines []string
+
+	lines = append(lines, m.sessionTitle, "")
+	if pwd := getCurrentWorkingDirectory(); pwd != "" {
+		lines = append(lines, styles.TabAccentStyle.Render("█")+styles.TabPrimaryStyle.Render(" "+pwd))
+	}
+	if m.yolo {
+		lines = append(lines, styles.TabAccentStyle.Render("✓")+styles.TabPrimaryStyle.Render(" YOLO mode enabled"))
+	}
+	if working := m.workingIndicator(); working != "" {
+		lines = append(lines, working)
+	}
+
+	return m.renderTab("Session", strings.Join(lines, "\n"))
 }
 
 // agentInfo renders the current agent information

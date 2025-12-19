@@ -55,6 +55,7 @@ type Page interface {
 	layout.Sizeable
 	layout.Help
 	CompactSession() tea.Cmd
+	SetYolo(yolo bool) tea.Cmd
 	Cleanup()
 	// GetInputHeight returns the current height of the editor/input area (including padding)
 	GetInputHeight() int
@@ -449,6 +450,11 @@ func (p *chatPage) setWorking(working bool) tea.Cmd {
 	}
 
 	return tea.Batch(cmd...)
+}
+
+func (p *chatPage) SetYolo(yolo bool) tea.Cmd {
+	p.sidebar.SetYolo(yolo)
+	return nil
 }
 
 // View renders the chat page

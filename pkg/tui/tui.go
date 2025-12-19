@@ -239,7 +239,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			statusText = "Yolo mode disabled: tools will require confirmation"
 		}
-		return a, notification.SuccessCmd(statusText)
+		return a, tea.Batch(notification.SuccessCmd(statusText), a.chatPage.SetYolo(sess.ToolsApproved))
 
 	case messages.AgentCommandMsg:
 		resolvedCommand := a.application.ResolveCommand(context.Background(), msg.Command)
