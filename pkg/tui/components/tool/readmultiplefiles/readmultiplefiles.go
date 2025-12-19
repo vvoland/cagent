@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/tools/builtin"
@@ -90,7 +91,33 @@ func (c *Component) View() string {
 		if content.Len() > 0 {
 			content.WriteString("\n")
 		}
-		fmt.Fprintf(&content, "%s%s %s", toolcommon.Icon(msg, c.spinner), styles.ToolName.Render(summary.displayName), summary.params)
+
+		// Icon / Tool name / File path
+		nameStyle := styles.ToolName
+		icon := toolcommon.Icon(msg, c.spinner)
+		if summary.isError {
+			nameStyle = styles.ToolNameError
+			icon = toolcommon.Icon(&types.Message{ToolStatus: types.ToolStatusError}, c.spinner)
+		}
+		readCall := icon + nameStyle.Render("Read")
+		if summary.path != "" {
+			readCall += " " + summary.path
+		}
+
+		// Output aligned to the right
+		outputStyle := styles.ToolMessageStyle
+		if summary.isError {
+			outputStyle = styles.ToolErrorMessageStyle
+		}
+		output := outputStyle.Render(summary.output)
+		padding := c.width - lipgloss.Width(readCall) - lipgloss.Width(output) - 2
+		if padding > 0 {
+			output = strings.Repeat(" ", padding) + output
+		}
+
+		content.WriteString(readCall)
+		content.WriteString(" ")
+		content.WriteString(output)
 	}
 
 	// Apply tool message styling
@@ -98,8 +125,9 @@ func (c *Component) View() string {
 }
 
 type fileSummary struct {
-	displayName string
-	params      string
+	path    string
+	output  string
+	isError bool
 }
 
 // formatSummaryLines creates a summary for each file from metadata
@@ -109,16 +137,22 @@ func formatSummaryLines(meta *builtin.ReadMultipleFilesMeta) []fileSummary {
 	}
 
 	homeDir := paths.GetHomeDir()
-	summaries := make([]fileSummary, 0, len(meta.Files))
+	var summaries []fileSummary
 
 	for _, file := range meta.Files {
-		params := shortenPath(file.Path, homeDir)
+		path := shortenPath(file.Path, homeDir)
+		var output string
 		if file.Error != "" {
-			params += " " + file.Error
+			output = " " + file.Error
 		} else {
-			params += fmt.Sprintf(" %d lines", file.LineCount)
+			output = fmt.Sprintf(" %d lines", file.LineCount)
 		}
-		summaries = append(summaries, fileSummary{displayName: "Read", params: params})
+
+		summaries = append(summaries, fileSummary{
+			path:    path,
+			output:  output,
+			isError: file.Error != "",
+		})
 	}
 
 	return summaries

@@ -30,6 +30,8 @@ const (
 	ColorWarningYellow   = "#E0AF68"
 	ColorMobyBlue        = "#1D63ED"
 	ColorDarkBlue        = "#202a4b"
+	ColorErrorStrong     = "#d74532"
+	ColorErrorDark       = "#4a2523"
 
 	// Spinner glow colors (transition from base blue towards white)
 	ColorSpinnerDim       = "#9AB8F9"
@@ -314,9 +316,17 @@ var (
 	ToolMessageStyle = BaseStyle.
 				Foreground(TextMutedGray)
 
+	ToolErrorMessageStyle = BaseStyle.
+				Foreground(lipgloss.Color(ColorErrorStrong))
+
 	ToolName = ToolMessageStyle.
 			Foreground(lipgloss.Color(ColorMobyBlue)).
 			Background(lipgloss.Color(ColorDarkBlue)).
+			Padding(0, 1)
+
+	ToolNameError = ToolMessageStyle.
+			Foreground(lipgloss.Color(ColorErrorStrong)).
+			Background(lipgloss.Color(ColorErrorDark)).
 			Padding(0, 1)
 
 	ToolCompletedIcon = BaseStyle.
@@ -325,7 +335,7 @@ var (
 
 	ToolErrorIcon = BaseStyle.
 			Foreground(lipgloss.Color(ColorWhite)).
-			Background(lipgloss.Color(ColorErrorRed))
+			Background(lipgloss.Color(ColorErrorStrong))
 
 	ToolPendingIcon = BaseStyle.
 			Foreground(lipgloss.Color(ColorWhite)).

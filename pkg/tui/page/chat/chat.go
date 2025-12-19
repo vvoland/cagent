@@ -384,7 +384,13 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
 	case *runtime.ToolCallResponseEvent:
 		spinnerCmd := p.setWorking(true)
-		cmd := p.messages.AddToolResult(msg, types.ToolStatusCompleted)
+
+		var cmd tea.Cmd
+		if msg.Result.IsError {
+			cmd = p.messages.AddToolResult(msg, types.ToolStatusError)
+		} else {
+			cmd = p.messages.AddToolResult(msg, types.ToolStatusCompleted)
+		}
 
 		// Check if this is a todo-related tool call and update sidebar
 		if msg.ToolDefinition.Category == "todo" && !msg.Result.IsError {

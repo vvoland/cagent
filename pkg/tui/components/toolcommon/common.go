@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/lipgloss/v2"
+
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
@@ -57,16 +59,29 @@ func FormatToolResult(content string, width int) string {
 }
 
 func RenderTool(msg *types.Message, inProgress spinner.Spinner, args, result string, width int) string {
-	content := fmt.Sprintf("%s%s", Icon(msg, inProgress), styles.ToolName.Render(msg.ToolDefinition.DisplayName()))
+	nameStyle := styles.ToolName
+	resultStyle := styles.ToolMessageStyle
+	if msg.ToolStatus == types.ToolStatusError {
+		nameStyle = styles.ToolNameError
+		resultStyle = styles.ToolErrorMessageStyle
+	}
+
+	content := fmt.Sprintf("%s%s", Icon(msg, inProgress), nameStyle.Render(msg.ToolDefinition.DisplayName()))
 
 	if args != "" {
 		content += " " + args
 	}
 	if result != "" {
 		if strings.Count(content, "\n") > 0 {
-			content += "\n"
+			content += "\n" + result
+		} else {
+			padding := width - lipgloss.Width(content) - lipgloss.Width(result) - 2
+			if padding > 0 {
+				result = strings.Repeat(" ", padding) + resultStyle.Render(result)
+			}
+
+			content += " " + result
 		}
-		content += result
 	}
 
 	return styles.RenderComposite(styles.ToolMessageStyle.Width(width-1), content)

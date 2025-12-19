@@ -188,7 +188,7 @@ func TestFilesystemTool_ReadFile(t *testing.T) {
 		Path: filepath.Join(tmpDir, "nonexistent.txt"),
 	})
 	require.NoError(t, err)
-	assert.Contains(t, result.Output, "Error reading file")
+	assert.Equal(t, "not found", result.Output)
 
 	result, err = tool.handleReadFile(t.Context(), ReadFileArgs{
 		Path: "/etc/passwd",
@@ -225,7 +225,7 @@ func TestFilesystemTool_ReadMultipleFiles(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Contains(t, result.Output, content1)
-	assert.Contains(t, result.Output, "Error reading file")
+	assert.Contains(t, result.Output, "not found")
 }
 
 func TestFilesystemTool_ListDirectory(t *testing.T) {

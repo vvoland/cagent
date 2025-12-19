@@ -76,7 +76,7 @@ func (c *Component) View() string {
 	// For completed/error state, show concise summary
 	summary := formatSummary(msg.Content)
 
-	return toolcommon.RenderTool(msg, c.spinner, args.Pattern+" "+summary, "", c.width)
+	return toolcommon.RenderTool(msg, c.spinner, args.Pattern, summary, c.width)
 }
 
 // formatSummary creates a concise summary of the search results
