@@ -524,9 +524,13 @@ func (m *model) ensureAllItemsRendered() {
 		lines := strings.Split(view, "\n")
 		allLines = append(allLines, lines...)
 
-		// Add separator between messages (but not after last message)
+		// Add separator between messages, but not between consecutive tool calls
 		if i < len(m.views)-1 {
-			allLines = append(allLines, "")
+			currentIsToolCall := m.messages[i].Type == types.MessageTypeToolCall
+			nextIsToolCall := m.messages[i+1].Type == types.MessageTypeToolCall
+			if !currentIsToolCall || !nextIsToolCall {
+				allLines = append(allLines, "")
+			}
 		}
 	}
 
