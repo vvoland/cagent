@@ -13,7 +13,6 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/service"
-	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
@@ -84,10 +83,9 @@ func (c *Component) View() string {
 			meta = &m
 		}
 	}
-	summary := formatSummary(meta)
-	params := styles.MutedStyle.Render(summary)
 
-	return toolcommon.RenderTool(msg, c.spinner, shortPath+" "+params, "", c.width)
+	summary := formatSummary(meta)
+	return toolcommon.RenderTool(msg, c.spinner, shortPath, summary, c.width)
 }
 
 // formatSummary creates a concise summary of the directory listing from metadata

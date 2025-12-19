@@ -55,6 +55,7 @@ type Page interface {
 	layout.Sizeable
 	layout.Help
 	CompactSession() tea.Cmd
+	SetYolo(yolo bool) tea.Cmd
 	Cleanup()
 	// GetInputHeight returns the current height of the editor/input area (including padding)
 	GetInputHeight() int
@@ -451,6 +452,11 @@ func (p *chatPage) setWorking(working bool) tea.Cmd {
 	return tea.Batch(cmd...)
 }
 
+func (p *chatPage) SetYolo(yolo bool) tea.Cmd {
+	p.sidebar.SetYolo(yolo)
+	return nil
+}
+
 // View renders the chat page
 func (p *chatPage) View() string {
 	// Main chat content area (without input)
@@ -673,23 +679,10 @@ func (p *chatPage) processMessage(msg editor.SendMsg) tea.Cmd {
 	}
 
 	// Handle built-in slash commands that support arguments
-	if strings.HasPrefix(msg.Content, "/") {
-		cmd, rest, _ := strings.Cut(msg.Content, " ")
-		switch cmd {
-		case "/eval":
-			// Trim whitespace from the filename argument
-			filename := strings.TrimSpace(rest)
-			return core.CmdHandler(msgtypes.EvalSessionMsg{Filename: filename})
-		case "/new":
-			return core.CmdHandler(msgtypes.NewSessionMsg{})
-		case "/compact":
-			return core.CmdHandler(msgtypes.CompactSessionMsg{})
-		case "/copy":
-			return core.CmdHandler(msgtypes.CopySessionToClipboardMsg{})
-		case "/yolo":
-			return core.CmdHandler(msgtypes.ToggleYoloMsg{})
-		}
-		// If not a built-in command, fall through to let the app handle it (e.g., agent commands)
+	if strings.HasPrefix(msg.Content, "/eval ") {
+		_, rest, _ := strings.Cut(msg.Content, " ")
+		filename := strings.TrimSpace(rest)
+		return core.CmdHandler(msgtypes.EvalSessionMsg{Filename: filename})
 	}
 
 	p.app.Run(ctx, p.msgCancel, msg.Content, msg.Attachments)

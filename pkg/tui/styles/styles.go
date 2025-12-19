@@ -106,8 +106,9 @@ var (
 	BackgroundAlt = lipgloss.Color(ColorBackgroundAlt)
 
 	// Primary accent colors
-	White  = lipgloss.Color(ColorWhite)
-	Accent = lipgloss.Color(ColorAccentBlue)
+	White    = lipgloss.Color(ColorWhite)
+	MobyBlue = lipgloss.Color(ColorMobyBlue)
+	Accent   = lipgloss.Color(ColorAccentBlue)
 
 	// Status colors - softer, more professional
 	Success   = lipgloss.Color(ColorSuccessGreen)
@@ -144,8 +145,8 @@ var (
 	PlaceholderColor = lipgloss.Color(ColorMutedGray)
 
 	// Badge colors
-	AgentBadgeFg = lipgloss.Color(ColorWhite)
-	AgentBadgeBg = lipgloss.Color(ColorMobyBlue)
+	AgentBadgeFg = White
+	AgentBadgeBg = MobyBlue
 
 	// Tabs
 	TabBg        = lipgloss.Color(ColorTab)
@@ -277,19 +278,25 @@ var (
 
 // Command Palette Styles
 var (
-	PaletteSelectedStyle = BaseStyle.
-				Background(Selected).
-				Foreground(SelectedFg).
-				Padding(0, 1)
-
-	PaletteUnselectedStyle = BaseStyle.
-				Foreground(TextPrimary).
-				Padding(0, 1)
-
 	PaletteCategoryStyle = BaseStyle.
 				Bold(true).
-				Foreground(TextMuted).
+				Foreground(White).
 				MarginTop(1)
+
+	PaletteUnselectedActionStyle = BaseStyle.
+					Foreground(TextPrimary).
+					Bold(true)
+
+	PaletteSelectedActionStyle = PaletteUnselectedActionStyle.
+					Background(MobyBlue).
+					Foreground(White)
+
+	PaletteUnselectedDescStyle = BaseStyle.
+					Foreground(TextSecondary)
+
+	PaletteSelectedDescStyle = PaletteUnselectedDescStyle.
+					Background(MobyBlue).
+					Foreground(White)
 )
 
 // Diff Styles (matching glamour markdown theme)
@@ -320,7 +327,7 @@ var (
 				Foreground(lipgloss.Color(ColorErrorStrong))
 
 	ToolName = ToolMessageStyle.
-			Foreground(lipgloss.Color(ColorMobyBlue)).
+			Foreground(MobyBlue).
 			Background(lipgloss.Color(ColorDarkBlue)).
 			Padding(0, 1)
 
@@ -330,15 +337,15 @@ var (
 			Padding(0, 1)
 
 	ToolCompletedIcon = BaseStyle.
-				Foreground(lipgloss.Color(ColorWhite)).
-				Background(lipgloss.Color(ColorMobyBlue))
+				Foreground(White).
+				Background(MobyBlue)
 
 	ToolErrorIcon = BaseStyle.
-			Foreground(lipgloss.Color(ColorWhite)).
+			Foreground(White).
 			Background(lipgloss.Color(ColorErrorStrong))
 
 	ToolPendingIcon = BaseStyle.
-			Foreground(lipgloss.Color(ColorWhite)).
+			Foreground(White).
 			Background(lipgloss.Color(ColorWarningYellow))
 
 	ToolCallArgs = ToolMessageStyle.
@@ -440,16 +447,20 @@ var (
 				BorderForeground(BorderSecondary).
 				Padding(0, 1)
 
-	CompletionSelectedStyle = BaseStyle.
+	CompletionNormalStyle = BaseStyle.
 				Foreground(TextPrimary).
 				Bold(true)
 
-	CompletionNormalStyle = BaseStyle.
-				Foreground(TextPrimary)
+	CompletionSelectedStyle = CompletionNormalStyle.
+				Foreground(White).
+				Background(MobyBlue)
 
 	CompletionDescStyle = BaseStyle.
-				Foreground(TextSecondary).
-				Italic(true)
+				Foreground(TextSecondary)
+
+	CompletionSelectedDescStyle = CompletionDescStyle.
+					Foreground(White).
+					Background(MobyBlue)
 
 	CompletionNoResultsStyle = BaseStyle.
 					Foreground(TextMuted).

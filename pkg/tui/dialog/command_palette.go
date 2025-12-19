@@ -250,16 +250,19 @@ func (d *commandPaletteDialog) View() string {
 
 // renderCommand renders a single command in the list
 func (d *commandPaletteDialog) renderCommand(cmd commands.Item, selected bool) string {
-	text := "  " + cmd.Label
-	if cmd.Description != "" {
-		text += " - " + cmd.Description
-	}
-
+	actionStyle := styles.PaletteUnselectedActionStyle
+	descStyle := styles.PaletteUnselectedDescStyle
 	if selected {
-		return styles.PaletteSelectedStyle.Render(text)
+		actionStyle = styles.PaletteSelectedActionStyle
+		descStyle = styles.PaletteSelectedDescStyle
 	}
 
-	return styles.PaletteUnselectedStyle.Render(text)
+	var content string
+	content += actionStyle.Render(" " + cmd.Label)
+	if cmd.Description != "" {
+		content += descStyle.Render(" • " + cmd.Description)
+	}
+	return content
 }
 
 // Position calculates the position to center the dialog

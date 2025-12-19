@@ -31,9 +31,9 @@ func (c *commandCompletion) Trigger() string {
 }
 
 func (c *commandCompletion) Items() []completion.Item {
-	cmds := commands.BuildCommandCategories(context.Background(), c.app)
-	items := make([]completion.Item, 0, len(cmds))
-	for _, cmd := range cmds {
+	var items []completion.Item
+
+	for _, cmd := range commands.BuildCommandCategories(context.Background(), c.app) {
 		for _, command := range cmd.Commands {
 			items = append(items, completion.Item{
 				Label:       command.Label,
@@ -43,5 +43,6 @@ func (c *commandCompletion) Items() []completion.Item {
 			})
 		}
 	}
+
 	return items
 }
