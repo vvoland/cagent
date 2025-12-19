@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/lipgloss/v2"
+
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
@@ -16,16 +18,12 @@ func Icon(msg *types.Message, inProgress spinner.Spinner) string {
 	}
 
 	switch msg.ToolStatus {
-	case types.ToolStatusPending:
-		return "⊙"
-	case types.ToolStatusRunning:
-		return "⚙"
 	case types.ToolStatusCompleted:
-		return "✓"
+		return styles.ToolCompletedIcon.Render("✓")
 	case types.ToolStatusError:
-		return styles.ErrorStyle.Render("✗")
+		return styles.ToolErrorIcon.Render("✗")
 	case types.ToolStatusConfirmation:
-		return styles.WarningStyle.Render("?")
+		return styles.ToolPendingIcon.Render("?")
 	default:
 		return styles.WarningStyle.Render("?")
 	}
@@ -54,20 +52,38 @@ func FormatToolResult(content string, width int) string {
 
 	trimmedContent := strings.Join(lines, "\n")
 	if trimmedContent != "" {
-		return styles.ToolCallResult.Render(styles.ToolCallResultKey.Render("\n-> output:") + "\n" + trimmedContent)
+		return styles.ToolCallResult.Render(styles.ToolCallResultKey.Render("\n" + trimmedContent))
 	}
 
 	return ""
 }
 
-func RenderTool(msg *types.Message, inProgress spinner.Spinner, name, result string, width int) string {
-	content := fmt.Sprintf("%s %s", Icon(msg, inProgress), name)
-	if result != "" {
-		if strings.Count(name, "\n") > 0 {
-			content += "\n"
-		}
-		content += result
+func RenderTool(msg *types.Message, inProgress spinner.Spinner, args, result string, width int) string {
+	nameStyle := styles.ToolName
+	resultStyle := styles.ToolMessageStyle
+	if msg.ToolStatus == types.ToolStatusError {
+		nameStyle = styles.ToolNameError
+		resultStyle = styles.ToolErrorMessageStyle
 	}
+
+	content := fmt.Sprintf("%s%s", Icon(msg, inProgress), nameStyle.Render(msg.ToolDefinition.DisplayName()))
+
+	if args != "" {
+		content += " " + args
+	}
+	if result != "" {
+		if strings.Count(content, "\n") > 0 {
+			content += "\n" + result
+		} else {
+			padding := width - lipgloss.Width(content) - lipgloss.Width(result) - 2
+			if padding > 0 {
+				result = strings.Repeat(" ", padding) + resultStyle.Render(result)
+			}
+
+			content += " " + result
+		}
+	}
+
 	return styles.RenderComposite(styles.ToolMessageStyle.Width(width-1), content)
 }
 

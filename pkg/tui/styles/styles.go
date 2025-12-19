@@ -28,6 +28,10 @@ const (
 	ColorSuccessGreen    = "#9ECE6A"
 	ColorErrorRed        = "#F7768E"
 	ColorWarningYellow   = "#E0AF68"
+	ColorMobyBlue        = "#1D63ED"
+	ColorDarkBlue        = "#202a4b"
+	ColorErrorStrong     = "#d74532"
+	ColorErrorDark       = "#4a2523"
 
 	// Spinner glow colors (transition from base blue towards white)
 	ColorSpinnerDim       = "#9AB8F9"
@@ -40,9 +44,6 @@ const (
 	// Status colors
 	ColorInfoCyan  = "#7DCFFF"
 	ColorHighlight = "#99f868"
-
-	// Badge colors
-	ColorAgentBadge = "#1D63ED"
 
 	// Diff colors
 	ColorDiffAddBg    = "#20303B"
@@ -92,7 +93,6 @@ const (
 const (
 	ANSIColor252 = "252"
 	ANSIColor39  = "39"
-	ANSIColor63  = "63"
 	ANSIColor35  = "35"
 	ANSIColor212 = "212"
 	ANSIColor243 = "243"
@@ -145,7 +145,7 @@ var (
 
 	// Badge colors
 	AgentBadgeFg = lipgloss.Color(ColorWhite)
-	AgentBadgeBg = lipgloss.Color(ColorAgentBadge)
+	AgentBadgeBg = lipgloss.Color(ColorMobyBlue)
 
 	// Tabs
 	TabBg        = lipgloss.Color(ColorTab)
@@ -316,6 +316,31 @@ var (
 	ToolMessageStyle = BaseStyle.
 				Foreground(TextMutedGray)
 
+	ToolErrorMessageStyle = BaseStyle.
+				Foreground(lipgloss.Color(ColorErrorStrong))
+
+	ToolName = ToolMessageStyle.
+			Foreground(lipgloss.Color(ColorMobyBlue)).
+			Background(lipgloss.Color(ColorDarkBlue)).
+			Padding(0, 1)
+
+	ToolNameError = ToolMessageStyle.
+			Foreground(lipgloss.Color(ColorErrorStrong)).
+			Background(lipgloss.Color(ColorErrorDark)).
+			Padding(0, 1)
+
+	ToolCompletedIcon = BaseStyle.
+				Foreground(lipgloss.Color(ColorWhite)).
+				Background(lipgloss.Color(ColorMobyBlue))
+
+	ToolErrorIcon = BaseStyle.
+			Foreground(lipgloss.Color(ColorWhite)).
+			Background(lipgloss.Color(ColorErrorStrong))
+
+	ToolPendingIcon = BaseStyle.
+			Foreground(lipgloss.Color(ColorWhite)).
+			Background(lipgloss.Color(ColorWarningYellow))
+
 	ToolCallArgs = ToolMessageStyle.
 			Padding(0, 0, 0, 2)
 
@@ -437,7 +462,6 @@ var (
 	AgentBadgeStyle = BaseStyle.
 		Foreground(AgentBadgeFg).
 		Background(AgentBadgeBg).
-		Bold(true).
 		Padding(0, 1, 0, 1)
 )
 

@@ -48,7 +48,7 @@ func renderToolArgs(toolCall tools.ToolCall, shortWidth, width int) string {
 	}
 
 	if len(short.String()) <= shortWidth && !strings.Contains(short.String(), "\n") {
-		return " " + short.String()
+		return short.String()
 	}
 
 	return "\n" + styles.ToolCallArgs.Width(width).Render(strings.TrimSuffix(md.String(), "\n"))

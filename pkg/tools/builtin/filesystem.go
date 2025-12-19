@@ -602,7 +602,10 @@ func (t *FilesystemTool) handleReadFile(_ context.Context, args ReadFileArgs) (*
 
 	content, err := os.ReadFile(args.Path)
 	if err != nil {
-		return tools.ResultError(fmt.Sprintf("Error reading file: %s", err)), nil
+		if os.IsNotExist(err) {
+			return tools.ResultError("not found"), nil
+		}
+		return tools.ResultError(fmt.Sprintf("%s", err)), nil
 	}
 
 	return tools.ResultSuccess(string(content)), nil
@@ -637,7 +640,10 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadM
 
 		content, err := os.ReadFile(path)
 		if err != nil {
-			errMsg := fmt.Sprintf("Error reading file: %s", err)
+			errMsg := fmt.Sprintf("%s", err)
+			if os.IsNotExist(err) {
+				errMsg = "not found"
+			}
 			contents = append(contents, PathContent{
 				Path:    path,
 				Content: errMsg,

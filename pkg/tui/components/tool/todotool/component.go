@@ -1,17 +1,12 @@
 package todotool
 
 import (
-	"fmt"
-	"strings"
-
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/service"
-	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
@@ -53,9 +48,7 @@ func (c *Component) Init() tea.Cmd {
 
 func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	if c.message.ToolStatus == types.ToolStatusPending || c.message.ToolStatus == types.ToolStatusRunning {
-		var cmd tea.Cmd
-		var model layout.Model
-		model, cmd = c.spinner.Update(msg)
+		model, cmd := c.spinner.Update(msg)
 		c.spinner = model.(spinner.Spinner)
 		return c, cmd
 	}
@@ -64,47 +57,6 @@ func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 }
 
 func (c *Component) View() string {
-	msg := c.message
-	toolName := msg.ToolCall.Function.Name
-
-	// Render based on tool type
-	switch toolName {
-	case builtin.ToolNameCreateTodo, builtin.ToolNameCreateTodos:
-		return c.renderTodos()
-	case builtin.ToolNameUpdateTodo:
-		return "" // We've got todos in the sidebar
-	case builtin.ToolNameListTodos:
-		return c.renderList()
-	default:
-		panic("Unsupported todo tool: " + toolName)
-	}
-}
-
-func (c *Component) renderTodos() string {
-	msg := c.message
-	displayName := msg.ToolDefinition.DisplayName()
-
-	var content strings.Builder
-	fmt.Fprintf(&content, "%s %s", toolcommon.Icon(msg, c.spinner), styles.ToolMessageStyle.Render(displayName))
-
-	return styles.RenderComposite(styles.ToolMessageStyle.Width(c.width-1), content.String())
-}
-
-func (c *Component) renderList() string {
-	msg := c.message
-	displayName := msg.ToolDefinition.DisplayName()
-	var content strings.Builder
-	content.WriteString(fmt.Sprintf("%s %s", toolcommon.Icon(msg, c.spinner), styles.ToolMessageStyle.Render(displayName)))
-
-	if msg.ToolResult != nil && msg.ToolResult.Meta != nil {
-		if todos, ok := msg.ToolResult.Meta.([]builtin.Todo); ok {
-			for _, todo := range todos {
-				icon, style := renderTodoIcon(todo.Status)
-				todoLine := fmt.Sprintf("\n%s %s", style.Render(icon), style.Render(todo.Description))
-				content.WriteString(todoLine)
-			}
-		}
-	}
-
-	return styles.RenderComposite(styles.ToolMessageStyle.Width(c.width-1), content.String())
+	// The TODOs are in the sidebar
+	return toolcommon.RenderTool(c.message, c.spinner, "", "", c.width)
 }

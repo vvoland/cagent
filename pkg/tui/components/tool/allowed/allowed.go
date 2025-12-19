@@ -1,4 +1,4 @@
-package writefile
+package allowed
 
 import (
 	"encoding/json"
@@ -13,7 +13,6 @@ import (
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
-// Component is a specialized component for rendering write_file tool calls.
 type Component struct {
 	message *types.Message
 	spinner spinner.Spinner
@@ -21,10 +20,7 @@ type Component struct {
 	height  int
 }
 
-func New(
-	msg *types.Message,
-	_ *service.SessionState,
-) layout.Model {
+func New(msg *types.Message, _ *service.SessionState) layout.Model {
 	return &Component{
 		message: msg,
 		spinner: spinner.New(spinner.ModeSpinnerOnly),
@@ -59,7 +55,7 @@ func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 func (c *Component) View() string {
 	msg := c.message
 
-	var args builtin.WriteFileArgs
+	var args builtin.AddAllowedDirectoryArgs
 	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &args); err != nil {
 		return toolcommon.RenderTool(msg, c.spinner, "", "", c.width)
 	}

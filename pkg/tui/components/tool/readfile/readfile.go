@@ -49,9 +49,7 @@ func (c *Component) Init() tea.Cmd {
 
 func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	if c.message.ToolStatus == types.ToolStatusPending || c.message.ToolStatus == types.ToolStatusRunning {
-		var cmd tea.Cmd
-		var model layout.Model
-		model, cmd = c.spinner.Update(msg)
+		model, cmd := c.spinner.Update(msg)
 		c.spinner = model.(spinner.Spinner)
 		return c, cmd
 	}
@@ -64,8 +62,8 @@ func (c *Component) View() string {
 
 	var args builtin.ReadFileArgs
 	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &args); err != nil {
-		return toolcommon.RenderTool(msg, c.spinner, msg.ToolDefinition.DisplayName(), "", c.width)
+		return toolcommon.RenderTool(msg, c.spinner, "", "", c.width)
 	}
 
-	return toolcommon.RenderTool(msg, c.spinner, msg.ToolDefinition.DisplayName()+" "+args.Path, "", c.width)
+	return toolcommon.RenderTool(msg, c.spinner, args.Path, "", c.width)
 }

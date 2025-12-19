@@ -19,6 +19,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/messages"
 	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/components/sidebar"
+	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
@@ -67,11 +68,13 @@ type chatPage struct {
 	sidebar  sidebar.Model
 	messages messages.Model
 	editor   editor.Editor
+	spinner  spinner.Spinner
 
 	sessionState *service.SessionState
 
 	// State
 	focusedPanel FocusedPanel
+	working      bool
 
 	msgCancel       context.CancelFunc
 	streamCancelled bool
@@ -139,6 +142,7 @@ func New(a *app.App, sessionState *service.SessionState) Page {
 		sidebar:      sidebar.New(),
 		messages:     messages.New(a, sessionState),
 		editor:       editor.New(a, historyStore),
+		spinner:      spinner.New(spinner.ModeSpinnerOnly),
 		focusedPanel: PanelEditor,
 		app:          a,
 		keyMap:       defaultKeyMap(),
@@ -309,9 +313,7 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case *runtime.RAGIndexingStartedEvent, *runtime.RAGIndexingProgressEvent, *runtime.RAGIndexingCompletedEvent:
 		// Forward RAG events to sidebar
 		slog.Debug("Chat page forwarding RAG event to sidebar", "event_type", fmt.Sprintf("%T", msg))
-		var model layout.Model
-		var cmd tea.Cmd
-		model, cmd = p.sidebar.Update(msg)
+		model, cmd := p.sidebar.Update(msg)
 		p.sidebar = model.(sidebar.Model)
 		return p, cmd
 	case *runtime.UserMessageEvent:
@@ -382,7 +384,13 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
 	case *runtime.ToolCallResponseEvent:
 		spinnerCmd := p.setWorking(true)
-		cmd := p.messages.AddToolResult(msg, types.ToolStatusCompleted)
+
+		var cmd tea.Cmd
+		if msg.Result.IsError {
+			cmd = p.messages.AddToolResult(msg, types.ToolStatusError)
+		} else {
+			cmd = p.messages.AddToolResult(msg, types.ToolStatusCompleted)
+		}
 
 		// Check if this is a todo-related tool call and update sidebar
 		if msg.ToolDefinition.Category == "todo" && !msg.Result.IsError {
@@ -423,11 +431,24 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	p.editor = editorModel.(editor.Editor)
 	cmds = append(cmds, editorCmd)
 
+	if p.working {
+		model, cmd := p.spinner.Update(msg)
+		p.spinner = model.(spinner.Spinner)
+		cmds = append(cmds, cmd)
+	}
+
 	return p, tea.Batch(cmds...)
 }
 
 func (p *chatPage) setWorking(working bool) tea.Cmd {
-	return tea.Batch(p.sidebar.SetWorking(working), p.editor.SetWorking(working))
+	p.working = working
+
+	cmd := []tea.Cmd{p.editor.SetWorking(working)}
+	if working {
+		cmd = append(cmd, p.spinner.Init())
+	}
+
+	return tea.Batch(cmd...)
 }
 
 // View renders the chat page
@@ -755,6 +776,11 @@ func (p *chatPage) renderResizeHandle(width int) string {
 	leftPart := strings.Repeat("─", sideWidth)
 	centerPart := strings.Repeat("─", handleWidth)
 	rightPart := strings.Repeat("─", width-sideWidth-handleWidth-2)
+
+	if p.working {
+		message := " " + p.spinner.View() + " Working…"
+		rightPart = strings.Repeat("─", max(0, width-sideWidth-handleWidth-2-lipgloss.Width(message))) + message
+	}
 
 	// Use brighter style when actively dragging
 	centerStyle := styles.ResizeHandleHoverStyle

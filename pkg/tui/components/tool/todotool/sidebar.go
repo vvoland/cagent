@@ -56,7 +56,7 @@ func (c *SidebarComponent) renderTodoLine(todo builtin.Todo) string {
 	icon, style := renderTodoIcon(todo.Status)
 
 	description := todo.Description
-	maxDescWidth := max(c.width-6, 3)
+	maxDescWidth := c.width - 4
 	if len(description) > maxDescWidth {
 		description = description[:maxDescWidth-1] + "…"
 	}

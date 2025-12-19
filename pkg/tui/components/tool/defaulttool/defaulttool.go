@@ -48,9 +48,7 @@ func (c *Component) Init() tea.Cmd {
 
 func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	if c.message.ToolStatus == types.ToolStatusPending || c.message.ToolStatus == types.ToolStatusRunning {
-		var cmd tea.Cmd
-		var model layout.Model
-		model, cmd = c.spinner.Update(msg)
+		model, cmd := c.spinner.Update(msg)
 		c.spinner = model.(spinner.Spinner)
 		return c, cmd
 	}
@@ -60,15 +58,15 @@ func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 func (c *Component) View() string {
 	msg := c.message
-	displayName := msg.ToolDefinition.DisplayName()
 
 	var argsContent string
 	if msg.ToolCall.Function.Arguments != "" {
+		displayName := msg.ToolDefinition.DisplayName()
 		argsContent = renderToolArgs(msg.ToolCall, c.width-4-len(displayName), c.width-3)
 	}
 
 	if argsContent == "" {
-		return toolcommon.RenderTool(msg, c.spinner, msg.ToolDefinition.DisplayName(), "", c.width)
+		return toolcommon.RenderTool(msg, c.spinner, "", "", c.width)
 	}
 
 	var resultContent string
@@ -76,5 +74,5 @@ func (c *Component) View() string {
 		resultContent = toolcommon.FormatToolResult(msg.Content, c.width)
 	}
 
-	return toolcommon.RenderTool(msg, c.spinner, displayName+argsContent, resultContent, c.width)
+	return toolcommon.RenderTool(msg, c.spinner, argsContent, resultContent, c.width)
 }
