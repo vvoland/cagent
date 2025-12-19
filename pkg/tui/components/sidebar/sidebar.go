@@ -508,9 +508,8 @@ func (m *model) agentInfo() string {
 
 	// Agent description if available
 	if m.agentDescription != "" {
-		// Truncate description for sidebar display
 		description := m.agentDescription
-		maxDescWidth := max(m.width-4, 20) // Leave margin for styling
+		maxDescWidth := m.width - 4
 		if len(description) > maxDescWidth {
 			description = description[:maxDescWidth-1] + "…"
 		}
