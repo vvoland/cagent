@@ -48,5 +48,5 @@ func (c *Component) View() string {
 		" calls " +
 		styles.AgentBadgeStyle.Render(params.Agent) +
 		"\n\n" +
-		styles.ToolMessageStyle.Render("✓ "+params.Task)
+		styles.ToolMessageStyle.Render(styles.ToolCompletedIcon.Render("✓")+" "+params.Task)
 }

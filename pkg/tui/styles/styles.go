@@ -28,6 +28,8 @@ const (
 	ColorSuccessGreen    = "#9ECE6A"
 	ColorErrorRed        = "#F7768E"
 	ColorWarningYellow   = "#E0AF68"
+	ColorMobyBlue        = "#1D63ED"
+	ColorDarkBlue        = "#202a4b"
 
 	// Spinner glow colors (transition from base blue towards white)
 	ColorSpinnerDim       = "#9AB8F9"
@@ -40,9 +42,6 @@ const (
 	// Status colors
 	ColorInfoCyan  = "#7DCFFF"
 	ColorHighlight = "#99f868"
-
-	// Badge colors
-	ColorAgentBadge = "#1D63ED"
 
 	// Diff colors
 	ColorDiffAddBg    = "#20303B"
@@ -144,7 +143,7 @@ var (
 
 	// Badge colors
 	AgentBadgeFg = lipgloss.Color(ColorWhite)
-	AgentBadgeBg = lipgloss.Color(ColorAgentBadge)
+	AgentBadgeBg = lipgloss.Color(ColorMobyBlue)
 
 	// Tabs
 	TabBg        = lipgloss.Color(ColorTab)
@@ -316,8 +315,21 @@ var (
 				Foreground(TextMutedGray)
 
 	ToolName = ToolMessageStyle.
-			Foreground(TabAccentFg).
-			Background(TabBg)
+			Foreground(lipgloss.Color(ColorMobyBlue)).
+			Background(lipgloss.Color(ColorDarkBlue)).
+			Padding(0, 1)
+
+	ToolCompletedIcon = BaseStyle.
+				Foreground(lipgloss.Color(ColorWhite)).
+				Background(lipgloss.Color(ColorMobyBlue))
+
+	ToolErrorIcon = BaseStyle.
+			Foreground(lipgloss.Color(ColorWhite)).
+			Background(lipgloss.Color(ColorErrorRed))
+
+	ToolPendingIcon = BaseStyle.
+			Foreground(lipgloss.Color(ColorWhite)).
+			Background(lipgloss.Color(ColorWarningYellow))
 
 	ToolCallArgs = ToolMessageStyle.
 			Padding(0, 0, 0, 2)

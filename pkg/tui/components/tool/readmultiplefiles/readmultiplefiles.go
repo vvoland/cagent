@@ -92,7 +92,7 @@ func (c *Component) View() string {
 		if content.Len() > 0 {
 			content.WriteString("\n")
 		}
-		fmt.Fprintf(&content, "%s %s %s", toolcommon.Icon(msg, c.spinner), summary.displayName, summary.params)
+		fmt.Fprintf(&content, "%s%s %s", toolcommon.Icon(msg, c.spinner), styles.ToolName.Render(summary.displayName), summary.params)
 	}
 
 	// Apply tool message styling
