@@ -704,6 +704,20 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			// Add assistant message to conversation history, but skip empty assistant messages
 			// Providers reject assistant messages that have neither content nor tool calls.
 			if strings.TrimSpace(res.Content) != "" || len(res.Calls) > 0 {
+				// Build tool definitions for the tool calls
+				var toolDefs []tools.Tool
+				if len(res.Calls) > 0 {
+					toolMap := make(map[string]tools.Tool, len(agentTools))
+					for _, t := range agentTools {
+						toolMap[t.Name] = t
+					}
+					for _, call := range res.Calls {
+						if def, ok := toolMap[call.Function.Name]; ok {
+							toolDefs = append(toolDefs, def)
+						}
+					}
+				}
+
 				assistantMessage := chat.Message{
 					Role:              chat.MessageRoleAssistant,
 					Content:           res.Content,
@@ -711,6 +725,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 					ThinkingSignature: res.ThinkingSignature,
 					ThoughtSignature:  res.ThoughtSignature,
 					ToolCalls:         res.Calls,
+					ToolDefinitions:   toolDefs,
 					CreatedAt:         time.Now().Format(time.RFC3339),
 				}
 
