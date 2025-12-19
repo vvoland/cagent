@@ -34,7 +34,6 @@ type Model interface {
 
 	SetTokenUsage(event *runtime.TokenUsageEvent)
 	SetTodos(result *tools.ToolCallResult) error
-	SetWorking(working bool) tea.Cmd
 	SetMode(mode Mode)
 	SetAgentInfo(agentName, model, description string)
 	SetTeamInfo(availableAgents []string)
@@ -57,7 +56,6 @@ type model struct {
 	sessionUsage     map[string]*runtime.Usage // sessionID -> latest usage snapshot
 	sessionAgent     map[string]string         // sessionID -> agent name
 	todoComp         *todotool.SidebarComponent
-	working          bool
 	mcpInit          bool
 	ragIndexing      map[string]*ragIndexingState // strategy name -> indexing state
 	spinner          spinner.Spinner
@@ -101,15 +99,6 @@ func (m *model) SetTokenUsage(event *runtime.TokenUsageEvent) {
 
 func (m *model) SetTodos(result *tools.ToolCallResult) error {
 	return m.todoComp.SetTodos(result)
-}
-
-// SetWorking sets the working state and returns a command to start the spinner if needed
-func (m *model) SetWorking(working bool) tea.Cmd {
-	m.working = working
-	if working {
-		return m.spinner.Init()
-	}
-	return nil
 }
 
 // SetAgentInfo sets the current agent information
@@ -232,20 +221,16 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	default:
 		var cmds []tea.Cmd
 
-		// Update main spinner for working/mcpInit states
-		if m.working || m.mcpInit {
-			var cmd tea.Cmd
-			var model layout.Model
-			model, cmd = m.spinner.Update(msg)
+		// Update main spinner
+		if m.mcpInit {
+			model, cmd := m.spinner.Update(msg)
 			m.spinner = model.(spinner.Spinner)
 			cmds = append(cmds, cmd)
 		}
 
 		// Update each RAG indexing spinner
 		for _, state := range m.ragIndexing {
-			var cmd tea.Cmd
-			var model layout.Model
-			model, cmd = state.spinner.Update(msg)
+			model, cmd := state.spinner.Update(msg)
 			state.spinner = model.(spinner.Spinner)
 			cmds = append(cmds, cmd)
 		}
@@ -286,8 +271,6 @@ func (m *model) verticalView() string {
 	}
 	if working := m.workingIndicator(); working != "" {
 		session = append(session, working)
-	} else {
-		session = append(session, "") // spacer for layout consistency
 	}
 
 	var main []string
@@ -313,11 +296,6 @@ func (m *model) verticalView() string {
 
 func (m *model) workingIndicator() string {
 	var indicators []string
-
-	// Add working indicator if agent is processing
-	if m.working {
-		indicators = append(indicators, styles.ActiveStyle.Render(m.spinner.View()+" "+"Working…"))
-	}
 
 	// Add MCP init indicator if initializing
 	if m.mcpInit {
@@ -395,10 +373,6 @@ func (m *model) workingIndicator() string {
 func (m *model) workingIndicatorHorizontal() string {
 	var labels []string
 
-	// Add working indicator if agent is processing
-	if m.working {
-		labels = append(labels, "Working…")
-	}
 	// Add MCP init indicator if initializing
 	if m.mcpInit {
 		labels = append(labels, "Initializing MCP servers…")

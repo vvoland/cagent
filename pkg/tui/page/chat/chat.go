@@ -19,6 +19,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/messages"
 	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/components/sidebar"
+	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
@@ -67,11 +68,13 @@ type chatPage struct {
 	sidebar  sidebar.Model
 	messages messages.Model
 	editor   editor.Editor
+	spinner  spinner.Spinner
 
 	sessionState *service.SessionState
 
 	// State
 	focusedPanel FocusedPanel
+	working      bool
 
 	msgCancel       context.CancelFunc
 	streamCancelled bool
@@ -139,6 +142,7 @@ func New(a *app.App, sessionState *service.SessionState) Page {
 		sidebar:      sidebar.New(),
 		messages:     messages.New(a, sessionState),
 		editor:       editor.New(a, historyStore),
+		spinner:      spinner.New(spinner.ModeSpinnerOnly),
 		focusedPanel: PanelEditor,
 		app:          a,
 		keyMap:       defaultKeyMap(),
@@ -423,11 +427,26 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	p.editor = editorModel.(editor.Editor)
 	cmds = append(cmds, editorCmd)
 
+	if p.working {
+		// var cmd tea.Cmd
+		// var model layout.Model
+		model, cmd := p.spinner.Update(msg)
+		p.spinner = model.(spinner.Spinner)
+		cmds = append(cmds, cmd)
+	}
+
 	return p, tea.Batch(cmds...)
 }
 
 func (p *chatPage) setWorking(working bool) tea.Cmd {
-	return tea.Batch(p.sidebar.SetWorking(working), p.editor.SetWorking(working))
+	p.working = working
+
+	cmd := []tea.Cmd{p.editor.SetWorking(working)}
+	if working {
+		cmd = append(cmd, p.spinner.Init())
+	}
+
+	return tea.Batch(cmd...)
 }
 
 // View renders the chat page
@@ -755,6 +774,11 @@ func (p *chatPage) renderResizeHandle(width int) string {
 	leftPart := strings.Repeat("─", sideWidth)
 	centerPart := strings.Repeat("─", handleWidth)
 	rightPart := strings.Repeat("─", width-sideWidth-handleWidth-2)
+
+	if p.working {
+		message := " " + p.spinner.View() + " Working…"
+		rightPart = strings.Repeat("─", max(0, width-sideWidth-handleWidth-2-lipgloss.Width(message))) + message
+	}
 
 	// Use brighter style when actively dragging
 	centerStyle := styles.ResizeHandleHoverStyle
