@@ -39,7 +39,7 @@ type Item struct {
 	Execute      func() tea.Cmd
 }
 
-func BuiltInSessionCommands() []Item {
+func builtInSessionCommands() []Item {
 	return []Item{
 		{
 			ID:           "session.new",
@@ -122,7 +122,7 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 	categories := []Category{
 		{
 			Name:     "Session",
-			Commands: BuiltInSessionCommands(),
+			Commands: builtInSessionCommands(),
 		},
 		{
 			Name:     "Feedback",
