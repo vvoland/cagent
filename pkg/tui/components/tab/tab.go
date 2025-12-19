@@ -11,7 +11,7 @@ func Render(title, content string, width int) string {
 
 	b.WriteString(styles.RenderComposite(styles.TabTitleStyle, title+" "+strings.Repeat("─", width-len(title)-1)))
 	b.WriteString("\n")
-	b.WriteString(styles.RenderComposite(styles.TabStyle.Width(width-2), content))
+	b.WriteString(styles.RenderComposite(styles.TabStyle.Width(width), content))
 	b.WriteString("\n")
 
 	return b.String()

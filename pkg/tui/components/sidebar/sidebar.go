@@ -509,7 +509,7 @@ func (m *model) agentInfo() string {
 	// Agent description if available
 	if m.agentDescription != "" {
 		description := m.agentDescription
-		maxDescWidth := m.width - 4
+		maxDescWidth := m.width - 2
 		if len(description) > maxDescWidth {
 			description = description[:maxDescWidth-1] + "…"
 		}
