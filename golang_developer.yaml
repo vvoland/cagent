@@ -94,6 +94,7 @@ agents:
       - type: filesystem
       - type: shell
       - type: todo
+      - type: fetch
     sub_agents:
       - librarian
 
