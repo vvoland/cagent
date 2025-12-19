@@ -92,7 +92,6 @@ const (
 const (
 	ANSIColor252 = "252"
 	ANSIColor39  = "39"
-	ANSIColor63  = "63"
 	ANSIColor35  = "35"
 	ANSIColor212 = "212"
 	ANSIColor243 = "243"
