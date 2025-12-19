@@ -698,10 +698,10 @@ func (m *model) AppendToLastMessage(agentName string, messageType types.MessageT
 		m.invalidateItem(lastIdx)
 		// Content will auto-scroll in View() if user hasn't scrolled
 		return nil
-	} else {
-		// Creating a new message, use addMessage for proper auto-scroll
-		return m.addMessage(types.Agent(messageType, agentName, content))
 	}
+
+	// Creating a new message, use addMessage for proper auto-scroll
+	return m.addMessage(types.Agent(messageType, agentName, content))
 }
 
 // ScrollToBottom scrolls to the bottom of the chat
