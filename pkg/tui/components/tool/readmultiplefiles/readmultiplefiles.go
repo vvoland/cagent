@@ -86,18 +86,13 @@ func (c *Component) View() string {
 		}
 	}
 
-	// Build output with header and separate lines for each file
-	var content strings.Builder
-
-	// Header line
-	icon := toolcommon.Icon(msg, c.spinner)
-
 	// Each file on its own line with checkmark
+	var content strings.Builder
 	for _, summary := range formatSummaryLines(meta) {
 		if content.Len() > 0 {
 			content.WriteString("\n")
 		}
-		fmt.Fprintf(&content, "%s %s %s", icon, styles.ToolMessageStyle.Render(summary.displayName), summary.params)
+		fmt.Fprintf(&content, "%s %s %s", toolcommon.Icon(msg, c.spinner), summary.displayName, summary.params)
 	}
 
 	// Apply tool message styling
