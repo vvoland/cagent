@@ -304,7 +304,7 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		handoffPrompt := "You are part of a multi-agent team. Your goal is to answer the user query in the most helpful way possible.\n\n" +
 			"Available agents in your team:\n" + agentsInfo + "\n" +
 			"You can hand off the conversation to any of these agents at any time by using the `handoff` function with their ID. " +
-			"The valid agent names are: " + strings.Join(validAgentIDs, ", ") + ".\n\n" +
+			"The valid agent IDs are: " + strings.Join(validAgentIDs, ", ") + ".\n\n" +
 			"When to hand off:\n" +
 			"- If another agent's description indicates they are better suited for the current task or question\n" +
 			"- If the user explicitly asks for a specific agent\n" +
