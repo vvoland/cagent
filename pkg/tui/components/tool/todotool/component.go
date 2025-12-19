@@ -70,7 +70,7 @@ func (c *Component) View() string {
 	// Render based on tool type
 	switch toolName {
 	case builtin.ToolNameCreateTodo, builtin.ToolNameCreateTodos:
-		return c.renderTodos()
+		return toolcommon.RenderTool(c.message, c.spinner, c.message.ToolDefinition.DisplayName(), "", c.width)
 	case builtin.ToolNameUpdateTodo:
 		return "" // We've got todos in the sidebar
 	case builtin.ToolNameListTodos:
@@ -78,16 +78,6 @@ func (c *Component) View() string {
 	default:
 		panic("Unsupported todo tool: " + toolName)
 	}
-}
-
-func (c *Component) renderTodos() string {
-	msg := c.message
-	displayName := msg.ToolDefinition.DisplayName()
-
-	var content strings.Builder
-	fmt.Fprintf(&content, "%s %s", toolcommon.Icon(msg, c.spinner), styles.ToolMessageStyle.Render(displayName))
-
-	return styles.RenderComposite(styles.ToolMessageStyle.Width(c.width-1), content.String())
 }
 
 func (c *Component) renderList() string {

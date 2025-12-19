@@ -315,6 +315,10 @@ var (
 	ToolMessageStyle = BaseStyle.
 				Foreground(TextMutedGray)
 
+	ToolName = ToolMessageStyle.
+			Foreground(TabAccentFg).
+			Background(TabBg)
+
 	ToolCallArgs = ToolMessageStyle.
 			Padding(0, 0, 0, 2)
 
