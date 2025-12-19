@@ -216,18 +216,18 @@ func (c *manager) View() string {
 			item := c.filteredItems[i]
 			isSelected := i == c.selected
 
-			var itemStyle lipgloss.Style
+			itemStyle := styles.CompletionNormalStyle
+			descStyle := styles.CompletionDescStyle
 			if isSelected {
 				itemStyle = styles.CompletionSelectedStyle
-			} else {
-				itemStyle = styles.CompletionNormalStyle
+				descStyle = styles.CompletionSelectedDescStyle
 			}
 
 			// Pad label to maxLabelLen so descriptions align
 			paddedLabel := item.Label + strings.Repeat(" ", maxLabelLen+1-len(item.Label))
 			text := paddedLabel
 			if item.Description != "" {
-				text += " " + styles.CompletionDescStyle.Render(item.Description)
+				text += " " + descStyle.Render(item.Description)
 			}
 
 			lines = append(lines, itemStyle.Width(c.width-6).Render(text))
