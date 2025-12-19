@@ -1025,7 +1025,7 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 			}
 			if !toolAvailable {
 				slog.Warn("Tool call rejected: tool not available to agent", "agent", a.Name(), "tool", toolCall.Function.Name, "session_id", sess.ID)
-				r.addToolRejectedResponse(ctx, sess, toolCall, def.tool, events)
+				r.addToolValidationErrorResponse(ctx, sess, toolCall, def.tool, events, a)
 				callSpan.SetStatus(codes.Error, "tool not available to agent")
 				callSpan.End()
 				continue
@@ -1223,6 +1223,21 @@ func (r *LocalRuntime) runAgentTool(ctx context.Context, handler ToolHandlerFunc
 	_ = r.sessionStore.UpdateSession(ctx, sess)
 }
 
+func (r *LocalRuntime) addToolValidationErrorResponse(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, tool tools.Tool, events chan Event, a *agent.Agent) {
+	errorMsg := fmt.Sprintf("Tool '%s' is not available to this agent (%s).", toolCall.Function.Name, a.Name())
+
+	events <- ToolCallResponse(toolCall, tool, errorMsg, a.Name())
+
+	toolResponseMsg := chat.Message{
+		Role:       chat.MessageRoleTool,
+		Content:    errorMsg,
+		ToolCallID: toolCall.ID,
+		CreatedAt:  time.Now().Format(time.RFC3339),
+	}
+	sess.AddMessage(session.NewAgentMessage(a, &toolResponseMsg))
+	_ = r.sessionStore.UpdateSession(ctx, sess)
+}
+
 func (r *LocalRuntime) addToolRejectedResponse(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, tool tools.Tool, events chan Event) {
 	a := r.CurrentAgent()
 
@@ -1379,14 +1394,22 @@ func (r *LocalRuntime) handleHandoff(_ context.Context, _ *session.Session, tool
 	// Validate that the target agent is in the current agent's handoffs list
 	handoffs := currentAgent.Handoffs()
 	targetInHandoffs := false
+	var validHandoffNames []string
 	for _, handoffAgent := range handoffs {
+		validHandoffNames = append(validHandoffNames, handoffAgent.Name())
 		if handoffAgent.Name() == params.Agent {
 			targetInHandoffs = true
 			break
 		}
 	}
 	if !targetInHandoffs {
-		return nil, fmt.Errorf("agent %s cannot hand off to %s: target agent not in handoffs list", ca, params.Agent)
+		var errorMsg string
+		if len(validHandoffNames) > 0 {
+			errorMsg = fmt.Sprintf("Agent %s cannot hand off to %s: target agent not in handoffs list. Available handoff agent IDs are: %s", ca, params.Agent, strings.Join(validHandoffNames, ", "))
+		} else {
+			errorMsg = fmt.Sprintf("Agent %s cannot hand off to %s: target agent not in handoffs list. This agent has no handoff agents configured.", ca, params.Agent)
+		}
+		return tools.ResultError(errorMsg), nil
 	}
 
 	next, err := r.team.Agent(params.Agent)
