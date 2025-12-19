@@ -46,7 +46,7 @@ func (c *Component) View() string {
 
 	return styles.AgentBadgeStyle.Render(c.message.Sender) +
 		" calls " +
-		styles.AgentBadgeStyle.Render(params.Agent+" ▶") +
+		styles.AgentBadgeStyle.Render(params.Agent) +
 		"\n\n" +
 		styles.ToolMessageStyle.Render("✓ "+params.Task)
 }

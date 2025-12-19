@@ -436,7 +436,6 @@ var (
 	AgentBadgeStyle = BaseStyle.
 		Foreground(AgentBadgeFg).
 		Background(AgentBadgeBg).
-		Bold(true).
 		Padding(0, 1, 0, 1)
 )
 
