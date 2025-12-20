@@ -1226,7 +1226,10 @@ func (r *LocalRuntime) runAgentTool(ctx context.Context, handler ToolHandlerFunc
 func (r *LocalRuntime) addToolValidationErrorResponse(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, tool tools.Tool, events chan Event, a *agent.Agent) {
 	errorMsg := fmt.Sprintf("Tool '%s' is not available to this agent (%s).", toolCall.Function.Name, a.Name())
 
-	events <- ToolCallResponse(toolCall, tool, errorMsg, a.Name())
+	events <- ToolCallResponse(toolCall, tool, &tools.ToolCallResult{
+		Output:  errorMsg,
+		IsError: true,
+	}, errorMsg, a.Name())
 
 	toolResponseMsg := chat.Message{
 		Role:       chat.MessageRoleTool,
