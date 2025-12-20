@@ -164,12 +164,6 @@ func New(a *app.App, sessionState *service.SessionState) Page {
 func (p *chatPage) Init() tea.Cmd {
 	var cmds []tea.Cmd
 
-	// Add welcome message if present
-	welcomeMsg := p.app.CurrentWelcomeMessage(context.Background())
-	if welcomeMsg != "" {
-		cmds = append(cmds, p.messages.AddWelcomeMessage(welcomeMsg))
-	}
-
 	cmds = append(cmds,
 		p.sidebar.Init(),
 		p.messages.Init(),
@@ -344,6 +338,7 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		p.sidebar.SetTokenUsage(msg)
 	case *runtime.AgentInfoEvent:
 		p.sidebar.SetAgentInfo(msg.AgentName, msg.Model, msg.Description)
+		p.messages.AddWelcomeMessage(msg.WelcomeMessage)
 	case *runtime.TeamInfoEvent:
 		p.sidebar.SetTeamInfo(msg.AvailableAgents)
 	case *runtime.AgentSwitchingEvent:

@@ -217,7 +217,7 @@ func TestSimple(t *testing.T) {
 	events := runSession(t, sess, stream)
 
 	expectedEvents := []Event{
-		AgentInfo("root", "test/mock-model", ""),
+		AgentInfo("root", "test/mock-model", "", ""),
 		TeamInfo([]string{"root"}, "root"),
 		ToolsetInfo(0, "root"),
 		UserMessage("Hi"),
@@ -245,7 +245,7 @@ func TestMultipleContentChunks(t *testing.T) {
 	events := runSession(t, sess, stream)
 
 	expectedEvents := []Event{
-		AgentInfo("root", "test/mock-model", ""),
+		AgentInfo("root", "test/mock-model", "", ""),
 		TeamInfo([]string{"root"}, "root"),
 		ToolsetInfo(0, "root"),
 		UserMessage("Please greet me"),
@@ -275,7 +275,7 @@ func TestWithReasoning(t *testing.T) {
 	events := runSession(t, sess, stream)
 
 	expectedEvents := []Event{
-		AgentInfo("root", "test/mock-model", ""),
+		AgentInfo("root", "test/mock-model", "", ""),
 		TeamInfo([]string{"root"}, "root"),
 		ToolsetInfo(0, "root"),
 		UserMessage("Hi"),
@@ -304,7 +304,7 @@ func TestMixedContentAndReasoning(t *testing.T) {
 	events := runSession(t, sess, stream)
 
 	expectedEvents := []Event{
-		AgentInfo("root", "test/mock-model", ""),
+		AgentInfo("root", "test/mock-model", "", ""),
 		TeamInfo([]string{"root"}, "root"),
 		ToolsetInfo(0, "root"),
 		UserMessage("Hi there"),
@@ -812,10 +812,13 @@ func TestEmitStartupInfo(t *testing.T) {
 	prov := &mockProvider{id: "test/startup-model", stream: &mockStream{}}
 	root := agent.New("startup-test-agent", "You are a startup test agent",
 		agent.WithModel(prov),
-		agent.WithDescription("This is a startup test agent"))
+		agent.WithDescription("This is a startup test agent"),
+		agent.WithWelcomeMessage("Welcome!"),
+	)
 	other := agent.New("other-agent", "You are another agent",
 		agent.WithModel(prov),
-		agent.WithDescription("This is another agent"))
+		agent.WithDescription("This is another agent"),
+	)
 	tm := team.New(team.WithAgents(root, other))
 
 	rt, err := New(tm, WithCurrentAgent("startup-test-agent"), WithModelStore(mockModelStore{}))
@@ -836,7 +839,7 @@ func TestEmitStartupInfo(t *testing.T) {
 
 	// Verify expected events are emitted
 	expectedEvents := []Event{
-		AgentInfo("startup-test-agent", "test/startup-model", "This is a startup test agent"),
+		AgentInfo("startup-test-agent", "test/startup-model", "This is a startup test agent", "Welcome!"),
 		TeamInfo([]string{"other-agent", "startup-test-agent"}, "startup-test-agent"),
 		ToolsetInfo(0, "startup-test-agent"), // No tools configured
 	}

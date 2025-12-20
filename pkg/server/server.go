@@ -37,6 +37,8 @@ func New(ctx context.Context, sessionStore session.Store, runConfig *config.Runt
 
 	// List all available agents
 	group.GET("/agents", s.getAgents)
+	// Get an agent by id
+	group.GET("/agents/:id", s.getAgentConfig)
 
 	// List all sessions
 	group.GET("/sessions", s.getSessions)
@@ -120,6 +122,27 @@ func (s *Server) getAgents(c echo.Context) error {
 	})
 
 	return c.JSON(http.StatusOK, agents)
+}
+
+func (s *Server) getAgentConfig(c echo.Context) error {
+	agentID := c.Param("id")
+
+	for k, agentSource := range s.sm.sources {
+		if k != agentID {
+			continue
+		}
+
+		slog.Debug("API source", "source", agentSource.Name())
+		cfg, err := config.Load(c.Request().Context(), agentSource)
+		if err != nil {
+			slog.Error("Failed to load config from API source", "key", k, "error", err)
+			continue
+		}
+
+		return c.JSON(http.StatusOK, cfg)
+	}
+
+	return echo.NewHTTPError(http.StatusNotFound)
 }
 
 func (s *Server) getSessions(c echo.Context) error {

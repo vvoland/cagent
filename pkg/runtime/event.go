@@ -356,20 +356,22 @@ func MCPInitFinished(agentName string) Event {
 
 // AgentInfoEvent is sent when agent information is available or changes
 type AgentInfoEvent struct {
-	Type        string `json:"type"`
-	AgentName   string `json:"agent_name"`
-	Model       string `json:"model"`
-	Description string `json:"description"`
+	Type           string `json:"type"`
+	AgentName      string `json:"agent_name"`
+	Model          string `json:"model"`
+	Description    string `json:"description"`
+	WelcomeMessage string `json:"welcome_message,omitempty"`
 	AgentContext
 }
 
-func AgentInfo(agentName, model, description string) Event {
+func AgentInfo(agentName, model, description, welcomeMessage string) Event {
 	return &AgentInfoEvent{
-		Type:         "agent_info",
-		AgentName:    agentName,
-		Model:        model,
-		Description:  description,
-		AgentContext: AgentContext{AgentName: agentName},
+		Type:           "agent_info",
+		AgentName:      agentName,
+		Model:          model,
+		Description:    description,
+		WelcomeMessage: welcomeMessage,
+		AgentContext:   AgentContext{AgentName: agentName},
 	}
 }
 

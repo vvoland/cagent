@@ -94,11 +94,8 @@ type Runtime interface {
 	CurrentAgentName() string
 	// CurrentAgentCommands returns the commands for the active agent
 	CurrentAgentCommands(ctx context.Context) map[string]string
-	// CurrentWelcomeMessage returns the welcome message for the active agent
-	CurrentWelcomeMessage(ctx context.Context) string
 	// EmitStartupInfo emits initial agent, team, and toolset information for immediate display
 	EmitStartupInfo(ctx context.Context, events chan Event)
-
 	// RunStream starts the agent's interaction loop and returns a channel of events
 	RunStream(ctx context.Context, sess *session.Session) <-chan Event
 	// Run starts the agent's interaction loop and returns the final messages
@@ -342,10 +339,6 @@ func (r *LocalRuntime) CurrentAgentCommands(context.Context) map[string]string {
 	return r.CurrentAgent().Commands()
 }
 
-func (r *LocalRuntime) CurrentWelcomeMessage(context.Context) string {
-	return r.CurrentAgent().WelcomeMessage()
-}
-
 // CurrentMCPPrompts returns the available MCP prompts from all active MCP toolsets
 // for the current agent. It discovers prompts by calling ListPrompts on each MCP toolset
 // and aggregates the results into a map keyed by prompt name.
@@ -446,11 +439,8 @@ func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, events chan Event) {
 	if model := a.Model(); model != nil {
 		modelID = model.ID()
 	}
-	events <- AgentInfo(a.Name(), modelID, a.Description())
-
-	// Emit team information
-	availableAgents := r.team.AgentNames()
-	events <- TeamInfo(availableAgents, r.currentAgent)
+	events <- AgentInfo(a.Name(), modelID, a.Description(), a.WelcomeMessage())
+	events <- TeamInfo(r.team.AgentNames(), r.currentAgent)
 
 	// Emit agent warnings (if any)
 	r.emitAgentWarnings(a, events)
@@ -464,7 +454,6 @@ func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, events chan Event) {
 		return
 	}
 
-	// Emit toolset information
 	events <- ToolsetInfo(len(agentTools), r.currentAgent)
 	r.startupInfoEmitted = true
 }
@@ -531,7 +520,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		if model := a.Model(); model != nil {
 			modelID = model.ID()
 		}
-		events <- AgentInfo(a.Name(), modelID, a.Description())
+		events <- AgentInfo(a.Name(), modelID, a.Description(), a.WelcomeMessage())
 
 		// Emit team information
 		availableAgents := r.team.AgentNames()
@@ -1306,7 +1295,7 @@ func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Ses
 			if model := originalAgent.Model(); model != nil {
 				modelID = model.ID()
 			}
-			evts <- AgentInfo(originalAgent.Name(), modelID, originalAgent.Description())
+			evts <- AgentInfo(originalAgent.Name(), modelID, originalAgent.Description(), originalAgent.WelcomeMessage())
 		}
 	}()
 
@@ -1316,7 +1305,7 @@ func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Ses
 		if model := newAgent.Model(); model != nil {
 			modelID = model.ID()
 		}
-		evts <- AgentInfo(newAgent.Name(), modelID, newAgent.Description())
+		evts <- AgentInfo(newAgent.Name(), modelID, newAgent.Description(), newAgent.WelcomeMessage())
 	}
 
 	memberAgentTask := "You are a member of a team of agents. Your goal is to complete the following task:"
