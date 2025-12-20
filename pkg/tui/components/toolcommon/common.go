@@ -75,12 +75,8 @@ func RenderTool(msg *types.Message, inProgress spinner.Spinner, args, result str
 		if strings.Count(content, "\n") > 0 {
 			content += "\n" + result
 		} else {
-			padding := width - lipgloss.Width(content) - lipgloss.Width(result) - 2
-			if padding > 0 {
-				result = strings.Repeat(" ", padding) + resultStyle.Render(result)
-			}
-
-			content += " " + result
+			remainingWidth := width - lipgloss.Width(content) - 2
+			content += " " + lipgloss.PlaceHorizontal(remainingWidth, lipgloss.Right, resultStyle.Render(result))
 		}
 	}
 
