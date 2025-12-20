@@ -201,12 +201,13 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case messages.NewSessionMsg:
 		a.application.NewSession()
+		sess := a.application.Session()
 		a.sessionState = service.NewSessionState()
 		a.chatPage = chat.New(a.application, a.sessionState)
 		a.dialog = dialog.New()
 		a.statusBar = statusbar.New(a.chatPage)
 
-		return a, tea.Batch(a.Init(), a.handleWindowResize(a.wWidth, a.wHeight))
+		return a, tea.Batch(a.Init(), a.handleWindowResize(a.wWidth, a.wHeight), a.chatPage.SetYolo(sess.ToolsApproved))
 
 	case messages.EvalSessionMsg:
 		evalFile, _ := evaluation.Save(a.application.Session(), msg.Filename)
