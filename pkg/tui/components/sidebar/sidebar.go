@@ -489,10 +489,14 @@ func (m *model) sessionInfo() string {
 		lines = append(lines, styles.TabAccentStyle.Render("█")+styles.TabPrimaryStyle.Render(" "+pwd))
 	}
 	if m.sessionState.YoloMode {
-		lines = append(lines, styles.TabAccentStyle.Render("✓")+styles.TabPrimaryStyle.Render(" YOLO mode enabled"))
+		indicator := styles.TabAccentStyle.Render("✓") + styles.TabPrimaryStyle.Render(" YOLO mode enabled")
+		shortcut := lipgloss.PlaceHorizontal(m.width-lipgloss.Width(indicator)-2, lipgloss.Right, styles.MutedStyle.Render("^y"))
+		lines = append(lines, indicator+shortcut)
 	}
 	if m.sessionState.SplitDiffView {
-		lines = append(lines, styles.TabAccentStyle.Render("✓")+styles.TabPrimaryStyle.Render(" Split Diff View enabled"))
+		indicator := styles.TabAccentStyle.Render("✓") + styles.TabPrimaryStyle.Render(" Split Diff View enabled")
+		shortcut := lipgloss.PlaceHorizontal(m.width-lipgloss.Width(indicator)-2, lipgloss.Right, styles.MutedStyle.Render("^t"))
+		lines = append(lines, indicator+shortcut)
 	}
 	if working := m.workingIndicator(); working != "" {
 		lines = append(lines, working)

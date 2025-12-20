@@ -21,6 +21,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/messages"
 	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
@@ -247,8 +248,11 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 	case editfile.ToggleDiffViewMsg:
 		m.sessionState.ToggleSplitDiffView()
-
 		m.invalidateAllItems()
+		return m, nil
+
+	case messages.ToggleYoloMsg:
+		m.sessionState.SetYoloMode(!m.sessionState.YoloMode)
 		return m, nil
 
 	case tea.KeyPressMsg:

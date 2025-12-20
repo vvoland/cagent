@@ -209,28 +209,30 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return p, tea.Batch(cmds...)
 
 	case tea.KeyPressMsg:
-		if msg.String() == "tab" && p.focusedPanel == PanelEditor {
-			if p.editor.AcceptSuggestion() {
-				return p, nil
-			}
-		}
-
-		if msg.String() == "ctrl+t" {
+		switch {
+		case msg.String() == "ctrl+t":
 			model, cmd := p.messages.Update(editfile.ToggleDiffViewMsg{})
 			p.messages = model.(messages.Model)
 			return p, cmd
-		}
 
-		switch {
+		case msg.String() == "ctrl+y":
+			model, cmd := p.messages.Update(msgtypes.ToggleYoloMsg{})
+			p.messages = model.(messages.Model)
+			return p, cmd
+
 		case key.Matches(msg, p.keyMap.Tab):
+			if p.focusedPanel == PanelEditor && p.editor.AcceptSuggestion() {
+				return p, nil
+			}
+
 			p.switchFocus()
 			return p, nil
+
 		case key.Matches(msg, p.keyMap.Cancel):
-			// Cancel current message processing if active
 			cmd := p.cancelStream(true)
 			return p, cmd
+
 		case key.Matches(msg, p.keyMap.ExternalEditor):
-			// Open external editor with current editor content
 			cmd := p.openExternalEditor()
 			return p, cmd
 		}

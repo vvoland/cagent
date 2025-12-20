@@ -17,10 +17,10 @@ type SessionState struct {
 }
 
 // NewSessionState creates a new SessionState with default values.
-func NewSessionState(session *session.Session) *SessionState {
+func NewSessionState(sessionState *session.Session) *SessionState {
 	return &SessionState{
 		SplitDiffView: true, // Default to split view
-		YoloMode:      session.ToolsApproved,
+		YoloMode:      sessionState.ToolsApproved,
 	}
 }
 
