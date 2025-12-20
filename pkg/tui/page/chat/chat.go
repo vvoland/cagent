@@ -621,13 +621,11 @@ func (p *chatPage) switchFocus() {
 // based on keyboard enhancement support.
 func (p *chatPage) updateNewlineHelp() {
 	if p.keyboardEnhancementsSupported {
-		// When keyboard enhancements are supported, show both options
 		p.keyMap.ShiftNewline = key.NewBinding(
 			key.WithKeys("shift+enter", "ctrl+j"),
 			key.WithHelp("Shift+Enter", "newline"),
 		)
 	} else {
-		// When not supported, only ctrl+j works
 		p.keyMap.ShiftNewline = key.NewBinding(
 			key.WithKeys("ctrl+j"),
 			key.WithHelp("ctrl+j", "newline"),
