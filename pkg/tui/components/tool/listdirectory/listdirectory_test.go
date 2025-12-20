@@ -25,32 +25,32 @@ func TestFormatSummary(t *testing.T) {
 		{
 			name:     "only files",
 			meta:     &builtin.ListDirectoryMeta{Files: []string{"a", "b", "c"}},
-			expected: "found 3 files",
+			expected: "3 files",
 		},
 		{
 			name:     "only one file",
 			meta:     &builtin.ListDirectoryMeta{Files: []string{"a"}},
-			expected: "found 1 file",
+			expected: "1 file",
 		},
 		{
 			name:     "only directories",
 			meta:     &builtin.ListDirectoryMeta{Dirs: []string{"a", "b"}},
-			expected: "found 2 directories",
+			expected: "2 directories",
 		},
 		{
 			name:     "only one directory",
 			meta:     &builtin.ListDirectoryMeta{Dirs: []string{"a"}},
-			expected: "found 1 directory",
+			expected: "1 directory",
 		},
 		{
 			name:     "mixed files and directories",
 			meta:     &builtin.ListDirectoryMeta{Files: []string{"a", "b", "c"}, Dirs: []string{"d", "e"}},
-			expected: "found 3 files and 2 directories",
+			expected: "3 files and 2 directories",
 		},
 		{
 			name:     "truncated output",
 			meta:     &builtin.ListDirectoryMeta{Files: []string{"a", "b"}, Dirs: []string{"c"}, Truncated: true},
-			expected: "found 2 files and 1 directory (truncated)",
+			expected: "2 files and 1 directory (truncated)",
 		},
 	}
 

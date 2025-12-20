@@ -23,12 +23,12 @@ func TestFormatSummary(t *testing.T) {
 		{
 			name:    "two files found",
 			content: "2 files found:\nfile1.txt\nfile2.txt",
-			want:    "2 files found.",
+			want:    "2 files found",
 		},
 		{
 			name:    "multiple files found",
 			content: "7 files found:\ngordon.yaml\ngordon_dev.yaml\ngordon_workspace/gordon_dev_modular.yaml\nold/gordon-handoff.yaml\nold/gordon_dev_bu.yaml\nold/gordon_dev_test.yaml\nold/v2/gordon_dev_modular.yaml",
-			want:    "7 files found.",
+			want:    "7 files found",
 		},
 		{
 			name:    "no files found",
