@@ -133,11 +133,21 @@ func (d *toolConfirmationDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, d.keyMap.Yes):
-			return d, tea.Sequence(core.CmdHandler(CloseDialogMsg{}), core.CmdHandler(RuntimeResumeMsg{Response: runtime.ResumeTypeApprove}))
+			return d, tea.Sequence(
+				core.CmdHandler(CloseDialogMsg{}),
+				core.CmdHandler(RuntimeResumeMsg{Response: runtime.ResumeTypeApprove}),
+			)
 		case key.Matches(msg, d.keyMap.No):
-			return d, tea.Sequence(core.CmdHandler(CloseDialogMsg{}), core.CmdHandler(RuntimeResumeMsg{Response: runtime.ResumeTypeReject}))
+			return d, tea.Sequence(
+				core.CmdHandler(CloseDialogMsg{}),
+				core.CmdHandler(RuntimeResumeMsg{Response: runtime.ResumeTypeReject}),
+			)
 		case key.Matches(msg, d.keyMap.All):
-			return d, tea.Sequence(core.CmdHandler(CloseDialogMsg{}), core.CmdHandler(RuntimeResumeMsg{Response: runtime.ResumeTypeApproveSession}))
+			d.sessionState.SetYoloMode(true)
+			return d, tea.Sequence(
+				core.CmdHandler(CloseDialogMsg{}),
+				core.CmdHandler(RuntimeResumeMsg{Response: runtime.ResumeTypeApproveSession}),
+			)
 		}
 
 		if msg.String() == "ctrl+c" {

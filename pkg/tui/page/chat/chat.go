@@ -140,7 +140,7 @@ func New(a *app.App, sessionState *service.SessionState) Page {
 	}
 
 	p := &chatPage{
-		sidebar:      sidebar.New(),
+		sidebar:      sidebar.New(sessionState),
 		messages:     messages.New(a, sessionState),
 		editor:       editor.New(a, historyStore),
 		spinner:      spinner.New(spinner.ModeSpinnerOnly),
@@ -448,7 +448,7 @@ func (p *chatPage) setWorking(working bool) tea.Cmd {
 }
 
 func (p *chatPage) SetYolo(yolo bool) tea.Cmd {
-	p.sidebar.SetYolo(yolo)
+	p.sessionState.SetYoloMode(yolo)
 	return nil
 }
 

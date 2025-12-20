@@ -68,7 +68,7 @@ func DefaultKeyMap() KeyMap {
 
 // New creates and initializes a new TUI application model
 func New(ctx context.Context, a *app.App) tea.Model {
-	sessionState := service.NewSessionState()
+	sessionState := service.NewSessionState(a.Session())
 
 	t := &appModel{
 		keyMap:       DefaultKeyMap(),
@@ -202,7 +202,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.NewSessionMsg:
 		a.application.NewSession()
 		sess := a.application.Session()
-		a.sessionState = service.NewSessionState()
+		a.sessionState = service.NewSessionState(sess)
 		a.chatPage = chat.New(a.application, a.sessionState)
 		a.dialog = dialog.New()
 		a.statusBar = statusbar.New(a.chatPage)
