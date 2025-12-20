@@ -488,16 +488,6 @@ func (m *model) sessionInfo() string {
 	if pwd := getCurrentWorkingDirectory(); pwd != "" {
 		lines = append(lines, styles.TabAccentStyle.Render("█")+styles.TabPrimaryStyle.Render(" "+pwd))
 	}
-	if m.sessionState.YoloMode {
-		indicator := styles.TabAccentStyle.Render("✓") + styles.TabPrimaryStyle.Render(" YOLO mode enabled")
-		shortcut := lipgloss.PlaceHorizontal(m.width-lipgloss.Width(indicator)-2, lipgloss.Right, styles.MutedStyle.Render("^y"))
-		lines = append(lines, indicator+shortcut)
-	}
-	if m.sessionState.SplitDiffView {
-		indicator := styles.TabAccentStyle.Render("✓") + styles.TabPrimaryStyle.Render(" Split Diff View enabled")
-		shortcut := lipgloss.PlaceHorizontal(m.width-lipgloss.Width(indicator)-2, lipgloss.Right, styles.MutedStyle.Render("^t"))
-		lines = append(lines, indicator+shortcut)
-	}
 	if working := m.workingIndicator(); working != "" {
 		lines = append(lines, working)
 	}
@@ -554,11 +544,23 @@ func (m *model) agentInfo() string {
 
 // toolsetInfo renders the current toolset status information
 func (m *model) toolsetInfo() string {
-	if m.availableTools == 0 {
-		return ""
+	var lines []string
+	if m.availableTools > 0 {
+		lines = append(lines, styles.TabAccentStyle.Render("█")+styles.TabPrimaryStyle.Render(fmt.Sprintf(" %d tools available", m.availableTools)))
 	}
 
-	return m.renderTab("Tools", fmt.Sprintf("%d tools available", m.availableTools))
+	if m.sessionState.YoloMode {
+		indicator := styles.TabAccentStyle.Render("✓") + styles.TabPrimaryStyle.Render(" YOLO mode enabled")
+		shortcut := lipgloss.PlaceHorizontal(m.width-lipgloss.Width(indicator)-2, lipgloss.Right, styles.MutedStyle.Render("^y"))
+		lines = append(lines, indicator+shortcut)
+	}
+	if m.sessionState.SplitDiffView {
+		indicator := styles.TabAccentStyle.Render("✓") + styles.TabPrimaryStyle.Render(" Split Diff View enabled")
+		shortcut := lipgloss.PlaceHorizontal(m.width-lipgloss.Width(indicator)-2, lipgloss.Right, styles.MutedStyle.Render("^t"))
+		lines = append(lines, indicator+shortcut)
+	}
+
+	return m.renderTab("Tools", lipgloss.JoinVertical(lipgloss.Top, lines...))
 }
 
 // SetSize sets the dimensions of the component
