@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
@@ -55,6 +57,7 @@ type KeyMap struct {
 	Quit           key.Binding
 	CommandPalette key.Binding
 	ToggleYolo     key.Binding
+	StartShell     key.Binding
 }
 
 // DefaultKeyMap returns the default global key bindings
@@ -71,6 +74,10 @@ func DefaultKeyMap() KeyMap {
 		ToggleYolo: key.NewBinding(
 			key.WithKeys("ctrl+y"),
 			key.WithHelp("Ctrl+y", "toggle yolo mode"),
+		),
+		StartShell: key.NewBinding(
+			key.WithKeys("ctrl+s"),
+			key.WithHelp("Ctrl+s", "start a shell"),
 		),
 	}
 }
@@ -216,6 +223,9 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.statusBar = statusbar.New(a.chatPage)
 
 		return a, tea.Batch(a.Init(), a.handleWindowResize(a.wWidth, a.wHeight))
+
+	case messages.StartShellMsg:
+		return a.startShell()
 
 	case messages.EvalSessionMsg:
 		evalFile, _ := evaluation.Save(a.application.Session(), msg.Filename)
@@ -393,6 +403,9 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, a.keyMap.ToggleYolo):
 		return a, core.CmdHandler(messages.ToggleYoloMsg{})
 
+	case key.Matches(msg, a.keyMap.StartShell):
+		return a, core.CmdHandler(messages.StartShellMsg{})
+
 	default:
 		updated, cmd := a.chatPage.Update(msg)
 		a.chatPage = updated.(chat.Page)
@@ -459,6 +472,21 @@ func (a *appModel) View() tea.View {
 	}
 
 	return toFullscreenView(baseView)
+}
+
+func (a *appModel) startShell() (tea.Model, tea.Cmd) {
+	shell := os.Getenv("SHELL")
+	if shell == "" {
+		shell = "/bin/sh"
+	}
+
+	cmd := exec.Command(shell, "-i", "-c",
+		`echo -e "\nType 'exit' to return to cagent 🐳"; exec `+shell,
+	)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return a, tea.ExecProcess(cmd, nil)
 }
 
 func toFullscreenView(content string) tea.View {
