@@ -121,15 +121,13 @@ func New(a *app.App, hist *history.History) Editor {
 	ta.ShowLineNumbers = false
 
 	e := &editor{
-		textarea:    ta,
-		hist:        hist,
-		completions: completions.Completions(a),
-		// Default to no keyboard enhancements; ctrl+j will be used until we know otherwise
+		textarea:                      ta,
+		hist:                          hist,
+		completions:                   completions.Completions(a),
 		keyboardEnhancementsSupported: false,
 		banner:                        newAttachmentBanner(),
 	}
 
-	// Configure initial keybinding (ctrl+j for legacy terminals)
 	e.configureNewlineKeybinding()
 
 	return e
@@ -270,11 +268,11 @@ func (e *editor) AcceptSuggestion() bool {
 func (e *editor) configureNewlineKeybinding() {
 	// Configure textarea's InsertNewline binding based on terminal capabilities
 	if e.keyboardEnhancementsSupported {
-		// Modern terminals: bind both shift+enter and ctrl+j
+		// Modern terminals:
 		e.textarea.KeyMap.InsertNewline.SetKeys("shift+enter", "ctrl+j")
 		e.textarea.KeyMap.InsertNewline.SetEnabled(true)
 	} else {
-		// Legacy terminals: only ctrl+j works
+		// Legacy terminals:
 		e.textarea.KeyMap.InsertNewline.SetKeys("ctrl+j")
 		e.textarea.KeyMap.InsertNewline.SetEnabled(true)
 	}
@@ -351,19 +349,18 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return e, nil
 	case completion.ClosedMsg:
 		e.completionWord = ""
-		return e, nil
+		e.refreshSuggestion()
+		return e, e.textarea.Focus()
 	case tea.KeyPressMsg:
 		if key.Matches(msg, e.textarea.KeyMap.Paste) {
 			return e.handleClipboardPaste()
 		}
 
-		switch msg.String() {
 		// Handle send/newline keys:
 		// - Enter: submit current input (if textarea inserted a newline, submit previous buffer).
 		// - Shift+Enter: insert newline when keyboard enhancements are supported.
 		// - Ctrl+J: fallback to insert '\n' when keyboard enhancements are not supported.
-
-		case "enter", "shift+enter", "ctrl+j":
+		if msg.String() == "enter" || key.Matches(msg, e.textarea.KeyMap.InsertNewline) {
 			if !e.textarea.Focused() {
 				return e, nil
 			}
@@ -373,7 +370,7 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			e.textarea, _ = e.textarea.Update(msg)
 			value := e.textarea.Value()
 
-			// If textarea inserted a newline (shift+enter or ctrl+j), just refresh and return
+			// If textarea inserted a newline, just refresh and return
 			if value != prev && msg.String() != "enter" {
 				e.refreshSuggestion()
 				return e, nil
@@ -408,8 +405,10 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			}
 
 			return e, nil
-		case "ctrl+c":
-			return e, tea.Quit
+		}
+
+		// Handle other special keys
+		switch msg.String() {
 		case "up":
 			// Only navigate history if the user hasn't manually typed content
 			if !e.userTyped {

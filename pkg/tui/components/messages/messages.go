@@ -247,7 +247,6 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 	case editfile.ToggleDiffViewMsg:
 		m.sessionState.ToggleSplitDiffView()
-
 		m.invalidateAllItems()
 		return m, nil
 
@@ -623,7 +622,7 @@ func (m *model) AddCancelledMessage() tea.Cmd {
 
 // AddWelcomeMessage adds a welcome message to the chat
 func (m *model) AddWelcomeMessage(content string) tea.Cmd {
-	if content == "" {
+	if content == "" || len(m.views) > 0 {
 		return nil
 	}
 	msg := types.Welcome(content)

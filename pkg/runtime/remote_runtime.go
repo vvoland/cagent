@@ -74,25 +74,13 @@ func (r *RemoteRuntime) CurrentAgentCommands(ctx context.Context) map[string]str
 	return r.readCurrentAgentConfig(ctx).Commands
 }
 
-func (r *RemoteRuntime) CurrentWelcomeMessage(ctx context.Context) string {
-	return r.readCurrentAgentConfig(ctx).WelcomeMessage
-}
-
 // EmitStartupInfo emits initial agent, team, and toolset information for immediate sidebar display
 func (r *RemoteRuntime) EmitStartupInfo(ctx context.Context, events chan Event) {
-	agentConfig := r.readCurrentAgentConfig(ctx)
+	cfg := r.readCurrentAgentConfig(ctx)
 
-	// Emit agent information for sidebar display
-	modelID := agentConfig.Model // In v2 config, Model is already a string
-	events <- AgentInfo(r.currentAgent, modelID, agentConfig.Description)
-
-	// Emit team information
-	availableAgents := r.team.AgentNames()
-	events <- TeamInfo(availableAgents, r.currentAgent)
-
-	// For remote runtime, we estimate toolset count from config
-	toolsetCount := len(agentConfig.Toolsets)
-	events <- ToolsetInfo(toolsetCount, r.currentAgent)
+	events <- AgentInfo(r.currentAgent, cfg.Model, cfg.Description, cfg.WelcomeMessage)
+	events <- TeamInfo(r.team.AgentNames(), r.currentAgent)
+	events <- ToolsetInfo(len(cfg.Toolsets), r.currentAgent)
 }
 
 func (r *RemoteRuntime) readCurrentAgentConfig(ctx context.Context) latest.AgentConfig {

@@ -2,9 +2,12 @@ package readfile
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
@@ -65,5 +68,24 @@ func (c *Component) View() string {
 		return toolcommon.RenderTool(msg, c.spinner, "", "", c.width)
 	}
 
-	return toolcommon.RenderTool(msg, c.spinner, args.Path, "", c.width)
+	var details string
+	if msg.ToolResult != nil && msg.ToolResult.Meta != nil {
+		meta := msg.ToolResult.Meta.(builtin.ReadFileMeta)
+		if meta.Error != "" {
+			details = meta.Error
+		} else {
+			details = fmt.Sprintf("%d lines", meta.LineCount)
+		}
+	}
+
+	return toolcommon.RenderTool(msg, c.spinner, shortenPath(args.Path), details, c.width)
+}
+
+// shortenPath replaces home directory with ~ and shortens paths
+func shortenPath(path string) string {
+	homeDir := paths.GetHomeDir()
+	if homeDir != "" && strings.HasPrefix(path, homeDir) {
+		return "~" + strings.TrimPrefix(path, homeDir)
+	}
+	return path
 }

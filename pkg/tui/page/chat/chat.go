@@ -55,7 +55,6 @@ type Page interface {
 	layout.Sizeable
 	layout.Help
 	CompactSession() tea.Cmd
-	SetYolo(yolo bool) tea.Cmd
 	Cleanup()
 	// GetInputHeight returns the current height of the editor/input area (including padding)
 	GetInputHeight() int
@@ -102,11 +101,12 @@ type chatPage struct {
 
 // KeyMap defines key bindings for the chat page
 type KeyMap struct {
-	Tab            key.Binding
-	Cancel         key.Binding
-	ShiftNewline   key.Binding
-	CtrlJ          key.Binding
-	ExternalEditor key.Binding
+	Tab             key.Binding
+	Cancel          key.Binding
+	ShiftNewline    key.Binding
+	CtrlJ           key.Binding
+	ExternalEditor  key.Binding
+	ToggleSplitDiff key.Binding
 }
 
 // defaultKeyMap returns the default key bindings
@@ -129,6 +129,10 @@ func defaultKeyMap() KeyMap {
 			key.WithKeys("ctrl+g"),
 			key.WithHelp("Ctrl+g", "edit in $EDITOR"),
 		),
+		ToggleSplitDiff: key.NewBinding(
+			key.WithKeys("ctrl+t"),
+			key.WithHelp("Ctrl+t", "toggle split diff mode"),
+		),
 	}
 }
 
@@ -140,7 +144,7 @@ func New(a *app.App, sessionState *service.SessionState) Page {
 	}
 
 	p := &chatPage{
-		sidebar:      sidebar.New(),
+		sidebar:      sidebar.New(sessionState),
 		messages:     messages.New(a, sessionState),
 		editor:       editor.New(a, historyStore),
 		spinner:      spinner.New(spinner.ModeSpinnerOnly),
@@ -163,12 +167,6 @@ func New(a *app.App, sessionState *service.SessionState) Page {
 // Init initializes the chat page
 func (p *chatPage) Init() tea.Cmd {
 	var cmds []tea.Cmd
-
-	// Add welcome message if present
-	welcomeMsg := p.app.CurrentWelcomeMessage(context.Background())
-	if welcomeMsg != "" {
-		cmds = append(cmds, p.messages.AddWelcomeMessage(welcomeMsg))
-	}
 
 	cmds = append(cmds,
 		p.sidebar.Init(),
@@ -215,29 +213,26 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return p, tea.Batch(cmds...)
 
 	case tea.KeyPressMsg:
-		if msg.String() == "tab" && p.focusedPanel == PanelEditor {
-			if p.editor.AcceptSuggestion() {
-				return p, nil
-			}
-		}
-
-		if msg.String() == "ctrl+t" {
-			model, cmd := p.messages.Update(editfile.ToggleDiffViewMsg{})
-			p.messages = model.(messages.Model)
-			return p, cmd
-		}
-
 		switch {
 		case key.Matches(msg, p.keyMap.Tab):
+			if p.focusedPanel == PanelEditor && p.editor.AcceptSuggestion() {
+				return p, nil
+			}
+
 			p.switchFocus()
 			return p, nil
+
 		case key.Matches(msg, p.keyMap.Cancel):
-			// Cancel current message processing if active
 			cmd := p.cancelStream(true)
 			return p, cmd
+
 		case key.Matches(msg, p.keyMap.ExternalEditor):
-			// Open external editor with current editor content
 			cmd := p.openExternalEditor()
+			return p, cmd
+
+		case key.Matches(msg, p.keyMap.ToggleSplitDiff):
+			model, cmd := p.messages.Update(editfile.ToggleDiffViewMsg{})
+			p.messages = model.(messages.Model)
 			return p, cmd
 		}
 
@@ -344,6 +339,7 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		p.sidebar.SetTokenUsage(msg)
 	case *runtime.AgentInfoEvent:
 		p.sidebar.SetAgentInfo(msg.AgentName, msg.Model, msg.Description)
+		p.messages.AddWelcomeMessage(msg.WelcomeMessage)
 	case *runtime.TeamInfoEvent:
 		p.sidebar.SetTeamInfo(msg.AvailableAgents)
 	case *runtime.AgentSwitchingEvent:
@@ -450,11 +446,6 @@ func (p *chatPage) setWorking(working bool) tea.Cmd {
 	}
 
 	return tea.Batch(cmd...)
-}
-
-func (p *chatPage) SetYolo(yolo bool) tea.Cmd {
-	p.sidebar.SetYolo(yolo)
-	return nil
 }
 
 // View renders the chat page
@@ -630,13 +621,11 @@ func (p *chatPage) switchFocus() {
 // based on keyboard enhancement support.
 func (p *chatPage) updateNewlineHelp() {
 	if p.keyboardEnhancementsSupported {
-		// When keyboard enhancements are supported, show both options
 		p.keyMap.ShiftNewline = key.NewBinding(
 			key.WithKeys("shift+enter", "ctrl+j"),
 			key.WithHelp("Shift+Enter", "newline"),
 		)
 	} else {
-		// When not supported, only ctrl+j works
 		p.keyMap.ShiftNewline = key.NewBinding(
 			key.WithKeys("ctrl+j"),
 			key.WithHelp("ctrl+j", "newline"),
@@ -763,27 +752,21 @@ func (p *chatPage) handleResize(y int) tea.Cmd {
 
 // renderResizeHandle renders the draggable separator between messages and editor.
 func (p *chatPage) renderResizeHandle(width int) string {
-	// Show a small centered highlight when hovered or dragging
-	handleWidth := min(resizeHandleWidth, width)
-	sideWidth := (width - handleWidth) / 2
-	leftPart := strings.Repeat("─", sideWidth)
-	centerPart := strings.Repeat("─", handleWidth)
-	rightPart := strings.Repeat("─", width-sideWidth-handleWidth-2)
-
-	if p.working {
-		message := " " + p.spinner.View() + " Working…"
-		rightPart = strings.Repeat("─", max(0, width-sideWidth-handleWidth-2-lipgloss.Width(message))) + message
-	}
-
 	// Use brighter style when actively dragging
 	centerStyle := styles.ResizeHandleHoverStyle
 	if p.isDragging {
 		centerStyle = styles.ResizeHandleActiveStyle
 	}
 
-	return styles.ResizeHandleStyle.Render(leftPart) +
-		centerStyle.Render(centerPart) +
-		styles.ResizeHandleStyle.Render(rightPart)
+	// Show a small centered highlight when hovered or dragging
+	centerPart := strings.Repeat("─", min(resizeHandleWidth, width))
+	handle := centerStyle.Render(centerPart)
+
+	return lipgloss.PlaceHorizontal(
+		width-2, lipgloss.Center, handle,
+		lipgloss.WithWhitespaceChars("─"),
+		lipgloss.WithWhitespaceStyle(styles.ResizeHandleStyle),
+	)
 }
 
 func (p *chatPage) openAttachmentPreview(preview editor.AttachmentPreview) tea.Cmd {

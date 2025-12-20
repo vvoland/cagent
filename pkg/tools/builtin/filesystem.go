@@ -124,15 +124,8 @@ type ReadMultipleFilesArgs struct {
 	JSON  bool     `json:"json,omitempty" jsonschema:"Whether to return the result as JSON"`
 }
 
-type ReadMultipleFilesEntry struct {
-	Path      string `json:"path"`
-	Content   string `json:"content"`
-	LineCount int    `json:"lineCount"`
-	Error     string `json:"error,omitempty"`
-}
-
 type ReadMultipleFilesMeta struct {
-	Files []ReadMultipleFilesEntry `json:"files"`
+	Files []ReadFileMeta `json:"files"`
 }
 
 type SearchFilesArgs struct {
@@ -160,6 +153,13 @@ type ListDirectoryMeta struct {
 
 type ReadFileArgs struct {
 	Path string `json:"path" jsonschema:"The file path to read"`
+}
+
+type ReadFileMeta struct {
+	Path      string `json:"path"`
+	Content   string `json:"content"`
+	LineCount int    `json:"lineCount"`
+	Error     string `json:"error,omitempty"`
 }
 
 type Edit struct {
@@ -602,13 +602,28 @@ func (t *FilesystemTool) handleReadFile(_ context.Context, args ReadFileArgs) (*
 
 	content, err := os.ReadFile(args.Path)
 	if err != nil {
+		var errMsg string
 		if os.IsNotExist(err) {
-			return tools.ResultError("not found"), nil
+			errMsg = "not found"
+		} else {
+			errMsg = err.Error()
 		}
-		return tools.ResultError(fmt.Sprintf("%s", err)), nil
+
+		return &tools.ToolCallResult{
+			Output:  errMsg,
+			IsError: true,
+			Meta: ReadFileMeta{
+				Error: errMsg,
+			},
+		}, nil
 	}
 
-	return tools.ResultSuccess(string(content)), nil
+	return &tools.ToolCallResult{
+		Output: string(content),
+		Meta: ReadFileMeta{
+			LineCount: strings.Count(string(content), "\n") + 1,
+		},
+	}, nil
 }
 
 func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadMultipleFilesArgs) (*tools.ToolCallResult, error) {
@@ -618,14 +633,14 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadM
 	}
 
 	var contents []PathContent
-	meta := ReadMultipleFilesMeta{}
+	var meta ReadMultipleFilesMeta
 
 	for _, path := range args.Paths {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
 
-		entry := ReadMultipleFilesEntry{Path: path}
+		entry := ReadFileMeta{Path: path}
 
 		if err := t.isPathAllowed(path); err != nil {
 			errMsg := fmt.Sprintf("Error: %s", err)

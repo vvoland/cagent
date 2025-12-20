@@ -17,6 +17,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/tab"
 	"github.com/docker/cagent/pkg/tui/components/tool/todotool"
 	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
 )
 
@@ -39,7 +40,6 @@ type Model interface {
 	SetTeamInfo(availableAgents []string)
 	SetAgentSwitching(switching bool)
 	SetToolsetInfo(availableTools int)
-	SetYolo(yolo bool)
 	GetSize() (width, height int)
 }
 
@@ -58,7 +58,6 @@ type model struct {
 	sessionAgent     map[string]string         // sessionID -> agent name
 	todoComp         *todotool.SidebarComponent
 	mcpInit          bool
-	yolo             bool
 	ragIndexing      map[string]*ragIndexingState // strategy name -> indexing state
 	spinner          spinner.Spinner
 	mode             Mode
@@ -69,9 +68,10 @@ type model struct {
 	availableAgents  []string
 	agentSwitching   bool
 	availableTools   int
+	sessionState     *service.SessionState
 }
 
-func New() Model {
+func New(sessionState *service.SessionState) Model {
 	return &model{
 		width:        20,
 		height:       24,
@@ -81,6 +81,7 @@ func New() Model {
 		spinner:      spinner.New(spinner.ModeSpinnerOnly),
 		sessionTitle: "New session",
 		ragIndexing:  make(map[string]*ragIndexingState),
+		sessionState: sessionState,
 	}
 }
 
@@ -123,10 +124,6 @@ func (m *model) SetAgentSwitching(switching bool) {
 // SetToolsetInfo sets the number of available tools
 func (m *model) SetToolsetInfo(availableTools int) {
 	m.availableTools = availableTools
-}
-
-func (m *model) SetYolo(yolo bool) {
-	m.yolo = yolo
 }
 
 // formatTokenCount formats a token count with K/M suffixes for readability
@@ -491,9 +488,6 @@ func (m *model) sessionInfo() string {
 	if pwd := getCurrentWorkingDirectory(); pwd != "" {
 		lines = append(lines, styles.TabAccentStyle.Render("█")+styles.TabPrimaryStyle.Render(" "+pwd))
 	}
-	if m.yolo {
-		lines = append(lines, styles.TabAccentStyle.Render("✓")+styles.TabPrimaryStyle.Render(" YOLO mode enabled"))
-	}
 	if working := m.workingIndicator(); working != "" {
 		lines = append(lines, working)
 	}
@@ -550,11 +544,23 @@ func (m *model) agentInfo() string {
 
 // toolsetInfo renders the current toolset status information
 func (m *model) toolsetInfo() string {
-	if m.availableTools == 0 {
-		return ""
+	var lines []string
+	if m.availableTools > 0 {
+		lines = append(lines, styles.TabAccentStyle.Render("█")+styles.TabPrimaryStyle.Render(fmt.Sprintf(" %d tools available", m.availableTools)))
 	}
 
-	return m.renderTab("Tools", fmt.Sprintf("%d tools available", m.availableTools))
+	if m.sessionState.YoloMode {
+		indicator := styles.TabAccentStyle.Render("✓") + styles.TabPrimaryStyle.Render(" YOLO mode enabled")
+		shortcut := lipgloss.PlaceHorizontal(m.width-lipgloss.Width(indicator)-2, lipgloss.Right, styles.MutedStyle.Render("^y"))
+		lines = append(lines, indicator+shortcut)
+	}
+	if m.sessionState.SplitDiffView {
+		indicator := styles.TabAccentStyle.Render("✓") + styles.TabPrimaryStyle.Render(" Split Diff View enabled")
+		shortcut := lipgloss.PlaceHorizontal(m.width-lipgloss.Width(indicator)-2, lipgloss.Right, styles.MutedStyle.Render("^t"))
+		lines = append(lines, indicator+shortcut)
+	}
+
+	return m.renderTab("Tools", lipgloss.JoinVertical(lipgloss.Top, lines...))
 }
 
 // SetSize sets the dimensions of the component

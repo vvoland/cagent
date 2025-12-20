@@ -50,11 +50,6 @@ func (a *App) FirstMessage() *string {
 	return a.firstMessage
 }
 
-// CurrentWelcomeMessage returns the welcome message for the active agent
-func (a *App) CurrentWelcomeMessage(ctx context.Context) string {
-	return a.runtime.CurrentWelcomeMessage(ctx)
-}
-
 // CurrentAgentCommands returns the commands for the active agent
 func (a *App) CurrentAgentCommands(ctx context.Context) map[string]string {
 	return a.runtime.CurrentAgentCommands(ctx)

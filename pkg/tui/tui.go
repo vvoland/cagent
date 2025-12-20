@@ -54,21 +54,30 @@ type appModel struct {
 type KeyMap struct {
 	Quit           key.Binding
 	CommandPalette key.Binding
+	ToggleYolo     key.Binding
 }
 
 // DefaultKeyMap returns the default global key bindings
 func DefaultKeyMap() KeyMap {
 	return KeyMap{
+		Quit: key.NewBinding(
+			key.WithKeys("ctrl+c"),
+			key.WithHelp("Ctrl+c", "quit"),
+		),
 		CommandPalette: key.NewBinding(
 			key.WithKeys("ctrl+p"),
 			key.WithHelp("Ctrl+p", "commands"),
+		),
+		ToggleYolo: key.NewBinding(
+			key.WithKeys("ctrl+y"),
+			key.WithHelp("Ctrl+y", "toggle yolo mode"),
 		),
 	}
 }
 
 // New creates and initializes a new TUI application model
 func New(ctx context.Context, a *app.App) tea.Model {
-	sessionState := service.NewSessionState()
+	sessionState := service.NewSessionState(a.Session())
 
 	t := &appModel{
 		keyMap:       DefaultKeyMap(),
@@ -184,8 +193,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, cmd
 
 	case tea.KeyPressMsg:
-		cmd := a.handleKeyPressMsg(msg)
-		return a, cmd
+		return a.handleKeyPressMsg(msg)
 
 	case tea.MouseWheelMsg:
 		// If dialogs are active, they get priority for mouse events
@@ -201,7 +209,8 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case messages.NewSessionMsg:
 		a.application.NewSession()
-		a.sessionState = service.NewSessionState()
+		sess := a.application.Session()
+		a.sessionState = service.NewSessionState(sess)
 		a.chatPage = chat.New(a.application, a.sessionState)
 		a.dialog = dialog.New()
 		a.statusBar = statusbar.New(a.chatPage)
@@ -233,13 +242,8 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.ToggleYoloMsg:
 		sess := a.application.Session()
 		sess.ToolsApproved = !sess.ToolsApproved
-		var statusText string
-		if sess.ToolsApproved {
-			statusText = "Yolo mode enabled: tools will be auto-approved"
-		} else {
-			statusText = "Yolo mode disabled: tools will require confirmation"
-		}
-		return a, tea.Batch(notification.SuccessCmd(statusText), a.chatPage.SetYolo(sess.ToolsApproved))
+		a.sessionState.SetYoloMode(sess.ToolsApproved)
+		return a, nil
 
 	case messages.AgentCommandMsg:
 		resolvedCommand := a.application.ResolveCommand(context.Background(), msg.Command)
@@ -343,11 +347,11 @@ func (a *appModel) handleWindowResize(width, height int) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
+func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if a.dialog.Open() {
 		u, dialogCmd := a.dialog.Update(msg)
 		a.dialog = u.(dialog.Manager)
-		return dialogCmd
+		return a, dialogCmd
 	}
 
 	if a.completions.Open() {
@@ -357,7 +361,8 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
 			// Let completion manager handle navigation keys
 			u, completionCmd := a.completions.Update(msg)
 			a.completions = u.(completion.Manager)
-			return completionCmd
+			return a, completionCmd
+
 		default:
 			// For all other keys (typing), send to both completion (for filtering) and editor
 			var cmds []tea.Cmd
@@ -370,23 +375,28 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
 			a.chatPage = updated.(chat.Page)
 			cmds = append(cmds, cmd)
 
-			return tea.Batch(cmds...)
+			return a, tea.Batch(cmds...)
 		}
 	}
 
 	switch {
 	case key.Matches(msg, a.keyMap.Quit):
 		a.chatPage.Cleanup()
-		return tea.Quit
+		return a, tea.Quit
+
 	case key.Matches(msg, a.keyMap.CommandPalette):
 		categories := commands.BuildCommandCategories(context.Background(), a.application)
-		return core.CmdHandler(dialog.OpenDialogMsg{
+		return a, core.CmdHandler(dialog.OpenDialogMsg{
 			Model: dialog.NewCommandPaletteDialog(categories),
 		})
+
+	case key.Matches(msg, a.keyMap.ToggleYolo):
+		return a, core.CmdHandler(messages.ToggleYoloMsg{})
+
 	default:
 		updated, cmd := a.chatPage.Update(msg)
 		a.chatPage = updated.(chat.Page)
-		return cmd
+		return a, cmd
 	}
 }
 

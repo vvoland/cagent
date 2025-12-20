@@ -109,7 +109,7 @@ func formatSummary(meta *builtin.ListDirectoryMeta) string {
 		parts = append(parts, fmt.Sprintf("%d director%s", dirCount, pluralizeDirectory(dirCount)))
 	}
 
-	result := fmt.Sprintf("found %s", strings.Join(parts, " and "))
+	result := strings.Join(parts, " and ")
 	if meta.Truncated {
 		result += " (truncated)"
 	}

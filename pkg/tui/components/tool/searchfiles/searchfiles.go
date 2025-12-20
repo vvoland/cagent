@@ -108,7 +108,7 @@ func formatSummary(content string) string {
 				return fmt.Sprintf("one file found: %s", fileName)
 			}
 			// Multiple files
-			return strings.TrimSuffix(firstLine, ":") + "."
+			return strings.TrimSuffix(firstLine, ":")
 		}
 	}
 

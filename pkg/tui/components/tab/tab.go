@@ -1,18 +1,23 @@
 package tab
 
 import (
-	"strings"
+	"charm.land/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/tui/styles"
 )
 
 func Render(title, content string, width int) string {
-	var b strings.Builder
+	styleTitle := styles.TabTitleStyle
+	styleBody := styles.TabStyle
 
-	b.WriteString(styles.RenderComposite(styles.TabTitleStyle, title+" "+strings.Repeat("─", width-len(title)-1)))
-	b.WriteString("\n")
-	b.WriteString(styles.RenderComposite(styles.TabStyle.Width(width), content))
-	b.WriteString("\n")
-
-	return b.String()
+	return styles.NoStyle.PaddingBottom(1).Render(
+		lipgloss.JoinVertical(lipgloss.Top,
+			lipgloss.PlaceHorizontal(width, lipgloss.Left,
+				styleTitle.PaddingRight(1).Render(title),
+				lipgloss.WithWhitespaceChars("─"),
+				lipgloss.WithWhitespaceStyle(styleTitle),
+			),
+			styles.RenderComposite(styleBody.Width(width), content),
+		),
+	)
 }
