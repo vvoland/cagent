@@ -55,7 +55,6 @@ type Page interface {
 	layout.Sizeable
 	layout.Help
 	CompactSession() tea.Cmd
-	SetYolo(yolo bool) tea.Cmd
 	Cleanup()
 	// GetInputHeight returns the current height of the editor/input area (including padding)
 	GetInputHeight() int
@@ -102,11 +101,12 @@ type chatPage struct {
 
 // KeyMap defines key bindings for the chat page
 type KeyMap struct {
-	Tab            key.Binding
-	Cancel         key.Binding
-	ShiftNewline   key.Binding
-	CtrlJ          key.Binding
-	ExternalEditor key.Binding
+	Tab             key.Binding
+	Cancel          key.Binding
+	ShiftNewline    key.Binding
+	CtrlJ           key.Binding
+	ExternalEditor  key.Binding
+	ToggleSplitDiff key.Binding
 }
 
 // defaultKeyMap returns the default key bindings
@@ -128,6 +128,10 @@ func defaultKeyMap() KeyMap {
 		ExternalEditor: key.NewBinding(
 			key.WithKeys("ctrl+g"),
 			key.WithHelp("Ctrl+g", "edit in $EDITOR"),
+		),
+		ToggleSplitDiff: key.NewBinding(
+			key.WithKeys("ctrl+t"),
+			key.WithHelp("Ctrl+t", "toggle split diff mode"),
 		),
 	}
 }
@@ -210,16 +214,6 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 	case tea.KeyPressMsg:
 		switch {
-		case msg.String() == "ctrl+t":
-			model, cmd := p.messages.Update(editfile.ToggleDiffViewMsg{})
-			p.messages = model.(messages.Model)
-			return p, cmd
-
-		case msg.String() == "ctrl+y":
-			model, cmd := p.messages.Update(msgtypes.ToggleYoloMsg{})
-			p.messages = model.(messages.Model)
-			return p, cmd
-
 		case key.Matches(msg, p.keyMap.Tab):
 			if p.focusedPanel == PanelEditor && p.editor.AcceptSuggestion() {
 				return p, nil
@@ -234,6 +228,11 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 		case key.Matches(msg, p.keyMap.ExternalEditor):
 			cmd := p.openExternalEditor()
+			return p, cmd
+
+		case key.Matches(msg, p.keyMap.ToggleSplitDiff):
+			model, cmd := p.messages.Update(editfile.ToggleDiffViewMsg{})
+			p.messages = model.(messages.Model)
 			return p, cmd
 		}
 
@@ -447,11 +446,6 @@ func (p *chatPage) setWorking(working bool) tea.Cmd {
 	}
 
 	return tea.Batch(cmd...)
-}
-
-func (p *chatPage) SetYolo(yolo bool) tea.Cmd {
-	p.sessionState.SetYoloMode(yolo)
-	return nil
 }
 
 // View renders the chat page
