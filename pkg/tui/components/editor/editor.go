@@ -409,8 +409,6 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 		// Handle other special keys
 		switch msg.String() {
-		case "ctrl+c":
-			return e, tea.Quit
 		case "up":
 			// Only navigate history if the user hasn't manually typed content
 			if !e.userTyped {
