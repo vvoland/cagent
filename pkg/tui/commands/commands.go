@@ -18,6 +18,7 @@ type (
 	CompactSessionMsg         = messages.CompactSessionMsg
 	CopySessionToClipboardMsg = messages.CopySessionToClipboardMsg
 	ToggleYoloMsg             = messages.ToggleYoloMsg
+	StartShellMsg             = messages.StartShellMsg
 	AgentCommandMsg           = messages.AgentCommandMsg
 	MCPPromptMsg              = messages.MCPPromptMsg
 	OpenURLMsg                = messages.OpenURLMsg
@@ -89,6 +90,16 @@ func builtInSessionCommands() []Item {
 			Category:     "Session",
 			Execute: func() tea.Cmd {
 				return core.CmdHandler(ToggleYoloMsg{})
+			},
+		},
+		{
+			ID:           "session.shell",
+			Label:        "Shell",
+			SlashCommand: "/shell",
+			Description:  "Start a shell",
+			Category:     "Session",
+			Execute: func() tea.Cmd {
+				return core.CmdHandler(StartShellMsg{})
 			},
 		},
 	}

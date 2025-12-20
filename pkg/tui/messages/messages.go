@@ -7,6 +7,7 @@ type (
 	CompactSessionMsg         struct{}
 	CopySessionToClipboardMsg struct{}
 	ToggleYoloMsg             struct{}
+	StartShellMsg             struct{}
 )
 
 // AgentCommandMsg command message
