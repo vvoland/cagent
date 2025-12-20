@@ -171,7 +171,10 @@ func (c *manager) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			if len(c.filteredItems) == 0 || c.selected >= len(c.filteredItems) {
 				return c, core.CmdHandler(ClosedMsg{})
 			}
-			return c, core.CmdHandler(SelectedMsg{Value: c.filteredItems[c.selected].Value, Execute: c.filteredItems[c.selected].Execute})
+			return c, tea.Sequence(
+				core.CmdHandler(SelectedMsg{Value: c.filteredItems[c.selected].Value, Execute: c.filteredItems[c.selected].Execute}),
+				core.CmdHandler(ClosedMsg{}),
+			)
 		case key.Matches(msg, c.keyMap.Escape):
 			c.visible = false
 			return c, core.CmdHandler(ClosedMsg{})

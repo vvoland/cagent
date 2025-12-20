@@ -351,7 +351,8 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return e, nil
 	case completion.ClosedMsg:
 		e.completionWord = ""
-		return e, nil
+		e.refreshSuggestion()
+		return e, e.textarea.Focus()
 	case tea.KeyPressMsg:
 		if key.Matches(msg, e.textarea.KeyMap.Paste) {
 			return e.handleClipboardPaste()
