@@ -763,27 +763,21 @@ func (p *chatPage) handleResize(y int) tea.Cmd {
 
 // renderResizeHandle renders the draggable separator between messages and editor.
 func (p *chatPage) renderResizeHandle(width int) string {
-	// Show a small centered highlight when hovered or dragging
-	handleWidth := min(resizeHandleWidth, width)
-	sideWidth := (width - handleWidth) / 2
-	leftPart := strings.Repeat("─", sideWidth)
-	centerPart := strings.Repeat("─", handleWidth)
-	rightPart := strings.Repeat("─", width-sideWidth-handleWidth-2)
-
-	if p.working {
-		message := " " + p.spinner.View() + " Working…"
-		rightPart = strings.Repeat("─", max(0, width-sideWidth-handleWidth-2-lipgloss.Width(message))) + message
-	}
-
 	// Use brighter style when actively dragging
 	centerStyle := styles.ResizeHandleHoverStyle
 	if p.isDragging {
 		centerStyle = styles.ResizeHandleActiveStyle
 	}
 
-	return styles.ResizeHandleStyle.Render(leftPart) +
-		centerStyle.Render(centerPart) +
-		styles.ResizeHandleStyle.Render(rightPart)
+	// Show a small centered highlight when hovered or dragging
+	centerPart := strings.Repeat("─", min(resizeHandleWidth, width))
+	handle := centerStyle.Render(centerPart)
+
+	return lipgloss.PlaceHorizontal(
+		width-2, lipgloss.Center, handle,
+		lipgloss.WithWhitespaceChars("─"),
+		lipgloss.WithWhitespaceStyle(styles.ResizeHandleStyle),
+	)
 }
 
 func (p *chatPage) openAttachmentPreview(preview editor.AttachmentPreview) tea.Cmd {
