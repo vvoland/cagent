@@ -491,6 +491,9 @@ func (m *model) sessionInfo() string {
 	if m.sessionState.YoloMode {
 		lines = append(lines, styles.TabAccentStyle.Render("✓")+styles.TabPrimaryStyle.Render(" YOLO mode enabled"))
 	}
+	if m.sessionState.SplitDiffView {
+		lines = append(lines, styles.TabAccentStyle.Render("✓")+styles.TabPrimaryStyle.Render(" Split Diff View enabled"))
+	}
 	if working := m.workingIndicator(); working != "" {
 		lines = append(lines, working)
 	}
