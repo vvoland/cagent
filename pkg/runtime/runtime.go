@@ -1196,12 +1196,13 @@ func (r *LocalRuntime) runAgentTool(ctx context.Context, handler ToolHandlerFunc
 		if errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
 			slog.Debug("Runtime tool handler canceled by context", "tool", toolCall.Function.Name, "agent", a.Name(), "session_id", sess.ID)
 			// Synthesize a cancellation response so the transcript remains consistent
-			res.Output = "The tool call was canceled by the user."
+			res = tools.ResultError("The tool call was canceled by the user.")
 			span.SetStatus(codes.Ok, "runtime tool handler canceled by user")
 		} else {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "runtime tool handler error")
 			slog.Error("Error executing tool", "tool", toolCall.Function.Name, "error", err)
+			res = tools.ResultError(fmt.Sprintf("Error executing tool: %v", err))
 		}
 	}
 
