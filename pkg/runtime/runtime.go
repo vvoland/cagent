@@ -1227,10 +1227,7 @@ func (r *LocalRuntime) runAgentTool(ctx context.Context, handler ToolHandlerFunc
 func (r *LocalRuntime) addToolValidationErrorResponse(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, tool tools.Tool, events chan Event, a *agent.Agent) {
 	errorMsg := fmt.Sprintf("Tool '%s' is not available to this agent (%s).", toolCall.Function.Name, a.Name())
 
-	events <- ToolCallResponse(toolCall, tool, &tools.ToolCallResult{
-		Output:  errorMsg,
-		IsError: true,
-	}, errorMsg, a.Name())
+	events <- ToolCallResponse(toolCall, tool, tools.ResultError(errorMsg), errorMsg, a.Name())
 
 	toolResponseMsg := chat.Message{
 		Role:       chat.MessageRoleTool,
@@ -1247,9 +1244,7 @@ func (r *LocalRuntime) addToolRejectedResponse(ctx context.Context, sess *sessio
 
 	result := "The user rejected the tool call."
 
-	events <- ToolCallResponse(toolCall, tool, &tools.ToolCallResult{
-		Output: result,
-	}, result, a.Name())
+	events <- ToolCallResponse(toolCall, tool, tools.ResultError(result), result, a.Name())
 
 	toolResponseMsg := chat.Message{
 		Role:       chat.MessageRoleTool,
@@ -1266,9 +1261,7 @@ func (r *LocalRuntime) addToolCancelledResponse(ctx context.Context, sess *sessi
 
 	result := "The tool call was canceled by the user."
 
-	events <- ToolCallResponse(toolCall, tool, &tools.ToolCallResult{
-		Output: result,
-	}, result, a.Name())
+	events <- ToolCallResponse(toolCall, tool, tools.ResultError(result), result, a.Name())
 
 	toolResponseMsg := chat.Message{
 		Role:       chat.MessageRoleTool,
