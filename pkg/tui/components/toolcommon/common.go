@@ -50,12 +50,7 @@ func FormatToolResult(content string, width int) string {
 		lines = append(lines, wrapLines("…", availableWidth)...)
 	}
 
-	trimmedContent := strings.Join(lines, "\n")
-	if trimmedContent != "" {
-		return styles.ToolCallResult.Render(styles.ToolCallResultKey.Render("\n" + trimmedContent))
-	}
-
-	return ""
+	return strings.Join(lines, "\n")
 }
 
 func RenderTool(msg *types.Message, inProgress spinner.Spinner, args, result string, width int) string {
@@ -72,7 +67,7 @@ func RenderTool(msg *types.Message, inProgress spinner.Spinner, args, result str
 		content += " " + args
 	}
 	if result != "" {
-		if strings.Count(content, "\n") > 0 {
+		if strings.Count(content, "\n") > 0 || strings.Count(result, "\n") > 0 {
 			content += "\n" + result
 		} else {
 			remainingWidth := width - lipgloss.Width(content) - 2

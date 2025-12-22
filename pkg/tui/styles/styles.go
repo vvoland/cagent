@@ -357,10 +357,6 @@ var (
 	ToolCallArgKey = BaseStyle.
 			Bold(true).
 			Foreground(TextMutedGray)
-
-	ToolCallResultKey = BaseStyle.
-				Bold(true).
-				Foreground(TextMutedGray)
 )
 
 // Input Styles
