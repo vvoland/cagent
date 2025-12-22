@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/lipgloss/v2"
+
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tui/styles"
 )
@@ -47,7 +49,7 @@ func renderToolArgs(toolCall tools.ToolCall, shortWidth, width int) string {
 		}
 	}
 
-	if len(short.String()) <= shortWidth && !strings.Contains(short.String(), "\n") {
+	if lipgloss.Width(short.String()) <= shortWidth && !strings.Contains(short.String(), "\n") {
 		return short.String()
 	}
 

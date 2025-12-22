@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/feedback"
@@ -148,8 +149,13 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 
 			// Truncate long descriptions to fit on one line
 			description := prompt
-			if len(description) > 60 {
-				description = description[:59] + "…"
+			if lipgloss.Width(description) > 60 {
+				// Truncate by runes to handle Unicode properly
+				runes := []rune(description)
+				for lipgloss.Width(string(runes)) > 59 && len(runes) > 0 {
+					runes = runes[:len(runes)-1]
+				}
+				description = string(runes) + "…"
 			}
 
 			commands = append(commands, Item{
@@ -197,8 +203,13 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 			}
 
 			// Truncate long descriptions to fit on one line
-			if len(description) > 55 {
-				description = description[:54] + "…"
+			if lipgloss.Width(description) > 55 {
+				// Truncate by runes to handle Unicode properly
+				runes := []rune(description)
+				for lipgloss.Width(string(runes)) > 54 && len(runes) > 0 {
+					runes = runes[:len(runes)-1]
+				}
+				description = string(runes) + "…"
 			}
 
 			// Create closure variables to capture current iteration values

@@ -209,7 +209,7 @@ func (c *manager) View() string {
 
 		maxLabelLen := 0
 		for i := visibleStart; i < visibleEnd; i++ {
-			labelLen := len(c.filteredItems[i].Label)
+			labelLen := lipgloss.Width(c.filteredItems[i].Label)
 			if labelLen > maxLabelLen {
 				maxLabelLen = labelLen
 			}
@@ -227,7 +227,7 @@ func (c *manager) View() string {
 			}
 
 			// Pad label to maxLabelLen so descriptions align
-			paddedLabel := item.Label + strings.Repeat(" ", maxLabelLen+1-len(item.Label))
+			paddedLabel := item.Label + strings.Repeat(" ", maxLabelLen+1-lipgloss.Width(item.Label))
 			text := paddedLabel
 			if item.Description != "" {
 				text += " " + descStyle.Render(item.Description)

@@ -520,8 +520,13 @@ func (m *model) agentInfo() string {
 	if m.agentDescription != "" {
 		description := m.agentDescription
 		maxDescWidth := m.width - 2
-		if len(description) > maxDescWidth {
-			description = description[:maxDescWidth-1] + "…"
+		if lipgloss.Width(description) > maxDescWidth {
+			// Truncate by runes to handle Unicode properly
+			runes := []rune(description)
+			for lipgloss.Width(string(runes)) > maxDescWidth-1 && len(runes) > 0 {
+				runes = runes[:len(runes)-1]
+			}
+			description = string(runes) + "…"
 		}
 
 		fmt.Fprintf(&content, "\n%s", description)

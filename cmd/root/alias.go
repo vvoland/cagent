@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mattn/go-runewidth"
 	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/aliases"
@@ -135,17 +136,17 @@ func runAliasListCommand(cmd *cobra.Command, args []string) error {
 	}
 	sort.Strings(names)
 
-	// Find max name length for alignment
+	// Find max name width for alignment (using display width for proper Unicode handling)
 	maxLen := 0
 	for _, name := range names {
-		if len(name) > maxLen {
-			maxLen = len(name)
+		if w := runewidth.StringWidth(name); w > maxLen {
+			maxLen = w
 		}
 	}
 
 	for _, name := range names {
 		path := allAliases[name]
-		padding := strings.Repeat(" ", maxLen-len(name))
+		padding := strings.Repeat(" ", maxLen-runewidth.StringWidth(name))
 		out.Printf("  %s%s → %s\n", name, padding, path)
 	}
 

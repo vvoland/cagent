@@ -109,7 +109,9 @@ func (s Spinner) Update(message tea.Msg) (layout.Model, tea.Cmd) {
 	} else {
 		s.lightPosition += s.direction
 
-		if s.direction == 1 && s.lightPosition > len(s.currentMessage)+2 {
+		// Use rune count for proper Unicode character handling in light animation
+		messageRuneCount := len([]rune(s.currentMessage))
+		if s.direction == 1 && s.lightPosition > messageRuneCount+2 {
 			s.pauseFrames = 6
 		}
 
