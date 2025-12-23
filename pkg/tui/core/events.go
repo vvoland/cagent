@@ -1,6 +1,8 @@
 package core
 
 import (
+	"slices"
+
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -39,11 +41,5 @@ var NavigationKeys = []string{"up", "down", "left", "right", "k", "j", "h", "l",
 
 // IsNavigationKey returns true if the key is a common navigation key
 func IsNavigationKey(msg tea.KeyPressMsg) bool {
-	key := msg.String()
-	for _, navKey := range NavigationKeys {
-		if key == navKey {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(NavigationKeys, msg.String())
 }
