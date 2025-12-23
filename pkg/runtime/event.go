@@ -294,15 +294,11 @@ func ElicitationRequest(message string, schema any, meta map[string]any, agentNa
 	}
 }
 
-func (e *ElicitationRequestEvent) GetAgentName() string { return e.AgentName }
-
 type AuthorizationEvent struct {
 	Type         string                  `json:"type"`
 	Confirmation tools.ElicitationAction `json:"confirmation"`
 	AgentContext
 }
-
-func (e *AuthorizationEvent) GetAgentName() string { return "" }
 
 func Authorization(confirmation tools.ElicitationAction, agentName string) Event {
 	return &AuthorizationEvent{
@@ -323,10 +319,6 @@ func MaxIterationsReached(maxIterations int) Event {
 		Type:          "max_iterations_reached",
 		MaxIterations: maxIterations,
 	}
-}
-
-func (e *MaxIterationsReachedEvent) GetAgentName() string {
-	return e.AgentName
 }
 
 // MCPInitStartedEvent is for MCP initialization lifecycle events

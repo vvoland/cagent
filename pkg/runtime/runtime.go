@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -361,9 +363,7 @@ func (r *LocalRuntime) CurrentMCPPrompts(ctx context.Context) map[string]mcptool
 
 			// Merge prompts into the result map
 			// If there are name conflicts, the later toolset's prompt will override
-			for name, promptInfo := range mcpPrompts {
-				prompts[name] = promptInfo
-			}
+			maps.Copy(prompts, mcpPrompts)
 		} else {
 			slog.Debug("Toolset is not an MCP toolset", "type", fmt.Sprintf("%T", toolset))
 		}
@@ -377,38 +377,26 @@ func (r *LocalRuntime) CurrentMCPPrompts(ctx context.Context) map[string]mcptool
 // to PromptInfo structures. This method handles the MCP protocol communication
 // and gracefully handles any errors during prompt discovery.
 func (r *LocalRuntime) discoverMCPPrompts(ctx context.Context, toolset *mcptools.Toolset) map[string]mcptools.PromptInfo {
-	prompts := make(map[string]mcptools.PromptInfo)
-
-	// Check if the toolset is started (required for MCP operations)
-	// Note: We need to implement IsStarted() method on the MCP Toolset if it doesn't exist
-	// For now, we'll proceed and handle any errors from ListPrompts
-
-	// Call ListPrompts on the MCP toolset
-	// Note: We need to implement this method on the Toolset to expose MCP prompt functionality
 	mcpPrompts, err := toolset.ListPrompts(ctx)
 	if err != nil {
 		slog.Warn("Failed to list MCP prompts from toolset", "error", err)
-		return prompts
+		return nil
 	}
 
-	// Convert MCP prompts to our internal format
+	prompts := make(map[string]mcptools.PromptInfo, len(mcpPrompts))
 	for _, mcpPrompt := range mcpPrompts {
 		promptInfo := mcptools.PromptInfo{
 			Name:        mcpPrompt.Name,
 			Description: mcpPrompt.Description,
-			Arguments:   make([]mcptools.PromptArgument, 0),
+			Arguments:   make([]mcptools.PromptArgument, 0, len(mcpPrompt.Arguments)),
 		}
 
-		// Convert MCP prompt arguments if they exist
-		if mcpPrompt.Arguments != nil {
-			for _, arg := range mcpPrompt.Arguments {
-				promptArg := mcptools.PromptArgument{
-					Name:        arg.Name,
-					Description: arg.Description,
-					Required:    arg.Required,
-				}
-				promptInfo.Arguments = append(promptInfo.Arguments, promptArg)
-			}
+		for _, arg := range mcpPrompt.Arguments {
+			promptInfo.Arguments = append(promptInfo.Arguments, mcptools.PromptArgument{
+				Name:        arg.Name,
+				Description: arg.Description,
+				Required:    arg.Required,
+			})
 		}
 
 		prompts[mcpPrompt.Name] = promptInfo
@@ -425,6 +413,14 @@ func (r *LocalRuntime) CurrentAgent() *agent.Agent {
 	return current
 }
 
+// getAgentModelID returns the model ID for an agent, or empty string if no model is set.
+func getAgentModelID(a *agent.Agent) string {
+	if model := a.Model(); model != nil {
+		return model.ID()
+	}
+	return ""
+}
+
 // EmitStartupInfo emits initial agent, team, and toolset information for immediate sidebar display
 func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, events chan Event) {
 	// Prevent duplicate emissions
@@ -435,11 +431,7 @@ func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, events chan Event) {
 	a := r.CurrentAgent()
 
 	// Emit agent information for sidebar display
-	var modelID string
-	if model := a.Model(); model != nil {
-		modelID = model.ID()
-	}
-	events <- AgentInfo(a.Name(), modelID, a.Description(), a.WelcomeMessage())
+	events <- AgentInfo(a.Name(), getAgentModelID(a), a.Description(), a.WelcomeMessage())
 	events <- TeamInfo(r.team.AgentNames(), r.currentAgent)
 
 	// Emit agent warnings (if any)
@@ -516,11 +508,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		a := r.CurrentAgent()
 
 		// Emit agent information for sidebar display
-		var modelID string
-		if model := a.Model(); model != nil {
-			modelID = model.ID()
-		}
-		events <- AgentInfo(a.Name(), modelID, a.Description(), a.WelcomeMessage())
+		events <- AgentInfo(a.Name(), getAgentModelID(a), a.Description(), a.WelcomeMessage())
 
 		// Emit team information
 		availableAgents := r.team.AgentNames()
@@ -779,7 +767,7 @@ func (r *LocalRuntime) emitAgentWarnings(a *agent.Agent, events chan Event) {
 
 func formatToolWarning(a *agent.Agent, warnings []string) string {
 	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf("Some toolsets failed to initialize for agent '%s'.\n\n", a.Name()))
+	fmt.Fprintf(&builder, "Some toolsets failed to initialize for agent '%s'.\n\n", a.Name())
 	builder.WriteString("Details:\n\n")
 	for _, warning := range warnings {
 		builder.WriteString("- ")
@@ -793,16 +781,8 @@ func formatToolWarning(a *agent.Agent, warnings []string) string {
 func (r *LocalRuntime) Resume(_ context.Context, confirmationType ResumeType) {
 	slog.Debug("Resuming runtime", "agent", r.currentAgent, "confirmation_type", confirmationType)
 
-	cType := ResumeTypeApproveSession
-	switch confirmationType {
-	case ResumeTypeApprove:
-		cType = ResumeTypeApprove
-	case ResumeTypeReject:
-		cType = ResumeTypeReject
-	}
-
 	select {
-	case r.resumeChan <- cType:
+	case r.resumeChan <- confirmationType:
 		slog.Debug("Resume signal sent", "agent", r.currentAgent)
 	default:
 		slog.Debug("Resume channel not ready, ignoring", "agent", r.currentAgent)
@@ -1002,8 +982,13 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 	a := r.CurrentAgent()
 	slog.Debug("Processing tool calls", "agent", a.Name(), "call_count", len(calls))
 
+	// Build a map of agent tools for quick lookup
+	agentToolMap := make(map[string]tools.Tool, len(agentTools))
+	for _, t := range agentTools {
+		agentToolMap[t.Name] = t
+	}
+
 	for i, toolCall := range calls {
-		// Start a span for each tool call
 		callCtx, callSpan := r.startSpan(ctx, "runtime.tool.call", trace.WithAttributes(
 			attribute.String("tool.name", toolCall.Function.Name),
 			attribute.String("tool.type", string(toolCall.Type)),
@@ -1013,107 +998,87 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 		))
 
 		slog.Debug("Processing tool call", "agent", a.Name(), "tool", toolCall.Function.Name, "session_id", sess.ID)
-		def, exists := r.toolMap[toolCall.Function.Name]
-		if exists {
+
+		// Find the tool - first check runtime tools, then agent tools
+		var tool tools.Tool
+		var runTool func()
+
+		if def, exists := r.toolMap[toolCall.Function.Name]; exists {
 			// Validate that the tool is actually available to this agent
-			toolAvailable := false
-			for _, tool := range agentTools {
-				if tool.Name == toolCall.Function.Name {
-					toolAvailable = true
-					break
-				}
-			}
-			if !toolAvailable {
+			if _, available := agentToolMap[toolCall.Function.Name]; !available {
 				slog.Warn("Tool call rejected: tool not available to agent", "agent", a.Name(), "tool", toolCall.Function.Name, "session_id", sess.ID)
 				r.addToolErrorResponse(ctx, sess, toolCall, def.tool, events, a, fmt.Sprintf("Tool '%s' is not available to this agent (%s).", toolCall.Function.Name, a.Name()))
 				callSpan.SetStatus(codes.Error, "tool not available to agent")
 				callSpan.End()
 				continue
 			}
-			slog.Debug("Using runtime tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
-			// TODO: make this better, these tools define themselves as read-only
-			if sess.ToolsApproved || def.tool.Annotations.ReadOnlyHint {
-				r.runAgentTool(callCtx, def.handler, sess, toolCall, def.tool, events, a)
-			} else {
-				slog.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
-
-				events <- ToolCallConfirmation(toolCall, def.tool, a.Name())
-
-				select {
-				case cType := <-r.resumeChan:
-					switch cType {
-					case ResumeTypeApprove:
-						slog.Debug("Resume signal received, approving tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
-						r.runAgentTool(callCtx, def.handler, sess, toolCall, def.tool, events, a)
-					case ResumeTypeApproveSession:
-						slog.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name, "session_id", sess.ID)
-						sess.ToolsApproved = true
-						r.runAgentTool(callCtx, def.handler, sess, toolCall, def.tool, events, a)
-					case ResumeTypeReject:
-						slog.Debug("Resume signal received, rejecting tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
-						r.addToolErrorResponse(ctx, sess, toolCall, def.tool, events, a, "The user rejected the tool call.")
-					}
-				case <-callCtx.Done():
-					slog.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
-					// Synthesize cancellation responses for the current and any remaining tool calls
-					r.addToolErrorResponse(ctx, sess, toolCall, def.tool, events, a, "The tool call was canceled by the user.")
-					for j := i + 1; j < len(calls); j++ {
-						r.addToolErrorResponse(ctx, sess, calls[j], def.tool, events, a, "The tool call was canceled by the user.")
-					}
-					callSpan.SetStatus(codes.Ok, "tool call canceled by user")
-					return
-				}
-			}
+			tool = def.tool
+			runTool = func() { r.runAgentTool(callCtx, def.handler, sess, toolCall, def.tool, events, a) }
+		} else if t, exists := agentToolMap[toolCall.Function.Name]; exists {
+			tool = t
+			runTool = func() { r.runTool(callCtx, t, toolCall, events, sess, a) }
+		} else {
+			// Tool not found - skip
+			callSpan.SetStatus(codes.Ok, "tool not found")
+			callSpan.End()
+			continue
 		}
 
-	toolLoop:
-		for _, tool := range agentTools {
-			if _, ok := r.toolMap[tool.Name]; ok {
-				continue
-			}
-			if tool.Name != toolCall.Function.Name {
-				continue
-			}
-			slog.Debug("Using agent tool handler", "tool", toolCall.Function.Name)
-
-			if sess.ToolsApproved || tool.Annotations.ReadOnlyHint {
-				slog.Debug("Tools approved, running tool", "tool", toolCall.Function.Name, "session_id", sess.ID)
-				r.runTool(callCtx, tool, toolCall, events, sess, a)
-			} else {
-				slog.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
-				events <- ToolCallConfirmation(toolCall, tool, a.Name())
-				select {
-				case cType := <-r.resumeChan:
-					switch cType {
-					case ResumeTypeApprove:
-						slog.Debug("Resume signal received, approving tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
-						r.runTool(callCtx, tool, toolCall, events, sess, a)
-					case ResumeTypeApproveSession:
-						slog.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name, "session_id", sess.ID)
-						sess.ToolsApproved = true
-						r.runTool(callCtx, tool, toolCall, events, sess, a)
-					case ResumeTypeReject:
-						slog.Debug("Resume signal received, rejecting tool handler", "tool", toolCall.Function.Name, "session_id", sess.ID)
-						r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, "The user rejected the tool call.")
-					}
-
-					slog.Debug("Added tool response to session", "tool", toolCall.Function.Name, "session_id", sess.ID, "total_messages", len(sess.GetAllMessages()))
-					break toolLoop
-				case <-callCtx.Done():
-					slog.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
-					// Synthesize cancellation responses for the current and any remaining tool calls
-					r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, "The tool call was canceled by the user.")
-					for j := i + 1; j < len(calls); j++ {
-						r.addToolErrorResponse(ctx, sess, calls[j], tool, events, a, "The tool call was canceled by the user.")
-					}
-					callSpan.SetStatus(codes.Ok, "tool call canceled by user")
-					return
-				}
-			}
+		// Execute tool with approval check
+		canceled := r.executeWithApproval(callCtx, sess, toolCall, tool, events, a, runTool, calls[i+1:])
+		if canceled {
+			callSpan.SetStatus(codes.Ok, "tool call canceled by user")
+			callSpan.End()
+			return
 		}
-		// Set tool call span success after processing corresponding handler
+
 		callSpan.SetStatus(codes.Ok, "tool call processed")
 		callSpan.End()
+	}
+}
+
+// executeWithApproval handles the tool approval flow and executes the tool.
+// Returns true if the operation was canceled and processing should stop.
+func (r *LocalRuntime) executeWithApproval(
+	ctx context.Context,
+	sess *session.Session,
+	toolCall tools.ToolCall,
+	tool tools.Tool,
+	events chan Event,
+	a *agent.Agent,
+	runTool func(),
+	remainingCalls []tools.ToolCall,
+) (canceled bool) {
+	if sess.ToolsApproved || tool.Annotations.ReadOnlyHint {
+		runTool()
+		return false
+	}
+
+	slog.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
+	events <- ToolCallConfirmation(toolCall, tool, a.Name())
+
+	select {
+	case cType := <-r.resumeChan:
+		switch cType {
+		case ResumeTypeApprove:
+			slog.Debug("Resume signal received, approving tool", "tool", toolCall.Function.Name, "session_id", sess.ID)
+			runTool()
+		case ResumeTypeApproveSession:
+			slog.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name, "session_id", sess.ID)
+			sess.ToolsApproved = true
+			runTool()
+		case ResumeTypeReject:
+			slog.Debug("Resume signal received, rejecting tool", "tool", toolCall.Function.Name, "session_id", sess.ID)
+			r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, "The user rejected the tool call.")
+		}
+		return false
+	case <-ctx.Done():
+		slog.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
+		r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, "The tool call was canceled by the user.")
+		for _, remainingCall := range remainingCalls {
+			r.addToolErrorResponse(ctx, sess, remainingCall, tool, events, a, "The tool call was canceled by the user.")
+		}
+		return true
 	}
 }
 
@@ -1255,21 +1220,13 @@ func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Ses
 
 		// Restore original agent info in sidebar
 		if originalAgent, err := r.team.Agent(ca); err == nil {
-			var modelID string
-			if model := originalAgent.Model(); model != nil {
-				modelID = model.ID()
-			}
-			evts <- AgentInfo(originalAgent.Name(), modelID, originalAgent.Description(), originalAgent.WelcomeMessage())
+			evts <- AgentInfo(originalAgent.Name(), getAgentModelID(originalAgent), originalAgent.Description(), originalAgent.WelcomeMessage())
 		}
 	}()
 
 	// Emit agent info for the new agent
 	if newAgent, err := r.team.Agent(params.Agent); err == nil {
-		var modelID string
-		if model := newAgent.Model(); model != nil {
-			modelID = model.ID()
-		}
-		evts <- AgentInfo(newAgent.Name(), modelID, newAgent.Description(), newAgent.WelcomeMessage())
+		evts <- AgentInfo(newAgent.Name(), getAgentModelID(newAgent), newAgent.Description(), newAgent.WelcomeMessage())
 	}
 
 	memberAgentTask := "You are a member of a team of agents. Your goal is to complete the following task:"
@@ -1327,19 +1284,14 @@ func (r *LocalRuntime) handleHandoff(_ context.Context, _ *session.Session, tool
 
 	// Validate that the target agent is in the current agent's handoffs list
 	handoffs := currentAgent.Handoffs()
-	targetInHandoffs := false
-	var validHandoffNames []string
-	for _, handoffAgent := range handoffs {
-		validHandoffNames = append(validHandoffNames, handoffAgent.Name())
-		if handoffAgent.Name() == params.Agent {
-			targetInHandoffs = true
-			break
+	if !slices.ContainsFunc(handoffs, func(a *agent.Agent) bool { return a.Name() == params.Agent }) {
+		var handoffNames []string
+		for _, h := range handoffs {
+			handoffNames = append(handoffNames, h.Name())
 		}
-	}
-	if !targetInHandoffs {
 		var errorMsg string
-		if len(validHandoffNames) > 0 {
-			errorMsg = fmt.Sprintf("Agent %s cannot hand off to %s: target agent not in handoffs list. Available handoff agent IDs are: %s", ca, params.Agent, strings.Join(validHandoffNames, ", "))
+		if len(handoffNames) > 0 {
+			errorMsg = fmt.Sprintf("Agent %s cannot hand off to %s: target agent not in handoffs list. Available handoff agent IDs are: %s", ca, params.Agent, strings.Join(handoffNames, ", "))
 		} else {
 			errorMsg = fmt.Sprintf("Agent %s cannot hand off to %s: target agent not in handoffs list. This agent has no handoff agents configured.", ca, params.Agent)
 		}
@@ -1391,7 +1343,7 @@ func (r *LocalRuntime) Summarize(ctx context.Context, sess *session.Session, eve
 		case "system":
 			continue // Skip system messages for summarization
 		}
-		conversationHistory.WriteString(fmt.Sprintf("\n%s: %s", role, messages[i].Message.Content))
+		fmt.Fprintf(&conversationHistory, "\n%s: %s", role, messages[i].Message.Content)
 	}
 
 	// Create a new session for summary generation
