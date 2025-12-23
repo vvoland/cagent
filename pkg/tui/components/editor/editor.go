@@ -155,8 +155,7 @@ func lineHasContent(line, prompt string) bool {
 	return strings.TrimSpace(plain) != ""
 }
 
-// lastInputLine returns the content of the final line from the textarea value,
-// which is the portion eligible for suggestions.
+// lastInputLine returns the content of the final line from the textarea value.
 func lastInputLine(value string) string {
 	if idx := strings.LastIndex(value, "\n"); idx >= 0 {
 		return value[idx+1:]
@@ -164,25 +163,65 @@ func lastInputLine(value string) string {
 	return value
 }
 
+// extractLineText extracts the user input text from a rendered view line,
+// stripping ANSI codes and the prompt prefix.
+func extractLineText(line, prompt string) string {
+	plain := stripANSI(line)
+	if prompt != "" && strings.HasPrefix(plain, prompt) {
+		plain = strings.TrimPrefix(plain, prompt)
+	}
+	return strings.TrimRight(plain, " ")
+}
+
 // applySuggestionOverlay draws the inline suggestion on top of the textarea
 // view using the configured ghost style.
 func (e *editor) applySuggestionOverlay(view string) string {
 	lines := strings.Split(view, "\n")
-	targetLine := -1
-	for i := len(lines) - 1; i >= 0; i-- {
-		if lineHasContent(lines[i], e.textarea.Prompt) {
-			targetLine = i
-			break
+	value := e.textarea.Value()
+	promptWidth := runewidth.StringWidth(stripANSI(e.textarea.Prompt))
+
+	// Get the text of the last line from the value (preserves trailing spaces)
+	currentLine := lastInputLine(value)
+	textWidth := runewidth.StringWidth(currentLine)
+
+	// Determine the target visual line for the overlay.
+	// If the value ends with a newline, the cursor is on the next (empty) line.
+	// Otherwise, find the last line with content.
+	var targetLine int
+	if strings.HasSuffix(value, "\n") {
+		// Cursor is on the line after the last content line.
+		// Find the first empty line after content.
+		contentLine := -1
+		for i := len(lines) - 1; i >= 0; i-- {
+			if lineHasContent(lines[i], e.textarea.Prompt) {
+				contentLine = i
+				break
+			}
+		}
+		if contentLine == -1 {
+			return view // No content found
+		}
+		// The cursor line is the one after the content line
+		targetLine = contentLine + 1
+		if targetLine >= len(lines) {
+			// Edge case: cursor line is beyond view (shouldn't happen normally)
+			targetLine = contentLine
+			// Use the visual line's text width since we're on the content line
+			textWidth = runewidth.StringWidth(extractLineText(lines[targetLine], e.textarea.Prompt))
+		}
+	} else {
+		// Cursor is at the end of content on the last line with content.
+		targetLine = -1
+		for i := len(lines) - 1; i >= 0; i-- {
+			if lineHasContent(lines[i], e.textarea.Prompt) {
+				targetLine = i
+				break
+			}
+		}
+		if targetLine == -1 {
+			return view
 		}
 	}
-
-	if targetLine == -1 {
-		return view
-	}
-
-	currentLine := lastInputLine(e.textarea.Value())
-	promptWidth := runewidth.StringWidth(stripANSI(e.textarea.Prompt))
-	textWidth := runewidth.StringWidth(currentLine)
 
 	ghost := styles.SuggestionGhostStyle.Render(e.suggestion)
 
@@ -556,7 +595,7 @@ func (e *editor) View() string {
 		view = lipgloss.JoinVertical(lipgloss.Left, bannerView, view)
 	}
 
-	return styles.RenderComposite(styles.TabPrimaryStyle.Padding(0, 1).MarginBottom(1).Width(e.width), styles.EditorStyle.Render(view))
+	return styles.RenderComposite(styles.EditorStyle.MarginBottom(1), view)
 }
 
 // SetSize sets the dimensions of the component
