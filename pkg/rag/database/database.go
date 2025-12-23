@@ -53,14 +53,3 @@ func CosineSimilarity(a, b []float64) float64 {
 
 	return dotProduct / (math.Sqrt(normA) * math.Sqrt(normB))
 }
-
-// SortByScore sorts results by similarity in descending order
-func SortByScore(results []SearchResult) {
-	for i := 0; i < len(results); i++ {
-		for j := i + 1; j < len(results); j++ {
-			if results[j].Similarity > results[i].Similarity {
-				results[i], results[j] = results[j], results[i]
-			}
-		}
-	}
-}

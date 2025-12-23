@@ -55,7 +55,6 @@ const (
 
 	// Interactive element colors
 	ColorSelected = "#364A82"
-	ColorHover    = "#2D3F5F"
 
 	// AutoCompleteGhost colors
 	ColorSuggestionGhost = "#6B6B6B"
@@ -357,10 +356,6 @@ var (
 
 	ToolCallResult = ToolMessageStyle.
 			Padding(0, 0, 0, 2)
-
-	ToolCallArgKey = BaseStyle.
-			Bold(true).
-			Foreground(TextMutedGray)
 )
 
 // Input Styles

@@ -78,10 +78,6 @@ const (
 	FinishReasonLength FinishReason = "length"
 	// FinishReasonToolCalls means the model called a tool
 	FinishReasonToolCalls FinishReason = "tool_calls"
-	// FinishReasonFunctionCall is used when the model calls a function (legacy)
-	FinishReasonFunctionCall FinishReason = "function_call"
-	// FinishReasonContentFilter means the content was filtered
-	FinishReasonContentFilter FinishReason = "content_filter"
 	// FinishReasonNull means no finish reason was provided
 	FinishReasonNull FinishReason = "null"
 )

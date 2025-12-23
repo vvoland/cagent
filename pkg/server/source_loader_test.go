@@ -27,7 +27,7 @@ func (m *mockSource) ParentDir() string {
 	return m.parentDir
 }
 
-func (m *mockSource) Read(ctx context.Context) ([]byte, error) {
+func (m *mockSource) Read(context.Context) ([]byte, error) {
 	m.readCount++
 	if m.err != nil {
 		return nil, m.err
