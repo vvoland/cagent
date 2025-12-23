@@ -71,7 +71,7 @@ func (c *Component) View() string {
 	}
 
 	displayName := msg.ToolDefinition.DisplayName()
-	content := fmt.Sprintf("%s %s %s", toolcommon.Icon(msg, c.spinner), styles.ToolMessageStyle.Render(displayName), styles.ToolMessageStyle.Render(args.Path))
+	content := fmt.Sprintf("%s%s %s", toolcommon.Icon(msg, c.spinner), styles.ToolName.Render(displayName), styles.ToolMessageStyle.Render(shortenPath(args.Path)))
 
 	if msg.ToolCall.Function.Arguments != "" {
 		content += "\n\n" + styles.ToolCallResult.Render(renderEditFile(msg.ToolCall, c.width-1, c.sessionState.SplitDiffView, msg.ToolStatus))
@@ -82,5 +82,5 @@ func (c *Component) View() string {
 		resultContent = toolcommon.FormatToolResult(msg.Content, c.width)
 	}
 
-	return styles.BaseStyle.Render(content + resultContent)
+	return content + resultContent
 }
