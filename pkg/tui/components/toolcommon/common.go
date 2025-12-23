@@ -91,7 +91,7 @@ func RenderTool(msg *types.Message, inProgress spinner.Spinner, args, result str
 	}
 	if result != "" {
 		if strings.Count(content, "\n") > 0 || strings.Count(result, "\n") > 0 {
-			content += "\n" + result
+			content += "\n" + resultStyle.MarginLeft(styles.ToolCompletedIcon.GetMarginLeft()).Render(result)
 		} else {
 			remainingWidth := width - lipgloss.Width(content) - 2
 			content += " " + lipgloss.PlaceHorizontal(remainingWidth, lipgloss.Right, resultStyle.Render(result))
