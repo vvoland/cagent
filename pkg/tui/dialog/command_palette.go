@@ -268,13 +268,8 @@ func (d *commandPaletteDialog) renderCommand(cmd commands.Item, selected bool) s
 // Position calculates the position to center the dialog
 func (d *commandPaletteDialog) Position() (row, col int) {
 	dialogWidth := max(min(d.width*80/100, 70), 50)
-
 	maxHeight := min(d.height*70/100, 30)
-
-	// Center the dialog
-	row = max(0, (d.height-maxHeight)/2)
-	col = max(0, (d.width-dialogWidth)/2)
-	return row, col
+	return CenterPosition(d.width, d.height, dialogWidth, maxHeight)
 }
 
 // SetSize implements Dialog

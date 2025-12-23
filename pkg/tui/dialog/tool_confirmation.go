@@ -215,13 +215,6 @@ func (d *toolConfirmationDialog) View() string {
 // Position calculates the position to center the dialog
 func (d *toolConfirmationDialog) Position() (row, col int) {
 	dialogWidth := d.width * 70 / 100
-
-	// Calculate actual dialog height by rendering it
 	renderedDialog := d.View()
-	dialogHeight := lipgloss.Height(renderedDialog)
-
-	// Ensure dialog stays on screen
-	row = max(0, (d.height-dialogHeight)/2)
-	col = max(0, (d.width-dialogWidth)/2)
-	return row, col
+	return CenterPosition(d.width, d.height, dialogWidth, lipgloss.Height(renderedDialog))
 }

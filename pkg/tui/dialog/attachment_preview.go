@@ -117,10 +117,7 @@ func (d *attachmentPreviewDialog) Position() (row, col int) {
 	if dialogWidth == 0 {
 		dialogWidth = dialogMinWidth
 	}
-
-	row = max(0, (d.height-dialogHeight)/2)
-	col = max(0, (d.width-dialogWidth)/2)
-	return row, col
+	return CenterPosition(d.width, d.height, dialogWidth, dialogHeight)
 }
 
 func (d *attachmentPreviewDialog) SetSize(width, height int) tea.Cmd {

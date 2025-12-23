@@ -139,6 +139,23 @@ func (d *manager) SetSize(width, height int) tea.Cmd {
 	return nil
 }
 
+// CenterPosition calculates the centered position for a dialog given screen and dialog dimensions.
+// Returns (row, col) suitable for use in Dialog.Position().
+func CenterPosition(screenWidth, screenHeight, dialogWidth, dialogHeight int) (row, col int) {
+	col = max(0, (screenWidth-dialogWidth)/2)
+	row = max(0, (screenHeight-dialogHeight)/2)
+
+	// Ensure dialog fits on screen
+	if col+dialogWidth > screenWidth {
+		col = max(0, screenWidth-dialogWidth)
+	}
+	if row+dialogHeight > screenHeight {
+		row = max(0, screenHeight-dialogHeight)
+	}
+
+	return row, col
+}
+
 // GetLayers returns lipgloss layers for rendering all dialogs in the stack
 // Dialogs are returned in order from bottom to top (index 0 is bottom-most)
 func (d *manager) GetLayers() []*lipgloss.Layer {

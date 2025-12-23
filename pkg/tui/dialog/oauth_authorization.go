@@ -91,26 +91,8 @@ func (d *oauthAuthorizationDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 // Position returns the dialog position (centered)
 func (d *oauthAuthorizationDialog) Position() (row, col int) {
-	// Render the dialog content to measure its actual dimensions
 	dialogContent := d.View()
-
-	// Get the actual rendered dimensions
-	dialogWidth := lipgloss.Width(dialogContent)
-	dialogHeight := lipgloss.Height(dialogContent)
-
-	// Calculate centered position
-	col = max(0, (d.width-dialogWidth)/2)
-	row = max(0, (d.height-dialogHeight)/2)
-
-	// Ensure dialog fits on screen
-	if col+dialogWidth > d.width {
-		col = max(0, d.width-dialogWidth)
-	}
-	if row+dialogHeight > d.height {
-		row = max(0, d.height-dialogHeight)
-	}
-
-	return row, col
+	return CenterPosition(d.width, d.height, lipgloss.Width(dialogContent), lipgloss.Height(dialogContent))
 }
 
 // View renders the OAuth authorization confirmation dialog

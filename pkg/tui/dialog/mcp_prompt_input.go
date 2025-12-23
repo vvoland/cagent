@@ -243,11 +243,7 @@ func (d *MCPPromptInputDialog) View() string {
 func (d *MCPPromptInputDialog) Position() (row, col int) {
 	dialogWidth := max(min(d.width*80/100, 80), 60)
 	dialogHeight := 15 + len(d.inputs)*3 // Approximate height
-
-	// Center the dialog
-	row = max(0, (d.height-dialogHeight)/2)
-	col = max(0, (d.width-dialogWidth)/2)
-	return row, col
+	return CenterPosition(d.width, d.height, dialogWidth, dialogHeight)
 }
 
 // SetSize implements Dialog
