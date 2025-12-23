@@ -16,7 +16,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/mattn/go-runewidth"
 
-	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/styles"
@@ -493,13 +492,4 @@ func pairDiffLines(lines []udiff.Line, fromLine, toLine int) []linePair {
 	}
 
 	return pairs
-}
-
-// shortenPath replaces home directory with ~ and shortens paths
-func shortenPath(path string) string {
-	homeDir := paths.GetHomeDir()
-	if homeDir != "" && strings.HasPrefix(path, homeDir) {
-		return "~" + strings.TrimPrefix(path, homeDir)
-	}
-	return path
 }

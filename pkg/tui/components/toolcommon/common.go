@@ -7,6 +7,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 
+	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
@@ -104,4 +105,16 @@ func wrapLines(text string, width int) []string {
 	}
 
 	return lines
+}
+
+// ShortenPath replaces home directory with ~ for cleaner display.
+func ShortenPath(path string) string {
+	if path == "" {
+		return path
+	}
+	homeDir := paths.GetHomeDir()
+	if homeDir != "" && strings.HasPrefix(path, homeDir) {
+		return "~" + strings.TrimPrefix(path, homeDir)
+	}
+	return path
 }

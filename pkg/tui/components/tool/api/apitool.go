@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/docker/go-units"
 
 	"github.com/docker/cagent/pkg/tui/components/spinner"
@@ -15,54 +14,14 @@ import (
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
-type Component struct {
-	message *types.Message
-	spinner spinner.Spinner
-	width   int
-	height  int
+func New(msg *types.Message, sessionState *service.SessionState) layout.Model {
+	return toolcommon.NewBase(msg, sessionState, render)
 }
 
-func New(
-	msg *types.Message,
-	_ *service.SessionState,
-) layout.Model {
-	return &Component{
-		message: msg,
-		spinner: spinner.New(spinner.ModeSpinnerOnly),
-		width:   80,
-		height:  1,
-	}
-}
-
-func (c *Component) SetSize(width, height int) tea.Cmd {
-	c.width = width
-	c.height = height
-	return nil
-}
-
-func (c *Component) Init() tea.Cmd {
-	if c.message.ToolStatus == types.ToolStatusPending || c.message.ToolStatus == types.ToolStatusRunning {
-		return c.spinner.Init()
-	}
-	return nil
-}
-
-func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
-	if c.message.ToolStatus == types.ToolStatusPending || c.message.ToolStatus == types.ToolStatusRunning {
-		model, cmd := c.spinner.Update(msg)
-		c.spinner = model.(spinner.Spinner)
-		return c, cmd
-	}
-
-	return c, nil
-}
-
-func (c *Component) View() string {
-	msg := c.message
-
+func render(msg *types.Message, s spinner.Spinner, width, _ int) string {
 	var args map[string]any
 	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &args); err != nil {
-		return toolcommon.RenderTool(msg, c.spinner, "", "", c.width)
+		return toolcommon.RenderTool(msg, s, "", "", width)
 	}
 
 	// Extract argument summary for the tool call display
@@ -75,21 +34,18 @@ func (c *Component) View() string {
 	switch msg.ToolStatus {
 	case types.ToolStatusRunning:
 		// While running, show what we're calling
-		endpoint := extractEndpoint(args)
-		if endpoint != "" {
+		if endpoint := extractEndpoint(args); endpoint != "" {
 			params += styles.MutedStyle.Render(": Calling " + endpoint)
 		}
 	case types.ToolStatusCompleted:
 		// When completed, show a brief summary inline
-		resultSummary := extractSummary(msg.Content)
-		params += styles.MutedStyle.Render(": " + resultSummary)
+		params += styles.MutedStyle.Render(": Received " + units.HumanSize(float64(len(msg.Content))))
 	}
 
-	// Render everything on one line
-	return toolcommon.RenderTool(msg, c.spinner, params, "", c.width)
+	return toolcommon.RenderTool(msg, s, params, "", width)
 }
 
-// extractEndpoint tries to find the endpoint/URL being called
+// extractEndpoint tries to find the endpoint/URL being called.
 func extractEndpoint(args map[string]any) string {
 	if endpoint, ok := args["endpoint"].(string); ok {
 		return endpoint
@@ -100,7 +56,7 @@ func extractEndpoint(args map[string]any) string {
 	return ""
 }
 
-// formatArgs creates a concise string representation of the arguments
+// formatArgs creates a concise string representation of the arguments.
 func formatArgs(args map[string]any) string {
 	if len(args) == 0 {
 		return ""
@@ -137,9 +93,4 @@ func formatArgs(args map[string]any) string {
 	// Fallback: show JSON
 	b, _ := json.Marshal(args)
 	return string(b)
-}
-
-// extractSummary tries to extract a meaningful summary from the API response
-func extractSummary(content string) string {
-	return fmt.Sprintf("Received %s", units.HumanSize(float64(len(content))))
 }

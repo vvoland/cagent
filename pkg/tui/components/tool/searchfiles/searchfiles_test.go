@@ -2,9 +2,11 @@ package searchfiles
 
 import (
 	"testing"
+
+	"github.com/docker/cagent/pkg/tui/types"
 )
 
-func TestFormatSummary(t *testing.T) {
+func TestExtractResult(t *testing.T) {
 	tests := []struct {
 		name    string
 		content string
@@ -49,9 +51,10 @@ func TestFormatSummary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := formatSummary(tt.content)
+			msg := &types.Message{Content: tt.content}
+			got := extractResult(msg)
 			if got != tt.want {
-				t.Errorf("formatSummary() = %q, want %q", got, tt.want)
+				t.Errorf("extractResult() = %q, want %q", got, tt.want)
 			}
 		})
 	}

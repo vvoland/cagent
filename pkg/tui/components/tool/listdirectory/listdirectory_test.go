@@ -3,10 +3,13 @@ package listdirectory
 import (
 	"testing"
 
+	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
+	"github.com/docker/cagent/pkg/tui/components/toolcommon"
+	"github.com/docker/cagent/pkg/tui/types"
 )
 
-func TestFormatSummary(t *testing.T) {
+func TestExtractResult(t *testing.T) {
 	tests := []struct {
 		name     string
 		meta     *builtin.ListDirectoryMeta
@@ -56,9 +59,13 @@ func TestFormatSummary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := formatSummary(tt.meta)
+			msg := &types.Message{}
+			if tt.meta != nil {
+				msg.ToolResult = &tools.ToolCallResult{Meta: *tt.meta}
+			}
+			result := extractResult(msg)
 			if result != tt.expected {
-				t.Errorf("formatSummary() = %q, want %q", result, tt.expected)
+				t.Errorf("extractResult() = %q, want %q", result, tt.expected)
 			}
 		})
 	}
@@ -136,9 +143,9 @@ func TestShortenPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := shortenPath(tt.path)
+			result := toolcommon.ShortenPath(tt.path)
 			if result != tt.expected {
-				t.Errorf("shortenPath(%q) = %q, want %q", tt.path, result, tt.expected)
+				t.Errorf("ShortenPath(%q) = %q, want %q", tt.path, result, tt.expected)
 			}
 		})
 	}
