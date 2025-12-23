@@ -1,7 +1,6 @@
 package listdirectory
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -13,15 +12,10 @@ import (
 )
 
 func New(msg *types.Message, sessionState *service.SessionState) layout.Model {
-	return toolcommon.NewBase(msg, sessionState, toolcommon.SimpleRendererWithResult(extractPath, extractResult))
-}
-
-func extractPath(args string) string {
-	var a builtin.ListDirectoryArgs
-	if err := json.Unmarshal([]byte(args), &a); err != nil {
-		return ""
-	}
-	return toolcommon.ShortenPath(a.Path)
+	return toolcommon.NewBase(msg, sessionState, toolcommon.SimpleRendererWithResult(
+		toolcommon.ExtractField(func(a builtin.ListDirectoryArgs) string { return toolcommon.ShortenPath(a.Path) }),
+		extractResult,
+	))
 }
 
 func extractResult(msg *types.Message) string {

@@ -1,7 +1,6 @@
 package searchfiles
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -13,15 +12,10 @@ import (
 )
 
 func New(msg *types.Message, sessionState *service.SessionState) layout.Model {
-	return toolcommon.NewBase(msg, sessionState, toolcommon.SimpleRendererWithResult(extractPattern, extractResult))
-}
-
-func extractPattern(args string) string {
-	var a builtin.SearchFilesArgs
-	if err := json.Unmarshal([]byte(args), &a); err != nil {
-		return ""
-	}
-	return a.Pattern
+	return toolcommon.NewBase(msg, sessionState, toolcommon.SimpleRendererWithResult(
+		toolcommon.ExtractField(func(a builtin.SearchFilesArgs) string { return a.Pattern }),
+		extractResult,
+	))
 }
 
 func extractResult(msg *types.Message) string {

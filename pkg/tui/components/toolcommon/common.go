@@ -13,6 +13,28 @@ import (
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
+// ParseArgs unmarshals JSON arguments into a typed struct.
+// Returns an error if parsing fails.
+func ParseArgs[T any](args string) (T, error) {
+	var result T
+	if err := json.Unmarshal([]byte(args), &result); err != nil {
+		return result, err
+	}
+	return result, nil
+}
+
+// ExtractField creates an argument extractor function that parses JSON and extracts a field.
+// The field function receives the parsed args and returns the display string.
+func ExtractField[T any](field func(T) string) func(string) string {
+	return func(args string) string {
+		parsed, err := ParseArgs[T](args)
+		if err != nil {
+			return ""
+		}
+		return field(parsed)
+	}
+}
+
 func Icon(msg *types.Message, inProgress spinner.Spinner) string {
 	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
 		return styles.NoStyle.MarginLeft(2).Render(inProgress.View())
