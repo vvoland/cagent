@@ -44,26 +44,6 @@ func IsEscapeKey(msg tea.KeyPressMsg) bool {
 	return msg.String() == "esc"
 }
 
-// MouseWheelDirection returns the scroll direction from a mouse wheel event
-// Returns 1 for scroll down, -1 for scroll up, 0 for no scroll
-func MouseWheelDirection(msg tea.MouseWheelMsg) int {
-	buttonStr := msg.Button.String()
-	switch buttonStr {
-	case "wheelup":
-		return -1
-	case "wheeldown":
-		return 1
-	default:
-		// Fallback to Y value for other wheel types
-		if msg.Y < 0 {
-			return -1
-		} else if msg.Y > 0 {
-			return 1
-		}
-		return 0
-	}
-}
-
 // NavigationKeys are common keys used for navigation that components might want to handle
 var NavigationKeys = []string{"up", "down", "left", "right", "k", "j", "h", "l", "enter", "esc"}
 
