@@ -140,3 +140,17 @@ func ShortenPath(path string) string {
 	}
 	return path
 }
+
+// TruncateText truncates text to fit within maxWidth, adding an ellipsis if needed.
+// Uses lipgloss.Width for proper Unicode handling.
+func TruncateText(text string, maxWidth int) string {
+	if lipgloss.Width(text) <= maxWidth {
+		return text
+	}
+	// Truncate by runes to handle Unicode properly
+	runes := []rune(text)
+	for lipgloss.Width(string(runes)) > maxWidth-1 && len(runes) > 0 {
+		runes = runes[:len(runes)-1]
+	}
+	return string(runes) + "…"
+}

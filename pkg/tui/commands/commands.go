@@ -5,10 +5,10 @@ import (
 	"fmt"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/feedback"
+	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/messages"
 )
@@ -148,15 +148,7 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 		for name, prompt := range agentCommands {
 
 			// Truncate long descriptions to fit on one line
-			description := prompt
-			if lipgloss.Width(description) > 60 {
-				// Truncate by runes to handle Unicode properly
-				runes := []rune(description)
-				for lipgloss.Width(string(runes)) > 59 && len(runes) > 0 {
-					runes = runes[:len(runes)-1]
-				}
-				description = string(runes) + "…"
-			}
+			description := toolcommon.TruncateText(prompt, 60)
 
 			commands = append(commands, Item{
 				ID:          "agent.command." + name,
@@ -203,14 +195,7 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 			}
 
 			// Truncate long descriptions to fit on one line
-			if lipgloss.Width(description) > 55 {
-				// Truncate by runes to handle Unicode properly
-				runes := []rune(description)
-				for lipgloss.Width(string(runes)) > 54 && len(runes) > 0 {
-					runes = runes[:len(runes)-1]
-				}
-				description = string(runes) + "…"
-			}
+			description = toolcommon.TruncateText(description, 55)
 
 			// Create closure variables to capture current iteration values
 			currentPromptName := promptName
