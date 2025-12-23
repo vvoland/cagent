@@ -34,16 +34,6 @@ func GetScrollDirection(msg tea.KeyPressMsg) (ScrollDirection, bool) {
 	return dir, ok
 }
 
-// IsQuitKey returns true if the key is ctrl+c
-func IsQuitKey(msg tea.KeyPressMsg) bool {
-	return msg.String() == "ctrl+c"
-}
-
-// IsEscapeKey returns true if the key is escape
-func IsEscapeKey(msg tea.KeyPressMsg) bool {
-	return msg.String() == "esc"
-}
-
 // NavigationKeys are common keys used for navigation that components might want to handle
 var NavigationKeys = []string{"up", "down", "left", "right", "k", "j", "h", "l", "enter", "esc"}
 
