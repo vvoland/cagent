@@ -56,27 +56,45 @@ var (
 	defaultFactory  = NewFactory(defaultRegistry)
 )
 
+// toolRegistration pairs tool names with their component builder.
+type toolRegistration struct {
+	names   []string
+	builder ComponentBuilder
+}
+
 func newDefaultRegistry() *Registry {
 	registry := NewRegistry()
 
-	registry.Register(builtin.ToolNameTransferTask, transfertask.New)
-	registry.Register(builtin.ToolNameHandoff, handoff.New)
-	registry.Register(builtin.ToolNameEditFile, editfile.New)
-	registry.Register(builtin.ToolNameWriteFile, writefile.New)
-	registry.Register(builtin.ToolNameReadFile, readfile.New)
-	registry.Register(builtin.ToolNameReadMultipleFiles, readmultiplefiles.New)
-	registry.Register(builtin.ToolNameListDirectory, listdirectory.New)
-	registry.Register(builtin.ToolNameSearchFiles, searchfiles.New)
-	registry.Register(builtin.ToolNameCreateTodo, todotool.New)
-	registry.Register(builtin.ToolNameCreateTodos, todotool.New)
-	registry.Register(builtin.ToolNameUpdateTodo, todotool.New)
-	registry.Register(builtin.ToolNameListTodos, todotool.New)
-	registry.Register(builtin.ToolNameShell, shell.New)
-	registry.Register(builtin.ToolNameFetch, api.New)
-	registry.Register(builtin.ToolNameAddAllowedDirectory, allowed.New)
+	// Define tool registrations in a declarative manner.
+	// Tools with the same builder are grouped together.
+	registrations := []toolRegistration{
+		{[]string{builtin.ToolNameTransferTask}, transfertask.New},
+		{[]string{builtin.ToolNameHandoff}, handoff.New},
+		{[]string{builtin.ToolNameEditFile}, editfile.New},
+		{[]string{builtin.ToolNameWriteFile}, writefile.New},
+		{[]string{builtin.ToolNameReadFile}, readfile.New},
+		{[]string{builtin.ToolNameReadMultipleFiles}, readmultiplefiles.New},
+		{[]string{builtin.ToolNameListDirectory}, listdirectory.New},
+		{[]string{builtin.ToolNameSearchFiles}, searchfiles.New},
+		{[]string{builtin.ToolNameShell}, shell.New},
+		{[]string{builtin.ToolNameAddAllowedDirectory}, allowed.New},
+		{[]string{builtin.ToolNameFetch, "category:api"}, api.New},
+		{
+			[]string{
+				builtin.ToolNameCreateTodo,
+				builtin.ToolNameCreateTodos,
+				builtin.ToolNameUpdateTodo,
+				builtin.ToolNameListTodos,
+			},
+			todotool.New,
+		},
+	}
 
-	// Register category-based handlers
-	registry.Register("category:api", api.New)
+	for _, reg := range registrations {
+		for _, name := range reg.names {
+			registry.Register(name, reg.builder)
+		}
+	}
 
 	return registry
 }

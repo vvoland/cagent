@@ -21,12 +21,12 @@ type CommandExecuteMsg struct {
 
 // commandPaletteDialog implements Dialog for the command palette
 type commandPaletteDialog struct {
-	width, height int
-	textInput     textinput.Model
-	categories    []commands.Category
-	filtered      []commands.Item
-	selected      int
-	keyMap        commandPaletteKeyMap
+	BaseDialog
+	textInput  textinput.Model
+	categories []commands.Category
+	filtered   []commands.Item
+	selected   int
+	keyMap     commandPaletteKeyMap
 }
 
 // commandPaletteKeyMap defines key bindings for the command palette
@@ -93,11 +93,14 @@ func (d *commandPaletteDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		d.width = msg.Width
-		d.height = msg.Height
-		return d, nil
+		cmd := d.SetSize(msg.Width, msg.Height)
+		return d, cmd
 
 	case tea.KeyPressMsg:
+		if cmd := HandleQuit(msg); cmd != nil {
+			return d, cmd
+		}
+
 		switch {
 		case key.Matches(msg, d.keyMap.Escape):
 			return d, core.CmdHandler(CloseDialogMsg{})
@@ -124,9 +127,6 @@ func (d *commandPaletteDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 				return d, tea.Sequence(cmds...)
 			}
 			return d, nil
-
-		case msg.String() == "ctrl+c":
-			return d, tea.Quit
 
 		default:
 			var cmd tea.Cmd
@@ -171,19 +171,16 @@ func (d *commandPaletteDialog) filterCommands() {
 
 // View renders the command palette dialog
 func (d *commandPaletteDialog) View() string {
-	dialogWidth := max(min(d.width*80/100, 70), 80)
-
-	maxHeight := min(d.height*70/100, 30)
+	dialogWidth := max(min(d.Width()*80/100, 70), 80)
+	maxHeight := min(d.Height()*70/100, 30)
 	contentWidth := dialogWidth - 6
 
-	title := styles.DialogTitleStyle.Width(contentWidth).Render("Commands")
+	title := RenderTitle("Commands", contentWidth, styles.DialogTitleStyle)
 
 	d.textInput.SetWidth(contentWidth)
 	searchInput := d.textInput.View()
 
-	separator := styles.DialogSeparatorStyle.
-		Width(contentWidth).
-		Render(strings.Repeat("─", contentWidth))
+	separator := RenderSeparator(contentWidth)
 
 	var commandList []string
 	maxItems := maxHeight - 8
@@ -230,9 +227,7 @@ func (d *commandPaletteDialog) View() string {
 			Render("No commands found"))
 	}
 
-	help := styles.DialogHelpStyle.
-		Width(contentWidth).
-		Render("↑/↓ navigate • enter execute • esc close")
+	help := RenderHelp("↑/↓ navigate • enter execute • esc close", contentWidth)
 
 	parts := []string{
 		title,
@@ -267,14 +262,7 @@ func (d *commandPaletteDialog) renderCommand(cmd commands.Item, selected bool) s
 
 // Position calculates the position to center the dialog
 func (d *commandPaletteDialog) Position() (row, col int) {
-	dialogWidth := max(min(d.width*80/100, 70), 50)
-	maxHeight := min(d.height*70/100, 30)
-	return CenterPosition(d.width, d.height, dialogWidth, maxHeight)
-}
-
-// SetSize implements Dialog
-func (d *commandPaletteDialog) SetSize(width, height int) tea.Cmd {
-	d.width = width
-	d.height = height
-	return nil
+	dialogWidth := max(min(d.Width()*80/100, 70), 50)
+	maxHeight := min(d.Height()*70/100, 30)
+	return CenterPosition(d.Width(), d.Height(), dialogWidth, maxHeight)
 }

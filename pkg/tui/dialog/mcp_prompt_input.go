@@ -17,13 +17,13 @@ import (
 
 // MCPPromptInputDialog implements Dialog for collecting MCP prompt parameters
 type MCPPromptInputDialog struct {
-	width, height int
-	promptName    string
-	promptInfo    mcptools.PromptInfo
-	inputs        []textinput.Model
-	arguments     []mcptools.PromptArgument
-	currentInput  int
-	keyMap        mcpPromptInputKeyMap
+	BaseDialog
+	promptName   string
+	promptInfo   mcptools.PromptInfo
+	inputs       []textinput.Model
+	arguments    []mcptools.PromptArgument
+	currentInput int
+	keyMap       mcpPromptInputKeyMap
 }
 
 // mcpPromptInputKeyMap defines key bindings for the MCP prompt input dialog
@@ -103,11 +103,14 @@ func (d *MCPPromptInputDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		d.width = msg.Width
-		d.height = msg.Height
-		return d, nil
+		cmd := d.SetSize(msg.Width, msg.Height)
+		return d, cmd
 
 	case tea.KeyPressMsg:
+		if cmd := HandleQuit(msg); cmd != nil {
+			return d, cmd
+		}
+
 		switch {
 		case key.Matches(msg, d.keyMap.Escape):
 			return d, core.CmdHandler(CloseDialogMsg{})
@@ -156,9 +159,6 @@ func (d *MCPPromptInputDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			}
 			return d, nil
 
-		case msg.String() == "ctrl+c":
-			return d, tea.Quit
-
 		default:
 			// Update the current input
 			if d.currentInput < len(d.inputs) {
@@ -174,10 +174,10 @@ func (d *MCPPromptInputDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 // View renders the MCP prompt input dialog
 func (d *MCPPromptInputDialog) View() string {
-	dialogWidth := max(min(d.width*80/100, 80), 60)
+	dialogWidth := max(min(d.Width()*80/100, 80), 60)
 	contentWidth := dialogWidth - 6
 
-	title := styles.DialogTitleStyle.Width(contentWidth).Render("MCP Prompt: " + d.promptName)
+	title := RenderTitle("MCP Prompt: "+d.promptName, contentWidth, styles.DialogTitleStyle)
 
 	description := ""
 	if d.promptInfo.Description != "" {
@@ -186,9 +186,7 @@ func (d *MCPPromptInputDialog) View() string {
 			Render(d.promptInfo.Description)
 	}
 
-	separator := styles.DialogSeparatorStyle.
-		Width(contentWidth).
-		Render(strings.Repeat("─", contentWidth))
+	separator := RenderSeparator(contentWidth)
 
 	var inputsList []string
 
@@ -222,9 +220,7 @@ func (d *MCPPromptInputDialog) View() string {
 		}
 	}
 
-	help := styles.DialogHelpStyle.
-		Width(contentWidth).
-		Render("↑/↓ navigate • enter execute • esc cancel")
+	help := RenderHelp("↑/↓ navigate • enter execute • esc cancel", contentWidth)
 
 	parts := []string{title}
 	if description != "" {
@@ -241,14 +237,7 @@ func (d *MCPPromptInputDialog) View() string {
 
 // Position calculates the position to center the dialog
 func (d *MCPPromptInputDialog) Position() (row, col int) {
-	dialogWidth := max(min(d.width*80/100, 80), 60)
+	dialogWidth := max(min(d.Width()*80/100, 80), 60)
 	dialogHeight := 15 + len(d.inputs)*3 // Approximate height
-	return CenterPosition(d.width, d.height, dialogWidth, dialogHeight)
-}
-
-// SetSize implements Dialog
-func (d *MCPPromptInputDialog) SetSize(width, height int) tea.Cmd {
-	d.width = width
-	d.height = height
-	return nil
+	return CenterPosition(d.Width(), d.Height(), dialogWidth, dialogHeight)
 }

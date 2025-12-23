@@ -27,9 +27,9 @@ const (
 )
 
 type attachmentPreviewDialog struct {
-	width, height int
-	preview       editor.AttachmentPreview
-	viewport      viewport.Model
+	BaseDialog
+	preview  editor.AttachmentPreview
+	viewport viewport.Model
 
 	titleView     string
 	separatorView string
@@ -117,12 +117,11 @@ func (d *attachmentPreviewDialog) Position() (row, col int) {
 	if dialogWidth == 0 {
 		dialogWidth = dialogMinWidth
 	}
-	return CenterPosition(d.width, d.height, dialogWidth, dialogHeight)
+	return CenterPosition(d.Width(), d.Height(), dialogWidth, dialogHeight)
 }
 
 func (d *attachmentPreviewDialog) SetSize(width, height int) tea.Cmd {
-	d.width = width
-	d.height = height
+	d.BaseDialog.SetSize(width, height)
 
 	// Cache computed dimensions
 	d.dialogWidth = d.computeDialogWidth()
@@ -137,10 +136,7 @@ func (d *attachmentPreviewDialog) SetSize(width, height int) tea.Cmd {
 
 	// Pre-render chrome elements
 	d.titleView = renderSingleLine(styles.DialogTitleInfoStyle, d.preview.Title, d.innerWidth)
-	d.separatorView = styles.DialogSeparatorStyle.
-		Width(d.innerWidth).
-		Align(lipgloss.Center).
-		Render(strings.Repeat("─", d.innerWidth))
+	d.separatorView = RenderSeparator(d.innerWidth)
 
 	helpText := "[esc/q] close | scroll: ↑↓ / wheel"
 	d.helpView = renderSingleLine(styles.DialogHelpStyle, helpText, d.innerWidth)
@@ -166,9 +162,9 @@ func sanitizeContent(content string) string {
 }
 
 func (d *attachmentPreviewDialog) computeDialogWidth() int {
-	width := d.width * dialogSizePercent / 100
+	width := d.Width() * dialogSizePercent / 100
 	if width < 40 {
-		width = d.width - 4
+		width = d.Width() - 4
 	}
 	return max(dialogMinWidth, width)
 }

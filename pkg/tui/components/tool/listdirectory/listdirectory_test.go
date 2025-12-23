@@ -71,43 +71,27 @@ func TestExtractResult(t *testing.T) {
 	}
 }
 
-func TestPluralize(t *testing.T) {
+func TestFormatCount(t *testing.T) {
 	tests := []struct {
 		count    int
+		singular string
+		plural   string
 		expected string
 	}{
-		{0, "s"},
-		{1, ""},
-		{2, "s"},
-		{100, "s"},
+		{0, "file", "files", "0 files"},
+		{1, "file", "files", "1 file"},
+		{2, "file", "files", "2 files"},
+		{100, "file", "files", "100 files"},
+		{1, "directory", "directories", "1 directory"},
+		{2, "directory", "directories", "2 directories"},
 	}
 
 	for _, tt := range tests {
-		t.Run("", func(t *testing.T) {
-			result := pluralize(tt.count)
+		t.Run(tt.expected, func(t *testing.T) {
+			result := formatCount(tt.count, tt.singular, tt.plural)
 			if result != tt.expected {
-				t.Errorf("pluralize(%d) = %q, want %q", tt.count, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestPluralizeDirectory(t *testing.T) {
-	tests := []struct {
-		count    int
-		expected string
-	}{
-		{0, "ies"},
-		{1, "y"},
-		{2, "ies"},
-		{100, "ies"},
-	}
-
-	for _, tt := range tests {
-		t.Run("", func(t *testing.T) {
-			result := pluralizeDirectory(tt.count)
-			if result != tt.expected {
-				t.Errorf("pluralizeDirectory(%d) = %q, want %q", tt.count, result, tt.expected)
+				t.Errorf("formatCount(%d, %q, %q) = %q, want %q",
+					tt.count, tt.singular, tt.plural, result, tt.expected)
 			}
 		})
 	}

@@ -35,10 +35,10 @@ func extractResult(msg *types.Message) string {
 
 	var parts []string
 	if fileCount > 0 {
-		parts = append(parts, fmt.Sprintf("%d file%s", fileCount, pluralize(fileCount)))
+		parts = append(parts, formatCount(fileCount, "file", "files"))
 	}
 	if dirCount > 0 {
-		parts = append(parts, fmt.Sprintf("%d director%s", dirCount, pluralizeDirectory(dirCount)))
+		parts = append(parts, formatCount(dirCount, "directory", "directories"))
 	}
 
 	result := strings.Join(parts, " and ")
@@ -48,16 +48,10 @@ func extractResult(msg *types.Message) string {
 	return result
 }
 
-func pluralize(count int) string {
+// formatCount returns a formatted count with proper singular/plural form.
+func formatCount(count int, singular, plural string) string {
 	if count == 1 {
-		return ""
+		return fmt.Sprintf("%d %s", count, singular)
 	}
-	return "s"
-}
-
-func pluralizeDirectory(count int) string {
-	if count == 1 {
-		return "y"
-	}
-	return "ies"
+	return fmt.Sprintf("%d %s", count, plural)
 }
