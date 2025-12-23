@@ -117,16 +117,21 @@ type model struct {
 
 	// User scroll state
 	userHasScrolled bool // True when user manually scrolls away from bottom
+
+	// Message selection state
+	selectedMessageIndex int  // Index of selected message (-1 = no selection)
+	focused              bool // Whether the messages component is focused
 }
 
 // New creates a new message list component
 func New(a *app.App, sessionState *service.SessionState) Model {
 	return &model{
-		width:         120,
-		height:        24,
-		app:           a,
-		renderedItems: make(map[int]renderedItem),
-		sessionState:  sessionState,
+		width:                120,
+		height:               24,
+		app:                  a,
+		renderedItems:        make(map[int]renderedItem),
+		sessionState:         sessionState,
+		selectedMessageIndex: -1,
 	}
 }
 
@@ -134,10 +139,11 @@ func New(a *app.App, sessionState *service.SessionState) Model {
 // This is a lightweight version that doesn't require app or session state management
 func NewScrollableView(width, height int, sessionState *service.SessionState) Model {
 	return &model{
-		width:         width,
-		height:        height,
-		renderedItems: make(map[int]renderedItem),
-		sessionState:  sessionState,
+		width:                width,
+		height:               height,
+		renderedItems:        make(map[int]renderedItem),
+		sessionState:         sessionState,
+		selectedMessageIndex: -1,
 	}
 }
 
@@ -256,10 +262,24 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			m.clearSelection()
 			return m, nil
 		case "up", "k":
-			m.scrollUp()
+			if m.focused {
+				m.selectPreviousMessage()
+			} else {
+				m.scrollUp()
+			}
 			return m, nil
 		case "down", "j":
-			m.scrollDown()
+			if m.focused {
+				m.selectNextMessage()
+			} else {
+				m.scrollDown()
+			}
+			return m, nil
+		case "c":
+			if m.focused && m.selectedMessageIndex >= 0 {
+				cmd := m.copySelectedMessageToClipboard()
+				return m, cmd
+			}
 			return m, nil
 		case "pgup":
 			m.scrollPageUp()
@@ -368,11 +388,19 @@ func (m *model) GetSize() (width, height int) {
 
 // Focus gives focus to the component
 func (m *model) Focus() tea.Cmd {
+	m.focused = true
+	// Start with last selectable message selected when focusing
+	m.selectedMessageIndex = m.findLastSelectableMessage()
+	if m.selectedMessageIndex >= 0 {
+		m.scrollToSelectedMessage()
+	}
 	return nil
 }
 
 // Blur removes focus from the component
 func (m *model) Blur() tea.Cmd {
+	m.focused = false
+	m.selectedMessageIndex = -1
 	return nil
 }
 
@@ -381,11 +409,15 @@ func (m *model) Bindings() []key.Binding {
 	return []key.Binding{
 		key.NewBinding(
 			key.WithKeys("up"),
-			key.WithHelp("↑", "up"),
+			key.WithHelp("↑", "select prev"),
 		),
 		key.NewBinding(
 			key.WithKeys("down"),
-			key.WithHelp("↓", "down"),
+			key.WithHelp("↓", "select next"),
+		),
+		key.NewBinding(
+			key.WithKeys("c"),
+			key.WithHelp("c", "copy message"),
 		),
 	}
 }
@@ -438,6 +470,145 @@ func (m *model) scrollToBottom() {
 	m.setScrollOffset(9_999_999) // Will be clamped in View()
 }
 
+// isSelectableMessage returns true if the message type can be selected.
+// Only assistant messages can be selected.
+func (m *model) isSelectableMessage(index int) bool {
+	if index < 0 || index >= len(m.messages) {
+		return false
+	}
+	msg := m.messages[index]
+	switch msg.Type {
+	case types.MessageTypeAssistant,
+		types.MessageTypeAssistantReasoning:
+		return true
+	default:
+		return false
+	}
+}
+
+// findLastSelectableMessage returns the index of the last selectable message, or -1 if none.
+func (m *model) findLastSelectableMessage() int {
+	for i := len(m.messages) - 1; i >= 0; i-- {
+		if m.isSelectableMessage(i) {
+			return i
+		}
+	}
+	return -1
+}
+
+// findPreviousSelectableMessage returns the index of the previous selectable message
+// before the given index, or -1 if none.
+func (m *model) findPreviousSelectableMessage(fromIndex int) int {
+	for i := fromIndex - 1; i >= 0; i-- {
+		if m.isSelectableMessage(i) {
+			return i
+		}
+	}
+	return -1
+}
+
+// findNextSelectableMessage returns the index of the next selectable message
+// after the given index, or -1 if none.
+func (m *model) findNextSelectableMessage(fromIndex int) int {
+	for i := fromIndex + 1; i < len(m.messages); i++ {
+		if m.isSelectableMessage(i) {
+			return i
+		}
+	}
+	return -1
+}
+
+// selectPreviousMessage selects the previous selectable message in the list
+func (m *model) selectPreviousMessage() {
+	if len(m.messages) == 0 {
+		return
+	}
+	prevIndex := m.findPreviousSelectableMessage(m.selectedMessageIndex)
+	if prevIndex >= 0 {
+		m.selectedMessageIndex = prevIndex
+		m.invalidateAllItems() // Need to re-render to show selection
+		m.scrollToSelectedMessage()
+	}
+}
+
+// selectNextMessage selects the next selectable message in the list
+func (m *model) selectNextMessage() {
+	if len(m.messages) == 0 {
+		return
+	}
+	nextIndex := m.findNextSelectableMessage(m.selectedMessageIndex)
+	if nextIndex >= 0 {
+		m.selectedMessageIndex = nextIndex
+		m.invalidateAllItems() // Need to re-render to show selection
+		m.scrollToSelectedMessage()
+	}
+}
+
+// scrollToSelectedMessage ensures the selected message is visible
+func (m *model) scrollToSelectedMessage() {
+	if m.selectedMessageIndex < 0 || m.selectedMessageIndex >= len(m.messages) {
+		return
+	}
+
+	// Calculate the line range for the selected message
+	startLine := 0
+	for i := range m.selectedMessageIndex {
+		if i < len(m.views) {
+			item := m.renderItem(i, m.views[i])
+			startLine += item.height
+			// Add separator line between messages (except between consecutive tool calls)
+			if i < len(m.messages)-1 {
+				currentIsToolCall := m.messages[i].Type == types.MessageTypeToolCall
+				nextIsToolCall := m.messages[i+1].Type == types.MessageTypeToolCall
+				if !currentIsToolCall || !nextIsToolCall {
+					startLine++
+				}
+			}
+		}
+	}
+
+	var selectedHeight int
+	if m.selectedMessageIndex < len(m.views) {
+		item := m.renderItem(m.selectedMessageIndex, m.views[m.selectedMessageIndex])
+		selectedHeight = item.height
+	}
+	endLine := startLine + selectedHeight
+
+	// Scroll to make the selected message visible
+	if startLine < m.scrollOffset {
+		// Message is above viewport, scroll up
+		m.userHasScrolled = true
+		m.setScrollOffset(startLine)
+	} else if endLine > m.scrollOffset+m.height {
+		// Message is below viewport, scroll down
+		m.userHasScrolled = true
+		m.setScrollOffset(endLine - m.height)
+	}
+}
+
+// copySelectedMessageToClipboard copies the content of the selected message to clipboard
+func (m *model) copySelectedMessageToClipboard() tea.Cmd {
+	if m.selectedMessageIndex < 0 || m.selectedMessageIndex >= len(m.messages) {
+		return nil
+	}
+
+	msg := m.messages[m.selectedMessageIndex]
+	content := msg.Content
+
+	if content == "" {
+		return nil
+	}
+
+	return tea.Sequence(
+		tea.SetClipboard(content),
+		func() tea.Msg {
+			_ = clipboard.WriteAll(content)
+			return nil
+		},
+		notification.SuccessCmd("Message copied to clipboard."),
+	)
+}
+
 // setScrollOffset updates scroll offset and syncs with scrollbar
 func (m *model) setScrollOffset(offset int) {
 	m.scrollOffset = offset
@@ -474,8 +645,16 @@ func (m *model) shouldCacheMessage(index int) bool {
 
 // renderItem creates a renderedItem for a specific view with selective caching
 func (m *model) renderItem(index int, view layout.Model) renderedItem {
-	// Only check cache for messages that should be cached
-	if m.shouldCacheMessage(index) {
+	// Check if this message is selected
+	isSelected := m.focused && index == m.selectedMessageIndex
+
+	// Update selection state on message views (only message.Model supports selection)
+	if msgView, ok := view.(message.Model); ok {
+		msgView.SetSelected(isSelected)
+	}
+
+	// Don't cache selected items since selection state can change
+	if !isSelected && m.shouldCacheMessage(index) {
 		if cached, exists := m.renderedItems[index]; exists {
 			return cached
 		}
@@ -493,8 +672,8 @@ func (m *model) renderItem(index int, view layout.Model) renderedItem {
 		height: height,
 	}
 
-	// Only store in cache for messages that should be cached
-	if m.shouldCacheMessage(index) {
+	// Only store in cache for messages that should be cached and not selected
+	if !isSelected && m.shouldCacheMessage(index) {
 		m.renderedItems[index] = item
 	}
 
@@ -519,8 +698,9 @@ func (m *model) ensureAllItemsRendered() {
 		}
 
 		// Add content to complete rendered string
-		view := strings.TrimSuffix(item.view, "\n")
-		lines := strings.Split(view, "\n")
+		viewContent := strings.TrimSuffix(item.view, "\n")
+		lines := strings.Split(viewContent, "\n")
+
 		allLines = append(allLines, lines...)
 
 		// Add separator between messages, but not between consecutive tool calls

@@ -190,26 +190,32 @@ var (
 
 // Border Styles
 var (
-	UserMessageStyle = BaseStyle.
-				Padding(1, 2).
+	BaseMessageStyle = BaseStyle.
+				Padding(1, 1).
 				BorderLeft(true).
+				BorderStyle(lipgloss.HiddenBorder()).
+				BorderForeground(BorderPrimary)
+
+	UserMessageStyle = BaseMessageStyle.
 				BorderStyle(lipgloss.ThickBorder()).
 				BorderForeground(BorderPrimary).
-				Bold(true).
-				Background(BackgroundAlt)
+				Background(BackgroundAlt).
+				Bold(true)
 
-	AssistantMessageStyle = BaseStyle
+	AssistantMessageStyle = BaseMessageStyle.
+				Padding(0, 1)
 
-	WelcomeMessageStyle = BaseStyle.
-				Padding(1, 2).
-				BorderLeft(true).
+	WelcomeMessageStyle = BaseMessageStyle.
 				BorderStyle(lipgloss.DoubleBorder()).
 				Bold(true)
 
-	ErrorMessageStyle = ErrorStyle.
-				Padding(0, 2).
-				BorderLeft(true).
-				BorderStyle(lipgloss.ThickBorder())
+	ErrorMessageStyle = BaseMessageStyle.
+				BorderStyle(lipgloss.ThickBorder()).
+				Foreground(Error)
+
+	SelectedMessageStyle = AssistantMessageStyle.
+				BorderStyle(lipgloss.NormalBorder()).
+				BorderForeground(Success)
 )
 
 // Dialog Styles
@@ -331,21 +337,19 @@ var (
 			Background(lipgloss.Color(ColorDarkBlue)).
 			Padding(0, 1)
 
-	ToolNameError = ToolMessageStyle.
+	ToolNameError = ToolName.
 			Foreground(lipgloss.Color(ColorErrorStrong)).
-			Background(lipgloss.Color(ColorErrorDark)).
-			Padding(0, 1)
+			Background(lipgloss.Color(ColorErrorDark))
 
 	ToolCompletedIcon = BaseStyle.
+				MarginLeft(2).
 				Foreground(White).
 				Background(MobyBlue)
 
-	ToolErrorIcon = BaseStyle.
-			Foreground(White).
+	ToolErrorIcon = ToolCompletedIcon.
 			Background(lipgloss.Color(ColorErrorStrong))
 
-	ToolPendingIcon = BaseStyle.
-			Foreground(White).
+	ToolPendingIcon = ToolCompletedIcon.
 			Background(lipgloss.Color(ColorWarningYellow))
 
 	ToolCallArgs = ToolMessageStyle.
@@ -469,7 +473,8 @@ var (
 	AgentBadgeStyle = BaseStyle.
 		Foreground(AgentBadgeFg).
 		Background(AgentBadgeBg).
-		Padding(0, 1, 0, 1)
+		Padding(0, 1).
+		MarginLeft(2)
 )
 
 // Deprecated styles (kept for backward compatibility)
