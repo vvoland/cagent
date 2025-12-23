@@ -2,6 +2,7 @@ package defaulttool
 
 import (
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
@@ -62,7 +63,7 @@ func (c *Component) View() string {
 	var argsContent string
 	if msg.ToolCall.Function.Arguments != "" {
 		displayName := msg.ToolDefinition.DisplayName()
-		argsContent = renderToolArgs(msg.ToolCall, c.width-4-len(displayName), c.width-3)
+		argsContent = renderToolArgs(msg.ToolCall, c.width-4-lipgloss.Width(displayName), c.width-3)
 	}
 
 	if argsContent == "" {

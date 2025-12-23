@@ -144,13 +144,13 @@ func TestWrapLines(t *testing.T) {
 			name:     "unicode characters",
 			text:     "héllo wörld",
 			width:    8,
-			expected: []string{"héllo w", "örld"},
+			expected: []string{"héllo wö", "rld"},
 		},
 		{
 			name:     "tabs and special characters",
 			text:     "hello\tworld\ntest",
 			width:    8,
-			expected: []string{"hello\two", "rld", "test"},
+			expected: []string{"hello\twor", "ld", "test"},
 		},
 	}
 

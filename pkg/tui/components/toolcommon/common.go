@@ -91,9 +91,18 @@ func wrapLines(text string, width int) []string {
 	var lines []string
 
 	for line := range strings.SplitSeq(text, "\n") {
-		for len(line) > width {
-			lines = append(lines, line[:width])
-			line = line[width:]
+		for lipgloss.Width(line) > width {
+			// Find a break point that fits within width
+			runes := []rune(line)
+			breakPoint := len(runes)
+			for breakPoint > 0 && lipgloss.Width(string(runes[:breakPoint])) > width {
+				breakPoint--
+			}
+			if breakPoint == 0 {
+				breakPoint = 1 // At least one rune per line
+			}
+			lines = append(lines, string(runes[:breakPoint]))
+			line = string(runes[breakPoint:])
 		}
 
 		lines = append(lines, line)
