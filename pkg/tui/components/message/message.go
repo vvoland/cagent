@@ -19,6 +19,7 @@ type Model interface {
 	layout.Model
 	layout.Sizeable
 	SetMessage(msg *types.Message)
+	SetSelected(selected bool)
 }
 
 // messageModel implements Model
@@ -26,10 +27,11 @@ type messageModel struct {
 	message  *types.Message
 	previous *types.Message
 
-	width   int
-	height  int
-	focused bool
-	spinner spinner.Spinner
+	width    int
+	height   int
+	focused  bool
+	selected bool
+	spinner  spinner.Spinner
 }
 
 // New creates a new message view
@@ -56,6 +58,10 @@ func (mv *messageModel) Init() tea.Cmd {
 
 func (mv *messageModel) SetMessage(msg *types.Message) {
 	mv.message = msg
+}
+
+func (mv *messageModel) SetSelected(selected bool) {
+	mv.selected = selected
 }
 
 // Update handles messages and updates the message view state
@@ -86,7 +92,12 @@ func (mv *messageModel) Render(width int) string {
 			return mv.spinner.View()
 		}
 
-		rendered, err := markdown.NewRenderer(width - styles.AssistantMessageStyle.GetPaddingLeft()).Render(msg.Content)
+		messageStyle := styles.AssistantMessageStyle
+		if mv.selected {
+			messageStyle = styles.SelectedMessageStyle
+		}
+
+		rendered, err := markdown.NewRenderer(width - messageStyle.GetPaddingLeft() - 1).Render(msg.Content)
 		if err != nil {
 			rendered = msg.Content
 		} else {
@@ -94,10 +105,10 @@ func (mv *messageModel) Render(width int) string {
 		}
 
 		if mv.previous != nil && mv.previous.Type == msg.Type && mv.previous.Sender == msg.Sender {
-			return styles.AssistantMessageStyle.Render(rendered)
+			return messageStyle.Render(rendered)
 		}
 
-		return mv.senderPrefix(msg.Sender) + styles.AssistantMessageStyle.Render(rendered)
+		return mv.senderPrefix(msg.Sender) + messageStyle.Render(rendered)
 	case types.MessageTypeAssistantReasoning:
 		if msg.Content == "" {
 			return mv.spinner.View()

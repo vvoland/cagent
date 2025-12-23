@@ -14,7 +14,7 @@ import (
 
 func Icon(msg *types.Message, inProgress spinner.Spinner) string {
 	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
-		return inProgress.View()
+		return styles.NoStyle.MarginLeft(2).Render(inProgress.View())
 	}
 
 	switch msg.ToolStatus {
