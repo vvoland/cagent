@@ -366,27 +366,25 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	if a.completions.Open() {
 		// Check if this is a navigation key that the completion manager should handle
-		switch msg.String() {
-		case "up", "down", "enter", "esc":
+		if core.IsNavigationKey(msg) {
 			// Let completion manager handle navigation keys
 			u, completionCmd := a.completions.Update(msg)
 			a.completions = u.(completion.Manager)
 			return a, completionCmd
-
-		default:
-			// For all other keys (typing), send to both completion (for filtering) and editor
-			var cmds []tea.Cmd
-			u, completionCmd := a.completions.Update(msg)
-			a.completions = u.(completion.Manager)
-			cmds = append(cmds, completionCmd)
-
-			// Also send to chat page/editor so user can continue typing
-			updated, cmd := a.chatPage.Update(msg)
-			a.chatPage = updated.(chat.Page)
-			cmds = append(cmds, cmd)
-
-			return a, tea.Batch(cmds...)
 		}
+
+		// For all other keys (typing), send to both completion (for filtering) and editor
+		var cmds []tea.Cmd
+		u, completionCmd := a.completions.Update(msg)
+		a.completions = u.(completion.Manager)
+		cmds = append(cmds, completionCmd)
+
+		// Also send to chat page/editor so user can continue typing
+		updated, cmd := a.chatPage.Update(msg)
+		a.chatPage = updated.(chat.Page)
+		cmds = append(cmds, cmd)
+
+		return a, tea.Batch(cmds...)
 	}
 
 	switch {

@@ -150,13 +150,12 @@ func (d *toolConfirmationDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			)
 		}
 
-		if msg.String() == "ctrl+c" {
-			return d, tea.Quit
+		if cmd := HandleQuit(msg); cmd != nil {
+			return d, cmd
 		}
 
 		// Forward scrolling keys to the scroll view
-		switch msg.String() {
-		case "up", "k", "down", "j", "pgup", "pgdown", "home", "end":
+		if _, isScrollKey := core.GetScrollDirection(msg); isScrollKey {
 			updatedScrollView, cmd := d.scrollView.Update(msg)
 			d.scrollView = updatedScrollView.(messages.Model)
 			return d, cmd
