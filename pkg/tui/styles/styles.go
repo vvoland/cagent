@@ -377,6 +377,9 @@ var (
 	// SuggestionGhostStyle renders inline auto-complete hints in a muted tone.
 	// Use a distinct grey so suggestion text is visually separate from the user's input.
 	SuggestionGhostStyle = BaseStyle.Foreground(lipgloss.Color(ColorSuggestionGhost))
+	// SuggestionCursorStyle renders the first character of a suggestion inside the cursor.
+	// Uses the same blue accent background as the normal cursor, with ghost-colored foreground text.
+	SuggestionCursorStyle = BaseStyle.Background(Accent).Foreground(lipgloss.Color(ColorSuggestionGhost))
 
 	// Attachment banner styles - polished look with subtle border
 	AttachmentBannerStyle = BaseStyle.
