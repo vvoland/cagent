@@ -71,6 +71,11 @@ func TestFormatToolCallArguments_MapOfEmptyArray(t *testing.T) {
 	assert.Equal(t, `(array: [])`, formatted)
 }
 
+func TestFormatToolCallArguments_MapOfSingleItemArray(t *testing.T) {
+	formatted := formatToolCallArguments(`{"array": ["value"]}`)
+	assert.Equal(t, `(array: ["value"])`, formatted)
+}
+
 func TestFormatToolCallArguments_PlainText(t *testing.T) {
 	formatted := formatToolCallArguments(`Plain Text`)
 
