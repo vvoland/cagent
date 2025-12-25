@@ -64,7 +64,7 @@ func FormatToolResult(content string, width int) string {
 	}
 
 	padding := styles.ToolCallResult.Padding().GetHorizontalPadding()
-	availableWidth := max(width-5-padding, 10) // Minimum readable width
+	availableWidth := max(width-1-padding, 10) // Minimum readable width
 
 	lines := wrapLines(formattedContent, availableWidth)
 
