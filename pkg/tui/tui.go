@@ -287,6 +287,10 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.application.Resume(msg.Response)
 		return a, nil
 
+	case dialog.ExitConfirmedMsg:
+		a.chatPage.Cleanup()
+		return a, tea.Quit
+
 	case chat.EditorHeightChangedMsg:
 		a.completions.SetEditorBottom(msg.Height)
 		return a, nil
@@ -389,8 +393,9 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	switch {
 	case key.Matches(msg, a.keyMap.Quit):
-		a.chatPage.Cleanup()
-		return a, tea.Quit
+		return a, core.CmdHandler(dialog.OpenDialogMsg{
+			Model: dialog.NewExitConfirmationDialog(),
+		})
 
 	case key.Matches(msg, a.keyMap.CommandPalette):
 		categories := commands.BuildCommandCategories(context.Background(), a.application)
