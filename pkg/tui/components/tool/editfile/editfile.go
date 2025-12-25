@@ -33,7 +33,7 @@ func makeRenderer(sessionState *service.SessionState) toolcommon.Renderer {
 			styles.ToolMessageStyle.Render(toolcommon.ShortenPath(args.Path)))
 
 		if msg.ToolCall.Function.Arguments != "" {
-			content += "\n\n" + styles.ToolCallResult.Render(
+			content += "\n" + styles.ToolCallResult.Render(
 				renderEditFile(msg.ToolCall, width-1, sessionState.SplitDiffView, msg.ToolStatus))
 		}
 
