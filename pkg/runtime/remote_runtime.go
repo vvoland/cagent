@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -70,6 +71,15 @@ func (r *RemoteRuntime) CurrentAgentName() string {
 	return r.currentAgent
 }
 
+// SetCurrentAgent sets the currently active agent for subsequent user messages
+func (r *RemoteRuntime) SetCurrentAgent(agentName string) error {
+	// For remote runtime, we trust the server to validate the agent name
+	// The actual validation happens when RunStream is called
+	r.currentAgent = agentName
+	slog.Debug("Switched current agent (remote)", "agent", agentName)
+	return nil
+}
+
 func (r *RemoteRuntime) CurrentAgentCommands(ctx context.Context) map[string]string {
 	return r.readCurrentAgentConfig(ctx).Commands
 }
@@ -79,8 +89,32 @@ func (r *RemoteRuntime) EmitStartupInfo(ctx context.Context, events chan Event) 
 	cfg := r.readCurrentAgentConfig(ctx)
 
 	events <- AgentInfo(r.currentAgent, cfg.Model, cfg.Description, cfg.WelcomeMessage)
-	events <- TeamInfo(r.team.AgentNames(), r.currentAgent)
+	events <- TeamInfo(r.agentDetailsFromConfig(ctx), r.currentAgent)
 	events <- ToolsetInfo(len(cfg.Toolsets), r.currentAgent)
+}
+
+// agentDetailsFromConfig builds AgentDetails from remote config
+func (r *RemoteRuntime) agentDetailsFromConfig(ctx context.Context) []AgentDetails {
+	cfg, err := r.client.GetAgent(ctx, r.agentFilename)
+	if err != nil {
+		return nil
+	}
+
+	var details []AgentDetails
+	for name, agentCfg := range cfg.Agents {
+		info := AgentDetails{
+			Name:        name,
+			Description: agentCfg.Description,
+		}
+		if provider, model, found := strings.Cut(agentCfg.Model, "/"); found {
+			info.Provider = provider
+			info.Model = model
+		} else {
+			info.Model = agentCfg.Model
+		}
+		details = append(details, info)
+	}
+	return details
 }
 
 func (r *RemoteRuntime) readCurrentAgentConfig(ctx context.Context) latest.AgentConfig {

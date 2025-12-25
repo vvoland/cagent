@@ -192,6 +192,11 @@ func (a *App) Session() *session.Session {
 	return a.session
 }
 
+// SwitchAgent switches the currently active agent for subsequent user messages
+func (a *App) SwitchAgent(agentName string) error {
+	return a.runtime.SetCurrentAgent(agentName)
+}
+
 func (a *App) CompactSession() {
 	if a.session != nil {
 		events := make(chan runtime.Event, 100)

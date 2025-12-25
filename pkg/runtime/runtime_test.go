@@ -218,7 +218,7 @@ func TestSimple(t *testing.T) {
 
 	expectedEvents := []Event{
 		AgentInfo("root", "test/mock-model", "", ""),
-		TeamInfo([]string{"root"}, "root"),
+		TeamInfo([]AgentDetails{{Name: "root", Provider: "test", Model: "mock-model"}}, "root"),
 		ToolsetInfo(0, "root"),
 		UserMessage("Hi"),
 		StreamStarted(sess.ID, "root"),
@@ -246,7 +246,7 @@ func TestMultipleContentChunks(t *testing.T) {
 
 	expectedEvents := []Event{
 		AgentInfo("root", "test/mock-model", "", ""),
-		TeamInfo([]string{"root"}, "root"),
+		TeamInfo([]AgentDetails{{Name: "root", Provider: "test", Model: "mock-model"}}, "root"),
 		ToolsetInfo(0, "root"),
 		UserMessage("Please greet me"),
 		StreamStarted(sess.ID, "root"),
@@ -276,7 +276,7 @@ func TestWithReasoning(t *testing.T) {
 
 	expectedEvents := []Event{
 		AgentInfo("root", "test/mock-model", "", ""),
-		TeamInfo([]string{"root"}, "root"),
+		TeamInfo([]AgentDetails{{Name: "root", Provider: "test", Model: "mock-model"}}, "root"),
 		ToolsetInfo(0, "root"),
 		UserMessage("Hi"),
 		StreamStarted(sess.ID, "root"),
@@ -305,7 +305,7 @@ func TestMixedContentAndReasoning(t *testing.T) {
 
 	expectedEvents := []Event{
 		AgentInfo("root", "test/mock-model", "", ""),
-		TeamInfo([]string{"root"}, "root"),
+		TeamInfo([]AgentDetails{{Name: "root", Provider: "test", Model: "mock-model"}}, "root"),
 		ToolsetInfo(0, "root"),
 		UserMessage("Hi there"),
 		StreamStarted(sess.ID, "root"),
@@ -840,7 +840,10 @@ func TestEmitStartupInfo(t *testing.T) {
 	// Verify expected events are emitted
 	expectedEvents := []Event{
 		AgentInfo("startup-test-agent", "test/startup-model", "This is a startup test agent", "Welcome!"),
-		TeamInfo([]string{"other-agent", "startup-test-agent"}, "startup-test-agent"),
+		TeamInfo([]AgentDetails{
+			{Name: "other-agent", Description: "This is another agent", Provider: "test", Model: "startup-model"},
+			{Name: "startup-test-agent", Description: "This is a startup test agent", Provider: "test", Model: "startup-model"},
+		}, "startup-test-agent"),
 		ToolsetInfo(0, "startup-test-agent"), // No tools configured
 	}
 

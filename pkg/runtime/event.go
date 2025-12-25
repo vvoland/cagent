@@ -367,15 +367,23 @@ func AgentInfo(agentName, model, description, welcomeMessage string) Event {
 	}
 }
 
+// AgentDetails contains information about an agent for display in the sidebar
+type AgentDetails struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Provider    string `json:"provider"`
+	Model       string `json:"model"`
+}
+
 // TeamInfoEvent is sent when team information is available
 type TeamInfoEvent struct {
-	Type            string   `json:"type"`
-	AvailableAgents []string `json:"available_agents"`
-	CurrentAgent    string   `json:"current_agent"`
+	Type            string         `json:"type"`
+	AvailableAgents []AgentDetails `json:"available_agents"`
+	CurrentAgent    string         `json:"current_agent"`
 	AgentContext
 }
 
-func TeamInfo(availableAgents []string, currentAgent string) Event {
+func TeamInfo(availableAgents []AgentDetails, currentAgent string) Event {
 	return &TeamInfoEvent{
 		Type:            "team_info",
 		AvailableAgents: availableAgents,

@@ -53,6 +53,13 @@ func WarningCmd(text string) tea.Cmd {
 	})
 }
 
+func InfoCmd(text string) tea.Cmd {
+	return core.CmdHandler(ShowMsg{
+		Text: text,
+		Type: TypeInfo,
+	})
+}
+
 func ErrorCmd(text string) tea.Cmd {
 	return core.CmdHandler(ShowMsg{
 		Text: text,

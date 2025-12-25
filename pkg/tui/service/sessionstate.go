@@ -14,6 +14,8 @@ type SessionState struct {
 	SplitDiffView   bool
 	YoloMode        bool
 	PreviousMessage *types.Message
+	// CurrentAgent is the name of the currently active agent for user messages
+	CurrentAgent string
 }
 
 // NewSessionState creates a new SessionState with default values.
@@ -31,4 +33,8 @@ func (s *SessionState) ToggleSplitDiffView() {
 
 func (s *SessionState) SetYoloMode(enabled bool) {
 	s.YoloMode = enabled
+}
+
+func (s *SessionState) SetCurrentAgent(agentName string) {
+	s.CurrentAgent = agentName
 }

@@ -47,6 +47,10 @@ type appModel struct {
 	// Session state
 	sessionState *service.SessionState
 
+	// Agent state
+	availableAgents []runtime.AgentDetails
+	currentAgent    string
+
 	// State
 	ready bool
 	err   error
@@ -57,7 +61,7 @@ type KeyMap struct {
 	Quit           key.Binding
 	CommandPalette key.Binding
 	ToggleYolo     key.Binding
-	StartShell     key.Binding
+	SwitchAgent    key.Binding
 }
 
 // DefaultKeyMap returns the default global key bindings
@@ -75,9 +79,9 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("ctrl+y"),
 			key.WithHelp("Ctrl+y", "toggle yolo mode"),
 		),
-		StartShell: key.NewBinding(
+		SwitchAgent: key.NewBinding(
 			key.WithKeys("ctrl+s"),
-			key.WithHelp("Ctrl+s", "start a shell"),
+			key.WithHelp("Ctrl+s", "cycle agent"),
 		),
 	}
 }
@@ -175,6 +179,16 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case StartupEventsMsg:
 		var cmds []tea.Cmd
 		for _, event := range msg.Events {
+			// Track team and agent info for agent switching
+			switch ev := event.(type) {
+			case *runtime.TeamInfoEvent:
+				a.availableAgents = ev.AvailableAgents
+				a.currentAgent = ev.CurrentAgent
+				a.sessionState.SetCurrentAgent(ev.CurrentAgent)
+			case *runtime.AgentInfoEvent:
+				a.currentAgent = ev.AgentName
+				a.sessionState.SetCurrentAgent(ev.AgentName)
+			}
 			updated, cmd := a.chatPage.Update(event)
 			a.chatPage = updated.(chat.Page)
 			if cmd != nil {
@@ -182,6 +196,35 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return a, tea.Batch(cmds...)
+
+	case *runtime.TeamInfoEvent:
+		// Store team info for agent switching shortcuts
+		a.availableAgents = msg.AvailableAgents
+		a.currentAgent = msg.CurrentAgent
+		a.sessionState.SetCurrentAgent(msg.CurrentAgent)
+		// Forward to chat page
+		updated, cmd := a.chatPage.Update(msg)
+		a.chatPage = updated.(chat.Page)
+		return a, cmd
+
+	case *runtime.AgentInfoEvent:
+		// Track current agent
+		a.currentAgent = msg.AgentName
+		a.sessionState.SetCurrentAgent(msg.AgentName)
+		// Forward to chat page
+		updated, cmd := a.chatPage.Update(msg)
+		a.chatPage = updated.(chat.Page)
+		return a, cmd
+
+	case messages.SwitchAgentMsg:
+		// Switch the agent in the runtime
+		if err := a.application.SwitchAgent(msg.AgentName); err != nil {
+			return a, notification.ErrorCmd(fmt.Sprintf("Failed to switch to agent '%s': %v", msg.AgentName, err))
+		}
+		// Update local tracking
+		a.currentAgent = msg.AgentName
+		a.sessionState.SetCurrentAgent(msg.AgentName)
+		return a, notification.SuccessCmd(fmt.Sprintf("Switched to agent '%s'", msg.AgentName))
 
 	case tea.WindowSizeMsg:
 		a.wWidth, a.wHeight = msg.Width, msg.Height
@@ -406,14 +449,59 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, a.keyMap.ToggleYolo):
 		return a, core.CmdHandler(messages.ToggleYoloMsg{})
 
-	case key.Matches(msg, a.keyMap.StartShell):
-		return a, core.CmdHandler(messages.StartShellMsg{})
+	case key.Matches(msg, a.keyMap.SwitchAgent):
+		// Cycle to the next agent in the list
+		return a.cycleToNextAgent()
 
 	default:
+		// Handle ctrl+1 through ctrl+9 for quick agent switching
+		if index := parseCtrlNumberKey(msg); index >= 0 {
+			return a.switchToAgentByIndex(index)
+		}
 		updated, cmd := a.chatPage.Update(msg)
 		a.chatPage = updated.(chat.Page)
 		return a, cmd
 	}
+}
+
+// parseCtrlNumberKey checks if msg is ctrl+1 through ctrl+9 and returns the index (0-8), or -1 if not matched
+func parseCtrlNumberKey(msg tea.KeyPressMsg) int {
+	s := msg.String()
+	if len(s) == 6 && s[:5] == "ctrl+" && s[5] >= '1' && s[5] <= '9' {
+		return int(s[5] - '1')
+	}
+	return -1
+}
+
+// switchToAgentByIndex switches to the agent at the given index
+func (a *appModel) switchToAgentByIndex(index int) (tea.Model, tea.Cmd) {
+	if index >= 0 && index < len(a.availableAgents) {
+		agentName := a.availableAgents[index].Name
+		if agentName != a.currentAgent {
+			return a, core.CmdHandler(messages.SwitchAgentMsg{AgentName: agentName})
+		}
+	}
+	return a, nil
+}
+
+// cycleToNextAgent cycles to the next agent in the available agents list
+func (a *appModel) cycleToNextAgent() (tea.Model, tea.Cmd) {
+	if len(a.availableAgents) <= 1 {
+		return a, notification.InfoCmd("No other agents available")
+	}
+
+	// Find the current agent index
+	currentIndex := -1
+	for i, agent := range a.availableAgents {
+		if agent.Name == a.currentAgent {
+			currentIndex = i
+			break
+		}
+	}
+
+	// Cycle to the next agent (wrap around to 0 if at the end)
+	nextIndex := (currentIndex + 1) % len(a.availableAgents)
+	return a.switchToAgentByIndex(nextIndex)
 }
 
 // View renders the complete application interface

@@ -94,6 +94,8 @@ type ElicitationRequestHandler func(ctx context.Context, message string, schema 
 type Runtime interface {
 	// CurrentAgentName returns the name of the currently active agent
 	CurrentAgentName() string
+	// SetCurrentAgent sets the currently active agent for subsequent user messages
+	SetCurrentAgent(agentName string) error
 	// CurrentAgentCommands returns the commands for the active agent
 	CurrentAgentCommands(ctx context.Context) map[string]string
 	// EmitStartupInfo emits initial agent, team, and toolset information for immediate display
@@ -337,6 +339,16 @@ func (r *LocalRuntime) CurrentAgentName() string {
 	return r.currentAgent
 }
 
+func (r *LocalRuntime) SetCurrentAgent(agentName string) error {
+	// Validate that the agent exists in the team
+	if _, err := r.team.Agent(agentName); err != nil {
+		return err
+	}
+	r.currentAgent = agentName
+	slog.Debug("Switched current agent", "agent", agentName)
+	return nil
+}
+
 func (r *LocalRuntime) CurrentAgentCommands(context.Context) map[string]string {
 	return r.CurrentAgent().Commands()
 }
@@ -421,6 +433,21 @@ func getAgentModelID(a *agent.Agent) string {
 	return ""
 }
 
+// agentDetailsFromTeam converts team agent info to AgentDetails for events
+func (r *LocalRuntime) agentDetailsFromTeam() []AgentDetails {
+	agentsInfo := r.team.AgentsInfo()
+	details := make([]AgentDetails, len(agentsInfo))
+	for i, info := range agentsInfo {
+		details[i] = AgentDetails{
+			Name:        info.Name,
+			Description: info.Description,
+			Provider:    info.Provider,
+			Model:       info.Model,
+		}
+	}
+	return details
+}
+
 // EmitStartupInfo emits initial agent, team, and toolset information for immediate sidebar display
 func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, events chan Event) {
 	// Prevent duplicate emissions
@@ -432,7 +459,7 @@ func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, events chan Event) {
 
 	// Emit agent information for sidebar display
 	events <- AgentInfo(a.Name(), getAgentModelID(a), a.Description(), a.WelcomeMessage())
-	events <- TeamInfo(r.team.AgentNames(), r.currentAgent)
+	events <- TeamInfo(r.agentDetailsFromTeam(), r.currentAgent)
 
 	// Emit agent warnings (if any)
 	r.emitAgentWarnings(a, events)
@@ -511,8 +538,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		events <- AgentInfo(a.Name(), getAgentModelID(a), a.Description(), a.WelcomeMessage())
 
 		// Emit team information
-		availableAgents := r.team.AgentNames()
-		events <- TeamInfo(availableAgents, r.currentAgent)
+		events <- TeamInfo(r.agentDetailsFromTeam(), r.currentAgent)
 
 		// Initialize RAG and forward events
 		r.InitializeRAG(ctx, events)
