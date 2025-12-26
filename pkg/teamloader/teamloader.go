@@ -215,7 +215,6 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 		if err != nil {
 			return nil, err
 		}
-		model.ID()
 		models = append(models, model)
 	}
 
