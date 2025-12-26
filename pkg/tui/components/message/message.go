@@ -145,7 +145,7 @@ func (mv *messageModel) senderPrefix(sender string) string {
 	if sender == "" {
 		return ""
 	}
-	return styles.AgentBadgeStyle.Render(sender) + "\n\n"
+	return styles.AgentBadgeStyle.MarginLeft(2).Render(sender) + "\n\n"
 }
 
 // Height calculates the height needed for this message view

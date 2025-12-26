@@ -471,8 +471,7 @@ var (
 	AgentBadgeStyle = BaseStyle.
 		Foreground(AgentBadgeFg).
 		Background(AgentBadgeBg).
-		Padding(0, 1).
-		MarginLeft(2)
+		Padding(0, 1)
 )
 
 // Deprecated styles (kept for backward compatibility)

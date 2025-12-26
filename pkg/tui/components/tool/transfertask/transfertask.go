@@ -22,7 +22,7 @@ func render(msg *types.Message, _ spinner.Spinner, _, _ int) string {
 		return ""
 	}
 
-	return styles.AgentBadgeStyle.Render(msg.Sender) +
+	return styles.AgentBadgeStyle.MarginLeft(2).Render(msg.Sender) +
 		" calls " +
 		styles.AgentBadgeStyle.Render(params.Agent) +
 		"\n\n" +
