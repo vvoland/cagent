@@ -71,11 +71,11 @@ func (t *ScriptShellTool) Instructions() string {
 	instructions.WriteString("The following custom shell tools are available:\n\n")
 
 	for name, tool := range t.shellTools {
-		instructions.WriteString(fmt.Sprintf("### %s\n", name))
+		fmt.Fprintf(&instructions, "### %s\n", name)
 		if tool.Description != "" {
-			instructions.WriteString(fmt.Sprintf("%s\n\n", tool.Description))
+			fmt.Fprintf(&instructions, "%s\n\n", tool.Description)
 		} else {
-			instructions.WriteString(fmt.Sprintf("Execute: `%s`\n\n", tool.Cmd))
+			fmt.Fprintf(&instructions, "Execute: `%s`\n\n", tool.Cmd)
 		}
 
 		if len(tool.Args) > 0 {
@@ -86,7 +86,7 @@ func (t *ScriptShellTool) Instructions() string {
 					required = " (required)"
 				}
 				description := argDef.(map[string]any)["description"].(string)
-				instructions.WriteString(fmt.Sprintf("- `%s`: %s%s\n", argName, description, required))
+				fmt.Fprintf(&instructions, "- `%s`: %s%s\n", argName, description, required)
 			}
 			instructions.WriteString("\n")
 		}

@@ -93,12 +93,12 @@ func RenderTool(msg *types.Message, inProgress spinner.Spinner, args, result str
 		if strings.Count(content, "\n") > 0 || strings.Count(result, "\n") > 0 {
 			content += "\n" + resultStyle.MarginLeft(styles.ToolCompletedIcon.GetMarginLeft()).Render(result)
 		} else {
-			remainingWidth := width - lipgloss.Width(content) - 2
+			remainingWidth := width - lipgloss.Width(content) - 1
 			content += " " + lipgloss.PlaceHorizontal(remainingWidth, lipgloss.Right, resultStyle.Render(result))
 		}
 	}
 
-	return styles.RenderComposite(styles.ToolMessageStyle.Width(width-1), content)
+	return styles.RenderComposite(styles.ToolMessageStyle.Width(width), content)
 }
 
 func wrapLines(text string, width int) []string {
