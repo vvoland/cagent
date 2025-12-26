@@ -16,6 +16,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/components/tab"
 	"github.com/docker/cagent/pkg/tui/components/tool/todotool"
+	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
@@ -529,31 +530,27 @@ func (m *model) renderAgentEntry(content *strings.Builder, agent runtime.AgentDe
 	// Calculate space needed to right-align the shortcut
 	nameWidth := lipgloss.Width(agentNameText)
 	hintWidth := lipgloss.Width(shortcutHint)
-	spaceWidth := m.width - nameWidth - hintWidth - 2 // -2 for padding
-	if spaceWidth < 1 {
-		spaceWidth = 1
-	}
+	spaceWidth := max(m.width-nameWidth-hintWidth-2, 1)
 	if shortcutHint != "" {
 		content.WriteString(agentNameText + strings.Repeat(" ", spaceWidth) + shortcutHint)
 	} else {
 		content.WriteString(agentNameText)
 	}
 
+	maxWidth := m.width - 4
+
 	if desc := agent.Description; desc != "" {
-		maxDescWidth := m.width - 2
-		if lipgloss.Width(desc) > maxDescWidth {
-			runes := []rune(desc)
-			for lipgloss.Width(string(runes)) > maxDescWidth-1 && len(runes) > 0 {
-				runes = runes[:len(runes)-1]
-			}
-			desc = string(runes) + "…"
-		}
 		content.WriteString("\n")
-		content.WriteString(desc)
+		content.WriteString(styles.MutedStyle.Render("├ "))
+		content.WriteString(toolcommon.TruncateText(desc, maxWidth))
 	}
 
-	content.WriteString("\nProvider: " + styles.MutedStyle.Render(agent.Provider))
-	content.WriteString("\nModel: " + styles.MutedStyle.Render(agent.Model))
+	content.WriteString("\n")
+	content.WriteString(styles.MutedStyle.Render("├ "))
+	content.WriteString(toolcommon.TruncateText("Provider: "+agent.Provider, maxWidth))
+	content.WriteString("\n")
+	content.WriteString(styles.MutedStyle.Render("└ "))
+	content.WriteString(toolcommon.TruncateText("Model: "+agent.Model, maxWidth))
 }
 
 // toolsetInfo renders the current toolset status information
