@@ -285,13 +285,13 @@ func (h *shellHandler) ListBackgroundJobs(_ context.Context, _ map[string]any) (
 		statusStr := statusToString(status)
 
 		elapsed := time.Since(job.startTime).Round(time.Second)
-		output.WriteString(fmt.Sprintf("ID: %s\n", jobID))
-		output.WriteString(fmt.Sprintf("  Command: %s\n", job.cmd))
-		output.WriteString(fmt.Sprintf("  Status: %s\n", statusStr))
-		output.WriteString(fmt.Sprintf("  Runtime: %s\n", elapsed))
+		fmt.Fprintf(&output, "ID: %s\n", jobID)
+		fmt.Fprintf(&output, "  Command: %s\n", job.cmd)
+		fmt.Fprintf(&output, "  Status: %s\n", statusStr)
+		fmt.Fprintf(&output, "  Runtime: %s\n", elapsed)
 		if status != statusRunning {
 			job.outputMu.RLock()
-			output.WriteString(fmt.Sprintf("  Exit Code: %d\n", job.exitCode))
+			fmt.Fprintf(&output, "  Exit Code: %d\n", job.exitCode)
 			job.outputMu.RUnlock()
 		}
 		output.WriteString("\n")
@@ -320,12 +320,12 @@ func (h *shellHandler) ViewBackgroundJob(_ context.Context, params ViewBackgroun
 	job.outputMu.RUnlock()
 
 	var result strings.Builder
-	result.WriteString(fmt.Sprintf("Job ID: %s\n", job.id))
-	result.WriteString(fmt.Sprintf("Command: %s\n", job.cmd))
-	result.WriteString(fmt.Sprintf("Status: %s\n", statusStr))
-	result.WriteString(fmt.Sprintf("Runtime: %s\n", time.Since(job.startTime).Round(time.Second)))
+	fmt.Fprintf(&result, "Job ID: %s\n", job.id)
+	fmt.Fprintf(&result, "Command: %s\n", job.cmd)
+	fmt.Fprintf(&result, "Status: %s\n", statusStr)
+	fmt.Fprintf(&result, "Runtime: %s\n", time.Since(job.startTime).Round(time.Second))
 	if status != statusRunning {
-		result.WriteString(fmt.Sprintf("Exit Code: %d\n", exitCode))
+		fmt.Fprintf(&result, "Exit Code: %d\n", exitCode)
 	}
 	result.WriteString("\n--- Output ---\n")
 	if output == "" {
