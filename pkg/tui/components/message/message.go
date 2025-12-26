@@ -86,7 +86,7 @@ func (mv *messageModel) Render(width int) string {
 	case types.MessageTypeSpinner:
 		return mv.spinner.View()
 	case types.MessageTypeUser:
-		return styles.UserMessageStyle.Width(width - 1).Render(msg.Content)
+		return styles.UserMessageStyle.Width(width).Render(msg.Content)
 	case types.MessageTypeAssistant:
 		if msg.Content == "" {
 			return mv.spinner.View()
