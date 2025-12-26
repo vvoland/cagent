@@ -54,6 +54,37 @@ func (t *Team) AgentNames() []string {
 	return names
 }
 
+// AgentInfo contains information about an agent
+type AgentInfo struct {
+	Name        string
+	Description string
+	Provider    string
+	Model       string
+}
+
+// AgentsInfo returns information about all agents in the team
+func (t *Team) AgentsInfo() []AgentInfo {
+	var infos []AgentInfo
+	for _, name := range t.AgentNames() {
+		a := t.agents[name]
+		info := AgentInfo{
+			Name:        name,
+			Description: a.Description(),
+		}
+		if model := a.Model(); model != nil {
+			modelID := model.ID()
+			if prov, modelName, found := strings.Cut(modelID, "/"); found {
+				info.Provider = prov
+				info.Model = modelName
+			} else {
+				info.Model = modelID
+			}
+		}
+		infos = append(infos, info)
+	}
+	return infos
+}
+
 func (t *Team) Agent(name string) (*agent.Agent, error) {
 	if t.Size() == 0 {
 		return nil, errors.New("no agents loaded; ensure your agent configuration defines at least one agent")

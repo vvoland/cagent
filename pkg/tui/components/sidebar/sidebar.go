@@ -16,7 +16,6 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/components/tab"
 	"github.com/docker/cagent/pkg/tui/components/tool/todotool"
-	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
@@ -38,7 +37,7 @@ type Model interface {
 	SetTodos(result *tools.ToolCallResult) error
 	SetMode(mode Mode)
 	SetAgentInfo(agentName, model, description string)
-	SetTeamInfo(availableAgents []string)
+	SetTeamInfo(availableAgents []runtime.AgentDetails)
 	SetAgentSwitching(switching bool)
 	SetToolsetInfo(availableTools int)
 	GetSize() (width, height int)
@@ -66,7 +65,7 @@ type model struct {
 	currentAgent     string
 	agentModel       string
 	agentDescription string
-	availableAgents  []string
+	availableAgents  []runtime.AgentDetails
 	agentSwitching   bool
 	availableTools   int
 	sessionState     *service.SessionState
@@ -113,7 +112,7 @@ func (m *model) SetAgentInfo(agentName, model, description string) {
 }
 
 // SetTeamInfo sets the available agents in the team
-func (m *model) SetTeamInfo(availableAgents []string) {
+func (m *model) SetTeamInfo(availableAgents []runtime.AgentDetails) {
 	m.availableAgents = availableAgents
 }
 
@@ -498,46 +497,69 @@ func (m *model) sessionInfo() string {
 
 // agentInfo renders the current agent information
 func (m *model) agentInfo() string {
-	if m.currentAgent == "" {
+	// Read current agent from session state so sidebar updates when agent is switched
+	currentAgent := m.sessionState.CurrentAgent
+	if currentAgent == "" {
 		return ""
 	}
 
-	// Agent name with highlight and switching indicator
 	agentTitle := "Agent"
 	if m.agentSwitching {
-		agentTitle += " ↔" // switching indicator
-	}
-
-	// Current agent name
-	agentName := m.currentAgent
-	if m.agentSwitching {
-		agentName = "⟳ " + agentName // switching icon
+		agentTitle += " ↔"
 	}
 
 	var content strings.Builder
-	content.WriteString(styles.TabAccentStyle.Render(agentName))
-
-	// Agent description if available
-	if m.agentDescription != "" {
-		maxDescWidth := m.width - 2
-		description := toolcommon.TruncateText(m.agentDescription, maxDescWidth)
-
-		fmt.Fprintf(&content, "\n%s", description)
-	}
-
-	// Team info if multiple agents available
-	if len(m.availableAgents) > 1 {
-		fmt.Fprintf(&content, "\nTeam: %d agents", len(m.availableAgents))
-	}
-
-	// Model info if available
-	if m.agentModel != "" {
-		provider, model, _ := strings.Cut(m.agentModel, "/")
-		fmt.Fprintf(&content, "\nProvider: %s", provider)
-		fmt.Fprintf(&content, "\nModel: %s", model)
+	for i, agent := range m.availableAgents {
+		if content.Len() > 0 {
+			content.WriteString("\n\n")
+		}
+		isCurrent := agent.Name == currentAgent
+		m.renderAgentEntry(&content, agent, isCurrent, i)
 	}
 
 	return m.renderTab(agentTitle, content.String())
+}
+
+func (m *model) renderAgentEntry(content *strings.Builder, agent runtime.AgentDetails, isCurrent bool, index int) {
+	prefix := ""
+	if isCurrent {
+		prefix = "▶ "
+	}
+	// Agent name
+	agentNameText := styles.TabAccentStyle.Render(prefix + agent.Name)
+	// Shortcut hint (^1, ^2, etc.) - show for agents 1-9
+	var shortcutHint string
+	if index >= 0 && index < 9 {
+		shortcutHint = styles.MutedStyle.Render(fmt.Sprintf("^%d", index+1))
+	}
+	// Calculate space needed to right-align the shortcut
+	nameWidth := lipgloss.Width(agentNameText)
+	hintWidth := lipgloss.Width(shortcutHint)
+	spaceWidth := m.width - nameWidth - hintWidth - 2 // -2 for padding
+	if spaceWidth < 1 {
+		spaceWidth = 1
+	}
+	if shortcutHint != "" {
+		content.WriteString(agentNameText + strings.Repeat(" ", spaceWidth) + shortcutHint)
+	} else {
+		content.WriteString(agentNameText)
+	}
+
+	if desc := agent.Description; desc != "" {
+		maxDescWidth := m.width - 2
+		if lipgloss.Width(desc) > maxDescWidth {
+			runes := []rune(desc)
+			for lipgloss.Width(string(runes)) > maxDescWidth-1 && len(runes) > 0 {
+				runes = runes[:len(runes)-1]
+			}
+			desc = string(runes) + "…"
+		}
+		content.WriteString("\n")
+		content.WriteString(desc)
+	}
+
+	content.WriteString("\nProvider: " + styles.MutedStyle.Render(agent.Provider))
+	content.WriteString("\nModel: " + styles.MutedStyle.Render(agent.Model))
 }
 
 // toolsetInfo renders the current toolset status information

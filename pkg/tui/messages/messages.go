@@ -9,6 +9,7 @@ type (
 	CopySessionToClipboardMsg struct{}
 	ToggleYoloMsg             struct{}
 	StartShellMsg             struct{}
+	SwitchAgentMsg            struct{ AgentName string } // Switch to a specific agent by name
 )
 
 // AgentCommandMsg command message
