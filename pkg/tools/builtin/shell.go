@@ -415,7 +415,7 @@ On Windows, PowerShell (pwsh/powershell) is used when available; otherwise, cmd.
 On Unix-like systems, ${SHELL} is used or /bin/sh as fallback.
 
 **Working Directory Management**:
-- Default execution location: workspace root
+- Default execution location: working directory of the agent
 - Override with "cwd" parameter for targeted command execution
 - Supports both absolute and relative paths
 
@@ -434,7 +434,7 @@ On Unix-like systems, ${SHELL} is used or /bin/sh as fallback.
 ## Best Practices
 
 ### ✅ DO
-- Leverage the "cwd" parameter for directory-specific commands
+- Leverage the "cwd" parameter for directory-specific commands, rather than cding within commands
 - Quote arguments containing spaces or special characters
 - Use pipes and redirections
 - Write advanced scripts with heredocs, that replace a lot of simple commands or tool calls
