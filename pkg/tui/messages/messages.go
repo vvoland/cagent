@@ -3,6 +3,7 @@ package messages
 // Session command messages
 type (
 	NewSessionMsg             struct{}
+	ExitSessionMsg            struct{}
 	EvalSessionMsg            struct{ Filename string }
 	CompactSessionMsg         struct{}
 	CopySessionToClipboardMsg struct{}

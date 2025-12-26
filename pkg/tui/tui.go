@@ -214,6 +214,11 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.chatPage = updated.(chat.Page)
 		return a, cmd
 
+	case messages.ExitSessionMsg:
+		return a, core.CmdHandler(dialog.OpenDialogMsg{
+			Model: dialog.NewExitConfirmationDialog(),
+		})
+
 	case messages.NewSessionMsg:
 		a.application.NewSession()
 		sess := a.application.Session()
