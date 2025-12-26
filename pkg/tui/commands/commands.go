@@ -32,6 +32,16 @@ type Item struct {
 func builtInSessionCommands() []Item {
 	return []Item{
 		{
+			ID:           "session.exit",
+			Label:        "Exit",
+			SlashCommand: "/exit",
+			Description:  "Exit the application",
+			Category:     "Session",
+			Execute: func() tea.Cmd {
+				return core.CmdHandler(messages.ExitSessionMsg{})
+			},
+		},
+		{
 			ID:           "session.new",
 			Label:        "New",
 			SlashCommand: "/new",
