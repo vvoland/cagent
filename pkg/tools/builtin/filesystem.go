@@ -575,10 +575,10 @@ func (t *FilesystemTool) handleListDirectory(_ context.Context, args ListDirecto
 		}
 
 		if entry.IsDir() {
-			result.WriteString(fmt.Sprintf("DIR  %s\n", entry.Name()))
+			fmt.Fprintf(&result, "DIR  %s\n", entry.Name())
 			meta.Dirs = append(meta.Dirs, entry.Name())
 		} else {
-			result.WriteString(fmt.Sprintf("FILE %s\n", entry.Name()))
+			fmt.Fprintf(&result, "FILE %s\n", entry.Name())
 			meta.Files = append(meta.Files, entry.Name())
 		}
 		count++
@@ -687,7 +687,7 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadM
 	} else {
 		var result strings.Builder
 		for _, content := range contents {
-			result.WriteString(fmt.Sprintf("=== %s ===\n%s\n\n", content.Path, content.Content))
+			fmt.Fprintf(&result, "=== %s ===\n%s\n\n", content.Path, content.Content)
 		}
 		output = result.String()
 	}

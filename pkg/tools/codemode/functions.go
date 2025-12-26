@@ -12,7 +12,7 @@ func toolToJsDoc(tool tools.Tool) string {
 	var doc strings.Builder
 
 	doc.WriteString(toComment(&tool))
-	doc.WriteString(fmt.Sprintf("function %s(args: Input): Output { ... }\n", tool.Name))
+	fmt.Fprintf(&doc, "function %s(args: Input): Output { ... }\n", tool.Name)
 
 	return doc.String()
 }
