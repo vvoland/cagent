@@ -499,6 +499,9 @@ func (m *model) agentInfo() string {
 	}
 
 	agentTitle := "Agent"
+	if len(m.availableAgents) > 1 {
+		agentTitle = "Agents"
+	}
 	if m.agentSwitching {
 		agentTitle += " ↔"
 	}
