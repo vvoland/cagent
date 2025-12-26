@@ -10,7 +10,7 @@ import (
 const ToolNameThink = "think"
 
 type ThinkTool struct {
-	tools.ElicitationTool
+	tools.BaseToolSet
 	handler *thinkHandler
 }
 
@@ -64,12 +64,4 @@ func (t *ThinkTool) Tools(context.Context) ([]tools.Tool, error) {
 			},
 		},
 	}, nil
-}
-
-func (t *ThinkTool) Start(context.Context) error {
-	return nil
-}
-
-func (t *ThinkTool) Stop(context.Context) error {
-	return nil
 }

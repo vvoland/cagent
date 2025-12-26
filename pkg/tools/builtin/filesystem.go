@@ -38,7 +38,7 @@ type PostEditConfig struct {
 }
 
 type FilesystemTool struct {
-	tools.ElicitationTool
+	tools.BaseToolSet
 
 	allowedDirectories []string
 	postEditCommands   []PostEditConfig
@@ -876,14 +876,6 @@ func (t *FilesystemTool) handleWriteFile(ctx context.Context, args WriteFileArgs
 	}
 
 	return tools.ResultSuccess(fmt.Sprintf("File written successfully: %s (%d bytes)", args.Path, len(args.Content))), nil
-}
-
-func (t *FilesystemTool) Start(context.Context) error {
-	return nil
-}
-
-func (t *FilesystemTool) Stop(context.Context) error {
-	return nil
 }
 
 // matchExcludePattern checks if a path should be excluded based on the exclude pattern

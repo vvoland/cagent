@@ -11,33 +11,27 @@ import (
 )
 
 type stubToolSet struct {
-	startErr     error
-	tools        []tools.Tool
-	listErr      error
-	instructions string
+	tools.BaseToolSet
+	startErr error
+	tools    []tools.Tool
+	listErr  error
 }
 
 func newStubToolSet(startErr error, toolsList []tools.Tool, listErr error) tools.ToolSet {
 	return &stubToolSet{
-		startErr:     startErr,
-		tools:        toolsList,
-		listErr:      listErr,
-		instructions: "stub",
+		startErr: startErr,
+		tools:    toolsList,
+		listErr:  listErr,
 	}
 }
 
 func (s *stubToolSet) Start(context.Context) error { return s.startErr }
-func (s *stubToolSet) Stop(context.Context) error  { return nil }
 func (s *stubToolSet) Tools(context.Context) ([]tools.Tool, error) {
 	if s.listErr != nil {
 		return nil, s.listErr
 	}
 	return s.tools, nil
 }
-func (s *stubToolSet) Instructions() string                           { return s.instructions }
-func (s *stubToolSet) SetElicitationHandler(tools.ElicitationHandler) {}
-func (s *stubToolSet) SetOAuthSuccessHandler(func())                  {}
-func (s *stubToolSet) SetManagedOAuth(bool)                           {}
 
 func TestAgentTools(t *testing.T) {
 	tests := []struct {

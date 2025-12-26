@@ -26,7 +26,7 @@ const (
 )
 
 type ShellTool struct {
-	tools.ElicitationTool
+	tools.BaseToolSet
 	handler *shellHandler
 }
 
@@ -630,10 +630,6 @@ func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
 			},
 		},
 	}, nil
-}
-
-func (t *ShellTool) Start(context.Context) error {
-	return nil
 }
 
 func (t *ShellTool) Stop(context.Context) error {

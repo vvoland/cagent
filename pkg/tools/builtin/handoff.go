@@ -9,7 +9,7 @@ import (
 const ToolNameHandoff = "handoff"
 
 type HandoffTool struct {
-	tools.ElicitationTool
+	tools.BaseToolSet
 }
 
 // Make sure Handoff Tool implements the ToolSet Interface
@@ -21,10 +21,6 @@ type HandoffArgs struct {
 
 func NewHandoffTool() *HandoffTool {
 	return &HandoffTool{}
-}
-
-func (t *HandoffTool) Instructions() string {
-	return ""
 }
 
 func (t *HandoffTool) Tools(context.Context) ([]tools.Tool, error) {
@@ -40,12 +36,4 @@ func (t *HandoffTool) Tools(context.Context) ([]tools.Tool, error) {
 			},
 		},
 	}, nil
-}
-
-func (t *HandoffTool) Start(context.Context) error {
-	return nil
-}
-
-func (t *HandoffTool) Stop(context.Context) error {
-	return nil
 }

@@ -23,7 +23,7 @@ const (
 )
 
 type FetchTool struct {
-	tools.ElicitationTool
+	tools.BaseToolSet
 	handler *fetchHandler
 }
 
@@ -339,12 +339,4 @@ func (t *FetchTool) Tools(context.Context) ([]tools.Tool, error) {
 			},
 		},
 	}, nil
-}
-
-func (t *FetchTool) Start(context.Context) error {
-	return nil
-}
-
-func (t *FetchTool) Stop(context.Context) error {
-	return nil
 }

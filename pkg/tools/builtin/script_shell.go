@@ -14,7 +14,7 @@ import (
 )
 
 type ScriptShellTool struct {
-	tools.ElicitationTool
+	tools.BaseToolSet
 	shellTools map[string]latest.ScriptShellToolConfig
 	env        []string
 }
@@ -159,12 +159,4 @@ func (t *ScriptShellTool) execute(ctx context.Context, toolConfig *latest.Script
 	}
 
 	return tools.ResultSuccess(limitOutput(string(output))), nil
-}
-
-func (t *ScriptShellTool) Start(context.Context) error {
-	return nil
-}
-
-func (t *ScriptShellTool) Stop(context.Context) error {
-	return nil
 }

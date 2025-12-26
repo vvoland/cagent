@@ -18,7 +18,7 @@ const (
 )
 
 type TodoTool struct {
-	tools.ElicitationTool
+	tools.BaseToolSet
 	handler *todoHandler
 }
 
@@ -202,12 +202,4 @@ func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 			},
 		},
 	}, nil
-}
-
-func (t *TodoTool) Start(context.Context) error {
-	return nil
-}
-
-func (t *TodoTool) Stop(context.Context) error {
-	return nil
 }

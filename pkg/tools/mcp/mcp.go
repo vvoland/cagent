@@ -28,6 +28,14 @@ type mcpClient interface {
 	Close(ctx context.Context) error
 }
 
+// baseMCPClient provides default no-op implementations for optional mcpClient methods.
+// Embed this in MCP client implementations to reduce boilerplate.
+type baseMCPClient struct{}
+
+func (baseMCPClient) SetElicitationHandler(tools.ElicitationHandler) {}
+func (baseMCPClient) SetOAuthSuccessHandler(func())                  {}
+func (baseMCPClient) SetManagedOAuth(bool)                           {}
+
 // Toolset represents a set of MCP tools
 type Toolset struct {
 	name         string

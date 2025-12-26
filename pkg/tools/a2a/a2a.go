@@ -19,7 +19,7 @@ import (
 
 // Toolset implements tools.ToolSet for A2A remote agents.
 type Toolset struct {
-	tools.ElicitationTool
+	tools.BaseToolSet
 
 	name    string
 	url     string

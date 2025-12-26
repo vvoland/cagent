@@ -17,7 +17,7 @@ import (
 )
 
 type APITool struct {
-	tools.ElicitationTool
+	tools.BaseToolSet
 	handler *apiHandler
 	config  latest.APIToolConfig
 }
@@ -152,14 +152,6 @@ func (t *APITool) Tools(context.Context) ([]tools.Tool, error) {
 			},
 		},
 	}, nil
-}
-
-func (t *APITool) Start(context.Context) error {
-	return nil
-}
-
-func (t *APITool) Stop(context.Context) error {
-	return nil
 }
 
 func defaultsTo(value, defaultValue string) string {

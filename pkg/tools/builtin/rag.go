@@ -12,7 +12,7 @@ import (
 
 // RAGTool provides document querying capabilities for a single RAG source
 type RAGTool struct {
-	tools.ElicitationTool
+	tools.BaseToolSet
 	manager  *rag.Manager
 	toolName string
 }
@@ -135,14 +135,6 @@ func (t *RAGTool) handleQueryRAG(ctx context.Context, args QueryRAGArgs) (*tools
 	}
 
 	return tools.ResultSuccess(string(resultJSON)), nil
-}
-
-func (t *RAGTool) Start(context.Context) error {
-	return nil
-}
-
-func (t *RAGTool) Stop(context.Context) error {
-	return nil
 }
 
 // sortResults sorts query results by similarity in descending order

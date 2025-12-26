@@ -11,10 +11,10 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/docker/cagent/pkg/desktop"
-	"github.com/docker/cagent/pkg/tools"
 )
 
 type stdioMCPClient struct {
+	baseMCPClient
 	command string
 	args    []string
 	env     []string
@@ -102,9 +102,3 @@ func (c *stdioMCPClient) GetPrompt(ctx context.Context, request *mcp.GetPromptPa
 
 	return c.session.GetPrompt(ctx, request)
 }
-
-func (c *stdioMCPClient) SetElicitationHandler(tools.ElicitationHandler) {}
-
-func (c *stdioMCPClient) SetOAuthSuccessHandler(func()) {}
-
-func (c *stdioMCPClient) SetManagedOAuth(bool) {}

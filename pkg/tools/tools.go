@@ -72,19 +72,27 @@ type ElicitationResult struct {
 // This allows the runtime to handle elicitation requests and propagate them to its own client
 type ElicitationHandler func(ctx context.Context, req *mcp.ElicitParams) (ElicitationResult, error)
 
-type ElicitationTool struct{}
+// BaseToolSet provides default no-op implementations for common ToolSet methods.
+// Embed this in tool implementations to reduce boilerplate.
+type BaseToolSet struct{}
 
-func (t *ElicitationTool) SetElicitationHandler(ElicitationHandler) {
-	// No-op, this tool does not use elicitation
-}
+// Start is a no-op implementation.
+func (BaseToolSet) Start(context.Context) error { return nil }
 
-func (t *ElicitationTool) SetOAuthSuccessHandler(func()) {
-	// No-op, this tool does not use OAuth
-}
+// Stop is a no-op implementation.
+func (BaseToolSet) Stop(context.Context) error { return nil }
 
-func (t *ElicitationTool) SetManagedOAuth(bool) {
-	// No-op, this tool does not use OAuth
-}
+// Instructions returns an empty string by default.
+func (BaseToolSet) Instructions() string { return "" }
+
+// SetElicitationHandler is a no-op for tools that don't use elicitation.
+func (BaseToolSet) SetElicitationHandler(ElicitationHandler) {}
+
+// SetOAuthSuccessHandler is a no-op for tools that don't use OAuth.
+func (BaseToolSet) SetOAuthSuccessHandler(func()) {}
+
+// SetManagedOAuth is a no-op for tools that don't use OAuth.
+func (BaseToolSet) SetManagedOAuth(bool) {}
 
 type ToolSet interface {
 	Tools(ctx context.Context) ([]Tool, error)
