@@ -142,17 +142,16 @@ func formatCost(cost float64) string {
 }
 
 // contextPercent returns a context usage percentage string when a single session has a limit.
-func (m *model) contextPercent() (string, bool) {
-	if len(m.sessionUsage) != 1 {
-		return "", false
-	}
-	for _, usage := range m.sessionUsage {
-		if usage.ContextLimit > 0 {
-			percent := (float64(usage.ContextLength) / float64(usage.ContextLimit)) * 100
-			return fmt.Sprintf("%.0f%%", percent), true
+func (m *model) contextPercent() string {
+	if len(m.sessionUsage) == 1 {
+		for _, usage := range m.sessionUsage {
+			if usage.ContextLimit > 0 {
+				percent := (float64(usage.ContextLength) / float64(usage.ContextLimit)) * 100
+				return fmt.Sprintf("%.0f%%", percent)
+			}
 		}
 	}
-	return "", false
+	return "0%"
 }
 
 // getCurrentWorkingDirectory returns the current working directory with home directory replaced by ~/
@@ -272,14 +271,14 @@ func (m *model) verticalView() string {
 	if sessionInfo := m.sessionInfo(); sessionInfo != "" {
 		main = append(main, sessionInfo)
 	}
+	if usage := m.tokenUsage(); usage != "" {
+		main = append(main, usage)
+	}
 	if agentInfo := m.agentInfo(); agentInfo != "" {
 		main = append(main, agentInfo)
 	}
 	if toolsetInfo := m.toolsetInfo(); toolsetInfo != "" {
 		main = append(main, toolsetInfo)
-	}
-	if usage := m.tokenUsage(); usage != "" {
-		main = append(main, usage)
 	}
 
 	m.todoComp.SetSize(m.width)
@@ -441,10 +440,6 @@ func (m *model) workingIndicatorHorizontal() string {
 }
 
 func (m *model) tokenUsage() string {
-	if len(m.sessionUsage) == 0 {
-		return ""
-	}
-
 	var totalTokens int64
 	var totalCost float64
 	for _, usage := range m.sessionUsage {
@@ -454,7 +449,7 @@ func (m *model) tokenUsage() string {
 
 	var tokenUsage strings.Builder
 	fmt.Fprintf(&tokenUsage, "%s", formatTokenCount(totalTokens))
-	if ctxText, ok := m.contextPercent(); ok {
+	if ctxText := m.contextPercent(); ctxText != "" {
 		fmt.Fprintf(&tokenUsage, " (%s)", ctxText)
 	}
 	fmt.Fprintf(&tokenUsage, " %s", styles.TabAccentStyle.Render("$"+formatCost(totalCost)))
@@ -475,7 +470,7 @@ func (m *model) tokenUsageSummary() string {
 		totalCost += usage.Cost
 	}
 
-	if ctxText, ok := m.contextPercent(); ok {
+	if ctxText := m.contextPercent(); ctxText != "" {
 		return fmt.Sprintf("Tokens: %s | Cost: $%s | Context: %s", formatTokenCount(totalTokens), formatCost(totalCost), ctxText)
 	}
 
@@ -483,14 +478,13 @@ func (m *model) tokenUsageSummary() string {
 }
 
 func (m *model) sessionInfo() string {
-	var lines []string
+	lines := []string{
+		m.sessionTitle,
+		"",
+	}
 
-	lines = append(lines, m.sessionTitle, "")
 	if pwd := getCurrentWorkingDirectory(); pwd != "" {
 		lines = append(lines, styles.TabAccentStyle.Render("█")+styles.TabPrimaryStyle.Render(" "+pwd))
-	}
-	if working := m.workingIndicator(); working != "" {
-		lines = append(lines, working)
 	}
 
 	return m.renderTab("Session", strings.Join(lines, "\n"))
@@ -552,10 +546,15 @@ func (m *model) toolsetInfo() string {
 		shortcut := lipgloss.PlaceHorizontal(m.width-lipgloss.Width(indicator)-2, lipgloss.Right, styles.MutedStyle.Render("^y"))
 		lines = append(lines, indicator+shortcut)
 	}
+
 	if m.sessionState.SplitDiffView {
 		indicator := styles.TabAccentStyle.Render("✓") + styles.TabPrimaryStyle.Render(" Split Diff View enabled")
 		shortcut := lipgloss.PlaceHorizontal(m.width-lipgloss.Width(indicator)-2, lipgloss.Right, styles.MutedStyle.Render("^t"))
 		lines = append(lines, indicator+shortcut)
+	}
+
+	if working := m.workingIndicator(); working != "" {
+		lines = append(lines, working)
 	}
 
 	return m.renderTab("Tools", lipgloss.JoinVertical(lipgloss.Top, lines...))
