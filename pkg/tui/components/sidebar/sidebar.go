@@ -16,6 +16,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/components/tab"
 	"github.com/docker/cagent/pkg/tui/components/tool/todotool"
+	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
@@ -518,16 +519,8 @@ func (m *model) agentInfo() string {
 
 	// Agent description if available
 	if m.agentDescription != "" {
-		description := m.agentDescription
 		maxDescWidth := m.width - 2
-		if lipgloss.Width(description) > maxDescWidth {
-			// Truncate by runes to handle Unicode properly
-			runes := []rune(description)
-			for lipgloss.Width(string(runes)) > maxDescWidth-1 && len(runes) > 0 {
-				runes = runes[:len(runes)-1]
-			}
-			description = string(runes) + "…"
-		}
+		description := toolcommon.TruncateText(m.agentDescription, maxDescWidth)
 
 		fmt.Fprintf(&content, "\n%s", description)
 	}

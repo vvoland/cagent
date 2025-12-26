@@ -5,24 +5,12 @@ import (
 	"fmt"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/feedback"
+	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/messages"
-)
-
-type (
-	NewSessionMsg             = messages.NewSessionMsg
-	EvalSessionMsg            = messages.EvalSessionMsg
-	CompactSessionMsg         = messages.CompactSessionMsg
-	CopySessionToClipboardMsg = messages.CopySessionToClipboardMsg
-	ToggleYoloMsg             = messages.ToggleYoloMsg
-	StartShellMsg             = messages.StartShellMsg
-	AgentCommandMsg           = messages.AgentCommandMsg
-	MCPPromptMsg              = messages.MCPPromptMsg
-	OpenURLMsg                = messages.OpenURLMsg
 )
 
 // Category represents a category of commands
@@ -50,7 +38,7 @@ func builtInSessionCommands() []Item {
 			Description:  "Start a new conversation",
 			Category:     "Session",
 			Execute: func() tea.Cmd {
-				return core.CmdHandler(NewSessionMsg{})
+				return core.CmdHandler(messages.NewSessionMsg{})
 			},
 		},
 		{
@@ -60,7 +48,7 @@ func builtInSessionCommands() []Item {
 			Description:  "Summarize the current conversation",
 			Category:     "Session",
 			Execute: func() tea.Cmd {
-				return core.CmdHandler(CompactSessionMsg{})
+				return core.CmdHandler(messages.CompactSessionMsg{})
 			},
 		},
 		{
@@ -70,7 +58,7 @@ func builtInSessionCommands() []Item {
 			Description:  "Copy the current conversation to the clipboard",
 			Category:     "Session",
 			Execute: func() tea.Cmd {
-				return core.CmdHandler(CopySessionToClipboardMsg{})
+				return core.CmdHandler(messages.CopySessionToClipboardMsg{})
 			},
 		},
 		{
@@ -80,7 +68,7 @@ func builtInSessionCommands() []Item {
 			Description:  "Create an evaluation report (usage: /eval [filename])",
 			Category:     "Session",
 			Execute: func() tea.Cmd {
-				return core.CmdHandler(EvalSessionMsg{})
+				return core.CmdHandler(messages.EvalSessionMsg{})
 			},
 		},
 		{
@@ -90,7 +78,7 @@ func builtInSessionCommands() []Item {
 			Description:  "Toggle automatic approval of tool calls",
 			Category:     "Session",
 			Execute: func() tea.Cmd {
-				return core.CmdHandler(ToggleYoloMsg{})
+				return core.CmdHandler(messages.ToggleYoloMsg{})
 			},
 		},
 		{
@@ -100,7 +88,7 @@ func builtInSessionCommands() []Item {
 			Description:  "Start a shell",
 			Category:     "Session",
 			Execute: func() tea.Cmd {
-				return core.CmdHandler(StartShellMsg{})
+				return core.CmdHandler(messages.StartShellMsg{})
 			},
 		},
 	}
@@ -114,7 +102,7 @@ func builtInFeedbackCommands() []Item {
 			Description: "Report a bug or issue",
 			Category:    "Feedback",
 			Execute: func() tea.Cmd {
-				return core.CmdHandler(OpenURLMsg{URL: "https://github.com/docker/cagent/issues/new/choose"})
+				return core.CmdHandler(messages.OpenURLMsg{URL: "https://github.com/docker/cagent/issues/new/choose"})
 			},
 		},
 		{
@@ -123,7 +111,7 @@ func builtInFeedbackCommands() []Item {
 			Description: "Provide feedback about cagent",
 			Category:    "Feedback",
 			Execute: func() tea.Cmd {
-				return core.CmdHandler(OpenURLMsg{URL: feedback.Link})
+				return core.CmdHandler(messages.OpenURLMsg{URL: feedback.Link})
 			},
 		},
 	}
@@ -148,15 +136,7 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 		for name, prompt := range agentCommands {
 
 			// Truncate long descriptions to fit on one line
-			description := prompt
-			if lipgloss.Width(description) > 60 {
-				// Truncate by runes to handle Unicode properly
-				runes := []rune(description)
-				for lipgloss.Width(string(runes)) > 59 && len(runes) > 0 {
-					runes = runes[:len(runes)-1]
-				}
-				description = string(runes) + "…"
-			}
+			description := toolcommon.TruncateText(prompt, 60)
 
 			commands = append(commands, Item{
 				ID:          "agent.command." + name,
@@ -164,7 +144,7 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 				Description: description,
 				Category:    "Agent Commands",
 				Execute: func() tea.Cmd {
-					return core.CmdHandler(AgentCommandMsg{Command: "/" + name})
+					return core.CmdHandler(messages.AgentCommandMsg{Command: "/" + name})
 				},
 			})
 		}
@@ -203,14 +183,7 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 			}
 
 			// Truncate long descriptions to fit on one line
-			if lipgloss.Width(description) > 55 {
-				// Truncate by runes to handle Unicode properly
-				runes := []rune(description)
-				for lipgloss.Width(string(runes)) > 54 && len(runes) > 0 {
-					runes = runes[:len(runes)-1]
-				}
-				description = string(runes) + "…"
-			}
+			description = toolcommon.TruncateText(description, 55)
 
 			// Create closure variables to capture current iteration values
 			currentPromptName := promptName
@@ -233,7 +206,7 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 
 					if !hasRequiredArgs {
 						// Execute prompt with empty arguments
-						return core.CmdHandler(MCPPromptMsg{
+						return core.CmdHandler(messages.MCPPromptMsg{
 							PromptName: currentPromptName,
 							Arguments:  make(map[string]string),
 						})

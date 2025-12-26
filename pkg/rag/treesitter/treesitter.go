@@ -11,7 +11,7 @@ import (
 	"unicode/utf8"
 
 	sitter "github.com/smacker/go-tree-sitter"
-	golang "github.com/smacker/go-tree-sitter/golang"
+	"github.com/smacker/go-tree-sitter/golang"
 
 	"github.com/docker/cagent/pkg/rag/chunk"
 )

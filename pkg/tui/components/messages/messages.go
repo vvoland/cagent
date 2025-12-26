@@ -963,6 +963,39 @@ func (m *model) mouseToLineCol(x, y int) (line, col int) {
 	return line, col
 }
 
+// boxDrawingChars contains Unicode box-drawing characters used by lipgloss borders.
+// These need to be stripped when copying text to clipboard.
+var boxDrawingChars = map[rune]bool{
+	// Thick border characters
+	'┃': true, '━': true, '┏': true, '┓': true, '┗': true, '┛': true,
+	// Normal border characters
+	'│': true, '─': true, '┌': true, '┐': true, '└': true, '┘': true,
+	// Double border characters
+	'║': true, '═': true, '╔': true, '╗': true, '╚': true, '╝': true,
+	// Rounded border characters
+	'╭': true, '╮': true, '╯': true, '╰': true,
+	// Block border characters
+	'█': true, '▀': true, '▄': true,
+	// Additional box-drawing characters that might appear
+	'┣': true, '┫': true, '┳': true, '┻': true, '╋': true,
+	'├': true, '┤': true, '┬': true, '┴': true, '┼': true,
+	'╠': true, '╣': true, '╦': true, '╩': true, '╬': true,
+}
+
+// stripBorderChars removes box-drawing characters from text.
+// This is used when copying selected text to clipboard to avoid
+// including visual border decorations in the copied content.
+func stripBorderChars(s string) string {
+	var result strings.Builder
+	result.Grow(len(s))
+	for _, r := range s {
+		if !boxDrawingChars[r] {
+			result.WriteRune(r)
+		}
+	}
+	return result.String()
+}
+
 func (m *model) extractSelectedText() string {
 	if !m.selection.active {
 		return ""
@@ -988,28 +1021,40 @@ func (m *model) extractSelectedText() string {
 
 	var result strings.Builder
 	for i := startLine; i <= endLine && i < len(lines); i++ {
-		line := ansi.Strip(lines[i])
+		originalLine := lines[i]
+		// Strip ANSI codes first to get the displayed text with borders
+		plainLine := ansi.Strip(originalLine)
+		// Strip border characters to get the actual text content
+		line := stripBorderChars(plainLine)
 		runes := []rune(line)
+
+		// Calculate how many display columns were removed by stripping border chars
+		// This is needed to adjust the mouse column positions
+		borderOffset := runewidth.StringWidth(plainLine) - runewidth.StringWidth(line)
+
+		// Adjust column positions by subtracting the border offset
+		adjustedStartCol := max(0, startCol-borderOffset)
+		adjustedEndCol := max(0, endCol-borderOffset)
 
 		var lineText string
 		switch i {
 		case startLine:
 			if startLine == endLine {
-				startIdx := displayWidthToRuneIndex(line, startCol)
-				endIdx := min(displayWidthToRuneIndex(line, endCol), len(runes))
+				startIdx := displayWidthToRuneIndex(line, adjustedStartCol)
+				endIdx := min(displayWidthToRuneIndex(line, adjustedEndCol), len(runes))
 				if startIdx < len(runes) && startIdx < endIdx {
 					lineText = strings.TrimSpace(string(runes[startIdx:endIdx]))
 				}
 				break
 			}
 			// First line: from startCol to end
-			startIdx := displayWidthToRuneIndex(line, startCol)
+			startIdx := displayWidthToRuneIndex(line, adjustedStartCol)
 			if startIdx < len(runes) {
 				lineText = strings.TrimSpace(string(runes[startIdx:]))
 			}
 		case endLine:
 			// Last line: from start to endCol
-			endIdx := min(displayWidthToRuneIndex(line, endCol), len(runes))
+			endIdx := min(displayWidthToRuneIndex(line, adjustedEndCol), len(runes))
 			lineText = strings.TrimSpace(string(runes[:endIdx]))
 		default:
 			// Middle lines: entire line

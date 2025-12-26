@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
@@ -16,37 +15,10 @@ import (
 )
 
 type maxIterationsDialog struct {
-	width, height int
+	BaseDialog
 	maxIterations int
 	app           *app.App
-	keyMap        maxIterationsKeyMap
-}
-
-// SetSize implements [Dialog].
-func (d *maxIterationsDialog) SetSize(width, height int) tea.Cmd {
-	d.width = width
-	d.height = height
-	return nil
-}
-
-// maxIterationsKeyMap defines key bindings for max iterations confirmation dialog
-type maxIterationsKeyMap struct {
-	Yes key.Binding
-	No  key.Binding
-}
-
-// defaultMaxIterationsKeyMap returns default key bindings
-func defaultMaxIterationsKeyMap() maxIterationsKeyMap {
-	return maxIterationsKeyMap{
-		Yes: key.NewBinding(
-			key.WithKeys("y", "Y"),
-			key.WithHelp("Y", "continue"),
-		),
-		No: key.NewBinding(
-			key.WithKeys("n", "N"),
-			key.WithHelp("N", "stop"),
-		),
-	}
+	keyMap        ConfirmKeyMap
 }
 
 // NewMaxIterationsDialog creates a new max iterations confirmation dialog
@@ -54,7 +26,7 @@ func NewMaxIterationsDialog(maxIterations int, appInstance *app.App) Dialog {
 	return &maxIterationsDialog{
 		maxIterations: maxIterations,
 		app:           appInstance,
-		keyMap:        defaultMaxIterationsKeyMap(),
+		keyMap:        DefaultConfirmKeyMap(),
 	}
 }
 
@@ -67,19 +39,30 @@ func (d *maxIterationsDialog) Init() tea.Cmd {
 func (d *maxIterationsDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		d.width = msg.Width
-		d.height = msg.Height
-		return d, nil
+		cmd := d.SetSize(msg.Width, msg.Height)
+		return d, cmd
 
 	case tea.KeyPressMsg:
-		switch {
-		case key.Matches(msg, d.keyMap.Yes):
-			return d, tea.Sequence(core.CmdHandler(CloseDialogMsg{}), core.CmdHandler(RuntimeResumeMsg{Response: runtime.ResumeTypeApprove}))
-		case key.Matches(msg, d.keyMap.No):
-			return d, tea.Sequence(core.CmdHandler(CloseDialogMsg{}), core.CmdHandler(RuntimeResumeMsg{Response: runtime.ResumeTypeReject}))
+		if cmd := HandleQuit(msg); cmd != nil {
+			return d, cmd
 		}
-		if msg.String() == "ctrl+c" {
-			return d, tea.Quit
+
+		model, cmd, handled := HandleConfirmKeys(msg, d.keyMap,
+			func() (layout.Model, tea.Cmd) {
+				return d, tea.Sequence(
+					core.CmdHandler(CloseDialogMsg{}),
+					core.CmdHandler(RuntimeResumeMsg{Response: runtime.ResumeTypeApprove}),
+				)
+			},
+			func() (layout.Model, tea.Cmd) {
+				return d, tea.Sequence(
+					core.CmdHandler(CloseDialogMsg{}),
+					core.CmdHandler(RuntimeResumeMsg{Response: runtime.ResumeTypeReject}),
+				)
+			},
+		)
+		if handled {
+			return model, cmd
 		}
 	}
 
@@ -88,86 +71,42 @@ func (d *maxIterationsDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 // Position returns the dialog position (centered)
 func (d *maxIterationsDialog) Position() (row, col int) {
-	// Render the dialog content to measure its actual dimensions
-	dialogContent := d.View()
-
-	// Get the actual rendered dimensions
-	dialogWidth := lipgloss.Width(dialogContent)
-	dialogHeight := lipgloss.Height(dialogContent)
-
-	// Calculate centered position
-	col = max(0, (d.width-dialogWidth)/2)
-	row = max(0, (d.height-dialogHeight)/2)
-
-	// Ensure dialog fits on screen
-	if col+dialogWidth > d.width {
-		col = max(0, d.width-dialogWidth)
-	}
-	if row+dialogHeight > d.height {
-		row = max(0, d.height-dialogHeight)
-	}
-
-	return row, col
+	return d.CenterDialog(d.View())
 }
 
 // View renders the max iterations confirmation dialog
 func (d *maxIterationsDialog) View() string {
-	// clamped width: ~60% of screen, bounded by [36, 84] and screen margin
-	dialogWidth := d.width * 60 / 100
-	if dialogWidth < 36 {
-		dialogWidth = max(20, min(d.width-4, 36))
-	}
-	if dialogWidth > 84 {
-		dialogWidth = min(84, d.width-4)
-	}
-
-	padX := 2
-	padY := 1
-
-	// Border takes one character on each side when present
-	frameHorizontal := (padX * 2) + 2
-	contentWidth := max(10, dialogWidth-frameHorizontal)
+	dialogWidth := d.ComputeDialogWidth(60, 36, 84)
+	contentWidth := d.ContentWidth(dialogWidth, 2)
 
 	dialogStyle := styles.DialogWarningStyle.
-		Padding(padY, padX).
+		Padding(1, 2).
 		Width(dialogWidth)
 
-	title := styles.DialogTitleWarningStyle.
-		Width(contentWidth).
-		Render("Maximum Iterations Reached")
+	title := RenderTitle("Maximum Iterations Reached", contentWidth, styles.DialogTitleWarningStyle)
+	separator := RenderSeparator(contentWidth)
 
-	separatorWidth := max(1, contentWidth)
-	separator := styles.DialogSeparatorStyle.
-		Align(lipgloss.Center).
-		Width(contentWidth).
-		Render(strings.Repeat("─", separatorWidth))
-
-	// Info section
 	infoText := fmt.Sprintf("Max Iterations: %d", d.maxIterations)
-	infoWrapped := wrapDisplayText(infoText, contentWidth)
-	infoSection := styles.DialogContentStyle.Render(infoWrapped)
+	infoSection := styles.DialogContentStyle.Render(wrapDisplayText(infoText, contentWidth))
 
-	// Message section
-	message := styles.DialogContentStyle.Render(wrapDisplayText("The agent may be stuck in a loop. This can happen with smaller or less capable models.", contentWidth))
+	message := styles.DialogContentStyle.Render(wrapDisplayText(
+		"The agent may be stuck in a loop. This can happen with smaller or less capable models.",
+		contentWidth,
+	))
 
-	// Question section
 	question := styles.DialogQuestionStyle.
 		Width(contentWidth).
 		Render(wrapDisplayText("Do you want to continue for 10 more iterations?", contentWidth))
 
-	// Options section
-	options := styles.DialogOptionsStyle.
-		Width(contentWidth).
-		Render(wrapDisplayText("[Y]es    [N]o", contentWidth))
+	options := RenderOptions("[Y]es    [N]o", contentWidth)
 
-	// Combine all parts with proper spacing
 	parts := []string{title, separator, infoSection, "", message, "", question, "", options}
-
 	content := lipgloss.JoinVertical(lipgloss.Left, parts...)
+
 	return dialogStyle.Render(content)
 }
 
-// width-aware wrapping based on display cell width
+// wrapDisplayText wraps text based on display cell width.
 func wrapDisplayText(text string, maxWidth int) string {
 	if maxWidth <= 0 {
 		return text

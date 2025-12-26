@@ -14,7 +14,6 @@ import (
 
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/fake"
 	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
@@ -97,33 +96,29 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 	}
 
 	// Start fake proxy if --fake is specified
-	if f.fakeResponses != "" {
-		proxyURL, cleanup, err := fake.StartProxy(f.fakeResponses)
-		if err != nil {
-			return fmt.Errorf("failed to start fake proxy: %w", err)
-		}
-		defer func() {
-			if err := cleanup(); err != nil {
-				slog.Error("Failed to cleanup fake proxy", "error", err)
-			}
-		}()
-
-		f.runConfig.ModelsGateway = proxyURL
-		slog.Info("Fake mode enabled", "cassette", f.fakeResponses, "proxy", proxyURL)
+	fakeCleanup, err := setupFakeProxy(f.fakeResponses, &f.runConfig)
+	if err != nil {
+		return err
 	}
+	defer func() {
+		if err := fakeCleanup(); err != nil {
+			slog.Error("Failed to cleanup fake proxy", "error", err)
+		}
+	}()
 
 	// Record AI API interactions to a cassette file if --record flag is specified.
-	if cassettePath, cleanup, err := setupRecordingProxy(f.recordPath, &f.runConfig); err != nil {
+	cassettePath, recordCleanup, err := setupRecordingProxy(f.recordPath, &f.runConfig)
+	if err != nil {
 		return err
-	} else if cassettePath != "" {
-		defer cleanup()
+	}
+	if cassettePath != "" {
+		defer recordCleanup()
 		out.Println("Recording mode enabled, cassette: " + cassettePath)
 	}
 
 	var (
 		rt   runtime.Runtime
 		sess *session.Session
-		err  error
 	)
 	if f.remoteAddress != "" {
 		rt, sess, err = f.createRemoteRuntimeAndSession(ctx, agentFileName)

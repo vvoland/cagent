@@ -92,7 +92,6 @@ type editor struct {
 
 	suggestion    string
 	hasSuggestion bool
-	cursorHidden  bool
 	// userTyped tracks whether the user has manually typed content (vs loaded from history)
 	userTyped bool
 	// keyboardEnhancementsSupported tracks whether the terminal supports keyboard enhancements
@@ -155,14 +154,6 @@ func lineHasContent(line, prompt string) bool {
 	return strings.TrimSpace(plain) != ""
 }
 
-// lastInputLine returns the content of the final line from the textarea value.
-func lastInputLine(value string) string {
-	if idx := strings.LastIndex(value, "\n"); idx >= 0 {
-		return value[idx+1:]
-	}
-	return value
-}
-
 // extractLineText extracts the user input text from a rendered view line,
 // stripping ANSI codes and the prompt prefix.
 func extractLineText(line, prompt string) string {
@@ -173,21 +164,67 @@ func extractLineText(line, prompt string) string {
 	return strings.TrimRight(plain, " ")
 }
 
+// computeWrappedLines uses a textarea to compute how text would be wrapped,
+// matching the textarea's word-wrap behavior exactly.
+func (e *editor) computeWrappedLines(text string, startOffset int) []string {
+	// Create a temporary textarea with the same settings
+	ta := textarea.New()
+	ta.Prompt = e.textarea.Prompt
+	ta.ShowLineNumbers = e.textarea.ShowLineNumbers
+	ta.SetWidth(e.textarea.Width())
+	ta.SetHeight(100) // Large enough to see all wrapped lines
+
+	// For the first line, we need to account for the cursor position.
+	// We do this by prefixing with spaces to simulate the existing text.
+	prefix := strings.Repeat(" ", startOffset)
+	ta.SetValue(prefix + text)
+
+	view := ta.View()
+	viewLines := strings.Split(view, "\n")
+
+	// Extract the text content from each visual line
+	var result []string
+	for i, line := range viewLines {
+		plain := extractLineText(line, ta.Prompt)
+		if i == 0 {
+			// First line: remove the prefix spaces we added
+			if len(plain) >= startOffset {
+				plain = plain[startOffset:]
+			}
+		}
+		// Stop at empty lines (end of content)
+		if plain == "" && i > 0 {
+			break
+		}
+		result = append(result, plain)
+	}
+
+	if len(result) == 0 {
+		result = []string{text}
+	}
+
+	return result
+}
+
 // applySuggestionOverlay draws the inline suggestion on top of the textarea
-// view using the configured ghost style.
+// view using the configured ghost style. The first character appears with
+// cursor styling (reverse video) so it's visible inside the cursor block.
+// Multi-line suggestions are rendered across multiple visual lines.
 func (e *editor) applySuggestionOverlay(view string) string {
 	lines := strings.Split(view, "\n")
 	value := e.textarea.Value()
 	promptWidth := runewidth.StringWidth(stripANSI(e.textarea.Prompt))
 
-	// Get the text of the last line from the value (preserves trailing spaces)
-	currentLine := lastInputLine(value)
-	textWidth := runewidth.StringWidth(currentLine)
+	// Use LineInfo to get the actual cursor position within soft-wrapped lines
+	lineInfo := e.textarea.LineInfo()
+
+	// The cursor's column offset within the current visual line
+	textWidth := lineInfo.ColumnOffset
 
 	// Determine the target visual line for the overlay.
-	// If the value ends with a newline, the cursor is on the next (empty) line.
-	// Otherwise, find the last line with content.
+	// For soft-wrapped text, we need to find where the cursor actually is.
 	var targetLine int
+
 	if strings.HasSuffix(value, "\n") {
 		// Cursor is on the line after the last content line.
 		// Find the first empty line after content.
@@ -206,32 +243,130 @@ func (e *editor) applySuggestionOverlay(view string) string {
 		if targetLine >= len(lines) {
 			// Edge case: cursor line is beyond view (shouldn't happen normally)
 			targetLine = contentLine
-			// Use the visual line's text width since we're on the content line
 			textWidth = runewidth.StringWidth(extractLineText(lines[targetLine], e.textarea.Prompt))
 		}
 	} else {
-		// Cursor is at the end of content on the last line with content.
-		targetLine = -1
+		// For normal text (including soft-wrapped), use the row offset from LineInfo
+		// to find the correct visual line within the viewport.
+		// LineInfo().RowOffset gives us how many visual rows down the cursor is
+		// from the start of the current logical line.
+
+		// First, find the last visual line with content
+		lastContentLine := -1
 		for i := len(lines) - 1; i >= 0; i-- {
 			if lineHasContent(lines[i], e.textarea.Prompt) {
-				targetLine = i
+				lastContentLine = i
 				break
 			}
 		}
-		if targetLine == -1 {
+		if lastContentLine == -1 {
 			return view
+		}
+
+		// Calculate the target line based on the logical line's row offset
+		// For multi-line content, we need to account for previous lines
+		logicalLine := e.textarea.Line()
+		rowOffset := lineInfo.RowOffset
+
+		// Count how many visual lines come before the current logical line
+		visualLinesBeforeCursor := 0
+		valueLines := strings.Split(value, "\n")
+		for i := 0; i < logicalLine && i < len(valueLines); i++ {
+			lineWidth := runewidth.StringWidth(valueLines[i])
+			editorWidth := e.textarea.Width()
+			if editorWidth > 0 {
+				// Each logical line takes at least 1 visual line, plus extra for wrapping
+				visualLinesBeforeCursor += 1 + lineWidth/editorWidth
+			} else {
+				visualLinesBeforeCursor++
+			}
+		}
+
+		targetLine = visualLinesBeforeCursor + rowOffset
+
+		// Clamp to valid range
+		if targetLine >= len(lines) {
+			targetLine = lastContentLine
+		}
+		if targetLine < 0 {
+			targetLine = 0
 		}
 	}
 
-	ghost := styles.SuggestionGhostStyle.Render(e.suggestion)
+	// Use textarea's word-wrap logic to compute how the suggestion would be displayed.
+	// This ensures the suggestion wraps at the same points as when the text is accepted.
+	wrappedLines := e.computeWrappedLines(e.suggestion, textWidth)
 
 	baseLayer := lipgloss.NewLayer(view)
-	overlay := lipgloss.NewLayer(ghost).
-		X(promptWidth + textWidth).
-		Y(targetLine)
+	var overlays []*lipgloss.Layer
 
-	canvas := lipgloss.NewCanvas(baseLayer, overlay)
+	for i, suggLine := range wrappedLines {
+		if suggLine == "" && i > 0 {
+			// Empty line in middle of suggestion - skip but keep line count
+			continue
+		}
+
+		currentY := targetLine + i
+		// Note: We intentionally don't skip lines beyond the view.
+		// Lipgloss canvas will extend the output to accommodate overlays
+		// that are positioned beyond the base layer's boundaries.
+
+		var xOffset int
+		if i == 0 {
+			// First line starts at cursor position
+			xOffset = promptWidth + textWidth
+		} else {
+			// Subsequent lines start at the prompt position (column 0 after prompt)
+			xOffset = promptWidth
+		}
+
+		if i == 0 {
+			// First line: first character gets cursor styling, rest gets ghost styling
+			firstRune, restOfLine := splitFirstRune(suggLine)
+			cursorChar := styles.SuggestionCursorStyle.Render(firstRune)
+
+			cursorOverlay := lipgloss.NewLayer(cursorChar).
+				X(xOffset).
+				Y(currentY)
+			overlays = append(overlays, cursorOverlay)
+
+			if restOfLine != "" {
+				ghostRest := styles.SuggestionGhostStyle.Render(restOfLine)
+				restOverlay := lipgloss.NewLayer(ghostRest).
+					X(xOffset + runewidth.StringWidth(firstRune)).
+					Y(currentY)
+				overlays = append(overlays, restOverlay)
+			}
+		} else {
+			// Subsequent lines: all ghost styling
+			ghostLine := styles.SuggestionGhostStyle.Render(suggLine)
+			lineOverlay := lipgloss.NewLayer(ghostLine).
+				X(xOffset).
+				Y(currentY)
+			overlays = append(overlays, lineOverlay)
+		}
+	}
+
+	if len(overlays) == 0 {
+		return view
+	}
+
+	// Build canvas with all layers
+	allLayers := make([]*lipgloss.Layer, 0, len(overlays)+1)
+	allLayers = append(allLayers, baseLayer)
+	allLayers = append(allLayers, overlays...)
+
+	canvas := lipgloss.NewCanvas(allLayers...)
 	return canvas.Render()
+}
+
+// splitFirstRune splits a string into its first rune and the rest.
+func splitFirstRune(s string) (string, string) {
+	if s == "" {
+		return "", ""
+	}
+	runes := []rune(s)
+	return string(runes[0]), string(runes[1:])
 }
 
 // refreshSuggestion updates the cached suggestion to reflect the current
@@ -244,6 +379,14 @@ func (e *editor) refreshSuggestion() {
 
 	current := e.textarea.Value()
 	if current == "" {
+		e.clearSuggestion()
+		return
+	}
+
+	// Only show suggestions when cursor is at the end of the text.
+	// If cursor is not at the end, moving left/right would cause the
+	// suggestion overlay to overwrite existing characters.
+	if !e.isCursorAtEnd() {
 		e.clearSuggestion()
 		return
 	}
@@ -262,28 +405,44 @@ func (e *editor) refreshSuggestion() {
 	}
 
 	e.hasSuggestion = true
-	e.setCursorHidden(true)
+	// Keep cursor visible - suggestion is rendered as overlay after cursor position
 }
 
-// clearSuggestion removes any pending suggestion and restores the cursor.
+// clearSuggestion removes any pending suggestion.
 func (e *editor) clearSuggestion() {
-	if !e.hasSuggestion && !e.cursorHidden {
+	if !e.hasSuggestion {
 		return
 	}
 	e.hasSuggestion = false
 	e.suggestion = ""
-	e.setCursorHidden(false)
 }
 
-// setCursorHidden toggles the virtual cursor so the ghost suggestion can be
-// displayed without visual conflicts.
-func (e *editor) setCursorHidden(hidden bool) {
-	if e.cursorHidden == hidden {
-		return
+// isCursorAtEnd returns true if the cursor is at the end of the text.
+func (e *editor) isCursorAtEnd() bool {
+	value := e.textarea.Value()
+	if value == "" {
+		return true
 	}
 
-	e.cursorHidden = hidden
-	e.textarea.SetVirtualCursor(!hidden)
+	// Check if cursor is on the last logical line
+	lines := strings.Split(value, "\n")
+	lastLineIdx := len(lines) - 1
+	if e.textarea.Line() != lastLineIdx {
+		return false
+	}
+
+	// Check if cursor is at the end of the last line
+	lastLine := lines[lastLineIdx]
+	lastLineLen := len([]rune(lastLine))
+	lineInfo := e.textarea.LineInfo()
+
+	// For soft-wrapped lines, we need to calculate the total character position
+	// from the start of the logical line. CharOffset is relative to the visual line,
+	// so we need to add the characters from previous visual rows.
+	// StartColumn gives us the character index where the current visual line starts.
+	totalCharPos := lineInfo.StartColumn + lineInfo.ColumnOffset
+
+	return totalCharPos >= lastLineLen
 }
 
 // AcceptSuggestion applies the current suggestion into the textarea value and

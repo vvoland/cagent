@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
@@ -18,66 +16,23 @@ import (
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
-// Component is a specialized component for rendering read_multiple_files tool calls.
-type Component struct {
-	message *types.Message
-	spinner spinner.Spinner
-	width   int
-	height  int
+func New(msg *types.Message, sessionState *service.SessionState) layout.Model {
+	return toolcommon.NewBase(msg, sessionState, render)
 }
 
-// New creates a new read multiple files component.
-func New(
-	msg *types.Message,
-	_ *service.SessionState,
-) layout.Model {
-	return &Component{
-		message: msg,
-		spinner: spinner.New(spinner.ModeSpinnerOnly),
-		width:   80,
-		height:  1,
-	}
-}
-
-func (c *Component) SetSize(width, height int) tea.Cmd {
-	c.width = width
-	c.height = height
-	return nil
-}
-
-func (c *Component) Init() tea.Cmd {
-	if c.message.ToolStatus == types.ToolStatusPending || c.message.ToolStatus == types.ToolStatusRunning {
-		return c.spinner.Init()
-	}
-	return nil
-}
-
-func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
-	if c.message.ToolStatus == types.ToolStatusPending || c.message.ToolStatus == types.ToolStatusRunning {
-		model, cmd := c.spinner.Update(msg)
-		c.spinner = model.(spinner.Spinner)
-		return c, cmd
-	}
-
-	return c, nil
-}
-
-func (c *Component) View() string {
-	msg := c.message
-
+func render(msg *types.Message, s spinner.Spinner, width, _ int) string {
 	// Parse arguments
 	var args builtin.ReadMultipleFilesArgs
 	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &args); err != nil {
-		return toolcommon.RenderTool(msg, c.spinner, "", "", c.width)
+		return toolcommon.RenderTool(msg, s, "", "", width)
 	}
 
 	// For pending/running state, show files being read
 	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
-		params := formatFilesList(args.Paths)
-		return toolcommon.RenderTool(msg, c.spinner, params, "", c.width)
+		return toolcommon.RenderTool(msg, s, formatFilesList(args.Paths), "", width)
 	}
 
-	// For completed/error state, render header line followed by each file line
+	// For completed/error state, render each file line
 	var meta *builtin.ReadMultipleFilesMeta
 	if msg.ToolResult != nil {
 		if m, ok := msg.ToolResult.Meta.(builtin.ReadMultipleFilesMeta); ok {
@@ -94,10 +49,10 @@ func (c *Component) View() string {
 
 		// Icon / Tool name / File path
 		nameStyle := styles.ToolName
-		icon := toolcommon.Icon(msg, c.spinner)
+		icon := toolcommon.Icon(msg, s)
 		if summary.isError {
 			nameStyle = styles.ToolNameError
-			icon = toolcommon.Icon(&types.Message{ToolStatus: types.ToolStatusError}, c.spinner)
+			icon = toolcommon.Icon(&types.Message{ToolStatus: types.ToolStatusError}, s)
 		}
 		readCall := icon + nameStyle.Render("Read")
 		if summary.path != "" {
@@ -110,7 +65,7 @@ func (c *Component) View() string {
 			outputStyle = styles.ToolErrorMessageStyle
 		}
 		output := outputStyle.Render(summary.output)
-		padding := c.width - lipgloss.Width(readCall) - lipgloss.Width(output) - 2
+		padding := width - lipgloss.Width(readCall) - lipgloss.Width(output) - 2
 		if padding > 0 {
 			output = strings.Repeat(" ", padding) + output
 		}
@@ -120,8 +75,7 @@ func (c *Component) View() string {
 		content.WriteString(output)
 	}
 
-	// Apply tool message styling
-	return styles.RenderComposite(styles.ToolMessageStyle.Width(c.width-1), content.String())
+	return styles.RenderComposite(styles.ToolMessageStyle.Width(width-1), content.String())
 }
 
 type fileSummary struct {
@@ -130,17 +84,15 @@ type fileSummary struct {
 	isError bool
 }
 
-// formatSummaryLines creates a summary for each file from metadata
+// formatSummaryLines creates a summary for each file from metadata.
 func formatSummaryLines(meta *builtin.ReadMultipleFilesMeta) []fileSummary {
 	if meta == nil || len(meta.Files) == 0 {
 		return nil
 	}
 
-	homeDir := paths.GetHomeDir()
 	var summaries []fileSummary
-
 	for _, file := range meta.Files {
-		path := shortenPath(file.Path, homeDir)
+		path := toolcommon.ShortenPath(file.Path)
 		var output string
 		if file.Error != "" {
 			output = " " + file.Error
@@ -158,31 +110,20 @@ func formatSummaryLines(meta *builtin.ReadMultipleFilesMeta) []fileSummary {
 	return summaries
 }
 
-// formatFilesList formats a list of file paths for display
+// formatFilesList formats a list of file paths for display.
 func formatFilesList(filePaths []string) string {
 	if len(filePaths) == 0 {
 		return ""
 	}
 
-	// Shorten paths by using home directory symbol
-	homeDir := paths.GetHomeDir()
 	shortened := make([]string, len(filePaths))
 	for i, p := range filePaths {
-		shortened[i] = shortenPath(p, homeDir)
+		shortened[i] = toolcommon.ShortenPath(p)
 	}
 
 	if len(shortened) == 1 {
 		return shortened[0]
 	}
 
-	// For multiple files, show comma-separated list
 	return strings.Join(shortened, ", ")
-}
-
-// shortenPath replaces home directory with ~ and shortens paths
-func shortenPath(path, homeDir string) string {
-	if homeDir != "" && strings.HasPrefix(path, homeDir) {
-		return "~" + strings.TrimPrefix(path, homeDir)
-	}
-	return path
 }

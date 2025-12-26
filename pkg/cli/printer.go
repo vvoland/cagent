@@ -324,6 +324,11 @@ func formatJSONValue(key string, value any) string {
 		if len(v) == 0 {
 			return fmt.Sprintf("%s: []", bold(key))
 		}
+		// Single item arrays are rendered on a single line
+		if len(v) == 1 {
+			jsonBytes, _ := json.Marshal(v)
+			return fmt.Sprintf("%s: %s", bold(key), string(jsonBytes))
+		}
 		// Show full array contents
 		jsonBytes, _ := json.MarshalIndent(v, "", "  ")
 		return fmt.Sprintf("%s: %s", bold(key), string(jsonBytes))

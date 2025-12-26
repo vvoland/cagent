@@ -28,17 +28,16 @@ type ToolConfirmationResponse struct {
 }
 
 type toolConfirmationDialog struct {
-	width, height int
-	msg           *runtime.ToolCallConfirmationEvent
-	keyMap        toolConfirmationKeyMap
-	sessionState  *service.SessionState
-	scrollView    messages.Model
+	BaseDialog
+	msg          *runtime.ToolCallConfirmationEvent
+	keyMap       toolConfirmationKeyMap
+	sessionState *service.SessionState
+	scrollView   messages.Model
 }
 
 // SetSize implements [Dialog].
 func (d *toolConfirmationDialog) SetSize(width, height int) tea.Cmd {
-	d.width = width
-	d.height = height
+	d.BaseDialog.SetSize(width, height)
 
 	// Calculate dialog dimensions
 	dialogWidth := width * 70 / 100
@@ -125,8 +124,6 @@ func (d *toolConfirmationDialog) Init() tea.Cmd {
 func (d *toolConfirmationDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		d.width = msg.Width
-		d.height = msg.Height
 		cmd := d.SetSize(msg.Width, msg.Height)
 		return d, cmd
 
@@ -150,13 +147,12 @@ func (d *toolConfirmationDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			)
 		}
 
-		if msg.String() == "ctrl+c" {
-			return d, tea.Quit
+		if cmd := HandleQuit(msg); cmd != nil {
+			return d, cmd
 		}
 
 		// Forward scrolling keys to the scroll view
-		switch msg.String() {
-		case "up", "k", "down", "j", "pgup", "pgdown", "home", "end":
+		if _, isScrollKey := core.GetScrollDirection(msg); isScrollKey {
 			updatedScrollView, cmd := d.scrollView.Update(msg)
 			d.scrollView = updatedScrollView.(messages.Model)
 			return d, cmd
@@ -174,7 +170,7 @@ func (d *toolConfirmationDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 // View renders the tool confirmation dialog
 func (d *toolConfirmationDialog) View() string {
-	dialogWidth := d.width * 70 / 100
+	dialogWidth := d.Width() * 70 / 100
 
 	// Content width (accounting for padding and borders)
 	contentWidth := dialogWidth - 6
@@ -214,14 +210,7 @@ func (d *toolConfirmationDialog) View() string {
 
 // Position calculates the position to center the dialog
 func (d *toolConfirmationDialog) Position() (row, col int) {
-	dialogWidth := d.width * 70 / 100
-
-	// Calculate actual dialog height by rendering it
+	dialogWidth := d.Width() * 70 / 100
 	renderedDialog := d.View()
-	dialogHeight := lipgloss.Height(renderedDialog)
-
-	// Ensure dialog stays on screen
-	row = max(0, (d.height-dialogHeight)/2)
-	col = max(0, (d.width-dialogWidth)/2)
-	return row, col
+	return CenterPosition(d.Width(), d.Height(), dialogWidth, lipgloss.Height(renderedDialog))
 }

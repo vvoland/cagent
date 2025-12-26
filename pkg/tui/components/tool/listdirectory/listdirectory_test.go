@@ -3,10 +3,13 @@ package listdirectory
 import (
 	"testing"
 
+	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
+	"github.com/docker/cagent/pkg/tui/components/toolcommon"
+	"github.com/docker/cagent/pkg/tui/types"
 )
 
-func TestFormatSummary(t *testing.T) {
+func TestExtractResult(t *testing.T) {
 	tests := []struct {
 		name     string
 		meta     *builtin.ListDirectoryMeta
@@ -56,51 +59,39 @@ func TestFormatSummary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := formatSummary(tt.meta)
+			msg := &types.Message{}
+			if tt.meta != nil {
+				msg.ToolResult = &tools.ToolCallResult{Meta: *tt.meta}
+			}
+			result := extractResult(msg)
 			if result != tt.expected {
-				t.Errorf("formatSummary() = %q, want %q", result, tt.expected)
+				t.Errorf("extractResult() = %q, want %q", result, tt.expected)
 			}
 		})
 	}
 }
 
-func TestPluralize(t *testing.T) {
+func TestFormatCount(t *testing.T) {
 	tests := []struct {
 		count    int
+		singular string
+		plural   string
 		expected string
 	}{
-		{0, "s"},
-		{1, ""},
-		{2, "s"},
-		{100, "s"},
+		{0, "file", "files", "0 files"},
+		{1, "file", "files", "1 file"},
+		{2, "file", "files", "2 files"},
+		{100, "file", "files", "100 files"},
+		{1, "directory", "directories", "1 directory"},
+		{2, "directory", "directories", "2 directories"},
 	}
 
 	for _, tt := range tests {
-		t.Run("", func(t *testing.T) {
-			result := pluralize(tt.count)
+		t.Run(tt.expected, func(t *testing.T) {
+			result := formatCount(tt.count, tt.singular, tt.plural)
 			if result != tt.expected {
-				t.Errorf("pluralize(%d) = %q, want %q", tt.count, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestPluralizeDirectory(t *testing.T) {
-	tests := []struct {
-		count    int
-		expected string
-	}{
-		{0, "ies"},
-		{1, "y"},
-		{2, "ies"},
-		{100, "ies"},
-	}
-
-	for _, tt := range tests {
-		t.Run("", func(t *testing.T) {
-			result := pluralizeDirectory(tt.count)
-			if result != tt.expected {
-				t.Errorf("pluralizeDirectory(%d) = %q, want %q", tt.count, result, tt.expected)
+				t.Errorf("formatCount(%d, %q, %q) = %q, want %q",
+					tt.count, tt.singular, tt.plural, result, tt.expected)
 			}
 		})
 	}
@@ -136,9 +127,9 @@ func TestShortenPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := shortenPath(tt.path)
+			result := toolcommon.ShortenPath(tt.path)
 			if result != tt.expected {
-				t.Errorf("shortenPath(%q) = %q, want %q", tt.path, result, tt.expected)
+				t.Errorf("ShortenPath(%q) = %q, want %q", tt.path, result, tt.expected)
 			}
 		})
 	}

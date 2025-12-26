@@ -1,86 +1,25 @@
 package searchfiles
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/docker/cagent/pkg/tools/builtin"
-	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
-// Component is a specialized component for rendering search_files tool calls.
-type Component struct {
-	message *types.Message
-	spinner spinner.Spinner
-	width   int
-	height  int
+func New(msg *types.Message, sessionState *service.SessionState) layout.Model {
+	return toolcommon.NewBase(msg, sessionState, toolcommon.SimpleRendererWithResult(
+		toolcommon.ExtractField(func(a builtin.SearchFilesArgs) string { return a.Pattern }),
+		extractResult,
+	))
 }
 
-// New creates a new search files component.
-func New(
-	msg *types.Message,
-	_ *service.SessionState,
-) layout.Model {
-	return &Component{
-		message: msg,
-		spinner: spinner.New(spinner.ModeSpinnerOnly),
-		width:   80,
-		height:  1,
-	}
-}
-
-func (c *Component) SetSize(width, height int) tea.Cmd {
-	c.width = width
-	c.height = height
-	return nil
-}
-
-func (c *Component) Init() tea.Cmd {
-	if c.message.ToolStatus == types.ToolStatusPending || c.message.ToolStatus == types.ToolStatusRunning {
-		return c.spinner.Init()
-	}
-	return nil
-}
-
-func (c *Component) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
-	if c.message.ToolStatus == types.ToolStatusPending || c.message.ToolStatus == types.ToolStatusRunning {
-		model, cmd := c.spinner.Update(msg)
-		c.spinner = model.(spinner.Spinner)
-		return c, cmd
-	}
-
-	return c, nil
-}
-
-func (c *Component) View() string {
-	msg := c.message
-
-	// Parse arguments
-	var args builtin.SearchFilesArgs
-	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &args); err != nil {
-		return toolcommon.RenderTool(msg, c.spinner, "", "", c.width)
-	}
-
-	// For pending/running state, show spinner
-	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
-		return toolcommon.RenderTool(msg, c.spinner, args.Pattern, "", c.width)
-	}
-
-	// For completed/error state, show concise summary
-	summary := formatSummary(msg.Content)
-
-	return toolcommon.RenderTool(msg, c.spinner, args.Pattern, summary, c.width)
-}
-
-// formatSummary creates a concise summary of the search results
-func formatSummary(content string) string {
+func extractResult(msg *types.Message) string {
+	content := msg.Content
 	if content == "" {
 		return "no result"
 	}

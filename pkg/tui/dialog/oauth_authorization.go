@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
@@ -16,37 +15,10 @@ import (
 )
 
 type oauthAuthorizationDialog struct {
-	width, height int
-	serverURL     string
-	app           *app.App
-	keyMap        oauthAuthorizationKeyMap
-}
-
-// SetSize implements [Dialog].
-func (d *oauthAuthorizationDialog) SetSize(width, height int) tea.Cmd {
-	d.width = width
-	d.height = height
-	return nil
-}
-
-// oauthAuthorizationKeyMap defines key bindings for OAuth authorization confirmation dialog
-type oauthAuthorizationKeyMap struct {
-	Yes key.Binding
-	No  key.Binding
-}
-
-// defaultOAuthAuthorizationKeyMap returns default key bindings
-func defaultOAuthAuthorizationKeyMap() oauthAuthorizationKeyMap {
-	return oauthAuthorizationKeyMap{
-		Yes: key.NewBinding(
-			key.WithKeys("y", "Y"),
-			key.WithHelp("Y", "authorize"),
-		),
-		No: key.NewBinding(
-			key.WithKeys("n", "N"),
-			key.WithHelp("N", "decline"),
-		),
-	}
+	BaseDialog
+	serverURL string
+	app       *app.App
+	keyMap    ConfirmKeyMap
 }
 
 // NewOAuthAuthorizationDialog creates a new OAuth authorization confirmation dialog
@@ -54,7 +26,7 @@ func NewOAuthAuthorizationDialog(serverURL string, appInstance *app.App) Dialog 
 	return &oauthAuthorizationDialog{
 		serverURL: serverURL,
 		app:       appInstance,
-		keyMap:    defaultOAuthAuthorizationKeyMap(),
+		keyMap:    DefaultConfirmKeyMap(),
 	}
 }
 
@@ -67,22 +39,26 @@ func (d *oauthAuthorizationDialog) Init() tea.Cmd {
 func (d *oauthAuthorizationDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		d.width = msg.Width
-		d.height = msg.Height
-		return d, nil
+		cmd := d.SetSize(msg.Width, msg.Height)
+		return d, cmd
 
 	case tea.KeyPressMsg:
-		switch {
-		case key.Matches(msg, d.keyMap.Yes):
-			_ = d.app.ResumeElicitation(context.Background(), tools.ElicitationActionAccept, nil)
-			return d, core.CmdHandler(CloseDialogMsg{})
-		case key.Matches(msg, d.keyMap.No):
-			_ = d.app.ResumeElicitation(context.Background(), tools.ElicitationActionDecline, nil)
-			return d, core.CmdHandler(CloseDialogMsg{})
+		if cmd := HandleQuit(msg); cmd != nil {
+			return d, cmd
 		}
 
-		if msg.String() == "ctrl+c" {
-			return d, tea.Quit
+		model, cmd, handled := HandleConfirmKeys(msg, d.keyMap,
+			func() (layout.Model, tea.Cmd) {
+				_ = d.app.ResumeElicitation(context.Background(), tools.ElicitationActionAccept, nil)
+				return d, core.CmdHandler(CloseDialogMsg{})
+			},
+			func() (layout.Model, tea.Cmd) {
+				_ = d.app.ResumeElicitation(context.Background(), tools.ElicitationActionDecline, nil)
+				return d, core.CmdHandler(CloseDialogMsg{})
+			},
+		)
+		if handled {
+			return model, cmd
 		}
 	}
 
@@ -91,48 +67,16 @@ func (d *oauthAuthorizationDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 // Position returns the dialog position (centered)
 func (d *oauthAuthorizationDialog) Position() (row, col int) {
-	// Render the dialog content to measure its actual dimensions
-	dialogContent := d.View()
-
-	// Get the actual rendered dimensions
-	dialogWidth := lipgloss.Width(dialogContent)
-	dialogHeight := lipgloss.Height(dialogContent)
-
-	// Calculate centered position
-	col = max(0, (d.width-dialogWidth)/2)
-	row = max(0, (d.height-dialogHeight)/2)
-
-	// Ensure dialog fits on screen
-	if col+dialogWidth > d.width {
-		col = max(0, d.width-dialogWidth)
-	}
-	if row+dialogHeight > d.height {
-		row = max(0, d.height-dialogHeight)
-	}
-
-	return row, col
+	return d.CenterDialog(d.View())
 }
 
 // View renders the OAuth authorization confirmation dialog
 func (d *oauthAuthorizationDialog) View() string {
-	// clamped width: ~60% of screen, bounded by [40, 90] and screen margin
-	dialogWidth := d.width * 60 / 100
-	if dialogWidth < 40 {
-		dialogWidth = max(24, min(d.width-4, 40))
-	}
-	if dialogWidth > 90 {
-		dialogWidth = min(90, d.width-4)
-	}
-
-	padX := 2
-	padY := 1
-
-	// Border takes one character on each side when present
-	frameHorizontal := (padX * 2) + 2
-	contentWidth := max(10, dialogWidth-frameHorizontal)
+	dialogWidth := d.ComputeDialogWidth(60, 40, 90)
+	contentWidth := d.ContentWidth(dialogWidth, 2)
 
 	dialogStyle := styles.DialogWarningStyle.
-		Padding(padY, padX).
+		Padding(1, 2).
 		Width(dialogWidth)
 
 	title := styles.DialogTitleInfoStyle.
@@ -147,9 +91,10 @@ func (d *oauthAuthorizationDialog) View() string {
 		Width(contentWidth).
 		Render("This server requires OAuth authentication to access its tools. Your browser will open automatically to complete the authorization process.")
 
-	instructions := styles.DialogHelpStyle.
-		Width(contentWidth).
-		Render("After authorizing in your browser, return here and the agent will continue automatically.")
+	instructions := RenderHelp(
+		"After authorizing in your browser, return here and the agent will continue automatically.",
+		contentWidth,
+	)
 
 	options := styles.SuccessStyle.
 		Align(lipgloss.Center).

@@ -1,0 +1,127 @@
+package dialog
+
+import (
+	"strings"
+
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+
+	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/styles"
+)
+
+// ConfirmKeyMap defines key bindings for confirmation dialogs (Yes/No).
+type ConfirmKeyMap struct {
+	Yes key.Binding
+	No  key.Binding
+}
+
+// DefaultConfirmKeyMap returns the standard Yes/No key bindings.
+func DefaultConfirmKeyMap() ConfirmKeyMap {
+	return ConfirmKeyMap{
+		Yes: key.NewBinding(
+			key.WithKeys("y", "Y"),
+			key.WithHelp("Y", "yes"),
+		),
+		No: key.NewBinding(
+			key.WithKeys("n", "N"),
+			key.WithHelp("N", "no"),
+		),
+	}
+}
+
+// BaseDialog provides common functionality for dialog implementations.
+// It handles size management, position calculation, and common UI patterns.
+type BaseDialog struct {
+	width, height int
+}
+
+// SetSize updates the dialog dimensions.
+func (b *BaseDialog) SetSize(width, height int) tea.Cmd {
+	b.width = width
+	b.height = height
+	return nil
+}
+
+// Width returns the current width.
+func (b *BaseDialog) Width() int {
+	return b.width
+}
+
+// Height returns the current height.
+func (b *BaseDialog) Height() int {
+	return b.height
+}
+
+// ComputeDialogWidth calculates dialog width based on screen percentage with bounds.
+func (b *BaseDialog) ComputeDialogWidth(percent, minWidth, maxWidth int) int {
+	width := b.width * percent / 100
+	if width < minWidth {
+		width = max(20, min(b.width-4, minWidth))
+	}
+	if width > maxWidth {
+		width = min(maxWidth, b.width-4)
+	}
+	return width
+}
+
+// ContentWidth calculates the inner content width given dialog width and padding.
+func (b *BaseDialog) ContentWidth(dialogWidth, paddingX int) int {
+	// Border takes one character on each side
+	frameHorizontal := (paddingX * 2) + 2
+	return max(10, dialogWidth-frameHorizontal)
+}
+
+// CenterDialog returns the (row, col) position to center a rendered dialog.
+func (b *BaseDialog) CenterDialog(renderedDialog string) (row, col int) {
+	dialogWidth := lipgloss.Width(renderedDialog)
+	dialogHeight := lipgloss.Height(renderedDialog)
+	return CenterPosition(b.width, b.height, dialogWidth, dialogHeight)
+}
+
+// RenderTitle renders a dialog title with the given style and width.
+func RenderTitle(title string, contentWidth int, style lipgloss.Style) string {
+	return style.Width(contentWidth).Render(title)
+}
+
+// RenderSeparator renders a horizontal separator line.
+func RenderSeparator(contentWidth int) string {
+	separatorWidth := max(1, contentWidth)
+	return styles.DialogSeparatorStyle.
+		Align(lipgloss.Center).
+		Width(contentWidth).
+		Render(strings.Repeat("─", separatorWidth))
+}
+
+// RenderOptions renders option buttons text centered.
+func RenderOptions(text string, contentWidth int) string {
+	return styles.DialogOptionsStyle.Width(contentWidth).Render(text)
+}
+
+// RenderHelp renders help text at the bottom of a dialog.
+func RenderHelp(text string, contentWidth int) string {
+	return styles.DialogHelpStyle.Width(contentWidth).Render(text)
+}
+
+// HandleQuit checks for ctrl+c and returns tea.Quit if matched.
+func HandleQuit(msg tea.KeyPressMsg) tea.Cmd {
+	if msg.String() == "ctrl+c" {
+		return tea.Quit
+	}
+	return nil
+}
+
+// HandleConfirmKeys handles Yes/No key presses for confirmation dialogs.
+// Returns the command to execute and whether a key was matched.
+func HandleConfirmKeys(msg tea.KeyPressMsg, keyMap ConfirmKeyMap, onYes, onNo func() (layout.Model, tea.Cmd)) (layout.Model, tea.Cmd, bool) {
+	switch {
+	case key.Matches(msg, keyMap.Yes):
+		model, cmd := onYes()
+		return model, cmd, true
+	case key.Matches(msg, keyMap.No):
+		model, cmd := onNo()
+		return model, cmd, true
+	}
+	return nil, nil, false
+}

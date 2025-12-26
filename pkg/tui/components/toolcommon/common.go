@@ -7,10 +7,33 @@ import (
 
 	"charm.land/lipgloss/v2"
 
+	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
+
+// ParseArgs unmarshals JSON arguments into a typed struct.
+// Returns an error if parsing fails.
+func ParseArgs[T any](args string) (T, error) {
+	var result T
+	if err := json.Unmarshal([]byte(args), &result); err != nil {
+		return result, err
+	}
+	return result, nil
+}
+
+// ExtractField creates an argument extractor function that parses JSON and extracts a field.
+// The field function receives the parsed args and returns the display string.
+func ExtractField[T any](field func(T) string) func(string) string {
+	return func(args string) string {
+		parsed, err := ParseArgs[T](args)
+		if err != nil {
+			return ""
+		}
+		return field(parsed)
+	}
+}
 
 func Icon(msg *types.Message, inProgress spinner.Spinner) string {
 	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
@@ -41,7 +64,7 @@ func FormatToolResult(content string, width int) string {
 	}
 
 	padding := styles.ToolCallResult.Padding().GetHorizontalPadding()
-	availableWidth := max(width-5-padding, 10) // Minimum readable width
+	availableWidth := max(width-1-padding, 10) // Minimum readable width
 
 	lines := wrapLines(formattedContent, availableWidth)
 
@@ -68,7 +91,7 @@ func RenderTool(msg *types.Message, inProgress spinner.Spinner, args, result str
 	}
 	if result != "" {
 		if strings.Count(content, "\n") > 0 || strings.Count(result, "\n") > 0 {
-			content += "\n" + result
+			content += "\n" + resultStyle.MarginLeft(styles.ToolCompletedIcon.GetMarginLeft()).Render(result)
 		} else {
 			remainingWidth := width - lipgloss.Width(content) - 2
 			content += " " + lipgloss.PlaceHorizontal(remainingWidth, lipgloss.Right, resultStyle.Render(result))
@@ -104,4 +127,30 @@ func wrapLines(text string, width int) []string {
 	}
 
 	return lines
+}
+
+// ShortenPath replaces home directory with ~ for cleaner display.
+func ShortenPath(path string) string {
+	if path == "" {
+		return path
+	}
+	homeDir := paths.GetHomeDir()
+	if homeDir != "" && strings.HasPrefix(path, homeDir) {
+		return "~" + strings.TrimPrefix(path, homeDir)
+	}
+	return path
+}
+
+// TruncateText truncates text to fit within maxWidth, adding an ellipsis if needed.
+// Uses lipgloss.Width for proper Unicode handling.
+func TruncateText(text string, maxWidth int) string {
+	if lipgloss.Width(text) <= maxWidth {
+		return text
+	}
+	// Truncate by runes to handle Unicode properly
+	runes := []rune(text)
+	for lipgloss.Width(string(runes)) > maxWidth-1 && len(runes) > 0 {
+		runes = runes[:len(runes)-1]
+	}
+	return string(runes) + "…"
 }

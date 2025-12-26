@@ -762,11 +762,17 @@ func (p *chatPage) renderResizeHandle(width int) string {
 	centerPart := strings.Repeat("─", min(resizeHandleWidth, width))
 	handle := centerStyle.Render(centerPart)
 
+	// Add working spinner on the right side
+	var suffix string
+	if p.working {
+		suffix = " " + p.spinner.View() + " Working…"
+	}
+
 	return lipgloss.PlaceHorizontal(
-		width-2, lipgloss.Center, handle,
+		width-2-lipgloss.Width(suffix), lipgloss.Center, handle,
 		lipgloss.WithWhitespaceChars("─"),
 		lipgloss.WithWhitespaceStyle(styles.ResizeHandleStyle),
-	)
+	) + suffix
 }
 
 func (p *chatPage) openAttachmentPreview(preview editor.AttachmentPreview) tea.Cmd {

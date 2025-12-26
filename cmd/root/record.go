@@ -10,6 +10,24 @@ import (
 	"github.com/docker/cagent/pkg/fake"
 )
 
+// setupFakeProxy starts a fake proxy if fakeResponses is non-empty.
+// It returns a cleanup function that must be called when done (typically via defer).
+func setupFakeProxy(fakeResponses string, runConfig *config.RuntimeConfig) (cleanup func() error, err error) {
+	if fakeResponses == "" {
+		return func() error { return nil }, nil
+	}
+
+	proxyURL, cleanupFn, err := fake.StartProxy(fakeResponses)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start fake proxy: %w", err)
+	}
+
+	runConfig.ModelsGateway = proxyURL
+	slog.Info("Fake mode enabled", "cassette", fakeResponses, "proxy", proxyURL)
+
+	return cleanupFn, nil
+}
+
 // setupRecordingProxy starts a recording proxy if recordPath is non-empty.
 // It handles auto-generating a filename when recordPath is "true" (from NoOptDefVal),
 // and normalizes the path by stripping any .yaml suffix.
