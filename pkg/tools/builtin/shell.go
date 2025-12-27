@@ -2,6 +2,7 @@ package builtin
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"fmt"
 	"os"
@@ -384,10 +385,7 @@ func NewShellTool(env []string, runConfig *config.RuntimeConfig) *ShellTool {
 		}
 	} else {
 		// Unix-like: use SHELL or default to /bin/sh
-		shell = os.Getenv("SHELL")
-		if shell == "" {
-			shell = "/bin/sh"
-		}
+		shell = cmp.Or(os.Getenv("SHELL"), "/bin/sh")
 		argsPrefix = []string{"-c"}
 	}
 

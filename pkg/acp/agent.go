@@ -1,6 +1,7 @@
 package acp
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -472,10 +473,7 @@ func (a *Agent) handleMaxIterationsReached(ctx context.Context, acpSess *Session
 // buildToolCallStart creates a tool call start update
 func buildToolCallStart(toolCall tools.ToolCall, tool tools.Tool) acp.SessionUpdate {
 	kind := determineToolKind(toolCall.Function.Name, tool)
-	title := tool.Annotations.Title
-	if title == "" {
-		title = toolCall.Function.Name
-	}
+	title := cmp.Or(tool.Annotations.Title, toolCall.Function.Name)
 
 	args := parseToolCallArguments(toolCall.Function.Arguments)
 	locations := extractLocations(args)
@@ -670,10 +668,7 @@ func extractDiffContent(toolCall tools.ToolCall, _ string) *acp.ToolCallContent 
 // buildToolCallUpdate creates a tool call update for permission requests
 func buildToolCallUpdate(toolCall tools.ToolCall, tool tools.Tool, status acp.ToolCallStatus) acp.RequestPermissionToolCall {
 	kind := acp.ToolKindExecute
-	title := tool.Annotations.Title
-	if title == "" {
-		title = toolCall.Function.Name
-	}
+	title := cmp.Or(tool.Annotations.Title, toolCall.Function.Name)
 
 	if tool.Annotations.ReadOnlyHint {
 		kind = acp.ToolKindRead

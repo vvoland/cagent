@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"cmp"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -69,10 +70,7 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 		messageText, attachPath := parseAttachCommand(userInput)
 
 		// Use either the per-message attachment or the global one
-		finalAttachPath := attachPath
-		if finalAttachPath == "" {
-			finalAttachPath = cfg.AttachmentPath
-		}
+		finalAttachPath := cmp.Or(attachPath, cfg.AttachmentPath)
 
 		sess.AddMessage(createUserMessageWithAttachment(messageText, finalAttachPath))
 

@@ -1,6 +1,7 @@
 package root
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -169,10 +170,7 @@ func (f *rootFlags) setupLogging() error {
 		return nil
 	}
 
-	path := strings.TrimSpace(f.logFilePath)
-	if path == "" {
-		path = filepath.Join(paths.GetDataDir(), "cagent.debug.log")
-	}
+	path := cmp.Or(strings.TrimSpace(f.logFilePath), filepath.Join(paths.GetDataDir(), "cagent.debug.log"))
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err

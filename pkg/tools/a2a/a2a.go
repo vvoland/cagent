@@ -2,6 +2,7 @@
 package a2a
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -78,10 +79,7 @@ func (t *Toolset) Tools(_ context.Context) ([]tools.Tool, error) {
 
 	result := make([]tools.Tool, 0, len(skills))
 	for _, skill := range skills {
-		name := skill.ID
-		if name == "" {
-			name = skill.Name
-		}
+		name := cmp.Or(skill.ID, skill.Name)
 		if t.name != "" {
 			name = fmt.Sprintf("%s_%s", t.name, name)
 		}
@@ -174,10 +172,7 @@ func (t *Toolset) createHandler() tools.ToolHandler {
 			response.WriteString(extractText(event))
 		}
 
-		result := response.String()
-		if result == "" {
-			result = "No response from agent"
-		}
+		result := cmp.Or(response.String(), "No response from agent")
 
 		// TODO(dga): could this be a tool call error?
 		return tools.ResultSuccess(result), nil

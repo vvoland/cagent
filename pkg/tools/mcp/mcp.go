@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -244,9 +245,7 @@ func processMCPContent(toolResult *mcp.CallToolResult) *tools.ToolCallResult {
 	}
 
 	// Handle an empty response. This can happen if the MCP tool does not return any content.
-	if finalContent == "" {
-		finalContent = "no output"
-	}
+	finalContent = cmp.Or(finalContent, "no output")
 
 	if toolResult.IsError {
 		return tools.ResultError(finalContent)

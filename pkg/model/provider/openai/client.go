@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -47,10 +48,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 
 	var clientFn func(context.Context) (*openai.Client, error)
 	if gateway := globalOptions.Gateway(); gateway == "" {
-		key := cfg.TokenKey
-		if key == "" {
-			key = "OPENAI_API_KEY"
-		}
+		key := cmp.Or(cfg.TokenKey, "OPENAI_API_KEY")
 		authToken, _ := env.Get(ctx, key)
 		if authToken == "" {
 			return nil, fmt.Errorf("%s environment variable is required", key)
@@ -109,7 +107,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 
 			// Configure a custom HTTP client to inject headers and query params used by the Gateway.
 			httpOptions := []httpclient.Opt{
-				httpclient.WithProxiedBaseURL(defaultsTo(cfg.BaseURL, "https://api.openai.com/v1")),
+				httpclient.WithProxiedBaseURL(cmp.Or(cfg.BaseURL, "https://api.openai.com/v1")),
 				httpclient.WithProvider(cfg.Provider),
 				httpclient.WithModel(cfg.Model),
 				httpclient.WithQuery(url.Query()),
@@ -960,11 +958,4 @@ type jsonSchema map[string]any
 
 func (j jsonSchema) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any(j))
-}
-
-func defaultsTo(value, defaultValue string) string {
-	if value != "" {
-		return value
-	}
-	return defaultValue
 }

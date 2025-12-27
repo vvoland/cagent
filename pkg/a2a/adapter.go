@@ -1,6 +1,7 @@
 package a2a
 
 import (
+	"cmp"
 	"fmt"
 	"iter"
 	"log/slog"
@@ -23,10 +24,7 @@ func newCAgentAdapter(t *team.Team, agentName string) (agent.Agent, error) {
 		return nil, fmt.Errorf("failed to get agent %s: %w", agentName, err)
 	}
 
-	desc := a.Description()
-	if desc == "" {
-		desc = fmt.Sprintf("Agent %s", agentName)
-	}
+	desc := cmp.Or(a.Description(), fmt.Sprintf("Agent %s", agentName))
 
 	return agent.New(agent.Config{
 		Name:        agentName,

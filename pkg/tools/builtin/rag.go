@@ -1,6 +1,7 @@
 package builtin
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -57,11 +58,9 @@ func (t *RAGTool) Tools(context.Context) ([]tools.Tool, error) {
 	if t.manager != nil {
 		description = t.manager.Description()
 	}
-	if description == "" {
-		description = fmt.Sprintf("Search project documents from %s to find relevant code or documentation. "+
-			"Provide a natural language query describing what you need. "+
-			"Returns the most relevant document chunks with file paths.", t.toolName)
-	}
+	description = cmp.Or(description, fmt.Sprintf("Search project documents from %s to find relevant code or documentation. "+
+		"Provide a natural language query describing what you need. "+
+		"Returns the most relevant document chunks with file paths.", t.toolName))
 
 	paramsSchema := tools.MustSchemaFor[QueryRAGArgs]()
 	outputSchema := tools.MustSchemaFor[[]QueryResult]()

@@ -1,6 +1,7 @@
 package telemetry
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -16,10 +17,7 @@ import (
 // getSystemInfo collects system information for events
 func getSystemInfo() (osName, osVersion, osLanguage string) {
 	osInfo := runtime.GOOS
-	osLang := os.Getenv("LANG")
-	if osLang == "" {
-		osLang = "en-US"
-	}
+	osLang := cmp.Or(os.Getenv("LANG"), "en-US")
 	return osInfo, "", osLang
 }
 

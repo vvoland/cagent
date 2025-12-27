@@ -1,6 +1,7 @@
 package strategy
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log/slog"
@@ -54,10 +55,7 @@ func NewBM25FromConfig(_ context.Context, cfg latest.RAGStrategyConfig, buildCtx
 	}
 
 	// Set default limit if not provided
-	limit := cfg.Limit
-	if limit == 0 {
-		limit = 5
-	}
+	limit := cmp.Or(cfg.Limit, 5)
 
 	// Parse chunking configuration
 	chunkingCfg := ParseChunkingConfig(cfg)

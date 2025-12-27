@@ -1,6 +1,7 @@
 package fusion
 
 import (
+	"cmp"
 	"fmt"
 	"log/slog"
 	"sort"
@@ -22,10 +23,7 @@ type ReciprocalRankFusion struct {
 
 // NewReciprocalRankFusion creates a new RRF fusion strategy
 func NewReciprocalRankFusion(k int) *ReciprocalRankFusion {
-	if k == 0 {
-		k = 60
-	}
-	return &ReciprocalRankFusion{k: k}
+	return &ReciprocalRankFusion{k: cmp.Or(k, 60)}
 }
 
 // Fuse combines results from multiple strategies using RRF

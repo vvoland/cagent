@@ -1,6 +1,7 @@
 package anthropic
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -150,7 +151,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 
 			// Configure a custom HTTP client to inject headers and query params used by the Gateway.
 			httpOptions := []httpclient.Opt{
-				httpclient.WithProxiedBaseURL(defaultsTo(cfg.BaseURL, "https://api.anthropic.com/")),
+				httpclient.WithProxiedBaseURL(cmp.Or(cfg.BaseURL, "https://api.anthropic.com/")),
 				httpclient.WithProvider(cfg.Provider),
 				httpclient.WithModel(cfg.Model),
 				httpclient.WithQuery(url.Query()),
@@ -754,11 +755,4 @@ func countAnthropicTokens(
 		return 0, err
 	}
 	return result.InputTokens, nil
-}
-
-func defaultsTo(value, defaultValue string) string {
-	if value != "" {
-		return value
-	}
-	return defaultValue
 }

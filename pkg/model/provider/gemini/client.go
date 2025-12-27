@@ -1,6 +1,7 @@
 package gemini
 
 import (
+	"cmp"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -126,7 +127,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 			baseURL := fmt.Sprintf("%s://%s%s/", url.Scheme, url.Host, url.Path)
 
 			httpOptions := []httpclient.Opt{
-				httpclient.WithProxiedBaseURL(defaultsTo(cfg.BaseURL, "https://generativelanguage.googleapis.com/")),
+				httpclient.WithProxiedBaseURL(cmp.Or(cfg.BaseURL, "https://generativelanguage.googleapis.com/")),
 				httpclient.WithProvider(cfg.Provider),
 				httpclient.WithModel(cfg.Model),
 				httpclient.WithQuery(url.Query()),
@@ -576,13 +577,6 @@ func parseRerankScoresStrict(raw string, expected int) ([]float64, error) {
 	}
 
 	return rr.Scores, nil
-}
-
-func defaultsTo(value, defaultValue string) string {
-	if value != "" {
-		return value
-	}
-	return defaultValue
 }
 
 func providerOption(cfg *latest.ModelConfig, name string) string {

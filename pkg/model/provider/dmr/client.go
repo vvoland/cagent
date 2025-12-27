@@ -2,6 +2,7 @@ package dmr
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -194,10 +195,8 @@ func resolveDMRBaseURL(cfg *latest.ModelConfig, endpoint string) (string, []opti
 		return baseURL, clientOptions, httpClient
 	}
 
-	if port == "" {
-		// Default port when the status output omits it.
-		port = "12434"
-	}
+	// Default port when the status output omits it.
+	port = cmp.Or(port, "12434")
 
 	if inContainer() {
 		baseURL := ep
@@ -547,10 +546,7 @@ func (c *Client) CreateChatCompletionStream(ctx context.Context, messages []chat
 		for i, tool := range requestTools {
 			// DMR requires the `description` key to be present; ensure a non-empty value
 			// NOTE(krissetto): workaround, remove when fixed upstream, this shouldn't be necceessary
-			desc := tool.Description
-			if desc == "" {
-				desc = "Function " + tool.Name
-			}
+			desc := cmp.Or(tool.Description, "Function "+tool.Name)
 
 			parameters, err := ConvertParametersToSchema(tool.Parameters)
 			if err != nil {
@@ -739,14 +735,8 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []types.Doc
 		return nil, fmt.Errorf("invalid base URL: %w", parseErr)
 	}
 
-	scheme := parsedURL.Scheme
-	if scheme == "" {
-		scheme = "http"
-	}
-	host := parsedURL.Host
-	if host == "" {
-		host = "127.0.0.1:12434"
-	}
+	scheme := cmp.Or(parsedURL.Scheme, "http")
+	host := cmp.Or(parsedURL.Host, "127.0.0.1:12434")
 
 	baseURL := fmt.Sprintf("%s://%s", scheme, host)
 
@@ -1205,9 +1195,7 @@ func getDockerModelEndpointAndEngine(ctx context.Context) (endpoint, engine stri
 			}
 		}
 	}
-	if engine == "" {
-		engine = "llama.cpp"
-	}
+	engine = cmp.Or(engine, "llama.cpp")
 
 	return endpoint, engine, nil
 }
@@ -1220,10 +1208,7 @@ func buildRuntimeFlagsFromModelConfig(engine string, cfg *latest.ModelConfig) []
 	if cfg == nil {
 		return flags
 	}
-	eng := strings.TrimSpace(engine)
-	if eng == "" {
-		eng = "llama.cpp"
-	}
+	eng := cmp.Or(strings.TrimSpace(engine), "llama.cpp")
 	switch eng {
 	// runtime flags mapping for more engines can be added here as needed
 	case "llama.cpp":

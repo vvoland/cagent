@@ -1,6 +1,7 @@
 package config
 
 import (
+	"cmp"
 	_ "embed"
 	"fmt"
 	"log/slog"
@@ -104,9 +105,7 @@ func Resolve(agentFilename string) (Source, error) {
 
 // resolve resolves an agent reference, handling aliases and defaults
 func resolve(agentFilename string) (string, error) {
-	if agentFilename == "" {
-		agentFilename = "default"
-	}
+	agentFilename = cmp.Or(agentFilename, "default")
 
 	// Try to resolve as an alias first
 	if aliasStore, err := aliases.Load(); err == nil {

@@ -1,6 +1,7 @@
 package strategy
 
 import (
+	"cmp"
 	"fmt"
 	"log/slog"
 	"path/filepath"
@@ -221,10 +222,7 @@ func ParseChunkingConfig(cfg latest.RAGStrategyConfig) ChunkingConfig {
 		}
 	}
 
-	chunkOverlap := cfg.Chunking.Overlap
-	if chunkOverlap == 0 {
-		chunkOverlap = 75
-	}
+	chunkOverlap := cmp.Or(cfg.Chunking.Overlap, 75)
 
 	return ChunkingConfig{
 		Size:                  chunkSize,
