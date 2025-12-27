@@ -222,12 +222,8 @@ func calculateScoreStats(scores []float64) (minScore, maxScore, avgScore float64
 	sum := 0.0
 
 	for _, score := range scores {
-		if score < minScore {
-			minScore = score
-		}
-		if score > maxScore {
-			maxScore = score
-		}
+		minScore = min(minScore, score)
+		maxScore = max(maxScore, score)
 		sum += score
 	}
 

@@ -34,9 +34,7 @@ func NewTextDocumentProcessor(size, overlap int, respectWordBoundaries bool) *Te
 	if size <= 0 {
 		size = 1000
 	}
-	if overlap < 0 {
-		overlap = 0
-	}
+	overlap = max(overlap, 0)
 	if overlap >= size {
 		overlap = size / 2
 	}
@@ -67,10 +65,7 @@ func (t *TextDocumentProcessor) chunkText(text string) []Chunk {
 
 	for start < totalLen {
 		// Calculate end position (start + size, but not beyond document end)
-		end := start + t.size
-		if end > totalLen {
-			end = totalLen
-		}
+		end := min(start+t.size, totalLen)
 
 		// If respecting word boundaries and we're NOT on the final chunk,
 		// try to adjust the end so that we don't cut in the middle of a word.
@@ -139,12 +134,8 @@ func (t *TextDocumentProcessor) chunkText(text string) []Chunk {
 func (t *TextDocumentProcessor) findNearestWhitespace(runes []rune, target int) int {
 	// Don't search beyond 20% of the total length in either direction
 	maxSearchDistance := len(runes) / 5
-	if maxSearchDistance < 50 {
-		maxSearchDistance = 50
-	}
-	if maxSearchDistance > 500 {
-		maxSearchDistance = 500
-	}
+	maxSearchDistance = max(maxSearchDistance, 50)
+	maxSearchDistance = min(maxSearchDistance, 500)
 
 	// Search backward first (prefer to keep chunks slightly smaller)
 	for i := 0; i < maxSearchDistance && target-i > 0; i++ {

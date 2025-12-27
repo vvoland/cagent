@@ -863,12 +863,8 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []types.Doc
 			maxScore = result.RelevanceScore
 			firstScore = false
 		} else {
-			if result.RelevanceScore < minScore {
-				minScore = result.RelevanceScore
-			}
-			if result.RelevanceScore > maxScore {
-				maxScore = result.RelevanceScore
-			}
+			minScore = min(minScore, result.RelevanceScore)
+			maxScore = max(maxScore, result.RelevanceScore)
 		}
 	}
 
@@ -909,12 +905,8 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []types.Doc
 	normalizedMax := 0.0
 	for _, s := range scores {
 		sumScore += s
-		if s < normalizedMin {
-			normalizedMin = s
-		}
-		if s > normalizedMax {
-			normalizedMax = s
-		}
+		normalizedMin = min(normalizedMin, s)
+		normalizedMax = max(normalizedMax, s)
 	}
 	avgScore := sumScore / float64(len(scores))
 

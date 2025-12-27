@@ -85,9 +85,7 @@ func (lw *limitedWriter) Write(p []byte) (n int, err error) {
 
 	remaining := lw.maxSize - lw.written
 	toWrite := int64(len(p))
-	if toWrite > remaining {
-		toWrite = remaining
-	}
+	toWrite = min(toWrite, remaining)
 
 	n, err = lw.buf.Write(p[:toWrite])
 	lw.written += int64(n)

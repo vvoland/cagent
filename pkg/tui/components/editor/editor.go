@@ -288,9 +288,7 @@ func (e *editor) applySuggestionOverlay(view string) string {
 		if targetLine >= len(lines) {
 			targetLine = lastContentLine
 		}
-		if targetLine < 0 {
-			targetLine = 0
-		}
+		targetLine = max(targetLine, 0)
 	}
 
 	// Use textarea's word-wrap logic to compute how the suggestion would be displayed.
@@ -774,9 +772,7 @@ func (e *editor) updateTextareaHeight() {
 		available -= e.banner.Height()
 	}
 
-	if available < 1 {
-		available = 1
-	}
+	available = max(available, 1)
 
 	e.textarea.SetHeight(available)
 }

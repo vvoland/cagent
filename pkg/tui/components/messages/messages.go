@@ -1153,9 +1153,7 @@ func (m *model) highlightLine(line string, startCol, endCol int) string {
 	if startCol >= endCol {
 		return line
 	}
-	if endCol > plainWidth {
-		endCol = plainWidth
-	}
+	endCol = min(endCol, plainWidth)
 
 	// Extract the three parts while preserving ANSI codes
 	// before: from start to startCol (preserves original styling)

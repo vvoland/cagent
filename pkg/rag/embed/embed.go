@@ -132,10 +132,7 @@ func (e *Embedder) embedBatchOptimized(ctx context.Context, batchProvider provid
 
 	// Process batches in parallel
 	for start := 0; start < totalTexts; start += e.batchSize {
-		end := start + e.batchSize
-		if end > totalTexts {
-			end = totalTexts
-		}
+		end := min(start+e.batchSize, totalTexts)
 
 		g.Go(func() error {
 			batchTexts := texts[start:end]

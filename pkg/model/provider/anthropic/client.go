@@ -709,9 +709,7 @@ func clampMaxTokens(limit, used, configured int64) int64 {
 	const safety = int64(1024)
 
 	remaining := limit - used - safety
-	if remaining < 1 {
-		remaining = 1
-	}
+	remaining = max(remaining, 1)
 	if configured > remaining {
 		return remaining
 	}
