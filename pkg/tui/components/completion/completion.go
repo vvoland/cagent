@@ -1,6 +1,7 @@
 package completion
 
 import (
+	"cmp"
 	"sort"
 	"strings"
 
@@ -250,10 +251,7 @@ func (c *manager) GetLayers() []*lipgloss.Layer {
 	viewHeight := lipgloss.Height(view)
 
 	// Use actual editor height if set, otherwise fall back to reasonable default
-	editorHeight := c.editorBottom
-	if editorHeight == 0 {
-		editorHeight = 4
-	}
+	editorHeight := cmp.Or(c.editorBottom, 4)
 	yPos := max(c.height-viewHeight-editorHeight-1, 0)
 
 	return []*lipgloss.Layer{

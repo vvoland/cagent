@@ -1,6 +1,7 @@
 package teamloader
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log/slog"
@@ -74,10 +75,7 @@ func Load(ctx context.Context, agentSource config.Source, runConfig *config.Runt
 	}
 
 	// Create RAG managers
-	parentDir := agentSource.ParentDir()
-	if parentDir == "" {
-		parentDir = runConfig.WorkingDir
-	}
+	parentDir := cmp.Or(agentSource.ParentDir(), runConfig.WorkingDir)
 	ragManagers, err := rag.NewManagers(ctx, cfg, rag.ManagersBuildConfig{
 		ParentDir:     parentDir,
 		ModelsGateway: runConfig.ModelsGateway,
@@ -297,10 +295,7 @@ func createRAGToolsForAgent(agentConfig *latest.AgentConfig, allManagers map[str
 		}
 
 		// Use custom tool name if configured, otherwise use the RAG source name
-		toolName := mgr.ToolName()
-		if toolName == "" {
-			toolName = ragName
-		}
+		toolName := cmp.Or(mgr.ToolName(), ragName)
 
 		// Create a separate tool for this RAG source
 		ragTool := builtin.NewRAGTool(mgr, toolName)

@@ -162,7 +162,7 @@ func TestCodeModeTool_CallEcho(t *testing.T) {
 }
 
 type testToolSet struct {
-	tools.ElicitationTool
+	tools.BaseToolSet
 
 	tools []tools.Tool
 	start int
@@ -171,10 +171,6 @@ type testToolSet struct {
 
 func (t *testToolSet) Tools(context.Context) ([]tools.Tool, error) {
 	return t.tools, nil
-}
-
-func (t *testToolSet) Instructions() string {
-	return ""
 }
 
 func (t *testToolSet) Start(context.Context) error {

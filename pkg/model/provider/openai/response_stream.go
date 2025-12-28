@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"cmp"
 	"io"
 	"log/slog"
 
@@ -43,10 +44,7 @@ func (a *ResponseStreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 
 	switch event.Type {
 	case "response.output_text.delta":
-		content := event.Delta
-		if content == "" {
-			content = event.Text
-		}
+		content := cmp.Or(event.Delta, event.Text)
 		if content != "" {
 			a.itemHasContent[event.ItemID] = true
 			response.Choices = []chat.MessageStreamChoice{
@@ -78,16 +76,7 @@ func (a *ResponseStreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 			slog.Warn("Received function_call_arguments.delta for unknown item_id", "item_id", event.ItemID, "known_items", len(a.itemCallIDMap))
 		}
 	case "response.content_part.delta":
-		content := event.Delta
-		if content == "" {
-			content = event.Text
-		}
-		if content == "" {
-			content = event.Code
-		}
-		if content == "" {
-			content = event.Part.Text
-		}
+		content := cmp.Or(event.Delta, event.Text, event.Code, event.Part.Text)
 		if content != "" {
 			a.itemHasContent[event.ItemID] = true
 			response.Choices = []chat.MessageStreamChoice{
@@ -103,13 +92,7 @@ func (a *ResponseStreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		// Check for function call
 		// The item.type is "function_call" for tool calls in the Response API
 		if event.Item.Type == "function_call" {
-			callID := event.Item.CallID
-			if callID == "" {
-				callID = event.Item.ID // Fallback
-			}
-			if callID == "" {
-				callID = event.ItemID
-			}
+			callID := cmp.Or(event.Item.CallID, event.Item.ID, event.ItemID)
 			// Use Item.ID as the map key, since arguments deltas use the item_id field
 			// which corresponds to the Item.ID from the output_item.added event
 			itemID := event.Item.ID
@@ -118,16 +101,10 @@ func (a *ResponseStreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 			}
 			a.itemCallIDMap[itemID] = callID
 
-			// Try to get the function name
-			// First try the top-level Name field
-			funcName := event.Name
-
-			// If that's empty, try the Item.Name field
-			if funcName == "" {
-				funcName = event.Item.Name
-				if funcName != "" {
-					slog.Debug("Extracted name from Item.Name field", "name", funcName)
-				}
+			// Try to get the function name from top-level Name field, then Item.Name
+			funcName := cmp.Or(event.Name, event.Item.Name)
+			if funcName != "" && event.Name == "" {
+				slog.Debug("Extracted name from Item.Name field", "name", funcName)
 			}
 
 			// Only emit the tool call with name, arguments will come in delta events
@@ -155,10 +132,7 @@ func (a *ResponseStreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		// Handle function call arguments delta
 		slog.Debug("Function call arguments delta received", "item_id", event.ItemID)
 		if callID, ok := a.itemCallIDMap[event.ItemID]; ok {
-			args := event.Delta
-			if args == "" {
-				args = event.Arguments
-			}
+			args := cmp.Or(event.Delta, event.Arguments)
 
 			slog.Debug("Emitting arguments delta", "item_id", event.ItemID, "call_id", callID, "delta_length", len(args), "delta_preview", args[:min(len(args), 20)])
 

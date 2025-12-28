@@ -1,6 +1,7 @@
 package server
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -233,10 +234,7 @@ func (s *Server) deleteSession(c echo.Context) error {
 func (s *Server) runAgent(c echo.Context) error {
 	sessionID := c.Param("id")
 	agentFilename := c.Param("agent")
-	currentAgent := c.Param("agent_name")
-	if currentAgent == "" {
-		currentAgent = "root"
-	}
+	currentAgent := cmp.Or(c.Param("agent_name"), "root")
 
 	slog.Debug("Running agent", "agent_filename", agentFilename, "session_id", sessionID, "current_agent", currentAgent)
 

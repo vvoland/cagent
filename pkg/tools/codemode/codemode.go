@@ -36,16 +36,12 @@ func Wrap(toolsets ...tools.ToolSet) tools.ToolSet {
 }
 
 type codeModeTool struct {
-	tools.ElicitationTool
+	tools.BaseToolSet
 	toolsets []tools.ToolSet
 }
 
 type RunToolsWithJavascriptArgs struct {
 	Script string `json:"script" jsonschema:"Script to execute"`
-}
-
-func (c *codeModeTool) Instructions() string {
-	return ""
 }
 
 func isExcludedTool(tool tools.Tool) bool {

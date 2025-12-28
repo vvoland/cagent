@@ -1,6 +1,7 @@
 package skills
 
 import (
+	"cmp"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -166,10 +167,7 @@ func loadSkillsFromDir(dir string, format skillFormat) []Skill {
 				continue
 			}
 
-			name := fm.Name
-			if name == "" {
-				name = entry.Name()
-			}
+			name := cmp.Or(fm.Name, entry.Name())
 
 			skills = append(skills, Skill{
 				Name:          name,
@@ -199,10 +197,7 @@ func loadSkillsFromDir(dir string, format skillFormat) []Skill {
 					continue
 				}
 
-				name := fm.Name
-				if name == "" {
-					name = dirName
-				}
+				name := cmp.Or(fm.Name, dirName)
 
 				skills = append(skills, Skill{
 					Name:          name,

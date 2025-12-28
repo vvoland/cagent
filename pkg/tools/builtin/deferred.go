@@ -22,7 +22,7 @@ type deferredToolEntry struct {
 }
 
 type DeferredToolset struct {
-	tools.ElicitationTool
+	tools.BaseToolSet
 
 	mu             sync.RWMutex
 	deferredTools  map[string]deferredToolEntry
@@ -200,9 +200,5 @@ func (d *DeferredToolset) Start(ctx context.Context) error {
 		}
 	}
 
-	return nil
-}
-
-func (d *DeferredToolset) Stop(context.Context) error {
 	return nil
 }

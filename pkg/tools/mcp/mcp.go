@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -27,6 +28,14 @@ type mcpClient interface {
 	SetManagedOAuth(managed bool)
 	Close(ctx context.Context) error
 }
+
+// baseMCPClient provides default no-op implementations for optional mcpClient methods.
+// Embed this in MCP client implementations to reduce boilerplate.
+type baseMCPClient struct{}
+
+func (baseMCPClient) SetElicitationHandler(tools.ElicitationHandler) {}
+func (baseMCPClient) SetOAuthSuccessHandler(func())                  {}
+func (baseMCPClient) SetManagedOAuth(bool)                           {}
 
 // Toolset represents a set of MCP tools
 type Toolset struct {
@@ -236,9 +245,7 @@ func processMCPContent(toolResult *mcp.CallToolResult) *tools.ToolCallResult {
 	}
 
 	// Handle an empty response. This can happen if the MCP tool does not return any content.
-	if finalContent == "" {
-		finalContent = "no output"
-	}
+	finalContent = cmp.Or(finalContent, "no output")
 
 	if toolResult.IsError {
 		return tools.ResultError(finalContent)

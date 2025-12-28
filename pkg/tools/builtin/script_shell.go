@@ -1,6 +1,7 @@
 package builtin
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -14,7 +15,7 @@ import (
 )
 
 type ScriptShellTool struct {
-	tools.ElicitationTool
+	tools.BaseToolSet
 	shellTools map[string]latest.ScriptShellToolConfig
 	env        []string
 }
@@ -102,10 +103,7 @@ func (t *ScriptShellTool) Tools(context.Context) ([]tools.Tool, error) {
 		cfg := toolConfig
 		toolName := name
 
-		description := cfg.Description
-		if description == "" {
-			description = fmt.Sprintf("Execute shell command: %s", cfg.Cmd)
-		}
+		description := cmp.Or(cfg.Description, fmt.Sprintf("Execute shell command: %s", cfg.Cmd))
 
 		inputSchema, err := tools.SchemaToMap(map[string]any{
 			"type":       "object",
@@ -139,10 +137,7 @@ func (t *ScriptShellTool) execute(ctx context.Context, toolConfig *latest.Script
 	}
 
 	// Use default shell
-	shell := os.Getenv("SHELL")
-	if shell == "" {
-		shell = "/bin/sh"
-	}
+	shell := cmp.Or(os.Getenv("SHELL"), "/bin/sh")
 
 	cmd := exec.CommandContext(ctx, shell, "-c", toolConfig.Cmd)
 	cmd.Dir = toolConfig.WorkingDir
@@ -159,12 +154,4 @@ func (t *ScriptShellTool) execute(ctx context.Context, toolConfig *latest.Script
 	}
 
 	return tools.ResultSuccess(limitOutput(string(output))), nil
-}
-
-func (t *ScriptShellTool) Start(context.Context) error {
-	return nil
-}
-
-func (t *ScriptShellTool) Stop(context.Context) error {
-	return nil
 }

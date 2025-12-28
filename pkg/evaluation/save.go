@@ -1,6 +1,7 @@
 package evaluation
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -15,10 +16,7 @@ func Save(sess *session.Session, filename string) (string, error) {
 	}
 
 	// Use provided filename if given, otherwise default to session ID
-	baseName := filename
-	if baseName == "" {
-		baseName = sess.ID
-	}
+	baseName := cmp.Or(filename, sess.ID)
 
 	evalFile := filepath.Join("evals", fmt.Sprintf("%s.json", baseName))
 	for number := 1; ; number++ {

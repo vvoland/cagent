@@ -76,9 +76,7 @@ func (s *StatusBar) View() string {
 	versionWidth := lipgloss.Width(versionStyled)
 	availableSpace := s.width - helpWidth - versionWidth
 
-	if availableSpace < 0 {
-		availableSpace = 1
-	}
+	availableSpace = max(availableSpace, 1)
 
 	spacer := strings.Repeat(" ", availableSpace)
 

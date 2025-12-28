@@ -2,6 +2,7 @@ package builtin
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -17,7 +18,7 @@ import (
 )
 
 type APITool struct {
-	tools.ElicitationTool
+	tools.BaseToolSet
 	handler *apiHandler
 	config  latest.APIToolConfig
 }
@@ -148,23 +149,8 @@ func (t *APITool) Tools(context.Context) ([]tools.Tool, error) {
 			Handler:      t.handler.CallTool,
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
-				Title:        defaultsTo(t.config.Name, "Query API"),
+				Title:        cmp.Or(t.config.Name, "Query API"),
 			},
 		},
 	}, nil
-}
-
-func (t *APITool) Start(context.Context) error {
-	return nil
-}
-
-func (t *APITool) Stop(context.Context) error {
-	return nil
-}
-
-func defaultsTo(value, defaultValue string) string {
-	if value != "" {
-		return value
-	}
-	return defaultValue
 }

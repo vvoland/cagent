@@ -11,24 +11,12 @@ import (
 )
 
 type mockToolSet struct {
-	tools.ElicitationTool
+	tools.BaseToolSet
 	toolList []tools.Tool
 }
 
 func (m *mockToolSet) Tools(_ context.Context) ([]tools.Tool, error) {
 	return m.toolList, nil
-}
-
-func (m *mockToolSet) Instructions() string {
-	return "Mock toolset instructions"
-}
-
-func (m *mockToolSet) Start(_ context.Context) error {
-	return nil
-}
-
-func (m *mockToolSet) Stop(_ context.Context) error {
-	return nil
 }
 
 func TestDeferredToolset_SearchTool(t *testing.T) {

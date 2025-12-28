@@ -19,27 +19,13 @@ import (
 var agentBuilderInstructions string
 
 type fsToolset struct {
-	tools.ElicitationTool
-
-	inner                    tools.ToolSet
+	tools.ToolSet
 	originalWriteFileHandler tools.ToolHandler
 	path                     string
 }
 
-func (f *fsToolset) Instructions() string {
-	return f.inner.Instructions()
-}
-
-func (f *fsToolset) Start(ctx context.Context) error {
-	return f.inner.Start(ctx)
-}
-
-func (f *fsToolset) Stop(ctx context.Context) error {
-	return f.inner.Stop(ctx)
-}
-
 func (f *fsToolset) Tools(ctx context.Context) ([]tools.Tool, error) {
-	innerTools, err := f.inner.Tools(ctx)
+	innerTools, err := f.ToolSet.Tools(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +97,7 @@ Can you explain to me what the agent will be used for?`,
 
 	// Custom tool registry to include fsToolset
 	fsToolset := fsToolset{
-		inner: builtin.NewFilesystemTool([]string{runConfig.WorkingDir}),
+		ToolSet: builtin.NewFilesystemTool([]string{runConfig.WorkingDir}),
 	}
 
 	registry := teamloader.NewDefaultToolsetRegistry()

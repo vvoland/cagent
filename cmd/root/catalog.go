@@ -1,6 +1,7 @@
 package root
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -98,10 +99,7 @@ func fetchHubRepos(ctx context.Context, org string) ([]hubRepo, error) {
 		_ = resp.Body.Close()
 
 		for _, r := range page.Results {
-			ns := r.Namespace
-			if ns == "" {
-				ns = org
-			}
+			ns := cmp.Or(r.Namespace, org)
 			repos = append(repos, hubRepo{
 				Namespace:   ns,
 				Name:        r.Name,

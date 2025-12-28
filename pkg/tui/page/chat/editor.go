@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"os/exec"
@@ -35,10 +36,7 @@ func (p *chatPage) openExternalEditor() tea.Cmd {
 	tmpFile.Close()
 
 	// Get the editor command (VISUAL, EDITOR, or platform default)
-	editorCmd := os.Getenv("VISUAL")
-	if editorCmd == "" {
-		editorCmd = os.Getenv("EDITOR")
-	}
+	editorCmd := cmp.Or(os.Getenv("VISUAL"), os.Getenv("EDITOR"))
 	if editorCmd == "" {
 		if runtime.GOOS == "windows" {
 			editorCmd = "notepad"

@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -229,12 +230,7 @@ func (t *oauthTransport) handleOAuthFlow(ctx context.Context, authServer, wwwAut
 func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer, wwwAuth string) error {
 	slog.Debug("Starting OAuth flow for server", "url", t.baseURL)
 
-	var resourceURL string
-	resourceURL = resourceMetadataFromWWWAuth(wwwAuth)
-	slog.Debug("Extracted resource URL from WWW-Authenticate header", "resource_url", resourceURL)
-	if resourceURL == "" {
-		resourceURL = authServer + "/.well-known/oauth-protected-resource"
-	}
+	resourceURL := cmp.Or(resourceMetadataFromWWWAuth(wwwAuth), authServer+"/.well-known/oauth-protected-resource")
 
 	resp, err := http.Get(resourceURL)
 	if err != nil {
@@ -377,12 +373,7 @@ func (t *oauthTransport) handleUnmanagedOAuthFlow(ctx context.Context, authServe
 	slog.Debug("Starting unmanaged OAuth flow for server", "url", t.baseURL)
 
 	// Extract resource URL from WWW-Authenticate header
-	var resourceURL string
-	resourceURL = resourceMetadataFromWWWAuth(wwwAuth)
-	slog.Debug("Extracted resource URL from WWW-Authenticate header", "resource_url", resourceURL)
-	if resourceURL == "" {
-		resourceURL = authServer + "/.well-known/oauth-protected-resource"
-	}
+	resourceURL := cmp.Or(resourceMetadataFromWWWAuth(wwwAuth), authServer+"/.well-known/oauth-protected-resource")
 
 	resp, err := http.Get(resourceURL)
 	if err != nil {

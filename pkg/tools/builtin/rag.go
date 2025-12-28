@@ -1,6 +1,7 @@
 package builtin
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,7 +13,7 @@ import (
 
 // RAGTool provides document querying capabilities for a single RAG source
 type RAGTool struct {
-	tools.ElicitationTool
+	tools.BaseToolSet
 	manager  *rag.Manager
 	toolName string
 }
@@ -57,11 +58,9 @@ func (t *RAGTool) Tools(context.Context) ([]tools.Tool, error) {
 	if t.manager != nil {
 		description = t.manager.Description()
 	}
-	if description == "" {
-		description = fmt.Sprintf("Search project documents from %s to find relevant code or documentation. "+
-			"Provide a natural language query describing what you need. "+
-			"Returns the most relevant document chunks with file paths.", t.toolName)
-	}
+	description = cmp.Or(description, fmt.Sprintf("Search project documents from %s to find relevant code or documentation. "+
+		"Provide a natural language query describing what you need. "+
+		"Returns the most relevant document chunks with file paths.", t.toolName))
 
 	paramsSchema := tools.MustSchemaFor[QueryRAGArgs]()
 	outputSchema := tools.MustSchemaFor[[]QueryResult]()
@@ -135,14 +134,6 @@ func (t *RAGTool) handleQueryRAG(ctx context.Context, args QueryRAGArgs) (*tools
 	}
 
 	return tools.ResultSuccess(string(resultJSON)), nil
-}
-
-func (t *RAGTool) Start(context.Context) error {
-	return nil
-}
-
-func (t *RAGTool) Stop(context.Context) error {
-	return nil
 }
 
 // sortResults sorts query results by similarity in descending order

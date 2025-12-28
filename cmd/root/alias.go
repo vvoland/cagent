@@ -139,9 +139,7 @@ func runAliasListCommand(cmd *cobra.Command, args []string) error {
 	// Find max name width for alignment (using display width for proper Unicode handling)
 	maxLen := 0
 	for _, name := range names {
-		if w := runewidth.StringWidth(name); w > maxLen {
-			maxLen = w
-		}
+		maxLen = max(maxLen, runewidth.StringWidth(name))
 	}
 
 	for _, name := range names {

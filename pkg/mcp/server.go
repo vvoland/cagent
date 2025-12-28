@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log/slog"
@@ -120,10 +121,7 @@ func createMCPServer(ctx context.Context, agentFilename, agentName string, runCo
 			return nil, nil, fmt.Errorf("failed to get agent %s: %w", agentName, err)
 		}
 
-		description := ag.Description()
-		if description == "" {
-			description = fmt.Sprintf("Run the %s agent", agentName)
-		}
+		description := cmp.Or(ag.Description(), fmt.Sprintf("Run the %s agent", agentName))
 
 		slog.Debug("Adding MCP tool", "agent", agentName, "description", description)
 
@@ -178,10 +176,7 @@ func CreateToolHandler(t *team.Team, agentName string) func(context.Context, *mc
 			return nil, ToolOutput{}, fmt.Errorf("agent execution failed: %w", err)
 		}
 
-		result := sess.GetLastAssistantMessageContent()
-		if result == "" {
-			result = "No response from agent"
-		}
+		result := cmp.Or(sess.GetLastAssistantMessageContent(), "No response from agent")
 
 		slog.Debug("Agent execution completed", "agent", agentName, "response_length", len(result))
 

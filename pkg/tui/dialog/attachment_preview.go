@@ -1,6 +1,7 @@
 package dialog
 
 import (
+	"cmp"
 	"fmt"
 	"strings"
 
@@ -109,14 +110,8 @@ func (d *attachmentPreviewDialog) View() string {
 
 func (d *attachmentPreviewDialog) Position() (row, col int) {
 	// Use pre-computed dimensions for stable positioning
-	dialogHeight := d.dialogHeight
-	if dialogHeight == 0 {
-		dialogHeight = 20 // fallback before SetSize is called
-	}
-	dialogWidth := d.dialogWidth
-	if dialogWidth == 0 {
-		dialogWidth = dialogMinWidth
-	}
+	dialogHeight := cmp.Or(d.dialogHeight, 20) // fallback before SetSize is called
+	dialogWidth := cmp.Or(d.dialogWidth, dialogMinWidth)
 	return CenterPosition(d.Width(), d.Height(), dialogWidth, dialogHeight)
 }
 

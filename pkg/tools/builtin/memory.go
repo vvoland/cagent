@@ -23,7 +23,7 @@ type DB interface {
 }
 
 type MemoryTool struct {
-	tools.ElicitationTool
+	tools.BaseToolSet
 	db DB
 }
 
@@ -130,12 +130,4 @@ func (t *MemoryTool) handleDeleteMemory(ctx context.Context, args DeleteMemoryAr
 	}
 
 	return tools.ResultSuccess(fmt.Sprintf("Memory with ID %s deleted successfully", args.ID)), nil
-}
-
-func (t *MemoryTool) Start(context.Context) error {
-	return nil
-}
-
-func (t *MemoryTool) Stop(context.Context) error {
-	return nil
 }

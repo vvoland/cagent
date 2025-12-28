@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"os"
@@ -571,10 +572,7 @@ func (a *appModel) View() tea.View {
 }
 
 func (a *appModel) startShell() (tea.Model, tea.Cmd) {
-	shell := os.Getenv("SHELL")
-	if shell == "" {
-		shell = "/bin/sh"
-	}
+	shell := cmp.Or(os.Getenv("SHELL"), "/bin/sh")
 
 	cmd := exec.Command(shell, "-i", "-c",
 		`echo -e "\nType 'exit' to return to cagent 🐳"; exec `+shell,

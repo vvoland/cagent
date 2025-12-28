@@ -2,6 +2,7 @@ package builtin
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"fmt"
 	"os"
@@ -26,7 +27,7 @@ const (
 )
 
 type ShellTool struct {
-	tools.ElicitationTool
+	tools.BaseToolSet
 	handler *shellHandler
 }
 
@@ -84,9 +85,7 @@ func (lw *limitedWriter) Write(p []byte) (n int, err error) {
 
 	remaining := lw.maxSize - lw.written
 	toWrite := int64(len(p))
-	if toWrite > remaining {
-		toWrite = remaining
-	}
+	toWrite = min(toWrite, remaining)
 
 	n, err = lw.buf.Write(p[:toWrite])
 	lw.written += int64(n)
@@ -384,10 +383,7 @@ func NewShellTool(env []string, runConfig *config.RuntimeConfig) *ShellTool {
 		}
 	} else {
 		// Unix-like: use SHELL or default to /bin/sh
-		shell = os.Getenv("SHELL")
-		if shell == "" {
-			shell = "/bin/sh"
-		}
+		shell = cmp.Or(os.Getenv("SHELL"), "/bin/sh")
 		argsPrefix = []string{"-c"}
 	}
 
@@ -630,10 +626,6 @@ func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
 			},
 		},
 	}, nil
-}
-
-func (t *ShellTool) Start(context.Context) error {
-	return nil
 }
 
 func (t *ShellTool) Stop(context.Context) error {
