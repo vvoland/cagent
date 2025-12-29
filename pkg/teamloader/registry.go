@@ -170,6 +170,7 @@ func createAPITool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 	}
 
 	expander := js.NewJsExpander(runConfig.EnvProvider())
+	toolset.APIConfig.Endpoint = expander.Expand(ctx, toolset.APIConfig.Endpoint)
 	toolset.APIConfig.Headers = expander.ExpandMap(ctx, toolset.APIConfig.Headers)
 
 	return builtin.NewAPITool(toolset.APIConfig), nil
