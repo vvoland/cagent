@@ -185,6 +185,8 @@ func createFetchTool(_ context.Context, toolset latest.Toolset, _ string, _ *con
 }
 
 func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig) (tools.ToolSet, error) {
+	envProvider := runConfig.EnvProvider()
+
 	switch {
 	// MCP Server from the MCP Catalog, running with the MCP Gateway
 	case toolset.Ref != "":
@@ -199,32 +201,33 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 			return mcp.NewRemoteToolset(toolset.Name, serverSpec.Remote.URL, serverSpec.Remote.TransportType, nil), nil
 		}
 
-		env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), runConfig.EnvProvider())
+		env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), envProvider)
 		if err != nil {
 			return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
 		}
 
 		envProvider := environment.NewMultiProvider(
 			environment.NewEnvListProvider(env),
-			runConfig.EnvProvider(),
+			envProvider,
 		)
 
 		return mcp.NewGatewayToolset(ctx, toolset.Name, mcpServerName, toolset.Config, envProvider, runConfig.WorkingDir)
 
 	// STDIO MCP Server from shell command
 	case toolset.Command != "":
-		env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), runConfig.EnvProvider())
+		env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), envProvider)
 		if err != nil {
 			return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
 		}
 		env = append(env, os.Environ()...)
+
 		return mcp.NewToolsetCommand(toolset.Name, toolset.Command, toolset.Args, env, runConfig.WorkingDir), nil
 
 	// Remote MCP Server
 	case toolset.Remote.URL != "":
 		headers := map[string]string{}
 		for k, v := range toolset.Remote.Headers {
-			expanded, err := environment.Expand(ctx, v, runConfig.EnvProvider())
+			expanded, err := environment.Expand(ctx, v, envProvider)
 			if err != nil {
 				return nil, fmt.Errorf("failed to expand header '%s': %w", k, err)
 			}
