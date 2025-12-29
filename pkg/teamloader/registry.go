@@ -225,17 +225,12 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 
 	// Remote MCP Server
 	case toolset.Remote.URL != "":
-		headers := map[string]string{}
-		for k, v := range toolset.Remote.Headers {
-			expanded, err := environment.Expand(ctx, v, envProvider)
-			if err != nil {
-				return nil, fmt.Errorf("failed to expand header '%s': %w", k, err)
-			}
+		expander := js.NewJsExpander(envProvider)
 
-			headers[k] = expanded
-		}
+		headers := expander.ExpandMap(ctx, toolset.Remote.Headers)
+		url := expander.Expand(ctx, toolset.Remote.URL)
 
-		return mcp.NewRemoteToolset(toolset.Name, toolset.Remote.URL, toolset.Remote.TransportType, headers), nil
+		return mcp.NewRemoteToolset(toolset.Name, url, toolset.Remote.TransportType, headers), nil
 
 	default:
 		return nil, fmt.Errorf("mcp toolset requires either ref, command, or remote configuration")
