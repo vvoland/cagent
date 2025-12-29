@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
@@ -16,14 +17,43 @@ type VCSMatcher struct {
 	matcher  gitignore.Matcher
 }
 
+// matcherCache caches VCSMatcher instances by repository root path.
+// This avoids repeated .gitignore parsing for the same repository.
+var (
+	matcherCache   = make(map[string]*VCSMatcher)
+	basePathToRoot = make(map[string]string) // maps basePath -> repoRoot for fast lookup
+	noRepoCache    = make(map[string]bool)   // paths known to have no repo
+	matcherCacheMu sync.RWMutex
+)
+
 // NewVCSMatcher creates a new VCS matcher for the given path.
 // It searches for a git repository and loads .gitignore patterns.
 // Returns (nil, nil) if no git repository is found - this is not an error.
+// Results are cached by repository root path to avoid repeated parsing.
 func NewVCSMatcher(basePath string) (*VCSMatcher, error) {
+	// Quick check: see if we already know this basePath's repo root
+	matcherCacheMu.RLock()
+	if noRepoCache[basePath] {
+		matcherCacheMu.RUnlock()
+		return nil, nil
+	}
+	if repoRoot, ok := basePathToRoot[basePath]; ok {
+		if cached, ok := matcherCache[repoRoot]; ok {
+			matcherCacheMu.RUnlock()
+			slog.Debug("Using cached gitignore patterns", "repository", repoRoot)
+			return cached, nil
+		}
+	}
+	matcherCacheMu.RUnlock()
+
 	// PlainOpen automatically searches up the directory tree for .git
 	repo, err := git.PlainOpen(basePath)
 	if err != nil {
 		slog.Debug("No git repository found", "directory", basePath)
+		// Cache the negative result
+		matcherCacheMu.Lock()
+		noRepoCache[basePath] = true
+		matcherCacheMu.Unlock()
 		return nil, nil
 	}
 
@@ -37,6 +67,30 @@ func NewVCSMatcher(basePath string) (*VCSMatcher, error) {
 	// Get the repository root path
 	repoRoot := worktree.Filesystem.Root()
 
+	// Check cache by repo root (read lock)
+	matcherCacheMu.RLock()
+	if cached, ok := matcherCache[repoRoot]; ok {
+		matcherCacheMu.RUnlock()
+		// Also cache the basePath -> repoRoot mapping
+		matcherCacheMu.Lock()
+		basePathToRoot[basePath] = repoRoot
+		matcherCacheMu.Unlock()
+		slog.Debug("Using cached gitignore patterns", "repository", repoRoot)
+		return cached, nil
+	}
+	matcherCacheMu.RUnlock()
+
+	// Not in cache, need to create (write lock)
+	matcherCacheMu.Lock()
+	defer matcherCacheMu.Unlock()
+
+	// Double-check after acquiring write lock
+	if cached, ok := matcherCache[repoRoot]; ok {
+		basePathToRoot[basePath] = repoRoot
+		slog.Debug("Using cached gitignore patterns", "repository", repoRoot)
+		return cached, nil
+	}
+
 	// Read gitignore patterns from the repository
 	patterns, err := gitignore.ReadPatterns(worktree.Filesystem, nil)
 	if err != nil {
@@ -49,10 +103,16 @@ func NewVCSMatcher(basePath string) (*VCSMatcher, error) {
 
 	slog.Debug("Loaded gitignore patterns", "repository", repoRoot)
 
-	return &VCSMatcher{
+	vcsMatcher := &VCSMatcher{
 		repoRoot: repoRoot,
 		matcher:  matcher,
-	}, nil
+	}
+
+	// Cache the result
+	matcherCache[repoRoot] = vcsMatcher
+	basePathToRoot[basePath] = repoRoot
+
+	return vcsMatcher, nil
 }
 
 // RepoRoot returns the repository root path for this matcher
