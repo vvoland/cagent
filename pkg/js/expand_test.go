@@ -36,6 +36,12 @@ func TestExpand(t *testing.T) {
 			expected: "Analyze myproject in production",
 		},
 		{
+			name:     "default value",
+			commands: "Say hello to ${env.USER || 'Bob'}",
+			envVars:  map[string]string{},
+			expected: "Say hello to Bob",
+		},
+		{
 			name:     "missing env var expands to empty string",
 			commands: "Check ${env.MISSING_VAR} status",
 			envVars:  map[string]string{},

@@ -170,6 +170,7 @@ func createAPITool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 	}
 
 	expander := js.NewJsExpander(runConfig.EnvProvider())
+	toolset.APIConfig.Endpoint = expander.Expand(ctx, toolset.APIConfig.Endpoint)
 	toolset.APIConfig.Headers = expander.ExpandMap(ctx, toolset.APIConfig.Headers)
 
 	return builtin.NewAPITool(toolset.APIConfig), nil
@@ -185,8 +186,11 @@ func createFetchTool(_ context.Context, toolset latest.Toolset, _ string, _ *con
 }
 
 func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig) (tools.ToolSet, error) {
-	// MCP tool has three different modes: ref, command, and remote
-	if toolset.Ref != "" {
+	envProvider := runConfig.EnvProvider()
+
+	switch {
+	// MCP Server from the MCP Catalog, running with the MCP Gateway
+	case toolset.Ref != "":
 		mcpServerName := gateway.ParseServerRef(toolset.Ref)
 		serverSpec, err := gateway.ServerSpec(ctx, mcpServerName)
 		if err != nil {
@@ -198,43 +202,40 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 			return mcp.NewRemoteToolset(toolset.Name, serverSpec.Remote.URL, serverSpec.Remote.TransportType, nil), nil
 		}
 
-		env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), runConfig.EnvProvider())
+		env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), envProvider)
 		if err != nil {
 			return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
 		}
 
 		envProvider := environment.NewMultiProvider(
 			environment.NewEnvListProvider(env),
-			runConfig.EnvProvider(),
+			envProvider,
 		)
 
 		return mcp.NewGatewayToolset(ctx, toolset.Name, mcpServerName, toolset.Config, envProvider, runConfig.WorkingDir)
-	}
 
-	if toolset.Command != "" {
-		env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), runConfig.EnvProvider())
+	// STDIO MCP Server from shell command
+	case toolset.Command != "":
+		env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), envProvider)
 		if err != nil {
 			return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
 		}
 		env = append(env, os.Environ()...)
+
 		return mcp.NewToolsetCommand(toolset.Name, toolset.Command, toolset.Args, env, runConfig.WorkingDir), nil
+
+	// Remote MCP Server
+	case toolset.Remote.URL != "":
+		expander := js.NewJsExpander(envProvider)
+
+		headers := expander.ExpandMap(ctx, toolset.Remote.Headers)
+		url := expander.Expand(ctx, toolset.Remote.URL)
+
+		return mcp.NewRemoteToolset(toolset.Name, url, toolset.Remote.TransportType, headers), nil
+
+	default:
+		return nil, fmt.Errorf("mcp toolset requires either ref, command, or remote configuration")
 	}
-
-	if toolset.Remote.URL != "" {
-		headers := map[string]string{}
-		for k, v := range toolset.Remote.Headers {
-			expanded, err := environment.Expand(ctx, v, runConfig.EnvProvider())
-			if err != nil {
-				return nil, fmt.Errorf("failed to expand header '%s': %w", k, err)
-			}
-
-			headers[k] = expanded
-		}
-
-		return mcp.NewRemoteToolset(toolset.Name, toolset.Remote.URL, toolset.Remote.TransportType, headers), nil
-	}
-
-	return nil, fmt.Errorf("mcp toolset requires either ref, command, or remote configuration")
 }
 
 func createA2ATool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig) (tools.ToolSet, error) {
