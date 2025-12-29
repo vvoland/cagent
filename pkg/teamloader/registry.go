@@ -185,8 +185,9 @@ func createFetchTool(_ context.Context, toolset latest.Toolset, _ string, _ *con
 }
 
 func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig) (tools.ToolSet, error) {
-	// MCP tool has three different modes: ref, command, and remote
-	if toolset.Ref != "" {
+	switch {
+	// MCP Server from the MCP Catalog, running with the MCP Gateway
+	case toolset.Ref != "":
 		mcpServerName := gateway.ParseServerRef(toolset.Ref)
 		serverSpec, err := gateway.ServerSpec(ctx, mcpServerName)
 		if err != nil {
@@ -209,18 +210,18 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 		)
 
 		return mcp.NewGatewayToolset(ctx, toolset.Name, mcpServerName, toolset.Config, envProvider, runConfig.WorkingDir)
-	}
 
-	if toolset.Command != "" {
+	// STDIO MCP Server from shell command
+	case toolset.Command != "":
 		env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), runConfig.EnvProvider())
 		if err != nil {
 			return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
 		}
 		env = append(env, os.Environ()...)
 		return mcp.NewToolsetCommand(toolset.Name, toolset.Command, toolset.Args, env, runConfig.WorkingDir), nil
-	}
 
-	if toolset.Remote.URL != "" {
+	// Remote MCP Server
+	case toolset.Remote.URL != "":
 		headers := map[string]string{}
 		for k, v := range toolset.Remote.Headers {
 			expanded, err := environment.Expand(ctx, v, runConfig.EnvProvider())
@@ -232,9 +233,10 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 		}
 
 		return mcp.NewRemoteToolset(toolset.Name, toolset.Remote.URL, toolset.Remote.TransportType, headers), nil
-	}
 
-	return nil, fmt.Errorf("mcp toolset requires either ref, command, or remote configuration")
+	default:
+		return nil, fmt.Errorf("mcp toolset requires either ref, command, or remote configuration")
+	}
 }
 
 func createA2ATool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig) (tools.ToolSet, error) {
