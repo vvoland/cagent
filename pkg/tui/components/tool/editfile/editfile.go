@@ -37,7 +37,7 @@ func makeRenderer(sessionState *service.SessionState) toolcommon.Renderer {
 				renderEditFile(msg.ToolCall, width-1, sessionState.SplitDiffView, msg.ToolStatus))
 		}
 
-		if (msg.ToolStatus == types.ToolStatusCompleted || msg.ToolStatus == types.ToolStatusError) && msg.Content != "" {
+		if (msg.ToolStatus == types.ToolStatusError) && msg.Content != "" {
 			content += toolcommon.FormatToolResult(msg.Content, width)
 		}
 
