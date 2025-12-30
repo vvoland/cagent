@@ -117,7 +117,6 @@ func (a *appModel) Init() tea.Cmd {
 	cmds := []tea.Cmd{
 		a.dialog.Init(),
 		a.chatPage.Init(),
-		a.emitStartupInfo(),
 	}
 
 	if firstMessage := a.application.FirstMessage(); firstMessage != nil {
@@ -129,31 +128,6 @@ func (a *appModel) Init() tea.Cmd {
 	}
 
 	return tea.Batch(cmds...)
-}
-
-// emitStartupInfo creates a command that emits startup events for immediate sidebar display
-func (a *appModel) emitStartupInfo() tea.Cmd {
-	return func() tea.Msg {
-		// a buffered channel to collect startup events
-		events := make(chan runtime.Event, 10)
-
-		go func() {
-			defer close(events)
-			a.application.EmitStartupInfo(context.Background(), events)
-		}()
-
-		var collectedEvents []runtime.Event
-		for event := range events {
-			collectedEvents = append(collectedEvents, event)
-		}
-
-		return StartupEventsMsg{Events: collectedEvents}
-	}
-}
-
-// StartupEventsMsg carries startup events to be processed by the UI
-type StartupEventsMsg struct {
-	Events []runtime.Event
 }
 
 // Help returns help information
@@ -176,27 +150,6 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		u, dialogCmd := a.dialog.Update(msg)
 		a.dialog = u.(dialog.Manager)
 		return a, dialogCmd
-
-	case StartupEventsMsg:
-		var cmds []tea.Cmd
-		for _, event := range msg.Events {
-			// Track team and agent info for agent switching
-			switch ev := event.(type) {
-			case *runtime.TeamInfoEvent:
-				a.availableAgents = ev.AvailableAgents
-				a.currentAgent = ev.CurrentAgent
-				a.sessionState.SetCurrentAgent(ev.CurrentAgent)
-			case *runtime.AgentInfoEvent:
-				a.currentAgent = ev.AgentName
-				a.sessionState.SetCurrentAgent(ev.AgentName)
-			}
-			updated, cmd := a.chatPage.Update(event)
-			a.chatPage = updated.(chat.Page)
-			if cmd != nil {
-				cmds = append(cmds, cmd)
-			}
-		}
-		return a, tea.Batch(cmds...)
 
 	case *runtime.TeamInfoEvent:
 		// Store team info for agent switching shortcuts

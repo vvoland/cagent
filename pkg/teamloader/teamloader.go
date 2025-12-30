@@ -192,14 +192,20 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 			options.WithStructuredOutput(a.StructuredOutput),
 		}
 
-		maxTokens := &defaultMaxTokens
-		modelsStore, err := modelsdev.NewStore()
-		if err != nil {
-			return nil, err
-		}
-		m, err := modelsStore.GetModel(ctx, modelCfg.Provider+"/"+modelCfg.Model)
-		if err == nil {
-			maxTokens = &m.Limit.Output
+		// Use max_tokens from config if specified, otherwise look up from models.dev
+		var maxTokens *int64
+		if modelCfg.MaxTokens != nil {
+			maxTokens = modelCfg.MaxTokens
+		} else {
+			maxTokens = &defaultMaxTokens
+			modelsStore, err := modelsdev.NewStore()
+			if err != nil {
+				return nil, err
+			}
+			m, err := modelsStore.GetModel(ctx, modelCfg.Provider+"/"+modelCfg.Model)
+			if err == nil {
+				maxTokens = &m.Limit.Output
+			}
 		}
 		if maxTokens != nil {
 			opts = append(opts, options.WithMaxTokens(*maxTokens))

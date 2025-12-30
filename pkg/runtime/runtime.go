@@ -454,27 +454,27 @@ func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, events chan Event) {
 	if r.startupInfoEmitted {
 		return
 	}
+	r.startupInfoEmitted = true
 
 	a := r.CurrentAgent()
 
-	// Emit agent information for sidebar display
+	// Emit agent and team information immediately for fast sidebar display
 	events <- AgentInfo(a.Name(), getAgentModelID(a), a.Description(), a.WelcomeMessage())
 	events <- TeamInfo(r.agentDetailsFromTeam(), r.currentAgent)
 
-	// Emit agent warnings (if any)
+	// Emit agent warnings (if any) - these are quick
 	r.emitAgentWarnings(a, events)
 
+	// Tool loading can be slow (MCP servers need to start), so do it last
 	agentTools, err := a.Tools(ctx)
 	if err != nil {
 		slog.Warn("Failed to get agent tools during startup", "agent", a.Name(), "error", err)
 		// Emit toolset info with 0 tools if we can't get them
 		events <- ToolsetInfo(0, r.currentAgent)
-		r.startupInfoEmitted = true
 		return
 	}
 
 	events <- ToolsetInfo(len(agentTools), r.currentAgent)
-	r.startupInfoEmitted = true
 }
 
 // registerDefaultTools registers the default tool handlers

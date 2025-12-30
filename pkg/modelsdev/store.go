@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -27,6 +28,10 @@ type Store struct {
 	cacheDir        string
 	client          *http.Client
 	refreshInterval time.Duration
+
+	// In-memory cache for database to avoid repeated disk reads
+	dbCache   *Database
+	dbCacheMu sync.RWMutex
 }
 
 type Opt func(*Store)
@@ -43,8 +48,23 @@ func WithCacheDir(cacheDir string) Opt {
 	}
 }
 
-// NewStore creates a new models.dev store instance
+// defaultStore is a cached singleton store instance for repeated access
+var defaultStore = sync.OnceValues(func() (*Store, error) {
+	return newStoreInternal()
+})
+
+// NewStore returns the cached default store instance.
+// This is efficient for repeated calls as it reuses the same store.
+// For custom configuration, use NewStoreWithOptions.
 func NewStore(opts ...Opt) (*Store, error) {
+	if len(opts) > 0 {
+		return newStoreInternal(opts...)
+	}
+	return defaultStore()
+}
+
+// newStoreInternal creates a new models.dev store instance
+func newStoreInternal(opts ...Opt) (*Store, error) {
 	s := &Store{
 		refreshInterval: 24 * time.Hour,
 	}
@@ -69,14 +89,34 @@ func NewStore(opts ...Opt) (*Store, error) {
 	return s, nil
 }
 
-// GetDatabase returns the models.dev database, fetching from cache or API as needed
+// GetDatabase returns the models.dev database, fetching from cache or API as needed.
+// Results are cached in memory to avoid repeated disk reads within the same process.
 func (s *Store) GetDatabase(ctx context.Context) (*Database, error) {
+	// Check in-memory cache first
+	s.dbCacheMu.RLock()
+	if s.dbCache != nil {
+		db := s.dbCache
+		s.dbCacheMu.RUnlock()
+		return db, nil
+	}
+	s.dbCacheMu.RUnlock()
+
+	// Need to load from disk or network
+	s.dbCacheMu.Lock()
+	defer s.dbCacheMu.Unlock()
+
+	// Double-check after acquiring write lock
+	if s.dbCache != nil {
+		return s.dbCache, nil
+	}
+
 	cacheFile := filepath.Join(s.cacheDir, CacheFileName)
 
 	// Try to load from cache first
 	cached, err := s.loadFromCache(cacheFile)
 	if err == nil && s.isCacheValid(cached) {
-		return &cached.Database, nil
+		s.dbCache = &cached.Database
+		return s.dbCache, nil
 	}
 
 	// Cache is invalid or doesn't exist, fetch from API
@@ -84,7 +124,8 @@ func (s *Store) GetDatabase(ctx context.Context) (*Database, error) {
 	if err != nil {
 		// If API fetch fails, but we have cached data, use it
 		if cached != nil {
-			return &cached.Database, nil
+			s.dbCache = &cached.Database
+			return s.dbCache, nil
 		}
 		return nil, fmt.Errorf("failed to fetch from API and no cached data available: %w", err)
 	}
@@ -95,7 +136,8 @@ func (s *Store) GetDatabase(ctx context.Context) (*Database, error) {
 		slog.Warn("Warning: failed to save to cache", "error", err)
 	}
 
-	return database, nil
+	s.dbCache = database
+	return s.dbCache, nil
 }
 
 // GetProvider returns a specific provider by ID
