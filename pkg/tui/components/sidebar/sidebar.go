@@ -70,6 +70,7 @@ type model struct {
 	agentSwitching   bool
 	availableTools   int
 	sessionState     *service.SessionState
+	workingAgent     string // Name of the agent currently working (empty if none)
 }
 
 func New(sessionState *service.SessionState) Model {
@@ -209,6 +210,12 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case *runtime.SessionTitleEvent:
 		m.sessionTitle = msg.Title
 		return m, nil
+	case *runtime.StreamStartedEvent:
+		m.workingAgent = msg.AgentName
+		return m, m.spinner.Init()
+	case *runtime.StreamStoppedEvent:
+		m.workingAgent = ""
+		return m, nil
 	case *runtime.AgentInfoEvent:
 		m.SetAgentInfo(msg.AgentName, msg.Model, msg.Description)
 		return m, nil
@@ -224,8 +231,8 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	default:
 		var cmds []tea.Cmd
 
-		// Update main spinner
-		if m.mcpInit {
+		// Update main spinner when MCP is initializing or an agent is working
+		if m.mcpInit || m.workingAgent != "" {
 			model, cmd := m.spinner.Update(msg)
 			m.spinner = model.(spinner.Spinner)
 			cmds = append(cmds, cmd)
@@ -519,12 +526,17 @@ func (m *model) agentInfo() string {
 }
 
 func (m *model) renderAgentEntry(content *strings.Builder, agent runtime.AgentDetails, isCurrent bool, index int) {
-	prefix := ""
+	var prefix string
 	if isCurrent {
-		prefix = "▶ "
+		if m.workingAgent == agent.Name {
+			// Style the spinner with the same green as the agent name
+			prefix = styles.TabAccentStyle.Render(m.spinner.View()) + " "
+		} else {
+			prefix = styles.TabAccentStyle.Render("▶") + " "
+		}
 	}
 	// Agent name
-	agentNameText := styles.TabAccentStyle.Render(prefix + agent.Name)
+	agentNameText := prefix + styles.TabAccentStyle.Render(agent.Name)
 	// Shortcut hint (^1, ^2, etc.) - show for agents 1-9
 	var shortcutHint string
 	if index >= 0 && index < 9 {

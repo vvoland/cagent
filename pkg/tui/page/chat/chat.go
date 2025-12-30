@@ -765,7 +765,7 @@ func (p *chatPage) renderResizeHandle(width int) string {
 	// Add working spinner on the right side
 	var suffix string
 	if p.working {
-		suffix = " " + p.spinner.View() + " Working…"
+		suffix = " " + p.spinner.View() + " " + styles.SpinnerCharStyle.Render("Working…")
 	}
 
 	return lipgloss.PlaceHorizontal(
