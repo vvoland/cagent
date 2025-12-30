@@ -34,6 +34,20 @@ func New(ctx context.Context, rt runtime.Runtime, sess *session.Session, firstMe
 		throttleDuration: 50 * time.Millisecond, // Throttle rapid events
 	}
 
+	// Emit startup info (agent, team, tools) through the events channel.
+	// This runs in the background so the TUI can start immediately while
+	// slow operations (like MCP tool loading) complete asynchronously.
+	go func() {
+		startupEvents := make(chan runtime.Event, 10)
+		go func() {
+			defer close(startupEvents)
+			rt.EmitStartupInfo(ctx, startupEvents)
+		}()
+		for event := range startupEvents {
+			app.events <- event
+		}
+	}()
+
 	// If the runtime supports background RAG initialization, start it
 	// and forward events to the TUI. Remote runtimes typically handle RAG server-side
 	// and won't implement this optional interface.
