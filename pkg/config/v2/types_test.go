@@ -153,8 +153,8 @@ func TestRAGStrategyConfig_UnmarshalJSON(t *testing.T) {
 	require.Equal(t, "./bm25.db", mustGetDBString(t, strategy.Database))
 	require.Equal(t, 20, strategy.Limit)
 	require.NotNil(t, strategy.Params)
-	require.Equal(t, 1.2, strategy.Params["k1"])
-	require.Equal(t, 0.75, strategy.Params["b"])
+	require.InEpsilon(t, 1.2, toFloat64(strategy.Params["k1"]), 0.001)
+	require.InEpsilon(t, 0.75, toFloat64(strategy.Params["b"]), 0.001)
 }
 
 func TestRAGStrategyConfig_JSONRoundTrip(t *testing.T) {
