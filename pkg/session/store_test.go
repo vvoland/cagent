@@ -1,6 +1,7 @@
 package session
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -199,4 +200,26 @@ func TestStoreAgentNameJSON(t *testing.T) {
 	assert.Empty(t, retrievedSession.Messages[0].Message.AgentName)                  // User message
 	assert.Equal(t, "my-agent", retrievedSession.Messages[1].Message.AgentName)      // First agent
 	assert.Equal(t, "another-agent", retrievedSession.Messages[2].Message.AgentName) // Second agent
+}
+
+func TestNewSQLiteSessionStore_DirectoryDoesNotExist(t *testing.T) {
+	nonExistentPath := "/nonexistent/path/to/session.db"
+
+	_, err := NewSQLiteSessionStore(nonExistentPath)
+	require.Error(t, err)
+
+	assert.Contains(t, err.Error(), "cannot create session database")
+	assert.Contains(t, err.Error(), "does not exist")
+}
+
+func TestNewSQLiteSessionStore_DirectoryNotWritable(t *testing.T) {
+	readOnlyDir := filepath.Join(t.TempDir(), "readonly")
+	err := os.Mkdir(readOnlyDir, 0o555)
+	require.NoError(t, err)
+
+	_, err = NewSQLiteSessionStore(filepath.Join(readOnlyDir, "session.db"))
+	require.Error(t, err)
+
+	assert.Contains(t, err.Error(), "cannot create session database")
+	assert.Contains(t, err.Error(), "permission denied or file cannot be created")
 }

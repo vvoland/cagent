@@ -5,10 +5,14 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
-	_ "modernc.org/sqlite"
+	"modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 
 	"github.com/docker/cagent/pkg/concurrent"
 )
@@ -25,6 +29,37 @@ func convertMessagesToItems(messages []Message) []Item {
 		items[i] = NewMessageItem(&messages[i])
 	}
 	return items
+}
+
+// isSQLiteCantOpen checks if the error is a SQLite CANTOPEN error (code 14).
+// This error occurs when SQLite cannot open the database file, which can happen
+// when the parent directory doesn't exist or the file cannot be created.
+func isSQLiteCantOpen(err error) bool {
+	var sqliteErr *sqlite.Error
+	if errors.As(err, &sqliteErr) {
+		return sqliteErr.Code() == sqlite3.SQLITE_CANTOPEN
+	}
+	return false
+}
+
+// diagnoseDBOpenError provides a more helpful error message when SQLite
+// fails to open/create a database file.
+func diagnoseDBOpenError(path string) error {
+	dir := filepath.Dir(path)
+
+	info, err := os.Stat(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("cannot create session database at %q: directory %q does not exist", path, dir)
+		}
+		return fmt.Errorf("cannot create session database at %q: %w", path, err)
+	}
+
+	if !info.IsDir() {
+		return fmt.Errorf("cannot create session database at %q: %q is not a directory", path, dir)
+	}
+
+	return fmt.Errorf("cannot create session database at %q: permission denied or file cannot be created in %q", path, dir)
 }
 
 // Store defines the interface for session storage
@@ -110,6 +145,9 @@ func NewSQLiteSessionStore(path string) (Store, error) {
 	// _journal_mode=WAL: Enable Write-Ahead Logging for better concurrent access
 	db, err := sql.Open("sqlite", path+"?_busy_timeout=5000&_journal_mode=WAL")
 	if err != nil {
+		if isSQLiteCantOpen(err) {
+			return nil, diagnoseDBOpenError(path)
+		}
 		return nil, err
 	}
 
@@ -127,6 +165,9 @@ func NewSQLiteSessionStore(path string) (Store, error) {
 		)
 	`)
 	if err != nil {
+		if isSQLiteCantOpen(err) {
+			return nil, diagnoseDBOpenError(path)
+		}
 		return nil, err
 	}
 

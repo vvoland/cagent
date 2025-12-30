@@ -94,17 +94,17 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 
 	sessionStore, err := session.NewSQLiteSessionStore(f.sessionDB)
 	if err != nil {
-		return fmt.Errorf("failed to create session store: %w", err)
+		return fmt.Errorf("creating session store: %w", err)
 	}
 
 	sources, err := config.ResolveSources(agentsPath)
 	if err != nil {
-		return fmt.Errorf("failed to resolve agent sources: %w", err)
+		return fmt.Errorf("resolving agent sources: %w", err)
 	}
 
 	s, err := server.New(ctx, sessionStore, &f.runConfig, time.Duration(f.pullIntervalMins)*time.Minute, sources)
 	if err != nil {
-		return fmt.Errorf("failed to create server: %w", err)
+		return fmt.Errorf("creating server: %w", err)
 	}
 
 	return s.Serve(ctx, ln)
