@@ -19,6 +19,8 @@ import (
 )
 
 func TestPullNonExistentRegistry(t *testing.T) {
+	t.Parallel()
+
 	// Use a test server that returns 404 for fast failure
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
@@ -32,6 +34,8 @@ func TestPullNonExistentRegistry(t *testing.T) {
 }
 
 func TestPullWithOptions(t *testing.T) {
+	t.Parallel()
+
 	// Use a test server that returns 404 for fast failure
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
@@ -45,6 +49,8 @@ func TestPullWithOptions(t *testing.T) {
 }
 
 func TestPullIntegration(t *testing.T) {
+	t.Parallel()
+
 	store, err := content.NewStore(content.WithBaseDir(t.TempDir()))
 	require.NoError(t, err)
 
@@ -73,6 +79,8 @@ func TestPullIntegration(t *testing.T) {
 }
 
 func TestSeparator(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		ref      string
