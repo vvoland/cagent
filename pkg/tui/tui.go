@@ -117,8 +117,6 @@ func (a *appModel) Init() tea.Cmd {
 	cmds := []tea.Cmd{
 		a.dialog.Init(),
 		a.chatPage.Init(),
-		// Note: Startup info (agent, team, tools) is now emitted through app.Subscribe
-		// via the events channel, so it flows through the normal event handling path.
 	}
 
 	if firstMessage := a.application.FirstMessage(); firstMessage != nil {
