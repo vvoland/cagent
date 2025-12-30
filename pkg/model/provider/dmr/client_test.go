@@ -10,6 +10,8 @@ import (
 )
 
 func TestNewClientWithExplicitBaseURL(t *testing.T) {
+	t.Parallel()
+
 	cfg := &latest.ModelConfig{
 		Provider: "dmr",
 		Model:    "ai/qwen3",
@@ -22,6 +24,8 @@ func TestNewClientWithExplicitBaseURL(t *testing.T) {
 }
 
 func TestNewClientWithWrongType(t *testing.T) {
+	t.Parallel()
+
 	cfg := &latest.ModelConfig{
 		Provider: "openai",
 		Model:    "gpt-4",
@@ -32,12 +36,16 @@ func TestNewClientWithWrongType(t *testing.T) {
 }
 
 func TestBuildDockerConfigureArgs(t *testing.T) {
+	t.Parallel()
+
 	args := buildDockerModelConfigureArgs("ai/qwen3:14B-Q6_K", int64Ptr(8192), []string{"--temp", "0.7", "--top-p", "0.9"}, nil)
 
 	assert.Equal(t, []string{"model", "configure", "--context-size=8192", "ai/qwen3:14B-Q6_K", "--", "--temp", "0.7", "--top-p", "0.9"}, args)
 }
 
 func TestBuildRuntimeFlagsFromModelConfig_LlamaCpp(t *testing.T) {
+	t.Parallel()
+
 	flags := buildRuntimeFlagsFromModelConfig("llama.cpp", &latest.ModelConfig{
 		Temperature:      floatPtr(0.6),
 		TopP:             floatPtr(0.95),
@@ -49,6 +57,8 @@ func TestBuildRuntimeFlagsFromModelConfig_LlamaCpp(t *testing.T) {
 }
 
 func TestIntegrateFlagsWithProviderOptsOrder(t *testing.T) {
+	t.Parallel()
+
 	cfg := &latest.ModelConfig{
 		Temperature: floatPtr(0.6),
 		TopP:        floatPtr(0.9),
@@ -67,6 +77,8 @@ func TestIntegrateFlagsWithProviderOptsOrder(t *testing.T) {
 }
 
 func TestMergeRuntimeFlagsPreferUser_WarnsAndPrefersUser(t *testing.T) {
+	t.Parallel()
+
 	// Derived suggests temp/top-p, user overrides both and adds threads
 	derived := []string{"--temp", "0.5", "--top-p", "0.8"}
 	user := []string{"--temp", "0.7", "--threads", "8"}
@@ -89,6 +101,8 @@ func int64Ptr(i int64) *int64 {
 }
 
 func TestBuildDockerConfigureArgsWithSpeculativeDecoding(t *testing.T) {
+	t.Parallel()
+
 	specOpts := &speculativeDecodingOpts{
 		draftModel:     "ai/qwen3:1B",
 		numTokens:      5,
@@ -109,6 +123,8 @@ func TestBuildDockerConfigureArgsWithSpeculativeDecoding(t *testing.T) {
 }
 
 func TestBuildDockerConfigureArgsWithPartialSpeculativeDecoding(t *testing.T) {
+	t.Parallel()
+
 	specOpts := &speculativeDecodingOpts{
 		draftModel: "ai/qwen3:1B",
 		numTokens:  5,
@@ -125,6 +141,8 @@ func TestBuildDockerConfigureArgsWithPartialSpeculativeDecoding(t *testing.T) {
 }
 
 func TestParseDMRProviderOptsWithSpeculativeDecoding(t *testing.T) {
+	t.Parallel()
+
 	cfg := &latest.ModelConfig{
 		MaxTokens: int64Ptr(4096),
 		ProviderOpts: map[string]any{
@@ -146,6 +164,8 @@ func TestParseDMRProviderOptsWithSpeculativeDecoding(t *testing.T) {
 }
 
 func TestParseDMRProviderOptsWithoutSpeculativeDecoding(t *testing.T) {
+	t.Parallel()
+
 	cfg := &latest.ModelConfig{
 		MaxTokens: int64Ptr(4096),
 		ProviderOpts: map[string]any{

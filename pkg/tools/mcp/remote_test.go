@@ -1,7 +1,6 @@
 package mcp
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +14,8 @@ import (
 // TestRemoteClientCustomHeaders verifies that custom headers passed to the remote
 // MCP client are actually applied to HTTP requests sent to the MCP server.
 func TestRemoteClientCustomHeaders(t *testing.T) {
+	t.Parallel()
+
 	var capturedRequest *http.Request
 	requestCaptured := make(chan bool, 1)
 
@@ -31,9 +32,6 @@ func TestRemoteClientCustomHeaders(t *testing.T) {
 		case requestCaptured <- true:
 		default:
 		}
-
-		// Keep the connection open briefly
-		time.Sleep(100 * time.Millisecond)
 	}))
 	defer server.Close()
 
@@ -46,12 +44,9 @@ func TestRemoteClientCustomHeaders(t *testing.T) {
 
 	client := newRemoteClient(server.URL, "sse", expectedHeaders, NewInMemoryTokenStore())
 
-	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
-	defer cancel()
-
 	// Try to initialize (which will make the HTTP request)
 	// We don't care if it succeeds or fails, we just need it to make the request
-	_, _ = client.Initialize(ctx, nil)
+	_, _ = client.Initialize(t.Context(), nil)
 
 	// Wait for the request to be captured
 	select {
@@ -63,13 +58,15 @@ func TestRemoteClientCustomHeaders(t *testing.T) {
 				"Expected header %s to have value %q, but got %q",
 				key, expectedValue, actualValue)
 		}
-	case <-time.After(1 * time.Second):
+	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Server did not receive request within timeout")
 	}
 }
 
 // TestRemoteClientHeadersWithStreamable verifies that custom headers work with streamable transport
 func TestRemoteClientHeadersWithStreamable(t *testing.T) {
+	t.Parallel()
+
 	var capturedRequest *http.Request
 	requestCaptured := make(chan bool, 1)
 
@@ -96,11 +93,8 @@ func TestRemoteClientHeadersWithStreamable(t *testing.T) {
 
 	client := newRemoteClient(server.URL, "streamable", expectedHeaders, NewInMemoryTokenStore())
 
-	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
-	defer cancel()
-
 	// Try to initialize
-	_, _ = client.Initialize(ctx, nil)
+	_, _ = client.Initialize(t.Context(), nil)
 
 	// Wait for the request to be captured
 	select {
@@ -110,13 +104,15 @@ func TestRemoteClientHeadersWithStreamable(t *testing.T) {
 		assert.Equal(t, "custom-auth-value", actualValue,
 			"Expected header X-Custom-Auth to have value %q, but got %q",
 			"custom-auth-value", actualValue)
-	case <-time.After(1 * time.Second):
+	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Server did not receive request within timeout")
 	}
 }
 
 // TestRemoteClientNoHeaders verifies that the client works correctly even with no headers
 func TestRemoteClientNoHeaders(t *testing.T) {
+	t.Parallel()
+
 	var capturedRequest *http.Request
 	requestCaptured := make(chan bool, 1)
 
@@ -131,31 +127,28 @@ func TestRemoteClientNoHeaders(t *testing.T) {
 		case requestCaptured <- true:
 		default:
 		}
-
-		time.Sleep(100 * time.Millisecond)
 	}))
 	defer server.Close()
 
 	// Create remote client without custom headers (nil)
 	client := newRemoteClient(server.URL, "sse", nil, NewInMemoryTokenStore())
 
-	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
-	defer cancel()
-
-	_, _ = client.Initialize(ctx, nil)
+	_, _ = client.Initialize(t.Context(), nil)
 
 	// Wait for request
 	select {
 	case <-requestCaptured:
 		// Just verify we got the request - no custom headers should be present
 		require.NotNil(t, capturedRequest, "Request should have been captured")
-	case <-time.After(1 * time.Second):
+	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Server did not receive request within timeout")
 	}
 }
 
 // TestRemoteClientEmptyHeaders verifies that the client works correctly with an empty map
 func TestRemoteClientEmptyHeaders(t *testing.T) {
+	t.Parallel()
+
 	var capturedRequest *http.Request
 	requestCaptured := make(chan bool, 1)
 
@@ -170,25 +163,20 @@ func TestRemoteClientEmptyHeaders(t *testing.T) {
 		case requestCaptured <- true:
 		default:
 		}
-
-		time.Sleep(100 * time.Millisecond)
 	}))
 	defer server.Close()
 
 	// Create remote client with empty headers map
 	client := newRemoteClient(server.URL, "sse", map[string]string{}, NewInMemoryTokenStore())
 
-	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
-	defer cancel()
-
-	_, _ = client.Initialize(ctx, nil)
+	_, _ = client.Initialize(t.Context(), nil)
 
 	// Wait for request
 	select {
 	case <-requestCaptured:
 		// Just verify we got the request
 		require.NotNil(t, capturedRequest, "Request should have been captured")
-	case <-time.After(1 * time.Second):
+	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Server did not receive request within timeout")
 	}
 }
