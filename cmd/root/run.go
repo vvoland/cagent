@@ -205,7 +205,7 @@ func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, t *team
 
 	sessStore, err := session.NewSQLiteSessionStore(f.sessionDB)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create session store: %w", err)
+		return nil, nil, fmt.Errorf("creating session store: %w", err)
 	}
 
 	localRt, err := runtime.New(t,
@@ -214,7 +214,7 @@ func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, t *team
 		runtime.WithTracer(otel.Tracer(AppName)),
 	)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create runtime: %w", err)
+		return nil, nil, fmt.Errorf("creating runtime: %w", err)
 	}
 
 	sess := session.New(
