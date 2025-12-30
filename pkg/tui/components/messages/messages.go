@@ -36,6 +36,9 @@ type AutoScrollTickMsg struct {
 	Direction int // -1 for up, 1 for down
 }
 
+// ToggleHideToolResultsMsg triggers hiding/showing tool results
+type ToggleHideToolResultsMsg struct{}
+
 // Model represents a chat message list component
 type Model interface {
 	layout.Model
@@ -253,6 +256,11 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 	case editfile.ToggleDiffViewMsg:
 		m.sessionState.ToggleSplitDiffView()
+		m.invalidateAllItems()
+		return m, nil
+
+	case ToggleHideToolResultsMsg:
+		m.sessionState.ToggleHideToolResults()
 		m.invalidateAllItems()
 		return m, nil
 

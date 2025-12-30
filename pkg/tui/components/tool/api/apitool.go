@@ -18,10 +18,10 @@ func New(msg *types.Message, sessionState *service.SessionState) layout.Model {
 	return toolcommon.NewBase(msg, sessionState, render)
 }
 
-func render(msg *types.Message, s spinner.Spinner, width, _ int) string {
+func render(msg *types.Message, s spinner.Spinner, sessionState *service.SessionState, width, _ int) string {
 	var args map[string]any
 	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &args); err != nil {
-		return toolcommon.RenderTool(msg, s, "", "", width)
+		return toolcommon.RenderTool(msg, s, "", "", width, sessionState.HideToolResults)
 	}
 
 	// Extract argument summary for the tool call display
@@ -42,7 +42,7 @@ func render(msg *types.Message, s spinner.Spinner, width, _ int) string {
 		params += styles.MutedStyle.Render(": Received " + units.HumanSize(float64(len(msg.Content))))
 	}
 
-	return toolcommon.RenderTool(msg, s, params, "", width)
+	return toolcommon.RenderTool(msg, s, params, "", width, sessionState.HideToolResults)
 }
 
 // extractEndpoint tries to find the endpoint/URL being called.

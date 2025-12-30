@@ -11,8 +11,8 @@ import (
 )
 
 // Renderer is a function that renders a tool call view.
-// It receives the message, spinner, and available width/height.
-type Renderer func(msg *types.Message, s spinner.Spinner, width, height int) string
+// It receives the message, spinner, session state, and available width/height.
+type Renderer func(msg *types.Message, s spinner.Spinner, sessionState *service.SessionState, width, height int) string
 
 // Base provides common boilerplate for tool components.
 // It handles spinner management, sizing, and delegates rendering to a custom function.
@@ -85,7 +85,7 @@ func (b *Base) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 }
 
 func (b *Base) View() string {
-	return b.render(b.message, b.spinner, b.width, b.height)
+	return b.render(b.message, b.spinner, b.sessionState, b.width, b.height)
 }
 
 func (b *Base) isSpinnerActive() bool {
@@ -97,12 +97,12 @@ func (b *Base) isSpinnerActive() bool {
 // and renders it with RenderTool. This covers the most common case where
 // tools just display one argument (like path, command, etc.).
 func SimpleRenderer(extractArg func(args string) string) Renderer {
-	return func(msg *types.Message, s spinner.Spinner, width, _ int) string {
+	return func(msg *types.Message, s spinner.Spinner, sessionState *service.SessionState, width, _ int) string {
 		arg := ""
 		if msg.ToolCall.Function.Arguments != "" {
 			arg = extractArg(msg.ToolCall.Function.Arguments)
 		}
-		return RenderTool(msg, s, arg, "", width)
+		return RenderTool(msg, s, arg, "", width, sessionState.HideToolResults)
 	}
 }
 
@@ -112,7 +112,7 @@ func SimpleRendererWithResult(
 	extractArg func(args string) string,
 	extractResult func(msg *types.Message) string,
 ) Renderer {
-	return func(msg *types.Message, s spinner.Spinner, width, _ int) string {
+	return func(msg *types.Message, s spinner.Spinner, sessionState *service.SessionState, width, _ int) string {
 		arg := ""
 		if msg.ToolCall.Function.Arguments != "" {
 			arg = extractArg(msg.ToolCall.Function.Arguments)
@@ -123,6 +123,6 @@ func SimpleRendererWithResult(
 			result = extractResult(msg)
 		}
 
-		return RenderTool(msg, s, arg, result, width)
+		return RenderTool(msg, s, arg, result, width, sessionState.HideToolResults)
 	}
 }

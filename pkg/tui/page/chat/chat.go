@@ -297,6 +297,12 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		cmds = append(cmds, p.messages.ScrollToBottom())
 		return p, tea.Batch(cmds...)
 
+	case msgtypes.ToggleHideToolResultsMsg:
+		// Forward to messages component to invalidate cache and trigger redraw
+		model, cmd := p.messages.Update(messages.ToggleHideToolResultsMsg{})
+		p.messages = model.(messages.Model)
+		return p, cmd
+
 	// Runtime events
 	case *runtime.ErrorEvent:
 		cmd := p.messages.AddErrorMessage(msg.Error)

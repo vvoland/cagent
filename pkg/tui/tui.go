@@ -59,10 +59,11 @@ type appModel struct {
 
 // KeyMap defines global key bindings
 type KeyMap struct {
-	Quit           key.Binding
-	CommandPalette key.Binding
-	ToggleYolo     key.Binding
-	SwitchAgent    key.Binding
+	Quit                  key.Binding
+	CommandPalette        key.Binding
+	ToggleYolo            key.Binding
+	ToggleHideToolResults key.Binding
+	SwitchAgent           key.Binding
 }
 
 // DefaultKeyMap returns the default global key bindings
@@ -79,6 +80,10 @@ func DefaultKeyMap() KeyMap {
 		ToggleYolo: key.NewBinding(
 			key.WithKeys("ctrl+y"),
 			key.WithHelp("Ctrl+y", "toggle yolo mode"),
+		),
+		ToggleHideToolResults: key.NewBinding(
+			key.WithKeys("ctrl+o"),
+			key.WithHelp("Ctrl+o", "toggle tool output"),
 		),
 		SwitchAgent: key.NewBinding(
 			key.WithKeys("ctrl+s"),
@@ -257,6 +262,12 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.sessionState.SetYoloMode(sess.ToolsApproved)
 		return a, nil
 
+	case messages.ToggleHideToolResultsMsg:
+		// Forward to chat page to invalidate message cache and trigger redraw
+		updated, cmd := a.chatPage.Update(msg)
+		a.chatPage = updated.(chat.Page)
+		return a, cmd
+
 	case messages.AgentCommandMsg:
 		resolvedCommand := a.application.ResolveCommand(context.Background(), msg.Command)
 		return a, core.CmdHandler(editor.SendMsg{Content: resolvedCommand})
@@ -407,6 +418,9 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, a.keyMap.ToggleYolo):
 		return a, core.CmdHandler(messages.ToggleYoloMsg{})
+
+	case key.Matches(msg, a.keyMap.ToggleHideToolResults):
+		return a, core.CmdHandler(messages.ToggleHideToolResultsMsg{})
 
 	case key.Matches(msg, a.keyMap.SwitchAgent):
 		// Cycle to the next agent in the list

@@ -593,6 +593,12 @@ func (m *model) toolsetInfo() string {
 		lines = append(lines, indicator+shortcut)
 	}
 
+	if m.sessionState.HideToolResults {
+		indicator := styles.TabAccentStyle.Render("✓") + styles.TabPrimaryStyle.Render(" Tool output hidden")
+		shortcut := lipgloss.PlaceHorizontal(m.width-lipgloss.Width(indicator)-2, lipgloss.Right, styles.MutedStyle.Render("^o"))
+		lines = append(lines, indicator+shortcut)
+	}
+
 	if m.sessionState.SplitDiffView {
 		indicator := styles.TabAccentStyle.Render("✓") + styles.TabPrimaryStyle.Render(" Split Diff View enabled")
 		shortcut := lipgloss.PlaceHorizontal(m.width-lipgloss.Width(indicator)-2, lipgloss.Right, styles.MutedStyle.Render("^t"))

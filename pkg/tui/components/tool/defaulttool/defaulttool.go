@@ -14,14 +14,14 @@ func New(msg *types.Message, sessionState *service.SessionState) layout.Model {
 	return toolcommon.NewBase(msg, sessionState, render)
 }
 
-func render(msg *types.Message, s spinner.Spinner, width, _ int) string {
+func render(msg *types.Message, s spinner.Spinner, sessionState *service.SessionState, width, _ int) string {
 	var argsContent string
 	if msg.ToolCall.Function.Arguments != "" {
 		argsContent = renderToolArgs(msg.ToolCall, width-4-len(msg.ToolDefinition.DisplayName()), width-3)
 	}
 
 	if argsContent == "" {
-		return toolcommon.RenderTool(msg, s, "", "", width)
+		return toolcommon.RenderTool(msg, s, "", "", width, sessionState.HideToolResults)
 	}
 
 	var resultContent string
@@ -29,5 +29,5 @@ func render(msg *types.Message, s spinner.Spinner, width, _ int) string {
 		resultContent = toolcommon.FormatToolResult(msg.Content, width)
 	}
 
-	return toolcommon.RenderTool(msg, s, argsContent, resultContent, width)
+	return toolcommon.RenderTool(msg, s, argsContent, resultContent, width, sessionState.HideToolResults)
 }

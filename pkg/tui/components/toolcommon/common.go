@@ -76,7 +76,7 @@ func FormatToolResult(content string, width int) string {
 	return strings.Join(lines, "\n")
 }
 
-func RenderTool(msg *types.Message, inProgress spinner.Spinner, args, result string, width int) string {
+func RenderTool(msg *types.Message, inProgress spinner.Spinner, args, result string, width int, hideToolResults bool) string {
 	nameStyle := styles.ToolName
 	resultStyle := styles.ToolMessageStyle
 	if msg.ToolStatus == types.ToolStatusError {
@@ -91,7 +91,9 @@ func RenderTool(msg *types.Message, inProgress spinner.Spinner, args, result str
 	}
 	if result != "" {
 		if strings.Count(content, "\n") > 0 || strings.Count(result, "\n") > 0 {
-			content += "\n" + resultStyle.MarginLeft(styles.ToolCompletedIcon.GetMarginLeft()).Render(result)
+			if !hideToolResults {
+				content += "\n" + resultStyle.MarginLeft(styles.ToolCompletedIcon.GetMarginLeft()).Render(result)
+			}
 		} else {
 			remainingWidth := width - lipgloss.Width(content) - 1
 			content += " " + lipgloss.PlaceHorizontal(remainingWidth, lipgloss.Right, resultStyle.Render(result))
