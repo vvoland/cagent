@@ -33,6 +33,7 @@ type tickMsg struct {
 }
 
 type Spinner struct {
+	dotsStyle      lipgloss.Style
 	messages       []string
 	mode           Mode
 	currentMessage string
@@ -68,8 +69,9 @@ var defaultMessages = []string{
 	"Untangling yarn",
 }
 
-func New(mode Mode) Spinner {
+func New(mode Mode, dotsStyle lipgloss.Style) Spinner {
 	return Spinner{
+		dotsStyle:      dotsStyle,
 		messages:       defaultMessages,
 		mode:           mode,
 		currentMessage: defaultMessages[rand.IntN(len(defaultMessages))],
@@ -83,6 +85,10 @@ func New(mode Mode) Spinner {
 
 func (s Spinner) Init() tea.Cmd {
 	return s.Tick()
+}
+
+func (s Spinner) Reset() Spinner {
+	return New(s.mode, s.dotsStyle)
 }
 
 func (s Spinner) Update(message tea.Msg) (layout.Model, tea.Cmd) {
@@ -165,7 +171,7 @@ func (s Spinner) render() string {
 
 	spinnerChars := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 	spinnerChar := spinnerChars[s.frame%len(spinnerChars)]
-	spinnerStyled := styles.SpinnerCharStyle.Render(spinnerChar)
+	spinnerStyled := s.dotsStyle.Render(spinnerChar)
 
 	switch s.mode {
 	case ModeSpinnerOnly:

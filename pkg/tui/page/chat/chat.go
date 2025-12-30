@@ -147,7 +147,7 @@ func New(a *app.App, sessionState *service.SessionState) Page {
 		sidebar:      sidebar.New(sessionState),
 		messages:     messages.New(a, sessionState),
 		editor:       editor.New(a, historyStore),
-		spinner:      spinner.New(spinner.ModeSpinnerOnly),
+		spinner:      spinner.New(spinner.ModeSpinnerOnly, styles.SpinnerDotsHighlightStyle),
 		focusedPanel: PanelEditor,
 		app:          a,
 		keyMap:       defaultKeyMap(),
@@ -765,7 +765,7 @@ func (p *chatPage) renderResizeHandle(width int) string {
 	// Add working spinner on the right side
 	var suffix string
 	if p.working {
-		suffix = " " + p.spinner.View() + " " + styles.SpinnerCharStyle.Render("Working…")
+		suffix = " " + p.spinner.View() + " " + styles.SpinnerDotsHighlightStyle.Render("Working…")
 	}
 
 	return lipgloss.PlaceHorizontal(
