@@ -9,7 +9,7 @@ import (
 	"iter"
 	"log/slog"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -43,7 +43,9 @@ type Toolset struct {
 	mcpClient    mcpClient
 	logID        string
 	instructions string
-	started      atomic.Bool
+	startOnce    sync.Once
+	startErr     error
+	started      bool // protected by startOnce
 }
 
 var _ tools.ToolSet = (*Toolset)(nil)
@@ -71,10 +73,16 @@ func NewRemoteToolset(name, url, transport string, headers map[string]string) *T
 }
 
 func (ts *Toolset) Start(ctx context.Context) error {
-	if ts.started.Load() {
-		return errors.New("toolset already started")
-	}
+	ts.startOnce.Do(func() {
+		ts.startErr = ts.doStart(ctx)
+		if ts.startErr == nil {
+			ts.started = true
+		}
+	})
+	return ts.startErr
+}
 
+func (ts *Toolset) doStart(ctx context.Context) error {
 	// The MCP toolset connection needs to persist beyond the initial HTTP request that triggered its creation.
 	// When OAuth succeeds, subsequent agent requests should reuse the already-authenticated MCP connection.
 	// But if the connection's underlying context is tied to the first HTTP request, it gets cancelled when that request
@@ -124,12 +132,11 @@ func (ts *Toolset) Start(ctx context.Context) error {
 
 	slog.Debug("Started MCP toolset successfully", "server", ts.logID)
 	ts.instructions = result.Instructions
-	ts.started.Store(true)
 	return nil
 }
 
 func (ts *Toolset) Instructions() string {
-	if !ts.started.Load() {
+	if !ts.started {
 		// TODO: this should never happen...
 		return ""
 	}
@@ -137,7 +144,7 @@ func (ts *Toolset) Instructions() string {
 }
 
 func (ts *Toolset) Tools(ctx context.Context) ([]tools.Tool, error) {
-	if !ts.started.Load() {
+	if !ts.started {
 		return nil, errors.New("toolset not started")
 	}
 
@@ -269,7 +276,7 @@ func (ts *Toolset) SetManagedOAuth(managed bool) {
 // Returns a slice of PromptInfo containing metadata about each available prompt
 // including name, description, and argument specifications.
 func (ts *Toolset) ListPrompts(ctx context.Context) ([]PromptInfo, error) {
-	if !ts.started.Load() {
+	if !ts.started {
 		return nil, errors.New("toolset not started")
 	}
 
@@ -315,7 +322,7 @@ func (ts *Toolset) ListPrompts(ctx context.Context) ([]PromptInfo, error) {
 // GetPrompt retrieves a specific prompt with provided arguments from the MCP server.
 // This method executes the prompt and returns the result content.
 func (ts *Toolset) GetPrompt(ctx context.Context, name string, arguments map[string]string) (*mcp.GetPromptResult, error) {
-	if !ts.started.Load() {
+	if !ts.started {
 		return nil, errors.New("toolset not started")
 	}
 
