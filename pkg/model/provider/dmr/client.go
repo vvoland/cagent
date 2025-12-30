@@ -67,14 +67,20 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, opts ...options.Opt
 		opt(&globalOptions)
 	}
 
-	endpoint, engine, err := getDockerModelEndpointAndEngine(ctx)
-	if err != nil {
-		slog.Debug("docker model status query failed", "error", err)
-	} else {
-		// Auto-pull the model if needed
-		if err := pullDockerModelIfNeeded(ctx, cfg.Model); err != nil {
-			slog.Debug("docker model pull failed", "error", err)
-			return nil, err
+	// Skip docker model status query when BaseURL is explicitly provided.
+	// This avoids unnecessary exec calls and speeds up tests/CI scenarios.
+	var endpoint, engine string
+	if cfg.BaseURL == "" && os.Getenv("MODEL_RUNNER_HOST") == "" {
+		var err error
+		endpoint, engine, err = getDockerModelEndpointAndEngine(ctx)
+		if err != nil {
+			slog.Debug("docker model status query failed", "error", err)
+		} else {
+			// Auto-pull the model if needed
+			if err := pullDockerModelIfNeeded(ctx, cfg.Model); err != nil {
+				slog.Debug("docker model pull failed", "error", err)
+				return nil, err
+			}
 		}
 	}
 

@@ -155,6 +155,8 @@ func TestOverrideModel(t *testing.T) {
 }
 
 func TestToolsetInstructions(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "dummy")
+
 	agentSource, err := config.Resolve("testdata/tool-instruction.yaml")
 	require.NoError(t, err)
 
