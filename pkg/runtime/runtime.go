@@ -465,16 +465,57 @@ func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, events chan Event) {
 	// Emit agent warnings (if any) - these are quick
 	r.emitAgentWarnings(a, events)
 
-	// Tool loading can be slow (MCP servers need to start), so do it last
-	agentTools, err := a.Tools(ctx)
-	if err != nil {
-		slog.Warn("Failed to get agent tools during startup", "agent", a.Name(), "error", err)
-		// Emit toolset info with 0 tools if we can't get them
-		events <- ToolsetInfo(0, r.currentAgent)
+	// Tool loading can be slow (MCP servers need to start)
+	// Emit progressive updates as each toolset loads
+	r.emitToolsProgressively(ctx, a, events)
+}
+
+// emitToolsProgressively loads tools from each toolset and emits progress updates.
+// This allows the UI to show the tool count incrementally as each toolset loads,
+// with a spinner indicating that more tools may be coming.
+func (r *LocalRuntime) emitToolsProgressively(ctx context.Context, a *agent.Agent, events chan Event) {
+	toolsets := a.ToolSets()
+	totalToolsets := len(toolsets)
+
+	// If no toolsets, emit final state immediately
+	if totalToolsets == 0 {
+		events <- ToolsetInfo(0, false, r.currentAgent)
 		return
 	}
 
-	events <- ToolsetInfo(len(agentTools), r.currentAgent)
+	// Emit initial loading state
+	events <- ToolsetInfo(0, true, r.currentAgent)
+
+	// Load tools from each toolset and emit progress
+	var totalTools int
+	for i, toolset := range toolsets {
+		isLast := i == totalToolsets-1
+
+		// Start the toolset if needed
+		if startable, ok := toolset.(*agent.StartableToolSet); ok {
+			if !startable.IsStarted() {
+				if err := startable.Start(ctx); err != nil {
+					slog.Warn("Toolset start failed; skipping", "agent", a.Name(), "toolset", fmt.Sprintf("%T", startable.ToolSet), "error", err)
+					continue
+				}
+			}
+		}
+
+		// Get tools from this toolset
+		ts, err := toolset.Tools(ctx)
+		if err != nil {
+			slog.Warn("Failed to get tools from toolset", "agent", a.Name(), "error", err)
+			continue
+		}
+
+		totalTools += len(ts)
+
+		// Emit progress update - still loading unless this is the last toolset
+		events <- ToolsetInfo(totalTools, !isLast, r.currentAgent)
+	}
+
+	// Emit final state (not loading)
+	events <- ToolsetInfo(totalTools, false, r.currentAgent)
 }
 
 // registerDefaultTools registers the default tool handlers
@@ -559,7 +600,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			return
 		}
 
-		events <- ToolsetInfo(len(agentTools), r.currentAgent)
+		events <- ToolsetInfo(len(agentTools), false, r.currentAgent)
 
 		messages := sess.GetMessages(a)
 		if sess.SendUserMessage {

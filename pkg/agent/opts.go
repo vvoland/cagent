@@ -127,3 +127,8 @@ type StartableToolSet struct {
 	tools.ToolSet
 	started atomic.Bool
 }
+
+// IsStarted returns whether the toolset has been started.
+func (s *StartableToolSet) IsStarted() bool {
+	return s.started.Load()
+}
