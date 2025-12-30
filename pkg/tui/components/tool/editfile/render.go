@@ -58,7 +58,7 @@ func renderEditFile(toolCall tools.ToolCall, width int, splitView bool, toolStat
 		}
 
 		if len(args.Edits) > 1 {
-			output.WriteString("Edit #" + string(rune(i+1+'0')) + ":\n")
+			fmt.Fprintf(&output, "Edit #%d:\n", i+1)
 		}
 
 		diff := computeDiff(args.Path, edit.OldText, edit.NewText, toolStatus)
