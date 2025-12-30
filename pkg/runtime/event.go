@@ -416,16 +416,19 @@ func AgentSwitching(switching bool, fromAgent, toAgent string) Event {
 }
 
 // ToolsetInfoEvent is sent when toolset information is available
+// When Loading is true, more tools may still be loading (e.g., MCP servers starting)
 type ToolsetInfoEvent struct {
 	Type           string `json:"type"`
 	AvailableTools int    `json:"available_tools"`
+	Loading        bool   `json:"loading"`
 	AgentContext
 }
 
-func ToolsetInfo(availableTools int, agentName string) Event {
+func ToolsetInfo(availableTools int, loading bool, agentName string) Event {
 	return &ToolsetInfoEvent{
 		Type:           "toolset_info",
 		AvailableTools: availableTools,
+		Loading:        loading,
 		AgentContext:   AgentContext{AgentName: agentName},
 	}
 }

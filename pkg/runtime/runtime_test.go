@@ -213,7 +213,7 @@ func TestSimple(t *testing.T) {
 	expectedEvents := []Event{
 		AgentInfo("root", "test/mock-model", "", ""),
 		TeamInfo([]AgentDetails{{Name: "root", Provider: "test", Model: "mock-model"}}, "root"),
-		ToolsetInfo(0, "root"),
+		ToolsetInfo(0, false, "root"),
 		UserMessage("Hi"),
 		StreamStarted(sess.ID, "root"),
 		AgentChoice("root", "Hello"),
@@ -241,7 +241,7 @@ func TestMultipleContentChunks(t *testing.T) {
 	expectedEvents := []Event{
 		AgentInfo("root", "test/mock-model", "", ""),
 		TeamInfo([]AgentDetails{{Name: "root", Provider: "test", Model: "mock-model"}}, "root"),
-		ToolsetInfo(0, "root"),
+		ToolsetInfo(0, false, "root"),
 		UserMessage("Please greet me"),
 		StreamStarted(sess.ID, "root"),
 		AgentChoice("root", "Hello "),
@@ -271,7 +271,7 @@ func TestWithReasoning(t *testing.T) {
 	expectedEvents := []Event{
 		AgentInfo("root", "test/mock-model", "", ""),
 		TeamInfo([]AgentDetails{{Name: "root", Provider: "test", Model: "mock-model"}}, "root"),
-		ToolsetInfo(0, "root"),
+		ToolsetInfo(0, false, "root"),
 		UserMessage("Hi"),
 		StreamStarted(sess.ID, "root"),
 		AgentChoiceReasoning("root", "Let me think about this..."),
@@ -300,7 +300,7 @@ func TestMixedContentAndReasoning(t *testing.T) {
 	expectedEvents := []Event{
 		AgentInfo("root", "test/mock-model", "", ""),
 		TeamInfo([]AgentDetails{{Name: "root", Provider: "test", Model: "mock-model"}}, "root"),
-		ToolsetInfo(0, "root"),
+		ToolsetInfo(0, false, "root"),
 		UserMessage("Hi there"),
 		StreamStarted(sess.ID, "root"),
 		AgentChoiceReasoning("root", "The user wants a greeting"),
@@ -838,7 +838,7 @@ func TestEmitStartupInfo(t *testing.T) {
 			{Name: "other-agent", Description: "This is another agent", Provider: "test", Model: "startup-model"},
 			{Name: "startup-test-agent", Description: "This is a startup test agent", Provider: "test", Model: "startup-model"},
 		}, "startup-test-agent"),
-		ToolsetInfo(0, "startup-test-agent"), // No tools configured
+		ToolsetInfo(0, false, "startup-test-agent"), // No tools configured
 	}
 
 	require.Equal(t, expectedEvents, collectedEvents)

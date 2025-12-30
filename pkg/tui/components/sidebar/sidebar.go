@@ -40,7 +40,7 @@ type Model interface {
 	SetAgentInfo(agentName, model, description string)
 	SetTeamInfo(availableAgents []runtime.AgentDetails)
 	SetAgentSwitching(switching bool)
-	SetToolsetInfo(availableTools int)
+	SetToolsetInfo(availableTools int, loading bool)
 	GetSize() (width, height int)
 }
 
@@ -69,6 +69,7 @@ type model struct {
 	availableAgents  []runtime.AgentDetails
 	agentSwitching   bool
 	availableTools   int
+	toolsLoading     bool // true when more tools may still be loading
 	sessionState     *service.SessionState
 	workingAgent     string // Name of the agent currently working (empty if none)
 }
@@ -123,9 +124,10 @@ func (m *model) SetAgentSwitching(switching bool) {
 	m.agentSwitching = switching
 }
 
-// SetToolsetInfo sets the number of available tools
-func (m *model) SetToolsetInfo(availableTools int) {
+// SetToolsetInfo sets the number of available tools and loading state
+func (m *model) SetToolsetInfo(availableTools int, loading bool) {
 	m.availableTools = availableTools
+	m.toolsLoading = loading
 }
 
 // formatTokenCount formats a token count with K/M suffixes for readability
@@ -226,13 +228,16 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		m.SetAgentSwitching(msg.Switching)
 		return m, nil
 	case *runtime.ToolsetInfoEvent:
-		m.SetToolsetInfo(msg.AvailableTools)
+		m.SetToolsetInfo(msg.AvailableTools, msg.Loading)
+		if msg.Loading {
+			return m, m.spinner.Init()
+		}
 		return m, nil
 	default:
 		var cmds []tea.Cmd
 
-		// Update main spinner when MCP is initializing or an agent is working
-		if m.mcpInit || m.workingAgent != "" {
+		// Update main spinner when MCP is initializing, tools are loading, or an agent is working
+		if m.mcpInit || m.toolsLoading || m.workingAgent != "" {
 			model, cmd := m.spinner.Update(msg)
 			m.spinner = model.(spinner.Spinner)
 			cmds = append(cmds, cmd)
@@ -571,7 +576,14 @@ func (m *model) renderAgentEntry(content *strings.Builder, agent runtime.AgentDe
 // toolsetInfo renders the current toolset status information
 func (m *model) toolsetInfo() string {
 	var lines []string
-	if m.availableTools > 0 {
+	if m.toolsLoading {
+		// Show spinner with current count while loading
+		if m.availableTools > 0 {
+			lines = append(lines, m.spinner.View()+styles.TabPrimaryStyle.Render(fmt.Sprintf(" %d tools available…", m.availableTools)))
+		} else {
+			lines = append(lines, m.spinner.View()+styles.TabPrimaryStyle.Render(" Loading tools…"))
+		}
+	} else if m.availableTools > 0 {
 		lines = append(lines, styles.TabAccentStyle.Render("█")+styles.TabPrimaryStyle.Render(fmt.Sprintf(" %d tools available", m.availableTools)))
 	}
 

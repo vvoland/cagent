@@ -90,7 +90,7 @@ func (r *RemoteRuntime) EmitStartupInfo(ctx context.Context, events chan Event) 
 
 	events <- AgentInfo(r.currentAgent, cfg.Model, cfg.Description, cfg.WelcomeMessage)
 	events <- TeamInfo(r.agentDetailsFromConfig(ctx), r.currentAgent)
-	events <- ToolsetInfo(len(cfg.Toolsets), r.currentAgent)
+	events <- ToolsetInfo(len(cfg.Toolsets), false, r.currentAgent)
 }
 
 // agentDetailsFromConfig builds AgentDetails from remote config
