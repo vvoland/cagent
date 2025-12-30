@@ -16,22 +16,21 @@ import (
 type ToggleDiffViewMsg struct{}
 
 func New(msg *types.Message, sessionState *service.SessionState) layout.Model {
-	return toolcommon.NewBase(msg, sessionState, makeRenderer(sessionState))
+	return toolcommon.NewBase(msg, sessionState, render)
 }
 
-func makeRenderer(sessionState *service.SessionState) toolcommon.Renderer {
-	return func(msg *types.Message, s spinner.Spinner, width, _ int) string {
-		var args builtin.EditFileArgs
-		if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &args); err != nil {
-			return ""
-		}
+func render(msg *types.Message, s spinner.Spinner, sessionState *service.SessionState, width, _ int) string {
+	var args builtin.EditFileArgs
+	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &args); err != nil {
+		return ""
+	}
 
-		displayName := msg.ToolDefinition.DisplayName()
-		content := fmt.Sprintf("%s%s %s",
-			toolcommon.Icon(msg, s),
-			styles.ToolName.Render(displayName),
-			styles.ToolMessageStyle.Render(toolcommon.ShortenPath(args.Path)))
+	content := fmt.Sprintf("%s%s %s",
+		toolcommon.Icon(msg, s),
+		styles.ToolName.Render(msg.ToolDefinition.DisplayName()),
+		styles.ToolMessageStyle.Render(toolcommon.ShortenPath(args.Path)))
 
+	if !sessionState.HideToolResults {
 		if msg.ToolCall.Function.Arguments != "" {
 			content += "\n" + styles.ToolCallResult.Render(
 				renderEditFile(msg.ToolCall, width-1, sessionState.SplitDiffView, msg.ToolStatus))
@@ -40,7 +39,7 @@ func makeRenderer(sessionState *service.SessionState) toolcommon.Renderer {
 		if (msg.ToolStatus == types.ToolStatusError) && msg.Content != "" {
 			content += toolcommon.FormatToolResult(msg.Content, width)
 		}
-
-		return content
 	}
+
+	return content
 }

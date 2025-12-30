@@ -13,6 +13,7 @@ type SessionState struct {
 	// or unified (false)
 	SplitDiffView   bool
 	YoloMode        bool
+	HideToolResults bool
 	PreviousMessage *types.Message
 	// CurrentAgent is the name of the currently active agent for user messages
 	CurrentAgent string
@@ -21,8 +22,9 @@ type SessionState struct {
 // NewSessionState creates a new SessionState with default values.
 func NewSessionState(sessionState *session.Session) *SessionState {
 	return &SessionState{
-		SplitDiffView: true, // Default to split view
-		YoloMode:      sessionState.ToolsApproved,
+		SplitDiffView:   true, // Default to split view
+		YoloMode:        sessionState.ToolsApproved,
+		HideToolResults: sessionState.HideToolResults,
 	}
 }
 
@@ -33,6 +35,14 @@ func (s *SessionState) ToggleSplitDiffView() {
 
 func (s *SessionState) SetYoloMode(enabled bool) {
 	s.YoloMode = enabled
+}
+
+func (s *SessionState) SetHideToolResults(enabled bool) {
+	s.HideToolResults = enabled
+}
+
+func (s *SessionState) ToggleHideToolResults() {
+	s.HideToolResults = !s.HideToolResults
 }
 
 func (s *SessionState) SetCurrentAgent(agentName string) {

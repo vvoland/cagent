@@ -56,6 +56,9 @@ type Session struct {
 	// ToolsApproved is a flag to indicate if the tools have been approved
 	ToolsApproved bool `json:"tools_approved"`
 
+	// HideToolResults is a flag to indicate if tool results should be hidden
+	HideToolResults bool `json:"hide_tool_results"`
+
 	// WorkingDir is the base directory used for filesystem-aware tools
 	WorkingDir string `json:"working_dir,omitempty"`
 
@@ -244,6 +247,12 @@ func WithTitle(title string) Opt {
 func WithToolsApproved(toolsApproved bool) Opt {
 	return func(s *Session) {
 		s.ToolsApproved = toolsApproved
+	}
+}
+
+func WithHideToolResults(hideToolResults bool) Opt {
+	return func(s *Session) {
+		s.HideToolResults = hideToolResults
 	}
 }
 

@@ -20,16 +20,16 @@ func New(msg *types.Message, sessionState *service.SessionState) layout.Model {
 	return toolcommon.NewBase(msg, sessionState, render)
 }
 
-func render(msg *types.Message, s spinner.Spinner, width, _ int) string {
+func render(msg *types.Message, s spinner.Spinner, sessionState *service.SessionState, width, _ int) string {
 	// Parse arguments
 	var args builtin.ReadMultipleFilesArgs
 	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &args); err != nil {
-		return toolcommon.RenderTool(msg, s, "", "", width)
+		return toolcommon.RenderTool(msg, s, "", "", width, sessionState.HideToolResults)
 	}
 
 	// For pending/running state, show files being read
 	if msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning {
-		return toolcommon.RenderTool(msg, s, formatFilesList(args.Paths), "", width)
+		return toolcommon.RenderTool(msg, s, formatFilesList(args.Paths), "", width, sessionState.HideToolResults)
 	}
 
 	// For completed/error state, render each file line

@@ -23,16 +23,17 @@ import (
 )
 
 type runExecFlags struct {
-	agentName      string
-	autoApprove    bool
-	attachmentPath string
-	remoteAddress  string
-	modelOverrides []string
-	dryRun         bool
-	runConfig      config.RuntimeConfig
-	sessionDB      string
-	recordPath     string
-	fakeResponses  string
+	agentName       string
+	autoApprove     bool
+	hideToolResults bool
+	attachmentPath  string
+	remoteAddress   string
+	modelOverrides  []string
+	dryRun          bool
+	runConfig       config.RuntimeConfig
+	sessionDB       string
+	recordPath      string
+	fakeResponses   string
 
 	// Exec only
 	hideToolCalls bool
@@ -66,6 +67,7 @@ func newRunCmd() *cobra.Command {
 func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 	cmd.PersistentFlags().StringVarP(&flags.agentName, "agent", "a", "root", "Name of the agent to run")
 	cmd.PersistentFlags().BoolVar(&flags.autoApprove, "yolo", false, "Automatically approve all tool calls without prompting")
+	cmd.PersistentFlags().BoolVar(&flags.hideToolResults, "hide-tool-results", false, "Hide tool call results")
 	cmd.PersistentFlags().StringVar(&flags.attachmentPath, "attach", "", "Attach an image file to the message")
 	cmd.PersistentFlags().StringArrayVar(&flags.modelOverrides, "model", nil, "Override agent model: [agent=]provider/model (repeatable)")
 	cmd.PersistentFlags().BoolVar(&flags.dryRun, "dry-run", false, "Initialize the agent without executing anything")
@@ -220,6 +222,7 @@ func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, t *team
 	sess := session.New(
 		session.WithMaxIterations(agent.MaxIterations()),
 		session.WithToolsApproved(f.autoApprove),
+		session.WithHideToolResults(f.hideToolResults),
 	)
 
 	if err := sessStore.AddSession(ctx, sess); err != nil {
