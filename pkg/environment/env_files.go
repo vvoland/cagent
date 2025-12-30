@@ -111,6 +111,9 @@ func ReadEnvFile(absolutePath string) ([]KeyValuePair, error) {
 			return nil, fmt.Errorf("invalid env file line: %s", line)
 		}
 
+		k = strings.TrimSpace(k)
+		v = strings.TrimSpace(v)
+
 		if strings.HasPrefix(v, `"`) && strings.HasSuffix(v, `"`) {
 			v = strings.TrimSuffix(strings.TrimPrefix(v, `"`), `"`)
 		}

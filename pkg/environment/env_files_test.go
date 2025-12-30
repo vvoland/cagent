@@ -103,17 +103,24 @@ func TestReadEnvFiles(t *testing.T) {
 	temp := t.TempDir()
 	write(t, filepath.Join(temp, ".env1"), "KEY1=VALUE1\n# Comment\nKEY2=VALUE2\n")
 	write(t, filepath.Join(temp, ".env2"), "\n\nKEY3=\"VALUE3\"\n")
+	write(t, filepath.Join(temp, ".env3"), "KEY4 = VALUE4")
 
-	lines, err := ReadEnvFiles([]string{filepath.Join(temp, ".env1"), filepath.Join(temp, ".env2")})
+	lines, err := ReadEnvFiles([]string{
+		filepath.Join(temp, ".env1"),
+		filepath.Join(temp, ".env2"),
+		filepath.Join(temp, ".env3"),
+	})
 
 	require.NoError(t, err)
-	assert.Len(t, lines, 3)
+	assert.Len(t, lines, 4)
 	assert.Equal(t, "KEY1", lines[0].Key)
 	assert.Equal(t, "VALUE1", lines[0].Value)
 	assert.Equal(t, "KEY2", lines[1].Key)
 	assert.Equal(t, "VALUE2", lines[1].Value)
 	assert.Equal(t, "KEY3", lines[2].Key)
 	assert.Equal(t, "VALUE3", lines[2].Value)
+	assert.Equal(t, "KEY4", lines[3].Key)
+	assert.Equal(t, "VALUE4", lines[3].Value)
 }
 
 func TestReadEnvFileNotFound(t *testing.T) {
