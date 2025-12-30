@@ -6,6 +6,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/service"
+	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
@@ -28,7 +29,7 @@ type Base struct {
 func NewBase(msg *types.Message, sessionState *service.SessionState, render Renderer) *Base {
 	return &Base{
 		message:      msg,
-		spinner:      spinner.New(spinner.ModeSpinnerOnly),
+		spinner:      spinner.New(spinner.ModeSpinnerOnly, styles.SpinnerDotsAccentStyle),
 		width:        80,
 		height:       1,
 		sessionState: sessionState,

@@ -42,7 +42,7 @@ func New(msg, previous *types.Message) *messageModel {
 		width:    80, // Default width
 		height:   1,  // Will be calculated
 		focused:  false,
-		spinner:  spinner.New(spinner.ModeBoth),
+		spinner:  spinner.New(spinner.ModeBoth, styles.SpinnerDotsAccentStyle),
 	}
 }
 

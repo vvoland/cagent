@@ -488,11 +488,12 @@ var (
 
 // Spinner Styles
 var (
-	SpinnerCharStyle          = BaseStyle.Foreground(TabAccentFg)
+	SpinnerDotsAccentStyle    = BaseStyle.Foreground(Accent)
+	SpinnerDotsHighlightStyle = BaseStyle.Foreground(TabAccentFg)
 	SpinnerTextBrightestStyle = BaseStyle.Foreground(lipgloss.Color(ColorSpinnerBrightest))
 	SpinnerTextBrightStyle    = BaseStyle.Foreground(lipgloss.Color(ColorSpinnerBright))
 	SpinnerTextDimStyle       = BaseStyle.Foreground(lipgloss.Color(ColorSpinnerDim))
-	SpinnerTextDimmestStyle   = BaseStyle.Foreground(TabAccentFg)
+	SpinnerTextDimmestStyle   = BaseStyle.Foreground(Accent)
 )
 
 func toChroma(style ansi.StylePrimitive) string {

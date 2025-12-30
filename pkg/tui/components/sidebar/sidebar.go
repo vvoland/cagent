@@ -81,7 +81,7 @@ func New(sessionState *service.SessionState) Model {
 		sessionUsage: make(map[string]*runtime.Usage),
 		sessionAgent: make(map[string]string),
 		todoComp:     todotool.NewSidebarComponent(),
-		spinner:      spinner.New(spinner.ModeSpinnerOnly),
+		spinner:      spinner.New(spinner.ModeSpinnerOnly, styles.SpinnerDotsHighlightStyle),
 		sessionTitle: "New session",
 		ragIndexing:  make(map[string]*ragIndexingState),
 		sessionState: sessionState,
@@ -192,7 +192,7 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		key := msg.RAGName + "/" + msg.StrategyName
 		slog.Debug("Sidebar received RAG indexing started event", "rag", msg.RAGName, "strategy", msg.StrategyName, "key", key)
 		state := &ragIndexingState{
-			spinner: spinner.New(spinner.ModeSpinnerOnly),
+			spinner: m.spinner.Reset(),
 		}
 		m.ragIndexing[key] = state
 		return m, state.spinner.Init()
