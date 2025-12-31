@@ -76,12 +76,7 @@ func runTUI(ctx context.Context, rt runtime.Runtime, sess *session.Session, firs
 	a := app.New(ctx, rt, sess, firstMessage)
 	m := tui.New(ctx, a)
 
-	progOpts := []tea.ProgramOption{
-		tea.WithContext(ctx),
-	}
-
-	p := tea.NewProgram(m, progOpts...)
-
+	p := tea.NewProgram(m, tea.WithContext(ctx))
 	go a.Subscribe(ctx, p)
 
 	_, err := p.Run()
