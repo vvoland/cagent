@@ -23,21 +23,23 @@ import (
 )
 
 type runExecFlags struct {
-	agentName       string
-	autoApprove     bool
-	hideToolResults bool
-	attachmentPath  string
-	remoteAddress   string
-	modelOverrides  []string
-	dryRun          bool
-	runConfig       config.RuntimeConfig
-	sessionDB       string
-	recordPath      string
-	fakeResponses   string
+	agentName      string
+	autoApprove    bool
+	attachmentPath string
+	remoteAddress  string
+	modelOverrides []string
+	dryRun         bool
+	runConfig      config.RuntimeConfig
+	sessionDB      string
+	recordPath     string
+	fakeResponses  string
 
 	// Exec only
 	hideToolCalls bool
 	outputJSON    bool
+
+	// Run only
+	hideToolResults bool
 }
 
 func newRunCmd() *cobra.Command {
