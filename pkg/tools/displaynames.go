@@ -1,10 +1,7 @@
 package tools
 
-func (t *Tool) DisplayName() string {
-	title := t.Annotations.Title
-	if title != "" {
-		return title
-	}
+import "cmp"
 
-	return t.Name
+func (t *Tool) DisplayName() string {
+	return cmp.Or(t.Annotations.Title, t.Name)
 }
