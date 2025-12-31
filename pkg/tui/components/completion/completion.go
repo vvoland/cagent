@@ -2,7 +2,7 @@ package completion
 
 import (
 	"cmp"
-	"sort"
+	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -298,8 +298,8 @@ func (c *manager) filterItems(query string) {
 		}
 	}
 
-	sort.Slice(matches, func(i, j int) bool {
-		return matches[i].score > matches[j].score
+	slices.SortFunc(matches, func(a, b matchResult) int {
+		return cmp.Compare(b.score, a.score)
 	})
 
 	// Build result: pinned items first, then sorted matches

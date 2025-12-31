@@ -346,7 +346,8 @@ func (m *model) workingIndicator() string {
 		slices.SortFunc(strategies, func(a, b struct {
 			strategyName string
 			state        *ragIndexingState
-		}) int {
+		},
+		) int {
 			return strings.Compare(a.strategyName, b.strategyName)
 		})
 
@@ -421,7 +422,8 @@ func (m *model) workingIndicatorHorizontal() string {
 		slices.SortFunc(strategies, func(a, b struct {
 			strategyName string
 			state        *ragIndexingState
-		}) int {
+		},
+		) int {
 			return strings.Compare(a.strategyName, b.strategyName)
 		})
 
