@@ -585,14 +585,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		r.InitializeRAG(ctx, events)
 
 		r.emitAgentWarnings(a, events)
-
-		for _, toolset := range a.ToolSets() {
-			toolset.SetElicitationHandler(r.elicitationHandler)
-			toolset.SetOAuthSuccessHandler(func() {
-				events <- Authorization(tools.ElicitationActionAccept, r.currentAgent)
-			})
-			toolset.SetManagedOAuth(r.managedOAuth)
-		}
+		r.configureToolsetHandlers(a, events)
 
 		agentTools, err := r.getTools(ctx, a, sessionSpan, events)
 		if err != nil {
@@ -626,13 +619,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			a := r.CurrentAgent()
 
 			r.emitAgentWarnings(a, events)
-
-			for _, toolset := range a.ToolSets() {
-				toolset.SetElicitationHandler(r.elicitationHandler)
-				toolset.SetOAuthSuccessHandler(func() {
-					events <- Authorization("confirmed", r.currentAgent)
-				})
-			}
+			r.configureToolsetHandlers(a, events)
 
 			agentTools, err := r.getTools(ctx, a, sessionSpan, events)
 			if err != nil {
@@ -817,6 +804,17 @@ func (r *LocalRuntime) getTools(ctx context.Context, a *agent.Agent, sessionSpan
 
 	slog.Debug("Retrieved agent tools", "agent", a.Name(), "tool_count", len(agentTools))
 	return agentTools, nil
+}
+
+// configureToolsetHandlers sets up elicitation and OAuth handlers for all toolsets of an agent.
+func (r *LocalRuntime) configureToolsetHandlers(a *agent.Agent, events chan Event) {
+	for _, toolset := range a.ToolSets() {
+		toolset.SetElicitationHandler(r.elicitationHandler)
+		toolset.SetOAuthSuccessHandler(func() {
+			events <- Authorization(tools.ElicitationActionAccept, r.currentAgent)
+		})
+		toolset.SetManagedOAuth(r.managedOAuth)
+	}
 }
 
 func (r *LocalRuntime) emitAgentWarnings(a *agent.Agent, events chan Event) {
