@@ -11,29 +11,23 @@ const ToolNameThink = "think"
 
 type ThinkTool struct {
 	tools.BaseToolSet
-	handler *thinkHandler
+	thoughts []string
 }
 
 // Make sure Think Tool implements the ToolSet Interface
 var _ tools.ToolSet = (*ThinkTool)(nil)
 
-type thinkHandler struct {
-	thoughts []string
-}
-
 type ThinkArgs struct {
 	Thought string `json:"thought" jsonschema:"The thought to think about"`
 }
 
-func (h *thinkHandler) CallTool(_ context.Context, params ThinkArgs) (*tools.ToolCallResult, error) {
-	h.thoughts = append(h.thoughts, params.Thought)
-	return tools.ResultSuccess("Thoughts:\n" + strings.Join(h.thoughts, "\n")), nil
+func (t *ThinkTool) callTool(_ context.Context, params ThinkArgs) (*tools.ToolCallResult, error) {
+	t.thoughts = append(t.thoughts, params.Thought)
+	return tools.ResultSuccess("Thoughts:\n" + strings.Join(t.thoughts, "\n")), nil
 }
 
 func NewThinkTool() *ThinkTool {
-	return &ThinkTool{
-		handler: &thinkHandler{},
-	}
+	return &ThinkTool{}
 }
 
 func (t *ThinkTool) Instructions() string {
@@ -57,7 +51,7 @@ func (t *ThinkTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Use the tool to think about something. It will not obtain new information or change the database, but just append the thought to the log. Use it when complex reasoning or some cache memory is needed.",
 			Parameters:   tools.MustSchemaFor[ThinkArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handler.CallTool),
+			Handler:      NewHandler(t.callTool),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "Think",

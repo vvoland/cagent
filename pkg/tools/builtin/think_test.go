@@ -12,11 +12,11 @@ import (
 func TestThinkTool_Handler(t *testing.T) {
 	tool := NewThinkTool()
 
-	result, err := tool.handler.CallTool(t.Context(), ThinkArgs{Thought: "This is a test thought"})
+	result, err := tool.callTool(t.Context(), ThinkArgs{Thought: "This is a test thought"})
 	require.NoError(t, err)
 	assert.Contains(t, result.Output, "This is a test thought")
 
-	result, err = tool.handler.CallTool(t.Context(), ThinkArgs{Thought: "Another thought"})
+	result, err = tool.callTool(t.Context(), ThinkArgs{Thought: "Another thought"})
 	require.NoError(t, err)
 
 	assert.Contains(t, result.Output, "This is a test thought")
