@@ -85,15 +85,9 @@ type Message struct {
 }
 
 func ImplicitUserMessage(content string) *Message {
-	return &Message{
-		AgentName: "",
-		Message: chat.Message{
-			Role:      chat.MessageRoleUser,
-			Content:   content,
-			CreatedAt: time.Now().Format(time.RFC3339),
-		},
-		Implicit: true,
-	}
+	msg := UserMessage(content)
+	msg.Implicit = true
+	return msg
 }
 
 func UserMessage(content string, multiContent ...chat.MessagePart) *Message {
