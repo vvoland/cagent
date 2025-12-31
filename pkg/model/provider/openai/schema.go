@@ -1,8 +1,8 @@
 package openai
 
 import (
+	"maps"
 	"slices"
-	"sort"
 
 	"github.com/docker/cagent/pkg/tools"
 )
@@ -35,11 +35,7 @@ func makeAllRequired(schema map[string]any) map[string]any {
 	newRequired := []any{}
 
 	// Sort property names for deterministic output
-	var propNames []string
-	for propName := range properties {
-		propNames = append(propNames, propName)
-	}
-	sort.Strings(propNames)
+	propNames := slices.Sorted(maps.Keys(properties))
 
 	for _, propName := range propNames {
 		newRequired = append(newRequired, propName)

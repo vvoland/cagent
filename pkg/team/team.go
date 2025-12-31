@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"slices"
 	"strings"
 
@@ -46,12 +47,7 @@ func New(opts ...Opt) *Team {
 }
 
 func (t *Team) AgentNames() []string {
-	var names []string
-	for name := range t.agents {
-		names = append(names, name)
-	}
-	slices.Sort(names)
-	return names
+	return slices.Sorted(maps.Keys(t.agents))
 }
 
 // AgentInfo contains information about an agent

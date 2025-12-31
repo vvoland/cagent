@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/docker/cagent/pkg/config/latest"
@@ -127,12 +128,5 @@ func GatherEnvVarsForTools(ctx context.Context, cfg *latest.Config) ([]string, e
 }
 
 func mcpToSortedList(requiredEnv map[string]bool) []string {
-	var requiredEnvList []string
-
-	for e := range requiredEnv {
-		requiredEnvList = append(requiredEnvList, e)
-	}
-	sort.Strings(requiredEnvList)
-
-	return requiredEnvList
+	return slices.Sorted(maps.Keys(requiredEnv))
 }

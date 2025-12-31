@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/docker/cagent/pkg/chat"
@@ -457,7 +457,7 @@ func formatASTContext(metadata map[string]string) string {
 			extraKeys = append(extraKeys, key)
 		}
 
-		sort.Strings(extraKeys)
+		slices.Sort(extraKeys)
 		for _, key := range extraKeys {
 			value := strings.TrimSpace(metadata[key])
 			if value == "" {
