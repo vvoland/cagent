@@ -55,11 +55,7 @@ func rouge1(expected, actual string) float64 {
 	overlap := 0
 	for word, expectedCount := range expectedSet {
 		if actualCount, exists := actualSet[word]; exists {
-			if actualCount < expectedCount {
-				overlap += actualCount
-			} else {
-				overlap += expectedCount
-			}
+			overlap += min(actualCount, expectedCount)
 		}
 	}
 
