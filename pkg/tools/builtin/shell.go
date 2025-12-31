@@ -115,20 +115,20 @@ type StopBackgroundJobArgs struct {
 	JobID string `json:"job_id" jsonschema:"The ID of the background job to stop"`
 }
 
+// statusStrings maps job status constants to their string representations
+var statusStrings = map[int32]string{
+	statusRunning:   "running",
+	statusCompleted: "completed",
+	statusStopped:   "stopped",
+	statusFailed:    "failed",
+}
+
 // statusToString converts job status constant to string
 func statusToString(status int32) string {
-	switch status {
-	case statusRunning:
-		return "running"
-	case statusCompleted:
-		return "completed"
-	case statusStopped:
-		return "stopped"
-	case statusFailed:
-		return "failed"
-	default:
-		return "unknown"
+	if s, ok := statusStrings[status]; ok {
+		return s
 	}
+	return "unknown"
 }
 
 func (h *shellHandler) RunShell(ctx context.Context, params RunShellArgs) (*tools.ToolCallResult, error) {
