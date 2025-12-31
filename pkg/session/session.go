@@ -166,19 +166,17 @@ func (s *Session) GetAllMessages() []Message {
 }
 
 func (s *Session) GetLastAssistantMessageContent() string {
-	messages := s.GetAllMessages()
-	for i := len(messages) - 1; i >= 0; i-- {
-		if messages[i].Message.Role == chat.MessageRoleAssistant {
-			return strings.TrimSpace(messages[i].Message.Content)
-		}
-	}
-	return ""
+	return s.getLastMessageContentByRole(chat.MessageRoleAssistant)
 }
 
 func (s *Session) GetLastUserMessageContent() string {
+	return s.getLastMessageContentByRole(chat.MessageRoleUser)
+}
+
+func (s *Session) getLastMessageContentByRole(role chat.MessageRole) string {
 	messages := s.GetAllMessages()
 	for i := len(messages) - 1; i >= 0; i-- {
-		if messages[i].Message.Role == chat.MessageRoleUser {
+		if messages[i].Message.Role == role {
 			return strings.TrimSpace(messages[i].Message.Content)
 		}
 	}
