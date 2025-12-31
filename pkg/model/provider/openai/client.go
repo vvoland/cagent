@@ -909,27 +909,19 @@ func parseRerankScores(raw string, expected int) ([]float64, error) {
 // and expect max_completion_tokens/max_output_tokens instead of max_tokens
 func isResponsesOnlyModel(model string) bool {
 	m := strings.ToLower(model)
-	if strings.HasPrefix(m, "gpt-4.1") {
-		return true
-	}
-	if strings.HasPrefix(m, "o1") || strings.HasPrefix(m, "o3") || strings.HasPrefix(m, "o4") {
-		return true
-	}
-	if strings.HasPrefix(m, "gpt-5") {
-		return true
-	}
-	return false
+	return strings.HasPrefix(m, "gpt-4.1") ||
+		strings.HasPrefix(m, "o1") ||
+		strings.HasPrefix(m, "o3") ||
+		strings.HasPrefix(m, "o4") ||
+		strings.HasPrefix(m, "gpt-5")
 }
 
 func isOpenAIReasoningModel(model string) bool {
 	m := strings.ToLower(model)
-	if strings.HasPrefix(m, "o1") || strings.HasPrefix(m, "o3") || strings.HasPrefix(m, "o4") {
-		return true
-	}
-	if strings.HasPrefix(m, "gpt-5") {
-		return true
-	}
-	return false
+	return strings.HasPrefix(m, "o1") ||
+		strings.HasPrefix(m, "o3") ||
+		strings.HasPrefix(m, "o4") ||
+		strings.HasPrefix(m, "gpt-5")
 }
 
 // getOpenAIReasoningEffort resolves the reasoning effort value from the
