@@ -915,10 +915,8 @@ func matchExcludePattern(pattern, relPath string) bool {
 }
 
 func match(pattern, name string) bool {
-	matched, _ := doublestar.Match(pattern, name)
-	if matched {
+	if matched, _ := doublestar.Match(pattern, name); matched {
 		return true
 	}
-
 	return strings.Contains(strings.ToLower(name), strings.ToLower(pattern))
 }
