@@ -67,12 +67,12 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 		userInput = runtime.ResolveCommand(ctx, rt, userInput)
 
 		// Parse for /attach commands in the message
-		messageText, attachPath := parseAttachCommand(userInput)
+		messageText, attachPath := ParseAttachCommand(userInput)
 
 		// Use either the per-message attachment or the global one
 		finalAttachPath := cmp.Or(attachPath, cfg.AttachmentPath)
 
-		sess.AddMessage(createUserMessageWithAttachment(messageText, finalAttachPath))
+		sess.AddMessage(CreateUserMessageWithAttachment(messageText, finalAttachPath))
 
 		if cfg.OutputJSON {
 			for event := range rt.RunStream(ctx, sess) {
@@ -237,9 +237,9 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 	return nil
 }
 
-// parseAttachCommand parses user input for /attach commands
+// ParseAttachCommand parses user input for /attach commands
 // Returns the message text (with /attach commands removed) and the attachment path
-func parseAttachCommand(userInput string) (messageText, attachPath string) {
+func ParseAttachCommand(userInput string) (messageText, attachPath string) {
 	lines := strings.Split(userInput, "\n")
 	var messageLines []string
 
@@ -291,8 +291,8 @@ func parseAttachCommand(userInput string) (messageText, attachPath string) {
 	return messageText, attachPath
 }
 
-// createUserMessageWithAttachment creates a user message with optional image attachment
-func createUserMessageWithAttachment(userContent, attachmentPath string) *session.Message {
+// CreateUserMessageWithAttachment creates a user message with optional image attachment
+func CreateUserMessageWithAttachment(userContent, attachmentPath string) *session.Message {
 	if attachmentPath == "" {
 		return session.UserMessage(userContent)
 	}

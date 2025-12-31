@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel"
 
+	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/paths"
@@ -155,7 +156,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 		return f.handleExecMode(ctx, out, rt, sess, args)
 	}
 
-	return handleRunMode(ctx, rt, sess, args)
+	return f.handleRunMode(ctx, rt, sess, args)
 }
 
 func (f *runExecFlags) loadAgentFrom(ctx context.Context, agentSource config.Source) (*team.Team, error) {
@@ -273,11 +274,19 @@ func readInitialMessage(args []string) (*string, error) {
 	return &args[1], nil
 }
 
-func handleRunMode(ctx context.Context, rt runtime.Runtime, sess *session.Session, args []string) error {
+func (f *runExecFlags) handleRunMode(ctx context.Context, rt runtime.Runtime, sess *session.Session, args []string) error {
 	firstMessage, err := readInitialMessage(args)
 	if err != nil {
 		return err
 	}
 
-	return runTUI(ctx, rt, sess, firstMessage)
+	var opts []app.Opt
+	if firstMessage != nil {
+		opts = append(opts, app.WithFirstMessage(*firstMessage))
+	}
+	if f.attachmentPath != "" {
+		opts = append(opts, app.WithFirstMessageAttachment(f.attachmentPath))
+	}
+
+	return runTUI(ctx, rt, sess, opts...)
 }

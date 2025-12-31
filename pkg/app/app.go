@@ -17,21 +17,42 @@ import (
 )
 
 type App struct {
-	runtime          runtime.Runtime
-	session          *session.Session
-	firstMessage     *string
-	events           chan tea.Msg
-	throttleDuration time.Duration
-	cancel           context.CancelFunc
+	runtime            runtime.Runtime
+	session            *session.Session
+	firstMessage       *string
+	firstMessageAttach string
+	events             chan tea.Msg
+	throttleDuration   time.Duration
+	cancel             context.CancelFunc
 }
 
-func New(ctx context.Context, rt runtime.Runtime, sess *session.Session, firstMessage *string) *App {
+// Opt is an option for creating a new App.
+type Opt func(*App)
+
+// WithFirstMessage sets the first message to send.
+func WithFirstMessage(msg string) Opt {
+	return func(a *App) {
+		a.firstMessage = &msg
+	}
+}
+
+// WithFirstMessageAttachment sets the attachment path for the first message.
+func WithFirstMessageAttachment(path string) Opt {
+	return func(a *App) {
+		a.firstMessageAttach = path
+	}
+}
+
+func New(ctx context.Context, rt runtime.Runtime, sess *session.Session, opts ...Opt) *App {
 	app := &App{
 		runtime:          rt,
 		session:          sess,
-		firstMessage:     firstMessage,
 		events:           make(chan tea.Msg, 128),
 		throttleDuration: 50 * time.Millisecond, // Throttle rapid events
+	}
+
+	for _, opt := range opts {
+		opt(app)
 	}
 
 	// Emit startup info (agent, team, tools) through the events channel.
@@ -62,6 +83,11 @@ func New(ctx context.Context, rt runtime.Runtime, sess *session.Session, firstMe
 
 func (a *App) FirstMessage() *string {
 	return a.firstMessage
+}
+
+// FirstMessageAttachment returns the attachment path for the first message.
+func (a *App) FirstMessageAttachment() string {
+	return a.firstMessageAttach
 }
 
 // CurrentAgentCommands returns the commands for the active agent
@@ -155,6 +181,21 @@ func (a *App) Run(ctx context.Context, cancel context.CancelFunc, message string
 		} else {
 			a.session.AddMessage(session.UserMessage(message))
 		}
+		for event := range a.runtime.RunStream(ctx, a.session) {
+			if ctx.Err() != nil {
+				return
+			}
+			a.events <- event
+		}
+	}()
+}
+
+// RunWithMessage runs the agent loop with a pre-constructed message.
+// This is used for special cases like image attachments.
+func (a *App) RunWithMessage(ctx context.Context, cancel context.CancelFunc, msg *session.Message) {
+	a.cancel = cancel
+	go func() {
+		a.session.AddMessage(msg)
 		for event := range a.runtime.RunStream(ctx, a.session) {
 			if ctx.Err() != nil {
 				return
