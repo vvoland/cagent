@@ -198,31 +198,21 @@ func (s *SQLiteSessionStore) AddSession(ctx context.Context, session *Session) e
 	return err
 }
 
-// GetSession retrieves a session by ID
-func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Session, error) {
-	if id == "" {
-		return nil, ErrEmptyID
-	}
-
-	row := s.db.QueryRowContext(ctx,
-		"SELECT id, messages, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at FROM sessions WHERE id = ?", id)
-
+// scanSession scans a single row into a Session struct
+func scanSession(scanner interface {
+	Scan(dest ...any) error
+},
+) (*Session, error) {
 	var messagesJSON, toolsApprovedStr, inputTokensStr, outputTokensStr, titleStr, costStr, sendUserMessageStr, maxIterationsStr, createdAtStr string
 	var sessionID string
 	var workingDir sql.NullString
 
-	err := row.Scan(&sessionID, &messagesJSON, &toolsApprovedStr, &inputTokensStr, &outputTokensStr, &titleStr, &costStr, &sendUserMessageStr, &maxIterationsStr, &workingDir, &createdAtStr)
+	err := scanner.Scan(&sessionID, &messagesJSON, &toolsApprovedStr, &inputTokensStr, &outputTokensStr, &titleStr, &costStr, &sendUserMessageStr, &maxIterationsStr, &workingDir, &createdAtStr)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
-		}
 		return nil, err
 	}
 
-	// Ok listen up, we used to only store messages in the database, but now we
-	// store messages and sub-sessions. So we need to handle both cases.
-	// We do this in a kind of hacky way, but it works. "AgentFilename" is always present
-	// in a message in the old format, so we check for it to determine the format.
+	// Handle both old message format and new items format
 	var items []Item
 	var messages []Message
 	if err := json.Unmarshal([]byte(messagesJSON), &messages); err != nil {
@@ -286,6 +276,26 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 	}, nil
 }
 
+// GetSession retrieves a session by ID
+func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Session, error) {
+	if id == "" {
+		return nil, ErrEmptyID
+	}
+
+	row := s.db.QueryRowContext(ctx,
+		"SELECT id, messages, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at FROM sessions WHERE id = ?", id)
+
+	session, err := scanSession(row)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+
+	return session, nil
+}
+
 // GetSessions retrieves all sessions
 func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error) {
 	rows, err := s.db.QueryContext(ctx,
@@ -297,81 +307,10 @@ func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error
 
 	var sessions []*Session
 	for rows.Next() {
-		var messagesJSON, toolsApprovedStr, inputTokensStr, outputTokensStr, titleStr, costStr, sendUserMessageStr, maxIterationsStr, createdAtStr string
-		var sessionID string
-		var workingDir sql.NullString
-
-		err := rows.Scan(&sessionID, &messagesJSON, &toolsApprovedStr, &inputTokensStr, &outputTokensStr, &titleStr, &costStr, &sendUserMessageStr, &maxIterationsStr, &workingDir, &createdAtStr)
+		session, err := scanSession(rows)
 		if err != nil {
 			return nil, err
 		}
-
-		// Ok listen up, we used to only store messages in the database, but now we
-		// store messages and sub-sessions. So we need to handle both cases.
-		// We do this in a kind of hacky way, but it works. "AgentFilename" is always present
-		// in a message in the old format, so we check for it to determine the format.
-		var items []Item
-		var messages []Message
-		if err := json.Unmarshal([]byte(messagesJSON), &messages); err != nil {
-			return nil, err
-		}
-		if len(messages) > 0 {
-			if err := json.Unmarshal([]byte(messagesJSON), &items); err != nil {
-				return nil, err
-			}
-		} else {
-			items = convertMessagesToItems(messages)
-		}
-
-		toolsApproved, err := strconv.ParseBool(toolsApprovedStr)
-		if err != nil {
-			return nil, err
-		}
-
-		inputTokens, err := strconv.ParseInt(inputTokensStr, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-
-		outputTokens, err := strconv.ParseInt(outputTokensStr, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-
-		cost, err := strconv.ParseFloat(costStr, 64)
-		if err != nil {
-			return nil, err
-		}
-
-		sendUserMessage, err := strconv.ParseBool(sendUserMessageStr)
-		if err != nil {
-			return nil, err
-		}
-
-		maxIterations, err := strconv.Atoi(maxIterationsStr)
-		if err != nil {
-			return nil, err
-		}
-
-		createdAt, err := time.Parse(time.RFC3339, createdAtStr)
-		if err != nil {
-			return nil, err
-		}
-
-		session := &Session{
-			ID:              sessionID,
-			Title:           titleStr,
-			Messages:        items,
-			ToolsApproved:   toolsApproved,
-			InputTokens:     inputTokens,
-			OutputTokens:    outputTokens,
-			Cost:            cost,
-			SendUserMessage: sendUserMessage,
-			MaxIterations:   maxIterations,
-			CreatedAt:       createdAt,
-			WorkingDir:      workingDir.String,
-		}
-
 		sessions = append(sessions, session)
 	}
 
