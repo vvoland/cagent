@@ -654,7 +654,7 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadM
 
 		content, err := os.ReadFile(path)
 		if err != nil {
-			errMsg := fmt.Sprintf("%s", err)
+			errMsg := err.Error()
 			if os.IsNotExist(err) {
 				errMsg = "not found"
 			}
