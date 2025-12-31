@@ -1311,7 +1311,7 @@ func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Ses
 
 	s := session.New(
 		session.WithSystemMessage(memberAgentTask),
-		session.WithImplicitUserMessage("Follow the default instructions"),
+		session.WithImplicitUserMessage("Please proceed."),
 		session.WithMaxIterations(child.MaxIterations()),
 		session.WithTitle("Transferred task"),
 		session.WithToolsApproved(sess.ToolsApproved),

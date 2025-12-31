@@ -238,7 +238,7 @@ func (f *runExecFlags) handleExecMode(ctx context.Context, out *cli.Printer, rt 
 	if len(args) == 2 {
 		execArgs = append(execArgs, args[1])
 	} else {
-		execArgs = append(execArgs, "Follow the default instructions")
+		execArgs = append(execArgs, "Please proceed.")
 	}
 
 	err := cli.Run(ctx, out, cli.Config{
