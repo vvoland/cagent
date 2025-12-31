@@ -110,7 +110,6 @@ func NewAgentMessage(a *agent.Agent, message *chat.Message) *Message {
 
 func SystemMessage(content string) *Message {
 	return &Message{
-		AgentName: "",
 		Message: chat.Message{
 			Role:      chat.MessageRoleSystem,
 			Content:   content,
