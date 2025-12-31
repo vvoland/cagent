@@ -137,7 +137,7 @@ func (h *todoHandler) updateTodo(_ context.Context, params UpdateTodoArgs) (*too
 	}, nil
 }
 
-func (h *todoHandler) listTodos(_ context.Context, _ tools.ToolCall) (*tools.ToolCallResult, error) {
+func (h *todoHandler) listTodos(_ context.Context, _ map[string]any) (*tools.ToolCallResult, error) {
 	var output strings.Builder
 	output.WriteString("Current todos:\n")
 
@@ -195,7 +195,7 @@ func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 			Category:     "todo",
 			Description:  "List all current todos with their status",
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      t.handler.listTodos,
+			Handler:      NewHandler(t.handler.listTodos),
 			Annotations: tools.ToolAnnotations{
 				Title:        "List TODOs",
 				ReadOnlyHint: true,
