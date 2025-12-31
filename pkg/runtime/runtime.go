@@ -834,14 +834,10 @@ func (r *LocalRuntime) emitAgentWarnings(a *agent.Agent, events chan Event) {
 
 func formatToolWarning(a *agent.Agent, warnings []string) string {
 	var builder strings.Builder
-	fmt.Fprintf(&builder, "Some toolsets failed to initialize for agent '%s'.\n\n", a.Name())
-	builder.WriteString("Details:\n\n")
+	fmt.Fprintf(&builder, "Some toolsets failed to initialize for agent '%s'.\n\nDetails:\n\n", a.Name())
 	for _, warning := range warnings {
-		builder.WriteString("- ")
-		builder.WriteString(warning)
-		builder.WriteByte('\n')
+		fmt.Fprintf(&builder, "- %s\n", warning)
 	}
-
 	return strings.TrimSuffix(builder.String(), "\n")
 }
 
