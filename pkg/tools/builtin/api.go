@@ -19,24 +19,19 @@ import (
 
 type APITool struct {
 	tools.BaseToolSet
-	handler *apiHandler
-	config  latest.APIToolConfig
+	config latest.APIToolConfig
 }
 
 var _ tools.ToolSet = (*APITool)(nil)
 
-type apiHandler struct {
-	config latest.APIToolConfig
-}
-
-func (h *apiHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+func (t *APITool) callTool(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	client := &http.Client{
 		Timeout: 30 * time.Second,
 	}
 
-	endpoint := h.config.Endpoint
+	endpoint := t.config.Endpoint
 	var reqBody io.Reader = http.NoBody
-	switch h.config.Method {
+	switch t.config.Method {
 	case http.MethodGet:
 		if toolCall.Function.Arguments != "" {
 			var params map[string]string
@@ -63,17 +58,17 @@ func (h *apiHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*to
 		reqBody = bytes.NewReader(jsonData)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, h.config.Method, endpoint, reqBody)
+	req, err := http.NewRequestWithContext(ctx, t.config.Method, endpoint, reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
 
 	req.Header.Set("User-Agent", useragent.Header)
-	if h.config.Method == http.MethodPost {
+	if t.config.Method == http.MethodPost {
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	for key, value := range h.config.Headers {
+	for key, value := range t.config.Headers {
 		req.Header.Set(key, value)
 	}
 
@@ -92,14 +87,9 @@ func (h *apiHandler) CallTool(ctx context.Context, toolCall tools.ToolCall) (*to
 	return tools.ResultSuccess(limitOutput(string(body))), nil
 }
 
-type APIToolOption func(*APITool)
-
 func NewAPITool(config latest.APIToolConfig) *APITool {
 	return &APITool{
 		config: config,
-		handler: &apiHandler{
-			config: config,
-		},
 	}
 }
 
@@ -146,7 +136,7 @@ func (t *APITool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  t.config.Instruction,
 			Parameters:   inputSchema,
 			OutputSchema: outputSchema,
-			Handler:      t.handler.CallTool,
+			Handler:      t.callTool,
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        cmp.Or(t.config.Name, "Query API"),

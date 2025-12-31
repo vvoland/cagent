@@ -59,7 +59,7 @@ func TestAPITool_GET(t *testing.T) {
 		Endpoint: ts.serverURL + "/api?key=${key}&value=${value}",
 	})
 
-	result, err := tool.handler.CallTool(t.Context(), tools.ToolCall{
+	result, err := tool.callTool(t.Context(), tools.ToolCall{
 		Function: tools.FunctionCall{
 			Arguments: `{"key": "mykey", "value": "myvalue"}`,
 		},
@@ -80,7 +80,7 @@ func TestAPITool_POST(t *testing.T) {
 		Endpoint: ts.serverURL,
 	})
 
-	result, err := tool.handler.CallTool(t.Context(), tools.ToolCall{
+	result, err := tool.callTool(t.Context(), tools.ToolCall{
 		Function: tools.FunctionCall{
 			Arguments: `{"name":"John Doe","age":30}`,
 		},
@@ -112,7 +112,7 @@ func TestAPITool_Headers(t *testing.T) {
 		},
 	})
 
-	result, err := tool.handler.CallTool(t.Context(), tools.ToolCall{})
+	result, err := tool.callTool(t.Context(), tools.ToolCall{})
 
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"status":"ok"}`, result.Output)
