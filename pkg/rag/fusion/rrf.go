@@ -4,7 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"log/slog"
-	"sort"
+	"slices"
 
 	"github.com/docker/cagent/pkg/rag/database"
 )
@@ -97,8 +97,8 @@ func (rrf *ReciprocalRankFusion) Fuse(strategyResults map[string][]database.Sear
 		fusedDocs = append(fusedDocs, doc)
 	}
 
-	sort.Slice(fusedDocs, func(i, j int) bool {
-		return fusedDocs[i].FusionScore > fusedDocs[j].FusionScore
+	slices.SortFunc(fusedDocs, func(a, b *fusedDocument) int {
+		return cmp.Compare(b.FusionScore, a.FusionScore) // Descending order
 	})
 
 	// Convert back to SearchResult format
