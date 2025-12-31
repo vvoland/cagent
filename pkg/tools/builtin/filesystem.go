@@ -885,8 +885,7 @@ func matchExcludePattern(pattern, relPath string) bool {
 	normalizedPattern := filepath.ToSlash(pattern)
 
 	// Handle directory patterns ending with /*
-	if strings.HasSuffix(normalizedPattern, "/*") {
-		dirPattern := strings.TrimSuffix(normalizedPattern, "/*")
+	if dirPattern, found := strings.CutSuffix(normalizedPattern, "/*"); found {
 		// Check if path starts with the directory pattern
 		if strings.HasPrefix(normalizedPath, dirPattern+"/") || normalizedPath == dirPattern {
 			return true
@@ -894,14 +893,12 @@ func matchExcludePattern(pattern, relPath string) bool {
 	}
 
 	// Try glob pattern matching on the full relative path
-	matched, _ := filepath.Match(normalizedPattern, normalizedPath)
-	if matched {
+	if matched, _ := filepath.Match(normalizedPattern, normalizedPath); matched {
 		return true
 	}
 
 	// Try glob pattern matching on just the base name for backwards compatibility
-	matched, _ = filepath.Match(normalizedPattern, filepath.Base(normalizedPath))
-	if matched {
+	if matched, _ := filepath.Match(normalizedPattern, filepath.Base(normalizedPath)); matched {
 		return true
 	}
 
@@ -909,8 +906,7 @@ func matchExcludePattern(pattern, relPath string) bool {
 	pathParts := strings.Split(normalizedPath, "/")
 	for i := range pathParts {
 		subPath := strings.Join(pathParts[:i+1], "/")
-		matched, _ := filepath.Match(normalizedPattern, subPath)
-		if matched {
+		if matched, _ := filepath.Match(normalizedPattern, subPath); matched {
 			return true
 		}
 	}
