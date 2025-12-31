@@ -97,27 +97,13 @@ func ImplicitUserMessage(content string) *Message {
 }
 
 func UserMessage(content string, multiContent ...chat.MessagePart) *Message {
-	var msg chat.Message
-
-	if len(multiContent) > 0 {
-		msg = chat.Message{
+	return &Message{
+		Message: chat.Message{
 			Role:         chat.MessageRoleUser,
 			Content:      content,
 			MultiContent: multiContent,
 			CreatedAt:    time.Now().Format(time.RFC3339),
-		}
-	} else {
-		// Otherwise, use plain text content
-		msg = chat.Message{
-			Role:      chat.MessageRoleUser,
-			Content:   content,
-			CreatedAt: time.Now().Format(time.RFC3339),
-		}
-	}
-
-	return &Message{
-		AgentName: "",
-		Message:   msg,
+		},
 	}
 }
 
