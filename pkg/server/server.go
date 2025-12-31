@@ -8,7 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -118,8 +118,8 @@ func (s *Server) getAgents(c echo.Context) error {
 		}
 	}
 
-	sort.Slice(agents, func(i, j int) bool {
-		return agents[i].Name < agents[j].Name
+	slices.SortFunc(agents, func(a, b api.Agent) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
 
 	return c.JSON(http.StatusOK, agents)
