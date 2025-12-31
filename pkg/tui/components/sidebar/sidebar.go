@@ -3,8 +3,9 @@ package sidebar
 import (
 	"fmt"
 	"log/slog"
+	"maps"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -335,19 +336,18 @@ func (m *model) workingIndicator() string {
 	}
 
 	// Display each RAG source with its strategies (sorted for stable display)
-	ragNames := make([]string, 0, len(ragGroups))
-	for ragName := range ragGroups {
-		ragNames = append(ragNames, ragName)
-	}
-	sort.Strings(ragNames)
+	ragNames := slices.Sorted(maps.Keys(ragGroups))
 
 	for _, ragName := range ragNames {
 		strategies := ragGroups[ragName]
 		displayRagName := strings.ReplaceAll(ragName, "_", " ")
 
 		// Sort strategies by name for stable display
-		sort.Slice(strategies, func(i, j int) bool {
-			return strategies[i].strategyName < strategies[j].strategyName
+		slices.SortFunc(strategies, func(a, b struct {
+			strategyName string
+			state        *ragIndexingState
+		}) int {
+			return strings.Compare(a.strategyName, b.strategyName)
 		})
 
 		// Display RAG source name as header
@@ -411,19 +411,18 @@ func (m *model) workingIndicatorHorizontal() string {
 	}
 
 	// Display each RAG source with its strategies (sorted for stable display)
-	ragNames := make([]string, 0, len(ragGroups))
-	for ragName := range ragGroups {
-		ragNames = append(ragNames, ragName)
-	}
-	sort.Strings(ragNames)
+	ragNames := slices.Sorted(maps.Keys(ragGroups))
 
 	for _, ragName := range ragNames {
 		strategies := ragGroups[ragName]
 		displayRagName := strings.ReplaceAll(ragName, "_", " ")
 
 		// Sort strategies by name for stable display
-		sort.Slice(strategies, func(i, j int) bool {
-			return strategies[i].strategyName < strategies[j].strategyName
+		slices.SortFunc(strategies, func(a, b struct {
+			strategyName string
+			state        *ragIndexingState
+		}) int {
+			return strings.Compare(a.strategyName, b.strategyName)
 		})
 
 		// First line: RAG source name (bold for emphasis)
