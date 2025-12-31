@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"slices"
 
 	"github.com/docker/cagent/pkg/rag"
 	"github.com/docker/cagent/pkg/tools"
@@ -138,11 +139,7 @@ func (t *RAGTool) handleQueryRAG(ctx context.Context, args QueryRAGArgs) (*tools
 
 // sortResults sorts query results by similarity in descending order
 func sortResults(results []QueryResult) {
-	for i := range results {
-		for j := i + 1; j < len(results); j++ {
-			if results[j].Similarity > results[i].Similarity {
-				results[i], results[j] = results[j], results[i]
-			}
-		}
-	}
+	slices.SortFunc(results, func(a, b QueryResult) int {
+		return cmp.Compare(b.Similarity, a.Similarity) // Descending order
+	})
 }
