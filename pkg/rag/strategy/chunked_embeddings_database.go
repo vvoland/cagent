@@ -1,12 +1,13 @@
 package strategy
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"sort"
+	"slices"
 
 	_ "modernc.org/sqlite"
 
@@ -171,8 +172,8 @@ func (d *chunkedVectorDB) SearchSimilarVectors(ctx context.Context, queryEmbeddi
 		return nil, fmt.Errorf("error iterating rows: %w", err)
 	}
 
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].Similarity > results[j].Similarity
+	slices.SortFunc(results, func(a, b VectorSearchResultData) int {
+		return cmp.Compare(b.Similarity, a.Similarity)
 	})
 
 	if len(results) > limit {
