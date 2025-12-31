@@ -64,15 +64,7 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 			return nil
 		}
 
-		userInput = runtime.ResolveCommand(ctx, rt, userInput)
-
-		// Parse for /attach commands in the message
-		messageText, attachPath := ParseAttachCommand(userInput)
-
-		// Use either the per-message attachment or the global one
-		finalAttachPath := cmp.Or(attachPath, cfg.AttachmentPath)
-
-		sess.AddMessage(CreateUserMessageWithAttachment(messageText, finalAttachPath))
+		sess.AddMessage(PrepareUserMessage(ctx, rt, userInput, cfg.AttachmentPath))
 
 		if cfg.OutputJSON {
 			for event := range rt.RunStream(ctx, sess) {
@@ -235,6 +227,30 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 		return RuntimeError{Err: lastErr}
 	}
 	return nil
+}
+
+// PrepareUserMessage resolves commands, parses /attach directives, and creates
+// a user message with optional image attachment. This is the common flow for
+// both TUI and CLI modes.
+//
+// Parameters:
+//   - ctx: context for command resolution
+//   - rt: runtime for command resolution
+//   - userInput: the raw user input (may contain /commands and /attach directives)
+//   - globalAttachPath: attachment path from --attach flag (can be empty)
+//
+// Returns the prepared session.Message ready to be added to the session.
+func PrepareUserMessage(ctx context.Context, rt runtime.Runtime, userInput, globalAttachPath string) *session.Message {
+	// Resolve any /command to its prompt text
+	resolvedContent := runtime.ResolveCommand(ctx, rt, userInput)
+
+	// Parse for /attach commands in the message
+	messageText, attachPath := ParseAttachCommand(resolvedContent)
+
+	// Use either the per-message attachment or the global one
+	finalAttachPath := cmp.Or(attachPath, globalAttachPath)
+
+	return CreateUserMessageWithAttachment(messageText, finalAttachPath)
 }
 
 // ParseAttachCommand parses user input for /attach commands

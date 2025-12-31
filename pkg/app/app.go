@@ -90,6 +90,11 @@ func (a *App) FirstMessageAttachment() string {
 	return a.firstMessageAttach
 }
 
+// Runtime returns the runtime for this app.
+func (a *App) Runtime() runtime.Runtime {
+	return a.runtime
+}
+
 // CurrentAgentCommands returns the commands for the active agent
 func (a *App) CurrentAgentCommands(ctx context.Context) map[string]string {
 	return a.runtime.CurrentAgentCommands(ctx)

@@ -18,6 +18,7 @@ import (
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/evaluation"
 	"github.com/docker/cagent/pkg/runtime"
+	"github.com/docker/cagent/pkg/session"
 	mcptools "github.com/docker/cagent/pkg/tools/mcp"
 	"github.com/docker/cagent/pkg/tui/commands"
 	"github.com/docker/cagent/pkg/tui/components/completion"
@@ -127,25 +128,18 @@ func (a *appModel) Init() tea.Cmd {
 
 	if firstMessage := a.application.FirstMessage(); firstMessage != nil {
 		cmds = append(cmds, func() tea.Msg {
-			// Resolve the command (e.g., /command -> prompt text)
-			resolvedContent := a.application.ResolveCommand(context.Background(), *firstMessage)
+			// Use the shared PrepareUserMessage function for consistent attachment handling
+			userMsg := cli.PrepareUserMessage(context.Background(), a.application.Runtime(), *firstMessage, a.application.FirstMessageAttachment())
 
-			// Parse for /attach commands in the message
-			messageText, attachPath := cli.ParseAttachCommand(resolvedContent)
-
-			// Use either the per-message attachment or the global one from --attach flag
-			finalAttachPath := cmp.Or(attachPath, a.application.FirstMessageAttachment())
-
-			// If there's an attachment, we need to handle it specially
-			if finalAttachPath != "" {
+			// If the message has multi-content (attachments), we need to handle it specially
+			if len(userMsg.Message.MultiContent) > 0 {
 				return firstMessageWithAttachment{
-					content:    messageText,
-					attachment: finalAttachPath,
+					message: userMsg,
 				}
 			}
 
 			return editor.SendMsg{
-				Content: messageText,
+				Content: userMsg.Message.Content,
 			}
 		})
 	}
@@ -155,8 +149,7 @@ func (a *appModel) Init() tea.Cmd {
 
 // firstMessageWithAttachment is a message for the first message with an attachment
 type firstMessageWithAttachment struct {
-	content    string
-	attachment string
+	message *session.Message
 }
 
 // Help returns help information
@@ -333,9 +326,8 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case firstMessageWithAttachment:
-		// Handle first message with image attachment
-		userMsg := cli.CreateUserMessageWithAttachment(msg.content, msg.attachment)
-		a.application.RunWithMessage(context.Background(), nil, userMsg)
+		// Handle first message with image attachment using the pre-prepared message
+		a.application.RunWithMessage(context.Background(), nil, msg.message)
 		return a, nil
 
 	case error:
