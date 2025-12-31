@@ -1,6 +1,8 @@
 package runtime
 
 import (
+	"cmp"
+
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -402,16 +404,12 @@ type AgentSwitchingEvent struct {
 }
 
 func AgentSwitching(switching bool, fromAgent, toAgent string) Event {
-	currentAgent := fromAgent
-	if toAgent != "" {
-		currentAgent = toAgent
-	}
 	return &AgentSwitchingEvent{
 		Type:         "agent_switching",
 		Switching:    switching,
 		FromAgent:    fromAgent,
 		ToAgent:      toAgent,
-		AgentContext: AgentContext{AgentName: currentAgent},
+		AgentContext: AgentContext{AgentName: cmp.Or(toAgent, fromAgent)},
 	}
 }
 
