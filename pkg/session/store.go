@@ -81,7 +81,7 @@ func NewInMemorySessionStore() Store {
 	}
 }
 
-func (s *InMemorySessionStore) AddSession(ctx context.Context, session *Session) error {
+func (s *InMemorySessionStore) AddSession(_ context.Context, session *Session) error {
 	if session.ID == "" {
 		return ErrEmptyID
 	}
@@ -89,7 +89,7 @@ func (s *InMemorySessionStore) AddSession(ctx context.Context, session *Session)
 	return nil
 }
 
-func (s *InMemorySessionStore) GetSession(ctx context.Context, id string) (*Session, error) {
+func (s *InMemorySessionStore) GetSession(_ context.Context, id string) (*Session, error) {
 	if id == "" {
 		return nil, ErrEmptyID
 	}
@@ -100,7 +100,7 @@ func (s *InMemorySessionStore) GetSession(ctx context.Context, id string) (*Sess
 	return session, nil
 }
 
-func (s *InMemorySessionStore) GetSessions(ctx context.Context) ([]*Session, error) {
+func (s *InMemorySessionStore) GetSessions(_ context.Context) ([]*Session, error) {
 	sessions := make([]*Session, 0, s.sessions.Length())
 	s.sessions.Range(func(key string, value *Session) bool {
 		sessions = append(sessions, value)
@@ -109,7 +109,7 @@ func (s *InMemorySessionStore) GetSessions(ctx context.Context) ([]*Session, err
 	return sessions, nil
 }
 
-func (s *InMemorySessionStore) DeleteSession(ctx context.Context, id string) error {
+func (s *InMemorySessionStore) DeleteSession(_ context.Context, id string) error {
 	if id == "" {
 		return ErrEmptyID
 	}
@@ -121,7 +121,7 @@ func (s *InMemorySessionStore) DeleteSession(ctx context.Context, id string) err
 	return nil
 }
 
-func (s *InMemorySessionStore) UpdateSession(ctx context.Context, session *Session) error {
+func (s *InMemorySessionStore) UpdateSession(_ context.Context, session *Session) error {
 	if session.ID == "" {
 		return ErrEmptyID
 	}
