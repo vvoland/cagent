@@ -1,10 +1,11 @@
 package rerank
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log/slog"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/docker/cagent/pkg/model/provider"
@@ -182,8 +183,8 @@ func (r *LLMReranker) Rerank(ctx context.Context, query string, results []databa
 	}
 
 	// Sort by new scores (descending)
-	sort.Slice(rerankedResults, func(i, j int) bool {
-		return rerankedResults[i].Similarity > rerankedResults[j].Similarity
+	slices.SortFunc(rerankedResults, func(a, b database.SearchResult) int {
+		return cmp.Compare(b.Similarity, a.Similarity)
 	})
 
 	// Log final score statistics
