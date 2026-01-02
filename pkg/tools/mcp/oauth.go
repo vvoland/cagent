@@ -108,9 +108,7 @@ func (o *oauth) getAuthorizationServerMetadata(ctx context.Context, authServerUR
 
 // validateAndFillDefaults validates required fields and fills in defaults
 func validateAndFillDefaults(metadata *AuthorizationServerMetadata, authServerURL string) *AuthorizationServerMetadata {
-	if metadata.Issuer == "" {
-		metadata.Issuer = authServerURL
-	}
+	metadata.Issuer = cmp.Or(metadata.Issuer, authServerURL)
 	if len(metadata.ResponseTypesSupported) == 0 {
 		metadata.ResponseTypesSupported = []string{"code"}
 	}
@@ -128,15 +126,9 @@ func validateAndFillDefaults(metadata *AuthorizationServerMetadata, authServerUR
 		metadata.RevocationEndpointAuthMethodsSupported = []string{"client_secret_basic"}
 	}
 
-	if metadata.AuthorizationEndpoint == "" {
-		metadata.AuthorizationEndpoint = authServerURL + "/authorize"
-	}
-	if metadata.TokenEndpoint == "" {
-		metadata.TokenEndpoint = authServerURL + "/token"
-	}
-	if metadata.RegistrationEndpoint == "" {
-		metadata.RegistrationEndpoint = authServerURL + "/register"
-	}
+	metadata.AuthorizationEndpoint = cmp.Or(metadata.AuthorizationEndpoint, authServerURL+"/authorize")
+	metadata.TokenEndpoint = cmp.Or(metadata.TokenEndpoint, authServerURL+"/token")
+	metadata.RegistrationEndpoint = cmp.Or(metadata.RegistrationEndpoint, authServerURL+"/register")
 
 	return metadata
 }

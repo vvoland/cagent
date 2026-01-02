@@ -1,6 +1,7 @@
 package config
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log/slog"
@@ -28,9 +29,7 @@ func Load(ctx context.Context, source Reader) (*latest.Config, error) {
 	if err := yaml.Unmarshal(data, &raw); err != nil {
 		return nil, fmt.Errorf("looking for version in config file\n%s", yaml.FormatError(err, true, true))
 	}
-	if raw.Version == "" {
-		raw.Version = latest.Version
-	}
+	raw.Version = cmp.Or(raw.Version, latest.Version)
 
 	oldConfig, err := parseCurrentVersion(data, raw.Version)
 	if err != nil {

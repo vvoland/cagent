@@ -35,8 +35,7 @@ func New(opts ...Opt) (*History, error) {
 	homeDir := o.homeDir
 	if homeDir == "" {
 		var err error
-		homeDir, err = os.UserHomeDir()
-		if err != nil {
+		if homeDir, err = os.UserHomeDir(); err != nil {
 			return nil, err
 		}
 	}

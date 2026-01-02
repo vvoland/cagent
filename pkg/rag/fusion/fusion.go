@@ -1,6 +1,7 @@
 package fusion
 
 import (
+	"cmp"
 	"fmt"
 
 	"github.com/docker/cagent/pkg/rag/database"
@@ -24,11 +25,7 @@ type Config struct {
 func New(config Config) (Fusion, error) {
 	switch config.Strategy {
 	case "rrf", "reciprocal_rank_fusion", "":
-		k := config.K
-		if k == 0 {
-			k = 60 // Standard RRF parameter
-		}
-		return NewReciprocalRankFusion(k), nil
+		return NewReciprocalRankFusion(cmp.Or(config.K, 60)), nil
 
 	case "weighted":
 		if len(config.Weights) == 0 {

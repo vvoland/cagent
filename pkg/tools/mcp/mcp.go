@@ -185,9 +185,7 @@ func (ts *Toolset) Tools(ctx context.Context) ([]tools.Tool, error) {
 func (ts *Toolset) callTool(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	slog.Debug("Calling MCP tool", "tool", toolCall.Function.Name, "arguments", toolCall.Function.Arguments)
 
-	if toolCall.Function.Arguments == "" {
-		toolCall.Function.Arguments = "{}"
-	}
+	toolCall.Function.Arguments = cmp.Or(toolCall.Function.Arguments, "{}")
 	var args map[string]any
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
 		slog.Error("Failed to parse tool arguments", "tool", toolCall.Function.Name, "error", err)
