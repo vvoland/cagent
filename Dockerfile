@@ -12,6 +12,7 @@ FROM crazymax/osxcross:15.5-debian AS osxcross
 
 FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine${ALPINE_VERSION} AS builder-base
 COPY --from=xx / /
+RUN apk add --no-cache clang zig
 WORKDIR /src
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=bind,source=go.mod,target=go.mod \
@@ -20,22 +21,22 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 ENV CGO_ENABLED=1
 
 FROM builder-base AS builder
-RUN apk add clang zig
-COPY . ./
 ARG TARGETPLATFORM
 ARG TARGETOS
 ARG TARGETARCH
-RUN xx-apk add musl-dev
+RUN --mount=type=cache,target=/var/cache/apk,id=apk-$TARGETPLATFORM,sharing=locked \
+    xx-apk add musl-dev
+COPY . ./
 ARG GIT_TAG
 ARG GIT_COMMIT
 RUN --mount=type=bind,from=osxcross,src=/osxsdk,target=/xx-sdk \
-    --mount=type=cache,target=/root/.cache,id=docker-ai-$TARGETPLATFORM \
+    --mount=type=cache,target=/root/.cache/go-build,id=go-build-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod <<EOT
     set -ex
     if [ "$TARGETOS" != "darwin" ]; then
       export XX_GO_PREFER_C_COMPILER=zig
     fi
-    xx-go build -trimpath -ldflags "-s -w -X 'github.com/docker/cagent/pkg/version.Version=$GIT_TAG' -X 'github.com/docker/cagent/pkg/version.Commit=$GIT_COMMIT'" -o /binaries/cagent-$TARGETOS-$TARGETARCH .
+    xx-go build -trimpath -ldflags "-s -w -linkmode=external -X 'github.com/docker/cagent/pkg/version.Version=$GIT_TAG' -X 'github.com/docker/cagent/pkg/version.Commit=$GIT_COMMIT'" -o /binaries/cagent-$TARGETOS-$TARGETARCH .
     xx-verify --static /binaries/cagent-$TARGETOS-$TARGETARCH
     if [ "$TARGETOS" = "windows" ]; then
       mv /binaries/cagent-$TARGETOS-$TARGETARCH /binaries/cagent-$TARGETOS-$TARGETARCH.exe
@@ -50,12 +51,12 @@ FROM scratch AS cross
 COPY --from=builder /binaries .
 
 FROM alpine:${ALPINE_VERSION}
-RUN apk add --no-cache ca-certificates docker-cli
-RUN addgroup -S cagent && adduser -S -G cagent cagent
+RUN apk add --no-cache ca-certificates docker-cli && \
+    addgroup -S cagent && adduser -S -G cagent cagent && \
+    mkdir /data /work && chmod 777 /data /work
 ARG TARGETOS TARGETARCH
 ENV DOCKER_MCP_IN_CONTAINER=1
 ENV TERM=xterm-256color
-RUN mkdir /data /work && chmod 777 /data /work
 COPY --from=docker/mcp-gateway:v2 /docker-mcp /usr/local/lib/docker/cli-plugins/
 COPY --from=builder /binaries/cagent-$TARGETOS-$TARGETARCH /cagent
 USER cagent
