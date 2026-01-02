@@ -75,6 +75,11 @@ type selectionState struct {
 	endCol          int
 	mouseButtonDown bool
 	mouseY          int // Screen Y coordinate for autoscroll
+
+	// Double-click detection
+	lastClickTime time.Time
+	lastClickLine int
+	lastClickCol  int
 }
 
 // start initializes a new selection at the given position
@@ -180,8 +185,32 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case tea.MouseClickMsg:
 		if msg.Button == tea.MouseLeft {
 			line, col := m.mouseToLineCol(msg.X, msg.Y)
+			now := time.Now()
+
+			// Check for double-click: same position within 500ms
+			colDiff := col - m.selection.lastClickCol
+			isDoubleClick := !m.selection.lastClickTime.IsZero() &&
+				now.Sub(m.selection.lastClickTime) < 500*time.Millisecond &&
+				line == m.selection.lastClickLine &&
+				colDiff >= -1 && colDiff <= 1
+
+			if isDoubleClick {
+				// Double-click: select word at cursor
+				m.selectWordAt(line, col)
+				// Reset last click to prevent triple-click detection
+				m.selection.lastClickTime = time.Time{}
+				cmd := m.copySelectionToClipboard()
+				return m, cmd
+			}
+
+			// Single click: start drag selection
 			m.selection.start(line, col)
 			m.selection.mouseY = msg.Y // Store screen Y for autoscroll
+
+			// Record click for double-click detection
+			m.selection.lastClickTime = now
+			m.selection.lastClickLine = line
+			m.selection.lastClickCol = col
 		}
 		return m, nil
 
@@ -1194,6 +1223,76 @@ func displayWidthToRuneIndex(s string, targetWidth int) int {
 	}
 
 	return len(runes)
+}
+
+// selectWordAt selects the word at the given line and column position
+func (m *model) selectWordAt(line, col int) {
+	lines := strings.Split(m.rendered, "\n")
+	if line < 0 || line >= len(lines) {
+		return
+	}
+
+	originalLine := lines[line]
+	plainLine := stripBorderChars(ansi.Strip(originalLine))
+	if plainLine == "" {
+		return
+	}
+
+	// Calculate border offset to adjust column position
+	borderOffset := runewidth.StringWidth(ansi.Strip(originalLine)) - runewidth.StringWidth(plainLine)
+	runes := []rune(plainLine)
+
+	// Convert display column to rune index
+	runeIdx := min(max(0, displayWidthToRuneIndex(plainLine, max(0, col-borderOffset))), len(runes)-1)
+	if runeIdx < 0 {
+		return
+	}
+
+	// Find word boundaries - determine if we're on a word or non-word char
+	onWordChar := isWordChar(runes[runeIdx])
+	startIdx, endIdx := runeIdx, runeIdx
+
+	// Expand to find contiguous characters of the same type
+	for startIdx > 0 && isWordChar(runes[startIdx-1]) == onWordChar {
+		startIdx--
+	}
+	for endIdx < len(runes)-1 && isWordChar(runes[endIdx+1]) == onWordChar {
+		endIdx++
+	}
+
+	// Convert rune indices back to display columns, accounting for border offset
+	startCol := runeIndexToDisplayWidth(plainLine, startIdx) + borderOffset
+	endCol := runeIndexToDisplayWidth(plainLine, endIdx+1) + borderOffset
+
+	// Set selection
+	m.selection.active = true
+	m.selection.startLine = line
+	m.selection.startCol = startCol
+	m.selection.endLine = line
+	m.selection.endCol = endCol
+	m.selection.mouseButtonDown = false
+}
+
+// isWordChar returns true if the rune is a word character (letter, digit, or underscore)
+func isWordChar(r rune) bool {
+	return (r >= 'a' && r <= 'z') ||
+		(r >= 'A' && r <= 'Z') ||
+		(r >= '0' && r <= '9') ||
+		r == '_' ||
+		r >= 0x80 // Include non-ASCII characters (unicode letters, etc.)
+}
+
+// runeIndexToDisplayWidth converts a rune index to display width
+func runeIndexToDisplayWidth(s string, runeIdx int) int {
+	runes := []rune(s)
+	if runeIdx > len(runes) {
+		runeIdx = len(runes)
+	}
+	width := 0
+	for i := range runeIdx {
+		width += runewidth.RuneWidth(runes[i])
+	}
+	return width
 }
 
 func (m *model) autoScroll() tea.Cmd {
