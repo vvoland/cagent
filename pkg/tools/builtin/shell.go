@@ -189,9 +189,7 @@ func (h *shellHandler) RunShell(ctx context.Context, params RunShellArgs) (*tool
 		}
 	}
 
-	if strings.TrimSpace(output) == "" {
-		output = "<no output>"
-	}
+	output = cmp.Or(strings.TrimSpace(output), "<no output>")
 
 	return tools.ResultSuccess(limitOutput(output)), nil
 }

@@ -118,9 +118,7 @@ func wrapLines(text string, width int) []string {
 			for breakPoint > 0 && lipgloss.Width(string(runes[:breakPoint])) > width {
 				breakPoint--
 			}
-			if breakPoint == 0 {
-				breakPoint = 1 // At least one rune per line
-			}
+			breakPoint = max(breakPoint, 1) // At least one rune per line
 			lines = append(lines, string(runes[:breakPoint]))
 			line = string(runes[breakPoint:])
 		}

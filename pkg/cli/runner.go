@@ -321,10 +321,7 @@ func CreateUserMessageWithAttachment(userContent, attachmentPath string) *sessio
 	}
 
 	// Ensure we have some text content when attaching a file
-	textContent := userContent
-	if strings.TrimSpace(textContent) == "" {
-		textContent = "Please analyze this attached file."
-	}
+	textContent := cmp.Or(strings.TrimSpace(userContent), "Please analyze this attached file.")
 
 	// Create message with multi-content including text and image
 	multiContent := []chat.MessagePart{
