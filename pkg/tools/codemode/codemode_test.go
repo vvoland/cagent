@@ -61,6 +61,32 @@ func TestCodeModeTool_Tools(t *testing.T) {
 		"value": {
 			"type": "string",
 			"description": "The value returned by the script"
+		},
+		"tool_calls": {
+			"type": "array",
+			"description": "The list of tool calls made during script execution, only included on failure",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"required": ["name", "arguments"],
+				"properties": {
+					"name": {
+						"type": "string",
+						"description": "The name of the tool that was called"
+					},
+					"arguments": {
+						"description": "The arguments passed to the tool"
+					},
+					"result": {
+						"type": "string",
+						"description": "The raw response returned by the tool"
+					},
+					"error": {
+						"type": "string",
+						"description": "The error message, if the tool call failed"
+					}
+				}
+			}
 		}
 	},
 	"additionalProperties": false
@@ -181,4 +207,165 @@ func (t *testToolSet) Start(context.Context) error {
 func (t *testToolSet) Stop(context.Context) error {
 	t.stop++
 	return nil
+}
+
+// TestCodeModeTool_SuccessNoToolCalls verifies that successful execution does not include tool calls.
+func TestCodeModeTool_SuccessNoToolCalls(t *testing.T) {
+	tool := Wrap(&testToolSet{
+		tools: []tools.Tool{
+			{
+				Name: "get_data",
+				Handler: builtin.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
+					return tools.ResultSuccess("data"), nil
+				}),
+			},
+		},
+	})
+
+	allTools, err := tool.Tools(t.Context())
+	require.NoError(t, err)
+	require.Len(t, allTools, 1)
+
+	result, err := allTools[0].Handler(t.Context(), tools.ToolCall{
+		Function: tools.FunctionCall{
+			Arguments: `{"script":"return get_data();"}`,
+		},
+	})
+	require.NoError(t, err)
+
+	var scriptResult ScriptResult
+	err = json.Unmarshal([]byte(result.Output), &scriptResult)
+	require.NoError(t, err)
+
+	// Success case should not include tool calls
+	assert.Equal(t, "data", scriptResult.Value)
+	assert.Empty(t, scriptResult.ToolCalls, "successful execution should not include tool_calls")
+}
+
+// TestCodeModeTool_FailureIncludesToolCalls verifies that failed execution includes tool call history.
+func TestCodeModeTool_FailureIncludesToolCalls(t *testing.T) {
+	tool := Wrap(&testToolSet{
+		tools: []tools.Tool{
+			{
+				Name: "first_tool",
+				Handler: builtin.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
+					return tools.ResultSuccess("first result"), nil
+				}),
+			},
+			{
+				Name: "second_tool",
+				Handler: builtin.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
+					return tools.ResultSuccess("second result"), nil
+				}),
+			},
+		},
+	})
+
+	allTools, err := tool.Tools(t.Context())
+	require.NoError(t, err)
+	require.Len(t, allTools, 1)
+
+	// Script calls tools successfully but then throws a runtime error
+	result, err := allTools[0].Handler(t.Context(), tools.ToolCall{
+		Function: tools.FunctionCall{
+			Arguments: `{"script":"var a = first_tool(); var b = second_tool(); throw new Error('runtime error');"}`,
+		},
+	})
+	require.NoError(t, err)
+
+	var scriptResult ScriptResult
+	err = json.Unmarshal([]byte(result.Output), &scriptResult)
+	require.NoError(t, err)
+
+	// Failure case should include tool calls
+	assert.Contains(t, scriptResult.Value, "runtime error")
+	require.Len(t, scriptResult.ToolCalls, 2, "failed execution should include tool_calls")
+
+	// Verify first tool call
+	assert.Equal(t, "first_tool", scriptResult.ToolCalls[0].Name)
+	assert.Equal(t, "first result", scriptResult.ToolCalls[0].Result)
+	assert.Empty(t, scriptResult.ToolCalls[0].Error)
+
+	// Verify second tool call
+	assert.Equal(t, "second_tool", scriptResult.ToolCalls[1].Name)
+	assert.Equal(t, "second result", scriptResult.ToolCalls[1].Result)
+	assert.Empty(t, scriptResult.ToolCalls[1].Error)
+}
+
+// TestCodeModeTool_FailureIncludesToolError verifies that tool errors are captured in tool call history.
+func TestCodeModeTool_FailureIncludesToolError(t *testing.T) {
+	tool := Wrap(&testToolSet{
+		tools: []tools.Tool{
+			{
+				Name: "failing_tool",
+				Handler: builtin.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
+					return nil, assert.AnError
+				}),
+			},
+		},
+	})
+
+	allTools, err := tool.Tools(t.Context())
+	require.NoError(t, err)
+	require.Len(t, allTools, 1)
+
+	result, err := allTools[0].Handler(t.Context(), tools.ToolCall{
+		Function: tools.FunctionCall{
+			Arguments: `{"script":"return failing_tool();"}`,
+		},
+	})
+	require.NoError(t, err)
+
+	var scriptResult ScriptResult
+	err = json.Unmarshal([]byte(result.Output), &scriptResult)
+	require.NoError(t, err)
+
+	// Script fails due to tool error
+	assert.Contains(t, scriptResult.Value, "assert.AnError")
+	require.Len(t, scriptResult.ToolCalls, 1, "failed execution should include tool_calls")
+
+	// Verify the tool call recorded the error
+	assert.Equal(t, "failing_tool", scriptResult.ToolCalls[0].Name)
+	assert.Empty(t, scriptResult.ToolCalls[0].Result)
+	assert.Contains(t, scriptResult.ToolCalls[0].Error, "assert.AnError")
+}
+
+// TestCodeModeTool_FailureIncludesToolArguments verifies that tool arguments are captured.
+func TestCodeModeTool_FailureIncludesToolArguments(t *testing.T) {
+	type TestArgs struct {
+		Value string `json:"value" jsonschema:"Test value"`
+	}
+
+	tool := Wrap(&testToolSet{
+		tools: []tools.Tool{
+			{
+				Name: "tool_with_args",
+				Handler: builtin.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
+					return tools.ResultSuccess("result"), nil
+				}),
+				Parameters: tools.MustSchemaFor[TestArgs](),
+			},
+		},
+	})
+
+	allTools, err := tool.Tools(t.Context())
+	require.NoError(t, err)
+	require.Len(t, allTools, 1)
+
+	result, err := allTools[0].Handler(t.Context(), tools.ToolCall{
+		Function: tools.FunctionCall{
+			Arguments: `{"script":"tool_with_args({'value': 'test123'}); throw new Error('forced error');"}`,
+		},
+	})
+	require.NoError(t, err)
+
+	var scriptResult ScriptResult
+	err = json.Unmarshal([]byte(result.Output), &scriptResult)
+	require.NoError(t, err)
+
+	// Verify the tool call captured the arguments
+	require.Len(t, scriptResult.ToolCalls, 1)
+	assert.Equal(t, "tool_with_args", scriptResult.ToolCalls[0].Name)
+	assert.Equal(t, map[string]any{"value": "test123"}, scriptResult.ToolCalls[0].Arguments)
+	assert.Equal(t, "result", scriptResult.ToolCalls[0].Result)
 }
