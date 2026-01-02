@@ -520,28 +520,31 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		currentValue := e.textarea.Value()
 		lastIdx := strings.LastIndex(currentValue, e.completionWord)
 		if e.currentCompletion.AutoSubmit() {
+			// For auto-submit completions (like commands), replace the trigger word
+			// with the selected value and send it as a message
+			var newValue string
 			if lastIdx >= 0 {
-				newValue := currentValue[:lastIdx-1]
-				e.textarea.SetValue(newValue)
-				e.textarea.MoveToEnd()
+				newValue = currentValue[:lastIdx-1] + msg.Value
+			} else {
+				newValue = msg.Value
 			}
-			if msg.Execute != nil {
-				return e, msg.Execute()
-			}
-		} else {
-			if lastIdx >= 0 {
-				newValue := currentValue[:lastIdx-1] + msg.Value + currentValue[lastIdx+len(e.completionWord):]
-				e.textarea.SetValue(newValue)
-				e.textarea.MoveToEnd()
-			}
-			// Track file references when using @ completion (but not paste placeholders)
-			if e.currentCompletion != nil && e.currentCompletion.Trigger() == "@" && !strings.HasPrefix(msg.Value, "@paste-") {
-				e.addFileAttachment(msg.Value)
-			}
-			// Clear history suggestion after selecting a completion
+			e.textarea.Reset()
+			e.userTyped = false
 			e.clearSuggestion()
-			return e, nil
+			return e, core.CmdHandler(SendMsg{Content: newValue})
 		}
+		// For non-auto-submit completions (like file paths), just insert the value
+		if lastIdx >= 0 {
+			newValue := currentValue[:lastIdx-1] + msg.Value + currentValue[lastIdx+len(e.completionWord):]
+			e.textarea.SetValue(newValue)
+			e.textarea.MoveToEnd()
+		}
+		// Track file references when using @ completion (but not paste placeholders)
+		if e.currentCompletion != nil && e.currentCompletion.Trigger() == "@" && !strings.HasPrefix(msg.Value, "@paste-") {
+			e.addFileAttachment(msg.Value)
+		}
+		// Clear history suggestion after selecting a completion
+		e.clearSuggestion()
 		return e, nil
 	case completion.ClosedMsg:
 		e.completionWord = ""

@@ -19,7 +19,7 @@ func NewCommandCompletion(a *app.App) Completion {
 }
 
 func (c *commandCompletion) AutoSubmit() bool {
-	return true
+	return true // Commands auto-submit: selecting inserts command text and sends it
 }
 
 func (c *commandCompletion) RequiresEmptyEditor() bool {
@@ -39,7 +39,6 @@ func (c *commandCompletion) Items() []completion.Item {
 				Label:       command.Label,
 				Description: command.Description,
 				Value:       command.SlashCommand,
-				Execute:     command.Execute,
 			})
 		}
 	}
