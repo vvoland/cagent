@@ -51,6 +51,10 @@ var Aliases = map[string]Alias{
 		BaseURL:     "https://api.mistral.ai/v1",
 		TokenEnvVar: "MISTRAL_API_KEY",
 	},
+	"ollama": {
+		APIType: "openai",
+		BaseURL: "http://localhost:11434/v1",
+	},
 }
 
 // Provider defines the interface for model providers
