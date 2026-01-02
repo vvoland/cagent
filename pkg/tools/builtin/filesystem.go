@@ -435,7 +435,7 @@ func (t *FilesystemTool) shouldIgnorePath(path string) bool {
 
 func (t *FilesystemTool) handleDirectoryTree(_ context.Context, args DirectoryTreeArgs) (*tools.ToolCallResult, error) {
 	if err := t.isPathAllowed(args.Path); err != nil {
-		return tools.ResultError(fmt.Sprintf("Error: %s", err)), nil
+		return tools.ResultError(err.Error()), nil
 	}
 
 	tree, err := fsx.DirectoryTree(args.Path, t.isPathAllowed, t.shouldIgnorePath, maxFiles)
@@ -453,7 +453,7 @@ func (t *FilesystemTool) handleDirectoryTree(_ context.Context, args DirectoryTr
 
 func (t *FilesystemTool) handleEditFile(ctx context.Context, args EditFileArgs) (*tools.ToolCallResult, error) {
 	if err := t.isPathAllowed(args.Path); err != nil {
-		return tools.ResultError(fmt.Sprintf("Error: %s", err)), nil
+		return tools.ResultError(err.Error()), nil
 	}
 
 	content, err := os.ReadFile(args.Path)
@@ -557,7 +557,7 @@ Updated allowed directories:
 
 func (t *FilesystemTool) handleListDirectory(_ context.Context, args ListDirectoryArgs) (*tools.ToolCallResult, error) {
 	if err := t.isPathAllowed(args.Path); err != nil {
-		return tools.ResultError(fmt.Sprintf("Error: %s", err)), nil
+		return tools.ResultError(err.Error()), nil
 	}
 
 	entries, err := os.ReadDir(args.Path)
@@ -597,7 +597,7 @@ func (t *FilesystemTool) handleListDirectory(_ context.Context, args ListDirecto
 
 func (t *FilesystemTool) handleReadFile(_ context.Context, args ReadFileArgs) (*tools.ToolCallResult, error) {
 	if err := t.isPathAllowed(args.Path); err != nil {
-		return tools.ResultError(fmt.Sprintf("Error: %s", err)), nil
+		return tools.ResultError(err.Error()), nil
 	}
 
 	content, err := os.ReadFile(args.Path)
@@ -643,19 +643,18 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadM
 		entry := ReadFileMeta{Path: path}
 
 		if err := t.isPathAllowed(path); err != nil {
-			errMsg := fmt.Sprintf("Error: %s", err)
 			contents = append(contents, PathContent{
 				Path:    path,
-				Content: errMsg,
+				Content: err.Error(),
 			})
-			entry.Error = errMsg
+			entry.Error = err.Error()
 			meta.Files = append(meta.Files, entry)
 			continue
 		}
 
 		content, err := os.ReadFile(path)
 		if err != nil {
-			errMsg := fmt.Sprintf("%s", err)
+			errMsg := err.Error()
 			if os.IsNotExist(err) {
 				errMsg = "not found"
 			}
@@ -700,7 +699,7 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadM
 
 func (t *FilesystemTool) handleSearchFiles(_ context.Context, args SearchFilesArgs) (*tools.ToolCallResult, error) {
 	if err := t.isPathAllowed(args.Path); err != nil {
-		return tools.ResultError(fmt.Sprintf("Error: %s", err)), nil
+		return tools.ResultError(err.Error()), nil
 	}
 
 	var matches []string
@@ -755,7 +754,7 @@ func (t *FilesystemTool) handleSearchFiles(_ context.Context, args SearchFilesAr
 
 func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, args SearchFilesContentArgs) (*tools.ToolCallResult, error) {
 	if err := t.isPathAllowed(args.Path); err != nil {
-		return tools.ResultError(fmt.Sprintf("Error: %s", err)), nil
+		return tools.ResultError(err.Error()), nil
 	}
 
 	var regex *regexp.Regexp
@@ -857,7 +856,7 @@ func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, args Search
 
 func (t *FilesystemTool) handleWriteFile(ctx context.Context, args WriteFileArgs) (*tools.ToolCallResult, error) {
 	if err := t.isPathAllowed(args.Path); err != nil {
-		return tools.ResultError(fmt.Sprintf("Error: %s", err)), nil
+		return tools.ResultError(err.Error()), nil
 	}
 
 	// Create parent directory structure if it doesn't exist
@@ -886,8 +885,7 @@ func matchExcludePattern(pattern, relPath string) bool {
 	normalizedPattern := filepath.ToSlash(pattern)
 
 	// Handle directory patterns ending with /*
-	if strings.HasSuffix(normalizedPattern, "/*") {
-		dirPattern := strings.TrimSuffix(normalizedPattern, "/*")
+	if dirPattern, found := strings.CutSuffix(normalizedPattern, "/*"); found {
 		// Check if path starts with the directory pattern
 		if strings.HasPrefix(normalizedPath, dirPattern+"/") || normalizedPath == dirPattern {
 			return true
@@ -895,14 +893,12 @@ func matchExcludePattern(pattern, relPath string) bool {
 	}
 
 	// Try glob pattern matching on the full relative path
-	matched, _ := filepath.Match(normalizedPattern, normalizedPath)
-	if matched {
+	if matched, _ := filepath.Match(normalizedPattern, normalizedPath); matched {
 		return true
 	}
 
 	// Try glob pattern matching on just the base name for backwards compatibility
-	matched, _ = filepath.Match(normalizedPattern, filepath.Base(normalizedPath))
-	if matched {
+	if matched, _ := filepath.Match(normalizedPattern, filepath.Base(normalizedPath)); matched {
 		return true
 	}
 
@@ -910,8 +906,7 @@ func matchExcludePattern(pattern, relPath string) bool {
 	pathParts := strings.Split(normalizedPath, "/")
 	for i := range pathParts {
 		subPath := strings.Join(pathParts[:i+1], "/")
-		matched, _ := filepath.Match(normalizedPattern, subPath)
-		if matched {
+		if matched, _ := filepath.Match(normalizedPattern, subPath); matched {
 			return true
 		}
 	}
@@ -921,9 +916,5 @@ func matchExcludePattern(pattern, relPath string) bool {
 
 func match(pattern, name string) bool {
 	matched, _ := doublestar.Match(pattern, name)
-	if matched {
-		return true
-	}
-
-	return strings.Contains(strings.ToLower(name), strings.ToLower(pattern))
+	return matched || strings.Contains(strings.ToLower(name), strings.ToLower(pattern))
 }

@@ -504,7 +504,7 @@ func extractSystemBlocks(messages []chat.Message) []anthropic.TextBlockParam {
 		}
 	}
 
-	if len(systemBlocks) != 0 {
+	if len(systemBlocks) > 0 {
 		sb := systemBlocks[len(systemBlocks)-1]
 		sb.CacheControl = anthropic.NewCacheControlEphemeralParam()
 		systemBlocks[len(systemBlocks)-1] = sb
@@ -528,7 +528,7 @@ func convertTools(tooles []tools.Tool) ([]anthropic.ToolUnionParam, error) {
 			InputSchema: inputSchema,
 		}
 	}
-	if len(toolParams) != 0 {
+	if len(toolParams) > 0 {
 		tp := toolParams[len(toolParams)-1]
 		tp.CacheControl = anthropic.NewCacheControlEphemeralParam()
 		toolParams[len(toolParams)-1] = tp

@@ -115,7 +115,7 @@ func (d *manager) handleOpen(msg OpenDialogMsg) (layout.Model, tea.Cmd) {
 
 // handleClose processes dialog closing requests (pops top dialog from stack)
 func (d *manager) handleClose() (layout.Model, tea.Cmd) {
-	if len(d.dialogStack) != 0 {
+	if len(d.dialogStack) > 0 {
 		d.dialogStack = d.dialogStack[:len(d.dialogStack)-1]
 	}
 

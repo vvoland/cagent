@@ -85,39 +85,19 @@ type Message struct {
 }
 
 func ImplicitUserMessage(content string) *Message {
-	return &Message{
-		AgentName: "",
-		Message: chat.Message{
-			Role:      chat.MessageRoleUser,
-			Content:   content,
-			CreatedAt: time.Now().Format(time.RFC3339),
-		},
-		Implicit: true,
-	}
+	msg := UserMessage(content)
+	msg.Implicit = true
+	return msg
 }
 
 func UserMessage(content string, multiContent ...chat.MessagePart) *Message {
-	var msg chat.Message
-
-	if len(multiContent) > 0 {
-		msg = chat.Message{
+	return &Message{
+		Message: chat.Message{
 			Role:         chat.MessageRoleUser,
 			Content:      content,
 			MultiContent: multiContent,
 			CreatedAt:    time.Now().Format(time.RFC3339),
-		}
-	} else {
-		// Otherwise, use plain text content
-		msg = chat.Message{
-			Role:      chat.MessageRoleUser,
-			Content:   content,
-			CreatedAt: time.Now().Format(time.RFC3339),
-		}
-	}
-
-	return &Message{
-		AgentName: "",
-		Message:   msg,
+		},
 	}
 }
 
@@ -130,7 +110,6 @@ func NewAgentMessage(a *agent.Agent, message *chat.Message) *Message {
 
 func SystemMessage(content string) *Message {
 	return &Message{
-		AgentName: "",
 		Message: chat.Message{
 			Role:      chat.MessageRoleSystem,
 			Content:   content,
@@ -187,19 +166,17 @@ func (s *Session) GetAllMessages() []Message {
 }
 
 func (s *Session) GetLastAssistantMessageContent() string {
-	messages := s.GetAllMessages()
-	for i := len(messages) - 1; i >= 0; i-- {
-		if messages[i].Message.Role == chat.MessageRoleAssistant {
-			return strings.TrimSpace(messages[i].Message.Content)
-		}
-	}
-	return ""
+	return s.getLastMessageContentByRole(chat.MessageRoleAssistant)
 }
 
 func (s *Session) GetLastUserMessageContent() string {
+	return s.getLastMessageContentByRole(chat.MessageRoleUser)
+}
+
+func (s *Session) getLastMessageContentByRole(role chat.MessageRole) string {
 	messages := s.GetAllMessages()
 	for i := len(messages) - 1; i >= 0; i-- {
-		if messages[i].Message.Role == chat.MessageRoleUser {
+		if messages[i].Message.Role == role {
 			return strings.TrimSpace(messages[i].Message.Content)
 		}
 	}

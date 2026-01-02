@@ -585,14 +585,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		r.InitializeRAG(ctx, events)
 
 		r.emitAgentWarnings(a, events)
-
-		for _, toolset := range a.ToolSets() {
-			toolset.SetElicitationHandler(r.elicitationHandler)
-			toolset.SetOAuthSuccessHandler(func() {
-				events <- Authorization(tools.ElicitationActionAccept, r.currentAgent)
-			})
-			toolset.SetManagedOAuth(r.managedOAuth)
-		}
+		r.configureToolsetHandlers(a, events)
 
 		agentTools, err := r.getTools(ctx, a, sessionSpan, events)
 		if err != nil {
@@ -626,13 +619,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			a := r.CurrentAgent()
 
 			r.emitAgentWarnings(a, events)
-
-			for _, toolset := range a.ToolSets() {
-				toolset.SetElicitationHandler(r.elicitationHandler)
-				toolset.SetOAuthSuccessHandler(func() {
-					events <- Authorization("confirmed", r.currentAgent)
-				})
-			}
+			r.configureToolsetHandlers(a, events)
 
 			agentTools, err := r.getTools(ctx, a, sessionSpan, events)
 			if err != nil {
@@ -819,6 +806,17 @@ func (r *LocalRuntime) getTools(ctx context.Context, a *agent.Agent, sessionSpan
 	return agentTools, nil
 }
 
+// configureToolsetHandlers sets up elicitation and OAuth handlers for all toolsets of an agent.
+func (r *LocalRuntime) configureToolsetHandlers(a *agent.Agent, events chan Event) {
+	for _, toolset := range a.ToolSets() {
+		toolset.SetElicitationHandler(r.elicitationHandler)
+		toolset.SetOAuthSuccessHandler(func() {
+			events <- Authorization(tools.ElicitationActionAccept, r.currentAgent)
+		})
+		toolset.SetManagedOAuth(r.managedOAuth)
+	}
+}
+
 func (r *LocalRuntime) emitAgentWarnings(a *agent.Agent, events chan Event) {
 	warnings := a.DrainWarnings()
 	if len(warnings) == 0 {
@@ -834,14 +832,10 @@ func (r *LocalRuntime) emitAgentWarnings(a *agent.Agent, events chan Event) {
 
 func formatToolWarning(a *agent.Agent, warnings []string) string {
 	var builder strings.Builder
-	fmt.Fprintf(&builder, "Some toolsets failed to initialize for agent '%s'.\n\n", a.Name())
-	builder.WriteString("Details:\n\n")
+	fmt.Fprintf(&builder, "Some toolsets failed to initialize for agent '%s'.\n\nDetails:\n\n", a.Name())
 	for _, warning := range warnings {
-		builder.WriteString("- ")
-		builder.WriteString(warning)
-		builder.WriteByte('\n')
+		fmt.Fprintf(&builder, "- %s\n", warning)
 	}
-
 	return strings.TrimSuffix(builder.String(), "\n")
 }
 

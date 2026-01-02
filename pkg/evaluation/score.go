@@ -9,14 +9,14 @@ import (
 func score(expectedMessages, actualMessages []session.Message) Score {
 	var expectedToolMessages []session.Message
 	for i := range expectedMessages {
-		if len(expectedMessages[i].Message.ToolCalls) != 0 {
+		if len(expectedMessages[i].Message.ToolCalls) > 0 {
 			expectedToolMessages = append(expectedToolMessages, expectedMessages[i])
 		}
 	}
 
 	var actualToolMessages []session.Message
 	for i := range actualMessages {
-		if len(actualMessages[i].Message.ToolCalls) != 0 {
+		if len(actualMessages[i].Message.ToolCalls) > 0 {
 			actualToolMessages = append(actualToolMessages, actualMessages[i])
 		}
 	}
@@ -55,11 +55,7 @@ func rouge1(expected, actual string) float64 {
 	overlap := 0
 	for word, expectedCount := range expectedSet {
 		if actualCount, exists := actualSet[word]; exists {
-			if actualCount < expectedCount {
-				overlap += actualCount
-			} else {
-				overlap += expectedCount
-			}
+			overlap += min(actualCount, expectedCount)
 		}
 	}
 

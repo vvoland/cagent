@@ -139,7 +139,6 @@ func TestFilesystemTool_WriteFile(t *testing.T) {
 		Content: "test",
 	})
 	require.NoError(t, err)
-	assert.Contains(t, result.Output, "Error:")
 	assert.Contains(t, result.Output, "not within allowed directories")
 }
 
@@ -194,7 +193,6 @@ func TestFilesystemTool_ReadFile(t *testing.T) {
 		Path: "/etc/passwd",
 	})
 	require.NoError(t, err)
-	assert.Contains(t, result.Output, "Error:")
 	assert.Contains(t, result.Output, "not within allowed directories")
 }
 

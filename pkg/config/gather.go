@@ -39,7 +39,7 @@ func gatherMissingEnvVars(ctx context.Context, cfg *latest.Config, modelsGateway
 		}
 	}
 
-	for _, e := range mcpToSortedList(requiredEnv) {
+	for _, e := range sortedKeys(requiredEnv) {
 		if v, _ := env.Get(ctx, e); v == "" {
 			missing = append(missing, e)
 		}
@@ -83,7 +83,7 @@ func GatherEnvVarsForModels(cfg *latest.Config) []string {
 		}
 	}
 
-	return mcpToSortedList(requiredEnv)
+	return sortedKeys(requiredEnv)
 }
 
 func GatherEnvVarsForTools(ctx context.Context, cfg *latest.Config) ([]string, error) {
@@ -122,11 +122,11 @@ func GatherEnvVarsForTools(ctx context.Context, cfg *latest.Config) ([]string, e
 	}
 
 	if len(errs) > 0 {
-		return mcpToSortedList(requiredEnv), fmt.Errorf("tool env preflight: %w", errors.Join(errs...))
+		return sortedKeys(requiredEnv), fmt.Errorf("tool env preflight: %w", errors.Join(errs...))
 	}
-	return mcpToSortedList(requiredEnv), nil
+	return sortedKeys(requiredEnv), nil
 }
 
-func mcpToSortedList(requiredEnv map[string]bool) []string {
+func sortedKeys(requiredEnv map[string]bool) []string {
 	return slices.Sorted(maps.Keys(requiredEnv))
 }
