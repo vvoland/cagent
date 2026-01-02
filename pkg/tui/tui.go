@@ -15,8 +15,10 @@ import (
 
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/browser"
+	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/evaluation"
 	"github.com/docker/cagent/pkg/runtime"
+	"github.com/docker/cagent/pkg/session"
 	mcptools "github.com/docker/cagent/pkg/tools/mcp"
 	"github.com/docker/cagent/pkg/tui/commands"
 	"github.com/docker/cagent/pkg/tui/components/completion"
@@ -126,13 +128,28 @@ func (a *appModel) Init() tea.Cmd {
 
 	if firstMessage := a.application.FirstMessage(); firstMessage != nil {
 		cmds = append(cmds, func() tea.Msg {
+			// Use the shared PrepareUserMessage function for consistent attachment handling
+			userMsg := cli.PrepareUserMessage(context.Background(), a.application.Runtime(), *firstMessage, a.application.FirstMessageAttachment())
+
+			// If the message has multi-content (attachments), we need to handle it specially
+			if len(userMsg.Message.MultiContent) > 0 {
+				return firstMessageWithAttachment{
+					message: userMsg,
+				}
+			}
+
 			return editor.SendMsg{
-				Content: a.application.ResolveCommand(context.Background(), *firstMessage),
+				Content: userMsg.Message.Content,
 			}
 		})
 	}
 
 	return tea.Batch(cmds...)
+}
+
+// firstMessageWithAttachment is a message for the first message with an attachment
+type firstMessageWithAttachment struct {
+	message *session.Message
 }
 
 // Help returns help information
@@ -306,6 +323,11 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case chat.EditorHeightChangedMsg:
 		a.completions.SetEditorBottom(msg.Height)
+		return a, nil
+
+	case firstMessageWithAttachment:
+		// Handle first message with image attachment using the pre-prepared message
+		a.application.RunWithMessage(context.Background(), nil, msg.message)
 		return a, nil
 
 	case error:

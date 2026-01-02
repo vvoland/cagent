@@ -55,33 +55,28 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	var firstMessage *string
-	opts := []session.Opt{
+	var appOpts []app.Opt
+	sessOpts := []session.Opt{
 		session.WithTitle("New agent"),
 		session.WithMaxIterations(f.maxIterationsParam),
 		session.WithToolsApproved(true),
 	}
 	if len(args) > 0 {
 		arg := strings.Join(args, " ")
-		opts = append(opts, session.WithUserMessage(arg))
-		firstMessage = &arg
+		sessOpts = append(sessOpts, session.WithUserMessage(arg))
+		appOpts = append(appOpts, app.WithFirstMessage(arg))
 	}
 
-	sess := session.New(opts...)
+	sess := session.New(sessOpts...)
 
-	return runTUI(ctx, rt, sess, firstMessage)
+	return runTUI(ctx, rt, sess, appOpts...)
 }
 
-func runTUI(ctx context.Context, rt runtime.Runtime, sess *session.Session, firstMessage *string) error {
-	a := app.New(ctx, rt, sess, firstMessage)
+func runTUI(ctx context.Context, rt runtime.Runtime, sess *session.Session, opts ...app.Opt) error {
+	a := app.New(ctx, rt, sess, opts...)
 	m := tui.New(ctx, a)
 
-	progOpts := []tea.ProgramOption{
-		tea.WithContext(ctx),
-	}
-
-	p := tea.NewProgram(m, progOpts...)
-
+	p := tea.NewProgram(m, tea.WithContext(ctx))
 	go a.Subscribe(ctx, p)
 
 	_, err := p.Run()
