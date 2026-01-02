@@ -138,7 +138,7 @@ type Toolset struct {
 	Name string `json:"name,omitempty"`
 	URL  string `json:"url,omitempty"`
 
-	// For `shell`, `script` or `mcp` tools
+	// For `shell`, `script`, `mcp` or `lsp` tools
 	Env map[string]string `json:"env,omitempty"`
 
 	// For the `todo` tool

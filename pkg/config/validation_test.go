@@ -55,6 +55,10 @@ func TestValidationErrors(t *testing.T) {
 			name: "skills enabled without read_file tool",
 			path: "skills_missing_read_file.yaml",
 		},
+		{
+			name: "lsp toolset missing command",
+			path: "invalid_lsp_missing_command.yaml",
+		},
 	}
 
 	for _, tt := range tests {
