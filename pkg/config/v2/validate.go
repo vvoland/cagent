@@ -42,17 +42,17 @@ func (t *Toolset) validate() error {
 	if t.IgnoreVCS != nil && t.Type != "filesystem" {
 		return errors.New("ignore_vcs can only be used with type 'filesystem'")
 	}
-	if len(t.Env) > 0 && (t.Type != "shell" && t.Type != "script" && t.Type != "mcp") {
-		return errors.New("env can only be used with type 'shell', 'script' or 'mcp'")
+	if len(t.Env) > 0 && (t.Type != "shell" && t.Type != "script" && t.Type != "mcp" && t.Type != "lsp") {
+		return errors.New("env can only be used with type 'shell', 'script', 'mcp' or 'lsp'")
 	}
 	if t.Shared && t.Type != "todo" {
 		return errors.New("shared can only be used with type 'todo'")
 	}
-	if t.Command != "" && t.Type != "mcp" {
-		return errors.New("command can only be used with type 'mcp'")
+	if t.Command != "" && t.Type != "mcp" && t.Type != "lsp" {
+		return errors.New("command can only be used with type 'mcp' or 'lsp'")
 	}
-	if len(t.Args) > 0 && t.Type != "mcp" {
-		return errors.New("args can only be used with type 'mcp'")
+	if len(t.Args) > 0 && t.Type != "mcp" && t.Type != "lsp" {
+		return errors.New("args can only be used with type 'mcp' or 'lsp'")
 	}
 	if t.Ref != "" && t.Type != "mcp" {
 		return errors.New("ref can only be used with type 'mcp'")
@@ -89,6 +89,10 @@ func (t *Toolset) validate() error {
 
 		if t.Ref != "" && !strings.Contains(t.Ref, "docker:") {
 			return errors.New("only docker refs are supported for MCP tools, e.g., 'docker:context7'")
+		}
+	case "lsp":
+		if t.Command == "" {
+			return errors.New("lsp toolset requires a command to be set")
 		}
 	}
 

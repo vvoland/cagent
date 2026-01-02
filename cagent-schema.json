@@ -352,7 +352,8 @@
             "todo",
             "fetch",
             "api",
-            "a2a"
+            "a2a",
+            "lsp"
           ]
         },
         "instruction": {
@@ -515,6 +516,22 @@
               ]
             }
           }
+        },
+        {
+          "allOf": [
+            {
+              "properties": {
+                "type": {
+                  "const": "lsp"
+                }
+              }
+            },
+            {
+              "required": [
+                "command"
+              ]
+            }
+          ]
         },
         {
           "allOf": [

@@ -68,6 +68,7 @@ func NewDefaultToolsetRegistry() *ToolsetRegistry {
 	r.Register("mcp", createMCPTool)
 	r.Register("api", createAPITool)
 	r.Register("a2a", createA2ATool)
+	r.Register("lsp", createLSPTool)
 	return r
 }
 
@@ -244,4 +245,13 @@ func createA2ATool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 	headers := expander.ExpandMap(ctx, toolset.APIConfig.Headers)
 
 	return a2a.NewToolset(toolset.Name, toolset.URL, headers), nil
+}
+
+func createLSPTool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig) (tools.ToolSet, error) {
+	env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), runConfig.EnvProvider())
+	if err != nil {
+		return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
+	}
+	env = append(env, os.Environ()...)
+	return builtin.NewLSPTool(toolset.Command, toolset.Args, env, runConfig.WorkingDir), nil
 }

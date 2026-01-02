@@ -1,0 +1,6 @@
+version: "3"
+agents:
+  root:
+    model: "openai/gpt-4"
+    toolsets:
+      - type: lsp
