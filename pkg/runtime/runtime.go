@@ -21,6 +21,7 @@ import (
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/hooks"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/modelsdev"
@@ -142,6 +143,8 @@ type LocalRuntime struct {
 	ragInitialized              atomic.Bool
 	titleGen                    *titleGenerator
 	sessionStore                session.Store
+	workingDir                  string   // Working directory for hooks execution
+	env                         []string // Environment variables for hooks execution
 }
 
 type streamResult struct {
@@ -190,6 +193,20 @@ func WithModelStore(store ModelStore) Opt {
 func WithSessionStore(store session.Store) Opt {
 	return func(r *LocalRuntime) {
 		r.sessionStore = store
+	}
+}
+
+// WithWorkingDir sets the working directory for hooks execution
+func WithWorkingDir(dir string) Opt {
+	return func(r *LocalRuntime) {
+		r.workingDir = dir
+	}
+}
+
+// WithEnv sets the environment variables for hooks execution
+func WithEnv(env []string) Opt {
+	return func(r *LocalRuntime) {
+		r.env = env
 	}
 }
 
@@ -426,6 +443,15 @@ func (r *LocalRuntime) CurrentAgent() *agent.Agent {
 	// We validated already that the agent exists
 	current, _ := r.team.Agent(r.currentAgent)
 	return current
+}
+
+// getHooksExecutor creates a hooks executor for the given agent
+func (r *LocalRuntime) getHooksExecutor(a *agent.Agent) *hooks.Executor {
+	hooksCfg := hooks.FromConfig(a.Hooks())
+	if hooksCfg == nil || hooksCfg.IsEmpty() {
+		return nil
+	}
+	return hooks.NewExecutor(hooksCfg, r.workingDir, r.env)
 }
 
 // getAgentModelID returns the model ID for an agent, or empty string if no model is set.
@@ -1272,11 +1298,69 @@ func (r *LocalRuntime) executeToolWithHandler(
 
 // runTool executes agent tools from toolsets (MCP, filesystem, etc.).
 func (r *LocalRuntime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.ToolCall, events chan Event, sess *session.Session, a *agent.Agent) {
+	// Get hooks executor for this agent
+	hooksExec := r.getHooksExecutor(a)
+
+	// Execute pre-tool hooks if configured
+	if hooksExec != nil && hooksExec.HasPreToolUseHooks() {
+		toolInput := parseToolInput(toolCall.Function.Arguments)
+		input := &hooks.Input{
+			SessionID: sess.ID,
+			Cwd:       r.workingDir,
+			ToolName:  toolCall.Function.Name,
+			ToolUseID: toolCall.ID,
+			ToolInput: toolInput,
+		}
+
+		result, err := hooksExec.ExecutePreToolUse(ctx, input)
+		switch {
+		case err != nil:
+			slog.Warn("Pre-tool hook execution failed", "tool", toolCall.Function.Name, "error", err)
+		case !result.Allowed:
+			// Hook blocked the tool call
+			slog.Debug("Pre-tool hook blocked tool call", "tool", toolCall.Function.Name, "message", result.Message)
+			events <- HookBlocked(toolCall, tool, result.Message, a.Name())
+			r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, "Tool call blocked by hook: "+result.Message)
+			return
+		case result.SystemMessage != "":
+			events <- Warning(result.SystemMessage, a.Name())
+		}
+	}
+
 	r.executeToolWithHandler(ctx, toolCall, tool, events, sess, a, "runtime.tool.handler",
 		func(ctx context.Context) (*tools.ToolCallResult, time.Duration, error) {
 			res, err := tool.Handler(ctx, toolCall)
 			return res, 0, err
 		})
+
+	// Execute post-tool hooks if configured
+	if hooksExec != nil && hooksExec.HasPostToolUseHooks() {
+		toolInput := parseToolInput(toolCall.Function.Arguments)
+		input := &hooks.Input{
+			SessionID:    sess.ID,
+			Cwd:          r.workingDir,
+			ToolName:     toolCall.Function.Name,
+			ToolUseID:    toolCall.ID,
+			ToolInput:    toolInput,
+			ToolResponse: nil, // TODO: pass actual tool response if needed
+		}
+
+		result, err := hooksExec.ExecutePostToolUse(ctx, input)
+		if err != nil {
+			slog.Warn("Post-tool hook execution failed", "tool", toolCall.Function.Name, "error", err)
+		} else if result.SystemMessage != "" {
+			events <- Warning(result.SystemMessage, a.Name())
+		}
+	}
+}
+
+// parseToolInput parses tool arguments JSON into a map
+func parseToolInput(arguments string) map[string]any {
+	var result map[string]any
+	if err := json.Unmarshal([]byte(arguments), &result); err != nil {
+		return nil
+	}
+	return result
 }
 
 func (r *LocalRuntime) runAgentTool(ctx context.Context, handler ToolHandlerFunc, sess *session.Session, toolCall tools.ToolCall, tool tools.Tool, events chan Event, a *agent.Agent) {

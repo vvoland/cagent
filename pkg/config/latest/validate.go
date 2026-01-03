@@ -23,6 +23,11 @@ func (t *Config) validate() error {
 				return err
 			}
 		}
+		if agent.Hooks != nil {
+			if err := agent.Hooks.validate(); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
