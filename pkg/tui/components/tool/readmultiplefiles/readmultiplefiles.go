@@ -59,23 +59,20 @@ func render(msg *types.Message, s spinner.Spinner, sessionState *service.Session
 			readCall += " " + summary.path
 		}
 
-		// Output aligned to the right
+		// Output aligned to the right using lipgloss
 		outputStyle := styles.ToolMessageStyle
 		if summary.isError {
 			outputStyle = styles.ToolErrorMessageStyle
 		}
-		output := outputStyle.Render(summary.output)
-		padding := width - lipgloss.Width(readCall) - lipgloss.Width(output) - 2
-		if padding > 0 {
-			output = strings.Repeat(" ", padding) + output
-		}
+		remainingWidth := width - lipgloss.Width(readCall) - 1
+		output := lipgloss.PlaceHorizontal(remainingWidth, lipgloss.Right, outputStyle.Render(summary.output))
 
 		content.WriteString(readCall)
 		content.WriteString(" ")
 		content.WriteString(output)
 	}
 
-	return styles.RenderComposite(styles.ToolMessageStyle.Width(width-1), content.String())
+	return styles.RenderComposite(styles.ToolMessageStyle.Width(width), content.String())
 }
 
 type fileSummary struct {
