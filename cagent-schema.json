@@ -131,12 +131,20 @@
           }
         },
         "commands": {
-          "description": "Named prompts for /commands",
+          "description": "Named prompts for /commands. Supports simple string format or advanced object format with description and instruction.",
           "oneOf": [
             {
               "type": "object",
               "additionalProperties": {
-                "type": "string"
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "description": "Simple command format: the string becomes the instruction"
+                  },
+                  {
+                    "$ref": "#/definitions/CommandConfig"
+                  }
+                ]
               }
             },
             {
@@ -144,7 +152,15 @@
               "items": {
                 "type": "object",
                 "additionalProperties": {
-                  "type": "string"
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "description": "Simple command format: the string becomes the instruction"
+                    },
+                    {
+                      "$ref": "#/definitions/CommandConfig"
+                    }
+                  ]
                 }
               }
             }
@@ -219,6 +235,21 @@
         "hooks": {
           "$ref": "#/definitions/HooksConfig",
           "description": "Lifecycle hooks for executing shell commands at various points in the agent's execution"
+        }
+      },
+      "additionalProperties": false
+    },
+    "CommandConfig": {
+      "type": "object",
+      "description": "Advanced command configuration with description and instruction",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Description shown in completion dialogs and help text"
+        },
+        "instruction": {
+          "type": "string",
+          "description": "The prompt sent to the agent. Supports bang commands (!`command`) and positional arguments ($1, $2, etc.)"
         }
       },
       "additionalProperties": false

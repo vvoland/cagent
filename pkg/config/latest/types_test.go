@@ -17,8 +17,8 @@ ls: "list files"
 `)
 	err := yaml.Unmarshal(input, &c)
 	require.NoError(t, err)
-	require.Equal(t, "check disk", c["df"])
-	require.Equal(t, "list files", c["ls"])
+	require.Equal(t, "check disk", c["df"].Instruction)
+	require.Equal(t, "list files", c["ls"].Instruction)
 }
 
 func TestCommandsUnmarshal_List(t *testing.T) {
@@ -29,8 +29,8 @@ func TestCommandsUnmarshal_List(t *testing.T) {
 `)
 	err := yaml.Unmarshal(input, &c)
 	require.NoError(t, err)
-	require.Equal(t, "check disk", c["df"])
-	require.Equal(t, "list files", c["ls"])
+	require.Equal(t, "check disk", c["df"].Instruction)
+	require.Equal(t, "list files", c["ls"].Instruction)
 }
 
 func TestThinkingBudget_MarshalUnmarshal_String(t *testing.T) {

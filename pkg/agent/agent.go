@@ -7,6 +7,7 @@ import (
 	"math/rand"
 
 	"github.com/docker/cagent/pkg/config/latest"
+	"github.com/docker/cagent/pkg/config/types"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/tools"
 )
@@ -28,7 +29,7 @@ type Agent struct {
 	numHistoryItems    int
 	addPromptFiles     []string
 	tools              []tools.Tool
-	commands           map[string]string
+	commands           types.Commands
 	pendingWarnings    []string
 	skillsEnabled      bool
 	hooks              *latest.HooksConfig
@@ -113,7 +114,7 @@ func (a *Agent) Model() provider.Provider {
 }
 
 // Commands returns the named commands configured for this agent.
-func (a *Agent) Commands() map[string]string {
+func (a *Agent) Commands() types.Commands {
 	return a.commands
 }
 

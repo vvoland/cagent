@@ -13,6 +13,7 @@ import (
 	"github.com/docker/cagent/pkg/api"
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config/latest"
+	"github.com/docker/cagent/pkg/config/types"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/tools"
@@ -80,8 +81,16 @@ func (r *RemoteRuntime) SetCurrentAgent(agentName string) error {
 	return nil
 }
 
-func (r *RemoteRuntime) CurrentAgentCommands(ctx context.Context) map[string]string {
+func (r *RemoteRuntime) CurrentAgentCommands(ctx context.Context) types.Commands {
 	return r.readCurrentAgentConfig(ctx).Commands
+}
+
+// CurrentAgentTools returns the tools for the current agent.
+// For remote runtime, this returns an empty list as tools are managed server-side.
+func (r *RemoteRuntime) CurrentAgentTools(_ context.Context) ([]tools.Tool, error) {
+	// Remote runtime doesn't have direct access to tools
+	// Tool execution happens on the server side
+	return nil, nil
 }
 
 // EmitStartupInfo emits initial agent, team, and toolset information for immediate sidebar display

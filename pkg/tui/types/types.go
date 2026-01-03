@@ -20,6 +20,7 @@ const (
 	MessageTypeToolCall
 	MessageTypeToolResult
 	MessageTypeWelcome
+	MessageTypeLoading
 )
 
 // ToolStatus represents the status of a tool call
@@ -99,5 +100,12 @@ func ToolCallMessage(agentName string, toolCall tools.ToolCall, toolDef tools.To
 		ToolCall:       toolCall,
 		ToolDefinition: toolDef,
 		ToolStatus:     status,
+	}
+}
+
+func Loading(description string) *Message {
+	return &Message{
+		Type:    MessageTypeLoading,
+		Content: strings.ReplaceAll(description, "\t", "    "),
 	}
 }

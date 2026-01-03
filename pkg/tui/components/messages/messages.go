@@ -50,6 +50,8 @@ type Model interface {
 	layout.Positionable
 
 	AddUserMessage(content string) tea.Cmd
+	AddLoadingMessage(description string) tea.Cmd
+	ReplaceLoadingWithUser(content string) tea.Cmd
 	AddErrorMessage(content string) tea.Cmd
 	AddAssistantMessage() tea.Cmd
 	AddCancelledMessage() tea.Cmd
@@ -785,6 +787,29 @@ func (m *model) isAtBottom() bool {
 
 // AddUserMessage adds a user message to the chat
 func (m *model) AddUserMessage(content string) tea.Cmd {
+	return m.addMessage(types.User(content))
+}
+
+// AddLoadingMessage adds a temporary loading message with a spinner and description
+func (m *model) AddLoadingMessage(description string) tea.Cmd {
+	return m.addMessage(types.Loading(description))
+}
+
+// ReplaceLoadingWithUser replaces the last loading message with a user message
+func (m *model) ReplaceLoadingWithUser(content string) tea.Cmd {
+	// Find and remove the last loading message
+	for i := len(m.messages) - 1; i >= 0; i-- {
+		if m.messages[i].Type == types.MessageTypeLoading {
+			m.messages = append(m.messages[:i], m.messages[i+1:]...)
+			if i < len(m.views) {
+				m.views = append(m.views[:i], m.views[i+1:]...)
+			}
+			m.invalidateAllItems()
+			break
+		}
+	}
+
+	// Add the actual user message
 	return m.addMessage(types.User(content))
 }
 

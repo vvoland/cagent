@@ -112,7 +112,7 @@ func Load(ctx context.Context, agentSource config.Source, runConfig *config.Runt
 			agent.WithAddPromptFiles(agentConfig.AddPromptFiles),
 			agent.WithMaxIterations(agentConfig.MaxIterations),
 			agent.WithNumHistoryItems(agentConfig.NumHistoryItems),
-			agent.WithCommands(expander.ExpandMap(ctx, agentConfig.Commands)),
+			agent.WithCommands(expander.ExpandCommands(ctx, agentConfig.Commands)),
 			agent.WithSkillsEnabled(skillsEnabled),
 			agent.WithHooks(agentConfig.Hooks),
 		}

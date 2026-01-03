@@ -8,6 +8,7 @@ import (
 
 	"github.com/dop251/goja"
 
+	"github.com/docker/cagent/pkg/config/types"
 	"github.com/docker/cagent/pkg/environment"
 )
 
@@ -98,4 +99,22 @@ func ExpandString(_ context.Context, str string, values map[string]string) (stri
 	}
 
 	return fmt.Sprintf("%v", expanded.Export()), nil
+}
+
+// ExpandCommands expands JS template literals in all command fields
+func (exp *Expander) ExpandCommands(ctx context.Context, cmds types.Commands) types.Commands {
+	if cmds == nil {
+		return nil
+	}
+
+	expanded := make(types.Commands, len(cmds))
+
+	for k, cmd := range cmds {
+		expanded[k] = types.Command{
+			Description: exp.Expand(ctx, cmd.Description),
+			Instruction: exp.Expand(ctx, cmd.Instruction),
+		}
+	}
+
+	return expanded
 }

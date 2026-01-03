@@ -66,7 +66,7 @@ func completeMessage(cmd *cobra.Command, args []string, toComplete string) ([]st
 	var candidates []string
 	for k, v := range cfg.Agents[agent].Commands {
 		if strings.HasPrefix("/"+k, toComplete) {
-			candidates = append(candidates, "/"+k+"\t"+v)
+			candidates = append(candidates, "/"+k+"\t"+v.DisplayText())
 		}
 	}
 

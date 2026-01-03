@@ -326,7 +326,8 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		p.sidebar = model.(sidebar.Model)
 		return p, cmd
 	case *runtime.UserMessageEvent:
-		cmd := p.messages.AddUserMessage(msg.Message)
+		// Replace loading message with actual user message (if there was one)
+		cmd := p.messages.ReplaceLoadingWithUser(msg.Message)
 		return p, cmd
 	case *runtime.StreamStartedEvent:
 		p.streamCancelled = false
@@ -689,12 +690,34 @@ func (p *chatPage) processMessage(msg editor.SendMsg) tea.Cmd {
 		return cmd
 	}
 
-	// Resolve agent commands (e.g., /fix-lint -> prompt text)
-	resolvedContent := p.app.ResolveCommand(ctx, msg.Content)
+	// Start working state immediately to show the user something is happening.
+	// This provides visual feedback while the runtime loads tools and prepares the stream.
+	// The spinner will be visible in the resize handle area.
+	// We start this BEFORE command resolution since that can involve tool execution.
+	spinnerCmd := p.setWorking(true)
+	p.startProgressBar()
 
-	p.app.Run(ctx, p.msgCancel, resolvedContent, msg.Attachments)
+	// Check if this is an agent command that needs resolution
+	// If so, show a loading message with the command description
+	var loadingCmd tea.Cmd
+	if strings.HasPrefix(msg.Content, "/") {
+		cmdName, _, _ := strings.Cut(msg.Content[1:], " ")
+		if cmd, found := p.app.CurrentAgentCommands(ctx)[cmdName]; found {
+			loadingCmd = p.messages.AddLoadingMessage(cmd.DisplayText())
+		}
+	}
 
-	return p.messages.ScrollToBottom()
+	// Run command resolution and agent execution in a goroutine
+	// so the UI can update with the spinner before any blocking operations.
+	go func() {
+		// Resolve agent commands (e.g., /fix-lint -> prompt text)
+		// This can execute tools and take time, but the spinner is already showing.
+		resolvedContent := p.app.ResolveCommand(ctx, msg.Content)
+
+		p.app.Run(ctx, p.msgCancel, resolvedContent, msg.Attachments)
+	}()
+
+	return tea.Batch(p.messages.ScrollToBottom(), spinnerCmd, loadingCmd)
 }
 
 // CompactSession generates a summary and compacts the session history
