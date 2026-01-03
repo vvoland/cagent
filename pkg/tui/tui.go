@@ -248,6 +248,40 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return a, tea.Batch(a.Init(), a.handleWindowResize(a.wWidth, a.wHeight))
 
+	case messages.OpenSessionBrowserMsg:
+		store := a.application.SessionStore()
+		if store == nil {
+			return a, notification.InfoCmd("No session store configured")
+		}
+		sessions, err := store.GetSessions(context.Background())
+		if err != nil {
+			return a, notification.ErrorCmd(fmt.Sprintf("Failed to load sessions: %v", err))
+		}
+		if len(sessions) == 0 {
+			return a, notification.InfoCmd("No previous sessions found")
+		}
+		return a, core.CmdHandler(dialog.OpenDialogMsg{
+			Model: dialog.NewSessionBrowserDialog(sessions),
+		})
+
+	case messages.LoadSessionMsg:
+		store := a.application.SessionStore()
+		if store == nil {
+			return a, notification.ErrorCmd("No session store configured")
+		}
+		sess, err := store.GetSession(context.Background(), msg.SessionID)
+		if err != nil {
+			return a, notification.ErrorCmd(fmt.Sprintf("Failed to load session: %v", err))
+		}
+		// Cancel current session and replace with loaded one
+		a.application.ReplaceSession(context.Background(), sess)
+		a.sessionState = service.NewSessionState(sess)
+		a.chatPage = chat.New(a.application, a.sessionState)
+		a.dialog = dialog.New()
+		a.statusBar = statusbar.New(a.chatPage)
+
+		return a, tea.Batch(a.Init(), a.handleWindowResize(a.wWidth, a.wHeight))
+
 	case messages.StartShellMsg:
 		return a.startShell()
 

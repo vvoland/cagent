@@ -13,7 +13,9 @@ import (
 	"github.com/mattn/go-runewidth"
 
 	"github.com/docker/cagent/pkg/app"
+	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/runtime"
+	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tui/components/message"
 	"github.com/docker/cagent/pkg/tui/components/notification"
@@ -56,6 +58,7 @@ type Model interface {
 	AddToolResult(msg *runtime.ToolCallResponseEvent, status types.ToolStatus) tea.Cmd
 	AppendToLastMessage(agentName string, messageType types.MessageType, content string) tea.Cmd
 	AddShellOutputMessage(content string) tea.Cmd
+	LoadFromSession(sess *session.Session) tea.Cmd
 
 	ScrollToBottom() tea.Cmd
 }
@@ -820,6 +823,66 @@ func (m *model) AddWelcomeMessage(content string) tea.Cmd {
 	m.views = append(m.views, view)
 
 	return view.Init()
+}
+
+// LoadFromSession loads messages from a session into the messages component
+func (m *model) LoadFromSession(sess *session.Session) tea.Cmd {
+	// Clear existing messages
+	m.messages = nil
+	m.views = nil
+	m.renderedItems = make(map[int]renderedItem)
+	m.rendered = ""
+	m.scrollOffset = 0
+	m.totalHeight = 0
+	m.selectedMessageIndex = -1
+
+	var cmds []tea.Cmd
+
+	for _, item := range sess.Messages {
+		if !item.IsMessage() {
+			continue
+		}
+
+		smsg := item.Message
+		if smsg.Implicit {
+			continue
+		}
+
+		switch smsg.Message.Role {
+		case chat.MessageRoleUser:
+			msg := types.User(smsg.Message.Content)
+			m.messages = append(m.messages, msg)
+			m.views = append(m.views, m.createMessageView(msg))
+		case chat.MessageRoleAssistant:
+			// Add tool calls if present
+			for i, tc := range smsg.Message.ToolCalls {
+				var toolDef tools.Tool
+				if i < len(smsg.Message.ToolDefinitions) {
+					toolDef = smsg.Message.ToolDefinitions[i]
+				}
+				msg := types.ToolCallMessage(smsg.AgentName, tc, toolDef, types.ToolStatusCompleted)
+				m.messages = append(m.messages, msg)
+				m.views = append(m.views, m.createToolCallView(msg))
+			}
+			// Add text content if present
+			if smsg.Message.Content != "" {
+				msg := types.Agent(types.MessageTypeAssistant, smsg.AgentName, smsg.Message.Content)
+				m.messages = append(m.messages, msg)
+				m.views = append(m.views, m.createMessageView(msg))
+			}
+		case chat.MessageRoleTool:
+			// Tool results are attached to the tool calls, skip them
+			continue
+		}
+	}
+
+	// Initialize all views
+	for _, view := range m.views {
+		cmds = append(cmds, view.Init())
+	}
+
+	cmds = append(cmds, m.ScrollToBottom())
+	return tea.Batch(cmds...)
 }
 
 // AddOrUpdateToolCall adds a tool call or updates existing one with the given status

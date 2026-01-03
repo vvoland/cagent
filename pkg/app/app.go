@@ -272,6 +272,36 @@ func (a *App) PlainTextTranscript() string {
 	return transcript(a.session)
 }
 
+// SessionStore returns the session store for browsing/loading sessions.
+// Returns nil if no session store is configured.
+func (a *App) SessionStore() session.Store {
+	return a.runtime.SessionStore()
+}
+
+// ReplaceSession replaces the current session with the given session.
+// This is used when loading a past session. It also re-emits startup info
+// so the sidebar displays the agent and tool information.
+func (a *App) ReplaceSession(ctx context.Context, sess *session.Session) {
+	if a.cancel != nil {
+		a.cancel()
+		a.cancel = nil
+	}
+	a.session = sess
+
+	// Reset and re-emit startup info so the sidebar shows agent/tools info
+	a.runtime.ResetStartupInfo()
+	go func() {
+		startupEvents := make(chan runtime.Event, 10)
+		go func() {
+			defer close(startupEvents)
+			a.runtime.EmitStartupInfo(ctx, startupEvents)
+		}()
+		for event := range startupEvents {
+			a.events <- event
+		}
+	}()
+}
+
 // throttleEvents buffers and merges rapid events to prevent UI flooding
 func (a *App) throttleEvents(ctx context.Context, in <-chan tea.Msg) <-chan tea.Msg {
 	out := make(chan tea.Msg, 128)

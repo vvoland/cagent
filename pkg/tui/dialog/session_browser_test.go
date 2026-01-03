@@ -1,0 +1,161 @@
+package dialog
+
+import (
+	"fmt"
+	"testing"
+	"time"
+
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"github.com/stretchr/testify/require"
+
+	"github.com/docker/cagent/pkg/session"
+)
+
+func TestSessionBrowserNavigation(t *testing.T) {
+	sessions := []*session.Session{
+		{ID: "1", Title: "Session 1", CreatedAt: time.Now()},
+		{ID: "2", Title: "Session 2", CreatedAt: time.Now()},
+		{ID: "3", Title: "Session 3", CreatedAt: time.Now()},
+	}
+
+	dialog := NewSessionBrowserDialog(sessions)
+	d := dialog.(*sessionBrowserDialog)
+
+	// Initialize and set window size like the TUI does
+	d.Init()
+	d.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+
+	// Initially selected should be 0
+	require.Equal(t, 0, d.selected, "initial selection should be 0")
+
+	// Test that key bindings match correctly
+	downKey := tea.KeyPressMsg{Code: tea.KeyDown}
+	upKey := tea.KeyPressMsg{Code: tea.KeyUp}
+
+	t.Logf("Down key matches keyMap.Down: %v", key.Matches(downKey, d.keyMap.Down))
+	t.Logf("Up key matches keyMap.Up: %v", key.Matches(upKey, d.keyMap.Up))
+
+	require.True(t, key.Matches(downKey, d.keyMap.Down), "down key should match keyMap.Down")
+	require.True(t, key.Matches(upKey, d.keyMap.Up), "up key should match keyMap.Up")
+
+	// Press down arrow
+	updated, _ := d.Update(downKey)
+	d = updated.(*sessionBrowserDialog)
+	require.Equal(t, 1, d.selected, "selection should be 1 after down arrow")
+
+	// Press down again
+	updated, _ = d.Update(downKey)
+	d = updated.(*sessionBrowserDialog)
+	require.Equal(t, 2, d.selected, "selection should be 2 after second down arrow")
+
+	// Press down again (should stay at 2 since we're at the end)
+	updated, _ = d.Update(downKey)
+	d = updated.(*sessionBrowserDialog)
+	require.Equal(t, 2, d.selected, "selection should stay at 2 at end of list")
+
+	// Press up arrow
+	updated, _ = d.Update(upKey)
+	d = updated.(*sessionBrowserDialog)
+	require.Equal(t, 1, d.selected, "selection should be 1 after up arrow")
+}
+
+func TestSessionBrowserNavigationWithCtrl(t *testing.T) {
+	sessions := []*session.Session{
+		{ID: "1", Title: "Session 1", CreatedAt: time.Now()},
+		{ID: "2", Title: "Session 2", CreatedAt: time.Now()},
+		{ID: "3", Title: "Session 3", CreatedAt: time.Now()},
+	}
+
+	dialog := NewSessionBrowserDialog(sessions)
+	d := dialog.(*sessionBrowserDialog)
+	d.Init()
+	d.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+
+	// Test ctrl+j for down
+	ctrlJ := tea.KeyPressMsg{Code: 'j', Mod: tea.ModCtrl}
+	t.Logf("ctrl+j matches keyMap.Down: %v", key.Matches(ctrlJ, d.keyMap.Down))
+
+	updated, _ := d.Update(ctrlJ)
+	d = updated.(*sessionBrowserDialog)
+	require.Equal(t, 1, d.selected, "selection should be 1 after ctrl+j")
+
+	// Test ctrl+k for up
+	ctrlK := tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl}
+	t.Logf("ctrl+k matches keyMap.Up: %v", key.Matches(ctrlK, d.keyMap.Up))
+
+	updated, _ = d.Update(ctrlK)
+	d = updated.(*sessionBrowserDialog)
+	require.Equal(t, 0, d.selected, "selection should be 0 after ctrl+k")
+}
+
+func TestSessionBrowserViewShowsSelection(t *testing.T) {
+	sessions := []*session.Session{
+		{ID: "1", Title: "Session 1", CreatedAt: time.Now()},
+		{ID: "2", Title: "Session 2", CreatedAt: time.Now()},
+		{ID: "3", Title: "Session 3", CreatedAt: time.Now()},
+	}
+
+	dialog := NewSessionBrowserDialog(sessions)
+	d := dialog.(*sessionBrowserDialog)
+	d.Init()
+	d.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+
+	// Initial view should show first session selected
+	view1 := d.View()
+	t.Logf("Initial view (selection=0):\n%s", view1)
+
+	// Navigate down
+	downKey := tea.KeyPressMsg{Code: tea.KeyDown}
+	d.Update(downKey)
+
+	// View should now show second session selected
+	view2 := d.View()
+	t.Logf("After down (selection=1):\n%s", view2)
+
+	// The views should be different
+	require.NotEqual(t, view1, view2, "view should change after navigation")
+}
+
+func TestSessionBrowserScrolling(t *testing.T) {
+	// Create more sessions than can fit in view
+	sessions := make([]*session.Session, 20)
+	for i := range sessions {
+		sessions[i] = &session.Session{
+			ID:        fmt.Sprintf("%d", i+1),
+			Title:     fmt.Sprintf("Session %d", i+1),
+			CreatedAt: time.Now(),
+		}
+	}
+
+	dialog := NewSessionBrowserDialog(sessions)
+	d := dialog.(*sessionBrowserDialog)
+	d.Init()
+	// Set a small window size to force scrolling
+	d.Update(tea.WindowSizeMsg{Width: 80, Height: 20})
+
+	maxVisible := d.pageSize()
+	t.Logf("Max visible items: %d", maxVisible)
+
+	// Navigate down past the visible area
+	downKey := tea.KeyPressMsg{Code: tea.KeyDown}
+	for range maxVisible + 2 {
+		d.Update(downKey)
+	}
+
+	// Selected should be beyond initial visible area
+	require.Greater(t, d.selected, maxVisible-1, "selected should be beyond initial visible area")
+
+	// Call View() to trigger offset adjustment (like the TUI does)
+	view := d.View()
+
+	t.Logf("Selected: %d, Offset: %d", d.selected, d.offset)
+
+	// The offset should have adjusted so selected is visible
+	require.LessOrEqual(t, d.offset, d.selected, "offset should be <= selected")
+	require.Less(t, d.selected, d.offset+maxVisible, "selected should be within visible range")
+
+	// Verify the view shows the selected session
+	expectedTitle := fmt.Sprintf("Session %d", d.selected+1)
+	require.Contains(t, view, expectedTitle, "view should contain selected session")
+}

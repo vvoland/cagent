@@ -34,10 +34,6 @@ import (
 	mcptools "github.com/docker/cagent/pkg/tools/mcp"
 )
 
-type SessionStore interface {
-	UpdateSession(ctx context.Context, sess *session.Session) error
-}
-
 // UnwrapMCPToolset extracts an MCP toolset from a potentially wrapped StartableToolSet.
 // Returns the MCP toolset if found, or nil if the toolset is not an MCP toolset.
 func UnwrapMCPToolset(toolset tools.ToolSet) *mcptools.Toolset {
@@ -100,6 +96,8 @@ type Runtime interface {
 	CurrentAgentCommands(ctx context.Context) map[string]string
 	// EmitStartupInfo emits initial agent, team, and toolset information for immediate display
 	EmitStartupInfo(ctx context.Context, events chan Event)
+	// ResetStartupInfo resets the startup info emission flag, allowing re-emission
+	ResetStartupInfo()
 	// RunStream starts the agent's interaction loop and returns a channel of events
 	RunStream(ctx context.Context, sess *session.Session) <-chan Event
 	// Run starts the agent's interaction loop and returns the final messages
@@ -108,6 +106,9 @@ type Runtime interface {
 	Resume(ctx context.Context, confirmationType ResumeType)
 	// ResumeElicitation sends an elicitation response back to a waiting elicitation request
 	ResumeElicitation(_ context.Context, action tools.ElicitationAction, content map[string]any) error
+	// SessionStore returns the session store for browsing/loading past sessions.
+	// Returns nil if no persistent session store is configured.
+	SessionStore() session.Store
 
 	// Summarize generates a summary for the session
 	Summarize(ctx context.Context, sess *session.Session, events chan Event)
@@ -139,7 +140,7 @@ type LocalRuntime struct {
 	elicitationEventsChannelMux sync.RWMutex           // Protects elicitationEventsChannel
 	ragInitialized              atomic.Bool
 	titleGen                    *titleGenerator
-	sessionStore                SessionStore
+	sessionStore                session.Store
 }
 
 type streamResult struct {
@@ -184,7 +185,7 @@ func WithModelStore(store ModelStore) Opt {
 	}
 }
 
-func WithSessionStore(store SessionStore) Opt {
+func WithSessionStore(store session.Store) Opt {
 	return func(r *LocalRuntime) {
 		r.sessionStore = store
 	}
@@ -446,6 +447,18 @@ func (r *LocalRuntime) agentDetailsFromTeam() []AgentDetails {
 		}
 	}
 	return details
+}
+
+// SessionStore returns the session store for browsing/loading past sessions.
+func (r *LocalRuntime) SessionStore() session.Store {
+	return r.sessionStore
+}
+
+// ResetStartupInfo resets the startup info emission flag.
+// This should be called when replacing a session to allow re-emission of
+// agent, team, and toolset info to the UI.
+func (r *LocalRuntime) ResetStartupInfo() {
+	r.startupInfoEmitted = false
 }
 
 // EmitStartupInfo emits initial agent, team, and toolset information for immediate sidebar display

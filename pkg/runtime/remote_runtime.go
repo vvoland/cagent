@@ -409,5 +409,15 @@ func (r *RemoteRuntime) handleOAuthElicitation(ctx context.Context, req *Elicita
 	return nil
 }
 
+// SessionStore returns nil for remote runtime since session storage is handled server-side.
+func (r *RemoteRuntime) SessionStore() session.Store {
+	return nil
+}
+
+// ResetStartupInfo is a no-op for remote runtime since it doesn't track startup info emission.
+func (r *RemoteRuntime) ResetStartupInfo() {
+	// No-op: remote runtime always emits startup info when requested
+}
+
 // Verify that RemoteRuntime implements the Interface
 var _ Runtime = (*RemoteRuntime)(nil)
