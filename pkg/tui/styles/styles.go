@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"charm.land/bubbles/v2/textarea"
+	"charm.land/bubbles/v2/textinput"
 	"charm.land/lipgloss/v2"
 	"github.com/alecthomas/chroma/v2"
 	"github.com/charmbracelet/glamour/v2/ansi"
@@ -370,6 +371,22 @@ var (
 			Placeholder: BaseStyle.Foreground(PlaceholderColor),
 		},
 		Cursor: textarea.CursorStyle{
+			Color: Accent,
+		},
+	}
+
+	// DialogInputStyle is the style for textinput fields in dialogs,
+	// matching the main editor's look (cursor color, text color).
+	DialogInputStyle = textinput.Styles{
+		Focused: textinput.StyleState{
+			Text:        BaseStyle,
+			Placeholder: BaseStyle.Foreground(PlaceholderColor),
+		},
+		Blurred: textinput.StyleState{
+			Text:        BaseStyle,
+			Placeholder: BaseStyle.Foreground(PlaceholderColor),
+		},
+		Cursor: textinput.CursorStyle{
 			Color: Accent,
 		},
 	}

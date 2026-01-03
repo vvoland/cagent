@@ -94,14 +94,26 @@ func RenderSeparator(contentWidth int) string {
 		Render(strings.Repeat("─", separatorWidth))
 }
 
-// RenderOptions renders option buttons text centered.
-func RenderOptions(text string, contentWidth int) string {
-	return styles.DialogOptionsStyle.Width(contentWidth).Render(text)
+// RenderHelp renders help text at the bottom of a dialog in italic muted style.
+func RenderHelp(text string, contentWidth int) string {
+	return styles.DialogHelpStyle.Width(contentWidth).Align(lipgloss.Center).Render(text)
 }
 
-// RenderHelp renders help text at the bottom of a dialog.
-func RenderHelp(text string, contentWidth int) string {
-	return styles.DialogHelpStyle.Width(contentWidth).Render(text)
+// RenderHelpKeys renders key bindings in the same style as the main TUI's status bar.
+// Each binding is a pair of [key, description] strings.
+func RenderHelpKeys(contentWidth int, bindings ...string) string {
+	if len(bindings) == 0 || len(bindings)%2 != 0 {
+		return ""
+	}
+
+	var parts []string
+	for i := 0; i < len(bindings); i += 2 {
+		keyPart := styles.HighlightWhiteStyle.Render(bindings[i])
+		descPart := styles.SecondaryStyle.Render(bindings[i+1])
+		parts = append(parts, keyPart+" "+descPart)
+	}
+
+	return styles.BaseStyle.Width(contentWidth).Align(lipgloss.Center).Render(strings.Join(parts, "  "))
 }
 
 // HandleQuit checks for ctrl+c and returns tea.Quit if matched.

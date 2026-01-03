@@ -98,7 +98,7 @@ func (d *maxIterationsDialog) View() string {
 		Width(contentWidth).
 		Render(wrapDisplayText("Do you want to continue for 10 more iterations?", contentWidth))
 
-	options := RenderOptions("[Y]es    [N]o", contentWidth)
+	options := RenderHelpKeys(contentWidth, "Y", "yes", "N", "no")
 
 	parts := []string{title, separator, infoSection, "", message, "", question, "", options}
 	content := lipgloss.JoinVertical(lipgloss.Left, parts...)
