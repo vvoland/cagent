@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	goruntime "runtime"
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
@@ -595,11 +596,28 @@ func (a *appModel) View() tea.View {
 }
 
 func (a *appModel) startShell() (tea.Model, tea.Cmd) {
-	shell := cmp.Or(os.Getenv("SHELL"), "/bin/sh")
+	var cmd *exec.Cmd
 
-	cmd := exec.Command(shell, "-i", "-c",
-		`echo -e "\nType 'exit' to return to cagent 🐳"; exec `+shell,
-	)
+	if goruntime.GOOS == "windows" {
+		// Prefer PowerShell (pwsh or Windows PowerShell) when available, otherwise fall back to cmd.exe
+		if path, err := exec.LookPath("pwsh.exe"); err == nil {
+			cmd = exec.Command(path, "-NoLogo", "-NoExit", "-Command",
+				`Write-Host ""; Write-Host "Type 'exit' to return to cagent 🐳"`)
+		} else if path, err := exec.LookPath("powershell.exe"); err == nil {
+			cmd = exec.Command(path, "-NoLogo", "-NoExit", "-Command",
+				`Write-Host ""; Write-Host "Type 'exit' to return to cagent 🐳"`)
+		} else {
+			// Use ComSpec if available, otherwise default to cmd.exe
+			shell := cmp.Or(os.Getenv("ComSpec"), "cmd.exe")
+			cmd = exec.Command(shell, "/K", `echo. & echo Type 'exit' to return to cagent`)
+		}
+	} else {
+		// Unix-like: use SHELL or default to /bin/sh
+		shell := cmp.Or(os.Getenv("SHELL"), "/bin/sh")
+		cmd = exec.Command(shell, "-i", "-c",
+			`echo -e "\nType 'exit' to return to cagent 🐳"; exec `+shell)
+	}
+
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
