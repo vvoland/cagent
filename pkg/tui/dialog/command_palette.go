@@ -72,6 +72,7 @@ func defaultCommandPaletteKeyMap() commandPaletteKeyMap {
 // NewCommandPaletteDialog creates a new command palette dialog
 func NewCommandPaletteDialog(categories []commands.Category) Dialog {
 	ti := textinput.New()
+	ti.SetStyles(styles.DialogInputStyle)
 	ti.Placeholder = "Type to search commands…"
 	ti.Focus()
 	ti.CharLimit = 100
@@ -237,7 +238,7 @@ func (d *commandPaletteDialog) View() string {
 			Render("No commands found"))
 	}
 
-	help := RenderHelp("↑/↓ navigate • enter execute • esc close", contentWidth)
+	help := RenderHelpKeys(contentWidth, "↑/↓", "navigate", "enter", "execute", "esc", "close")
 
 	parts := []string{
 		title,

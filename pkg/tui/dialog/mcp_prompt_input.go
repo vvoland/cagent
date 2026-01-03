@@ -69,6 +69,7 @@ func NewMCPPromptInputDialog(promptName string, promptInfo mcptools.PromptInfo) 
 
 	for _, arg := range promptInfo.Arguments {
 		ti := textinput.New()
+		ti.SetStyles(styles.DialogInputStyle)
 		ti.Placeholder = arg.Description
 		ti.CharLimit = 500
 		ti.SetWidth(50)
@@ -220,7 +221,7 @@ func (d *MCPPromptInputDialog) View() string {
 		}
 	}
 
-	help := RenderHelp("↑/↓ navigate • enter execute • esc cancel", contentWidth)
+	help := RenderHelpKeys(contentWidth, "↑/↓", "navigate", "enter", "execute", "esc", "cancel")
 
 	parts := []string{title}
 	if description != "" {

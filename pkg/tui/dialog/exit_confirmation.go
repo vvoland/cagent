@@ -103,7 +103,7 @@ func (d *exitConfirmationDialog) View() string {
 		Width(contentWidth).
 		Render("Do you want to exit?")
 
-	options := RenderOptions("[Y]es    [N]o", contentWidth)
+	options := RenderHelpKeys(contentWidth, "Y", "yes", "N", "no")
 
 	parts := []string{title, separator, "", question, "", options}
 	content := lipgloss.JoinVertical(lipgloss.Left, parts...)

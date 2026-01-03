@@ -96,10 +96,7 @@ func (d *oauthAuthorizationDialog) View() string {
 		contentWidth,
 	)
 
-	options := styles.SuccessStyle.
-		Align(lipgloss.Center).
-		Width(contentWidth).
-		Render("Y - Authorize  |  N - Decline")
+	options := RenderHelpKeys(contentWidth, "Y", "authorize", "N", "decline")
 
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
