@@ -55,7 +55,7 @@ type Page interface {
 	layout.Model
 	layout.Sizeable
 	layout.Help
-	CompactSession() tea.Cmd
+	CompactSession(additionalPrompt string) tea.Cmd
 	Cleanup()
 	// GetInputHeight returns the current height of the editor/input area (including padding)
 	GetInputHeight() int
@@ -350,6 +350,10 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return p, cmd
 	case *runtime.TokenUsageEvent:
 		p.sidebar.SetTokenUsage(msg)
+	case *runtime.SessionCompactionEvent:
+		if msg.Status == "completed" {
+			return p, notification.SuccessCmd("Session compacted successfully.")
+		}
 	case *runtime.AgentInfoEvent:
 		p.sidebar.SetAgentInfo(msg.AgentName, msg.Model, msg.Description)
 		p.messages.AddWelcomeMessage(msg.WelcomeMessage)
@@ -694,11 +698,11 @@ func (p *chatPage) processMessage(msg editor.SendMsg) tea.Cmd {
 }
 
 // CompactSession generates a summary and compacts the session history
-func (p *chatPage) CompactSession() tea.Cmd {
+func (p *chatPage) CompactSession(additionalPrompt string) tea.Cmd {
 	// Cancel any active stream without showing cancellation message
 	p.cancelStream(false)
 
-	p.app.CompactSession()
+	p.app.CompactSession(additionalPrompt)
 
 	return p.messages.ScrollToBottom()
 }

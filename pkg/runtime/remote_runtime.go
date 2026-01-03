@@ -200,7 +200,7 @@ func (r *RemoteRuntime) Resume(ctx context.Context, confirmationType ResumeType)
 }
 
 // Summarize generates a summary for the session
-func (r *RemoteRuntime) Summarize(_ context.Context, sess *session.Session, events chan Event) {
+func (r *RemoteRuntime) Summarize(_ context.Context, sess *session.Session, _ string, events chan Event) {
 	slog.Debug("Summarize not yet implemented for remote runtime", "session_id", r.sessionID)
 	// TODO: Implement summarization by either:
 	// 1. Adding a summarization endpoint to the remote API

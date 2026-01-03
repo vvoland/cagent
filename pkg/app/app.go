@@ -257,10 +257,10 @@ func (a *App) SwitchAgent(agentName string) error {
 	return a.runtime.SetCurrentAgent(agentName)
 }
 
-func (a *App) CompactSession() {
+func (a *App) CompactSession(additionalPrompt string) {
 	if a.session != nil {
 		events := make(chan runtime.Event, 100)
-		a.runtime.Summarize(context.Background(), a.session, events)
+		a.runtime.Summarize(context.Background(), a.session, additionalPrompt, events)
 		close(events)
 		for event := range events {
 			a.events <- event

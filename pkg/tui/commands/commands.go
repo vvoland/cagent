@@ -69,10 +69,10 @@ func builtInSessionCommands() []Item {
 			ID:           "session.compact",
 			Label:        "Compact",
 			SlashCommand: "/compact",
-			Description:  "Summarize the current conversation",
+			Description:  "Summarize the current conversation (usage: /compact [additional instructions])",
 			Category:     "Session",
-			Execute: func(string) tea.Cmd {
-				return core.CmdHandler(messages.CompactSessionMsg{})
+			Execute: func(arg string) tea.Cmd {
+				return core.CmdHandler(messages.CompactSessionMsg{AdditionalPrompt: arg})
 			},
 		},
 		{

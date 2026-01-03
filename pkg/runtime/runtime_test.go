@@ -743,7 +743,7 @@ func TestSummarize_EmptySession(t *testing.T) {
 
 	// Try to summarize the empty session
 	events := make(chan Event, 10)
-	rt.Summarize(t.Context(), sess, events)
+	rt.Summarize(t.Context(), sess, "", events)
 	close(events)
 
 	// Collect events
