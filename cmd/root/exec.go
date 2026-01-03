@@ -19,9 +19,10 @@ func newExecCmd() *cobra.Command {
   cagent exec ./echo.yaml "INSTRUCTIONS"
   echo "INSTRUCTIONS" | cagent exec ./echo.yaml -
   cagent exec ./agent.yaml "question" --record  # Records to auto-generated file`,
-		GroupID: "core",
-		Args:    cobra.RangeArgs(1, 2),
-		RunE:    flags.runExecCommand,
+		GroupID:           "core",
+		ValidArgsFunction: completeRunExec,
+		Args:              cobra.RangeArgs(1, 2),
+		RunE:              flags.runExecCommand,
 	}
 
 	addRunOrExecFlags(cmd, &flags)
