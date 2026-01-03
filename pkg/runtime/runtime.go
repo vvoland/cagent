@@ -24,6 +24,7 @@ import (
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/modelsdev"
+	"github.com/docker/cagent/pkg/permissions"
 	"github.com/docker/cagent/pkg/rag"
 	ragtypes "github.com/docker/cagent/pkg/rag/types"
 	"github.com/docker/cagent/pkg/session"
@@ -1113,6 +1114,13 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 
 // executeWithApproval handles the tool approval flow and executes the tool.
 // Returns true if the operation was canceled and processing should stop.
+//
+// The approval flow considers:
+// 1. Deny patterns in permissions config - always reject (supports argument matching)
+// 2. Allow patterns in permissions config - auto-approve (supports argument matching)
+// 3. sess.ToolsApproved (--yolo flag) - auto-approve all
+// 4. tool.Annotations.ReadOnlyHint - auto-approve read-only tools
+// 5. Default: ask for user confirmation
 func (r *LocalRuntime) executeWithApproval(
 	ctx context.Context,
 	sess *session.Session,
@@ -1123,6 +1131,35 @@ func (r *LocalRuntime) executeWithApproval(
 	runTool func(),
 	remainingCalls []tools.ToolCall,
 ) (canceled bool) {
+	toolName := toolCall.Function.Name
+
+	// Check permissions config first (Deny takes highest priority)
+	if permChecker := r.team.Permissions(); permChecker != nil {
+		// Parse tool arguments for permission matching
+		var toolArgs map[string]any
+		if toolCall.Function.Arguments != "" {
+			if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &toolArgs); err != nil {
+				slog.Debug("Failed to parse tool arguments for permission check", "tool", toolName, "error", err)
+				// Continue with nil args - will only match tool name patterns
+			}
+		}
+
+		decision := permChecker.CheckWithArgs(toolName, toolArgs)
+		switch decision {
+		case permissions.Deny:
+			slog.Debug("Tool denied by permissions config", "tool", toolName, "session_id", sess.ID)
+			r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, fmt.Sprintf("Tool '%s' is denied by permissions configuration.", toolName))
+			return false
+		case permissions.Allow:
+			slog.Debug("Tool auto-approved by permissions config", "tool", toolName, "session_id", sess.ID)
+			runTool()
+			return false
+		case permissions.Ask:
+			// Fall through to normal approval flow
+		}
+	}
+
+	// Check --yolo flag or read-only hint
 	if sess.ToolsApproved || tool.Annotations.ReadOnlyHint {
 		runTool()
 		return false

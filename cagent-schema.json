@@ -45,6 +45,10 @@
     "metadata": {
       "$ref": "#/definitions/Metadata",
       "description": "Configuration metadata"
+    },
+    "permissions": {
+      "$ref": "#/definitions/PermissionsConfig",
+      "description": "Tool permission configuration for controlling tool approval behavior"
     }
   },
   "additionalProperties": false,
@@ -331,6 +335,37 @@
         "readme": {
           "type": "string",
           "description": "README or description"
+        }
+      },
+      "additionalProperties": false
+    },
+    "PermissionsConfig": {
+      "type": "object",
+      "description": "Tool permission configuration. Controls tool call approval behavior with optional argument matching.",
+      "properties": {
+        "allow": {
+          "type": "array",
+          "description": "Tool patterns that are auto-approved without user confirmation. Supports tool names with glob patterns (e.g., 'read_*') and argument matching (e.g., 'shell:cmd=ls*' to allow shell commands starting with 'ls'). MCP tools can use qualified names (e.g., 'mcp:github:*').",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            ["shell:cmd=ls*", "shell:cmd=git status*", "shell:cmd=go test*"],
+            ["mcp:github:get_*", "mcp:github:list_*"],
+            ["think", "create_todo*", "list_todos"]
+          ]
+        },
+        "deny": {
+          "type": "array",
+          "description": "Tool patterns that are always rejected. Takes priority over allow patterns. Supports the same pattern syntax as allow: tool names with globs and argument matching (e.g., 'shell:cmd=rm -rf*' to block dangerous rm commands).",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            ["shell:cmd=rm -rf*", "shell:cmd=sudo*"],
+            ["shell:cmd=git push --force*", "shell:cmd=git reset --hard*"],
+            ["mcp:github:delete_*"]
+          ]
         }
       },
       "additionalProperties": false

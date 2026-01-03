@@ -13,11 +13,12 @@ const Version = "3"
 
 // Config represents the entire configuration file
 type Config struct {
-	Version  string                 `json:"version,omitempty"`
-	Agents   map[string]AgentConfig `json:"agents,omitempty"`
-	Models   map[string]ModelConfig `json:"models,omitempty"`
-	RAG      map[string]RAGConfig   `json:"rag,omitempty"`
-	Metadata Metadata               `json:"metadata,omitempty"`
+	Version     string                 `json:"version,omitempty"`
+	Agents      map[string]AgentConfig `json:"agents,omitempty"`
+	Models      map[string]ModelConfig `json:"models,omitempty"`
+	RAG         map[string]RAGConfig   `json:"rag,omitempty"`
+	Metadata    Metadata               `json:"metadata,omitempty"`
+	Permissions *PermissionsConfig     `json:"permissions,omitempty"`
 }
 
 // AgentConfig represents a single agent configuration
@@ -748,4 +749,19 @@ type RAGFusionConfig struct {
 	Strategy string             `json:"strategy,omitempty"` // Fusion strategy: "rrf" (Reciprocal Rank Fusion), "weighted", "max"
 	K        int                `json:"k,omitempty"`        // RRF parameter k (default: 60)
 	Weights  map[string]float64 `json:"weights,omitempty"`  // Strategy weights for weighted fusion
+}
+
+// PermissionsConfig represents tool permission configuration.
+// Allow/Ask/Deny model. This controls tool call approval behavior:
+// - Allow: Tools matching these patterns are auto-approved (like --yolo for specific tools)
+// - Ask: Tools matching these patterns always require user approval (default behavior)
+// - Deny: Tools matching these patterns are always rejected, even with --yolo
+//
+// Patterns support glob-style matching (e.g., "shell", "read_*", "mcp:github:*")
+// The evaluation order is: Deny (checked first), then Allow, then Ask (default)
+type PermissionsConfig struct {
+	// Allow lists tool name patterns that are auto-approved without user confirmation
+	Allow []string `json:"allow,omitempty"`
+	// Deny lists tool name patterns that are always rejected
+	Deny []string `json:"deny,omitempty"`
 }

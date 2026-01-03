@@ -11,12 +11,14 @@ import (
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/model/provider"
+	"github.com/docker/cagent/pkg/permissions"
 	"github.com/docker/cagent/pkg/rag"
 )
 
 type Team struct {
 	agents      map[string]*agent.Agent
 	ragManagers map[string]*rag.Manager
+	permissions *permissions.Checker
 }
 
 type Opt func(*Team)
@@ -32,6 +34,12 @@ func WithAgents(agents ...*agent.Agent) Opt {
 func WithRAGManagers(managers map[string]*rag.Manager) Opt {
 	return func(t *Team) {
 		t.ragManagers = managers
+	}
+}
+
+func WithPermissions(checker *permissions.Checker) Opt {
+	return func(t *Team) {
+		t.permissions = checker
 	}
 }
 
@@ -157,4 +165,10 @@ func (t *Team) StartRAGFileWatchers(ctx context.Context) {
 			}
 		}(mgr)
 	}
+}
+
+// Permissions returns the permission checker for this team.
+// Returns nil if no permissions are configured.
+func (t *Team) Permissions() *permissions.Checker {
+	return t.permissions
 }
