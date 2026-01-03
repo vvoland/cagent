@@ -30,17 +30,7 @@ func renderToolArgs(toolCall tools.ToolCall, shortWidth, width int) string {
 			md.WriteString("\n")
 		}
 
-		var content string
-		if v, ok := arg.Value.(string); ok {
-			content = v
-		} else {
-			buf, err := json.MarshalIndent(arg.Value, "", "  ")
-			if err != nil {
-				content = fmt.Sprintf("%v", arg.Value)
-			} else {
-				content = string(buf)
-			}
-		}
+		content := formatValue(arg.Value)
 
 		fmt.Fprintf(&short, "%s=%s", arg.Key, content)
 		fmt.Fprintf(&md, "%s:\n%s", arg.Key, content)
@@ -54,6 +44,29 @@ func renderToolArgs(toolCall tools.ToolCall, shortWidth, width int) string {
 	}
 
 	return "\n" + styles.ToolCallArgs.Width(width).Render(strings.TrimSuffix(md.String(), "\n"))
+}
+
+// formatValue formats a value for display.
+// Single-element arrays are kept on one line, while larger arrays are indented.
+func formatValue(value any) string {
+	if v, ok := value.(string); ok {
+		return v
+	}
+
+	// Special handling for arrays: single-element arrays stay on one line
+	if arr, ok := value.([]any); ok && len(arr) == 1 {
+		buf, err := json.Marshal(arr)
+		if err != nil {
+			return fmt.Sprintf("%v", value)
+		}
+		return string(buf)
+	}
+
+	buf, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		return fmt.Sprintf("%v", value)
+	}
+	return string(buf)
 }
 
 // decodeArguments decodes the JSON-encoded arguments string into an ordered slice of key-value pairs.
