@@ -15,6 +15,7 @@ import (
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/modelsdev"
+	"github.com/docker/cagent/pkg/permissions"
 	"github.com/docker/cagent/pkg/rag"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/tools"
@@ -168,9 +169,13 @@ func Load(ctx context.Context, agentSource config.Source, runConfig *config.Runt
 		}
 	}
 
+	// Create permissions checker from config
+	permChecker := permissions.NewChecker(cfg.Permissions)
+
 	return team.New(
 		team.WithAgents(agents...),
 		team.WithRAGManagers(ragManagers),
+		team.WithPermissions(permChecker),
 	), nil
 }
 

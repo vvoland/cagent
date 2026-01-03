@@ -14,8 +14,10 @@ import (
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/model/provider/base"
 	"github.com/docker/cagent/pkg/modelsdev"
+	"github.com/docker/cagent/pkg/permissions"
 	"github.com/docker/cagent/pkg/rag"
 	"github.com/docker/cagent/pkg/rag/database"
 	"github.com/docker/cagent/pkg/rag/strategy"
@@ -855,4 +857,152 @@ func TestEmitStartupInfo(t *testing.T) {
 
 	// Should be empty due to deduplication
 	require.Empty(t, collectedEvents2, "EmitStartupInfo should not emit duplicate events")
+}
+
+func TestPermissions_DenyBlocksToolExecution(t *testing.T) {
+	// Test that tools matching deny patterns are blocked
+	permChecker := permissions.NewChecker(&latest.PermissionsConfig{
+		Deny: []string{"dangerous_tool"},
+	})
+
+	prov := &mockProvider{id: "test/mock-model", stream: &mockStream{}}
+	root := agent.New("root", "You are a test agent", agent.WithModel(prov))
+	tm := team.New(
+		team.WithAgents(root),
+		team.WithPermissions(permChecker),
+	)
+
+	rt, err := New(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	require.NoError(t, err)
+
+	sess := session.New(session.WithUserMessage("Test"))
+
+	// Create a tool call for the denied tool
+	calls := []tools.ToolCall{{
+		ID:       "call_1",
+		Type:     "function",
+		Function: tools.FunctionCall{Name: "dangerous_tool", Arguments: "{}"},
+	}}
+
+	// Define a tool that exists
+	agentTools := []tools.Tool{{
+		Name:       "dangerous_tool",
+		Parameters: map[string]any{},
+		Handler: func(ctx context.Context, tc tools.ToolCall) (*tools.ToolCallResult, error) {
+			return tools.ResultSuccess("executed"), nil
+		},
+	}}
+
+	events := make(chan Event, 10)
+	rt.processToolCalls(t.Context(), sess, calls, agentTools, events)
+	close(events)
+
+	// The tool should be denied, look for a ToolCallResponseEvent with error
+	var toolResponse *ToolCallResponseEvent
+	for ev := range events {
+		if tr, ok := ev.(*ToolCallResponseEvent); ok {
+			toolResponse = tr
+			break
+		}
+	}
+
+	require.NotNil(t, toolResponse, "expected ToolCallResponseEvent")
+	require.Contains(t, toolResponse.Response, "denied by permissions")
+}
+
+func TestPermissions_AllowAutoApprovesTool(t *testing.T) {
+	// Test that tools matching allow patterns are auto-approved without --yolo
+	permChecker := permissions.NewChecker(&latest.PermissionsConfig{
+		Allow: []string{"safe_*"},
+	})
+
+	var executed bool
+	agentTools := []tools.Tool{{
+		Name:       "safe_tool",
+		Parameters: map[string]any{},
+		Handler: func(ctx context.Context, tc tools.ToolCall) (*tools.ToolCallResult, error) {
+			executed = true
+			return tools.ResultSuccess("executed"), nil
+		},
+	}}
+
+	prov := &mockProvider{id: "test/mock-model", stream: &mockStream{}}
+	root := agent.New("root", "You are a test agent",
+		agent.WithModel(prov),
+		agent.WithToolSets(newStubToolSet(nil, agentTools, nil)),
+	)
+	tm := team.New(
+		team.WithAgents(root),
+		team.WithPermissions(permChecker),
+	)
+
+	rt, err := New(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	require.NoError(t, err)
+
+	sess := session.New(session.WithUserMessage("Test"))
+	// Note: ToolsApproved is false (no --yolo)
+	require.False(t, sess.ToolsApproved)
+
+	calls := []tools.ToolCall{{
+		ID:       "call_1",
+		Type:     "function",
+		Function: tools.FunctionCall{Name: "safe_tool", Arguments: "{}"},
+	}}
+
+	events := make(chan Event, 10)
+	rt.processToolCalls(t.Context(), sess, calls, agentTools, events)
+	close(events)
+
+	// The tool should have been executed due to allow pattern
+	require.True(t, executed, "expected tool to be auto-approved and executed")
+}
+
+func TestPermissions_DenyTakesPriorityOverAllow(t *testing.T) {
+	// Test that deny patterns take priority over allow patterns
+	permChecker := permissions.NewChecker(&latest.PermissionsConfig{
+		Allow: []string{"*"}, // Allow everything
+		Deny:  []string{"forbidden_tool"},
+	})
+
+	prov := &mockProvider{id: "test/mock-model", stream: &mockStream{}}
+	root := agent.New("root", "You are a test agent", agent.WithModel(prov))
+	tm := team.New(
+		team.WithAgents(root),
+		team.WithPermissions(permChecker),
+	)
+
+	rt, err := New(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	require.NoError(t, err)
+
+	sess := session.New(session.WithUserMessage("Test"))
+
+	calls := []tools.ToolCall{{
+		ID:       "call_1",
+		Type:     "function",
+		Function: tools.FunctionCall{Name: "forbidden_tool", Arguments: "{}"},
+	}}
+
+	agentTools := []tools.Tool{{
+		Name:       "forbidden_tool",
+		Parameters: map[string]any{},
+		Handler: func(ctx context.Context, tc tools.ToolCall) (*tools.ToolCallResult, error) {
+			return tools.ResultSuccess("executed"), nil
+		},
+	}}
+
+	events := make(chan Event, 10)
+	rt.processToolCalls(t.Context(), sess, calls, agentTools, events)
+	close(events)
+
+	// The tool should be denied despite wildcard allow
+	var toolResponse *ToolCallResponseEvent
+	for ev := range events {
+		if tr, ok := ev.(*ToolCallResponseEvent); ok {
+			toolResponse = tr
+			break
+		}
+	}
+
+	require.NotNil(t, toolResponse, "expected ToolCallResponseEvent")
+	require.Contains(t, toolResponse.Response, "denied by permissions")
 }
