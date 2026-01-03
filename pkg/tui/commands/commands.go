@@ -156,17 +156,14 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 
 	agentCommands := application.CurrentAgentCommands(ctx)
 	if len(agentCommands) > 0 {
-		commands := make([]Item, 0, len(agentCommands))
+		var commands []Item
 		for name, prompt := range agentCommands {
-
-			// Truncate long descriptions to fit on one line
-			description := toolcommon.TruncateText(prompt, 60)
-
 			commands = append(commands, Item{
-				ID:          "agent.command." + name,
-				Label:       name,
-				Description: description,
-				Category:    "Agent Commands",
+				ID:           "agent.command." + name,
+				Label:        name,
+				Description:  toolcommon.TruncateText(prompt, 60),
+				Category:     "Agent Commands",
+				SlashCommand: "/" + name,
 				Execute: func(string) tea.Cmd {
 					return core.CmdHandler(messages.AgentCommandMsg{Command: "/" + name})
 				},
