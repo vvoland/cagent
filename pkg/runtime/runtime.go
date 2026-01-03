@@ -111,7 +111,7 @@ type Runtime interface {
 	SessionStore() session.Store
 
 	// Summarize generates a summary for the session
-	Summarize(ctx context.Context, sess *session.Session, events chan Event)
+	Summarize(ctx context.Context, sess *session.Session, additionalPrompt string, events chan Event)
 }
 
 type ModelStore interface {
@@ -698,7 +698,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 
 			if m != nil && r.sessionCompaction {
 				if sess.InputTokens+sess.OutputTokens > int64(float64(contextLimit)*0.9) {
-					r.Summarize(ctx, sess, events)
+					r.Summarize(ctx, sess, "", events)
 					events <- TokenUsage(sess.ID, r.currentAgent, sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.Cost)
 				}
 			}
@@ -1389,8 +1389,10 @@ func (r *LocalRuntime) handleHandoff(_ context.Context, _ *session.Session, tool
 	return tools.ResultSuccess(handoffMessage), nil
 }
 
-// Summarize generates a summary for the session based on the conversation history
-func (r *LocalRuntime) Summarize(ctx context.Context, sess *session.Session, events chan Event) {
+// Summarize generates a summary for the session based on the conversation history.
+// The additionalPrompt parameter allows users to provide additional instructions
+// for the summarization (e.g., "focus on code changes" or "include action items").
+func (r *LocalRuntime) Summarize(ctx context.Context, sess *session.Session, additionalPrompt string, events chan Event) {
 	slog.Debug("Generating summary for session", "session_id", sess.ID)
 
 	events <- SessionCompaction(sess.ID, "started", r.currentAgent)
@@ -1423,6 +1425,9 @@ func (r *LocalRuntime) Summarize(ctx context.Context, sess *session.Session, eve
 	// Create a new session for summary generation
 	systemPrompt := "You are a helpful AI assistant that creates comprehensive summaries of conversations. You will be given a conversation history and asked to create a concise yet thorough summary that captures the key points, decisions made, and outcomes."
 	userPrompt := fmt.Sprintf("Based on the following conversation between a user and an AI assistant, create a comprehensive summary that captures:\n- The main topics discussed\n- Key information exchanged\n- Decisions made or conclusions reached\n- Important outcomes or results\n\nProvide a well-structured summary (2-4 paragraphs) that someone could read to understand what happened in this conversation. Return ONLY the summary text, nothing else.\n\nConversation history:%s\n\nGenerate a summary for this conversation:", conversationHistory.String())
+	if additionalPrompt != "" {
+		userPrompt += fmt.Sprintf("\n\nAdditional instructions from user: %s", additionalPrompt)
+	}
 	newModel := provider.CloneWithOptions(ctx, r.CurrentAgent().Model(), options.WithStructuredOutput(nil))
 	newTeam := team.New(
 		team.WithAgents(agent.New("root", systemPrompt, agent.WithModel(newModel))),

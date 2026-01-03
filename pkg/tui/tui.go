@@ -291,7 +291,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, notification.SuccessCmd(fmt.Sprintf("Eval saved to file %s", evalFile))
 
 	case messages.CompactSessionMsg:
-		return a, a.chatPage.CompactSession()
+		return a, a.chatPage.CompactSession(msg.AdditionalPrompt)
 
 	case messages.CopySessionToClipboardMsg:
 		transcript := a.application.PlainTextTranscript()

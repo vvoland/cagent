@@ -5,7 +5,7 @@ type (
 	NewSessionMsg             struct{}
 	ExitSessionMsg            struct{}
 	EvalSessionMsg            struct{ Filename string }
-	CompactSessionMsg         struct{}
+	CompactSessionMsg         struct{ AdditionalPrompt string }
 	CopySessionToClipboardMsg struct{}
 	ToggleYoloMsg             struct{}
 	ToggleHideToolResultsMsg  struct{}
