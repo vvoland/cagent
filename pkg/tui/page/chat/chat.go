@@ -15,6 +15,7 @@ import (
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/history"
 	"github.com/docker/cagent/pkg/runtime"
+	"github.com/docker/cagent/pkg/tui/commands"
 	"github.com/docker/cagent/pkg/tui/components/editor"
 	"github.com/docker/cagent/pkg/tui/components/messages"
 	"github.com/docker/cagent/pkg/tui/components/notification"
@@ -679,11 +680,9 @@ func (p *chatPage) processMessage(msg editor.SendMsg) tea.Cmd {
 		return p.messages.ScrollToBottom()
 	}
 
-	// Handle built-in slash commands that support arguments
-	if strings.HasPrefix(msg.Content, "/eval ") {
-		_, rest, _ := strings.Cut(msg.Content, " ")
-		filename := strings.TrimSpace(rest)
-		return core.CmdHandler(msgtypes.EvalSessionMsg{Filename: filename})
+	// Handle slash commands (e.g., /eval, /compact, /exit)
+	if cmd := commands.ParseSlashCommand(msg.Content); cmd != nil {
+		return cmd
 	}
 
 	p.app.Run(ctx, p.msgCancel, msg.Content, msg.Attachments)

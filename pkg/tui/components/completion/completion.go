@@ -172,8 +172,12 @@ func (c *manager) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			if len(c.filteredItems) == 0 || c.selected >= len(c.filteredItems) {
 				return c, core.CmdHandler(ClosedMsg{})
 			}
+			selectedItem := c.filteredItems[c.selected]
 			return c, tea.Sequence(
-				core.CmdHandler(SelectedMsg{Value: c.filteredItems[c.selected].Value, Execute: c.filteredItems[c.selected].Execute}),
+				core.CmdHandler(SelectedMsg{
+					Value:   selectedItem.Value,
+					Execute: selectedItem.Execute,
+				}),
 				core.CmdHandler(ClosedMsg{}),
 			)
 		case key.Matches(msg, c.keyMap.Escape):

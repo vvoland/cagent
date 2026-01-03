@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -12,6 +13,9 @@ import (
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/messages"
 )
+
+// ExecuteFunc is a function that executes a command with an optional argument.
+type ExecuteFunc func(arg string) tea.Cmd
 
 // Category represents a category of commands
 type Category struct {
@@ -26,7 +30,7 @@ type Item struct {
 	Description  string
 	Category     string
 	SlashCommand string
-	Execute      func() tea.Cmd
+	Execute      ExecuteFunc
 }
 
 func builtInSessionCommands() []Item {
@@ -37,7 +41,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/exit",
 			Description:  "Exit the application",
 			Category:     "Session",
-			Execute: func() tea.Cmd {
+			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.ExitSessionMsg{})
 			},
 		},
@@ -47,7 +51,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/new",
 			Description:  "Start a new conversation",
 			Category:     "Session",
-			Execute: func() tea.Cmd {
+			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.NewSessionMsg{})
 			},
 		},
@@ -67,7 +71,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/compact",
 			Description:  "Summarize the current conversation",
 			Category:     "Session",
-			Execute: func() tea.Cmd {
+			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.CompactSessionMsg{})
 			},
 		},
@@ -77,7 +81,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/copy",
 			Description:  "Copy the current conversation to the clipboard",
 			Category:     "Session",
-			Execute: func() tea.Cmd {
+			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.CopySessionToClipboardMsg{})
 			},
 		},
@@ -87,8 +91,8 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/eval",
 			Description:  "Create an evaluation report (usage: /eval [filename])",
 			Category:     "Session",
-			Execute: func() tea.Cmd {
-				return core.CmdHandler(messages.EvalSessionMsg{})
+			Execute: func(arg string) tea.Cmd {
+				return core.CmdHandler(messages.EvalSessionMsg{Filename: arg})
 			},
 		},
 		{
@@ -97,7 +101,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/yolo",
 			Description:  "Toggle automatic approval of tool calls",
 			Category:     "Session",
-			Execute: func() tea.Cmd {
+			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.ToggleYoloMsg{})
 			},
 		},
@@ -107,7 +111,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/shell",
 			Description:  "Start a shell",
 			Category:     "Session",
-			Execute: func() tea.Cmd {
+			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.StartShellMsg{})
 			},
 		},
@@ -121,7 +125,7 @@ func builtInFeedbackCommands() []Item {
 			Label:       "Report Bug",
 			Description: "Report a bug or issue",
 			Category:    "Feedback",
-			Execute: func() tea.Cmd {
+			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.OpenURLMsg{URL: "https://github.com/docker/cagent/issues/new/choose"})
 			},
 		},
@@ -130,7 +134,7 @@ func builtInFeedbackCommands() []Item {
 			Label:       "Give Feedback",
 			Description: "Provide feedback about cagent",
 			Category:    "Feedback",
-			Execute: func() tea.Cmd {
+			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.OpenURLMsg{URL: feedback.Link})
 			},
 		},
@@ -163,7 +167,7 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 				Label:       name,
 				Description: description,
 				Category:    "Agent Commands",
-				Execute: func() tea.Cmd {
+				Execute: func(string) tea.Cmd {
 					return core.CmdHandler(messages.AgentCommandMsg{Command: "/" + name})
 				},
 			})
@@ -214,7 +218,7 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 				Label:       promptName,
 				Description: description,
 				Category:    "MCP Prompts",
-				Execute: func() tea.Cmd {
+				Execute: func(string) tea.Cmd {
 					// If prompt has no required arguments, execute immediately
 					hasRequiredArgs := false
 					for _, arg := range currentPromptInfo.Arguments {
@@ -248,4 +252,25 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 	}
 
 	return categories
+}
+
+// ParseSlashCommand checks if the input matches a known slash command and returns
+// the tea.Cmd to execute it. Returns nil if not a slash command or not recognized.
+// This function only handles built-in session commands, not agent commands or MCP prompts.
+func ParseSlashCommand(input string) tea.Cmd {
+	if input == "" || input[0] != '/' {
+		return nil
+	}
+
+	// Split into command and argument
+	cmd, arg, _ := strings.Cut(input, " ")
+
+	// Search through built-in commands
+	for _, item := range builtInSessionCommands() {
+		if item.SlashCommand == cmd {
+			return item.Execute(arg)
+		}
+	}
+
+	return nil
 }

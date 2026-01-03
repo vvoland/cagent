@@ -133,7 +133,7 @@ func (d *commandPaletteDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 				selectedCmd := d.filtered[d.selected]
 				cmds = append(cmds, core.CmdHandler(CloseDialogMsg{}))
 				if selectedCmd.Execute != nil {
-					cmds = append(cmds, selectedCmd.Execute())
+					cmds = append(cmds, selectedCmd.Execute(""))
 				}
 				return d, tea.Sequence(cmds...)
 			}
