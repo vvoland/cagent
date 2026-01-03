@@ -25,12 +25,6 @@ func TestSessionNumHistoryItems(t *testing.T) {
 			expectedConversationMsgs: 3, // Limited to 3 despite 20 total messages
 		},
 		{
-			name:                     "no limit when numHistoryItems is 0",
-			numHistoryItems:          0,
-			messageCount:             150,
-			expectedConversationMsgs: 100, // Should use default maxMessages
-		},
-		{
 			name:                     "limit to 5 conversation messages",
 			numHistoryItems:          5,
 			messageCount:             8,
@@ -223,36 +217,4 @@ func TestTrimMessagesWithToolCallsPreservation(t *testing.T) {
 		}
 	}
 	assert.False(t, hasOldTool, "Should not have old tool results without their calls")
-}
-
-func TestNumHistoryItemsConfiguration(t *testing.T) {
-	testCases := []struct {
-		configValue int
-		expected    int
-		description string
-	}{
-		{0, maxMessages, "Zero should use default"},
-		{-1, maxMessages, "Negative should use default"},
-		{5, 5, "Positive value should be used"},
-		{200, 200, "Large value should be accepted"},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.description, func(t *testing.T) {
-			a := agent.New("test", "instruction",
-				agent.WithNumHistoryItems(tc.configValue))
-
-			s := New()
-			s.AddMessage(UserMessage("test"))
-
-			// The actual limit used should be reflected in debug logs
-			// For this test, we just verify the agent configuration
-			actualLimit := a.NumHistoryItems()
-			if actualLimit <= 0 {
-				actualLimit = maxMessages
-			}
-
-			assert.Equal(t, tc.expected, actualLimit, tc.description)
-		})
-	}
 }

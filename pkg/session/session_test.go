@@ -10,21 +10,6 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
-func TestTrimMessages(t *testing.T) {
-	messages := make([]chat.Message, maxMessages+10)
-
-	// Fill with some basic messages
-	for i := range messages {
-		messages[i] = chat.Message{
-			Role:    chat.MessageRoleUser,
-			Content: "message",
-		}
-	}
-
-	result := trimMessages(messages, maxMessages)
-	assert.Len(t, result, maxMessages, "should trim to maxMessages")
-}
-
 func TestTrimMessagesWithToolCalls(t *testing.T) {
 	messages := []chat.Message{
 		{
@@ -86,31 +71,6 @@ func TestTrimMessagesWithToolCalls(t *testing.T) {
 	}
 }
 
-func TestGetMessages(t *testing.T) {
-	testAgent := &agent.Agent{}
-
-	s := New()
-
-	for range maxMessages + 10 {
-		s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
-			Role:    chat.MessageRoleUser,
-			Content: "test message",
-		}))
-	}
-
-	messages := s.GetMessages(testAgent)
-
-	// Count non-system messages (since system messages are not limited)
-	nonSystemCount := 0
-	for _, msg := range messages {
-		if msg.Role != chat.MessageRoleSystem {
-			nonSystemCount++
-		}
-	}
-
-	assert.LessOrEqual(t, nonSystemCount, maxMessages, "non-system messages should not exceed maxMessages")
-}
-
 func TestGetMessagesWithToolCalls(t *testing.T) {
 	testAgent := &agent.Agent{}
 
@@ -136,10 +96,6 @@ func TestGetMessagesWithToolCalls(t *testing.T) {
 		ToolCallID: "test-tool",
 		Content:    "tool result",
 	}))
-
-	oldMax := maxMessages
-	maxMessages = 2
-	defer func() { maxMessages = oldMax }()
 
 	messages := s.GetMessages(testAgent)
 
