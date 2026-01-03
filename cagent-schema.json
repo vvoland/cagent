@@ -215,8 +215,102 @@
           "items": {
             "type": "string"
           }
+        },
+        "hooks": {
+          "$ref": "#/definitions/HooksConfig",
+          "description": "Lifecycle hooks for executing shell commands at various points in the agent's execution"
         }
       },
+      "additionalProperties": false
+    },
+    "HooksConfig": {
+      "type": "object",
+      "description": "Lifecycle hooks configuration for an agent. Hooks allow running shell commands at various points in the agent's execution lifecycle.",
+      "properties": {
+        "pre_tool_use": {
+          "type": "array",
+          "description": "Hooks that run before a tool is executed. Can allow/deny/modify tool calls.",
+          "items": {
+            "$ref": "#/definitions/HookMatcherConfig"
+          }
+        },
+        "post_tool_use": {
+          "type": "array",
+          "description": "Hooks that run after a tool completes. Can provide validation or additional context.",
+          "items": {
+            "$ref": "#/definitions/HookMatcherConfig"
+          }
+        },
+        "session_start": {
+          "type": "array",
+          "description": "Hooks that run when a session begins. Can load context or setup environment.",
+          "items": {
+            "$ref": "#/definitions/HookDefinition"
+          }
+        },
+        "session_end": {
+          "type": "array",
+          "description": "Hooks that run when a session ends. Can perform cleanup or logging.",
+          "items": {
+            "$ref": "#/definitions/HookDefinition"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "HookMatcherConfig": {
+      "type": "object",
+      "description": "Configuration for matching tools and their associated hooks",
+      "properties": {
+        "matcher": {
+          "type": "string",
+          "description": "Regex pattern to match tool names (e.g., 'shell|edit_file'). Use '*' to match all tools. Case-sensitive.",
+          "examples": [
+            "*",
+            "shell",
+            "shell|edit_file|write_file",
+            "mcp__.*"
+          ]
+        },
+        "hooks": {
+          "type": "array",
+          "description": "Hooks to execute when the matcher matches",
+          "items": {
+            "$ref": "#/definitions/HookDefinition"
+          }
+        }
+      },
+      "required": [
+        "hooks"
+      ],
+      "additionalProperties": false
+    },
+    "HookDefinition": {
+      "type": "object",
+      "description": "Definition of a single hook command",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Type of hook (currently only 'command' is supported)",
+          "enum": [
+            "command"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "description": "Shell command to execute. Receives JSON input via stdin with tool/session information."
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "Execution timeout in seconds (default: 60)",
+          "minimum": 1,
+          "default": 60
+        }
+      },
+      "required": [
+        "type",
+        "command"
+      ],
       "additionalProperties": false
     },
     "ModelConfig": {

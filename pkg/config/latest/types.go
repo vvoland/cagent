@@ -40,6 +40,7 @@ type AgentConfig struct {
 	Commands           types.Commands    `json:"commands,omitempty"`
 	StructuredOutput   *StructuredOutput `json:"structured_output,omitempty"`
 	Skills             *bool             `json:"skills,omitempty"`
+	Hooks              *HooksConfig      `json:"hooks,omitempty"`
 }
 
 // ModelConfig represents the configuration for a model
@@ -796,4 +797,119 @@ type PermissionsConfig struct {
 	Allow []string `json:"allow,omitempty"`
 	// Deny lists tool name patterns that are always rejected
 	Deny []string `json:"deny,omitempty"`
+}
+
+// HooksConfig represents the hooks configuration for an agent.
+// Hooks allow running shell commands at various points in the agent lifecycle.
+type HooksConfig struct {
+	// PreToolUse hooks run before tool execution
+	PreToolUse []HookMatcherConfig `json:"pre_tool_use,omitempty" yaml:"pre_tool_use,omitempty"`
+
+	// PostToolUse hooks run after tool execution
+	PostToolUse []HookMatcherConfig `json:"post_tool_use,omitempty" yaml:"post_tool_use,omitempty"`
+
+	// SessionStart hooks run when a session begins
+	SessionStart []HookDefinition `json:"session_start,omitempty" yaml:"session_start,omitempty"`
+
+	// SessionEnd hooks run when a session ends
+	SessionEnd []HookDefinition `json:"session_end,omitempty" yaml:"session_end,omitempty"`
+}
+
+// IsEmpty returns true if no hooks are configured
+func (h *HooksConfig) IsEmpty() bool {
+	if h == nil {
+		return true
+	}
+	return len(h.PreToolUse) == 0 &&
+		len(h.PostToolUse) == 0 &&
+		len(h.SessionStart) == 0 &&
+		len(h.SessionEnd) == 0
+}
+
+// HookMatcherConfig represents a hook matcher with its hooks.
+// Used for tool-related hooks (PreToolUse, PostToolUse).
+type HookMatcherConfig struct {
+	// Matcher is a regex pattern to match tool names (e.g., "shell|edit_file")
+	// Use "*" to match all tools. Case-sensitive.
+	Matcher string `json:"matcher,omitempty" yaml:"matcher,omitempty"`
+
+	// Hooks are the hooks to execute when the matcher matches
+	Hooks []HookDefinition `json:"hooks" yaml:"hooks"`
+}
+
+// HookDefinition represents a single hook configuration
+type HookDefinition struct {
+	// Type specifies the hook type (currently only "command" is supported)
+	Type string `json:"type" yaml:"type"`
+
+	// Command is the shell command to execute
+	Command string `json:"command,omitempty" yaml:"command,omitempty"`
+
+	// Timeout is the execution timeout in seconds (default: 60)
+	Timeout int `json:"timeout,omitempty" yaml:"timeout,omitempty"`
+}
+
+// validate validates the HooksConfig
+func (h *HooksConfig) validate() error {
+	// Validate PreToolUse matchers
+	for i, m := range h.PreToolUse {
+		if err := m.validate("pre_tool_use", i); err != nil {
+			return err
+		}
+	}
+
+	// Validate PostToolUse matchers
+	for i, m := range h.PostToolUse {
+		if err := m.validate("post_tool_use", i); err != nil {
+			return err
+		}
+	}
+
+	// Validate SessionStart hooks
+	for i, hook := range h.SessionStart {
+		if err := hook.validate("session_start", i); err != nil {
+			return err
+		}
+	}
+
+	// Validate SessionEnd hooks
+	for i, hook := range h.SessionEnd {
+		if err := hook.validate("session_end", i); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// validate validates a HookMatcherConfig
+func (m *HookMatcherConfig) validate(eventType string, index int) error {
+	if len(m.Hooks) == 0 {
+		return fmt.Errorf("hooks.%s[%d]: at least one hook is required", eventType, index)
+	}
+
+	for i, hook := range m.Hooks {
+		if err := hook.validate(fmt.Sprintf("%s[%d].hooks", eventType, index), i); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// validate validates a HookDefinition
+func (h *HookDefinition) validate(prefix string, index int) error {
+	if h.Type == "" {
+		return fmt.Errorf("hooks.%s[%d]: type is required", prefix, index)
+	}
+
+	if h.Type != "command" {
+		return fmt.Errorf("hooks.%s[%d]: unsupported hook type '%s' (only 'command' is supported)", prefix, index, h.Type)
+	}
+
+	if h.Command == "" {
+		return fmt.Errorf("hooks.%s[%d]: command is required for command hooks", prefix, index)
+	}
+
+	return nil
 }

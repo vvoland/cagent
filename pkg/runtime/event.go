@@ -483,3 +483,22 @@ func RAGIndexingCompleted(ragName, strategyName, agentName string) Event {
 		AgentContext: AgentContext{AgentName: agentName},
 	}
 }
+
+// HookBlockedEvent is sent when a pre-tool hook blocks a tool call
+type HookBlockedEvent struct {
+	Type           string         `json:"type"`
+	ToolCall       tools.ToolCall `json:"tool_call"`
+	ToolDefinition tools.Tool     `json:"tool_definition"`
+	Message        string         `json:"message"`
+	AgentContext
+}
+
+func HookBlocked(toolCall tools.ToolCall, toolDefinition tools.Tool, message, agentName string) Event {
+	return &HookBlockedEvent{
+		Type:           "hook_blocked",
+		ToolCall:       toolCall,
+		ToolDefinition: toolDefinition,
+		Message:        message,
+		AgentContext:   AgentContext{AgentName: agentName},
+	}
+}

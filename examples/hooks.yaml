@@ -1,0 +1,96 @@
+#!/usr/bin/env cagent run
+#
+# Hooks Example - Demonstrating Allow, Deny, and Modify
+#
+# This example shows how hooks can control tool execution:
+#   - DENY: Block dangerous shell commands (rm -rf, sudo, etc.)
+#   - MODIFY: Automatically add safety flags to commands
+#   - ALLOW: Let safe operations proceed
+#
+# Try these prompts to see hooks in action:
+#   - "Run: echo hello"           → Allowed
+#   - "Run: rm -rf /tmp/test"     → BLOCKED by hook
+#   - "Run: sudo apt update"      → BLOCKED by hook
+#   - "List files in current dir" → Command gets modified with -h flag
+#
+
+agents:
+  root:
+    model: openai/gpt-4o
+    description: An agent with lifecycle hooks demonstrating allow/deny/modify
+    instruction: |
+      You are a helpful assistant with access to shell and filesystem tools.
+      Use them to help the user with their tasks.
+
+      When asked to run a command, use the shell tool directly.
+    toolsets:
+      - type: shell
+      - type: filesystem
+
+    hooks:
+      # ============================================================
+      # PRE-TOOL-USE HOOKS - Control what happens BEFORE a tool runs
+      # ============================================================
+      pre_tool_use:
+        # DENY dangerous shell commands
+        - matcher: "shell"
+          hooks:
+            - type: command
+              timeout: 10
+              command: |
+                # Read the JSON input from stdin
+                INPUT=$(cat)
+                CMD=$(echo "$INPUT" | jq -r '.tool_input.cmd // ""')
+
+                # Check for dangerous patterns and DENY if found
+                if echo "$CMD" | grep -qiE 'rm\s+(-[^\s]*)?\s*-rf|rm\s+(-[^\s]*)?\s*-fr|sudo|mkfs|dd\s+if=|:(\(\)\{|\s*){.*}'; then
+                  # Output JSON to deny with a reason
+                  cat <<EOF
+                {"hook_specific_output":{"permission_decision":"deny","permission_decision_reason":"🚫 HOOK BLOCKED: Dangerous command pattern detected. Commands with rm -rf, sudo, mkfs, or dd are not allowed."}}
+                EOF
+                else
+                  # Allow the command to proceed
+                  echo '{"continue": true}'
+                fi
+
+        # MODIFY: Add human-readable flag to ls commands
+        - matcher: "shell"
+          hooks:
+            - type: command
+              timeout: 10
+              command: |
+                INPUT=$(cat)
+                CMD=$(echo "$INPUT" | jq -r '.tool_input.cmd // ""')
+
+                # If it's a plain 'ls' command without -h, add -h for human-readable sizes
+                if echo "$CMD" | grep -qE '^ls(\s|$)' && ! echo "$CMD" | grep -q '\-h'; then
+                  # Modify the command to add -h flag
+                  NEW_CMD=$(echo "$CMD" | sed 's/^ls/ls -h/')
+                  cat <<EOF
+                {"hook_specific_output":{"permission_decision":"allow","updated_input":{"cmd":"$NEW_CMD"}},"system_message":"📝 Hook modified command: added -h flag for human-readable output"}
+                EOF
+                fi
+                # If no modification needed, output nothing (allows by default)
+
+      # ============================================================
+      # POST-TOOL-USE HOOKS - Run AFTER a tool completes
+      # ============================================================
+      post_tool_use:
+        - matcher: "shell"
+          hooks:
+            - type: command
+              command: |
+                INPUT=$(cat)
+                TOOL=$(echo "$INPUT" | jq -r '.tool_name')
+                echo "✅ Post-hook: $TOOL completed successfully"
+
+      # ============================================================
+      # SESSION HOOKS - Run at session start/end
+      # ============================================================
+      session_start:
+        - type: command
+          command: echo "🚀 Session started at $(date). Hooks are active!"
+
+      session_end:
+        - type: command
+          command: echo "👋 Session ended at $(date)"

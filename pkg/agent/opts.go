@@ -3,6 +3,7 @@ package agent
 import (
 	"sync/atomic"
 
+	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/tools"
 )
@@ -120,6 +121,12 @@ func WithLoadTimeWarnings(warnings []string) Opt {
 func WithSkillsEnabled(enabled bool) Opt {
 	return func(a *Agent) {
 		a.skillsEnabled = enabled
+	}
+}
+
+func WithHooks(hooks *latest.HooksConfig) Opt {
+	return func(a *Agent) {
+		a.hooks = hooks
 	}
 }
 

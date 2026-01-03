@@ -114,6 +114,7 @@ func Load(ctx context.Context, agentSource config.Source, runConfig *config.Runt
 			agent.WithNumHistoryItems(agentConfig.NumHistoryItems),
 			agent.WithCommands(expander.ExpandMap(ctx, agentConfig.Commands)),
 			agent.WithSkillsEnabled(skillsEnabled),
+			agent.WithHooks(agentConfig.Hooks),
 		}
 
 		models, err := getModelsForAgent(ctx, cfg, &agentConfig, autoModel, runConfig)

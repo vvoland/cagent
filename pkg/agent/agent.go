@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"math/rand"
 
+	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/tools"
 )
@@ -30,6 +31,7 @@ type Agent struct {
 	commands           map[string]string
 	pendingWarnings    []string
 	skillsEnabled      bool
+	hooks              *latest.HooksConfig
 }
 
 // New creates a new agent
@@ -118,6 +120,11 @@ func (a *Agent) Commands() map[string]string {
 // SkillsEnabled returns whether skills discovery is enabled for this agent.
 func (a *Agent) SkillsEnabled() bool {
 	return a.skillsEnabled
+}
+
+// Hooks returns the hooks configuration for this agent.
+func (a *Agent) Hooks() *latest.HooksConfig {
+	return a.hooks
 }
 
 // Tools returns the tools available to this agent
