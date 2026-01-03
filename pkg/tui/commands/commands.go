@@ -61,7 +61,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/sessions",
 			Description:  "Browse and load past sessions",
 			Category:     "Session",
-			Execute: func() tea.Cmd {
+			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.OpenSessionBrowserMsg{})
 			},
 		},
