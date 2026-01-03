@@ -79,6 +79,35 @@ agents:
         7. **Key Files Reference**: Quick reference table of important files and their purposes
 
         Focus on information that would help an AI agent navigate and modify the codebase correctly. Be concise but comprehensive.
+      security-review: |
+        Perform a security review of the local changes in this Git repository.
+
+        **Workflow:**
+        1. **Identify Changes**: Run `git diff` to see uncommitted changes, and `git diff HEAD~1` or `git log --oneline -5` to understand recent commits if needed.
+
+        2. **Security Analysis**: Review the changes for common security issues:
+           - **Input Validation**: Check for missing or inadequate input validation
+           - **SQL Injection**: Look for raw SQL queries or improper use of query builders
+           - **Command Injection**: Identify unsafe use of exec, shell commands, or system calls
+           - **Path Traversal**: Check for unsafe file path handling
+           - **Sensitive Data Exposure**: Look for hardcoded secrets, API keys, or credentials
+           - **Authentication/Authorization**: Review any auth-related changes
+           - **Error Handling**: Check for information leakage in error messages
+           - **Dependency Security**: Note any new dependencies that should be vetted
+           - **Race Conditions**: Identify potential concurrency issues in Go code
+           - **Unsafe Pointer Usage**: Check for unsafe package usage
+
+        3. **Go-Specific Checks**:
+           - Run `go_vulncheck` to check for known vulnerabilities
+           - Review use of `unsafe` package
+           - Check for proper context cancellation and timeout handling
+           - Verify proper error wrapping and handling
+
+        4. **Report**: Provide a structured security review with:
+           - **Summary**: Overall security posture of the changes
+           - **Findings**: List of identified issues with severity (Critical/High/Medium/Low/Info)
+           - **Recommendations**: Specific suggestions to improve security
+           - **Tips**: General security best practices relevant to the changes
 
   planner:
     model: claude
