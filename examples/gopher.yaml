@@ -62,10 +62,6 @@ agents:
       - type: mcp
         command: gopls
         args: ["mcp"]
-      - type: mcp
-        ref: docker:ast-grep
-        config:
-          path: .
     commands:
       fix-lint: "Fix the lint issues"
       remove-comments-tests: "Remove useless comments in test files (*_test.go)"
