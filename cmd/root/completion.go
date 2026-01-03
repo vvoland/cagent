@@ -2,11 +2,14 @@ package root
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
+
+	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/aliases"
 	"github.com/docker/cagent/pkg/config"
-	"github.com/spf13/cobra"
 )
 
 func completeRunExec(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -21,14 +24,13 @@ func completeRunExec(cmd *cobra.Command, args []string, toComplete string) ([]st
 }
 
 func completeAlias(toComplete string) ([]string, cobra.ShellCompDirective) {
-	if strings.Contains(toComplete, "/") || strings.HasPrefix(toComplete, ".") {
-		return nil, cobra.ShellCompDirectiveDefault
+	if strings.HasPrefix(toComplete, "/") || strings.HasPrefix(toComplete, ".") {
+		return completeAgentFilename(toComplete)
 	}
 
 	s, err := aliases.Load()
 	if err != nil {
-		// Ignore error and don't provide alias completions
-		return nil, cobra.ShellCompDirectiveDefault
+		return completeAgentFilename(toComplete)
 	}
 
 	var candidates []string
@@ -38,34 +40,71 @@ func completeAlias(toComplete string) ([]string, cobra.ShellCompDirective) {
 		}
 	}
 
-	return candidates, cobra.ShellCompDirectiveDefault
+	return candidates, cobra.ShellCompDirectiveNoFileComp
 }
 
 func completeMessage(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if !strings.HasPrefix(toComplete, "/") {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
 	agentSource, err := config.Resolve(args[0])
 	if err != nil {
-		// Ignore error and don't provide completions
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
 	cfg, err := config.Load(context.Background(), agentSource)
 	if err != nil {
-		// Ignore error and don't provide completions
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	agent := "root"
-	name, err := cmd.Flags().GetString("agent")
-	if err == nil && name != "" {
-		agent = name
+	agent, _ := cmd.Flags().GetString("agent")
+	if agent == "" {
+		agent = "root"
 	}
 
 	var candidates []string
 	for k, v := range cfg.Agents[agent].Commands {
-		if strings.HasPrefix(k, toComplete) {
+		if strings.HasPrefix("/"+k, toComplete) {
 			candidates = append(candidates, "/"+k+"\t"+v)
 		}
 	}
 
 	return candidates, cobra.ShellCompDirectiveNoFileComp
+}
+
+func completeAgentFilename(toComplete string) ([]string, cobra.ShellCompDirective) {
+	dirPrefix, base := filepath.Split(toComplete)
+
+	dirToRead := dirPrefix
+	if dirToRead == "" {
+		dirToRead = "."
+	}
+
+	entries, err := os.ReadDir(dirToRead)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	var out []string
+	for _, e := range entries {
+		name := e.Name()
+		if !strings.HasPrefix(name, base) {
+			continue
+		}
+
+		switch {
+		case e.IsDir():
+			out = append(out, dirPrefix+name+string(filepath.Separator))
+		case strings.EqualFold(filepath.Ext(name), ".yaml"), strings.EqualFold(filepath.Ext(name), ".yml"):
+			out = append(out, dirPrefix+name)
+		}
+	}
+
+	// Don't add space after single directory completion
+	if len(out) == 1 && strings.HasSuffix(out[0], string(filepath.Separator)) {
+		return out, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace
+	}
+
+	return out, cobra.ShellCompDirectiveNoFileComp
 }
