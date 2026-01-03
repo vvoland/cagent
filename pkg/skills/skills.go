@@ -2,20 +2,18 @@ package skills
 
 import (
 	"cmp"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/goccy/go-yaml"
+
 	"github.com/docker/cagent/pkg/paths"
 )
 
-type skillFormat string
-
 const (
-	formatClaude skillFormat = "claude"
-	formatCodex  skillFormat = "codex"
-
 	skillFile = "SKILL.md"
 
 	maxNameLength        = 64
@@ -25,240 +23,41 @@ const (
 
 var namePattern = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
+// Skill represents a loaded skill with its metadata and content location.
 type Skill struct {
-	Name          string
-	Description   string
-	FilePath      string
-	BaseDir       string
-	License       string
-	Compatibility string
-	Metadata      map[string]string
-	AllowedTools  []string
+	Name          string            `yaml:"name"`
+	Description   string            `yaml:"description"`
+	FilePath      string            `yaml:"-"`
+	BaseDir       string            `yaml:"-"`
+	License       string            `yaml:"license"`
+	Compatibility string            `yaml:"compatibility"`
+	Metadata      map[string]string `yaml:"metadata"`
+	AllowedTools  []string          `yaml:"allowed-tools"`
 }
 
-type frontmatter struct {
-	Name          string
-	Description   string
-	License       string
-	Compatibility string
-	Metadata      map[string]string
-	AllowedTools  []string
-}
-
-func stripQuotes(value string) string {
-	if len(value) >= 2 {
-		if (value[0] == '"' && value[len(value)-1] == '"') ||
-			(value[0] == '\'' && value[len(value)-1] == '\'') {
-			return value[1 : len(value)-1]
-		}
-	}
-	return value
-}
-
-func isValidName(name string) bool {
-	if name == "" || len(name) > maxNameLength {
-		return false
-	}
-	return namePattern.MatchString(name)
-}
-
-func parseFrontmatter(content string) (frontmatter, string) {
-	fm := frontmatter{}
-
-	normalizedContent := strings.ReplaceAll(content, "\r\n", "\n")
-	normalizedContent = strings.ReplaceAll(normalizedContent, "\r", "\n")
-
-	if !strings.HasPrefix(normalizedContent, "---") {
-		return fm, normalizedContent
-	}
-
-	endIndex := strings.Index(normalizedContent[3:], "\n---")
-	if endIndex == -1 {
-		return fm, normalizedContent
-	}
-
-	frontmatterBlock := normalizedContent[4 : endIndex+3]
-	body := strings.TrimSpace(normalizedContent[endIndex+7:])
-
-	lineRegex := regexp.MustCompile(`^([\w-]+):\s*(.*)$`)
-	metadataRegex := regexp.MustCompile(`^\s+(\w+):\s*(.*)$`)
-	inMetadata := false
-
-	for line := range strings.SplitSeq(frontmatterBlock, "\n") {
-		if inMetadata {
-			matches := metadataRegex.FindStringSubmatch(line)
-			if matches != nil {
-				key := matches[1]
-				value := stripQuotes(strings.TrimSpace(matches[2]))
-				if fm.Metadata == nil {
-					fm.Metadata = make(map[string]string)
-				}
-				fm.Metadata[key] = value
-				continue
-			}
-			inMetadata = false
-		}
-
-		matches := lineRegex.FindStringSubmatch(line)
-		if matches != nil {
-			key := matches[1]
-			value := stripQuotes(strings.TrimSpace(matches[2]))
-			switch key {
-			case "name":
-				fm.Name = value
-			case "description":
-				fm.Description = value
-			case "license":
-				fm.License = value
-			case "compatibility":
-				fm.Compatibility = value
-			case "metadata":
-				inMetadata = true
-				fm.Metadata = make(map[string]string)
-			case "allowed-tools":
-				if value != "" {
-					fm.AllowedTools = strings.Fields(value)
-				}
-			}
-		}
-	}
-
-	return fm, body
-}
-
-func loadSkillsFromDir(dir string, format skillFormat) []Skill {
-	var skills []Skill
-
-	info, err := os.Stat(dir)
-	if err != nil || !info.IsDir() {
-		return skills
-	}
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return skills
-	}
-
-	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), ".") {
-			continue
-		}
-
-		if entry.Type()&os.ModeSymlink != 0 {
-			continue
-		}
-
-		fullPath := filepath.Join(dir, entry.Name())
-
-		switch format {
-		case formatClaude:
-			if !entry.IsDir() {
-				continue
-			}
-
-			skillFilePath := filepath.Join(fullPath, skillFile)
-			rawContent, err := os.ReadFile(skillFilePath)
-			if err != nil {
-				continue
-			}
-
-			fm, _ := parseFrontmatter(string(rawContent))
-			if !isValidFrontmatter(fm, entry.Name()) {
-				continue
-			}
-
-			name := cmp.Or(fm.Name, entry.Name())
-
-			skills = append(skills, Skill{
-				Name:          name,
-				Description:   fm.Description,
-				FilePath:      skillFilePath,
-				BaseDir:       fullPath,
-				License:       fm.License,
-				Compatibility: fm.Compatibility,
-				Metadata:      fm.Metadata,
-				AllowedTools:  fm.AllowedTools,
-			})
-
-		case formatCodex:
-			if entry.IsDir() {
-				skills = append(skills, loadSkillsFromDir(fullPath, format)...)
-			} else if entry.Name() == skillFile {
-				rawContent, err := os.ReadFile(fullPath)
-				if err != nil {
-					continue
-				}
-
-				skillDir := filepath.Dir(fullPath)
-				dirName := filepath.Base(skillDir)
-
-				fm, _ := parseFrontmatter(string(rawContent))
-				if !isValidFrontmatter(fm, dirName) {
-					continue
-				}
-
-				name := cmp.Or(fm.Name, dirName)
-
-				skills = append(skills, Skill{
-					Name:          name,
-					Description:   fm.Description,
-					FilePath:      fullPath,
-					BaseDir:       skillDir,
-					License:       fm.License,
-					Compatibility: fm.Compatibility,
-					Metadata:      fm.Metadata,
-					AllowedTools:  fm.AllowedTools,
-				})
-			}
-		}
-	}
-
-	return skills
-}
-
-func isValidFrontmatter(fm frontmatter, dirName string) bool {
-	if fm.Description == "" || len(fm.Description) > maxDescriptionLength {
-		return false
-	}
-
-	if fm.Compatibility != "" && len(fm.Compatibility) > maxCompatLength {
-		return false
-	}
-
-	if fm.Name != "" {
-		if !isValidName(fm.Name) {
-			return false
-		}
-		if fm.Name != dirName {
-			return false
-		}
-	}
-
-	return true
-}
-
+// Load discovers and loads all skills from standard locations.
+// Skills are loaded from (in order, later overrides earlier):
+//   - ~/.codex/skills/ (recursive)
+//   - ~/.claude/skills/ (flat)
+//   - ./.claude/skills/ (flat, project-local)
 func Load() []Skill {
 	skillMap := make(map[string]Skill)
 
 	homeDir := paths.GetHomeDir()
-	if homeDir == "" {
-		return nil
+	if homeDir != "" {
+		// Load from codex directory (recursive)
+		for _, skill := range loadSkillsFromDir(filepath.Join(homeDir, ".codex", "skills"), true) {
+			skillMap[skill.Name] = skill
+		}
+		// Load from claude user directory (flat)
+		for _, skill := range loadSkillsFromDir(filepath.Join(homeDir, ".claude", "skills"), false) {
+			skillMap[skill.Name] = skill
+		}
 	}
 
-	codexUserDir := filepath.Join(homeDir, ".codex", "skills")
-	for _, skill := range loadSkillsFromDir(codexUserDir, formatCodex) {
-		skillMap[skill.Name] = skill
-	}
-
-	claudeUserDir := filepath.Join(homeDir, ".claude", "skills")
-	for _, skill := range loadSkillsFromDir(claudeUserDir, formatClaude) {
-		skillMap[skill.Name] = skill
-	}
-
-	cwd, err := os.Getwd()
-	if err == nil {
-		claudeProjectDir := filepath.Join(cwd, ".claude", "skills")
-		for _, skill := range loadSkillsFromDir(claudeProjectDir, formatClaude) {
+	// Load from project directory (flat)
+	if cwd, err := os.Getwd(); err == nil {
+		for _, skill := range loadSkillsFromDir(filepath.Join(cwd, ".claude", "skills"), false) {
 			skillMap[skill.Name] = skill
 		}
 	}
@@ -267,10 +66,10 @@ func Load() []Skill {
 	for _, skill := range skillMap {
 		result = append(result, skill)
 	}
-
 	return result
 }
 
+// BuildSkillsPrompt generates a prompt section describing available skills.
 func BuildSkillsPrompt(skills []Skill) string {
 	if len(skills) == 0 {
 		return ""
@@ -296,7 +95,146 @@ func BuildSkillsPrompt(skills []Skill) string {
 		sb.WriteString("</location>\n")
 		sb.WriteString("  </skill>\n")
 	}
-
 	sb.WriteString("</available_skills>")
+
 	return sb.String()
+}
+
+// loadSkillsFromDir loads skills from a directory.
+// If recursive is true, it walks all subdirectories looking for SKILL.md files.
+// If recursive is false, it only looks for SKILL.md in immediate subdirectories.
+func loadSkillsFromDir(dir string, recursive bool) []Skill {
+	info, err := os.Stat(dir)
+	if err != nil || !info.IsDir() {
+		return nil
+	}
+
+	if recursive {
+		return loadSkillsRecursive(dir)
+	}
+	return loadSkillsFlat(dir)
+}
+
+// loadSkillsFlat loads skills from immediate subdirectories only (Claude format).
+func loadSkillsFlat(dir string) []Skill {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+
+	var skills []Skill
+	for _, entry := range entries {
+		if !entry.IsDir() || isHiddenOrSymlink(entry) {
+			continue
+		}
+
+		skillDir := filepath.Join(dir, entry.Name())
+		skillFilePath := filepath.Join(skillDir, skillFile)
+
+		skill, ok := loadSkillFile(skillFilePath, entry.Name())
+		if ok {
+			skills = append(skills, skill)
+		}
+	}
+	return skills
+}
+
+// loadSkillsRecursive loads skills from all subdirectories (Codex format).
+func loadSkillsRecursive(dir string) []Skill {
+	var skills []Skill
+
+	_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		if isHiddenOrSymlink(d) || d.Name() != skillFile {
+			return nil
+		}
+
+		skillDir := filepath.Dir(path)
+		dirName := filepath.Base(skillDir)
+
+		if skill, ok := loadSkillFile(path, dirName); ok {
+			skills = append(skills, skill)
+		}
+		return nil
+	})
+
+	return skills
+}
+
+// loadSkillFile reads and parses a SKILL.md file.
+func loadSkillFile(path, dirName string) (Skill, bool) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return Skill{}, false
+	}
+
+	skill, ok := parseFrontmatter(string(content))
+	if !ok || !isValidSkill(skill, dirName) {
+		return Skill{}, false
+	}
+
+	skill.Name = cmp.Or(skill.Name, dirName)
+	skill.FilePath = path
+	skill.BaseDir = filepath.Dir(path)
+
+	return skill, true
+}
+
+// parseFrontmatter extracts YAML frontmatter from a markdown file.
+// Returns the parsed Skill and whether parsing was successful.
+func parseFrontmatter(content string) (Skill, bool) {
+	content = strings.ReplaceAll(content, "\r\n", "\n")
+	content = strings.ReplaceAll(content, "\r", "\n")
+
+	if !strings.HasPrefix(content, "---") {
+		return Skill{}, false
+	}
+
+	endIndex := strings.Index(content[3:], "\n---")
+	if endIndex == -1 {
+		return Skill{}, false
+	}
+
+	frontmatterBlock := content[4 : endIndex+3]
+
+	var skill Skill
+	if err := yaml.Unmarshal([]byte(frontmatterBlock), &skill); err != nil {
+		return Skill{}, false
+	}
+
+	return skill, true
+}
+
+// isValidSkill validates skill constraints.
+func isValidSkill(skill Skill, dirName string) bool {
+	// Description is required and has a max length
+	if skill.Description == "" || len(skill.Description) > maxDescriptionLength {
+		return false
+	}
+
+	// Compatibility has a max length
+	if len(skill.Compatibility) > maxCompatLength {
+		return false
+	}
+
+	// If name is set, it must be valid and match the directory name
+	if skill.Name != "" {
+		if !isValidName(skill.Name) || skill.Name != dirName {
+			return false
+		}
+	}
+
+	return true
+}
+
+// isValidName checks if a skill name follows the naming convention.
+func isValidName(name string) bool {
+	return name != "" && len(name) <= maxNameLength && namePattern.MatchString(name)
+}
+
+// isHiddenOrSymlink returns true for hidden files/dirs or symlinks.
+func isHiddenOrSymlink(entry fs.DirEntry) bool {
+	return strings.HasPrefix(entry.Name(), ".") || entry.Type()&os.ModeSymlink != 0
 }

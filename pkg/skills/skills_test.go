@@ -12,10 +12,10 @@ import (
 
 func TestParseFrontmatter(t *testing.T) {
 	tests := []struct {
-		name     string
-		content  string
-		wantFM   frontmatter
-		wantBody string
+		name    string
+		content string
+		want    Skill
+		wantOK  bool
 	}{
 		{
 			name: "valid frontmatter",
@@ -25,8 +25,8 @@ description: A test skill
 ---
 
 # Skill Content`,
-			wantFM:   frontmatter{Name: "my-skill", Description: "A test skill"},
-			wantBody: "# Skill Content",
+			want:   Skill{Name: "my-skill", Description: "A test skill"},
+			wantOK: true,
 		},
 		{
 			name: "quoted values",
@@ -36,14 +36,14 @@ description: 'single quoted desc'
 ---
 
 Body`,
-			wantFM:   frontmatter{Name: "quoted-name", Description: "single quoted desc"},
-			wantBody: "Body",
+			want:   Skill{Name: "quoted-name", Description: "single quoted desc"},
+			wantOK: true,
 		},
 		{
-			name:     "no frontmatter",
-			content:  "# Just content\n\nNo frontmatter here.",
-			wantFM:   frontmatter{},
-			wantBody: "# Just content\n\nNo frontmatter here.",
+			name:    "no frontmatter",
+			content: "# Just content\n\nNo frontmatter here.",
+			want:    Skill{},
+			wantOK:  false,
 		},
 		{
 			name: "only description",
@@ -52,20 +52,20 @@ description: Just a description
 ---
 
 Content`,
-			wantFM:   frontmatter{Description: "Just a description"},
-			wantBody: "Content",
+			want:   Skill{Description: "Just a description"},
+			wantOK: true,
 		},
 		{
-			name:     "windows line endings",
-			content:  "---\r\nname: windows\r\ndescription: Windows skill\r\n---\r\n\r\nBody",
-			wantFM:   frontmatter{Name: "windows", Description: "Windows skill"},
-			wantBody: "Body",
+			name:    "windows line endings",
+			content: "---\r\nname: windows\r\ndescription: Windows skill\r\n---\r\n\r\nBody",
+			want:    Skill{Name: "windows", Description: "Windows skill"},
+			wantOK:  true,
 		},
 		{
-			name:     "unclosed frontmatter",
-			content:  "---\nname: unclosed\ndescription: No closing\n\nBody",
-			wantFM:   frontmatter{},
-			wantBody: "---\nname: unclosed\ndescription: No closing\n\nBody",
+			name:    "unclosed frontmatter",
+			content: "---\nname: unclosed\ndescription: No closing\n\nBody",
+			want:    Skill{},
+			wantOK:  false,
 		},
 		{
 			name: "all optional fields",
@@ -77,11 +77,14 @@ compatibility: Requires docker and git
 metadata:
   author: test-org
   version: "1.0"
-allowed-tools: Bash(git:*) Read Write
+allowed-tools:
+  - Bash(git:*)
+  - Read
+  - Write
 ---
 
 Body`,
-			wantFM: frontmatter{
+			want: Skill{
 				Name:          "full-skill",
 				Description:   "A complete skill",
 				License:       "Apache-2.0",
@@ -89,37 +92,22 @@ Body`,
 				Metadata:      map[string]string{"author": "test-org", "version": "1.0"},
 				AllowedTools:  []string{"Bash(git:*)", "Read", "Write"},
 			},
-			wantBody: "Body",
+			wantOK: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fm, body := parseFrontmatter(tt.content)
-			assert.Equal(t, tt.wantFM, fm)
-			assert.Equal(t, tt.wantBody, body)
-		})
-	}
-}
-
-func TestStripQuotes(t *testing.T) {
-	tests := []struct {
-		input string
-		want  string
-	}{
-		{`"double quoted"`, "double quoted"},
-		{`'single quoted'`, "single quoted"},
-		{`no quotes`, "no quotes"},
-		{`"mismatched'`, `"mismatched'`},
-		{`""`, ""},
-		{`''`, ""},
-		{`"`, `"`},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			got := stripQuotes(tt.input)
-			assert.Equal(t, tt.want, got)
+			got, ok := parseFrontmatter(tt.content)
+			assert.Equal(t, tt.wantOK, ok)
+			if tt.wantOK {
+				assert.Equal(t, tt.want.Name, got.Name)
+				assert.Equal(t, tt.want.Description, got.Description)
+				assert.Equal(t, tt.want.License, got.License)
+				assert.Equal(t, tt.want.Compatibility, got.Compatibility)
+				assert.Equal(t, tt.want.Metadata, got.Metadata)
+				assert.Equal(t, tt.want.AllowedTools, got.AllowedTools)
+			}
 		})
 	}
 }
@@ -156,7 +144,7 @@ func TestIsValidName(t *testing.T) {
 	}
 }
 
-func TestLoadSkillsFromDir_Claude(t *testing.T) {
+func TestLoadSkillsFromDir_Flat(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	skillDir := filepath.Join(tmpDir, "pdf-extractor")
@@ -172,7 +160,7 @@ Use pdftotext to extract content.
 `
 	require.NoError(t, os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0o644))
 
-	skills := loadSkillsFromDir(tmpDir, formatClaude)
+	skills := loadSkillsFromDir(tmpDir, false)
 
 	require.Len(t, skills, 1)
 	assert.Equal(t, "pdf-extractor", skills[0].Name)
@@ -181,7 +169,7 @@ Use pdftotext to extract content.
 	assert.Equal(t, skillDir, skills[0].BaseDir)
 }
 
-func TestLoadSkillsFromDir_Codex(t *testing.T) {
+func TestLoadSkillsFromDir_Recursive(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	nestedDir := filepath.Join(tmpDir, "db", "migrate")
@@ -198,7 +186,7 @@ Run migrations with care.
 `
 	require.NoError(t, os.WriteFile(filepath.Join(nestedDir, "SKILL.md"), []byte(skillContent), 0o644))
 
-	skills := loadSkillsFromDir(tmpDir, formatCodex)
+	skills := loadSkillsFromDir(tmpDir, true)
 
 	require.Len(t, skills, 1)
 	assert.Equal(t, "migrate", skills[0].Name)
@@ -214,7 +202,7 @@ func TestLoadSkillsFromDir_SkipHiddenAndSymlinks(t *testing.T) {
 	require.NoError(t, os.MkdirAll(hiddenDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(hiddenDir, "SKILL.md"), []byte("---\ndescription: Hidden\n---\n"), 0o644))
 
-	skills := loadSkillsFromDir(tmpDir, formatClaude)
+	skills := loadSkillsFromDir(tmpDir, false)
 	assert.Empty(t, skills)
 }
 
@@ -234,7 +222,7 @@ This skill has no description field.
 `
 	require.NoError(t, os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0o644))
 
-	skills := loadSkillsFromDir(tmpDir, formatClaude)
+	skills := loadSkillsFromDir(tmpDir, false)
 	assert.Empty(t, skills)
 }
 
@@ -253,7 +241,7 @@ description: A skill with mismatched name
 `
 	require.NoError(t, os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0o644))
 
-	skills := loadSkillsFromDir(tmpDir, formatClaude)
+	skills := loadSkillsFromDir(tmpDir, false)
 	assert.Empty(t, skills, "skill with name not matching directory should be skipped")
 }
 
@@ -272,7 +260,7 @@ description: A skill with invalid name format
 `
 	require.NoError(t, os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0o644))
 
-	skills := loadSkillsFromDir(tmpDir, formatClaude)
+	skills := loadSkillsFromDir(tmpDir, false)
 	assert.Empty(t, skills, "skill with invalid name format should be skipped")
 }
 
@@ -286,7 +274,7 @@ func TestLoadSkillsFromDir_SkipDescriptionTooLong(t *testing.T) {
 	skillContent := "---\nname: long-desc\ndescription: " + longDesc + "\n---\n\n# Long\n"
 	require.NoError(t, os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0o644))
 
-	skills := loadSkillsFromDir(tmpDir, formatClaude)
+	skills := loadSkillsFromDir(tmpDir, false)
 	assert.Empty(t, skills, "skill with description > 1024 chars should be skipped")
 }
 
@@ -300,7 +288,7 @@ func TestLoadSkillsFromDir_SkipCompatibilityTooLong(t *testing.T) {
 	skillContent := "---\nname: long-compat\ndescription: A skill\ncompatibility: " + longCompat + "\n---\n\n# Long\n"
 	require.NoError(t, os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0o644))
 
-	skills := loadSkillsFromDir(tmpDir, formatClaude)
+	skills := loadSkillsFromDir(tmpDir, false)
 	assert.Empty(t, skills, "skill with compatibility > 500 chars should be skipped")
 }
 
@@ -318,14 +306,16 @@ compatibility: Requires docker
 metadata:
   author: test-org
   version: "2.0"
-allowed-tools: Bash(git:*) Read
+allowed-tools:
+  - Bash(git:*)
+  - Read
 ---
 
 # Full Skill
 `
 	require.NoError(t, os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0o644))
 
-	skills := loadSkillsFromDir(tmpDir, formatClaude)
+	skills := loadSkillsFromDir(tmpDir, false)
 
 	require.Len(t, skills, 1)
 	assert.Equal(t, "full-skill", skills[0].Name)
@@ -337,7 +327,7 @@ allowed-tools: Bash(git:*) Read
 }
 
 func TestLoadSkillsFromDir_NonExistentDir(t *testing.T) {
-	skills := loadSkillsFromDir("/nonexistent/path/12345", formatClaude)
+	skills := loadSkillsFromDir("/nonexistent/path/12345", false)
 	assert.Empty(t, skills)
 }
 
