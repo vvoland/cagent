@@ -685,7 +685,10 @@ func (p *chatPage) processMessage(msg editor.SendMsg) tea.Cmd {
 		return cmd
 	}
 
-	p.app.Run(ctx, p.msgCancel, msg.Content, msg.Attachments)
+	// Resolve agent commands (e.g., /fix-lint -> prompt text)
+	resolvedContent := p.app.ResolveCommand(ctx, msg.Content)
+
+	p.app.Run(ctx, p.msgCancel, resolvedContent, msg.Attachments)
 
 	return p.messages.ScrollToBottom()
 }
