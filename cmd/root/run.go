@@ -56,9 +56,10 @@ func newRunCmd() *cobra.Command {
   cagent run ./echo.yaml "INSTRUCTIONS"
   echo "INSTRUCTIONS" | cagent run ./echo.yaml -
   cagent run ./agent.yaml --record  # Records session to auto-generated file`,
-		GroupID: "core",
-		Args:    cobra.RangeArgs(0, 2),
-		RunE:    flags.runRunCommand,
+		GroupID:           "core",
+		ValidArgsFunction: completeRunExec,
+		Args:              cobra.RangeArgs(0, 2),
+		RunE:              flags.runRunCommand,
 	}
 
 	addRunOrExecFlags(cmd, &flags)
