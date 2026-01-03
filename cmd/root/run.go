@@ -123,14 +123,16 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 	}
 
 	var (
-		rt   runtime.Runtime
-		sess *session.Session
+		rt      runtime.Runtime
+		sess    *session.Session
+		cleanup func()
 	)
 	if f.remoteAddress != "" {
 		rt, sess, err = f.createRemoteRuntimeAndSession(ctx, agentFileName)
 		if err != nil {
 			return err
 		}
+		cleanup = func() {} // Remote runtime doesn't need local cleanup
 	} else {
 		agentSource, err := config.Resolve(agentFileName)
 		if err != nil {
@@ -146,7 +148,17 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 		if err != nil {
 			return err
 		}
+
+		// Setup cleanup for local runtime
+		cleanup = func() {
+			// Use a fresh context for cleanup since the original may be canceled
+			cleanupCtx := context.WithoutCancel(ctx)
+			if err := t.StopToolSets(cleanupCtx); err != nil {
+				slog.Error("Failed to stop tool sets", "error", err)
+			}
+		}
 	}
+	defer cleanup()
 
 	if f.dryRun {
 		out.Println("Dry run mode enabled. Agent initialized but will not execute.")
@@ -165,13 +177,6 @@ func (f *runExecFlags) loadAgentFrom(ctx context.Context, agentSource config.Sou
 	if err != nil {
 		return nil, err
 	}
-
-	go func() {
-		<-ctx.Done()
-		if err := t.StopToolSets(ctx); err != nil {
-			slog.Error("Failed to stop tool sets", "error", err)
-		}
-	}()
 
 	return t, nil
 }

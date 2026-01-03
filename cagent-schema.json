@@ -468,6 +468,10 @@
         "name": {
           "type": "string",
           "description": "Name for the a2a tool"
+        },
+        "sandbox": {
+          "$ref": "#/definitions/SandboxConfig",
+          "description": "Sandbox configuration for running shell commands in a Docker container (shell tool only)"
         }
       },
       "additionalProperties": false,
@@ -590,6 +594,39 @@
       },
       "required": [
         "url"
+      ],
+      "additionalProperties": false
+    },
+    "SandboxConfig": {
+      "type": "object",
+      "description": "Configuration for running shell commands inside a sandboxed Docker container",
+      "properties": {
+        "image": {
+          "type": "string",
+          "description": "Docker image to use for the sandbox container. Defaults to 'alpine:latest' if not specified.",
+          "examples": [
+            "alpine:latest",
+            "ubuntu:22.04",
+            "python:3.12-alpine",
+            "node:20-alpine"
+          ]
+        },
+        "paths": {
+          "type": "array",
+          "description": "List of paths to bind-mount into the container. Each path can have an optional ':ro' suffix for read-only access (default is read-write ':rw'). Relative paths are resolved from the agent's working directory.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "examples": [
+            [".", "/tmp"],
+            ["./src", "./config:ro"],
+            ["/data:rw", "/secrets:ro"]
+          ]
+        }
+      },
+      "required": [
+        "paths"
       ],
       "additionalProperties": false
     },
