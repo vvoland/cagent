@@ -211,8 +211,10 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 			opts = append(opts, options.WithMaxTokens(*maxTokens))
 		}
 
-		model, err := provider.New(ctx,
+		// Pass the full models map for routing rules to resolve model references
+		model, err := provider.NewWithModels(ctx,
 			&modelCfg,
+			cfg.Models,
 			runConfig.EnvProvider(),
 			opts...,
 		)

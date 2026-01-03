@@ -339,7 +339,12 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []types.Doc
 		"additionalProperties": false,
 	}
 
+	// Default to 8192 if maxTokens is not set (0)
+	// This is a safe default that works for all Anthropic models
 	maxTokens := c.ModelOptions.MaxTokens()
+	if maxTokens == 0 {
+		maxTokens = 8192
+	}
 	params := anthropic.BetaMessageNewParams{
 		Model:     anthropic.Model(c.ModelConfig.Model),
 		MaxTokens: maxTokens,

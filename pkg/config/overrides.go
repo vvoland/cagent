@@ -93,6 +93,15 @@ func ensureModelsExist(cfg *latest.Config) error {
 		}
 	}
 
+	// Ensure models referenced by routing rules exist
+	for modelName, modelCfg := range cfg.Models {
+		for i, rule := range modelCfg.Routing {
+			if err := ensureSingleModelExists(cfg, rule.Model, fmt.Sprintf("routing rule %d in model '%s'", i, modelName)); err != nil {
+				return err
+			}
+		}
+	}
+
 	// Ensure models referenced by RAG strategies exist
 	for ragName, ragCfg := range cfg.RAG {
 		for _, stratCfg := range ragCfg.Strategies {

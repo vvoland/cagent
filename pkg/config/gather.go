@@ -56,34 +56,59 @@ func GatherEnvVarsForModels(cfg *latest.Config) []string {
 		modelNames := strings.SplitSeq(cfg.Agents[agentName].Model, ",")
 		for modelName := range modelNames {
 			modelName = strings.TrimSpace(modelName)
-			model := cfg.Models[modelName]
-
-			if model.TokenKey != "" {
-				requiredEnv[model.TokenKey] = true
-			} else if alias, exists := provider.Aliases[model.Provider]; exists {
-				// Use the token environment variable from the alias if available
-				if alias.TokenEnvVar != "" {
-					requiredEnv[alias.TokenEnvVar] = true
-				}
-			} else {
-				// Fallback to hardcoded mappings for unknown providers
-				switch model.Provider {
-				case "openai":
-					requiredEnv["OPENAI_API_KEY"] = true
-				case "anthropic":
-					requiredEnv["ANTHROPIC_API_KEY"] = true
-				case "google":
-					if model.ProviderOpts["project"] == nil && model.ProviderOpts["location"] == nil {
-						requiredEnv["GOOGLE_API_KEY"] = true
-					}
-				case "mistral":
-					requiredEnv["MISTRAL_API_KEY"] = true
-				}
-			}
+			gatherEnvVarsForModel(cfg, modelName, requiredEnv)
 		}
 	}
 
 	return sortedKeys(requiredEnv)
+}
+
+// gatherEnvVarsForModel collects required environment variables for a single model,
+// including any models referenced in its routing rules.
+func gatherEnvVarsForModel(cfg *latest.Config, modelName string, requiredEnv map[string]bool) {
+	model := cfg.Models[modelName]
+
+	// Add env vars for the model itself
+	addEnvVarsForModelConfig(&model, requiredEnv)
+
+	// If the model has routing rules, also check all referenced models
+	for _, rule := range model.Routing {
+		ruleModelName := rule.Model
+		if ruleModel, exists := cfg.Models[ruleModelName]; exists {
+			// Model reference - add its env vars
+			addEnvVarsForModelConfig(&ruleModel, requiredEnv)
+		} else if providerName, _, ok := strings.Cut(ruleModelName, "/"); ok {
+			// Inline spec (e.g., "openai/gpt-4o") - infer env vars from provider
+			inlineModel := latest.ModelConfig{Provider: providerName}
+			addEnvVarsForModelConfig(&inlineModel, requiredEnv)
+		}
+	}
+}
+
+// addEnvVarsForModelConfig adds required environment variables for a model config.
+func addEnvVarsForModelConfig(model *latest.ModelConfig, requiredEnv map[string]bool) {
+	if model.TokenKey != "" {
+		requiredEnv[model.TokenKey] = true
+	} else if alias, exists := provider.Aliases[model.Provider]; exists {
+		// Use the token environment variable from the alias if available
+		if alias.TokenEnvVar != "" {
+			requiredEnv[alias.TokenEnvVar] = true
+		}
+	} else {
+		// Fallback to hardcoded mappings for unknown providers
+		switch model.Provider {
+		case "openai":
+			requiredEnv["OPENAI_API_KEY"] = true
+		case "anthropic":
+			requiredEnv["ANTHROPIC_API_KEY"] = true
+		case "google":
+			if model.ProviderOpts["project"] == nil && model.ProviderOpts["location"] == nil {
+				requiredEnv["GOOGLE_API_KEY"] = true
+			}
+		case "mistral":
+			requiredEnv["MISTRAL_API_KEY"] = true
+		}
+	}
 }
 
 func GatherEnvVarsForTools(ctx context.Context, cfg *latest.Config) ([]string, error) {

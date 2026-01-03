@@ -104,9 +104,16 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		return nil, errors.New("model type must be 'anthropic'")
 	}
 
+	if env == nil {
+		slog.Error("Anthropic client creation failed", "error", "environment provider is required")
+		return nil, errors.New("environment provider is required")
+	}
+
 	var globalOptions options.ModelOptions
 	for _, opt := range opts {
-		opt(&globalOptions)
+		if opt != nil {
+			opt(&globalOptions)
+		}
 	}
 
 	var clientFn func(context.Context) (anthropic.Client, error)
@@ -194,7 +201,12 @@ func (c *Client) CreateChatCompletionStream(
 		"message_count", len(messages),
 		"tool_count", len(requestTools))
 
+	// Default to 8192 if maxTokens is not set (0)
+	// This is a safe default that works for all Anthropic models
 	maxTokens := c.ModelOptions.MaxTokens()
+	if maxTokens == 0 {
+		maxTokens = 8192
+	}
 	maxTokens, err := c.adjustMaxTokensForThinking(maxTokens)
 	if err != nil {
 		return nil, err

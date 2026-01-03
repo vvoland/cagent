@@ -53,7 +53,7 @@ type ModelConfig struct {
 	BaseURL           string   `json:"base_url,omitempty"`
 	ParallelToolCalls *bool    `json:"parallel_tool_calls,omitempty"`
 	TokenKey          string   `json:"token_key,omitempty"`
-	// ProviderOpts allows provider-specific options.
+	// ProviderOpts allows provider-specific options. Currently used for "dmr" provider only.
 	ProviderOpts map[string]any `json:"provider_opts,omitempty"`
 	TrackUsage   *bool          `json:"track_usage,omitempty"`
 	// ThinkingBudget controls reasoning effort/budget:
@@ -61,6 +61,20 @@ type ModelConfig struct {
 	// - For Anthropic: accepts integer token budget (1024-32000)
 	// - For other providers: may be ignored
 	ThinkingBudget *ThinkingBudget `json:"thinking_budget,omitempty"`
+	// Routing defines rules for routing requests to different models.
+	// When routing is configured, this model becomes a rule-based router:
+	// - The provider/model fields define the fallback model
+	// - Each routing rule maps to a different model based on examples
+	Routing []RoutingRule `json:"routing,omitempty"`
+}
+
+// RoutingRule defines a single routing rule for model selection.
+// Each rule maps example phrases to a target model.
+type RoutingRule struct {
+	// Model is a reference to another model in the models section or an inline model spec (e.g., "openai/gpt-4o")
+	Model string `json:"model"`
+	// Examples are phrases that should trigger routing to this model
+	Examples []string `json:"examples"`
 }
 
 type Metadata struct {
