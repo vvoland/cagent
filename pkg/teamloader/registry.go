@@ -115,7 +115,31 @@ func createShellTool(ctx context.Context, toolset latest.Toolset, _ string, runC
 		return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
 	}
 	env = append(env, os.Environ()...)
-	return builtin.NewShellTool(env, runConfig), nil
+
+	// Expand sandbox paths with JS interpolation (e.g., ${env.HOME}:ro)
+	sandboxConfig := expandSandboxPaths(ctx, toolset.Sandbox, runConfig.EnvProvider())
+
+	return builtin.NewShellTool(env, runConfig, sandboxConfig), nil
+}
+
+// expandSandboxPaths expands environment variable references in sandbox paths.
+// Supports JS template literal syntax like ${env.HOME} or ${env.HOME || '/default'}.
+func expandSandboxPaths(ctx context.Context, sandbox *latest.SandboxConfig, envProvider environment.Provider) *latest.SandboxConfig {
+	if sandbox == nil {
+		return nil
+	}
+
+	expander := js.NewJsExpander(envProvider)
+
+	expandedPaths := make([]string, len(sandbox.Paths))
+	for i, p := range sandbox.Paths {
+		expandedPaths[i] = expander.Expand(ctx, p)
+	}
+
+	return &latest.SandboxConfig{
+		Image: sandbox.Image,
+		Paths: expandedPaths,
+	}
 }
 
 func createScriptTool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig) (tools.ToolSet, error) {

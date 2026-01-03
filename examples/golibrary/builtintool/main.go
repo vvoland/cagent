@@ -47,7 +47,7 @@ func run(ctx context.Context) error {
 				"root",
 				"You are an expert hacker",
 				agent.WithModel(llm),
-				agent.WithToolSets(builtin.NewShellTool(os.Environ(), &config.RuntimeConfig{Config: config.Config{WorkingDir: "/tmp"}})),
+				agent.WithToolSets(builtin.NewShellTool(os.Environ(), &config.RuntimeConfig{Config: config.Config{WorkingDir: "/tmp"}}, nil)),
 			),
 		),
 	)

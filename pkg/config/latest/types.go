@@ -141,6 +141,9 @@ type Toolset struct {
 	// For `shell`, `script`, `mcp` or `lsp` tools
 	Env map[string]string `json:"env,omitempty"`
 
+	// For the `shell` tool - sandbox mode
+	Sandbox *SandboxConfig `json:"sandbox,omitempty"`
+
 	// For the `todo` tool
 	Shared bool `json:"shared,omitempty"`
 
@@ -176,6 +179,21 @@ type Remote struct {
 	URL           string            `json:"url"`
 	TransportType string            `json:"transport_type,omitempty"`
 	Headers       map[string]string `json:"headers,omitempty"`
+}
+
+// SandboxConfig represents the configuration for running shell commands in a Docker container.
+// When enabled, all shell commands run inside a sandboxed Linux container with only
+// specified paths bind-mounted.
+type SandboxConfig struct {
+	// Image is the Docker image to use for the sandbox container.
+	// Defaults to "alpine:latest" if not specified.
+	Image string `json:"image,omitempty"`
+
+	// Paths is a list of paths to bind-mount into the container.
+	// Each path can optionally have a ":ro" suffix for read-only access.
+	// Default is read-write (:rw) if no suffix is specified.
+	// Example: [".", "/tmp", "/config:ro"]
+	Paths []string `json:"paths"`
 }
 
 // DeferConfig represents the deferred loading configuration for a toolset.
