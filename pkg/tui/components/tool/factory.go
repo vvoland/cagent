@@ -2,7 +2,6 @@ package tool
 
 import (
 	"github.com/docker/cagent/pkg/tools/builtin"
-	"github.com/docker/cagent/pkg/tui/components/tool/allowed"
 	"github.com/docker/cagent/pkg/tui/components/tool/api"
 	"github.com/docker/cagent/pkg/tui/components/tool/defaulttool"
 	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
@@ -77,7 +76,6 @@ func newDefaultRegistry() *Registry {
 		{[]string{builtin.ToolNameListDirectory}, listdirectory.New},
 		{[]string{builtin.ToolNameSearchFiles}, searchfiles.New},
 		{[]string{builtin.ToolNameShell}, shell.New},
-		{[]string{builtin.ToolNameAddAllowedDirectory}, allowed.New},
 		{[]string{builtin.ToolNameFetch, "category:api"}, api.New},
 		{
 			[]string{
