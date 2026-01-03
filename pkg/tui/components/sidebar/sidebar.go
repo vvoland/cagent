@@ -13,6 +13,7 @@ import (
 
 	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/runtime"
+	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/components/tab"
@@ -43,6 +44,7 @@ type Model interface {
 	SetAgentSwitching(switching bool)
 	SetToolsetInfo(availableTools int, loading bool)
 	GetSize() (width, height int)
+	LoadFromSession(sess *session.Session)
 }
 
 // ragIndexingState tracks per-strategy indexing progress
@@ -129,6 +131,27 @@ func (m *model) SetAgentSwitching(switching bool) {
 func (m *model) SetToolsetInfo(availableTools int, loading bool) {
 	m.availableTools = availableTools
 	m.toolsLoading = loading
+}
+
+// LoadFromSession loads sidebar state from a restored session
+func (m *model) LoadFromSession(sess *session.Session) {
+	if sess == nil {
+		return
+	}
+
+	// Load token usage from session
+	if sess.InputTokens > 0 || sess.OutputTokens > 0 || sess.Cost > 0 {
+		m.sessionUsage[sess.ID] = &runtime.Usage{
+			InputTokens:  sess.InputTokens,
+			OutputTokens: sess.OutputTokens,
+			Cost:         sess.Cost,
+		}
+	}
+
+	// Load session title
+	if sess.Title != "" {
+		m.sessionTitle = sess.Title
+	}
 }
 
 // formatTokenCount formats a token count with K/M suffixes for readability

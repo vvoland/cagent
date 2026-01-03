@@ -31,10 +31,12 @@ type commandPaletteDialog struct {
 
 // commandPaletteKeyMap defines key bindings for the command palette
 type commandPaletteKeyMap struct {
-	Up     key.Binding
-	Down   key.Binding
-	Enter  key.Binding
-	Escape key.Binding
+	Up       key.Binding
+	Down     key.Binding
+	PageUp   key.Binding
+	PageDown key.Binding
+	Enter    key.Binding
+	Escape   key.Binding
 }
 
 // defaultCommandPaletteKeyMap returns default key bindings
@@ -47,6 +49,14 @@ func defaultCommandPaletteKeyMap() commandPaletteKeyMap {
 		Down: key.NewBinding(
 			key.WithKeys("down", "ctrl+j"),
 			key.WithHelp("↓/ctrl+j", "down"),
+		),
+		PageUp: key.NewBinding(
+			key.WithKeys("pgup"),
+			key.WithHelp("pgup", "page up"),
+		),
+		PageDown: key.NewBinding(
+			key.WithKeys("pgdown"),
+			key.WithHelp("pgdown", "page down"),
 		),
 		Enter: key.NewBinding(
 			key.WithKeys("enter"),

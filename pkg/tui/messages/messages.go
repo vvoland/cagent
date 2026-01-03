@@ -10,7 +10,9 @@ type (
 	ToggleYoloMsg             struct{}
 	ToggleHideToolResultsMsg  struct{}
 	StartShellMsg             struct{}
-	SwitchAgentMsg            struct{ AgentName string } // Switch to a specific agent by name
+	SwitchAgentMsg            struct{ AgentName string }
+	OpenSessionBrowserMsg     struct{}
+	LoadSessionMsg            struct{ SessionID string }
 )
 
 // AgentCommandMsg command message

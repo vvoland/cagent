@@ -175,6 +175,12 @@ func (p *chatPage) Init() tea.Cmd {
 		p.editor.Focus(),
 	)
 
+	// Load messages from existing session (for session restore)
+	if sess := p.app.Session(); sess != nil && len(sess.Messages) > 0 {
+		cmds = append(cmds, p.messages.LoadFromSession(sess))
+		p.sidebar.LoadFromSession(sess)
+	}
+
 	return tea.Batch(cmds...)
 }
 
