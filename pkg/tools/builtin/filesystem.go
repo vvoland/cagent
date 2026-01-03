@@ -347,11 +347,6 @@ func (t *FilesystemTool) executePostEditCommands(ctx context.Context, filePath s
 
 // Security helper to check if path is allowed
 func (t *FilesystemTool) isPathAllowed(path string) error {
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return fmt.Errorf("unable to resolve absolute path: %w", err)
-	}
-
 	if len(t.allowedDirectories) == 0 {
 		return fmt.Errorf("no allowed directories configured")
 	}
@@ -362,10 +357,17 @@ func (t *FilesystemTool) isPathAllowed(path string) error {
 			continue
 		}
 
+		checkPath := filepath.Clean(path)
+
+		if !filepath.IsAbs(checkPath) {
+			// For relative paths, resolve them relative to the allowed directory
+			checkPath = filepath.Join(allowedAbs, checkPath)
+		}
+
 		// Check if path matches exactly or is a subdirectory (with separator check)
 		// This prevents sibling directories with similar names from bypassing the check
 		// (e.g., /project-secrets when /project is allowed)
-		if absPath == allowedAbs || strings.HasPrefix(absPath, allowedAbs+string(filepath.Separator)) {
+		if checkPath == allowedAbs || strings.HasPrefix(checkPath, allowedAbs+string(filepath.Separator)) {
 			return nil
 		}
 	}
