@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config/latest"
@@ -14,6 +15,7 @@ import (
 	"github.com/docker/cagent/pkg/model/provider/gemini"
 	"github.com/docker/cagent/pkg/model/provider/openai"
 	"github.com/docker/cagent/pkg/model/provider/options"
+	"github.com/docker/cagent/pkg/model/provider/rulebased"
 	"github.com/docker/cagent/pkg/rag/types"
 	"github.com/docker/cagent/pkg/tools"
 )
@@ -99,9 +101,64 @@ type RerankingProvider interface {
 	Rerank(ctx context.Context, query string, documents []types.Document, criteria string) ([]float64, error)
 }
 
+// New creates a new provider from a model config.
+// This is a convenience wrapper for NewWithModels with no models map.
 func New(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider, opts ...options.Opt) (Provider, error) {
+	return NewWithModels(ctx, cfg, nil, env, opts...)
+}
+
+// NewWithModels creates a new provider from a model config with access to the full models map.
+// The models map is used to resolve model references in routing rules.
+func NewWithModels(ctx context.Context, cfg *latest.ModelConfig, models map[string]latest.ModelConfig, env environment.Provider, opts ...options.Opt) (Provider, error) {
 	slog.Debug("Creating model provider", "type", cfg.Provider, "model", cfg.Model)
 
+	// Check if this model has routing rules - if so, create a rule-based router
+	if len(cfg.Routing) > 0 {
+		return createRuleBasedRouter(ctx, cfg, models, env, opts...)
+	}
+
+	return createDirectProvider(ctx, cfg, env, opts...)
+}
+
+// createRuleBasedRouter creates a rule-based routing provider.
+func createRuleBasedRouter(ctx context.Context, cfg *latest.ModelConfig, models map[string]latest.ModelConfig, env environment.Provider, opts ...options.Opt) (Provider, error) {
+	// Create a provider factory that can resolve model references
+	factory := func(ctx context.Context, modelSpec string, models map[string]latest.ModelConfig, env environment.Provider, factoryOpts ...options.Opt) (rulebased.Provider, error) {
+		// Check if modelSpec is a reference to a model in the models map
+		if modelCfg, exists := models[modelSpec]; exists {
+			// Prevent infinite recursion - referenced models cannot have routing rules
+			if len(modelCfg.Routing) > 0 {
+				return nil, fmt.Errorf("model %q has routing rules and cannot be used as a routing target", modelSpec)
+			}
+			p, err := createDirectProvider(ctx, &modelCfg, env, factoryOpts...)
+			if err != nil {
+				return nil, err
+			}
+			return p, nil
+		}
+
+		// Otherwise, treat as an inline model spec (e.g., "openai/gpt-4o")
+		providerName, model, ok := strings.Cut(modelSpec, "/")
+		if !ok {
+			return nil, fmt.Errorf("invalid model spec %q: expected 'provider/model' format or a model reference", modelSpec)
+		}
+
+		inlineCfg := &latest.ModelConfig{
+			Provider: providerName,
+			Model:    model,
+		}
+		p, err := createDirectProvider(ctx, inlineCfg, env, factoryOpts...)
+		if err != nil {
+			return nil, err
+		}
+		return p, nil
+	}
+
+	return rulebased.NewClient(ctx, cfg, models, env, factory, opts...)
+}
+
+// createDirectProvider creates a provider without routing (direct model access).
+func createDirectProvider(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider, opts ...options.Opt) (Provider, error) {
 	// Apply provider alias defaults to the config
 	enhancedCfg := applyProviderDefaults(cfg)
 	apiType := ""

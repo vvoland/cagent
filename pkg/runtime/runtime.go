@@ -151,6 +151,7 @@ type streamResult struct {
 	ThinkingSignature string // Used with Anthropic's extended thinking feature
 	ThoughtSignature  []byte
 	Stopped           bool
+	ActualModel       string // The actual model used (may differ from configured model with routing)
 }
 
 type Opt func(*LocalRuntime)
@@ -907,6 +908,9 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 	var thinkingSignature string
 	var thoughtSignature []byte
 	var toolCalls []tools.ToolCall
+	var actualModel string
+	var actualModelEventEmitted bool
+	modelID := getAgentModelID(a)
 	// Track which tool call indices we've already emitted partial events for
 	emittedPartialEvents := make(map[string]bool)
 
@@ -947,6 +951,17 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 			thoughtSignature = choice.Delta.ThoughtSignature
 		}
 
+		// Capture the actual model from the stream response (useful for model routing)
+		// Emit AgentInfo immediately when we discover the actual model differs from configured
+		if actualModel == "" && response.Model != "" {
+			actualModel = response.Model
+			if !actualModelEventEmitted && actualModel != modelID {
+				slog.Debug("Detected actual model differs from configured model (streaming)", "configured", modelID, "actual", actualModel)
+				events <- AgentInfo(a.Name(), actualModel, a.Description(), a.WelcomeMessage())
+				actualModelEventEmitted = true
+			}
+		}
+
 		if choice.FinishReason == chat.FinishReasonStop || choice.FinishReason == chat.FinishReasonLength {
 			return streamResult{
 				Calls:             toolCalls,
@@ -955,6 +970,7 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 				ThinkingSignature: thinkingSignature,
 				ThoughtSignature:  thoughtSignature,
 				Stopped:           true,
+				ActualModel:       actualModel,
 			}, nil
 		}
 
@@ -1049,6 +1065,7 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 		ThinkingSignature: thinkingSignature,
 		ThoughtSignature:  thoughtSignature,
 		Stopped:           stoppedDueToNoOutput,
+		ActualModel:       actualModel,
 	}, nil
 }
 

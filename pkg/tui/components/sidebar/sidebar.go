@@ -110,11 +110,20 @@ func (m *model) SetTodos(result *tools.ToolCallResult) error {
 	return m.todoComp.SetTodos(result)
 }
 
-// SetAgentInfo sets the current agent information
+// SetAgentInfo sets the current agent information and updates the model in availableAgents
 func (m *model) SetAgentInfo(agentName, model, description string) {
 	m.currentAgent = agentName
 	m.agentModel = model
 	m.agentDescription = description
+
+	// Update the model in availableAgents for the current agent
+	// This is important when model routing selects a different model than configured
+	for i := range m.availableAgents {
+		if m.availableAgents[i].Name == agentName && model != "" {
+			m.availableAgents[i].Model = model
+			break
+		}
+	}
 }
 
 // SetTeamInfo sets the available agents in the team

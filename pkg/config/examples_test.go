@@ -56,7 +56,12 @@ func TestParseExamples(t *testing.T) {
 			for _, model := range cfg.Models {
 				require.NotEmpty(t, model.Provider)
 				require.NotEmpty(t, model.Model)
+				// Skip providers that don't have entries in models.dev
 				if model.Provider == "dmr" {
+					continue
+				}
+				// Skip models with routing rules - they use multiple providers
+				if len(model.Routing) > 0 {
 					continue
 				}
 

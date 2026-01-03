@@ -316,8 +316,37 @@
             1024,
             32768
           ]
+        },
+        "routing": {
+          "type": "array",
+          "description": "Routing rules for request-based model selection. When configured, this model becomes a router that selects the best model based on the user's input. The model's provider/model fields define the fallback model.",
+          "items": {
+            "$ref": "#/definitions/RoutingRule"
+          }
         }
       },
+      "additionalProperties": false
+    },
+    "RoutingRule": {
+      "type": "object",
+      "description": "A single routing rule that maps example phrases to a target model",
+      "properties": {
+        "model": {
+          "type": "string",
+          "description": "Model reference (another model name in the models section or inline spec like 'openai/gpt-4o')"
+        },
+        "examples": {
+          "type": "array",
+          "description": "Example phrases that should trigger routing to this model",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "model",
+        "examples"
+      ],
       "additionalProperties": false
     },
     "Metadata": {
