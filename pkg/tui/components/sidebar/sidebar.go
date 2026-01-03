@@ -323,7 +323,15 @@ func (m *model) verticalView() string {
 		main = append(main, todoContent)
 	}
 
-	return strings.Join(main, "\n")
+	content := strings.Join(main, "\n")
+
+	// Truncate to maximum height
+	lines := strings.Split(content, "\n")
+	if len(lines) > (m.height - 1) {
+		lines = lines[:m.height-1]
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 func (m *model) workingIndicator() string {
