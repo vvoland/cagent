@@ -8,6 +8,15 @@ models:
     provider: anthropic
     model: claude-haiku-4-5
     
+permissions:
+  allow:
+    - go_diagnostics
+    - go_file_context
+    - go_package_api
+    - go_symbol_references
+    - go_vulncheck
+    - go_workspace
+
 agents:
   root:
     model: claude
