@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/docker/cagent/pkg/config/types"
 	"github.com/docker/cagent/pkg/session"
@@ -88,7 +87,7 @@ func TestResolveCommand_PositionalArgs(t *testing.T) {
 
 	rt := &mockRuntime{
 		commands: types.Commands{
-			"fix": types.Command{Instruction: "Fix the file $1 with options $2"},
+			"fix": types.Command{Instruction: "Fix the file ${args[0]} with options ${args[1]}"},
 		},
 	}
 
@@ -101,7 +100,7 @@ func TestResolveCommand_PositionalArgsWithQuotes(t *testing.T) {
 
 	rt := &mockRuntime{
 		commands: types.Commands{
-			"search": types.Command{Instruction: "Search for $1 in $2"},
+			"search": types.Command{Instruction: `Search for ${args[0]} in ${args[1]}`},
 		},
 	}
 
@@ -114,7 +113,7 @@ func TestResolveCommand_AllArgs(t *testing.T) {
 
 	rt := &mockRuntime{
 		commands: types.Commands{
-			"run": types.Command{Instruction: "Run command with args: $0"},
+			"run": types.Command{Instruction: `Run command with args: ${args.join(" ")}`},
 		},
 	}
 
@@ -122,12 +121,12 @@ func TestResolveCommand_AllArgs(t *testing.T) {
 	assert.Equal(t, "Run command with args: arg1 arg2 arg3", result)
 }
 
-func TestResolveCommand_ArgumentsPlaceholder(t *testing.T) {
+func TestResolveCommand_ArgsPlaceholder(t *testing.T) {
 	t.Parallel()
 
 	rt := &mockRuntime{
 		commands: types.Commands{
-			"run": types.Command{Instruction: "Run command with args: $ARGUMENTS"},
+			"run": types.Command{Instruction: `Run command with args: ${args.join(" ")}`},
 		},
 	}
 
@@ -135,12 +134,12 @@ func TestResolveCommand_ArgumentsPlaceholder(t *testing.T) {
 	assert.Equal(t, "Run command with args: arg1 arg2 arg3", result)
 }
 
-func TestResolveCommand_ArgumentsPlaceholderEmpty(t *testing.T) {
+func TestResolveCommand_ArgsPlaceholderEmpty(t *testing.T) {
 	t.Parallel()
 
 	rt := &mockRuntime{
 		commands: types.Commands{
-			"run": types.Command{Instruction: "Run command with args: $ARGUMENTS"},
+			"run": types.Command{Instruction: `Run command with args: ${args.join(" ")}`},
 		},
 	}
 
@@ -148,12 +147,12 @@ func TestResolveCommand_ArgumentsPlaceholderEmpty(t *testing.T) {
 	assert.Equal(t, "Run command with args: ", result)
 }
 
-func TestResolveCommand_ArgumentsPlaceholderWithPositional(t *testing.T) {
+func TestResolveCommand_ArgsPlaceholderWithPositional(t *testing.T) {
 	t.Parallel()
 
 	rt := &mockRuntime{
 		commands: types.Commands{
-			"run": types.Command{Instruction: "First: $1, All: $ARGUMENTS"},
+			"run": types.Command{Instruction: `First: ${args[0]}, All: ${args.join(" ")}`},
 		},
 	}
 
@@ -166,12 +165,12 @@ func TestResolveCommand_MissingArgs(t *testing.T) {
 
 	rt := &mockRuntime{
 		commands: types.Commands{
-			"fix": types.Command{Instruction: "Fix $1 and $2 and $3"},
+			"fix": types.Command{Instruction: `Fix ${args[0] || ""} and ${args[1] || ""} and ${args[2] || ""}`},
 		},
 	}
 
 	result := ResolveCommand(t.Context(), rt, "/fix file1")
-	// $2 and $3 should be replaced with empty strings
+	// args[1] and args[2] should be replaced with empty strings via || operator
 	assert.Equal(t, "Fix file1 and  and ", result)
 }
 
@@ -262,7 +261,7 @@ func TestResolveCommand_CombinedPositionalAndTool(t *testing.T) {
 	rt := &mockRuntime{
 		commands: types.Commands{
 			"check": types.Command{
-				Instruction: "Check $1 with result: !check_tool()",
+				Instruction: "Check ${args[0]} with result: !check_tool()",
 			},
 		},
 		tools: []tools.Tool{
@@ -313,78 +312,6 @@ func TestTokenize(t *testing.T) {
 			t.Parallel()
 			result := tokenize(tt.input)
 			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestSubstitutePositionalArgs(t *testing.T) {
-	tests := []struct {
-		name        string
-		instruction string
-		args        []string
-		expected    string
-	}{
-		{
-			name:        "basic substitution",
-			instruction: "Fix $1",
-			args:        []string{"file.go"},
-			expected:    "Fix file.go",
-		},
-		{
-			name:        "multiple args",
-			instruction: "$1 and $2",
-			args:        []string{"first", "second"},
-			expected:    "first and second",
-		},
-		{
-			name:        "all args with $0",
-			instruction: "Run: $0",
-			args:        []string{"a", "b", "c"},
-			expected:    "Run: a b c",
-		},
-		{
-			name:        "all args with $ARGUMENTS",
-			instruction: "Run: $ARGUMENTS",
-			args:        []string{"a", "b", "c"},
-			expected:    "Run: a b c",
-		},
-		{
-			name:        "$ARGUMENTS with positional",
-			instruction: "First: $1, All: $ARGUMENTS",
-			args:        []string{"a", "b", "c"},
-			expected:    "First: a, All: a b c",
-		},
-		{
-			name:        "$ARGUMENTS empty",
-			instruction: "Args: $ARGUMENTS",
-			args:        nil,
-			expected:    "Args: ",
-		},
-		{
-			name:        "missing arg",
-			instruction: "Use $1 and $2",
-			args:        []string{"only_one"},
-			expected:    "Use only_one and ",
-		},
-		{
-			name:        "no args provided",
-			instruction: "Fix $1",
-			args:        nil,
-			expected:    "Fix ",
-		},
-		{
-			name:        "no placeholders",
-			instruction: "Just text",
-			args:        []string{"unused"},
-			expected:    "Just text",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			result := substitutePositionalArgs(tt.instruction, tt.args)
-			require.Equal(t, tt.expected, result)
 		})
 	}
 }
@@ -582,7 +509,7 @@ func TestResolveCommand_NestedParentheses(t *testing.T) {
 
 	rt := &mockRuntime{
 		commands: types.Commands{
-			"calc": types.Command{Instruction: `!shell(cmd="sh -c 'echo $(($ARGUMENTS))'")`},
+			"calc": types.Command{Instruction: `${shell({cmd: "sh -c 'echo $((" + args.join(" ") + "))'"})}`},
 		},
 		tools: []tools.Tool{
 			{
@@ -618,4 +545,43 @@ func TestResolveCommand_MultipleNestedParens(t *testing.T) {
 
 	result := ResolveCommand(t.Context(), rt, "/test")
 	assert.Contains(t, result, `func(a(b(c)))`)
+}
+
+func TestResolveCommand_ArgsJoinComma(t *testing.T) {
+	t.Parallel()
+
+	rt := &mockRuntime{
+		commands: types.Commands{
+			"test": types.Command{Instruction: `Args: ${args.join(",")}`},
+		},
+	}
+
+	result := ResolveCommand(t.Context(), rt, "/test a b c")
+	assert.Equal(t, "Args: a,b,c", result)
+}
+
+func TestResolveCommand_ArgsLength(t *testing.T) {
+	t.Parallel()
+
+	rt := &mockRuntime{
+		commands: types.Commands{
+			"test": types.Command{Instruction: `Count: ${args.length}`},
+		},
+	}
+
+	result := ResolveCommand(t.Context(), rt, "/test a b c")
+	assert.Equal(t, "Count: 3", result)
+}
+
+func TestResolveCommand_ArgsSlice(t *testing.T) {
+	t.Parallel()
+
+	rt := &mockRuntime{
+		commands: types.Commands{
+			"test": types.Command{Instruction: `Rest: ${args.slice(1).join(" ")}`},
+		},
+	}
+
+	result := ResolveCommand(t.Context(), rt, "/test first second third")
+	assert.Equal(t, "Rest: second third", result)
 }

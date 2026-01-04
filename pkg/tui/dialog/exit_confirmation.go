@@ -1,11 +1,8 @@
 package dialog
 
 import (
-	"strings"
-
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
@@ -87,26 +84,17 @@ func (d *exitConfirmationDialog) View() string {
 	dialogWidth := d.ComputeDialogWidth(50, 30, 50)
 	contentWidth := d.ContentWidth(dialogWidth, 2)
 
-	dialogStyle := styles.DialogStyle.
+	content := NewContent(contentWidth).
+		AddTitle("Exit").
+		AddSeparator().
+		AddSpace().
+		AddQuestion("Do you want to exit?").
+		AddSpace().
+		AddHelpKeys("Y", "yes", "N", "no").
+		Build()
+
+	return styles.DialogStyle.
 		Padding(1, 2).
-		Width(dialogWidth)
-
-	title := RenderTitle("Exit", contentWidth, styles.DialogTitleStyle)
-
-	separatorWidth := max(contentWidth-10, 20)
-	separator := styles.DialogSeparatorStyle.
-		Align(lipgloss.Center).
-		Width(contentWidth).
-		Render(strings.Repeat("─", separatorWidth))
-
-	question := styles.DialogQuestionStyle.
-		Width(contentWidth).
-		Render("Do you want to exit?")
-
-	options := RenderHelpKeys(contentWidth, "Y", "yes", "N", "no")
-
-	parts := []string{title, separator, "", question, "", options}
-	content := lipgloss.JoinVertical(lipgloss.Left, parts...)
-
-	return dialogStyle.Render(content)
+		Width(dialogWidth).
+		Render(content)
 }

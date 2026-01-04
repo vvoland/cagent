@@ -79,31 +79,26 @@ func (d *maxIterationsDialog) View() string {
 	dialogWidth := d.ComputeDialogWidth(60, 36, 84)
 	contentWidth := d.ContentWidth(dialogWidth, 2)
 
-	dialogStyle := styles.DialogWarningStyle.
-		Padding(1, 2).
-		Width(dialogWidth)
-
-	title := RenderTitle("Maximum Iterations Reached", contentWidth, styles.DialogTitleWarningStyle)
-	separator := RenderSeparator(contentWidth)
-
 	infoText := fmt.Sprintf("Max Iterations: %d", d.maxIterations)
-	infoSection := styles.DialogContentStyle.Render(wrapDisplayText(infoText, contentWidth))
+	messageText := "The agent may be stuck in a loop. This can happen with smaller or less capable models."
+	questionText := "Do you want to continue for 10 more iterations?"
 
-	message := styles.DialogContentStyle.Render(wrapDisplayText(
-		"The agent may be stuck in a loop. This can happen with smaller or less capable models.",
-		contentWidth,
-	))
+	content := NewContent(contentWidth).
+		AddTitle("Maximum Iterations Reached").
+		AddSeparator().
+		AddContent(styles.DialogContentStyle.Render(wrapDisplayText(infoText, contentWidth))).
+		AddSpace().
+		AddContent(styles.DialogContentStyle.Render(wrapDisplayText(messageText, contentWidth))).
+		AddSpace().
+		AddContent(styles.DialogQuestionStyle.Width(contentWidth).Render(wrapDisplayText(questionText, contentWidth))).
+		AddSpace().
+		AddHelpKeys("Y", "yes", "N", "no").
+		Build()
 
-	question := styles.DialogQuestionStyle.
-		Width(contentWidth).
-		Render(wrapDisplayText("Do you want to continue for 10 more iterations?", contentWidth))
-
-	options := RenderHelpKeys(contentWidth, "Y", "yes", "N", "no")
-
-	parts := []string{title, separator, infoSection, "", message, "", question, "", options}
-	content := lipgloss.JoinVertical(lipgloss.Left, parts...)
-
-	return dialogStyle.Render(content)
+	return styles.DialogWarningStyle.
+		Padding(1, 2).
+		Width(dialogWidth).
+		Render(content)
 }
 
 // wrapDisplayText wraps text based on display cell width.

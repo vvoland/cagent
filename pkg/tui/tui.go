@@ -3,7 +3,6 @@ package tui
 import (
 	"cmp"
 	"context"
-	"fmt"
 	"os"
 	"os/exec"
 	goruntime "runtime"
@@ -12,15 +11,11 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/atotto/clipboard"
 
 	"github.com/docker/cagent/pkg/app"
-	"github.com/docker/cagent/pkg/browser"
 	"github.com/docker/cagent/pkg/cli"
-	"github.com/docker/cagent/pkg/evaluation"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
-	mcptools "github.com/docker/cagent/pkg/tools/mcp"
 	"github.com/docker/cagent/pkg/tui/commands"
 	"github.com/docker/cagent/pkg/tui/components/completion"
 	"github.com/docker/cagent/pkg/tui/components/editor"
@@ -194,14 +189,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, cmd
 
 	case messages.SwitchAgentMsg:
-		// Switch the agent in the runtime
-		if err := a.application.SwitchAgent(msg.AgentName); err != nil {
-			return a, notification.ErrorCmd(fmt.Sprintf("Failed to switch to agent '%s': %v", msg.AgentName, err))
-		}
-		// Update local tracking
-		a.currentAgent = msg.AgentName
-		a.sessionState.SetCurrentAgent(msg.AgentName)
-		return a, notification.SuccessCmd(fmt.Sprintf("Switched to agent '%s'", msg.AgentName))
+		return a.handleSwitchAgent(msg.AgentName)
 
 	case tea.WindowSizeMsg:
 		a.wWidth, a.wHeight = msg.Width, msg.Height
@@ -240,113 +228,43 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		})
 
 	case messages.NewSessionMsg:
-		a.application.NewSession()
-		sess := a.application.Session()
-		a.sessionState = service.NewSessionState(sess)
-		a.chatPage = chat.New(a.application, a.sessionState)
-		a.dialog = dialog.New()
-		a.statusBar = statusbar.New(a.chatPage)
-
-		return a, tea.Batch(a.Init(), a.handleWindowResize(a.wWidth, a.wHeight))
+		return a.handleNewSession()
 
 	case messages.OpenSessionBrowserMsg:
-		store := a.application.SessionStore()
-		if store == nil {
-			return a, notification.InfoCmd("No session store configured")
-		}
-		sessions, err := store.GetSessions(context.Background())
-		if err != nil {
-			return a, notification.ErrorCmd(fmt.Sprintf("Failed to load sessions: %v", err))
-		}
-		if len(sessions) == 0 {
-			return a, notification.InfoCmd("No previous sessions found")
-		}
-		return a, core.CmdHandler(dialog.OpenDialogMsg{
-			Model: dialog.NewSessionBrowserDialog(sessions),
-		})
+		return a.handleOpenSessionBrowser()
 
 	case messages.LoadSessionMsg:
-		store := a.application.SessionStore()
-		if store == nil {
-			return a, notification.ErrorCmd("No session store configured")
-		}
-		sess, err := store.GetSession(context.Background(), msg.SessionID)
-		if err != nil {
-			return a, notification.ErrorCmd(fmt.Sprintf("Failed to load session: %v", err))
-		}
-		// Cancel current session and replace with loaded one
-		a.application.ReplaceSession(context.Background(), sess)
-		a.sessionState = service.NewSessionState(sess)
-		a.chatPage = chat.New(a.application, a.sessionState)
-		a.dialog = dialog.New()
-		a.statusBar = statusbar.New(a.chatPage)
-
-		return a, tea.Batch(a.Init(), a.handleWindowResize(a.wWidth, a.wHeight))
+		return a.handleLoadSession(msg.SessionID)
 
 	case messages.StartShellMsg:
 		return a.startShell()
 
 	case messages.EvalSessionMsg:
-		evalFile, _ := evaluation.Save(a.application.Session(), msg.Filename)
-		return a, notification.SuccessCmd(fmt.Sprintf("Eval saved to file %s", evalFile))
+		return a.handleEvalSession(msg.Filename)
 
 	case messages.CompactSessionMsg:
-		return a, a.chatPage.CompactSession(msg.AdditionalPrompt)
+		return a.handleCompactSession(msg.AdditionalPrompt)
 
 	case messages.CopySessionToClipboardMsg:
-		transcript := a.application.PlainTextTranscript()
-		if transcript == "" {
-			return a, notification.SuccessCmd("Conversation is empty; nothing copied.")
-		}
-
-		return a, tea.Sequence(
-			tea.SetClipboard(transcript),
-			func() tea.Msg {
-				_ = clipboard.WriteAll(transcript)
-				return nil
-			},
-			notification.SuccessCmd("Conversation copied to clipboard."),
-		)
+		return a.handleCopySessionToClipboard()
 
 	case messages.ToggleYoloMsg:
-		sess := a.application.Session()
-		sess.ToolsApproved = !sess.ToolsApproved
-		a.sessionState.SetYoloMode(sess.ToolsApproved)
-		return a, nil
+		return a.handleToggleYolo()
 
 	case messages.ToggleHideToolResultsMsg:
-		// Forward to chat page to invalidate message cache and trigger redraw
-		updated, cmd := a.chatPage.Update(msg)
-		a.chatPage = updated.(chat.Page)
-		return a, cmd
+		return a.handleToggleHideToolResults()
 
 	case messages.AgentCommandMsg:
-		resolvedCommand := a.application.ResolveCommand(context.Background(), msg.Command)
-		return a, core.CmdHandler(editor.SendMsg{Content: resolvedCommand})
+		return a.handleAgentCommand(msg.Command)
 
 	case messages.ShowMCPPromptInputMsg:
-		// Convert the interface{} back to mcptools.PromptInfo
-		promptInfo, ok := msg.PromptInfo.(mcptools.PromptInfo)
-		if !ok {
-			return a, notification.ErrorCmd("Invalid prompt info")
-		}
-		// Show the MCP prompt input dialog
-		return a, core.CmdHandler(dialog.OpenDialogMsg{
-			Model: dialog.NewMCPPromptInputDialog(msg.PromptName, promptInfo),
-		})
+		return a.handleShowMCPPromptInput(msg.PromptName, msg.PromptInfo)
 
 	case messages.MCPPromptMsg:
-		// Execute MCP prompt and send the result as editor content
-		promptContent, err := a.application.ExecuteMCPPrompt(context.Background(), msg.PromptName, msg.Arguments)
-		if err != nil {
-			errorMsg := fmt.Sprintf("Error executing MCP prompt '%s': %v", msg.PromptName, err)
-			return a, notification.ErrorCmd(errorMsg)
-		}
-		return a, core.CmdHandler(editor.SendMsg{Content: promptContent})
+		return a.handleMCPPrompt(msg.PromptName, msg.Arguments)
 
 	case messages.OpenURLMsg:
-		_ = browser.Open(context.Background(), msg.URL)
-		return a, nil
+		return a.handleOpenURL(msg.URL)
 
 	case dialog.RuntimeResumeMsg:
 		a.application.Resume(msg.Response)

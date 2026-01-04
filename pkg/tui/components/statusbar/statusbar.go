@@ -29,6 +29,11 @@ func (s *StatusBar) SetWidth(width int) {
 	s.width = width
 }
 
+// SetHelp sets the help provider for the status bar
+func (s *StatusBar) SetHelp(help core.KeyMapHelp) {
+	s.help = help
+}
+
 // formatHelpString creates a formatted help string from key bindings
 func (s *StatusBar) formatHelpString(bindings []key.Binding) string {
 	var helpParts []string

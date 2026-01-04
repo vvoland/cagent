@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/tools"
@@ -75,14 +74,6 @@ func (d *oauthAuthorizationDialog) View() string {
 	dialogWidth := d.ComputeDialogWidth(60, 40, 90)
 	contentWidth := d.ContentWidth(dialogWidth, 2)
 
-	dialogStyle := styles.DialogWarningStyle.
-		Padding(1, 2).
-		Width(dialogWidth)
-
-	title := styles.DialogTitleInfoStyle.
-		Width(contentWidth).
-		Render("🔐 OAuth Authorization Required")
-
 	serverInfo := styles.InfoStyle.
 		Width(contentWidth).
 		Render(fmt.Sprintf("Server: %s (remote)", d.serverURL))
@@ -91,25 +82,22 @@ func (d *oauthAuthorizationDialog) View() string {
 		Width(contentWidth).
 		Render("This server requires OAuth authentication to access its tools. Your browser will open automatically to complete the authorization process.")
 
-	instructions := RenderHelp(
-		"After authorizing in your browser, return here and the agent will continue automatically.",
-		contentWidth,
-	)
+	instructions := "After authorizing in your browser, return here and the agent will continue automatically."
 
-	options := RenderHelpKeys(contentWidth, "Y", "authorize", "N", "decline")
+	content := NewContent(contentWidth).
+		AddContent(styles.DialogTitleInfoStyle.Width(contentWidth).Render("\U0001F510 OAuth Authorization Required")).
+		AddSpace().
+		AddContent(serverInfo).
+		AddSpace().
+		AddContent(description).
+		AddSpace().
+		AddHelp(instructions).
+		AddSpace().
+		AddHelpKeys("Y", "authorize", "N", "decline").
+		Build()
 
-	content := lipgloss.JoinVertical(
-		lipgloss.Left,
-		title,
-		"",
-		serverInfo,
-		"",
-		description,
-		"",
-		instructions,
-		"",
-		options,
-	)
-
-	return dialogStyle.Render(content)
+	return styles.DialogWarningStyle.
+		Padding(1, 2).
+		Width(dialogWidth).
+		Render(content)
 }

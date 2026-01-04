@@ -146,14 +146,9 @@ func (d *sessionBrowserDialog) dialogSize() (dialogWidth, maxHeight, contentWidt
 func (d *sessionBrowserDialog) View() string {
 	dialogWidth, maxHeight, contentWidth := d.dialogSize()
 
-	title := RenderTitle("Sessions", contentWidth, styles.DialogTitleStyle)
-
 	d.textInput.SetWidth(contentWidth)
-	searchInput := d.textInput.View()
 
-	separator := RenderSeparator(contentWidth)
-
-	var lines []string
+	var sessionLines []string
 	maxItems := maxHeight - 8
 
 	// Adjust offset to keep selected item visible
@@ -166,29 +161,33 @@ func (d *sessionBrowserDialog) View() string {
 	// Render visible items based on offset
 	visibleEnd := min(d.offset+maxItems, len(d.filtered))
 	for i := d.offset; i < visibleEnd; i++ {
-		lines = append(lines, d.renderSession(d.filtered[i], i == d.selected, contentWidth))
+		sessionLines = append(sessionLines, d.renderSession(d.filtered[i], i == d.selected, contentWidth))
 	}
 
 	// Show indicator if there are more items
 	if visibleEnd < len(d.filtered) {
-		lines = append(lines, styles.MutedStyle.Render(fmt.Sprintf("  … and %d more", len(d.filtered)-visibleEnd)))
+		sessionLines = append(sessionLines, styles.MutedStyle.Render(fmt.Sprintf("  … and %d more", len(d.filtered)-visibleEnd)))
 	}
 
 	if len(d.filtered) == 0 {
-		lines = append(lines, "", styles.DialogContentStyle.
+		sessionLines = append(sessionLines, "", styles.DialogContentStyle.
 			Italic(true).
 			Align(lipgloss.Center).
 			Width(contentWidth).
 			Render("No sessions found"))
 	}
 
-	help := RenderHelp("↑/↓ navigate • pgup/pgdn page • enter load • esc close", contentWidth)
+	content := NewContent(contentWidth).
+		AddTitle("Sessions").
+		AddSpace().
+		AddContent(d.textInput.View()).
+		AddSeparator().
+		AddContent(strings.Join(sessionLines, "\n")).
+		AddSpace().
+		AddHelp("↑/↓ navigate • pgup/pgdn page • enter load • esc close").
+		Build()
 
-	parts := []string{title, "", searchInput, separator}
-	parts = append(parts, lines...)
-	parts = append(parts, "", help)
-
-	return styles.DialogStyle.Width(dialogWidth).Render(lipgloss.JoinVertical(lipgloss.Left, parts...))
+	return styles.DialogStyle.Width(dialogWidth).Render(content)
 }
 
 func (d *sessionBrowserDialog) pageSize() int {
