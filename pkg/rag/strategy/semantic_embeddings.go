@@ -3,7 +3,9 @@ package strategy
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"path/filepath"
 	"slices"
@@ -274,8 +276,11 @@ func (b *llmSemanticEmbeddingBuilder) BuildEmbeddingInput(ctx context.Context, s
 
 	for {
 		resp, err := stream.Recv()
-		if err != nil {
+		if errors.Is(err, io.EOF) {
 			break
+		}
+		if err != nil {
+			return "", fmt.Errorf("error receiving from semantic generation stream: %w", err)
 		}
 
 		if resp.Usage != nil {
