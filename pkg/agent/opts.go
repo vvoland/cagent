@@ -4,6 +4,7 @@ import (
 	"sync/atomic"
 
 	"github.com/docker/cagent/pkg/config/latest"
+	"github.com/docker/cagent/pkg/config/types"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/tools"
 )
@@ -104,7 +105,7 @@ func WithNumHistoryItems(numHistoryItems int) Opt {
 	}
 }
 
-func WithCommands(commands map[string]string) Opt {
+func WithCommands(commands types.Commands) Opt {
 	return func(a *Agent) {
 		a.commands = commands
 	}

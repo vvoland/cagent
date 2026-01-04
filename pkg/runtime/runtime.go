@@ -21,6 +21,7 @@ import (
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/config/types"
 	"github.com/docker/cagent/pkg/hooks"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/model/provider/options"
@@ -95,7 +96,9 @@ type Runtime interface {
 	// SetCurrentAgent sets the currently active agent for subsequent user messages
 	SetCurrentAgent(agentName string) error
 	// CurrentAgentCommands returns the commands for the active agent
-	CurrentAgentCommands(ctx context.Context) map[string]string
+	CurrentAgentCommands(ctx context.Context) types.Commands
+	// CurrentAgentTools returns the tools for the active agent
+	CurrentAgentTools(ctx context.Context) ([]tools.Tool, error)
 	// EmitStartupInfo emits initial agent, team, and toolset information for immediate display
 	EmitStartupInfo(ctx context.Context, events chan Event)
 	// ResetStartupInfo resets the startup info emission flag, allowing re-emission
@@ -369,8 +372,15 @@ func (r *LocalRuntime) SetCurrentAgent(agentName string) error {
 	return nil
 }
 
-func (r *LocalRuntime) CurrentAgentCommands(context.Context) map[string]string {
+func (r *LocalRuntime) CurrentAgentCommands(context.Context) types.Commands {
 	return r.CurrentAgent().Commands()
+}
+
+// CurrentAgentTools returns the tools available to the current agent.
+// This starts the toolsets if needed and returns all available tools.
+func (r *LocalRuntime) CurrentAgentTools(ctx context.Context) ([]tools.Tool, error) {
+	a := r.CurrentAgent()
+	return a.Tools(ctx)
 }
 
 // CurrentMCPPrompts returns the available MCP prompts from all active MCP toolsets

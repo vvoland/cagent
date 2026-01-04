@@ -10,6 +10,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/config/types"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/tools"
@@ -96,7 +97,7 @@ func (a *App) Runtime() runtime.Runtime {
 }
 
 // CurrentAgentCommands returns the commands for the active agent
-func (a *App) CurrentAgentCommands(ctx context.Context) map[string]string {
+func (a *App) CurrentAgentCommands(ctx context.Context) types.Commands {
 	return a.runtime.CurrentAgentCommands(ctx)
 }
 

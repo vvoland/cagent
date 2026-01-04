@@ -50,7 +50,7 @@ func New(msg, previous *types.Message) *messageModel {
 
 // Init initializes the message view
 func (mv *messageModel) Init() tea.Cmd {
-	if mv.message.Type == types.MessageTypeSpinner {
+	if mv.message.Type == types.MessageTypeSpinner || mv.message.Type == types.MessageTypeLoading {
 		return mv.spinner.Tick()
 	}
 	return nil
@@ -66,7 +66,7 @@ func (mv *messageModel) SetSelected(selected bool) {
 
 // Update handles messages and updates the message view state
 func (mv *messageModel) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
-	if mv.message.Type == types.MessageTypeSpinner {
+	if mv.message.Type == types.MessageTypeSpinner || mv.message.Type == types.MessageTypeLoading {
 		s, cmd := mv.spinner.Update(msg)
 		mv.spinner = s.(spinner.Spinner)
 		return mv, cmd
@@ -136,6 +136,9 @@ func (mv *messageModel) Render(width int) string {
 		return styles.WelcomeMessageStyle.Width(width - 1).Render(strings.TrimRight(msg.Content, "\n\r\t "))
 	case types.MessageTypeError:
 		return styles.ErrorMessageStyle.Width(width - 1).Render(msg.Content)
+	case types.MessageTypeLoading:
+		// Show spinner with the loading description
+		return mv.spinner.View() + " " + styles.MutedStyle.Render(msg.Content)
 	default:
 		return msg.Content
 	}
