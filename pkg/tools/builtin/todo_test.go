@@ -138,7 +138,7 @@ func TestTodoTool_ListTodos(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	result, err := tool.handler.listTodos(t.Context(), nil)
+	result, err := tool.handler.listTodos(t.Context(), tools.ToolCall{})
 
 	require.NoError(t, err)
 	assert.Contains(t, result.Output, "Current todos:")
