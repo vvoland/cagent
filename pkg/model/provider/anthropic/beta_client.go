@@ -226,24 +226,12 @@ func repairAnthropicSequencingBeta(msgs []anthropic.BetaMessageParam) []anthropi
 	return repaired
 }
 
-func marshalToMapBeta(v any) (map[string]any, bool) {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return nil, false
-	}
-	var m map[string]any
-	if json.Unmarshal(b, &m) != nil {
-		return nil, false
-	}
-	return m, true
-}
+// marshalToMapBeta is an alias for marshalToMap - shared with standard API.
+// Kept as separate function for clarity in Beta-specific code paths.
+var marshalToMapBeta = marshalToMap
 
-func contentArrayBeta(m map[string]any) []any {
-	if a, ok := m["content"].([]any); ok {
-		return a
-	}
-	return nil
-}
+// contentArrayBeta is an alias for contentArray - shared with standard API.
+var contentArrayBeta = contentArray
 
 // countAnthropicTokensBeta calls Anthropic's Count Tokens API for the provided Beta API payload
 // and returns the number of input tokens.
