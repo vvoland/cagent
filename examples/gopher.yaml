@@ -142,6 +142,24 @@ agents:
     sub_agents:
       - root
 
+  reviewer:
+    model: google/gemini-3-pro-preview
+    instruction: |
+      Give me feedback about the local changes. Don't be too picky, think about code quality, security, duplication, idiomatic Go,
+      performance, maintainability, and best practices.
+      Provide suggestions for improvements and point out any potential issues.
+      Don't be too verbose, keep your review concise and to the point.
+    add_prompt_files:
+      - AGENTS.md
+    sub_agents:
+      - librarian
+    toolsets:
+      - type: filesystem
+      - type: shell
+      - type: mcp
+        command: gopls
+        args: ["mcp"]
+
   librarian:
     model: haiku
     description: Documentation librarian. Can search the Web and look for relevant documentation to help the golang developer agent.
