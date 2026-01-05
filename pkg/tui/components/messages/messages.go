@@ -160,6 +160,10 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case DebouncedCopyMsg:
+		cmd := m.handleDebouncedCopy(msg)
+		return m, cmd
+
 	case editfile.ToggleDiffViewMsg:
 		m.sessionState.ToggleSplitDiffView()
 		m.invalidateAllItems()
@@ -194,20 +198,23 @@ func (m *model) handleMouseClick(msg tea.MouseClickMsg) (layout.Model, tea.Cmd) 
 	}
 
 	line, col := m.mouseToLineCol(msg.X, msg.Y)
+	clickCount := m.selection.detectClickType(line, col)
 
-	if m.selection.isDoubleClick(line, col) {
-		m.selectWordAt(line, col)
-		m.selection.resetDoubleClick()
+	switch clickCount {
+	case 3: // Triple-click: select line
+		m.selectLineAt(line)
+		m.selection.pendingCopyID++ // Cancel any pending double-click copy
 		cmd := m.copySelectionToClipboard()
 		return m, cmd
+	case 2: // Double-click: select word with debounced copy
+		m.selectWordAt(line, col)
+		cmd := m.scheduleDebouncedCopy()
+		return m, cmd
+	default: // Single click: start drag selection
+		m.selection.start(line, col)
+		m.selection.mouseY = msg.Y
+		return m, nil
 	}
-
-	// Single click: start drag selection
-	m.selection.start(line, col)
-	m.selection.mouseY = msg.Y
-	m.selection.recordClick(line, col)
-
-	return m, nil
 }
 
 func (m *model) handleMouseMotion(msg tea.MouseMotionMsg) (layout.Model, tea.Cmd) {
