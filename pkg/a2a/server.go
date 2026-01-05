@@ -89,7 +89,7 @@ func Run(ctx context.Context, agentFilename, agentName string, runConfig *config
 		AllowHeaders: []string{"Content-Type", "Accept"},
 		MaxAge:       86400,
 	}))
-	e.Use(middleware.Logger())
+	e.Use(middleware.RequestLogger())
 
 	e.GET(a2asrv.WellKnownAgentCardPath, echo.WrapHandler(a2asrv.NewStaticAgentCardHandler(agentCard)))
 	e.POST(agentPath, echo.WrapHandler(a2asrv.NewJSONRPCHandler(a2asrv.NewHandler(executor))))
