@@ -2,7 +2,6 @@ package sqlite
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -22,10 +21,9 @@ func setupTestDB(t *testing.T) database.Database {
 	require.NotNil(t, db)
 
 	t.Cleanup(func() {
-		// Close connection and remove temp file
+		// Close connection
 		memDB := db.(*MemoryDatabase)
 		memDB.db.Close()
-		os.Remove(tmpFile)
 	})
 
 	return db
@@ -170,7 +168,6 @@ func TestDatabaseWithMultipleInstances(t *testing.T) {
 	defer func() {
 		memDB := db1.(*MemoryDatabase)
 		memDB.db.Close()
-		os.Remove(tmpFile)
 	}()
 
 	memory := database.UserMemory{

@@ -15,9 +15,9 @@ type MemoryDatabase struct {
 
 func NewMemoryDatabase(path string) (database.Database, error) {
 	// Add query parameters for better concurrency handling
-	// _busy_timeout: Wait up to 5 seconds if database is locked
-	// _journal_mode=WAL: Enable Write-Ahead Logging for better concurrent access
-	db, err := sql.Open("sqlite", path+"?_busy_timeout=5000&_journal_mode=WAL")
+	// _pragma=busy_timeout(5000): Wait up to 5 seconds if database is locked
+	// _pragma=journal_mode(WAL): Enable Write-Ahead Logging for better concurrent access
+	db, err := sql.Open("sqlite", path+"?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)")
 	if err != nil {
 		return nil, err
 	}
