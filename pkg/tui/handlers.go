@@ -38,7 +38,7 @@ func (a *appModel) handleOpenSessionBrowser() (tea.Model, tea.Cmd) {
 		return a, notification.InfoCmd("No session store configured")
 	}
 
-	sessions, err := store.GetSessions(context.Background())
+	sessions, err := store.GetSessionSummaries(context.Background())
 	if err != nil {
 		return a, notification.ErrorCmd(fmt.Sprintf("Failed to load sessions: %v", err))
 	}

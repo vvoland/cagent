@@ -17,6 +17,14 @@ var (
 	ErrNotFound = errors.New("session not found")
 )
 
+// Summary contains lightweight session metadata for listing purposes.
+// This is used instead of loading full Session objects with all messages.
+type Summary struct {
+	ID        string
+	Title     string
+	CreatedAt time.Time
+}
+
 // convertMessagesToItems converts a slice of Messages to SessionItems for backward compatibility
 func convertMessagesToItems(messages []Message) []Item {
 	items := make([]Item, len(messages))
@@ -31,6 +39,7 @@ type Store interface {
 	AddSession(ctx context.Context, session *Session) error
 	GetSession(ctx context.Context, id string) (*Session, error)
 	GetSessions(ctx context.Context) ([]*Session, error)
+	GetSessionSummaries(ctx context.Context) ([]Summary, error)
 	DeleteSession(ctx context.Context, id string) error
 	UpdateSession(ctx context.Context, session *Session) error
 }
@@ -71,6 +80,19 @@ func (s *InMemorySessionStore) GetSessions(_ context.Context) ([]*Session, error
 		return true
 	})
 	return sessions, nil
+}
+
+func (s *InMemorySessionStore) GetSessionSummaries(_ context.Context) ([]Summary, error) {
+	summaries := make([]Summary, 0, s.sessions.Length())
+	s.sessions.Range(func(_ string, value *Session) bool {
+		summaries = append(summaries, Summary{
+			ID:        value.ID,
+			Title:     value.Title,
+			CreatedAt: value.CreatedAt,
+		})
+		return true
+	})
+	return summaries, nil
 }
 
 func (s *InMemorySessionStore) DeleteSession(_ context.Context, id string) error {
@@ -268,6 +290,36 @@ func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error
 	}
 
 	return sessions, nil
+}
+
+// GetSessionSummaries retrieves lightweight session metadata for listing.
+// This is much faster than GetSessions as it doesn't load message content.
+func (s *SQLiteSessionStore) GetSessionSummaries(ctx context.Context) ([]Summary, error) {
+	rows, err := s.db.QueryContext(ctx,
+		"SELECT id, title, created_at FROM sessions ORDER BY created_at DESC")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var summaries []Summary
+	for rows.Next() {
+		var id, title, createdAtStr string
+		if err := rows.Scan(&id, &title, &createdAtStr); err != nil {
+			return nil, err
+		}
+		createdAt, err := time.Parse(time.RFC3339, createdAtStr)
+		if err != nil {
+			return nil, err
+		}
+		summaries = append(summaries, Summary{
+			ID:        id,
+			Title:     title,
+			CreatedAt: createdAt,
+		})
+	}
+
+	return summaries, nil
 }
 
 // DeleteSession deletes a session by ID
