@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -85,6 +86,10 @@ func TestLoadExamples(t *testing.T) {
 
 	runConfig := &config.RuntimeConfig{}
 
+	type versioned struct {
+		Version string `yaml:"version"`
+	}
+
 	// Load all the examples.
 	for _, agentFilename := range examples {
 		t.Run(agentFilename, func(t *testing.T) {
@@ -93,6 +98,16 @@ func TestLoadExamples(t *testing.T) {
 			agentSource, err := config.Resolve(agentFilename)
 			require.NoError(t, err)
 
+			// First make sure it doesn't define a version
+			data, err := agentSource.Read(t.Context())
+			require.NoError(t, err)
+
+			var v versioned
+			err = yaml.Unmarshal(data, &v)
+			require.NoError(t, err)
+			require.Empty(t, v.Version, "example %s should not define a version", agentFilename)
+
+			// Then make sure the config loads successfully
 			teams, err := Load(t.Context(), agentSource, runConfig)
 			require.NoError(t, err)
 			assert.NotEmpty(t, teams)
