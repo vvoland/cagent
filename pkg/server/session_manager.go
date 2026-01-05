@@ -26,10 +26,11 @@ type activeRuntimes struct {
 	cancel  context.CancelFunc
 }
 
-type sessionManager struct {
+// SessionManager manages sessions for HTTP and Connect-RPC servers.
+type SessionManager struct {
 	runtimeSessions *concurrent.Map[string, *activeRuntimes]
 	sessionStore    session.Store
-	sources         config.Sources
+	Sources         config.Sources
 
 	// TODO: We have to do something about this, it's weird, session creation should send everything that is needed.
 	// This is only used for the working directory...
@@ -40,16 +41,17 @@ type sessionManager struct {
 	mux sync.Mutex
 }
 
-func newSessionManager(ctx context.Context, sources config.Sources, sessionStore session.Store, refreshInterval time.Duration, runConfig *config.RuntimeConfig) *sessionManager {
+// NewSessionManager creates a new session manager.
+func NewSessionManager(ctx context.Context, sources config.Sources, sessionStore session.Store, refreshInterval time.Duration, runConfig *config.RuntimeConfig) *SessionManager {
 	loaders := make(config.Sources)
 	for name, source := range sources {
 		loaders[name] = newSourceLoader(ctx, source, refreshInterval)
 	}
 
-	sm := &sessionManager{
+	sm := &SessionManager{
 		runtimeSessions: concurrent.NewMap[string, *activeRuntimes](),
 		sessionStore:    sessionStore,
-		sources:         loaders,
+		Sources:         loaders,
 		refreshInterval: refreshInterval,
 		runConfig:       runConfig,
 	}
@@ -57,7 +59,8 @@ func newSessionManager(ctx context.Context, sources config.Sources, sessionStore
 	return sm
 }
 
-func (sm *sessionManager) GetSession(ctx context.Context, id string) (*session.Session, error) {
+// GetSession retrieves a session by ID.
+func (sm *SessionManager) GetSession(ctx context.Context, id string) (*session.Session, error) {
 	sess, err := sm.sessionStore.GetSession(ctx, id)
 	if err != nil {
 		return nil, err
@@ -65,7 +68,8 @@ func (sm *sessionManager) GetSession(ctx context.Context, id string) (*session.S
 	return sess, nil
 }
 
-func (sm *sessionManager) CreateSession(ctx context.Context, sessionTemplate *session.Session) (*session.Session, error) {
+// CreateSession creates a new session from a template.
+func (sm *SessionManager) CreateSession(ctx context.Context, sessionTemplate *session.Session) (*session.Session, error) {
 	var opts []session.Opt
 	opts = append(opts,
 		session.WithMaxIterations(sessionTemplate.MaxIterations),
@@ -91,7 +95,8 @@ func (sm *sessionManager) CreateSession(ctx context.Context, sessionTemplate *se
 	return sess, sm.sessionStore.AddSession(ctx, sess)
 }
 
-func (sm *sessionManager) GetSessions(ctx context.Context) ([]*session.Session, error) {
+// GetSessions retrieves all sessions.
+func (sm *SessionManager) GetSessions(ctx context.Context) ([]*session.Session, error) {
 	sessions, err := sm.sessionStore.GetSessions(ctx)
 	if err != nil {
 		return nil, err
@@ -99,7 +104,8 @@ func (sm *sessionManager) GetSessions(ctx context.Context) ([]*session.Session, 
 	return sessions, nil
 }
 
-func (sm *sessionManager) DeleteSession(ctx context.Context, sessionID string) error {
+// DeleteSession deletes a session by ID.
+func (sm *SessionManager) DeleteSession(ctx context.Context, sessionID string) error {
 	sm.mux.Lock()
 	defer sm.mux.Unlock()
 	sess, err := sm.sessionStore.GetSession(ctx, sessionID)
@@ -119,7 +125,8 @@ func (sm *sessionManager) DeleteSession(ctx context.Context, sessionID string) e
 	return nil
 }
 
-func (sm *sessionManager) RunSession(ctx context.Context, sessionID, agentFilename, currentAgent string, messages []api.Message) (<-chan runtime.Event, error) {
+// RunSession runs a session with the given messages.
+func (sm *SessionManager) RunSession(ctx context.Context, sessionID, agentFilename, currentAgent string, messages []api.Message) (<-chan runtime.Event, error) {
 	sm.mux.Lock()
 	defer sm.mux.Unlock()
 	sess, err := sm.sessionStore.GetSession(ctx, sessionID)
@@ -173,7 +180,8 @@ func (sm *sessionManager) RunSession(ctx context.Context, sessionID, agentFilena
 	return streamChan, nil
 }
 
-func (sm *sessionManager) ResumeSession(ctx context.Context, sessionID, confirmation string) error {
+// ResumeSession resumes a paused session.
+func (sm *SessionManager) ResumeSession(ctx context.Context, sessionID, confirmation string) error {
 	sm.mux.Lock()
 	defer sm.mux.Unlock()
 	rt, exists := sm.runtimeSessions.Load(sessionID)
@@ -185,7 +193,8 @@ func (sm *sessionManager) ResumeSession(ctx context.Context, sessionID, confirma
 	return nil
 }
 
-func (sm *sessionManager) ResumeElicitation(ctx context.Context, sessionID, action string, content map[string]any) error {
+// ResumeElicitation resumes an elicitation request.
+func (sm *SessionManager) ResumeElicitation(ctx context.Context, sessionID, action string, content map[string]any) error {
 	sm.mux.Lock()
 	defer sm.mux.Unlock()
 	rt, exists := sm.runtimeSessions.Load(sessionID)
@@ -196,7 +205,8 @@ func (sm *sessionManager) ResumeElicitation(ctx context.Context, sessionID, acti
 	return rt.runtime.ResumeElicitation(ctx, tools.ElicitationAction(action), content)
 }
 
-func (sm *sessionManager) ToggleToolApproval(ctx context.Context, sessionID string) error {
+// ToggleToolApproval toggles the tool approval mode for a session.
+func (sm *SessionManager) ToggleToolApproval(ctx context.Context, sessionID string) error {
 	sm.mux.Lock()
 	defer sm.mux.Unlock()
 	sess, err := sm.sessionStore.GetSession(ctx, sessionID)
@@ -209,7 +219,7 @@ func (sm *sessionManager) ToggleToolApproval(ctx context.Context, sessionID stri
 	return sm.sessionStore.UpdateSession(ctx, sess)
 }
 
-func (sm *sessionManager) runtimeForSession(ctx context.Context, sess *session.Session, agentFilename, currentAgent string, rc *config.RuntimeConfig) (runtime.Runtime, error) {
+func (sm *SessionManager) runtimeForSession(ctx context.Context, sess *session.Session, agentFilename, currentAgent string, rc *config.RuntimeConfig) (runtime.Runtime, error) {
 	rt, exists := sm.runtimeSessions.Load(sess.ID)
 	if exists && rt.runtime != nil {
 		return rt.runtime, nil
@@ -245,8 +255,8 @@ func (sm *sessionManager) runtimeForSession(ctx context.Context, sess *session.S
 	return run, nil
 }
 
-func (sm *sessionManager) loadTeam(ctx context.Context, agentFilename string, runConfig *config.RuntimeConfig) (*team.Team, error) {
-	agentSource, found := sm.sources[agentFilename]
+func (sm *SessionManager) loadTeam(ctx context.Context, agentFilename string, runConfig *config.RuntimeConfig) (*team.Team, error) {
+	agentSource, found := sm.Sources[agentFilename]
 	if !found {
 		return nil, fmt.Errorf("agent not found: %s", agentFilename)
 	}

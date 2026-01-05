@@ -21,7 +21,7 @@ import (
 
 type Server struct {
 	e  *echo.Echo
-	sm *sessionManager
+	sm *SessionManager
 }
 
 func New(ctx context.Context, sessionStore session.Store, runConfig *config.RuntimeConfig, refreshInterval time.Duration, agentSources config.Sources) (*Server, error) {
@@ -31,7 +31,7 @@ func New(ctx context.Context, sessionStore session.Store, runConfig *config.Runt
 
 	s := &Server{
 		e:  e,
-		sm: newSessionManager(ctx, agentSources, sessionStore, refreshInterval, runConfig),
+		sm: NewSessionManager(ctx, agentSources, sessionStore, refreshInterval, runConfig),
 	}
 
 	group := e.Group("/api")
@@ -81,7 +81,7 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 
 func (s *Server) getAgents(c echo.Context) error {
 	agents := []api.Agent{}
-	for k, agentSource := range s.sm.sources {
+	for k, agentSource := range s.sm.Sources {
 		slog.Debug("API source", "source", agentSource.Name())
 
 		c, err := config.Load(c.Request().Context(), agentSource)
@@ -128,7 +128,7 @@ func (s *Server) getAgents(c echo.Context) error {
 func (s *Server) getAgentConfig(c echo.Context) error {
 	agentID := c.Param("id")
 
-	for k, agentSource := range s.sm.sources {
+	for k, agentSource := range s.sm.Sources {
 		if k != agentID {
 			continue
 		}
