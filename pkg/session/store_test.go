@@ -223,3 +223,75 @@ func TestNewSQLiteSessionStore_DirectoryNotWritable(t *testing.T) {
 	assert.Contains(t, err.Error(), "cannot create database")
 	assert.Contains(t, err.Error(), "permission denied or file cannot be created")
 }
+
+func TestUpdateSession_LazyCreation(t *testing.T) {
+	tempDB := filepath.Join(t.TempDir(), "test_lazy.db")
+
+	store, err := NewSQLiteSessionStore(tempDB)
+	require.NoError(t, err)
+	defer store.(*SQLiteSessionStore).Close()
+
+	testAgent := agent.New("test-agent", "test prompt")
+
+	// Create a session but don't add it to the store (simulating lazy creation)
+	session := &Session{
+		ID:        "lazy-session",
+		CreatedAt: time.Now(),
+	}
+
+	// Verify session doesn't exist yet
+	_, err = store.GetSession(t.Context(), "lazy-session")
+	require.ErrorIs(t, err, ErrNotFound)
+
+	// Now update the session with content - this should create it (upsert)
+	session.Messages = []Item{
+		NewMessageItem(UserMessage("Hello")),
+		NewMessageItem(NewAgentMessage(testAgent, &chat.Message{
+			Role:    chat.MessageRoleAssistant,
+			Content: "Hi there!",
+		})),
+	}
+
+	err = store.UpdateSession(t.Context(), session)
+	require.NoError(t, err)
+
+	// Now the session should exist
+	retrieved, err := store.GetSession(t.Context(), "lazy-session")
+	require.NoError(t, err)
+	assert.Len(t, retrieved.Messages, 2)
+	assert.Equal(t, "Hello", retrieved.Messages[0].Message.Message.Content)
+	assert.Equal(t, "Hi there!", retrieved.Messages[1].Message.Message.Content)
+}
+
+func TestUpdateSession_LazyCreation_InMemory(t *testing.T) {
+	store := NewInMemorySessionStore()
+
+	testAgent := agent.New("test-agent", "test prompt")
+
+	// Create a session but don't add it to the store
+	session := &Session{
+		ID:        "lazy-session",
+		CreatedAt: time.Now(),
+	}
+
+	// Verify session doesn't exist yet
+	_, err := store.GetSession(t.Context(), "lazy-session")
+	require.ErrorIs(t, err, ErrNotFound)
+
+	// Update with content - should create it
+	session.Messages = []Item{
+		NewMessageItem(UserMessage("Hello")),
+		NewMessageItem(NewAgentMessage(testAgent, &chat.Message{
+			Role:    chat.MessageRoleAssistant,
+			Content: "Hi there!",
+		})),
+	}
+
+	err = store.UpdateSession(t.Context(), session)
+	require.NoError(t, err)
+
+	// Now the session should exist
+	retrieved, err := store.GetSession(t.Context(), "lazy-session")
+	require.NoError(t, err)
+	assert.Len(t, retrieved.Messages, 2)
+}
