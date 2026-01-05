@@ -85,13 +85,11 @@ func (s *InMemorySessionStore) DeleteSession(_ context.Context, id string) error
 	return nil
 }
 
+// UpdateSession updates an existing session, or creates it if it doesn't exist (upsert).
+// This enables lazy session persistence - sessions are only stored when they have content.
 func (s *InMemorySessionStore) UpdateSession(_ context.Context, session *Session) error {
 	if session.ID == "" {
 		return ErrEmptyID
-	}
-	_, exists := s.sessions.Load(session.ID)
-	if !exists {
-		return ErrNotFound
 	}
 	s.sessions.Store(session.ID, session)
 	return nil
@@ -293,7 +291,8 @@ func (s *SQLiteSessionStore) DeleteSession(ctx context.Context, id string) error
 	return nil
 }
 
-// UpdateSession updates an existing session
+// UpdateSession updates an existing session, or creates it if it doesn't exist (upsert).
+// This enables lazy session persistence - sessions are only stored when they have content.
 func (s *SQLiteSessionStore) UpdateSession(ctx context.Context, session *Session) error {
 	if session.ID == "" {
 		return ErrEmptyID
@@ -304,23 +303,24 @@ func (s *SQLiteSessionStore) UpdateSession(ctx context.Context, session *Session
 		return err
 	}
 
-	result, err := s.db.ExecContext(ctx,
-		"UPDATE sessions SET messages = ?, title = ?, tools_approved = ?, input_tokens = ?, output_tokens = ?, cost = ?, send_user_message = ?, max_iterations = ?, working_dir = ? WHERE id = ?",
-		string(itemsJSON), session.Title, session.ToolsApproved, session.InputTokens, session.OutputTokens, session.Cost, session.SendUserMessage, session.MaxIterations, session.WorkingDir, session.ID)
-	if err != nil {
-		return err
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-
-	if rowsAffected == 0 {
-		return ErrNotFound
-	}
-
-	return nil
+	// Use INSERT OR REPLACE for upsert behavior - creates if not exists, updates if exists
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO sessions (id, messages, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(id) DO UPDATE SET
+		   messages = excluded.messages,
+		   title = excluded.title,
+		   tools_approved = excluded.tools_approved,
+		   input_tokens = excluded.input_tokens,
+		   output_tokens = excluded.output_tokens,
+		   cost = excluded.cost,
+		   send_user_message = excluded.send_user_message,
+		   max_iterations = excluded.max_iterations,
+		   working_dir = excluded.working_dir`,
+		session.ID, string(itemsJSON), session.ToolsApproved, session.InputTokens, session.OutputTokens,
+		session.Title, session.Cost, session.SendUserMessage, session.MaxIterations, session.WorkingDir,
+		session.CreatedAt.Format(time.RFC3339))
+	return err
 }
 
 // Close closes the database connection

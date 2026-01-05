@@ -208,7 +208,7 @@ func (f *runExecFlags) createRemoteRuntimeAndSession(ctx context.Context, origin
 	return remoteRt, sess, nil
 }
 
-func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, t *team.Team) (runtime.Runtime, *session.Session, error) {
+func (f *runExecFlags) createLocalRuntimeAndSession(_ context.Context, t *team.Team) (runtime.Runtime, *session.Session, error) {
 	agent, err := t.Agent(f.agentName)
 	if err != nil {
 		return nil, nil, err
@@ -234,9 +234,8 @@ func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, t *team
 		session.WithHideToolResults(f.hideToolResults),
 	)
 
-	if err := sessStore.AddSession(ctx, sess); err != nil {
-		return nil, nil, err
-	}
+	// Session is stored lazily on first UpdateSession call (when content is added)
+	// This avoids creating empty sessions in the database
 
 	slog.Debug("Using local runtime", "agent", f.agentName)
 	return localRt, sess, nil
