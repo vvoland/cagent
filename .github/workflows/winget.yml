@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: publish
         run: |
-          $Release = '${{ toJSON(github.event.release) }}' | ConvertFrom-Json
+          $Release = $ENV:RELEASE | ConvertFrom-Json
           $Version = $Release.tag_name
           $PackageId = "Docker.Cagent"
           $Urls = @(
@@ -22,3 +22,5 @@ jobs:
           )
           & curl.exe -JLO https://aka.ms/wingetcreate/latest
           & .\wingetcreate.exe update $PackageId -s -v $Version -u $Urls
+        env:
+          RELEASE: ${{ toJSON(github.event.release) }}
