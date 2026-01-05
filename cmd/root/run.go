@@ -28,6 +28,7 @@ type runExecFlags struct {
 	autoApprove    bool
 	attachmentPath string
 	remoteAddress  string
+	connectRPC     bool
 	modelOverrides []string
 	dryRun         bool
 	runConfig      config.RuntimeConfig
@@ -76,6 +77,7 @@ func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 	cmd.PersistentFlags().StringArrayVar(&flags.modelOverrides, "model", nil, "Override agent model: [agent=]provider/model (repeatable)")
 	cmd.PersistentFlags().BoolVar(&flags.dryRun, "dry-run", false, "Initialize the agent without executing anything")
 	cmd.PersistentFlags().StringVar(&flags.remoteAddress, "remote", "", "Use remote runtime with specified address")
+	cmd.PersistentFlags().BoolVar(&flags.connectRPC, "connect-rpc", false, "Use Connect-RPC protocol for remote communication (requires --remote)")
 	cmd.PersistentFlags().StringVarP(&flags.sessionDB, "session-db", "s", filepath.Join(paths.GetHomeDir(), ".cagent", "session.db"), "Path to the session database")
 	cmd.PersistentFlags().StringVar(&flags.fakeResponses, "fake", "", "Replay AI responses from cassette file (for testing)")
 	cmd.PersistentFlags().StringVar(&flags.recordPath, "record", "", "Record AI API interactions to cassette file (auto-generates filename if empty)")
@@ -182,6 +184,40 @@ func (f *runExecFlags) loadAgentFrom(ctx context.Context, agentSource config.Sou
 }
 
 func (f *runExecFlags) createRemoteRuntimeAndSession(ctx context.Context, originalFilename string) (runtime.Runtime, *session.Session, error) {
+	if f.connectRPC {
+		return f.createConnectRPCRuntimeAndSession(ctx, originalFilename)
+	}
+	return f.createHTTPRuntimeAndSession(ctx, originalFilename)
+}
+
+func (f *runExecFlags) createConnectRPCRuntimeAndSession(ctx context.Context, originalFilename string) (runtime.Runtime, *session.Session, error) {
+	connectClient, err := runtime.NewConnectRPCClient(f.remoteAddress)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create connect-rpc client: %w", err)
+	}
+
+	sessTemplate := session.New(
+		session.WithToolsApproved(f.autoApprove),
+	)
+
+	sess, err := connectClient.CreateSession(ctx, sessTemplate)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	remoteRt, err := runtime.NewConnectRPCRemoteRuntime(connectClient,
+		runtime.WithConnectRPCRemoteCurrentAgent(f.agentName),
+		runtime.WithConnectRPCRemoteAgentFilename(originalFilename),
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create connect-rpc remote runtime: %w", err)
+	}
+
+	slog.Debug("Using connect-rpc remote runtime", "address", f.remoteAddress, "agent", f.agentName)
+	return remoteRt, sess, nil
+}
+
+func (f *runExecFlags) createHTTPRuntimeAndSession(ctx context.Context, originalFilename string) (runtime.Runtime, *session.Session, error) {
 	remoteClient, err := runtime.NewClient(f.remoteAddress)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create remote client: %w", err)
