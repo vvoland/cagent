@@ -483,7 +483,37 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 			continue
 		}
 	}
+
+	// Add ephemeral cache to last 2 messages' last content block
+	applyMessageCacheControl(anthropicMessages)
+
 	return anthropicMessages
+}
+
+// applyMessageCacheControl adds ephemeral cache control to the last content block
+// of the last 2 messages for prompt caching.
+func applyMessageCacheControl(messages []anthropic.MessageParam) {
+	for i := len(messages) - 1; i >= 0 && i >= len(messages)-2; i-- {
+		msg := &messages[i]
+		if len(msg.Content) == 0 {
+			continue
+		}
+		lastIdx := len(msg.Content) - 1
+		block := &msg.Content[lastIdx]
+		cacheCtrl := anthropic.NewCacheControlEphemeralParam()
+		switch {
+		case block.OfText != nil:
+			block.OfText.CacheControl = cacheCtrl
+		case block.OfToolUse != nil:
+			block.OfToolUse.CacheControl = cacheCtrl
+		case block.OfToolResult != nil:
+			block.OfToolResult.CacheControl = cacheCtrl
+		case block.OfImage != nil:
+			block.OfImage.CacheControl = cacheCtrl
+		case block.OfDocument != nil:
+			block.OfDocument.CacheControl = cacheCtrl
+		}
+	}
 }
 
 // extractSystemBlocks converts any system-role messages into Anthropic system text blocks
@@ -508,10 +538,9 @@ func extractSystemBlocks(messages []chat.Message) []anthropic.TextBlockParam {
 		}
 	}
 
-	if len(systemBlocks) > 0 {
-		sb := systemBlocks[len(systemBlocks)-1]
-		sb.CacheControl = anthropic.NewCacheControlEphemeralParam()
-		systemBlocks[len(systemBlocks)-1] = sb
+	// Add ephemeral cache to first 2 system blocks
+	for i := range min(2, len(systemBlocks)) {
+		systemBlocks[i].CacheControl = anthropic.NewCacheControlEphemeralParam()
 	}
 
 	return systemBlocks
@@ -531,11 +560,6 @@ func convertTools(tooles []tools.Tool) ([]anthropic.ToolUnionParam, error) {
 			Description: anthropic.String(tool.Description),
 			InputSchema: inputSchema,
 		}
-	}
-	if len(toolParams) > 0 {
-		tp := toolParams[len(toolParams)-1]
-		tp.CacheControl = anthropic.NewCacheControlEphemeralParam()
-		toolParams[len(toolParams)-1] = tp
 	}
 	anthropicTools := make([]anthropic.ToolUnionParam, len(toolParams))
 	for i := range toolParams {
