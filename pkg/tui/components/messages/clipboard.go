@@ -2,6 +2,7 @@ package messages
 
 import (
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/atotto/clipboard"
@@ -191,4 +192,21 @@ func copyTextToClipboard(text string) tea.Cmd {
 		},
 		notification.SuccessCmd("Text copied to clipboard."),
 	)
+}
+
+// scheduleDebouncedCopy schedules a copy after a delay, allowing triple-click to cancel it.
+func (m *model) scheduleDebouncedCopy() tea.Cmd {
+	m.selection.pendingCopyID++
+	copyID := m.selection.pendingCopyID
+	return tea.Tick(400*time.Millisecond, func(time.Time) tea.Msg {
+		return DebouncedCopyMsg{ClickID: copyID}
+	})
+}
+
+// handleDebouncedCopy executes copy only if no subsequent click invalidated it.
+func (m *model) handleDebouncedCopy(msg DebouncedCopyMsg) tea.Cmd {
+	if msg.ClickID == m.selection.pendingCopyID {
+		return m.copySelectionToClipboard()
+	}
+	return nil
 }

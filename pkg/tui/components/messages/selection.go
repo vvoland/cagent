@@ -21,10 +21,14 @@ type selectionState struct {
 	mouseButtonDown bool
 	mouseY          int // Screen Y coordinate for autoscroll
 
-	// Double-click detection
+	// Multi-click detection
 	lastClickTime time.Time
 	lastClickLine int
 	lastClickCol  int
+	clickCount    int // 1=single, 2=double, 3=triple
+
+	// Debounced copy: incremented on each click, copy only fires if ID matches
+	pendingCopyID int
 }
 
 // start initializes a new selection at the given position
@@ -65,35 +69,34 @@ func (s *selectionState) normalized() (startLine, startCol, endLine, endCol int)
 	return startLine, startCol, endLine, endCol
 }
 
-// isDoubleClick checks if a click at the given position constitutes a double-click
-func (s *selectionState) isDoubleClick(line, col int) bool {
-	if s.lastClickTime.IsZero() {
-		return false
-	}
-
+// detectClickType records the click and returns the click count (1=single, 2=double, 3=triple)
+func (s *selectionState) detectClickType(line, col int) int {
 	now := time.Now()
 	colDiff := col - s.lastClickCol
-
-	return now.Sub(s.lastClickTime) < 500*time.Millisecond &&
+	isConsecutive := !s.lastClickTime.IsZero() &&
+		now.Sub(s.lastClickTime) < 500*time.Millisecond &&
 		line == s.lastClickLine &&
 		colDiff >= -1 && colDiff <= 1
-}
 
-// recordClick stores click information for double-click detection
-func (s *selectionState) recordClick(line, col int) {
-	s.lastClickTime = time.Now()
+	if isConsecutive {
+		s.clickCount++
+	} else {
+		s.clickCount = 1
+	}
+	s.lastClickTime = now
 	s.lastClickLine = line
 	s.lastClickCol = col
-}
-
-// resetDoubleClick clears double-click detection state
-func (s *selectionState) resetDoubleClick() {
-	s.lastClickTime = time.Time{}
+	return s.clickCount
 }
 
 // AutoScrollTickMsg triggers auto-scroll during selection
 type AutoScrollTickMsg struct {
 	Direction int // -1 for up, 1 for down
+}
+
+// DebouncedCopyMsg triggers a debounced copy after multi-click selection
+type DebouncedCopyMsg struct {
+	ClickID int // Unique identifier to match with current selection state
 }
 
 // autoScroll handles automatic scrolling when selecting near viewport edges
@@ -176,6 +179,26 @@ func (m *model) selectWordAt(line, col int) {
 	m.selection.startCol = startCol
 	m.selection.endLine = line
 	m.selection.endCol = endCol
+	m.selection.mouseButtonDown = false
+}
+
+// selectLineAt selects the entire line at the given line position
+func (m *model) selectLineAt(line int) {
+	lines := strings.Split(m.rendered, "\n")
+	if line < 0 || line >= len(lines) {
+		return
+	}
+
+	originalLine := lines[line]
+	plainLine := ansi.Strip(originalLine)
+	lineWidth := runewidth.StringWidth(strings.TrimRight(plainLine, " \t"))
+
+	// Set selection to cover the entire line
+	m.selection.active = true
+	m.selection.startLine = line
+	m.selection.startCol = 0
+	m.selection.endLine = line
+	m.selection.endCol = lineWidth
 	m.selection.mouseButtonDown = false
 }
 
