@@ -34,6 +34,15 @@ func OpenDB(path string) (*sql.DB, error) {
 	db.SetMaxIdleConns(1)
 	db.SetConnMaxLifetime(0)
 
+	// Verify connection works (this will trigger file creation/open)
+	if err := db.Ping(); err != nil {
+		db.Close()
+		if IsCantOpenError(err) {
+			return nil, DiagnoseDBOpenError(path, err)
+		}
+		return nil, err
+	}
+
 	return db, nil
 }
 

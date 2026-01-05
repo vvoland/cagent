@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"time"
 
-
-
 	"github.com/docker/cagent/pkg/concurrent"
 	"github.com/docker/cagent/pkg/sqliteutil"
 )
@@ -27,8 +25,6 @@ func convertMessagesToItems(messages []Message) []Item {
 	}
 	return items
 }
-
-
 
 // Store defines the interface for session storage
 type Store interface {

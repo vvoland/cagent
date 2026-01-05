@@ -19,7 +19,7 @@ func NewMemoryDatabase(path string) (database.Database, error) {
 	}
 	// Ensure we close the connection if table creation fails
 	// Note: We don't defer close here because we return the db on success
-	
+
 	_, err = db.ExecContext(context.Background(), "CREATE TABLE IF NOT EXISTS memories (id TEXT PRIMARY KEY, created_at TEXT, memory TEXT)")
 	if err != nil {
 		db.Close()
