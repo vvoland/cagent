@@ -196,6 +196,7 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 		opts := []options.Opt{
 			options.WithGateway(runConfig.ModelsGateway),
 			options.WithStructuredOutput(a.StructuredOutput),
+			options.WithProviders(cfg.Providers),
 		}
 
 		// Use max_tokens from config if specified, otherwise look up from models.dev

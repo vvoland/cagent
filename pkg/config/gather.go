@@ -69,28 +69,36 @@ func gatherEnvVarsForModel(cfg *latest.Config, modelName string, requiredEnv map
 	model := cfg.Models[modelName]
 
 	// Add env vars for the model itself
-	addEnvVarsForModelConfig(&model, requiredEnv)
+	addEnvVarsForModelConfig(&model, cfg.Providers, requiredEnv)
 
 	// If the model has routing rules, also check all referenced models
 	for _, rule := range model.Routing {
 		ruleModelName := rule.Model
 		if ruleModel, exists := cfg.Models[ruleModelName]; exists {
 			// Model reference - add its env vars
-			addEnvVarsForModelConfig(&ruleModel, requiredEnv)
+			addEnvVarsForModelConfig(&ruleModel, cfg.Providers, requiredEnv)
 		} else if providerName, _, ok := strings.Cut(ruleModelName, "/"); ok {
 			// Inline spec (e.g., "openai/gpt-4o") - infer env vars from provider
 			inlineModel := latest.ModelConfig{Provider: providerName}
-			addEnvVarsForModelConfig(&inlineModel, requiredEnv)
+			addEnvVarsForModelConfig(&inlineModel, cfg.Providers, requiredEnv)
 		}
 	}
 }
 
 // addEnvVarsForModelConfig adds required environment variables for a model config.
-func addEnvVarsForModelConfig(model *latest.ModelConfig, requiredEnv map[string]bool) {
+// It checks custom providers first, then built-in aliases, then hardcoded fallbacks.
+func addEnvVarsForModelConfig(model *latest.ModelConfig, customProviders map[string]latest.ProviderConfig, requiredEnv map[string]bool) {
 	if model.TokenKey != "" {
 		requiredEnv[model.TokenKey] = true
+	} else if customProviders != nil {
+		// Check custom providers from config
+		if provCfg, exists := customProviders[model.Provider]; exists {
+			if provCfg.TokenKey != "" {
+				requiredEnv[provCfg.TokenKey] = true
+			}
+		}
 	} else if alias, exists := provider.Aliases[model.Provider]; exists {
-		// Use the token environment variable from the alias if available
+		// Check built-in aliases
 		if alias.TokenEnvVar != "" {
 			requiredEnv[alias.TokenEnvVar] = true
 		}
