@@ -205,9 +205,9 @@ func (f *runExecFlags) createConnectRPCRuntimeAndSession(ctx context.Context, or
 		return nil, nil, err
 	}
 
-	remoteRt, err := runtime.NewConnectRPCRemoteRuntime(connectClient,
-		runtime.WithConnectRPCRemoteCurrentAgent(f.agentName),
-		runtime.WithConnectRPCRemoteAgentFilename(originalFilename),
+	remoteRt, err := runtime.NewRemoteRuntime(connectClient,
+		runtime.WithRemoteCurrentAgent(f.agentName),
+		runtime.WithRemoteAgentFilename(originalFilename),
 	)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create connect-rpc remote runtime: %w", err)

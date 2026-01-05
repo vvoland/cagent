@@ -21,19 +21,20 @@ import (
 	"github.com/docker/cagent/pkg/api"
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/runtime"
+	"github.com/docker/cagent/pkg/server"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/tools"
 )
 
 // Server implements the Connect-RPC AgentService.
 type Server struct {
-	sm *sessionManager
+	sm *server.SessionManager
 }
 
 // New creates a new Connect-RPC server.
 func New(ctx context.Context, sessionStore session.Store, runConfig *config.RuntimeConfig, refreshInterval time.Duration, agentSources config.Sources) (*Server, error) {
 	return &Server{
-		sm: newSessionManager(ctx, agentSources, sessionStore, refreshInterval, runConfig),
+		sm: server.NewSessionManager(ctx, agentSources, sessionStore, refreshInterval, runConfig),
 	}, nil
 }
 
@@ -68,7 +69,7 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 // ListAgents returns all available agents.
 func (s *Server) ListAgents(ctx context.Context, _ *connect.Request[cagentv1.ListAgentsRequest]) (*connect.Response[cagentv1.ListAgentsResponse], error) {
 	agents := []*cagentv1.Agent{}
-	for k, agentSource := range s.sm.sources {
+	for k, agentSource := range s.sm.Sources {
 		slog.Debug("API source", "source", agentSource.Name())
 
 		c, err := config.Load(ctx, agentSource)
@@ -118,7 +119,7 @@ func (s *Server) ListAgents(ctx context.Context, _ *connect.Request[cagentv1.Lis
 func (s *Server) GetAgent(ctx context.Context, req *connect.Request[cagentv1.GetAgentRequest]) (*connect.Response[cagentv1.GetAgentResponse], error) {
 	agentID := req.Msg.Id
 
-	for k, agentSource := range s.sm.sources {
+	for k, agentSource := range s.sm.Sources {
 		if k != agentID {
 			continue
 		}
