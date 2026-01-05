@@ -208,7 +208,7 @@ func TestNewSQLiteSessionStore_DirectoryDoesNotExist(t *testing.T) {
 	_, err := NewSQLiteSessionStore(nonExistentPath)
 	require.Error(t, err)
 
-	assert.Contains(t, err.Error(), "cannot create session database")
+	assert.Contains(t, err.Error(), "cannot create database")
 	assert.Contains(t, err.Error(), "does not exist")
 }
 
@@ -220,6 +220,6 @@ func TestNewSQLiteSessionStore_DirectoryNotWritable(t *testing.T) {
 	_, err = NewSQLiteSessionStore(filepath.Join(readOnlyDir, "session.db"))
 	require.Error(t, err)
 
-	assert.Contains(t, err.Error(), "cannot create session database")
+	assert.Contains(t, err.Error(), "cannot create database")
 	assert.Contains(t, err.Error(), "permission denied or file cannot be created")
 }

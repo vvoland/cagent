@@ -4,9 +4,8 @@ import (
 	"context"
 	"database/sql"
 
-	_ "modernc.org/sqlite"
-
 	"github.com/docker/cagent/pkg/memory/database"
+	"github.com/docker/cagent/pkg/sqliteutil"
 )
 
 type MemoryDatabase struct {
@@ -14,22 +13,16 @@ type MemoryDatabase struct {
 }
 
 func NewMemoryDatabase(path string) (database.Database, error) {
-	// Add query parameters for better concurrency handling
-	// _busy_timeout: Wait up to 5 seconds if database is locked
-	// _journal_mode=WAL: Enable Write-Ahead Logging for better concurrent access
-	db, err := sql.Open("sqlite", path+"?_busy_timeout=5000&_journal_mode=WAL")
+	db, err := sqliteutil.OpenDB(path)
 	if err != nil {
 		return nil, err
 	}
-
-	// Configure connection pool to serialize writes (SQLite limitation)
-	// This prevents "database is locked" errors from concurrent writes
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	db.SetConnMaxLifetime(0)
+	// Ensure we close the connection if table creation fails
+	// Note: We don't defer close here because we return the db on success
 
 	_, err = db.ExecContext(context.Background(), "CREATE TABLE IF NOT EXISTS memories (id TEXT PRIMARY KEY, created_at TEXT, memory TEXT)")
 	if err != nil {
+		db.Close()
 		return nil, err
 	}
 
