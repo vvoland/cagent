@@ -261,6 +261,38 @@ func TestCompleteAlias(t *testing.T) {
 	}
 }
 
+func TestCompleteAliasIncludesYAMLFiles(t *testing.T) {
+	// This test changes the working directory so it cannot run in parallel
+
+	// Create temp directory with YAML files
+	tmpDir := t.TempDir()
+	writeFile(t, tmpDir, "golang_developer.yaml")
+	writeFile(t, tmpDir, "gopher.yaml")
+	writeFile(t, tmpDir, "other.yaml")
+	writeFile(t, tmpDir, "readme.md") // not a yaml file
+
+	// Change working directory
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() {
+		require.NoError(t, os.Chdir(origDir))
+	})
+
+	// Test that completeAlias includes YAML files starting with "go"
+	completions, directive := completeAlias("go")
+
+	// Should include yaml files matching "go" prefix
+	assert.Contains(t, completions, "golang_developer.yaml")
+	assert.Contains(t, completions, "gopher.yaml")
+	assert.NotContains(t, completions, "other.yaml") // doesn't match prefix
+	assert.NotContains(t, completions, "readme.md")  // not a yaml file
+
+	// Should set NoFileComp
+	assert.NotEqual(t, cobra.ShellCompDirective(0), directive&cobra.ShellCompDirectiveNoFileComp,
+		"expected NoFileComp directive to be set")
+}
+
 func TestCompleteRunExec(t *testing.T) {
 	t.Parallel()
 
