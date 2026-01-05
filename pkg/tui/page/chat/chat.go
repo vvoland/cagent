@@ -14,21 +14,17 @@ import (
 
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/history"
-	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/tui/commands"
 	"github.com/docker/cagent/pkg/tui/components/editor"
 	"github.com/docker/cagent/pkg/tui/components/messages"
-	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/components/sidebar"
 	"github.com/docker/cagent/pkg/tui/components/spinner"
-	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/dialog"
 	msgtypes "github.com/docker/cagent/pkg/tui/messages"
 	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
-	"github.com/docker/cagent/pkg/tui/types"
 )
 
 // FocusedPanel represents which panel is currently focused
@@ -220,71 +216,21 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return p, tea.Batch(cmds...)
 
 	case tea.KeyPressMsg:
-		switch {
-		case key.Matches(msg, p.keyMap.Tab):
-			if p.focusedPanel == PanelEditor && p.editor.AcceptSuggestion() {
-				return p, nil
-			}
-
-			p.switchFocus()
-			return p, nil
-
-		case key.Matches(msg, p.keyMap.Cancel):
-			cmd := p.cancelStream(true)
-			return p, cmd
-
-		case key.Matches(msg, p.keyMap.ExternalEditor):
-			cmd := p.openExternalEditor()
-			return p, cmd
-
-		case key.Matches(msg, p.keyMap.ToggleSplitDiff):
-			model, cmd := p.messages.Update(editfile.ToggleDiffViewMsg{})
-			p.messages = model.(messages.Model)
-			return p, cmd
+		if model, cmd, handled := p.handleKeyPress(msg); handled {
+			return model, cmd
 		}
-
-		// Route other keys to focused component
-		switch p.focusedPanel {
-		case PanelChat:
-			model, cmd := p.messages.Update(msg)
-			p.messages = model.(messages.Model)
-			return p, cmd
-		case PanelEditor:
-			model, cmd := p.editor.Update(msg)
-			p.editor = model.(editor.Editor)
-			return p, cmd
-		}
-
-		return p, nil
 
 	case tea.MouseClickMsg:
-		if p.isOnResizeHandle(msg.X, msg.Y) {
-			p.isDragging = true
-			return p, nil
-		}
-		cmd := p.routeMouseEvent(msg, msg.Y)
-		return p, cmd
+		return p.handleMouseClick(msg)
 
 	case tea.MouseMotionMsg:
-		if p.isDragging {
-			cmd := p.handleResize(msg.Y)
-			return p, cmd
-		}
-		p.isHoveringHandle = p.isOnResizeLine(msg.Y)
-		cmd := p.routeMouseEvent(msg, msg.Y)
-		return p, cmd
+		return p.handleMouseMotion(msg)
 
 	case tea.MouseReleaseMsg:
-		if p.isDragging {
-			p.isDragging = false
-			return p, nil
-		}
-		cmd := p.routeMouseEvent(msg, msg.Y)
-		return p, cmd
+		return p.handleMouseRelease(msg)
 
 	case tea.MouseWheelMsg:
-		cmd := p.routeMouseEvent(msg, msg.Y)
-		return p, cmd
+		return p.handleMouseWheel(msg)
 
 	case editor.SendMsg:
 		slog.Debug(msg.Content)
@@ -310,128 +256,11 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		p.messages = model.(messages.Model)
 		return p, cmd
 
-	// Runtime events
-	case *runtime.ErrorEvent:
-		cmd := p.messages.AddErrorMessage(msg.Error)
-		return p, cmd
-	case *runtime.ShellOutputEvent:
-		cmd := p.messages.AddShellOutputMessage(msg.Output)
-		return p, cmd
-	case *runtime.WarningEvent:
-		return p, notification.WarningCmd(msg.Message)
-	case *runtime.RAGIndexingStartedEvent, *runtime.RAGIndexingProgressEvent, *runtime.RAGIndexingCompletedEvent:
-		// Forward RAG events to sidebar
-		slog.Debug("Chat page forwarding RAG event to sidebar", "event_type", fmt.Sprintf("%T", msg))
-		model, cmd := p.sidebar.Update(msg)
-		p.sidebar = model.(sidebar.Model)
-		return p, cmd
-	case *runtime.UserMessageEvent:
-		// Replace loading message with actual user message (if there was one)
-		cmd := p.messages.ReplaceLoadingWithUser(msg.Message)
-		return p, cmd
-	case *runtime.StreamStartedEvent:
-		p.streamCancelled = false
-		spinnerCmd := p.setWorking(true)
-		cmd := p.messages.AddAssistantMessage()
-		p.startProgressBar()
-		sidebarModel, sidebarCmd := p.sidebar.Update(msg)
-		p.sidebar = sidebarModel.(sidebar.Model)
-		return p, tea.Batch(cmd, spinnerCmd, sidebarCmd)
-	case *runtime.AgentChoiceEvent:
-		if p.streamCancelled {
-			return p, nil
+	default:
+		// Try to handle as a runtime event
+		if handled, cmd := p.handleRuntimeEvent(msg); handled {
+			return p, cmd
 		}
-		cmd := p.messages.AppendToLastMessage(msg.AgentName, types.MessageTypeAssistant, msg.Content)
-		return p, cmd
-	case *runtime.AgentChoiceReasoningEvent:
-		if p.streamCancelled {
-			return p, nil
-		}
-		cmd := p.messages.AppendToLastMessage(msg.AgentName, types.MessageTypeAssistantReasoning, msg.Content)
-		return p, cmd
-	case *runtime.TokenUsageEvent:
-		p.sidebar.SetTokenUsage(msg)
-	case *runtime.SessionCompactionEvent:
-		if msg.Status == "completed" {
-			return p, notification.SuccessCmd("Session compacted successfully.")
-		}
-	case *runtime.AgentInfoEvent:
-		p.sidebar.SetAgentInfo(msg.AgentName, msg.Model, msg.Description)
-		p.messages.AddWelcomeMessage(msg.WelcomeMessage)
-	case *runtime.TeamInfoEvent:
-		p.sidebar.SetTeamInfo(msg.AvailableAgents)
-	case *runtime.AgentSwitchingEvent:
-		p.sidebar.SetAgentSwitching(msg.Switching)
-	case *runtime.ToolsetInfoEvent:
-		p.sidebar.SetToolsetInfo(msg.AvailableTools, msg.Loading)
-	case *runtime.StreamStoppedEvent:
-		spinnerCmd := p.setWorking(false)
-		if p.msgCancel != nil {
-			p.msgCancel = nil
-		}
-		p.streamCancelled = false
-		p.stopProgressBar()
-		sidebarModel, sidebarCmd := p.sidebar.Update(msg)
-		p.sidebar = sidebarModel.(sidebar.Model)
-		return p, tea.Batch(p.messages.ScrollToBottom(), spinnerCmd, sidebarCmd)
-	case *runtime.SessionTitleEvent:
-		sidebarModel, sidebarCmd := p.sidebar.Update(msg)
-		p.sidebar = sidebarModel.(sidebar.Model)
-		return p, sidebarCmd
-	case *runtime.PartialToolCallEvent:
-		// When we first receive a tool call, show it immediately in pending state
-		spinnerCmd := p.setWorking(true)
-		cmd := p.messages.AddOrUpdateToolCall(msg.AgentName, msg.ToolCall, msg.ToolDefinition, types.ToolStatusPending)
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
-	case *runtime.ToolCallConfirmationEvent:
-		spinnerCmd := p.setWorking(false)
-		cmd := p.messages.AddOrUpdateToolCall(msg.AgentName, msg.ToolCall, msg.ToolDefinition, types.ToolStatusConfirmation)
-
-		// Open tool confirmation dialog
-		dialogCmd := core.CmdHandler(dialog.OpenDialogMsg{
-			Model: dialog.NewToolConfirmationDialog(msg, p.sessionState),
-		})
-
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd, dialogCmd)
-	case *runtime.ToolCallEvent:
-		spinnerCmd := p.setWorking(true)
-		cmd := p.messages.AddOrUpdateToolCall(msg.AgentName, msg.ToolCall, msg.ToolDefinition, types.ToolStatusRunning)
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
-	case *runtime.ToolCallResponseEvent:
-		spinnerCmd := p.setWorking(true)
-
-		var cmd tea.Cmd
-		if msg.Result.IsError {
-			cmd = p.messages.AddToolResult(msg, types.ToolStatusError)
-		} else {
-			cmd = p.messages.AddToolResult(msg, types.ToolStatusCompleted)
-		}
-
-		// Check if this is a todo-related tool call and update sidebar
-		if msg.ToolDefinition.Category == "todo" && !msg.Result.IsError {
-			_ = p.sidebar.SetTodos(msg.Result)
-		}
-
-		return p, tea.Batch(cmd, p.messages.ScrollToBottom(), spinnerCmd)
-	case *runtime.MaxIterationsReachedEvent:
-		spinnerCmd := p.setWorking(false)
-
-		// Open max iterations confirmation dialog
-		dialogCmd := core.CmdHandler(dialog.OpenDialogMsg{
-			Model: dialog.NewMaxIterationsDialog(msg.MaxIterations, p.app),
-		})
-
-		return p, tea.Batch(spinnerCmd, dialogCmd)
-	case *runtime.ElicitationRequestEvent:
-		// TODO: handle normal elicitation requests
-		spinnerCmd := p.setWorking(false)
-
-		serverURL := msg.Meta["cagent/server_url"].(string)
-		dialogCmd := core.CmdHandler(dialog.OpenDialogMsg{
-			Model: dialog.NewOAuthAuthorizationDialog(serverURL, p.app),
-		})
-
-		return p, tea.Batch(spinnerCmd, dialogCmd)
 	}
 
 	sidebarModel, sidebarCmd := p.sidebar.Update(msg)

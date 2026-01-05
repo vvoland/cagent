@@ -9,22 +9,22 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/cagent/pkg/js"
 	"github.com/docker/cagent/pkg/tools"
 )
 
-var (
-	// positionalArgRegex matches $1, $2, etc. for argument substitution
-	positionalArgRegex = regexp.MustCompile(`\$(\d+)`)
-
-	// argumentsPlaceholder is the literal string for all arguments substitution
-	argumentsPlaceholder = "$ARGUMENTS"
-)
+// argsPlaceholderRegex matches ${args...} patterns to check if args are used.
+// This includes ${args}, ${args[N]}, ${args.join(...)}, ${args.length}, etc.
+var argsPlaceholderRegex = regexp.MustCompile(`\$\{args[^}]*\}`)
 
 // ResolveCommand transforms a /command into its expanded instruction text.
 // It processes:
 // 1. Command lookup from agent commands
-// 2. Positional argument substitution ($1, $2, etc.)
-// 3. Tool command execution (!tool_name(arg=value)) - tools executed and output inserted
+// 2. Tool command execution (!tool_name(arg=value)) - tools executed and output inserted
+// 3. JavaScript expressions (${...}) - evaluated with access to all agent tools and args array
+//   - ${args[0]}, ${args[1]}, etc. for positional arguments
+//   - ${args} or ${args.join(" ")} for all arguments
+//   - ${tool({...})} for tool calls
 func ResolveCommand(ctx context.Context, rt Runtime, userInput string) string {
 	if !strings.HasPrefix(userInput, "/") {
 		return userInput
@@ -41,14 +41,22 @@ func ResolveCommand(ctx context.Context, rt Runtime, userInput string) string {
 	instruction := command.Instruction
 	args := tokenize(rest)
 
-	// Substitute positional arguments ($1, $2, etc.)
-	instruction = substitutePositionalArgs(instruction, args)
+	// Execute JavaScript expressions (${...} syntax) with args array
+	// We execute JS first to prevent tool output (from !tool commands) from being evaluated as JS,
+	// which would be a security vulnerability (injection).
+	agentTools, err := rt.CurrentAgentTools(ctx)
+	if err != nil {
+		slog.Warn("Failed to get agent tools for JS expression execution", "error", err)
+	} else {
+		evaluator := js.NewEvaluator(agentTools)
+		instruction = evaluator.Evaluate(ctx, instruction, args)
+	}
 
-	// Execute tool commands and substitute their output
+	// Execute tool commands and substitute their output (legacy !tool() syntax)
 	instruction = executeToolCommands(ctx, rt, instruction)
 
 	// Append remaining text if no placeholders were used
-	if rest != "" && !positionalArgRegex.MatchString(command.Instruction) && !strings.Contains(command.Instruction, argumentsPlaceholder) {
+	if rest != "" && !argsPlaceholderRegex.MatchString(command.Instruction) {
 		instruction += " " + rest
 	}
 
@@ -87,24 +95,6 @@ func tokenize(input string) []string {
 	}
 
 	return tokens
-}
-
-// substitutePositionalArgs replaces $1, $2, etc. with the corresponding arguments.
-// $0 and $ARGUMENTS are replaced with all arguments joined by space.
-func substitutePositionalArgs(instruction string, args []string) string {
-	allArgs := strings.Join(args, " ")
-	instruction = strings.ReplaceAll(instruction, argumentsPlaceholder, allArgs)
-
-	return positionalArgRegex.ReplaceAllStringFunc(instruction, func(match string) string {
-		num, _ := strconv.Atoi(match[1:])
-		if num == 0 {
-			return allArgs
-		}
-		if idx := num - 1; idx < len(args) {
-			return args[idx]
-		}
-		return ""
-	})
 }
 
 // toolCommand represents a parsed tool command from the instruction.

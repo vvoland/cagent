@@ -70,13 +70,13 @@ agents:
 
           Here the result of the linting command:
           $ task lint
-          !shell(cmd="task lint")
+          ${shell({cmd: "task lint"})}
 
           $go_diagnostics
-          !go_diagnostics()
+          ${go_diagnostics()}
 
           $go_vulncheck
-          !go_vulncheck()
+          ${go_vulncheck()}
       remove-comments-tests: "Remove useless comments in test files (*_test.go)"
       commit:
         description: "Commit local changes"

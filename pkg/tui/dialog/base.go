@@ -137,3 +137,61 @@ func HandleConfirmKeys(msg tea.KeyPressMsg, keyMap ConfirmKeyMap, onYes, onNo fu
 	}
 	return nil, nil, false
 }
+
+// Content helps build dialog content with consistent structure.
+type Content struct {
+	width int
+	parts []string
+}
+
+// NewContent creates a new dialog content builder.
+func NewContent(contentWidth int) *Content {
+	return &Content{width: contentWidth}
+}
+
+// AddTitle adds a styled title to the dialog.
+func (dc *Content) AddTitle(title string) *Content {
+	dc.parts = append(dc.parts, RenderTitle(title, dc.width, styles.DialogTitleStyle))
+	return dc
+}
+
+// AddSeparator adds a horizontal separator line.
+func (dc *Content) AddSeparator() *Content {
+	dc.parts = append(dc.parts, RenderSeparator(dc.width))
+	return dc
+}
+
+// AddSpace adds an empty line for spacing.
+func (dc *Content) AddSpace() *Content {
+	dc.parts = append(dc.parts, "")
+	return dc
+}
+
+// AddQuestion adds a styled question text.
+func (dc *Content) AddQuestion(question string) *Content {
+	dc.parts = append(dc.parts, styles.DialogQuestionStyle.Width(dc.width).Render(question))
+	return dc
+}
+
+// AddContent adds raw content to the dialog.
+func (dc *Content) AddContent(content string) *Content {
+	dc.parts = append(dc.parts, content)
+	return dc
+}
+
+// AddHelpKeys adds key binding help at the bottom.
+func (dc *Content) AddHelpKeys(bindings ...string) *Content {
+	dc.parts = append(dc.parts, RenderHelpKeys(dc.width, bindings...))
+	return dc
+}
+
+// AddHelp adds help text at the bottom.
+func (dc *Content) AddHelp(text string) *Content {
+	dc.parts = append(dc.parts, RenderHelp(text, dc.width))
+	return dc
+}
+
+// Build returns the final dialog content as a vertical join.
+func (dc *Content) Build() string {
+	return lipgloss.JoinVertical(lipgloss.Left, dc.parts...)
+}

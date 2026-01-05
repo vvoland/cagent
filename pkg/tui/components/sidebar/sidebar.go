@@ -343,70 +343,56 @@ func (m *model) verticalView() string {
 	return strings.Join(lines, "\n")
 }
 
-func (m *model) workingIndicator() string {
-	var indicators []string
+// ragStrategyInfo holds a parsed RAG strategy entry
+type ragStrategyInfo struct {
+	strategyName string
+	state        *ragIndexingState
+}
 
-	// Add MCP init indicator if initializing
-	if m.mcpInit {
-		indicators = append(indicators, styles.ActiveStyle.Render(m.spinner.View()+" "+"Initializing MCP servers…"))
-	}
-
-	// Add RAG indexing indicators for each active indexing operation
-	// Group strategies by RAG source to avoid repeating the source name
-	ragGroups := make(map[string][]struct {
-		strategyName string
-		state        *ragIndexingState
-	})
+// groupedRAGIndexing returns RAG indexing states grouped and sorted by RAG name and strategy
+func (m *model) groupedRAGIndexing() (ragNames []string, ragGroups map[string][]ragStrategyInfo) {
+	ragGroups = make(map[string][]ragStrategyInfo)
 
 	for key, state := range m.ragIndexing {
 		parts := strings.Split(key, "/")
 		if len(parts) == 2 {
 			ragName := parts[0]
-			if ragGroups[ragName] == nil {
-				ragGroups[ragName] = []struct {
-					strategyName string
-					state        *ragIndexingState
-				}{}
-			}
-			ragGroups[ragName] = append(ragGroups[ragName], struct {
-				strategyName string
-				state        *ragIndexingState
-			}{parts[1], state})
+			ragGroups[ragName] = append(ragGroups[ragName], ragStrategyInfo{parts[1], state})
 		}
 	}
 
-	// Display each RAG source with its strategies (sorted for stable display)
-	ragNames := slices.Sorted(maps.Keys(ragGroups))
+	// Sort RAG names and strategies for stable display
+	ragNames = slices.Sorted(maps.Keys(ragGroups))
+	for _, name := range ragNames {
+		slices.SortFunc(ragGroups[name], func(a, b ragStrategyInfo) int {
+			return strings.Compare(a.strategyName, b.strategyName)
+		})
+	}
 
+	return ragNames, ragGroups
+}
+
+func (m *model) workingIndicator() string {
+	var indicators []string
+
+	if m.mcpInit {
+		indicators = append(indicators, styles.ActiveStyle.Render(m.spinner.View()+" Initializing MCP servers…"))
+	}
+
+	ragNames, ragGroups := m.groupedRAGIndexing()
 	for _, ragName := range ragNames {
 		strategies := ragGroups[ragName]
 		displayRagName := strings.ReplaceAll(ragName, "_", " ")
 
-		// Sort strategies by name for stable display
-		slices.SortFunc(strategies, func(a, b struct {
-			strategyName string
-			state        *ragIndexingState
-		},
-		) int {
-			return strings.Compare(a.strategyName, b.strategyName)
-		})
-
-		// Display RAG source name as header
-		ragNameStyled := styles.BoldStyle.Render(displayRagName)
-		header := fmt.Sprintf("Indexing %s", ragNameStyled)
+		// RAG source header
+		header := fmt.Sprintf("Indexing %s", styles.BoldStyle.Render(displayRagName))
 		indicators = append(indicators, styles.ActiveStyle.Render(header))
 
-		// Following lines: each strategy with its own spinner and progress
+		// Each strategy with its spinner and progress
 		for _, strategy := range strategies {
 			displayStratName := strings.ReplaceAll(strategy.strategyName, "-", " ")
-			progress := ""
-			if strategy.state.total > 0 {
-				progress = fmt.Sprintf(" [%d/%d]", strategy.state.current, strategy.state.total)
-			}
-			stratNameStyled := styles.BoldStyle.Render(displayStratName)
-			// Show spinner for each strategy
-			spinnerView := strategy.state.spinner.View()
-			line := fmt.Sprintf("  %s %s%s", spinnerView, stratNameStyled, progress)
+			progress := m.formatProgress(strategy.state)
+			line := fmt.Sprintf("  %s %s%s", strategy.state.spinner.View(), styles.BoldStyle.Render(displayStratName), progress)
 			indicators = append(indicators, line)
 		}
 	}
@@ -422,64 +408,21 @@ func (m *model) workingIndicator() string {
 func (m *model) workingIndicatorHorizontal() string {
 	var labels []string
 
-	// Add MCP init indicator if initializing
 	if m.mcpInit {
 		labels = append(labels, "Initializing MCP servers…")
 	}
 
-	// Add RAG indexing labels for each active indexing operation
-	// Group strategies by RAG source to avoid repeating the source name
-	ragGroups := make(map[string][]struct {
-		strategyName string
-		state        *ragIndexingState
-	})
-
-	for key, state := range m.ragIndexing {
-		parts := strings.Split(key, "/")
-		if len(parts) == 2 {
-			ragName := parts[0]
-			if ragGroups[ragName] == nil {
-				ragGroups[ragName] = []struct {
-					strategyName string
-					state        *ragIndexingState
-				}{}
-			}
-			ragGroups[ragName] = append(ragGroups[ragName], struct {
-				strategyName string
-				state        *ragIndexingState
-			}{parts[1], state})
-		}
-	}
-
-	// Display each RAG source with its strategies (sorted for stable display)
-	ragNames := slices.Sorted(maps.Keys(ragGroups))
-
+	ragNames, ragGroups := m.groupedRAGIndexing()
 	for _, ragName := range ragNames {
 		strategies := ragGroups[ragName]
 		displayRagName := strings.ReplaceAll(ragName, "_", " ")
 
-		// Sort strategies by name for stable display
-		slices.SortFunc(strategies, func(a, b struct {
-			strategyName string
-			state        *ragIndexingState
-		},
-		) int {
-			return strings.Compare(a.strategyName, b.strategyName)
-		})
+		labels = append(labels, fmt.Sprintf("Indexing %s", styles.BoldStyle.Render(displayRagName)))
 
-		// First line: RAG source name (bold for emphasis)
-		ragNameStyled := styles.BoldStyle.Render(displayRagName)
-		labels = append(labels, fmt.Sprintf("Indexing %s", ragNameStyled))
-
-		// Following lines: each strategy with progress, indented with bullet
 		for _, strategy := range strategies {
 			displayStratName := strings.ReplaceAll(strategy.strategyName, "-", " ")
-			progress := ""
-			if strategy.state.total > 0 {
-				progress = fmt.Sprintf(" [%d/%d]", strategy.state.current, strategy.state.total)
-			}
-			stratNameStyled := styles.BoldStyle.Render(displayStratName)
-			labels = append(labels, fmt.Sprintf("  • %s%s", stratNameStyled, progress))
+			progress := m.formatProgress(strategy.state)
+			labels = append(labels, fmt.Sprintf("  • %s%s", styles.BoldStyle.Render(displayStratName), progress))
 		}
 	}
 
@@ -487,9 +430,14 @@ func (m *model) workingIndicatorHorizontal() string {
 		return ""
 	}
 
-	// For horizontal mode, show all labels separated by " | "
-	label := strings.Join(labels, " | ")
-	return styles.ActiveStyle.Render(m.spinner.View() + " " + label)
+	return styles.ActiveStyle.Render(m.spinner.View() + " " + strings.Join(labels, " | "))
+}
+
+func (m *model) formatProgress(state *ragIndexingState) string {
+	if state.total > 0 {
+		return fmt.Sprintf(" [%d/%d]", state.current, state.total)
+	}
+	return ""
 }
 
 func (m *model) tokenUsage() string {
@@ -617,33 +565,25 @@ func (m *model) renderAgentEntry(content *strings.Builder, agent runtime.AgentDe
 // toolsetInfo renders the current toolset status information
 func (m *model) toolsetInfo() string {
 	var lines []string
-	if m.toolsLoading {
-		// Show spinner with current count while loading
-		if m.availableTools > 0 {
-			lines = append(lines, m.spinner.View()+styles.TabPrimaryStyle.Render(fmt.Sprintf(" %d tools available…", m.availableTools)))
-		} else {
-			lines = append(lines, m.spinner.View()+styles.TabPrimaryStyle.Render(" Loading tools…"))
+
+	// Tools status line
+	lines = append(lines, m.renderToolsStatus())
+
+	// Toggle indicators with shortcuts
+	toggles := []struct {
+		enabled  bool
+		label    string
+		shortcut string
+	}{
+		{m.sessionState.YoloMode, "YOLO mode enabled", "^y"},
+		{m.sessionState.HideToolResults, "Tool output hidden", "^o"},
+		{m.sessionState.SplitDiffView, "Split Diff View enabled", "^t"},
+	}
+
+	for _, toggle := range toggles {
+		if toggle.enabled {
+			lines = append(lines, m.renderToggleIndicator(toggle.label, toggle.shortcut))
 		}
-	} else if m.availableTools > 0 {
-		lines = append(lines, styles.TabAccentStyle.Render("█")+styles.TabPrimaryStyle.Render(fmt.Sprintf(" %d tools available", m.availableTools)))
-	}
-
-	if m.sessionState.YoloMode {
-		indicator := styles.TabAccentStyle.Render("✓") + styles.TabPrimaryStyle.Render(" YOLO mode enabled")
-		shortcut := lipgloss.PlaceHorizontal(m.width-lipgloss.Width(indicator)-2, lipgloss.Right, styles.MutedStyle.Render("^y"))
-		lines = append(lines, indicator+shortcut)
-	}
-
-	if m.sessionState.HideToolResults {
-		indicator := styles.TabAccentStyle.Render("✓") + styles.TabPrimaryStyle.Render(" Tool output hidden")
-		shortcut := lipgloss.PlaceHorizontal(m.width-lipgloss.Width(indicator)-2, lipgloss.Right, styles.MutedStyle.Render("^o"))
-		lines = append(lines, indicator+shortcut)
-	}
-
-	if m.sessionState.SplitDiffView {
-		indicator := styles.TabAccentStyle.Render("✓") + styles.TabPrimaryStyle.Render(" Split Diff View enabled")
-		shortcut := lipgloss.PlaceHorizontal(m.width-lipgloss.Width(indicator)-2, lipgloss.Right, styles.MutedStyle.Render("^t"))
-		lines = append(lines, indicator+shortcut)
 	}
 
 	if working := m.workingIndicator(); working != "" {
@@ -651,6 +591,27 @@ func (m *model) toolsetInfo() string {
 	}
 
 	return m.renderTab("Tools", lipgloss.JoinVertical(lipgloss.Top, lines...))
+}
+
+// renderToolsStatus renders the tools available/loading status line
+func (m *model) renderToolsStatus() string {
+	if m.toolsLoading {
+		if m.availableTools > 0 {
+			return m.spinner.View() + styles.TabPrimaryStyle.Render(fmt.Sprintf(" %d tools available…", m.availableTools))
+		}
+		return m.spinner.View() + styles.TabPrimaryStyle.Render(" Loading tools…")
+	}
+	if m.availableTools > 0 {
+		return styles.TabAccentStyle.Render("█") + styles.TabPrimaryStyle.Render(fmt.Sprintf(" %d tools available", m.availableTools))
+	}
+	return ""
+}
+
+// renderToggleIndicator renders a toggle status with its keyboard shortcut
+func (m *model) renderToggleIndicator(label, shortcut string) string {
+	indicator := styles.TabAccentStyle.Render("✓") + styles.TabPrimaryStyle.Render(" "+label)
+	shortcutStyled := lipgloss.PlaceHorizontal(m.width-lipgloss.Width(indicator)-2, lipgloss.Right, styles.MutedStyle.Render(shortcut))
+	return indicator + shortcutStyled
 }
 
 // SetSize sets the dimensions of the component
