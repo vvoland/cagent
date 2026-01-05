@@ -46,7 +46,7 @@ models:
 
 agents:
   root:
-    model: sonnet
+    model: opus
     description: Expert Golang developer specializing in the cagent multi-agent AI system architecture
     instruction: |
       <golang_developer>
