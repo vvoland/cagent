@@ -185,6 +185,10 @@ func convertBetaMessages(messages []chat.Message) []anthropic.BetaMessageParam {
 			continue
 		}
 	}
+
+	// Add ephemeral cache to last 2 messages' last content block
+	applyBetaMessageCacheControl(betaMessages)
+
 	return betaMessages
 }
 
@@ -194,6 +198,10 @@ func extractBetaSystemBlocks(messages []chat.Message) []anthropic.BetaTextBlockP
 	betaBlocks := make([]anthropic.BetaTextBlockParam, len(regularBlocks))
 	for i, block := range regularBlocks {
 		betaBlocks[i] = anthropic.BetaTextBlockParam{Text: block.Text}
+		// Copy over cache control from regular blocks (already set on first 2)
+		if block.CacheControl.Type != "" {
+			betaBlocks[i].CacheControl = anthropic.NewBetaCacheControlEphemeralParam()
+		}
 	}
 	return betaBlocks
 }
@@ -225,4 +233,30 @@ func convertBetaTools(t []tools.Tool) ([]anthropic.BetaToolUnionParam, error) {
 	}
 
 	return betaTools, nil
+}
+
+// applyBetaMessageCacheControl adds ephemeral cache control to the last content block
+// of the last 2 messages for prompt caching.
+func applyBetaMessageCacheControl(messages []anthropic.BetaMessageParam) {
+	for i := len(messages) - 1; i >= 0 && i >= len(messages)-2; i-- {
+		msg := &messages[i]
+		if len(msg.Content) == 0 {
+			continue
+		}
+		lastIdx := len(msg.Content) - 1
+		block := &msg.Content[lastIdx]
+		cacheCtrl := anthropic.NewBetaCacheControlEphemeralParam()
+		switch {
+		case block.OfText != nil:
+			block.OfText.CacheControl = cacheCtrl
+		case block.OfToolUse != nil:
+			block.OfToolUse.CacheControl = cacheCtrl
+		case block.OfToolResult != nil:
+			block.OfToolResult.CacheControl = cacheCtrl
+		case block.OfImage != nil:
+			block.OfImage.CacheControl = cacheCtrl
+		case block.OfDocument != nil:
+			block.OfDocument.CacheControl = cacheCtrl
+		}
+	}
 }
