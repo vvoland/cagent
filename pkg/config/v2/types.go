@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/goccy/go-yaml"
+
 	"github.com/docker/cagent/pkg/config/types"
 )
 
@@ -315,6 +317,105 @@ func (s *RAGStrategyConfig) UnmarshalYAML(unmarshal func(any) error) error {
 	return nil
 }
 
+// MarshalYAML implements custom marshaling to flatten Params into parent level
+func (s RAGStrategyConfig) MarshalYAML() ([]byte, error) {
+	result := s.buildFlattenedMap()
+	return yaml.Marshal(result)
+}
+
+// MarshalJSON implements custom marshaling to flatten Params into parent level
+// This ensures JSON and YAML have the same flattened format for consistency
+func (s RAGStrategyConfig) MarshalJSON() ([]byte, error) {
+	result := s.buildFlattenedMap()
+	return json.Marshal(result)
+}
+
+// UnmarshalJSON implements custom unmarshaling to capture all extra fields into Params
+// This ensures JSON and YAML have the same flattened format for consistency
+func (s *RAGStrategyConfig) UnmarshalJSON(data []byte) error {
+	// First unmarshal into a map to capture everything
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	// Extract known fields
+	if t, ok := raw["type"].(string); ok {
+		s.Type = t
+		delete(raw, "type")
+	}
+
+	if docs, ok := raw["docs"].([]any); ok {
+		s.Docs = make([]string, len(docs))
+		for i, d := range docs {
+			if str, ok := d.(string); ok {
+				s.Docs[i] = str
+			}
+		}
+		delete(raw, "docs")
+	}
+
+	if dbRaw, ok := raw["database"]; ok {
+		if dbStr, ok := dbRaw.(string); ok {
+			var db RAGDatabaseConfig
+			db.value = dbStr
+			s.Database = db
+		}
+		delete(raw, "database")
+	}
+
+	if chunkRaw, ok := raw["chunking"]; ok {
+		// Re-marshal and unmarshal chunking config
+		chunkBytes, _ := json.Marshal(chunkRaw)
+		var chunk RAGChunkingConfig
+		if err := json.Unmarshal(chunkBytes, &chunk); err == nil {
+			s.Chunking = chunk
+		}
+		delete(raw, "chunking")
+	}
+
+	if limit, ok := raw["limit"].(float64); ok {
+		s.Limit = int(limit)
+		delete(raw, "limit")
+	}
+
+	// Everything else goes into Params for strategy-specific configuration
+	s.Params = raw
+
+	return nil
+}
+
+// buildFlattenedMap creates a flattened map representation for marshaling
+// Used by both MarshalYAML and MarshalJSON to ensure consistent format
+func (s RAGStrategyConfig) buildFlattenedMap() map[string]any {
+	result := make(map[string]any)
+
+	if s.Type != "" {
+		result["type"] = s.Type
+	}
+	if len(s.Docs) > 0 {
+		result["docs"] = s.Docs
+	}
+	if !s.Database.IsEmpty() {
+		dbStr, _ := s.Database.AsString()
+		result["database"] = dbStr
+	}
+	// Only include chunking if any fields are set
+	if s.Chunking.Size > 0 || s.Chunking.Overlap > 0 || s.Chunking.RespectWordBoundaries {
+		result["chunking"] = s.Chunking
+	}
+	if s.Limit > 0 {
+		result["limit"] = s.Limit
+	}
+
+	// Flatten Params into the same level
+	for k, v := range s.Params {
+		result[k] = v
+	}
+
+	return result
+}
+
 // unmarshalDatabaseConfig handles DatabaseConfig unmarshaling from raw YAML data.
 // For RAG strategies, the database configuration is intentionally simple:
 // a single string value under the `database` key that points to the SQLite
@@ -405,6 +506,32 @@ func (d *RAGDatabaseConfig) AsString() (string, error) {
 // IsEmpty returns true if no database is configured
 func (d *RAGDatabaseConfig) IsEmpty() bool {
 	return d.value == nil
+}
+
+// MarshalYAML implements custom marshaling for DatabaseConfig
+func (d RAGDatabaseConfig) MarshalYAML() ([]byte, error) {
+	if d.value == nil {
+		return yaml.Marshal(nil)
+	}
+	return yaml.Marshal(d.value)
+}
+
+// MarshalJSON implements custom marshaling for DatabaseConfig
+func (d RAGDatabaseConfig) MarshalJSON() ([]byte, error) {
+	if d.value == nil {
+		return json.Marshal(nil)
+	}
+	return json.Marshal(d.value)
+}
+
+// UnmarshalJSON implements custom unmarshaling for DatabaseConfig
+func (d *RAGDatabaseConfig) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		d.value = str
+		return nil
+	}
+	return fmt.Errorf("database must be a string path to a sqlite database")
 }
 
 // RAGChunkingConfig represents text chunking configuration
