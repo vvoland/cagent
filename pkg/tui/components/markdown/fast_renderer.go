@@ -745,17 +745,21 @@ func (p *parser) renderCodeBlock(code, lang string) {
 	// Get syntax highlighting tokens
 	tokens := p.syntaxHighlight(code, lang)
 
-	// Calculate content width with margin
-	const margin = 2
-	contentWidth := p.width - margin*2
+	// Calculate content width with padding
+	const paddingLeft = 2
+	const paddingRight = 2
+	contentWidth := p.width - paddingLeft - paddingRight
 	if contentWidth < 20 {
 		contentWidth = p.width
 	}
 
-	indent := "  " // Pre-computed 2-space indent
+	paddingLeftStr := strings.Repeat(" ", paddingLeft)
 
 	// Pre-compute background padding style
 	bgStyle := buildAnsiStyle(p.styles.styleCodeBg)
+
+	// Render empty line at the top
+	p.out.WriteString(bgStyle.render(strings.Repeat(" ", p.width)) + "\n")
 
 	// Process tokens line by line for better performance
 	var lineBuilder strings.Builder
@@ -764,12 +768,13 @@ func (p *parser) renderCodeBlock(code, lang string) {
 
 	flushLine := func() {
 		lineContent := lineBuilder.String()
-		// Pad to full width
-		padWidth := contentWidth - lineWidth
+		// Pad to full width (including right padding)
+		padWidth := contentWidth - lineWidth + paddingRight
 		if padWidth > 0 {
 			lineContent += bgStyle.render(strings.Repeat(" ", padWidth))
 		}
-		p.out.WriteString(indent)
+		// Add left padding with background
+		p.out.WriteString(bgStyle.render(paddingLeftStr))
 		p.out.WriteString(lineContent)
 		p.out.WriteByte('\n')
 		lineBuilder.Reset()
@@ -807,6 +812,9 @@ func (p *parser) renderCodeBlock(code, lang string) {
 	if lineBuilder.Len() > 0 {
 		flushLine()
 	}
+
+	// Render empty line at the bottom
+	p.out.WriteString(bgStyle.render(strings.Repeat(" ", p.width)) + "\n")
 
 	p.out.WriteByte('\n')
 }
