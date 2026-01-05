@@ -406,3 +406,95 @@ func TestApplyModelOverrides(t *testing.T) {
 		})
 	}
 }
+
+func TestProviders_Validation(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		providers map[string]latest.ProviderConfig
+		wantErr   string
+	}{
+		{
+			name: "valid provider",
+			providers: map[string]latest.ProviderConfig{
+				"my_provider": {
+					APIType:  "openai_chatcompletions",
+					BaseURL:  "https://api.example.com/v1",
+					TokenKey: "MY_API_KEY",
+				},
+			},
+			wantErr: "",
+		},
+		{
+			name: "valid provider with responses api_type",
+			providers: map[string]latest.ProviderConfig{
+				"responses_provider": {
+					APIType: "openai_responses",
+					BaseURL: "https://api.example.com/v1",
+				},
+			},
+			wantErr: "",
+		},
+		{
+			name: "valid provider with empty api_type",
+			providers: map[string]latest.ProviderConfig{
+				"default_provider": {
+					BaseURL: "https://api.example.com/v1",
+				},
+			},
+			wantErr: "",
+		},
+		{
+			name: "missing base_url",
+			providers: map[string]latest.ProviderConfig{
+				"no_base_url": {
+					APIType: "openai_chatcompletions",
+				},
+			},
+			wantErr: "base_url is required",
+		},
+		{
+			name: "invalid api_type",
+			providers: map[string]latest.ProviderConfig{
+				"bad_provider": {
+					APIType: "invalid_api_type",
+					BaseURL: "https://api.example.com/v1",
+				},
+			},
+			wantErr: "invalid api_type 'invalid_api_type'",
+		},
+		{
+			name: "provider name with slash",
+			providers: map[string]latest.ProviderConfig{
+				"bad/name": {
+					APIType: "openai_chatcompletions",
+					BaseURL: "https://api.example.com/v1",
+				},
+			},
+			wantErr: "name cannot contain '/'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := &latest.Config{
+				Providers: tt.providers,
+				Agents: map[string]latest.AgentConfig{
+					"root": {Model: "openai/gpt-4o"},
+				},
+			}
+
+			err := validateConfig(cfg)
+
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
