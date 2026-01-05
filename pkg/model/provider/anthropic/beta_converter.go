@@ -57,22 +57,29 @@ func convertBetaMessages(messages []chat.Message) []anthropic.BetaMessageParam {
 								default:
 									mediaType = "image/jpeg"
 								}
-								imageBlockJSON := map[string]any{
-									"type": "image",
-									"source": map[string]any{
-										"type":       "base64",
-										"media_type": mediaType,
-										"data":       base64Data,
+								// Use SDK types directly for better performance (avoids JSON round trip)
+								contentBlocks = append(contentBlocks, anthropic.BetaContentBlockParamUnion{
+									OfImage: &anthropic.BetaImageBlockParam{
+										Source: anthropic.BetaImageBlockParamSourceUnion{
+											OfBase64: &anthropic.BetaBase64ImageSourceParam{
+												Data:      base64Data,
+												MediaType: anthropic.BetaBase64ImageSourceMediaType(mediaType),
+											},
+										},
 									},
-								}
-								jsonBytes, err := json.Marshal(imageBlockJSON)
-								if err == nil {
-									var imageBlock anthropic.BetaContentBlockParamUnion
-									if json.Unmarshal(jsonBytes, &imageBlock) == nil {
-										contentBlocks = append(contentBlocks, imageBlock)
-									}
-								}
+								})
 							}
+						} else if strings.HasPrefix(part.ImageURL.URL, "http://") || strings.HasPrefix(part.ImageURL.URL, "https://") {
+							// Support URL-based images - Anthropic can fetch images directly from URLs
+							contentBlocks = append(contentBlocks, anthropic.BetaContentBlockParamUnion{
+								OfImage: &anthropic.BetaImageBlockParam{
+									Source: anthropic.BetaImageBlockParamSourceUnion{
+										OfURL: &anthropic.BetaURLImageSourceParam{
+											URL: part.ImageURL.URL,
+										},
+									},
+								},
+							})
 						}
 					}
 				}

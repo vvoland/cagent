@@ -378,26 +378,18 @@ func convertMessages(messages []chat.Message) []anthropic.MessageParam {
 									mediaType = "image/jpeg"
 								}
 
-								// Create image block using raw JSON approach
-								// Based on: https://docs.anthropic.com/en/api/messages-vision
-								imageBlockJSON := map[string]any{
-									"type": "image",
-									"source": map[string]any{
-										"type":       "base64",
-										"media_type": mediaType,
-										"data":       base64Data,
-									},
-								}
-
-								// Convert to JSON and back to ContentBlockParamUnion
-								jsonBytes, err := json.Marshal(imageBlockJSON)
-								if err == nil {
-									var imageBlock anthropic.ContentBlockParamUnion
-									if json.Unmarshal(jsonBytes, &imageBlock) == nil {
-										contentBlocks = append(contentBlocks, imageBlock)
-									}
-								}
+								// Use SDK helper with proper typed source for better performance
+								// (avoids JSON marshal/unmarshal round trip)
+								contentBlocks = append(contentBlocks, anthropic.NewImageBlock(anthropic.Base64ImageSourceParam{
+									Data:      base64Data,
+									MediaType: anthropic.Base64ImageSourceMediaType(mediaType),
+								}))
 							}
+						} else if strings.HasPrefix(part.ImageURL.URL, "http://") || strings.HasPrefix(part.ImageURL.URL, "https://") {
+							// Support URL-based images - Anthropic can fetch images directly from URLs
+							contentBlocks = append(contentBlocks, anthropic.NewImageBlock(anthropic.URLImageSourceParam{
+								URL: part.ImageURL.URL,
+							}))
 						}
 					}
 				}
@@ -647,7 +639,9 @@ func repairAnthropicSequencing(msgs []anthropic.MessageParam) []anthropic.Messag
 	return repaired
 }
 
-// Helpers for map-based inspection
+// marshalToMap is a helper that converts any value to a map[string]any via JSON marshaling.
+// This is used to inspect SDK union types without depending on their internal structure.
+// It's shared by both standard and Beta API validation/repair code.
 func marshalToMap(v any) (map[string]any, bool) {
 	b, err := json.Marshal(v)
 	if err != nil {
@@ -660,6 +654,8 @@ func marshalToMap(v any) (map[string]any, bool) {
 	return m, true
 }
 
+// contentArray extracts the content array from a marshaled message map.
+// Used by both standard and Beta API validation/repair code.
 func contentArray(m map[string]any) []any {
 	if a, ok := m["content"].([]any); ok {
 		return a
