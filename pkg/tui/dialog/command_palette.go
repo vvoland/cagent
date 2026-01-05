@@ -9,6 +9,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/tui/commands"
+	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/styles"
@@ -26,6 +27,7 @@ type commandPaletteDialog struct {
 	categories []commands.Category
 	filtered   []commands.Item
 	selected   int
+	offset     int // scroll offset for visible window
 	keyMap     commandPaletteKeyMap
 }
 
@@ -119,12 +121,14 @@ func (d *commandPaletteDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		case key.Matches(msg, d.keyMap.Up):
 			if d.selected > 0 {
 				d.selected--
+				d.ensureVisible()
 			}
 			return d, nil
 
 		case key.Matches(msg, d.keyMap.Down):
 			if d.selected < len(d.filtered)-1 {
 				d.selected++
+				d.ensureVisible()
 			}
 			return d, nil
 
@@ -161,6 +165,7 @@ func (d *commandPaletteDialog) filterCommands() {
 			d.filtered = append(d.filtered, cat.Commands...)
 		}
 		d.selected = 0
+		d.offset = 0
 		return
 	}
 
@@ -178,12 +183,63 @@ func (d *commandPaletteDialog) filterCommands() {
 	if d.selected >= len(d.filtered) {
 		d.selected = 0
 	}
+	d.offset = 0
+}
+
+// maxVisibleLines returns the maximum number of lines available for the command list
+func (d *commandPaletteDialog) maxVisibleLines() int {
+	maxHeight := min(d.Height()*70/100, 30)
+	return max(1, maxHeight-8)
+}
+
+// ensureVisible adjusts the scroll offset so the selected item is visible
+func (d *commandPaletteDialog) ensureVisible() {
+	if d.selected < d.offset {
+		d.offset = d.selected
+		return
+	}
+
+	// Simulate rendering to check if selected item is visible
+	maxLines := d.maxVisibleLines()
+	for {
+		lineCount := 0
+		selectedVisible := false
+		var lastCategory string
+
+		for i := d.offset; i < len(d.filtered) && lineCount < maxLines; i++ {
+			cmd := d.filtered[i]
+			// Category header takes a line
+			if cmd.Category != lastCategory {
+				if lineCount >= maxLines {
+					break
+				}
+				lineCount++
+				lastCategory = cmd.Category
+			}
+			if lineCount >= maxLines {
+				break
+			}
+			if i == d.selected {
+				selectedVisible = true
+			}
+			lineCount++
+		}
+
+		if selectedVisible {
+			break
+		}
+		// Selected item not visible, increase offset
+		d.offset++
+		if d.offset >= len(d.filtered) {
+			d.offset = max(0, len(d.filtered)-1)
+			break
+		}
+	}
 }
 
 // View renders the command palette dialog
 func (d *commandPaletteDialog) View() string {
 	dialogWidth := max(min(d.Width()*80/100, 70), 80)
-	maxHeight := min(d.Height()*70/100, 30)
 	contentWidth := dialogWidth - 6
 
 	title := RenderTitle("Commands", contentWidth, styles.DialogTitleStyle)
@@ -194,40 +250,34 @@ func (d *commandPaletteDialog) View() string {
 	separator := RenderSeparator(contentWidth)
 
 	var commandList []string
-	maxItems := maxHeight - 8
+	maxLines := d.maxVisibleLines()
 
-	categoryMap := make(map[string][]commands.Item)
-	categoryOrder := make([]string, 0)
-
-	for _, cmd := range d.filtered {
-		if _, exists := categoryMap[cmd.Category]; !exists {
-			categoryOrder = append(categoryOrder, cmd.Category)
-		}
-		categoryMap[cmd.Category] = append(categoryMap[cmd.Category], cmd)
-	}
-
-	itemCount := 0
-	currentIndex := 0
-
-	for _, catName := range categoryOrder {
-		if itemCount >= maxItems {
-			break
-		}
-
-		commandList = append(commandList, styles.PaletteCategoryStyle.Render(catName))
-		itemCount++
-
-		for _, cmd := range categoryMap[catName] {
-			if itemCount >= maxItems {
+	// Render commands in the visible window, accounting for category headers
+	lineCount := 0
+	var lastCategory string
+	for i := d.offset; i < len(d.filtered) && lineCount < maxLines; i++ {
+		cmd := d.filtered[i]
+		// Show category header when it changes
+		if cmd.Category != lastCategory {
+			if lineCount < maxLines {
+				commandList = append(commandList, styles.PaletteCategoryStyle.Render(cmd.Category))
+				lineCount++
+				lastCategory = cmd.Category
+			}
+			if lineCount >= maxLines {
 				break
 			}
-
-			isSelected := currentIndex == d.selected
-			commandLine := d.renderCommand(cmd, isSelected)
-			commandList = append(commandList, commandLine)
-			itemCount++
-			currentIndex++
 		}
+		isSelected := i == d.selected
+		commandLine := d.renderCommand(cmd, isSelected, contentWidth)
+		commandList = append(commandList, commandLine)
+		lineCount++
+	}
+
+	// Pad with empty lines to maintain consistent height
+	for lineCount < maxLines {
+		commandList = append(commandList, "")
+		lineCount++
 	}
 
 	if len(d.filtered) == 0 {
@@ -255,7 +305,7 @@ func (d *commandPaletteDialog) View() string {
 }
 
 // renderCommand renders a single command in the list
-func (d *commandPaletteDialog) renderCommand(cmd commands.Item, selected bool) string {
+func (d *commandPaletteDialog) renderCommand(cmd commands.Item, selected bool, contentWidth int) string {
 	actionStyle := styles.PaletteUnselectedActionStyle
 	descStyle := styles.PaletteUnselectedDescStyle
 	if selected {
@@ -263,10 +313,20 @@ func (d *commandPaletteDialog) renderCommand(cmd commands.Item, selected bool) s
 		descStyle = styles.PaletteSelectedDescStyle
 	}
 
+	label := " " + cmd.Label
+	labelWidth := lipgloss.Width(actionStyle.Render(label))
+
 	var content string
-	content += actionStyle.Render(" " + cmd.Label)
+	content += actionStyle.Render(label)
 	if cmd.Description != "" {
-		content += descStyle.Render(" • " + cmd.Description)
+		// Calculate available width for description: contentWidth - label - " • " separator
+		separator := " • "
+		separatorWidth := lipgloss.Width(separator)
+		availableWidth := contentWidth - labelWidth - separatorWidth
+		if availableWidth > 0 {
+			truncatedDesc := toolcommon.TruncateText(cmd.Description, availableWidth)
+			content += descStyle.Render(separator + truncatedDesc)
+		}
 	}
 	return content
 }
