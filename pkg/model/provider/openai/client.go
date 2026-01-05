@@ -21,6 +21,7 @@ import (
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/httpclient"
 	"github.com/docker/cagent/pkg/model/provider/base"
+	"github.com/docker/cagent/pkg/model/provider/oaistream"
 	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/rag/prompts"
 	"github.com/docker/cagent/pkg/rag/types"
@@ -138,134 +139,10 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 	}, nil
 }
 
-func convertMultiContent(multiContent []chat.MessagePart) []openai.ChatCompletionContentPartUnionParam {
-	parts := make([]openai.ChatCompletionContentPartUnionParam, len(multiContent))
-	for i, part := range multiContent {
-		switch part.Type {
-		case chat.MessagePartTypeText:
-			parts[i] = openai.TextContentPart(part.Text)
-		case chat.MessagePartTypeImageURL:
-			if part.ImageURL != nil {
-				parts[i] = openai.ImageContentPart(openai.ChatCompletionContentPartImageImageURLParam{
-					URL:    part.ImageURL.URL,
-					Detail: string(part.ImageURL.Detail),
-				})
-			}
-		}
-	}
-	return parts
-}
-
-// convertMessages converts chat.ChatCompletionMessage to openai.ChatCompletionMessageParamUnion
+// convertMessages converts chat.Message to openai.ChatCompletionMessageParamUnion
+// using the shared oaistream implementation.
 func convertMessages(messages []chat.Message) []openai.ChatCompletionMessageParamUnion {
-	openaiMessages := make([]openai.ChatCompletionMessageParamUnion, 0, len(messages))
-	for i := range messages {
-		msg := &messages[i]
-
-		// Skip invalid assistant messages upfront. This can happen if the model is out of tokens (max_tokens reached)
-		if msg.Role == chat.MessageRoleAssistant && len(msg.ToolCalls) == 0 && len(msg.MultiContent) == 0 && strings.TrimSpace(msg.Content) == "" {
-			continue
-		}
-
-		var openaiMessage openai.ChatCompletionMessageParamUnion
-
-		switch msg.Role {
-		case chat.MessageRoleSystem:
-			if len(msg.MultiContent) == 0 {
-				openaiMessage = openai.SystemMessage(msg.Content)
-			} else {
-				// Convert multi-content for system messages
-				textParts := make([]openai.ChatCompletionContentPartTextParam, 0)
-				for _, part := range msg.MultiContent {
-					if part.Type == chat.MessagePartTypeText {
-						textParts = append(textParts, openai.ChatCompletionContentPartTextParam{
-							Text: part.Text,
-						})
-					}
-				}
-				openaiMessage = openai.SystemMessage(textParts)
-			}
-
-		case chat.MessageRoleUser:
-			if len(msg.MultiContent) == 0 {
-				openaiMessage = openai.UserMessage(msg.Content)
-			} else {
-				openaiMessage = openai.UserMessage(convertMultiContent(msg.MultiContent))
-			}
-
-		case chat.MessageRoleAssistant:
-			assistantParam := openai.ChatCompletionAssistantMessageParam{}
-
-			if len(msg.MultiContent) == 0 {
-				if msg.Content != "" {
-					assistantParam.Content.OfString = param.NewOpt(msg.Content)
-				}
-			} else {
-				// Convert multi-content for assistant messages
-				contentParts := make([]openai.ChatCompletionAssistantMessageParamContentArrayOfContentPartUnion, 0)
-				for _, part := range msg.MultiContent {
-					if part.Type == chat.MessagePartTypeText {
-						contentParts = append(contentParts, openai.ChatCompletionAssistantMessageParamContentArrayOfContentPartUnion{
-							OfText: &openai.ChatCompletionContentPartTextParam{
-								Text: part.Text,
-							},
-						})
-					}
-				}
-				if len(contentParts) > 0 {
-					assistantParam.Content.OfArrayOfContentParts = contentParts
-				}
-			}
-
-			if msg.FunctionCall != nil {
-				assistantParam.FunctionCall.Name = msg.FunctionCall.Name           //nolint:staticcheck // deprecated but still needed for compatibility
-				assistantParam.FunctionCall.Arguments = msg.FunctionCall.Arguments //nolint:staticcheck // deprecated but still needed for compatibility
-			}
-
-			if len(msg.ToolCalls) > 0 {
-				toolCalls := make([]openai.ChatCompletionMessageToolCallUnionParam, len(msg.ToolCalls))
-				for j, toolCall := range msg.ToolCalls {
-					toolCalls[j] = openai.ChatCompletionMessageToolCallUnionParam{
-						OfFunction: &openai.ChatCompletionMessageFunctionToolCallParam{
-							ID: toolCall.ID,
-							Function: openai.ChatCompletionMessageFunctionToolCallFunctionParam{
-								Name:      toolCall.Function.Name,
-								Arguments: toolCall.Function.Arguments,
-							},
-						},
-					}
-				}
-				assistantParam.ToolCalls = toolCalls
-			}
-
-			openaiMessage.OfAssistant = &assistantParam
-
-		case chat.MessageRoleTool:
-			toolParam := openai.ChatCompletionToolMessageParam{
-				ToolCallID: msg.ToolCallID,
-			}
-
-			if len(msg.MultiContent) == 0 {
-				toolParam.Content.OfString = param.NewOpt(msg.Content)
-			} else {
-				// Convert multi-content for tool messages
-				textParts := make([]openai.ChatCompletionContentPartTextParam, 0)
-				for _, part := range msg.MultiContent {
-					if part.Type == chat.MessagePartTypeText {
-						textParts = append(textParts, openai.ChatCompletionContentPartTextParam{
-							Text: part.Text,
-						})
-					}
-				}
-				toolParam.Content.OfArrayOfContentParts = textParts
-			}
-
-			openaiMessage.OfTool = &toolParam
-		}
-
-		openaiMessages = append(openaiMessages, openaiMessage)
-	}
-	return openaiMessages
+	return oaistream.ConvertMessages(messages)
 }
 
 // CreateChatCompletionStream creates a streaming chat completion request

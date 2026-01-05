@@ -21,7 +21,6 @@ import (
 
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
-	"github.com/openai/openai-go/v3/packages/param"
 	"github.com/openai/openai-go/v3/shared"
 	"golang.org/x/term"
 
@@ -29,6 +28,7 @@ import (
 	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/input"
 	"github.com/docker/cagent/pkg/model/provider/base"
+	"github.com/docker/cagent/pkg/model/provider/oaistream"
 	"github.com/docker/cagent/pkg/model/provider/options"
 	"github.com/docker/cagent/pkg/rag/types"
 	"github.com/docker/cagent/pkg/tools"
@@ -218,24 +218,6 @@ func resolveDMRBaseURL(cfg *latest.ModelConfig, endpoint string) (string, []opti
 	return baseURL, clientOptions, httpClient
 }
 
-func convertMultiContent(multiContent []chat.MessagePart) []openai.ChatCompletionContentPartUnionParam {
-	parts := make([]openai.ChatCompletionContentPartUnionParam, len(multiContent))
-	for i, part := range multiContent {
-		switch part.Type {
-		case chat.MessagePartTypeText:
-			parts[i] = openai.TextContentPart(part.Text)
-		case chat.MessagePartTypeImageURL:
-			if part.ImageURL != nil {
-				parts[i] = openai.ImageContentPart(openai.ChatCompletionContentPartImageImageURLParam{
-					URL:    part.ImageURL.URL,
-					Detail: string(part.ImageURL.Detail),
-				})
-			}
-		}
-	}
-	return parts
-}
-
 // mergeRuntimeFlagsPreferUser merges derived engine flags (the ones under `models:` e.g. `temperature`)
 // and user-provided runtime flags (the ones under `models:provider_opts:runtime_flags:`).
 // If both specify the same flag key (e.g., --temp), the `models:provider_opts:runtime_flags:` value is preferred and a warning is returned.
@@ -252,9 +234,7 @@ func mergeRuntimeFlagsPreferUser(derived, user []string) (out, warnings []string
 			tok := tokens[i]
 			if strings.HasPrefix(tok, "-") {
 				// handle --key=value or -k=value
-				if idx := strings.Index(tok, "="); idx != -1 {
-					k := tok[:idx]
-					v := tok[idx+1:]
+				if k, v, found := strings.Cut(tok, "="); found {
 					out = append(out, flagKV{key: k, val: &v, orig: []string{tok}})
 					continue
 				}
@@ -312,190 +292,11 @@ func mergeRuntimeFlagsPreferUser(derived, user []string) (out, warnings []string
 	return out, warnings
 }
 
+// convertMessages converts chat messages to OpenAI format and merges consecutive
+// system/user messages, which is needed by some local models run by DMR.
 func convertMessages(messages []chat.Message) []openai.ChatCompletionMessageParamUnion {
-	openaiMessages := make([]openai.ChatCompletionMessageParamUnion, 0, len(messages))
-	for i := range messages {
-		msg := &messages[i]
-
-		// Skip invalid assistant messages upfront. This can happen if the model is out of tokens (max_tokens reached)
-		if msg.Role == chat.MessageRoleAssistant && len(msg.ToolCalls) == 0 && len(msg.MultiContent) == 0 && strings.TrimSpace(msg.Content) == "" {
-			continue
-		}
-
-		var openaiMessage openai.ChatCompletionMessageParamUnion
-
-		switch msg.Role {
-		case chat.MessageRoleSystem:
-			if len(msg.MultiContent) == 0 {
-				openaiMessage = openai.SystemMessage(msg.Content)
-			} else {
-				// Convert multi-content for system messages
-				textParts := make([]openai.ChatCompletionContentPartTextParam, 0)
-				for _, part := range msg.MultiContent {
-					if part.Type == chat.MessagePartTypeText {
-						textParts = append(textParts, openai.ChatCompletionContentPartTextParam{
-							Text: part.Text,
-						})
-					}
-				}
-				openaiMessage = openai.SystemMessage(textParts)
-			}
-
-		case chat.MessageRoleUser:
-			if len(msg.MultiContent) == 0 {
-				openaiMessage = openai.UserMessage(msg.Content)
-			} else {
-				openaiMessage = openai.UserMessage(convertMultiContent(msg.MultiContent))
-			}
-
-		case chat.MessageRoleAssistant:
-			assistantParam := openai.ChatCompletionAssistantMessageParam{}
-
-			if len(msg.MultiContent) == 0 {
-				if msg.Content != "" {
-					assistantParam.Content.OfString = param.NewOpt(msg.Content)
-				}
-			} else {
-				// Convert multi-content for assistant messages
-				contentParts := make([]openai.ChatCompletionAssistantMessageParamContentArrayOfContentPartUnion, 0)
-				for _, part := range msg.MultiContent {
-					if part.Type == chat.MessagePartTypeText {
-						contentParts = append(contentParts, openai.ChatCompletionAssistantMessageParamContentArrayOfContentPartUnion{
-							OfText: &openai.ChatCompletionContentPartTextParam{
-								Text: part.Text,
-							},
-						})
-					}
-				}
-				if len(contentParts) > 0 {
-					assistantParam.Content.OfArrayOfContentParts = contentParts
-				}
-			}
-
-			if msg.FunctionCall != nil {
-				assistantParam.FunctionCall.Name = msg.FunctionCall.Name           //nolint:staticcheck // deprecated but still needed for compatibility
-				assistantParam.FunctionCall.Arguments = msg.FunctionCall.Arguments //nolint:staticcheck // deprecated but still needed for compatibility
-			}
-
-			if len(msg.ToolCalls) > 0 {
-				toolCalls := make([]openai.ChatCompletionMessageToolCallUnionParam, len(msg.ToolCalls))
-				for j, toolCall := range msg.ToolCalls {
-					toolCalls[j] = openai.ChatCompletionMessageToolCallUnionParam{
-						OfFunction: &openai.ChatCompletionMessageFunctionToolCallParam{
-							ID: toolCall.ID,
-							Function: openai.ChatCompletionMessageFunctionToolCallFunctionParam{
-								Name:      toolCall.Function.Name,
-								Arguments: toolCall.Function.Arguments,
-							},
-						},
-					}
-				}
-				assistantParam.ToolCalls = toolCalls
-			}
-
-			openaiMessage.OfAssistant = &assistantParam
-
-		case chat.MessageRoleTool:
-			toolParam := openai.ChatCompletionToolMessageParam{
-				ToolCallID: msg.ToolCallID,
-			}
-
-			if len(msg.MultiContent) == 0 {
-				toolParam.Content.OfString = param.NewOpt(msg.Content)
-			} else {
-				// Convert multi-content for tool messages
-				textParts := make([]openai.ChatCompletionContentPartTextParam, 0)
-				for _, part := range msg.MultiContent {
-					if part.Type == chat.MessagePartTypeText {
-						textParts = append(textParts, openai.ChatCompletionContentPartTextParam{
-							Text: part.Text,
-						})
-					}
-				}
-				toolParam.Content.OfArrayOfContentParts = textParts
-			}
-
-			openaiMessage.OfTool = &toolParam
-		}
-
-		openaiMessages = append(openaiMessages, openaiMessage)
-	}
-
-	var mergedMessages []openai.ChatCompletionMessageParamUnion
-
-	for i := 0; i < len(openaiMessages); i++ {
-		currentMsg := openaiMessages[i]
-
-		// Check if current message is system or user
-		currentRole := currentMsg.GetRole()
-		if currentRole != nil && (*currentRole == "system" || *currentRole == "user") {
-			var mergedContent string
-			var mergedMultiContent []openai.ChatCompletionContentPartUnionParam
-			j := i
-
-			for j < len(openaiMessages) {
-				msgToMerge := openaiMessages[j]
-				msgRole := msgToMerge.GetRole()
-				if msgRole == nil || *msgRole != *currentRole {
-					break
-				}
-
-				content := msgToMerge.GetContent()
-				// Try to extract string content
-				switch v := content.AsAny().(type) {
-				case *string:
-					if mergedContent != "" {
-						mergedContent += "\n"
-					}
-					mergedContent += *v
-				case *[]openai.ChatCompletionContentPartUnionParam:
-					if v != nil {
-						mergedMultiContent = append(mergedMultiContent, *v...)
-					}
-				case *[]openai.ChatCompletionContentPartTextParam:
-					// Convert text parts to union params
-					if v != nil {
-						for _, textPart := range *v {
-							mergedMultiContent = append(mergedMultiContent, openai.ChatCompletionContentPartUnionParam{
-								OfText: &openai.ChatCompletionContentPartTextParam{
-									Text: textPart.Text,
-								},
-							})
-						}
-					}
-				}
-				j++
-			}
-
-			var mergedMessage openai.ChatCompletionMessageParamUnion
-			if *currentRole == "system" {
-				if len(mergedMultiContent) == 0 {
-					mergedMessage = openai.SystemMessage(mergedContent)
-				} else {
-					textParts := make([]openai.ChatCompletionContentPartTextParam, 0)
-					for _, part := range mergedMultiContent {
-						if part.OfText != nil {
-							textParts = append(textParts, *part.OfText)
-						}
-					}
-					mergedMessage = openai.SystemMessage(textParts)
-				}
-			} else {
-				if len(mergedMultiContent) == 0 {
-					mergedMessage = openai.UserMessage(mergedContent)
-				} else {
-					mergedMessage = openai.UserMessage(mergedMultiContent)
-				}
-			}
-
-			mergedMessages = append(mergedMessages, mergedMessage)
-			i = j - 1
-		} else {
-			mergedMessages = append(mergedMessages, currentMsg)
-		}
-	}
-
-	return mergedMessages
+	openaiMessages := oaistream.ConvertMessages(messages)
+	return oaistream.MergeConsecutiveMessages(openaiMessages)
 }
 
 // CreateChatCompletionStream creates a streaming chat completion request
@@ -970,6 +771,39 @@ type speculativeDecodingOpts struct {
 	acceptanceRate float64
 }
 
+// parseFloat64 attempts to parse a value as float64 from various types.
+// Returns the parsed value and true if successful, otherwise 0 and false.
+func parseFloat64(v any) (float64, bool) {
+	switch t := v.(type) {
+	case float64:
+		return t, true
+	case float32:
+		return float64(t), true
+	case int:
+		return float64(t), true
+	case int64:
+		return float64(t), true
+	case uint64:
+		return float64(t), true
+	case string:
+		if s := strings.TrimSpace(t); s != "" {
+			if f, err := strconv.ParseFloat(s, 64); err == nil {
+				return f, true
+			}
+		}
+	}
+	return 0, false
+}
+
+// parseInt attempts to parse a value as int from various types.
+// Returns the parsed value and true if successful, otherwise 0 and false.
+func parseInt(v any) (int, bool) {
+	if f, ok := parseFloat64(v); ok {
+		return int(f), true
+	}
+	return 0, false
+}
+
 func parseDMRProviderOpts(cfg *latest.ModelConfig) (contextSize *int64, runtimeFlags []string, specOpts *speculativeDecodingOpts) {
 	if cfg == nil {
 		return nil, nil, nil
@@ -980,83 +814,52 @@ func parseDMRProviderOpts(cfg *latest.ModelConfig) (contextSize *int64, runtimeF
 
 	slog.Debug("DMR provider opts", "provider_opts", cfg.ProviderOpts)
 
-	if len(cfg.ProviderOpts) > 0 {
-		if v, ok := cfg.ProviderOpts["runtime_flags"]; ok {
-			switch t := v.(type) {
-			case []any:
-				for _, item := range t {
-					runtimeFlags = append(runtimeFlags, fmt.Sprint(item))
-				}
-			case []string:
-				runtimeFlags = append(runtimeFlags, t...)
-			case string:
-				parts := strings.Fields(strings.ReplaceAll(t, ",", " "))
-				runtimeFlags = append(runtimeFlags, parts...)
-			}
-		}
+	if len(cfg.ProviderOpts) == 0 {
+		return contextSize, runtimeFlags, specOpts
+	}
 
-		// Parse speculative decoding options
-		var hasDraftModel, hasNumTokens, hasAcceptanceRate bool
-		var draftModel string
-		var numTokens int
-		var acceptanceRate float64
-
-		if v, ok := cfg.ProviderOpts["speculative_draft_model"]; ok {
-			if s, ok := v.(string); ok && s != "" {
-				draftModel = s
-				hasDraftModel = true
+	// Parse runtime flags
+	if v, ok := cfg.ProviderOpts["runtime_flags"]; ok {
+		switch t := v.(type) {
+		case []any:
+			for _, item := range t {
+				runtimeFlags = append(runtimeFlags, fmt.Sprint(item))
 			}
+		case []string:
+			runtimeFlags = append(runtimeFlags, t...)
+		case string:
+			parts := strings.Fields(strings.ReplaceAll(t, ",", " "))
+			runtimeFlags = append(runtimeFlags, parts...)
 		}
+	}
 
-		if v, ok := cfg.ProviderOpts["speculative_num_tokens"]; ok {
-			switch t := v.(type) {
-			case float64:
-				numTokens = int(t)
-				hasNumTokens = true
-			case uint64:
-				numTokens = int(t)
-				hasNumTokens = true
-			case string:
-				s := strings.TrimSpace(t)
-				if s != "" {
-					if n, err := strconv.Atoi(s); err == nil {
-						numTokens = n
-						hasNumTokens = true
-					} else if f, err := strconv.ParseFloat(s, 64); err == nil {
-						numTokens = int(f)
-						hasNumTokens = true
-					}
-				}
-			}
-		}
+	// Parse speculative decoding options using helper functions
+	var opts speculativeDecodingOpts
+	var hasOpts bool
 
-		if v, ok := cfg.ProviderOpts["speculative_acceptance_rate"]; ok {
-			switch t := v.(type) {
-			case float64:
-				acceptanceRate = t
-				hasAcceptanceRate = true
-			case uint64:
-				acceptanceRate = float64(t)
-				hasAcceptanceRate = true
-			case string:
-				s := strings.TrimSpace(t)
-				if s != "" {
-					if f, err := strconv.ParseFloat(s, 64); err == nil {
-						acceptanceRate = f
-						hasAcceptanceRate = true
-					}
-				}
-			}
+	if v, ok := cfg.ProviderOpts["speculative_draft_model"]; ok {
+		if s, ok := v.(string); ok && s != "" {
+			opts.draftModel = s
+			hasOpts = true
 		}
+	}
 
-		// Only create specOpts if at least one field is set
-		if hasDraftModel || hasNumTokens || hasAcceptanceRate {
-			specOpts = &speculativeDecodingOpts{
-				draftModel:     draftModel,
-				numTokens:      numTokens,
-				acceptanceRate: acceptanceRate,
-			}
+	if v, ok := cfg.ProviderOpts["speculative_num_tokens"]; ok {
+		if n, ok := parseInt(v); ok {
+			opts.numTokens = n
+			hasOpts = true
 		}
+	}
+
+	if v, ok := cfg.ProviderOpts["speculative_acceptance_rate"]; ok {
+		if f, ok := parseFloat64(v); ok {
+			opts.acceptanceRate = f
+			hasOpts = true
+		}
+	}
+
+	if hasOpts {
+		specOpts = &opts
 	}
 
 	return contextSize, runtimeFlags, specOpts
