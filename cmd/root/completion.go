@@ -28,17 +28,21 @@ func completeAlias(toComplete string) ([]string, cobra.ShellCompDirective) {
 		return completeAgentFilename(toComplete)
 	}
 
-	s, err := aliases.Load()
-	if err != nil {
-		return completeAgentFilename(toComplete)
-	}
-
 	var candidates []string
-	for k, v := range s.List() {
-		if strings.HasPrefix(k, toComplete) {
-			candidates = append(candidates, k+"\t"+v)
+
+	// Add matching aliases
+	s, err := aliases.Load()
+	if err == nil {
+		for k, v := range s.List() {
+			if strings.HasPrefix(k, toComplete) {
+				candidates = append(candidates, k+"\t"+v)
+			}
 		}
 	}
+
+	// Also add matching YAML files from the current directory
+	fileCandidates, _ := completeAgentFilename(toComplete)
+	candidates = append(candidates, fileCandidates...)
 
 	return candidates, cobra.ShellCompDirectiveNoFileComp
 }
