@@ -13,7 +13,7 @@ import (
 )
 
 func TestSessionBrowserNavigation(t *testing.T) {
-	sessions := []*session.Session{
+	sessions := []session.Summary{
 		{ID: "1", Title: "Session 1", CreatedAt: time.Now()},
 		{ID: "2", Title: "Session 2", CreatedAt: time.Now()},
 		{ID: "3", Title: "Session 3", CreatedAt: time.Now()},
@@ -61,7 +61,7 @@ func TestSessionBrowserNavigation(t *testing.T) {
 }
 
 func TestSessionBrowserNavigationWithCtrl(t *testing.T) {
-	sessions := []*session.Session{
+	sessions := []session.Summary{
 		{ID: "1", Title: "Session 1", CreatedAt: time.Now()},
 		{ID: "2", Title: "Session 2", CreatedAt: time.Now()},
 		{ID: "3", Title: "Session 3", CreatedAt: time.Now()},
@@ -90,7 +90,7 @@ func TestSessionBrowserNavigationWithCtrl(t *testing.T) {
 }
 
 func TestSessionBrowserViewShowsSelection(t *testing.T) {
-	sessions := []*session.Session{
+	sessions := []session.Summary{
 		{ID: "1", Title: "Session 1", CreatedAt: time.Now()},
 		{ID: "2", Title: "Session 2", CreatedAt: time.Now()},
 		{ID: "3", Title: "Session 3", CreatedAt: time.Now()},
@@ -119,9 +119,9 @@ func TestSessionBrowserViewShowsSelection(t *testing.T) {
 
 func TestSessionBrowserScrolling(t *testing.T) {
 	// Create more sessions than can fit in view
-	sessions := make([]*session.Session, 20)
+	sessions := make([]session.Summary, 20)
 	for i := range sessions {
-		sessions[i] = &session.Session{
+		sessions[i] = session.Summary{
 			ID:        fmt.Sprintf("%d", i+1),
 			Title:     fmt.Sprintf("Session %d", i+1),
 			CreatedAt: time.Now(),

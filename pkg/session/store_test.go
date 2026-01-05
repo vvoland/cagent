@@ -162,6 +162,63 @@ func TestGetSessions(t *testing.T) {
 	}
 }
 
+func TestGetSessionSummaries(t *testing.T) {
+	tempDB := filepath.Join(t.TempDir(), "test_get_session_summaries.db")
+
+	store, err := NewSQLiteSessionStore(tempDB)
+	require.NoError(t, err)
+	defer store.(*SQLiteSessionStore).Close()
+
+	testAgent := agent.New("test-agent", "test prompt")
+
+	session1Time := time.Now().UTC().Add(-1 * time.Hour).Truncate(time.Second)
+	session2Time := time.Now().UTC().Truncate(time.Second)
+
+	session1 := &Session{
+		ID:    "session-1",
+		Title: "First Session",
+		Messages: []Item{
+			NewMessageItem(NewAgentMessage(testAgent, &chat.Message{
+				Role:    chat.MessageRoleAssistant,
+				Content: "A very long message that should not be loaded when getting summaries",
+			})),
+		},
+		CreatedAt: session1Time,
+	}
+
+	session2 := &Session{
+		ID:    "session-2",
+		Title: "Second Session",
+		Messages: []Item{
+			NewMessageItem(NewAgentMessage(testAgent, &chat.Message{
+				Role:    chat.MessageRoleAssistant,
+				Content: "Another long message that should not be loaded when getting summaries",
+			})),
+		},
+		CreatedAt: session2Time,
+	}
+
+	// Store the sessions
+	err = store.AddSession(t.Context(), session1)
+	require.NoError(t, err)
+	err = store.AddSession(t.Context(), session2)
+	require.NoError(t, err)
+
+	// Retrieve summaries (should be lightweight, without messages)
+	summaries, err := store.GetSessionSummaries(t.Context())
+	require.NoError(t, err)
+	assert.Len(t, summaries, 2)
+
+	// Summaries should be ordered by created_at DESC (most recent first)
+	assert.Equal(t, "session-2", summaries[0].ID)
+	assert.Equal(t, "Second Session", summaries[0].Title)
+	assert.Equal(t, session2Time, summaries[0].CreatedAt)
+
+	assert.Equal(t, "session-1", summaries[1].ID)
+	assert.Equal(t, "First Session", summaries[1].Title)
+	assert.Equal(t, session1Time, summaries[1].CreatedAt)
+}
+
 func TestStoreAgentNameJSON(t *testing.T) {
 	tempDB := filepath.Join(t.TempDir(), "test_store_json.db")
 

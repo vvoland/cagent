@@ -20,8 +20,8 @@ import (
 type sessionBrowserDialog struct {
 	BaseDialog
 	textInput textinput.Model
-	sessions  []*session.Session
-	filtered  []*session.Session
+	sessions  []session.Summary
+	filtered  []session.Summary
 	selected  int
 	offset    int                  // scroll offset for viewport
 	keyMap    commandPaletteKeyMap // Reuse existing keymap
@@ -29,7 +29,7 @@ type sessionBrowserDialog struct {
 }
 
 // NewSessionBrowserDialog creates a new session browser dialog
-func NewSessionBrowserDialog(sessions []*session.Session) Dialog {
+func NewSessionBrowserDialog(sessions []session.Summary) Dialog {
 	ti := textinput.New()
 	ti.Placeholder = "Type to search sessions…"
 	ti.Focus()
@@ -195,7 +195,7 @@ func (d *sessionBrowserDialog) pageSize() int {
 	return max(1, maxHeight-8)
 }
 
-func (d *sessionBrowserDialog) renderSession(sess *session.Session, selected bool, maxWidth int) string {
+func (d *sessionBrowserDialog) renderSession(sess session.Summary, selected bool, maxWidth int) string {
 	titleStyle, timeStyle := styles.PaletteUnselectedActionStyle, styles.PaletteUnselectedDescStyle
 	if selected {
 		titleStyle, timeStyle = styles.PaletteSelectedActionStyle, styles.PaletteSelectedDescStyle

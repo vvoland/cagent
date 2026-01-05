@@ -553,6 +553,9 @@ func (m *model) scrollToSelectedMessage() {
 		return
 	}
 
+	// Ensure all items are rendered so totalHeight is accurate
+	m.ensureAllItemsRendered()
+
 	// Calculate the line range for the selected message
 	startLine := 0
 	for i := range m.selectedMessageIndex {
