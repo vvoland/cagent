@@ -258,3 +258,78 @@ func TestTryAddFileRef(t *testing.T) {
 		assert.Equal(t, "package manual", result["@"+manualFile])
 	})
 }
+
+// TestDeleteLastGraphemeCluster tests the grapheme cluster deletion function.
+func TestDeleteLastGraphemeCluster(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "single ASCII character",
+			input:    "a",
+			expected: "",
+		},
+		{
+			name:     "multiple ASCII characters",
+			input:    "hello",
+			expected: "hell",
+		},
+		{
+			name:     "warning emoji with variation selector",
+			input:    "test\u26a0\ufe0f", // ⚠️ = U+26A0 + U+FE0F
+			expected: "test",
+		},
+		{
+			name:     "only warning emoji with variation selector",
+			input:    "\u26a0\ufe0f", // ⚠️ = U+26A0 + U+FE0F
+			expected: "",
+		},
+		{
+			name:     "flag emoji (two regional indicators)",
+			input:    "hello\U0001F1FA\U0001F1F8", // 🇺🇸 = U+1F1FA + U+1F1F8
+			expected: "hello",
+		},
+		{
+			name:     "family emoji (ZWJ sequence)",
+			input:    "hi\U0001F468\u200D\U0001F469\u200D\U0001F467", // 👨‍👩‍👧
+			expected: "hi",
+		},
+		{
+			name:     "thumbs up with skin tone",
+			input:    "ok\U0001F44D\U0001F3FC", // 👍🏼 = thumbs up + medium-light skin tone
+			expected: "ok",
+		},
+		{
+			name:     "simple emoji",
+			input:    "test\U0001F600", // 😀
+			expected: "test",
+		},
+		{
+			name:     "combining character (accent)",
+			input:    "cafe\u0301", // café with combining acute accent
+			expected: "caf",
+		},
+		{
+			name:     "multiple emoji",
+			input:    "\U0001F600\U0001F600", // 😀😀
+			expected: "\U0001F600",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := deleteLastGraphemeCluster(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
