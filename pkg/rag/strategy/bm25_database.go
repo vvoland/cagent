@@ -8,9 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
-	_ "modernc.org/sqlite"
-
 	"github.com/docker/cagent/pkg/rag/database"
+	"github.com/docker/cagent/pkg/sqliteutil"
 )
 
 // bm25DB implements the database for BM25 strategy (no vectors needed).
@@ -28,14 +27,10 @@ func newBM25DB(dbPath, strategyName string) (*bm25DB, error) {
 		return nil, fmt.Errorf("failed to create database directory: %w", err)
 	}
 
-	db, err := sql.Open("sqlite", dbPath+"?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)")
+	db, err := sqliteutil.OpenDB(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	db.SetConnMaxLifetime(0)
 
 	tablePrefix := sanitizeTableName(strategyName)
 

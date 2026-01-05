@@ -9,9 +9,8 @@ import (
 	"log/slog"
 	"slices"
 
-	_ "modernc.org/sqlite"
-
 	"github.com/docker/cagent/pkg/rag/database"
+	"github.com/docker/cagent/pkg/sqliteutil"
 )
 
 // chunkedVectorDB implements vectorStoreDB for the chunked-embeddings strategy.
@@ -30,14 +29,10 @@ func newChunkedVectorDB(dbPath string, vectorDimensions int, strategyName string
 		return nil, fmt.Errorf("failed to create database directory: %w", err)
 	}
 
-	db, err := sql.Open("sqlite", dbPath+"?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)")
+	db, err := sqliteutil.OpenDB(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	db.SetConnMaxLifetime(0)
 
 	tablePrefix := sanitizeTableName(strategyName)
 
