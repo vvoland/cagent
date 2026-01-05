@@ -298,12 +298,15 @@ func (p *chatPage) setWorking(working bool) tea.Cmd {
 // View renders the chat page
 func (p *chatPage) View() string {
 	// Main chat content area (without input)
-	innerWidth := p.width // subtract app style padding
+	// Account for app padding to match SetSize calculations
+	// AppStyle adds 2 characters of padding (left=1, right=1)
+	innerWidth := p.width - 2 // subtract left/right padding
 
 	var bodyContent string
 
 	if p.width >= minWindowWidth {
-		chatWidth := innerWidth - sidebarWidth
+		// Ensure we don't exceed available space
+		chatWidth := max(1, innerWidth-sidebarWidth)
 
 		chatView := styles.ChatStyle.
 			Height(p.chatHeight).
@@ -313,6 +316,7 @@ func (p *chatPage) View() string {
 		sidebarView := lipgloss.NewStyle().
 			Width(sidebarWidth).
 			Height(p.chatHeight).
+			PaddingLeft(1).
 			Align(lipgloss.Left, lipgloss.Top).
 			Render(p.sidebar.View())
 
@@ -388,7 +392,8 @@ func (p *chatPage) SetSize(width, height int) tea.Cmd {
 
 	var mainWidth int
 	if width >= minWindowWidth {
-		mainWidth = max(innerWidth-sidebarWidth, 1)
+		// Ensure we don't exceed available space after accounting for sidebar
+		mainWidth = max(1, innerWidth-sidebarWidth)
 		p.chatHeight = max(1, height-actualEditorHeight-2) // -1 for resize handle, -1 for empty line before status bar
 		p.sidebar.SetMode(sidebar.ModeVertical)
 		cmds = append(cmds,

@@ -66,7 +66,7 @@ type renderedItem struct {
 type model struct {
 	messages []*types.Message
 	views    []layout.Model
-	width    int
+	width    int // Full width including scrollbar space
 	height   int
 	app      *app.App
 
@@ -359,10 +359,11 @@ func (m *model) View() string {
 	m.scrollbar.SetDimensions(m.height, m.totalHeight)
 	m.scrollbar.SetScrollOffset(m.scrollOffset)
 
-	// Truncate lines that exceed width
+	// Truncate lines that exceed content width to prevent scrollbar from wrapping
+	contentWidth := m.contentWidth()
 	for i, line := range visibleLines {
-		if ansi.StringWidth(line) > m.width {
-			visibleLines[i] = ansi.Truncate(line, m.width, "")
+		if ansi.StringWidth(line) > contentWidth {
+			visibleLines[i] = ansi.Truncate(line, contentWidth, "")
 		}
 	}
 
@@ -370,10 +371,27 @@ func (m *model) View() string {
 	scrollbarView := m.scrollbar.View()
 
 	if scrollbarView != "" {
-		spacer := strings.Repeat(" ", m.height)
-		spacer = strings.ReplaceAll(spacer, " ", " \n")
-		spacer = strings.TrimSuffix(spacer, "\n")
-		return lipgloss.JoinHorizontal(lipgloss.Top, contentView, spacer, scrollbarView)
+		// For proper horizontal layout, all components must have the same height
+		contentLines := strings.Split(contentView, "\n")
+
+		// Ensure content is exactly m.height lines by padding with empty lines if needed
+		for len(contentLines) < m.height {
+			contentLines = append(contentLines, "")
+		}
+		// Truncate if somehow longer (shouldn't happen but safety check)
+		if len(contentLines) > m.height {
+			contentLines = contentLines[:m.height]
+		}
+		paddedContentView := strings.Join(contentLines, "\n")
+
+		// Create spacer with exactly m.height lines
+		spacerLines := make([]string, m.height)
+		for i := range spacerLines {
+			spacerLines[i] = " " // Single space for each line
+		}
+		spacer := strings.Join(spacerLines, "\n")
+
+		return lipgloss.JoinHorizontal(lipgloss.Top, paddedContentView, spacer, scrollbarView)
 	}
 
 	return contentView
@@ -381,14 +399,16 @@ func (m *model) View() string {
 
 // SetSize sets the dimensions of the component
 func (m *model) SetSize(width, height int) tea.Cmd {
-	m.width = width - 2 // Reserve for scrollbar
+	m.width = width
 	m.height = height
 
+	// Content width reserves space for scrollbar (2 chars: space + scrollbar)
+	contentWidth := m.contentWidth()
 	for _, view := range m.views {
-		view.SetSize(m.width, 0)
+		view.SetSize(contentWidth, 0)
 	}
 
-	m.scrollbar.SetPosition(1+m.xPos+m.width+1, m.yPos)
+	m.scrollbar.SetPosition(1+m.xPos+contentWidth+1, m.yPos)
 	m.invalidateAllItems()
 	return nil
 }
@@ -889,16 +909,22 @@ func (m *model) ScrollToBottom() tea.Cmd {
 	}
 }
 
+// contentWidth returns the width available for content.
+// Always reserves 2 chars for scrollbar (space + bar) to prevent layout shifts.
+func (m *model) contentWidth() int {
+	return m.width - 2
+}
+
 // Helper methods
 func (m *model) createToolCallView(msg *types.Message) layout.Model {
 	view := tool.New(msg, m.sessionState)
-	view.SetSize(m.width, 0)
+	view.SetSize(m.contentWidth(), 0)
 	return view
 }
 
 func (m *model) createMessageView(msg *types.Message) layout.Model {
 	view := message.New(msg, m.sessionState.PreviousMessage)
-	view.SetSize(m.width, 0)
+	view.SetSize(m.contentWidth(), 0)
 	return view
 }
 
@@ -950,7 +976,8 @@ func (m *model) isMouseOnScrollbar(x, y int) bool {
 	if m.totalHeight <= m.height {
 		return false
 	}
-	scrollbarX := 1 + m.xPos + m.width + 1
+	// Scrollbar is at: 1 (app padding) + xPos + contentWidth + 1 (spacer)
+	scrollbarX := 1 + m.xPos + m.contentWidth() + 1
 	return x == scrollbarX && y >= m.yPos && y < m.yPos+m.height
 }
 
