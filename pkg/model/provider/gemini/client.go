@@ -173,17 +173,10 @@ func convertMessagesToGemini(messages []chat.Message) []*genai.Content {
 			continue
 		}
 
-		var role genai.Role
-		switch msg.Role {
-		case chat.MessageRoleAssistant:
-			role = genai.RoleModel
-		default:
-			role = genai.RoleUser
-		}
+		role := messageRoleToGemini(msg.Role)
 
 		// Handle tool responses
 		if msg.Role == chat.MessageRoleTool && msg.ToolCallID != "" {
-			// Create a function response part
 			part := genai.NewPartFromFunctionResponse(msg.ToolCallID, map[string]any{
 				"result": msg.Content,
 			})
@@ -193,28 +186,20 @@ func convertMessagesToGemini(messages []chat.Message) []*genai.Content {
 
 		// Handle assistant messages with tool calls
 		if msg.Role == chat.MessageRoleAssistant && len(msg.ToolCalls) > 0 {
-			parts := make([]*genai.Part, 0)
+			parts := make([]*genai.Part, 0, len(msg.ToolCalls)+1)
 
 			// Add text content if present
 			if msg.Content != "" {
-				contentPart := genai.NewPartFromText(msg.Content)
-				// Set ThoughtSignature on the text part if present
-				if len(msg.ThoughtSignature) > 0 {
-					contentPart.ThoughtSignature = msg.ThoughtSignature
-				}
-				parts = append(parts, contentPart)
+				parts = append(parts, newTextPartWithSignature(msg.Content, msg.ThoughtSignature))
 			}
 
 			// Add function calls
 			for _, tc := range msg.ToolCalls {
-				// Parse arguments from JSON string to map
 				var args map[string]any
 				if tc.Function.Arguments != "" {
 					_ = json.Unmarshal([]byte(tc.Function.Arguments), &args)
 				}
-
 				fc := genai.NewPartFromFunctionCall(tc.Function.Name, args)
-				// Set ThoughtSignature on function call if present
 				if len(msg.ThoughtSignature) > 0 {
 					fc.ThoughtSignature = msg.ThoughtSignature
 				}
@@ -227,62 +212,81 @@ func convertMessagesToGemini(messages []chat.Message) []*genai.Content {
 
 		// Handle regular messages
 		if len(msg.MultiContent) > 0 {
-			parts := make([]*genai.Part, 0, len(msg.MultiContent))
-			for _, part := range msg.MultiContent {
-				if part.Type == chat.MessagePartTypeText {
-					textPart := genai.NewPartFromText(part.Text)
-					// Set ThoughtSignature on the text part if present
-					if len(msg.ThoughtSignature) > 0 {
-						textPart.ThoughtSignature = msg.ThoughtSignature
-					}
-					parts = append(parts, textPart)
-				} else if part.Type == chat.MessagePartTypeImageURL && part.ImageURL != nil {
-					// For Gemini, we need to extract base64 data from data URL and convert to bytes
-					// Based on: https://ai.google.dev/gemini-api/docs/vision
-					if strings.HasPrefix(part.ImageURL.URL, "data:") {
-						urlParts := strings.SplitN(part.ImageURL.URL, ",", 2)
-						if len(urlParts) == 2 {
-							// Extract media type from data URL
-							mediaTypePart := urlParts[0]
-							base64Data := urlParts[1]
-
-							// Decode base64 data to bytes
-							if imageData, err := base64.StdEncoding.DecodeString(base64Data); err == nil {
-								var mimeType string
-								switch {
-								case strings.Contains(mediaTypePart, "image/jpeg"):
-									mimeType = "image/jpeg"
-								case strings.Contains(mediaTypePart, "image/png"):
-									mimeType = "image/png"
-								case strings.Contains(mediaTypePart, "image/gif"):
-									mimeType = "image/gif"
-								case strings.Contains(mediaTypePart, "image/webp"):
-									mimeType = "image/webp"
-								default:
-									mimeType = "image/jpeg" // Default
-								}
-
-								// Create image part using Gemini Go SDK
-								// Equivalent to types.Part.from_bytes(data=image_bytes, mime_type='image/jpeg')
-								parts = append(parts, genai.NewPartFromBytes(imageData, mimeType))
-							}
-						}
-					}
-				}
-			}
+			parts := convertMultiContent(msg.MultiContent, msg.ThoughtSignature)
 			if len(parts) > 0 {
 				contents = append(contents, genai.NewContentFromParts(parts, role))
 			}
 		} else if msg.Content != "" {
-			// Create a text part and set ThoughtSignature if present
-			contentPart := genai.NewPartFromText(msg.Content)
-			if len(msg.ThoughtSignature) > 0 {
-				contentPart.ThoughtSignature = msg.ThoughtSignature
-			}
-			contents = append(contents, genai.NewContentFromParts([]*genai.Part{contentPart}, role))
+			part := newTextPartWithSignature(msg.Content, msg.ThoughtSignature)
+			contents = append(contents, genai.NewContentFromParts([]*genai.Part{part}, role))
 		}
 	}
 	return contents
+}
+
+// messageRoleToGemini converts chat.MessageRole to genai.Role
+func messageRoleToGemini(role chat.MessageRole) genai.Role {
+	if role == chat.MessageRoleAssistant {
+		return genai.RoleModel
+	}
+	return genai.RoleUser
+}
+
+// newTextPartWithSignature creates a text part with optional thought signature
+func newTextPartWithSignature(text string, signature []byte) *genai.Part {
+	part := genai.NewPartFromText(text)
+	if len(signature) > 0 {
+		part.ThoughtSignature = signature
+	}
+	return part
+}
+
+// convertMultiContent converts multi-part content to Gemini parts
+func convertMultiContent(multiContent []chat.MessagePart, thoughtSignature []byte) []*genai.Part {
+	parts := make([]*genai.Part, 0, len(multiContent))
+	for _, part := range multiContent {
+		switch part.Type {
+		case chat.MessagePartTypeText:
+			parts = append(parts, newTextPartWithSignature(part.Text, thoughtSignature))
+		case chat.MessagePartTypeImageURL:
+			if imgPart := convertImageURLToPart(part.ImageURL); imgPart != nil {
+				parts = append(parts, imgPart)
+			}
+		}
+	}
+	return parts
+}
+
+// convertImageURLToPart converts an image URL to a Gemini Part
+// Supports data URLs with base64-encoded image data
+func convertImageURLToPart(imageURL *chat.MessageImageURL) *genai.Part {
+	if imageURL == nil || !strings.HasPrefix(imageURL.URL, "data:") {
+		return nil
+	}
+
+	// Parse data URL format: data:[<mediatype>][;base64],<data>
+	urlParts := strings.SplitN(imageURL.URL, ",", 2)
+	if len(urlParts) != 2 {
+		return nil
+	}
+
+	imageData, err := base64.StdEncoding.DecodeString(urlParts[1])
+	if err != nil {
+		return nil
+	}
+
+	mimeType := extractMimeType(urlParts[0])
+	return genai.NewPartFromBytes(imageData, mimeType)
+}
+
+// extractMimeType extracts the MIME type from a data URL prefix
+func extractMimeType(dataURLPrefix string) string {
+	for _, mimeType := range []string{"image/jpeg", "image/png", "image/gif", "image/webp"} {
+		if strings.Contains(dataURLPrefix, mimeType) {
+			return mimeType
+		}
+	}
+	return "image/jpeg" // Default fallback
 }
 
 // buildConfig creates GenerateContentConfig from model config

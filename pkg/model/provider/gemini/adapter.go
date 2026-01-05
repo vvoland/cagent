@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
-	"sync"
 
 	"github.com/google/uuid"
 	"google.golang.org/genai"
@@ -15,13 +14,16 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
+// Pre-compiled regex for extracting text from error messages (performance optimization).
+var textExtractRegex = regexp.MustCompile(`"text"\s*:\s*"([^"\\]*(\\.[^"\\]*)*)"`)
+
+const http2BodyClosedError = "http2: response body closed"
+
 // StreamAdapter adapts the Gemini streaming iterator to chat.MessageStream
 type StreamAdapter struct {
-	ch           chan result
-	model        string
-	trackUsage   bool
-	mu           sync.Mutex
-	lastResponse *genai.GenerateContentResponse // Store last response for final message
+	ch         chan result
+	model      string
+	trackUsage bool
 }
 
 type result struct {
@@ -43,11 +45,12 @@ func NewStreamAdapter(iter func(func(*genai.GenerateContentResponse, error) bool
 
 		hasContent := false
 		hasToolCalls := false
+		var lastResponse *genai.GenerateContentResponse
 
 		// Consume the iterator
 		iter(func(resp *genai.GenerateContentResponse, err error) bool {
 			// Skip noisy http2 errors
-			if err != nil && err.Error() == "http2: response body closed" {
+			if err != nil && err.Error() == http2BodyClosedError {
 				return true
 			}
 
@@ -110,15 +113,9 @@ func NewStreamAdapter(iter func(func(*genai.GenerateContentResponse, error) bool
 
 				// Send response if it has content or function calls
 				if hasText || hasFuncs {
-					if hasText {
-						hasContent = true
-					}
-					if hasFuncs {
-						hasToolCalls = true
-					}
-					adapter.mu.Lock()
-					adapter.lastResponse = resp // Store for final message
-					adapter.mu.Unlock()
+					hasContent = hasContent || hasText
+					hasToolCalls = hasToolCalls || hasFuncs
+					lastResponse = resp // Store for final message
 					adapter.ch <- result{resp: resp}
 				}
 			}
@@ -128,14 +125,10 @@ func NewStreamAdapter(iter func(func(*genai.GenerateContentResponse, error) bool
 
 		// Send final message with appropriate stop reason
 		if hasContent || hasToolCalls {
-			// Use the last response if available to preserve function calls
-			adapter.mu.Lock()
-			finalResp := adapter.lastResponse
-			adapter.mu.Unlock()
-			if finalResp == nil {
-				finalResp = &genai.GenerateContentResponse{}
+			if lastResponse == nil {
+				lastResponse = &genai.GenerateContentResponse{}
 			}
-			adapter.ch <- result{done: true, resp: finalResp}
+			adapter.ch <- result{done: true, resp: lastResponse}
 		}
 	}()
 
@@ -217,12 +210,12 @@ func (g *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 
 		// Handle function calls
 		if funcs := res.resp.FunctionCalls(); len(funcs) > 0 {
-			resp.Choices[0].Delta.ToolCalls = []tools.ToolCall{}
+			toolCalls := make([]tools.ToolCall, 0, len(funcs))
 			for _, fc := range funcs {
 				argsJSON, _ := json.Marshal(fc.Args)
 				id := "call_" + uuid.New().String()
 				slog.Debug("Gemini: Function call", "name", fc.Name, "args", string(argsJSON), "id", id)
-				resp.Choices[0].Delta.ToolCalls = append(resp.Choices[0].Delta.ToolCalls, tools.ToolCall{
+				toolCalls = append(toolCalls, tools.ToolCall{
 					ID:   id,
 					Type: "function",
 					Function: tools.FunctionCall{
@@ -230,8 +223,8 @@ func (g *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 						Arguments: string(argsJSON),
 					},
 				})
-				slog.Debug("Gemini: Sending tool call", "name", fc.Name, "args", string(argsJSON), "id", id)
 			}
+			resp.Choices[0].Delta.ToolCalls = toolCalls
 		}
 	}
 
@@ -278,18 +271,7 @@ func extractTextFromError(errMsg string) string {
 
 	if bracketCount != 0 || jsonEnd == 0 {
 		// Fallback to regex approach for partial text
-		textRegex := regexp.MustCompile(`"text"\s*:\s*"([^"\\]*(\\.[^"\\]*)*)"`)
-		matches := textRegex.FindStringSubmatch(errMsg)
-
-		if len(matches) > 1 {
-			textContent := matches[1]
-			textContent = strings.ReplaceAll(textContent, `\"`, `"`)
-			textContent = strings.ReplaceAll(textContent, `\\`, `\`)
-			textContent = strings.ReplaceAll(textContent, `\n`, "\n")
-			textContent = strings.ReplaceAll(textContent, `\t`, "\t")
-			return textContent
-		}
-		return ""
+		return extractTextViaRegex(errMsg)
 	}
 
 	// Extract the JSON string
@@ -314,17 +296,20 @@ func extractTextFromError(errMsg string) string {
 	}
 
 	// Final fallback to regex approach
-	textRegex := regexp.MustCompile(`"text"\s*:\s*"([^"\\]*(\\.[^"\\]*)*)"`)
-	matches := textRegex.FindStringSubmatch(errMsg)
+	return extractTextViaRegex(errMsg)
+}
 
-	if len(matches) > 1 {
-		textContent := matches[1]
-		textContent = strings.ReplaceAll(textContent, `\"`, `"`)
-		textContent = strings.ReplaceAll(textContent, `\\`, `\`)
-		textContent = strings.ReplaceAll(textContent, `\n`, "\n")
-		textContent = strings.ReplaceAll(textContent, `\t`, "\t")
-		return textContent
+// extractTextViaRegex extracts text content using pre-compiled regex
+func extractTextViaRegex(errMsg string) string {
+	matches := textExtractRegex.FindStringSubmatch(errMsg)
+	if len(matches) <= 1 {
+		return ""
 	}
 
-	return ""
+	textContent := matches[1]
+	textContent = strings.ReplaceAll(textContent, `\"`, `"`)
+	textContent = strings.ReplaceAll(textContent, `\\`, `\`)
+	textContent = strings.ReplaceAll(textContent, `\n`, "\n")
+	textContent = strings.ReplaceAll(textContent, `\t`, "\t")
+	return textContent
 }
