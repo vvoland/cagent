@@ -163,11 +163,12 @@ func syntaxHighlight(code, filePath string) []chromaToken {
 
 	var tokens []chromaToken
 	for _, token := range iterator.Tokens() {
-		if token.Value == "" {
+		text := strings.TrimSuffix(token.Value, "\n")
+		if text == "" {
 			continue
 		}
 		tokens = append(tokens, chromaToken{
-			Text:  token.Value,
+			Text:  text,
 			Style: chromaToLipgloss(token.Type, style),
 		})
 	}
@@ -289,7 +290,7 @@ func getDisplayLineNumber(line *udiff.Line, oldLineNum, newLineNum *int) int {
 
 func prepareContent(content string) string {
 	content = strings.ReplaceAll(content, "\t", strings.Repeat(" ", tabWidth))
-	content = strings.TrimRight(content, "\n")
+	content = strings.TrimRight(content, "\r\n")
 	return content
 }
 
