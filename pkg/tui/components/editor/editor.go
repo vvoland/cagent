@@ -15,6 +15,7 @@ import (
 	"github.com/atotto/clipboard"
 	"github.com/docker/go-units"
 	"github.com/mattn/go-runewidth"
+	"github.com/rivo/uniseg"
 
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/history"
@@ -367,6 +368,24 @@ func splitFirstRune(s string) (string, string) {
 	return string(runes[0]), string(runes[1:])
 }
 
+// deleteLastGraphemeCluster removes the last grapheme cluster from the string.
+// This handles multi-codepoint characters like emoji sequences correctly.
+func deleteLastGraphemeCluster(s string) string {
+	if s == "" {
+		return s
+	}
+
+	// Iterate through grapheme clusters to find where the last one starts
+	var lastClusterStart int
+	gr := uniseg.NewGraphemes(s)
+	for gr.Next() {
+		start, _ := gr.Positions()
+		lastClusterStart = start
+	}
+
+	return s[:lastClusterStart]
+}
+
 // refreshSuggestion updates the cached suggestion to reflect the current
 // textarea value and available history entries.
 func (e *editor) refreshSuggestion() {
@@ -555,6 +574,13 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			return e.handleClipboardPaste()
 		}
 
+		// Handle backspace with grapheme cluster awareness.
+		// The default textarea.Model only deletes a single rune, which breaks
+		// multi-codepoint characters like emoji (e.g., ⚠️ = U+26A0 + U+FE0F).
+		if key.Matches(msg, e.textarea.KeyMap.DeleteCharacterBackward) {
+			return e.handleGraphemeBackspace()
+		}
+
 		// Handle send/newline keys:
 		// - Enter: submit current input (if textarea inserted a newline, submit previous buffer).
 		// - Shift+Enter: insert newline when keyboard enhancements are supported.
@@ -703,6 +729,83 @@ func (e *editor) handleClipboardPaste() (layout.Model, tea.Cmd) {
 	if !e.handlePaste(content) {
 		e.textarea.InsertString(content)
 	}
+	return e, textarea.Blink
+}
+
+// handleGraphemeBackspace implements backspace with grapheme cluster awareness.
+// It removes the entire last grapheme cluster, not just the last rune.
+// This fixes deletion of multi-codepoint characters like emoji sequences.
+func (e *editor) handleGraphemeBackspace() (layout.Model, tea.Cmd) {
+	value := e.textarea.Value()
+	if value == "" {
+		return e, nil
+	}
+
+	// Get cursor position info
+	lines := strings.Split(value, "\n")
+	currentLine := e.textarea.Line()
+	lineInfo := e.textarea.LineInfo()
+
+	// CharOffset within the current visual line segment
+	colPos := lineInfo.CharOffset + lineInfo.StartColumn
+
+	if currentLine < 0 || currentLine >= len(lines) {
+		return e, nil
+	}
+
+	if colPos == 0 && currentLine > 0 {
+		// At beginning of line but not first line - let textarea handle line merge
+		var cmd tea.Cmd
+		e.textarea, cmd = e.textarea.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
+		e.refreshSuggestion()
+		return e, cmd
+	}
+
+	if colPos == 0 {
+		// At beginning of first line - nothing to delete
+		return e, nil
+	}
+
+	// Delete the last grapheme cluster from the text before the cursor
+	currentLineText := lines[currentLine]
+
+	// Convert column position (based on display width) to rune position
+	runePos := 0
+	width := 0
+	for _, r := range currentLineText {
+		if width >= colPos {
+			break
+		}
+		width += runewidth.RuneWidth(r)
+		runePos++
+	}
+
+	// Text before cursor
+	runes := []rune(currentLineText)
+	if runePos > len(runes) {
+		runePos = len(runes)
+	}
+	beforeCursor := string(runes[:runePos])
+	afterCursor := string(runes[runePos:])
+
+	// Delete the last grapheme cluster from text before cursor
+	newBeforeCursor := deleteLastGraphemeCluster(beforeCursor)
+
+	// Rebuild the line
+	lines[currentLine] = newBeforeCursor + afterCursor
+	newValue := strings.Join(lines, "\n")
+
+	// Calculate new cursor position
+	newCol := len([]rune(newBeforeCursor))
+
+	e.textarea.SetValue(newValue)
+	// Position cursor on the correct line and column
+	for range currentLine {
+		e.textarea.CursorDown()
+	}
+	e.textarea.SetCursorColumn(newCol)
+
+	e.refreshSuggestion()
 	return e, textarea.Blink
 }
 

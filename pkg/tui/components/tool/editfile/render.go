@@ -13,7 +13,6 @@ import (
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/aymanbagabas/go-udiff"
-	"github.com/charmbracelet/x/ansi"
 	"github.com/mattn/go-runewidth"
 
 	"github.com/docker/cagent/pkg/tools"
@@ -233,7 +232,7 @@ func renderDiffWithSyntaxHighlight(diff []*udiff.Hunk, filePath string, width in
 func renderSplitDiffWithSyntaxHighlight(diff []*udiff.Hunk, filePath string, width int) string {
 	// Fall back to unified diff if terminal is too narrow
 	separator := styles.SeparatorStyle.Render(" │ ")
-	separatorWidth := ansi.StringWidth(separator)
+	separatorWidth := lipgloss.Width(separator)
 	contentWidth := (width - separatorWidth - (lineNumWidth * 2)) / 2
 
 	if width < minWidth || contentWidth < 10 {
@@ -407,7 +406,7 @@ func renderTokensWithStyle(tokens []chromaToken, lineStyle lipgloss.Style) strin
 }
 
 func padToWidth(content string, width int, style lipgloss.Style) string {
-	currentWidth := ansi.StringWidth(content)
+	currentWidth := lipgloss.Width(content)
 	if paddingNeeded := width - currentWidth; paddingNeeded > 0 {
 		padding := strings.Repeat(" ", paddingNeeded)
 		return content + style.Render(padding)
@@ -416,7 +415,7 @@ func padToWidth(content string, width int, style lipgloss.Style) string {
 }
 
 func ensureWidth(line string, width int) string {
-	if lineWidth := ansi.StringWidth(line); lineWidth < width {
+	if lineWidth := lipgloss.Width(line); lineWidth < width {
 		padding := styles.DiffUnchangedStyle.Render(strings.Repeat(" ", width-lineWidth))
 		return line + padding
 	}

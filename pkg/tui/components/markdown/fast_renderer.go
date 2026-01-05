@@ -13,7 +13,6 @@ import (
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/charmbracelet/glamour/v2/ansi"
-	xansi "github.com/charmbracelet/x/ansi"
 	runewidth "github.com/mattn/go-runewidth"
 
 	"github.com/docker/cagent/pkg/tui/styles"
@@ -380,7 +379,7 @@ func (p *parser) tryTable(line string) bool {
 	for _, row := range rows {
 		for i, cell := range row {
 			if i < len(colWidths) {
-				cellWidth := xansi.StringWidth(p.renderInline(cell))
+				cellWidth := runewidth.StringWidth(p.renderInline(cell))
 				if cellWidth > colWidths[i] {
 					colWidths[i] = cellWidth
 				}
@@ -396,7 +395,7 @@ func (p *parser) tryTable(line string) bool {
 				break
 			}
 			rendered := p.renderInline(cell)
-			padding := colWidths[i] - xansi.StringWidth(rendered)
+			padding := colWidths[i] - runewidth.StringWidth(rendered)
 			if padding < 0 {
 				padding = 0
 			}
@@ -963,7 +962,7 @@ func (p *parser) wrapText(text string, width int) string {
 	words := splitWords(text)
 
 	for i, word := range words {
-		wordWidth := xansi.StringWidth(word)
+		wordWidth := runewidth.StringWidth(word)
 
 		// If word alone exceeds width, break it
 		if wordWidth > width {
@@ -981,7 +980,7 @@ func (p *parser) wrapText(text string, width int) string {
 				}
 				result.WriteString(part)
 			}
-			currentWidth = xansi.StringWidth(broken[len(broken)-1])
+			currentWidth = runewidth.StringWidth(broken[len(broken)-1])
 			if len(broken) > 1 {
 				result.WriteByte('\n')
 				currentWidth = 0
