@@ -5,7 +5,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"slices"
+	"strings"
 
 	"github.com/goccy/go-yaml"
 
@@ -92,6 +94,10 @@ func migrateToLatestConfig(c any) (latest.Config, error) {
 }
 
 func validateConfig(cfg *latest.Config) error {
+	if err := validateProviders(cfg); err != nil {
+		return err
+	}
+
 	if cfg.Models == nil {
 		cfg.Models = map[string]latest.ModelConfig{}
 	}
@@ -127,6 +133,59 @@ func validateConfig(cfg *latest.Config) error {
 
 func boolPtr(b bool) *bool {
 	return &b
+}
+
+// providerAPITypes are the allowed values for api_type in provider configs
+var providerAPITypes = map[string]bool{
+	"":                       true, // empty is allowed (defaults to openai_chatcompletions)
+	"openai_chatcompletions": true,
+	"openai_responses":       true,
+}
+
+// validateProviders validates all provider configurations
+func validateProviders(cfg *latest.Config) error {
+	if cfg.Providers == nil {
+		return nil
+	}
+
+	for name, provCfg := range cfg.Providers {
+		// Validate provider name
+		if err := validateProviderName(name); err != nil {
+			return fmt.Errorf("provider '%s': %w", name, err)
+		}
+
+		// Validate api_type
+		if !providerAPITypes[provCfg.APIType] {
+			return fmt.Errorf("provider '%s': invalid api_type '%s' (must be one of: openai_chatcompletions, openai_responses)", name, provCfg.APIType)
+		}
+
+		// base_url is required for custom providers
+		if provCfg.BaseURL == "" {
+			return fmt.Errorf("provider '%s': base_url is required", name)
+		}
+		if _, err := url.Parse(provCfg.BaseURL); err != nil {
+			return fmt.Errorf("provider '%s': invalid base_url '%s': %w", name, provCfg.BaseURL, err)
+		}
+
+		// token_key is optional - if not set, requests will be sent without bearer token
+	}
+
+	return nil
+}
+
+// validateProviderName validates that a provider name is valid
+func validateProviderName(name string) error {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return fmt.Errorf("name cannot be empty")
+	}
+	if trimmed != name {
+		return fmt.Errorf("name cannot have leading or trailing whitespace")
+	}
+	if strings.Contains(name, "/") {
+		return fmt.Errorf("name cannot contain '/'")
+	}
+	return nil
 }
 
 // validateSkillsConfiguration ensures that agents with skills enabled have the necessary tools

@@ -159,18 +159,22 @@ func createRuleBasedRouter(ctx context.Context, cfg *latest.ModelConfig, models 
 
 // createDirectProvider creates a provider without routing (direct model access).
 func createDirectProvider(ctx context.Context, cfg *latest.ModelConfig, env environment.Provider, opts ...options.Opt) (Provider, error) {
-	// Apply provider alias defaults to the config
-	enhancedCfg := applyProviderDefaults(cfg)
-	apiType := ""
-	if alias, exists := Aliases[cfg.Provider]; exists {
-		apiType = alias.APIType
+	var globalOptions options.ModelOptions
+	for _, opt := range opts {
+		opt(&globalOptions)
 	}
 
-	// Resolve the actual API type from aliases or direct specification
-	providerType := resolveProviderType(cfg.Provider, apiType)
+	// Apply defaults from custom providers (from config) or built-in aliases
+	enhancedCfg := applyProviderDefaults(cfg, globalOptions.Providers())
+
+	// Resolve the provider type with priority:
+	// 1. cfg.ProviderOpts["api_type"] (from custom provider or model override)
+	// 2. built-in alias APIType
+	// 3. provider name itself
+	providerType := resolveProviderTypeFromConfig(enhancedCfg)
 
 	switch providerType {
-	case "openai":
+	case "openai", "openai_chatcompletions", "openai_responses":
 		return openai.NewClient(ctx, enhancedCfg, env, opts...)
 
 	case "anthropic":
@@ -188,13 +192,72 @@ func createDirectProvider(ctx context.Context, cfg *latest.ModelConfig, env envi
 	}
 }
 
-// applyProviderDefaults applies default configuration from provider aliases to the model config
-// This sets default base URLs and token keys if not already specified
-func applyProviderDefaults(cfg *latest.ModelConfig) *latest.ModelConfig {
+// resolveProviderTypeFromConfig determines the provider type to use based on config.
+// Priority:
+// 1. cfg.ProviderOpts["api_type"] (from custom provider or model-level override)
+// 2. built-in alias APIType (e.g., "mistral" -> "openai")
+// 3. provider name itself (e.g., "openai", "anthropic")
+func resolveProviderTypeFromConfig(cfg *latest.ModelConfig) string {
+	// Check for api_type in ProviderOpts (set by custom providers or model override)
+	if cfg.ProviderOpts != nil {
+		if apiType, ok := cfg.ProviderOpts["api_type"].(string); ok && apiType != "" {
+			slog.Debug("Using api_type from provider config",
+				"provider", cfg.Provider,
+				"model", cfg.Model,
+				"api_type", apiType,
+				"base_url", cfg.BaseURL,
+			)
+			return apiType
+		}
+	}
+
+	// Check built-in alias
+	if alias, exists := Aliases[cfg.Provider]; exists && alias.APIType != "" {
+		return alias.APIType
+	}
+
+	// Fall back to provider name
+	return cfg.Provider
+}
+
+// applyProviderDefaults applies default configuration from custom providers or built-in aliases.
+// Custom providers (from config) take precedence over built-in aliases.
+// This sets default base URLs, token keys, and api_type if not already specified.
+func applyProviderDefaults(cfg *latest.ModelConfig, customProviders map[string]latest.ProviderConfig) *latest.ModelConfig {
 	// Create a copy to avoid modifying the original
 	enhancedCfg := *cfg
 
-	// Check if provider has alias configuration
+	if customProviders != nil {
+		if providerCfg, exists := customProviders[cfg.Provider]; exists {
+			slog.Debug("Applying custom provider defaults",
+				"provider", cfg.Provider,
+				"model", cfg.Model,
+				"base_url", providerCfg.BaseURL,
+			)
+
+			if enhancedCfg.BaseURL == "" && providerCfg.BaseURL != "" {
+				enhancedCfg.BaseURL = providerCfg.BaseURL
+			}
+			if enhancedCfg.TokenKey == "" && providerCfg.TokenKey != "" {
+				enhancedCfg.TokenKey = providerCfg.TokenKey
+			}
+
+			// Set api_type in ProviderOpts if not already set
+			if enhancedCfg.ProviderOpts == nil {
+				enhancedCfg.ProviderOpts = make(map[string]any)
+			}
+			if _, has := enhancedCfg.ProviderOpts["api_type"]; !has {
+				apiType := providerCfg.APIType
+				if apiType == "" {
+					apiType = "openai_chatcompletions"
+				}
+				enhancedCfg.ProviderOpts["api_type"] = apiType
+			}
+
+			return &enhancedCfg
+		}
+	}
+
 	if alias, exists := Aliases[cfg.Provider]; exists {
 		// Set default base URL if not already specified
 		if enhancedCfg.BaseURL == "" && alias.BaseURL != "" {
@@ -208,20 +271,4 @@ func applyProviderDefaults(cfg *latest.ModelConfig) *latest.ModelConfig {
 	}
 
 	return &enhancedCfg
-}
-
-// resolveProviderType resolves the actual API type from the provider name and optional apiType
-func resolveProviderType(provider, apiType string) string {
-	// If apiType is explicitly provided, use it
-	if apiType != "" {
-		return apiType
-	}
-
-	// Check if provider has an alias mapping
-	if resolved, exists := Aliases[provider]; exists {
-		return resolved.APIType
-	}
-
-	// Fall back to the provider name itself
-	return provider
 }

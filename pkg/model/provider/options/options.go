@@ -9,6 +9,7 @@ type ModelOptions struct {
 	structuredOutput *latest.StructuredOutput
 	generatingTitle  bool
 	maxTokens        int64
+	providers        map[string]latest.ProviderConfig
 }
 
 func (c *ModelOptions) Gateway() string {
@@ -25,6 +26,10 @@ func (c *ModelOptions) GeneratingTitle() bool {
 
 func (c *ModelOptions) MaxTokens() int64 {
 	return c.maxTokens
+}
+
+func (c *ModelOptions) Providers() map[string]latest.ProviderConfig {
+	return c.providers
 }
 
 type Opt func(*ModelOptions)
@@ -53,6 +58,12 @@ func WithMaxTokens(maxTokens int64) Opt {
 	}
 }
 
+func WithProviders(providers map[string]latest.ProviderConfig) Opt {
+	return func(cfg *ModelOptions) {
+		cfg.providers = providers
+	}
+}
+
 // FromModelOptions converts a concrete ModelOptions value into a slice of
 // Opt configuration functions. Later Opts override earlier ones when applied.
 func FromModelOptions(m ModelOptions) []Opt {
@@ -68,6 +79,9 @@ func FromModelOptions(m ModelOptions) []Opt {
 	}
 	if m.maxTokens != 0 {
 		out = append(out, WithMaxTokens(m.maxTokens))
+	}
+	if len(m.providers) > 0 {
+		out = append(out, WithProviders(m.providers))
 	}
 	return out
 }
