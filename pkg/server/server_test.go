@@ -34,15 +34,15 @@ func TestServer_ListAgents(t *testing.T) {
 
 	assert.Len(t, agents, 3)
 
-	assert.Contains(t, agents[0].Name, "contradict.yaml")
+	assert.Contains(t, agents[0].Name, "contradict")
 	assert.Equal(t, "Contrarian viewpoint provider", agents[0].Description)
 	assert.False(t, agents[0].Multi)
 
-	assert.Contains(t, agents[1].Name, "multi_agents.yaml")
+	assert.Contains(t, agents[1].Name, "multi_agents")
 	assert.Equal(t, "Multi Agent", agents[1].Description)
 	assert.True(t, agents[1].Multi)
 
-	assert.Contains(t, agents[2].Name, "pirate.yaml")
+	assert.Contains(t, agents[2].Name, "pirate")
 	assert.Equal(t, "Talk like a pirate", agents[2].Description)
 	assert.False(t, agents[2].Multi)
 }

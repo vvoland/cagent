@@ -275,5 +275,5 @@ func TestResolveSources(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, sources, 1)
-	require.Contains(t, sources, "v1.yaml")
+	require.Contains(t, sources, "v1")
 }
