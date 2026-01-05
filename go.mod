@@ -53,7 +53,7 @@ require (
 	google.golang.org/genai v1.40.0
 	gopkg.in/dnaeon/go-vcr.v4 v4.0.6
 	gotest.tools/v3 v3.5.2
-	modernc.org/sqlite v1.40.1
+	modernc.org/sqlite v1.42.2
 )
 
 require (
