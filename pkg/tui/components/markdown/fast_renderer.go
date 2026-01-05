@@ -38,13 +38,14 @@ func buildAnsiStyle(style lipgloss.Style) ansiStyle {
 	// Render a marker to extract the ANSI prefix/suffix
 	const marker = "\x00"
 	rendered := style.Render(marker)
-	idx := strings.Index(rendered, marker)
-	if idx == -1 {
+	before, after, ok := strings.Cut(rendered, marker)
+	if !ok {
 		return ansiStyle{}
 	}
+
 	return ansiStyle{
-		prefix: rendered[:idx],
-		suffix: rendered[idx+1:],
+		prefix: before,
+		suffix: after,
 	}
 }
 
