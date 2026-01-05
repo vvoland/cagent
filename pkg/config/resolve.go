@@ -46,7 +46,7 @@ func ResolveSources(agentsPath string) (Sources, error) {
 
 	if isLocalFile(resolvedPath) {
 		return map[string]Source{
-			filepath.Base(resolvedPath): NewFileSource(resolvedPath),
+			fileNameWithoutExt(resolvedPath): NewFileSource(resolvedPath),
 		}, nil
 	}
 
@@ -65,7 +65,7 @@ func ResolveSources(agentsPath string) (Sources, error) {
 				continue
 			}
 			a := filepath.Join(resolvedPath, entry.Name())
-			sources[a], err = Resolve(a)
+			sources[fileNameWithoutExt(a)], err = Resolve(a)
 			if err != nil {
 				return nil, err
 			}
@@ -160,4 +160,10 @@ func isLocalFile(input string) bool {
 	}
 	// Check if it exists as a file on disk
 	return fileExists(input)
+}
+
+func fileNameWithoutExt(path string) string {
+	base := filepath.Base(path)
+	ext := filepath.Ext(base)
+	return strings.TrimSuffix(base, ext)
 }
