@@ -24,7 +24,7 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-git/go-git/v5 v5.16.4
-	github.com/goccy/go-yaml v1.19.0
+	github.com/goccy/go-yaml v1.19.1
 	github.com/google/go-containerregistry v0.20.7
 	github.com/google/jsonschema-go v0.3.0
 	github.com/google/uuid v1.6.0
