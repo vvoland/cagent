@@ -97,7 +97,7 @@ func (mv *messageModel) Render(width int) string {
 			messageStyle = styles.SelectedMessageStyle
 		}
 
-		rendered, err := markdown.NewRenderer(width - messageStyle.GetPaddingLeft() - 1).Render(msg.Content)
+		rendered, err := markdown.NewRenderer(width - messageStyle.GetHorizontalFrameSize()).Render(msg.Content)
 		if err != nil {
 			rendered = msg.Content
 		}
