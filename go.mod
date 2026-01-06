@@ -2,7 +2,7 @@ module github.com/docker/cagent
 
 go 1.25.5
 
-replace github.com/charmbracelet/ultraviolet => github.com/dgageot/ultraviolet v0.0.0-20260106065835-2b8da39c14b6
+replace github.com/charmbracelet/ultraviolet => github.com/dgageot/ultraviolet v0.0.0-20260106070720-e493364e381d
 
 require (
 	charm.land/bubbles/v2 v2.0.0-rc.1
