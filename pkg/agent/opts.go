@@ -1,7 +1,8 @@
 package agent
 
 import (
-	"sync/atomic"
+	"context"
+	"sync"
 
 	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/config/types"
@@ -133,10 +134,24 @@ func WithHooks(hooks *latest.HooksConfig) Opt {
 
 type StartableToolSet struct {
 	tools.ToolSet
-	started atomic.Bool
+	startOnce sync.Once
+	started   bool
+	startErr  error
 }
 
-// IsStarted returns whether the toolset has been started.
+// Start starts the toolset exactly once. Concurrent callers will block until
+// the first call completes. Returns the error from the first start attempt.
+func (s *StartableToolSet) Start(ctx context.Context) error {
+	s.startOnce.Do(func() {
+		s.startErr = s.ToolSet.Start(ctx)
+		if s.startErr == nil {
+			s.started = true
+		}
+	})
+	return s.startErr
+}
+
+// IsStarted returns whether the toolset has been successfully started.
 func (s *StartableToolSet) IsStarted() bool {
-	return s.started.Load()
+	return s.started
 }
