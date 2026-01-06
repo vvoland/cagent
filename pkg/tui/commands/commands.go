@@ -136,6 +136,16 @@ func builtInSessionCommands() []Item {
 			},
 		},
 		{
+			ID:           "session.cost",
+			Label:        "Cost",
+			SlashCommand: "/cost",
+			Description:  "Show detailed cost breakdown for this session",
+			Category:     "Session",
+			Execute: func(string) tea.Cmd {
+				return core.CmdHandler(messages.ShowCostDialogMsg{})
+			},
+		},
+		{
 			ID:           "session.attach",
 			Label:        "Attach",
 			SlashCommand: "/attach",

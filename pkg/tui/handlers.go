@@ -172,6 +172,13 @@ func (a *appModel) handleToggleHideToolResults() (tea.Model, tea.Cmd) {
 	return a, cmd
 }
 
+func (a *appModel) handleShowCostDialog() (tea.Model, tea.Cmd) {
+	sess := a.application.Session()
+	return a, core.CmdHandler(dialog.OpenDialogMsg{
+		Model: dialog.NewCostDialog(sess),
+	})
+}
+
 // MCP prompt handlers
 
 func (a *appModel) handleShowMCPPromptInput(promptName string, promptInfo any) (tea.Model, tea.Cmd) {

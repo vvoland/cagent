@@ -60,6 +60,15 @@ type Message struct {
 	ToolCallID string `json:"tool_call_id,omitempty"`
 
 	CreatedAt string `json:"created_at,omitempty"`
+
+	// Usage tracks token usage for this message (only set for assistant messages)
+	Usage *Usage `json:"usage,omitempty"`
+
+	// Model is the model that generated this message (only set for assistant messages)
+	Model string `json:"model,omitempty"`
+
+	// Cost is the cost of this message in dollars (only set for assistant messages)
+	Cost float64 `json:"cost,omitempty"`
 }
 
 type MessagePart struct {
