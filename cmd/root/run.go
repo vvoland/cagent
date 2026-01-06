@@ -33,6 +33,7 @@ type runExecFlags struct {
 	dryRun         bool
 	runConfig      config.RuntimeConfig
 	sessionDB      string
+	sessionID      string
 	recordPath     string
 	fakeResponses  string
 
@@ -79,6 +80,7 @@ func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 	cmd.PersistentFlags().StringVar(&flags.remoteAddress, "remote", "", "Use remote runtime with specified address")
 	cmd.PersistentFlags().BoolVar(&flags.connectRPC, "connect-rpc", false, "Use Connect-RPC protocol for remote communication (requires --remote)")
 	cmd.PersistentFlags().StringVarP(&flags.sessionDB, "session-db", "s", filepath.Join(paths.GetHomeDir(), ".cagent", "session.db"), "Path to the session database")
+	cmd.PersistentFlags().StringVar(&flags.sessionID, "session", "", "Continue from a previous session by ID")
 	cmd.PersistentFlags().StringVar(&flags.fakeResponses, "fake", "", "Replay AI responses from cassette file (for testing)")
 	cmd.PersistentFlags().StringVar(&flags.recordPath, "record", "", "Record AI API interactions to cassette file (auto-generates filename if empty)")
 	cmd.PersistentFlags().Lookup("record").NoOptDefVal = "true"
@@ -244,7 +246,7 @@ func (f *runExecFlags) createHTTPRuntimeAndSession(ctx context.Context, original
 	return remoteRt, sess, nil
 }
 
-func (f *runExecFlags) createLocalRuntimeAndSession(_ context.Context, t *team.Team) (runtime.Runtime, *session.Session, error) {
+func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, t *team.Team) (runtime.Runtime, *session.Session, error) {
 	agent, err := t.Agent(f.agentName)
 	if err != nil {
 		return nil, nil, err
@@ -264,16 +266,28 @@ func (f *runExecFlags) createLocalRuntimeAndSession(_ context.Context, t *team.T
 		return nil, nil, fmt.Errorf("creating runtime: %w", err)
 	}
 
-	sess := session.New(
-		session.WithMaxIterations(agent.MaxIterations()),
-		session.WithToolsApproved(f.autoApprove),
-		session.WithHideToolResults(f.hideToolResults),
-	)
+	var sess *session.Session
+	if f.sessionID != "" {
+		// Load existing session
+		sess, err = sessStore.GetSession(ctx, f.sessionID)
+		if err != nil {
+			return nil, nil, fmt.Errorf("loading session %q: %w", f.sessionID, err)
+		}
+		sess.ToolsApproved = f.autoApprove
+		sess.HideToolResults = f.hideToolResults
 
-	// Session is stored lazily on first UpdateSession call (when content is added)
-	// This avoids creating empty sessions in the database
+		slog.Debug("Loaded existing session", "session_id", f.sessionID, "agent", f.agentName)
+	} else {
+		sess = session.New(
+			session.WithMaxIterations(agent.MaxIterations()),
+			session.WithToolsApproved(f.autoApprove),
+			session.WithHideToolResults(f.hideToolResults),
+		)
+		// Session is stored lazily on first UpdateSession call (when content is added)
+		// This avoids creating empty sessions in the database
+		slog.Debug("Using local runtime", "agent", f.agentName)
+	}
 
-	slog.Debug("Using local runtime", "agent", f.agentName)
 	return localRt, sess, nil
 }
 
