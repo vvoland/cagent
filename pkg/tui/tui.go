@@ -45,6 +45,7 @@ type appModel struct {
 
 	// Session state
 	sessionState *service.SessionState
+	sessionTitle string // Current session title for terminal window
 
 	// Agent state
 	availableAgents []runtime.AgentDetails
@@ -184,6 +185,14 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.currentAgent = msg.AgentName
 		a.sessionState.SetCurrentAgent(msg.AgentName)
 		// Forward to chat page
+		updated, cmd := a.chatPage.Update(msg)
+		a.chatPage = updated.(chat.Page)
+		return a, cmd
+
+	case *runtime.SessionTitleEvent:
+		// Store session title for terminal window title
+		a.sessionTitle = msg.Title
+		// Forward to chat page (which forwards to sidebar)
 		updated, cmd := a.chatPage.Update(msg)
 		a.chatPage = updated.(chat.Page)
 		return a, cmd
@@ -472,9 +481,11 @@ func (a *appModel) cycleToNextAgent() (tea.Model, tea.Cmd) {
 
 // View renders the complete application interface
 func (a *appModel) View() tea.View {
+	windowTitle := a.windowTitle()
+
 	// Show error if present
 	if a.err != nil {
-		return toFullscreenView(styles.ErrorStyle.Render(a.err.Error()))
+		return toFullscreenView(styles.ErrorStyle.Render(a.err.Error()), windowTitle)
 	}
 
 	// Show loading if not ready
@@ -484,6 +495,7 @@ func (a *appModel) View() tea.View {
 				Width(a.wWidth).
 				Height(a.wHeight).
 				Render(styles.MutedStyle.Render("Loading…")),
+			windowTitle,
 		)
 	}
 
@@ -525,10 +537,18 @@ func (a *appModel) View() tea.View {
 		}
 
 		canvas := lipgloss.NewCanvas(allLayers...)
-		return toFullscreenView(canvas.Render())
+		return toFullscreenView(canvas.Render(), windowTitle)
 	}
 
-	return toFullscreenView(baseView)
+	return toFullscreenView(baseView, windowTitle)
+}
+
+// windowTitle returns the terminal window title
+func (a *appModel) windowTitle() string {
+	if a.sessionTitle != "" {
+		return a.sessionTitle + " - cagent"
+	}
+	return "cagent"
 }
 
 func (a *appModel) startShell() (tea.Model, tea.Cmd) {
@@ -560,11 +580,12 @@ func (a *appModel) startShell() (tea.Model, tea.Cmd) {
 	return a, tea.ExecProcess(cmd, nil)
 }
 
-func toFullscreenView(content string) tea.View {
+func toFullscreenView(content, windowTitle string) tea.View {
 	view := tea.NewView(content)
 	view.AltScreen = true
 	view.MouseMode = tea.MouseModeCellMotion
 	view.BackgroundColor = styles.Background
+	view.WindowTitle = windowTitle
 
 	return view
 }

@@ -26,6 +26,7 @@ func (a *appModel) handleNewSession() (tea.Model, tea.Cmd) {
 	a.application.NewSession()
 	sess := a.application.Session()
 	a.sessionState = service.NewSessionState(sess)
+	a.sessionTitle = ""
 	a.chatPage = chat.New(a.application, a.sessionState)
 	a.dialog = dialog.New()
 	a.statusBar.SetHelp(a.chatPage)
@@ -66,6 +67,7 @@ func (a *appModel) handleLoadSession(sessionID string) (tea.Model, tea.Cmd) {
 	// Cancel current session and replace with loaded one
 	a.application.ReplaceSession(context.Background(), sess)
 	a.sessionState = service.NewSessionState(sess)
+	a.sessionTitle = sess.Title
 	a.chatPage = chat.New(a.application, a.sessionState)
 	a.dialog = dialog.New()
 	a.statusBar.SetHelp(a.chatPage)
