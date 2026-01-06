@@ -46,6 +46,8 @@ models:
   gpt:
     provider: openai
     model: gpt-5.2
+  extramax:
+    model: opus,gpt
 
 agents:
   root:
