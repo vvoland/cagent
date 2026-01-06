@@ -13,6 +13,7 @@ import (
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/charmbracelet/glamour/v2/ansi"
+	charmansi "github.com/charmbracelet/x/ansi"
 	runewidth "github.com/mattn/go-runewidth"
 
 	"github.com/docker/cagent/pkg/tui/styles"
@@ -146,11 +147,14 @@ func (r *FastRenderer) Render(input string) (string, error) {
 		return "", nil
 	}
 
+	input = sanitizeForTerminal(input)
+
 	p := parserPool.Get().(*parser)
 	p.reset(input, r.width)
 	result := p.parse()
 	parserPool.Put(p)
-	return result, nil
+
+	return padToWidth(result, r.width), nil
 }
 
 // parser holds the state for parsing markdown.
@@ -1117,6 +1121,54 @@ func breakWord(word string, maxWidth int) []string {
 }
 
 // buildStylePrimitive converts an ansi.StylePrimitive to a lipgloss.Style.
+func sanitizeForTerminal(s string) string {
+	if s == "" {
+		return s
+	}
+
+	// Strip control chars that change cursor position / layout.
+	// Keep \n and \t (tab will be expanded later).
+	replacer := strings.NewReplacer(
+		"\r", "",
+		"\b", "",
+		"\f", "",
+		"\v", "",
+	)
+	return replacer.Replace(s)
+}
+
+func padToWidth(s string, width int) string {
+	if width <= 0 || s == "" {
+		return s
+	}
+
+	lines := strings.Split(s, "\n")
+	for i := range lines {
+		line := lines[i]
+		if line == "" {
+			lines[i] = strings.Repeat(" ", width)
+			continue
+		}
+
+		// Expand tabs so width math is stable.
+		if strings.Contains(line, "\t") {
+			line = strings.ReplaceAll(line, "\t", "    ")
+		}
+
+		lineWidth := charmansi.StringWidth(line)
+		switch {
+		case lineWidth < width:
+			lines[i] = line + strings.Repeat(" ", width-lineWidth)
+		case lineWidth > width:
+			// Hard-truncate so every line is exactly width.
+			lines[i] = charmansi.Truncate(line, width, "")
+		default:
+			lines[i] = line
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
 func buildStylePrimitive(sp ansi.StylePrimitive) lipgloss.Style {
 	style := lipgloss.NewStyle()
 

@@ -100,8 +100,6 @@ func (mv *messageModel) Render(width int) string {
 		rendered, err := markdown.NewRenderer(width - messageStyle.GetPaddingLeft() - 1).Render(msg.Content)
 		if err != nil {
 			rendered = msg.Content
-		} else {
-			rendered = strings.TrimRight(rendered, "\n\r\t ")
 		}
 
 		if mv.previous != nil && mv.previous.Type == msg.Type && mv.previous.Sender == msg.Sender {
@@ -121,13 +119,13 @@ func (mv *messageModel) Render(width int) string {
 		}
 
 		// Strip ANSI from inner rendering so muted style fully applies
-		clean := stripANSI(strings.TrimRight(rendered, "\n\r\t "))
+		clean := stripANSI(rendered)
 		thinkingText := "Thinking: " + mv.senderPrefix(msg.Sender) + clean
 
 		return styles.MutedStyle.Italic(true).Render(thinkingText)
 	case types.MessageTypeShellOutput:
 		if rendered, err := markdown.NewRenderer(width).Render(fmt.Sprintf("```console\n%s\n```", msg.Content)); err == nil {
-			return strings.TrimRight(rendered, "\n\r\t ")
+			return rendered
 		}
 		return msg.Content
 	case types.MessageTypeCancelled:

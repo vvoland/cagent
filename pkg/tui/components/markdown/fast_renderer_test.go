@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	runewidth "github.com/mattn/go-runewidth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -328,6 +329,47 @@ func TestFastRendererWordWrapping(t *testing.T) {
 	lines := strings.Split(result, "\n")
 	// Should wrap into multiple lines
 	assert.Greater(t, len(lines), 1)
+}
+
+func TestFastRendererPadsToWidth(t *testing.T) {
+	t.Parallel()
+
+	r := NewFastRenderer(20)
+	result, err := r.Render("short\n\nmore")
+	require.NoError(t, err)
+
+	lines := strings.Split(result, "\n")
+	require.Len(t, lines, 3)
+	assert.Len(t, stripANSI(lines[0]), 20)
+	assert.Equal(t, 20, runewidth.StringWidth(stripANSI(lines[0])))
+	assert.Len(t, stripANSI(lines[1]), 20)
+	assert.Equal(t, 20, runewidth.StringWidth(stripANSI(lines[1])))
+	assert.Len(t, stripANSI(lines[2]), 20)
+	assert.Equal(t, 20, runewidth.StringWidth(stripANSI(lines[2])))
+}
+
+func TestFastRendererStripsCarriageReturns(t *testing.T) {
+	t.Parallel()
+
+	r := NewFastRenderer(20)
+	result, err := r.Render("hello\rworld")
+	require.NoError(t, err)
+
+	assert.NotContains(t, result, "\r")
+}
+
+func TestFastRendererFixedWidthRectangle(t *testing.T) {
+	t.Parallel()
+
+	r := NewFastRenderer(30)
+	input := "root\r\n\n\t\tNow I'll add the Pull button\n" +
+		"\x1b[31mRED\x1b[0m text and a very very very very very long line that must truncate"
+	out, err := r.Render(input)
+	require.NoError(t, err)
+
+	for _, line := range strings.Split(out, "\n") {
+		assert.Equal(t, 30, runewidth.StringWidth(stripANSI(line)))
+	}
 }
 
 func TestFastRendererRendererInterface(t *testing.T) {
