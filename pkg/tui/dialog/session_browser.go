@@ -36,10 +36,18 @@ func NewSessionBrowserDialog(sessions []session.Summary) Dialog {
 	ti.CharLimit = 100
 	ti.SetWidth(50)
 
+	// Filter out empty sessions (sessions without a title)
+	nonEmptySessions := make([]session.Summary, 0, len(sessions))
+	for _, s := range sessions {
+		if s.Title != "" {
+			nonEmptySessions = append(nonEmptySessions, s)
+		}
+	}
+
 	return &sessionBrowserDialog{
 		textInput: ti,
-		sessions:  sessions,
-		filtered:  sessions,
+		sessions:  nonEmptySessions,
+		filtered:  nonEmptySessions,
 		keyMap:    defaultCommandPaletteKeyMap(),
 		openedAt:  time.Now(),
 	}
