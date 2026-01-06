@@ -801,7 +801,10 @@ func (e *editor) handleGraphemeBackspace() (layout.Model, tea.Cmd) {
 	newCol := len([]rune(newBeforeCursor))
 
 	e.textarea.SetValue(newValue)
-	// Position cursor on the correct line and column
+	// Position cursor on the correct line and column.
+	// SetValue does not reset cursor position, so we must first go to the
+	// beginning of the input, then navigate down to the target line.
+	e.textarea.MoveToBegin()
 	for range currentLine {
 		e.textarea.CursorDown()
 	}
