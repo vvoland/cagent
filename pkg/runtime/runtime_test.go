@@ -786,7 +786,7 @@ func TestProcessToolCalls_UnknownTool_NoToolResultMessage(t *testing.T) {
 	events := make(chan Event, 10)
 
 	// No agentTools provided and runtime toolMap doesn't have this tool name
-	rt.processToolCalls(t.Context(), sess, calls, nil, events)
+	rt.toolExec.ProcessToolCalls(t.Context(), sess, calls, nil, rt.CurrentAgent(), events)
 
 	// Drain events channel
 	close(events)
@@ -894,7 +894,7 @@ func TestPermissions_DenyBlocksToolExecution(t *testing.T) {
 	}}
 
 	events := make(chan Event, 10)
-	rt.processToolCalls(t.Context(), sess, calls, agentTools, events)
+	rt.toolExec.ProcessToolCalls(t.Context(), sess, calls, agentTools, rt.CurrentAgent(), events)
 	close(events)
 
 	// The tool should be denied, look for a ToolCallResponseEvent with error
@@ -950,7 +950,7 @@ func TestPermissions_AllowAutoApprovesTool(t *testing.T) {
 	}}
 
 	events := make(chan Event, 10)
-	rt.processToolCalls(t.Context(), sess, calls, agentTools, events)
+	rt.toolExec.ProcessToolCalls(t.Context(), sess, calls, agentTools, rt.CurrentAgent(), events)
 	close(events)
 
 	// The tool should have been executed due to allow pattern
@@ -991,7 +991,7 @@ func TestPermissions_DenyTakesPriorityOverAllow(t *testing.T) {
 	}}
 
 	events := make(chan Event, 10)
-	rt.processToolCalls(t.Context(), sess, calls, agentTools, events)
+	rt.toolExec.ProcessToolCalls(t.Context(), sess, calls, agentTools, rt.CurrentAgent(), events)
 	close(events)
 
 	// The tool should be denied despite wildcard allow
