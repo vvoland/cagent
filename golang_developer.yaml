@@ -43,6 +43,9 @@ models:
   haiku:
     provider: anthropic
     model: claude-haiku-4-5
+  gpt:
+    provider: openai
+    model: gpt-5.2
 
 agents:
   root:
