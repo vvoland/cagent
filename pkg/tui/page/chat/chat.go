@@ -55,6 +55,8 @@ type Page interface {
 	Cleanup()
 	// GetInputHeight returns the current height of the editor/input area (including padding)
 	GetInputHeight() int
+	// SetSessionStarred updates the sidebar star indicator
+	SetSessionStarred(starred bool)
 }
 
 // chatPage implements Page
@@ -567,6 +569,37 @@ func (p *chatPage) CompactSession(additionalPrompt string) tea.Cmd {
 func (p *chatPage) Cleanup() {
 	p.stopProgressBar()
 	p.editor.Cleanup()
+}
+
+// SetSessionStarred updates the sidebar star indicator
+func (p *chatPage) SetSessionStarred(starred bool) {
+	p.sidebar.SetSessionStarred(starred)
+}
+
+// handleSidebarClick checks if a click in the sidebar area should toggle the star
+// Returns true if the click was handled (star was toggled)
+func (p *chatPage) handleSidebarClick(x, y int) bool {
+	// Account for AppStyle padding (left padding = 1)
+	adjustedX := x - styles.AppPaddingLeft
+
+	if p.width < minWindowWidth {
+		// Horizontal mode - sidebar is at the top (y=0 to sidebarHeight)
+		// The sidebar view is rendered directly without additional offsets
+		return p.sidebar.HandleClick(adjustedX, y)
+	}
+
+	// Vertical mode - sidebar is on the right side
+	innerWidth := p.width - 2 // subtract left/right padding from AppStyle
+	chatWidth := max(1, innerWidth-sidebarWidth)
+
+	// Check if click is in the sidebar area (right side)
+	// sidebarView has PaddingLeft(1), so we need to account for that
+	if adjustedX >= chatWidth {
+		// Calculate x relative to sidebar content (after the 1-char padding)
+		sidebarX := adjustedX - chatWidth - 1 // -1 for sidebarView's PaddingLeft(1)
+		return p.sidebar.HandleClick(sidebarX, y)
+	}
+	return false
 }
 
 // routeMouseEvent routes mouse events to editor (bottom) or messages (top) based on Y.

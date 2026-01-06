@@ -76,6 +76,9 @@ type Session struct {
 	// If 0, there is no limit
 	MaxIterations int `json:"max_iterations"`
 
+	// Starred indicates if this session has been starred by the user
+	Starred bool `json:"starred"`
+
 	InputTokens  int64   `json:"input_tokens"`
 	OutputTokens int64   `json:"output_tokens"`
 	Cost         float64 `json:"cost"`

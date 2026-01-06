@@ -23,6 +23,7 @@ type Summary struct {
 	ID        string
 	Title     string
 	CreatedAt time.Time
+	Starred   bool
 }
 
 // convertMessagesToItems converts a slice of Messages to SessionItems for backward compatibility
@@ -42,6 +43,7 @@ type Store interface {
 	GetSessionSummaries(ctx context.Context) ([]Summary, error)
 	DeleteSession(ctx context.Context, id string) error
 	UpdateSession(ctx context.Context, session *Session) error
+	SetSessionStarred(ctx context.Context, id string, starred bool) error
 }
 
 type InMemorySessionStore struct {
@@ -89,6 +91,7 @@ func (s *InMemorySessionStore) GetSessionSummaries(_ context.Context) ([]Summary
 			ID:        value.ID,
 			Title:     value.Title,
 			CreatedAt: value.CreatedAt,
+			Starred:   value.Starred,
 		})
 		return true
 	})
@@ -114,6 +117,20 @@ func (s *InMemorySessionStore) UpdateSession(_ context.Context, session *Session
 		return ErrEmptyID
 	}
 	s.sessions.Store(session.ID, session)
+	return nil
+}
+
+// SetSessionStarred sets the starred status of a session.
+func (s *InMemorySessionStore) SetSessionStarred(_ context.Context, id string, starred bool) error {
+	if id == "" {
+		return ErrEmptyID
+	}
+	session, exists := s.sessions.Load(id)
+	if !exists {
+		return ErrNotFound
+	}
+	session.Starred = starred
+	s.sessions.Store(id, session)
 	return nil
 }
 
@@ -176,11 +193,11 @@ func scanSession(scanner interface {
 	Scan(dest ...any) error
 },
 ) (*Session, error) {
-	var messagesJSON, toolsApprovedStr, inputTokensStr, outputTokensStr, titleStr, costStr, sendUserMessageStr, maxIterationsStr, createdAtStr string
+	var messagesJSON, toolsApprovedStr, inputTokensStr, outputTokensStr, titleStr, costStr, sendUserMessageStr, maxIterationsStr, createdAtStr, starredStr string
 	var sessionID string
 	var workingDir sql.NullString
 
-	err := scanner.Scan(&sessionID, &messagesJSON, &toolsApprovedStr, &inputTokensStr, &outputTokensStr, &titleStr, &costStr, &sendUserMessageStr, &maxIterationsStr, &workingDir, &createdAtStr)
+	err := scanner.Scan(&sessionID, &messagesJSON, &toolsApprovedStr, &inputTokensStr, &outputTokensStr, &titleStr, &costStr, &sendUserMessageStr, &maxIterationsStr, &workingDir, &createdAtStr, &starredStr)
 	if err != nil {
 		return nil, err
 	}
@@ -234,6 +251,11 @@ func scanSession(scanner interface {
 		return nil, err
 	}
 
+	starred, err := strconv.ParseBool(starredStr)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Session{
 		ID:              sessionID,
 		Title:           titleStr,
@@ -246,6 +268,7 @@ func scanSession(scanner interface {
 		MaxIterations:   maxIterations,
 		CreatedAt:       createdAt,
 		WorkingDir:      workingDir.String,
+		Starred:         starred,
 	}, nil
 }
 
@@ -256,7 +279,7 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 	}
 
 	row := s.db.QueryRowContext(ctx,
-		"SELECT id, messages, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at FROM sessions WHERE id = ?", id)
+		"SELECT id, messages, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at, starred FROM sessions WHERE id = ?", id)
 
 	session, err := scanSession(row)
 	if err != nil {
@@ -272,7 +295,7 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 // GetSessions retrieves all sessions
 func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error) {
 	rows, err := s.db.QueryContext(ctx,
-		"SELECT id, messages, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at FROM sessions ORDER BY created_at DESC")
+		"SELECT id, messages, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at, starred FROM sessions ORDER BY created_at DESC")
 	if err != nil {
 		return nil, err
 	}
@@ -294,7 +317,7 @@ func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error
 // This is much faster than GetSessions as it doesn't load message content.
 func (s *SQLiteSessionStore) GetSessionSummaries(ctx context.Context) ([]Summary, error) {
 	rows, err := s.db.QueryContext(ctx,
-		"SELECT id, title, created_at FROM sessions ORDER BY created_at DESC")
+		"SELECT id, title, created_at, starred FROM sessions ORDER BY created_at DESC")
 	if err != nil {
 		return nil, err
 	}
@@ -302,11 +325,15 @@ func (s *SQLiteSessionStore) GetSessionSummaries(ctx context.Context) ([]Summary
 
 	var summaries []Summary
 	for rows.Next() {
-		var id, title, createdAtStr string
-		if err := rows.Scan(&id, &title, &createdAtStr); err != nil {
+		var id, title, createdAtStr, starredStr string
+		if err := rows.Scan(&id, &title, &createdAtStr, &starredStr); err != nil {
 			return nil, err
 		}
 		createdAt, err := time.Parse(time.RFC3339, createdAtStr)
+		if err != nil {
+			return nil, err
+		}
+		starred, err := strconv.ParseBool(starredStr)
 		if err != nil {
 			return nil, err
 		}
@@ -314,6 +341,7 @@ func (s *SQLiteSessionStore) GetSessionSummaries(ctx context.Context) ([]Summary
 			ID:        id,
 			Title:     title,
 			CreatedAt: createdAt,
+			Starred:   starred,
 		})
 	}
 
@@ -357,8 +385,8 @@ func (s *SQLiteSessionStore) UpdateSession(ctx context.Context, session *Session
 
 	// Use INSERT OR REPLACE for upsert behavior - creates if not exists, updates if exists
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO sessions (id, messages, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`INSERT INTO sessions (id, messages, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at, starred)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(id) DO UPDATE SET
 		   messages = excluded.messages,
 		   title = excluded.title,
@@ -368,11 +396,35 @@ func (s *SQLiteSessionStore) UpdateSession(ctx context.Context, session *Session
 		   cost = excluded.cost,
 		   send_user_message = excluded.send_user_message,
 		   max_iterations = excluded.max_iterations,
-		   working_dir = excluded.working_dir`,
+		   working_dir = excluded.working_dir,
+		   starred = excluded.starred`,
 		session.ID, string(itemsJSON), session.ToolsApproved, session.InputTokens, session.OutputTokens,
 		session.Title, session.Cost, session.SendUserMessage, session.MaxIterations, session.WorkingDir,
-		session.CreatedAt.Format(time.RFC3339))
+		session.CreatedAt.Format(time.RFC3339), session.Starred)
 	return err
+}
+
+// SetSessionStarred sets the starred status of a session.
+func (s *SQLiteSessionStore) SetSessionStarred(ctx context.Context, id string, starred bool) error {
+	if id == "" {
+		return ErrEmptyID
+	}
+
+	result, err := s.db.ExecContext(ctx, "UPDATE sessions SET starred = ? WHERE id = ?", starred, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+
+	return nil
 }
 
 // Close closes the database connection

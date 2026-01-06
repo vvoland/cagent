@@ -13,6 +13,7 @@ type (
 	SwitchAgentMsg            struct{ AgentName string }
 	OpenSessionBrowserMsg     struct{}
 	LoadSessionMsg            struct{ SessionID string }
+	ToggleSessionStarMsg      struct{ SessionID string } // Toggle star on a session; empty ID means current session
 )
 
 // AgentCommandMsg command message

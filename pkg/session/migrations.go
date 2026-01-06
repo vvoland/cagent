@@ -207,6 +207,13 @@ func getAllMigrations() []Migration {
 			UpSQL:       `ALTER TABLE sessions ADD COLUMN working_dir TEXT DEFAULT ''`,
 			DownSQL:     `ALTER TABLE sessions DROP COLUMN working_dir`,
 		},
+		{
+			ID:          9,
+			Name:        "009_add_starred_column",
+			Description: "Add starred column to sessions table",
+			UpSQL:       `ALTER TABLE sessions ADD COLUMN starred BOOLEAN DEFAULT 0`,
+			DownSQL:     `ALTER TABLE sessions DROP COLUMN starred`,
+		},
 		// Add more migrations here as needed
 	}
 }

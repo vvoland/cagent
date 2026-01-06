@@ -66,6 +66,16 @@ func builtInSessionCommands() []Item {
 			},
 		},
 		{
+			ID:           "session.star",
+			Label:        "Star",
+			SlashCommand: "/star",
+			Description:  "Toggle star on current session",
+			Category:     "Session",
+			Execute: func(string) tea.Cmd {
+				return core.CmdHandler(messages.ToggleSessionStarMsg{})
+			},
+		},
+		{
 			ID:           "session.compact",
 			Label:        "Compact",
 			SlashCommand: "/compact",

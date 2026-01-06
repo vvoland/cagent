@@ -305,6 +305,20 @@ var (
 					Foreground(White)
 )
 
+// Star Styles for session browser and sidebar
+var (
+	StarredStyle   = BaseStyle.Foreground(Success)
+	UnstarredStyle = BaseStyle.Foreground(TextMuted)
+)
+
+// StarIndicator returns the styled star indicator for a given starred status
+func StarIndicator(starred bool) string {
+	if starred {
+		return StarredStyle.Render("★") + " "
+	}
+	return UnstarredStyle.Render("☆") + " "
+}
+
 // Diff Styles (matching glamour markdown theme)
 var (
 	DiffAddStyle = BaseStyle.

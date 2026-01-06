@@ -7,7 +7,9 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/editor"
 	"github.com/docker/cagent/pkg/tui/components/messages"
 	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
+	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
+	msgtypes "github.com/docker/cagent/pkg/tui/messages"
 )
 
 // handleKeyPress handles keyboard input events for the chat page.
@@ -54,6 +56,15 @@ func (p *chatPage) handleKeyPress(msg tea.KeyPressMsg) (layout.Model, tea.Cmd, b
 func (p *chatPage) handleMouseClick(msg tea.MouseClickMsg) (layout.Model, tea.Cmd) {
 	if p.isOnResizeHandle(msg.X, msg.Y) {
 		p.isDragging = true
+		return p, nil
+	}
+	// Check if click is on the star in sidebar
+	if msg.Button == tea.MouseLeft && p.handleSidebarClick(msg.X, msg.Y) {
+		// Emit toggle message to persist the change
+		sess := p.app.Session()
+		if sess != nil {
+			return p, core.CmdHandler(msgtypes.ToggleSessionStarMsg{SessionID: sess.ID})
+		}
 		return p, nil
 	}
 	cmd := p.routeMouseEvent(msg, msg.Y)
