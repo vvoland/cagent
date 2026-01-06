@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -18,40 +19,77 @@ import (
 	"github.com/docker/cagent/pkg/hooks"
 	"github.com/docker/cagent/pkg/permissions"
 	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/telemetry"
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools/builtin"
 )
 
 type toolExecutor struct {
-	tracer       trace.Tracer
-	sessionStore session.Store
-	resumeChan   chan ResumeType
-	toolMap      map[string]ToolHandler
-	permissions  *permissions.Checker
-	workingDir   string
-	env          []string
+	tracer          trace.Tracer
+	sessionStore    session.Store
+	resumeChan      chan ResumeType
+	toolMap         map[string]ToolHandler
+	permissions     *permissions.Checker
+	workingDir      string
+	env             []string
+	team            *team.Team
+	getCurrentAgent func() string
+	setCurrentAgent func(string)
 }
 
 type toolExecutorConfig struct {
-	tracer       trace.Tracer
-	sessionStore session.Store
-	resumeChan   chan ResumeType
-	toolMap      map[string]ToolHandler
-	permissions  *permissions.Checker
-	workingDir   string
-	env          []string
+	tracer          trace.Tracer
+	sessionStore    session.Store
+	resumeChan      chan ResumeType
+	permissions     *permissions.Checker
+	workingDir      string
+	env             []string
+	team            *team.Team
+	getCurrentAgent func() string
+	setCurrentAgent func(string)
 }
 
 func newToolExecutor(cfg toolExecutorConfig) *toolExecutor {
-	return &toolExecutor{
-		tracer:       cfg.tracer,
-		sessionStore: cfg.sessionStore,
-		resumeChan:   cfg.resumeChan,
-		toolMap:      cfg.toolMap,
-		permissions:  cfg.permissions,
-		workingDir:   cfg.workingDir,
-		env:          cfg.env,
+	te := &toolExecutor{
+		tracer:          cfg.tracer,
+		sessionStore:    cfg.sessionStore,
+		resumeChan:      cfg.resumeChan,
+		toolMap:         make(map[string]ToolHandler),
+		permissions:     cfg.permissions,
+		workingDir:      cfg.workingDir,
+		env:             cfg.env,
+		team:            cfg.team,
+		getCurrentAgent: cfg.getCurrentAgent,
+		setCurrentAgent: cfg.setCurrentAgent,
 	}
+	te.registerAgentTools()
+	return te
+}
+
+func (e *toolExecutor) registerAgentTools() {
+	slog.Debug("Registering agent tools")
+
+	tt := builtin.NewTransferTaskTool()
+	ht := builtin.NewHandoffTool()
+	ttTools, _ := tt.Tools(context.TODO())
+	htTools, _ := ht.Tools(context.TODO())
+	allTools := append(ttTools, htTools...)
+
+	handlers := map[string]ToolHandlerFunc{
+		builtin.ToolNameTransferTask: e.handleTaskTransfer,
+		builtin.ToolNameHandoff:      e.handleHandoff,
+	}
+
+	for _, t := range allTools {
+		if h, exists := handlers[t.Name]; exists {
+			e.toolMap[t.Name] = ToolHandler{handler: h, tool: t}
+		} else {
+			slog.Warn("No handler found for agent tool", "tool", t.Name)
+		}
+	}
+
+	slog.Debug("Registered agent tools", "count", len(handlers))
 }
 
 // ProcessToolCalls handles the execution of tool calls for an agent
@@ -334,4 +372,138 @@ func parseToolInput(arguments string) map[string]any {
 		return nil
 	}
 	return result
+}
+
+func (e *toolExecutor) handleTaskTransfer(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, evts chan Event) (*tools.ToolCallResult, error) {
+	var params builtin.TransferTaskArgs
+	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
+		return nil, fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	currentAgentName := e.getCurrentAgent()
+	a, err := e.team.Agent(currentAgentName)
+	if err != nil {
+		return nil, fmt.Errorf("current agent not found: %w", err)
+	}
+
+	ctx, span := e.startSpan(ctx, "runtime.task_transfer", trace.WithAttributes(
+		attribute.String("from.agent", a.Name()),
+		attribute.String("to.agent", params.Agent),
+		attribute.String("session.id", sess.ID),
+	))
+	defer span.End()
+
+	slog.Debug("Transferring task to agent", "from_agent", a.Name(), "to_agent", params.Agent, "task", params.Task)
+
+	// Emit agent switching start event
+	evts <- AgentSwitching(true, currentAgentName, params.Agent)
+
+	e.setCurrentAgent(params.Agent)
+	defer func() {
+		e.setCurrentAgent(currentAgentName)
+
+		// Emit agent switching end event
+		evts <- AgentSwitching(false, params.Agent, currentAgentName)
+
+		// Restore original agent info in sidebar
+		if originalAgent, err := e.team.Agent(currentAgentName); err == nil {
+			evts <- AgentInfo(originalAgent.Name(), getAgentModelID(originalAgent), originalAgent.Description(), originalAgent.WelcomeMessage())
+		}
+	}()
+
+	// Emit agent info for the new agent
+	if newAgent, err := e.team.Agent(params.Agent); err == nil {
+		evts <- AgentInfo(newAgent.Name(), getAgentModelID(newAgent), newAgent.Description(), newAgent.WelcomeMessage())
+	}
+
+	memberAgentTask := "You are a member of a team of agents. Your goal is to complete the following task:"
+	memberAgentTask += fmt.Sprintf("\n\n<task>\n%s\n</task>", params.Task)
+	if params.ExpectedOutput != "" {
+		memberAgentTask += fmt.Sprintf("\n\n<expected_output>\n%s\n</expected_output>", params.ExpectedOutput)
+	}
+
+	slog.Debug("Creating new session with parent session", "parent_session_id", sess.ID, "tools_approved", sess.ToolsApproved)
+
+	child, err := e.team.Agent(params.Agent)
+	if err != nil {
+		return nil, err
+	}
+
+	s := session.New(
+		session.WithSystemMessage(memberAgentTask),
+		session.WithImplicitUserMessage("Please proceed."),
+		session.WithMaxIterations(child.MaxIterations()),
+		session.WithTitle("Transferred task"),
+		session.WithToolsApproved(sess.ToolsApproved),
+		session.WithSendUserMessage(false),
+	)
+
+	childRuntime, err := New(e.team, WithCurrentAgent(params.Agent), WithTracer(e.tracer))
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to create child runtime")
+		return nil, fmt.Errorf("failed to create child runtime: %w", err)
+	}
+
+	for event := range childRuntime.RunStream(ctx, s) {
+		evts <- event
+		if errEvent, ok := event.(*ErrorEvent); ok {
+			span.RecordError(fmt.Errorf("%s", errEvent.Error))
+			span.SetStatus(codes.Error, "error in transferred session")
+			return nil, fmt.Errorf("%s", errEvent.Error)
+		}
+	}
+
+	sess.ToolsApproved = s.ToolsApproved
+	sess.AddSubSession(s)
+
+	slog.Debug("Task transfer completed", "agent", params.Agent, "task", params.Task)
+
+	span.SetStatus(codes.Ok, "task transfer completed")
+	return tools.ResultSuccess(s.GetLastAssistantMessageContent()), nil
+}
+
+func (e *toolExecutor) handleHandoff(_ context.Context, _ *session.Session, toolCall tools.ToolCall, _ chan Event) (*tools.ToolCallResult, error) {
+	var params builtin.HandoffArgs
+	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
+		return nil, fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	currentAgentName := e.getCurrentAgent()
+	currentAgent, err := e.team.Agent(currentAgentName)
+	if err != nil {
+		return nil, fmt.Errorf("current agent not found: %w", err)
+	}
+
+	// Validate that the target agent is in the current agent's handoffs list
+	handoffs := currentAgent.Handoffs()
+	if !slices.ContainsFunc(handoffs, func(a *agent.Agent) bool { return a.Name() == params.Agent }) {
+		var handoffNames []string
+		for _, h := range handoffs {
+			handoffNames = append(handoffNames, h.Name())
+		}
+		var errorMsg string
+		if len(handoffNames) > 0 {
+			errorMsg = fmt.Sprintf("Agent %s cannot hand off to %s: target agent not in handoffs list. Available handoff agent IDs are: %s", currentAgentName, params.Agent, strings.Join(handoffNames, ", "))
+		} else {
+			errorMsg = fmt.Sprintf("Agent %s cannot hand off to %s: target agent not in handoffs list. This agent has no handoff agents configured.", currentAgentName, params.Agent)
+		}
+		return tools.ResultError(errorMsg), nil
+	}
+
+	next, err := e.team.Agent(params.Agent)
+	if err != nil {
+		return nil, err
+	}
+
+	e.setCurrentAgent(next.Name())
+	handoffMessage := "The agent " + currentAgentName + " handed off the conversation to you. " +
+		"Your available handoff agents and tools are specified in the system messages that follow. " +
+		"Only use those capabilities - do not attempt to use tools or hand off to agents that you see " +
+		"in the conversation history from previous agents, as those were available to different agents " +
+		"with different capabilities. Look at the conversation history for context, but only use the " +
+		"handoff agents and tools that are listed in your system messages below. " +
+		"Complete your part of the task and hand off to the next appropriate agent in your workflow " +
+		"(if any are available to you), or respond directly to the user if you are the final agent."
+	return tools.ResultSuccess(handoffMessage), nil
 }
