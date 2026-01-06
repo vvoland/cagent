@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -222,98 +221,6 @@ func TestFilesystemTool_EditFile(t *testing.T) {
 	assert.Contains(t, result.Output, "old text not found")
 }
 
-func TestFilesystemTool_SearchFiles(t *testing.T) {
-	t.Parallel()
-	tmpDir := t.TempDir()
-
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte("FROM scratch"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.log"), []byte("log"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "data.txt"), []byte("data"), 0o644))
-
-	subDir := filepath.Join(tmpDir, "subdir")
-	require.NoError(t, os.Mkdir(subDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(subDir, "test_sub.txt"), []byte("sub"), 0o644))
-
-	tool := NewFilesystemTool(tmpDir)
-	tests := []struct {
-		name            string
-		pattern         string
-		excludePatterns []string
-		wantCount       int
-		wantContains    []string
-		wantNotContains []string
-	}{
-		{
-			name:            "no files found",
-			pattern:         "asdf",
-			wantCount:       0,
-			wantContains:    []string{"No files found"},
-			wantNotContains: nil,
-		},
-		{
-			name:            "all files found",
-			pattern:         "*",
-			wantCount:       0,
-			wantContains:    []string{"5 files found:\n"},
-			wantNotContains: nil,
-		},
-		{
-			name:            "all files found with dot",
-			pattern:         "*.*",
-			wantCount:       0,
-			wantContains:    []string{"4 files found:\n"},
-			wantNotContains: nil,
-		},
-		{
-			name:            "dockerfile pattern",
-			pattern:         "Dockerfile*",
-			wantCount:       1,
-			wantContains:    []string{"1 files found:\n", "Dockerfile"},
-			wantNotContains: nil,
-		},
-		{
-			name:            "test pattern finds all",
-			pattern:         "test",
-			wantCount:       3,
-			wantContains:    []string{"3 files found:\n"},
-			wantNotContains: nil,
-		},
-		{
-			name:            "test pattern with log exclusion",
-			pattern:         "test",
-			excludePatterns: []string{"*.log"},
-			wantCount:       2,
-			wantContains:    []string{"test.txt"},
-			wantNotContains: []string{"test.log"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			result, err := tool.handleSearchFiles(t.Context(), SearchFilesArgs{
-				Path:            ".",
-				Pattern:         tt.pattern,
-				ExcludePatterns: tt.excludePatterns,
-			})
-			require.NoError(t, err)
-
-			for _, want := range tt.wantContains {
-				assert.Contains(t, result.Output, want)
-			}
-			for _, notWant := range tt.wantNotContains {
-				assert.NotContains(t, result.Output, notWant)
-			}
-
-			if tt.wantCount > 0 {
-				lines := strings.Split(strings.TrimSpace(result.Output), "\n")
-				assert.Len(t, lines, tt.wantCount+1) // +1 for the header line
-			}
-		})
-	}
-}
-
 func TestFilesystemTool_SearchFilesContent(t *testing.T) {
 	t.Parallel()
 	tmpDir := t.TempDir()
@@ -354,28 +261,6 @@ func TestFilesystemTool_SearchFilesContent(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Contains(t, result.Output, "Invalid regex pattern")
-}
-
-func TestFilesystemTool_SearchFiles_RecursivePattern(t *testing.T) {
-	t.Parallel()
-	tmpDir := t.TempDir()
-
-	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, "child"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "first.txt"), []byte("first"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "ignored"), []byte("ignored"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "child", "second.txt"), []byte("second"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "child", "third.txt"), []byte("third"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "child", "ignored"), []byte("ignored"), 0o644))
-
-	tool := NewFilesystemTool(tmpDir)
-	result, err := tool.handleSearchFiles(t.Context(), SearchFilesArgs{
-		Path:    ".",
-		Pattern: "*.txt",
-	})
-	require.NoError(t, err)
-	lines := strings.Split(strings.TrimSpace(result.Output), "\n")
-	assert.Contains(t, result.Output, "3 files found:\n")
-	assert.Len(t, lines, 3+1) // Should find first.txt, second.txt, and third.txt
 }
 
 func TestFilesystemTool_PostEditCommands(t *testing.T) {
@@ -530,12 +415,12 @@ func TestFilesystemTool_IgnoreVCS_Default(t *testing.T) {
 	gitDir := filepath.Join(tmpDir, ".git")
 	require.NoError(t, os.Mkdir(gitDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(gitDir, "config"), []byte("git config"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test content"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("findme"), 0o644))
 
 	tool := NewFilesystemTool(tmpDir, WithIgnoreVCS(true))
-	result, err := tool.handleSearchFiles(t.Context(), SearchFilesArgs{
-		Path:    ".",
-		Pattern: "*",
+	result, err := tool.handleSearchFilesContent(t.Context(), SearchFilesContentArgs{
+		Path:  ".",
+		Query: "findme",
 	})
 	require.NoError(t, err)
 	assert.Contains(t, result.Output, "test.txt")
@@ -548,13 +433,13 @@ func TestFilesystemTool_IgnoreVCS_Disabled(t *testing.T) {
 
 	gitDir := filepath.Join(tmpDir, ".git")
 	require.NoError(t, os.Mkdir(gitDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(gitDir, "config"), []byte("git config"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test content"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(gitDir, "config"), []byte("findme"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("findme"), 0o644))
 
 	tool := NewFilesystemTool(tmpDir, WithIgnoreVCS(false))
-	result, err := tool.handleSearchFiles(t.Context(), SearchFilesArgs{
-		Path:    ".",
-		Pattern: "*",
+	result, err := tool.handleSearchFilesContent(t.Context(), SearchFilesContentArgs{
+		Path:  ".",
+		Query: "findme",
 	})
 	require.NoError(t, err)
 	assert.Contains(t, result.Output, "test.txt")
@@ -577,19 +462,19 @@ temp_*
 `
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte(gitignoreContent), 0o644))
 
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "debug.log"), []byte("log"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "important.log"), []byte("important"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "temp_file.txt"), []byte("temp"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("findme"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "debug.log"), []byte("findme"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "important.log"), []byte("findme"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "temp_file.txt"), []byte("findme"), 0o644))
 	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, "node_modules"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "node_modules", "package.json"), []byte("{}"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "node_modules", "package.json"), []byte("findme"), 0o644))
 	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, "build"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "build", "output.js"), []byte("code"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "build", "output.js"), []byte("findme"), 0o644))
 
 	tool := NewFilesystemTool(tmpDir, WithIgnoreVCS(true))
-	result, err := tool.handleSearchFiles(t.Context(), SearchFilesArgs{
-		Path:    ".",
-		Pattern: "*",
+	result, err := tool.handleSearchFilesContent(t.Context(), SearchFilesContentArgs{
+		Path:  ".",
+		Query: "findme",
 	})
 	require.NoError(t, err)
 	assert.Contains(t, result.Output, "test.txt")
@@ -650,17 +535,17 @@ func TestFilesystemTool_SubdirectoryGitignorePatterns(t *testing.T) {
 	subDir := filepath.Join(tmpDir, "subdir")
 	require.NoError(t, os.Mkdir(subDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(subDir, ".gitignore"), []byte("*.tmp\n"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "root.txt"), []byte("root"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "root.log"), []byte("log"), 0o644)) // ignored by root .gitignore
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "root.tmp"), []byte("tmp"), 0o644)) // NOT ignored (subdir .gitignore doesn't apply here)
-	require.NoError(t, os.WriteFile(filepath.Join(subDir, "sub.txt"), []byte("sub"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(subDir, "sub.log"), []byte("log"), 0o644)) // ignored by root .gitignore
-	require.NoError(t, os.WriteFile(filepath.Join(subDir, "sub.tmp"), []byte("tmp"), 0o644)) // ignored by subdir .gitignore
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "root.txt"), []byte("findme"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "root.log"), []byte("findme"), 0o644)) // ignored by root .gitignore
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "root.tmp"), []byte("findme"), 0o644)) // NOT ignored (subdir .gitignore doesn't apply here)
+	require.NoError(t, os.WriteFile(filepath.Join(subDir, "sub.txt"), []byte("findme"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(subDir, "sub.log"), []byte("findme"), 0o644)) // ignored by root .gitignore
+	require.NoError(t, os.WriteFile(filepath.Join(subDir, "sub.tmp"), []byte("findme"), 0o644)) // ignored by subdir .gitignore
 
 	tool := NewFilesystemTool(tmpDir, WithIgnoreVCS(true))
-	result, err := tool.handleSearchFiles(t.Context(), SearchFilesArgs{
-		Path:    ".",
-		Pattern: "*",
+	result, err := tool.handleSearchFilesContent(t.Context(), SearchFilesContentArgs{
+		Path:  ".",
+		Query: "findme",
 	})
 	require.NoError(t, err)
 

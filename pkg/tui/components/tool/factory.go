@@ -9,7 +9,6 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/tool/listdirectory"
 	"github.com/docker/cagent/pkg/tui/components/tool/readfile"
 	"github.com/docker/cagent/pkg/tui/components/tool/readmultiplefiles"
-	"github.com/docker/cagent/pkg/tui/components/tool/searchfiles"
 	"github.com/docker/cagent/pkg/tui/components/tool/shell"
 	"github.com/docker/cagent/pkg/tui/components/tool/todotool"
 	"github.com/docker/cagent/pkg/tui/components/tool/transfertask"
@@ -74,7 +73,6 @@ func newDefaultRegistry() *Registry {
 		{[]string{builtin.ToolNameReadFile}, readfile.New},
 		{[]string{builtin.ToolNameReadMultipleFiles}, readmultiplefiles.New},
 		{[]string{builtin.ToolNameListDirectory}, listdirectory.New},
-		{[]string{builtin.ToolNameSearchFiles}, searchfiles.New},
 		{[]string{builtin.ToolNameShell}, shell.New},
 		{[]string{builtin.ToolNameFetch, "category:api"}, api.New},
 		{

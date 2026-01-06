@@ -12,8 +12,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/bmatcuk/doublestar/v4"
-
 	"github.com/docker/cagent/pkg/fsx"
 	"github.com/docker/cagent/pkg/tools"
 )
@@ -25,7 +23,6 @@ const (
 	ToolNameWriteFile          = "write_file"
 	ToolNameDirectoryTree      = "directory_tree"
 	ToolNameListDirectory      = "list_directory"
-	ToolNameSearchFiles        = "search_files"
 	ToolNameSearchFilesContent = "search_files_content"
 )
 
@@ -112,12 +109,6 @@ type ReadMultipleFilesArgs struct {
 
 type ReadMultipleFilesMeta struct {
 	Files []ReadFileMeta `json:"files"`
-}
-
-type SearchFilesArgs struct {
-	Path            string   `json:"path" jsonschema:"The starting directory path"`
-	Pattern         string   `json:"pattern" jsonschema:"The glob pattern to match file names against"`
-	ExcludePatterns []string `json:"excludePatterns,omitempty" jsonschema:"Patterns to exclude from search"`
 }
 
 type SearchFilesContentArgs struct {
@@ -241,18 +232,6 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "Read Multiple Files",
-			},
-		},
-		{
-			Name:         ToolNameSearchFiles,
-			Category:     "filesystem",
-			Description:  "Recursively search for files and directories matching a pattern. Prints the full paths of matching files and the total number of files found. The pattern syntax is the same as Go's filepath.Match.",
-			Parameters:   tools.MustSchemaFor[SearchFilesArgs](),
-			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handleSearchFiles),
-			Annotations: tools.ToolAnnotations{
-				ReadOnlyHint: true,
-				Title:        "Search Files",
 			},
 		},
 		{
@@ -543,55 +522,6 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadM
 	}, nil
 }
 
-func (t *FilesystemTool) handleSearchFiles(_ context.Context, args SearchFilesArgs) (*tools.ToolCallResult, error) {
-	resolvedPath := t.resolvePath(args.Path)
-
-	var matches []string
-
-	err := filepath.WalkDir(resolvedPath, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil // Skip errors and continue
-		}
-
-		// Check VCS ignore rules
-		if t.shouldIgnorePath(path) {
-			if d.IsDir() {
-				return fs.SkipDir
-			}
-			return nil
-		}
-
-		// Check exclude patterns against relative path from search root
-		relPath, err := filepath.Rel(resolvedPath, path)
-		if err != nil {
-			return nil
-		}
-
-		for _, exclude := range args.ExcludePatterns {
-			if matchExcludePattern(exclude, relPath) {
-				if d.IsDir() {
-					return fs.SkipDir
-				}
-				return nil
-			}
-		}
-		if match(args.Pattern, filepath.Base(path)) && !d.IsDir() {
-			matches = append(matches, path)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return tools.ResultError(fmt.Sprintf("Error searching files: %s", err)), nil
-	}
-
-	if len(matches) == 0 {
-		return tools.ResultSuccess("No files found"), nil
-	}
-
-	return tools.ResultSuccess(fmt.Sprintf("%d files found:\n%s", len(matches), strings.Join(matches, "\n"))), nil
-}
-
 func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, args SearchFilesContentArgs) (*tools.ToolCallResult, error) {
 	resolvedPath := t.resolvePath(args.Path)
 
@@ -743,9 +673,4 @@ func matchExcludePattern(pattern, relPath string) bool {
 	}
 
 	return false
-}
-
-func match(pattern, name string) bool {
-	matched, _ := doublestar.Match(pattern, name)
-	return matched || strings.Contains(strings.ToLower(name), strings.ToLower(pattern))
 }
