@@ -13,7 +13,6 @@ import (
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/charmbracelet/glamour/v2/ansi"
-	charmansi "github.com/charmbracelet/x/ansi"
 	runewidth "github.com/mattn/go-runewidth"
 
 	"github.com/docker/cagent/pkg/tui/styles"
@@ -153,8 +152,7 @@ func (r *FastRenderer) Render(input string) (string, error) {
 	p.reset(input, r.width)
 	result := p.parse()
 	parserPool.Put(p)
-
-	return padToWidth(result, r.width), nil
+	return padAllLines(result, r.width), nil
 }
 
 // parser holds the state for parsing markdown.
@@ -543,8 +541,28 @@ func (p *parser) tryList(line string) bool {
 			bullet = "• "
 		}
 
+		// Calculate the width available for content (after bullet and indentation)
+		bulletWidth := lipgloss.Width(bulletIndent) + lipgloss.Width(bullet)
+		contentWidth := p.width - bulletWidth
+		if contentWidth < 10 {
+			contentWidth = 10 // Minimum content width
+		}
+
 		rendered := p.renderInline(item.content)
-		p.out.WriteString(bulletIndent + bullet + rendered + "\n")
+		wrapped := p.wrapText(rendered, contentWidth)
+		wrappedLines := strings.Split(wrapped, "\n")
+
+		// Write first line with bullet
+		if len(wrappedLines) > 0 {
+			p.out.WriteString(bulletIndent + bullet + wrappedLines[0] + "\n")
+		}
+
+		// Write continuation lines with proper indentation (aligned with content after bullet)
+		continuationIndent := strings.Repeat(" ", bulletWidth)
+		for i := 1; i < len(wrappedLines); i++ {
+			p.out.WriteString(continuationIndent + wrappedLines[i] + "\n")
+		}
+
 		p.lineIdx++
 	}
 
@@ -851,6 +869,22 @@ func stringDisplayWidth(s string) int {
 	return width
 }
 
+// padAllLines pads each line to the target width with trailing spaces.
+func padAllLines(s string, width int) string {
+	if width <= 0 || s == "" {
+		return s
+	}
+
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		lineWidth := lipgloss.Width(line)
+		if lineWidth < width {
+			lines[i] = line + strings.Repeat(" ", width-lineWidth)
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
 type token struct {
 	text  string
 	style ansiStyle
@@ -962,44 +996,35 @@ func (p *parser) wrapText(text string, width int) string {
 	var currentLine bytes.Buffer
 	currentWidth := 0
 
-	// Split into words
 	words := splitWords(text)
+	for _, word := range words {
+		wordWidth := lipgloss.Width(word)
 
-	for i, word := range words {
-		wordWidth := runewidth.StringWidth(word)
-
-		// If word alone exceeds width, break it
 		if wordWidth > width {
-			// Flush current line first
 			if currentLine.Len() > 0 {
 				result.WriteString(currentLine.String())
 				result.WriteByte('\n')
 				currentLine.Reset()
+				currentWidth = 0
 			}
-			// Break the long word
+
 			broken := breakWord(word, width)
-			for j, part := range broken {
-				if j > 0 {
+			for i, part := range broken {
+				if i > 0 {
 					result.WriteByte('\n')
 				}
 				result.WriteString(part)
 			}
-			currentWidth = runewidth.StringWidth(broken[len(broken)-1])
-			if len(broken) > 1 {
-				result.WriteByte('\n')
-				currentWidth = 0
-			}
+			result.WriteByte('\n')
 			continue
 		}
 
-		// Check if word fits on current line
 		spaceWidth := 0
 		if currentWidth > 0 {
 			spaceWidth = 1
 		}
 
 		if currentWidth+spaceWidth+wordWidth > width {
-			// Start new line
 			result.WriteString(currentLine.String())
 			result.WriteByte('\n')
 			currentLine.Reset()
@@ -1007,7 +1032,6 @@ func (p *parser) wrapText(text string, width int) string {
 			spaceWidth = 0
 		}
 
-		// Add space if not at start of line
 		if spaceWidth > 0 {
 			currentLine.WriteByte(' ')
 			currentWidth++
@@ -1015,11 +1039,8 @@ func (p *parser) wrapText(text string, width int) string {
 
 		currentLine.WriteString(word)
 		currentWidth += wordWidth
-
-		_ = i // silence unused warning
 	}
 
-	// Flush remaining content
 	if currentLine.Len() > 0 {
 		result.WriteString(currentLine.String())
 	}
@@ -1135,38 +1156,6 @@ func sanitizeForTerminal(s string) string {
 		"\v", "",
 	)
 	return replacer.Replace(s)
-}
-
-func padToWidth(s string, width int) string {
-	if width <= 0 || s == "" {
-		return s
-	}
-
-	lines := strings.Split(s, "\n")
-	for i := range lines {
-		line := lines[i]
-		if line == "" {
-			lines[i] = strings.Repeat(" ", width)
-			continue
-		}
-
-		// Expand tabs so width math is stable.
-		if strings.Contains(line, "\t") {
-			line = strings.ReplaceAll(line, "\t", "    ")
-		}
-
-		lineWidth := charmansi.StringWidth(line)
-		switch {
-		case lineWidth < width:
-			lines[i] = line + strings.Repeat(" ", width-lineWidth)
-		case lineWidth > width:
-			// Hard-truncate so every line is exactly width.
-			lines[i] = charmansi.Truncate(line, width, "")
-		default:
-			lines[i] = line
-		}
-	}
-	return strings.Join(lines, "\n")
 }
 
 func buildStylePrimitive(sp ansi.StylePrimitive) lipgloss.Style {

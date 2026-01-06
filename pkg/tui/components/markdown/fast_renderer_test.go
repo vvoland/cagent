@@ -482,3 +482,156 @@ func BenchmarkGlamourRendererCodeBlock(b *testing.B) {
 		_, _ = r.Render(input)
 	}
 }
+
+func TestFastRendererListWrapping(t *testing.T) {
+	t.Parallel()
+
+	// Long list item that should wrap
+	input := `- This is a very long list item that contains a lot of text and should definitely wrap when rendered at a narrow width like forty characters or so`
+
+	r := NewFastRenderer(40)
+	result, err := r.Render(input)
+	require.NoError(t, err)
+
+	plain := stripANSI(result)
+	lines := strings.Split(strings.TrimSpace(plain), "\n")
+
+	// Should wrap into multiple lines
+	assert.Greater(t, len(lines), 1, "Long list item should wrap to multiple lines")
+
+	// First line should start with bullet
+	assert.Contains(t, lines[0], "•", "First line should contain bullet")
+
+	// Check that continuation lines are indented (should have leading spaces)
+	if len(lines) > 1 {
+		for i := 1; i < len(lines); i++ {
+			if strings.TrimSpace(lines[i]) != "" {
+				assert.True(t, strings.HasPrefix(lines[i], "  "), "Continuation line %d should be indented: %q", i, lines[i])
+			}
+		}
+	}
+}
+
+func TestFastRendererParagraphWrappingWithStyles(t *testing.T) {
+	t.Parallel()
+
+	// Paragraph with styled text - should wrap at visual width, not including ANSI codes
+	input := "This is **bold text** and this is *italic text* and they should wrap correctly at the proper visual width."
+
+	r := NewFastRenderer(40)
+	result, err := r.Render(input)
+	require.NoError(t, err)
+
+	lines := strings.Split(strings.TrimSpace(result), "\n")
+
+	// Check that no line exceeds the visual width (excluding ANSI codes)
+	for i, line := range lines {
+		plainLine := stripANSI(line)
+		width := 0
+		for _, r := range plainLine {
+			width += runewidth.RuneWidth(r)
+		}
+		assert.LessOrEqual(t, width, 40, "Line %d exceeds width 40: %q (width=%d)", i, plainLine, width)
+	}
+}
+
+func TestFastRendererListWrappingWithStyles(t *testing.T) {
+	t.Parallel()
+
+	// List item with styled text that should wrap correctly
+	input := `- This is a list item with **bold text** and *italic text* that should wrap properly at the correct visual width`
+
+	r := NewFastRenderer(40)
+	result, err := r.Render(input)
+	require.NoError(t, err)
+
+	plain := stripANSI(result)
+	lines := strings.Split(strings.TrimSpace(plain), "\n")
+
+	// Should wrap into multiple lines
+	assert.Greater(t, len(lines), 1, "Styled list item should wrap to multiple lines")
+
+	// Verify each line doesn't exceed the width
+	for i, line := range lines {
+		width := 0
+		for _, r := range line {
+			width += runewidth.RuneWidth(r)
+		}
+		assert.LessOrEqual(t, width, 40, "Line %d exceeds width 40: %q (width=%d)", i, line, width)
+	}
+}
+
+func TestFastRendererNestedListWrapping(t *testing.T) {
+	t.Parallel()
+
+	// Nested list items that should wrap with proper indentation
+	input := `- First level item with a very long description that needs to wrap
+  - Second level nested item that also has a very long description needing wrapping`
+
+	r := NewFastRenderer(50)
+	result, err := r.Render(input)
+	require.NoError(t, err)
+
+	plain := stripANSI(result)
+	lines := strings.Split(strings.TrimSpace(plain), "\n")
+
+	// Should have multiple lines
+	assert.Greater(t, len(lines), 2, "Nested list should produce multiple lines")
+
+	// First line should have bullet at start
+	assert.True(t, strings.HasPrefix(lines[0], "•"), "First line should start with bullet")
+}
+
+func TestFastRendererAllLinesSameWidth(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+		width int
+	}{
+		{
+			name:  "paragraph",
+			input: "This is a paragraph with some text that should be wrapped and padded to the exact width.",
+			width: 40,
+		},
+		{
+			name: "list items",
+			input: `- First item
+- Second item with more text
+- Third item`,
+			width: 40,
+		},
+		{
+			name: "mixed content",
+			input: `# Heading
+
+This is a paragraph.
+
+- List item 1
+- List item 2
+
+> A blockquote`,
+			width: 50,
+		},
+		{
+			name:  "styled text",
+			input: "This has **bold** and *italic* text that needs proper width handling.",
+			width: 40,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := NewFastRenderer(tt.width)
+			result, err := r.Render(tt.input)
+			require.NoError(t, err)
+
+			lines := strings.Split(result, "\n")
+			for i, line := range lines {
+				lineWidth := runewidth.StringWidth(stripANSI(line))
+				assert.Equal(t, tt.width, lineWidth, "Line %d has incorrect width: %q (width=%d, expected=%d)", i, stripANSI(line), lineWidth, tt.width)
+			}
+		})
+	}
+}
