@@ -191,14 +191,22 @@ func (m *model) selectLineAt(line int) {
 
 	originalLine := lines[line]
 	plainLine := ansi.Strip(originalLine)
-	lineWidth := runewidth.StringWidth(strings.TrimRight(plainLine, " \t"))
+	trimmedLine := strings.TrimSpace(plainLine)
+	if trimmedLine == "" {
+		return
+	}
 
-	// Set selection to cover the entire line
+	// Find start column: position of first non-whitespace character
+	startCol := runewidth.StringWidth(plainLine) - runewidth.StringWidth(strings.TrimLeft(plainLine, " \t"))
+	// Find end column: position after last non-whitespace character
+	endCol := runewidth.StringWidth(strings.TrimRight(plainLine, " \t"))
+
+	// Set selection to cover only the text content (excluding padding/borders)
 	m.selection.active = true
 	m.selection.startLine = line
-	m.selection.startCol = 0
+	m.selection.startCol = startCol
 	m.selection.endLine = line
-	m.selection.endCol = lineWidth
+	m.selection.endCol = endCol
 	m.selection.mouseButtonDown = false
 }
 
@@ -208,10 +216,11 @@ func (m *model) applySelectionHighlight(lines []string, viewportStartLine int) [
 
 	highlighted := make([]string, len(lines))
 
-	getLineWidth := func(line string) int {
+	getLineBounds := func(line string) (textStart, textEnd int) {
 		plainLine := ansi.Strip(line)
-		trimmedLine := strings.TrimRight(plainLine, " \t")
-		return runewidth.StringWidth(trimmedLine)
+		textStart = runewidth.StringWidth(plainLine) - runewidth.StringWidth(strings.TrimLeft(plainLine, " \t"))
+		textEnd = runewidth.StringWidth(strings.TrimRight(plainLine, " \t"))
+		return textStart, textEnd
 	}
 
 	for i, line := range lines {
@@ -222,20 +231,20 @@ func (m *model) applySelectionHighlight(lines []string, viewportStartLine int) [
 			continue
 		}
 
-		lineWidth := getLineWidth(line)
+		textStart, textEnd := getLineBounds(line)
 		switch {
 		case startLine == endLine && absoluteLine == startLine:
 			// Single line selection
-			highlighted[i] = m.highlightLine(line, startCol, min(lineWidth, endCol))
+			highlighted[i] = m.highlightLine(line, startCol, min(textEnd, endCol))
 		case absoluteLine == startLine:
 			// Start of multi-line selection
-			highlighted[i] = m.highlightLine(line, startCol, lineWidth)
+			highlighted[i] = m.highlightLine(line, startCol, textEnd)
 		case absoluteLine == endLine:
 			// End of multi-line selection
-			highlighted[i] = m.highlightLine(line, 0, lineWidth)
+			highlighted[i] = m.highlightLine(line, textStart, min(textEnd, endCol))
 		default:
 			// Middle of multi-line selection
-			highlighted[i] = m.highlightLine(line, 0, lineWidth)
+			highlighted[i] = m.highlightLine(line, textStart, textEnd)
 		}
 	}
 
