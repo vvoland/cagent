@@ -1,0 +1,18 @@
+agents:
+  root:
+    model: nested_alloy
+
+models:
+  opus:
+    provider: anthropic
+    model: claude-opus-4-5
+  gpt:
+    provider: openai
+    model: gpt-5.2
+  gemini:
+    provider: google
+    model: gemini-2.5-pro
+  alloy1:
+    model: opus,gpt
+  nested_alloy:
+    model: alloy1,gemini

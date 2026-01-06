@@ -1,0 +1,13 @@
+agents:
+  root:
+    model: alloy
+
+models:
+  opus:
+    provider: anthropic
+    model: claude-opus-4-5
+  gpt:
+    provider: openai
+    model: gpt-5.2
+  alloy:
+    model: opus,gpt
