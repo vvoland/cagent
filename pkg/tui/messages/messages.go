@@ -7,6 +7,7 @@ type (
 	EvalSessionMsg            struct{ Filename string }
 	CompactSessionMsg         struct{ AdditionalPrompt string }
 	CopySessionToClipboardMsg struct{}
+	ExportSessionMsg          struct{ Filename string }
 	ToggleYoloMsg             struct{}
 	ToggleHideToolResultsMsg  struct{}
 	StartShellMsg             struct{}

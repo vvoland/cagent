@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/docker/cagent/pkg/app/export"
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config/types"
 	"github.com/docker/cagent/pkg/runtime"
@@ -449,4 +450,10 @@ func (a *App) mergeEvents(events []tea.Msg) []tea.Msg {
 	}
 
 	return result
+}
+
+// ExportHTML exports the current session as a standalone HTML file.
+// If filename is empty, a default name based on the session title and timestamp is used.
+func (a *App) ExportHTML(filename string) (string, error) {
+	return export.SessionToFile(a.session, filename)
 }

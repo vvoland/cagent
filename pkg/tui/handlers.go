@@ -117,6 +117,14 @@ func (a *appModel) handleEvalSession(filename string) (tea.Model, tea.Cmd) {
 	return a, notification.SuccessCmd(fmt.Sprintf("Eval saved to file %s", evalFile))
 }
 
+func (a *appModel) handleExportSession(filename string) (tea.Model, tea.Cmd) {
+	exportFile, err := a.application.ExportHTML(filename)
+	if err != nil {
+		return a, notification.ErrorCmd(fmt.Sprintf("Failed to export session: %v", err))
+	}
+	return a, notification.SuccessCmd(fmt.Sprintf("Session exported to %s", exportFile))
+}
+
 func (a *appModel) handleCompactSession(additionalPrompt string) (tea.Model, tea.Cmd) {
 	return a, a.chatPage.CompactSession(additionalPrompt)
 }

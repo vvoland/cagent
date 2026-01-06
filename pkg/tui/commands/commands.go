@@ -106,6 +106,16 @@ func builtInSessionCommands() []Item {
 			},
 		},
 		{
+			ID:           "session.export",
+			Label:        "Export",
+			SlashCommand: "/export",
+			Description:  "Export the session as a standalone HTML file (usage: /export [filename])",
+			Category:     "Session",
+			Execute: func(arg string) tea.Cmd {
+				return core.CmdHandler(messages.ExportSessionMsg{Filename: arg})
+			},
+		},
+		{
 			ID:           "session.yolo",
 			Label:        "Yolo",
 			SlashCommand: "/yolo",
