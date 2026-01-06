@@ -3,7 +3,6 @@
 package markdown
 
 import (
-	"bytes"
 	"strings"
 	"sync"
 	"unicode"
@@ -1014,7 +1013,10 @@ func (p *parser) wrapText(text string, width int) string {
 	}
 
 	var result strings.Builder
-	var currentLine bytes.Buffer
+	result.Grow(len(text) + len(text)/40) // estimate for newlines
+
+	var currentLine strings.Builder
+	currentLine.Grow(width + 32) // typical line length + ANSI codes
 	currentWidth := 0
 
 	words := splitWords(text)
