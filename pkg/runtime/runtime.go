@@ -2,11 +2,13 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"maps"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -27,6 +29,7 @@ import (
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/telemetry"
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools/builtin"
 	mcptools "github.com/docker/cagent/pkg/tools/mcp"
 )
 
@@ -124,6 +127,7 @@ type RAGInitializer interface {
 
 // LocalRuntime manages the execution of agents
 type LocalRuntime struct {
+	toolMap                     map[string]ToolHandler
 	team                        *team.Team
 	currentAgent                string
 	resumeChan                  chan ResumeType
@@ -216,6 +220,7 @@ func New(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 	}
 
 	r := &LocalRuntime{
+		toolMap:              make(map[string]ToolHandler),
 		team:                 agents,
 		currentAgent:         "root",
 		resumeChan:           make(chan ResumeType),
@@ -246,16 +251,10 @@ func New(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 		tracer:       r.tracer,
 		sessionStore: r.sessionStore,
 		resumeChan:   r.resumeChan,
+		toolMap:      r.toolMap,
 		permissions:  agents.Permissions(),
 		workingDir:   r.workingDir,
 		env:          r.env,
-		team:         r.team,
-		getCurrentAgent: func() string {
-			return r.currentAgent
-		},
-		setCurrentAgent: func(agentName string) {
-			r.currentAgent = agentName
-		},
 	})
 
 	slog.Debug("Creating new runtime", "agent", r.currentAgent, "available_agents", agents.Size())
@@ -570,6 +569,32 @@ func (r *LocalRuntime) emitToolsProgressively(ctx context.Context, a *agent.Agen
 	events <- ToolsetInfo(totalTools, false, r.currentAgent)
 }
 
+// registerDefaultTools registers the default tool handlers
+func (r *LocalRuntime) registerDefaultTools() {
+	slog.Debug("Registering default tools")
+
+	tt := builtin.NewTransferTaskTool()
+	ht := builtin.NewHandoffTool()
+	ttTools, _ := tt.Tools(context.TODO())
+	htTools, _ := ht.Tools(context.TODO())
+	allTools := append(ttTools, htTools...)
+
+	handlers := map[string]ToolHandlerFunc{
+		builtin.ToolNameTransferTask: r.handleTaskTransfer,
+		builtin.ToolNameHandoff:      r.handleHandoff,
+	}
+
+	for _, t := range allTools {
+		if h, exists := handlers[t.Name]; exists {
+			r.toolMap[t.Name] = ToolHandler{handler: h, tool: t}
+		} else {
+			slog.Warn("No handler found for default tool", "tool", t.Name)
+		}
+	}
+
+	slog.Debug("Registered default tools", "count", len(r.toolMap))
+}
+
 func (r *LocalRuntime) finalizeEventChannel(ctx context.Context, sess *session.Session, events chan Event) {
 	defer close(events)
 
@@ -629,6 +654,8 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		events <- StreamStarted(sess.ID, a.Name())
 
 		defer r.finalizeEventChannel(ctx, sess, events)
+
+		r.registerDefaultTools()
 
 		if sess.Title == "" {
 			r.titleGen.Generate(ctx, sess, events)
@@ -1108,6 +1135,138 @@ func (r *LocalRuntime) startSpan(ctx context.Context, name string, opts ...trace
 		return ctx, trace.SpanFromContext(ctx)
 	}
 	return r.tracer.Start(ctx, name, opts...)
+}
+
+func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, evts chan Event) (*tools.ToolCallResult, error) {
+	var params struct {
+		Agent          string `json:"agent"`
+		Task           string `json:"task"`
+		ExpectedOutput string `json:"expected_output"`
+	}
+
+	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
+		return nil, fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	a := r.CurrentAgent()
+
+	// Span for task transfer (optional)
+	ctx, span := r.startSpan(ctx, "runtime.task_transfer", trace.WithAttributes(
+		attribute.String("from.agent", a.Name()),
+		attribute.String("to.agent", params.Agent),
+		attribute.String("session.id", sess.ID),
+	))
+	defer span.End()
+
+	slog.Debug("Transferring task to agent", "from_agent", a.Name(), "to_agent", params.Agent, "task", params.Task)
+
+	ca := r.currentAgent
+
+	// Emit agent switching start event
+	evts <- AgentSwitching(true, ca, params.Agent)
+
+	r.currentAgent = params.Agent
+	defer func() {
+		r.currentAgent = ca
+
+		// Emit agent switching end event
+		evts <- AgentSwitching(false, params.Agent, ca)
+
+		// Restore original agent info in sidebar
+		if originalAgent, err := r.team.Agent(ca); err == nil {
+			evts <- AgentInfo(originalAgent.Name(), getAgentModelID(originalAgent), originalAgent.Description(), originalAgent.WelcomeMessage())
+		}
+	}()
+
+	// Emit agent info for the new agent
+	if newAgent, err := r.team.Agent(params.Agent); err == nil {
+		evts <- AgentInfo(newAgent.Name(), getAgentModelID(newAgent), newAgent.Description(), newAgent.WelcomeMessage())
+	}
+
+	memberAgentTask := "You are a member of a team of agents. Your goal is to complete the following task:"
+	memberAgentTask += fmt.Sprintf("\n\n<task>\n%s\n</task>", params.Task)
+	if params.ExpectedOutput != "" {
+		memberAgentTask += fmt.Sprintf("\n\n<expected_output>\n%s\n</expected_output>", params.ExpectedOutput)
+	}
+
+	slog.Debug("Creating new session with parent session", "parent_session_id", sess.ID, "tools_approved", sess.ToolsApproved)
+
+	child, err := r.team.Agent(params.Agent)
+	if err != nil {
+		return nil, err
+	}
+
+	s := session.New(
+		session.WithSystemMessage(memberAgentTask),
+		session.WithImplicitUserMessage("Please proceed."),
+		session.WithMaxIterations(child.MaxIterations()),
+		session.WithTitle("Transferred task"),
+		session.WithToolsApproved(sess.ToolsApproved),
+		session.WithSendUserMessage(false),
+	)
+
+	for event := range r.RunStream(ctx, s) {
+		evts <- event
+		if errEvent, ok := event.(*ErrorEvent); ok {
+			span.RecordError(fmt.Errorf("%s", errEvent.Error))
+			span.SetStatus(codes.Error, "error in transferred session")
+			return nil, fmt.Errorf("%s", errEvent.Error)
+		}
+	}
+
+	sess.ToolsApproved = s.ToolsApproved
+
+	sess.AddSubSession(s)
+
+	slog.Debug("Task transfer completed", "agent", params.Agent, "task", params.Task)
+
+	span.SetStatus(codes.Ok, "task transfer completed")
+	return tools.ResultSuccess(s.GetLastAssistantMessageContent()), nil
+}
+
+func (r *LocalRuntime) handleHandoff(_ context.Context, _ *session.Session, toolCall tools.ToolCall, _ chan Event) (*tools.ToolCallResult, error) {
+	var params builtin.HandoffArgs
+	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
+		return nil, fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	ca := r.currentAgent
+	currentAgent, err := r.team.Agent(ca)
+	if err != nil {
+		return nil, fmt.Errorf("current agent not found: %w", err)
+	}
+
+	// Validate that the target agent is in the current agent's handoffs list
+	handoffs := currentAgent.Handoffs()
+	if !slices.ContainsFunc(handoffs, func(a *agent.Agent) bool { return a.Name() == params.Agent }) {
+		var handoffNames []string
+		for _, h := range handoffs {
+			handoffNames = append(handoffNames, h.Name())
+		}
+		var errorMsg string
+		if len(handoffNames) > 0 {
+			errorMsg = fmt.Sprintf("Agent %s cannot hand off to %s: target agent not in handoffs list. Available handoff agent IDs are: %s", ca, params.Agent, strings.Join(handoffNames, ", "))
+		} else {
+			errorMsg = fmt.Sprintf("Agent %s cannot hand off to %s: target agent not in handoffs list. This agent has no handoff agents configured.", ca, params.Agent)
+		}
+		return tools.ResultError(errorMsg), nil
+	}
+
+	next, err := r.team.Agent(params.Agent)
+	if err != nil {
+		return nil, err
+	}
+
+	r.currentAgent = next.Name()
+	handoffMessage := "The agent " + ca + " handed off the conversation to you. " +
+		"Your available handoff agents and tools are specified in the system messages that follow. " +
+		"Only use those capabilities - do not attempt to use tools or hand off to agents that you see " +
+		"in the conversation history from previous agents, as those were available to different agents " +
+		"with different capabilities. Look at the conversation history for context, but only use the " +
+		"handoff agents and tools that are listed in your system messages below. " +
+		"Complete your part of the task and hand off to the next appropriate agent in your workflow " +
+		"(if any are available to you), or respond directly to the user if you are the final agent."
+	return tools.ResultSuccess(handoffMessage), nil
 }
 
 // Summarize generates a summary for the session based on the conversation history.

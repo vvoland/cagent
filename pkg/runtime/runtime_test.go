@@ -771,6 +771,9 @@ func TestProcessToolCalls_UnknownTool_NoToolResultMessage(t *testing.T) {
 	rt, err := New(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
+	// Register default tools (contains only transfer_task) to ensure unknown tool isn't matched
+	rt.registerDefaultTools()
+
 	sess := session.New(session.WithUserMessage("Start"))
 
 	// Simulate a model-issued tool call to a non-existent tool
