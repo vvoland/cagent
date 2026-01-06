@@ -202,18 +202,26 @@ func scanSession(scanner interface {
 		return nil, err
 	}
 
-	// Handle both old message format and new items format
+	// Ok listen up, we used to only store messages in the database, but now we
+	// store messages and sub-sessions. So we need to handle both cases.
+	// Legacy format has Message structs directly, new format has Item wrappers.
+	// When unmarshaling new format into []Message, we get empty structs.
+	// We detect legacy format by checking if the first message has actual content.
 	var items []Item
 	var messages []Message
 	if err := json.Unmarshal([]byte(messagesJSON), &messages); err != nil {
 		return nil, err
 	}
-	if len(messages) > 0 {
+	// Check if this is legacy format by seeing if we got actual message content
+	isLegacyFormat := len(messages) > 0 && (messages[0].AgentName != "" || messages[0].Message.Content != "" || messages[0].Message.Role != "")
+	if isLegacyFormat {
+		// Legacy format: messages were successfully parsed, convert them to items
+		items = convertMessagesToItems(messages)
+	} else {
+		// New format: unmarshal directly as items
 		if err := json.Unmarshal([]byte(messagesJSON), &items); err != nil {
 			return nil, err
 		}
-	} else {
-		items = convertMessagesToItems(messages)
 	}
 
 	toolsApproved, err := strconv.ParseBool(toolsApprovedStr)
