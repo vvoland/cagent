@@ -53,9 +53,9 @@ func canonize(endpoint string) string {
 	return strings.TrimSuffix(strings.TrimSpace(endpoint), "/")
 }
 
-func logEnvvarShadowing(flagValue, varName, flagName string) {
-	if flagValue != "" {
-		_, _ = fmt.Fprintf(os.Stderr, "Environment variable %s set, using it instead of CLI flag --%s\n", varName, flagName)
+func logFlagShadowing(envValue, varName, flagName string) {
+	if envValue != "" {
+		_, _ = fmt.Fprintf(os.Stderr, "CLI flag --%s set, overriding environment variable %s\n", flagName, varName)
 	}
 }
 
@@ -64,8 +64,10 @@ func addGatewayFlags(cmd *cobra.Command, runConfig *config.RuntimeConfig) {
 
 	persistentPreRunE := cmd.PersistentPreRunE
 	cmd.PersistentPreRunE = func(_ *cobra.Command, args []string) error {
-		if gateway := os.Getenv(envModelsGateway); gateway != "" {
-			logEnvvarShadowing(runConfig.ModelsGateway, envModelsGateway, flagModelsGateway)
+		if runConfig.ModelsGateway != "" {
+			// CLI flag takes precedence over environment variable
+			logFlagShadowing(os.Getenv(envModelsGateway), envModelsGateway, flagModelsGateway)
+		} else if gateway := os.Getenv(envModelsGateway); gateway != "" {
 			runConfig.ModelsGateway = gateway
 		}
 
