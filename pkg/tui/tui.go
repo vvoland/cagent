@@ -278,6 +278,9 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.ToggleHideToolResultsMsg:
 		return a.handleToggleHideToolResults()
 
+	case messages.ShowCostDialogMsg:
+		return a.handleShowCostDialog()
+
 	case messages.AgentCommandMsg:
 		return a.handleAgentCommand(msg.Command)
 

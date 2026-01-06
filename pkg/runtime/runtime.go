@@ -151,7 +151,8 @@ type streamResult struct {
 	ThinkingSignature string // Used with Anthropic's extended thinking feature
 	ThoughtSignature  []byte
 	Stopped           bool
-	ActualModel       string // The actual model used (may differ from configured model with routing)
+	ActualModel       string      // The actual model used (may differ from configured model with routing)
+	Usage             *chat.Usage // Token usage for this stream
 }
 
 type Opt func(*LocalRuntime)
@@ -772,6 +773,21 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 					}
 				}
 
+				// Calculate per-message cost if usage and pricing info available
+				var messageCost float64
+				if res.Usage != nil && m != nil && m.Cost != nil {
+					messageCost = (float64(res.Usage.InputTokens)*m.Cost.Input +
+						float64(res.Usage.OutputTokens)*m.Cost.Output +
+						float64(res.Usage.CachedInputTokens)*m.Cost.CacheRead +
+						float64(res.Usage.CacheWriteTokens)*m.Cost.CacheWrite) / 1e6
+				}
+
+				// Determine the model name to store
+				messageModel := modelID
+				if res.ActualModel != "" {
+					messageModel = res.ActualModel
+				}
+
 				assistantMessage := chat.Message{
 					Role:              chat.MessageRoleAssistant,
 					Content:           res.Content,
@@ -781,6 +797,9 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 					ToolCalls:         res.Calls,
 					ToolDefinitions:   toolDefs,
 					CreatedAt:         time.Now().Format(time.RFC3339),
+					Usage:             res.Usage,
+					Model:             messageModel,
+					Cost:              messageCost,
 				}
 
 				sess.AddMessage(session.NewAgentMessage(a, &assistantMessage))
@@ -918,6 +937,7 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 	var toolCalls []tools.ToolCall
 	var actualModel string
 	var actualModelEventEmitted bool
+	var messageUsage *chat.Usage
 	modelID := getAgentModelID(a)
 	// Track which tool call indices we've already emitted partial events for
 	emittedPartialEvents := make(map[string]bool)
@@ -932,6 +952,9 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 		}
 
 		if response.Usage != nil {
+			// Capture the usage for this specific message
+			messageUsage = response.Usage
+
 			if m != nil && m.Cost != nil {
 				cost := float64(response.Usage.InputTokens)*m.Cost.Input +
 					float64(response.Usage.OutputTokens)*m.Cost.Output +
@@ -979,6 +1002,7 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 				ThoughtSignature:  thoughtSignature,
 				Stopped:           true,
 				ActualModel:       actualModel,
+				Usage:             messageUsage,
 			}, nil
 		}
 
@@ -1074,6 +1098,7 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 		ThoughtSignature:  thoughtSignature,
 		Stopped:           stoppedDueToNoOutput,
 		ActualModel:       actualModel,
+		Usage:             messageUsage,
 	}, nil
 }
 
