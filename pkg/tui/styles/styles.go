@@ -278,8 +278,7 @@ var (
 			Foreground(TextPrimary)
 
 	TabAccentStyle = BaseStyle.
-			Foreground(TabAccentFg).
-			Background(TabBg)
+			Foreground(TabAccentFg)
 )
 
 // Command Palette Styles
