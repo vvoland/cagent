@@ -43,8 +43,11 @@ type Model interface {
 	SetTeamInfo(availableAgents []runtime.AgentDetails)
 	SetAgentSwitching(switching bool)
 	SetToolsetInfo(availableTools int, loading bool)
+	SetSessionStarred(starred bool)
 	GetSize() (width, height int)
 	LoadFromSession(sess *session.Session)
+	// HandleClick checks if click is on the star and returns true if handled
+	HandleClick(x, y int) bool
 }
 
 // ragIndexingState tracks per-strategy indexing progress
@@ -56,25 +59,27 @@ type ragIndexingState struct {
 
 // model implements Model
 type model struct {
-	width            int
-	height           int
-	sessionUsage     map[string]*runtime.Usage // sessionID -> latest usage snapshot
-	sessionAgent     map[string]string         // sessionID -> agent name
-	todoComp         *todotool.SidebarComponent
-	mcpInit          bool
-	ragIndexing      map[string]*ragIndexingState // strategy name -> indexing state
-	spinner          spinner.Spinner
-	mode             Mode
-	sessionTitle     string
-	currentAgent     string
-	agentModel       string
-	agentDescription string
-	availableAgents  []runtime.AgentDetails
-	agentSwitching   bool
-	availableTools   int
-	toolsLoading     bool // true when more tools may still be loading
-	sessionState     *service.SessionState
-	workingAgent     string // Name of the agent currently working (empty if none)
+	width             int
+	height            int
+	sessionUsage      map[string]*runtime.Usage // sessionID -> latest usage snapshot
+	sessionAgent      map[string]string         // sessionID -> agent name
+	todoComp          *todotool.SidebarComponent
+	mcpInit           bool
+	ragIndexing       map[string]*ragIndexingState // strategy name -> indexing state
+	spinner           spinner.Spinner
+	mode              Mode
+	sessionTitle      string
+	sessionStarred    bool
+	sessionHasContent bool // true when session has been used (has messages)
+	currentAgent      string
+	agentModel        string
+	agentDescription  string
+	availableAgents   []runtime.AgentDetails
+	agentSwitching    bool
+	availableTools    int
+	toolsLoading      bool // true when more tools may still be loading
+	sessionState      *service.SessionState
+	workingAgent      string // Name of the agent currently working (empty if none)
 }
 
 func New(sessionState *service.SessionState) Model {
@@ -104,6 +109,9 @@ func (m *model) SetTokenUsage(event *runtime.TokenUsageEvent) {
 	usage := *event.Usage
 	m.sessionUsage[event.SessionID] = &usage
 	m.sessionAgent[event.SessionID] = event.AgentName
+
+	// Mark session as having content once we receive token usage
+	m.sessionHasContent = true
 }
 
 func (m *model) SetTodos(result *tools.ToolCallResult) error {
@@ -142,6 +150,37 @@ func (m *model) SetToolsetInfo(availableTools int, loading bool) {
 	m.toolsLoading = loading
 }
 
+// SetSessionStarred sets the starred status of the current session
+func (m *model) SetSessionStarred(starred bool) {
+	m.sessionStarred = starred
+}
+
+// HandleClick checks if click is on the star and returns true if it was
+// x and y are coordinates relative to the sidebar's top-left corner
+// This does NOT toggle the state - caller should handle that
+func (m *model) HandleClick(x, y int) bool {
+	// Don't handle clicks if session has no content (star isn't shown)
+	if !m.sessionHasContent {
+		return false
+	}
+
+	// The star is rendered as first character(s) in the session info
+	// Check if click is within the star area (first 2 characters, allowing for some margin)
+	if x < 0 || x > 2 {
+		return false
+	}
+
+	if m.mode == ModeHorizontal {
+		// In horizontal mode, star is at the beginning of first line (y=0)
+		return y == 0
+	}
+	// In vertical mode, the Session tab has:
+	// Line 0: tab title "Session─────"
+	// Line 1: padding (from TabStyle Padding(1, 0))
+	// Line 2: star + session title
+	return y == 2
+}
+
 // LoadFromSession loads sidebar state from a restored session
 func (m *model) LoadFromSession(sess *session.Session) {
 	if sess == nil {
@@ -161,6 +200,12 @@ func (m *model) LoadFromSession(sess *session.Session) {
 	if sess.Title != "" {
 		m.sessionTitle = sess.Title
 	}
+
+	// Load starred status
+	m.sessionStarred = sess.Starred
+
+	// Session has content if it has messages or token usage
+	m.sessionHasContent = len(sess.Messages) > 0 || sess.InputTokens > 0 || sess.OutputTokens > 0
 }
 
 // formatTokenCount formats a token count with K/M suffixes for readability
@@ -299,13 +344,24 @@ func (m *model) View() string {
 	return m.horizontalView()
 }
 
+// starIndicator returns the star indicator string based on starred status.
+// Returns empty string if session has no content yet.
+func (m *model) starIndicator() string {
+	if !m.sessionHasContent {
+		return ""
+	}
+	return styles.StarIndicator(m.sessionStarred)
+}
+
 func (m *model) horizontalView() string {
 	pwd := getCurrentWorkingDirectory()
 	usageSummary := m.tokenUsageSummary()
 
+	titleWithStar := m.starIndicator() + m.sessionTitle
+
 	wi := m.workingIndicatorHorizontal()
-	titleGapWidth := m.width - lipgloss.Width(m.sessionTitle) - lipgloss.Width(wi) - 2
-	title := fmt.Sprintf("%s%*s%s", m.sessionTitle, titleGapWidth, "", wi)
+	titleGapWidth := m.width - lipgloss.Width(titleWithStar) - lipgloss.Width(wi) - 2
+	title := fmt.Sprintf("%s%*s%s", titleWithStar, titleGapWidth, "", wi)
 
 	gapWidth := m.width - lipgloss.Width(pwd) - lipgloss.Width(usageSummary) - 2
 	return lipgloss.JoinVertical(lipgloss.Top, title, fmt.Sprintf("%s%*s%s", styles.MutedStyle.Render(pwd), gapWidth, "", usageSummary))
@@ -480,7 +536,7 @@ func (m *model) tokenUsageSummary() string {
 
 func (m *model) sessionInfo() string {
 	lines := []string{
-		m.sessionTitle,
+		m.starIndicator() + m.sessionTitle,
 		"",
 	}
 

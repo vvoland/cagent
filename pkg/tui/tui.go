@@ -236,6 +236,18 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.LoadSessionMsg:
 		return a.handleLoadSession(msg.SessionID)
 
+	case messages.ToggleSessionStarMsg:
+		sessionID := msg.SessionID
+		if sessionID == "" {
+			// Empty ID means current session
+			if sess := a.application.Session(); sess != nil {
+				sessionID = sess.ID
+			} else {
+				return a, nil
+			}
+		}
+		return a.handleToggleSessionStar(sessionID)
+
 	case messages.StartShellMsg:
 		return a.startShell()
 

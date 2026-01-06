@@ -72,6 +72,45 @@ func (a *appModel) handleLoadSession(sessionID string) (tea.Model, tea.Cmd) {
 	return a, tea.Batch(a.Init(), a.handleWindowResize(a.wWidth, a.wHeight))
 }
 
+func (a *appModel) handleToggleSessionStar(sessionID string) (tea.Model, tea.Cmd) {
+	store := a.application.SessionStore()
+	if store == nil {
+		return a, notification.ErrorCmd("No session store configured")
+	}
+
+	// Get current session
+	currentSess := a.application.Session()
+
+	// Determine the new starred status
+	var newStarred bool
+	if currentSess != nil && currentSess.ID == sessionID {
+		// For current session, toggle from current state
+		newStarred = !currentSess.Starred
+		currentSess.Starred = newStarred
+		a.chatPage.SetSessionStarred(newStarred)
+
+		// Use UpdateSession (upsert) to ensure the session exists in DB before setting starred
+		// This handles the case where the session hasn't been persisted yet
+		if err := store.UpdateSession(context.Background(), currentSess); err != nil {
+			return a, notification.ErrorCmd(fmt.Sprintf("Failed to save session: %v", err))
+		}
+	} else {
+		// For non-current sessions (from session browser), fetch and toggle
+		sess, err := store.GetSession(context.Background(), sessionID)
+		if err != nil {
+			return a, notification.ErrorCmd(fmt.Sprintf("Failed to load session: %v", err))
+		}
+		newStarred = !sess.Starred
+
+		// Persist the starred status to database
+		if err := store.SetSessionStarred(context.Background(), sessionID, newStarred); err != nil {
+			return a, notification.ErrorCmd(fmt.Sprintf("Failed to update session: %v", err))
+		}
+	}
+
+	return a, nil
+}
+
 func (a *appModel) handleEvalSession(filename string) (tea.Model, tea.Cmd) {
 	evalFile, _ := evaluation.Save(a.application.Session(), filename)
 	return a, notification.SuccessCmd(fmt.Sprintf("Eval saved to file %s", evalFile))

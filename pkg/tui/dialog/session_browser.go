@@ -9,23 +9,55 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/atotto/clipboard"
 
 	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/messages"
 	"github.com/docker/cagent/pkg/tui/styles"
 )
 
+// sessionBrowserKeyMap defines key bindings for the session browser
+type sessionBrowserKeyMap struct {
+	Up         key.Binding
+	Down       key.Binding
+	PageUp     key.Binding
+	PageDown   key.Binding
+	Enter      key.Binding
+	Escape     key.Binding
+	Star       key.Binding
+	FilterStar key.Binding
+	CopyID     key.Binding
+}
+
+// defaultSessionBrowserKeyMap returns default key bindings
+func defaultSessionBrowserKeyMap() sessionBrowserKeyMap {
+	base := defaultCommandPaletteKeyMap()
+	return sessionBrowserKeyMap{
+		Up:         base.Up,
+		Down:       base.Down,
+		PageUp:     base.PageUp,
+		PageDown:   base.PageDown,
+		Enter:      base.Enter,
+		Escape:     base.Escape,
+		Star:       key.NewBinding(key.WithKeys("s")),
+		FilterStar: key.NewBinding(key.WithKeys("f")),
+		CopyID:     key.NewBinding(key.WithKeys("c")),
+	}
+}
+
 type sessionBrowserDialog struct {
 	BaseDialog
-	textInput textinput.Model
-	sessions  []session.Summary
-	filtered  []session.Summary
-	selected  int
-	offset    int                  // scroll offset for viewport
-	keyMap    commandPaletteKeyMap // Reuse existing keymap
-	openedAt  time.Time            // when dialog was opened, for stable time display
+	textInput  textinput.Model
+	sessions   []session.Summary
+	filtered   []session.Summary
+	selected   int
+	offset     int                  // scroll offset for viewport
+	keyMap     sessionBrowserKeyMap // key bindings
+	openedAt   time.Time            // when dialog was opened, for stable time display
+	starFilter int                  // 0 = all, 1 = starred only, 2 = unstarred only
 }
 
 // NewSessionBrowserDialog creates a new session browser dialog
@@ -44,13 +76,15 @@ func NewSessionBrowserDialog(sessions []session.Summary) Dialog {
 		}
 	}
 
-	return &sessionBrowserDialog{
+	d := &sessionBrowserDialog{
 		textInput: ti,
 		sessions:  nonEmptySessions,
-		filtered:  nonEmptySessions,
-		keyMap:    defaultCommandPaletteKeyMap(),
+		keyMap:    defaultSessionBrowserKeyMap(),
 		openedAt:  time.Now(),
 	}
+	// Initialize filtered list
+	d.filterSessions()
+	return d
 }
 
 func (d *sessionBrowserDialog) Init() tea.Cmd {
@@ -107,6 +141,40 @@ func (d *sessionBrowserDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			}
 			return d, nil
 
+		case key.Matches(msg, d.keyMap.Star):
+			if d.selected >= 0 && d.selected < len(d.filtered) {
+				sessionID := d.filtered[d.selected].ID
+				// Toggle the starred state in our local data
+				for i := range d.sessions {
+					if d.sessions[i].ID == sessionID {
+						d.sessions[i].Starred = !d.sessions[i].Starred
+						break
+					}
+				}
+				for i := range d.filtered {
+					if d.filtered[i].ID == sessionID {
+						d.filtered[i].Starred = !d.filtered[i].Starred
+						break
+					}
+				}
+				return d, core.CmdHandler(messages.ToggleSessionStarMsg{SessionID: sessionID})
+			}
+			return d, nil
+
+		case key.Matches(msg, d.keyMap.FilterStar):
+			// Cycle through filter modes: all -> starred -> unstarred -> all
+			d.starFilter = (d.starFilter + 1) % 3
+			d.filterSessions()
+			return d, nil
+
+		case key.Matches(msg, d.keyMap.CopyID):
+			if d.selected >= 0 && d.selected < len(d.filtered) {
+				sessionID := d.filtered[d.selected].ID
+				_ = clipboard.WriteAll(sessionID)
+				return d, notification.SuccessCmd("Session ID copied to clipboard.")
+			}
+			return d, nil
+
 		default:
 			var cmd tea.Cmd
 			d.textInput, cmd = d.textInput.Update(msg)
@@ -120,26 +188,37 @@ func (d *sessionBrowserDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 func (d *sessionBrowserDialog) filterSessions() {
 	query := strings.ToLower(strings.TrimSpace(d.textInput.Value()))
-	if query == "" {
-		d.filtered = d.sessions
-		d.selected = 0
-		d.offset = 0
-		return
-	}
 
 	d.filtered = nil
 	for _, sess := range d.sessions {
-		title := sess.Title
-		if title == "" {
-			title = "Untitled"
+		// Apply star filter
+		switch d.starFilter {
+		case 1: // Starred only
+			if !sess.Starred {
+				continue
+			}
+		case 2: // Unstarred only
+			if sess.Starred {
+				continue
+			}
 		}
-		if strings.Contains(strings.ToLower(title), query) {
-			d.filtered = append(d.filtered, sess)
+
+		// Apply text search filter
+		if query != "" {
+			title := sess.Title
+			if title == "" {
+				title = "Untitled"
+			}
+			if !strings.Contains(strings.ToLower(title), query) {
+				continue
+			}
 		}
+
+		d.filtered = append(d.filtered, sess)
 	}
 
 	if d.selected >= len(d.filtered) {
-		d.selected = 0
+		d.selected = max(0, len(d.filtered)-1)
 	}
 	d.offset = 0
 }
@@ -157,7 +236,7 @@ func (d *sessionBrowserDialog) View() string {
 	d.textInput.SetWidth(contentWidth)
 
 	var sessionLines []string
-	maxItems := maxHeight - 8
+	maxItems := maxHeight - 10 // Reduced to make room for ID footer
 
 	// Adjust offset to keep selected item visible
 	if d.selected < d.offset {
@@ -185,14 +264,42 @@ func (d *sessionBrowserDialog) View() string {
 			Render("No sessions found"))
 	}
 
+	// Build title with filter indicator
+	title := "Sessions"
+	switch d.starFilter {
+	case 1:
+		title = "Sessions " + styles.StarredStyle.Render("★")
+	case 2:
+		title = "Sessions " + styles.UnstarredStyle.Render("☆")
+	}
+
+	// Build filter description for help
+	var filterDesc string
+	switch d.starFilter {
+	case 0:
+		filterDesc = "all"
+	case 1:
+		filterDesc = "★ only"
+	case 2:
+		filterDesc = "☆ only"
+	}
+
+	// Build session ID footer for selected session
+	var idFooter string
+	if d.selected >= 0 && d.selected < len(d.filtered) {
+		idFooter = styles.MutedStyle.Render("ID: ") + styles.SecondaryStyle.Render(d.filtered[d.selected].ID)
+	}
+
 	content := NewContent(contentWidth).
-		AddTitle("Sessions").
+		AddTitle(title).
 		AddSpace().
 		AddContent(d.textInput.View()).
 		AddSeparator().
 		AddContent(strings.Join(sessionLines, "\n")).
+		AddSeparator().
+		AddContent(idFooter).
 		AddSpace().
-		AddHelp("↑/↓ navigate • pgup/pgdn page • enter load • esc close").
+		AddHelpKeys("↑/↓", "navigate", "s", "star", "f", filterDesc, "c", "copy id", "enter", "load", "esc", "close").
 		Build()
 
 	return styles.DialogStyle.Width(dialogWidth).Render(content)
@@ -200,7 +307,7 @@ func (d *sessionBrowserDialog) View() string {
 
 func (d *sessionBrowserDialog) pageSize() int {
 	_, maxHeight, _ := d.dialogSize()
-	return max(1, maxHeight-8)
+	return max(1, maxHeight-10) // Match maxItems calculation in View
 }
 
 func (d *sessionBrowserDialog) renderSession(sess session.Summary, selected bool, maxWidth int) string {
@@ -214,12 +321,13 @@ func (d *sessionBrowserDialog) renderSession(sess session.Summary, selected bool
 		title = "Untitled"
 	}
 
-	maxTitleLen := maxWidth - 25
+	// Account for star indicator width in title length calculation
+	maxTitleLen := maxWidth - 28 // 25 for time + 3 for star indicator
 	if len(title) > maxTitleLen {
 		title = title[:maxTitleLen-1] + "…"
 	}
 
-	return titleStyle.Render(" "+title) + timeStyle.Render(" • "+d.timeAgo(sess.CreatedAt))
+	return styles.StarIndicator(sess.Starred) + titleStyle.Render(title) + timeStyle.Render(" • "+d.timeAgo(sess.CreatedAt))
 }
 
 func (d *sessionBrowserDialog) timeAgo(t time.Time) string {
