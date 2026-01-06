@@ -38,6 +38,37 @@ func TestAutoRegisterAlloy(t *testing.T) {
 	assert.Equal(t, "claude-sonnet-4-0", cfg.Models["anthropic/claude-sonnet-4-0"].Model)
 }
 
+func TestAlloyModelComposition(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := Load(t.Context(), testfileSource("testdata/alloy_model_composition.yaml"))
+	require.NoError(t, err)
+
+	// The alloy model should be expanded to its constituent models
+	assert.Equal(t, "opus,gpt", cfg.Agents["root"].Model)
+
+	// The constituent models should still exist
+	assert.Equal(t, "anthropic", cfg.Models["opus"].Provider)
+	assert.Equal(t, "claude-opus-4-5", cfg.Models["opus"].Model)
+	assert.Equal(t, "openai", cfg.Models["gpt"].Provider)
+	assert.Equal(t, "gpt-5.2", cfg.Models["gpt"].Model)
+}
+
+func TestAlloyModelNestedComposition(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := Load(t.Context(), testfileSource("testdata/alloy_model_nested.yaml"))
+	require.NoError(t, err)
+
+	// The nested alloy should be fully expanded to all constituent models
+	assert.Equal(t, "opus,gpt,gemini", cfg.Agents["root"].Model)
+
+	// All base models should exist
+	assert.Equal(t, "anthropic", cfg.Models["opus"].Provider)
+	assert.Equal(t, "openai", cfg.Models["gpt"].Provider)
+	assert.Equal(t, "google", cfg.Models["gemini"].Provider)
+}
+
 func TestMigrate_v0_v1_provider(t *testing.T) {
 	t.Parallel()
 

@@ -81,12 +81,19 @@ func ensureModelsExist(cfg *latest.Config) error {
 		cfg.Models = map[string]latest.ModelConfig{}
 	}
 
-	// Ensure models referenced by agents exist
+	// Expand alloy model compositions in agent model references and ensure resulting
+	// referenced models exist.
 	for agentName := range cfg.Agents {
 		agentConfig := cfg.Agents[agentName]
 
-		modelNames := strings.SplitSeq(agentConfig.Model, ",")
-		for modelName := range modelNames {
+		expandedModel, err := expandAlloyModelRef(cfg, agentConfig.Model)
+		if err != nil {
+			return fmt.Errorf("agent '%s': %w", agentName, err)
+		}
+		agentConfig.Model = expandedModel
+		cfg.Agents[agentName] = agentConfig
+
+		for modelName := range strings.SplitSeq(expandedModel, ",") {
 			if err := ensureSingleModelExists(cfg, modelName, fmt.Sprintf("agent '%s'", agentName)); err != nil {
 				return err
 			}
@@ -122,6 +129,47 @@ func ensureModelsExist(cfg *latest.Config) error {
 	}
 
 	return nil
+}
+
+func isAlloyModelConfig(cfg latest.ModelConfig) bool {
+	return cfg.Provider == "" && strings.Contains(cfg.Model, ",")
+}
+
+// expandAlloyModelRef expands a model reference if it points to an alloy model.
+// It also expands already-comma-separated model refs by expanding each part.
+func expandAlloyModelRef(cfg *latest.Config, modelRef string) (string, error) {
+	modelRef = strings.TrimSpace(modelRef)
+	if modelRef == "" {
+		return "", nil
+	}
+
+	// Fast path for non-compositions.
+	if !strings.Contains(modelRef, ",") {
+		modelCfg, exists := cfg.Models[modelRef]
+		if !exists || !isAlloyModelConfig(modelCfg) {
+			return modelRef, nil
+		}
+		return expandAlloyModelRef(cfg, modelCfg.Model)
+	}
+
+	var expanded []string
+	for part := range strings.SplitSeq(modelRef, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+
+		exp, err := expandAlloyModelRef(cfg, part)
+		if err != nil {
+			return "", err
+		}
+		if exp == "" {
+			continue
+		}
+		expanded = append(expanded, exp)
+	}
+
+	return strings.Join(expanded, ","), nil
 }
 
 // ensureSingleModelExists normalizes shorthand model IDs like "openai/gpt-5-mini"
