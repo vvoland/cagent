@@ -28,10 +28,10 @@ func TestGatewayLogic(t *testing.T) {
 			expected: "https://cli-models.example.com",
 		},
 		{
-			name:     "env_overrides_cli",
+			name:     "cli_overrides_env",
 			env:      "https://env-models.example.com",
 			args:     []string{"--models-gateway", "https://cli-models.example.com"},
-			expected: "https://env-models.example.com",
+			expected: "https://cli-models.example.com",
 		},
 	}
 
