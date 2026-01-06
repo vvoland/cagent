@@ -278,6 +278,9 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.OpenURLMsg:
 		return a.handleOpenURL(msg.URL)
 
+	case messages.AttachFileMsg:
+		return a.handleAttachFile(msg.FilePath)
+
 	case dialog.RuntimeResumeMsg:
 		a.application.Resume(msg.Response)
 		return a, nil

@@ -252,6 +252,11 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		cmds = append(cmds, p.messages.ScrollToBottom())
 		return p, tea.Batch(cmds...)
 
+	case msgtypes.InsertFileRefMsg:
+		// Attach file using editor's AttachFile method which registers the attachment
+		p.editor.AttachFile(msg.FilePath)
+		return p, nil
+
 	case msgtypes.ToggleHideToolResultsMsg:
 		// Forward to messages component to invalidate cache and trigger redraw
 		model, cmd := p.messages.Update(messages.ToggleHideToolResultsMsg{})

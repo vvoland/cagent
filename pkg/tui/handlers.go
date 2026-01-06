@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"os"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/atotto/clipboard"
@@ -193,4 +194,24 @@ func (a *appModel) handleOpenURL(url string) (tea.Model, tea.Cmd) {
 func (a *appModel) handleAgentCommand(command string) (tea.Model, tea.Cmd) {
 	resolvedCommand := a.application.ResolveCommand(context.Background(), command)
 	return a, core.CmdHandler(editor.SendMsg{Content: resolvedCommand})
+}
+
+// File attachment handler
+
+func (a *appModel) handleAttachFile(filePath string) (tea.Model, tea.Cmd) {
+	// If a file path is provided and it's an existing file, attach it directly
+	if filePath != "" {
+		info, err := os.Stat(filePath)
+		if err == nil && !info.IsDir() {
+			// Insert the file reference into the editor using @filepath syntax
+			updated, cmd := a.chatPage.Update(messages.InsertFileRefMsg{FilePath: filePath})
+			a.chatPage = updated.(chat.Page)
+			return a, tea.Batch(cmd, notification.SuccessCmd("File attached: "+filePath))
+		}
+	}
+
+	// Otherwise, open the file picker dialog
+	return a, core.CmdHandler(dialog.OpenDialogMsg{
+		Model: dialog.NewFilePickerDialog(filePath),
+	})
 }
