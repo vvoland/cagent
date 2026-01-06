@@ -50,12 +50,13 @@ var markdown = goldmark.New(
 
 // SessionData contains the session information needed for HTML export.
 type SessionData struct {
-	Title        string
-	CreatedAt    time.Time
-	InputTokens  int64
-	OutputTokens int64
-	Cost         float64
-	Messages     []Message
+	Title            string
+	AgentDescription string
+	CreatedAt        time.Time
+	InputTokens      int64
+	OutputTokens     int64
+	Cost             float64
+	Messages         []Message
 }
 
 // Message represents a single message in the session.
@@ -79,11 +80,13 @@ type ToolCall struct {
 // SessionToFile exports a session to an HTML file.
 // If filename is empty, a default name based on the title and timestamp is used.
 // Returns the absolute path of the created file.
-func SessionToFile(sess *session.Session, filename string) (string, error) {
+func SessionToFile(sess *session.Session, agentDescription, filename string) (string, error) {
 	if sess == nil {
 		return "", fmt.Errorf("no session to export")
 	}
-	return ToFile(sessionToData(sess), filename)
+	data := sessionToData(sess)
+	data.AgentDescription = agentDescription
+	return ToFile(data, filename)
 }
 
 func sessionToData(sess *session.Session) SessionData {
@@ -179,17 +182,18 @@ func sanitizeFilename(name string) string {
 
 // templateData holds all data needed for the main HTML template.
 type templateData struct {
-	Title           string
-	CSS             template.CSS
-	JS              template.JS
-	FormattedDate   string
-	SidebarDate     string
-	MessagesHTML    template.HTML
-	PrimaryAgent    string
-	ToolsUsedCount  int
-	TotalTokens     int64
-	FormattedTokens string
-	FormattedCost   template.HTML
+	Title            string
+	CSS              template.CSS
+	JS               template.JS
+	FormattedDate    string
+	SidebarDate      string
+	MessagesHTML     template.HTML
+	PrimaryAgent     string
+	AgentDescription string
+	ToolsUsedCount   int
+	TotalTokens      int64
+	FormattedTokens  string
+	FormattedCost    template.HTML
 }
 
 // messageViewData holds data for rendering a single message.
@@ -349,17 +353,18 @@ func Generate(data SessionData) (string, error) {
 	}
 
 	tplData := templateData{
-		Title:           title,
-		CSS:             template.CSS(cssStyles),
-		JS:              template.JS(jsCode),
-		FormattedDate:   data.CreatedAt.Format("January 2, 2006 at 3:04 PM"),
-		SidebarDate:     data.CreatedAt.Format("Jan 2, 2006"),
-		MessagesHTML:    template.HTML(messagesBuilder.String()), //nolint:gosec // Content is already escaped by sub-templates
-		PrimaryAgent:    primaryAgent,
-		ToolsUsedCount:  len(toolsUsed),
-		TotalTokens:     totalTokens,
-		FormattedTokens: formatTokens(totalTokens),
-		FormattedCost:   template.HTML(formatCost(data.Cost)), //nolint:gosec // formatCost returns safe HTML
+		Title:            title,
+		CSS:              template.CSS(cssStyles),
+		JS:               template.JS(jsCode),
+		FormattedDate:    data.CreatedAt.Format("January 2, 2006 at 3:04 PM"),
+		SidebarDate:      data.CreatedAt.Format("Jan 2, 2006"),
+		MessagesHTML:     template.HTML(messagesBuilder.String()), //nolint:gosec // Content is already escaped by sub-templates
+		PrimaryAgent:     primaryAgent,
+		AgentDescription: data.AgentDescription,
+		ToolsUsedCount:   len(toolsUsed),
+		TotalTokens:      totalTokens,
+		FormattedTokens:  formatTokens(totalTokens),
+		FormattedCost:    template.HTML(formatCost(data.Cost)), //nolint:gosec // formatCost returns safe HTML
 	}
 
 	var buf bytes.Buffer
