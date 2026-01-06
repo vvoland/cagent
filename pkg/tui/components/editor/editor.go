@@ -480,6 +480,18 @@ func (e *editor) AcceptSuggestion() bool {
 	return true
 }
 
+// resetAndSend prepares a message for sending: processes pending file refs,
+// collects attachments, resets editor state, and returns the SendMsg command.
+func (e *editor) resetAndSend(content string) tea.Cmd {
+	e.tryAddFileRef(e.pendingFileRef)
+	e.pendingFileRef = ""
+	attachments := e.collectAttachments(content)
+	e.textarea.Reset()
+	e.userTyped = false
+	e.clearSuggestion()
+	return core.CmdHandler(SendMsg{Content: content, Attachments: attachments})
+}
+
 // configureNewlineKeybinding sets up the appropriate newline keybinding
 // based on terminal keyboard enhancement support.
 func (e *editor) configureNewlineKeybinding() {
@@ -538,24 +550,17 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return e, cmd
 
 	case completion.SelectedMsg:
-		currentValue := e.textarea.Value()
-		lastIdx := strings.LastIndex(currentValue, e.completionWord)
 		if e.currentCompletion.AutoSubmit() {
-			// For auto-submit completions (like commands), replace the trigger word
-			// with the selected value and send it as a message
-			var newValue string
-			if lastIdx >= 0 {
-				newValue = currentValue[:lastIdx-1] + msg.Value
-			} else {
-				newValue = msg.Value
-			}
-			e.textarea.Reset()
-			e.userTyped = false
-			e.clearSuggestion()
-			return e, core.CmdHandler(SendMsg{Content: newValue})
+			// For auto-submit completions (like commands), send the full editor
+			// content as-is. This ensures any arguments typed after the command
+			// (e.g., "/export /tmp/file") are preserved and passed through to
+			// the command handler which will parse them appropriately.
+			cmd := e.resetAndSend(e.textarea.Value())
+			return e, cmd
 		}
-		// For non-auto-submit completions (like file paths), just insert the value
-		if lastIdx >= 0 {
+		// For non-auto-submit completions (like file paths), replace the completion word
+		currentValue := e.textarea.Value()
+		if lastIdx := strings.LastIndex(currentValue, e.completionWord); lastIdx >= 0 {
 			newValue := currentValue[:lastIdx-1] + msg.Value + currentValue[lastIdx+len(e.completionWord):]
 			e.textarea.SetValue(newValue)
 			e.textarea.MoveToEnd()
@@ -564,7 +569,6 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		if e.currentCompletion != nil && e.currentCompletion.Trigger() == "@" && !strings.HasPrefix(msg.Value, "@paste-") {
 			e.addFileAttachment(msg.Value)
 		}
-		// Clear history suggestion after selecting a completion
 		e.clearSuggestion()
 		return e, nil
 	case completion.ClosedMsg:
@@ -606,29 +610,18 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			// If plain enter and textarea inserted a newline, submit the previous value
 			if value != prev && msg.String() == "enter" {
 				if prev != "" && !e.working {
-					e.tryAddFileRef(e.pendingFileRef) // Add any pending @filepath before send
-					e.pendingFileRef = ""
-					attachments := e.collectAttachments(prev)
 					e.textarea.SetValue(prev)
 					e.textarea.MoveToEnd()
-					e.textarea.Reset()
-					e.userTyped = false
-					e.refreshSuggestion()
-					return e, core.CmdHandler(SendMsg{Content: prev, Attachments: attachments})
+					cmd := e.resetAndSend(prev)
+					return e, cmd
 				}
 				return e, nil
 			}
 
 			// Normal enter submit: send current value
 			if value != "" && !e.working {
-				slog.Debug(value)
-				e.tryAddFileRef(e.pendingFileRef) // Add any pending @filepath before send
-				e.pendingFileRef = ""
-				attachments := e.collectAttachments(value)
-				e.textarea.Reset()
-				e.userTyped = false
-				e.refreshSuggestion()
-				return e, core.CmdHandler(SendMsg{Content: value, Attachments: attachments})
+				cmd := e.resetAndSend(value)
+				return e, cmd
 			}
 
 			return e, nil
