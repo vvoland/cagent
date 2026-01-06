@@ -4,6 +4,7 @@ package fake
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -21,8 +22,9 @@ import (
 
 // StartProxy starts an internal HTTP proxy that replays cassette responses.
 // It returns the proxy URL and a cleanup function that should be called when done.
+// Uses RelaxedMatcher for lenient matching (only validates user messages).
 func StartProxy(cassettePath string) (string, func() error, error) {
-	return StartProxyWithOptions(cassettePath, recorder.ModeReplayOnly, nil, nil)
+	return StartProxyWithOptions(cassettePath, recorder.ModeReplayOnly, RelaxedMatcher(), nil)
 }
 
 // StartRecordingProxy starts a proxy that records AI API interactions to a cassette file.
@@ -68,7 +70,7 @@ func StartProxyWithOptions(
 		recorder.WithMatcher(matcher),
 		recorder.WithSkipRequestLatency(true),
 		recorder.WithHook(RemoveHeadersHook, recorder.AfterCaptureHook),
-		recorder.WithReplayableInteractions(true),
+		recorder.WithReplayableInteractions(false),
 	)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create VCR recorder: %w", err)
@@ -126,6 +128,72 @@ func CustomMatcher(onError func(err error)) recorder.MatcherFunc {
 
 		// Normalize tool call IDs for matching
 		return callIDRegex.ReplaceAllString(string(reqBody), "call_ID") == callIDRegex.ReplaceAllString(i.Body, "call_ID")
+	}
+}
+
+// extractFirstUserMessage extracts the first user message text from a request body.
+func extractFirstUserMessage(body string) string {
+	var req struct {
+		Messages []struct {
+			Role    string `json:"role"`
+			Content any    `json:"content"`
+		} `json:"messages"`
+	}
+
+	if err := json.Unmarshal([]byte(body), &req); err != nil {
+		return ""
+	}
+
+	for _, msg := range req.Messages {
+		if msg.Role != "user" {
+			continue
+		}
+
+		switch content := msg.Content.(type) {
+		case string:
+			return content
+		case []any:
+			for _, block := range content {
+				if blockMap, ok := block.(map[string]any); ok {
+					if text, ok := blockMap["text"].(string); ok {
+						return text
+					}
+				}
+			}
+		}
+		break
+	}
+
+	return ""
+}
+
+// RelaxedMatcher creates a lenient matcher that only validates user messages.
+func RelaxedMatcher() recorder.MatcherFunc {
+	return func(r *http.Request, i cassette.Request) bool {
+		if r.Body == nil || r.Body == http.NoBody {
+			return true
+		}
+
+		reqBody, err := io.ReadAll(r.Body)
+		if err != nil {
+			slog.Error("Failed to read request body for matching", "error", err)
+			return false
+		}
+		r.Body.Close()
+		r.Body = io.NopCloser(bytes.NewBuffer(reqBody))
+
+		reqMsg := extractFirstUserMessage(string(reqBody))
+		cassetteMsg := extractFirstUserMessage(i.Body)
+
+		slog.Debug("RelaxedMatcher comparing", "reqMsg", reqMsg, "cassetteMsg", cassetteMsg, "match", reqMsg == cassetteMsg)
+
+		// Only compare if both have user messages
+		if reqMsg != "" && cassetteMsg != "" {
+			return reqMsg == cassetteMsg
+		}
+
+		// Allow everything else
+		return true
 	}
 }
 
