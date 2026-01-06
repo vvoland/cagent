@@ -134,7 +134,7 @@ func (a *Agent) Tools(ctx context.Context) ([]tools.Tool, error) {
 
 	var agentTools []tools.Tool
 	for _, toolSet := range a.toolsets {
-		if !toolSet.started.Load() {
+		if !toolSet.IsStarted() {
 			// Toolset failed to start; skip it
 			continue
 		}
@@ -164,19 +164,13 @@ func (a *Agent) ToolSets() []tools.ToolSet {
 
 func (a *Agent) ensureToolSetsAreStarted(ctx context.Context) {
 	for _, toolSet := range a.toolsets {
-		// Skip if toolset is already started
-		if toolSet.started.Load() {
-			continue
-		}
-
+		// Start() uses sync.Once internally, so concurrent calls are safe
+		// and will block until the first call completes.
 		if err := toolSet.Start(ctx); err != nil {
 			slog.Warn("Toolset start failed; skipping", "agent", a.Name(), "toolset", fmt.Sprintf("%T", toolSet.ToolSet), "error", err)
 			a.addToolWarning(fmt.Sprintf("%T start failed: %v", toolSet.ToolSet, err))
 			continue
 		}
-
-		// Mark toolset as started
-		toolSet.started.Store(true)
 	}
 }
 
@@ -200,17 +194,14 @@ func (a *Agent) DrainWarnings() []string {
 
 func (a *Agent) StopToolSets(ctx context.Context) error {
 	for _, toolSet := range a.toolsets {
-		// Only stop toolsets that are marked as started
-		if !toolSet.started.Load() {
+		// Only stop toolsets that were successfully started
+		if !toolSet.IsStarted() {
 			continue
 		}
 
 		if err := toolSet.Stop(ctx); err != nil {
 			return fmt.Errorf("failed to stop toolset: %w", err)
 		}
-
-		// Mark toolset as stopped
-		toolSet.started.Store(false)
 	}
 
 	return nil
