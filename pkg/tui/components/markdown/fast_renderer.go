@@ -3,7 +3,6 @@
 package markdown
 
 import (
-	"bytes"
 	"strings"
 	"sync"
 	"unicode"
@@ -875,14 +874,35 @@ func padAllLines(s string, width int) string {
 		return s
 	}
 
-	lines := strings.Split(s, "\n")
-	for i, line := range lines {
+	// Pre-allocate result buffer - estimate final size
+	var result strings.Builder
+	result.Grow(len(s) + len(s)/40*width) // rough estimate for padding
+
+	start := 0
+	for i := range len(s) + 1 {
+		if i != len(s) && s[i] != '\n' {
+			continue
+		}
+
+		line := s[start:i]
+		result.WriteString(line)
+
 		lineWidth := lipgloss.Width(line)
 		if lineWidth < width {
-			lines[i] = line + strings.Repeat(" ", width-lineWidth)
+			// Pad with spaces
+			pad := width - lineWidth
+			for range pad {
+				result.WriteByte(' ')
+			}
 		}
+
+		if i < len(s) {
+			result.WriteByte('\n')
+		}
+		start = i + 1
 	}
-	return strings.Join(lines, "\n")
+
+	return result.String()
 }
 
 type token struct {
@@ -993,7 +1013,10 @@ func (p *parser) wrapText(text string, width int) string {
 	}
 
 	var result strings.Builder
-	var currentLine bytes.Buffer
+	result.Grow(len(text) + len(text)/40) // estimate for newlines
+
+	var currentLine strings.Builder
+	currentLine.Grow(width + 32) // typical line length + ANSI codes
 	currentWidth := 0
 
 	words := splitWords(text)
@@ -1049,8 +1072,17 @@ func (p *parser) wrapText(text string, width int) string {
 }
 
 func splitWords(text string) []string {
-	var words []string
+	// Count words to pre-allocate (rough estimate: words are separated by spaces)
+	wordCount := 1
+	for i := range len(text) {
+		if text[i] == ' ' || text[i] == '\t' {
+			wordCount++
+		}
+	}
+
+	words := make([]string, 0, wordCount)
 	var current strings.Builder
+	current.Grow(32) // Pre-allocate for typical word length
 	inAnsi := false
 
 	for i := 0; i < len(text); {
@@ -1142,6 +1174,15 @@ func breakWord(word string, maxWidth int) []string {
 }
 
 // buildStylePrimitive converts an ansi.StylePrimitive to a lipgloss.Style.
+// sanitizeReplacer is a package-level replacer to avoid rebuilding it on every call.
+// This is critical for performance - building a replacer is expensive.
+var sanitizeReplacer = strings.NewReplacer(
+	"\r", "",
+	"\b", "",
+	"\f", "",
+	"\v", "",
+)
+
 func sanitizeForTerminal(s string) string {
 	if s == "" {
 		return s
@@ -1149,13 +1190,7 @@ func sanitizeForTerminal(s string) string {
 
 	// Strip control chars that change cursor position / layout.
 	// Keep \n and \t (tab will be expanded later).
-	replacer := strings.NewReplacer(
-		"\r", "",
-		"\b", "",
-		"\f", "",
-		"\v", "",
-	)
-	return replacer.Replace(s)
+	return sanitizeReplacer.Replace(s)
 }
 
 func buildStylePrimitive(sp ansi.StylePrimitive) lipgloss.Style {
