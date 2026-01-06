@@ -277,3 +277,164 @@ func TestResolveSources(t *testing.T) {
 	assert.Len(t, sources, 1)
 	require.Contains(t, sources, "v1")
 }
+
+func TestResolve_DefaultAliasOverride(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Create an agent file
+	agentFile := filepath.Join(t.TempDir(), "custom-agent.yaml")
+	require.NoError(t, os.WriteFile(agentFile, []byte(`agents:
+  root:
+    model: openai/gpt-4o
+    description: Custom agent
+`), 0o644))
+
+	// Set up alias for "default"
+	all, err := aliases.Load()
+	require.NoError(t, err)
+	all.Set("default", agentFile)
+	require.NoError(t, all.Save())
+
+	// Resolve with "default" should return the aliased file
+	source, err := Resolve("default")
+	require.NoError(t, err)
+	assert.Equal(t, agentFile, source.Name())
+
+	// Verify it reads the custom content
+	data, err := source.Read(t.Context())
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "Custom agent")
+}
+
+func TestResolve_DefaultAliasToOCIReference(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Set up alias for "default" pointing to an OCI reference
+	all, err := aliases.Load()
+	require.NoError(t, err)
+	all.Set("default", "docker/gordon")
+	require.NoError(t, all.Save())
+
+	// Resolve with "default" should return an OCI source with the aliased reference
+	source, err := Resolve("default")
+	require.NoError(t, err)
+	assert.Equal(t, "docker/gordon", source.Name())
+}
+
+func TestResolveSources_DefaultAliasToOCIReference(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Set up alias for "default" pointing to an OCI reference
+	all, err := aliases.Load()
+	require.NoError(t, err)
+	all.Set("default", "docker/gordon")
+	require.NoError(t, all.Save())
+
+	// ResolveSources with "default" should return an OCI source with the aliased reference
+	sources, err := ResolveSources("default")
+	require.NoError(t, err)
+	require.Len(t, sources, 1)
+
+	// The key should be the OCI reference converted to filename
+	source, ok := sources["docker_gordon.yaml"]
+	require.True(t, ok, "expected source key 'docker_gordon.yaml', got keys: %v", sources)
+	assert.Equal(t, "docker/gordon", source.Name())
+}
+
+func TestResolve_EmptyWithDefaultAliasOverride(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Create an agent file
+	agentFile := filepath.Join(t.TempDir(), "custom-agent.yaml")
+	require.NoError(t, os.WriteFile(agentFile, []byte(`agents:
+  root:
+    model: openai/gpt-4o
+    description: Custom agent via empty
+`), 0o644))
+
+	// Set up alias for "default"
+	all, err := aliases.Load()
+	require.NoError(t, err)
+	all.Set("default", agentFile)
+	require.NoError(t, all.Save())
+
+	// Resolve with empty string should also use the "default" alias
+	source, err := Resolve("")
+	require.NoError(t, err)
+	assert.Equal(t, agentFile, source.Name())
+
+	// Verify it reads the custom content
+	data, err := source.Read(t.Context())
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "Custom agent via empty")
+}
+
+func TestResolveSources_DefaultAliasOverride(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Create an agent file
+	agentFile := filepath.Join(t.TempDir(), "custom-agent.yaml")
+	require.NoError(t, os.WriteFile(agentFile, []byte(`agents:
+  root:
+    model: openai/gpt-4o
+    description: Custom agent for sources
+`), 0o644))
+
+	// Set up alias for "default"
+	all, err := aliases.Load()
+	require.NoError(t, err)
+	all.Set("default", agentFile)
+	require.NoError(t, all.Save())
+
+	// ResolveSources with "default" should return the aliased file
+	sources, err := ResolveSources("default")
+	require.NoError(t, err)
+	require.Len(t, sources, 1)
+
+	// The key should be the filename without extension
+	source, ok := sources["custom-agent"]
+	require.True(t, ok, "expected source key 'custom-agent', got keys: %v", sources)
+
+	// Verify it reads the custom content
+	data, err := source.Read(t.Context())
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "Custom agent for sources")
+}
+
+func TestResolveSources_EmptyWithDefaultAliasOverride(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Create an agent file
+	agentFile := filepath.Join(t.TempDir(), "custom-agent.yaml")
+	require.NoError(t, os.WriteFile(agentFile, []byte(`agents:
+  root:
+    model: openai/gpt-4o
+    description: Custom agent for sources via empty
+`), 0o644))
+
+	// Set up alias for "default"
+	all, err := aliases.Load()
+	require.NoError(t, err)
+	all.Set("default", agentFile)
+	require.NoError(t, all.Save())
+
+	// ResolveSources with empty string should also use the "default" alias
+	sources, err := ResolveSources("")
+	require.NoError(t, err)
+	require.Len(t, sources, 1)
+
+	// The key should be the filename without extension
+	source, ok := sources["custom-agent"]
+	require.True(t, ok, "expected source key 'custom-agent', got keys: %v", sources)
+
+	// Verify it reads the custom content
+	data, err := source.Read(t.Context())
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "Custom agent for sources via empty")
+}

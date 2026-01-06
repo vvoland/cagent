@@ -74,7 +74,7 @@ func ResolveSources(agentsPath string) (Sources, error) {
 	}
 
 	return map[string]Source{
-		reference.OciRefToFilename(agentsPath): NewOCISource(agentsPath),
+		reference.OciRefToFilename(resolvedPath): NewOCISource(resolvedPath),
 	}, nil
 }
 
@@ -100,7 +100,7 @@ func Resolve(agentFilename string) (Source, error) {
 	if isLocalFile(resolvedPath) {
 		return NewFileSource(resolvedPath), nil
 	}
-	return NewOCISource(agentFilename), nil
+	return NewOCISource(resolvedPath), nil
 }
 
 // resolve resolves an agent reference, handling aliases and defaults
@@ -118,6 +118,11 @@ func resolve(agentFilename string) (string, error) {
 	// "default" is either a user defined alias or the default (embedded) agent
 	if agentFilename == "default" {
 		return "default", nil
+	}
+
+	// Don't convert OCI references or URLs to absolute paths
+	if IsOCIReference(agentFilename) || IsURLReference(agentFilename) {
+		return agentFilename, nil
 	}
 
 	abs, err := filepath.Abs(agentFilename)
