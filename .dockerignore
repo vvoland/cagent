@@ -2,6 +2,9 @@
 !/go.mod
 !/go.sum
 !./**/*.template
+!./**/*.js
+!./**/*.html
+!./**/*.css
 !./**/*.go
 !./**/*.txt
 !/pkg/config/default-agent.yaml

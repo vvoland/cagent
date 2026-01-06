@@ -254,6 +254,9 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.EvalSessionMsg:
 		return a.handleEvalSession(msg.Filename)
 
+	case messages.ExportSessionMsg:
+		return a.handleExportSession(msg.Filename)
+
 	case messages.CompactSessionMsg:
 		return a.handleCompactSession(msg.AdditionalPrompt)
 

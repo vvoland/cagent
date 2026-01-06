@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <style>
+{{.CSS}}
+    </style>
+</head>
+<body class="bg-background text-foreground font-mono leading-relaxed antialiased min-h-screen text-sm">
+    <div class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="border-b border-border px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="size-8 rounded bg-tui-cyan/20 flex items-center justify-center">
+                    <span class="text-tui-cyan font-bold text-sm">C</span>
+                </div>
+                <h1 class="text-base font-semibold">{{.Title}}</h1>
+            </div>
+            <div class="text-xs text-muted-foreground">{{.FormattedDate}}</div>
+        </header>
+
+        <div class="flex-1 flex overflow-hidden">
+            <!-- Main content -->
+            <main class="flex-1 overflow-y-auto">
+                <div class="max-w-4xl mx-auto px-2 sm:px-4 py-4">
+{{.MessagesHTML}}
+                </div>
+            </main>
+
+            <!-- Sidebar -->
+            <aside class="hidden lg:flex w-64 border-l border-border p-4 flex-col gap-6 overflow-y-auto">
+                <!-- Session info -->
+                <div>
+                    <div class="text-muted-foreground text-xs mb-2 border-b border-border pb-1">Session</div>
+                    <div class="text-sm font-medium truncate">{{.Title}}</div>
+                    <div class="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                        <span class="inline-block w-2 h-2 rounded-full bg-tui-green"></span>
+                        {{.SidebarDate}}
+                    </div>
+                </div>
+
+                <!-- Agent info -->
+                <div>
+                    <div class="text-muted-foreground text-xs mb-2 border-b border-border pb-1">Agent</div>
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2">
+                            <span class="text-tui-cyan font-medium text-sm">{{.PrimaryAgent}}</span>
+                        </div>
+                        <div class="text-xs text-muted-foreground">A helpful AI assistant</div>
+                    </div>
+                </div>
+
+                <!-- Tools -->
+                <div>
+                    <div class="text-muted-foreground text-xs mb-2 border-b border-border pb-1">Tools</div>
+                    <div class="text-sm">{{.ToolsUsedCount}} tools used</div>
+                </div>
+
+                <!-- Token Usage -->
+                <div>
+                    <div class="text-muted-foreground text-xs mb-2 border-b border-border pb-1">Token Usage</div>
+                    <div class="flex items-center gap-2">
+                        <div class="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+                            <div class="h-full bg-tui-cyan rounded-full" style="width: min({{.TotalTokens}} / 2000, 100)%"></div>
+                        </div>
+                    </div>
+                    <div class="text-xs text-muted-foreground mt-1">
+                        {{.FormattedTokens}} tokens{{.FormattedCost}}
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- Footer -->
+        <footer class="border-t border-border px-4 py-3 text-center text-muted-foreground text-xs">
+            Exported from <a href="https://github.com/docker/cagent" class="text-tui-cyan no-underline hover:underline">cagent</a>
+        </footer>
+    </div>
+    <script>
+{{.JS}}
+    </script>
+</body>
+</html>
