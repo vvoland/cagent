@@ -2,6 +2,9 @@ package transfertask
 
 import (
 	"encoding/json"
+	"strings"
+
+	"charm.land/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/spinner"
@@ -16,15 +19,41 @@ func New(msg *types.Message, sessionState *service.SessionState) layout.Model {
 	return toolcommon.NewBase(msg, sessionState, render)
 }
 
-func render(msg *types.Message, _ spinner.Spinner, _ *service.SessionState, _, _ int) string {
+func render(msg *types.Message, _ spinner.Spinner, _ *service.SessionState, width, _ int) string {
 	var params builtin.TransferTaskArgs
 	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &params); err != nil {
 		return ""
 	}
 
-	return styles.AgentBadgeStyle.MarginLeft(2).Render(msg.Sender) +
+	header := styles.AgentBadgeStyle.MarginLeft(2).Render(msg.Sender) +
 		" calls " +
-		styles.AgentBadgeStyle.Render(params.Agent) +
-		"\n\n" +
-		styles.ToolMessageStyle.Render(styles.ToolCompletedIcon.Render("✓")+" "+params.Task)
+		styles.AgentBadgeStyle.Render(params.Agent)
+
+	// Calculate the icon with its margin
+	icon := styles.ToolCompletedIcon.Render("✓")
+	iconWithSpace := icon + " "
+	iconWidth := lipgloss.Width(iconWithSpace)
+
+	// Calculate available width for task text (accounting for icon width)
+	availableWidth := max(width-iconWidth, 10)
+
+	// Wrap the task text to fit within the available width
+	lines := toolcommon.WrapLines(params.Task, availableWidth)
+
+	// Build the task content with proper indentation for wrapped lines
+	var taskContent strings.Builder
+	for i, line := range lines {
+		if i == 0 {
+			// First line: icon + text
+			taskContent.WriteString(iconWithSpace)
+			taskContent.WriteString(styles.ToolMessageStyle.Render(line))
+		} else {
+			// Subsequent lines: indent to align with first line's text
+			taskContent.WriteString("\n")
+			taskContent.WriteString(strings.Repeat(" ", iconWidth))
+			taskContent.WriteString(styles.ToolMessageStyle.Render(line))
+		}
+	}
+
+	return header + "\n\n" + taskContent.String()
 }

@@ -158,7 +158,7 @@ func TestWrapLines(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			wrapped := wrapLines(tt.text, tt.width)
+			wrapped := WrapLines(tt.text, tt.width)
 
 			assert.Equal(t, tt.expected, wrapped)
 		})
