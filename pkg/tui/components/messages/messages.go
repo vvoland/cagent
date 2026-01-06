@@ -1,6 +1,7 @@
 package messages
 
 import (
+	"os"
 	"strings"
 
 	"charm.land/bubbles/v2/help"
@@ -21,6 +22,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/service"
+	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
@@ -89,6 +91,9 @@ type model struct {
 	// Message selection state
 	selectedMessageIndex int  // Index of selected message (-1 = no selection)
 	focused              bool // Whether the messages component is focused
+
+	// Debug layout mode - highlights truncated lines with red background
+	debugLayout bool
 }
 
 // New creates a new message list component
@@ -101,6 +106,7 @@ func New(a *app.App, sessionState *service.SessionState) Model {
 		sessionState:         sessionState,
 		scrollbar:            scrollbar.New(),
 		selectedMessageIndex: -1,
+		debugLayout:          os.Getenv("CAGENT_EXPERIMENTAL_DEBUG_LAYOUT") == "1",
 	}
 }
 
@@ -114,6 +120,7 @@ func NewScrollableView(width, height int, sessionState *service.SessionState) Mo
 		sessionState:         sessionState,
 		scrollbar:            scrollbar.New(),
 		selectedMessageIndex: -1,
+		debugLayout:          os.Getenv("CAGENT_EXPERIMENTAL_DEBUG_LAYOUT") == "1",
 	}
 }
 
@@ -360,10 +367,16 @@ func (m *model) View() string {
 	m.scrollbar.SetScrollOffset(m.scrollOffset)
 
 	// Truncate lines that exceed content width to prevent scrollbar from wrapping
+	// When debug layout is enabled, lines that need truncation are displayed with red background
 	contentWidth := m.contentWidth()
 	for i, line := range visibleLines {
 		if ansi.StringWidth(line) > contentWidth {
-			visibleLines[i] = ansi.Truncate(line, contentWidth, "")
+			truncated := ansi.Truncate(line, contentWidth, "")
+			if m.debugLayout {
+				visibleLines[i] = styles.BaseStyle.Background(styles.Error).Render(ansi.Strip(truncated))
+			} else {
+				visibleLines[i] = truncated
+			}
 		}
 	}
 
