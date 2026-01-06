@@ -71,6 +71,8 @@ type Editor interface {
 	Value() string
 	// SetValue updates the editor content
 	SetValue(content string)
+	// AttachFile adds a file as an attachment and inserts @filepath into the editor
+	AttachFile(filePath string)
 	Cleanup()
 	GetSize() (width, height int)
 	BannerHeight() int
@@ -955,6 +957,17 @@ func (e *editor) SetValue(content string) {
 	e.textarea.MoveToEnd()
 	e.userTyped = content != ""
 	e.refreshSuggestion()
+}
+
+// AttachFile adds a file as an attachment and inserts @filepath into the editor
+func (e *editor) AttachFile(filePath string) {
+	placeholder := "@" + filePath
+	e.addFileAttachment(placeholder)
+	currentValue := e.textarea.Value()
+	e.textarea.SetValue(currentValue + placeholder + " ")
+	e.textarea.MoveToEnd()
+	e.userTyped = true
+	e.updateAttachmentBanner()
 }
 
 // tryAddFileRef checks if word is a valid @filepath and adds it as attachment.

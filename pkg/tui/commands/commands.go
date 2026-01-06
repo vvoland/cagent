@@ -125,6 +125,16 @@ func builtInSessionCommands() []Item {
 				return core.CmdHandler(messages.StartShellMsg{})
 			},
 		},
+		{
+			ID:           "session.attach",
+			Label:        "Attach",
+			SlashCommand: "/attach",
+			Description:  "Attach a file to your message (usage: /attach [path])",
+			Category:     "Session",
+			Execute: func(arg string) tea.Cmd {
+				return core.CmdHandler(messages.AttachFileMsg{FilePath: arg})
+			},
+		},
 	}
 }
 
