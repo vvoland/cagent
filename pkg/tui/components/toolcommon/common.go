@@ -66,11 +66,11 @@ func FormatToolResult(content string, width int) string {
 	padding := styles.ToolCallResult.Padding().GetHorizontalPadding()
 	availableWidth := max(width-1-padding, 10) // Minimum readable width
 
-	lines := wrapLines(formattedContent, availableWidth)
+	lines := WrapLines(formattedContent, availableWidth)
 
 	if len(lines) > 10 {
 		lines = lines[:10]
-		lines = append(lines, wrapLines("…", availableWidth)...)
+		lines = append(lines, WrapLines("…", availableWidth)...)
 	}
 
 	return strings.Join(lines, "\n")
@@ -103,7 +103,9 @@ func RenderTool(msg *types.Message, inProgress spinner.Spinner, args, result str
 	return styles.RenderComposite(styles.ToolMessageStyle.Width(width), content)
 }
 
-func wrapLines(text string, width int) []string {
+// WrapLines wraps text to fit within the given width.
+// Each line that exceeds the width is split at rune boundaries.
+func WrapLines(text string, width int) []string {
 	if width <= 0 {
 		return strings.Split(text, "\n")
 	}
