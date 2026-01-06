@@ -345,10 +345,10 @@ func formatCostPadded(cost float64) string {
 	if cost < 0.0001 {
 		return "$0.0000"
 	}
-	if cost < 1 {
+	if cost < 0.01 {
 		return fmt.Sprintf("$%.4f", cost)
 	}
-	return fmt.Sprintf("$%.2f", cost)
+	return fmt.Sprintf("$%.2f  ", cost)
 }
 
 func formatTokenCount(count int64) string {
