@@ -3,6 +3,8 @@ package desktop
 import (
 	"context"
 	"log/slog"
+	"os"
+	"os/exec"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -14,37 +16,54 @@ type DockerHubInfo struct {
 }
 
 func GetToken(ctx context.Context) string {
-	var token string
-	_ = ClientBackend.Get(ctx, "/registry/token", &token)
+	token := fetchToken(ctx)
 
-	if token != "" {
-		checkTokenExpiration(token)
+	if token == "" || !isTokenExpired(token) {
+		return token
 	}
 
+	if os.Getenv("EXPERIMENTAL_DOCKER_TOKEN_REFRESH") != "1" {
+		return token
+	}
+
+	slog.Debug("Token expired, attempting docker login to refresh")
+	if err := runDockerLogin(ctx); err != nil {
+		slog.Debug("docker login failed", "error", err)
+		return token
+	}
+
+	slog.Debug("docker login succeeded, fetching new token")
+	return fetchToken(ctx)
+}
+
+func fetchToken(ctx context.Context) string {
+	var token string
+	_ = ClientBackend.Get(ctx, "/registry/token", &token)
 	return token
 }
 
-func checkTokenExpiration(token string) {
-	// Parse the JWT without validation (we just need the claims)
+func isTokenExpired(token string) bool {
 	parsed, _, err := jwt.NewParser().ParseUnverified(token, jwt.MapClaims{})
 	if err != nil {
 		slog.Debug("Failed to parse JWT", "error", err)
-		return
+		return false
 	}
 
 	exp, err := parsed.Claims.GetExpirationTime()
-	if err != nil {
+	if err != nil || exp == nil {
 		slog.Debug("Failed to get expiration time from JWT", "error", err)
-		return
+		return false
 	}
 
-	if exp == nil {
-		slog.Debug("JWT has no expiration time")
-		return
-	}
+	return exp.Before(time.Now())
+}
 
-	isExpired := exp.Before(time.Now())
-	slog.Debug("JWT expiration check", "expiration", exp.Time, "expired", isExpired)
+func runDockerLogin(ctx context.Context) error {
+	cmd := exec.CommandContext(ctx, "docker", "login")
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }
 
 func GetUserInfo(ctx context.Context) DockerHubInfo {
