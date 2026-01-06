@@ -117,6 +117,42 @@ func TestSessionBrowserViewShowsSelection(t *testing.T) {
 	require.NotEqual(t, view1, view2, "view should change after navigation")
 }
 
+func TestSessionBrowserFiltersEmptySessions(t *testing.T) {
+	sessions := []session.Summary{
+		{ID: "1", Title: "Session 1", CreatedAt: time.Now()},
+		{ID: "2", Title: "", CreatedAt: time.Now()},
+		{ID: "3", Title: "Session 3", CreatedAt: time.Now()},
+		{ID: "4", Title: "", CreatedAt: time.Now()},
+		{ID: "5", Title: "Session 5", CreatedAt: time.Now()},
+	}
+
+	dialog := NewSessionBrowserDialog(sessions)
+	d := dialog.(*sessionBrowserDialog)
+
+	// Should only have non-empty sessions
+	require.Len(t, d.sessions, 3, "should have 3 non-empty sessions")
+	require.Len(t, d.filtered, 3, "filtered should also have 3 sessions")
+
+	// Verify the correct sessions are kept
+	require.Equal(t, "1", d.sessions[0].ID)
+	require.Equal(t, "3", d.sessions[1].ID)
+	require.Equal(t, "5", d.sessions[2].ID)
+}
+
+func TestSessionBrowserAllEmptySessions(t *testing.T) {
+	sessions := []session.Summary{
+		{ID: "1", Title: "", CreatedAt: time.Now()},
+		{ID: "2", Title: "", CreatedAt: time.Now()},
+	}
+
+	dialog := NewSessionBrowserDialog(sessions)
+	d := dialog.(*sessionBrowserDialog)
+
+	// Should have no sessions
+	require.Empty(t, d.sessions, "should have 0 sessions")
+	require.Empty(t, d.filtered, "filtered should also have 0 sessions")
+}
+
 func TestSessionBrowserScrolling(t *testing.T) {
 	// Create more sessions than can fit in view
 	sessions := make([]session.Summary, 20)
