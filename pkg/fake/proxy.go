@@ -61,7 +61,8 @@ func StartProxyWithOptions(
 	matcher recorder.MatcherFunc,
 	headerUpdater func(host string, req *http.Request),
 ) (string, func() error, error) {
-	if matcher == nil {
+	hasMatcher := matcher != nil
+	if !hasMatcher {
 		matcher = CustomMatcher(nil)
 	}
 
@@ -70,7 +71,7 @@ func StartProxyWithOptions(
 		recorder.WithMatcher(matcher),
 		recorder.WithSkipRequestLatency(true),
 		recorder.WithHook(RemoveHeadersHook, recorder.AfterCaptureHook),
-		recorder.WithReplayableInteractions(false),
+		recorder.WithReplayableInteractions(hasMatcher),
 	)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create VCR recorder: %w", err)
