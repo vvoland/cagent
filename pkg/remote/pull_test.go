@@ -18,7 +18,7 @@ import (
 	"github.com/docker/cagent/pkg/content"
 )
 
-func TestPullNonExistentRegistry(t *testing.T) {
+func TestPullRegistryNotFound(t *testing.T) {
 	t.Parallel()
 
 	// Use a test server that returns 404 for fast failure
@@ -29,23 +29,17 @@ func TestPullNonExistentRegistry(t *testing.T) {
 
 	// Extract host:port from server URL (remove http://)
 	registry := strings.TrimPrefix(server.URL, "http://")
-	_, err := Pull(t.Context(), registry+"/non-existent:latest", false, crane.Insecure)
-	require.Error(t, err)
-}
 
-func TestPullWithOptions(t *testing.T) {
-	t.Parallel()
+	// Test various image references that should fail with 404
+	refs := []string{
+		registry + "/non-existent:latest",
+		registry + "/test:latest",
+	}
 
-	// Use a test server that returns 404 for fast failure
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-	defer server.Close()
-
-	// Extract host:port from server URL (remove http://)
-	registry := strings.TrimPrefix(server.URL, "http://")
-	_, err := Pull(t.Context(), registry+"/test:latest", false, crane.Insecure)
-	require.Error(t, err)
+	for _, ref := range refs {
+		_, err := Pull(t.Context(), ref, false, crane.Insecure)
+		require.Error(t, err, "expected error for ref: %s", ref)
+	}
 }
 
 func TestPullIntegration(t *testing.T) {
