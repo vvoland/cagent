@@ -100,8 +100,13 @@ func RenderTool(msg *types.Message, inProgress spinner.Spinner, args, result str
 				content += "\n" + resultStyle.MarginLeft(styles.ToolCompletedIcon.GetMarginLeft()).Render(result)
 			}
 		} else {
-			remainingWidth := width - lipgloss.Width(content) - 1
-			content += " " + lipgloss.PlaceHorizontal(remainingWidth, lipgloss.Right, resultStyle.Render(result))
+			remainingWidth := max(width-lipgloss.Width(content)-1, 1)
+			renderedResult := resultStyle.Render(result)
+			if lipgloss.Width(renderedResult) > remainingWidth {
+				// Truncate result to fit, leaving space for ellipsis
+				renderedResult = resultStyle.Render(TruncateText(result, remainingWidth))
+			}
+			content += " " + lipgloss.PlaceHorizontal(remainingWidth, lipgloss.Right, renderedResult)
 		}
 	}
 

@@ -64,8 +64,13 @@ func render(msg *types.Message, s spinner.Spinner, sessionState *service.Session
 		if summary.isError {
 			outputStyle = styles.ToolErrorMessageStyle
 		}
-		remainingWidth := width - lipgloss.Width(readCall) - 1
-		output := lipgloss.PlaceHorizontal(remainingWidth, lipgloss.Right, outputStyle.Render(summary.output))
+		remainingWidth := max(width-lipgloss.Width(readCall)-1, 1)
+		renderedOutput := outputStyle.Render(summary.output)
+		if lipgloss.Width(renderedOutput) > remainingWidth {
+			// Truncate output to fit
+			renderedOutput = outputStyle.Render(toolcommon.TruncateText(summary.output, remainingWidth))
+		}
+		output := lipgloss.PlaceHorizontal(remainingWidth, lipgloss.Right, renderedOutput)
 
 		content.WriteString(readCall)
 		content.WriteString(" ")
