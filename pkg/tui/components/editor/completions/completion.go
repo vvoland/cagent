@@ -10,6 +10,8 @@ type Completion interface {
 	Items() []completion.Item
 	AutoSubmit() bool
 	RequiresEmptyEditor() bool
+	// MatchMode returns how items should be filtered (fuzzy or prefix)
+	MatchMode() completion.MatchMode
 }
 
 func Completions(a *app.App) []Completion {

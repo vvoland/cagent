@@ -17,8 +17,10 @@ import (
 func (p *chatPage) handleKeyPress(msg tea.KeyPressMsg) (layout.Model, tea.Cmd, bool) {
 	switch {
 	case key.Matches(msg, p.keyMap.Tab):
-		if p.focusedPanel == PanelEditor && p.editor.AcceptSuggestion() {
-			return p, nil, true
+		if p.focusedPanel == PanelEditor {
+			if cmd := p.editor.AcceptSuggestion(); cmd != nil {
+				return p, cmd, true
+			}
 		}
 		p.switchFocus()
 		return p, nil, true

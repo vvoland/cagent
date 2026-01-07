@@ -50,3 +50,7 @@ func (c *fileCompletion) Items() []completion.Item {
 
 	return items
 }
+
+func (c *fileCompletion) MatchMode() completion.MatchMode {
+	return completion.MatchFuzzy
+}

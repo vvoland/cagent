@@ -66,7 +66,7 @@ type Editor interface {
 	layout.Sizeable
 	layout.Focusable
 	SetWorking(working bool) tea.Cmd
-	AcceptSuggestion() bool
+	AcceptSuggestion() tea.Cmd
 	// Value returns the current editor content
 	Value() string
 	// SetValue updates the editor content
@@ -396,6 +396,12 @@ func (e *editor) refreshSuggestion() {
 		return
 	}
 
+	// Don't show history suggestions when completion popup is active.
+	// The completion's selected item takes precedence.
+	if e.currentCompletion != nil {
+		return
+	}
+
 	current := e.textarea.Value()
 	if current == "" {
 		e.clearSuggestion()
@@ -465,10 +471,10 @@ func (e *editor) isCursorAtEnd() bool {
 }
 
 // AcceptSuggestion applies the current suggestion into the textarea value and
-// returns true when a suggestion was committed.
-func (e *editor) AcceptSuggestion() bool {
+// returns a command to update the completion query, or nil if no suggestion was applied.
+func (e *editor) AcceptSuggestion() tea.Cmd {
 	if !e.hasSuggestion || e.suggestion == "" {
-		return false
+		return nil
 	}
 
 	current := e.textarea.Value()
@@ -477,7 +483,8 @@ func (e *editor) AcceptSuggestion() bool {
 
 	e.clearSuggestion()
 
-	return true
+	// Update the completion query to reflect the new editor content
+	return e.updateCompletionQuery()
 }
 
 // resetAndSend prepares a message for sending: processes pending file refs,
@@ -551,11 +558,16 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 	case completion.SelectedMsg:
 		if e.currentCompletion.AutoSubmit() {
-			// For auto-submit completions (like commands), send the full editor
-			// content as-is. This ensures any arguments typed after the command
-			// (e.g., "/export /tmp/file") are preserved and passed through to
-			// the command handler which will parse them appropriately.
-			cmd := e.resetAndSend(e.textarea.Value())
+			// For auto-submit completions (like commands), use the selected
+			// command value (e.g., "/exit") instead of what the user typed
+			// (e.g., "/e"). Append any extra text after the trigger word
+			// to preserve arguments (e.g., "/export /tmp/file").
+			triggerWord := e.currentCompletion.Trigger() + e.completionWord
+			extraText := ""
+			if _, after, found := strings.Cut(e.textarea.Value(), triggerWord); found {
+				extraText = after
+			}
+			cmd := e.resetAndSend(msg.Value + extraText)
 			return e, cmd
 		}
 		// For non-auto-submit completions (like file paths), replace the completion word
@@ -573,8 +585,25 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return e, nil
 	case completion.ClosedMsg:
 		e.completionWord = ""
+		e.currentCompletion = nil
+		e.clearSuggestion()
 		e.refreshSuggestion()
 		return e, e.textarea.Focus()
+	case completion.SelectionChangedMsg:
+		// Show the selected completion item as a suggestion in the editor
+		if msg.Value != "" && e.currentCompletion != nil {
+			// Calculate the suggestion: what needs to be added after current text
+			currentText := e.textarea.Value()
+			if strings.HasPrefix(msg.Value, currentText) {
+				e.suggestion = msg.Value[len(currentText):]
+				e.hasSuggestion = e.suggestion != ""
+			} else {
+				e.clearSuggestion()
+			}
+		} else {
+			e.clearSuggestion()
+		}
+		return e, nil
 	case tea.KeyPressMsg:
 		if key.Matches(msg, e.textarea.KeyMap.Paste) {
 			return e.handleClipboardPaste()
@@ -693,18 +722,10 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		}
 
 		if keyMsg.String() == "space" {
-			e.completionWord = ""
 			e.currentCompletion = nil
-			cmds = append(cmds, core.CmdHandler(completion.CloseMsg{}))
 		}
 
-		if e.currentCompletion != nil && strings.HasPrefix(currentWord, e.currentCompletion.Trigger()) {
-			e.completionWord = strings.TrimPrefix(currentWord, e.currentCompletion.Trigger())
-			cmds = append(cmds, core.CmdHandler(completion.QueryMsg{Query: e.completionWord}))
-		} else {
-			e.completionWord = ""
-			cmds = append(cmds, core.CmdHandler(completion.CloseMsg{}))
-		}
+		cmds = append(cmds, e.updateCompletionQuery())
 	}
 
 	e.refreshSuggestion()
@@ -753,7 +774,7 @@ func (e *editor) handleGraphemeBackspace() (layout.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		e.textarea, cmd = e.textarea.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
 		e.refreshSuggestion()
-		return e, cmd
+		return e, tea.Batch(cmd, e.updateCompletionQuery())
 	}
 
 	if colPos == 0 {
@@ -804,7 +825,21 @@ func (e *editor) handleGraphemeBackspace() (layout.Model, tea.Cmd) {
 	e.textarea.SetCursorColumn(newCol)
 
 	e.refreshSuggestion()
-	return e, textarea.Blink
+	return e, tea.Batch(textarea.Blink, e.updateCompletionQuery())
+}
+
+// updateCompletionQuery sends the appropriate completion message based on current editor state.
+// It returns a command that either updates the completion query or closes the completion popup.
+func (e *editor) updateCompletionQuery() tea.Cmd {
+	currentWord := e.textarea.Word()
+
+	if e.currentCompletion != nil && strings.HasPrefix(currentWord, e.currentCompletion.Trigger()) {
+		e.completionWord = strings.TrimPrefix(currentWord, e.currentCompletion.Trigger())
+		return core.CmdHandler(completion.QueryMsg{Query: e.completionWord})
+	}
+
+	e.completionWord = ""
+	return core.CmdHandler(completion.CloseMsg{})
 }
 
 func (e *editor) startCompletion(c completions.Completion) tea.Cmd {
@@ -820,7 +855,8 @@ func (e *editor) startCompletion(c completions.Completion) tea.Cmd {
 	}
 
 	return core.CmdHandler(completion.OpenMsg{
-		Items: items,
+		Items:     items,
+		MatchMode: c.MatchMode(),
 	})
 }
 

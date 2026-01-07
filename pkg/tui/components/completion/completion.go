@@ -18,6 +18,16 @@ import (
 
 const maxItems = 10
 
+// MatchMode defines how completion items are filtered
+type MatchMode int
+
+const (
+	// MatchFuzzy uses fuzzy matching (matches anywhere in label)
+	MatchFuzzy MatchMode = iota
+	// MatchPrefix requires the query to match the start of the label
+	MatchPrefix
+)
+
 type Item struct {
 	Label       string
 	Description string
@@ -27,7 +37,8 @@ type Item struct {
 }
 
 type OpenMsg struct {
-	Items []Item
+	Items     []Item
+	MatchMode MatchMode
 }
 
 type OpenedMsg struct{}
@@ -43,6 +54,11 @@ type QueryMsg struct {
 type SelectedMsg struct {
 	Value   string
 	Execute func() tea.Cmd
+}
+
+// SelectionChangedMsg is sent when the selected item changes (for preview in editor)
+type SelectionChangedMsg struct {
+	Value string
 }
 
 type matchResult struct {
@@ -102,6 +118,7 @@ type manager struct {
 	selected      int
 	scrollOffset  int
 	visible       bool
+	matchMode     MatchMode
 }
 
 // New creates a new  completion component
@@ -129,21 +146,25 @@ func (c *manager) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case QueryMsg:
 		c.query = msg.Query
 		c.filterItems(c.query)
-		if len(c.filteredItems) == 0 {
-			c.visible = false
-		}
-		return c, nil
+		// Keep the popup visible even with no results - user can backspace to broaden the query
+		cmd := c.notifySelectionChanged()
+		return c, cmd
 
 	case OpenMsg:
 		c.items = msg.Items
+		c.matchMode = msg.MatchMode
 		c.selected = 0
 		c.scrollOffset = 0
+		c.query = "" // Reset query when opening new completion
 		c.filterItems(c.query)
 		c.visible = len(c.filteredItems) > 0
 		if !c.visible {
 			return c, nil
 		}
-		return c, core.CmdHandler(OpenedMsg{})
+		return c, tea.Batch(
+			core.CmdHandler(OpenedMsg{}),
+			c.notifySelectionChanged(),
+		)
 
 	case CloseMsg:
 		c.visible = false
@@ -158,6 +179,8 @@ func (c *manager) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			if c.selected < c.scrollOffset {
 				c.scrollOffset = c.selected
 			}
+			cmd := c.notifySelectionChanged()
+			return c, cmd
 
 		case key.Matches(msg, c.keyMap.Down):
 			if c.selected < len(c.filteredItems)-1 {
@@ -166,6 +189,8 @@ func (c *manager) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			if c.selected >= c.scrollOffset+10 {
 				c.scrollOffset = c.selected - 9
 			}
+			cmd := c.notifySelectionChanged()
+			return c, cmd
 
 		case key.Matches(msg, c.keyMap.Enter):
 			c.visible = false
@@ -207,7 +232,7 @@ func (c *manager) View() string {
 	var lines []string
 
 	if len(c.filteredItems) == 0 {
-		lines = append(lines, styles.CompletionNoResultsStyle.Render("No results found"))
+		lines = append(lines, styles.CompletionNoResultsStyle.Render("No command found"))
 	} else {
 		visibleStart := c.scrollOffset
 		visibleEnd := min(c.scrollOffset+maxItems, len(c.filteredItems))
@@ -263,6 +288,14 @@ func (c *manager) GetLayers() []*lipgloss.Layer {
 	}
 }
 
+// notifySelectionChanged sends a SelectionChangedMsg with the currently selected item's value
+func (c *manager) notifySelectionChanged() tea.Cmd {
+	if len(c.filteredItems) == 0 || c.selected >= len(c.filteredItems) {
+		return core.CmdHandler(SelectionChangedMsg{Value: ""})
+	}
+	return core.CmdHandler(SelectionChangedMsg{Value: c.filteredItems[c.selected].Value})
+}
+
 func (c *manager) filterItems(query string) {
 	if query == "" {
 		c.filteredItems = c.items
@@ -273,30 +306,47 @@ func (c *manager) filterItems(query string) {
 		return
 	}
 
-	pattern := []rune(strings.ToLower(query))
+	lowerQuery := strings.ToLower(query)
 	var pinnedItems []Item
 	var matches []matchResult
 
 	for _, item := range c.items {
-		chars := util.ToChars([]byte(item.Label))
-		result, _ := algo.FuzzyMatchV1(
-			false, // caseSensitive
-			false, // normalize
-			true,  // forward
-			&chars,
-			pattern,
-			true, // withPos
-			nil,  // slab
-		)
+		var matched bool
+		var score int
 
-		if result.Start >= 0 {
+		if c.matchMode == MatchPrefix {
+			// Prefix matching: label must start with query (case-insensitive)
+			if strings.HasPrefix(strings.ToLower(item.Label), lowerQuery) {
+				matched = true
+				score = 1000 - len(item.Label) // Shorter labels rank higher
+			}
+		} else {
+			// Fuzzy matching
+			pattern := []rune(lowerQuery)
+			chars := util.ToChars([]byte(item.Label))
+			result, _ := algo.FuzzyMatchV1(
+				false, // caseSensitive
+				false, // normalize
+				true,  // forward
+				&chars,
+				pattern,
+				true, // withPos
+				nil,  // slab
+			)
+			if result.Start >= 0 {
+				matched = true
+				score = result.Score
+			}
+		}
+
+		if matched {
 			if item.Pinned {
 				// Pinned items keep their original order at the top
 				pinnedItems = append(pinnedItems, item)
 			} else {
 				matches = append(matches, matchResult{
 					item:  item,
-					score: result.Score,
+					score: score,
 				})
 			}
 		}

@@ -45,3 +45,7 @@ func (c *commandCompletion) Items() []completion.Item {
 
 	return items
 }
+
+func (c *commandCompletion) MatchMode() completion.MatchMode {
+	return completion.MatchPrefix
+}
