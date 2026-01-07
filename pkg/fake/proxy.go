@@ -53,7 +53,7 @@ func APIKeyHeaderUpdater(host string, req *http.Request) {
 
 // StartProxyWithOptions starts an internal HTTP proxy with configurable options.
 // - mode: recorder mode (ModeReplayOnly, ModeRecordOnce, etc.)
-// - matcher: custom matcher function (nil uses default CustomMatcher)
+// - matcher: custom matcher function (nil uses DefaultMatcher)
 // - headerUpdater: optional function to update request headers (for recording with real API keys)
 func StartProxyWithOptions(
 	cassettePath string,
@@ -63,7 +63,7 @@ func StartProxyWithOptions(
 ) (string, func() error, error) {
 	hasMatcher := matcher != nil
 	if !hasMatcher {
-		matcher = CustomMatcher(nil)
+		matcher = DefaultMatcher(nil)
 	}
 
 	transport, err := recorder.New(cassettePath,
@@ -99,9 +99,9 @@ func RemoveHeadersHook(i *cassette.Interaction) error {
 	return nil
 }
 
-// CustomMatcher creates a matcher that normalizes tool call IDs for consistent matching.
+// DefaultMatcher creates a matcher that normalizes tool call IDs for consistent matching.
 // The onError callback is called if reading the request body fails (nil logs and returns false).
-func CustomMatcher(onError func(err error)) recorder.MatcherFunc {
+func DefaultMatcher(onError func(err error)) recorder.MatcherFunc {
 	callIDRegex := regexp.MustCompile(`call_[a-z0-9\-]+`)
 
 	return func(r *http.Request, i cassette.Request) bool {
