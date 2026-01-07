@@ -1221,50 +1221,80 @@ func (r *LocalRuntime) executeWithApproval(
 		}
 	}
 
+	// requiresConfirmation tracks if per-tool settings require user confirmation
+	// (skipping legacy patterns and other auto-approve checks)
+	requiresConfirmation := false
+
 	// 1. Check session-level permissions first (if configured)
 	if sess.Permissions != nil {
-		sessionChecker := permissions.NewChecker(&latest.PermissionsConfig{
-			Allow: sess.Permissions.Allow,
-			Deny:  sess.Permissions.Deny,
-		})
-		decision := sessionChecker.CheckWithArgs(toolName, toolArgs)
-		switch decision {
-		case permissions.Deny:
-			slog.Debug("Tool denied by session permissions", "tool", toolName, "session_id", sess.ID)
-			r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, fmt.Sprintf("Tool '%s' is denied by session permissions.", toolName))
-			return false
-		case permissions.Allow:
-			slog.Debug("Tool auto-approved by session permissions", "tool", toolName, "session_id", sess.ID)
-			runTool()
-			return false
-		case permissions.Ask:
-			// Fall through to team permissions
+		// 1a. Check Tools map first (new per-tool settings)
+		if perm := sess.Permissions.GetToolPermission(toolName); perm != nil {
+			// Check if tool is disabled
+			if !sess.Permissions.IsToolEnabled(toolName) {
+				slog.Debug("Tool disabled by session permissions", "tool", toolName, "session_id", sess.ID)
+				r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, fmt.Sprintf("Tool '%s' is disabled by session permissions.", toolName))
+				return false
+			}
+			// Check permission mode
+			mode := sess.Permissions.GetToolMode(toolName)
+			if mode == session.PermissionModeAlwaysAllow {
+				slog.Debug("Tool auto-approved by session per-tool permissions", "tool", toolName, "mode", mode, "session_id", sess.ID)
+				runTool()
+				return false
+			}
+			// Mode is "ask" - skip legacy patterns and go directly to ask user
+			slog.Debug("Tool requires confirmation by session per-tool permissions", "tool", toolName, "mode", mode, "session_id", sess.ID)
+			requiresConfirmation = true
+		}
+
+		// 1b. Fall back to legacy Allow/Deny patterns (only if not already handled by Tools map)
+		if !requiresConfirmation {
+			sessionChecker := permissions.NewChecker(&latest.PermissionsConfig{
+				Allow: sess.Permissions.Allow,
+				Deny:  sess.Permissions.Deny,
+			})
+			decision := sessionChecker.CheckWithArgs(toolName, toolArgs)
+			switch decision {
+			case permissions.Deny:
+				slog.Debug("Tool denied by session permissions", "tool", toolName, "session_id", sess.ID)
+				r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, fmt.Sprintf("Tool '%s' is denied by session permissions.", toolName))
+				return false
+			case permissions.Allow:
+				slog.Debug("Tool auto-approved by session permissions", "tool", toolName, "session_id", sess.ID)
+				runTool()
+				return false
+			case permissions.Ask:
+				// Fall through to team permissions
+			}
 		}
 	}
 
-	// 2. Check team-level permissions config
-	if permChecker := r.team.Permissions(); permChecker != nil {
-		decision := permChecker.CheckWithArgs(toolName, toolArgs)
-		switch decision {
-		case permissions.Deny:
-			slog.Debug("Tool denied by team permissions config", "tool", toolName, "session_id", sess.ID)
-			r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, fmt.Sprintf("Tool '%s' is denied by permissions configuration.", toolName))
-			return false
-		case permissions.Allow:
-			slog.Debug("Tool auto-approved by team permissions config", "tool", toolName, "session_id", sess.ID)
+	// 2. Check team-level permissions config (skip if per-tool ask mode is set)
+	if !requiresConfirmation {
+		if permChecker := r.team.Permissions(); permChecker != nil {
+			decision := permChecker.CheckWithArgs(toolName, toolArgs)
+			switch decision {
+			case permissions.Deny:
+				slog.Debug("Tool denied by team permissions config", "tool", toolName, "session_id", sess.ID)
+				r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, fmt.Sprintf("Tool '%s' is denied by permissions configuration.", toolName))
+				return false
+			case permissions.Allow:
+				slog.Debug("Tool auto-approved by team permissions config", "tool", toolName, "session_id", sess.ID)
+				runTool()
+				return false
+			case permissions.Ask:
+				// Fall through to normal approval flow
+			}
+		}
+
+		// Check --yolo flag or read-only hint (skip if per-tool ask mode is set)
+		if sess.ToolsApproved || tool.Annotations.ReadOnlyHint {
 			runTool()
 			return false
-		case permissions.Ask:
-			// Fall through to normal approval flow
 		}
 	}
 
-	// Check --yolo flag or read-only hint
-	if sess.ToolsApproved || tool.Annotations.ReadOnlyHint {
-		runTool()
-		return false
-	}
-
+	// Ask user for confirmation
 	slog.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
 	events <- ToolCallConfirmation(toolCall, tool, a.Name())
 
