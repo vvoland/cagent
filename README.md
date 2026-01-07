@@ -1,4 +1,4 @@
-# 🤖 `cagent` 🤖
+# 🤖 Docker `cagent` 🤖
 
 > A powerful, easy-to-use, customizable multi-agent runtime that orchestrates AI
 > agents with specialized capabilities and tools, and the interactions between
@@ -6,135 +6,17 @@
 
 ![cagent in action](docs/demo.gif)
 
-## ✨ What is `cagent`? ✨
+## ✨ What is Docker `cagent`? ✨
 
-`cagent` lets you create and run intelligent AI agents, where each agent has
+Docker `cagent` lets you create and run intelligent AI agents, where each agent has
 specialized knowledge, tools and capabilities.
 
 Think of it as allowing you to quickly build, share and run a team of virtual
 experts that collaborate to solve complex problems for you.
 
-And it's dead easy to use!
+**And it's dead easy to use! In most cases, you don't need to write a single line of code.**
 
-⚠️ Note: `cagent` is in active development, **breaking changes are to be
-expected** ⚠️
-
-### Your First Agent
-
-Example [basic_agent.yaml](/examples/basic_agent.yaml):
-
-Creating agents with cagent is straightforward. They are described in a short .yaml
-file, like this one:
-
-```yaml
-agents:
-  root:
-    model: openai/gpt-5-mini
-    description: A helpful AI assistant
-    instruction: |
-      You are a knowledgeable assistant that helps users with various tasks.
-      Be helpful, accurate, and concise in your responses.
-```
-
-Run it in a terminal with `cagent run basic_agent.yaml`.
-
-Many more examples can be found [here](/examples/README.md)!
-
-### Improving an agent with MCP tools
-
-`cagent` supports MCP servers, enabling agents to use a wide variety of external
-tools and services.
-
-It supports three transport types: `stdio`, `http` and `sse`.
-
-Giving an agent access to tools via MCP is a quick way to greatly improve its
-capabilities, the quality of its results and its general usefulness.
-
-Get started quickly with the [Docker MCP
-Toolkit](https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/) and
-[catalog](https://docs.docker.com/ai/mcp-catalog-and-toolkit/catalog/)
-
-Here, we're giving the same basic agent from the example above access to a
-**containerized** `duckduckgo` mcp server and its tools by using Docker's MCP
-Gateway:
-
-```yaml
-agents:
-  root:
-    model: openai/gpt-5-mini
-    description: A helpful AI assistant
-    instruction: |
-      You are a knowledgeable assistant that helps users with various tasks.
-      Be helpful, accurate, and concise in your responses.
-    toolsets:
-      - type: mcp
-        ref: docker:duckduckgo # stdio transport
-```
-
-When using a containerized server via the Docker MCP gateway, you can configure
-any required settings/secrets/authentication using the [Docker MCP
-Toolkit](https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/#example-use-the-github-official-mcp-server)
-in Docker Desktop.
-
-Aside from the containerized MCP servers the Docker MCP Gateway provides, any
-standard MCP server can be used with cagent!
-
-Here's an example similar to the above but adding `read_file` and `write_file`
-tools from the `rust-mcp-filesystem` MCP server:
-
-```yaml
-agents:
-  root:
-    model: openai/gpt-5-mini
-    description: A helpful AI assistant
-    instruction: |
-      You are a knowledgeable assistant that helps users with various tasks.
-      Be helpful, accurate, and concise in your responses. Write your search results to disk.
-    toolsets:
-      - type: mcp
-        ref: docker:duckduckgo
-      - type: mcp
-        command: rust-mcp-filesystem # installed with `cargo install rust-mcp-filesystem`
-        args: ["--allow-write", "."]
-        tools: ["read_file", "write_file"] # Optional: specific tools only
-        env:
-          - "RUST_LOG=debug"
-```
-
-See [the USAGE docs](./docs/USAGE.md#tool-configuration) for more detailed
-information and examples
-
-### Exposing agents as MCP tools
-
-`cagent` can expose agents as MCP tools via the `cagent mcp` command, allowing other MCP clients to use your agents.
-
-Each agent in your configuration becomes an MCP tool with its description.
-
-```bash
-# Start MCP server with local file
-cagent mcp ./examples/dev-team.yaml
-
-# Or use an OCI artifact
-cagent mcp agentcatalog/pirate
-```
-
-This exposes each agent as a tool (e.g., `root`, `designer`, `awesome_engineer`) that MCP clients can call:
-
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "designer",
-    "arguments": {
-      "message": "Design a login page"
-    }
-  }
-}
-```
-
-See [MCP Mode documentation](./docs/MCP-MODE.md) for detailed instructions on exposing your agents through MCP with Claude Desktop, Claude Code, and other MCP clients.
-
-### 🎯 Key Features
+## 🎯 Key Features
 
 - **🏗️ Multi-agent architecture** - Create specialized agents for different
   domains.
@@ -147,27 +29,55 @@ See [MCP Mode documentation](./docs/MCP-MODE.md) for detailed instructions on ex
   complex problem-solving.
 - **🔍 RAG (Retrieval-Augmented Generation)** - Pluggable retrieval strategies
   (BM25, chunked-embeddings, semantic-embeddings) with hybrid retrieval, result fusion and reranking support.
-- **🌐 Multiple AI providers** - Support for OpenAI, Anthropic, Gemini, xAI,
+- **🌐 AI provider agnostic** - Support for OpenAI, Anthropic, Gemini, xAI,
   Mistral, Nebius and [Docker Model
   Runner](https://docs.docker.com/ai/model-runner/).
 
-## 🚀 Quick Start 🚀
+## Your First Agent
 
-### Installation
+Creating agents with Docker `cagent` is straightforward. They are described in a `.yaml`
+file, like this one:
 
-#### Using Homebrew
+```yaml
+agents:
+  root:
+    model: openai/gpt-5-mini
+    description: A helpful AI assistant
+    instruction: |
+      You are a knowledgeable assistant that helps users with various tasks.
+      Be helpful, accurate, and concise in your responses.
+```
 
-Install `cagent` with a single command using [homebrew](https://brew.sh/)!
++ Follow the installation instructions.
++ Create a`basic_agent.yaml` file with the above content.
++ Run it in a terminal with `cagent run basic_agent.yaml`.
+
+Many more examples can be found [here](/examples/README.md)!
+
+## 🚀 Installation 🚀
+
+### It ships with Docker Desktop!
+
+Starting with [Docker Desktop 4.49.0](https://docs.docker.com/desktop/release-notes/#4490),
+Docker `cagent` is automatically installed.
+
+```sh
+$ cagent run default "Hi, what can you do for me?"
+```
+
+### Using Homebrew
+
+As an alternative, it's also on [homebrew](https://brew.sh/):
 
 ```sh
 $ brew install cagent
 ```
 
-#### Using binary releases
+### Using binary releases
 
-[Prebuilt binaries](https://github.com/docker/cagent/releases) for Windows,
+Finally, [Prebuilt binaries](https://github.com/docker/cagent/releases) for Windows,
 macOS and Linux can be found on the release page of the [project's GitHub
-repository](https://github.com/docker/cagent/releases)
+repository](https://github.com/docker/cagent/releases).
 
 Once you've downloaded the appropriate binary for your platform, you may need to
 give it executable permissions. On macOS and Linux, this is done with the
@@ -178,7 +88,7 @@ following command:
 chmod +x /path/to/downloads/cagent-linux-amd64
 ```
 
-You can then rename the binary to `cagent` and configure your `PATH` to be able
+You can then rename the binary to Docker `cagent` and configure your `PATH` to be able
 to find it (configuration varies by platform).
 
 ### **Set your API keys**
@@ -188,23 +98,12 @@ corresponding provider API key accordingly, all these keys are optional, you
 will likely need at least one of these, though:
 
 ```bash
-# For OpenAI models
-export OPENAI_API_KEY=your_api_key_here
-
-# For Anthropic models
-export ANTHROPIC_API_KEY=your_api_key_here
-
-# For Gemini models
-export GOOGLE_API_KEY=your_api_key_here
-
-# For xAI models
-export XAI_API_KEY=your_api_key_here
-
-# For Nebius models
-export NEBIUS_API_KEY=your_api_key_here
-
-# For Mistral models
-export MISTRAL_API_KEY=your_api_key_here
+export OPENAI_API_KEY=your_api_key_here      # For OpenAI models
+export ANTHROPIC_API_KEY=your_api_key_here   # For Anthropic models
+export GOOGLE_API_KEY=your_api_key_here      # For Gemini models
+export XAI_API_KEY=your_api_key_here         # For xAI models
+export NEBIUS_API_KEY=your_api_key_here      # For Nebius models
+export MISTRAL_API_KEY=your_api_key_here     # For Mistral models
 ```
 
 ### Run Agents!
@@ -214,11 +113,14 @@ export MISTRAL_API_KEY=your_api_key_here
 cagent run ./examples/pirate.yaml
 
 # or specify a different starting agent from the config, useful for agent teams
-cagent run ./examples/pirate.yaml -a root
+cagent run ./examples/gopher.yaml -a planner
 
-# or run directly from an image reference here I'm pulling the pirate agent from the creek repository
+# or run directly from an image reference.
+# Here we're pulling the pirate agent from the creek repository
 cagent run creek/pirate
 ```
+
+Many more examples can be found [here](/examples/README.md)!
 
 ### Multi-agent team example
 
@@ -285,7 +187,7 @@ models:
       speculative_acceptance_rate: 0.8
 ```
 
-The default base_url `cagent` will use for DMR providers is
+The default base_url Docker `cagent` will use for DMR providers is
 `http://localhost:12434/engines/llama.cpp/v1`. DMR itself might need to be
 enabled via [Docker Desktop's
 settings](https://docs.docker.com/ai/model-runner/get-started/#enable-dmr-in-docker-desktop)
@@ -294,9 +196,104 @@ Linux](https://docs.docker.com/ai/model-runner/get-started/#enable-dmr-in-docker
 
 See the [DMR Provider documentation](docs/USAGE.md#dmr-docker-model-runner-provider-usage) for more details on runtime flags and speculative decoding options.
 
-## RAG (Retrieval-Augmented Generation)
+### Improving an agent with MCP tools
 
-Give your agents access to your documents with cagent's modular RAG system. It supports multiple retrieval strategies that can be used individually or combined for hybrid search.
+Docker `cagent` supports MCP servers, enabling agents to use a wide variety of external
+tools and services.
+
+It supports all transport types: `stdio`, `http` and `sse`.
+
+Giving an agent access to tools via MCP is a good way to greatly improve its
+capabilities, the quality of its results and its general usefulness.
+
+Get started with the [Docker MCP
+Toolkit](https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/) and
+[catalog](https://docs.docker.com/ai/mcp-catalog-and-toolkit/catalog/)
+
+Here, we're giving the same basic agent from the example above access to a
+**containerized** `duckduckgo` mcp server and its tools by using Docker's MCP
+Gateway:
+
+```yaml
+agents:
+  root:
+    model: openai/gpt-5-mini
+    description: A helpful AI assistant
+    instruction: |
+      You are a knowledgeable assistant that helps users with various tasks.
+      Be helpful, accurate, and concise in your responses.
+    toolsets:
+      - type: mcp
+        ref: docker:duckduckgo
+```
+
+When using a containerized server via the `Docker MCP gateway`, you can configure
+any required settings/secrets/authentication using the [Docker MCP
+Toolkit](https://docs.docker.com/ai/mcp-catalog-and-toolkit/toolkit/#example-use-the-github-official-mcp-server)
+in Docker Desktop.
+
+Aside from the containerized MCP servers the `Docker MCP Gateway` provides, any
+standard MCP server can be used with Docker `cagent`!
+
+Here's an example similar to the above but adding `read_file` and `write_file`
+tools from the `rust-mcp-filesystem` MCP server:
+
+```yaml
+agents:
+  root:
+    model: openai/gpt-5-mini
+    description: A helpful AI assistant
+    instruction: |
+      You are a knowledgeable assistant that helps users with various tasks.
+      Be helpful, accurate, and concise in your responses. Write your search results to disk.
+    toolsets:
+      - type: mcp
+        ref: docker:duckduckgo
+      - type: mcp
+        command: rust-mcp-filesystem # installed with `cargo install rust-mcp-filesystem`
+        args: ["--allow-write", "."]
+        tools: ["read_file", "write_file"] # Optional: specific tools only
+        env:
+          - "RUST_LOG=debug"
+```
+
+See [the USAGE docs](./docs/USAGE.md#tool-configuration) for more detailed
+information and examples
+
+### Exposing agents as MCP tools
+
+Docker `cagent` can expose agents as MCP tools via the `cagent mcp` command,
+allowing other MCP clients to use your agents over MCP.
+
+Each agent in your configuration becomes an MCP tool with its description.
+
+```bash
+# Start MCP server with local file
+cagent mcp ./examples/dev-team.yaml
+
+# Or use an OCI artifact
+cagent mcp agentcatalog/pirate
+```
+
+This exposes each agent as a tool (e.g., `root`, `designer`, `awesome_engineer`) that MCP clients can call:
+
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "designer",
+    "arguments": {
+      "message": "Design a login page"
+    }
+  }
+}
+```
+
+See [MCP Mode documentation](./docs/MCP-MODE.md) for detailed instructions on exposing your agents through MCP with Claude Desktop, Claude Code, and other MCP clients.
+
+### RAG (Retrieval-Augmented Generation)
+
+Give your agents access to your documents with Docker `cagent`'s modular RAG system. It supports multiple retrieval strategies that can be used individually or combined for hybrid search.
 
 ### Quick RAG Example
 
@@ -328,7 +325,7 @@ agents:
     rag: [my_knowledge_base]
 ```
 
-### Hybrid Retrieval (Chunked-Embeddings + BM25)
+#### Hybrid Retrieval (Chunked-Embeddings + BM25)
 
 Combine semantic search (chunked-embeddings) with keyword search (BM25) for best results:
 
@@ -376,7 +373,7 @@ agents:
 - **Per-strategy configuration**: Different thresholds, limits, and documents
 - **Auto file watching**: Reindex automatically on file changes
 
-### Result Reranking
+#### Result Reranking
 
 Improve search quality by re-scoring retrieved results with a reranking model:
 
@@ -477,7 +474,7 @@ push` command
 cagent push ./<agent-file>.yaml namespace/reponame
 ```
 
-`cagent` will automatically build an OCI image and push it to the desired
+Docker `cagent` will automatically build an OCI image and push it to the desired
 repository using your Docker credentials
 
 ### `cagent pull`
@@ -495,7 +492,7 @@ directory for ease of use.
 
 ## Usage
 
-More details on the usage and configuration of `cagent` can be found in
+More details on the usage and configuration of Docker `cagent` can be found in
 [USAGE.md](/docs/USAGE.md)
 
 ## Telemetry
@@ -505,15 +502,15 @@ We track anonymous usage data to improve the tool. See
 
 ## Contributing
 
-Want to hack on `cagent`, or help us fix bugs and build out some features? 🔧
+Want to hack on Docker `cagent`, or help us fix bugs and build out some features? 🔧
 
 Read the information on how to build from source and contribute to the project
 in [CONTRIBUTING.md](/docs/CONTRIBUTING.md)
 
-## DogFooding: using `cagent` to code on `cagent`
+## DogFooding: using Docker `cagent` to code on Docker `cagent`
 
-A smart way to improve `cagent`'s codebase and feature set is to do it with the
-help of a `cagent` agent!
+A smart way to improve Docker `cagent`'s codebase and feature set is to do it with the
+help of a Docker `cagent` agent!
 
 We have one that we use and that you should use too:
 
@@ -522,10 +519,10 @@ cd cagent
 cagent run ./golang_developer.yaml
 ```
 
-This agent is an _expert Golang developer specializing in the cagent multi-agent
-AI system architecture_.
+This agent is an _expert Golang developer specializing in the Docker `cagent`
+multi-agent AI system architecture_.
 
-Ask it anything about `cagent`. It can be questions about the current code or
+Ask it anything about Docker `cagent`. It can be questions about the current code or
 about improvements to the code. It can also fix issues and implement new
 features!
 

@@ -6,7 +6,6 @@
 - `task test` - Run Go tests (clears API keys to ensure deterministic tests)
 - `task lint` - Run golangci-lint (uses `.golangci.yml` configuration)
 - `task format` - Format code using golangci-lint fmt
-- `task link` - Create symlink to ~/bin for easy access
 - `task dev` - Run lint, test, and build in sequence
 
 ### Docker and Cross-Platform Builds
@@ -28,7 +27,7 @@
 - `./bin/cagent pull namespace/repo` - Pull agent from OCI registry
 - `./bin/cagent mcp ./agent.yaml` - Expose agents as MCP tools
 - `./bin/cagent a2a <config.yaml>` - Start agent as A2A server
-- `./bin/cagent api` - Start cagent API server
+- `./bin/cagent api` - Start Docker `cagent` API server
 
 ### Debug and Development Flags
 
@@ -240,7 +239,7 @@ for _, tt := range tests {
 - All agent references must exist in config
 - Model references can be inline (e.g., `openai/gpt-4o`) or defined in models section
 - Tool configurations validated at startup
-- Config versioning: Currently on v2 (sequential migration: v0 → v1 → v2)
+- Config versioning: Currently on v3 (sequential migration: v0 → v1 → v2 → v3)
 - Environment variables not stored in configs - gathered dynamically at startup
 - Missing required env vars (e.g., API keys) trigger startup errors
 
@@ -544,7 +543,7 @@ agents:
 
 ## Runtime Execution Flow
 
-Understanding how cagent processes user input through to agent responses:
+Understanding how Docekr `cagent` processes user input through to agent responses:
 
 ### Main Execution Loop
 
@@ -711,7 +710,7 @@ return events
 - Root directory - Main project configurations (`Taskfile.yml`, `go.mod`, `.golangci.yml`)
 - `.github/workflows/ci.yml` - CI/CD pipeline
 - `cagent-schema.json` - JSON schema for agent configuration validation
-- `golang_developer.yaml` - Dogfooding agent for cagent development
+- `golang_developer.yaml` - Dogfooding agent for Docker `cagent` development
 
 ### Environment Variables
 
@@ -816,7 +815,7 @@ task build  # Should create ./bin/cagent
 ### GitHub Actions Workflow (`.github/workflows/ci.yml`)
 
 **Jobs:**
-1. **Lint** - Runs `golangci-lint` with v2.5
+1. **Lint** - Runs `golangci-lint`
 2. **Test** - Runs `task test` (clears API keys for deterministic tests)
 3. **License Check** - Validates dependencies use allowed licenses (Apache-2.0, MIT, BSD-3/2-Clause)
 4. **Build** - Compiles binary with `task build`
@@ -1006,7 +1005,7 @@ task push-image    # Build and push multi-platform
 | `pkg/agent/agent.go` | Agent abstraction, tool discovery |
 | `pkg/session/session.go` | Message history management |
 | `pkg/config/config.go` | Config loading, versioning, migration |
-| `pkg/config/v2/types.go` | Current config schema (v2) |
+| `pkg/config/latest/types.go` | Current config schema (v3) |
 | `pkg/tools/tools.go` | Tool interface definitions |
 | `pkg/tools/builtin/` | Built-in tool implementations |
 | `pkg/tools/mcp/` | MCP protocol client implementations |

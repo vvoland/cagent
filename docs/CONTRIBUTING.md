@@ -81,7 +81,7 @@ cd cagent
 cagent run ./golang_developer.yaml
 ```
 
-This agent is an *expert Golang developer specializing in the cagent multi-agent AI system architecture*.
+This agent is an *expert Golang developer specializing in the Docker `cagent` multi-agent AI system architecture*.
 
 Ask it anything about `cagent`. It can be questions about the current code or about
 improvements to the code. It can also fix issues and implement new features!

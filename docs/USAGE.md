@@ -126,13 +126,20 @@ block at the end of the message, while the UI doesn't display full file contents
 
 During CLI sessions, you can use special commands:
 
-| Command    | Description                                 |
-|------------|---------------------------------------------|
-| `/exit`    | Exit the program                            |
-| `/reset`   | Clear conversation history                  |
-| `/eval`    | Save current conversation for evaluation    |
-| `/compact` | Compact conversation to lower context usage |
-| `/yolo`    | Toggle automatic approval of tool calls     |
+| Command     | Description                                                         |
+|-------------|---------------------------------------------------------------------|
+| `/attach`   | Attach a file to your message (usage: /attach [path])               |
+| `/compact`  | Summarize the current conversation (usage: /compact [instructions]) |
+| `/copy`     | Copy the current conversation to the clipboard                      |
+| `/cost`     | Show detailed cost breakdown for this session                       |
+| `/eval`     | Create an evaluation report (usage: /eval [filename])               |
+| `/exit`     | Exit the application                                                |
+| `/export`   | Export the session as HTML (usage: /export [filename])              |
+| `/new`      | Start a new conversation                                            |
+| `/sessions` | Browse and load past sessions                                       |
+| `/shell`    | Start a shell                                                       |
+| `/star`     | Toggle star on current session                                      |
+| `/yolo`     | Toggle automatic approval of tool calls                             |
 
 ## 🔧 Configuration Reference
 
@@ -299,7 +306,8 @@ models:
 Notes:
 
 - **OpenAI**: If an invalid effort value is set, the request will fail with a clear error
-- **Anthropic**: Values < 1024 or ≥ `max_tokens` are ignored (warning logged). When `interleaved_thinking` is enabled, cagent uses Anthropic's Beta Messages API with a default thinking budget of 16384 tokens if not specified
+- **Anthropic**: Values < 1024 or ≥ `max_tokens` are ignored (warning logged). When `interleaved_thinking` is enabled,
+Docker `cagent` uses Anthropic's Beta Messages API with a default thinking budget of 16384 tokens if not specified
 - **Google**: 
   - Most models support values between -1 and 24576 tokens. Set to `0` to disable, `-1` for dynamic thinking
   - Gemini 2.5 Pro: supports 128–32768 tokens. Cannot be disabled (minimum 128)
@@ -343,7 +351,7 @@ models:
 
 #### DMR (Docker Model Runner) provider usage
 
-If `base_url` is omitted, cagent will use `http://localhost:12434/engines/llama.cpp/v1` by default
+If `base_url` is omitted, Docker `cagent` will use `http://localhost:12434/engines/llama.cpp/v1` by default
 
 You can pass DMR runtime (e.g. llama.cpp) options using  
 ```
@@ -407,7 +415,8 @@ Parameter mapping and precedence (DMR):
   - `frequency_penalty` → `--frequency-penalty`
   - `presence_penalty` → `--presence-penalty`
   ...
-- `provider_opts.runtime_flags` always take priority over derived flags on conflict. When a conflict is detected, cagent logs a warning indicating the overridden flag. `max_tokens` is the only exception for now
+- `provider_opts.runtime_flags` always take priority over derived flags on conflict. When a conflict is detected,
+Docker `cagent` logs a warning indicating the overridden flag. `max_tokens` is the only exception for now
 
 Examples:
 
@@ -457,7 +466,7 @@ These options work alongside `max_tokens` (which sets `--context-size`) and `run
 
 ##### Troubleshooting:
 
-- Plugin not found: cagent will log a debug message and use the default base URL
+- Plugin not found: Docker `cagent` will log a debug message and use the default base URL
 - Endpoint empty in status: ensure the Model Runner is running, or set `base_url` manually
 - Flag parsing: if using a single string, quote properly in YAML; you can also use a list
 
@@ -1332,5 +1341,5 @@ agents:
     description: Creative content generation
 ```
 
-This guide should help you get started with cagent and build powerful
+This guide should help you get started with Docker `cagent` and build powerful
 multi-agent systems.
