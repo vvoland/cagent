@@ -292,4 +292,3 @@ func (s *Server) elicitation(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, nil)
 }
-
