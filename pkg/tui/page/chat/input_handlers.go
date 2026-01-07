@@ -6,10 +6,12 @@ import (
 
 	"github.com/docker/cagent/pkg/tui/components/editor"
 	"github.com/docker/cagent/pkg/tui/components/messages"
+	"github.com/docker/cagent/pkg/tui/components/sidebar"
 	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	msgtypes "github.com/docker/cagent/pkg/tui/messages"
+	"github.com/docker/cagent/pkg/tui/styles"
 )
 
 // handleKeyPress handles keyboard input events for the chat page.
@@ -96,6 +98,17 @@ func (p *chatPage) handleMouseRelease(msg tea.MouseReleaseMsg) (layout.Model, te
 
 // handleMouseWheel handles mouse wheel events.
 func (p *chatPage) handleMouseWheel(msg tea.MouseWheelMsg) (layout.Model, tea.Cmd) {
+	// Check if mouse is over the sidebar in vertical mode
+	if p.width >= minWindowWidth {
+		adjustedX := msg.X - styles.AppPaddingLeft
+		innerWidth := p.width - 2
+		chatWidth := max(1, innerWidth-sidebarWidth)
+		if adjustedX >= chatWidth {
+			model, cmd := p.sidebar.Update(msg)
+			p.sidebar = model.(sidebar.Model)
+			return p, cmd
+		}
+	}
 	cmd := p.routeMouseEvent(msg, msg.Y)
 	return p, cmd
 }
