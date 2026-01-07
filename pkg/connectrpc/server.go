@@ -201,6 +201,7 @@ func (s *Server) CreateSession(ctx context.Context, req *connect.Request[cagentv
 		MaxIterations: int(req.Msg.MaxIterations),
 		ToolsApproved: req.Msg.ToolsApproved,
 		WorkingDir:    req.Msg.WorkingDir,
+		// Note: Permissions are not yet supported in proto - would need proto schema update
 	}
 
 	sess, err := s.sm.CreateSession(ctx, sessionTemplate)

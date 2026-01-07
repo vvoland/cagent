@@ -126,14 +126,20 @@ type SessionsResponse struct {
 
 // SessionResponse represents a detailed session
 type SessionResponse struct {
-	ID            string            `json:"id"`
-	Title         string            `json:"title"`
-	Messages      []session.Message `json:"messages,omitempty"`
-	CreatedAt     time.Time         `json:"created_at"`
-	ToolsApproved bool              `json:"tools_approved"`
-	InputTokens   int64             `json:"input_tokens"`
-	OutputTokens  int64             `json:"output_tokens"`
-	WorkingDir    string            `json:"working_dir,omitempty"`
+	ID            string                     `json:"id"`
+	Title         string                     `json:"title"`
+	Messages      []session.Message          `json:"messages,omitempty"`
+	CreatedAt     time.Time                  `json:"created_at"`
+	ToolsApproved bool                       `json:"tools_approved"`
+	InputTokens   int64                      `json:"input_tokens"`
+	OutputTokens  int64                      `json:"output_tokens"`
+	WorkingDir    string                     `json:"working_dir,omitempty"`
+	Permissions   *session.PermissionsConfig `json:"permissions,omitempty"`
+}
+
+// UpdateSessionPermissionsRequest represents a request to update session permissions.
+type UpdateSessionPermissionsRequest struct {
+	Permissions *session.PermissionsConfig `json:"permissions"`
 }
 
 // ResumeSessionRequest represents a request to resume a session

@@ -49,6 +49,8 @@ func New(ctx context.Context, sessionStore session.Store, runConfig *config.Runt
 	group.POST("/sessions/:id/resume", s.resumeSession)
 	// Toggle YOLO mode for a session
 	group.POST("/sessions/:id/tools/toggle", s.toggleSessionYolo)
+	// Update session permissions
+	group.PATCH("/sessions/:id/permissions", s.updateSessionPermissions)
 	// Create a new session
 	group.POST("/sessions", s.createSession)
 	// Delete a session
@@ -187,7 +189,7 @@ func (s *Server) getSession(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("session not found: %v", err))
 	}
 
-	sr := api.SessionResponse{
+	return c.JSON(http.StatusOK, api.SessionResponse{
 		ID:            sess.ID,
 		Title:         sess.Title,
 		CreatedAt:     sess.CreatedAt,
@@ -196,9 +198,8 @@ func (s *Server) getSession(c echo.Context) error {
 		InputTokens:   sess.InputTokens,
 		OutputTokens:  sess.OutputTokens,
 		WorkingDir:    sess.WorkingDir,
-	}
-
-	return c.JSON(http.StatusOK, sr)
+		Permissions:   sess.Permissions,
+	})
 }
 
 func (s *Server) resumeSession(c echo.Context) error {
@@ -219,6 +220,20 @@ func (s *Server) toggleSessionYolo(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to toggle session tool approval mode: %v", err))
 	}
 	return c.JSON(http.StatusOK, nil)
+}
+
+func (s *Server) updateSessionPermissions(c echo.Context) error {
+	sessionID := c.Param("id")
+	var req api.UpdateSessionPermissionsRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
+	}
+
+	if err := s.sm.UpdateSessionPermissions(c.Request().Context(), sessionID, req.Permissions); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to update session permissions: %v", err))
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "session permissions updated"})
 }
 
 func (s *Server) deleteSession(c echo.Context) error {

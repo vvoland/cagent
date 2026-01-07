@@ -214,6 +214,13 @@ func getAllMigrations() []Migration {
 			UpSQL:       `ALTER TABLE sessions ADD COLUMN starred BOOLEAN DEFAULT 0`,
 			DownSQL:     `ALTER TABLE sessions DROP COLUMN starred`,
 		},
+		{
+			ID:          10,
+			Name:        "010_add_permissions_column",
+			Description: "Add permissions column to sessions table for session-level permission overrides",
+			UpSQL:       `ALTER TABLE sessions ADD COLUMN permissions TEXT DEFAULT ''`,
+			DownSQL:     `ALTER TABLE sessions DROP COLUMN permissions`,
+		},
 		// Add more migrations here as needed
 	}
 }

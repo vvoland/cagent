@@ -91,6 +91,10 @@ func (sm *SessionManager) CreateSession(ctx context.Context, sessionTemplate *se
 		opts = append(opts, session.WithWorkingDir(absWd))
 	}
 
+	if sessionTemplate.Permissions != nil {
+		opts = append(opts, session.WithPermissions(sessionTemplate.Permissions))
+	}
+
 	sess := session.New(opts...)
 	return sess, sm.sessionStore.AddSession(ctx, sess)
 }
@@ -215,6 +219,20 @@ func (sm *SessionManager) ToggleToolApproval(ctx context.Context, sessionID stri
 	}
 
 	sess.ToolsApproved = !sess.ToolsApproved
+
+	return sm.sessionStore.UpdateSession(ctx, sess)
+}
+
+// UpdateSessionPermissions updates the permissions for a session.
+func (sm *SessionManager) UpdateSessionPermissions(ctx context.Context, sessionID string, perms *session.PermissionsConfig) error {
+	sm.mux.Lock()
+	defer sm.mux.Unlock()
+	sess, err := sm.sessionStore.GetSession(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+
+	sess.Permissions = perms
 
 	return sm.sessionStore.UpdateSession(ctx, sess)
 }

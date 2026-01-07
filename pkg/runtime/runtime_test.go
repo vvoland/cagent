@@ -1006,3 +1006,150 @@ func TestPermissions_DenyTakesPriorityOverAllow(t *testing.T) {
 	require.NotNil(t, toolResponse, "expected ToolCallResponseEvent")
 	require.Contains(t, toolResponse.Response, "denied by permissions")
 }
+
+func TestSessionPermissions_DenyBlocksToolExecution(t *testing.T) {
+	// Test that session-level deny patterns block tools
+	prov := &mockProvider{id: "test/mock-model", stream: &mockStream{}}
+	root := agent.New("root", "You are a test agent", agent.WithModel(prov))
+	tm := team.New(team.WithAgents(root))
+
+	rt, err := New(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	require.NoError(t, err)
+
+	// Create session with permissions that deny the tool
+	sess := session.New(
+		session.WithUserMessage("Test"),
+		session.WithPermissions(&session.PermissionsConfig{
+			Deny: []string{"blocked_tool"},
+		}),
+	)
+
+	calls := []tools.ToolCall{{
+		ID:       "call_1",
+		Type:     "function",
+		Function: tools.FunctionCall{Name: "blocked_tool", Arguments: "{}"},
+	}}
+
+	agentTools := []tools.Tool{{
+		Name:       "blocked_tool",
+		Parameters: map[string]any{},
+		Handler: func(ctx context.Context, tc tools.ToolCall) (*tools.ToolCallResult, error) {
+			return tools.ResultSuccess("executed"), nil
+		},
+	}}
+
+	events := make(chan Event, 10)
+	rt.processToolCalls(t.Context(), sess, calls, agentTools, events)
+	close(events)
+
+	var toolResponse *ToolCallResponseEvent
+	for ev := range events {
+		if tr, ok := ev.(*ToolCallResponseEvent); ok {
+			toolResponse = tr
+			break
+		}
+	}
+
+	require.NotNil(t, toolResponse, "expected ToolCallResponseEvent")
+	require.Contains(t, toolResponse.Response, "denied by session permissions")
+}
+
+func TestSessionPermissions_AllowAutoApprovesTool(t *testing.T) {
+	// Test that session-level allow patterns auto-approve tools
+	var executed bool
+	agentTools := []tools.Tool{{
+		Name:       "allowed_tool",
+		Parameters: map[string]any{},
+		Handler: func(ctx context.Context, tc tools.ToolCall) (*tools.ToolCallResult, error) {
+			executed = true
+			return tools.ResultSuccess("executed"), nil
+		},
+	}}
+
+	prov := &mockProvider{id: "test/mock-model", stream: &mockStream{}}
+	root := agent.New("root", "You are a test agent",
+		agent.WithModel(prov),
+		agent.WithToolSets(newStubToolSet(nil, agentTools, nil)),
+	)
+	tm := team.New(team.WithAgents(root))
+
+	rt, err := New(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	require.NoError(t, err)
+
+	// Create session with permissions that allow the tool
+	sess := session.New(
+		session.WithUserMessage("Test"),
+		session.WithPermissions(&session.PermissionsConfig{
+			Allow: []string{"allowed_*"},
+		}),
+	)
+	require.False(t, sess.ToolsApproved) // No --yolo
+
+	calls := []tools.ToolCall{{
+		ID:       "call_1",
+		Type:     "function",
+		Function: tools.FunctionCall{Name: "allowed_tool", Arguments: "{}"},
+	}}
+
+	events := make(chan Event, 10)
+	rt.processToolCalls(t.Context(), sess, calls, agentTools, events)
+	close(events)
+
+	require.True(t, executed, "expected tool to be auto-approved by session permissions")
+}
+
+func TestSessionPermissions_TakePriorityOverTeamPermissions(t *testing.T) {
+	// Test that session permissions are evaluated before team permissions
+	// Team allows everything, but session denies specific tool
+	teamPermChecker := permissions.NewChecker(&latest.PermissionsConfig{
+		Allow: []string{"*"}, // Team allows all
+	})
+
+	prov := &mockProvider{id: "test/mock-model", stream: &mockStream{}}
+	root := agent.New("root", "You are a test agent", agent.WithModel(prov))
+	tm := team.New(
+		team.WithAgents(root),
+		team.WithPermissions(teamPermChecker),
+	)
+
+	rt, err := New(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	require.NoError(t, err)
+
+	// Session denies the tool (should override team allow)
+	sess := session.New(
+		session.WithUserMessage("Test"),
+		session.WithPermissions(&session.PermissionsConfig{
+			Deny: []string{"overridden_tool"},
+		}),
+	)
+
+	calls := []tools.ToolCall{{
+		ID:       "call_1",
+		Type:     "function",
+		Function: tools.FunctionCall{Name: "overridden_tool", Arguments: "{}"},
+	}}
+
+	agentTools := []tools.Tool{{
+		Name:       "overridden_tool",
+		Parameters: map[string]any{},
+		Handler: func(ctx context.Context, tc tools.ToolCall) (*tools.ToolCallResult, error) {
+			return tools.ResultSuccess("executed"), nil
+		},
+	}}
+
+	events := make(chan Event, 10)
+	rt.processToolCalls(t.Context(), sess, calls, agentTools, events)
+	close(events)
+
+	// Session deny should take priority over team allow
+	var toolResponse *ToolCallResponseEvent
+	for ev := range events {
+		if tr, ok := ev.(*ToolCallResponseEvent); ok {
+			toolResponse = tr
+			break
+		}
+	}
+
+	require.NotNil(t, toolResponse, "expected ToolCallResponseEvent")
+	require.Contains(t, toolResponse.Response, "denied by session permissions")
+}

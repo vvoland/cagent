@@ -82,6 +82,19 @@ type Session struct {
 	InputTokens  int64   `json:"input_tokens"`
 	OutputTokens int64   `json:"output_tokens"`
 	Cost         float64 `json:"cost"`
+
+	// Permissions holds session-level permission overrides.
+	// When set, these are evaluated before team-level permissions.
+	Permissions *PermissionsConfig `json:"permissions,omitempty"`
+}
+
+// PermissionsConfig defines session-level tool permission overrides.
+// It mirrors the structure from config/latest but is specific to sessions.
+type PermissionsConfig struct {
+	// Allow lists tool name patterns that are auto-approved without user confirmation.
+	Allow []string `json:"allow,omitempty"`
+	// Deny lists tool name patterns that are always rejected.
+	Deny []string `json:"deny,omitempty"`
 }
 
 // Message is a message from an agent
@@ -246,6 +259,12 @@ func WithHideToolResults(hideToolResults bool) Opt {
 func WithSendUserMessage(sendUserMessage bool) Opt {
 	return func(s *Session) {
 		s.SendUserMessage = sendUserMessage
+	}
+}
+
+func WithPermissions(perms *PermissionsConfig) Opt {
+	return func(s *Session) {
+		s.Permissions = perms
 	}
 }
 
