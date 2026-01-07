@@ -180,7 +180,7 @@ func (s *Server) createSession(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to create session: %v", err))
 	}
 
-	return c.JSON(http.StatusOK, sessionToResponse(sess))
+	return c.JSON(http.StatusOK, sess)
 }
 
 func (s *Server) getSession(c echo.Context) error {
@@ -189,10 +189,17 @@ func (s *Server) getSession(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("session not found: %v", err))
 	}
 
-	sr := sessionToResponse(sess)
-	sr.Messages = sess.GetAllMessages()
-
-	return c.JSON(http.StatusOK, sr)
+	return c.JSON(http.StatusOK, api.SessionResponse{
+		ID:            sess.ID,
+		Title:         sess.Title,
+		CreatedAt:     sess.CreatedAt,
+		Messages:      sess.GetAllMessages(),
+		ToolsApproved: sess.ToolsApproved,
+		InputTokens:   sess.InputTokens,
+		OutputTokens:  sess.OutputTokens,
+		WorkingDir:    sess.WorkingDir,
+		Permissions:   sess.Permissions,
+	})
 }
 
 func (s *Server) resumeSession(c echo.Context) error {
@@ -286,16 +293,3 @@ func (s *Server) elicitation(c echo.Context) error {
 	return c.JSON(http.StatusOK, nil)
 }
 
-// sessionToResponse converts a session to an API response.
-func sessionToResponse(sess *session.Session) api.SessionResponse {
-	return api.SessionResponse{
-		ID:            sess.ID,
-		Title:         sess.Title,
-		CreatedAt:     sess.CreatedAt,
-		ToolsApproved: sess.ToolsApproved,
-		InputTokens:   sess.InputTokens,
-		OutputTokens:  sess.OutputTokens,
-		WorkingDir:    sess.WorkingDir,
-		Permissions:   sess.Permissions,
-	}
-}
