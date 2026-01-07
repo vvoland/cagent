@@ -1193,9 +1193,9 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 // executeWithApproval handles the tool approval flow and executes the tool.
 // Returns true if the operation was canceled and processing should stop.
 //
-// The approval flow considers:
-// 1. Deny patterns in permissions config - always reject (supports argument matching)
-// 2. Allow patterns in permissions config - auto-approve (supports argument matching)
+// The approval flow considers (in order):
+// 1. Session-level permissions (if configured) - checked first
+// 2. Team-level permissions config - checked second
 // 3. sess.ToolsApproved (--yolo flag) - auto-approve all
 // 4. tool.Annotations.ReadOnlyHint - auto-approve read-only tools
 // 5. Default: ask for user confirmation
@@ -1211,25 +1211,43 @@ func (r *LocalRuntime) executeWithApproval(
 ) (canceled bool) {
 	toolName := toolCall.Function.Name
 
-	// Check permissions config first (Deny takes highest priority)
-	if permChecker := r.team.Permissions(); permChecker != nil {
-		// Parse tool arguments for permission matching
-		var toolArgs map[string]any
-		if toolCall.Function.Arguments != "" {
-			if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &toolArgs); err != nil {
-				slog.Debug("Failed to parse tool arguments for permission check", "tool", toolName, "error", err)
-				// Continue with nil args - will only match tool name patterns
-			}
+	// Parse tool arguments once for permission matching
+	var toolArgs map[string]any
+	if toolCall.Function.Arguments != "" {
+		if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &toolArgs); err != nil {
+			slog.Debug("Failed to parse tool arguments for permission check", "tool", toolName, "error", err)
+			// Continue with nil args - will only match tool name patterns
 		}
+	}
 
+	// 1. Check session-level permissions first (if configured)
+	if sess.Permissions != nil {
+		sessionChecker := permissions.NewCheckerFromPatterns(sess.Permissions.Allow, sess.Permissions.Deny)
+		decision := sessionChecker.CheckWithArgs(toolName, toolArgs)
+		switch decision {
+		case permissions.Deny:
+			slog.Debug("Tool denied by session permissions", "tool", toolName, "session_id", sess.ID)
+			r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, fmt.Sprintf("Tool '%s' is denied by session permissions.", toolName))
+			return false
+		case permissions.Allow:
+			slog.Debug("Tool auto-approved by session permissions", "tool", toolName, "session_id", sess.ID)
+			runTool()
+			return false
+		case permissions.Ask:
+			// Fall through to team permissions
+		}
+	}
+
+	// 2. Check team-level permissions config
+	if permChecker := r.team.Permissions(); permChecker != nil {
 		decision := permChecker.CheckWithArgs(toolName, toolArgs)
 		switch decision {
 		case permissions.Deny:
-			slog.Debug("Tool denied by permissions config", "tool", toolName, "session_id", sess.ID)
+			slog.Debug("Tool denied by team permissions config", "tool", toolName, "session_id", sess.ID)
 			r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, fmt.Sprintf("Tool '%s' is denied by permissions configuration.", toolName))
 			return false
 		case permissions.Allow:
-			slog.Debug("Tool auto-approved by permissions config", "tool", toolName, "session_id", sess.ID)
+			slog.Debug("Tool auto-approved by team permissions config", "tool", toolName, "session_id", sess.ID)
 			runTool()
 			return false
 		case permissions.Ask:

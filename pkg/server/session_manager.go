@@ -68,15 +68,15 @@ func (sm *SessionManager) GetSession(ctx context.Context, id string) (*session.S
 	return sess, nil
 }
 
-// CreateSession creates a new session from a template.
-func (sm *SessionManager) CreateSession(ctx context.Context, sessionTemplate *session.Session) (*session.Session, error) {
+// CreateSession creates a new session from a request.
+func (sm *SessionManager) CreateSession(ctx context.Context, req *api.CreateSessionRequest) (*session.Session, error) {
 	var opts []session.Opt
 	opts = append(opts,
-		session.WithMaxIterations(sessionTemplate.MaxIterations),
-		session.WithToolsApproved(sessionTemplate.ToolsApproved),
+		session.WithMaxIterations(req.MaxIterations),
+		session.WithToolsApproved(req.ToolsApproved),
 	)
 
-	if wd := strings.TrimSpace(sessionTemplate.WorkingDir); wd != "" {
+	if wd := strings.TrimSpace(req.WorkingDir); wd != "" {
 		absWd, err := filepath.Abs(wd)
 		if err != nil {
 			return nil, err
@@ -89,6 +89,13 @@ func (sm *SessionManager) CreateSession(ctx context.Context, sessionTemplate *se
 			return nil, fmt.Errorf("working directory must be a directory")
 		}
 		opts = append(opts, session.WithWorkingDir(absWd))
+	}
+
+	if req.Permissions != nil {
+		opts = append(opts, session.WithPermissions(&session.PermissionsConfig{
+			Allow: req.Permissions.Allow,
+			Deny:  req.Permissions.Deny,
+		}))
 	}
 
 	sess := session.New(opts...)
@@ -215,6 +222,20 @@ func (sm *SessionManager) ToggleToolApproval(ctx context.Context, sessionID stri
 	}
 
 	sess.ToolsApproved = !sess.ToolsApproved
+
+	return sm.sessionStore.UpdateSession(ctx, sess)
+}
+
+// UpdateSessionPermissions updates the permissions for a session.
+func (sm *SessionManager) UpdateSessionPermissions(ctx context.Context, sessionID string, perms *session.PermissionsConfig) error {
+	sm.mux.Lock()
+	defer sm.mux.Unlock()
+	sess, err := sm.sessionStore.GetSession(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+
+	sess.Permissions = perms
 
 	return sm.sessionStore.UpdateSession(ctx, sess)
 }

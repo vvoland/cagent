@@ -197,13 +197,14 @@ func (s *Server) GetSession(ctx context.Context, req *connect.Request[cagentv1.G
 
 // CreateSession creates a new session.
 func (s *Server) CreateSession(ctx context.Context, req *connect.Request[cagentv1.CreateSessionRequest]) (*connect.Response[cagentv1.CreateSessionResponse], error) {
-	sessionTemplate := &session.Session{
+	createReq := &api.CreateSessionRequest{
 		MaxIterations: int(req.Msg.MaxIterations),
 		ToolsApproved: req.Msg.ToolsApproved,
 		WorkingDir:    req.Msg.WorkingDir,
+		// Note: Permissions are not yet supported in proto - would need proto schema update
 	}
 
-	sess, err := s.sm.CreateSession(ctx, sessionTemplate)
+	sess, err := s.sm.CreateSession(ctx, createReq)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create session: %w", err))
 	}

@@ -53,6 +53,15 @@ func NewChecker(cfg *latest.PermissionsConfig) *Checker {
 	}
 }
 
+// NewCheckerFromPatterns creates a permission checker from allow/deny slices.
+// This is useful for session-level permissions where patterns are stored directly.
+func NewCheckerFromPatterns(allow, deny []string) *Checker {
+	return &Checker{
+		allowPatterns: allow,
+		denyPatterns:  deny,
+	}
+}
+
 // Check evaluates the permission for a given tool name without arguments.
 // This is a convenience method that calls CheckWithArgs with nil arguments.
 // Evaluation order: Deny (checked first), then Allow, then Ask (default)

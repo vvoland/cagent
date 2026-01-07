@@ -49,6 +49,8 @@ func New(ctx context.Context, sessionStore session.Store, runConfig *config.Runt
 	group.POST("/sessions/:id/resume", s.resumeSession)
 	// Toggle YOLO mode for a session
 	group.POST("/sessions/:id/tools/toggle", s.toggleSessionYolo)
+	// Update session permissions
+	group.PATCH("/sessions/:id/permissions", s.updateSessionPermissions)
 	// Create a new session
 	group.POST("/sessions", s.createSession)
 	// Delete a session
@@ -168,17 +170,17 @@ func (s *Server) getSessions(c echo.Context) error {
 }
 
 func (s *Server) createSession(c echo.Context) error {
-	var sessionTemplate session.Session
-	if err := c.Bind(&sessionTemplate); err != nil {
+	var req api.CreateSessionRequest
+	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
 	}
 
-	sess, err := s.sm.CreateSession(c.Request().Context(), &sessionTemplate)
+	sess, err := s.sm.CreateSession(c.Request().Context(), &req)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to create session: %v", err))
 	}
 
-	return c.JSON(http.StatusOK, sess)
+	return c.JSON(http.StatusOK, sessionToResponse(sess))
 }
 
 func (s *Server) getSession(c echo.Context) error {
@@ -187,16 +189,8 @@ func (s *Server) getSession(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("session not found: %v", err))
 	}
 
-	sr := api.SessionResponse{
-		ID:            sess.ID,
-		Title:         sess.Title,
-		CreatedAt:     sess.CreatedAt,
-		Messages:      sess.GetAllMessages(),
-		ToolsApproved: sess.ToolsApproved,
-		InputTokens:   sess.InputTokens,
-		OutputTokens:  sess.OutputTokens,
-		WorkingDir:    sess.WorkingDir,
-	}
+	sr := sessionToResponse(sess)
+	sr.Messages = sess.GetAllMessages()
 
 	return c.JSON(http.StatusOK, sr)
 }
@@ -219,6 +213,28 @@ func (s *Server) toggleSessionYolo(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to toggle session tool approval mode: %v", err))
 	}
 	return c.JSON(http.StatusOK, nil)
+}
+
+func (s *Server) updateSessionPermissions(c echo.Context) error {
+	sessionID := c.Param("id")
+	var req api.UpdateSessionPermissionsRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
+	}
+
+	var perms *session.PermissionsConfig
+	if req.Permissions != nil {
+		perms = &session.PermissionsConfig{
+			Allow: req.Permissions.Allow,
+			Deny:  req.Permissions.Deny,
+		}
+	}
+
+	if err := s.sm.UpdateSessionPermissions(c.Request().Context(), sessionID, perms); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to update session permissions: %v", err))
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "session permissions updated"})
 }
 
 func (s *Server) deleteSession(c echo.Context) error {
@@ -276,4 +292,26 @@ func (s *Server) elicitation(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, nil)
+}
+
+// sessionToResponse converts a session to an API response.
+func sessionToResponse(sess *session.Session) api.SessionResponse {
+	resp := api.SessionResponse{
+		ID:            sess.ID,
+		Title:         sess.Title,
+		CreatedAt:     sess.CreatedAt,
+		ToolsApproved: sess.ToolsApproved,
+		InputTokens:   sess.InputTokens,
+		OutputTokens:  sess.OutputTokens,
+		WorkingDir:    sess.WorkingDir,
+	}
+
+	if sess.Permissions != nil {
+		resp.Permissions = &api.PermissionsConfig{
+			Allow: sess.Permissions.Allow,
+			Deny:  sess.Permissions.Deny,
+		}
+	}
+
+	return resp
 }
