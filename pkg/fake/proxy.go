@@ -71,7 +71,7 @@ func StartProxyWithOptions(
 		recorder.WithMatcher(matcher),
 		recorder.WithSkipRequestLatency(true),
 		recorder.WithHook(RemoveHeadersHook, recorder.AfterCaptureHook),
-		recorder.WithReplayableInteractions(hasMatcher),
+		recorder.WithReplayableInteractions(false),
 	)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create VCR recorder: %w", err)
