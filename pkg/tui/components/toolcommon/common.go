@@ -130,8 +130,14 @@ func WrapLines(text string, width int) []string {
 
 // wrapTextWithIndent wraps text where the first line has a different available width.
 // Subsequent lines are indented to align with the tool name badge.
+// If text starts with a newline, it's considered pre-formatted and no indent is added.
 func wrapTextWithIndent(text string, firstLineWidth, subsequentLineWidth int) string {
 	if firstLineWidth <= 0 || subsequentLineWidth <= 0 {
+		return text
+	}
+
+	// Pre-formatted text (starts with newline) doesn't need additional indentation
+	if strings.HasPrefix(text, "\n") {
 		return text
 	}
 
