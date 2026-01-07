@@ -2,11 +2,13 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"maps"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -20,13 +22,16 @@ import (
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config/types"
+	"github.com/docker/cagent/pkg/hooks"
 	"github.com/docker/cagent/pkg/modelsdev"
+	"github.com/docker/cagent/pkg/permissions"
 	"github.com/docker/cagent/pkg/rag"
 	ragtypes "github.com/docker/cagent/pkg/rag/types"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/telemetry"
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools/builtin"
 	mcptools "github.com/docker/cagent/pkg/tools/mcp"
 )
 
@@ -124,6 +129,7 @@ type RAGInitializer interface {
 
 // LocalRuntime manages the execution of agents
 type LocalRuntime struct {
+	toolMap                     map[string]ToolHandler
 	team                        *team.Team
 	currentAgent                string
 	resumeChan                  chan ResumeType
@@ -138,7 +144,6 @@ type LocalRuntime struct {
 	ragInitialized              atomic.Bool
 	titleGen                    *titleGenerator
 	sessionCompactor            *sessionCompactor
-	toolExec                    *toolExecutor
 	sessionStore                session.Store
 	workingDir                  string   // Working directory for hooks execution
 	env                         []string // Environment variables for hooks execution
@@ -216,6 +221,7 @@ func New(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 	}
 
 	r := &LocalRuntime{
+		toolMap:              make(map[string]ToolHandler),
 		team:                 agents,
 		currentAgent:         "root",
 		resumeChan:           make(chan ResumeType),
@@ -242,21 +248,6 @@ func New(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 
 	r.titleGen = newTitleGenerator(model)
 	r.sessionCompactor = newSessionCompactor(model, r.sessionStore)
-	r.toolExec = newToolExecutor(toolExecutorConfig{
-		tracer:       r.tracer,
-		sessionStore: r.sessionStore,
-		resumeChan:   r.resumeChan,
-		permissions:  agents.Permissions(),
-		workingDir:   r.workingDir,
-		env:          r.env,
-		team:         r.team,
-		getCurrentAgent: func() string {
-			return r.currentAgent
-		},
-		setCurrentAgent: func(agentName string) {
-			r.currentAgent = agentName
-		},
-	})
 
 	slog.Debug("Creating new runtime", "agent", r.currentAgent, "available_agents", agents.Size())
 
@@ -465,6 +456,15 @@ func (r *LocalRuntime) CurrentAgent() *agent.Agent {
 	return current
 }
 
+// getHooksExecutor creates a hooks executor for the given agent
+func (r *LocalRuntime) getHooksExecutor(a *agent.Agent) *hooks.Executor {
+	hooksCfg := hooks.FromConfig(a.Hooks())
+	if hooksCfg == nil || hooksCfg.IsEmpty() {
+		return nil
+	}
+	return hooks.NewExecutor(hooksCfg, r.workingDir, r.env)
+}
+
 // getAgentModelID returns the model ID for an agent, or empty string if no model is set.
 func getAgentModelID(a *agent.Agent) string {
 	if model := a.Model(); model != nil {
@@ -570,6 +570,32 @@ func (r *LocalRuntime) emitToolsProgressively(ctx context.Context, a *agent.Agen
 	events <- ToolsetInfo(totalTools, false, r.currentAgent)
 }
 
+// registerDefaultTools registers the default tool handlers
+func (r *LocalRuntime) registerDefaultTools() {
+	slog.Debug("Registering default tools")
+
+	tt := builtin.NewTransferTaskTool()
+	ht := builtin.NewHandoffTool()
+	ttTools, _ := tt.Tools(context.TODO())
+	htTools, _ := ht.Tools(context.TODO())
+	allTools := append(ttTools, htTools...)
+
+	handlers := map[string]ToolHandlerFunc{
+		builtin.ToolNameTransferTask: r.handleTaskTransfer,
+		builtin.ToolNameHandoff:      r.handleHandoff,
+	}
+
+	for _, t := range allTools {
+		if h, exists := handlers[t.Name]; exists {
+			r.toolMap[t.Name] = ToolHandler{handler: h, tool: t}
+		} else {
+			slog.Warn("No handler found for default tool", "tool", t.Name)
+		}
+	}
+
+	slog.Debug("Registered default tools", "count", len(r.toolMap))
+}
+
 func (r *LocalRuntime) finalizeEventChannel(ctx context.Context, sess *session.Session, events chan Event) {
 	defer close(events)
 
@@ -629,6 +655,8 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		events <- StreamStarted(sess.ID, a.Name())
 
 		defer r.finalizeEventChannel(ctx, sess, events)
+
+		r.registerDefaultTools()
 
 		if sess.Title == "" {
 			r.titleGen.Generate(ctx, sess, events)
@@ -811,7 +839,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 
 			events <- TokenUsage(sess.ID, r.currentAgent, sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.Cost)
 
-			r.toolExec.ProcessToolCalls(ctx, sess, res.Calls, agentTools, r.CurrentAgent(), events)
+			r.processToolCalls(ctx, sess, res.Calls, agentTools, events)
 
 			if res.Stopped {
 				slog.Debug("Conversation stopped", "agent", a.Name())
@@ -1102,12 +1130,436 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 	}, nil
 }
 
+// processToolCalls handles the execution of tool calls for an agent
+func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Session, calls []tools.ToolCall, agentTools []tools.Tool, events chan Event) {
+	a := r.CurrentAgent()
+	slog.Debug("Processing tool calls", "agent", a.Name(), "call_count", len(calls))
+
+	// Build a map of agent tools for quick lookup
+	agentToolMap := make(map[string]tools.Tool, len(agentTools))
+	for _, t := range agentTools {
+		agentToolMap[t.Name] = t
+	}
+
+	for i, toolCall := range calls {
+		callCtx, callSpan := r.startSpan(ctx, "runtime.tool.call", trace.WithAttributes(
+			attribute.String("tool.name", toolCall.Function.Name),
+			attribute.String("tool.type", string(toolCall.Type)),
+			attribute.String("agent", a.Name()),
+			attribute.String("session.id", sess.ID),
+			attribute.String("tool.call_id", toolCall.ID),
+		))
+
+		slog.Debug("Processing tool call", "agent", a.Name(), "tool", toolCall.Function.Name, "session_id", sess.ID)
+
+		// Find the tool - first check runtime tools, then agent tools
+		var tool tools.Tool
+		var runTool func()
+
+		if def, exists := r.toolMap[toolCall.Function.Name]; exists {
+			// Validate that the tool is actually available to this agent
+			if _, available := agentToolMap[toolCall.Function.Name]; !available {
+				slog.Warn("Tool call rejected: tool not available to agent", "agent", a.Name(), "tool", toolCall.Function.Name, "session_id", sess.ID)
+				r.addToolErrorResponse(ctx, sess, toolCall, def.tool, events, a, fmt.Sprintf("Tool '%s' is not available to this agent (%s).", toolCall.Function.Name, a.Name()))
+				callSpan.SetStatus(codes.Error, "tool not available to agent")
+				callSpan.End()
+				continue
+			}
+			tool = def.tool
+			runTool = func() { r.runAgentTool(callCtx, def.handler, sess, toolCall, def.tool, events, a) }
+		} else if t, exists := agentToolMap[toolCall.Function.Name]; exists {
+			tool = t
+			runTool = func() { r.runTool(callCtx, t, toolCall, events, sess, a) }
+		} else {
+			// Tool not found - skip
+			callSpan.SetStatus(codes.Ok, "tool not found")
+			callSpan.End()
+			continue
+		}
+
+		// Execute tool with approval check
+		canceled := r.executeWithApproval(callCtx, sess, toolCall, tool, events, a, runTool, calls[i+1:])
+		if canceled {
+			callSpan.SetStatus(codes.Ok, "tool call canceled by user")
+			callSpan.End()
+			return
+		}
+
+		callSpan.SetStatus(codes.Ok, "tool call processed")
+		callSpan.End()
+	}
+}
+
+// executeWithApproval handles the tool approval flow and executes the tool.
+// Returns true if the operation was canceled and processing should stop.
+//
+// The approval flow considers:
+// 1. Deny patterns in permissions config - always reject (supports argument matching)
+// 2. Allow patterns in permissions config - auto-approve (supports argument matching)
+// 3. sess.ToolsApproved (--yolo flag) - auto-approve all
+// 4. tool.Annotations.ReadOnlyHint - auto-approve read-only tools
+// 5. Default: ask for user confirmation
+func (r *LocalRuntime) executeWithApproval(
+	ctx context.Context,
+	sess *session.Session,
+	toolCall tools.ToolCall,
+	tool tools.Tool,
+	events chan Event,
+	a *agent.Agent,
+	runTool func(),
+	remainingCalls []tools.ToolCall,
+) (canceled bool) {
+	toolName := toolCall.Function.Name
+
+	// Check permissions config first (Deny takes highest priority)
+	if permChecker := r.team.Permissions(); permChecker != nil {
+		// Parse tool arguments for permission matching
+		var toolArgs map[string]any
+		if toolCall.Function.Arguments != "" {
+			if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &toolArgs); err != nil {
+				slog.Debug("Failed to parse tool arguments for permission check", "tool", toolName, "error", err)
+				// Continue with nil args - will only match tool name patterns
+			}
+		}
+
+		decision := permChecker.CheckWithArgs(toolName, toolArgs)
+		switch decision {
+		case permissions.Deny:
+			slog.Debug("Tool denied by permissions config", "tool", toolName, "session_id", sess.ID)
+			r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, fmt.Sprintf("Tool '%s' is denied by permissions configuration.", toolName))
+			return false
+		case permissions.Allow:
+			slog.Debug("Tool auto-approved by permissions config", "tool", toolName, "session_id", sess.ID)
+			runTool()
+			return false
+		case permissions.Ask:
+			// Fall through to normal approval flow
+		}
+	}
+
+	// Check --yolo flag or read-only hint
+	if sess.ToolsApproved || tool.Annotations.ReadOnlyHint {
+		runTool()
+		return false
+	}
+
+	slog.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
+	events <- ToolCallConfirmation(toolCall, tool, a.Name())
+
+	select {
+	case cType := <-r.resumeChan:
+		switch cType {
+		case ResumeTypeApprove:
+			slog.Debug("Resume signal received, approving tool", "tool", toolCall.Function.Name, "session_id", sess.ID)
+			runTool()
+		case ResumeTypeApproveSession:
+			slog.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name, "session_id", sess.ID)
+			sess.ToolsApproved = true
+			runTool()
+		case ResumeTypeReject:
+			slog.Debug("Resume signal received, rejecting tool", "tool", toolCall.Function.Name, "session_id", sess.ID)
+			r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, "The user rejected the tool call.")
+		}
+		return false
+	case <-ctx.Done():
+		slog.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
+		r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, "The tool call was canceled by the user.")
+		for _, remainingCall := range remainingCalls {
+			r.addToolErrorResponse(ctx, sess, remainingCall, tool, events, a, "The tool call was canceled by the user.")
+		}
+		return true
+	}
+}
+
+// executeToolWithHandler is a common helper that handles tool execution, error handling,
+// event emission, and session updates. It reduces duplication between runTool and runAgentTool.
+func (r *LocalRuntime) executeToolWithHandler(
+	ctx context.Context,
+	toolCall tools.ToolCall,
+	tool tools.Tool,
+	events chan Event,
+	sess *session.Session,
+	a *agent.Agent,
+	spanName string,
+	execute func(ctx context.Context) (*tools.ToolCallResult, time.Duration, error),
+) {
+	ctx, span := r.startSpan(ctx, spanName, trace.WithAttributes(
+		attribute.String("tool.name", toolCall.Function.Name),
+		attribute.String("agent", a.Name()),
+		attribute.String("session.id", sess.ID),
+		attribute.String("tool.call_id", toolCall.ID),
+	))
+	defer span.End()
+
+	events <- ToolCall(toolCall, tool, a.Name())
+
+	res, duration, err := execute(ctx)
+
+	telemetry.RecordToolCall(ctx, toolCall.Function.Name, sess.ID, a.Name(), duration, err)
+
+	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
+			slog.Debug("Tool handler canceled by context", "tool", toolCall.Function.Name, "agent", a.Name(), "session_id", sess.ID)
+			res = tools.ResultError("The tool call was canceled by the user.")
+			span.SetStatus(codes.Ok, "tool handler canceled by user")
+		} else {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "tool handler error")
+			slog.Error("Error calling tool", "tool", toolCall.Function.Name, "error", err)
+			res = tools.ResultError(fmt.Sprintf("Error calling tool: %v", err))
+		}
+	} else {
+		span.SetStatus(codes.Ok, "tool handler completed")
+		slog.Debug("Tool call completed", "tool", toolCall.Function.Name, "output_length", len(res.Output))
+	}
+
+	events <- ToolCallResponse(toolCall, tool, res, res.Output, a.Name())
+
+	// Ensure tool response content is not empty for API compatibility
+	content := res.Output
+	if strings.TrimSpace(content) == "" {
+		content = "(no output)"
+	}
+
+	toolResponseMsg := chat.Message{
+		Role:       chat.MessageRoleTool,
+		Content:    content,
+		ToolCallID: toolCall.ID,
+		CreatedAt:  time.Now().Format(time.RFC3339),
+	}
+	sess.AddMessage(session.NewAgentMessage(a, &toolResponseMsg))
+	_ = r.sessionStore.UpdateSession(ctx, sess)
+}
+
+// runTool executes agent tools from toolsets (MCP, filesystem, etc.).
+func (r *LocalRuntime) runTool(ctx context.Context, tool tools.Tool, toolCall tools.ToolCall, events chan Event, sess *session.Session, a *agent.Agent) {
+	// Get hooks executor for this agent
+	hooksExec := r.getHooksExecutor(a)
+
+	// Execute pre-tool hooks if configured
+	if hooksExec != nil && hooksExec.HasPreToolUseHooks() {
+		toolInput := parseToolInput(toolCall.Function.Arguments)
+		input := &hooks.Input{
+			SessionID: sess.ID,
+			Cwd:       r.workingDir,
+			ToolName:  toolCall.Function.Name,
+			ToolUseID: toolCall.ID,
+			ToolInput: toolInput,
+		}
+
+		result, err := hooksExec.ExecutePreToolUse(ctx, input)
+		switch {
+		case err != nil:
+			slog.Warn("Pre-tool hook execution failed", "tool", toolCall.Function.Name, "error", err)
+		case !result.Allowed:
+			// Hook blocked the tool call
+			slog.Debug("Pre-tool hook blocked tool call", "tool", toolCall.Function.Name, "message", result.Message)
+			events <- HookBlocked(toolCall, tool, result.Message, a.Name())
+			r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, "Tool call blocked by hook: "+result.Message)
+			return
+		case result.SystemMessage != "":
+			events <- Warning(result.SystemMessage, a.Name())
+		}
+	}
+
+	r.executeToolWithHandler(ctx, toolCall, tool, events, sess, a, "runtime.tool.handler",
+		func(ctx context.Context) (*tools.ToolCallResult, time.Duration, error) {
+			res, err := tool.Handler(ctx, toolCall)
+			return res, 0, err
+		})
+
+	// Execute post-tool hooks if configured
+	if hooksExec != nil && hooksExec.HasPostToolUseHooks() {
+		toolInput := parseToolInput(toolCall.Function.Arguments)
+		input := &hooks.Input{
+			SessionID:    sess.ID,
+			Cwd:          r.workingDir,
+			ToolName:     toolCall.Function.Name,
+			ToolUseID:    toolCall.ID,
+			ToolInput:    toolInput,
+			ToolResponse: nil, // TODO: pass actual tool response if needed
+		}
+
+		result, err := hooksExec.ExecutePostToolUse(ctx, input)
+		if err != nil {
+			slog.Warn("Post-tool hook execution failed", "tool", toolCall.Function.Name, "error", err)
+		} else if result.SystemMessage != "" {
+			events <- Warning(result.SystemMessage, a.Name())
+		}
+	}
+}
+
+// parseToolInput parses tool arguments JSON into a map
+func parseToolInput(arguments string) map[string]any {
+	var result map[string]any
+	if err := json.Unmarshal([]byte(arguments), &result); err != nil {
+		return nil
+	}
+	return result
+}
+
+func (r *LocalRuntime) runAgentTool(ctx context.Context, handler ToolHandlerFunc, sess *session.Session, toolCall tools.ToolCall, tool tools.Tool, events chan Event, a *agent.Agent) {
+	r.executeToolWithHandler(ctx, toolCall, tool, events, sess, a, "runtime.tool.handler.runtime",
+		func(ctx context.Context) (*tools.ToolCallResult, time.Duration, error) {
+			start := time.Now()
+			res, err := handler(ctx, sess, toolCall, events)
+			return res, time.Since(start), err
+		})
+}
+
+// addToolErrorResponse adds a tool error response to the session and emits the event.
+// This consolidates the common pattern used by validation, rejection, and cancellation responses.
+func (r *LocalRuntime) addToolErrorResponse(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, tool tools.Tool, events chan Event, a *agent.Agent, errorMsg string) {
+	events <- ToolCallResponse(toolCall, tool, tools.ResultError(errorMsg), errorMsg, a.Name())
+
+	toolResponseMsg := chat.Message{
+		Role:       chat.MessageRoleTool,
+		Content:    errorMsg,
+		ToolCallID: toolCall.ID,
+		CreatedAt:  time.Now().Format(time.RFC3339),
+	}
+	sess.AddMessage(session.NewAgentMessage(a, &toolResponseMsg))
+	_ = r.sessionStore.UpdateSession(ctx, sess)
+}
+
 // startSpan wraps tracer.Start, returning a no-op span if the tracer is nil.
 func (r *LocalRuntime) startSpan(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
 	if r.tracer == nil {
 		return ctx, trace.SpanFromContext(ctx)
 	}
 	return r.tracer.Start(ctx, name, opts...)
+}
+
+func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, evts chan Event) (*tools.ToolCallResult, error) {
+	var params struct {
+		Agent          string `json:"agent"`
+		Task           string `json:"task"`
+		ExpectedOutput string `json:"expected_output"`
+	}
+
+	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
+		return nil, fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	a := r.CurrentAgent()
+
+	// Span for task transfer (optional)
+	ctx, span := r.startSpan(ctx, "runtime.task_transfer", trace.WithAttributes(
+		attribute.String("from.agent", a.Name()),
+		attribute.String("to.agent", params.Agent),
+		attribute.String("session.id", sess.ID),
+	))
+	defer span.End()
+
+	slog.Debug("Transferring task to agent", "from_agent", a.Name(), "to_agent", params.Agent, "task", params.Task)
+
+	ca := r.currentAgent
+
+	// Emit agent switching start event
+	evts <- AgentSwitching(true, ca, params.Agent)
+
+	r.currentAgent = params.Agent
+	defer func() {
+		r.currentAgent = ca
+
+		// Emit agent switching end event
+		evts <- AgentSwitching(false, params.Agent, ca)
+
+		// Restore original agent info in sidebar
+		if originalAgent, err := r.team.Agent(ca); err == nil {
+			evts <- AgentInfo(originalAgent.Name(), getAgentModelID(originalAgent), originalAgent.Description(), originalAgent.WelcomeMessage())
+		}
+	}()
+
+	// Emit agent info for the new agent
+	if newAgent, err := r.team.Agent(params.Agent); err == nil {
+		evts <- AgentInfo(newAgent.Name(), getAgentModelID(newAgent), newAgent.Description(), newAgent.WelcomeMessage())
+	}
+
+	memberAgentTask := "You are a member of a team of agents. Your goal is to complete the following task:"
+	memberAgentTask += fmt.Sprintf("\n\n<task>\n%s\n</task>", params.Task)
+	if params.ExpectedOutput != "" {
+		memberAgentTask += fmt.Sprintf("\n\n<expected_output>\n%s\n</expected_output>", params.ExpectedOutput)
+	}
+
+	slog.Debug("Creating new session with parent session", "parent_session_id", sess.ID, "tools_approved", sess.ToolsApproved)
+
+	child, err := r.team.Agent(params.Agent)
+	if err != nil {
+		return nil, err
+	}
+
+	s := session.New(
+		session.WithSystemMessage(memberAgentTask),
+		session.WithImplicitUserMessage("Please proceed."),
+		session.WithMaxIterations(child.MaxIterations()),
+		session.WithTitle("Transferred task"),
+		session.WithToolsApproved(sess.ToolsApproved),
+		session.WithSendUserMessage(false),
+	)
+
+	for event := range r.RunStream(ctx, s) {
+		evts <- event
+		if errEvent, ok := event.(*ErrorEvent); ok {
+			span.RecordError(fmt.Errorf("%s", errEvent.Error))
+			span.SetStatus(codes.Error, "error in transferred session")
+			return nil, fmt.Errorf("%s", errEvent.Error)
+		}
+	}
+
+	sess.ToolsApproved = s.ToolsApproved
+
+	sess.AddSubSession(s)
+
+	slog.Debug("Task transfer completed", "agent", params.Agent, "task", params.Task)
+
+	span.SetStatus(codes.Ok, "task transfer completed")
+	return tools.ResultSuccess(s.GetLastAssistantMessageContent()), nil
+}
+
+func (r *LocalRuntime) handleHandoff(_ context.Context, _ *session.Session, toolCall tools.ToolCall, _ chan Event) (*tools.ToolCallResult, error) {
+	var params builtin.HandoffArgs
+	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
+		return nil, fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	ca := r.currentAgent
+	currentAgent, err := r.team.Agent(ca)
+	if err != nil {
+		return nil, fmt.Errorf("current agent not found: %w", err)
+	}
+
+	// Validate that the target agent is in the current agent's handoffs list
+	handoffs := currentAgent.Handoffs()
+	if !slices.ContainsFunc(handoffs, func(a *agent.Agent) bool { return a.Name() == params.Agent }) {
+		var handoffNames []string
+		for _, h := range handoffs {
+			handoffNames = append(handoffNames, h.Name())
+		}
+		var errorMsg string
+		if len(handoffNames) > 0 {
+			errorMsg = fmt.Sprintf("Agent %s cannot hand off to %s: target agent not in handoffs list. Available handoff agent IDs are: %s", ca, params.Agent, strings.Join(handoffNames, ", "))
+		} else {
+			errorMsg = fmt.Sprintf("Agent %s cannot hand off to %s: target agent not in handoffs list. This agent has no handoff agents configured.", ca, params.Agent)
+		}
+		return tools.ResultError(errorMsg), nil
+	}
+
+	next, err := r.team.Agent(params.Agent)
+	if err != nil {
+		return nil, err
+	}
+
+	r.currentAgent = next.Name()
+	handoffMessage := "The agent " + ca + " handed off the conversation to you. " +
+		"Your available handoff agents and tools are specified in the system messages that follow. " +
+		"Only use those capabilities - do not attempt to use tools or hand off to agents that you see " +
+		"in the conversation history from previous agents, as those were available to different agents " +
+		"with different capabilities. Look at the conversation history for context, but only use the " +
+		"handoff agents and tools that are listed in your system messages below. " +
+		"Complete your part of the task and hand off to the next appropriate agent in your workflow " +
+		"(if any are available to you), or respond directly to the user if you are the final agent."
+	return tools.ResultSuccess(handoffMessage), nil
 }
 
 // Summarize generates a summary for the session based on the conversation history.

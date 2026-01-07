@@ -771,6 +771,9 @@ func TestProcessToolCalls_UnknownTool_NoToolResultMessage(t *testing.T) {
 	rt, err := New(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
 	require.NoError(t, err)
 
+	// Register default tools (contains only transfer_task) to ensure unknown tool isn't matched
+	rt.registerDefaultTools()
+
 	sess := session.New(session.WithUserMessage("Start"))
 
 	// Simulate a model-issued tool call to a non-existent tool
@@ -783,7 +786,7 @@ func TestProcessToolCalls_UnknownTool_NoToolResultMessage(t *testing.T) {
 	events := make(chan Event, 10)
 
 	// No agentTools provided and runtime toolMap doesn't have this tool name
-	rt.toolExec.ProcessToolCalls(t.Context(), sess, calls, nil, rt.CurrentAgent(), events)
+	rt.processToolCalls(t.Context(), sess, calls, nil, events)
 
 	// Drain events channel
 	close(events)
@@ -891,7 +894,7 @@ func TestPermissions_DenyBlocksToolExecution(t *testing.T) {
 	}}
 
 	events := make(chan Event, 10)
-	rt.toolExec.ProcessToolCalls(t.Context(), sess, calls, agentTools, rt.CurrentAgent(), events)
+	rt.processToolCalls(t.Context(), sess, calls, agentTools, events)
 	close(events)
 
 	// The tool should be denied, look for a ToolCallResponseEvent with error
@@ -947,7 +950,7 @@ func TestPermissions_AllowAutoApprovesTool(t *testing.T) {
 	}}
 
 	events := make(chan Event, 10)
-	rt.toolExec.ProcessToolCalls(t.Context(), sess, calls, agentTools, rt.CurrentAgent(), events)
+	rt.processToolCalls(t.Context(), sess, calls, agentTools, events)
 	close(events)
 
 	// The tool should have been executed due to allow pattern
@@ -988,7 +991,7 @@ func TestPermissions_DenyTakesPriorityOverAllow(t *testing.T) {
 	}}
 
 	events := make(chan Event, 10)
-	rt.toolExec.ProcessToolCalls(t.Context(), sess, calls, agentTools, rt.CurrentAgent(), events)
+	rt.processToolCalls(t.Context(), sess, calls, agentTools, events)
 	close(events)
 
 	// The tool should be denied despite wildcard allow
