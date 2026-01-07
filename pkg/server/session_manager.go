@@ -68,15 +68,15 @@ func (sm *SessionManager) GetSession(ctx context.Context, id string) (*session.S
 	return sess, nil
 }
 
-// CreateSession creates a new session from a request.
-func (sm *SessionManager) CreateSession(ctx context.Context, req *api.CreateSessionRequest) (*session.Session, error) {
+// CreateSession creates a new session from a template.
+func (sm *SessionManager) CreateSession(ctx context.Context, sessionTemplate *session.Session) (*session.Session, error) {
 	var opts []session.Opt
 	opts = append(opts,
-		session.WithMaxIterations(req.MaxIterations),
-		session.WithToolsApproved(req.ToolsApproved),
+		session.WithMaxIterations(sessionTemplate.MaxIterations),
+		session.WithToolsApproved(sessionTemplate.ToolsApproved),
 	)
 
-	if wd := strings.TrimSpace(req.WorkingDir); wd != "" {
+	if wd := strings.TrimSpace(sessionTemplate.WorkingDir); wd != "" {
 		absWd, err := filepath.Abs(wd)
 		if err != nil {
 			return nil, err
@@ -91,11 +91,8 @@ func (sm *SessionManager) CreateSession(ctx context.Context, req *api.CreateSess
 		opts = append(opts, session.WithWorkingDir(absWd))
 	}
 
-	if req.Permissions != nil {
-		opts = append(opts, session.WithPermissions(&session.PermissionsConfig{
-			Allow: req.Permissions.Allow,
-			Deny:  req.Permissions.Deny,
-		}))
+	if sessionTemplate.Permissions != nil {
+		opts = append(opts, session.WithPermissions(sessionTemplate.Permissions))
 	}
 
 	sess := session.New(opts...)

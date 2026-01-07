@@ -170,12 +170,12 @@ func (s *Server) getSessions(c echo.Context) error {
 }
 
 func (s *Server) createSession(c echo.Context) error {
-	var req api.CreateSessionRequest
-	if err := c.Bind(&req); err != nil {
+	var sessionTemplate session.Session
+	if err := c.Bind(&sessionTemplate); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
 	}
 
-	sess, err := s.sm.CreateSession(c.Request().Context(), &req)
+	sess, err := s.sm.CreateSession(c.Request().Context(), &sessionTemplate)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to create session: %v", err))
 	}
@@ -222,15 +222,7 @@ func (s *Server) updateSessionPermissions(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
 	}
 
-	var perms *session.PermissionsConfig
-	if req.Permissions != nil {
-		perms = &session.PermissionsConfig{
-			Allow: req.Permissions.Allow,
-			Deny:  req.Permissions.Deny,
-		}
-	}
-
-	if err := s.sm.UpdateSessionPermissions(c.Request().Context(), sessionID, perms); err != nil {
+	if err := s.sm.UpdateSessionPermissions(c.Request().Context(), sessionID, req.Permissions); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to update session permissions: %v", err))
 	}
 
@@ -296,7 +288,7 @@ func (s *Server) elicitation(c echo.Context) error {
 
 // sessionToResponse converts a session to an API response.
 func sessionToResponse(sess *session.Session) api.SessionResponse {
-	resp := api.SessionResponse{
+	return api.SessionResponse{
 		ID:            sess.ID,
 		Title:         sess.Title,
 		CreatedAt:     sess.CreatedAt,
@@ -304,14 +296,6 @@ func sessionToResponse(sess *session.Session) api.SessionResponse {
 		InputTokens:   sess.InputTokens,
 		OutputTokens:  sess.OutputTokens,
 		WorkingDir:    sess.WorkingDir,
+		Permissions:   sess.Permissions,
 	}
-
-	if sess.Permissions != nil {
-		resp.Permissions = &api.PermissionsConfig{
-			Allow: sess.Permissions.Allow,
-			Deny:  sess.Permissions.Deny,
-		}
-	}
-
-	return resp
 }

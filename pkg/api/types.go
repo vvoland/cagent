@@ -126,36 +126,20 @@ type SessionsResponse struct {
 
 // SessionResponse represents a detailed session
 type SessionResponse struct {
-	ID            string             `json:"id"`
-	Title         string             `json:"title"`
-	Messages      []session.Message  `json:"messages,omitempty"`
-	CreatedAt     time.Time          `json:"created_at"`
-	ToolsApproved bool               `json:"tools_approved"`
-	InputTokens   int64              `json:"input_tokens"`
-	OutputTokens  int64              `json:"output_tokens"`
-	WorkingDir    string             `json:"working_dir,omitempty"`
-	Permissions   *PermissionsConfig `json:"permissions,omitempty"`
-}
-
-// PermissionsConfig defines tool permission overrides for a session.
-type PermissionsConfig struct {
-	// Allow lists tool name patterns that are auto-approved without user confirmation.
-	Allow []string `json:"allow,omitempty"`
-	// Deny lists tool name patterns that are always rejected.
-	Deny []string `json:"deny,omitempty"`
-}
-
-// CreateSessionRequest represents a request to create a new session with optional configuration.
-type CreateSessionRequest struct {
-	WorkingDir    string             `json:"working_dir,omitempty"`
-	MaxIterations int                `json:"max_iterations,omitempty"`
-	ToolsApproved bool               `json:"tools_approved,omitempty"`
-	Permissions   *PermissionsConfig `json:"permissions,omitempty"`
+	ID            string                     `json:"id"`
+	Title         string                     `json:"title"`
+	Messages      []session.Message          `json:"messages,omitempty"`
+	CreatedAt     time.Time                  `json:"created_at"`
+	ToolsApproved bool                       `json:"tools_approved"`
+	InputTokens   int64                      `json:"input_tokens"`
+	OutputTokens  int64                      `json:"output_tokens"`
+	WorkingDir    string                     `json:"working_dir,omitempty"`
+	Permissions   *session.PermissionsConfig `json:"permissions,omitempty"`
 }
 
 // UpdateSessionPermissionsRequest represents a request to update session permissions.
 type UpdateSessionPermissionsRequest struct {
-	Permissions *PermissionsConfig `json:"permissions"`
+	Permissions *session.PermissionsConfig `json:"permissions"`
 }
 
 // ResumeSessionRequest represents a request to resume a session
