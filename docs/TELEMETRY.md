@@ -1,4 +1,4 @@
-# Telemetry for cagent
+# Telemetry for Docker `cagent`
 
 The telemetry system in Docker `cagent` collects **anonymous usage data** to help improve the tool. All events are processed **synchronously** when recorded. Telemetry can be disabled at any time.
 
