@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/docker/cagent/pkg/tui/components/markdown"
 	"github.com/docker/cagent/pkg/tui/components/spinner"
@@ -135,8 +136,15 @@ func (mv *messageModel) Render(width int) string {
 	case types.MessageTypeError:
 		return styles.ErrorMessageStyle.Width(width - 1).Render(msg.Content)
 	case types.MessageTypeLoading:
-		// Show spinner with the loading description
-		return mv.spinner.View() + " " + styles.MutedStyle.Render(msg.Content)
+		// Show spinner with the loading description, truncated to fit width
+		spinnerView := mv.spinner.View()
+		spinnerWidth := ansi.StringWidth(spinnerView) + 1 // +1 for space separator
+		maxDescWidth := width - spinnerWidth
+		description := msg.Content
+		if maxDescWidth > 0 && ansi.StringWidth(description) > maxDescWidth {
+			description = ansi.Truncate(description, maxDescWidth, "…")
+		}
+		return spinnerView + " " + styles.MutedStyle.Render(description)
 	default:
 		return msg.Content
 	}
