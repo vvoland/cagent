@@ -105,7 +105,7 @@ type ToolPermission struct {
 }
 
 // PermissionsConfig defines session-level tool permission overrides.
-// It supports both the new per-tool settings (Tools map) and legacy pattern matching (Allow/Deny arrays).
+// It supports both per-tool settings (Tools map) and pattern-based rules (Allow/Deny arrays).
 type PermissionsConfig struct {
 	// Tools maps tool names to their permission settings.
 	// Takes priority over Allow patterns when a tool is explicitly configured.

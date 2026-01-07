@@ -1195,11 +1195,40 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 // Returns true if the operation was canceled and processing should stop.
 //
 // The approval flow considers (in order):
-// 1. Session-level permissions (if configured) - checked first
-// 2. Team-level permissions config - checked second
-// 3. sess.ToolsApproved (--yolo flag) - auto-approve all
-// 4. tool.Annotations.ReadOnlyHint - auto-approve read-only tools
-// 5. Default: ask for user confirmation
+//
+//  1. Session-level permissions (if configured) - checked first
+//     a. Per-tool settings (Tools map) - most specific, checked first
+//     b. Pattern-based Allow/Deny - broader rules, checked as fallback
+//  2. Team-level permissions config - checked second
+//  3. sess.ToolsApproved (--yolo flag) - auto-approve all
+//  4. tool.Annotations.ReadOnlyHint - auto-approve read-only tools
+//  5. Default: ask for user confirmation
+//
+// Example session permissions configurations:
+//
+//	// Per-tool settings - granular control per tool
+//	sess.Permissions = &session.PermissionsConfig{
+//	    Tools: map[string]session.ToolPermission{
+//	        "shell":      {Enabled: ptr(true), Mode: "ask"},          // require confirmation
+//	        "filesystem": {Enabled: ptr(true), Mode: "always_allow"}, // auto-approve
+//	        "dangerous":  {Enabled: ptr(false)},                      // disabled
+//	    },
+//	}
+//
+//	// Pattern-based rules - apply to multiple tools at once
+//	sess.Permissions = &session.PermissionsConfig{
+//	    Allow: []string{"read_*", "think"},  // auto-approve matching tools
+//	    Deny:  []string{"shell", "exec_*"},  // block matching tools
+//	}
+//
+//	// Mixed: per-tool settings take priority over patterns
+//	sess.Permissions = &session.PermissionsConfig{
+//	    Tools: map[string]session.ToolPermission{
+//	        "shell": {Enabled: ptr(true), Mode: "ask"}, // overrides Deny pattern
+//	    },
+//	    Allow: []string{"*"},     // applies to tools not in Tools map
+//	    Deny:  []string{"shell"}, // ignored for shell since it's in Tools map
+//	}
 func (r *LocalRuntime) executeWithApproval(
 	ctx context.Context,
 	sess *session.Session,
@@ -1222,7 +1251,7 @@ func (r *LocalRuntime) executeWithApproval(
 	}
 
 	// requiresConfirmation tracks if per-tool settings require user confirmation
-	// (skipping legacy patterns and other auto-approve checks)
+	// (skipping pattern-based rules and other auto-approve checks)
 	requiresConfirmation := false
 
 	// 1. Check session-level permissions first (if configured)
@@ -1242,12 +1271,12 @@ func (r *LocalRuntime) executeWithApproval(
 				runTool()
 				return false
 			}
-			// Mode is "ask" - skip legacy patterns and go directly to ask user
+			// Mode is "ask" - skip pattern-based rules and go directly to ask user
 			slog.Debug("Tool requires confirmation by session per-tool permissions", "tool", toolName, "mode", mode, "session_id", sess.ID)
 			requiresConfirmation = true
 		}
 
-		// 1b. Fall back to legacy Allow/Deny patterns (only if not already handled by Tools map)
+		// 1b. Fall back to pattern-based Allow/Deny rules (only if not already handled by Tools map)
 		if !requiresConfirmation {
 			sessionChecker := permissions.NewChecker(&latest.PermissionsConfig{
 				Allow: sess.Permissions.Allow,

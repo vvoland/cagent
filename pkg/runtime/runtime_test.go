@@ -1346,7 +1346,7 @@ func TestSessionPermissions_PerToolTakesPriorityOverAllowPatterns(t *testing.T) 
 			Tools: map[string]session.ToolPermission{
 				"shell": {Enabled: &enabled},
 			},
-			Allow: []string{"shell"}, // Legacy allow - should be overridden
+			Allow: []string{"shell"}, // Pattern-based allow - should be overridden by Tools
 		}),
 	)
 
@@ -1363,8 +1363,8 @@ func TestSessionPermissions_PerToolTakesPriorityOverAllowPatterns(t *testing.T) 
 	require.False(t, executed, "expected Tools map to take priority over Allow patterns")
 }
 
-func TestSessionPermissions_FallbackToLegacyPatterns(t *testing.T) {
-	// Test that tools not in Tools map fall through to legacy Allow patterns
+func TestSessionPermissions_FallbackToPatternRules(t *testing.T) {
+	// Test that tools not in Tools map fall through to pattern-based Allow rules
 	var executed bool
 	agentTools := []tools.Tool{{
 		Name:       "other_tool",
@@ -1392,7 +1392,7 @@ func TestSessionPermissions_FallbackToLegacyPatterns(t *testing.T) {
 			Tools: map[string]session.ToolPermission{
 				"shell": {Enabled: &enabled, Mode: session.PermissionModeAsk}, // Different tool
 			},
-			Allow: []string{"other_*"}, // Legacy allow for other_tool
+			Allow: []string{"other_*"}, // Pattern-based allow for other_tool
 		}),
 	)
 	require.False(t, sess.ToolsApproved) // No --yolo
@@ -1407,5 +1407,5 @@ func TestSessionPermissions_FallbackToLegacyPatterns(t *testing.T) {
 	rt.processToolCalls(t.Context(), sess, calls, agentTools, events)
 	close(events)
 
-	require.True(t, executed, "expected tool to fall through to legacy Allow patterns")
+	require.True(t, executed, "expected tool to fall through to pattern-based Allow rules")
 }
