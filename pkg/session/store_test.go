@@ -352,3 +352,92 @@ func TestUpdateSession_LazyCreation_InMemory(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, retrieved.Messages, 2)
 }
+
+func TestStorePermissions(t *testing.T) {
+	tempDB := filepath.Join(t.TempDir(), "test_permissions.db")
+
+	store, err := NewSQLiteSessionStore(tempDB)
+	require.NoError(t, err)
+	defer store.(*SQLiteSessionStore).Close()
+
+	// Create a session with permissions
+	session := &Session{
+		ID:        "permissions-session",
+		CreatedAt: time.Now(),
+		Permissions: &PermissionsConfig{
+			Allow: []string{"read_*", "think"},
+			Deny:  []string{"shell:cmd=rm*", "dangerous_tool"},
+		},
+	}
+
+	// Store the session
+	err = store.AddSession(t.Context(), session)
+	require.NoError(t, err)
+
+	// Retrieve the session
+	retrieved, err := store.GetSession(t.Context(), "permissions-session")
+	require.NoError(t, err)
+	require.NotNil(t, retrieved.Permissions)
+
+	assert.Equal(t, []string{"read_*", "think"}, retrieved.Permissions.Allow)
+	assert.Equal(t, []string{"shell:cmd=rm*", "dangerous_tool"}, retrieved.Permissions.Deny)
+}
+
+func TestStorePermissions_NilPermissions(t *testing.T) {
+	tempDB := filepath.Join(t.TempDir(), "test_nil_permissions.db")
+
+	store, err := NewSQLiteSessionStore(tempDB)
+	require.NoError(t, err)
+	defer store.(*SQLiteSessionStore).Close()
+
+	// Create a session without permissions (legacy behavior)
+	session := &Session{
+		ID:        "no-permissions-session",
+		CreatedAt: time.Now(),
+	}
+
+	// Store the session
+	err = store.AddSession(t.Context(), session)
+	require.NoError(t, err)
+
+	// Retrieve the session
+	retrieved, err := store.GetSession(t.Context(), "no-permissions-session")
+	require.NoError(t, err)
+
+	// Permissions should be nil
+	assert.Nil(t, retrieved.Permissions)
+}
+
+func TestUpdateSession_Permissions(t *testing.T) {
+	tempDB := filepath.Join(t.TempDir(), "test_update_permissions.db")
+
+	store, err := NewSQLiteSessionStore(tempDB)
+	require.NoError(t, err)
+	defer store.(*SQLiteSessionStore).Close()
+
+	// Create a session without permissions
+	session := &Session{
+		ID:        "update-permissions-session",
+		CreatedAt: time.Now(),
+	}
+
+	err = store.AddSession(t.Context(), session)
+	require.NoError(t, err)
+
+	// Update with permissions
+	session.Permissions = &PermissionsConfig{
+		Allow: []string{"safe_*"},
+		Deny:  []string{"dangerous_*"},
+	}
+
+	err = store.UpdateSession(t.Context(), session)
+	require.NoError(t, err)
+
+	// Retrieve and verify
+	retrieved, err := store.GetSession(t.Context(), "update-permissions-session")
+	require.NoError(t, err)
+	require.NotNil(t, retrieved.Permissions)
+
+	assert.Equal(t, []string{"safe_*"}, retrieved.Permissions.Allow)
+	assert.Equal(t, []string{"dangerous_*"}, retrieved.Permissions.Deny)
+}
