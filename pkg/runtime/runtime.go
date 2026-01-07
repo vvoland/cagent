@@ -21,6 +21,7 @@ import (
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/config/types"
 	"github.com/docker/cagent/pkg/hooks"
 	"github.com/docker/cagent/pkg/modelsdev"
@@ -1222,7 +1223,10 @@ func (r *LocalRuntime) executeWithApproval(
 
 	// 1. Check session-level permissions first (if configured)
 	if sess.Permissions != nil {
-		sessionChecker := permissions.NewCheckerFromPatterns(sess.Permissions.Allow, sess.Permissions.Deny)
+		sessionChecker := permissions.NewChecker(&latest.PermissionsConfig{
+			Allow: sess.Permissions.Allow,
+			Deny:  sess.Permissions.Deny,
+		})
 		decision := sessionChecker.CheckWithArgs(toolName, toolArgs)
 		switch decision {
 		case permissions.Deny:
