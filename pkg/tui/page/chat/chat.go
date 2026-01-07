@@ -1,10 +1,13 @@
 package chat
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 
 	"charm.land/bubbles/v2/help"
@@ -108,8 +111,78 @@ type KeyMap struct {
 	ToggleSplitDiff key.Binding
 }
 
+// getEditorDisplayNameFromEnv returns a friendly display name for the configured editor.
+// It takes visual and editorEnv values as parameters and maps common editors to display names.
+// If neither is set, it returns the platform-specific fallback that will actually be used.
+func getEditorDisplayNameFromEnv(visual, editorEnv string) string {
+	editorCmd := cmp.Or(visual, editorEnv)
+	if editorCmd == "" {
+		// Return the actual fallback editor that will be used
+		if runtime.GOOS == "windows" {
+			return "Notepad"
+		}
+		return "Vi"
+	}
+
+	// Parse the command (may include arguments like "code --wait")
+	parts := strings.Fields(editorCmd)
+	if len(parts) == 0 {
+		return "$EDITOR"
+	}
+
+	// Get the base command name (e.g., "/usr/local/bin/code" → "code")
+	baseName := filepath.Base(parts[0])
+
+	// Map common editor command prefixes to friendly display names
+	// Using prefix matching to handle variants like "code-insiders", "nvim-qt", etc.
+	editorPrefixes := []struct {
+		prefix string
+		name   string
+	}{
+		{"code", "VSCode"},
+		{"cursor", "Cursor"},
+		{"nvim", "Neovim"},
+		{"vim", "Vim"},
+		{"vi", "Vi"},
+		{"nano", "Nano"},
+		{"emacs", "Emacs"},
+		{"subl", "Sublime Text"},
+		{"sublime", "Sublime Text"},
+		{"atom", "Atom"},
+		{"gedit", "gedit"},
+		{"kate", "Kate"},
+		{"notepad++", "Notepad++"},
+		{"notepad", "Notepad"},
+		{"textmate", "TextMate"},
+		{"mate", "TextMate"},
+		{"zed", "Zed"},
+	}
+
+	for _, editor := range editorPrefixes {
+		if strings.HasPrefix(baseName, editor.prefix) {
+			return editor.name
+		}
+	}
+
+	// Return the base name with first letter capitalized
+	if baseName != "" {
+		return strings.ToUpper(baseName[:1]) + baseName[1:]
+	}
+
+	return "$EDITOR"
+}
+
+// getEditorDisplayName returns a friendly display name for the configured editor.
+// It reads the VISUAL or EDITOR environment variables and maps common editors to display names.
+// If neither is set, it returns the platform-specific fallback that will actually be used.
+func getEditorDisplayName() string {
+	return getEditorDisplayNameFromEnv(os.Getenv("VISUAL"), os.Getenv("EDITOR"))
+}
+
 // defaultKeyMap returns the default key bindings
 func defaultKeyMap() KeyMap {
+	editorName := getEditorDisplayName()
+
 	return KeyMap{
 		Tab: key.NewBinding(
 			key.WithKeys("tab"),
@@ -126,7 +199,7 @@ func defaultKeyMap() KeyMap {
 		),
 		ExternalEditor: key.NewBinding(
 			key.WithKeys("ctrl+g"),
-			key.WithHelp("Ctrl+g", "edit in $EDITOR"),
+			key.WithHelp("Ctrl+g", fmt.Sprintf("edit in %s", editorName)),
 		),
 		ToggleSplitDiff: key.NewBinding(
 			key.WithKeys("ctrl+t"),

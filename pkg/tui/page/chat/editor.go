@@ -41,7 +41,7 @@ func (p *chatPage) openExternalEditor() tea.Cmd {
 		if runtime.GOOS == "windows" {
 			editorCmd = "notepad"
 		} else {
-			editorCmd = "vim"
+			editorCmd = "vi"
 		}
 	}
 
