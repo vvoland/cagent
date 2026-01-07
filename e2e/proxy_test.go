@@ -20,7 +20,7 @@ func startRecordingAIProxy(t *testing.T) (*httptest.Server, *config.RuntimeConfi
 	cassettePath := filepath.Join("testdata", "cassettes", t.Name())
 
 	// Create a matcher that fails the test on error
-	matcher := fake.CustomMatcher(func(err error) {
+	matcher := fake.DefaultMatcher(func(err error) {
 		require.NoError(t, err)
 	})
 
