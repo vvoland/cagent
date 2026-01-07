@@ -212,9 +212,14 @@ func TestA2AServer_MultiAgent(t *testing.T) {
 
 	assert.Equal(t, requestID, jsonRPCResponse.ID)
 	assert.Nil(t, jsonRPCResponse.Error)
-	assert.NotNil(t, jsonRPCResponse.Result)
+	require.NotNil(t, jsonRPCResponse.Result)
+	require.Len(t, jsonRPCResponse.Result.Artifacts, 1)
+	require.NotEmpty(t, jsonRPCResponse.Result.Artifacts[0].Parts)
 
-	t.Logf("Multi-agent response: %s", string(responseBody))
+	// The last part contains the complete response text
+	lastPart := jsonRPCResponse.Result.Artifacts[0].Parts[len(jsonRPCResponse.Result.Artifacts[0].Parts)-1]
+	assert.Equal(t, "text", lastPart.Kind)
+	assert.Contains(t, lastPart.Text, "Hello")
 }
 
 func startA2AServer(t *testing.T, agentFile string, runConfig *config.RuntimeConfig) a2a.AgentCard {
