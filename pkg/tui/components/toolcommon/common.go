@@ -84,10 +84,15 @@ func RenderTool(msg *types.Message, inProgress spinner.Spinner, args, result str
 		resultStyle = styles.ToolErrorMessageStyle
 	}
 
-	content := fmt.Sprintf("%s%s", Icon(msg, inProgress), nameStyle.Render(msg.ToolDefinition.DisplayName()))
+	icon := Icon(msg, inProgress)
+	name := nameStyle.Render(msg.ToolDefinition.DisplayName())
+	content := fmt.Sprintf("%s%s", icon, name)
 
 	if args != "" {
-		content += " " + args
+		firstLineWidth := width - lipgloss.Width(content) - 1 // -1 for space before args
+		subsequentLineWidth := width - styles.ToolCompletedIcon.GetMarginLeft()
+		wrappedArgs := wrapTextWithIndent(args, firstLineWidth, subsequentLineWidth)
+		content += " " + wrappedArgs
 	}
 	if result != "" {
 		if strings.Count(content, "\n") > 0 || strings.Count(result, "\n") > 0 {
@@ -111,24 +116,68 @@ func WrapLines(text string, width int) []string {
 	}
 
 	var lines []string
-
 	for line := range strings.SplitSeq(text, "\n") {
 		for lipgloss.Width(line) > width {
-			// Find a break point that fits within width
+			breakPoint := findBreakPoint(line, width)
 			runes := []rune(line)
-			breakPoint := len(runes)
-			for breakPoint > 0 && lipgloss.Width(string(runes[:breakPoint])) > width {
-				breakPoint--
-			}
-			breakPoint = max(breakPoint, 1) // At least one rune per line
 			lines = append(lines, string(runes[:breakPoint]))
 			line = string(runes[breakPoint:])
 		}
-
 		lines = append(lines, line)
 	}
-
 	return lines
+}
+
+// wrapTextWithIndent wraps text where the first line has a different available width.
+// Subsequent lines are indented to align with the tool name badge.
+func wrapTextWithIndent(text string, firstLineWidth, subsequentLineWidth int) string {
+	if firstLineWidth <= 0 || subsequentLineWidth <= 0 {
+		return text
+	}
+
+	indent := strings.Repeat(" ", styles.ToolCompletedIcon.GetMarginLeft())
+	var resultLines []string
+	isFirstLine := true
+
+	for inputLine := range strings.SplitSeq(text, "\n") {
+		line := inputLine
+		for line != "" {
+			width := subsequentLineWidth
+			prefix := indent
+			if isFirstLine {
+				width = firstLineWidth
+				prefix = ""
+			}
+
+			if lipgloss.Width(line) <= width {
+				resultLines = append(resultLines, prefix+line)
+				break
+			}
+
+			// Find break point that fits within width
+			breakPoint := findBreakPoint(line, width)
+			runes := []rune(line)
+			resultLines = append(resultLines, prefix+string(runes[:breakPoint]))
+			line = string(runes[breakPoint:])
+			isFirstLine = false
+		}
+		if inputLine == "" {
+			resultLines = append(resultLines, indent)
+		}
+		isFirstLine = false
+	}
+
+	return strings.Join(resultLines, "\n")
+}
+
+// findBreakPoint finds the maximum number of runes that fit within the given width.
+func findBreakPoint(line string, width int) int {
+	runes := []rune(line)
+	breakPoint := len(runes)
+	for breakPoint > 0 && lipgloss.Width(string(runes[:breakPoint])) > width {
+		breakPoint--
+	}
+	return max(breakPoint, 1) // At least one rune per line
 }
 
 // ShortenPath replaces home directory with ~ for cleaner display.
