@@ -64,6 +64,10 @@ func Load(ctx context.Context, agentSource config.Source, runConfig *config.Runt
 		return nil, err
 	}
 
+	// Resolve model aliases (e.g., "claude-sonnet-4-5" -> "claude-sonnet-4-5-20250929")
+	// This ensures the sidebar and other UI elements show the actual model being used.
+	config.ResolveModelAliases(ctx, cfg)
+
 	// Apply model overrides from CLI flags before checking required env vars
 	if err := config.ApplyModelOverrides(cfg, loadOpts.modelOverrides); err != nil {
 		return nil, err
