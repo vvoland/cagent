@@ -1,6 +1,6 @@
 ## Supported Remote MCP Servers
 
-Below is a list of remote MCP servers with OAuth that work with cagent,
+Below is a list of remote MCP servers with OAuth that work with Docker `cagent`,
 organized by category:
 
 ### Project Management & Collaboration

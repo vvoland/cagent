@@ -1,10 +1,10 @@
-# Running cagent in MCP Mode
+# Running Docker `cagent` in MCP Mode
 
 ## Why use `cagent mcp`?
 
 The `cagent mcp` command allows your agents to be consumed by other MCP-compatible products and tools. This enables seamless integration with existing workflows and applications that support the Model Context Protocol (MCP).
 
-**Important:** MCP is not just about tools - it's also about agents. By exposing your cagent configurations through MCP, you make your specialized agents available to any MCP client, whether that's Claude Desktop, Claude Code, or any other MCP-compatible application.
+**Important:** MCP is not just about tools - it's also about agents. By exposing your Docker `cagent` configurations through MCP, you make your specialized agents available to any MCP client, whether that's Claude Desktop, Claude Code, or any other MCP-compatible application.
 
 This means you can:
 - Use your custom agents directly within Claude Desktop or Claude Code
@@ -12,9 +12,9 @@ This means you can:
 - Build reusable agent teams that can be consumed anywhere MCP is supported
 - Integrate domain-specific agents into your existing development workflows
 
-## Using cagent agents in Claude Desktop
+## Using Docker `cagent` agents in Claude Desktop
 
-To use your cagent agents in Claude Desktop, add a configuration to your Claude Desktop MCP settings file:
+To use your Docker `cagent` agents in Claude Desktop, add a configuration to your Claude Desktop MCP settings file:
 
 **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
 **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
@@ -41,7 +41,7 @@ Here's an example configuration:
 
 - **command**: Full path to your `cagent` binary
 - **args**: The MCP command arguments:
-  - `mcp`: The subcommand to run cagent in MCP mode
+  - `mcp`: The subcommand to run Docker `cagent` in MCP mode
   - `dockereng/myagent`: Your agent configuration (can be a local file path or OCI reference)
   - `--working-dir`: Optional working directory for the agent
 - **env**: Environment variables needed by your agents:
@@ -52,9 +52,9 @@ Here's an example configuration:
 
 After updating the configuration, restart Claude Desktop. Your agents will now appear as available tools in Claude Desktop's interface.
 
-## Using cagent agents in Claude Code
+## Using Docker `cagent` agents in Claude Code
 
-To add your cagent agents to Claude Code, use the `claude mcp add` command:
+To add your Docker `cagent` agents to Claude Code, use the `claude mcp add` command:
 
 ```bash
 claude mcp add --transport stdio myagent \
@@ -70,7 +70,7 @@ claude mcp add --transport stdio myagent \
 - `myagent`: Name for this MCP server in Claude Code
 - `--env`: Pass through required environment variables (repeat for each variable)
 - `--`: Separates Claude Code arguments from the MCP server command
-- `cagent mcp agentcatalog/pirate`: The cagent MCP command with your agent reference
+- `cagent mcp agentcatalog/pirate`: The Docker `cagent` MCP command with your agent reference
 - `--working-dir $(pwd)`: Set the working directory for the agent
 
 After adding the MCP server, your agents will be available as tools within Claude Code sessions.

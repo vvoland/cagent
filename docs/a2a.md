@@ -1,12 +1,12 @@
 # A2A Integration
 
-This document describes how to expose cagent agents via Google's A2A (Agent-to-Agent) protocol.
+This document describes how to expose Docker `cagent` agents via Google's A2A (Agent-to-Agent) protocol.
 
 ## Features
 
 - Auto-selects available port if not specified
 - Loads agents from files or agent catalog
-- Supports all cagent features (tools, models gateway, etc.)
+- Supports all Docker `cagent` features (tools, models gateway, etc.)
 - Provides agent metadata via standard A2A agent card
 
 ## Usage
