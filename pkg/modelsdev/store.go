@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -252,4 +253,66 @@ func (s *Store) saveToCache(cacheFile string, database *Database) error {
 
 func (s *Store) isCacheValid(cached *CachedData) bool {
 	return time.Since(cached.LastRefresh) < s.refreshInterval
+}
+
+// SetDatabaseForTesting sets the in-memory database cache for testing purposes.
+// This method should only be used in tests.
+func (s *Store) SetDatabaseForTesting(db *Database) {
+	s.dbCacheMu.Lock()
+	defer s.dbCacheMu.Unlock()
+	s.dbCache = db
+}
+
+// datePattern matches date suffixes like -20251101, -2024-11-20, etc.
+var datePattern = regexp.MustCompile(`-\d{4}-?\d{2}-?\d{2}$`)
+
+// ResolveModelAlias resolves a model alias to its pinned version.
+// For example, ("anthropic", "claude-sonnet-4-5") might resolve to "claude-sonnet-4-5-20250929".
+// If the model is not an alias (already pinned or unknown), the original model name is returned.
+// This method uses the models.dev database to find the corresponding pinned version.
+func (s *Store) ResolveModelAlias(ctx context.Context, providerID, modelName string) string {
+	if providerID == "" || modelName == "" {
+		return modelName
+	}
+
+	// Check if there's a manual alias mapping first
+	fullID := providerID + "/" + modelName
+	if resolved, ok := ModelAliases[fullID]; ok {
+		if _, m, ok := strings.Cut(resolved, "/"); ok {
+			return m
+		}
+		return resolved
+	}
+
+	// If the model already has a date suffix, it's already pinned
+	if datePattern.MatchString(modelName) {
+		return modelName
+	}
+
+	// Get the provider from the database
+	provider, err := s.GetProvider(ctx, providerID)
+	if err != nil {
+		return modelName
+	}
+
+	// Check if the model exists and is marked as "(latest)"
+	model, exists := provider.Models[modelName]
+	if !exists || !strings.Contains(model.Name, "(latest)") {
+		return modelName
+	}
+
+	// Find the pinned version by matching the base display name
+	// e.g., "Claude Sonnet 4 (latest)" -> "Claude Sonnet 4"
+	baseDisplayName := strings.TrimSuffix(model.Name, " (latest)")
+
+	for pinnedID, pinnedModel := range provider.Models {
+		if pinnedID != modelName &&
+			!strings.Contains(pinnedModel.Name, "(latest)") &&
+			pinnedModel.Name == baseDisplayName &&
+			datePattern.MatchString(pinnedID) {
+			return pinnedID
+		}
+	}
+
+	return modelName
 }
