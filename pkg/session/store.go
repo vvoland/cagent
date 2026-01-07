@@ -182,9 +182,18 @@ func (s *SQLiteSessionStore) AddSession(ctx context.Context, session *Session) e
 		return err
 	}
 
+	permissionsJSON := ""
+	if session.Permissions != nil {
+		permBytes, err := json.Marshal(session.Permissions)
+		if err != nil {
+			return err
+		}
+		permissionsJSON = string(permBytes)
+	}
+
 	_, err = s.db.ExecContext(ctx,
-		"INSERT INTO sessions (id, messages, tools_approved, input_tokens, output_tokens, title, send_user_message, max_iterations, working_dir, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		session.ID, string(itemsJSON), session.ToolsApproved, session.InputTokens, session.OutputTokens, session.Title, session.SendUserMessage, session.MaxIterations, session.WorkingDir, session.CreatedAt.Format(time.RFC3339))
+		"INSERT INTO sessions (id, messages, tools_approved, input_tokens, output_tokens, title, send_user_message, max_iterations, working_dir, created_at, permissions) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		session.ID, string(itemsJSON), session.ToolsApproved, session.InputTokens, session.OutputTokens, session.Title, session.SendUserMessage, session.MaxIterations, session.WorkingDir, session.CreatedAt.Format(time.RFC3339), permissionsJSON)
 	return err
 }
 
@@ -196,8 +205,9 @@ func scanSession(scanner interface {
 	var messagesJSON, toolsApprovedStr, inputTokensStr, outputTokensStr, titleStr, costStr, sendUserMessageStr, maxIterationsStr, createdAtStr, starredStr string
 	var sessionID string
 	var workingDir sql.NullString
+	var permissionsJSON sql.NullString
 
-	err := scanner.Scan(&sessionID, &messagesJSON, &toolsApprovedStr, &inputTokensStr, &outputTokensStr, &titleStr, &costStr, &sendUserMessageStr, &maxIterationsStr, &workingDir, &createdAtStr, &starredStr)
+	err := scanner.Scan(&sessionID, &messagesJSON, &toolsApprovedStr, &inputTokensStr, &outputTokensStr, &titleStr, &costStr, &sendUserMessageStr, &maxIterationsStr, &workingDir, &createdAtStr, &starredStr, &permissionsJSON)
 	if err != nil {
 		return nil, err
 	}
@@ -264,6 +274,15 @@ func scanSession(scanner interface {
 		return nil, err
 	}
 
+	// Parse permissions if present
+	var permissions *PermissionsConfig
+	if permissionsJSON.Valid && permissionsJSON.String != "" {
+		permissions = &PermissionsConfig{}
+		if err := json.Unmarshal([]byte(permissionsJSON.String), permissions); err != nil {
+			return nil, err
+		}
+	}
+
 	return &Session{
 		ID:              sessionID,
 		Title:           titleStr,
@@ -277,6 +296,7 @@ func scanSession(scanner interface {
 		CreatedAt:       createdAt,
 		WorkingDir:      workingDir.String,
 		Starred:         starred,
+		Permissions:     permissions,
 	}, nil
 }
 
@@ -287,7 +307,7 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 	}
 
 	row := s.db.QueryRowContext(ctx,
-		"SELECT id, messages, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at, starred FROM sessions WHERE id = ?", id)
+		"SELECT id, messages, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at, starred, permissions FROM sessions WHERE id = ?", id)
 
 	session, err := scanSession(row)
 	if err != nil {
@@ -303,7 +323,7 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 // GetSessions retrieves all sessions
 func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error) {
 	rows, err := s.db.QueryContext(ctx,
-		"SELECT id, messages, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at, starred FROM sessions ORDER BY created_at DESC")
+		"SELECT id, messages, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at, starred, permissions FROM sessions ORDER BY created_at DESC")
 	if err != nil {
 		return nil, err
 	}
@@ -391,10 +411,19 @@ func (s *SQLiteSessionStore) UpdateSession(ctx context.Context, session *Session
 		return err
 	}
 
+	permissionsJSON := ""
+	if session.Permissions != nil {
+		permBytes, err := json.Marshal(session.Permissions)
+		if err != nil {
+			return err
+		}
+		permissionsJSON = string(permBytes)
+	}
+
 	// Use INSERT OR REPLACE for upsert behavior - creates if not exists, updates if exists
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO sessions (id, messages, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at, starred)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`INSERT INTO sessions (id, messages, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at, starred, permissions)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(id) DO UPDATE SET
 		   messages = excluded.messages,
 		   title = excluded.title,
@@ -405,10 +434,11 @@ func (s *SQLiteSessionStore) UpdateSession(ctx context.Context, session *Session
 		   send_user_message = excluded.send_user_message,
 		   max_iterations = excluded.max_iterations,
 		   working_dir = excluded.working_dir,
-		   starred = excluded.starred`,
+		   starred = excluded.starred,
+		   permissions = excluded.permissions`,
 		session.ID, string(itemsJSON), session.ToolsApproved, session.InputTokens, session.OutputTokens,
 		session.Title, session.Cost, session.SendUserMessage, session.MaxIterations, session.WorkingDir,
-		session.CreatedAt.Format(time.RFC3339), session.Starred)
+		session.CreatedAt.Format(time.RFC3339), session.Starred, permissionsJSON)
 	return err
 }
 
