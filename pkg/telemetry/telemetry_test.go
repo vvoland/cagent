@@ -224,20 +224,36 @@ func TestStructuredEvent(t *testing.T) {
 }
 
 func TestGetTelemetryEnabled(t *testing.T) {
-	t.Setenv("TELEMETRY_ENABLED", "")
-	assert.True(t, GetTelemetryEnabled())
+	// When running under 'go test', GetTelemetryEnabled() always returns false
+	// because flag.Lookup("test.v") is set. This test verifies that behavior.
+	assert.False(t, GetTelemetryEnabled(), "Expected telemetry to be disabled during tests")
 
-	t.Setenv("TELEMETRY_ENABLED", "false")
-	assert.False(t, GetTelemetryEnabled())
-
+	// Even with TELEMETRY_ENABLED=true, telemetry is disabled during tests
 	t.Setenv("TELEMETRY_ENABLED", "true")
-	assert.True(t, GetTelemetryEnabled())
+	assert.False(t, GetTelemetryEnabled(), "Expected telemetry to be disabled during tests even with TELEMETRY_ENABLED=true")
+}
 
-	testCases := []string{"1", "yes", "on", "enabled", "anything", ""}
-	for _, value := range testCases {
-		t.Setenv("TELEMETRY_ENABLED", value)
-		assert.True(t, GetTelemetryEnabled(), "Expected telemetry to be enabled when TELEMETRY_ENABLED=%s", value)
-	}
+func TestGetTelemetryEnabledFromEnv(t *testing.T) {
+	// Test the environment variable logic directly (bypassing test detection)
+
+	// Default (no env var) should be enabled
+	t.Setenv("TELEMETRY_ENABLED", "")
+	assert.True(t, getTelemetryEnabledFromEnv(), "Expected telemetry enabled by default")
+
+	// Explicitly set to "true" should be enabled
+	t.Setenv("TELEMETRY_ENABLED", "true")
+	assert.True(t, getTelemetryEnabledFromEnv(), "Expected telemetry enabled when TELEMETRY_ENABLED=true")
+
+	// Explicitly set to "false" should be disabled
+	t.Setenv("TELEMETRY_ENABLED", "false")
+	assert.False(t, getTelemetryEnabledFromEnv(), "Expected telemetry disabled when TELEMETRY_ENABLED=false")
+
+	// Any other value should be enabled (only "false" disables)
+	t.Setenv("TELEMETRY_ENABLED", "1")
+	assert.True(t, getTelemetryEnabledFromEnv(), "Expected telemetry enabled when TELEMETRY_ENABLED=1")
+
+	t.Setenv("TELEMETRY_ENABLED", "yes")
+	assert.True(t, getTelemetryEnabledFromEnv(), "Expected telemetry enabled when TELEMETRY_ENABLED=yes")
 }
 
 // testError is a simple error implementation for testing

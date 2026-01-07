@@ -3,6 +3,7 @@ package telemetry
 import (
 	"cmp"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,6 +23,16 @@ func getSystemInfo() (osName, osVersion, osLanguage string) {
 }
 
 func GetTelemetryEnabled() bool {
+	// Disable telemetry when running in tests to prevent HTTP calls
+	if flag.Lookup("test.v") != nil {
+		return false
+	}
+	return getTelemetryEnabledFromEnv()
+}
+
+// getTelemetryEnabledFromEnv checks only the environment variable,
+// without the test detection bypass. This allows testing the env var logic.
+func getTelemetryEnabledFromEnv() bool {
 	if env := os.Getenv("TELEMETRY_ENABLED"); env != "" {
 		// Only disable if explicitly set to "false"
 		return env != "false"
