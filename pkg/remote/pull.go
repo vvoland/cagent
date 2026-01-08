@@ -19,10 +19,7 @@ func Pull(ctx context.Context, registryRef string, force bool, opts ...crane.Opt
 		return "", fmt.Errorf("parsing registry reference %s: %w", registryRef, err)
 	}
 
-	// Use the full reference string to preserve registry information
-	fullRef := ref.String()
-
-	remoteDigest, err := crane.Digest(fullRef, opts...)
+	remoteDigest, err := crane.Digest(ref.String(), opts...)
 	if err != nil {
 		return "", fmt.Errorf("resolving remote digest for %s: %w", registryRef, err)
 	}
@@ -32,18 +29,19 @@ func Pull(ctx context.Context, registryRef string, force bool, opts ...crane.Opt
 		return "", fmt.Errorf("creating content store: %w", err)
 	}
 
+	localRef := ref.Context().RepositoryStr() + separator(ref) + ref.Identifier()
 	if !force {
-		if meta, metaErr := store.GetArtifactMetadata(fullRef); metaErr == nil {
+		if meta, metaErr := store.GetArtifactMetadata(localRef); metaErr == nil {
 			if meta.Digest == remoteDigest {
 				if !hasCagentAnnotation(meta.Annotations) {
-					return "", fmt.Errorf("artifact %s found in store wasn't created by `cagent push`\nTry to push again with `cagent push` (cagent >= v1.10.0)", fullRef)
+					return "", fmt.Errorf("artifact %s found in store wasn't created by `cagent push`\nTry to push again with `cagent push` (cagent >= v1.10.0)", localRef)
 				}
 				return meta.Digest, nil
 			}
 		}
 	}
 
-	img, err := crane.Pull(fullRef, opts...)
+	img, err := crane.Pull(ref.String(), opts...)
 	if err != nil {
 		return "", fmt.Errorf("pulling image from registry %s: %w", registryRef, err)
 	}
@@ -53,10 +51,10 @@ func Pull(ctx context.Context, registryRef string, force bool, opts ...crane.Opt
 		return "", fmt.Errorf("getting manifest from pulled image: %w", err)
 	}
 	if !hasCagentAnnotation(manifest.Annotations) {
-		return "", fmt.Errorf("artifact %s wasn't created by `cagent push`\nTry to push again with `cagent push` (cagent >= v1.10.0)", fullRef)
+		return "", fmt.Errorf("artifact %s wasn't created by `cagent push`\nTry to push again with `cagent push` (cagent >= v1.10.0)", localRef)
 	}
 
-	digest, err := store.StoreArtifact(img, fullRef)
+	digest, err := store.StoreArtifact(img, localRef)
 	if err != nil {
 		return "", fmt.Errorf("storing artifact in content store: %w", err)
 	}
@@ -67,4 +65,13 @@ func Pull(ctx context.Context, registryRef string, force bool, opts ...crane.Opt
 func hasCagentAnnotation(annotations map[string]string) bool {
 	_, exists := annotations["io.docker.cagent.version"]
 	return exists
+}
+
+// separator returns the separator used between repository and identifier.
+// For digests it returns "@", for tags it returns ":".
+func separator(ref name.Reference) string {
+	if _, ok := ref.(name.Digest); ok {
+		return "@"
+	}
+	return ":"
 }
