@@ -134,24 +134,33 @@ func WithHooks(hooks *latest.HooksConfig) Opt {
 
 type StartableToolSet struct {
 	tools.ToolSet
-	startOnce sync.Once
-	started   bool
-	startErr  error
-}
 
-// Start starts the toolset exactly once. Concurrent callers will block until
-// the first call completes. Returns the error from the first start attempt.
-func (s *StartableToolSet) Start(ctx context.Context) error {
-	s.startOnce.Do(func() {
-		s.startErr = s.ToolSet.Start(ctx)
-		if s.startErr == nil {
-			s.started = true
-		}
-	})
-	return s.startErr
+	mu      sync.Mutex
+	started bool
 }
 
 // IsStarted returns whether the toolset has been successfully started.
 func (s *StartableToolSet) IsStarted() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.started
+}
+
+// Start starts the toolset.
+//
+// It provides single-flight semantics: concurrent callers block until this start
+// attempt completes. If this attempt fails, a future call will retry.
+func (s *StartableToolSet) Start(ctx context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.started {
+		return nil
+	}
+
+	err := s.ToolSet.Start(ctx)
+	if err == nil {
+		s.started = true
+	}
+	return err
 }
