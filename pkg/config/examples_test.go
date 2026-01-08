@@ -57,7 +57,7 @@ func TestParseExamples(t *testing.T) {
 				require.NotEmpty(t, model.Provider)
 				require.NotEmpty(t, model.Model)
 				// Skip providers that don't have entries in models.dev
-				if model.Provider == "dmr" || model.Provider == "amazon-bedrock" {
+				if model.Provider == "dmr" {
 					continue
 				}
 				// Skip models with routing rules - they use multiple providers
