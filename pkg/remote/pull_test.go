@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/static"
@@ -69,4 +70,43 @@ func TestPullIntegration(t *testing.T) {
 
 	err = Push("invalid:reference:with:too:many:colons")
 	require.Error(t, err)
+}
+
+func TestSeparator(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		ref      string
+		expected string
+	}{
+		{
+			name:     "tag reference uses colon",
+			ref:      "docker.io/library/alpine:latest",
+			expected: ":",
+		},
+		{
+			name:     "digest reference uses at sign",
+			ref:      "docker.io/library/alpine@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+			expected: "@",
+		},
+		{
+			name:     "short tag reference uses colon",
+			ref:      "alpine:v1.0",
+			expected: ":",
+		},
+		{
+			name:     "short digest reference uses at sign",
+			ref:      "alpine@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+			expected: "@",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ref, err := name.ParseReference(tt.ref)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, separator(ref))
+		})
+	}
 }
