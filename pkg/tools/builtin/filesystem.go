@@ -128,6 +128,12 @@ type ListDirectoryMeta struct {
 	Truncated bool     `json:"truncated"`
 }
 
+type DirectoryTreeMeta struct {
+	FileCount int  `json:"fileCount"`
+	DirCount  int  `json:"dirCount"`
+	Truncated bool `json:"truncated"`
+}
+
 type ReadFileArgs struct {
 	Path string `json:"path" jsonschema:"The file path to read"`
 }
@@ -354,7 +360,35 @@ func (t *FilesystemTool) handleDirectoryTree(_ context.Context, args DirectoryTr
 		return tools.ResultError(fmt.Sprintf("Error formatting tree: %s", err)), nil
 	}
 
-	return tools.ResultSuccess(string(result)), nil
+	fileCount, dirCount := countTreeNodes(tree)
+	meta := DirectoryTreeMeta{
+		FileCount: fileCount,
+		DirCount:  dirCount,
+		Truncated: fileCount+dirCount >= maxFiles,
+	}
+
+	return &tools.ToolCallResult{
+		Output: string(result),
+		Meta:   meta,
+	}, nil
+}
+
+func countTreeNodes(node *fsx.TreeNode) (files, dirs int) {
+	if node == nil {
+		return 0, 0
+	}
+	if node.Type == "file" {
+		return 1, 0
+	}
+	if node.Type == "directory" {
+		dirs = 1
+		for _, child := range node.Children {
+			f, d := countTreeNodes(child)
+			files += f
+			dirs += d
+		}
+	}
+	return files, dirs
 }
 
 func (t *FilesystemTool) handleEditFile(ctx context.Context, args EditFileArgs) (*tools.ToolCallResult, error) {
