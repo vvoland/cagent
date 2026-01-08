@@ -187,7 +187,7 @@ func createDirectProvider(ctx context.Context, cfg *latest.ModelConfig, env envi
 	case "dmr":
 		return dmr.NewClient(ctx, enhancedCfg, opts...)
 
-	case "bedrock":
+	case "amazon-bedrock":
 		return bedrock.NewClient(ctx, enhancedCfg, env, opts...)
 
 	default:

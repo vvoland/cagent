@@ -46,9 +46,9 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		return nil, errors.New("model configuration is required")
 	}
 
-	if cfg.Provider != "bedrock" {
-		slog.Error("Bedrock client creation failed", "error", "model type must be 'bedrock'", "actual_type", cfg.Provider)
-		return nil, errors.New("model type must be 'bedrock'")
+	if cfg.Provider != "amazon-bedrock" {
+		slog.Error("Bedrock client creation failed", "error", "model type must be 'amazon-bedrock'", "actual_type", cfg.Provider)
+		return nil, errors.New("model type must be 'amazon-bedrock'")
 	}
 
 	var globalOptions options.ModelOptions

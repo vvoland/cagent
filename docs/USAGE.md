@@ -200,7 +200,7 @@ cagent run ./agent.yaml /analyze
 
 | Property            | Type       | Description                                                                  | Required |
 |---------------------|------------|------------------------------------------------------------------------------|----------|
-| `provider`          | string     | Provider: `openai`, `anthropic`, `google`, `bedrock`, `dmr`                  | ✓        |
+| `provider`          | string     | Provider: `openai`, `anthropic`, `google`, `amazon-bedrock`, `dmr`           | ✓        |
 | `model`             | string     | Model name (e.g., `gpt-4o`, `claude-sonnet-4-0`, `gemini-2.5-flash`)         | ✓        |
 | `temperature`       | float      | Randomness (0.0-1.0)                                                         | ✗        |
 | `max_tokens`        | integer    | Response length limit                                                        | ✗        |
@@ -215,7 +215,7 @@ cagent run ./agent.yaml /analyze
 ```yaml
 models:
   model_name:
-    provider: string # Provider: openai, anthropic, google, bedrock, dmr
+    provider: string # Provider: openai, anthropic, google, amazon-bedrock, dmr
     model: string # Model name: gpt-4o, claude-3-7-sonnet-latest, gemini-2.5-flash, qwen3:4B, ...
     temperature: float # Randomness (0.0-1.0)
     max_tokens: integer # Response length limit
@@ -345,7 +345,7 @@ models:
 # AWS Bedrock
 models:
   claude-bedrock:
-    provider: bedrock
+    provider: amazon-bedrock
     model: global.anthropic.claude-sonnet-4-5-20250929-v1:0  # Global inference profile
 
 # Docker Model Runner (DMR)
@@ -373,7 +373,7 @@ Set the `AWS_BEARER_TOKEN_BEDROCK` environment variable or use `api_key` in prov
 ```yaml
 models:
   claude-bedrock:
-    provider: bedrock
+    provider: amazon-bedrock
     model: global.anthropic.claude-sonnet-4-5-20250929-v1:0
     provider_opts:
       api_key: "your-bedrock-api-key"
@@ -398,7 +398,7 @@ You can also use `provider_opts.role_arn` for cross-account role assumption.
 ```yaml
 models:
   claude-bedrock:
-    provider: bedrock
+    provider: amazon-bedrock
     model: global.anthropic.claude-sonnet-4-5-20250929-v1:0
     max_tokens: 64000
     provider_opts:
@@ -411,7 +411,7 @@ models:
 ```yaml
 models:
   claude-bedrock:
-    provider: bedrock
+    provider: amazon-bedrock
     model: anthropic.claude-3-sonnet-20240229-v1:0
     provider_opts:
       role_arn: "arn:aws:iam::123456789012:role/BedrockAccessRole"
@@ -450,7 +450,7 @@ All Bedrock models that support the Converse API work with cagent. Use inference
 ```yaml
 models:
   claude-global:
-    provider: bedrock
+    provider: amazon-bedrock
     model: global.anthropic.claude-sonnet-4-5-20250929-v1:0  # Routes to any available region
 ```
 
@@ -509,7 +509,7 @@ Requirements and notes:
 - Docker Model plugin must be available for auto-configure/auto-discovery
   - Verify with: `docker model status --json`
 - Configuration is best-effort; failures fall back to the default base URL
-- `provider_opts` currently apply to `dmr`, `anthropic`, and `bedrock` providers
+- `provider_opts` currently apply to `dmr`, `anthropic`, and `amazon-bedrock` providers
 - `runtime_flags` are passed after `--` to the inference runtime (e.g., llama.cpp)
 
 Parameter mapping and precedence (DMR):

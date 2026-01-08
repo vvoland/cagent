@@ -372,7 +372,7 @@ func TestNewClient_WrongProvider(t *testing.T) {
 	}
 	_, err := NewClient(t.Context(), cfg, &mockEnvProvider{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "model type must be 'bedrock'")
+	assert.Contains(t, err.Error(), "model type must be 'amazon-bedrock'")
 }
 
 // Interface compliance assertion
@@ -416,7 +416,7 @@ func TestBuildAWSConfig_DefaultRegion(t *testing.T) {
 	t.Parallel()
 
 	cfg := &latest.ModelConfig{
-		Provider:     "bedrock",
+		Provider:     "amazon-bedrock",
 		Model:        "anthropic.claude-v2",
 		ProviderOpts: map[string]any{},
 	}
@@ -434,7 +434,7 @@ func TestBuildAWSConfig_RegionFromProviderOpts(t *testing.T) {
 	t.Parallel()
 
 	cfg := &latest.ModelConfig{
-		Provider: "bedrock",
+		Provider: "amazon-bedrock",
 		Model:    "anthropic.claude-v2",
 		ProviderOpts: map[string]any{
 			"region": "eu-west-1",
@@ -453,7 +453,7 @@ func TestBuildAWSConfig_RegionFromEnv(t *testing.T) {
 	t.Parallel()
 
 	cfg := &latest.ModelConfig{
-		Provider:     "bedrock",
+		Provider:     "amazon-bedrock",
 		Model:        "anthropic.claude-v2",
 		ProviderOpts: map[string]any{},
 	}
@@ -472,7 +472,7 @@ func TestBuildAWSConfig_ProviderOptsOverridesEnv(t *testing.T) {
 	t.Parallel()
 
 	cfg := &latest.ModelConfig{
-		Provider: "bedrock",
+		Provider: "amazon-bedrock",
 		Model:    "anthropic.claude-v2",
 		ProviderOpts: map[string]any{
 			"region": "eu-central-1",
@@ -496,7 +496,7 @@ func TestNewClient_ValidConfig(t *testing.T) {
 	t.Parallel()
 
 	cfg := &latest.ModelConfig{
-		Provider: "bedrock",
+		Provider: "amazon-bedrock",
 		Model:    "anthropic.claude-v2",
 		ProviderOpts: map[string]any{
 			"region": "us-east-1",
@@ -511,14 +511,14 @@ func TestNewClient_ValidConfig(t *testing.T) {
 
 	// Verify client was configured correctly
 	assert.Equal(t, "anthropic.claude-v2", client.ModelConfig.Model)
-	assert.Equal(t, "bedrock", client.ModelConfig.Provider)
+	assert.Equal(t, "amazon-bedrock", client.ModelConfig.Provider)
 }
 
 func TestNewClient_WithBearerToken(t *testing.T) {
 	t.Parallel()
 
 	cfg := &latest.ModelConfig{
-		Provider: "bedrock",
+		Provider: "amazon-bedrock",
 		Model:    "anthropic.claude-v2",
 		ProviderOpts: map[string]any{
 			"region":  "us-east-1",
@@ -537,7 +537,7 @@ func TestNewClient_WithBearerTokenFromEnv(t *testing.T) {
 	t.Parallel()
 
 	cfg := &latest.ModelConfig{
-		Provider: "bedrock",
+		Provider: "amazon-bedrock",
 		Model:    "anthropic.claude-v2",
 		ProviderOpts: map[string]any{
 			"region": "us-east-1",
