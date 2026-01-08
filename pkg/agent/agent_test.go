@@ -5,8 +5,11 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/model/provider/base"
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -82,4 +85,84 @@ func TestAgentTools(t *testing.T) {
 			}
 		})
 	}
+}
+
+// mockProvider implements provider.Provider for testing
+type mockProvider struct {
+	id string
+}
+
+func (m *mockProvider) ID() string { return m.id }
+func (m *mockProvider) CreateChatCompletionStream(_ context.Context, _ []chat.Message, _ []tools.Tool) (chat.MessageStream, error) {
+	return nil, nil
+}
+func (m *mockProvider) BaseConfig() base.Config { return base.Config{} }
+
+func TestModelOverride(t *testing.T) {
+	t.Parallel()
+
+	defaultModel := &mockProvider{id: "openai/gpt-4o"}
+	overrideModel := &mockProvider{id: "anthropic/claude-sonnet-4-0"}
+
+	a := New("root", "test", WithModel(defaultModel))
+
+	// Initially should return the default model
+	model := a.Model()
+	assert.Equal(t, "openai/gpt-4o", model.ID())
+	assert.False(t, a.HasModelOverride())
+
+	// Set an override
+	a.SetModelOverride(overrideModel)
+	assert.True(t, a.HasModelOverride())
+
+	// Now Model() should return the override
+	model = a.Model()
+	assert.Equal(t, "anthropic/claude-sonnet-4-0", model.ID())
+
+	// ConfiguredModels should still return the original models
+	configuredModels := a.ConfiguredModels()
+	require.Len(t, configuredModels, 1)
+	assert.Equal(t, "openai/gpt-4o", configuredModels[0].ID())
+
+	// Clear the override
+	a.SetModelOverride(nil)
+	assert.False(t, a.HasModelOverride())
+
+	// Model() should return the default again
+	model = a.Model()
+	assert.Equal(t, "openai/gpt-4o", model.ID())
+}
+
+func TestModelOverride_ConcurrentAccess(t *testing.T) {
+	t.Parallel()
+
+	defaultModel := &mockProvider{id: "default"}
+	overrideModel := &mockProvider{id: "override"}
+
+	a := New("root", "test", WithModel(defaultModel))
+
+	// Run concurrent reads and writes
+	done := make(chan bool)
+
+	// Writer goroutine
+	go func() {
+		for range 100 {
+			a.SetModelOverride(overrideModel)
+			a.SetModelOverride(nil)
+		}
+		done <- true
+	}()
+
+	// Reader goroutine
+	go func() {
+		for range 100 {
+			_ = a.Model()
+			_ = a.HasModelOverride()
+		}
+		done <- true
+	}()
+
+	<-done
+	<-done
+	// If we got here without a race condition panic, the test passes
 }

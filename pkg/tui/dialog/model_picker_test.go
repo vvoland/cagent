@@ -1,0 +1,384 @@
+package dialog
+
+import (
+	"testing"
+
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/docker/cagent/pkg/runtime"
+)
+
+func TestModelPickerNavigation(t *testing.T) {
+	t.Parallel()
+
+	models := []runtime.ModelChoice{
+		{Name: "default_model", Ref: "default_model", Provider: "openai", Model: "gpt-4o", IsDefault: true},
+		{Name: "fast_model", Ref: "fast_model", Provider: "openai", Model: "gpt-4o-mini"},
+		{Name: "smart_model", Ref: "smart_model", Provider: "anthropic", Model: "claude-sonnet-4-0"},
+	}
+
+	dialog := NewModelPickerDialog(models)
+	d := dialog.(*modelPickerDialog)
+
+	// Initialize and set window size like the TUI does
+	d.Init()
+	d.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+
+	// Initially selected should be 0 (default should be first due to sorting)
+	require.Equal(t, 0, d.selected, "initial selection should be 0")
+	require.True(t, d.filtered[0].IsDefault, "first item should be default")
+
+	// Test that key bindings match correctly
+	downKey := tea.KeyPressMsg{Code: tea.KeyDown}
+	upKey := tea.KeyPressMsg{Code: tea.KeyUp}
+
+	// Press down arrow
+	updated, _ := d.Update(downKey)
+	d = updated.(*modelPickerDialog)
+	require.Equal(t, 1, d.selected, "selection should be 1 after down arrow")
+
+	// Press down again
+	updated, _ = d.Update(downKey)
+	d = updated.(*modelPickerDialog)
+	require.Equal(t, 2, d.selected, "selection should be 2 after second down arrow")
+
+	// Press down again (should stay at 2 since we're at the end)
+	updated, _ = d.Update(downKey)
+	d = updated.(*modelPickerDialog)
+	require.Equal(t, 2, d.selected, "selection should stay at 2 at end of list")
+
+	// Press up arrow
+	updated, _ = d.Update(upKey)
+	d = updated.(*modelPickerDialog)
+	require.Equal(t, 1, d.selected, "selection should be 1 after up arrow")
+}
+
+func TestModelPickerFiltering(t *testing.T) {
+	t.Parallel()
+
+	models := []runtime.ModelChoice{
+		{Name: "default_model", Ref: "default_model", Provider: "anthropic", Model: "claude-sonnet-4-0", IsDefault: true},
+		{Name: "openai_model", Ref: "openai_model", Provider: "openai", Model: "gpt-4o"},
+		{Name: "anthropic_model", Ref: "anthropic_model", Provider: "anthropic", Model: "claude-sonnet-4-0"},
+		{Name: "gemini_model", Ref: "gemini_model", Provider: "google", Model: "gemini-2.5-flash"},
+	}
+
+	dialog := NewModelPickerDialog(models)
+	d := dialog.(*modelPickerDialog)
+	d.Init()
+	d.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+
+	// Initially should show all models
+	require.Len(t, d.filtered, 4, "should have all 4 models initially")
+
+	// Type "openai" to filter
+	for _, ch := range "openai" {
+		d.Update(tea.KeyPressMsg{Text: string(ch)})
+	}
+
+	// Should now only show openai model
+	require.Len(t, d.filtered, 1, "should have 1 model after filtering for 'openai'")
+	require.Equal(t, "openai_model", d.filtered[0].Name)
+
+	// Selection should be reset to 0
+	require.Equal(t, 0, d.selected, "selection should be 0 after filtering")
+}
+
+func TestModelPickerCustomModel(t *testing.T) {
+	t.Parallel()
+
+	models := []runtime.ModelChoice{
+		{Name: "default_model", Ref: "default_model", Provider: "openai", Model: "gpt-4o", IsDefault: true},
+	}
+
+	dialog := NewModelPickerDialog(models)
+	d := dialog.(*modelPickerDialog)
+	d.Init()
+	d.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+
+	// Type a custom model reference
+	for _, ch := range "openai/gpt-4" {
+		d.Update(tea.KeyPressMsg{Text: string(ch)})
+	}
+
+	// Should show the custom model option since nothing matches
+	require.Len(t, d.filtered, 1, "should have 1 item (custom option)")
+	require.Equal(t, "Custom: openai/gpt-4", d.filtered[0].Name)
+	require.Equal(t, "openai/gpt-4", d.filtered[0].Ref)
+}
+
+func TestModelPickerSorting(t *testing.T) {
+	t.Parallel()
+
+	// Create models in unsorted order
+	models := []runtime.ModelChoice{
+		{Name: "z_model", Ref: "z_model", Provider: "openai", Model: "gpt-4o"},
+		{Name: "default_model", Ref: "default_model", Provider: "anthropic", Model: "claude", IsDefault: true},
+		{Name: "a_model", Ref: "a_model", Provider: "anthropic", Model: "claude"},
+	}
+
+	dialog := NewModelPickerDialog(models)
+	d := dialog.(*modelPickerDialog)
+
+	// Default should always be first
+	require.True(t, d.models[0].IsDefault, "default should be first after sorting")
+
+	// Other models should be sorted alphabetically
+	require.Equal(t, "a_model", d.models[1].Name, "a_model should be second")
+	require.Equal(t, "z_model", d.models[2].Name, "z_model should be third")
+}
+
+func TestModelPickerViewShowsSelection(t *testing.T) {
+	t.Parallel()
+
+	models := []runtime.ModelChoice{
+		{Name: "default_model", Ref: "default_model", Provider: "openai", Model: "gpt-4o", IsDefault: true},
+		{Name: "model1", Ref: "model1", Provider: "openai", Model: "gpt-4o"},
+		{Name: "model2", Ref: "model2", Provider: "anthropic", Model: "claude"},
+	}
+
+	dialog := NewModelPickerDialog(models)
+	d := dialog.(*modelPickerDialog)
+	d.Init()
+	d.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+
+	// Initial view should show default model selected
+	view1 := d.View()
+	assert.Contains(t, view1, "default_model")
+	assert.Contains(t, view1, "(default)")
+	assert.Contains(t, view1, "model1")
+	assert.Contains(t, view1, "model2")
+
+	// Navigate down
+	downKey := tea.KeyPressMsg{Code: tea.KeyDown}
+	d.Update(downKey)
+
+	// View should now show second model selected
+	view2 := d.View()
+
+	// The views should be different
+	require.NotEqual(t, view1, view2, "view should change after navigation")
+}
+
+func TestModelPickerPageNavigation(t *testing.T) {
+	t.Parallel()
+
+	// Create many models
+	var models []runtime.ModelChoice
+	for i := range 20 {
+		models = append(models, runtime.ModelChoice{
+			Name:     "model_" + string(rune('a'+i)),
+			Ref:      "model_" + string(rune('a'+i)),
+			Provider: "openai",
+			Model:    "gpt-4o",
+		})
+	}
+	models = append(models, runtime.ModelChoice{Name: "default_model", Ref: "default_model", Provider: "openai", Model: "gpt-4o", IsDefault: true})
+
+	dialog := NewModelPickerDialog(models)
+	d := dialog.(*modelPickerDialog)
+	d.Init()
+	d.Update(tea.WindowSizeMsg{Width: 80, Height: 20})
+
+	pageSize := d.pageSize()
+
+	// Page down
+	pageDownKey := tea.KeyPressMsg{Code: tea.KeyPgDown}
+	require.True(t, key.Matches(pageDownKey, d.keyMap.PageDown), "pagedown key should match")
+
+	updated, _ := d.Update(pageDownKey)
+	d = updated.(*modelPickerDialog)
+	require.Equal(t, pageSize, d.selected, "selection should advance by page size")
+
+	// Page up
+	pageUpKey := tea.KeyPressMsg{Code: tea.KeyPgUp}
+	require.True(t, key.Matches(pageUpKey, d.keyMap.PageUp), "pageup key should match")
+
+	updated, _ = d.Update(pageUpKey)
+	d = updated.(*modelPickerDialog)
+	require.Equal(t, 0, d.selected, "selection should return to 0")
+}
+
+func TestModelPickerEscape(t *testing.T) {
+	t.Parallel()
+
+	models := []runtime.ModelChoice{
+		{Name: "default_model", Ref: "default_model", Provider: "openai", Model: "gpt-4o", IsDefault: true},
+	}
+
+	dialog := NewModelPickerDialog(models)
+	d := dialog.(*modelPickerDialog)
+	d.Init()
+	d.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+
+	// Press escape
+	escKey := tea.KeyPressMsg{Code: tea.KeyEscape}
+	_, cmd := d.Update(escKey)
+
+	// Should return a close dialog command
+	require.NotNil(t, cmd, "escape should return a command")
+}
+
+func TestModelPickerSelectDefault(t *testing.T) {
+	t.Parallel()
+
+	models := []runtime.ModelChoice{
+		{Name: "default_model", Ref: "default_model", Provider: "openai", Model: "gpt-4o", IsDefault: true},
+		{Name: "other_model", Ref: "other_model", Provider: "anthropic", Model: "claude"},
+	}
+
+	dialog := NewModelPickerDialog(models)
+	d := dialog.(*modelPickerDialog)
+	d.Init()
+	d.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+
+	// Default model should be first and selected
+	require.Equal(t, 0, d.selected)
+	require.True(t, d.filtered[0].IsDefault)
+
+	// When selecting the default, handleSelection should clear the ref
+	cmd := d.handleSelection()
+	require.NotNil(t, cmd, "selecting default should return a command")
+}
+
+func TestValidateCustomModelSpec(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		spec    string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "valid single model",
+			spec:    "openai/gpt-4o",
+			wantErr: false,
+		},
+		{
+			name:    "valid alloy",
+			spec:    "openai/gpt-4o,anthropic/claude-sonnet-4-0",
+			wantErr: false,
+		},
+		{
+			name:    "valid with spaces",
+			spec:    "openai/gpt-4o, anthropic/claude-sonnet-4-0",
+			wantErr: false,
+		},
+		{
+			name:    "valid google provider",
+			spec:    "google/gemini-2.0-flash",
+			wantErr: false,
+		},
+		{
+			name:    "valid dmr provider",
+			spec:    "dmr/llama3.2",
+			wantErr: false,
+		},
+		{
+			name:    "valid mistral alias",
+			spec:    "mistral/mistral-large",
+			wantErr: false,
+		},
+		{
+			name:    "valid xai alias",
+			spec:    "xai/grok-2",
+			wantErr: false,
+		},
+		{
+			name:    "valid ollama alias",
+			spec:    "ollama/llama3",
+			wantErr: false,
+		},
+		{
+			name:    "empty provider",
+			spec:    "/gpt-4o",
+			wantErr: true,
+			errMsg:  "provider name cannot be empty",
+		},
+		{
+			name:    "empty model",
+			spec:    "openai/",
+			wantErr: true,
+			errMsg:  "model name cannot be empty",
+		},
+		{
+			name:    "unknown provider",
+			spec:    "foobar/some-model",
+			wantErr: true,
+			errMsg:  "unknown provider 'foobar'",
+		},
+		{
+			name:    "unknown provider in alloy",
+			spec:    "openai/gpt-4o,unknown/model",
+			wantErr: true,
+			errMsg:  "unknown provider 'unknown'",
+		},
+		{
+			name:    "case insensitive provider",
+			spec:    "OpenAI/gpt-4o",
+			wantErr: false,
+		},
+		{
+			name:    "empty string is valid",
+			spec:    "",
+			wantErr: false,
+		},
+		{
+			name:    "whitespace only is valid",
+			spec:    "   ",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateCustomModelSpec(tt.spec)
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.errMsg != "" {
+					assert.Contains(t, err.Error(), tt.errMsg)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestIsValidProvider(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		provider string
+		want     bool
+	}{
+		{"openai", true},
+		{"anthropic", true},
+		{"google", true},
+		{"dmr", true},
+		{"mistral", true},
+		{"xai", true},
+		{"nebius", true},
+		{"ollama", true},
+		{"azure", true},
+		{"requesty", true},
+		{"OPENAI", true}, // case insensitive
+		{"OpenAI", true}, // case insensitive
+		{"unknown", false},
+		{"foo", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.provider, func(t *testing.T) {
+			t.Parallel()
+			got := isValidProvider(tt.provider)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
