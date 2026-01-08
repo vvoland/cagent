@@ -85,20 +85,22 @@ type model struct {
 	sessionState      *service.SessionState
 	workingAgent      string // Name of the agent currently working (empty if none)
 	scrollbar         *scrollbar.Model
+	workingDirectory  string
 }
 
 func New(sessionState *service.SessionState) Model {
 	return &model{
-		width:        20,
-		height:       24,
-		sessionUsage: make(map[string]*runtime.Usage),
-		sessionAgent: make(map[string]string),
-		todoComp:     todotool.NewSidebarComponent(),
-		spinner:      spinner.New(spinner.ModeSpinnerOnly, styles.SpinnerDotsHighlightStyle),
-		sessionTitle: "New session",
-		ragIndexing:  make(map[string]*ragIndexingState),
-		sessionState: sessionState,
-		scrollbar:    scrollbar.New(),
+		width:            20,
+		height:           24,
+		sessionUsage:     make(map[string]*runtime.Usage),
+		sessionAgent:     make(map[string]string),
+		todoComp:         todotool.NewSidebarComponent(),
+		spinner:          spinner.New(spinner.ModeSpinnerOnly, styles.SpinnerDotsHighlightStyle),
+		sessionTitle:     "New session",
+		ragIndexing:      make(map[string]*ragIndexingState),
+		sessionState:     sessionState,
+		scrollbar:        scrollbar.New(),
+		workingDirectory: getCurrentWorkingDirectory(),
 	}
 }
 
@@ -377,7 +379,6 @@ func (m *model) starIndicator() string {
 }
 
 func (m *model) horizontalView() string {
-	pwd := getCurrentWorkingDirectory()
 	usageSummary := m.tokenUsageSummary()
 
 	titleWithStar := m.starIndicator() + m.sessionTitle
@@ -386,8 +387,8 @@ func (m *model) horizontalView() string {
 	titleGapWidth := m.width - lipgloss.Width(titleWithStar) - lipgloss.Width(wi) - 2
 	title := fmt.Sprintf("%s%*s%s", titleWithStar, titleGapWidth, "", wi)
 
-	gapWidth := m.width - lipgloss.Width(pwd) - lipgloss.Width(usageSummary) - 2
-	return lipgloss.JoinVertical(lipgloss.Top, title, fmt.Sprintf("%s%*s%s", styles.MutedStyle.Render(pwd), gapWidth, "", usageSummary))
+	gapWidth := m.width - lipgloss.Width(m.workingDirectory) - lipgloss.Width(usageSummary) - 2
+	return lipgloss.JoinVertical(lipgloss.Top, title, fmt.Sprintf("%s%*s%s", styles.MutedStyle.Render(m.workingDirectory), gapWidth, "", usageSummary))
 }
 
 func (m *model) verticalView() string {
@@ -585,8 +586,8 @@ func (m *model) sessionInfo() string {
 		"",
 	}
 
-	if pwd := getCurrentWorkingDirectory(); pwd != "" {
-		lines = append(lines, styles.TabAccentStyle.Render("█")+styles.TabPrimaryStyle.Render(" "+pwd))
+	if m.workingDirectory != "" {
+		lines = append(lines, styles.TabAccentStyle.Render("█")+styles.TabPrimaryStyle.Render(" "+m.workingDirectory))
 	}
 
 	return m.renderTab("Session", strings.Join(lines, "\n"))
