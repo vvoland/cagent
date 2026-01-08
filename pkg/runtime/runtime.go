@@ -1266,14 +1266,16 @@ func (r *LocalRuntime) executeWithApproval(
 			}
 			// Check permission mode
 			mode := sess.Permissions.GetToolMode(toolName)
-			if mode == session.PermissionModeAlwaysAllow {
+			switch mode {
+			case session.PermissionModeAlwaysAllow:
 				slog.Debug("Tool auto-approved by session per-tool permissions", "tool", toolName, "mode", mode, "session_id", sess.ID)
 				runTool()
 				return false
+			case session.PermissionModeAsk:
+			default:
+				slog.Debug("Tool requires confirmation by session per-tool permissions ", "tool", toolName, "mode", mode, "session_id", sess.ID)
+				requiresConfirmation = true
 			}
-			// Mode is "ask" - skip pattern-based rules and go directly to ask user
-			slog.Debug("Tool requires confirmation by session per-tool permissions", "tool", toolName, "mode", mode, "session_id", sess.ID)
-			requiresConfirmation = true
 		}
 
 		// 1b. Fall back to pattern-based Allow/Deny rules (only if not already handled by Tools map)
