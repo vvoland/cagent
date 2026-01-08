@@ -62,26 +62,25 @@ func countStrings(strs []string) map[string]int {
 	return counts
 }
 
-// countHandoffs counts the number of handoff/transfer_task tool calls.
 func countHandoffs(toolCalls []string) int {
 	count := 0
 	for _, name := range toolCalls {
-		if name == "handoff" || name == "transfer_task" {
+		if name == "handoff" {
 			count++
 		}
 	}
 	return count
 }
 
-// computeSummary aggregates results into a summary.
 func computeSummary(results []Result) Summary {
-	summary := Summary{TotalEvals: len(results)}
+	summary := Summary{
+		TotalEvals: len(results),
+	}
 
 	for _, r := range results {
 		summary.TotalCost += r.Cost
-
-		// Skip errored results from metric calculations
 		if r.Error != "" {
+			summary.FailedEvals += 1
 			continue
 		}
 
@@ -111,23 +110,14 @@ func computeSummary(results []Result) Summary {
 func printSummary(out io.Writer, summary Summary, duration time.Duration) {
 	fmt.Fprintln(out)
 
-	errorCount := summary.TotalEvals - summary.HandoffsTotal
-	if errorCount > 0 {
-		fmt.Fprintf(out, "❌         Errors: %d/%d evaluations failed\n", errorCount, summary.TotalEvals)
+	if summary.FailedEvals > 0 {
+		fmt.Fprintf(out, "❌         Errors: %d/%d evaluations failed\n", summary.FailedEvals, summary.TotalEvals)
 	}
 
-	if summary.SizesTotal > 0 {
-		printMetric(out, "Sizes", summary.SizesPassed, summary.SizesTotal)
-	}
-	if summary.ToolsTotal > 0 {
-		printMetricFloat(out, "Tool Calls", summary.ToolsPassed, summary.ToolsTotal)
-	}
-	if summary.HandoffsTotal > 0 {
-		printMetric(out, "Handoffs", summary.HandoffsPassed, summary.HandoffsTotal)
-	}
-	if summary.RelevanceTotal > 0 {
-		printMetricFloat(out, "Relevance", summary.RelevancePassed, summary.RelevanceTotal)
-	}
+	printMetric(out, "Sizes", summary.SizesPassed, summary.SizesTotal)
+	printMetricFloat(out, "Tool Calls", summary.ToolsPassed, summary.ToolsTotal)
+	printMetric(out, "Handoffs", summary.HandoffsPassed, summary.HandoffsTotal)
+	printMetricFloat(out, "Relevance", summary.RelevancePassed, summary.RelevanceTotal)
 
 	fmt.Fprintf(out, "\nTotal Cost: $%.6f\n", summary.TotalCost)
 	fmt.Fprintf(out, "Total Time: %s\n", duration.Round(time.Second))

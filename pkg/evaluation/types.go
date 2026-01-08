@@ -87,6 +87,7 @@ func (r *Result) checkResults() (successes, failures []string) {
 // Summary contains aggregate statistics across all evaluations.
 type Summary struct {
 	TotalEvals      int     `json:"total_evals"`
+	FailedEvals     int     `json:"failed_evals"`
 	TotalCost       float64 `json:"total_cost"`
 	SizesPassed     int     `json:"sizes_passed"`
 	SizesTotal      int     `json:"sizes_total"`
