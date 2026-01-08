@@ -141,7 +141,7 @@ func (f *evalFlags) runEvalCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	// Save results JSON
-	resultsPath, err := evaluation.SaveRun(run, outputDir)
+	resultsPath, err := evaluation.SaveRunJSON(run, outputDir)
 	if err != nil {
 		slog.Error("Failed to save results", "error", err)
 	} else {

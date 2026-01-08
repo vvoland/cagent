@@ -13,22 +13,20 @@ import (
 	"text/template"
 )
 
-//go:embed Dockerfile.template
-var dockerfileTmpl string
+var (
+	//go:embed Dockerfile.template
+	dockerfileTmpl string
 
-var dockerfileTemplate = template.Must(template.New("Dockerfile").Parse(dockerfileTmpl))
-
-type dockerfileData struct {
-	CopyWorkingDir bool
-}
+	dockerfileTemplate = template.Must(template.New("Dockerfile").Parse(dockerfileTmpl))
+)
 
 func (r *Runner) buildEvalImage(ctx context.Context, workingDir string) (string, error) {
 	var buildContext string
-	var data dockerfileData
+	var data struct {
+		CopyWorkingDir bool
+	}
 
-	if workingDir == "empty" {
-		// Use the evals dir as build context with a Dockerfile that doesn't COPY anything.
-		// The actual build context content doesn't matter since nothing is copied.
+	if workingDir == "" {
 		buildContext = r.evalsDir
 		data.CopyWorkingDir = false
 	} else {

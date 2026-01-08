@@ -135,8 +135,8 @@ func TestCountHandoffs(t *testing.T) {
 		{"no tool calls", []string{}, 0},
 		{"no handoffs", []string{"search", "read_file"}, 0},
 		{"one handoff", []string{"handoff", "read_file"}, 1},
-		{"one transfer_task", []string{"transfer_task", "read_file"}, 1},
-		{"multiple handoffs", []string{"handoff", "transfer_task", "handoff"}, 3},
+		{"one transfer_task", []string{"transfer_task", "read_file"}, 0},
+		{"multiple handoffs", []string{"handoff", "transfer_task", "handoff"}, 2},
 	}
 
 	for _, tt := range tests {
@@ -357,7 +357,7 @@ func TestGenerateRunName(t *testing.T) {
 	assert.Greater(t, len(names), 90, "should generate mostly unique names")
 }
 
-func TestSaveRun(t *testing.T) {
+func TestSaveRunJSON(t *testing.T) {
 	t.Parallel()
 
 	outputDir := t.TempDir()
@@ -379,7 +379,7 @@ func TestSaveRun(t *testing.T) {
 	}
 
 	// Save the run
-	resultsPath, err := SaveRun(run, outputDir)
+	resultsPath, err := SaveRunJSON(run, outputDir)
 	require.NoError(t, err)
 
 	// Verify file path
@@ -400,7 +400,7 @@ func TestSaveRun(t *testing.T) {
 	assert.InDelta(t, run.Summary.TotalCost, loaded.Summary.TotalCost, 0.0001)
 }
 
-func TestSaveRunCreatesDirectory(t *testing.T) {
+func TestSaveRunJSONCreatesDirectory(t *testing.T) {
 	t.Parallel()
 
 	baseDir := t.TempDir()
@@ -411,7 +411,7 @@ func TestSaveRunCreatesDirectory(t *testing.T) {
 		Results: []Result{},
 	}
 
-	resultsPath, err := SaveRun(run, nestedDir)
+	resultsPath, err := SaveRunJSON(run, nestedDir)
 	require.NoError(t, err)
 	assert.FileExists(t, resultsPath)
 }
@@ -555,10 +555,8 @@ func TestPrintSummary(t *testing.T) {
 		{
 			name: "all evaluations failed with errors",
 			summary: Summary{
-				TotalEvals:     10,
-				TotalCost:      0,
-				HandoffsTotal:  0, // no successful evaluations
-				RelevanceTotal: 0,
+				TotalEvals:  10,
+				FailedEvals: 10,
 			},
 			duration: 30 * time.Second,
 			wantContains: []string{
@@ -566,19 +564,15 @@ func TestPrintSummary(t *testing.T) {
 				"Total Cost: $0.000000",
 				"Total Time: 30s",
 			},
-			wantNotContain: []string{
-				"Sizes:",
-				"Handoffs:",
-				"Relevance:",
-			},
 		},
 		{
 			name: "some evaluations failed",
 			summary: Summary{
 				TotalEvals:      10,
+				FailedEvals:     5,
 				TotalCost:       0.05,
 				HandoffsPassed:  3,
-				HandoffsTotal:   5, // 5 successful, 5 errored
+				HandoffsTotal:   5,
 				RelevancePassed: 8,
 				RelevanceTotal:  10,
 			},

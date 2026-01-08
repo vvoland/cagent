@@ -3,6 +3,7 @@ package evaluation
 
 import (
 	"bufio"
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -16,6 +17,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/environment"
@@ -35,28 +38,13 @@ type Runner struct {
 
 // NewRunner creates a new evaluation runner.
 func NewRunner(agentSource config.Source, runConfig *config.RuntimeConfig, evalsDir string, cfg Config) *Runner {
-	concurrency := cfg.Concurrency
-	if concurrency <= 0 {
-		concurrency = goruntime.NumCPU()
-	}
-
-	var modelsGateway string
-	var envProvider environment.Provider
-	if runConfig != nil {
-		modelsGateway = runConfig.ModelsGateway
-		envProvider = runConfig.EnvProvider()
-	}
-	if envProvider == nil {
-		envProvider = environment.NewOsEnvProvider()
-	}
-
 	return &Runner{
 		agentSource:   agentSource,
 		evalsDir:      evalsDir,
 		judgeModel:    cfg.JudgeModel,
-		concurrency:   concurrency,
-		modelsGateway: modelsGateway,
-		envProvider:   envProvider,
+		concurrency:   cmp.Or(cfg.Concurrency, goruntime.NumCPU()),
+		modelsGateway: runConfig.ModelsGateway,
+		envProvider:   runConfig.EnvProvider(),
 		ttyFd:         cfg.TTYFd,
 	}
 }
@@ -229,9 +217,6 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *EvalSession, track
 	}
 
 	workingDir := evalSess.Evals.WorkingDir
-	if workingDir == "" {
-		workingDir = "empty"
-	}
 
 	imageID, err := r.buildEvalImage(ctx, workingDir)
 	if err != nil {
@@ -269,20 +254,10 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *EvalSession, track
 	return result, nil
 }
 
-// envVarsToPassthrough lists API keys to pass to evaluation containers.
-var envVarsToPassthrough = []string{
-	"OPENAI_API_KEY",
-	"ANTHROPIC_API_KEY",
-	"GOOGLE_API_KEY",
-	"MISTRAL_API_KEY",
-	"XAI_API_KEY",
-	"NEBIUS_API_KEY",
-}
-
 func (r *Runner) runCagentInContainer(ctx context.Context, imageID, question string, tracker *containerTracker) ([]map[string]any, error) {
 	agentDir := r.agentSource.ParentDir()
 	agentFile := filepath.Base(r.agentSource.Name())
-	containerName := fmt.Sprintf("cagent-eval-%d", time.Now().UnixNano())
+	containerName := fmt.Sprintf("cagent-eval-%d", uuid.New().ID())
 
 	args := []string{
 		"run",
@@ -294,22 +269,29 @@ func (r *Runner) runCagentInContainer(ctx context.Context, imageID, question str
 		"-v", agentDir + ":/configs:ro",
 	}
 
-	for _, env := range envVarsToPassthrough {
-		if val, ok := r.envProvider.Get(ctx, env); ok && val != "" {
-			args = append(args, "-e", env+"="+val)
+	var env []string
+
+	for _, name := range []string{"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "MISTRAL_API_KEY", "XAI_API_KEY", "NEBIUS_API_KEY"} {
+		if val, ok := r.envProvider.Get(ctx, name); ok && val != "" {
+			args = append(args, "-e", name)
+			env = append(env, name+"="+val)
 		}
 	}
 
 	if r.modelsGateway != "" {
-		args = append(args, "-e", "CAGENT_MODELS_GATEWAY="+r.modelsGateway)
+		args = append(args, "-e", "CAGENT_MODELS_GATEWAY")
+		env = append(env, "CAGENT_MODELS_GATEWAY="+r.modelsGateway)
+
 		if token, ok := r.envProvider.Get(ctx, environment.DockerDesktopTokenEnv); ok && token != "" {
-			args = append(args, "-e", environment.DockerDesktopTokenEnv+"="+token)
+			args = append(args, "-e", environment.DockerDesktopTokenEnv)
+			env = append(env, environment.DockerDesktopTokenEnv+"="+token)
 		}
 	}
 
 	args = append(args, imageID, "/configs/"+agentFile, question)
 
-	cmd := newDockerCommand(ctx, args...)
+	cmd := exec.CommandContext(ctx, "docker", args...)
+	cmd.Env = append(env, os.Environ()...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, fmt.Errorf("creating stdout pipe: %w", err)
@@ -381,47 +363,6 @@ func (r *Runner) runCagentInContainer(ctx context.Context, imageID, question str
 	return events, nil
 }
 
-// newDockerCommand creates a new exec.Cmd for running docker commands.
-// This is extracted to allow for testing.
-var newDockerCommand = newDockerCommandDefault
-
-func newDockerCommandDefault(ctx context.Context, args ...string) dockerCommand {
-	return &execDockerCommand{cmd: newExecCommand(ctx, "docker", args...)}
-}
-
-// dockerCommand is an interface for running docker commands.
-// This abstraction allows for testing without actually running docker.
-type dockerCommand interface {
-	StdoutPipe() (io.ReadCloser, error)
-	StderrPipe() (io.ReadCloser, error)
-	Start() error
-	Wait() error
-}
-
-type execDockerCommand struct {
-	cmd execCommand
-}
-
-func (e *execDockerCommand) StdoutPipe() (io.ReadCloser, error) { return e.cmd.StdoutPipe() }
-func (e *execDockerCommand) StderrPipe() (io.ReadCloser, error) { return e.cmd.StderrPipe() }
-func (e *execDockerCommand) Start() error                       { return e.cmd.Start() }
-func (e *execDockerCommand) Wait() error                        { return e.cmd.Wait() }
-
-// execCommand is an interface for exec.Cmd operations.
-type execCommand interface {
-	StdoutPipe() (io.ReadCloser, error)
-	StderrPipe() (io.ReadCloser, error)
-	Start() error
-	Wait() error
-}
-
-// newExecCommand creates a new exec.Cmd. This is extracted to allow for testing.
-var newExecCommand = newExecCommandDefault
-
-func newExecCommandDefault(ctx context.Context, name string, args ...string) execCommand {
-	return exec.CommandContext(ctx, name, args...)
-}
-
 func parseContainerEvents(events []map[string]any) (response string, cost float64, outputTokens int64, toolCalls []string) {
 	for _, event := range events {
 		eventType, _ := event["type"].(string)
@@ -452,24 +393,4 @@ func parseContainerEvents(events []map[string]any) (response string, cost float6
 	}
 
 	return response, cost, outputTokens, toolCalls
-}
-
-// SaveRun saves the evaluation run results to a JSON file.
-func SaveRun(run *EvalRun, outputDir string) (string, error) {
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
-		return "", fmt.Errorf("creating output directory: %w", err)
-	}
-
-	outputPath := filepath.Join(outputDir, run.Name+".json")
-
-	data, err := json.MarshalIndent(run, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("marshaling results: %w", err)
-	}
-
-	if err := os.WriteFile(outputPath, data, 0o644); err != nil {
-		return "", fmt.Errorf("writing results: %w", err)
-	}
-
-	return outputPath, nil
 }

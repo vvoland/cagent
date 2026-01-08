@@ -31,7 +31,7 @@ func (ct *containerTracker) remove(id string) {
 
 func (ct *containerTracker) killAll() {
 	ct.mu.Lock()
-	ids := make([]string, 0, len(ct.containers))
+	var ids []string
 	for id := range ct.containers {
 		ids = append(ids, id)
 	}

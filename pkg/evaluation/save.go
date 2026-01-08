@@ -10,12 +10,11 @@ import (
 	"github.com/docker/cagent/pkg/session"
 )
 
-func Save(sess *session.Session, filename string) (string, error) {
-	if err := os.MkdirAll("evals", 0o755); err != nil {
-		return "", err
-	}
+func SaveRunJSON(run *EvalRun, outputDir string) (string, error) {
+	return saveJSON(run, filepath.Join(outputDir, run.Name+".json"))
+}
 
-	// Use provided filename if given, otherwise default to session ID
+func Save(sess *session.Session, filename string) (string, error) {
 	baseName := cmp.Or(filename, sess.ID)
 
 	evalFile := filepath.Join("evals", fmt.Sprintf("%s.json", baseName))
@@ -27,13 +26,22 @@ func Save(sess *session.Session, filename string) (string, error) {
 		evalFile = filepath.Join("evals", fmt.Sprintf("%s_%d.json", baseName, number))
 	}
 
-	file, err := os.Create(evalFile)
+	return saveJSON(sess, evalFile)
+}
+
+func saveJSON(value any, outputPath string) (string, error) {
+	data, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
 
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ")
-	return evalFile, encoder.Encode(sess)
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
+		return "", err
+	}
+
+	if err := os.WriteFile(outputPath, data, 0o644); err != nil {
+		return "", err
+	}
+
+	return outputPath, nil
 }
