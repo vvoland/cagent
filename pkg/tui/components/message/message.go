@@ -103,7 +103,7 @@ func (mv *messageModel) Render(width int) string {
 			rendered = msg.Content
 		}
 
-		if mv.previous != nil && mv.previous.Type == msg.Type && mv.previous.Sender == msg.Sender {
+		if mv.sameAgentAsPrevious(msg) {
 			return messageStyle.Render(rendered)
 		}
 
@@ -113,17 +113,35 @@ func (mv *messageModel) Render(width int) string {
 			return mv.spinner.View()
 		}
 
-		rendered, err := markdown.NewRenderer(width).Render(msg.Content)
+		messageStyle := styles.AssistantMessageStyle
+		thinkingStyle := styles.MutedStyle.Italic(true)
+
+		rendered, err := markdown.NewRenderer(width - messageStyle.GetHorizontalFrameSize()).Render(msg.Content)
 		if err != nil {
-			text := "Thinking: " + mv.senderPrefix(msg.Sender) + msg.Content
-			return styles.MutedStyle.Italic(true).Render(text)
+			rendered = msg.Content
 		}
 
-		// Strip ANSI from inner rendering so muted style fully applies
-		clean := stripANSI(rendered)
-		thinkingText := "Thinking: " + mv.senderPrefix(msg.Sender) + clean
+		// Strip ANSI so muted style applies uniformly, and trim trailing whitespace.
+		// Unlike regular content where markdown ANSI output goes directly to messageStyle,
+		// here we strip ANSI which exposes raw trailing newlines from markdown that would
+		// otherwise be handled differently by lipgloss when embedded in ANSI sequences.
+		clean := strings.TrimRight(stripANSI(rendered), "\n\r\t ")
 
-		return styles.MutedStyle.Italic(true).Render(thinkingText)
+		// Show "Thinking:" badge only when starting a new thinking block after content
+		var text string
+		if mv.continuingThinking(msg) {
+			text = thinkingStyle.Render(clean)
+		} else {
+			text = styles.ThinkingBadgeStyle.Render("Thinking:") + "\n\n" + thinkingStyle.Render(clean)
+		}
+
+		styledContent := messageStyle.Render(text)
+
+		if mv.sameAgentAsPrevious(msg) {
+			return styledContent
+		}
+
+		return mv.senderPrefix(msg.Sender) + styledContent
 	case types.MessageTypeShellOutput:
 		if rendered, err := markdown.NewRenderer(width).Render(fmt.Sprintf("```console\n%s\n```", msg.Content)); err == nil {
 			return rendered
@@ -155,6 +173,38 @@ func (mv *messageModel) senderPrefix(sender string) string {
 		return ""
 	}
 	return styles.AgentBadgeStyle.MarginLeft(2).Render(sender) + "\n\n"
+}
+
+// sameAgentAsPrevious returns true if the previous message was from the same agent
+func (mv *messageModel) sameAgentAsPrevious(msg *types.Message) bool {
+	if mv.previous == nil || mv.previous.Sender != msg.Sender {
+		return false
+	}
+	switch mv.previous.Type {
+	case types.MessageTypeAssistant,
+		types.MessageTypeAssistantReasoning,
+		types.MessageTypeToolCall,
+		types.MessageTypeToolResult:
+		return true
+	default:
+		return false
+	}
+}
+
+// continuingThinking returns true if we're continuing a thinking flow
+// (previous was thinking or tool call, not content)
+func (mv *messageModel) continuingThinking(msg *types.Message) bool {
+	if mv.previous == nil || mv.previous.Sender != msg.Sender {
+		return false
+	}
+	switch mv.previous.Type {
+	case types.MessageTypeAssistantReasoning,
+		types.MessageTypeToolCall,
+		types.MessageTypeToolResult:
+		return true
+	default:
+		return false
+	}
 }
 
 // Height calculates the height needed for this message view
