@@ -148,6 +148,7 @@ type LocalRuntime struct {
 	sessionStore                session.Store
 	workingDir                  string   // Working directory for hooks execution
 	env                         []string // Environment variables for hooks execution
+	modelSwitcherCfg            *ModelSwitcherConfig
 }
 
 type streamResult struct {

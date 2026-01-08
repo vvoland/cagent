@@ -76,6 +76,16 @@ func builtInSessionCommands() []Item {
 			},
 		},
 		{
+			ID:           "session.model",
+			Label:        "Model",
+			SlashCommand: "/model",
+			Description:  "Change the model for the current agent",
+			Category:     "Session",
+			Execute: func(string) tea.Cmd {
+				return core.CmdHandler(messages.OpenModelPickerMsg{})
+			},
+		},
+		{
 			ID:           "session.compact",
 			Label:        "Compact",
 			SlashCommand: "/compact",

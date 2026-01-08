@@ -86,6 +86,15 @@ type Session struct {
 	// Permissions holds session-level permission overrides.
 	// When set, these are evaluated before team-level permissions.
 	Permissions *PermissionsConfig `json:"permissions,omitempty"`
+
+	// AgentModelOverrides stores per-agent model overrides for this session.
+	// Key is the agent name, value is the model reference (e.g., "openai/gpt-4o" or a named model from config).
+	// When a session is loaded, these overrides are reapplied to the runtime.
+	AgentModelOverrides map[string]string `json:"agent_model_overrides,omitempty"`
+
+	// CustomModelsUsed tracks custom models (provider/model format) used during this session.
+	// These are shown in the model picker for easy re-selection.
+	CustomModelsUsed []string `json:"custom_models_used,omitempty"`
 }
 
 // PermissionsConfig defines session-level tool permission overrides.

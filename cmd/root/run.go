@@ -18,7 +18,6 @@ import (
 	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/telemetry"
 )
@@ -143,12 +142,12 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 			return err
 		}
 
-		t, err := f.loadAgentFrom(ctx, agentSource)
+		loadResult, err := f.loadAgentFrom(ctx, agentSource)
 		if err != nil {
 			return err
 		}
 
-		rt, sess, err = f.createLocalRuntimeAndSession(ctx, t)
+		rt, sess, err = f.createLocalRuntimeAndSession(ctx, loadResult)
 		if err != nil {
 			return err
 		}
@@ -157,7 +156,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 		cleanup = func() {
 			// Use a fresh context for cleanup since the original may be canceled
 			cleanupCtx := context.WithoutCancel(ctx)
-			if err := t.StopToolSets(cleanupCtx); err != nil {
+			if err := loadResult.Team.StopToolSets(cleanupCtx); err != nil {
 				slog.Error("Failed to stop tool sets", "error", err)
 			}
 		}
@@ -176,13 +175,13 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 	return f.handleRunMode(ctx, rt, sess, args)
 }
 
-func (f *runExecFlags) loadAgentFrom(ctx context.Context, agentSource config.Source) (*team.Team, error) {
-	t, err := teamloader.Load(ctx, agentSource, &f.runConfig, teamloader.WithModelOverrides(f.modelOverrides))
+func (f *runExecFlags) loadAgentFrom(ctx context.Context, agentSource config.Source) (*teamloader.LoadResult, error) {
+	result, err := teamloader.LoadWithConfig(ctx, agentSource, &f.runConfig, teamloader.WithModelOverrides(f.modelOverrides))
 	if err != nil {
 		return nil, err
 	}
 
-	return t, nil
+	return result, nil
 }
 
 func (f *runExecFlags) createRemoteRuntimeAndSession(ctx context.Context, originalFilename string) (runtime.Runtime, *session.Session, error) {
@@ -246,7 +245,9 @@ func (f *runExecFlags) createHTTPRuntimeAndSession(ctx context.Context, original
 	return remoteRt, sess, nil
 }
 
-func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, t *team.Team) (runtime.Runtime, *session.Session, error) {
+func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, loadResult *teamloader.LoadResult) (runtime.Runtime, *session.Session, error) {
+	t := loadResult.Team
+
 	agent, err := t.Agent(f.agentName)
 	if err != nil {
 		return nil, nil, err
@@ -257,10 +258,20 @@ func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, t *team
 		return nil, nil, fmt.Errorf("creating session store: %w", err)
 	}
 
+	// Create model switcher config for runtime model switching support
+	modelSwitcherCfg := &runtime.ModelSwitcherConfig{
+		Models:             loadResult.Models,
+		Providers:          loadResult.Providers,
+		ModelsGateway:      f.runConfig.ModelsGateway,
+		EnvProvider:        f.runConfig.EnvProvider(),
+		AgentDefaultModels: loadResult.AgentDefaultModels,
+	}
+
 	localRt, err := runtime.New(t,
 		runtime.WithSessionStore(sessStore),
 		runtime.WithCurrentAgent(f.agentName),
 		runtime.WithTracer(otel.Tracer(AppName)),
+		runtime.WithModelSwitcherConfig(modelSwitcherCfg),
 	)
 	if err != nil {
 		return nil, nil, fmt.Errorf("creating runtime: %w", err)
@@ -275,6 +286,15 @@ func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, t *team
 		}
 		sess.ToolsApproved = f.autoApprove
 		sess.HideToolResults = f.hideToolResults
+
+		// Apply any stored model overrides from the session
+		if len(sess.AgentModelOverrides) > 0 {
+			for agentName, modelRef := range sess.AgentModelOverrides {
+				if err := localRt.SetAgentModel(ctx, agentName, modelRef); err != nil {
+					slog.Warn("Failed to apply stored model override", "agent", agentName, "model", modelRef, "error", err)
+				}
+			}
+		}
 
 		slog.Debug("Loaded existing session", "session_id", f.sessionID, "agent", f.agentName)
 	} else {

@@ -18,6 +18,8 @@ type (
 	ToggleSessionStarMsg      struct{ SessionID string } // Toggle star on a session; empty ID means current session
 	AttachFileMsg             struct{ FilePath string }  // Attach a file directly or open file picker if empty/directory
 	InsertFileRefMsg          struct{ FilePath string }  // Insert @filepath reference into editor
+	OpenModelPickerMsg        struct{}                   // Open the model picker dialog
+	ChangeModelMsg            struct{ ModelRef string }  // Change the model for the current agent
 )
 
 // AgentCommandMsg command message
