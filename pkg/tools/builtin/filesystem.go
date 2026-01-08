@@ -118,6 +118,11 @@ type SearchFilesContentArgs struct {
 	ExcludePatterns []string `json:"excludePatterns,omitempty" jsonschema:"Patterns to exclude from search"`
 }
 
+type SearchFilesContentMeta struct {
+	MatchCount int `json:"matchCount"`
+	FileCount  int `json:"fileCount"`
+}
+
 type ListDirectoryArgs struct {
 	Path string `json:"path" jsonschema:"The directory path to list"`
 }
@@ -569,6 +574,7 @@ func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, args Search
 	}
 
 	var results []string
+	filesWithMatches := make(map[string]struct{})
 
 	err := filepath.WalkDir(resolvedPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -626,6 +632,7 @@ func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, args Search
 			}
 
 			if matched {
+				filesWithMatches[path] = struct{}{}
 				preview := line
 				if len(preview) > 100 {
 					start := max(matchStart-20, 0)
@@ -645,11 +652,22 @@ func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, args Search
 		return tools.ResultError(fmt.Sprintf("Error searching file contents: %s", err)), nil
 	}
 
-	if len(results) == 0 {
-		return tools.ResultSuccess("No results found"), nil
+	meta := SearchFilesContentMeta{
+		MatchCount: len(results),
+		FileCount:  len(filesWithMatches),
 	}
 
-	return tools.ResultSuccess(strings.Join(results, "\n")), nil
+	if len(results) == 0 {
+		return &tools.ToolCallResult{
+			Output: "No results found",
+			Meta:   meta,
+		}, nil
+	}
+
+	return &tools.ToolCallResult{
+		Output: strings.Join(results, "\n"),
+		Meta:   meta,
+	}, nil
 }
 
 func (t *FilesystemTool) handleWriteFile(ctx context.Context, args WriteFileArgs) (*tools.ToolCallResult, error) {
