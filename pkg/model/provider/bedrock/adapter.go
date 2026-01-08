@@ -117,12 +117,26 @@ func (a *streamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		}
 
 	case *types.ConverseStreamOutputMemberMetadata:
-		// Metadata event with usage info
-		if a.trackUsage && ev.Value.Usage != nil {
-			response.Usage = &chat.Usage{
-				InputTokens:  int64(derefInt32(ev.Value.Usage.InputTokens)),
-				OutputTokens: int64(derefInt32(ev.Value.Usage.OutputTokens)),
+		// Metadata event with usage info - always capture if available
+		if ev.Value.Usage != nil {
+			usage := ev.Value.Usage
+			slog.Debug("Bedrock stream: received usage metadata",
+				"input_tokens", derefInt32(usage.InputTokens),
+				"output_tokens", derefInt32(usage.OutputTokens),
+				"cache_read_tokens", derefInt32(usage.CacheReadInputTokens),
+				"cache_write_tokens", derefInt32(usage.CacheWriteInputTokens),
+				"track_usage", a.trackUsage)
+
+			if a.trackUsage {
+				response.Usage = &chat.Usage{
+					InputTokens:       int64(derefInt32(usage.InputTokens)),
+					OutputTokens:      int64(derefInt32(usage.OutputTokens)),
+					CachedInputTokens: int64(derefInt32(usage.CacheReadInputTokens)),
+					CacheWriteTokens:  int64(derefInt32(usage.CacheWriteInputTokens)),
+				}
 			}
+		} else {
+			slog.Debug("Bedrock stream: metadata event has no usage data")
 		}
 	}
 
