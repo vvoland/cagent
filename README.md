@@ -32,6 +32,8 @@ experts that collaborate to solve complex problems for you.
 - **🌐 AI provider agnostic** - Support for OpenAI, Anthropic, Gemini, xAI,
   Mistral, Nebius and [Docker Model
   Runner](https://docs.docker.com/ai/model-runner/).
+- **🔀 Runtime model switching** - Change models on-the-fly during a session
+  with the `/model` command, with automatic persistence across session reloads.
 
 ## Your First Agent
 

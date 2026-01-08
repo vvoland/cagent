@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/rand"
+	"sync/atomic"
 
 	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/config/types"
@@ -20,6 +21,7 @@ type Agent struct {
 	instruction        string
 	toolsets           []*StartableToolSet
 	models             []provider.Provider
+	modelOverrides     atomic.Pointer[[]provider.Provider] // Optional model override(s) set at runtime (supports alloy)
 	subAgents          []*Agent
 	handoffs           []*Agent
 	parents            []*Agent
@@ -108,9 +110,53 @@ func (a *Agent) HasSubAgents() bool {
 	return len(a.subAgents) > 0
 }
 
-// Model returns a random model from the available models
+// Model returns the model to use for this agent.
+// If model override(s) are set, it returns one of the overrides (randomly for alloy).
+// Otherwise, it returns a random model from the available models.
 func (a *Agent) Model() provider.Provider {
+	// Check for model override first (set via TUI model switching)
+	if overrides := a.modelOverrides.Load(); overrides != nil && len(*overrides) > 0 {
+		return (*overrides)[rand.Intn(len(*overrides))]
+	}
 	return a.models[rand.Intn(len(a.models))]
+}
+
+// SetModelOverride sets runtime model override(s) for this agent.
+// The override(s) take precedence over the configured models.
+// For alloy models, multiple providers can be passed and one will be randomly selected.
+// Pass no arguments or nil providers to clear the override.
+func (a *Agent) SetModelOverride(models ...provider.Provider) {
+	// Filter out nil providers
+	var validModels []provider.Provider
+	for _, m := range models {
+		if m != nil {
+			validModels = append(validModels, m)
+		}
+	}
+
+	if len(validModels) == 0 {
+		a.modelOverrides.Store(nil)
+		slog.Debug("Cleared model override", "agent", a.name)
+	} else {
+		a.modelOverrides.Store(&validModels)
+		ids := make([]string, len(validModels))
+		for i, m := range validModels {
+			ids[i] = m.ID()
+		}
+		slog.Debug("Set model override", "agent", a.name, "models", ids)
+	}
+}
+
+// HasModelOverride returns true if a model override is currently set.
+func (a *Agent) HasModelOverride() bool {
+	overrides := a.modelOverrides.Load()
+	return overrides != nil && len(*overrides) > 0
+}
+
+// ConfiguredModels returns the originally configured models for this agent.
+// This is useful for listing available models in the TUI picker.
+func (a *Agent) ConfiguredModels() []provider.Provider {
+	return a.models
 }
 
 // Commands returns the named commands configured for this agent.

@@ -122,9 +122,9 @@ Explain what the code in @pkg/agent/agent.go does
 The agent gets the full file contents and places them in a structured `<attachments>`
 block at the end of the message, while the UI doesn't display full file contents.
 
-#### CLI Interactive Commands
+#### TUI Interactive Commands
 
-During CLI sessions, you can use special commands:
+During TUI sessions, you can use special slash commands. Type `/` to see all available commands or use the command palette (Ctrl+K):
 
 | Command     | Description                                                         |
 |-------------|---------------------------------------------------------------------|
@@ -135,11 +135,34 @@ During CLI sessions, you can use special commands:
 | `/eval`     | Create an evaluation report (usage: /eval [filename])               |
 | `/exit`     | Exit the application                                                |
 | `/export`   | Export the session as HTML (usage: /export [filename])              |
+| `/model`    | Change the model for the current agent (see [Model Switching](#runtime-model-switching)) |
 | `/new`      | Start a new conversation                                            |
 | `/sessions` | Browse and load past sessions                                       |
 | `/shell`    | Start a shell                                                       |
 | `/star`     | Toggle star on current session                                      |
 | `/yolo`     | Toggle automatic approval of tool calls                             |
+
+#### Runtime Model Switching
+
+The `/model` command (or `ctrl+m`) allows you to change the AI model used by the current agent during a session. This is useful when you want to:
+
+- Switch to a more capable model for complex tasks
+- Use a faster/cheaper model for simple queries
+- Test different models without modifying your YAML configuration
+
+**How it works:**
+
+1. Type `/model`, `Ctrl+M` or use the command palette (`Ctrl+K`) and select "Model"
+2. A picker dialog opens showing:
+   - **Config models**: All models defined in your YAML configuration, with the agent's default model marked as "(default)"
+   - **Custom input**: Type any model in `provider/model` format  
+   (e.g., `openai/gpt-5`, `anthropic/claude-sonnet-4-0`)  
+   Alloy models are supported with comma separated definitions (e.g. `provider1/model1,provider2/model2,...`)
+3. Select a model or type a custom one and press Enter
+
+**Persistence:** Your model choice is saved with the session. When you reload a past session using `/sessions`, the model you selected will automatically be restored.
+
+To revert to the agent's default model, select the model marked with "(default)" in the picker.
 
 ## 🔧 Configuration Reference
 

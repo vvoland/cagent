@@ -431,3 +431,96 @@ func TestUpdateSession_Permissions(t *testing.T) {
 	assert.Equal(t, []string{"safe_*"}, retrieved.Permissions.Allow)
 	assert.Equal(t, []string{"dangerous_*"}, retrieved.Permissions.Deny)
 }
+
+func TestAgentModelOverrides_SQLite(t *testing.T) {
+	tempDB := filepath.Join(t.TempDir(), "test_model_overrides.db")
+
+	store, err := NewSQLiteSessionStore(tempDB)
+	require.NoError(t, err)
+	defer store.(*SQLiteSessionStore).Close()
+
+	// Create a session with model overrides
+	session := &Session{
+		ID:        "model-override-session",
+		Title:     "Test Session",
+		CreatedAt: time.Now(),
+		AgentModelOverrides: map[string]string{
+			"root":       "openai/gpt-4o",
+			"researcher": "anthropic/claude-sonnet-4-0",
+		},
+	}
+
+	// Store the session
+	err = store.AddSession(t.Context(), session)
+	require.NoError(t, err)
+
+	// Retrieve the session
+	retrieved, err := store.GetSession(t.Context(), "model-override-session")
+	require.NoError(t, err)
+	require.NotNil(t, retrieved)
+
+	// Verify model overrides were persisted
+	assert.Len(t, retrieved.AgentModelOverrides, 2)
+	assert.Equal(t, "openai/gpt-4o", retrieved.AgentModelOverrides["root"])
+	assert.Equal(t, "anthropic/claude-sonnet-4-0", retrieved.AgentModelOverrides["researcher"])
+}
+
+func TestAgentModelOverrides_Update(t *testing.T) {
+	tempDB := filepath.Join(t.TempDir(), "test_model_overrides_update.db")
+
+	store, err := NewSQLiteSessionStore(tempDB)
+	require.NoError(t, err)
+	defer store.(*SQLiteSessionStore).Close()
+
+	// Create a session without model overrides
+	session := &Session{
+		ID:        "update-model-override-session",
+		Title:     "Test Session",
+		CreatedAt: time.Now(),
+	}
+
+	err = store.AddSession(t.Context(), session)
+	require.NoError(t, err)
+
+	// Update the session with model overrides
+	session.AgentModelOverrides = map[string]string{
+		"root": "google/gemini-2.5-flash",
+	}
+
+	err = store.UpdateSession(t.Context(), session)
+	require.NoError(t, err)
+
+	// Retrieve and verify
+	retrieved, err := store.GetSession(t.Context(), "update-model-override-session")
+	require.NoError(t, err)
+	require.NotNil(t, retrieved)
+
+	assert.Len(t, retrieved.AgentModelOverrides, 1)
+	assert.Equal(t, "google/gemini-2.5-flash", retrieved.AgentModelOverrides["root"])
+}
+
+func TestAgentModelOverrides_EmptyMap(t *testing.T) {
+	tempDB := filepath.Join(t.TempDir(), "test_model_overrides_empty.db")
+
+	store, err := NewSQLiteSessionStore(tempDB)
+	require.NoError(t, err)
+	defer store.(*SQLiteSessionStore).Close()
+
+	// Create a session without model overrides (nil map)
+	session := &Session{
+		ID:        "no-override-session",
+		Title:     "Test Session",
+		CreatedAt: time.Now(),
+	}
+
+	err = store.AddSession(t.Context(), session)
+	require.NoError(t, err)
+
+	// Retrieve the session
+	retrieved, err := store.GetSession(t.Context(), "no-override-session")
+	require.NoError(t, err)
+	require.NotNil(t, retrieved)
+
+	// Verify no model overrides (should be nil or empty)
+	assert.Empty(t, retrieved.AgentModelOverrides)
+}

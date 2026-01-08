@@ -47,8 +47,28 @@ func WithToolsetRegistry(registry *ToolsetRegistry) Opt {
 	}
 }
 
+// LoadResult contains the result of loading an agent team, including
+// the team and configuration needed for runtime model switching.
+type LoadResult struct {
+	Team      *team.Team
+	Models    map[string]latest.ModelConfig
+	Providers map[string]latest.ProviderConfig
+	// AgentDefaultModels maps agent names to their configured default model references
+	AgentDefaultModels map[string]string
+}
+
 // Load loads an agent team from the given source
 func Load(ctx context.Context, agentSource config.Source, runConfig *config.RuntimeConfig, opts ...Opt) (*team.Team, error) {
+	result, err := LoadWithConfig(ctx, agentSource, runConfig, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return result.Team, nil
+}
+
+// LoadWithConfig loads an agent team and returns both the team and config info
+// needed for runtime model switching.
+func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *config.RuntimeConfig, opts ...Opt) (*LoadResult, error) {
 	var loadOpts loadOptions
 	loadOpts.toolsetRegistry = NewDefaultToolsetRegistry()
 
@@ -177,11 +197,24 @@ func Load(ctx context.Context, agentSource config.Source, runConfig *config.Runt
 	// Create permissions checker from config
 	permChecker := permissions.NewChecker(cfg.Permissions)
 
-	return team.New(
-		team.WithAgents(agents...),
-		team.WithRAGManagers(ragManagers),
-		team.WithPermissions(permChecker),
-	), nil
+	// Build agent default models map
+	agentDefaultModels := make(map[string]string)
+	for name, agentCfg := range cfg.Agents {
+		if agentCfg.Model != "" {
+			agentDefaultModels[name] = agentCfg.Model
+		}
+	}
+
+	return &LoadResult{
+		Team: team.New(
+			team.WithAgents(agents...),
+			team.WithRAGManagers(ragManagers),
+			team.WithPermissions(permChecker),
+		),
+		Models:             cfg.Models,
+		Providers:          cfg.Providers,
+		AgentDefaultModels: agentDefaultModels,
+	}, nil
 }
 
 func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentConfig, autoModelFn func() latest.ModelConfig, runConfig *config.RuntimeConfig) ([]provider.Provider, error) {

@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 
 	tea "charm.land/bubbletea/v2"
@@ -63,6 +64,8 @@ func (a *appModel) handleLoadSession(sessionID string) (tea.Model, tea.Cmd) {
 	if err != nil {
 		return a, notification.ErrorCmd(fmt.Sprintf("Failed to load session: %v", err))
 	}
+
+	slog.Debug("Loaded session from store", "session_id", sessionID, "model_overrides", sess.AgentModelOverrides)
 
 	// Cancel current session and replace with loaded one
 	a.application.ReplaceSession(context.Background(), sess)
@@ -231,4 +234,33 @@ func (a *appModel) handleAttachFile(filePath string) (tea.Model, tea.Cmd) {
 	return a, core.CmdHandler(dialog.OpenDialogMsg{
 		Model: dialog.NewFilePickerDialog(filePath),
 	})
+}
+
+// Model switching handlers
+
+func (a *appModel) handleOpenModelPicker() (tea.Model, tea.Cmd) {
+	// Check if model switching is supported
+	if !a.application.SupportsModelSwitching() {
+		return a, notification.InfoCmd("Model switching is not supported with remote runtimes")
+	}
+
+	models := a.application.AvailableModels(context.Background())
+	if len(models) == 0 {
+		return a, notification.InfoCmd("No models available for selection")
+	}
+
+	return a, core.CmdHandler(dialog.OpenDialogMsg{
+		Model: dialog.NewModelPickerDialog(models),
+	})
+}
+
+func (a *appModel) handleChangeModel(modelRef string) (tea.Model, tea.Cmd) {
+	if err := a.application.SetCurrentAgentModel(context.Background(), modelRef); err != nil {
+		return a, notification.ErrorCmd(fmt.Sprintf("Failed to change model: %v", err))
+	}
+
+	if modelRef == "" {
+		return a, notification.SuccessCmd("Model reset to default")
+	}
+	return a, notification.SuccessCmd(fmt.Sprintf("Model changed to %s", modelRef))
 }

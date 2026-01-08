@@ -3,7 +3,9 @@ package app
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os/exec"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -259,6 +261,168 @@ func (a *App) SwitchAgent(agentName string) error {
 	return a.runtime.SetCurrentAgent(agentName)
 }
 
+// SetCurrentAgentModel sets the model for the current agent and persists
+// the override in the session. Returns an error if model switching is not
+// supported by the runtime (e.g., remote runtimes).
+// Pass an empty modelRef to clear the override and use the agent's default model.
+func (a *App) SetCurrentAgentModel(ctx context.Context, modelRef string) error {
+	modelSwitcher, ok := a.runtime.(runtime.ModelSwitcher)
+	if !ok {
+		return fmt.Errorf("model switching not supported by this runtime")
+	}
+
+	agentName := a.runtime.CurrentAgentName()
+
+	// Set the model override on the runtime (empty modelRef clears the override)
+	if err := modelSwitcher.SetAgentModel(ctx, agentName, modelRef); err != nil {
+		return err
+	}
+
+	// Update the session's model overrides
+	if modelRef == "" {
+		// Clear the override - remove from map
+		delete(a.session.AgentModelOverrides, agentName)
+		slog.Debug("Cleared model override from session", "session_id", a.session.ID, "agent", agentName)
+	} else {
+		// Set the override
+		if a.session.AgentModelOverrides == nil {
+			a.session.AgentModelOverrides = make(map[string]string)
+		}
+		a.session.AgentModelOverrides[agentName] = modelRef
+		slog.Debug("Set model override in session", "session_id", a.session.ID, "agent", agentName, "model", modelRef)
+
+		// Track custom models (inline provider/model format) in the session
+		if strings.Contains(modelRef, "/") {
+			a.trackCustomModel(modelRef)
+		}
+	}
+
+	// Persist the session
+	if store := a.runtime.SessionStore(); store != nil {
+		if err := store.UpdateSession(ctx, a.session); err != nil {
+			return fmt.Errorf("failed to persist model override: %w", err)
+		}
+		slog.Debug("Persisted session with model override", "session_id", a.session.ID, "overrides", a.session.AgentModelOverrides)
+	}
+
+	// Re-emit startup info so the sidebar updates with the new model
+	a.runtime.ResetStartupInfo()
+	go func() {
+		startupEvents := make(chan runtime.Event, 10)
+		go func() {
+			defer close(startupEvents)
+			a.runtime.EmitStartupInfo(ctx, startupEvents)
+		}()
+		for event := range startupEvents {
+			a.events <- event
+		}
+	}()
+
+	return nil
+}
+
+// AvailableModels returns the list of models available for selection.
+// Returns nil if model switching is not supported.
+func (a *App) AvailableModels(ctx context.Context) []runtime.ModelChoice {
+	modelSwitcher, ok := a.runtime.(runtime.ModelSwitcher)
+	if !ok {
+		return nil
+	}
+	models := modelSwitcher.AvailableModels(ctx)
+
+	// Determine the currently active model for this agent
+	agentName := a.runtime.CurrentAgentName()
+	currentModelRef := ""
+	if a.session != nil && a.session.AgentModelOverrides != nil {
+		currentModelRef = a.session.AgentModelOverrides[agentName]
+	}
+
+	// Build a set of model refs already in the list
+	existingRefs := make(map[string]bool)
+	for _, m := range models {
+		existingRefs[m.Ref] = true
+	}
+
+	// Check if current model is in the list and mark it
+	currentFound := currentModelRef == ""
+	for i := range models {
+		if currentModelRef != "" {
+			// An override is set - mark the override as current
+			if models[i].Ref == currentModelRef {
+				models[i].IsCurrent = true
+				currentFound = true
+			}
+		} else {
+			// No override - the default model is current
+			models[i].IsCurrent = models[i].IsDefault
+		}
+	}
+
+	// Add custom models from the session that aren't already in the list
+	if a.session != nil {
+		for _, customRef := range a.session.CustomModelsUsed {
+			if existingRefs[customRef] {
+				continue // Already in the list
+			}
+			existingRefs[customRef] = true
+
+			providerName, modelName, _ := strings.Cut(customRef, "/")
+			isCurrent := customRef == currentModelRef
+			if isCurrent {
+				currentFound = true
+			}
+			models = append(models, runtime.ModelChoice{
+				Name:      customRef,
+				Ref:       customRef,
+				Provider:  providerName,
+				Model:     modelName,
+				IsDefault: false,
+				IsCurrent: isCurrent,
+				IsCustom:  true,
+			})
+		}
+	}
+
+	// If current model is a custom model not in the list, add it
+	if !currentFound && strings.Contains(currentModelRef, "/") {
+		providerName, modelName, _ := strings.Cut(currentModelRef, "/")
+		models = append(models, runtime.ModelChoice{
+			Name:      currentModelRef,
+			Ref:       currentModelRef,
+			Provider:  providerName,
+			Model:     modelName,
+			IsDefault: false,
+			IsCurrent: true,
+			IsCustom:  true,
+		})
+	}
+
+	return models
+}
+
+// trackCustomModel adds a custom model to the session's history if not already present.
+func (a *App) trackCustomModel(modelRef string) {
+	if a.session == nil {
+		return
+	}
+
+	// Check if already tracked
+	for _, existing := range a.session.CustomModelsUsed {
+		if existing == modelRef {
+			return
+		}
+	}
+
+	a.session.CustomModelsUsed = append(a.session.CustomModelsUsed, modelRef)
+	slog.Debug("Tracked custom model in session", "session_id", a.session.ID, "model", modelRef)
+}
+
+// SupportsModelSwitching returns true if the runtime supports model switching.
+func (a *App) SupportsModelSwitching() bool {
+	_, ok := a.runtime.(runtime.ModelSwitcher)
+	return ok
+}
+
 func (a *App) CompactSession(additionalPrompt string) {
 	if a.session != nil {
 		events := make(chan runtime.Event, 100)
@@ -283,12 +447,16 @@ func (a *App) SessionStore() session.Store {
 // ReplaceSession replaces the current session with the given session.
 // This is used when loading a past session. It also re-emits startup info
 // so the sidebar displays the agent and tool information.
+// If the session has stored model overrides, they are applied to the runtime.
 func (a *App) ReplaceSession(ctx context.Context, sess *session.Session) {
 	if a.cancel != nil {
 		a.cancel()
 		a.cancel = nil
 	}
 	a.session = sess
+
+	// Apply any stored model overrides from the session
+	a.applySessionModelOverrides(ctx, sess)
 
 	// Reset and re-emit startup info so the sidebar shows agent/tools info
 	a.runtime.ResetStartupInfo()
@@ -302,6 +470,32 @@ func (a *App) ReplaceSession(ctx context.Context, sess *session.Session) {
 			a.events <- event
 		}
 	}()
+}
+
+// applySessionModelOverrides applies any stored model overrides from a loaded session.
+func (a *App) applySessionModelOverrides(ctx context.Context, sess *session.Session) {
+	if len(sess.AgentModelOverrides) == 0 {
+		slog.Debug("No model overrides to apply from session", "session_id", sess.ID)
+		return
+	}
+
+	// Check if runtime supports model switching
+	modelSwitcher, ok := a.runtime.(runtime.ModelSwitcher)
+	if !ok {
+		slog.Debug("Runtime does not support model switching, skipping overrides")
+		return
+	}
+
+	slog.Debug("Applying model overrides from session", "session_id", sess.ID, "overrides", sess.AgentModelOverrides)
+	for agentName, modelRef := range sess.AgentModelOverrides {
+		if err := modelSwitcher.SetAgentModel(ctx, agentName, modelRef); err != nil {
+			// Log but don't fail - the session can still be used with default models
+			slog.Warn("Failed to apply model override from session", "agent", agentName, "model", modelRef, "error", err)
+			a.events <- runtime.Warning(fmt.Sprintf("Failed to apply model override for agent %q: %v", agentName, err), agentName)
+		} else {
+			slog.Info("Applied model override from session", "agent", agentName, "model", modelRef)
+		}
+	}
 }
 
 // throttleEvents buffers and merges rapid events to prevent UI flooding

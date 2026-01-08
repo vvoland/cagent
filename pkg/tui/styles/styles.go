@@ -281,6 +281,13 @@ var (
 			Foreground(TabAccentFg)
 )
 
+// Model selector Badge colors
+const (
+	ColorBadgePurple = "#B083EA" // Purple for alloy badge
+	ColorBadgeCyan   = "#7DCFFF" // Cyan for default badge
+	ColorBadgeGreen  = "#9ECE6A" // Green for current badge
+)
+
 // Command Palette Styles
 var (
 	PaletteCategoryStyle = BaseStyle.
@@ -302,6 +309,16 @@ var (
 	PaletteSelectedDescStyle = PaletteUnselectedDescStyle.
 					Background(MobyBlue).
 					Foreground(White)
+
+	// Badge styles for model picker
+	BadgeAlloyStyle = BaseStyle.
+			Foreground(lipgloss.Color(ColorBadgePurple))
+
+	BadgeDefaultStyle = BaseStyle.
+				Foreground(lipgloss.Color(ColorBadgeCyan))
+
+	BadgeCurrentStyle = BaseStyle.
+				Foreground(lipgloss.Color(ColorBadgeGreen))
 )
 
 // Star Styles for session browser and sidebar

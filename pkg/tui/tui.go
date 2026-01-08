@@ -63,6 +63,7 @@ type KeyMap struct {
 	ToggleYolo            key.Binding
 	ToggleHideToolResults key.Binding
 	SwitchAgent           key.Binding
+	ModelPicker           key.Binding
 }
 
 // DefaultKeyMap returns the default global key bindings
@@ -87,6 +88,10 @@ func DefaultKeyMap() KeyMap {
 		SwitchAgent: key.NewBinding(
 			key.WithKeys("ctrl+s"),
 			key.WithHelp("Ctrl+s", "cycle agent"),
+		),
+		ModelPicker: key.NewBinding(
+			key.WithKeys("ctrl+m"),
+			key.WithHelp("Ctrl+m", "models"),
 		),
 	}
 }
@@ -158,6 +163,7 @@ func (a *appModel) Bindings() []key.Binding {
 	return append([]key.Binding{
 		a.keyMap.Quit,
 		a.keyMap.CommandPalette,
+		a.keyMap.ModelPicker,
 	}, a.chatPage.Bindings()...)
 }
 
@@ -296,6 +302,12 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.AttachFileMsg:
 		return a.handleAttachFile(msg.FilePath)
 
+	case messages.OpenModelPickerMsg:
+		return a.handleOpenModelPicker()
+
+	case messages.ChangeModelMsg:
+		return a.handleChangeModel(msg.ModelRef)
+
 	case dialog.RuntimeResumeMsg:
 		a.application.Resume(msg.Response)
 		return a, nil
@@ -430,6 +442,9 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, a.keyMap.SwitchAgent):
 		// Cycle to the next agent in the list
 		return a.cycleToNextAgent()
+
+	case key.Matches(msg, a.keyMap.ModelPicker):
+		return a.handleOpenModelPicker()
 
 	default:
 		// Handle ctrl+1 through ctrl+9 for quick agent switching

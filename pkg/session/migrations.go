@@ -221,6 +221,19 @@ func getAllMigrations() []Migration {
 			UpSQL:       `ALTER TABLE sessions ADD COLUMN permissions TEXT DEFAULT ''`,
 			DownSQL:     `ALTER TABLE sessions DROP COLUMN permissions`,
 		},
-		// Add more migrations here as needed
+		{
+			ID:          11,
+			Name:        "011_add_agent_model_overrides_column",
+			Description: "Add agent_model_overrides column to sessions table for per-session model switching",
+			UpSQL:       `ALTER TABLE sessions ADD COLUMN agent_model_overrides TEXT DEFAULT '{}'`,
+			DownSQL:     `ALTER TABLE sessions DROP COLUMN agent_model_overrides`,
+		},
+		{
+			ID:          12,
+			Name:        "012_add_custom_models_used_column",
+			Description: "Add custom_models_used column to sessions table for tracking custom models used in session",
+			UpSQL:       `ALTER TABLE sessions ADD COLUMN custom_models_used TEXT DEFAULT '[]'`,
+			DownSQL:     `ALTER TABLE sessions DROP COLUMN custom_models_used`,
+		},
 	}
 }
