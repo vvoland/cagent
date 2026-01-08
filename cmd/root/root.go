@@ -112,16 +112,23 @@ func Execute(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer, arg
 
 	// Print startup message only on first installation/setup
 	if isFirstRun() && os.Getenv("CAGENT_HIDE_TELEMETRY_BANNER") != "1" {
-		startupMsg := fmt.Sprintf(`
+		welcomeMsg := fmt.Sprintf(`
 Welcome to cagent! 🚀
 
 For any feedback, please visit: %s
+`, feedback.Link)
+		fmt.Fprint(stderr, welcomeMsg)
 
+		// Only show telemetry notice when telemetry is enabled
+		if telemetry.GetTelemetryEnabled() {
+			telemetryMsg := `
 We collect anonymous usage data to help improve cagent. To disable:
   - Set environment variable: TELEMETRY_ENABLED=false
+`
+			fmt.Fprint(stderr, telemetryMsg)
+		}
 
-`, feedback.Link)
-		fmt.Fprint(stderr, startupMsg)
+		fmt.Fprintln(stderr)
 	}
 
 	rootCmd := NewRootCmd()
