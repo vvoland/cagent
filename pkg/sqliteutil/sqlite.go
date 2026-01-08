@@ -14,6 +14,11 @@ import (
 // OpenDB opens a SQLite database with recommended pragmas for concurrency and foreign key support.
 // It configures the connection pool for serialized writes (MaxOpenConns=1).
 func OpenDB(path string) (*sql.DB, error) {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, fmt.Errorf("cannot create database directory %q: %w", dir, err)
+	}
+
 	// Add query parameters for better concurrency handling and data integrity
 	// _pragma=busy_timeout(5000): Wait up to 5 seconds if database is locked
 	// _pragma=journal_mode(WAL): Enable Write-Ahead Logging for better concurrent access
