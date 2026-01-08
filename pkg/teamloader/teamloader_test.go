@@ -14,6 +14,12 @@ import (
 	"github.com/docker/cagent/pkg/config/latest"
 )
 
+// skipExamples contains example files that require cloud-specific configurations
+// (e.g., AWS profiles, GCP credentials) that can't be mocked with dummy env vars.
+var skipExamples = map[string]string{
+	"pr-reviewer-bedrock.yaml": "requires AWS profile configuration",
+}
+
 func collectExamples(t *testing.T) []string {
 	t.Helper()
 
@@ -23,6 +29,10 @@ func collectExamples(t *testing.T) []string {
 			return err
 		}
 		if !d.IsDir() && filepath.Ext(path) == ".yaml" {
+			if reason, skip := skipExamples[filepath.Base(path)]; skip {
+				t.Logf("Skipping %s: %s", path, reason)
+				return nil
+			}
 			files = append(files, path)
 		}
 		return nil

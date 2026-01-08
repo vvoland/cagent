@@ -15,7 +15,7 @@ agents with specialized capabilities and tools. It features:
 - **📦 Agent distribution** via Docker registry integration
 - **🔒 Security-first design** with proper client scoping and resource isolation
 - **⚡ Event-driven streaming** for real-time interactions
-- **🧠 Multi-model support** (OpenAI, Anthropic, Gemini, [Docker Model Runner (DMR)](https://docs.docker.com/ai/model-runner/))
+- **🧠 Multi-model support** (OpenAI, Anthropic, Gemini, [AWS Bedrock](https://aws.amazon.com/bedrock/), [Docker Model Runner (DMR)](https://docs.docker.com/ai/model-runner/))
 
 
 ## Why?
@@ -223,7 +223,7 @@ cagent run ./agent.yaml /analyze
 
 | Property            | Type       | Description                                                                  | Required |
 |---------------------|------------|------------------------------------------------------------------------------|----------|
-| `provider`          | string     | Provider: `openai`, `anthropic`, `google`, `dmr`                             | ✓        |
+| `provider`          | string     | Provider: `openai`, `anthropic`, `google`, `amazon-bedrock`, `dmr`           | ✓        |
 | `model`             | string     | Model name (e.g., `gpt-4o`, `claude-sonnet-4-0`, `gemini-2.5-flash`)         | ✓        |
 | `temperature`       | float      | Randomness (0.0-1.0)                                                         | ✗        |
 | `max_tokens`        | integer    | Response length limit                                                        | ✗        |
@@ -238,7 +238,7 @@ cagent run ./agent.yaml /analyze
 ```yaml
 models:
   model_name:
-    provider: string # Provider: openai, anthropic, google, dmr
+    provider: string # Provider: openai, anthropic, google, amazon-bedrock, dmr
     model: string # Model name: gpt-4o, claude-3-7-sonnet-latest, gemini-2.5-flash, qwen3:4B, ...
     temperature: float # Randomness (0.0-1.0)
     max_tokens: integer # Response length limit
@@ -365,11 +365,115 @@ models:
     provider: google
     model: gemini-2.5-flash
 
+# AWS Bedrock
+models:
+  claude-bedrock:
+    provider: amazon-bedrock
+    model: global.anthropic.claude-sonnet-4-5-20250929-v1:0  # Global inference profile
+
 # Docker Model Runner (DMR)
 models:
   qwen:
     provider: dmr
     model: ai/qwen3
+```
+
+#### AWS Bedrock provider usage
+
+**Prerequisites:**
+- AWS account with Bedrock enabled in your region
+- Model access granted in the [Bedrock Console](https://console.aws.amazon.com/bedrock/) (some models require approval)
+- AWS credentials configured (see authentication below)
+
+**Authentication:**
+
+Bedrock supports two authentication methods:
+
+**Option 1: Bedrock API key** (simplest)
+
+Set the `AWS_BEARER_TOKEN_BEDROCK` environment variable with your Bedrock API key. You can customize the env var name using `token_key`:
+
+```yaml
+models:
+  claude-bedrock:
+    provider: amazon-bedrock
+    model: global.anthropic.claude-sonnet-4-5-20250929-v1:0
+    token_key: AWS_BEARER_TOKEN_BEDROCK  # Name of env var containing your token (default)
+    provider_opts:
+      region: us-east-1
+```
+
+Generate API keys in the [Bedrock Console](https://console.aws.amazon.com/bedrock/) under "API keys".
+
+**Option 2: AWS credentials** (default)
+
+Uses the [AWS SDK default credential chain](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html#specifying-credentials):
+
+1. Environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`)
+2. Shared credentials file (`~/.aws/credentials`)
+3. Shared config file (`~/.aws/config` with `AWS_PROFILE`)
+4. IAM instance roles (EC2, ECS, Lambda)
+
+You can also use `provider_opts.role_arn` for cross-account role assumption.
+
+**Basic usage with AWS profile:**
+
+```yaml
+models:
+  claude-bedrock:
+    provider: amazon-bedrock
+    model: global.anthropic.claude-sonnet-4-5-20250929-v1:0
+    max_tokens: 64000
+    provider_opts:
+      profile: my-aws-profile
+      region: us-east-1
+```
+
+**With IAM role assumption:**
+
+```yaml
+models:
+  claude-bedrock:
+    provider: amazon-bedrock
+    model: anthropic.claude-3-sonnet-20240229-v1:0
+    provider_opts:
+      role_arn: "arn:aws:iam::123456789012:role/BedrockAccessRole"
+      external_id: "my-external-id"
+```
+
+**provider_opts for Bedrock:**
+
+| Option | Type | Description | Default |
+|--------|------|-------------|---------|
+| `region` | string | AWS region | us-east-1 |
+| `profile` | string | AWS profile name | (default chain) |
+| `role_arn` | string | IAM role ARN for assume role | (none) |
+| `role_session_name` | string | Session name for assumed role | cagent-bedrock-session |
+| `external_id` | string | External ID for role assumption | (none) |
+| `endpoint_url` | string | Custom endpoint (VPC/testing) | (none) |
+
+**Supported models (via Converse API):**
+
+All Bedrock models that support the Converse API work with cagent. Use inference profile IDs for best availability:
+
+- **Anthropic Claude**: `global.anthropic.claude-sonnet-4-5-20250929-v1:0`, `us.anthropic.claude-haiku-4-5-20251001-v1:0`
+- **Amazon Nova**: `global.amazon.nova-2-lite-v1:0`
+- **Meta Llama**: `us.meta.llama3-2-90b-instruct-v1:0`
+- **Mistral**: `us.mistral.mistral-large-2407-v1:0`
+
+**Inference profile prefixes:**
+
+| Prefix | Routes to |
+|--------|-----------|
+| `global.` | All commercial AWS regions (recommended) |
+| `us.` | US regions only |
+| `eu.` | EU regions only (GDPR compliance) |
+
+```yaml
+models:
+  claude-global:
+    provider: amazon-bedrock
+    model: global.anthropic.claude-sonnet-4-5-20250929-v1:0  # Routes to any available region
 ```
 
 #### DMR (Docker Model Runner) provider usage
@@ -427,7 +531,7 @@ Requirements and notes:
 - Docker Model plugin must be available for auto-configure/auto-discovery
   - Verify with: `docker model status --json`
 - Configuration is best-effort; failures fall back to the default base URL
-- `provider_opts` currently apply to `dmr` and `anthropic` providers
+- `provider_opts` currently apply to `dmr`, `anthropic`, and `amazon-bedrock` providers
 - `runtime_flags` are passed after `--` to the inference runtime (e.g., llama.cpp)
 
 Parameter mapping and precedence (DMR):
