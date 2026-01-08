@@ -165,6 +165,26 @@ func (s *Session) AddSubSession(subSession *Session) {
 	s.Messages = append(s.Messages, NewSubSessionItem(subSession))
 }
 
+// Duration calculates the duration of the session from message timestamps.
+func (s *Session) Duration() time.Duration {
+	messages := s.GetAllMessages()
+	if len(messages) < 2 {
+		return 0
+	}
+
+	first, err := time.Parse(time.RFC3339, messages[0].Message.CreatedAt)
+	if err != nil {
+		return 0
+	}
+
+	last, err := time.Parse(time.RFC3339, messages[len(messages)-1].Message.CreatedAt)
+	if err != nil {
+		return 0
+	}
+
+	return last.Sub(first)
+}
+
 // AllowedDirectories returns the directories that should be considered safe for tools
 func (s *Session) AllowedDirectories() []string {
 	if s.WorkingDir == "" {
