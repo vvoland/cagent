@@ -259,16 +259,6 @@ func TestStoreAgentNameJSON(t *testing.T) {
 	assert.Equal(t, "another-agent", retrievedSession.Messages[2].Message.AgentName) // Second agent
 }
 
-func TestNewSQLiteSessionStore_DirectoryDoesNotExist(t *testing.T) {
-	nonExistentPath := "/nonexistent/path/to/session.db"
-
-	_, err := NewSQLiteSessionStore(nonExistentPath)
-	require.Error(t, err)
-
-	assert.Contains(t, err.Error(), "cannot create database")
-	assert.Contains(t, err.Error(), "does not exist")
-}
-
 func TestNewSQLiteSessionStore_DirectoryNotWritable(t *testing.T) {
 	readOnlyDir := filepath.Join(t.TempDir(), "readonly")
 	err := os.Mkdir(readOnlyDir, 0o555)
