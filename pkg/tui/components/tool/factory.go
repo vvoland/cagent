@@ -4,11 +4,13 @@ import (
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/tool/api"
 	"github.com/docker/cagent/pkg/tui/components/tool/defaulttool"
+	"github.com/docker/cagent/pkg/tui/components/tool/directorytree"
 	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
 	"github.com/docker/cagent/pkg/tui/components/tool/handoff"
 	"github.com/docker/cagent/pkg/tui/components/tool/listdirectory"
 	"github.com/docker/cagent/pkg/tui/components/tool/readfile"
 	"github.com/docker/cagent/pkg/tui/components/tool/readmultiplefiles"
+	"github.com/docker/cagent/pkg/tui/components/tool/searchfilescontent"
 	"github.com/docker/cagent/pkg/tui/components/tool/shell"
 	"github.com/docker/cagent/pkg/tui/components/tool/todotool"
 	"github.com/docker/cagent/pkg/tui/components/tool/transfertask"
@@ -73,6 +75,8 @@ func newDefaultRegistry() *Registry {
 		{[]string{builtin.ToolNameReadFile}, readfile.New},
 		{[]string{builtin.ToolNameReadMultipleFiles}, readmultiplefiles.New},
 		{[]string{builtin.ToolNameListDirectory}, listdirectory.New},
+		{[]string{builtin.ToolNameDirectoryTree}, directorytree.New},
+		{[]string{builtin.ToolNameSearchFilesContent}, searchfilescontent.New},
 		{[]string{builtin.ToolNameShell}, shell.New},
 		{[]string{builtin.ToolNameFetch, "category:api"}, api.New},
 		{
