@@ -56,10 +56,21 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		opt(&globalOptions)
 	}
 
-	// Check for Bedrock API key (simpler auth method)
-	bearerToken, _ := env.Get(ctx, "AWS_BEARER_TOKEN_BEDROCK")
-	if bearerToken == "" {
-		bearerToken = getProviderOpt[string](cfg.ProviderOpts, "api_key")
+	// Check for bearer token - use token_key if specified, otherwise try AWS_BEARER_TOKEN_BEDROCK.
+	// Bearer token is optional: if not provided, falls back to standard AWS credential chain (SigV4).
+	//
+	// NOTE: Manual token handling is required because aws-sdk-go-v2's default credential chain
+	// does not recognize bearer tokens for Bedrock API keys.
+	// See: https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys-use.html
+	var bearerToken string
+	if cfg.TokenKey != "" {
+		bearerToken, _ = env.Get(ctx, cfg.TokenKey)
+		if bearerToken == "" {
+			slog.Debug("Bedrock token_key configured but env var is empty, falling back to AWS credential chain",
+				"token_key", cfg.TokenKey)
+		}
+	} else {
+		bearerToken, _ = env.Get(ctx, "AWS_BEARER_TOKEN_BEDROCK")
 	}
 
 	// Build AWS config using default credential chain
@@ -81,7 +92,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 
 	// If bearer token is set, use it instead of SigV4
 	if bearerToken != "" {
-		slog.Debug("Bedrock using API key authentication")
+		slog.Debug("Bedrock using bearer token authentication")
 		clientOpts = append(clientOpts, func(o *bedrockruntime.Options) {
 			// Use anonymous credentials to skip SigV4 signing
 			o.Credentials = aws.AnonymousCredentials{}

@@ -520,13 +520,15 @@ func TestNewClient_WithBearerToken(t *testing.T) {
 	cfg := &latest.ModelConfig{
 		Provider: "amazon-bedrock",
 		Model:    "anthropic.claude-v2",
+		TokenKey: "MY_BEDROCK_TOKEN",
 		ProviderOpts: map[string]any{
-			"region":  "us-east-1",
-			"api_key": "test-bearer-token",
+			"region": "us-east-1",
 		},
 	}
 
-	env := &mockEnvProvider{values: map[string]string{}}
+	env := &mockEnvProvider{values: map[string]string{
+		"MY_BEDROCK_TOKEN": "test-bearer-token",
+	}}
 
 	client, err := NewClient(t.Context(), cfg, env)
 	require.NoError(t, err)

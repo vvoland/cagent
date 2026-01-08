@@ -368,15 +368,15 @@ Bedrock supports two authentication methods:
 
 **Option 1: Bedrock API key** (simplest)
 
-Set the `AWS_BEARER_TOKEN_BEDROCK` environment variable or use `api_key` in provider_opts:
+Set the `AWS_BEARER_TOKEN_BEDROCK` environment variable with your Bedrock API key. You can customize the env var name using `token_key`:
 
 ```yaml
 models:
   claude-bedrock:
     provider: amazon-bedrock
     model: global.anthropic.claude-sonnet-4-5-20250929-v1:0
+    token_key: AWS_BEARER_TOKEN_BEDROCK  # Name of env var containing your token (default)
     provider_opts:
-      api_key: "your-bedrock-api-key"
       region: us-east-1
 ```
 
@@ -422,7 +422,6 @@ models:
 
 | Option | Type | Description | Default |
 |--------|------|-------------|---------|
-| `api_key` | string | Bedrock API key (alternative to `AWS_BEARER_TOKEN_BEDROCK` env var) | (none) |
 | `region` | string | AWS region | us-east-1 |
 | `profile` | string | AWS profile name | (default chain) |
 | `role_arn` | string | IAM role ARN for assume role | (none) |
