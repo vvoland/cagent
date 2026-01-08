@@ -446,8 +446,9 @@ var (
 
 // Scrollbar
 var (
-	TrackStyle = lipgloss.NewStyle().Foreground(BorderSecondary)
-	ThumbStyle = lipgloss.NewStyle().Foreground(Accent)
+	TrackStyle       = lipgloss.NewStyle().Foreground(BorderSecondary)
+	ThumbStyle       = lipgloss.NewStyle().Foreground(Info).Background(BackgroundAlt).Bold(true)
+	ThumbActiveStyle = lipgloss.NewStyle().Foreground(White).Background(BackgroundAlt).Bold(true)
 )
 
 // Resize Handle Style
@@ -456,10 +457,12 @@ var (
 				Foreground(BorderSecondary)
 
 	ResizeHandleHoverStyle = BaseStyle.
-				Foreground(Accent)
+				Foreground(Info).
+				Bold(true)
 
 	ResizeHandleActiveStyle = BaseStyle.
-				Foreground(lipgloss.Color(ColorTextPrimary))
+				Foreground(White).
+				Bold(true)
 )
 
 // Notification Styles

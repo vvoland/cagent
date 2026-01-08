@@ -32,7 +32,7 @@ func New() *Model {
 	return &Model{
 		width:     1,
 		trackChar: "│",
-		thumbChar: "█",
+		thumbChar: "│",
 	}
 }
 
@@ -106,7 +106,11 @@ func (m *Model) View() string {
 		var char string
 
 		if i >= thumbTop && i < thumbTop+thumbHeight {
-			style = styles.ThumbStyle
+			if m.dragging {
+				style = styles.ThumbActiveStyle
+			} else {
+				style = styles.ThumbStyle
+			}
 			char = m.thumbChar
 		} else {
 			style = styles.TrackStyle

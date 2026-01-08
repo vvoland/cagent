@@ -36,6 +36,7 @@ const (
 type Model interface {
 	layout.Model
 	layout.Sizeable
+	layout.Positionable
 
 	SetTokenUsage(event *runtime.TokenUsageEvent)
 	SetTodos(result *tools.ToolCallResult) error
@@ -62,6 +63,8 @@ type ragIndexingState struct {
 type model struct {
 	width             int
 	height            int
+	xPos              int                       // absolute x position on screen
+	yPos              int                       // absolute y position on screen
 	sessionUsage      map[string]*runtime.Usage // sessionID -> latest usage snapshot
 	sessionAgent      map[string]string         // sessionID -> agent name
 	todoComp          *todotool.SidebarComponent
@@ -259,6 +262,13 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		cmd := m.SetSize(msg.Width, msg.Height)
 		return m, cmd
+	case tea.MouseClickMsg, tea.MouseMotionMsg, tea.MouseReleaseMsg:
+		if m.mode == ModeVertical {
+			sb, cmd := m.scrollbar.Update(msg)
+			m.scrollbar = sb
+			return m, cmd
+		}
+		return m, nil
 	case tea.MouseWheelMsg:
 		if m.mode == ModeVertical {
 			switch msg.Button.String() {
@@ -710,7 +720,23 @@ func (m *model) SetSize(width, height int) tea.Cmd {
 	m.width = width
 	m.height = height
 	m.todoComp.SetSize(width)
+	m.updateScrollbarPosition()
 	return nil
+}
+
+// SetPosition sets the absolute position of the component on screen
+func (m *model) SetPosition(x, y int) tea.Cmd {
+	m.xPos = x
+	m.yPos = y
+	m.updateScrollbarPosition()
+	return nil
+}
+
+// updateScrollbarPosition updates the scrollbar's position based on sidebar position and size
+func (m *model) updateScrollbarPosition() {
+	// Scrollbar is at the right edge of the sidebar content
+	// width-1 because the scrollbar is 1 char wide and at the rightmost position
+	m.scrollbar.SetPosition(m.xPos+m.width-1, m.yPos)
 }
 
 // GetSize returns the current dimensions

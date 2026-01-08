@@ -478,6 +478,7 @@ func (p *chatPage) SetSize(width, height int) tea.Cmd {
 		p.sidebar.SetMode(sidebar.ModeVertical)
 		cmds = append(cmds,
 			p.sidebar.SetSize(sidebarWidth, p.chatHeight),
+			p.sidebar.SetPosition(styles.AppPaddingLeft+mainWidth, 0),
 			p.messages.SetPosition(0, 0),
 		)
 	} else {
@@ -487,6 +488,7 @@ func (p *chatPage) SetSize(width, height int) tea.Cmd {
 		p.sidebar.SetMode(sidebar.ModeHorizontal)
 		cmds = append(cmds,
 			p.sidebar.SetSize(width, horizontalSidebarHeight),
+			p.sidebar.SetPosition(styles.AppPaddingLeft, 0),
 			p.messages.SetPosition(0, horizontalSidebarHeight),
 		)
 	}
@@ -680,10 +682,35 @@ func (p *chatPage) handleSidebarClick(x, y int) bool {
 	return false
 }
 
-// routeMouseEvent routes mouse events to editor (bottom) or messages (top) based on Y.
+// routeMouseEvent routes mouse events to editor (bottom), sidebar (right), or messages (top-left) based on coordinates.
 func (p *chatPage) routeMouseEvent(msg tea.Msg, y int) tea.Cmd {
 	editorTop := p.height - p.inputHeight
 	if y < editorTop {
+		// Check if event is in sidebar area (vertical mode only)
+		if p.width >= minWindowWidth {
+			// Get x coordinate from the message
+			var x int
+			switch m := msg.(type) {
+			case tea.MouseClickMsg:
+				x = m.X
+			case tea.MouseMotionMsg:
+				x = m.X
+			case tea.MouseReleaseMsg:
+				x = m.X
+			}
+
+			adjustedX := x - styles.AppPaddingLeft
+			innerWidth := p.width - 2
+			chatWidth := max(1, innerWidth-sidebarWidth)
+
+			// Route to sidebar if in sidebar area
+			if adjustedX >= chatWidth {
+				model, cmd := p.sidebar.Update(msg)
+				p.sidebar = model.(sidebar.Model)
+				return cmd
+			}
+		}
+
 		model, cmd := p.messages.Update(msg)
 		p.messages = model.(messages.Model)
 		return cmd
@@ -748,17 +775,22 @@ func (p *chatPage) renderResizeHandle(width int) string {
 	centerPart := strings.Repeat("─", min(resizeHandleWidth, width))
 	handle := centerStyle.Render(centerPart)
 
-	// Add working spinner on the right side
-	var suffix string
-	if p.working {
-		suffix = " " + p.spinner.View() + " " + styles.SpinnerDotsHighlightStyle.Render("Working…")
-	}
-
-	return lipgloss.PlaceHorizontal(
-		width-2-lipgloss.Width(suffix), lipgloss.Center, handle,
+	// Always center handle on full width
+	fullLine := lipgloss.PlaceHorizontal(
+		width-2, lipgloss.Center, handle,
 		lipgloss.WithWhitespaceChars("─"),
 		lipgloss.WithWhitespaceStyle(styles.ResizeHandleStyle),
-	) + suffix
+	)
+
+	if p.working {
+		// Truncate right side and append spinner (handle stays centered)
+		suffix := " " + p.spinner.View() + " " + styles.SpinnerDotsHighlightStyle.Render("Working…")
+		suffixWidth := lipgloss.Width(suffix)
+		truncated := lipgloss.NewStyle().MaxWidth(width - 2 - suffixWidth).Render(fullLine)
+		return truncated + suffix
+	}
+
+	return fullLine
 }
 
 func (p *chatPage) openAttachmentPreview(preview editor.AttachmentPreview) tea.Cmd {
