@@ -57,7 +57,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 	}
 
 	// Check for Bedrock API key (simpler auth method)
-	bearerToken := env.Get(ctx, "AWS_BEARER_TOKEN_BEDROCK")
+	bearerToken, _ := env.Get(ctx, "AWS_BEARER_TOKEN_BEDROCK")
 	if bearerToken == "" {
 		bearerToken = getProviderOpt[string](cfg.ProviderOpts, "api_key")
 	}
@@ -116,10 +116,10 @@ func buildAWSConfig(ctx context.Context, cfg *latest.ModelConfig, env environmen
 	// Region from provider_opts or environment
 	region := getProviderOpt[string](cfg.ProviderOpts, "region")
 	if region == "" {
-		region = env.Get(ctx, "AWS_REGION")
+		region, _ = env.Get(ctx, "AWS_REGION")
 	}
 	if region == "" {
-		region = env.Get(ctx, "AWS_DEFAULT_REGION")
+		region, _ = env.Get(ctx, "AWS_DEFAULT_REGION")
 	}
 	if region == "" {
 		region = "us-east-1" // Default region
@@ -210,8 +210,8 @@ func (c *Client) buildConverseStreamInput(messages []chat.Message, requestTools 
 func (c *Client) buildInferenceConfig() *types.InferenceConfiguration {
 	cfg := &types.InferenceConfiguration{}
 
-	if c.ModelConfig.MaxTokens > 0 {
-		cfg.MaxTokens = aws.Int32(int32(c.ModelConfig.MaxTokens))
+	if c.ModelConfig.MaxTokens != nil && *c.ModelConfig.MaxTokens > 0 {
+		cfg.MaxTokens = aws.Int32(int32(*c.ModelConfig.MaxTokens))
 	}
 	if c.ModelConfig.Temperature != nil {
 		cfg.Temperature = aws.Float32(float32(*c.ModelConfig.Temperature))

@@ -345,11 +345,12 @@ type mockEnvProvider struct {
 	values map[string]string
 }
 
-func (m *mockEnvProvider) Get(_ context.Context, key string) string {
+func (m *mockEnvProvider) Get(_ context.Context, key string) (string, bool) {
 	if m.values == nil {
-		return ""
+		return "", false
 	}
-	return m.values[key]
+	v, ok := m.values[key]
+	return v, ok
 }
 
 var _ environment.Provider = (*mockEnvProvider)(nil)
