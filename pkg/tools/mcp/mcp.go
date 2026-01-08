@@ -43,9 +43,8 @@ type Toolset struct {
 	mcpClient    mcpClient
 	logID        string
 	instructions string
-	startOnce    sync.Once
-	startErr     error
-	started      bool // protected by startOnce
+	mu           sync.Mutex
+	started      bool
 }
 
 var _ tools.ToolSet = (*Toolset)(nil)
@@ -73,13 +72,18 @@ func NewRemoteToolset(name, url, transport string, headers map[string]string) *T
 }
 
 func (ts *Toolset) Start(ctx context.Context) error {
-	ts.startOnce.Do(func() {
-		ts.startErr = ts.doStart(ctx)
-		if ts.startErr == nil {
-			ts.started = true
-		}
-	})
-	return ts.startErr
+	ts.mu.Lock()
+	defer ts.mu.Unlock()
+
+	if ts.started {
+		return nil
+	}
+
+	err := ts.doStart(ctx)
+	if err == nil {
+		ts.started = true
+	}
+	return err
 }
 
 func (ts *Toolset) doStart(ctx context.Context) error {
@@ -136,7 +140,10 @@ func (ts *Toolset) doStart(ctx context.Context) error {
 }
 
 func (ts *Toolset) Instructions() string {
-	if !ts.started {
+	ts.mu.Lock()
+	started := ts.started
+	ts.mu.Unlock()
+	if !started {
 		// TODO: this should never happen...
 		return ""
 	}
@@ -144,7 +151,10 @@ func (ts *Toolset) Instructions() string {
 }
 
 func (ts *Toolset) Tools(ctx context.Context) ([]tools.Tool, error) {
-	if !ts.started {
+	ts.mu.Lock()
+	started := ts.started
+	ts.mu.Unlock()
+	if !started {
 		return nil, errors.New("toolset not started")
 	}
 
@@ -274,7 +284,10 @@ func (ts *Toolset) SetManagedOAuth(managed bool) {
 // Returns a slice of PromptInfo containing metadata about each available prompt
 // including name, description, and argument specifications.
 func (ts *Toolset) ListPrompts(ctx context.Context) ([]PromptInfo, error) {
-	if !ts.started {
+	ts.mu.Lock()
+	started := ts.started
+	ts.mu.Unlock()
+	if !started {
 		return nil, errors.New("toolset not started")
 	}
 
@@ -320,7 +333,10 @@ func (ts *Toolset) ListPrompts(ctx context.Context) ([]PromptInfo, error) {
 // GetPrompt retrieves a specific prompt with provided arguments from the MCP server.
 // This method executes the prompt and returns the result content.
 func (ts *Toolset) GetPrompt(ctx context.Context, name string, arguments map[string]string) (*mcp.GetPromptResult, error) {
-	if !ts.started {
+	ts.mu.Lock()
+	started := ts.started
+	ts.mu.Unlock()
+	if !started {
 		return nil, errors.New("toolset not started")
 	}
 

@@ -164,8 +164,6 @@ func (a *Agent) ToolSets() []tools.ToolSet {
 
 func (a *Agent) ensureToolSetsAreStarted(ctx context.Context) {
 	for _, toolSet := range a.toolsets {
-		// Start() uses sync.Once internally, so concurrent calls are safe
-		// and will block until the first call completes.
 		if err := toolSet.Start(ctx); err != nil {
 			slog.Warn("Toolset start failed; skipping", "agent", a.Name(), "toolset", fmt.Sprintf("%T", toolSet.ToolSet), "error", err)
 			a.addToolWarning(fmt.Sprintf("%T start failed: %v", toolSet.ToolSet, err))
