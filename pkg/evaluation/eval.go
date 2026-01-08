@@ -442,7 +442,7 @@ func parseContainerEvents(events []map[string]any) (response string, cost float6
 		case "token_usage":
 			if usage, ok := event["usage"].(map[string]any); ok {
 				if c, ok := usage["cost"].(float64); ok {
-					cost += c
+					cost = c
 				}
 				if tokens, ok := usage["output_tokens"].(float64); ok {
 					outputTokens += int64(tokens)

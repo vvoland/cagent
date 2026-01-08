@@ -484,7 +484,7 @@ func TestParseContainerEvents(t *testing.T) {
 				{
 					"type": "token_usage",
 					"usage": map[string]any{
-						"cost":          0.003,
+						"cost":          0.008,
 						"output_tokens": float64(50),
 					},
 				},
