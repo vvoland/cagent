@@ -4,7 +4,105 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestTryFixPartialJSON(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected []string
+	}{
+		{
+			name:     "empty string",
+			input:    "",
+			expected: nil,
+		},
+		{
+			name:     "partial JSON",
+			input:    `{"key": "val`,
+			expected: []string{`{"key": "val"}`, `{"key": "val}`},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tryFixPartialJSON(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestParsePartialArgs(t *testing.T) {
+	type testArgs struct {
+		Path string `json:"path"`
+		Cmd  string `json:"cmd"`
+	}
+
+	tests := []struct {
+		name     string
+		input    string
+		wantPath string
+		wantCmd  string
+		wantErr  bool
+	}{
+		{
+			name:     "complete JSON",
+			input:    `{"path": "/tmp/file", "cmd": "ls -la"}`,
+			wantPath: "/tmp/file",
+			wantCmd:  "ls -la",
+			wantErr:  false,
+		},
+		{
+			name:     "partial JSON - missing closing brace",
+			input:    `{"path": "/tmp/file"`,
+			wantPath: "/tmp/file",
+			wantCmd:  "",
+			wantErr:  false,
+		},
+		{
+			name:     "partial JSON - incomplete string value",
+			input:    `{"path": "/tmp/fi`,
+			wantPath: "/tmp/fi",
+			wantCmd:  "",
+			wantErr:  false,
+		},
+		{
+			name:     "partial JSON - only key",
+			input:    `{"path":`,
+			wantPath: "",
+			wantCmd:  "",
+			wantErr:  true,
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			wantPath: "",
+			wantCmd:  "",
+			wantErr:  true,
+		},
+		{
+			name:     "just opening brace",
+			input:    "{",
+			wantPath: "",
+			wantCmd:  "",
+			wantErr:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ParseArgs[testArgs](tt.input)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantPath, result.Path)
+			assert.Equal(t, tt.wantCmd, result.Cmd)
+		})
+	}
+}
 
 func TestWrapLines(t *testing.T) {
 	tests := []struct {

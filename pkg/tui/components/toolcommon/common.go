@@ -17,14 +17,31 @@ import (
 // Returns an error if parsing fails.
 func ParseArgs[T any](args string) (T, error) {
 	var result T
-	if err := json.Unmarshal([]byte(args), &result); err != nil {
-		return result, err
+	var err error
+
+	if err = json.Unmarshal([]byte(args), &result); err == nil {
+		return result, nil
 	}
-	return result, nil
+
+	for _, fixed := range tryFixPartialJSON(args) {
+		if partialErr := json.Unmarshal([]byte(fixed), &result); partialErr == nil {
+			return result, nil
+		}
+	}
+
+	return result, err
+}
+
+func tryFixPartialJSON(s string) []string {
+	if s == "" {
+		return nil
+	}
+	return []string{s + "\"}", s + "}"}
 }
 
 // ExtractField creates an argument extractor function that parses JSON and extracts a field.
 // The field function receives the parsed args and returns the display string.
+// It supports partial JSON parsing for streaming tool calls.
 func ExtractField[T any](field func(T) string) func(string) string {
 	return func(args string) string {
 		parsed, err := ParseArgs[T](args)
