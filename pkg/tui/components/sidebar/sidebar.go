@@ -15,6 +15,7 @@ import (
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tui/components/scrollbar"
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/components/tab"
 	"github.com/docker/cagent/pkg/tui/components/tool/todotool"
@@ -80,6 +81,7 @@ type model struct {
 	toolsLoading      bool // true when more tools may still be loading
 	sessionState      *service.SessionState
 	workingAgent      string // Name of the agent currently working (empty if none)
+	scrollbar         *scrollbar.Model
 }
 
 func New(sessionState *service.SessionState) Model {
@@ -93,6 +95,7 @@ func New(sessionState *service.SessionState) Model {
 		sessionTitle: "New session",
 		ragIndexing:  make(map[string]*ragIndexingState),
 		sessionState: sessionState,
+		scrollbar:    scrollbar.New(),
 	}
 }
 
@@ -256,6 +259,16 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		cmd := m.SetSize(msg.Width, msg.Height)
 		return m, cmd
+	case tea.MouseWheelMsg:
+		if m.mode == ModeVertical {
+			switch msg.Button.String() {
+			case "wheelup":
+				m.scrollbar.ScrollUp()
+			case "wheeldown":
+				m.scrollbar.ScrollDown()
+			}
+		}
+		return m, nil
 	case *runtime.TokenUsageEvent:
 		m.SetTokenUsage(msg)
 		return m, nil
@@ -382,21 +395,43 @@ func (m *model) verticalView() string {
 		main = append(main, toolsetInfo)
 	}
 
-	m.todoComp.SetSize(m.width)
+	m.todoComp.SetSize(m.width - 1) // -1 for scrollbar
 	todoContent := strings.TrimSuffix(m.todoComp.Render(), "\n")
 	if todoContent != "" {
 		main = append(main, todoContent)
 	}
 
 	content := strings.Join(main, "\n")
-
-	// Truncate to maximum height
 	lines := strings.Split(content, "\n")
-	if len(lines) > (m.height - 1) {
-		lines = lines[:m.height-1]
+
+	visibleLines := m.height - 1
+	totalLines := len(lines)
+
+	// Update scrollbar dimensions
+	m.scrollbar.SetDimensions(visibleLines, totalLines)
+
+	// Get scroll offset from scrollbar
+	scrollOffset := m.scrollbar.GetScrollOffset()
+
+	// Extract visible portion
+	endIdx := min(scrollOffset+visibleLines, totalLines)
+	visibleContent := lines[scrollOffset:endIdx]
+
+	// Pad to fill height if content is shorter
+	for len(visibleContent) < visibleLines {
+		visibleContent = append(visibleContent, "")
 	}
 
-	return strings.Join(lines, "\n")
+	// Render scrollbar if needed
+	scrollbarView := m.scrollbar.View()
+	if scrollbarView != "" {
+		return lipgloss.JoinHorizontal(lipgloss.Top,
+			strings.Join(visibleContent, "\n"),
+			scrollbarView,
+		)
+	}
+
+	return strings.Join(visibleContent, "\n")
 }
 
 // ragStrategyInfo holds a parsed RAG strategy entry

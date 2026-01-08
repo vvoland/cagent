@@ -40,6 +40,8 @@ func (m *Model) SetDimensions(viewHeight, totalHeight int) {
 	m.viewHeight = viewHeight
 	m.height = viewHeight
 	m.totalHeight = totalHeight
+	// Clamp scroll offset to valid range after dimension change
+	m.scrollOffset = max(0, min(m.scrollOffset, m.maxScrollOffset()))
 }
 
 func (m *Model) SetScrollOffset(offset int) {
