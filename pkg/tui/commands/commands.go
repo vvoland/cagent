@@ -106,6 +106,16 @@ func builtInSessionCommands() []Item {
 			},
 		},
 		{
+			ID:           "session.copy_last_response",
+			Label:        "Copy Last Response",
+			SlashCommand: "/copy-last",
+			Description:  "Copy the last assistant message to the clipboard",
+			Category:     "Session",
+			Execute: func(string) tea.Cmd {
+				return core.CmdHandler(messages.CopyLastResponseToClipboardMsg{})
+			},
+		},
+		{
 			ID:           "session.eval",
 			Label:        "Eval",
 			SlashCommand: "/eval",
