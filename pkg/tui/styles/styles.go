@@ -516,9 +516,14 @@ var (
 // Agent and transfer badge styles
 var (
 	AgentBadgeStyle = BaseStyle.
-		Foreground(AgentBadgeFg).
-		Background(AgentBadgeBg).
-		Padding(0, 1)
+			Foreground(AgentBadgeFg).
+			Background(AgentBadgeBg).
+			Padding(0, 1)
+
+	ThinkingBadgeStyle = BaseStyle.
+				Foreground(TextMuted). // Muted blue, distinct from gray italic content
+				Bold(true).
+				Italic(true)
 )
 
 // Deprecated styles (kept for backward compatibility)
