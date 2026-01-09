@@ -150,6 +150,27 @@ func (a *appModel) handleCopySessionToClipboard() (tea.Model, tea.Cmd) {
 	)
 }
 
+func (a *appModel) handleCopyLastResponseToClipboard() (tea.Model, tea.Cmd) {
+	sess := a.application.Session()
+	if sess == nil {
+		return a, notification.InfoCmd("No active session.")
+	}
+
+	lastResponse := sess.GetLastAssistantMessageContent()
+	if lastResponse == "" {
+		return a, notification.InfoCmd("No assistant response to copy.")
+	}
+
+	return a, tea.Sequence(
+		tea.SetClipboard(lastResponse),
+		func() tea.Msg {
+			_ = clipboard.WriteAll(lastResponse)
+			return nil
+		},
+		notification.SuccessCmd("Last response copied to clipboard."),
+	)
+}
+
 // Agent management handlers
 
 func (a *appModel) handleSwitchAgent(agentName string) (tea.Model, tea.Cmd) {

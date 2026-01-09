@@ -278,6 +278,9 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.CopySessionToClipboardMsg:
 		return a.handleCopySessionToClipboard()
 
+	case messages.CopyLastResponseToClipboardMsg:
+		return a.handleCopyLastResponseToClipboard()
+
 	case messages.ToggleYoloMsg:
 		return a.handleToggleYolo()
 
