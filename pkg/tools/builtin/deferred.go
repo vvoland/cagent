@@ -148,7 +148,7 @@ func (d *DeferredToolset) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Search for available deferred tools by name or description. Use this to discover tools that can be activated.",
 			Parameters:   tools.MustSchemaFor[SearchToolArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(d.handleSearchTool),
+			Handler:      tools.NewHandler(d.handleSearchTool),
 			Annotations: tools.ToolAnnotations{
 				Title:        "Search Tool",
 				ReadOnlyHint: true,
@@ -160,7 +160,7 @@ func (d *DeferredToolset) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Activate a deferred tool by name, making it available for use. Use search_tool first to find available tools.",
 			Parameters:   tools.MustSchemaFor[AddToolArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(d.handleAddTool),
+			Handler:      tools.NewHandler(d.handleAddTool),
 			Annotations: tools.ToolAnnotations{
 				Title:        "Add Tool",
 				ReadOnlyHint: true,

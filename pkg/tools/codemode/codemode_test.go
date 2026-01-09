@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/docker/cagent/pkg/tools"
-	"github.com/docker/cagent/pkg/tools/builtin"
 )
 
 func TestCodeModeTool_Tools(t *testing.T) {
@@ -125,7 +124,7 @@ func TestCodeModeTool_CallHello(t *testing.T) {
 		tools: []tools.Tool{
 			{
 				Name: "hello_world",
-				Handler: builtin.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
+				Handler: tools.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
 					return tools.ResultSuccess("Hello, World!"), nil
 				}),
 			},
@@ -160,7 +159,7 @@ func TestCodeModeTool_CallEcho(t *testing.T) {
 	tool := Wrap(&testToolSet{
 		tools: []tools.Tool{{
 			Name: "echo",
-			Handler: builtin.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
+			Handler: tools.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
 				return tools.ResultSuccess("ECHO"), nil
 			}),
 			Parameters: tools.MustSchemaFor[EchoArgs](),
@@ -215,7 +214,7 @@ func TestCodeModeTool_SuccessNoToolCalls(t *testing.T) {
 		tools: []tools.Tool{
 			{
 				Name: "get_data",
-				Handler: builtin.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
+				Handler: tools.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
 					return tools.ResultSuccess("data"), nil
 				}),
 			},
@@ -248,13 +247,13 @@ func TestCodeModeTool_FailureIncludesToolCalls(t *testing.T) {
 		tools: []tools.Tool{
 			{
 				Name: "first_tool",
-				Handler: builtin.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
+				Handler: tools.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
 					return tools.ResultSuccess("first result"), nil
 				}),
 			},
 			{
 				Name: "second_tool",
-				Handler: builtin.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
+				Handler: tools.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
 					return tools.ResultSuccess("second result"), nil
 				}),
 			},
@@ -298,7 +297,7 @@ func TestCodeModeTool_FailureIncludesToolError(t *testing.T) {
 		tools: []tools.Tool{
 			{
 				Name: "failing_tool",
-				Handler: builtin.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
+				Handler: tools.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
 					return nil, assert.AnError
 				}),
 			},
@@ -340,7 +339,7 @@ func TestCodeModeTool_FailureIncludesToolArguments(t *testing.T) {
 		tools: []tools.Tool{
 			{
 				Name: "tool_with_args",
-				Handler: builtin.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
+				Handler: tools.NewHandler(func(ctx context.Context, args map[string]any) (*tools.ToolCallResult, error) {
 					return tools.ResultSuccess("result"), nil
 				}),
 				Parameters: tools.MustSchemaFor[TestArgs](),

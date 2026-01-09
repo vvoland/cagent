@@ -332,7 +332,7 @@ func (t *FetchTool) Tools(context.Context) ([]tools.Tool, error) {
 				"required": []string{"urls", "format"},
 			},
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handler.CallTool),
+			Handler:      tools.NewHandler(t.handler.CallTool),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "Fetch URLs",

@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -102,4 +103,16 @@ type ToolSet interface {
 	SetElicitationHandler(handler ElicitationHandler)
 	SetOAuthSuccessHandler(handler func())
 	SetManagedOAuth(managed bool)
+}
+
+// NewHandler creates a type-safe tool handler from a function that accepts typed parameters.
+// It handles JSON unmarshaling of the tool call arguments into the specified type T.
+func NewHandler[T any](fn func(context.Context, T) (*ToolCallResult, error)) ToolHandler {
+	return func(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error) {
+		var params T
+		if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
+			return nil, err
+		}
+		return fn(ctx, params)
+	}
 }

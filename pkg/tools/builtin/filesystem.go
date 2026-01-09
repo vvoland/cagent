@@ -191,7 +191,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 				"required":             []string{"name", "type"},
 				"additionalProperties": false,
 			},
-			Handler: NewHandler(t.handleDirectoryTree),
+			Handler: tools.NewHandler(t.handleDirectoryTree),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "Directory Tree",
@@ -203,7 +203,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Make line-based edits to a text file. Each edit replaces exact line sequences with new content.",
 			Parameters:   tools.MustSchemaFor[EditFileArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handleEditFile),
+			Handler:      tools.NewHandler(t.handleEditFile),
 			Annotations: tools.ToolAnnotations{
 				Title: "Edit",
 			},
@@ -214,7 +214,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Get a detailed listing of all files and directories in a specified path.",
 			Parameters:   tools.MustSchemaFor[ListDirectoryArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handleListDirectory),
+			Handler:      tools.NewHandler(t.handleListDirectory),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "List Directory",
@@ -226,7 +226,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Read the complete contents of a file from the file system.",
 			Parameters:   tools.MustSchemaFor[ReadFileArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handleReadFile),
+			Handler:      tools.NewHandler(t.handleReadFile),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "Read",
@@ -239,7 +239,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Parameters:  tools.MustSchemaFor[ReadMultipleFilesArgs](),
 			// TODO(dga): depends on the json param
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handleReadMultipleFiles),
+			Handler:      tools.NewHandler(t.handleReadMultipleFiles),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "Read Multiple Files",
@@ -251,7 +251,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Searches for text or regex patterns in the content of files matching a GLOB pattern.",
 			Parameters:   tools.MustSchemaFor[SearchFilesContentArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handleSearchFilesContent),
+			Handler:      tools.NewHandler(t.handleSearchFilesContent),
 			Annotations: tools.ToolAnnotations{
 				ReadOnlyHint: true,
 				Title:        "Search Files Content",
@@ -263,7 +263,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Create a new file or completely overwrite an existing file with new content.",
 			Parameters:   tools.MustSchemaFor[WriteFileArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handleWriteFile),
+			Handler:      tools.NewHandler(t.handleWriteFile),
 			Annotations: tools.ToolAnnotations{
 				Title: "Write",
 			},

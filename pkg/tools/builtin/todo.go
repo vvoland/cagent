@@ -186,7 +186,7 @@ func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Create a new todo item with a description",
 			Parameters:   tools.MustSchemaFor[CreateTodoArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handler.createTodo),
+			Handler:      tools.NewHandler(t.handler.createTodo),
 			Annotations: tools.ToolAnnotations{
 				Title:        "Create TODO",
 				ReadOnlyHint: true, // Technically not read-only but has practically no destructive side effects.
@@ -198,7 +198,7 @@ func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Create a list of new todo items with descriptions",
 			Parameters:   tools.MustSchemaFor[CreateTodosArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handler.createTodos),
+			Handler:      tools.NewHandler(t.handler.createTodos),
 			Annotations: tools.ToolAnnotations{
 				Title:        "Create TODOs",
 				ReadOnlyHint: true, // Technically not read-only but has practically no destructive side effects.
@@ -210,7 +210,7 @@ func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Update the status of one or more todo item(s)",
 			Parameters:   tools.MustSchemaFor[UpdateTodosArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handler.updateTodos),
+			Handler:      tools.NewHandler(t.handler.updateTodos),
 			Annotations: tools.ToolAnnotations{
 				Title:        "Update TODOs",
 				ReadOnlyHint: true, // Technically not read-only but has practically no destructive side effects.
