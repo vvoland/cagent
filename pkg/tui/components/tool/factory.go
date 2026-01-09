@@ -79,7 +79,7 @@ func newDefaultRegistry() *Registry {
 			[]string{
 				builtin.ToolNameCreateTodo,
 				builtin.ToolNameCreateTodos,
-				builtin.ToolNameUpdateTodo,
+				builtin.ToolNameUpdateTodos,
 				builtin.ToolNameListTodos,
 			},
 			todotool.New,

@@ -13,7 +13,7 @@ import (
 const (
 	ToolNameCreateTodo  = "create_todo"
 	ToolNameCreateTodos = "create_todos"
-	ToolNameUpdateTodo  = "update_todo"
+	ToolNameUpdateTodos = "update_todos"
 	ToolNameListTodos   = "list_todos"
 )
 
@@ -39,9 +39,13 @@ type CreateTodosArgs struct {
 	Descriptions []string `json:"descriptions" jsonschema:"Descriptions of the todo items"`
 }
 
-type UpdateTodoArgs struct {
+type TodoUpdate struct {
 	ID     string `json:"id" jsonschema:"ID of the todo item"`
 	Status string `json:"status" jsonschema:"New status (pending, in-progress,completed)"`
+}
+
+type UpdateTodosArgs struct {
+	Updates []TodoUpdate `json:"updates" jsonschema:"List of todo updates"`
 }
 
 type todoHandler struct {
@@ -120,19 +124,41 @@ func (h *todoHandler) createTodos(_ context.Context, params CreateTodosArgs) (*t
 	}, nil
 }
 
-func (h *todoHandler) updateTodo(_ context.Context, params UpdateTodoArgs) (*tools.ToolCallResult, error) {
-	_, idx := h.todos.Find(func(t Todo) bool { return t.ID == params.ID })
-	if idx == -1 {
-		return tools.ResultError(fmt.Sprintf("todo [%s] not found", params.ID)), nil
+func (h *todoHandler) updateTodos(_ context.Context, params UpdateTodosArgs) (*tools.ToolCallResult, error) {
+	var notFound []string
+	var updated []string
+
+	for _, update := range params.Updates {
+		_, idx := h.todos.Find(func(t Todo) bool { return t.ID == update.ID })
+		if idx == -1 {
+			notFound = append(notFound, update.ID)
+			continue
+		}
+
+		h.todos.Update(idx, func(t Todo) Todo {
+			t.Status = update.Status
+			return t
+		})
+		updated = append(updated, fmt.Sprintf("%s -> %s", update.ID, update.Status))
 	}
 
-	h.todos.Update(idx, func(t Todo) Todo {
-		t.Status = params.Status
-		return t
-	})
+	var output strings.Builder
+	if len(updated) > 0 {
+		fmt.Fprintf(&output, "Updated %d todos: %s", len(updated), strings.Join(updated, ", "))
+	}
+	if len(notFound) > 0 {
+		if output.Len() > 0 {
+			output.WriteString("; ")
+		}
+		fmt.Fprintf(&output, "Not found: %s", strings.Join(notFound, ", "))
+	}
+
+	if len(notFound) > 0 && len(updated) == 0 {
+		return tools.ResultError(output.String()), nil
+	}
 
 	return &tools.ToolCallResult{
-		Output: fmt.Sprintf("Updated todo [%s] to status: [%s]", params.ID, params.Status),
+		Output: output.String(),
 		Meta:   h.todos.All(),
 	}, nil
 }
@@ -179,14 +205,14 @@ func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 			},
 		},
 		{
-			Name:         ToolNameUpdateTodo,
+			Name:         ToolNameUpdateTodos,
 			Category:     "todo",
-			Description:  "Update the status of a todo item",
-			Parameters:   tools.MustSchemaFor[UpdateTodoArgs](),
+			Description:  "Update the status of one or more todo item(s)",
+			Parameters:   tools.MustSchemaFor[UpdateTodosArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handler.updateTodo),
+			Handler:      NewHandler(t.handler.updateTodos),
 			Annotations: tools.ToolAnnotations{
-				Title:        "Update TODO",
+				Title:        "Update TODOs",
 				ReadOnlyHint: true, // Technically not read-only but has practically no destructive side effects.
 			},
 		},
