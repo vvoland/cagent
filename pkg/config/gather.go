@@ -52,8 +52,8 @@ func GatherEnvVarsForModels(cfg *latest.Config) []string {
 	requiredEnv := map[string]bool{}
 
 	// Inspect only the models that are actually used by agents
-	for agentName := range cfg.Agents {
-		modelNames := strings.SplitSeq(cfg.Agents[agentName].Model, ",")
+	for _, agent := range cfg.Agents {
+		modelNames := strings.SplitSeq(agent.Model, ",")
 		for modelName := range modelNames {
 			modelName = strings.TrimSpace(modelName)
 			gatherEnvVarsForModel(cfg, modelName, requiredEnv)

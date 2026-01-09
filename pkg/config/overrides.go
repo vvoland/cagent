@@ -50,13 +50,12 @@ func applySingleOverride(cfg *latest.Config, override string) error {
 		}
 
 		// Apply to specific agent
-		agentConfig, exists := cfg.Agents[agentName]
-		if !exists {
+		ok := cfg.Agents.Update(agentName, func(a *latest.AgentConfig) {
+			a.Model = modelSpec
+		})
+		if !ok {
 			return fmt.Errorf("unknown agent '%s'", agentName)
 		}
-
-		agentConfig.Model = modelSpec
-		cfg.Agents[agentName] = agentConfig
 	} else {
 		// Global override: apply to all agents
 		modelSpec := strings.TrimSpace(override)
@@ -64,10 +63,10 @@ func applySingleOverride(cfg *latest.Config, override string) error {
 			return fmt.Errorf("empty model specification")
 		}
 
-		for name := range cfg.Agents {
-			agentConfig := cfg.Agents[name]
-			agentConfig.Model = modelSpec
-			cfg.Agents[name] = agentConfig
+		for _, agent := range cfg.Agents {
+			cfg.Agents.Update(agent.Name, func(a *latest.AgentConfig) {
+				a.Model = modelSpec
+			})
 		}
 	}
 
@@ -83,18 +82,18 @@ func ensureModelsExist(cfg *latest.Config) error {
 
 	// Expand alloy model compositions in agent model references and ensure resulting
 	// referenced models exist.
-	for agentName := range cfg.Agents {
-		agentConfig := cfg.Agents[agentName]
-
-		expandedModel, err := expandAlloyModelRef(cfg, agentConfig.Model)
+	for _, agent := range cfg.Agents {
+		expandedModel, err := expandAlloyModelRef(cfg, agent.Model)
 		if err != nil {
-			return fmt.Errorf("agent '%s': %w", agentName, err)
+			return fmt.Errorf("agent '%s': %w", agent.Name, err)
 		}
-		agentConfig.Model = expandedModel
-		cfg.Agents[agentName] = agentConfig
+
+		cfg.Agents.Update(agent.Name, func(a *latest.AgentConfig) {
+			a.Model = expandedModel
+		})
 
 		for modelName := range strings.SplitSeq(expandedModel, ",") {
-			if err := ensureSingleModelExists(cfg, modelName, fmt.Sprintf("agent '%s'", agentName)); err != nil {
+			if err := ensureSingleModelExists(cfg, modelName, fmt.Sprintf("agent '%s'", agent.Name)); err != nil {
 				return err
 			}
 		}

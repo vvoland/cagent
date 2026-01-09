@@ -55,14 +55,14 @@ func TestResolveModelAliases(t *testing.T) {
 			name: "resolves inline model in agent",
 			cfg: &latest.Config{
 				Models: map[string]latest.ModelConfig{},
-				Agents: map[string]latest.AgentConfig{
-					"root": {Model: "anthropic/claude-sonnet-4-5"},
+				Agents: []latest.AgentConfig{
+					{Name: "root", Model: "anthropic/claude-sonnet-4-5"},
 				},
 			},
 			expected: &latest.Config{
 				Models: map[string]latest.ModelConfig{},
-				Agents: map[string]latest.AgentConfig{
-					"root": {Model: "anthropic/claude-sonnet-4-5-20250929"},
+				Agents: []latest.AgentConfig{
+					{Name: "root", Model: "anthropic/claude-sonnet-4-5-20250929"},
 				},
 			},
 		},
@@ -72,16 +72,16 @@ func TestResolveModelAliases(t *testing.T) {
 				Models: map[string]latest.ModelConfig{
 					"my_model": {Provider: "anthropic", Model: "claude-sonnet-4-5"},
 				},
-				Agents: map[string]latest.AgentConfig{
-					"root": {Model: "my_model"},
+				Agents: []latest.AgentConfig{
+					{Name: "root", Model: "my_model"},
 				},
 			},
 			expected: &latest.Config{
 				Models: map[string]latest.ModelConfig{
 					"my_model": {Provider: "anthropic", Model: "claude-sonnet-4-5-20250929"},
 				},
-				Agents: map[string]latest.AgentConfig{
-					"root": {Model: "my_model"},
+				Agents: []latest.AgentConfig{
+					{Name: "root", Model: "my_model"},
 				},
 			},
 		},
@@ -102,14 +102,14 @@ func TestResolveModelAliases(t *testing.T) {
 			name: "skips auto model",
 			cfg: &latest.Config{
 				Models: map[string]latest.ModelConfig{},
-				Agents: map[string]latest.AgentConfig{
-					"root": {Model: "auto"},
+				Agents: []latest.AgentConfig{
+					{Name: "root", Model: "auto"},
 				},
 			},
 			expected: &latest.Config{
 				Models: map[string]latest.ModelConfig{},
-				Agents: map[string]latest.AgentConfig{
-					"root": {Model: "auto"},
+				Agents: []latest.AgentConfig{
+					{Name: "root", Model: "auto"},
 				},
 			},
 		},
@@ -117,14 +117,14 @@ func TestResolveModelAliases(t *testing.T) {
 			name: "handles comma-separated models",
 			cfg: &latest.Config{
 				Models: map[string]latest.ModelConfig{},
-				Agents: map[string]latest.AgentConfig{
-					"root": {Model: "anthropic/claude-sonnet-4-5,my_ref"},
+				Agents: []latest.AgentConfig{
+					{Name: "root", Model: "anthropic/claude-sonnet-4-5,my_ref"},
 				},
 			},
 			expected: &latest.Config{
 				Models: map[string]latest.ModelConfig{},
-				Agents: map[string]latest.AgentConfig{
-					"root": {Model: "anthropic/claude-sonnet-4-5-20250929,my_ref"},
+				Agents: []latest.AgentConfig{
+					{Name: "root", Model: "anthropic/claude-sonnet-4-5-20250929,my_ref"},
 				},
 			},
 		},

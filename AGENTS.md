@@ -239,7 +239,7 @@ for _, tt := range tests {
 - All agent references must exist in config
 - Model references can be inline (e.g., `openai/gpt-4o`) or defined in models section
 - Tool configurations validated at startup
-- Config versioning: Currently on v3 (sequential migration: v0 → v1 → v2 → v3)
+- Config versioning
 - Environment variables not stored in configs - gathered dynamically at startup
 - Missing required env vars (e.g., API keys) trigger startup errors
 
@@ -1005,7 +1005,7 @@ task push-image    # Build and push multi-platform
 | `pkg/agent/agent.go` | Agent abstraction, tool discovery |
 | `pkg/session/session.go` | Message history management |
 | `pkg/config/config.go` | Config loading, versioning, migration |
-| `pkg/config/latest/types.go` | Current config schema (v3) |
+| `pkg/config/latest/types.go` | Current config schema |
 | `pkg/tools/tools.go` | Tool interface definitions |
 | `pkg/tools/builtin/` | Built-in tool implementations |
 | `pkg/tools/mcp/` | MCP protocol client implementations |

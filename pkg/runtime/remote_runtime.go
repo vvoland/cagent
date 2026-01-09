@@ -109,19 +109,22 @@ func (r *RemoteRuntime) agentDetailsFromConfig(ctx context.Context) []AgentDetai
 	}
 
 	var details []AgentDetails
-	for name, agentCfg := range cfg.Agents {
+	for _, agent := range cfg.Agents {
 		info := AgentDetails{
-			Name:        name,
-			Description: agentCfg.Description,
+			Name:        agent.Name,
+			Description: agent.Description,
 		}
-		if provider, model, found := strings.Cut(agentCfg.Model, "/"); found {
+
+		if provider, model, found := strings.Cut(agent.Model, "/"); found {
 			info.Provider = provider
 			info.Model = model
 		} else {
-			info.Model = agentCfg.Model
+			info.Model = agent.Model
 		}
+
 		details = append(details, info)
 	}
+
 	return details
 }
 
@@ -131,8 +134,8 @@ func (r *RemoteRuntime) readCurrentAgentConfig(ctx context.Context) latest.Agent
 		return latest.AgentConfig{}
 	}
 
-	for agentName, agent := range cfg.Agents {
-		if agentName == r.currentAgent {
+	for _, agent := range cfg.Agents {
+		if agent.Name == r.currentAgent {
 			return agent
 		}
 	}

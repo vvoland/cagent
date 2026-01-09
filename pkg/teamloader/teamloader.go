@@ -121,14 +121,14 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 
 	expander := js.NewJsExpander(env)
 
-	for name, agentConfig := range cfg.Agents {
+	for _, agentConfig := range cfg.Agents {
 		skillsEnabled := false
 		if agentConfig.Skills != nil {
 			skillsEnabled = *agentConfig.Skills
 		}
 
 		opts := []agent.Opt{
-			agent.WithName(name),
+			agent.WithName(agentConfig.Name),
 			agent.WithDescription(expander.Expand(ctx, agentConfig.Description)),
 			agent.WithWelcomeMessage(expander.Expand(ctx, agentConfig.WelcomeMessage)),
 			agent.WithAddDate(agentConfig.AddDate),
@@ -162,14 +162,14 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 
 		opts = append(opts, agent.WithToolSets(agentTools...))
 
-		ag := agent.New(name, agentConfig.Instruction, opts...)
+		ag := agent.New(agentConfig.Name, agentConfig.Instruction, opts...)
 		agents = append(agents, ag)
-		agentsByName[name] = ag
+		agentsByName[agentConfig.Name] = ag
 	}
 
 	// Connect sub-agents and handoff agents
-	for name := range cfg.Agents {
-		agentConfig := cfg.Agents[name]
+	for _, agentConfig := range cfg.Agents {
+		name := agentConfig.Name
 
 		subAgents := make([]*agent.Agent, 0, len(agentConfig.SubAgents))
 		for _, subName := range agentConfig.SubAgents {
@@ -199,9 +199,9 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 
 	// Build agent default models map
 	agentDefaultModels := make(map[string]string)
-	for name, agentCfg := range cfg.Agents {
-		if agentCfg.Model != "" {
-			agentDefaultModels[name] = agentCfg.Model
+	for _, agent := range cfg.Agents {
+		if agent.Model != "" {
+			agentDefaultModels[agent.Name] = agent.Model
 		}
 	}
 
