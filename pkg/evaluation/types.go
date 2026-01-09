@@ -113,6 +113,7 @@ type Config struct {
 	JudgeModel  provider.Provider // Model for relevance checking (optional)
 	Concurrency int               // Number of concurrent runs (0 = number of CPUs)
 	TTYFd       int               // File descriptor for terminal size queries (e.g., int(os.Stdout.Fd()))
+	Only        []string          // Only run evaluations matching these patterns
 }
 
 // Session helper functions

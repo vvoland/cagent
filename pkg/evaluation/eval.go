@@ -34,6 +34,7 @@ type Runner struct {
 	modelsGateway string
 	envProvider   environment.Provider
 	ttyFd         int
+	only          []string
 }
 
 // NewRunner creates a new evaluation runner.
@@ -46,16 +47,17 @@ func NewRunner(agentSource config.Source, runConfig *config.RuntimeConfig, evals
 		modelsGateway: runConfig.ModelsGateway,
 		envProvider:   runConfig.EnvProvider(),
 		ttyFd:         cfg.TTYFd,
+		only:          cfg.Only,
 	}
 }
 
 // Evaluate is the main entry point for running evaluations.
-func Evaluate(ctx context.Context, out io.Writer, isTTY bool, ttyFd int, agentFilename, evalsDir string, runConfig *config.RuntimeConfig, concurrency int, judgeModel provider.Provider) (*EvalRun, error) {
-	return EvaluateWithName(ctx, out, isTTY, ttyFd, GenerateRunName(), agentFilename, evalsDir, runConfig, concurrency, judgeModel)
+func Evaluate(ctx context.Context, out io.Writer, isTTY bool, ttyFd int, agentFilename, evalsDir string, runConfig *config.RuntimeConfig, concurrency int, judgeModel provider.Provider, only []string) (*EvalRun, error) {
+	return EvaluateWithName(ctx, out, isTTY, ttyFd, GenerateRunName(), agentFilename, evalsDir, runConfig, concurrency, judgeModel, only)
 }
 
 // EvaluateWithName runs evaluations with a specified run name.
-func EvaluateWithName(ctx context.Context, out io.Writer, isTTY bool, ttyFd int, runName, agentFilename, evalsDir string, runConfig *config.RuntimeConfig, concurrency int, judgeModel provider.Provider) (*EvalRun, error) {
+func EvaluateWithName(ctx context.Context, out io.Writer, isTTY bool, ttyFd int, runName, agentFilename, evalsDir string, runConfig *config.RuntimeConfig, concurrency int, judgeModel provider.Provider, only []string) (*EvalRun, error) {
 	agentSource, err := config.Resolve(agentFilename)
 	if err != nil {
 		return nil, fmt.Errorf("resolving agent: %w", err)
@@ -65,6 +67,7 @@ func EvaluateWithName(ctx context.Context, out io.Writer, isTTY bool, ttyFd int,
 		Concurrency: concurrency,
 		JudgeModel:  judgeModel,
 		TTYFd:       ttyFd,
+		Only:        only,
 	})
 
 	fmt.Fprintf(out, "Evaluation run: %s\n", runName)
@@ -164,11 +167,18 @@ func (r *Runner) loadEvalSessions(ctx context.Context) ([]EvalSession, error) {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+
+		// Filter by --only patterns against file name if specified
+		fileName := entry.Name()
+		if len(r.only) > 0 && !matchesAnyPattern(fileName, r.only) {
 			continue
 		}
 
-		data, err := os.ReadFile(filepath.Join(r.evalsDir, entry.Name()))
+		if entry.IsDir() || !strings.HasSuffix(fileName, ".json") {
+			continue
+		}
+
+		data, err := os.ReadFile(filepath.Join(r.evalsDir, fileName))
 		if err != nil {
 			return nil, err
 		}
@@ -179,8 +189,9 @@ func (r *Runner) loadEvalSessions(ctx context.Context) ([]EvalSession, error) {
 		}
 
 		if evalSess.Title == "" {
-			evalSess.Title = strings.TrimSuffix(entry.Name(), ".json")
+			evalSess.Title = strings.TrimSuffix(fileName, ".json")
 		}
+
 		evals = append(evals, evalSess)
 	}
 
@@ -393,4 +404,15 @@ func parseContainerEvents(events []map[string]any) (response string, cost float6
 	}
 
 	return response, cost, outputTokens, toolCalls
+}
+
+// matchesAnyPattern returns true if the name contains any of the patterns (case-insensitive).
+func matchesAnyPattern(name string, patterns []string) bool {
+	nameLower := strings.ToLower(name)
+	for _, pattern := range patterns {
+		if strings.Contains(nameLower, strings.ToLower(pattern)) {
+			return true
+		}
+	}
+	return false
 }

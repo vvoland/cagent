@@ -27,6 +27,7 @@ type evalFlags struct {
 	concurrency int
 	judgeModel  string
 	outputDir   string
+	only        []string
 }
 
 func newEvalCmd() *cobra.Command {
@@ -44,6 +45,7 @@ func newEvalCmd() *cobra.Command {
 	cmd.Flags().IntVarP(&flags.concurrency, "concurrency", "c", 0, "Number of concurrent evaluation runs (0 = number of CPUs)")
 	cmd.Flags().StringVar(&flags.judgeModel, "judge-model", defaultJudgeModel, "Model to use for relevance checking (format: provider/model)")
 	cmd.Flags().StringVar(&flags.outputDir, "output", "", "Directory for results and logs (default: <eval-dir>/results)")
+	cmd.Flags().StringSliceVar(&flags.only, "only", nil, "Only run evaluations with file names matching these patterns (can be specified multiple times)")
 
 	return cmd
 }
@@ -135,7 +137,7 @@ func (f *evalFlags) runEvalCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	// Run evaluation
-	run, evalErr := evaluation.EvaluateWithName(ctx, teeOut, isTTY, ttyFd, runName, agentFilename, evalsDir, &f.runConfig, f.concurrency, judgeModel)
+	run, evalErr := evaluation.EvaluateWithName(ctx, teeOut, isTTY, ttyFd, runName, agentFilename, evalsDir, &f.runConfig, f.concurrency, judgeModel, f.only)
 	if run == nil {
 		return evalErr
 	}
