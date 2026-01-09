@@ -396,7 +396,6 @@ func (p *chatPage) View() string {
 		sidebarView := lipgloss.NewStyle().
 			Width(sidebarWidth).
 			Height(p.chatHeight).
-			PaddingLeft(1).
 			Align(lipgloss.Left, lipgloss.Top).
 			Render(p.sidebar.View())
 
@@ -673,10 +672,10 @@ func (p *chatPage) handleSidebarClick(x, y int) bool {
 	chatWidth := max(1, innerWidth-sidebarWidth)
 
 	// Check if click is in the sidebar area (right side)
-	// sidebarView has PaddingLeft(1), so we need to account for that
+	// Sidebar now owns its own left padding via layoutCfg
 	if adjustedX >= chatWidth {
-		// Calculate x relative to sidebar content (after the 1-char padding)
-		sidebarX := adjustedX - chatWidth - 1 // -1 for sidebarView's PaddingLeft(1)
+		// Calculate x relative to sidebar's outer boundary
+		sidebarX := adjustedX - chatWidth
 		return p.sidebar.HandleClick(sidebarX, y)
 	}
 	return false
