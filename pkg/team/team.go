@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"maps"
-	"slices"
 	"strings"
 
 	"github.com/docker/cagent/pkg/agent"
@@ -16,7 +14,7 @@ import (
 )
 
 type Team struct {
-	agents      map[string]*agent.Agent
+	agents      []*agent.Agent
 	ragManagers map[string]*rag.Manager
 	permissions *permissions.Checker
 }
@@ -25,9 +23,7 @@ type Opt func(*Team)
 
 func WithAgents(agents ...*agent.Agent) Opt {
 	return func(t *Team) {
-		for _, agent := range agents {
-			t.agents[agent.Name()] = agent
-		}
+		t.agents = agents
 	}
 }
 
@@ -45,7 +41,6 @@ func WithPermissions(checker *permissions.Checker) Opt {
 
 func New(opts ...Opt) *Team {
 	t := &Team{
-		agents:      make(map[string]*agent.Agent),
 		ragManagers: make(map[string]*rag.Manager),
 	}
 	for _, opt := range opts {
@@ -55,7 +50,11 @@ func New(opts ...Opt) *Team {
 }
 
 func (t *Team) AgentNames() []string {
-	return slices.Sorted(maps.Keys(t.agents))
+	var names []string
+	for i := range t.agents {
+		names = append(names, t.agents[i].Name())
+	}
+	return names
 }
 
 // AgentInfo contains information about an agent
@@ -69,10 +68,9 @@ type AgentInfo struct {
 // AgentsInfo returns information about all agents in the team
 func (t *Team) AgentsInfo() []AgentInfo {
 	var infos []AgentInfo
-	for _, name := range t.AgentNames() {
-		a := t.agents[name]
+	for _, a := range t.agents {
 		info := AgentInfo{
-			Name:        name,
+			Name:        a.Name(),
 			Description: a.Description(),
 		}
 		if model := a.Model(); model != nil {
@@ -94,12 +92,13 @@ func (t *Team) Agent(name string) (*agent.Agent, error) {
 		return nil, errors.New("no agents loaded; ensure your agent configuration defines at least one agent")
 	}
 
-	found, ok := t.agents[name]
-	if !ok {
-		return nil, fmt.Errorf("agent not found: %s (available agents: %s)", name, strings.Join(t.AgentNames(), ", "))
+	for _, a := range t.agents {
+		if a.Name() == name {
+			return a, nil
+		}
 	}
 
-	return found, nil
+	return nil, fmt.Errorf("agent not found: %s (available agents: %s)", name, strings.Join(t.AgentNames(), ", "))
 }
 
 func (t *Team) Model() provider.Provider {
