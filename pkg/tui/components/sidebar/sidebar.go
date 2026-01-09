@@ -65,6 +65,7 @@ type model struct {
 	height            int
 	xPos              int                       // absolute x position on screen
 	yPos              int                       // absolute y position on screen
+	layoutCfg         LayoutConfig              // layout configuration for spacing
 	sessionUsage      map[string]*runtime.Usage // sessionID -> latest usage snapshot
 	sessionAgent      map[string]string         // sessionID -> agent name
 	todoComp          *todotool.SidebarComponent
@@ -88,9 +89,18 @@ type model struct {
 	workingDirectory  string
 }
 
-func New(sessionState *service.SessionState) Model {
-	return &model{
+// Option is a functional option for configuring the sidebar.
+type Option func(*model)
+
+// WithLayoutConfig sets a custom layout configuration.
+func WithLayoutConfig(cfg LayoutConfig) Option {
+	return func(m *model) { m.layoutCfg = cfg }
+}
+
+func New(sessionState *service.SessionState, opts ...Option) Model {
+	m := &model{
 		width:            20,
+		layoutCfg:        DefaultLayoutConfig(),
 		height:           24,
 		sessionUsage:     make(map[string]*runtime.Usage),
 		sessionAgent:     make(map[string]string),
@@ -102,6 +112,10 @@ func New(sessionState *service.SessionState) Model {
 		scrollbar:        scrollbar.New(),
 		workingDirectory: getCurrentWorkingDirectory(),
 	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
 }
 
 func (m *model) Init() tea.Cmd {
@@ -172,9 +186,11 @@ func (m *model) HandleClick(x, y int) bool {
 		return false
 	}
 
-	// The star is rendered as first character(s) in the session info
-	// Check if click is within the star area (first 2 characters, allowing for some margin)
-	if x < 0 || x > 2 {
+	// Account for left padding - the star starts after the padding
+	adjustedX := x - m.layoutCfg.PaddingLeft
+
+	// Check if click is within the star area
+	if adjustedX < 0 || adjustedX > starClickWidth {
 		return false
 	}
 
@@ -182,11 +198,8 @@ func (m *model) HandleClick(x, y int) bool {
 		// In horizontal mode, star is at the beginning of first line (y=0)
 		return y == 0
 	}
-	// In vertical mode, the Session tab has:
-	// Line 0: tab title "Session─────"
-	// Line 1: padding (from TabStyle Padding(1, 0))
-	// Line 2: star + session title
-	return y == 2
+	// In vertical mode, star is below tab title and TabStyle padding
+	return y == verticalStarY
 }
 
 // LoadFromSession loads sidebar state from a restored session
@@ -362,11 +375,25 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 // View renders the component
 func (m *model) View() string {
+	var content string
 	if m.mode == ModeVertical {
-		return m.verticalView()
+		content = m.verticalView()
+	} else {
+		content = m.horizontalView()
 	}
 
-	return m.horizontalView()
+	// Apply horizontal padding
+	if m.layoutCfg.PaddingLeft > 0 || m.layoutCfg.PaddingRight > 0 {
+		leftPad := strings.Repeat(" ", m.layoutCfg.PaddingLeft)
+		rightPad := strings.Repeat(" ", m.layoutCfg.PaddingRight)
+		lines := strings.Split(content, "\n")
+		for i, line := range lines {
+			lines[i] = leftPad + line + rightPad
+		}
+		content = strings.Join(lines, "\n")
+	}
+
+	return content
 }
 
 // starIndicator returns the star indicator string based on starred status.
@@ -379,44 +406,36 @@ func (m *model) starIndicator() string {
 }
 
 func (m *model) horizontalView() string {
+	// Compute content width (no scrollbar in horizontal mode)
+	contentWidth := m.contentWidth(false)
 	usageSummary := m.tokenUsageSummary()
 
 	titleWithStar := m.starIndicator() + m.sessionTitle
 
 	wi := m.workingIndicatorHorizontal()
-	titleGapWidth := m.width - lipgloss.Width(titleWithStar) - lipgloss.Width(wi) - 2
+	titleGapWidth := contentWidth - lipgloss.Width(titleWithStar) - lipgloss.Width(wi)
 	title := fmt.Sprintf("%s%*s%s", titleWithStar, titleGapWidth, "", wi)
 
-	gapWidth := m.width - lipgloss.Width(m.workingDirectory) - lipgloss.Width(usageSummary) - 2
+	gapWidth := contentWidth - lipgloss.Width(m.workingDirectory) - lipgloss.Width(usageSummary)
 	return lipgloss.JoinVertical(lipgloss.Top, title, fmt.Sprintf("%s%*s%s", styles.MutedStyle.Render(m.workingDirectory), gapWidth, "", usageSummary))
 }
 
 func (m *model) verticalView() string {
-	var main []string
-	if sessionInfo := m.sessionInfo(); sessionInfo != "" {
-		main = append(main, sessionInfo)
-	}
-	if usage := m.tokenUsage(); usage != "" {
-		main = append(main, usage)
-	}
-	if agentInfo := m.agentInfo(); agentInfo != "" {
-		main = append(main, agentInfo)
-	}
-	if toolsetInfo := m.toolsetInfo(); toolsetInfo != "" {
-		main = append(main, toolsetInfo)
-	}
+	visibleLines := m.height - headerLines
 
-	m.todoComp.SetSize(m.width - 1) // -1 for scrollbar
-	todoContent := strings.TrimSuffix(m.todoComp.Render(), "\n")
-	if todoContent != "" {
-		main = append(main, todoContent)
-	}
-
-	content := strings.Join(main, "\n")
-	lines := strings.Split(content, "\n")
-
-	visibleLines := m.height - 1
+	// Two-pass rendering: first check if scrollbar is needed
+	// Pass 1: render without scrollbar to count lines
+	contentWidthNoScroll := m.contentWidth(false)
+	lines := m.renderSections(contentWidthNoScroll)
 	totalLines := len(lines)
+	needsScrollbar := totalLines > visibleLines
+
+	// Pass 2: if scrollbar needed, re-render with narrower content width
+	if needsScrollbar {
+		contentWidthWithScroll := m.contentWidth(true)
+		lines = m.renderSections(contentWidthWithScroll)
+		totalLines = len(lines)
+	}
 
 	// Update scrollbar dimensions
 	m.scrollbar.SetDimensions(visibleLines, totalLines)
@@ -433,16 +452,39 @@ func (m *model) verticalView() string {
 		visibleContent = append(visibleContent, "")
 	}
 
-	// Render scrollbar if needed
-	scrollbarView := m.scrollbar.View()
-	if scrollbarView != "" {
+	// Render with scrollbar gap if needed
+	if needsScrollbar {
+		scrollbarGap := strings.Repeat(" ", m.layoutCfg.ScrollbarGap)
+		scrollbarView := m.scrollbar.View()
 		return lipgloss.JoinHorizontal(lipgloss.Top,
 			strings.Join(visibleContent, "\n"),
+			scrollbarGap,
 			scrollbarView,
 		)
 	}
 
 	return strings.Join(visibleContent, "\n")
+}
+
+// renderSections renders all sidebar sections and returns them as lines.
+func (m *model) renderSections(contentWidth int) []string {
+	var lines []string
+
+	appendSection := func(section string) {
+		if section != "" {
+			lines = append(lines, strings.Split(section, "\n")...)
+		}
+	}
+
+	appendSection(m.sessionInfo(contentWidth))
+	appendSection(m.tokenUsage(contentWidth))
+	appendSection(m.agentInfo(contentWidth))
+	appendSection(m.toolsetInfo(contentWidth))
+
+	m.todoComp.SetSize(contentWidth)
+	appendSection(strings.TrimSuffix(m.todoComp.Render(), "\n"))
+
+	return lines
 }
 
 // ragStrategyInfo holds a parsed RAG strategy entry
@@ -542,7 +584,7 @@ func (m *model) formatProgress(state *ragIndexingState) string {
 	return ""
 }
 
-func (m *model) tokenUsage() string {
+func (m *model) tokenUsage(contentWidth int) string {
 	var totalTokens int64
 	var totalCost float64
 	for _, usage := range m.sessionUsage {
@@ -557,7 +599,7 @@ func (m *model) tokenUsage() string {
 	}
 	fmt.Fprintf(&tokenUsage, " %s", styles.TabAccentStyle.Render("$"+formatCost(totalCost)))
 
-	return m.renderTab("Token Usage", tokenUsage.String())
+	return m.renderTab("Token Usage", tokenUsage.String(), contentWidth)
 }
 
 // tokenUsageSummary returns a single-line summary for horizontal layout.
@@ -580,7 +622,7 @@ func (m *model) tokenUsageSummary() string {
 	return fmt.Sprintf("Tokens: %s | Cost: $%s", formatTokenCount(totalTokens), formatCost(totalCost))
 }
 
-func (m *model) sessionInfo() string {
+func (m *model) sessionInfo(contentWidth int) string {
 	lines := []string{
 		m.starIndicator() + m.sessionTitle,
 		"",
@@ -590,11 +632,11 @@ func (m *model) sessionInfo() string {
 		lines = append(lines, styles.TabAccentStyle.Render("█")+styles.TabPrimaryStyle.Render(" "+m.workingDirectory))
 	}
 
-	return m.renderTab("Session", strings.Join(lines, "\n"))
+	return m.renderTab("Session", strings.Join(lines, "\n"), contentWidth)
 }
 
 // agentInfo renders the current agent information
-func (m *model) agentInfo() string {
+func (m *model) agentInfo(contentWidth int) string {
 	// Read current agent from session state so sidebar updates when agent is switched
 	currentAgent := m.sessionState.CurrentAgent
 	if currentAgent == "" {
@@ -615,13 +657,13 @@ func (m *model) agentInfo() string {
 			content.WriteString("\n\n")
 		}
 		isCurrent := agent.Name == currentAgent
-		m.renderAgentEntry(&content, agent, isCurrent, i)
+		m.renderAgentEntry(&content, agent, isCurrent, i, contentWidth)
 	}
 
-	return m.renderTab(agentTitle, content.String())
+	return m.renderTab(agentTitle, content.String(), contentWidth)
 }
 
-func (m *model) renderAgentEntry(content *strings.Builder, agent runtime.AgentDetails, isCurrent bool, index int) {
+func (m *model) renderAgentEntry(content *strings.Builder, agent runtime.AgentDetails, isCurrent bool, index, contentWidth int) {
 	var prefix string
 	if isCurrent {
 		if m.workingAgent == agent.Name {
@@ -641,14 +683,14 @@ func (m *model) renderAgentEntry(content *strings.Builder, agent runtime.AgentDe
 	// Calculate space needed to right-align the shortcut
 	nameWidth := lipgloss.Width(agentNameText)
 	hintWidth := lipgloss.Width(shortcutHint)
-	spaceWidth := max(m.width-nameWidth-hintWidth-2, 1)
+	spaceWidth := max(contentWidth-nameWidth-hintWidth, 1)
 	if shortcutHint != "" {
 		content.WriteString(agentNameText + strings.Repeat(" ", spaceWidth) + shortcutHint)
 	} else {
 		content.WriteString(agentNameText)
 	}
 
-	maxWidth := m.width - 4
+	maxWidth := contentWidth - treePrefixWidth
 
 	if desc := agent.Description; desc != "" {
 		content.WriteString("\n")
@@ -665,7 +707,7 @@ func (m *model) renderAgentEntry(content *strings.Builder, agent runtime.AgentDe
 }
 
 // toolsetInfo renders the current toolset status information
-func (m *model) toolsetInfo() string {
+func (m *model) toolsetInfo(contentWidth int) string {
 	var lines []string
 
 	// Tools status line
@@ -684,7 +726,7 @@ func (m *model) toolsetInfo() string {
 
 	for _, toggle := range toggles {
 		if toggle.enabled {
-			lines = append(lines, m.renderToggleIndicator(toggle.label, toggle.shortcut))
+			lines = append(lines, m.renderToggleIndicator(toggle.label, toggle.shortcut, contentWidth))
 		}
 	}
 
@@ -692,7 +734,7 @@ func (m *model) toolsetInfo() string {
 		lines = append(lines, working)
 	}
 
-	return m.renderTab("Tools", lipgloss.JoinVertical(lipgloss.Top, lines...))
+	return m.renderTab("Tools", lipgloss.JoinVertical(lipgloss.Top, lines...), contentWidth)
 }
 
 // renderToolsStatus renders the tools available/loading status line
@@ -710,9 +752,9 @@ func (m *model) renderToolsStatus() string {
 }
 
 // renderToggleIndicator renders a toggle status with its keyboard shortcut
-func (m *model) renderToggleIndicator(label, shortcut string) string {
+func (m *model) renderToggleIndicator(label, shortcut string, contentWidth int) string {
 	indicator := styles.TabAccentStyle.Render("✓") + styles.TabPrimaryStyle.Render(" "+label)
-	shortcutStyled := lipgloss.PlaceHorizontal(m.width-lipgloss.Width(indicator)-2, lipgloss.Right, styles.MutedStyle.Render(shortcut))
+	shortcutStyled := lipgloss.PlaceHorizontal(contentWidth-lipgloss.Width(indicator), lipgloss.Right, styles.MutedStyle.Render(shortcut))
 	return indicator + shortcutStyled
 }
 
@@ -720,7 +762,6 @@ func (m *model) renderToggleIndicator(label, shortcut string) string {
 func (m *model) SetSize(width, height int) tea.Cmd {
 	m.width = width
 	m.height = height
-	m.todoComp.SetSize(width)
 	m.updateScrollbarPosition()
 	return nil
 }
@@ -749,6 +790,20 @@ func (m *model) SetMode(mode Mode) {
 	m.mode = mode
 }
 
-func (m *model) renderTab(title, content string) string {
-	return tab.Render(title, content, m.width-2)
+func (m *model) renderTab(title, content string, contentWidth int) string {
+	return tab.Render(title, content, contentWidth)
+}
+
+// metrics computes the layout metrics for the current render.
+// scrollbarVisible should be true if the scrollbar will be shown.
+func (m *model) metrics(scrollbarVisible bool) Metrics {
+	return m.layoutCfg.Compute(m.width, scrollbarVisible)
+}
+
+// contentWidth returns the width available for content in the current mode.
+// For horizontal mode, scrollbar is never shown.
+// For vertical mode, this is a preliminary estimate; actual scrollbar visibility
+// is determined during render.
+func (m *model) contentWidth(scrollbarVisible bool) int {
+	return m.metrics(scrollbarVisible).ContentWidth
 }

@@ -3,6 +3,8 @@ package todotool
 import (
 	"strings"
 
+	"charm.land/lipgloss/v2"
+
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/tab"
@@ -56,12 +58,14 @@ func (c *SidebarComponent) Render() string {
 func (c *SidebarComponent) renderTodoLine(todo builtin.Todo) string {
 	icon, style := renderTodoIcon(todo.Status)
 
-	maxDescWidth := c.width - 4
+	// Compute prefix width dynamically (icon + space separator)
+	prefix := icon + " "
+	maxDescWidth := c.width - lipgloss.Width(prefix)
 	description := toolcommon.TruncateText(todo.Description, maxDescWidth)
 
-	return styles.TabPrimaryStyle.Render(style.Render(icon + " " + description))
+	return styles.TabPrimaryStyle.Render(style.Render(prefix + description))
 }
 
 func (c *SidebarComponent) renderTab(title, content string) string {
-	return tab.Render(title, content, c.width-2)
+	return tab.Render(title, content, c.width)
 }

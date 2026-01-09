@@ -9,6 +9,9 @@ import (
 	"github.com/docker/cagent/pkg/tui/styles"
 )
 
+// Width is the intrinsic width of the scrollbar component in terminal columns.
+const Width = 1
+
 type Model struct {
 	totalHeight  int
 	viewHeight   int
@@ -30,7 +33,7 @@ type Model struct {
 
 func New() *Model {
 	return &Model{
-		width:     1,
+		width:     Width,
 		trackChar: "│",
 		thumbChar: "│",
 	}
