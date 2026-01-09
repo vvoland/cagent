@@ -772,3 +772,83 @@ func TestStatusIcon(t *testing.T) {
 		})
 	}
 }
+
+func TestMatchesAnyPattern(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		fileName string
+		patterns []string
+		want     bool
+	}{
+		{
+			name:     "empty patterns matches nothing",
+			fileName: "test-session.json",
+			patterns: []string{},
+			want:     false,
+		},
+		{
+			name:     "exact match",
+			fileName: "test-session.json",
+			patterns: []string{"test-session.json"},
+			want:     true,
+		},
+		{
+			name:     "substring match",
+			fileName: "my-test-session-1.json",
+			patterns: []string{"test"},
+			want:     true,
+		},
+		{
+			name:     "case insensitive match",
+			fileName: "MyTestSession.json",
+			patterns: []string{"mytestsession"},
+			want:     true,
+		},
+		{
+			name:     "case insensitive pattern",
+			fileName: "test-session.json",
+			patterns: []string{"TEST"},
+			want:     true,
+		},
+		{
+			name:     "no match",
+			fileName: "test-session.json",
+			patterns: []string{"other"},
+			want:     false,
+		},
+		{
+			name:     "multiple patterns first matches",
+			fileName: "test-session.json",
+			patterns: []string{"test", "other"},
+			want:     true,
+		},
+		{
+			name:     "multiple patterns second matches",
+			fileName: "test-session.json",
+			patterns: []string{"other", "session"},
+			want:     true,
+		},
+		{
+			name:     "multiple patterns none match",
+			fileName: "test-session.json",
+			patterns: []string{"foo", "bar"},
+			want:     false,
+		},
+		{
+			name:     "match without extension",
+			fileName: "test-session.json",
+			patterns: []string{"test-session"},
+			want:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := matchesAnyPattern(tt.fileName, tt.patterns)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
