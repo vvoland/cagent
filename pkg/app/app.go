@@ -250,6 +250,9 @@ func (a *App) NewSession() {
 		a.cancel = nil
 	}
 	a.session = session.New()
+	// Clear first message so it won't be re-sent on re-init
+	a.firstMessage = nil
+	a.firstMessageAttach = ""
 }
 
 func (a *App) Session() *session.Session {
@@ -454,6 +457,9 @@ func (a *App) ReplaceSession(ctx context.Context, sess *session.Session) {
 		a.cancel = nil
 	}
 	a.session = sess
+	// Clear first message so it won't be re-sent on re-init
+	a.firstMessage = nil
+	a.firstMessageAttach = ""
 
 	// Apply any stored model overrides from the session
 	a.applySessionModelOverrides(ctx, sess)
