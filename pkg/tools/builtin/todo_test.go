@@ -93,34 +93,6 @@ func TestTodoTool_CreateTodos(t *testing.T) {
 	require.Len(t, metaTodos, 4)
 }
 
-func TestTodoTool_UpdateTodo(t *testing.T) {
-	tool := NewTodoTool()
-
-	_, err := tool.handler.createTodo(t.Context(), CreateTodoArgs{
-		Description: "Test todo item",
-	})
-	require.NoError(t, err)
-
-	result, err := tool.handler.updateTodo(t.Context(), UpdateTodoArgs{
-		ID:     "todo_1",
-		Status: "completed",
-	})
-	require.NoError(t, err)
-	assert.Contains(t, result.Output, "Updated todo [todo_1] to status: [completed]")
-
-	todos := tool.handler.todos.All()
-	require.Len(t, todos, 1)
-	assert.Equal(t, "completed", todos[0].Status)
-
-	// Verify Meta contains all todos with updated status
-	metaTodos, ok := result.Meta.([]Todo)
-	require.True(t, ok, "Meta should be []Todo")
-	require.Len(t, metaTodos, 1)
-	assert.Equal(t, "todo_1", metaTodos[0].ID)
-	assert.Equal(t, "Test todo item", metaTodos[0].Description)
-	assert.Equal(t, "completed", metaTodos[0].Status)
-}
-
 func TestTodoTool_ListTodos(t *testing.T) {
 	tool := NewTodoTool()
 
@@ -153,15 +125,85 @@ func TestTodoTool_ListTodos(t *testing.T) {
 	require.Len(t, metaTodos, 3)
 }
 
-func TestTodoTool_UpdateNonexistentTodo(t *testing.T) {
+func TestTodoTool_UpdateTodos(t *testing.T) {
 	tool := NewTodoTool()
 
-	res, err := tool.handler.updateTodo(t.Context(), UpdateTodoArgs{
-		ID:     "nonexistent_todo",
-		Status: "completed",
+	// Create multiple todos first
+	_, err := tool.handler.createTodos(t.Context(), CreateTodosArgs{
+		Descriptions: []string{
+			"First todo item",
+			"Second todo item",
+			"Third todo item",
+		},
 	})
 	require.NoError(t, err)
-	require.True(t, res.IsError)
+
+	// Update multiple todos in one call
+	result, err := tool.handler.updateTodos(t.Context(), UpdateTodosArgs{
+		Updates: []TodoUpdate{
+			{ID: "todo_1", Status: "completed"},
+			{ID: "todo_3", Status: "in-progress"},
+		},
+	})
+	require.NoError(t, err)
+	assert.False(t, result.IsError)
+	assert.Contains(t, result.Output, "Updated 2 todos")
+	assert.Contains(t, result.Output, "todo_1 -> completed")
+	assert.Contains(t, result.Output, "todo_3 -> in-progress")
+
+	// Verify the todos were updated
+	todos := tool.handler.todos.All()
+	require.Len(t, todos, 3)
+	assert.Equal(t, "completed", todos[0].Status)
+	assert.Equal(t, "pending", todos[1].Status)
+	assert.Equal(t, "in-progress", todos[2].Status)
+
+	// Verify Meta contains all todos with updated status
+	metaTodos, ok := result.Meta.([]Todo)
+	require.True(t, ok, "Meta should be []Todo")
+	require.Len(t, metaTodos, 3)
+}
+
+func TestTodoTool_UpdateTodos_PartialFailure(t *testing.T) {
+	tool := NewTodoTool()
+
+	// Create a single todo
+	_, err := tool.handler.createTodo(t.Context(), CreateTodoArgs{
+		Description: "Test todo item",
+	})
+	require.NoError(t, err)
+
+	// Try to update one existing and one non-existing todo
+	result, err := tool.handler.updateTodos(t.Context(), UpdateTodosArgs{
+		Updates: []TodoUpdate{
+			{ID: "todo_1", Status: "completed"},
+			{ID: "nonexistent", Status: "completed"},
+		},
+	})
+	require.NoError(t, err)
+	assert.False(t, result.IsError) // Not an error because at least one succeeded
+	assert.Contains(t, result.Output, "Updated 1 todos")
+	assert.Contains(t, result.Output, "Not found: nonexistent")
+
+	// Verify the existing todo was updated
+	todos := tool.handler.todos.All()
+	require.Len(t, todos, 1)
+	assert.Equal(t, "completed", todos[0].Status)
+}
+
+func TestTodoTool_UpdateTodos_AllNotFound(t *testing.T) {
+	tool := NewTodoTool()
+
+	// Try to update non-existing todos
+	result, err := tool.handler.updateTodos(t.Context(), UpdateTodosArgs{
+		Updates: []TodoUpdate{
+			{ID: "nonexistent1", Status: "completed"},
+			{ID: "nonexistent2", Status: "completed"},
+		},
+	})
+	require.NoError(t, err)
+	assert.True(t, result.IsError) // Error because all failed
+	assert.Contains(t, result.Output, "Not found: nonexistent1, nonexistent2")
 }
 
 func TestTodoTool_OutputSchema(t *testing.T) {

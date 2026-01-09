@@ -698,7 +698,7 @@ func isTodoTool(toolName string) bool {
 	return slices.Contains([]string{
 		builtin.ToolNameCreateTodo,
 		builtin.ToolNameCreateTodos,
-		builtin.ToolNameUpdateTodo,
+		builtin.ToolNameUpdateTodos,
 		builtin.ToolNameListTodos,
 	}, toolName)
 }
