@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/docker/cagent/pkg/agent"
-	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/permissions"
 	"github.com/docker/cagent/pkg/rag"
 )
@@ -87,6 +86,22 @@ func (t *Team) AgentsInfo() []AgentInfo {
 	return infos
 }
 
+func (t *Team) DefaultAgent() (*agent.Agent, error) {
+	if t.Size() == 0 {
+		return nil, errors.New("no agents loaded; ensure your agent configuration defines at least one agent")
+	}
+
+	// Before v4, the default agent was the one named "root". If it exists, return it.
+	for _, a := range t.agents {
+		if a.Name() == "root" {
+			return a, nil
+		}
+	}
+
+	// Otherwise, return the first agent.
+	return t.agents[0], nil
+}
+
 func (t *Team) Agent(name string) (*agent.Agent, error) {
 	if t.Size() == 0 {
 		return nil, errors.New("no agents loaded; ensure your agent configuration defines at least one agent")
@@ -99,21 +114,6 @@ func (t *Team) Agent(name string) (*agent.Agent, error) {
 	}
 
 	return nil, fmt.Errorf("agent not found: %s (available agents: %s)", name, strings.Join(t.AgentNames(), ", "))
-}
-
-func (t *Team) Model() provider.Provider {
-	root, err := t.Agent("root")
-	if err == nil {
-		return root.Model()
-	}
-
-	for _, agentName := range t.AgentNames() {
-		a, err := t.Agent(agentName)
-		if err == nil {
-			return a.Model()
-		}
-	}
-	return nil
 }
 
 func (t *Team) Size() int {

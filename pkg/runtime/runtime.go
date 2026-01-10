@@ -222,10 +222,15 @@ func New(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 		return nil, err
 	}
 
+	defaultAgent, err := agents.DefaultAgent()
+	if err != nil {
+		return nil, err
+	}
+
 	r := &LocalRuntime{
 		toolMap:              make(map[string]ToolHandler),
 		team:                 agents,
-		currentAgent:         "root",
+		currentAgent:         defaultAgent.Name(),
 		resumeChan:           make(chan ResumeType),
 		elicitationRequestCh: make(chan ElicitationResult),
 		modelsStore:          modelsStore,
@@ -238,14 +243,16 @@ func New(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 		opt(r)
 	}
 
-	// Validate that we have at least one agent and that the current agent exists
-	if _, err = r.team.Agent(r.currentAgent); err != nil {
+	// Validate that the current agent exists and has a model
+	// (currentAgent might have been changed by options)
+	defaultAgent, err = r.team.Agent(r.currentAgent)
+	if err != nil {
 		return nil, err
 	}
 
-	model := agents.Model()
+	model := defaultAgent.Model()
 	if model == nil {
-		return nil, errors.New("no model found for the team; ensure at least one agent has a valid model")
+		return nil, fmt.Errorf("agent %s has no valid model", defaultAgent.Name())
 	}
 
 	r.titleGen = newTitleGenerator(model)
