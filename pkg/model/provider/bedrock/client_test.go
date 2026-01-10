@@ -14,6 +14,7 @@ import (
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/environment"
+	"github.com/docker/cagent/pkg/model/provider/base"
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -632,4 +633,197 @@ func TestUsageConversion_NilSafe(t *testing.T) {
 	assert.Equal(t, int64(0), usage.OutputTokens)
 	assert.Equal(t, int64(0), usage.CachedInputTokens)
 	assert.Equal(t, int64(0), usage.CacheWriteTokens)
+}
+
+func TestBuildAdditionalModelRequestFields_Enabled(t *testing.T) {
+	t.Parallel()
+
+	maxTokens := int64(64000)
+	client := &Client{
+		Config: base.Config{
+			ModelConfig: latest.ModelConfig{
+				Provider:  "amazon-bedrock",
+				Model:     "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+				MaxTokens: &maxTokens,
+				ThinkingBudget: &latest.ThinkingBudget{
+					Tokens: 16384,
+				},
+			},
+		},
+	}
+
+	result := client.buildAdditionalModelRequestFields()
+
+	require.NotNil(t, result, "expected document for valid thinking_budget")
+}
+
+func TestBuildAdditionalModelRequestFields_Nil(t *testing.T) {
+	t.Parallel()
+
+	client := &Client{
+		Config: base.Config{
+			ModelConfig: latest.ModelConfig{
+				Provider:       "amazon-bedrock",
+				Model:          "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+				ThinkingBudget: nil, // Not configured
+			},
+		},
+	}
+
+	result := client.buildAdditionalModelRequestFields()
+
+	assert.Nil(t, result, "expected nil when ThinkingBudget is nil")
+}
+
+func TestBuildAdditionalModelRequestFields_BelowMinimum(t *testing.T) {
+	t.Parallel()
+
+	client := &Client{
+		Config: base.Config{
+			ModelConfig: latest.ModelConfig{
+				Provider: "amazon-bedrock",
+				Model:    "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+				ThinkingBudget: &latest.ThinkingBudget{
+					Tokens: 500, // Below 1024 minimum
+				},
+			},
+		},
+	}
+
+	result := client.buildAdditionalModelRequestFields()
+
+	assert.Nil(t, result, "expected nil when ThinkingBudget.Tokens < 1024")
+}
+
+func TestBuildAdditionalModelRequestFields_ExceedsMaxTokens(t *testing.T) {
+	t.Parallel()
+
+	maxTokens := int64(32000)
+	client := &Client{
+		Config: base.Config{
+			ModelConfig: latest.ModelConfig{
+				Provider:  "amazon-bedrock",
+				Model:     "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+				MaxTokens: &maxTokens,
+				ThinkingBudget: &latest.ThinkingBudget{
+					Tokens: 64000, // Exceeds max_tokens
+				},
+			},
+		},
+	}
+
+	result := client.buildAdditionalModelRequestFields()
+
+	assert.Nil(t, result, "expected nil when ThinkingBudget.Tokens >= MaxTokens")
+}
+
+func TestBuildAdditionalModelRequestFields_NoMaxTokensSet(t *testing.T) {
+	t.Parallel()
+
+	// When MaxTokens is nil, we shouldn't validate against it
+	client := &Client{
+		Config: base.Config{
+			ModelConfig: latest.ModelConfig{
+				Provider:  "amazon-bedrock",
+				Model:     "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+				MaxTokens: nil, // Not set
+				ThinkingBudget: &latest.ThinkingBudget{
+					Tokens: 16384,
+				},
+			},
+		},
+	}
+
+	result := client.buildAdditionalModelRequestFields()
+
+	require.NotNil(t, result, "expected document when MaxTokens is nil")
+}
+
+func TestBuildInferenceConfig_DisablesTempTopPWhenThinkingEnabled(t *testing.T) {
+	t.Parallel()
+
+	temp := 0.7
+	topP := 0.9
+	maxTokens := int64(64000)
+
+	client := &Client{
+		Config: base.Config{
+			ModelConfig: latest.ModelConfig{
+				Provider:    "amazon-bedrock",
+				Model:       "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+				MaxTokens:   &maxTokens,
+				Temperature: &temp,
+				TopP:        &topP,
+				ThinkingBudget: &latest.ThinkingBudget{
+					Tokens: 16384, // Valid thinking budget
+				},
+			},
+		},
+	}
+
+	cfg := client.buildInferenceConfig()
+
+	// Claude requires temperature=1.0 when thinking is on, so we don't set it
+	assert.Nil(t, cfg.Temperature, "temperature should be nil when thinking is enabled")
+	assert.Nil(t, cfg.TopP, "topP should be nil when thinking is enabled")
+	assert.NotNil(t, cfg.MaxTokens)
+	assert.Equal(t, int32(64000), *cfg.MaxTokens)
+}
+
+func TestBuildInferenceConfig_SetsTempTopPWhenThinkingDisabled(t *testing.T) {
+	t.Parallel()
+
+	temp := 0.7
+	topP := 0.9
+	maxTokens := int64(64000)
+
+	client := &Client{
+		Config: base.Config{
+			ModelConfig: latest.ModelConfig{
+				Provider:    "amazon-bedrock",
+				Model:       "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+				MaxTokens:   &maxTokens,
+				Temperature: &temp,
+				TopP:        &topP,
+				// No ThinkingBudget set
+			},
+		},
+	}
+
+	cfg := client.buildInferenceConfig()
+
+	require.NotNil(t, cfg.Temperature)
+	assert.InDelta(t, 0.7, *cfg.Temperature, 0.01)
+	require.NotNil(t, cfg.TopP)
+	assert.InDelta(t, 0.9, *cfg.TopP, 0.01)
+}
+
+func TestBuildInferenceConfig_SetsTempTopPWhenThinkingBudgetInvalid(t *testing.T) {
+	t.Parallel()
+
+	temp := 0.7
+	topP := 0.9
+	maxTokens := int64(64000)
+
+	client := &Client{
+		Config: base.Config{
+			ModelConfig: latest.ModelConfig{
+				Provider:    "amazon-bedrock",
+				Model:       "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+				MaxTokens:   &maxTokens,
+				Temperature: &temp,
+				TopP:        &topP,
+				ThinkingBudget: &latest.ThinkingBudget{
+					Tokens: 500, // Below minimum - thinking won't be enabled
+				},
+			},
+		},
+	}
+
+	cfg := client.buildInferenceConfig()
+
+	require.NotNil(t, cfg.Temperature)
+	assert.InDelta(t, 0.7, *cfg.Temperature, 0.01)
+	require.NotNil(t, cfg.TopP)
+	assert.InDelta(t, 0.9, *cfg.TopP, 0.01)
 }
