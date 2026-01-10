@@ -4,8 +4,7 @@
 
 These examples are fairly basic and show you the YAML syntax for writing agents.
 
-Some of these agents use [built-in tools](../docs/USAGE.md#tool-configuration)
-like `filesystem`, which grants filesystem access, or `memory`, to allow the agent to store its findings for later use.
+Some of these agents use [built-in tools](../docs/USAGE.md#tool-configuration) like `filesystem`, which grants filesystem access, or `memory`, to allow the agent to store its findings for later use.
 
 | Name                                   | Description/Purpose                    | Filesystem | Shell | Todo | Think | Memory | MCP Servers | Sub-agents |
 |----------------------------------------|----------------------------------------|------------|-------|------|-------|--------|-------------|------------|
@@ -19,8 +18,8 @@ like `filesystem`, which grants filesystem access, or `memory`, to allow the age
 | [mem.yaml](mem.yaml)                   | Humorous AI with persistent memory     | ✓          |       |      |       | ✓      |             |            |
 | [diag.yaml](diag.yaml)                 | Log analysis and diagnostics           | ✓          | ✓     |      | ✓     |        |             |            |
 | [todo.yaml](todo.yaml)                 | Task manager example                   |            |       | ✓    |       |        |             |            |
-| [pythonist.yaml](pythonist.yaml)       | Python programming assistant           | ✓          | ✓     |      |       |        |             |            |
-| [fetch_docker.yaml](fetch_docker.yaml) | Web content fetcher and summarizer     |            |       |      |       |        | fetch (builtin) |            |
+| [pythonista.yaml](pythonista.yaml)     | Python programming assistant           | ✓          | ✓     |      |       |        |             |            |
+| [fetch_docker.yaml](fetch_docker.yaml) | Web content fetcher and summarizer     |            |       |      |       |        | fetch (builtin) |        |
 | [alloy.yaml](alloy.yaml)               | Learning assistant                     |            |       |      |       |        |             |            |
 | [dmr.yaml](dmr.yaml)                   | Pirate-themed AI assistant             |            |       |      |       |        |             |            |
 
@@ -46,8 +45,7 @@ These are more advanced examples, most of them involve some sort of MCP server t
 
 ## **Multi-Agent Configurations**
 
-These examples are groups of agents working together. Each of them is specialized for a given task, and usually has some tools assigned to fulfill these tasks.
-A coordinator agent usually makes them work together and checks that the work is finished.
+These examples are groups of agents working together. Each of them is specialized for a given task, and usually has some tools assigned to fulfill these tasks. A coordinator agent usually makes them work together and checks that the work is finished.
 
 | Name                                 | Description/Purpose                     | Filesystem | Shell | Todo | Think | Memory | MCP Servers                                                                    | Sub-agents |
 |--------------------------------------|-----------------------------------------|------------|-------|------|-------|--------|--------------------------------------------------------------------------------|------------|
