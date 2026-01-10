@@ -84,7 +84,7 @@ func (t *RAGTool) Tools(context.Context) ([]tools.Tool, error) {
 		Description:  description,
 		Parameters:   paramsSchema,
 		OutputSchema: outputSchema,
-		Handler:      NewHandler(t.handleQueryRAG),
+		Handler:      tools.NewHandler(t.handleQueryRAG),
 		Annotations: tools.ToolAnnotations{
 			ReadOnlyHint: true,
 			Title:        fmt.Sprintf("Query %s", t.toolName),

@@ -427,7 +427,7 @@ func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  shellDesc,
 			Parameters:   tools.MustSchemaFor[RunShellArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handler.RunShell),
+			Handler:      tools.NewHandler(t.handler.RunShell),
 			Annotations:  tools.ToolAnnotations{Title: "Shell"},
 		},
 		{
@@ -436,7 +436,7 @@ func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  `Starts a shell command in the background and returns immediately with a job ID. Use this for long-running processes like servers, watches, or any command that should run while other tasks are performed.`,
 			Parameters:   tools.MustSchemaFor[RunShellBackgroundArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handler.RunShellBackground),
+			Handler:      tools.NewHandler(t.handler.RunShellBackground),
 			Annotations:  tools.ToolAnnotations{Title: "Background Job"},
 		},
 		{
@@ -444,7 +444,7 @@ func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
 			Category:     "shell",
 			Description:  `Lists all background jobs with their status, runtime, and other information.`,
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handler.ListBackgroundJobs),
+			Handler:      tools.NewHandler(t.handler.ListBackgroundJobs),
 			Annotations:  tools.ToolAnnotations{Title: "List Background Jobs", ReadOnlyHint: true},
 		},
 		{
@@ -453,7 +453,7 @@ func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  `Views the output and status of a specific background job by job ID.`,
 			Parameters:   tools.MustSchemaFor[ViewBackgroundJobArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handler.ViewBackgroundJob),
+			Handler:      tools.NewHandler(t.handler.ViewBackgroundJob),
 			Annotations:  tools.ToolAnnotations{Title: "View Background Job Output", ReadOnlyHint: true},
 		},
 		{
@@ -462,7 +462,7 @@ func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  `Stops a running background job by job ID. The process and all its child processes will be terminated.`,
 			Parameters:   tools.MustSchemaFor[StopBackgroundJobArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      NewHandler(t.handler.StopBackgroundJob),
+			Handler:      tools.NewHandler(t.handler.StopBackgroundJob),
 			Annotations:  tools.ToolAnnotations{Title: "Stop Background Job"},
 		},
 	}, nil

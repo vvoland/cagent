@@ -429,7 +429,7 @@ func (t *LSPTool) Tools(context.Context) ([]tools.Tool, error) {
 	defs := []lspToolDef{
 		{
 			name: ToolNameLSPWorkspace, title: "Get Workspace Info", readOnly: true,
-			params: tools.MustSchemaFor[WorkspaceArgs](), handler: NewHandler(h.workspace),
+			params: tools.MustSchemaFor[WorkspaceArgs](), handler: tools.NewHandler(h.workspace),
 			description: `Get information about the current workspace and LSP server capabilities.
 
 Use this tool at the start of every session to understand the workspace layout and what language features are available. This helps you know which LSP tools will work.
@@ -456,7 +456,7 @@ Example:
 		},
 		{
 			name: ToolNameLSPHover, title: "Get Symbol Info", readOnly: true,
-			params: tools.MustSchemaFor[PositionArgs](), handler: NewHandler(h.hover),
+			params: tools.MustSchemaFor[PositionArgs](), handler: tools.NewHandler(h.hover),
 			description: `Get type information and documentation for a symbol at a specific position.
 
 Returns the type signature, documentation, and any other hover information the language server provides for the symbol under the cursor.
@@ -471,7 +471,7 @@ Example: To get info about a function call on line 42, character 15:
 		},
 		{
 			name: ToolNameLSPDefinition, title: "Go to Definition", readOnly: true,
-			params: tools.MustSchemaFor[PositionArgs](), handler: NewHandler(h.definition),
+			params: tools.MustSchemaFor[PositionArgs](), handler: tools.NewHandler(h.definition),
 			description: `Find the definition location of a symbol at a specific position.
 
 Returns the file path and line number where the symbol is defined. Works for functions, variables, types, imports, etc.
@@ -486,7 +486,7 @@ Example: To find where a function is defined:
 		},
 		{
 			name: ToolNameLSPReferences, title: "Find References", readOnly: true,
-			params: tools.MustSchemaFor[ReferencesArgs](), handler: NewHandler(h.references),
+			params: tools.MustSchemaFor[ReferencesArgs](), handler: tools.NewHandler(h.references),
 			description: `Find all references to a symbol across the codebase.
 
 Returns all locations where the symbol at the given position is used.
@@ -506,7 +506,7 @@ Set include_declaration to false to exclude the symbol's definition from results
 		},
 		{
 			name: ToolNameLSPDocumentSymbols, title: "List File Symbols", readOnly: true,
-			params: tools.MustSchemaFor[FileArgs](), handler: NewHandler(h.documentSymbols),
+			params: tools.MustSchemaFor[FileArgs](), handler: tools.NewHandler(h.documentSymbols),
 			description: `List all symbols defined in a file.
 
 Returns a hierarchical list of all functions, classes, methods, variables, constants, and other symbols in the file.
@@ -523,7 +523,7 @@ Example: To get an overview of a file's structure:
 		},
 		{
 			name: ToolNameLSPWorkspaceSymbols, title: "Search Workspace Symbols", readOnly: true,
-			params: tools.MustSchemaFor[WorkspaceSymbolsArgs](), handler: NewHandler(h.workspaceSymbols),
+			params: tools.MustSchemaFor[WorkspaceSymbolsArgs](), handler: tools.NewHandler(h.workspaceSymbols),
 			description: `Search for symbols across the entire workspace/project.
 
 Returns symbols matching the query from all files in the project. Supports fuzzy matching - you don't need the exact name or location. This is the primary tool for locating symbols in a codebase.
@@ -543,7 +543,7 @@ Leave query empty to list all symbols (may be slow on large projects).`,
 		},
 		{
 			name: ToolNameLSPDiagnostics, title: "Get Diagnostics", readOnly: true,
-			params: tools.MustSchemaFor[FileArgs](), handler: NewHandler(h.getDiagnostics),
+			params: tools.MustSchemaFor[FileArgs](), handler: tools.NewHandler(h.getDiagnostics),
 			description: `Get compiler errors, warnings, and hints for a file.
 
 Returns all diagnostics reported by the language server for the file, including syntax errors, type errors, unused variables, etc.
@@ -563,7 +563,7 @@ Example: To check for errors in a file:
 		},
 		{
 			name: ToolNameLSPRename, title: "Rename Symbol", readOnly: false,
-			params: tools.MustSchemaFor[RenameArgs](), handler: NewHandler(h.rename),
+			params: tools.MustSchemaFor[RenameArgs](), handler: tools.NewHandler(h.rename),
 			description: `Rename a symbol across the entire workspace.
 
 Safely renames a variable, function, type, or other symbol everywhere it's used. The language server ensures all references are updated correctly.
@@ -589,7 +589,7 @@ Example: To rename a function from 'processData' to 'handleData':
 		},
 		{
 			name: ToolNameLSPCodeActions, title: "Get Code Actions", readOnly: true,
-			params: tools.MustSchemaFor[CodeActionsArgs](), handler: NewHandler(h.codeActions),
+			params: tools.MustSchemaFor[CodeActionsArgs](), handler: tools.NewHandler(h.codeActions),
 			description: `Get available code actions (quick fixes, refactorings) for a line or range.
 
 Returns a list of suggested actions like:
@@ -613,7 +613,7 @@ For a range of lines:
 		},
 		{
 			name: ToolNameLSPFormat, title: "Format File", readOnly: false,
-			params: tools.MustSchemaFor[FileArgs](), handler: NewHandler(h.format),
+			params: tools.MustSchemaFor[FileArgs](), handler: tools.NewHandler(h.format),
 			description: `Format a file according to language standards.
 
 Applies the language's standard formatting rules to the entire file. For example:
@@ -635,7 +635,7 @@ Example: To format a file:
 		},
 		{
 			name: ToolNameLSPCallHierarchy, title: "Call Hierarchy", readOnly: true,
-			params: tools.MustSchemaFor[CallHierarchyArgs](), handler: NewHandler(h.callHierarchy),
+			params: tools.MustSchemaFor[CallHierarchyArgs](), handler: tools.NewHandler(h.callHierarchy),
 			description: `Analyze the call hierarchy of a function or method.
 
 Returns either:
@@ -664,7 +664,7 @@ Example: Find what a function calls:
 		},
 		{
 			name: ToolNameLSPTypeHierarchy, title: "Type Hierarchy", readOnly: true,
-			params: tools.MustSchemaFor[TypeHierarchyArgs](), handler: NewHandler(h.typeHierarchy),
+			params: tools.MustSchemaFor[TypeHierarchyArgs](), handler: tools.NewHandler(h.typeHierarchy),
 			description: `Analyze the type hierarchy of a class, interface, or struct.
 
 Returns either:
@@ -691,7 +691,7 @@ Example: Find child types:
 		},
 		{
 			name: ToolNameLSPImplementations, title: "Find Implementations", readOnly: true,
-			params: tools.MustSchemaFor[PositionArgs](), handler: NewHandler(h.implementations),
+			params: tools.MustSchemaFor[PositionArgs](), handler: tools.NewHandler(h.implementations),
 			description: `Find all implementations of an interface or abstract method.
 
 Returns all concrete implementations of the symbol at the given position.
@@ -711,7 +711,7 @@ Example: Find all implementations of an interface method:
 		},
 		{
 			name: ToolNameLSPSignatureHelp, title: "Signature Help", readOnly: true,
-			params: tools.MustSchemaFor[PositionArgs](), handler: NewHandler(h.signatureHelp),
+			params: tools.MustSchemaFor[PositionArgs](), handler: tools.NewHandler(h.signatureHelp),
 			description: `Get function signature and parameter information at a call site.
 
 Returns detailed information about function parameters when the cursor is inside
@@ -734,7 +734,7 @@ Tip: Position the cursor inside the parentheses of a function call.`,
 		},
 		{
 			name: ToolNameLSPInlayHints, title: "Inlay Hints", readOnly: true,
-			params: tools.MustSchemaFor[InlayHintsArgs](), handler: NewHandler(h.inlayHints),
+			params: tools.MustSchemaFor[InlayHintsArgs](), handler: tools.NewHandler(h.inlayHints),
 			description: `Get inlay hints (type annotations, parameter names) for a range of code.
 
 Returns hints that would be displayed inline in an editor, such as:
