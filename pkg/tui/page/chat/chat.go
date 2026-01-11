@@ -60,6 +60,12 @@ type Page interface {
 	GetInputHeight() int
 	// SetSessionStarred updates the sidebar star indicator
 	SetSessionStarred(starred bool)
+	// InsertText inserts text at the current cursor position in the editor
+	InsertText(text string)
+	// SetRecording sets the recording mode on the editor
+	SetRecording(recording bool) tea.Cmd
+	// SendEditorContent sends the current editor content as a message
+	SendEditorContent() tea.Cmd
 }
 
 // chatPage implements Page
@@ -805,4 +811,19 @@ func (p *chatPage) startProgressBar() {
 
 func (p *chatPage) stopProgressBar() {
 	fmt.Fprint(os.Stderr, "\x1b]9;4;0;0\x1b\\")
+}
+
+// InsertText inserts text at the current cursor position in the editor
+func (p *chatPage) InsertText(text string) {
+	p.editor.InsertText(text)
+}
+
+// SetRecording sets the recording mode on the editor
+func (p *chatPage) SetRecording(recording bool) tea.Cmd {
+	return p.editor.SetRecording(recording)
+}
+
+// SendEditorContent sends the current editor content as a message
+func (p *chatPage) SendEditorContent() tea.Cmd {
+	return p.editor.SendContent()
 }

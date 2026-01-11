@@ -285,3 +285,68 @@ func (a *appModel) handleChangeModel(modelRef string) (tea.Model, tea.Cmd) {
 	}
 	return a, notification.SuccessCmd(fmt.Sprintf("Model changed to %s", modelRef))
 }
+
+// Speech-to-text handlers
+
+// speakTranscriptAndContinue is an internal message that carries a transcript delta
+// and the channel to continue listening.
+type speakTranscriptAndContinue struct {
+	delta string
+	ch    <-chan string
+}
+
+func (a *appModel) handleStartSpeak() (tea.Model, tea.Cmd) {
+	if a.transcriber.IsRunning() {
+		return a, nil
+	}
+
+	// Start transcription
+	transcriptCh := make(chan string, 100)
+	err := a.transcriber.Start(context.Background(), func(delta string) {
+		select {
+		case transcriptCh <- delta:
+		default:
+			// Channel full, drop the delta
+		}
+	})
+	if err != nil {
+		return a, notification.ErrorCmd(fmt.Sprintf("Failed to start listening: %v", err))
+	}
+
+	// Set recording mode on the editor to show animated dots
+	recordingCmd := a.chatPage.SetRecording(true)
+
+	// Return a command that listens for transcripts and sends them as messages
+	return a, tea.Batch(
+		notification.InfoCmd("🎤 Listening... (ENTER to send or ESC to cancel)"),
+		recordingCmd,
+		a.listenForTranscripts(transcriptCh),
+	)
+}
+
+// listenForTranscripts returns a command that listens for transcript deltas
+// and sends them as messages to the TUI.
+func (a *appModel) listenForTranscripts(ch <-chan string) tea.Cmd {
+	return func() tea.Msg {
+		delta, ok := <-ch
+		if !ok {
+			return nil // Channel closed
+		}
+		return speakTranscriptAndContinue{delta: delta, ch: ch}
+	}
+}
+
+func (a *appModel) handleStopSpeak() (tea.Model, tea.Cmd) {
+	if !a.transcriber.IsRunning() {
+		return a, nil
+	}
+
+	a.transcriber.Stop()
+	recordingCmd := a.chatPage.SetRecording(false)
+	return a, tea.Batch(recordingCmd, notification.SuccessCmd("Stopped listening"))
+}
+
+func (a *appModel) handleSpeakTranscript(delta string) (tea.Model, tea.Cmd) {
+	a.chatPage.InsertText(delta + " ")
+	return a, nil
+}
