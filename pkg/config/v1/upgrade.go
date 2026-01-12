@@ -5,7 +5,7 @@ import (
 	previous "github.com/docker/cagent/pkg/config/v0"
 )
 
-func UpgradeIfNeeded(c any) (any, error) {
+func UpgradeIfNeeded(c any, _ []byte) (any, error) {
 	old, ok := c.(previous.Config)
 	if !ok {
 		return c, nil

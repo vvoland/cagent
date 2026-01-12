@@ -92,15 +92,8 @@ func (s *Server) getAgents(c echo.Context) error {
 			continue
 		}
 
-		var desc string
-		if a, ok := c.Agents["root"]; ok {
-			desc = a.Description
-		} else {
-			for _, agent := range c.Agents {
-				desc = agent.Description
-				break
-			}
-		}
+		desc := c.Agents.First().Description
+
 		switch {
 		case len(c.Agents) > 1:
 			agents = append(agents, api.Agent{

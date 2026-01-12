@@ -66,9 +66,13 @@ func completeMessage(cmd *cobra.Command, args []string, toComplete string) ([]st
 	if agent == "" {
 		agent = "root"
 	}
+	agentCfg, found := cfg.Agents.Lookup(agent)
+	if !found {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 
 	var candidates []string
-	for k, v := range cfg.Agents[agent].Commands {
+	for k, v := range agentCfg.Commands {
 		if strings.HasPrefix("/"+k, toComplete) {
 			candidates = append(candidates, "/"+k+"\t"+v.DisplayText())
 		}

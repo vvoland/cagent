@@ -38,7 +38,7 @@ func Load(ctx context.Context, source Reader) (*latest.Config, error) {
 		return nil, fmt.Errorf("parsing config file\n%s", yaml.FormatError(err, true, true))
 	}
 
-	config, err := migrateToLatestConfig(oldConfig)
+	config, err := migrateToLatestConfig(oldConfig, data)
 	if err != nil {
 		return nil, fmt.Errorf("migrating config: %w", err)
 	}
@@ -80,11 +80,11 @@ func parseCurrentVersion(data []byte, version string) (any, error) {
 	return parser(data)
 }
 
-func migrateToLatestConfig(c any) (latest.Config, error) {
+func migrateToLatestConfig(c any, raw []byte) (latest.Config, error) {
 	var err error
 
 	for _, upgrade := range Upgrades() {
-		c, err = upgrade(c)
+		c, err = upgrade(c, raw)
 		if err != nil {
 			return latest.Config{}, err
 		}
@@ -114,16 +114,19 @@ func validateConfig(cfg *latest.Config) error {
 		return err
 	}
 
-	for agentName := range cfg.Agents {
-		agent := cfg.Agents[agentName]
+	allNames := map[string]bool{}
+	for _, agent := range cfg.Agents {
+		allNames[agent.Name] = true
+	}
 
+	for _, agent := range cfg.Agents {
 		for _, subAgentName := range agent.SubAgents {
-			if _, exists := cfg.Agents[subAgentName]; !exists {
-				return fmt.Errorf("agent '%s' references non-existent sub-agent '%s'", agentName, subAgentName)
+			if _, exists := allNames[subAgentName]; !exists {
+				return fmt.Errorf("agent '%s' references non-existent sub-agent '%s'", agent.Name, subAgentName)
 			}
 		}
 
-		if err := validateSkillsConfiguration(agentName, &agent); err != nil {
+		if err := validateSkillsConfiguration(agent.Name, &agent); err != nil {
 			return err
 		}
 	}

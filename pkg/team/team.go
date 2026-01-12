@@ -5,18 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"maps"
-	"slices"
 	"strings"
 
 	"github.com/docker/cagent/pkg/agent"
-	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/permissions"
 	"github.com/docker/cagent/pkg/rag"
 )
 
 type Team struct {
-	agents      map[string]*agent.Agent
+	agents      []*agent.Agent
 	ragManagers map[string]*rag.Manager
 	permissions *permissions.Checker
 }
@@ -25,9 +22,7 @@ type Opt func(*Team)
 
 func WithAgents(agents ...*agent.Agent) Opt {
 	return func(t *Team) {
-		for _, agent := range agents {
-			t.agents[agent.Name()] = agent
-		}
+		t.agents = agents
 	}
 }
 
@@ -45,7 +40,6 @@ func WithPermissions(checker *permissions.Checker) Opt {
 
 func New(opts ...Opt) *Team {
 	t := &Team{
-		agents:      make(map[string]*agent.Agent),
 		ragManagers: make(map[string]*rag.Manager),
 	}
 	for _, opt := range opts {
@@ -55,7 +49,11 @@ func New(opts ...Opt) *Team {
 }
 
 func (t *Team) AgentNames() []string {
-	return slices.Sorted(maps.Keys(t.agents))
+	var names []string
+	for i := range t.agents {
+		names = append(names, t.agents[i].Name())
+	}
+	return names
 }
 
 // AgentInfo contains information about an agent
@@ -69,10 +67,9 @@ type AgentInfo struct {
 // AgentsInfo returns information about all agents in the team
 func (t *Team) AgentsInfo() []AgentInfo {
 	var infos []AgentInfo
-	for _, name := range t.AgentNames() {
-		a := t.agents[name]
+	for _, a := range t.agents {
 		info := AgentInfo{
-			Name:        name,
+			Name:        a.Name(),
 			Description: a.Description(),
 		}
 		if model := a.Model(); model != nil {
@@ -89,32 +86,34 @@ func (t *Team) AgentsInfo() []AgentInfo {
 	return infos
 }
 
+func (t *Team) DefaultAgent() (*agent.Agent, error) {
+	if t.Size() == 0 {
+		return nil, errors.New("no agents loaded; ensure your agent configuration defines at least one agent")
+	}
+
+	// Before v4, the default agent was the one named "root". If it exists, return it.
+	for _, a := range t.agents {
+		if a.Name() == "root" {
+			return a, nil
+		}
+	}
+
+	// Otherwise, return the first agent.
+	return t.agents[0], nil
+}
+
 func (t *Team) Agent(name string) (*agent.Agent, error) {
 	if t.Size() == 0 {
 		return nil, errors.New("no agents loaded; ensure your agent configuration defines at least one agent")
 	}
 
-	found, ok := t.agents[name]
-	if !ok {
-		return nil, fmt.Errorf("agent not found: %s (available agents: %s)", name, strings.Join(t.AgentNames(), ", "))
-	}
-
-	return found, nil
-}
-
-func (t *Team) Model() provider.Provider {
-	root, err := t.Agent("root")
-	if err == nil {
-		return root.Model()
-	}
-
-	for _, agentName := range t.AgentNames() {
-		a, err := t.Agent(agentName)
-		if err == nil {
-			return a.Model()
+	for _, a := range t.agents {
+		if a.Name() == name {
+			return a, nil
 		}
 	}
-	return nil
+
+	return nil, fmt.Errorf("agent not found: %s (available agents: %s)", name, strings.Join(t.AgentNames(), ", "))
 }
 
 func (t *Team) Size() int {

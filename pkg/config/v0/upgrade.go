@@ -1,5 +1,5 @@
 package v0
 
-func UpgradeIfNeeded(old any) (any, error) {
+func UpgradeIfNeeded(old any, _ []byte) (any, error) {
 	return old, nil
 }

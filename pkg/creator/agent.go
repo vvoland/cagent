@@ -75,19 +75,16 @@ func Agent(ctx context.Context, runConfig *config.RuntimeConfig, modelNameOverri
 
 	// Define a new agent configuration
 	newAgentConfig := latest.Config{
-		Agents: map[string]latest.AgentConfig{
-			"root": {
-				WelcomeMessage: `Hello! I'm here to create agents for you.
-
-Can you explain to me what the agent will be used for?`,
-				Instruction: instructions,
-				Model:       "auto",
-				Toolsets: []latest.Toolset{
-					{Type: "shell"},
-					{Type: "filesystem"},
-				},
+		Agents: []latest.AgentConfig{{
+			Name:           "root",
+			WelcomeMessage: "Hello! I'm here to create agents for you.\n\nCan you explain to me what the agent will be used for?",
+			Instruction:    instructions,
+			Model:          "auto",
+			Toolsets: []latest.Toolset{
+				{Type: "shell"},
+				{Type: "filesystem"},
 			},
-		},
+		}},
 	}
 
 	configAsJSON, err := json.Marshal(newAgentConfig)

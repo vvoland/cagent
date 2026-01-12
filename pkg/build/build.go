@@ -68,7 +68,7 @@ func DockerImage(ctx context.Context, out Printer, agentFilename, dockerImageNam
 		"BaseImage":    baseImage,
 		"AgentConfig":  string(canonical),
 		"BuildDate":    time.Now().UTC().Format(time.RFC3339),
-		"Description":  cfg.Agents["root"].Description,
+		"Description":  cfg.Metadata.Description,
 		"Metadata":     cfg.Metadata,
 		"ModelSecrets": strings.Join(modelSecrets, ","),
 		"ToolSecrets":  strings.Join(toolSecrets, ","),

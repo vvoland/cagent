@@ -1,4 +1,4 @@
-package latest
+package v3
 
 import (
 	"encoding/json"
@@ -9,89 +9,17 @@ import (
 	"github.com/docker/cagent/pkg/config/types"
 )
 
-const Version = "4"
+const Version = "3"
 
 // Config represents the entire configuration file
 type Config struct {
 	Version     string                    `json:"version,omitempty"`
-	Agents      Agents                    `json:"agents,omitempty"`
 	Providers   map[string]ProviderConfig `json:"providers,omitempty"`
+	Agents      map[string]AgentConfig    `json:"agents,omitempty"`
 	Models      map[string]ModelConfig    `json:"models,omitempty"`
 	RAG         map[string]RAGConfig      `json:"rag,omitempty"`
 	Metadata    Metadata                  `json:"metadata,omitempty"`
 	Permissions *PermissionsConfig        `json:"permissions,omitempty"`
-}
-
-type Agents []AgentConfig
-
-func (c *Agents) UnmarshalYAML(unmarshal func(any) error) error {
-	var items yaml.MapSlice
-	if err := unmarshal(&items); err != nil {
-		return err
-	}
-
-	agents := make([]AgentConfig, 0, len(items))
-	for _, item := range items {
-		name, ok := item.Key.(string)
-		if !ok {
-			return fmt.Errorf("agent name must be a string")
-		}
-
-		valueBytes, err := yaml.Marshal(item.Value)
-		if err != nil {
-			return fmt.Errorf("failed to marshal agent config for %s: %w", name, err)
-		}
-
-		var agent AgentConfig
-		if err := yaml.Unmarshal(valueBytes, &agent); err != nil {
-			return fmt.Errorf("failed to unmarshal agent config for %s: %w", name, err)
-		}
-
-		agent.Name = name
-		agents = append(agents, agent)
-	}
-
-	*c = agents
-	return nil
-}
-
-func (c Agents) MarshalYAML() ([]byte, error) {
-	mapSlice := make(yaml.MapSlice, 0, len(c))
-
-	for _, agent := range c {
-		mapSlice = append(mapSlice, yaml.MapItem{
-			Key:   agent.Name,
-			Value: agent,
-		})
-	}
-
-	return yaml.Marshal(mapSlice)
-}
-
-func (c *Agents) First() AgentConfig {
-	if len(*c) > 0 {
-		return (*c)[0]
-	}
-	panic("no agents configured")
-}
-
-func (c *Agents) Lookup(name string) (AgentConfig, bool) {
-	for _, agent := range *c {
-		if agent.Name == name {
-			return agent, true
-		}
-	}
-	return AgentConfig{}, false
-}
-
-func (c *Agents) Update(name string, update func(a *AgentConfig)) bool {
-	for i := range *c {
-		if (*c)[i].Name == name {
-			update(&(*c)[i])
-			return true
-		}
-	}
-	return false
 }
 
 // ProviderConfig represents a reusable provider definition.
@@ -110,7 +38,6 @@ type ProviderConfig struct {
 
 // AgentConfig represents a single agent configuration
 type AgentConfig struct {
-	Name               string
 	Model              string            `json:"model,omitempty"`
 	Description        string            `json:"description,omitempty"`
 	WelcomeMessage     string            `json:"welcome_message,omitempty"`
@@ -168,11 +95,10 @@ type RoutingRule struct {
 }
 
 type Metadata struct {
-	Author      string `json:"author,omitempty"`
-	License     string `json:"license,omitempty"`
-	Description string `json:"description,omitempty"`
-	Readme      string `json:"readme,omitempty"`
-	Version     string `json:"version,omitempty"`
+	Author  string `json:"author,omitempty"`
+	License string `json:"license,omitempty"`
+	Readme  string `json:"readme,omitempty"`
+	Version string `json:"version,omitempty"`
 }
 
 // Commands represents a set of named prompts for quick-starting conversations.

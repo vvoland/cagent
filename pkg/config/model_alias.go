@@ -51,13 +51,13 @@ func ResolveModelAliases(ctx context.Context, cfg *latest.Config) {
 	}
 
 	// Resolve inline model references in agents (e.g., "anthropic/claude-sonnet-4-5")
-	for agentName, agentCfg := range cfg.Agents {
-		if agentCfg.Model == "" || agentCfg.Model == "auto" {
+	for _, agent := range cfg.Agents {
+		if agent.Model == "" || agent.Model == "auto" {
 			continue
 		}
 
 		var resolvedModels []string
-		for modelRef := range strings.SplitSeq(agentCfg.Model, ",") {
+		for modelRef := range strings.SplitSeq(agent.Model, ",") {
 			if provider, model, ok := strings.Cut(modelRef, "/"); ok {
 				if resolved := store.ResolveModelAlias(ctx, provider, model); resolved != model {
 					resolvedModels = append(resolvedModels, provider+"/"+resolved)
@@ -67,8 +67,9 @@ func ResolveModelAliases(ctx context.Context, cfg *latest.Config) {
 			resolvedModels = append(resolvedModels, modelRef)
 		}
 
-		agentCfg.Model = strings.Join(resolvedModels, ",")
-		cfg.Agents[agentName] = agentCfg
+		cfg.Agents.Update(agent.Name, func(a *latest.AgentConfig) {
+			a.Model = strings.Join(resolvedModels, ",")
+		})
 	}
 }
 

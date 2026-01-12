@@ -837,8 +837,8 @@ func TestEmitStartupInfo(t *testing.T) {
 	expectedEvents := []Event{
 		AgentInfo("startup-test-agent", "test/startup-model", "This is a startup test agent", "Welcome!"),
 		TeamInfo([]AgentDetails{
-			{Name: "other-agent", Description: "This is another agent", Provider: "test", Model: "startup-model"},
 			{Name: "startup-test-agent", Description: "This is a startup test agent", Provider: "test", Model: "startup-model"},
+			{Name: "other-agent", Description: "This is another agent", Provider: "test", Model: "startup-model"},
 		}, "startup-test-agent"),
 		ToolsetInfo(0, false, "startup-test-agent"), // No tools configured
 	}
