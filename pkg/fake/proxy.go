@@ -21,7 +21,6 @@ import (
 
 // StartProxy starts an internal HTTP proxy that replays cassette responses.
 // It returns the proxy URL and a cleanup function that should be called when done.
-// Uses RelaxedMatcher for lenient matching (only validates user messages).
 func StartProxy(cassettePath string) (string, func() error, error) {
 	return StartProxyWithOptions(cassettePath, recorder.ModeReplayOnly, nil, nil)
 }
