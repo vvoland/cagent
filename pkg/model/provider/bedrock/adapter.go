@@ -151,9 +151,16 @@ func (a *streamAdapter) Recv() (chat.MessageStreamResponse, error) {
 				}}
 
 			case *types.ContentBlockDeltaMemberReasoningContent:
-				// Handle reasoning/thinking content
-				if textDelta, ok := delta.Value.(*types.ReasoningContentBlockDeltaMemberText); ok {
-					response.Choices[0].Delta.ReasoningContent = textDelta.Value
+				// Handle reasoning content (text, signature, redacted)
+				switch reasoningDelta := delta.Value.(type) {
+				case *types.ReasoningContentBlockDeltaMemberText:
+					response.Choices[0].Delta.ReasoningContent = reasoningDelta.Value
+				case *types.ReasoningContentBlockDeltaMemberSignature:
+					response.Choices[0].Delta.ThinkingSignature = reasoningDelta.Value
+				case *types.ReasoningContentBlockDeltaMemberRedactedContent:
+					response.Choices[0].Delta.ThinkingSignature = string(reasoningDelta.Value)
+				default:
+					return chat.MessageStreamResponse{}, fmt.Errorf("unknown reasoning delta type: %T", reasoningDelta)
 				}
 			}
 		}

@@ -269,6 +269,11 @@ func (c *Client) isThinkingEnabled() bool {
 	return true
 }
 
+// interleavedThinkingEnabled returns true when provider_opts.interleaved_thinking is set.
+func (c *Client) interleavedThinkingEnabled() bool {
+	return getProviderOpt[bool](c.ModelConfig.ProviderOpts, "interleaved_thinking")
+}
+
 // buildAdditionalModelRequestFields creates model-specific parameters.
 // Used for extended thinking (reasoning) configuration on Claude models.
 func (c *Client) buildAdditionalModelRequestFields() document.Interface {
@@ -295,12 +300,20 @@ func (c *Client) buildAdditionalModelRequestFields() document.Interface {
 
 	slog.Debug("Bedrock request using thinking_budget", "budget_tokens", tokens)
 
-	return document.NewLazyDocument(map[string]any{
+	fields := map[string]any{
 		"thinking": map[string]any{
 			"type":          "enabled",
 			"budget_tokens": tokens,
 		},
-	})
+	}
+
+	// Add anthropic_beta field for interleaved thinking
+	if c.interleavedThinkingEnabled() {
+		fields["anthropic_beta"] = []string{"interleaved-thinking-2025-05-14"}
+		slog.Debug("Bedrock request using interleaved thinking beta")
+	}
+
+	return document.NewLazyDocument(fields)
 }
 
 // getProviderOpt extracts a typed value from provider_opts
