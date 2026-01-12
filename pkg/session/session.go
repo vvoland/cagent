@@ -11,7 +11,6 @@ import (
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/skills"
-	"github.com/docker/cagent/pkg/tools"
 )
 
 const (
@@ -592,23 +591,17 @@ func trimMessages(messages []chat.Message, maxItems int) []chat.Message {
 	return result
 }
 
-// truncateOldToolContent replaces tool call arguments and tool results with
-// placeholders for older messages that exceed the token budget. It processes
-// messages from newest to oldest, keeping recent tool content intact while
-// truncating older content once the budget is exhausted.
+// truncateOldToolContent replaces tool results with placeholders for older
+// messages that exceed the token budget. It processes messages from newest to
+// oldest, keeping recent tool content intact while truncating older content
+// once the budget is exhausted.
 func truncateOldToolContent(messages []chat.Message, maxTokens int) []chat.Message {
 	if len(messages) == 0 || maxTokens <= 0 {
 		return messages
 	}
 
 	result := make([]chat.Message, len(messages))
-	for i := range messages {
-		result[i] = messages[i]
-		if len(messages[i].ToolCalls) > 0 {
-			result[i].ToolCalls = make([]tools.ToolCall, len(messages[i].ToolCalls))
-			copy(result[i].ToolCalls, messages[i].ToolCalls)
-		}
-	}
+	copy(result, messages)
 
 	tokenBudget := maxTokens
 
@@ -622,18 +615,6 @@ func truncateOldToolContent(messages []chat.Message, maxTokens int) []chat.Messa
 			} else {
 				msg.Content = toolContentPlaceholder
 				tokenBudget = 0
-			}
-		}
-
-		if msg.Role == chat.MessageRoleAssistant && len(msg.ToolCalls) > 0 {
-			for j := len(msg.ToolCalls) - 1; j >= 0; j-- {
-				tokens := len(msg.ToolCalls[j].Function.Arguments) / 4
-				if tokenBudget >= tokens {
-					tokenBudget -= tokens
-				} else {
-					msg.ToolCalls[j].Function.Arguments = toolContentPlaceholder
-					tokenBudget = 0
-				}
 			}
 		}
 	}
