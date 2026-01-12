@@ -177,6 +177,25 @@ func (s *Store) GetModel(ctx context.Context, id string) (*Model, error) {
 
 	model, exists := provider.Models[modelID]
 	if !exists {
+		// For amazon-bedrock, try stripping region/inference profile prefixes
+		// Bedrock uses prefixes like "global.", "us.", "eu.", "apac." etc. for
+		// cross-region inference profiles, but models.dev stores models without
+		// these prefixes. Try stripping the first segment if it doesn't match
+		// a known model provider prefix (anthropic, meta, amazon, etc.)
+		if providerID == "amazon-bedrock" {
+			if idx := strings.Index(modelID, "."); idx != -1 {
+				possibleRegionPrefix := modelID[:idx]
+				// Only strip if the prefix is NOT a known model provider
+				// (i.e., it's likely a region prefix like "global", "us", "eu")
+				if !isBedrockModelProvider(possibleRegionPrefix) {
+					normalizedModelID := modelID[idx+1:]
+					model, exists = provider.Models[normalizedModelID]
+					if exists {
+						return &model, nil
+					}
+				}
+			}
+		}
 		return nil, fmt.Errorf("model %q not found in provider %q", modelID, providerID)
 	}
 
@@ -315,4 +334,24 @@ func (s *Store) ResolveModelAlias(ctx context.Context, providerID, modelName str
 	}
 
 	return modelName
+}
+
+// bedrockModelProviders contains known model provider prefixes used in Bedrock model IDs.
+// These are NOT region prefixes and should not be stripped when normalizing model IDs.
+var bedrockModelProviders = map[string]bool{
+	"anthropic": true,
+	"amazon":    true,
+	"meta":      true,
+	"cohere":    true,
+	"ai21":      true,
+	"mistral":   true,
+	"stability": true,
+	"deepseek":  true,
+	"google":    true,
+	"minimax":   true,
+}
+
+// isBedrockModelProvider returns true if the prefix is a known Bedrock model provider.
+func isBedrockModelProvider(prefix string) bool {
+	return bedrockModelProviders[prefix]
 }
