@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
+	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime/document"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 
@@ -214,6 +215,11 @@ func (c *Client) buildConverseStreamInput(messages []chat.Message, requestTools 
 		input.ToolConfig = convertToolConfig(requestTools)
 	}
 
+	// Set extended thinking configuration for Claude models
+	if additionalFields := c.buildAdditionalModelRequestFields(); additionalFields != nil {
+		input.AdditionalModelRequestFields = additionalFields
+	}
+
 	return input
 }
 
@@ -224,14 +230,77 @@ func (c *Client) buildInferenceConfig() *types.InferenceConfiguration {
 	if c.ModelConfig.MaxTokens != nil && *c.ModelConfig.MaxTokens > 0 {
 		cfg.MaxTokens = aws.Int32(int32(*c.ModelConfig.MaxTokens))
 	}
-	if c.ModelConfig.Temperature != nil {
-		cfg.Temperature = aws.Float32(float32(*c.ModelConfig.Temperature))
-	}
-	if c.ModelConfig.TopP != nil {
-		cfg.TopP = aws.Float32(float32(*c.ModelConfig.TopP))
+
+	// Temperature and TopP cannot be set when extended thinking is enabled
+	// (Claude requires temperature=1.0 which is the default when thinking is on)
+	if !c.isThinkingEnabled() {
+		if c.ModelConfig.Temperature != nil {
+			cfg.Temperature = aws.Float32(float32(*c.ModelConfig.Temperature))
+		}
+		if c.ModelConfig.TopP != nil {
+			cfg.TopP = aws.Float32(float32(*c.ModelConfig.TopP))
+		}
+	} else if c.ModelConfig.Temperature != nil || c.ModelConfig.TopP != nil {
+		slog.Debug("Bedrock extended thinking enabled, ignoring temperature/top_p settings")
 	}
 
 	return cfg
+}
+
+// isThinkingEnabled checks if extended thinking will be enabled for this request.
+// This mirrors the validation logic in buildAdditionalModelRequestFields.
+func (c *Client) isThinkingEnabled() bool {
+	if c.ModelConfig.ThinkingBudget == nil || c.ModelConfig.ThinkingBudget.Tokens <= 0 {
+		return false
+	}
+
+	tokens := c.ModelConfig.ThinkingBudget.Tokens
+
+	// Check minimum (Claude requires at least 1024 tokens for thinking)
+	if tokens < 1024 {
+		return false
+	}
+
+	// Check against max_tokens
+	if c.ModelConfig.MaxTokens != nil && tokens >= int(*c.ModelConfig.MaxTokens) {
+		return false
+	}
+
+	return true
+}
+
+// buildAdditionalModelRequestFields creates model-specific parameters.
+// Used for extended thinking (reasoning) configuration on Claude models.
+func (c *Client) buildAdditionalModelRequestFields() document.Interface {
+	if c.ModelConfig.ThinkingBudget == nil || c.ModelConfig.ThinkingBudget.Tokens <= 0 {
+		return nil
+	}
+
+	tokens := c.ModelConfig.ThinkingBudget.Tokens
+
+	// Validate minimum (Claude requires at least 1024 tokens for thinking)
+	if tokens < 1024 {
+		slog.Warn("Bedrock thinking_budget below minimum (1024), ignoring",
+			"tokens", tokens)
+		return nil
+	}
+
+	// Validate against max_tokens
+	if c.ModelConfig.MaxTokens != nil && tokens >= int(*c.ModelConfig.MaxTokens) {
+		slog.Warn("Bedrock thinking_budget must be less than max_tokens, ignoring",
+			"thinking_budget", tokens,
+			"max_tokens", *c.ModelConfig.MaxTokens)
+		return nil
+	}
+
+	slog.Debug("Bedrock request using thinking_budget", "budget_tokens", tokens)
+
+	return document.NewLazyDocument(map[string]any{
+		"thinking": map[string]any{
+			"type":          "enabled",
+			"budget_tokens": tokens,
+		},
+	})
 }
 
 // getProviderOpt extracts a typed value from provider_opts
