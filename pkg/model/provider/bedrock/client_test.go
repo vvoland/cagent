@@ -827,3 +827,250 @@ func TestBuildInferenceConfig_SetsTempTopPWhenThinkingBudgetInvalid(t *testing.T
 	require.NotNil(t, cfg.TopP)
 	assert.InDelta(t, 0.9, *cfg.TopP, 0.01)
 }
+
+func TestInterleavedThinkingEnabled_True(t *testing.T) {
+	t.Parallel()
+
+	client := &Client{
+		Config: base.Config{
+			ModelConfig: latest.ModelConfig{
+				Provider: "amazon-bedrock",
+				Model:    "anthropic.claude-sonnet-4-20250514-v1:0",
+				ProviderOpts: map[string]any{
+					"interleaved_thinking": true,
+				},
+			},
+		},
+	}
+
+	assert.True(t, client.interleavedThinkingEnabled())
+}
+
+func TestInterleavedThinkingEnabled_False(t *testing.T) {
+	t.Parallel()
+
+	client := &Client{
+		Config: base.Config{
+			ModelConfig: latest.ModelConfig{
+				Provider: "amazon-bedrock",
+				Model:    "anthropic.claude-sonnet-4-20250514-v1:0",
+				ProviderOpts: map[string]any{
+					"interleaved_thinking": false,
+				},
+			},
+		},
+	}
+
+	assert.False(t, client.interleavedThinkingEnabled())
+}
+
+func TestInterleavedThinkingEnabled_NotSet(t *testing.T) {
+	t.Parallel()
+
+	client := &Client{
+		Config: base.Config{
+			ModelConfig: latest.ModelConfig{
+				Provider:     "amazon-bedrock",
+				Model:        "anthropic.claude-sonnet-4-20250514-v1:0",
+				ProviderOpts: map[string]any{},
+			},
+		},
+	}
+
+	assert.False(t, client.interleavedThinkingEnabled())
+}
+
+func TestInterleavedThinkingEnabled_NilProviderOpts(t *testing.T) {
+	t.Parallel()
+
+	client := &Client{
+		Config: base.Config{
+			ModelConfig: latest.ModelConfig{
+				Provider:     "amazon-bedrock",
+				Model:        "anthropic.claude-sonnet-4-20250514-v1:0",
+				ProviderOpts: nil,
+			},
+		},
+	}
+
+	assert.False(t, client.interleavedThinkingEnabled())
+}
+
+func TestBuildAdditionalModelRequestFields_WithInterleavedThinking(t *testing.T) {
+	t.Parallel()
+
+	maxTokens := int64(64000)
+	client := &Client{
+		Config: base.Config{
+			ModelConfig: latest.ModelConfig{
+				Provider:  "amazon-bedrock",
+				Model:     "anthropic.claude-sonnet-4-20250514-v1:0",
+				MaxTokens: &maxTokens,
+				ThinkingBudget: &latest.ThinkingBudget{
+					Tokens: 16384,
+				},
+				ProviderOpts: map[string]any{
+					"interleaved_thinking": true,
+				},
+			},
+		},
+	}
+
+	result := client.buildAdditionalModelRequestFields()
+
+	require.NotNil(t, result, "expected document for valid thinking_budget with interleaved thinking")
+	// The document contains anthropic_beta when interleaved thinking is enabled
+	// We can't easily inspect the lazy document contents, but we verify it's not nil
+}
+
+func TestBuildAdditionalModelRequestFields_WithoutInterleavedThinking(t *testing.T) {
+	t.Parallel()
+
+	maxTokens := int64(64000)
+	client := &Client{
+		Config: base.Config{
+			ModelConfig: latest.ModelConfig{
+				Provider:  "amazon-bedrock",
+				Model:     "anthropic.claude-sonnet-4-20250514-v1:0",
+				MaxTokens: &maxTokens,
+				ThinkingBudget: &latest.ThinkingBudget{
+					Tokens: 16384,
+				},
+				// No interleaved_thinking in provider_opts
+				ProviderOpts: map[string]any{},
+			},
+		},
+	}
+
+	result := client.buildAdditionalModelRequestFields()
+
+	require.NotNil(t, result, "expected document for valid thinking_budget")
+	// Without interleaved thinking, no anthropic_beta header should be added
+	// Basic thinking still works - this tests backward compatibility
+}
+
+func TestConvertAssistantContent_WithThinkingBlocks(t *testing.T) {
+	t.Parallel()
+
+	msg := &chat.Message{
+		Role:              chat.MessageRoleAssistant,
+		Content:           "Here's my answer",
+		ReasoningContent:  "Let me think about this...",
+		ThinkingSignature: "sig_abc123",
+	}
+
+	blocks := convertAssistantContent(msg)
+
+	// Should have thinking block first, then text block
+	require.Len(t, blocks, 2)
+
+	// First block should be reasoning content
+	reasoningBlock, ok := blocks[0].(*types.ContentBlockMemberReasoningContent)
+	require.True(t, ok, "first block should be reasoning content")
+
+	// Verify the reasoning content structure
+	reasoningText, ok := reasoningBlock.Value.(*types.ReasoningContentBlockMemberReasoningText)
+	require.True(t, ok, "reasoning value should be ReasoningText")
+	assert.Equal(t, "Let me think about this...", *reasoningText.Value.Text)
+	assert.Equal(t, "sig_abc123", *reasoningText.Value.Signature)
+
+	// Second block should be text content
+	textBlock, ok := blocks[1].(*types.ContentBlockMemberText)
+	require.True(t, ok, "second block should be text content")
+	assert.Equal(t, "Here's my answer", textBlock.Value)
+}
+
+func TestConvertAssistantContent_WithoutThinkingBlocks(t *testing.T) {
+	t.Parallel()
+
+	msg := &chat.Message{
+		Role:    chat.MessageRoleAssistant,
+		Content: "Here's my answer",
+		// No ReasoningContent or ThinkingSignature
+	}
+
+	blocks := convertAssistantContent(msg)
+
+	// Should only have text block
+	require.Len(t, blocks, 1)
+
+	textBlock, ok := blocks[0].(*types.ContentBlockMemberText)
+	require.True(t, ok)
+	assert.Equal(t, "Here's my answer", textBlock.Value)
+}
+
+func TestConvertAssistantContent_MissingSignature(t *testing.T) {
+	t.Parallel()
+
+	// When only ReasoningContent is present but no signature,
+	// thinking block should NOT be included (signature required for multi-turn)
+	msg := &chat.Message{
+		Role:              chat.MessageRoleAssistant,
+		Content:           "Here's my answer",
+		ReasoningContent:  "Let me think...",
+		ThinkingSignature: "", // Missing signature
+	}
+
+	blocks := convertAssistantContent(msg)
+
+	// Should only have text block (no thinking block without signature)
+	require.Len(t, blocks, 1)
+
+	textBlock, ok := blocks[0].(*types.ContentBlockMemberText)
+	require.True(t, ok)
+	assert.Equal(t, "Here's my answer", textBlock.Value)
+}
+
+func TestConvertAssistantContent_RedactedThinking(t *testing.T) {
+	t.Parallel()
+
+	// When only signature is present but no reasoning content,
+	// a redacted thinking block should be included to maintain
+	// conversation integrity for multi-turn extended thinking.
+	msg := &chat.Message{
+		Role:              chat.MessageRoleAssistant,
+		Content:           "Here's my answer",
+		ReasoningContent:  "", // Content redacted for safety
+		ThinkingSignature: "sig_abc123",
+	}
+
+	blocks := convertAssistantContent(msg)
+
+	// Should have redacted thinking block first, then text block
+	require.Len(t, blocks, 2)
+
+	// First block should be redacted reasoning content
+	reasoningBlock, ok := blocks[0].(*types.ContentBlockMemberReasoningContent)
+	require.True(t, ok, "first block should be ContentBlockMemberReasoningContent")
+
+	redactedContent, ok := reasoningBlock.Value.(*types.ReasoningContentBlockMemberRedactedContent)
+	require.True(t, ok, "reasoning block should be ReasoningContentBlockMemberRedactedContent")
+	assert.Equal(t, []byte("sig_abc123"), redactedContent.Value)
+
+	// Second block should be text
+	textBlock, ok := blocks[1].(*types.ContentBlockMemberText)
+	require.True(t, ok)
+	assert.Equal(t, "Here's my answer", textBlock.Value)
+}
+
+func TestConvertAssistantContent_NoThinkingWhenBothEmpty(t *testing.T) {
+	t.Parallel()
+
+	// When neither reasoning content nor signature is present,
+	// no thinking blocks should be included
+	msg := &chat.Message{
+		Role:              chat.MessageRoleAssistant,
+		Content:           "Here's my answer",
+		ReasoningContent:  "",
+		ThinkingSignature: "",
+	}
+
+	blocks := convertAssistantContent(msg)
+
+	// Should only have text block
+	require.Len(t, blocks, 1)
+
+	textBlock, ok := blocks[0].(*types.ContentBlockMemberText)
+	require.True(t, ok)
+	assert.Equal(t, "Here's my answer", textBlock.Value)
+}

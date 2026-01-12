@@ -172,6 +172,25 @@ func convertImageURL(imageURL *chat.MessageImageURL) types.ContentBlock {
 func convertAssistantContent(msg *chat.Message) []types.ContentBlock {
 	var blocks []types.ContentBlock
 
+	// Add thinking blocks first (order: thinking, text, tool_use)
+	if msg.ReasoningContent != "" && msg.ThinkingSignature != "" {
+		blocks = append(blocks, &types.ContentBlockMemberReasoningContent{
+			Value: &types.ReasoningContentBlockMemberReasoningText{
+				Value: types.ReasoningTextBlock{
+					Text:      aws.String(msg.ReasoningContent),
+					Signature: aws.String(msg.ThinkingSignature),
+				},
+			},
+		})
+	} else if msg.ThinkingSignature != "" {
+		// Redacted thinking block (signature only)
+		blocks = append(blocks, &types.ContentBlockMemberReasoningContent{
+			Value: &types.ReasoningContentBlockMemberRedactedContent{
+				Value: []byte(msg.ThinkingSignature),
+			},
+		})
+	}
+
 	// Add text content if present
 	if strings.TrimSpace(msg.Content) != "" {
 		blocks = append(blocks, &types.ContentBlockMemberText{
