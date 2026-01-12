@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textarea"
@@ -71,12 +72,20 @@ type Editor interface {
 	Value() string
 	// SetValue updates the editor content
 	SetValue(content string)
+	// InsertText inserts text at the current cursor position
+	InsertText(text string)
 	// AttachFile adds a file as an attachment and inserts @filepath into the editor
 	AttachFile(filePath string)
 	Cleanup()
 	GetSize() (width, height int)
 	BannerHeight() int
 	AttachmentAt(x int) (AttachmentPreview, bool)
+	// SetRecording sets the recording mode which shows animated dots as the cursor
+	SetRecording(recording bool) tea.Cmd
+	// IsRecording returns true if the editor is in recording mode
+	IsRecording() bool
+	// SendContent triggers sending the current editor content
+	SendContent() tea.Cmd
 }
 
 // editor implements [Editor]
@@ -108,6 +117,10 @@ type editor struct {
 	attachments []attachment
 	// pasteCounter tracks the next paste number for display purposes.
 	pasteCounter int
+	// recording tracks whether the editor is in recording mode (speech-to-text)
+	recording bool
+	// recordingDotPhase tracks the animation phase for the recording dots cursor
+	recordingDotPhase int
 }
 
 // New creates a new editor component
@@ -520,6 +533,19 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
+	case recordingDotsTickMsg:
+		if !e.recording {
+			return e, nil
+		}
+		// Cycle through dot phases: "·", "··", "···"
+		e.recordingDotPhase = (e.recordingDotPhase + 1) % 4
+		dots := strings.Repeat("·", e.recordingDotPhase)
+		if e.recordingDotPhase == 0 {
+			dots = ""
+		}
+		e.textarea.Placeholder = "🎤 Listening" + dots
+		cmd := e.tickRecordingDots()
+		return e, cmd
 	case tea.PasteMsg:
 		if e.handlePaste(msg.Content) {
 			return e, nil
@@ -991,6 +1017,13 @@ func (e *editor) SetValue(content string) {
 	e.refreshSuggestion()
 }
 
+// InsertText inserts text at the current cursor position
+func (e *editor) InsertText(text string) {
+	e.textarea.InsertString(text)
+	e.userTyped = true
+	e.refreshSuggestion()
+}
+
 // AttachFile adds a file as an attachment and inserts @filepath into the editor
 func (e *editor) AttachFile(filePath string) {
 	placeholder := "@" + filePath
@@ -1093,6 +1126,43 @@ func (e *editor) Cleanup() {
 		}
 	}
 	e.attachments = nil
+}
+
+// SetRecording sets the recording mode which shows animated dots as the cursor.
+// When recording is enabled, the placeholder changes to animated dots.
+func (e *editor) SetRecording(recording bool) tea.Cmd {
+	e.recording = recording
+	if recording {
+		e.recordingDotPhase = 0
+		e.textarea.Placeholder = "🎤 Listening"
+		return e.tickRecordingDots()
+	}
+	e.textarea.Placeholder = "Type your message here…"
+	return nil
+}
+
+// recordingDotsTickMsg is sent periodically to animate the recording dots
+type recordingDotsTickMsg struct{}
+
+// tickRecordingDots returns a command that ticks the recording dots animation
+func (e *editor) tickRecordingDots() tea.Cmd {
+	return tea.Tick(400*time.Millisecond, func(time.Time) tea.Msg {
+		return recordingDotsTickMsg{}
+	})
+}
+
+// IsRecording returns true if the editor is in recording mode
+func (e *editor) IsRecording() bool {
+	return e.recording
+}
+
+// SendContent triggers sending the current editor content
+func (e *editor) SendContent() tea.Cmd {
+	value := e.textarea.Value()
+	if value == "" || e.working {
+		return nil
+	}
+	return e.resetAndSend(value)
 }
 
 func (e *editor) handlePaste(content string) bool {

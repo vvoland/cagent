@@ -13,6 +13,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/app"
+	"github.com/docker/cagent/pkg/audio/transcribe"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
@@ -51,6 +52,9 @@ type appModel struct {
 	availableAgents []runtime.AgentDetails
 	currentAgent    string
 
+	// Speech-to-text transcriber
+	transcriber *transcribe.Transcriber
+
 	// State
 	ready bool
 	err   error
@@ -64,6 +68,7 @@ type KeyMap struct {
 	ToggleHideToolResults key.Binding
 	SwitchAgent           key.Binding
 	ModelPicker           key.Binding
+	Speak                 key.Binding
 }
 
 // DefaultKeyMap returns the default global key bindings
@@ -93,6 +98,10 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("ctrl+m"),
 			key.WithHelp("Ctrl+m", "models"),
 		),
+		Speak: key.NewBinding(
+			key.WithKeys("ctrl+k"),
+			key.WithHelp("Ctrl+k", "speak"),
+		),
 	}
 }
 
@@ -107,6 +116,7 @@ func New(ctx context.Context, a *app.App) tea.Model {
 		completions:  completion.New(),
 		application:  a,
 		sessionState: sessionState,
+		transcriber:  transcribe.New(os.Getenv("OPENAI_API_KEY")), // TODO(dga): should use envProvider
 	}
 
 	t.statusBar = statusbar.New(t)
@@ -305,11 +315,30 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.AttachFileMsg:
 		return a.handleAttachFile(msg.FilePath)
 
+	case messages.StartSpeakMsg:
+		if !a.transcriber.IsSupported() {
+			return a, notification.InfoCmd("Speech-to-text is only supported on macOS")
+		}
+		return a.handleStartSpeak()
+
+	case messages.StopSpeakMsg:
+		return a.handleStopSpeak()
+
+	case messages.SpeakTranscriptMsg:
+		return a.handleSpeakTranscript(msg.Delta)
+
 	case messages.OpenModelPickerMsg:
 		return a.handleOpenModelPicker()
 
 	case messages.ChangeModelMsg:
 		return a.handleChangeModel(msg.ModelRef)
+
+	case speakTranscriptAndContinue:
+		// Insert the transcript delta into the editor
+		a.chatPage.InsertText(msg.delta)
+		// Continue listening for more transcripts
+		cmd := a.listenForTranscripts(msg.ch)
+		return a, cmd
 
 	case dialog.RuntimeResumeMsg:
 		a.application.Resume(msg.Response)
@@ -395,6 +424,19 @@ func (a *appModel) handleWindowResize(width, height int) tea.Cmd {
 }
 
 func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	// Check if we should stop transcription on Enter or Escape
+	if a.transcriber.IsRunning() {
+		switch msg.String() {
+		case "enter":
+			model, cmd := a.handleStopSpeak()
+			sendCmd := a.chatPage.SendEditorContent()
+			return model, tea.Batch(cmd, sendCmd)
+
+		case "esc":
+			return a.handleStopSpeak()
+		}
+	}
+
 	if a.dialog.Open() {
 		u, dialogCmd := a.dialog.Update(msg)
 		a.dialog = u.(dialog.Manager)
@@ -448,6 +490,12 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, a.keyMap.ModelPicker):
 		return a.handleOpenModelPicker()
+
+	case key.Matches(msg, a.keyMap.Speak):
+		if a.transcriber.IsSupported() {
+			return a.handleStartSpeak()
+		}
+		return a, notification.InfoCmd("Speech-to-text is only supported on macOS")
 
 	default:
 		// Handle ctrl+1 through ctrl+9 for quick agent switching

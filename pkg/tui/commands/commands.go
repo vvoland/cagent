@@ -34,7 +34,7 @@ type Item struct {
 }
 
 func builtInSessionCommands() []Item {
-	return []Item{
+	cmds := []Item{
 		{
 			ID:           "session.exit",
 			Label:        "Exit",
@@ -176,6 +176,13 @@ func builtInSessionCommands() []Item {
 			},
 		},
 	}
+
+	// Add speak command on supported platforms (macOS only)
+	if speak := speakCommand(); speak != nil {
+		cmds = append(cmds, *speak)
+	}
+
+	return cmds
 }
 
 func builtInFeedbackCommands() []Item {

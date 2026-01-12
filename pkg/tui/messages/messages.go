@@ -21,6 +21,9 @@ type (
 	InsertFileRefMsg               struct{ FilePath string }  // Insert @filepath reference into editor
 	OpenModelPickerMsg             struct{}                   // Open the model picker dialog
 	ChangeModelMsg                 struct{ ModelRef string }  // Change the model for the current agent
+	StartSpeakMsg                  struct{}                   // Start speech-to-text transcription
+	StopSpeakMsg                   struct{}                   // Stop speech-to-text transcription
+	SpeakTranscriptMsg             struct{ Delta string }     // Transcription delta from speech-to-text
 )
 
 // AgentCommandMsg command message

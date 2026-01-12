@@ -37,6 +37,7 @@ require (
 	github.com/google/go-containerregistry v0.20.7
 	github.com/google/jsonschema-go v0.3.0
 	github.com/google/uuid v1.6.0
+	github.com/gorilla/websocket v1.5.3
 	github.com/junegunn/fzf v0.67.0
 	github.com/k3a/html2text v1.2.1
 	github.com/labstack/echo/v4 v4.15.0
@@ -145,7 +146,6 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.3 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
