@@ -182,6 +182,43 @@ func TestParsePartialArgs(t *testing.T) {
 	}
 }
 
+func BenchmarkWrapLines(b *testing.B) {
+	shortLine := "hello world"
+	mediumLine := "This is a medium length string that will need wrapping for testing purposes."
+	longLine := "This is a very long line that contains many characters and will need to be wrapped multiple times when displayed in a terminal with limited width."
+	multiLine := "Line one here\nLine two is a bit longer and might wrap\nLine three\nLine four is the longest line in this test case"
+
+	b.Run("short_no_wrap", func(b *testing.B) {
+		for b.Loop() {
+			WrapLines(shortLine, 80)
+		}
+	})
+
+	b.Run("short_wrap", func(b *testing.B) {
+		for b.Loop() {
+			WrapLines(shortLine, 5)
+		}
+	})
+
+	b.Run("medium", func(b *testing.B) {
+		for b.Loop() {
+			WrapLines(mediumLine, 30)
+		}
+	})
+
+	b.Run("long", func(b *testing.B) {
+		for b.Loop() {
+			WrapLines(longLine, 40)
+		}
+	})
+
+	b.Run("multiline", func(b *testing.B) {
+		for b.Loop() {
+			WrapLines(multiLine, 25)
+		}
+	})
+}
+
 func TestWrapLines(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -339,4 +376,244 @@ func TestWrapLines(t *testing.T) {
 			assert.Equal(t, tt.expected, wrapped)
 		})
 	}
+}
+
+func TestTruncateText(t *testing.T) {
+	tests := []struct {
+		name     string
+		text     string
+		maxWidth int
+		expected string
+	}{
+		// Basic cases
+		{
+			name:     "text within width",
+			text:     "hello",
+			maxWidth: 10,
+			expected: "hello",
+		},
+		{
+			name:     "text exactly at width",
+			text:     "hello",
+			maxWidth: 5,
+			expected: "hello",
+		},
+		{
+			name:     "text needs truncation",
+			text:     "hello world",
+			maxWidth: 8,
+			expected: "hello w…",
+		},
+		{
+			name:     "truncate to minimum",
+			text:     "hello",
+			maxWidth: 2,
+			expected: "h…",
+		},
+
+		// Edge cases
+		{
+			name:     "empty string",
+			text:     "",
+			maxWidth: 10,
+			expected: "",
+		},
+		{
+			name:     "width of 1 returns ellipsis only",
+			text:     "hello",
+			maxWidth: 1,
+			expected: "…",
+		},
+		{
+			name:     "zero width",
+			text:     "hello",
+			maxWidth: 0,
+			expected: "",
+		},
+		{
+			name:     "negative width",
+			text:     "hello",
+			maxWidth: -5,
+			expected: "",
+		},
+		{
+			name:     "single character fits",
+			text:     "a",
+			maxWidth: 1,
+			expected: "a",
+		},
+		{
+			name:     "single character with larger width",
+			text:     "a",
+			maxWidth: 10,
+			expected: "a",
+		},
+
+		// Unicode handling
+		{
+			name:     "unicode within width",
+			text:     "héllo",
+			maxWidth: 10,
+			expected: "héllo",
+		},
+		{
+			name:     "unicode needs truncation",
+			text:     "héllo wörld",
+			maxWidth: 8,
+			expected: "héllo w…",
+		},
+		{
+			name:     "wide characters (CJK)",
+			text:     "你好世界",
+			maxWidth: 5,
+			expected: "你好…",
+		},
+		{
+			name:     "mixed ASCII and wide chars",
+			text:     "hello你好",
+			maxWidth: 8,
+			expected: "hello你…",
+		},
+
+		// Special characters
+		{
+			name:     "text with newlines",
+			text:     "hello\nworld",
+			maxWidth: 8,
+			expected: "hello\nworld",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := TruncateText(tt.text, tt.maxWidth)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func BenchmarkTruncateText(b *testing.B) {
+	// Test with various string lengths to demonstrate O(n) vs O(n²) improvement
+	shortText := "hello world"
+	mediumText := "This is a medium length string that needs truncation for testing purposes."
+	longText := "This is a very long line that contains many characters and will need to be truncated. " +
+		"It continues on and on with more and more text to really stress test the truncation algorithm. " +
+		"We want to make sure the O(n) complexity improvement is significant for longer strings."
+
+	b.Run("short", func(b *testing.B) {
+		for b.Loop() {
+			TruncateText(shortText, 8)
+		}
+	})
+
+	b.Run("medium", func(b *testing.B) {
+		for b.Loop() {
+			TruncateText(mediumText, 30)
+		}
+	})
+
+	b.Run("long", func(b *testing.B) {
+		for b.Loop() {
+			TruncateText(longText, 50)
+		}
+	})
+
+	b.Run("no_truncation_needed", func(b *testing.B) {
+		for b.Loop() {
+			TruncateText(shortText, 100)
+		}
+	})
+}
+
+func TestRuneWidth(t *testing.T) {
+	tests := []struct {
+		name     string
+		r        rune
+		expected int
+	}{
+		// ASCII
+		{"space", ' ', 1},
+		{"letter", 'a', 1},
+		{"digit", '5', 1},
+		{"tilde", '~', 1},
+
+		// Control characters
+		{"null", '\x00', 0},
+		{"tab", '\t', 0},
+		{"newline", '\n', 0},
+		{"carriage_return", '\r', 0},
+		{"escape", '\x1b', 0},
+		{"del", '\x7f', 0},
+
+		// C1 control characters
+		{"c1_start", '\x80', 0},
+		{"c1_end", '\x9f', 0},
+
+		// Latin-1 Supplement
+		{"nbsp", '\xa0', 1},
+		{"latin_e_acute", 'é', 1},
+		{"latin_n_tilde", 'ñ', 1},
+		{"latin_u_umlaut", 'ü', 1},
+
+		// Latin Extended
+		{"latin_ext_a", 'ā', 1},
+		{"latin_ext_b", 'ƀ', 1},
+
+		// CJK (double width)
+		{"cjk_chinese", '你', 2},
+		{"cjk_japanese", 'あ', 2},
+		{"cjk_korean", '한', 2},
+
+		// Emoji (typically double width)
+		{"emoji_globe", '🌍', 2},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := runeWidth(tt.r)
+			assert.Equal(t, tt.expected, result, "rune %q (U+%04X)", tt.r, tt.r)
+		})
+	}
+}
+
+func BenchmarkRuneWidth(b *testing.B) {
+	asciiRunes := []rune("hello world this is a test string with only ascii")
+	latin1Runes := []rune("héllo wörld naïve café résumé über señor")
+	mixedRunes := []rune("hello 你好 world 世界 test テスト")
+	cjkRunes := []rune("你好世界这是一个测试")
+
+	b.Run("ascii", func(b *testing.B) {
+		for b.Loop() {
+			for _, r := range asciiRunes {
+				_ = runeWidth(r)
+			}
+		}
+	})
+
+	b.Run("latin1", func(b *testing.B) {
+		for b.Loop() {
+			for _, r := range latin1Runes {
+				_ = runeWidth(r)
+			}
+		}
+	})
+
+	b.Run("mixed", func(b *testing.B) {
+		for b.Loop() {
+			for _, r := range mixedRunes {
+				_ = runeWidth(r)
+			}
+		}
+	})
+
+	b.Run("cjk", func(b *testing.B) {
+		for b.Loop() {
+			for _, r := range cjkRunes {
+				_ = runeWidth(r)
+			}
+		}
+	})
 }
