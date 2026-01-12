@@ -178,16 +178,14 @@ func (s *Store) GetModel(ctx context.Context, id string) (*Model, error) {
 	model, exists := provider.Models[modelID]
 	if !exists {
 		// For amazon-bedrock, try stripping region/inference profile prefixes
-		// Bedrock uses prefixes like "global.", "us.", "eu.", "apac." etc. for
-		// cross-region inference profiles, but models.dev stores models without
-		// these prefixes. Try stripping the first segment if it doesn't match
-		// a known model provider prefix (anthropic, meta, amazon, etc.)
+		// Bedrock uses prefixes for cross-region inference profiles,
+		// but models.dev stores models without these prefixes.
+		//
+		// Strip known region prefixes and retry lookup.
 		if providerID == "amazon-bedrock" {
 			if idx := strings.Index(modelID, "."); idx != -1 {
 				possibleRegionPrefix := modelID[:idx]
-				// Only strip if the prefix is NOT a known model provider
-				// (i.e., it's likely a region prefix like "global", "us", "eu")
-				if !isBedrockModelProvider(possibleRegionPrefix) {
+				if isBedrockRegionPrefix(possibleRegionPrefix) {
 					normalizedModelID := modelID[idx+1:]
 					model, exists = provider.Models[normalizedModelID]
 					if exists {
@@ -336,22 +334,18 @@ func (s *Store) ResolveModelAlias(ctx context.Context, providerID, modelName str
 	return modelName
 }
 
-// bedrockModelProviders contains known model provider prefixes used in Bedrock model IDs.
-// These are NOT region prefixes and should not be stripped when normalizing model IDs.
-var bedrockModelProviders = map[string]bool{
-	"anthropic": true,
-	"amazon":    true,
-	"meta":      true,
-	"cohere":    true,
-	"ai21":      true,
-	"mistral":   true,
-	"stability": true,
-	"deepseek":  true,
-	"google":    true,
-	"minimax":   true,
+// bedrockRegionPrefixes contains known regional/inference profile prefixes used in Bedrock model IDs.
+// These prefixes should be stripped when looking up models in the database since models.dev
+// stores models without regional prefixes. AWS uses these for cross-region inference profiles.
+// See: https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html
+var bedrockRegionPrefixes = map[string]bool{
+	"us":     true, // US region inference profile
+	"eu":     true, // EU region inference profile
+	"apac":   true, // Asia Pacific region inference profile
+	"global": true, // Global inference profile (routes to any available region)
 }
 
-// isBedrockModelProvider returns true if the prefix is a known Bedrock model provider.
-func isBedrockModelProvider(prefix string) bool {
-	return bedrockModelProviders[prefix]
+// isBedrockRegionPrefix returns true if the prefix is a known Bedrock regional/inference profile prefix.
+func isBedrockRegionPrefix(prefix string) bool {
+	return bedrockRegionPrefixes[prefix]
 }
