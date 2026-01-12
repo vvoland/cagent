@@ -109,9 +109,6 @@ func (r *Runner) Run(ctx context.Context, out io.Writer, isTTY bool) ([]Result, 
 	}
 	fmt.Fprintf(out, "Running %d evaluations with concurrency %d\n\n", len(evals), r.concurrency)
 
-	tracker := newContainerTracker()
-	defer tracker.killAll()
-
 	progress := newProgressBar(out, r.ttyFd, len(evals), isTTY)
 	progress.start()
 	defer progress.stop()
@@ -133,7 +130,7 @@ func (r *Runner) Run(ctx context.Context, out io.Writer, isTTY bool) ([]Result, 
 				}
 
 				progress.setRunning(item.eval.Title)
-				result, runErr := r.runSingleEval(ctx, item.eval, tracker)
+				result, runErr := r.runSingleEval(ctx, item.eval)
 				if runErr != nil {
 					result.Error = runErr.Error()
 					slog.Error("Evaluation failed", "title", item.eval.Title, "error", runErr)
@@ -211,7 +208,7 @@ func (r *Runner) loadEvalSessions(ctx context.Context) ([]EvalSession, error) {
 	return evals, nil
 }
 
-func (r *Runner) runSingleEval(ctx context.Context, evalSess *EvalSession, tracker *containerTracker) (Result, error) {
+func (r *Runner) runSingleEval(ctx context.Context, evalSess *EvalSession) (Result, error) {
 	startTime := time.Now()
 	slog.Debug("Starting evaluation", "title", evalSess.Title)
 
@@ -234,7 +231,7 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *EvalSession, track
 		return result, fmt.Errorf("building eval image: %w", err)
 	}
 
-	events, err := r.runCagentInContainer(ctx, imageID, result.Question, tracker)
+	events, err := r.runCagentInContainer(ctx, imageID, result.Question)
 	if err != nil {
 		return result, fmt.Errorf("running cagent in container: %w", err)
 	}
@@ -265,7 +262,7 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *EvalSession, track
 	return result, nil
 }
 
-func (r *Runner) runCagentInContainer(ctx context.Context, imageID, question string, tracker *containerTracker) ([]map[string]any, error) {
+func (r *Runner) runCagentInContainer(ctx context.Context, imageID, question string) ([]map[string]any, error) {
 	agentDir := r.agentSource.ParentDir()
 	agentFile := filepath.Base(r.agentSource.Name())
 	containerName := fmt.Sprintf("cagent-eval-%d", uuid.New().ID())
@@ -315,9 +312,6 @@ func (r *Runner) runCagentInContainer(ctx context.Context, imageID, question str
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("starting docker run: %w", err)
 	}
-
-	tracker.add(containerName)
-	defer tracker.remove(containerName)
 
 	var stderrBuf strings.Builder
 	go func() {
