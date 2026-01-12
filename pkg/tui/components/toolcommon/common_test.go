@@ -9,25 +9,89 @@ import (
 
 func TestTryFixPartialJSON(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
-		expected []string
+		name      string
+		input     string
+		expected  string
+		shouldFix bool
 	}{
 		{
-			name:     "empty string",
-			input:    "",
-			expected: nil,
+			name:      "empty string",
+			input:     "",
+			expected:  "",
+			shouldFix: false,
 		},
 		{
-			name:     "partial JSON",
-			input:    `{"key": "val`,
-			expected: []string{`{"key": "val"}`, `{"key": "val}`},
+			name:      "not json object",
+			input:     "hello",
+			expected:  "hello",
+			shouldFix: false,
+		},
+		{
+			name:      "just opening brace",
+			input:     `{`,
+			expected:  `{}`,
+			shouldFix: true,
+		},
+		{
+			name:      "partial key",
+			input:     `{"path`,
+			expected:  `{"path"}`,
+			shouldFix: true,
+		},
+		{
+			name:      "key with colon",
+			input:     `{"path":`,
+			expected:  `{"path":}`,
+			shouldFix: true,
+		},
+		{
+			name:      "incomplete string value",
+			input:     `{"path": "/tmp/fi`,
+			expected:  `{"path": "/tmp/fi"}`,
+			shouldFix: true,
+		},
+		{
+			name:      "complete string missing brace",
+			input:     `{"path": "/tmp/file"`,
+			expected:  `{"path": "/tmp/file"}`,
+			shouldFix: true,
+		},
+		{
+			name:      "trailing comma",
+			input:     `{"path": "/tmp/file",`,
+			expected:  `{"path": "/tmp/file",}`,
+			shouldFix: true,
+		},
+		{
+			name:      "nested object incomplete",
+			input:     `{"outer": {"inner": "val`,
+			expected:  `{"outer": {"inner": "val"}}`,
+			shouldFix: true,
+		},
+		{
+			name:      "array incomplete",
+			input:     `{"paths": ["/tmp/a", "/tmp/b`,
+			expected:  `{"paths": ["/tmp/a", "/tmp/b"]}`,
+			shouldFix: true,
+		},
+		{
+			name:      "escaped quote in string",
+			input:     `{"msg": "hello \"world`,
+			expected:  `{"msg": "hello \"world"}`,
+			shouldFix: true,
+		},
+		{
+			name:      "complete json",
+			input:     `{"path": "/tmp/file"}`,
+			expected:  `{"path": "/tmp/file"}`,
+			shouldFix: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tryFixPartialJSON(tt.input)
+			result, ok := tryFixPartialJSON(tt.input)
+			assert.Equal(t, tt.shouldFix, ok)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -85,6 +149,20 @@ func TestParsePartialArgs(t *testing.T) {
 			name:     "just opening brace",
 			input:    "{",
 			wantPath: "",
+			wantCmd:  "",
+			wantErr:  false,
+		},
+		{
+			name:     "nested object in progress",
+			input:    `{"path": "/tmp", "nested": {"key": "val`,
+			wantPath: "/tmp",
+			wantCmd:  "",
+			wantErr:  false,
+		},
+		{
+			name:     "array value in progress",
+			input:    `{"path": "/tmp", "items": ["a", "b`,
+			wantPath: "/tmp",
 			wantCmd:  "",
 			wantErr:  false,
 		},

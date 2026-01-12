@@ -23,7 +23,7 @@ func ParseArgs[T any](args string) (T, error) {
 		return result, nil
 	}
 
-	for _, fixed := range tryFixPartialJSON(args) {
+	if fixed, ok := tryFixPartialJSON(args); ok {
 		if partialErr := json.Unmarshal([]byte(fixed), &result); partialErr == nil {
 			return result, nil
 		}
@@ -32,11 +32,59 @@ func ParseArgs[T any](args string) (T, error) {
 	return result, err
 }
 
-func tryFixPartialJSON(s string) []string {
-	if s == "" {
-		return nil
+// tryFixPartialJSON attempts to complete a partial JSON object by closing
+// any unclosed strings, arrays, and objects. Returns the fixed JSON and
+// true if a fix was attempted, or the original string and false if input
+// is empty or not a valid JSON object start.
+func tryFixPartialJSON(s string) (string, bool) {
+	if s == "" || s[0] != '{' {
+		return s, false
 	}
-	return []string{s + "\"}", s + "}"}
+
+	var result strings.Builder
+	result.WriteString(s)
+
+	inString := false
+	escaped := false
+	var stack []byte
+
+	for _, r := range s {
+		if escaped {
+			escaped = false
+			continue
+		}
+		if r == '\\' && inString {
+			escaped = true
+			continue
+		}
+		if r == '"' {
+			inString = !inString
+			continue
+		}
+		if inString {
+			continue
+		}
+		switch r {
+		case '{':
+			stack = append(stack, '}')
+		case '[':
+			stack = append(stack, ']')
+		case '}', ']':
+			if len(stack) > 0 {
+				stack = stack[:len(stack)-1]
+			}
+		}
+	}
+
+	if inString {
+		result.WriteByte('"')
+	}
+
+	for i := len(stack) - 1; i >= 0; i-- {
+		result.WriteByte(stack[i])
+	}
+
+	return result.String(), true
 }
 
 // ExtractField creates an argument extractor function that parses JSON and extracts a field.
