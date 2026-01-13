@@ -530,5 +530,4 @@ features!
 
 ## Share your feedback
 
-We’d love to hear your thoughts on this project. You can find us on
-[Slack](https://dockercommunity.slack.com/archives/C09DASHHRU4)
+We’d love to hear your thoughts on this project. Feel free to join the [Docker Community Slack workspace](http://dockr.ly/comm-slack) and the [cagent Slack channel](https://dockercommunity.slack.com/archives/C09DASHHRU4).
