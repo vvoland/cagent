@@ -101,3 +101,55 @@ func TestBackspaceCursorPosition(t *testing.T) {
 		assert.Equal(t, "CCC", lines[2])
 	})
 }
+
+func TestBackspaceOnSoftWrappedLine(t *testing.T) {
+	t.Parallel()
+
+	t.Run("backspace after newline on soft-wrapped text", func(t *testing.T) {
+		t.Parallel()
+
+		ta := textarea.New()
+		ta.SetWidth(20) // Small width to force wrapping
+		ta.SetHeight(10)
+		ta.Focus()
+
+		e := &editor{
+			textarea:  ta,
+			userTyped: true,
+		}
+
+		// Enter text that overflows to line 2 (soft-wraps)
+		longText := "this is a long text that wraps"
+		e.textarea.SetValue(longText)
+		e.textarea.MoveToEnd()
+
+		t.Logf("After long text - Line: %d, LineInfo: %+v, Value: %q",
+			e.textarea.Line(), e.textarea.LineInfo(), e.textarea.Value())
+
+		// Press shift+enter to add a newline (simulated by directly adding \n)
+		e.textarea.InsertString("\n")
+
+		t.Logf("After newline - Line: %d, LineInfo: %+v, Value: %q",
+			e.textarea.Line(), e.textarea.LineInfo(), e.textarea.Value())
+
+		// Type a few characters
+		e.textarea.InsertString("abc")
+
+		t.Logf("After typing abc - Line: %d, LineInfo: %+v, Value: %q",
+			e.textarea.Line(), e.textarea.LineInfo(), e.textarea.Value())
+
+		// Now backspace
+		_, _ = e.handleGraphemeBackspace()
+
+		value := e.textarea.Value()
+		t.Logf("After backspace - Line: %d, LineInfo: %+v, Value: %q",
+			e.textarea.Line(), e.textarea.LineInfo(), value)
+
+		// The value should be the long text + newline + "ab"
+		expectedValue := longText + "\nab"
+		assert.Equal(t, expectedValue, value, "value should have one char removed")
+
+		// Cursor should still be on logical line 1 (the line after the newline)
+		assert.Equal(t, 1, e.textarea.Line(), "cursor should stay on line 1")
+	})
+}

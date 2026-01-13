@@ -837,18 +837,40 @@ func (e *editor) handleGraphemeBackspace() (layout.Model, tea.Cmd) {
 	lines[currentLine] = newBeforeCursor + afterCursor
 	newValue := strings.Join(lines, "\n")
 
-	// Calculate new cursor position
+	// Calculate new cursor column position within the current line
 	newCol := len([]rune(newBeforeCursor))
 
-	e.textarea.SetValue(newValue)
-	// Position cursor on the correct line and column.
-	// SetValue does not reset cursor position, so we must first go to the
-	// beginning of the input, then navigate down to the target line.
-	e.textarea.MoveToBegin()
-	for range currentLine {
-		e.textarea.CursorDown()
+	// Build text before cursor position (all lines before current + new before cursor)
+	var beforeParts []string
+	for i := range currentLine {
+		beforeParts = append(beforeParts, lines[i])
 	}
-	e.textarea.SetCursorColumn(newCol)
+	beforeParts = append(beforeParts, newBeforeCursor)
+	textBeforeCursor := strings.Join(beforeParts, "\n")
+
+	// Build text after cursor position (after cursor on current line + remaining lines)
+	var textAfterCursor string
+	textAfterCursor = afterCursor
+	for i := currentLine + 1; i < len(lines); i++ {
+		textAfterCursor += "\n" + lines[i]
+	}
+
+	// Set the text before cursor and move to end
+	e.textarea.SetValue(textBeforeCursor)
+	e.textarea.MoveToEnd()
+
+	// Now insert the text after cursor - this positions cursor correctly
+	if textAfterCursor != "" {
+		e.textarea.SetValue(newValue)
+		e.textarea.MoveToBegin()
+
+		// Keep calling CursorDown until we're on the target logical line
+		for e.textarea.Line() < currentLine {
+			e.textarea.CursorDown()
+		}
+
+		e.textarea.SetCursorColumn(newCol)
+	}
 
 	e.refreshSuggestion()
 	return e, tea.Batch(textarea.Blink, e.updateCompletionQuery())
