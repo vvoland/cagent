@@ -401,39 +401,39 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 	if a.HasSubAgents() {
 		subAgents := append(a.SubAgents(), a.Parents()...)
 
-		var subAgentsStr strings.Builder
+		var text strings.Builder
 		var validAgentIDs []string
 		for _, subAgent := range subAgents {
-			subAgentsStr.WriteString("Name: ")
-			subAgentsStr.WriteString(subAgent.Name())
-			subAgentsStr.WriteString(" | Description: ")
-			subAgentsStr.WriteString(subAgent.Description())
-			subAgentsStr.WriteString("\n")
+			text.WriteString("Name: ")
+			text.WriteString(subAgent.Name())
+			text.WriteString(" | Description: ")
+			text.WriteString(subAgent.Description())
+			text.WriteString("\n")
 
 			validAgentIDs = append(validAgentIDs, subAgent.Name())
 		}
 
 		messages = append(messages, chat.Message{
 			Role:    chat.MessageRoleSystem,
-			Content: "You are a multi-agent system, make sure to answer the user query in the most helpful way possible. You have access to these sub-agents:\n" + subAgentsStr.String() + "\nIMPORTANT: You can ONLY transfer tasks to the agents listed above using their ID. The valid agent names are: " + strings.Join(validAgentIDs, ", ") + ". You MUST NOT attempt to transfer to any other agent IDs - doing so will cause system errors.\n\nIf you are the best to answer the question according to your description, you can answer it.\n\nIf another agent is better for answering the question according to its description, call `transfer_task` function to transfer the question to that agent using the agent's ID. When transferring, do not generate any text other than the function call.\n\n",
+			Content: "You are a multi-agent system, make sure to answer the user query in the most helpful way possible. You have access to these sub-agents:\n" + text.String() + "\nIMPORTANT: You can ONLY transfer tasks to the agents listed above using their ID. The valid agent names are: " + strings.Join(validAgentIDs, ", ") + ". You MUST NOT attempt to transfer to any other agent IDs - doing so will cause system errors.\n\nIf you are the best to answer the question according to your description, you can answer it.\n\nIf another agent is better for answering the question according to its description, call `transfer_task` function to transfer the question to that agent using the agent's ID. When transferring, do not generate any text other than the function call.\n\n",
 		})
 	}
 
 	if handoffs := a.Handoffs(); len(handoffs) > 0 {
-		var agentsInfo strings.Builder
+		var text strings.Builder
 		var validAgentIDs []string
 		for _, agent := range handoffs {
-			agentsInfo.WriteString("Name: ")
-			agentsInfo.WriteString(agent.Name())
-			agentsInfo.WriteString(" | Description: ")
-			agentsInfo.WriteString(agent.Description())
-			agentsInfo.WriteString("\n")
+			text.WriteString("Name: ")
+			text.WriteString(agent.Name())
+			text.WriteString(" | Description: ")
+			text.WriteString(agent.Description())
+			text.WriteString("\n")
 
 			validAgentIDs = append(validAgentIDs, agent.Name())
 		}
 
 		handoffPrompt := "You are part of a multi-agent team. Your goal is to answer the user query in the most helpful way possible.\n\n" +
-			"Available agents in your team:\n" + agentsInfo.String() + "\n" +
+			"Available agents in your team:\n" + text.String() + "\n" +
 			"You can hand off the conversation to any of these agents at any time by using the `handoff` function with their ID. " +
 			"The valid agent IDs are: " + strings.Join(validAgentIDs, ", ") + ".\n\n" +
 			"When to hand off:\n" +
