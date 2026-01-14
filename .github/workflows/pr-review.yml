@@ -87,7 +87,8 @@ jobs:
       - name: Run PR Reviewer Agent
         uses: docker/cagent-action@1f7ec0445e138a587639fc9c046076e22d184349
         with:
-          agent: .github/workflows/agents/pr-review.yaml
+          agent: ${{ github.workspace }}/.github/workflows/agents/pr-review.yaml
+          prompt: "Please review this GitHub Pull Request: https://github.com/${{ github.repository }}/pull/${{ steps.get-context.outputs.pr_number }}"
           mcp-gateway: true
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
