@@ -456,6 +456,15 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		})
 	}
 
+	for _, tool := range a.ToolSets() {
+		if tool.Instructions() != "" {
+			messages = append(messages, chat.Message{
+				Role:    chat.MessageRoleSystem,
+				Content: tool.Instructions(),
+			})
+		}
+	}
+
 	if a.AddDate() {
 		messages = append(messages, chat.Message{
 			Role:    chat.MessageRoleSystem,
@@ -501,15 +510,6 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 			messages = append(messages, chat.Message{
 				Role:    chat.MessageRoleSystem,
 				Content: skills.BuildSkillsPrompt(loadedSkills),
-			})
-		}
-	}
-
-	for _, tool := range a.ToolSets() {
-		if tool.Instructions() != "" {
-			messages = append(messages, chat.Message{
-				Role:    chat.MessageRoleSystem,
-				Content: tool.Instructions(),
 			})
 		}
 	}
