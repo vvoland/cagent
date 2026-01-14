@@ -195,14 +195,20 @@ func convertBetaMessages(messages []chat.Message) []anthropic.BetaMessageParam {
 // extractBetaSystemBlocks extracts system messages for Beta API format
 func extractBetaSystemBlocks(messages []chat.Message) []anthropic.BetaTextBlockParam {
 	regularBlocks := extractSystemBlocks(messages)
+
 	betaBlocks := make([]anthropic.BetaTextBlockParam, len(regularBlocks))
 	for i, block := range regularBlocks {
 		betaBlocks[i] = anthropic.BetaTextBlockParam{Text: block.Text}
+
 		// Copy over cache control from regular blocks (already set on first 2)
 		if block.CacheControl.Type != "" {
-			betaBlocks[i].CacheControl = anthropic.NewBetaCacheControlEphemeralParam()
+			betaBlocks[i].CacheControl = anthropic.BetaCacheControlEphemeralParam{
+				Type: block.CacheControl.Type,
+				TTL:  anthropic.BetaCacheControlEphemeralTTL(block.CacheControl.TTL),
+			}
 		}
 	}
+
 	return betaBlocks
 }
 

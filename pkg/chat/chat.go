@@ -69,6 +69,9 @@ type Message struct {
 
 	// Cost is the cost of this message in dollars (only set for assistant messages)
 	Cost float64 `json:"cost,omitempty"`
+
+	// CacheControl indicates whether this message is a cached message (only used by anthropic)
+	CacheControl bool `json:"cache_control,omitempty"`
 }
 
 type MessagePart struct {

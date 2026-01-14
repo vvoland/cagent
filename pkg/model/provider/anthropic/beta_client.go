@@ -53,14 +53,10 @@ func (c *Client) createBetaStream(
 	params := anthropic.BetaMessageNewParams{
 		Model:     anthropic.Model(c.ModelConfig.Model),
 		MaxTokens: maxTokens,
+		System:    sys,
 		Messages:  converted,
 		Tools:     allTools,
 		Betas:     []anthropic.AnthropicBeta{anthropic.AnthropicBetaInterleavedThinking2025_05_14, "fine-grained-tool-streaming-2025-05-14"},
-	}
-
-	// Populate proper Anthropic system prompt from input messages
-	if len(sys) > 0 {
-		params.System = sys
 	}
 
 	// Apply structured output configuration

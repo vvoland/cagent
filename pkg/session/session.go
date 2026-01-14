@@ -456,13 +456,19 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		})
 	}
 
-	for _, tool := range a.ToolSets() {
-		if tool.Instructions() != "" {
+	for _, toolSet := range a.ToolSets() {
+		if toolSet.Instructions() != "" {
 			messages = append(messages, chat.Message{
 				Role:    chat.MessageRoleSystem,
-				Content: tool.Instructions(),
+				Content: toolSet.Instructions(),
 			})
 		}
+	}
+
+	// Cache control checkpoint #1 out of 4
+	// At the end of the system messages that are most likely to be invariant.
+	if len(messages) > 0 {
+		messages[len(messages)-1].CacheControl = true
 	}
 
 	if a.AddDate() {
@@ -535,6 +541,13 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		startIndex = 0
 	}
 
+	// Cache control checkpoint #2 out of 4
+	// At the end of all the system messages.
+	if len(messages) > 0 {
+		messages[len(messages)-1].CacheControl = true
+	}
+
+	// Begin adding conversation messages
 	for i := startIndex; i < len(s.Messages); i++ {
 		item := s.Messages[i]
 		if item.IsMessage() {
@@ -543,7 +556,6 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 	}
 
 	maxItems := a.NumHistoryItems()
-
 	if maxItems > 0 {
 		messages = trimMessages(messages, maxItems)
 	}

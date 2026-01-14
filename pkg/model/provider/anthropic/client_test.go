@@ -479,3 +479,45 @@ func TestExtractSystemBlocks_MultiContent(t *testing.T) {
 	assert.Equal(t, "Part 1", blocks[0].Text)
 	assert.Equal(t, "Part 2", blocks[1].Text)
 }
+
+func TestExtractSystemBlocksCacheControl(t *testing.T) {
+	msgs := []chat.Message{
+		{
+			Role:    chat.MessageRoleSystem,
+			Content: "instructions",
+		},
+		{
+			Role:         chat.MessageRoleSystem,
+			Content:      "tools",
+			CacheControl: true,
+		},
+		{
+			Role:    chat.MessageRoleSystem,
+			Content: "date",
+		},
+		{
+			Role:         chat.MessageRoleSystem,
+			Content:      "last",
+			CacheControl: true,
+		},
+	}
+
+	blocks := extractSystemBlocks(msgs)
+
+	require.Len(t, blocks, 4)
+	assert.Equal(t, "instructions", blocks[0].Text)
+	assert.Empty(t, string(blocks[0].CacheControl.Type))
+	assert.Empty(t, string(blocks[0].CacheControl.TTL))
+
+	assert.Equal(t, "tools", blocks[1].Text)
+	assert.Equal(t, "ephemeral", string(blocks[1].CacheControl.Type))
+	assert.Empty(t, string(blocks[1].CacheControl.TTL))
+
+	assert.Equal(t, "date", blocks[2].Text)
+	assert.Empty(t, string(blocks[2].CacheControl.Type))
+	assert.Empty(t, string(blocks[2].CacheControl.TTL))
+
+	assert.Equal(t, "last", blocks[3].Text)
+	assert.Equal(t, "ephemeral", string(blocks[3].CacheControl.Type))
+	assert.Empty(t, string(blocks[3].CacheControl.TTL))
+}

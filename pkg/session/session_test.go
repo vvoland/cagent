@@ -8,6 +8,7 @@ import (
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools/builtin"
 )
 
 func TestTrimMessagesWithToolCalls(t *testing.T) {
@@ -157,4 +158,29 @@ func TestGetMessagesWithSummary(t *testing.T) {
 	// - Various other system messages from agent setup
 	assert.True(t, summaryFound, "should include summary as system message")
 	assert.Equal(t, 2, userAssistantMessages, "should only include messages after summary")
+}
+
+func TestGetMessages_Instructions(t *testing.T) {
+	testAgent := agent.New("root", "instructions")
+
+	s := New()
+	messages := s.GetMessages(testAgent)
+
+	assert.Len(t, messages, 1)
+	assert.Equal(t, "instructions", messages[0].Content)
+	assert.True(t, messages[0].CacheControl)
+}
+
+func TestGetMessages_CacheControl(t *testing.T) {
+	testAgent := agent.New("root", "instructions", agent.WithToolSets(&builtin.TodoTool{}))
+
+	s := New()
+	messages := s.GetMessages(testAgent)
+
+	assert.Len(t, messages, 2)
+	assert.Equal(t, "instructions", messages[0].Content)
+	assert.False(t, messages[0].CacheControl)
+
+	assert.Contains(t, messages[1].Content, "Using the Todo Tools")
+	assert.True(t, messages[1].CacheControl)
 }
