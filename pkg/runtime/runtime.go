@@ -709,7 +709,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 							CreatedAt: time.Now().Format(time.RFC3339),
 						}
 						sess.AddMessage(session.NewAgentMessage(a, &assistantMessage))
-						_ = r.sessionStore.UpdateSession(ctx, sess)
+						r.saveSession(ctx, sess)
 						return
 					}
 				case <-ctx.Done():
@@ -840,7 +840,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				}
 
 				sess.AddMessage(session.NewAgentMessage(a, &assistantMessage))
-				_ = r.sessionStore.UpdateSession(ctx, sess)
+				r.saveSession(ctx, sess)
 				slog.Debug("Added assistant message to session", "agent", a.Name(), "total_messages", len(sess.GetAllMessages()))
 			} else {
 				slog.Debug("Skipping empty assistant message (no content and no tool calls)", "agent", a.Name())
@@ -1419,7 +1419,7 @@ func (r *LocalRuntime) executeToolWithHandler(
 		CreatedAt:  time.Now().Format(time.RFC3339),
 	}
 	sess.AddMessage(session.NewAgentMessage(a, &toolResponseMsg))
-	_ = r.sessionStore.UpdateSession(ctx, sess)
+	r.saveSession(ctx, sess)
 }
 
 // runTool executes agent tools from toolsets (MCP, filesystem, etc.).
@@ -1510,6 +1510,16 @@ func (r *LocalRuntime) addToolErrorResponse(ctx context.Context, sess *session.S
 		CreatedAt:  time.Now().Format(time.RFC3339),
 	}
 	sess.AddMessage(session.NewAgentMessage(a, &toolResponseMsg))
+	r.saveSession(ctx, sess)
+}
+
+// saveSession persists the session to the store, but only for root sessions.
+// Sub-sessions (those with a ParentID) are not persisted as standalone entries;
+// they are embedded within the parent session's Messages array.
+func (r *LocalRuntime) saveSession(ctx context.Context, sess *session.Session) {
+	if sess.IsSubSession() {
+		return
+	}
 	_ = r.sessionStore.UpdateSession(ctx, sess)
 }
 
@@ -1587,6 +1597,7 @@ func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Ses
 		session.WithTitle("Transferred task"),
 		session.WithToolsApproved(sess.ToolsApproved),
 		session.WithSendUserMessage(false),
+		session.WithParentID(sess.ID),
 	)
 
 	for event := range r.RunStream(ctx, s) {

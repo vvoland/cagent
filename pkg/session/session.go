@@ -94,6 +94,11 @@ type Session struct {
 	// CustomModelsUsed tracks custom models (provider/model format) used during this session.
 	// These are shown in the model picker for easy re-selection.
 	CustomModelsUsed []string `json:"custom_models_used,omitempty"`
+
+	// ParentID indicates this is a sub-session created by task transfer.
+	// Sub-sessions are not persisted as standalone entries; they are embedded
+	// within the parent session's Messages array.
+	ParentID string `json:"-"`
 }
 
 // Permission mode constants
@@ -355,6 +360,19 @@ func WithPermissions(perms *PermissionsConfig) Opt {
 	return func(s *Session) {
 		s.Permissions = perms
 	}
+}
+
+// WithParentID marks this session as a sub-session of the given parent.
+// Sub-sessions are not persisted as standalone entries in the session store.
+func WithParentID(parentID string) Opt {
+	return func(s *Session) {
+		s.ParentID = parentID
+	}
+}
+
+// IsSubSession returns true if this session is a sub-session (has a parent).
+func (s *Session) IsSubSession() bool {
+	return s.ParentID != ""
 }
 
 // New creates a new agent session
