@@ -1,0 +1,125 @@
+name: PR Review on Command
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to review"
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  run-review:
+    if: |
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '/review')) ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get PR number and comment ID
+        id: get-context
+        run: |
+          if [ "${{ github.event_name }}" == "issue_comment" ]; then
+            echo "pr_number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+            echo "comment_id=${{ github.event.comment.id }}" >> $GITHUB_OUTPUT
+          else
+            echo "pr_number=${{ inputs.pr_number }}" >> $GITHUB_OUTPUT
+            echo "comment_id=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Add eyes reaction
+        if: github.event_name == 'issue_comment'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_ID: ${{ steps.get-context.outputs.comment_id }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/$REPO/issues/comments/$COMMENT_ID/reactions \
+            -f content='eyes'
+
+      - name: Get PR details
+        id: pr-details
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.get-context.outputs.pr_number }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Get PR details as JSON
+          pr_json=$(gh pr view $PR_NUMBER --repo $REPO --json title,author,files,headRefName,headRefOid)
+          
+          # Extract values using jq (pre-installed on ubuntu-latest)
+          pr_title=$(echo "$pr_json" | jq -r '.title')
+          pr_author=$(echo "$pr_json" | jq -r '.author.login')
+          files_changed=$(echo "$pr_json" | jq -r '.files | length')
+          head_ref=$(echo "$pr_json" | jq -r '.headRefName')
+          head_sha=$(echo "$pr_json" | jq -r '.headRefOid')
+          
+          # Set outputs
+          echo "pr_title=$pr_title" >> $GITHUB_OUTPUT
+          echo "pr_author=$pr_author" >> $GITHUB_OUTPUT
+          echo "files_changed=$files_changed" >> $GITHUB_OUTPUT
+          echo "head_ref=$head_ref" >> $GITHUB_OUTPUT
+          echo "head_sha=$head_sha" >> $GITHUB_OUTPUT
+          
+          # Log for debugging
+          echo "PR #$PR_NUMBER: $pr_title"
+          echo "Author: $pr_author"
+          echo "Files changed: $files_changed"
+          echo "Head ref: $head_ref"
+          echo "Head SHA: $head_sha"
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr-details.outputs.head_sha }}
+          fetch-depth: 0  # Full history for proper diff analysis
+
+      - name: Run PR Reviewer Agent
+        uses: docker/cagent-action@1f7ec0445e138a587639fc9c046076e22d184349
+        with:
+          agent: .github/workflows/agents/pr-review.yaml
+          mcp-gateway: true
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Add success reaction
+        if: success() && github.event_name == 'issue_comment'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_ID: ${{ steps.get-context.outputs.comment_id }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/$REPO/issues/comments/$COMMENT_ID/reactions \
+            -f content='rocket'
+
+      - name: Add failure reaction
+        if: failure() && github.event_name == 'issue_comment'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_ID: ${{ steps.get-context.outputs.comment_id }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/$REPO/issues/comments/$COMMENT_ID/reactions \
+            -f content='confused'
