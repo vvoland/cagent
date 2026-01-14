@@ -419,8 +419,7 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		})
 	}
 
-	handoffs := a.Handoffs()
-	if len(handoffs) > 0 {
+	if handoffs := a.Handoffs(); len(handoffs) > 0 {
 		var agentsInfo strings.Builder
 		var validAgentIDs []string
 		for _, agent := range handoffs {
@@ -450,10 +449,18 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		})
 	}
 
-	content := a.Instruction()
+	if instructions := a.Instruction(); instructions != "" {
+		messages = append(messages, chat.Message{
+			Role:    chat.MessageRoleSystem,
+			Content: instructions,
+		})
+	}
 
 	if a.AddDate() {
-		content += "\n\n" + "Today's date: " + time.Now().Format("2006-01-02")
+		messages = append(messages, chat.Message{
+			Role:    chat.MessageRoleSystem,
+			Content: "Today's date: " + time.Now().Format("2006-01-02"),
+		})
 	}
 
 	wd := s.WorkingDir
@@ -466,7 +473,10 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 	}
 	if wd != "" {
 		if a.AddEnvironmentInfo() {
-			content += "\n\n" + getEnvironmentInfo(wd)
+			messages = append(messages, chat.Message{
+				Role:    chat.MessageRoleSystem,
+				Content: getEnvironmentInfo(wd),
+			})
 		}
 
 		for _, prompt := range a.AddPromptFiles() {
@@ -477,23 +487,23 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 			}
 
 			if additionalPrompt != "" {
-				content += "\n\n" + additionalPrompt
+				messages = append(messages, chat.Message{
+					Role:    chat.MessageRoleSystem,
+					Content: additionalPrompt,
+				})
 			}
 		}
 	}
 
 	// Add skills section if enabled
 	if a.SkillsEnabled() {
-		loadedSkills := skills.Load()
-		if len(loadedSkills) > 0 {
-			content += skills.BuildSkillsPrompt(loadedSkills)
+		if loadedSkills := skills.Load(); len(loadedSkills) > 0 {
+			messages = append(messages, chat.Message{
+				Role:    chat.MessageRoleSystem,
+				Content: skills.BuildSkillsPrompt(loadedSkills),
+			})
 		}
 	}
-
-	messages = append(messages, chat.Message{
-		Role:    chat.MessageRoleSystem,
-		Content: content,
-	})
 
 	for _, tool := range a.ToolSets() {
 		if tool.Instructions() != "" {
