@@ -666,6 +666,9 @@ func (m *model) queueSection(contentWidth int) string {
 		lines = append(lines, prefix+styles.MutedStyle.Render(truncated))
 	}
 
+	// Add hint for clearing
+	lines = append(lines, styles.MutedStyle.Render("  Ctrl+X to clear"))
+
 	title := fmt.Sprintf("Queue (%d)", len(m.queuedMessages))
 	return m.renderTab(title, strings.Join(lines, "\n"), contentWidth)
 }

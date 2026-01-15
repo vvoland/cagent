@@ -635,9 +635,9 @@ func (p *chatPage) handleSendMsg(msg editor.SendMsg) (layout.Model, tea.Cmd) {
 	queueLen := len(p.messageQueue)
 	var notifyMsg string
 	if queueLen == 1 {
-		notifyMsg = "Message queued (1 waiting)"
+		notifyMsg = "Message queued (1 waiting) · Ctrl+X to clear"
 	} else {
-		notifyMsg = fmt.Sprintf("Message queued (%d waiting)", queueLen)
+		notifyMsg = fmt.Sprintf("Message queued (%d waiting) · Ctrl+X to clear", queueLen)
 	}
 
 	return p, notification.InfoCmd(notifyMsg)
