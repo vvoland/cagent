@@ -55,7 +55,7 @@ tasks:
   test:
     aliases: [t]
     desc: Run tests
-    cmd: OPENAI_API_KEY= ANTHROPIC_API_KEY= GOOGLE_API_KEY= MISTRAL_API_KEY= GITHUB_TOKEN= go test {{.CLI_ARGS}} ./...
+    cmd: CAGENT_MODELS_GATEWAY= OPENAI_API_KEY= ANTHROPIC_API_KEY= GOOGLE_API_KEY= MISTRAL_API_KEY= GITHUB_TOKEN= go test {{.CLI_ARGS}} ./...
 
   build-local:
     desc: Build binaries for local host platform
