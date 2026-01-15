@@ -54,7 +54,7 @@ require (
 	github.com/temoto/robotstxt v1.1.2
 	github.com/wk8/go-ordered-map/v2 v2.1.9-0.20250401010720-46d686821e33
 	github.com/xeipuuv/gojsonschema v1.2.0
-	github.com/yuin/goldmark v1.7.13
+	github.com/yuin/goldmark v1.7.16
 	go.opentelemetry.io/otel v1.39.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.39.0
 	go.opentelemetry.io/otel/sdk v1.39.0
