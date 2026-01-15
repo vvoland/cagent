@@ -663,7 +663,7 @@ func (m *model) queueSection(contentWidth int) string {
 
 		// Truncate message and add prefix
 		truncated := toolcommon.TruncateText(msg, maxMsgWidth)
-		lines = append(lines, prefix+styles.MutedStyle.Render(truncated))
+		lines = append(lines, prefix+truncated)
 	}
 
 	// Add hint for clearing

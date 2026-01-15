@@ -633,12 +633,7 @@ func (p *chatPage) handleSendMsg(msg editor.SendMsg) (layout.Model, tea.Cmd) {
 	p.syncQueueToSidebar()
 
 	queueLen := len(p.messageQueue)
-	var notifyMsg string
-	if queueLen == 1 {
-		notifyMsg = "Message queued (1 waiting) · Ctrl+X to clear"
-	} else {
-		notifyMsg = fmt.Sprintf("Message queued (%d waiting) · Ctrl+X to clear", queueLen)
-	}
+	notifyMsg := fmt.Sprintf("Message queued (%d waiting) · Ctrl+X to clear", queueLen)
 
 	return p, notification.InfoCmd(notifyMsg)
 }
@@ -652,6 +647,7 @@ func (p *chatPage) processNextQueuedMessage() tea.Cmd {
 
 	// Pop the first message from the queue
 	queued := p.messageQueue[0]
+	p.messageQueue[0] = queuedMessage{} // zero out to allow GC
 	p.messageQueue = p.messageQueue[1:]
 	p.syncQueueToSidebar()
 
