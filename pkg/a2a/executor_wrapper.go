@@ -49,8 +49,12 @@ func (fq *fixingQueue) Write(ctx context.Context, event a2a.Event) error {
 	return fq.queue.Write(ctx, event)
 }
 
-func (fq *fixingQueue) Read(ctx context.Context) (a2a.Event, error) {
+func (fq *fixingQueue) Read(ctx context.Context) (a2a.Event, a2a.TaskVersion, error) {
 	return fq.queue.Read(ctx)
+}
+
+func (fq *fixingQueue) WriteVersioned(ctx context.Context, event a2a.Event, version a2a.TaskVersion) error {
+	return fq.queue.WriteVersioned(ctx, event, version)
 }
 
 func (fq *fixingQueue) Close() error {

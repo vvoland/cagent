@@ -20,8 +20,13 @@ func (m *mockQueue) Write(_ context.Context, event a2a.Event) error {
 	return nil
 }
 
-func (m *mockQueue) Read(context.Context) (a2a.Event, error) {
-	return nil, nil
+func (m *mockQueue) Read(context.Context) (a2a.Event, a2a.TaskVersion, error) {
+	return nil, a2a.TaskVersionMissing, nil
+}
+
+func (m *mockQueue) WriteVersioned(_ context.Context, event a2a.Event, _ a2a.TaskVersion) error {
+	m.events = append(m.events, event)
+	return nil
 }
 
 func (m *mockQueue) Close() error {
