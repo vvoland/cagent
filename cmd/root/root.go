@@ -15,6 +15,7 @@ import (
 
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/feedback"
+	"github.com/docker/cagent/pkg/logging"
 	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/telemetry"
 	"github.com/docker/cagent/pkg/version"
@@ -24,7 +25,7 @@ type rootFlags struct {
 	enableOtel  bool
 	debugMode   bool
 	logFilePath string
-	logFile     *os.File
+	logFile     io.Closer
 }
 
 func NewRootCmd() *cobra.Command {
@@ -169,8 +170,9 @@ We collect anonymous usage data to help improve cagent. To disable:
 }
 
 // setupLogging configures slog logging behavior.
-// When --debug is enabled, logs are written to a single file <dataDir>/cagent.debug.log (append mode),
-// or to the file specified by --log-file.
+// When --debug is enabled, logs are written to a rotating file <dataDir>/cagent.debug.log,
+// or to the file specified by --log-file. Log files are rotated when they exceed 10MB,
+// keeping up to 3 backup files.
 func (f *rootFlags) setupLogging() error {
 	if !f.debugMode {
 		slog.SetDefault(slog.New(slog.DiscardHandler))
@@ -179,11 +181,7 @@ func (f *rootFlags) setupLogging() error {
 
 	path := cmp.Or(strings.TrimSpace(f.logFilePath), filepath.Join(paths.GetDataDir(), "cagent.debug.log"))
 
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
-	}
-
-	logFile, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	logFile, err := logging.NewRotatingFile(path)
 	if err != nil {
 		return err
 	}
