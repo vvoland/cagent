@@ -664,7 +664,7 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 			// If plain enter and textarea inserted a newline, submit the previous value
 			if value != prev && msg.String() == "enter" {
-				if prev != "" && !e.working {
+				if prev != "" {
 					e.textarea.SetValue(prev)
 					e.textarea.MoveToEnd()
 					cmd := e.resetAndSend(prev)
@@ -674,7 +674,7 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			}
 
 			// Normal enter submit: send current value
-			if value != "" && !e.working {
+			if value != "" {
 				cmd := e.resetAndSend(value)
 				return e, cmd
 			}
@@ -1181,7 +1181,7 @@ func (e *editor) IsRecording() bool {
 // SendContent triggers sending the current editor content
 func (e *editor) SendContent() tea.Cmd {
 	value := e.textarea.Value()
-	if value == "" || e.working {
+	if value == "" {
 		return nil
 	}
 	return e.resetAndSend(value)

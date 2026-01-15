@@ -1,0 +1,241 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.anthropic.com
+        body: '{"max_tokens":20,"messages":[{"content":[{"text":"Based on the following message a user sent to an AI assistant, generate a short, descriptive title (maximum 50 characters) that captures the main topic or purpose of the conversation. Return ONLY the title text, nothing else.\n\nUser message: hi","cache_control":{"type":"ephemeral"},"type":"text"}],"role":"user"}],"model":"claude-3-7-sonnet-20250219","system":[{"text":"You are a helpful AI assistant that generates concise, descriptive titles for conversations. You will be given a conversation history and asked to create a title that captures the main topic.","cache_control":{"type":"ephemeral"},"type":"text"}],"tools":[],"stream":true}'
+        url: https://api.anthropic.com/v1/messages
+        method: POST
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        body: |+
+            event: message_start
+            data: {"type":"message_start","message":{"model":"claude-3-7-sonnet-20250219","id":"msg_01HYUcf6xNGPYWDQ1zeuoK31","type":"message","role":"assistant","content":[],"stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":96,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"output_tokens":1,"service_tier":"standard"}}               }
+
+            event: content_block_start
+            data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}         }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Just"} }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" Saying Hello"}  }
+
+            event: content_block_stop
+            data: {"type":"content_block_stop","index":0            }
+
+            event: message_delta
+            data: {"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"input_tokens":96,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":7} }
+
+            event: message_stop
+            data: {"type":"message_stop"      }
+
+        headers: {}
+        status: 200 OK
+        code: 200
+        duration: 930.585542ms
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.anthropic.com
+        body: '{"max_tokens":64000,"messages":[{"content":[{"text":"hi","cache_control":{"type":"ephemeral"},"type":"text"}],"role":"user"}],"model":"claude-3-7-sonnet-20250219","system":[{"text":"You are an AI assistant with expertise in the moby/moby project''s documentation.","cache_control":{"type":"ephemeral"},"type":"text"}],"tools":[{"input_schema":{"properties":{},"type":"object"},"name":"fetch_moby_documentation","description":"Fetch entire documentation file from GitHub repository: moby/moby. Useful for general questions. Always call this tool first if asked about moby/moby."},{"input_schema":{"properties":{"query":{"description":"The search query to find relevant documentation","type":"string"}},"required":["query"],"type":"object"},"name":"search_moby_documentation","description":"Semantically search within the fetched documentation from GitHub repository: moby/moby. Useful for specific queries."},{"input_schema":{"properties":{"page":{"description":"Page number to retrieve (starting from 1). Each page contains 30 results.","type":"number"},"query":{"description":"The search query to find relevant code files","type":"string"}},"required":["query"],"type":"object"},"name":"search_moby_code","description":"Search for code within the GitHub repository: \"moby/moby\" using the GitHub Search API (exact match). Returns matching files for you to query further if relevant."},{"input_schema":{"properties":{"url":{"description":"The URL of the document or page to fetch","type":"string"}},"required":["url"],"type":"object"},"name":"fetch_generic_url_content","description":"Generic tool to fetch content from any absolute URL, respecting robots.txt rules. Use this to retrieve referenced urls (absolute urls) that were mentioned in previously fetched documentation."}],"stream":true}'
+        url: https://api.anthropic.com/v1/messages
+        method: POST
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        body: |+
+            event: message_start
+            data: {"type":"message_start","message":{"model":"claude-3-7-sonnet-20250219","id":"msg_01TEFSeoZ7xBDfxJNGP6e3jz","type":"message","role":"assistant","content":[],"stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":729,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"output_tokens":1,"service_tier":"standard"}}            }
+
+            event: content_block_start
+            data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}            }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}        }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"! I'm an"}}
+
+            event: ping
+            data: {"type": "ping"}
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" AI assistant with"}      }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" expertise in the moby"}     }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"/moby project's"}              }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" documentation."}}
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" Moby is"}}
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" an"}              }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" open-source project"}}
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" create"}         }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"d by Docker to"}               }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" advance"}             }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" containerization an"} }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"d provide"}            }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" the"}          }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" container"}              }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" runtime that"}            }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" powers Docker."}       }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"\n\nI"}           }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" can"}               }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" help you with:"}           }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"\n- Information"}               }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" about Docker"}        }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"'s"}               }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" architecture"}  }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" and components\n- Docker"} }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" configuration"}             }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" and installation\n- Container"}    }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" management and orchestration"}          }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"\n- Networking"} }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" in"}   }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" Docker"}             }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"\n- Storage"}           }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" options an"}        }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"d volume"}               }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" management\n- Security aspects"}          }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" of Docker/"}       }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Moby\n- API"}   }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" documentation"}       }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" and usage"}           }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"\n\nIs"}      }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" there something"}      }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" specific about the"}     }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" mo"}             }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"by/moby project"}        }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" you'd like to learn"}  }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" about"}   }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"?"} }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" I"}}
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"'"}   }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"d be happy to assist"}              }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" you with your questions"}          }
+
+            event: content_block_delta
+            data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"."}     }
+
+            event: content_block_stop
+            data: {"type":"content_block_stop","index":0        }
+
+            event: message_delta
+            data: {"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"input_tokens":729,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":137}         }
+
+            event: message_stop
+            data: {"type":"message_stop"            }
+
+        headers: {}
+        status: 200 OK
+        code: 200
+        duration: 545.253958ms

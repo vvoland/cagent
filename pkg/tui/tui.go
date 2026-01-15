@@ -69,6 +69,7 @@ type KeyMap struct {
 	SwitchAgent           key.Binding
 	ModelPicker           key.Binding
 	Speak                 key.Binding
+	ClearQueue            key.Binding
 }
 
 // DefaultKeyMap returns the default global key bindings
@@ -101,6 +102,10 @@ func DefaultKeyMap() KeyMap {
 		Speak: key.NewBinding(
 			key.WithKeys("ctrl+k"),
 			key.WithHelp("Ctrl+k", "speak"),
+		),
+		ClearQueue: key.NewBinding(
+			key.WithKeys("ctrl+x"),
+			key.WithHelp("Ctrl+x", "clear queue"),
 		),
 	}
 }
@@ -296,6 +301,11 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case messages.ToggleHideToolResultsMsg:
 		return a.handleToggleHideToolResults()
+
+	case messages.ClearQueueMsg:
+		updated, cmd := a.chatPage.Update(msg)
+		a.chatPage = updated.(chat.Page)
+		return a, cmd
 
 	case messages.ShowCostDialogMsg:
 		return a.handleShowCostDialog()
@@ -496,6 +506,9 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return a.handleStartSpeak()
 		}
 		return a, notification.InfoCmd("Speech-to-text is only supported on macOS")
+
+	case key.Matches(msg, a.keyMap.ClearQueue):
+		return a, core.CmdHandler(messages.ClearQueueMsg{})
 
 	default:
 		// Handle ctrl+1 through ctrl+9 for quick agent switching

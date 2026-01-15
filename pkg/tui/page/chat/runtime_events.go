@@ -138,7 +138,11 @@ func (p *chatPage) handleStreamStopped(msg *runtime.StreamStoppedEvent) tea.Cmd 
 	p.streamCancelled = false
 	p.stopProgressBar()
 	sidebarCmd := p.forwardToSidebar(msg)
-	return tea.Batch(p.messages.ScrollToBottom(), spinnerCmd, sidebarCmd)
+
+	// Check if there are queued messages to process
+	queueCmd := p.processNextQueuedMessage()
+
+	return tea.Batch(p.messages.ScrollToBottom(), spinnerCmd, sidebarCmd, queueCmd)
 }
 
 func (p *chatPage) handlePartialToolCall(msg *runtime.PartialToolCallEvent) tea.Cmd {
