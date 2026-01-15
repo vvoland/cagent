@@ -46,6 +46,7 @@ type Model interface {
 	SetAgentSwitching(switching bool)
 	SetToolsetInfo(availableTools int, loading bool)
 	SetSessionStarred(starred bool)
+	SetQueuedMessages(messages []string)
 	GetSize() (width, height int)
 	LoadFromSession(sess *session.Session)
 	// HandleClick checks if click is on the star and returns true if handled
@@ -87,6 +88,7 @@ type model struct {
 	workingAgent      string // Name of the agent currently working (empty if none)
 	scrollbar         *scrollbar.Model
 	workingDirectory  string
+	queuedMessages    []string // Truncated preview of queued messages
 }
 
 // Option is a functional option for configuring the sidebar.
@@ -175,6 +177,11 @@ func (m *model) SetToolsetInfo(availableTools int, loading bool) {
 // SetSessionStarred sets the starred status of the current session
 func (m *model) SetSessionStarred(starred bool) {
 	m.sessionStarred = starred
+}
+
+// SetQueuedMessages sets the list of queued message previews to display
+func (m *model) SetQueuedMessages(messages []string) {
+	m.queuedMessages = messages
 }
 
 // HandleClick checks if click is on the star and returns true if it was
@@ -478,6 +485,7 @@ func (m *model) renderSections(contentWidth int) []string {
 
 	appendSection(m.sessionInfo(contentWidth))
 	appendSection(m.tokenUsage(contentWidth))
+	appendSection(m.queueSection(contentWidth))
 	appendSection(m.agentInfo(contentWidth))
 	appendSection(m.toolsetInfo(contentWidth))
 
@@ -633,6 +641,33 @@ func (m *model) sessionInfo(contentWidth int) string {
 	}
 
 	return m.renderTab("Session", strings.Join(lines, "\n"), contentWidth)
+}
+
+// queueSection renders the queued messages section
+func (m *model) queueSection(contentWidth int) string {
+	if len(m.queuedMessages) == 0 {
+		return ""
+	}
+
+	maxMsgWidth := contentWidth - treePrefixWidth
+	var lines []string
+
+	for i, msg := range m.queuedMessages {
+		// Determine prefix based on position
+		var prefix string
+		if i == len(m.queuedMessages)-1 {
+			prefix = styles.MutedStyle.Render("└ ")
+		} else {
+			prefix = styles.MutedStyle.Render("├ ")
+		}
+
+		// Truncate message and add prefix
+		truncated := toolcommon.TruncateText(msg, maxMsgWidth)
+		lines = append(lines, prefix+styles.MutedStyle.Render(truncated))
+	}
+
+	title := fmt.Sprintf("Queue (%d)", len(m.queuedMessages))
+	return m.renderTab(title, strings.Join(lines, "\n"), contentWidth)
 }
 
 // agentInfo renders the current agent information

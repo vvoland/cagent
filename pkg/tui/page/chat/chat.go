@@ -630,6 +630,7 @@ func (p *chatPage) handleSendMsg(msg editor.SendMsg) (layout.Model, tea.Cmd) {
 		content:     msg.Content,
 		attachments: msg.Attachments,
 	})
+	p.syncQueueToSidebar()
 
 	queueLen := len(p.messageQueue)
 	var notifyMsg string
@@ -652,6 +653,7 @@ func (p *chatPage) processNextQueuedMessage() tea.Cmd {
 	// Pop the first message from the queue
 	queued := p.messageQueue[0]
 	p.messageQueue = p.messageQueue[1:]
+	p.syncQueueToSidebar()
 
 	msg := editor.SendMsg{
 		Content:     queued.content,
@@ -669,6 +671,7 @@ func (p *chatPage) handleClearQueue() (layout.Model, tea.Cmd) {
 	}
 
 	p.messageQueue = nil
+	p.syncQueueToSidebar()
 
 	var msg string
 	if count == 1 {
@@ -677,6 +680,20 @@ func (p *chatPage) handleClearQueue() (layout.Model, tea.Cmd) {
 		msg = fmt.Sprintf("Cleared %d queued messages", count)
 	}
 	return p, notification.SuccessCmd(msg)
+}
+
+// syncQueueToSidebar updates the sidebar with truncated previews of queued messages.
+func (p *chatPage) syncQueueToSidebar() {
+	previews := make([]string, len(p.messageQueue))
+	for i, qm := range p.messageQueue {
+		// Take first line and limit length for preview
+		content := strings.TrimSpace(qm.content)
+		if idx := strings.IndexAny(content, "\n\r"); idx != -1 {
+			content = content[:idx]
+		}
+		previews[i] = content
+	}
+	p.sidebar.SetQueuedMessages(previews)
 }
 
 // processMessage processes a message with the runtime
