@@ -20,6 +20,7 @@ jobs:
       - name: Run PR Reviewer Agent
         uses: docker/cagent-action@1f7ec0445e138a587639fc9c046076e22d184349
         with:
+          cagent-version: "v1.19.1"
           agent: ${{ github.workspace }}/.github/workflows/agents/pr-review.yaml
           prompt: "Please review this GitHub Pull Request: https://github.com/${{ github.repository }}/pull/${{ github.event.issue.number }}"
           mcp-gateway: true
