@@ -30,7 +30,7 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.3.0
 	github.com/coder/acp-go-sdk v0.6.3
 	github.com/docker/go-units v0.5.0
-	github.com/dop251/goja v0.0.0-20251201205617-2bb4c724c0f9
+	github.com/dop251/goja v0.0.0-20260106131823-651366fbe6e3
 	github.com/fatih/color v1.18.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-git/go-git/v5 v5.16.4
