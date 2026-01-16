@@ -24,6 +24,7 @@ type (
 	StartSpeakMsg                  struct{}                   // Start speech-to-text transcription
 	StopSpeakMsg                   struct{}                   // Stop speech-to-text transcription
 	SpeakTranscriptMsg             struct{ Delta string }     // Transcription delta from speech-to-text
+	ClearQueueMsg                  struct{}                   // Clear all queued messages
 )
 
 // AgentCommandMsg command message

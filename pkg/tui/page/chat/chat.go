@@ -20,6 +20,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/commands"
 	"github.com/docker/cagent/pkg/tui/components/editor"
 	"github.com/docker/cagent/pkg/tui/components/messages"
+	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/components/sidebar"
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/core"
@@ -68,6 +69,15 @@ type Page interface {
 	SendEditorContent() tea.Cmd
 }
 
+// queuedMessage represents a message waiting to be sent to the agent
+type queuedMessage struct {
+	content     string
+	attachments map[string]string
+}
+
+// maxQueuedMessages is the maximum number of messages that can be queued
+const maxQueuedMessages = 5
+
 // chatPage implements Page
 type chatPage struct {
 	width, height int
@@ -86,6 +96,9 @@ type chatPage struct {
 
 	msgCancel       context.CancelFunc
 	streamCancelled bool
+
+	// Message queue for enqueuing messages while agent is working
+	messageQueue []queuedMessage
 
 	// Key map
 	keyMap KeyMap
@@ -315,8 +328,7 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 	case editor.SendMsg:
 		slog.Debug(msg.Content)
-		cmd := p.processMessage(msg)
-		return p, cmd
+		return p.handleSendMsg(msg)
 
 	case messages.StreamCancelledMsg:
 		model, cmd := p.messages.Update(msg)
@@ -329,6 +341,12 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			cmds = append(cmds, p.messages.AddCancelledMessage())
 		}
 		cmds = append(cmds, p.messages.ScrollToBottom())
+
+		// Process next queued message after cancel (queue is preserved)
+		if queueCmd := p.processNextQueuedMessage(); queueCmd != nil {
+			cmds = append(cmds, queueCmd)
+		}
+
 		return p, tea.Batch(cmds...)
 
 	case msgtypes.InsertFileRefMsg:
@@ -341,6 +359,9 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		model, cmd := p.messages.Update(messages.ToggleHideToolResultsMsg{})
 		p.messages = model.(messages.Model)
 		return p, cmd
+
+	case msgtypes.ClearQueueMsg:
+		return p.handleClearQueue()
 
 	default:
 		// Try to handle as a runtime event
@@ -590,6 +611,87 @@ func (p *chatPage) cancelStream(showCancelMessage bool) tea.Cmd {
 	)
 }
 
+// handleSendMsg handles incoming messages from the editor, either processing
+// them immediately or queuing them if the agent is busy.
+func (p *chatPage) handleSendMsg(msg editor.SendMsg) (layout.Model, tea.Cmd) {
+	// If not working, process immediately
+	if !p.working {
+		cmd := p.processMessage(msg)
+		return p, cmd
+	}
+
+	// If queue is full, reject the message
+	if len(p.messageQueue) >= maxQueuedMessages {
+		return p, notification.WarningCmd(fmt.Sprintf("Queue full (max %d messages). Please wait.", maxQueuedMessages))
+	}
+
+	// Add to queue
+	p.messageQueue = append(p.messageQueue, queuedMessage{
+		content:     msg.Content,
+		attachments: msg.Attachments,
+	})
+	p.syncQueueToSidebar()
+
+	queueLen := len(p.messageQueue)
+	notifyMsg := fmt.Sprintf("Message queued (%d waiting) · Ctrl+X to clear", queueLen)
+
+	return p, notification.InfoCmd(notifyMsg)
+}
+
+// processNextQueuedMessage pops the next message from the queue and processes it.
+// Returns nil if the queue is empty.
+func (p *chatPage) processNextQueuedMessage() tea.Cmd {
+	if len(p.messageQueue) == 0 {
+		return nil
+	}
+
+	// Pop the first message from the queue
+	queued := p.messageQueue[0]
+	p.messageQueue[0] = queuedMessage{} // zero out to allow GC
+	p.messageQueue = p.messageQueue[1:]
+	p.syncQueueToSidebar()
+
+	msg := editor.SendMsg{
+		Content:     queued.content,
+		Attachments: queued.attachments,
+	}
+
+	return p.processMessage(msg)
+}
+
+// handleClearQueue clears all queued messages and shows a notification.
+func (p *chatPage) handleClearQueue() (layout.Model, tea.Cmd) {
+	count := len(p.messageQueue)
+	if count == 0 {
+		return p, notification.InfoCmd("No messages queued")
+	}
+
+	p.messageQueue = nil
+	p.syncQueueToSidebar()
+
+	var msg string
+	if count == 1 {
+		msg = "Cleared 1 queued message"
+	} else {
+		msg = fmt.Sprintf("Cleared %d queued messages", count)
+	}
+	return p, notification.SuccessCmd(msg)
+}
+
+// syncQueueToSidebar updates the sidebar with truncated previews of queued messages.
+func (p *chatPage) syncQueueToSidebar() {
+	previews := make([]string, len(p.messageQueue))
+	for i, qm := range p.messageQueue {
+		// Take first line and limit length for preview
+		content := strings.TrimSpace(qm.content)
+		if idx := strings.IndexAny(content, "\n\r"); idx != -1 {
+			content = content[:idx]
+		}
+		previews[i] = content
+	}
+	p.sidebar.SetQueuedMessages(previews)
+}
+
 // processMessage processes a message with the runtime
 func (p *chatPage) processMessage(msg editor.SendMsg) tea.Cmd {
 	if p.msgCancel != nil {
@@ -789,7 +891,20 @@ func (p *chatPage) renderResizeHandle(width int) string {
 
 	if p.working {
 		// Truncate right side and append spinner (handle stays centered)
-		suffix := " " + p.spinner.View() + " " + styles.SpinnerDotsHighlightStyle.Render("Working…")
+		workingText := "Working…"
+		if queueLen := len(p.messageQueue); queueLen > 0 {
+			workingText = fmt.Sprintf("Working… (%d queued)", queueLen)
+		}
+		suffix := " " + p.spinner.View() + " " + styles.SpinnerDotsHighlightStyle.Render(workingText)
+		suffixWidth := lipgloss.Width(suffix)
+		truncated := lipgloss.NewStyle().MaxWidth(width - 2 - suffixWidth).Render(fullLine)
+		return truncated + suffix
+	}
+
+	// Show queue count even when not working (messages waiting to be processed)
+	if queueLen := len(p.messageQueue); queueLen > 0 {
+		queueText := fmt.Sprintf("%d queued", queueLen)
+		suffix := " " + styles.WarningStyle.Render(queueText) + " "
 		suffixWidth := lipgloss.Width(suffix)
 		truncated := lipgloss.NewStyle().MaxWidth(width - 2 - suffixWidth).Render(fullLine)
 		return truncated + suffix
