@@ -621,14 +621,14 @@ func (a *App) mergeEvents(events []tea.Msg) []tea.Msg {
 
 		case *runtime.PartialToolCallEvent:
 			// For PartialToolCallEvent, keep only the latest one per tool call ID
-			// Check if there's a newer one in the buffer
+			// Only merge consecutive events with the same ID
 			latest := ev
-			for j := i + 1; j < len(events); j++ {
-				if next, ok := events[j].(*runtime.PartialToolCallEvent); ok {
-					if next.ToolCall.ID == ev.ToolCall.ID {
-						latest = next
-						i = j // Skip to this position
-					}
+			for i+1 < len(events) {
+				if next, ok := events[i+1].(*runtime.PartialToolCallEvent); ok && next.ToolCall.ID == ev.ToolCall.ID {
+					latest = next
+					i++
+				} else {
+					break
 				}
 			}
 			result = append(result, latest)
