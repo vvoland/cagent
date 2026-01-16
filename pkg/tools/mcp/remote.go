@@ -90,8 +90,9 @@ func (c *remoteMCPClient) Initialize(ctx context.Context, _ *mcp.InitializeReque
 		}
 	case "streamable", "streamable-http":
 		transport = &mcp.StreamableClientTransport{
-			Endpoint:   c.url,
-			HTTPClient: httpClient,
+			Endpoint:             c.url,
+			HTTPClient:           httpClient,
+			DisableStandaloneSSE: true,
 		}
 	default:
 		return nil, fmt.Errorf("unsupported transport type: %s", c.transportType)
