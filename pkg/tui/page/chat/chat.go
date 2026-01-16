@@ -264,7 +264,6 @@ func (p *chatPage) Init() tea.Cmd {
 
 // Update handles messages and updates the page state
 func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
-	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.KeyboardEnhancementsMsg:
@@ -277,24 +276,20 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return p, editorCmd
 
 	case tea.WindowSizeMsg:
-		cmd := p.SetSize(msg.Width, msg.Height)
-		cmds = append(cmds, cmd)
+		cmdSize := p.SetSize(msg.Width, msg.Height)
 
 		// Forward to sidebar component
 		sidebarModel, sidebarCmd := p.sidebar.Update(msg)
 		p.sidebar = sidebarModel.(sidebar.Model)
-		cmds = append(cmds, sidebarCmd)
 
 		// Forward to chat component
 		chatModel, chatCmd := p.messages.Update(msg)
 		p.messages = chatModel.(messages.Model)
-		cmds = append(cmds, chatCmd)
 
 		// Forward to editor component
 		editorModel, editorCmd := p.editor.Update(msg)
 		p.editor = editorModel.(editor.Editor)
-		cmds = append(cmds, editorCmd)
-		return p, tea.Batch(cmds...)
+		return p, tea.Batch(cmdSize, sidebarCmd, chatCmd, editorCmd)
 
 	case tea.KeyPressMsg:
 		if model, cmd, handled := p.handleKeyPress(msg); handled {
@@ -351,23 +346,21 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 	sidebarModel, sidebarCmd := p.sidebar.Update(msg)
 	p.sidebar = sidebarModel.(sidebar.Model)
-	cmds = append(cmds, sidebarCmd)
 
 	chatModel, chatCmd := p.messages.Update(msg)
 	p.messages = chatModel.(messages.Model)
-	cmds = append(cmds, chatCmd)
 
 	editorModel, editorCmd := p.editor.Update(msg)
 	p.editor = editorModel.(editor.Editor)
-	cmds = append(cmds, editorCmd)
 
+	var cmdSpinner tea.Cmd
 	if p.working {
-		model, cmd := p.spinner.Update(msg)
+		var model layout.Model
+		model, cmdSpinner = p.spinner.Update(msg)
 		p.spinner = model.(spinner.Spinner)
-		cmds = append(cmds, cmd)
 	}
 
-	return p, tea.Batch(cmds...)
+	return p, tea.Batch(sidebarCmd, chatCmd, editorCmd, cmdSpinner)
 }
 
 func (p *chatPage) setWorking(working bool) tea.Cmd {
