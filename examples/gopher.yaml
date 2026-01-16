@@ -82,7 +82,7 @@ agents:
         description: "Commit local changes"
         instruction: |
             Based on the below changes: create a single commit with an appropriate message.
- 
+
             - Current git status: !shell(cmd="git status")
             - Current git diff (staged and unstaged changes): !shell(cmd="git diff HEAD")
             - Current branch: !shell(cmd="git branch --show-current")
