@@ -15,6 +15,7 @@ import (
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/message"
 	"github.com/docker/cagent/pkg/tui/components/scrollbar"
 	"github.com/docker/cagent/pkg/tui/components/tool"
@@ -676,6 +677,12 @@ func (m *model) needsSeparator(index int) bool {
 	}
 	currentIsToolCall := m.messages[index].Type == types.MessageTypeToolCall
 	nextIsToolCall := m.messages[index+1].Type == types.MessageTypeToolCall
+
+	// Always add a separator before transfer_task, even between consecutive tool calls
+	if nextIsToolCall && m.messages[index+1].ToolCall.Function.Name == builtin.ToolNameTransferTask {
+		return true
+	}
+
 	return !currentIsToolCall || !nextIsToolCall
 }
 
