@@ -264,7 +264,6 @@ func (p *chatPage) Init() tea.Cmd {
 
 // Update handles messages and updates the page state
 func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
-
 	switch msg := msg.(type) {
 	case tea.KeyboardEnhancementsMsg:
 		// Track keyboard enhancement support and update help text
