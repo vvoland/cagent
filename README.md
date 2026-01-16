@@ -100,13 +100,16 @@ corresponding provider API key accordingly, all these keys are optional, you
 will likely need at least one of these, though:
 
 ```bash
-export OPENAI_API_KEY=your_api_key_here      # For OpenAI models
-export ANTHROPIC_API_KEY=your_api_key_here   # For Anthropic models
-export GOOGLE_API_KEY=your_api_key_here      # For Gemini models
-export XAI_API_KEY=your_api_key_here         # For xAI models
-export NEBIUS_API_KEY=your_api_key_here      # For Nebius models
-export MISTRAL_API_KEY=your_api_key_here     # For Mistral models
+export OPENAI_API_KEY=your_api_key_here              # For OpenAI models
+export ANTHROPIC_API_KEY=your_api_key_here           # For Anthropic models
+export GOOGLE_API_KEY=your_api_key_here              # For Gemini models
+export AWS_BEARER_TOKEN_BEDROCK=your_api_key_here    # For AWS Bedrock available models
+export XAI_API_KEY=your_api_key_here                 # For xAI models
+export NEBIUS_API_KEY=your_api_key_here              # For Nebius models
+export MISTRAL_API_KEY=your_api_key_here             # For Mistral models
 ```
+
+**Note:** For the different AWS Bedrock authentication options, take a look [here](docs/USAGE.md#aws-bedrock-provider-usage).
 
 ### Run Agents!
 
