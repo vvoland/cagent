@@ -33,8 +33,13 @@ func (a *Alias) HasOptions() bool {
 	return a != nil && (a.Yolo || a.Model != "")
 }
 
+// CurrentVersion is the current version of the user config format
+const CurrentVersion = "v1"
+
 // Config represents the user-level cagent configuration
 type Config struct {
+	// Version is the config format version
+	Version string `yaml:"version,omitempty"`
 	// ModelsGateway is the default models gateway URL
 	ModelsGateway string `yaml:"models_gateway,omitempty"`
 	// Aliases maps alias names to alias configurations
@@ -142,6 +147,9 @@ func (c *Config) saveTo(path string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
+
+	// Ensure version is always set to current version when saving
+	c.Version = CurrentVersion
 
 	data, err := yaml.Marshal(c)
 	if err != nil {

@@ -163,6 +163,7 @@ func TestConfig_SaveAndLoad(t *testing.T) {
 	loaded, err := loadFrom(configFile, "")
 	require.NoError(t, err)
 
+	assert.Equal(t, CurrentVersion, loaded.Version)
 	assert.Equal(t, config.Aliases["code"].Path, loaded.Aliases["code"].Path)
 	assert.Equal(t, config.Aliases["myagent"].Path, loaded.Aliases["myagent"].Path)
 }
@@ -435,4 +436,52 @@ func TestConfig_ModelsGateway_OnlyGateway(t *testing.T) {
 
 	assert.Equal(t, "https://my-gateway.example.com", config.ModelsGateway)
 	assert.Empty(t, config.Aliases)
+}
+
+func TestConfig_Version(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+
+	// Create config without version
+	config := &Config{
+		Aliases: map[string]*Alias{
+			"test": {Path: "agentcatalog/test-agent"},
+		},
+	}
+
+	// Save should set version to CurrentVersion
+	require.NoError(t, config.saveTo(configFile))
+	assert.Equal(t, CurrentVersion, config.Version)
+
+	// Load should read the version
+	loaded, err := loadFrom(configFile, "")
+	require.NoError(t, err)
+	assert.Equal(t, CurrentVersion, loaded.Version)
+
+	// Verify version is written to file
+	data, err := os.ReadFile(configFile)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "version: v1")
+}
+
+func TestConfig_Version_LoadLegacyWithoutVersion(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+
+	// Create config file without version field (simulates old config)
+	require.NoError(t, os.WriteFile(configFile, []byte("aliases:\n  test:\n    path: agentcatalog/test\n"), 0o644))
+
+	// Load should work and version should be empty (not automatically upgraded on read)
+	config, err := loadFrom(configFile, "")
+	require.NoError(t, err)
+	assert.Empty(t, config.Version)
+	assert.Equal(t, "agentcatalog/test", config.Aliases["test"].Path)
+
+	// Saving should add the version
+	require.NoError(t, config.saveTo(configFile))
+	assert.Equal(t, CurrentVersion, config.Version)
 }
