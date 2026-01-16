@@ -508,56 +508,46 @@ func (a *App) applySessionModelOverrides(ctx context.Context, sess *session.Sess
 func (a *App) throttleEvents(ctx context.Context, in <-chan tea.Msg) <-chan tea.Msg {
 	out := make(chan tea.Msg, 128)
 
-	go func() {
-		defer close(out)
+	var buffer []tea.Msg
+	var timerCh <-chan time.Time
 
-		var buffer []tea.Msg
-		ticker := time.NewTicker(a.throttleDuration)
-		defer ticker.Stop()
-
-		flush := func() {
-			if len(buffer) == 0 {
+	flush := func() {
+		for _, msg := range a.mergeEvents(buffer) {
+			select {
+			case out <- msg:
+			case <-ctx.Done():
 				return
 			}
-
-			// Merge events if possible
-			merged := a.mergeEvents(buffer)
-			for _, msg := range merged {
-				select {
-				case out <- msg:
-				case <-ctx.Done():
-					return
-				}
-			}
-			buffer = buffer[:0]
 		}
+
+		buffer = buffer[:0]
+		timerCh = nil
+	}
+	defer flush()
+
+	go func() {
+		defer close(out)
 
 		for {
 			select {
 			case <-ctx.Done():
-				flush()
 				return
 
 			case msg, ok := <-in:
 				if !ok {
-					flush()
 					return
 				}
 
-				// Check if this event type should be throttled
+				buffer = append(buffer, msg)
 				if a.shouldThrottle(msg) {
-					buffer = append(buffer, msg)
-				} else {
-					// Pass through immediately for important events
-					flush() // Flush any buffered events first
-					select {
-					case out <- msg:
-					case <-ctx.Done():
-						return
+					if timerCh == nil {
+						timerCh = time.After(a.throttleDuration)
 					}
+				} else {
+					flush()
 				}
 
-			case <-ticker.C:
+			case <-timerCh:
 				flush()
 			}
 		}
