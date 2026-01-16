@@ -247,13 +247,9 @@ func (c *Client) CreateChatCompletionStream(
 	params := anthropic.MessageNewParams{
 		Model:     anthropic.Model(c.ModelConfig.Model),
 		MaxTokens: maxTokens,
+		System:    sys,
 		Messages:  converted,
 		Tools:     allTools,
-	}
-
-	// Populate proper Anthropic system prompt from input messages
-	if len(sys) > 0 {
-		params.System = sys
 	}
 
 	// Apply thinking budget first, as it affects whether we can set temperature
@@ -525,6 +521,7 @@ func extractSystemBlocks(messages []chat.Message) []anthropic.TextBlockParam {
 		if msg.Role != chat.MessageRoleSystem {
 			continue
 		}
+
 		if len(msg.MultiContent) > 0 {
 			for _, part := range msg.MultiContent {
 				if part.Type == chat.MessagePartTypeText {
@@ -534,13 +531,14 @@ func extractSystemBlocks(messages []chat.Message) []anthropic.TextBlockParam {
 				}
 			}
 		} else if txt := strings.TrimSpace(msg.Content); txt != "" {
-			systemBlocks = append(systemBlocks, anthropic.TextBlockParam{Text: txt})
+			systemBlocks = append(systemBlocks, anthropic.TextBlockParam{
+				Text: txt,
+			})
 		}
-	}
 
-	// Add ephemeral cache to first 2 system blocks
-	for i := range min(2, len(systemBlocks)) {
-		systemBlocks[i].CacheControl = anthropic.NewCacheControlEphemeralParam()
+		if msg.CacheControl {
+			systemBlocks[len(systemBlocks)-1].CacheControl = anthropic.NewCacheControlEphemeralParam()
+		}
 	}
 
 	return systemBlocks

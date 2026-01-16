@@ -401,30 +401,39 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 	if a.HasSubAgents() {
 		subAgents := append(a.SubAgents(), a.Parents()...)
 
-		subAgentsStr := ""
+		var text strings.Builder
 		var validAgentIDs []string
 		for _, subAgent := range subAgents {
-			subAgentsStr += "Name: " + subAgent.Name() + " | Description: " + subAgent.Description() + "\n"
+			text.WriteString("Name: ")
+			text.WriteString(subAgent.Name())
+			text.WriteString(" | Description: ")
+			text.WriteString(subAgent.Description())
+			text.WriteString("\n")
+
 			validAgentIDs = append(validAgentIDs, subAgent.Name())
 		}
 
 		messages = append(messages, chat.Message{
 			Role:    chat.MessageRoleSystem,
-			Content: "You are a multi-agent system, make sure to answer the user query in the most helpful way possible. You have access to these sub-agents:\n" + subAgentsStr + "\nIMPORTANT: You can ONLY transfer tasks to the agents listed above using their ID. The valid agent names are: " + strings.Join(validAgentIDs, ", ") + ". You MUST NOT attempt to transfer to any other agent IDs - doing so will cause system errors.\n\nIf you are the best to answer the question according to your description, you can answer it.\n\nIf another agent is better for answering the question according to its description, call `transfer_task` function to transfer the question to that agent using the agent's ID. When transferring, do not generate any text other than the function call.\n\n",
+			Content: "You are a multi-agent system, make sure to answer the user query in the most helpful way possible. You have access to these sub-agents:\n" + text.String() + "\nIMPORTANT: You can ONLY transfer tasks to the agents listed above using their ID. The valid agent names are: " + strings.Join(validAgentIDs, ", ") + ". You MUST NOT attempt to transfer to any other agent IDs - doing so will cause system errors.\n\nIf you are the best to answer the question according to your description, you can answer it.\n\nIf another agent is better for answering the question according to its description, call `transfer_task` function to transfer the question to that agent using the agent's ID. When transferring, do not generate any text other than the function call.\n\n",
 		})
 	}
 
-	handoffs := a.Handoffs()
-	if len(handoffs) > 0 {
-		agentsInfo := ""
+	if handoffs := a.Handoffs(); len(handoffs) > 0 {
+		var text strings.Builder
 		var validAgentIDs []string
 		for _, agent := range handoffs {
-			agentsInfo += "Name: " + agent.Name() + " | Description: " + agent.Description() + "\n"
+			text.WriteString("Name: ")
+			text.WriteString(agent.Name())
+			text.WriteString(" | Description: ")
+			text.WriteString(agent.Description())
+			text.WriteString("\n")
+
 			validAgentIDs = append(validAgentIDs, agent.Name())
 		}
 
 		handoffPrompt := "You are part of a multi-agent team. Your goal is to answer the user query in the most helpful way possible.\n\n" +
-			"Available agents in your team:\n" + agentsInfo + "\n" +
+			"Available agents in your team:\n" + text.String() + "\n" +
 			"You can hand off the conversation to any of these agents at any time by using the `handoff` function with their ID. " +
 			"The valid agent IDs are: " + strings.Join(validAgentIDs, ", ") + ".\n\n" +
 			"When to hand off:\n" +
@@ -440,10 +449,33 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		})
 	}
 
-	content := a.Instruction()
+	if instructions := a.Instruction(); instructions != "" {
+		messages = append(messages, chat.Message{
+			Role:    chat.MessageRoleSystem,
+			Content: instructions,
+		})
+	}
+
+	for _, toolSet := range a.ToolSets() {
+		if toolSet.Instructions() != "" {
+			messages = append(messages, chat.Message{
+				Role:    chat.MessageRoleSystem,
+				Content: toolSet.Instructions(),
+			})
+		}
+	}
+
+	// Cache control checkpoint #1 out of 4
+	// At the end of the system messages that are most likely to be invariant.
+	if len(messages) > 0 {
+		messages[len(messages)-1].CacheControl = true
+	}
 
 	if a.AddDate() {
-		content += "\n\n" + "Today's date: " + time.Now().Format("2006-01-02")
+		messages = append(messages, chat.Message{
+			Role:    chat.MessageRoleSystem,
+			Content: "Today's date: " + time.Now().Format("2006-01-02"),
+		})
 	}
 
 	wd := s.WorkingDir
@@ -456,7 +488,10 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 	}
 	if wd != "" {
 		if a.AddEnvironmentInfo() {
-			content += "\n\n" + getEnvironmentInfo(wd)
+			messages = append(messages, chat.Message{
+				Role:    chat.MessageRoleSystem,
+				Content: getEnvironmentInfo(wd),
+			})
 		}
 
 		for _, prompt := range a.AddPromptFiles() {
@@ -467,29 +502,20 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 			}
 
 			if additionalPrompt != "" {
-				content += "\n\n" + additionalPrompt
+				messages = append(messages, chat.Message{
+					Role:    chat.MessageRoleSystem,
+					Content: additionalPrompt,
+				})
 			}
 		}
 	}
 
 	// Add skills section if enabled
 	if a.SkillsEnabled() {
-		loadedSkills := skills.Load()
-		if len(loadedSkills) > 0 {
-			content += skills.BuildSkillsPrompt(loadedSkills)
-		}
-	}
-
-	messages = append(messages, chat.Message{
-		Role:    chat.MessageRoleSystem,
-		Content: content,
-	})
-
-	for _, tool := range a.ToolSets() {
-		if tool.Instructions() != "" {
+		if loadedSkills := skills.Load(); len(loadedSkills) > 0 {
 			messages = append(messages, chat.Message{
 				Role:    chat.MessageRoleSystem,
-				Content: tool.Instructions(),
+				Content: skills.BuildSkillsPrompt(loadedSkills),
 			})
 		}
 	}
@@ -515,6 +541,13 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		startIndex = 0
 	}
 
+	// Cache control checkpoint #2 out of 4
+	// At the end of all the system messages.
+	if len(messages) > 0 {
+		messages[len(messages)-1].CacheControl = true
+	}
+
+	// Begin adding conversation messages
 	for i := startIndex; i < len(s.Messages); i++ {
 		item := s.Messages[i]
 		if item.IsMessage() {
@@ -523,7 +556,6 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 	}
 
 	maxItems := a.NumHistoryItems()
-
 	if maxItems > 0 {
 		messages = trimMessages(messages, maxItems)
 	}

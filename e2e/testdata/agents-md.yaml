@@ -1,0 +1,8 @@
+agents:
+  root:
+    model: openai/gpt-4o
+    instruction: |
+      You are a knowledgeable assistant that helps users with various tasks.
+      Be helpful, accurate, and concise in your responses.
+    add_prompt_files:
+      - e2e_agents.md

@@ -60,6 +60,12 @@ func TestExec_Anthropic_ToolCall(t *testing.T) {
 	require.Equal(t, "\n--- Agent: root ---\n\nCalling list_directory(path: \"testdata/working_dir\")\n\nlist_directory response → \"FILE README.me\\n\"\n1", out)
 }
 
+func TestExec_Anthropic_AgentsMd(t *testing.T) {
+	out := cagentExec(t, "testdata/agents-md.yaml", "--model=anthropic/claude-sonnet-4-0", "What's 2+2?")
+
+	require.Equal(t, "\n--- Agent: root ---\n2 + 2 = 4", out)
+}
+
 func TestExec_Gemini(t *testing.T) {
 	out := cagentExec(t, "testdata/basic.yaml", "--model=google/gemini-2.5-flash", "What's 2+2?")
 
