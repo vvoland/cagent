@@ -17,10 +17,6 @@ type mockRuntime struct {
 	tools    []tools.Tool
 }
 
-func (m *mockRuntime) CurrentAgentCommands(context.Context) types.Commands {
-	return m.commands
-}
-
 func (m *mockRuntime) CurrentAgentTools(context.Context) ([]tools.Tool, error) {
 	return m.tools, nil
 }

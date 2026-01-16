@@ -101,7 +101,7 @@ func (a *App) Runtime() runtime.Runtime {
 
 // CurrentAgentCommands returns the commands for the active agent
 func (a *App) CurrentAgentCommands(ctx context.Context) types.Commands {
-	return a.runtime.CurrentAgentCommands(ctx)
+	return a.runtime.CurrentAgentInfo(ctx).Commands
 }
 
 // CurrentMCPPrompts returns the available MCP prompts for the active agent

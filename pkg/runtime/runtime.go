@@ -96,8 +96,6 @@ type Runtime interface {
 	CurrentAgentName() string
 	// SetCurrentAgent sets the currently active agent for subsequent user messages
 	SetCurrentAgent(agentName string) error
-	// CurrentAgentCommands returns the commands for the active agent
-	CurrentAgentCommands(ctx context.Context) types.Commands
 	// CurrentAgentTools returns the tools for the active agent
 	CurrentAgentTools(ctx context.Context) ([]tools.Tool, error)
 	// EmitStartupInfo emits initial agent, team, and toolset information for immediate display
