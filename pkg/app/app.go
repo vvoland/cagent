@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
@@ -410,10 +411,8 @@ func (a *App) trackCustomModel(modelRef string) {
 	}
 
 	// Check if already tracked
-	for _, existing := range a.session.CustomModelsUsed {
-		if existing == modelRef {
-			return
-		}
+	if slices.Contains(a.session.CustomModelsUsed, modelRef) {
+		return
 	}
 
 	a.session.CustomModelsUsed = append(a.session.CustomModelsUsed, modelRef)
