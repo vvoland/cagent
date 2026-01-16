@@ -103,6 +103,36 @@ cagent alias add default /full/path/to/the/pirate.yaml
 cagent run                # Runs the pirate.yaml agent
 ```
 
+**Alias Options:**
+
+You can configure aliases with runtime options that are automatically applied when the alias is used:
+
+```bash
+# Create an alias that always runs in yolo mode (auto-approve tool calls)
+cagent alias add yolo-coder agentcatalog/coder --yolo
+
+# Create an alias with a specific model override
+cagent alias add fast-coder agentcatalog/coder --model openai/gpt-4o-mini
+
+# Create an alias with both options
+cagent alias add turbo agentcatalog/coder --yolo --model anthropic/claude-sonnet-4-0
+```
+
+When listing aliases, options are displayed in brackets:
+
+```bash
+$ cagent alias ls
+Registered aliases (3):
+
+  fast-coder  → agentcatalog/coder [model=openai/gpt-4o-mini]
+  turbo       → agentcatalog/coder [yolo, model=anthropic/claude-sonnet-4-0]
+  yolo-coder  → agentcatalog/coder [yolo]
+
+Run an alias with: cagent run <alias>
+```
+
+**Note:** Command-line flags override alias options. For example, `cagent run yolo-coder --yolo=false` will run the alias without yolo mode.
+
 ### Interface-Specific Features
 
 #### File Attachments

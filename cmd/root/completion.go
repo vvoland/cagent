@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/aliases"
 	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/userconfig"
 )
 
 func completeRunExec(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -31,11 +31,11 @@ func completeAlias(toComplete string) ([]string, cobra.ShellCompDirective) {
 	var candidates []string
 
 	// Add matching aliases
-	s, err := aliases.Load()
+	cfg, err := userconfig.Load()
 	if err == nil {
-		for k, v := range s.List() {
+		for k, v := range cfg.Aliases {
 			if strings.HasPrefix(k, toComplete) {
-				candidates = append(candidates, k+"\t"+v)
+				candidates = append(candidates, k+"\t"+v.Path)
 			}
 		}
 	}

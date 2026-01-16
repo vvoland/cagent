@@ -98,6 +98,7 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddCommand(newCatalogCmd())
 	cmd.AddCommand(newBuildCmd())
 	cmd.AddCommand(newAliasCmd())
+	cmd.AddCommand(newConfigCmd())
 
 	// Define groups
 	cmd.AddGroup(&cobra.Group{ID: "core", Title: "Core Commands:"})

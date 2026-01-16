@@ -104,6 +104,18 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 		agentFileName = args[0]
 	}
 
+	// Apply alias options if this is an alias reference
+	// Alias options only apply if the flag wasn't explicitly set by the user
+	if alias := config.ResolveAlias(agentFileName); alias != nil {
+		slog.Debug("Applying alias options", "yolo", alias.Yolo, "model", alias.Model)
+		if alias.Yolo && !f.autoApprove {
+			f.autoApprove = true
+		}
+		if alias.Model != "" && len(f.modelOverrides) == 0 {
+			f.modelOverrides = append(f.modelOverrides, alias.Model)
+		}
+	}
+
 	// Start fake proxy if --fake is specified
 	fakeCleanup, err := setupFakeProxy(f.fakeResponses, &f.runConfig)
 	if err != nil {

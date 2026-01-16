@@ -8,14 +8,16 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/userconfig"
 )
 
 func TestGatewayLogic(t *testing.T) {
 	tests := []struct {
-		name     string
-		env      string
-		args     []string
-		expected string
+		name       string
+		env        string
+		args       []string
+		userConfig *userconfig.Config
+		expected   string
 	}{
 		{
 			name:     "env",
@@ -33,11 +35,50 @@ func TestGatewayLogic(t *testing.T) {
 			args:     []string{"--models-gateway", "https://cli-models.example.com"},
 			expected: "https://cli-models.example.com",
 		},
+		{
+			name:       "user_config",
+			userConfig: &userconfig.Config{ModelsGateway: "https://userconfig-models.example.com"},
+			expected:   "https://userconfig-models.example.com",
+		},
+		{
+			name:       "env_overrides_user_config",
+			env:        "https://env-models.example.com",
+			userConfig: &userconfig.Config{ModelsGateway: "https://userconfig-models.example.com"},
+			expected:   "https://env-models.example.com",
+		},
+		{
+			name:       "cli_overrides_user_config",
+			args:       []string{"--models-gateway", "https://cli-models.example.com"},
+			userConfig: &userconfig.Config{ModelsGateway: "https://userconfig-models.example.com"},
+			expected:   "https://cli-models.example.com",
+		},
+		{
+			name:       "cli_overrides_env_and_user_config",
+			env:        "https://env-models.example.com",
+			args:       []string{"--models-gateway", "https://cli-models.example.com"},
+			userConfig: &userconfig.Config{ModelsGateway: "https://userconfig-models.example.com"},
+			expected:   "https://cli-models.example.com",
+		},
+		{
+			name:       "user_config_with_trailing_slash",
+			userConfig: &userconfig.Config{ModelsGateway: "https://userconfig-models.example.com/"},
+			expected:   "https://userconfig-models.example.com",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("CAGENT_MODELS_GATEWAY", tt.env)
+
+			// Mock user config loader
+			original := loadUserConfig
+			loadUserConfig = func() (*userconfig.Config, error) {
+				if tt.userConfig != nil {
+					return tt.userConfig, nil
+				}
+				return &userconfig.Config{}, nil
+			}
+			t.Cleanup(func() { loadUserConfig = original })
 
 			cmd := &cobra.Command{
 				RunE: func(*cobra.Command, []string) error {
