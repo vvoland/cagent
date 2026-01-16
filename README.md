@@ -107,7 +107,6 @@ export AWS_BEARER_TOKEN_BEDROCK=your_api_key_here    # For AWS Bedrock available
 export XAI_API_KEY=your_api_key_here                 # For xAI models
 export NEBIUS_API_KEY=your_api_key_here              # For Nebius models
 export MISTRAL_API_KEY=your_api_key_here             # For Mistral models
-
 ```
 
 **Note:** For the different AWS Bedrock authentication options, take a look [here](docs/USAGE.md#aws-bedrock-provider-usage).
