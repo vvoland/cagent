@@ -1,4 +1,4 @@
-package mcp
+package provider
 
 import (
 	"encoding/json"
@@ -47,7 +47,7 @@ const schemaJSON = `
     "required": ["repo"]
 }`
 
-func parseFunctionParameters(t *testing.T, schemaJSON string) any {
+func parseFunctionParameters(t *testing.T, schemaJSON string) map[string]any {
 	t.Helper()
 
 	var parameters map[string]any
