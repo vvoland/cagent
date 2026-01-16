@@ -1,4 +1,4 @@
-package mcp
+package provider
 
 import (
 	"encoding/json"
@@ -47,7 +47,7 @@ const schemaJSON = `
     "required": ["repo"]
 }`
 
-func parseFunctionParameters(t *testing.T, schemaJSON string) any {
+func parseFunctionParameters(t *testing.T, schemaJSON string) map[string]any {
 	t.Helper()
 
 	var parameters map[string]any
@@ -193,7 +193,7 @@ func TestEmptyMapSchemaForOpenai(t *testing.T) {
 
 	schemaJSON, err := json.Marshal(schema)
 	require.NoError(t, err)
-	assert.JSONEq(t, `{"type": "object", "properties": {}}`, string(schemaJSON))
+	assert.JSONEq(t, `{"type": "object", "properties": {}, "required": [], "additionalProperties": false}`, string(schemaJSON))
 }
 
 func TestNilSchemaForOpenai(t *testing.T) {
@@ -202,7 +202,7 @@ func TestNilSchemaForOpenai(t *testing.T) {
 
 	schemaJSON, err := json.Marshal(schema)
 	require.NoError(t, err)
-	assert.JSONEq(t, `{"type": "object", "properties": {}}`, string(schemaJSON))
+	assert.JSONEq(t, `{"type": "object", "properties": {}, "required": [], "additionalProperties": false}`, string(schemaJSON))
 }
 
 func TestSchemaForOpenai(t *testing.T) {
@@ -220,20 +220,20 @@ func TestSchemaForOpenai(t *testing.T) {
 		"direction": {
 			"description": "Order",
 			"enum": ["ASC", "DESC"],
-			"type": "string"
+			"type": ["string", "null"]
 		},
 		"labels": {
 			"description": "Filter",
 			"items": {
 				"type": "string"
 			},
-			"type": "array"
+			"type": ["array", "null"]
 		},
 		"perPage": {
 			"description": "Results",
 			"maximum": 100,
 			"minimum": 1,
-			"type": "number"
+			"type": ["number", "null"]
 		},
 		"repo": {
 			"description": "Repository",
@@ -241,7 +241,7 @@ func TestSchemaForOpenai(t *testing.T) {
 		}
 	},
 	"additionalProperties": false,
-	"required": ["repo"]
+	"required": ["direction", "labels", "perPage", "repo"]
 }`, string(schemaJSON))
 }
 

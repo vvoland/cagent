@@ -4,17 +4,24 @@ import (
 	"maps"
 	"slices"
 
+	"github.com/openai/openai-go/v3/shared"
+
 	"github.com/docker/cagent/pkg/tools"
 )
 
 // ConvertParametersToSchema converts parameters to OpenAI Schema format
-func ConvertParametersToSchema(params any) (map[string]any, error) {
-	return tools.SchemaToMap(params)
+func ConvertParametersToSchema(params any) (shared.FunctionParameters, error) {
+	p, err := tools.SchemaToMap(params)
+	if err != nil {
+		return nil, err
+	}
+
+	return fixSchemaArrayItems(makeAllRequired(p)), nil
 }
 
 // makeAllRequired make all the parameters "required"
 // because that's what the Response API wants, now.
-func makeAllRequired(schema map[string]any) map[string]any {
+func makeAllRequired(schema shared.FunctionParameters) shared.FunctionParameters {
 	if schema == nil {
 		return makeAllRequired(map[string]any{"type": "object", "properties": map[string]any{}})
 	}
@@ -57,7 +64,7 @@ func makeAllRequired(schema map[string]any) map[string]any {
 }
 
 // In Docker Desktop 4.52, the MCP Gateway produces an invalid tools shema for `mcp-config-set`.
-func fixSchemaArrayItems(schema map[string]any) map[string]any {
+func fixSchemaArrayItems(schema shared.FunctionParameters) shared.FunctionParameters {
 	propertiesValue, ok := schema["properties"]
 	if !ok {
 		return schema

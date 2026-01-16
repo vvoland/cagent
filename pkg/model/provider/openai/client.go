@@ -230,9 +230,6 @@ func (c *Client) CreateChatCompletionStream(
 				return nil, err
 			}
 
-			// Fix missing item types in arrays
-			parameters = fixSchemaArrayItems(parameters)
-
 			toolsParam[i] = openai.ChatCompletionFunctionTool(shared.FunctionDefinitionParam{
 				Name:        tool.Name,
 				Description: openai.String(tool.Description),
@@ -338,12 +335,6 @@ func (c *Client) CreateResponseStream(
 				slog.Debug("Failed to convert tool parameters to OpenAI schema", "tool_name", tool.Name, "error", err)
 				return nil, err
 			}
-
-			// The Response API requires every parameter to be required
-			parameters = makeAllRequired(parameters)
-
-			// Fix missing item types in arrays
-			parameters = fixSchemaArrayItems(parameters)
 
 			toolsParam[i] = responses.ToolUnionParam{
 				OfFunction: &responses.FunctionToolParam{
