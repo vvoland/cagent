@@ -114,8 +114,8 @@ func TestResolveAgentFile_ReplaceAliasWithActualFile(t *testing.T) {
 
 	cfg, err := userconfig.Load()
 	require.NoError(t, err)
-	require.NoError(t, cfg.SetAlias("other", "another_file.yaml"))
-	require.NoError(t, cfg.SetAlias("alias", aliasedAgentFile))
+	require.NoError(t, cfg.SetAlias("other", &userconfig.Alias{Path: "another_file.yaml"}))
+	require.NoError(t, cfg.SetAlias("alias", &userconfig.Alias{Path: aliasedAgentFile}))
 	require.NoError(t, cfg.Save())
 
 	resolved, err := resolve("alias")
@@ -135,8 +135,8 @@ func TestResolveAgentFile_ReplaceDefaultAliasWithActualFile(t *testing.T) {
 
 	cfg, err := userconfig.Load()
 	require.NoError(t, err)
-	require.NoError(t, cfg.SetAlias("other", "another_file.yaml"))
-	require.NoError(t, cfg.SetAlias("default", aliasedAgentFile))
+	require.NoError(t, cfg.SetAlias("other", &userconfig.Alias{Path: "another_file.yaml"}))
+	require.NoError(t, cfg.SetAlias("default", &userconfig.Alias{Path: aliasedAgentFile}))
 	require.NoError(t, cfg.Save())
 
 	resolved, err := resolve("default")
@@ -156,8 +156,8 @@ func TestResolveAgentFile_ReplaceEmptyAliasWithActualFile(t *testing.T) {
 
 	cfg, err := userconfig.Load()
 	require.NoError(t, err)
-	require.NoError(t, cfg.SetAlias("other", "another_file.yaml"))
-	require.NoError(t, cfg.SetAlias("default", aliasedAgentFile))
+	require.NoError(t, cfg.SetAlias("other", &userconfig.Alias{Path: "another_file.yaml"}))
+	require.NoError(t, cfg.SetAlias("default", &userconfig.Alias{Path: aliasedAgentFile}))
 	require.NoError(t, cfg.Save())
 
 	resolved, err := resolve("")
@@ -293,7 +293,7 @@ func TestResolve_DefaultAliasOverride(t *testing.T) {
 	// Set up alias for "default"
 	cfg, err := userconfig.Load()
 	require.NoError(t, err)
-	require.NoError(t, cfg.SetAlias("default", agentFile))
+	require.NoError(t, cfg.SetAlias("default", &userconfig.Alias{Path: agentFile}))
 	require.NoError(t, cfg.Save())
 
 	// Resolve with "default" should return the aliased file
@@ -314,7 +314,7 @@ func TestResolve_DefaultAliasToOCIReference(t *testing.T) {
 	// Set up alias for "default" pointing to an OCI reference
 	cfg, err := userconfig.Load()
 	require.NoError(t, err)
-	require.NoError(t, cfg.SetAlias("default", "docker/gordon"))
+	require.NoError(t, cfg.SetAlias("default", &userconfig.Alias{Path: "docker/gordon"}))
 	require.NoError(t, cfg.Save())
 
 	// Resolve with "default" should return an OCI source with the aliased reference
@@ -330,7 +330,7 @@ func TestResolveSources_DefaultAliasToOCIReference(t *testing.T) {
 	// Set up alias for "default" pointing to an OCI reference
 	cfg, err := userconfig.Load()
 	require.NoError(t, err)
-	require.NoError(t, cfg.SetAlias("default", "docker/gordon"))
+	require.NoError(t, cfg.SetAlias("default", &userconfig.Alias{Path: "docker/gordon"}))
 	require.NoError(t, cfg.Save())
 
 	// ResolveSources with "default" should return an OCI source with the aliased reference
@@ -359,7 +359,7 @@ func TestResolve_EmptyWithDefaultAliasOverride(t *testing.T) {
 	// Set up alias for "default"
 	cfg, err := userconfig.Load()
 	require.NoError(t, err)
-	require.NoError(t, cfg.SetAlias("default", agentFile))
+	require.NoError(t, cfg.SetAlias("default", &userconfig.Alias{Path: agentFile}))
 	require.NoError(t, cfg.Save())
 
 	// Resolve with empty string should also use the "default" alias
@@ -388,7 +388,7 @@ func TestResolveSources_DefaultAliasOverride(t *testing.T) {
 	// Set up alias for "default"
 	cfg, err := userconfig.Load()
 	require.NoError(t, err)
-	require.NoError(t, cfg.SetAlias("default", agentFile))
+	require.NoError(t, cfg.SetAlias("default", &userconfig.Alias{Path: agentFile}))
 	require.NoError(t, cfg.Save())
 
 	// ResolveSources with "default" should return the aliased file
@@ -421,7 +421,7 @@ func TestResolveSources_EmptyWithDefaultAliasOverride(t *testing.T) {
 	// Set up alias for "default"
 	cfg, err := userconfig.Load()
 	require.NoError(t, err)
-	require.NoError(t, cfg.SetAlias("default", agentFile))
+	require.NoError(t, cfg.SetAlias("default", &userconfig.Alias{Path: agentFile}))
 	require.NoError(t, cfg.Save())
 
 	// ResolveSources with empty string should also use the "default" alias
@@ -437,4 +437,110 @@ func TestResolveSources_EmptyWithDefaultAliasOverride(t *testing.T) {
 	data, err := source.Read(t.Context())
 	require.NoError(t, err)
 	assert.Contains(t, string(data), "Custom agent for sources via empty")
+}
+
+func TestResolveAlias_WithYoloOption(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Set up alias with yolo option
+	cfg, err := userconfig.Load()
+	require.NoError(t, err)
+	require.NoError(t, cfg.SetAlias("yolo-agent", &userconfig.Alias{
+		Path: "agentcatalog/coder",
+		Yolo: true,
+	}))
+	require.NoError(t, cfg.Save())
+
+	// Resolve alias options
+	alias := ResolveAlias("yolo-agent")
+	require.NotNil(t, alias)
+	assert.True(t, alias.Yolo)
+	assert.Empty(t, alias.Model)
+}
+
+func TestResolveAlias_WithModelOption(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Set up alias with model option
+	cfg, err := userconfig.Load()
+	require.NoError(t, err)
+	require.NoError(t, cfg.SetAlias("model-agent", &userconfig.Alias{
+		Path:  "agentcatalog/coder",
+		Model: "openai/gpt-4o-mini",
+	}))
+	require.NoError(t, cfg.Save())
+
+	// Resolve alias options
+	alias := ResolveAlias("model-agent")
+	require.NotNil(t, alias)
+	assert.False(t, alias.Yolo)
+	assert.Equal(t, "openai/gpt-4o-mini", alias.Model)
+}
+
+func TestResolveAlias_WithBothOptions(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Set up alias with both options
+	cfg, err := userconfig.Load()
+	require.NoError(t, err)
+	require.NoError(t, cfg.SetAlias("turbo", &userconfig.Alias{
+		Path:  "agentcatalog/coder",
+		Yolo:  true,
+		Model: "anthropic/claude-sonnet-4-0",
+	}))
+	require.NoError(t, cfg.Save())
+
+	// Resolve alias options
+	alias := ResolveAlias("turbo")
+	require.NotNil(t, alias)
+	assert.True(t, alias.Yolo)
+	assert.Equal(t, "anthropic/claude-sonnet-4-0", alias.Model)
+}
+
+func TestResolveAlias_NoOptions(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Set up alias without options
+	cfg, err := userconfig.Load()
+	require.NoError(t, err)
+	require.NoError(t, cfg.SetAlias("plain", &userconfig.Alias{
+		Path: "agentcatalog/coder",
+	}))
+	require.NoError(t, cfg.Save())
+
+	// Resolve alias options - should return nil since no options set
+	alias := ResolveAlias("plain")
+	assert.Nil(t, alias)
+}
+
+func TestResolveAlias_NotAnAlias(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Resolve non-existent alias
+	alias := ResolveAlias("./some-file.yaml")
+	assert.Nil(t, alias)
+}
+
+func TestResolveAlias_EmptyUsesDefault(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Set up default alias with yolo option
+	cfg, err := userconfig.Load()
+	require.NoError(t, err)
+	require.NoError(t, cfg.SetAlias("default", &userconfig.Alias{
+		Path: "agentcatalog/coder",
+		Yolo: true,
+	}))
+	require.NoError(t, cfg.Save())
+
+	// Empty string should resolve to default alias
+	alias := ResolveAlias("")
+	require.NotNil(t, alias)
+	assert.True(t, alias.Yolo)
 }

@@ -35,8 +35,10 @@ func TestConfigShowCommand_WithAliases(t *testing.T) {
 	configDir := filepath.Join(home, ".config", "cagent")
 	require.NoError(t, os.MkdirAll(configDir, 0o755))
 	configContent := `aliases:
-  code: agentcatalog/coder
-  docs: agentcatalog/docs-writer
+  code:
+    path: agentcatalog/coder
+  docs:
+    path: agentcatalog/docs-writer
 `
 	require.NoError(t, os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte(configContent), 0o644))
 

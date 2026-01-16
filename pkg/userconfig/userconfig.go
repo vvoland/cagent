@@ -18,10 +18,25 @@ import (
 	"github.com/docker/cagent/pkg/paths"
 )
 
+// Alias represents an alias configuration with optional runtime settings
+type Alias struct {
+	// Path is the agent file path or OCI reference
+	Path string `yaml:"path"`
+	// Yolo enables auto-approve mode for all tool calls
+	Yolo bool `yaml:"yolo,omitempty"`
+	// Model overrides the agent's model (format: [agent=]provider/model)
+	Model string `yaml:"model,omitempty"`
+}
+
+// HasOptions returns true if the alias has any runtime options set
+func (a *Alias) HasOptions() bool {
+	return a != nil && (a.Yolo || a.Model != "")
+}
+
 // Config represents the user-level cagent configuration
 type Config struct {
-	// Aliases maps alias names to agent paths or OCI references
-	Aliases map[string]string `yaml:"aliases,omitempty"`
+	// Aliases maps alias names to alias configurations
+	Aliases map[string]*Alias `yaml:"aliases,omitempty"`
 }
 
 // Path returns the path to the config file
@@ -59,7 +74,7 @@ func loadFrom(configPath, legacyPath string) (*Config, error) {
 
 // readConfig reads and parses the config file, returning an empty config if file doesn't exist.
 func readConfig(configPath string) (*Config, error) {
-	config := &Config{Aliases: make(map[string]string)}
+	config := &Config{Aliases: make(map[string]*Alias)}
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
@@ -74,7 +89,7 @@ func readConfig(configPath string) (*Config, error) {
 	}
 
 	if config.Aliases == nil {
-		config.Aliases = make(map[string]string)
+		config.Aliases = make(map[string]*Alias)
 	}
 
 	return config, nil
@@ -104,7 +119,7 @@ func (c *Config) migrateFromLegacy(legacyPath string) bool {
 	}
 
 	for name, path := range legacy {
-		c.Aliases[name] = path
+		c.Aliases[name] = &Alias{Path: path}
 	}
 
 	slog.Info("Migrated aliases from legacy file", "path", legacyPath, "count", len(legacy))
@@ -134,10 +149,10 @@ func (c *Config) saveTo(path string) error {
 	return atomic.WriteFile(path, bytes.NewReader(data))
 }
 
-// GetAlias retrieves the agent path for an alias
-func (c *Config) GetAlias(name string) (string, bool) {
-	path, ok := c.Aliases[name]
-	return path, ok
+// GetAlias retrieves the alias configuration for a given name
+func (c *Config) GetAlias(name string) (*Alias, bool) {
+	alias, ok := c.Aliases[name]
+	return alias, ok
 }
 
 // validAliasNameRegex matches valid alias names: alphanumeric characters, hyphens, and underscores.
@@ -162,14 +177,14 @@ func ValidateAliasName(name string) error {
 
 // SetAlias creates or updates an alias.
 // Returns an error if the alias name is invalid.
-func (c *Config) SetAlias(name, agentPath string) error {
+func (c *Config) SetAlias(name string, alias *Alias) error {
 	if err := ValidateAliasName(name); err != nil {
 		return err
 	}
-	if agentPath == "" {
+	if alias == nil || alias.Path == "" {
 		return errors.New("agent path cannot be empty")
 	}
-	c.Aliases[name] = agentPath
+	c.Aliases[name] = alias
 	return nil
 }
 

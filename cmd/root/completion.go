@@ -35,7 +35,7 @@ func completeAlias(toComplete string) ([]string, cobra.ShellCompDirective) {
 	if err == nil {
 		for k, v := range cfg.Aliases {
 			if strings.HasPrefix(k, toComplete) {
-				candidates = append(candidates, k+"\t"+v)
+				candidates = append(candidates, k+"\t"+v.Path)
 			}
 		}
 	}

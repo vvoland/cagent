@@ -18,6 +18,24 @@ import (
 //go:embed default-agent.yaml
 var defaultAgent []byte
 
+// ResolveAlias resolves an agent reference and returns the alias if it exists and has options.
+// Returns nil if the reference is not an alias or doesn't have options.
+func ResolveAlias(agentFilename string) *userconfig.Alias {
+	agentFilename = cmp.Or(agentFilename, "default")
+
+	cfg, err := userconfig.Load()
+	if err != nil {
+		return nil
+	}
+
+	alias, ok := cfg.GetAlias(agentFilename)
+	if !ok || !alias.HasOptions() {
+		return nil
+	}
+
+	return alias
+}
+
 // ResolveSources resolves an agent file reference (local file, URL, or OCI image) to sources
 // For OCI references, always checks remote for updates but falls back to local cache if offline
 func ResolveSources(agentsPath string) (Sources, error) {
@@ -109,9 +127,9 @@ func resolve(agentFilename string) (string, error) {
 
 	// Try to resolve as an alias first
 	if cfg, err := userconfig.Load(); err == nil {
-		if resolvedPath, ok := cfg.GetAlias(agentFilename); ok {
-			slog.Debug("Resolved alias", "alias", agentFilename, "path", resolvedPath)
-			agentFilename = resolvedPath
+		if alias, ok := cfg.GetAlias(agentFilename); ok {
+			slog.Debug("Resolved alias", "alias", agentFilename, "path", alias.Path)
+			agentFilename = alias.Path
 		}
 	}
 
