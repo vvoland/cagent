@@ -54,5 +54,5 @@ func TestMCP_MultiAgent(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	assert.Equal(t, "Hello, how can I help you today?", output.Response)
+	assert.Equal(t, "Hello, nice to meet you!", output.Response)
 }

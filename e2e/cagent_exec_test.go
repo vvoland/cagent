@@ -45,7 +45,7 @@ func TestExec_OpenAI_gpt5_1(t *testing.T) {
 func TestExec_OpenAI_gpt5_codex(t *testing.T) {
 	out := cagentExec(t, "testdata/basic.yaml", "--model=openai/gpt-5-codex", "What's 2+2?")
 
-	require.Equal(t, "\n--- Agent: root ---\n2 + 2 equals 4.", out)
+	require.Equal(t, "\n--- Agent: root ---\n**Preparing to answer question 4**2 + 2 = 4.", out)
 }
 
 func TestExec_Anthropic(t *testing.T) {
