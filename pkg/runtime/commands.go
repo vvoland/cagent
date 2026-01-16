@@ -33,7 +33,7 @@ func ResolveCommand(ctx context.Context, rt Runtime, userInput string) string {
 	cmd, rest, _ := strings.Cut(userInput, " ")
 	commandName := cmd[1:] // Remove leading "/"
 
-	command, found := rt.CurrentAgentCommands(ctx)[commandName]
+	command, found := rt.CurrentAgentInfo(ctx).Commands[commandName]
 	if !found {
 		return userInput
 	}

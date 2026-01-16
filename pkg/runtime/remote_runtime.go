@@ -13,7 +13,6 @@ import (
 	"github.com/docker/cagent/pkg/api"
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/config/types"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/tools"
@@ -75,16 +74,20 @@ func (r *RemoteRuntime) CurrentAgentName() string {
 	return r.currentAgent
 }
 
+func (r *RemoteRuntime) CurrentAgentInfo(ctx context.Context) CurrentAgentInfo {
+	cfg := r.readCurrentAgentConfig(ctx)
+	return CurrentAgentInfo{
+		Name:        r.currentAgent,
+		Description: cfg.Description,
+		Commands:    cfg.Commands,
+	}
+}
+
 // SetCurrentAgent sets the currently active agent for subsequent user messages
 func (r *RemoteRuntime) SetCurrentAgent(agentName string) error {
 	r.currentAgent = agentName
 	slog.Debug("Switched current agent (remote)", "agent", agentName)
 	return nil
-}
-
-// CurrentAgentCommands returns the commands for the current agent
-func (r *RemoteRuntime) CurrentAgentCommands(ctx context.Context) types.Commands {
-	return r.readCurrentAgentConfig(ctx).Commands
 }
 
 // CurrentAgentTools returns the tools for the current agent.
