@@ -184,3 +184,36 @@ func TestGetMessages_CacheControl(t *testing.T) {
 	assert.Contains(t, messages[1].Content, "Using the Todo Tools")
 	assert.True(t, messages[1].CacheControl)
 }
+
+func TestGetMessages_CacheControlWithSummary(t *testing.T) {
+	// Create agent with invariant, context-specific, and session summary
+	testAgent := agent.New("root", "instructions",
+		agent.WithToolSets(&builtin.TodoTool{}),
+		agent.WithAddDate(true),
+	)
+
+	s := New()
+	s.Messages = append(s.Messages, Item{Summary: "Test summary"})
+	messages := s.GetMessages(testAgent)
+
+	// Should have: instructions, toolset instructions, date, summary
+	// Checkpoint #1: last invariant message (toolset instructions)
+	// Checkpoint #2: last context-specific message (date)
+	// Checkpoint #3: last system message (summary)
+
+	var checkpointIndices []int
+	for i, msg := range messages {
+		if msg.Role == chat.MessageRoleSystem && msg.CacheControl {
+			checkpointIndices = append(checkpointIndices, i)
+		}
+	}
+
+	// Verify we have 2 checkpoints
+	assert.Len(t, checkpointIndices, 2, "should have 2 checkpoints")
+
+	// Verify checkpoint #1 is on toolset instructions
+	assert.Contains(t, messages[checkpointIndices[0]].Content, "Using the Todo Tools", "checkpoint #1 should be on toolset instructions")
+
+	// Verify checkpoint #2 is on date
+	assert.Contains(t, messages[checkpointIndices[1]].Content, "Today's date", "checkpoint #2 should be on date message")
+}

@@ -393,9 +393,19 @@ func New(opts ...Opt) *Session {
 	return s
 }
 
-func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
-	slog.Debug("Getting messages for agent", "agent", a.Name(), "session_id", s.ID)
+func markLastMessageAsCacheControl(messages []chat.Message) {
+	if len(messages) > 0 {
+		messages[len(messages)-1].CacheControl = true
+	}
+}
 
+// buildInvariantSystemMessages builds system messages that are identical
+// for all users of a given agent configuration. These messages can be
+// cached efficiently as they don't change between sessions, users, or projects.
+//
+// These messages are determined solely by the agent configuration and
+// remain constant across different sessions, users, and working directories.
+func buildInvariantSystemMessages(a *agent.Agent) []chat.Message {
 	var messages []chat.Message
 
 	if a.HasSubAgents() {
@@ -465,11 +475,20 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		}
 	}
 
-	// Cache control checkpoint #1 out of 4
-	// At the end of the system messages that are most likely to be invariant.
-	if len(messages) > 0 {
-		messages[len(messages)-1].CacheControl = true
-	}
+	markLastMessageAsCacheControl(messages)
+
+	return messages
+}
+
+// buildContextSpecificSystemMessages builds system messages that vary
+// per user, project, or time. These messages should come after
+// the invariant checkpoint to maintain optimal caching behavior.
+//
+// These messages depend on runtime context (working directory, current date,
+// user-specific skills) and cannot be cached across sessions or users.
+// Note: Session summary is handled separately in buildSessionSummaryMessages.
+func buildContextSpecificSystemMessages(a *agent.Agent, s *Session) []chat.Message {
+	var messages []chat.Message
 
 	if a.AddDate() {
 		messages = append(messages, chat.Message{
@@ -520,6 +539,20 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		}
 	}
 
+	// this is still useful to mark those messages as cachecontrol, so that if a user starts a second prompt for the same project, the first prompt cacheincluding the user specifics can be leveraged
+	markLastMessageAsCacheControl(messages)
+
+	return messages
+}
+
+// buildSessionSummaryMessages builds system messages containing the session summary
+// if one exists. Session summaries are context-specific per session and thus should not have a checkpoint (they will be cached alongside the first user message anyway)
+//
+// lastSummaryIndex is the index of the last summary item in s.Messages, or -1 if none exists.
+func buildSessionSummaryMessages(s *Session) ([]chat.Message, int) {
+	var messages []chat.Message
+	// Find the last summary index to determine where conversation messages start
+	// and to include the summary in session summary messages
 	lastSummaryIndex := -1
 	for i := len(s.Messages) - 1; i >= 0; i-- {
 		if s.Messages[i].Summary != "" {
@@ -528,7 +561,7 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		}
 	}
 
-	if lastSummaryIndex != -1 {
+	if lastSummaryIndex >= 0 && lastSummaryIndex < len(s.Messages) {
 		messages = append(messages, chat.Message{
 			Role:      chat.MessageRoleSystem,
 			Content:   "Session Summary: " + s.Messages[lastSummaryIndex].Summary,
@@ -536,16 +569,27 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		})
 	}
 
-	startIndex := lastSummaryIndex + 1
-	if lastSummaryIndex == -1 {
-		startIndex = 0
-	}
+	return messages, lastSummaryIndex
+}
 
-	// Cache control checkpoint #2 out of 4
-	// At the end of all the system messages.
-	if len(messages) > 0 {
-		messages[len(messages)-1].CacheControl = true
-	}
+func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
+	slog.Debug("Getting messages for agent", "agent", a.Name(), "session_id", s.ID)
+
+	var messages []chat.Message
+
+	// Build invariant system messages (cacheable across sessions/users/projects)
+	invariantMessages := buildInvariantSystemMessages(a)
+	messages = append(messages, invariantMessages...)
+
+	// Build context-specific system messages (vary per user/project/time)
+	contextMessages := buildContextSpecificSystemMessages(a, s)
+	messages = append(messages, contextMessages...)
+
+	// Build session summary messages (vary per session)
+	summaryMessages, lastSummaryIndex := buildSessionSummaryMessages(s)
+	messages = append(messages, summaryMessages...)
+
+	startIndex := lastSummaryIndex + 1
 
 	// Begin adding conversation messages
 	for i := startIndex; i < len(s.Messages); i++ {
