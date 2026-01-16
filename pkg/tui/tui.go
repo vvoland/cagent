@@ -377,18 +377,13 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, dialogCmd
 		}
 
-		var cmds []tea.Cmd
-		var cmd tea.Cmd
-
-		updated, cmd := a.completions.Update(msg)
-		cmds = append(cmds, cmd)
+		updated, cmdCompletions := a.completions.Update(msg)
 		a.completions = updated.(completion.Manager)
 
-		updated, cmd = a.chatPage.Update(msg)
-		cmds = append(cmds, cmd)
+		updated, cmdChatPage := a.chatPage.Update(msg)
 		a.chatPage = updated.(chat.Page)
 
-		return a, tea.Batch(cmds...)
+		return a, tea.Batch(cmdCompletions, cmdChatPage)
 	}
 }
 
