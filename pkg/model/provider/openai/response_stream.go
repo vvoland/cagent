@@ -159,6 +159,43 @@ func (a *ResponseStreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 	case "response.function_call_arguments.done":
 		// Function call arguments are complete - we already streamed them
 		slog.Debug("Function call arguments done", "item_id", event.ItemID, "call_id", a.itemCallIDMap[event.ItemID])
+
+	case "response.reasoning_text.delta":
+		// Handle reasoning text deltas (thinking traces from reasoning models)
+		content := event.Delta
+		if content != "" {
+			slog.Debug("Reasoning text delta received", "item_id", event.ItemID, "delta_length", len(content))
+			response.Choices = []chat.MessageStreamChoice{
+				{
+					Delta: chat.MessageDelta{
+						ReasoningContent: content,
+						Role:             "assistant",
+					},
+				},
+			}
+		}
+	case "response.reasoning_text.done":
+		slog.Debug("Reasoning text done", "item_id", event.ItemID)
+
+	case "response.reasoning_summary_text.delta":
+		// Handle reasoning summary text deltas
+		content := event.Delta
+		if content != "" {
+			slog.Debug("Reasoning summary text delta received", "item_id", event.ItemID, "delta_length", len(content))
+			response.Choices = []chat.MessageStreamChoice{
+				{
+					Delta: chat.MessageDelta{
+						ReasoningContent: content,
+						Role:             "assistant",
+					},
+				},
+			}
+		}
+	case "response.reasoning_summary_text.done":
+		slog.Debug("Reasoning summary text done", "item_id", event.ItemID)
+	case "response.reasoning_summary_part.added", "response.reasoning_summary_part.done":
+		slog.Debug("Reasoning summary part event", "type", event.Type, "item_id", event.ItemID)
+
 	case "response.output_item.done":
 		// Tool call or message item is complete
 		slog.Debug("Output item done", "item_id", event.ItemID, "type", event.Item.Type)
@@ -187,6 +224,7 @@ func (a *ResponseStreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 				InputTokens:       u.InputTokens - u.InputTokensDetails.CachedTokens,
 				OutputTokens:      u.OutputTokens,
 				CachedInputTokens: u.InputTokensDetails.CachedTokens,
+				ReasoningTokens:   u.OutputTokensDetails.ReasoningTokens,
 			}
 		}
 		// Check if there were any tool calls in the output
