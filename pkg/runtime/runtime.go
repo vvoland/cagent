@@ -90,6 +90,8 @@ type ElicitationRequestHandler func(ctx context.Context, message string, schema 
 
 // Runtime defines the contract for runtime execution
 type Runtime interface {
+	// CurrentAgentInfo returns information about the currently active agent
+	CurrentAgentInfo(ctx context.Context) CurrentAgentInfo
 	// CurrentAgentName returns the name of the currently active agent
 	CurrentAgentName() string
 	// SetCurrentAgent sets the currently active agent for subsequent user messages
@@ -116,6 +118,12 @@ type Runtime interface {
 
 	// Summarize generates a summary for the session
 	Summarize(ctx context.Context, sess *session.Session, additionalPrompt string, events chan Event)
+}
+
+type CurrentAgentInfo struct {
+	Name        string
+	Description string
+	Commands    types.Commands
 }
 
 type ModelStore interface {
@@ -370,6 +378,16 @@ func (r *LocalRuntime) InitializeRAG(ctx context.Context, events chan Event) {
 
 func (r *LocalRuntime) CurrentAgentName() string {
 	return r.currentAgent
+}
+
+func (r *LocalRuntime) CurrentAgentInfo(context.Context) CurrentAgentInfo {
+	currentAgent := r.CurrentAgent()
+
+	return CurrentAgentInfo{
+		Name:        currentAgent.Name(),
+		Description: currentAgent.Description(),
+		Commands:    currentAgent.Commands(),
+	}
 }
 
 func (r *LocalRuntime) SetCurrentAgent(agentName string) error {

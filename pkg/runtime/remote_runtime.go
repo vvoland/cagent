@@ -75,6 +75,15 @@ func (r *RemoteRuntime) CurrentAgentName() string {
 	return r.currentAgent
 }
 
+func (r *RemoteRuntime) CurrentAgentInfo(ctx context.Context) CurrentAgentInfo {
+	cfg := r.readCurrentAgentConfig(ctx)
+	return CurrentAgentInfo{
+		Name:        r.currentAgent,
+		Description: cfg.Description,
+		Commands:    cfg.Commands,
+	}
+}
+
 // SetCurrentAgent sets the currently active agent for subsequent user messages
 func (r *RemoteRuntime) SetCurrentAgent(agentName string) error {
 	r.currentAgent = agentName

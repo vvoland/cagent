@@ -25,6 +25,14 @@ func (m *mockRuntime) CurrentAgentTools(context.Context) ([]tools.Tool, error) {
 	return m.tools, nil
 }
 func (m *mockRuntime) CurrentAgentName() string { return "test" }
+func (m *mockRuntime) CurrentAgentInfo(context.Context) CurrentAgentInfo {
+	return CurrentAgentInfo{
+		Name:        "test",
+		Description: "test description",
+		Commands:    m.commands,
+	}
+}
+
 func (m *mockRuntime) SetCurrentAgent(string) error {
 	return nil
 }
