@@ -367,12 +367,56 @@ func convertToolsToGemini(requestTools []tools.Tool) ([]*genai.Tool, error) {
 
 // ConvertParametersToSchema converts parameters to Gemini Schema format
 func ConvertParametersToSchema(params any) (*genai.Schema, error) {
+	m, err := tools.SchemaToMap(params)
+	if err != nil {
+		return nil, err
+	}
+
+	normalizeTypeFields(m)
+
 	var schema *genai.Schema
-	if err := tools.ConvertSchema(params, &schema); err != nil {
+	if err := tools.ConvertSchema(m, &schema); err != nil {
 		return nil, err
 	}
 
 	return schema, nil
+}
+
+// normalizeTypeFields recursively converts type arrays to single string values.
+// JSON Schema allows "type": ["string", "null"] but Gemini expects a single type.
+// This picks the first non-null type from arrays.
+func normalizeTypeFields(m map[string]any) {
+	if typeVal, ok := m["type"]; ok {
+		if typeArr, isArray := typeVal.([]any); isArray {
+			m["type"] = pickNonNullType(typeArr)
+		}
+	}
+
+	if props, ok := m["properties"].(map[string]any); ok {
+		for _, prop := range props {
+			if propMap, ok := prop.(map[string]any); ok {
+				normalizeTypeFields(propMap)
+			}
+		}
+	}
+
+	if items, ok := m["items"].(map[string]any); ok {
+		normalizeTypeFields(items)
+	}
+}
+
+func pickNonNullType(typeArr []any) string {
+	for _, t := range typeArr {
+		if s, ok := t.(string); ok && s != "null" {
+			return s
+		}
+	}
+	if len(typeArr) > 0 {
+		if s, ok := typeArr[0].(string); ok {
+			return s
+		}
+	}
+	return "string"
 }
 
 // CreateChatCompletionStream creates a streaming chat completion request

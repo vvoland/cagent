@@ -33,15 +33,15 @@ func TestToolToJsDoc(t *testing.T) {
  * Where Input follows the following JSON schema:
  * {
  *   "type": "object",
- *   "required": [
- *     "description"
- *   ],
  *   "properties": {
  *     "description": {
  *       "type": "string",
  *       "description": "Description of the todo item"
  *     }
  *   },
+ *   "required": [
+ *     "description"
+ *   ],
  *   "additionalProperties": false
  * }
  *

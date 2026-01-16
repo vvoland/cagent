@@ -62,7 +62,7 @@ func TestCodeModeTool_Tools(t *testing.T) {
 			"description": "The value returned by the script"
 		},
 		"tool_calls": {
-			"type": "array",
+			"type": ["null", "array"],
 			"description": "The list of tool calls made during script execution, only included on failure",
 			"items": {
 				"type": "object",
