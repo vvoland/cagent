@@ -386,3 +386,53 @@ func TestConfig_SetAliasWithOptions(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "openai/gpt-4o", alias.Model)
 }
+
+func TestConfig_ModelsGateway(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+
+	config := &Config{
+		ModelsGateway: "https://models.example.com",
+		Aliases: map[string]*Alias{
+			"test": {Path: "agentcatalog/test-agent"},
+		},
+	}
+
+	require.NoError(t, config.saveTo(configFile))
+
+	loaded, err := loadFrom(configFile, "")
+	require.NoError(t, err)
+
+	assert.Equal(t, "https://models.example.com", loaded.ModelsGateway)
+	assert.Equal(t, "agentcatalog/test-agent", loaded.Aliases["test"].Path)
+}
+
+func TestConfig_ModelsGateway_Empty(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+
+	config, err := loadFrom(configFile, "")
+	require.NoError(t, err)
+
+	assert.Empty(t, config.ModelsGateway)
+}
+
+func TestConfig_ModelsGateway_OnlyGateway(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+
+	// Create config file with only models_gateway
+	require.NoError(t, os.WriteFile(configFile, []byte("models_gateway: https://my-gateway.example.com\n"), 0o644))
+
+	config, err := loadFrom(configFile, "")
+	require.NoError(t, err)
+
+	assert.Equal(t, "https://my-gateway.example.com", config.ModelsGateway)
+	assert.Empty(t, config.Aliases)
+}

@@ -35,6 +35,8 @@ func (a *Alias) HasOptions() bool {
 
 // Config represents the user-level cagent configuration
 type Config struct {
+	// ModelsGateway is the default models gateway URL
+	ModelsGateway string `yaml:"models_gateway,omitempty"`
 	// Aliases maps alias names to alias configurations
 	Aliases map[string]*Alias `yaml:"aliases,omitempty"`
 }

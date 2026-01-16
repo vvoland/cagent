@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/userconfig"
 )
 
 const (
@@ -59,33 +60,33 @@ func logFlagShadowing(envValue, varName, flagName string) {
 	}
 }
 
+// loadUserConfig is the function used to load user configuration.
+// It can be overridden in tests.
+var loadUserConfig = userconfig.Load
+
 func addGatewayFlags(cmd *cobra.Command, runConfig *config.RuntimeConfig) {
 	cmd.PersistentFlags().StringVar(&runConfig.ModelsGateway, flagModelsGateway, "", "Set the models gateway address")
 
 	persistentPreRunE := cmd.PersistentPreRunE
 	cmd.PersistentPreRunE = func(_ *cobra.Command, args []string) error {
+		// Precedence: CLI flag > environment variable > user config
 		if runConfig.ModelsGateway != "" {
-			// CLI flag takes precedence over environment variable
 			logFlagShadowing(os.Getenv(envModelsGateway), envModelsGateway, flagModelsGateway)
 		} else if gateway := os.Getenv(envModelsGateway); gateway != "" {
 			runConfig.ModelsGateway = gateway
+		} else if userCfg, err := loadUserConfig(); err == nil && userCfg.ModelsGateway != "" {
+			runConfig.ModelsGateway = userCfg.ModelsGateway
 		}
 
-		// Ensure the gateway url is canonical.
 		runConfig.ModelsGateway = canonize(runConfig.ModelsGateway)
 
-		// Setup working directory
 		if err := setupWorkingDirectory(runConfig.WorkingDir); err != nil {
 			return err
 		}
 
-		// First call the original persistentPreRunE if it exists (from this command)
 		if persistentPreRunE != nil {
 			return persistentPreRunE(cmd, args)
 		}
-
-		// If this command doesn't have its own persistentPreRunE, check if the parent has one
-		// This ensures parent PersistentPreRunE is called for child commands
 		if cmd.Parent() != nil && cmd.Parent().PersistentPreRunE != nil {
 			return cmd.Parent().PersistentPreRunE(cmd, args)
 		}
