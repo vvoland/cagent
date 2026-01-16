@@ -28,6 +28,50 @@ type Alias struct {
 	TokenEnvVar string // Environment variable name for the API token
 }
 
+// CoreProviders lists all natively implemented provider types.
+// These are the provider types that have direct implementations (not aliases).
+var CoreProviders = []string{
+	"openai",
+	"anthropic",
+	"google",
+	"dmr",
+	"amazon-bedrock",
+}
+
+// CatalogProviders returns the list of provider names that should be shown in the model catalog.
+// This includes core providers and aliases that have a defined BaseURL (self-contained endpoints).
+// Aliases without a BaseURL (like azure) require user configuration and are excluded.
+func CatalogProviders() []string {
+	providers := make([]string, 0, len(CoreProviders)+len(Aliases))
+
+	// Add all core providers
+	providers = append(providers, CoreProviders...)
+
+	// Add aliases that have a defined BaseURL (they work out of the box)
+	for name, alias := range Aliases {
+		if alias.BaseURL != "" {
+			providers = append(providers, name)
+		}
+	}
+
+	return providers
+}
+
+// IsCatalogProvider returns true if the provider name is valid for the model catalog.
+func IsCatalogProvider(name string) bool {
+	// Check core providers
+	for _, p := range CoreProviders {
+		if p == name {
+			return true
+		}
+	}
+	// Check aliases with BaseURL
+	if alias, exists := Aliases[name]; exists && alias.BaseURL != "" {
+		return true
+	}
+	return false
+}
+
 // Aliases maps provider names to their corresponding configurations
 var Aliases = map[string]Alias{
 	"requesty": {
