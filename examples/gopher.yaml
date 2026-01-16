@@ -49,6 +49,9 @@ agents:
        - Be proactive in identifying potential issues
        - Only ask for clarification if necessary, try your best to use all the tools to get the info you need
 
+       **Tools:**
+        - When needed and possible, call multiple tools concurrently. It's faster and cheaper.
+
     add_date: true
     add_environment_info: true
     add_prompt_files:
