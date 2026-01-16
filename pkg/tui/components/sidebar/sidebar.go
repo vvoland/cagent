@@ -373,10 +373,7 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 		}
 
-		if len(cmds) > 0 {
-			return m, tea.Batch(cmds...)
-		}
-		return m, nil
+		return m, tea.Batch(cmds...)
 	}
 }
 
