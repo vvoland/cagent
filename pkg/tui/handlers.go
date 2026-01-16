@@ -123,7 +123,7 @@ func (a *appModel) handleEvalSession(filename string) (tea.Model, tea.Cmd) {
 }
 
 func (a *appModel) handleExportSession(filename string) (tea.Model, tea.Cmd) {
-	exportFile, err := a.application.ExportHTML(filename)
+	exportFile, err := a.application.ExportHTML(context.Background(), filename)
 	if err != nil {
 		return a, notification.ErrorCmd(fmt.Sprintf("Failed to export session: %v", err))
 	}

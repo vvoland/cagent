@@ -654,13 +654,7 @@ func (a *App) mergeEvents(events []tea.Msg) []tea.Msg {
 
 // ExportHTML exports the current session as a standalone HTML file.
 // If filename is empty, a default name based on the session title and timestamp is used.
-func (a *App) ExportHTML(filename string) (string, error) {
-	// Get agent description from the runtime if available
-	var agentDescription string
-	if localRuntime, ok := a.runtime.(*runtime.LocalRuntime); ok {
-		if agent := localRuntime.CurrentAgent(); agent != nil {
-			agentDescription = agent.Description()
-		}
-	}
-	return export.SessionToFile(a.session, agentDescription, filename)
+func (a *App) ExportHTML(ctx context.Context, filename string) (string, error) {
+	agentInfo := a.runtime.CurrentAgentInfo(ctx)
+	return export.SessionToFile(a.session, agentInfo.Description, filename)
 }
