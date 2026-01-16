@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/aliases"
 	"github.com/docker/cagent/pkg/reference"
+	"github.com/docker/cagent/pkg/userconfig"
 )
 
 func TestOciRefToFilename(t *testing.T) {
@@ -112,11 +112,11 @@ func TestResolveAgentFile_ReplaceAliasWithActualFile(t *testing.T) {
 	aliasedAgentFile := filepath.Join(wd, "pirate.yaml")
 	require.NoError(t, os.WriteFile(aliasedAgentFile, []byte(`some config`), 0o644))
 
-	all, err := aliases.Load()
+	cfg, err := userconfig.Load()
 	require.NoError(t, err)
-	all.Set("other", "another_file.yaml")
-	all.Set("alias", aliasedAgentFile)
-	require.NoError(t, all.Save())
+	require.NoError(t, cfg.SetAlias("other", "another_file.yaml"))
+	require.NoError(t, cfg.SetAlias("alias", aliasedAgentFile))
+	require.NoError(t, cfg.Save())
 
 	resolved, err := resolve("alias")
 
@@ -133,11 +133,11 @@ func TestResolveAgentFile_ReplaceDefaultAliasWithActualFile(t *testing.T) {
 	aliasedAgentFile := filepath.Join(wd, "pirate.yaml")
 	require.NoError(t, os.WriteFile(aliasedAgentFile, []byte(`some config`), 0o644))
 
-	all, err := aliases.Load()
+	cfg, err := userconfig.Load()
 	require.NoError(t, err)
-	all.Set("other", "another_file.yaml")
-	all.Set("default", aliasedAgentFile)
-	require.NoError(t, all.Save())
+	require.NoError(t, cfg.SetAlias("other", "another_file.yaml"))
+	require.NoError(t, cfg.SetAlias("default", aliasedAgentFile))
+	require.NoError(t, cfg.Save())
 
 	resolved, err := resolve("default")
 
@@ -154,11 +154,11 @@ func TestResolveAgentFile_ReplaceEmptyAliasWithActualFile(t *testing.T) {
 	aliasedAgentFile := filepath.Join(wd, "pirate.yaml")
 	require.NoError(t, os.WriteFile(aliasedAgentFile, []byte(`some config`), 0o644))
 
-	all, err := aliases.Load()
+	cfg, err := userconfig.Load()
 	require.NoError(t, err)
-	all.Set("other", "another_file.yaml")
-	all.Set("default", aliasedAgentFile)
-	require.NoError(t, all.Save())
+	require.NoError(t, cfg.SetAlias("other", "another_file.yaml"))
+	require.NoError(t, cfg.SetAlias("default", aliasedAgentFile))
+	require.NoError(t, cfg.Save())
 
 	resolved, err := resolve("")
 
@@ -291,10 +291,10 @@ func TestResolve_DefaultAliasOverride(t *testing.T) {
 `), 0o644))
 
 	// Set up alias for "default"
-	all, err := aliases.Load()
+	cfg, err := userconfig.Load()
 	require.NoError(t, err)
-	all.Set("default", agentFile)
-	require.NoError(t, all.Save())
+	require.NoError(t, cfg.SetAlias("default", agentFile))
+	require.NoError(t, cfg.Save())
 
 	// Resolve with "default" should return the aliased file
 	source, err := Resolve("default")
@@ -312,10 +312,10 @@ func TestResolve_DefaultAliasToOCIReference(t *testing.T) {
 	t.Setenv("HOME", home)
 
 	// Set up alias for "default" pointing to an OCI reference
-	all, err := aliases.Load()
+	cfg, err := userconfig.Load()
 	require.NoError(t, err)
-	all.Set("default", "docker/gordon")
-	require.NoError(t, all.Save())
+	require.NoError(t, cfg.SetAlias("default", "docker/gordon"))
+	require.NoError(t, cfg.Save())
 
 	// Resolve with "default" should return an OCI source with the aliased reference
 	source, err := Resolve("default")
@@ -328,10 +328,10 @@ func TestResolveSources_DefaultAliasToOCIReference(t *testing.T) {
 	t.Setenv("HOME", home)
 
 	// Set up alias for "default" pointing to an OCI reference
-	all, err := aliases.Load()
+	cfg, err := userconfig.Load()
 	require.NoError(t, err)
-	all.Set("default", "docker/gordon")
-	require.NoError(t, all.Save())
+	require.NoError(t, cfg.SetAlias("default", "docker/gordon"))
+	require.NoError(t, cfg.Save())
 
 	// ResolveSources with "default" should return an OCI source with the aliased reference
 	sources, err := ResolveSources("default")
@@ -357,10 +357,10 @@ func TestResolve_EmptyWithDefaultAliasOverride(t *testing.T) {
 `), 0o644))
 
 	// Set up alias for "default"
-	all, err := aliases.Load()
+	cfg, err := userconfig.Load()
 	require.NoError(t, err)
-	all.Set("default", agentFile)
-	require.NoError(t, all.Save())
+	require.NoError(t, cfg.SetAlias("default", agentFile))
+	require.NoError(t, cfg.Save())
 
 	// Resolve with empty string should also use the "default" alias
 	source, err := Resolve("")
@@ -386,10 +386,10 @@ func TestResolveSources_DefaultAliasOverride(t *testing.T) {
 `), 0o644))
 
 	// Set up alias for "default"
-	all, err := aliases.Load()
+	cfg, err := userconfig.Load()
 	require.NoError(t, err)
-	all.Set("default", agentFile)
-	require.NoError(t, all.Save())
+	require.NoError(t, cfg.SetAlias("default", agentFile))
+	require.NoError(t, cfg.Save())
 
 	// ResolveSources with "default" should return the aliased file
 	sources, err := ResolveSources("default")
@@ -419,10 +419,10 @@ func TestResolveSources_EmptyWithDefaultAliasOverride(t *testing.T) {
 `), 0o644))
 
 	// Set up alias for "default"
-	all, err := aliases.Load()
+	cfg, err := userconfig.Load()
 	require.NoError(t, err)
-	all.Set("default", agentFile)
-	require.NoError(t, all.Save())
+	require.NoError(t, cfg.SetAlias("default", agentFile))
+	require.NoError(t, cfg.Save())
 
 	// ResolveSources with empty string should also use the "default" alias
 	sources, err := ResolveSources("")

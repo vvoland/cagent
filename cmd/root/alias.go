@@ -9,10 +9,10 @@ import (
 	"github.com/mattn/go-runewidth"
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/aliases"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/telemetry"
+	"github.com/docker/cagent/pkg/userconfig"
 )
 
 func newAliasCmd() *cobra.Command {
@@ -77,10 +77,10 @@ func runAliasAddCommand(cmd *cobra.Command, args []string) error {
 	name := args[0]
 	agentPath := args[1]
 
-	// Load existing aliases
-	s, err := aliases.Load()
+	// Load existing config
+	cfg, err := userconfig.Load()
 	if err != nil {
-		return fmt.Errorf("failed to load aliases: %w", err)
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 
 	// Expand tilde in path if it's a local file path
@@ -90,11 +90,13 @@ func runAliasAddCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	// Store the alias
-	s.Set(name, absAgentPath)
+	if err := cfg.SetAlias(name, absAgentPath); err != nil {
+		return err
+	}
 
 	// Save to file
-	if err := s.Save(); err != nil {
-		return fmt.Errorf("failed to save aliases: %w", err)
+	if err := cfg.Save(); err != nil {
+		return fmt.Errorf("failed to save config: %w", err)
 	}
 
 	out.Printf("Alias '%s' created successfully\n", name)
@@ -115,12 +117,12 @@ func runAliasListCommand(cmd *cobra.Command, args []string) error {
 
 	out := cli.NewPrinter(cmd.OutOrStdout())
 
-	s, err := aliases.Load()
+	cfg, err := userconfig.Load()
 	if err != nil {
-		return fmt.Errorf("failed to load aliases: %w", err)
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	allAliases := s.List()
+	allAliases := cfg.Aliases
 	if len(allAliases) == 0 {
 		out.Println("No aliases registered.")
 		out.Println("\nCreate an alias with: cagent alias add <name> <agent-path>")
@@ -159,17 +161,17 @@ func runAliasRemoveCommand(cmd *cobra.Command, args []string) error {
 	out := cli.NewPrinter(cmd.OutOrStdout())
 	name := args[0]
 
-	s, err := aliases.Load()
+	cfg, err := userconfig.Load()
 	if err != nil {
-		return fmt.Errorf("failed to load aliases: %w", err)
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	if !s.Delete(name) {
+	if !cfg.DeleteAlias(name) {
 		return fmt.Errorf("alias '%s' not found", name)
 	}
 
-	if err := s.Save(); err != nil {
-		return fmt.Errorf("failed to save aliases: %w", err)
+	if err := cfg.Save(); err != nil {
+		return fmt.Errorf("failed to save config: %w", err)
 	}
 
 	out.Printf("Alias '%s' removed successfully\n", name)

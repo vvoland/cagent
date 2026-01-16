@@ -11,8 +11,8 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 
-	"github.com/docker/cagent/pkg/aliases"
 	"github.com/docker/cagent/pkg/reference"
+	"github.com/docker/cagent/pkg/userconfig"
 )
 
 //go:embed default-agent.yaml
@@ -108,8 +108,8 @@ func resolve(agentFilename string) (string, error) {
 	agentFilename = cmp.Or(agentFilename, "default")
 
 	// Try to resolve as an alias first
-	if aliasStore, err := aliases.Load(); err == nil {
-		if resolvedPath, ok := aliasStore.Get(agentFilename); ok {
+	if cfg, err := userconfig.Load(); err == nil {
+		if resolvedPath, ok := cfg.GetAlias(agentFilename); ok {
 			slog.Debug("Resolved alias", "alias", agentFilename, "path", resolvedPath)
 			agentFilename = resolvedPath
 		}
@@ -140,7 +140,7 @@ func fileExists(path string) bool {
 	return exists
 }
 
-// fileExists checks if a file exists at the given path
+// dirExists checks if a directory exists at the given path
 func dirExists(path string) bool {
 	s, err := os.Stat(path)
 	exists := err == nil && s.IsDir()
