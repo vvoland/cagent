@@ -46,6 +46,24 @@ func (p *chatPage) handleRuntimeEvent(msg tea.Msg) (bool, tea.Cmd) {
 
 	case *runtime.TokenUsageEvent:
 		p.sidebar.SetTokenUsage(msg)
+		if msg.Usage != nil {
+			if sess := p.app.Session(); sess != nil {
+				// Update session-level totals
+				sess.InputTokens = msg.Usage.InputTokens
+				sess.OutputTokens = msg.Usage.OutputTokens
+				sess.Cost = msg.Usage.Cost
+
+				// Track per-message usage for /cost dialog
+				if msg.Usage.LastMessage != nil {
+					sess.AddMessageUsageRecord(
+						msg.AgentName,
+						msg.Usage.LastMessage.Model,
+						msg.Usage.LastMessage.Cost,
+						&msg.Usage.LastMessage.Usage,
+					)
+				}
+			}
+		}
 		return true, nil
 
 	case *runtime.SessionCompactionEvent:

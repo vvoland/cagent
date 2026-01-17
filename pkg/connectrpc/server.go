@@ -377,6 +377,20 @@ func toolCallResultToProto(r *tools.ToolCallResult) *cagentv1.ToolCallResult {
 	}
 }
 
+func messageUsageToProto(m *runtime.MessageUsage) *cagentv1.LastMessageUsage {
+	if m == nil {
+		return nil
+	}
+	return &cagentv1.LastMessageUsage{
+		InputTokens:       m.InputTokens,
+		OutputTokens:      m.OutputTokens,
+		CachedInputTokens: m.CachedInputTokens,
+		CacheWriteTokens:  m.CacheWriteTokens,
+		Cost:              m.Cost,
+		Model:             m.Model,
+	}
+}
+
 func runtimeEventToProto(event runtime.Event) *cagentv1.Event {
 	switch e := event.(type) {
 	case *runtime.UserMessageEvent:
@@ -505,6 +519,7 @@ func runtimeEventToProto(event runtime.Event) *cagentv1.Event {
 						ContextLength: e.Usage.ContextLength,
 						ContextLimit:  e.Usage.ContextLimit,
 						Cost:          e.Usage.Cost,
+						LastMessage:   messageUsageToProto(e.Usage.LastMessage),
 					},
 					AgentName: e.AgentName,
 				},

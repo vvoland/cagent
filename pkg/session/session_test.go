@@ -217,3 +217,104 @@ func TestGetMessages_CacheControlWithSummary(t *testing.T) {
 	// Verify checkpoint #2 is on date
 	assert.Contains(t, messages[checkpointIndices[1]].Content, "Today's date", "checkpoint #2 should be on date message")
 }
+
+func TestUpdateLastAssistantMessageUsage(t *testing.T) {
+	testAgent := &agent.Agent{}
+
+	s := New()
+
+	// Add user message
+	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+		Role:    chat.MessageRoleUser,
+		Content: "hello",
+	}))
+
+	// Add assistant message without usage
+	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+		Role:    chat.MessageRoleAssistant,
+		Content: "response",
+	}))
+
+	// Update the last assistant message with usage data
+	usage := &chat.Usage{
+		InputTokens:       100,
+		OutputTokens:      50,
+		CachedInputTokens: 10,
+	}
+	s.UpdateLastAssistantMessageUsage(usage, 0.005, "gpt-4")
+
+	// Verify the update
+	messages := s.GetAllMessages()
+	assert.Len(t, messages, 2)
+
+	lastMsg := messages[1]
+	assert.Equal(t, chat.MessageRoleAssistant, lastMsg.Message.Role)
+	assert.NotNil(t, lastMsg.Message.Usage)
+	assert.Equal(t, int64(100), lastMsg.Message.Usage.InputTokens)
+	assert.Equal(t, int64(50), lastMsg.Message.Usage.OutputTokens)
+	assert.Equal(t, int64(10), lastMsg.Message.Usage.CachedInputTokens)
+	assert.InEpsilon(t, 0.005, lastMsg.Message.Cost, 0.0001)
+	assert.Equal(t, "gpt-4", lastMsg.Message.Model)
+}
+
+func TestUpdateLastAssistantMessageUsage_NoAssistantMessage(t *testing.T) {
+	testAgent := &agent.Agent{}
+
+	s := New()
+
+	// Add only user message
+	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+		Role:    chat.MessageRoleUser,
+		Content: "hello",
+	}))
+
+	// Should not panic when no assistant message exists
+	usage := &chat.Usage{InputTokens: 100}
+	s.UpdateLastAssistantMessageUsage(usage, 0.01, "model")
+
+	// Verify nothing changed
+	messages := s.GetAllMessages()
+	assert.Len(t, messages, 1)
+	assert.Equal(t, chat.MessageRoleUser, messages[0].Message.Role)
+}
+
+func TestUpdateLastAssistantMessageUsage_UpdatesOnlyLast(t *testing.T) {
+	testAgent := &agent.Agent{}
+
+	s := New()
+
+	// Add multiple assistant messages
+	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+		Role:    chat.MessageRoleAssistant,
+		Content: "first response",
+		Usage:   &chat.Usage{InputTokens: 10},
+	}))
+
+	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+		Role:    chat.MessageRoleUser,
+		Content: "follow up",
+	}))
+
+	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+		Role:    chat.MessageRoleAssistant,
+		Content: "second response",
+	}))
+
+	// Update usage - should only affect the last assistant message
+	usage := &chat.Usage{InputTokens: 200}
+	s.UpdateLastAssistantMessageUsage(usage, 0.02, "new-model")
+
+	// Verify only the last assistant message was updated
+	messages := s.GetAllMessages()
+	assert.Len(t, messages, 3)
+
+	// First assistant message should keep original usage
+	assert.NotNil(t, messages[0].Message.Usage)
+	assert.Equal(t, int64(10), messages[0].Message.Usage.InputTokens)
+
+	// Last assistant message should have new usage
+	assert.NotNil(t, messages[2].Message.Usage)
+	assert.Equal(t, int64(200), messages[2].Message.Usage.InputTokens)
+	assert.InEpsilon(t, 0.02, messages[2].Message.Cost, 0.0001)
+	assert.Equal(t, "new-model", messages[2].Message.Model)
+}

@@ -1,6 +1,7 @@
 package dialog
 
 import (
+	"cmp"
 	"fmt"
 	"sort"
 	"strings"
@@ -21,8 +22,8 @@ import (
 // costDialog displays detailed cost breakdown for a session.
 type costDialog struct {
 	BaseDialog
-	keyMap  costDialogKeyMap
 	session *session.Session
+	keyMap  costDialogKeyMap
 	offset  int
 }
 
@@ -30,21 +31,23 @@ type costDialogKeyMap struct {
 	Close, Copy, Up, Down, PageUp, PageDown key.Binding
 }
 
-var defaultCostKeyMap = costDialogKeyMap{
-	Close:    key.NewBinding(key.WithKeys("esc", "enter", "q"), key.WithHelp("Esc", "close")),
-	Copy:     key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "copy")),
-	Up:       key.NewBinding(key.WithKeys("up", "k")),
-	Down:     key.NewBinding(key.WithKeys("down", "j")),
-	PageUp:   key.NewBinding(key.WithKeys("pgup")),
-	PageDown: key.NewBinding(key.WithKeys("pgdown")),
-}
-
-// NewCostDialog creates a new cost dialog from session data.
 func NewCostDialog(sess *session.Session) Dialog {
-	return &costDialog{keyMap: defaultCostKeyMap, session: sess}
+	return &costDialog{
+		session: sess,
+		keyMap: costDialogKeyMap{
+			Close:    key.NewBinding(key.WithKeys("esc", "enter", "q"), key.WithHelp("Esc", "close")),
+			Copy:     key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "copy")),
+			Up:       key.NewBinding(key.WithKeys("up", "k")),
+			Down:     key.NewBinding(key.WithKeys("down", "j")),
+			PageUp:   key.NewBinding(key.WithKeys("pgup")),
+			PageDown: key.NewBinding(key.WithKeys("pgdown")),
+		},
+	}
 }
 
-func (d *costDialog) Init() tea.Cmd { return nil }
+func (d *costDialog) Init() tea.Cmd {
+	return nil
+}
 
 func (d *costDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -103,75 +106,70 @@ func (d *costDialog) View() string {
 	return styles.DialogStyle.Padding(1, 2).Width(dialogWidth).Render(content)
 }
 
-// usageInfo holds token usage and cost for a model or message.
-type usageInfo struct {
-	label            string
-	cost             float64
-	inputTokens      int64
-	outputTokens     int64
-	cachedTokens     int64
-	cacheWriteTokens int64
+type totalUsage struct {
+	chat.Usage
+	label string
+	cost  float64
 }
 
-func (u *usageInfo) totalInput() int64 {
-	return u.inputTokens + u.cachedTokens + u.cacheWriteTokens
+func (u *totalUsage) add(cost float64, usage *chat.Usage) {
+	u.cost += cost
+	u.InputTokens += usage.InputTokens
+	u.OutputTokens += usage.OutputTokens
+	u.CachedInputTokens += usage.CachedInputTokens
+	u.CacheWriteTokens += usage.CacheWriteTokens
+}
+
+func (u *totalUsage) totalInput() int64 {
+	return u.InputTokens + u.CachedInputTokens + u.CacheWriteTokens
 }
 
 // costData holds aggregated cost data for display.
 type costData struct {
-	total             usageInfo
-	models            []usageInfo
-	messages          []usageInfo
+	total             totalUsage
+	models            []totalUsage
+	messages          []totalUsage
 	hasPerMessageData bool
 }
 
 func (d *costDialog) gatherCostData() costData {
 	var data costData
-	modelMap := make(map[string]*usageInfo)
+	modelMap := make(map[string]*totalUsage)
 
-	for _, msg := range d.session.GetAllMessages() {
-		if msg.Message.Role != chat.MessageRoleAssistant || msg.Message.Usage == nil {
-			continue
-		}
+	// Helper to add a usage record to the aggregated data
+	addRecord := func(agentName, model string, cost float64, usage *chat.Usage) {
 		data.hasPerMessageData = true
+		data.total.add(cost, usage)
 
-		usage := msg.Message.Usage
-		model := msg.Message.Model
-		if model == "" {
-			model = "unknown"
-		}
-
-		// Update totals
-		data.total.cost += msg.Message.Cost
-		data.total.inputTokens += usage.InputTokens
-		data.total.outputTokens += usage.OutputTokens
-		data.total.cachedTokens += usage.CachedInputTokens
-		data.total.cacheWriteTokens += usage.CacheWriteTokens
-
-		// Update per-model
+		// Per-model usage
+		model = cmp.Or(model, "unknown")
 		if modelMap[model] == nil {
-			modelMap[model] = &usageInfo{label: model}
+			modelMap[model] = &totalUsage{label: model}
 		}
-		m := modelMap[model]
-		m.cost += msg.Message.Cost
-		m.inputTokens += usage.InputTokens
-		m.outputTokens += usage.OutputTokens
-		m.cachedTokens += usage.CachedInputTokens
-		m.cacheWriteTokens += usage.CacheWriteTokens
+		modelMap[model].add(cost, usage)
 
-		// Track per-message
+		// Per-message usage
 		msgLabel := fmt.Sprintf("#%d", len(data.messages)+1)
-		if msg.AgentName != "" {
-			msgLabel = fmt.Sprintf("#%d [%s]", len(data.messages)+1, msg.AgentName)
+		if agentName != "" {
+			msgLabel = fmt.Sprintf("#%d [%s]", len(data.messages)+1, agentName)
 		}
-		data.messages = append(data.messages, usageInfo{
-			label:            msgLabel,
-			cost:             msg.Message.Cost,
-			inputTokens:      usage.InputTokens,
-			outputTokens:     usage.OutputTokens,
-			cachedTokens:     usage.CachedInputTokens,
-			cacheWriteTokens: usage.CacheWriteTokens,
+		data.messages = append(data.messages, totalUsage{
+			label: msgLabel,
+			cost:  cost,
+			Usage: *usage,
 		})
+	}
+
+	// Try session messages first (local mode), then MessageUsageHistory (remote mode)
+	for _, msg := range d.session.GetAllMessages() {
+		if msg.Message.Usage != nil {
+			addRecord(msg.AgentName, msg.Message.Model, msg.Message.Cost, msg.Message.Usage)
+		}
+	}
+	if !data.hasPerMessageData {
+		for _, record := range d.session.MessageUsageHistory {
+			addRecord(record.AgentName, record.Model, record.Cost, &record.Usage)
+		}
 	}
 
 	// Convert model map to sorted slice (by cost descending)
@@ -182,12 +180,14 @@ func (d *costDialog) gatherCostData() costData {
 		return data.models[i].cost > data.models[j].cost
 	})
 
-	// Fall back to session-level totals if no per-message data
+	// Fall back to session-level totals if no per-message data (e.g., past sessions)
 	if !data.hasPerMessageData {
-		data.total = usageInfo{
-			cost:         d.session.Cost,
-			inputTokens:  d.session.InputTokens,
-			outputTokens: d.session.OutputTokens,
+		data.total = totalUsage{
+			cost: d.session.Cost,
+			Usage: chat.Usage{
+				InputTokens:  d.session.InputTokens,
+				OutputTokens: d.session.OutputTokens,
+			},
 		}
 	}
 
@@ -206,7 +206,7 @@ func (d *costDialog) renderContent(contentWidth, maxHeight int) string {
 		"",
 		accentStyle.Render(formatCost(data.total.cost)),
 		d.renderInputLine(data.total, true),
-		fmt.Sprintf("%s %s", labelStyle.Render("output:"), valueStyle.Render(formatTokenCount(data.total.outputTokens))),
+		fmt.Sprintf("%s %s", labelStyle.Render("output:"), valueStyle.Render(formatTokenCount(data.total.OutputTokens))),
 		"",
 	}
 
@@ -234,24 +234,24 @@ func (d *costDialog) renderContent(contentWidth, maxHeight int) string {
 	return d.applyScrolling(lines, contentWidth, maxHeight)
 }
 
-func (d *costDialog) renderInputLine(u usageInfo, showBreakdown bool) string {
+func (d *costDialog) renderInputLine(u totalUsage, showBreakdown bool) string {
 	line := fmt.Sprintf("%s %s", labelStyle.Render("input:"), valueStyle.Render(formatTokenCount(u.totalInput())))
-	if showBreakdown && (u.cachedTokens > 0 || u.cacheWriteTokens > 0) {
+	if showBreakdown && (u.CachedInputTokens > 0 || u.CacheWriteTokens > 0) {
 		line += valueStyle.Render(fmt.Sprintf(" (%s new + %s cached + %s cache write)",
-			formatTokenCount(u.inputTokens),
-			formatTokenCount(u.cachedTokens),
-			formatTokenCount(u.cacheWriteTokens)))
+			formatTokenCount(u.InputTokens),
+			formatTokenCount(u.CachedInputTokens),
+			formatTokenCount(u.CacheWriteTokens)))
 	}
 	return line
 }
 
-func (d *costDialog) renderUsageLine(u usageInfo) string {
+func (d *costDialog) renderUsageLine(u totalUsage) string {
 	return fmt.Sprintf("%s  %s %s  %s %s  %s",
 		accentStyle.Render(padRight(formatCostPadded(u.cost))),
 		labelStyle.Render("input:"),
 		valueStyle.Render(padRight(formatTokenCount(u.totalInput()))),
 		labelStyle.Render("output:"),
-		valueStyle.Render(padRight(formatTokenCount(u.outputTokens))),
+		valueStyle.Render(padRight(formatTokenCount(u.OutputTokens))),
 		accentStyle.Render(u.label))
 }
 
@@ -293,21 +293,21 @@ func (d *costDialog) renderPlainText() string {
 
 	// Build input line with optional breakdown
 	inputLine := fmt.Sprintf("input: %s", formatTokenCount(data.total.totalInput()))
-	if data.total.cachedTokens > 0 || data.total.cacheWriteTokens > 0 {
+	if data.total.CachedInputTokens > 0 || data.total.CacheWriteTokens > 0 {
 		inputLine += fmt.Sprintf(" (%s new + %s cached + %s cache write)",
-			formatTokenCount(data.total.inputTokens),
-			formatTokenCount(data.total.cachedTokens),
-			formatTokenCount(data.total.cacheWriteTokens))
+			formatTokenCount(data.total.InputTokens),
+			formatTokenCount(data.total.CachedInputTokens),
+			formatTokenCount(data.total.CacheWriteTokens))
 	}
 
 	lines = append(lines, "Session Cost Details", "", "Total", formatCost(data.total.cost),
-		inputLine, fmt.Sprintf("output: %s", formatTokenCount(data.total.outputTokens)), "")
+		inputLine, fmt.Sprintf("output: %s", formatTokenCount(data.total.OutputTokens)), "")
 
 	if len(data.models) > 0 {
 		lines = append(lines, "By Model")
 		for _, m := range data.models {
 			lines = append(lines, fmt.Sprintf("%-8s  input: %-8s  output: %-8s  %s",
-				formatCostPadded(m.cost), formatTokenCount(m.totalInput()), formatTokenCount(m.outputTokens), m.label))
+				formatCostPadded(m.cost), formatTokenCount(m.totalInput()), formatTokenCount(m.OutputTokens), m.label))
 		}
 		lines = append(lines, "")
 	}
@@ -316,7 +316,7 @@ func (d *costDialog) renderPlainText() string {
 		lines = append(lines, "By Message")
 		for _, m := range data.messages {
 			lines = append(lines, fmt.Sprintf("%-8s  input: %-8s  output: %-8s  %s",
-				formatCostPadded(m.cost), formatTokenCount(m.totalInput()), formatTokenCount(m.outputTokens), m.label))
+				formatCostPadded(m.cost), formatTokenCount(m.totalInput()), formatTokenCount(m.OutputTokens), m.label))
 		}
 	}
 

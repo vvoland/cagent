@@ -219,7 +219,10 @@ func TestSimple(t *testing.T) {
 		UserMessage("Hi"),
 		StreamStarted(sess.ID, "root"),
 		AgentChoice("root", "Hello"),
-		TokenUsage(sess.ID, "root", 3, 2, 5, 0, 0),
+		TokenUsageWithMessage(sess.ID, "root", 3, 2, 5, 0, 0, &MessageUsage{
+			Usage: chat.Usage{InputTokens: 3, OutputTokens: 2},
+			Model: "test/mock-model",
+		}),
 		StreamStopped(sess.ID, "root"),
 	}
 
@@ -251,7 +254,10 @@ func TestMultipleContentChunks(t *testing.T) {
 		AgentChoice("root", "how "),
 		AgentChoice("root", "are "),
 		AgentChoice("root", "you?"),
-		TokenUsage(sess.ID, "root", 8, 12, 20, 0, 0),
+		TokenUsageWithMessage(sess.ID, "root", 8, 12, 20, 0, 0, &MessageUsage{
+			Usage: chat.Usage{InputTokens: 8, OutputTokens: 12},
+			Model: "test/mock-model",
+		}),
 		StreamStopped(sess.ID, "root"),
 	}
 
@@ -279,7 +285,10 @@ func TestWithReasoning(t *testing.T) {
 		AgentChoiceReasoning("root", "Let me think about this..."),
 		AgentChoiceReasoning("root", " I should respond politely."),
 		AgentChoice("root", "Hello, how can I help you?"),
-		TokenUsage(sess.ID, "root", 10, 15, 25, 0, 0),
+		TokenUsageWithMessage(sess.ID, "root", 10, 15, 25, 0, 0, &MessageUsage{
+			Usage: chat.Usage{InputTokens: 10, OutputTokens: 15},
+			Model: "test/mock-model",
+		}),
 		StreamStopped(sess.ID, "root"),
 	}
 
@@ -309,7 +318,10 @@ func TestMixedContentAndReasoning(t *testing.T) {
 		AgentChoice("root", "Hello!"),
 		AgentChoiceReasoning("root", " I should be friendly"),
 		AgentChoice("root", " How can I help you today?"),
-		TokenUsage(sess.ID, "root", 15, 20, 35, 0, 0),
+		TokenUsageWithMessage(sess.ID, "root", 15, 20, 35, 0, 0, &MessageUsage{
+			Usage: chat.Usage{InputTokens: 15, OutputTokens: 20},
+			Model: "test/mock-model",
+		}),
 		StreamStopped(sess.ID, "root"),
 	}
 

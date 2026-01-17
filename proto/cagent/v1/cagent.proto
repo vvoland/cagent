@@ -339,6 +339,16 @@ message TokenUsageEvent {
   string agent_name = 3;
 }
 
+// LastMessageUsage contains per-message usage data for the last message.
+message LastMessageUsage {
+  int64 input_tokens = 1;
+  int64 output_tokens = 2;
+  int64 cached_input_tokens = 3;
+  int64 cache_write_tokens = 4;
+  double cost = 5;
+  string model = 6;
+}
+
 // Usage contains token usage details.
 message Usage {
   int64 input_tokens = 1;
@@ -346,6 +356,7 @@ message Usage {
   int64 context_length = 3;
   int64 context_limit = 4;
   double cost = 5;
+  LastMessageUsage last_message = 6;
 }
 
 // SessionTitleEvent is sent when the session title is generated.

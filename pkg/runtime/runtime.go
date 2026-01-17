@@ -811,6 +811,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 
 			// Add assistant message to conversation history, but skip empty assistant messages
 			// Providers reject assistant messages that have neither content nor tool calls.
+			var msgUsage *MessageUsage
 			if strings.TrimSpace(res.Content) != "" || len(res.Calls) > 0 {
 				// Build tool definitions for the tool calls
 				var toolDefs []tools.Tool
@@ -855,6 +856,15 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 					Cost:              messageCost,
 				}
 
+				// Build per-message usage for the event
+				if res.Usage != nil {
+					msgUsage = &MessageUsage{
+						Usage: *res.Usage,
+						Cost:  messageCost,
+						Model: messageModel,
+					}
+				}
+
 				sess.AddMessage(session.NewAgentMessage(a, &assistantMessage))
 				r.saveSession(ctx, sess)
 				slog.Debug("Added assistant message to session", "agent", a.Name(), "total_messages", len(sess.GetAllMessages()))
@@ -862,7 +872,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				slog.Debug("Skipping empty assistant message (no content and no tool calls)", "agent", a.Name())
 			}
 
-			events <- TokenUsage(sess.ID, r.currentAgent, sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.Cost)
+			events <- TokenUsageWithMessage(sess.ID, r.currentAgent, sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.Cost, msgUsage)
 
 			r.processToolCalls(ctx, sess, res.Calls, agentTools, events)
 
