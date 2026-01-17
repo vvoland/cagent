@@ -23,6 +23,7 @@ type Provider struct {
 type Model struct {
 	ID          string     `json:"id"`
 	Name        string     `json:"name"`
+	Family      string     `json:"family,omitempty"`
 	Attachment  bool       `json:"attachment"`
 	Reasoning   bool       `json:"reasoning"`
 	Temperature bool       `json:"temperature"`

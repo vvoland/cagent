@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
@@ -11,6 +12,8 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/runtime"
+	"github.com/docker/cagent/pkg/tui/components/scrollbar"
+	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
 	"github.com/docker/cagent/pkg/tui/messages"
@@ -29,13 +32,18 @@ var SupportedProviders = []string{
 // modelPickerDialog is a dialog for selecting a model for the current agent.
 type modelPickerDialog struct {
 	BaseDialog
-	textInput textinput.Model
-	models    []runtime.ModelChoice
-	filtered  []runtime.ModelChoice
-	selected  int
-	offset    int
-	keyMap    commandPaletteKeyMap
-	errMsg    string // validation error message
+	textInput        textinput.Model
+	models           []runtime.ModelChoice
+	filtered         []runtime.ModelChoice
+	selected         int
+	keyMap           commandPaletteKeyMap
+	errMsg           string // validation error message
+	scrollbar        *scrollbar.Model
+	needsScrollToSel bool // true when keyboard nav requires scrolling to selection
+
+	// Double-click detection
+	lastClickTime  time.Time
+	lastClickIndex int
 }
 
 // NewModelPickerDialog creates a new model picker dialog.
@@ -46,21 +54,33 @@ func NewModelPickerDialog(models []runtime.ModelChoice) Dialog {
 	ti.CharLimit = 100
 	ti.SetWidth(50)
 
-	// Sort models: default first, then config models alphabetically, then custom models
+	// Sort models: config first, then catalog, then custom. Within each section: current first, then default, then alphabetically
 	sortedModels := make([]runtime.ModelChoice, len(models))
 	copy(sortedModels, models)
 	sort.Slice(sortedModels, func(i, j int) bool {
-		// Custom models always come last
-		if sortedModels[i].IsCustom != sortedModels[j].IsCustom {
-			return !sortedModels[i].IsCustom
+		// Get section priority: config (0) < catalog (1) < custom (2)
+		getPriority := func(m runtime.ModelChoice) int {
+			if m.IsCustom {
+				return 2
+			}
+			if m.IsCatalog {
+				return 1
+			}
+			return 0
 		}
-		// Within each group: default first, then alphabetically
-		if sortedModels[i].IsDefault {
-			return true
+		pi, pj := getPriority(sortedModels[i]), getPriority(sortedModels[j])
+		if pi != pj {
+			return pi < pj
 		}
-		if sortedModels[j].IsDefault {
-			return false
+		// Within each section: current model first
+		if sortedModels[i].IsCurrent != sortedModels[j].IsCurrent {
+			return sortedModels[i].IsCurrent
 		}
+		// Then default model
+		if sortedModels[i].IsDefault != sortedModels[j].IsDefault {
+			return sortedModels[i].IsDefault
+		}
+		// Then alphabetically by name
 		return sortedModels[i].Name < sortedModels[j].Name
 	})
 
@@ -68,6 +88,7 @@ func NewModelPickerDialog(models []runtime.ModelChoice) Dialog {
 		textInput: ti,
 		models:    sortedModels,
 		keyMap:    defaultCommandPaletteKeyMap(),
+		scrollbar: scrollbar.New(),
 	}
 	d.filterModels()
 	return d
@@ -83,6 +104,18 @@ func (d *modelPickerDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		cmd := d.SetSize(msg.Width, msg.Height)
 		return d, cmd
 
+	case tea.MouseClickMsg:
+		return d.handleMouseClick(msg)
+
+	case tea.MouseMotionMsg:
+		return d.handleMouseMotion(msg)
+
+	case tea.MouseReleaseMsg:
+		return d.handleMouseRelease(msg)
+
+	case tea.MouseWheelMsg:
+		return d.handleMouseWheel(msg)
+
 	case tea.KeyPressMsg:
 		if cmd := HandleQuit(msg); cmd != nil {
 			return d, cmd
@@ -95,12 +128,14 @@ func (d *modelPickerDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		case key.Matches(msg, d.keyMap.Up):
 			if d.selected > 0 {
 				d.selected--
+				d.needsScrollToSel = true
 			}
 			return d, nil
 
 		case key.Matches(msg, d.keyMap.Down):
 			if d.selected < len(d.filtered)-1 {
 				d.selected++
+				d.needsScrollToSel = true
 			}
 			return d, nil
 
@@ -109,6 +144,7 @@ func (d *modelPickerDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			if d.selected < 0 {
 				d.selected = 0
 			}
+			d.needsScrollToSel = true
 			return d, nil
 
 		case key.Matches(msg, d.keyMap.PageDown):
@@ -116,6 +152,7 @@ func (d *modelPickerDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			if d.selected >= len(d.filtered) {
 				d.selected = max(0, len(d.filtered)-1)
 			}
+			d.needsScrollToSel = true
 			return d, nil
 
 		case key.Matches(msg, d.keyMap.Enter):
@@ -132,6 +169,190 @@ func (d *modelPickerDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	}
 
 	return d, nil
+}
+
+// doubleClickThreshold is the maximum time between clicks to count as a double-click
+const doubleClickThreshold = 400 * time.Millisecond
+
+// handleMouseClick handles mouse click events on the dialog
+func (d *modelPickerDialog) handleMouseClick(msg tea.MouseClickMsg) (layout.Model, tea.Cmd) {
+	// Check if click is on the scrollbar
+	if d.isMouseOnScrollbar(msg.X, msg.Y) {
+		sb, cmd := d.scrollbar.Update(msg)
+		d.scrollbar = sb
+		return d, cmd
+	}
+
+	// Check if click is on a model in the list
+	if msg.Button == tea.MouseLeft {
+		if modelIdx := d.mouseYToModelIndex(msg.Y); modelIdx >= 0 {
+			now := time.Now()
+
+			// Check for double-click: same index within threshold
+			if modelIdx == d.lastClickIndex && now.Sub(d.lastClickTime) < doubleClickThreshold {
+				// Double-click: confirm selection
+				d.selected = modelIdx
+				d.lastClickTime = time.Time{} // Reset to prevent triple-click
+				cmd := d.handleSelection()
+				return d, cmd
+			}
+
+			// Single click: just highlight
+			d.selected = modelIdx
+			d.lastClickTime = now
+			d.lastClickIndex = modelIdx
+		}
+	}
+	return d, nil
+}
+
+// handleMouseMotion handles mouse drag events (for scrollbar dragging)
+func (d *modelPickerDialog) handleMouseMotion(msg tea.MouseMotionMsg) (layout.Model, tea.Cmd) {
+	if d.scrollbar.IsDragging() {
+		sb, cmd := d.scrollbar.Update(msg)
+		d.scrollbar = sb
+		return d, cmd
+	}
+	// Hover highlighting disabled for now
+	return d, nil
+}
+
+// handleMouseRelease handles mouse button release events
+func (d *modelPickerDialog) handleMouseRelease(msg tea.MouseReleaseMsg) (layout.Model, tea.Cmd) {
+	if d.scrollbar.IsDragging() {
+		sb, cmd := d.scrollbar.Update(msg)
+		d.scrollbar = sb
+		return d, cmd
+	}
+	return d, nil
+}
+
+// handleMouseWheel handles mouse wheel scrolling inside the dialog
+func (d *modelPickerDialog) handleMouseWheel(msg tea.MouseWheelMsg) (layout.Model, tea.Cmd) {
+	// Only scroll if mouse is inside the dialog
+	if !d.isMouseInDialog(msg.X, msg.Y) {
+		return d, nil
+	}
+
+	buttonStr := msg.Button.String()
+	switch buttonStr {
+	case "wheelup":
+		d.scrollbar.ScrollUp()
+		d.scrollbar.ScrollUp() // Scroll 2 lines at a time
+	case "wheeldown":
+		d.scrollbar.ScrollDown()
+		d.scrollbar.ScrollDown() // Scroll 2 lines at a time
+	}
+	return d, nil
+}
+
+// isMouseInDialog checks if the mouse position is inside the dialog bounds
+func (d *modelPickerDialog) isMouseInDialog(x, y int) bool {
+	dialogRow, dialogCol := d.Position()
+	dialogWidth, maxHeight, _ := d.dialogSize()
+
+	return x >= dialogCol && x < dialogCol+dialogWidth &&
+		y >= dialogRow && y < dialogRow+maxHeight
+}
+
+// isMouseOnScrollbar checks if the mouse position is on the scrollbar
+// by delegating to the scrollbar component which knows its own position
+func (d *modelPickerDialog) isMouseOnScrollbar(x, y int) bool {
+	// The scrollbar's position is set in View() via SetPosition()
+	// We check if the scrollbar would be visible (has content to scroll)
+	dialogWidth, maxHeight, _ := d.dialogSize()
+	maxItems := maxHeight - pickerListVerticalOverhead
+
+	if len(d.filtered) <= maxItems {
+		return false // No scrollbar when content fits
+	}
+
+	// Use a simple bounds check based on scrollbar position set in View()
+	dialogRow, dialogCol := d.Position()
+	scrollbarX := dialogCol + dialogWidth - pickerScrollbarXInset - scrollbar.Width
+	scrollbarY := dialogRow + pickerScrollbarYOffset
+
+	return x >= scrollbarX && x < scrollbarX+scrollbar.Width &&
+		y >= scrollbarY && y < scrollbarY+maxItems
+}
+
+// mouseYToModelIndex converts a mouse Y position to a model index.
+// Returns -1 if the position is not on a model (e.g., on a separator or outside the list).
+func (d *modelPickerDialog) mouseYToModelIndex(y int) int {
+	dialogRow, _ := d.Position()
+	_, maxHeight, _ := d.dialogSize()
+	maxItems := maxHeight - pickerListVerticalOverhead
+
+	listStartY := dialogRow + pickerListStartOffset
+	listEndY := listStartY + maxItems
+
+	// Check if Y is within the model list area
+	if y < listStartY || y >= listEndY {
+		return -1
+	}
+
+	// Calculate which line in the visible area was clicked
+	lineInView := y - listStartY
+	scrollOffset := d.scrollbar.GetScrollOffset()
+
+	// Calculate the actual line index in allModelLines
+	actualLine := scrollOffset + lineInView
+
+	// Now we need to map the line back to a model index, accounting for separators
+	return d.lineToModelIndex(actualLine)
+}
+
+// lineToModelIndex converts a line index (in allModelLines) to a model index.
+// Returns -1 if the line is a separator.
+func (d *modelPickerDialog) lineToModelIndex(lineIdx int) int {
+	// Pre-compute model type flags (same logic as View)
+	hasConfigModels := false
+	hasCatalogModels := false
+	for _, m := range d.filtered {
+		switch {
+		case m.IsCustom:
+			// Custom models don't affect separator logic for config/catalog
+		case m.IsCatalog:
+			hasCatalogModels = true
+		default:
+			hasConfigModels = true
+		}
+	}
+
+	// Walk through the models, counting lines including separators
+	currentLine := 0
+	catalogSeparatorShown := false
+	customSeparatorShown := false
+
+	for i, model := range d.filtered {
+		// Check if separator would be added before this model
+		if model.IsCatalog && !catalogSeparatorShown && !model.IsCustom {
+			if hasConfigModels {
+				if currentLine == lineIdx {
+					return -1 // Clicked on separator
+				}
+				currentLine++
+			}
+			catalogSeparatorShown = true
+		}
+
+		if model.IsCustom && !customSeparatorShown {
+			if hasConfigModels || hasCatalogModels {
+				if currentLine == lineIdx {
+					return -1 // Clicked on separator
+				}
+				currentLine++
+			}
+			customSeparatorShown = true
+		}
+
+		if currentLine == lineIdx {
+			return i // Found the model at this line
+		}
+		currentLine++
+	}
+
+	return -1 // Line index out of range
 }
 
 func (d *modelPickerDialog) handleSelection() tea.Cmd {
@@ -247,13 +468,55 @@ func (d *modelPickerDialog) filterModels() {
 	if d.selected >= len(d.filtered) {
 		d.selected = max(0, len(d.filtered)-1)
 	}
-	d.offset = 0
+	// Reset scrollbar when filtering
+	d.scrollbar.SetScrollOffset(0)
 }
 
+// Model picker dialog dimension constants
+const (
+	// pickerWidthPercent is the percentage of screen width to use for the dialog
+	pickerWidthPercent = 80
+	// pickerMinWidth is the minimum width of the dialog
+	pickerMinWidth = 50
+	// pickerMaxWidth is the maximum width of the dialog
+	pickerMaxWidth = 100
+	// pickerHeightPercent is the percentage of screen height to use for the dialog
+	pickerHeightPercent = 70
+	// pickerMaxHeight is the maximum height of the dialog
+	pickerMaxHeight = 150
+
+	// pickerDialogPadding is the horizontal padding inside the dialog border (2 on each side + border)
+	pickerDialogPadding = 6
+
+	// pickerListVerticalOverhead is the number of rows used by dialog chrome:
+	// title(1) + space(1) + input(1) + separator(1) + space at bottom(1) + help keys(1) + borders/padding(2) = 8
+	pickerListVerticalOverhead = 8
+
+	// pickerListStartOffset is the Y offset from dialog top to where the model list starts:
+	// border(1) + padding(1) + title(1) + space(1) + input(1) + separator(1) = 6
+	pickerListStartOffset = 6
+
+	// pickerScrollbarYOffset is the Y offset from dialog top to where the scrollbar starts.
+	// The scrollbar is rendered horizontally alongside the model list (via JoinHorizontal),
+	// so they must start at the same Y position.
+	pickerScrollbarYOffset = pickerListStartOffset
+
+	// pickerScrollbarXInset is the inset from dialog right edge for the scrollbar
+	pickerScrollbarXInset = 3
+
+	// pickerScrollbarGap is the space between content and the scrollbar
+	pickerScrollbarGap = 1
+
+	// catalogSeparatorLabel is the text for the catalog section separator
+	catalogSeparatorLabel = "── Other models "
+	// customSeparatorLabel is the text for the custom models section separator
+	customSeparatorLabel = "── Custom models "
+)
+
 func (d *modelPickerDialog) dialogSize() (dialogWidth, maxHeight, contentWidth int) {
-	dialogWidth = max(min(d.Width()*80/100, 70), 50)
-	maxHeight = min(d.Height()*70/100, 25)
-	contentWidth = dialogWidth - 6
+	dialogWidth = max(min(d.Width()*pickerWidthPercent/100, pickerMaxWidth), pickerMinWidth)
+	maxHeight = min(d.Height()*pickerHeightPercent/100, pickerMaxHeight)
+	contentWidth = dialogWidth - pickerDialogPadding - scrollbar.Width - pickerScrollbarGap
 	return dialogWidth, maxHeight, contentWidth
 }
 
@@ -262,58 +525,119 @@ func (d *modelPickerDialog) View() string {
 
 	d.textInput.SetWidth(contentWidth)
 
-	var modelLines []string
-	maxItems := maxHeight - 8
+	maxItems := maxHeight - pickerListVerticalOverhead
 
-	// Adjust offset to keep selected item visible
-	if d.selected < d.offset {
-		d.offset = d.selected
-	} else if d.selected >= d.offset+maxItems {
-		d.offset = d.selected - maxItems + 1
-	}
-
-	// Track if we've shown the custom models separator
+	// Build all model lines first to calculate total height
+	var allModelLines []string
+	catalogSeparatorShown := false
 	customSeparatorShown := false
 
-	// Render visible items based on offset
-	visibleEnd := min(d.offset+maxItems, len(d.filtered))
-	for i := d.offset; i < visibleEnd; i++ {
-		model := d.filtered[i]
+	// Pre-compute if we have different model types to decide on separators
+	hasConfigModels := false
+	hasCatalogModels := false
+	for _, m := range d.filtered {
+		switch {
+		case m.IsCustom:
+			// Custom models don't affect separator logic for config/catalog
+		case m.IsCatalog:
+			hasCatalogModels = true
+		default:
+			hasConfigModels = true
+		}
+	}
 
-		// Add separator before first custom model
-		if model.IsCustom && !customSeparatorShown {
-			// Check if there are any non-custom models before this
-			hasConfigModels := false
-			for j := range i {
-				if !d.filtered[j].IsCustom {
-					hasConfigModels = true
-					break
-				}
+	for i, model := range d.filtered {
+		// Add separator before first catalog model (if there are config models anywhere in the list)
+		if model.IsCatalog && !catalogSeparatorShown && !model.IsCustom {
+			if hasConfigModels {
+				separatorLine := styles.MutedStyle.Render(catalogSeparatorLabel + strings.Repeat("─", max(0, contentWidth-len(catalogSeparatorLabel)-2)))
+				allModelLines = append(allModelLines, separatorLine)
 			}
-			if hasConfigModels || i > d.offset {
-				separatorLine := styles.MutedStyle.Render("── Custom models " + strings.Repeat("─", max(0, contentWidth-19)))
-				modelLines = append(modelLines, separatorLine)
+			catalogSeparatorShown = true
+		}
+
+		// Add separator before first custom model (if there are other models anywhere in the list)
+		if model.IsCustom && !customSeparatorShown {
+			if hasConfigModels || hasCatalogModels {
+				separatorLine := styles.MutedStyle.Render(customSeparatorLabel + strings.Repeat("─", max(0, contentWidth-len(customSeparatorLabel)-2)))
+				allModelLines = append(allModelLines, separatorLine)
 			}
 			customSeparatorShown = true
 		}
 
-		modelLines = append(modelLines, d.renderModel(model, i == d.selected, contentWidth))
+		allModelLines = append(allModelLines, d.renderModel(model, i == d.selected, contentWidth))
 	}
 
-	// Show indicator if there are more items
-	if visibleEnd < len(d.filtered) {
-		modelLines = append(modelLines, styles.MutedStyle.Render("  …and more"))
+	totalLines := len(allModelLines)
+	visibleLines := maxItems
+
+	// Update scrollbar dimensions
+	d.scrollbar.SetDimensions(visibleLines, totalLines)
+
+	// Only auto-scroll to selection when keyboard navigation occurred
+	if d.needsScrollToSel {
+		selectedLine := d.findSelectedLine(allModelLines)
+		scrollOffset := d.scrollbar.GetScrollOffset()
+		if selectedLine < scrollOffset {
+			d.scrollbar.SetScrollOffset(selectedLine)
+		} else if selectedLine >= scrollOffset+visibleLines {
+			d.scrollbar.SetScrollOffset(selectedLine - visibleLines + 1)
+		}
+		d.needsScrollToSel = false
 	}
 
+	// Slice visible lines based on scroll offset
+	scrollOffset := d.scrollbar.GetScrollOffset()
+	visibleEnd := min(scrollOffset+visibleLines, totalLines)
+	visibleModelLines := allModelLines[scrollOffset:visibleEnd]
+
+	// Pad with empty lines if content is shorter than visible area
+	for len(visibleModelLines) < visibleLines {
+		visibleModelLines = append(visibleModelLines, "")
+	}
+
+	// Handle empty state
 	if len(d.filtered) == 0 {
-		modelLines = append(modelLines, "", styles.DialogContentStyle.
+		visibleModelLines = []string{"", styles.DialogContentStyle.
 			Italic(true).
 			Align(lipgloss.Center).
 			Width(contentWidth).
-			Render("No models found"))
+			Render("No models found")}
+		for len(visibleModelLines) < visibleLines {
+			visibleModelLines = append(visibleModelLines, "")
+		}
 	}
 
-	contentBuilder := NewContent(contentWidth).
+	// Build model list with fixed width to keep scrollbar position stable
+	modelListStyle := lipgloss.NewStyle().Width(contentWidth)
+	var fixedWidthLines []string
+	for _, line := range visibleModelLines {
+		fixedWidthLines = append(fixedWidthLines, modelListStyle.Render(line))
+	}
+	modelListContent := strings.Join(fixedWidthLines, "\n")
+
+	// Set scrollbar position for mouse hit testing
+	dialogRow, dialogCol := d.Position()
+	scrollbarX := dialogCol + dialogWidth - pickerScrollbarXInset - scrollbar.Width
+	scrollbarY := dialogRow + pickerScrollbarYOffset
+	d.scrollbar.SetPosition(scrollbarX, scrollbarY)
+
+	// Get scrollbar view
+	scrollbarView := d.scrollbar.View()
+
+	// Combine content with scrollbar (gap between content and scrollbar)
+	// Always include the gap and scrollbar space to maintain consistent layout
+	var scrollableContent string
+	gap := strings.Repeat(" ", pickerScrollbarGap)
+	if scrollbarView != "" {
+		scrollableContent = lipgloss.JoinHorizontal(lipgloss.Top, modelListContent, gap, scrollbarView)
+	} else {
+		// No scrollbar needed, but still pad to maintain consistent width
+		scrollbarPlaceholder := strings.Repeat(" ", scrollbar.Width)
+		scrollableContent = lipgloss.JoinHorizontal(lipgloss.Top, modelListContent, gap, scrollbarPlaceholder)
+	}
+
+	contentBuilder := NewContent(contentWidth + pickerScrollbarGap + scrollbar.Width).
 		AddTitle("Select Model").
 		AddSpace().
 		AddContent(d.textInput.View())
@@ -326,7 +650,7 @@ func (d *modelPickerDialog) View() string {
 
 	content := contentBuilder.
 		AddSeparator().
-		AddContent(strings.Join(modelLines, "\n")).
+		AddContent(scrollableContent).
 		AddSpace().
 		AddHelpKeys("↑/↓", "navigate", "enter", "select", "esc", "cancel").
 		Build()
@@ -334,12 +658,65 @@ func (d *modelPickerDialog) View() string {
 	return styles.DialogStyle.Width(dialogWidth).Render(content)
 }
 
-func (d *modelPickerDialog) pageSize() int {
-	_, maxHeight, _ := d.dialogSize()
-	return max(1, maxHeight-8)
+// findSelectedLine returns the line index in allModelLines that corresponds to the selected model.
+// This accounts for separator lines that are inserted before catalog and custom sections.
+func (d *modelPickerDialog) findSelectedLine(allModelLines []string) int {
+	if d.selected < 0 || d.selected >= len(d.filtered) {
+		return 0
+	}
+
+	// Pre-compute model type flags (same logic as View)
+	hasConfigModels := false
+	hasCatalogModels := false
+	for _, m := range d.filtered {
+		switch {
+		case m.IsCustom:
+			// Custom models don't affect separator logic for config/catalog
+		case m.IsCatalog:
+			hasCatalogModels = true
+		default:
+			hasConfigModels = true
+		}
+	}
+
+	// Count lines before the selected model, including separators
+	lineIndex := 0
+	catalogSeparatorShown := false
+	customSeparatorShown := false
+
+	for i := range d.selected + 1 {
+		model := d.filtered[i]
+
+		// Check if separator was added before this model
+		if model.IsCatalog && !catalogSeparatorShown && !model.IsCustom {
+			if hasConfigModels && i <= d.selected {
+				lineIndex++ // Count the separator
+			}
+			catalogSeparatorShown = true
+		}
+
+		if model.IsCustom && !customSeparatorShown {
+			if (hasConfigModels || hasCatalogModels) && i <= d.selected {
+				lineIndex++ // Count the separator
+			}
+			customSeparatorShown = true
+		}
+
+		if i == d.selected {
+			return lineIndex
+		}
+		lineIndex++
+	}
+
+	return min(lineIndex, len(allModelLines)-1)
 }
 
-func (d *modelPickerDialog) renderModel(model runtime.ModelChoice, selected bool, _ int) string {
+func (d *modelPickerDialog) pageSize() int {
+	_, maxHeight, _ := d.dialogSize()
+	return max(1, maxHeight-pickerListVerticalOverhead)
+}
+
+func (d *modelPickerDialog) renderModel(model runtime.ModelChoice, selected bool, maxWidth int) string {
 	nameStyle, descStyle := styles.PaletteUnselectedActionStyle, styles.PaletteUnselectedDescStyle
 	alloyBadgeStyle, defaultBadgeStyle, currentBadgeStyle := styles.BadgeAlloyStyle, styles.BadgeDefaultStyle, styles.BadgeCurrentStyle
 	if selected {
@@ -353,9 +730,57 @@ func (d *modelPickerDialog) renderModel(model runtime.ModelChoice, selected bool
 	// Check if this is an alloy model (no provider but has comma-separated models)
 	isAlloy := model.Provider == "" && strings.Contains(model.Model, ",")
 
+	// Calculate badge widths
+	var badgeWidth int
+	if isAlloy {
+		badgeWidth += lipgloss.Width(" (alloy)")
+	}
+	if model.IsCurrent {
+		badgeWidth += lipgloss.Width(" (current)")
+	} else if model.IsDefault {
+		badgeWidth += lipgloss.Width(" (default)")
+	}
+
+	// Build description
+	var desc string
+	switch {
+	case model.IsCustom:
+		// Custom models: name already is provider/model, no need to repeat
+	case model.IsCatalog:
+		// Catalog models: show provider/model as description (Name is the human-readable name)
+		desc = model.Provider + "/" + model.Model
+	case model.Provider != "" && model.Model != "":
+		desc = model.Provider + "/" + model.Model
+	case isAlloy:
+		// Alloy model: show the constituent models
+		desc = model.Model
+	case model.Ref != "" && !strings.Contains(model.Name, model.Ref):
+		desc = model.Ref
+	}
+
+	// Calculate available width for name and description
+	separatorWidth := 0
+	if desc != "" {
+		separatorWidth = lipgloss.Width(" • ")
+	}
+
+	// Maximum width for name (leaving space for badges and description)
+	maxNameWidth := maxWidth - badgeWidth
+	if desc != "" {
+		// Reserve at least some space for description (minimum 10 chars or available)
+		minDescWidth := min(10, len(desc))
+		maxNameWidth = maxWidth - badgeWidth - separatorWidth - minDescWidth
+	}
+
+	// Truncate name if needed
+	displayName := model.Name
+	if lipgloss.Width(displayName) > maxNameWidth {
+		displayName = toolcommon.TruncateText(displayName, maxNameWidth)
+	}
+
 	// Build the name with colored badges
 	var nameParts []string
-	nameParts = append(nameParts, nameStyle.Render(model.Name))
+	nameParts = append(nameParts, nameStyle.Render(displayName))
 	if isAlloy {
 		nameParts = append(nameParts, alloyBadgeStyle.Render(" (alloy)"))
 	}
@@ -366,22 +791,16 @@ func (d *modelPickerDialog) renderModel(model runtime.ModelChoice, selected bool
 	}
 	name := strings.Join(nameParts, "")
 
-	// Build description (skip for custom models where name already is provider/model)
-	var desc string
-	switch {
-	case model.IsCustom:
-		// Custom models: name already is provider/model, no need to repeat
-	case model.Provider != "" && model.Model != "":
-		desc = model.Provider + "/" + model.Model
-	case isAlloy:
-		// Alloy model: show the constituent models
-		desc = model.Model
-	case model.Ref != "" && !strings.Contains(model.Name, model.Ref):
-		desc = model.Ref
-	}
-
 	if desc != "" {
-		return name + descStyle.Render(" • "+desc)
+		// Calculate remaining width for description
+		nameWidth := lipgloss.Width(name)
+		remainingWidth := maxWidth - nameWidth - separatorWidth
+		if remainingWidth > 0 {
+			truncatedDesc := toolcommon.TruncateText(desc, remainingWidth)
+			return name + descStyle.Render(" • "+truncatedDesc)
+		}
+		// No room for description
+		return name
 	}
 	return name
 }

@@ -382,3 +382,119 @@ func TestIsValidProvider(t *testing.T) {
 		})
 	}
 }
+
+func TestModelPickerSortingWithCatalog(t *testing.T) {
+	t.Parallel()
+
+	// Create models with mixed types: config, catalog, and custom
+	models := []runtime.ModelChoice{
+		{Name: "custom_model", Ref: "openai/custom", Provider: "openai", Model: "custom", IsCustom: true},
+		{Name: "GPT-4o", Ref: "openai/gpt-4o", Provider: "openai", Model: "gpt-4o", IsCatalog: true},
+		{Name: "z_config", Ref: "z_config", Provider: "openai", Model: "gpt-4o"},
+		{Name: "default_model", Ref: "default_model", Provider: "anthropic", Model: "claude", IsDefault: true},
+		{Name: "Claude Sonnet", Ref: "anthropic/claude-sonnet-4-0", Provider: "anthropic", Model: "claude-sonnet-4-0", IsCatalog: true},
+		{Name: "a_config", Ref: "a_config", Provider: "anthropic", Model: "claude"},
+	}
+
+	dialog := NewModelPickerDialog(models)
+	d := dialog.(*modelPickerDialog)
+
+	// Verify sorting order: config (with default first) < catalog < custom
+	// Expected order:
+	// 1. default_model (config, IsDefault=true)
+	// 2. a_config (config)
+	// 3. z_config (config)
+	// 4. Claude Sonnet (catalog) or GPT-4o (catalog) - alphabetically
+	// 5. custom_model (custom)
+
+	require.True(t, d.models[0].IsDefault, "default should be first")
+	require.Equal(t, "default_model", d.models[0].Name)
+
+	// Config models should come before catalog
+	require.False(t, d.models[1].IsCatalog, "second should be config")
+	require.False(t, d.models[1].IsCustom, "second should not be custom")
+	require.Equal(t, "a_config", d.models[1].Name)
+
+	require.False(t, d.models[2].IsCatalog, "third should be config")
+	require.False(t, d.models[2].IsCustom, "third should not be custom")
+	require.Equal(t, "z_config", d.models[2].Name)
+
+	// Catalog models should come next
+	require.True(t, d.models[3].IsCatalog, "fourth should be catalog")
+	require.True(t, d.models[4].IsCatalog, "fifth should be catalog")
+
+	// Custom model should be last
+	require.True(t, d.models[5].IsCustom, "last should be custom")
+	require.Equal(t, "custom_model", d.models[5].Name)
+}
+
+func TestModelPickerCatalogSeparator(t *testing.T) {
+	t.Parallel()
+
+	models := []runtime.ModelChoice{
+		{Name: "default_model", Ref: "default_model", Provider: "openai", Model: "gpt-4o", IsDefault: true},
+		{Name: "GPT-4o", Ref: "openai/gpt-4o", Provider: "openai", Model: "gpt-4o", IsCatalog: true},
+	}
+
+	dialog := NewModelPickerDialog(models)
+	d := dialog.(*modelPickerDialog)
+	d.Init()
+	d.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+
+	view := d.View()
+
+	// Should contain the catalog separator
+	assert.Contains(t, view, "Other models", "view should show catalog separator")
+	// Should show both models
+	assert.Contains(t, view, "default_model")
+	assert.Contains(t, view, "GPT-4o")
+}
+
+func TestModelPickerCustomSeparatorWithCatalog(t *testing.T) {
+	t.Parallel()
+
+	models := []runtime.ModelChoice{
+		{Name: "config_model", Ref: "config_model", Provider: "openai", Model: "gpt-4o"},
+		{Name: "GPT-4o", Ref: "openai/gpt-4o", Provider: "openai", Model: "gpt-4o", IsCatalog: true},
+		{Name: "custom_model", Ref: "openai/custom", Provider: "openai", Model: "custom", IsCustom: true},
+	}
+
+	dialog := NewModelPickerDialog(models)
+	d := dialog.(*modelPickerDialog)
+	d.Init()
+	d.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+
+	view := d.View()
+
+	// Should contain both separators
+	assert.Contains(t, view, "Other models", "view should show catalog separator")
+	assert.Contains(t, view, "Custom models", "view should show custom separator")
+}
+
+func TestModelPickerCatalogFiltering(t *testing.T) {
+	t.Parallel()
+
+	models := []runtime.ModelChoice{
+		{Name: "config_model", Ref: "config_model", Provider: "openai", Model: "gpt-4o"},
+		{Name: "GPT-4o", Ref: "openai/gpt-4o", Provider: "openai", Model: "gpt-4o", IsCatalog: true},
+		{Name: "Claude Sonnet", Ref: "anthropic/claude-sonnet-4-0", Provider: "anthropic", Model: "claude-sonnet-4-0", IsCatalog: true},
+	}
+
+	dialog := NewModelPickerDialog(models)
+	d := dialog.(*modelPickerDialog)
+	d.Init()
+	d.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+
+	// Initially should show all 3 models
+	require.Len(t, d.filtered, 3)
+
+	// Filter for "claude"
+	for _, ch := range "claude" {
+		d.Update(tea.KeyPressMsg{Text: string(ch)})
+	}
+
+	// Should only show Claude Sonnet (catalog model)
+	require.Len(t, d.filtered, 1)
+	require.Equal(t, "Claude Sonnet", d.filtered[0].Name)
+	require.True(t, d.filtered[0].IsCatalog)
+}

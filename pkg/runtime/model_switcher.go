@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 
 	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/model/provider/options"
+	"github.com/docker/cagent/pkg/modelsdev"
 )
 
 // ModelChoice represents a model available for selection in the TUI picker.
@@ -28,6 +30,8 @@ type ModelChoice struct {
 	IsCurrent bool
 	// IsCustom indicates this is a custom model from the session history (not from config)
 	IsCustom bool
+	// IsCatalog indicates this is a model from the models.dev catalog
+	IsCatalog bool
 }
 
 // ModelSwitcher is an optional interface for runtimes that support changing the model
@@ -249,7 +253,7 @@ func (r *LocalRuntime) createProvidersFromAlloyConfig(ctx context.Context, alloy
 }
 
 // AvailableModels implements ModelSwitcher for LocalRuntime.
-func (r *LocalRuntime) AvailableModels(_ context.Context) []ModelChoice {
+func (r *LocalRuntime) AvailableModels(ctx context.Context) []ModelChoice {
 	var choices []ModelChoice
 
 	if r.modelSwitcherCfg == nil {
@@ -273,7 +277,176 @@ func (r *LocalRuntime) AvailableModels(_ context.Context) []ModelChoice {
 		})
 	}
 
+	// Append models.dev catalog entries filtered by available credentials
+	catalogChoices := r.buildCatalogChoices(ctx)
+	choices = append(choices, catalogChoices...)
+
 	return choices
+}
+
+// CatalogStore is an extended interface for model stores that support fetching the full database.
+type CatalogStore interface {
+	ModelStore
+	GetDatabase(ctx context.Context) (*modelsdev.Database, error)
+}
+
+// buildCatalogChoices builds ModelChoice entries from the models.dev catalog,
+// filtered by supported providers and available credentials.
+func (r *LocalRuntime) buildCatalogChoices(ctx context.Context) []ModelChoice {
+	// Check if modelsStore supports GetDatabase
+	catalogStore, ok := r.modelsStore.(CatalogStore)
+	if !ok {
+		slog.Debug("Models store does not support GetDatabase, skipping catalog")
+		return nil
+	}
+
+	db, err := catalogStore.GetDatabase(ctx)
+	if err != nil {
+		slog.Debug("Failed to get models.dev database for catalog", "error", err)
+		return nil
+	}
+
+	// Build set of existing model refs to avoid duplicates
+	existingRefs := make(map[string]bool)
+	for name, cfg := range r.modelSwitcherCfg.Models {
+		existingRefs[name] = true
+		if cfg.Provider != "" && cfg.Model != "" {
+			existingRefs[cfg.Provider+"/"+cfg.Model] = true
+		}
+	}
+
+	// Check which providers the user has credentials for
+	availableProviders := r.getAvailableProviders(ctx)
+	if len(availableProviders) == 0 {
+		slog.Debug("No provider credentials available, skipping catalog")
+		return nil
+	}
+
+	var choices []ModelChoice
+	for providerID, prov := range db.Providers {
+		// Check if this provider is supported and user has credentials
+		cagentProvider, supported := mapModelsDevProvider(providerID)
+		if !supported {
+			continue
+		}
+		if !availableProviders[cagentProvider] {
+			continue
+		}
+
+		for modelID, model := range prov.Models {
+			// Skip models that don't output text (not suitable for chat)
+			if !slices.Contains(model.Modalities.Output, "text") {
+				continue
+			}
+			// Skip embedding models (not suitable for chat)
+			if isEmbeddingModel(model.Family, model.Name) {
+				continue
+			}
+
+			ref := cagentProvider + "/" + modelID
+			if existingRefs[ref] {
+				continue
+			}
+			existingRefs[ref] = true
+
+			choices = append(choices, ModelChoice{
+				Name:      model.Name,
+				Ref:       ref,
+				Provider:  cagentProvider,
+				Model:     modelID,
+				IsCatalog: true,
+			})
+		}
+	}
+
+	slog.Debug("Built catalog choices", "count", len(choices), "available_providers", len(availableProviders))
+	return choices
+}
+
+// mapModelsDevProvider maps a models.dev provider ID to a cagent provider name.
+// Returns the cagent provider name and whether it's supported.
+// Uses provider.IsCatalogProvider to dynamically include all core providers
+// and aliases with defined base URLs.
+func mapModelsDevProvider(providerID string) (string, bool) {
+	if provider.IsCatalogProvider(providerID) {
+		return providerID, true
+	}
+	return "", false
+}
+
+// isEmbeddingModel returns true if the model is an embedding model
+// based on its family or name fields from models.dev.
+func isEmbeddingModel(family, name string) bool {
+	familyLower := strings.ToLower(family)
+	nameLower := strings.ToLower(name)
+	return strings.Contains(familyLower, "embed") || strings.Contains(nameLower, "embed")
+}
+
+// getAvailableProviders returns a map of provider names that the user has credentials for.
+func (r *LocalRuntime) getAvailableProviders(ctx context.Context) map[string]bool {
+	available := make(map[string]bool)
+	env := r.modelSwitcherCfg.EnvProvider
+
+	// If using a models gateway, check for Docker token
+	if r.modelSwitcherCfg.ModelsGateway != "" {
+		if token, _ := env.Get(ctx, environment.DockerDesktopTokenEnv); token != "" {
+			// Gateway supports all providers
+			available["openai"] = true
+			available["anthropic"] = true
+			available["google"] = true
+			available["mistral"] = true
+			available["xai"] = true
+		}
+		return available
+	}
+
+	// Check credentials for each provider
+	providerEnvVars := map[string]string{
+		"openai":    "OPENAI_API_KEY",
+		"anthropic": "ANTHROPIC_API_KEY",
+		"google":    "GOOGLE_API_KEY",
+		"mistral":   "MISTRAL_API_KEY",
+		"xai":       "XAI_API_KEY",
+		"nebius":    "NEBIUS_API_KEY",
+		"requesty":  "REQUESTY_API_KEY",
+		"azure":     "AZURE_API_KEY",
+	}
+
+	for providerName, envVar := range providerEnvVars {
+		if key, _ := env.Get(ctx, envVar); key != "" {
+			available[providerName] = true
+		}
+	}
+
+	// DMR and ollama don't require credentials (local models)
+	available["dmr"] = true
+	available["ollama"] = true
+
+	// Amazon Bedrock uses AWS credentials which can come from many sources.
+	// We do a quick heuristic check for common indicators without blocking:
+	// - AWS_ACCESS_KEY_ID: explicit access key
+	// - AWS_PROFILE / AWS_DEFAULT_PROFILE: named profile (credentials in ~/.aws/)
+	// - AWS_WEB_IDENTITY_TOKEN_FILE: EKS/IRSA web identity
+	// - AWS_CONTAINER_CREDENTIALS_RELATIVE_URI: ECS task role
+	// - AWS_ROLE_ARN: assumed role
+	// Note: This won't catch all cases (e.g., EC2 instance profiles, SSO) but
+	// those require network calls which would block the UI.
+	awsCredentialIndicators := []string{
+		"AWS_ACCESS_KEY_ID",
+		"AWS_PROFILE",
+		"AWS_DEFAULT_PROFILE",
+		"AWS_WEB_IDENTITY_TOKEN_FILE",
+		"AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
+		"AWS_ROLE_ARN",
+	}
+	for _, indicator := range awsCredentialIndicators {
+		if val, _ := env.Get(ctx, indicator); val != "" {
+			available["amazon-bedrock"] = true
+			break
+		}
+	}
+
+	return available
 }
 
 // createProviderFromConfig creates a provider from a ModelConfig using the runtime's configuration.
