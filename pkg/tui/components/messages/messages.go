@@ -831,7 +831,15 @@ func (m *model) LoadFromSession(sess *session.Session) tea.Cmd {
 			msg := types.User(smsg.Message.Content)
 			m.messages = append(m.messages, msg)
 			m.views = append(m.views, m.createMessageView(msg))
+			m.sessionState.PreviousMessage = msg
 		case chat.MessageRoleAssistant:
+			// Reasoning content comes first (matches live stream order)
+			if smsg.Message.ReasoningContent != "" {
+				msg := types.Agent(types.MessageTypeAssistantReasoning, smsg.AgentName, smsg.Message.ReasoningContent)
+				m.messages = append(m.messages, msg)
+				m.views = append(m.views, m.createMessageView(msg))
+				m.sessionState.PreviousMessage = msg
+			}
 			for i, tc := range smsg.Message.ToolCalls {
 				var toolDef tools.Tool
 				if i < len(smsg.Message.ToolDefinitions) {
@@ -840,11 +848,13 @@ func (m *model) LoadFromSession(sess *session.Session) tea.Cmd {
 				msg := types.ToolCallMessage(smsg.AgentName, tc, toolDef, types.ToolStatusCompleted)
 				m.messages = append(m.messages, msg)
 				m.views = append(m.views, m.createToolCallView(msg))
+				m.sessionState.PreviousMessage = msg
 			}
 			if smsg.Message.Content != "" {
 				msg := types.Agent(types.MessageTypeAssistant, smsg.AgentName, smsg.Message.Content)
 				m.messages = append(m.messages, msg)
 				m.views = append(m.views, m.createMessageView(msg))
+				m.sessionState.PreviousMessage = msg
 			}
 		case chat.MessageRoleTool:
 			continue
