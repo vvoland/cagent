@@ -150,7 +150,12 @@ func (mv *messageModel) Render(width int) string {
 	case types.MessageTypeCancelled:
 		return styles.WarningStyle.Render("⚠ stream cancelled ⚠")
 	case types.MessageTypeWelcome:
-		return styles.WelcomeMessageStyle.Width(width - 1).Render(strings.TrimRight(msg.Content, "\n\r\t "))
+		messageStyle := styles.WelcomeMessageStyle
+		rendered, err := markdown.NewRenderer(width - messageStyle.GetHorizontalFrameSize()).Render(msg.Content)
+		if err != nil {
+			rendered = msg.Content
+		}
+		return messageStyle.Width(width - 1).Render(strings.TrimRight(rendered, "\n\r\t "))
 	case types.MessageTypeError:
 		return styles.ErrorMessageStyle.Width(width - 1).Render(msg.Content)
 	case types.MessageTypeLoading:
