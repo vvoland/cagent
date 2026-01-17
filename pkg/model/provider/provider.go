@@ -211,6 +211,20 @@ func createDirectProvider(ctx context.Context, cfg *latest.ModelConfig, env envi
 
 	// Apply defaults from custom providers (from config) or built-in aliases
 	enhancedCfg := applyProviderDefaults(cfg, globalOptions.Providers())
+	if thinking := globalOptions.Thinking(); thinking != nil && !*thinking {
+		enhancedCfg.ThinkingBudget = nil
+
+		// with thinking explicitly disabled, also remove the interleaved_thinking provider option
+		if enhancedCfg.ProviderOpts != nil {
+			// Copy to avoid mutating shared ProviderOpts in the original config
+			optsCopy := make(map[string]any, len(enhancedCfg.ProviderOpts))
+			for key, value := range enhancedCfg.ProviderOpts {
+				optsCopy[key] = value
+			}
+			delete(optsCopy, "interleaved_thinking")
+			enhancedCfg.ProviderOpts = optsCopy
+		}
+	}
 
 	// Apply overrides (e.g., disable thinking if requested by session)
 	enhancedCfg = applyOverrides(enhancedCfg, &globalOptions)
