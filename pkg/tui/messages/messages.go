@@ -13,6 +13,7 @@ type (
 	ExportSessionMsg               struct{ Filename string }
 	ShowCostDialogMsg              struct{}
 	ToggleYoloMsg                  struct{}
+	ToggleThinkingMsg              struct{}
 	ToggleHideToolResultsMsg       struct{}
 	StartShellMsg                  struct{}
 	SwitchAgentMsg                 struct{ AgentName string }
