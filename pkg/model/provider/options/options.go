@@ -10,6 +10,7 @@ type ModelOptions struct {
 	generatingTitle  bool
 	maxTokens        int64
 	providers        map[string]latest.ProviderConfig
+	thinking         *bool
 }
 
 func (c *ModelOptions) Gateway() string {
@@ -30,6 +31,10 @@ func (c *ModelOptions) MaxTokens() int64 {
 
 func (c *ModelOptions) Providers() map[string]latest.ProviderConfig {
 	return c.providers
+}
+
+func (c *ModelOptions) Thinking() *bool {
+	return c.thinking
 }
 
 type Opt func(*ModelOptions)
@@ -61,6 +66,12 @@ func WithMaxTokens(maxTokens int64) Opt {
 func WithProviders(providers map[string]latest.ProviderConfig) Opt {
 	return func(cfg *ModelOptions) {
 		cfg.providers = providers
+	}
+}
+
+func WithThinking(enabled bool) Opt {
+	return func(cfg *ModelOptions) {
+		cfg.thinking = &enabled
 	}
 }
 
