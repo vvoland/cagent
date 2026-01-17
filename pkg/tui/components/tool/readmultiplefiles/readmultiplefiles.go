@@ -70,7 +70,7 @@ func render(msg *types.Message, s spinner.Spinner, sessionState *service.Session
 			// Truncate output to fit
 			renderedOutput = outputStyle.Render(toolcommon.TruncateText(summary.output, remainingWidth))
 		}
-		output := lipgloss.PlaceHorizontal(remainingWidth, lipgloss.Right, renderedOutput)
+		output := renderedOutput
 
 		content.WriteString(readCall)
 		content.WriteString(" ")

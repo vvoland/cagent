@@ -170,7 +170,7 @@ func RenderTool(msg *types.Message, inProgress spinner.Spinner, args, result str
 				// Truncate result to fit, leaving space for ellipsis
 				renderedResult = resultStyle.Render(TruncateText(result, remainingWidth))
 			}
-			content += " " + lipgloss.PlaceHorizontal(remainingWidth, lipgloss.Right, renderedResult)
+			content += " " + renderedResult
 		}
 	}
 
