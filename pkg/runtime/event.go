@@ -3,6 +3,7 @@ package runtime
 import (
 	"cmp"
 
+	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -194,14 +195,27 @@ type TokenUsageEvent struct {
 }
 
 type Usage struct {
-	InputTokens   int64   `json:"input_tokens"`
-	OutputTokens  int64   `json:"output_tokens"`
-	ContextLength int64   `json:"context_length"`
-	ContextLimit  int64   `json:"context_limit"`
-	Cost          float64 `json:"cost"`
+	InputTokens   int64         `json:"input_tokens"`
+	OutputTokens  int64         `json:"output_tokens"`
+	ContextLength int64         `json:"context_length"`
+	ContextLimit  int64         `json:"context_limit"`
+	Cost          float64       `json:"cost"`
+	LastMessage   *MessageUsage `json:"last_message,omitempty"`
+}
+
+// MessageUsage contains per-message usage data to include in TokenUsageEvent.
+// It embeds chat.Usage and adds Cost and Model fields.
+type MessageUsage struct {
+	chat.Usage
+	Cost  float64
+	Model string
 }
 
 func TokenUsage(sessionID, agentName string, inputTokens, outputTokens, contextLength, contextLimit int64, cost float64) Event {
+	return TokenUsageWithMessage(sessionID, agentName, inputTokens, outputTokens, contextLength, contextLimit, cost, nil)
+}
+
+func TokenUsageWithMessage(sessionID, agentName string, inputTokens, outputTokens, contextLength, contextLimit int64, cost float64, msgUsage *MessageUsage) Event {
 	return &TokenUsageEvent{
 		Type:      "token_usage",
 		SessionID: sessionID,
@@ -211,6 +225,7 @@ func TokenUsage(sessionID, agentName string, inputTokens, outputTokens, contextL
 			InputTokens:   inputTokens,
 			OutputTokens:  outputTokens,
 			Cost:          cost,
+			LastMessage:   msgUsage,
 		},
 		AgentContext: AgentContext{AgentName: agentName},
 	}

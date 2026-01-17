@@ -2892,6 +2892,91 @@ func (x *TokenUsageEvent) GetAgentName() string {
 	return ""
 }
 
+// LastMessageUsage contains per-message usage data for the last message.
+type LastMessageUsage struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	InputTokens       int64                  `protobuf:"varint,1,opt,name=input_tokens,json=inputTokens,proto3" json:"input_tokens,omitempty"`
+	OutputTokens      int64                  `protobuf:"varint,2,opt,name=output_tokens,json=outputTokens,proto3" json:"output_tokens,omitempty"`
+	CachedInputTokens int64                  `protobuf:"varint,3,opt,name=cached_input_tokens,json=cachedInputTokens,proto3" json:"cached_input_tokens,omitempty"`
+	CacheWriteTokens  int64                  `protobuf:"varint,4,opt,name=cache_write_tokens,json=cacheWriteTokens,proto3" json:"cache_write_tokens,omitempty"`
+	Cost              float64                `protobuf:"fixed64,5,opt,name=cost,proto3" json:"cost,omitempty"`
+	Model             string                 `protobuf:"bytes,6,opt,name=model,proto3" json:"model,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *LastMessageUsage) Reset() {
+	*x = LastMessageUsage{}
+	mi := &file_cagent_v1_cagent_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LastMessageUsage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LastMessageUsage) ProtoMessage() {}
+
+func (x *LastMessageUsage) ProtoReflect() protoreflect.Message {
+	mi := &file_cagent_v1_cagent_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LastMessageUsage.ProtoReflect.Descriptor instead.
+func (*LastMessageUsage) Descriptor() ([]byte, []int) {
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *LastMessageUsage) GetInputTokens() int64 {
+	if x != nil {
+		return x.InputTokens
+	}
+	return 0
+}
+
+func (x *LastMessageUsage) GetOutputTokens() int64 {
+	if x != nil {
+		return x.OutputTokens
+	}
+	return 0
+}
+
+func (x *LastMessageUsage) GetCachedInputTokens() int64 {
+	if x != nil {
+		return x.CachedInputTokens
+	}
+	return 0
+}
+
+func (x *LastMessageUsage) GetCacheWriteTokens() int64 {
+	if x != nil {
+		return x.CacheWriteTokens
+	}
+	return 0
+}
+
+func (x *LastMessageUsage) GetCost() float64 {
+	if x != nil {
+		return x.Cost
+	}
+	return 0
+}
+
+func (x *LastMessageUsage) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
 // Usage contains token usage details.
 type Usage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -2900,13 +2985,14 @@ type Usage struct {
 	ContextLength int64                  `protobuf:"varint,3,opt,name=context_length,json=contextLength,proto3" json:"context_length,omitempty"`
 	ContextLimit  int64                  `protobuf:"varint,4,opt,name=context_limit,json=contextLimit,proto3" json:"context_limit,omitempty"`
 	Cost          float64                `protobuf:"fixed64,5,opt,name=cost,proto3" json:"cost,omitempty"`
+	LastMessage   *LastMessageUsage      `protobuf:"bytes,6,opt,name=last_message,json=lastMessage,proto3" json:"last_message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Usage) Reset() {
 	*x = Usage{}
-	mi := &file_cagent_v1_cagent_proto_msgTypes[43]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2918,7 +3004,7 @@ func (x *Usage) String() string {
 func (*Usage) ProtoMessage() {}
 
 func (x *Usage) ProtoReflect() protoreflect.Message {
-	mi := &file_cagent_v1_cagent_proto_msgTypes[43]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2931,7 +3017,7 @@ func (x *Usage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Usage.ProtoReflect.Descriptor instead.
 func (*Usage) Descriptor() ([]byte, []int) {
-	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{43}
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *Usage) GetInputTokens() int64 {
@@ -2969,6 +3055,13 @@ func (x *Usage) GetCost() float64 {
 	return 0
 }
 
+func (x *Usage) GetLastMessage() *LastMessageUsage {
+	if x != nil {
+		return x.LastMessage
+	}
+	return nil
+}
+
 // SessionTitleEvent is sent when the session title is generated.
 type SessionTitleEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -2981,7 +3074,7 @@ type SessionTitleEvent struct {
 
 func (x *SessionTitleEvent) Reset() {
 	*x = SessionTitleEvent{}
-	mi := &file_cagent_v1_cagent_proto_msgTypes[44]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2993,7 +3086,7 @@ func (x *SessionTitleEvent) String() string {
 func (*SessionTitleEvent) ProtoMessage() {}
 
 func (x *SessionTitleEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_cagent_v1_cagent_proto_msgTypes[44]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3006,7 +3099,7 @@ func (x *SessionTitleEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionTitleEvent.ProtoReflect.Descriptor instead.
 func (*SessionTitleEvent) Descriptor() ([]byte, []int) {
-	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{44}
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *SessionTitleEvent) GetSessionId() string {
@@ -3042,7 +3135,7 @@ type SessionSummaryEvent struct {
 
 func (x *SessionSummaryEvent) Reset() {
 	*x = SessionSummaryEvent{}
-	mi := &file_cagent_v1_cagent_proto_msgTypes[45]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3054,7 +3147,7 @@ func (x *SessionSummaryEvent) String() string {
 func (*SessionSummaryEvent) ProtoMessage() {}
 
 func (x *SessionSummaryEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_cagent_v1_cagent_proto_msgTypes[45]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3067,7 +3160,7 @@ func (x *SessionSummaryEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionSummaryEvent.ProtoReflect.Descriptor instead.
 func (*SessionSummaryEvent) Descriptor() ([]byte, []int) {
-	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{45}
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *SessionSummaryEvent) GetSessionId() string {
@@ -3103,7 +3196,7 @@ type SessionCompactionEvent struct {
 
 func (x *SessionCompactionEvent) Reset() {
 	*x = SessionCompactionEvent{}
-	mi := &file_cagent_v1_cagent_proto_msgTypes[46]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3115,7 +3208,7 @@ func (x *SessionCompactionEvent) String() string {
 func (*SessionCompactionEvent) ProtoMessage() {}
 
 func (x *SessionCompactionEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_cagent_v1_cagent_proto_msgTypes[46]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3128,7 +3221,7 @@ func (x *SessionCompactionEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionCompactionEvent.ProtoReflect.Descriptor instead.
 func (*SessionCompactionEvent) Descriptor() ([]byte, []int) {
-	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{46}
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *SessionCompactionEvent) GetSessionId() string {
@@ -3165,7 +3258,7 @@ type ElicitationRequestEvent struct {
 
 func (x *ElicitationRequestEvent) Reset() {
 	*x = ElicitationRequestEvent{}
-	mi := &file_cagent_v1_cagent_proto_msgTypes[47]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3177,7 +3270,7 @@ func (x *ElicitationRequestEvent) String() string {
 func (*ElicitationRequestEvent) ProtoMessage() {}
 
 func (x *ElicitationRequestEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_cagent_v1_cagent_proto_msgTypes[47]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3190,7 +3283,7 @@ func (x *ElicitationRequestEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ElicitationRequestEvent.ProtoReflect.Descriptor instead.
 func (*ElicitationRequestEvent) Descriptor() ([]byte, []int) {
-	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{47}
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *ElicitationRequestEvent) GetMessage() string {
@@ -3232,7 +3325,7 @@ type AuthorizationEvent struct {
 
 func (x *AuthorizationEvent) Reset() {
 	*x = AuthorizationEvent{}
-	mi := &file_cagent_v1_cagent_proto_msgTypes[48]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3244,7 +3337,7 @@ func (x *AuthorizationEvent) String() string {
 func (*AuthorizationEvent) ProtoMessage() {}
 
 func (x *AuthorizationEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_cagent_v1_cagent_proto_msgTypes[48]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3257,7 +3350,7 @@ func (x *AuthorizationEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthorizationEvent.ProtoReflect.Descriptor instead.
 func (*AuthorizationEvent) Descriptor() ([]byte, []int) {
-	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{48}
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *AuthorizationEvent) GetConfirmation() string {
@@ -3285,7 +3378,7 @@ type MaxIterationsReachedEvent struct {
 
 func (x *MaxIterationsReachedEvent) Reset() {
 	*x = MaxIterationsReachedEvent{}
-	mi := &file_cagent_v1_cagent_proto_msgTypes[49]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3297,7 +3390,7 @@ func (x *MaxIterationsReachedEvent) String() string {
 func (*MaxIterationsReachedEvent) ProtoMessage() {}
 
 func (x *MaxIterationsReachedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_cagent_v1_cagent_proto_msgTypes[49]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3310,7 +3403,7 @@ func (x *MaxIterationsReachedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MaxIterationsReachedEvent.ProtoReflect.Descriptor instead.
 func (*MaxIterationsReachedEvent) Descriptor() ([]byte, []int) {
-	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{49}
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *MaxIterationsReachedEvent) GetMaxIterations() int32 {
@@ -3337,7 +3430,7 @@ type MCPInitStartedEvent struct {
 
 func (x *MCPInitStartedEvent) Reset() {
 	*x = MCPInitStartedEvent{}
-	mi := &file_cagent_v1_cagent_proto_msgTypes[50]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3349,7 +3442,7 @@ func (x *MCPInitStartedEvent) String() string {
 func (*MCPInitStartedEvent) ProtoMessage() {}
 
 func (x *MCPInitStartedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_cagent_v1_cagent_proto_msgTypes[50]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3362,7 +3455,7 @@ func (x *MCPInitStartedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MCPInitStartedEvent.ProtoReflect.Descriptor instead.
 func (*MCPInitStartedEvent) Descriptor() ([]byte, []int) {
-	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{50}
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *MCPInitStartedEvent) GetAgentName() string {
@@ -3382,7 +3475,7 @@ type MCPInitFinishedEvent struct {
 
 func (x *MCPInitFinishedEvent) Reset() {
 	*x = MCPInitFinishedEvent{}
-	mi := &file_cagent_v1_cagent_proto_msgTypes[51]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3394,7 +3487,7 @@ func (x *MCPInitFinishedEvent) String() string {
 func (*MCPInitFinishedEvent) ProtoMessage() {}
 
 func (x *MCPInitFinishedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_cagent_v1_cagent_proto_msgTypes[51]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3407,7 +3500,7 @@ func (x *MCPInitFinishedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MCPInitFinishedEvent.ProtoReflect.Descriptor instead.
 func (*MCPInitFinishedEvent) Descriptor() ([]byte, []int) {
-	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{51}
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *MCPInitFinishedEvent) GetAgentName() string {
@@ -3430,7 +3523,7 @@ type AgentInfoEvent struct {
 
 func (x *AgentInfoEvent) Reset() {
 	*x = AgentInfoEvent{}
-	mi := &file_cagent_v1_cagent_proto_msgTypes[52]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3442,7 +3535,7 @@ func (x *AgentInfoEvent) String() string {
 func (*AgentInfoEvent) ProtoMessage() {}
 
 func (x *AgentInfoEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_cagent_v1_cagent_proto_msgTypes[52]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3455,7 +3548,7 @@ func (x *AgentInfoEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentInfoEvent.ProtoReflect.Descriptor instead.
 func (*AgentInfoEvent) Descriptor() ([]byte, []int) {
-	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{52}
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *AgentInfoEvent) GetAgentName() string {
@@ -3499,7 +3592,7 @@ type AgentDetails struct {
 
 func (x *AgentDetails) Reset() {
 	*x = AgentDetails{}
-	mi := &file_cagent_v1_cagent_proto_msgTypes[53]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3511,7 +3604,7 @@ func (x *AgentDetails) String() string {
 func (*AgentDetails) ProtoMessage() {}
 
 func (x *AgentDetails) ProtoReflect() protoreflect.Message {
-	mi := &file_cagent_v1_cagent_proto_msgTypes[53]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3524,7 +3617,7 @@ func (x *AgentDetails) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentDetails.ProtoReflect.Descriptor instead.
 func (*AgentDetails) Descriptor() ([]byte, []int) {
-	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{53}
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *AgentDetails) GetName() string {
@@ -3567,7 +3660,7 @@ type TeamInfoEvent struct {
 
 func (x *TeamInfoEvent) Reset() {
 	*x = TeamInfoEvent{}
-	mi := &file_cagent_v1_cagent_proto_msgTypes[54]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3579,7 +3672,7 @@ func (x *TeamInfoEvent) String() string {
 func (*TeamInfoEvent) ProtoMessage() {}
 
 func (x *TeamInfoEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_cagent_v1_cagent_proto_msgTypes[54]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3592,7 +3685,7 @@ func (x *TeamInfoEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TeamInfoEvent.ProtoReflect.Descriptor instead.
 func (*TeamInfoEvent) Descriptor() ([]byte, []int) {
-	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{54}
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *TeamInfoEvent) GetAvailableAgents() []*AgentDetails {
@@ -3629,7 +3722,7 @@ type AgentSwitchingEvent struct {
 
 func (x *AgentSwitchingEvent) Reset() {
 	*x = AgentSwitchingEvent{}
-	mi := &file_cagent_v1_cagent_proto_msgTypes[55]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3641,7 +3734,7 @@ func (x *AgentSwitchingEvent) String() string {
 func (*AgentSwitchingEvent) ProtoMessage() {}
 
 func (x *AgentSwitchingEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_cagent_v1_cagent_proto_msgTypes[55]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3654,7 +3747,7 @@ func (x *AgentSwitchingEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentSwitchingEvent.ProtoReflect.Descriptor instead.
 func (*AgentSwitchingEvent) Descriptor() ([]byte, []int) {
-	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{55}
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *AgentSwitchingEvent) GetSwitching() bool {
@@ -3697,7 +3790,7 @@ type ToolsetInfoEvent struct {
 
 func (x *ToolsetInfoEvent) Reset() {
 	*x = ToolsetInfoEvent{}
-	mi := &file_cagent_v1_cagent_proto_msgTypes[56]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3709,7 +3802,7 @@ func (x *ToolsetInfoEvent) String() string {
 func (*ToolsetInfoEvent) ProtoMessage() {}
 
 func (x *ToolsetInfoEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_cagent_v1_cagent_proto_msgTypes[56]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3722,7 +3815,7 @@ func (x *ToolsetInfoEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolsetInfoEvent.ProtoReflect.Descriptor instead.
 func (*ToolsetInfoEvent) Descriptor() ([]byte, []int) {
-	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{56}
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *ToolsetInfoEvent) GetAvailableTools() int32 {
@@ -3758,7 +3851,7 @@ type RAGIndexingStartedEvent struct {
 
 func (x *RAGIndexingStartedEvent) Reset() {
 	*x = RAGIndexingStartedEvent{}
-	mi := &file_cagent_v1_cagent_proto_msgTypes[57]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3770,7 +3863,7 @@ func (x *RAGIndexingStartedEvent) String() string {
 func (*RAGIndexingStartedEvent) ProtoMessage() {}
 
 func (x *RAGIndexingStartedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_cagent_v1_cagent_proto_msgTypes[57]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3783,7 +3876,7 @@ func (x *RAGIndexingStartedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RAGIndexingStartedEvent.ProtoReflect.Descriptor instead.
 func (*RAGIndexingStartedEvent) Descriptor() ([]byte, []int) {
-	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{57}
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *RAGIndexingStartedEvent) GetRagName() string {
@@ -3821,7 +3914,7 @@ type RAGIndexingProgressEvent struct {
 
 func (x *RAGIndexingProgressEvent) Reset() {
 	*x = RAGIndexingProgressEvent{}
-	mi := &file_cagent_v1_cagent_proto_msgTypes[58]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3833,7 +3926,7 @@ func (x *RAGIndexingProgressEvent) String() string {
 func (*RAGIndexingProgressEvent) ProtoMessage() {}
 
 func (x *RAGIndexingProgressEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_cagent_v1_cagent_proto_msgTypes[58]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3846,7 +3939,7 @@ func (x *RAGIndexingProgressEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RAGIndexingProgressEvent.ProtoReflect.Descriptor instead.
 func (*RAGIndexingProgressEvent) Descriptor() ([]byte, []int) {
-	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{58}
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *RAGIndexingProgressEvent) GetRagName() string {
@@ -3896,7 +3989,7 @@ type RAGIndexingCompletedEvent struct {
 
 func (x *RAGIndexingCompletedEvent) Reset() {
 	*x = RAGIndexingCompletedEvent{}
-	mi := &file_cagent_v1_cagent_proto_msgTypes[59]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3908,7 +4001,7 @@ func (x *RAGIndexingCompletedEvent) String() string {
 func (*RAGIndexingCompletedEvent) ProtoMessage() {}
 
 func (x *RAGIndexingCompletedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_cagent_v1_cagent_proto_msgTypes[59]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3921,7 +4014,7 @@ func (x *RAGIndexingCompletedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RAGIndexingCompletedEvent.ProtoReflect.Descriptor instead.
 func (*RAGIndexingCompletedEvent) Descriptor() ([]byte, []int) {
-	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{59}
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *RAGIndexingCompletedEvent) GetRagName() string {
@@ -3958,7 +4051,7 @@ type HookBlockedEvent struct {
 
 func (x *HookBlockedEvent) Reset() {
 	*x = HookBlockedEvent{}
-	mi := &file_cagent_v1_cagent_proto_msgTypes[60]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3970,7 +4063,7 @@ func (x *HookBlockedEvent) String() string {
 func (*HookBlockedEvent) ProtoMessage() {}
 
 func (x *HookBlockedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_cagent_v1_cagent_proto_msgTypes[60]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3983,7 +4076,7 @@ func (x *HookBlockedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HookBlockedEvent.ProtoReflect.Descriptor instead.
 func (*HookBlockedEvent) Descriptor() ([]byte, []int) {
-	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{60}
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *HookBlockedEvent) GetToolCall() *ToolCall {
@@ -4024,7 +4117,7 @@ type ShellOutputEvent struct {
 
 func (x *ShellOutputEvent) Reset() {
 	*x = ShellOutputEvent{}
-	mi := &file_cagent_v1_cagent_proto_msgTypes[61]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4036,7 +4129,7 @@ func (x *ShellOutputEvent) String() string {
 func (*ShellOutputEvent) ProtoMessage() {}
 
 func (x *ShellOutputEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_cagent_v1_cagent_proto_msgTypes[61]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4049,7 +4142,7 @@ func (x *ShellOutputEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShellOutputEvent.ProtoReflect.Descriptor instead.
 func (*ShellOutputEvent) Descriptor() ([]byte, []int) {
-	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{61}
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *ShellOutputEvent) GetOutput() string {
@@ -4068,7 +4161,7 @@ type PingRequest struct {
 
 func (x *PingRequest) Reset() {
 	*x = PingRequest{}
-	mi := &file_cagent_v1_cagent_proto_msgTypes[62]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4080,7 +4173,7 @@ func (x *PingRequest) String() string {
 func (*PingRequest) ProtoMessage() {}
 
 func (x *PingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cagent_v1_cagent_proto_msgTypes[62]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4093,7 +4186,7 @@ func (x *PingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PingRequest.ProtoReflect.Descriptor instead.
 func (*PingRequest) Descriptor() ([]byte, []int) {
-	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{62}
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{63}
 }
 
 // PingResponse is the response for Ping.
@@ -4106,7 +4199,7 @@ type PingResponse struct {
 
 func (x *PingResponse) Reset() {
 	*x = PingResponse{}
-	mi := &file_cagent_v1_cagent_proto_msgTypes[63]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4118,7 +4211,7 @@ func (x *PingResponse) String() string {
 func (*PingResponse) ProtoMessage() {}
 
 func (x *PingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cagent_v1_cagent_proto_msgTypes[63]
+	mi := &file_cagent_v1_cagent_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4131,7 +4224,7 @@ func (x *PingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PingResponse.ProtoReflect.Descriptor instead.
 func (*PingResponse) Descriptor() ([]byte, []int) {
-	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{63}
+	return file_cagent_v1_cagent_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *PingResponse) GetStatus() string {
@@ -4350,13 +4443,21 @@ const file_cagent_v1_cagent_proto_rawDesc = "" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12&\n" +
 	"\x05usage\x18\x02 \x01(\v2\x10.cagent.v1.UsageR\x05usage\x12\x1d\n" +
 	"\n" +
-	"agent_name\x18\x03 \x01(\tR\tagentName\"\xaf\x01\n" +
+	"agent_name\x18\x03 \x01(\tR\tagentName\"\xe2\x01\n" +
+	"\x10LastMessageUsage\x12!\n" +
+	"\finput_tokens\x18\x01 \x01(\x03R\vinputTokens\x12#\n" +
+	"\routput_tokens\x18\x02 \x01(\x03R\foutputTokens\x12.\n" +
+	"\x13cached_input_tokens\x18\x03 \x01(\x03R\x11cachedInputTokens\x12,\n" +
+	"\x12cache_write_tokens\x18\x04 \x01(\x03R\x10cacheWriteTokens\x12\x12\n" +
+	"\x04cost\x18\x05 \x01(\x01R\x04cost\x12\x14\n" +
+	"\x05model\x18\x06 \x01(\tR\x05model\"\xef\x01\n" +
 	"\x05Usage\x12!\n" +
 	"\finput_tokens\x18\x01 \x01(\x03R\vinputTokens\x12#\n" +
 	"\routput_tokens\x18\x02 \x01(\x03R\foutputTokens\x12%\n" +
 	"\x0econtext_length\x18\x03 \x01(\x03R\rcontextLength\x12#\n" +
 	"\rcontext_limit\x18\x04 \x01(\x03R\fcontextLimit\x12\x12\n" +
-	"\x04cost\x18\x05 \x01(\x01R\x04cost\"g\n" +
+	"\x04cost\x18\x05 \x01(\x01R\x04cost\x12>\n" +
+	"\flast_message\x18\x06 \x01(\v2\x1b.cagent.v1.LastMessageUsageR\vlastMessage\"g\n" +
 	"\x11SessionTitleEvent\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x14\n" +
@@ -4481,7 +4582,7 @@ func file_cagent_v1_cagent_proto_rawDescGZIP() []byte {
 	return file_cagent_v1_cagent_proto_rawDescData
 }
 
-var file_cagent_v1_cagent_proto_msgTypes = make([]protoimpl.MessageInfo, 64)
+var file_cagent_v1_cagent_proto_msgTypes = make([]protoimpl.MessageInfo, 65)
 var file_cagent_v1_cagent_proto_goTypes = []any{
 	(*Agent)(nil),                      // 0: cagent.v1.Agent
 	(*ListAgentsRequest)(nil),          // 1: cagent.v1.ListAgentsRequest
@@ -4526,27 +4627,28 @@ var file_cagent_v1_cagent_proto_goTypes = []any{
 	(*ErrorEvent)(nil),                 // 40: cagent.v1.ErrorEvent
 	(*WarningEvent)(nil),               // 41: cagent.v1.WarningEvent
 	(*TokenUsageEvent)(nil),            // 42: cagent.v1.TokenUsageEvent
-	(*Usage)(nil),                      // 43: cagent.v1.Usage
-	(*SessionTitleEvent)(nil),          // 44: cagent.v1.SessionTitleEvent
-	(*SessionSummaryEvent)(nil),        // 45: cagent.v1.SessionSummaryEvent
-	(*SessionCompactionEvent)(nil),     // 46: cagent.v1.SessionCompactionEvent
-	(*ElicitationRequestEvent)(nil),    // 47: cagent.v1.ElicitationRequestEvent
-	(*AuthorizationEvent)(nil),         // 48: cagent.v1.AuthorizationEvent
-	(*MaxIterationsReachedEvent)(nil),  // 49: cagent.v1.MaxIterationsReachedEvent
-	(*MCPInitStartedEvent)(nil),        // 50: cagent.v1.MCPInitStartedEvent
-	(*MCPInitFinishedEvent)(nil),       // 51: cagent.v1.MCPInitFinishedEvent
-	(*AgentInfoEvent)(nil),             // 52: cagent.v1.AgentInfoEvent
-	(*AgentDetails)(nil),               // 53: cagent.v1.AgentDetails
-	(*TeamInfoEvent)(nil),              // 54: cagent.v1.TeamInfoEvent
-	(*AgentSwitchingEvent)(nil),        // 55: cagent.v1.AgentSwitchingEvent
-	(*ToolsetInfoEvent)(nil),           // 56: cagent.v1.ToolsetInfoEvent
-	(*RAGIndexingStartedEvent)(nil),    // 57: cagent.v1.RAGIndexingStartedEvent
-	(*RAGIndexingProgressEvent)(nil),   // 58: cagent.v1.RAGIndexingProgressEvent
-	(*RAGIndexingCompletedEvent)(nil),  // 59: cagent.v1.RAGIndexingCompletedEvent
-	(*HookBlockedEvent)(nil),           // 60: cagent.v1.HookBlockedEvent
-	(*ShellOutputEvent)(nil),           // 61: cagent.v1.ShellOutputEvent
-	(*PingRequest)(nil),                // 62: cagent.v1.PingRequest
-	(*PingResponse)(nil),               // 63: cagent.v1.PingResponse
+	(*LastMessageUsage)(nil),           // 43: cagent.v1.LastMessageUsage
+	(*Usage)(nil),                      // 44: cagent.v1.Usage
+	(*SessionTitleEvent)(nil),          // 45: cagent.v1.SessionTitleEvent
+	(*SessionSummaryEvent)(nil),        // 46: cagent.v1.SessionSummaryEvent
+	(*SessionCompactionEvent)(nil),     // 47: cagent.v1.SessionCompactionEvent
+	(*ElicitationRequestEvent)(nil),    // 48: cagent.v1.ElicitationRequestEvent
+	(*AuthorizationEvent)(nil),         // 49: cagent.v1.AuthorizationEvent
+	(*MaxIterationsReachedEvent)(nil),  // 50: cagent.v1.MaxIterationsReachedEvent
+	(*MCPInitStartedEvent)(nil),        // 51: cagent.v1.MCPInitStartedEvent
+	(*MCPInitFinishedEvent)(nil),       // 52: cagent.v1.MCPInitFinishedEvent
+	(*AgentInfoEvent)(nil),             // 53: cagent.v1.AgentInfoEvent
+	(*AgentDetails)(nil),               // 54: cagent.v1.AgentDetails
+	(*TeamInfoEvent)(nil),              // 55: cagent.v1.TeamInfoEvent
+	(*AgentSwitchingEvent)(nil),        // 56: cagent.v1.AgentSwitchingEvent
+	(*ToolsetInfoEvent)(nil),           // 57: cagent.v1.ToolsetInfoEvent
+	(*RAGIndexingStartedEvent)(nil),    // 58: cagent.v1.RAGIndexingStartedEvent
+	(*RAGIndexingProgressEvent)(nil),   // 59: cagent.v1.RAGIndexingProgressEvent
+	(*RAGIndexingCompletedEvent)(nil),  // 60: cagent.v1.RAGIndexingCompletedEvent
+	(*HookBlockedEvent)(nil),           // 61: cagent.v1.HookBlockedEvent
+	(*ShellOutputEvent)(nil),           // 62: cagent.v1.ShellOutputEvent
+	(*PingRequest)(nil),                // 63: cagent.v1.PingRequest
+	(*PingResponse)(nil),               // 64: cagent.v1.PingResponse
 }
 var file_cagent_v1_cagent_proto_depIdxs = []int32{
 	0,  // 0: cagent.v1.ListAgentsResponse.agents:type_name -> cagent.v1.Agent
@@ -4570,23 +4672,23 @@ var file_cagent_v1_cagent_proto_depIdxs = []int32{
 	40, // 18: cagent.v1.Event.error:type_name -> cagent.v1.ErrorEvent
 	41, // 19: cagent.v1.Event.warning:type_name -> cagent.v1.WarningEvent
 	42, // 20: cagent.v1.Event.token_usage:type_name -> cagent.v1.TokenUsageEvent
-	44, // 21: cagent.v1.Event.session_title:type_name -> cagent.v1.SessionTitleEvent
-	45, // 22: cagent.v1.Event.session_summary:type_name -> cagent.v1.SessionSummaryEvent
-	46, // 23: cagent.v1.Event.session_compaction:type_name -> cagent.v1.SessionCompactionEvent
-	47, // 24: cagent.v1.Event.elicitation_request:type_name -> cagent.v1.ElicitationRequestEvent
-	48, // 25: cagent.v1.Event.authorization:type_name -> cagent.v1.AuthorizationEvent
-	49, // 26: cagent.v1.Event.max_iterations_reached:type_name -> cagent.v1.MaxIterationsReachedEvent
-	50, // 27: cagent.v1.Event.mcp_init_started:type_name -> cagent.v1.MCPInitStartedEvent
-	51, // 28: cagent.v1.Event.mcp_init_finished:type_name -> cagent.v1.MCPInitFinishedEvent
-	52, // 29: cagent.v1.Event.agent_info:type_name -> cagent.v1.AgentInfoEvent
-	54, // 30: cagent.v1.Event.team_info:type_name -> cagent.v1.TeamInfoEvent
-	55, // 31: cagent.v1.Event.agent_switching:type_name -> cagent.v1.AgentSwitchingEvent
-	56, // 32: cagent.v1.Event.toolset_info:type_name -> cagent.v1.ToolsetInfoEvent
-	57, // 33: cagent.v1.Event.rag_indexing_started:type_name -> cagent.v1.RAGIndexingStartedEvent
-	58, // 34: cagent.v1.Event.rag_indexing_progress:type_name -> cagent.v1.RAGIndexingProgressEvent
-	59, // 35: cagent.v1.Event.rag_indexing_completed:type_name -> cagent.v1.RAGIndexingCompletedEvent
-	60, // 36: cagent.v1.Event.hook_blocked:type_name -> cagent.v1.HookBlockedEvent
-	61, // 37: cagent.v1.Event.shell_output:type_name -> cagent.v1.ShellOutputEvent
+	45, // 21: cagent.v1.Event.session_title:type_name -> cagent.v1.SessionTitleEvent
+	46, // 22: cagent.v1.Event.session_summary:type_name -> cagent.v1.SessionSummaryEvent
+	47, // 23: cagent.v1.Event.session_compaction:type_name -> cagent.v1.SessionCompactionEvent
+	48, // 24: cagent.v1.Event.elicitation_request:type_name -> cagent.v1.ElicitationRequestEvent
+	49, // 25: cagent.v1.Event.authorization:type_name -> cagent.v1.AuthorizationEvent
+	50, // 26: cagent.v1.Event.max_iterations_reached:type_name -> cagent.v1.MaxIterationsReachedEvent
+	51, // 27: cagent.v1.Event.mcp_init_started:type_name -> cagent.v1.MCPInitStartedEvent
+	52, // 28: cagent.v1.Event.mcp_init_finished:type_name -> cagent.v1.MCPInitFinishedEvent
+	53, // 29: cagent.v1.Event.agent_info:type_name -> cagent.v1.AgentInfoEvent
+	55, // 30: cagent.v1.Event.team_info:type_name -> cagent.v1.TeamInfoEvent
+	56, // 31: cagent.v1.Event.agent_switching:type_name -> cagent.v1.AgentSwitchingEvent
+	57, // 32: cagent.v1.Event.toolset_info:type_name -> cagent.v1.ToolsetInfoEvent
+	58, // 33: cagent.v1.Event.rag_indexing_started:type_name -> cagent.v1.RAGIndexingStartedEvent
+	59, // 34: cagent.v1.Event.rag_indexing_progress:type_name -> cagent.v1.RAGIndexingProgressEvent
+	60, // 35: cagent.v1.Event.rag_indexing_completed:type_name -> cagent.v1.RAGIndexingCompletedEvent
+	61, // 36: cagent.v1.Event.hook_blocked:type_name -> cagent.v1.HookBlockedEvent
+	62, // 37: cagent.v1.Event.shell_output:type_name -> cagent.v1.ShellOutputEvent
 	29, // 38: cagent.v1.Tool.annotations:type_name -> cagent.v1.ToolAnnotations
 	9,  // 39: cagent.v1.PartialToolCallEvent.tool_call:type_name -> cagent.v1.ToolCall
 	28, // 40: cagent.v1.PartialToolCallEvent.tool_definition:type_name -> cagent.v1.Tool
@@ -4597,37 +4699,38 @@ var file_cagent_v1_cagent_proto_depIdxs = []int32{
 	9,  // 45: cagent.v1.ToolCallResponseEvent.tool_call:type_name -> cagent.v1.ToolCall
 	28, // 46: cagent.v1.ToolCallResponseEvent.tool_definition:type_name -> cagent.v1.Tool
 	30, // 47: cagent.v1.ToolCallResponseEvent.result:type_name -> cagent.v1.ToolCallResult
-	43, // 48: cagent.v1.TokenUsageEvent.usage:type_name -> cagent.v1.Usage
-	53, // 49: cagent.v1.TeamInfoEvent.available_agents:type_name -> cagent.v1.AgentDetails
-	9,  // 50: cagent.v1.HookBlockedEvent.tool_call:type_name -> cagent.v1.ToolCall
-	28, // 51: cagent.v1.HookBlockedEvent.tool_definition:type_name -> cagent.v1.Tool
-	1,  // 52: cagent.v1.AgentService.ListAgents:input_type -> cagent.v1.ListAgentsRequest
-	3,  // 53: cagent.v1.AgentService.GetAgent:input_type -> cagent.v1.GetAgentRequest
-	6,  // 54: cagent.v1.AgentService.ListSessions:input_type -> cagent.v1.ListSessionsRequest
-	12, // 55: cagent.v1.AgentService.GetSession:input_type -> cagent.v1.GetSessionRequest
-	14, // 56: cagent.v1.AgentService.CreateSession:input_type -> cagent.v1.CreateSessionRequest
-	16, // 57: cagent.v1.AgentService.DeleteSession:input_type -> cagent.v1.DeleteSessionRequest
-	18, // 58: cagent.v1.AgentService.ResumeSession:input_type -> cagent.v1.ResumeSessionRequest
-	20, // 59: cagent.v1.AgentService.ToggleToolApproval:input_type -> cagent.v1.ToggleToolApprovalRequest
-	22, // 60: cagent.v1.AgentService.ResumeElicitation:input_type -> cagent.v1.ResumeElicitationRequest
-	26, // 61: cagent.v1.AgentService.RunAgent:input_type -> cagent.v1.RunAgentRequest
-	62, // 62: cagent.v1.AgentService.Ping:input_type -> cagent.v1.PingRequest
-	2,  // 63: cagent.v1.AgentService.ListAgents:output_type -> cagent.v1.ListAgentsResponse
-	4,  // 64: cagent.v1.AgentService.GetAgent:output_type -> cagent.v1.GetAgentResponse
-	7,  // 65: cagent.v1.AgentService.ListSessions:output_type -> cagent.v1.ListSessionsResponse
-	13, // 66: cagent.v1.AgentService.GetSession:output_type -> cagent.v1.GetSessionResponse
-	15, // 67: cagent.v1.AgentService.CreateSession:output_type -> cagent.v1.CreateSessionResponse
-	17, // 68: cagent.v1.AgentService.DeleteSession:output_type -> cagent.v1.DeleteSessionResponse
-	19, // 69: cagent.v1.AgentService.ResumeSession:output_type -> cagent.v1.ResumeSessionResponse
-	21, // 70: cagent.v1.AgentService.ToggleToolApproval:output_type -> cagent.v1.ToggleToolApprovalResponse
-	23, // 71: cagent.v1.AgentService.ResumeElicitation:output_type -> cagent.v1.ResumeElicitationResponse
-	27, // 72: cagent.v1.AgentService.RunAgent:output_type -> cagent.v1.Event
-	63, // 73: cagent.v1.AgentService.Ping:output_type -> cagent.v1.PingResponse
-	63, // [63:74] is the sub-list for method output_type
-	52, // [52:63] is the sub-list for method input_type
-	52, // [52:52] is the sub-list for extension type_name
-	52, // [52:52] is the sub-list for extension extendee
-	0,  // [0:52] is the sub-list for field type_name
+	44, // 48: cagent.v1.TokenUsageEvent.usage:type_name -> cagent.v1.Usage
+	43, // 49: cagent.v1.Usage.last_message:type_name -> cagent.v1.LastMessageUsage
+	54, // 50: cagent.v1.TeamInfoEvent.available_agents:type_name -> cagent.v1.AgentDetails
+	9,  // 51: cagent.v1.HookBlockedEvent.tool_call:type_name -> cagent.v1.ToolCall
+	28, // 52: cagent.v1.HookBlockedEvent.tool_definition:type_name -> cagent.v1.Tool
+	1,  // 53: cagent.v1.AgentService.ListAgents:input_type -> cagent.v1.ListAgentsRequest
+	3,  // 54: cagent.v1.AgentService.GetAgent:input_type -> cagent.v1.GetAgentRequest
+	6,  // 55: cagent.v1.AgentService.ListSessions:input_type -> cagent.v1.ListSessionsRequest
+	12, // 56: cagent.v1.AgentService.GetSession:input_type -> cagent.v1.GetSessionRequest
+	14, // 57: cagent.v1.AgentService.CreateSession:input_type -> cagent.v1.CreateSessionRequest
+	16, // 58: cagent.v1.AgentService.DeleteSession:input_type -> cagent.v1.DeleteSessionRequest
+	18, // 59: cagent.v1.AgentService.ResumeSession:input_type -> cagent.v1.ResumeSessionRequest
+	20, // 60: cagent.v1.AgentService.ToggleToolApproval:input_type -> cagent.v1.ToggleToolApprovalRequest
+	22, // 61: cagent.v1.AgentService.ResumeElicitation:input_type -> cagent.v1.ResumeElicitationRequest
+	26, // 62: cagent.v1.AgentService.RunAgent:input_type -> cagent.v1.RunAgentRequest
+	63, // 63: cagent.v1.AgentService.Ping:input_type -> cagent.v1.PingRequest
+	2,  // 64: cagent.v1.AgentService.ListAgents:output_type -> cagent.v1.ListAgentsResponse
+	4,  // 65: cagent.v1.AgentService.GetAgent:output_type -> cagent.v1.GetAgentResponse
+	7,  // 66: cagent.v1.AgentService.ListSessions:output_type -> cagent.v1.ListSessionsResponse
+	13, // 67: cagent.v1.AgentService.GetSession:output_type -> cagent.v1.GetSessionResponse
+	15, // 68: cagent.v1.AgentService.CreateSession:output_type -> cagent.v1.CreateSessionResponse
+	17, // 69: cagent.v1.AgentService.DeleteSession:output_type -> cagent.v1.DeleteSessionResponse
+	19, // 70: cagent.v1.AgentService.ResumeSession:output_type -> cagent.v1.ResumeSessionResponse
+	21, // 71: cagent.v1.AgentService.ToggleToolApproval:output_type -> cagent.v1.ToggleToolApprovalResponse
+	23, // 72: cagent.v1.AgentService.ResumeElicitation:output_type -> cagent.v1.ResumeElicitationResponse
+	27, // 73: cagent.v1.AgentService.RunAgent:output_type -> cagent.v1.Event
+	64, // 74: cagent.v1.AgentService.Ping:output_type -> cagent.v1.PingResponse
+	64, // [64:75] is the sub-list for method output_type
+	53, // [53:64] is the sub-list for method input_type
+	53, // [53:53] is the sub-list for extension type_name
+	53, // [53:53] is the sub-list for extension extendee
+	0,  // [0:53] is the sub-list for field type_name
 }
 
 func init() { file_cagent_v1_cagent_proto_init() }
@@ -4672,7 +4775,7 @@ func file_cagent_v1_cagent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cagent_v1_cagent_proto_rawDesc), len(file_cagent_v1_cagent_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   64,
+			NumMessages:   65,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

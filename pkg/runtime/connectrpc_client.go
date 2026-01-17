@@ -13,6 +13,7 @@ import (
 	cagentv1 "github.com/docker/cagent/gen/proto/cagent/v1"
 	"github.com/docker/cagent/gen/proto/cagent/v1/cagentv1connect"
 	"github.com/docker/cagent/pkg/api"
+	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/tools"
@@ -345,6 +346,7 @@ func (c *ConnectRPCClient) convertProtoEventToRuntimeEvent(e *cagentv1.Event) Ev
 				ContextLength: ev.TokenUsage.Usage.ContextLength,
 				ContextLimit:  ev.TokenUsage.Usage.ContextLimit,
 				Cost:          ev.TokenUsage.Usage.Cost,
+				LastMessage:   convertProtoMessageUsage(ev.TokenUsage.Usage.LastMessage),
 			}
 		}
 		return &TokenUsageEvent{
@@ -523,6 +525,22 @@ func convertProtoToolCall(tc *cagentv1.ToolCall) tools.ToolCall {
 		ID:       tc.Id,
 		Type:     tools.ToolType(tc.Type),
 		Function: fn,
+	}
+}
+
+func convertProtoMessageUsage(m *cagentv1.LastMessageUsage) *MessageUsage {
+	if m == nil {
+		return nil
+	}
+	return &MessageUsage{
+		Usage: chat.Usage{
+			InputTokens:       m.InputTokens,
+			OutputTokens:      m.OutputTokens,
+			CachedInputTokens: m.CachedInputTokens,
+			CacheWriteTokens:  m.CacheWriteTokens,
+		},
+		Cost:  m.Cost,
+		Model: m.Model,
 	}
 }
 

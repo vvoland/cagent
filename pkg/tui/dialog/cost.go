@@ -136,34 +136,40 @@ func (d *costDialog) gatherCostData() costData {
 	var data costData
 	modelMap := make(map[string]*totalUsage)
 
-	for _, msg := range d.session.GetAllMessages() {
-		if msg.Message.Usage == nil {
-			continue
-		}
+	// Helper to add a usage record to the aggregated data
+	addRecord := func(agentName, model string, cost float64, usage *chat.Usage) {
 		data.hasPerMessageData = true
-
-		// Total usage
-		usage := msg.Message.Usage
-		data.total.add(msg.Message.Cost, usage)
+		data.total.add(cost, usage)
 
 		// Per-model usage
-		model := cmp.Or(msg.Message.Model, "unknown")
+		model = cmp.Or(model, "unknown")
 		if modelMap[model] == nil {
 			modelMap[model] = &totalUsage{label: model}
 		}
-		mUsage := modelMap[model]
-		mUsage.add(msg.Message.Cost, usage)
+		modelMap[model].add(cost, usage)
 
 		// Per-message usage
 		msgLabel := fmt.Sprintf("#%d", len(data.messages)+1)
-		if msg.AgentName != "" {
-			msgLabel = fmt.Sprintf("#%d [%s]", len(data.messages)+1, msg.AgentName)
+		if agentName != "" {
+			msgLabel = fmt.Sprintf("#%d [%s]", len(data.messages)+1, agentName)
 		}
 		data.messages = append(data.messages, totalUsage{
 			label: msgLabel,
-			cost:  msg.Message.Cost,
+			cost:  cost,
 			Usage: *usage,
 		})
+	}
+
+	// Try session messages first (local mode), then MessageUsageHistory (remote mode)
+	for _, msg := range d.session.GetAllMessages() {
+		if msg.Message.Usage != nil {
+			addRecord(msg.AgentName, msg.Message.Model, msg.Message.Cost, msg.Message.Usage)
+		}
+	}
+	if !data.hasPerMessageData {
+		for _, record := range d.session.MessageUsageHistory {
+			addRecord(record.AgentName, record.Model, record.Cost, &record.Usage)
+		}
 	}
 
 	// Convert model map to sorted slice (by cost descending)
@@ -174,8 +180,7 @@ func (d *costDialog) gatherCostData() costData {
 		return data.models[i].cost > data.models[j].cost
 	})
 
-	// Fall back to session-level totals if no per-message data
-	// (e.g., for past sessions)
+	// Fall back to session-level totals if no per-message data (e.g., past sessions)
 	if !data.hasPerMessageData {
 		data.total = totalUsage{
 			cost: d.session.Cost,

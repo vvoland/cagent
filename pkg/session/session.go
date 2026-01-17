@@ -99,6 +99,20 @@ type Session struct {
 	// Sub-sessions are not persisted as standalone entries; they are embedded
 	// within the parent session's Messages array.
 	ParentID string `json:"-"`
+
+	// MessageUsageHistory stores per-message usage data for remote mode.
+	// In remote mode, messages are managed server-side, so we track usage separately.
+	// This is not persisted (json:"-") as it's only needed for the current session display.
+	MessageUsageHistory []MessageUsageRecord `json:"-"`
+}
+
+// MessageUsageRecord stores usage data for a single assistant message.
+// Used in remote mode where messages aren't stored in the client-side session.
+type MessageUsageRecord struct {
+	AgentName string     `json:"agent_name"`
+	Model     string     `json:"model"`
+	Cost      float64    `json:"cost"`
+	Usage     chat.Usage `json:"usage"`
 }
 
 // Permission mode constants
@@ -298,6 +312,35 @@ func (s *Session) getLastMessageContentByRole(role chat.MessageRole) string {
 		}
 	}
 	return ""
+}
+
+// UpdateLastAssistantMessageUsage updates the usage and cost fields of the last assistant message.
+// This is used in remote mode to populate per-message cost data from TokenUsageEvent.
+func (s *Session) UpdateLastAssistantMessageUsage(usage *chat.Usage, cost float64, model string) {
+	for i := len(s.Messages) - 1; i >= 0; i-- {
+		if s.Messages[i].IsMessage() && s.Messages[i].Message.Message.Role == chat.MessageRoleAssistant {
+			s.Messages[i].Message.Message.Usage = usage
+			s.Messages[i].Message.Message.Cost = cost
+			if model != "" {
+				s.Messages[i].Message.Message.Model = model
+			}
+			return
+		}
+	}
+}
+
+// AddMessageUsageRecord appends a usage record for remote mode where messages aren't stored locally.
+// This enables the /cost dialog to show per-message breakdown even when using a remote runtime.
+func (s *Session) AddMessageUsageRecord(agentName, model string, cost float64, usage *chat.Usage) {
+	if usage == nil {
+		return
+	}
+	s.MessageUsageHistory = append(s.MessageUsageHistory, MessageUsageRecord{
+		AgentName: agentName,
+		Model:     model,
+		Cost:      cost,
+		Usage:     *usage,
+	})
 }
 
 type Opt func(s *Session)
