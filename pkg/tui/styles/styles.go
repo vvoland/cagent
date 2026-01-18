@@ -44,7 +44,7 @@ const (
 
 	// Status colors
 	ColorInfoCyan  = "#7DCFFF"
-	ColorHighlight = "#99f868"
+	ColorHighlight = "#98C379"
 
 	// Diff colors
 	ColorDiffAddBg    = "#20303B"
