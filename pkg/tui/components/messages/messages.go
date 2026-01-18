@@ -10,7 +10,6 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
@@ -71,7 +70,6 @@ type model struct {
 	views    []layout.Model
 	width    int // Full width including scrollbar space
 	height   int
-	app      *app.App
 
 	// Height tracking system fields
 	scrollOffset  int                  // Current scroll position in lines
@@ -98,21 +96,20 @@ type model struct {
 }
 
 // New creates a new message list component
-func New(a *app.App, sessionState *service.SessionState) Model {
-	return newModel(120, 24, a, sessionState)
+func New(sessionState *service.SessionState) Model {
+	return newModel(120, 24, sessionState)
 }
 
 // NewScrollableView creates a simple scrollable view for displaying messages in dialogs
 // This is a lightweight version that doesn't require app or session state management
 func NewScrollableView(width, height int, sessionState *service.SessionState) Model {
-	return newModel(width, height, nil, sessionState)
+	return newModel(width, height, sessionState)
 }
 
-func newModel(width, height int, a *app.App, sessionState *service.SessionState) *model {
+func newModel(width, height int, sessionState *service.SessionState) *model {
 	return &model{
 		width:                width,
 		height:               height,
-		app:                  a,
 		renderedItems:        make(map[int]renderedItem),
 		sessionState:         sessionState,
 		scrollbar:            scrollbar.New(),

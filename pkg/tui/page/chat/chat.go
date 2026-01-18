@@ -236,7 +236,7 @@ func New(a *app.App, sessionState *service.SessionState) Page {
 
 	p := &chatPage{
 		sidebar:      sidebar.New(sessionState),
-		messages:     messages.New(a, sessionState),
+		messages:     messages.New(sessionState),
 		editor:       editor.New(a, historyStore),
 		spinner:      spinner.New(spinner.ModeSpinnerOnly, styles.SpinnerDotsHighlightStyle),
 		focusedPanel: PanelEditor,
