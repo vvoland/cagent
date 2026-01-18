@@ -363,8 +363,7 @@ var (
 				Foreground(lipgloss.Color(ColorErrorStrong))
 
 	ToolName = ToolMessageStyle.
-			Foreground(MobyBlue).
-			Background(lipgloss.Color(ColorDarkBlue)).
+			Foreground(TextMutedGray).
 			Padding(0, 1)
 
 	ToolNameError = ToolName.
@@ -373,8 +372,7 @@ var (
 
 	ToolCompletedIcon = BaseStyle.
 				MarginLeft(2).
-				Foreground(White).
-				Background(MobyBlue)
+				Foreground(TextMutedGray)
 
 	ToolErrorIcon = ToolCompletedIcon.
 			Background(lipgloss.Color(ColorErrorStrong))
