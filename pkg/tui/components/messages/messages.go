@@ -2,7 +2,9 @@ package messages
 
 import (
 	"os"
+	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
@@ -16,6 +18,7 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tui/components/message"
+	"github.com/docker/cagent/pkg/tui/components/reasoningblock"
 	"github.com/docker/cagent/pkg/tui/components/scrollbar"
 	"github.com/docker/cagent/pkg/tui/components/tool"
 	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
@@ -51,7 +54,8 @@ type Model interface {
 	AddWelcomeMessage(content string) tea.Cmd
 	AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, toolDef tools.Tool, status types.ToolStatus) tea.Cmd
 	AddToolResult(msg *runtime.ToolCallResponseEvent, status types.ToolStatus) tea.Cmd
-	AppendToLastMessage(agentName string, messageType types.MessageType, content string) tea.Cmd
+	AppendToLastMessage(agentName, content string) tea.Cmd
+	AppendReasoning(agentName, content string) tea.Cmd
 	AddShellOutputMessage(content string) tea.Cmd
 	LoadFromSession(sess *session.Session) tea.Cmd
 
@@ -62,6 +66,14 @@ type Model interface {
 type renderedItem struct {
 	view   string // Cached rendered content
 	height int    // Height in lines
+}
+
+// blockIDCounter generates unique IDs for reasoning blocks.
+var blockIDCounter atomic.Uint64
+
+func nextBlockID() string {
+	id := blockIDCounter.Add(1)
+	return "block-" + strconv.FormatUint(id, 10)
 }
 
 // model implements Model
@@ -199,6 +211,19 @@ func (m *model) handleMouseClick(msg tea.MouseClickMsg) (layout.Model, tea.Cmd) 
 	}
 
 	line, col := m.mouseToLineCol(msg.X, msg.Y)
+
+	// Check for reasoning block header toggle
+	if msgIdx, localLine := m.globalLineToMessageLine(line); msgIdx >= 0 {
+		if block, ok := m.views[msgIdx].(*reasoningblock.Model); ok {
+			if block.IsToggleLine(localLine) {
+				block.Toggle()
+				m.userHasScrolled = true // Prevent auto-scroll jump
+				m.invalidateItem(msgIdx)
+				return m, nil
+			}
+		}
+	}
+
 	clickCount := m.selection.detectClickType(line, col)
 
 	switch clickCount {
@@ -216,6 +241,32 @@ func (m *model) handleMouseClick(msg tea.MouseClickMsg) (layout.Model, tea.Cmd) 
 		m.selection.mouseY = msg.Y
 		return m, nil
 	}
+}
+
+// globalLineToMessageLine maps a global line index to (message index, local line within message).
+// Returns (-1, -1) if the line doesn't correspond to any message.
+func (m *model) globalLineToMessageLine(globalLine int) (msgIdx, localLine int) {
+	m.ensureAllItemsRendered()
+
+	currentLine := 0
+	for i, view := range m.views {
+		item := m.renderItem(i, view)
+		if item.height == 0 {
+			continue
+		}
+
+		endLine := currentLine + item.height
+		if globalLine >= currentLine && globalLine < endLine {
+			return i, globalLine - currentLine
+		}
+
+		currentLine = endLine
+		if m.needsSeparator(i) {
+			currentLine++ // Account for separator line
+		}
+	}
+
+	return -1, -1
 }
 
 func (m *model) handleMouseMotion(msg tea.MouseMotionMsg) (layout.Model, tea.Cmd) {
@@ -521,7 +572,8 @@ func (m *model) isSelectableMessage(index int) bool {
 		return false
 	}
 	msgType := m.messages[index].Type
-	return msgType == types.MessageTypeAssistant || msgType == types.MessageTypeAssistantReasoning
+	return msgType == types.MessageTypeAssistant ||
+		msgType == types.MessageTypeAssistantReasoningBlock
 }
 
 func (m *model) findLastSelectableMessage() int {
@@ -624,8 +676,11 @@ func (m *model) shouldCacheMessage(index int) bool {
 			msg.ToolStatus == types.ToolStatusConfirmation
 	case types.MessageTypeToolResult:
 		return true
-	case types.MessageTypeAssistant, types.MessageTypeAssistantReasoning:
+	case types.MessageTypeAssistant:
 		return strings.Trim(msg.Content, "\r\n\t ") != ""
+	case types.MessageTypeAssistantReasoningBlock:
+		// Don't cache reasoning blocks - they can have spinners for in-progress tools
+		return false
 	case types.MessageTypeUser:
 		return true
 	default:
@@ -802,6 +857,32 @@ func (m *model) LoadFromSession(sess *session.Session) tea.Cmd {
 		m.sessionState.PreviousMessage = msg
 	}
 
+	// getOrCreateReasoningBlock returns an existing reasoning block for the agent if the
+	// last message is one, otherwise creates a new one. This combines consecutive
+	// reasoning/tool messages from the same agent into a single block.
+	getOrCreateReasoningBlock := func(agentName string) *reasoningblock.Model {
+		if len(m.messages) > 0 {
+			lastIdx := len(m.messages) - 1
+			lastMsg := m.messages[lastIdx]
+			if lastMsg.Type == types.MessageTypeAssistantReasoningBlock && lastMsg.Sender == agentName {
+				if block, ok := m.views[lastIdx].(*reasoningblock.Model); ok {
+					return block
+				}
+			}
+		}
+
+		// Create new reasoning block
+		block := reasoningblock.New(nextBlockID(), agentName, m.sessionState)
+		block.SetSize(m.contentWidth(), 0)
+
+		blockMsg := &types.Message{
+			Type:   types.MessageTypeAssistantReasoningBlock,
+			Sender: agentName,
+		}
+		appendSessionMessage(blockMsg, block)
+		return block
+	}
+
 	m.messages = nil
 	m.views = nil
 	m.renderedItems = make(map[int]renderedItem)
@@ -811,6 +892,18 @@ func (m *model) LoadFromSession(sess *session.Session) tea.Cmd {
 	m.selectedMessageIndex = -1
 
 	var cmds []tea.Cmd
+
+	// First pass: collect tool results by ToolCallID
+	toolResults := make(map[string]string)
+	for _, item := range sess.Messages {
+		if !item.IsMessage() {
+			continue
+		}
+		smsg := item.Message
+		if smsg.Message.Role == chat.MessageRoleTool && smsg.Message.ToolCallID != "" {
+			toolResults[smsg.Message.ToolCallID] = smsg.Message.Content
+		}
+	}
 
 	for _, item := range sess.Messages {
 		if !item.IsMessage() {
@@ -827,19 +920,40 @@ func (m *model) LoadFromSession(sess *session.Session) tea.Cmd {
 			msg := types.User(smsg.Message.Content)
 			appendSessionMessage(msg, m.createMessageView(msg))
 		case chat.MessageRoleAssistant:
-			// Reasoning content comes first (matches live stream order)
-			if smsg.Message.ReasoningContent != "" {
-				msg := types.Agent(types.MessageTypeAssistantReasoning, smsg.AgentName, smsg.Message.ReasoningContent)
-				appendSessionMessage(msg, m.createMessageView(msg))
-			}
-			for i, tc := range smsg.Message.ToolCalls {
-				var toolDef tools.Tool
-				if i < len(smsg.Message.ToolDefinitions) {
-					toolDef = smsg.Message.ToolDefinitions[i]
+			// If there's reasoning content or tool calls, add to reasoning block
+			hasReasoning := smsg.Message.ReasoningContent != ""
+			hasToolCalls := len(smsg.Message.ToolCalls) > 0
+
+			if hasReasoning || hasToolCalls {
+				// Get existing block for this agent or create new one
+				block := getOrCreateReasoningBlock(smsg.AgentName)
+
+				if hasReasoning {
+					block.AppendReasoning(smsg.Message.ReasoningContent)
+					// Update the message content for copying
+					lastIdx := len(m.messages) - 1
+					if m.messages[lastIdx].Content != "" {
+						m.messages[lastIdx].Content += "\n\n"
+					}
+					m.messages[lastIdx].Content += smsg.Message.ReasoningContent
 				}
-				msg := types.ToolCallMessage(smsg.AgentName, tc, toolDef, types.ToolStatusCompleted)
-				appendSessionMessage(msg, m.createToolCallView(msg))
+
+				for i, tc := range smsg.Message.ToolCalls {
+					var toolDef tools.Tool
+					if i < len(smsg.Message.ToolDefinitions) {
+						toolDef = smsg.Message.ToolDefinitions[i]
+					}
+					toolMsg := types.ToolCallMessage(smsg.AgentName, tc, toolDef, types.ToolStatusCompleted)
+					block.AddToolCall(toolMsg)
+
+					// Apply tool result if available
+					if result, ok := toolResults[tc.ID]; ok {
+						block.UpdateToolResult(tc.ID, result, types.ToolStatusCompleted, nil)
+					}
+				}
 			}
+
+			// Assistant content comes after the reasoning block (breaks the block chain)
 			if smsg.Message.Content != "" {
 				msg := types.Agent(types.MessageTypeAssistant, smsg.AgentName, smsg.Message.Content)
 				appendSessionMessage(msg, m.createMessageView(msg))
@@ -858,10 +972,19 @@ func (m *model) LoadFromSession(sess *session.Session) tea.Cmd {
 }
 
 func (m *model) AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, toolDef tools.Tool, status types.ToolStatus) tea.Cmd {
-	// First try to update existing tool by ID
+	// First check if this tool call exists in an active reasoning block
+	if block, blockIdx := m.getActiveReasoningBlock(agentName); block != nil {
+		if block.HasToolCall(toolCall.ID) {
+			block.UpdateToolCall(toolCall.ID, status, toolCall.Function.Arguments)
+			m.invalidateItem(blockIdx)
+			return nil
+		}
+	}
+
+	// Then try to update existing standalone tool by ID
 	for i := len(m.messages) - 1; i >= 0; i-- {
 		msg := m.messages[i]
-		if msg.ToolCall.ID == toolCall.ID {
+		if msg.Type == types.MessageTypeToolCall && msg.ToolCall.ID == toolCall.ID {
 			msg.ToolStatus = status
 			if toolCall.Function.Arguments != "" {
 				msg.ToolCall.Function.Arguments = toolCall.Function.Arguments
@@ -873,6 +996,15 @@ func (m *model) AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, t
 
 	m.removeSpinner()
 
+	// If there's an active reasoning block, add the tool call to it
+	if block, blockIdx := m.getActiveReasoningBlock(agentName); block != nil {
+		msg := types.ToolCallMessage(agentName, toolCall, toolDef, status)
+		cmd := block.AddToolCall(msg)
+		m.invalidateItem(blockIdx)
+		return cmd
+	}
+
+	// Otherwise create a standalone tool call message
 	msg := types.ToolCallMessage(agentName, toolCall, toolDef, status)
 	m.messages = append(m.messages, msg)
 	view := m.createToolCallView(msg)
@@ -882,9 +1014,23 @@ func (m *model) AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, t
 }
 
 func (m *model) AddToolResult(msg *runtime.ToolCallResponseEvent, status types.ToolStatus) tea.Cmd {
+	// First check reasoning blocks for the tool call
+	for i := len(m.messages) - 1; i >= 0; i-- {
+		if m.messages[i].Type == types.MessageTypeAssistantReasoningBlock {
+			if block, ok := m.views[i].(*reasoningblock.Model); ok {
+				if block.HasToolCall(msg.ToolCall.ID) {
+					cmd := block.UpdateToolResult(msg.ToolCall.ID, msg.Response, status, msg.Result)
+					m.invalidateItem(i)
+					return cmd
+				}
+			}
+		}
+	}
+
+	// Then check standalone tool call messages
 	for i := len(m.messages) - 1; i >= 0; i-- {
 		toolMessage := m.messages[i]
-		if toolMessage.ToolCall.ID == msg.ToolCall.ID {
+		if toolMessage.Type == types.MessageTypeToolCall && toolMessage.ToolCall.ID == msg.ToolCall.ID {
 			toolMessage.Content = strings.ReplaceAll(msg.Response, "\t", "    ")
 			toolMessage.ToolStatus = status
 			toolMessage.ToolResult = msg.Result
@@ -898,7 +1044,7 @@ func (m *model) AddToolResult(msg *runtime.ToolCallResponseEvent, status types.T
 	return nil
 }
 
-func (m *model) AppendToLastMessage(agentName string, messageType types.MessageType, content string) tea.Cmd {
+func (m *model) AppendToLastMessage(agentName, content string) tea.Cmd {
 	m.removeSpinner()
 
 	if len(m.messages) == 0 {
@@ -908,14 +1054,91 @@ func (m *model) AppendToLastMessage(agentName string, messageType types.MessageT
 	lastIdx := len(m.messages) - 1
 	lastMsg := m.messages[lastIdx]
 
-	if lastMsg.Type == messageType && lastMsg.Sender == agentName {
+	// Append to existing assistant message from same agent
+	if lastMsg.Type == types.MessageTypeAssistant && lastMsg.Sender == agentName {
 		lastMsg.Content += content
 		m.views[lastIdx].(message.Model).SetMessage(lastMsg)
 		m.invalidateItem(lastIdx)
 		return nil
 	}
 
-	return m.addMessage(types.Agent(messageType, agentName, content))
+	return m.addMessage(types.Agent(types.MessageTypeAssistant, agentName, content))
+}
+
+func (m *model) AppendReasoning(agentName, content string) tea.Cmd {
+	m.removeSpinner()
+
+	if len(m.messages) == 0 {
+		return m.addReasoningBlock(agentName, content)
+	}
+
+	lastIdx := len(m.messages) - 1
+	lastMsg := m.messages[lastIdx]
+
+	// Append to existing reasoning block for this agent
+	if lastMsg.Type == types.MessageTypeAssistantReasoningBlock && lastMsg.Sender == agentName {
+		if block, ok := m.views[lastIdx].(*reasoningblock.Model); ok {
+			block.AppendReasoning(content)
+			lastMsg.Content += content // Keep content in sync for copying
+			m.invalidateItem(lastIdx)
+			return nil
+		}
+	}
+
+	// Create a new reasoning block
+	return m.addReasoningBlock(agentName, content)
+}
+
+// addReasoningBlock creates a new reasoning block message.
+func (m *model) addReasoningBlock(agentName, content string) tea.Cmd {
+	m.clearSelection()
+	shouldAutoScroll := !m.userHasScrolled
+
+	msg := &types.Message{
+		Type:    types.MessageTypeAssistantReasoningBlock,
+		Sender:  agentName,
+		Content: content,
+	}
+
+	block := reasoningblock.New(nextBlockID(), agentName, m.sessionState)
+	block.SetReasoning(content)
+	block.SetSize(m.contentWidth(), 0)
+
+	m.messages = append(m.messages, msg)
+	m.views = append(m.views, block)
+	m.sessionState.PreviousMessage = msg
+
+	var cmds []tea.Cmd
+	if initCmd := block.Init(); initCmd != nil {
+		cmds = append(cmds, initCmd)
+	}
+	if shouldAutoScroll {
+		cmds = append(cmds, func() tea.Msg {
+			m.scrollToBottom()
+			return nil
+		})
+	}
+
+	return tea.Batch(cmds...)
+}
+
+// getActiveReasoningBlock returns the active reasoning block for the given agent,
+// or nil if the last message is not a reasoning block for that agent.
+func (m *model) getActiveReasoningBlock(agentName string) (*reasoningblock.Model, int) {
+	if len(m.messages) == 0 {
+		return nil, -1
+	}
+
+	lastIdx := len(m.messages) - 1
+	lastMsg := m.messages[lastIdx]
+
+	if lastMsg.Type == types.MessageTypeAssistantReasoningBlock && lastMsg.Sender == agentName {
+		if block, ok := m.views[lastIdx].(*reasoningblock.Model); ok {
+			return block, lastIdx
+		}
+	}
+
+	return nil, -1
 }
 
 func (m *model) ScrollToBottom() tea.Cmd {
