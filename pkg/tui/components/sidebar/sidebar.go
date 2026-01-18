@@ -1,6 +1,7 @@
 package sidebar
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -11,6 +12,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/docker/cagent/pkg/modelsdev"
 	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
@@ -63,34 +65,35 @@ type ragIndexingState struct {
 
 // model implements Model
 type model struct {
-	width             int
-	height            int
-	xPos              int                       // absolute x position on screen
-	yPos              int                       // absolute y position on screen
-	layoutCfg         LayoutConfig              // layout configuration for spacing
-	sessionUsage      map[string]*runtime.Usage // sessionID -> latest usage snapshot
-	sessionAgent      map[string]string         // sessionID -> agent name
-	todoComp          *todotool.SidebarComponent
-	mcpInit           bool
-	ragIndexing       map[string]*ragIndexingState // strategy name -> indexing state
-	spinner           spinner.Spinner
-	mode              Mode
-	sessionTitle      string
-	sessionStarred    bool
-	sessionHasContent bool // true when session has been used (has messages)
-	currentAgent      string
-	agentModel        string
-	agentDescription  string
-	availableAgents   []runtime.AgentDetails
-	agentSwitching    bool
-	availableTools    int
-	toolsLoading      bool // true when more tools may still be loading
-	sessionState      *service.SessionState
-	workingAgent      string // Name of the agent currently working (empty if none)
-	scrollbar         *scrollbar.Model
-	workingDirectory  string
-	queuedMessages    []string // Truncated preview of queued messages
-	streamCancelled   bool     // true after ESC cancel until next StreamStartedEvent
+	width              int
+	height             int
+	xPos               int                       // absolute x position on screen
+	yPos               int                       // absolute y position on screen
+	layoutCfg          LayoutConfig              // layout configuration for spacing
+	sessionUsage       map[string]*runtime.Usage // sessionID -> latest usage snapshot
+	sessionAgent       map[string]string         // sessionID -> agent name
+	todoComp           *todotool.SidebarComponent
+	mcpInit            bool
+	ragIndexing        map[string]*ragIndexingState // strategy name -> indexing state
+	spinner            spinner.Spinner
+	mode               Mode
+	sessionTitle       string
+	sessionStarred     bool
+	sessionHasContent  bool // true when session has been used (has messages)
+	currentAgent       string
+	agentModel         string
+	agentDescription   string
+	availableAgents    []runtime.AgentDetails
+	agentSwitching     bool
+	availableTools     int
+	toolsLoading       bool // true when more tools may still be loading
+	sessionState       *service.SessionState
+	workingAgent       string // Name of the agent currently working (empty if none)
+	scrollbar          *scrollbar.Model
+	workingDirectory   string
+	queuedMessages     []string // Truncated preview of queued messages
+	streamCancelled    bool     // true after ESC cancel until next StreamStartedEvent
+	reasoningSupported bool     // true if current model supports reasoning (default: true / fail-open)
 }
 
 // Option is a functional option for configuring the sidebar.
@@ -103,18 +106,19 @@ func WithLayoutConfig(cfg LayoutConfig) Option {
 
 func New(sessionState *service.SessionState, opts ...Option) Model {
 	m := &model{
-		width:            20,
-		layoutCfg:        DefaultLayoutConfig(),
-		height:           24,
-		sessionUsage:     make(map[string]*runtime.Usage),
-		sessionAgent:     make(map[string]string),
-		todoComp:         todotool.NewSidebarComponent(),
-		spinner:          spinner.New(spinner.ModeSpinnerOnly, styles.SpinnerDotsHighlightStyle),
-		sessionTitle:     "New session",
-		ragIndexing:      make(map[string]*ragIndexingState),
-		sessionState:     sessionState,
-		scrollbar:        scrollbar.New(),
-		workingDirectory: getCurrentWorkingDirectory(),
+		width:              20,
+		layoutCfg:          DefaultLayoutConfig(),
+		height:             24,
+		sessionUsage:       make(map[string]*runtime.Usage),
+		sessionAgent:       make(map[string]string),
+		todoComp:           todotool.NewSidebarComponent(),
+		spinner:            spinner.New(spinner.ModeSpinnerOnly, styles.SpinnerDotsHighlightStyle),
+		sessionTitle:       "New session",
+		ragIndexing:        make(map[string]*ragIndexingState),
+		sessionState:       sessionState,
+		scrollbar:          scrollbar.New(),
+		workingDirectory:   getCurrentWorkingDirectory(),
+		reasoningSupported: true, // Default to true (fail-open)
 	}
 	for _, opt := range opts {
 		opt(m)
@@ -145,16 +149,22 @@ func (m *model) SetTodos(result *tools.ToolCallResult) error {
 }
 
 // SetAgentInfo sets the current agent information and updates the model in availableAgents
-func (m *model) SetAgentInfo(agentName, model, description string) {
+func (m *model) SetAgentInfo(agentName, modelID, description string) {
 	m.currentAgent = agentName
-	m.agentModel = model
+	m.agentModel = modelID
 	m.agentDescription = description
+	m.reasoningSupported = modelsdev.ModelSupportsReasoning(context.Background(), modelID)
 
 	// Update the model in availableAgents for the current agent
 	// This is important when model routing selects a different model than configured
+	// Extract just the model name from "provider/model" format to match TeamInfoEvent format
 	for i := range m.availableAgents {
-		if m.availableAgents[i].Name == agentName && model != "" {
-			m.availableAgents[i].Model = model
+		if m.availableAgents[i].Name == agentName && modelID != "" {
+			modelName := modelID
+			if idx := strings.LastIndex(modelName, "/"); idx != -1 {
+				modelName = modelName[idx+1:]
+			}
+			m.availableAgents[i].Model = modelName
 			break
 		}
 	}
@@ -776,13 +786,14 @@ func (m *model) toolsetInfo(contentWidth int) string {
 	lines = append(lines, m.renderToolsStatus())
 
 	// Toggle indicators with shortcuts
+	// Only show "Thinking enabled" if the model supports reasoning
 	toggles := []struct {
 		enabled  bool
 		label    string
 		shortcut string
 	}{
 		{m.sessionState.YoloMode, "YOLO mode enabled", "^y"},
-		{m.sessionState.Thinking, "Thinking enabled", "/think"},
+		{m.sessionState.Thinking && m.reasoningSupported, "Thinking enabled", "/think"},
 		{m.sessionState.HideToolResults, "Tool output hidden", "^o"},
 		{m.sessionState.SplitDiffView, "Split Diff View enabled", "^t"},
 	}
