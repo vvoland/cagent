@@ -341,3 +341,120 @@ func TestApplyOverrides_DoesNotModifyOriginal(t *testing.T) {
 	// Result should have changes
 	assert.Nil(t, result.ThinkingBudget, "Result ThinkingBudget should be nil")
 }
+
+// TestApplyOverrides_EnableFromDisabled tests that explicitly enabling thinking when
+// the config has it disabled (Tokens=0 or Effort="none") restores provider defaults.
+// This is the key behavior that makes /think work when YAML starts with thinking_budget: 0/none.
+func TestApplyOverrides_EnableFromDisabled(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                 string
+		config               *latest.ModelConfig
+		expectThinkingBudget *latest.ThinkingBudget
+	}{
+		{
+			name: "Anthropic: enable from Tokens=0 restores default 8192",
+			config: &latest.ModelConfig{
+				Provider:       "anthropic",
+				Model:          "claude-sonnet-4-0",
+				ThinkingBudget: &latest.ThinkingBudget{Tokens: 0},
+			},
+			expectThinkingBudget: &latest.ThinkingBudget{Tokens: 8192},
+		},
+		{
+			name: "Anthropic: enable from Effort=none restores default 8192",
+			config: &latest.ModelConfig{
+				Provider:       "anthropic",
+				Model:          "claude-sonnet-4-0",
+				ThinkingBudget: &latest.ThinkingBudget{Effort: "none"},
+			},
+			expectThinkingBudget: &latest.ThinkingBudget{Tokens: 8192},
+		},
+		{
+			name: "OpenAI: enable from Tokens=0 restores default medium",
+			config: &latest.ModelConfig{
+				Provider:       "openai",
+				Model:          "gpt-4o",
+				ThinkingBudget: &latest.ThinkingBudget{Tokens: 0},
+			},
+			expectThinkingBudget: &latest.ThinkingBudget{Effort: "medium"},
+		},
+		{
+			name: "OpenAI: enable from Effort=none restores default medium",
+			config: &latest.ModelConfig{
+				Provider:       "openai",
+				Model:          "gpt-4o",
+				ThinkingBudget: &latest.ThinkingBudget{Effort: "none"},
+			},
+			expectThinkingBudget: &latest.ThinkingBudget{Effort: "medium"},
+		},
+		{
+			name: "Gemini 2.5: enable from Tokens=0 restores default -1 (dynamic)",
+			config: &latest.ModelConfig{
+				Provider:       "google",
+				Model:          "gemini-2.5-flash",
+				ThinkingBudget: &latest.ThinkingBudget{Tokens: 0},
+			},
+			expectThinkingBudget: &latest.ThinkingBudget{Tokens: -1},
+		},
+		{
+			name: "Bedrock Claude: enable from Tokens=0 restores default 8192",
+			config: &latest.ModelConfig{
+				Provider:       "amazon-bedrock",
+				Model:          "anthropic.claude-3-sonnet",
+				ThinkingBudget: &latest.ThinkingBudget{Tokens: 0},
+			},
+			expectThinkingBudget: &latest.ThinkingBudget{Tokens: 8192},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Step 1: Apply provider defaults (simulating createDirectProvider flow)
+			result := applyProviderDefaults(tt.config, nil)
+
+			// Verify thinking is still disabled after defaults (because explicit 0/none is preserved)
+			require.NotNil(t, result.ThinkingBudget, "ThinkingBudget should be set")
+			assert.True(t, result.ThinkingBudget.Tokens == 0 || result.ThinkingBudget.Effort == "none",
+				"ThinkingBudget should still be disabled after defaults")
+
+			// Step 2: Apply override with thinking explicitly enabled (simulates /think toggle)
+			mo := options.ModelOptions{}
+			options.WithThinking(true)(&mo)
+			result = applyOverrides(result, &mo)
+
+			// Verify defaults were restored
+			require.NotNil(t, result.ThinkingBudget, "ThinkingBudget should be set after enable override")
+			assert.Equal(t, tt.expectThinkingBudget.Tokens, result.ThinkingBudget.Tokens, "Tokens should match default")
+			assert.Equal(t, tt.expectThinkingBudget.Effort, result.ThinkingBudget.Effort, "Effort should match default")
+		})
+	}
+}
+
+// TestIsThinkingBudgetDisabled tests the helper function.
+func TestIsThinkingBudgetDisabled(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		budget   *latest.ThinkingBudget
+		expected bool
+	}{
+		{"nil budget", nil, false},
+		{"Tokens=0", &latest.ThinkingBudget{Tokens: 0}, true},
+		{"Effort=none", &latest.ThinkingBudget{Effort: "none"}, true},
+		{"Tokens=8192", &latest.ThinkingBudget{Tokens: 8192}, false},
+		{"Effort=medium", &latest.ThinkingBudget{Effort: "medium"}, false},
+		{"Tokens=-1 (dynamic)", &latest.ThinkingBudget{Tokens: -1}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.expected, isThinkingBudgetDisabled(tt.budget))
+		})
+	}
+}

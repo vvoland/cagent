@@ -500,6 +500,22 @@ func getAgentModelID(a *agent.Agent) string {
 	return ""
 }
 
+// isModelThinkingDisabled checks if the model's thinking configuration is explicitly disabled
+// (thinking_budget: 0 or thinking_budget: none).
+func isModelThinkingDisabled(model provider.Provider) bool {
+	if model == nil {
+		return false
+	}
+	tb := model.BaseConfig().ModelConfig.ThinkingBudget
+	if tb == nil {
+		return false
+	}
+	if tb.Effort == "none" {
+		return true
+	}
+	return tb.Tokens == 0 && tb.Effort == ""
+}
+
 // agentDetailsFromTeam converts team agent info to AgentDetails for events
 func (r *LocalRuntime) agentDetailsFromTeam() []AgentDetails {
 	agentsInfo := r.team.AgentsInfo()
@@ -754,6 +770,12 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			if !sess.Thinking {
 				model = provider.CloneWithOptions(ctx, model, options.WithThinking(false))
 				slog.Debug("Cloned provider with thinking disabled", "agent", a.Name(), "model", model.ID())
+			} else if isModelThinkingDisabled(model) {
+				// If thinking is enabled for this session but the model config has it disabled
+				// (e.g., thinking_budget: 0 or thinking_budget: none), clone with explicit enable
+				// so that applyOverrides restores provider defaults.
+				model = provider.CloneWithOptions(ctx, model, options.WithThinking(true))
+				slog.Debug("Cloned provider with thinking enabled (restoring defaults)", "agent", a.Name(), "model", model.ID())
 			}
 
 			modelID := model.ID()

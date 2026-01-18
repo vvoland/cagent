@@ -351,8 +351,13 @@ func applyOverrides(cfg *latest.ModelConfig, opts *options.ModelOptions) *latest
 	// Create a copy to avoid modifying the original
 	enhancedCfg := *cfg
 
+	t := opts.Thinking()
+	if t == nil {
+		return &enhancedCfg
+	}
+
 	// If thinking is explicitly disabled (e.g., via /think command), clear thinking configuration
-	if t := opts.Thinking(); t != nil && !*t {
+	if !*t {
 		enhancedCfg.ThinkingBudget = nil
 		if enhancedCfg.ProviderOpts != nil {
 			delete(enhancedCfg.ProviderOpts, "interleaved_thinking")
@@ -361,9 +366,38 @@ func applyOverrides(cfg *latest.ModelConfig, opts *options.ModelOptions) *latest
 			"provider", cfg.Provider,
 			"model", cfg.Model,
 		)
+		return &enhancedCfg
+	}
+
+	// If thinking is explicitly enabled (e.g., via /think command) but the config has it
+	// disabled (Tokens == 0 or Effort == "none"), clear ThinkingBudget and re-apply defaults
+	// so the provider gets its standard thinking configuration.
+	if enhancedCfg.ThinkingBudget != nil && isThinkingBudgetDisabled(enhancedCfg.ThinkingBudget) {
+		enhancedCfg.ThinkingBudget = nil
+		applyModelDefaults(&enhancedCfg)
+		slog.Debug("Override: thinking enabled - restored default thinking configuration",
+			"provider", cfg.Provider,
+			"model", cfg.Model,
+		)
 	}
 
 	return &enhancedCfg
+}
+
+// isThinkingBudgetDisabled returns true if the thinking budget is explicitly disabled.
+// NOT disabled when:
+// - Tokens > 0 or Tokens == -1 (explicit token budget)
+// - Effort is set to something other than "none" (e.g., "medium", "high")
+func isThinkingBudgetDisabled(tb *latest.ThinkingBudget) bool {
+	if tb == nil {
+		return false
+	}
+	if tb.Effort == "none" {
+		return true
+	}
+	// Tokens == 0 with no Effort means explicitly disabled (thinking_budget: 0)
+	// Tokens == 0 with Effort set (e.g., "medium") means Effort-based config, not disabled
+	return tb.Tokens == 0 && tb.Effort == ""
 }
 
 // applyModelDefaults applies provider-specific default values for model configuration.
