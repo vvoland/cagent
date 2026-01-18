@@ -88,3 +88,10 @@ func (s *Slice[V]) Update(index int, f func(V) V) bool {
 	s.values[index] = f(s.values[index])
 	return true
 }
+
+func (s *Slice[V]) Clear() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.values = nil
+}

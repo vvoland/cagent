@@ -167,9 +167,9 @@ func TestTodoTool_UpdateTodos(t *testing.T) {
 func TestTodoTool_UpdateTodos_PartialFailure(t *testing.T) {
 	tool := NewTodoTool()
 
-	// Create a single todo
-	_, err := tool.handler.createTodo(t.Context(), CreateTodoArgs{
-		Description: "Test todo item",
+	// Create two todos so we can complete one without clearing the list
+	_, err := tool.handler.createTodos(t.Context(), CreateTodosArgs{
+		Descriptions: []string{"First todo item", "Second todo item"},
 	})
 	require.NoError(t, err)
 
@@ -185,10 +185,11 @@ func TestTodoTool_UpdateTodos_PartialFailure(t *testing.T) {
 	assert.Contains(t, result.Output, "Updated 1 todos")
 	assert.Contains(t, result.Output, "Not found: nonexistent")
 
-	// Verify the existing todo was updated
+	// Verify the existing todo was updated (list not cleared because todo_2 still pending)
 	todos := tool.handler.todos.All()
-	require.Len(t, todos, 1)
+	require.Len(t, todos, 2)
 	assert.Equal(t, "completed", todos[0].Status)
+	assert.Equal(t, "pending", todos[1].Status)
 }
 
 func TestTodoTool_UpdateTodos_AllNotFound(t *testing.T) {
@@ -204,6 +205,35 @@ func TestTodoTool_UpdateTodos_AllNotFound(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, result.IsError) // Error because all failed
 	assert.Contains(t, result.Output, "Not found: nonexistent1, nonexistent2")
+}
+
+func TestTodoTool_UpdateTodos_ClearsWhenAllCompleted(t *testing.T) {
+	tool := NewTodoTool()
+
+	// Create multiple todos
+	_, err := tool.handler.createTodos(t.Context(), CreateTodosArgs{
+		Descriptions: []string{"First todo item", "Second todo item"},
+	})
+	require.NoError(t, err)
+
+	// Complete all todos
+	result, err := tool.handler.updateTodos(t.Context(), UpdateTodosArgs{
+		Updates: []TodoUpdate{
+			{ID: "todo_1", Status: "completed"},
+			{ID: "todo_2", Status: "completed"},
+		},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, result.Output, "Updated 2 todos")
+
+	// Verify all todos were cleared
+	todos := tool.handler.todos.All()
+	assert.Empty(t, todos)
+
+	// Verify Meta is also empty
+	metaTodos, ok := result.Meta.([]Todo)
+	require.True(t, ok, "Meta should be []Todo")
+	assert.Empty(t, metaTodos)
 }
 
 func TestTodoTool_OutputSchema(t *testing.T) {

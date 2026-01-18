@@ -157,10 +157,30 @@ func (h *todoHandler) updateTodos(_ context.Context, params UpdateTodosArgs) (*t
 		return tools.ResultError(output.String()), nil
 	}
 
+	// Clear all todos if all are completed
+	if h.allCompleted() {
+		h.todos.Clear()
+	}
+
 	return &tools.ToolCallResult{
 		Output: output.String(),
 		Meta:   h.todos.All(),
 	}, nil
+}
+
+func (h *todoHandler) allCompleted() bool {
+	if h.todos.Length() == 0 {
+		return false
+	}
+	allDone := true
+	h.todos.Range(func(_ int, todo Todo) bool {
+		if todo.Status != "completed" {
+			allDone = false
+			return false
+		}
+		return true
+	})
+	return allDone
 }
 
 func (h *todoHandler) listTodos(_ context.Context, _ tools.ToolCall) (*tools.ToolCallResult, error) {
