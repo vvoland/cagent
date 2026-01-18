@@ -396,7 +396,11 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.dialog.Open() {
 			u, dialogCmd := a.dialog.Update(msg)
 			a.dialog = u.(dialog.Manager)
-			return a, dialogCmd
+
+			updated, cmdChatPage := a.chatPage.Update(msg)
+			a.chatPage = updated.(chat.Page)
+
+			return a, tea.Batch(dialogCmd, cmdChatPage)
 		}
 
 		updated, cmdCompletions := a.completions.Update(msg)
