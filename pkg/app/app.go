@@ -192,8 +192,10 @@ func (a *App) Run(ctx context.Context, cancel context.CancelFunc, message string
 			a.session.AddMessage(session.UserMessage(message))
 		}
 		for event := range a.runtime.RunStream(ctx, a.session) {
+			// If context is cancelled, continue draining but don't forward events.
+			// This prevents the runtime from blocking on event sends.
 			if ctx.Err() != nil {
-				return
+				continue
 			}
 			a.events <- event
 		}
@@ -207,8 +209,10 @@ func (a *App) RunWithMessage(ctx context.Context, cancel context.CancelFunc, msg
 	go func() {
 		a.session.AddMessage(msg)
 		for event := range a.runtime.RunStream(ctx, a.session) {
+			// If context is cancelled, continue draining but don't forward events.
+			// This prevents the runtime from blocking on event sends.
 			if ctx.Err() != nil {
-				return
+				continue
 			}
 			a.events <- event
 		}
