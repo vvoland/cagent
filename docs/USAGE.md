@@ -284,11 +284,31 @@ models:
 
 Determine how much the model should think by setting the `thinking_budget`
 
+- **Disable thinking**: Use `none` (string) or `0` (integer) to explicitly disable thinking for any provider
 - **OpenAI**: use effort levels — `minimal`, `low`, `medium`, `high`. Default: `medium`
 - **Anthropic**: set an integer token budget. Range is 1024–32768; must be strictly less than `max_tokens`. Default: `8192` with `interleaved_thinking: true`
 - **Google (Gemini 2.5)**: set an integer token budget. `0` -> disable thinking, `-1` -> dynamic thinking (model decides). Default: `-1` (dynamic)
 - **Google (Gemini 3)**: use effort levels — `minimal` (Flash only), `low`, `medium`, `high`. Default: `high` for Pro, `medium` for Flash
 - **Amazon Bedrock (Claude models)**: set an integer token budget, same as Anthropic. Default: `8192` with `interleaved_thinking: true`
+
+**Disabling thinking:**
+
+```yaml
+models:
+  # Using string "none"
+  gpt-no-thinking:
+    provider: openai
+    model: gpt-5
+    thinking_budget: none # or 0
+
+  # Using integer 0
+  claude-no-thinking:
+    provider: anthropic
+    model: claude-sonnet-4-5
+    thinking_budget: 0 # or none
+```
+
+Note: When thinking is disabled via config, it can still be enabled during a session using the `/think` command, which will restore the provider's default thinking configuration.
 
 Examples (OpenAI):
 

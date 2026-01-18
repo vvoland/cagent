@@ -310,10 +310,17 @@ func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, loadRes
 
 		slog.Debug("Loaded existing session", "session_id", f.sessionID, "agent", f.agentName)
 	} else {
+		thinking := true
+		if tb := agent.Model().BaseConfig().ModelConfig.ThinkingBudget; tb != nil {
+			if tb.Effort == "none" || (tb.Tokens == 0 && tb.Effort == "") {
+				thinking = false
+			}
+		}
 		sess = session.New(
 			session.WithMaxIterations(agent.MaxIterations()),
 			session.WithToolsApproved(f.autoApprove),
 			session.WithHideToolResults(f.hideToolResults),
+			session.WithThinking(thinking),
 		)
 		// Session is stored lazily on first UpdateSession call (when content is added)
 		// This avoids creating empty sessions in the database
