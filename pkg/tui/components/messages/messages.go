@@ -99,24 +99,20 @@ type model struct {
 
 // New creates a new message list component
 func New(a *app.App, sessionState *service.SessionState) Model {
-	return &model{
-		width:                120,
-		height:               24,
-		app:                  a,
-		renderedItems:        make(map[int]renderedItem),
-		sessionState:         sessionState,
-		scrollbar:            scrollbar.New(),
-		selectedMessageIndex: -1,
-		debugLayout:          os.Getenv("CAGENT_EXPERIMENTAL_DEBUG_LAYOUT") == "1",
-	}
+	return newModel(120, 24, a, sessionState)
 }
 
 // NewScrollableView creates a simple scrollable view for displaying messages in dialogs
 // This is a lightweight version that doesn't require app or session state management
 func NewScrollableView(width, height int, sessionState *service.SessionState) Model {
+	return newModel(width, height, nil, sessionState)
+}
+
+func newModel(width, height int, a *app.App, sessionState *service.SessionState) *model {
 	return &model{
 		width:                width,
 		height:               height,
+		app:                  a,
 		renderedItems:        make(map[int]renderedItem),
 		sessionState:         sessionState,
 		scrollbar:            scrollbar.New(),
@@ -260,9 +256,7 @@ func (m *model) handleMouseRelease(msg tea.MouseReleaseMsg) (layout.Model, tea.C
 
 func (m *model) handleMouseWheel(msg tea.MouseWheelMsg) (layout.Model, tea.Cmd) {
 	const mouseScrollAmount = 2
-	buttonStr := msg.Button.String()
-
-	switch buttonStr {
+	switch msg.Button.String() {
 	case "wheelup":
 		if m.scrollOffset > 0 {
 			m.userHasScrolled = true
@@ -649,8 +643,8 @@ func (m *model) renderItem(index int, view layout.Model) renderedItem {
 		msgView.SetSelected(isSelected)
 	}
 
-	// Don't cache selected items since selection state can change
-	if !isSelected && m.shouldCacheMessage(index) {
+	shouldCache := !isSelected && m.shouldCacheMessage(index)
+	if shouldCache {
 		if cached, exists := m.renderedItems[index]; exists {
 			return cached
 		}
@@ -664,7 +658,7 @@ func (m *model) renderItem(index int, view layout.Model) renderedItem {
 
 	item := renderedItem{view: rendered, height: height}
 
-	if !isSelected && m.shouldCacheMessage(index) {
+	if shouldCache {
 		m.renderedItems[index] = item
 	}
 
@@ -794,7 +788,6 @@ func (m *model) addMessage(msg *types.Message) tea.Cmd {
 	if initCmd := view.Init(); initCmd != nil {
 		cmds = append(cmds, initCmd)
 	}
-
 	if shouldAutoScroll {
 		cmds = append(cmds, func() tea.Msg {
 			m.scrollToBottom()
@@ -806,6 +799,12 @@ func (m *model) addMessage(msg *types.Message) tea.Cmd {
 }
 
 func (m *model) LoadFromSession(sess *session.Session) tea.Cmd {
+	appendSessionMessage := func(msg *types.Message, view layout.Model) {
+		m.messages = append(m.messages, msg)
+		m.views = append(m.views, view)
+		m.sessionState.PreviousMessage = msg
+	}
+
 	m.messages = nil
 	m.views = nil
 	m.renderedItems = make(map[int]renderedItem)
@@ -829,16 +828,12 @@ func (m *model) LoadFromSession(sess *session.Session) tea.Cmd {
 		switch smsg.Message.Role {
 		case chat.MessageRoleUser:
 			msg := types.User(smsg.Message.Content)
-			m.messages = append(m.messages, msg)
-			m.views = append(m.views, m.createMessageView(msg))
-			m.sessionState.PreviousMessage = msg
+			appendSessionMessage(msg, m.createMessageView(msg))
 		case chat.MessageRoleAssistant:
 			// Reasoning content comes first (matches live stream order)
 			if smsg.Message.ReasoningContent != "" {
 				msg := types.Agent(types.MessageTypeAssistantReasoning, smsg.AgentName, smsg.Message.ReasoningContent)
-				m.messages = append(m.messages, msg)
-				m.views = append(m.views, m.createMessageView(msg))
-				m.sessionState.PreviousMessage = msg
+				appendSessionMessage(msg, m.createMessageView(msg))
 			}
 			for i, tc := range smsg.Message.ToolCalls {
 				var toolDef tools.Tool
@@ -846,15 +841,11 @@ func (m *model) LoadFromSession(sess *session.Session) tea.Cmd {
 					toolDef = smsg.Message.ToolDefinitions[i]
 				}
 				msg := types.ToolCallMessage(smsg.AgentName, tc, toolDef, types.ToolStatusCompleted)
-				m.messages = append(m.messages, msg)
-				m.views = append(m.views, m.createToolCallView(msg))
-				m.sessionState.PreviousMessage = msg
+				appendSessionMessage(msg, m.createToolCallView(msg))
 			}
 			if smsg.Message.Content != "" {
 				msg := types.Agent(types.MessageTypeAssistant, smsg.AgentName, smsg.Message.Content)
-				m.messages = append(m.messages, msg)
-				m.views = append(m.views, m.createMessageView(msg))
-				m.sessionState.PreviousMessage = msg
+				appendSessionMessage(msg, m.createMessageView(msg))
 			}
 		case chat.MessageRoleTool:
 			continue
@@ -974,24 +965,24 @@ func (m *model) removeSpinner() {
 }
 
 func (m *model) removePendingToolCallMessages() {
-	var newMessages []*types.Message
-	var newViews []layout.Model
+	messages := make([]*types.Message, 0, len(m.messages))
+	views := make([]layout.Model, 0, len(m.views))
 
 	for i, msg := range m.messages {
-		shouldRemove := msg.Type == types.MessageTypeToolCall &&
-			(msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning)
+		if msg.Type == types.MessageTypeToolCall &&
+			(msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning) {
+			continue
+		}
 
-		if !shouldRemove {
-			newMessages = append(newMessages, msg)
-			if i < len(m.views) {
-				newViews = append(newViews, m.views[i])
-			}
+		messages = append(messages, msg)
+		if i < len(m.views) {
+			views = append(views, m.views[i])
 		}
 	}
 
-	if len(newMessages) != len(m.messages) {
-		m.messages = newMessages
-		m.views = newViews
+	if len(messages) != len(m.messages) {
+		m.messages = messages
+		m.views = views
 		m.invalidateAllItems()
 	}
 }
