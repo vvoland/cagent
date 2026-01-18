@@ -328,8 +328,12 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		model, cmd := p.messages.Update(msg)
 		p.messages = model.(messages.Model)
 
+		// Forward to sidebar to stop its spinners
+		sidebarModel, sidebarCmd := p.sidebar.Update(msg)
+		p.sidebar = sidebarModel.(sidebar.Model)
+
 		var cmds []tea.Cmd
-		cmds = append(cmds, cmd)
+		cmds = append(cmds, cmd, sidebarCmd)
 
 		if msg.ShowMessage {
 			cmds = append(cmds, p.messages.AddCancelledMessage())

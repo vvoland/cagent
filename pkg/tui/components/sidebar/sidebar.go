@@ -15,6 +15,7 @@ import (
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/tools"
+	chatmsgs "github.com/docker/cagent/pkg/tui/components/messages"
 	"github.com/docker/cagent/pkg/tui/components/scrollbar"
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/components/tab"
@@ -89,6 +90,7 @@ type model struct {
 	scrollbar         *scrollbar.Model
 	workingDirectory  string
 	queuedMessages    []string // Truncated preview of queued messages
+	streamCancelled   bool     // true after ESC cancel until next StreamStartedEvent
 }
 
 // Option is a functional option for configuring the sidebar.
@@ -305,12 +307,20 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		m.SetTokenUsage(msg)
 		return m, nil
 	case *runtime.MCPInitStartedEvent:
+		// Ignore if stream was cancelled (stale event from before cancellation)
+		if m.streamCancelled {
+			return m, nil
+		}
 		m.mcpInit = true
 		return m, m.spinner.Init()
 	case *runtime.MCPInitFinishedEvent:
 		m.mcpInit = false
 		return m, nil
 	case *runtime.RAGIndexingStartedEvent:
+		// Ignore if stream was cancelled (stale event from before cancellation)
+		if m.streamCancelled {
+			return m, nil
+		}
 		// Use composite key: "ragName/strategyName" to differentiate strategies within same RAG manager
 		key := msg.RAGName + "/" + msg.StrategyName
 		slog.Debug("Sidebar received RAG indexing started event", "rag", msg.RAGName, "strategy", msg.StrategyName, "key", key)
@@ -336,6 +346,8 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		m.sessionTitle = msg.Title
 		return m, nil
 	case *runtime.StreamStartedEvent:
+		// New stream starting - reset cancelled flag and enable spinner
+		m.streamCancelled = false
 		m.workingAgent = msg.AgentName
 		return m, m.spinner.Init()
 	case *runtime.StreamStoppedEvent:
@@ -351,9 +363,24 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		m.SetAgentSwitching(msg.Switching)
 		return m, nil
 	case *runtime.ToolsetInfoEvent:
+		// Ignore loading state if stream was cancelled (stale event from before cancellation)
+		if m.streamCancelled && msg.Loading {
+			return m, nil
+		}
 		m.SetToolsetInfo(msg.AvailableTools, msg.Loading)
 		if msg.Loading {
 			return m, m.spinner.Init()
+		}
+		return m, nil
+	case chatmsgs.StreamCancelledMsg:
+		// Clear all spinner-driving state when stream is cancelled via ESC
+		m.streamCancelled = true
+		m.workingAgent = ""
+		m.toolsLoading = false
+		m.mcpInit = false
+		// Clear any in-flight RAG indexing state
+		for k := range m.ragIndexing {
+			delete(m.ragIndexing, k)
 		}
 		return m, nil
 	default:
