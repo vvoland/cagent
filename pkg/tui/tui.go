@@ -336,6 +336,11 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return a, nil
 
+	case messages.SendAttachmentMsg:
+		// Handle first message with image attachment using the pre-prepared message
+		a.application.RunWithMessage(context.Background(), nil, msg.Content)
+		return a, nil
+
 	case speakTranscriptAndContinue:
 		// Insert the transcript delta into the editor
 		a.chatPage.InsertText(msg.delta)
@@ -353,11 +358,6 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case chat.EditorHeightChangedMsg:
 		a.completions.SetEditorBottom(msg.Height)
-		return a, nil
-
-	case messages.SendAttachmentMsg:
-		// Handle first message with image attachment using the pre-prepared message
-		a.application.RunWithMessage(context.Background(), nil, msg.Content)
 		return a, nil
 
 	case error:
