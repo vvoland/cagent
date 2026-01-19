@@ -570,13 +570,13 @@ func buildContextSpecificSystemMessages(a *agent.Agent, s *Session) []chat.Messa
 		}
 
 		for _, prompt := range a.AddPromptFiles() {
-			additionalPrompt, err := readPromptFile(wd, prompt)
+			additionalPrompts, err := readPromptFiles(wd, prompt)
 			if err != nil {
 				slog.Error("reading prompt file", "file", prompt, "error", err)
 				continue
 			}
 
-			if additionalPrompt != "" {
+			for _, additionalPrompt := range additionalPrompts {
 				messages = append(messages, chat.Message{
 					Role:    chat.MessageRoleSystem,
 					Content: additionalPrompt,
