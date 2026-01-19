@@ -685,7 +685,7 @@ func (p *chatPage) syncQueueToSidebar() {
 		}
 		previews[i] = content
 	}
-	p.sidebar.SetQueuedMessages(previews)
+	p.sidebar.SetQueuedMessages(previews...)
 }
 
 // processMessage processes a message with the runtime

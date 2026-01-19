@@ -49,7 +49,7 @@ type Model interface {
 	SetAgentSwitching(switching bool)
 	SetToolsetInfo(availableTools int, loading bool)
 	SetSessionStarred(starred bool)
-	SetQueuedMessages(messages []string)
+	SetQueuedMessages(messages ...string)
 	GetSize() (width, height int)
 	LoadFromSession(sess *session.Session)
 	// HandleClick checks if click is on the star and returns true if handled
@@ -192,8 +192,8 @@ func (m *model) SetSessionStarred(starred bool) {
 }
 
 // SetQueuedMessages sets the list of queued message previews to display
-func (m *model) SetQueuedMessages(messages []string) {
-	m.queuedMessages = messages
+func (m *model) SetQueuedMessages(queuedMessages ...string) {
+	m.queuedMessages = queuedMessages
 }
 
 // HandleClick checks if click is on the star and returns true if it was
