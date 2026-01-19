@@ -34,7 +34,7 @@ import (
 // appModel represents the main application model
 type appModel struct {
 	application     *app.App
-	wWidth, wHeight int // Window dimensions
+	wWidth, wHeight int
 	width, height   int
 	keyMap          KeyMap
 
@@ -47,10 +47,8 @@ type appModel struct {
 
 	sessionState *service.SessionState
 
-	// Speech-to-text transcriber
 	transcriber *transcribe.Transcriber
 
-	// State
 	ready bool
 	err   error
 }
