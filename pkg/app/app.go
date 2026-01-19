@@ -13,12 +13,15 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/docker/cagent/pkg/app/export"
+	"github.com/docker/cagent/pkg/app/transcript"
 	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config/types"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/tools"
 	mcptools "github.com/docker/cagent/pkg/tools/mcp"
+	"github.com/docker/cagent/pkg/tui/messages"
 )
 
 type App struct {
@@ -87,18 +90,26 @@ func New(ctx context.Context, rt runtime.Runtime, sess *session.Session, opts ..
 	return app
 }
 
-func (a *App) FirstMessage() *string {
-	return a.firstMessage
-}
+func (a *App) SendFirstMessage() tea.Cmd {
+	if a.firstMessage == nil {
+		return nil
+	}
 
-// FirstMessageAttachment returns the attachment path for the first message.
-func (a *App) FirstMessageAttachment() string {
-	return a.firstMessageAttach
-}
+	return func() tea.Msg {
+		// Use the shared PrepareUserMessage function for consistent attachment handling
+		userMsg := cli.PrepareUserMessage(context.Background(), a.runtime, *a.firstMessage, a.firstMessageAttach)
 
-// Runtime returns the runtime for this app.
-func (a *App) Runtime() runtime.Runtime {
-	return a.runtime
+		// If the message has multi-content (attachments), we need to handle it specially
+		if len(userMsg.Message.MultiContent) > 0 {
+			return messages.SendAttachmentMsg{
+				Content: userMsg,
+			}
+		}
+
+		return messages.SendMsg{
+			Content: userMsg.Message.Content,
+		}
+	}
 }
 
 // CurrentAgentCommands returns the commands for the active agent
@@ -475,7 +486,7 @@ func (a *App) CompactSession(additionalPrompt string) {
 }
 
 func (a *App) PlainTextTranscript() string {
-	return transcript(a.session)
+	return transcript.PlainText(a.session)
 }
 
 // SessionStore returns the session store for browsing/loading sessions.

@@ -3,7 +3,6 @@ package tui
 import (
 	"cmp"
 	"context"
-	"log/slog"
 	"os"
 	"os/exec"
 	goruntime "runtime"
@@ -15,12 +14,9 @@ import (
 
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/audio/transcribe"
-	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/runtime"
-	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/tui/commands"
 	"github.com/docker/cagent/pkg/tui/components/completion"
-	"github.com/docker/cagent/pkg/tui/components/editor"
 	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/components/statusbar"
 	"github.com/docker/cagent/pkg/tui/core"
@@ -59,7 +55,7 @@ type KeyMap struct {
 	CommandPalette        key.Binding
 	ToggleYolo            key.Binding
 	ToggleHideToolResults key.Binding
-	SwitchAgent           key.Binding
+	CycleAgent            key.Binding
 	ModelPicker           key.Binding
 	Speak                 key.Binding
 	ClearQueue            key.Binding
@@ -84,7 +80,7 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("ctrl+o"),
 			key.WithHelp("Ctrl+o", "toggle tool output"),
 		),
-		SwitchAgent: key.NewBinding(
+		CycleAgent: key.NewBinding(
 			key.WithKeys("ctrl+s"),
 			key.WithHelp("Ctrl+s", "cycle agent"),
 		),
@@ -131,35 +127,11 @@ func New(ctx context.Context, a *app.App) tea.Model {
 
 // Init initializes the application
 func (a *appModel) Init() tea.Cmd {
-	cmds := []tea.Cmd{
+	return tea.Sequence(
 		a.dialog.Init(),
 		a.chatPage.Init(),
-	}
-
-	if firstMessage := a.application.FirstMessage(); firstMessage != nil {
-		cmds = append(cmds, func() tea.Msg {
-			// Use the shared PrepareUserMessage function for consistent attachment handling
-			userMsg := cli.PrepareUserMessage(context.Background(), a.application.Runtime(), *firstMessage, a.application.FirstMessageAttachment())
-
-			// If the message has multi-content (attachments), we need to handle it specially
-			if len(userMsg.Message.MultiContent) > 0 {
-				return firstMessageWithAttachment{
-					message: userMsg,
-				}
-			}
-
-			return editor.SendMsg{
-				Content: userMsg.Message.Content,
-			}
-		})
-	}
-
-	return tea.Batch(cmds...)
-}
-
-// firstMessageWithAttachment is a message for the first message with an attachment
-type firstMessageWithAttachment struct {
-	message *session.Message
+		a.application.SendFirstMessage(),
+	)
 }
 
 // Help returns help information
@@ -336,11 +308,11 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.handleChangeModel(msg.ModelRef)
 
 	case messages.ElicitationResponseMsg:
-		// Handle elicitation response from the dialog
-		if err := a.application.ResumeElicitation(context.Background(), msg.Action, msg.Content); err != nil {
-			slog.Error("Failed to resume elicitation", "action", msg.Action, "error", err)
-			return a, notification.ErrorCmd("Failed to complete server request: " + err.Error())
-		}
+		return a.handleElicitationResponse(msg.Action, msg.Content)
+
+	case messages.SendAttachmentMsg:
+		// Handle first message with image attachment using the pre-prepared message
+		a.application.RunWithMessage(context.Background(), nil, msg.Content)
 		return a, nil
 
 	case speakTranscriptAndContinue:
@@ -360,11 +332,6 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case chat.EditorHeightChangedMsg:
 		a.completions.SetEditorBottom(msg.Height)
-		return a, nil
-
-	case firstMessageWithAttachment:
-		// Handle first message with image attachment using the pre-prepared message
-		a.application.RunWithMessage(context.Background(), nil, msg.message)
 		return a, nil
 
 	case error:
@@ -493,9 +460,8 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, a.keyMap.ToggleHideToolResults):
 		return a, core.CmdHandler(messages.ToggleHideToolResultsMsg{})
 
-	case key.Matches(msg, a.keyMap.SwitchAgent):
-		// Cycle to the next agent in the list
-		return a.cycleToNextAgent()
+	case key.Matches(msg, a.keyMap.CycleAgent):
+		return a.handleCycleAgent()
 
 	case key.Matches(msg, a.keyMap.ModelPicker):
 		return a.handleOpenModelPicker()
@@ -512,8 +478,9 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	default:
 		// Handle ctrl+1 through ctrl+9 for quick agent switching
 		if index := parseCtrlNumberKey(msg); index >= 0 {
-			return a.switchToAgentByIndex(index)
+			return a.handleSwitchToAgentByIndex(index)
 		}
+
 		updated, cmd := a.chatPage.Update(msg)
 		a.chatPage = updated.(chat.Page)
 		return a, cmd
@@ -527,39 +494,6 @@ func parseCtrlNumberKey(msg tea.KeyPressMsg) int {
 		return int(s[5] - '1')
 	}
 	return -1
-}
-
-// switchToAgentByIndex switches to the agent at the given index
-func (a *appModel) switchToAgentByIndex(index int) (tea.Model, tea.Cmd) {
-	availableAgents := a.sessionState.AvailableAgents()
-	if index >= 0 && index < len(availableAgents) {
-		agentName := availableAgents[index].Name
-		if agentName != a.sessionState.CurrentAgentName() {
-			return a, core.CmdHandler(messages.SwitchAgentMsg{AgentName: agentName})
-		}
-	}
-	return a, nil
-}
-
-// cycleToNextAgent cycles to the next agent in the available agents list
-func (a *appModel) cycleToNextAgent() (tea.Model, tea.Cmd) {
-	availableAgents := a.sessionState.AvailableAgents()
-	if len(availableAgents) <= 1 {
-		return a, notification.InfoCmd("No other agents available")
-	}
-
-	// Find the current agent index
-	currentIndex := -1
-	for i, agent := range availableAgents {
-		if agent.Name == a.sessionState.CurrentAgentName() {
-			currentIndex = i
-			break
-		}
-	}
-
-	// Cycle to the next agent (wrap around to 0 if at the end)
-	nextIndex := (currentIndex + 1) % len(availableAgents)
-	return a.switchToAgentByIndex(nextIndex)
 }
 
 // View renders the complete application interface

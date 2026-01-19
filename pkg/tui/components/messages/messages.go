@@ -24,15 +24,11 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/messages"
 	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
-
-// StreamCancelledMsg notifies components that the stream has been cancelled
-type StreamCancelledMsg struct {
-	ShowMessage bool // Whether to show a cancellation message after cleanup
-}
 
 // ToggleHideToolResultsMsg triggers hiding/showing tool results
 type ToggleHideToolResultsMsg struct{}
@@ -146,7 +142,7 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
-	case StreamCancelledMsg:
+	case messages.StreamCancelledMsg:
 		m.removeSpinner()
 		m.removePendingToolCallMessages()
 		return m, nil
@@ -1185,7 +1181,7 @@ func (m *model) removeSpinner() {
 }
 
 func (m *model) removePendingToolCallMessages() {
-	messages := make([]*types.Message, 0, len(m.messages))
+	toolCallMessages := make([]*types.Message, 0, len(m.messages))
 	views := make([]layout.Model, 0, len(m.views))
 
 	for i, msg := range m.messages {
@@ -1194,14 +1190,14 @@ func (m *model) removePendingToolCallMessages() {
 			continue
 		}
 
-		messages = append(messages, msg)
+		toolCallMessages = append(toolCallMessages, msg)
 		if i < len(m.views) {
 			views = append(views, m.views[i])
 		}
 	}
 
-	if len(messages) != len(m.messages) {
-		m.messages = messages
+	if len(toolCallMessages) != len(m.messages) {
+		m.messages = toolCallMessages
 		m.views = views
 		m.invalidateAllItems()
 	}
