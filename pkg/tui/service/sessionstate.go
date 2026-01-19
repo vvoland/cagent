@@ -10,23 +10,24 @@ import (
 // This provides a centralized location for state that needs to be
 // accessible by multiple components.
 type SessionState struct {
-	splitDiffView    bool
-	yoloMode         bool
-	thinking         bool
-	hideToolResults  bool
+	splitDiffView   bool
+	yoloMode        bool
+	thinking        bool
+	hideToolResults bool
+	sessionTitle    string
+
 	previousMessage  *types.Message
 	currentAgentName string
-	sessionTitle     string
 	availableAgents  []runtime.AgentDetails
 }
 
-func NewSessionState(sessionState *session.Session) *SessionState {
+func NewSessionState(s *session.Session) *SessionState {
 	return &SessionState{
 		splitDiffView:   true,
-		yoloMode:        sessionState.ToolsApproved,
-		thinking:        sessionState.Thinking,
-		hideToolResults: sessionState.HideToolResults,
-		sessionTitle:    sessionState.Title,
+		yoloMode:        s.ToolsApproved,
+		thinking:        s.Thinking,
+		hideToolResults: s.HideToolResults,
+		sessionTitle:    s.Title,
 	}
 }
 
