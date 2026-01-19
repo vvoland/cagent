@@ -97,6 +97,10 @@ type chatPage struct {
 	msgCancel       context.CancelFunc
 	streamCancelled bool
 
+	// Track whether we've received content from an assistant response
+	// Used by --exit-after-response to ensure we don't exit before receiving content
+	hasReceivedAssistantContent bool
+
 	// Message queue for enqueuing messages while agent is working
 	messageQueue []queuedMessage
 
@@ -878,6 +882,11 @@ func (p *chatPage) handleResize(y int) tea.Cmd {
 
 // renderResizeHandle renders the draggable separator between messages and editor.
 func (p *chatPage) renderResizeHandle(width int) string {
+	// Guard against zero or negative width (can happen before WindowSizeMsg is received)
+	if width <= 0 {
+		return ""
+	}
+
 	// Use brighter style when actively dragging
 	centerStyle := styles.ResizeHandleHoverStyle
 	if p.isDragging {
@@ -890,7 +899,7 @@ func (p *chatPage) renderResizeHandle(width int) string {
 
 	// Always center handle on full width
 	fullLine := lipgloss.PlaceHorizontal(
-		width-2, lipgloss.Center, handle,
+		max(0, width-2), lipgloss.Center, handle,
 		lipgloss.WithWhitespaceChars("─"),
 		lipgloss.WithWhitespaceStyle(styles.ResizeHandleStyle),
 	)

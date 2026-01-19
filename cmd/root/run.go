@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime/pprof"
+	"strings"
 
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
@@ -23,18 +25,21 @@ import (
 )
 
 type runExecFlags struct {
-	agentName      string
-	autoApprove    bool
-	attachmentPath string
-	remoteAddress  string
-	connectRPC     bool
-	modelOverrides []string
-	dryRun         bool
-	runConfig      config.RuntimeConfig
-	sessionDB      string
-	sessionID      string
-	recordPath     string
-	fakeResponses  string
+	agentName         string
+	autoApprove       bool
+	attachmentPath    string
+	remoteAddress     string
+	connectRPC        bool
+	modelOverrides    []string
+	dryRun            bool
+	runConfig         config.RuntimeConfig
+	sessionDB         string
+	sessionID         string
+	recordPath        string
+	fakeResponses     string
+	exitAfterResponse bool
+	cpuProfile        string
+	forceTUI          bool
 
 	// Exec only
 	hideToolCalls bool
@@ -83,6 +88,12 @@ func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 	cmd.PersistentFlags().StringVar(&flags.fakeResponses, "fake", "", "Replay AI responses from cassette file (for testing)")
 	cmd.PersistentFlags().StringVar(&flags.recordPath, "record", "", "Record AI API interactions to cassette file (auto-generates filename if empty)")
 	cmd.PersistentFlags().Lookup("record").NoOptDefVal = "true"
+	cmd.PersistentFlags().BoolVar(&flags.exitAfterResponse, "exit-after-response", false, "Exit TUI after first assistant response completes")
+	_ = cmd.PersistentFlags().MarkHidden("exit-after-response")
+	cmd.PersistentFlags().StringVar(&flags.cpuProfile, "cpuprofile", "", "Write CPU profile to file")
+	_ = cmd.PersistentFlags().MarkHidden("cpuprofile")
+	cmd.PersistentFlags().BoolVar(&flags.forceTUI, "force-tui", false, "Force TUI mode even when not in a terminal")
+	_ = cmd.PersistentFlags().MarkHidden("force-tui")
 	cmd.MarkFlagsMutuallyExclusive("fake", "record")
 }
 
@@ -92,12 +103,26 @@ func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	out := cli.NewPrinter(cmd.OutOrStdout())
 
-	tui := isatty.IsTerminal(os.Stdout.Fd())
+	tui := f.forceTUI || isatty.IsTerminal(os.Stdout.Fd())
 	return f.runOrExec(ctx, out, args, tui)
 }
 
 func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []string, tui bool) error {
 	slog.Debug("Starting agent", "agent", f.agentName)
+
+	// Start CPU profiling if requested
+	if f.cpuProfile != "" {
+		pf, err := os.Create(f.cpuProfile)
+		if err != nil {
+			return fmt.Errorf("failed to create CPU profile: %w", err)
+		}
+		defer pf.Close()
+		if err := pprof.StartCPUProfile(pf); err != nil {
+			return fmt.Errorf("failed to start CPU profile: %w", err)
+		}
+		defer pprof.StopCPUProfile()
+		slog.Info("CPU profiling enabled", "file", f.cpuProfile)
+	}
 
 	var agentFileName string
 	if len(args) > 0 {
@@ -374,6 +399,9 @@ func (f *runExecFlags) handleRunMode(ctx context.Context, rt runtime.Runtime, se
 	}
 	if f.attachmentPath != "" {
 		opts = append(opts, app.WithFirstMessageAttachment(f.attachmentPath))
+	}
+	if f.exitAfterResponse {
+		opts = append(opts, app.WithExitAfterFirstResponse())
 	}
 
 	return runTUI(ctx, rt, sess, opts...)

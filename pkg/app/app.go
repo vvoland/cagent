@@ -25,14 +25,15 @@ import (
 )
 
 type App struct {
-	runtime            runtime.Runtime
-	session            *session.Session
-	firstMessage       *string
-	firstMessageAttach string
-	events             chan tea.Msg
-	throttleDuration   time.Duration
-	cancel             context.CancelFunc
-	currentAgentModel  string // Tracks the current agent's model ID from AgentInfoEvent
+	runtime                runtime.Runtime
+	session                *session.Session
+	firstMessage           *string
+	firstMessageAttach     string
+	events                 chan tea.Msg
+	throttleDuration       time.Duration
+	cancel                 context.CancelFunc
+	currentAgentModel      string // Tracks the current agent's model ID from AgentInfoEvent
+	exitAfterFirstResponse bool   // Exit TUI after first assistant response completes
 }
 
 // Opt is an option for creating a new App.
@@ -49,6 +50,13 @@ func WithFirstMessage(msg string) Opt {
 func WithFirstMessageAttachment(path string) Opt {
 	return func(a *App) {
 		a.firstMessageAttach = path
+	}
+}
+
+// WithExitAfterFirstResponse configures the app to exit after the first assistant response.
+func WithExitAfterFirstResponse() Opt {
+	return func(a *App) {
+		a.exitAfterFirstResponse = true
 	}
 }
 
@@ -269,6 +277,7 @@ func (a *App) Subscribe(ctx context.Context, program *tea.Program) {
 			if !ok {
 				return
 			}
+
 			program.Send(msg)
 		}
 	}
@@ -472,6 +481,12 @@ func (a *App) trackCustomModel(modelRef string) {
 func (a *App) SupportsModelSwitching() bool {
 	_, ok := a.runtime.(runtime.ModelSwitcher)
 	return ok
+}
+
+// ShouldExitAfterFirstResponse returns true if the app is configured to exit
+// after the first assistant response completes.
+func (a *App) ShouldExitAfterFirstResponse() bool {
+	return a.exitAfterFirstResponse
 }
 
 func (a *App) CompactSession(additionalPrompt string) {
