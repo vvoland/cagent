@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/tui/types"
 )
@@ -16,6 +17,7 @@ type SessionState struct {
 	previousMessage *types.Message
 	currentAgent    string
 	sessionTitle    string
+	availableAgents []runtime.AgentDetails
 }
 
 func NewSessionState(sessionState *session.Session) *SessionState {
@@ -86,4 +88,12 @@ func (s *SessionState) SessionTitle() string {
 
 func (s *SessionState) SetSessionTitle(sessionTitle string) {
 	s.sessionTitle = sessionTitle
+}
+
+func (s *SessionState) AvailableAgents() []runtime.AgentDetails {
+	return s.availableAgents
+}
+
+func (s *SessionState) SetAvailableAgents(availableAgents []runtime.AgentDetails) {
+	s.availableAgents = availableAgents
 }

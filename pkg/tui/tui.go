@@ -45,8 +45,7 @@ type appModel struct {
 	dialog       dialog.Manager
 	completions  completion.Manager
 
-	sessionState    *service.SessionState
-	availableAgents []runtime.AgentDetails
+	sessionState *service.SessionState
 
 	// Speech-to-text transcriber
 	transcriber *transcribe.Transcriber
@@ -188,7 +187,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, dialogCmd
 
 	case *runtime.TeamInfoEvent:
-		a.availableAgents = msg.AvailableAgents
+		a.sessionState.SetAvailableAgents(msg.AvailableAgents)
 		a.sessionState.SetCurrentAgent(msg.CurrentAgent)
 		// Forward to chat page
 		updated, cmd := a.chatPage.Update(msg)
@@ -534,8 +533,9 @@ func parseCtrlNumberKey(msg tea.KeyPressMsg) int {
 
 // switchToAgentByIndex switches to the agent at the given index
 func (a *appModel) switchToAgentByIndex(index int) (tea.Model, tea.Cmd) {
-	if index >= 0 && index < len(a.availableAgents) {
-		agentName := a.availableAgents[index].Name
+	availableAgents := a.sessionState.AvailableAgents()
+	if index >= 0 && index < len(availableAgents) {
+		agentName := availableAgents[index].Name
 		if agentName != a.sessionState.CurrentAgent() {
 			return a, core.CmdHandler(messages.SwitchAgentMsg{AgentName: agentName})
 		}
@@ -545,13 +545,14 @@ func (a *appModel) switchToAgentByIndex(index int) (tea.Model, tea.Cmd) {
 
 // cycleToNextAgent cycles to the next agent in the available agents list
 func (a *appModel) cycleToNextAgent() (tea.Model, tea.Cmd) {
-	if len(a.availableAgents) <= 1 {
+	availableAgents := a.sessionState.AvailableAgents()
+	if len(availableAgents) <= 1 {
 		return a, notification.InfoCmd("No other agents available")
 	}
 
 	// Find the current agent index
 	currentIndex := -1
-	for i, agent := range a.availableAgents {
+	for i, agent := range availableAgents {
 		if agent.Name == a.sessionState.CurrentAgent() {
 			currentIndex = i
 			break
@@ -559,7 +560,7 @@ func (a *appModel) cycleToNextAgent() (tea.Model, tea.Cmd) {
 	}
 
 	// Cycle to the next agent (wrap around to 0 if at the end)
-	nextIndex := (currentIndex + 1) % len(a.availableAgents)
+	nextIndex := (currentIndex + 1) % len(availableAgents)
 	return a.switchToAgentByIndex(nextIndex)
 }
 
