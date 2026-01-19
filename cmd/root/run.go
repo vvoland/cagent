@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
@@ -16,7 +15,6 @@ import (
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
@@ -312,17 +310,14 @@ func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, loadRes
 
 		slog.Debug("Loaded existing session", "session_id", f.sessionID, "agent", f.agentName)
 	} else {
-		// Determine initial thinking state based on config version and user configuration.
-		thinking := computeInitialThinking(loadResult, f.agentName)
 		sess = session.New(
 			session.WithMaxIterations(agent.MaxIterations()),
 			session.WithToolsApproved(f.autoApprove),
 			session.WithHideToolResults(f.hideToolResults),
-			session.WithThinking(thinking),
 		)
 		// Session is stored lazily on first UpdateSession call (when content is added)
 		// This avoids creating empty sessions in the database
-		slog.Debug("Using local runtime", "agent", f.agentName, "thinking", thinking)
+		slog.Debug("Using local runtime", "agent", f.agentName)
 	}
 
 	return localRt, sess, nil
@@ -381,51 +376,4 @@ func (f *runExecFlags) handleRunMode(ctx context.Context, rt runtime.Runtime, se
 	}
 
 	return runTUI(ctx, rt, sess, opts...)
-}
-
-// computeInitialThinking determines whether thinking should be enabled at session startup.
-// For v4+ configs: thinking is enabled by default (provider defaults will apply).
-// For v0-v3 configs: thinking is disabled unless the user explicitly configured thinking_budget
-// in their model config with an enabled value.
-func computeInitialThinking(loadResult *teamloader.LoadResult, agentName string) bool {
-	// For v4 and newer (or unknown/empty version), default to thinking enabled
-	if loadResult.ConfigVersion == "" || loadResult.ConfigVersion == latest.Version {
-		return true
-	}
-
-	// For older configs (v0-v3), check if user explicitly configured thinking_budget
-	// Get the agent's default model reference
-	modelRef := loadResult.AgentDefaultModels[agentName]
-	if modelRef == "" {
-		// No model reference - thinking disabled for old configs
-		return false
-	}
-
-	// If using multiple models (comma-separated), check only the first (primary) model
-	if idx := strings.Index(modelRef, ","); idx != -1 {
-		modelRef = modelRef[:idx]
-	}
-
-	// Look up the raw model config (before provider defaults were applied)
-	rawModelCfg, exists := loadResult.Models[modelRef]
-	if !exists {
-		// Inline model spec (e.g., "openai/gpt-4o") or not found - no explicit thinking config
-		return false
-	}
-
-	// Check if user explicitly set thinking_budget in their config
-	if rawModelCfg.ThinkingBudget == nil {
-		// Not set - disable thinking for old configs
-		return false
-	}
-
-	// User set thinking_budget - check if it's enabled (not "none" and not tokens=0)
-	tb := rawModelCfg.ThinkingBudget
-	if tb.Effort == "none" || (tb.Tokens == 0 && tb.Effort == "") {
-		// Explicitly disabled
-		return false
-	}
-
-	// User explicitly enabled thinking
-	return true
 }

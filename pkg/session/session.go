@@ -439,7 +439,7 @@ func New(opts ...Opt) *Session {
 		ID:              sessionID,
 		CreatedAt:       time.Now(),
 		SendUserMessage: true,
-		Thinking:        true, // Default to thinking enabled
+		Thinking:        false,
 	}
 
 	for _, opt := range opts {

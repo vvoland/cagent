@@ -55,9 +55,6 @@ type LoadResult struct {
 	Providers map[string]latest.ProviderConfig
 	// AgentDefaultModels maps agent names to their configured default model references
 	AgentDefaultModels map[string]string
-	// ConfigVersion is the original config file version (e.g., "0", "1", "2", "3", "4").
-	// Used to determine initial session thinking state for backward compatibility.
-	ConfigVersion string
 }
 
 // Load loads an agent team from the given source
@@ -217,7 +214,6 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 		Models:             cfg.Models,
 		Providers:          cfg.Providers,
 		AgentDefaultModels: agentDefaultModels,
-		ConfigVersion:      cfg.Version,
 	}, nil
 }
 
