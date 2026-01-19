@@ -676,3 +676,123 @@ func TestApplyProviderDefaults_IncludesModelDefaults(t *testing.T) {
 func boolPtr(b bool) *bool {
 	return &b
 }
+
+// TestApplyProviderDefaults_ThinkingDefaultsApplied tests that thinking defaults
+// are always applied when the config doesn't have an explicit thinking budget.
+func TestApplyProviderDefaults_ThinkingDefaultsApplied(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                      string
+		config                    *latest.ModelConfig
+		expectThinkingBudget      *latest.ThinkingBudget
+		expectInterleavedThinking bool
+	}{
+		{
+			name: "OpenAI gets default thinking_budget",
+			config: &latest.ModelConfig{
+				Provider: "openai",
+				Model:    "gpt-4o",
+			},
+			expectThinkingBudget: &latest.ThinkingBudget{Effort: "medium"},
+		},
+		{
+			name: "Anthropic gets default thinking_budget and interleaved_thinking",
+			config: &latest.ModelConfig{
+				Provider: "anthropic",
+				Model:    "claude-sonnet-4-0",
+			},
+			expectThinkingBudget:      &latest.ThinkingBudget{Tokens: 8192},
+			expectInterleavedThinking: true,
+		},
+		{
+			name: "Google Gemini 2.5 gets default thinking_budget",
+			config: &latest.ModelConfig{
+				Provider: "google",
+				Model:    "gemini-2.5-pro",
+			},
+			expectThinkingBudget: &latest.ThinkingBudget{Tokens: -1},
+		},
+		{
+			name: "Google Gemini 3 Pro gets default thinking_budget",
+			config: &latest.ModelConfig{
+				Provider: "google",
+				Model:    "gemini-3-pro",
+			},
+			expectThinkingBudget: &latest.ThinkingBudget{Effort: "high"},
+		},
+		{
+			name: "Bedrock Claude gets default thinking_budget and interleaved_thinking",
+			config: &latest.ModelConfig{
+				Provider: "amazon-bedrock",
+				Model:    "anthropic.claude-3-sonnet",
+			},
+			expectThinkingBudget:      &latest.ThinkingBudget{Tokens: 8192},
+			expectInterleavedThinking: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Apply provider defaults
+			result := applyProviderDefaults(tt.config, nil)
+
+			// Verify default thinking budget was applied
+			require.NotNil(t, result.ThinkingBudget, "ThinkingBudget should be set")
+			assert.Equal(t, tt.expectThinkingBudget.Effort, result.ThinkingBudget.Effort, "Effort should match")
+			assert.Equal(t, tt.expectThinkingBudget.Tokens, result.ThinkingBudget.Tokens, "Tokens should match")
+
+			// Verify interleaved_thinking for Anthropic/Bedrock
+			if tt.expectInterleavedThinking {
+				require.NotNil(t, result.ProviderOpts, "ProviderOpts should be set")
+				val, exists := result.ProviderOpts["interleaved_thinking"]
+				require.True(t, exists, "interleaved_thinking should be set")
+				assert.Equal(t, true, val, "interleaved_thinking should be true")
+			}
+		})
+	}
+}
+
+// TestApplyProviderDefaults_ExplicitThinkingPreserved tests that explicitly set
+// thinking options are preserved and not overwritten by defaults.
+func TestApplyProviderDefaults_ExplicitThinkingPreserved(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		config *latest.ModelConfig
+	}{
+		{
+			name: "explicit thinking_budget high is preserved",
+			config: &latest.ModelConfig{
+				Provider:       "openai",
+				Model:          "gpt-4o",
+				ThinkingBudget: &latest.ThinkingBudget{Effort: "high"},
+			},
+		},
+		{
+			name: "explicit disabled thinking_budget preserved",
+			config: &latest.ModelConfig{
+				Provider:       "anthropic",
+				Model:          "claude-sonnet-4-0",
+				ThinkingBudget: &latest.ThinkingBudget{Tokens: 0},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			originalBudget := *tt.config.ThinkingBudget
+
+			result := applyProviderDefaults(tt.config, nil)
+
+			require.NotNil(t, result.ThinkingBudget, "ThinkingBudget should be preserved")
+			assert.Equal(t, originalBudget.Effort, result.ThinkingBudget.Effort, "Effort should be preserved")
+			assert.Equal(t, originalBudget.Tokens, result.ThinkingBudget.Tokens, "Tokens should be preserved")
+		})
+	}
+}
