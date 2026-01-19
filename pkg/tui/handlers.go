@@ -198,7 +198,18 @@ func (a *appModel) handleCycleAgent() (tea.Model, tea.Cmd) {
 
 	// Cycle to the next agent (wrap around to 0 if at the end)
 	nextIndex := (currentIndex + 1) % len(availableAgents)
-	return a.switchToAgentByIndex(nextIndex)
+	return a.handleSwitchToAgentByIndex(nextIndex)
+}
+
+func (a *appModel) handleSwitchToAgentByIndex(index int) (tea.Model, tea.Cmd) {
+	availableAgents := a.sessionState.AvailableAgents()
+	if index >= 0 && index < len(availableAgents) {
+		agentName := availableAgents[index].Name
+		if agentName != a.sessionState.CurrentAgentName() {
+			return a, core.CmdHandler(messages.SwitchAgentMsg{AgentName: agentName})
+		}
+	}
+	return a, nil
 }
 
 // Toggles

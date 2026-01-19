@@ -478,8 +478,9 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	default:
 		// Handle ctrl+1 through ctrl+9 for quick agent switching
 		if index := parseCtrlNumberKey(msg); index >= 0 {
-			return a.switchToAgentByIndex(index)
+			return a.handleSwitchToAgentByIndex(index)
 		}
+
 		updated, cmd := a.chatPage.Update(msg)
 		a.chatPage = updated.(chat.Page)
 		return a, cmd
@@ -493,18 +494,6 @@ func parseCtrlNumberKey(msg tea.KeyPressMsg) int {
 		return int(s[5] - '1')
 	}
 	return -1
-}
-
-// switchToAgentByIndex switches to the agent at the given index
-func (a *appModel) switchToAgentByIndex(index int) (tea.Model, tea.Cmd) {
-	availableAgents := a.sessionState.AvailableAgents()
-	if index >= 0 && index < len(availableAgents) {
-		agentName := availableAgents[index].Name
-		if agentName != a.sessionState.CurrentAgentName() {
-			return a, core.CmdHandler(messages.SwitchAgentMsg{AgentName: agentName})
-		}
-	}
-	return a, nil
 }
 
 // View renders the complete application interface
