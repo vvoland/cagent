@@ -13,7 +13,6 @@ import (
 	"github.com/docker/cagent/pkg/evaluation"
 	"github.com/docker/cagent/pkg/modelsdev"
 	mcptools "github.com/docker/cagent/pkg/tools/mcp"
-	"github.com/docker/cagent/pkg/tui/components/editor"
 	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/dialog"
@@ -247,7 +246,7 @@ func (a *appModel) handleMCPPrompt(promptName string, arguments map[string]strin
 		return a, notification.ErrorCmd(fmt.Sprintf("Error executing MCP prompt '%s': %v", promptName, err))
 	}
 
-	return a, core.CmdHandler(editor.SendMsg{Content: promptContent})
+	return a, core.CmdHandler(messages.SendMsg{Content: promptContent})
 }
 
 // Miscellaneous handlers
@@ -259,7 +258,7 @@ func (a *appModel) handleOpenURL(url string) (tea.Model, tea.Cmd) {
 
 func (a *appModel) handleAgentCommand(command string) (tea.Model, tea.Cmd) {
 	resolvedCommand := a.application.ResolveCommand(context.Background(), command)
-	return a, core.CmdHandler(editor.SendMsg{Content: resolvedCommand})
+	return a, core.CmdHandler(messages.SendMsg{Content: resolvedCommand})
 }
 
 // File attachment handler

@@ -56,3 +56,8 @@ type ElicitationResponseMsg struct {
 	Action  tools.ElicitationAction
 	Content map[string]any
 }
+
+type SendMsg struct {
+	Content     string            // Full content sent to the agent (with file contents expanded)
+	Attachments map[string]string // Map of filename to content for attachments
+}

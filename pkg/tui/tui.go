@@ -20,7 +20,6 @@ import (
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/tui/commands"
 	"github.com/docker/cagent/pkg/tui/components/completion"
-	"github.com/docker/cagent/pkg/tui/components/editor"
 	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/components/statusbar"
 	"github.com/docker/cagent/pkg/tui/core"
@@ -148,7 +147,7 @@ func (a *appModel) Init() tea.Cmd {
 				}
 			}
 
-			return editor.SendMsg{
+			return messages.SendMsg{
 				Content: userMsg.Message.Content,
 			}
 		})
