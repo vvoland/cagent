@@ -320,7 +320,7 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case tea.MouseWheelMsg:
 		return p.handleMouseWheel(msg)
 
-	case messages.StreamCancelledMsg:
+	case msgtypes.StreamCancelledMsg:
 		model, cmd := p.messages.Update(msg)
 		p.messages = model.(messages.Model)
 
@@ -602,7 +602,7 @@ func (p *chatPage) cancelStream(showCancelMessage bool) tea.Cmd {
 
 	// Send StreamCancelledMsg to all components to handle cleanup
 	return tea.Batch(
-		core.CmdHandler(messages.StreamCancelledMsg{ShowMessage: showCancelMessage}),
+		core.CmdHandler(msgtypes.StreamCancelledMsg{ShowMessage: showCancelMessage}),
 		p.setWorking(false),
 	)
 }

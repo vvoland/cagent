@@ -24,15 +24,11 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/messages"
 	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
 	"github.com/docker/cagent/pkg/tui/types"
 )
-
-// StreamCancelledMsg notifies components that the stream has been cancelled
-type StreamCancelledMsg struct {
-	ShowMessage bool // Whether to show a cancellation message after cleanup
-}
 
 // ToggleHideToolResultsMsg triggers hiding/showing tool results
 type ToggleHideToolResultsMsg struct{}
@@ -146,7 +142,7 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
-	case StreamCancelledMsg:
+	case messages.StreamCancelledMsg:
 		m.removeSpinner()
 		m.removePendingToolCallMessages()
 		return m, nil

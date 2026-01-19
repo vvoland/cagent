@@ -61,3 +61,8 @@ type SendMsg struct {
 	Content     string            // Full content sent to the agent (with file contents expanded)
 	Attachments map[string]string // Map of filename to content for attachments
 }
+
+// StreamCancelledMsg notifies components that the stream has been cancelled
+type StreamCancelledMsg struct {
+	ShowMessage bool // Whether to show a cancellation message after cleanup
+}

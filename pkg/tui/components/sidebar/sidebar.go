@@ -17,13 +17,13 @@ import (
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/tools"
-	chatmsgs "github.com/docker/cagent/pkg/tui/components/messages"
 	"github.com/docker/cagent/pkg/tui/components/scrollbar"
 	"github.com/docker/cagent/pkg/tui/components/spinner"
 	"github.com/docker/cagent/pkg/tui/components/tab"
 	"github.com/docker/cagent/pkg/tui/components/tool/todotool"
 	"github.com/docker/cagent/pkg/tui/components/toolcommon"
 	"github.com/docker/cagent/pkg/tui/core/layout"
+	"github.com/docker/cagent/pkg/tui/messages"
 	"github.com/docker/cagent/pkg/tui/service"
 	"github.com/docker/cagent/pkg/tui/styles"
 )
@@ -382,7 +382,7 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			return m, m.spinner.Init()
 		}
 		return m, nil
-	case chatmsgs.StreamCancelledMsg:
+	case messages.StreamCancelledMsg:
 		// Clear all spinner-driving state when stream is cancelled via ESC
 		m.streamCancelled = true
 		m.workingAgent = ""
