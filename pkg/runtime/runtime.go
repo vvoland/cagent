@@ -752,8 +752,11 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 						slog.Debug("User rejected continuation", "agent", a.Name())
 
 						assistantMessage := chat.Message{
-							Role:      chat.MessageRoleAssistant,
-							Content:   fmt.Sprintf("Execution stopped by user confirmation (%s).", req.Type),
+							Role: chat.MessageRoleAssistant,
+							Content: fmt.Sprintf(
+								"Execution stopped after reaching the configured max_iterations limit (%d).",
+								runtimeMaxIterations,
+							),
 							CreatedAt: time.Now().Format(time.RFC3339),
 						}
 
