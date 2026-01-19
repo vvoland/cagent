@@ -702,7 +702,8 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		r.registerDefaultTools()
 
 		if sess.Title == "" {
-			r.titleGen.Generate(ctx, sess, events)
+			userMessage := sess.GetLastUserMessageContent()
+			r.titleGen.Generate(ctx, sess, userMessage, events)
 		}
 
 		iteration := 0
