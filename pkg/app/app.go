@@ -278,7 +278,17 @@ func (a *App) NewSession() {
 		a.cancel()
 		a.cancel = nil
 	}
-	a.session = session.New()
+	// Preserve user-controlled session flags (like /think toggle)
+	// so they don't reset to default on /new
+	var opts []session.Opt
+	if a.session != nil {
+		opts = append(opts,
+			session.WithThinking(a.session.Thinking),
+			session.WithToolsApproved(a.session.ToolsApproved),
+			session.WithHideToolResults(a.session.HideToolResults),
+		)
+	}
+	a.session = session.New(opts...)
 	// Clear first message so it won't be re-sent on re-init
 	a.firstMessage = nil
 	a.firstMessageAttach = ""
