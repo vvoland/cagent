@@ -402,13 +402,13 @@ func (m *Model) hasExtraContent() bool {
 func (m *Model) renderHeader(expanded bool) string {
 	badge := styles.ThinkingBadgeStyle.Render("Thinking")
 
-	// Use filled triangles indicating action: ▲ collapse (when expanded), ▼ expand (when collapsed)
+	// Use [+] to expand and [-] to collapse
 	var indicator string
 	switch {
 	case expanded:
-		indicator = styles.MutedStyle.Render(" ▲")
+		indicator = styles.MutedStyle.Bold(true).Render(" [-]")
 	case m.hasExtraContent():
-		indicator = styles.MutedStyle.Render(" ▼")
+		indicator = styles.MutedStyle.Bold(true).Render(" [+]")
 	}
 
 	// Add tool count indicator when collapsed
