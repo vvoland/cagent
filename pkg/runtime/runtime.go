@@ -1086,8 +1086,14 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 		if actualModel == "" && response.Model != "" {
 			actualModel = response.Model
 			if !actualModelEventEmitted && actualModel != modelID {
-				slog.Debug("Detected actual model differs from configured model (streaming)", "configured", modelID, "actual", actualModel)
-				events <- AgentInfo(a.Name(), actualModel, a.Description(), a.WelcomeMessage())
+				// NOTE(krissetto):Prepend the provider from the configured modelID to maintain consistent format
+				// every other invocation in the code uses the provider/model format
+				formattedModel := actualModel
+				if idx := strings.Index(modelID, "/"); idx != -1 {
+					formattedModel = modelID[:idx+1] + actualModel
+				}
+				slog.Debug("Detected actual model differs from configured model (streaming)", "configured", modelID, "actual", formattedModel)
+				events <- AgentInfo(a.Name(), formattedModel, a.Description(), a.WelcomeMessage())
 				actualModelEventEmitted = true
 			}
 		}

@@ -373,7 +373,7 @@ func MCPInitFinished(agentName string) Event {
 type AgentInfoEvent struct {
 	Type           string `json:"type"`
 	AgentName      string `json:"agent_name"`
-	Model          string `json:"model"`
+	Model          string `json:"model"` // this is in provider/model format (e.g., "openai/gpt-4o")
 	Description    string `json:"description"`
 	WelcomeMessage string `json:"welcome_message,omitempty"`
 	AgentContext
