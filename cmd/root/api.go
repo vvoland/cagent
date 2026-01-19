@@ -53,14 +53,22 @@ func newAPICmd() *cobra.Command {
 
 // monitorStdin monitors stdin for EOF, which indicates the parent process has died.
 // When spawned with piped stdio, stdin closes when the parent process dies.
-func monitorStdin(cancel context.CancelFunc, stdin *os.File) {
+func monitorStdin(ctx context.Context, cancel context.CancelFunc, stdin *os.File) {
+	// Close stdin when context is cancelled to unblock the read
+	go func() {
+		<-ctx.Done()
+		stdin.Close()
+	}()
+
 	buf := make([]byte, 1)
 	for {
 		n, err := stdin.Read(buf)
 		if err != nil || n == 0 {
-			// EOF or error means parent pipe closed - parent died
-			slog.Info("stdin closed, parent process likely died, shutting down")
-			cancel()
+			// Only log and cancel if context isn't already done (parent died)
+			if ctx.Err() == nil {
+				slog.Info("stdin closed, parent process likely died, shutting down")
+				cancel()
+			}
 			return
 		}
 	}
@@ -86,7 +94,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
 		defer cancel()
-		go monitorStdin(cancel, stdin)
+		go monitorStdin(ctx, cancel, stdin)
 	}
 
 	// Start fake proxy if --fake is specified
