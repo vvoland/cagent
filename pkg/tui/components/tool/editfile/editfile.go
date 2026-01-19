@@ -30,11 +30,11 @@ func render(msg *types.Message, s spinner.Spinner, sessionState *service.Session
 		styles.ToolName.Render(msg.ToolDefinition.DisplayName()),
 		styles.ToolMessageStyle.Render(toolcommon.ShortenPath(args.Path)))
 
-	if !sessionState.HideToolResults {
+	if !sessionState.HideToolResults() {
 		if msg.ToolCall.Function.Arguments != "" {
 			contentWidth := width - styles.ToolCallResult.GetHorizontalFrameSize()
 			content += "\n" + styles.ToolCallResult.Render(
-				renderEditFile(msg.ToolCall, contentWidth, sessionState.SplitDiffView, msg.ToolStatus))
+				renderEditFile(msg.ToolCall, contentWidth, sessionState.SplitDiffView(), msg.ToolStatus))
 		}
 
 		if (msg.ToolStatus == types.ToolStatusError) && msg.Content != "" {

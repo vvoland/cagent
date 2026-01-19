@@ -833,7 +833,7 @@ func (m *model) addMessage(msg *types.Message) tea.Cmd {
 
 	m.messages = append(m.messages, msg)
 	view := m.createMessageView(msg)
-	m.sessionState.PreviousMessage = msg
+	m.sessionState.SetPreviousMessage(msg)
 	m.views = append(m.views, view)
 
 	var cmds []tea.Cmd
@@ -854,7 +854,7 @@ func (m *model) LoadFromSession(sess *session.Session) tea.Cmd {
 	appendSessionMessage := func(msg *types.Message, view layout.Model) {
 		m.messages = append(m.messages, msg)
 		m.views = append(m.views, view)
-		m.sessionState.PreviousMessage = msg
+		m.sessionState.SetPreviousMessage(msg)
 	}
 
 	// getOrCreateReasoningBlock returns an existing reasoning block for the agent if the
@@ -1106,7 +1106,7 @@ func (m *model) addReasoningBlock(agentName, content string) tea.Cmd {
 
 	m.messages = append(m.messages, msg)
 	m.views = append(m.views, block)
-	m.sessionState.PreviousMessage = msg
+	m.sessionState.SetPreviousMessage(msg)
 
 	var cmds []tea.Cmd
 	if initCmd := block.Init(); initCmd != nil {
@@ -1164,7 +1164,7 @@ func (m *model) createToolCallView(msg *types.Message) layout.Model {
 }
 
 func (m *model) createMessageView(msg *types.Message) layout.Model {
-	view := message.New(msg, m.sessionState.PreviousMessage)
+	view := message.New(msg, m.sessionState.PreviousMessage())
 	view.SetSize(m.contentWidth(), 0)
 	return view
 }
