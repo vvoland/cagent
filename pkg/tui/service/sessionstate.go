@@ -98,3 +98,13 @@ func (s *SessionState) AvailableAgents() []runtime.AgentDetails {
 func (s *SessionState) SetAvailableAgents(availableAgents []runtime.AgentDetails) {
 	s.availableAgents = availableAgents
 }
+
+func (s *SessionState) GetCurrentAgent() runtime.AgentDetails {
+	for _, agent := range s.availableAgents {
+		if agent.Name == s.currentAgentName {
+			return agent
+		}
+	}
+
+	return runtime.AgentDetails{}
+}
