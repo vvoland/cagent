@@ -3,7 +3,6 @@ package tui
 import (
 	"cmp"
 	"context"
-	"log/slog"
 	"os"
 	"os/exec"
 	goruntime "runtime"
@@ -329,12 +328,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.handleChangeModel(msg.ModelRef)
 
 	case messages.ElicitationResponseMsg:
-		// Handle elicitation response from the dialog
-		if err := a.application.ResumeElicitation(context.Background(), msg.Action, msg.Content); err != nil {
-			slog.Error("Failed to resume elicitation", "action", msg.Action, "error", err)
-			return a, notification.ErrorCmd("Failed to complete server request: " + err.Error())
-		}
-		return a, nil
+		return a.handleElicitationResponse(msg.Action, msg.Content)
 
 	case messages.SendAttachmentMsg:
 		// Handle first message with image attachment using the pre-prepared message

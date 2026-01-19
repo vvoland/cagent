@@ -12,6 +12,7 @@ import (
 	"github.com/docker/cagent/pkg/browser"
 	"github.com/docker/cagent/pkg/evaluation"
 	"github.com/docker/cagent/pkg/modelsdev"
+	"github.com/docker/cagent/pkg/tools"
 	mcptools "github.com/docker/cagent/pkg/tools/mcp"
 	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/core"
@@ -372,5 +373,13 @@ func (a *appModel) handleStopSpeak() (tea.Model, tea.Cmd) {
 
 func (a *appModel) handleSpeakTranscript(delta string) (tea.Model, tea.Cmd) {
 	a.chatPage.InsertText(delta + " ")
+	return a, nil
+}
+
+func (a *appModel) handleElicitationResponse(action tools.ElicitationAction, content map[string]any) (tea.Model, tea.Cmd) {
+	if err := a.application.ResumeElicitation(context.Background(), action, content); err != nil {
+		slog.Error("Failed to resume elicitation", "action", action, "error", err)
+		return a, notification.ErrorCmd("Failed to complete server request: " + err.Error())
+	}
 	return a, nil
 }
