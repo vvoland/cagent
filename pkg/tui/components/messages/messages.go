@@ -1181,7 +1181,7 @@ func (m *model) removeSpinner() {
 }
 
 func (m *model) removePendingToolCallMessages() {
-	messages := make([]*types.Message, 0, len(m.messages))
+	toolCallMessages := make([]*types.Message, 0, len(m.messages))
 	views := make([]layout.Model, 0, len(m.views))
 
 	for i, msg := range m.messages {
@@ -1190,14 +1190,14 @@ func (m *model) removePendingToolCallMessages() {
 			continue
 		}
 
-		messages = append(messages, msg)
+		toolCallMessages = append(toolCallMessages, msg)
 		if i < len(m.views) {
 			views = append(views, m.views[i])
 		}
 	}
 
-	if len(messages) != len(m.messages) {
-		m.messages = messages
+	if len(toolCallMessages) != len(m.messages) {
+		m.messages = toolCallMessages
 		m.views = views
 		m.invalidateAllItems()
 	}
