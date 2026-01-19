@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -568,12 +569,15 @@ func TestToolCallVariations(t *testing.T) {
 // queueProvider returns a different stream on each CreateChatCompletionStream call.
 type queueProvider struct {
 	id      string
+	mu      sync.Mutex
 	streams []chat.MessageStream
 }
 
 func (p *queueProvider) ID() string { return p.id }
 
 func (p *queueProvider) CreateChatCompletionStream(context.Context, []chat.Message, []tools.Tool) (chat.MessageStream, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	if len(p.streams) == 0 {
 		return &mockStream{}, nil
 	}
