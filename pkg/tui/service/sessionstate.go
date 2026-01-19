@@ -10,14 +10,14 @@ import (
 // This provides a centralized location for state that needs to be
 // accessible by multiple components.
 type SessionState struct {
-	splitDiffView   bool
-	yoloMode        bool
-	thinking        bool
-	hideToolResults bool
-	previousMessage *types.Message
-	currentAgent    string
-	sessionTitle    string
-	availableAgents []runtime.AgentDetails
+	splitDiffView    bool
+	yoloMode         bool
+	thinking         bool
+	hideToolResults  bool
+	previousMessage  *types.Message
+	currentAgentName string
+	sessionTitle     string
+	availableAgents  []runtime.AgentDetails
 }
 
 func NewSessionState(sessionState *session.Session) *SessionState {
@@ -66,12 +66,12 @@ func (s *SessionState) SetHideToolResults(hideToolResults bool) {
 	s.hideToolResults = hideToolResults
 }
 
-func (s *SessionState) CurrentAgent() string {
-	return s.currentAgent
+func (s *SessionState) CurrentAgentName() string {
+	return s.currentAgentName
 }
 
-func (s *SessionState) SetCurrentAgent(currentAgent string) {
-	s.currentAgent = currentAgent
+func (s *SessionState) SetCurrentAgentName(currentAgentName string) {
+	s.currentAgentName = currentAgentName
 }
 
 func (s *SessionState) PreviousMessage() *types.Message {

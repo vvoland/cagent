@@ -186,14 +186,14 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case *runtime.TeamInfoEvent:
 		a.sessionState.SetAvailableAgents(msg.AvailableAgents)
-		a.sessionState.SetCurrentAgent(msg.CurrentAgent)
+		a.sessionState.SetCurrentAgentName(msg.CurrentAgent)
 		// Forward to chat page
 		updated, cmd := a.chatPage.Update(msg)
 		a.chatPage = updated.(chat.Page)
 		return a, cmd
 
 	case *runtime.AgentInfoEvent:
-		a.sessionState.SetCurrentAgent(msg.AgentName)
+		a.sessionState.SetCurrentAgentName(msg.AgentName)
 		a.application.TrackCurrentAgentModel(msg.Model)
 		// Forward to chat page
 		updated, cmd := a.chatPage.Update(msg)
@@ -534,7 +534,7 @@ func (a *appModel) switchToAgentByIndex(index int) (tea.Model, tea.Cmd) {
 	availableAgents := a.sessionState.AvailableAgents()
 	if index >= 0 && index < len(availableAgents) {
 		agentName := availableAgents[index].Name
-		if agentName != a.sessionState.CurrentAgent() {
+		if agentName != a.sessionState.CurrentAgentName() {
 			return a, core.CmdHandler(messages.SwitchAgentMsg{AgentName: agentName})
 		}
 	}
@@ -551,7 +551,7 @@ func (a *appModel) cycleToNextAgent() (tea.Model, tea.Cmd) {
 	// Find the current agent index
 	currentIndex := -1
 	for i, agent := range availableAgents {
-		if agent.Name == a.sessionState.CurrentAgent() {
+		if agent.Name == a.sessionState.CurrentAgentName() {
 			currentIndex = i
 			break
 		}

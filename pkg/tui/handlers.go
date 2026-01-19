@@ -177,7 +177,7 @@ func (a *appModel) handleSwitchAgent(agentName string) (tea.Model, tea.Cmd) {
 		return a, notification.ErrorCmd(fmt.Sprintf("Failed to switch to agent '%s': %v", agentName, err))
 	}
 
-	a.sessionState.SetCurrentAgent(agentName)
+	a.sessionState.SetCurrentAgentName(agentName)
 	return a, notification.SuccessCmd(fmt.Sprintf("Switched to agent '%s'", agentName))
 }
 

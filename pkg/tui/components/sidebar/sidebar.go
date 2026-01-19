@@ -710,7 +710,7 @@ func (m *model) queueSection(contentWidth int) string {
 // agentInfo renders the current agent information
 func (m *model) agentInfo(contentWidth int) string {
 	// Read current agent from session state so sidebar updates when agent is switched
-	currentAgent := m.sessionState.CurrentAgent()
+	currentAgent := m.sessionState.CurrentAgentName()
 	if currentAgent == "" {
 		return ""
 	}
