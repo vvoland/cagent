@@ -17,7 +17,6 @@ import (
 	"github.com/docker/cagent/pkg/audio/transcribe"
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/runtime"
-	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/tui/commands"
 	"github.com/docker/cagent/pkg/tui/components/completion"
 	"github.com/docker/cagent/pkg/tui/components/notification"
@@ -142,8 +141,8 @@ func (a *appModel) Init() tea.Cmd {
 
 			// If the message has multi-content (attachments), we need to handle it specially
 			if len(userMsg.Message.MultiContent) > 0 {
-				return firstMessageWithAttachment{
-					message: userMsg,
+				return messages.SendAttachmentMsg{
+					Content: userMsg,
 				}
 			}
 
@@ -154,11 +153,6 @@ func (a *appModel) Init() tea.Cmd {
 	}
 
 	return tea.Batch(cmds...)
-}
-
-// firstMessageWithAttachment is a message for the first message with an attachment
-type firstMessageWithAttachment struct {
-	message *session.Message
 }
 
 // Help returns help information
@@ -361,9 +355,9 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.completions.SetEditorBottom(msg.Height)
 		return a, nil
 
-	case firstMessageWithAttachment:
+	case messages.SendAttachmentMsg:
 		// Handle first message with image attachment using the pre-prepared message
-		a.application.RunWithMessage(context.Background(), nil, msg.message)
+		a.application.RunWithMessage(context.Background(), nil, msg.Content)
 		return a, nil
 
 	case error:
