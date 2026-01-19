@@ -526,6 +526,7 @@ func (r *LocalRuntime) agentDetailsFromTeam() []AgentDetails {
 			Description: info.Description,
 			Provider:    info.Provider,
 			Model:       info.Model,
+			Commands:    info.Commands,
 		}
 	}
 	return details

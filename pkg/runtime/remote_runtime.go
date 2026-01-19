@@ -116,6 +116,7 @@ func (r *RemoteRuntime) agentDetailsFromConfig(ctx context.Context) []AgentDetai
 		info := AgentDetails{
 			Name:        agent.Name,
 			Description: agent.Description,
+			Commands:    agent.Commands,
 		}
 
 		if provider, model, found := strings.Cut(agent.Model, "/"); found {
