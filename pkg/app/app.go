@@ -112,11 +112,6 @@ func (a *App) SendFirstMessage() tea.Cmd {
 	}
 }
 
-// Runtime returns the runtime for this app.
-func (a *App) Runtime() runtime.Runtime {
-	return a.runtime
-}
-
 // CurrentAgentCommands returns the commands for the active agent
 func (a *App) CurrentAgentCommands(ctx context.Context) types.Commands {
 	return a.runtime.CurrentAgentInfo(ctx).Commands
