@@ -28,41 +28,29 @@ type (
 	StopSpeakMsg                   struct{}                   // Stop speech-to-text transcription
 	SpeakTranscriptMsg             struct{ Delta string }     // Transcription delta from speech-to-text
 	ClearQueueMsg                  struct{}                   // Clear all queued messages
+	AgentCommandMsg                struct{ Command string }   // AgentCommandMsg command message
+	OpenURLMsg                     struct{ URL string }       // OpenURLMsg is a url for opening message
+	StreamCancelledMsg             struct{ ShowMessage bool } // StreamCancelledMsg notifies components that the stream has been cancelled
+
+	// MCPPromptMsg command message
+	MCPPromptMsg struct {
+		PromptName string
+		Arguments  map[string]string
+	}
+
+	ShowMCPPromptInputMsg struct {
+		PromptName string
+		PromptInfo any // mcptools.PromptInfo but avoiding import cycles
+	}
+
+	// ElicitationResponseMsg is sent when the user responds to an elicitation dialog
+	ElicitationResponseMsg struct {
+		Action  tools.ElicitationAction
+		Content map[string]any
+	}
+
+	SendMsg struct {
+		Content     string            // Full content sent to the agent (with file contents expanded)
+		Attachments map[string]string // Map of filename to content for attachments
+	}
 )
-
-// AgentCommandMsg command message
-type AgentCommandMsg struct {
-	Command string
-}
-
-// MCPPromptMsg command message
-type MCPPromptMsg struct {
-	PromptName string
-	Arguments  map[string]string
-}
-
-// OpenURLMsg is a url for opening message
-type OpenURLMsg struct {
-	URL string
-}
-
-type ShowMCPPromptInputMsg struct {
-	PromptName string
-	PromptInfo any // mcptools.PromptInfo but avoiding import cycles
-}
-
-// ElicitationResponseMsg is sent when the user responds to an elicitation dialog
-type ElicitationResponseMsg struct {
-	Action  tools.ElicitationAction
-	Content map[string]any
-}
-
-type SendMsg struct {
-	Content     string            // Full content sent to the agent (with file contents expanded)
-	Attachments map[string]string // Map of filename to content for attachments
-}
-
-// StreamCancelledMsg notifies components that the stream has been cancelled
-type StreamCancelledMsg struct {
-	ShowMessage bool // Whether to show a cancellation message after cleanup
-}
