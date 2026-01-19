@@ -55,7 +55,7 @@ type KeyMap struct {
 	CommandPalette        key.Binding
 	ToggleYolo            key.Binding
 	ToggleHideToolResults key.Binding
-	SwitchAgent           key.Binding
+	CycleAgent            key.Binding
 	ModelPicker           key.Binding
 	Speak                 key.Binding
 	ClearQueue            key.Binding
@@ -80,7 +80,7 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("ctrl+o"),
 			key.WithHelp("Ctrl+o", "toggle tool output"),
 		),
-		SwitchAgent: key.NewBinding(
+		CycleAgent: key.NewBinding(
 			key.WithKeys("ctrl+s"),
 			key.WithHelp("Ctrl+s", "cycle agent"),
 		),
@@ -460,9 +460,8 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, a.keyMap.ToggleHideToolResults):
 		return a, core.CmdHandler(messages.ToggleHideToolResultsMsg{})
 
-	case key.Matches(msg, a.keyMap.SwitchAgent):
-		// Cycle to the next agent in the list
-		return a.cycleToNextAgent()
+	case key.Matches(msg, a.keyMap.CycleAgent):
+		return a.handleCycleAgent()
 
 	case key.Matches(msg, a.keyMap.ModelPicker):
 		return a.handleOpenModelPicker()
@@ -506,27 +505,6 @@ func (a *appModel) switchToAgentByIndex(index int) (tea.Model, tea.Cmd) {
 		}
 	}
 	return a, nil
-}
-
-// cycleToNextAgent cycles to the next agent in the available agents list
-func (a *appModel) cycleToNextAgent() (tea.Model, tea.Cmd) {
-	availableAgents := a.sessionState.AvailableAgents()
-	if len(availableAgents) <= 1 {
-		return a, notification.InfoCmd("No other agents available")
-	}
-
-	// Find the current agent index
-	currentIndex := -1
-	for i, agent := range availableAgents {
-		if agent.Name == a.sessionState.CurrentAgentName() {
-			currentIndex = i
-			break
-		}
-	}
-
-	// Cycle to the next agent (wrap around to 0 if at the end)
-	nextIndex := (currentIndex + 1) % len(availableAgents)
-	return a.switchToAgentByIndex(nextIndex)
 }
 
 // View renders the complete application interface
