@@ -14,7 +14,6 @@ import (
 
 	"github.com/docker/cagent/pkg/app"
 	"github.com/docker/cagent/pkg/audio/transcribe"
-	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/tui/commands"
 	"github.com/docker/cagent/pkg/tui/components/completion"
@@ -128,30 +127,11 @@ func New(ctx context.Context, a *app.App) tea.Model {
 
 // Init initializes the application
 func (a *appModel) Init() tea.Cmd {
-	cmds := []tea.Cmd{
+	return tea.Sequence(
 		a.dialog.Init(),
 		a.chatPage.Init(),
-	}
-
-	if firstMessage := a.application.FirstMessage(); firstMessage != nil {
-		cmds = append(cmds, func() tea.Msg {
-			// Use the shared PrepareUserMessage function for consistent attachment handling
-			userMsg := cli.PrepareUserMessage(context.Background(), a.application.Runtime(), *firstMessage, a.application.FirstMessageAttachment())
-
-			// If the message has multi-content (attachments), we need to handle it specially
-			if len(userMsg.Message.MultiContent) > 0 {
-				return messages.SendAttachmentMsg{
-					Content: userMsg,
-				}
-			}
-
-			return messages.SendMsg{
-				Content: userMsg.Message.Content,
-			}
-		})
-	}
-
-	return tea.Batch(cmds...)
+		a.application.SendFirstMessage(),
+	)
 }
 
 // Help returns help information
