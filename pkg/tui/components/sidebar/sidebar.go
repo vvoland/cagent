@@ -710,7 +710,7 @@ func (m *model) queueSection(contentWidth int) string {
 // agentInfo renders the current agent information
 func (m *model) agentInfo(contentWidth int) string {
 	// Read current agent from session state so sidebar updates when agent is switched
-	currentAgent := m.sessionState.CurrentAgent
+	currentAgent := m.sessionState.CurrentAgent()
 	if currentAgent == "" {
 		return ""
 	}
@@ -792,10 +792,10 @@ func (m *model) toolsetInfo(contentWidth int) string {
 		label    string
 		shortcut string
 	}{
-		{m.sessionState.YoloMode, "YOLO mode enabled", "^y"},
-		{m.sessionState.Thinking && m.reasoningSupported, "Thinking enabled", "/think"},
-		{m.sessionState.HideToolResults, "Tool output hidden", "^o"},
-		{m.sessionState.SplitDiffView, "Split Diff View enabled", "^t"},
+		{m.sessionState.YoloMode(), "YOLO mode enabled", "^y"},
+		{m.sessionState.Thinking() && m.reasoningSupported, "Thinking enabled", "/think"},
+		{m.sessionState.HideToolResults(), "Tool output hidden", "^o"},
+		{m.sessionState.SplitDiffView(), "Split Diff View enabled", "^t"},
 	}
 
 	for _, toggle := range toggles {
