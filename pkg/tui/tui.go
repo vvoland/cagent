@@ -45,11 +45,7 @@ type appModel struct {
 	dialog       dialog.Manager
 	completions  completion.Manager
 
-	// Session state
-	sessionState *service.SessionState
-	sessionTitle string // Current session title for terminal window
-
-	// Agent state
+	sessionState    *service.SessionState
 	availableAgents []runtime.AgentDetails
 
 	// Speech-to-text transcriber
@@ -208,7 +204,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, cmd
 
 	case *runtime.SessionTitleEvent:
-		a.sessionTitle = msg.Title
+		a.sessionState.SetSessionTitle(msg.Title)
 		// Forward to chat page (which forwards to sidebar)
 		updated, cmd := a.chatPage.Update(msg)
 		a.chatPage = updated.(chat.Page)
@@ -633,8 +629,8 @@ func (a *appModel) View() tea.View {
 
 // windowTitle returns the terminal window title
 func (a *appModel) windowTitle() string {
-	if a.sessionTitle != "" {
-		return a.sessionTitle + " - cagent"
+	if sessionTitle := a.sessionState.SessionTitle(); sessionTitle != "" {
+		return sessionTitle + " - cagent"
 	}
 	return "cagent"
 }

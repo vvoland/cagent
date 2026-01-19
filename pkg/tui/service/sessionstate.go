@@ -15,6 +15,7 @@ type SessionState struct {
 	hideToolResults bool
 	previousMessage *types.Message
 	currentAgent    string
+	sessionTitle    string
 }
 
 func NewSessionState(sessionState *session.Session) *SessionState {
@@ -23,6 +24,7 @@ func NewSessionState(sessionState *session.Session) *SessionState {
 		yoloMode:        sessionState.ToolsApproved,
 		thinking:        sessionState.Thinking,
 		hideToolResults: sessionState.HideToolResults,
+		sessionTitle:    sessionState.Title,
 	}
 }
 
@@ -76,4 +78,12 @@ func (s *SessionState) PreviousMessage() *types.Message {
 
 func (s *SessionState) SetPreviousMessage(previousMessage *types.Message) {
 	s.previousMessage = previousMessage
+}
+
+func (s *SessionState) SessionTitle() string {
+	return s.sessionTitle
+}
+
+func (s *SessionState) SetSessionTitle(sessionTitle string) {
+	s.sessionTitle = sessionTitle
 }
