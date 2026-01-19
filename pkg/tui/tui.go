@@ -51,7 +51,6 @@ type appModel struct {
 
 	// Agent state
 	availableAgents []runtime.AgentDetails
-	currentAgent    string
 
 	// Speech-to-text transcriber
 	transcriber *transcribe.Transcriber
@@ -193,9 +192,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, dialogCmd
 
 	case *runtime.TeamInfoEvent:
-		// Store team info for agent switching shortcuts
 		a.availableAgents = msg.AvailableAgents
-		a.currentAgent = msg.CurrentAgent
 		a.sessionState.SetCurrentAgent(msg.CurrentAgent)
 		// Forward to chat page
 		updated, cmd := a.chatPage.Update(msg)
@@ -203,8 +200,6 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, cmd
 
 	case *runtime.AgentInfoEvent:
-		// Track current agent and model
-		a.currentAgent = msg.AgentName
 		a.sessionState.SetCurrentAgent(msg.AgentName)
 		a.application.TrackCurrentAgentModel(msg.Model)
 		// Forward to chat page
@@ -213,7 +208,6 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, cmd
 
 	case *runtime.SessionTitleEvent:
-		// Store session title for terminal window title
 		a.sessionTitle = msg.Title
 		// Forward to chat page (which forwards to sidebar)
 		updated, cmd := a.chatPage.Update(msg)
@@ -546,7 +540,7 @@ func parseCtrlNumberKey(msg tea.KeyPressMsg) int {
 func (a *appModel) switchToAgentByIndex(index int) (tea.Model, tea.Cmd) {
 	if index >= 0 && index < len(a.availableAgents) {
 		agentName := a.availableAgents[index].Name
-		if agentName != a.currentAgent {
+		if agentName != a.sessionState.CurrentAgent() {
 			return a, core.CmdHandler(messages.SwitchAgentMsg{AgentName: agentName})
 		}
 	}
@@ -562,7 +556,7 @@ func (a *appModel) cycleToNextAgent() (tea.Model, tea.Cmd) {
 	// Find the current agent index
 	currentIndex := -1
 	for i, agent := range a.availableAgents {
-		if agent.Name == a.currentAgent {
+		if agent.Name == a.sessionState.CurrentAgent() {
 			currentIndex = i
 			break
 		}
