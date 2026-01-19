@@ -1033,8 +1033,13 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 	var actualModelEventEmitted bool
 	var messageUsage *chat.Usage
 	modelID := getAgentModelID(a)
-	// Track which tool call indices we've already emitted partial events for
-	emittedPartialEvents := make(map[string]bool)
+
+	toolCallIndex := make(map[string]int)   // toolCallID -> index in toolCalls slice
+	emittedPartial := make(map[string]bool) // toolCallID -> whether we've emitted a partial event
+	toolDefMap := make(map[string]tools.Tool, len(agentTools))
+	for _, t := range agentTools {
+		toolDefMap[t.Name] = t
+	}
 
 	for {
 		response, err := stream.Recv()
@@ -1103,63 +1108,39 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 		// Handle tool calls
 		if len(choice.Delta.ToolCalls) > 0 {
 			// Process each tool call delta
-			for _, deltaToolCall := range choice.Delta.ToolCalls {
-				// Find existing tool call by ID, or create a new one
-				idx := -1
-				for i, toolCall := range toolCalls {
-					if toolCall.ID == deltaToolCall.ID {
-						idx = i
-						break
-					}
-				}
-
-				// If tool call doesn't exist yet, append it
-				if idx == -1 {
+			for _, delta := range choice.Delta.ToolCalls {
+				idx, exists := toolCallIndex[delta.ID]
+				if !exists {
 					idx = len(toolCalls)
+					toolCallIndex[delta.ID] = idx
 					toolCalls = append(toolCalls, tools.ToolCall{
-						ID:   deltaToolCall.ID,
-						Type: deltaToolCall.Type,
+						ID:   delta.ID,
+						Type: delta.Type,
 					})
 				}
 
-				// Check if we should emit a partial event for this tool call
-				// We want to emit when we first get the function name
-				shouldEmitPartial := !emittedPartialEvents[deltaToolCall.ID] &&
-					deltaToolCall.Function.Name != "" &&
-					toolCalls[idx].Function.Name == "" // Don't emit if we already have the name
+				tc := &toolCalls[idx]
 
-				// Update fields based on what's in the delta
-				if deltaToolCall.ID != "" {
-					toolCalls[idx].ID = deltaToolCall.ID
+				// Track if we're learning the name for the first time
+				learningName := delta.Function.Name != "" && tc.Function.Name == ""
+
+				// Update fields from delta
+				if delta.Type != "" {
+					tc.Type = delta.Type
 				}
-				if deltaToolCall.Type != "" {
-					toolCalls[idx].Type = deltaToolCall.Type
+				if delta.Function.Name != "" {
+					tc.Function.Name = delta.Function.Name
 				}
-				if deltaToolCall.Function.Name != "" {
-					toolCalls[idx].Function.Name = deltaToolCall.Function.Name
-				}
-				if deltaToolCall.Function.Arguments != "" {
-					if toolCalls[idx].Function.Arguments == "" {
-						toolCalls[idx].Function.Arguments = deltaToolCall.Function.Arguments
-					} else {
-						toolCalls[idx].Function.Arguments += deltaToolCall.Function.Arguments
-					}
-					// Emit if we get more arguments
-					shouldEmitPartial = true
+				if delta.Function.Arguments != "" {
+					tc.Function.Arguments += delta.Function.Arguments
 				}
 
-				// Emit PartialToolCallEvent when we first get the function name
-				if shouldEmitPartial {
-					// TODO: clean this up, it's gross
-					tool := tools.Tool{}
-					for _, t := range agentTools {
-						if t.Name == toolCalls[idx].Function.Name {
-							tool = t
-							break
-						}
+				// Emit PartialToolCall once we have a name, and on subsequent argument deltas
+				if tc.Function.Name != "" && (learningName || delta.Function.Arguments != "") {
+					if !emittedPartial[delta.ID] || delta.Function.Arguments != "" {
+						events <- PartialToolCall(*tc, toolDefMap[tc.Function.Name], a.Name())
+						emittedPartial[delta.ID] = true
 					}
-					events <- PartialToolCall(toolCalls[idx], tool, a.Name())
-					emittedPartialEvents[deltaToolCall.ID] = true
 				}
 			}
 			continue

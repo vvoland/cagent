@@ -138,14 +138,14 @@ func (p *chatPage) handleAgentChoice(msg *runtime.AgentChoiceEvent) tea.Cmd {
 	if p.streamCancelled {
 		return nil
 	}
-	return p.messages.AppendToLastMessage(msg.AgentName, types.MessageTypeAssistant, msg.Content)
+	return p.messages.AppendToLastMessage(msg.AgentName, msg.Content)
 }
 
 func (p *chatPage) handleAgentChoiceReasoning(msg *runtime.AgentChoiceReasoningEvent) tea.Cmd {
 	if p.streamCancelled {
 		return nil
 	}
-	return p.messages.AppendToLastMessage(msg.AgentName, types.MessageTypeAssistantReasoning, msg.Content)
+	return p.messages.AppendReasoning(msg.AgentName, msg.Content)
 }
 
 func (p *chatPage) handleStreamStopped(msg *runtime.StreamStoppedEvent) tea.Cmd {
