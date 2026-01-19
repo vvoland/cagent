@@ -531,8 +531,6 @@ func buildInvariantSystemMessages(a *agent.Agent) []chat.Message {
 		}
 	}
 
-	markLastMessageAsCacheControl(messages)
-
 	return messages
 }
 
@@ -595,9 +593,6 @@ func buildContextSpecificSystemMessages(a *agent.Agent, s *Session) []chat.Messa
 		}
 	}
 
-	// this is still useful to mark those messages as cachecontrol, so that if a user starts a second prompt for the same project, the first prompt cacheincluding the user specifics can be leveraged
-	markLastMessageAsCacheControl(messages)
-
 	return messages
 }
 
@@ -631,18 +626,20 @@ func buildSessionSummaryMessages(s *Session) ([]chat.Message, int) {
 func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 	slog.Debug("Getting messages for agent", "agent", a.Name(), "session_id", s.ID)
 
-	var messages []chat.Message
-
 	// Build invariant system messages (cacheable across sessions/users/projects)
 	invariantMessages := buildInvariantSystemMessages(a)
-	messages = append(messages, invariantMessages...)
+	markLastMessageAsCacheControl(invariantMessages)
 
 	// Build context-specific system messages (vary per user/project/time)
 	contextMessages := buildContextSpecificSystemMessages(a, s)
-	messages = append(messages, contextMessages...)
+	markLastMessageAsCacheControl(contextMessages)
 
 	// Build session summary messages (vary per session)
 	summaryMessages, lastSummaryIndex := buildSessionSummaryMessages(s)
+
+	var messages []chat.Message
+	messages = append(messages, invariantMessages...)
+	messages = append(messages, contextMessages...)
 	messages = append(messages, summaryMessages...)
 
 	startIndex := lastSummaryIndex + 1
