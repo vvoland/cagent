@@ -36,7 +36,6 @@ type (
 	StreamCancelledMsg             struct{ ShowMessage bool }         // StreamCancelledMsg notifies components that the stream has been cancelled
 	SendAttachmentMsg              struct{ Content *session.Message } // Message for the first message with an attachment
 
-	// MCPPromptMsg command message
 	MCPPromptMsg struct {
 		PromptName string
 		Arguments  map[string]string
@@ -47,7 +46,6 @@ type (
 		PromptInfo any // mcptools.PromptInfo but avoiding import cycles
 	}
 
-	// ElicitationResponseMsg is sent when the user responds to an elicitation dialog
 	ElicitationResponseMsg struct {
 		Action  tools.ElicitationAction
 		Content map[string]any
