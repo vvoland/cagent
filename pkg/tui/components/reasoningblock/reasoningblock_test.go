@@ -59,8 +59,8 @@ func TestReasoningBlockCollapsedWithLongContent(t *testing.T) {
 	view := block.View()
 	stripped := ansi.Strip(view)
 
-	// Should contain "Thinking" header with expand indicator (▼)
-	assert.Contains(t, stripped, "Thinking ▼")
+	// Should contain "Thinking" header with expand indicator ([+])
+	assert.Contains(t, stripped, "Thinking [+]")
 }
 
 func TestReasoningBlockExpanded(t *testing.T) {
@@ -80,8 +80,8 @@ func TestReasoningBlockExpanded(t *testing.T) {
 	view := block.View()
 	stripped := ansi.Strip(view)
 
-	// Should contain "Thinking" header with collapse indicator (▲)
-	assert.Contains(t, stripped, "Thinking ▲")
+	// Should contain "Thinking" header with collapse indicator ([-])
+	assert.Contains(t, stripped, "Thinking [-]")
 	// Should show all lines
 	assert.Contains(t, stripped, "Line 1")
 	assert.Contains(t, stripped, "Line 6")
