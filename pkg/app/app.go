@@ -13,6 +13,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/docker/cagent/pkg/app/export"
+	"github.com/docker/cagent/pkg/app/transcript"
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/config/types"
 	"github.com/docker/cagent/pkg/runtime"
@@ -475,7 +476,7 @@ func (a *App) CompactSession(additionalPrompt string) {
 }
 
 func (a *App) PlainTextTranscript() string {
-	return transcript(a.session)
+	return transcript.PlainText(a.session)
 }
 
 // SessionStore returns the session store for browsing/loading sessions.
