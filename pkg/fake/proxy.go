@@ -30,8 +30,55 @@ func StartProxy(cassettePath string) (string, func() error, error) {
 // StartRecordingProxy starts a proxy that records AI API interactions to a cassette file.
 // It injects API keys from environment variables for the actual API calls.
 // The recorded cassette can later be replayed using StartProxy.
+// This uses a streaming-aware recorder that allows responses to stream through
+// in real-time while being recorded, unlike the standard VCR recorder.
 func StartRecordingProxy(cassettePath string) (string, func() error, error) {
-	return StartProxyWithOptions(cassettePath, recorder.ModeRecordOnce, nil, APIKeyHeaderUpdater)
+	return StartStreamingRecordingProxy(cassettePath, APIKeyHeaderUpdater)
+}
+
+// StartStreamingRecordingProxy starts a recording proxy with streaming support.
+// Unlike StartProxyWithOptions which buffers entire responses, this allows
+// streaming responses to pass through in real-time while being recorded.
+func StartStreamingRecordingProxy(
+	cassettePath string,
+	headerUpdater func(host string, req *http.Request),
+) (string, func() error, error) {
+	streamRec, err := NewStreamingRecorder(cassettePath)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to create streaming recorder: %w", err)
+	}
+
+	e := echo.New()
+	e.HideBanner = true
+	e.HidePort = true
+	e.Any("/*", Handle(streamRec, headerUpdater))
+
+	httpServer := httptest.NewServer(e)
+
+	cleanup := func() error {
+		// Forcefully close all client connections first.
+		httpServer.CloseClientConnections()
+		httpServer.Close()
+
+		// Stop the recorder with a timeout
+		stopDone := make(chan error, 1)
+		go func() {
+			stopDone <- streamRec.Stop()
+		}()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		select {
+		case err := <-stopDone:
+			return err
+		case <-ctx.Done():
+			slog.Warn("Recording proxy cleanup timed out, cassette may be incomplete")
+			return nil
+		}
+	}
+
+	return httpServer.URL, cleanup, nil
 }
 
 // APIKeyHeaderUpdater injects API keys from environment variables into request headers.
