@@ -274,12 +274,8 @@ func TestBuildSkillsPrompt_Empty(t *testing.T) {
 }
 
 func TestLoad_Integration(t *testing.T) {
-	originalWd, err := os.Getwd()
-	require.NoError(t, err)
-	defer func() { _ = os.Chdir(originalWd) }()
-
 	tmpDir := t.TempDir()
-	require.NoError(t, os.Chdir(tmpDir))
+	t.Chdir(tmpDir)
 
 	claudeProjectDir := filepath.Join(tmpDir, ".claude", "skills", "test-skill")
 	require.NoError(t, os.MkdirAll(claudeProjectDir, 0o755))
