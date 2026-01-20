@@ -9,6 +9,7 @@ import (
 type (
 	NewSessionMsg                  struct{}
 	ExitSessionMsg                 struct{}
+	ExitAfterFirstResponseMsg      struct{} // Exit TUI after first assistant response completes
 	EvalSessionMsg                 struct{ Filename string }
 	CompactSessionMsg              struct{ AdditionalPrompt string }
 	CopySessionToClipboardMsg      struct{}

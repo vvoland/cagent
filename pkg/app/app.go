@@ -25,14 +25,15 @@ import (
 )
 
 type App struct {
-	runtime            runtime.Runtime
-	session            *session.Session
-	firstMessage       *string
-	firstMessageAttach string
-	events             chan tea.Msg
-	throttleDuration   time.Duration
-	cancel             context.CancelFunc
-	currentAgentModel  string // Tracks the current agent's model ID from AgentInfoEvent
+	runtime                runtime.Runtime
+	session                *session.Session
+	firstMessage           *string
+	firstMessageAttach     string
+	events                 chan tea.Msg
+	throttleDuration       time.Duration
+	cancel                 context.CancelFunc
+	currentAgentModel      string // Tracks the current agent's model ID from AgentInfoEvent
+	exitAfterFirstResponse bool   // Exit TUI after first assistant response completes
 }
 
 // Opt is an option for creating a new App.
@@ -49,6 +50,13 @@ func WithFirstMessage(msg string) Opt {
 func WithFirstMessageAttachment(path string) Opt {
 	return func(a *App) {
 		a.firstMessageAttach = path
+	}
+}
+
+// WithExitAfterFirstResponse configures the app to exit after the first assistant response.
+func WithExitAfterFirstResponse() Opt {
+	return func(a *App) {
+		a.exitAfterFirstResponse = true
 	}
 }
 
@@ -74,7 +82,11 @@ func New(ctx context.Context, rt runtime.Runtime, sess *session.Session, opts ..
 			rt.EmitStartupInfo(ctx, startupEvents)
 		}()
 		for event := range startupEvents {
-			app.events <- event
+			select {
+			case app.events <- event:
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 
@@ -83,7 +95,10 @@ func New(ctx context.Context, rt runtime.Runtime, sess *session.Session, opts ..
 	// and won't implement this optional interface.
 	if ragRuntime, ok := rt.(runtime.RAGInitializer); ok {
 		go ragRuntime.StartBackgroundRAGInit(ctx, func(event runtime.Event) {
-			app.events <- event
+			select {
+			case app.events <- event:
+			case <-ctx.Done():
+			}
 		})
 	}
 
@@ -269,6 +284,7 @@ func (a *App) Subscribe(ctx context.Context, program *tea.Program) {
 			if !ok {
 				return
 			}
+
 			program.Send(msg)
 		}
 	}
@@ -367,7 +383,11 @@ func (a *App) SetCurrentAgentModel(ctx context.Context, modelRef string) error {
 			a.runtime.EmitStartupInfo(ctx, startupEvents)
 		}()
 		for event := range startupEvents {
-			a.events <- event
+			select {
+			case a.events <- event:
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 
@@ -474,6 +494,12 @@ func (a *App) SupportsModelSwitching() bool {
 	return ok
 }
 
+// ShouldExitAfterFirstResponse returns true if the app is configured to exit
+// after the first assistant response completes.
+func (a *App) ShouldExitAfterFirstResponse() bool {
+	return a.exitAfterFirstResponse
+}
+
 func (a *App) CompactSession(additionalPrompt string) {
 	if a.session != nil {
 		events := make(chan runtime.Event, 100)
@@ -521,7 +547,11 @@ func (a *App) ReplaceSession(ctx context.Context, sess *session.Session) {
 			a.runtime.EmitStartupInfo(ctx, startupEvents)
 		}()
 		for event := range startupEvents {
-			a.events <- event
+			select {
+			case a.events <- event:
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 }
@@ -556,25 +586,23 @@ func (a *App) applySessionModelOverrides(ctx context.Context, sess *session.Sess
 func (a *App) throttleEvents(ctx context.Context, in <-chan tea.Msg) <-chan tea.Msg {
 	out := make(chan tea.Msg, 128)
 
-	var buffer []tea.Msg
-	var timerCh <-chan time.Time
-
-	flush := func() {
-		for _, msg := range a.mergeEvents(buffer) {
-			select {
-			case out <- msg:
-			case <-ctx.Done():
-				return
-			}
-		}
-
-		buffer = buffer[:0]
-		timerCh = nil
-	}
-	defer flush()
-
 	go func() {
 		defer close(out)
+
+		var buffer []tea.Msg
+		var timerCh <-chan time.Time
+
+		flush := func() {
+			for _, msg := range a.mergeEvents(buffer) {
+				select {
+				case out <- msg:
+				case <-ctx.Done():
+					return
+				}
+			}
+			buffer = buffer[:0]
+			timerCh = nil
+		}
 
 		for {
 			select {

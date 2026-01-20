@@ -348,6 +348,10 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.chatPage.Cleanup()
 		return a, tea.Quit
 
+	case messages.ExitAfterFirstResponseMsg:
+		a.chatPage.Cleanup()
+		return a, tea.Quit
+
 	case chat.EditorHeightChangedMsg:
 		a.completions.SetEditorBottom(msg.Height)
 		return a, nil

@@ -3,6 +3,7 @@ package chat
 import (
 	"fmt"
 	"log/slog"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/components/sidebar"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/dialog"
+	msgtypes "github.com/docker/cagent/pkg/tui/messages"
 	"github.com/docker/cagent/pkg/tui/types"
 )
 
@@ -126,6 +128,7 @@ func (p *chatPage) forwardToSidebar(msg tea.Msg) tea.Cmd {
 }
 
 func (p *chatPage) handleStreamStarted(msg *runtime.StreamStartedEvent) tea.Cmd {
+	slog.Debug("handleStreamStarted called", "agent", msg.AgentName, "session_id", msg.SessionID)
 	p.streamCancelled = false
 	spinnerCmd := p.setWorking(true)
 	assistantCmd := p.messages.AddAssistantMessage()
@@ -138,6 +141,8 @@ func (p *chatPage) handleAgentChoice(msg *runtime.AgentChoiceEvent) tea.Cmd {
 	if p.streamCancelled {
 		return nil
 	}
+	// Track that we've received assistant content
+	p.hasReceivedAssistantContent = true
 	return p.messages.AppendToLastMessage(msg.AgentName, msg.Content)
 }
 
@@ -149,6 +154,11 @@ func (p *chatPage) handleAgentChoiceReasoning(msg *runtime.AgentChoiceReasoningE
 }
 
 func (p *chatPage) handleStreamStopped(msg *runtime.StreamStoppedEvent) tea.Cmd {
+	slog.Debug("handleStreamStopped called",
+		"agent", msg.AgentName,
+		"session_id", msg.SessionID,
+		"should_exit", p.app.ShouldExitAfterFirstResponse(),
+		"has_content", p.hasReceivedAssistantContent)
 	spinnerCmd := p.setWorking(false)
 	if p.msgCancel != nil {
 		p.msgCancel = nil
@@ -160,7 +170,17 @@ func (p *chatPage) handleStreamStopped(msg *runtime.StreamStoppedEvent) tea.Cmd 
 	// Check if there are queued messages to process
 	queueCmd := p.processNextQueuedMessage()
 
-	return tea.Batch(p.messages.ScrollToBottom(), spinnerCmd, sidebarCmd, queueCmd)
+	// Check if we should exit after this response
+	// Only exit if we've actually received assistant content (not just on any stream stop)
+	var exitCmd tea.Cmd
+	if p.app.ShouldExitAfterFirstResponse() && p.hasReceivedAssistantContent {
+		slog.Debug("Exit after first response triggered, scheduling delayed exit")
+		exitCmd = tea.Tick(50*time.Millisecond, func(time.Time) tea.Msg {
+			return msgtypes.ExitAfterFirstResponseMsg{}
+		})
+	}
+
+	return tea.Batch(p.messages.ScrollToBottom(), spinnerCmd, sidebarCmd, queueCmd, exitCmd)
 }
 
 func (p *chatPage) handlePartialToolCall(msg *runtime.PartialToolCallEvent) tea.Cmd {

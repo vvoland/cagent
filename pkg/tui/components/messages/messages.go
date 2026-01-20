@@ -84,6 +84,7 @@ type model struct {
 	rendered      string               // Complete rendered content string
 	renderedItems map[int]renderedItem // Cache of rendered items with positions
 	totalHeight   int                  // Total height of all content in lines
+	renderDirty   bool                 // True when rendered content needs rebuild
 
 	selection selectionState
 
@@ -123,6 +124,7 @@ func newModel(width, height int, sessionState *service.SessionState) *model {
 		scrollbar:            scrollbar.New(),
 		selectedMessageIndex: -1,
 		debugLayout:          os.Getenv("CAGENT_EXPERIMENTAL_DEBUG_LAYOUT") == "1",
+		renderDirty:          true,
 	}
 }
 
@@ -729,9 +731,14 @@ func (m *model) needsSeparator(index int) bool {
 }
 
 func (m *model) ensureAllItemsRendered() {
+	if !m.renderDirty && m.rendered != "" {
+		return
+	}
+
 	if len(m.views) == 0 {
 		m.rendered = ""
 		m.totalHeight = 0
+		m.renderDirty = false
 		return
 	}
 
@@ -754,18 +761,21 @@ func (m *model) ensureAllItemsRendered() {
 
 	m.rendered = strings.Join(allLines, "\n")
 	m.totalHeight = len(allLines)
+	m.renderDirty = false
 }
 
 func (m *model) invalidateItem(index int) {
 	if m.shouldCacheMessage(index) {
 		delete(m.renderedItems, index)
 	}
+	m.renderDirty = true
 }
 
 func (m *model) invalidateAllItems() {
 	m.renderedItems = make(map[int]renderedItem)
 	m.rendered = ""
 	m.totalHeight = 0
+	m.renderDirty = true
 }
 
 // Message management methods
@@ -809,6 +819,7 @@ func (m *model) AddCancelledMessage() tea.Cmd {
 	m.messages = append(m.messages, msg)
 	view := m.createMessageView(msg)
 	m.views = append(m.views, view)
+	m.renderDirty = true
 	return view.Init()
 }
 
@@ -820,6 +831,7 @@ func (m *model) AddWelcomeMessage(content string) tea.Cmd {
 	m.messages = append(m.messages, msg)
 	view := m.createMessageView(msg)
 	m.views = append(m.views, view)
+	m.renderDirty = true
 	return view.Init()
 }
 
@@ -831,6 +843,7 @@ func (m *model) addMessage(msg *types.Message) tea.Cmd {
 	view := m.createMessageView(msg)
 	m.sessionState.SetPreviousMessage(msg)
 	m.views = append(m.views, view)
+	m.renderDirty = true
 
 	var cmds []tea.Cmd
 	if initCmd := view.Init(); initCmd != nil {
@@ -1005,6 +1018,7 @@ func (m *model) AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, t
 	m.messages = append(m.messages, msg)
 	view := m.createToolCallView(msg)
 	m.views = append(m.views, view)
+	m.renderDirty = true
 
 	return view.Init()
 }
@@ -1103,6 +1117,7 @@ func (m *model) addReasoningBlock(agentName, content string) tea.Cmd {
 	m.messages = append(m.messages, msg)
 	m.views = append(m.views, block)
 	m.sessionState.SetPreviousMessage(msg)
+	m.renderDirty = true
 
 	var cmds []tea.Cmd
 	if initCmd := block.Init(); initCmd != nil {
