@@ -110,19 +110,23 @@ func TestLoadFromSessionReasoningOrderWithToolCalls(t *testing.T) {
 
 	m.LoadFromSession(sess)
 
-	// Expect: reasoning block (containing reasoning + tool call) + assistant content = 2 messages
-	require.Len(t, m.messages, 2)
-	// Reasoning block first (contains both reasoning and tool call)
+	// Expect: reasoning block (reasoning only) + assistant content + standalone tool call = 3 messages
+	// The content breaks the reasoning block chain, so tool calls become standalone
+	require.Len(t, m.messages, 3)
+	// Reasoning block first (contains reasoning only, no tool calls)
 	assert.Equal(t, types.MessageTypeAssistantReasoningBlock, m.messages[0].Type)
 	assert.Equal(t, "I should call a tool...", m.messages[0].Content)
-	// Verify the view is a reasoning block with tool call
+	// Verify the view is a reasoning block without tool calls
 	block, ok := m.views[0].(*reasoningblock.Model)
 	require.True(t, ok, "view should be a reasoning block")
 	assert.Equal(t, "I should call a tool...", block.Reasoning())
-	assert.Equal(t, 1, block.ToolCount(), "block should contain 1 tool call")
-	// Assistant content comes last
+	assert.Equal(t, 0, block.ToolCount(), "block should NOT contain tool calls (content broke the chain)")
+	// Assistant content second
 	assert.Equal(t, types.MessageTypeAssistant, m.messages[1].Type)
 	assert.Equal(t, "Tool result processed.", m.messages[1].Content)
+	// Tool call is standalone (after content broke the chain)
+	assert.Equal(t, types.MessageTypeToolCall, m.messages[2].Type)
+	assert.Equal(t, "test_tool", m.messages[2].ToolCall.Function.Name)
 }
 
 func TestLoadFromSessionReasoningOnlyNoContent(t *testing.T) {
@@ -187,17 +191,15 @@ func TestLoadFromSessionToolCallsOnlyNoReasoning(t *testing.T) {
 
 	m.LoadFromSession(sess)
 
-	// Expect: reasoning block (with just tool call) + assistant content = 2 messages
+	// Expect: assistant content + standalone tool call = 2 messages
+	// Tool calls without reasoning should NOT go into a reasoning block
 	require.Len(t, m.messages, 2)
-	// Reasoning block first (contains tool call, no reasoning)
-	assert.Equal(t, types.MessageTypeAssistantReasoningBlock, m.messages[0].Type)
-	block, ok := m.views[0].(*reasoningblock.Model)
-	require.True(t, ok, "view should be a reasoning block")
-	assert.Empty(t, block.Reasoning())
-	assert.Equal(t, 1, block.ToolCount(), "block should contain 1 tool call")
-	// Assistant content
-	assert.Equal(t, types.MessageTypeAssistant, m.messages[1].Type)
-	assert.Equal(t, "Done.", m.messages[1].Content)
+	// Assistant content first (content is rendered before tool calls)
+	assert.Equal(t, types.MessageTypeAssistant, m.messages[0].Type)
+	assert.Equal(t, "Done.", m.messages[0].Content)
+	// Tool call is standalone (not in a reasoning block)
+	assert.Equal(t, types.MessageTypeToolCall, m.messages[1].Type)
+	assert.Equal(t, "test_tool", m.messages[1].ToolCall.Function.Name)
 }
 
 func TestLoadFromSessionWithToolResults(t *testing.T) {
@@ -397,4 +399,222 @@ func TestLoadFromSessionCombinesConsecutiveReasoningBlocks(t *testing.T) {
 	// Second message should be assistant content
 	assert.Equal(t, types.MessageTypeAssistant, m.messages[1].Type)
 	assert.Equal(t, "All done!", m.messages[1].Content)
+}
+
+func TestLoadFromSessionStandaloneToolCallsWithResults(t *testing.T) {
+	t.Parallel()
+
+	sessionState := &service.SessionState{}
+	m := NewScrollableView(80, 24, sessionState).(*model)
+	m.SetSize(80, 24)
+
+	sess := &session.Session{
+		ID: "test-session",
+		Messages: []session.Item{
+			// Assistant message with tool calls only (no reasoning, no content)
+			session.NewMessageItem(&session.Message{
+				AgentName: "root",
+				Message: chat.Message{
+					Role: chat.MessageRoleAssistant,
+					ToolCalls: []tools.ToolCall{
+						{ID: "call-1", Function: tools.FunctionCall{Name: "test_tool", Arguments: `{"arg": "value"}`}},
+					},
+					ToolDefinitions: []tools.Tool{
+						{Name: "test_tool", Description: "A test tool"},
+					},
+				},
+			}),
+			// Tool result
+			session.NewMessageItem(&session.Message{
+				AgentName: "root",
+				Message: chat.Message{
+					Role:       chat.MessageRoleTool,
+					ToolCallID: "call-1",
+					Content:    "Tool execution result",
+				},
+			}),
+		},
+	}
+
+	m.LoadFromSession(sess)
+
+	// Expect: standalone tool call (not in reasoning block)
+	require.Len(t, m.messages, 1)
+
+	// Tool call should be standalone with result applied
+	assert.Equal(t, types.MessageTypeToolCall, m.messages[0].Type)
+	assert.Equal(t, "test_tool", m.messages[0].ToolCall.Function.Name)
+	assert.Equal(t, "Tool execution result", m.messages[0].Content, "tool result should be applied to standalone tool call")
+	assert.Equal(t, types.ToolStatusCompleted, m.messages[0].ToolStatus)
+}
+
+func TestLoadFromSessionToolCallsDuringReasoningNoContent(t *testing.T) {
+	t.Parallel()
+
+	sessionState := &service.SessionState{}
+	m := NewScrollableView(80, 24, sessionState).(*model)
+	m.SetSize(80, 24)
+
+	sess := &session.Session{
+		ID: "test-session",
+		Messages: []session.Item{
+			// Assistant message with reasoning and tool calls but NO content
+			session.NewMessageItem(&session.Message{
+				AgentName: "root",
+				Message: chat.Message{
+					Role:             chat.MessageRoleAssistant,
+					ReasoningContent: "Let me think and use a tool...",
+					ToolCalls: []tools.ToolCall{
+						{ID: "call-1", Function: tools.FunctionCall{Name: "think_tool", Arguments: "{}"}},
+					},
+					ToolDefinitions: []tools.Tool{
+						{Name: "think_tool", Description: "A thinking tool"},
+					},
+					// No Content - tool calls should stay in reasoning block
+				},
+			}),
+			// Tool result
+			session.NewMessageItem(&session.Message{
+				AgentName: "root",
+				Message: chat.Message{
+					Role:       chat.MessageRoleTool,
+					ToolCallID: "call-1",
+					Content:    "Thought result",
+				},
+			}),
+		},
+	}
+
+	m.LoadFromSession(sess)
+
+	// Expect: reasoning block only (tool call inside it)
+	require.Len(t, m.messages, 1)
+
+	// Should be a reasoning block with the tool call inside
+	assert.Equal(t, types.MessageTypeAssistantReasoningBlock, m.messages[0].Type)
+	block, ok := m.views[0].(*reasoningblock.Model)
+	require.True(t, ok, "view should be a reasoning block")
+	assert.Equal(t, "Let me think and use a tool...", block.Reasoning())
+	assert.Equal(t, 1, block.ToolCount(), "tool call should be inside reasoning block when no content breaks the chain")
+}
+
+func TestLoadFromSessionReasoningWithContentToolResultsStandalone(t *testing.T) {
+	t.Parallel()
+
+	sessionState := &service.SessionState{}
+	m := NewScrollableView(80, 24, sessionState).(*model)
+	m.SetSize(80, 24)
+
+	sess := &session.Session{
+		ID: "test-session",
+		Messages: []session.Item{
+			session.NewMessageItem(&session.Message{
+				AgentName: "root",
+				Message: chat.Message{
+					Role:             chat.MessageRoleAssistant,
+					ReasoningContent: "Need to call a tool...",
+					ToolCalls: []tools.ToolCall{
+						{ID: "call-1", Function: tools.FunctionCall{Name: "test_tool", Arguments: "{}"}},
+					},
+					ToolDefinitions: []tools.Tool{
+						{Name: "test_tool", Description: "A test tool"},
+					},
+					Content: "Done.",
+				},
+			}),
+			session.NewMessageItem(&session.Message{
+				AgentName: "root",
+				Message: chat.Message{
+					Role:       chat.MessageRoleTool,
+					ToolCallID: "call-1",
+					Content:    "Result\tvalue",
+				},
+			}),
+		},
+	}
+
+	m.LoadFromSession(sess)
+
+	require.Len(t, m.messages, 3)
+
+	// Reasoning block should NOT contain tool calls
+	assert.Equal(t, types.MessageTypeAssistantReasoningBlock, m.messages[0].Type)
+	block, ok := m.views[0].(*reasoningblock.Model)
+	require.True(t, ok, "view should be a reasoning block")
+	assert.Equal(t, 0, block.ToolCount(), "tool calls should be standalone after content breaks the chain")
+
+	// Assistant content second
+	assert.Equal(t, types.MessageTypeAssistant, m.messages[1].Type)
+	assert.Equal(t, "Done.", m.messages[1].Content)
+
+	// Tool call is standalone with result applied
+	assert.Equal(t, types.MessageTypeToolCall, m.messages[2].Type)
+	assert.Equal(t, "test_tool", m.messages[2].ToolCall.Function.Name)
+	assert.Equal(t, "Result    value", m.messages[2].Content)
+	assert.Equal(t, types.ToolStatusCompleted, m.messages[2].ToolStatus)
+}
+
+func TestLoadFromSessionMultipleStandaloneToolCallsWithContentAndResults(t *testing.T) {
+	t.Parallel()
+
+	sessionState := &service.SessionState{}
+	m := NewScrollableView(80, 24, sessionState).(*model)
+	m.SetSize(80, 24)
+
+	sess := &session.Session{
+		ID: "test-session",
+		Messages: []session.Item{
+			session.NewMessageItem(&session.Message{
+				AgentName: "root",
+				Message: chat.Message{
+					Role:    chat.MessageRoleAssistant,
+					Content: "Here you go.",
+					ToolCalls: []tools.ToolCall{
+						{ID: "call-1", Function: tools.FunctionCall{Name: "tool1", Arguments: "{}"}},
+						{ID: "call-2", Function: tools.FunctionCall{Name: "tool2", Arguments: "{}"}},
+					},
+					ToolDefinitions: []tools.Tool{
+						{Name: "tool1", Description: "First tool"},
+						{Name: "tool2", Description: "Second tool"},
+					},
+				},
+			}),
+			// Tool results (order shouldn't matter)
+			session.NewMessageItem(&session.Message{
+				AgentName: "root",
+				Message: chat.Message{
+					Role:       chat.MessageRoleTool,
+					ToolCallID: "call-2",
+					Content:    "Second\tresult",
+				},
+			}),
+			session.NewMessageItem(&session.Message{
+				AgentName: "root",
+				Message: chat.Message{
+					Role:       chat.MessageRoleTool,
+					ToolCallID: "call-1",
+					Content:    "First result",
+				},
+			}),
+		},
+	}
+
+	m.LoadFromSession(sess)
+
+	require.Len(t, m.messages, 3)
+
+	// Assistant content first
+	assert.Equal(t, types.MessageTypeAssistant, m.messages[0].Type)
+	assert.Equal(t, "Here you go.", m.messages[0].Content)
+
+	// Tool calls are standalone and in the original tool call order
+	assert.Equal(t, types.MessageTypeToolCall, m.messages[1].Type)
+	assert.Equal(t, "tool1", m.messages[1].ToolCall.Function.Name)
+	assert.Equal(t, "First result", m.messages[1].Content)
+	assert.Equal(t, types.ToolStatusCompleted, m.messages[1].ToolStatus)
+
+	assert.Equal(t, types.MessageTypeToolCall, m.messages[2].Type)
+	assert.Equal(t, "tool2", m.messages[2].ToolCall.Function.Name)
+	assert.Equal(t, "Second    result", m.messages[2].Content)
+	assert.Equal(t, types.ToolStatusCompleted, m.messages[2].ToolStatus)
 }
