@@ -3,6 +3,7 @@
 package fake
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -21,10 +22,42 @@ import (
 	"gopkg.in/dnaeon/go-vcr.v4/pkg/recorder"
 )
 
+// ProxyOptions configures the fake proxy behavior.
+type ProxyOptions struct {
+	// SimulateStream adds delays between SSE chunks to simulate real streaming.
+	SimulateStream bool
+	// StreamChunkDelay is the delay between SSE chunks when SimulateStream is true.
+	// Defaults to 15ms if not set.
+	StreamChunkDelay time.Duration
+}
+
+// ProxyOption is a function that configures ProxyOptions.
+type ProxyOption func(*ProxyOptions)
+
+// WithSimulateStream enables simulated streaming with delays between chunks.
+func WithSimulateStream(enabled bool) ProxyOption {
+	return func(o *ProxyOptions) {
+		o.SimulateStream = enabled
+	}
+}
+
+// WithStreamChunkDelay sets the delay between SSE chunks.
+func WithStreamChunkDelay(d time.Duration) ProxyOption {
+	return func(o *ProxyOptions) {
+		o.StreamChunkDelay = d
+	}
+}
+
 // StartProxy starts an internal HTTP proxy that replays cassette responses.
 // It returns the proxy URL and a cleanup function that should be called when done.
-func StartProxy(cassettePath string) (string, func() error, error) {
-	return StartProxyWithOptions(cassettePath, recorder.ModeReplayOnly, nil, nil)
+func StartProxy(cassettePath string, opts ...ProxyOption) (string, func() error, error) {
+	options := &ProxyOptions{
+		StreamChunkDelay: 15 * time.Millisecond,
+	}
+	for _, opt := range opts {
+		opt(options)
+	}
+	return StartProxyWithOptions(cassettePath, recorder.ModeReplayOnly, nil, nil, options)
 }
 
 // StartRecordingProxy starts a proxy that records AI API interactions to a cassette file.
@@ -51,7 +84,7 @@ func StartStreamingRecordingProxy(
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
-	e.Any("/*", Handle(streamRec, headerUpdater))
+	e.Any("/*", Handle(streamRec, headerUpdater, nil))
 
 	httpServer := httptest.NewServer(e)
 
@@ -102,15 +135,21 @@ func APIKeyHeaderUpdater(host string, req *http.Request) {
 // - mode: recorder mode (ModeReplayOnly, ModeRecordOnce, etc.)
 // - matcher: custom matcher function (nil uses DefaultMatcher)
 // - headerUpdater: optional function to update request headers (for recording with real API keys)
+// - options: proxy options for stream simulation, etc.
 func StartProxyWithOptions(
 	cassettePath string,
 	mode recorder.Mode,
 	matcher recorder.MatcherFunc,
 	headerUpdater func(host string, req *http.Request),
+	options *ProxyOptions,
 ) (string, func() error, error) {
 	hasMatcher := matcher != nil
 	if !hasMatcher {
 		matcher = DefaultMatcher(nil)
+	}
+
+	if options == nil {
+		options = &ProxyOptions{}
 	}
 
 	transport, err := recorder.New(cassettePath,
@@ -127,7 +166,7 @@ func StartProxyWithOptions(
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
-	e.Any("/*", Handle(transport, headerUpdater))
+	e.Any("/*", Handle(transport, headerUpdater, options))
 
 	httpServer := httptest.NewServer(e)
 
@@ -227,7 +266,11 @@ func TargetURLForHost(host string) func(req *http.Request) string {
 
 // Handle creates an echo handler that proxies requests through the VCR transport.
 // The headerUpdater is called with the host and request to update headers (e.g., for adding API keys).
-func Handle(transport http.RoundTripper, headerUpdater func(host string, req *http.Request)) echo.HandlerFunc {
+// The options parameter controls streaming simulation behavior.
+func Handle(transport http.RoundTripper, headerUpdater func(host string, req *http.Request), options *ProxyOptions) echo.HandlerFunc {
+	if options == nil {
+		options = &ProxyOptions{}
+	}
 	return func(c echo.Context) error {
 		ctx := c.Request().Context()
 
@@ -269,12 +312,53 @@ func Handle(transport http.RoundTripper, headerUpdater func(host string, req *ht
 		c.Response().WriteHeader(resp.StatusCode)
 
 		if IsStreamResponse(resp) {
+			if options.SimulateStream {
+				return SimulatedStreamCopy(c, resp, options.StreamChunkDelay)
+			}
 			return StreamCopy(c, resp)
 		}
 
 		_, err = io.Copy(c.Response().Writer, resp.Body)
 		return err
 	}
+}
+
+// SimulatedStreamCopy copies a streaming SSE response to the client with artificial delays
+// between events to simulate real-time streaming behavior.
+func SimulatedStreamCopy(c echo.Context, resp *http.Response, chunkDelay time.Duration) error {
+	ctx := c.Request().Context()
+	writer := c.Response().Writer
+
+	scanner := bufio.NewScanner(resp.Body)
+	// SSE events can be large, increase buffer size
+	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
+
+	for scanner.Scan() {
+		select {
+		case <-ctx.Done():
+			slog.WarnContext(ctx, "client disconnected, stop streaming")
+			return nil
+		default:
+		}
+
+		line := scanner.Text()
+		// Write the line with newline
+		if _, err := writer.Write([]byte(line + "\n")); err != nil {
+			return err
+		}
+		c.Response().Flush()
+
+		// Add delay after data lines (SSE events start with "data:")
+		if strings.HasPrefix(line, "data:") {
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-time.After(chunkDelay):
+			}
+		}
+	}
+
+	return scanner.Err()
 }
 
 // streamReadResult holds the result of a streaming read operation.
@@ -330,6 +414,8 @@ func StreamCopy(c echo.Context, resp *http.Response) error {
 }
 
 // IsStreamResponse checks if the response should be streamed.
+// It checks Content-Type headers first, then falls back to peeking at the body
+// for SSE format (useful when headers are stripped in recorded cassettes).
 func IsStreamResponse(resp *http.Response) bool {
 	ct := strings.ToLower(resp.Header.Get("Content-Type"))
 	if strings.Contains(ct, "text/event-stream") {
@@ -341,7 +427,46 @@ func IsStreamResponse(resp *http.Response) bool {
 		return true
 	}
 
-	return strings.Contains(ct, "application/octet-stream") ||
+	if strings.Contains(ct, "application/octet-stream") ||
 		strings.Contains(ct, "application/x-ndjson") ||
-		strings.Contains(ct, "application/stream+json")
+		strings.Contains(ct, "application/stream+json") {
+		return true
+	}
+
+	// If no streaming headers detected, peek at the body to check for SSE format.
+	// This handles cassettes where headers were stripped during recording.
+	if resp.Body != nil {
+		// Read enough to detect SSE prefixes ("data:" or "event:")
+		peek := make([]byte, 6)
+		n, err := resp.Body.Read(peek)
+		if err == nil || n > 0 {
+			// Reconstruct the body with the peeked bytes prepended
+			resp.Body = &peekReader{peeked: peek[:n], rest: resp.Body}
+			// Check for SSE format markers
+			if bytes.HasPrefix(peek[:n], []byte("data:")) || bytes.HasPrefix(peek[:n], []byte("event:")) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// peekReader wraps a reader with already-peeked bytes.
+type peekReader struct {
+	peeked []byte
+	rest   io.ReadCloser
+}
+
+func (p *peekReader) Read(b []byte) (int, error) {
+	if len(p.peeked) > 0 {
+		n := copy(b, p.peeked)
+		p.peeked = p.peeked[n:]
+		return n, nil
+	}
+	return p.rest.Read(b)
+}
+
+func (p *peekReader) Close() error {
+	return p.rest.Close()
 }

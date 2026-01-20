@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/pprof"
-	"strings"
 
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
@@ -37,6 +36,7 @@ type runExecFlags struct {
 	sessionID         string
 	recordPath        string
 	fakeResponses     string
+	fakeStreamDelay   int
 	exitAfterResponse bool
 	cpuProfile        string
 	forceTUI          bool
@@ -86,6 +86,8 @@ func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 	cmd.PersistentFlags().StringVarP(&flags.sessionDB, "session-db", "s", filepath.Join(paths.GetHomeDir(), ".cagent", "session.db"), "Path to the session database")
 	cmd.PersistentFlags().StringVar(&flags.sessionID, "session", "", "Continue from a previous session by ID")
 	cmd.PersistentFlags().StringVar(&flags.fakeResponses, "fake", "", "Replay AI responses from cassette file (for testing)")
+	cmd.PersistentFlags().IntVar(&flags.fakeStreamDelay, "fake-stream", 0, "Simulate streaming with delay in ms between chunks (default 15ms if no value given)")
+	cmd.Flag("fake-stream").NoOptDefVal = "15" // --fake-stream without value uses 15ms
 	cmd.PersistentFlags().StringVar(&flags.recordPath, "record", "", "Record AI API interactions to cassette file (auto-generates filename if empty)")
 	cmd.PersistentFlags().Lookup("record").NoOptDefVal = "true"
 	cmd.PersistentFlags().BoolVar(&flags.exitAfterResponse, "exit-after-response", false, "Exit TUI after first assistant response completes")
@@ -142,7 +144,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 	}
 
 	// Start fake proxy if --fake is specified
-	fakeCleanup, err := setupFakeProxy(f.fakeResponses, &f.runConfig)
+	fakeCleanup, err := setupFakeProxy(f.fakeResponses, f.fakeStreamDelay, &f.runConfig)
 	if err != nil {
 		return err
 	}

@@ -98,7 +98,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 	}
 
 	// Start fake proxy if --fake is specified
-	cleanup, err := setupFakeProxy(f.fakeResponses, &f.runConfig)
+	cleanup, err := setupFakeProxy(f.fakeResponses, 0, &f.runConfig)
 	if err != nil {
 		return err
 	}
