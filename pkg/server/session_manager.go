@@ -270,6 +270,9 @@ func (sm *SessionManager) runtimeForSession(ctx context.Context, sess *session.S
 		return nil, err
 	}
 	sess.MaxIterations = agent.MaxIterations()
+	// Initialize thinking state based on whether thinking_budget was explicitly configured
+	// in the agent's YAML config. Only enable thinking by default when explicitly configured.
+	sess.Thinking = agent.ThinkingConfigured()
 
 	opts := []runtime.Opt{
 		runtime.WithCurrentAgent(currentAgent),
