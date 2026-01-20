@@ -691,6 +691,12 @@ func (p *chatPage) syncQueueToSidebar() {
 
 // processMessage processes a message with the runtime
 func (p *chatPage) processMessage(msg msgtypes.SendMsg) tea.Cmd {
+	// Handle slash commands (e.g., /eval, /compact, /exit) BEFORE cancelling any ongoing stream.
+	// These are UI commands that shouldn't interrupt the running agent.
+	if cmd := commands.ParseSlashCommand(msg.Content); cmd != nil {
+		return cmd
+	}
+
 	if p.msgCancel != nil {
 		p.msgCancel()
 	}
@@ -703,11 +709,6 @@ func (p *chatPage) processMessage(msg msgtypes.SendMsg) tea.Cmd {
 	if strings.HasPrefix(msg.Content, "!") {
 		p.app.RunBangCommand(ctx, msg.Content[1:])
 		return p.messages.ScrollToBottom()
-	}
-
-	// Handle slash commands (e.g., /eval, /compact, /exit)
-	if cmd := commands.ParseSlashCommand(msg.Content); cmd != nil {
-		return cmd
 	}
 
 	// Start working state immediately to show the user something is happening.
