@@ -329,11 +329,15 @@ func SimulatedStreamCopy(c echo.Context, resp *http.Response, chunkDelay time.Du
 	ctx := c.Request().Context()
 	writer := c.Response().Writer
 
-	scanner := bufio.NewScanner(resp.Body)
-	// SSE events can be large, increase buffer size
-	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
+	reader := bufio.NewReaderSize(resp.Body, 64*1024)
 
-	for scanner.Scan() {
+	// Reuse timer to avoid allocations per chunk
+	timer := time.NewTimer(chunkDelay)
+	defer timer.Stop()
+
+	dataPrefix := []byte("data:")
+
+	for {
 		select {
 		case <-ctx.Done():
 			slog.WarnContext(ctx, "client disconnected, stop streaming")
@@ -341,24 +345,35 @@ func SimulatedStreamCopy(c echo.Context, resp *http.Response, chunkDelay time.Du
 		default:
 		}
 
-		line := scanner.Text()
-		// Write the line with newline
-		if _, err := writer.Write([]byte(line + "\n")); err != nil {
+		line, err := reader.ReadBytes('\n')
+		if err != nil {
+			if err == io.EOF {
+				// Write any remaining data without newline
+				if len(line) > 0 {
+					_, _ = writer.Write(line)
+					c.Response().Flush()
+				}
+				return nil
+			}
 			return err
 		}
-		c.Response().Flush()
+
+		// Write the line (already includes newline from ReadBytes)
+		if _, err := writer.Write(line); err != nil {
+			return err
+		}
 
 		// Add delay after data lines (SSE events start with "data:")
-		if strings.HasPrefix(line, "data:") {
+		if bytes.HasPrefix(line, dataPrefix) {
+			c.Response().Flush()
+			timer.Reset(chunkDelay)
 			select {
 			case <-ctx.Done():
 				return nil
-			case <-time.After(chunkDelay):
+			case <-timer.C:
 			}
 		}
 	}
-
-	return scanner.Err()
 }
 
 // streamReadResult holds the result of a streaming read operation.
