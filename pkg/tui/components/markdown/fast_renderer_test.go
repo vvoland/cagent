@@ -557,6 +557,61 @@ func BenchmarkGlamourRendererCodeBlock(b *testing.B) {
 	}
 }
 
+var benchmarkTableInput = `| Name | Age | City | Country | Occupation |
+|------|-----|------|---------|------------|
+| Alice | 30 | New York | USA | Engineer |
+| Bob | 25 | London | UK | Designer |
+| Charlie | 35 | Paris | France | Manager |
+| Diana | 28 | Berlin | Germany | Developer |`
+
+func BenchmarkFastRendererTable(b *testing.B) {
+	r := NewFastRenderer(80)
+	b.ResetTimer()
+	for range b.N {
+		_, _ = r.Render(benchmarkTableInput)
+	}
+}
+
+func BenchmarkGlamourRendererTable(b *testing.B) {
+	r := NewGlamourRenderer(80)
+	b.ResetTimer()
+	for range b.N {
+		_, _ = r.Render(benchmarkTableInput)
+	}
+}
+
+func BenchmarkFastRendererTableWidth20(b *testing.B) {
+	r := NewFastRenderer(20)
+	b.ResetTimer()
+	for range b.N {
+		_, _ = r.Render(benchmarkTableInput)
+	}
+}
+
+func BenchmarkGlamourRendererTableWidth20(b *testing.B) {
+	r := NewGlamourRenderer(20)
+	b.ResetTimer()
+	for range b.N {
+		_, _ = r.Render(benchmarkTableInput)
+	}
+}
+
+func BenchmarkFastRendererTableWidth200(b *testing.B) {
+	r := NewFastRenderer(200)
+	b.ResetTimer()
+	for range b.N {
+		_, _ = r.Render(benchmarkTableInput)
+	}
+}
+
+func BenchmarkGlamourRendererTableWidth200(b *testing.B) {
+	r := NewGlamourRenderer(200)
+	b.ResetTimer()
+	for range b.N {
+		_, _ = r.Render(benchmarkTableInput)
+	}
+}
+
 func TestFastRendererListWrapping(t *testing.T) {
 	t.Parallel()
 
