@@ -59,9 +59,16 @@ var defaultMessages = []string{
 	"Warming up the flux capacitor",
 	"Reversing the polarity",
 	"Spinning up the hamster wheels",
-	"Dividing by zero",
 	"Herding cats",
 	"Untangling yarn",
+	"Aligning the cosmos",
+	"Brewing digital coffee",
+	"Wrangling bits and bytes",
+	"Charging the crystals",
+	"Consulting the rubber duck",
+	"Feeding the gremlins",
+	"Polishing the pixels",
+	"Calibrating the thrusters",
 }
 
 func New(mode Mode, dotsStyle lipgloss.Style) Spinner {
