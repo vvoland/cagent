@@ -322,8 +322,26 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := a.listenForTranscripts(msg.ch)
 		return a, cmd
 
+	case dialog.MultiChoiceResultMsg:
+		// Handle multi-choice dialog results
+		if msg.DialogID == dialog.ToolRejectionDialogID {
+			if msg.Result.IsCancelled {
+				// User cancelled - multi-choice dialog already closed, tool confirmation still open
+				return a, nil
+			}
+			// User selected a reason - close the tool confirmation dialog and send resume
+			resumeMsg := dialog.HandleToolRejectionResult(msg.Result)
+			if resumeMsg != nil {
+				return a, tea.Sequence(
+					core.CmdHandler(dialog.CloseDialogMsg{}), // Close tool confirmation dialog
+					core.CmdHandler(*resumeMsg),
+				)
+			}
+		}
+		return a, nil
+
 	case dialog.RuntimeResumeMsg:
-		a.application.Resume(msg.Response)
+		a.application.Resume(msg.Request)
 		return a, nil
 
 	case dialog.ExitConfirmedMsg:
@@ -372,8 +390,17 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (a *appModel) handleWindowResize(width, height int) tea.Cmd {
 	var cmds []tea.Cmd
 
-	// Update dimensions
-	a.width, a.height = width, height-1 // Account for status bar
+	// Update status bar width first so we can measure its height
+	a.statusBar.SetWidth(width)
+
+	// Compute status bar height from rendered content
+	statusBarHeight := 1 // default fallback
+	if statusBarView := a.statusBar.View(); statusBarView != "" {
+		statusBarHeight = lipgloss.Height(statusBarView)
+	}
+
+	// Update dimensions, reserving space for the status bar
+	a.width, a.height = width, height-statusBarHeight
 
 	if !a.ready {
 		a.ready = true
@@ -389,9 +416,6 @@ func (a *appModel) handleWindowResize(width, height int) tea.Cmd {
 
 	// Update completion manager with actual editor height for popup positioning
 	a.completions.SetEditorBottom(a.chatPage.GetInputHeight())
-
-	// Update status bar width
-	a.statusBar.SetWidth(a.width)
 
 	// Update notification size
 	a.notification.SetSize(a.width, a.height)
