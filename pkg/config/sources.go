@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -105,32 +106,72 @@ func (a ociSource) ParentDir() string {
 	return ""
 }
 
+// Read loads an agent configuration from an OCI artifact.
+//
+// This method is intentionally defensive:
+// - The local content store is treated as a cache, never as a source of truth.
+// - Any missing or inconsistent local state (ErrStoreCorrupted) triggers a re-fetch.
+// - A forced pull is used as a last resort to self-heal corrupted stores.
 func (a ociSource) Read(ctx context.Context) ([]byte, error) {
-	// Check if we have a local copy (without loading content)
 	store, err := content.NewStore()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create content store: %w", err)
 	}
 
-	_, metaErr := store.GetArtifactMetadata(a.reference)
-	hasLocal := metaErr == nil
-
-	// Try to pull from remote (only pulls if digest changed)
-	if _, pullErr := remote.Pull(ctx, a.reference, false); pullErr != nil {
-		if !hasLocal {
-			// No local copy and can't pull, error out
-			return nil, fmt.Errorf("failed to pull OCI image %s: %w", a.reference, pullErr)
+	tryLoad := func() ([]byte, error) {
+		af, err := store.GetArtifact(a.reference)
+		if err != nil {
+			return nil, err
 		}
-		slog.Debug("Failed to check for OCI reference updates, using cached version", "ref", a.reference, "error", pullErr)
+		return []byte(af), nil
 	}
 
-	// Load the agent contents from the store
-	af, err := store.GetArtifact(a.reference)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load agent from store: %w", err)
+	// 1. Try local first
+	data, err := tryLoad()
+	if err == nil {
+		return data, nil
 	}
 
-	return []byte(af), nil
+	isCorrupted := errors.Is(err, content.ErrStoreCorrupted)
+
+	// 2. Try normal pull (digest check)
+	if _, pullErr := remote.Pull(ctx, a.reference, false); pullErr == nil {
+		data, err = tryLoad()
+		if err == nil {
+			return data, nil
+		}
+		isCorrupted = isCorrupted || errors.Is(err, content.ErrStoreCorrupted)
+	} else {
+		slog.Debug(
+			"OCI pull failed, will evaluate fallback",
+			"ref", a.reference,
+			"error", pullErr,
+		)
+	}
+
+	// 3. Force re-pull if store is corrupted or inconsistent
+	if isCorrupted {
+		slog.Warn(
+			"Local OCI store corrupted or inconsistent, forcing re-pull",
+			"ref", a.reference,
+		)
+
+		if _, pullErr := remote.Pull(ctx, a.reference, true); pullErr != nil {
+			return nil, fmt.Errorf("failed to force re-pull OCI image %s: %w", a.reference, pullErr)
+		}
+
+		data, err = tryLoad()
+		if err == nil {
+			return data, nil
+		}
+	}
+
+	return nil, fmt.Errorf(
+		"failed to load agent from OCI source %s after retrying and re-fetching: %w",
+		a.reference,
+		err,
+	)
+
 }
 
 // urlSource is used to load an agent configuration from an HTTP/HTTPS URL.
