@@ -3,7 +3,9 @@ package runtime
 // IsValidResumeType validates confirmation values coming from /resume
 func IsValidResumeType(t ResumeType) bool {
 	switch t {
-	case ResumeTypeApprove, ResumeTypeReject:
+	case ResumeTypeApprove,
+		ResumeTypeApproveSession,
+		ResumeTypeReject:
 		return true
 	default:
 		return false
@@ -14,6 +16,7 @@ func IsValidResumeType(t ResumeType) bool {
 func ValidResumeTypes() []ResumeType {
 	return []ResumeType{
 		ResumeTypeApprove,
+		ResumeTypeApproveSession,
 		ResumeTypeReject,
 	}
 }
