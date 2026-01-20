@@ -1,10 +1,14 @@
 package history
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+
+	"github.com/natefinch/atomic"
 )
 
 type History struct {
@@ -54,15 +58,10 @@ func New(opts ...Opt) (*History, error) {
 
 func (h *History) Add(message string) error {
 	// Add the message last but avoid duplicate messages
-	var messages []string
-	for _, msg := range h.Messages {
-		if msg != message {
-			messages = append(messages, msg)
-		}
-	}
-	messages = append(messages, message)
-
-	h.Messages = messages
+	h.Messages = slices.DeleteFunc(h.Messages, func(m string) bool {
+		return m == message
+	})
+	h.Messages = append(h.Messages, message)
 	h.current = len(h.Messages)
 
 	return h.save()
@@ -131,7 +130,7 @@ func (h *History) save() error {
 		return err
 	}
 
-	return os.WriteFile(h.path, data, 0o644)
+	return atomic.WriteFile(h.path, bytes.NewReader(data))
 }
 
 func (h *History) load() error {
