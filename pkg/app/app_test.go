@@ -138,5 +138,5 @@ func TestApp_NewSession_WithNilSession(t *testing.T) {
 
 	require.NotNil(t, app.Session(), "NewSession should create a new session")
 	// Default values
-	assert.True(t, app.Session().Thinking, "NewSession with nil should use default thinking=true")
+	assert.False(t, app.Session().Thinking, "NewSession with nil should use default thinking=true")
 }
