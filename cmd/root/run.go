@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"runtime/pprof"
 
 	"github.com/mattn/go-isatty"
@@ -39,6 +40,7 @@ type runExecFlags struct {
 	fakeStreamDelay   int
 	exitAfterResponse bool
 	cpuProfile        string
+	memProfile        string
 	forceTUI          bool
 
 	// Exec only
@@ -94,6 +96,8 @@ func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 	_ = cmd.PersistentFlags().MarkHidden("exit-after-response")
 	cmd.PersistentFlags().StringVar(&flags.cpuProfile, "cpuprofile", "", "Write CPU profile to file")
 	_ = cmd.PersistentFlags().MarkHidden("cpuprofile")
+	cmd.PersistentFlags().StringVar(&flags.memProfile, "memprofile", "", "Write memory profile to file")
+	_ = cmd.PersistentFlags().MarkHidden("memprofile")
 	cmd.PersistentFlags().BoolVar(&flags.forceTUI, "force-tui", false, "Force TUI mode even when not in a terminal")
 	_ = cmd.PersistentFlags().MarkHidden("force-tui")
 	cmd.MarkFlagsMutuallyExclusive("fake", "record")
@@ -124,6 +128,23 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 		}
 		defer pprof.StopCPUProfile()
 		slog.Info("CPU profiling enabled", "file", f.cpuProfile)
+	}
+
+	// Write memory profile at exit if requested
+	if f.memProfile != "" {
+		defer func() {
+			mf, err := os.Create(f.memProfile)
+			if err != nil {
+				slog.Error("Failed to create memory profile", "error", err)
+				return
+			}
+			defer mf.Close()
+			goruntime.GC() // Get up-to-date statistics
+			if err := pprof.WriteHeapProfile(mf); err != nil {
+				slog.Error("Failed to write memory profile", "error", err)
+			}
+			slog.Info("Memory profile written", "file", f.memProfile)
+		}()
 	}
 
 	var agentFileName string
