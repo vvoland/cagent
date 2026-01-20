@@ -330,6 +330,11 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 			}
 		}
 
+		// Apply friendly tools wrapper if enabled
+		if a.AddDescriptionParameter {
+			wrapped = tools.NewDescriptionToolSet(wrapped)
+		}
+
 		toolSets = append(toolSets, wrapped)
 	}
 
@@ -374,6 +379,7 @@ func createRAGToolsForAgent(agentConfig *latest.AgentConfig, allManagers map[str
 
 		// Create a separate tool for this RAG source
 		ragTool := builtin.NewRAGTool(mgr, toolName)
+
 		ragTools = append(ragTools, ragTool)
 
 		slog.Debug("Created RAG tool for agent",

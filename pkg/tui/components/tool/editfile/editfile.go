@@ -25,10 +25,16 @@ func render(msg *types.Message, s spinner.Spinner, sessionState *service.Session
 		return ""
 	}
 
-	content := fmt.Sprintf("%s%s %s",
-		toolcommon.Icon(msg, s),
-		styles.ToolName.Render(msg.ToolDefinition.DisplayName()),
-		styles.ToolMessageStyle.Render(toolcommon.ShortenPath(args.Path)))
+	// Check for friendly description first
+	var content string
+	if header, ok := toolcommon.RenderFriendlyHeader(msg, s); ok {
+		content = header
+	} else {
+		content = fmt.Sprintf("%s%s %s",
+			toolcommon.Icon(msg, s),
+			styles.ToolName.Render(msg.ToolDefinition.DisplayName()),
+			styles.ToolMessageStyle.Render(toolcommon.ShortenPath(args.Path)))
+	}
 
 	if !sessionState.HideToolResults() {
 		if msg.ToolCall.Function.Arguments != "" {

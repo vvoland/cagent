@@ -207,6 +207,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Annotations: tools.ToolAnnotations{
 				Title: "Edit",
 			},
+			AddDescriptionParameter: true,
 		},
 		{
 			Name:         ToolNameListDirectory,
@@ -219,6 +220,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 				ReadOnlyHint: true,
 				Title:        "List Directory",
 			},
+			AddDescriptionParameter: true,
 		},
 		{
 			Name:         ToolNameReadFile,
@@ -256,6 +258,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 				ReadOnlyHint: true,
 				Title:        "Search Files Content",
 			},
+			AddDescriptionParameter: true,
 		},
 		{
 			Name:         ToolNameWriteFile,
@@ -267,6 +270,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Annotations: tools.ToolAnnotations{
 				Title: "Write",
 			},
+			AddDescriptionParameter: true,
 		},
 	}, nil
 }
