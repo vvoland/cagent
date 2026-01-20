@@ -561,37 +561,58 @@ func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, events chan Event) {
 
 	a := r.CurrentAgent()
 
+	// Helper to send events with context check
+	send := func(event Event) bool {
+		select {
+		case events <- event:
+			return true
+		case <-ctx.Done():
+			return false
+		}
+	}
+
 	// Emit agent and team information immediately for fast sidebar display
-	events <- AgentInfo(a.Name(), getAgentModelID(a), a.Description(), a.WelcomeMessage())
-	events <- TeamInfo(r.agentDetailsFromTeam(), r.currentAgent)
+	if !send(AgentInfo(a.Name(), getAgentModelID(a), a.Description(), a.WelcomeMessage())) {
+		return
+	}
+	if !send(TeamInfo(r.agentDetailsFromTeam(), r.currentAgent)) {
+		return
+	}
 
 	// Emit agent warnings (if any) - these are quick
-	r.emitAgentWarnings(a, events)
+	r.emitAgentWarningsWithSend(a, send)
 
 	// Tool loading can be slow (MCP servers need to start)
 	// Emit progressive updates as each toolset loads
-	r.emitToolsProgressively(ctx, a, events)
+	r.emitToolsProgressively(ctx, a, send)
 }
 
 // emitToolsProgressively loads tools from each toolset and emits progress updates.
 // This allows the UI to show the tool count incrementally as each toolset loads,
 // with a spinner indicating that more tools may be coming.
-func (r *LocalRuntime) emitToolsProgressively(ctx context.Context, a *agent.Agent, events chan Event) {
+func (r *LocalRuntime) emitToolsProgressively(ctx context.Context, a *agent.Agent, send func(Event) bool) {
 	toolsets := a.ToolSets()
 	totalToolsets := len(toolsets)
 
 	// If no toolsets, emit final state immediately
 	if totalToolsets == 0 {
-		events <- ToolsetInfo(0, false, r.currentAgent)
+		send(ToolsetInfo(0, false, r.currentAgent))
 		return
 	}
 
 	// Emit initial loading state
-	events <- ToolsetInfo(0, true, r.currentAgent)
+	if !send(ToolsetInfo(0, true, r.currentAgent)) {
+		return
+	}
 
 	// Load tools from each toolset and emit progress
 	var totalTools int
 	for i, toolset := range toolsets {
+		// Check context before potentially slow operations
+		if ctx.Err() != nil {
+			return
+		}
+
 		isLast := i == totalToolsets-1
 
 		// Start the toolset if needed
@@ -614,11 +635,13 @@ func (r *LocalRuntime) emitToolsProgressively(ctx context.Context, a *agent.Agen
 		totalTools += len(ts)
 
 		// Emit progress update - still loading unless this is the last toolset
-		events <- ToolsetInfo(totalTools, !isLast, r.currentAgent)
+		if !send(ToolsetInfo(totalTools, !isLast, r.currentAgent)) {
+			return
+		}
 	}
 
 	// Emit final state (not loading)
-	events <- ToolsetInfo(totalTools, false, r.currentAgent)
+	send(ToolsetInfo(totalTools, false, r.currentAgent))
 }
 
 // registerDefaultTools registers the default tool handlers
@@ -963,6 +986,17 @@ func (r *LocalRuntime) configureToolsetHandlers(a *agent.Agent, events chan Even
 		})
 		toolset.SetManagedOAuth(r.managedOAuth)
 	}
+}
+
+// emitAgentWarningsWithSend emits agent warnings using the provided send function for context-aware sending.
+func (r *LocalRuntime) emitAgentWarningsWithSend(a *agent.Agent, send func(Event) bool) {
+	warnings := a.DrainWarnings()
+	if len(warnings) == 0 {
+		return
+	}
+
+	slog.Warn("Tool setup partially failed; continuing", "agent", a.Name(), "warnings", warnings)
+	send(Warning(formatToolWarning(a, warnings), r.currentAgent))
 }
 
 func (r *LocalRuntime) emitAgentWarnings(a *agent.Agent, events chan Event) {

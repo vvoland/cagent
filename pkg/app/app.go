@@ -82,7 +82,11 @@ func New(ctx context.Context, rt runtime.Runtime, sess *session.Session, opts ..
 			rt.EmitStartupInfo(ctx, startupEvents)
 		}()
 		for event := range startupEvents {
-			app.events <- event
+			select {
+			case app.events <- event:
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 
@@ -91,7 +95,10 @@ func New(ctx context.Context, rt runtime.Runtime, sess *session.Session, opts ..
 	// and won't implement this optional interface.
 	if ragRuntime, ok := rt.(runtime.RAGInitializer); ok {
 		go ragRuntime.StartBackgroundRAGInit(ctx, func(event runtime.Event) {
-			app.events <- event
+			select {
+			case app.events <- event:
+			case <-ctx.Done():
+			}
 		})
 	}
 
@@ -376,7 +383,11 @@ func (a *App) SetCurrentAgentModel(ctx context.Context, modelRef string) error {
 			a.runtime.EmitStartupInfo(ctx, startupEvents)
 		}()
 		for event := range startupEvents {
-			a.events <- event
+			select {
+			case a.events <- event:
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 
@@ -536,7 +547,11 @@ func (a *App) ReplaceSession(ctx context.Context, sess *session.Session) {
 			a.runtime.EmitStartupInfo(ctx, startupEvents)
 		}()
 		for event := range startupEvents {
-			a.events <- event
+			select {
+			case a.events <- event:
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 }
@@ -571,25 +586,23 @@ func (a *App) applySessionModelOverrides(ctx context.Context, sess *session.Sess
 func (a *App) throttleEvents(ctx context.Context, in <-chan tea.Msg) <-chan tea.Msg {
 	out := make(chan tea.Msg, 128)
 
-	var buffer []tea.Msg
-	var timerCh <-chan time.Time
-
-	flush := func() {
-		for _, msg := range a.mergeEvents(buffer) {
-			select {
-			case out <- msg:
-			case <-ctx.Done():
-				return
-			}
-		}
-
-		buffer = buffer[:0]
-		timerCh = nil
-	}
-	defer flush()
-
 	go func() {
 		defer close(out)
+
+		var buffer []tea.Msg
+		var timerCh <-chan time.Time
+
+		flush := func() {
+			for _, msg := range a.mergeEvents(buffer) {
+				select {
+				case out <- msg:
+				case <-ctx.Done():
+					return
+				}
+			}
+			buffer = buffer[:0]
+			timerCh = nil
+		}
 
 		for {
 			select {

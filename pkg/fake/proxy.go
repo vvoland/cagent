@@ -4,6 +4,7 @@ package fake
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,6 +14,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"gopkg.in/dnaeon/go-vcr.v4/pkg/cassette"
@@ -83,8 +85,29 @@ func StartProxyWithOptions(
 	httpServer := httptest.NewServer(e)
 
 	cleanup := func() error {
+		// Forcefully close all client connections first.
+		// This ensures any in-flight streaming requests are terminated
+		// rather than waiting for them to complete.
+		httpServer.CloseClientConnections()
 		httpServer.Close()
-		return transport.Stop()
+
+		// Stop the VCR transport with a timeout to avoid hanging forever
+		// if there are still in-flight requests to the upstream API.
+		stopDone := make(chan error, 1)
+		go func() {
+			stopDone <- transport.Stop()
+		}()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		select {
+		case err := <-stopDone:
+			return err
+		case <-ctx.Done():
+			slog.Warn("Recording proxy cleanup timed out, cassette may be incomplete")
+			return nil
+		}
 	}
 
 	return httpServer.URL, cleanup, nil
@@ -207,28 +230,53 @@ func Handle(transport http.RoundTripper, headerUpdater func(host string, req *ht
 	}
 }
 
+// streamReadResult holds the result of a streaming read operation.
+type streamReadResult struct {
+	n   int64
+	err error
+}
+
 // StreamCopy copies a streaming response to the client.
+// It properly handles context cancellation during blocking reads.
 func StreamCopy(c echo.Context, resp *http.Response) error {
 	ctx := c.Request().Context()
-
 	writer := c.Response().Writer.(io.ReaderFrom)
 
+	// Use a channel to receive read results from a goroutine.
+	// This allows us to properly select on context cancellation
+	// even when the read is blocking.
+	resultCh := make(chan streamReadResult, 1)
+
 	for {
+		// Start a goroutine to perform the blocking read
+		go func() {
+			n, err := writer.ReadFrom(io.LimitReader(resp.Body, 256))
+			resultCh <- streamReadResult{n: n, err: err}
+		}()
+
+		// Wait for either context cancellation or read completion
 		select {
 		case <-ctx.Done():
 			slog.WarnContext(ctx, "client disconnected, stop streaming")
+			// Close the response body to unblock the read goroutine
+			resp.Body.Close()
 			return nil
-		default:
-			n, err := writer.ReadFrom(io.LimitReader(resp.Body, 256))
-			if n > 0 {
+		case result := <-resultCh:
+			if result.n > 0 {
 				c.Response().Flush() // keep flushing to client
 			}
-			if err != nil {
-				if err == io.EOF || ctx.Err() != nil {
+			if result.err != nil {
+				// io.EOF or context canceled means normal completion
+				if result.err == io.EOF || ctx.Err() != nil {
 					return nil
 				}
-				slog.ErrorContext(ctx, "stream read error", "error", err)
-				return err
+				slog.ErrorContext(ctx, "stream read error", "error", result.err)
+				return result.err
+			}
+			// io.Copy returns (0, nil) when the source is exhausted,
+			// not (0, io.EOF), so we need to check for this case.
+			if result.n == 0 {
+				return nil
 			}
 		}
 	}
