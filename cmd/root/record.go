@@ -17,6 +17,9 @@ func setupFakeProxy(fakeResponses string, runConfig *config.RuntimeConfig) (clea
 		return func() error { return nil }, nil
 	}
 
+	// Normalize path by stripping .yaml suffix (go-vcr adds it automatically)
+	fakeResponses = strings.TrimSuffix(fakeResponses, ".yaml")
+
 	proxyURL, cleanupFn, err := fake.StartProxy(fakeResponses)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start fake proxy: %w", err)
