@@ -274,9 +274,9 @@ func (a *App) Subscribe(ctx context.Context, program *tea.Program) {
 	}
 }
 
-// Resume resumes the runtime with the given confirmation type
-func (a *App) Resume(resumeType runtime.ResumeType) {
-	a.runtime.Resume(context.Background(), resumeType)
+// Resume resumes the runtime with the given confirmation request
+func (a *App) Resume(req runtime.ResumeRequest) {
+	a.runtime.Resume(context.Background(), req)
 }
 
 // ResumeElicitation resumes an elicitation request with the given action and content

@@ -34,7 +34,7 @@ func (m *mockRuntime) RunStream(ctx context.Context, sess *session.Session) <-ch
 func (m *mockRuntime) Run(ctx context.Context, sess *session.Session) ([]session.Message, error) {
 	return nil, nil
 }
-func (m *mockRuntime) Resume(ctx context.Context, t runtime.ResumeType) {}
+func (m *mockRuntime) Resume(ctx context.Context, req runtime.ResumeRequest) {}
 func (m *mockRuntime) ResumeElicitation(ctx context.Context, action tools.ElicitationAction, content map[string]any) error {
 	return nil
 }

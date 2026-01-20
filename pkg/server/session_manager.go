@@ -184,8 +184,8 @@ func (sm *SessionManager) RunSession(ctx context.Context, sessionID, agentFilena
 	return streamChan, nil
 }
 
-// ResumeSession resumes a paused session.
-func (sm *SessionManager) ResumeSession(ctx context.Context, sessionID, confirmation string) error {
+// ResumeSession resumes a paused session with an optional rejection reason.
+func (sm *SessionManager) ResumeSession(ctx context.Context, sessionID, confirmation, reason string) error {
 	sm.mux.Lock()
 	defer sm.mux.Unlock()
 	rt, exists := sm.runtimeSessions.Load(sessionID)
@@ -193,7 +193,10 @@ func (sm *SessionManager) ResumeSession(ctx context.Context, sessionID, confirma
 		return errors.New("session not found")
 	}
 
-	rt.runtime.Resume(ctx, runtime.ResumeType(confirmation))
+	rt.runtime.Resume(ctx, runtime.ResumeRequest{
+		Type:   runtime.ResumeType(confirmation),
+		Reason: reason,
+	})
 	return nil
 }
 

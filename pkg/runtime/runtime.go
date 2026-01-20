@@ -79,6 +79,28 @@ const (
 	ResumeTypeReject         ResumeType = "reject"
 )
 
+// ResumeRequest carries the user's confirmation decision along with an optional
+// reason (used when rejecting a tool call to help the model understand why).
+type ResumeRequest struct {
+	Type   ResumeType
+	Reason string // Optional; primarily used with ResumeTypeReject
+}
+
+// ResumeApprove creates a ResumeRequest to approve a single tool call.
+func ResumeApprove() ResumeRequest {
+	return ResumeRequest{Type: ResumeTypeApprove}
+}
+
+// ResumeApproveSession creates a ResumeRequest to approve all tool calls for the session.
+func ResumeApproveSession() ResumeRequest {
+	return ResumeRequest{Type: ResumeTypeApproveSession}
+}
+
+// ResumeReject creates a ResumeRequest to reject a tool call with an optional reason.
+func ResumeReject(reason string) ResumeRequest {
+	return ResumeRequest{Type: ResumeTypeReject, Reason: reason}
+}
+
 // ToolHandlerFunc is a function type for handling tool calls
 type ToolHandlerFunc func(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, events chan Event) (*tools.ToolCallResult, error)
 
@@ -108,8 +130,9 @@ type Runtime interface {
 	RunStream(ctx context.Context, sess *session.Session) <-chan Event
 	// Run starts the agent's interaction loop and returns the final messages
 	Run(ctx context.Context, sess *session.Session) ([]session.Message, error)
-	// Resume allows resuming execution after user confirmation
-	Resume(ctx context.Context, confirmationType ResumeType)
+	// Resume allows resuming execution after user confirmation.
+	// The ResumeRequest carries the decision type and an optional reason (for rejections).
+	Resume(ctx context.Context, req ResumeRequest)
 	// ResumeElicitation sends an elicitation response back to a waiting elicitation request
 	ResumeElicitation(_ context.Context, action tools.ElicitationAction, content map[string]any) error
 	// SessionStore returns the session store for browsing/loading past sessions.
@@ -141,7 +164,7 @@ type LocalRuntime struct {
 	toolMap                     map[string]ToolHandler
 	team                        *team.Team
 	currentAgent                string
-	resumeChan                  chan ResumeType
+	resumeChan                  chan ResumeRequest
 	tracer                      trace.Tracer
 	modelsStore                 ModelStore
 	sessionCompaction           bool
@@ -239,7 +262,7 @@ func New(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 		toolMap:              make(map[string]ToolHandler),
 		team:                 agents,
 		currentAgent:         defaultAgent.Name(),
-		resumeChan:           make(chan ResumeType),
+		resumeChan:           make(chan ResumeRequest),
 		elicitationRequestCh: make(chan ElicitationResult),
 		modelsStore:          modelsStore,
 		sessionCompaction:    true,
@@ -731,8 +754,8 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 
 				// Wait for user decision
 				select {
-				case resumeType := <-r.resumeChan:
-					if resumeType == ResumeTypeApprove {
+				case req := <-r.resumeChan:
+					if req.Type == ResumeTypeApprove {
 						slog.Debug("User chose to continue after max iterations", "agent", a.Name())
 						runtimeMaxIterations = iteration + 10
 					} else {
@@ -977,11 +1000,11 @@ func formatToolWarning(a *agent.Agent, warnings []string) string {
 	return strings.TrimSuffix(builder.String(), "\n")
 }
 
-func (r *LocalRuntime) Resume(_ context.Context, confirmationType ResumeType) {
-	slog.Debug("Resuming runtime", "agent", r.currentAgent, "confirmation_type", confirmationType)
+func (r *LocalRuntime) Resume(_ context.Context, req ResumeRequest) {
+	slog.Debug("Resuming runtime", "agent", r.currentAgent, "type", req.Type, "reason", req.Reason)
 
 	select {
-	case r.resumeChan <- confirmationType:
+	case r.resumeChan <- req:
 		slog.Debug("Resume signal sent", "agent", r.currentAgent)
 	default:
 		slog.Debug("Resume channel not ready, ignoring", "agent", r.currentAgent)
@@ -1384,8 +1407,8 @@ func (r *LocalRuntime) executeWithApproval(
 	events <- ToolCallConfirmation(toolCall, tool, a.Name())
 
 	select {
-	case cType := <-r.resumeChan:
-		switch cType {
+	case req := <-r.resumeChan:
+		switch req.Type {
 		case ResumeTypeApprove:
 			slog.Debug("Resume signal received, approving tool", "tool", toolCall.Function.Name, "session_id", sess.ID)
 			runTool()
@@ -1394,8 +1417,12 @@ func (r *LocalRuntime) executeWithApproval(
 			sess.ToolsApproved = true
 			runTool()
 		case ResumeTypeReject:
-			slog.Debug("Resume signal received, rejecting tool", "tool", toolCall.Function.Name, "session_id", sess.ID)
-			r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, "The user rejected the tool call.")
+			slog.Debug("Resume signal received, rejecting tool", "tool", toolCall.Function.Name, "session_id", sess.ID, "reason", req.Reason)
+			rejectMsg := "The user rejected the tool call."
+			if strings.TrimSpace(req.Reason) != "" {
+				rejectMsg += " Reason: " + strings.TrimSpace(req.Reason)
+			}
+			r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, rejectMsg)
 		}
 		return false
 	case <-ctx.Done():
