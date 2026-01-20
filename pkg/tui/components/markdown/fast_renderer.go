@@ -375,12 +375,12 @@ func (p *parser) tryTable(line string) bool {
 		return false
 	}
 
-	// Calculate column widths
+	// Calculate column widths using lipgloss.Width which correctly handles ANSI codes
 	colWidths := make([]int, len(rows[0]))
 	for _, row := range rows {
 		for i, cell := range row {
 			if i < len(colWidths) {
-				cellWidth := runewidth.StringWidth(p.renderInline(cell))
+				cellWidth := lipgloss.Width(p.renderInline(cell))
 				if cellWidth > colWidths[i] {
 					colWidths[i] = cellWidth
 				}
@@ -396,7 +396,7 @@ func (p *parser) tryTable(line string) bool {
 				break
 			}
 			rendered := p.renderInline(cell)
-			padding := colWidths[i] - runewidth.StringWidth(rendered)
+			padding := colWidths[i] - lipgloss.Width(rendered)
 			if padding < 0 {
 				padding = 0
 			}

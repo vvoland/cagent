@@ -256,6 +256,80 @@ func TestFastRendererTables(t *testing.T) {
 	assert.Contains(t, plain, "25")
 }
 
+// assertTableColumnsAligned verifies that all rows in a rendered table have
+// column separators at the same positions.
+func assertTableColumnsAligned(t *testing.T, rendered string) {
+	t.Helper()
+
+	plain := stripANSI(rendered)
+	lines := strings.Split(strings.TrimSpace(plain), "\n")
+
+	// Filter out empty lines and separator lines (lines starting with ─)
+	var dataLines []string
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed != "" && !strings.HasPrefix(trimmed, "─") {
+			dataLines = append(dataLines, line)
+		}
+	}
+
+	require.GreaterOrEqual(t, len(dataLines), 2, "Table should have at least header + 1 data row")
+
+	// Find the position of the column separator (│) in each line
+	// All rows should have separators at the same positions
+	var expectedPositions []int
+	for i, line := range dataLines {
+		var positions []int
+		for j, r := range line {
+			if r == '│' {
+				positions = append(positions, j)
+			}
+		}
+		if i == 0 {
+			expectedPositions = positions
+		} else {
+			assert.Equal(t, expectedPositions, positions,
+				"Column separators should be at same positions in all rows\nLine %d: %q\nLine 0: %q",
+				i, line, dataLines[0])
+		}
+	}
+}
+
+func TestFastRendererTablesColumnAlignment(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "plain text columns",
+			input: `| Name | Age | City |
+|------|-----|------|
+| Alice | 30 | New York |
+| Bob | 25 | LA |`,
+		},
+		{
+			name: "styled content (bold, italic, code)",
+			input: `| Feature | Status | Notes |
+|---------|--------|-------|
+| **Bold** | Done | This is bold |
+| *Italic* | WIP | This is italic |
+| ` + "`Code`" + ` | Todo | Inline code |`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			r := NewFastRenderer(80)
+			result, err := r.Render(tt.input)
+			require.NoError(t, err)
+			assertTableColumnsAligned(t, result)
+		})
+	}
+}
+
 func TestFastRendererEscapedCharacters(t *testing.T) {
 	t.Parallel()
 
