@@ -205,10 +205,11 @@ func defaultKeyMap() KeyMap {
 	return KeyMap{
 		Tab: key.NewBinding(
 			key.WithKeys("tab"),
-			key.WithHelp("TAB", "switch focus"),
+			key.WithHelp("Tab", "switch focus"),
 		),
 		Cancel: key.NewBinding(
 			key.WithKeys("esc"),
+			key.WithHelp("Esc", "interrupt"),
 		),
 		// Show newline help in footer. Terminals that support Shift+Enter will use it.
 		// Ctrl+J acts as a fallback on terminals that don't distinguish Shift+Enter.
@@ -584,7 +585,7 @@ func (p *chatPage) updateNewlineHelp() {
 	} else {
 		p.keyMap.ShiftNewline = key.NewBinding(
 			key.WithKeys("ctrl+j"),
-			key.WithHelp("ctrl+j", "newline"),
+			key.WithHelp("Ctrl+j", "newline"),
 		)
 	}
 }
@@ -892,6 +893,8 @@ func (p *chatPage) renderResizeHandle(width int) string {
 			workingText = fmt.Sprintf("Working… (%d queued)", queueLen)
 		}
 		suffix := " " + p.spinner.View() + " " + styles.SpinnerDotsHighlightStyle.Render(workingText)
+		cancelKeyPart := styles.HighlightWhiteStyle.Render(p.keyMap.Cancel.Help().Key)
+		suffix += " (" + cancelKeyPart + " to interrupt)"
 		suffixWidth := lipgloss.Width(suffix)
 		truncated := lipgloss.NewStyle().MaxWidth(width - 2 - suffixWidth).Render(fullLine)
 		return truncated + suffix
