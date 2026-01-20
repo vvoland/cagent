@@ -314,10 +314,11 @@ func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, loadRes
 			session.WithMaxIterations(agent.MaxIterations()),
 			session.WithToolsApproved(f.autoApprove),
 			session.WithHideToolResults(f.hideToolResults),
+			session.WithThinking(agent.ThinkingConfigured()),
 		)
 		// Session is stored lazily on first UpdateSession call (when content is added)
 		// This avoids creating empty sessions in the database
-		slog.Debug("Using local runtime", "agent", f.agentName)
+		slog.Debug("Using local runtime", "agent", f.agentName, "thinking", agent.ThinkingConfigured())
 	}
 
 	return localRt, sess, nil

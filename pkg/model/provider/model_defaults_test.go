@@ -311,13 +311,13 @@ func TestApplyModelDefaults_Google(t *testing.T) {
 			expectThinkingBudget: &latest.ThinkingBudget{Effort: "low"},
 		},
 		{
-			name: "explicit thinking_budget 0 (disabled) is preserved",
+			name: "thinking_budget 0 disables thinking completely (nil)",
 			config: &latest.ModelConfig{
 				Provider:       "google",
 				Model:          "gemini-2.5-flash",
 				ThinkingBudget: &latest.ThinkingBudget{Tokens: 0},
 			},
-			expectThinkingBudget: &latest.ThinkingBudget{Tokens: 0},
+			expectNoDefault: true, // thinking_budget: 0 means disable thinking entirely
 		},
 	}
 
@@ -760,24 +760,41 @@ func TestApplyProviderDefaults_ThinkingDefaultsApplied(t *testing.T) {
 func TestApplyProviderDefaults_ExplicitThinkingPreserved(t *testing.T) {
 	t.Parallel()
 
+	config := &latest.ModelConfig{
+		Provider:       "openai",
+		Model:          "gpt-4o",
+		ThinkingBudget: &latest.ThinkingBudget{Effort: "high"},
+	}
+
+	result := applyProviderDefaults(config, nil)
+
+	require.NotNil(t, result.ThinkingBudget, "ThinkingBudget should be preserved")
+	assert.Equal(t, "high", result.ThinkingBudget.Effort, "Effort should be preserved")
+}
+
+// TestApplyProviderDefaults_DisabledThinkingBecomesNil tests that explicitly disabled
+// thinking (thinking_budget: 0 or thinking_budget: none) results in nil ThinkingBudget.
+func TestApplyProviderDefaults_DisabledThinkingBecomesNil(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		config *latest.ModelConfig
 	}{
 		{
-			name: "explicit thinking_budget high is preserved",
-			config: &latest.ModelConfig{
-				Provider:       "openai",
-				Model:          "gpt-4o",
-				ThinkingBudget: &latest.ThinkingBudget{Effort: "high"},
-			},
-		},
-		{
-			name: "explicit disabled thinking_budget preserved",
+			name: "thinking_budget 0 becomes nil",
 			config: &latest.ModelConfig{
 				Provider:       "anthropic",
 				Model:          "claude-sonnet-4-0",
 				ThinkingBudget: &latest.ThinkingBudget{Tokens: 0},
+			},
+		},
+		{
+			name: "thinking_budget none becomes nil",
+			config: &latest.ModelConfig{
+				Provider:       "openai",
+				Model:          "gpt-4o",
+				ThinkingBudget: &latest.ThinkingBudget{Effort: "none"},
 			},
 		},
 	}
@@ -786,13 +803,9 @@ func TestApplyProviderDefaults_ExplicitThinkingPreserved(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			originalBudget := *tt.config.ThinkingBudget
-
 			result := applyProviderDefaults(tt.config, nil)
 
-			require.NotNil(t, result.ThinkingBudget, "ThinkingBudget should be preserved")
-			assert.Equal(t, originalBudget.Effort, result.ThinkingBudget.Effort, "Effort should be preserved")
-			assert.Equal(t, originalBudget.Tokens, result.ThinkingBudget.Tokens, "Tokens should be preserved")
+			assert.Nil(t, result.ThinkingBudget, "ThinkingBudget should be nil when explicitly disabled")
 		})
 	}
 }

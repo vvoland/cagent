@@ -500,22 +500,6 @@ func getAgentModelID(a *agent.Agent) string {
 	return ""
 }
 
-// isModelThinkingDisabled checks if the model's thinking configuration is explicitly disabled
-// (thinking_budget: 0 or thinking_budget: none).
-func isModelThinkingDisabled(model provider.Provider) bool {
-	if model == nil {
-		return false
-	}
-	tb := model.BaseConfig().ModelConfig.ThinkingBudget
-	if tb == nil {
-		return false
-	}
-	if tb.Effort == "none" {
-		return true
-	}
-	return tb.Tokens == 0 && tb.Effort == ""
-}
-
 // agentDetailsFromTeam converts team agent info to AgentDetails for events
 func (r *LocalRuntime) agentDetailsFromTeam() []AgentDetails {
 	agentsInfo := r.team.AgentsInfo()
@@ -768,16 +752,19 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 
 			model := a.Model()
 
-			// If thinking is disabled for this session, clone the provider with thinking disabled
+			// Apply thinking setting based on session state.
+			// When thinking is disabled: clone with thinking=false to clear any thinking config.
+			// When thinking is enabled: clone with thinking=true to ensure defaults are applied
+			// (this handles models with no thinking config, explicitly disabled thinking, or
+			// models that already have thinking configured).
 			if !sess.Thinking {
 				model = provider.CloneWithOptions(ctx, model, options.WithThinking(false))
 				slog.Debug("Cloned provider with thinking disabled", "agent", a.Name(), "model", model.ID())
-			} else if isModelThinkingDisabled(model) {
-				// If thinking is enabled for this session but the model config has it disabled
-				// (e.g., thinking_budget: 0 or thinking_budget: none), clone with explicit enable
-				// so that applyOverrides restores provider defaults.
+			} else {
+				// Always clone with thinking=true when session has thinking enabled.
+				// applyOverrides will apply provider defaults if ThinkingBudget is nil or disabled.
 				model = provider.CloneWithOptions(ctx, model, options.WithThinking(true))
-				slog.Debug("Cloned provider with thinking enabled (restoring defaults)", "agent", a.Name(), "model", model.ID())
+				slog.Debug("Cloned provider with thinking enabled", "agent", a.Name(), "model", model.ID())
 			}
 
 			modelID := model.ID()
