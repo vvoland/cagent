@@ -611,6 +611,14 @@ func (p *chatPage) cancelStream(showCancelMessage bool) tea.Cmd {
 // handleSendMsg handles incoming messages from the editor, either processing
 // them immediately or queuing them if the agent is busy.
 func (p *chatPage) handleSendMsg(msg msgtypes.SendMsg) (layout.Model, tea.Cmd) {
+	// Predefined slash commands (e.g., /yolo, /exit, /compact) execute immediately
+	// even while the agent is working - they're UI commands that don't interrupt the stream.
+	// Custom agent commands (defined in config) should still be queued.
+	if commands.ParseSlashCommand(msg.Content) != nil {
+		cmd := p.processMessage(msg)
+		return p, cmd
+	}
+
 	// If not working, process immediately
 	if !p.working {
 		cmd := p.processMessage(msg)
@@ -691,6 +699,12 @@ func (p *chatPage) syncQueueToSidebar() {
 
 // processMessage processes a message with the runtime
 func (p *chatPage) processMessage(msg msgtypes.SendMsg) tea.Cmd {
+	// Handle slash commands (e.g., /eval, /compact, /exit) BEFORE cancelling any ongoing stream.
+	// These are UI commands that shouldn't interrupt the running agent.
+	if cmd := commands.ParseSlashCommand(msg.Content); cmd != nil {
+		return cmd
+	}
+
 	if p.msgCancel != nil {
 		p.msgCancel()
 	}
@@ -703,11 +717,6 @@ func (p *chatPage) processMessage(msg msgtypes.SendMsg) tea.Cmd {
 	if strings.HasPrefix(msg.Content, "!") {
 		p.app.RunBangCommand(ctx, msg.Content[1:])
 		return p.messages.ScrollToBottom()
-	}
-
-	// Handle slash commands (e.g., /eval, /compact, /exit)
-	if cmd := commands.ParseSlashCommand(msg.Content); cmd != nil {
-		return cmd
 	}
 
 	// Start working state immediately to show the user something is happening.
