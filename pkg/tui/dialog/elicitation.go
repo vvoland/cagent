@@ -261,12 +261,26 @@ func (d *ElicitationDialog) View() string {
 
 	content.AddSpace()
 	if len(d.fields) > 0 {
-		content.AddHelpKeys("↑/↓", "navigate", "enter", "submit", "esc", "cancel")
+		if d.hasSelectionFields() {
+			content.AddHelpKeys("↑/↓", "navigate", "space", "change", "enter", "submit", "esc", "cancel")
+		} else {
+			content.AddHelpKeys("↑/↓", "navigate", "enter", "submit", "esc", "cancel")
+		}
 	} else {
 		content.AddHelpKeys("enter", "confirm", "esc", "cancel")
 	}
 
 	return styles.DialogStyle.Width(dialogWidth).Render(content.Build())
+}
+
+// hasSelectionFields returns true if any field uses selection-based input (boolean or enum).
+func (d *ElicitationDialog) hasSelectionFields() bool {
+	for _, field := range d.fields {
+		if field.Type == "boolean" || field.Type == "enum" {
+			return true
+		}
+	}
+	return false
 }
 
 func (d *ElicitationDialog) renderField(content *Content, i int, field ElicitationField, contentWidth int) {
