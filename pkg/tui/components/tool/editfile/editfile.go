@@ -61,12 +61,12 @@ func render(
 	// Rendering diffs on failed edits can break layout and scroll calculations.
 	if msg.ToolStatus == types.ToolStatusError {
 		if msg.Content != "" {
-			// Render error/rejection as a single-line tool message
+			// Render error/rejection as a single-line tool error message
 			// with consistent spacing and styling.
 			errorText := fmt.Sprintf("  %s", msg.Content)
 
 			// Truncate to available width to avoid wrapping
-			errorLine := styles.ToolMessageStyle.
+			errorLine := styles.ToolErrorMessageStyle.
 				MaxWidth(width).
 				Render(errorText)
 
