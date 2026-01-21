@@ -51,7 +51,7 @@ func render(
 		// - rejection/error message
 		line := fmt.Sprintf(
 			"%s%s %s",
-			styles.ToolErrorIcon.Render("✖ "),
+			toolcommon.Icon(msg, s),
 			styles.ToolNameError.Render(msg.ToolDefinition.DisplayName()),
 			styles.ToolErrorMessageStyle.Render(msg.Content),
 		)
