@@ -201,6 +201,19 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		return a.handleKeyPressMsg(msg)
 
+	case tea.PasteMsg:
+		// If dialogs are active, only they should receive paste events.
+		// This prevents paste content from going to both dialog and editor.
+		if a.dialog.Open() {
+			u, dialogCmd := a.dialog.Update(msg)
+			a.dialog = u.(dialog.Manager)
+			return a, dialogCmd
+		}
+		// Otherwise forward to chat page (editor)
+		updated, cmd := a.chatPage.Update(msg)
+		a.chatPage = updated.(chat.Page)
+		return a, cmd
+
 	case tea.MouseWheelMsg:
 		// If dialogs are active, they get priority for mouse events
 		if a.dialog.Open() {
