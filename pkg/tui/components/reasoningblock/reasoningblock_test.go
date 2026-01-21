@@ -3,9 +3,11 @@ package reasoningblock
 import (
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tui/service"
@@ -330,4 +332,176 @@ func TestReasoningBlockUpdateToolResult(t *testing.T) {
 
 	// Verify the tool is still tracked
 	assert.True(t, block.HasToolCall("call-1"))
+}
+
+func TestReasoningBlockCompletedToolGracePeriod(t *testing.T) {
+	// Not parallel - modifies package-level nowFunc
+
+	// Save original nowFunc and restore after test
+	originalNowFunc := nowFunc
+	t.Cleanup(func() { nowFunc = originalNowFunc })
+
+	// Set up a fixed "now" time
+	fakeNow := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+	nowFunc = func() time.Time { return fakeNow }
+
+	sessionState := &service.SessionState{}
+	block := New("test-1", "root", sessionState)
+	block.SetSize(80, 24)
+
+	block.SetReasoning("Thinking...")
+
+	// Add a running tool call
+	toolMsg := types.ToolCallMessage("root", tools.ToolCall{
+		ID:       "call-1",
+		Function: tools.FunctionCall{Name: "grace_tool", Arguments: `{}`},
+	}, tools.Tool{Name: "grace_tool", Description: "A tool"}, types.ToolStatusRunning)
+	block.AddToolCall(toolMsg)
+
+	// Verify tool is visible while running
+	view := block.View()
+	stripped := ansi.Strip(view)
+	require.Contains(t, stripped, "grace_tool", "Running tool should be visible in collapsed view")
+
+	// Complete the tool - this should set the grace period
+	result := &tools.ToolCallResult{Output: "Done!"}
+	cmd := block.UpdateToolResult("call-1", "Done!", types.ToolStatusCompleted, result)
+
+	// The command should include a tick for the fade start
+	require.NotNil(t, cmd, "UpdateToolResult should return a command with fade tick")
+
+	// Tool should still be visible immediately after completion (within visible period)
+	view = block.View()
+	stripped = ansi.Strip(view)
+	assert.Contains(t, stripped, "grace_tool", "Completed tool should be visible during visible period")
+	assert.Equal(t, 0, block.GetToolFadeLevel("call-1"), "Tool should not be fading yet")
+
+	// Advance time past the total grace period (visible + fade)
+	totalDuration := completedToolVisibleDuration + completedToolFadeDuration
+	fakeNow = fakeNow.Add(totalDuration + time.Second)
+
+	// Now the tool should be hidden
+	view = block.View()
+	stripped = ansi.Strip(view)
+	assert.NotContains(t, stripped, "grace_tool", "Completed tool should be hidden after grace period")
+
+	// Header should still show tool count
+	assert.Contains(t, stripped, "1 tool")
+}
+
+func TestReasoningBlockFadingState(t *testing.T) {
+	// Not parallel - modifies package-level nowFunc
+
+	// Save original nowFunc and restore after test
+	originalNowFunc := nowFunc
+	t.Cleanup(func() { nowFunc = originalNowFunc })
+
+	fakeNow := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+	nowFunc = func() time.Time { return fakeNow }
+
+	sessionState := &service.SessionState{}
+	block := New("test-1", "root", sessionState)
+	block.SetSize(80, 24)
+
+	block.SetReasoning("Thinking...")
+
+	// Add a running tool call
+	toolMsg := types.ToolCallMessage("root", tools.ToolCall{
+		ID:       "call-1",
+		Function: tools.FunctionCall{Name: "fade_tool", Arguments: `{}`},
+	}, tools.Tool{Name: "fade_tool", Description: "A tool"}, types.ToolStatusRunning)
+	block.AddToolCall(toolMsg)
+
+	// Complete the tool
+	result := &tools.ToolCallResult{Output: "Done!"}
+	block.UpdateToolResult("call-1", "Done!", types.ToolStatusCompleted, result)
+
+	// Initially not fading (level 0)
+	assert.Equal(t, 0, block.GetToolFadeLevel("call-1"), "Tool should not be fading immediately after completion")
+
+	// Capture view before fading
+	viewBeforeFade := block.View()
+
+	// Advance fade by one step
+	cmd := block.AdvanceFade("call-1")
+	require.NotNil(t, cmd, "AdvanceFade should return a command")
+	assert.Equal(t, 1, block.GetToolFadeLevel("call-1"), "Tool should be at fade level 1")
+
+	// Capture view after fading started
+	viewAfterFade := block.View()
+
+	// Tool should still be visible during fade (within total grace period)
+	stripped := ansi.Strip(viewAfterFade)
+	assert.Contains(t, stripped, "fade_tool", "Fading tool should still be visible")
+
+	// The raw view (with ANSI codes) should be different due to faded color
+	assert.NotEqual(t, viewBeforeFade, viewAfterFade, "View should change when fading starts")
+
+	// Advance through all fade steps
+	for i := 2; i <= completedToolFadeSteps; i++ {
+		cmd = block.AdvanceFade("call-1")
+		require.NotNil(t, cmd, "AdvanceFade should return a command at step %d", i)
+		assert.Equal(t, i, block.GetToolFadeLevel("call-1"), "Fade level should be %d", i)
+	}
+}
+
+func TestReasoningBlockCompletedToolNoGracePeriodWhenAddedAsCompleted(t *testing.T) {
+	t.Parallel()
+
+	// This test verifies that tools added as already-completed (e.g., from session restore)
+	// do NOT get a grace period and are hidden immediately in collapsed view.
+
+	sessionState := &service.SessionState{}
+	block := New("test-1", "root", sessionState)
+	block.SetSize(80, 24)
+
+	block.SetReasoning("Thinking...")
+
+	// Add a tool that is already completed (simulates session restore)
+	toolMsg := types.ToolCallMessage("root", tools.ToolCall{
+		ID:       "call-1",
+		Function: tools.FunctionCall{Name: "restored_tool", Arguments: `{}`},
+	}, tools.Tool{Name: "restored_tool", Description: "A restored tool"}, types.ToolStatusCompleted)
+	block.AddToolCall(toolMsg)
+
+	// Tool should NOT be visible in collapsed view (no grace period for pre-completed tools)
+	view := block.View()
+	stripped := ansi.Strip(view)
+	assert.NotContains(t, stripped, "restored_tool", "Pre-completed tool should not be visible in collapsed view")
+
+	// But it should be visible when expanded
+	block.Toggle()
+	view = block.View()
+	stripped = ansi.Strip(view)
+	assert.Contains(t, stripped, "restored_tool", "Pre-completed tool should be visible in expanded view")
+}
+
+func TestReasoningBlockGraceExpiredMsgContainsBlockID(t *testing.T) {
+	// Not parallel - modifies package-level nowFunc
+
+	// Save original nowFunc and restore after test
+	originalNowFunc := nowFunc
+	t.Cleanup(func() { nowFunc = originalNowFunc })
+
+	fakeNow := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+	nowFunc = func() time.Time { return fakeNow }
+
+	sessionState := &service.SessionState{}
+	block := New("test-block-123", "root", sessionState)
+	block.SetSize(80, 24)
+
+	// Add a running tool call
+	toolMsg := types.ToolCallMessage("root", tools.ToolCall{
+		ID:       "call-1",
+		Function: tools.FunctionCall{Name: "test_tool", Arguments: `{}`},
+	}, tools.Tool{Name: "test_tool"}, types.ToolStatusRunning)
+	block.AddToolCall(toolMsg)
+
+	// Complete the tool
+	result := &tools.ToolCallResult{Output: "Done!"}
+	cmd := block.UpdateToolResult("call-1", "Done!", types.ToolStatusCompleted, result)
+	require.NotNil(t, cmd, "UpdateToolResult should return a command")
+
+	// Verify the block ID is correct
+	assert.Equal(t, "test-block-123", block.ID())
 }
