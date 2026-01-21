@@ -90,9 +90,14 @@ func (r *StreamingRecorder) addInteraction(req *http.Request, reqBody []byte, re
 
 	interaction := cassette.Interaction{
 		Request: cassette.Request{
-			Method: req.Method,
-			URL:    req.URL.String(),
-			Body:   string(reqBody),
+			Proto:         req.Proto,
+			ProtoMajor:    req.ProtoMajor,
+			ProtoMinor:    req.ProtoMinor,
+			ContentLength: req.ContentLength,
+			Host:          req.Host,
+			Method:        req.Method,
+			URL:           req.URL.String(),
+			Body:          string(reqBody),
 			// Headers intentionally omitted for security
 		},
 		Response: cassette.Response{
