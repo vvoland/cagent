@@ -56,11 +56,21 @@ func render(
 		return content
 	}
 
-	// Skip diff rendering when the edit fails.
-	// Rendering a diff on failed edits can break layout/scroll calculations.
+	// When the edit fails, do not render a diff.
+	// Instead, render the error/rejection as a single-line tool message.
+	// Rendering diffs on failed edits can break layout and scroll calculations.
 	if msg.ToolStatus == types.ToolStatusError {
 		if msg.Content != "" {
-			content += toolcommon.FormatToolResult(msg.Content, width)
+			// Render error/rejection as a single-line tool message
+			// with consistent spacing and styling.
+			errorText := fmt.Sprintf("  %s", msg.Content)
+
+			// Truncate to available width to avoid wrapping
+			errorLine := styles.ToolMessageStyle.
+				MaxWidth(width).
+				Render(errorText)
+
+			content += "\n" + errorLine
 		}
 		return content
 	}
