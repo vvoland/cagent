@@ -101,6 +101,14 @@ type chatPage struct {
 	// Used by --exit-after-response to ensure we don't exit before receiving content
 	hasReceivedAssistantContent bool
 
+	// pendingResponse indicates we're waiting for the first chunk from the model.
+	// When true, a spinner is rendered below the messages (outside the message list)
+	// to avoid list-wide invalidation on each tick.
+	pendingResponse bool
+	// pendingSpinner is a dedicated spinner for the pending response indicator.
+	// Uses ModeBoth with funny phrases to match the original message spinner style.
+	pendingSpinner spinner.Spinner
+
 	// Message queue for enqueuing messages while agent is working
 	messageQueue []queuedMessage
 
@@ -240,15 +248,16 @@ func New(a *app.App, sessionState *service.SessionState) Page {
 	}
 
 	p := &chatPage{
-		sidebar:      sidebar.New(sessionState),
-		messages:     messages.New(sessionState),
-		editor:       editor.New(a, historyStore),
-		spinner:      spinner.New(spinner.ModeSpinnerOnly, styles.SpinnerDotsHighlightStyle),
-		focusedPanel: PanelEditor,
-		app:          a,
-		keyMap:       defaultKeyMap(),
-		history:      historyStore,
-		sessionState: sessionState,
+		sidebar:        sidebar.New(sessionState),
+		messages:       messages.New(sessionState),
+		editor:         editor.New(a, historyStore),
+		spinner:        spinner.New(spinner.ModeSpinnerOnly, styles.SpinnerDotsHighlightStyle),
+		pendingSpinner: spinner.New(spinner.ModeBoth, styles.SpinnerDotsAccentStyle),
+		focusedPanel:   PanelEditor,
+		app:            a,
+		keyMap:         defaultKeyMap(),
+		history:        historyStore,
+		sessionState:   sessionState,
 		// Default to no keyboard enhancements (will be updated if msg is received)
 		keyboardEnhancementsSupported: false,
 		editorLines:                   3,
@@ -389,7 +398,14 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		p.spinner = model.(spinner.Spinner)
 	}
 
-	return p, tea.Batch(sidebarCmd, chatCmd, editorCmd, cmdSpinner)
+	var cmdPendingSpinner tea.Cmd
+	if p.pendingResponse {
+		var model layout.Model
+		model, cmdPendingSpinner = p.pendingSpinner.Update(msg)
+		p.pendingSpinner = model.(spinner.Spinner)
+	}
+
+	return p, tea.Batch(sidebarCmd, chatCmd, editorCmd, cmdSpinner, cmdPendingSpinner)
 }
 
 func (p *chatPage) setWorking(working bool) tea.Cmd {
@@ -403,6 +419,18 @@ func (p *chatPage) setWorking(working bool) tea.Cmd {
 	return tea.Batch(cmd...)
 }
 
+// setPendingResponse sets the pending response state.
+// When true, a spinner is shown below the messages while waiting for the first chunk.
+func (p *chatPage) setPendingResponse(pending bool) tea.Cmd {
+	p.pendingResponse = pending
+	if pending {
+		// Reset spinner to get a fresh random phrase
+		p.pendingSpinner = p.pendingSpinner.Reset()
+		return p.pendingSpinner.Init()
+	}
+	return nil
+}
+
 // View renders the chat page
 func (p *chatPage) View() string {
 	// Main chat content area (without input)
@@ -412,6 +440,19 @@ func (p *chatPage) View() string {
 
 	var bodyContent string
 
+	// Build messages view with optional pending response spinner
+	messagesView := p.messages.View()
+	if p.pendingResponse {
+		// Append pending spinner below the messages (outside the message list)
+		// Uses pendingSpinner which has ModeBoth with funny phrases to match original style
+		pendingIndicator := p.pendingSpinner.View()
+		if messagesView != "" {
+			messagesView = messagesView + "\n\n" + pendingIndicator
+		} else {
+			messagesView = pendingIndicator
+		}
+	}
+
 	if p.width >= minWindowWidth {
 		// Ensure we don't exceed available space
 		chatWidth := max(1, innerWidth-sidebarWidth)
@@ -419,7 +460,7 @@ func (p *chatPage) View() string {
 		chatView := styles.ChatStyle.
 			Height(p.chatHeight).
 			Width(chatWidth).
-			Render(p.messages.View())
+			Render(messagesView)
 
 		sidebarView := lipgloss.NewStyle().
 			Width(sidebarWidth).
@@ -438,7 +479,7 @@ func (p *chatPage) View() string {
 		chatView := styles.ChatStyle.
 			Height(p.chatHeight).
 			Width(innerWidth).
-			Render(p.messages.View())
+			Render(messagesView)
 
 		sidebarView := lipgloss.NewStyle().
 			Width(sidebarWidth).
@@ -603,6 +644,7 @@ func (p *chatPage) cancelStream(showCancelMessage bool) tea.Cmd {
 	p.msgCancel()
 	p.msgCancel = nil
 	p.streamCancelled = true
+	p.setPendingResponse(false)
 	p.stopProgressBar()
 
 	// Send StreamCancelledMsg to all components to handle cleanup

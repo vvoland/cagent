@@ -193,7 +193,11 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	for i, view := range m.views {
 		updatedView, cmd := view.Update(msg)
 		m.views[i] = updatedView
-		cmds = append(cmds, cmd)
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+			// Child state changed (e.g., spinner tick), invalidate render cache
+			m.renderDirty = true
+		}
 	}
 
 	return m, tea.Batch(cmds...)
