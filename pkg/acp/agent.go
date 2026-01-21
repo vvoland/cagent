@@ -6,11 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
-
-	"path/filepath"
 
 	"github.com/coder/acp-go-sdk"
 	"github.com/google/uuid"
@@ -280,7 +279,6 @@ func (a *Agent) readResourceLink(
 	sessionID string,
 	rl *acp.ContentBlockResourceLink,
 ) string {
-
 	// Strip the file:// prefix if present
 	path := strings.TrimPrefix(rl.Uri, "file://")
 
