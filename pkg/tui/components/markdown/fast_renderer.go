@@ -75,6 +75,7 @@ type cachedStyles struct {
 	ansiCode     ansiStyle
 	ansiLink     ansiStyle
 	ansiLinkText ansiStyle
+	ansiText     ansiStyle // base document text style
 
 	styleTaskTicked  string
 	styleTaskUntick  string
@@ -94,6 +95,8 @@ func getGlobalStyles() *cachedStyles {
 
 		styleBold := buildStylePrimitive(mdStyle.Strong)
 		styleItalic := buildStylePrimitive(mdStyle.Emph)
+
+		textStyle := buildStylePrimitive(mdStyle.Document.StylePrimitive)
 
 		globalStyles = &cachedStyles{
 			headingStyles: [6]lipgloss.Style{
@@ -115,6 +118,7 @@ func getGlobalStyles() *cachedStyles {
 			ansiCode:         buildAnsiStyle(buildStylePrimitive(mdStyle.Code.StylePrimitive)),
 			ansiLink:         buildAnsiStyle(buildStylePrimitive(mdStyle.Link)),
 			ansiLinkText:     buildAnsiStyle(buildStylePrimitive(mdStyle.LinkText)),
+			ansiText:         buildAnsiStyle(textStyle),
 			styleTaskTicked:  mdStyle.Task.Ticked,
 			styleTaskUntick:  mdStyle.Task.Unticked,
 			listIndent:       int(mdStyle.List.LevelIndent),
@@ -690,6 +694,7 @@ func (p *parser) renderInline(text string) string {
 	out.Grow(len(text) + 64) // Pre-allocate with extra space for ANSI codes
 	i := 0
 	n := len(text)
+	needsStyleRestore := false // track if we need to restore text style after styled content
 
 	for i < n {
 		// Check for escaped characters
@@ -706,6 +711,7 @@ func (p *parser) renderInline(text string) string {
 				code := text[i+1 : i+1+end]
 				out.WriteString(p.styles.ansiCode.render(code))
 				i = i + 1 + end + 1
+				needsStyleRestore = true
 				continue
 			}
 		}
@@ -724,6 +730,7 @@ func (p *parser) renderInline(text string) string {
 					out.WriteString(p.styles.ansiBold.render(p.renderInline(inner)))
 				}
 				i = i + 2 + end + 2
+				needsStyleRestore = true
 				continue
 			}
 		}
@@ -746,6 +753,7 @@ func (p *parser) renderInline(text string) string {
 				inner := text[i+1 : end]
 				out.WriteString(p.styles.ansiItalic.render(p.renderInline(inner)))
 				i = end + 1
+				needsStyleRestore = true
 				continue
 			}
 		}
@@ -757,6 +765,7 @@ func (p *parser) renderInline(text string) string {
 				inner := text[i+2 : i+2+end]
 				out.WriteString(p.styles.ansiStrike.render(p.renderInline(inner)))
 				i = i + 2 + end + 2
+				needsStyleRestore = true
 				continue
 			}
 		}
@@ -778,14 +787,28 @@ func (p *parser) renderInline(text string) string {
 						out.WriteString(p.styles.ansiLink.render(linkText))
 					}
 					i = i + closeBracket + 2 + closeParen + 1
+					needsStyleRestore = true
 					continue
 				}
 			}
 			fallthrough
 		default:
-			// Regular character
-			out.WriteByte(text[i])
-			i++
+			// Regular character - collect consecutive plain text
+			start := i
+			for i < n && !isInlineMarker(text[i]) {
+				i++
+			}
+			// If we didn't advance (started on an unmatched marker), consume it as literal
+			if i == start {
+				i++
+			}
+			// Only apply text style if we need to restore after styled content
+			if needsStyleRestore {
+				p.styles.ansiText.renderTo(&out, text[start:i])
+				needsStyleRestore = false
+			} else {
+				out.WriteString(text[start:i])
+			}
 		}
 	}
 
@@ -816,10 +839,17 @@ func isWord(b byte) bool {
 // This allows a fast path to skip processing plain text.
 func hasInlineMarkdown(text string) bool {
 	for i := range len(text) {
-		switch text[i] {
-		case '\\', '`', '*', '_', '~', '[':
+		if isInlineMarker(text[i]) {
 			return true
 		}
+	}
+	return false
+}
+
+func isInlineMarker(b byte) bool {
+	switch b {
+	case '\\', '`', '*', '_', '~', '[':
+		return true
 	}
 	return false
 }
