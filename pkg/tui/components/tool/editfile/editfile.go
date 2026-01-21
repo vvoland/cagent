@@ -22,8 +22,8 @@ func New(msg *types.Message, sessionState *service.SessionState) layout.Model {
 
 // render displays the edit_file tool output in the TUI.
 // It prioritizes the agent-provided friendly header when available,
-// hides results when collapsed by the user, and skips diff rendering
-// on tool execution errors to avoid layout issues.
+// hides results when collapsed by the user, and renders tool errors
+// in a single-line error style consistent with other tools.
 func render(
 	msg *types.Message,
 	s spinner.Spinner,
@@ -37,6 +37,32 @@ func render(
 		// If arguments cannot be parsed, fail silently to avoid breaking the TUI.
 		return ""
 	}
+
+	// When the tool failed, render a single-line error header
+	// consistent with other tool error renderings.
+	if msg.ToolStatus == types.ToolStatusError {
+		if msg.Content == "" {
+			return ""
+		}
+
+		// Render everything on a single line:
+		// - error icon
+		// - tool name in error style
+		// - rejection/error message
+		line := fmt.Sprintf(
+			"%s%s %s",
+			styles.ToolErrorIcon.Render("✖ "),
+			styles.ToolNameError.Render(msg.ToolDefinition.DisplayName()),
+			styles.ToolErrorMessageStyle.Render(msg.Content),
+		)
+
+		// Truncate to terminal width to avoid wrapping
+		return styles.BaseStyle.
+			MaxWidth(width).
+			Render(line)
+	}
+
+	// ---- Normal (non-error) rendering ----
 
 	// Check for friendly description first
 	var content string
@@ -53,25 +79,6 @@ func render(
 
 	// Tool results are hidden when the user collapses them.
 	if sessionState.HideToolResults() {
-		return content
-	}
-
-	// When the edit fails, do not render a diff.
-	// Instead, render the error/rejection as a single-line tool message.
-	// Rendering diffs on failed edits can break layout and scroll calculations.
-	if msg.ToolStatus == types.ToolStatusError {
-		if msg.Content != "" {
-			// Render error/rejection as a single-line tool error message
-			// with consistent spacing and styling.
-			errorText := fmt.Sprintf("  %s", msg.Content)
-
-			// Truncate to available width to avoid wrapping
-			errorLine := styles.ToolErrorMessageStyle.
-				MaxWidth(width).
-				Render(errorText)
-
-			content += "\n" + errorLine
-		}
 		return content
 	}
 
