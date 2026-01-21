@@ -152,15 +152,26 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 		agentFileName = args[0]
 	}
 
+	// Apply global user settings first (lowest priority)
+	// User settings only apply if the flag wasn't explicitly set by the user
+	userSettings := config.GetUserSettings()
+	if userSettings.HideToolResults && !f.hideToolResults {
+		f.hideToolResults = true
+		slog.Debug("Applying user settings", "hide_tool_results", true)
+	}
+
 	// Apply alias options if this is an alias reference
 	// Alias options only apply if the flag wasn't explicitly set by the user
 	if alias := config.ResolveAlias(agentFileName); alias != nil {
-		slog.Debug("Applying alias options", "yolo", alias.Yolo, "model", alias.Model)
+		slog.Debug("Applying alias options", "yolo", alias.Yolo, "model", alias.Model, "hide_tool_results", alias.HideToolResults)
 		if alias.Yolo && !f.autoApprove {
 			f.autoApprove = true
 		}
 		if alias.Model != "" && len(f.modelOverrides) == 0 {
 			f.modelOverrides = append(f.modelOverrides, alias.Model)
+		}
+		if alias.HideToolResults && !f.hideToolResults {
+			f.hideToolResults = true
 		}
 	}
 
