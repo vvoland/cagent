@@ -1,6 +1,7 @@
 package markdown
 
 import (
+	_ "embed"
 	"regexp"
 	"strings"
 	"testing"
@@ -794,4 +795,63 @@ func TestInlineCodeTextContent(t *testing.T) {
 
 	plain := ansi.Strip(result)
 	require.Contains(t, plain, "Hello there beautiful")
+}
+
+//go:embed testdata/streaming_benchmark.md
+var streamingBenchmarkContent string
+
+// splitIntoStreamingChunks splits content into chunks that simulate LLM streaming.
+// LLM tokens are typically 3-4 characters, so we use small varying chunk sizes.
+func splitIntoStreamingChunks(content string) []string {
+	var chunks []string
+	i := 0
+	chunkSizes := []int{3, 4, 3, 5, 2, 4, 3, 4, 5, 3, 2, 4, 3, 4, 3, 5}
+	sizeIdx := 0
+
+	for i < len(content) {
+		chunkSize := chunkSizes[sizeIdx%len(chunkSizes)]
+		end := i + chunkSize
+		if end > len(content) {
+			end = len(content)
+		}
+		chunks = append(chunks, content[i:end])
+		i = end
+		sizeIdx++
+	}
+	return chunks
+}
+
+// BenchmarkStreamingFastRenderer benchmarks rendering progressively growing markdown.
+// This simulates the streaming use case where content arrives in chunks and
+// the entire accumulated content is re-rendered on each update.
+func BenchmarkStreamingFastRenderer(b *testing.B) {
+	chunks := splitIntoStreamingChunks(streamingBenchmarkContent)
+	r := NewFastRenderer(80)
+
+	b.ResetTimer()
+	for b.Loop() {
+		var accumulated strings.Builder
+		for _, chunk := range chunks {
+			accumulated.WriteString(chunk)
+			_, _ = r.Render(accumulated.String())
+		}
+	}
+}
+
+// BenchmarkStreamingGlamourRenderer benchmarks glamour with progressively growing markdown.
+// Note: glamour's TermRenderer has internal state issues when reused many times,
+// so we create a fresh renderer for each benchmark iteration. This adds overhead
+// but is necessary to avoid panics in glamour's internal ANSI parser.
+func BenchmarkStreamingGlamourRenderer(b *testing.B) {
+	chunks := splitIntoStreamingChunks(streamingBenchmarkContent)
+
+	b.ResetTimer()
+	for b.Loop() {
+		r := NewGlamourRenderer(80)
+		var accumulated strings.Builder
+		for _, chunk := range chunks {
+			accumulated.WriteString(chunk)
+			_, _ = r.Render(accumulated.String())
+		}
+	}
 }
