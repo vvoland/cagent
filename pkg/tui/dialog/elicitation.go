@@ -84,6 +84,14 @@ func (d *ElicitationDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		cmd := d.SetSize(msg.Width, msg.Height)
 		return d, cmd
+	case tea.PasteMsg:
+		// Forward paste to text input if current field uses one
+		if d.isTextInputField() {
+			var cmd tea.Cmd
+			d.inputs[d.currentField], cmd = d.inputs[d.currentField].Update(msg)
+			return d, cmd
+		}
+		return d, nil
 	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+c" {
 			cmd := d.close(tools.ElicitationActionDecline, nil)

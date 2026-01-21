@@ -291,6 +291,23 @@ func (d *multiChoiceDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		cmd := d.SetSize(msg.Width, msg.Height)
 		return d, cmd
 
+	case tea.PasteMsg:
+		// Forward paste to custom text input if custom is selected or allowed
+		if d.selected == selectionCustom {
+			var cmd tea.Cmd
+			d.customInput, cmd = d.customInput.Update(msg)
+			return d, cmd
+		}
+		// Auto-select custom mode when pasting if custom is allowed
+		if d.config.AllowCustom {
+			d.selected = selectionCustom
+			d.customInput.Focus()
+			var cmd tea.Cmd
+			d.customInput, cmd = d.customInput.Update(msg)
+			return d, cmd
+		}
+		return d, nil
+
 	case tea.KeyPressMsg:
 		if cmd := HandleQuit(msg); cmd != nil {
 			return d, cmd
