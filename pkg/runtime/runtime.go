@@ -756,34 +756,50 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 
 			// Check iteration limit
 			if runtimeMaxIterations > 0 && iteration >= runtimeMaxIterations {
-				slog.Debug("Maximum iterations reached", "agent", a.Name(), "iterations", iteration, "max", runtimeMaxIterations)
+				slog.Debug(
+					"Maximum iterations reached",
+					"agent", a.Name(),
+					"iterations", iteration,
+					"max", runtimeMaxIterations,
+				)
+
 				events <- MaxIterationsReached(runtimeMaxIterations)
 
-				// Wait for user decision
+				// Wait for user decision (resume / reject)
 				select {
 				case req := <-r.resumeChan:
 					if req.Type == ResumeTypeApprove {
 						slog.Debug("User chose to continue after max iterations", "agent", a.Name())
 						runtimeMaxIterations = iteration + 10
 					} else {
-						slog.Debug("User chose to exit after max iterations", "agent", a.Name())
-						// Synthesize a final assistant message so callers (e.g., parent agents)
-						// receive a non-empty response and providers are not given empty tool outputs.
+						slog.Debug("User rejected continuation", "agent", a.Name())
+
 						assistantMessage := chat.Message{
-							Role:      chat.MessageRoleAssistant,
-							Content:   fmt.Sprintf("I have reached the maximum number of iterations (%d). Stopping as requested by user.", runtimeMaxIterations),
+							Role: chat.MessageRoleAssistant,
+							Content: fmt.Sprintf(
+								"Execution stopped after reaching the configured max_iterations limit (%d).",
+								runtimeMaxIterations,
+							),
 							CreatedAt: time.Now().Format(time.RFC3339),
 						}
+
 						sess.AddMessage(session.NewAgentMessage(a, &assistantMessage))
 						r.saveSession(ctx, sess)
 						return
 					}
+
 				case <-ctx.Done():
-					slog.Debug("Context cancelled while waiting for max iterations decision", "agent", a.Name())
+					slog.Debug(
+						"Context cancelled while waiting for resume confirmation",
+						"agent", a.Name(),
+						"session_id", sess.ID,
+					)
 					return
 				}
 			}
+
 			iteration++
+
 			// Exit immediately if the stream context has been cancelled (e.g., Ctrl+C)
 			if err := ctx.Err(); err != nil {
 				slog.Debug("Runtime stream context cancelled, stopping loop", "agent", a.Name(), "session_id", sess.ID)
@@ -1024,11 +1040,36 @@ func formatToolWarning(a *agent.Agent, warnings []string) string {
 func (r *LocalRuntime) Resume(_ context.Context, req ResumeRequest) {
 	slog.Debug("Resuming runtime", "agent", r.currentAgent, "type", req.Type, "reason", req.Reason)
 
+	// Defensive validation:
+	//
+	// The runtime may be resumed by multiple entry points (API, CLI, TUI, tests).
+	// Even if upstream layers perform validation, the runtime must never assume
+	// the ResumeType is valid. Accepting invalid values here leads to confusing
+	// downstream behavior where tool execution fails without a clear cause.
+	if !IsValidResumeType(req.Type) {
+		slog.Warn(
+			"Invalid resume type received; ignoring resume request",
+			"agent", r.currentAgent,
+			"confirmation_type", req.Type,
+			"valid_types", ValidResumeTypes(),
+		)
+		return
+	}
+
+	// Attempt to deliver the resume signal to the execution loop.
+	//
+	// The channel is non-blocking by design to avoid deadlocks if the runtime
+	// is not currently waiting for a confirmation (e.g. already resumed,
+	// canceled, or shutting down).
 	select {
 	case r.resumeChan <- req:
 		slog.Debug("Resume signal sent", "agent", r.currentAgent)
 	default:
-		slog.Debug("Resume channel not ready, ignoring", "agent", r.currentAgent)
+		slog.Debug(
+			"Resume channel not ready; resume signal dropped",
+			"agent", r.currentAgent,
+			"confirmation_type", req.Type,
+		)
 	}
 }
 

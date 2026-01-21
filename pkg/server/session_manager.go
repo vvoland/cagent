@@ -188,6 +188,8 @@ func (sm *SessionManager) RunSession(ctx context.Context, sessionID, agentFilena
 func (sm *SessionManager) ResumeSession(ctx context.Context, sessionID, confirmation, reason string) error {
 	sm.mux.Lock()
 	defer sm.mux.Unlock()
+
+	// Ensure the session runtime exists
 	rt, exists := sm.runtimeSessions.Load(sessionID)
 	if !exists {
 		return errors.New("session not found")
