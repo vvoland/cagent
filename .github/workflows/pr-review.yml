@@ -184,11 +184,18 @@ jobs:
           echo "Context built:"
           wc -l review_context.md
 
+      - name: Read context file
+        id: read-context
+        run: |
+          echo "prompt<<EOF" >> $GITHUB_OUTPUT
+          cat review_context.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Run PR Review Team
         uses: docker/cagent-action@7992ea47ed2446b5a80b01c46b00037c680e35ea
         with:
           agent: ${{ github.workspace }}/.github/workflows/agents/pr-review.yaml
-          prompt-file: review_context.md
+          prompt: ${{ steps.read-context.outputs.prompt }}
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
