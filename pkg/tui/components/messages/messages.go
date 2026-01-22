@@ -81,6 +81,7 @@ type model struct {
 
 	// Height tracking system fields
 	scrollOffset  int                  // Current scroll position in lines
+	bottomSlack   int                  // Extra blank lines added after content shrinks
 	rendered      string               // Complete rendered content string
 	renderedItems map[int]renderedItem // Cache of rendered items with positions
 	totalHeight   int                  // Total height of all content in lines
@@ -185,6 +186,9 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		m.invalidateAllItems()
 		return m, nil
 
+	case reasoningblock.BlockMsg:
+		return m.forwardToReasoningBlock(msg.GetBlockID(), msg)
+
 	case tea.KeyPressMsg:
 		return m.handleKeyPress(msg)
 	}
@@ -220,6 +224,7 @@ func (m *model) handleMouseClick(msg tea.MouseClickMsg) (layout.Model, tea.Cmd) 
 			if block.IsToggleLine(localLine) {
 				block.Toggle()
 				m.userHasScrolled = true // Prevent auto-scroll jump
+				m.bottomSlack = 0
 				m.invalidateItem(msgIdx)
 				return m, nil
 			}
@@ -310,12 +315,14 @@ func (m *model) handleMouseWheel(msg tea.MouseWheelMsg) (layout.Model, tea.Cmd) 
 	case "wheelup":
 		if m.scrollOffset > 0 {
 			m.userHasScrolled = true
+			m.bottomSlack = 0
 			for range mouseScrollAmount {
 				m.setScrollOffset(m.scrollOffset - defaultScrollAmount)
 			}
 		}
 	case "wheeldown":
 		m.userHasScrolled = true
+		m.bottomSlack = 0
 		for range mouseScrollAmount {
 			m.setScrollOffset(m.scrollOffset + defaultScrollAmount)
 		}
@@ -374,23 +381,39 @@ func (m *model) View() string {
 	}
 
 	prevTotalHeight := m.totalHeight
+	prevScrollableHeight := m.totalHeight + m.bottomSlack
 	m.ensureAllItemsRendered()
 
 	if m.totalHeight == 0 {
 		return ""
 	}
 
-	// Calculate viewport bounds
-	maxScrollOffset := max(0, m.totalHeight-m.height)
+	if m.userHasScrolled {
+		m.bottomSlack = 0
+	} else {
+		delta := m.totalHeight - prevTotalHeight
+		if delta < 0 {
+			m.bottomSlack += -delta
+		} else if delta > 0 && m.bottomSlack > 0 {
+			consume := min(delta, m.bottomSlack)
+			m.bottomSlack -= consume
+		}
+	}
 
-	// Auto-scroll if content grew and user hasn't manually scrolled
-	if !m.userHasScrolled && m.totalHeight > prevTotalHeight {
+	scrollableHeight := m.totalHeight + m.bottomSlack
+	maxScrollOffset := max(0, scrollableHeight-m.height)
+
+	// Auto-scroll when content grows beyond any slack.
+	if !m.userHasScrolled && scrollableHeight > prevScrollableHeight {
 		m.scrollOffset = maxScrollOffset
 	} else {
 		m.scrollOffset = max(0, min(m.scrollOffset, maxScrollOffset))
 	}
 
 	lines := strings.Split(m.rendered, "\n")
+	if m.bottomSlack > 0 {
+		lines = append(lines, make([]string, m.bottomSlack)...)
+	}
 	if len(lines) == 0 {
 		return ""
 	}
@@ -519,12 +542,14 @@ const defaultScrollAmount = 1
 func (m *model) scrollUp() {
 	if m.scrollOffset > 0 {
 		m.userHasScrolled = true
+		m.bottomSlack = 0
 		m.setScrollOffset(max(0, m.scrollOffset-defaultScrollAmount))
 	}
 }
 
 func (m *model) scrollDown() {
 	m.userHasScrolled = true
+	m.bottomSlack = 0
 	m.setScrollOffset(m.scrollOffset + defaultScrollAmount)
 	if m.isAtBottom() {
 		m.userHasScrolled = false
@@ -533,11 +558,13 @@ func (m *model) scrollDown() {
 
 func (m *model) scrollPageUp() {
 	m.userHasScrolled = true
+	m.bottomSlack = 0
 	m.setScrollOffset(max(0, m.scrollOffset-m.height))
 }
 
 func (m *model) scrollPageDown() {
 	m.userHasScrolled = true
+	m.bottomSlack = 0
 	m.setScrollOffset(m.scrollOffset + m.height)
 	if m.isAtBottom() {
 		m.userHasScrolled = false
@@ -546,6 +573,7 @@ func (m *model) scrollPageDown() {
 
 func (m *model) scrollToTop() {
 	m.userHasScrolled = true
+	m.bottomSlack = 0
 	m.setScrollOffset(0)
 }
 
@@ -555,7 +583,7 @@ func (m *model) scrollToBottom() {
 }
 
 func (m *model) setScrollOffset(offset int) {
-	maxOffset := max(0, m.totalHeight-m.height)
+	maxOffset := max(0, m.totalScrollableHeight()-m.height)
 	m.scrollOffset = max(0, min(offset, maxOffset))
 	m.scrollbar.SetScrollOffset(m.scrollOffset)
 }
@@ -564,7 +592,7 @@ func (m *model) isAtBottom() bool {
 	if len(m.messages) == 0 {
 		return true
 	}
-	maxScrollOffset := max(0, m.totalHeight-m.height)
+	maxScrollOffset := max(0, m.totalScrollableHeight()-m.height)
 	return m.scrollOffset >= maxScrollOffset
 }
 
@@ -657,9 +685,11 @@ func (m *model) scrollToSelectedMessage() {
 	// Scroll to make the selected message visible
 	if startLine < m.scrollOffset {
 		m.userHasScrolled = true
+		m.bottomSlack = 0
 		m.setScrollOffset(startLine)
 	} else if endLine > m.scrollOffset+m.height {
 		m.userHasScrolled = true
+		m.bottomSlack = 0
 		m.setScrollOffset(endLine - m.height)
 	}
 }
@@ -780,6 +810,21 @@ func (m *model) invalidateAllItems() {
 	m.rendered = ""
 	m.totalHeight = 0
 	m.renderDirty = true
+}
+
+// forwardToReasoningBlock finds the reasoning block with the given ID and forwards the message to it.
+func (m *model) forwardToReasoningBlock(blockID string, msg tea.Msg) (layout.Model, tea.Cmd) {
+	for i, tuiMsg := range m.messages {
+		if tuiMsg.Type == types.MessageTypeAssistantReasoningBlock {
+			if block, ok := m.views[i].(*reasoningblock.Model); ok && block.ID() == blockID {
+				updatedView, cmd := m.views[i].Update(msg)
+				m.views[i] = updatedView
+				m.invalidateItem(i)
+				return m, cmd
+			}
+		}
+	}
+	return m, nil
 }
 
 // Message management methods
@@ -913,6 +958,7 @@ func (m *model) LoadFromSession(sess *session.Session) tea.Cmd {
 	m.rendered = ""
 	m.scrollOffset = 0
 	m.totalHeight = 0
+	m.bottomSlack = 0
 	m.selectedMessageIndex = -1
 
 	var cmds []tea.Cmd
@@ -1189,6 +1235,10 @@ func (m *model) contentWidth() int {
 	return m.width - 2
 }
 
+func (m *model) totalScrollableHeight() int {
+	return m.totalHeight + m.bottomSlack
+}
+
 // Helper methods
 func (m *model) createToolCallView(msg *types.Message) layout.Model {
 	view := tool.New(msg, m.sessionState)
@@ -1258,6 +1308,8 @@ func (m *model) isMouseOnScrollbar(x, y int) bool {
 func (m *model) handleScrollbarUpdate(msg tea.Msg) (layout.Model, tea.Cmd) {
 	sb, cmd := m.scrollbar.Update(msg)
 	m.scrollbar = sb
+	m.userHasScrolled = true
+	m.bottomSlack = 0
 	m.scrollOffset = m.scrollbar.GetScrollOffset()
 	return m, cmd
 }
