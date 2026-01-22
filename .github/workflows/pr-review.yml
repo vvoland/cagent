@@ -49,11 +49,11 @@ jobs:
 
       - name: Checkout repository
         if: steps.check.outputs.is_agent_comment == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Restore reviewer memory database
         if: steps.check.outputs.is_agent_comment == 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .github/pr-review-memory.db
           key: pr-review-memory-${{ github.repository }}
@@ -101,7 +101,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -129,7 +129,7 @@ jobs:
           gh pr view $PR_NUMBER --json title,body,author,baseRefName,headRefName > pr_metadata.json
 
       - name: Restore reviewer memory database
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .github/pr-review-memory.db
           key: pr-review-memory-${{ github.repository }}
