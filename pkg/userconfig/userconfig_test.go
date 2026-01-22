@@ -590,3 +590,38 @@ func TestAlias_HasOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestConfig_CredentialHelper(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+
+	config := &Config{
+		CredentialHelper: &CredentialHelper{
+			Command: "my-credential-helper",
+			Args:    []string{"get-token"},
+		},
+	}
+
+	require.NoError(t, config.saveTo(configFile))
+
+	loaded, err := loadFrom(configFile, "")
+	require.NoError(t, err)
+
+	assert.NotNil(t, loaded.CredentialHelper)
+	assert.Equal(t, "my-credential-helper", loaded.CredentialHelper.Command)
+	assert.Equal(t, []string{"get-token"}, loaded.CredentialHelper.Args)
+}
+
+func TestConfig_CredentialHelper_Empty(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+
+	config, err := loadFrom(configFile, "")
+	require.NoError(t, err)
+
+	assert.Nil(t, config.CredentialHelper)
+}
