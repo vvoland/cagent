@@ -11,27 +11,53 @@ agents:
     instruction: |
       You coordinate PR reviews using specialized sub-agents.
 
+      ## CRITICAL RULE: Only Review Changed Code
+
+      This review MUST ONLY comment on code that was ADDED in this PR.
+      Do NOT comment on existing code, even if it has bugs.
+      Do NOT request changes for code outside the diff.
+
       ## Process
 
       1. Get the PR diff with `gh pr diff`
       2. Use `get_memories` to check for any learned patterns from previous feedback
       3. Delegate to `drafter` with the diff and any relevant learned patterns
-      4. For each hypothesis, delegate to `verifier` to confirm or dismiss it
-      5. Post your review with `gh api` - only report confirmed/likely issues
+      4. For each hypothesis from drafter, delegate to `verifier` to confirm or dismiss it
+      5. FILTER OUT any issues not on `+` lines from the diff
+      6. Build inline comments from CONFIRMED/LIKELY issues and post the review
 
-      Find **real bugs**, not style issues. If it works correctly, approve it.
+      Find **real bugs in the changed code**, not style issues. If the changed code works correctly, approve it.
 
-      End every comment with `<!-- cagent-review -->` for feedback tracking.
+      ## Posting Reviews with Inline Comments
 
-      ## Posting Reviews
+      The drafter returns issues in this format:
+      ```
+      FILE: path/to/file.go
+      LINE: 123
+      SEVERITY: high
+      ISSUE: Brief description
+      DETAILS: Full explanation
+      ```
 
-      Use this format to post reviews with inline comments:
+      Convert each CONFIRMED/LIKELY issue to an inline comment object:
+      ```json
+      {"path": "path/to/file.go", "line": 123, "body": "**ISSUE**\n\nDETAILS <!-- cagent-review -->"}
+      ```
+
+      Then post the review:
       ```bash
-      echo '{"body":"OVERALL_SUMMARY","event":"EVENT","comments":[{"path":"FILE","line":LINE,"body":"COMMENT <!-- cagent-review -->"},...]}' | \
+      echo '{"body":"## Review Summary\n\nBrief overall summary","event":"EVENT","comments":[...]}' | \
       gh api repos/{owner}/{repo}/pulls/{pr}/reviews --input -
       ```
 
-      Map your verdict to event: "APPROVE", "REQUEST_CHANGES", or "COMMENT"
+      Map your verdict to event:
+      - "APPROVE" - No bugs found, or only minor issues
+      - "REQUEST_CHANGES" - HIGH severity bugs in CHANGED code only
+      - "COMMENT" - MEDIUM/LOW severity issues worth noting
+
+      IMPORTANT: Only use "REQUEST_CHANGES" for bugs in the CHANGED code. Never block a PR for issues in existing code.
+
+      End every inline comment body with `<!-- cagent-review -->` for feedback tracking.
 
     sub_agents:
       - drafter
@@ -51,6 +77,21 @@ agents:
     instruction: |
       Analyze the provided PR diff and generate specific bug hypotheses.
       The orchestrator provides you with the diff and any learned patterns from previous reviews.
+
+      ## CRITICAL RULE: Only Review Changed Code
+
+      You MUST ONLY report issues on lines that were ADDED in this PR (lines starting with `+` in the diff).
+
+      DO NOT report issues on:
+      - Existing code that was not modified (even if it has bugs)
+      - Code near the changes but not part of the diff
+      - Code in files that were touched but on unchanged lines
+      - Pre-existing issues that "affect" the new code
+
+      You may READ surrounding code for context to understand if a bug hypothesis is valid,
+      but you must NEVER suggest changes to code outside the diff.
+
+      If you find a bug in existing code, ignore it - that's not what this PR review is for.
 
       ## Focus Areas (for `+` lines only)
 
@@ -82,14 +123,22 @@ agents:
       ## Ignore
 
       Style, formatting, naming, documentation, test files.
+      Existing code that was not changed in this PR.
 
-      ## Output
+      ## Output Format (REQUIRED)
 
-      For each potential bug, describe:
-      1. **File and line** where the issue is
-      2. **What** could go wrong
-      3. **How** it could be triggered
-      4. **Severity** (high/medium/low)
+      For each potential bug, output in this EXACT format for inline comment posting:
+
+      ```
+      FILE: path/to/file.go
+      LINE: 123
+      SEVERITY: high|medium|low
+      ISSUE: Brief description of the bug
+      DETAILS: How it could be triggered and what could go wrong
+      ```
+
+      The LINE must be the exact line number from the diff (the number shown in `@@ -X,Y +Z,W @@` hunks).
+      Do NOT say "around line X" - give the exact line number of the problematic `+` line.
 
     toolsets:
       - type: filesystem
@@ -103,11 +152,31 @@ agents:
       Verify a specific bug hypothesis by reading the full file context.
 
       Your job is to filter out false positives. Check if:
+      - **THE CODE IS ACTUALLY CHANGED IN THIS PR** (if not, DISMISS immediately)
       - The bug can actually happen given the surrounding code
       - Existing safeguards already prevent it
       - Tests cover this case
 
-      Return CONFIRMED (definitely a bug), LIKELY (probably a bug), or DISMISSED (not a bug).
+      CRITICAL: If the bug is in existing code that was NOT changed by this PR, return DISMISSED.
+      We only review code that was added/modified in this PR.
+
+      ## Output Format
+
+      Return your verdict with the original issue details preserved:
+
+      ```
+      VERDICT: CONFIRMED|LIKELY|DISMISSED
+      FILE: path/to/file.go
+      LINE: 123
+      SEVERITY: high|medium|low
+      ISSUE: Brief description
+      DETAILS: Full explanation of the bug and why it's confirmed/likely/dismissed
+      ```
+
+      Verdicts:
+      - CONFIRMED: Definitely a bug in changed code
+      - LIKELY: Probably a bug in changed code
+      - DISMISSED: Not a bug OR not in changed code (explain why)
 
     toolsets:
       - type: filesystem
