@@ -42,6 +42,15 @@ type Settings struct {
 	HideToolResults bool `yaml:"hide_tool_results,omitempty"`
 }
 
+// CredentialHelper contains configuration for a credential helper command
+// that retrieves Docker credentials (DOCKER_TOKEN) from an external source.
+type CredentialHelper struct {
+	// Command is the CLI command to execute to retrieve the Docker token.
+	// The command should output the token on stdout.
+	Command string   `yaml:"command,omitempty"`
+	Args    []string `yaml:"args,omitempty"`
+}
+
 // CurrentVersion is the current version of the user config format
 const CurrentVersion = "v1"
 
@@ -59,6 +68,8 @@ type Config struct {
 	Aliases map[string]*Alias `yaml:"aliases,omitempty"`
 	// Settings contains global user settings
 	Settings *Settings `yaml:"settings,omitempty"`
+	// CredentialHelper configures an external command to retrieve Docker credentials
+	CredentialHelper *CredentialHelper `yaml:"credential_helper,omitempty"`
 }
 
 // Path returns the path to the config file
