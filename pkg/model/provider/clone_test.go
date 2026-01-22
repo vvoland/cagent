@@ -137,3 +137,85 @@ func TestCloneWithOptions_DirectProvider(t *testing.T) {
 	assert.Nil(t, clonedConfig.ModelConfig.ThinkingBudget,
 		"ThinkingBudget should be nil after cloning with WithThinking(false)")
 }
+
+func TestCloneWithOptions_PreservesMaxTokens(t *testing.T) {
+	t.Parallel()
+
+	// This test verifies that max_tokens is preserved when cloning a provider
+	// with options that don't explicitly set max_tokens. Previously, options
+	// that didn't set max_tokens would accidentally clear it to 0.
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n\n"))
+		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+	}))
+	defer server.Close()
+
+	maxTokens := int64(8192)
+	cfg := &latest.ModelConfig{
+		Provider:  "openai",
+		Model:     "gpt-4o",
+		BaseURL:   server.URL,
+		MaxTokens: &maxTokens,
+	}
+
+	env := newCloneTestEnv(map[string]string{
+		"OPENAI_API_KEY": "test-key",
+	})
+
+	provider, err := New(t.Context(), cfg, env, options.WithMaxTokens(maxTokens))
+	require.NoError(t, err)
+
+	// Clone with an option that doesn't affect max_tokens (e.g., WithThinking)
+	cloned := CloneWithOptions(t.Context(), provider, options.WithThinking(false))
+
+	clonedConfig := cloned.BaseConfig()
+
+	// MaxTokens should be preserved, not cleared to 0 or nil
+	require.NotNil(t, clonedConfig.ModelConfig.MaxTokens,
+		"MaxTokens should be preserved after cloning with unrelated options")
+	assert.Equal(t, maxTokens, *clonedConfig.ModelConfig.MaxTokens,
+		"MaxTokens value should be unchanged after cloning")
+}
+
+func TestCloneWithOptions_OverridesMaxTokens(t *testing.T) {
+	t.Parallel()
+
+	// This test verifies that max_tokens can be explicitly overridden when cloning.
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n\n"))
+		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+	}))
+	defer server.Close()
+
+	originalMaxTokens := int64(8192)
+	newMaxTokens := int64(4096)
+
+	cfg := &latest.ModelConfig{
+		Provider:  "openai",
+		Model:     "gpt-4o",
+		BaseURL:   server.URL,
+		MaxTokens: &originalMaxTokens,
+	}
+
+	env := newCloneTestEnv(map[string]string{
+		"OPENAI_API_KEY": "test-key",
+	})
+
+	provider, err := New(t.Context(), cfg, env, options.WithMaxTokens(originalMaxTokens))
+	require.NoError(t, err)
+
+	// Clone with an explicit max_tokens override
+	cloned := CloneWithOptions(t.Context(), provider, options.WithMaxTokens(newMaxTokens))
+
+	clonedConfig := cloned.BaseConfig()
+
+	// MaxTokens should be updated to the new value
+	require.NotNil(t, clonedConfig.ModelConfig.MaxTokens,
+		"MaxTokens should not be nil after cloning with explicit override")
+	assert.Equal(t, newMaxTokens, *clonedConfig.ModelConfig.MaxTokens,
+		"MaxTokens should be updated to the new value")
+}

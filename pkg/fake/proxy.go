@@ -206,10 +206,14 @@ func RemoveHeadersHook(i *cassette.Interaction) error {
 	return nil
 }
 
-// DefaultMatcher creates a matcher that normalizes tool call IDs for consistent matching.
+// DefaultMatcher creates a matcher that normalizes dynamic fields for consistent matching.
 // The onError callback is called if reading the request body fails (nil logs and returns false).
 func DefaultMatcher(onError func(err error)) recorder.MatcherFunc {
+	// Normalize tool call IDs (they change between requests)
 	callIDRegex := regexp.MustCompile(`call_[a-z0-9\-]+`)
+	// Normalize max_tokens/max_output_tokens/maxOutputTokens field (varies based on models.dev
+	// cache state and provider cloning behavior). Handles both snake_case and camelCase variants.
+	maxTokensRegex := regexp.MustCompile(`"(?:max_(?:output_)?tokens|maxOutputTokens)":\d+,?`)
 
 	return func(r *http.Request, i cassette.Request) bool {
 		if r.Body == nil || r.Body == http.NoBody {
@@ -234,8 +238,13 @@ func DefaultMatcher(onError func(err error)) recorder.MatcherFunc {
 		r.Body.Close()
 		r.Body = io.NopCloser(bytes.NewBuffer(reqBody))
 
-		// Normalize tool call IDs for matching
-		return callIDRegex.ReplaceAllString(string(reqBody), "call_ID") == callIDRegex.ReplaceAllString(i.Body, "call_ID")
+		// Normalize dynamic fields for matching
+		normalizedReq := callIDRegex.ReplaceAllString(string(reqBody), "call_ID")
+		normalizedReq = maxTokensRegex.ReplaceAllString(normalizedReq, "")
+		normalizedCassette := callIDRegex.ReplaceAllString(i.Body, "call_ID")
+		normalizedCassette = maxTokensRegex.ReplaceAllString(normalizedCassette, "")
+
+		return normalizedReq == normalizedCassette
 	}
 }
 
