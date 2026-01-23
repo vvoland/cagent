@@ -191,6 +191,7 @@ type streamResult struct {
 	Stopped           bool
 	ActualModel       string      // The actual model used (may differ from configured model with routing)
 	Usage             *chat.Usage // Token usage for this stream
+	RateLimit         *chat.RateLimit
 }
 
 type Opt func(*LocalRuntime)
@@ -946,6 +947,9 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 						Model: messageModel,
 					}
 				}
+				if res.RateLimit != nil {
+					msgUsage.RateLimit = *res.RateLimit
+				}
 
 				sess.AddMessage(session.NewAgentMessage(a, &assistantMessage))
 				r.saveSession(ctx, sess)
@@ -1119,8 +1123,9 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 	var actualModel string
 	var actualModelEventEmitted bool
 	var messageUsage *chat.Usage
-	modelID := getAgentModelID(a)
+	var messageRateLimit *chat.RateLimit
 
+	modelID := getAgentModelID(a)
 	toolCallIndex := make(map[string]int)   // toolCallID -> index in toolCalls slice
 	emittedPartial := make(map[string]bool) // toolCallID -> whether we've emitted a partial event
 	toolDefMap := make(map[string]tools.Tool, len(agentTools))
@@ -1138,7 +1143,6 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 		}
 
 		if response.Usage != nil {
-			// Capture the usage for this specific message
 			messageUsage = response.Usage
 
 			if m != nil && m.Cost != nil {
@@ -1157,6 +1161,10 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 				modelName = m.Name
 			}
 			telemetry.RecordTokenUsage(ctx, modelName, sess.InputTokens, sess.OutputTokens, sess.Cost)
+		}
+
+		if response.RateLimit != nil {
+			messageRateLimit = response.RateLimit
 		}
 
 		if len(response.Choices) == 0 {
@@ -1195,6 +1203,7 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 				Stopped:           true,
 				ActualModel:       actualModel,
 				Usage:             messageUsage,
+				RateLimit:         messageRateLimit,
 			}, nil
 		}
 
@@ -1267,6 +1276,7 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 		Stopped:           stoppedDueToNoOutput,
 		ActualModel:       actualModel,
 		Usage:             messageUsage,
+		RateLimit:         messageRateLimit,
 	}, nil
 }
 
