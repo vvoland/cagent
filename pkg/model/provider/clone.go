@@ -19,12 +19,14 @@ func CloneWithOptions(ctx context.Context, base Provider, opts ...options.Opt) P
 
 	// Apply max_tokens override if present in options
 	// We need to apply it to the ModelConfig itself since that's what providers use
+	// Only update MaxTokens if an option explicitly sets it (non-zero value)
 	modelConfig := config.ModelConfig
 	for _, opt := range mergedOpts {
 		tempOpts := &options.ModelOptions{}
 		opt(tempOpts)
-		mt := tempOpts.MaxTokens()
-		modelConfig.MaxTokens = &mt
+		if mt := tempOpts.MaxTokens(); mt != 0 {
+			modelConfig.MaxTokens = &mt
+		}
 	}
 
 	// Use NewWithModels to support cloning routers that reference other models.
