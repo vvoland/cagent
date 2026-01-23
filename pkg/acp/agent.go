@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -260,18 +261,44 @@ func (a *Agent) buildUserContent(ctx context.Context, sessionID string, prompt [
 	return strings.Join(parts, "")
 }
 
-// readResourceLink attempts to read a file via the ACP connection
-func (a *Agent) readResourceLink(ctx context.Context, sessionID string, rl *acp.ContentBlockResourceLink) string {
-	// Only handle file:// URIs or paths
+// readResourceLink attempts to read a text file referenced by an ACP resource link.
+//
+// For security reasons, this function applies basic path hardening:
+//
+//   - Only relative paths are allowed
+//
+//   - Path traversal (e.g. "../") is blocked
+//
+//     NOTE: This is defense-in-depth. The ACP server may apply its own
+//     validation, but we avoid sending unsafe paths altogether.
+//
+// If the path is considered unsafe or the file cannot be read,
+// an empty string is returned and the error is logged at debug level.
+func (a *Agent) readResourceLink(
+	ctx context.Context,
+	sessionID string,
+	rl *acp.ContentBlockResourceLink,
+) string {
+	// Strip the file:// prefix if present
 	path := strings.TrimPrefix(rl.Uri, "file://")
 
-	// Try to read via ACP client
+	// Clean the path to normalize separators and remove redundant elements
+	clean := filepath.Clean(path)
+
+	// Basic hardening: block absolute paths and path traversal
+	// This prevents access outside the intended working directory.
+	if filepath.IsAbs(clean) || strings.HasPrefix(clean, "..") {
+		slog.Warn("Blocked unsafe file resource link", "path", path)
+		return ""
+	}
+
+	// Attempt to read the file via the ACP connection
 	resp, err := a.conn.ReadTextFile(ctx, acp.ReadTextFileRequest{
 		SessionId: acp.SessionId(sessionID),
-		Path:      path,
+		Path:      clean,
 	})
 	if err != nil {
-		slog.Debug("Failed to read resource link", "path", path, "error", err)
+		slog.Debug("Failed to read resource link", "path", clean, "error", err)
 		return ""
 	}
 
