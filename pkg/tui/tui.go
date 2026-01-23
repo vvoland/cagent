@@ -227,9 +227,9 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, cmd
 
 	case messages.ExitSessionMsg:
-		return a, core.CmdHandler(dialog.OpenDialogMsg{
-			Model: dialog.NewExitConfirmationDialog(),
-		})
+		// /exit command exits immediately without confirmation
+		a.chatPage.Cleanup()
+		return a, tea.Quit
 
 	case messages.NewSessionMsg:
 		return a.handleNewSession()
