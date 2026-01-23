@@ -62,7 +62,7 @@ jobs:
 
       - name: Process feedback and update memory
         if: steps.check.outputs.is_agent_comment == 'true'
-        uses: docker/cagent-action@7992ea47ed2446b5a80b01c46b00037c680e35ea
+        uses: docker/cagent-action@latest
         with:
           agent: ${{ github.workspace }}/.github/workflows/agents/pr-review-feedback.yaml
           prompt: |
@@ -192,7 +192,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Run PR Review Team
-        uses: docker/cagent-action@7992ea47ed2446b5a80b01c46b00037c680e35ea
+        uses: docker/cagent-action@latest
         with:
           agent: ${{ github.workspace }}/.github/workflows/agents/pr-review.yaml
           prompt: ${{ steps.read-context.outputs.prompt }}

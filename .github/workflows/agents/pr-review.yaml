@@ -28,6 +28,14 @@ agents:
 
       Find **real bugs in the changed code**, not style issues. If the changed code works correctly, approve it.
 
+      ## ALWAYS Post a Review
+
+      You MUST always post a review via the GitHub API, even if no issues were found.
+      - If no issues: Post an APPROVE with a brief positive message (e.g., "Looks good! No issues found.")
+      - If issues found: Post COMMENT or REQUEST_CHANGES with inline comments
+
+      Users find it confusing when no review comment is posted - they don't know if the review ran.
+
       ## Posting Reviews with Inline Comments
 
       The drafter returns issues in this format:
@@ -69,7 +77,6 @@ agents:
       - type: shell
       - type: memory
         path: .github/pr-review-memory.db
-      - type: think
 
   drafter:
     model: sonnet
@@ -143,7 +150,7 @@ agents:
     toolsets:
       - type: filesystem
         tools: [read_file, read_multiple_files, list_directory, directory_tree]
-      - type: think
+      - type: think  # Keep thinking for bug hypothesis generation
 
   verifier:
     model: sonnet
@@ -181,7 +188,6 @@ agents:
     toolsets:
       - type: filesystem
         tools: [read_file, read_multiple_files, list_directory, directory_tree]
-      - type: think
 
 permissions:
   allow:
