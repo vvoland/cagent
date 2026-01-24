@@ -555,7 +555,7 @@ func (p *chatPage) SetSize(width, height int) tea.Cmd {
 		p.chatHeight = max(1, height-actualEditorHeight-horizontalSidebarHeight-2) // -1 for resize handle, -1 for empty line before status bar
 		p.sidebar.SetMode(sidebar.ModeHorizontal)
 		cmds = append(cmds,
-			p.sidebar.SetSize(width, horizontalSidebarHeight),
+			p.sidebar.SetSize(innerWidth, horizontalSidebarHeight),
 			p.sidebar.SetPosition(styles.AppPaddingLeft, 0),
 			p.messages.SetPosition(0, horizontalSidebarHeight),
 		)
