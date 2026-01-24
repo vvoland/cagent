@@ -530,19 +530,35 @@ func (p *chatPage) setWorking(working bool) tea.Cmd {
 
 // setPendingResponse sets the pending response state.
 // When true, a spinner is shown below the messages while waiting for the first chunk.
+// Resizes messages to leave room for the spinner; bottomSlack smooths the transition.
 func (p *chatPage) setPendingResponse(pending bool) tea.Cmd {
 	wasPending := p.pendingResponse
 	p.pendingResponse = pending
+
 	if pending && !wasPending {
-		// Starting to wait - register spinner
+		// Starting to wait - register spinner and resize messages to account for spinner space
+		sl := p.computeSidebarLayout()
+		messagesHeight := sl.chatHeight - pendingSpinnerHeight
+		resizeCmd := p.messages.SetSize(sl.chatWidth, max(1, messagesHeight))
+
 		p.pendingSpinner = p.pendingSpinner.Reset()
-		return p.pendingSpinner.Init()
+		return tea.Batch(resizeCmd, p.pendingSpinner.Init())
 	} else if !pending && wasPending {
-		// Done waiting - unregister spinner
+		// Done waiting - unregister spinner, resize messages to reclaim space, and add slack
 		p.pendingSpinner.Stop()
+
+		sl := p.computeSidebarLayout()
+		resizeCmd := p.messages.SetSize(sl.chatWidth, sl.chatHeight)
+		p.messages.AdjustBottomSlack(pendingSpinnerHeight)
+
+		return resizeCmd
 	}
+
 	return nil
 }
+
+// pendingSpinnerHeight is the space taken by the pending spinner (2 newlines + 1 line)
+const pendingSpinnerHeight = 3
 
 // renderCollapsedSidebar renders the sidebar in collapsed mode (at top of screen).
 func (p *chatPage) renderCollapsedSidebar(sl sidebarLayout) string {

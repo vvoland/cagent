@@ -57,6 +57,7 @@ type Model interface {
 	LoadFromSession(sess *session.Session) tea.Cmd
 
 	ScrollToBottom() tea.Cmd
+	AdjustBottomSlack(delta int)
 }
 
 // renderedItem represents a cached rendered message with position information
@@ -1236,6 +1237,13 @@ func (m *model) ScrollToBottom() tea.Cmd {
 		}
 		return nil
 	}
+}
+
+func (m *model) AdjustBottomSlack(delta int) {
+	if delta == 0 {
+		return
+	}
+	m.bottomSlack = max(0, m.bottomSlack+delta)
 }
 
 // contentWidth returns the width available for content.
