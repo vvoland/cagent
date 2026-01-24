@@ -34,6 +34,7 @@ func newNewCmd() *cobra.Command {
 	}
 
 	cmd.PersistentFlags().StringVar(&flags.modelParam, "model", "", "Model to use, optionally as provider/model where provider is one of: anthropic, openai, google, dmr. If omitted, provider is auto-selected based on available credentials or gateway")
+	cmd.PersistentFlags().IntVar(&flags.maxIterationsParam, "max-iterations", 0, "Maximum number of agentic loop iterations to prevent infinite loops (default: 20 for DMR, unlimited for other providers)")
 	addRuntimeConfigFlags(cmd, &flags.runConfig)
 
 	return cmd
@@ -59,6 +60,11 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
 		session.WithTitle("New agent"),
 		session.WithMaxIterations(f.maxIterationsParam),
 		session.WithToolsApproved(true),
+	}
+	if len(args) > 0 {
+		arg := strings.Join(args, " ")
+		sessOpts = append(sessOpts, session.WithUserMessage(arg))
+		appOpts = append(appOpts, app.WithFirstMessage(arg))
 	}
 
 	sess := session.New(sessOpts...)
