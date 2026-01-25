@@ -17,6 +17,7 @@ import (
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
+	"github.com/docker/cagent/pkg/tui/animation"
 	"github.com/docker/cagent/pkg/tui/components/message"
 	"github.com/docker/cagent/pkg/tui/components/reasoningblock"
 	"github.com/docker/cagent/pkg/tui/components/scrollbar"
@@ -188,6 +189,14 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 	case reasoningblock.BlockMsg:
 		return m.forwardToReasoningBlock(msg.GetBlockID(), msg)
+
+	case animation.TickMsg:
+		// Invalidate render cache if there's animated content that needs redrawing.
+		// This ensures fades, spinners, etc. actually update visually on each tick.
+		if m.hasAnimatedContent() {
+			m.renderDirty = true
+		}
+		// Fall through to forward tick to all views
 
 	case tea.KeyPressMsg:
 		return m.handleKeyPress(msg)
@@ -1312,4 +1321,33 @@ func (m *model) handleScrollbarUpdate(msg tea.Msg) (layout.Model, tea.Cmd) {
 	m.bottomSlack = 0
 	m.scrollOffset = m.scrollbar.GetScrollOffset()
 	return m, cmd
+}
+
+// hasAnimatedContent returns true if the message list contains content that
+// requires tick-driven updates (spinners, fades, etc.). Used to decide whether
+// to invalidate the render cache on animation ticks.
+func (m *model) hasAnimatedContent() bool {
+	for i, msg := range m.messages {
+		switch msg.Type {
+		case types.MessageTypeSpinner, types.MessageTypeLoading:
+			// Spinner/loading messages always need ticks
+			return true
+		case types.MessageTypeToolCall:
+			// Tool calls with pending/running status have spinners
+			if msg.ToolStatus == types.ToolStatusPending ||
+				msg.ToolStatus == types.ToolStatusRunning {
+				return true
+			}
+		case types.MessageTypeAssistantReasoningBlock:
+			// Check if reasoning block needs tick updates
+			if i < len(m.views) {
+				if block, ok := m.views[i].(*reasoningblock.Model); ok {
+					if block.NeedsTick() {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
 }

@@ -76,6 +76,7 @@ type model struct {
 	mcpInit            bool
 	ragIndexing        map[string]*ragIndexingState // strategy name -> indexing state
 	spinner            spinner.Spinner
+	spinnerActive      bool // true when spinner is registered with animation coordinator
 	mode               Mode
 	sessionTitle       string
 	sessionStarred     bool
@@ -128,6 +129,34 @@ func New(sessionState *service.SessionState, opts ...Option) Model {
 
 func (m *model) Init() tea.Cmd {
 	return nil
+}
+
+// needsSpinner returns true if any spinner-driving state is active.
+func (m *model) needsSpinner() bool {
+	return m.workingAgent != "" || m.toolsLoading || m.mcpInit
+}
+
+// startSpinner registers the spinner with the animation coordinator if not already active.
+// Safe to call multiple times - only the first call registers.
+func (m *model) startSpinner() tea.Cmd {
+	if m.spinnerActive {
+		return nil // Already registered
+	}
+	m.spinnerActive = true
+	return m.spinner.Init()
+}
+
+// stopSpinner unregisters the spinner from the animation coordinator if no state needs it.
+// Only actually stops if currently active AND no spinner-driving state remains.
+func (m *model) stopSpinner() {
+	if !m.spinnerActive {
+		return // Not registered
+	}
+	if m.needsSpinner() {
+		return // Still needed by another state
+	}
+	m.spinnerActive = false
+	m.spinner.Stop()
 }
 
 func (m *model) SetTokenUsage(event *runtime.TokenUsageEvent) {
@@ -321,10 +350,17 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		if m.streamCancelled {
 			return m, nil
 		}
-		m.mcpInit = true
-		return m, m.spinner.Init()
+		if !m.mcpInit {
+			m.mcpInit = true
+			cmd := m.startSpinner()
+			return m, cmd
+		}
+		return m, nil
 	case *runtime.MCPInitFinishedEvent:
-		m.mcpInit = false
+		if m.mcpInit {
+			m.mcpInit = false
+			m.stopSpinner() // Will only stop if no other state needs it
+		}
 		return m, nil
 	case *runtime.RAGIndexingStartedEvent:
 		// Ignore if stream was cancelled (stale event from before cancellation)
@@ -350,7 +386,10 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case *runtime.RAGIndexingCompletedEvent:
 		key := msg.RAGName + "/" + msg.StrategyName
 		slog.Debug("Sidebar received RAG indexing completed event", "rag", msg.RAGName, "strategy", msg.StrategyName)
-		delete(m.ragIndexing, key)
+		if state, exists := m.ragIndexing[key]; exists {
+			state.spinner.Stop()
+			delete(m.ragIndexing, key)
+		}
 		return m, nil
 	case *runtime.SessionTitleEvent:
 		m.sessionTitle = msg.Title
@@ -359,9 +398,11 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		// New stream starting - reset cancelled flag and enable spinner
 		m.streamCancelled = false
 		m.workingAgent = msg.AgentName
-		return m, m.spinner.Init()
+		cmd := m.startSpinner()
+		return m, cmd
 	case *runtime.StreamStoppedEvent:
 		m.workingAgent = ""
+		m.stopSpinner() // Will only stop if no other state needs it
 		return m, nil
 	case *runtime.AgentInfoEvent:
 		m.SetAgentInfo(msg.AgentName, msg.Model, msg.Description)
@@ -379,8 +420,10 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		}
 		m.SetToolsetInfo(msg.AvailableTools, msg.Loading)
 		if msg.Loading {
-			return m, m.spinner.Init()
+			cmd := m.startSpinner()
+			return m, cmd
 		}
+		m.stopSpinner() // Will only stop if no other state needs it
 		return m, nil
 	case messages.StreamCancelledMsg:
 		// Clear all spinner-driving state when stream is cancelled via ESC
@@ -388,8 +431,14 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		m.workingAgent = ""
 		m.toolsLoading = false
 		m.mcpInit = false
-		// Clear any in-flight RAG indexing state
-		for k := range m.ragIndexing {
+		// Force-stop main spinner if it was active (state is now cleared)
+		if m.spinnerActive {
+			m.spinnerActive = false
+			m.spinner.Stop()
+		}
+		// Stop and clear any in-flight RAG indexing spinners
+		for k, state := range m.ragIndexing {
+			state.spinner.Stop()
 			delete(m.ragIndexing, k)
 		}
 		return m, nil
