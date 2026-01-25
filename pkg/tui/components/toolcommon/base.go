@@ -17,12 +17,13 @@ type Renderer func(msg *types.Message, s spinner.Spinner, sessionState *service.
 // Base provides common boilerplate for tool components.
 // It handles spinner management, sizing, and delegates rendering to a custom function.
 type Base struct {
-	message      *types.Message
-	spinner      spinner.Spinner
-	width        int
-	height       int
-	sessionState *service.SessionState
-	render       Renderer
+	message           *types.Message
+	spinner           spinner.Spinner
+	width             int
+	height            int
+	sessionState      *service.SessionState
+	render            Renderer
+	spinnerRegistered bool // tracks whether spinner is registered with coordinator
 }
 
 // NewBase creates a new base tool component with the given renderer.
@@ -70,18 +71,36 @@ func (b *Base) SetSize(width, height int) tea.Cmd {
 
 func (b *Base) Init() tea.Cmd {
 	if b.isSpinnerActive() {
-		return b.spinner.Init()
+		cmd := b.spinner.Init()
+		b.spinnerRegistered = true
+		return cmd
 	}
 	return nil
 }
 
 func (b *Base) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
-	if b.isSpinnerActive() {
+	isActive := b.isSpinnerActive()
+
+	var initCmd tea.Cmd
+
+	if isActive && !b.spinnerRegistered {
+		initCmd = b.spinner.Init()
+		b.spinnerRegistered = true
+	} else if !isActive && b.spinnerRegistered {
+		// Spinner became inactive - unregister from coordinator
+		b.spinnerRegistered = false
+		b.spinner.Stop()
+	}
+
+	if isActive {
 		model, cmd := b.spinner.Update(msg)
 		b.spinner = model.(spinner.Spinner)
+		if initCmd != nil {
+			return b, tea.Batch(initCmd, cmd)
+		}
 		return b, cmd
 	}
-	return b, nil
+	return b, initCmd
 }
 
 func (b *Base) View() string {

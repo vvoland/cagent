@@ -409,11 +409,16 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 }
 
 func (p *chatPage) setWorking(working bool) tea.Cmd {
+	wasWorking := p.working
 	p.working = working
 
 	cmd := []tea.Cmd{p.editor.SetWorking(working)}
-	if working {
+	if working && !wasWorking {
+		// Starting work - register spinner
 		cmd = append(cmd, p.spinner.Init())
+	} else if !working && wasWorking {
+		// Stopping work - unregister spinner
+		p.spinner.Stop()
 	}
 
 	return tea.Batch(cmd...)
@@ -422,11 +427,15 @@ func (p *chatPage) setWorking(working bool) tea.Cmd {
 // setPendingResponse sets the pending response state.
 // When true, a spinner is shown below the messages while waiting for the first chunk.
 func (p *chatPage) setPendingResponse(pending bool) tea.Cmd {
+	wasPending := p.pendingResponse
 	p.pendingResponse = pending
-	if pending {
-		// Reset spinner to get a fresh random phrase
+	if pending && !wasPending {
+		// Starting to wait - register spinner
 		p.pendingSpinner = p.pendingSpinner.Reset()
 		return p.pendingSpinner.Init()
+	} else if !pending && wasPending {
+		// Done waiting - unregister spinner
+		p.pendingSpinner.Stop()
 	}
 	return nil
 }
