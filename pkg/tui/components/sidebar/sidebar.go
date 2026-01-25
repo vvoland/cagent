@@ -32,7 +32,7 @@ type Mode int
 
 const (
 	ModeVertical Mode = iota
-	ModeHorizontal
+	ModeCollapsed
 )
 
 // Model represents a sidebar component
@@ -54,6 +54,20 @@ type Model interface {
 	LoadFromSession(sess *session.Session)
 	// HandleClick checks if click is on the star and returns true if handled
 	HandleClick(x, y int) bool
+	// IsCollapsed returns whether the sidebar is collapsed
+	IsCollapsed() bool
+	// ToggleCollapsed toggles the collapsed state
+	ToggleCollapsed()
+	// SetCollapsed sets the collapsed state directly
+	SetCollapsed(collapsed bool)
+	// CollapsedHeight returns the number of lines needed for collapsed mode
+	CollapsedHeight(contentWidth int) int
+	// GetPreferredWidth returns the user's preferred width (for resize persistence)
+	GetPreferredWidth() int
+	// SetPreferredWidth sets the user's preferred width
+	SetPreferredWidth(width int)
+	// ClampWidth ensures width is within valid bounds for the given window width
+	ClampWidth(width, windowInnerWidth int) int
 }
 
 // ragIndexingState tracks per-strategy indexing progress
@@ -95,6 +109,8 @@ type model struct {
 	queuedMessages     []string // Truncated preview of queued messages
 	streamCancelled    bool     // true after ESC cancel until next StreamStartedEvent
 	reasoningSupported bool     // true if current model supports reasoning (default: true / fail-open)
+	collapsed          bool     // true when sidebar is collapsed
+	preferredWidth     int      // user's preferred width (persisted across collapse/expand)
 }
 
 // Option is a functional option for configuring the sidebar.
@@ -119,7 +135,8 @@ func New(sessionState *service.SessionState, opts ...Option) Model {
 		sessionState:       sessionState,
 		scrollbar:          scrollbar.New(),
 		workingDirectory:   getCurrentWorkingDirectory(),
-		reasoningSupported: true, // Default to true (fail-open)
+		reasoningSupported: true,
+		preferredWidth:     DefaultWidth,
 	}
 	for _, opt := range opts {
 		opt(m)
@@ -229,7 +246,7 @@ func (m *model) SetQueuedMessages(queuedMessages ...string) {
 // x and y are coordinates relative to the sidebar's top-left corner
 // This does NOT toggle the state - caller should handle that
 func (m *model) HandleClick(x, y int) bool {
-	// Don't handle clicks if session has no content (star isn't shown)
+	// Don't handle star clicks if session has no content (star isn't shown)
 	if !m.sessionHasContent {
 		return false
 	}
@@ -242,8 +259,8 @@ func (m *model) HandleClick(x, y int) bool {
 		return false
 	}
 
-	if m.mode == ModeHorizontal {
-		// In horizontal mode, star is at the beginning of first line (y=0)
+	if m.mode == ModeCollapsed {
+		// In collapsed mode, star is at the beginning of first line (y=0)
 		return y == 0
 	}
 	// In vertical mode, star is below tab title and TabStyle padding
@@ -469,7 +486,7 @@ func (m *model) View() string {
 	if m.mode == ModeVertical {
 		content = m.verticalView()
 	} else {
-		content = m.horizontalView()
+		content = m.collapsedView()
 	}
 
 	// Apply horizontal padding
@@ -495,23 +512,129 @@ func (m *model) starIndicator() string {
 	return styles.StarIndicator(m.sessionStarred)
 }
 
-func (m *model) horizontalView() string {
-	// Compute content width (no scrollbar in horizontal mode)
-	contentWidth := m.contentWidth(false)
-	usageSummary := m.tokenUsageSummary()
+// collapsedLayout holds the computed layout decisions for collapsed mode.
+// Computing this once avoids duplicating the layout logic between CollapsedHeight and collapsedView.
+type collapsedLayout struct {
+	titleWithStar    string
+	workingIndicator string
+	workingDir       string
+	usageSummary     string
 
-	titleWithStar := m.starIndicator() + m.sessionTitle
+	// Layout decisions
+	titleAndIndicatorOnOneLine bool
+	wdAndUsageOnOneLine        bool
+	contentWidth               int
+}
 
-	wi := m.workingIndicatorHorizontal()
-	titleGapWidth := contentWidth - lipgloss.Width(titleWithStar) - lipgloss.Width(wi)
-	title := fmt.Sprintf("%s%*s%s", titleWithStar, titleGapWidth, "", wi)
+func (m *model) computeCollapsedLayout(contentWidth int) collapsedLayout {
+	h := collapsedLayout{
+		titleWithStar:    m.starIndicator() + m.sessionTitle,
+		workingIndicator: m.workingIndicatorCollapsed(),
+		workingDir:       m.workingDirectory,
+		usageSummary:     m.tokenUsageSummary(),
+		contentWidth:     contentWidth,
+	}
 
-	gapWidth := contentWidth - lipgloss.Width(m.workingDirectory) - lipgloss.Width(usageSummary)
-	return lipgloss.JoinVertical(lipgloss.Top, title, fmt.Sprintf("%s%*s%s", styles.MutedStyle.Render(m.workingDirectory), gapWidth, "", usageSummary))
+	titleWidth := lipgloss.Width(h.titleWithStar)
+	wiWidth := lipgloss.Width(h.workingIndicator)
+	wdWidth := lipgloss.Width(h.workingDir)
+	usageWidth := lipgloss.Width(h.usageSummary)
+
+	// Title and indicator fit on one line if:
+	// - no working indicator AND title fits, OR
+	// - both fit together with gap
+	h.titleAndIndicatorOnOneLine = (h.workingIndicator == "" && titleWidth <= contentWidth) ||
+		(h.workingIndicator != "" && titleWidth+minGap+wiWidth <= contentWidth)
+	h.wdAndUsageOnOneLine = wdWidth+minGap+usageWidth <= contentWidth
+
+	return h
+}
+
+func (h collapsedLayout) lineCount() int {
+	lines := 1 // divider
+
+	switch {
+	case h.titleAndIndicatorOnOneLine:
+		lines++
+	case h.workingIndicator == "":
+		// No working indicator but title wraps
+		lines += linesNeeded(lipgloss.Width(h.titleWithStar), h.contentWidth)
+	default:
+		// Title and working indicator on separate lines, each may wrap
+		lines += linesNeeded(lipgloss.Width(h.titleWithStar), h.contentWidth)
+		lines += linesNeeded(lipgloss.Width(h.workingIndicator), h.contentWidth)
+	}
+
+	if h.wdAndUsageOnOneLine {
+		lines++
+	} else {
+		lines += linesNeeded(lipgloss.Width(h.workingDir), h.contentWidth)
+		if h.usageSummary != "" {
+			lines += linesNeeded(lipgloss.Width(h.usageSummary), h.contentWidth)
+		}
+	}
+
+	return lines
+}
+
+func (h collapsedLayout) render() string {
+	var lines []string
+
+	// Title line(s)
+	switch {
+	case h.titleAndIndicatorOnOneLine:
+		if h.workingIndicator == "" {
+			lines = append(lines, h.titleWithStar)
+		} else {
+			gap := h.contentWidth - lipgloss.Width(h.titleWithStar) - lipgloss.Width(h.workingIndicator)
+			lines = append(lines, fmt.Sprintf("%s%*s%s", h.titleWithStar, gap, "", h.workingIndicator))
+		}
+	case h.workingIndicator == "":
+		// No working indicator but title wraps - just output title (lipgloss will wrap)
+		lines = append(lines, h.titleWithStar)
+	default:
+		// Title and working indicator on separate lines
+		lines = append(lines, h.titleWithStar, h.workingIndicator)
+	}
+
+	// Working directory + usage line(s)
+	if h.wdAndUsageOnOneLine {
+		gap := h.contentWidth - lipgloss.Width(h.workingDir) - lipgloss.Width(h.usageSummary)
+		lines = append(lines, fmt.Sprintf("%s%*s%s", styles.MutedStyle.Render(h.workingDir), gap, "", h.usageSummary))
+	} else {
+		lines = append(lines, styles.MutedStyle.Render(h.workingDir))
+		if h.usageSummary != "" {
+			lines = append(lines, h.usageSummary)
+		}
+	}
+
+	return lipgloss.JoinVertical(lipgloss.Top, lines...)
+}
+
+// linesNeeded calculates how many lines are needed to display text of given width
+// within a container of contentWidth. Returns at least 1 line.
+func linesNeeded(textWidth, contentWidth int) int {
+	if contentWidth <= 0 || textWidth <= 0 {
+		return 1
+	}
+	return max(1, (textWidth+contentWidth-1)/contentWidth)
+}
+
+// CollapsedHeight returns the number of lines needed for collapsed mode.
+func (m *model) CollapsedHeight(outerWidth int) int {
+	contentWidth := outerWidth - m.layoutCfg.PaddingLeft - m.layoutCfg.PaddingRight
+	if contentWidth < 1 {
+		contentWidth = 1
+	}
+	return m.computeCollapsedLayout(contentWidth).lineCount()
+}
+
+func (m *model) collapsedView() string {
+	return m.computeCollapsedLayout(m.contentWidth(false)).render()
 }
 
 func (m *model) verticalView() string {
-	visibleLines := m.height - headerLines
+	visibleLines := m.height
 
 	// Two-pass rendering: first check if scrollbar is needed
 	// Pass 1: render without scrollbar to count lines
@@ -639,8 +762,8 @@ func (m *model) workingIndicator() string {
 	return strings.Join(indicators, "\n")
 }
 
-// workingIndicatorHorizontal returns a single-line version of the working indicator for horizontal mode
-func (m *model) workingIndicatorHorizontal() string {
+// workingIndicatorCollapsed returns a single-line version of the working indicator for collapsed mode
+func (m *model) workingIndicatorCollapsed() string {
 	var labels []string
 
 	if m.mcpInit {
@@ -929,4 +1052,45 @@ func (m *model) metrics(scrollbarVisible bool) Metrics {
 // is determined during render.
 func (m *model) contentWidth(scrollbarVisible bool) int {
 	return m.metrics(scrollbarVisible).ContentWidth
+}
+
+// IsCollapsed returns whether the sidebar is collapsed
+func (m *model) IsCollapsed() bool {
+	return m.collapsed
+}
+
+// ToggleCollapsed toggles the collapsed state of the sidebar.
+// When expanding, if the preferred width is below minimum (e.g., after drag-to-collapse),
+// it resets to the default width.
+func (m *model) ToggleCollapsed() {
+	m.collapsed = !m.collapsed
+	if !m.collapsed && m.preferredWidth < MinWidth {
+		m.preferredWidth = DefaultWidth
+	}
+}
+
+// SetCollapsed sets the collapsed state directly.
+// When expanding, if the preferred width is below minimum (e.g., after drag-to-collapse),
+// it resets to the default width.
+func (m *model) SetCollapsed(collapsed bool) {
+	m.collapsed = collapsed
+	if !collapsed && m.preferredWidth < MinWidth {
+		m.preferredWidth = DefaultWidth
+	}
+}
+
+// GetPreferredWidth returns the user's preferred width
+func (m *model) GetPreferredWidth() int {
+	return m.preferredWidth
+}
+
+// SetPreferredWidth sets the user's preferred width
+func (m *model) SetPreferredWidth(width int) {
+	m.preferredWidth = width
+}
+
+// ClampWidth ensures width is within valid bounds for the given window inner width
+func (m *model) ClampWidth(width, windowInnerWidth int) int {
+	maxWidth := min(int(float64(windowInnerWidth)*MaxWidthPercent), windowInnerWidth-20)
+	return max(MinWidth, min(width, maxWidth))
 }
