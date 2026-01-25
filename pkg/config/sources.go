@@ -171,7 +171,6 @@ func (a ociSource) Read(ctx context.Context) ([]byte, error) {
 		a.reference,
 		err,
 	)
-
 }
 
 // urlSource is used to load an agent configuration from an HTTP/HTTPS URL.
