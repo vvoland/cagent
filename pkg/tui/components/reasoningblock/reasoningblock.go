@@ -519,7 +519,13 @@ func (m *Model) renderCollapsed() string {
 	if len(visibleTools) > 0 {
 		parts = append(parts, "") // blank line before tools
 		for _, entry := range visibleTools {
-			toolView := entry.view.View()
+			// Prefer CollapsedView() for simplified rendering in collapsed state
+			var toolView string
+			if cv, ok := entry.view.(layout.CollapsedViewer); ok {
+				toolView = cv.CollapsedView()
+			} else {
+				toolView = entry.view.View()
+			}
 			if entry.fadeProgress > 0 {
 				// Strip existing ANSI codes and apply faded color based on progress
 				// (wrapping styled content doesn't override inner colors)
