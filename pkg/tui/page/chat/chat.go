@@ -339,8 +339,8 @@ func defaultKeyMap() KeyMap {
 			key.WithHelp("Ctrl+t", "toggle split diff mode"),
 		),
 		ToggleSidebar: key.NewBinding(
-			key.WithKeys("alt+s"),
-			key.WithHelp("Alt+s", "toggle sidebar"),
+			key.WithKeys("ctrl+b"),
+			key.WithHelp("Ctrl+b", "toggle sidebar"),
 		),
 	}
 }
