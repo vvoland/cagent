@@ -106,12 +106,11 @@ func (a ociSource) ParentDir() string {
 	return ""
 }
 
-// Read loads an agent configuration from an OCI artifact.
+// Read loads an agent configuration from an OCI artifact
 //
-// This method is intentionally defensive:
-// - The local content store is treated as a cache, never as a source of truth.
-// - Any missing or inconsistent local state (ErrStoreCorrupted) triggers a re-fetch.
-// - A forced pull is used as a last resort to self-heal corrupted stores.
+// The OCI registry remains the source of truth
+// The local content store is used as a cache and fallback only
+// A forced re-pull is triggered exclusively when store corruption is detected
 func (a ociSource) Read(ctx context.Context) ([]byte, error) {
 	store, err := content.NewStore()
 	if err != nil {
@@ -126,33 +125,33 @@ func (a ociSource) Read(ctx context.Context) ([]byte, error) {
 		return []byte(af), nil
 	}
 
-	// 1. Try local first
-	data, err := tryLoad()
-	if err == nil {
-		return data, nil
-	}
+	// Check if we have any local metadata (same as before)
+	_, metaErr := store.GetArtifactMetadata(a.reference)
+	hasLocal := metaErr == nil
 
-	isCorrupted := errors.Is(err, content.ErrStoreCorrupted)
-
-	// 2. Try normal pull (digest check)
-	if _, pullErr := remote.Pull(ctx, a.reference, false); pullErr == nil {
-		data, err = tryLoad()
-		if err == nil {
-			return data, nil
+	// Always try normal pull first (preserves pull-interval behavior)
+	if _, pullErr := remote.Pull(ctx, a.reference, false); pullErr != nil {
+		if !hasLocal {
+			return nil, fmt.Errorf("failed to pull OCI image %s: %w", a.reference, pullErr)
 		}
-		isCorrupted = isCorrupted || errors.Is(err, content.ErrStoreCorrupted)
-	} else {
+
 		slog.Debug(
-			"OCI pull failed, will evaluate fallback",
+			"Failed to check for OCI reference updates, using cached version",
 			"ref", a.reference,
 			"error", pullErr,
 		)
 	}
 
-	// 3. Force re-pull if store is corrupted or inconsistent
-	if isCorrupted {
+	// Try loading from store
+	data, err := tryLoad()
+	if err == nil {
+		return data, nil
+	}
+
+	// If loading failed due to corruption, force re-pull
+	if errors.Is(err, content.ErrStoreCorrupted) {
 		slog.Warn(
-			"Local OCI store corrupted or inconsistent, forcing re-pull",
+			"Local OCI store corrupted, forcing re-pull",
 			"ref", a.reference,
 		)
 
@@ -167,7 +166,7 @@ func (a ociSource) Read(ctx context.Context) ([]byte, error) {
 	}
 
 	return nil, fmt.Errorf(
-		"failed to load agent from OCI source %s after retrying and re-fetching: %w",
+		"failed to load agent from OCI source %s: %w",
 		a.reference,
 		err,
 	)
