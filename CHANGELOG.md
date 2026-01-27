@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.19.7] - 2026-01-26
+
+This release improves the user experience with better error handling and enhanced output formatting.
+
+## Improvements
+- Improves error handling and user feedback throughout the application
+- Enhances output formatting for better readability and user experience
+
+## Technical Changes
+- Updates internal dependencies and build configurations
+- Refactors code structure for improved maintainability
+- Updates development and testing infrastructure
+
+
 ## [v1.19.6] - 2026-01-26
 
 This release improves the user experience with better error handling and enhanced output formatting.
@@ -54,3 +68,5 @@ This release improves the terminal user interface with better error handling and
 [v1.19.5]: https://github.com/docker/cagent/releases/tag/v1.19.5
 
 [v1.19.6]: https://github.com/docker/cagent/releases/tag/v1.19.6
+
+[v1.19.7]: https://github.com/docker/cagent/releases/tag/v1.19.7
