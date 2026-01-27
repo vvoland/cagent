@@ -290,20 +290,28 @@ func TestUpdateSession_LazyCreation(t *testing.T) {
 	_, err = store.GetSession(t.Context(), "lazy-session")
 	require.ErrorIs(t, err, ErrNotFound)
 
-	// Now update the session with content - this should create it (upsert)
-	session.Messages = []Item{
-		NewMessageItem(UserMessage("Hello")),
-		NewMessageItem(NewAgentMessage(testAgent, &chat.Message{
-			Role:    chat.MessageRoleAssistant,
-			Content: "Hi there!",
-		})),
-	}
-
+	// UpdateSession creates the session (upsert) but does NOT persist messages
+	// Messages must be added separately via AddMessage
 	err = store.UpdateSession(t.Context(), session)
 	require.NoError(t, err)
 
-	// Now the session should exist
+	// Session exists but has no messages yet
 	retrieved, err := store.GetSession(t.Context(), "lazy-session")
+	require.NoError(t, err)
+	assert.Empty(t, retrieved.Messages)
+
+	// Add messages via AddMessage (the proper way)
+	_, err = store.AddMessage(t.Context(), "lazy-session", UserMessage("Hello"))
+	require.NoError(t, err)
+
+	_, err = store.AddMessage(t.Context(), "lazy-session", NewAgentMessage(testAgent, &chat.Message{
+		Role:    chat.MessageRoleAssistant,
+		Content: "Hi there!",
+	}))
+	require.NoError(t, err)
+
+	// Now the session should have messages
+	retrieved, err = store.GetSession(t.Context(), "lazy-session")
 	require.NoError(t, err)
 	assert.Len(t, retrieved.Messages, 2)
 	assert.Equal(t, "Hello", retrieved.Messages[0].Message.Message.Content)
@@ -325,20 +333,27 @@ func TestUpdateSession_LazyCreation_InMemory(t *testing.T) {
 	_, err := store.GetSession(t.Context(), "lazy-session")
 	require.ErrorIs(t, err, ErrNotFound)
 
-	// Update with content - should create it
-	session.Messages = []Item{
-		NewMessageItem(UserMessage("Hello")),
-		NewMessageItem(NewAgentMessage(testAgent, &chat.Message{
-			Role:    chat.MessageRoleAssistant,
-			Content: "Hi there!",
-		})),
-	}
-
+	// UpdateSession creates the session (upsert) without messages
+	// Messages must be added separately via AddMessage (like SQLite behavior)
 	err = store.UpdateSession(t.Context(), session)
 	require.NoError(t, err)
 
-	// Now the session should exist
+	// Session exists but has no messages yet
 	retrieved, err := store.GetSession(t.Context(), "lazy-session")
+	require.NoError(t, err)
+	assert.Empty(t, retrieved.Messages)
+
+	// Add messages via AddMessage
+	_, err = store.AddMessage(t.Context(), "lazy-session", UserMessage("Hello"))
+	require.NoError(t, err)
+	_, err = store.AddMessage(t.Context(), "lazy-session", NewAgentMessage(testAgent, &chat.Message{
+		Role:    chat.MessageRoleAssistant,
+		Content: "Hi there!",
+	}))
+	require.NoError(t, err)
+
+	// Now the session has 2 messages
+	retrieved, err = store.GetSession(t.Context(), "lazy-session")
 	require.NoError(t, err)
 	assert.Len(t, retrieved.Messages, 2)
 }
