@@ -623,3 +623,83 @@ func TestThinking_Persistence(t *testing.T) {
 		assert.True(t, retrieved.Thinking)
 	})
 }
+
+func TestNewSQLiteSessionStore_MigrationFailureRecovery(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "test_migration_recovery.db")
+	backupPath := dbPath + ".bak"
+
+	// Create a corrupted database file that will fail migrations
+	err := os.WriteFile(dbPath, []byte("not a valid sqlite database"), 0o644)
+	require.NoError(t, err)
+
+	// Opening should trigger recovery: backup the corrupt file and create fresh db
+	store, err := NewSQLiteSessionStore(dbPath)
+	require.NoError(t, err)
+	defer store.(*SQLiteSessionStore).Close()
+
+	// Verify a backup was created
+	_, err = os.Stat(backupPath)
+	require.NoError(t, err, "backup file should exist")
+
+	// Verify the store works with the fresh database
+	session := &Session{
+		ID:        "test-session",
+		CreatedAt: time.Now(),
+	}
+	err = store.AddSession(t.Context(), session)
+	require.NoError(t, err)
+
+	retrieved, err := store.GetSession(t.Context(), "test-session")
+	require.NoError(t, err)
+	assert.Equal(t, "test-session", retrieved.ID)
+}
+
+func TestBackupDatabase(t *testing.T) {
+	t.Run("backs up existing database file", func(t *testing.T) {
+		tempDir := t.TempDir()
+		dbPath := filepath.Join(tempDir, "test.db")
+		backupPath := dbPath + ".bak"
+
+		// Create a file to backup
+		err := os.WriteFile(dbPath, []byte("test content"), 0o644)
+		require.NoError(t, err)
+
+		// Also create WAL and SHM files
+		err = os.WriteFile(dbPath+"-wal", []byte("wal content"), 0o644)
+		require.NoError(t, err)
+		err = os.WriteFile(dbPath+"-shm", []byte("shm content"), 0o644)
+		require.NoError(t, err)
+
+		// Backup the database
+		err = backupDatabase(dbPath)
+		require.NoError(t, err)
+
+		// Original should be gone
+		_, err = os.Stat(dbPath)
+		assert.True(t, os.IsNotExist(err), "original file should be moved")
+
+		// WAL and SHM should also be gone
+		_, err = os.Stat(dbPath + "-wal")
+		assert.True(t, os.IsNotExist(err), "WAL file should be moved")
+		_, err = os.Stat(dbPath + "-shm")
+		assert.True(t, os.IsNotExist(err), "SHM file should be moved")
+
+		// Check backup files exist
+		_, err = os.Stat(backupPath)
+		require.NoError(t, err, "main backup should exist")
+		_, err = os.Stat(backupPath + "-wal")
+		require.NoError(t, err, "WAL backup should exist")
+		_, err = os.Stat(backupPath + "-shm")
+		require.NoError(t, err, "SHM backup should exist")
+	})
+
+	t.Run("handles nonexistent file gracefully", func(t *testing.T) {
+		tempDir := t.TempDir()
+		dbPath := filepath.Join(tempDir, "nonexistent.db")
+
+		// Backup should succeed (nothing to backup)
+		err := backupDatabase(dbPath)
+		require.NoError(t, err)
+	})
+}

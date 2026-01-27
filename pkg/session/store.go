@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 	"strconv"
 	"time"
 
@@ -266,7 +268,28 @@ type SQLiteSessionStore struct {
 
 // NewSQLiteSessionStore creates a new SQLite session store
 func NewSQLiteSessionStore(path string) (Store, error) {
-	return openAndMigrateSQLiteStore(path)
+	store, err := openAndMigrateSQLiteStore(path)
+	if err != nil {
+		// If migrations failed, try to recover by backing up the database and starting fresh
+		slog.Warn("Failed to open session store, attempting recovery", "error", err)
+
+		backupErr := backupDatabase(path)
+		if backupErr != nil {
+			// Return the original error if backup failed
+			slog.Error("Failed to backup database for recovery", "error", backupErr)
+			return nil, fmt.Errorf("migration failed: %w (backup also failed: %v)", err, backupErr)
+		}
+
+		// Try again with a fresh database
+		store, err = openAndMigrateSQLiteStore(path)
+		if err != nil {
+			return nil, fmt.Errorf("migration failed even after database reset: %w", err)
+		}
+
+		slog.Info("Successfully recovered session store with fresh database")
+	}
+
+	return store, nil
 }
 
 // openAndMigrateSQLiteStore opens the database and runs migrations
@@ -300,6 +323,39 @@ func openAndMigrateSQLiteStore(path string) (*SQLiteSessionStore, error) {
 	}
 
 	return &SQLiteSessionStore{db: db}, nil
+}
+
+// backupDatabase moves the database file (and related WAL files) to a backup
+func backupDatabase(path string) error {
+	backupPath := path + ".bak"
+
+	slog.Info("Backing up database", "from", path, "to", backupPath)
+
+	// Move the main database file
+	if err := os.Rename(path, backupPath); err != nil {
+		if os.IsNotExist(err) {
+			// No database file to backup, that's fine
+			return nil
+		}
+		return fmt.Errorf("failed to move database file: %w", err)
+	}
+
+	// Also move WAL and SHM files if they exist (SQLite WAL mode artifacts)
+	walPath := path + "-wal"
+	if _, err := os.Stat(walPath); err == nil {
+		if err := os.Rename(walPath, backupPath+"-wal"); err != nil {
+			slog.Warn("Failed to move WAL file", "error", err)
+		}
+	}
+
+	shmPath := path + "-shm"
+	if _, err := os.Stat(shmPath); err == nil {
+		if err := os.Rename(shmPath, backupPath+"-shm"); err != nil {
+			slog.Warn("Failed to move SHM file", "error", err)
+		}
+	}
+
+	return nil
 }
 
 // AddSession adds a new session to the store, including any messages
