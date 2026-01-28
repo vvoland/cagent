@@ -114,6 +114,7 @@ type Config struct {
 	Concurrency int               // Number of concurrent runs (0 = number of CPUs)
 	TTYFd       int               // File descriptor for terminal size queries (e.g., int(os.Stdout.Fd()))
 	Only        []string          // Only run evaluations matching these patterns
+	BaseImage   string            // Custom base Docker image for running evaluations
 }
 
 // Session helper functions

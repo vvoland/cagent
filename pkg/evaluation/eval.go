@@ -35,6 +35,7 @@ type Runner struct {
 	envProvider   environment.Provider
 	ttyFd         int
 	only          []string
+	baseImage     string
 }
 
 // NewRunner creates a new evaluation runner.
@@ -48,16 +49,17 @@ func NewRunner(agentSource config.Source, runConfig *config.RuntimeConfig, evals
 		envProvider:   runConfig.EnvProvider(),
 		ttyFd:         cfg.TTYFd,
 		only:          cfg.Only,
+		baseImage:     cfg.BaseImage,
 	}
 }
 
 // Evaluate is the main entry point for running evaluations.
-func Evaluate(ctx context.Context, out io.Writer, isTTY bool, ttyFd int, agentFilename, evalsDir string, runConfig *config.RuntimeConfig, concurrency int, judgeModel provider.Provider, only []string) (*EvalRun, error) {
-	return EvaluateWithName(ctx, out, isTTY, ttyFd, GenerateRunName(), agentFilename, evalsDir, runConfig, concurrency, judgeModel, only)
+func Evaluate(ctx context.Context, out io.Writer, isTTY bool, ttyFd int, agentFilename, evalsDir string, runConfig *config.RuntimeConfig, concurrency int, judgeModel provider.Provider, only []string, baseImage string) (*EvalRun, error) {
+	return EvaluateWithName(ctx, out, isTTY, ttyFd, GenerateRunName(), agentFilename, evalsDir, runConfig, concurrency, judgeModel, only, baseImage)
 }
 
 // EvaluateWithName runs evaluations with a specified run name.
-func EvaluateWithName(ctx context.Context, out io.Writer, isTTY bool, ttyFd int, runName, agentFilename, evalsDir string, runConfig *config.RuntimeConfig, concurrency int, judgeModel provider.Provider, only []string) (*EvalRun, error) {
+func EvaluateWithName(ctx context.Context, out io.Writer, isTTY bool, ttyFd int, runName, agentFilename, evalsDir string, runConfig *config.RuntimeConfig, concurrency int, judgeModel provider.Provider, only []string, baseImage string) (*EvalRun, error) {
 	agentSource, err := config.Resolve(agentFilename)
 	if err != nil {
 		return nil, fmt.Errorf("resolving agent: %w", err)
@@ -68,6 +70,7 @@ func EvaluateWithName(ctx context.Context, out io.Writer, isTTY bool, ttyFd int,
 		JudgeModel:  judgeModel,
 		TTYFd:       ttyFd,
 		Only:        only,
+		BaseImage:   baseImage,
 	})
 
 	fmt.Fprintf(out, "Evaluation run: %s\n", runName)
