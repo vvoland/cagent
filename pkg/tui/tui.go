@@ -3,6 +3,7 @@ package tui
 import (
 	"cmp"
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	goruntime "runtime"
@@ -18,6 +19,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/animation"
 	"github.com/docker/cagent/pkg/tui/commands"
 	"github.com/docker/cagent/pkg/tui/components/completion"
+	"github.com/docker/cagent/pkg/tui/components/markdown"
 	"github.com/docker/cagent/pkg/tui/components/notification"
 	"github.com/docker/cagent/pkg/tui/components/statusbar"
 	"github.com/docker/cagent/pkg/tui/core"
@@ -45,6 +47,10 @@ type appModel struct {
 	sessionState *service.SessionState
 
 	transcriber *transcribe.Transcriber
+
+	themeWatcher         *styles.ThemeWatcher
+	themeWatcherEventCh  chan string // Channel for theme file change events (carries themeRef)
+	themeListenerStarted bool        // Guard to prevent multiple listeners
 
 	ready bool
 	err   error
@@ -104,23 +110,44 @@ func DefaultKeyMap() KeyMap {
 func New(ctx context.Context, a *app.App) tea.Model {
 	sessionState := service.NewSessionState(a.Session())
 
+	// Create a channel for theme file change events (carries themeRef)
+	themeEventCh := make(chan string, 1)
+
 	t := &appModel{
-		keyMap:       DefaultKeyMap(),
-		dialog:       dialog.New(),
-		notification: notification.New(),
-		completions:  completion.New(),
-		application:  a,
-		sessionState: sessionState,
-		transcriber:  transcribe.New(os.Getenv("OPENAI_API_KEY")), // TODO(dga): should use envProvider
+		keyMap:              DefaultKeyMap(),
+		dialog:              dialog.New(),
+		notification:        notification.New(),
+		completions:         completion.New(),
+		application:         a,
+		sessionState:        sessionState,
+		transcriber:         transcribe.New(os.Getenv("OPENAI_API_KEY")), // TODO(dga): should use envProvider
+		themeWatcherEventCh: themeEventCh,
 	}
+
+	// Create theme watcher with callback that sends themeRef to channel
+	t.themeWatcher = styles.NewThemeWatcher(func(themeRef string) {
+		// Non-blocking send to the event channel
+		select {
+		case themeEventCh <- themeRef:
+		default:
+			// Channel full, event will be coalesced
+		}
+	})
 
 	t.statusBar = statusbar.New(t)
 	t.chatPage = chat.New(a, sessionState)
 
-	// Make sure to stop the progress bar when the app quits abruptly.
+	// Start watching the current theme (if it's a user theme file)
+	currentTheme := styles.CurrentTheme()
+	if currentTheme != nil && currentTheme.Ref != "" {
+		_ = t.themeWatcher.Watch(currentTheme.Ref)
+	}
+
+	// Make sure to stop the progress bar and theme watcher when the app quits abruptly.
 	go func() {
 		<-ctx.Done()
 		t.chatPage.Cleanup()
+		t.themeWatcher.Stop()
 	}()
 
 	return t
@@ -128,11 +155,31 @@ func New(ctx context.Context, a *app.App) tea.Model {
 
 // Init initializes the application
 func (a *appModel) Init() tea.Cmd {
-	return tea.Sequence(
+	cmds := []tea.Cmd{
 		a.dialog.Init(),
 		a.chatPage.Init(),
 		a.application.SendFirstMessage(),
-	)
+	}
+
+	// Start theme file listener only once (guard against Init being called multiple times)
+	if !a.themeListenerStarted {
+		a.themeListenerStarted = true
+		cmds = append(cmds, a.listenForThemeFileChanges())
+	}
+
+	return tea.Sequence(cmds...)
+}
+
+// listenForThemeFileChanges returns a command that listens for theme file change events
+// and sends them as messages to the TUI.
+func (a *appModel) listenForThemeFileChanges() tea.Cmd {
+	return func() tea.Msg {
+		themeRef, ok := <-a.themeWatcherEventCh
+		if !ok {
+			return nil // Channel closed
+		}
+		return messages.ThemeFileChangedMsg{ThemeRef: themeRef}
+	}
 }
 
 // Help returns help information
@@ -333,6 +380,39 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case messages.ChangeModelMsg:
 		return a.handleChangeModel(msg.ModelRef)
+
+	case messages.OpenThemePickerMsg:
+		return a.handleOpenThemePicker()
+
+	case messages.ChangeThemeMsg:
+		return a.handleChangeTheme(msg.ThemeRef)
+
+	case messages.ThemePreviewMsg:
+		return a.handleThemePreview(msg.ThemeRef)
+
+	case messages.ThemeCancelPreviewMsg:
+		return a.handleThemeCancelPreview(msg.OriginalRef)
+
+	case messages.ThemeChangedMsg:
+		return a.applyThemeChanged()
+
+	case messages.ThemeFileChangedMsg:
+		// Theme file was modified on disk - load and apply on the main goroutine
+		theme, err := styles.LoadTheme(msg.ThemeRef)
+		if err != nil {
+			// Failed to load - show error but keep current theme
+			return a, tea.Batch(
+				a.listenForThemeFileChanges(),
+				notification.ErrorCmd(fmt.Sprintf("Failed to hot-reload theme: %v", err)),
+			)
+		}
+		styles.ApplyTheme(theme)
+		// Continue listening for more changes and emit ThemeChangedMsg for cache invalidation
+		return a, tea.Batch(
+			a.listenForThemeFileChanges(),
+			notification.SuccessCmd("Theme hot-reloaded"),
+			core.CmdHandler(messages.ThemeChangedMsg{}),
+		)
 
 	case messages.ElicitationResponseMsg:
 		return a.handleElicitationResponse(msg.Action, msg.Content)
@@ -650,6 +730,42 @@ func (a *appModel) startShell() (tea.Model, tea.Cmd) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return a, tea.ExecProcess(cmd, nil)
+}
+
+// invalidateCachesForThemeChange performs synchronous cache invalidation
+// after a theme change. This does NOT forward messages to child components.
+// Use applyThemeChanged() when you also need to forward ThemeChangedMsg.
+func (a *appModel) invalidateCachesForThemeChange() {
+	markdown.ResetStyles()
+	a.statusBar.InvalidateCache()
+}
+
+// applyThemeChanged invalidates all theme-dependent caches and forwards
+// ThemeChangedMsg to child components. This is called synchronously when
+// themes are changed/previewed to ensure View() renders with updated styles.
+func (a *appModel) applyThemeChanged() (tea.Model, tea.Cmd) {
+	// Invalidate all caches
+	a.invalidateCachesForThemeChange()
+
+	// Update theme watcher to watch new theme file
+	currentTheme := styles.CurrentTheme()
+	if currentTheme != nil {
+		_ = a.themeWatcher.Watch(currentTheme.Ref)
+	}
+
+	var cmds []tea.Cmd
+
+	// Forward to dialog manager to propagate to all open dialogs
+	dialogUpdated, dialogCmd := a.dialog.Update(messages.ThemeChangedMsg{})
+	a.dialog = dialogUpdated.(dialog.Manager)
+	cmds = append(cmds, dialogCmd)
+
+	// Forward to chat page to propagate to all child components
+	chatUpdated, chatCmd := a.chatPage.Update(messages.ThemeChangedMsg{})
+	a.chatPage = chatUpdated.(chat.Page)
+	cmds = append(cmds, chatCmd)
+
+	return a, tea.Batch(cmds...)
 }
 
 func toFullscreenView(content, windowTitle string) tea.View {
