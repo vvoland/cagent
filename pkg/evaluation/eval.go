@@ -185,6 +185,8 @@ func (r *Runner) loadEvalSessions(ctx context.Context) ([]EvalSession, error) {
 			return nil, err
 		}
 
+		evalSess.SourcePath = filepath.Join(r.evalsDir, fileName)
+
 		if evalSess.Title == "" {
 			evalSess.Title = strings.TrimSuffix(fileName, ".json")
 		}
@@ -213,6 +215,7 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *EvalSession) (Resu
 	slog.Debug("Starting evaluation", "title", evalSess.Title)
 
 	result := Result{
+		InputPath:         evalSess.SourcePath,
 		Title:             evalSess.Title,
 		Question:          getFirstUserMessage(&evalSess.Session),
 		SizeExpected:      evalSess.Evals.Size,
@@ -241,6 +244,7 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *EvalSession) (Resu
 	result.Response = response
 	result.Cost = cost
 	result.OutputTokens = outputTokens
+	result.RawOutput = events
 	result.Size = getResponseSize(result.Response)
 
 	if len(expectedToolCalls) > 0 || len(actualToolCalls) > 0 {
