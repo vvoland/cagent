@@ -728,7 +728,6 @@ func (p *chatPage) GetInputHeight() int {
 func (p *chatPage) Bindings() []key.Binding {
 	bindings := []key.Binding{
 		p.keyMap.Tab,
-		p.keyMap.Cancel,
 	}
 
 	if p.focusedPanel == PanelChat {
