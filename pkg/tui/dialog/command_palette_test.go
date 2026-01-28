@@ -14,18 +14,20 @@ var categories = []commands.Category{
 		Name: "Session",
 		Commands: []commands.Item{
 			{
-				ID:          "session.new",
-				Label:       "New Session",
-				Description: "Start a new conversation session",
-				Category:    "Session",
-				Execute:     func(string) tea.Cmd { return nil },
+				ID:           "session.new",
+				Label:        "New Session",
+				SlashCommand: "/new",
+				Description:  "Start a new conversation session",
+				Category:     "Session",
+				Execute:      func(string) tea.Cmd { return nil },
 			},
 			{
-				ID:          "session.compact",
-				Label:       "Compact Session",
-				Description: "Summarize and compact the current conversation",
-				Category:    "Session",
-				Execute:     func(string) tea.Cmd { return nil },
+				ID:           "session.compact",
+				Label:        "Compact Session",
+				SlashCommand: "/compact",
+				Description:  "Summarize and compact the current conversation",
+				Category:     "Session",
+				Execute:      func(string) tea.Cmd { return nil },
 			},
 		},
 	},
@@ -43,6 +45,11 @@ func TestCommandPaletteFiltering(t *testing.T) {
 		{
 			name:     "filter by new",
 			input:    "new",
+			expected: []string{"session.new"},
+		},
+		{
+			name:     "filter by slash command",
+			input:    "/new",
 			expected: []string{"session.new"},
 		},
 		{

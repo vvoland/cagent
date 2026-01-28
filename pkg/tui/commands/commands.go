@@ -190,7 +190,7 @@ func builtInSessionCommands() []Item {
 			ID:           "settings.theme",
 			Label:        "Theme",
 			SlashCommand: "/theme",
-			Description:  "Change the color theme (saved globally)",
+			Description:  "Change the color theme",
 			Category:     "Settings",
 			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.OpenThemePickerMsg{})
