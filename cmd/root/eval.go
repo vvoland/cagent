@@ -28,6 +28,7 @@ type evalFlags struct {
 	judgeModel  string
 	outputDir   string
 	only        []string
+	baseImage   string
 }
 
 func newEvalCmd() *cobra.Command {
@@ -46,6 +47,7 @@ func newEvalCmd() *cobra.Command {
 	cmd.Flags().StringVar(&flags.judgeModel, "judge-model", defaultJudgeModel, "Model to use for relevance checking (format: provider/model)")
 	cmd.Flags().StringVar(&flags.outputDir, "output", "", "Directory for results and logs (default: <eval-dir>/results)")
 	cmd.Flags().StringSliceVar(&flags.only, "only", nil, "Only run evaluations with file names matching these patterns (can be specified multiple times)")
+	cmd.Flags().StringVar(&flags.baseImage, "base-image", "", "Custom base Docker image for running evaluations")
 
 	return cmd
 }
@@ -137,7 +139,7 @@ func (f *evalFlags) runEvalCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	// Run evaluation
-	run, evalErr := evaluation.EvaluateWithName(ctx, teeOut, isTTY, ttyFd, runName, agentFilename, evalsDir, &f.runConfig, f.concurrency, judgeModel, f.only)
+	run, evalErr := evaluation.EvaluateWithName(ctx, teeOut, isTTY, ttyFd, runName, agentFilename, evalsDir, &f.runConfig, f.concurrency, judgeModel, f.only, f.baseImage)
 	if run == nil {
 		return evalErr
 	}

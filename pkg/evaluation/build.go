@@ -17,13 +17,18 @@ var (
 	//go:embed Dockerfile.template
 	dockerfileTmpl string
 
-	dockerfileTemplate = template.Must(template.New("Dockerfile").Parse(dockerfileTmpl))
+	//go:embed Dockerfile.custom.template
+	dockerfileCustomTmpl string
+
+	dockerfileTemplate       = template.Must(template.New("Dockerfile").Parse(dockerfileTmpl))
+	dockerfileCustomTemplate = template.Must(template.New("DockerfileCustom").Parse(dockerfileCustomTmpl))
 )
 
 func (r *Runner) buildEvalImage(ctx context.Context, workingDir string) (string, error) {
 	var buildContext string
 	var data struct {
 		CopyWorkingDir bool
+		BaseImage      string
 	}
 
 	if workingDir == "" {
@@ -37,8 +42,15 @@ func (r *Runner) buildEvalImage(ctx context.Context, workingDir string) (string,
 		data.CopyWorkingDir = true
 	}
 
+	// Choose template based on whether a custom base image is provided
+	tmpl := dockerfileTemplate
+	if r.baseImage != "" {
+		tmpl = dockerfileCustomTemplate
+		data.BaseImage = r.baseImage
+	}
+
 	var dockerfile bytes.Buffer
-	if err := dockerfileTemplate.Execute(&dockerfile, data); err != nil {
+	if err := tmpl.Execute(&dockerfile, data); err != nil {
 		return "", fmt.Errorf("executing dockerfile template: %w", err)
 	}
 
