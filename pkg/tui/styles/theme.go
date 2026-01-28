@@ -346,6 +346,21 @@ func SaveThemeToUserConfig(themeRef string) error {
 	return nil
 }
 
+// GetPersistedThemeRef returns the theme reference persisted in user config.
+// Returns DefaultThemeRef if no theme is set or if loading fails.
+func GetPersistedThemeRef() string {
+	cfg, err := userconfig.Load()
+	if err != nil {
+		return DefaultThemeRef
+	}
+
+	if cfg.Settings == nil || cfg.Settings.Theme == "" {
+		return DefaultThemeRef
+	}
+
+	return cfg.Settings.Theme
+}
+
 // listThemeRefsFrom lists theme refs from a specific directory (for testing).
 // It only returns theme refs found in the directory, without adding any defaults.
 func listThemeRefsFrom(dir string) ([]string, error) {

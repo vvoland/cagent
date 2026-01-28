@@ -400,6 +400,12 @@ func (a *appModel) handleOpenThemePicker() (tea.Model, tea.Cmd) {
 }
 
 func (a *appModel) handleChangeTheme(themeRef string) (tea.Model, tea.Cmd) {
+	// Skip if selecting the already-persisted theme - preview already applied it visually,
+	// so no need for notification, cache invalidation, or re-persisting.
+	if styles.GetPersistedThemeRef() == themeRef {
+		return a, nil
+	}
+
 	// Load and apply the theme
 	theme, err := styles.LoadTheme(themeRef)
 	if err != nil {
@@ -424,6 +430,11 @@ func (a *appModel) handleChangeTheme(themeRef string) (tea.Model, tea.Cmd) {
 
 // handleThemePreview applies a theme temporarily for live preview (without persisting).
 func (a *appModel) handleThemePreview(themeRef string) (tea.Model, tea.Cmd) {
+	// Skip if already on this theme - no need to invalidate caches
+	if current := styles.CurrentTheme(); current != nil && current.Ref == themeRef {
+		return a, nil
+	}
+
 	// Load and apply the theme (without persisting)
 	theme, err := styles.LoadTheme(themeRef)
 	if err != nil {
@@ -439,6 +450,11 @@ func (a *appModel) handleThemePreview(themeRef string) (tea.Model, tea.Cmd) {
 
 // handleThemeCancelPreview restores the original theme when the user cancels the theme picker.
 func (a *appModel) handleThemeCancelPreview(originalRef string) (tea.Model, tea.Cmd) {
+	// Skip if already on the original theme - no need to invalidate caches
+	if current := styles.CurrentTheme(); current != nil && current.Ref == originalRef {
+		return a, nil
+	}
+
 	// Load and apply the original theme
 	theme, err := styles.LoadTheme(originalRef)
 	if err != nil {
