@@ -182,7 +182,8 @@ func (d *commandPaletteDialog) filterCommands() {
 		for _, cmd := range cat.Commands {
 			if strings.Contains(strings.ToLower(cmd.Label), query) ||
 				strings.Contains(strings.ToLower(cmd.Description), query) ||
-				strings.Contains(strings.ToLower(cmd.Category), query) {
+				strings.Contains(strings.ToLower(cmd.Category), query) ||
+				strings.Contains(strings.ToLower(cmd.SlashCommand), query) {
 				d.filtered = append(d.filtered, cmd)
 			}
 		}
