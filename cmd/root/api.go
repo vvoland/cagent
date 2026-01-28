@@ -17,6 +17,41 @@ import (
 	"github.com/docker/cagent/pkg/telemetry"
 )
 
+// shouldMonitorStdin determines if we should monitor stdin for parent process death.
+// This is only meaningful when:
+// 1. We're not running as PID 1 or direct child of init (ppid > 1)
+// 2. stdin is a pipe (indicating we were spawned by a parent with piped stdio)
+//
+// In containers, stdin is typically /dev/null or closed, so we skip monitoring
+// to avoid immediate shutdown.
+func shouldMonitorStdin(ppid int, stdin *os.File) bool {
+	// Skip if running as PID 1 or direct child of init (common in containers/systemd)
+	if ppid <= 1 {
+		slog.Debug("Skipping stdin monitor: running as init or direct child of init", "ppid", ppid)
+		return false
+	}
+
+	if stdin == nil {
+		return false
+	}
+
+	// Check if stdin is a pipe
+	fi, err := stdin.Stat()
+	if err != nil {
+		slog.Debug("Skipping stdin monitor: cannot stat stdin", "error", err)
+		return false
+	}
+
+	// Only monitor if stdin is a pipe (parent process has piped stdio to us)
+	if fi.Mode()&os.ModeNamedPipe == 0 {
+		slog.Debug("Skipping stdin monitor: stdin is not a pipe", "mode", fi.Mode())
+		return false
+	}
+
+	slog.Debug("Enabling stdin monitor: stdin is a pipe from parent process", "ppid", ppid)
+	return true
+}
+
 type apiFlags struct {
 	listenAddr       string
 	sessionDB        string
@@ -79,18 +114,26 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 
 	ctx := cmd.Context()
 
-	// Save stdin before clearing it, so we can monitor for parent death
+	// Save stdin before redirecting it, so we can optionally monitor for parent death
 	stdin := os.Stdin
 
 	out := cli.NewPrinter(cmd.OutOrStdout())
 	agentsPath := args[0]
 
-	// Make sure no question is ever asked to the user in api mode.
-	os.Stdin = nil
+	// Redirect stdin to /dev/null to prevent interactive prompts in API mode.
+	// We use /dev/null instead of nil to avoid panics in code that calls os.Stdin.Fd().
+	devNull, err := os.Open(os.DevNull)
+	if err != nil {
+		slog.Warn("Failed to open /dev/null, setting stdin to nil", "error", err)
+	} else {
+		os.Stdin = devNull
+		defer devNull.Close()
+	}
 
 	// Monitor stdin for EOF to detect parent process death.
-	// When spawned with piped stdio, stdin closes when the parent process dies.
-	if stdin != nil {
+	// Only enabled when stdin is a pipe (indicating we were spawned by a parent process).
+	// In containers, stdin is typically /dev/null or closed, so we skip monitoring.
+	if shouldMonitorStdin(os.Getppid(), stdin) {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
 		defer cancel()
