@@ -139,7 +139,8 @@ func (f *evalFlags) runEvalCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	// Run evaluation
-	run, evalErr := evaluation.EvaluateWithName(ctx, teeOut, isTTY, ttyFd, runName, agentFilename, evalsDir, &f.runConfig, f.concurrency, judgeModel, f.only, f.baseImage)
+	// Pass consoleOut for TTY progress bar, teeOut for results that should go to both console and log
+	run, evalErr := evaluation.EvaluateWithName(ctx, consoleOut, teeOut, isTTY, ttyFd, runName, agentFilename, evalsDir, &f.runConfig, f.concurrency, judgeModel, f.only, f.baseImage)
 	if run == nil {
 		return evalErr
 	}
