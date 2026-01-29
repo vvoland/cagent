@@ -24,6 +24,28 @@ var (
 	dockerfileCustomTemplate = template.Must(template.New("DockerfileCustom").Parse(dockerfileCustomTmpl))
 )
 
+// getOrBuildImage returns a cached image ID or builds a new one.
+// Images are cached by working directory to avoid redundant builds.
+func (r *Runner) getOrBuildImage(ctx context.Context, workingDir string) (string, error) {
+	r.imageCacheMu.Lock()
+	if imageID, ok := r.imageCache[workingDir]; ok {
+		r.imageCacheMu.Unlock()
+		return imageID, nil
+	}
+	r.imageCacheMu.Unlock()
+
+	imageID, err := r.buildEvalImage(ctx, workingDir)
+	if err != nil {
+		return "", err
+	}
+
+	r.imageCacheMu.Lock()
+	r.imageCache[workingDir] = imageID
+	r.imageCacheMu.Unlock()
+
+	return imageID, nil
+}
+
 func (r *Runner) buildEvalImage(ctx context.Context, workingDir string) (string, error) {
 	var buildContext string
 	var data struct {

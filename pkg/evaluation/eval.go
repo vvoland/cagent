@@ -32,6 +32,11 @@ type Runner struct {
 	agentSource config.Source
 	judge       *Judge
 	runConfig   *config.RuntimeConfig
+
+	// imageCache caches built Docker images by working directory.
+	// Key is the working directory (empty string for no working dir).
+	imageCache   map[string]string
+	imageCacheMu sync.Mutex
 }
 
 // newRunner creates a new evaluation runner.
@@ -45,6 +50,7 @@ func newRunner(agentSource config.Source, runConfig *config.RuntimeConfig, judge
 		agentSource: agentSource,
 		judge:       judge,
 		runConfig:   runConfig,
+		imageCache:  make(map[string]string),
 	}
 }
 
@@ -104,6 +110,13 @@ func (r *Runner) Run(ctx context.Context, ttyOut, out io.Writer, isTTY bool) ([]
 	if err != nil {
 		return nil, fmt.Errorf("loading evaluations: %w", err)
 	}
+
+	// Pre-build all unique Docker images in parallel before running evaluations.
+	// This avoids serialized builds when multiple workers need the same image.
+	if err := r.preBuildImages(ctx, out, evals); err != nil {
+		return nil, fmt.Errorf("pre-building images: %w", err)
+	}
+
 	fmt.Fprintf(out, "Running %d evaluations with concurrency %d\n\n", len(evals), r.Concurrency)
 
 	progress := newProgressBar(ttyOut, out, r.TTYFd, len(evals), isTTY)
@@ -199,6 +212,72 @@ func (r *Runner) loadEvalSessions(ctx context.Context) ([]EvalSession, error) {
 	return evals, nil
 }
 
+// preBuildImages pre-builds all unique Docker images needed for the evaluations.
+// This is done in parallel to avoid serialized builds during evaluation.
+func (r *Runner) preBuildImages(ctx context.Context, out io.Writer, evals []EvalSession) error {
+	// Collect unique working directories
+	workingDirs := make(map[string]struct{})
+	for _, eval := range evals {
+		workingDirs[eval.Evals.WorkingDir] = struct{}{}
+	}
+
+	if len(workingDirs) == 0 {
+		return nil
+	}
+
+	fmt.Fprintf(out, "Pre-building %d Docker image(s)...\n", len(workingDirs))
+
+	// Build images in parallel with limited concurrency
+	type buildResult struct {
+		workingDir string
+		err        error
+	}
+
+	work := make(chan string, len(workingDirs))
+	for wd := range workingDirs {
+		work <- wd
+	}
+	close(work)
+
+	results := make(chan buildResult, len(workingDirs))
+
+	// Use same concurrency as evaluation runs for image builds
+	buildWorkers := min(r.Concurrency, len(workingDirs))
+	var wg sync.WaitGroup
+	for range buildWorkers {
+		wg.Go(func() {
+			for wd := range work {
+				if ctx.Err() != nil {
+					results <- buildResult{workingDir: wd, err: ctx.Err()}
+					continue
+				}
+				_, err := r.getOrBuildImage(ctx, wd)
+				results <- buildResult{workingDir: wd, err: err}
+			}
+		})
+	}
+
+	// Wait for all builds to complete
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	// Collect errors
+	var errs []error
+	for result := range results {
+		if result.err != nil {
+			errs = append(errs, fmt.Errorf("building image for %q: %w", result.workingDir, result.err))
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("failed to build %d image(s): %v", len(errs), errs[0])
+	}
+
+	return nil
+}
+
 func (r *Runner) runSingleEval(ctx context.Context, evalSess *EvalSession) (Result, error) {
 	startTime := time.Now()
 	slog.Debug("Starting evaluation", "title", evalSess.Title)
@@ -218,7 +297,7 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *EvalSession) (Resu
 
 	workingDir := evalSess.Evals.WorkingDir
 
-	imageID, err := r.buildEvalImage(ctx, workingDir)
+	imageID, err := r.getOrBuildImage(ctx, workingDir)
 	if err != nil {
 		return result, fmt.Errorf("building eval image: %w", err)
 	}
