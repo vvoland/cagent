@@ -91,17 +91,17 @@ func (p *progressBar) printResult(result Result) {
 
 	// Print session title with icon (to result output, which may be tee'd to log)
 	if success {
-		fmt.Fprintf(p.resultOut, "✓ %s ($%.6f)\n", result.Title, result.Cost)
+		fmt.Fprintf(p.resultOut, "%s %s ($%.6f)\n", p.green("✓"), result.Title, result.Cost)
 	} else {
-		fmt.Fprintf(p.resultOut, "✗ %s ($%.6f)\n", result.Title, result.Cost)
+		fmt.Fprintf(p.resultOut, "%s %s ($%.6f)\n", p.red("✗"), result.Title, result.Cost)
 	}
 
 	// Print successes and failures
 	for _, s := range successes {
-		fmt.Fprintf(p.resultOut, "  ✓ %s\n", s)
+		fmt.Fprintf(p.resultOut, "  %s %s\n", p.green("✓"), s)
 	}
 	for _, f := range failures {
-		fmt.Fprintf(p.resultOut, "  ✗ %s\n", f)
+		fmt.Fprintf(p.resultOut, "  %s %s\n", p.red("✗"), f)
 	}
 }
 
@@ -144,16 +144,7 @@ func (p *progressBar) render(final bool) {
 
 	// Calculate bar width based on terminal size
 	// Reserve space for: "[" + "]" + " 100% (999/999) " + counts (~20) + running info (~30)
-	minBarWidth := 10
-	maxBarWidth := 50
-	reservedSpace := 60
-	barWidth := termWidth - reservedSpace
-	if barWidth < minBarWidth {
-		barWidth = minBarWidth
-	}
-	if barWidth > maxBarWidth {
-		barWidth = maxBarWidth
-	}
+	barWidth := min(max(termWidth-60, 10), 50)
 
 	filledWidth := 0
 	if p.total > 0 {

@@ -12,7 +12,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	goruntime "runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -21,61 +20,46 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/model/provider"
+	"github.com/docker/cagent/pkg/model/provider/options"
 )
 
 // Runner runs evaluations against an agent.
 type Runner struct {
-	agentSource   config.Source
-	evalsDir      string
-	judgeModel    provider.Provider
-	concurrency   int
-	modelsGateway string
-	envProvider   environment.Provider
-	ttyFd         int
-	only          []string
-	baseImage     string
+	Config
+	agentSource config.Source
+	judgeModel  provider.Provider
+	runConfig   *config.RuntimeConfig
 }
 
-// NewRunner creates a new evaluation runner.
-func NewRunner(agentSource config.Source, runConfig *config.RuntimeConfig, evalsDir string, cfg Config) *Runner {
+// newRunner creates a new evaluation runner.
+func newRunner(agentSource config.Source, runConfig *config.RuntimeConfig, judgeModel provider.Provider, cfg Config) *Runner {
 	return &Runner{
-		agentSource:   agentSource,
-		evalsDir:      evalsDir,
-		judgeModel:    cfg.JudgeModel,
-		concurrency:   cmp.Or(cfg.Concurrency, goruntime.NumCPU()),
-		modelsGateway: runConfig.ModelsGateway,
-		envProvider:   runConfig.EnvProvider(),
-		ttyFd:         cfg.TTYFd,
-		only:          cfg.Only,
-		baseImage:     cfg.BaseImage,
+		Config:      cfg,
+		agentSource: agentSource,
+		judgeModel:  judgeModel,
+		runConfig:   runConfig,
 	}
 }
 
-// Evaluate is the main entry point for running evaluations.
+// Evaluate runs evaluations with a specified run name.
 // ttyOut is used for progress bar rendering (should be the console/TTY).
 // out is used for results and status messages (can be tee'd to a log file).
-func Evaluate(ctx context.Context, ttyOut, out io.Writer, isTTY bool, ttyFd int, agentFilename, evalsDir string, runConfig *config.RuntimeConfig, concurrency int, judgeModel provider.Provider, only []string, baseImage string) (*EvalRun, error) {
-	return EvaluateWithName(ctx, ttyOut, out, isTTY, ttyFd, GenerateRunName(), agentFilename, evalsDir, runConfig, concurrency, judgeModel, only, baseImage)
-}
-
-// EvaluateWithName runs evaluations with a specified run name.
-// ttyOut is used for progress bar rendering (should be the console/TTY).
-// out is used for results and status messages (can be tee'd to a log file).
-func EvaluateWithName(ctx context.Context, ttyOut, out io.Writer, isTTY bool, ttyFd int, runName, agentFilename, evalsDir string, runConfig *config.RuntimeConfig, concurrency int, judgeModel provider.Provider, only []string, baseImage string) (*EvalRun, error) {
-	agentSource, err := config.Resolve(agentFilename)
+func Evaluate(ctx context.Context, ttyOut, out io.Writer, isTTY bool, runName string, runConfig *config.RuntimeConfig, cfg Config) (*EvalRun, error) {
+	agentSource, err := config.Resolve(cfg.AgentFilename)
 	if err != nil {
 		return nil, fmt.Errorf("resolving agent: %w", err)
 	}
 
-	runner := NewRunner(agentSource, runConfig, evalsDir, Config{
-		Concurrency: concurrency,
-		JudgeModel:  judgeModel,
-		TTYFd:       ttyFd,
-		Only:        only,
-		BaseImage:   baseImage,
-	})
+	// Create judge model provider for relevance checking
+	judgeModel, err := createJudgeModel(ctx, cfg.JudgeModel, runConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	runner := newRunner(agentSource, runConfig, judgeModel, cfg)
 
 	fmt.Fprintf(out, "Evaluation run: %s\n", runName)
 
@@ -116,9 +100,9 @@ func (r *Runner) Run(ctx context.Context, ttyOut, out io.Writer, isTTY bool) ([]
 	if err != nil {
 		return nil, fmt.Errorf("loading evaluations: %w", err)
 	}
-	fmt.Fprintf(out, "Running %d evaluations with concurrency %d\n\n", len(evals), r.concurrency)
+	fmt.Fprintf(out, "Running %d evaluations with concurrency %d\n\n", len(evals), r.Concurrency)
 
-	progress := newProgressBar(ttyOut, out, r.ttyFd, len(evals), isTTY)
+	progress := newProgressBar(ttyOut, out, r.TTYFd, len(evals), isTTY)
 	progress.start()
 	defer progress.stop()
 
@@ -131,7 +115,7 @@ func (r *Runner) Run(ctx context.Context, ttyOut, out io.Writer, isTTY bool) ([]
 	close(work)
 
 	var wg sync.WaitGroup
-	for range r.concurrency {
+	for range r.Concurrency {
 		wg.Go(func() {
 			for item := range work {
 				if ctx.Err() != nil {
@@ -163,7 +147,7 @@ func (r *Runner) Run(ctx context.Context, ttyOut, out io.Writer, isTTY bool) ([]
 }
 
 func (r *Runner) loadEvalSessions(ctx context.Context) ([]EvalSession, error) {
-	entries, err := os.ReadDir(r.evalsDir)
+	entries, err := os.ReadDir(r.EvalsDir)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +160,7 @@ func (r *Runner) loadEvalSessions(ctx context.Context) ([]EvalSession, error) {
 
 		// Filter by --only patterns against file name if specified
 		fileName := entry.Name()
-		if len(r.only) > 0 && !matchesAnyPattern(fileName, r.only) {
+		if len(r.Only) > 0 && !matchesAnyPattern(fileName, r.Only) {
 			continue
 		}
 
@@ -184,7 +168,7 @@ func (r *Runner) loadEvalSessions(ctx context.Context) ([]EvalSession, error) {
 			continue
 		}
 
-		data, err := os.ReadFile(filepath.Join(r.evalsDir, fileName))
+		data, err := os.ReadFile(filepath.Join(r.EvalsDir, fileName))
 		if err != nil {
 			return nil, err
 		}
@@ -194,7 +178,7 @@ func (r *Runner) loadEvalSessions(ctx context.Context) ([]EvalSession, error) {
 			return nil, err
 		}
 
-		evalSess.SourcePath = filepath.Join(r.evalsDir, fileName)
+		evalSess.SourcePath = filepath.Join(r.EvalsDir, fileName)
 
 		if evalSess.Title == "" {
 			evalSess.Title = strings.TrimSuffix(fileName, ".json")
@@ -205,15 +189,7 @@ func (r *Runner) loadEvalSessions(ctx context.Context) ([]EvalSession, error) {
 
 	// Sort by duration (longest first) to avoid long tail
 	slices.SortFunc(evals, func(a, b EvalSession) int {
-		durA := a.Duration()
-		durB := b.Duration()
-		if durA > durB {
-			return -1
-		}
-		if durA < durB {
-			return 1
-		}
-		return 0
+		return cmp.Compare(b.Duration(), a.Duration())
 	})
 
 	return evals, nil
@@ -231,7 +207,7 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *EvalSession) (Resu
 		RelevanceExpected: float64(len(evalSess.Evals.Relevance)),
 	}
 
-	expectedToolCalls := extractToolCalls(&evalSess.Session)
+	expectedToolCalls := extractToolCalls(evalSess.Messages)
 	if len(expectedToolCalls) > 0 {
 		result.ToolCallsExpected = 1.0
 	}
@@ -285,25 +261,29 @@ func (r *Runner) runCagentInContainer(ctx context.Context, imageID, question str
 		"--name", containerName,
 		"--privileged",
 		"--init",
-		"--rm",
-		"-i",
-		"-v", agentDir + ":/configs:ro",
 	}
+	if !r.KeepContainers {
+		args = append(args, "--rm")
+	}
+	args = append(args,
+		"-i",
+		"-v", agentDir+":/configs:ro",
+	)
 
 	var env []string
 
 	for _, name := range []string{"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "MISTRAL_API_KEY", "XAI_API_KEY", "NEBIUS_API_KEY"} {
-		if val, ok := r.envProvider.Get(ctx, name); ok && val != "" {
+		if val, ok := r.runConfig.EnvProvider().Get(ctx, name); ok && val != "" {
 			args = append(args, "-e", name)
 			env = append(env, name+"="+val)
 		}
 	}
 
-	if r.modelsGateway != "" {
+	if r.runConfig.ModelsGateway != "" {
 		args = append(args, "-e", "CAGENT_MODELS_GATEWAY")
-		env = append(env, "CAGENT_MODELS_GATEWAY="+r.modelsGateway)
+		env = append(env, "CAGENT_MODELS_GATEWAY="+r.runConfig.ModelsGateway)
 
-		if token, ok := r.envProvider.Get(ctx, environment.DockerDesktopTokenEnv); ok && token != "" {
+		if token, ok := r.runConfig.EnvProvider().Get(ctx, environment.DockerDesktopTokenEnv); ok && token != "" {
 			args = append(args, "-e", environment.DockerDesktopTokenEnv)
 			env = append(env, environment.DockerDesktopTokenEnv+"="+token)
 		}
@@ -326,18 +306,9 @@ func (r *Runner) runCagentInContainer(ctx context.Context, imageID, question str
 		return nil, fmt.Errorf("starting docker run: %w", err)
 	}
 
-	var stderrBuf strings.Builder
+	var stderrData []byte
 	go func() {
-		buf := make([]byte, 4096)
-		for {
-			n, err := stderr.Read(buf)
-			if n > 0 {
-				stderrBuf.Write(buf[:n])
-			}
-			if err != nil {
-				break
-			}
-		}
+		stderrData, _ = io.ReadAll(stderr)
 	}()
 
 	var events []map[string]any
@@ -364,11 +335,11 @@ func (r *Runner) runCagentInContainer(ctx context.Context, imageID, question str
 
 	waitErr := cmd.Wait()
 	if waitErr != nil {
-		slog.Debug("Container exited with error", "stderr", stderrBuf.String(), "error", waitErr)
+		slog.Debug("Container exited with error", "stderr", string(stderrData), "error", waitErr)
 	}
 
 	if len(events) == 0 {
-		stderrStr := strings.TrimSpace(stderrBuf.String())
+		stderrStr := strings.TrimSpace(string(stderrData))
 		if waitErr != nil {
 			return nil, fmt.Errorf("container failed: %w (stderr: %s)", waitErr, stderrStr)
 		}
@@ -382,13 +353,14 @@ func (r *Runner) runCagentInContainer(ctx context.Context, imageID, question str
 }
 
 func parseContainerEvents(events []map[string]any) (response string, cost float64, outputTokens int64, toolCalls []string) {
+	var responseBuf strings.Builder
 	for _, event := range events {
 		eventType, _ := event["type"].(string)
 
 		switch eventType {
 		case "agent_choice":
 			if content, ok := event["content"].(string); ok {
-				response += content
+				responseBuf.WriteString(content)
 			}
 		case "tool_call":
 			if tc, ok := event["tool_call"].(map[string]any); ok {
@@ -410,16 +382,43 @@ func parseContainerEvents(events []map[string]any) (response string, cost float6
 		}
 	}
 
-	return response, cost, outputTokens, toolCalls
+	return responseBuf.String(), cost, outputTokens, toolCalls
 }
 
 // matchesAnyPattern returns true if the name contains any of the patterns (case-insensitive).
 func matchesAnyPattern(name string, patterns []string) bool {
 	nameLower := strings.ToLower(name)
-	for _, pattern := range patterns {
-		if strings.Contains(nameLower, strings.ToLower(pattern)) {
-			return true
-		}
+	return slices.ContainsFunc(patterns, func(pattern string) bool {
+		return strings.Contains(nameLower, strings.ToLower(pattern))
+	})
+}
+
+// createJudgeModel creates a provider.Provider from a model string (format: provider/model).
+// Returns nil if judgeModel is empty.
+func createJudgeModel(ctx context.Context, judgeModel string, runConfig *config.RuntimeConfig) (provider.Provider, error) {
+	if judgeModel == "" {
+		return nil, nil
 	}
-	return false
+
+	providerName, model, ok := strings.Cut(judgeModel, "/")
+	if !ok {
+		return nil, fmt.Errorf("invalid judge model format %q: expected 'provider/model'", judgeModel)
+	}
+
+	cfg := &latest.ModelConfig{
+		Provider: providerName,
+		Model:    model,
+	}
+
+	var opts []options.Opt
+	if runConfig.ModelsGateway != "" {
+		opts = append(opts, options.WithGateway(runConfig.ModelsGateway))
+	}
+
+	judge, err := provider.New(ctx, cfg, runConfig.EnvProvider(), opts...)
+	if err != nil {
+		return nil, fmt.Errorf("creating judge model: %w", err)
+	}
+
+	return judge, nil
 }

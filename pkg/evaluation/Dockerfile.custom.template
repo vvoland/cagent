@@ -1,10 +1,6 @@
 # syntax=docker/dockerfile:1
 
 FROM {{.BaseImage}}
-COPY --from=docker/cagent:edge /cagent /
 WORKDIR /working_dir
-ENV TELEMETRY_ENABLED=false
-ENV CAGENT_HIDE_TELEMETRY_BANNER=1
-ENTRYPOINT ["/cagent", "exec", "--yolo", "--json"]
 {{if .CopyWorkingDir}}COPY . ./
 {{end}}
