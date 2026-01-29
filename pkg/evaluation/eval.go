@@ -30,16 +30,20 @@ import (
 type Runner struct {
 	Config
 	agentSource config.Source
-	judgeModel  provider.Provider
+	judge       *Judge
 	runConfig   *config.RuntimeConfig
 }
 
 // newRunner creates a new evaluation runner.
 func newRunner(agentSource config.Source, runConfig *config.RuntimeConfig, judgeModel provider.Provider, cfg Config) *Runner {
+	var judge *Judge
+	if judgeModel != nil {
+		judge = NewJudge(judgeModel, runConfig, cfg.Concurrency)
+	}
 	return &Runner{
 		Config:      cfg,
 		agentSource: agentSource,
-		judgeModel:  judgeModel,
+		judge:       judge,
 		runConfig:   runConfig,
 	}
 }
@@ -238,8 +242,8 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *EvalSession) (Resu
 
 	result.HandoffsMatch = countHandoffs(expectedToolCalls) == countHandoffs(actualToolCalls)
 
-	if r.judgeModel != nil && len(evalSess.Evals.Relevance) > 0 {
-		passed, failed, errs := r.checkRelevance(ctx, result.Response, evalSess.Evals.Relevance)
+	if r.judge != nil && len(evalSess.Evals.Relevance) > 0 {
+		passed, failed, errs := r.judge.CheckRelevance(ctx, result.Response, evalSess.Evals.Relevance)
 		result.RelevancePassed = float64(passed)
 		result.FailedRelevance = failed
 		for _, e := range errs {
