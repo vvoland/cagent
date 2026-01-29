@@ -113,11 +113,12 @@ type EvalRun struct {
 
 // Config holds configuration for evaluation runs.
 type Config struct {
-	JudgeModel  provider.Provider // Model for relevance checking (optional)
-	Concurrency int               // Number of concurrent runs (0 = number of CPUs)
-	TTYFd       int               // File descriptor for terminal size queries (e.g., int(os.Stdout.Fd()))
-	Only        []string          // Only run evaluations matching these patterns
-	BaseImage   string            // Custom base Docker image for running evaluations
+	JudgeModel     provider.Provider // Model for relevance checking (optional)
+	Concurrency    int               // Number of concurrent runs (0 = number of CPUs)
+	TTYFd          int               // File descriptor for terminal size queries (e.g., int(os.Stdout.Fd()))
+	Only           []string          // Only run evaluations matching these patterns
+	BaseImage      string            // Custom base Docker image for running evaluations
+	KeepContainers bool              // If true, don't remove containers after evaluation (skip --rm)
 }
 
 // Session helper functions

@@ -27,54 +27,57 @@ import (
 
 // Runner runs evaluations against an agent.
 type Runner struct {
-	agentSource   config.Source
-	evalsDir      string
-	judgeModel    provider.Provider
-	concurrency   int
-	modelsGateway string
-	envProvider   environment.Provider
-	ttyFd         int
-	only          []string
-	baseImage     string
+	agentSource    config.Source
+	evalsDir       string
+	judgeModel     provider.Provider
+	concurrency    int
+	modelsGateway  string
+	envProvider    environment.Provider
+	ttyFd          int
+	only           []string
+	baseImage      string
+	keepContainers bool
 }
 
 // NewRunner creates a new evaluation runner.
 func NewRunner(agentSource config.Source, runConfig *config.RuntimeConfig, evalsDir string, cfg Config) *Runner {
 	return &Runner{
-		agentSource:   agentSource,
-		evalsDir:      evalsDir,
-		judgeModel:    cfg.JudgeModel,
-		concurrency:   cmp.Or(cfg.Concurrency, goruntime.NumCPU()),
-		modelsGateway: runConfig.ModelsGateway,
-		envProvider:   runConfig.EnvProvider(),
-		ttyFd:         cfg.TTYFd,
-		only:          cfg.Only,
-		baseImage:     cfg.BaseImage,
+		agentSource:    agentSource,
+		evalsDir:       evalsDir,
+		judgeModel:     cfg.JudgeModel,
+		concurrency:    cmp.Or(cfg.Concurrency, goruntime.NumCPU()),
+		modelsGateway:  runConfig.ModelsGateway,
+		envProvider:    runConfig.EnvProvider(),
+		ttyFd:          cfg.TTYFd,
+		only:           cfg.Only,
+		baseImage:      cfg.BaseImage,
+		keepContainers: cfg.KeepContainers,
 	}
 }
 
 // Evaluate is the main entry point for running evaluations.
 // ttyOut is used for progress bar rendering (should be the console/TTY).
 // out is used for results and status messages (can be tee'd to a log file).
-func Evaluate(ctx context.Context, ttyOut, out io.Writer, isTTY bool, ttyFd int, agentFilename, evalsDir string, runConfig *config.RuntimeConfig, concurrency int, judgeModel provider.Provider, only []string, baseImage string) (*EvalRun, error) {
-	return EvaluateWithName(ctx, ttyOut, out, isTTY, ttyFd, GenerateRunName(), agentFilename, evalsDir, runConfig, concurrency, judgeModel, only, baseImage)
+func Evaluate(ctx context.Context, ttyOut, out io.Writer, isTTY bool, ttyFd int, agentFilename, evalsDir string, runConfig *config.RuntimeConfig, concurrency int, judgeModel provider.Provider, only []string, baseImage string, keepContainers bool) (*EvalRun, error) {
+	return EvaluateWithName(ctx, ttyOut, out, isTTY, ttyFd, GenerateRunName(), agentFilename, evalsDir, runConfig, concurrency, judgeModel, only, baseImage, keepContainers)
 }
 
 // EvaluateWithName runs evaluations with a specified run name.
 // ttyOut is used for progress bar rendering (should be the console/TTY).
 // out is used for results and status messages (can be tee'd to a log file).
-func EvaluateWithName(ctx context.Context, ttyOut, out io.Writer, isTTY bool, ttyFd int, runName, agentFilename, evalsDir string, runConfig *config.RuntimeConfig, concurrency int, judgeModel provider.Provider, only []string, baseImage string) (*EvalRun, error) {
+func EvaluateWithName(ctx context.Context, ttyOut, out io.Writer, isTTY bool, ttyFd int, runName, agentFilename, evalsDir string, runConfig *config.RuntimeConfig, concurrency int, judgeModel provider.Provider, only []string, baseImage string, keepContainers bool) (*EvalRun, error) {
 	agentSource, err := config.Resolve(agentFilename)
 	if err != nil {
 		return nil, fmt.Errorf("resolving agent: %w", err)
 	}
 
 	runner := NewRunner(agentSource, runConfig, evalsDir, Config{
-		Concurrency: concurrency,
-		JudgeModel:  judgeModel,
-		TTYFd:       ttyFd,
-		Only:        only,
-		BaseImage:   baseImage,
+		Concurrency:    concurrency,
+		JudgeModel:     judgeModel,
+		TTYFd:          ttyFd,
+		Only:           only,
+		BaseImage:      baseImage,
+		KeepContainers: keepContainers,
 	})
 
 	fmt.Fprintf(out, "Evaluation run: %s\n", runName)
@@ -285,10 +288,14 @@ func (r *Runner) runCagentInContainer(ctx context.Context, imageID, question str
 		"--name", containerName,
 		"--privileged",
 		"--init",
-		"--rm",
-		"-i",
-		"-v", agentDir + ":/configs:ro",
 	}
+	if !r.keepContainers {
+		args = append(args, "--rm")
+	}
+	args = append(args,
+		"-i",
+		"-v", agentDir+":/configs:ro",
+	)
 
 	var env []string
 

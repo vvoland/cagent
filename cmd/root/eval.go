@@ -23,12 +23,13 @@ import (
 const defaultJudgeModel = "anthropic/claude-opus-4-5-20251101"
 
 type evalFlags struct {
-	runConfig   config.RuntimeConfig
-	concurrency int
-	judgeModel  string
-	outputDir   string
-	only        []string
-	baseImage   string
+	runConfig      config.RuntimeConfig
+	concurrency    int
+	judgeModel     string
+	outputDir      string
+	only           []string
+	baseImage      string
+	keepContainers bool
 }
 
 func newEvalCmd() *cobra.Command {
@@ -48,6 +49,7 @@ func newEvalCmd() *cobra.Command {
 	cmd.Flags().StringVar(&flags.outputDir, "output", "", "Directory for results and logs (default: <eval-dir>/results)")
 	cmd.Flags().StringSliceVar(&flags.only, "only", nil, "Only run evaluations with file names matching these patterns (can be specified multiple times)")
 	cmd.Flags().StringVar(&flags.baseImage, "base-image", "", "Custom base Docker image for running evaluations")
+	cmd.Flags().BoolVar(&flags.keepContainers, "keep-containers", false, "Keep containers after evaluation (don't use --rm)")
 
 	return cmd
 }
@@ -140,7 +142,7 @@ func (f *evalFlags) runEvalCommand(cmd *cobra.Command, args []string) error {
 
 	// Run evaluation
 	// Pass consoleOut for TTY progress bar, teeOut for results that should go to both console and log
-	run, evalErr := evaluation.EvaluateWithName(ctx, consoleOut, teeOut, isTTY, ttyFd, runName, agentFilename, evalsDir, &f.runConfig, f.concurrency, judgeModel, f.only, f.baseImage)
+	run, evalErr := evaluation.EvaluateWithName(ctx, consoleOut, teeOut, isTTY, ttyFd, runName, agentFilename, evalsDir, &f.runConfig, f.concurrency, judgeModel, f.only, f.baseImage, f.keepContainers)
 	if run == nil {
 		return evalErr
 	}
