@@ -79,7 +79,7 @@ func (r *Runner) checkSingleRelevance(ctx context.Context, response, criterion s
 	judgeWithSchema, err := provider.New(
 		ctx,
 		&modelCfg,
-		r.envProvider,
+		r.runConfig.EnvProvider(),
 		options.WithStructuredOutput(judgeResponseSchema),
 	)
 	if err != nil {

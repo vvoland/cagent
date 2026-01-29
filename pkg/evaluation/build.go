@@ -32,10 +32,10 @@ func (r *Runner) buildEvalImage(ctx context.Context, workingDir string) (string,
 	}
 
 	if workingDir == "" {
-		buildContext = r.evalsDir
+		buildContext = r.EvalsDir
 		data.CopyWorkingDir = false
 	} else {
-		buildContext = filepath.Join(r.evalsDir, "working_dirs", workingDir)
+		buildContext = filepath.Join(r.EvalsDir, "working_dirs", workingDir)
 		if _, err := os.Stat(buildContext); os.IsNotExist(err) {
 			return "", fmt.Errorf("working directory not found: %s", buildContext)
 		}
@@ -44,9 +44,9 @@ func (r *Runner) buildEvalImage(ctx context.Context, workingDir string) (string,
 
 	// Choose template based on whether a custom base image is provided
 	tmpl := dockerfileTemplate
-	if r.baseImage != "" {
+	if r.BaseImage != "" {
 		tmpl = dockerfileCustomTemplate
-		data.BaseImage = r.baseImage
+		data.BaseImage = r.BaseImage
 	}
 
 	var dockerfile bytes.Buffer
