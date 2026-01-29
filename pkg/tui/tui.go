@@ -59,6 +59,7 @@ type appModel struct {
 // KeyMap defines global key bindings
 type KeyMap struct {
 	Quit                  key.Binding
+	Suspend               key.Binding
 	CommandPalette        key.Binding
 	ToggleYolo            key.Binding
 	ToggleHideToolResults key.Binding
@@ -74,6 +75,10 @@ func DefaultKeyMap() KeyMap {
 		Quit: key.NewBinding(
 			key.WithKeys("ctrl+c"),
 			key.WithHelp("Ctrl+c", "quit"),
+		),
+		Suspend: key.NewBinding(
+			key.WithKeys("ctrl+z"),
+			key.WithHelp("Ctrl+z", "suspend"),
 		),
 		CommandPalette: key.NewBinding(
 			key.WithKeys("ctrl+p"),
@@ -582,6 +587,9 @@ func (a *appModel) handleKeyPressMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return a, core.CmdHandler(dialog.OpenDialogMsg{
 			Model: dialog.NewExitConfirmationDialog(),
 		})
+
+	case key.Matches(msg, a.keyMap.Suspend):
+		return a, tea.Suspend
 
 	case key.Matches(msg, a.keyMap.CommandPalette):
 		categories := commands.BuildCommandCategories(context.Background(), a.application)
