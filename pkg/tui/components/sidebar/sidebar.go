@@ -8,6 +8,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
@@ -71,6 +72,9 @@ type Model interface {
 	SetPreferredWidth(width int)
 	// ClampWidth ensures width is within valid bounds for the given window width
 	ClampWidth(width, windowInnerWidth int) int
+	// HandleTitleClick handles a click on the title area and returns true if
+	// edit mode should start (on double-click)
+	HandleTitleClick() bool
 	// BeginTitleEdit starts inline editing of the session title
 	BeginTitleEdit()
 	// IsEditingTitle returns true if the title is being edited
@@ -130,6 +134,7 @@ type model struct {
 	preferredWidth     int      // user's preferred width (persisted across collapse/expand)
 	editingTitle       bool     // true when inline title editing is active
 	titleInput         textinput.Model
+	lastTitleClickTime time.Time // for double-click detection on title
 }
 
 // Option is a functional option for configuring the sidebar.
@@ -284,11 +289,8 @@ type ClickResult int
 const (
 	ClickNone ClickResult = iota
 	ClickStar
-	ClickPencil
+	ClickTitle // Click on the title area (use double-click to edit)
 )
-
-// pencilIconWidth is the click target width for the pencil edit icon (includes padding)
-const pencilIconWidth = 3 // " ✎" = space + pencil character
 
 // HandleClick checks if click is on the star or title and returns true if it was
 // x and y are coordinates relative to the sidebar's top-left corner
@@ -297,48 +299,65 @@ func (m *model) HandleClick(x, y int) bool {
 	return m.HandleClickType(x, y) != ClickNone
 }
 
-// HandleClickType returns what was clicked (star, pencil icon, or nothing)
+// HandleClickType returns what was clicked (star, title, or nothing)
 func (m *model) HandleClickType(x, y int) ClickResult {
 	// Account for left padding
 	adjustedX := x - m.layoutCfg.PaddingLeft
+	if adjustedX < 0 {
+		return ClickNone
+	}
 
 	if m.mode == ModeCollapsed {
-		// In collapsed mode, star is at the beginning of first line (y=0)
-		if y == 0 {
-			if m.sessionHasContent && adjustedX >= 0 && adjustedX <= starClickWidth {
+		// In collapsed mode, title starts at line 0
+		titleLines := m.titleLineCount()
+
+		// Check if click is within the title area (line 0 to titleLines-1)
+		if y >= 0 && y < titleLines {
+			// Check if click is on the star (first line only, first few chars)
+			if y == 0 && m.sessionHasContent && adjustedX <= starClickWidth {
 				return ClickStar
 			}
-			// Check if click is on pencil icon (at the end of the title line)
-			// Pencil is only shown when title has been generated
-			if m.titleGenerated {
-				starWidth := lipgloss.Width(m.starIndicator())
-				titleWidth := lipgloss.Width(m.sessionTitle)
-				pencilStart := starWidth + titleWidth
-				if adjustedX >= pencilStart && adjustedX < pencilStart+pencilIconWidth {
-					return ClickPencil
-				}
+			// Click is on title area (for double-click to edit)
+			if m.titleGenerated && !m.editingTitle {
+				return ClickTitle
 			}
 		}
 		return ClickNone
 	}
 
-	// In vertical mode, the title line is at verticalStarY
-	if y == verticalStarY {
-		if m.sessionHasContent && adjustedX >= 0 && adjustedX <= starClickWidth {
+	// In vertical mode, the title starts at verticalStarY
+	scrollOffset := m.scrollbar.GetScrollOffset()
+	contentY := y + scrollOffset // Convert viewport Y to content Y
+	titleLines := m.titleLineCount()
+
+	// Check if click is within the title area
+	if contentY >= verticalStarY && contentY < verticalStarY+titleLines {
+		// Check if click is on the star (first line only, first few chars)
+		if contentY == verticalStarY && m.sessionHasContent && adjustedX <= starClickWidth {
 			return ClickStar
 		}
-		// Check if click is on pencil icon (at the end of the title line)
-		// Pencil is only shown when title has been generated
-		if m.titleGenerated {
-			starWidth := lipgloss.Width(m.starIndicator())
-			titleWidth := lipgloss.Width(m.sessionTitle)
-			pencilStart := starWidth + titleWidth
-			if adjustedX >= pencilStart && adjustedX < pencilStart+pencilIconWidth {
-				return ClickPencil
-			}
+		// Click is on title area (for double-click to edit)
+		if m.titleGenerated && !m.editingTitle {
+			return ClickTitle
 		}
 	}
 	return ClickNone
+}
+
+// titleLineCount returns the number of lines the title occupies when rendered.
+func (m *model) titleLineCount() int {
+	if !m.titleGenerated || m.sessionTitle == "" {
+		return 1
+	}
+	contentWidth := m.contentWidth(false)
+	if contentWidth <= 0 {
+		return 1
+	}
+	// Calculate width: star + title
+	starWidth := lipgloss.Width(m.starIndicator())
+	titleWidth := lipgloss.Width(m.sessionTitle)
+	totalWidth := starWidth + titleWidth
+	return max(1, (totalWidth+contentWidth-1)/contentWidth)
 }
 
 // LoadFromSession loads sidebar state from a restored session
@@ -656,12 +675,7 @@ func (m *model) computeCollapsedLayout(contentWidth int) collapsedLayout {
 		titleWithStar = star + m.titleInput.View()
 	case m.titleRegenerating:
 		titleWithStar = star + m.spinner.View() + styles.MutedStyle.Render(" Generating title…")
-	case m.titleGenerated:
-		// Title has been generated - show with pencil icon
-		pencilIcon := styles.MutedStyle.Render(" ✎")
-		titleWithStar = star + m.sessionTitle + pencilIcon
 	default:
-		// Title not yet generated - show without pencil icon
 		titleWithStar = star + m.sessionTitle
 	}
 	h := collapsedLayout{
@@ -993,12 +1007,7 @@ func (m *model) sessionInfo(contentWidth int) string {
 	case m.titleRegenerating:
 		// Show spinner while regenerating title
 		titleLine = star + m.spinner.View() + styles.MutedStyle.Render(" Generating title…")
-	case m.titleGenerated:
-		// Title has been generated - show with pencil icon for editing
-		pencilIcon := styles.MutedStyle.Render(" ✎")
-		titleLine = star + m.sessionTitle + pencilIcon
 	default:
-		// Title not yet generated - show title without pencil icon
 		titleLine = star + m.sessionTitle
 	}
 
@@ -1260,10 +1269,32 @@ func (m *model) ClampWidth(width, windowInnerWidth int) int {
 	return max(MinWidth, min(width, maxWidth))
 }
 
+// HandleTitleClick handles a click on the title area and returns true if
+// edit mode should start (on double-click).
+func (m *model) HandleTitleClick() bool {
+	now := time.Now()
+	if now.Sub(m.lastTitleClickTime) < styles.DoubleClickThreshold {
+		m.lastTitleClickTime = time.Time{} // Reset to prevent triple-click
+		return true
+	}
+	m.lastTitleClickTime = now
+	return false
+}
+
 // BeginTitleEdit starts inline editing of the session title
 func (m *model) BeginTitleEdit() {
 	m.editingTitle = true
 	m.titleInput.SetValue(m.sessionTitle)
+
+	// Calculate and set the input width based on current sidebar width
+	contentWidth := m.contentWidth(false)
+	starWidth := lipgloss.Width(m.starIndicator())
+	inputWidth := contentWidth - starWidth - 1
+	if inputWidth < 10 {
+		inputWidth = 10 // Minimum usable width
+	}
+	m.titleInput.SetWidth(inputWidth)
+
 	m.titleInput.Focus()
 	m.titleInput.CursorEnd()
 }

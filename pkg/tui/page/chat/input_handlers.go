@@ -130,8 +130,11 @@ func (p *chatPage) handleMouseClick(msg tea.MouseClickMsg) (layout.Model, tea.Cm
 				return p, core.CmdHandler(msgtypes.ToggleSessionStarMsg{SessionID: sess.ID})
 			}
 			return p, nil
-		case sidebar.ClickPencil:
-			p.sidebar.BeginTitleEdit()
+		case sidebar.ClickTitle:
+			// Double-click on title to edit
+			if p.sidebar.HandleTitleClick() {
+				p.sidebar.BeginTitleEdit()
+			}
 			return p, nil
 		}
 	}

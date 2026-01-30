@@ -100,22 +100,20 @@ func TestSidebar_HandleClickType(t *testing.T) {
 	result := sb.HandleClickType(paddingLeft+1, verticalStarY)
 	assert.Equal(t, ClickStar, result, "click on star area should return ClickStar")
 
-	// Click on the pencil icon area (at the end of title)
-	// For sessionHasContent=true, star indicator is "☆ " (2 chars)
-	// Set a short title so we can calculate the pencil position
+	// Set up a title with titleGenerated=true so ClickTitle can be returned
 	m.sessionTitle = "Hi"
-	m.titleGenerated = true // Pencil only shows when title has been generated
-	// Star "☆ " = 2 chars, title "Hi" = 2 chars, pencil " ✎" starts at position 4
-	// Add padding to get raw x coordinate
-	pencilX := paddingLeft + 4
-	result = sb.HandleClickType(pencilX, verticalStarY)
-	assert.Equal(t, ClickPencil, result, "click on pencil icon should return ClickPencil")
+	m.titleGenerated = true
 
-	// Click on the title text (not the star, not the pencil) should return ClickNone
-	// Star ends at position 2, title starts at 2 and ends at 4
+	// Click anywhere on the title area (after star) should return ClickTitle
+	// Star "☆ " = 2 chars, so title area starts at position 2
 	titleX := paddingLeft + 3 // middle of title
 	result = sb.HandleClickType(titleX, verticalStarY)
-	assert.Equal(t, ClickNone, result, "click on title text (not pencil) should return ClickNone")
+	assert.Equal(t, ClickTitle, result, "click on title area should return ClickTitle")
+
+	// Click at the end (where pencil icon is) should also return ClickTitle
+	pencilX := paddingLeft + 4
+	result = sb.HandleClickType(pencilX, verticalStarY)
+	assert.Equal(t, ClickTitle, result, "click on pencil icon area should return ClickTitle")
 
 	// Click elsewhere (wrong y)
 	result = sb.HandleClickType(10, 0)
@@ -148,4 +146,112 @@ func TestSidebar_TitleRegenerating(t *testing.T) {
 	assert.False(t, m.titleRegenerating, "should not be regenerating after SetTitleRegenerating(false)")
 	assert.False(t, m.needsSpinner(), "should not need spinner after stopping regeneration")
 	assert.Nil(t, cmd, "should return nil command when stopping")
+}
+
+func TestSidebar_HandleClickType_WrappedTitle_Collapsed(t *testing.T) {
+	t.Parallel()
+
+	sess := session.New()
+	sessionState := service.NewSessionState(sess)
+	sb := New(sessionState)
+
+	m := sb.(*model)
+	m.sessionHasContent = true
+	m.titleGenerated = true
+	m.mode = ModeCollapsed
+
+	// Set a narrow width that will cause wrapping
+	m.width = 10
+
+	// Use a title long enough to wrap: "☆ " (2) + "LongTitle" (9) + " ✎" (2) = 13 chars
+	m.sessionTitle = "LongTitle"
+
+	paddingLeft := m.layoutCfg.PaddingLeft // 1
+
+	// Title wraps to multiple lines - clicks on any title line should return ClickTitle
+	titleLines := m.titleLineCount()
+	assert.Greater(t, titleLines, 1, "title should wrap to multiple lines")
+
+	// Click on line 0 (first title line) after star should return ClickTitle
+	result := sb.HandleClickType(paddingLeft+3, 0)
+	assert.Equal(t, ClickTitle, result, "click on first title line should return ClickTitle")
+
+	// Click on line 1 (wrapped title line) should also return ClickTitle
+	result = sb.HandleClickType(paddingLeft+1, 1)
+	assert.Equal(t, ClickTitle, result, "click on wrapped title line should return ClickTitle")
+
+	// Star should still be clickable on line 0
+	result = sb.HandleClickType(paddingLeft+1, 0)
+	assert.Equal(t, ClickStar, result, "star should still be clickable on line 0")
+}
+
+func TestSidebar_HandleClickType_WrappedTitle_Vertical(t *testing.T) {
+	t.Parallel()
+
+	sess := session.New()
+	sessionState := service.NewSessionState(sess)
+	sb := New(sessionState)
+
+	m := sb.(*model)
+	m.sessionHasContent = true
+	m.titleGenerated = true
+	m.mode = ModeVertical
+
+	// Set a narrow width that will cause wrapping
+	m.width = 10
+
+	// Use a title long enough to wrap
+	m.sessionTitle = "LongTitle"
+
+	paddingLeft := m.layoutCfg.PaddingLeft // 1
+
+	// Title wraps to multiple lines
+	titleLines := m.titleLineCount()
+	assert.Greater(t, titleLines, 1, "title should wrap to multiple lines")
+
+	// In vertical mode, title starts at verticalStarY
+	// Click on verticalStarY (first title line) after star should return ClickTitle
+	result := sb.HandleClickType(paddingLeft+3, verticalStarY)
+	assert.Equal(t, ClickTitle, result, "click on first title line should return ClickTitle")
+
+	// Click on verticalStarY+1 (wrapped title line) should also return ClickTitle
+	result = sb.HandleClickType(paddingLeft+1, verticalStarY+1)
+	assert.Equal(t, ClickTitle, result, "click on wrapped title line should return ClickTitle")
+
+	// Star should still be clickable on verticalStarY
+	result = sb.HandleClickType(paddingLeft+1, verticalStarY)
+	assert.Equal(t, ClickStar, result, "star should still be clickable on verticalStarY")
+}
+
+func TestSidebar_HandleClickType_NoWrap(t *testing.T) {
+	t.Parallel()
+
+	sess := session.New()
+	sessionState := service.NewSessionState(sess)
+	sb := New(sessionState)
+
+	m := sb.(*model)
+	m.sessionHasContent = true
+	m.titleGenerated = true
+	m.mode = ModeVertical
+
+	// Use a wide enough width that title won't wrap
+	m.width = 50
+
+	// Short title that won't wrap
+	m.sessionTitle = "Hi"
+
+	paddingLeft := m.layoutCfg.PaddingLeft
+
+	// Title should be on a single line
+	titleLines := m.titleLineCount()
+	assert.Equal(t, 1, titleLines, "title should be on single line when it doesn't wrap")
+
+	// Click on the title area should return ClickTitle
+	result := sb.HandleClickType(paddingLeft+3, verticalStarY)
+	assert.Equal(t, ClickTitle, result, "click on title should return ClickTitle")
+
+	// Star should still be clickable
+	result = sb.HandleClickType(paddingLeft+1, verticalStarY)
+	assert.Equal(t, ClickStar, result, "star should still be clickable")
 }
