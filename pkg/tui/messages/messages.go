@@ -16,6 +16,7 @@ type (
 	CopyLastResponseToClipboardMsg struct{}
 	ExportSessionMsg               struct{ Filename string }
 	ShowCostDialogMsg              struct{}
+	ShowPermissionsDialogMsg       struct{}
 	ToggleYoloMsg                  struct{}
 	ToggleThinkingMsg              struct{}
 	ToggleHideToolResultsMsg       struct{}

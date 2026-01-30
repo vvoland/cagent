@@ -274,6 +274,17 @@ func (a *appModel) handleShowCostDialog() (tea.Model, tea.Cmd) {
 	})
 }
 
+// Permissions
+
+func (a *appModel) handleShowPermissionsDialog() (tea.Model, tea.Cmd) {
+	perms := a.application.PermissionsInfo()
+	sess := a.application.Session()
+	yoloEnabled := sess != nil && sess.ToolsApproved
+	return a, core.CmdHandler(dialog.OpenDialogMsg{
+		Model: dialog.NewPermissionsDialog(perms, yoloEnabled),
+	})
+}
+
 // MCP prompt handlers
 
 func (a *appModel) handleShowMCPPromptInput(promptName string, promptInfo any) (tea.Model, tea.Cmd) {

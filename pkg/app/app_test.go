@@ -41,7 +41,8 @@ func (m *mockRuntime) ResumeElicitation(ctx context.Context, action tools.Elicit
 func (m *mockRuntime) SessionStore() session.Store { return nil }
 func (m *mockRuntime) Summarize(ctx context.Context, sess *session.Session, additionalPrompt string, events chan runtime.Event) {
 }
-func (m *mockRuntime) Stop() {}
+func (m *mockRuntime) PermissionsInfo() *runtime.PermissionsInfo { return nil }
+func (m *mockRuntime) Stop()                                     {}
 
 // Verify mockRuntime implements runtime.Runtime
 var _ runtime.Runtime = (*mockRuntime)(nil)
