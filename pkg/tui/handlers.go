@@ -28,6 +28,13 @@ import (
 
 // Session management handlers
 
+func (a *appModel) applyKeyboardEnhancements() {
+	if a.keyboardEnhancements != nil {
+		updated, _ := a.chatPage.Update(*a.keyboardEnhancements)
+		a.chatPage = updated.(chat.Page)
+	}
+}
+
 func (a *appModel) handleNewSession() (tea.Model, tea.Cmd) {
 	// Theme is now global - no per-session theme reset needed
 	a.application.NewSession()
@@ -35,7 +42,7 @@ func (a *appModel) handleNewSession() (tea.Model, tea.Cmd) {
 	a.sessionState = service.NewSessionState(sess)
 	a.chatPage = chat.New(a.application, a.sessionState)
 	a.dialog = dialog.New()
-	a.statusBar.SetHelp(a.chatPage)
+	a.applyKeyboardEnhancements()
 
 	return a, tea.Batch(
 		a.Init(),
@@ -82,7 +89,7 @@ func (a *appModel) handleLoadSession(sessionID string) (tea.Model, tea.Cmd) {
 	a.sessionState = service.NewSessionState(sess)
 	a.chatPage = chat.New(a.application, a.sessionState)
 	a.dialog = dialog.New()
-	a.statusBar.SetHelp(a.chatPage)
+	a.applyKeyboardEnhancements()
 
 	return a, tea.Batch(
 		a.Init(),
