@@ -104,7 +104,8 @@ func (d *ElicitationDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 func (d *ElicitationDialog) handleKeyPress(msg tea.KeyPressMsg) (layout.Model, tea.Cmd) {
 	switch {
-	case key.Matches(msg, d.keyMap.Space):
+	case key.Matches(msg, d.keyMap.Space) && !d.isTextInputField():
+		// Only handle space for boolean/enum fields; let it pass through to text input otherwise
 		d.toggleCurrentSelection()
 		return d, nil
 	case key.Matches(msg, d.keyMap.Escape):
