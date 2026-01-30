@@ -325,6 +325,47 @@ func (a *App) Session() *session.Session {
 	return a.session
 }
 
+// PermissionsInfo returns combined permissions info from team and session.
+// Returns nil if no permissions are configured at either level.
+func (a *App) PermissionsInfo() *runtime.PermissionsInfo {
+	// Get team-level permissions from runtime
+	teamPerms := a.runtime.PermissionsInfo()
+
+	// Get session-level permissions
+	var sessionPerms *runtime.PermissionsInfo
+	if a.session != nil && a.session.Permissions != nil {
+		if len(a.session.Permissions.Allow) > 0 || len(a.session.Permissions.Deny) > 0 {
+			sessionPerms = &runtime.PermissionsInfo{
+				Allow: a.session.Permissions.Allow,
+				Deny:  a.session.Permissions.Deny,
+			}
+		}
+	}
+
+	// Return nil if no permissions configured at any level
+	if teamPerms == nil && sessionPerms == nil {
+		return nil
+	}
+
+	// Merge permissions, with session taking priority (listed first)
+	result := &runtime.PermissionsInfo{}
+	if sessionPerms != nil {
+		result.Allow = append(result.Allow, sessionPerms.Allow...)
+		result.Deny = append(result.Deny, sessionPerms.Deny...)
+	}
+	if teamPerms != nil {
+		result.Allow = append(result.Allow, teamPerms.Allow...)
+		result.Deny = append(result.Deny, teamPerms.Deny...)
+	}
+
+	return result
+}
+
+// HasPermissions returns true if any permissions are configured (team or session level).
+func (a *App) HasPermissions() bool {
+	return a.PermissionsInfo() != nil
+}
+
 // SwitchAgent switches the currently active agent for subsequent user messages
 func (a *App) SwitchAgent(agentName string) error {
 	return a.runtime.SetCurrentAgent(agentName)

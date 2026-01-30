@@ -411,6 +411,11 @@ func (r *RemoteRuntime) SessionStore() session.Store {
 	return nil
 }
 
+// PermissionsInfo returns nil for remote runtime since permissions are handled server-side.
+func (r *RemoteRuntime) PermissionsInfo() *PermissionsInfo {
+	return nil
+}
+
 // ResetStartupInfo is a no-op for remote runtime.
 func (r *RemoteRuntime) ResetStartupInfo() {
 }

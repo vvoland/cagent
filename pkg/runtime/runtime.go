@@ -141,6 +141,16 @@ type Runtime interface {
 
 	// Summarize generates a summary for the session
 	Summarize(ctx context.Context, sess *session.Session, additionalPrompt string, events chan Event)
+
+	// PermissionsInfo returns the team-level permission patterns (allow/deny).
+	// Returns nil if no permissions are configured.
+	PermissionsInfo() *PermissionsInfo
+}
+
+// PermissionsInfo contains the allow and deny patterns for tool permissions.
+type PermissionsInfo struct {
+	Allow []string
+	Deny  []string
 }
 
 type CurrentAgentInfo struct {
@@ -544,6 +554,19 @@ func (r *LocalRuntime) agentDetailsFromTeam() []AgentDetails {
 // SessionStore returns the session store for browsing/loading past sessions.
 func (r *LocalRuntime) SessionStore() session.Store {
 	return r.sessionStore
+}
+
+// PermissionsInfo returns the team-level permission patterns.
+// Returns nil if no permissions are configured.
+func (r *LocalRuntime) PermissionsInfo() *PermissionsInfo {
+	permChecker := r.team.Permissions()
+	if permChecker == nil || permChecker.IsEmpty() {
+		return nil
+	}
+	return &PermissionsInfo{
+		Allow: permChecker.AllowPatterns(),
+		Deny:  permChecker.DenyPatterns(),
+	}
 }
 
 // ResetStartupInfo resets the startup info emission flag.

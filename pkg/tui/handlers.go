@@ -274,6 +274,15 @@ func (a *appModel) handleShowCostDialog() (tea.Model, tea.Cmd) {
 	})
 }
 
+// Permissions
+
+func (a *appModel) handleShowPermissionsDialog() (tea.Model, tea.Cmd) {
+	perms := a.application.PermissionsInfo()
+	return a, core.CmdHandler(dialog.OpenDialogMsg{
+		Model: dialog.NewPermissionsDialog(perms),
+	})
+}
+
 // MCP prompt handlers
 
 func (a *appModel) handleShowMCPPromptInput(promptName string, promptInfo any) (tea.Model, tea.Cmd) {
