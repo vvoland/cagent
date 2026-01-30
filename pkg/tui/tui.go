@@ -52,6 +52,10 @@ type appModel struct {
 	themeWatcherEventCh  chan string // Channel for theme file change events (carries themeRef)
 	themeListenerStarted bool        // Guard to prevent multiple listeners
 
+	// keyboardEnhancements stores the last keyboard enhancements message from the terminal.
+	// This is reapplied to new chat/editor instances when sessions are switched.
+	keyboardEnhancements *tea.KeyboardEnhancementsMsg
+
 	ready bool
 	err   error
 }
@@ -255,6 +259,8 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, cmd
 
 	case tea.KeyboardEnhancementsMsg:
+		// Store the keyboard enhancements message so we can reapply it to new chat pages
+		a.keyboardEnhancements = &msg
 		updated, cmd := a.chatPage.Update(msg)
 		a.chatPage = updated.(chat.Page)
 		return a, cmd
