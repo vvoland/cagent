@@ -137,9 +137,6 @@ func (d *permissionsDialog) renderContent(contentWidth, maxHeight int) string {
 		}
 	}
 
-	// Add help about evaluation order
-	lines = append(lines, styles.MutedStyle.Render("Evaluation: Deny → Allow → Yolo → Ask"), "")
-
 	// Apply scrolling
 	return d.applyScrolling(lines, contentWidth, maxHeight)
 }
