@@ -21,12 +21,14 @@ var compactionSystemPrompt string
 var compactionUserPrompt string
 
 type sessionCompactor struct {
-	model provider.Provider
+	model        provider.Provider
+	sessionStore session.Store
 }
 
-func newSessionCompactor(model provider.Provider) *sessionCompactor {
+func newSessionCompactor(model provider.Provider, sessionStore session.Store) *sessionCompactor {
 	return &sessionCompactor{
-		model: model,
+		model:        model,
+		sessionStore: sessionStore,
 	}
 }
 
@@ -86,6 +88,7 @@ func (c *sessionCompactor) Compact(ctx context.Context, sess *session.Session, a
 	}
 
 	sess.Messages = append(sess.Messages, session.Item{Summary: summary})
+	_ = c.sessionStore.UpdateSession(ctx, sess)
 
 	slog.Debug("Generated session summary", "session_id", sess.ID, "summary_length", len(summary))
 	events <- SessionSummary(sess.ID, summary, agentName)

@@ -50,6 +50,9 @@ func (m *mockRuntime) Summarize(context.Context, *session.Session, string, chan 
 }
 func (m *mockRuntime) PermissionsInfo() *PermissionsInfo { return nil }
 
+func (m *mockRuntime) RegenerateTitle(context.Context, *session.Session, chan Event) {
+}
+
 func TestResolveCommand_SimpleCommand(t *testing.T) {
 	t.Parallel()
 
