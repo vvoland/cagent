@@ -17,6 +17,7 @@ import (
 type permissionsDialog struct {
 	BaseDialog
 	permissions *runtime.PermissionsInfo
+	yoloEnabled bool
 	keyMap      permissionsDialogKeyMap
 	offset      int
 }
@@ -26,9 +27,10 @@ type permissionsDialogKeyMap struct {
 }
 
 // NewPermissionsDialog creates a new dialog showing tool permission rules.
-func NewPermissionsDialog(perms *runtime.PermissionsInfo) Dialog {
+func NewPermissionsDialog(perms *runtime.PermissionsInfo, yoloEnabled bool) Dialog {
 	return &permissionsDialog{
 		permissions: perms,
+		yoloEnabled: yoloEnabled,
 		keyMap: permissionsDialogKeyMap{
 			Close:    key.NewBinding(key.WithKeys("esc", "enter", "q"), key.WithHelp("Esc", "close")),
 			Up:       key.NewBinding(key.WithKeys("up", "k")),
@@ -105,12 +107,15 @@ func (d *permissionsDialog) renderContent(contentWidth, maxHeight int) string {
 		"",
 	}
 
+	// Show yolo mode status
+	lines = append(lines, d.renderYoloStatus(), "")
+
 	if d.permissions == nil {
-		lines = append(lines, styles.MutedStyle.Render("No permissions configured."), "")
+		lines = append(lines, styles.MutedStyle.Render("No permission patterns configured."), "")
 	} else {
 		// Deny section (checked first during evaluation)
 		if len(d.permissions.Deny) > 0 {
-			lines = append(lines, d.renderSectionHeader("Deny", "These tools are always blocked"), "")
+			lines = append(lines, d.renderSectionHeader("Deny", "Always blocked, even with yolo mode"), "")
 			for _, pattern := range d.permissions.Deny {
 				lines = append(lines, d.renderPattern(pattern, true))
 			}
@@ -119,7 +124,7 @@ func (d *permissionsDialog) renderContent(contentWidth, maxHeight int) string {
 
 		// Allow section
 		if len(d.permissions.Allow) > 0 {
-			lines = append(lines, d.renderSectionHeader("Allow", "These tools are auto-approved"), "")
+			lines = append(lines, d.renderSectionHeader("Allow", "Auto-approved without confirmation"), "")
 			for _, pattern := range d.permissions.Allow {
 				lines = append(lines, d.renderPattern(pattern, false))
 			}
@@ -132,11 +137,24 @@ func (d *permissionsDialog) renderContent(contentWidth, maxHeight int) string {
 		}
 	}
 
-	// Add help about default behavior
-	lines = append(lines, styles.MutedStyle.Render("Tools not matching any pattern require user approval."), "")
+	// Add help about evaluation order
+	lines = append(lines, styles.MutedStyle.Render("Evaluation: Deny → Allow → Yolo → Ask"), "")
 
 	// Apply scrolling
 	return d.applyScrolling(lines, contentWidth, maxHeight)
+}
+
+func (d *permissionsDialog) renderYoloStatus() string {
+	label := lipgloss.NewStyle().Bold(true).Render("Yolo Mode: ")
+	var status string
+	if d.yoloEnabled {
+		status = lipgloss.NewStyle().Foreground(styles.Success).Render("ON")
+		status += styles.MutedStyle.Render(" (auto-approve unmatched tools)")
+	} else {
+		status = lipgloss.NewStyle().Foreground(styles.TextSecondary).Render("OFF")
+		status += styles.MutedStyle.Render(" (ask for unmatched tools)")
+	}
+	return label + status
 }
 
 func (d *permissionsDialog) renderSectionHeader(title, description string) string {
