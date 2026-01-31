@@ -149,6 +149,7 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 			agent.WithWelcomeMessage(expander.Expand(ctx, agentConfig.WelcomeMessage)),
 			agent.WithAddDate(agentConfig.AddDate),
 			agent.WithAddEnvironmentInfo(agentConfig.AddEnvironmentInfo),
+			agent.WithAddDescriptionParameter(agentConfig.AddDescriptionParameter),
 			agent.WithAddPromptFiles(agentConfig.AddPromptFiles),
 			agent.WithMaxIterations(agentConfig.MaxIterations),
 			agent.WithNumHistoryItems(agentConfig.NumHistoryItems),
@@ -342,11 +343,6 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 			} else {
 				wrapped = WithToolsExcludeFilter(wrapped, toolset.Defer.Tools...)
 			}
-		}
-
-		// Apply friendly tools wrapper if enabled
-		if a.AddDescriptionParameter {
-			wrapped = tools.NewDescriptionToolSet(wrapped)
 		}
 
 		toolSets = append(toolSets, wrapped)
