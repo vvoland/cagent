@@ -17,6 +17,7 @@ import (
 	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/model/provider/dmr"
+	"github.com/docker/cagent/pkg/tools"
 )
 
 // skipExamples contains example files that require cloud-specific configurations
@@ -210,7 +211,7 @@ func TestToolsetInstructions(t *testing.T) {
 	toolsets := agent.ToolSets()
 	require.Len(t, toolsets, 1)
 
-	instructions := toolsets[0].Instructions()
+	instructions := tools.GetInstructions(toolsets[0])
 	expected := "Dummy fetch tool instruction"
 	require.Equal(t, expected, instructions)
 }
