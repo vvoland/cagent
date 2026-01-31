@@ -11,7 +11,7 @@ import (
 // ComponentBuilder is a function that creates a tool component.
 type ComponentBuilder func(
 	msg *types.Message,
-	sessionState *service.SessionState,
+	sessionState service.SessionStateReader,
 ) layout.Model
 
 // Registry manages tool component builders.

@@ -33,7 +33,7 @@ func NewFactory(registry *Registry) *Factory {
 	}
 }
 
-func (f *Factory) Create(msg *types.Message, sessionState *service.SessionState) layout.Model {
+func (f *Factory) Create(msg *types.Message, sessionState service.SessionStateReader) layout.Model {
 	toolName := msg.ToolCall.Function.Name
 
 	// First try to match by exact tool name
@@ -99,6 +99,6 @@ func newDefaultRegistry() *Registry {
 	return registry
 }
 
-func New(msg *types.Message, sessionState *service.SessionState) layout.Model {
+func New(msg *types.Message, sessionState service.SessionStateReader) layout.Model {
 	return defaultFactory.Create(msg, sessionState)
 }
