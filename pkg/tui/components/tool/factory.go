@@ -56,18 +56,12 @@ var (
 	defaultFactory  = NewFactory(defaultRegistry)
 )
 
-// toolRegistration pairs tool names with their component builder.
-type toolRegistration struct {
-	names   []string
-	builder ComponentBuilder
-}
-
 func newDefaultRegistry() *Registry {
 	registry := NewRegistry()
 
-	// Define tool registrations in a declarative manner.
-	// Tools with the same builder are grouped together.
-	registrations := []toolRegistration{
+	// Define tool registrations declaratively.
+	// Tools with the same visual representation share a builder.
+	registry.RegisterAll([]Registration{
 		{[]string{builtin.ToolNameTransferTask}, transfertask.New},
 		{[]string{builtin.ToolNameHandoff}, handoff.New},
 		{[]string{builtin.ToolNameEditFile}, editfile.New},
@@ -88,13 +82,7 @@ func newDefaultRegistry() *Registry {
 			},
 			todotool.New,
 		},
-	}
-
-	for _, reg := range registrations {
-		for _, name := range reg.names {
-			registry.Register(name, reg.builder)
-		}
-	}
+	})
 
 	return registry
 }
