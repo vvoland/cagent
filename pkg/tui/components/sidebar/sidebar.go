@@ -647,20 +647,13 @@ func (m *model) starIndicator() string {
 // keeping the model's state separate from rendering concerns.
 func (m *model) computeCollapsedViewModel(contentWidth int) CollapsedViewModel {
 	star := m.starIndicator()
-	starWidth := lipgloss.Width(star)
 
 	var titleWithStar string
 	var editing bool
 	switch {
 	case m.editingTitle:
 		editing = true
-		// Show the text input when editing
-		// Account for star indicator width and leave room for cursor
-		inputWidth := contentWidth - starWidth - 1
-		if inputWidth < 10 {
-			inputWidth = 10 // Minimum usable width
-		}
-		m.titleInput.SetWidth(inputWidth)
+		// Width was pre-calculated in SetSize, just render
 		titleWithStar = star + m.titleInput.View()
 	case m.titleRegenerating:
 		titleWithStar = star + m.spinner.View() + styles.MutedStyle.Render(" Generating title…")
@@ -910,18 +903,11 @@ func (m *model) tokenUsageSummary() string {
 
 func (m *model) sessionInfo(contentWidth int) string {
 	star := m.starIndicator()
-	starWidth := lipgloss.Width(star)
 
 	var titleLine string
 	switch {
 	case m.editingTitle:
-		// Render the textinput for editing
-		// Account for star indicator width and leave room for cursor
-		inputWidth := contentWidth - starWidth - 1
-		if inputWidth < 10 {
-			inputWidth = 10 // Minimum usable width
-		}
-		m.titleInput.SetWidth(inputWidth)
+		// Width was pre-calculated in SetSize, just render
 		titleLine = star + m.titleInput.View()
 	case m.titleRegenerating:
 		// Show spinner while regenerating title
@@ -1102,7 +1088,26 @@ func (m *model) SetSize(width, height int) tea.Cmd {
 	m.width = width
 	m.height = height
 	m.updateScrollbarPosition()
+	m.updateTitleInputWidth()
 	return nil
+}
+
+// updateTitleInputWidth pre-calculates the title input width based on current dimensions.
+// This avoids setting width during View(), keeping View() pure.
+func (m *model) updateTitleInputWidth() {
+	star := m.starIndicator()
+	starWidth := lipgloss.Width(star)
+
+	// Calculate content width (without scrollbar for simplicity - editing usually doesn't need scrollbar)
+	contentWidth := m.contentWidth(false)
+
+	// Account for star indicator width and leave room for cursor
+	inputWidth := contentWidth - starWidth - 1
+	if inputWidth < 10 {
+		inputWidth = 10 // Minimum usable width
+	}
+
+	m.titleInput.SetWidth(inputWidth)
 }
 
 // SetPosition sets the absolute position of the component on screen
