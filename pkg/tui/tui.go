@@ -105,8 +105,8 @@ func DefaultKeyMap() KeyMap {
 			key.WithHelp("Ctrl+m", "models"),
 		),
 		Speak: key.NewBinding(
-			key.WithKeys("ctrl+k"),
-			key.WithHelp("Ctrl+k", "speak"),
+			key.WithKeys("ctrl+l"),
+			key.WithHelp("Ctrl+l", "speak"),
 		),
 		ClearQueue: key.NewBinding(
 			key.WithKeys("ctrl+x"),
