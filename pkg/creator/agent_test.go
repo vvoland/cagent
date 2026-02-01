@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/config/latest"
+	"github.com/docker/cagent/pkg/environment"
 )
 
 func TestAgentConfigYAML(t *testing.T) {
@@ -102,14 +103,17 @@ func TestAgent(t *testing.T) {
 
 	ctx := t.Context()
 
-	// Create a minimal runtime config
+	// Create a runtime config with a mock env provider that has a dummy API key
+	// so the auto model can resolve to a provider without needing real credentials
 	runConfig := &config.RuntimeConfig{
 		Config: config.Config{
 			WorkingDir: t.TempDir(),
 		},
+		EnvProviderForTests: environment.NewEnvListProvider([]string{
+			"OPENAI_API_KEY=dummy-key-for-testing",
+		}),
 	}
 
-	// Test with a mock model override to avoid needing real API keys
 	// The auto model will be resolved based on available providers
 	team, err := Agent(ctx, runConfig, "")
 	require.NoError(t, err)
