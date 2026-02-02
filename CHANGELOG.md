@@ -19,6 +19,38 @@ This release improves the tools system architecture and enhances TUI scrolling p
 - Reorganizes tool-related code structure
 
 
+## [v1.20.1] - 2026-02-02
+
+This release includes UI improvements, better error handling, and internal code organization enhancements.
+
+## Improvements
+
+- Changes audio listening shortcut from ctrl-k to ctrl-l (ctrl-k is now reserved for line editing)
+- Improves title editing by allowing double-click anywhere on the title instead of requiring precise icon clicks
+- Keeps footer unchanged when using /session or /new commands unless something actually changes
+- Shows better error messages when using "auto" model with no available providers or when dmr is not available
+
+## Bug Fixes
+
+- Fixes flaky test that was causing CI failures
+- Fixes `cagent new` command functionality
+- Fixes title edit hitbox issues when title wraps to multiple lines
+
+## Technical Changes
+
+- Organizes TUI messages by domain concern
+- Introduces SessionStateReader interface for read-only access
+- Introduces Subscription type for cleaner animation lifecycle management
+- Improves tool registry API with declarative RegisterAll method
+- Introduces HitTest for centralized mouse target detection in chat
+- Makes sidebar View() function pure by moving SetWidth to SetSize
+- Introduces cmdbatch package for fluent command batching
+- Organizes chat runtime event handlers by category
+- Introduces subscription package for external event sources
+- Separates CollapsedViewModel from rendering in sidebar
+- Improves provider handling and error messaging
+
+
 ## [v1.20.0] - 2026-01-30
 
 This release introduces editable session titles, custom TUI themes, and improved evaluation capabilities, along with database improvements and bug fixes.
@@ -123,5 +155,7 @@ This release improves the terminal user interface with better error handling and
 [v1.19.7]: https://github.com/docker/cagent/releases/tag/v1.19.7
 
 [v1.20.0]: https://github.com/docker/cagent/releases/tag/v1.20.0
+
+[v1.20.1]: https://github.com/docker/cagent/releases/tag/v1.20.1
 
 [v1.20.2]: https://github.com/docker/cagent/releases/tag/v1.20.2
