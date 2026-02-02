@@ -136,7 +136,8 @@ func (m *model) autoScroll() tea.Cmd {
 
 // selectWordAt selects the word at the given line and column position
 func (m *model) selectWordAt(line, col int) {
-	lines := strings.Split(m.rendered, "\n")
+	m.ensureAllItemsRendered()
+	lines := m.renderedLines
 	if line < 0 || line >= len(lines) {
 		return
 	}
@@ -184,7 +185,8 @@ func (m *model) selectWordAt(line, col int) {
 
 // selectLineAt selects the entire line at the given line position
 func (m *model) selectLineAt(line int) {
-	lines := strings.Split(m.rendered, "\n")
+	m.ensureAllItemsRendered()
+	lines := m.renderedLines
 	if line < 0 || line >= len(lines) {
 		return
 	}

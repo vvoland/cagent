@@ -87,6 +87,8 @@ type Model interface {
 	UpdateTitleInput(msg tea.Msg) tea.Cmd
 	// SetTitleRegenerating sets the title regeneration state and returns a command to start/stop spinner
 	SetTitleRegenerating(regenerating bool) tea.Cmd
+	// ScrollByWheel applies a wheel delta to the sidebar scrollbar.
+	ScrollByWheel(delta int)
 }
 
 // ragIndexingState tracks per-strategy indexing progress
@@ -135,6 +137,12 @@ type model struct {
 	editingTitle       bool     // true when inline title editing is active
 	titleInput         textinput.Model
 	lastTitleClickTime time.Time // for double-click detection on title
+
+	// Render cache to avoid re-rendering sections on every frame during scroll
+	cachedLines          []string // Cached rendered lines
+	cachedWidth          int      // Width used for cached render
+	cachedNeedsScrollbar bool     // Whether scrollbar is needed for cached render
+	cacheDirty           bool     // True when cache needs rebuild
 }
 
 // Option is a functional option for configuring the sidebar.
@@ -167,6 +175,7 @@ func New(sessionState *service.SessionState, opts ...Option) Model {
 		reasoningSupported: true,
 		preferredWidth:     DefaultWidth,
 		titleInput:         ti,
+		cacheDirty:         true, // Initial render needed
 	}
 	for _, opt := range opts {
 		opt(m)
@@ -206,6 +215,11 @@ func (m *model) stopSpinner() {
 	m.spinner.Stop()
 }
 
+// invalidateCache marks the sidebar render cache as dirty so it will be rebuilt on the next View().
+func (m *model) invalidateCache() {
+	m.cacheDirty = true
+}
+
 func (m *model) SetTokenUsage(event *runtime.TokenUsageEvent) {
 	if event == nil || event.Usage == nil || event.SessionID == "" || event.AgentName == "" {
 		return
@@ -218,9 +232,11 @@ func (m *model) SetTokenUsage(event *runtime.TokenUsageEvent) {
 
 	// Mark session as having content once we receive token usage
 	m.sessionHasContent = true
+	m.invalidateCache()
 }
 
 func (m *model) SetTodos(result *tools.ToolCallResult) error {
+	m.invalidateCache()
 	return m.todoComp.SetTodos(result)
 }
 
@@ -244,43 +260,57 @@ func (m *model) SetAgentInfo(agentName, modelID, description string) {
 			break
 		}
 	}
+	m.invalidateCache()
 }
 
 // SetTeamInfo sets the available agents in the team
 func (m *model) SetTeamInfo(availableAgents []runtime.AgentDetails) {
 	m.availableAgents = availableAgents
+	m.invalidateCache()
 }
 
 // SetAgentSwitching sets whether an agent switch is in progress
 func (m *model) SetAgentSwitching(switching bool) {
 	m.agentSwitching = switching
+	m.invalidateCache()
 }
 
 // SetToolsetInfo sets the number of available tools and loading state
 func (m *model) SetToolsetInfo(availableTools int, loading bool) {
 	m.availableTools = availableTools
 	m.toolsLoading = loading
+	m.invalidateCache()
 }
 
 // SetSessionStarred sets the starred status of the current session
 func (m *model) SetSessionStarred(starred bool) {
 	m.sessionStarred = starred
+	m.invalidateCache()
 }
 
 // SetQueuedMessages sets the list of queued message previews to display
 func (m *model) SetQueuedMessages(queuedMessages ...string) {
 	m.queuedMessages = queuedMessages
+	m.invalidateCache()
 }
 
 // SetTitleRegenerating sets the title regeneration state and manages spinner lifecycle.
 // Returns a command to start the spinner if regenerating, nil otherwise.
 func (m *model) SetTitleRegenerating(regenerating bool) tea.Cmd {
 	m.titleRegenerating = regenerating
+	m.invalidateCache()
 	if regenerating {
 		return m.startSpinner()
 	}
 	m.stopSpinner()
 	return nil
+}
+
+func (m *model) ScrollByWheel(delta int) {
+	if m.mode != ModeVertical || delta == 0 {
+		return
+	}
+	m.scrollbar.SetScrollOffset(m.scrollbar.GetScrollOffset() + delta)
 }
 
 // ClickResult indicates what was clicked in the sidebar
@@ -386,6 +416,8 @@ func (m *model) LoadFromSession(sess *session.Session) {
 
 	// Session has content if it has messages or token usage
 	m.sessionHasContent = len(sess.Messages) > 0 || sess.InputTokens > 0 || sess.OutputTokens > 0
+
+	m.invalidateCache()
 }
 
 // formatTokenCount formats a token count with K/M suffixes for readability
@@ -447,9 +479,9 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		if m.mode == ModeVertical {
 			switch msg.Button.String() {
 			case "wheelup":
-				m.scrollbar.ScrollUp()
+				m.ScrollByWheel(-1)
 			case "wheeldown":
-				m.scrollbar.ScrollDown()
+				m.ScrollByWheel(1)
 			}
 		}
 		return m, nil
@@ -463,6 +495,7 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		}
 		if !m.mcpInit {
 			m.mcpInit = true
+			m.invalidateCache()
 			cmd := m.startSpinner()
 			return m, cmd
 		}
@@ -470,6 +503,7 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case *runtime.MCPInitFinishedEvent:
 		if m.mcpInit {
 			m.mcpInit = false
+			m.invalidateCache()
 			m.stopSpinner() // Will only stop if no other state needs it
 		}
 		return m, nil
@@ -485,6 +519,7 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			spinner: m.spinner.Reset(),
 		}
 		m.ragIndexing[key] = state
+		m.invalidateCache()
 		return m, state.spinner.Init()
 	case *runtime.RAGIndexingProgressEvent:
 		key := msg.RAGName + "/" + msg.StrategyName
@@ -492,6 +527,7 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		if state, exists := m.ragIndexing[key]; exists {
 			state.current = msg.Current
 			state.total = msg.Total
+			m.invalidateCache()
 		}
 		return m, nil
 	case *runtime.RAGIndexingCompletedEvent:
@@ -500,6 +536,7 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		if state, exists := m.ragIndexing[key]; exists {
 			state.spinner.Stop()
 			delete(m.ragIndexing, key)
+			m.invalidateCache()
 		}
 		return m, nil
 	case *runtime.SessionTitleEvent:
@@ -511,6 +548,7 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			m.titleRegenerating = false
 			m.stopSpinner()
 		}
+		m.invalidateCache()
 		return m, nil
 	case *runtime.StreamStartedEvent:
 		// New stream starting - reset cancelled flag and enable spinner
@@ -520,10 +558,12 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		if !m.titleGenerated {
 			m.titleRegenerating = true
 		}
+		m.invalidateCache()
 		cmd := m.startSpinner()
 		return m, cmd
 	case *runtime.StreamStoppedEvent:
 		m.workingAgent = ""
+		m.invalidateCache()
 		m.stopSpinner() // Will only stop if no other state needs it
 		return m, nil
 	case *runtime.AgentInfoEvent:
@@ -563,6 +603,7 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			state.spinner.Stop()
 			delete(m.ragIndexing, k)
 		}
+		m.invalidateCache()
 		return m, nil
 	case messages.ThemeChangedMsg:
 		// Theme changed - recreate spinners with new colors
@@ -588,15 +629,18 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			cmds = append(cmds, state.spinner.Init())
 		}
 
+		m.invalidateCache() // Theme affects all styling
 		return m, tea.Batch(cmds...)
 	default:
 		var cmds []tea.Cmd
+		needsInvalidate := false
 
 		// Update main spinner when MCP is initializing, tools are loading, agent is working, or title is regenerating
 		if m.mcpInit || m.toolsLoading || m.workingAgent != "" || m.titleRegenerating {
 			model, cmd := m.spinner.Update(msg)
 			m.spinner = model.(spinner.Spinner)
 			cmds = append(cmds, cmd)
+			needsInvalidate = true
 		}
 
 		// Update each RAG indexing spinner
@@ -604,6 +648,12 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			model, cmd := state.spinner.Update(msg)
 			state.spinner = model.(spinner.Spinner)
 			cmds = append(cmds, cmd)
+			needsInvalidate = true
+		}
+
+		// Invalidate cache when spinners update to show new animation frames
+		if needsInvalidate {
+			m.invalidateCache()
 		}
 
 		return m, tea.Batch(cmds...)
@@ -700,10 +750,15 @@ func (m *model) collapsedView() string {
 
 func (m *model) verticalView() string {
 	visibleLines := m.height
+	contentWidthNoScroll := m.contentWidth(false)
+
+	// Use cached render if available and width hasn't changed
+	if !m.cacheDirty && len(m.cachedLines) > 0 && m.cachedWidth == contentWidthNoScroll {
+		return m.renderFromCache(visibleLines)
+	}
 
 	// Two-pass rendering: first check if scrollbar is needed
 	// Pass 1: render without scrollbar to count lines
-	contentWidthNoScroll := m.contentWidth(false)
 	lines := m.renderSections(contentWidthNoScroll)
 	totalLines := len(lines)
 	needsScrollbar := totalLines > visibleLines
@@ -712,8 +767,22 @@ func (m *model) verticalView() string {
 	if needsScrollbar {
 		contentWidthWithScroll := m.contentWidth(true)
 		lines = m.renderSections(contentWidthWithScroll)
-		totalLines = len(lines)
 	}
+
+	// Cache the rendered lines
+	m.cachedLines = lines
+	m.cachedWidth = contentWidthNoScroll
+	m.cachedNeedsScrollbar = needsScrollbar
+	m.cacheDirty = false
+
+	return m.renderFromCache(visibleLines)
+}
+
+// renderFromCache renders the sidebar from cached lines, applying scroll offset and scrollbar.
+func (m *model) renderFromCache(visibleLines int) string {
+	lines := m.cachedLines
+	totalLines := len(lines)
+	needsScrollbar := m.cachedNeedsScrollbar
 
 	// Update scrollbar dimensions
 	m.scrollbar.SetDimensions(visibleLines, totalLines)
@@ -721,9 +790,10 @@ func (m *model) verticalView() string {
 	// Get scroll offset from scrollbar
 	scrollOffset := m.scrollbar.GetScrollOffset()
 
-	// Extract visible portion
+	// Extract visible portion - copy to avoid mutating cache
 	endIdx := min(scrollOffset+visibleLines, totalLines)
-	visibleContent := lines[scrollOffset:endIdx]
+	visibleContent := make([]string, endIdx-scrollOffset)
+	copy(visibleContent, lines[scrollOffset:endIdx])
 
 	// Pad to fill height if content is shorter
 	for len(visibleContent) < visibleLines {
@@ -1089,6 +1159,7 @@ func (m *model) SetSize(width, height int) tea.Cmd {
 	m.height = height
 	m.updateScrollbarPosition()
 	m.updateTitleInputWidth()
+	m.invalidateCache() // Width/height change affects layout
 	return nil
 }
 
@@ -1132,6 +1203,7 @@ func (m *model) GetSize() (width, height int) {
 
 func (m *model) SetMode(mode Mode) {
 	m.mode = mode
+	m.invalidateCache()
 }
 
 func (m *model) renderTab(title, content string, contentWidth int) string {
@@ -1221,6 +1293,7 @@ func (m *model) BeginTitleEdit() {
 
 	m.titleInput.Focus()
 	m.titleInput.CursorEnd()
+	m.invalidateCache()
 }
 
 // IsEditingTitle returns true if the title is being edited
@@ -1236,6 +1309,7 @@ func (m *model) CommitTitleEdit() string {
 	}
 	m.editingTitle = false
 	m.titleInput.Blur()
+	m.invalidateCache()
 	return m.sessionTitle
 }
 
@@ -1243,11 +1317,13 @@ func (m *model) CommitTitleEdit() string {
 func (m *model) CancelTitleEdit() {
 	m.editingTitle = false
 	m.titleInput.Blur()
+	m.invalidateCache()
 }
 
 // UpdateTitleInput passes a key message to the title input
 func (m *model) UpdateTitleInput(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	m.titleInput, cmd = m.titleInput.Update(msg)
+	m.invalidateCache() // Input changes affect rendering
 	return cmd
 }
