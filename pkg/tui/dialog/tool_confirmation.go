@@ -1,11 +1,15 @@
 package dialog
 
 import (
+	"encoding/json"
+	"strings"
+
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/runtime"
+	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tui/components/messages"
 	"github.com/docker/cagent/pkg/tui/core"
 	"github.com/docker/cagent/pkg/tui/core/layout"
@@ -36,10 +40,11 @@ type ToolConfirmationResponse struct {
 
 type toolConfirmationDialog struct {
 	BaseDialog
-	msg          *runtime.ToolCallConfirmationEvent
-	keyMap       toolConfirmationKeyMap
-	sessionState *service.SessionState
-	scrollView   messages.Model
+	msg               *runtime.ToolCallConfirmationEvent
+	keyMap            toolConfirmationKeyMap
+	sessionState      *service.SessionState
+	scrollView        messages.Model
+	permissionPattern string // cached permission pattern for this tool call
 }
 
 // dialogDimensions returns computed dialog width and content width.
@@ -68,7 +73,7 @@ func (d *toolConfirmationDialog) SetSize(width, height int) tea.Cmd {
 	question := styles.DialogQuestionStyle.Width(contentWidth).Render("Do you want to allow this tool call?")
 	questionHeight := lipgloss.Height(question)
 
-	options := RenderHelpKeys(contentWidth, "Y", "yes", "N", "no", "T", "always this tool", "A", "all tools")
+	options := RenderHelpKeys(contentWidth, "Y", "yes", "N", "no", "T", d.alwaysAllowHelpText(), "A", "all tools")
 	optionsHeight := lipgloss.Height(options)
 
 	// Calculate available height for scroll view
@@ -83,6 +88,25 @@ func (d *toolConfirmationDialog) SetSize(width, height int) tea.Cmd {
 // renderSeparator renders the separator line consistently.
 func (d *toolConfirmationDialog) renderSeparator(contentWidth int) string {
 	return RenderSeparator(contentWidth)
+}
+
+// alwaysAllowHelpText returns a descriptive help text for the "always allow" option.
+// For shell commands, it shows the command pattern (e.g., "always allow ls*").
+// For other tools, it shows "always allow <toolname>".
+func (d *toolConfirmationDialog) alwaysAllowHelpText() string {
+	pattern := d.permissionPattern
+	toolName := d.msg.ToolCall.Function.Name
+
+	// For shell with a command pattern, show a more descriptive label
+	if toolName == "shell" && strings.Contains(pattern, ":cmd=") {
+		// Extract just the command part for display: "shell:cmd=ls*" -> "ls*"
+		if idx := strings.Index(pattern, ":cmd="); idx != -1 {
+			cmdPattern := pattern[idx+5:] // skip ":cmd="
+			return "always allow " + cmdPattern
+		}
+	}
+
+	return "always allow " + toolName
 }
 
 // toolConfirmationKeyMap defines key bindings for tool confirmation dialog
@@ -115,6 +139,38 @@ func defaultToolConfirmationKeyMap() toolConfirmationKeyMap {
 	}
 }
 
+// buildPermissionPattern creates a permission pattern for the tool call.
+// For shell commands, it extracts the first word of the command and creates
+// a pattern like "shell:cmd=ls*" to match all invocations of that command.
+// For other tools, it returns just the tool name.
+func buildPermissionPattern(toolCall tools.ToolCall) string {
+	toolName := toolCall.Function.Name
+
+	// For shell tool, extract the command and create a pattern
+	if toolName == "shell" {
+		var args struct {
+			Cmd string `json:"cmd"`
+		}
+		if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err == nil && args.Cmd != "" {
+			// Extract the first word (the command) from the full command string
+			// e.g., "ls -la /tmp" -> "ls"
+			cmd := strings.TrimSpace(args.Cmd)
+			firstWord := cmd
+			if idx := strings.IndexAny(cmd, " \t"); idx != -1 {
+				firstWord = cmd[:idx]
+			}
+			if firstWord != "" {
+				// Create pattern: shell:cmd=<command>*
+				// The trailing * allows matching with any arguments
+				return toolName + ":cmd=" + firstWord + "*"
+			}
+		}
+	}
+
+	// For other tools, just return the tool name
+	return toolName
+}
+
 // NewToolConfirmationDialog creates a new tool confirmation dialog
 func NewToolConfirmationDialog(msg *runtime.ToolCallConfirmationEvent, sessionState *service.SessionState) Dialog {
 	// Create scrollable view with minimal initial size (will be updated in SetSize)
@@ -128,11 +184,15 @@ func NewToolConfirmationDialog(msg *runtime.ToolCallConfirmationEvent, sessionSt
 		types.ToolStatusConfirmation,
 	)
 
+	// Build and cache the permission pattern for display and use
+	pattern := buildPermissionPattern(msg.ToolCall)
+
 	return &toolConfirmationDialog{
-		msg:          msg,
-		sessionState: sessionState,
-		keyMap:       defaultToolConfirmationKeyMap(),
-		scrollView:   scrollView,
+		msg:               msg,
+		sessionState:      sessionState,
+		keyMap:            defaultToolConfirmationKeyMap(),
+		scrollView:        scrollView,
+		permissionPattern: pattern,
 	}
 }
 
@@ -171,11 +231,11 @@ func (d *toolConfirmationDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 				core.CmdHandler(RuntimeResumeMsg{Request: runtime.ResumeApproveSession()}),
 			)
 		case key.Matches(msg, d.keyMap.ThisTool):
-			// Always allow this specific tool for the session
-			toolName := d.msg.ToolCall.Function.Name
+			// Use the cached permission pattern
+			// For shell, this creates patterns like "shell:cmd=ls*"
 			return d, tea.Sequence(
 				core.CmdHandler(CloseDialogMsg{}),
-				core.CmdHandler(RuntimeResumeMsg{Request: runtime.ResumeApproveTool(toolName)}),
+				core.CmdHandler(RuntimeResumeMsg{Request: runtime.ResumeApproveTool(d.permissionPattern)}),
 			)
 		}
 
@@ -220,7 +280,7 @@ func (d *toolConfirmationDialog) View() string {
 
 	// Confirmation prompt
 	question := styles.DialogQuestionStyle.Width(contentWidth).Render("Do you want to allow this tool call?")
-	options := RenderHelpKeys(contentWidth, "Y", "yes", "N", "no", "T", "always this tool", "A", "all tools")
+	options := RenderHelpKeys(contentWidth, "Y", "yes", "N", "no", "T", d.alwaysAllowHelpText(), "A", "all tools")
 
 	parts = append(parts, "", question, "", options)
 
