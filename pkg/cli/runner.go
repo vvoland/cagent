@@ -164,7 +164,20 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 					return nil
 				}
 			case *runtime.ElicitationRequestEvent:
-				serverURL := e.Meta["cagent/server_url"].(string)
+				rawURL, ok := e.Meta["cagent/server_url"]
+				if !ok || rawURL == nil {
+					slog.Warn("Skipping elicitation: missing server_url (non-interactive session?)")
+					_ = rt.ResumeElicitation(ctx, "decline", nil)
+					return nil
+				}
+
+				serverURL, ok := rawURL.(string)
+				if !ok || serverURL == "" {
+					slog.Warn("Skipping elicitation: invalid server_url type")
+					_ = rt.ResumeElicitation(ctx, "decline", nil)
+					return nil
+				}
+
 				result := out.PromptOAuthAuthorization(ctx, serverURL)
 				switch {
 				case ctx.Err() != nil:
