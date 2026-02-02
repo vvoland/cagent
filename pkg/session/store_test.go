@@ -954,3 +954,283 @@ func TestMigration_ExistingMessagesToSessionItems(t *testing.T) {
 	assert.Equal(t, "Legacy message 1", retrieved.Messages[0].Message.Message.Content)
 	assert.Equal(t, "legacy-agent", retrieved.Messages[1].Message.AgentName)
 }
+
+func TestParseRelativeSessionRef(t *testing.T) {
+	tests := []struct {
+		name       string
+		ref        string
+		wantOffset int
+		wantIsRel  bool
+	}{
+		{"last session", "-1", 1, true},
+		{"second to last", "-2", 2, true},
+		{"tenth session", "-10", 10, true},
+		{"regular ID", "abc123", 0, false},
+		{"UUID-like", "550e8400-e29b-41d4-a716-446655440000", 0, false},
+		{"positive number", "1", 0, false},
+		{"zero", "0", 0, false},
+		{"negative zero", "-0", 0, false},
+		{"not a number", "-abc", 0, false},
+		{"empty string", "", 0, false},
+		{"just dash", "-", 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			offset, isRel := parseRelativeSessionRef(tt.ref)
+			assert.Equal(t, tt.wantOffset, offset)
+			assert.Equal(t, tt.wantIsRel, isRel)
+		})
+	}
+}
+
+func TestResolveSessionID_SQLite(t *testing.T) {
+	tempDB := filepath.Join(t.TempDir(), "test_resolve.db")
+
+	store, err := NewSQLiteSessionStore(tempDB)
+	require.NoError(t, err)
+	defer store.(*SQLiteSessionStore).Close()
+
+	// Create sessions with known timestamps
+	baseTime := time.Now()
+	sessions := []struct {
+		id        string
+		createdAt time.Time
+	}{
+		{"oldest", baseTime.Add(-3 * time.Hour)},
+		{"middle", baseTime.Add(-2 * time.Hour)},
+		{"newest", baseTime.Add(-1 * time.Hour)},
+	}
+
+	for _, s := range sessions {
+		err := store.AddSession(t.Context(), &Session{
+			ID:        s.id,
+			CreatedAt: s.createdAt,
+		})
+		require.NoError(t, err)
+	}
+
+	t.Run("resolves -1 to newest session", func(t *testing.T) {
+		id, err := ResolveSessionID(t.Context(), store, "-1")
+		require.NoError(t, err)
+		assert.Equal(t, "newest", id)
+	})
+
+	t.Run("resolves -2 to middle session", func(t *testing.T) {
+		id, err := ResolveSessionID(t.Context(), store, "-2")
+		require.NoError(t, err)
+		assert.Equal(t, "middle", id)
+	})
+
+	t.Run("resolves -3 to oldest session", func(t *testing.T) {
+		id, err := ResolveSessionID(t.Context(), store, "-3")
+		require.NoError(t, err)
+		assert.Equal(t, "oldest", id)
+	})
+
+	t.Run("returns error for out of range offset", func(t *testing.T) {
+		_, err := ResolveSessionID(t.Context(), store, "-4")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "out of range")
+	})
+
+	t.Run("returns non-relative ID unchanged", func(t *testing.T) {
+		id, err := ResolveSessionID(t.Context(), store, "some-uuid")
+		require.NoError(t, err)
+		assert.Equal(t, "some-uuid", id)
+	})
+}
+
+func TestResolveSessionID_ExcludesSubSessions(t *testing.T) {
+	tempDB := filepath.Join(t.TempDir(), "test_resolve_subsessions.db")
+
+	store, err := NewSQLiteSessionStore(tempDB)
+	require.NoError(t, err)
+	defer store.(*SQLiteSessionStore).Close()
+
+	sqliteStore := store.(*SQLiteSessionStore)
+
+	// Create a parent session
+	parent := &Session{
+		ID:        "parent",
+		CreatedAt: time.Now().Add(-2 * time.Hour),
+	}
+	err = store.AddSession(t.Context(), parent)
+	require.NoError(t, err)
+
+	// Create a sub-session directly in the database to avoid the AddSubSession complexity
+	// This simulates an existing sub-session without going through the full API
+	subSessionTime := time.Now().Add(-1 * time.Hour)
+	_, err = sqliteStore.db.ExecContext(t.Context(),
+		`INSERT INTO sessions (id, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at, starred, permissions, agent_model_overrides, custom_models_used, thinking, parent_id)
+		 VALUES (?, 0, 0, 0, '', 0, 1, 0, '', ?, 0, '', '{}', '[]', 1, ?)`,
+		"subsession", subSessionTime.Format(time.RFC3339), "parent")
+	require.NoError(t, err)
+
+	// Create another root session (most recent root)
+	root2 := &Session{
+		ID:        "root2",
+		CreatedAt: time.Now(),
+	}
+	err = store.AddSession(t.Context(), root2)
+	require.NoError(t, err)
+
+	// -1 should resolve to root2, not the subsession
+	id, err := ResolveSessionID(t.Context(), store, "-1")
+	require.NoError(t, err)
+	assert.Equal(t, "root2", id)
+
+	// -2 should resolve to parent
+	id, err = ResolveSessionID(t.Context(), store, "-2")
+	require.NoError(t, err)
+	assert.Equal(t, "parent", id)
+}
+
+func TestResolveSessionID_InMemory(t *testing.T) {
+	store := NewInMemorySessionStore()
+
+	// Create sessions with known timestamps
+	baseTime := time.Now()
+	sessions := []struct {
+		id        string
+		createdAt time.Time
+	}{
+		{"oldest", baseTime.Add(-3 * time.Hour)},
+		{"middle", baseTime.Add(-2 * time.Hour)},
+		{"newest", baseTime.Add(-1 * time.Hour)},
+	}
+
+	for _, s := range sessions {
+		err := store.AddSession(t.Context(), &Session{
+			ID:        s.id,
+			CreatedAt: s.createdAt,
+		})
+		require.NoError(t, err)
+	}
+
+	t.Run("resolves -1 to newest session", func(t *testing.T) {
+		id, err := ResolveSessionID(t.Context(), store, "-1")
+		require.NoError(t, err)
+		assert.Equal(t, "newest", id)
+	})
+
+	t.Run("resolves -2 to middle session", func(t *testing.T) {
+		id, err := ResolveSessionID(t.Context(), store, "-2")
+		require.NoError(t, err)
+		assert.Equal(t, "middle", id)
+	})
+
+	t.Run("returns error for out of range offset", func(t *testing.T) {
+		_, err := ResolveSessionID(t.Context(), store, "-4")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "out of range")
+	})
+
+	t.Run("returns non-relative ID unchanged", func(t *testing.T) {
+		id, err := ResolveSessionID(t.Context(), store, "some-uuid")
+		require.NoError(t, err)
+		assert.Equal(t, "some-uuid", id)
+	})
+}
+
+func TestGetSessionByOffset_SQLite(t *testing.T) {
+	tempDB := filepath.Join(t.TempDir(), "test_offset.db")
+
+	store, err := NewSQLiteSessionStore(tempDB)
+	require.NoError(t, err)
+	defer store.(*SQLiteSessionStore).Close()
+
+	// Create sessions with known timestamps
+	baseTime := time.Now()
+	sessions := []struct {
+		id        string
+		createdAt time.Time
+	}{
+		{"oldest", baseTime.Add(-3 * time.Hour)},
+		{"middle", baseTime.Add(-2 * time.Hour)},
+		{"newest", baseTime.Add(-1 * time.Hour)},
+	}
+
+	for _, s := range sessions {
+		err := store.AddSession(t.Context(), &Session{
+			ID:        s.id,
+			CreatedAt: s.createdAt,
+		})
+		require.NoError(t, err)
+	}
+
+	t.Run("offset 1 returns newest", func(t *testing.T) {
+		id, err := store.GetSessionByOffset(t.Context(), 1)
+		require.NoError(t, err)
+		assert.Equal(t, "newest", id)
+	})
+
+	t.Run("offset 2 returns middle", func(t *testing.T) {
+		id, err := store.GetSessionByOffset(t.Context(), 2)
+		require.NoError(t, err)
+		assert.Equal(t, "middle", id)
+	})
+
+	t.Run("offset 3 returns oldest", func(t *testing.T) {
+		id, err := store.GetSessionByOffset(t.Context(), 3)
+		require.NoError(t, err)
+		assert.Equal(t, "oldest", id)
+	})
+
+	t.Run("offset 0 returns error", func(t *testing.T) {
+		_, err := store.GetSessionByOffset(t.Context(), 0)
+		require.Error(t, err)
+	})
+
+	t.Run("out of range offset returns error", func(t *testing.T) {
+		_, err := store.GetSessionByOffset(t.Context(), 4)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "out of range")
+	})
+}
+
+func TestGetSessionByOffset_InMemory(t *testing.T) {
+	store := NewInMemorySessionStore()
+
+	// Create sessions with known timestamps
+	baseTime := time.Now()
+	sessions := []struct {
+		id        string
+		createdAt time.Time
+	}{
+		{"oldest", baseTime.Add(-3 * time.Hour)},
+		{"middle", baseTime.Add(-2 * time.Hour)},
+		{"newest", baseTime.Add(-1 * time.Hour)},
+	}
+
+	for _, s := range sessions {
+		err := store.AddSession(t.Context(), &Session{
+			ID:        s.id,
+			CreatedAt: s.createdAt,
+		})
+		require.NoError(t, err)
+	}
+
+	t.Run("offset 1 returns newest", func(t *testing.T) {
+		id, err := store.GetSessionByOffset(t.Context(), 1)
+		require.NoError(t, err)
+		assert.Equal(t, "newest", id)
+	})
+
+	t.Run("offset 2 returns middle", func(t *testing.T) {
+		id, err := store.GetSessionByOffset(t.Context(), 2)
+		require.NoError(t, err)
+		assert.Equal(t, "middle", id)
+	})
+
+	t.Run("offset 0 returns error", func(t *testing.T) {
+		_, err := store.GetSessionByOffset(t.Context(), 0)
+		require.Error(t, err)
+	})
+
+	t.Run("out of range offset returns error", func(t *testing.T) {
+		_, err := store.GetSessionByOffset(t.Context(), 4)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "out of range")
+	})
+}
