@@ -440,6 +440,9 @@ func (p *chatPage) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case tea.MouseWheelMsg:
 		return p.handleMouseWheel(msg)
 
+	case msgtypes.WheelCoalescedMsg:
+		return p.handleWheelCoalesced(msg)
+
 	case msgtypes.StreamCancelledMsg:
 		model, cmd := p.messages.Update(msg)
 		p.messages = model.(messages.Model)

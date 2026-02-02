@@ -58,6 +58,7 @@ type Model interface {
 
 	ScrollToBottom() tea.Cmd
 	AdjustBottomSlack(delta int)
+	ScrollByWheel(delta int)
 }
 
 // renderedItem represents a cached rendered message with position information
@@ -84,7 +85,7 @@ type model struct {
 	// Height tracking system fields
 	scrollOffset  int                  // Current scroll position in lines
 	bottomSlack   int                  // Extra blank lines added after content shrinks
-	rendered      string               // Complete rendered content string
+	renderedLines []string             // Cached rendered content as lines (avoids split/join per frame)
 	renderedItems map[int]renderedItem // Cache of rendered items with positions
 	totalHeight   int                  // Total height of all content in lines
 	renderDirty   bool                 // True when rendered content needs rebuild
@@ -333,27 +334,12 @@ func (m *model) handleMouseRelease(msg tea.MouseReleaseMsg) (layout.Model, tea.C
 }
 
 func (m *model) handleMouseWheel(msg tea.MouseWheelMsg) (layout.Model, tea.Cmd) {
-	const mouseScrollAmount = 2
 	switch msg.Button.String() {
 	case "wheelup":
-		if m.scrollOffset > 0 {
-			m.userHasScrolled = true
-			m.bottomSlack = 0
-			for range mouseScrollAmount {
-				m.setScrollOffset(m.scrollOffset - defaultScrollAmount)
-			}
-		}
+		m.scrollByWheel(-1)
 	case "wheeldown":
-		m.userHasScrolled = true
-		m.bottomSlack = 0
-		for range mouseScrollAmount {
-			m.setScrollOffset(m.scrollOffset + defaultScrollAmount)
-		}
-		if m.isAtBottom() {
-			m.userHasScrolled = false
-		}
+		m.scrollByWheel(1)
 	}
-	m.scrollbar.SetScrollOffset(m.scrollOffset)
 	return m, nil
 }
 
@@ -433,22 +419,28 @@ func (m *model) View() string {
 		m.scrollOffset = max(0, min(m.scrollOffset, maxScrollOffset))
 	}
 
-	lines := strings.Split(m.rendered, "\n")
-	if m.bottomSlack > 0 {
-		lines = append(lines, make([]string, m.bottomSlack)...)
-	}
-	if len(lines) == 0 {
+	// Use cached lines directly - O(1) instead of O(totalHeight) split
+	totalLines := len(m.renderedLines) + m.bottomSlack
+	if totalLines == 0 {
 		return ""
 	}
 
 	startLine := m.scrollOffset
-	endLine := min(startLine+m.height, len(lines))
+	endLine := min(startLine+m.height, totalLines)
 
 	if startLine >= endLine {
 		return ""
 	}
 
-	visibleLines := lines[startLine:endLine]
+	// Copy only the visible window to avoid mutating cached lines
+	// This is O(viewportHeight) instead of O(totalHeight)
+	visibleLines := make([]string, endLine-startLine)
+	for i := startLine; i < endLine; i++ {
+		if i < len(m.renderedLines) {
+			visibleLines[i-startLine] = m.renderedLines[i]
+		}
+		// Lines beyond renderedLines are bottom slack (empty strings), already zero-valued
+	}
 
 	if m.selection.active {
 		visibleLines = m.applySelectionHighlight(visibleLines, startLine)
@@ -471,22 +463,18 @@ func (m *model) View() string {
 		}
 	}
 
-	contentView := strings.Join(visibleLines, "\n")
 	scrollbarView := m.scrollbar.View()
 
 	if scrollbarView != "" {
-		// For proper horizontal layout, all components must have the same height
-		contentLines := strings.Split(contentView, "\n")
-
 		// Ensure content is exactly m.height lines by padding with empty lines if needed
-		for len(contentLines) < m.height {
-			contentLines = append(contentLines, "")
+		for len(visibleLines) < m.height {
+			visibleLines = append(visibleLines, "")
 		}
 		// Truncate if somehow longer (shouldn't happen but safety check)
-		if len(contentLines) > m.height {
-			contentLines = contentLines[:m.height]
+		if len(visibleLines) > m.height {
+			visibleLines = visibleLines[:m.height]
 		}
-		paddedContentView := strings.Join(contentLines, "\n")
+		contentView := strings.Join(visibleLines, "\n")
 
 		// Create spacer with exactly m.height lines
 		spacerLines := make([]string, m.height)
@@ -495,10 +483,10 @@ func (m *model) View() string {
 		}
 		spacer := strings.Join(spacerLines, "\n")
 
-		return lipgloss.JoinHorizontal(lipgloss.Top, paddedContentView, spacer, scrollbarView)
+		return lipgloss.JoinHorizontal(lipgloss.Top, contentView, spacer, scrollbarView)
 	}
 
-	return contentView
+	return strings.Join(visibleLines, "\n")
 }
 
 // SetSize sets the dimensions of the component
@@ -560,7 +548,10 @@ func (m *model) Help() help.KeyMap {
 }
 
 // Scrolling methods
-const defaultScrollAmount = 1
+const (
+	defaultScrollAmount = 1
+	wheelScrollAmount   = 2
+)
 
 func (m *model) scrollUp() {
 	if m.scrollOffset > 0 {
@@ -603,6 +594,28 @@ func (m *model) scrollToTop() {
 func (m *model) scrollToBottom() {
 	m.userHasScrolled = false
 	m.setScrollOffset(9_999_999) // Will be clamped in View()
+}
+
+func (m *model) ScrollByWheel(delta int) {
+	m.scrollByWheel(delta)
+}
+
+func (m *model) scrollByWheel(delta int) {
+	if delta == 0 {
+		return
+	}
+
+	prevOffset := m.scrollOffset
+	m.setScrollOffset(m.scrollOffset + (delta * wheelScrollAmount * defaultScrollAmount))
+	if m.scrollOffset == prevOffset {
+		return
+	}
+
+	m.userHasScrolled = true
+	m.bottomSlack = 0
+	if m.isAtBottom() {
+		m.userHasScrolled = false
+	}
 }
 
 func (m *model) setScrollOffset(offset int) {
@@ -788,12 +801,12 @@ func (m *model) needsSeparator(index int) bool {
 }
 
 func (m *model) ensureAllItemsRendered() {
-	if !m.renderDirty && m.rendered != "" {
+	if !m.renderDirty && len(m.renderedLines) > 0 {
 		return
 	}
 
 	if len(m.views) == 0 {
-		m.rendered = ""
+		m.renderedLines = nil
 		m.totalHeight = 0
 		m.renderDirty = false
 		return
@@ -816,7 +829,8 @@ func (m *model) ensureAllItemsRendered() {
 		}
 	}
 
-	m.rendered = strings.Join(allLines, "\n")
+	// Store lines directly - avoid join/split on every View() call
+	m.renderedLines = allLines
 	m.totalHeight = len(allLines)
 	m.renderDirty = false
 }
@@ -830,7 +844,7 @@ func (m *model) invalidateItem(index int) {
 
 func (m *model) invalidateAllItems() {
 	m.renderedItems = make(map[int]renderedItem)
-	m.rendered = ""
+	m.renderedLines = nil
 	m.totalHeight = 0
 	m.renderDirty = true
 }
@@ -978,7 +992,7 @@ func (m *model) LoadFromSession(sess *session.Session) tea.Cmd {
 	m.messages = nil
 	m.views = nil
 	m.renderedItems = make(map[int]renderedItem)
-	m.rendered = ""
+	m.renderedLines = nil
 	m.scrollOffset = 0
 	m.totalHeight = 0
 	m.bottomSlack = 0

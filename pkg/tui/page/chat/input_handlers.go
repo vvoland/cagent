@@ -197,19 +197,60 @@ func (p *chatPage) handleMouseRelease(msg tea.MouseReleaseMsg) (layout.Model, te
 
 // handleMouseWheel handles mouse wheel events.
 func (p *chatPage) handleMouseWheel(msg tea.MouseWheelMsg) (layout.Model, tea.Cmd) {
-	sl := p.computeSidebarLayout()
+	switch p.wheelTarget(msg.X, msg.Y) {
+	case wheelTargetSidebar:
+		model, cmd := p.sidebar.Update(msg)
+		p.sidebar = model.(sidebar.Model)
+		return p, cmd
+	case wheelTargetMessages:
+		model, cmd := p.messages.Update(msg)
+		p.messages = model.(messages.Model)
+		return p, cmd
+	default:
+		model, cmd := p.editor.Update(msg)
+		p.editor = model.(editor.Editor)
+		return p, cmd
+	}
+}
 
+func (p *chatPage) handleWheelCoalesced(msg msgtypes.WheelCoalescedMsg) (layout.Model, tea.Cmd) {
+	if msg.Delta == 0 {
+		return p, nil
+	}
+	switch p.wheelTarget(msg.X, msg.Y) {
+	case wheelTargetSidebar:
+		p.sidebar.ScrollByWheel(msg.Delta)
+	case wheelTargetMessages:
+		p.messages.ScrollByWheel(msg.Delta)
+	default:
+		p.editor.ScrollByWheel(msg.Delta)
+	}
+	return p, nil
+}
+
+type wheelTarget int
+
+const (
+	wheelTargetMessages wheelTarget = iota
+	wheelTargetEditor
+	wheelTargetSidebar
+)
+
+func (p *chatPage) wheelTarget(x, y int) wheelTarget {
+	sl := p.computeSidebarLayout()
 	if sl.mode == sidebarVertical && !p.sidebar.IsCollapsed() {
-		adjustedX := msg.X - styles.AppPaddingLeft
+		adjustedX := x - styles.AppPaddingLeft
 		if sl.isInSidebar(adjustedX) {
-			model, cmd := p.sidebar.Update(msg)
-			p.sidebar = model.(sidebar.Model)
-			return p, cmd
+			return wheelTargetSidebar
 		}
 	}
 
-	cmd := p.routeMouseEvent(msg, msg.Y)
-	return p, cmd
+	editorTop := p.height - p.inputHeight
+	if y < editorTop {
+		return wheelTargetMessages
+	}
+
+	return wheelTargetEditor
 }
 
 // handleSidebarResize adjusts sidebar width based on drag position.

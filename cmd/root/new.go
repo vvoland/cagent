@@ -15,6 +15,7 @@ import (
 	"github.com/docker/cagent/pkg/sessiontitle"
 	"github.com/docker/cagent/pkg/telemetry"
 	"github.com/docker/cagent/pkg/tui"
+	tuiinput "github.com/docker/cagent/pkg/tui/input"
 )
 
 type newFlags struct {
@@ -97,7 +98,20 @@ func runTUI(ctx context.Context, rt runtime.Runtime, sess *session.Session, opts
 	a := app.New(ctx, rt, sess, opts...)
 	m := tui.New(ctx, a)
 
-	p := tea.NewProgram(m, tea.WithContext(ctx))
+	coalescer := tuiinput.NewWheelCoalescer()
+	filter := func(model tea.Model, msg tea.Msg) tea.Msg {
+		wheelMsg, ok := msg.(tea.MouseWheelMsg)
+		if !ok {
+			return msg
+		}
+		if coalescer.Handle(wheelMsg) {
+			return nil
+		}
+		return msg
+	}
+
+	p := tea.NewProgram(m, tea.WithContext(ctx), tea.WithFilter(filter))
+	coalescer.SetSender(p.Send)
 	go a.Subscribe(ctx, p)
 
 	_, err := p.Run()

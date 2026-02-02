@@ -197,6 +197,41 @@ func (a *appModel) Bindings() []key.Binding {
 	}, a.chatPage.Bindings()...)
 }
 
+func (a *appModel) handleWheelMsg(msg tea.MouseWheelMsg) tea.Cmd {
+	if a.dialog.Open() {
+		u, dialogCmd := a.dialog.Update(msg)
+		a.dialog = u.(dialog.Manager)
+		return dialogCmd
+	}
+
+	updated, chatCmd := a.chatPage.Update(msg)
+	a.chatPage = updated.(chat.Page)
+	return chatCmd
+}
+
+func (a *appModel) handleDialogWheelDelta(msg messages.WheelCoalescedMsg) tea.Cmd {
+	steps := msg.Delta
+	button := tea.MouseWheelDown
+	if steps < 0 {
+		steps = -steps
+		button = tea.MouseWheelUp
+	}
+
+	var cmds []tea.Cmd
+	for range steps {
+		u, dialogCmd := a.dialog.Update(tea.MouseWheelMsg{X: msg.X, Y: msg.Y, Button: button})
+		a.dialog = u.(dialog.Manager)
+		if dialogCmd != nil {
+			cmds = append(cmds, dialogCmd)
+		}
+	}
+
+	if len(cmds) == 0 {
+		return nil
+	}
+	return tea.Batch(cmds...)
+}
+
 // Update handles incoming messages and updates the application state
 func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -279,7 +314,24 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.chatPage = updated.(chat.Page)
 		return a, cmd
 
-	case tea.MouseClickMsg, tea.MouseMotionMsg, tea.MouseReleaseMsg, tea.MouseWheelMsg:
+	case tea.MouseWheelMsg:
+		cmd := a.handleWheelMsg(msg)
+		return a, cmd
+
+	case messages.WheelCoalescedMsg:
+		if msg.Delta == 0 {
+			return a, nil
+		}
+		if a.dialog.Open() {
+			cmd := a.handleDialogWheelDelta(msg)
+			return a, cmd
+		}
+
+		updated, cmd := a.chatPage.Update(msg)
+		a.chatPage = updated.(chat.Page)
+		return a, cmd
+
+	case tea.MouseClickMsg, tea.MouseMotionMsg, tea.MouseReleaseMsg:
 		// If dialogs are active, they get priority for mouse events
 		if a.dialog.Open() {
 			u, dialogCmd := a.dialog.Update(msg)

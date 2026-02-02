@@ -817,3 +817,60 @@ func TestHasAnimatedContent(t *testing.T) {
 		})
 	}
 }
+
+// BenchmarkMessagesView_RenderWhileScrolling benchmarks View() with scroll offset changes.
+// This measures render cost only (no input handling or coalescing).
+func BenchmarkMessagesView_RenderWhileScrolling(b *testing.B) {
+	// Create a model with many messages to simulate a long conversation
+	sessionState := &service.SessionState{}
+	m := NewScrollableView(120, 40, sessionState).(*model)
+	m.SetSize(120, 40)
+
+	// Add 100 messages to create substantial history
+	for range 100 {
+		msg := types.Agent(types.MessageTypeAssistant, "root", strings.Repeat("This is a test message with some content. ", 10))
+		m.messages = append(m.messages, msg)
+		m.views = append(m.views, m.createMessageView(msg))
+	}
+
+	// Initial render to populate cache
+	m.View()
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	// Simulate scrolling by varying scroll offset
+	for i := range b.N {
+		// Vary scroll position to simulate wheel scrolling
+		m.scrollOffset = (i % 50) * 2
+		m.scrollbar.SetScrollOffset(m.scrollOffset)
+		_ = m.View()
+	}
+}
+
+// BenchmarkMessagesView_LargeHistory benchmarks View() with a very large message history.
+func BenchmarkMessagesView_LargeHistory(b *testing.B) {
+	sessionState := &service.SessionState{}
+	m := NewScrollableView(120, 40, sessionState).(*model)
+	m.SetSize(120, 40)
+
+	// Add 500 messages
+	for i := range 500 {
+		content := "Message " + strconv.Itoa(i) + ": " + strings.Repeat("content ", 20)
+		msg := types.Agent(types.MessageTypeAssistant, "root", content)
+		m.messages = append(m.messages, msg)
+		m.views = append(m.views, m.createMessageView(msg))
+	}
+
+	// Initial render to populate cache
+	m.View()
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := range b.N {
+		m.scrollOffset = (i % 100) * 5
+		m.scrollbar.SetScrollOffset(m.scrollOffset)
+		_ = m.View()
+	}
+}
