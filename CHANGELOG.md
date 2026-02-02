@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.20.2] - 2026-02-02
+
+This release improves the tools system architecture and enhances TUI scrolling performance.
+
+## Improvements
+- Improves render and mouse scroll performance in the TUI interface
+
+## Technical Changes
+- Adds StartableToolSet and As[T] generic helper to tools package
+- Adds capability interfaces for optional toolset features
+- Adds ConfigureHandlers convenience function for tools
+- Migrates StartableToolSet to tools package and cleans up ToolSet interface
+- Removes BaseToolSet and DescriptionToolSet wrapper
+- Reorganizes tool-related code structure
+
+
 ## [v1.20.0] - 2026-01-30
 
 This release introduces editable session titles, custom TUI themes, and improved evaluation capabilities, along with database improvements and bug fixes.
@@ -107,3 +123,5 @@ This release improves the terminal user interface with better error handling and
 [v1.19.7]: https://github.com/docker/cagent/releases/tag/v1.19.7
 
 [v1.20.0]: https://github.com/docker/cagent/releases/tag/v1.20.0
+
+[v1.20.2]: https://github.com/docker/cagent/releases/tag/v1.20.2
