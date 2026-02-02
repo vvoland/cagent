@@ -68,7 +68,7 @@ func (d *toolConfirmationDialog) SetSize(width, height int) tea.Cmd {
 	question := styles.DialogQuestionStyle.Width(contentWidth).Render("Do you want to allow this tool call?")
 	questionHeight := lipgloss.Height(question)
 
-	options := RenderHelpKeys(contentWidth, "Y", "yes", "N", "no", "A", "all (approve all tools this session)")
+	options := RenderHelpKeys(contentWidth, "Y", "yes", "N", "no", "T", "always this tool", "A", "all tools")
 	optionsHeight := lipgloss.Height(options)
 
 	// Calculate available height for scroll view
@@ -87,9 +87,10 @@ func (d *toolConfirmationDialog) renderSeparator(contentWidth int) string {
 
 // toolConfirmationKeyMap defines key bindings for tool confirmation dialog
 type toolConfirmationKeyMap struct {
-	Yes key.Binding
-	No  key.Binding
-	All key.Binding
+	Yes      key.Binding
+	No       key.Binding
+	All      key.Binding
+	ThisTool key.Binding
 }
 
 // defaultToolConfirmationKeyMap returns default key bindings
@@ -106,6 +107,10 @@ func defaultToolConfirmationKeyMap() toolConfirmationKeyMap {
 		All: key.NewBinding(
 			key.WithKeys("a", "A"),
 			key.WithHelp("A", "approve all"),
+		),
+		ThisTool: key.NewBinding(
+			key.WithKeys("t", "T"),
+			key.WithHelp("T", "always allow this tool"),
 		),
 	}
 }
@@ -165,6 +170,13 @@ func (d *toolConfirmationDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 				core.CmdHandler(CloseDialogMsg{}),
 				core.CmdHandler(RuntimeResumeMsg{Request: runtime.ResumeApproveSession()}),
 			)
+		case key.Matches(msg, d.keyMap.ThisTool):
+			// Always allow this specific tool for the session
+			toolName := d.msg.ToolCall.Function.Name
+			return d, tea.Sequence(
+				core.CmdHandler(CloseDialogMsg{}),
+				core.CmdHandler(RuntimeResumeMsg{Request: runtime.ResumeApproveTool(toolName)}),
+			)
 		}
 
 		// Forward scrolling keys to the scroll view
@@ -208,7 +220,7 @@ func (d *toolConfirmationDialog) View() string {
 
 	// Confirmation prompt
 	question := styles.DialogQuestionStyle.Width(contentWidth).Render("Do you want to allow this tool call?")
-	options := RenderHelpKeys(contentWidth, "Y", "yes", "N", "no", "A", "all (approve all tools this session)")
+	options := RenderHelpKeys(contentWidth, "Y", "yes", "N", "no", "T", "always this tool", "A", "all tools")
 
 	parts = append(parts, "", question, "", options)
 
