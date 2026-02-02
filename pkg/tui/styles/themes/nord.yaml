@@ -86,7 +86,7 @@ markdown:
   heading: "#81a1c1"
   link: "#88c0d0"
   strong: "#eceff4"
-  code: "#d08770"
+  code: "#88c0d0"
   code_bg: "#3b4252"
   blockquote: "#616e88"
   list: "#d8dee9"
