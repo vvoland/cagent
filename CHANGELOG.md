@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.20.3] - 2026-02-02
+
+This release migrates PR review workflows to packaged actions and includes visual improvements to the Nord theme.
+
+## Improvements
+- Migrates PR review to packaged cagent-action sub-actions, reducing workflow complexity
+- Changes code fences to blue color in Nord theme for better visual consistency
+
+## Technical Changes
+- Adds task rebuild when themes change to ensure proper theme updates
+- Removes local development configuration that was accidentally committed
+
+
 ## [v1.20.2] - 2026-02-02
 
 This release improves the tools system architecture and enhances TUI scrolling performance.
@@ -159,3 +172,4 @@ This release improves the terminal user interface with better error handling and
 [v1.20.1]: https://github.com/docker/cagent/releases/tag/v1.20.1
 
 [v1.20.2]: https://github.com/docker/cagent/releases/tag/v1.20.2
+[v1.20.3]: https://github.com/docker/cagent/releases/tag/v1.20.3
