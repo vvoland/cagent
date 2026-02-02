@@ -78,8 +78,6 @@ func monitorStdin(ctx context.Context, cancel context.CancelFunc, stdin *os.File
 }
 
 func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
-	f.runConfig.ModelsGateway = "http://localhost:7777"
-
 	telemetry.TrackCommand("api", args)
 
 	ctx := cmd.Context()
