@@ -36,29 +36,29 @@ agents:
 
       ## First: Load Memory
 
-      Read `.github/scanner-memory.json` if it exists. This contains:
+      Use `get_memories` to check for any learned patterns from previous scans. This includes:
       - Files/patterns to skip (known false positives)
       - Codebase-specific context learned from past scans
       - Feedback from humans on previous issues
 
       ## Your workflow
 
-      1. Read memory file to understand what to skip
+      1. Call `get_memories` to understand what to skip from previous runs
       2. Use `directory_tree` to understand the codebase structure
       3. Delegate to sub-agents in order:
          - `security` - for security vulnerabilities (HIGHEST PRIORITY)
          - `bugs` - for logic errors, resource leaks, race conditions
          - `documentation` - for missing docs (ONLY if no security/bug issues)
       4. Collect findings from each sub-agent
-      5. Filter out any issues that match patterns in memory's "skip" list
+      5. Filter out any issues that match patterns from memory
       6. Select the top 1-2 most important issues
-      7. Update memory with any new learnings
+      7. Use `add_memory` to store any new learnings
 
       ## Memory updates
 
       If you discover patterns that should be remembered (e.g., "this codebase uses
-      custom error handling that looks like ignored errors but isn't"), add them
-      to memory by writing to `.github/scanner-memory.json`.
+      custom error handling that looks like ignored errors but isn't"), use
+      `add_memory` to store them for future runs.
 
       ## Output format
 
@@ -83,6 +83,8 @@ agents:
 
     toolsets:
       - type: filesystem
+      - type: memory
+        path: scanner-memory.db
 
   security:
     model: claude-opus
