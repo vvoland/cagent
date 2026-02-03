@@ -49,10 +49,27 @@ agents:
          - `security` - for security vulnerabilities (HIGHEST PRIORITY)
          - `bugs` - for logic errors, resource leaks, race conditions
          - `documentation` - for missing docs (ONLY if no security/bug issues)
-      4. Collect findings from each sub-agent
+      4. Collect findings from each sub-agent (they return text in FILE/LINE/SEVERITY format)
       5. Filter out any issues that match patterns from memory
       6. Select the top 1-2 most important issues
-      7. Use `add_memory` to store any new learnings
+      7. Convert selected findings to JSON output format
+      8. Use `add_memory` to store any new learnings
+
+      ## Sub-agent output format
+
+      Sub-agents return findings in this text format (or `NO_ISSUES` if none):
+      ```
+      FILE: path/to/file.go
+      LINE: 123
+      SEVERITY: high
+      TITLE: Brief description
+      CODE: exact code
+      PROBLEM: explanation
+      SUGGESTION: fix
+      ---
+      ```
+
+      Parse these and convert to JSON for your final output.
 
       ## Memory updates
 
@@ -127,22 +144,20 @@ agents:
 
       ## Output format
 
-      Return a JSON array of findings:
-      ```json
-      [
-        {
-          "title": "Brief title",
-          "severity": "critical|high|medium",
-          "file": "path/to/file.go",
-          "line": 123,
-          "code": "exact code",
-          "problem": "explanation",
-          "suggestion": "fix"
-        }
-      ]
+      For each finding, output in this EXACT format:
+
+      ```
+      FILE: path/to/file.go
+      LINE: 123
+      SEVERITY: critical|high|medium
+      TITLE: Brief description of the vulnerability
+      CODE: exact code snippet
+      PROBLEM: Why this is a security issue
+      SUGGESTION: How to fix it
+      ---
       ```
 
-      Return `[]` if no security issues found. This is perfectly acceptable!
+      If no security issues found, output: `NO_ISSUES`
 
     toolsets:
       - type: filesystem
@@ -194,22 +209,20 @@ agents:
 
       ## Output format
 
-      Return a JSON array of findings:
-      ```json
-      [
-        {
-          "title": "Brief title",
-          "severity": "high|medium",
-          "file": "path/to/file.go",
-          "line": 123,
-          "code": "exact code",
-          "problem": "explanation",
-          "suggestion": "fix"
-        }
-      ]
+      For each finding, output in this EXACT format:
+
+      ```
+      FILE: path/to/file.go
+      LINE: 123
+      SEVERITY: high|medium
+      TITLE: Brief description of the bug
+      CODE: exact code snippet
+      PROBLEM: Why this is a bug
+      SUGGESTION: How to fix it
+      ---
       ```
 
-      Return `[]` if no bugs found. This is perfectly acceptable!
+      If no bugs found, output: `NO_ISSUES`
 
     toolsets:
       - type: filesystem
@@ -263,22 +276,20 @@ agents:
 
       ## Output format
 
-      Return a JSON array of findings:
-      ```json
-      [
-        {
-          "title": "Brief title",
-          "severity": "medium",
-          "file": "path/to/file.go",
-          "line": 123,
-          "code": "function signature or relevant code",
-          "problem": "what's missing",
-          "suggestion": "what to document"
-        }
-      ]
+      For each finding, output in this EXACT format:
+
+      ```
+      FILE: path/to/file.go
+      LINE: 123
+      SEVERITY: medium
+      TITLE: Brief description of the doc gap
+      CODE: function signature or relevant code
+      PROBLEM: What documentation is missing
+      SUGGESTION: What should be documented
+      ---
       ```
 
-      Return `[]` if no documentation issues found. This is perfectly acceptable!
+      If no documentation issues found, output: `NO_ISSUES`
 
     toolsets:
       - type: filesystem
