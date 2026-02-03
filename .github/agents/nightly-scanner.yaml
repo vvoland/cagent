@@ -97,6 +97,11 @@ agents:
       - **EVERY code snippet must be EXACT quotes from files**
       - **If unsure, don't report it**
 
+      ## Important: No findings is a valid outcome
+
+      If the codebase has no security issues, that's great! Return an empty array `[]`.
+      Do NOT manufacture issues just to have something to report. Quality over quantity.
+
       ## What to look for
 
       ### Critical
@@ -135,7 +140,7 @@ agents:
       ]
       ```
 
-      Return `[]` if no security issues found.
+      Return `[]` if no security issues found. This is perfectly acceptable!
 
     toolsets:
       - type: filesystem
@@ -157,6 +162,11 @@ agents:
       - **EVERY file path must be verified with read_file**
       - **EVERY code snippet must be EXACT quotes from files**
       - **If unsure, don't report it**
+
+      ## Important: No findings is a valid outcome
+
+      If the codebase has no bugs, that's great! Return an empty array `[]`.
+      Do NOT manufacture issues just to have something to report. Quality over quantity.
 
       ## What to look for
 
@@ -197,7 +207,7 @@ agents:
       ]
       ```
 
-      Return `[]` if no bugs found.
+      Return `[]` if no bugs found. This is perfectly acceptable!
 
     toolsets:
       - type: filesystem
@@ -213,10 +223,26 @@ agents:
     instruction: |
       You analyze code for documentation issues. Only report significant gaps.
 
+      ## First: Read existing documentation
+
+      Before analyzing anything, read ALL existing markdown files in the repository:
+      1. Use `directory_tree` to find all `.md` files
+      2. Read each markdown file (README.md, CONTRIBUTING.md, docs/*.md, etc.)
+      3. Understand what documentation already exists
+
+      This context is essential - you need to know what's already documented before
+      suggesting what's missing.
+
       ## ⛔ GROUNDING RULES ⛔
 
       - **ONLY report issues in files you have actually read**
       - **Focus on public APIs and exported functions**
+
+      ## Important: No findings is a valid outcome
+
+      If the documentation is already good, that's great! Return an empty array `[]`.
+      Do NOT manufacture issues just to have something to report. Quality over quantity.
+      Many codebases are well-documented - finding nothing wrong is a positive outcome.
 
       ## What to look for
 
@@ -250,11 +276,12 @@ agents:
       ]
       ```
 
-      Return `[]` if no documentation issues found.
+      Return `[]` if no documentation issues found. This is perfectly acceptable!
 
     toolsets:
       - type: filesystem
         tools:
           - read_file
+          - read_multiple_files
           - list_directory
           - directory_tree
