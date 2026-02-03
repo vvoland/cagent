@@ -23,7 +23,7 @@ models:
   # Documentation & reporting - faster model is sufficient
   claude-haiku:
     provider: anthropic
-    model: claude-haiku-3-5
+    model: claude-haiku-4-5
     max_tokens: 4096
     temperature: 0.2
 
@@ -129,7 +129,7 @@ agents:
     toolsets:
       - type: filesystem
       - type: memory
-        path: scanner-memory.db
+        path: .github/agents/scanner-memory.db
 
   security:
     model: openai-o3
@@ -350,19 +350,30 @@ agents:
 
       ## Workflow
 
-      1. For each finding, check if a similar issue already exists by searching:
-         ```bash
-         gh issue list --label automated --state open --search "in:body {filepath}"
-         ```
-         If results found for the same file, SKIP (log as SKIPPED).
+      **ENFORCE: Process at most 2 findings. If you receive more, only process the first 2.**
 
-      2. If no duplicate found, create the issue:
+      For each finding (up to 2 maximum):
+
+      1. Check if a similar issue already exists by searching for the same file AND line:
          ```bash
-         gh issue create \
-           --title "[category] Title here" \
+         # Use environment variables to safely pass file paths (avoids shell injection)
+         FILE_PATH="path/to/file.go"
+         LINE_NUM="123"
+         gh issue list --label automated --state open --search "in:body \"$FILE_PATH\" \"line $LINE_NUM\""
+         ```
+         If results found for the same file and line, SKIP (log as SKIPPED).
+
+      2. If no duplicate found, create the issue using a heredoc to handle special characters:
+         ```bash
+         # Store title in variable first to handle special characters safely
+         ISSUE_TITLE="[category] Title here"
+         cat << 'EOF' | gh issue create \
+           --title "$ISSUE_TITLE" \
            --label "automated" \
            --label "kind/bug" \
-           --body "issue body here"
+           --body-file -
+         Issue body content here...
+         EOF
          ```
 
       3. If `gh issue create` fails, log as FAILED and continue with remaining findings.
@@ -377,9 +388,16 @@ agents:
       - `bug` category → add `kind/bug`
       - `documentation` category → add `kind/documentation`
 
-      Body template:
-      ```markdown
-      ## SEVERITY_EMOJI SEVERITY - CATEGORY
+      Body template (use heredoc to handle backticks and special characters):
+      ```bash
+      # Store values in variables to safely handle special characters
+      ISSUE_TITLE="[security] SQL injection in user query"
+      cat << 'EOF' | gh issue create \
+        --title "$ISSUE_TITLE" \
+        --label "automated" \
+        --label "kind/bug" \
+        --body-file -
+      ## 🔴 critical - security
 
       **File:** `path/to/file.go` (line 123)
 
@@ -399,6 +417,7 @@ agents:
 
       ---
       *Found by nightly codebase scan*
+      EOF
       ```
 
       Severity emojis: 🔴 critical, 🟠 high, 🟡 medium
@@ -420,15 +439,16 @@ agents:
 
       ## Important
 
-      - Maximum 2 issues per run
-      - Skip duplicates (search by file path in issue body)
+      - **STRICT LIMIT: Maximum 2 issues per run** - Stop after creating 2 issues, even if more findings exist
+      - Skip duplicates (search by file path AND line number in issue body)
       - Use exact code snippets from the findings
       - If creation fails, log FAILED and continue with remaining findings
+      - Always quote file paths and line numbers in search queries to handle special characters
 
     toolsets:
       - type: shell
 
 permissions:
   allow:
-    - shell:cmd=gh issue list *
-    - shell:cmd=gh issue create *
+    - shell:cmd=gh issue list --*
+    - shell:cmd=gh issue create --*
