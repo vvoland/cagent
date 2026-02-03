@@ -51,20 +51,49 @@ agents:
 
       1. Call `get_memories` to understand what to skip from previous runs
       2. Use `directory_tree` to understand the codebase structure
-      3. Delegate to sub-agents in order:
+      3. Delegate to sub-agents in order (with error handling):
          - `security` - for security vulnerabilities (HIGHEST PRIORITY)
+           - If fails: log error, continue to bugs
          - `bugs` - for logic errors, resource leaks, race conditions
-         - `documentation` - for missing docs (ONLY if no security/bug issues)
-      4. Collect findings from each sub-agent (they return text in FILE/LINE/SEVERITY format)
-      5. Filter out any issues that match patterns from memory
-      6. Select the top 1-2 most important issues
-      7. Delegate to `reporter` with the selected findings to create GitHub issues
-      8. Use `add_memory` to store any new learnings
+           - If fails: log error, continue to documentation check
+         - `documentation` - for missing docs
+           - ONLY run if BOTH security AND bugs returned `NO_ISSUES`
+           - If fails: log error, continue to reporting
+      4. Collect findings from each sub-agent (they return text format or `NO_ISSUES`)
+      5. Filter out any issues where FILE matches patterns from memory
+      6. Sort by SEVERITY (critical > high > medium) and select top 1-2 issues
+      7. Add CATEGORY field to each finding based on source agent:
+         - From security agent → `CATEGORY: security`
+         - From bugs agent → `CATEGORY: bug`
+         - From documentation agent → `CATEGORY: documentation`
+      8. Delegate to `reporter` with the augmented findings
+      9. Use `add_memory` to store any new learnings
+
+      ## Error handling
+
+      - If a sub-agent fails (timeout, API error), log the error and continue with other agents
+      - If ALL sub-agents fail, output: `SCAN FAILED: All agents encountered errors`
+      - If SOME sub-agents fail, report findings from successful ones and note failures
 
       ## Sub-agent output format
 
       Analysis sub-agents return findings in this text format (or `NO_ISSUES` if none):
       ```
+      FILE: path/to/file.go
+      LINE: 123
+      SEVERITY: high
+      TITLE: Brief description
+      CODE: exact code
+      PROBLEM: explanation
+      SUGGESTION: fix
+      ---
+      ```
+
+      ## Forwarding to reporter
+
+      When forwarding to reporter, ADD the CATEGORY field:
+      ```
+      CATEGORY: security
       FILE: path/to/file.go
       LINE: 123
       SEVERITY: high
@@ -117,7 +146,7 @@ agents:
 
       ## Important: No findings is a valid outcome
 
-      If the codebase has no security issues, that's great! Return an empty array `[]`.
+      If the codebase has no security issues, that's great! Output `NO_ISSUES`.
       Do NOT manufacture issues just to have something to report. Quality over quantity.
 
       ## What to look for
@@ -181,7 +210,7 @@ agents:
 
       ## Important: No findings is a valid outcome
 
-      If the codebase has no bugs, that's great! Return an empty array `[]`.
+      If the codebase has no bugs, that's great! Output `NO_ISSUES`.
       Do NOT manufacture issues just to have something to report. Quality over quantity.
 
       ## What to look for
@@ -254,7 +283,7 @@ agents:
 
       ## Important: No findings is a valid outcome
 
-      If the documentation is already good, that's great! Return an empty array `[]`.
+      If the documentation is already good, that's great! Output `NO_ISSUES`.
       Do NOT manufacture issues just to have something to report. Quality over quantity.
       Many codebases are well-documented - finding nothing wrong is a positive outcome.
 
@@ -321,14 +350,13 @@ agents:
 
       ## Workflow
 
-      1. First, check for existing similar issues:
+      1. For each finding, check if a similar issue already exists by searching:
          ```bash
-         gh issue list --label automated --state open --limit 100
+         gh issue list --label automated --state open --search "in:body {filepath}"
          ```
+         If results found for the same file, SKIP (log as SKIPPED).
 
-      2. For each finding, skip if a similar issue already exists (matching title or file)
-
-      3. Create new issues with `gh issue create`:
+      2. If no duplicate found, create the issue:
          ```bash
          gh issue create \
            --title "[category] Title here" \
@@ -336,6 +364,8 @@ agents:
            --label "kind/bug" \
            --body "issue body here"
          ```
+
+      3. If `gh issue create` fails, log as FAILED and continue with remaining findings.
 
       ## Issue format
 
@@ -380,6 +410,7 @@ agents:
       CREATED: #123 [security] Issue title
       CREATED: #456 [bug] Issue title
       SKIPPED: Similar issue already exists for path/to/file.go
+      FAILED: Could not create issue - API error message
       ```
 
       Or if nothing to create:
@@ -390,12 +421,14 @@ agents:
       ## Important
 
       - Maximum 2 issues per run
-      - Skip duplicates (check by title similarity and file path)
+      - Skip duplicates (search by file path in issue body)
       - Use exact code snippets from the findings
+      - If creation fails, log FAILED and continue with remaining findings
 
     toolsets:
       - type: shell
 
 permissions:
   allow:
-    - shell:cmd=gh *
+    - shell:cmd=gh issue list *
+    - shell:cmd=gh issue create *
