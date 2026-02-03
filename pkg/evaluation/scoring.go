@@ -128,10 +128,10 @@ func printMetric(out io.Writer, label string, passed, total int) {
 }
 
 func printMetricFloat(out io.Writer, label string, passed, total float64) {
-	ratio := 0.0
-	if total > 0 {
-		ratio = passed / total
+	if total == 0 {
+		return // Skip metrics with no data
 	}
+	ratio := passed / total
 	fmt.Fprintf(out, "%s %14s: %.0f/%.0f passed (%.1f%%)\n", statusIcon(ratio), label, passed, total, ratio*100)
 }
 
