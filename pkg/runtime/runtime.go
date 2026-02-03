@@ -1448,15 +1448,7 @@ func (r *LocalRuntime) executeWithApproval(
 			if sess.Permissions == nil {
 				sess.Permissions = &session.PermissionsConfig{}
 			}
-			// Check if already in allow list to avoid duplicates
-			alreadyAllowed := false
-			for _, t := range sess.Permissions.Allow {
-				if t == approvedTool {
-					alreadyAllowed = true
-					break
-				}
-			}
-			if !alreadyAllowed {
+			if !slices.Contains(sess.Permissions.Allow, approvedTool) {
 				sess.Permissions.Allow = append(sess.Permissions.Allow, approvedTool)
 			}
 			slog.Debug("Resume signal received, approving tool permanently", "tool", approvedTool, "session_id", sess.ID)

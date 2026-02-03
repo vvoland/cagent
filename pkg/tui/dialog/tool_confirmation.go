@@ -98,10 +98,8 @@ func (d *toolConfirmationDialog) alwaysAllowHelpText() string {
 	toolName := d.msg.ToolCall.Function.Name
 
 	// For shell with a command pattern, show a more descriptive label
-	if toolName == "shell" && strings.Contains(pattern, ":cmd=") {
-		// Extract just the command part for display: "shell:cmd=ls*" -> "ls*"
-		if idx := strings.Index(pattern, ":cmd="); idx != -1 {
-			cmdPattern := pattern[idx+5:] // skip ":cmd="
+	if toolName == "shell" {
+		if _, cmdPattern, ok := strings.Cut(pattern, ":cmd="); ok {
 			return "always allow " + cmdPattern
 		}
 	}
@@ -151,18 +149,14 @@ func buildPermissionPattern(toolCall tools.ToolCall) string {
 		var args struct {
 			Cmd string `json:"cmd"`
 		}
-		if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err == nil && args.Cmd != "" {
+		if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err == nil {
 			// Extract the first word (the command) from the full command string
 			// e.g., "ls -la /tmp" -> "ls"
-			cmd := strings.TrimSpace(args.Cmd)
-			firstWord := cmd
-			if idx := strings.IndexAny(cmd, " \t"); idx != -1 {
-				firstWord = cmd[:idx]
-			}
-			if firstWord != "" {
+			// strings.Fields handles all whitespace (space, tab, newline)
+			if fields := strings.Fields(args.Cmd); len(fields) > 0 {
 				// Create pattern: shell:cmd=<command>*
 				// The trailing * allows matching with any arguments
-				return toolName + ":cmd=" + firstWord + "*"
+				return toolName + ":cmd=" + fields[0] + "*"
 			}
 		}
 	}
