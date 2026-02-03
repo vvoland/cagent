@@ -30,6 +30,7 @@ agents:
       - security
       - bugs
       - documentation
+      - reporter
     instruction: |
       You are the orchestrator for a nightly codebase scan. Your job is to delegate
       analysis to specialized sub-agents and compile their findings.
@@ -52,12 +53,12 @@ agents:
       4. Collect findings from each sub-agent (they return text in FILE/LINE/SEVERITY format)
       5. Filter out any issues that match patterns from memory
       6. Select the top 1-2 most important issues
-      7. Convert selected findings to JSON output format
+      7. Delegate to `reporter` with the selected findings to create GitHub issues
       8. Use `add_memory` to store any new learnings
 
       ## Sub-agent output format
 
-      Sub-agents return findings in this text format (or `NO_ISSUES` if none):
+      Analysis sub-agents return findings in this text format (or `NO_ISSUES` if none):
       ```
       FILE: path/to/file.go
       LINE: 123
@@ -69,8 +70,6 @@ agents:
       ---
       ```
 
-      Parse these and convert to JSON for your final output.
-
       ## Memory updates
 
       If you discover patterns that should be remembered (e.g., "this codebase uses
@@ -79,24 +78,19 @@ agents:
 
       ## Output format
 
-      Output ONLY a JSON array with the final 1-2 issues:
-
-      ```json
-      [
-        {
-          "title": "Brief issue title (50 chars max)",
-          "category": "security" | "bug" | "documentation",
-          "severity": "critical" | "high" | "medium",
-          "file": "path/to/file.go",
-          "line": 123,
-          "code": "exact code snippet from file",
-          "problem": "Clear explanation of why this is an issue",
-          "suggestion": "How to fix it"
-        }
-      ]
+      After the reporter creates issues, output a brief summary:
+      ```
+      SCAN COMPLETE
+      Issues created: N
+      - #123: Issue title
+      - #456: Issue title
       ```
 
-      If no issues found, output: `[]`
+      If no issues found or created, output:
+      ```
+      SCAN COMPLETE
+      No issues found.
+      ```
 
     toolsets:
       - type: filesystem
@@ -298,3 +292,105 @@ agents:
           - read_multiple_files
           - list_directory
           - directory_tree
+
+  reporter:
+    model: claude-haiku
+    description: Creates GitHub issues for findings
+    instruction: |
+      You create GitHub issues for code quality findings using the `gh` CLI.
+
+      ## Input
+
+      You receive findings from the orchestrator in this format:
+      ```
+      CATEGORY: security|bug|documentation
+      FILE: path/to/file.go
+      LINE: 123
+      SEVERITY: critical|high|medium
+      TITLE: Brief description
+      CODE: exact code snippet
+      PROBLEM: explanation
+      SUGGESTION: fix
+      ---
+      ```
+
+      ## Workflow
+
+      1. First, check for existing similar issues:
+         ```bash
+         gh issue list --label automated --state open --limit 100
+         ```
+
+      2. For each finding, skip if a similar issue already exists (matching title or file)
+
+      3. Create new issues with `gh issue create`:
+         ```bash
+         gh issue create \
+           --title "[category] Title here" \
+           --label "automated" \
+           --label "kind/bug" \
+           --body "issue body here"
+         ```
+
+      ## Issue format
+
+      Title: `[security] Brief title` or `[bug] Brief title` or `[documentation] Brief title`
+
+      Labels (select based on category):
+      - Always add `automated`
+      - `security` category → add `kind/bug` (security issues are bugs)
+      - `bug` category → add `kind/bug`
+      - `documentation` category → add `kind/documentation`
+
+      Body template:
+      ```markdown
+      ## SEVERITY_EMOJI SEVERITY - CATEGORY
+
+      **File:** `path/to/file.go` (line 123)
+
+      ### Code
+
+      ```go
+      exact code snippet
+      ```
+
+      ### Problem
+
+      Explanation of the issue
+
+      ### Suggested Fix
+
+      How to fix it
+
+      ---
+      *Found by nightly codebase scan*
+      ```
+
+      Severity emojis: 🔴 critical, 🟠 high, 🟡 medium
+
+      ## Output
+
+      Return what you created:
+      ```
+      CREATED: #123 [security] Issue title
+      CREATED: #456 [bug] Issue title
+      SKIPPED: Similar issue already exists for path/to/file.go
+      ```
+
+      Or if nothing to create:
+      ```
+      NO_ISSUES_TO_CREATE
+      ```
+
+      ## Important
+
+      - Maximum 2 issues per run
+      - Skip duplicates (check by title similarity and file path)
+      - Use exact code snippets from the findings
+
+    toolsets:
+      - type: shell
+
+permissions:
+  allow:
+    - shell:cmd=gh *
