@@ -901,6 +901,65 @@ func TestForwardCompatibility_SummaryPopulated(t *testing.T) {
 	assert.Equal(t, "This is a summary of the conversation.", items[1].Summary)
 }
 
+// TestOrphanedSubsessionReference verifies that loading sessions gracefully
+// handles orphaned subsession references (where the subsession was deleted
+// but the reference in session_items remains).
+func TestOrphanedSubsessionReference(t *testing.T) {
+	tempDB := filepath.Join(t.TempDir(), "test_orphaned.db")
+
+	store, err := NewSQLiteSessionStore(tempDB)
+	require.NoError(t, err)
+	defer store.(*SQLiteSessionStore).Close()
+
+	sqliteStore := store.(*SQLiteSessionStore)
+
+	// Create parent session
+	parentSession := &Session{
+		ID:        "parent-session",
+		CreatedAt: time.Now(),
+	}
+	err = store.AddSession(t.Context(), parentSession)
+	require.NoError(t, err)
+
+	// Add a message to parent
+	_, err = store.AddMessage(t.Context(), "parent-session", UserMessage("Start task"))
+	require.NoError(t, err)
+
+	// Create and add a sub-session
+	subSession := &Session{
+		ID:        "sub-session-to-delete",
+		CreatedAt: time.Now(),
+		Messages: []Item{
+			NewMessageItem(UserMessage("Sub task")),
+		},
+	}
+	err = store.AddSubSession(t.Context(), "parent-session", subSession)
+	require.NoError(t, err)
+
+	// Verify session loads correctly before deletion
+	retrieved, err := store.GetSession(t.Context(), "parent-session")
+	require.NoError(t, err)
+	assert.Len(t, retrieved.Messages, 2) // user message + subsession
+
+	// Now delete the sub-session directly from the database
+	// This simulates a scenario where the sub-session is deleted but the
+	// reference in session_items remains (the FK sets it to NULL)
+	_, err = sqliteStore.db.ExecContext(t.Context(), "DELETE FROM sessions WHERE id = ?", "sub-session-to-delete")
+	require.NoError(t, err)
+
+	// Loading the parent session should gracefully skip the orphaned reference
+	retrieved, err = store.GetSession(t.Context(), "parent-session")
+	require.NoError(t, err)
+	assert.Len(t, retrieved.Messages, 1) // Only the user message remains
+	assert.Equal(t, "Start task", retrieved.Messages[0].Message.Message.Content)
+
+	// GetSessions should also work without error
+	sessions, err := store.GetSessions(t.Context())
+	require.NoError(t, err)
+	assert.Len(t, sessions, 1)
+	assert.Equal(t, "parent-session", sessions[0].ID)
+}
+
 // TestMigration_ExistingMessagesToSessionItems verifies that the migration
 // properly converts legacy messages JSON to session_items table.
 func TestMigration_ExistingMessagesToSessionItems(t *testing.T) {
