@@ -3,6 +3,7 @@ package latest
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/goccy/go-yaml"
 
@@ -157,6 +158,61 @@ type ModelConfig struct {
 	// - The provider/model fields define the fallback model
 	// - Each routing rule maps to a different model based on examples
 	Routing []RoutingRule `json:"routing,omitempty"`
+}
+
+// FlexibleModelConfig wraps ModelConfig to support both shorthand and full syntax.
+// It can be unmarshaled from either:
+//   - A shorthand string: "provider/model" (e.g., "anthropic/claude-sonnet-4-5")
+//   - A full model definition with all options
+type FlexibleModelConfig struct {
+	ModelConfig
+}
+
+// UnmarshalYAML implements custom unmarshaling for flexible model config
+func (f *FlexibleModelConfig) UnmarshalYAML(unmarshal func(any) error) error {
+	// Try string shorthand first
+	var shorthand string
+	if err := unmarshal(&shorthand); err == nil && shorthand != "" {
+		provider, model, ok := strings.Cut(shorthand, "/")
+		if !ok || provider == "" || model == "" {
+			return fmt.Errorf("invalid model shorthand %q: expected format 'provider/model'", shorthand)
+		}
+		f.Provider = provider
+		f.Model = model
+		return nil
+	}
+
+	// Try full model config
+	var cfg ModelConfig
+	if err := unmarshal(&cfg); err != nil {
+		return err
+	}
+	f.ModelConfig = cfg
+	return nil
+}
+
+// MarshalYAML outputs shorthand format if only provider/model are set
+func (f FlexibleModelConfig) MarshalYAML() ([]byte, error) {
+	if f.isShorthandOnly() {
+		return yaml.Marshal(f.Provider + "/" + f.Model)
+	}
+	return yaml.Marshal(f.ModelConfig)
+}
+
+// isShorthandOnly returns true if only provider and model are set
+func (f *FlexibleModelConfig) isShorthandOnly() bool {
+	return f.Temperature == nil &&
+		f.MaxTokens == nil &&
+		f.TopP == nil &&
+		f.FrequencyPenalty == nil &&
+		f.PresencePenalty == nil &&
+		f.BaseURL == "" &&
+		f.ParallelToolCalls == nil &&
+		f.TokenKey == "" &&
+		len(f.ProviderOpts) == 0 &&
+		f.TrackUsage == nil &&
+		f.ThinkingBudget == nil &&
+		len(f.Routing) == 0
 }
 
 // RoutingRule defines a single routing rule for model selection.

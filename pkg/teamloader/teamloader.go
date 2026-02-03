@@ -132,7 +132,7 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 	agentsByName := make(map[string]*agent.Agent)
 
 	autoModel := sync.OnceValue(func() latest.ModelConfig {
-		return config.AutoModelConfig(ctx, runConfig.ModelsGateway, env)
+		return config.AutoModelConfig(ctx, runConfig.ModelsGateway, env, runConfig.DefaultModel)
 	})
 
 	expander := js.NewJsExpander(env)
