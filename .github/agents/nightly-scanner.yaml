@@ -132,8 +132,8 @@ agents:
         path: .github/agents/scanner-memory.db
 
   security:
-    model: openai-o3
-    description: Deep security vulnerability analysis
+    model: openai-o3,claude-sonnet
+    description: Deep security vulnerability analysis (alloy: reasoning + broad knowledge)
     instruction: |
       You are a security expert scanning for vulnerabilities. Be thorough but precise.
 
@@ -196,8 +196,8 @@ agents:
           - directory_tree
 
   bugs:
-    model: gemini-flash
-    description: Logic errors, resource leaks, and concurrency bugs
+    model: gemini-flash,claude-haiku
+    description: Logic errors, resource leaks, and concurrency bugs (alloy: speed + precision)
     instruction: |
       You are analyzing code for bugs that cause runtime errors or incorrect behavior.
 
