@@ -659,9 +659,20 @@ func (s *SQLiteSessionStore) loadSessionItemsWith(ctx context.Context, q querier
 			})
 
 		case "subsession":
+			// Skip if subsession_id is NULL (can happen if the sub-session was deleted
+			// and the foreign key set the reference to NULL)
+			if !row.subsessionID.Valid || row.subsessionID.String == "" {
+				slog.Warn("Skipping subsession item with NULL reference", "session_id", sessionID, "position", row.position)
+				continue
+			}
 			// Recursively load sub-session
 			subSession, err := s.loadSessionWith(ctx, q, row.subsessionID.String)
 			if err != nil {
+				if errors.Is(err, ErrNotFound) {
+					// Sub-session was deleted but item reference remains (orphaned reference)
+					slog.Warn("Skipping orphaned subsession reference", "session_id", sessionID, "subsession_id", row.subsessionID.String)
+					continue
+				}
 				return nil, fmt.Errorf("getting sub-session %s: %w", row.subsessionID.String, err)
 			}
 			items = append(items, Item{SubSession: subSession})
@@ -705,6 +716,13 @@ func (s *SQLiteSessionStore) loadMessagesFromLegacyColumn(ctx context.Context, s
 	err := s.db.QueryRowContext(ctx, "SELECT messages FROM sessions WHERE id = ?", sessionID).Scan(&messagesJSON)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		// Handle case where messages column doesn't exist (very old or corrupted database)
+		// This can happen if the database was created before the messages column was added
+		// or if migrations failed partially
+		if sqliteutil.IsNoSuchColumnError(err) {
+			slog.Warn("messages column not found in sessions table, returning empty messages", "session_id", sessionID)
 			return nil, nil
 		}
 		return nil, err
