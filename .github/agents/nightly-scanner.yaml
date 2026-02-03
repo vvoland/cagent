@@ -8,14 +8,19 @@ models:
     max_tokens: 4096
     temperature: 0.1
 
-  # Security analysis - use stronger model for catching subtle vulnerabilities
-  claude-opus:
-    provider: anthropic
-    model: claude-opus-4
+  # Security analysis - reasoning model excels at finding subtle vulnerabilities
+  openai-o3:
+    provider: openai
+    model: o3-mini
     max_tokens: 8192
-    temperature: 0.1
 
-  # Documentation - faster model is sufficient
+  # Bug detection - fast and surprisingly good at Go code analysis
+  gemini-flash:
+    provider: google
+    model: gemini-2.5-flash
+    max_tokens: 8192
+
+  # Documentation & reporting - faster model is sufficient
   claude-haiku:
     provider: anthropic
     model: claude-haiku-3-5
@@ -98,7 +103,7 @@ agents:
         path: scanner-memory.db
 
   security:
-    model: claude-opus
+    model: openai-o3
     description: Deep security vulnerability analysis
     instruction: |
       You are a security expert scanning for vulnerabilities. Be thorough but precise.
@@ -162,7 +167,7 @@ agents:
           - directory_tree
 
   bugs:
-    model: claude-sonnet
+    model: gemini-flash
     description: Logic errors, resource leaks, and concurrency bugs
     instruction: |
       You are analyzing code for bugs that cause runtime errors or incorrect behavior.
