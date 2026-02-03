@@ -210,8 +210,8 @@ func (sm *SessionManager) RunSession(ctx context.Context, sessionID, agentFilena
 	return streamChan, nil
 }
 
-// ResumeSession resumes a paused session with an optional rejection reason.
-func (sm *SessionManager) ResumeSession(ctx context.Context, sessionID, confirmation, reason string) error {
+// ResumeSession resumes a paused session with an optional rejection reason or tool name.
+func (sm *SessionManager) ResumeSession(ctx context.Context, sessionID, confirmation, reason, toolName string) error {
 	sm.mux.Lock()
 	defer sm.mux.Unlock()
 
@@ -222,8 +222,9 @@ func (sm *SessionManager) ResumeSession(ctx context.Context, sessionID, confirma
 	}
 
 	rt.runtime.Resume(ctx, runtime.ResumeRequest{
-		Type:   runtime.ResumeType(confirmation),
-		Reason: reason,
+		Type:     runtime.ResumeType(confirmation),
+		Reason:   reason,
+		ToolName: toolName,
 	})
 	return nil
 }

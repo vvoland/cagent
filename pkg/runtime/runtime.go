@@ -59,14 +59,16 @@ func (e *ElicitationError) Error() string {
 const (
 	ResumeTypeApprove        ResumeType = "approve"
 	ResumeTypeApproveSession ResumeType = "approve-session"
+	ResumeTypeApproveTool    ResumeType = "approve-tool"
 	ResumeTypeReject         ResumeType = "reject"
 )
 
 // ResumeRequest carries the user's confirmation decision along with an optional
 // reason (used when rejecting a tool call to help the model understand why).
 type ResumeRequest struct {
-	Type   ResumeType
-	Reason string // Optional; primarily used with ResumeTypeReject
+	Type     ResumeType
+	Reason   string // Optional; primarily used with ResumeTypeReject
+	ToolName string // Optional; used with ResumeTypeApproveTool to specify which tool to always allow
 }
 
 // ResumeApprove creates a ResumeRequest to approve a single tool call.
@@ -77,6 +79,11 @@ func ResumeApprove() ResumeRequest {
 // ResumeApproveSession creates a ResumeRequest to approve all tool calls for the session.
 func ResumeApproveSession() ResumeRequest {
 	return ResumeRequest{Type: ResumeTypeApproveSession}
+}
+
+// ResumeApproveTool creates a ResumeRequest to always approve a specific tool for the session.
+func ResumeApproveTool(toolName string) ResumeRequest {
+	return ResumeRequest{Type: ResumeTypeApproveTool, ToolName: toolName}
 }
 
 // ResumeReject creates a ResumeRequest to reject a tool call with an optional reason.
@@ -1431,6 +1438,20 @@ func (r *LocalRuntime) executeWithApproval(
 		case ResumeTypeApproveSession:
 			slog.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name, "session_id", sess.ID)
 			sess.ToolsApproved = true
+			runTool()
+		case ResumeTypeApproveTool:
+			// Add the tool to session's allow list for future auto-approval
+			approvedTool := req.ToolName
+			if approvedTool == "" {
+				approvedTool = toolName
+			}
+			if sess.Permissions == nil {
+				sess.Permissions = &session.PermissionsConfig{}
+			}
+			if !slices.Contains(sess.Permissions.Allow, approvedTool) {
+				sess.Permissions.Allow = append(sess.Permissions.Allow, approvedTool)
+			}
+			slog.Debug("Resume signal received, approving tool permanently", "tool", approvedTool, "session_id", sess.ID)
 			runTool()
 		case ResumeTypeReject:
 			slog.Debug("Resume signal received, rejecting tool", "tool", toolCall.Function.Name, "session_id", sess.ID, "reason", req.Reason)
