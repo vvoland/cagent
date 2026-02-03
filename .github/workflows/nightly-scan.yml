@@ -29,6 +29,20 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Restore scanner memory
+        uses: actions/cache/restore@v4
+        with:
+          path: .github/scanner-memory.json
+          key: scanner-memory-${{ github.repository }}-${{ github.run_id }}
+          restore-keys: |
+            scanner-memory-${{ github.repository }}-
+
+      - name: Initialize memory file if missing
+        run: |
+          if [ ! -f .github/scanner-memory.json ]; then
+            echo '{"skip_patterns": [], "context": [], "feedback": []}' > .github/scanner-memory.json
+          fi
+
       - name: Run nightly scan
         id: scan
         uses: docker/cagent-action@latest
@@ -157,3 +171,10 @@ ${issue.suggestion}
             if (!dryRun) {
               console.log(`\n📊 Summary: Created ${created} issue(s)`);
             }
+
+      - name: Save scanner memory
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .github/scanner-memory.json
+          key: scanner-memory-${{ github.repository }}-${{ github.run_id }}
