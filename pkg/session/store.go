@@ -707,6 +707,13 @@ func (s *SQLiteSessionStore) loadMessagesFromLegacyColumn(ctx context.Context, s
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
+		// Handle case where messages column doesn't exist (very old or corrupted database)
+		// This can happen if the database was created before the messages column was added
+		// or if migrations failed partially
+		if sqliteutil.IsNoSuchColumnError(err) {
+			slog.Warn("messages column not found in sessions table, returning empty messages", "session_id", sessionID)
+			return nil, nil
+		}
 		return nil, err
 	}
 
