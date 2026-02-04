@@ -75,6 +75,7 @@ func SessionFromEvents(events []map[string]any, title, question string) *session
 	var currentModel string
 	var currentUsage *chat.Usage
 	var currentCost float64
+	var currentTimestamp string
 
 	// Helper to flush current assistant message
 	flushAssistantMessage := func() {
@@ -87,7 +88,7 @@ func SessionFromEvents(events []map[string]any, title, question string) *session
 					ReasoningContent: currentReasoningContent.String(),
 					ToolCalls:        currentToolCalls,
 					ToolDefinitions:  currentToolDefinitions,
-					CreatedAt:        time.Now().Format(time.RFC3339),
+					CreatedAt:        currentTimestamp,
 					Model:            currentModel,
 					Usage:            currentUsage,
 					Cost:             currentCost,
@@ -101,11 +102,13 @@ func SessionFromEvents(events []map[string]any, title, question string) *session
 			currentModel = ""
 			currentUsage = nil
 			currentCost = 0
+			currentTimestamp = ""
 		}
 	}
 
 	for _, event := range events {
 		eventType, _ := event["type"].(string)
+		eventTimestamp := parseEventTimestamp(event)
 
 		switch eventType {
 		case "agent_choice":
@@ -116,6 +119,9 @@ func SessionFromEvents(events []map[string]any, title, question string) *session
 			if agentName, ok := event["agent_name"].(string); ok && agentName != "" {
 				currentAgentName = agentName
 			}
+			if eventTimestamp != "" {
+				currentTimestamp = eventTimestamp
+			}
 
 		case "agent_choice_reasoning":
 			// Accumulate reasoning content (for models like DeepSeek, Claude with extended thinking)
@@ -124,6 +130,9 @@ func SessionFromEvents(events []map[string]any, title, question string) *session
 			}
 			if agentName, ok := event["agent_name"].(string); ok && agentName != "" {
 				currentAgentName = agentName
+			}
+			if eventTimestamp != "" {
+				currentTimestamp = eventTimestamp
 			}
 
 		case "tool_call":
@@ -143,6 +152,9 @@ func SessionFromEvents(events []map[string]any, title, question string) *session
 			if agentName, ok := event["agent_name"].(string); ok && agentName != "" {
 				currentAgentName = agentName
 			}
+			if eventTimestamp != "" {
+				currentTimestamp = eventTimestamp
+			}
 
 		case "tool_call_response":
 			// Flush any pending assistant message before adding tool response
@@ -158,7 +170,7 @@ func SessionFromEvents(events []map[string]any, title, question string) *session
 						Role:       chat.MessageRoleTool,
 						Content:    response,
 						ToolCallID: toolCallID,
-						CreatedAt:  time.Now().Format(time.RFC3339),
+						CreatedAt:  eventTimestamp,
 					},
 				}
 				sess.AddMessage(msg)
@@ -198,7 +210,7 @@ func SessionFromEvents(events []map[string]any, title, question string) *session
 					Message: chat.Message{
 						Role:      chat.MessageRoleSystem,
 						Content:   "Error: " + errorMsg,
-						CreatedAt: time.Now().Format(time.RFC3339),
+						CreatedAt: eventTimestamp,
 					},
 				}
 				sess.AddMessage(msg)
@@ -299,6 +311,19 @@ func parseMessageUsage(m map[string]any) *chat.Usage {
 	}
 
 	return usage
+}
+
+// parseEventTimestamp extracts the timestamp from an event map.
+// Returns the timestamp string, falling back to current time if not present or invalid.
+func parseEventTimestamp(event map[string]any) string {
+	if ts, ok := event["timestamp"].(string); ok && ts != "" {
+		// Validate RFC3339 format
+		if _, err := time.Parse(time.RFC3339, ts); err == nil {
+			return ts
+		}
+		// Invalid timestamp format - fall back to current time
+	}
+	return time.Now().Format(time.RFC3339)
 }
 
 // SaveRunJSON saves the eval run results to a JSON file.
