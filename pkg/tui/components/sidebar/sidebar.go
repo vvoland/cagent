@@ -539,6 +539,22 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			m.invalidateCache()
 		}
 		return m, nil
+	case *runtime.ToolCallEvent:
+		// Tool call started - ensure working agent is set
+		if msg.AgentName != "" {
+			m.workingAgent = msg.AgentName
+			m.invalidateCache()
+		}
+		cmd := m.startSpinner()
+		return m, cmd
+	case *runtime.ToolCallResponseEvent:
+		// Tool response received - ensure working agent is set (in case stream events were missed)
+		if msg.AgentName != "" {
+			m.workingAgent = msg.AgentName
+			m.invalidateCache()
+		}
+		cmd := m.startSpinner()
+		return m, cmd
 	case *runtime.SessionTitleEvent:
 		m.sessionTitle = msg.Title
 		// Mark title as generated (enables pencil icon)
