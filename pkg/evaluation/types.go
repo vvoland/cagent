@@ -120,6 +120,7 @@ type Config struct {
 	Only           []string // Only run evaluations matching these patterns
 	BaseImage      string   // Custom base Docker image for running evaluations
 	KeepContainers bool     // If true, don't remove containers after evaluation (skip --rm)
+	EnvVars        []string // Environment variables to pass: KEY (value from env) or KEY=VALUE (explicit)
 }
 
 // Session helper functions
