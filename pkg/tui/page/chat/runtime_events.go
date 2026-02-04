@@ -250,12 +250,14 @@ func (p *chatPage) handleToolCallConfirmation(msg *runtime.ToolCallConfirmationE
 func (p *chatPage) handleToolCall(msg *runtime.ToolCallEvent) tea.Cmd {
 	p.setPendingResponse(false)
 	spinnerCmd := p.setWorking(true)
+	sidebarCmd := p.forwardToSidebar(msg)
 	toolCmd := p.messages.AddOrUpdateToolCall(msg.AgentName, msg.ToolCall, msg.ToolDefinition, types.ToolStatusRunning)
-	return tea.Batch(toolCmd, p.messages.ScrollToBottom(), spinnerCmd)
+	return tea.Batch(toolCmd, p.messages.ScrollToBottom(), spinnerCmd, sidebarCmd)
 }
 
 func (p *chatPage) handleToolCallResponse(msg *runtime.ToolCallResponseEvent) tea.Cmd {
 	spinnerCmd := p.setWorking(true)
+	sidebarCmd := p.forwardToSidebar(msg)
 
 	status := types.ToolStatusCompleted
 	if msg.Result.IsError {
@@ -268,7 +270,7 @@ func (p *chatPage) handleToolCallResponse(msg *runtime.ToolCallResponseEvent) te
 		_ = p.sidebar.SetTodos(msg.Result)
 	}
 
-	return tea.Batch(toolCmd, p.messages.ScrollToBottom(), spinnerCmd)
+	return tea.Batch(toolCmd, p.messages.ScrollToBottom(), spinnerCmd, sidebarCmd)
 }
 
 func (p *chatPage) handleMaxIterationsReached(msg *runtime.MaxIterationsReachedEvent) tea.Cmd {
