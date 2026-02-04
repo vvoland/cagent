@@ -1,6 +1,8 @@
 package evaluation
 
 import (
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -105,6 +107,92 @@ func TestSaveRunSessions(t *testing.T) {
 	}
 	assert.True(t, titles["eval-test-1"], "should have eval-test-1")
 	assert.True(t, titles["eval-test-2"], "should have eval-test-2")
+}
+
+func TestSaveRunSessionsJSON(t *testing.T) {
+	t.Parallel()
+
+	outputDir := t.TempDir()
+
+	// Create sessions with different content
+	sess1 := session.New(
+		session.WithTitle("eval-json-1"),
+		session.WithUserMessage("What is the capital of France?"),
+	)
+	sess1.InputTokens = 100
+	sess1.OutputTokens = 50
+	sess1.Cost = 0.01
+
+	sess2 := session.New(
+		session.WithTitle("eval-json-2"),
+		session.WithUserMessage("What is 2+2?"),
+	)
+	sess2.InputTokens = 80
+	sess2.OutputTokens = 30
+	sess2.Cost = 0.005
+
+	// Create an eval run with sessions
+	run := &EvalRun{
+		Name:      "test-json-001",
+		Timestamp: time.Now(),
+		Results: []Result{
+			{
+				Title:    "eval-json-1",
+				Question: "What is the capital of France?",
+				Response: "Paris is the capital of France.",
+				Session:  sess1,
+			},
+			{
+				Title:    "eval-json-2",
+				Question: "What is 2+2?",
+				Response: "4",
+				Session:  sess2,
+			},
+			{
+				// Result without a session (error case)
+				Title:   "eval-json-3",
+				Error:   "container failed",
+				Session: nil,
+			},
+		},
+	}
+
+	// Save sessions to JSON
+	sessionsPath, err := SaveRunSessionsJSON(run, outputDir)
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(outputDir, "test-json-001.json"), sessionsPath)
+	assert.FileExists(t, sessionsPath)
+
+	// Read and parse the JSON file
+	data, err := os.ReadFile(sessionsPath)
+	require.NoError(t, err)
+
+	var loadedSessions []*session.Session
+	err = json.Unmarshal(data, &loadedSessions)
+	require.NoError(t, err)
+
+	// Should have 2 sessions (excluding the error case)
+	assert.Len(t, loadedSessions, 2)
+
+	// Verify session content
+	titles := make(map[string]*session.Session)
+	for _, sess := range loadedSessions {
+		titles[sess.Title] = sess
+	}
+
+	assert.Contains(t, titles, "eval-json-1")
+	assert.Contains(t, titles, "eval-json-2")
+
+	// Verify cost and token data is preserved
+	sess1Loaded := titles["eval-json-1"]
+	assert.Equal(t, int64(100), sess1Loaded.InputTokens)
+	assert.Equal(t, int64(50), sess1Loaded.OutputTokens)
+	assert.InDelta(t, 0.01, sess1Loaded.Cost, 0.0001)
+
+	sess2Loaded := titles["eval-json-2"]
+	assert.Equal(t, int64(80), sess2Loaded.InputTokens)
+	assert.Equal(t, int64(30), sess2Loaded.OutputTokens)
+	assert.InDelta(t, 0.005, sess2Loaded.Cost, 0.0001)
 }
 
 func TestSaveRunSessionsWithCost(t *testing.T) {
