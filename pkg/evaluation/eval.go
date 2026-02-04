@@ -24,6 +24,7 @@ import (
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/model/provider/options"
+	"github.com/docker/cagent/pkg/session"
 )
 
 // Runner runs evaluations against an agent.
@@ -98,7 +99,7 @@ func Evaluate(ctx context.Context, ttyOut, out io.Writer, isTTY bool, runName st
 // workItem represents a single evaluation to be processed.
 type workItem struct {
 	index int
-	eval  *EvalSession
+	eval  *InputSession
 }
 
 // Run executes all evaluations concurrently and returns results.
@@ -163,13 +164,13 @@ func (r *Runner) Run(ctx context.Context, ttyOut, out io.Writer, isTTY bool) ([]
 	return results, nil
 }
 
-func (r *Runner) loadEvalSessions(ctx context.Context) ([]EvalSession, error) {
+func (r *Runner) loadEvalSessions(ctx context.Context) ([]InputSession, error) {
 	entries, err := os.ReadDir(r.EvalsDir)
 	if err != nil {
 		return nil, err
 	}
 
-	var evals []EvalSession
+	var evals []InputSession
 	for _, entry := range entries {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
@@ -190,22 +191,19 @@ func (r *Runner) loadEvalSessions(ctx context.Context) ([]EvalSession, error) {
 			return nil, err
 		}
 
-		var evalSess EvalSession
+		var evalSess session.Session
 		if err := json.Unmarshal(data, &evalSess); err != nil {
 			return nil, err
 		}
 
-		evalSess.SourcePath = filepath.Join(r.EvalsDir, fileName)
-
-		if evalSess.Title == "" {
-			evalSess.Title = strings.TrimSuffix(fileName, ".json")
-		}
-
-		evals = append(evals, evalSess)
+		evals = append(evals, InputSession{
+			Session:    &evalSess,
+			SourcePath: filepath.Join(r.EvalsDir, fileName),
+		})
 	}
 
 	// Sort by duration (longest first) to avoid long tail
-	slices.SortFunc(evals, func(a, b EvalSession) int {
+	slices.SortFunc(evals, func(a, b InputSession) int {
 		return cmp.Compare(b.Duration(), a.Duration())
 	})
 
@@ -214,11 +212,13 @@ func (r *Runner) loadEvalSessions(ctx context.Context) ([]EvalSession, error) {
 
 // preBuildImages pre-builds all unique Docker images needed for the evaluations.
 // This is done in parallel to avoid serialized builds during evaluation.
-func (r *Runner) preBuildImages(ctx context.Context, out io.Writer, evals []EvalSession) error {
+func (r *Runner) preBuildImages(ctx context.Context, out io.Writer, evals []InputSession) error {
 	// Collect unique working directories
 	workingDirs := make(map[string]struct{})
 	for _, eval := range evals {
-		workingDirs[eval.Evals.WorkingDir] = struct{}{}
+		if eval.Evals != nil {
+			workingDirs[eval.Evals.WorkingDir] = struct{}{}
+		}
 	}
 
 	if len(workingDirs) == 0 {
@@ -278,16 +278,23 @@ func (r *Runner) preBuildImages(ctx context.Context, out io.Writer, evals []Eval
 	return nil
 }
 
-func (r *Runner) runSingleEval(ctx context.Context, evalSess *EvalSession) (Result, error) {
+func (r *Runner) runSingleEval(ctx context.Context, evalSess *InputSession) (Result, error) {
 	startTime := time.Now()
 	slog.Debug("Starting evaluation", "title", evalSess.Title)
+
+	var evals *session.EvalCriteria
+	if evalSess.Evals != nil {
+		evals = evalSess.Evals
+	} else {
+		evals = &session.EvalCriteria{}
+	}
 
 	result := Result{
 		InputPath:         evalSess.SourcePath,
 		Title:             evalSess.Title,
-		Question:          getFirstUserMessage(&evalSess.Session),
-		SizeExpected:      evalSess.Evals.Size,
-		RelevanceExpected: float64(len(evalSess.Evals.Relevance)),
+		Question:          getFirstUserMessage(evalSess.Session),
+		SizeExpected:      evals.Size,
+		RelevanceExpected: float64(len(evals.Relevance)),
 	}
 
 	expectedToolCalls := extractToolCalls(evalSess.Messages)
@@ -295,7 +302,7 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *EvalSession) (Resu
 		result.ToolCallsExpected = 1.0
 	}
 
-	workingDir := evalSess.Evals.WorkingDir
+	workingDir := evals.WorkingDir
 
 	imageID, err := r.getOrBuildImage(ctx, workingDir)
 	if err != nil {
@@ -316,6 +323,7 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *EvalSession) (Resu
 
 	// Build session from events for database storage
 	result.Session = SessionFromEvents(events, evalSess.Title, result.Question)
+	result.Session.Evals = evals
 
 	if len(expectedToolCalls) > 0 || len(actualToolCalls) > 0 {
 		result.ToolCallsScore = toolCallF1Score(expectedToolCalls, actualToolCalls)
@@ -323,8 +331,8 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *EvalSession) (Resu
 
 	result.HandoffsMatch = countHandoffs(expectedToolCalls) == countHandoffs(actualToolCalls)
 
-	if r.judge != nil && len(evalSess.Evals.Relevance) > 0 {
-		passed, failed, errs := r.judge.CheckRelevance(ctx, result.Response, evalSess.Evals.Relevance)
+	if r.judge != nil && len(evals.Relevance) > 0 {
+		passed, failed, errs := r.judge.CheckRelevance(ctx, result.Response, evals.Relevance)
 		result.RelevancePassed = float64(passed)
 		result.FailedRelevance = failed
 		for _, e := range errs {
