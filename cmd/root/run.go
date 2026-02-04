@@ -160,6 +160,10 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 		f.hideToolResults = true
 		slog.Debug("Applying user settings", "hide_tool_results", true)
 	}
+	if userSettings.YOLO && !f.autoApprove {
+		f.autoApprove = true
+		slog.Debug("Applying user settings", "YOLO", true)
+	}
 
 	// Apply alias options if this is an alias reference
 	// Alias options only apply if the flag wasn't explicitly set by the user
