@@ -43,6 +43,7 @@ func newEvalCmd() *cobra.Command {
 	cmd.Flags().StringSliceVar(&flags.Only, "only", nil, "Only run evaluations with file names matching these patterns (can be specified multiple times)")
 	cmd.Flags().StringVar(&flags.BaseImage, "base-image", "", "Custom base Docker image for running evaluations")
 	cmd.Flags().BoolVar(&flags.KeepContainers, "keep-containers", false, "Keep containers after evaluation (don't use --rm)")
+	cmd.Flags().StringSliceVarP(&flags.EnvVars, "env", "e", nil, "Environment variables to pass to container (KEY or KEY=VALUE)")
 
 	return cmd
 }
