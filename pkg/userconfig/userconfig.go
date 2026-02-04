@@ -44,6 +44,8 @@ type Settings struct {
 	// Theme is the default theme reference (e.g., "dark", "light")
 	// Theme files are loaded from ~/.cagent/themes/<theme>.yaml
 	Theme string `yaml:"theme,omitempty"`
+	// YOLO enables auto-approve mode for all tool calls globally
+	YOLO bool `yaml:"YOLO,omitempty"`
 }
 
 // CredentialHelper contains configuration for a credential helper command
