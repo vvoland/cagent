@@ -58,6 +58,7 @@ agents:
            - If fails: log error, continue to documentation check
          - `documentation` - for missing docs
            - ONLY run if BOTH security AND bugs returned `NO_ISSUES`
+           - (Rationale: documentation issues are lower priority; we avoid noise when real bugs exist)
            - If fails: log error, continue to reporting
       4. Collect findings from each sub-agent (they return text format or `NO_ISSUES`)
       5. Filter out any issues where FILE matches patterns from memory
@@ -67,6 +68,8 @@ agents:
          - From bugs agent → `CATEGORY: bug`
          - From documentation agent → `CATEGORY: documentation`
       8. Delegate to `reporter` with the augmented findings
+         - If reporter fails: output `SCAN COMPLETE (with errors) - Issue creation failed: [error]`
+         - If reporter succeeds: verify the response contains issue URLs before outputting summary
       9. Use `add_memory` to store any new learnings
 
       ## Error handling
@@ -124,6 +127,13 @@ agents:
       ```
       SCAN COMPLETE
       No issues found.
+      ```
+
+      If reporter fails to create issues, output:
+      ```
+      SCAN COMPLETE (with errors)
+      Findings: N issues detected
+      Issue creation failed: [error message]
       ```
 
     toolsets:
