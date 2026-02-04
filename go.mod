@@ -19,7 +19,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.41.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.7
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.7
-	github.com/aws/aws-sdk-go-v2/service/bedrockruntime v1.47.2
+	github.com/aws/aws-sdk-go-v2/service/bedrockruntime v1.48.0
 	github.com/aws/aws-sdk-go-v2/service/sts v1.41.6
 	github.com/aymanbagabas/go-udiff v0.3.1
 	github.com/blevesearch/bleve/v2 v2.5.7
