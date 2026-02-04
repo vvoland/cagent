@@ -129,7 +129,7 @@ agents:
     toolsets:
       - type: filesystem
       - type: memory
-        path: .github/agents/scanner-memory.db
+        path: .cache/scanner-memory.db
 
   security:
     model: openai-o3,claude-sonnet

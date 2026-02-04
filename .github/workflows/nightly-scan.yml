@@ -29,10 +29,13 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Ensure cache directory exists
+        run: mkdir -p "${{ github.workspace }}/.cache"
+
       - name: Restore scanner memory
         uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
-          path: ${{ github.workspace }}/.github/agents/scanner-memory.db
+          path: ${{ github.workspace }}/.cache/scanner-memory.db
           key: scanner-memory-${{ github.repository }}-${{ github.run_id }}
           restore-keys: |
             scanner-memory-${{ github.repository }}-
@@ -53,5 +56,5 @@ jobs:
         uses: actions/cache/save@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         if: always()
         with:
-          path: ${{ github.workspace }}/.github/agents/scanner-memory.db
+          path: ${{ github.workspace }}/.cache/scanner-memory.db
           key: scanner-memory-${{ github.repository }}-${{ github.run_id }}
