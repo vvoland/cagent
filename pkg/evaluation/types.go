@@ -38,7 +38,7 @@ type Result struct {
 	RelevanceExpected float64          `json:"relevance_expected"`
 	FailedRelevance   []string         `json:"failed_relevance,omitempty"`
 	Error             string           `json:"error,omitempty"`
-	RawOutput         []map[string]any `json:"raw_output,omitempty"`
+	Session           *session.Session `json:"-"` // Full session for database storage (not in JSON)
 }
 
 // checkResults returns successes and failures for this result.

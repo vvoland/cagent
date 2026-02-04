@@ -312,8 +312,10 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *EvalSession) (Resu
 	result.Response = response
 	result.Cost = cost
 	result.OutputTokens = outputTokens
-	result.RawOutput = events
 	result.Size = getResponseSize(result.Response)
+
+	// Build session from events for database storage
+	result.Session = SessionFromEvents(events, evalSess.Title, result.Question)
 
 	if len(expectedToolCalls) > 0 || len(actualToolCalls) > 0 {
 		result.ToolCallsScore = toolCallF1Score(expectedToolCalls, actualToolCalls)
