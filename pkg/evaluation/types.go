@@ -23,22 +23,23 @@ type EvalSession struct {
 
 // Result contains the evaluation results for a single test case.
 type Result struct {
-	InputPath         string           `json:"input_path"`
-	Title             string           `json:"title"`
-	Question          string           `json:"question"`
-	Response          string           `json:"response"`
-	Cost              float64          `json:"cost"`
-	OutputTokens      int64            `json:"output_tokens"`
-	Size              string           `json:"size"`
-	SizeExpected      string           `json:"size_expected"`
-	ToolCallsScore    float64          `json:"tool_calls_score"`
-	ToolCallsExpected float64          `json:"tool_calls_score_expected"`
-	HandoffsMatch     bool             `json:"handoffs"`
-	RelevancePassed   float64          `json:"relevance"`
-	RelevanceExpected float64          `json:"relevance_expected"`
-	FailedRelevance   []string         `json:"failed_relevance,omitempty"`
-	Error             string           `json:"error,omitempty"`
-	Session           *session.Session `json:"-"` // Full session for database storage (not in JSON)
+	InputPath         string            `json:"input_path"`
+	Title             string            `json:"title"`
+	Question          string            `json:"question"`
+	Response          string            `json:"response"`
+	Cost              float64           `json:"cost"`
+	OutputTokens      int64             `json:"output_tokens"`
+	Size              string            `json:"size"`
+	SizeExpected      string            `json:"size_expected"`
+	ToolCallsScore    float64           `json:"tool_calls_score"`
+	ToolCallsExpected float64           `json:"tool_calls_score_expected"`
+	HandoffsMatch     bool              `json:"handoffs"`
+	RelevancePassed   float64           `json:"relevance"`
+	RelevanceExpected float64           `json:"relevance_expected"`
+	FailedRelevance   []RelevanceResult `json:"failed_relevance,omitempty"`
+	Error             string            `json:"error,omitempty"`
+	RawOutput         []map[string]any  `json:"raw_output,omitempty"`
+	Session           *session.Session  `json:"-"` // Full session for database storage (not in JSON)
 }
 
 // checkResults returns successes and failures for this result.
@@ -77,8 +78,12 @@ func (r *Result) checkResults() (successes, failures []string) {
 		if r.RelevancePassed >= r.RelevanceExpected {
 			successes = append(successes, fmt.Sprintf("relevance %.0f/%.0f", r.RelevancePassed, r.RelevanceExpected))
 		} else {
-			for _, criterion := range r.FailedRelevance {
-				failures = append(failures, fmt.Sprintf("relevance: %s", criterion))
+			for _, result := range r.FailedRelevance {
+				if result.Reason != "" {
+					failures = append(failures, fmt.Sprintf("relevance: %s (reason: %s)", result.Criterion, result.Reason))
+				} else {
+					failures = append(failures, fmt.Sprintf("relevance: %s", result.Criterion))
+				}
 			}
 		}
 	}
