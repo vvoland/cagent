@@ -118,14 +118,15 @@ func (f *evalFlags) runEvalCommand(cmd *cobra.Command, args []string) error {
 		return evalErr
 	}
 
-	// Save results JSON
-	resultsPath, err := evaluation.SaveRunJSON(run, outputDir)
+	// Save sessions to SQLite database
+	dbPath, err := evaluation.SaveRunSessions(ctx, run, outputDir)
 	if err != nil {
-		slog.Error("Failed to save results", "error", err)
+		slog.Error("Failed to save sessions database", "error", err)
 	} else {
-		fmt.Fprintf(teeOut, "\nResults: %s\n", resultsPath)
-		fmt.Fprintf(teeOut, "Log: %s\n", logPath)
+		fmt.Fprintf(teeOut, "\nSessions: %s\n", dbPath)
 	}
+
+	fmt.Fprintf(teeOut, "Log: %s\n", logPath)
 
 	return evalErr
 }
