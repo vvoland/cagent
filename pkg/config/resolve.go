@@ -109,11 +109,6 @@ func ResolveSources(agentsPath string) (Sources, error) {
 // Resolve resolves an agent file reference (local file, URL, or OCI image) to a source
 // For OCI references, always checks remote for updates but falls back to local cache if offline
 func Resolve(agentFilename string) (Source, error) {
-	// Handle URL references first (before resolve() which converts to absolute path)
-	if IsURLReference(agentFilename) {
-		return NewURLSource(agentFilename), nil
-	}
-
 	resolvedPath, err := resolve(agentFilename)
 	if err != nil {
 		if IsOCIReference(agentFilename) {
@@ -125,9 +120,15 @@ func Resolve(agentFilename string) (Source, error) {
 	if resolvedPath == "default" {
 		return NewBytesSource(resolvedPath, defaultAgent), nil
 	}
+
+	if IsURLReference(resolvedPath) {
+		return NewURLSource(resolvedPath), nil
+	}
+
 	if isLocalFile(resolvedPath) {
 		return NewFileSource(resolvedPath), nil
 	}
+
 	return NewOCISource(resolvedPath), nil
 }
 
