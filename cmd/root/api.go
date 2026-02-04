@@ -141,7 +141,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("creating session store: %w", err)
 	}
 
-	sources, err := config.ResolveSources(agentsPath)
+	sources, err := config.ResolveSources(agentsPath, f.runConfig.EnvProvider())
 	if err != nil {
 		return fmt.Errorf("resolving agent sources: %w", err)
 	}
