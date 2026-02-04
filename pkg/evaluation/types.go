@@ -7,18 +7,10 @@ import (
 	"github.com/docker/cagent/pkg/session"
 )
 
-// EvalCriteria contains the evaluation criteria for a test case.
-type EvalCriteria struct {
-	Relevance  []string `json:"relevance,omitempty"`   // Statements that should be true about the response
-	WorkingDir string   `json:"working_dir,omitempty"` // Subdirectory under evals/working_dirs/
-	Size       string   `json:"size,omitempty"`        // Expected response size: S, M, L, XL
-}
-
-// EvalSession extends session.Session with evaluation criteria.
-type EvalSession struct {
-	session.Session
-	Evals      EvalCriteria `json:"evals"`
-	SourcePath string       `json:"-"` // Path to the source eval file (not serialized)
+// InputSession wraps a session with its source path for evaluation loading.
+type InputSession struct {
+	*session.Session
+	SourcePath string // Path to the source eval file (not serialized)
 }
 
 // Result contains the evaluation results for a single test case.

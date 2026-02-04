@@ -29,6 +29,15 @@ func TestSaveWithCustomFilename(t *testing.T) {
 	require.Equal(t, filepath.Join("evals", "my-custom-eval.json"), evalFile)
 	require.FileExists(t, evalFile)
 
+	// Verify the saved file contains the evals field
+	data, err := os.ReadFile(evalFile)
+	require.NoError(t, err)
+	var savedSession session.Session
+	err = json.Unmarshal(data, &savedSession)
+	require.NoError(t, err)
+	assert.NotNil(t, savedSession.Evals)
+	assert.Empty(t, savedSession.Evals.Relevance)
+
 	// Test 2: Save without filename (should use session ID)
 	evalFile2, err := Save(sess, "")
 	require.NoError(t, err)
@@ -131,7 +140,7 @@ func TestSaveRunSessionsJSON(t *testing.T) {
 	sess2.OutputTokens = 30
 	sess2.Cost = 0.005
 
-	// Create an eval run with sessions
+	// Create an eval run with sessions and eval criteria
 	run := &EvalRun{
 		Name:      "test-json-001",
 		Timestamp: time.Now(),

@@ -308,7 +308,7 @@ func SaveRunJSON(run *EvalRun, outputDir string) (string, error) {
 }
 
 // SaveRunSessionsJSON saves all eval sessions to a single JSON file.
-// Each session is saved in the same format as /eval produces (session.Session).
+// Each session includes its eval criteria in the "evals" field.
 // This complements SaveRunSessions which saves to SQLite, providing a
 // human-readable format for inspection.
 func SaveRunSessionsJSON(run *EvalRun, outputDir string) (string, error) {
@@ -334,6 +334,11 @@ func Save(sess *session.Session, filename string) (string, error) {
 		}
 
 		evalFile = filepath.Join("evals", fmt.Sprintf("%s_%d.json", baseName, number))
+	}
+
+	// Ensure session has empty eval criteria for easier discovery
+	if sess.Evals == nil {
+		sess.Evals = &session.EvalCriteria{Relevance: []string{}}
 	}
 
 	return saveJSON(sess, evalFile)
