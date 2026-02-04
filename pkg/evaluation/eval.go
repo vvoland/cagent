@@ -375,10 +375,10 @@ func (r *Runner) runCagentInContainer(ctx context.Context, imageID, question str
 	// Pass additional environment variables specified via -e flag
 	// Format: KEY or KEY=VALUE
 	for _, entry := range r.EnvVars {
-		if key, val, hasValue := strings.Cut(entry, "="); hasValue {
+		if key, val, hasValue := strings.Cut(entry, "="); hasValue && key != "" {
 			args = append(args, "-e", key)
 			env = append(env, key+"="+val)
-		} else if val, ok := r.runConfig.EnvProvider().Get(ctx, entry); ok {
+		} else if val, ok := r.runConfig.EnvProvider().Get(ctx, entry); ok && entry != "" {
 			args = append(args, "-e", entry)
 			env = append(env, entry+"="+val)
 		}
