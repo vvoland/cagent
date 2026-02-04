@@ -1,10 +1,8 @@
 package e2e_test
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -15,8 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/cmd/root"
+	"github.com/docker/cagent/pkg/config"
 	"github.com/docker/cagent/pkg/server"
+	"github.com/docker/cagent/pkg/session"
 )
 
 type Session struct {
@@ -38,10 +37,8 @@ func TestCagentAPI_ListSessions(t *testing.T) {
 		{"desktop.db", 2},
 	} {
 		t.Run(tc.db, func(t *testing.T) {
-			dbPath, err := filepath.Abs("testdata/db/" + tc.db)
-			require.NoError(t, err)
+			socketPath := startCagentAPI(t, filepath.Join("testdata", "db", tc.db))
 
-			socketPath := startCagentAPI(t, dbPath)
 			client := &http.Client{
 				Transport: &http.Transport{
 					DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
@@ -66,12 +63,18 @@ func TestCagentAPI_ListSessions(t *testing.T) {
 func startCagentAPI(t *testing.T, db string) string {
 	t.Helper()
 
-	tmpDir := t.TempDir()
-	t.Chdir(tmpDir)
+	// Get absolute path to db before changing directory
+	absDB, err := filepath.Abs(db)
+	require.NoError(t, err)
 
-	copyFile(t, "session.db", db)
-	if _, err := os.Stat(db + "-wal"); err == nil {
-		copyFile(t, "session.db-wal", db+"-wal")
+	tmpDir := t.TempDir()
+	t.Chdir(tmpDir) // Use relative socket path to avoid Unix socket path length limit
+
+	// Copy database files to temp directory
+	dbCopy := tmpDir + "/session.db"
+	copyFile(t, dbCopy, absDB)
+	if _, err := os.Stat(absDB + "-wal"); err == nil {
+		copyFile(t, dbCopy+"-wal", absDB+"-wal")
 	}
 
 	ln, err := server.Listen(t.Context(), "unix://cagent.sock")
@@ -80,12 +83,14 @@ func startCagentAPI(t *testing.T, db string) string {
 		_ = ln.Close()
 	})
 
-	file, err := ln.(*net.UnixListener).File()
+	sessionStore, err := session.NewSQLiteSessionStore(dbCopy)
+	require.NoError(t, err)
+
+	srv, err := server.New(t.Context(), sessionStore, &config.RuntimeConfig{}, 0, nil)
 	require.NoError(t, err)
 
 	go func() {
-		var stdout, stderr bytes.Buffer
-		_ = root.Execute(t.Context(), nil, &stdout, &stderr, "api", "-s", "session.db", "--listen", fmt.Sprintf("fd://%d", file.Fd()), "default")
+		_ = srv.Serve(t.Context(), ln)
 	}()
 
 	return "cagent.sock"

@@ -5,7 +5,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 )
 
@@ -16,14 +15,6 @@ func Listen(ctx context.Context, addr string) (net.Listener, error) {
 
 	if path, ok := strings.CutPrefix(addr, "npipe://"); ok {
 		return listenNamedPipe(path)
-	}
-
-	if fdStr, ok := strings.CutPrefix(addr, "fd://"); ok {
-		fd, err := strconv.Atoi(fdStr)
-		if err != nil {
-			return nil, err
-		}
-		return net.FileListener(os.NewFile(uintptr(fd), ""))
 	}
 
 	return listenTCP(ctx, addr)
