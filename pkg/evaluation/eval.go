@@ -59,7 +59,7 @@ func newRunner(agentSource config.Source, runConfig *config.RuntimeConfig, judge
 // ttyOut is used for progress bar rendering (should be the console/TTY).
 // out is used for results and status messages (can be tee'd to a log file).
 func Evaluate(ctx context.Context, ttyOut, out io.Writer, isTTY bool, runName string, runConfig *config.RuntimeConfig, cfg Config) (*EvalRun, error) {
-	agentSource, err := config.Resolve(cfg.AgentFilename)
+	agentSource, err := config.Resolve(cfg.AgentFilename, nil)
 	if err != nil {
 		return nil, fmt.Errorf("resolving agent: %w", err)
 	}

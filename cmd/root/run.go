@@ -213,7 +213,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 		}
 		cleanup = func() {} // Remote runtime doesn't need local cleanup
 	} else {
-		agentSource, err := config.Resolve(agentFileName)
+		agentSource, err := config.Resolve(agentFileName, f.runConfig.EnvProvider())
 		if err != nil {
 			return err
 		}
