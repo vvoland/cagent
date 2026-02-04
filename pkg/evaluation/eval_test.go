@@ -152,25 +152,27 @@ func TestParseJudgeResponse(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name string
-		text string
-		want bool
+		name       string
+		text       string
+		wantPassed bool
+		wantReason string
 	}{
-		{"simple pass", `{"result": "pass", "reason": "good"}`, true},
-		{"simple fail", `{"result": "fail", "reason": "bad"}`, false},
-		{"pass uppercase", `{"result": "PASS", "reason": "good"}`, true},
-		{"fail uppercase", `{"result": "FAIL", "reason": "bad"}`, false},
-		{"pass mixed case", `{"result": "Pass", "reason": "good"}`, true},
-		{"invalid json returns false", `not json at all`, false},
-		{"empty result returns false", `{"result": "", "reason": "empty"}`, false},
-		{"missing result field", `{"reason": "no result field"}`, false},
+		{"simple pass", `{"result": "pass", "reason": "good"}`, true, "good"},
+		{"simple fail", `{"result": "fail", "reason": "bad"}`, false, "bad"},
+		{"pass uppercase", `{"result": "PASS", "reason": "good"}`, true, "good"},
+		{"fail uppercase", `{"result": "FAIL", "reason": "bad"}`, false, "bad"},
+		{"pass mixed case", `{"result": "Pass", "reason": "good"}`, true, "good"},
+		{"invalid json returns false", `not json at all`, false, "failed to parse judge response"},
+		{"empty result returns false", `{"result": "", "reason": "empty"}`, false, "empty"},
+		{"missing result field", `{"reason": "no result field"}`, false, "no result field"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			got := parseJudgeResponse(tt.text)
-			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.wantPassed, got.passed)
+			assert.Equal(t, tt.wantReason, got.reason)
 		})
 	}
 }
@@ -216,9 +218,9 @@ func TestResultCheckResults(t *testing.T) {
 		},
 		{
 			name:         "relevance failures listed",
-			result:       Result{HandoffsMatch: true, RelevanceExpected: 2, RelevancePassed: 0, FailedRelevance: []string{"check A", "check B"}},
+			result:       Result{HandoffsMatch: true, RelevanceExpected: 2, RelevancePassed: 0, FailedRelevance: []RelevanceResult{{Criterion: "check A", Reason: "reason A"}, {Criterion: "check B", Reason: "reason B"}}},
 			wantSuccess:  []string{"handoffs"},
-			wantFailures: []string{"relevance: check A", "relevance: check B"},
+			wantFailures: []string{"relevance: check A (reason: reason A)", "relevance: check B (reason: reason B)"},
 		},
 	}
 
@@ -705,13 +707,13 @@ func TestProgressBarPrintResult(t *testing.T) {
 				HandoffsMatch:     true,
 				RelevanceExpected: 2,
 				RelevancePassed:   1,
-				FailedRelevance:   []string{"check failed"},
+				FailedRelevance:   []RelevanceResult{{Criterion: "check failed", Reason: "did not meet criteria"}},
 			},
 			wantContains: []string{
 				"✗ mixed-session", // overall failed
 				"✓ handoffs",
 				"✗ size expected M, got S",
-				"✗ relevance: check failed",
+				"✗ relevance: check failed (reason: did not meet criteria)",
 			},
 		},
 	}
