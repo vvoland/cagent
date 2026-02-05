@@ -198,6 +198,33 @@ func Warning(message, agentName string) Event {
 	}
 }
 
+// ModelFallbackEvent is emitted when the runtime switches to a fallback model
+// after the previous model in the chain fails. This can happen due to:
+// - Retryable errors (5xx, timeouts) after exhausting retries
+// - Non-retryable errors (429, 4xx) which skip retries and move immediately to fallback
+type ModelFallbackEvent struct {
+	Type          string `json:"type"`
+	FailedModel   string `json:"failed_model"`
+	FallbackModel string `json:"fallback_model"`
+	Reason        string `json:"reason"`
+	Attempt       int    `json:"attempt"`      // Current attempt number (1-indexed)
+	MaxAttempts   int    `json:"max_attempts"` // Total attempts allowed for this model
+	AgentContext
+}
+
+// ModelFallback creates a new ModelFallbackEvent.
+func ModelFallback(agentName, failedModel, fallbackModel, reason string, attempt, maxAttempts int) Event {
+	return &ModelFallbackEvent{
+		Type:          "model_fallback",
+		FailedModel:   failedModel,
+		FallbackModel: fallbackModel,
+		Reason:        reason,
+		Attempt:       attempt,
+		MaxAttempts:   maxAttempts,
+		AgentContext:  AgentContext{AgentName: agentName},
+	}
+}
+
 type TokenUsageEvent struct {
 	Type      string `json:"type"`
 	SessionID string `json:"session_id"`

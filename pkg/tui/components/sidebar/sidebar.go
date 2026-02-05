@@ -247,16 +247,19 @@ func (m *model) SetAgentInfo(agentName, modelID, description string) {
 	m.agentDescription = description
 	m.reasoningSupported = modelsdev.ModelSupportsReasoning(context.Background(), modelID)
 
-	// Update the model in availableAgents for the current agent
-	// This is important when model routing selects a different model than configured
-	// Extract just the model name from "provider/model" format to match TeamInfoEvent format
+	// Update the provider and model in availableAgents for the current agent.
+	// This is important when fallback models from different providers are used.
+	// Parse "provider/model" format using first slash to handle model names containing slashes
+	// (e.g., "dmr/ai/llama3.2" → Provider="dmr", Model="ai/llama3.2").
 	for i := range m.availableAgents {
 		if m.availableAgents[i].Name == agentName && modelID != "" {
-			modelName := modelID
-			if idx := strings.LastIndex(modelName, "/"); idx != -1 {
-				modelName = modelName[idx+1:]
+			if provider, modelName, found := strings.Cut(modelID, "/"); found {
+				m.availableAgents[i].Provider = provider
+				m.availableAgents[i].Model = modelName
+			} else {
+				// No slash in modelID; treat the whole string as model name
+				m.availableAgents[i].Model = modelID
 			}
-			m.availableAgents[i].Model = modelName
 			break
 		}
 	}
