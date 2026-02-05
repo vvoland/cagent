@@ -230,6 +230,7 @@ This release improves the terminal user interface with better error handling and
 [v1.20.1]: https://github.com/docker/cagent/releases/tag/v1.20.1
 
 [v1.20.2]: https://github.com/docker/cagent/releases/tag/v1.20.2
+
 [v1.20.3]: https://github.com/docker/cagent/releases/tag/v1.20.3
 
 [v1.20.4]: https://github.com/docker/cagent/releases/tag/v1.20.4
