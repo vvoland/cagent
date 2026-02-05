@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -84,6 +85,13 @@ type Editor interface {
 	SendContent() tea.Cmd
 }
 
+// fileLoadResultMsg is sent when async file loading completes.
+type fileLoadResultMsg struct {
+	loadID     uint64
+	items      []completion.Item
+	isFullLoad bool // true for full load, false for initial shallow load
+}
+
 // editor implements [Editor]
 type editor struct {
 	textarea textarea.Model
@@ -117,6 +125,15 @@ type editor struct {
 	recording bool
 	// recordingDotPhase tracks the animation phase for the recording dots cursor
 	recordingDotPhase int
+
+	// fileLoadID is incremented each time we start a new file load to ignore stale results
+	fileLoadID uint64
+	// fileLoadStarted tracks whether we've started initial loading for the current completion
+	fileLoadStarted bool
+	// fileFullLoadStarted tracks whether we've started full file loading (triggered by typing)
+	fileFullLoadStarted bool
+	// fileLoadCancel cancels any in-progress file loading
+	fileLoadCancel context.CancelFunc
 }
 
 // New creates a new editor component
@@ -601,6 +618,11 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return e, cmd
 
 	case completion.SelectedMsg:
+		// If the item has an Execute function, run it instead of inserting text
+		if msg.Execute != nil {
+			e.clearSuggestion()
+			return e, msg.Execute()
+		}
 		if e.currentCompletion.AutoSubmit() {
 			// For auto-submit completions (like commands), use the selected
 			// command value (e.g., "/exit") instead of what the user typed
@@ -632,7 +654,36 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		e.currentCompletion = nil
 		e.clearSuggestion()
 		e.refreshSuggestion()
+		// Reset file loading state
+		e.fileLoadStarted = false
+		e.fileFullLoadStarted = false
+		if e.fileLoadCancel != nil {
+			e.fileLoadCancel()
+			e.fileLoadCancel = nil
+		}
 		return e, e.textarea.Focus()
+
+	case fileLoadResultMsg:
+		// Ignore stale results from older loads.
+		if msg.loadID != e.fileLoadID {
+			return e, nil
+		}
+
+		// Always stop the loading indicator for the active load, even if it was cancelled/errored.
+		if msg.items == nil {
+			return e, core.CmdHandler(completion.SetLoadingMsg{Loading: false})
+		}
+		// For full load, replace items (keeping pinned); for initial, append
+		var itemsCmd tea.Cmd
+		if msg.isFullLoad {
+			itemsCmd = core.CmdHandler(completion.ReplaceItemsMsg{Items: msg.items})
+		} else {
+			itemsCmd = core.CmdHandler(completion.AppendItemsMsg{Items: msg.items})
+		}
+		return e, tea.Batch(
+			core.CmdHandler(completion.SetLoadingMsg{Loading: false}),
+			itemsCmd,
+		)
 	case completion.SelectionChangedMsg:
 		// Show the selected completion item as a suggestion in the editor
 		if msg.Value != "" && e.currentCompletion != nil {
@@ -901,29 +952,144 @@ func (e *editor) updateCompletionQuery() tea.Cmd {
 
 	if e.currentCompletion != nil && strings.HasPrefix(currentWord, e.currentCompletion.Trigger()) {
 		e.completionWord = strings.TrimPrefix(currentWord, e.currentCompletion.Trigger())
-		return core.CmdHandler(completion.QueryMsg{Query: e.completionWord})
+
+		// For @ completion, start full file loading when user starts typing (if not already started)
+		var loadCmd tea.Cmd
+		if e.currentCompletion.Trigger() == "@" && e.completionWord != "" && !e.fileFullLoadStarted {
+			loadCmd = e.startFullFileLoad()
+		}
+
+		queryCmd := core.CmdHandler(completion.QueryMsg{Query: e.completionWord})
+		if loadCmd != nil {
+			return tea.Batch(queryCmd, loadCmd)
+		}
+		return queryCmd
 	}
 
 	e.completionWord = ""
 	return core.CmdHandler(completion.CloseMsg{})
 }
 
-func (e *editor) startCompletion(c completions.Completion) tea.Cmd {
-	e.currentCompletion = c
-	items := c.Items()
+// startFullFileLoad starts full background file loading and returns a command that will
+// emit a fileLoadResultMsg when complete. This is triggered when the user starts typing.
+func (e *editor) startFullFileLoad() tea.Cmd {
+	e.fileFullLoadStarted = true
+	e.fileLoadID++
+	loadID := e.fileLoadID
 
-	// Prepend paste placeholders for @ trigger so users can easily reference them
-	if c.Trigger() == "@" {
-		pasteItems := e.getPasteCompletionItems()
-		if len(pasteItems) > 0 {
-			items = append(pasteItems, items...)
+	// Cancel any previous load
+	if e.fileLoadCancel != nil {
+		e.fileLoadCancel()
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	e.fileLoadCancel = cancel
+
+	// Find the file completion that supports async loading
+	var asyncLoader completions.AsyncLoader
+	for _, c := range e.completions {
+		if c.Trigger() == "@" {
+			if al, ok := c.(completions.AsyncLoader); ok {
+				asyncLoader = al
+				break
+			}
 		}
 	}
+
+	if asyncLoader == nil {
+		return nil
+	}
+
+	// Set loading state
+	loadingCmd := core.CmdHandler(completion.SetLoadingMsg{Loading: true})
+
+	// Start full async load
+	asyncCmd := func() tea.Msg {
+		ch := asyncLoader.LoadItemsAsync(ctx)
+		items := <-ch
+		return fileLoadResultMsg{loadID: loadID, items: items, isFullLoad: true}
+	}
+
+	return tea.Batch(loadingCmd, asyncCmd)
+}
+
+func (e *editor) startCompletion(c completions.Completion) tea.Cmd {
+	e.currentCompletion = c
+
+	// For @ trigger, open instantly with paste items + "Browse files…" and start async file loading
+	if c.Trigger() == "@" {
+		items := e.getPasteCompletionItems()
+		// Add "Browse files…" action that opens the file picker dialog
+		items = append(items, completion.Item{
+			Label:       "Browse files…",
+			Description: "Open file picker",
+			Value:       "", // No value to insert
+			Execute: func() tea.Cmd {
+				return core.CmdHandler(messages.AttachFileMsg{FilePath: ""})
+			},
+			Pinned: true,
+		})
+
+		openCmd := core.CmdHandler(completion.OpenMsg{
+			Items:     items,
+			MatchMode: c.MatchMode(),
+		})
+
+		// Start initial shallow file loading immediately
+		loadCmd := e.startInitialFileLoad()
+
+		return tea.Batch(openCmd, loadCmd)
+	}
+
+	items := c.Items()
 
 	return core.CmdHandler(completion.OpenMsg{
 		Items:     items,
 		MatchMode: c.MatchMode(),
 	})
+}
+
+// startInitialFileLoad starts a shallow file scan for immediate display.
+// It loads ~100 files from 2 levels deep for a snappy initial UX.
+func (e *editor) startInitialFileLoad() tea.Cmd {
+	e.fileLoadStarted = true
+	e.fileLoadID++
+	loadID := e.fileLoadID
+
+	// Cancel any previous load
+	if e.fileLoadCancel != nil {
+		e.fileLoadCancel()
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	e.fileLoadCancel = cancel
+
+	// Find the file completion that supports async loading
+	var asyncLoader completions.AsyncLoader
+	for _, c := range e.completions {
+		if c.Trigger() == "@" {
+			if al, ok := c.(completions.AsyncLoader); ok {
+				asyncLoader = al
+				break
+			}
+		}
+	}
+
+	if asyncLoader == nil {
+		return nil
+	}
+
+	// Set loading state
+	loadingCmd := core.CmdHandler(completion.SetLoadingMsg{Loading: true})
+
+	// Start initial shallow load
+	asyncCmd := func() tea.Msg {
+		ch := asyncLoader.LoadInitialItemsAsync(ctx)
+		items := <-ch
+		return fileLoadResultMsg{loadID: loadID, items: items, isFullLoad: false}
+	}
+
+	return tea.Batch(loadingCmd, asyncCmd)
 }
 
 // getPasteCompletionItems returns completion items for paste attachments only.
