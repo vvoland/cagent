@@ -249,11 +249,6 @@ func WithEnv(env []string) Opt {
 // NewLocalRuntime creates a new LocalRuntime without the persistence wrapper.
 // This is useful for testing or when persistence is handled externally.
 func NewLocalRuntime(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
-	modelsStore, err := modelsdev.NewStore()
-	if err != nil {
-		return nil, err
-	}
-
 	defaultAgent, err := agents.DefaultAgent()
 	if err != nil {
 		return nil, err
@@ -265,7 +260,6 @@ func NewLocalRuntime(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 		currentAgent:         defaultAgent.Name(),
 		resumeChan:           make(chan ResumeRequest),
 		elicitationRequestCh: make(chan ElicitationResult),
-		modelsStore:          modelsStore,
 		sessionCompaction:    true,
 		managedOAuth:         true,
 		sessionStore:         session.NewInMemorySessionStore(),
@@ -273,6 +267,14 @@ func NewLocalRuntime(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 
 	for _, opt := range opts {
 		opt(r)
+	}
+
+	if r.modelsStore == nil {
+		modelsStore, err := modelsdev.NewStore()
+		if err != nil {
+			return nil, err
+		}
+		r.modelsStore = modelsStore
 	}
 
 	// Validate that the current agent exists and has a model
