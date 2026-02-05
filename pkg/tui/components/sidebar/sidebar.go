@@ -1182,8 +1182,7 @@ func (m *model) SetSize(width, height int) tea.Cmd {
 // updateTitleInputWidth pre-calculates the title input width based on current dimensions.
 // This avoids setting width during View(), keeping View() pure.
 func (m *model) updateTitleInputWidth() {
-	star := m.starIndicator()
-	starWidth := lipgloss.Width(star)
+	starWidth := lipgloss.Width(m.starIndicator())
 
 	// Calculate content width (without scrollbar for simplicity - editing usually doesn't need scrollbar)
 	contentWidth := m.contentWidth(false)
