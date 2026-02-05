@@ -90,8 +90,8 @@ type Summary struct {
 	TotalCost       float64 `json:"total_cost"`
 	SizesPassed     int     `json:"sizes_passed"`
 	SizesTotal      int     `json:"sizes_total"`
-	ToolsPassed     float64 `json:"tools_passed"`
-	ToolsTotal      float64 `json:"tools_total"`
+	ToolsF1Sum      float64 `json:"tools_f1_sum"`
+	ToolsCount      int     `json:"tools_count"`
 	HandoffsPassed  int     `json:"handoffs_passed"`
 	HandoffsTotal   int     `json:"handoffs_total"`
 	RelevancePassed float64 `json:"relevance_passed"`
