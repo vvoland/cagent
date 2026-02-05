@@ -2,12 +2,12 @@ name: Nightly Codebase Scan
 
 on:
   schedule:
-    # Run every day at 6am UTC
-    - cron: '0 6 * * *'
+    # Run every day at 2am UTC
+    - cron: "0 2 * * *"
   workflow_dispatch:
     inputs:
       dry-run:
-        description: 'Log issues only, do not create them'
+        description: "Log issues only, do not create them"
         type: boolean
         default: false
 
@@ -22,6 +22,7 @@ concurrency:
 jobs:
   scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       HAS_APP_SECRETS: ${{ secrets.CAGENT_REVIEWER_APP_ID != '' }}
 
@@ -57,7 +58,7 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
         with:
           agent: ${{ github.workspace }}/.github/agents/nightly-scanner.yaml
-          prompt: ${{ inputs.dry-run && 'DRY RUN MODE: Do not create any issues. Just report what you would create.' || '' }}
+          prompt: "${{ inputs['dry-run'] && 'DRY RUN MODE: Do not create any issues. Just report what you would create.' || '' }}"
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           google-api-key: ${{ secrets.GEMINI_API_KEY }}
