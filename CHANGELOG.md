@@ -3,6 +3,41 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.20.5] - 2026-02-05
+
+This release improves stability for non-interactive sessions, updates the default Anthropic model to Claude Sonnet 4.5, and adds support for private GitHub repositories and standard agent directories.
+
+## What's New
+
+- Adds support for using agent YAML files from private GitHub repositories
+- Adds support for standard `.agents/skills` directory structure
+- Adds deepwiki integration to the librarian
+- Adds timestamp tracking to runtime events
+- Allows users to define their own default model in global configuration
+
+## Improvements
+
+- Updates default Anthropic model to Claude Sonnet 4.5
+- Adds reason explanations when relevance checks fail during evaluations
+- Persists ACP sessions to default SQLite database unless specified with `--session-db` flag
+- Makes aliased agent paths absolute for better path resolution
+- Produces session database for evaluations to enable investigation of results
+
+## Bug Fixes
+
+- Prevents panic when elicitation is requested in non-interactive sessions
+- Fixes title generation hanging with Gemini 3 models by properly disabling thinking
+- Fixes current agent display in TUI interface
+- Prevents TUI dimensions from going negative when sidebar is collapsed
+- Fixes flaky test issues
+
+## Technical Changes
+
+- Simplifies ElicitationRequestEvent check to reduce code duplication
+- Allows passing additional environment variables to Docker when running evaluations
+- Passes LLM as judge on full transcript for better evaluation accuracy
+
+
 ## [v1.20.4] - 2026-02-03
 
 This release improves session handling with relative references and tool permissions, along with better table rendering in the TUI.
@@ -198,3 +233,5 @@ This release improves the terminal user interface with better error handling and
 [v1.20.3]: https://github.com/docker/cagent/releases/tag/v1.20.3
 
 [v1.20.4]: https://github.com/docker/cagent/releases/tag/v1.20.4
+
+[v1.20.5]: https://github.com/docker/cagent/releases/tag/v1.20.5
