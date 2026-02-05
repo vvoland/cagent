@@ -334,7 +334,13 @@ func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, loadRes
 		return nil, nil, err
 	}
 
-	sessStore, err := session.NewSQLiteSessionStore(f.sessionDB)
+	// Expand tilde in session database path
+	sessionDB, err := expandTilde(f.sessionDB)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	sessStore, err := session.NewSQLiteSessionStore(sessionDB)
 	if err != nil {
 		return nil, nil, fmt.Errorf("creating session store: %w", err)
 	}
