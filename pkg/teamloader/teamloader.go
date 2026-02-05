@@ -43,6 +43,7 @@ func isThinkingBudgetDisabled(tb *latest.ThinkingBudget) bool {
 
 type loadOptions struct {
 	modelOverrides  []string
+	promptFiles     []string
 	toolsetRegistry *ToolsetRegistry
 }
 
@@ -51,6 +52,15 @@ type Opt func(*loadOptions) error
 func WithModelOverrides(overrides []string) Opt {
 	return func(opts *loadOptions) error {
 		opts.modelOverrides = overrides
+		return nil
+	}
+}
+
+// WithPromptFiles adds additional prompt files to all agents.
+// These are merged with any prompt files defined in the agent config.
+func WithPromptFiles(files []string) Opt {
+	return func(opts *loadOptions) error {
+		opts.promptFiles = files
 		return nil
 	}
 }
@@ -143,6 +153,21 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 			skillsEnabled = *agentConfig.Skills
 		}
 
+		// Merge CLI prompt files with agent config prompt files, deduplicating
+		promptFiles := append([]string{}, agentConfig.AddPromptFiles...)
+		promptFiles = append(promptFiles, loadOpts.promptFiles...)
+
+		// Deduplicate to avoid redundant context (saves tokens)
+		seen := make(map[string]bool)
+		unique := promptFiles[:0]
+		for _, f := range promptFiles {
+			if !seen[f] {
+				seen[f] = true
+				unique = append(unique, f)
+			}
+		}
+		promptFiles = unique
+
 		opts := []agent.Opt{
 			agent.WithName(agentConfig.Name),
 			agent.WithDescription(expander.Expand(ctx, agentConfig.Description)),
@@ -150,7 +175,7 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 			agent.WithAddDate(agentConfig.AddDate),
 			agent.WithAddEnvironmentInfo(agentConfig.AddEnvironmentInfo),
 			agent.WithAddDescriptionParameter(agentConfig.AddDescriptionParameter),
-			agent.WithAddPromptFiles(agentConfig.AddPromptFiles),
+			agent.WithAddPromptFiles(promptFiles),
 			agent.WithMaxIterations(agentConfig.MaxIterations),
 			agent.WithNumHistoryItems(agentConfig.NumHistoryItems),
 			agent.WithCommands(expander.ExpandCommands(ctx, agentConfig.Commands)),
