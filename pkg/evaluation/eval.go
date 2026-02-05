@@ -332,7 +332,9 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *InputSession) (Res
 	result.HandoffsMatch = countHandoffs(expectedToolCalls) == countHandoffs(actualToolCalls)
 
 	if r.judge != nil && len(evals.Relevance) > 0 {
-		passed, failed, errs := r.judge.CheckRelevance(ctx, result.Response, evals.Relevance)
+		// Use transcript for relevance checking to preserve temporal ordering
+		transcript := buildTranscript(events)
+		passed, failed, errs := r.judge.CheckRelevance(ctx, transcript, evals.Relevance)
 		result.RelevancePassed = float64(passed)
 		result.FailedRelevance = failed
 		for _, e := range errs {
@@ -488,6 +490,64 @@ func parseContainerEvents(events []map[string]any) (response string, cost float6
 	}
 
 	return responseBuf.String(), cost, outputTokens, toolCalls
+}
+
+// buildTranscript creates a chronological transcript of agent interactions.
+// Unlike parseContainerEvents which only extracts text, this preserves the
+// temporal sequence of events, enabling evaluation of criteria like
+// "explains before executing" or "announces tool usage beforehand".
+func buildTranscript(events []map[string]any) string {
+	var transcript strings.Builder
+	var pendingText strings.Builder
+	var currentAgent string
+
+	flushText := func() {
+		if pendingText.Len() == 0 {
+			return
+		}
+		fmt.Fprintf(&transcript, "[Agent %s says]:\n%s\n\n", cmp.Or(currentAgent, "unknown"), pendingText.String())
+		pendingText.Reset()
+	}
+
+	for _, event := range events {
+		switch event["type"] {
+		case "agent_choice":
+			if agentName, _ := event["agent_name"].(string); agentName != "" {
+				currentAgent = agentName
+			}
+			if content, _ := event["content"].(string); content != "" {
+				pendingText.WriteString(content)
+			}
+
+		case "tool_call":
+			flushText()
+			name, args := getToolCallInfo(event)
+			if agentName, _ := event["agent_name"].(string); agentName != "" {
+				currentAgent = agentName
+			}
+			fmt.Fprintf(&transcript, "[Agent %s calls tool %q with arguments: %s]\n\n", cmp.Or(currentAgent, "unknown"), name, args)
+
+		case "tool_call_response":
+			name, _ := getToolCallInfo(event)
+			response, _ := event["response"].(string)
+			if len(response) > 500 {
+				response = response[:500] + "...(truncated)"
+			}
+			fmt.Fprintf(&transcript, "[Tool %q returns: %s]\n\n", name, response)
+		}
+	}
+
+	flushText()
+	return transcript.String()
+}
+
+// getToolCallInfo extracts the tool name and arguments from an event.
+func getToolCallInfo(event map[string]any) (name, args string) {
+	tc, _ := event["tool_call"].(map[string]any)
+	fn, _ := tc["function"].(map[string]any)
+	name, _ = fn["name"].(string)
+	args, _ = fn["arguments"].(string)
+	return name, args
 }
 
 // matchesAnyPattern returns true if the name contains any of the patterns (case-insensitive).

@@ -775,6 +775,155 @@ func TestStatusIcon(t *testing.T) {
 	}
 }
 
+func TestBuildTranscript(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		events       []map[string]any
+		wantContains []string
+		wantOrder    []string // substrings that must appear in this order
+	}{
+		{
+			name:         "empty events",
+			events:       []map[string]any{},
+			wantContains: nil,
+		},
+		{
+			name: "text before tool call",
+			events: []map[string]any{
+				{"type": "agent_choice", "content": "I'll search for that.", "agent_name": "root"},
+				{
+					"type":       "tool_call",
+					"agent_name": "root",
+					"tool_call": map[string]any{
+						"function": map[string]any{
+							"name":      "search",
+							"arguments": `{"query": "test"}`,
+						},
+					},
+				},
+			},
+			wantContains: []string{
+				"[Agent root says]",
+				"I'll search for that.",
+				`[Agent root calls tool "search" with arguments:`,
+			},
+			wantOrder: []string{"I'll search for that.", "calls tool"},
+		},
+		{
+			name: "tool call before text (wrong order)",
+			events: []map[string]any{
+				{
+					"type":       "tool_call",
+					"agent_name": "Coding agent",
+					"tool_call": map[string]any{
+						"function": map[string]any{
+							"name":      "shell",
+							"arguments": `{"cmd": "ls"}`,
+						},
+					},
+				},
+				{"type": "agent_choice", "content": "I ran the command.", "agent_name": "Coding agent"},
+			},
+			wantContains: []string{
+				`[Agent Coding agent calls tool "shell" with arguments:`,
+				"[Agent Coding agent says]",
+				"I ran the command.",
+			},
+			wantOrder: []string{"calls tool", "I ran the command."},
+		},
+		{
+			name: "tool call response included",
+			events: []map[string]any{
+				{
+					"type": "tool_call",
+					"tool_call": map[string]any{
+						"function": map[string]any{
+							"name":      "read_file",
+							"arguments": `{"path": "test.txt"}`,
+						},
+					},
+				},
+				{
+					"type":     "tool_call_response",
+					"response": "file contents here",
+					"tool_call": map[string]any{
+						"function": map[string]any{
+							"name": "read_file",
+						},
+					},
+				},
+			},
+			wantContains: []string{
+				`calls tool "read_file" with arguments:`,
+				`[Tool "read_file" returns: file contents here]`,
+			},
+		},
+		{
+			name: "long tool response truncated",
+			events: []map[string]any{
+				{
+					"type":     "tool_call_response",
+					"response": strings.Repeat("x", 600),
+					"tool_call": map[string]any{
+						"function": map[string]any{
+							"name": "shell",
+						},
+					},
+				},
+			},
+			wantContains: []string{
+				"...(truncated)",
+			},
+		},
+		{
+			name: "agent switch flushes text",
+			events: []map[string]any{
+				{"type": "agent_choice", "content": "Handing off.", "agent_name": "root"},
+				{
+					"type":       "tool_call",
+					"agent_name": "root",
+					"tool_call": map[string]any{
+						"function": map[string]any{
+							"name":      "handoff",
+							"arguments": `{}`,
+						},
+					},
+				},
+				{"type": "agent_choice", "content": "I'll help.", "agent_name": "Coding agent"},
+			},
+			wantContains: []string{
+				"[Agent root says]",
+				"Handing off.",
+				"[Agent Coding agent says]",
+				"I'll help.",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			transcript := buildTranscript(tt.events)
+
+			for _, want := range tt.wantContains {
+				assert.Contains(t, transcript, want)
+			}
+
+			// Verify ordering
+			if len(tt.wantOrder) > 1 {
+				lastIdx := -1
+				for _, substr := range tt.wantOrder {
+					idx := strings.Index(transcript, substr)
+					assert.Greater(t, idx, lastIdx, "expected %q to appear after previous substring in transcript", substr)
+					lastIdx = idx
+				}
+			}
+		})
+	}
+}
+
 func TestMatchesAnyPattern(t *testing.T) {
 	t.Parallel()
 
