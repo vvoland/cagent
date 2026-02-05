@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/model/provider"
@@ -19,6 +20,11 @@ import (
 const (
 	systemPrompt     = "You are a helpful AI assistant that generates concise, descriptive titles for conversations. You will be given up to 2 recent user messages and asked to create a single-line title that captures the main topic. Never use newlines or line breaks in your response."
 	userPromptFormat = "Based on the following recent user messages from a conversation with an AI assistant, generate a short, descriptive title (maximum 50 characters) that captures the main topic or purpose of the conversation. Return ONLY the title text on a single line, nothing else. Do not include any newlines, explanations, or formatting.\n\nRecent user messages:\n%s\n\n"
+
+	// titleGenerationTimeout is the maximum time to wait for title generation.
+	// Title generation should be quick since we disable thinking and use low max_tokens.
+	// If the API is slow or hanging (e.g., due to server-side thinking), we should timeout.
+	titleGenerationTimeout = 30 * time.Second
 )
 
 // Generator generates session titles using a one-shot LLM completion.
@@ -41,6 +47,10 @@ func (g *Generator) Generate(ctx context.Context, sessionID string, userMessages
 	if len(userMessages) == 0 {
 		return "", nil
 	}
+
+	// Apply timeout to prevent hanging on slow or unresponsive models
+	ctx, cancel := context.WithTimeout(ctx, titleGenerationTimeout)
+	defer cancel()
 
 	slog.Debug("Generating title for session", "session_id", sessionID, "message_count", len(userMessages))
 
