@@ -27,6 +27,7 @@ linters:
     - grouper
     - iface
     - importas # Enforces consistent import aliases.
+    - inamedparam
     - ineffassign
     - intrange
     - iotamixing
