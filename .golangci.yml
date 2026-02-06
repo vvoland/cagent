@@ -42,6 +42,7 @@ linters:
     - nilnesserr
     - predeclared
     - reassign
+    - recvcheck
     - revive
     - rowserrcheck
     - sloglint
