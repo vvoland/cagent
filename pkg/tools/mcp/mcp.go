@@ -243,7 +243,7 @@ func (ts *Toolset) Stop(ctx context.Context) error {
 
 	if err := ts.mcpClient.Close(context.WithoutCancel(ctx)); err != nil {
 		if ctx.Err() != nil {
-			return nil //nolint:nilerr // close error expected when context already cancelled
+			return nil
 		}
 		slog.Error("Failed to stop MCP toolset", "server", ts.logID, "error", err)
 		return err

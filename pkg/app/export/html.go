@@ -155,7 +155,7 @@ func ToFile(data SessionData, filename string) (string, error) {
 
 	absPath, err := filepath.Abs(filename)
 	if err != nil {
-		return filename, nil //nolint:nilerr // fall back to relative path if Abs fails
+		return filename, nil
 	}
 	return absPath, nil
 }

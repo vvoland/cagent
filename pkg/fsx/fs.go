@@ -43,7 +43,7 @@ func directoryTree(path string, isPathAllowed func(string) error, shouldIgnore f
 
 		entries, err := os.ReadDir(path)
 		if err != nil {
-			return node, nil //nolint:nilerr // return partial tree on ReadDir failure
+			return node, nil // Return partial result on error
 		}
 
 		for _, entry := range entries {
