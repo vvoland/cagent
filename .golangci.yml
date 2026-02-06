@@ -46,6 +46,7 @@ linters:
     - unparam
     - unused
     - usestdlibvars
+    - unqueryvet
     - usetesting
   settings:
     forbidigo:
