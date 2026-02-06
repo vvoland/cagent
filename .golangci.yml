@@ -51,6 +51,7 @@ linters:
     - unqueryvet
     - usetesting
     - whitespace
+    - wastedassign
   settings:
     forbidigo:
       forbid:
