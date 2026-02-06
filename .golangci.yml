@@ -49,6 +49,7 @@ linters:
     - usestdlibvars
     - unqueryvet
     - usetesting
+    - whitespace
   settings:
     forbidigo:
       forbid:
