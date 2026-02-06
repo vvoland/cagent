@@ -35,6 +35,7 @@ linters:
     - mirror
     - nakedret
     - nolintlint
+    - nilnesserr
     - predeclared
     - reassign
     - revive
