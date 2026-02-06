@@ -161,6 +161,10 @@ func (m *MigrationManager) GetAppliedMigrations(ctx context.Context) ([]Migratio
 		migrations = append(migrations, migration)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return migrations, nil
 }
 

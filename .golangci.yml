@@ -42,6 +42,7 @@ linters:
     - predeclared
     - reassign
     - revive
+    - rowserrcheck
     - sloglint
     - staticcheck
     - testableexamples
