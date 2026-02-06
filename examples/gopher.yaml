@@ -12,6 +12,7 @@ agents:
   root:
     model: claude
     description: Expert Golang Developer specialized in implementing features and improving code quality.
+    skills: true
     instruction: |
       **Goal:**
       Help with Go code-related tasks by examining, modifying, and validating code changes.
