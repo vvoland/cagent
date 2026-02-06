@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -410,7 +411,7 @@ func migrateItem(ctx context.Context, db *sql.DB, sessionID string, position int
 		var exists int
 		err := db.QueryRowContext(ctx, "SELECT 1 FROM sessions WHERE id = ?", subSessionID).Scan(&exists)
 		switch {
-		case err == sql.ErrNoRows:
+		case errors.Is(err, sql.ErrNoRows):
 			// Create the sub-session
 			subMessagesJSON, jsonErr := json.Marshal(item.SubSession.Messages)
 			if jsonErr != nil {
