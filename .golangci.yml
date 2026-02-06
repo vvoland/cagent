@@ -37,6 +37,7 @@ linters:
     - mirror
     - nakedret
     - nolintlint
+    - nosprintfhostport
     - nilnesserr
     - predeclared
     - reassign
