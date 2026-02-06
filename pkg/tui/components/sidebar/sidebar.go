@@ -50,6 +50,7 @@ type Model interface {
 	SetTeamInfo(availableAgents []runtime.AgentDetails)
 	SetAgentSwitching(switching bool)
 	SetToolsetInfo(availableTools int, loading bool)
+	SetSkillsInfo(availableSkills int)
 	SetSessionStarred(starred bool)
 	SetQueuedMessages(messages ...string)
 	GetSize() (width, height int)
@@ -122,6 +123,7 @@ type model struct {
 	availableAgents    []runtime.AgentDetails
 	agentSwitching     bool
 	availableTools     int
+	availableSkills    int
 	toolsLoading       bool // true when more tools may still be loading
 	sessionState       *service.SessionState
 	workingAgent       string // Name of the agent currently working (empty if none)
@@ -282,6 +284,12 @@ func (m *model) SetAgentSwitching(switching bool) {
 func (m *model) SetToolsetInfo(availableTools int, loading bool) {
 	m.availableTools = availableTools
 	m.toolsLoading = loading
+	m.invalidateCache()
+}
+
+// SetSkillsInfo sets the number of available skills
+func (m *model) SetSkillsInfo(availableSkills int) {
+	m.availableSkills = availableSkills
 	m.invalidateCache()
 }
 
@@ -1125,6 +1133,11 @@ func (m *model) toolsetInfo(contentWidth int) string {
 	// Tools status line
 	lines = append(lines, m.renderToolsStatus())
 
+	// Skills status line
+	if m.availableSkills > 0 {
+		lines = append(lines, m.renderSkillsStatus())
+	}
+
 	// Toggle indicators with shortcuts
 	// Only show "Thinking enabled" if the model supports reasoning
 	toggles := []struct {
@@ -1163,6 +1176,15 @@ func (m *model) renderToolsStatus() string {
 		return styles.TabAccentStyle.Render("█") + styles.TabPrimaryStyle.Render(fmt.Sprintf(" %d tools available", m.availableTools))
 	}
 	return ""
+}
+
+// renderSkillsStatus renders the skills available status line
+func (m *model) renderSkillsStatus() string {
+	label := "skills available"
+	if m.availableSkills == 1 {
+		label = "skill available"
+	}
+	return styles.TabAccentStyle.Render("█") + styles.TabPrimaryStyle.Render(fmt.Sprintf(" %d %s", m.availableSkills, label))
 }
 
 // renderToggleIndicator renders a toggle status with its keyboard shortcut

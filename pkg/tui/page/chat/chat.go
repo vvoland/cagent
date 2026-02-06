@@ -976,13 +976,9 @@ func (p *chatPage) processMessage(msg msgtypes.SendMsg) tea.Cmd {
 	}
 
 	// Run command resolution and agent execution in a goroutine
-	// so the UI can update with the spinner before any blocking operations.
+	// so the UI stays responsive while skill/agent commands are resolved.
 	go func() {
-		// Resolve agent commands (e.g., /fix-lint -> prompt text)
-		// This can execute tools and take time, but the spinner is already showing.
-		resolvedContent := p.app.ResolveCommand(ctx, msg.Content)
-
-		p.app.Run(ctx, p.msgCancel, resolvedContent, msg.Attachments)
+		p.app.Run(ctx, p.msgCancel, p.app.ResolveInput(ctx, msg.Content), msg.Attachments)
 	}()
 
 	return tea.Batch(p.messages.ScrollToBottom(), spinnerCmd, loadingCmd)
