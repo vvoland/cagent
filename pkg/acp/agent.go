@@ -248,7 +248,7 @@ func (a *Agent) Prompt(ctx context.Context, params acp.PromptRequest) (acp.Promp
 	// Run the agent and stream updates
 	if err := a.runAgent(turnCtx, acpSess); err != nil {
 		if turnCtx.Err() != nil {
-			return acp.PromptResponse{StopReason: acp.StopReasonCancelled}, nil
+			return acp.PromptResponse{StopReason: acp.StopReasonCancelled}, nil //nolint:nilerr // context cancellation is not an error, return cancelled status
 		}
 		return acp.PromptResponse{}, err
 	}

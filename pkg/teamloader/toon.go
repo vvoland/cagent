@@ -38,7 +38,7 @@ func (f *toonTools) Tools(ctx context.Context) ([]tools.Tool, error) {
 				var o map[string]any
 				err = json.Unmarshal([]byte(res.Output), &o)
 				if err != nil {
-					return res, nil
+					return res, nil //nolint:nilerr // output is not JSON, skip toon encoding
 				}
 
 				tooned, err := gotoon.Encode(o)

@@ -429,7 +429,7 @@ func StreamCopy(c echo.Context, resp *http.Response) error {
 			if result.err != nil {
 				// io.EOF or context canceled means normal completion
 				if result.err == io.EOF || ctx.Err() != nil {
-					return nil
+					return nil //nolint:nilerr // EOF and context cancellation are normal stream termination
 				}
 				slog.ErrorContext(ctx, "stream read error", "error", result.err)
 				return result.err

@@ -66,7 +66,7 @@ func (c *codeModeTool) runJavascript(ctx context.Context, script string) (Script
 	v, err := vm.RunString(script)
 	if err != nil {
 		// Script execution failed - include tool call history to help LLM understand what went wrong
-		return ScriptResult{
+		return ScriptResult{ //nolint:nilerr // script errors are returned as data, not Go errors
 			StdOut:    stdOut.String(),
 			StdErr:    stdErr.String(),
 			Value:     err.Error(),

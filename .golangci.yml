@@ -37,6 +37,7 @@ linters:
     - misspell
     - mirror
     - nakedret
+    - nilerr
     - nolintlint
     - nosprintfhostport
     - nilnesserr

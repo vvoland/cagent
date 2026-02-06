@@ -592,7 +592,7 @@ func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, args Search
 
 	err := filepath.WalkDir(resolvedPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return nil
+			return nil //nolint:nilerr // skip unreadable entries
 		}
 
 		// Check VCS ignore rules
@@ -606,7 +606,7 @@ func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, args Search
 		// Check exclude patterns against relative path from search root
 		relPath, err := filepath.Rel(resolvedPath, path)
 		if err != nil {
-			return nil
+			return nil //nolint:nilerr // skip paths that can't be made relative
 		}
 
 		for _, exclude := range args.ExcludePatterns {
@@ -625,7 +625,7 @@ func (t *FilesystemTool) handleSearchFilesContent(_ context.Context, args Search
 
 		content, err := os.ReadFile(path)
 		if err != nil {
-			return nil
+			return nil //nolint:nilerr // skip unreadable files
 		}
 
 		lines := strings.Split(string(content), "\n")
