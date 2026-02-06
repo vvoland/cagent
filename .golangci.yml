@@ -22,6 +22,7 @@ linters:
     - gochecknoinits
     - gochecksumtype
     - gocritic
+    - gomoddirectives
     - gomodguard
     - goprintffuncname
     - govet
@@ -92,6 +93,9 @@ linters:
           deny:
             - pkg: github.com/stretchr/testify
               desc: don't use testify in production code
+    gomoddirectives:
+      replace-allow-list:
+        - github.com/charmbracelet/ultraviolet
     gocritic:
       disabled-checks:
         - dupImport
