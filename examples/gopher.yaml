@@ -3,7 +3,7 @@
 models:
   claude:
     provider: anthropic
-    model: claude-opus-4-5
+    model: claude-opus-4-6
   haiku:
     provider: anthropic
     model: claude-haiku-4-5
