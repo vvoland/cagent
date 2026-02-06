@@ -3,30 +3,50 @@ run:
   tests: true
 linters:
   enable:
+    - asasalint
+    - asciicheck
+    - bidichk
     - containedctx
     - copyloopvar
+    - decorder
     - depguard
+    - dogsled
+    - durationcheck
     - errcheck
+    - exptostd
+    - fatcontext
+    - forbidigo
     - ginkgolinter
+    - gocheckcompilerdirectives
+    - gochecknoinits
+    - gochecksumtype
     - gocritic
+    - gomodguard
+    - goprintffuncname
     - govet
+    - grouper
+    - iface
     - importas # Enforces consistent import aliases.
     - ineffassign
     - intrange
+    - iotamixing
+    - loggercheck
     - misspell
     - nakedret
     - nolintlint
+    - predeclared
+    - reassign
     - revive
+    - sloglint
     - staticcheck
+    - testableexamples
     - testifylint
     - thelper
     - unconvert
     - unparam
     - unused
     - usestdlibvars
-    - forbidigo
-    - iotamixing
-    - gochecknoinits
+    - usetesting
   settings:
     forbidigo:
       forbid:
