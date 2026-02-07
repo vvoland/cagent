@@ -292,6 +292,10 @@
         "hooks": {
           "$ref": "#/definitions/HooksConfig",
           "description": "Lifecycle hooks for executing shell commands at various points in the agent's execution"
+        },
+        "skills": {
+          "type": "boolean",
+          "description": "Enable skills discovery for this agent. When enabled, the agent can discover and load skill files (SKILL.md) from the workspace."
         }
       },
       "additionalProperties": false

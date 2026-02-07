@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
 	"slices"
 	"strings"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/docker/cagent/pkg/app/export"
 	"github.com/docker/cagent/pkg/app/transcript"
@@ -21,6 +21,7 @@ import (
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/sessiontitle"
+	"github.com/docker/cagent/pkg/skills"
 	"github.com/docker/cagent/pkg/tools"
 	mcptools "github.com/docker/cagent/pkg/tools/mcp"
 	"github.com/docker/cagent/pkg/tui/messages"
@@ -144,6 +145,55 @@ func (a *App) CurrentAgentCommands(ctx context.Context) types.Commands {
 	return a.runtime.CurrentAgentInfo(ctx).Commands
 }
 
+// CurrentAgentSkills returns the available skills if skills are enabled for the current agent.
+func (a *App) CurrentAgentSkills() []skills.Skill {
+	if a.runtime.CurrentAgentSkillsEnabled() {
+		return skills.Load()
+	}
+	return nil
+}
+
+// ResolveSkillCommand checks if the input matches a skill slash command (e.g. /skill-name args).
+// If matched, it reads the skill file and returns the resolved prompt. Otherwise returns "".
+func (a *App) ResolveSkillCommand(input string) (string, error) {
+	if !strings.HasPrefix(input, "/") {
+		return "", nil
+	}
+
+	cmd, arg, _ := strings.Cut(input[1:], " ")
+	arg = strings.TrimSpace(arg)
+
+	for _, skill := range a.CurrentAgentSkills() {
+		if skill.Name != cmd {
+			continue
+		}
+
+		content, err := os.ReadFile(skill.FilePath)
+		if err != nil {
+			return "", fmt.Errorf("reading skill %q: %w", skill.Name, err)
+		}
+
+		if arg != "" {
+			return fmt.Sprintf("Use the following skill.\n\nUser's request: %s\n\n<skill name=%q>\n%s\n</skill>", arg, skill.Name, string(content)), nil
+		}
+		return fmt.Sprintf("Use the following skill.\n\n<skill name=%q>\n%s\n</skill>", skill.Name, string(content)), nil
+	}
+
+	return "", nil
+}
+
+// ResolveInput resolves the user input by trying skill commands first,
+// then agent commands. Returns the resolved content ready to send to the agent.
+func (a *App) ResolveInput(ctx context.Context, input string) string {
+	if resolved, err := a.ResolveSkillCommand(input); err != nil {
+		return fmt.Sprintf("Error loading skill: %v", err)
+	} else if resolved != "" {
+		return resolved
+	}
+
+	return a.ResolveCommand(ctx, input)
+}
+
 // CurrentAgentModel returns the model ID for the current agent.
 // Returns the tracked model from AgentInfoEvent, or falls back to session overrides.
 // Returns empty string if no model information is available (fail-open scenario).
@@ -169,56 +219,12 @@ func (a *App) TrackCurrentAgentModel(model string) {
 
 // CurrentMCPPrompts returns the available MCP prompts for the active agent
 func (a *App) CurrentMCPPrompts(ctx context.Context) map[string]mcptools.PromptInfo {
-	if localRuntime, ok := a.runtime.(*runtime.LocalRuntime); ok {
-		return localRuntime.CurrentMCPPrompts(ctx)
-	}
-	return make(map[string]mcptools.PromptInfo)
+	return a.runtime.CurrentMCPPrompts(ctx)
 }
 
 // ExecuteMCPPrompt executes an MCP prompt with provided arguments and returns the content
 func (a *App) ExecuteMCPPrompt(ctx context.Context, promptName string, arguments map[string]string) (string, error) {
-	localRuntime, ok := a.runtime.(*runtime.LocalRuntime)
-	if !ok {
-		return "", fmt.Errorf("MCP prompts are only supported with local runtime")
-	}
-
-	currentAgent := localRuntime.CurrentAgent()
-	if currentAgent == nil {
-		return "", fmt.Errorf("no current agent available")
-	}
-
-	for _, toolset := range currentAgent.ToolSets() {
-		if mcpToolset, ok := tools.As[*mcptools.Toolset](toolset); ok {
-			result, err := mcpToolset.GetPrompt(ctx, promptName, arguments)
-			if err == nil {
-				// Convert the MCP result to a string format suitable for the editor
-				// The result contains Messages which are the prompt content
-				if len(result.Messages) == 0 {
-					return "No content returned from MCP prompt", nil
-				}
-
-				var content string
-				for i, message := range result.Messages {
-					if i > 0 {
-						content += "\n\n"
-					}
-					if textContent, ok := message.Content.(*mcp.TextContent); ok {
-						content += textContent.Text
-					} else {
-						content += fmt.Sprintf("[Non-text content: %T]", message.Content)
-					}
-				}
-				return content, nil
-			}
-			// If error is "prompt not found", continue to next toolset
-			// Otherwise, return the error
-			if err.Error() != "prompt not found" {
-				return "", fmt.Errorf("error executing prompt '%s': %w", promptName, err)
-			}
-		}
-	}
-
-	return "", fmt.Errorf("MCP prompt '%s' not found in any active toolset", promptName)
+	return a.runtime.ExecuteMCPPrompt(ctx, promptName, arguments)
 }
 
 // ResolveCommand converts /command to its prompt text
@@ -829,19 +835,9 @@ func (a *App) UpdateSessionTitle(ctx context.Context, title string) error {
 		return ErrTitleGenerating
 	}
 
-	// Update in-memory session
-	a.session.Title = title
-
-	// Check if runtime is a RemoteRuntime and use its UpdateSessionTitle method
-	if remoteRT, ok := a.runtime.(*runtime.RemoteRuntime); ok {
-		if err := remoteRT.UpdateSessionTitle(ctx, title); err != nil {
-			return fmt.Errorf("failed to update session title on remote: %w", err)
-		}
-	} else if store := a.runtime.SessionStore(); store != nil {
-		// For local runtime, persist via session store
-		if err := store.UpdateSession(ctx, a.session); err != nil {
-			return fmt.Errorf("failed to persist session title: %w", err)
-		}
+	// Persist the title through the runtime
+	if err := a.runtime.UpdateSessionTitle(ctx, a.session, title); err != nil {
+		return fmt.Errorf("failed to update session title: %w", err)
 	}
 
 	// Emit a SessionTitleEvent to update the UI consistently
@@ -876,18 +872,9 @@ func (a *App) generateTitle(ctx context.Context, userMessages []string) {
 		return
 	}
 
-	// Update the session title
-	a.session.Title = title
-
 	// Persist the title
-	if remoteRT, ok := a.runtime.(*runtime.RemoteRuntime); ok {
-		if err := remoteRT.UpdateSessionTitle(ctx, title); err != nil {
-			slog.Error("Failed to persist title on remote", "session_id", a.session.ID, "error", err)
-		}
-	} else if store := a.runtime.SessionStore(); store != nil {
-		if err := store.UpdateSession(ctx, a.session); err != nil {
-			slog.Error("Failed to persist title", "session_id", a.session.ID, "error", err)
-		}
+	if err := a.runtime.UpdateSessionTitle(ctx, a.session, title); err != nil {
+		slog.Error("Failed to persist title", "session_id", a.session.ID, "error", err)
 	}
 
 	// Emit the title event to update the UI

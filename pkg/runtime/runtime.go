@@ -31,6 +31,7 @@ import (
 	"github.com/docker/cagent/pkg/rag"
 	ragtypes "github.com/docker/cagent/pkg/rag/types"
 	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/cagent/pkg/sessiontitle"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/telemetry"
 	"github.com/docker/cagent/pkg/tools"
@@ -135,6 +136,23 @@ type Runtime interface {
 	// PermissionsInfo returns the team-level permission patterns (allow/deny).
 	// Returns nil if no permissions are configured.
 	PermissionsInfo() *PermissionsInfo
+
+	// CurrentAgentSkillsEnabled returns whether skills are enabled for the current agent.
+	CurrentAgentSkillsEnabled() bool
+
+	// CurrentMCPPrompts returns MCP prompts available from the current agent's toolsets.
+	// Returns an empty map if no MCP prompts are available.
+	CurrentMCPPrompts(ctx context.Context) map[string]mcptools.PromptInfo
+
+	// ExecuteMCPPrompt executes a named MCP prompt with the given arguments.
+	ExecuteMCPPrompt(ctx context.Context, promptName string, arguments map[string]string) (string, error)
+
+	// UpdateSessionTitle persists a new title for the current session.
+	UpdateSessionTitle(ctx context.Context, sess *session.Session, title string) error
+
+	// TitleGenerator returns a generator for automatic session titles, or nil
+	// if the runtime does not support local title generation (e.g. remote runtimes).
+	TitleGenerator() *sessiontitle.Generator
 }
 
 // PermissionsInfo contains the allow and deny patterns for tool permissions.
@@ -513,6 +531,69 @@ func (r *LocalRuntime) CurrentAgent() *agent.Agent {
 	return current
 }
 
+// CurrentAgentSkillsEnabled returns whether skills are enabled for the current agent.
+func (r *LocalRuntime) CurrentAgentSkillsEnabled() bool {
+	a := r.CurrentAgent()
+	return a != nil && a.SkillsEnabled()
+}
+
+// ExecuteMCPPrompt executes an MCP prompt with provided arguments and returns the content.
+func (r *LocalRuntime) ExecuteMCPPrompt(ctx context.Context, promptName string, arguments map[string]string) (string, error) {
+	currentAgent := r.CurrentAgent()
+	if currentAgent == nil {
+		return "", fmt.Errorf("no current agent available")
+	}
+
+	for _, toolset := range currentAgent.ToolSets() {
+		mcpToolset, ok := tools.As[*mcptools.Toolset](toolset)
+		if !ok {
+			continue
+		}
+
+		result, err := mcpToolset.GetPrompt(ctx, promptName, arguments)
+		if err != nil {
+			// If error is "prompt not found", continue to next toolset
+			if err.Error() == "prompt not found" {
+				continue
+			}
+			return "", fmt.Errorf("error executing prompt '%s': %w", promptName, err)
+		}
+
+		// Convert the MCP result to a string format
+		if len(result.Messages) == 0 {
+			return "No content returned from MCP prompt", nil
+		}
+
+		var content strings.Builder
+		for i, message := range result.Messages {
+			if i > 0 {
+				content.WriteString("\n\n")
+			}
+			if textContent, ok := message.Content.(*mcp.TextContent); ok {
+				content.WriteString(textContent.Text)
+			} else {
+				content.WriteString(fmt.Sprintf("[Non-text content: %T]", message.Content))
+			}
+		}
+		return content.String(), nil
+	}
+
+	return "", fmt.Errorf("MCP prompt '%s' not found in any active toolset", promptName)
+}
+
+// TitleGenerator returns a title generator for automatic session title generation.
+func (r *LocalRuntime) TitleGenerator() *sessiontitle.Generator {
+	a := r.CurrentAgent()
+	if a == nil {
+		return nil
+	}
+	model := a.Model()
+	if model == nil {
+		return nil
+	}
+	return sessiontitle.New(model, a.FallbackModels()...)
+}
+
 // getHooksExecutor creates a hooks executor for the given agent
 func (r *LocalRuntime) getHooksExecutor(a *agent.Agent) *hooks.Executor {
 	hooksCfg := hooks.FromConfig(a.Hooks())
@@ -588,6 +669,15 @@ func (r *LocalRuntime) agentDetailsFromTeam() []AgentDetails {
 // SessionStore returns the session store for browsing/loading past sessions.
 func (r *LocalRuntime) SessionStore() session.Store {
 	return r.sessionStore
+}
+
+// UpdateSessionTitle persists the session title via the session store.
+func (r *LocalRuntime) UpdateSessionTitle(ctx context.Context, sess *session.Session, title string) error {
+	sess.Title = title
+	if r.sessionStore != nil {
+		return r.sessionStore.UpdateSession(ctx, sess)
+	}
+	return nil
 }
 
 // PermissionsInfo returns the team-level permission patterns.
