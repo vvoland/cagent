@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -249,20 +250,91 @@ func (a *App) Run(ctx context.Context, cancel context.CancelFunc, message string
 
 	go func() {
 		if len(attachments) > 0 {
+			// Strip attachment placeholders from the message text
+			// Placeholders are in the format @/path/to/file
+			cleanMessage := message
+			for placeholder := range attachments {
+				cleanMessage = strings.ReplaceAll(cleanMessage, placeholder, "")
+			}
+			cleanMessage = strings.TrimSpace(cleanMessage)
+			if cleanMessage == "" {
+				cleanMessage = "Please analyze this attached file."
+			}
+
 			multiContent := []chat.MessagePart{
 				{
 					Type: chat.MessagePartTypeText,
-					Text: message,
+					Text: cleanMessage,
 				},
 			}
 
-			for key, dataURL := range attachments {
+			// Attachments are keyed by @filepath placeholder
+			// Extract the file path and add as file attachment for provider upload.
+			// Note: There is an inherent TOCTOU race between this validation and when
+			// the provider reads the file during upload. This validation catches common
+			// cases (deleted files, wrong paths) but files could still change before upload.
+			for placeholder := range attachments {
+				filePath := strings.TrimPrefix(placeholder, "@")
+				if filePath == "" {
+					slog.Debug("skipping attachment with empty file path", "placeholder", placeholder)
+					continue
+				}
+
+				// Convert to absolute path to ensure consistency with provider upload code
+				// and prevent issues if working directory changes between validation and upload
+				absPath, err := filepath.Abs(filePath)
+				if err != nil {
+					slog.Warn("skipping attachment: invalid path", "path", filePath, "error", err)
+					a.events <- runtime.Warning(fmt.Sprintf("Skipped attachment %s: invalid path", filePath), "")
+					continue
+				}
+
+				fi, err := os.Stat(absPath)
+				if err != nil {
+					var reason string
+					switch {
+					case os.IsNotExist(err):
+						reason = "file does not exist"
+					case os.IsPermission(err):
+						reason = "permission denied"
+					default:
+						reason = fmt.Sprintf("cannot access file: %v", err)
+					}
+					slog.Warn("skipping attachment", "path", absPath, "reason", reason)
+					a.events <- runtime.Warning(fmt.Sprintf("Skipped attachment %s: %s", filePath, reason), "")
+					continue
+				}
+
+				if !fi.Mode().IsRegular() {
+					slog.Warn("skipping attachment: not a regular file", "path", absPath, "mode", fi.Mode().String())
+					a.events <- runtime.Warning(fmt.Sprintf("Skipped attachment %s: not a regular file", filePath), "")
+					continue
+				}
+
+				const maxAttachmentSize = 100 * 1024 * 1024 // 100MB
+				if fi.Size() > maxAttachmentSize {
+					slog.Warn("skipping attachment: file too large", "path", absPath, "size", fi.Size(), "max", maxAttachmentSize)
+					a.events <- runtime.Warning(fmt.Sprintf("Skipped attachment %s: file too large (max 100MB)", filePath), "")
+					continue
+				}
+
+				mimeType := chat.DetectMimeType(absPath)
+				if !chat.IsSupportedMimeType(mimeType) {
+					slog.Warn("skipping attachment: unsupported file type", "path", absPath, "mime_type", mimeType)
+					a.events <- runtime.Warning(fmt.Sprintf("Skipped attachment %s: unsupported file type (supported: images, pdf, txt, md)", filePath), "")
+					continue
+				}
+
 				multiContent = append(multiContent, chat.MessagePart{
-					Type: chat.MessagePartTypeText,
-					Text: fmt.Sprintf("Contents of %s: %s", key, dataURL),
+					Type: chat.MessagePartTypeFile,
+					File: &chat.MessageFile{
+						Path:     absPath,
+						MimeType: mimeType,
+					},
 				})
 			}
-			a.session.AddMessage(session.UserMessage(message, multiContent...))
+
+			a.session.AddMessage(session.UserMessage(cleanMessage, multiContent...))
 		} else {
 			a.session.AddMessage(session.UserMessage(message))
 		}
