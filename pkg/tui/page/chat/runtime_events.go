@@ -72,7 +72,7 @@ func (p *chatPage) handleRuntimeEvent(msg tea.Msg) (bool, tea.Cmd) {
 
 	// ===== Content Events =====
 	case *runtime.UserMessageEvent:
-		return true, p.messages.ReplaceLoadingWithUser(msg.Message)
+		return true, p.messages.ReplaceLoadingWithUser(msg.Message, msg.SessionPosition)
 
 	case *runtime.AgentChoiceEvent:
 		return true, p.handleAgentChoice(msg)
