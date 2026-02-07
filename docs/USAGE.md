@@ -1117,7 +1117,7 @@ Skills are automatically discovered from the following locations (in order, late
 **Global locations** (from home directory):
 - `~/.codex/skills/` — Recursive search (Codex format)
 - `~/.claude/skills/` — Flat search (Claude format)
-- `~/.agents/skills/` — Flat search (Agent Skills standard)
+- `~/.agents/skills/` — Recursive search (Agent Skills standard)
 
 **Project locations** (from git root up to current directory):
 - `.claude/skills/` — Flat search, only at current working directory
