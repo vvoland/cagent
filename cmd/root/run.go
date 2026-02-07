@@ -2,6 +2,7 @@ package root
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -422,7 +423,8 @@ func (f *runExecFlags) handleExecMode(ctx context.Context, out *cli.Printer, rt 
 		OutputJSON:     f.outputJSON,
 		AutoApprove:    f.autoApprove,
 	}, rt, sess, execArgs)
-	if cliErr, ok := err.(cli.RuntimeError); ok {
+	var cliErr cli.RuntimeError
+	if errors.As(err, &cliErr) {
 		return RuntimeError{Err: cliErr.Err}
 	}
 	return err

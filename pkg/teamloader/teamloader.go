@@ -162,7 +162,7 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 		if err != nil {
 			// Return auto model fallback errors and DMR not installed errors directly
 			// without wrapping to provide cleaner messages
-			var autoErr *config.ErrAutoModelFallback
+			var autoErr *config.AutoModelFallbackError
 			if errors.As(err, &autoErr) || errors.Is(err, dmr.ErrNotInstalled) {
 				return nil, err
 			}
@@ -314,7 +314,7 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 		if err != nil {
 			// Return a cleaner error message for auto model selection failures
 			if isAutoModel {
-				return nil, false, &config.ErrAutoModelFallback{}
+				return nil, false, &config.AutoModelFallbackError{}
 			}
 			return nil, false, err
 		}

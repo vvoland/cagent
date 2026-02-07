@@ -375,7 +375,7 @@ func NewSQLiteSessionStore(path string) (Store, error) {
 		if backupErr != nil {
 			// Return the original error if backup failed
 			slog.Error("Failed to backup database for recovery", "error", backupErr)
-			return nil, fmt.Errorf("migration failed: %w (backup also failed: %v)", err, backupErr)
+			return nil, fmt.Errorf("migration failed: %w (backup also failed: %w)", err, backupErr)
 		}
 
 		// Try again with a fresh database
@@ -868,6 +868,10 @@ func (s *SQLiteSessionStore) GetSessionSummaries(ctx context.Context) ([]Summary
 			CreatedAt: createdAt,
 			Starred:   starred,
 		})
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return summaries, nil

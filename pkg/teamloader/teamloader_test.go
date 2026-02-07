@@ -256,8 +256,8 @@ func TestAutoModelFallbackError(t *testing.T) {
 	_, err = Load(t.Context(), agentSource, runConfig)
 	require.Error(t, err)
 
-	var autoErr *config.ErrAutoModelFallback
-	require.ErrorAs(t, err, &autoErr, "expected ErrAutoModelFallback when auto model selection fails")
+	var autoErr *config.AutoModelFallbackError
+	require.ErrorAs(t, err, &autoErr, "expected AutoModelFallbackError when auto model selection fails")
 }
 
 func TestIsThinkingBudgetDisabled(t *testing.T) {
