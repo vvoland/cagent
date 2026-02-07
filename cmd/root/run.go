@@ -33,6 +33,7 @@ type runExecFlags struct {
 	remoteAddress     string
 	connectRPC        bool
 	modelOverrides    []string
+	promptFiles       []string
 	dryRun            bool
 	runConfig         config.RuntimeConfig
 	sessionDB         string
@@ -83,6 +84,7 @@ func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 	cmd.PersistentFlags().BoolVar(&flags.autoApprove, "yolo", false, "Automatically approve all tool calls without prompting")
 	cmd.PersistentFlags().BoolVar(&flags.hideToolResults, "hide-tool-results", false, "Hide tool call results")
 	cmd.PersistentFlags().StringVar(&flags.attachmentPath, "attach", "", "Attach an image file to the message")
+	cmd.PersistentFlags().StringArrayVar(&flags.promptFiles, "prompt-file", nil, "Append file contents to the prompt (repeatable)")
 	cmd.PersistentFlags().StringArrayVar(&flags.modelOverrides, "model", nil, "Override agent model: [agent=]provider/model (repeatable)")
 	cmd.PersistentFlags().BoolVar(&flags.dryRun, "dry-run", false, "Initialize the agent without executing anything")
 	cmd.PersistentFlags().StringVar(&flags.remoteAddress, "remote", "", "Use remote runtime with specified address")
@@ -258,7 +260,14 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 }
 
 func (f *runExecFlags) loadAgentFrom(ctx context.Context, agentSource config.Source) (*teamloader.LoadResult, error) {
-	result, err := teamloader.LoadWithConfig(ctx, agentSource, &f.runConfig, teamloader.WithModelOverrides(f.modelOverrides))
+	opts := []teamloader.Opt{
+		teamloader.WithModelOverrides(f.modelOverrides),
+	}
+	if len(f.promptFiles) > 0 {
+		opts = append(opts, teamloader.WithPromptFiles(f.promptFiles))
+	}
+
+	result, err := teamloader.LoadWithConfig(ctx, agentSource, &f.runConfig, opts...)
 	if err != nil {
 		return nil, err
 	}
