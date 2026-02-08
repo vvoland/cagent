@@ -38,6 +38,13 @@ func (p *chatPage) handleKeyPress(msg tea.KeyPressMsg) (layout.Model, tea.Cmd, b
 		}
 	}
 
+	// History search is a modal state — capture all keys before normal routing
+	if p.focusedPanel == PanelEditor && p.editor.IsHistorySearchActive() {
+		model, cmd := p.editor.Update(msg)
+		p.editor = model.(editor.Editor)
+		return p, cmd, true
+	}
+
 	switch {
 	case key.Matches(msg, p.keyMap.Tab):
 		if p.focusedPanel == PanelEditor {
@@ -65,6 +72,13 @@ func (p *chatPage) handleKeyPress(msg tea.KeyPressMsg) (layout.Model, tea.Cmd, b
 		p.sidebar.ToggleCollapsed()
 		cmd := p.SetSize(p.width, p.height)
 		return p, cmd, true
+
+	case key.Matches(msg, p.keyMap.HistorySearch):
+		if p.focusedPanel == PanelEditor && !p.working && !p.editor.IsRecording() {
+			model, cmd := p.editor.EnterHistorySearch()
+			p.editor = model.(editor.Editor)
+			return p, cmd, true
+		}
 	}
 
 	// Route other keys to focused component
