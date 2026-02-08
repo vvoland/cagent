@@ -143,7 +143,7 @@ agents:
 
   security:
     model: openai-o3,claude-sonnet
-    description: Deep security vulnerability analysis (alloy: reasoning + broad knowledge)
+    description: "Deep security vulnerability analysis (alloy: reasoning + broad knowledge)"
     instruction: |
       You are a security expert scanning for vulnerabilities. Be thorough but precise.
 
@@ -207,7 +207,7 @@ agents:
 
   bugs:
     model: gemini-flash,claude-haiku
-    description: Logic errors, resource leaks, and concurrency bugs (alloy: speed + precision)
+    description: "Logic errors, resource leaks, and concurrency bugs (alloy: speed + precision)"
     instruction: |
       You are analyzing code for bugs that cause runtime errors or incorrect behavior.
 
