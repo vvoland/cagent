@@ -316,8 +316,8 @@ func ParseAttachCommand(userInput string) (messageText, attachPath string) {
 }
 
 // CreateUserMessageWithAttachment creates a user message with optional file attachment.
-// The attachment is stored as a file reference (path + MIME type) rather than base64-encoded
-// content. The actual upload to the provider's file storage happens at request time.
+// Text files are inlined directly as text content for cross-provider compatibility.
+// Binary files (images, PDFs) are stored as file references for provider-specific upload.
 func CreateUserMessageWithAttachment(userContent, attachmentPath string) *session.Message {
 	if attachmentPath == "" {
 		return session.UserMessage(userContent)
@@ -330,31 +330,54 @@ func CreateUserMessageWithAttachment(userContent, attachmentPath string) *sessio
 		return session.UserMessage(userContent)
 	}
 
-	if _, err := os.Stat(absPath); os.IsNotExist(err) {
-		slog.Warn("Attachment file does not exist", "path", absPath)
+	fi, err := os.Stat(absPath)
+	if err != nil {
+		slog.Warn("Attachment file not accessible", "path", absPath, "error", err)
 		return session.UserMessage(userContent)
 	}
-
-	// Determine MIME type
-	mimeType := chat.DetectMimeType(absPath)
 
 	// Ensure we have some text content when attaching a file
 	textContent := cmp.Or(strings.TrimSpace(userContent), "Please analyze this attached file.")
 
-	// Create message with multi-content including text and file reference
 	multiContent := []chat.MessagePart{
 		{
 			Type: chat.MessagePartTypeText,
 			Text: textContent,
 		},
-		{
+	}
+
+	switch {
+	case chat.IsTextFile(absPath):
+		// Text files are inlined directly as text content.
+		if fi.Size() > chat.MaxInlineFileSize {
+			slog.Warn("Attachment text file too large to inline", "path", absPath, "size", fi.Size())
+			return session.UserMessage(userContent)
+		}
+		content, err := chat.ReadFileForInline(absPath)
+		if err != nil {
+			slog.Warn("Failed to read attachment file", "path", absPath, "error", err)
+			return session.UserMessage(userContent)
+		}
+		multiContent = append(multiContent, chat.MessagePart{
+			Type: chat.MessagePartTypeText,
+			Text: content,
+		})
+
+	default:
+		// Binary files (images, PDFs) are kept as file references.
+		mimeType := chat.DetectMimeType(absPath)
+		if !chat.IsSupportedMimeType(mimeType) {
+			slog.Warn("Unsupported attachment file type", "path", absPath, "mime_type", mimeType)
+			return session.UserMessage(userContent)
+		}
+		multiContent = append(multiContent, chat.MessagePart{
 			Type: chat.MessagePartTypeFile,
 			File: &chat.MessageFile{
 				Path:     absPath,
 				MimeType: mimeType,
 			},
-		},
+		})
 	}
 
-	return session.UserMessage("", multiContent...)
+	return session.UserMessage(textContent, multiContent...)
 }

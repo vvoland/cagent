@@ -398,10 +398,10 @@ func IsImageMime(mimeType string) bool {
 	}
 }
 
-// IsDocumentMime returns true if the MIME type is a document type supported by Anthropic.
-func IsDocumentMime(mimeType string) bool {
+// IsAnthropicDocumentMime returns true if the MIME type is a document type supported by Anthropic.
+func IsAnthropicDocumentMime(mimeType string) bool {
 	switch mimeType {
-	case "application/pdf", "text/plain", "text/markdown":
+	case "application/pdf", "text/plain":
 		return true
 	default:
 		return false
