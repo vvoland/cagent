@@ -3,6 +3,42 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.21.0] - 2026-02-09
+
+This release adds a new generalist coding agent, improves agent configuration handling, and includes several bug fixes and UI improvements.
+
+## What's New
+- Adds a generalist coding agent for enhanced coding assistance
+- Adds OCI artifact wrapper for spec-compliant manifest with artifactType
+
+## Improvements
+- Supports recursive ~/.agents/skills directory structure
+- Wraps todo descriptions at word boundaries in sidebar for better display
+- Preserves 429 error details on OpenAI for better error handling
+
+## Bug Fixes
+- Fixes subagent delegation and validates model outputs when transfer_task is called
+- Fixes YAML parsing issue with unquoted strings containing special characters like colons
+
+## Technical Changes
+- Freezes config version v4 and bumps to v5
+
+### Pull Requests
+
+- [#1419](https://github.com/docker/cagent/pull/1419) - Help fix #1419
+- [#1625](https://github.com/docker/cagent/pull/1625) - Add a generalist coding agent
+- [#1631](https://github.com/docker/cagent/pull/1631) - Support recursive ~/.agents/skills
+- [#1632](https://github.com/docker/cagent/pull/1632) - Help fix #1419
+- [#1633](https://github.com/docker/cagent/pull/1633) - Add OCI artifact wrapper for spec-compliant manifest with artifactType
+- [#1634](https://github.com/docker/cagent/pull/1634) - docs: update CHANGELOG.md for v1.20.6
+- [#1635](https://github.com/docker/cagent/pull/1635) - Freeze v4 and bump config version to v5
+- [#1637](https://github.com/docker/cagent/pull/1637) - Fix subagent logic
+- [#1641](https://github.com/docker/cagent/pull/1641) - unquoted strings are fine until they contain special characters like :
+- [#1643](https://github.com/docker/cagent/pull/1643) - Wrap todo descriptions at word boundaries in sidebar
+- [#1646](https://github.com/docker/cagent/pull/1646) - Bump Go dependencies
+- [#1647](https://github.com/docker/cagent/pull/1647) - Preserve 429 error details on OpenAI
+
+
 ## [v1.20.6] - 2026-02-07
 
 This release introduces branching sessions, model fallbacks, and automated code quality scanning, along with performance improvements and enhanced file handling capabilities.
@@ -292,3 +328,5 @@ This release improves the terminal user interface with better error handling and
 [v1.20.5]: https://github.com/docker/cagent/releases/tag/v1.20.5
 
 [v1.20.6]: https://github.com/docker/cagent/releases/tag/v1.20.6
+
+[v1.21.0]: https://github.com/docker/cagent/releases/tag/v1.21.0
