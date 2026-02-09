@@ -244,8 +244,13 @@ func TestBranchSessionCopiesPrefix(t *testing.T) {
 
 	require.NoError(t, store.AddSession(t.Context(), parent))
 
-	branched, err := store.BranchSession(t.Context(), parent.ID, 2)
+	parentLoaded, err := store.GetSession(t.Context(), parent.ID)
 	require.NoError(t, err)
+
+	branched, err := BranchSession(parentLoaded, 2)
+	require.NoError(t, err)
+
+	require.NoError(t, store.AddSession(t.Context(), branched))
 	require.NotNil(t, branched.BranchParentPosition)
 	assert.Equal(t, parent.ID, branched.BranchParentSessionID)
 	assert.Equal(t, 2, *branched.BranchParentPosition)
@@ -289,8 +294,13 @@ func TestBranchSessionClonesSubSession(t *testing.T) {
 
 	require.NoError(t, store.AddSession(t.Context(), parent))
 
-	branched, err := store.BranchSession(t.Context(), parent.ID, 2)
+	parentLoaded, err := store.GetSession(t.Context(), parent.ID)
 	require.NoError(t, err)
+
+	branched, err := BranchSession(parentLoaded, 2)
+	require.NoError(t, err)
+
+	require.NoError(t, store.AddSession(t.Context(), branched))
 
 	loaded, err := store.GetSession(t.Context(), branched.ID)
 	require.NoError(t, err)

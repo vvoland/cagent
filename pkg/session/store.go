@@ -83,7 +83,6 @@ type Store interface {
 	DeleteSession(ctx context.Context, id string) error
 	UpdateSession(ctx context.Context, session *Session) error // Updates metadata only (not messages/items)
 	SetSessionStarred(ctx context.Context, id string, starred bool) error
-	BranchSession(ctx context.Context, parentSessionID string, branchAtPosition int) (*Session, error)
 
 	// === Granular item operations ===
 
@@ -216,25 +215,6 @@ func (s *InMemorySessionStore) SetSessionStarred(_ context.Context, id string, s
 	session.Starred = starred
 	s.sessions.Store(id, session)
 	return nil
-}
-
-// BranchSession creates a new session branched from the parent at the given position.
-func (s *InMemorySessionStore) BranchSession(_ context.Context, parentSessionID string, branchAtPosition int) (*Session, error) {
-	if parentSessionID == "" {
-		return nil, ErrEmptyID
-	}
-	parent, exists := s.sessions.Load(parentSessionID)
-	if !exists {
-		return nil, ErrNotFound
-	}
-
-	branched, err := buildBranchedSession(parent, branchAtPosition)
-	if err != nil {
-		return nil, err
-	}
-
-	s.sessions.Store(branched.ID, branched)
-	return branched, nil
 }
 
 // AddMessage adds a message to a session at the next position.
@@ -1073,37 +1053,6 @@ func (s *SQLiteSessionStore) SetSessionStarred(ctx context.Context, id string, s
 	}
 
 	return nil
-}
-
-// BranchSession creates a new session branched from the parent at the given position.
-func (s *SQLiteSessionStore) BranchSession(ctx context.Context, parentSessionID string, branchAtPosition int) (*Session, error) {
-	if parentSessionID == "" {
-		return nil, ErrEmptyID
-	}
-
-	parent, err := s.GetSession(ctx, parentSessionID)
-	if err != nil {
-		return nil, err
-	}
-
-	branched, err := buildBranchedSession(parent, branchAtPosition)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := s.AddSession(ctx, branched); err != nil {
-		return nil, err
-	}
-
-	ids := make(map[string]struct{})
-	collectSessionIDs(branched, ids)
-	for id := range ids {
-		if err := s.syncMessagesColumn(ctx, id); err != nil {
-			slog.Warn("[STORE] Failed to sync messages column after branch", "session_id", id, "error", err)
-		}
-	}
-
-	return branched, nil
 }
 
 // Close closes the database connection
