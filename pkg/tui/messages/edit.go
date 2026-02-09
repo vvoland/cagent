@@ -12,7 +12,7 @@ type BranchFromEditMsg struct {
 	ParentSessionID  string
 	BranchAtPosition int
 	Content          string
-	Attachments      map[string]string
+	Attachments      []Attachment
 }
 
 // InvalidateStatusBarMsg signals that the statusbar cache should be invalidated.

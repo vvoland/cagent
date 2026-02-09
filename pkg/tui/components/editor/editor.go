@@ -1319,11 +1319,21 @@ func (e *editor) tryAddFileRef(word string) {
 }
 
 // addFileAttachment adds a file reference as an attachment if valid.
+// The path is resolved to an absolute path so downstream consumers
+// (e.g. processFileAttachment) always receive a fully qualified path.
 func (e *editor) addFileAttachment(placeholder string) {
 	path := strings.TrimPrefix(placeholder, "@")
 
+	// Resolve to absolute path so the attachment carries a fully qualified
+	// path regardless of the working directory at send time.
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		slog.Warn("skipping attachment: cannot resolve path", "path", path, "error", err)
+		return
+	}
+
 	// Check if it's an existing file (not directory)
-	info, err := os.Stat(path)
+	info, err := os.Stat(absPath)
 	if err != nil || info.IsDir() {
 		return
 	}
@@ -1336,22 +1346,25 @@ func (e *editor) addFileAttachment(placeholder string) {
 	}
 
 	e.attachments = append(e.attachments, attachment{
-		path:        path,
+		path:        absPath,
 		placeholder: placeholder,
-		label:       fmt.Sprintf("%s (%s)", filepath.Base(path), units.HumanSize(float64(info.Size()))),
+		label:       fmt.Sprintf("%s (%s)", filepath.Base(absPath), units.HumanSize(float64(info.Size()))),
 		sizeBytes:   int(info.Size()),
 		isTemp:      false,
 	})
 }
 
-// collectAttachments returns a map of placeholder to file content for all attachments
-// referenced in content. Unreferenced attachments are cleaned up.
-func (e *editor) collectAttachments(content string) map[string]string {
+// collectAttachments returns structured attachments for all items referenced in
+// content. For paste attachments the content is read into memory (the backing
+// temp file is removed). For file-reference attachments the path is preserved
+// so the consumer can read and classify the file (e.g. detect MIME type).
+// Unreferenced attachments are cleaned up.
+func (e *editor) collectAttachments(content string) []messages.Attachment {
 	if len(e.attachments) == 0 {
 		return nil
 	}
 
-	attachments := make(map[string]string)
+	var result []messages.Attachment
 	for _, att := range e.attachments {
 		if !strings.Contains(content, att.placeholder) {
 			if att.isTemp {
@@ -1360,24 +1373,29 @@ func (e *editor) collectAttachments(content string) map[string]string {
 			continue
 		}
 
-		data, err := os.ReadFile(att.path)
-		if err != nil {
-			slog.Warn("failed to read attachment", "path", att.path, "error", err)
-			if att.isTemp {
-				_ = os.Remove(att.path)
-			}
-			continue
-		}
-
-		attachments[att.placeholder] = string(data)
-
 		if att.isTemp {
+			// Paste attachment: read into memory and remove the temp file.
+			data, err := os.ReadFile(att.path)
 			_ = os.Remove(att.path)
+			if err != nil {
+				slog.Warn("failed to read paste attachment", "path", att.path, "error", err)
+				continue
+			}
+			result = append(result, messages.Attachment{
+				Name:    strings.TrimPrefix(att.placeholder, "@"),
+				Content: string(data),
+			})
+		} else {
+			// File-reference attachment: keep the path for later processing.
+			result = append(result, messages.Attachment{
+				Name:     filepath.Base(att.path),
+				FilePath: att.path,
+			})
 		}
 	}
 	e.attachments = nil
 
-	return attachments
+	return result
 }
 
 // Cleanup removes any temporary paste files that haven't been sent yet.
