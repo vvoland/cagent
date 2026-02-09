@@ -74,9 +74,9 @@ func NewSessionBrowserDialog(sessions []session.Summary) Dialog {
 			Down:       key.NewBinding(key.WithKeys("down", "ctrl+j")),
 			Enter:      key.NewBinding(key.WithKeys("enter")),
 			Escape:     key.NewBinding(key.WithKeys("esc")),
-			Star:       key.NewBinding(key.WithKeys("s")),
-			FilterStar: key.NewBinding(key.WithKeys("f")),
-			CopyID:     key.NewBinding(key.WithKeys("c")),
+			Star:       key.NewBinding(key.WithKeys("ctrl+s")),
+			FilterStar: key.NewBinding(key.WithKeys("ctrl+f")),
+			CopyID:     key.NewBinding(key.WithKeys("ctrl+k")),
 		},
 		openedAt: time.Now(),
 	}
@@ -217,7 +217,7 @@ func (d *sessionBrowserDialog) filterSessions() {
 }
 
 func (d *sessionBrowserDialog) dialogSize() (dialogWidth, maxHeight, contentWidth int) {
-	dialogWidth = max(min(d.Width()*80/100, 80), 60)
+	dialogWidth = max(min(d.Width()*85/100, 96), 60)
 	maxHeight = min(d.Height()*70/100, 30)
 	contentWidth = dialogWidth - 6 - d.scrollview.ReservedCols()
 	return dialogWidth, maxHeight, contentWidth
@@ -290,7 +290,7 @@ func (d *sessionBrowserDialog) View() string {
 		AddSeparator().
 		AddContent(idFooter).
 		AddSpace().
-		AddHelpKeys("↑/↓", "navigate", "s", "star", "f", filterDesc, "c", "copy id", "enter", "load", "esc", "close").
+		AddHelpKeys("↑/↓", "navigate", "ctrl+s", "star", "ctrl+f", filterDesc, "ctrl+k", "copy id", "enter", "load", "esc", "close").
 		Build()
 
 	return styles.DialogStyle.Width(dialogWidth).Render(content)
