@@ -539,7 +539,7 @@ func TestTrackServerStart(t *testing.T) {
 	cmdInfo := CommandInfo{
 		Action: "mcp",
 		Args:   []string{},
-		Flags:  []string{"--port", "8080"},
+		Flags:  []string{},
 	}
 	err := client.TrackServerStart(t.Context(), cmdInfo, func(ctx context.Context) error {
 		executed = true

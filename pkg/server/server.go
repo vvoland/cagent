@@ -26,7 +26,6 @@ type Server struct {
 
 func New(ctx context.Context, sessionStore session.Store, runConfig *config.RuntimeConfig, refreshInterval time.Duration, agentSources config.Sources) (*Server, error) {
 	e := echo.New()
-	e.Use(middleware.CORS())
 	e.Use(middleware.RequestLogger())
 
 	s := &Server{

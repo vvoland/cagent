@@ -16,10 +16,10 @@ This document describes how to expose Docker `cagent` agents via Google's A2A (A
 cagent a2a ./agent.yaml
 
 # Specify a custom port
-cagent a2a ./agent.yaml --port 8080
+cagent a2a ./agent.yaml --listen 127.0.0.1:9000
 
 # Use an agent from the catalog
-cagent a2a agentcatalog/pirate --port 9000
+cagent a2a agentcatalog/pirate
 ```
 
 ## Limitations and Future Work
