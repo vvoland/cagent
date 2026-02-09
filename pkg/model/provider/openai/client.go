@@ -128,6 +128,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 				option.WithAPIKey(authToken),
 				option.WithBaseURL(baseURL),
 				option.WithHTTPClient(httpclient.NewHTTPClient(httpOptions...)),
+				option.WithMiddleware(oaistream.ErrorBodyMiddleware()),
 			)
 
 			return &client, nil
