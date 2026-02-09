@@ -419,12 +419,8 @@ func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, loadRes
 }
 
 func (f *runExecFlags) handleExecMode(ctx context.Context, out *cli.Printer, rt runtime.Runtime, sess *session.Session, args []string) error {
-	execArgs := []string{"exec"}
-	if len(args) == 2 {
-		execArgs = append(execArgs, args[1])
-	} else {
-		execArgs = append(execArgs, "Please proceed.")
-	}
+	// args[0] is the agent file; args[1:] are user messages for multi-turn conversation
+	userMessages := args[1:]
 
 	err := cli.Run(ctx, out, cli.Config{
 		AppName:        AppName,
@@ -432,7 +428,7 @@ func (f *runExecFlags) handleExecMode(ctx context.Context, out *cli.Printer, rt 
 		HideToolCalls:  f.hideToolCalls,
 		OutputJSON:     f.outputJSON,
 		AutoApprove:    f.autoApprove,
-	}, rt, sess, execArgs)
+	}, rt, sess, userMessages)
 	var cliErr cli.RuntimeError
 	if errors.As(err, &cliErr) {
 		return RuntimeError{Err: cliErr.Err}

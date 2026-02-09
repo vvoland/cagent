@@ -40,8 +40,10 @@ type Config struct {
 	OutputJSON     bool
 }
 
-// Run executes an agent in non-TUI mode, handling user input and runtime events
-func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess *session.Session, args []string) error {
+// Run executes an agent in non-TUI mode, handling user input and runtime events.
+// userMessages contains the user messages to send. If a single message is "-",
+// input is read from stdin. If empty, an interactive prompt loop is started.
+func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess *session.Session, userMessages []string) error {
 	// Create a cancellable context for this agentic loop and wire Ctrl+C to cancel it
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -193,22 +195,26 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 		return nil
 	}
 
-	if len(args) == 2 {
-		if args[1] == "-" {
-			buf, err := io.ReadAll(os.Stdin)
-			if err != nil {
-				return fmt.Errorf("failed to read from stdin: %w", err)
-			}
+	switch {
+	case len(userMessages) == 1 && userMessages[0] == "-":
+		// Single "-" argument: read from stdin
+		buf, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return fmt.Errorf("failed to read from stdin: %w", err)
+		}
 
-			if err := oneLoop(string(buf), os.Stdin); err != nil {
-				return err
-			}
-		} else {
-			if err := oneLoop(args[1], os.Stdin); err != nil {
+		if err := oneLoop(string(buf), os.Stdin); err != nil {
+			return err
+		}
+	case len(userMessages) > 0:
+		// One or more messages: multi-turn conversation
+		for _, msg := range userMessages {
+			if err := oneLoop(msg, os.Stdin); err != nil {
 				return err
 			}
 		}
-	} else {
+	default:
+		// No messages: interactive prompt loop
 		out.PrintWelcomeMessage(cfg.AppName)
 		firstQuestion := true
 		for {
