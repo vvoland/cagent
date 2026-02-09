@@ -16,7 +16,7 @@ func ConvertParametersToSchema(params any) (shared.FunctionParameters, error) {
 		return nil, err
 	}
 
-	return fixSchemaArrayItems(makeAllRequired(p)), nil
+	return fixSchemaArrayItems(removeFormatFields(makeAllRequired(p))), nil
 }
 
 // makeAllRequired make all the parameters "required"
@@ -61,6 +61,34 @@ func makeAllRequired(schema shared.FunctionParameters) shared.FunctionParameters
 	schema["required"] = newRequired
 	schema["additionalProperties"] = false
 	return schema
+}
+
+// removeFormatFields removes the "format" field from all properties in the schema, recursively.
+// OpenAI does not support the JSON Schema "format" keyword (e.g. "uri", "email", "date").
+func removeFormatFields(schema shared.FunctionParameters) shared.FunctionParameters {
+	if schema == nil {
+		return nil
+	}
+
+	removeFormatFieldsRecursive(schema)
+
+	return schema
+}
+
+func removeFormatFieldsRecursive(schema map[string]any) {
+	delete(schema, "format")
+
+	if properties, ok := schema["properties"].(map[string]any); ok {
+		for _, propValue := range properties {
+			if prop, ok := propValue.(map[string]any); ok {
+				removeFormatFieldsRecursive(prop)
+			}
+		}
+	}
+
+	if items, ok := schema["items"].(map[string]any); ok {
+		removeFormatFieldsRecursive(items)
+	}
 }
 
 // In Docker Desktop 4.52, the MCP Gateway produces an invalid tools shema for `mcp-config-set`.
