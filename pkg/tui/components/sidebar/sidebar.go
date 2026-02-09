@@ -567,13 +567,15 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		cmd := m.startSpinner()
 		return m, cmd
 	case *runtime.SessionTitleEvent:
-		m.sessionTitle = msg.Title
-		// Mark title as generated (enables pencil icon)
-		m.titleGenerated = true
-		// Clear regenerating state now that we have a title
+		// Clear regenerating state now that title generation is done
 		if m.titleRegenerating {
 			m.titleRegenerating = false
 			m.stopSpinner()
+		}
+		// Only update title and mark as generated if a non-empty title was provided
+		if msg.Title != "" {
+			m.sessionTitle = msg.Title
+			m.titleGenerated = true
 		}
 		m.invalidateCache()
 		return m, nil
@@ -620,6 +622,7 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		m.workingAgent = ""
 		m.toolsLoading = false
 		m.mcpInit = false
+		m.titleRegenerating = false
 		// Force-stop main spinner if it was active (state is now cleared)
 		if m.spinnerActive {
 			m.spinnerActive = false
