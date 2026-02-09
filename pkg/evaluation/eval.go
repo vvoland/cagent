@@ -292,7 +292,7 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *InputSession) (Res
 	result := Result{
 		InputPath:         evalSess.SourcePath,
 		Title:             evalSess.Title,
-		Question:          getFirstUserMessage(evalSess.Session),
+		Question:          strings.Join(getUserMessages(evalSess.Session), "\n"),
 		SizeExpected:      evals.Size,
 		RelevanceExpected: float64(len(evals.Relevance)),
 	}
@@ -309,7 +309,7 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *InputSession) (Res
 		return result, fmt.Errorf("building eval image: %w", err)
 	}
 
-	events, err := r.runCagentInContainer(ctx, imageID, result.Question)
+	events, err := r.runCagentInContainer(ctx, imageID, getUserMessages(evalSess.Session))
 	if err != nil {
 		return result, fmt.Errorf("running cagent in container: %w", err)
 	}
@@ -322,7 +322,7 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *InputSession) (Res
 	result.Size = getResponseSize(result.Response)
 
 	// Build session from events for database storage
-	result.Session = SessionFromEvents(events, evalSess.Title, result.Question)
+	result.Session = SessionFromEvents(events, evalSess.Title, getUserMessages(evalSess.Session))
 	result.Session.Evals = evals
 
 	if len(expectedToolCalls) > 0 || len(actualToolCalls) > 0 {
@@ -346,7 +346,7 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *InputSession) (Res
 	return result, nil
 }
 
-func (r *Runner) runCagentInContainer(ctx context.Context, imageID, question string) ([]map[string]any, error) {
+func (r *Runner) runCagentInContainer(ctx context.Context, imageID string, questions []string) ([]map[string]any, error) {
 	agentDir := r.agentSource.ParentDir()
 	agentFile := filepath.Base(r.agentSource.Name())
 	containerName := fmt.Sprintf("cagent-eval-%d", uuid.New().ID())
@@ -396,7 +396,8 @@ func (r *Runner) runCagentInContainer(ctx context.Context, imageID, question str
 		}
 	}
 
-	args = append(args, imageID, "/configs/"+agentFile, question)
+	args = append(args, imageID, "/configs/"+agentFile)
+	args = append(args, questions...)
 
 	cmd := exec.CommandContext(ctx, "docker", args...)
 	cmd.Env = append(env, os.Environ()...)
