@@ -3,6 +3,49 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.22.0] - 2026-02-09
+
+This release enhances the chat experience with history search functionality and improves file attachment handling, along with multi-turn conversation support for command-line operations.
+
+## What's New
+
+- Adds Ctrl+R reverse history search to the chat editor for quickly finding previous conversations
+- Adds support for multi-turn conversations in `cagent exec`, `cagent run`, and `cagent eval` commands
+- Adds support for queueing multiple messages with `cagent run question1 question2 ...`
+
+## Improvements
+
+- Improves file attachment handling by inlining text-based files and fixing placeholder stripping
+- Refactors scrollbar into a reusable scrollview component for more consistent scrolling behavior across the interface
+
+## Bug Fixes
+
+- Fixes pasted attachments functionality
+- Fixes persistence of multi_content for user messages to ensure attachment data is properly saved
+- Fixes session browser shortcuts (star, filter, copy-id) to use Ctrl modifier, preventing conflicts with search input
+- Fixes title generation spinner that could spin forever
+- Fixes scrollview height issues when used with dialogs
+- Fixes double @@ symbols when using file picker for @ attachments
+
+## Technical Changes
+
+- Updates OpenAI schema format handling to improve compatibility
+
+### Pull Requests
+
+- [#1630](https://github.com/docker/cagent/pull/1630) - feat: add Ctrl+R reverse history search
+- [#1640](https://github.com/docker/cagent/pull/1640) - better file attachments
+- [#1645](https://github.com/docker/cagent/pull/1645) - Prevent title generation spinner to spin forever
+- [#1649](https://github.com/docker/cagent/pull/1649) - docs: update CHANGELOG.md for v1.21.0
+- [#1650](https://github.com/docker/cagent/pull/1650) - OpenAI doesn't like those format indications on the schema
+- [#1652](https://github.com/docker/cagent/pull/1652) - Fix: persist multi_content for user messages
+- [#1654](https://github.com/docker/cagent/pull/1654) - Refactor scrollbar into more reusable `scrollview` component
+- [#1656](https://github.com/docker/cagent/pull/1656) - fix: use ctrl modifier for session browser shortcuts to avoid search conflict
+- [#1659](https://github.com/docker/cagent/pull/1659) - Fix pasted attachments
+- [#1661](https://github.com/docker/cagent/pull/1661) - deleting version 2 so i can use permissions
+- [#1662](https://github.com/docker/cagent/pull/1662) - Multi turn (cagent exec|run|eval)
+
+
 ## [v1.21.0] - 2026-02-09
 
 This release adds a new generalist coding agent, improves agent configuration handling, and includes several bug fixes and UI improvements.
@@ -330,3 +373,5 @@ This release improves the terminal user interface with better error handling and
 [v1.20.6]: https://github.com/docker/cagent/releases/tag/v1.20.6
 
 [v1.21.0]: https://github.com/docker/cagent/releases/tag/v1.21.0
+
+[v1.22.0]: https://github.com/docker/cagent/releases/tag/v1.22.0
