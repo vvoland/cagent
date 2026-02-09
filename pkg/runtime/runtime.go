@@ -872,7 +872,8 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 
 		messages := sess.GetMessages(a)
 		if sess.SendUserMessage {
-			events <- UserMessage(messages[len(messages)-1].Content, sess.ID, len(sess.Messages)-1)
+			lastMsg := messages[len(messages)-1]
+			events <- UserMessage(lastMsg.Content, sess.ID, lastMsg.MultiContent, len(sess.Messages)-1)
 		}
 
 		events <- StreamStarted(sess.ID, a.Name())

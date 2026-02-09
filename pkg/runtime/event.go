@@ -30,14 +30,15 @@ func newAgentContext(agentName string) AgentContext {
 
 // UserMessageEvent is sent when a user message is received
 type UserMessageEvent struct {
-	Type            string `json:"type"`
-	Message         string `json:"message"`
-	SessionID       string `json:"session_id"`
-	SessionPosition int    `json:"session_position"` // Index in session.Messages, -1 if unknown
+	Type            string             `json:"type"`
+	Message         string             `json:"message"`
+	MultiContent    []chat.MessagePart `json:"multi_content,omitempty"`
+	SessionID       string             `json:"session_id"`
+	SessionPosition int                `json:"session_position"` // Index in session.Messages, -1 if unknown
 	AgentContext
 }
 
-func UserMessage(message, sessionID string, sessionPos ...int) Event {
+func UserMessage(message, sessionID string, multiContent []chat.MessagePart, sessionPos ...int) Event {
 	pos := -1
 	if len(sessionPos) > 0 {
 		pos = sessionPos[0]
@@ -45,6 +46,7 @@ func UserMessage(message, sessionID string, sessionPos ...int) Event {
 	return &UserMessageEvent{
 		Type:            "user_message",
 		Message:         message,
+		MultiContent:    multiContent,
 		SessionID:       sessionID,
 		SessionPosition: pos,
 		AgentContext:    newAgentContext(""),
