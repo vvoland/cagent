@@ -135,7 +135,7 @@ type Page interface {
 // queuedMessage represents a message waiting to be sent to the agent
 type queuedMessage struct {
 	content     string
-	attachments map[string]string
+	attachments []msgtypes.Attachment
 }
 
 // maxQueuedMessages is the maximum number of messages that can be queued
@@ -178,7 +178,7 @@ type chatPage struct {
 	// Editing state for branching sessions
 	editing          bool
 	branchAtPosition int
-	editAttachments  map[string]string // Preserved attachments from original message
+	editAttachments  []msgtypes.Attachment // Preserved attachments from original message
 
 	// Key map
 	keyMap KeyMap
@@ -1001,7 +1001,7 @@ func (p *chatPage) handleInlineEditCancelled(msg messages.InlineEditCancelledMsg
 // extractAttachmentsFromSession extracts attachments from a session message at the given position.
 // Attachments are stored as text parts in MultiContent with format "Contents of <filename>: <dataURL>".
 // TODO(krisetto): meh we can store and retrieve attachments better in the session itself
-func (p *chatPage) extractAttachmentsFromSession(position int) map[string]string {
+func (p *chatPage) extractAttachmentsFromSession(position int) []msgtypes.Attachment {
 	sess := p.app.Session()
 	if sess == nil || position < 0 || position >= len(sess.Messages) {
 		return nil
@@ -1018,7 +1018,7 @@ func (p *chatPage) extractAttachmentsFromSession(position int) map[string]string
 		return nil
 	}
 
-	attachments := make(map[string]string)
+	var attachments []msgtypes.Attachment
 	const prefix = "Contents of "
 
 	// Skip the first part (main text content), look for attachment parts
@@ -1038,15 +1038,15 @@ func (p *chatPage) extractAttachmentsFromSession(position int) map[string]string
 			continue
 		}
 		filename := rest[:colonIdx]
-		dataURL := rest[colonIdx+2:]
-		if filename != "" && dataURL != "" {
-			attachments[filename] = dataURL
+		content := rest[colonIdx+2:]
+		if filename != "" && content != "" {
+			attachments = append(attachments, msgtypes.Attachment{
+				Name:    filename,
+				Content: content,
+			})
 		}
 	}
 
-	if len(attachments) == 0 {
-		return nil
-	}
 	return attachments
 }
 
