@@ -21,7 +21,7 @@ import (
 	"github.com/docker/cagent/pkg/tui/animation"
 	"github.com/docker/cagent/pkg/tui/components/message"
 	"github.com/docker/cagent/pkg/tui/components/reasoningblock"
-	"github.com/docker/cagent/pkg/tui/components/scrollbar"
+	"github.com/docker/cagent/pkg/tui/components/scrollview"
 	"github.com/docker/cagent/pkg/tui/components/tool"
 	"github.com/docker/cagent/pkg/tui/components/tool/editfile"
 	"github.com/docker/cagent/pkg/tui/core"
@@ -61,6 +61,9 @@ type Model interface {
 	AdjustBottomSlack(delta int)
 	ScrollByWheel(delta int)
 
+	// IsScrollbarDragging returns true when the scrollbar thumb is being dragged.
+	IsScrollbarDragging() bool
+
 	// Inline editing methods
 	StartInlineEdit(msgIndex, sessionPosition int, content string) tea.Cmd
 	CancelInlineEdit() tea.Cmd
@@ -99,7 +102,7 @@ type model struct {
 	selection selectionState
 
 	sessionState *service.SessionState
-	scrollbar    *scrollbar.Model
+	scrollview   *scrollview.Model
 
 	xPos, yPos int
 
@@ -133,12 +136,16 @@ func NewScrollableView(width, height int, sessionState *service.SessionState) Mo
 }
 
 func newModel(width, height int, sessionState *service.SessionState) *model {
+	sv := scrollview.New(
+		scrollview.WithReserveScrollbarSpace(true),
+	)
+	sv.SetSize(width, height)
 	return &model{
 		width:                width,
 		height:               height,
 		renderedItems:        make(map[int]renderedItem),
 		sessionState:         sessionState,
-		scrollbar:            scrollbar.New(),
+		scrollview:           sv,
 		selectedMessageIndex: -1,
 		inlineEditMsgIndex:   -1,
 		debugLayout:          os.Getenv("CAGENT_EXPERIMENTAL_DEBUG_LAYOUT") == "1",
@@ -247,7 +254,7 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 func (m *model) handleMouseClick(msg tea.MouseClickMsg) (layout.Model, tea.Cmd) {
 	if m.isMouseOnScrollbar(msg.X, msg.Y) {
-		return m.handleScrollbarUpdate(msg)
+		return m.handleScrollviewUpdate(msg)
 	}
 
 	if msg.Button != tea.MouseLeft {
@@ -325,8 +332,8 @@ func (m *model) globalLineToMessageLine(globalLine int) (msgIdx, localLine int) 
 }
 
 func (m *model) handleMouseMotion(msg tea.MouseMotionMsg) (layout.Model, tea.Cmd) {
-	if m.scrollbar.IsDragging() {
-		return m.handleScrollbarUpdate(msg)
+	if m.scrollview.IsDragging() {
+		return m.handleScrollviewUpdate(msg)
 	}
 
 	if m.selection.mouseButtonDown && m.selection.active {
@@ -340,7 +347,7 @@ func (m *model) handleMouseMotion(msg tea.MouseMotionMsg) (layout.Model, tea.Cmd
 }
 
 func (m *model) handleMouseRelease(msg tea.MouseReleaseMsg) (layout.Model, tea.Cmd) {
-	if updated, cmd := m.handleScrollbarUpdate(msg); cmd != nil {
+	if updated, cmd := m.handleScrollviewUpdate(msg); cmd != nil {
 		return updated, cmd
 	}
 
@@ -518,61 +525,38 @@ func (m *model) View() string {
 		visibleLines = m.applySelectionHighlight(visibleLines, startLine)
 	}
 
-	m.scrollbar.SetDimensions(m.height, m.totalHeight)
-	m.scrollbar.SetScrollOffset(m.scrollOffset)
-
-	// Truncate lines that exceed content width to prevent scrollbar from wrapping
-	// When debug layout is enabled, lines that need truncation are displayed with red background
-	contentWidth := m.contentWidth()
-	for i, line := range visibleLines {
-		if ansi.StringWidth(line) > contentWidth {
-			truncated := ansi.Truncate(line, contentWidth, "")
-			if m.debugLayout {
+	// Apply debug layout highlighting for truncated lines
+	if m.debugLayout {
+		contentWidth := m.contentWidth()
+		for i, line := range visibleLines {
+			if ansi.StringWidth(line) > contentWidth {
+				truncated := ansi.Truncate(line, contentWidth, "")
 				visibleLines[i] = styles.BaseStyle.Background(styles.Error).Render(ansi.Strip(truncated))
-			} else {
-				visibleLines[i] = truncated
 			}
 		}
 	}
 
-	scrollbarView := m.scrollbar.View()
-
-	if scrollbarView != "" {
-		// Ensure content is exactly m.height lines by padding with empty lines if needed
-		for len(visibleLines) < m.height {
-			visibleLines = append(visibleLines, "")
-		}
-		// Truncate if somehow longer (shouldn't happen but safety check)
-		if len(visibleLines) > m.height {
-			visibleLines = visibleLines[:m.height]
-		}
-		contentView := strings.Join(visibleLines, "\n")
-
-		// Create spacer with exactly m.height lines
-		spacerLines := make([]string, m.height)
-		for i := range spacerLines {
-			spacerLines[i] = " " // Single space for each line
-		}
-		spacer := strings.Join(spacerLines, "\n")
-
-		return lipgloss.JoinHorizontal(lipgloss.Top, contentView, spacer, scrollbarView)
-	}
-
-	return strings.Join(visibleLines, "\n")
+	// Sync scroll state and delegate rendering to scrollview which guarantees
+	// fixed-width padding, pinned scrollbar, and exact height.
+	m.scrollview.SetContent(m.renderedLines, m.totalScrollableHeight())
+	m.scrollview.SetScrollOffset(m.scrollOffset)
+	return m.scrollview.ViewWithLines(visibleLines)
 }
 
 // SetSize sets the dimensions of the component
 func (m *model) SetSize(width, height int) tea.Cmd {
+	if m.width == width && m.height == height {
+		return nil // Dimensions unchanged — skip expensive cache invalidation
+	}
 	m.width = width
 	m.height = height
 
-	// Content width reserves space for scrollbar (2 chars: space + scrollbar)
+	m.scrollview.SetSize(width, height)
 	contentWidth := m.contentWidth()
 	for _, view := range m.views {
 		view.SetSize(contentWidth, 0)
 	}
 
-	m.scrollbar.SetPosition(1+m.xPos+contentWidth+1, m.yPos)
 	m.invalidateAllItems()
 	return nil
 }
@@ -580,6 +564,7 @@ func (m *model) SetSize(width, height int) tea.Cmd {
 func (m *model) SetPosition(x, y int) tea.Cmd {
 	m.xPos = x
 	m.yPos = y
+	m.scrollview.SetPosition(x, y)
 	return nil
 }
 
@@ -737,7 +722,7 @@ func (m *model) scrollByWheel(delta int) {
 func (m *model) setScrollOffset(offset int) {
 	maxOffset := max(0, m.totalScrollableHeight()-m.height)
 	m.scrollOffset = max(0, min(offset, maxOffset))
-	m.scrollbar.SetScrollOffset(m.scrollOffset)
+	m.scrollview.SetScrollOffset(m.scrollOffset)
 }
 
 func (m *model) isAtBottom() bool {
@@ -856,15 +841,16 @@ func (m *model) scrollToSelectedMessage() {
 	}
 	endLine := startLine + selectedHeight
 
-	// Scroll to make the selected message visible
-	if startLine < m.scrollOffset {
+	prevOffset := m.scrollOffset
+	m.scrollview.SetContent(m.renderedLines, m.totalScrollableHeight())
+	m.scrollview.SetScrollOffset(m.scrollOffset)
+	m.scrollview.EnsureRangeVisible(startLine, endLine-1)
+
+	newOffset := m.scrollview.ScrollOffset()
+	if newOffset != prevOffset {
 		m.userHasScrolled = true
 		m.bottomSlack = 0
-		m.setScrollOffset(startLine)
-	} else if endLine > m.scrollOffset+m.height {
-		m.userHasScrolled = true
-		m.bottomSlack = 0
-		m.setScrollOffset(endLine - m.height)
+		m.setScrollOffset(newOffset)
 	}
 }
 
@@ -1488,9 +1474,9 @@ func (m *model) AdjustBottomSlack(delta int) {
 }
 
 // contentWidth returns the width available for content.
-// Always reserves 2 chars for scrollbar (space + bar) to prevent layout shifts.
+// Always reserves space for scrollbar (gap + bar) to prevent layout shifts.
 func (m *model) contentWidth() int {
-	return m.width - 2
+	return m.scrollview.ContentWidth()
 }
 
 func (m *model) totalScrollableHeight() int {
@@ -1582,7 +1568,7 @@ func (m *model) isEditLabelClick(msgIdx, localLine, col int) (bool, *types.Messa
 }
 
 func (m *model) mouseToLineCol(x, y int) (line, col int) {
-	adjustedX := max(0, x-1-m.xPos)
+	adjustedX := max(0, x-m.xPos)
 	adjustedY := max(0, y-m.yPos)
 	return m.scrollOffset + adjustedY, adjustedX
 }
@@ -1591,17 +1577,18 @@ func (m *model) isMouseOnScrollbar(x, y int) bool {
 	if m.totalHeight <= m.height {
 		return false
 	}
-	// Scrollbar is at: 1 (app padding) + xPos + contentWidth + 1 (spacer)
-	scrollbarX := 1 + m.xPos + m.contentWidth() + 1
-	return x == scrollbarX && y >= m.yPos && y < m.yPos+m.height
+	return x == m.scrollview.ScrollbarX() && y >= m.yPos && y < m.yPos+m.height
 }
 
-func (m *model) handleScrollbarUpdate(msg tea.Msg) (layout.Model, tea.Cmd) {
-	sb, cmd := m.scrollbar.Update(msg)
-	m.scrollbar = sb
+func (m *model) IsScrollbarDragging() bool {
+	return m.scrollview.IsDragging()
+}
+
+func (m *model) handleScrollviewUpdate(msg tea.Msg) (layout.Model, tea.Cmd) {
+	_, cmd := m.scrollview.UpdateMouse(msg)
 	m.userHasScrolled = true
 	m.bottomSlack = 0
-	m.scrollOffset = m.scrollbar.GetScrollOffset()
+	m.scrollOffset = m.scrollview.ScrollOffset()
 	return m, cmd
 }
 
