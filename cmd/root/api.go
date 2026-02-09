@@ -40,7 +40,7 @@ func newAPICmd() *cobra.Command {
 		RunE:    flags.runAPICommand,
 	}
 
-	cmd.PersistentFlags().StringVarP(&flags.listenAddr, "listen", "l", ":8080", "Address to listen on")
+	cmd.PersistentFlags().StringVarP(&flags.listenAddr, "listen", "l", "127.0.0.1:8080", "Address to listen on")
 	cmd.PersistentFlags().StringVarP(&flags.sessionDB, "session-db", "s", "session.db", "Path to the session database")
 	cmd.PersistentFlags().IntVar(&flags.pullIntervalMins, "pull-interval", 0, "Auto-pull OCI reference every N minutes (0 = disabled)")
 	cmd.PersistentFlags().StringVar(&flags.fakeResponses, "fake", "", "Replay AI responses from cassette file (for testing)")
@@ -132,7 +132,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 		_ = ln.Close()
 	}()
 
-	out.Println("Listening on " + ln.Addr().String())
+	out.Println("Listening on", ln.Addr().String())
 
 	slog.Debug("Starting server", "agents", agentsPath, "addr", ln.Addr().String())
 
