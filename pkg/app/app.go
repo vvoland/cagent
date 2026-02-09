@@ -942,16 +942,31 @@ func (a *App) generateTitle(ctx context.Context, userMessages []string) {
 
 	if a.titleGen == nil {
 		slog.Debug("No title generator available, skipping title generation")
+		// Emit empty title event so the UI clears any title-generation spinner
+		select {
+		case a.events <- runtime.SessionTitle(a.session.ID, ""):
+		case <-ctx.Done():
+		}
 		return
 	}
 
 	title, err := a.titleGen.Generate(ctx, a.session.ID, userMessages)
 	if err != nil {
 		slog.Error("Failed to generate session title", "session_id", a.session.ID, "error", err)
+		// Emit empty title event so the UI clears any title-generation spinner
+		select {
+		case a.events <- runtime.SessionTitle(a.session.ID, ""):
+		case <-ctx.Done():
+		}
 		return
 	}
 
 	if title == "" {
+		// Emit empty title event so the UI clears any title-generation spinner
+		select {
+		case a.events <- runtime.SessionTitle(a.session.ID, ""):
+		case <-ctx.Done():
+		}
 		return
 	}
 
@@ -961,7 +976,10 @@ func (a *App) generateTitle(ctx context.Context, userMessages []string) {
 	}
 
 	// Emit the title event to update the UI
-	a.events <- runtime.SessionTitle(a.session.ID, title)
+	select {
+	case a.events <- runtime.SessionTitle(a.session.ID, title):
+	case <-ctx.Done():
+	}
 }
 
 // RegenerateSessionTitle triggers AI-based title regeneration for the current session.
