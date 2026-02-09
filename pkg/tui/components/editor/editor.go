@@ -620,6 +620,17 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case completion.SelectedMsg:
 		// If the item has an Execute function, run it instead of inserting text
 		if msg.Execute != nil {
+			// Remove the trigger character and any typed completion word from the textarea
+			// before executing. For example, typing "@" then selecting "Browse files..."
+			// should remove the "@" so AttachFile doesn't produce a double "@@".
+			if e.currentCompletion != nil {
+				triggerWord := e.currentCompletion.Trigger() + e.completionWord
+				currentValue := e.textarea.Value()
+				if idx := strings.LastIndex(currentValue, triggerWord); idx >= 0 {
+					e.textarea.SetValue(currentValue[:idx] + currentValue[idx+len(triggerWord):])
+					e.textarea.MoveToEnd()
+				}
+			}
 			e.clearSuggestion()
 			return e, msg.Execute()
 		}
@@ -639,7 +650,7 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		// For non-auto-submit completions (like file paths), replace the completion word
 		currentValue := e.textarea.Value()
 		if lastIdx := strings.LastIndex(currentValue, e.completionWord); lastIdx >= 0 {
-			newValue := currentValue[:lastIdx-1] + msg.Value + currentValue[lastIdx+len(e.completionWord):]
+			newValue := currentValue[:lastIdx-1] + msg.Value + " " + currentValue[lastIdx+len(e.completionWord):]
 			e.textarea.SetValue(newValue)
 			e.textarea.MoveToEnd()
 		}

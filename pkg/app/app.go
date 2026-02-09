@@ -250,29 +250,16 @@ func (a *App) Run(ctx context.Context, cancel context.CancelFunc, message string
 
 	go func() {
 		if len(attachments) > 0 {
-			// Strip attachment placeholders from the message text
-			// Placeholders are in the format @/path/to/file
-			cleanMessage := message
-			for placeholder := range attachments {
-				cleanMessage = strings.ReplaceAll(cleanMessage, placeholder, "")
-			}
-			cleanMessage = strings.TrimSpace(cleanMessage)
-			if cleanMessage == "" {
-				cleanMessage = "Please analyze this attached file."
-			}
+			// Build a single text string with the user's message and inlined text files.
+			// Keeping everything in one text block ensures the model sees file content
+			// together with the message, rather than as separate content blocks.
+			var textBuilder strings.Builder
+			textBuilder.WriteString(message)
 
-			multiContent := []chat.MessagePart{
-				{
-					Type: chat.MessagePartTypeText,
-					Text: cleanMessage,
-				},
-			}
+			// multiContent holds the combined text part plus any binary file parts.
+			var binaryParts []chat.MessagePart
 
-			// Attachments are keyed by @filepath placeholder
-			// Extract the file path and add as file attachment for provider upload.
-			// Note: There is an inherent TOCTOU race between this validation and when
-			// the provider reads the file during upload. This validation catches common
-			// cases (deleted files, wrong paths) but files could still change before upload.
+			// Attachments are keyed by @filepath placeholder.
 			for placeholder := range attachments {
 				filePath := strings.TrimPrefix(placeholder, "@")
 				if filePath == "" {
@@ -280,8 +267,6 @@ func (a *App) Run(ctx context.Context, cancel context.CancelFunc, message string
 					continue
 				}
 
-				// Convert to absolute path to ensure consistency with provider upload code
-				// and prevent issues if working directory changes between validation and upload
 				absPath, err := filepath.Abs(filePath)
 				if err != nil {
 					slog.Warn("skipping attachment: invalid path", "path", filePath, "error", err)
@@ -319,22 +304,48 @@ func (a *App) Run(ctx context.Context, cancel context.CancelFunc, message string
 				}
 
 				mimeType := chat.DetectMimeType(absPath)
-				if !chat.IsSupportedMimeType(mimeType) {
+
+				switch {
+				case chat.IsTextFile(absPath):
+					// Text files are appended to the message text so the model
+					// sees them in a single content block alongside the user's question.
+					if fi.Size() > chat.MaxInlineFileSize {
+						slog.Warn("skipping attachment: text file too large to inline", "path", absPath, "size", fi.Size(), "max", chat.MaxInlineFileSize)
+						a.events <- runtime.Warning(fmt.Sprintf("Skipped attachment %s: text file too large to inline (max 1MB)", filePath), "")
+						continue
+					}
+					content, err := chat.ReadFileForInline(absPath)
+					if err != nil {
+						slog.Warn("skipping attachment: failed to read file", "path", absPath, "error", err)
+						a.events <- runtime.Warning(fmt.Sprintf("Skipped attachment %s: failed to read file", filePath), "")
+						continue
+					}
+					textBuilder.WriteString("\n\n")
+					textBuilder.WriteString(content)
+
+				case chat.IsSupportedMimeType(mimeType):
+					// Binary files (images, PDFs) are kept as separate file parts.
+					binaryParts = append(binaryParts, chat.MessagePart{
+						Type: chat.MessagePartTypeFile,
+						File: &chat.MessageFile{
+							Path:     absPath,
+							MimeType: mimeType,
+						},
+					})
+
+				default:
 					slog.Warn("skipping attachment: unsupported file type", "path", absPath, "mime_type", mimeType)
-					a.events <- runtime.Warning(fmt.Sprintf("Skipped attachment %s: unsupported file type (supported: images, pdf, txt, md)", filePath), "")
+					a.events <- runtime.Warning(fmt.Sprintf("Skipped attachment %s: unsupported file type", filePath), "")
 					continue
 				}
-
-				multiContent = append(multiContent, chat.MessagePart{
-					Type: chat.MessagePartTypeFile,
-					File: &chat.MessageFile{
-						Path:     absPath,
-						MimeType: mimeType,
-					},
-				})
 			}
 
-			a.session.AddMessage(session.UserMessage(cleanMessage, multiContent...))
+			multiContent := []chat.MessagePart{
+				{Type: chat.MessagePartTypeText, Text: textBuilder.String()},
+			}
+			multiContent = append(multiContent, binaryParts...)
+
+			a.session.AddMessage(session.UserMessage(message, multiContent...))
 		} else {
 			a.session.AddMessage(session.UserMessage(message))
 		}
