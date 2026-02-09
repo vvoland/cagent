@@ -12,6 +12,7 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textarea"
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/atotto/clipboard"
@@ -81,6 +82,10 @@ type Editor interface {
 	SetRecording(recording bool) tea.Cmd
 	// IsRecording returns true if the editor is in recording mode
 	IsRecording() bool
+	// IsHistorySearchActive returns true if the editor is in history search mode
+	IsHistorySearchActive() bool
+	// EnterHistorySearch activates incremental history search
+	EnterHistorySearch() (layout.Model, tea.Cmd)
 	// SendContent triggers sending the current editor content
 	SendContent() tea.Cmd
 }
@@ -90,6 +95,17 @@ type fileLoadResultMsg struct {
 	loadID     uint64
 	items      []completion.Item
 	isFullLoad bool // true for full load, false for initial shallow load
+}
+
+// historySearchState holds the state for incremental history search.
+type historySearchState struct {
+	active                   bool
+	query                    string
+	origTextValue            string
+	origTextPlaceholderValue string
+	match                    string
+	matchIndex               int
+	failing                  bool
 }
 
 // editor implements [Editor]
@@ -134,6 +150,11 @@ type editor struct {
 	fileFullLoadStarted bool
 	// fileLoadCancel cancels any in-progress file loading
 	fileLoadCancel context.CancelFunc
+
+	// historySearch holds state for history search mode
+	historySearch historySearchState
+	// searchInput is the input field for history search queries
+	searchInput textinput.Model
 }
 
 // New creates a new editor component
@@ -148,8 +169,21 @@ func New(a *app.App, hist *history.History) Editor {
 	ta.Focus()
 	ta.ShowLineNumbers = false
 
+	si := textinput.New()
+	si.Prompt = ""
+	si.Placeholder = "Type to search..."
+
+	// Customize styles for search input
+	s := styles.DialogInputStyle
+	s.Focused.Text = styles.MutedStyle
+	s.Focused.Placeholder = styles.MutedStyle
+	s.Blurred.Text = styles.MutedStyle
+	s.Blurred.Placeholder = styles.MutedStyle
+	si.SetStyles(s)
+
 	e := &editor{
 		textarea:                      ta,
+		searchInput:                   si,
 		hist:                          hist,
 		completions:                   completions.Completions(a),
 		keyboardEnhancementsSupported: false,
@@ -711,6 +745,10 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		}
 		return e, nil
 	case tea.KeyPressMsg:
+		if e.historySearch.active {
+			return e.handleHistorySearchKey(msg)
+		}
+
 		if key.Matches(msg, e.textarea.KeyMap.Paste) {
 			return e.handleClipboardPaste()
 		}
@@ -1131,8 +1169,11 @@ func (e *editor) View() string {
 
 	bannerView := e.banner.View()
 	if bannerView != "" {
-		// Banner is shown - no extra top padding needed
 		view = lipgloss.JoinVertical(lipgloss.Left, bannerView, view)
+	}
+
+	if e.historySearch.active {
+		view = lipgloss.JoinVertical(lipgloss.Left, view, e.searchInput.View())
 	}
 
 	return styles.RenderComposite(styles.EditorStyle.MarginBottom(1), view)
@@ -1144,6 +1185,7 @@ func (e *editor) SetSize(width, height int) tea.Cmd {
 	e.height = max(height, 1)
 
 	e.textarea.SetWidth(max(width, 10))
+	e.searchInput.SetWidth(max(width, 10))
 	e.updateTextareaHeight()
 
 	return nil
@@ -1153,6 +1195,9 @@ func (e *editor) updateTextareaHeight() {
 	available := e.height
 	if e.banner != nil {
 		available -= e.banner.Height()
+	}
+	if e.historySearch.active {
+		available--
 	}
 
 	available = max(available, 1)
@@ -1373,6 +1418,11 @@ func (e *editor) IsRecording() bool {
 	return e.recording
 }
 
+// IsHistorySearchActive returns true if the editor is in history search mode
+func (e *editor) IsHistorySearchActive() bool {
+	return e.historySearch.active
+}
+
 // SendContent triggers sending the current editor content
 func (e *editor) SendContent() tea.Cmd {
 	value := e.textarea.Value()
@@ -1454,4 +1504,118 @@ func createPasteAttachment(content string, num int) (attachment, error) {
 		sizeBytes:   len(content),
 		isTemp:      true,
 	}, nil
+}
+
+func (e *editor) EnterHistorySearch() (layout.Model, tea.Cmd) {
+	e.historySearch = historySearchState{
+		active:                   true,
+		origTextValue:            e.textarea.Value(),
+		origTextPlaceholderValue: e.textarea.Placeholder,
+		matchIndex:               -1,
+	}
+
+	e.searchInput.SetValue("")
+	e.textarea.SetValue("")
+	e.textarea.Placeholder = ""
+	e.textarea.Blur()
+	e.clearSuggestion()
+	return e, tea.Batch(
+		e.searchInput.Focus(),
+		core.CmdHandler(completion.CloseMsg{}),
+	)
+}
+
+func (e *editor) handleHistorySearchKey(msg tea.KeyPressMsg) (layout.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, e.searchInput.KeyMap.PrevSuggestion):
+		e.cycleMatch(e.hist.FindPrevContains, len(e.hist.Messages))
+		return e, nil
+
+	case key.Matches(msg, e.searchInput.KeyMap.NextSuggestion):
+		e.cycleMatch(e.hist.FindNextContains, -1)
+		return e, nil
+
+	case msg.String() == "enter":
+		value := e.textarea.Value()
+		matchIdx := e.historySearch.matchIndex
+		cmd := e.exitHistorySearch()
+		if value != "" {
+			e.textarea.SetValue(value)
+			e.textarea.MoveToEnd()
+			if matchIdx >= 0 {
+				e.hist.SetCurrent(matchIdx)
+			}
+			e.userTyped = false
+		}
+		e.refreshSuggestion()
+		return e, tea.Batch(cmd, core.CmdHandler(completion.CloseMsg{}))
+
+	case msg.String() == "esc" || msg.String() == "ctrl+g":
+		cmd := e.exitHistorySearch()
+		e.refreshSuggestion()
+		return e, tea.Batch(cmd, core.CmdHandler(completion.CloseMsg{}))
+	}
+
+	var cmd tea.Cmd
+	e.searchInput, cmd = e.searchInput.Update(msg)
+
+	newQuery := e.searchInput.Value()
+	if newQuery != e.historySearch.query {
+		e.historySearch.query = newQuery
+		e.historySearchComputeMatch()
+	}
+
+	return e, cmd
+}
+
+// cycleMatch searches history using findFn starting from the current match.
+// If no match is found, it wraps around using wrapFrom as the starting point.
+func (e *editor) cycleMatch(findFn func(string, int) (string, int, bool), wrapFrom int) {
+	if e.historySearch.matchIndex < 0 {
+		return
+	}
+	m, idx, ok := findFn(e.historySearch.query, e.historySearch.matchIndex)
+	if !ok {
+		m, idx, ok = findFn(e.historySearch.query, wrapFrom)
+	}
+	if ok {
+		e.historySearch.match = m
+		e.historySearch.matchIndex = idx
+		e.historySearch.failing = false
+		e.textarea.SetValue(m)
+		e.textarea.MoveToEnd()
+	}
+}
+
+func (e *editor) historySearchComputeMatch() {
+	if e.historySearch.query == "" {
+		e.historySearch.match = ""
+		e.historySearch.matchIndex = -1
+		e.historySearch.failing = false
+		e.textarea.SetValue("")
+		e.textarea.Placeholder = ""
+		return
+	}
+
+	m, idx, ok := e.hist.FindPrevContains(e.historySearch.query, len(e.hist.Messages))
+	if ok {
+		e.historySearch.match = m
+		e.historySearch.matchIndex = idx
+		e.historySearch.failing = false
+		e.textarea.SetValue(m)
+		e.textarea.MoveToEnd()
+	} else {
+		e.historySearch.failing = true
+		e.historySearch.match = ""
+		e.historySearch.matchIndex = -1
+		e.textarea.SetValue("")
+		e.textarea.Placeholder = "No matching entry in history"
+	}
+}
+
+func (e *editor) exitHistorySearch() tea.Cmd {
+	e.textarea.SetValue(e.historySearch.origTextValue)
+	e.textarea.Placeholder = e.historySearch.origTextPlaceholderValue
+	e.historySearch = historySearchState{matchIndex: -1}
+	return e.textarea.Focus()
 }
