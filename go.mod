@@ -26,8 +26,8 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/charmbracelet/glamour/v2 v2.0.0-20251106195642-800eb8175930
 	github.com/charmbracelet/x/ansi v0.11.6
-	github.com/clipperhouse/displaywidth v0.9.0
-	github.com/clipperhouse/uax29/v2 v2.5.0
+	github.com/clipperhouse/displaywidth v0.10.0
+	github.com/clipperhouse/uax29/v2 v2.6.0
 	github.com/coder/acp-go-sdk v0.6.3
 	github.com/docker/go-units v0.5.0
 	github.com/dop251/goja v0.0.0-20260106131823-651366fbe6e3
@@ -121,7 +121,6 @@ require (
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/charmbracelet/x/termios v0.1.1 // indirect
 	github.com/charmbracelet/x/windows v0.2.2 // indirect
-	github.com/clipperhouse/stringish v0.1.1 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.18.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
