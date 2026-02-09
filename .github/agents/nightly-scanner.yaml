@@ -1,5 +1,3 @@
-version: "2"
-
 models:
   # Orchestrator - needs good reasoning for delegation
   claude-sonnet:
