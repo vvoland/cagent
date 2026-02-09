@@ -33,6 +33,7 @@ type App struct {
 	session                *session.Session
 	firstMessage           *string
 	firstMessageAttach     string
+	queuedMessages         []string
 	events                 chan tea.Msg
 	throttleDuration       time.Duration
 	cancel                 context.CancelFunc
@@ -63,6 +64,15 @@ func WithFirstMessageAttachment(path string) Opt {
 func WithExitAfterFirstResponse() Opt {
 	return func(a *App) {
 		a.exitAfterFirstResponse = true
+	}
+}
+
+// WithQueuedMessages sets messages to be queued after the first message is sent.
+// These messages will be delivered to the TUI as SendMsg events, which the
+// chat page will queue and process sequentially after each agent response.
+func WithQueuedMessages(msgs []string) Opt {
+	return func(a *App) {
+		a.queuedMessages = msgs
 	}
 }
 
@@ -124,21 +134,36 @@ func (a *App) SendFirstMessage() tea.Cmd {
 		return nil
 	}
 
-	return func() tea.Msg {
-		// Use the shared PrepareUserMessage function for consistent attachment handling
-		userMsg := cli.PrepareUserMessage(context.Background(), a.runtime, *a.firstMessage, a.firstMessageAttach)
+	cmds := []tea.Cmd{
+		func() tea.Msg {
+			// Use the shared PrepareUserMessage function for consistent attachment handling
+			userMsg := cli.PrepareUserMessage(context.Background(), a.runtime, *a.firstMessage, a.firstMessageAttach)
 
-		// If the message has multi-content (attachments), we need to handle it specially
-		if len(userMsg.Message.MultiContent) > 0 {
-			return messages.SendAttachmentMsg{
-				Content: userMsg,
+			// If the message has multi-content (attachments), we need to handle it specially
+			if len(userMsg.Message.MultiContent) > 0 {
+				return messages.SendAttachmentMsg{
+					Content: userMsg,
+				}
 			}
-		}
 
-		return messages.SendMsg{
-			Content: userMsg.Message.Content,
-		}
+			return messages.SendMsg{
+				Content: userMsg.Message.Content,
+			}
+		},
 	}
+
+	// Queue additional messages to be sent after the first one.
+	// The TUI's message queue will hold them until the agent finishes
+	// processing the previous message.
+	for _, msg := range a.queuedMessages {
+		cmds = append(cmds, func() tea.Msg {
+			return messages.SendMsg{
+				Content: msg,
+			}
+		})
+	}
+
+	return tea.Sequence(cmds...)
 }
 
 // CurrentAgentCommands returns the commands for the active agent
