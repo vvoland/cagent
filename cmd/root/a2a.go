@@ -33,7 +33,7 @@ func newA2ACmd() *cobra.Command {
 	}
 
 	cmd.PersistentFlags().StringVarP(&flags.agentName, "agent", "a", "root", "Name of the agent to run")
-	cmd.PersistentFlags().StringVarP(&flags.listenAddr, "listen", "l", "127.0.0.1:8080", "Address to listen on")
+	cmd.PersistentFlags().StringVarP(&flags.listenAddr, "listen", "l", "127.0.0.1:8082", "Address to listen on")
 	addRuntimeConfigFlags(cmd, &flags.runConfig)
 
 	return cmd
