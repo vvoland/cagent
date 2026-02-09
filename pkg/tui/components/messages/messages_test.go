@@ -844,7 +844,7 @@ func BenchmarkMessagesView_RenderWhileScrolling(b *testing.B) {
 	for i := range b.N {
 		// Vary scroll position to simulate wheel scrolling
 		m.scrollOffset = (i % 50) * 2
-		m.scrollbar.SetScrollOffset(m.scrollOffset)
+		m.scrollview.SetScrollOffset(m.scrollOffset)
 		_ = m.View()
 	}
 }
@@ -871,7 +871,7 @@ func BenchmarkMessagesView_LargeHistory(b *testing.B) {
 
 	for i := range b.N {
 		m.scrollOffset = (i % 100) * 5
-		m.scrollbar.SetScrollOffset(m.scrollOffset)
+		m.scrollview.SetScrollOffset(m.scrollOffset)
 		_ = m.View()
 	}
 }

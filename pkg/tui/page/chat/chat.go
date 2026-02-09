@@ -779,14 +779,14 @@ func (p *chatPage) SetSize(width, height int) tea.Cmd {
 		cmds = append(cmds,
 			p.sidebar.SetSize(sl.sidebarWidth-toggleColumnWidth, sl.chatHeight),
 			p.sidebar.SetPosition(styles.AppPaddingLeft+sl.sidebarStartX, 0),
-			p.messages.SetPosition(0, 0),
+			p.messages.SetPosition(styles.AppPaddingLeft, 0),
 		)
 	case sidebarCollapsed, sidebarCollapsedNarrow:
 		p.sidebar.SetMode(sidebar.ModeCollapsed)
 		cmds = append(cmds,
 			p.sidebar.SetSize(sl.sidebarWidth, sl.sidebarHeight),
 			p.sidebar.SetPosition(styles.AppPaddingLeft, 0),
-			p.messages.SetPosition(0, sl.sidebarHeight),
+			p.messages.SetPosition(styles.AppPaddingLeft, sl.sidebarHeight),
 		)
 	}
 
