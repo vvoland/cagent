@@ -9,7 +9,9 @@ import (
 	"github.com/docker/cagent/pkg/tools"
 )
 
-func buildBranchedSession(parent *Session, branchAtPosition int) (*Session, error) {
+// BranchSession creates a new session branched from the parent at the given position.
+// Messages up to (but not including) branchAtPosition are deep-cloned into the new session.
+func BranchSession(parent *Session, branchAtPosition int) (*Session, error) {
 	if parent == nil {
 		return nil, fmt.Errorf("parent session is nil")
 	}
@@ -241,16 +243,4 @@ func recalculateSessionTotals(sess *Session) {
 	sess.InputTokens = inputTokens
 	sess.OutputTokens = outputTokens
 	sess.Cost = cost
-}
-
-func collectSessionIDs(sess *Session, ids map[string]struct{}) {
-	if sess == nil || ids == nil {
-		return
-	}
-	ids[sess.ID] = struct{}{}
-	for _, item := range sess.Messages {
-		if item.SubSession != nil {
-			collectSessionIDs(item.SubSession, ids)
-		}
-	}
 }

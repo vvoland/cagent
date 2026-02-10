@@ -49,7 +49,18 @@ func ResolveSessionID(ctx context.Context, store Store, ref string) (string, err
 	if !isRelative {
 		return ref, nil
 	}
-	return store.GetSessionByOffset(ctx, offset)
+
+	summaries, err := store.GetSessionSummaries(ctx)
+	if err != nil {
+		return "", fmt.Errorf("getting session summaries: %w", err)
+	}
+
+	index := offset - 1
+	if index >= len(summaries) {
+		return "", fmt.Errorf("session offset %d out of range (have %d sessions)", offset, len(summaries))
+	}
+
+	return summaries[index].ID, nil
 }
 
 // Summary contains lightweight session metadata for listing purposes.
@@ -72,12 +83,6 @@ type Store interface {
 	DeleteSession(ctx context.Context, id string) error
 	UpdateSession(ctx context.Context, session *Session) error // Updates metadata only (not messages/items)
 	SetSessionStarred(ctx context.Context, id string, starred bool) error
-	BranchSession(ctx context.Context, parentSessionID string, branchAtPosition int) (*Session, error)
-
-	// GetSessionByOffset returns the session ID at the given offset from the most recent.
-	// Offset 1 returns the most recent session, 2 returns the second most recent, etc.
-	// Only root sessions are considered (sub-sessions are excluded).
-	GetSessionByOffset(ctx context.Context, offset int) (string, error)
 
 	// === Granular item operations ===
 
@@ -147,6 +152,9 @@ func (s *InMemorySessionStore) GetSessions(_ context.Context) ([]*Session, error
 func (s *InMemorySessionStore) GetSessionSummaries(_ context.Context) ([]Summary, error) {
 	summaries := make([]Summary, 0, s.sessions.Length())
 	s.sessions.Range(func(_ string, value *Session) bool {
+		if value.ParentID != "" {
+			return true
+		}
 		summaries = append(summaries, Summary{
 			ID:                    value.ID,
 			Title:                 value.Title,
@@ -155,6 +163,9 @@ func (s *InMemorySessionStore) GetSessionSummaries(_ context.Context) ([]Summary
 			BranchParentSessionID: value.BranchParentSessionID,
 		})
 		return true
+	})
+	sort.Slice(summaries, func(i, j int) bool {
+		return summaries[i].CreatedAt.After(summaries[j].CreatedAt)
 	})
 	return summaries, nil
 }
@@ -204,25 +215,6 @@ func (s *InMemorySessionStore) SetSessionStarred(_ context.Context, id string, s
 	session.Starred = starred
 	s.sessions.Store(id, session)
 	return nil
-}
-
-// BranchSession creates a new session branched from the parent at the given position.
-func (s *InMemorySessionStore) BranchSession(_ context.Context, parentSessionID string, branchAtPosition int) (*Session, error) {
-	if parentSessionID == "" {
-		return nil, ErrEmptyID
-	}
-	parent, exists := s.sessions.Load(parentSessionID)
-	if !exists {
-		return nil, ErrNotFound
-	}
-
-	branched, err := buildBranchedSession(parent, branchAtPosition)
-	if err != nil {
-		return nil, err
-	}
-
-	s.sessions.Store(branched.ID, branched)
-	return branched, nil
 }
 
 // AddMessage adds a message to a session at the next position.
@@ -356,34 +348,6 @@ func (s *InMemorySessionStore) UpdateSessionTitle(_ context.Context, sessionID, 
 	}
 	session.Title = title
 	return nil
-}
-
-// GetSessionByOffset returns the session ID at the given offset from the most recent.
-func (s *InMemorySessionStore) GetSessionByOffset(_ context.Context, offset int) (string, error) {
-	if offset < 1 {
-		return "", fmt.Errorf("offset must be >= 1, got %d", offset)
-	}
-
-	// Collect and sort sessions by creation time (newest first)
-	var sessions []*Session
-	s.sessions.Range(func(_ string, value *Session) bool {
-		// Only include root sessions (not sub-sessions)
-		if value.ParentID == "" {
-			sessions = append(sessions, value)
-		}
-		return true
-	})
-
-	sort.Slice(sessions, func(i, j int) bool {
-		return sessions[i].CreatedAt.After(sessions[j].CreatedAt)
-	})
-
-	index := offset - 1 // offset 1 means index 0 (most recent session)
-	if index >= len(sessions) {
-		return "", fmt.Errorf("session offset %d out of range (have %d sessions)", offset, len(sessions))
-	}
-
-	return sessions[index].ID, nil
 }
 
 // NewSQLiteSessionStore creates a new SQLite session store
@@ -1091,37 +1055,6 @@ func (s *SQLiteSessionStore) SetSessionStarred(ctx context.Context, id string, s
 	return nil
 }
 
-// BranchSession creates a new session branched from the parent at the given position.
-func (s *SQLiteSessionStore) BranchSession(ctx context.Context, parentSessionID string, branchAtPosition int) (*Session, error) {
-	if parentSessionID == "" {
-		return nil, ErrEmptyID
-	}
-
-	parent, err := s.GetSession(ctx, parentSessionID)
-	if err != nil {
-		return nil, err
-	}
-
-	branched, err := buildBranchedSession(parent, branchAtPosition)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := s.AddSession(ctx, branched); err != nil {
-		return nil, err
-	}
-
-	ids := make(map[string]struct{})
-	collectSessionIDs(branched, ids)
-	for id := range ids {
-		if err := s.syncMessagesColumn(ctx, id); err != nil {
-			slog.Warn("[STORE] Failed to sync messages column after branch", "session_id", id, "error", err)
-		}
-	}
-
-	return branched, nil
-}
-
 // Close closes the database connection
 func (s *SQLiteSessionStore) Close() error {
 	return s.db.Close()
@@ -1399,29 +1332,4 @@ func (s *SQLiteSessionStore) UpdateSessionTitle(ctx context.Context, sessionID, 
 		"UPDATE sessions SET title = ? WHERE id = ?",
 		title, sessionID)
 	return err
-}
-
-// GetSessionByOffset returns the session ID at the given offset from the most recent.
-func (s *SQLiteSessionStore) GetSessionByOffset(ctx context.Context, offset int) (string, error) {
-	if offset < 1 {
-		return "", fmt.Errorf("offset must be >= 1, got %d", offset)
-	}
-
-	// Query sessions ordered by creation time (newest first), limited to offset
-	// Only include root sessions (not sub-sessions)
-	var sessionID string
-	err := s.db.QueryRowContext(ctx,
-		`SELECT id FROM sessions 
-		 WHERE parent_id IS NULL OR parent_id = '' 
-		 ORDER BY created_at DESC 
-		 LIMIT 1 OFFSET ?`,
-		offset-1).Scan(&sessionID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return "", fmt.Errorf("session offset %d out of range", offset)
-		}
-		return "", err
-	}
-
-	return sessionID, nil
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/docker/cagent/pkg/browser"
 	"github.com/docker/cagent/pkg/evaluation"
 	"github.com/docker/cagent/pkg/modelsdev"
+	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/tools"
 	mcptools "github.com/docker/cagent/pkg/tools/mcp"
 	"github.com/docker/cagent/pkg/tui/components/notification"
@@ -106,9 +107,18 @@ func (a *appModel) handleBranchFromEdit(msg messages.BranchFromEditMsg) (tea.Mod
 		return a, notification.ErrorCmd("No parent session for branch")
 	}
 
-	newSess, err := store.BranchSession(context.Background(), msg.ParentSessionID, msg.BranchAtPosition)
+	parent, err := store.GetSession(context.Background(), msg.ParentSessionID)
+	if err != nil {
+		return a, notification.ErrorCmd(fmt.Sprintf("Failed to load parent session: %v", err))
+	}
+
+	newSess, err := session.BranchSession(parent, msg.BranchAtPosition)
 	if err != nil {
 		return a, notification.ErrorCmd(fmt.Sprintf("Failed to branch session: %v", err))
+	}
+
+	if err := store.AddSession(context.Background(), newSess); err != nil {
+		return a, notification.ErrorCmd(fmt.Sprintf("Failed to save branched session: %v", err))
 	}
 
 	if current := a.application.Session(); current != nil {
