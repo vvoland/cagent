@@ -94,7 +94,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 	// Monitor stdin for EOF to detect parent process death.
 	// Only enabled when --exit-on-stdin-eof flag is passed.
 	// When spawned with piped stdio, stdin closes when the parent process dies.
-	if f.exitOnStdinEOF && stdin != nil {
+	if f.exitOnStdinEOF {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
 		defer cancel()
