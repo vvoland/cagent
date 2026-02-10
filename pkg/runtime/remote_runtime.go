@@ -452,4 +452,9 @@ func (r *RemoteRuntime) TitleGenerator() *sessiontitle.Generator {
 	return nil
 }
 
+// Close is a no-op for remote runtimes.
+func (r *RemoteRuntime) Close() error {
+	return nil
+}
+
 var _ Runtime = (*RemoteRuntime)(nil)
