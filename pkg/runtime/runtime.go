@@ -1437,29 +1437,27 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 
 		slog.Debug("Processing tool call", "agent", a.Name(), "tool", toolCall.Function.Name, "session_id", sess.ID)
 
-		// Find the tool - first check runtime tools, then agent tools
-		var tool tools.Tool
-		var runTool func()
-
-		if def, exists := r.toolMap[toolCall.Function.Name]; exists {
-			// Validate that the tool is actually available to this agent
-			if _, available := agentToolMap[toolCall.Function.Name]; !available {
-				slog.Warn("Tool call rejected: tool not available to agent", "agent", a.Name(), "tool", toolCall.Function.Name, "session_id", sess.ID)
-				r.addToolErrorResponse(ctx, sess, toolCall, def.tool, events, a, fmt.Sprintf("Tool '%s' is not available to this agent (%s).", toolCall.Function.Name, a.Name()))
-				callSpan.SetStatus(codes.Error, "tool not available to agent")
-				callSpan.End()
-				continue
-			}
-			tool = def.tool
-			runTool = func() { r.runAgentTool(callCtx, def.handler, sess, toolCall, def.tool, events, a) }
-		} else if t, exists := agentToolMap[toolCall.Function.Name]; exists {
-			tool = t
-			runTool = func() { r.runTool(callCtx, t, toolCall, events, sess, a) }
-		} else {
-			// Tool not found - skip
-			callSpan.SetStatus(codes.Ok, "tool not found")
+		// Resolve the tool: it must be in the agent's tool set to be callable.
+		// After a handoff the model may hallucinate tools it saw in the
+		// conversation history from a previous agent; rejecting unknown
+		// tools with an error response lets it self-correct.
+		tool, available := agentToolMap[toolCall.Function.Name]
+		if !available {
+			slog.Warn("Tool call for unavailable tool", "agent", a.Name(), "tool", toolCall.Function.Name, "session_id", sess.ID)
+			errTool := tools.Tool{Name: toolCall.Function.Name}
+			r.addToolErrorResponse(ctx, sess, toolCall, errTool, events, a, fmt.Sprintf("Tool '%s' is not available. You can only use the tools provided to you.", toolCall.Function.Name))
+			callSpan.SetStatus(codes.Error, "tool not available")
 			callSpan.End()
 			continue
+		}
+
+		// Pick the handler: runtime-managed tools (transfer_task, handoff)
+		// have dedicated handlers; everything else goes through the toolset.
+		var runTool func()
+		if def, exists := r.toolMap[toolCall.Function.Name]; exists {
+			runTool = func() { r.runAgentTool(callCtx, def.handler, sess, toolCall, tool, events, a) }
+		} else {
+			runTool = func() { r.runTool(callCtx, tool, toolCall, events, sess, a) }
 		}
 
 		// Execute tool with approval check
