@@ -686,8 +686,11 @@ func (m *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// --- File attachments (routed to editor) ---
 
 	case messages.InsertFileRefMsg:
-		m.editor.AttachFile(msg.FilePath)
-		return m, nil
+		if err := m.editor.AttachFile(msg.FilePath); err != nil {
+			slog.Warn("failed to attach file", "path", msg.FilePath, "error", err)
+			return m, nil
+		}
+		return m, notification.SuccessCmd("File attached: " + msg.FilePath)
 
 	// --- Agent management ---
 
