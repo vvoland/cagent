@@ -195,9 +195,15 @@ $ cagent eval agent.yaml --only "auth*"</code></pre>
 <ul>
   <li><strong>Console summary</strong> — Pass/fail status per eval with metric breakdowns</li>
   <li><strong>JSON results</strong> — Full structured results for programmatic analysis</li>
-  <li><strong>SQLite database</strong> — Complete sessions for detailed inspection</li>
+  <li><strong>SQLite database</strong> — Complete sessions for detailed investigation and debugging</li>
+  <li><strong>Sessions JSON</strong> — Exported session data for analysis</li>
   <li><strong>Log file</strong> — Debug-level log of the entire evaluation run</li>
 </ul>
+
+<div class="callout callout-tip">
+  <div class="callout-title">💡 Debugging Failed Evals</div>
+  <p>Use <code>--keep-containers</code> to preserve containers after evaluation. You can then inspect them with <code>docker exec</code> to understand why an eval failed. The session database (<code>.db</code> file) contains the full conversation history for each eval.</p>
+</div>
 
 <pre><code class="language-bash">$ cagent eval demo.yaml ./evals
 

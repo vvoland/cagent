@@ -168,13 +168,13 @@ agents:
 <h3>Top-Level RAG Fields</h3>
 
 <table>
-  <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+  <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
   <tbody>
-    <tr><td><code>docs</code></td><td>[]string</td><td>Document paths/directories (shared across strategies)</td></tr>
-    <tr><td><code>description</code></td><td>string</td><td>Human-readable description of this RAG source</td></tr>
-    <tr><td><code>respect_vcs</code></td><td>boolean</td><td>Respect <code>.gitignore</code> files (default: <code>true</code>)</td></tr>
-    <tr><td><code>strategies</code></td><td>[]object</td><td>Array of retrieval strategy configurations</td></tr>
-    <tr><td><code>results</code></td><td>object</td><td>Post-processing: fusion, reranking, deduplication, final limit</td></tr>
+    <tr><td><code>docs</code></td><td>[]string</td><td>—</td><td>Document paths/directories (shared across strategies)</td></tr>
+    <tr><td><code>description</code></td><td>string</td><td>—</td><td>Human-readable description of this RAG source</td></tr>
+    <tr><td><code>respect_vcs</code></td><td>boolean</td><td><code>true</code></td><td>Respect <code>.gitignore</code> files when indexing documents</td></tr>
+    <tr><td><code>strategies</code></td><td>[]object</td><td>—</td><td>Array of retrieval strategy configurations</td></tr>
+    <tr><td><code>results</code></td><td>object</td><td>—</td><td>Post-processing: fusion, reranking, deduplication, final limit</td></tr>
   </tbody>
 </table>
 
@@ -239,8 +239,10 @@ agents:
   <tbody>
     <tr><td><code>fusion.strategy</code></td><td>string</td><td><code>rrf</code></td><td>Fusion method: <code>rrf</code>, <code>weighted</code>, or <code>max</code></td></tr>
     <tr><td><code>fusion.k</code></td><td>int</td><td><code>60</code></td><td>RRF rank constant</td></tr>
-    <tr><td><code>deduplicate</code></td><td>bool</td><td><code>false</code></td><td>Remove duplicate results</td></tr>
-    <tr><td><code>limit</code></td><td>int</td><td><code>5</code></td><td>Final number of results</td></tr>
+    <tr><td><code>deduplicate</code></td><td>bool</td><td><code>true</code></td><td>Remove duplicate results</td></tr>
+    <tr><td><code>limit</code></td><td>int</td><td><code>15</code></td><td>Final number of results</td></tr>
+    <tr><td><code>include_score</code></td><td>bool</td><td><code>false</code></td><td>Include relevance scores in results</td></tr>
+    <tr><td><code>return_full_content</code></td><td>bool</td><td><code>false</code></td><td>Return full document content instead of just matched chunks</td></tr>
     <tr><td><code>reranking.model</code></td><td>string</td><td>—</td><td>Reranking model reference</td></tr>
     <tr><td><code>reranking.top_k</code></td><td>int</td><td>(all)</td><td>Only rerank top K results</td></tr>
     <tr><td><code>reranking.threshold</code></td><td>float</td><td><code>0.5</code></td><td>Minimum relevance score after reranking</td></tr>

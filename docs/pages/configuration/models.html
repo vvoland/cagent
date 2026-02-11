@@ -13,8 +13,11 @@
     frequency_penalty: float     # Optional: 0.0–2.0
     presence_penalty: float      # Optional: 0.0–2.0
     base_url: string             # Optional: custom API endpoint
+    token_key: string            # Optional: env var for API token
     thinking_budget: string|int  # Optional: reasoning effort
     parallel_tool_calls: boolean # Optional: allow parallel tool calls
+    track_usage: boolean         # Optional: track token usage
+    routing: [list]              # Optional: rule-based model routing
     provider_opts:                # Optional: provider-specific options
       key: value</code></pre>
 
@@ -30,9 +33,12 @@
     <tr><td><code>top_p</code></td><td>float</td><td>✗</td><td>Nucleus sampling threshold</td></tr>
     <tr><td><code>frequency_penalty</code></td><td>float</td><td>✗</td><td>Penalize repeated tokens (0.0–2.0)</td></tr>
     <tr><td><code>presence_penalty</code></td><td>float</td><td>✗</td><td>Encourage topic diversity (0.0–2.0)</td></tr>
-    <tr><td><code>base_url</code></td><td>string</td><td>✗</td><td>Custom API endpoint URL</td></tr>
+    <tr><td><code>base_url</code></td><td>string</td><td>✗</td><td>Custom API endpoint URL (for self-hosted or proxied endpoints)</td></tr>
+    <tr><td><code>token_key</code></td><td>string</td><td>✗</td><td>Environment variable name containing the API token (overrides provider default)</td></tr>
     <tr><td><code>thinking_budget</code></td><td>string/int</td><td>✗</td><td>Reasoning effort control</td></tr>
     <tr><td><code>parallel_tool_calls</code></td><td>boolean</td><td>✗</td><td>Allow model to call multiple tools at once</td></tr>
+    <tr><td><code>track_usage</code></td><td>boolean</td><td>✗</td><td>Track and report token usage for this model</td></tr>
+    <tr><td><code>routing</code></td><td>array</td><td>✗</td><td>Rule-based routing to different models. See <a href="#configuration/routing" onclick="event.preventDefault(); navigate('configuration/routing')">Model Routing</a>.</td></tr>
     <tr><td><code>provider_opts</code></td><td>object</td><td>✗</td><td>Provider-specific options (see provider pages)</td></tr>
   </tbody>
 </table>
@@ -128,3 +134,30 @@
     max_tokens: 8192</code></pre>
 
 <p>For detailed provider setup, see the <a href="#providers/overview" onclick="event.preventDefault(); navigate('providers/overview')">Model Providers</a> section.</p>
+
+<h2>Custom Endpoints</h2>
+
+<p>Use <code>base_url</code> to point to custom or self-hosted endpoints:</p>
+
+<pre><code class="language-yaml">models:
+  # Azure OpenAI
+  azure_gpt:
+    provider: openai
+    model: gpt-4o
+    base_url: https://my-resource.openai.azure.com/openai/deployments/gpt-4o
+    token_key: AZURE_OPENAI_API_KEY
+
+  # Self-hosted vLLM
+  local_llama:
+    provider: openai  # vLLM is OpenAI-compatible
+    model: meta-llama/Llama-3.2-3B-Instruct
+    base_url: http://localhost:8000/v1
+
+  # Proxy or gateway
+  proxied:
+    provider: openai
+    model: gpt-4o
+    base_url: https://proxy.internal.company.com/openai/v1
+    token_key: INTERNAL_API_KEY</code></pre>
+
+<p>See <a href="#providers/local" onclick="event.preventDefault(); navigate('providers/local')">Local Models</a> for more examples of custom endpoints.</p>

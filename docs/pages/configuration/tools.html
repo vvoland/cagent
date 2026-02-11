@@ -8,7 +8,11 @@
 <h3>Filesystem</h3>
 <p>Read, write, list, search, and navigate files in the working directory.</p>
 <pre><code class="language-yaml">toolsets:
-  - type: filesystem</code></pre>
+  - type: filesystem
+    ignore_vcs: false          # Optional: ignore .gitignore files
+    post_edit:                 # Optional: run commands after file edits
+      - path: "*.go"
+        cmd: "gofmt -w ${file}"</code></pre>
 
 <table>
   <thead><tr><th>Operation</th><th>Description</th></tr></thead>
@@ -23,6 +27,16 @@
   </tbody>
 </table>
 
+<table>
+  <thead><tr><th>Property</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>ignore_vcs</code></td><td>boolean</td><td><code>false</code></td><td>When <code>true</code>, ignores <code>.gitignore</code> patterns and includes all files</td></tr>
+    <tr><td><code>post_edit</code></td><td>array</td><td><code>[]</code></td><td>Commands to run after editing files matching a path pattern</td></tr>
+    <tr><td><code>post_edit[].path</code></td><td>string</td><td>—</td><td>Glob pattern for files (e.g., <code>*.go</code>, <code>src/**/*.ts</code>)</td></tr>
+    <tr><td><code>post_edit[].cmd</code></td><td>string</td><td>—</td><td>Command to run (use <code>${file}</code> for the edited file path)</td></tr>
+  </tbody>
+</table>
+
 <div class="callout callout-tip">
   <div class="callout-title">💡 Tip</div>
   <p>The filesystem tool resolves paths relative to the working directory. Agents can also use absolute paths.</p>
@@ -31,9 +45,20 @@
 <h3>Shell</h3>
 <p>Execute arbitrary shell commands. Each call runs in a fresh, isolated shell session — no state persists between calls.</p>
 <pre><code class="language-yaml">toolsets:
-  - type: shell</code></pre>
+  - type: shell
+    env:                        # Optional: environment variables
+      MY_VAR: "value"
+      PATH: "${PATH}:/custom/bin"</code></pre>
 
 <p>The agent has access to the full system shell and environment variables. Commands have a default 30-second timeout. Requires user confirmation unless <code>--yolo</code> is used.</p>
+
+<table>
+  <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>env</code></td><td>object</td><td>Environment variables to set for all shell commands</td></tr>
+    <tr><td><code>sandbox</code></td><td>object</td><td>Run commands in a Docker container. See <a href="#configuration/sandbox" onclick="event.preventDefault(); navigate('configuration/sandbox')">Sandbox Mode</a>.</td></tr>
+  </tbody>
+</table>
 
 <h3>Think</h3>
 <p>Step-by-step reasoning scratchpad. The agent writes its thoughts without producing visible output — ideal for planning, decomposition, and decision-making.</p>
@@ -45,7 +70,8 @@
 <h3>Todo</h3>
 <p>Task list management. Agents can create, update, and track tasks with status (pending, in-progress, completed).</p>
 <pre><code class="language-yaml">toolsets:
-  - type: todo</code></pre>
+  - type: todo
+    shared: false              # Optional: share todos across agents</code></pre>
 
 <table>
   <thead><tr><th>Operation</th><th>Description</th></tr></thead>
@@ -54,6 +80,13 @@
     <tr><td><code>create_todos</code></td><td>Create multiple tasks at once</td></tr>
     <tr><td><code>update_todos</code></td><td>Update status of one or more tasks</td></tr>
     <tr><td><code>list_todos</code></td><td>List all current tasks with their status</td></tr>
+  </tbody>
+</table>
+
+<table>
+  <thead><tr><th>Property</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>shared</code></td><td>boolean</td><td><code>false</code></td><td>When <code>true</code>, todos are shared across all agents in a multi-agent config</td></tr>
   </tbody>
 </table>
 
@@ -73,36 +106,151 @@
 <h3>Fetch</h3>
 <p>Make HTTP requests to external APIs and web services.</p>
 <pre><code class="language-yaml">toolsets:
-  - type: fetch</code></pre>
+  - type: fetch
+    timeout: 30                # Optional: request timeout in seconds</code></pre>
 
 <p>Supports GET, POST, PUT, DELETE, and other HTTP methods. The agent can set headers, send request bodies, and receive response data. Useful for calling REST APIs, reading web pages, and downloading content.</p>
 
+<table>
+  <thead><tr><th>Property</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>timeout</code></td><td>int</td><td><code>30</code></td><td>Request timeout in seconds</td></tr>
+  </tbody>
+</table>
+
 <h3>Script</h3>
 <p>Define custom shell scripts as named tools. Unlike the generic <code>shell</code> tool, scripts are predefined and can be given descriptive names — ideal for exposing safe, well-scoped operations.</p>
+
+<p><strong>Simple format:</strong></p>
 <pre><code class="language-yaml">toolsets:
   - type: script
-    scripts:
-      - name: run_tests
+    shell:
+      run_tests:
+        cmd: task test
         description: Run the project test suite
-        command: task test
-      - name: lint
+      lint:
+        cmd: task lint
         description: Run the linter
-        command: task lint
-      - name: deploy_staging
-        description: Deploy to the staging environment
-        command: ./scripts/deploy.sh staging</code></pre>
+      deploy:
+        cmd: ./scripts/deploy.sh ${env}
+        description: Deploy to an environment
+        args:
+          env:
+            type: string
+            enum: [staging, production]
+        required: [env]</code></pre>
 
 <table>
   <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
   <tbody>
-    <tr><td><code>scripts[].name</code></td><td>string</td><td>Tool name the agent sees and calls</td></tr>
-    <tr><td><code>scripts[].description</code></td><td>string</td><td>Description shown to the model for tool selection</td></tr>
-    <tr><td><code>scripts[].command</code></td><td>string</td><td>Shell command to execute when the tool is called</td></tr>
+    <tr><td><code>shell.&lt;name&gt;.cmd</code></td><td>string</td><td>Shell command to execute (supports <code>${arg}</code> interpolation)</td></tr>
+    <tr><td><code>shell.&lt;name&gt;.description</code></td><td>string</td><td>Description shown to the model</td></tr>
+    <tr><td><code>shell.&lt;name&gt;.args</code></td><td>object</td><td>Parameter definitions (JSON Schema properties)</td></tr>
+    <tr><td><code>shell.&lt;name&gt;.required</code></td><td>array</td><td>Required parameter names</td></tr>
+    <tr><td><code>shell.&lt;name&gt;.env</code></td><td>object</td><td>Environment variables for this script</td></tr>
+    <tr><td><code>shell.&lt;name&gt;.working_dir</code></td><td>string</td><td>Working directory for script execution</td></tr>
   </tbody>
 </table>
 
 <h3>Transfer Task</h3>
 <p>The <code>transfer_task</code> tool is automatically available when an agent has <code>sub_agents</code>. Allows delegating tasks to sub-agents. No configuration needed — it's enabled implicitly.</p>
+
+<h3>LSP (Language Server Protocol)</h3>
+<p>Connect to language servers for code intelligence: go-to-definition, find references, diagnostics, and more.</p>
+<pre><code class="language-yaml">toolsets:
+  - type: lsp
+    command: gopls
+    args: []
+    file_types: [".go"]</code></pre>
+
+<table>
+  <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>command</code></td><td>string</td><td>LSP server executable command</td></tr>
+    <tr><td><code>args</code></td><td>array</td><td>Command-line arguments for the LSP server</td></tr>
+    <tr><td><code>env</code></td><td>object</td><td>Environment variables for the LSP process</td></tr>
+    <tr><td><code>file_types</code></td><td>array</td><td>File extensions this LSP handles</td></tr>
+  </tbody>
+</table>
+
+<p>See <a href="#tools/lsp" onclick="event.preventDefault(); navigate('tools/lsp')">LSP Tool</a> for full documentation.</p>
+
+<h3>User Prompt</h3>
+<p>Ask users questions and collect interactive input during agent execution.</p>
+<pre><code class="language-yaml">toolsets:
+  - type: user_prompt</code></pre>
+
+<p>The agent can use this tool to ask questions, present choices, or collect information from the user. Supports JSON Schema for structured input validation.</p>
+
+<p>See <a href="#tools/user-prompt" onclick="event.preventDefault(); navigate('tools/user-prompt')">User Prompt Tool</a> for full documentation.</p>
+
+<h3>API</h3>
+<p>Create custom tools that call HTTP APIs without writing code.</p>
+<pre><code class="language-yaml">toolsets:
+  - type: api
+    name: get_weather
+    method: GET
+    endpoint: "https://api.weather.example/v1/current?city=${city}"
+    instruction: Get current weather for a city
+    args:
+      city:
+        type: string
+        description: City name
+    required: ["city"]
+    headers:
+      Authorization: "Bearer ${env.WEATHER_API_KEY}"</code></pre>
+
+<table>
+  <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>name</code></td><td>string</td><td>Tool name</td></tr>
+    <tr><td><code>method</code></td><td>string</td><td>HTTP method: <code>GET</code> or <code>POST</code></td></tr>
+    <tr><td><code>endpoint</code></td><td>string</td><td>URL with <code>${param}</code> interpolation</td></tr>
+    <tr><td><code>args</code></td><td>object</td><td>Parameter definitions</td></tr>
+    <tr><td><code>required</code></td><td>array</td><td>Required parameter names</td></tr>
+    <tr><td><code>headers</code></td><td>object</td><td>HTTP headers (supports <code>${env.VAR}</code>)</td></tr>
+  </tbody>
+</table>
+
+<p>See <a href="#tools/api" onclick="event.preventDefault(); navigate('tools/api')">API Tool</a> for full documentation.</p>
+
+<h3>Handoff</h3>
+<p>Delegate tasks to remote agents via the A2A (Agent-to-Agent) protocol.</p>
+<pre><code class="language-yaml">toolsets:
+  - type: handoff
+    name: research_agent
+    description: Specialized research agent
+    url: "http://localhost:8080/a2a"
+    timeout: 5m</code></pre>
+
+<table>
+  <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>name</code></td><td>string</td><td>Tool name for delegation</td></tr>
+    <tr><td><code>description</code></td><td>string</td><td>Description for the agent</td></tr>
+    <tr><td><code>url</code></td><td>string</td><td>A2A server endpoint URL</td></tr>
+    <tr><td><code>timeout</code></td><td>string</td><td>Request timeout (default: 5m)</td></tr>
+  </tbody>
+</table>
+
+<p>See <a href="#features/a2a" onclick="event.preventDefault(); navigate('features/a2a')">A2A Protocol</a> for full documentation.</p>
+
+<h3>A2A (Agent-to-Agent)</h3>
+<p>Connect to remote agents via the A2A protocol. Similar to handoff but configured as a toolset.</p>
+<pre><code class="language-yaml">toolsets:
+  - type: a2a
+    name: research_agent
+    url: "http://localhost:8080/a2a"</code></pre>
+
+<table>
+  <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>name</code></td><td>string</td><td>Tool name for the remote agent</td></tr>
+    <tr><td><code>url</code></td><td>string</td><td>A2A server endpoint URL</td></tr>
+  </tbody>
+</table>
+
+<p>See <a href="#features/a2a" onclick="event.preventDefault(); navigate('features/a2a')">A2A Protocol</a> for full documentation.</p>
 
 <h2>MCP Tools</h2>
 
@@ -128,6 +276,7 @@
     <tr><td><code>ref</code></td><td>string</td><td>Docker MCP reference (<code>docker:name</code>)</td></tr>
     <tr><td><code>tools</code></td><td>array</td><td>Optional: only expose these tools</td></tr>
     <tr><td><code>instruction</code></td><td>string</td><td>Custom instructions injected into the agent's context</td></tr>
+    <tr><td><code>config</code></td><td>any</td><td>MCP server-specific configuration (passed during initialization)</td></tr>
   </tbody>
 </table>
 
@@ -220,6 +369,11 @@
       - type: todo
       - type: memory
         path: ./dev.db
+      - type: user_prompt
+      # LSP for code intelligence
+      - type: lsp
+        command: gopls
+        file_types: [".go"]
       # Custom scripts
       - type: script
         scripts:
@@ -229,6 +383,12 @@
           - name: lint
             description: Run the linter
             command: task lint
+      # Custom API tool
+      - type: api
+        name: get_status
+        method: GET
+        endpoint: "https://api.example.com/status"
+        instruction: Check service health
       # Docker MCP tools
       - type: mcp
         ref: docker:github-official

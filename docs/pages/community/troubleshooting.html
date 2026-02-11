@@ -1,6 +1,49 @@
 <h1>Troubleshooting</h1>
 <p class="subtitle">Common issues and how to resolve them when working with cagent.</p>
 
+<h2>Common Errors</h2>
+
+<h3>Context Window Exceeded</h3>
+
+<p>Error message: <code>context_length_exceeded</code> or similar.</p>
+
+<ul>
+  <li>Use <code>/compact</code> in the TUI to summarize and reduce conversation history</li>
+  <li>Set <code>num_history_items</code> in agent config to limit messages sent to the model</li>
+  <li>Switch to a model with larger context (e.g., Claude 200K, Gemini 2M)</li>
+  <li>Break large tasks into smaller conversations</li>
+</ul>
+
+<h3>Max Iterations Reached</h3>
+
+<p>The agent hit its <code>max_iterations</code> limit without completing the task.</p>
+
+<ul>
+  <li>Increase <code>max_iterations</code> in agent config (default is unlimited, but many agents set 20-50)</li>
+  <li>Check if the agent is stuck in a loop (enable <code>--debug</code> to see tool calls)</li>
+  <li>Break complex tasks into smaller steps</li>
+</ul>
+
+<h3>Model Fallback Triggered</h3>
+
+<p>When the primary model fails, cagent automatically switches to fallback models. Look for log messages like <code>"Switching to fallback model"</code>.</p>
+
+<ul>
+  <li><strong>429 errors:</strong> Rate limited — the cooldown period keeps using the fallback</li>
+  <li><strong>5xx errors:</strong> Server issues — retries with exponential backoff first, then falls back</li>
+  <li><strong>4xx errors:</strong> Client errors — skips directly to next model</li>
+</ul>
+
+<p>Configure fallback behavior in your agent config:</p>
+
+<pre><code class="language-yaml">agents:
+  root:
+    model: anthropic/claude-sonnet-4-0
+    fallback:
+      models: [openai/gpt-4o, openai/gpt-4o-mini]
+      retries: 2      # retries per model for 5xx errors
+      cooldown: 1m    # how long to stick with fallback after 429</code></pre>
+
 <h2>Debug Mode</h2>
 
 <p>The first step for any issue is enabling debug logging. This provides detailed information about what cagent is doing internally.</p>

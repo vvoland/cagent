@@ -29,6 +29,19 @@ const NAV = [
       { title: 'Agent Config',  page: 'configuration/agents' },
       { title: 'Model Config',  page: 'configuration/models' },
       { title: 'Tool Config',   page: 'configuration/tools' },
+      { title: 'Hooks',         page: 'configuration/hooks' },
+      { title: 'Permissions',   page: 'configuration/permissions' },
+      { title: 'Sandbox Mode',  page: 'configuration/sandbox' },
+      { title: 'Structured Output', page: 'configuration/structured-output' },
+      { title: 'Model Routing', page: 'configuration/routing' },
+    ],
+  },
+  {
+    heading: 'Built-in Tools',
+    items: [
+      { title: 'LSP Tool',       page: 'tools/lsp' },
+      { title: 'User Prompt Tool', page: 'tools/user-prompt' },
+      { title: 'API Tool',       page: 'tools/api' },
     ],
   },
   {
@@ -55,7 +68,18 @@ const NAV = [
       { title: 'Google Gemini', page: 'providers/google' },
       { title: 'AWS Bedrock',  page: 'providers/bedrock' },
       { title: 'Docker Model Runner', page: 'providers/dmr' },
+      { title: 'Mistral',      page: 'providers/mistral' },
+      { title: 'xAI (Grok)',   page: 'providers/xai' },
+      { title: 'Nebius',       page: 'providers/nebius' },
+      { title: 'Local Models', page: 'providers/local' },
       { title: 'Custom Providers',    page: 'providers/custom' },
+    ],
+  },
+  {
+    heading: 'Guides',
+    items: [
+      { title: 'Tips & Best Practices', page: 'guides/tips' },
+      { title: 'Go SDK',       page: 'guides/go-sdk' },
     ],
   },
   {
