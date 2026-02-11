@@ -56,18 +56,26 @@ func newAPICmd() *cobra.Command {
 
 // monitorStdin monitors stdin for EOF, which indicates the parent process has died.
 // When spawned with piped stdio, stdin closes when the parent process dies.
+// The caller is responsible for cancelling the context (e.g. via defer cancel()).
 func monitorStdin(ctx context.Context, cancel context.CancelFunc, stdin *os.File) {
-	// Close stdin when context is cancelled to unblock the read
+	done := make(chan struct{})
+
+	// Close stdin when context is cancelled to unblock the read.
+	// Also exits cleanly when monitorStdin returns.
 	go func() {
-		<-ctx.Done()
+		select {
+		case <-ctx.Done():
+		case <-done:
+		}
 		stdin.Close()
 	}()
+
+	defer close(done)
 
 	buf := make([]byte, 1)
 	for {
 		n, err := stdin.Read(buf)
 		if err != nil || n == 0 {
-			// Only log and cancel if context isn't already done (parent died)
 			if ctx.Err() == nil {
 				slog.Info("stdin closed, parent process likely died, shutting down")
 				cancel()
@@ -113,10 +121,14 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 	}()
 
 	// Start recording proxy if --record is specified
-	if _, cleanup, err := setupRecordingProxy(f.recordPath, &f.runConfig); err != nil {
+	if _, recordCleanup, err := setupRecordingProxy(f.recordPath, &f.runConfig); err != nil {
 		return err
-	} else if cleanup != nil {
-		defer cleanup()
+	} else if recordCleanup != nil {
+		defer func() {
+			if err := recordCleanup(); err != nil {
+				slog.Error("Failed to cleanup recording proxy", "error", err)
+			}
+		}()
 	}
 
 	if f.pullIntervalMins > 0 && !config.IsOCIReference(agentsPath) {
