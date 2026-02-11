@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/url"
 	"slices"
 	"strings"
@@ -73,9 +74,10 @@ func CheckRequiredEnvVars(ctx context.Context, cfg *latest.Config, modelsGateway
 }
 
 func parseCurrentVersion(data []byte, version string) (any, error) {
-	parser, found := Parsers()[version]
+	parsers := Parsers()
+	parser, found := parsers[version]
 	if !found {
-		return nil, fmt.Errorf("unsupported config version: %v", version)
+		return nil, fmt.Errorf("unsupported config version: %v (valid versions: %s)", version, strings.Join(slices.Sorted(maps.Keys(parsers)), ", "))
 	}
 	return parser(data)
 }

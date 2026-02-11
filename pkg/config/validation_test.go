@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -69,6 +70,23 @@ func TestValidationErrors(t *testing.T) {
 			require.Error(t, err)
 		})
 	}
+}
+
+func TestLoadConfig_UnsupportedVersion(t *testing.T) {
+	t.Parallel()
+
+	cfg := `version: "99"
+agents:
+  root:
+    model: openai/gpt-4
+`
+	_, err := Load(t.Context(), NewBytesSource("test", []byte(cfg)))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported config version: 99")
+	assert.Contains(t, err.Error(), "valid versions")
+	// Check that at least some known versions are listed
+	assert.Contains(t, err.Error(), "1")
+	assert.Contains(t, err.Error(), "2")
 }
 
 func TestValidSkillsConfiguration(t *testing.T) {
