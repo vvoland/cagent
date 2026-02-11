@@ -238,7 +238,7 @@ func clearTimestamps(event Event) {
 
 	// Use reflection to find and clear Timestamp in embedded AgentContext
 	v := reflect.ValueOf(event)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 	if v.Kind() != reflect.Struct {

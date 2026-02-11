@@ -2,6 +2,7 @@ package messages
 
 import (
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -630,11 +631,8 @@ func (m *model) InlineEditBindings() []key.Binding {
 	// Get the newline key help based on the configured keymap
 	newlineKeys := m.inlineEditTextarea.KeyMap.InsertNewline.Keys()
 	newlineHelp := "Ctrl+j"
-	for _, k := range newlineKeys {
-		if k == "shift+enter" {
-			newlineHelp = "Shift+Enter"
-			break
-		}
+	if slices.Contains(newlineKeys, "shift+enter") {
+		newlineHelp = "Shift+Enter"
 	}
 	return []key.Binding{
 		key.NewBinding(key.WithKeys("enter"), key.WithHelp("Enter", "save")),
@@ -948,7 +946,7 @@ func (m *model) updateInlineEditTextareaHeight() {
 
 	content := m.inlineEditTextarea.Value()
 	lineCount := 0
-	for _, line := range strings.Split(content, "\n") {
+	for line := range strings.SplitSeq(content, "\n") {
 		lineWidth := ansi.StringWidth(line)
 		if lineWidth == 0 {
 			lineCount++
@@ -1553,12 +1551,12 @@ func (m *model) isEditLabelClick(msgIdx, localLine, col int) (bool, *types.Messa
 	}
 
 	plainLine := ansi.Strip(lines[localLine])
-	labelIndex := strings.Index(plainLine, types.UserMessageEditLabel)
-	if labelIndex == -1 {
+	before, _, ok := strings.Cut(plainLine, types.UserMessageEditLabel)
+	if !ok {
 		return false, nil
 	}
 
-	labelStart := ansi.StringWidth(plainLine[:labelIndex])
+	labelStart := ansi.StringWidth(before)
 	labelEnd := labelStart + ansi.StringWidth(types.UserMessageEditLabel)
 	if col >= labelStart && col < labelEnd {
 		return true, msg
@@ -1659,7 +1657,7 @@ func (m *model) StartInlineEdit(msgIndex, sessionPosition int, content string) t
 	// Count lines and account for word wrapping
 	lineCount := 0
 	if innerWidth > 0 {
-		for _, line := range strings.Split(content, "\n") {
+		for line := range strings.SplitSeq(content, "\n") {
 			lineWidth := ansi.StringWidth(line)
 			if lineWidth == 0 {
 				// Empty line counts as 1 line

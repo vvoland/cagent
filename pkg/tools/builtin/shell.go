@@ -243,8 +243,7 @@ func (h *shellHandler) monitorJob(job *backgroundJob, cmd *exec.Cmd) {
 	}
 
 	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			job.exitCode = exitErr.ExitCode()
 		} else {
 			job.exitCode = -1

@@ -1,6 +1,6 @@
 module github.com/docker/cagent
 
-go 1.25.5
+go 1.26.0
 
 replace github.com/charmbracelet/ultraviolet => github.com/dgageot/ultraviolet v0.0.0-20260106070720-e493364e381d
 
