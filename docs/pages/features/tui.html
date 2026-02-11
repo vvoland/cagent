@@ -120,12 +120,19 @@ Explain what the code in @pkg/agent/agent.go does</code></pre>
   <tbody>
     <tr><td><kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>Open command palette</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>M</kbd></td><td>Switch model</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>R</kbd></td><td>Reverse history search</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td><td>Audio listening mode</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>Suspend to background</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>R</kbd></td><td>Reverse history search (search previous inputs)</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td><td>Start audio listening mode (voice input)</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>Suspend TUI to background (resume with <code>fg</code>)</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>X</kbd></td><td>Clear queued messages</td></tr>
     <tr><td><kbd>Escape</kbd></td><td>Cancel current operation</td></tr>
+    <tr><td><kbd>Enter</kbd></td><td>Send message (or newline with Shift+Enter)</td></tr>
+    <tr><td><kbd>Up</kbd>/<kbd>Down</kbd></td><td>Navigate message history</td></tr>
   </tbody>
 </table>
+
+<h2>History Search</h2>
+
+<p>Press <kbd>Ctrl</kbd>+<kbd>R</kbd> to enter incremental history search mode. Start typing to filter through your previous inputs. Press <kbd>Enter</kbd> to select a match, or <kbd>Escape</kbd> to cancel.</p>
 
 <h2>Theming</h2>
 

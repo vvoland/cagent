@@ -53,9 +53,9 @@ When asked to create a Dockerfile:
 <table>
   <thead><tr><th>Path</th><th>Search Type</th></tr></thead>
   <tbody>
-    <tr><td><code>~/.codex/skills/</code></td><td>Recursive</td></tr>
-    <tr><td><code>~/.claude/skills/</code></td><td>Flat</td></tr>
-    <tr><td><code>~/.agents/skills/</code></td><td>Recursive</td></tr>
+    <tr><td><code>~/.codex/skills/</code></td><td>Recursive (searches all subdirectories)</td></tr>
+    <tr><td><code>~/.claude/skills/</code></td><td>Flat (immediate children only)</td></tr>
+    <tr><td><code>~/.agents/skills/</code></td><td>Recursive (searches all subdirectories)</td></tr>
   </tbody>
 </table>
 
@@ -67,6 +67,22 @@ When asked to create a Dockerfile:
     <tr><td><code>.agents/skills/</code></td><td>Flat (each directory from git root to cwd)</td></tr>
   </tbody>
 </table>
+
+<h2>Invoking Skills</h2>
+
+<p>Skills can be invoked in multiple ways:</p>
+
+<ul>
+  <li><strong>Automatic:</strong> The agent detects when your request matches a skill's description and loads it automatically</li>
+  <li><strong>Explicit:</strong> Reference the skill name in your prompt: "Use the create-dockerfile skill to..."</li>
+  <li><strong>Slash command:</strong> Use <code>/{skill-name}</code> to invoke a skill directly</li>
+</ul>
+
+<pre><code class="language-bash"># In the TUI, invoke skill directly:
+/create-dockerfile
+
+# Or mention it in your message:
+"Create a dockerfile for my Python app (use the create-dockerfile skill)"</code></pre>
 
 <h2>Precedence</h2>
 
