@@ -113,10 +113,14 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 	}()
 
 	// Start recording proxy if --record is specified
-	if _, cleanup, err := setupRecordingProxy(f.recordPath, &f.runConfig); err != nil {
+	if _, recordCleanup, err := setupRecordingProxy(f.recordPath, &f.runConfig); err != nil {
 		return err
-	} else if cleanup != nil {
-		defer cleanup()
+	} else if recordCleanup != nil {
+		defer func() {
+			if err := recordCleanup(); err != nil {
+				slog.Error("Failed to cleanup recording proxy", "error", err)
+			}
+		}()
 	}
 
 	if f.pullIntervalMins > 0 && !config.IsOCIReference(agentsPath) {
