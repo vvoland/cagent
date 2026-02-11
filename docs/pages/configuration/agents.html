@@ -1,0 +1,192 @@
+<h1>Agent Configuration</h1>
+<p class="subtitle">Complete reference for defining agents in your YAML configuration.</p>
+
+<h2>Full Schema</h2>
+
+<pre><code class="language-yaml">agents:
+  agent_name:
+    model: string                  # Required: model reference
+    description: string            # Required: what this agent does
+    instruction: string            # Required: system prompt
+    sub_agents: [list]              # Optional: sub-agent names
+    toolsets: [list]               # Optional: tool configurations
+    rag: [list]                    # Optional: RAG source references
+    fallback:                       # Optional: fallback config
+      models: [list]
+      retries: 2
+      cooldown: 1m
+    add_date: boolean              # Optional: add date to context
+    add_environment_info: boolean  # Optional: add env info to context
+    max_iterations: int            # Optional: max tool-calling loops
+    num_history_items: int         # Optional: limit conversation history
+    skills: boolean               # Optional: enable skill discovery
+    commands:                       # Optional: named prompts
+      name: "prompt text"</code></pre>
+
+<div class="callout callout-tip">
+  <div class="callout-title">💡 See also</div>
+  <p>For model parameters, see <a href="#configuration/models" onclick="event.preventDefault(); navigate('configuration/models')">Model Config</a>. For tool details, see <a href="#configuration/tools" onclick="event.preventDefault(); navigate('configuration/tools')">Tool Config</a>. For multi-agent patterns, see <a href="#concepts/multi-agent" onclick="event.preventDefault(); navigate('concepts/multi-agent')">Multi-Agent</a>.</p>
+</div>
+
+<h2>Properties Reference</h2>
+
+<table>
+  <thead>
+    <tr><th>Property</th><th>Type</th><th>Required</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>model</code></td><td>string</td><td>✓</td>
+      <td>Model reference. Either inline (<code>openai/gpt-4o</code>) or a named model from the <code>models</code> section.</td>
+    </tr>
+    <tr>
+      <td><code>description</code></td><td>string</td><td>✓</td>
+      <td>Brief description of the agent's purpose. Used by coordinators to decide delegation.</td>
+    </tr>
+    <tr>
+      <td><code>instruction</code></td><td>string</td><td>✓</td>
+      <td>System prompt that defines the agent's behavior, personality, and constraints.</td>
+    </tr>
+    <tr>
+      <td><code>sub_agents</code></td><td>array</td><td>✗</td>
+      <td>List of agent names this agent can delegate to. Automatically enables the <code>transfer_task</code> tool.</td>
+    </tr>
+    <tr>
+      <td><code>toolsets</code></td><td>array</td><td>✗</td>
+      <td>List of tool configurations. See <a href="#configuration/tools" onclick="event.preventDefault(); navigate('configuration/tools')">Tool Config</a>.</td>
+    </tr>
+    <tr>
+      <td><code>fallback</code></td><td>object</td><td>✗</td>
+      <td>Automatic model failover configuration.</td>
+    </tr>
+    <tr>
+      <td><code>add_date</code></td><td>boolean</td><td>✗</td>
+      <td>When <code>true</code>, injects the current date into the agent's context.</td>
+    </tr>
+    <tr>
+      <td><code>add_environment_info</code></td><td>boolean</td><td>✗</td>
+      <td>When <code>true</code>, injects working directory, OS, CPU architecture, and git info into context.</td>
+    </tr>
+    <tr>
+      <td><code>max_iterations</code></td><td>int</td><td>✗</td>
+      <td>Maximum number of tool-calling loops. Default: unlimited (0). Set this to prevent infinite loops.</td>
+    </tr>
+    <tr>
+      <td><code>num_history_items</code></td><td>int</td><td>✗</td>
+      <td>Limit the number of conversation history messages sent to the model. Useful for managing context window size with long conversations. Default: unlimited (all messages sent).</td>
+    </tr>
+    <tr>
+      <td><code>rag</code></td><td>array</td><td>✗</td>
+      <td>List of RAG source names to attach to this agent. References sources defined in the top-level <code>rag</code> section. See <a href="#features/rag" onclick="event.preventDefault(); navigate('features/rag')">RAG</a>.</td>
+    </tr>
+    <tr>
+      <td><code>skills</code></td><td>boolean</td><td>✗</td>
+      <td>Enable automatic skill discovery from standard directories.</td>
+    </tr>
+    <tr>
+      <td><code>commands</code></td><td>object</td><td>✗</td>
+      <td>Named prompts that can be run with <code>cagent run config.yaml /command_name</code>.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout callout-warning">
+  <div class="callout-title">⚠️ max_iterations</div>
+  <p>Default is <code>0</code> (unlimited). Always set <code>max_iterations</code> for agents with powerful tools like <code>shell</code> to prevent infinite loops. A value of 20–50 is typical for development agents.</p>
+</div>
+
+<h2>Fallback Configuration</h2>
+
+<p>Automatically switch to backup models when the primary fails:</p>
+
+<table>
+  <thead><tr><th>Property</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>models</code></td><td>array</td><td><code>[]</code></td><td>Fallback models to try in order</td></tr>
+    <tr><td><code>retries</code></td><td>int</td><td><code>2</code></td><td>Retries per model for 5xx errors. <code>-1</code> to disable.</td></tr>
+    <tr><td><code>cooldown</code></td><td>string</td><td><code>1m</code></td><td>How long to stick with a fallback after a rate limit (429)</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Error handling:</strong></p>
+<ul>
+  <li><strong>Retryable</strong> (same model with backoff): HTTP 5xx, 408, network timeouts</li>
+  <li><strong>Non-retryable</strong> (skip to next model): HTTP 429, 4xx client errors</li>
+</ul>
+
+<pre><code class="language-yaml">agents:
+  root:
+    model: anthropic/claude-sonnet-4-0
+    fallback:
+      models:
+        - openai/gpt-4o
+        - google/gemini-2.5-flash
+      retries: 2
+      cooldown: 1m</code></pre>
+
+<h2>Named Commands</h2>
+
+<p>Define reusable prompt shortcuts:</p>
+
+<pre><code class="language-yaml">agents:
+  root:
+    model: openai/gpt-4o
+    instruction: You are a system administrator.
+    commands:
+      df: "Check how much free space I have on my disk"
+      logs: "Show me the last 50 lines of system logs"
+      greet: "Say hello to ${env.USER}"
+      deploy: "Deploy ${env.PROJECT_NAME || 'app'} to ${env.ENV || 'staging'}"</code></pre>
+
+<pre><code class="language-bash"># Run commands from the CLI
+$ cagent run agent.yaml /df
+$ cagent run agent.yaml /greet
+$ PROJECT_NAME=myapp ENV=production cagent run agent.yaml /deploy</code></pre>
+
+<p>Commands use JavaScript template literal syntax for environment variable interpolation. Undefined variables expand to empty strings.</p>
+
+<h2>Complete Example</h2>
+
+<pre><code class="language-yaml">models:
+  claude:
+    provider: anthropic
+    model: claude-sonnet-4-0
+    max_tokens: 64000
+
+agents:
+  root:
+    model: claude
+    description: Technical lead coordinating development
+    instruction: |
+      You are a technical lead. Analyze requests and delegate
+      to the right specialist. Always review work before responding.
+    sub_agents: [developer, researcher]
+    add_date: true
+    add_environment_info: true
+    fallback:
+      models: [openai/gpt-4o]
+    toolsets:
+      - type: think
+    commands:
+      review: "Review all recent code changes for issues"
+
+  developer:
+    model: claude
+    description: Expert software developer
+    instruction: Write clean, tested, production-ready code.
+    max_iterations: 30
+    toolsets:
+      - type: filesystem
+      - type: shell
+      - type: think
+      - type: todo
+
+  researcher:
+    model: openai/gpt-4o
+    description: Web researcher with memory
+    instruction: Search for information and remember findings.
+    toolsets:
+      - type: mcp
+        ref: docker:duckduckgo
+      - type: memory
+        path: ./research.db</code></pre>
