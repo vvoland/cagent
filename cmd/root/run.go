@@ -240,6 +240,9 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 			if err := loadResult.Team.StopToolSets(cleanupCtx); err != nil {
 				slog.Error("Failed to stop tool sets", "error", err)
 			}
+			if err := rt.Close(); err != nil {
+				slog.Error("Failed to close runtime", "error", err)
+			}
 		}
 	}
 	defer cleanup()

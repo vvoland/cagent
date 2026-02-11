@@ -153,6 +153,9 @@ type Runtime interface {
 	// TitleGenerator returns a generator for automatic session titles, or nil
 	// if the runtime does not support local title generation (e.g. remote runtimes).
 	TitleGenerator() *sessiontitle.Generator
+
+	// Close releases resources held by the runtime (e.g., session store connections).
+	Close() error
 }
 
 // PermissionsInfo contains the allow and deny patterns for tool permissions.
@@ -669,6 +672,14 @@ func (r *LocalRuntime) agentDetailsFromTeam() []AgentDetails {
 // SessionStore returns the session store for browsing/loading past sessions.
 func (r *LocalRuntime) SessionStore() session.Store {
 	return r.sessionStore
+}
+
+// Close releases resources held by the runtime, including the session store.
+func (r *LocalRuntime) Close() error {
+	if r.sessionStore != nil {
+		return r.sessionStore.Close()
+	}
+	return nil
 }
 
 // UpdateSessionTitle persists the session title via the session store.
