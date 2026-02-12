@@ -71,6 +71,7 @@ func NewDefaultToolsetRegistry() *ToolsetRegistry {
 	r.Register("a2a", createA2ATool)
 	r.Register("lsp", createLSPTool)
 	r.Register("user_prompt", createUserPromptTool)
+	r.Register("openapi", createOpenAPITool)
 	return r
 }
 
@@ -294,7 +295,7 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 func createA2ATool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig) (tools.ToolSet, error) {
 	expander := js.NewJsExpander(runConfig.EnvProvider())
 
-	headers := expander.ExpandMap(ctx, toolset.APIConfig.Headers)
+	headers := expander.ExpandMap(ctx, toolset.Headers)
 
 	return a2a.NewToolset(toolset.Name, toolset.URL, headers), nil
 }
@@ -310,4 +311,13 @@ func createLSPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 
 func createUserPromptTool(_ context.Context, _ latest.Toolset, _ string, _ *config.RuntimeConfig) (tools.ToolSet, error) {
 	return builtin.NewUserPromptTool(), nil
+}
+
+func createOpenAPITool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig) (tools.ToolSet, error) {
+	expander := js.NewJsExpander(runConfig.EnvProvider())
+
+	specURL := expander.Expand(ctx, toolset.URL)
+	headers := expander.ExpandMap(ctx, toolset.Headers)
+
+	return builtin.NewOpenAPITool(specURL, headers), nil
 }
