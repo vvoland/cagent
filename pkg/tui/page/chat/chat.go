@@ -1033,12 +1033,12 @@ func (p *chatPage) extractAttachmentsFromSession(position int) []msgtypes.Attach
 		}
 		// Parse "Contents of <filename>: <dataURL>"
 		rest := text[len(prefix):]
-		colonIdx := strings.Index(rest, ": ")
-		if colonIdx == -1 {
+		before, after, ok := strings.Cut(rest, ": ")
+		if !ok {
 			continue
 		}
-		filename := rest[:colonIdx]
-		content := rest[colonIdx+2:]
+		filename := before
+		content := after
 		if filename != "" && content != "" {
 			attachments = append(attachments, msgtypes.Attachment{
 				Name:    filename,

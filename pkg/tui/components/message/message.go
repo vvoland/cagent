@@ -110,10 +110,7 @@ func (mv *messageModel) Render(width int) string {
 
 		// Create a top row with the icon pushed to the right edge
 		// This row replaces the top padding and becomes part of the content
-		topPadding := innerWidth - iconWidth
-		if topPadding < 0 {
-			topPadding = 0
-		}
+		topPadding := max(innerWidth-iconWidth, 0)
 		topRow := strings.Repeat(" ", topPadding) + editIcon
 
 		// Combine: icon row + content (icon row acts as the top padding)

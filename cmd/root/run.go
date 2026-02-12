@@ -443,8 +443,7 @@ func (f *runExecFlags) handleExecMode(ctx context.Context, out *cli.Printer, rt 
 		OutputJSON:     f.outputJSON,
 		AutoApprove:    f.autoApprove,
 	}, rt, sess, userMessages)
-	var cliErr cli.RuntimeError
-	if errors.As(err, &cliErr) {
+	if cliErr, ok := errors.AsType[cli.RuntimeError](err); ok {
 		return RuntimeError{Err: cliErr.Err}
 	}
 	return err

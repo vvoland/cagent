@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -339,10 +340,8 @@ func isTextByContent(filePath string) bool {
 	data := buf[:n]
 
 	// Check for null bytes (strong binary indicator)
-	for _, b := range data {
-		if b == 0 {
-			return false
-		}
+	if slices.Contains(data, 0) {
+		return false
 	}
 
 	// Check if the content is valid UTF-8

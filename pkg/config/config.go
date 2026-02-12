@@ -107,7 +107,7 @@ func validateConfig(cfg *latest.Config) error {
 	for name := range cfg.Models {
 		if cfg.Models[name].ParallelToolCalls == nil {
 			m := cfg.Models[name]
-			m.ParallelToolCalls = boolPtr(true)
+			m.ParallelToolCalls = new(true)
 			cfg.Models[name] = m
 		}
 	}
@@ -134,10 +134,6 @@ func validateConfig(cfg *latest.Config) error {
 	}
 
 	return nil
-}
-
-func boolPtr(b bool) *bool {
-	return &b
 }
 
 // providerAPITypes are the allowed values for api_type in provider configs

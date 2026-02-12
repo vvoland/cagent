@@ -766,10 +766,7 @@ func (m *model) computeCollapsedViewModel(contentWidth int) CollapsedViewModel {
 
 // CollapsedHeight returns the number of lines needed for collapsed mode.
 func (m *model) CollapsedHeight(outerWidth int) int {
-	contentWidth := outerWidth - m.layoutCfg.PaddingLeft - m.layoutCfg.PaddingRight
-	if contentWidth < 1 {
-		contentWidth = 1
-	}
+	contentWidth := max(outerWidth-m.layoutCfg.PaddingLeft-m.layoutCfg.PaddingRight, 1)
 	return m.computeCollapsedViewModel(contentWidth).LineCount()
 }
 
@@ -1198,10 +1195,9 @@ func (m *model) updateTitleInputWidth() {
 	contentWidth := m.contentWidth(false)
 
 	// Account for star indicator width and leave room for cursor
-	inputWidth := contentWidth - starWidth - 1
-	if inputWidth < 10 {
-		inputWidth = 10 // Minimum usable width
-	}
+	inputWidth := max(contentWidth-starWidth-1,
+		// Minimum usable width
+		10)
 
 	m.titleInput.SetWidth(inputWidth)
 }
@@ -1309,10 +1305,9 @@ func (m *model) BeginTitleEdit() {
 	// Calculate and set the input width based on current sidebar width
 	contentWidth := m.contentWidth(false)
 	starWidth := lipgloss.Width(m.starIndicator())
-	inputWidth := contentWidth - starWidth - 1
-	if inputWidth < 10 {
-		inputWidth = 10 // Minimum usable width
-	}
+	inputWidth := max(contentWidth-starWidth-1,
+		// Minimum usable width
+		10)
 	m.titleInput.SetWidth(inputWidth)
 
 	m.titleInput.Focus()

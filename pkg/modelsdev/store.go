@@ -183,10 +183,10 @@ func (s *Store) GetModel(ctx context.Context, id string) (*Model, error) {
 		//
 		// Strip known region prefixes and retry lookup.
 		if providerID == "amazon-bedrock" {
-			if idx := strings.Index(modelID, "."); idx != -1 {
-				possibleRegionPrefix := modelID[:idx]
+			if before, after, ok := strings.Cut(modelID, "."); ok {
+				possibleRegionPrefix := before
 				if isBedrockRegionPrefix(possibleRegionPrefix) {
-					normalizedModelID := modelID[idx+1:]
+					normalizedModelID := after
 					model, exists = provider.Models[normalizedModelID]
 					if exists {
 						return &model, nil

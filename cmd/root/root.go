@@ -142,22 +142,18 @@ We collect anonymous usage data to help improve cagent. To disable:
 	rootCmd.SetErr(stderr)
 
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
-		envErr := &environment.RequiredEnvError{}
-		runtimeErr := RuntimeError{}
-
-		switch {
-		case ctx.Err() != nil:
+		if ctx.Err() != nil {
 			return ctx.Err()
-		case errors.As(err, &envErr):
+		} else if envErr, ok := errors.AsType[*environment.RequiredEnvError](err); ok {
 			fmt.Fprintln(stderr, "The following environment variables must be set:")
 			for _, v := range envErr.Missing {
 				fmt.Fprintf(stderr, " - %s\n", v)
 			}
 			fmt.Fprintln(stderr, "\nEither:\n - Set those environment variables before running cagent\n - Run cagent with --env-from-file\n - Store those secrets using one of the built-in environment variable providers.")
-		case errors.As(err, &runtimeErr):
+		} else if _, ok := errors.AsType[RuntimeError](err); ok {
 			// Runtime errors have already been printed by the command itself
 			// Don't print them again or show usage
-		default:
+		} else {
 			// Command line usage errors - show the error and usage
 			fmt.Fprintln(stderr, err)
 			fmt.Fprintln(stderr)

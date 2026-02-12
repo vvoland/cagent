@@ -109,9 +109,7 @@ func (j *Judge) CheckRelevance(ctx context.Context, response string, criteria []
 
 	var wg sync.WaitGroup
 	for range j.concurrency {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for item := range work {
 				if ctx.Err() != nil {
 					results[item.index] = result{err: fmt.Errorf("context cancelled: %w", ctx.Err())}
@@ -120,7 +118,7 @@ func (j *Judge) CheckRelevance(ctx context.Context, response string, criteria []
 				pass, reason, err := j.checkSingle(ctx, response, item.criterion)
 				results[item.index] = result{passed: pass, reason: reason, err: err}
 			}
-		}()
+		})
 	}
 	wg.Wait()
 
