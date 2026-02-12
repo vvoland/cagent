@@ -1667,6 +1667,7 @@ func (r *LocalRuntime) executeToolWithHandler(
 		Role:       chat.MessageRoleTool,
 		Content:    content,
 		ToolCallID: toolCall.ID,
+		IsError:    res.IsError,
 		CreatedAt:  time.Now().Format(time.RFC3339),
 	}
 	addAgentMessage(sess, a, &toolResponseMsg, events)
@@ -1763,6 +1764,7 @@ func (r *LocalRuntime) addToolErrorResponse(_ context.Context, sess *session.Ses
 		Role:       chat.MessageRoleTool,
 		Content:    errorMsg,
 		ToolCallID: toolCall.ID,
+		IsError:    true,
 		CreatedAt:  time.Now().Format(time.RFC3339),
 	}
 	addAgentMessage(sess, a, &toolResponseMsg, events)

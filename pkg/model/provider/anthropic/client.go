@@ -457,7 +457,7 @@ func (c *Client) convertMessages(ctx context.Context, messages []chat.Message) (
 			var blocks []anthropic.ContentBlockParamUnion
 			j := i
 			for j < len(messages) && messages[j].Role == chat.MessageRoleTool {
-				tr := anthropic.NewToolResultBlock(messages[j].ToolCallID, strings.TrimSpace(messages[j].Content), false)
+				tr := anthropic.NewToolResultBlock(messages[j].ToolCallID, strings.TrimSpace(messages[j].Content), messages[j].IsError)
 				blocks = append(blocks, tr)
 				j++
 			}
