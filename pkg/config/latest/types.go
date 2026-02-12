@@ -432,7 +432,7 @@ type Toolset struct {
 	// For the `todo` tool
 	Shared bool `json:"shared,omitempty"`
 
-	// For the `memory` tool
+	// For the `memory` and `tasks` tools
 	Path string `json:"path,omitempty"`
 
 	// For the `script` tool

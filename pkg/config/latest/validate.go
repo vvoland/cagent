@@ -61,8 +61,8 @@ func (t *Toolset) validate() error {
 	if len(t.Shell) > 0 && t.Type != "script" {
 		return errors.New("shell can only be used with type 'script'")
 	}
-	if t.Path != "" && t.Type != "memory" {
-		return errors.New("path can only be used with type 'memory'")
+	if t.Path != "" && t.Type != "memory" && t.Type != "tasks" {
+		return errors.New("path can only be used with type 'memory' or 'tasks'")
 	}
 	if len(t.PostEdit) > 0 && t.Type != "filesystem" {
 		return errors.New("post_edit can only be used with type 'filesystem'")
@@ -113,6 +113,8 @@ func (t *Toolset) validate() error {
 		if t.Path == "" {
 			return errors.New("memory toolset requires a path to be set")
 		}
+	case "tasks":
+		// path defaults to ./tasks.json if not set
 	case "mcp":
 		count := 0
 		if t.Command != "" {
