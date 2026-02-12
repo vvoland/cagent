@@ -122,9 +122,7 @@ func TestExec_Mistral(t *testing.T) {
 func TestExec_Mistral_ToolCall(t *testing.T) {
 	out := cagent(t, "exec", "testdata/fs_tools.yaml", "--model=mistral/mistral-small", "How many files in testdata/working_dir? Only output the number.")
 
-	// NOTE: If you look at the LLM response, Mistral says it sees 2 files, yours truly got tired of re-running this test to get it to say "1".
-	// For now, just update the expected output
-	require.Equal(t, "\n--- Agent: root ---\n\nCalling list_directory(path: \"testdata/working_dir\")\n\nlist_directory response → \"FILE README.me\\n\"\n2", out)
+	require.Equal(t, "\n--- Agent: root ---\n\nCalling list_directory(path: \"testdata/working_dir\")\n\nlist_directory response → \"FILE README.me\\n\"\n1", out)
 }
 
 func TestExec_ToolCallsNeedAcceptance(t *testing.T) {
