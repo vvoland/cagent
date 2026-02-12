@@ -74,6 +74,9 @@ type Message struct {
 	// For Role=tool prompts this should be set to the ID given in the assistant's prior request to call a tool.
 	ToolCallID string `json:"tool_call_id,omitempty"`
 
+	// IsError indicates the tool call failed (only for Role=tool messages).
+	IsError bool `json:"is_error,omitempty"`
+
 	CreatedAt string `json:"created_at,omitempty"`
 
 	// Usage tracks token usage for this message (only set for assistant messages)
