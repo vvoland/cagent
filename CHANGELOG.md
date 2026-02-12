@@ -3,6 +3,69 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.23.0] - 2026-02-12
+
+This release improves TUI display accuracy, enhances API security defaults, and fixes several memory leaks and session handling issues.
+
+## What's New
+
+- Adds optional setup script support for evaluation sessions to prepare container environments before agent execution
+- Adds user_prompt tools to the planner for interactive user questions
+
+## Improvements
+
+- Makes session compaction non-blocking with spinner feedback instead of blocking the TUI render thread
+- Returns error responses for unknown tool calls instead of silently skipping them
+- Strips null values from MCP tool call arguments to fix compatibility with models like GPT-5.2
+- Improves error handling and logging in evaluation judge with better error propagation and structured logging
+
+## Bug Fixes
+
+- Fixes incorrect tool count display in TUI when running in --remote mode
+- Fixes tick leak that caused ~10% CPU usage when assistant finished answering
+- Fixes session store leak and removes redundant session store methods
+- Fixes A2A agent card advertising unroutable wildcard address by using localhost
+- Fixes potential goroutine leak in monitorStdin
+- Fixes Agents.UnmarshalYAML to properly reject unknown fields in agent configurations
+- Persists tool call error state in session messages so failed tool calls maintain error status when sessions are reloaded
+
+## Technical Changes
+
+- Removes CORS middleware from 'cagent api' command
+- Changes default binding from 0.0.0.0 to 127.0.0.1:8080 for 'cagent api', 'cagent a2a' and 'cagent mcp' commands
+- Uses different default ports for better security
+- Lists valid versions in unsupported config version error messages
+- Adds the summary message as a user message during session compaction
+- Propagates cleanup errors from fakeCleanup and recordCleanup functions
+- Logs errors on log file close instead of discarding them
+
+### Pull Requests
+
+- [#1648](https://github.com/docker/cagent/pull/1648) - fix: show correct tool count in TUI when running in --remote mode
+- [#1657](https://github.com/docker/cagent/pull/1657) - Better default security for cagent api|mcp|a2a
+- [#1663](https://github.com/docker/cagent/pull/1663) - docs: update CHANGELOG.md for v1.22.0
+- [#1668](https://github.com/docker/cagent/pull/1668) - Session store cleanup
+- [#1669](https://github.com/docker/cagent/pull/1669) - Fix tick leak
+- [#1673](https://github.com/docker/cagent/pull/1673) - eval: add optional setup script support for eval sessions
+- [#1684](https://github.com/docker/cagent/pull/1684) - Fix Agents.UnmarshalYAML to reject unknown fields
+- [#1685](https://github.com/docker/cagent/pull/1685) - Fix A2A agent card advertising unroutable wildcard address
+- [#1686](https://github.com/docker/cagent/pull/1686) - Close the session
+- [#1687](https://github.com/docker/cagent/pull/1687) - Make /compact non-blocking with spinner feedback
+- [#1688](https://github.com/docker/cagent/pull/1688) - Remove redundant stdin nil check in api command
+- [#1689](https://github.com/docker/cagent/pull/1689) - Return error response for unknown tool calls instead of silently skipping
+- [#1692](https://github.com/docker/cagent/pull/1692) - Add documentation gh-pages
+- [#1693](https://github.com/docker/cagent/pull/1693) - Add the summary message as a user message
+- [#1694](https://github.com/docker/cagent/pull/1694) - Add more documentation
+- [#1696](https://github.com/docker/cagent/pull/1696) - Fix MCP tool calls with gpt 5.2
+- [#1697](https://github.com/docker/cagent/pull/1697) - Bump Go to 1.26.0
+- [#1699](https://github.com/docker/cagent/pull/1699) - Fix issues found by the review agent
+- [#1700](https://github.com/docker/cagent/pull/1700) - List valid versions in unsupported config version error
+- [#1703](https://github.com/docker/cagent/pull/1703) - Bump direct Go dependencies
+- [#1705](https://github.com/docker/cagent/pull/1705) - Improve the Planner
+- [#1706](https://github.com/docker/cagent/pull/1706) - Improve error handling and logging in evaluation judge
+- [#1711](https://github.com/docker/cagent/pull/1711) - Persist tool call error state in session messages
+
+
 ## [v1.22.0] - 2026-02-09
 
 This release enhances the chat experience with history search functionality and improves file attachment handling, along with multi-turn conversation support for command-line operations.
@@ -375,3 +438,5 @@ This release improves the terminal user interface with better error handling and
 [v1.21.0]: https://github.com/docker/cagent/releases/tag/v1.21.0
 
 [v1.22.0]: https://github.com/docker/cagent/releases/tag/v1.22.0
+
+[v1.23.0]: https://github.com/docker/cagent/releases/tag/v1.23.0
