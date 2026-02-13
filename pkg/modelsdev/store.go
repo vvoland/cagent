@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -158,16 +157,12 @@ func loadDatabase(cacheFile string) (*Database, error) {
 }
 
 func fetchFromAPI() (*Database, error) {
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-	}
-
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, ModelsDevAPIURL, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	resp, err := client.Do(req)
+	resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch from API: %w", err)
 	}
@@ -177,33 +172,27 @@ func fetchFromAPI() (*Database, error) {
 		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
 	var providers map[string]Provider
-	if err := json.Unmarshal(body, &providers); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	if err := json.NewDecoder(resp.Body).Decode(&providers); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	database := &Database{
+	return &Database{
 		Providers: providers,
 		UpdatedAt: time.Now(),
-	}
-
-	return database, nil
+	}, nil
 }
 
 func loadFromCache(cacheFile string) (*CachedData, error) {
-	data, err := os.ReadFile(cacheFile)
+	f, err := os.Open(cacheFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read cache file: %w", err)
+		return nil, fmt.Errorf("failed to open cache file: %w", err)
 	}
+	defer f.Close()
 
 	var cached CachedData
-	if err := json.Unmarshal(data, &cached); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal cached data: %w", err)
+	if err := json.NewDecoder(f).Decode(&cached); err != nil {
+		return nil, fmt.Errorf("failed to decode cached data: %w", err)
 	}
 
 	return &cached, nil
