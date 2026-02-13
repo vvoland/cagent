@@ -112,7 +112,12 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 
 	// Resolve model aliases (e.g., "claude-sonnet-4-5" -> "claude-sonnet-4-5-20250929")
 	// This ensures the sidebar and other UI elements show the actual model being used.
-	config.ResolveModelAliases(ctx, cfg)
+	modelsStore, err := modelsdev.NewStore()
+	if err != nil {
+		slog.Debug("Failed to create modelsdev store for alias resolution", "error", err)
+	} else {
+		config.ResolveModelAliases(cfg, modelsStore)
+	}
 
 	// Apply model overrides from CLI flags before checking required env vars
 	if err := config.ApplyModelOverrides(cfg, loadOpts.modelOverrides); err != nil {
@@ -313,7 +318,7 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 			if err != nil {
 				return nil, false, err
 			}
-			m, err := modelsStore.GetModel(ctx, modelCfg.Provider+"/"+modelCfg.Model)
+			m, err := modelsStore.GetModel(modelCfg.Provider + "/" + modelCfg.Model)
 			if err == nil {
 				maxTokens = &m.Limit.Output
 			}
@@ -376,7 +381,7 @@ func getFallbackModelsForAgent(ctx context.Context, cfg *latest.Config, a *lates
 			if err != nil {
 				return nil, err
 			}
-			m, err := modelsStore.GetModel(ctx, modelCfg.Provider+"/"+modelCfg.Model)
+			m, err := modelsStore.GetModel(modelCfg.Provider + "/" + modelCfg.Model)
 			if err == nil {
 				maxTokens = &m.Limit.Output
 			}

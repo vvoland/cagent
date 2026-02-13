@@ -460,7 +460,7 @@ func (r *LocalRuntime) createProviderFromConfig(ctx context.Context, cfg *latest
 	if cfg.MaxTokens != nil {
 		opts = append(opts, options.WithMaxTokens(*cfg.MaxTokens))
 	} else if r.modelsStore != nil {
-		m, err := r.modelsStore.GetModel(ctx, cfg.Provider+"/"+cfg.Model)
+		m, err := r.modelsStore.GetModel(cfg.Provider + "/" + cfg.Model)
 		if err == nil && m != nil {
 			opts = append(opts, options.WithMaxTokens(m.Limit.Output))
 		}

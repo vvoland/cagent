@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestResolveModelAlias(t *testing.T) {
@@ -36,14 +35,7 @@ func TestResolveModelAlias(t *testing.T) {
 		},
 	}
 
-	store, err := NewStore(WithCacheDir(t.TempDir()))
-	require.NoError(t, err)
-	store.SetDatabaseForTesting(mockData)
-	t.Cleanup(func() {
-		store.SetDatabaseForTesting(nil)
-	})
-
-	ctx := t.Context()
+	store := NewDatabaseStore(mockData)
 
 	tests := []struct {
 		name     string
@@ -65,7 +57,7 @@ func TestResolveModelAlias(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := store.ResolveModelAlias(ctx, tt.provider, tt.model)
+			result := store.ResolveModelAlias(tt.provider, tt.model)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

@@ -1,7 +1,6 @@
 package sidebar
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -253,7 +252,7 @@ func (m *model) SetAgentInfo(agentName, modelID, description string) {
 	m.currentAgent = agentName
 	m.agentModel = modelID
 	m.agentDescription = description
-	m.reasoningSupported = modelsdev.ModelSupportsReasoning(context.Background(), modelID)
+	m.reasoningSupported = modelsdev.ModelSupportsReasoning(modelID)
 
 	// Update the provider and model in availableAgents for the current agent.
 	// This is important when fallback models from different providers are used.
