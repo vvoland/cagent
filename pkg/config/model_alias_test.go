@@ -30,6 +30,9 @@ func TestResolveModelAliases(t *testing.T) {
 	store, err := modelsdev.NewStore(modelsdev.WithCacheDir(t.TempDir()))
 	require.NoError(t, err)
 	store.SetDatabaseForTesting(mockData)
+	t.Cleanup(func() {
+		store.SetDatabaseForTesting(nil)
+	})
 
 	ctx := t.Context()
 
