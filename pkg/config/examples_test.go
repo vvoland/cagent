@@ -70,7 +70,7 @@ func TestParseExamples(t *testing.T) {
 					continue
 				}
 
-				model, err := modelsStore.GetModel(t.Context(), model.Provider+"/"+model.Model)
+				model, err := modelsStore.GetModel(model.Provider + "/" + model.Model)
 				require.NoError(t, err)
 				require.NotNil(t, model)
 			}

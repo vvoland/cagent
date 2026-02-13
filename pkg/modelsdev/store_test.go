@@ -37,8 +37,6 @@ func TestResolveModelAlias(t *testing.T) {
 
 	store := NewDatabaseStore(mockData)
 
-	ctx := t.Context()
-
 	tests := []struct {
 		name     string
 		provider string
@@ -59,7 +57,7 @@ func TestResolveModelAlias(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := store.ResolveModelAlias(ctx, tt.provider, tt.model)
+			result := store.ResolveModelAlias(tt.provider, tt.model)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

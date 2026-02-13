@@ -330,7 +330,7 @@ func (a *appModel) handleToggleYolo() (tea.Model, tea.Cmd) {
 func (a *appModel) handleToggleThinking() (tea.Model, tea.Cmd) {
 	// Check if the current model supports reasoning
 	currentModel := a.application.CurrentAgentModel()
-	if !modelsdev.ModelSupportsReasoning(context.Background(), currentModel) {
+	if !modelsdev.ModelSupportsReasoning(currentModel) {
 		return a, notification.InfoCmd("Thinking/reasoning is not supported for the current model")
 	}
 

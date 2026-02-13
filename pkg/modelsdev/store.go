@@ -71,13 +71,13 @@ func NewDatabaseStore(db *Database) *Store {
 }
 
 // GetDatabase returns the models.dev database, fetching from cache or API as needed.
-func (s *Store) GetDatabase(ctx context.Context) (*Database, error) {
+func (s *Store) GetDatabase() (*Database, error) {
 	return s.db()
 }
 
 // GetProvider returns a specific provider by ID.
-func (s *Store) GetProvider(ctx context.Context, providerID string) (*Provider, error) {
-	db, err := s.GetDatabase(ctx)
+func (s *Store) GetProvider(providerID string) (*Provider, error) {
+	db, err := s.GetDatabase()
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (s *Store) GetProvider(ctx context.Context, providerID string) (*Provider, 
 }
 
 // GetModel returns a specific model by provider ID and model ID.
-func (s *Store) GetModel(ctx context.Context, id string) (*Model, error) {
+func (s *Store) GetModel(id string) (*Model, error) {
 	parts := strings.SplitN(id, "/", 2)
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid model ID: %q", id)
@@ -99,7 +99,7 @@ func (s *Store) GetModel(ctx context.Context, id string) (*Model, error) {
 	providerID := parts[0]
 	modelID := parts[1]
 
-	provider, err := s.GetProvider(ctx, providerID)
+	provider, err := s.GetProvider(providerID)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +236,7 @@ var datePattern = regexp.MustCompile(`-\d{4}-?\d{2}-?\d{2}$`)
 // For example, ("anthropic", "claude-sonnet-4-5") might resolve to "claude-sonnet-4-5-20250929".
 // If the model is not an alias (already pinned or unknown), the original model name is returned.
 // This method uses the models.dev database to find the corresponding pinned version.
-func (s *Store) ResolveModelAlias(ctx context.Context, providerID, modelName string) string {
+func (s *Store) ResolveModelAlias(providerID, modelName string) string {
 	if providerID == "" || modelName == "" {
 		return modelName
 	}
@@ -247,7 +247,7 @@ func (s *Store) ResolveModelAlias(ctx context.Context, providerID, modelName str
 	}
 
 	// Get the provider from the database
-	provider, err := s.GetProvider(ctx, providerID)
+	provider, err := s.GetProvider(providerID)
 	if err != nil {
 		return modelName
 	}
@@ -296,7 +296,7 @@ func isBedrockRegionPrefix(prefix string) bool {
 //   - If modelID is empty or not in "provider/model" format, returns true (fail-open)
 //   - If models.dev lookup fails for any reason, returns true (fail-open)
 //   - If lookup succeeds, returns the model's Reasoning field value
-func ModelSupportsReasoning(ctx context.Context, modelID string) bool {
+func ModelSupportsReasoning(modelID string) bool {
 	// Fail-open for empty model ID
 	if modelID == "" {
 		return true
@@ -314,7 +314,7 @@ func ModelSupportsReasoning(ctx context.Context, modelID string) bool {
 		return true
 	}
 
-	model, err := store.GetModel(ctx, modelID)
+	model, err := store.GetModel(modelID)
 	if err != nil {
 		slog.Debug("Failed to lookup model in models.dev, assuming reasoning supported to allow user choice", "model_id", modelID, "error", err)
 		return true
