@@ -243,10 +243,7 @@ func TestSleepWithContext(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 
 		// Cancel context after a short delay
-		go func() {
-			time.Sleep(10 * time.Millisecond)
-			cancel()
-		}()
+		time.AfterFunc(10*time.Millisecond, cancel)
 
 		start := time.Now()
 		completed := sleepWithContext(ctx, 1*time.Second)
@@ -699,11 +696,9 @@ func TestFallbackCooldownState(t *testing.T) {
 	assert.Equal(t, 0, state.fallbackIndex)
 
 	// Wait for cooldown to expire
-	time.Sleep(150 * time.Millisecond)
-
-	// Should no longer be in cooldown
-	state = rt.getCooldownState(agentName)
-	assert.Nil(t, state, "cooldown should have expired")
+	require.Eventually(t, func() bool {
+		return rt.getCooldownState(agentName) == nil
+	}, time.Second, 10*time.Millisecond, "cooldown should have expired")
 
 	// Set cooldown again and then clear it
 	rt.setCooldownState(agentName, 1, 1*time.Hour)

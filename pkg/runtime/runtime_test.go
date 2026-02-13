@@ -577,7 +577,8 @@ func TestStartBackgroundRAGInit_StopsForwardingAfterContextCancel(t *testing.T) 
 	// Cancel the context and ensure no further events are forwarded.
 	cancel()
 
-	// Give the forwarder time to observe cancellation.
+	// Brief yield to allow the forwarder goroutine to observe cancellation.
+	// This is a timing-based negative test: we verify no event is forwarded.
 	time.Sleep(10 * time.Millisecond)
 
 	// Emit another event; it should NOT be forwarded.

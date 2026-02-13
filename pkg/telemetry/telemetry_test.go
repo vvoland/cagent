@@ -128,12 +128,11 @@ func TestSessionTracking(t *testing.T) {
 	// Multiple ends should be safe
 	client.RecordSessionEnd(ctx)
 
-	// Wait for events to be processed
-	time.Sleep(20 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return mockHTTP.GetRequestCount() > 0
+	}, time.Second, 5*time.Millisecond, "Expected HTTP requests to be made for session tracking events")
 
 	requestCount := mockHTTP.GetRequestCount()
-	assert.Positive(t, requestCount, "Expected HTTP requests to be made for session tracking events")
-
 	t.Logf("Session tracking HTTP requests captured: %d", requestCount)
 
 	requests := mockHTTP.GetRequests()
@@ -165,12 +164,11 @@ func TestCommandTracking(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, executed)
 
-	// Wait for events to be processed
-	time.Sleep(20 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return mockHTTP.GetRequestCount() > 0
+	}, time.Second, 5*time.Millisecond, "Expected HTTP requests to be made for command tracking")
 
 	requestCount := mockHTTP.GetRequestCount()
-	assert.Positive(t, requestCount, "Expected HTTP requests to be made for command tracking")
-
 	t.Logf("Command tracking HTTP requests captured: %d", requestCount)
 
 	requests := mockHTTP.GetRequests()
@@ -200,12 +198,11 @@ func TestCommandTrackingWithError(t *testing.T) {
 
 	assert.Equal(t, testErr, err)
 
-	// Wait for events to be processed
-	time.Sleep(20 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return mockHTTP.GetRequestCount() > 0
+	}, time.Second, 5*time.Millisecond, "Expected HTTP requests to be made for command error tracking")
 
 	requestCount := mockHTTP.GetRequestCount()
-	assert.Positive(t, requestCount, "Expected HTTP requests to be made for command error tracking")
-
 	t.Logf("Command error tracking HTTP requests captured: %d", requestCount)
 }
 
@@ -493,11 +490,11 @@ func TestAllEventTypes(t *testing.T) {
 	// End session
 	client.RecordSessionEnd(ctx)
 
-	// Wait for events to be processed
-	time.Sleep(20 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return mockHTTP.GetRequestCount() > 0
+	}, time.Second, 5*time.Millisecond, "Expected HTTP requests to be made for telemetry events")
 
 	requestCount := mockHTTP.GetRequestCount()
-	assert.Positive(t, requestCount, "Expected HTTP requests to be made for telemetry events")
 
 	t.Logf("Total HTTP requests captured: %d", requestCount)
 
@@ -609,13 +606,11 @@ func TestHTTPRequestVerification(t *testing.T) {
 
 		client.Track(ctx, event)
 
-		// Give time for background processing
-		time.Sleep(20 * time.Millisecond)
+		require.Eventually(t, func() bool {
+			return mockHTTP.GetRequestCount() > 0
+		}, time.Second, 5*time.Millisecond, "Expected HTTP request to be made")
 
-		// Debug output
 		t.Logf("HTTP requests captured: %d", mockHTTP.GetRequestCount())
-
-		assert.Positive(t, mockHTTP.GetRequestCount(), "Expected HTTP request to be made")
 
 		requests := mockHTTP.GetRequests()
 		req := requests[0]
@@ -699,11 +694,9 @@ func TestNon2xxHTTPResponseHandling(t *testing.T) {
 
 	client.Track(t.Context(), &CommandEvent{Action: "error-test", Success: true})
 
-	// Give time for background processing
-	time.Sleep(20 * time.Millisecond)
-
-	requestCount := mockHTTP.GetRequestCount()
-	assert.Positive(t, requestCount, "Expected HTTP request to be made despite error response")
+	require.Eventually(t, func() bool {
+		return mockHTTP.GetRequestCount() > 0
+	}, time.Second, 5*time.Millisecond, "Expected HTTP request to be made despite error response")
 
 	mockHTTP.SetResponse(&http.Response{
 		StatusCode: http.StatusNotFound,
@@ -714,8 +707,7 @@ func TestNon2xxHTTPResponseHandling(t *testing.T) {
 
 	client.Track(t.Context(), &CommandEvent{Action: "not-found-test", Success: true})
 
-	time.Sleep(20 * time.Millisecond)
-
-	finalRequestCount := mockHTTP.GetRequestCount()
-	assert.GreaterOrEqual(t, finalRequestCount, 2, "Expected at least 2 HTTP requests (500 + 404)")
+	require.Eventually(t, func() bool {
+		return mockHTTP.GetRequestCount() >= 2
+	}, time.Second, 5*time.Millisecond, "Expected at least 2 HTTP requests (500 + 404)")
 }
