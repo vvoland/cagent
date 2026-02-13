@@ -272,12 +272,14 @@ func (s *Store) isCacheValid(cached *CachedData) bool {
 	return time.Since(cached.LastRefresh) < s.refreshInterval
 }
 
-// SetDatabaseForTesting sets the in-memory database cache for testing purposes.
-// This method should only be used in tests.
-func (s *Store) SetDatabaseForTesting(db *Database) {
-	s.dbCacheMu.Lock()
-	defer s.dbCacheMu.Unlock()
-	s.dbCache = db
+// NewDatabaseStore creates a Store pre-populated with the given database.
+// The returned store serves data entirely from memory and never fetches
+// from the network or touches the filesystem, making it suitable for
+// tests and any scenario where the provider data is already known.
+func NewDatabaseStore(db *Database) *Store {
+	return &Store{
+		dbCache: db,
+	}
 }
 
 // datePattern matches date suffixes like -20251101, -2024-11-20, etc.

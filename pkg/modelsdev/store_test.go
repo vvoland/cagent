@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestResolveModelAlias(t *testing.T) {
@@ -36,12 +35,7 @@ func TestResolveModelAlias(t *testing.T) {
 		},
 	}
 
-	store, err := NewStore(WithCacheDir(t.TempDir()))
-	require.NoError(t, err)
-	store.SetDatabaseForTesting(mockData)
-	t.Cleanup(func() {
-		store.SetDatabaseForTesting(nil)
-	})
+	store := NewDatabaseStore(mockData)
 
 	ctx := t.Context()
 

@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/modelsdev"
@@ -27,12 +26,7 @@ func TestResolveModelAliases(t *testing.T) {
 		},
 	}
 
-	store, err := modelsdev.NewStore(modelsdev.WithCacheDir(t.TempDir()))
-	require.NoError(t, err)
-	store.SetDatabaseForTesting(mockData)
-	t.Cleanup(func() {
-		store.SetDatabaseForTesting(nil)
-	})
+	store := modelsdev.NewDatabaseStore(mockData)
 
 	ctx := t.Context()
 
@@ -245,7 +239,7 @@ func TestResolveModelAliases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ResolveModelAliases(ctx, tt.cfg)
+			ResolveModelAliases(ctx, tt.cfg, store)
 			assert.Equal(t, tt.expected, tt.cfg)
 		})
 	}
