@@ -3,6 +3,48 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.23.1] - 2026-02-13
+
+This release introduces a new OpenAPI toolset for automatic API integration, task management capabilities, and several improvements to message handling and testing infrastructure.
+
+## What's New
+
+- Adds Tasks toolset with support for priorities and dependencies
+- Adds OpenAPI built-in toolset type that automatically converts OpenAPI specifications into usable tools
+- Adds support for custom telemetry tags via `TELEMETRY_TAGS` environment variable
+
+## Improvements
+
+- Preserves line breaks and indentation in welcome messages for better formatting
+- Updates documentation links to point to GitHub Pages instead of code repository
+
+## Bug Fixes
+
+- Fixes recursive enforcement of required properties in OpenAI tool schemas (resolves Chrome MCP compatibility with OpenAI 5.2)
+- Returns error when no messages are available after conversion instead of sending invalid requests
+
+## Technical Changes
+
+- Replaces time.Sleep in tests with deterministic synchronization for faster, more reliable testing
+- Refactors models store implementation
+- Adds .idea/ directory to gitignore
+- Removes fake models.dev and unused code
+
+### Pull Requests
+
+- [#1704](https://github.com/docker/cagent/pull/1704) - Tasks toolset
+- [#1710](https://github.com/docker/cagent/pull/1710) - fix: recursively enforce required properties in OpenAI tool schemas
+- [#1714](https://github.com/docker/cagent/pull/1714) - docs: update CHANGELOG.md for v1.23.0
+- [#1718](https://github.com/docker/cagent/pull/1718) - preserve line breaks and indentation in welcome messages
+- [#1719](https://github.com/docker/cagent/pull/1719) - Add openapi built-in toolset type
+- [#1720](https://github.com/docker/cagent/pull/1720) - return error if no messages are available after conversion
+- [#1721](https://github.com/docker/cagent/pull/1721) - Refactor models store
+- [#1722](https://github.com/docker/cagent/pull/1722) - Replace time.Sleep in tests with deterministic synchronization
+- [#1723](https://github.com/docker/cagent/pull/1723) - Allow passing in custom tags to telemetry
+- [#1724](https://github.com/docker/cagent/pull/1724) - Speed up fallback tests
+- [#1726](https://github.com/docker/cagent/pull/1726) - Update documentation links to GitHub Pages
+
+
 ## [v1.23.0] - 2026-02-12
 
 This release improves TUI display accuracy, enhances API security defaults, and fixes several memory leaks and session handling issues.
@@ -440,3 +482,5 @@ This release improves the terminal user interface with better error handling and
 [v1.22.0]: https://github.com/docker/cagent/releases/tag/v1.22.0
 
 [v1.23.0]: https://github.com/docker/cagent/releases/tag/v1.23.0
+
+[v1.23.1]: https://github.com/docker/cagent/releases/tag/v1.23.1
