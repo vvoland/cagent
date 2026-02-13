@@ -21,10 +21,6 @@ const (
 	refreshInterval = 24 * time.Hour
 )
 
-// ModelAliases maps alias model IDs to their actual model IDs
-// TODO(krissetto): Add aliases here if needed, removed if unused
-var ModelAliases = map[string]string{}
-
 // Store manages access to the models.dev data.
 // The database is loaded lazily on first access and cached for the
 // lifetime of the Store. All methods are safe for concurrent use.
@@ -96,11 +92,6 @@ func (s *Store) GetProvider(ctx context.Context, providerID string) (*Provider, 
 
 // GetModel returns a specific model by provider ID and model ID.
 func (s *Store) GetModel(ctx context.Context, id string) (*Model, error) {
-	// Check if the ID is an alias and resolve it
-	if actualID, isAlias := ModelAliases[id]; isAlias {
-		id = actualID
-	}
-
 	parts := strings.SplitN(id, "/", 2)
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid model ID: %q", id)
@@ -248,15 +239,6 @@ var datePattern = regexp.MustCompile(`-\d{4}-?\d{2}-?\d{2}$`)
 func (s *Store) ResolveModelAlias(ctx context.Context, providerID, modelName string) string {
 	if providerID == "" || modelName == "" {
 		return modelName
-	}
-
-	// Check if there's a manual alias mapping first
-	fullID := providerID + "/" + modelName
-	if resolved, ok := ModelAliases[fullID]; ok {
-		if _, m, ok := strings.Cut(resolved, "/"); ok {
-			return m
-		}
-		return resolved
 	}
 
 	// If the model already has a date suffix, it's already pinned
