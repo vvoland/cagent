@@ -278,3 +278,13 @@ func (c *Config) GetSettings() *Settings {
 	}
 	return c.Settings
 }
+
+// Get returns the global user settings from the config file.
+// Returns an empty Settings if the config file doesn't exist or has no settings.
+func Get() *Settings {
+	cfg, err := Load()
+	if err != nil {
+		return &Settings{}
+	}
+	return cfg.GetSettings()
+}

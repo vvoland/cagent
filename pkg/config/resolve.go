@@ -53,16 +53,6 @@ func ResolveAlias(agentFilename string) *userconfig.Alias {
 	return alias
 }
 
-// GetUserSettings returns the global user settings from the config file.
-// Returns an empty Settings if the config file doesn't exist or has no settings.
-func GetUserSettings() *userconfig.Settings {
-	cfg, err := userconfig.Load()
-	if err != nil {
-		return &userconfig.Settings{}
-	}
-	return cfg.GetSettings()
-}
-
 // ResolveSources resolves an agent file reference (local file, URL, or OCI image) to sources.
 // If envProvider is non-nil, it will be used to look up GITHUB_TOKEN for authentication
 // when fetching from GitHub URLs.

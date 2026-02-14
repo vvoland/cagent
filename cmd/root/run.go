@@ -24,6 +24,7 @@ import (
 	"github.com/docker/cagent/pkg/teamloader"
 	"github.com/docker/cagent/pkg/telemetry"
 	"github.com/docker/cagent/pkg/tui/styles"
+	"github.com/docker/cagent/pkg/userconfig"
 )
 
 type runExecFlags struct {
@@ -160,7 +161,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 
 	// Apply global user settings first (lowest priority)
 	// User settings only apply if the flag wasn't explicitly set by the user
-	userSettings := config.GetUserSettings()
+	userSettings := userconfig.Get()
 	if userSettings.HideToolResults && !f.hideToolResults {
 		f.hideToolResults = true
 		slog.Debug("Applying user settings", "hide_tool_results", true)
@@ -493,7 +494,7 @@ func (f *runExecFlags) handleRunMode(ctx context.Context, rt runtime.Runtime, se
 func applyTheme() {
 	// Resolve theme from user config > built-in default
 	themeRef := styles.DefaultThemeRef
-	if userSettings := config.GetUserSettings(); userSettings.Theme != "" {
+	if userSettings := userconfig.Get(); userSettings.Theme != "" {
 		themeRef = userSettings.Theme
 	}
 
