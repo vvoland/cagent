@@ -55,6 +55,7 @@ func (a fileSource) Read(context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("opening filesystem %s: %w", parentDir, err)
 	}
+	defer fs.Close()
 
 	fileName := filepath.Base(a.path)
 	data, err := fs.ReadFile(fileName)
