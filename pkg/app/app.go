@@ -446,8 +446,18 @@ func (a *App) RunWithMessage(ctx context.Context, cancel context.CancelFunc, msg
 }
 
 func (a *App) RunBangCommand(ctx context.Context, command string) {
-	out, _ := exec.CommandContext(ctx, "/bin/sh", "-c", command).CombinedOutput()
-	a.events <- runtime.ShellOutput("$ " + command + "\n" + string(out))
+	command = strings.TrimSpace(command)
+	if command == "" {
+		a.events <- runtime.ShellOutput("Error: empty command")
+		return
+	}
+
+	out, err := exec.CommandContext(ctx, "/bin/sh", "-c", command).CombinedOutput()
+	output := "$ " + command + "\n" + string(out)
+	if err != nil && len(out) == 0 {
+		output = "$ " + command + "\nError: " + err.Error()
+	}
+	a.events <- runtime.ShellOutput(output)
 }
 
 func (a *App) Subscribe(ctx context.Context, program *tea.Program) {
