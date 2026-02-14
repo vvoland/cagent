@@ -79,6 +79,8 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 			backend = genai.BackendVertexAI
 			httpClient = nil // Use default client
 		} else if _, exist := env.Get(ctx, "GOOGLE_GENAI_USE_VERTEXAI"); exist {
+			project, _ = env.Get(ctx, "GOOGLE_CLOUD_PROJECT")
+			location, _ = env.Get(ctx, "GOOGLE_CLOUD_LOCATION")
 			backend = genai.BackendVertexAI
 			httpClient = nil // Use default client
 		} else {
