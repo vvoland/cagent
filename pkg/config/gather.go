@@ -114,7 +114,7 @@ func addEnvVarsForModelConfig(model *latest.ModelConfig, customProviders map[str
 				if os.Getenv("GOOGLE_GENAI_USE_VERTEXAI") != "" {
 					requiredEnv["GOOGLE_CLOUD_PROJECT"] = true
 					requiredEnv["GOOGLE_CLOUD_LOCATION"] = true
-				} else {
+				} else if _, exist := os.LookupEnv("GEMINI_API_KEY"); !exist {
 					requiredEnv["GOOGLE_API_KEY"] = true
 				}
 			}
