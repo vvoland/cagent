@@ -139,7 +139,7 @@ func TestLoadExamples(t *testing.T) {
 func TestLoadDefaultAgent(t *testing.T) {
 	t.Parallel()
 
-	agentSource, err := config.Resolve("../../pkg/config/default-agent.yaml", nil)
+	agentSource, err := config.Resolve("default", nil)
 	require.NoError(t, err)
 
 	runConfig := &config.RuntimeConfig{
