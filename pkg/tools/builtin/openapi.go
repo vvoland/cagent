@@ -15,6 +15,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/upstream"
 	"github.com/docker/cagent/pkg/useragent"
 )
 
@@ -349,9 +350,11 @@ func sanitizeToolName(name string) string {
 }
 
 // setHeaders sets the User-Agent and custom headers on an HTTP request.
+// Header values may contain ${headers.NAME} placeholders that are resolved
+// from upstream headers stored in the request context.
 func setHeaders(req *http.Request, headers map[string]string) {
 	req.Header.Set("User-Agent", useragent.Header)
-	for k, v := range headers {
+	for k, v := range upstream.ResolveHeaders(req.Context(), headers) {
 		req.Header.Set(k, v)
 	}
 }
