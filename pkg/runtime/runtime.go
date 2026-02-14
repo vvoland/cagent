@@ -1093,9 +1093,9 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 						Cost:  messageCost,
 						Model: messageModel,
 					}
-				}
-				if res.RateLimit != nil {
-					msgUsage.RateLimit = *res.RateLimit
+					if res.RateLimit != nil {
+						msgUsage.RateLimit = *res.RateLimit
+					}
 				}
 
 				addAgentMessage(sess, a, &assistantMessage, events)
@@ -1270,6 +1270,7 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 	var actualModelEventEmitted bool
 	var messageUsage *chat.Usage
 	var messageRateLimit *chat.RateLimit
+	var prevStreamCost float64 // cost contributed by previous usage emission in this stream
 
 	modelID := getAgentModelID(a)
 	toolCallIndex := make(map[string]int)   // toolCallID -> index in toolCalls slice
@@ -1292,11 +1293,12 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 			messageUsage = response.Usage
 
 			if m != nil && m.Cost != nil {
-				cost := float64(response.Usage.InputTokens)*m.Cost.Input +
+				streamCost := (float64(response.Usage.InputTokens)*m.Cost.Input +
 					float64(response.Usage.OutputTokens)*m.Cost.Output +
 					float64(response.Usage.CachedInputTokens)*m.Cost.CacheRead +
-					float64(response.Usage.CacheWriteTokens)*m.Cost.CacheWrite
-				sess.Cost += cost / 1e6
+					float64(response.Usage.CacheWriteTokens)*m.Cost.CacheWrite) / 1e6
+				sess.Cost += streamCost - prevStreamCost
+				prevStreamCost = streamCost
 			}
 
 			sess.InputTokens = response.Usage.InputTokens + response.Usage.CachedInputTokens + response.Usage.CacheWriteTokens
