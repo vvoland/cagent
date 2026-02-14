@@ -619,31 +619,3 @@ func TestResolveAlias_WithAllOptions(t *testing.T) {
 	assert.Equal(t, "anthropic/claude-sonnet-4-0", alias.Model)
 	assert.True(t, alias.HideToolResults)
 }
-
-func TestGetUserSettings_Empty(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-
-	// No config file exists
-	settings := GetUserSettings()
-	require.NotNil(t, settings)
-	assert.False(t, settings.HideToolResults)
-}
-
-func TestGetUserSettings_WithHideToolResults(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-
-	// Set up config with settings
-	cfg, err := userconfig.Load()
-	require.NoError(t, err)
-	cfg.Settings = &userconfig.Settings{
-		HideToolResults: true,
-	}
-	require.NoError(t, cfg.Save())
-
-	// Get settings
-	settings := GetUserSettings()
-	require.NotNil(t, settings)
-	assert.True(t, settings.HideToolResults)
-}

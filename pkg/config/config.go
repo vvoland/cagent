@@ -16,11 +16,7 @@ import (
 	"github.com/docker/cagent/pkg/environment"
 )
 
-type Reader interface {
-	Read(ctx context.Context) ([]byte, error)
-}
-
-func Load(ctx context.Context, source Reader) (*latest.Config, error) {
+func Load(ctx context.Context, source Source) (*latest.Config, error) {
 	data, err := source.Read(ctx)
 	if err != nil {
 		return nil, err

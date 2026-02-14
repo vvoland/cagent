@@ -782,3 +782,31 @@ func TestConfig_DefaultModel_SaveAndLoad(t *testing.T) {
 	require.NotNil(t, loaded.DefaultModel.ThinkingBudget)
 	assert.Equal(t, 10000, loaded.DefaultModel.ThinkingBudget.Tokens)
 }
+
+func TestGet_Empty(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// No config file exists
+	settings := Get()
+	require.NotNil(t, settings)
+	assert.False(t, settings.HideToolResults)
+}
+
+func TestGet_WithHideToolResults(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Set up config with settings
+	cfg, err := Load()
+	require.NoError(t, err)
+	cfg.Settings = &Settings{
+		HideToolResults: true,
+	}
+	require.NoError(t, cfg.Save())
+
+	// Get settings
+	settings := Get()
+	require.NotNil(t, settings)
+	assert.True(t, settings.HideToolResults)
+}
