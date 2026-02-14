@@ -204,25 +204,26 @@ func (e RuntimeError) Unwrap() error {
 	return e.Err
 }
 
-// isFirstRun checks if this is the first time cagent is being run
-// It creates a marker file in the user's config directory
+// isFirstRun checks if this is the first time cagent is being run.
+// It atomically creates a marker file in the user's config directory
+// using os.O_EXCL to avoid a race condition when multiple processes
+// start concurrently.
 func isFirstRun() bool {
 	configDir := paths.GetConfigDir()
 	markerFile := filepath.Join(configDir, ".cagent_first_run")
 
-	// Check if marker file exists
-	if _, err := os.Stat(markerFile); err == nil {
-		return false // File exists, not first run
-	}
-
-	// Create marker file to indicate this run has happened
+	// Ensure the config directory exists before trying to create the marker file
 	if err := os.MkdirAll(configDir, 0o755); err != nil {
-		return false // Can't create config dir, assume not first run
+		slog.Warn("Failed to create config directory for first run marker", "error", err)
+		return false
 	}
 
-	if err := os.WriteFile(markerFile, []byte(""), 0o644); err != nil {
-		return false // Can't create marker file, assume not first run
+	// Atomically create the marker file. If it already exists, OpenFile returns an error.
+	f, err := os.OpenFile(markerFile, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return false // File already exists or other error, not first run
 	}
+	f.Close()
 
-	return true // Successfully created marker, this is first run
+	return true
 }
