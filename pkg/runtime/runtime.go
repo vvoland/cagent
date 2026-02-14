@@ -1093,9 +1093,9 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 						Cost:  messageCost,
 						Model: messageModel,
 					}
-				}
-				if res.RateLimit != nil {
-					msgUsage.RateLimit = *res.RateLimit
+					if res.RateLimit != nil {
+						msgUsage.RateLimit = *res.RateLimit
+					}
 				}
 
 				addAgentMessage(sess, a, &assistantMessage, events)
