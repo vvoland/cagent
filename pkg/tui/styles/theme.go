@@ -945,6 +945,9 @@ func ApplyTheme(theme *Theme) {
 	// Rebuild all derived styles
 	rebuildStyles()
 
+	// Rebuild cached agent color styles with new theme contrast values
+	InvalidateAgentColorCache()
+
 	// Clear style sequence cache (used by RenderComposite)
 	clearStyleSeqCache()
 }
