@@ -147,6 +147,11 @@ We collect anonymous usage data to help improve cagent. To disable:
 	}
 
 	rootCmd := NewRootCmd()
+
+	// When no subcommand is given, default to "run" (which runs the default agent).
+	// Users can use "cagent --help" to see available commands.
+	args = defaultToRun(rootCmd, args)
+
 	rootCmd.SetArgs(args)
 	rootCmd.SetIn(stdin)
 	rootCmd.SetOut(stdout)
@@ -180,6 +185,42 @@ We collect anonymous usage data to help improve cagent. To disable:
 	}
 
 	return nil
+}
+
+// defaultToRun prepends "run" to the argument list when no subcommand is
+// specified so that bare "cagent" (or "cagent --debug", etc.) launches the
+// default agent. Help flags (--help / -h) are left alone.
+func defaultToRun(rootCmd *cobra.Command, args []string) []string {
+	for _, arg := range args {
+		switch {
+		case arg == "--":
+			// End of flags – no subcommand found.
+			return append([]string{"run"}, args...)
+		case arg == "--help" || arg == "-h":
+			return args
+		case strings.HasPrefix(arg, "-"):
+			continue
+		case isSubcommand(rootCmd, arg):
+			return args
+		default:
+			return append([]string{"run"}, args...)
+		}
+	}
+
+	return append([]string{"run"}, args...)
+}
+
+// isSubcommand reports whether name matches a registered subcommand or alias.
+func isSubcommand(cmd *cobra.Command, name string) bool {
+	if name == "help" {
+		return true
+	}
+	for _, sub := range cmd.Commands() {
+		if sub.Name() == name || sub.HasAlias(name) {
+			return true
+		}
+	}
+	return false
 }
 
 func processErr(ctx context.Context, err error, stderr io.Writer, rootCmd *cobra.Command) error {
