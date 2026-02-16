@@ -19,6 +19,9 @@ import (
 	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/telemetry"
 	"github.com/docker/cagent/pkg/version"
+	"github.com/docker/cli/cli-plugins/metadata"
+	"github.com/docker/cli/cli-plugins/plugin"
+	"github.com/docker/cli/cli/command"
 )
 
 type rootFlags struct {
@@ -26,6 +29,10 @@ type rootFlags struct {
 	debugMode   bool
 	logFilePath string
 	logFile     io.Closer
+}
+
+func isCliPLugin() bool {
+	return len(os.Args) >= 0 && strings.HasSuffix(os.Args[0], "docker-agent")
 }
 
 func NewRootCmd() *cobra.Command {
@@ -107,6 +114,14 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddGroup(&cobra.Group{ID: "advanced", Title: "Advanced Commands:"})
 	cmd.AddGroup(&cobra.Group{ID: "server", Title: "Server Commands:"})
 
+	if isCliPLugin() {
+		cmd.Use = "agent"
+		cmd.Short = "create or run AI agents"
+		cmd.Long = "create or run AI agents"
+		cmd.Example = `  docker agent run ./agent.yaml
+  docker agent run agentcatalog/pirate`
+	}
+
 	return cmd
 }
 
@@ -141,31 +156,58 @@ We collect anonymous usage data to help improve cagent. To disable:
 	rootCmd.SetOut(stdout)
 	rootCmd.SetErr(stderr)
 
-	if err := rootCmd.ExecuteContext(ctx); err != nil {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		} else if envErr, ok := errors.AsType[*environment.RequiredEnvError](err); ok {
-			fmt.Fprintln(stderr, "The following environment variables must be set:")
-			for _, v := range envErr.Missing {
-				fmt.Fprintf(stderr, " - %s\n", v)
-			}
-			fmt.Fprintln(stderr, "\nEither:\n - Set those environment variables before running cagent\n - Run cagent with --env-from-file\n - Store those secrets using one of the built-in environment variable providers.")
-		} else if _, ok := errors.AsType[RuntimeError](err); ok {
-			// Runtime errors have already been printed by the command itself
-			// Don't print them again or show usage
-		} else {
-			// Command line usage errors - show the error and usage
-			fmt.Fprintln(stderr, err)
-			fmt.Fprintln(stderr)
-			if strings.HasPrefix(err.Error(), "unknown command ") || strings.HasPrefix(err.Error(), "accepts ") {
-				_ = rootCmd.Usage()
-			}
-		}
+	if isCliPLugin() {
+		plugin.Run(func(dockerCli command.Cli) *cobra.Command {
+			originalPreRun := rootCmd.PersistentPreRunE
+			rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+				if err := plugin.PersistentPreRunE(cmd, args); err != nil {
+					return err
+				}
+				if originalPreRun != nil {
+					if err := originalPreRun(cmd, args); err != nil {
+						return processErr(ctx, err, stderr, rootCmd)
+					}
+				}
+				return nil
 
-		return err
+			}
+			return rootCmd
+		}, metadata.Metadata{
+			SchemaVersion: "0.1.0",
+			Vendor:        "Docker Inc.",
+			Version:       version.Version,
+		})
+	} else {
+		if err := rootCmd.ExecuteContext(ctx); err != nil {
+			return processErr(ctx, err, stderr, rootCmd)
+		}
 	}
 
 	return nil
+}
+
+func processErr(ctx context.Context, err error, stderr io.Writer, rootCmd *cobra.Command) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	} else if envErr, ok := errors.AsType[*environment.RequiredEnvError](err); ok {
+		fmt.Fprintln(stderr, "The following environment variables must be set:")
+		for _, v := range envErr.Missing {
+			fmt.Fprintf(stderr, " - %s\n", v)
+		}
+		fmt.Fprintln(stderr, "\nEither:\n - Set those environment variables before running cagent\n - Run cagent with --env-from-file\n - Store those secrets using one of the built-in environment variable providers.")
+	} else if _, ok := errors.AsType[RuntimeError](err); ok {
+		// Runtime errors have already been printed by the command itself
+		// Don't print them again or show usage
+	} else {
+		// Command line usage errors - show the error and usage
+		fmt.Fprintln(stderr, err)
+		fmt.Fprintln(stderr)
+		if strings.HasPrefix(err.Error(), "unknown command ") || strings.HasPrefix(err.Error(), "accepts ") {
+			_ = rootCmd.Usage()
+		}
+	}
+
+	return err
 }
 
 // setupLogging configures slog logging behavior.
