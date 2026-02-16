@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -32,7 +33,11 @@ type rootFlags struct {
 }
 
 func isCliPLugin() bool {
-	return len(os.Args) >= 0 && strings.HasSuffix(os.Args[0], "docker-agent")
+	cliPluginBinary := "docker-agent"
+	if runtime.GOOS == "windows" {
+		cliPluginBinary += ".exe"
+	}
+	return len(os.Args) >= 0 && strings.HasSuffix(os.Args[0], cliPluginBinary)
 }
 
 func NewRootCmd() *cobra.Command {
