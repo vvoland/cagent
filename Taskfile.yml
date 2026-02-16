@@ -2,6 +2,7 @@ version: "3"
 
 vars:
   BINARY_NAME: cagent{{if eq OS "windows"}}.exe{{end}}
+  CLI_PLUGIN_BINARY_NAME: docker-agent{{if eq OS "windows"}}.exe{{end}}
   MAIN_PKG: ./main.go
   BUILD_DIR: ./bin
   GIT_TAG:
@@ -34,6 +35,12 @@ tasks:
       - "go.sum"
     generates:
       - "{{.BUILD_DIR}}/{{.BINARY_NAME}}"
+
+  deploy-local:
+    desc: Deploy the docker agent cli-plugin
+    deps: ["build"]
+    cmds:
+      - cp "{{.BUILD_DIR}}/{{.BINARY_NAME}}" ~/.docker/cli-plugins/{{.CLI_PLUGIN_BINARY_NAME}}
 
   lint:
     desc: Run golangci-lint
