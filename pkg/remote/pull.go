@@ -63,7 +63,10 @@ func Pull(ctx context.Context, registryRef string, force bool, opts ...crane.Opt
 }
 
 func hasCagentAnnotation(annotations map[string]string) bool {
-	_, exists := annotations["io.docker.cagent.version"]
+	_, exists := annotations["io.docker.agent.version"]
+	if !exists {
+		_, exists = annotations["io.docker.cagent.version"]
+	}
 	return exists
 }
 
