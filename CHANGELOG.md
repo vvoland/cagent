@@ -3,6 +3,46 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.23.2] - 2026-02-16
+
+This release adds header forwarding capabilities for toolsets and includes several bug fixes and code improvements.
+
+## What's New
+- Adds support for `${headers.NAME}` syntax to forward upstream API headers to toolsets, allowing toolset configurations to reference incoming HTTP request headers
+
+## Bug Fixes
+- Fixes race condition in isFirstRun using atomic file creation
+- Fixes nil pointer dereference when RateLimit is present without Usage
+- Fixes double-counting of session costs with cumulative usage providers
+- Fixes Ctrl+K key binding conflict in session browser by reassigning CopyID to Ctrl+Y
+- Fixes model selection functionality
+
+## Improvements
+- Adds input validation and audit logging to shell tool
+- Adds input validation and error handling to RunBangCommand
+
+## Technical Changes
+- Extracts shared helpers for command-based providers to reduce code duplication
+- Removes duplication from config.Resolv
+- Moves GetUserSettings() from pkg/config to pkg/userconfig as Get()
+- Removes redundant Reader interface from pkg/config
+- Fixes leaked os.Root handle in fileSource.Read
+- Makes small improvements to cmd/root
+
+### Pull Requests
+
+- [#1725](https://github.com/docker/cagent/pull/1725) - Support ${headers.NAME} syntax to forward upstream API headers to toolsets
+- [#1727](https://github.com/docker/cagent/pull/1727) - docs: update CHANGELOG.md for v1.23.1
+- [#1729](https://github.com/docker/cagent/pull/1729) - Cleanup config code
+- [#1730](https://github.com/docker/cagent/pull/1730) - refactor(environment): extract shared helpers for command-based providers
+- [#1731](https://github.com/docker/cagent/pull/1731) - Daily fixes
+- [#1732](https://github.com/docker/cagent/pull/1732) - Fix two issues with costs
+- [#1734](https://github.com/docker/cagent/pull/1734) - Small improvements to cmd/root
+- [#1740](https://github.com/docker/cagent/pull/1740) - Fix model switcher
+- [#1741](https://github.com/docker/cagent/pull/1741) - fix(#1741): resolve Ctrl+K key binding conflict in session browser
+- [#1742](https://github.com/docker/cagent/pull/1742) - fix(#1741): resolve Ctrl+K key binding conflict in session browser
+
+
 ## [v1.23.1] - 2026-02-13
 
 This release introduces a new OpenAPI toolset for automatic API integration, task management capabilities, and several improvements to message handling and testing infrastructure.
@@ -484,3 +524,5 @@ This release improves the terminal user interface with better error handling and
 [v1.23.0]: https://github.com/docker/cagent/releases/tag/v1.23.0
 
 [v1.23.1]: https://github.com/docker/cagent/releases/tag/v1.23.1
+
+[v1.23.2]: https://github.com/docker/cagent/releases/tag/v1.23.2
