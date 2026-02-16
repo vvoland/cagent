@@ -3,6 +3,32 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.23.3] - 2026-02-16
+
+This release adds Docker CLI plugin support and improves TUI performance by making model reasoning checks asynchronous.
+
+## What's New
+- Adds support for using cagent as a Docker CLI plugin with `docker agent` command (no functional changes to existing `cagent` command)
+- Handles Windows .exe binary suffix for CLI plugin compatibility
+
+## Improvements
+- Makes model reasoning support checks asynchronous to prevent TUI freezing (previously could block for up to 30 seconds)
+- Threads context.Context through modelsdev store API to allow proper cancellation and deadline propagation
+
+## Technical Changes
+- Renames cagent OCI annotation to `io.docker.agent.version` while maintaining backward compatibility with the old annotation
+- Updates config media type to use `docker.agent`
+- Adds TUI general guidelines to AGENTS.md documentation
+
+### Pull Requests
+
+- [#1745](https://github.com/docker/cagent/pull/1745) - Rename cagent OCI annotation, keep old one
+- [#1746](https://github.com/docker/cagent/pull/1746) - docs: update CHANGELOG.md for v1.23.2
+- [#1747](https://github.com/docker/cagent/pull/1747) - Thread context.Context through modelsdev store API
+- [#1748](https://github.com/docker/cagent/pull/1748) - Allow to use cagent binary as a docker cli plugin docker-agent. No functional change for cagent command.
+- [#1749](https://github.com/docker/cagent/pull/1749) - Move ModelSupportsReasoning calls to async bubbletea commands
+
+
 ## [v1.23.2] - 2026-02-16
 
 This release adds header forwarding capabilities for toolsets and includes several bug fixes and code improvements.
@@ -526,3 +552,5 @@ This release improves the terminal user interface with better error handling and
 [v1.23.1]: https://github.com/docker/cagent/releases/tag/v1.23.1
 
 [v1.23.2]: https://github.com/docker/cagent/releases/tag/v1.23.2
+
+[v1.23.3]: https://github.com/docker/cagent/releases/tag/v1.23.3
