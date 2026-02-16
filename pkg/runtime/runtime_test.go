@@ -171,7 +171,9 @@ func (m *mockProviderWithError) BaseConfig() base.Config { return base.Config{} 
 
 func (m *mockProviderWithError) MaxTokens() int { return 0 }
 
-type mockModelStore struct{}
+type mockModelStore struct {
+	ModelStore
+}
 
 func (m mockModelStore) GetModel(string) (*modelsdev.Model, error) {
 	return nil, nil
@@ -674,7 +676,10 @@ func (p *queueProvider) BaseConfig() base.Config { return base.Config{} }
 
 func (p *queueProvider) MaxTokens() int { return 0 }
 
-type mockModelStoreWithLimit struct{ limit int }
+type mockModelStoreWithLimit struct {
+	ModelStore
+	limit int
+}
 
 func (m mockModelStoreWithLimit) GetModel(string) (*modelsdev.Model, error) {
 	return &modelsdev.Model{Limit: modelsdev.Limit{Context: m.limit}, Cost: &modelsdev.Cost{}}, nil

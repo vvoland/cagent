@@ -23,14 +23,11 @@ func (m *mockEnvProvider) Get(_ context.Context, name string) (string, bool) {
 
 // mockCatalogStore implements CatalogStore for testing
 type mockCatalogStore struct {
+	ModelStore
 	db *modelsdev.Database
 }
 
-func (m *mockCatalogStore) GetModel(_ string) (*modelsdev.Model, error) {
-	return nil, nil
-}
-
-func (m *mockCatalogStore) GetDatabase(_ context.Context) (*modelsdev.Database, error) {
+func (m *mockCatalogStore) GetDatabase() (*modelsdev.Database, error) {
 	return m.db, nil
 }
 

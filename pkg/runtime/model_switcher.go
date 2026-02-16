@@ -11,7 +11,6 @@ import (
 	"github.com/docker/cagent/pkg/environment"
 	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/model/provider/options"
-	"github.com/docker/cagent/pkg/modelsdev"
 )
 
 // ModelChoice represents a model available for selection in the TUI picker.
@@ -254,10 +253,8 @@ func (r *LocalRuntime) createProvidersFromAlloyConfig(ctx context.Context, alloy
 
 // AvailableModels implements ModelSwitcher for LocalRuntime.
 func (r *LocalRuntime) AvailableModels(ctx context.Context) []ModelChoice {
-	var choices []ModelChoice
-
 	if r.modelSwitcherCfg == nil {
-		return choices
+		return nil
 	}
 
 	// Get the current agent's default model reference
@@ -265,6 +262,8 @@ func (r *LocalRuntime) AvailableModels(ctx context.Context) []ModelChoice {
 	if r.modelSwitcherCfg.AgentDefaultModels != nil {
 		currentAgentDefault = r.modelSwitcherCfg.AgentDefaultModels[r.currentAgent]
 	}
+
+	var choices []ModelChoice
 
 	// Add all configured models, marking the current agent's default
 	for name, cfg := range r.modelSwitcherCfg.Models {
@@ -284,23 +283,10 @@ func (r *LocalRuntime) AvailableModels(ctx context.Context) []ModelChoice {
 	return choices
 }
 
-// CatalogStore is an extended interface for model stores that support fetching the full database.
-type CatalogStore interface {
-	ModelStore
-	GetDatabase(ctx context.Context) (*modelsdev.Database, error)
-}
-
 // buildCatalogChoices builds ModelChoice entries from the models.dev catalog,
 // filtered by supported providers and available credentials.
 func (r *LocalRuntime) buildCatalogChoices(ctx context.Context) []ModelChoice {
-	// Check if modelsStore supports GetDatabase
-	catalogStore, ok := r.modelsStore.(CatalogStore)
-	if !ok {
-		slog.Debug("Models store does not support GetDatabase, skipping catalog")
-		return nil
-	}
-
-	db, err := catalogStore.GetDatabase(ctx)
+	db, err := r.modelsStore.GetDatabase()
 	if err != nil {
 		slog.Debug("Failed to get models.dev database for catalog", "error", err)
 		return nil
