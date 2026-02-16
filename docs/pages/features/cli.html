@@ -41,19 +41,19 @@ $ cagent run agent.yaml --prompt-file ./context.md  # include file as context
 # Queue multiple messages (processed in sequence)
 $ cagent run agent.yaml "question 1" "question 2" "question 3"</code></pre>
 
-<h3><code>cagent exec</code></h3>
+<h3><code>cagent run --exec</code></h3>
 <p>Run an agent in non-interactive (headless) mode. No TUI — output goes to stdout.</p>
 
-<pre><code class="language-bash">$ cagent exec [config] [message...] [flags]</code></pre>
+<pre><code class="language-bash">$ cagent run --exec [config] [message...] [flags]</code></pre>
 
 <pre><code class="language-bash"># One-shot task
-$ cagent exec agent.yaml "Create a Dockerfile for a Python Flask app"
+$ cagent run --exec agent.yaml "Create a Dockerfile for a Python Flask app"
 
 # With auto-approve
-$ cagent exec agent.yaml --yolo "Set up CI/CD pipeline"
+$ cagent run --exec agent.yaml --yolo "Set up CI/CD pipeline"
 
 # Multi-turn conversation
-$ cagent exec agent.yaml "question 1" "question 2" "question 3"</code></pre>
+$ cagent run --exec agent.yaml "question 1" "question 2" "question 3"</code></pre>
 
 <h3><code>cagent new</code></h3>
 <p>Interactively generate a new agent configuration file.</p>

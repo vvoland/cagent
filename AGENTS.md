@@ -20,7 +20,7 @@
 - `./bin/cagent run <config.yaml>` - Run agent with configuration (launches TUI by default)
 - `./bin/cagent run <config.yaml> -a <agent_name>` - Run specific agent from multi-agent config
 - `./bin/cagent run agentcatalog/pirate` - Run agent directly from OCI registry
-- `./bin/cagent exec <config.yaml>` - Execute agent without TUI (non-interactive)
+- `./bin/cagent run --exec <config.yaml>` - Execute agent without TUI (non-interactive)
 - `./bin/cagent new` - Generate new agent configuration interactively
 - `./bin/cagent new --model openai/gpt-5` - Generate with specific model
 - `./bin/cagent push ./agent.yaml namespace/repo` - Push agent to OCI registry
@@ -1029,7 +1029,6 @@ task push-image    # Build and push multi-platform
 | `main.go` | Entry point, signal handling |
 | `cmd/root/root.go` | Root command, logging setup, persistent flags |
 | `cmd/root/run.go` | `cagent run` command implementation |
-| `cmd/root/exec.go` | `cagent exec` command (non-TUI) |
 | `pkg/runtime/runtime.go` | Core execution loop, tool handling, streaming |
 | `pkg/agent/agent.go` | Agent abstraction, tool discovery |
 | `pkg/session/session.go` | Message history management |

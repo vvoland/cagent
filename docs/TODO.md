@@ -63,7 +63,7 @@
 
 - [x] `--prompt-file` flag — Explanation of how it works (includes file contents as system context). *(Added)*
 - [x] `--session` with relative references — e.g., `-1` for last session, `-2` for second to last. *(Added)*
-- [x] Multi-turn conversations in `cagent exec` — Added example. *(Added)*
+- [x] Multi-turn conversations in `cagent run --exec` — Added example. *(Added)*
 - [x] Queueing multiple messages: `cagent run question1 question2 ...` *(Added)*
 - [x] `cagent eval` flags — Added examples with flags. *(Added)*
 - [ ] `--exit-on-stdin-eof` flag — Hidden flag, low priority.

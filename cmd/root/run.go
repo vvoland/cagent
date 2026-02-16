@@ -51,6 +51,7 @@ type runExecFlags struct {
 	forceTUI          bool
 
 	// Exec only
+	exec          bool
 	hideToolCalls bool
 	outputJSON    bool
 
@@ -111,15 +112,24 @@ func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 	cmd.PersistentFlags().BoolVar(&flags.forceTUI, "force-tui", false, "Force TUI mode even when not in a terminal")
 	_ = cmd.PersistentFlags().MarkHidden("force-tui")
 	cmd.MarkFlagsMutuallyExclusive("fake", "record")
+
+	// --exec only
+	cmd.PersistentFlags().BoolVar(&flags.exec, "exec", false, "Execute without a TUI")
+	cmd.PersistentFlags().BoolVar(&flags.hideToolCalls, "hide-tool-calls", false, "Hide the tool calls in the output")
+	cmd.PersistentFlags().BoolVar(&flags.outputJSON, "json", false, "Output results in JSON format")
 }
 
 func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
-	telemetry.TrackCommand("run", args)
+	if f.exec {
+		telemetry.TrackCommand("exec", args)
+	} else {
+		telemetry.TrackCommand("run", args)
+	}
 
 	ctx := cmd.Context()
 	out := cli.NewPrinter(cmd.OutOrStdout())
 
-	useTUI := f.forceTUI || isatty.IsTerminal(os.Stdout.Fd())
+	useTUI := !f.exec && (f.forceTUI || isatty.IsTerminal(os.Stdout.Fd()))
 	return f.runOrExec(ctx, out, args, useTUI)
 }
 
