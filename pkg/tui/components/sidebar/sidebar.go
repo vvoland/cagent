@@ -47,7 +47,7 @@ type Model interface {
 	SetTokenUsage(event *runtime.TokenUsageEvent)
 	SetTodos(result *tools.ToolCallResult) error
 	SetMode(mode Mode)
-	SetAgentInfo(agentName, model, description string)
+	SetAgentInfo(agentName, model, description string) tea.Cmd
 	SetTeamInfo(availableAgents []runtime.AgentDetails)
 	SetAgentSwitching(switching bool)
 	SetToolsetInfo(availableTools int, loading bool)
@@ -93,6 +93,8 @@ type Model interface {
 	ScrollByWheel(delta int)
 	// IsScrollbarDragging returns true when the scrollbar thumb is being dragged.
 	IsScrollbarDragging() bool
+	// Cleanup cancels any in-flight async operations.
+	Cleanup()
 }
 
 // ragIndexingState tracks per-strategy indexing progress
@@ -142,6 +144,8 @@ type model struct {
 	editingTitle       bool     // true when inline title editing is active
 	titleInput         textinput.Model
 	lastTitleClickTime time.Time // for double-click detection on title
+
+	cancelReasoningCheck context.CancelFunc // cancels the in-flight ModelSupportsReasoning call
 
 	// Render cache to avoid re-rendering sections on every frame during scroll
 	cachedLines          []string // Cached rendered lines
@@ -248,14 +252,31 @@ func (m *model) SetTodos(result *tools.ToolCallResult) error {
 	return m.todoComp.SetTodos(result)
 }
 
+// reasoningSupportResultMsg carries the async result of a ModelSupportsReasoning check.
+type reasoningSupportResultMsg struct {
+	modelID   string
+	supported bool
+}
+
+// checkReasoningSupportCmd returns a tea.Cmd that checks reasoning support asynchronously.
+func checkReasoningSupportCmd(ctx context.Context, modelID string) tea.Cmd {
+	return func() tea.Msg {
+		supported := modelsdev.ModelSupportsReasoning(ctx, modelID)
+		return reasoningSupportResultMsg{modelID: modelID, supported: supported}
+	}
+}
+
 // SetAgentInfo sets the current agent information and updates the model in availableAgents
-func (m *model) SetAgentInfo(agentName, modelID, description string) {
+func (m *model) SetAgentInfo(agentName, modelID, description string) tea.Cmd {
 	m.currentAgent = agentName
 	m.agentModel = modelID
 	m.agentDescription = description
-	// TODO: this can block for up to 30s on the first call if the cache is cold,
-	// which freezes the TUI. Move to an async command.
-	m.reasoningSupported = modelsdev.ModelSupportsReasoning(context.TODO(), modelID)
+
+	if m.cancelReasoningCheck != nil {
+		m.cancelReasoningCheck()
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	m.cancelReasoningCheck = cancel
 
 	// Update the provider and model in availableAgents for the current agent.
 	// This is important when fallback models from different providers are used.
@@ -274,6 +295,7 @@ func (m *model) SetAgentInfo(agentName, modelID, description string) {
 		}
 	}
 	m.invalidateCache()
+	return checkReasoningSupportCmd(ctx, modelID)
 }
 
 // SetTeamInfo sets the available agents in the team
@@ -596,9 +618,15 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		m.invalidateCache()
 		m.stopSpinner() // Will only stop if no other state needs it
 		return m, nil
-	case *runtime.AgentInfoEvent:
-		m.SetAgentInfo(msg.AgentName, msg.Model, msg.Description)
+	case reasoningSupportResultMsg:
+		if msg.modelID == m.agentModel {
+			m.reasoningSupported = msg.supported
+			m.invalidateCache()
+		}
 		return m, nil
+	case *runtime.AgentInfoEvent:
+		cmd := m.SetAgentInfo(msg.AgentName, msg.Model, msg.Description)
+		return m, cmd
 	case *runtime.TeamInfoEvent:
 		m.SetTeamInfo(msg.AvailableAgents)
 		return m, nil
@@ -1347,4 +1375,12 @@ func (m *model) UpdateTitleInput(msg tea.Msg) tea.Cmd {
 	m.titleInput, cmd = m.titleInput.Update(msg)
 	m.invalidateCache() // Input changes affect rendering
 	return cmd
+}
+
+// Cleanup cancels any in-flight async operations.
+func (m *model) Cleanup() {
+	if m.cancelReasoningCheck != nil {
+		m.cancelReasoningCheck()
+		m.cancelReasoningCheck = nil
+	}
 }

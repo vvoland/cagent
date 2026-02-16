@@ -1171,6 +1171,7 @@ func (p *chatPage) CompactSession(additionalPrompt string) tea.Cmd {
 
 func (p *chatPage) Cleanup() {
 	p.stopProgressBar()
+	p.sidebar.Cleanup()
 	p.editor.Cleanup()
 }
 
