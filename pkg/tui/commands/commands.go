@@ -262,7 +262,7 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 
 	// Check if the current model supports reasoning; hide /think if not
 	currentModel := application.CurrentAgentModel()
-	if !modelsdev.ModelSupportsReasoning(currentModel) {
+	if !modelsdev.ModelSupportsReasoning(ctx, currentModel) {
 		filtered := make([]Item, 0, len(sessionCommands))
 		for _, cmd := range sessionCommands {
 			if cmd.ID != "session.think" {

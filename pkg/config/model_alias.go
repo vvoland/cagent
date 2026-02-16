@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"log/slog"
 	"strings"
 
@@ -16,7 +17,7 @@ import (
 // either set directly on the model or inherited from a custom provider definition.
 // This is necessary because external providers (like Azure Foundry) may use the alias
 // names directly as deployment names rather than the pinned version names.
-func ResolveModelAliases(cfg *latest.Config, store *modelsdev.Store) {
+func ResolveModelAliases(ctx context.Context, cfg *latest.Config, store *modelsdev.Store) {
 	// Resolve model aliases in the models section
 	for name, modelCfg := range cfg.Models {
 		// Skip alias resolution for models with custom base_url (direct or via provider)
@@ -27,7 +28,7 @@ func ResolveModelAliases(cfg *latest.Config, store *modelsdev.Store) {
 			continue
 		}
 
-		if resolved := store.ResolveModelAlias(modelCfg.Provider, modelCfg.Model); resolved != modelCfg.Model {
+		if resolved := store.ResolveModelAlias(ctx, modelCfg.Provider, modelCfg.Model); resolved != modelCfg.Model {
 			modelCfg.Model = resolved
 			cfg.Models[name] = modelCfg
 		}
@@ -35,7 +36,7 @@ func ResolveModelAliases(cfg *latest.Config, store *modelsdev.Store) {
 		// Resolve model aliases in routing rules
 		for i, rule := range modelCfg.Routing {
 			if provider, model, ok := strings.Cut(rule.Model, "/"); ok {
-				if resolved := store.ResolveModelAlias(provider, model); resolved != model {
+				if resolved := store.ResolveModelAlias(ctx, provider, model); resolved != model {
 					modelCfg.Routing[i].Model = provider + "/" + resolved
 				}
 			}
@@ -52,7 +53,7 @@ func ResolveModelAliases(cfg *latest.Config, store *modelsdev.Store) {
 		var resolvedModels []string
 		for modelRef := range strings.SplitSeq(agent.Model, ",") {
 			if provider, model, ok := strings.Cut(modelRef, "/"); ok {
-				if resolved := store.ResolveModelAlias(provider, model); resolved != model {
+				if resolved := store.ResolveModelAlias(ctx, provider, model); resolved != model {
 					resolvedModels = append(resolvedModels, provider+"/"+resolved)
 					continue
 				}

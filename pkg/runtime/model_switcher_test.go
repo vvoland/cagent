@@ -27,7 +27,7 @@ type mockCatalogStore struct {
 	db *modelsdev.Database
 }
 
-func (m *mockCatalogStore) GetDatabase() (*modelsdev.Database, error) {
+func (m *mockCatalogStore) GetDatabase(_ context.Context) (*modelsdev.Database, error) {
 	return m.db, nil
 }
 

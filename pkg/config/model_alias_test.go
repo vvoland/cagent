@@ -237,7 +237,7 @@ func TestResolveModelAliases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ResolveModelAliases(tt.cfg, store)
+			ResolveModelAliases(t.Context(), tt.cfg, store)
 			assert.Equal(t, tt.expected, tt.cfg)
 		})
 	}
