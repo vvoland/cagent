@@ -66,7 +66,6 @@
 - [x] Multi-turn conversations in `cagent exec` — Added example. *(Added)*
 - [x] Queueing multiple messages: `cagent run question1 question2 ...` *(Added)*
 - [x] `cagent eval` flags — Added examples with flags. *(Added)*
-- [x] `cagent build` command — *(Added)*
 - [ ] `--exit-on-stdin-eof` flag — Hidden flag, low priority.
 - [ ] `--keep-containers` flag for eval — Already documented in eval page.
 
