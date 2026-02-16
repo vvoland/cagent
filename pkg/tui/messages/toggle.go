@@ -8,6 +8,12 @@ type (
 	// ToggleThinkingMsg toggles extended thinking mode.
 	ToggleThinkingMsg struct{}
 
+	// ToggleThinkingResultMsg carries the async result of reasoning support check.
+	// If Supported is true, thinking is toggled; otherwise a notification is shown.
+	ToggleThinkingResultMsg struct {
+		Supported bool
+	}
+
 	// ToggleHideToolResultsMsg toggles hiding of tool results.
 	ToggleHideToolResultsMsg struct{}
 

@@ -49,6 +49,8 @@ type appModel struct {
 
 	transcriber *transcribe.Transcriber
 
+	cancelThinkingCheck context.CancelFunc // cancels the in-flight thinking toggle check
+
 	// External event subscriptions (Elm Architecture pattern)
 	themeWatcher      *styles.ThemeWatcher
 	themeSubscription *subscription.ChannelSubscription[string] // Listens for theme file changes
@@ -160,7 +162,7 @@ func New(ctx context.Context, a *app.App) tea.Model {
 	// Make sure to stop the progress bar and theme watcher when the app quits abruptly.
 	go func() {
 		<-ctx.Done()
-		t.chatPage.Cleanup()
+		t.cleanup()
 		t.themeWatcher.Stop()
 	}()
 
@@ -168,6 +170,14 @@ func New(ctx context.Context, a *app.App) tea.Model {
 }
 
 // Init initializes the application
+func (a *appModel) cleanup() {
+	if a.cancelThinkingCheck != nil {
+		a.cancelThinkingCheck()
+		a.cancelThinkingCheck = nil
+	}
+	a.chatPage.Cleanup()
+}
+
 func (a *appModel) Init() tea.Cmd {
 	cmds := []tea.Cmd{
 		a.dialog.Init(),
@@ -350,7 +360,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case messages.ExitSessionMsg:
 		// /exit command exits immediately without confirmation
-		a.chatPage.Cleanup()
+		a.cleanup()
 		return a, tea.Quit
 
 	case messages.NewSessionMsg:
@@ -406,6 +416,9 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case messages.ToggleThinkingMsg:
 		return a.handleToggleThinking()
+
+	case messages.ToggleThinkingResultMsg:
+		return a.handleToggleThinkingResult(msg)
 
 	case messages.ToggleHideToolResultsMsg:
 		return a.handleToggleHideToolResults()
@@ -525,11 +538,11 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case dialog.ExitConfirmedMsg:
-		a.chatPage.Cleanup()
+		a.cleanup()
 		return a, tea.Quit
 
 	case messages.ExitAfterFirstResponseMsg:
-		a.chatPage.Cleanup()
+		a.cleanup()
 		return a, tea.Quit
 
 	case chat.EditorHeightChangedMsg:
