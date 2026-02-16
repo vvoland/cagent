@@ -216,7 +216,6 @@ type KeyMap struct {
 	Cancel          key.Binding
 	ToggleSplitDiff key.Binding
 	ToggleSidebar   key.Binding
-	HistorySearch   key.Binding
 }
 
 // defaultKeyMap returns the default key bindings.
