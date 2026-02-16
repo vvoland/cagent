@@ -12,6 +12,9 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/docker/cli/cli-plugins/metadata"
+	"github.com/docker/cli/cli-plugins/plugin"
+	"github.com/docker/cli/cli/command"
 	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/environment"
@@ -20,9 +23,6 @@ import (
 	"github.com/docker/cagent/pkg/paths"
 	"github.com/docker/cagent/pkg/telemetry"
 	"github.com/docker/cagent/pkg/version"
-	"github.com/docker/cli/cli-plugins/metadata"
-	"github.com/docker/cli/cli-plugins/plugin"
-	"github.com/docker/cli/cli/command"
 )
 
 type rootFlags struct {
@@ -37,7 +37,7 @@ func isCliPLugin() bool {
 	if runtime.GOOS == "windows" {
 		cliPluginBinary += ".exe"
 	}
-	return len(os.Args) >= 0 && strings.HasSuffix(os.Args[0], cliPluginBinary)
+	return len(os.Args) > 0 && strings.HasSuffix(os.Args[0], cliPluginBinary)
 }
 
 func NewRootCmd() *cobra.Command {
@@ -174,8 +174,8 @@ We collect anonymous usage data to help improve cagent. To disable:
 					}
 				}
 				return nil
-
 			}
+			rootCmd.SetContext(ctx)
 			return rootCmd
 		}, metadata.Metadata{
 			SchemaVersion: "0.1.0",
