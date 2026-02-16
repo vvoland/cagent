@@ -57,7 +57,7 @@ func TestResolveModelAlias(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := store.ResolveModelAlias(tt.provider, tt.model)
+			result := store.ResolveModelAlias(t.Context(), tt.provider, tt.model)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

@@ -171,8 +171,8 @@ type CurrentAgentInfo struct {
 }
 
 type ModelStore interface {
-	GetModel(modelID string) (*modelsdev.Model, error)
-	GetDatabase() (*modelsdev.Database, error)
+	GetModel(ctx context.Context, modelID string) (*modelsdev.Model, error)
+	GetDatabase(ctx context.Context) (*modelsdev.Database, error)
 }
 
 // RAGInitializer is implemented by runtimes that support background RAG initialization.
@@ -988,7 +988,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			modelID := model.ID()
 			slog.Debug("Using agent", "agent", a.Name(), "model", modelID)
 			slog.Debug("Getting model definition", "model_id", modelID)
-			m, err := r.modelsStore.GetModel(modelID)
+			m, err := r.modelsStore.GetModel(ctx, modelID)
 			if err != nil {
 				slog.Debug("Failed to get model definition", "error", err)
 			}

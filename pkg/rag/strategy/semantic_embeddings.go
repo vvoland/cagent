@@ -506,7 +506,7 @@ func calculateSemanticUsageCost(modelsStore modelStore, modelID string, usage *c
 		return 0
 	}
 
-	model, err := modelsStore.GetModel(modelID)
+	model, err := modelsStore.GetModel(context.Background(), modelID)
 	if err != nil {
 		slog.Debug("Failed to get semantic model pricing from models.dev, cost will be 0",
 			"model_id", modelID,

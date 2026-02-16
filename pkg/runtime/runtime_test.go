@@ -175,7 +175,7 @@ type mockModelStore struct {
 	ModelStore
 }
 
-func (m mockModelStore) GetModel(string) (*modelsdev.Model, error) {
+func (m mockModelStore) GetModel(_ context.Context, _ string) (*modelsdev.Model, error) {
 	return nil, nil
 }
 
@@ -681,7 +681,7 @@ type mockModelStoreWithLimit struct {
 	limit int
 }
 
-func (m mockModelStoreWithLimit) GetModel(string) (*modelsdev.Model, error) {
+func (m mockModelStoreWithLimit) GetModel(_ context.Context, _ string) (*modelsdev.Model, error) {
 	return &modelsdev.Model{Limit: modelsdev.Limit{Context: m.limit}, Cost: &modelsdev.Cost{}}, nil
 }
 

@@ -1,6 +1,7 @@
 package sidebar
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -252,7 +253,9 @@ func (m *model) SetAgentInfo(agentName, modelID, description string) {
 	m.currentAgent = agentName
 	m.agentModel = modelID
 	m.agentDescription = description
-	m.reasoningSupported = modelsdev.ModelSupportsReasoning(modelID)
+	// TODO: this can block for up to 30s on the first call if the cache is cold,
+	// which freezes the TUI. Move to an async command.
+	m.reasoningSupported = modelsdev.ModelSupportsReasoning(context.TODO(), modelID)
 
 	// Update the provider and model in availableAgents for the current agent.
 	// This is important when fallback models from different providers are used.

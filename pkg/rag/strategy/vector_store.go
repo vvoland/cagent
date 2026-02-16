@@ -87,7 +87,7 @@ type VectorStore struct {
 }
 
 type modelStore interface {
-	GetModel(modelID string) (*modelsdev.Model, error)
+	GetModel(ctx context.Context, modelID string) (*modelsdev.Model, error)
 }
 
 // EmbeddingInputBuilder builds the string that will be sent to the embedding model
@@ -174,7 +174,7 @@ func (s *VectorStore) calculateCost(tokens int64) float64 {
 		return 0
 	}
 
-	model, err := s.modelsStore.GetModel(s.modelID)
+	model, err := s.modelsStore.GetModel(context.Background(), s.modelID)
 	if err != nil {
 		slog.Debug("Failed to get model pricing from models.dev, cost will be 0",
 			"model_id", s.modelID,

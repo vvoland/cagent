@@ -21,25 +21,16 @@ const (
 )
 
 // Store manages access to the models.dev data.
-// The database is loaded lazily on first access and cached for the
-// lifetime of the Store. All methods are safe for concurrent use.
+// All methods are safe for concurrent use.
 type Store struct {
-	db func() (*Database, error)
+	cacheFile string
+	mu        sync.Mutex
+	db        *Database
 }
 
-// defaultStore is a cached singleton store instance for repeated access.
-var defaultStore = sync.OnceValues(newStoreInternal)
-
-// NewStore returns the cached default store instance.
-// The underlying database is fetched lazily on first access
-// from a local cache file or the models.dev API.
+// NewStore creates a new models.dev store.
+// The database is loaded on first access via GetDatabase.
 func NewStore() (*Store, error) {
-	return defaultStore()
-}
-
-// newStoreInternal creates a new models.dev store that loads data
-// from the filesystem cache or the network on first access.
-func newStoreInternal() (*Store, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user home directory: %w", err)
@@ -50,12 +41,8 @@ func newStoreInternal() (*Store, error) {
 		return nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}
 
-	cacheFile := filepath.Join(cacheDir, CacheFileName)
-
 	return &Store{
-		db: sync.OnceValues(func() (*Database, error) {
-			return loadDatabase(cacheFile)
-		}),
+		cacheFile: filepath.Join(cacheDir, CacheFileName),
 	}, nil
 }
 
@@ -64,19 +51,30 @@ func newStoreInternal() (*Store, error) {
 // from the network or touches the filesystem, making it suitable for
 // tests and any scenario where the provider data is already known.
 func NewDatabaseStore(db *Database) *Store {
-	return &Store{
-		db: func() (*Database, error) { return db, nil },
-	}
+	return &Store{db: db}
 }
 
 // GetDatabase returns the models.dev database, fetching from cache or API as needed.
-func (s *Store) GetDatabase() (*Database, error) {
-	return s.db()
+func (s *Store) GetDatabase(ctx context.Context) (*Database, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.db != nil {
+		return s.db, nil
+	}
+
+	db, err := loadDatabase(ctx, s.cacheFile)
+	if err != nil {
+		return nil, err
+	}
+
+	s.db = db
+	return db, nil
 }
 
 // GetProvider returns a specific provider by ID.
-func (s *Store) GetProvider(providerID string) (*Provider, error) {
-	db, err := s.db()
+func (s *Store) GetProvider(ctx context.Context, providerID string) (*Provider, error) {
+	db, err := s.GetDatabase(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +88,7 @@ func (s *Store) GetProvider(providerID string) (*Provider, error) {
 }
 
 // GetModel returns a specific model by provider ID and model ID.
-func (s *Store) GetModel(id string) (*Model, error) {
+func (s *Store) GetModel(ctx context.Context, id string) (*Model, error) {
 	parts := strings.SplitN(id, "/", 2)
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid model ID: %q", id)
@@ -98,7 +96,7 @@ func (s *Store) GetModel(id string) (*Model, error) {
 	providerID := parts[0]
 	modelID := parts[1]
 
-	provider, err := s.GetProvider(providerID)
+	provider, err := s.GetProvider(ctx, providerID)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +128,7 @@ func (s *Store) GetModel(id string) (*Model, error) {
 
 // loadDatabase loads the database from the local cache file or
 // falls back to fetching from the models.dev API.
-func loadDatabase(cacheFile string) (*Database, error) {
+func loadDatabase(ctx context.Context, cacheFile string) (*Database, error) {
 	// Try to load from cache first
 	cached, err := loadFromCache(cacheFile)
 	if err == nil && time.Since(cached.LastRefresh) < refreshInterval {
@@ -138,7 +136,7 @@ func loadDatabase(cacheFile string) (*Database, error) {
 	}
 
 	// Cache is invalid or doesn't exist, fetch from API
-	database, fetchErr := fetchFromAPI()
+	database, fetchErr := fetchFromAPI(ctx)
 	if fetchErr != nil {
 		// If API fetch fails, but we have cached data, use it
 		if cached != nil {
@@ -156,8 +154,8 @@ func loadDatabase(cacheFile string) (*Database, error) {
 	return database, nil
 }
 
-func fetchFromAPI() (*Database, error) {
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, ModelsDevAPIURL, http.NoBody)
+func fetchFromAPI(ctx context.Context) (*Database, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ModelsDevAPIURL, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -225,7 +223,7 @@ var datePattern = regexp.MustCompile(`-\d{4}-?\d{2}-?\d{2}$`)
 // For example, ("anthropic", "claude-sonnet-4-5") might resolve to "claude-sonnet-4-5-20250929".
 // If the model is not an alias (already pinned or unknown), the original model name is returned.
 // This method uses the models.dev database to find the corresponding pinned version.
-func (s *Store) ResolveModelAlias(providerID, modelName string) string {
+func (s *Store) ResolveModelAlias(ctx context.Context, providerID, modelName string) string {
 	if providerID == "" || modelName == "" {
 		return modelName
 	}
@@ -236,7 +234,7 @@ func (s *Store) ResolveModelAlias(providerID, modelName string) string {
 	}
 
 	// Get the provider from the database
-	provider, err := s.GetProvider(providerID)
+	provider, err := s.GetProvider(ctx, providerID)
 	if err != nil {
 		return modelName
 	}
@@ -285,7 +283,7 @@ func isBedrockRegionPrefix(prefix string) bool {
 //   - If modelID is empty or not in "provider/model" format, returns true (fail-open)
 //   - If models.dev lookup fails for any reason, returns true (fail-open)
 //   - If lookup succeeds, returns the model's Reasoning field value
-func ModelSupportsReasoning(modelID string) bool {
+func ModelSupportsReasoning(ctx context.Context, modelID string) bool {
 	// Fail-open for empty model ID
 	if modelID == "" {
 		return true
@@ -303,7 +301,7 @@ func ModelSupportsReasoning(modelID string) bool {
 		return true
 	}
 
-	model, err := store.GetModel(modelID)
+	model, err := store.GetModel(ctx, modelID)
 	if err != nil {
 		slog.Debug("Failed to lookup model in models.dev, assuming reasoning supported to allow user choice", "model_id", modelID, "error", err)
 		return true

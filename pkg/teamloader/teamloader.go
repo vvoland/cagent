@@ -116,7 +116,7 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 	if err != nil {
 		slog.Debug("Failed to create modelsdev store for alias resolution", "error", err)
 	} else {
-		config.ResolveModelAliases(cfg, modelsStore)
+		config.ResolveModelAliases(ctx, cfg, modelsStore)
 	}
 
 	// Apply model overrides from CLI flags before checking required env vars
@@ -318,7 +318,7 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 			if err != nil {
 				return nil, false, err
 			}
-			m, err := modelsStore.GetModel(modelCfg.Provider + "/" + modelCfg.Model)
+			m, err := modelsStore.GetModel(ctx, modelCfg.Provider+"/"+modelCfg.Model)
 			if err == nil {
 				maxTokens = &m.Limit.Output
 			}
@@ -381,7 +381,7 @@ func getFallbackModelsForAgent(ctx context.Context, cfg *latest.Config, a *lates
 			if err != nil {
 				return nil, err
 			}
-			m, err := modelsStore.GetModel(modelCfg.Provider + "/" + modelCfg.Model)
+			m, err := modelsStore.GetModel(ctx, modelCfg.Provider+"/"+modelCfg.Model)
 			if err == nil {
 				maxTokens = &m.Limit.Output
 			}
