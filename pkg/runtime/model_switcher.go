@@ -84,6 +84,7 @@ func (r *LocalRuntime) SetAgentModel(ctx context.Context, agentName, modelRef st
 
 	// Check if modelRef is a named model from config
 	if modelConfig, exists := r.modelSwitcherCfg.Models[modelRef]; exists {
+		modelConfig.Name = modelRef
 		// Check if this is an alloy model (no provider, comma-separated models)
 		if isAlloyModelConfig(modelConfig) {
 			providers, err := r.createProvidersFromAlloyConfig(ctx, modelConfig)
@@ -175,6 +176,7 @@ func (r *LocalRuntime) createProvidersFromInlineAlloy(ctx context.Context, model
 
 		// Check if this part exists as a named model in config
 		if modelCfg, exists := r.modelSwitcherCfg.Models[part]; exists {
+			modelCfg.Name = part
 			prov, err := r.createProviderFromConfig(ctx, &modelCfg)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create provider for %q: %w", part, err)
@@ -219,6 +221,7 @@ func (r *LocalRuntime) createProvidersFromAlloyConfig(ctx context.Context, alloy
 
 		// Check if this model reference exists in the config
 		if modelCfg, exists := r.modelSwitcherCfg.Models[modelRef]; exists {
+			modelCfg.Name = modelRef
 			prov, err := r.createProviderFromConfig(ctx, &modelCfg)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create provider for %q: %w", modelRef, err)

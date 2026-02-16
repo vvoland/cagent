@@ -301,6 +301,7 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 				return nil, false, fmt.Errorf("model '%s' not found in configuration", name)
 			}
 		}
+		modelCfg.Name = name
 
 		// Check if thinking_budget was explicitly configured BEFORE provider defaults are applied.
 		// This is used to initialize session thinking state - thinking is only enabled by default
@@ -371,6 +372,7 @@ func getFallbackModelsForAgent(ctx context.Context, cfg *latest.Config, a *lates
 				Model:    modelName,
 			}
 		}
+		modelCfg.Name = name
 
 		// Use max_tokens from config if specified, otherwise look up from models.dev
 		maxTokens := &defaultMaxTokens

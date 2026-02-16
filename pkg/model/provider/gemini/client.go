@@ -130,6 +130,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 				httpclient.WithProxiedBaseURL(cmp.Or(cfg.BaseURL, "https://generativelanguage.googleapis.com/")),
 				httpclient.WithProvider(cfg.Provider),
 				httpclient.WithModel(cfg.Model),
+				httpclient.WithModelName(cfg.Name),
 				httpclient.WithQuery(url.Query()),
 			}
 			if globalOptions.GeneratingTitle() {
