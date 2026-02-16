@@ -1014,6 +1014,14 @@ task push-image    # Build and push multi-platform
 
 5. **Telemetry adds overhead**: Disable with `TELEMETRY_ENABLED=false` for benchmarking
 
+### TUI General Guidelines
+
+- Never use commands to send messages when you can directly mutate children or state.
+- Keep things simple; do not overcomplicate.
+- Create files if needed to separate logic; do not nest models.
+- Never do IO or expensive work in `Update`; always use a `tea.Cmd`.
+- Never change the model state inside of a command use messages and than update the state in the main loop
+
 ## Quick Reference: Key Files
 
 | File | Purpose |
