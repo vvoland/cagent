@@ -87,14 +87,14 @@ $ cagent mcp agentcatalog/coder</code></pre>
 
 <p>See <a href="#features/mcp-mode" onclick="event.preventDefault(); navigate('features/mcp-mode')">MCP Mode</a> for detailed setup.</p>
 
-<h3><code>cagent a2a</code></h3>
+<h3><code>cagent serve a2a</code></h3>
 <p>Start an A2A (Agent-to-Agent) protocol server.</p>
 
-<pre><code class="language-bash">$ cagent a2a [config] [flags]
+<pre><code class="language-bash">$ cagent serve a2a [config] [flags]
 
 # Examples
-$ cagent a2a agent.yaml
-$ cagent a2a agent.yaml --listen 127.0.0.1:9000</code></pre>
+$ cagent serve a2a agent.yaml
+$ cagent serve a2a agent.yaml --listen 127.0.0.1:9000</code></pre>
 
 <h3><code>cagent acp</code></h3>
 <p>Start an ACP (Agent Client Protocol) server over stdio. This allows external clients to interact with your agents using the ACP protocol.</p>

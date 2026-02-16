@@ -25,9 +25,9 @@
 - `./bin/cagent new --model openai/gpt-5` - Generate with specific model
 - `./bin/cagent push ./agent.yaml namespace/repo` - Push agent to OCI registry
 - `./bin/cagent pull namespace/repo` - Pull agent from OCI registry
-- `./bin/cagent mcp ./agent.yaml` - Expose agents as MCP tools
-- `./bin/cagent a2a <config.yaml>` - Start agent as A2A server
-- `./bin/cagent api` - Start Docker `cagent` API server
+- `./bin/cagent serve mcp ./agent.yaml` - Expose agents as MCP tools
+- `./bin/cagent serve a2a <config.yaml>` - Start agent as A2A server
+- `./bin/cagent serve api` - Start Docker `cagent` API server
 
 ### Debug and Development Flags
 

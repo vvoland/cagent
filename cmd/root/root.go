@@ -100,20 +100,16 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddCommand(newRunCmd())
 	cmd.AddCommand(newExecCmd())
 	cmd.AddCommand(newNewCmd())
-	cmd.AddCommand(newAPICmd())
-	cmd.AddCommand(newACPCmd())
-	cmd.AddCommand(newMCPCmd())
-	cmd.AddCommand(newA2ACmd())
 	cmd.AddCommand(newEvalCmd())
 	cmd.AddCommand(newPushCmd())
 	cmd.AddCommand(newPullCmd())
 	cmd.AddCommand(newDebugCmd())
 	cmd.AddCommand(newAliasCmd())
+	cmd.AddCommand(newServeCmd())
 
 	// Define groups
 	cmd.AddGroup(&cobra.Group{ID: "core", Title: "Core Commands:"})
 	cmd.AddGroup(&cobra.Group{ID: "advanced", Title: "Advanced Commands:"})
-	cmd.AddGroup(&cobra.Group{ID: "server", Title: "Server Commands:"})
 
 	if isCliPLugin() {
 		cmd.Use = "agent"
