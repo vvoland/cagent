@@ -172,6 +172,7 @@ type CurrentAgentInfo struct {
 
 type ModelStore interface {
 	GetModel(modelID string) (*modelsdev.Model, error)
+	GetDatabase() (*modelsdev.Database, error)
 }
 
 // RAGInitializer is implemented by runtimes that support background RAG initialization.

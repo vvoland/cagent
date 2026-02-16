@@ -76,7 +76,7 @@ func (s *Store) GetDatabase() (*Database, error) {
 
 // GetProvider returns a specific provider by ID.
 func (s *Store) GetProvider(providerID string) (*Provider, error) {
-	db, err := s.GetDatabase()
+	db, err := s.db()
 	if err != nil {
 		return nil, err
 	}
