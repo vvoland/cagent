@@ -23,8 +23,8 @@
 - `./bin/cagent run --exec <config.yaml>` - Execute agent without TUI (non-interactive)
 - `./bin/cagent new` - Generate new agent configuration interactively
 - `./bin/cagent new --model openai/gpt-5` - Generate with specific model
-- `./bin/cagent push ./agent.yaml namespace/repo` - Push agent to OCI registry
-- `./bin/cagent pull namespace/repo` - Pull agent from OCI registry
+- `./bin/cagent share push ./agent.yaml namespace/repo` - Push agent to OCI registry
+- `./bin/cagent share pull namespace/repo` - Pull agent from OCI registry
 - `./bin/cagent serve mcp ./agent.yaml` - Expose agents as MCP tools
 - `./bin/cagent serve a2a <config.yaml>` - Start agent as A2A server
 - `./bin/cagent serve api` - Start Docker `cagent` API server

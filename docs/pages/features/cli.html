@@ -106,14 +106,14 @@ $ cagent acp agent.yaml</code></pre>
 
 <p>See <a href="#features/acp" onclick="event.preventDefault(); navigate('features/acp')">ACP</a> for details on the Agent Client Protocol.</p>
 
-<h3><code>cagent push</code> / <code>cagent pull</code></h3>
-<p>Distribute agents via OCI registries.</p>
+<h3><code>cagent share push</code> / <code>cagent pull</code></h3>
+<p>Share agents via OCI registries.</p>
 
 <pre><code class="language-bash"># Push an agent
-$ cagent push ./agent.yaml docker.io/username/my-agent:latest
+$ cagent share push ./agent.yaml docker.io/username/my-agent:latest
 
 # Pull an agent
-$ cagent pull docker.io/username/my-agent:latest</code></pre>
+$ cagent share pull docker.io/username/my-agent:latest</code></pre>
 
 <p>See <a href="#concepts/distribution" onclick="event.preventDefault(); navigate('concepts/distribution')">Agent Distribution</a> for full registry workflow details.</p>
 
