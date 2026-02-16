@@ -108,7 +108,6 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddCommand(newPushCmd())
 	cmd.AddCommand(newPullCmd())
 	cmd.AddCommand(newDebugCmd())
-	cmd.AddCommand(newCatalogCmd())
 	cmd.AddCommand(newAliasCmd())
 
 	// Define groups
