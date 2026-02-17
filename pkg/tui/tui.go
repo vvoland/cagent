@@ -1417,10 +1417,16 @@ func (m *appModel) Bindings() []key.Binding {
 		bindings = append(bindings, m.chatPage.Bindings()...)
 	} else {
 		editorName := getEditorDisplayNameFromEnv(os.Getenv("VISUAL"), os.Getenv("EDITOR"))
-		bindings = append(bindings, key.NewBinding(
-			key.WithKeys("ctrl+g"),
-			key.WithHelp("Ctrl+g", fmt.Sprintf("edit in %s", editorName)),
-		))
+		bindings = append(bindings,
+			key.NewBinding(
+				key.WithKeys("ctrl+g"),
+				key.WithHelp("Ctrl+g", fmt.Sprintf("edit in %s", editorName)),
+			),
+			key.NewBinding(
+				key.WithKeys("ctrl+r"),
+				key.WithHelp("Ctrl+r", "history search"),
+			),
+		)
 	}
 	return bindings
 }
@@ -1434,9 +1440,12 @@ func (m *appModel) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
-	// Tab bar keys (Ctrl+t, Ctrl+p, Ctrl+n, Ctrl+w)
-	if cmd := m.tabBar.Update(msg); cmd != nil {
-		return m, cmd
+	// Tab bar keys (Ctrl+t, Ctrl+p, Ctrl+n, Ctrl+w) are suppressed during
+	// history search so that ctrl+n/ctrl+p cycle through matches instead.
+	if !m.editor.IsHistorySearchActive() {
+		if cmd := m.tabBar.Update(msg); cmd != nil {
+			return m, cmd
+		}
 	}
 
 	// Completion popup gets priority when open
@@ -1458,7 +1467,7 @@ func (m *appModel) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 	}
 
-	// Global keyboard shortcuts
+	// Global keyboard shortcuts (active even during history search)
 	switch {
 	case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+c"))):
 		return m, core.CmdHandler(dialog.OpenDialogMsg{
@@ -1488,9 +1497,25 @@ func (m *appModel) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+x"))):
 		return m, core.CmdHandler(messages.ClearQueueMsg{})
+	}
 
+	// History search is a modal state — capture all remaining keys before normal routing
+	if m.focusedPanel == PanelEditor && m.editor.IsHistorySearchActive() {
+		editorModel, cmd := m.editor.Update(msg)
+		m.editor = editorModel.(editor.Editor)
+		return m, cmd
+	}
+
+	switch {
 	case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+g"))):
 		return m.openExternalEditor()
+
+	case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+r"))):
+		if m.focusedPanel == PanelEditor && !m.editor.IsRecording() {
+			model, cmd := m.editor.EnterHistorySearch()
+			m.editor = model.(editor.Editor)
+			return m, cmd
+		}
 
 	// Toggle sidebar (propagates to content view regardless of focus)
 	case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+b"))):
