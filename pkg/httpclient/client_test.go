@@ -40,7 +40,7 @@ func TestWithModelName(t *testing.T) {
 			defer srv.Close()
 
 			client := NewHTTPClient(WithModelName(tt.modelName))
-			req, err := http.NewRequest(http.MethodGet, srv.URL, nil)
+			req, err := http.NewRequest(http.MethodGet, srv.URL, http.NoBody)
 			require.NoError(t, err)
 
 			resp, err := client.Do(req)
@@ -66,7 +66,7 @@ func TestWithModel(t *testing.T) {
 	defer srv.Close()
 
 	client := NewHTTPClient(WithModel("gpt-4o"))
-	req, err := http.NewRequest(http.MethodGet, srv.URL, nil)
+	req, err := http.NewRequest(http.MethodGet, srv.URL, http.NoBody)
 	require.NoError(t, err)
 
 	resp, err := client.Do(req)
@@ -86,7 +86,7 @@ func TestWithProvider(t *testing.T) {
 	defer srv.Close()
 
 	client := NewHTTPClient(WithProvider("openai"))
-	req, err := http.NewRequest(http.MethodGet, srv.URL, nil)
+	req, err := http.NewRequest(http.MethodGet, srv.URL, http.NoBody)
 	require.NoError(t, err)
 
 	resp, err := client.Do(req)
