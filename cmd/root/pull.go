@@ -22,12 +22,11 @@ func newPullCmd() *cobra.Command {
 	var flags pullFlags
 
 	cmd := &cobra.Command{
-		Use:     "pull <registry-ref>",
-		Short:   "Pull an agent from an OCI registry",
-		Long:    "Pull an agent configuration file from an OCI registry",
-		GroupID: "core",
-		Args:    cobra.ExactArgs(1),
-		RunE:    flags.runPullCommand,
+		Use:   "pull <registry-ref>",
+		Short: "Pull an agent from an OCI registry",
+		Long:  "Pull an agent configuration file from an OCI registry",
+		Args:  cobra.ExactArgs(1),
+		RunE:  flags.runPullCommand,
 	}
 
 	cmd.PersistentFlags().BoolVar(&flags.force, "force", false, "Force pull even if the configuration already exists locally")
@@ -36,7 +35,7 @@ func newPullCmd() *cobra.Command {
 }
 
 func (f *pullFlags) runPullCommand(cmd *cobra.Command, args []string) error {
-	telemetry.TrackCommand("pull", args)
+	telemetry.TrackCommand("share", append([]string{"pull"}, args...))
 
 	ctx := cmd.Context()
 	out := cli.NewPrinter(cmd.OutOrStdout())

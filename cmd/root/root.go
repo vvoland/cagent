@@ -47,7 +47,8 @@ func NewRootCmd() *cobra.Command {
 		Use:   "cagent",
 		Short: "cagent - AI agent runner",
 		Long:  "cagent is a command-line tool for running AI agents",
-		Example: `  cagent run ./agent.yaml
+		Example: `  cagent run
+  cagent run ./agent.yaml
   cagent run agentcatalog/pirate`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// Initialize logging before anything else so logs don't break TUI
@@ -98,26 +99,16 @@ func NewRootCmd() *cobra.Command {
 
 	cmd.AddCommand(newVersionCmd())
 	cmd.AddCommand(newRunCmd())
-	cmd.AddCommand(newExecCmd())
 	cmd.AddCommand(newNewCmd())
-	cmd.AddCommand(newAPICmd())
-	cmd.AddCommand(newACPCmd())
-	cmd.AddCommand(newMCPCmd())
-	cmd.AddCommand(newA2ACmd())
 	cmd.AddCommand(newEvalCmd())
-	cmd.AddCommand(newPushCmd())
-	cmd.AddCommand(newPullCmd())
+	cmd.AddCommand(newShareCmd())
 	cmd.AddCommand(newDebugCmd())
-	cmd.AddCommand(newFeedbackCmd())
-	cmd.AddCommand(newCatalogCmd())
-	cmd.AddCommand(newBuildCmd())
 	cmd.AddCommand(newAliasCmd())
-	cmd.AddCommand(newConfigCmd())
+	cmd.AddCommand(newServeCmd())
 
 	// Define groups
 	cmd.AddGroup(&cobra.Group{ID: "core", Title: "Core Commands:"})
 	cmd.AddGroup(&cobra.Group{ID: "advanced", Title: "Advanced Commands:"})
-	cmd.AddGroup(&cobra.Group{ID: "server", Title: "Server Commands:"})
 
 	if isCliPLugin() {
 		cmd.Use = "agent"
@@ -156,6 +147,11 @@ We collect anonymous usage data to help improve cagent. To disable:
 	}
 
 	rootCmd := NewRootCmd()
+
+	// When no subcommand is given, default to "run" (which runs the default agent).
+	// Users can use "cagent --help" to see available commands.
+	args = defaultToRun(rootCmd, args)
+
 	rootCmd.SetArgs(args)
 	rootCmd.SetIn(stdin)
 	rootCmd.SetOut(stdout)
@@ -189,6 +185,42 @@ We collect anonymous usage data to help improve cagent. To disable:
 	}
 
 	return nil
+}
+
+// defaultToRun prepends "run" to the argument list when no subcommand is
+// specified so that bare "cagent" (or "cagent --debug", etc.) launches the
+// default agent. Help flags (--help / -h) are left alone.
+func defaultToRun(rootCmd *cobra.Command, args []string) []string {
+	for _, arg := range args {
+		switch {
+		case arg == "--":
+			// End of flags – no subcommand found.
+			return append([]string{"run"}, args...)
+		case arg == "--help" || arg == "-h":
+			return args
+		case strings.HasPrefix(arg, "-"):
+			continue
+		case isSubcommand(rootCmd, arg):
+			return args
+		default:
+			return append([]string{"run"}, args...)
+		}
+	}
+
+	return append([]string{"run"}, args...)
+}
+
+// isSubcommand reports whether name matches a registered subcommand or alias.
+func isSubcommand(cmd *cobra.Command, name string) bool {
+	if name == "help" {
+		return true
+	}
+	for _, sub := range cmd.Commands() {
+		if sub.Name() == name || sub.HasAlias(name) {
+			return true
+		}
+	}
+	return false
 }
 
 func processErr(ctx context.Context, err error, stderr io.Writer, rootCmd *cobra.Command) error {
