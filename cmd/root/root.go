@@ -178,10 +178,8 @@ We collect anonymous usage data to help improve cagent. To disable:
 			Vendor:        "Docker Inc.",
 			Version:       version.Version,
 		})
-	} else {
-		if err := rootCmd.ExecuteContext(ctx); err != nil {
-			return processErr(ctx, err, stderr, rootCmd)
-		}
+	} else if err := rootCmd.ExecuteContext(ctx); err != nil {
+		return processErr(ctx, err, stderr, rootCmd)
 	}
 
 	return nil
@@ -212,7 +210,7 @@ func defaultToRun(rootCmd *cobra.Command, args []string) []string {
 
 // isSubcommand reports whether name matches a registered subcommand or alias.
 func isSubcommand(cmd *cobra.Command, name string) bool {
-	if name == "help" {
+	if name == "help" || name == "completion" {
 		return true
 	}
 	for _, sub := range cmd.Commands() {
