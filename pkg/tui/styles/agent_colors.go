@@ -93,7 +93,7 @@ func rebuildAgentColorCache() {
 
 	agentRegistry.badgeStyles = make([]cachedBadgeStyle, len(agentColorPalette))
 	for i, bgHex := range agentColorPalette {
-		fgHex := bestForegroundHex(
+		fgHex := BestForegroundHex(
 			bgHex,
 			theme.Colors.TextBright,
 			theme.Colors.Background,
