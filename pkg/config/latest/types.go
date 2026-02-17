@@ -259,6 +259,9 @@ func (a *AgentConfig) GetFallbackCooldown() time.Duration {
 
 // ModelConfig represents the configuration for a model
 type ModelConfig struct {
+	// Name is the manifest model name (map key), populated at runtime.
+	// Not serialized — set by teamloader/model_switcher when resolving models.
+	Name              string   `json:"-"`
 	Provider          string   `json:"provider,omitempty"`
 	Model             string   `json:"model,omitempty"`
 	Temperature       *float64 `json:"temperature,omitempty"`
