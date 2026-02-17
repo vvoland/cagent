@@ -133,6 +133,9 @@ type ThemeColors struct {
 	BadgeAccent  string `yaml:"badge_accent,omitempty"`  // Accent badge (e.g., purple highlights)
 	BadgeInfo    string `yaml:"badge_info,omitempty"`    // Info badge (e.g., cyan)
 	BadgeSuccess string `yaml:"badge_success,omitempty"` // Success badge (e.g., green)
+
+	// Agent colors
+	AgentHues []float64 `yaml:"agent_hues,omitempty"` // Hue values (0-360) for agent color generation
 }
 
 // ChromaColors contains syntax highlighting colors (for code blocks).
@@ -755,6 +758,10 @@ func mergeColors(base, override ThemeColors) ThemeColors {
 	}
 	if override.BadgeSuccess != "" {
 		result.BadgeSuccess = override.BadgeSuccess
+	}
+	// Agent colors
+	if len(override.AgentHues) > 0 {
+		result.AgentHues = override.AgentHues
 	}
 	return result
 }

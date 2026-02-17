@@ -7,50 +7,6 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// agentColorPalette defines distinct background colors for agent badges.
-// These are chosen to be visually distinguishable and to provide good
-// contrast with white text on dark backgrounds.
-var agentColorPalette = []string{
-	"#1D63ED", // Blue
-	"#9B59B6", // Purple
-	"#1ABC9C", // Teal
-	"#E67E22", // Orange
-	"#E74C8B", // Pink
-	"#27AE60", // Green
-	"#2980B9", // Steel blue
-	"#8E44AD", // Deep purple
-	"#D4AC0D", // Gold
-	"#C0392B", // Red
-	"#16A085", // Dark teal
-	"#D35400", // Burnt orange
-	"#2C3E99", // Indigo
-	"#7D3C98", // Plum
-	"#117864", // Forest green
-	"#A93226", // Crimson
-}
-
-// agentAccentPalette defines foreground accent colors for agent names in the sidebar.
-// These are brighter variants designed to be readable on dark backgrounds without
-// a background fill.
-var agentAccentPalette = []string{
-	"#98C379", // Green
-	"#C678DD", // Purple
-	"#56B6C2", // Cyan
-	"#E5C07B", // Yellow
-	"#E06C9F", // Pink
-	"#61AFEF", // Blue
-	"#D19A66", // Orange
-	"#BE5046", // Red
-	"#73C991", // Mint
-	"#CDA0E0", // Lavender
-	"#4EC9B0", // Turquoise
-	"#DCDCAA", // Khaki
-	"#9CDCFE", // Ice blue
-	"#CE9178", // Salmon
-	"#B5CEA8", // Sage
-	"#D7BA7D", // Tan
-}
-
 // AgentBadgeColors holds the resolved foreground and background colors for an agent badge.
 type AgentBadgeColors struct {
 	Fg color.Color
@@ -64,7 +20,7 @@ type cachedBadgeStyle struct {
 }
 
 // agentRegistry maps agent names to their index in the team list and holds
-// precomputed styles for each palette index.
+// precomputed styles for each palette entry.
 var agentRegistry struct {
 	sync.RWMutex
 	indices      map[string]int
@@ -86,13 +42,24 @@ func SetAgentOrder(agentNames []string) {
 	rebuildAgentColorCache()
 }
 
-// rebuildAgentColorCache precomputes badge and accent styles for all palette indices.
+// rebuildAgentColorCache precomputes badge and accent styles from the current theme's hues.
 // Must be called with agentRegistry.Lock held.
 func rebuildAgentColorCache() {
 	theme := CurrentTheme()
 
-	agentRegistry.badgeStyles = make([]cachedBadgeStyle, len(agentColorPalette))
-	for i, bgHex := range agentColorPalette {
+	hues := theme.Colors.AgentHues
+	if len(hues) == 0 {
+		hues = DefaultAgentHues
+	}
+
+	bg := lipgloss.Color(theme.Colors.Background)
+	badgeColors := GenerateBadgePalette(hues, bg)
+	accentColors := GenerateAccentPalette(hues, bg)
+
+	agentRegistry.badgeStyles = make([]cachedBadgeStyle, len(badgeColors))
+	for i, bgColor := range badgeColors {
+		r, g, b := ColorToRGB(bgColor)
+		bgHex := RGBToHex(r, g, b)
 		fgHex := BestForegroundHex(
 			bgHex,
 			theme.Colors.TextBright,
@@ -102,7 +69,7 @@ func rebuildAgentColorCache() {
 		)
 		colors := AgentBadgeColors{
 			Fg: lipgloss.Color(fgHex),
-			Bg: lipgloss.Color(bgHex),
+			Bg: bgColor,
 		}
 		agentRegistry.badgeStyles[i] = cachedBadgeStyle{
 			colors: colors,
@@ -113,19 +80,27 @@ func rebuildAgentColorCache() {
 		}
 	}
 
-	agentRegistry.accentStyles = make([]lipgloss.Style, len(agentAccentPalette))
-	for i, hex := range agentAccentPalette {
-		agentRegistry.accentStyles[i] = BaseStyle.Foreground(lipgloss.Color(hex))
+	agentRegistry.accentStyles = make([]lipgloss.Style, len(accentColors))
+	for i, c := range accentColors {
+		agentRegistry.accentStyles[i] = BaseStyle.Foreground(c)
 	}
 }
 
 // InvalidateAgentColorCache rebuilds the cached agent styles.
-// Call this after a theme change so foreground contrast is recalculated.
+// Call this after a theme change so colors are recalculated against the new background.
 func InvalidateAgentColorCache() {
 	agentRegistry.Lock()
 	defer agentRegistry.Unlock()
 
 	rebuildAgentColorCache()
+}
+
+// paletteSize returns the current number of cached palette entries.
+func paletteSize() int {
+	agentRegistry.RLock()
+	defer agentRegistry.RUnlock()
+
+	return len(agentRegistry.badgeStyles)
 }
 
 // agentIndex returns the palette index for an agent name.
@@ -134,10 +109,14 @@ func InvalidateAgentColorCache() {
 func agentIndex(agentName string) int {
 	agentRegistry.RLock()
 	idx, ok := agentRegistry.indices[agentName]
+	size := len(agentRegistry.badgeStyles)
 	agentRegistry.RUnlock()
 
-	if ok {
-		return idx % len(agentColorPalette)
+	if !ok {
+		return 0
+	}
+	if size > 0 {
+		return idx % size
 	}
 	return 0
 }
@@ -153,10 +132,9 @@ func AgentBadgeColorsFor(agentName string) AgentBadgeColors {
 		return agentRegistry.badgeStyles[idx].colors
 	}
 
-	// Fallback if cache is not yet initialized
 	return AgentBadgeColors{
 		Fg: lipgloss.Color("#ffffff"),
-		Bg: lipgloss.Color(agentColorPalette[idx]),
+		Bg: lipgloss.Color("#1D63ED"),
 	}
 }
 
@@ -171,10 +149,9 @@ func AgentBadgeStyleFor(agentName string) lipgloss.Style {
 		return agentRegistry.badgeStyles[idx].style
 	}
 
-	// Fallback if cache is not yet initialized
 	return BaseStyle.
 		Foreground(lipgloss.Color("#ffffff")).
-		Background(lipgloss.Color(agentColorPalette[idx])).
+		Background(lipgloss.Color("#1D63ED")).
 		Padding(0, 1)
 }
 
@@ -189,6 +166,5 @@ func AgentAccentStyleFor(agentName string) lipgloss.Style {
 		return agentRegistry.accentStyles[idx]
 	}
 
-	// Fallback if cache is not yet initialized
-	return BaseStyle.Foreground(lipgloss.Color(agentAccentPalette[idx]))
+	return BaseStyle.Foreground(lipgloss.Color("#98C379"))
 }

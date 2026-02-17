@@ -310,7 +310,7 @@ var DefaultAgentHues = []float64{
 	330, // Pink
 	140, // Green
 	200, // Steel blue
-	265, // Deep purple
+	260, // Deep purple
 	50,  // Gold
 	0,   // Red
 	185, // Dark teal
@@ -318,7 +318,7 @@ var DefaultAgentHues = []float64{
 	235, // Indigo
 	295, // Plum
 	155, // Forest green
-	350, // Crimson
+	340, // Crimson
 }
 
 // GenerateBadgePalette generates badge background colors from hues, adapting
@@ -363,8 +363,8 @@ func GenerateAccentPalette(hues []float64, bg color.Color) []color.Color {
 			s = 0.55 + 0.15*math.Sin(float64(i)*0.5)
 			l = 0.68 + 0.08*math.Cos(float64(i)*0.7)
 		} else {
-			s = 0.65 + 0.15*math.Sin(float64(i)*0.5)
-			l = 0.35 + 0.08*math.Cos(float64(i)*0.7)
+			s = 0.70 + 0.15*math.Sin(float64(i)*0.5)
+			l = 0.30 + 0.06*math.Cos(float64(i)*0.7)
 		}
 
 		r, g, b := HSLToRGB(hue, s, l)
