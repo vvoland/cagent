@@ -210,7 +210,7 @@ func defaultToRun(rootCmd *cobra.Command, args []string) []string {
 
 // isSubcommand reports whether name matches a registered subcommand or alias.
 func isSubcommand(cmd *cobra.Command, name string) bool {
-	if name == "help" {
+	if name == "help" || name == "completion" {
 		return true
 	}
 	for _, sub := range cmd.Commands() {
