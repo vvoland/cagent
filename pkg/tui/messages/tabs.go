@@ -26,6 +26,12 @@ type CloseTabMsg struct {
 	SessionID string // The session to close
 }
 
+// ReorderTabMsg requests moving a tab from one position to another.
+type ReorderTabMsg struct {
+	FromIdx int
+	ToIdx   int
+}
+
 // TabInfo contains display information for a session tab.
 type TabInfo struct {
 	SessionID      string // Unique session identifier
