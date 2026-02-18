@@ -27,7 +27,7 @@ require (
 	github.com/charmbracelet/glamour/v2 v2.0.0-20251106195642-800eb8175930
 	github.com/charmbracelet/x/ansi v0.11.6
 	github.com/clipperhouse/displaywidth v0.10.0
-	github.com/clipperhouse/uax29/v2 v2.6.0
+	github.com/clipperhouse/uax29/v2 v2.7.0
 	github.com/coder/acp-go-sdk v0.6.3
 	github.com/docker/cli v29.0.3+incompatible
 	github.com/docker/go-units v0.5.0
