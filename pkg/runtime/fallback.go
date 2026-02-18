@@ -179,6 +179,7 @@ func isRetryableModelError(err error) bool {
 		"bad gateway",           // Gateway error
 		"gateway timeout",       // Gateway timeout
 		"overloaded",            // Server overloaded
+		"overloaded_error",      // Server overloaded
 	}
 
 	for _, pattern := range retryablePatterns {
