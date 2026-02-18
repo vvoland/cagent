@@ -467,6 +467,9 @@ func (m *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.CloseTabMsg:
 		return m.handleCloseTab(msg.SessionID)
 
+	case messages.ReorderTabMsg:
+		return m.handleReorderTab(msg)
+
 	case messages.ToggleSidebarMsg:
 		if m.tuiStore != nil {
 			persistedID := m.persistedSessionID(m.supervisor.ActiveID())
@@ -1252,6 +1255,24 @@ func (m *appModel) replayElicitationEvent(ev *runtime.ElicitationRequestEvent) t
 	}
 }
 
+// handleReorderTab moves a tab from one position to another.
+func (m *appModel) handleReorderTab(msg messages.ReorderTabMsg) (tea.Model, tea.Cmd) {
+	m.supervisor.ReorderTab(msg.FromIdx, msg.ToIdx)
+
+	if m.tuiStore != nil {
+		tabs, _ := m.supervisor.GetTabs()
+		ids := make([]string, len(tabs))
+		for i, tab := range tabs {
+			ids[i] = m.persistedSessionID(tab.SessionID)
+		}
+		if err := m.tuiStore.ReorderTab(context.Background(), ids); err != nil {
+			slog.Warn("Failed to persist tab reorder", "error", err)
+		}
+	}
+
+	return m, nil
+}
+
 // handleCloseTab closes a session tab.
 func (m *appModel) handleCloseTab(sessionID string) (tea.Model, tea.Cmd) {
 	wasActive := sessionID == m.supervisor.ActiveID()
@@ -1635,6 +1656,14 @@ func (m *appModel) handleMouseMotion(msg tea.MouseMotionMsg) (tea.Model, tea.Cmd
 		return m, cmd
 	}
 
+	// Forward drag motion to tab bar when a tab drag is active.
+	if m.tabBar.IsDragging() {
+		adjustedMsg := msg
+		adjustedMsg.X = msg.X - styles.AppPadding
+		m.tabBar.Update(adjustedMsg)
+		return m, nil
+	}
+
 	if m.dialogMgr.Open() {
 		u, cmd := m.dialogMgr.Update(msg)
 		m.dialogMgr = u.(dialog.Manager)
@@ -1665,6 +1694,16 @@ func (m *appModel) handleMouseMotion(msg tea.MouseMotionMsg) (tea.Model, tea.Cmd
 func (m *appModel) handleMouseRelease(msg tea.MouseReleaseMsg) (tea.Model, tea.Cmd) {
 	if m.isDragging {
 		m.isDragging = false
+		return m, nil
+	}
+
+	// Forward release to tab bar when a tab drag is active.
+	if m.tabBar.IsDragging() {
+		adjustedMsg := msg
+		adjustedMsg.X = msg.X - styles.AppPadding
+		if cmd := m.tabBar.Update(adjustedMsg); cmd != nil {
+			return m, cmd
+		}
 		return m, nil
 	}
 

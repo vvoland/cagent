@@ -65,6 +65,22 @@ func (s *Store) migrate() error {
 	// Add sidebar_collapsed column if it doesn't exist (migration for existing databases).
 	_, _ = s.db.Exec(`ALTER TABLE tabs ADD COLUMN sidebar_collapsed BOOLEAN NOT NULL DEFAULT 0`)
 
+	// Add position column for explicit tab ordering.
+	_, _ = s.db.Exec(`ALTER TABLE tabs ADD COLUMN position INTEGER NOT NULL DEFAULT 0`)
+
+	// Backfill position for databases that predate the column: assign positions
+	// based on existing created_at order so the visible order is preserved.
+	// Only runs when all positions are 0 (i.e. column was just added).
+	var maxPos int
+	_ = s.db.QueryRow(`SELECT COALESCE(MAX(position), 0) FROM tabs`).Scan(&maxPos)
+	if maxPos == 0 {
+		_, _ = s.db.Exec(`
+			UPDATE tabs SET position = (
+				SELECT COUNT(*) FROM tabs t2 WHERE t2.created_at < tabs.created_at
+			)
+		`)
+	}
+
 	return nil
 }
 
@@ -73,11 +89,11 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
-// AddTab adds a new tab to the store.
+// AddTab adds a new tab to the store, placing it after all existing tabs.
 func (s *Store) AddTab(ctx context.Context, sessionID, workingDir string) error {
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO tabs (session_id, working_dir, created_at, last_active_at)
-		VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		INSERT INTO tabs (session_id, working_dir, created_at, last_active_at, position)
+		VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, (SELECT COALESCE(MAX(position), -1) + 1 FROM tabs))
 	`, sessionID, workingDir)
 	if err != nil {
 		return fmt.Errorf("adding tab: %w", err)
@@ -94,10 +110,19 @@ func (s *Store) AddTab(ctx context.Context, sessionID, workingDir string) error 
 	return nil
 }
 
-// RemoveTab removes a tab from the store.
+// RemoveTab removes a tab from the store and compacts the remaining positions.
 func (s *Store) RemoveTab(ctx context.Context, sessionID string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM tabs WHERE session_id = ?`, sessionID)
-	return err
+	if err != nil {
+		return err
+	}
+	// Compact positions so they stay contiguous (0, 1, 2, …).
+	_, _ = s.db.ExecContext(ctx, `
+		UPDATE tabs SET position = (
+			SELECT COUNT(*) FROM tabs t2 WHERE t2.position < tabs.position
+		)
+	`)
+	return nil
 }
 
 // UpdateTabSessionID replaces the session ID for a tab entry.
@@ -107,6 +132,30 @@ func (s *Store) RemoveTab(ctx context.Context, sessionID string) error {
 func (s *Store) UpdateTabSessionID(ctx context.Context, oldID, newID string) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE tabs SET session_id = ? WHERE session_id = ?`, newID, oldID)
 	return err
+}
+
+// ReorderTab persists a new tab order. sessionIDs must contain every tab's
+// persisted session ID in the desired order; positions are assigned 0..N-1.
+func (s *Store) ReorderTab(ctx context.Context, sessionIDs []string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("starting reorder transaction: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck // rollback after commit is a no-op
+
+	stmt, err := tx.PrepareContext(ctx, `UPDATE tabs SET position = ? WHERE session_id = ?`)
+	if err != nil {
+		return fmt.Errorf("preparing reorder statement: %w", err)
+	}
+	defer stmt.Close()
+
+	for i, id := range sessionIDs {
+		if _, err := stmt.ExecContext(ctx, i, id); err != nil {
+			return fmt.Errorf("updating position for %s: %w", id, err)
+		}
+	}
+
+	return tx.Commit()
 }
 
 // UpdateTabWorkingDir updates the stored working directory for the given session.
@@ -154,11 +203,11 @@ type TabEntry struct {
 	SidebarCollapsed bool
 }
 
-// GetTabs returns all persisted tabs in creation order, along with the active tab's session ID.
+// GetTabs returns all persisted tabs in position order, along with the active tab's session ID.
 func (s *Store) GetTabs(ctx context.Context) ([]TabEntry, string, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT session_id, working_dir, sidebar_collapsed FROM tabs
-		ORDER BY created_at ASC
+		ORDER BY position ASC
 	`)
 	if err != nil {
 		return nil, "", err

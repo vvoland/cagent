@@ -576,7 +576,7 @@ func (r *LocalRuntime) ExecuteMCPPrompt(ctx context.Context, promptName string, 
 			if textContent, ok := message.Content.(*mcp.TextContent); ok {
 				content.WriteString(textContent.Text)
 			} else {
-				content.WriteString(fmt.Sprintf("[Non-text content: %T]", message.Content))
+				fmt.Fprintf(&content, "[Non-text content: %T]", message.Content)
 			}
 		}
 		return content.String(), nil

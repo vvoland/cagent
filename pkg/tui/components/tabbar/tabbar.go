@@ -28,6 +28,16 @@ const (
 	plusButtonText = " + "
 	// noTab is the sentinel value for click zones that don't map to a tab.
 	noTab = -1
+
+	// dropIndicator is the vertical bar shown between tabs during drag-and-drop.
+	dropIndicator = "┃"
+
+	// dragThreshold is the minimum mouse movement (in columns) to distinguish
+	// a drag from a click.
+	dragThreshold = 3
+
+	// dropIndicatorWidth is the rendered width of dropIndicator.
+	dropIndicatorWidth = 1
 )
 
 // clickZone records where a clickable element is on the tab bar.
@@ -40,6 +50,24 @@ type clickZone struct {
 	isScrollRight bool
 }
 
+// dragState tracks an in-progress tab drag-and-drop operation.
+type dragState struct {
+	active  bool
+	dragIdx int // index of the tab being dragged
+	dropIdx int // insertion index (-1 = no valid drop target)
+	startX  int // mouse X at drag start
+}
+
+// isNoOp returns true when the drop would leave the tab in its original position.
+func (d dragState) isNoOp() bool {
+	return d.dropIdx == noTab || d.dropIdx == d.dragIdx || d.dropIdx == d.dragIdx+1
+}
+
+// tabBound records the original (non-shifted) left/right edges of a tab.
+type tabBound struct {
+	start, end int
+}
+
 // TabBar renders a horizontal bar of session tabs with click and keyboard support.
 type TabBar struct {
 	tabs      []messages.TabInfo
@@ -49,6 +77,11 @@ type TabBar struct {
 
 	scrollOffset int
 	zones        []clickZone
+
+	// dragBounds stores tab positions as-if no drop indicator were rendered,
+	// so midpoint calculations during drag don't jitter when the indicator
+	// shifts zones by 1 column.
+	dragBounds []tabBound
 
 	// maxTitleLen is the maximum display length for tab titles.
 	// Configurable via user settings; defaults to the constant in tab.go.
@@ -63,6 +96,8 @@ type TabBar struct {
 	// animFrame is the current animation frame from the global coordinator,
 	// used to cycle the running indicator on active streaming tabs.
 	animFrame int
+
+	drag dragState
 }
 
 // KeyMap defines key bindings for the tab bar.
@@ -105,6 +140,7 @@ func New(maxTitleLen int) *TabBar {
 		keyMap:         DefaultKeyMap(),
 		maxTitleLen:    maxTitleLen,
 		lastEnsuredIdx: noTab,
+		drag:           dragState{dropIdx: noTab},
 	}
 }
 
@@ -136,6 +172,11 @@ func (t *TabBar) Height() int {
 		return 0
 	}
 	return tabBarHeight
+}
+
+// IsDragging returns true when a tab drag is in progress.
+func (t *TabBar) IsDragging() bool {
+	return t.drag.active
 }
 
 // Bindings returns consolidated key bindings for the help bar.
@@ -185,15 +226,100 @@ func (t *TabBar) Update(msg tea.Msg) tea.Cmd {
 		}
 
 	case tea.MouseClickMsg:
-		if msg.Y == 0 {
-			if msg.Button == tea.MouseMiddle {
-				return t.handleMiddleClick(msg.X)
-			}
-			return t.handleClick(msg.X)
+		if msg.Button == tea.MouseLeft {
+			return t.handleLeftClickDown(msg.X)
 		}
+		if msg.Button == tea.MouseMiddle {
+			return t.handleMiddleClick(msg.X)
+		}
+		return t.handleClick(msg.X)
+
+	case tea.MouseMotionMsg:
+		return t.handleMouseMotion(msg.X)
+
+	case tea.MouseReleaseMsg:
+		return t.handleMouseRelease(msg.X)
 	}
 
 	return nil
+}
+
+// handleLeftClickDown initiates a drag or handles a normal click.
+func (t *TabBar) handleLeftClickDown(x int) tea.Cmd {
+	for _, z := range t.zones {
+		if x < z.startX || x >= z.endX {
+			continue
+		}
+		if z.tabIdx >= 0 && z.tabIdx < len(t.tabs) && !z.isClose {
+			t.drag = dragState{
+				active:  true,
+				dragIdx: z.tabIdx,
+				dropIdx: noTab,
+				startX:  x,
+			}
+			return nil
+		}
+		break
+	}
+	return t.handleClick(x)
+}
+
+// handleMouseMotion updates the drop target during a drag.
+func (t *TabBar) handleMouseMotion(x int) tea.Cmd {
+	if !t.drag.active {
+		return nil
+	}
+
+	t.drag.dropIdx = t.dropIndexForX(x)
+	return nil
+}
+
+// handleMouseRelease completes a drag or falls back to a click.
+func (t *TabBar) handleMouseRelease(x int) tea.Cmd {
+	if !t.drag.active {
+		return nil
+	}
+
+	from := t.drag.dragIdx
+	to := t.drag.dropIdx
+	startX := t.drag.startX
+	noop := t.drag.isNoOp()
+	t.drag = dragState{dropIdx: noTab}
+
+	// If we never moved far enough to get a valid drop, treat as a click.
+	if noop {
+		if abs(x-startX) < dragThreshold {
+			return t.handleClick(x)
+		}
+		return nil
+	}
+
+	// Convert insertion index to final position after removal.
+	finalTo := to
+	if to > from {
+		finalTo--
+	}
+
+	return core.CmdHandler(messages.ReorderTabMsg{FromIdx: from, ToIdx: finalTo})
+}
+
+// dropIndexForX determines the insertion index for the current mouse X
+// position by checking which tab's midpoint the cursor has passed.
+// Uses the stable (indicator-free) bounds to avoid jitter.
+func (t *TabBar) dropIndexForX(x int) int {
+	for i, b := range t.dragBounds {
+		// Map local dragBounds index back to global tab index.
+		tabIdx := t.scrollOffset + i
+		mid := (b.start + b.end) / 2
+		if x < mid {
+			return tabIdx
+		}
+	}
+
+	if len(t.tabs) > 0 {
+		return t.scrollOffset + len(t.dragBounds)
+	}
+	return noTab
 }
 
 // handleMiddleClick closes the tab under the cursor on middle-click.
@@ -257,7 +383,15 @@ func (t *TabBar) View() string {
 	allTabs := make([]Tab, len(t.tabs))
 	totalWidth := 0
 	for i, info := range t.tabs {
-		allTabs[i] = renderTab(info, t.maxTitleLen, t.animFrame)
+		role := dragRoleNone
+		if t.drag.active {
+			if i == t.drag.dragIdx {
+				role = dragRoleSource
+			} else {
+				role = dragRoleBystander
+			}
+		}
+		allTabs[i] = renderTab(info, t.maxTitleLen, t.animFrame, role)
 		totalWidth += allTabs[i].Width()
 	}
 	totalWidth += plusButtonWidth
@@ -298,7 +432,22 @@ func (t *TabBar) View() string {
 		cursor += scrollArrowWidth
 	}
 
+	// Compute the drop indicator once if dragging.
+	var dropLine string
+	visualDrop := noTab
+	if t.drag.active && !t.drag.isNoOp() {
+		dropFg := ensureContrast(styles.TabAccentFg, styles.Background)
+		dropLine = lipgloss.NewStyle().Foreground(dropFg).Render(dropIndicator)
+		visualDrop = t.drag.dropIdx
+	}
+
 	// Visible tabs — each tab starts with its own accent bar, no divider needed.
+	// We compute stable (indicator-free) tab bounds for drag hit testing
+	// alongside the actual rendered zones which may be shifted by the indicator.
+	if t.dragBounds != nil {
+		t.dragBounds = t.dragBounds[:0]
+	}
+	stableCursor := cursor // tracks position without indicator offset
 	lastVisibleIdx := t.scrollOffset - 1
 	for i := t.scrollOffset; i < len(allTabs); i++ {
 		tab := allTabs[i]
@@ -310,8 +459,24 @@ func (t *TabBar) View() string {
 			rightReserve += scrollArrowWidth
 		}
 
-		if cursor+tabW+rightReserve > availWidth && i > t.scrollOffset {
+		// Account for drop indicator width when checking available space.
+		extra := 0
+		if visualDrop >= 0 && i >= visualDrop {
+			extra = dropIndicatorWidth
+		}
+
+		if cursor+tabW+extra+rightReserve > availWidth && i > t.scrollOffset {
 			break
+		}
+
+		// Record stable (indicator-free) bounds for drag midpoint calculation.
+		t.dragBounds = append(t.dragBounds, tabBound{start: stableCursor, end: stableCursor + tabW})
+		stableCursor += tabW
+
+		// Insert the drop indicator before this tab if this is the visual drop position.
+		if visualDrop == i {
+			line += dropLine
+			cursor += dropIndicatorWidth
 		}
 
 		// Register click zones: main area + close area.
@@ -324,6 +489,12 @@ func (t *TabBar) View() string {
 		line += tab.View()
 		cursor += tabW
 		lastVisibleIdx = i
+	}
+
+	// Drop indicator after the last visible tab.
+	if visualDrop == lastVisibleIdx+1 {
+		line += dropLine
+		cursor += dropIndicatorWidth
 	}
 
 	// Right scroll arrow — highlight if any off-screen tab to the right needs attention.
@@ -405,4 +576,11 @@ func (t *TabBar) clampScroll() {
 	if t.activeIdx < t.scrollOffset {
 		t.scrollOffset = t.activeIdx
 	}
+}
+
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
 }

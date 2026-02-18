@@ -423,6 +423,21 @@ func (s *Supervisor) GetTabs() ([]messages.TabInfo, int) {
 	return s.buildTabInfoLocked(), s.activeIndexLocked()
 }
 
+// ReorderTab moves the tab at fromIdx to toIdx, shifting others accordingly.
+func (s *Supervisor) ReorderTab(fromIdx, toIdx int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if fromIdx < 0 || fromIdx >= len(s.order) || toIdx < 0 || toIdx >= len(s.order) || fromIdx == toIdx {
+		return
+	}
+
+	id := s.order[fromIdx]
+	s.order = append(s.order[:fromIdx], s.order[fromIdx+1:]...)
+	s.order = append(s.order[:toIdx], append([]string{id}, s.order[toIdx:]...)...)
+	s.notifyTabsUpdated()
+}
+
 // Shutdown closes all sessions.
 func (s *Supervisor) Shutdown() {
 	s.mu.Lock()
