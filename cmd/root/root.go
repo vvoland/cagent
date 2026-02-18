@@ -32,7 +32,7 @@ type rootFlags struct {
 	logFile     io.Closer
 }
 
-func isCliPLugin() bool {
+func isDockerAgent() bool {
 	cliPluginBinary := "docker-agent"
 	if runtime.GOOS == "windows" {
 		cliPluginBinary += ".exe"
@@ -110,7 +110,7 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddGroup(&cobra.Group{ID: "core", Title: "Core Commands:"})
 	cmd.AddGroup(&cobra.Group{ID: "advanced", Title: "Advanced Commands:"})
 
-	if isCliPLugin() {
+	if isDockerAgent() {
 		cmd.Use = "agent"
 		cmd.Short = "create or run AI agents"
 		cmd.Long = "create or run AI agents"
@@ -147,42 +147,53 @@ We collect anonymous usage data to help improve cagent. To disable:
 	}
 
 	rootCmd := NewRootCmd()
-
-	// When no subcommand is given, default to "run" (which runs the default agent).
-	// Users can use "cagent --help" to see available commands.
-	args = defaultToRun(rootCmd, args)
-
-	rootCmd.SetArgs(args)
 	rootCmd.SetIn(stdin)
 	rootCmd.SetOut(stdout)
 	rootCmd.SetErr(stderr)
+	setContextRecursive(ctx, rootCmd)
 
-	if isCliPLugin() {
-		plugin.Run(func(dockerCli command.Cli) *cobra.Command {
-			originalPreRun := rootCmd.PersistentPreRunE
-			rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-				if err := plugin.PersistentPreRunE(cmd, args); err != nil {
-					return err
-				}
-				if originalPreRun != nil {
-					if err := originalPreRun(cmd, args); err != nil {
-						return processErr(ctx, err, stderr, rootCmd)
-					}
-				}
-				return nil
-			}
-			rootCmd.SetContext(ctx)
-			return rootCmd
-		}, metadata.Metadata{
-			SchemaVersion: "0.1.0",
-			Vendor:        "Docker Inc.",
-			Version:       version.Version,
-		})
-	} else if err := rootCmd.ExecuteContext(ctx); err != nil {
-		return processErr(ctx, err, stderr, rootCmd)
+	if plugin.RunningStandalone() {
+		// When no subcommand is given, default to "run".
+		rootCmd.SetArgs(defaultToRun(rootCmd, args))
+
+		if err := rootCmd.Execute(); err != nil {
+			return processErr(ctx, err, stderr, rootCmd)
+		}
+		return nil
 	}
 
+	// When no subcommand is given, default to "run".
+	rootCmd.SetArgs(append(args[0:1], defaultToRun(rootCmd, args[1:])...))
+	os.Args = append(os.Args[0:2], defaultToRun(rootCmd, os.Args[2:])...)
+
+	plugin.Run(func(dockerCli command.Cli) *cobra.Command {
+		originalPreRun := rootCmd.PersistentPreRunE
+		rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+			if err := plugin.PersistentPreRunE(cmd, args); err != nil {
+				return err
+			}
+			if originalPreRun != nil {
+				if err := originalPreRun(cmd, args); err != nil {
+					return processErr(cmd.Context(), err, stderr, rootCmd)
+				}
+			}
+			return nil
+		}
+		return rootCmd
+	}, metadata.Metadata{
+		SchemaVersion: "0.1.0",
+		Vendor:        "Docker Inc.",
+		Version:       version.Version,
+	})
+
 	return nil
+}
+
+func setContextRecursive(ctx context.Context, cmd *cobra.Command) {
+	cmd.SetContext(ctx)
+	for _, child := range cmd.Commands() {
+		setContextRecursive(ctx, child)
+	}
 }
 
 // defaultToRun prepends "run" to the argument list when no subcommand is
