@@ -95,41 +95,22 @@ func InvalidateAgentColorCache() {
 	rebuildAgentColorCache()
 }
 
-// paletteSize returns the current number of cached palette entries.
-func paletteSize() int {
-	agentRegistry.RLock()
-	defer agentRegistry.RUnlock()
-
-	return len(agentRegistry.badgeStyles)
-}
-
-// agentIndex returns the palette index for an agent name.
-// Uses the registered position if available, wrapping around the palette size.
-// Falls back to 0 for unknown agents.
-func agentIndex(agentName string) int {
-	agentRegistry.RLock()
-	idx, ok := agentRegistry.indices[agentName]
-	size := len(agentRegistry.badgeStyles)
-	agentRegistry.RUnlock()
-
-	if !ok {
-		return 0
-	}
-	if size > 0 {
-		return idx % size
-	}
-	return 0
-}
-
 // AgentBadgeColorsFor returns the badge foreground/background colors for a given agent name.
 func AgentBadgeColorsFor(agentName string) AgentBadgeColors {
-	idx := agentIndex(agentName)
-
 	agentRegistry.RLock()
 	defer agentRegistry.RUnlock()
 
-	if idx < len(agentRegistry.badgeStyles) {
-		return agentRegistry.badgeStyles[idx].colors
+	idx, ok := agentRegistry.indices[agentName]
+	if !ok {
+		return AgentBadgeColors{
+			Fg: lipgloss.Color("#ffffff"),
+			Bg: lipgloss.Color("#1D63ED"),
+		}
+	}
+
+	size := len(agentRegistry.badgeStyles)
+	if size > 0 {
+		return agentRegistry.badgeStyles[idx%size].colors
 	}
 
 	return AgentBadgeColors{
@@ -140,13 +121,20 @@ func AgentBadgeColorsFor(agentName string) AgentBadgeColors {
 
 // AgentBadgeStyleFor returns a lipgloss badge style colored for the given agent.
 func AgentBadgeStyleFor(agentName string) lipgloss.Style {
-	idx := agentIndex(agentName)
-
 	agentRegistry.RLock()
 	defer agentRegistry.RUnlock()
 
-	if idx < len(agentRegistry.badgeStyles) {
-		return agentRegistry.badgeStyles[idx].style
+	idx, ok := agentRegistry.indices[agentName]
+	if !ok {
+		return BaseStyle.
+			Foreground(lipgloss.Color("#ffffff")).
+			Background(lipgloss.Color("#1D63ED")).
+			Padding(0, 1)
+	}
+
+	size := len(agentRegistry.badgeStyles)
+	if size > 0 {
+		return agentRegistry.badgeStyles[idx%size].style
 	}
 
 	return BaseStyle.
@@ -157,13 +145,17 @@ func AgentBadgeStyleFor(agentName string) lipgloss.Style {
 
 // AgentAccentStyleFor returns a foreground-only style for agent names (used in sidebar).
 func AgentAccentStyleFor(agentName string) lipgloss.Style {
-	idx := agentIndex(agentName)
-
 	agentRegistry.RLock()
 	defer agentRegistry.RUnlock()
 
-	if idx < len(agentRegistry.accentStyles) {
-		return agentRegistry.accentStyles[idx]
+	idx, ok := agentRegistry.indices[agentName]
+	if !ok {
+		return BaseStyle.Foreground(lipgloss.Color("#98C379"))
+	}
+
+	size := len(agentRegistry.accentStyles)
+	if size > 0 {
+		return agentRegistry.accentStyles[idx%size]
 	}
 
 	return BaseStyle.Foreground(lipgloss.Color("#98C379"))

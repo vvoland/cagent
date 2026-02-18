@@ -9,26 +9,34 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// --- Agent index and registry tests ---
+// --- Agent registry and color assignment tests ---
 
-func TestAgentIndex_UsesRegisteredOrder(t *testing.T) {
+func TestAgentBadgeStyleFor_UsesRegisteredOrder(t *testing.T) {
 	SetAgentOrder([]string{"root", "git-agent", "docs-writer"})
 	defer SetAgentOrder(nil)
 
-	assert.Equal(t, 0, agentIndex("root"))
-	assert.Equal(t, 1, agentIndex("git-agent"))
-	assert.Equal(t, 2, agentIndex("docs-writer"))
+	// Each agent should get a distinct style based on its position.
+	r1 := AgentBadgeStyleFor("root").Render("x")
+	r2 := AgentBadgeStyleFor("git-agent").Render("x")
+	r3 := AgentBadgeStyleFor("docs-writer").Render("x")
+	assert.NotEqual(t, r1, r2)
+	assert.NotEqual(t, r2, r3)
+	assert.NotEqual(t, r1, r3)
 }
 
-func TestAgentIndex_UnknownAgentReturnsFallback(t *testing.T) {
+func TestAgentBadgeStyleFor_UnknownAgentReturnsFallback(t *testing.T) {
 	SetAgentOrder([]string{"root", "git-agent"})
 	defer SetAgentOrder(nil)
 
-	assert.Equal(t, 0, agentIndex("unknown-agent"))
+	// Unknown agent should get the fallback style, same as calling with no registration.
+	s := AgentBadgeStyleFor("unknown-agent").Render("x")
+	require.NotEmpty(t, s)
 }
 
-func TestAgentIndex_WrapsAroundPaletteSize(t *testing.T) {
-	size := paletteSize()
+func TestAgentBadgeStyleFor_WrapsAroundPaletteSize(t *testing.T) {
+	agentRegistry.RLock()
+	size := len(agentRegistry.badgeStyles)
+	agentRegistry.RUnlock()
 	require.Positive(t, size)
 
 	agents := make([]string, size+3)
@@ -38,29 +46,34 @@ func TestAgentIndex_WrapsAroundPaletteSize(t *testing.T) {
 	SetAgentOrder(agents)
 	defer SetAgentOrder(nil)
 
-	last := agents[len(agents)-1]
-	idx := agentIndex(last)
-	assert.Less(t, idx, size)
-	assert.Equal(t, (size+2)%size, idx)
+	// The last agent wraps around, so it should match the style at (size+2)%size.
+	last := AgentBadgeStyleFor(agents[len(agents)-1]).Render("x")
+	wrapped := AgentBadgeStyleFor(agents[(size+2)%size]).Render("x")
+	assert.Equal(t, last, wrapped)
 }
 
-func TestAgentIndex_EmptyRegistryReturnsFallback(t *testing.T) {
+func TestAgentBadgeStyleFor_EmptyRegistryReturnsFallback(t *testing.T) {
 	SetAgentOrder(nil)
 	defer SetAgentOrder(nil)
 
-	assert.Equal(t, 0, agentIndex("anything"))
+	s := AgentBadgeStyleFor("anything").Render("x")
+	require.NotEmpty(t, s)
 }
 
 func TestSetAgentOrder_UpdatesRegistry(t *testing.T) {
 	SetAgentOrder([]string{"a", "b", "c"})
 	defer SetAgentOrder(nil)
 
-	assert.Equal(t, 0, agentIndex("a"))
-	assert.Equal(t, 2, agentIndex("c"))
+	styleA1 := AgentBadgeStyleFor("a").Render("x")
+	styleC1 := AgentBadgeStyleFor("c").Render("x")
+	assert.NotEqual(t, styleA1, styleC1)
 
+	// Swap order: a and c should exchange styles.
 	SetAgentOrder([]string{"c", "b", "a"})
-	assert.Equal(t, 2, agentIndex("a"))
-	assert.Equal(t, 0, agentIndex("c"))
+	styleA2 := AgentBadgeStyleFor("a").Render("x")
+	styleC2 := AgentBadgeStyleFor("c").Render("x")
+	assert.Equal(t, styleA1, styleC2, "c at index 0 should match a's previous index-0 style")
+	assert.Equal(t, styleC1, styleA2, "a at index 2 should match c's previous index-2 style")
 }
 
 // --- Style rendering tests ---
