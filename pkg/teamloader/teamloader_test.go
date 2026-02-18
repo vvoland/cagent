@@ -137,7 +137,7 @@ func TestLoadExamples(t *testing.T) {
 }
 
 func TestLoadDefaultAgent(t *testing.T) {
-	t.Parallel()
+	t.Setenv("HOME", t.TempDir())
 
 	agentSource, err := config.Resolve("default", nil)
 	require.NoError(t, err)
