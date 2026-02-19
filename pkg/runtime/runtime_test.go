@@ -997,6 +997,72 @@ func TestEmitStartupInfo_WithSessionTokenData(t *testing.T) {
 	assert.Equal(t, int64(200_000), tokenEvent.Usage.ContextLimit)
 }
 
+func TestEmitStartupInfo_CostIncludesSubSessions(t *testing.T) {
+	// When restoring a branched session that contains sub-sessions,
+	// the emitted TokenUsageEvent.Cost must include sub-session costs
+	// (TotalCost), not just OwnCost, because sub-sessions won't emit
+	// their own events during restore.
+	prov := &mockProvider{id: "test/startup-model", stream: &mockStream{}}
+	root := agent.New("root", "agent",
+		agent.WithModel(prov),
+		agent.WithDescription("Root"),
+	)
+	tm := team.New(team.WithAgents(root))
+
+	rt, err := NewLocalRuntime(tm, WithCurrentAgent("root"),
+		WithModelStore(mockModelStoreWithLimit{limit: 128_000}))
+	require.NoError(t, err)
+
+	// Build a session with a direct message and a sub-session.
+	sess := session.New()
+	sess.InputTokens = 1000
+	sess.OutputTokens = 500
+
+	// Direct assistant message with cost
+	sess.Messages = append(sess.Messages, session.Item{
+		Message: &session.Message{
+			AgentName: "root",
+			Message: chat.Message{
+				Role:    chat.MessageRoleAssistant,
+				Content: "hello",
+				Cost:    0.01,
+				Usage:   &chat.Usage{InputTokens: 800, OutputTokens: 400},
+			},
+		},
+	})
+
+	// Sub-session with its own cost
+	subSess := session.New()
+	subSess.Messages = append(subSess.Messages, session.Item{
+		Message: &session.Message{
+			AgentName: "sub",
+			Message: chat.Message{
+				Role:    chat.MessageRoleAssistant,
+				Content: "sub response",
+				Cost:    0.05,
+				Usage:   &chat.Usage{InputTokens: 200, OutputTokens: 100},
+			},
+		},
+	})
+	sess.Messages = append(sess.Messages, session.Item{SubSession: subSess})
+
+	events := make(chan Event, 20)
+	rt.EmitStartupInfo(t.Context(), sess, events)
+	close(events)
+
+	var tokenEvent *TokenUsageEvent
+	for event := range events {
+		if te, ok := event.(*TokenUsageEvent); ok {
+			tokenEvent = te
+		}
+	}
+
+	require.NotNil(t, tokenEvent, "should emit TokenUsageEvent")
+	// Cost must equal TotalCost (0.01 + 0.05 = 0.06), not OwnCost (0.01).
+	assert.InDelta(t, 0.06, tokenEvent.Usage.Cost, 0.0001,
+		"cost should include sub-session costs (TotalCost, not OwnCost)")
+}
+
 func TestEmitStartupInfo_NilSessionNoTokenEvent(t *testing.T) {
 	// When sess is nil, no TokenUsageEvent should be emitted.
 	prov := &mockProvider{id: "test/startup-model", stream: &mockStream{}}

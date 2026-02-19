@@ -748,12 +748,18 @@ func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, sess *session.Sessio
 	// TokenUsageEvent so the sidebar can show the context usage percentage.
 	// The context limit comes from the model definition (models.dev), which
 	// is a model property — not persisted in the session.
+	//
+	// Use TotalCost (not OwnCost) because this is a restore/branch context:
+	// sub-sessions won't emit their own events, so the parent must include
+	// their costs.
 	if sess != nil && (sess.InputTokens > 0 || sess.OutputTokens > 0) {
 		var contextLimit int64
 		if m, err := r.modelsStore.GetModel(ctx, modelID); err == nil && m != nil {
 			contextLimit = int64(m.Limit.Context)
 		}
-		send(NewTokenUsageEvent(sess.ID, r.currentAgent, SessionUsage(sess, contextLimit)))
+		usage := SessionUsage(sess, contextLimit)
+		usage.Cost = sess.TotalCost()
+		send(NewTokenUsageEvent(sess.ID, r.currentAgent, usage))
 	}
 
 	// Emit agent warnings (if any) - these are quick
