@@ -136,10 +136,13 @@ type MessageUsageRecord struct {
 }
 
 // PermissionsConfig defines session-level tool permission overrides
-// using pattern-based rules (Allow/Deny arrays).
+// using pattern-based rules (Allow/Ask/Deny arrays).
 type PermissionsConfig struct {
 	// Allow lists tool name patterns that are auto-approved without user confirmation.
 	Allow []string `json:"allow,omitempty"`
+	// Ask lists tool name patterns that always require user confirmation,
+	// even for tools that are normally auto-approved (e.g. read-only tools).
+	Ask []string `json:"ask,omitempty"`
 	// Deny lists tool name patterns that are always rejected.
 	Deny []string `json:"deny,omitempty"`
 }

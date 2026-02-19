@@ -636,6 +636,21 @@
             ]
           ]
         },
+        "ask": {
+          "type": "array",
+          "description": "Tool patterns that always require user confirmation, even for tools that are normally auto-approved (e.g. read-only tools). Supports the same pattern syntax as allow: tool names with globs and argument matching (e.g., 'fetch' to always ask before fetching URLs).",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            [
+              "fetch"
+            ],
+            [
+              "mcp:github:get_*"
+            ]
+          ]
+        },
         "deny": {
           "type": "array",
           "description": "Tool patterns that are always rejected. Takes priority over allow patterns. Supports the same pattern syntax as allow: tool names with globs and argument matching (e.g., 'shell:cmd=rm -rf*' to block dangerous rm commands).",
