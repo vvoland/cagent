@@ -284,10 +284,10 @@ func TestSimple(t *testing.T) {
 		StreamStarted(sess.ID, "root"),
 		AgentChoice("root", "Hello"),
 		MessageAdded(sess.ID, msgAdded.Message, "root"),
-		TokenUsageWithMessage(sess.ID, "root", 3, 2, 5, 0, 0, &MessageUsage{
+		NewTokenUsageEvent(sess.ID, "root", &Usage{InputTokens: 3, OutputTokens: 2, ContextLength: 5, LastMessage: &MessageUsage{
 			Usage: chat.Usage{InputTokens: 3, OutputTokens: 2},
 			Model: "test/mock-model",
-		}),
+		}}),
 		StreamStopped(sess.ID, "root"),
 	}
 
@@ -326,10 +326,10 @@ func TestMultipleContentChunks(t *testing.T) {
 		AgentChoice("root", "are "),
 		AgentChoice("root", "you?"),
 		MessageAdded(sess.ID, msgAdded.Message, "root"),
-		TokenUsageWithMessage(sess.ID, "root", 8, 12, 20, 0, 0, &MessageUsage{
+		NewTokenUsageEvent(sess.ID, "root", &Usage{InputTokens: 8, OutputTokens: 12, ContextLength: 20, LastMessage: &MessageUsage{
 			Usage: chat.Usage{InputTokens: 8, OutputTokens: 12},
 			Model: "test/mock-model",
-		}),
+		}}),
 		StreamStopped(sess.ID, "root"),
 	}
 
@@ -364,10 +364,10 @@ func TestWithReasoning(t *testing.T) {
 		AgentChoiceReasoning("root", " I should respond politely."),
 		AgentChoice("root", "Hello, how can I help you?"),
 		MessageAdded(sess.ID, msgAdded.Message, "root"),
-		TokenUsageWithMessage(sess.ID, "root", 10, 15, 25, 0, 0, &MessageUsage{
+		NewTokenUsageEvent(sess.ID, "root", &Usage{InputTokens: 10, OutputTokens: 15, ContextLength: 25, LastMessage: &MessageUsage{
 			Usage: chat.Usage{InputTokens: 10, OutputTokens: 15},
 			Model: "test/mock-model",
-		}),
+		}}),
 		StreamStopped(sess.ID, "root"),
 	}
 
@@ -404,10 +404,10 @@ func TestMixedContentAndReasoning(t *testing.T) {
 		AgentChoiceReasoning("root", " I should be friendly"),
 		AgentChoice("root", " How can I help you today?"),
 		MessageAdded(sess.ID, msgAdded.Message, "root"),
-		TokenUsageWithMessage(sess.ID, "root", 15, 20, 35, 0, 0, &MessageUsage{
+		NewTokenUsageEvent(sess.ID, "root", &Usage{InputTokens: 15, OutputTokens: 20, ContextLength: 35, LastMessage: &MessageUsage{
 			Usage: chat.Usage{InputTokens: 15, OutputTokens: 20},
 			Model: "test/mock-model",
-		}),
+		}}),
 		StreamStopped(sess.ID, "root"),
 	}
 

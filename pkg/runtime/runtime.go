@@ -379,15 +379,11 @@ func (r *LocalRuntime) forwardRAGEvents(ctx context.Context, ragManagers map[str
 						sendEvent(RAGIndexingCompleted(ragName, ragEvent.StrategyName, agentName))
 					case ragtypes.EventTypeUsage:
 						// Convert RAG usage to TokenUsageEvent so TUI displays it
-						sendEvent(TokenUsage(
-							"",
-							agentName,
-							ragEvent.TotalTokens, // input tokens (embeddings)
-							0,                    // output tokens (0 for embeddings)
-							ragEvent.TotalTokens, // context length
-							0,                    // context limit (not applicable)
-							ragEvent.Cost,
-						))
+						sendEvent(NewTokenUsageEvent("", agentName, &Usage{
+							InputTokens:   ragEvent.TotalTokens,
+							ContextLength: ragEvent.TotalTokens,
+							Cost:          ragEvent.Cost,
+						}))
 					case ragtypes.EventTypeError:
 						if ragEvent.Error != nil {
 							sendEvent(Error(fmt.Sprintf("RAG %s error: %v", ragName, ragEvent.Error)))
@@ -1003,7 +999,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			if m != nil && r.sessionCompaction {
 				if sess.InputTokens+sess.OutputTokens > int64(float64(contextLimit)*0.9) {
 					r.Summarize(ctx, sess, "", events)
-					events <- TokenUsage(sess.ID, r.currentAgent, sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.OwnCost())
+					events <- NewTokenUsageEvent(sess.ID, r.currentAgent, SessionUsage(sess, contextLimit))
 				}
 			}
 
@@ -1107,7 +1103,9 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				slog.Debug("Skipping empty assistant message (no content and no tool calls)", "agent", a.Name())
 			}
 
-			events <- TokenUsageWithMessage(sess.ID, r.currentAgent, sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.OwnCost(), msgUsage)
+			usage := SessionUsage(sess, contextLimit)
+			usage.LastMessage = msgUsage
+			events <- NewTokenUsageEvent(sess.ID, r.currentAgent, usage)
 
 			r.processToolCalls(ctx, sess, res.Calls, agentTools, events)
 
