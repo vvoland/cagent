@@ -113,8 +113,10 @@ type Runtime interface {
 	SetCurrentAgent(agentName string) error
 	// CurrentAgentTools returns the tools for the active agent
 	CurrentAgentTools(ctx context.Context) ([]tools.Tool, error)
-	// EmitStartupInfo emits initial agent, team, and toolset information for immediate display
-	EmitStartupInfo(ctx context.Context, events chan Event)
+	// EmitStartupInfo emits initial agent, team, and toolset information for immediate display.
+	// When sess is non-nil and contains token data, a TokenUsageEvent is also emitted
+	// so the UI can display context usage percentage on session restore.
+	EmitStartupInfo(ctx context.Context, sess *session.Session, events chan Event)
 	// ResetStartupInfo resets the startup info emission flag, allowing re-emission
 	ResetStartupInfo()
 	// RunStream starts the agent's interaction loop and returns a channel of events
@@ -710,8 +712,10 @@ func (r *LocalRuntime) ResetStartupInfo() {
 	r.startupInfoEmitted = false
 }
 
-// EmitStartupInfo emits initial agent, team, and toolset information for immediate sidebar display
-func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, events chan Event) {
+// EmitStartupInfo emits initial agent, team, and toolset information for immediate sidebar display.
+// When sess is non-nil and contains token data, a TokenUsageEvent is also emitted so that the
+// sidebar can display context usage percentage on session restore.
+func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, sess *session.Session, events chan Event) {
 	// Prevent duplicate emissions
 	if r.startupInfoEmitted {
 		return
@@ -732,11 +736,24 @@ func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, events chan Event) {
 
 	// Emit agent and team information immediately for fast sidebar display
 	// Use getEffectiveModelID to account for active fallback cooldowns
-	if !send(AgentInfo(a.Name(), r.getEffectiveModelID(a), a.Description(), a.WelcomeMessage())) {
+	modelID := r.getEffectiveModelID(a)
+	if !send(AgentInfo(a.Name(), modelID, a.Description(), a.WelcomeMessage())) {
 		return
 	}
 	if !send(TeamInfo(r.agentDetailsFromTeam(), r.currentAgent)) {
 		return
+	}
+
+	// When restoring a session that already has token data, emit a
+	// TokenUsageEvent so the sidebar can show the context usage percentage.
+	// The context limit comes from the model definition (models.dev), which
+	// is a model property — not persisted in the session.
+	if sess != nil && (sess.InputTokens > 0 || sess.OutputTokens > 0) {
+		var contextLimit int64
+		if m, err := r.modelsStore.GetModel(ctx, modelID); err == nil && m != nil {
+			contextLimit = int64(m.Limit.Context)
+		}
+		send(NewTokenUsageEvent(sess.ID, r.currentAgent, SessionUsage(sess, contextLimit)))
 	}
 
 	// Emit agent warnings (if any) - these are quick

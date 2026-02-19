@@ -922,7 +922,7 @@ func TestEmitStartupInfo(t *testing.T) {
 	events := make(chan Event, 10)
 
 	// Call EmitStartupInfo
-	rt.EmitStartupInfo(t.Context(), events)
+	rt.EmitStartupInfo(t.Context(), nil, events)
 	close(events)
 
 	// Collect events
@@ -945,7 +945,7 @@ func TestEmitStartupInfo(t *testing.T) {
 
 	// Test that calling EmitStartupInfo again doesn't emit duplicate events
 	events2 := make(chan Event, 10)
-	rt.EmitStartupInfo(t.Context(), events2)
+	rt.EmitStartupInfo(t.Context(), nil, events2)
 	close(events2)
 
 	var collectedEvents2 []Event
@@ -955,6 +955,69 @@ func TestEmitStartupInfo(t *testing.T) {
 
 	// Should be empty due to deduplication
 	require.Empty(t, collectedEvents2, "EmitStartupInfo should not emit duplicate events")
+}
+
+func TestEmitStartupInfo_WithSessionTokenData(t *testing.T) {
+	// When restoring a session that already has token data,
+	// EmitStartupInfo should emit a TokenUsageEvent with the context limit
+	// looked up from the model store so the sidebar can display context %.
+	prov := &mockProvider{id: "test/startup-model", stream: &mockStream{}}
+	root := agent.New("startup-test-agent", "You are a startup test agent",
+		agent.WithModel(prov),
+		agent.WithDescription("Startup agent"),
+	)
+	tm := team.New(team.WithAgents(root))
+
+	rt, err := NewLocalRuntime(tm, WithCurrentAgent("startup-test-agent"),
+		WithModelStore(mockModelStoreWithLimit{limit: 200_000}))
+	require.NoError(t, err)
+
+	// Create a session with existing token data (simulating session restore)
+	sess := session.New()
+	sess.InputTokens = 5000
+	sess.OutputTokens = 1000
+
+	events := make(chan Event, 20)
+	rt.EmitStartupInfo(t.Context(), sess, events)
+	close(events)
+
+	// Collect events and find the TokenUsageEvent
+	var tokenEvent *TokenUsageEvent
+	for event := range events {
+		if te, ok := event.(*TokenUsageEvent); ok {
+			tokenEvent = te
+		}
+	}
+
+	require.NotNil(t, tokenEvent, "EmitStartupInfo should emit a TokenUsageEvent for a session with token data")
+	assert.Equal(t, sess.ID, tokenEvent.SessionID)
+	assert.Equal(t, int64(5000), tokenEvent.Usage.InputTokens)
+	assert.Equal(t, int64(1000), tokenEvent.Usage.OutputTokens)
+	assert.Equal(t, int64(6000), tokenEvent.Usage.ContextLength)
+	assert.Equal(t, int64(200_000), tokenEvent.Usage.ContextLimit)
+}
+
+func TestEmitStartupInfo_NilSessionNoTokenEvent(t *testing.T) {
+	// When sess is nil, no TokenUsageEvent should be emitted.
+	prov := &mockProvider{id: "test/startup-model", stream: &mockStream{}}
+	root := agent.New("startup-test-agent", "You are a startup test agent",
+		agent.WithModel(prov),
+		agent.WithDescription("Startup agent"),
+	)
+	tm := team.New(team.WithAgents(root))
+
+	rt, err := NewLocalRuntime(tm, WithCurrentAgent("startup-test-agent"),
+		WithModelStore(mockModelStoreWithLimit{limit: 200_000}))
+	require.NoError(t, err)
+
+	events := make(chan Event, 20)
+	rt.EmitStartupInfo(t.Context(), nil, events)
+	close(events)
+
+	for event := range events {
+		_, isTokenEvent := event.(*TokenUsageEvent)
+		assert.False(t, isTokenEvent, "EmitStartupInfo should not emit TokenUsageEvent when session is nil")
+	}
 }
 
 func TestPermissions_DenyBlocksToolExecution(t *testing.T) {

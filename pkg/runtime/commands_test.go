@@ -34,8 +34,8 @@ func (m *mockRuntime) CurrentAgentInfo(context.Context) CurrentAgentInfo {
 func (m *mockRuntime) SetCurrentAgent(string) error {
 	return nil
 }
-func (m *mockRuntime) EmitStartupInfo(context.Context, chan Event) {}
-func (m *mockRuntime) ResetStartupInfo()                           {}
+func (m *mockRuntime) EmitStartupInfo(context.Context, *session.Session, chan Event) {}
+func (m *mockRuntime) ResetStartupInfo()                                             {}
 func (m *mockRuntime) RunStream(context.Context, *session.Session) <-chan Event {
 	return nil
 }
