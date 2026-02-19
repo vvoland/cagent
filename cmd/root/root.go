@@ -110,12 +110,19 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddGroup(&cobra.Group{ID: "core", Title: "Core Commands:"})
 	cmd.AddGroup(&cobra.Group{ID: "advanced", Title: "Advanced Commands:"})
 
-	if isDockerAgent() {
+	if isDockerAgent() && !plugin.RunningStandalone() {
 		cmd.Use = "agent"
 		cmd.Short = "create or run AI agents"
 		cmd.Long = "create or run AI agents"
 		cmd.Example = `  docker agent run ./agent.yaml
   docker agent run agentcatalog/pirate`
+	}
+	if isDockerAgent() && plugin.RunningStandalone() {
+		cmd.Use = "docker-agent"
+		cmd.Short = "create or run AI agents"
+		cmd.Long = "create or run AI agents"
+		cmd.Example = `  docker-agent run ./agent.yaml
+  docker-agent run agentcatalog/pirate`
 	}
 
 	return cmd
