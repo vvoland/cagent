@@ -179,6 +179,15 @@ We collect anonymous usage data to help improve cagent. To disable:
 			}
 			return nil
 		}
+		if rootCmd.RunE != nil {
+			originalRunE := rootCmd.RunE
+			rootCmd.RunE = func(cmd *cobra.Command, args []string) error {
+				if err := originalRunE(cmd, args); err != nil {
+					return processErr(cmd.Context(), err, stderr, rootCmd)
+				}
+				return nil
+			}
+		}
 		return rootCmd
 	}, metadata.Metadata{
 		SchemaVersion: "0.1.0",
