@@ -997,7 +997,8 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			}
 
 			if m != nil && r.sessionCompaction {
-				if sess.InputTokens+sess.OutputTokens > int64(float64(contextLimit)*0.9) {
+				contextLength := sess.InputTokens + sess.OutputTokens
+				if contextLength > int64(float64(contextLimit)*0.9) {
 					r.Summarize(ctx, sess, "", events)
 					events <- NewTokenUsageEvent(sess.ID, r.currentAgent, SessionUsage(sess, contextLimit))
 				}

@@ -312,21 +312,6 @@ func (s *Session) getLastMessageContentByRole(role chat.MessageRole) string {
 	return ""
 }
 
-// UpdateLastAssistantMessageUsage updates the usage and cost fields of the last assistant message.
-// This is used in remote mode to populate per-message cost data from TokenUsageEvent.
-func (s *Session) UpdateLastAssistantMessageUsage(usage *chat.Usage, cost float64, model string) {
-	for i := len(s.Messages) - 1; i >= 0; i-- {
-		if s.Messages[i].IsMessage() && s.Messages[i].Message.Message.Role == chat.MessageRoleAssistant {
-			s.Messages[i].Message.Message.Usage = usage
-			s.Messages[i].Message.Message.Cost = cost
-			if model != "" {
-				s.Messages[i].Message.Message.Model = model
-			}
-			return
-		}
-	}
-}
-
 // AddMessageUsageRecord appends a usage record for remote mode where messages aren't stored locally.
 // This enables the /cost dialog to show per-message breakdown even when using a remote runtime.
 func (s *Session) AddMessageUsageRecord(agentName, model string, cost float64, usage *chat.Usage) {
