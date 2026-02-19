@@ -484,8 +484,23 @@ func formatCost(cost float64) string {
 	return fmt.Sprintf("%.2f", cost)
 }
 
-// contextPercent returns a context usage percentage string when a single session has a limit.
+// contextPercent returns a context usage percentage string for the current agent's session.
+// It looks up the session belonging to the current agent; if none is found, it falls back
+// to returning the percentage when there is exactly one session.
 func (m *model) contextPercent() string {
+	// Try to find the session belonging to the current agent.
+	if m.currentAgent != "" {
+		for sessionID, agentName := range m.sessionAgent {
+			if agentName == m.currentAgent {
+				if usage, ok := m.sessionUsage[sessionID]; ok && usage.ContextLimit > 0 {
+					percent := (float64(usage.ContextLength) / float64(usage.ContextLimit)) * 100
+					return fmt.Sprintf("%.0f%%", percent)
+				}
+			}
+		}
+	}
+
+	// Fallback: if there's exactly one session, use it.
 	if len(m.sessionUsage) == 1 {
 		for _, usage := range m.sessionUsage {
 			if usage.ContextLimit > 0 {
