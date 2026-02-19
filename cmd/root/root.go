@@ -311,7 +311,9 @@ func isFirstRun() bool {
 	if err != nil {
 		return false // File already exists or other error, not first run
 	}
-	f.Close()
+	if err := f.Close(); err != nil {
+		slog.Warn("Failed to close first run marker file", "error", err)
+	}
 
 	return true
 }
