@@ -1017,7 +1017,6 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				contextLength := sess.InputTokens + sess.OutputTokens
 				if contextLength > int64(float64(contextLimit)*0.9) {
 					r.Summarize(ctx, sess, "", events)
-					events <- NewTokenUsageEvent(sess.ID, r.currentAgent, SessionUsage(sess, contextLimit))
 				}
 			}
 
@@ -1960,6 +1959,17 @@ func (r *LocalRuntime) handleHandoff(_ context.Context, _ *session.Session, tool
 // for the summarization (e.g., "focus on code changes" or "include action items").
 func (r *LocalRuntime) Summarize(ctx context.Context, sess *session.Session, additionalPrompt string, events chan Event) {
 	r.sessionCompactor.Compact(ctx, sess, additionalPrompt, events, r.currentAgent)
+
+	// Emit a TokenUsageEvent so the sidebar immediately reflects the
+	// compaction: tokens drop to the summary size, context % drops, and
+	// cost increases by the summary generation cost.
+	a := r.CurrentAgent()
+	modelID := r.getEffectiveModelID(a)
+	var contextLimit int64
+	if m, err := r.modelsStore.GetModel(ctx, modelID); err == nil && m != nil {
+		contextLimit = int64(m.Limit.Context)
+	}
+	events <- NewTokenUsageEvent(sess.ID, r.currentAgent, SessionUsage(sess, contextLimit))
 }
 
 // setElicitationEventsChannel sets the current events channel for elicitation requests
