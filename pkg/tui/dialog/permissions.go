@@ -106,8 +106,17 @@ func (d *permissionsDialog) renderContent(contentWidth, maxHeight int) string {
 			lines = append(lines, "")
 		}
 
-		// If both are empty
-		if len(d.permissions.Allow) == 0 && len(d.permissions.Deny) == 0 {
+		// Ask section
+		if len(d.permissions.Ask) > 0 {
+			lines = append(lines, d.renderSectionHeader("Ask", "Always requires confirmation, even for read-only tools"), "")
+			for _, pattern := range d.permissions.Ask {
+				lines = append(lines, d.renderAskPattern(pattern))
+			}
+			lines = append(lines, "")
+		}
+
+		// If all are empty
+		if len(d.permissions.Allow) == 0 && len(d.permissions.Ask) == 0 && len(d.permissions.Deny) == 0 {
 			lines = append(lines, styles.MutedStyle.Render("No permission patterns configured."), "")
 		}
 	}
@@ -147,6 +156,12 @@ func (d *permissionsDialog) renderPattern(pattern string, isDeny bool) string {
 		style = lipgloss.NewStyle().Foreground(styles.Success)
 	}
 
+	return style.Render(icon) + "  " + lipgloss.NewStyle().Foreground(styles.Highlight).Render(pattern)
+}
+
+func (d *permissionsDialog) renderAskPattern(pattern string) string {
+	icon := "?"
+	style := lipgloss.NewStyle().Foreground(styles.TextSecondary)
 	return style.Render(icon) + "  " + lipgloss.NewStyle().Foreground(styles.Highlight).Render(pattern)
 }
 

@@ -1056,14 +1056,18 @@ type RAGFusionConfig struct {
 // PermissionsConfig represents tool permission configuration.
 // Allow/Ask/Deny model. This controls tool call approval behavior:
 // - Allow: Tools matching these patterns are auto-approved (like --yolo for specific tools)
-// - Ask: Tools matching these patterns always require user approval (default behavior)
+// - Ask: Tools matching these patterns always require user approval, even if the tool is read-only
 // - Deny: Tools matching these patterns are always rejected, even with --yolo
 //
 // Patterns support glob-style matching (e.g., "shell", "read_*", "mcp:github:*")
-// The evaluation order is: Deny (checked first), then Allow, then Ask (default)
+// The evaluation order is: Deny (checked first), then Allow, then Ask (explicit), then default
+// (read-only tools auto-approved, others ask)
 type PermissionsConfig struct {
 	// Allow lists tool name patterns that are auto-approved without user confirmation
 	Allow []string `json:"allow,omitempty"`
+	// Ask lists tool name patterns that always require user confirmation,
+	// even for tools that are normally auto-approved (e.g. read-only tools)
+	Ask []string `json:"ask,omitempty"`
 	// Deny lists tool name patterns that are always rejected
 	Deny []string `json:"deny,omitempty"`
 }

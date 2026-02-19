@@ -133,7 +133,7 @@ type Runtime interface {
 	// Summarize generates a summary for the session
 	Summarize(ctx context.Context, sess *session.Session, additionalPrompt string, events chan Event)
 
-	// PermissionsInfo returns the team-level permission patterns (allow/deny).
+	// PermissionsInfo returns the team-level permission patterns (allow/ask/deny).
 	// Returns nil if no permissions are configured.
 	PermissionsInfo() *PermissionsInfo
 
@@ -158,9 +158,10 @@ type Runtime interface {
 	Close() error
 }
 
-// PermissionsInfo contains the allow and deny patterns for tool permissions.
+// PermissionsInfo contains the allow, ask, and deny patterns for tool permissions.
 type PermissionsInfo struct {
 	Allow []string
+	Ask   []string
 	Deny  []string
 }
 
@@ -701,6 +702,7 @@ func (r *LocalRuntime) PermissionsInfo() *PermissionsInfo {
 	}
 	return &PermissionsInfo{
 		Allow: permChecker.AllowPatterns(),
+		Ask:   permChecker.AskPatterns(),
 		Deny:  permChecker.DenyPatterns(),
 	}
 }
@@ -1440,7 +1442,7 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 		agentToolMap[t.Name] = t
 	}
 
-	for i, toolCall := range calls {
+	for _, toolCall := range calls {
 		callCtx, callSpan := r.startSpan(ctx, "runtime.tool.call", trace.WithAttributes(
 			attribute.String("tool.name", toolCall.Function.Name),
 			attribute.String("tool.type", string(toolCall.Type)),
@@ -1475,7 +1477,7 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 		}
 
 		// Execute tool with approval check
-		canceled := r.executeWithApproval(callCtx, sess, toolCall, tool, events, a, runTool, calls[i+1:])
+		canceled := r.executeWithApproval(callCtx, sess, toolCall, tool, events, a, runTool)
 		if canceled {
 			callSpan.SetStatus(codes.Ok, "tool call canceled by user")
 			callSpan.End()
@@ -1492,18 +1494,10 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 //
 // The approval flow considers (in order):
 //
-//  1. Session-level permissions (if configured) - pattern-based Allow/Deny rules
+//  1. Session-level permissions (if configured) - pattern-based Allow/Ask/Deny rules
 //  2. Team-level permissions config - checked second
-//  3. sess.ToolsApproved (--yolo flag) - auto-approve all
-//  4. tool.Annotations.ReadOnlyHint - auto-approve read-only tools
-//  5. Default: ask for user confirmation
-//
-// Example session permissions configuration:
-//
-//	sess.Permissions = &session.PermissionsConfig{
-//	    Allow: []string{"read_*", "think"},  // auto-approve matching tools
-//	    Deny:  []string{"shell", "exec_*"},  // block matching tools
-//	}
+//  3. sess.ToolsApproved (--yolo flag) or read-only hint - auto-approve
+//  4. Default: ask for user confirmation
 func (r *LocalRuntime) executeWithApproval(
 	ctx context.Context,
 	sess *session.Session,
@@ -1512,7 +1506,6 @@ func (r *LocalRuntime) executeWithApproval(
 	events chan Event,
 	a *agent.Agent,
 	runTool func(),
-	remainingCalls []tools.ToolCall,
 ) (canceled bool) {
 	toolName := toolCall.Function.Name
 
@@ -1525,62 +1518,88 @@ func (r *LocalRuntime) executeWithApproval(
 		}
 	}
 
-	// 1. Check session-level permissions first (if configured)
-	if sess.Permissions != nil {
-		sessionChecker := permissions.NewChecker(&latest.PermissionsConfig{
-			Allow: sess.Permissions.Allow,
-			Deny:  sess.Permissions.Deny,
-		})
-		decision := sessionChecker.CheckWithArgs(toolName, toolArgs)
-		switch decision {
+	// Collect permission checkers in priority order (session first, then team)
+	checkers := r.permissionCheckers(sess)
+
+	for _, pc := range checkers {
+		switch pc.checker.CheckWithArgs(toolName, toolArgs) {
 		case permissions.Deny:
-			slog.Debug("Tool denied by session permissions", "tool", toolName, "session_id", sess.ID)
-			r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, fmt.Sprintf("Tool '%s' is denied by session permissions.", toolName))
+			slog.Debug("Tool denied by permissions", "tool", toolName, "source", pc.source, "session_id", sess.ID)
+			r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, fmt.Sprintf("Tool '%s' is denied by %s.", toolName, pc.source))
 			return false
 		case permissions.Allow:
-			slog.Debug("Tool auto-approved by session permissions", "tool", toolName, "session_id", sess.ID)
+			slog.Debug("Tool auto-approved by permissions", "tool", toolName, "source", pc.source, "session_id", sess.ID)
 			runTool()
 			return false
+		case permissions.ForceAsk:
+			slog.Debug("Tool requires confirmation (ask pattern)", "tool", toolName, "source", pc.source, "session_id", sess.ID)
+			return r.askUserForConfirmation(ctx, sess, toolCall, tool, events, a, runTool)
 		case permissions.Ask:
-			// Fall through to team permissions
+			// No explicit match at this level; fall through to next checker
 		}
 	}
 
-	// 2. Check team-level permissions config
-	if permChecker := r.team.Permissions(); permChecker != nil {
-		decision := permChecker.CheckWithArgs(toolName, toolArgs)
-		switch decision {
-		case permissions.Deny:
-			slog.Debug("Tool denied by team permissions config", "tool", toolName, "session_id", sess.ID)
-			r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, fmt.Sprintf("Tool '%s' is denied by permissions configuration.", toolName))
-			return false
-		case permissions.Allow:
-			slog.Debug("Tool auto-approved by team permissions config", "tool", toolName, "session_id", sess.ID)
-			runTool()
-			return false
-		case permissions.Ask:
-			// Fall through to normal approval flow
-		}
-	}
-
-	// 3. Check --yolo flag or read-only hint
+	// No permission rule matched. Auto-approve if --yolo flag is set or the tool is read-only.
 	if sess.ToolsApproved || tool.Annotations.ReadOnlyHint {
 		runTool()
 		return false
 	}
 
-	// Ask user for confirmation
-	slog.Debug("Tools not approved, waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
+	// Default: ask the user for confirmation
+	return r.askUserForConfirmation(ctx, sess, toolCall, tool, events, a, runTool)
+}
+
+// permissionChecker pairs a checker with a human-readable source label.
+type permissionChecker struct {
+	checker *permissions.Checker
+	source  string
+}
+
+// permissionCheckers returns the ordered list of permission checkers to evaluate.
+func (r *LocalRuntime) permissionCheckers(sess *session.Session) []permissionChecker {
+	var checkers []permissionChecker
+	if sess.Permissions != nil {
+		checkers = append(checkers, permissionChecker{
+			checker: permissions.NewChecker(&latest.PermissionsConfig{
+				Allow: sess.Permissions.Allow,
+				Ask:   sess.Permissions.Ask,
+				Deny:  sess.Permissions.Deny,
+			}),
+			source: "session permissions",
+		})
+	}
+	if tc := r.team.Permissions(); tc != nil {
+		checkers = append(checkers, permissionChecker{
+			checker: tc,
+			source:  "permissions configuration",
+		})
+	}
+	return checkers
+}
+
+// askUserForConfirmation sends a confirmation event and waits for user response.
+// It bypasses all auto-approval logic (read-only hints, yolo flag, etc.).
+func (r *LocalRuntime) askUserForConfirmation(
+	ctx context.Context,
+	sess *session.Session,
+	toolCall tools.ToolCall,
+	tool tools.Tool,
+	events chan Event,
+	a *agent.Agent,
+	runTool func(),
+) (canceled bool) {
+	toolName := toolCall.Function.Name
+	slog.Debug("Tools not approved, waiting for resume", "tool", toolName, "session_id", sess.ID)
 	events <- ToolCallConfirmation(toolCall, tool, a.Name())
 
 	select {
 	case req := <-r.resumeChan:
 		switch req.Type {
 		case ResumeTypeApprove:
-			slog.Debug("Resume signal received, approving tool", "tool", toolCall.Function.Name, "session_id", sess.ID)
+			slog.Debug("Resume signal received, approving tool", "tool", toolName, "session_id", sess.ID)
 			runTool()
 		case ResumeTypeApproveSession:
-			slog.Debug("Resume signal received, approving session", "tool", toolCall.Function.Name, "session_id", sess.ID)
+			slog.Debug("Resume signal received, approving session", "tool", toolName, "session_id", sess.ID)
 			sess.ToolsApproved = true
 			runTool()
 		case ResumeTypeApproveTool:
@@ -1598,7 +1617,7 @@ func (r *LocalRuntime) executeWithApproval(
 			slog.Debug("Resume signal received, approving tool permanently", "tool", approvedTool, "session_id", sess.ID)
 			runTool()
 		case ResumeTypeReject:
-			slog.Debug("Resume signal received, rejecting tool", "tool", toolCall.Function.Name, "session_id", sess.ID, "reason", req.Reason)
+			slog.Debug("Resume signal received, rejecting tool", "tool", toolName, "session_id", sess.ID, "reason", req.Reason)
 			rejectMsg := "The user rejected the tool call."
 			if strings.TrimSpace(req.Reason) != "" {
 				rejectMsg += " Reason: " + strings.TrimSpace(req.Reason)
@@ -1607,11 +1626,8 @@ func (r *LocalRuntime) executeWithApproval(
 		}
 		return false
 	case <-ctx.Done():
-		slog.Debug("Context cancelled while waiting for resume", "tool", toolCall.Function.Name, "session_id", sess.ID)
+		slog.Debug("Context cancelled while waiting for resume", "tool", toolName, "session_id", sess.ID)
 		r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, "The tool call was canceled by the user.")
-		for _, remainingCall := range remainingCalls {
-			r.addToolErrorResponse(ctx, sess, remainingCall, tool, events, a, "The tool call was canceled by the user.")
-		}
 		return true
 	}
 }

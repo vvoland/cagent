@@ -532,9 +532,10 @@ func (a *App) PermissionsInfo() *runtime.PermissionsInfo {
 	// Get session-level permissions
 	var sessionPerms *runtime.PermissionsInfo
 	if a.session != nil && a.session.Permissions != nil {
-		if len(a.session.Permissions.Allow) > 0 || len(a.session.Permissions.Deny) > 0 {
+		if len(a.session.Permissions.Allow) > 0 || len(a.session.Permissions.Ask) > 0 || len(a.session.Permissions.Deny) > 0 {
 			sessionPerms = &runtime.PermissionsInfo{
 				Allow: a.session.Permissions.Allow,
+				Ask:   a.session.Permissions.Ask,
 				Deny:  a.session.Permissions.Deny,
 			}
 		}
@@ -549,10 +550,12 @@ func (a *App) PermissionsInfo() *runtime.PermissionsInfo {
 	result := &runtime.PermissionsInfo{}
 	if sessionPerms != nil {
 		result.Allow = append(result.Allow, sessionPerms.Allow...)
+		result.Ask = append(result.Ask, sessionPerms.Ask...)
 		result.Deny = append(result.Deny, sessionPerms.Deny...)
 	}
 	if teamPerms != nil {
 		result.Allow = append(result.Allow, teamPerms.Allow...)
+		result.Ask = append(result.Ask, teamPerms.Ask...)
 		result.Deny = append(result.Deny, teamPerms.Deny...)
 	}
 
