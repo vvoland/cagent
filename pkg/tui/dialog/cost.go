@@ -167,7 +167,7 @@ func (d *costDialog) gatherCostData() costData {
 	// Fall back to session-level totals if no per-message data (e.g., past sessions)
 	if !data.hasPerMessageData {
 		data.total = totalUsage{
-			cost: d.session.Cost,
+			cost: d.session.TotalCost(),
 			Usage: chat.Usage{
 				InputTokens:  d.session.InputTokens,
 				OutputTokens: d.session.OutputTokens,

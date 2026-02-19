@@ -1003,7 +1003,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			if m != nil && r.sessionCompaction {
 				if sess.InputTokens+sess.OutputTokens > int64(float64(contextLimit)*0.9) {
 					r.Summarize(ctx, sess, "", events)
-					events <- TokenUsage(sess.ID, r.currentAgent, sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.Cost)
+					events <- TokenUsage(sess.ID, r.currentAgent, sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.OwnCost())
 				}
 			}
 
@@ -1107,7 +1107,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				slog.Debug("Skipping empty assistant message (no content and no tool calls)", "agent", a.Name())
 			}
 
-			events <- TokenUsageWithMessage(sess.ID, r.currentAgent, sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.Cost, msgUsage)
+			events <- TokenUsageWithMessage(sess.ID, r.currentAgent, sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.OwnCost(), msgUsage)
 
 			r.processToolCalls(ctx, sess, res.Calls, agentTools, events)
 
@@ -1273,7 +1273,6 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 	var actualModelEventEmitted bool
 	var messageUsage *chat.Usage
 	var messageRateLimit *chat.RateLimit
-	var prevStreamCost float64 // cost contributed by previous usage emission in this stream
 
 	modelID := getAgentModelID(a)
 	toolCallIndex := make(map[string]int)   // toolCallID -> index in toolCalls slice
@@ -1295,15 +1294,6 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 		if response.Usage != nil {
 			messageUsage = response.Usage
 
-			if m != nil && m.Cost != nil {
-				streamCost := (float64(response.Usage.InputTokens)*m.Cost.Input +
-					float64(response.Usage.OutputTokens)*m.Cost.Output +
-					float64(response.Usage.CachedInputTokens)*m.Cost.CacheRead +
-					float64(response.Usage.CacheWriteTokens)*m.Cost.CacheWrite) / 1e6
-				sess.Cost += streamCost - prevStreamCost
-				prevStreamCost = streamCost
-			}
-
 			sess.InputTokens = response.Usage.InputTokens + response.Usage.CachedInputTokens + response.Usage.CacheWriteTokens
 			sess.OutputTokens = response.Usage.OutputTokens
 
@@ -1311,7 +1301,7 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 			if m != nil {
 				modelName = m.Name
 			}
-			telemetry.RecordTokenUsage(ctx, modelName, sess.InputTokens, sess.OutputTokens, sess.Cost)
+			telemetry.RecordTokenUsage(ctx, modelName, sess.InputTokens, sess.OutputTokens, sess.TotalCost())
 		}
 
 		if response.RateLimit != nil {

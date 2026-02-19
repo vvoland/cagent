@@ -432,12 +432,17 @@ func (m *model) LoadFromSession(sess *session.Session) {
 		return
 	}
 
+	// Use TotalCost to include sub-session costs (handles older sessions
+	// where the parent's Cost field did not include sub-session costs).
+	totalCost := sess.TotalCost()
+
 	// Load token usage from session
-	if sess.InputTokens > 0 || sess.OutputTokens > 0 || sess.Cost > 0 {
+	if sess.InputTokens > 0 || sess.OutputTokens > 0 || totalCost > 0 {
 		m.sessionUsage[sess.ID] = &runtime.Usage{
-			InputTokens:  sess.InputTokens,
-			OutputTokens: sess.OutputTokens,
-			Cost:         sess.Cost,
+			InputTokens:   sess.InputTokens,
+			OutputTokens:  sess.OutputTokens,
+			ContextLength: sess.InputTokens + sess.OutputTokens,
+			Cost:          totalCost,
 		}
 	}
 
@@ -489,7 +494,7 @@ func (m *model) contextPercent() string {
 			}
 		}
 	}
-	return "0%"
+	return ""
 }
 
 // getCurrentWorkingDirectory returns the current working directory with home directory replaced by ~/

@@ -34,6 +34,10 @@ type Item struct {
 
 	// Summary is a summary of the session up until this point
 	Summary string `json:"summary,omitempty"`
+
+	// Cost tracks the cost of operations associated with this item that
+	// don't produce a regular message (e.g., compaction/summarization).
+	Cost float64 `json:"cost,omitempty"`
 }
 
 // IsMessage returns true if this item contains a message
@@ -427,6 +431,38 @@ func (s *Session) MessageCount() int {
 		}
 	}
 	return n
+}
+
+// TotalCost computes the total cost of a session by walking all messages,
+// sub-sessions, and summary items. It does not use the session-level Cost
+// field, which exists only for backward-compatible persistence.
+func (s *Session) TotalCost() float64 {
+	var cost float64
+	for _, item := range s.Messages {
+		switch {
+		case item.IsMessage():
+			cost += item.Message.Message.Cost
+		case item.IsSubSession():
+			cost += item.SubSession.TotalCost()
+		}
+		cost += item.Cost
+	}
+	return cost
+}
+
+// OwnCost returns only this session's direct cost: its own messages and
+// item-level costs (e.g. compaction). It excludes sub-session costs.
+// This is used for live event emissions where sub-sessions report their
+// own costs separately.
+func (s *Session) OwnCost() float64 {
+	var cost float64
+	for _, item := range s.Messages {
+		if item.IsMessage() {
+			cost += item.Message.Message.Cost
+		}
+		cost += item.Cost
+	}
+	return cost
 }
 
 // New creates a new agent session

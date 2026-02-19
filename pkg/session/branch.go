@@ -53,7 +53,7 @@ func cloneSessionItem(item Item) (Item, error) {
 		}
 		return Item{SubSession: clonedSub}, nil
 	case item.Summary != "":
-		return Item{Summary: item.Summary}, nil
+		return Item{Summary: item.Summary, Cost: item.Cost}, nil
 	default:
 		return Item{}, fmt.Errorf("cannot clone empty session item")
 	}
@@ -226,7 +226,6 @@ func recalculateSessionTotals(sess *Session) {
 
 	var inputTokens int64
 	var outputTokens int64
-	var cost float64
 
 	for _, msg := range sess.GetAllMessages() {
 		if msg.Message.Role != chat.MessageRoleAssistant {
@@ -236,10 +235,8 @@ func recalculateSessionTotals(sess *Session) {
 			inputTokens += msg.Message.Usage.InputTokens
 			outputTokens += msg.Message.Usage.OutputTokens
 		}
-		cost += msg.Message.Cost
 	}
 
 	sess.InputTokens = inputTokens
 	sess.OutputTokens = outputTokens
-	sess.Cost = cost
 }

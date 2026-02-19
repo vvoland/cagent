@@ -87,10 +87,12 @@ func (c *sessionCompactor) Compact(ctx context.Context, sess *session.Session, a
 		return
 	}
 
-	sess.Messages = append(sess.Messages, session.Item{Summary: summary})
+	// Store the compaction cost on the summary item so that TotalCost()
+	// can discover it when walking the session tree.
+	sess.Messages = append(sess.Messages, session.Item{Summary: summary, Cost: summarySession.TotalCost()})
 	_ = c.sessionStore.UpdateSession(ctx, sess)
 
-	slog.Debug("Generated session summary", "session_id", sess.ID, "summary_length", len(summary))
+	slog.Debug("Generated session summary", "session_id", sess.ID, "summary_length", len(summary), "compaction_cost", summarySession.TotalCost())
 	events <- SessionSummary(sess.ID, summary, agentName)
 }
 
