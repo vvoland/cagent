@@ -3,6 +3,72 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.23.4] - 2026-02-19
+
+This release introduces parallel session support with tab management, major command restructuring, and enhanced UI interactions.
+
+## What's New
+
+- Adds parallel session support with a new tab view to switch between sessions
+- Adds drag and drop functionality for reordering tabs
+- Adds mouse click support to elicitation, prompt input, and tool confirmation dialogs
+- Adds `X-Cagent-Model-Name` header to models gateway requests
+- Adds Ask list to permissions config to force confirmation for read-only tools
+- Defaults to running the default agent when no subcommand is given
+
+## Improvements
+
+- Restores ctrl-r binding for searching prompt history
+- Updates Claude Sonnet model version to 4.6
+- Prevents closing the last remaining tab with Ctrl+W
+- Makes fetch tool not read-only
+- Handles Claude overloaded_error with retry logic
+
+## Bug Fixes
+
+- Fixes ctrl-c in docker agent and `docker agent` defaulting to `docker agent run`
+- Fixes completion command
+- Fixes cagent-action to expect a prompt
+- Fixes gemini use of vertexai environment variables
+- Fixes CPU profile file handling and error handling in isFirstRun
+
+## Technical Changes
+
+- Removes `cagent config` commands (breaking change)
+- Removes `cagent feedback` command (breaking change)
+- Removes `cagent build` command (breaking change)
+- Removes `cagent catalog` command (breaking change)
+- Moves a2a, acp, mcp and api commands under `cagent serve` (breaking change)
+- Replaces `cagent exec` with `cagent run --exec` (breaking change)
+- Moves pull and push under `cagent share` (breaking change)
+- Hides `cagent debug`
+- Adds skills to the default agent
+- Defaults restore_tabs to false
+
+### Pull Requests
+
+- [#1751](https://github.com/docker/cagent/pull/1751) - feat: add `X-Cagent-Model-Name` header to models gateway requests
+- [#1753](https://github.com/docker/cagent/pull/1753) - docs: update CHANGELOG.md for v1.23.3
+- [#1755](https://github.com/docker/cagent/pull/1755) - Review cagent commands
+- [#1759](https://github.com/docker/cagent/pull/1759) - Restore ctrl-r binding for searching prompt history
+- [#1761](https://github.com/docker/cagent/pull/1761) - Fix completion command
+- [#1762](https://github.com/docker/cagent/pull/1762) - fix: cagent-action expects a prompt
+- [#1763](https://github.com/docker/cagent/pull/1763) - fix: gemini use of vertexai environment variables 
+- [#1766](https://github.com/docker/cagent/pull/1766) - Add mouse click support to elicitation, prompt input, and tool confirmation dialogs
+- [#1768](https://github.com/docker/cagent/pull/1768) - chore(config): Update Claude Sonnet model version to 4.6
+- [#1772](https://github.com/docker/cagent/pull/1772) - drag 'n drop tabs
+- [#1773](https://github.com/docker/cagent/pull/1773) - temp home dir to avoid issues in some environments
+- [#1777](https://github.com/docker/cagent/pull/1777) - Bump Go dependencies
+- [#1780](https://github.com/docker/cagent/pull/1780) - fallback: Handle overloaded_error
+- [#1782](https://github.com/docker/cagent/pull/1782) - Fix ctrl-c in `docker agent serve api` and fix `docker agent` defaulting to `docker agent run`
+- [#1785](https://github.com/docker/cagent/pull/1785) - permissions: add Ask list to force confirmation for tools
+- [#1786](https://github.com/docker/cagent/pull/1786) - Make fetch tool not read-only
+- [#1787](https://github.com/docker/cagent/pull/1787) - Daily fixes for the Nightly issue detector
+- [#1788](https://github.com/docker/cagent/pull/1788) - Fix path and typo
+- [#1789](https://github.com/docker/cagent/pull/1789) - Keep same error handling for main cli plugin execution
+- [#1790](https://github.com/docker/cagent/pull/1790) - tui/tabbar: Prevent closing the last remaining tab
+
+
 ## [v1.23.3] - 2026-02-16
 
 This release adds Docker CLI plugin support and improves TUI performance by making model reasoning checks asynchronous.
@@ -554,3 +620,5 @@ This release improves the terminal user interface with better error handling and
 [v1.23.2]: https://github.com/docker/cagent/releases/tag/v1.23.2
 
 [v1.23.3]: https://github.com/docker/cagent/releases/tag/v1.23.3
+
+[v1.23.4]: https://github.com/docker/cagent/releases/tag/v1.23.4
