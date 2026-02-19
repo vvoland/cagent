@@ -219,7 +219,7 @@ func (t *TabBar) Update(msg tea.Msg) tea.Cmd {
 			return core.CmdHandler(messages.SwitchTabMsg{SessionID: t.tabs[prevIdx].SessionID})
 
 		case key.Matches(msg, t.keyMap.CloseTab):
-			if len(t.tabs) == 0 {
+			if len(t.tabs) <= 1 {
 				return nil
 			}
 			return core.CmdHandler(messages.CloseTabMsg{SessionID: t.tabs[t.activeIdx].SessionID})
