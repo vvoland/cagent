@@ -142,11 +142,12 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 		if err != nil {
 			return fmt.Errorf("failed to create CPU profile: %w", err)
 		}
-		defer pf.Close()
 		if err := pprof.StartCPUProfile(pf); err != nil {
+			pf.Close()
 			return fmt.Errorf("failed to start CPU profile: %w", err)
 		}
 		defer pprof.StopCPUProfile()
+		defer pf.Close()
 		slog.Info("CPU profiling enabled", "file", f.cpuProfile)
 	}
 
