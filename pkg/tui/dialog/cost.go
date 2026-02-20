@@ -144,6 +144,17 @@ func (d *costDialog) gatherCostData() costData {
 		})
 	}
 
+	// Helper to add a compaction cost entry (no token usage, just cost)
+	addCompactionCost := func(cost float64) {
+		data.hasPerMessageData = true
+		data.total.cost += cost
+
+		data.messages = append(data.messages, totalUsage{
+			label: "compaction",
+			cost:  cost,
+		})
+	}
+
 	// Try session messages first (local mode), then MessageUsageHistory (remote mode)
 	for _, msg := range d.session.GetAllMessages() {
 		if msg.Message.Usage != nil {
@@ -153,6 +164,15 @@ func (d *costDialog) gatherCostData() costData {
 	if !data.hasPerMessageData {
 		for _, record := range d.session.MessageUsageHistory {
 			addRecord(record.AgentName, record.Model, record.Cost, &record.Usage)
+		}
+	}
+
+	// Include compaction costs from summary items. These are stored on
+	// session items that have a Summary but no Message, so they are not
+	// returned by GetAllMessages().
+	for _, item := range d.session.Messages {
+		if item.Summary != "" && item.Cost > 0 {
+			addCompactionCost(item.Cost)
 		}
 	}
 
@@ -167,7 +187,7 @@ func (d *costDialog) gatherCostData() costData {
 	// Fall back to session-level totals if no per-message data (e.g., past sessions)
 	if !data.hasPerMessageData {
 		data.total = totalUsage{
-			cost: d.session.Cost,
+			cost: d.session.TotalCost(),
 			Usage: chat.Usage{
 				InputTokens:  d.session.InputTokens,
 				OutputTokens: d.session.OutputTokens,

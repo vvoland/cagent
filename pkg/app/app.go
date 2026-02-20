@@ -102,7 +102,7 @@ func New(ctx context.Context, rt runtime.Runtime, sess *session.Session, opts ..
 		startupEvents := make(chan runtime.Event, 10)
 		go func() {
 			defer close(startupEvents)
-			rt.EmitStartupInfo(ctx, startupEvents)
+			rt.EmitStartupInfo(ctx, sess, startupEvents)
 		}()
 		for event := range startupEvents {
 			select {
@@ -259,7 +259,7 @@ func (a *App) ResolveCommand(ctx context.Context, userInput string) string {
 
 // EmitStartupInfo emits initial agent, team, and toolset information to the provided channel
 func (a *App) EmitStartupInfo(ctx context.Context, events chan runtime.Event) {
-	a.runtime.EmitStartupInfo(ctx, events)
+	a.runtime.EmitStartupInfo(ctx, a.session, events)
 }
 
 // Run one agent loop
@@ -622,7 +622,7 @@ func (a *App) SetCurrentAgentModel(ctx context.Context, modelRef string) error {
 		startupEvents := make(chan runtime.Event, 10)
 		go func() {
 			defer close(startupEvents)
-			a.runtime.EmitStartupInfo(ctx, startupEvents)
+			a.runtime.EmitStartupInfo(ctx, a.session, startupEvents)
 		}()
 		for event := range startupEvents {
 			select {
@@ -796,7 +796,7 @@ func (a *App) ReplaceSession(ctx context.Context, sess *session.Session) {
 		startupEvents := make(chan runtime.Event, 10)
 		go func() {
 			defer close(startupEvents)
-			a.runtime.EmitStartupInfo(ctx, startupEvents)
+			a.runtime.EmitStartupInfo(ctx, a.session, startupEvents)
 		}()
 		for event := range startupEvents {
 			select {

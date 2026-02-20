@@ -113,8 +113,10 @@ type Runtime interface {
 	SetCurrentAgent(agentName string) error
 	// CurrentAgentTools returns the tools for the active agent
 	CurrentAgentTools(ctx context.Context) ([]tools.Tool, error)
-	// EmitStartupInfo emits initial agent, team, and toolset information for immediate display
-	EmitStartupInfo(ctx context.Context, events chan Event)
+	// EmitStartupInfo emits initial agent, team, and toolset information for immediate display.
+	// When sess is non-nil and contains token data, a TokenUsageEvent is also emitted
+	// so the UI can display context usage percentage on session restore.
+	EmitStartupInfo(ctx context.Context, sess *session.Session, events chan Event)
 	// ResetStartupInfo resets the startup info emission flag, allowing re-emission
 	ResetStartupInfo()
 	// RunStream starts the agent's interaction loop and returns a channel of events
@@ -379,15 +381,11 @@ func (r *LocalRuntime) forwardRAGEvents(ctx context.Context, ragManagers map[str
 						sendEvent(RAGIndexingCompleted(ragName, ragEvent.StrategyName, agentName))
 					case ragtypes.EventTypeUsage:
 						// Convert RAG usage to TokenUsageEvent so TUI displays it
-						sendEvent(TokenUsage(
-							"",
-							agentName,
-							ragEvent.TotalTokens, // input tokens (embeddings)
-							0,                    // output tokens (0 for embeddings)
-							ragEvent.TotalTokens, // context length
-							0,                    // context limit (not applicable)
-							ragEvent.Cost,
-						))
+						sendEvent(NewTokenUsageEvent("", agentName, &Usage{
+							InputTokens:   ragEvent.TotalTokens,
+							ContextLength: ragEvent.TotalTokens,
+							Cost:          ragEvent.Cost,
+						}))
 					case ragtypes.EventTypeError:
 						if ragEvent.Error != nil {
 							sendEvent(Error(fmt.Sprintf("RAG %s error: %v", ragName, ragEvent.Error)))
@@ -714,8 +712,10 @@ func (r *LocalRuntime) ResetStartupInfo() {
 	r.startupInfoEmitted = false
 }
 
-// EmitStartupInfo emits initial agent, team, and toolset information for immediate sidebar display
-func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, events chan Event) {
+// EmitStartupInfo emits initial agent, team, and toolset information for immediate sidebar display.
+// When sess is non-nil and contains token data, a TokenUsageEvent is also emitted so that the
+// sidebar can display context usage percentage on session restore.
+func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, sess *session.Session, events chan Event) {
 	// Prevent duplicate emissions
 	if r.startupInfoEmitted {
 		return
@@ -736,11 +736,30 @@ func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, events chan Event) {
 
 	// Emit agent and team information immediately for fast sidebar display
 	// Use getEffectiveModelID to account for active fallback cooldowns
-	if !send(AgentInfo(a.Name(), r.getEffectiveModelID(a), a.Description(), a.WelcomeMessage())) {
+	modelID := r.getEffectiveModelID(a)
+	if !send(AgentInfo(a.Name(), modelID, a.Description(), a.WelcomeMessage())) {
 		return
 	}
 	if !send(TeamInfo(r.agentDetailsFromTeam(), r.currentAgent)) {
 		return
+	}
+
+	// When restoring a session that already has token data, emit a
+	// TokenUsageEvent so the sidebar can show the context usage percentage.
+	// The context limit comes from the model definition (models.dev), which
+	// is a model property — not persisted in the session.
+	//
+	// Use TotalCost (not OwnCost) because this is a restore/branch context:
+	// sub-sessions won't emit their own events, so the parent must include
+	// their costs.
+	if sess != nil && (sess.InputTokens > 0 || sess.OutputTokens > 0) {
+		var contextLimit int64
+		if m, err := r.modelsStore.GetModel(ctx, modelID); err == nil && m != nil {
+			contextLimit = int64(m.Limit.Context)
+		}
+		usage := SessionUsage(sess, contextLimit)
+		usage.Cost = sess.TotalCost()
+		send(NewTokenUsageEvent(sess.ID, r.currentAgent, usage))
 	}
 
 	// Emit agent warnings (if any) - these are quick
@@ -1001,9 +1020,9 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			}
 
 			if m != nil && r.sessionCompaction {
-				if sess.InputTokens+sess.OutputTokens > int64(float64(contextLimit)*0.9) {
+				contextLength := sess.InputTokens + sess.OutputTokens
+				if contextLength > int64(float64(contextLimit)*0.9) {
 					r.Summarize(ctx, sess, "", events)
-					events <- TokenUsage(sess.ID, r.currentAgent, sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.Cost)
 				}
 			}
 
@@ -1107,7 +1126,9 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				slog.Debug("Skipping empty assistant message (no content and no tool calls)", "agent", a.Name())
 			}
 
-			events <- TokenUsageWithMessage(sess.ID, r.currentAgent, sess.InputTokens, sess.OutputTokens, sess.InputTokens+sess.OutputTokens, contextLimit, sess.Cost, msgUsage)
+			usage := SessionUsage(sess, contextLimit)
+			usage.LastMessage = msgUsage
+			events <- NewTokenUsageEvent(sess.ID, r.currentAgent, usage)
 
 			r.processToolCalls(ctx, sess, res.Calls, agentTools, events)
 
@@ -1273,7 +1294,6 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 	var actualModelEventEmitted bool
 	var messageUsage *chat.Usage
 	var messageRateLimit *chat.RateLimit
-	var prevStreamCost float64 // cost contributed by previous usage emission in this stream
 
 	modelID := getAgentModelID(a)
 	toolCallIndex := make(map[string]int)   // toolCallID -> index in toolCalls slice
@@ -1295,15 +1315,6 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 		if response.Usage != nil {
 			messageUsage = response.Usage
 
-			if m != nil && m.Cost != nil {
-				streamCost := (float64(response.Usage.InputTokens)*m.Cost.Input +
-					float64(response.Usage.OutputTokens)*m.Cost.Output +
-					float64(response.Usage.CachedInputTokens)*m.Cost.CacheRead +
-					float64(response.Usage.CacheWriteTokens)*m.Cost.CacheWrite) / 1e6
-				sess.Cost += streamCost - prevStreamCost
-				prevStreamCost = streamCost
-			}
-
 			sess.InputTokens = response.Usage.InputTokens + response.Usage.CachedInputTokens + response.Usage.CacheWriteTokens
 			sess.OutputTokens = response.Usage.OutputTokens
 
@@ -1311,7 +1322,7 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 			if m != nil {
 				modelName = m.Name
 			}
-			telemetry.RecordTokenUsage(ctx, modelName, sess.InputTokens, sess.OutputTokens, sess.Cost)
+			telemetry.RecordTokenUsage(ctx, modelName, sess.InputTokens, sess.OutputTokens, sess.TotalCost())
 		}
 
 		if response.RateLimit != nil {
@@ -1954,6 +1965,17 @@ func (r *LocalRuntime) handleHandoff(_ context.Context, _ *session.Session, tool
 // for the summarization (e.g., "focus on code changes" or "include action items").
 func (r *LocalRuntime) Summarize(ctx context.Context, sess *session.Session, additionalPrompt string, events chan Event) {
 	r.sessionCompactor.Compact(ctx, sess, additionalPrompt, events, r.currentAgent)
+
+	// Emit a TokenUsageEvent so the sidebar immediately reflects the
+	// compaction: tokens drop to the summary size, context % drops, and
+	// cost increases by the summary generation cost.
+	a := r.CurrentAgent()
+	modelID := r.getEffectiveModelID(a)
+	var contextLimit int64
+	if m, err := r.modelsStore.GetModel(ctx, modelID); err == nil && m != nil {
+		contextLimit = int64(m.Limit.Context)
+	}
+	events <- NewTokenUsageEvent(sess.ID, r.currentAgent, SessionUsage(sess, contextLimit))
 }
 
 // setElicitationEventsChannel sets the current events channel for elicitation requests

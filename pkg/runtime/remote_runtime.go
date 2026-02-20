@@ -98,7 +98,7 @@ func (r *RemoteRuntime) CurrentAgentTools(_ context.Context) ([]tools.Tool, erro
 }
 
 // EmitStartupInfo emits initial agent, team, and toolset information
-func (r *RemoteRuntime) EmitStartupInfo(ctx context.Context, events chan Event) {
+func (r *RemoteRuntime) EmitStartupInfo(ctx context.Context, _ *session.Session, events chan Event) {
 	cfg := r.readCurrentAgentConfig(ctx)
 
 	events <- AgentInfo(r.currentAgent, cfg.Model, cfg.Description, cfg.WelcomeMessage)

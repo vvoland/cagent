@@ -258,23 +258,25 @@ type MessageUsage struct {
 	Model string
 }
 
-func TokenUsage(sessionID, agentName string, inputTokens, outputTokens, contextLength, contextLimit int64, cost float64) Event {
-	return TokenUsageWithMessage(sessionID, agentName, inputTokens, outputTokens, contextLength, contextLimit, cost, nil)
+// NewTokenUsageEvent creates a TokenUsageEvent with the given usage data.
+func NewTokenUsageEvent(sessionID, agentName string, usage *Usage) Event {
+	return &TokenUsageEvent{
+		Type:         "token_usage",
+		SessionID:    sessionID,
+		Usage:        usage,
+		AgentContext: newAgentContext(agentName),
+	}
 }
 
-func TokenUsageWithMessage(sessionID, agentName string, inputTokens, outputTokens, contextLength, contextLimit int64, cost float64, msgUsage *MessageUsage) Event {
-	return &TokenUsageEvent{
-		Type:      "token_usage",
-		SessionID: sessionID,
-		Usage: &Usage{
-			ContextLength: contextLength,
-			ContextLimit:  contextLimit,
-			InputTokens:   inputTokens,
-			OutputTokens:  outputTokens,
-			Cost:          cost,
-			LastMessage:   msgUsage,
-		},
-		AgentContext: newAgentContext(agentName),
+// SessionUsage builds a Usage from the session's current token counts, the
+// model's context limit, and the session's own cost.
+func SessionUsage(sess *session.Session, contextLimit int64) *Usage {
+	return &Usage{
+		InputTokens:   sess.InputTokens,
+		OutputTokens:  sess.OutputTokens,
+		ContextLength: sess.InputTokens + sess.OutputTokens,
+		ContextLimit:  contextLimit,
+		Cost:          sess.OwnCost(),
 	}
 }
 
