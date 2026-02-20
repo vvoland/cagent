@@ -317,7 +317,7 @@ func (d *sessionBrowserDialog) renderSession(sess session.Summary, selected bool
 		title = "Untitled"
 	}
 
-	suffix := fmt.Sprintf(" (%d) • %s", sess.NumMessages, d.timeAgo(sess.CreatedAt))
+	suffix := fmt.Sprintf(" • (%d msg) • %s", sess.NumMessages, d.timeAgo(sess.CreatedAt))
 
 	starWidth := 3
 	maxTitleLen := max(1, maxWidth-len(suffix)-starWidth)
