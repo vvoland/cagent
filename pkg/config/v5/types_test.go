@@ -1,4 +1,4 @@
-package v4
+package v5
 
 import (
 	"testing"
@@ -126,7 +126,7 @@ func TestAgents_UnmarshalYAML_RejectsUnknownFields(t *testing.T) {
 
 	// "instructions" (plural) is not a valid field; the correct field is "instruction" (singular).
 	// Agents.UnmarshalYAML must reject it so that typos don't silently drop config.
-	input := []byte(`version: "4"
+	input := []byte(`version: "5"
 agents:
   root:
     model: openai/gpt-4o
@@ -141,7 +141,7 @@ agents:
 func TestAgents_UnmarshalYAML_AcceptsValidConfig(t *testing.T) {
 	t.Parallel()
 
-	input := []byte(`version: "4"
+	input := []byte(`version: "5"
 agents:
   root:
     model: openai/gpt-4o
