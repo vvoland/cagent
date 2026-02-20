@@ -103,8 +103,8 @@ func defaultCompletionKeyMap() completionKeyMap {
 			key.WithHelp("↓", "down"),
 		),
 		Enter: key.NewBinding(
-			key.WithKeys("enter"),
-			key.WithHelp("enter", "select"),
+			key.WithKeys("enter", "tab"),
+			key.WithHelp("enter/tab", "select"),
 		),
 		Escape: key.NewBinding(
 			key.WithKeys("esc"),
