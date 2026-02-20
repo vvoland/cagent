@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.23.5] - 2026-02-20
+
+This release improves the session browser interface and fixes several issues with the docker-agent standalone binary.
+
+## Improvements
+- Shows message count in session browser dialog for better session overview
+
+## Bug Fixes
+- Fixes recognition of cobra internal completion commands as subcommands
+- Fixes help text display for docker-agent standalone binary exec
+- Fixes version output for docker-agent CLI plugin and standalone exec
+
+## Technical Changes
+- Renames internal schema structure
+
+### Pull Requests
+
+- [#1792](https://github.com/docker/cagent/pull/1792) - docs: update CHANGELOG.md for v1.23.4
+- [#1796](https://github.com/docker/cagent/pull/1796) - Fix help for docker-agent standalone binary exec
+- [#1802](https://github.com/docker/cagent/pull/1802) - Fix docker-agent version for cli plugin & standalone exec
+
+
 ## [v1.23.4] - 2026-02-19
 
 This release introduces parallel session support with tab management, major command restructuring, and enhanced UI interactions.
@@ -622,3 +644,5 @@ This release improves the terminal user interface with better error handling and
 [v1.23.3]: https://github.com/docker/cagent/releases/tag/v1.23.3
 
 [v1.23.4]: https://github.com/docker/cagent/releases/tag/v1.23.4
+
+[v1.23.5]: https://github.com/docker/cagent/releases/tag/v1.23.5
