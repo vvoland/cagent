@@ -1,26 +1,29 @@
 name: winget
-
 on:
   release:
     types: [published]
-
-env:
-  WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
-
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to publish (e.g., v1.20.5)'
+        required: true
+        type: string
+permissions:
+  contents: read
 jobs:
   publish:
     runs-on: windows-latest
     steps:
-      - name: publish
-        run: |
-          $Release = $ENV:RELEASE | ConvertFrom-Json
-          $Version = $Release.tag_name
-          $PackageId = "Docker.Cagent"
-          $Urls = @(
-            "https://github.com/docker/cagent/releases/download/$Version/cagent-windows-amd64.exe|amd64",
-            "https://github.com/docker/cagent/releases/download/$Version/cagent-windows-arm64.exe|arm64"
-          )
-          & curl.exe -JLO https://aka.ms/wingetcreate/latest
-          & .\wingetcreate.exe update $PackageId -s -v $Version -u $Urls
-        env:
-          RELEASE: ${{ toJSON(github.event.release) }}
+      - name: Generate GitHub App token
+        id: app-token
+        uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2
+        with:
+          app_id: ${{ secrets.CAGENT_REVIEWER_APP_ID }}
+          private_key: ${{ secrets.CAGENT_REVIEWER_APP_PRIVATE_KEY }}
+
+      - name: Publish to WinGet
+        uses: vedantmgoyal9/winget-releaser@19e706d4c9121098010096f9c495a70a7518b30f # v2
+        with:
+          identifier: "Docker.Cagent"
+          version: "${{ github.event.release.tag_name || inputs.release_tag }}"
+          token: ${{ steps.app-token.outputs.token }}
