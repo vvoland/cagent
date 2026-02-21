@@ -21,7 +21,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.9
 	github.com/aws/aws-sdk-go-v2/service/bedrockruntime v1.49.0
 	github.com/aws/aws-sdk-go-v2/service/sts v1.41.6
-	github.com/aymanbagabas/go-udiff v0.3.1
+	github.com/aymanbagabas/go-udiff v0.4.0
 	github.com/blevesearch/bleve/v2 v2.5.7
 	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/charmbracelet/glamour/v2 v2.0.0-20251106195642-800eb8175930
