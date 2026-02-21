@@ -186,15 +186,7 @@ We collect anonymous usage data to help improve cagent. To disable:
 			}
 			return nil
 		}
-		if rootCmd.RunE != nil {
-			originalRunE := rootCmd.RunE
-			rootCmd.RunE = func(cmd *cobra.Command, args []string) error {
-				if err := originalRunE(cmd, args); err != nil {
-					return processErr(cmd.Context(), err, stderr, rootCmd)
-				}
-				return nil
-			}
-		}
+		setErrorHandlingRecursive(rootCmd, processErr)
 		return rootCmd
 	}, metadata.Metadata{
 		SchemaVersion: "0.1.0",
@@ -209,6 +201,22 @@ func setContextRecursive(ctx context.Context, cmd *cobra.Command) {
 	cmd.SetContext(ctx)
 	for _, child := range cmd.Commands() {
 		setContextRecursive(ctx, child)
+	}
+}
+
+func setErrorHandlingRecursive(cmd *cobra.Command, processErr func(context.Context, error, io.Writer, *cobra.Command) error) {
+	if cmd.RunE != nil {
+		originalRunE := cmd.RunE
+		cmd.RunE = func(cmd *cobra.Command, args []string) error {
+			if err := originalRunE(cmd, args); err != nil {
+				return processErr(cmd.Context(), err, cmd.ErrOrStderr(), cmd)
+			}
+			return nil
+		}
+	}
+
+	for _, child := range cmd.Commands() {
+		setErrorHandlingRecursive(child, processErr)
 	}
 }
 

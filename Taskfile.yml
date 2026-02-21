@@ -25,7 +25,7 @@ tasks:
     desc: Build the application binary
     cmds:
       - go build -ldflags "{{.LDFLAGS}}" -o {{.BUILD_DIR}}/{{.BINARY_NAME}} {{.MAIN_PKG}}
-      - ln -sf {{.USER_WORKING_DIR}}/{{.BUILD_DIR}}/{{.BINARY_NAME}} {{.HOME}}/bin/{{.BINARY_NAME}}
+      - '{{if ne .CI "true"}}ln -sf {{.USER_WORKING_DIR}}/{{.BUILD_DIR}}/{{.BINARY_NAME}} {{.HOME}}/bin/{{.BINARY_NAME}}{{end}}'
     sources:
       - "{{.GO_SOURCES}}"
       - "**/*.template"
@@ -40,7 +40,9 @@ tasks:
     desc: Deploy the docker agent cli-plugin
     deps: ["build"]
     cmds:
+      - mkdir -p ~/.docker/cli-plugins
       - cp "{{.BUILD_DIR}}/{{.BINARY_NAME}}" ~/.docker/cli-plugins/{{.CLI_PLUGIN_BINARY_NAME}}
+      - cp "{{.BUILD_DIR}}/{{.BINARY_NAME}}" {{.BUILD_DIR}}/{{.CLI_PLUGIN_BINARY_NAME}}
 
   lint:
     desc: Run golangci-lint
@@ -63,7 +65,12 @@ tasks:
   test:
     aliases: [t]
     desc: Run tests
-    cmd: CAGENT_MODELS_GATEWAY= OPENAI_API_KEY= ANTHROPIC_API_KEY= GOOGLE_API_KEY= GOOGLE_GENAI_USE_VERTEXAI= MISTRAL_API_KEY= GITHUB_TOKEN= go test {{.CLI_ARGS}} ./...
+    cmd: CAGENT_MODELS_GATEWAY= OPENAI_API_KEY= ANTHROPIC_API_KEY= GOOGLE_API_KEY= GOOGLE_GENAI_USE_VERTEXAI= MISTRAL_API_KEY= GITHUB_TOKEN= go test {{.CLI_ARGS}}  ./...
+
+  test-binary:
+    deps: ["deploy-local"]
+    desc: Run tests on build binary
+    cmd: CAGENT_MODELS_GATEWAY= OPENAI_API_KEY= ANTHROPIC_API_KEY= GOOGLE_API_KEY= GOOGLE_GENAI_USE_VERTEXAI= MISTRAL_API_KEY= GITHUB_TOKEN= go test -tags=binary_required {{.CLI_ARGS}}  ./e2e/binary/...
 
   build-local:
     desc: Build binaries for local host platform
