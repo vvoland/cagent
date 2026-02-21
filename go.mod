@@ -42,7 +42,7 @@ require (
 	github.com/google/jsonschema-go v0.4.2
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
-	github.com/junegunn/fzf v0.67.0
+	github.com/junegunn/fzf v0.68.0
 	github.com/k3a/html2text v1.3.0
 	github.com/labstack/echo/v4 v4.15.0
 	github.com/mattn/go-isatty v0.0.20
