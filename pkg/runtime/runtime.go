@@ -1282,7 +1282,7 @@ func (r *LocalRuntime) Run(ctx context.Context, sess *session.Session) ([]sessio
 	return sess.GetAllMessages(), nil
 }
 
-func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStream, a *agent.Agent, agentTools []tools.Tool, sess *session.Session, m *modelsdev.Model, events chan Event) (streamResult, error) {
+func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStream, a *agent.Agent, agentTools []tools.Tool, sess *session.Session, m *modelsdev.Model, events chan Event, providerID string) (streamResult, error) {
 	defer stream.Close()
 
 	var fullContent strings.Builder
@@ -1343,12 +1343,11 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 		if actualModel == "" && response.Model != "" {
 			actualModel = response.Model
 			if !actualModelEventEmitted && actualModel != modelID {
-				// NOTE(krissetto):Prepend the provider from the configured modelID to maintain consistent format
-				// every other invocation in the code uses the provider/model format
-				formattedModel := actualModel
-				if idx := strings.Index(modelID, "/"); idx != -1 {
-					formattedModel = modelID[:idx+1] + actualModel
-				}
+				// Use the actual providerID (passed from caller) to construct the model ID.
+				// This is important for alloy models where different providers can be selected.
+				// The providerID comes from the actual provider used for this stream,
+				// not from parsing the configured model reference.
+				formattedModel := providerID + "/" + actualModel
 				slog.Debug("Detected actual model differs from configured model (streaming)", "configured", modelID, "actual", formattedModel)
 				events <- AgentInfo(a.Name(), formattedModel, a.Description(), a.WelcomeMessage())
 				actualModelEventEmitted = true
