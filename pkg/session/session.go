@@ -10,7 +10,6 @@ import (
 
 	"github.com/docker/cagent/pkg/agent"
 	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/skills"
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -600,16 +599,6 @@ func buildContextSpecificSystemMessages(a *agent.Agent, s *Session) []chat.Messa
 					Content: additionalPrompt,
 				})
 			}
-		}
-	}
-
-	// Add skills section if enabled
-	if a.SkillsEnabled() {
-		if loadedSkills := skills.Load(); len(loadedSkills) > 0 {
-			messages = append(messages, chat.Message{
-				Role:    chat.MessageRoleSystem,
-				Content: skills.BuildSkillsPrompt(loadedSkills),
-			})
 		}
 	}
 

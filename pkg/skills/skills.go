@@ -20,14 +20,18 @@ type Skill struct {
 	Description   string            `yaml:"description"`
 	FilePath      string            `yaml:"-"`
 	BaseDir       string            `yaml:"-"`
+	Files         []string          `yaml:"-"`
 	License       string            `yaml:"license"`
 	Compatibility string            `yaml:"compatibility"`
 	Metadata      map[string]string `yaml:"metadata"`
 	AllowedTools  []string          `yaml:"allowed-tools"`
 }
 
-// Load discovers and loads all skills from standard locations.
-// Skills are loaded from (in order, later overrides earlier):
+// Load discovers and loads skills from the given sources.
+// Each source is either "local" (for filesystem-based skills) or an HTTP/HTTPS URL
+// (for remote skills per the well-known skills discovery spec).
+//
+// Local skills are loaded from (in order, later overrides earlier):
 //
 // Global locations (from home directory):
 //   - ~/.codex/skills/ (recursive)
@@ -37,7 +41,31 @@ type Skill struct {
 // Project locations (from git root up to cwd, closest wins):
 //   - .claude/skills/ (flat, only at cwd)
 //   - .agents/skills/ (flat, scanned from git root to cwd)
-func Load() []Skill {
+func Load(sources []string) []Skill {
+	skillMap := make(map[string]Skill)
+
+	for _, source := range sources {
+		switch {
+		case source == "local":
+			for _, skill := range loadLocalSkills() {
+				skillMap[skill.Name] = skill
+			}
+		case strings.HasPrefix(source, "http://") || strings.HasPrefix(source, "https://"):
+			for _, skill := range loadRemoteSkills(source) {
+				skillMap[source+"/"+skill.Name] = skill
+			}
+		}
+	}
+
+	result := make([]Skill, 0, len(skillMap))
+	for _, skill := range skillMap {
+		result = append(result, skill)
+	}
+	return result
+}
+
+// loadLocalSkills loads skills from standard filesystem locations.
+func loadLocalSkills() []Skill {
 	skillMap := make(map[string]Skill)
 
 	homeDir := paths.GetHomeDir()
@@ -140,37 +168,6 @@ func findGitRoot(dir string) string {
 		}
 		current = parent
 	}
-}
-
-// BuildSkillsPrompt generates a prompt section describing available skills.
-func BuildSkillsPrompt(skills []Skill) string {
-	if len(skills) == 0 {
-		return ""
-	}
-
-	var sb strings.Builder
-	sb.WriteString("The following skills provide specialized instructions for specific tasks. ")
-	sb.WriteString("Each skill's description indicates what it does and when to use it.\n\n")
-	sb.WriteString("When a user's request matches a skill's description, use the read_file tool to load the skill's SKILL.md file from the location path. ")
-	sb.WriteString("The file contains detailed instructions to follow for that task.\n\n")
-
-	sb.WriteString("\n\n<available_skills>\n")
-	for _, skill := range skills {
-		sb.WriteString("  <skill>\n")
-		sb.WriteString("    <name>")
-		sb.WriteString(skill.Name)
-		sb.WriteString("</name>\n")
-		sb.WriteString("    <description>")
-		sb.WriteString(skill.Description)
-		sb.WriteString("</description>\n")
-		sb.WriteString("    <location>")
-		sb.WriteString(skill.FilePath)
-		sb.WriteString("</location>\n")
-		sb.WriteString("  </skill>\n")
-	}
-	sb.WriteString("</available_skills>")
-
-	return sb.String()
 }
 
 // loadSkillsFromDir loads skills from a directory.

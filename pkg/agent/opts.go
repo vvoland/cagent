@@ -147,12 +147,6 @@ func WithLoadTimeWarnings(warnings []string) Opt {
 	}
 }
 
-func WithSkillsEnabled(enabled bool) Opt {
-	return func(a *Agent) {
-		a.skillsEnabled = enabled
-	}
-}
-
 func WithHooks(hooks *latest.HooksConfig) Opt {
 	return func(a *Agent) {
 		a.hooks = hooks

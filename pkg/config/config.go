@@ -185,43 +185,19 @@ func validateProviderName(name string) error {
 	return nil
 }
 
-// validateSkillsConfiguration ensures that agents with skills enabled have the necessary tools
-func validateSkillsConfiguration(agentName string, agent *latest.AgentConfig) error {
-	// Check if skills are enabled
-	if agent.Skills == nil || !*agent.Skills {
-		return nil
-	}
-
-	// Skills are enabled, validate toolsets
-	hasFilesystemToolset := false
-	hasReadFileTool := false
-
-	for _, toolset := range agent.Toolsets {
-		if toolset.Type == "filesystem" {
-			hasFilesystemToolset = true
-
-			// Check if read_file tool is enabled
-			// If no specific tools are listed, all tools are enabled
-			if len(toolset.Tools) == 0 {
-				hasReadFileTool = true
-				break
+// validateSkillsConfiguration validates the skills configuration for an agent.
+func validateSkillsConfiguration(_ string, agent *latest.AgentConfig) error {
+	for _, source := range agent.Skills.Sources {
+		switch {
+		case source == latest.SkillSourceLocal:
+			// valid
+		case strings.HasPrefix(source, "http://") || strings.HasPrefix(source, "https://"):
+			if _, err := url.Parse(source); err != nil {
+				return fmt.Errorf("agent '%s' has invalid skills source URL '%s': %w", agent.Name, source, err)
 			}
-
-			// Check if read_file is in the tools list
-			if slices.Contains(toolset.Tools, "read_file") {
-				hasReadFileTool = true
-				break
-			}
+		default:
+			return fmt.Errorf("agent '%s' has unknown skills source '%s' (must be 'local' or an HTTP/HTTPS URL)", agent.Name, source)
 		}
 	}
-
-	if !hasFilesystemToolset {
-		return fmt.Errorf("agent '%s' has skills enabled but does not have a 'filesystem' toolset configured", agentName)
-	}
-
-	if !hasReadFileTool {
-		return fmt.Errorf("agent '%s' has skills enabled but the 'filesystem' toolset does not include the 'read_file' tool", agentName)
-	}
-
 	return nil
 }

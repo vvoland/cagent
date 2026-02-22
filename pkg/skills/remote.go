@@ -1,0 +1,140 @@
+package skills
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/docker/cagent/pkg/paths"
+)
+
+// remoteIndex represents the index.json served at /.well-known/skills/index.json
+type remoteIndex struct {
+	Skills []remoteSkillEntry `json:"skills"`
+}
+
+type remoteSkillEntry struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Files       []string `json:"files"`
+}
+
+var defaultHTTPClient = &http.Client{
+	Timeout: 30 * time.Second,
+}
+
+func defaultCache() *diskCache {
+	return newDiskCache(filepath.Join(paths.GetCacheDir(), "skills"))
+}
+
+// loadRemoteSkills fetches skills from a remote URL per the well-known skills discovery spec.
+// It fetches /.well-known/skills/index.json, then prefetches all listed files
+// into a disk cache so the agent can read them without network requests during
+// task execution.
+func loadRemoteSkills(baseURL string) []Skill {
+	return loadRemoteSkillsWithCache(baseURL, defaultCache())
+}
+
+func loadRemoteSkillsWithCache(baseURL string, cache *diskCache) []Skill {
+	baseURL = strings.TrimRight(baseURL, "/")
+	indexURL := baseURL + "/.well-known/skills/index.json"
+
+	slog.Debug("Fetching remote skills index", "url", indexURL)
+
+	resp, err := defaultHTTPClient.Get(indexURL)
+	if err != nil {
+		slog.Warn("Failed to fetch remote skills index", "url", indexURL, "error", err)
+		return nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		slog.Warn("Remote skills index returned non-OK status", "url", indexURL, "status", resp.StatusCode)
+		return nil
+	}
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // 1MB limit
+	if err != nil {
+		slog.Warn("Failed to read remote skills index", "url", indexURL, "error", err)
+		return nil
+	}
+
+	var index remoteIndex
+	if err := json.Unmarshal(body, &index); err != nil {
+		slog.Warn("Failed to parse remote skills index", "url", indexURL, "error", err)
+		return nil
+	}
+
+	var skills []Skill
+	for _, entry := range index.Skills {
+		if entry.Name == "" || entry.Description == "" {
+			continue
+		}
+
+		cacheDir := cache.cacheDir(baseURL, entry.Name)
+		prefetchFiles(cache, baseURL, entry.Name, entry.Files)
+
+		skill := Skill{
+			Name:        entry.Name,
+			Description: entry.Description,
+			FilePath:    filepath.Join(cacheDir, "SKILL.md"),
+			BaseDir:     cacheDir,
+			Files:       entry.Files,
+		}
+		skills = append(skills, skill)
+	}
+
+	slog.Debug("Loaded remote skills", "url", baseURL, "count", len(skills))
+	return skills
+}
+
+// prefetchFiles downloads all files listed in the index for a skill,
+// storing them in the disk cache. Files already in cache (and not expired)
+// are skipped.
+func prefetchFiles(cache *diskCache, baseURL, skillName string, files []string) {
+	for _, file := range files {
+		if !isValidFilePath(file) {
+			slog.Debug("Skipping invalid file path in skill", "skill", skillName, "file", file)
+			continue
+		}
+
+		if _, ok := cache.Get(baseURL, skillName, file); ok {
+			continue
+		}
+
+		fileURL := fmt.Sprintf("%s/.well-known/skills/%s/%s", baseURL, skillName, file)
+		if _, err := cache.FetchAndStore(baseURL, skillName, file, fileURL); err != nil {
+			slog.Warn("Failed to prefetch skill file", "skill", skillName, "file", file, "error", err)
+		}
+	}
+}
+
+// isValidFilePath checks a relative file path from the index for safety.
+// Rejects absolute paths, parent traversals, and invalid characters.
+func isValidFilePath(path string) bool {
+	if path == "" {
+		return false
+	}
+	if strings.HasPrefix(path, "/") {
+		return false
+	}
+	if strings.Contains(path, "..") {
+		return false
+	}
+	// Reject backslashes, query strings, fragments, brackets
+	for _, c := range path {
+		switch c {
+		case '\\', '?', '#', '[', ']':
+			return false
+		}
+		if c < 0x20 || c > 0x7E {
+			return false
+		}
+	}
+	return true
+}

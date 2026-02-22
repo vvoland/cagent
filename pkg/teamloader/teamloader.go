@@ -19,6 +19,7 @@ import (
 	"github.com/docker/cagent/pkg/modelsdev"
 	"github.com/docker/cagent/pkg/permissions"
 	"github.com/docker/cagent/pkg/rag"
+	"github.com/docker/cagent/pkg/skills"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
@@ -153,16 +154,10 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 	expander := js.NewJsExpander(env)
 
 	for _, agentConfig := range cfg.Agents {
-		skillsEnabled := false
-		if agentConfig.Skills != nil {
-			skillsEnabled = *agentConfig.Skills
-		}
-
 		// Merge CLI prompt files with agent config prompt files, deduplicating
 		promptFiles := append([]string{}, agentConfig.AddPromptFiles...)
 		promptFiles = append(promptFiles, loadOpts.promptFiles...)
 
-		// Deduplicate to avoid redundant context (saves tokens)
 		seen := make(map[string]bool)
 		unique := promptFiles[:0]
 		for _, f := range promptFiles {
@@ -184,7 +179,6 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 			agent.WithMaxIterations(agentConfig.MaxIterations),
 			agent.WithNumHistoryItems(agentConfig.NumHistoryItems),
 			agent.WithCommands(expander.ExpandCommands(ctx, agentConfig.Commands)),
-			agent.WithSkillsEnabled(skillsEnabled),
 			agent.WithHooks(agentConfig.Hooks),
 		}
 
@@ -227,6 +221,14 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 		if len(agentConfig.RAG) > 0 {
 			ragTools := createRAGToolsForAgent(&agentConfig, ragManagers)
 			agentTools = append(agentTools, ragTools...)
+		}
+
+		// Add skills toolset if skills are enabled
+		if agentConfig.Skills.Enabled() {
+			loadedSkills := skills.Load(agentConfig.Skills.Sources)
+			if len(loadedSkills) > 0 {
+				agentTools = append(agentTools, builtin.NewSkillsToolset(loadedSkills))
+			}
 		}
 
 		opts = append(opts, agent.WithToolSets(agentTools...))

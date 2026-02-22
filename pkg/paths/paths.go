@@ -5,6 +5,22 @@ import (
 	"path/filepath"
 )
 
+// GetCacheDir returns the user's cache directory for cagent.
+//
+// On Linux this follows XDG: $XDG_CACHE_HOME/cagent (default ~/.cache/cagent).
+// On macOS this uses ~/Library/Caches/cagent.
+// On Windows this uses %LocalAppData%/cagent.
+//
+// If the cache directory cannot be determined, it falls back to a directory
+// under the system temporary directory.
+func GetCacheDir() string {
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return filepath.Clean(filepath.Join(os.TempDir(), ".cagent-cache"))
+	}
+	return filepath.Clean(filepath.Join(cacheDir, "cagent"))
+}
+
 // GetConfigDir returns the user's config directory for cagent.
 //
 // If the home directory cannot be determined, it falls back to a directory

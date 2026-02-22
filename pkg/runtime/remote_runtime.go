@@ -17,6 +17,7 @@ import (
 	"github.com/docker/cagent/pkg/sessiontitle"
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools/builtin"
 	"github.com/docker/cagent/pkg/tools/mcp"
 )
 
@@ -433,11 +434,9 @@ func (r *RemoteRuntime) PermissionsInfo() *PermissionsInfo {
 func (r *RemoteRuntime) ResetStartupInfo() {
 }
 
-// CurrentAgentSkillsEnabled returns whether skills are enabled for the current agent.
-// It reads the agent config from the remote API to determine the skills setting.
-func (r *RemoteRuntime) CurrentAgentSkillsEnabled() bool {
-	cfg := r.readCurrentAgentConfig(context.Background())
-	return cfg.Skills != nil && *cfg.Skills
+// CurrentAgentSkillsToolset returns nil for remote runtimes since skills are managed server-side.
+func (r *RemoteRuntime) CurrentAgentSkillsToolset() *builtin.SkillsToolset {
+	return nil
 }
 
 // UpdateSessionTitle updates the title of the current session on the remote server.

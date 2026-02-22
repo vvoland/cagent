@@ -228,8 +228,102 @@ type AgentConfig struct {
 	AddPromptFiles          []string          `json:"add_prompt_files,omitempty" yaml:"add_prompt_files,omitempty"`
 	Commands                types.Commands    `json:"commands,omitempty"`
 	StructuredOutput        *StructuredOutput `json:"structured_output,omitempty"`
-	Skills                  *bool             `json:"skills,omitempty"`
+	Skills                  SkillsConfig      `json:"skills,omitempty"`
 	Hooks                   *HooksConfig      `json:"hooks,omitempty"`
+}
+
+const SkillSourceLocal = "local"
+
+// SkillsConfig controls skill discovery sources for an agent.
+// Supports three YAML formats:
+//   - Boolean: `skills: true` (equivalent to ["local"]) or `skills: false` (disabled)
+//   - List:    `skills: ["local", "http://example.com"]`
+//
+// The special source "local" loads skills from the filesystem (standard locations).
+// HTTP/HTTPS URLs load skills from remote servers per the well-known skills discovery spec.
+type SkillsConfig struct { //nolint:recvcheck // MarshalYAML/MarshalJSON must use value receiver, UnmarshalYAML/UnmarshalJSON must use pointer
+	Sources []string
+}
+
+func (s SkillsConfig) Enabled() bool {
+	return len(s.Sources) > 0
+}
+
+func (s SkillsConfig) HasLocal() bool {
+	for _, src := range s.Sources {
+		if src == SkillSourceLocal {
+			return true
+		}
+	}
+	return false
+}
+
+func (s SkillsConfig) RemoteURLs() []string {
+	var urls []string
+	for _, src := range s.Sources {
+		if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
+			urls = append(urls, src)
+		}
+	}
+	return urls
+}
+
+func (s *SkillsConfig) UnmarshalYAML(unmarshal func(any) error) error {
+	var b bool
+	if err := unmarshal(&b); err == nil {
+		if b {
+			s.Sources = []string{SkillSourceLocal}
+		} else {
+			s.Sources = nil
+		}
+		return nil
+	}
+
+	var sources []string
+	if err := unmarshal(&sources); err != nil {
+		return fmt.Errorf("skills must be a boolean or a list of sources")
+	}
+	s.Sources = sources
+	return nil
+}
+
+func (s SkillsConfig) MarshalYAML() ([]byte, error) {
+	if len(s.Sources) == 0 {
+		return yaml.Marshal(false)
+	}
+	if len(s.Sources) == 1 && s.Sources[0] == SkillSourceLocal {
+		return yaml.Marshal(true)
+	}
+	return yaml.Marshal(s.Sources)
+}
+
+func (s *SkillsConfig) UnmarshalJSON(data []byte) error {
+	var b bool
+	if err := json.Unmarshal(data, &b); err == nil {
+		if b {
+			s.Sources = []string{SkillSourceLocal}
+		} else {
+			s.Sources = nil
+		}
+		return nil
+	}
+
+	var sources []string
+	if err := json.Unmarshal(data, &sources); err != nil {
+		return fmt.Errorf("skills must be a boolean or a list of sources")
+	}
+	s.Sources = sources
+	return nil
+}
+
+func (s SkillsConfig) MarshalJSON() ([]byte, error) {
+	if len(s.Sources) == 0 {
+		return json.Marshal(false)
+	}
+	if len(s.Sources) == 1 && s.Sources[0] == SkillSourceLocal {
+		return json.Marshal(true)
+	}
+	return json.Marshal(s.Sources)
 }
 
 // GetFallbackModels returns the fallback models from the config.

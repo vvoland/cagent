@@ -233,46 +233,6 @@ func TestLoadSkillsFromDir_NonExistentDir(t *testing.T) {
 	assert.Empty(t, skills)
 }
 
-func TestBuildSkillsPrompt(t *testing.T) {
-	skills := []Skill{
-		{
-			Name:        "pdf-extractor",
-			Description: "Extract text from PDFs",
-			FilePath:    "/home/user/.claude/skills/pdf-extractor/SKILL.md",
-			BaseDir:     "/home/user/.claude/skills/pdf-extractor",
-		},
-		{
-			Name:        "code-review",
-			Description: "Perform code reviews",
-			FilePath:    "/project/.claude/skills/code-review/SKILL.md",
-			BaseDir:     "/project/.claude/skills/code-review",
-		},
-	}
-
-	prompt := BuildSkillsPrompt(skills)
-
-	assert.Contains(t, prompt, "<available_skills>")
-	assert.Contains(t, prompt, "</available_skills>")
-	assert.Contains(t, prompt, "<skill>")
-	assert.Contains(t, prompt, "</skill>")
-	assert.Contains(t, prompt, "<name>pdf-extractor</name>")
-	assert.Contains(t, prompt, "<description>Extract text from PDFs</description>")
-	assert.Contains(t, prompt, "<location>/home/user/.claude/skills/pdf-extractor/SKILL.md</location>")
-	assert.Contains(t, prompt, "<name>code-review</name>")
-	assert.Contains(t, prompt, "<description>Perform code reviews</description>")
-	assert.Contains(t, prompt, "<location>/project/.claude/skills/code-review/SKILL.md</location>")
-	assert.Contains(t, prompt, "use the read_file tool to load the skill's SKILL.md file")
-	assert.Contains(t, prompt, "description indicates what it does and when to use it")
-}
-
-func TestBuildSkillsPrompt_Empty(t *testing.T) {
-	prompt := BuildSkillsPrompt(nil)
-	assert.Empty(t, prompt)
-
-	prompt = BuildSkillsPrompt([]Skill{})
-	assert.Empty(t, prompt)
-}
-
 func TestLoad_Integration(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Chdir(tmpDir)
@@ -289,7 +249,7 @@ description: Test project skill
 `
 	require.NoError(t, os.WriteFile(filepath.Join(claudeProjectDir, "SKILL.md"), []byte(skillContent), 0o644))
 
-	skills := Load()
+	skills := Load([]string{"local"})
 
 	found := false
 	for _, s := range skills {
@@ -323,7 +283,7 @@ description: A global agents skill
 	tmpCwd := t.TempDir()
 	t.Chdir(tmpCwd)
 
-	skills := Load()
+	skills := Load([]string{"local"})
 
 	found := false
 	for _, s := range skills {
@@ -372,7 +332,7 @@ description: A flat global agents skill
 	tmpCwd := t.TempDir()
 	t.Chdir(tmpCwd)
 
-	skills := Load()
+	skills := Load([]string{"local"})
 
 	// Both nested and flat skills should be found
 	foundNested := false
@@ -422,7 +382,7 @@ description: A skill from repo root
 	tmpHome := t.TempDir()
 	t.Setenv("HOME", tmpHome)
 
-	skills := Load()
+	skills := Load([]string{"local"})
 
 	found := false
 	for _, s := range skills {
@@ -471,7 +431,7 @@ description: Project version of shared skill
 
 	t.Chdir(tmpRepo)
 
-	skills := Load()
+	skills := Load([]string{"local"})
 
 	found := false
 	for _, s := range skills {
@@ -526,7 +486,7 @@ description: Subproject version
 
 	// From repo root, should get root version
 	t.Chdir(tmpRepo)
-	skills := Load()
+	skills := Load([]string{"local"})
 	for _, s := range skills {
 		if s.Name == "local-skill" {
 			assert.Equal(t, "Root version", s.Description)
@@ -536,7 +496,7 @@ description: Subproject version
 
 	// From subproject, should get subproject version (closer wins)
 	t.Chdir(subDir)
-	skills = Load()
+	skills = Load([]string{"local"})
 	for _, s := range skills {
 		if s.Name == "local-skill" {
 			assert.Equal(t, "Subproject version", s.Description)

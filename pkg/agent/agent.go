@@ -38,7 +38,6 @@ type Agent struct {
 	tools                   []tools.Tool
 	commands                types.Commands
 	pendingWarnings         []string
-	skillsEnabled           bool
 	hooks                   *latest.HooksConfig
 	thinkingConfigured      bool // true if thinking_budget was explicitly set in config
 }
@@ -191,11 +190,6 @@ func (a *Agent) FallbackCooldown() time.Duration {
 // Commands returns the named commands configured for this agent.
 func (a *Agent) Commands() types.Commands {
 	return a.commands
-}
-
-// SkillsEnabled returns whether skills discovery is enabled for this agent.
-func (a *Agent) SkillsEnabled() bool {
-	return a.skillsEnabled
 }
 
 // Hooks returns the hooks configuration for this agent.

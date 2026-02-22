@@ -139,8 +139,8 @@ type Runtime interface {
 	// Returns nil if no permissions are configured.
 	PermissionsInfo() *PermissionsInfo
 
-	// CurrentAgentSkillsEnabled returns whether skills are enabled for the current agent.
-	CurrentAgentSkillsEnabled() bool
+	// CurrentAgentSkillsToolset returns the skills toolset for the current agent, or nil if skills are not enabled.
+	CurrentAgentSkillsToolset() *builtin.SkillsToolset
 
 	// CurrentMCPPrompts returns MCP prompts available from the current agent's toolsets.
 	// Returns an empty map if no MCP prompts are available.
@@ -534,10 +534,18 @@ func (r *LocalRuntime) CurrentAgent() *agent.Agent {
 	return current
 }
 
-// CurrentAgentSkillsEnabled returns whether skills are enabled for the current agent.
-func (r *LocalRuntime) CurrentAgentSkillsEnabled() bool {
+// CurrentAgentSkillsToolset returns the skills toolset for the current agent, or nil if not enabled.
+func (r *LocalRuntime) CurrentAgentSkillsToolset() *builtin.SkillsToolset {
 	a := r.CurrentAgent()
-	return a != nil && a.SkillsEnabled()
+	if a == nil {
+		return nil
+	}
+	for _, ts := range a.ToolSets() {
+		if st, ok := tools.As[*builtin.SkillsToolset](ts); ok {
+			return st
+		}
+	}
+	return nil
 }
 
 // ExecuteMCPPrompt executes an MCP prompt with provided arguments and returns the content.

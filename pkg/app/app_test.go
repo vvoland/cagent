@@ -12,6 +12,7 @@ import (
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/sessiontitle"
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools/builtin"
 	mcptools "github.com/docker/cagent/pkg/tools/mcp"
 )
 
@@ -47,7 +48,10 @@ func (m *mockRuntime) SessionStore() session.Store { return nil }
 func (m *mockRuntime) Summarize(ctx context.Context, sess *session.Session, additionalPrompt string, events chan runtime.Event) {
 }
 func (m *mockRuntime) PermissionsInfo() *runtime.PermissionsInfo { return nil }
-func (m *mockRuntime) CurrentAgentSkillsEnabled() bool           { return false }
+func (m *mockRuntime) CurrentAgentSkillsToolset() *builtin.SkillsToolset {
+	return nil
+}
+
 func (m *mockRuntime) CurrentMCPPrompts(context.Context) map[string]mcptools.PromptInfo {
 	return make(map[string]mcptools.PromptInfo)
 }
