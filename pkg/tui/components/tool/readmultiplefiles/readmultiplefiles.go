@@ -99,7 +99,7 @@ func formatSummaryLines(meta *builtin.ReadMultipleFilesMeta) []fileSummary {
 		if file.Error != "" {
 			output = " " + file.Error
 		} else {
-			output = fmt.Sprintf(" %d lines", file.LineCount)
+			output = fmt.Sprintf(" %d lines", file.TotalLines)
 		}
 
 		summaries = append(summaries, fileSummary{
