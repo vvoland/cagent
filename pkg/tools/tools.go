@@ -17,7 +17,11 @@ type ToolSet interface {
 func NewHandler[T any](fn func(context.Context, T) (*ToolCallResult, error)) ToolHandler {
 	return func(ctx context.Context, toolCall ToolCall) (*ToolCallResult, error) {
 		var params T
-		if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
+		args := toolCall.Function.Arguments
+		if args == "" {
+			args = "{}"
+		}
+		if err := json.Unmarshal([]byte(args), &params); err != nil {
 			return nil, err
 		}
 		return fn(ctx, params)
