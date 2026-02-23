@@ -8,6 +8,11 @@ on:
         description: "Release tag to publish (e.g., v1.20.5)"
         required: true
         type: string
+      dry_run:
+        description: "Dry run (do not submit PR)"
+        required: false
+        type: boolean
+        default: false
 
 env:
   WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_GH_TOKEN }}
@@ -21,6 +26,7 @@ jobs:
       - name: publish
         env:
           VERSION: ${{ inputs.release_tag || github.event.release.tag_name }}
+          DRY_RUN: ${{ inputs.dry_run || false }}
         run: |
           curl.exe -JLO https://aka.ms/wingetcreate/latest
           if ($LASTEXITCODE -ne 0) {
@@ -39,9 +45,17 @@ jobs:
           }
 
           $Version = $ENV:VERSION
+          $DryRun = $ENV:DRY_RUN -eq 'true'
           $PackageId = "Docker.Cagent"
           $Urls = @(
             "https://github.com/docker/cagent/releases/download/$Version/cagent-windows-amd64.exe|amd64",
             "https://github.com/docker/cagent/releases/download/$Version/cagent-windows-arm64.exe|arm64"
           )
-          & .\wingetcreate.exe update $PackageId -s -v $Version -u $Urls
+          
+          # Build command with conditional -s flag
+          $params = @('update', $PackageId, '-v', $Version, '-u', $Urls)
+          if (-not $DryRun) {
+            $params += '-s'
+          }
+          
+          & .\wingetcreate.exe @params
