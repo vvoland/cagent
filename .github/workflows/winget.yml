@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Release tag to publish (e.g., v1.20.5)'
+        description: "Release tag to publish (e.g., v1.20.5)"
         required: true
         type: string
 
@@ -22,11 +22,26 @@ jobs:
         env:
           VERSION: ${{ inputs.release_tag || github.event.release.tag_name }}
         run: |
+          curl.exe -JLO https://aka.ms/wingetcreate/latest
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Failed to download wingetcreate.exe (curl exit code: $LASTEXITCODE)"
+            exit 1
+          }
+          if (-not (Test-Path .\wingetcreate.exe)) {
+            Write-Error "wingetcreate.exe was not downloaded successfully"
+            exit 1
+          }
+          # Verify the signature
+          $sig = Get-AuthenticodeSignature .\wingetcreate.exe
+          if ($sig.Status -ne 'Valid') {
+            Write-Error "Invalid signature on wingetcreate.exe: $($sig.Status)"
+            exit 1
+          }
+
           $Version = $ENV:VERSION
           $PackageId = "Docker.Cagent"
           $Urls = @(
             "https://github.com/docker/cagent/releases/download/$Version/cagent-windows-amd64.exe|amd64",
             "https://github.com/docker/cagent/releases/download/$Version/cagent-windows-arm64.exe|arm64"
           )
-          & curl.exe -JLO https://aka.ms/wingetcreate/latest
           & .\wingetcreate.exe update $PackageId -s -v $Version -u $Urls
