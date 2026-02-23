@@ -14,9 +14,6 @@ on:
         type: boolean
         default: false
 
-env:
-  WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_GH_TOKEN }}
-
 permissions: {}
 
 jobs:
@@ -25,24 +22,11 @@ jobs:
     steps:
       - name: publish
         env:
+          WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_GH_TOKEN }}
           VERSION: ${{ inputs.release_tag || github.event.release.tag_name }}
           DRY_RUN: ${{ inputs.dry_run || false }}
         run: |
-          curl.exe -JLO https://aka.ms/wingetcreate/latest
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "Failed to download wingetcreate.exe (curl exit code: $LASTEXITCODE)"
-            exit 1
-          }
-          if (-not (Test-Path .\wingetcreate.exe)) {
-            Write-Error "wingetcreate.exe was not downloaded successfully"
-            exit 1
-          }
-          # Verify the signature
-          $sig = Get-AuthenticodeSignature .\wingetcreate.exe
-          if ($sig.Status -ne 'Valid') {
-            Write-Error "Invalid signature on wingetcreate.exe: $($sig.Status)"
-            exit 1
-          }
+          winget install wingetcreate  --accept-source-agreements   --accept-package-agreements
 
           $Version = $ENV:VERSION
           $DryRun = $ENV:DRY_RUN -eq 'true'
@@ -51,11 +35,11 @@ jobs:
             "https://github.com/docker/cagent/releases/download/$Version/cagent-windows-amd64.exe|amd64",
             "https://github.com/docker/cagent/releases/download/$Version/cagent-windows-arm64.exe|arm64"
           )
-          
+
           # Build command with conditional -s flag
           $params = @('update', $PackageId, '-v', $Version, '-u', $Urls)
           if (-not $DryRun) {
             $params += '-s'
           }
-          
-          & .\wingetcreate.exe @params
+
+          & wingetcreate.exe @params
