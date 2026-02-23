@@ -504,10 +504,11 @@ func (t *FilesystemTool) handleReadFile(_ context.Context, args ReadFileArgs) (*
 		}, nil
 	}
 
+	str := string(content)
 	return &tools.ToolCallResult{
-		Output: string(content),
+		Output: limitOutput(str),
 		Meta: ReadFileMeta{
-			LineCount: strings.Count(string(content), "\n") + 1,
+			LineCount: strings.Count(str, "\n") + 1,
 		},
 	}, nil
 }
@@ -545,12 +546,13 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadM
 			continue
 		}
 
+		str := limitOutput(string(content))
 		contents = append(contents, PathContent{
 			Path:    path,
-			Content: string(content),
+			Content: str,
 		})
-		entry.Content = string(content)
-		entry.LineCount = strings.Count(string(content), "\n") + 1
+		entry.Content = str
+		entry.LineCount = strings.Count(str, "\n") + 1
 		meta.Files = append(meta.Files, entry)
 	}
 
