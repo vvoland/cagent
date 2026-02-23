@@ -3,6 +3,56 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.23.6] - 2026-02-23
+
+This release improves cost tracking accuracy, enhances session management, and fixes several UI and functionality issues.
+
+## What's New
+
+- Adds tab completion for /commands dialog
+- Adds mouse support for selecting and opening sessions in the sessions dialog
+
+## Improvements
+
+- Computes session cost from messages instead of accumulating on session for better accuracy
+- Includes compaction cost in /cost dialog
+- Displays original YAML model names in sidebar instead of resolved aliases
+- Improves emoji copying support by reversing clipboard copy order (OSC52 first, then pbcopy fallback)
+
+## Bug Fixes
+
+- Fixes token usage percentage display during and after agent transfers
+- Fixes session forking and costs calculation
+- Fixes actual provider display for alloy models in sidebar (was showing wrong provider)
+- Restores ctrl-1, ctrl-2... shortcuts for quick agent selection
+- Fixes NewHandler panic on parameterless tool calls
+
+## Technical Changes
+
+- Consolidates TokenUsage event constructors
+- Removes dead UpdateLastAssistantMessageUsage method
+- Emits TokenUsageEvent on session restore for context percentage display
+- Emits TokenUsageEvent after compaction so sidebar cost updates
+- Adds e2e tests on binaries for CLI plugin execution
+- Creates ~/.docker/cli-plugins directory if it doesn't exist
+
+### Pull Requests
+
+- [#1795](https://github.com/docker/cagent/pull/1795) - Fix multiple cost/tokens related issues
+- [#1803](https://github.com/docker/cagent/pull/1803) - docs: update CHANGELOG.md for v1.23.5
+- [#1804](https://github.com/docker/cagent/pull/1804) - Better support copying emojis
+- [#1806](https://github.com/docker/cagent/pull/1806) - Tab completion for /commands dialog
+- [#1807](https://github.com/docker/cagent/pull/1807) - fix: use actual provider for alloy models in sidebar
+- [#1808](https://github.com/docker/cagent/pull/1808) - Update winget workflow
+- [#1811](https://github.com/docker/cagent/pull/1811) - Improve sessions dialog
+- [#1812](https://github.com/docker/cagent/pull/1812) - Binary e2e tests
+- [#1813](https://github.com/docker/cagent/pull/1813) - feat: use docker read write bot
+- [#1816](https://github.com/docker/cagent/pull/1816) - fix: restore ctrl-1, ctrl-2... shortcuts for quick agent selection
+- [#1817](https://github.com/docker/cagent/pull/1817) - Bump Go dependencies
+- [#1826](https://github.com/docker/cagent/pull/1826) - Refactor winget workflow to use wingetcreate CLI
+- [#1827](https://github.com/docker/cagent/pull/1827) - get_memories errors on new memories
+
+
 ## [v1.23.5] - 2026-02-20
 
 This release improves the session browser interface and fixes several issues with the docker-agent standalone binary.
@@ -646,3 +696,5 @@ This release improves the terminal user interface with better error handling and
 [v1.23.4]: https://github.com/docker/cagent/releases/tag/v1.23.4
 
 [v1.23.5]: https://github.com/docker/cagent/releases/tag/v1.23.5
+
+[v1.23.6]: https://github.com/docker/cagent/releases/tag/v1.23.6
