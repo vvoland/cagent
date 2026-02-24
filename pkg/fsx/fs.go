@@ -127,6 +127,12 @@ var heavyDirs = map[string]bool{
 	".vscode":      true,
 }
 
+// allowedDirs are hidden directories that should be traversed despite starting with a dot.
+var allowedDirs = map[string]bool{
+	".github": true,
+	".gitlab": true,
+}
+
 // WalkFiles walks the directory tree starting at root and returns a list of file paths.
 // It is bounded by MaxFiles (defaults to DefaultMaxFiles) and skips hidden directories
 // and known heavy directories like node_modules, vendor, etc.
@@ -176,12 +182,15 @@ func WalkFiles(ctx context.Context, root string, opts WalkFilesOptions) ([]strin
 
 		name := d.Name()
 
-		// Skip hidden files/directories (starting with .)
+		// Skip hidden files/directories (starting with .) except allowed dirs
 		if strings.HasPrefix(name, ".") && name != "." {
 			if d.IsDir() {
-				return fs.SkipDir
+				if !allowedDirs[name] {
+					return fs.SkipDir
+				}
+			} else {
+				return nil
 			}
-			return nil
 		}
 
 		// Skip known heavy directories
