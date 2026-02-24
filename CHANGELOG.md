@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.26.0] - 2026-02-24
+
+This is a maintenance release with dependency updates and internal improvements.
+
+## Technical Changes
+- Maintenance release with dependency updates
+
+
+
 ## [v1.24.0] - 2026-02-24
 
 This release introduces remote skills discovery capabilities and improves file reading tools with pagination support.
@@ -727,3 +736,5 @@ This release improves the terminal user interface with better error handling and
 [v1.23.6]: https://github.com/docker/cagent/releases/tag/v1.23.6
 
 [v1.24.0]: https://github.com/docker/cagent/releases/tag/v1.24.0
+
+[v1.26.0]: https://github.com/docker/cagent/releases/tag/v1.26.0
