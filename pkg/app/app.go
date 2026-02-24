@@ -172,36 +172,42 @@ func (a *App) CurrentAgentCommands(ctx context.Context) types.Commands {
 
 // CurrentAgentSkills returns the available skills if skills are enabled for the current agent.
 func (a *App) CurrentAgentSkills() []skills.Skill {
-	if a.runtime.CurrentAgentSkillsEnabled() {
-		return skills.Load()
+	st := a.runtime.CurrentAgentSkillsToolset()
+	if st == nil {
+		return nil
 	}
-	return nil
+	return st.Skills()
 }
 
 // ResolveSkillCommand checks if the input matches a skill slash command (e.g. /skill-name args).
-// If matched, it reads the skill file and returns the resolved prompt. Otherwise returns "".
+// If matched, it reads the skill content and returns the resolved prompt. Otherwise returns "".
 func (a *App) ResolveSkillCommand(input string) (string, error) {
 	if !strings.HasPrefix(input, "/") {
+		return "", nil
+	}
+
+	st := a.runtime.CurrentAgentSkillsToolset()
+	if st == nil {
 		return "", nil
 	}
 
 	cmd, arg, _ := strings.Cut(input[1:], " ")
 	arg = strings.TrimSpace(arg)
 
-	for _, skill := range a.CurrentAgentSkills() {
+	for _, skill := range st.Skills() {
 		if skill.Name != cmd {
 			continue
 		}
 
-		content, err := os.ReadFile(skill.FilePath)
+		content, err := st.ReadSkillContent(skill.Name)
 		if err != nil {
 			return "", fmt.Errorf("reading skill %q: %w", skill.Name, err)
 		}
 
 		if arg != "" {
-			return fmt.Sprintf("Use the following skill.\n\nUser's request: %s\n\n<skill name=%q>\n%s\n</skill>", arg, skill.Name, string(content)), nil
+			return fmt.Sprintf("Use the following skill.\n\nUser's request: %s\n\n<skill name=%q>\n%s\n</skill>", arg, skill.Name, content), nil
 		}
-		return fmt.Sprintf("Use the following skill.\n\n<skill name=%q>\n%s\n</skill>", skill.Name, string(content)), nil
+		return fmt.Sprintf("Use the following skill.\n\n<skill name=%q>\n%s\n</skill>", skill.Name, content), nil
 	}
 
 	return "", nil

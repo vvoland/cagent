@@ -49,14 +49,6 @@ func TestValidationErrors(t *testing.T) {
 			path: "invalid_post_edit_v2.yaml",
 		},
 		{
-			name: "skills enabled without filesystem toolset",
-			path: "skills_missing_filesystem.yaml",
-		},
-		{
-			name: "skills enabled without read_file tool",
-			path: "skills_missing_read_file.yaml",
-		},
-		{
 			name: "lsp toolset missing command",
 			path: "invalid_lsp_missing_command.yaml",
 		},
@@ -108,6 +100,14 @@ func TestValidSkillsConfiguration(t *testing.T) {
 			name: "skills disabled",
 			path: "skills_disabled.yaml",
 		},
+		{
+			name: "skills with remote sources",
+			path: "skills_with_remote.yaml",
+		},
+		{
+			name: "skills enabled without filesystem toolset is fine",
+			path: "skills_missing_filesystem.yaml",
+		},
 	}
 
 	for _, tt := range tests {
@@ -119,4 +119,21 @@ func TestValidSkillsConfiguration(t *testing.T) {
 			require.NotNil(t, cfg)
 		})
 	}
+}
+
+func TestInvalidSkillsSources(t *testing.T) {
+	t.Parallel()
+
+	cfgStr := `version: "5"
+agents:
+  root:
+    model: openai/gpt-4o
+    skills:
+      - invalid_source
+    toolsets:
+      - type: filesystem
+`
+	_, err := Load(t.Context(), NewBytesSource("test", []byte(cfgStr)))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown skills source")
 }
