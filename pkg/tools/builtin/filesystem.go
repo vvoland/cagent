@@ -236,7 +236,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 		{
 			Name:         ToolNameReadFile,
 			Category:     "filesystem",
-			Description:  "Read the contents of a file from the file system. Use offset and line_count to read large files in chunks; check total_lines in the response to determine if more lines remain.",
+			Description:  "Read the contents of a file from the file system.",
 			Parameters:   tools.MustSchemaFor[ReadFileArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
 			Handler:      tools.NewHandler(t.handleReadFile),
@@ -248,7 +248,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 		{
 			Name:        ToolNameReadMultipleFiles,
 			Category:    "filesystem",
-			Description: "Read the contents of multiple files simultaneously. Use offset and line_count to read large files in chunks; check total_lines per file in the response to determine if more lines remain.",
+			Description: "Read the contents of multiple files simultaneously.",
 			Parameters:  tools.MustSchemaFor[ReadMultipleFilesArgs](),
 			// TODO(dga): depends on the json param
 			OutputSchema: tools.MustSchemaFor[string](),
