@@ -306,7 +306,13 @@ func createLSPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 		return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
 	}
 	env = append(env, os.Environ()...)
-	return builtin.NewLSPTool(toolset.Command, toolset.Args, env, runConfig.WorkingDir), nil
+
+	tool := builtin.NewLSPTool(toolset.Command, toolset.Args, env, runConfig.WorkingDir)
+	if len(toolset.FileTypes) > 0 {
+		tool.SetFileTypes(toolset.FileTypes)
+	}
+
+	return tool, nil
 }
 
 func createUserPromptTool(_ context.Context, _ latest.Toolset, _ string, _ *config.RuntimeConfig) (tools.ToolSet, error) {

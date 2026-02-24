@@ -70,6 +70,33 @@ agents:
 `,
 			wantErr: "",
 		},
+		{
+			name: "lsp with file_types",
+			config: `
+version: "5"
+agents:
+  root:
+    model: "openai/gpt-4"
+    toolsets:
+      - type: lsp
+        command: gopls
+        file_types: [".go", ".mod"]
+`,
+			wantErr: "",
+		},
+		{
+			name: "file_types on non-lsp toolset",
+			config: `
+version: "5"
+agents:
+  root:
+    model: "openai/gpt-4"
+    toolsets:
+      - type: shell
+        file_types: [".go"]
+`,
+			wantErr: "file_types can only be used with type 'lsp'",
+		},
 	}
 
 	for _, tt := range tests {
