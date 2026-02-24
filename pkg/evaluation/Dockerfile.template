@@ -29,6 +29,6 @@ COPY --from=docker/cagent:edge /cagent /
 WORKDIR /working_dir
 ENV TELEMETRY_ENABLED=false
 ENV CAGENT_HIDE_TELEMETRY_BANNER=1
-ENTRYPOINT ["/run.sh", "/cagent", "exec", "--yolo", "--json"]
+ENTRYPOINT ["/run.sh", "/cagent", "run", "--exec", "--yolo", "--json"]
 {{if .CopyWorkingDir}}COPY . ./
 {{end}}
