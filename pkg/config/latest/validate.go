@@ -73,6 +73,9 @@ func (t *Toolset) validate() error {
 	if len(t.Env) > 0 && (t.Type != "shell" && t.Type != "script" && t.Type != "mcp" && t.Type != "lsp") {
 		return errors.New("env can only be used with type 'shell', 'script', 'mcp' or 'lsp'")
 	}
+	if len(t.FileTypes) > 0 && t.Type != "lsp" {
+		return errors.New("file_types can only be used with type 'lsp'")
+	}
 	if t.Sandbox != nil && t.Type != "shell" {
 		return errors.New("sandbox can only be used with type 'shell'")
 	}

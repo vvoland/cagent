@@ -570,6 +570,9 @@ type Toolset struct {
 	// For the `filesystem` tool - VCS integration
 	IgnoreVCS *bool `json:"ignore_vcs,omitempty"`
 
+	// For the `lsp` tool
+	FileTypes []string `json:"file_types,omitempty"`
+
 	// For the `fetch` tool
 	Timeout int `json:"timeout,omitempty"`
 }

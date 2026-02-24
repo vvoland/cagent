@@ -826,6 +826,13 @@
         "sandbox": {
           "$ref": "#/definitions/SandboxConfig",
           "description": "Sandbox configuration for running shell commands in a Docker container (shell tool only)"
+        },
+        "file_types": {
+          "type": "array",
+          "description": "File extensions this LSP server handles (e.g., [\".go\", \".mod\"]). Only for lsp toolsets.",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false,
