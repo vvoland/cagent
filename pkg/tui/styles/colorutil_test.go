@@ -13,7 +13,7 @@ import (
 
 func TestParseHexRGB_Valid6Digit(t *testing.T) {
 	t.Parallel()
-	r, g, b, ok := ParseHexRGB("#FF8000")
+	r, g, b, ok := parseHexRGB("#FF8000")
 	require.True(t, ok)
 	assert.InDelta(t, 1.0, r, 0.01)
 	assert.InDelta(t, 0.502, g, 0.01)
@@ -22,7 +22,7 @@ func TestParseHexRGB_Valid6Digit(t *testing.T) {
 
 func TestParseHexRGB_Valid3Digit(t *testing.T) {
 	t.Parallel()
-	r, g, b, ok := ParseHexRGB("#F00")
+	r, g, b, ok := parseHexRGB("#F00")
 	require.True(t, ok)
 	assert.InDelta(t, 1.0, r, 0.01)
 	assert.InDelta(t, 0.0, g, 0.01)
@@ -32,7 +32,7 @@ func TestParseHexRGB_Valid3Digit(t *testing.T) {
 func TestParseHexRGB_Invalid(t *testing.T) {
 	t.Parallel()
 	for _, input := range []string{"", "FF0000", "#GG0000", "#FF00", "#FF000000"} {
-		_, _, _, ok := ParseHexRGB(input)
+		_, _, _, ok := parseHexRGB(input)
 		assert.False(t, ok, "expected failure for %q", input)
 	}
 }
@@ -42,7 +42,7 @@ func TestParseHexRGB_Invalid(t *testing.T) {
 func TestRGBToHex_Roundtrip(t *testing.T) {
 	t.Parallel()
 	hex := RGBToHex(0.2, 0.4, 0.6)
-	r, g, b, ok := ParseHexRGB(hex)
+	r, g, b, ok := parseHexRGB(hex)
 	require.True(t, ok)
 	assert.InDelta(t, 0.2, r, 0.01)
 	assert.InDelta(t, 0.4, g, 0.01)
@@ -60,7 +60,7 @@ func TestRGBToHex_BlackWhite(t *testing.T) {
 func TestLinearization_Roundtrip(t *testing.T) {
 	t.Parallel()
 	for _, v := range []float64{0, 0.1, 0.5, 0.9, 1.0} {
-		result := LinearToSRGB(SRGBToLinear(v))
+		result := linearToSRGB(sRGBToLinear(v))
 		assert.InDelta(t, v, result, 0.001, "roundtrip failed for %f", v)
 	}
 }
@@ -69,17 +69,17 @@ func TestLinearization_Roundtrip(t *testing.T) {
 
 func TestRelativeLuminance_BlackWhite(t *testing.T) {
 	t.Parallel()
-	assert.InDelta(t, 0.0, RelativeLuminance(0, 0, 0), 0.001)
-	assert.InDelta(t, 1.0, RelativeLuminance(1, 1, 1), 0.001)
+	assert.InDelta(t, 0.0, relativeLuminance(0, 0, 0), 0.001)
+	assert.InDelta(t, 1.0, relativeLuminance(1, 1, 1), 0.001)
 }
 
 func TestRelativeLuminanceHex(t *testing.T) {
 	t.Parallel()
-	lum, ok := RelativeLuminanceHex("#ffffff")
+	lum, ok := relativeLuminanceHex("#ffffff")
 	require.True(t, ok)
 	assert.InDelta(t, 1.0, lum, 0.001)
 
-	lum, ok = RelativeLuminanceHex("#000000")
+	lum, ok = relativeLuminanceHex("#000000")
 	require.True(t, ok)
 	assert.InDelta(t, 0.0, lum, 0.001)
 }
@@ -90,20 +90,20 @@ func TestContrastRatio_BlackWhite(t *testing.T) {
 	t.Parallel()
 	black := lipgloss.Color("#000000")
 	white := lipgloss.Color("#ffffff")
-	ratio := ContrastRatio(black, white)
+	ratio := contrastRatio(black, white)
 	assert.InDelta(t, 21.0, ratio, 0.1)
 }
 
 func TestContrastRatio_SameColor(t *testing.T) {
 	t.Parallel()
 	c := lipgloss.Color("#808080")
-	ratio := ContrastRatio(c, c)
+	ratio := contrastRatio(c, c)
 	assert.InDelta(t, 1.0, ratio, 0.001)
 }
 
 func TestContrastRatioHex(t *testing.T) {
 	t.Parallel()
-	ratio, ok := ContrastRatioHex("#000000", "#ffffff")
+	ratio, ok := contrastRatioHex("#000000", "#ffffff")
 	require.True(t, ok)
 	assert.InDelta(t, 21.0, ratio, 0.1)
 }
@@ -111,11 +111,11 @@ func TestContrastRatioHex(t *testing.T) {
 func TestBestForegroundHex(t *testing.T) {
 	t.Parallel()
 	// On dark background, white should win
-	best := BestForegroundHex("#000000", "#333333", "#ffffff")
+	best := bestForegroundHex("#000000", "#333333", "#ffffff")
 	assert.Equal(t, "#ffffff", best)
 
 	// On light background, black should win
-	best = BestForegroundHex("#ffffff", "#000000", "#cccccc")
+	best = bestForegroundHex("#ffffff", "#000000", "#cccccc")
 	assert.Equal(t, "#000000", best)
 }
 
@@ -123,7 +123,7 @@ func TestBestForegroundHex(t *testing.T) {
 
 func TestRGBToHSL_Red(t *testing.T) {
 	t.Parallel()
-	h, s, l := RGBToHSL(1, 0, 0)
+	h, s, l := rgbToHSL(1, 0, 0)
 	assert.InDelta(t, 0, h, 0.1)
 	assert.InDelta(t, 1.0, s, 0.01)
 	assert.InDelta(t, 0.5, l, 0.01)
@@ -131,7 +131,7 @@ func TestRGBToHSL_Red(t *testing.T) {
 
 func TestRGBToHSL_Green(t *testing.T) {
 	t.Parallel()
-	h, s, l := RGBToHSL(0, 1, 0)
+	h, s, l := rgbToHSL(0, 1, 0)
 	assert.InDelta(t, 120, h, 0.1)
 	assert.InDelta(t, 1.0, s, 0.01)
 	assert.InDelta(t, 0.5, l, 0.01)
@@ -139,7 +139,7 @@ func TestRGBToHSL_Green(t *testing.T) {
 
 func TestRGBToHSL_Blue(t *testing.T) {
 	t.Parallel()
-	h, s, l := RGBToHSL(0, 0, 1)
+	h, s, l := rgbToHSL(0, 0, 1)
 	assert.InDelta(t, 240, h, 0.1)
 	assert.InDelta(t, 1.0, s, 0.01)
 	assert.InDelta(t, 0.5, l, 0.01)
@@ -147,7 +147,7 @@ func TestRGBToHSL_Blue(t *testing.T) {
 
 func TestRGBToHSL_Gray(t *testing.T) {
 	t.Parallel()
-	h, s, l := RGBToHSL(0.5, 0.5, 0.5)
+	h, s, l := rgbToHSL(0.5, 0.5, 0.5)
 	_ = h // hue is undefined for gray
 	assert.InDelta(t, 0.0, s, 0.01)
 	assert.InDelta(t, 0.5, l, 0.01)
@@ -165,8 +165,8 @@ func TestHSLToRGB_Roundtrip(t *testing.T) {
 		{0.2, 0.6, 0.8},
 	}
 	for _, tc := range testCases {
-		h, s, l := RGBToHSL(tc.r, tc.g, tc.b)
-		r, g, b := HSLToRGB(h, s, l)
+		h, s, l := rgbToHSL(tc.r, tc.g, tc.b)
+		r, g, b := hslToRGB(h, s, l)
 		assert.InDelta(t, tc.r, r, 0.01, "r mismatch for input %v", tc)
 		assert.InDelta(t, tc.g, g, 0.01, "g mismatch for input %v", tc)
 		assert.InDelta(t, tc.b, b, 0.01, "b mismatch for input %v", tc)
@@ -180,8 +180,8 @@ func TestMutedContrastFg_DarkBg(t *testing.T) {
 	bg := lipgloss.Color("#1C1C22")
 	fg := MutedContrastFg(bg)
 	// Should produce a lighter color than the background
-	bgLum := RelativeLuminanceColor(bg)
-	fgLum := RelativeLuminanceColor(fg)
+	bgLum := relativeLuminanceColor(bg)
+	fgLum := relativeLuminanceColor(fg)
 	assert.Greater(t, fgLum, bgLum)
 }
 
@@ -190,8 +190,8 @@ func TestMutedContrastFg_LightBg(t *testing.T) {
 	bg := lipgloss.Color("#eff1f5")
 	fg := MutedContrastFg(bg)
 	// Should produce a darker color than the background
-	bgLum := RelativeLuminanceColor(bg)
-	fgLum := RelativeLuminanceColor(fg)
+	bgLum := relativeLuminanceColor(bg)
+	fgLum := relativeLuminanceColor(fg)
 	assert.Less(t, fgLum, bgLum)
 }
 
@@ -213,8 +213,8 @@ func TestEnsureContrast_BoostsLowContrast(t *testing.T) {
 	fg := lipgloss.Color("#333333")
 	bg := lipgloss.Color("#222222")
 	result := EnsureContrast(fg, bg)
-	ratio := ContrastRatio(result, bg)
-	assert.GreaterOrEqual(t, ratio, MinIndicatorContrast)
+	ratio := contrastRatio(result, bg)
+	assert.GreaterOrEqual(t, ratio, minIndicatorContrast)
 }
 
 // --- Palette generation ---
@@ -222,14 +222,14 @@ func TestEnsureContrast_BoostsLowContrast(t *testing.T) {
 func TestGenerateBadgePalette_CorrectLength(t *testing.T) {
 	t.Parallel()
 	bg := lipgloss.Color("#1C1C22")
-	palette := GenerateBadgePalette(DefaultAgentHues, bg)
-	assert.Len(t, palette, len(DefaultAgentHues))
+	palette := generateBadgePalette(defaultAgentHues, bg)
+	assert.Len(t, palette, len(defaultAgentHues))
 }
 
 func TestGenerateBadgePalette_AllDistinct(t *testing.T) {
 	t.Parallel()
 	bg := lipgloss.Color("#1C1C22")
-	palette := GenerateBadgePalette(DefaultAgentHues, bg)
+	palette := generateBadgePalette(defaultAgentHues, bg)
 	hexSet := make(map[string]bool)
 	for _, c := range palette {
 		r, g, b := ColorToRGB(c)
@@ -242,20 +242,20 @@ func TestGenerateBadgePalette_AllDistinct(t *testing.T) {
 func TestGenerateAccentPalette_CorrectLength(t *testing.T) {
 	t.Parallel()
 	bg := lipgloss.Color("#1C1C22")
-	palette := GenerateAccentPalette(DefaultAgentHues, bg)
-	assert.Len(t, palette, len(DefaultAgentHues))
+	palette := generateAccentPalette(defaultAgentHues, bg)
+	assert.Len(t, palette, len(defaultAgentHues))
 }
 
 func TestGenerateBadgePalette_DarkVsLight(t *testing.T) {
 	t.Parallel()
 	darkBg := lipgloss.Color("#1C1C22")
 	lightBg := lipgloss.Color("#eff1f5")
-	darkPalette := GenerateBadgePalette(DefaultAgentHues[:1], darkBg)
-	lightPalette := GenerateBadgePalette(DefaultAgentHues[:1], lightBg)
+	darkPalette := generateBadgePalette(defaultAgentHues[:1], darkBg)
+	lightPalette := generateBadgePalette(defaultAgentHues[:1], lightBg)
 
 	// Same hue should produce different lightness for dark vs light bg
-	darkLum := RelativeLuminanceColor(darkPalette[0])
-	lightLum := RelativeLuminanceColor(lightPalette[0])
+	darkLum := relativeLuminanceColor(darkPalette[0])
+	lightLum := relativeLuminanceColor(lightPalette[0])
 	assert.Greater(t, math.Abs(darkLum-lightLum), 0.01, "dark and light themes should produce different badge lightness")
 }
 
@@ -264,14 +264,14 @@ func TestGenerateBadgePalette_DarkVsLight(t *testing.T) {
 func TestColorDistanceCIE76_Identical(t *testing.T) {
 	t.Parallel()
 	c := lipgloss.Color("#FF0000")
-	assert.InDelta(t, 0, ColorDistanceCIE76(c, c), 0.001)
+	assert.InDelta(t, 0, colorDistanceCIE76(c, c), 0.001)
 }
 
 func TestColorDistanceCIE76_BlackWhite(t *testing.T) {
 	t.Parallel()
 	black := lipgloss.Color("#000000")
 	white := lipgloss.Color("#ffffff")
-	dist := ColorDistanceCIE76(black, white)
+	dist := colorDistanceCIE76(black, white)
 	assert.Greater(t, dist, 50.0, "black and white should be very far apart in CIELAB")
 }
 
@@ -279,7 +279,7 @@ func TestColorDistanceCIE76_SimilarColors(t *testing.T) {
 	t.Parallel()
 	c1 := lipgloss.Color("#FF0000")
 	c2 := lipgloss.Color("#FF1100")
-	dist := ColorDistanceCIE76(c1, c2)
+	dist := colorDistanceCIE76(c1, c2)
 	assert.Less(t, dist, 10.0, "very similar colors should have small distance")
 }
 
@@ -294,16 +294,16 @@ func TestColorToRGB_KnownValues(t *testing.T) {
 	assert.InDelta(t, 0.0, b, 0.01)
 }
 
-// --- DefaultAgentHues ---
+// --- defaultAgentHues ---
 
 func TestDefaultAgentHues_Length(t *testing.T) {
 	t.Parallel()
-	assert.Len(t, DefaultAgentHues, 16)
+	assert.Len(t, defaultAgentHues, 16)
 }
 
 func TestDefaultAgentHues_InRange(t *testing.T) {
 	t.Parallel()
-	for i, h := range DefaultAgentHues {
+	for i, h := range defaultAgentHues {
 		assert.GreaterOrEqual(t, h, 0.0, "hue %d out of range", i)
 		assert.Less(t, h, 360.0, "hue %d out of range", i)
 	}

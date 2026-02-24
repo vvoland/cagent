@@ -924,7 +924,7 @@ func ApplyTheme(theme *Theme) {
 	PlaceholderColor = lipgloss.Color(c.Placeholder)
 	// Badge colors
 	AgentBadgeBg = MobyBlue
-	AgentBadgeFg = lipgloss.Color(BestForegroundHex(
+	AgentBadgeFg = lipgloss.Color(bestForegroundHex(
 		c.Brand,
 		c.TextBright,
 		c.Background,

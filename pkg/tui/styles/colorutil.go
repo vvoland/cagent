@@ -12,8 +12,8 @@ import (
 
 // --- Hex parsing ---
 
-// ParseHexRGB parses a hex color string (#RGB or #RRGGBB) into normalized [0,1] sRGB components.
-func ParseHexRGB(hex string) (r, g, b float64, ok bool) {
+// parseHexRGB parses a hex color string (#RGB or #RRGGBB) into normalized [0,1] sRGB components.
+func parseHexRGB(hex string) (r, g, b float64, ok bool) {
 	if !strings.HasPrefix(hex, "#") {
 		return 0, 0, 0, false
 	}
@@ -70,16 +70,16 @@ func clamp8(v float64) int {
 
 // --- sRGB linearization ---
 
-// SRGBToLinear converts an sRGB component [0,1] to linear light.
-func SRGBToLinear(c float64) float64 {
+// sRGBToLinear converts an sRGB component [0,1] to linear light.
+func sRGBToLinear(c float64) float64 {
 	if c <= 0.03928 {
 		return c / 12.92
 	}
 	return math.Pow((c+0.055)/1.055, 2.4)
 }
 
-// LinearToSRGB converts a linear light component [0,1] to sRGB.
-func LinearToSRGB(c float64) float64 {
+// linearToSRGB converts a linear light component [0,1] to sRGB.
+func linearToSRGB(c float64) float64 {
 	if c <= 0.0031308 {
 		return c * 12.92
 	}
@@ -88,42 +88,42 @@ func LinearToSRGB(c float64) float64 {
 
 // --- Luminance & contrast ---
 
-// RelativeLuminance returns the WCAG 2.x relative luminance of an sRGB color.
-func RelativeLuminance(r, g, b float64) float64 {
-	return 0.2126*SRGBToLinear(r) + 0.7152*SRGBToLinear(g) + 0.0722*SRGBToLinear(b)
+// relativeLuminance returns the WCAG 2.x relative luminance of an sRGB color.
+func relativeLuminance(r, g, b float64) float64 {
+	return 0.2126*sRGBToLinear(r) + 0.7152*sRGBToLinear(g) + 0.0722*sRGBToLinear(b)
 }
 
-// RelativeLuminanceHex returns the relative luminance for a hex color string.
-func RelativeLuminanceHex(hex string) (float64, bool) {
-	r, g, b, ok := ParseHexRGB(hex)
+// relativeLuminanceHex returns the relative luminance for a hex color string.
+func relativeLuminanceHex(hex string) (float64, bool) {
+	r, g, b, ok := parseHexRGB(hex)
 	if !ok {
 		return 0, false
 	}
-	return RelativeLuminance(r, g, b), true
+	return relativeLuminance(r, g, b), true
 }
 
-// RelativeLuminanceColor returns the relative luminance for a color.Color.
-func RelativeLuminanceColor(c color.Color) float64 {
+// relativeLuminanceColor returns the relative luminance for a color.Color.
+func relativeLuminanceColor(c color.Color) float64 {
 	r, g, b := ColorToRGB(c)
-	return RelativeLuminance(r, g, b)
+	return relativeLuminance(r, g, b)
 }
 
-// ContrastRatio returns the WCAG 2.x contrast ratio between two colors.
-func ContrastRatio(fg, bg color.Color) float64 {
-	l1 := RelativeLuminanceColor(fg)
-	l2 := RelativeLuminanceColor(bg)
+// contrastRatio returns the WCAG 2.x contrast ratio between two colors.
+func contrastRatio(fg, bg color.Color) float64 {
+	l1 := relativeLuminanceColor(fg)
+	l2 := relativeLuminanceColor(bg)
 	lighter := max(l1, l2)
 	darker := min(l1, l2)
 	return (lighter + 0.05) / (darker + 0.05)
 }
 
-// ContrastRatioHex returns the WCAG contrast ratio between two hex color strings.
-func ContrastRatioHex(fgHex, bgHex string) (float64, bool) {
-	fgLum, ok := RelativeLuminanceHex(fgHex)
+// contrastRatioHex returns the WCAG contrast ratio between two hex color strings.
+func contrastRatioHex(fgHex, bgHex string) (float64, bool) {
+	fgLum, ok := relativeLuminanceHex(fgHex)
 	if !ok {
 		return 0, false
 	}
-	bgLum, ok := RelativeLuminanceHex(bgHex)
+	bgLum, ok := relativeLuminanceHex(bgHex)
 	if !ok {
 		return 0, false
 	}
@@ -135,8 +135,8 @@ func ContrastRatioHex(fgHex, bgHex string) (float64, bool) {
 	return (l1 + 0.05) / (l2 + 0.05), true
 }
 
-// BestForegroundHex picks the candidate hex color with the highest contrast ratio against bgHex.
-func BestForegroundHex(bgHex string, candidates ...string) string {
+// bestForegroundHex picks the candidate hex color with the highest contrast ratio against bgHex.
+func bestForegroundHex(bgHex string, candidates ...string) string {
 	if len(candidates) == 0 {
 		return ""
 	}
@@ -144,7 +144,7 @@ func BestForegroundHex(bgHex string, candidates ...string) string {
 	bestRatio := -1.0
 
 	for _, cand := range candidates {
-		ratio, ok := ContrastRatioHex(cand, bgHex)
+		ratio, ok := contrastRatioHex(cand, bgHex)
 		if !ok {
 			continue
 		}
@@ -159,21 +159,21 @@ func BestForegroundHex(bgHex string, candidates ...string) string {
 // --- Dynamic contrast helpers ---
 
 const (
-	// MutedContrastStrength controls how much the muted foreground shifts
+	// mutedContrastStrength controls how much the muted foreground shifts
 	// away from the background (0.0 = invisible, 1.0 = full black/white).
-	MutedContrastStrength = 0.45
+	mutedContrastStrength = 0.45
 
-	// MinIndicatorContrast is the minimum WCAG contrast ratio for semantic
+	// minIndicatorContrast is the minimum WCAG contrast ratio for semantic
 	// indicator colors (running dot, attention bang).
-	MinIndicatorContrast = 4.5
+	minIndicatorContrast = 4.5
 
-	// maxBoostSteps limits blend iterations in EnsureContrast.
+	// maxBoostSteps limits blend iterations in ensureContrast.
 	maxBoostSteps = 20
 )
 
 // MutedContrastFg returns a foreground color that is visible but subtle against
 // the given background. It blends the background toward white (for dark bg) or
-// black (for light bg) by MutedContrastStrength.
+// black (for light bg) by mutedContrastStrength.
 func MutedContrastFg(bg color.Color) color.Color {
 	rf, gf, bf := ColorToRGB(bg)
 	lum := 0.299*rf + 0.587*gf + 0.114*bf
@@ -185,21 +185,21 @@ func MutedContrastFg(bg color.Color) color.Color {
 		tgt = 1.0
 	}
 
-	s := MutedContrastStrength
+	s := mutedContrastStrength
 	return RGBToColor(rf+(tgt-rf)*s, gf+(tgt-gf)*s, bf+(tgt-bf)*s)
 }
 
-// EnsureContrast returns fg unchanged if it already meets MinIndicatorContrast
+// EnsureContrast returns fg unchanged if it already meets minIndicatorContrast
 // against bg. Otherwise it progressively blends fg toward white (on dark bg) or
 // black (on light bg) until the threshold is met, preserving the original hue direction.
 func EnsureContrast(fg, bg color.Color) color.Color {
-	if ContrastRatio(fg, bg) >= MinIndicatorContrast {
+	if contrastRatio(fg, bg) >= minIndicatorContrast {
 		return fg
 	}
 
 	rf, gf, bf := ColorToRGB(fg)
 	bgR, bgG, bgB := ColorToRGB(bg)
-	bgLum := RelativeLuminance(bgR, bgG, bgB)
+	bgLum := relativeLuminance(bgR, bgG, bgB)
 
 	var tR, tG, tB float64
 	if bgLum > 0.5 {
@@ -214,7 +214,7 @@ func EnsureContrast(fg, bg color.Color) color.Color {
 		ng := gf + (tG-gf)*t
 		nb := bf + (tB-bf)*t
 		candidate := RGBToColor(nr, ng, nb)
-		if ContrastRatio(candidate, bg) >= MinIndicatorContrast {
+		if contrastRatio(candidate, bg) >= minIndicatorContrast {
 			return candidate
 		}
 	}
@@ -224,9 +224,9 @@ func EnsureContrast(fg, bg color.Color) color.Color {
 
 // --- HSL conversion ---
 
-// RGBToHSL converts normalized [0,1] sRGB to HSL.
+// rgbToHSL converts normalized [0,1] sRGB to HSL.
 // H is in [0,360), S and L are in [0,1].
-func RGBToHSL(r, g, b float64) (h, s, l float64) {
+func rgbToHSL(r, g, b float64) (h, s, l float64) {
 	maxC := max(r, max(g, b))
 	minC := min(r, min(g, b))
 	l = (maxC + minC) / 2
@@ -258,9 +258,9 @@ func RGBToHSL(r, g, b float64) (h, s, l float64) {
 	return h, s, l
 }
 
-// HSLToRGB converts HSL to normalized [0,1] sRGB.
+// hslToRGB converts HSL to normalized [0,1] sRGB.
 // H is in [0,360), S and L are in [0,1].
-func HSLToRGB(h, s, l float64) (r, g, b float64) {
+func hslToRGB(h, s, l float64) (r, g, b float64) {
 	if s == 0 {
 		return l, l, l
 	}
@@ -301,8 +301,8 @@ func hueToRGB(p, q, t float64) float64 {
 
 // --- Palette generation ---
 
-// DefaultAgentHues provides 16 well-spaced default hue values for agent colors.
-var DefaultAgentHues = []float64{
+// defaultAgentHues provides 16 well-spaced default hue values for agent colors.
+var defaultAgentHues = []float64{
 	220, // Blue
 	280, // Purple
 	170, // Teal
@@ -324,9 +324,9 @@ var DefaultAgentHues = []float64{
 // GenerateBadgePalette generates badge background colors from hues, adapting
 // saturation and lightness based on the theme background.
 // Dark backgrounds get lighter, more saturated badges; light backgrounds get darker ones.
-func GenerateBadgePalette(hues []float64, bg color.Color) []color.Color {
+func generateBadgePalette(hues []float64, bg color.Color) []color.Color {
 	bgR, bgG, bgB := ColorToRGB(bg)
-	bgLum := RelativeLuminance(bgR, bgG, bgB)
+	bgLum := relativeLuminance(bgR, bgG, bgB)
 
 	isDark := bgLum < 0.5
 
@@ -341,7 +341,7 @@ func GenerateBadgePalette(hues []float64, bg color.Color) []color.Color {
 			l = 0.38 + 0.06*math.Cos(float64(i)*0.9)
 		}
 
-		r, g, b := HSLToRGB(hue, s, l)
+		r, g, b := hslToRGB(hue, s, l)
 		colors[i] = lipgloss.Color(RGBToHex(r, g, b))
 	}
 	return colors
@@ -350,9 +350,9 @@ func GenerateBadgePalette(hues []float64, bg color.Color) []color.Color {
 // GenerateAccentPalette generates sidebar accent foreground colors from hues,
 // adapting to the theme background for readability.
 // Dark backgrounds get brighter accents; light backgrounds get darker ones.
-func GenerateAccentPalette(hues []float64, bg color.Color) []color.Color {
+func generateAccentPalette(hues []float64, bg color.Color) []color.Color {
 	bgR, bgG, bgB := ColorToRGB(bg)
-	bgLum := RelativeLuminance(bgR, bgG, bgB)
+	bgLum := relativeLuminance(bgR, bgG, bgB)
 
 	isDark := bgLum < 0.5
 
@@ -367,7 +367,7 @@ func GenerateAccentPalette(hues []float64, bg color.Color) []color.Color {
 			l = 0.30 + 0.06*math.Cos(float64(i)*0.7)
 		}
 
-		r, g, b := HSLToRGB(hue, s, l)
+		r, g, b := hslToRGB(hue, s, l)
 		colors[i] = lipgloss.Color(RGBToHex(r, g, b))
 	}
 	return colors
@@ -375,9 +375,9 @@ func GenerateAccentPalette(hues []float64, bg color.Color) []color.Color {
 
 // --- Perceptual distance ---
 
-// ColorDistanceCIE76 returns the Euclidean distance between two colors in CIELAB space.
+// colorDistanceCIE76 returns the Euclidean distance between two colors in CIELAB space.
 // A value below ~25 means colors may be hard to distinguish at a glance.
-func ColorDistanceCIE76(c1, c2 color.Color) float64 {
+func colorDistanceCIE76(c1, c2 color.Color) float64 {
 	l1, a1, b1 := colorToLab(c1)
 	l2, a2, b2 := colorToLab(c2)
 	dl := l1 - l2
@@ -390,9 +390,9 @@ func ColorDistanceCIE76(c1, c2 color.Color) float64 {
 func colorToLab(c color.Color) (l, a, b float64) {
 	r, g, bl := ColorToRGB(c)
 	// sRGB to linear
-	rl := SRGBToLinear(r)
-	gl := SRGBToLinear(g)
-	bll := SRGBToLinear(bl)
+	rl := sRGBToLinear(r)
+	gl := sRGBToLinear(g)
+	bll := sRGBToLinear(bl)
 
 	// Linear RGB to XYZ (D65)
 	x := 0.4124564*rl + 0.3575761*gl + 0.1804375*bll

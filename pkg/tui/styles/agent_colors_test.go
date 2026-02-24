@@ -177,16 +177,16 @@ func TestAllBuiltinThemes_AgentBadgeContrast(t *testing.T) {
 
 			hues := theme.Colors.AgentHues
 			if len(hues) == 0 {
-				hues = DefaultAgentHues
+				hues = defaultAgentHues
 			}
 
 			bg := lipgloss.Color(theme.Colors.Background)
-			badgeColors := GenerateBadgePalette(hues, bg)
+			badgeColors := generateBadgePalette(hues, bg)
 
 			for i, badgeBg := range badgeColors {
 				r, g, b := ColorToRGB(badgeBg)
 				bgHex := RGBToHex(r, g, b)
-				fgHex := BestForegroundHex(
+				fgHex := bestForegroundHex(
 					bgHex,
 					theme.Colors.TextBright,
 					theme.Colors.Background,
@@ -195,7 +195,7 @@ func TestAllBuiltinThemes_AgentBadgeContrast(t *testing.T) {
 				)
 				fg := lipgloss.Color(fgHex)
 
-				ratio := ContrastRatio(fg, badgeBg)
+				ratio := contrastRatio(fg, badgeBg)
 				assert.GreaterOrEqual(t, ratio, minBadgeContrast,
 					"badge %d (bg=%s, fg=%s) contrast %.2f < %.1f in theme %s",
 					i, bgHex, fgHex, ratio, minBadgeContrast, ref)
@@ -220,14 +220,14 @@ func TestAllBuiltinThemes_AgentAccentContrast(t *testing.T) {
 
 			hues := theme.Colors.AgentHues
 			if len(hues) == 0 {
-				hues = DefaultAgentHues
+				hues = defaultAgentHues
 			}
 
 			bg := lipgloss.Color(theme.Colors.Background)
-			accentColors := GenerateAccentPalette(hues, bg)
+			accentColors := generateAccentPalette(hues, bg)
 
 			for i, accent := range accentColors {
-				ratio := ContrastRatio(accent, bg)
+				ratio := contrastRatio(accent, bg)
 				r, g, b := ColorToRGB(accent)
 				hex := RGBToHex(r, g, b)
 				assert.GreaterOrEqual(t, ratio, minAccentContrast,
@@ -262,15 +262,15 @@ func TestAllBuiltinThemes_AgentBadgeDistinctness(t *testing.T) {
 
 			hues := theme.Colors.AgentHues
 			if len(hues) == 0 {
-				hues = DefaultAgentHues
+				hues = defaultAgentHues
 			}
 
 			bg := lipgloss.Color(theme.Colors.Background)
-			palette := GenerateBadgePalette(hues, bg)
+			palette := generateBadgePalette(hues, bg)
 
 			for i := range palette {
 				for j := i + 1; j < len(palette); j++ {
-					dist := ColorDistanceCIE76(palette[i], palette[j])
+					dist := colorDistanceCIE76(palette[i], palette[j])
 					assert.GreaterOrEqual(t, dist, minColorDistance,
 						"badge colors %d and %d are too similar (ΔE=%.1f) in theme %s",
 						i, j, dist, ref)
@@ -296,15 +296,15 @@ func TestAllBuiltinThemes_AgentAccentDistinctness(t *testing.T) {
 
 			hues := theme.Colors.AgentHues
 			if len(hues) == 0 {
-				hues = DefaultAgentHues
+				hues = defaultAgentHues
 			}
 
 			bg := lipgloss.Color(theme.Colors.Background)
-			palette := GenerateAccentPalette(hues, bg)
+			palette := generateAccentPalette(hues, bg)
 
 			for i := range palette {
 				for j := i + 1; j < len(palette); j++ {
-					dist := ColorDistanceCIE76(palette[i], palette[j])
+					dist := colorDistanceCIE76(palette[i], palette[j])
 					assert.GreaterOrEqual(t, dist, minColorDistance,
 						"accent colors %d and %d are too similar (ΔE=%.1f) in theme %s",
 						i, j, dist, ref)
@@ -331,12 +331,12 @@ func TestAgentColorAuditReport(t *testing.T) {
 
 			hues := theme.Colors.AgentHues
 			if len(hues) == 0 {
-				hues = DefaultAgentHues
+				hues = defaultAgentHues
 			}
 
 			bg := lipgloss.Color(theme.Colors.Background)
-			badges := GenerateBadgePalette(hues, bg)
-			accents := GenerateAccentPalette(hues, bg)
+			badges := generateBadgePalette(hues, bg)
+			accents := generateAccentPalette(hues, bg)
 
 			t.Logf("\n=== Agent Color Audit: %s (bg: %s) ===", theme.Name, theme.Colors.Background)
 			t.Logf("%-5s %-10s %-10s %-10s %-12s %-10s %-10s",
@@ -348,15 +348,15 @@ func TestAgentColorAuditReport(t *testing.T) {
 				br, bg2, bb := ColorToRGB(badges[i])
 				badgeHex := RGBToHex(br, bg2, bb)
 
-				fgHex := BestForegroundHex(badgeHex,
+				fgHex := bestForegroundHex(badgeHex,
 					theme.Colors.TextBright, theme.Colors.Background,
 					"#000000", "#ffffff")
 				fg := lipgloss.Color(fgHex)
-				badgeCR := ContrastRatio(fg, badges[i])
+				badgeCR := contrastRatio(fg, badges[i])
 
 				ar, ag, ab := ColorToRGB(accents[i])
 				accentHex := RGBToHex(ar, ag, ab)
-				accentCR := ContrastRatio(accents[i], bg)
+				accentCR := contrastRatio(accents[i], bg)
 
 				badgeStatus := "✓"
 				if badgeCR < minBadgeContrast {
@@ -377,10 +377,10 @@ func TestAgentColorAuditReport(t *testing.T) {
 			minAccentDist := 999.0
 			for i := range badges {
 				for j := i + 1; j < len(badges); j++ {
-					if d := ColorDistanceCIE76(badges[i], badges[j]); d < minBadgeDist {
+					if d := colorDistanceCIE76(badges[i], badges[j]); d < minBadgeDist {
 						minBadgeDist = d
 					}
-					if d := ColorDistanceCIE76(accents[i], accents[j]); d < minAccentDist {
+					if d := colorDistanceCIE76(accents[i], accents[j]); d < minAccentDist {
 						minAccentDist = d
 					}
 				}
