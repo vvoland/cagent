@@ -16,6 +16,9 @@ type toonTools struct {
 	toolRegexps []*regexp.Regexp
 }
 
+// Verify interface compliance
+var _ tools.Unwrapper = (*toonTools)(nil)
+
 func (f *toonTools) Tools(ctx context.Context) ([]tools.Tool, error) {
 	allTools, err := f.ToolSet.Tools(ctx)
 	if err != nil {
@@ -54,6 +57,11 @@ func (f *toonTools) Tools(ctx context.Context) ([]tools.Tool, error) {
 	}
 
 	return allTools, nil
+}
+
+// Unwrap implements tools.Unwrapper.
+func (f *toonTools) Unwrap() tools.ToolSet {
+	return f.ToolSet
 }
 
 func WithToon(inner tools.ToolSet, toon string) tools.ToolSet {

@@ -39,7 +39,7 @@ func (s *StartableToolSet) Start(ctx context.Context) error {
 		return nil
 	}
 
-	if startable, ok := s.ToolSet.(Startable); ok {
+	if startable, ok := As[Startable](s.ToolSet); ok {
 		if err := startable.Start(ctx); err != nil {
 			return err
 		}
@@ -50,7 +50,7 @@ func (s *StartableToolSet) Start(ctx context.Context) error {
 
 // Stop stops the toolset if it implements Startable.
 func (s *StartableToolSet) Stop(ctx context.Context) error {
-	if startable, ok := s.ToolSet.(Startable); ok {
+	if startable, ok := As[Startable](s.ToolSet); ok {
 		return startable.Stop(ctx)
 	}
 	return nil
@@ -61,8 +61,16 @@ func (s *StartableToolSet) Unwrap() ToolSet {
 	return s.ToolSet
 }
 
-// As performs a type assertion on a ToolSet, unwrapping StartableToolSet if needed.
-// Returns the typed toolset and true if the assertion succeeds.
+// Unwrapper is implemented by toolset wrappers that decorate another ToolSet.
+// This allows As to walk the wrapper chain and find inner capabilities.
+type Unwrapper interface {
+	Unwrap() ToolSet
+}
+
+// As performs a type assertion on a ToolSet, walking the wrapper chain if needed.
+// It checks the outermost toolset first, then recursively unwraps through any
+// Unwrapper implementations (including StartableToolSet and decorator wrappers)
+// until it finds a match or reaches the end of the chain.
 //
 // Example:
 //
@@ -70,10 +78,16 @@ func (s *StartableToolSet) Unwrap() ToolSet {
 //	    prompts, _ := pp.ListPrompts(ctx)
 //	}
 func As[T any](ts ToolSet) (T, bool) {
-	// Unwrap if it's a StartableToolSet
-	if startable, ok := ts.(*StartableToolSet); ok {
-		ts = startable.ToolSet
+	for ts != nil {
+		if result, ok := ts.(T); ok {
+			return result, true
+		}
+		if u, ok := ts.(Unwrapper); ok {
+			ts = u.Unwrap()
+		} else {
+			break
+		}
 	}
-	result, ok := ts.(T)
-	return result, ok
+	var zero T
+	return zero, false
 }
