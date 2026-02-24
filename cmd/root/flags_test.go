@@ -98,6 +98,37 @@ func TestGatewayLogic(t *testing.T) {
 	}
 }
 
+func TestGatewayFlags_CallsAncestorPersistentPreRunE(t *testing.T) {
+	// Regression test: addGatewayFlags overrides PersistentPreRunE on the command
+	// it is applied to. When that command is nested under an intermediate parent
+	// (e.g. root → serve → api), the old code only checked cmd.Parent(), so a
+	// grandparent's PersistentPreRunE was silently skipped.
+	called := false
+
+	root := &cobra.Command{Use: "root"}
+	root.PersistentPreRunE = func(*cobra.Command, []string) error {
+		called = true
+		return nil
+	}
+
+	middle := &cobra.Command{Use: "middle"}
+
+	leaf := &cobra.Command{
+		Use:  "leaf",
+		Args: cobra.NoArgs,
+		RunE: func(*cobra.Command, []string) error { return nil },
+	}
+	runConfig := config.RuntimeConfig{}
+	addGatewayFlags(leaf, &runConfig)
+
+	middle.AddCommand(leaf)
+	root.AddCommand(middle)
+
+	root.SetArgs([]string{"middle", "leaf"})
+	require.NoError(t, root.Execute())
+	assert.True(t, called, "root PersistentPreRunE should have been called through the intermediate parent")
+}
+
 func TestCanonize(t *testing.T) {
 	t.Parallel()
 

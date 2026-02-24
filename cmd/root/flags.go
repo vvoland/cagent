@@ -98,8 +98,14 @@ func addGatewayFlags(cmd *cobra.Command, runConfig *config.RuntimeConfig) {
 		if persistentPreRunE != nil {
 			return persistentPreRunE(cmd, args)
 		}
-		if cmd.Parent() != nil && cmd.Parent().PersistentPreRunE != nil {
-			return cmd.Parent().PersistentPreRunE(cmd, args)
+		// Walk up the ancestor chain to find and call the nearest PersistentPreRunE.
+		// A single cmd.Parent() check is not sufficient when this command is nested
+		// more than one level deep (e.g. root → serve → api): the immediate parent
+		// may have no PersistentPreRunE, but a grandparent (such as root) might.
+		for p := cmd.Parent(); p != nil; p = p.Parent() {
+			if p.PersistentPreRunE != nil {
+				return p.PersistentPreRunE(cmd, args)
+			}
 		}
 
 		return nil
