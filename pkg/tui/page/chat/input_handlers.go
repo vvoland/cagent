@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -81,7 +82,7 @@ func (p *chatPage) persistSessionTitle(newTitle string) tea.Cmd {
 			if errors.Is(err, app.ErrTitleGenerating) {
 				return notification.ShowMsg{Text: "Title is being generated, please wait", Type: notification.TypeWarning}
 			}
-			// Log other errors but don't show them
+			slog.Warn("Failed to persist session title", "title", newTitle, "error", err)
 			return nil
 		}
 		return nil

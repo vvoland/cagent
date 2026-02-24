@@ -68,6 +68,28 @@ func (t *FilesystemToolset) Tools(ctx context.Context) ([]tools.Tool, error) {
 	return baseTools, nil
 }
 
+// resolvePath resolves a user-supplied path relative to the working directory
+// and validates that the resulting path does not escape the working directory.
+func (t *FilesystemToolset) resolvePath(userPath string) (string, error) {
+	resolved := filepath.Clean(filepath.Join(t.workingDir, userPath))
+	absWorkingDir, err := filepath.Abs(t.workingDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve working directory: %w", err)
+	}
+	absResolved, err := filepath.Abs(resolved)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve path: %w", err)
+	}
+	// Normalize paths for comparison to prevent bypasses on case-insensitive
+	// filesystems (macOS, Windows) where differing case could defeat the check.
+	normResolved := normalizePathForComparison(absResolved)
+	normWorkingDir := normalizePathForComparison(absWorkingDir)
+	if !strings.HasPrefix(normResolved, normWorkingDir+string(filepath.Separator)) && normResolved != normWorkingDir {
+		return "", fmt.Errorf("path %q escapes the working directory", userPath)
+	}
+	return absResolved, nil
+}
+
 func (t *FilesystemToolset) handleReadFile(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
 	var args builtin.ReadFileArgs
 	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
@@ -79,9 +101,14 @@ func (t *FilesystemToolset) handleReadFile(ctx context.Context, toolCall tools.T
 		return tools.ResultError("Error: session ID not found in context"), nil
 	}
 
+	resolvedPath, err := t.resolvePath(args.Path)
+	if err != nil {
+		return tools.ResultError(fmt.Sprintf("Error: %s", err)), nil
+	}
+
 	resp, err := t.agent.conn.ReadTextFile(ctx, acp.ReadTextFileRequest{
 		SessionId: acp.SessionId(sessionID),
-		Path:      filepath.Join(t.workingDir, args.Path),
+		Path:      resolvedPath,
 	})
 	if err != nil {
 		return tools.ResultError(fmt.Sprintf("Error reading file: %s", err)), nil
@@ -101,9 +128,14 @@ func (t *FilesystemToolset) handleWriteFile(ctx context.Context, toolCall tools.
 		return tools.ResultError("Error: session ID not found in context"), nil
 	}
 
-	_, err := t.agent.conn.WriteTextFile(ctx, acp.WriteTextFileRequest{
+	resolvedPath, err := t.resolvePath(args.Path)
+	if err != nil {
+		return tools.ResultError(fmt.Sprintf("Error: %s", err)), nil
+	}
+
+	_, err = t.agent.conn.WriteTextFile(ctx, acp.WriteTextFileRequest{
 		SessionId: acp.SessionId(sessionID),
-		Path:      filepath.Join(t.workingDir, args.Path),
+		Path:      resolvedPath,
 		Content:   args.Content,
 	})
 	if err != nil {
@@ -124,9 +156,14 @@ func (t *FilesystemToolset) handleEditFile(ctx context.Context, toolCall tools.T
 		return tools.ResultError("Error: session ID not found in context"), nil
 	}
 
+	resolvedPath, err := t.resolvePath(args.Path)
+	if err != nil {
+		return tools.ResultError(fmt.Sprintf("Error: %s", err)), nil
+	}
+
 	resp, err := t.agent.conn.ReadTextFile(ctx, acp.ReadTextFileRequest{
 		SessionId: acp.SessionId(sessionID),
-		Path:      filepath.Join(t.workingDir, args.Path),
+		Path:      resolvedPath,
 	})
 	if err != nil {
 		return tools.ResultError(fmt.Sprintf("Error reading file: %s", err)), nil
@@ -143,7 +180,7 @@ func (t *FilesystemToolset) handleEditFile(ctx context.Context, toolCall tools.T
 
 	_, err = t.agent.conn.WriteTextFile(ctx, acp.WriteTextFileRequest{
 		SessionId: acp.SessionId(sessionID),
-		Path:      filepath.Join(t.workingDir, args.Path),
+		Path:      resolvedPath,
 		Content:   modifiedContent,
 	})
 	if err != nil {
