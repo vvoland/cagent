@@ -23,9 +23,17 @@ type replaceInstruction struct {
 }
 
 // Verify interface compliance
-var _ tools.Instructable = (*replaceInstruction)(nil)
+var (
+	_ tools.Instructable = (*replaceInstruction)(nil)
+	_ tools.Unwrapper    = (*replaceInstruction)(nil)
+)
 
-func (a replaceInstruction) Instructions() string {
+// Unwrap implements tools.Unwrapper.
+func (a *replaceInstruction) Unwrap() tools.ToolSet {
+	return a.ToolSet
+}
+
+func (a *replaceInstruction) Instructions() string {
 	original := tools.GetInstructions(a.ToolSet)
 	return strings.Replace(a.instruction, "{ORIGINAL_INSTRUCTIONS}", original, 1)
 }
