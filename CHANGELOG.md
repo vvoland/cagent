@@ -3,6 +3,33 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.24.0] - 2026-02-24
+
+This release introduces remote skills discovery capabilities and improves file reading tools with pagination support.
+
+## What's New
+- Adds remote skills discovery with disk cache and dedicated tools, supporting the well-known skills discovery specification
+- Adds offset and line_count pagination parameters to read_file and read_multiple_files tools for incremental reading of large files
+
+## Improvements
+- Limits output size for read_file and read_multiple_files tools to prevent excessive token usage
+- Removes pagination instructions from tool descriptions for cleaner interface
+
+## Bug Fixes
+- Fixes LineCount metadata on truncated read_multiple_files results
+
+## Technical Changes
+- Freezes configuration version v5 and bumps to v6
+- Updates test cassettes to match schema changes for file reading tools
+
+### Pull Requests
+
+- [#1810](https://github.com/docker/cagent/pull/1810) - Freeze v5 (and a few refactoring)
+- [#1822](https://github.com/docker/cagent/pull/1822) - Implement remote skills discovery with disk cache and dedicated tools
+- [#1828](https://github.com/docker/cagent/pull/1828) - builtin: add offset and line_count pagination to read_file and read_multiple_files
+- [#1829](https://github.com/docker/cagent/pull/1829) - docs: update CHANGELOG.md for v1.23.6
+
+
 ## [v1.23.6] - 2026-02-23
 
 This release improves cost tracking accuracy, enhances session management, and fixes several UI and functionality issues.
@@ -698,3 +725,5 @@ This release improves the terminal user interface with better error handling and
 [v1.23.5]: https://github.com/docker/cagent/releases/tag/v1.23.5
 
 [v1.23.6]: https://github.com/docker/cagent/releases/tag/v1.23.6
+
+[v1.24.0]: https://github.com/docker/cagent/releases/tag/v1.24.0
