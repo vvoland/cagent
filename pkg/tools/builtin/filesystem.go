@@ -91,7 +91,13 @@ This toolset provides comprehensive filesystem operations.
 ### Performance Tips
 - Use read_multiple_files instead of multiple read_file calls
 - Use directory_tree with max_depth to limit large traversals
-- Use appropriate exclude patterns in search operations`
+- Use appropriate exclude patterns in search operations
+
+### Reading Large Files
+- read_file and read_multiple_files support offset and line_count parameters for pagination
+- When a file is large, read it in chunks: start with offset=1 and a reasonable line_count
+- The response includes total_lines so you know how many more lines remain
+- Continue reading with an incremented offset until you have read all required content`
 }
 
 type DirectoryTreeArgs struct {
@@ -104,8 +110,10 @@ type WriteFileArgs struct {
 }
 
 type ReadMultipleFilesArgs struct {
-	Paths []string `json:"paths" jsonschema:"Array of file paths to read"`
-	JSON  bool     `json:"json,omitempty" jsonschema:"Whether to return the result as JSON"`
+	Paths     []string `json:"paths" jsonschema:"Array of file paths to read"`
+	JSON      bool     `json:"json,omitempty" jsonschema:"Whether to return the result as JSON"`
+	Offset    int      `json:"offset,omitempty" jsonschema:"1-based line number to start reading from, applied to all files (default: 1)"`
+	LineCount int      `json:"line_count,omitempty" jsonschema:"Maximum number of lines to return per file (default: all remaining lines)"`
 }
 
 type ReadMultipleFilesMeta struct {
@@ -141,14 +149,16 @@ type DirectoryTreeMeta struct {
 }
 
 type ReadFileArgs struct {
-	Path string `json:"path" jsonschema:"The file path to read"`
+	Path      string `json:"path" jsonschema:"The file path to read"`
+	Offset    int    `json:"offset,omitempty" jsonschema:"1-based line number to start reading from (default: 1)"`
+	LineCount int    `json:"line_count,omitempty" jsonschema:"Maximum number of lines to return (default: all remaining lines)"`
 }
 
 type ReadFileMeta struct {
-	Path      string `json:"path"`
-	Content   string `json:"content"`
-	LineCount int    `json:"lineCount"`
-	Error     string `json:"error,omitempty"`
+	Path       string `json:"path"`
+	Content    string `json:"content"`
+	TotalLines int    `json:"totalLines"`
+	Error      string `json:"error,omitempty"`
 }
 
 type Edit struct {
@@ -226,7 +236,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 		{
 			Name:         ToolNameReadFile,
 			Category:     "filesystem",
-			Description:  "Read the complete contents of a file from the file system.",
+			Description:  "Read the contents of a file from the file system.",
 			Parameters:   tools.MustSchemaFor[ReadFileArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
 			Handler:      tools.NewHandler(t.handleReadFile),
@@ -483,6 +493,38 @@ func (t *FilesystemTool) handleListDirectory(_ context.Context, args ListDirecto
 	}, nil
 }
 
+// applyLineWindow slices lines from a file's content according to offset (1-based) and
+// lineCount (0 means all remaining lines). It returns the windowed content and the total
+// line count of the original. A header is prepended when only a subset is returned.
+func applyLineWindow(content, path string, offset, lineCount int) (windowed string, totalLines int) {
+	lines := strings.Split(content, "\n")
+	totalLines = len(lines)
+
+	// Normalise offset: default to 1, clamp to valid range
+	if offset <= 0 {
+		offset = 1
+	}
+	if offset > totalLines {
+		offset = totalLines
+	}
+
+	// Convert to 0-based index
+	from := offset - 1
+	to := totalLines
+	if lineCount > 0 && from+lineCount < totalLines {
+		to = from + lineCount
+	}
+
+	windowed = strings.Join(lines[from:to], "\n")
+
+	// Prepend a header only when we are returning a subset of the file
+	if from > 0 || to < totalLines {
+		windowed = fmt.Sprintf("[Showing lines %d-%d of %d from %s]\n%s", offset, to, totalLines, path, windowed)
+	}
+
+	return windowed, totalLines
+}
+
 func (t *FilesystemTool) handleReadFile(_ context.Context, args ReadFileArgs) (*tools.ToolCallResult, error) {
 	resolvedPath := t.resolvePath(args.Path)
 
@@ -504,10 +546,11 @@ func (t *FilesystemTool) handleReadFile(_ context.Context, args ReadFileArgs) (*
 		}, nil
 	}
 
+	windowed, totalLines := applyLineWindow(string(content), args.Path, args.Offset, args.LineCount)
 	return &tools.ToolCallResult{
-		Output: string(content),
+		Output: windowed,
 		Meta: ReadFileMeta{
-			LineCount: strings.Count(string(content), "\n") + 1,
+			TotalLines: totalLines,
 		},
 	}, nil
 }
@@ -545,12 +588,13 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadM
 			continue
 		}
 
+		windowed, totalLines := applyLineWindow(string(content), path, args.Offset, args.LineCount)
 		contents = append(contents, PathContent{
 			Path:    path,
-			Content: string(content),
+			Content: windowed,
 		})
-		entry.Content = string(content)
-		entry.LineCount = strings.Count(string(content), "\n") + 1
+		entry.Content = windowed
+		entry.TotalLines = totalLines
 		meta.Files = append(meta.Files, entry)
 	}
 
