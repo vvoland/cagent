@@ -1497,10 +1497,11 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 //
 // The approval flow considers (in order):
 //
-//  1. Session-level permissions (if configured) - pattern-based Allow/Ask/Deny rules
-//  2. Team-level permissions config - checked second
-//  3. sess.ToolsApproved (--yolo flag) or read-only hint - auto-approve
-//  4. Default: ask for user confirmation
+//  1. sess.ToolsApproved (--yolo flag) - auto-approve everything, takes precedence
+//  2. Session-level permissions (if configured) - pattern-based Allow/Ask/Deny rules
+//  3. Team-level permissions config - checked second
+//  4. Read-only hint - auto-approve
+//  5. Default: ask for user confirmation
 func (r *LocalRuntime) executeWithApproval(
 	ctx context.Context,
 	sess *session.Session,
@@ -1511,6 +1512,13 @@ func (r *LocalRuntime) executeWithApproval(
 	runTool func(),
 ) (canceled bool) {
 	toolName := toolCall.Function.Name
+
+	// --yolo flag takes absolute precedence: auto-approve everything.
+	if sess.ToolsApproved {
+		slog.Debug("Tool auto-approved by --yolo flag", "tool", toolName, "session_id", sess.ID)
+		runTool()
+		return false
+	}
 
 	// Parse tool arguments once for permission matching
 	var toolArgs map[string]any
@@ -1542,8 +1550,8 @@ func (r *LocalRuntime) executeWithApproval(
 		}
 	}
 
-	// No permission rule matched. Auto-approve if --yolo flag is set or the tool is read-only.
-	if sess.ToolsApproved || tool.Annotations.ReadOnlyHint {
+	// No permission rule matched. Auto-approve if the tool is read-only.
+	if tool.Annotations.ReadOnlyHint {
 		runTool()
 		return false
 	}
@@ -1581,7 +1589,7 @@ func (r *LocalRuntime) permissionCheckers(sess *session.Session) []permissionChe
 }
 
 // askUserForConfirmation sends a confirmation event and waits for user response.
-// It bypasses all auto-approval logic (read-only hints, yolo flag, etc.).
+// This is only called when --yolo is not active and no permission rule auto-approved the tool.
 func (r *LocalRuntime) askUserForConfirmation(
 	ctx context.Context,
 	sess *session.Session,
