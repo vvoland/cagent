@@ -1564,3 +1564,140 @@ func TestTransferTaskAllowsSubAgent(t *testing.T) {
 	require.NotNil(t, result)
 	assert.False(t, result.IsError, "transfer to valid sub-agent should succeed")
 }
+
+func TestYoloMode_OverridesPermissionsDeny(t *testing.T) {
+	// Test that --yolo flag takes precedence over deny permissions
+	permChecker := permissions.NewChecker(&latest.PermissionsConfig{
+		Deny: []string{"dangerous_tool"},
+	})
+
+	var executed bool
+	agentTools := []tools.Tool{{
+		Name:       "dangerous_tool",
+		Parameters: map[string]any{},
+		Handler: func(_ context.Context, _ tools.ToolCall) (*tools.ToolCallResult, error) {
+			executed = true
+			return tools.ResultSuccess("executed"), nil
+		},
+	}}
+
+	prov := &mockProvider{id: "test/mock-model", stream: &mockStream{}}
+	root := agent.New("root", "You are a test agent",
+		agent.WithModel(prov),
+		agent.WithToolSets(newStubToolSet(nil, agentTools, nil)),
+	)
+	tm := team.New(
+		team.WithAgents(root),
+		team.WithPermissions(permChecker),
+	)
+
+	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	require.NoError(t, err)
+
+	sess := session.New(session.WithUserMessage("Test"), session.WithToolsApproved(true))
+	require.True(t, sess.ToolsApproved)
+
+	calls := []tools.ToolCall{{
+		ID:       "call_1",
+		Type:     "function",
+		Function: tools.FunctionCall{Name: "dangerous_tool", Arguments: "{}"},
+	}}
+
+	events := make(chan Event, 10)
+	rt.processToolCalls(t.Context(), sess, calls, agentTools, events)
+	close(events)
+
+	// With --yolo, the tool should execute despite deny permission
+	require.True(t, executed, "expected tool to be executed in --yolo mode despite deny permission")
+}
+
+func TestYoloMode_OverridesForceAsk(t *testing.T) {
+	// Test that --yolo flag takes precedence over ForceAsk permissions
+	permChecker := permissions.NewChecker(&latest.PermissionsConfig{
+		Ask: []string{"careful_tool"},
+	})
+
+	var executed bool
+	agentTools := []tools.Tool{{
+		Name:       "careful_tool",
+		Parameters: map[string]any{},
+		Handler: func(_ context.Context, _ tools.ToolCall) (*tools.ToolCallResult, error) {
+			executed = true
+			return tools.ResultSuccess("executed"), nil
+		},
+	}}
+
+	prov := &mockProvider{id: "test/mock-model", stream: &mockStream{}}
+	root := agent.New("root", "You are a test agent",
+		agent.WithModel(prov),
+		agent.WithToolSets(newStubToolSet(nil, agentTools, nil)),
+	)
+	tm := team.New(
+		team.WithAgents(root),
+		team.WithPermissions(permChecker),
+	)
+
+	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	require.NoError(t, err)
+
+	sess := session.New(session.WithUserMessage("Test"), session.WithToolsApproved(true))
+	require.True(t, sess.ToolsApproved)
+
+	calls := []tools.ToolCall{{
+		ID:       "call_1",
+		Type:     "function",
+		Function: tools.FunctionCall{Name: "careful_tool", Arguments: "{}"},
+	}}
+
+	events := make(chan Event, 10)
+	rt.processToolCalls(t.Context(), sess, calls, agentTools, events)
+	close(events)
+
+	// With --yolo, the tool should execute without asking
+	require.True(t, executed, "expected tool to be executed in --yolo mode despite ForceAsk permission")
+}
+
+func TestYoloMode_OverridesSessionDeny(t *testing.T) {
+	// Test that --yolo flag takes precedence over session-level deny
+	var executed bool
+	agentTools := []tools.Tool{{
+		Name:       "blocked_tool",
+		Parameters: map[string]any{},
+		Handler: func(_ context.Context, _ tools.ToolCall) (*tools.ToolCallResult, error) {
+			executed = true
+			return tools.ResultSuccess("executed"), nil
+		},
+	}}
+
+	prov := &mockProvider{id: "test/mock-model", stream: &mockStream{}}
+	root := agent.New("root", "You are a test agent",
+		agent.WithModel(prov),
+		agent.WithToolSets(newStubToolSet(nil, agentTools, nil)),
+	)
+	tm := team.New(team.WithAgents(root))
+
+	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	require.NoError(t, err)
+
+	sess := session.New(
+		session.WithUserMessage("Test"),
+		session.WithToolsApproved(true),
+		session.WithPermissions(&session.PermissionsConfig{
+			Deny: []string{"blocked_tool"},
+		}),
+	)
+	require.True(t, sess.ToolsApproved)
+
+	calls := []tools.ToolCall{{
+		ID:       "call_1",
+		Type:     "function",
+		Function: tools.FunctionCall{Name: "blocked_tool", Arguments: "{}"},
+	}}
+
+	events := make(chan Event, 10)
+	rt.processToolCalls(t.Context(), sess, calls, agentTools, events)
+	close(events)
+
+	// With --yolo, the tool should execute despite session deny
+	require.True(t, executed, "expected tool to be executed in --yolo mode despite session deny permission")
+}

@@ -81,7 +81,7 @@ func (c *Checker) Check(toolName string) Decision {
 //
 // Returns ForceAsk when an explicit ask pattern matches. ForceAsk means the
 // tool must always be confirmed, even when it would normally be auto-approved
-// (e.g. read-only tools or --yolo mode).
+// (e.g. read-only tools). Note that --yolo mode takes precedence over ForceAsk.
 func (c *Checker) CheckWithArgs(toolName string, args map[string]any) Decision {
 	// Deny patterns are checked first - they take priority
 	for _, pattern := range c.denyPatterns {
