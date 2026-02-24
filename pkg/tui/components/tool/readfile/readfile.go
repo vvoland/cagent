@@ -28,5 +28,5 @@ func extractResult(msg *types.Message) string {
 	if meta.Error != "" {
 		return meta.Error
 	}
-	return fmt.Sprintf("%d lines", meta.TotalLines)
+	return fmt.Sprintf("%d lines", meta.LineCount)
 }
