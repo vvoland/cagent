@@ -80,8 +80,11 @@ func (t *FilesystemToolset) resolvePath(userPath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve path: %w", err)
 	}
-	// Ensure the resolved path is within the working directory
-	if !strings.HasPrefix(absResolved, absWorkingDir+string(filepath.Separator)) && absResolved != absWorkingDir {
+	// Normalize paths for comparison to prevent bypasses on case-insensitive
+	// filesystems (macOS, Windows) where differing case could defeat the check.
+	normResolved := normalizePathForComparison(absResolved)
+	normWorkingDir := normalizePathForComparison(absWorkingDir)
+	if !strings.HasPrefix(normResolved, normWorkingDir+string(filepath.Separator)) && normResolved != normWorkingDir {
 		return "", fmt.Errorf("path %q escapes the working directory", userPath)
 	}
 	return absResolved, nil
