@@ -131,7 +131,7 @@ func createMemoryTool(_ context.Context, toolset latest.Toolset, parentDir strin
 		return nil, fmt.Errorf("failed to create memory database: %w", err)
 	}
 
-	return builtin.NewMemoryTool(db), nil
+	return builtin.NewMemoryToolWithPath(db, validatedMemoryPath), nil
 }
 
 func createThinkTool(_ context.Context, _ latest.Toolset, _ string, _ *config.RuntimeConfig) (tools.ToolSet, error) {

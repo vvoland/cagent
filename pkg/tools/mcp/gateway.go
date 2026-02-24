@@ -54,8 +54,11 @@ func NewGatewayToolset(ctx context.Context, name, mcpServerName string, config a
 		"--config", fileConfig,
 	}
 
+	inner := NewToolsetCommand(name, "docker", args, nil, cwd)
+	inner.description = "mcp(ref=" + mcpServerName + ")"
+
 	return &GatewayToolset{
-		Toolset: NewToolsetCommand(name, "docker", args, nil, cwd),
+		Toolset: inner,
 		cleanUp: func() error {
 			return errors.Join(os.Remove(fileSecrets), os.Remove(fileConfig))
 		},

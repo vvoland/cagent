@@ -23,12 +23,14 @@ type DB interface {
 }
 
 type MemoryTool struct {
-	db DB
+	db   DB
+	path string
 }
 
 // Verify interface compliance
 var (
 	_ tools.ToolSet      = (*MemoryTool)(nil)
+	_ tools.Describer    = (*MemoryTool)(nil)
 	_ tools.Instructable = (*MemoryTool)(nil)
 )
 
@@ -36,6 +38,23 @@ func NewMemoryTool(manager DB) *MemoryTool {
 	return &MemoryTool{
 		db: manager,
 	}
+}
+
+// NewMemoryToolWithPath creates a MemoryTool and records the database path for
+// user-visible identification in warnings and error messages.
+func NewMemoryToolWithPath(manager DB, dbPath string) *MemoryTool {
+	return &MemoryTool{
+		db:   manager,
+		path: dbPath,
+	}
+}
+
+// Describe returns a short, user-visible description of this toolset instance.
+func (t *MemoryTool) Describe() string {
+	if t.path != "" {
+		return "memory(path=" + t.path + ")"
+	}
+	return "memory"
 }
 
 type AddMemoryArgs struct {

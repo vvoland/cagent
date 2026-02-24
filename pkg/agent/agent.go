@@ -209,8 +209,9 @@ func (a *Agent) Tools(ctx context.Context) ([]tools.Tool, error) {
 		}
 		ta, err := toolSet.Tools(ctx)
 		if err != nil {
-			slog.Warn("Toolset listing failed; skipping", "agent", a.Name(), "toolset", fmt.Sprintf("%T", toolSet.ToolSet), "error", err)
-			a.addToolWarning(fmt.Sprintf("%T list failed: %v", toolSet.ToolSet, err))
+			desc := tools.DescribeToolSet(toolSet)
+			slog.Warn("Toolset listing failed; skipping", "agent", a.Name(), "toolset", desc, "error", err)
+			a.addToolWarning(fmt.Sprintf("%s list failed: %v", desc, err))
 			continue
 		}
 		agentTools = append(agentTools, ta...)
@@ -238,8 +239,9 @@ func (a *Agent) ToolSets() []tools.ToolSet {
 func (a *Agent) ensureToolSetsAreStarted(ctx context.Context) {
 	for _, toolSet := range a.toolsets {
 		if err := toolSet.Start(ctx); err != nil {
-			slog.Warn("Toolset start failed; skipping", "agent", a.Name(), "toolset", fmt.Sprintf("%T", toolSet.ToolSet), "error", err)
-			a.addToolWarning(fmt.Sprintf("%T start failed: %v", toolSet.ToolSet, err))
+			desc := tools.DescribeToolSet(toolSet)
+			slog.Warn("Toolset start failed; skipping", "agent", a.Name(), "toolset", desc, "error", err)
+			a.addToolWarning(fmt.Sprintf("%s start failed: %v", desc, err))
 			continue
 		}
 	}
