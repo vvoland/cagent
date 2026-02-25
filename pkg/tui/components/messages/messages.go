@@ -246,7 +246,6 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		// Insert paste content into the inline edit textarea
 		if m.inlineEditMsgIndex >= 0 {
 			m.inlineEditTextarea.InsertString(msg.Content)
-			m.updateInlineEditTextareaHeight()
 			m.invalidateItem(m.inlineEditMsgIndex)
 			m.renderDirty = true
 		}
@@ -388,7 +387,6 @@ func (m *model) handleKeyPress(msg tea.KeyPressMsg) (layout.Model, tea.Cmd) {
 			// Forward to textarea for newline insertion
 			var cmd tea.Cmd
 			m.inlineEditTextarea, cmd = m.inlineEditTextarea.Update(msg)
-			m.updateInlineEditTextareaHeight()
 			m.invalidateItem(m.inlineEditMsgIndex)
 			m.renderDirty = true
 			return m, cmd
@@ -407,7 +405,6 @@ func (m *model) handleKeyPress(msg tea.KeyPressMsg) (layout.Model, tea.Cmd) {
 			// Forward all other keys to the textarea
 			var cmd tea.Cmd
 			m.inlineEditTextarea, cmd = m.inlineEditTextarea.Update(msg)
-			m.updateInlineEditTextareaHeight()
 			m.invalidateItem(m.inlineEditMsgIndex)
 			m.renderDirty = true
 			return m, cmd
@@ -964,55 +961,38 @@ func (m *model) renderInlineEditTextarea() string {
 		m.inlineEditTextarea.SetWidth(innerWidth)
 	}
 
+	// The textarea is set to a large height to prevent internal viewport scrolling
+	// which causes cursor positioning bugs in multi-line content. We trim the
+	// end-of-buffer padding lines from the rendered output.
+	view := m.inlineEditTextarea.View()
+	view = trimEndOfBufferLines(view)
+
 	// Add a minimal edit indicator at the bottom left with extra padding
 	editHint := styles.MutedStyle.Render("[editing]")
 
-	content := m.inlineEditTextarea.View() + "\n\n" + editHint
+	content := view + "\n\n" + editHint
 	return editStyle.Width(m.contentWidth()).Render(content)
 }
 
-// updateInlineEditTextareaHeight recalculates and sets the textarea height based on current content.
-func (m *model) updateInlineEditTextareaHeight() {
-	if m.inlineEditMsgIndex < 0 {
-		return
+// trimEndOfBufferLines removes trailing end-of-buffer padding lines from a
+// textarea's rendered View output. The textarea pads its view to fill its
+// configured height; these padding lines contain only whitespace (after
+// stripping ANSI sequences) and appear after the actual content.
+func trimEndOfBufferLines(view string) string {
+	lines := strings.Split(view, "\n")
+
+	// Trim trailing lines that are visually empty (whitespace-only after ANSI strip).
+	// Content lines always contain visible text or cursor escape sequences.
+	last := len(lines)
+	for last > 0 && strings.TrimSpace(ansi.Strip(lines[last-1])) == "" {
+		last--
 	}
 
-	editStyle := styles.UserMessageStyle
-	innerWidth := m.contentWidth() - editStyle.GetHorizontalFrameSize()
-	if innerWidth <= 0 {
-		return
+	if last == 0 {
+		return view
 	}
 
-	content := m.inlineEditTextarea.Value()
-	lineCount := 0
-	for line := range strings.SplitSeq(content, "\n") {
-		lineWidth := ansi.StringWidth(line)
-		if lineWidth == 0 {
-			lineCount++
-		} else {
-			lineCount += (lineWidth + innerWidth - 1) / innerWidth
-		}
-	}
-
-	newHeight := max(1, lineCount)
-	if m.inlineEditTextarea.Height() == newHeight {
-		return
-	}
-
-	// Save cursor position
-	cursorRow := m.inlineEditTextarea.Line()
-	cursorCol := m.inlineEditTextarea.LineInfo().ColumnOffset
-
-	m.inlineEditTextarea.SetHeight(newHeight)
-
-	// Reset viewport scroll state by moving to start then restoring position
-	// NOTE(krissetto): This is a workaround because the textarea's internal viewport
-	// scrolling is not updated when the height is changed.
-	m.inlineEditTextarea.MoveToBegin()
-	for range cursorRow {
-		m.inlineEditTextarea.CursorDown()
-	}
-	m.inlineEditTextarea.SetCursorColumn(cursorCol)
+	return strings.Join(lines[:last], "\n")
 }
 
 func (m *model) needsSeparator(index int) bool {
@@ -1704,23 +1684,10 @@ func (m *model) StartInlineEdit(msgIndex, sessionPosition int, content string) t
 		ta.SetWidth(innerWidth)
 	}
 
-	// Calculate appropriate height based on content
-	// Count lines and account for word wrapping
-	lineCount := 0
-	if innerWidth > 0 {
-		for line := range strings.SplitSeq(content, "\n") {
-			lineWidth := ansi.StringWidth(line)
-			if lineWidth == 0 {
-				// Empty line counts as 1 line
-				lineCount++
-			} else {
-				// Account for word wrapping: ceil(lineWidth / innerWidth)
-				lineCount += (lineWidth + innerWidth - 1) / innerWidth
-			}
-		}
-	}
-	// Set height to match content (minimum 1 line)
-	ta.SetHeight(max(1, lineCount))
+	// Set a generous height so the textarea's internal viewport never scrolls.
+	// This prevents cursor positioning bugs with multi-line content. The actual
+	// rendered output is trimmed in renderInlineEditTextarea to remove padding.
+	ta.SetHeight(max(1, m.height))
 
 	// Remove the default prompt/placeholder styling for a cleaner look
 	ta.Prompt = ""
