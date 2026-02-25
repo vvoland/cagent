@@ -103,3 +103,23 @@ func TestJsonSchemaWorksForExamples(t *testing.T) {
 		})
 	}
 }
+
+func TestParseExamplesAfterMarshalling(t *testing.T) {
+	for _, file := range collectExamples(t) {
+		t.Run(file, func(t *testing.T) {
+			t.Parallel()
+
+			src := NewFileSource(file)
+			cfg, err := Load(t.Context(), NewFileSource(file))
+			require.NoError(t, err)
+
+			// Make sure that a config can be marshalled and parsed again.
+			// We've had marshalling issues in the past.
+			buf, err := yaml.Marshal(cfg)
+			require.NoError(t, err)
+
+			_, err = Load(t.Context(), NewBytesSource(src.Name(), buf))
+			require.NoError(t, err)
+		})
+	}
+}
