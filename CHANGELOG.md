@@ -3,6 +3,42 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.27.0] - 2026-02-25
+
+This release introduces dynamic agent color styling for multi-agent teams, adds new filesystem tools, and includes several bug fixes and security improvements.
+
+## What's New
+
+- Adds dynamic agent color styling system that assigns unique, deterministic colors to each agent in multi-agent teams for visual distinction across the TUI
+- Adds hue-based agent color generation with theme integration that adapts saturation and lightness based on theme background
+- Adds mkdir and rmdir filesystem tools so agents can create and remove directories without using shell commands
+- Allows .github and .gitlab directories in WalkFiles traversal for better CI workflow support
+
+## Bug Fixes
+
+- Fixes race condition in agent color style lookups
+- Fixes path traversal vulnerability in ACP filesystem operations
+- Fixes YAML marshalling issues that could produce corrupted configuration files
+- Handles case-insensitive filesystems properly
+- Logs errors when persisting session title in TUI
+
+## Technical Changes
+
+- Consolidates color utilities into styles/colorutil.go
+- Unexports internal color helpers and deduplicates fallbacks
+- Fixes cassettes functionality
+
+### Pull Requests
+
+- [#1756](https://github.com/docker/cagent/pull/1756) - feat(#1756): Add dynamic agent color styling system
+- [#1757](https://github.com/docker/cagent/pull/1757) - feat(#1756): Add dynamic agent color styling system
+- [#1781](https://github.com/docker/cagent/pull/1781) - tools/fs: Add mkdir and rmdir
+- [#1832](https://github.com/docker/cagent/pull/1832) - Daily fixes
+- [#1833](https://github.com/docker/cagent/pull/1833) - allow .github and .gitlab directories in WalkFiles traversal
+- [#1841](https://github.com/docker/cagent/pull/1841) - docs: update CHANGELOG.md for v1.26.0
+- [#1844](https://github.com/docker/cagent/pull/1844) - Fix yaml marshalling
+
+
 ## [v1.26.0] - 2026-02-24
 
 This is a maintenance release with dependency updates and internal improvements.
@@ -738,3 +774,5 @@ This release improves the terminal user interface with better error handling and
 [v1.24.0]: https://github.com/docker/cagent/releases/tag/v1.24.0
 
 [v1.26.0]: https://github.com/docker/cagent/releases/tag/v1.26.0
+
+[v1.27.0]: https://github.com/docker/cagent/releases/tag/v1.27.0
