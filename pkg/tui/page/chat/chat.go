@@ -104,6 +104,8 @@ type Page interface {
 	ScrollToBottom() tea.Cmd
 	// IsWorking returns whether the agent is currently working
 	IsWorking() bool
+	// IsInlineEditing returns true if a past user message is being edited inline
+	IsInlineEditing() bool
 	// QueueLength returns the number of queued messages
 	QueueLength() int
 	// FocusMessages gives focus to the messages panel for keyboard scrolling
@@ -966,6 +968,11 @@ func (p *chatPage) routeMouseEvent(msg tea.Msg, _ int) tea.Cmd {
 // IsWorking returns whether the agent is currently working
 func (p *chatPage) IsWorking() bool {
 	return p.working
+}
+
+// IsInlineEditing returns true if a past user message is being edited inline.
+func (p *chatPage) IsInlineEditing() bool {
+	return p.messages.IsInlineEditing()
 }
 
 // QueueLength returns the number of queued messages

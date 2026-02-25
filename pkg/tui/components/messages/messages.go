@@ -242,6 +242,16 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		}
 		// Fall through to forward tick to all views
 
+	case tea.PasteMsg:
+		// Insert paste content into the inline edit textarea
+		if m.inlineEditMsgIndex >= 0 {
+			m.inlineEditTextarea.InsertString(msg.Content)
+			m.updateInlineEditTextareaHeight()
+			m.invalidateItem(m.inlineEditMsgIndex)
+			m.renderDirty = true
+		}
+		return m, nil
+
 	case tea.KeyPressMsg:
 		return m.handleKeyPress(msg)
 	}
