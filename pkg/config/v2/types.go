@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"maps"
 
-	"github.com/goccy/go-yaml"
-
 	"github.com/docker/cagent/pkg/config/types"
 )
 
@@ -319,9 +317,9 @@ func (s *RAGStrategyConfig) UnmarshalYAML(unmarshal func(any) error) error {
 }
 
 // MarshalYAML implements custom marshaling to flatten Params into parent level
-func (s RAGStrategyConfig) MarshalYAML() ([]byte, error) {
+func (s RAGStrategyConfig) MarshalYAML() (any, error) {
 	result := s.buildFlattenedMap()
-	return yaml.Marshal(result)
+	return result, nil
 }
 
 // MarshalJSON implements custom marshaling to flatten Params into parent level
@@ -508,11 +506,11 @@ func (d *RAGDatabaseConfig) IsEmpty() bool {
 }
 
 // MarshalYAML implements custom marshaling for DatabaseConfig
-func (d RAGDatabaseConfig) MarshalYAML() ([]byte, error) {
+func (d RAGDatabaseConfig) MarshalYAML() (any, error) {
 	if d.value == nil {
-		return yaml.Marshal(nil)
+		return nil, nil
 	}
-	return yaml.Marshal(d.value)
+	return d.value, nil
 }
 
 // MarshalJSON implements custom marshaling for DatabaseConfig
