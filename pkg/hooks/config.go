@@ -62,5 +62,14 @@ func FromConfig(cfg *latest.HooksConfig) *Config {
 		})
 	}
 
+	// Convert OnUserInput
+	for _, h := range cfg.OnUserInput {
+		result.OnUserInput = append(result.OnUserInput, Hook{
+			Type:    HookType(h.Type),
+			Command: h.Command,
+			Timeout: h.Timeout,
+		})
+	}
+
 	return result
 }

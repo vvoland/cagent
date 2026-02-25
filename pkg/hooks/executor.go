@@ -191,6 +191,17 @@ func (e *Executor) ExecuteSessionEnd(ctx context.Context, input *Input) (*Result
 	return e.executeHooks(ctx, e.config.SessionEnd, input, EventSessionEnd)
 }
 
+// ExecuteOnUserInput runs on-user-input hooks
+func (e *Executor) ExecuteOnUserInput(ctx context.Context, input *Input) (*Result, error) {
+	if e.config == nil || len(e.config.OnUserInput) == 0 {
+		return &Result{Allowed: true}, nil
+	}
+
+	input.HookEventName = EventOnUserInput
+
+	return e.executeHooks(ctx, e.config.OnUserInput, input, EventOnUserInput)
+}
+
 // executeHooks runs a list of hooks in parallel and aggregates results
 func (e *Executor) executeHooks(ctx context.Context, hooks []Hook, input *Input, eventType EventType) (*Result, error) {
 	// Deduplicate hooks by command
@@ -414,4 +425,9 @@ func (e *Executor) HasSessionStartHooks() bool {
 // HasSessionEndHooks returns true if there are any session end hooks configured
 func (e *Executor) HasSessionEndHooks() bool {
 	return e.config != nil && len(e.config.SessionEnd) > 0
+}
+
+// HasOnUserInputHooks returns true if there are any on-user-input hooks configured
+func (e *Executor) HasOnUserInputHooks() bool {
+	return e.config != nil && len(e.config.OnUserInput) > 0
 }

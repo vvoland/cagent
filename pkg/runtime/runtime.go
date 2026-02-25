@@ -615,6 +615,33 @@ func (r *LocalRuntime) getHooksExecutor(a *agent.Agent) *hooks.Executor {
 	return hooks.NewExecutor(hooksCfg, r.workingDir, r.env)
 }
 
+// executeOnUserInputHooks executes on-user-input hooks for the current agent
+func (r *LocalRuntime) executeOnUserInputHooks(ctx context.Context, sessionID, logContext string) {
+	a, _ := r.team.Agent(r.currentAgent)
+	if a == nil {
+		return
+	}
+
+	hooksExec := r.getHooksExecutor(a)
+	if hooksExec == nil || !hooksExec.HasOnUserInputHooks() {
+		return
+	}
+
+	slog.Debug("Executing on-user-input hooks", "context", logContext)
+	input := &hooks.Input{
+		SessionID: sessionID,
+		Cwd:       r.workingDir,
+	}
+
+	result, err := hooksExec.ExecuteOnUserInput(ctx, input)
+	if err != nil {
+		slog.Warn("On-user-input hook execution failed", "error", err)
+	} else {
+		slog.Debug("On-user-input hooks executed successfully")
+	}
+	_ = result // Hook result not used
+}
+
 // getAgentModelID returns the model ID for an agent, or empty string if no model is set.
 func getAgentModelID(a *agent.Agent) string {
 	if model := a.Model(); model != nil {
@@ -866,6 +893,8 @@ func (r *LocalRuntime) finalizeEventChannel(ctx context.Context, sess *session.S
 	defer close(events)
 
 	events <- StreamStopped(sess.ID, r.currentAgent)
+
+	r.executeOnUserInputHooks(ctx, sess.ID, "stream stopped")
 
 	telemetry.RecordSessionEnd(ctx)
 }
@@ -1619,6 +1648,8 @@ func (r *LocalRuntime) askUserForConfirmation(
 	slog.Debug("Tools not approved, waiting for resume", "tool", toolName, "session_id", sess.ID)
 	events <- ToolCallConfirmation(toolCall, tool, a.Name())
 
+	r.executeOnUserInputHooks(ctx, sess.ID, "tool confirmation")
+
 	select {
 	case req := <-r.resumeChan:
 		switch req.Type {
@@ -2021,6 +2052,8 @@ func (r *LocalRuntime) elicitationHandler(ctx context.Context, req *mcp.ElicitPa
 	if eventsChannel == nil {
 		return tools.ElicitationResult{}, fmt.Errorf("no events channel available for elicitation")
 	}
+
+	r.executeOnUserInputHooks(ctx, "", "elicitation")
 
 	slog.Debug("Sending elicitation request event to client", "message", req.Message, "mode", req.Mode, "requested_schema", req.RequestedSchema, "url", req.URL)
 	slog.Debug("Elicitation request meta", "meta", req.Meta)

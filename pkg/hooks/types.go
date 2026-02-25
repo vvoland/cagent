@@ -28,6 +28,10 @@ const (
 	// SessionEnd is triggered when a session terminates.
 	// Can perform cleanup, logging, persist session state.
 	EventSessionEnd EventType = "session_end"
+
+	// OnUserInput is triggered when the agent needs input from the user.
+	// Can log, notify, or perform actions before user interaction.
+	EventOnUserInput EventType = "on_user_input"
 )
 
 // HookType represents the type of hook action
@@ -81,6 +85,9 @@ type Config struct {
 
 	// SessionEnd hooks run when a session ends
 	SessionEnd []Hook `json:"session_end,omitempty" yaml:"session_end,omitempty"`
+
+	// OnUserInput hooks run when the agent needs user input
+	OnUserInput []Hook `json:"on_user_input,omitempty" yaml:"on_user_input,omitempty"`
 }
 
 // IsEmpty returns true if no hooks are configured
@@ -88,7 +95,8 @@ func (c *Config) IsEmpty() bool {
 	return len(c.PreToolUse) == 0 &&
 		len(c.PostToolUse) == 0 &&
 		len(c.SessionStart) == 0 &&
-		len(c.SessionEnd) == 0
+		len(c.SessionEnd) == 0 &&
+		len(c.OnUserInput) == 0
 }
 
 // Input represents the JSON input passed to hooks via stdin

@@ -390,6 +390,13 @@
           "items": {
             "$ref": "#/definitions/HookDefinition"
           }
+        },
+        "on_user_input": {
+          "type": "array",
+          "description": "Hooks that run when the agent needs user input. Can send notifications or log events.",
+          "items": {
+            "$ref": "#/definitions/HookDefinition"
+          }
         }
       },
       "additionalProperties": false

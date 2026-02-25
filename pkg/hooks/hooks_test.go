@@ -89,6 +89,13 @@ func TestConfigIsEmpty(t *testing.T) {
 			},
 			expected: false,
 		},
+		{
+			name: "with on_user_input",
+			config: Config{
+				OnUserInput: []Hook{{Type: HookTypeCommand}},
+			},
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -476,6 +483,25 @@ func TestExecuteSessionEnd(t *testing.T) {
 	}
 
 	result, err := exec.ExecuteSessionEnd(t.Context(), input)
+	require.NoError(t, err)
+	assert.True(t, result.Allowed)
+}
+
+func TestExecuteOnUserInput(t *testing.T) {
+	t.Parallel()
+
+	config := &Config{
+		OnUserInput: []Hook{
+			{Type: HookTypeCommand, Command: "echo 'user input needed'", Timeout: 5},
+		},
+	}
+
+	exec := NewExecutor(config, t.TempDir(), nil)
+	input := &Input{
+		SessionID: "test-session",
+	}
+
+	result, err := exec.ExecuteOnUserInput(t.Context(), input)
 	require.NoError(t, err)
 	assert.True(t, result.Allowed)
 }
