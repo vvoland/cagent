@@ -983,13 +983,11 @@ func trimEndOfBufferLines(view string) string {
 
 	// Trim trailing lines that are visually empty (whitespace-only after ANSI strip).
 	// Content lines always contain visible text or cursor escape sequences.
+	// Always keep at least one line so that an empty textarea still renders
+	// the cursor line instead of returning the full padded view.
 	last := len(lines)
-	for last > 0 && strings.TrimSpace(ansi.Strip(lines[last-1])) == "" {
+	for last > 1 && strings.TrimSpace(ansi.Strip(lines[last-1])) == "" {
 		last--
-	}
-
-	if last == 0 {
-		return view
 	}
 
 	return strings.Join(lines[:last], "\n")
