@@ -168,12 +168,16 @@ func TestWalkFiles_HiddenDirectories(t *testing.T) {
 	//     config
 	//   .cache/
 	//     data
+	//   .github/
+	//     workflows/
+	//       ci.yaml
 	//   src/
 	//     main.go
 
 	dirs := []string{
 		filepath.Join(tmpDir, ".git"),
 		filepath.Join(tmpDir, ".cache"),
+		filepath.Join(tmpDir, ".github", "workflows"),
 		filepath.Join(tmpDir, "src"),
 	}
 	for _, d := range dirs {
@@ -181,28 +185,39 @@ func TestWalkFiles_HiddenDirectories(t *testing.T) {
 	}
 
 	files := map[string]string{
-		filepath.Join(tmpDir, ".git", "config"): "[core]",
-		filepath.Join(tmpDir, ".cache", "data"): "cached",
-		filepath.Join(tmpDir, "src", "main.go"): "package main",
+		filepath.Join(tmpDir, ".git", "config"):                  "[core]",
+		filepath.Join(tmpDir, ".cache", "data"):                  "cached",
+		filepath.Join(tmpDir, ".github", "workflows", "ci.yaml"): "name: CI",
+		filepath.Join(tmpDir, "src", "main.go"):                  "package main",
 	}
 	for path, content := range files {
 		require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
 	}
 
-	t.Run("skips hidden directories", func(t *testing.T) {
+	t.Run("skips most hidden directories but allows .github", func(t *testing.T) {
 		t.Parallel()
 
 		got, err := WalkFiles(t.Context(), tmpDir, WalkFilesOptions{})
 		require.NoError(t, err)
 
-		assert.Len(t, got, 1, "should only find src/main.go")
-		assert.Contains(t, got[0], "main.go")
+		// Should find src/main.go and .github/workflows/ci.yaml
+		assert.Len(t, got, 2, "should find src/main.go and .github/workflows/ci.yaml")
 
+		// Verify .github files are included
+		var foundGithub, foundMain bool
 		for _, f := range got {
-			assert.False(t, strings.HasPrefix(filepath.Base(f), "."))
-			assert.NotContains(t, f, ".git")
+			if strings.Contains(f, ".github") {
+				foundGithub = true
+			}
+			if strings.Contains(f, "main.go") {
+				foundMain = true
+			}
+			// These should still be excluded
+			assert.NotContains(t, f, ".git"+string(filepath.Separator))
 			assert.NotContains(t, f, ".cache")
 		}
+		assert.True(t, foundGithub, "should include .github files")
+		assert.True(t, foundMain, "should include src/main.go")
 	})
 }
 
@@ -352,6 +367,58 @@ func TestWalkFiles_ContextCancellation(t *testing.T) {
 		_, err := WalkFiles(ctx, tmpDir, WalkFilesOptions{})
 		// May or may not error depending on timing
 		_ = err
+	})
+}
+
+func TestWalkFiles_AllowedHiddenDirectories(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+
+	// Create .github and .gitlab (allowed) with files
+	allowedDirs := []string{".github", ".gitlab"}
+	for _, dir := range allowedDirs {
+		dirPath := filepath.Join(tmpDir, dir)
+		require.NoError(t, os.MkdirAll(dirPath, 0o755))
+		filePath := filepath.Join(dirPath, "config.yaml")
+		require.NoError(t, os.WriteFile(filePath, []byte("content"), 0o644))
+	}
+
+	// Create other hidden directories that should be skipped
+	skippedDirs := []string{".hidden", ".circleci", ".husky", ".devcontainer"}
+	for _, dir := range skippedDirs {
+		dirPath := filepath.Join(tmpDir, dir)
+		require.NoError(t, os.MkdirAll(dirPath, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dirPath, "config.yaml"), []byte("content"), 0o644))
+	}
+
+	t.Run("includes only .github and .gitlab hidden directories", func(t *testing.T) {
+		t.Parallel()
+
+		got, err := WalkFiles(t.Context(), tmpDir, WalkFilesOptions{})
+		require.NoError(t, err)
+
+		// Should find files only in .github and .gitlab (2 files)
+		assert.Len(t, got, 2, "should find files only in .github and .gitlab")
+
+		// Verify .github and .gitlab are included
+		for _, dir := range allowedDirs {
+			found := false
+			for _, f := range got {
+				if strings.HasPrefix(f, dir+string(filepath.Separator)) {
+					found = true
+					break
+				}
+			}
+			assert.True(t, found, "should include files from %s", dir)
+		}
+
+		// Verify other hidden dirs are NOT included
+		for _, f := range got {
+			for _, dir := range skippedDirs {
+				assert.NotContains(t, f, dir, "should not include %s directory", dir)
+			}
+		}
 	})
 }
 
