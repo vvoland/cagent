@@ -215,7 +215,9 @@ func (m *appModel) handleSwitchAgent(agentName string) (tea.Model, tea.Cmd) {
 		return m, notification.ErrorCmd(fmt.Sprintf("Failed to switch to agent '%s': %v", agentName, err))
 	}
 	m.sessionState.SetCurrentAgentName(agentName)
-	return m, notification.SuccessCmd(fmt.Sprintf("Switched to agent '%s'", agentName))
+	updated, cmd := m.chatPage.Update(messages.SessionToggleChangedMsg{})
+	m.chatPage = updated.(chat.Page)
+	return m, tea.Batch(cmd, notification.SuccessCmd(fmt.Sprintf("Switched to agent '%s'", agentName)))
 }
 
 func (m *appModel) handleCycleAgent() (tea.Model, tea.Cmd) {
