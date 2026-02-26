@@ -157,6 +157,8 @@ We collect anonymous usage data to help improve docker agent. To disable:
 		newDebugCmd(),
 		newAliasCmd(),
 		newServeCmd(),
+		newLoginCmd(),
+		newLogoutCmd(),
 	)
 
 	return cmd
