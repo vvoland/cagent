@@ -326,6 +326,12 @@ func getAllMigrations() []Migration {
 			Description: "Add split_diff_view column to sessions table for persisting split diff toggle",
 			UpSQL:       `ALTER TABLE sessions ADD COLUMN split_diff_view BOOLEAN`,
 		},
+		{
+			ID:          18,
+			Name:        "018_add_session_items_type_index",
+			Description: "Add index on session_items(session_id, item_type) to speed up session summary message counts",
+			UpSQL:       `CREATE INDEX IF NOT EXISTS idx_session_items_session_type ON session_items(session_id, item_type)`,
+		},
 	}
 }
 
