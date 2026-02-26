@@ -376,13 +376,12 @@
         file_types: [".go"]
       # Custom scripts
       - type: script
-        scripts:
-          - name: run_tests
-            description: Run the test suite
-            command: task test
-          - name: lint
-            description: Run the linter
-            command: task lint
+        run_tests:
+          description: Run the test suite
+          cmd: task test
+        lint:
+          description: Run the linter
+          cmd: task lint
       # Custom API tool
       - type: api
         name: get_status
