@@ -290,7 +290,7 @@ if errors.Is(err, context.Canceled) {
 **Context Usage:**
 ```go
 // Always pass context as first parameter
-func (r *Runtime) RunStream(ctx context.Context, sess *session.Session) <-chan Event
+func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-chan Event
 
 // Check context before expensive operations
 if err := ctx.Err(); err != nil {
@@ -315,8 +315,8 @@ slog.Debug("[Telemetry] Event tracked", "event", eventName)
 **Struct Initialization:**
 ```go
 // Use functional options pattern for constructors
-func New(name string, opts ...Opt) *Agent {
-    agent := &Agent{name: name}
+func New(name, prompt string, opts ...Opt) *Agent {
+    agent := &Agent{name: name, instruction: prompt}
     for _, opt := range opts {
         opt(agent)
     }
@@ -333,17 +333,19 @@ func WithModel(model provider.Provider) Opt {
 sess := session.New(
     session.WithTitle("Task"),
     session.WithMaxIterations(maxIter),
-    session.WithUserMessage(filename, input),
+    session.WithUserMessage(input),
 )
 ```
 
 **Interface Design:**
 ```go
-// Keep interfaces minimal and focused
+// Keep interfaces minimal and focused (excerpt — actual Runtime interface has more methods)
 type Runtime interface {
     CurrentAgentName() string
     RunStream(ctx context.Context, sess *session.Session) <-chan Event
     Run(ctx context.Context, sess *session.Session) ([]session.Message, error)
+    Resume(ctx context.Context, req ResumeRequest)
+    // ... additional methods omitted for brevity
 }
 
 // Use embedding for interface composition
@@ -581,23 +583,24 @@ Understanding how Docekr `cagent` processes user input through to agent response
 
 **Built-in Tools** (`pkg/runtime/runtime.go`):
 ```go
-// Runtime maintains toolMap for built-in tools
-toolMap := map[string]ToolHandler{
-    builtin.ToolNameTransferTask: r.handleTaskTransfer,
-    // ...other built-in tools
+// Runtime registers built-in tool handlers (transfer_task, handoff)
+r.toolMap[builtin.ToolNameTransferTask] = ToolHandler{handler: r.handleTaskTransfer, tool: t}
+
+// Tool execution picks the handler, then runs through executeWithApproval:
+var runTool func()
+if def, exists := r.toolMap[toolCall.Function.Name]; exists {
+    runTool = func() { r.runAgentTool(ctx, def.handler, sess, toolCall, tool, events, a) }
+} else {
+    runTool = func() { r.runTool(ctx, tool, toolCall, events, sess, a) }
 }
 
-// Tool execution:
-handler, exists := toolMap[toolCall.Function.Name]
-if exists {
-    if sess.ToolsApproved || toolCall.Function.Name == builtin.ToolNameTransferTask {
-        r.runAgentTool(ctx, handler, sess, toolCall, tool, events, a)
-    } else {
-        // Emit confirmation event and wait for user approval
-        events <- ToolCallConfirmation(toolCall, tool, a.Name())
-        confirmationType := <-r.resumeChan
-    }
-}
+// executeWithApproval checks (in order):
+// 1. sess.ToolsApproved (--yolo flag) — auto-approve everything
+// 2. Session-level permissions — pattern-based Allow/Ask/Deny rules
+// 3. Team-level permissions config
+// 4. Read-only hint — auto-approve
+// 5. Default: ask for user confirmation
+canceled := r.executeWithApproval(ctx, sess, toolCall, tool, events, a, runTool)
 ```
 
 **MCP Tools** (`pkg/tools/mcp/`):
@@ -637,10 +640,10 @@ go func() {
     defer close(events)
     // Emit events during execution
     events <- StreamStarted(sess.ID, agentName)
-    events <- AgentChoice(content, agentName)
-    events <- ToolCall(toolCall, agentName)
-    events <- ToolCallResponse(result, agentName)
-    events <- StreamStopped(sess.ID, agentName, stopped)
+    events <- AgentChoice(agentName, content)
+    events <- ToolCall(toolCall, toolDefinition, agentName)
+    events <- ToolCallResponse(toolCall, toolDefinition, result, response, agentName)
+    events <- StreamStopped(sess.ID, agentName)
 }()
 return events
 ```
