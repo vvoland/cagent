@@ -18,7 +18,7 @@
 
 <h2>Hook Types</h2>
 
-<p>There are four hook event types:</p>
+<p>There are five hook event types:</p>
 
 <table>
   <thead><tr><th>Event</th><th>When it fires</th><th>Can block?</th></tr></thead>
@@ -27,6 +27,7 @@
     <tr><td><code>post_tool_use</code></td><td>After a tool completes successfully</td><td>No</td></tr>
     <tr><td><code>session_start</code></td><td>When a session begins or resumes</td><td>No</td></tr>
     <tr><td><code>session_end</code></td><td>When a session terminates</td><td>No</td></tr>
+    <tr><td><code>on_user_input</code></td><td>When the agent is waiting for user input</td><td>No</td></tr>
   </tbody>
 </table>
 
@@ -61,7 +62,12 @@
       # Run when session ends
       session_end:
         - type: command
-          command: "./scripts/cleanup.sh"</code></pre>
+          command: "./scripts/cleanup.sh"
+
+      # Run when agent is waiting for user input
+      on_user_input:
+        - type: command
+          command: "./scripts/notify.sh"</code></pre>
 
 <h2>Matcher Patterns</h2>
 
@@ -96,17 +102,17 @@
 <h3>Input Fields by Event Type</h3>
 
 <table>
-  <thead><tr><th>Field</th><th>pre_tool_use</th><th>post_tool_use</th><th>session_start</th><th>session_end</th></tr></thead>
+  <thead><tr><th>Field</th><th>pre_tool_use</th><th>post_tool_use</th><th>session_start</th><th>session_end</th><th>on_user_input</th></tr></thead>
   <tbody>
-    <tr><td><code>session_id</code></td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
-    <tr><td><code>cwd</code></td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
-    <tr><td><code>hook_event_name</code></td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
-    <tr><td><code>tool_name</code></td><td>✓</td><td>✓</td><td></td><td></td></tr>
-    <tr><td><code>tool_use_id</code></td><td>✓</td><td>✓</td><td></td><td></td></tr>
-    <tr><td><code>tool_input</code></td><td>✓</td><td>✓</td><td></td><td></td></tr>
-    <tr><td><code>tool_response</code></td><td></td><td>✓</td><td></td><td></td></tr>
-    <tr><td><code>source</code></td><td></td><td></td><td>✓</td><td></td></tr>
-    <tr><td><code>reason</code></td><td></td><td></td><td></td><td>✓</td></tr>
+    <tr><td><code>session_id</code></td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+    <tr><td><code>cwd</code></td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+    <tr><td><code>hook_event_name</code></td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+    <tr><td><code>tool_name</code></td><td>✓</td><td>✓</td><td></td><td></td><td></td></tr>
+    <tr><td><code>tool_use_id</code></td><td>✓</td><td>✓</td><td></td><td></td><td></td></tr>
+    <tr><td><code>tool_input</code></td><td>✓</td><td>✓</td><td></td><td></td><td></td></tr>
+    <tr><td><code>tool_response</code></td><td></td><td>✓</td><td></td><td></td><td></td></tr>
+    <tr><td><code>source</code></td><td></td><td></td><td>✓</td><td></td><td></td></tr>
+    <tr><td><code>reason</code></td><td></td><td></td><td></td><td>✓</td><td></td></tr>
   </tbody>
 </table>
 

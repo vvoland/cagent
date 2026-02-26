@@ -1211,6 +1211,9 @@ type HooksConfig struct {
 
 	// SessionEnd hooks run when a session ends
 	SessionEnd []HookDefinition `json:"session_end,omitempty" yaml:"session_end,omitempty"`
+
+	// OnUserInput hooks run when the agent needs user input
+	OnUserInput []HookDefinition `json:"on_user_input,omitempty" yaml:"on_user_input,omitempty"`
 }
 
 // IsEmpty returns true if no hooks are configured
@@ -1221,7 +1224,8 @@ func (h *HooksConfig) IsEmpty() bool {
 	return len(h.PreToolUse) == 0 &&
 		len(h.PostToolUse) == 0 &&
 		len(h.SessionStart) == 0 &&
-		len(h.SessionEnd) == 0
+		len(h.SessionEnd) == 0 &&
+		len(h.OnUserInput) == 0
 }
 
 // HookMatcherConfig represents a hook matcher with its hooks.
@@ -1273,6 +1277,13 @@ func (h *HooksConfig) validate() error {
 	// Validate SessionEnd hooks
 	for i, hook := range h.SessionEnd {
 		if err := hook.validate("session_end", i); err != nil {
+			return err
+		}
+	}
+
+	// Validate OnUserInput hooks
+	for i, hook := range h.OnUserInput {
+		if err := hook.validate("on_user_input", i); err != nil {
 			return err
 		}
 	}

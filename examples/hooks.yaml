@@ -94,3 +94,13 @@ agents:
       session_end:
         - type: command
           command: echo "👋 Session ended at $(date)"
+
+      # ============================================================
+      # USER INPUT HOOKS - Run when agent needs user input
+      # ============================================================
+      on_user_input:
+        # Example: Notify when user input is requested
+        - type: command
+          command: |
+            # Send notification (macOS only - remove or adapt for other platforms)
+            osascript -e 'display notification "ready!" with title "cagent"'

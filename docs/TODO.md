@@ -3,7 +3,7 @@
 ## New Pages
 
 - [x] **Go SDK** — Not documented anywhere. The `examples/golibrary/` directory shows how to use cagent as a Go library. Needs a dedicated page. *(Completed: pages/guides/go-sdk.html)*
-- [x] **Hooks** — `hooks` agent config (`pre_tool_use`, `post_tool_use`, `session_start`, `session_end`) is a significant feature with no documentation page. Covers running shell commands at various agent lifecycle points. *(Completed: pages/configuration/hooks.html)*
+- [x] **Hooks** — `hooks` agent config (`pre_tool_use`, `post_tool_use`, `session_start`, `session_end`, `on_user_input`) is a significant feature with no documentation page. Covers running shell commands at various agent lifecycle points. *(Completed: pages/configuration/hooks.html)*
 - [x] **Permissions** — Top-level `permissions` config with `allow`/`deny` glob patterns for tool call approval. Mentioned briefly in TUI page but has no dedicated reference. *(Completed: pages/configuration/permissions.html)*
 - [x] **Sandbox Mode** — Shell tool `sandbox` config runs commands in Docker containers. Includes `image` and `paths` (bind mounts with `:ro` support). Not documented. *(Completed: pages/configuration/sandbox.html)*
 - [x] **Structured Output** — Agent-level `structured_output` config (name, description, schema, strict). Forces model responses into a JSON schema. Not documented. *(Completed: pages/configuration/structured-output.html)*
