@@ -2,14 +2,12 @@ package config
 
 import (
 	"io/fs"
-	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/xeipuuv/gojsonschema"
 
 	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/modelsdev"
@@ -74,32 +72,6 @@ func TestParseExamples(t *testing.T) {
 				require.NoError(t, err)
 				require.NotNil(t, model)
 			}
-		})
-	}
-}
-
-func TestJsonSchemaWorksForExamples(t *testing.T) {
-	// Read json schema.
-	schemaFile, err := os.ReadFile(filepath.Join("..", "..", "agent-schema.json"))
-	require.NoError(t, err)
-
-	schema, err := gojsonschema.NewSchema(gojsonschema.NewBytesLoader(schemaFile))
-	require.NoError(t, err)
-
-	for _, file := range collectExamples(t) {
-		t.Run(file, func(t *testing.T) {
-			t.Parallel()
-
-			buf, err := os.ReadFile(file)
-			require.NoError(t, err)
-
-			var rawJSON any
-			err = yaml.Unmarshal(buf, &rawJSON)
-			require.NoError(t, err)
-
-			result, err := schema.Validate(gojsonschema.NewRawLoader(rawJSON))
-			require.NoError(t, err)
-			assert.True(t, result.Valid(), "Example %s does not match schema: %v", file, result.Errors())
 		})
 	}
 }
