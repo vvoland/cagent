@@ -551,6 +551,13 @@ func (m *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.dialogMgr = u.(dialog.Manager)
 			return m, cmd
 		}
+		// When inline editing a past message, forward paste to the chat page
+		// so the messages component can insert content into the inline textarea.
+		if m.chatPage.IsInlineEditing() {
+			updated, cmd := m.chatPage.Update(msg)
+			m.chatPage = updated.(chat.Page)
+			return m, cmd
+		}
 		// Forward paste to editor
 		editorModel, cmd := m.editor.Update(msg)
 		m.editor = editorModel.(editor.Editor)
