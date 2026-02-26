@@ -3,6 +3,41 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.27.1] - 2026-02-26
+
+This release improves the user interface experience with better message editing capabilities and fixes several issues with token usage tracking and session loading.
+
+## What's New
+- Adds `on_user_input` hook that triggers when the agent is waiting for user input or tool confirmation
+
+## Improvements
+- Improves multi-line editing of past user messages
+- Adds clipboard paste support during inline message editing
+- Makes loading past sessions faster
+- Updates TUI display when the current agent changes
+
+## Bug Fixes
+- Fixes token usage being recorded multiple times per stream, preventing inflated telemetry counts
+- Fixes empty inline edit textarea expanding to full height
+- Fixes docker ai shellout to cagent for standalone invocations
+
+## Technical Changes
+- Updates schema tests to only run for latest version
+- Fixes documentation issues
+
+### Pull Requests
+
+- [#1845](https://github.com/docker/cagent/pull/1845) - Repaint the TUI when the current agent changes
+- [#1846](https://github.com/docker/cagent/pull/1846) - docs: update CHANGELOG.md for v1.27.0
+- [#1847](https://github.com/docker/cagent/pull/1847) - feat(hooks): add on_user_input
+- [#1850](https://github.com/docker/cagent/pull/1850) - Improve editing past user messages
+- [#1854](https://github.com/docker/cagent/pull/1854) - Make loading past sessions faster
+- [#1855](https://github.com/docker/cagent/pull/1855) - fix: record token usage once per stream to prevent inflated telemetry
+- [#1857](https://github.com/docker/cagent/pull/1857) - Schema tests should be only for latest version
+- [#1858](https://github.com/docker/cagent/pull/1858) - Fix doc
+- [#1860](https://github.com/docker/cagent/pull/1860) - Fix docker ai shellout to cagent
+
+
 ## [v1.27.0] - 2026-02-25
 
 This release introduces dynamic agent color styling for multi-agent teams, adds new filesystem tools, and includes several bug fixes and security improvements.
@@ -776,3 +811,5 @@ This release improves the terminal user interface with better error handling and
 [v1.26.0]: https://github.com/docker/cagent/releases/tag/v1.26.0
 
 [v1.27.0]: https://github.com/docker/cagent/releases/tag/v1.27.0
+
+[v1.27.1]: https://github.com/docker/cagent/releases/tag/v1.27.1
