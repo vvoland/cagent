@@ -159,7 +159,9 @@ We collect anonymous usage data to help improve cagent. To disable:
 	rootCmd.SetErr(stderr)
 	setContextRecursive(ctx, rootCmd)
 
-	if plugin.RunningStandalone() {
+	// when running 'docker ai', env vars are set for cli plugin and RunningStandalone is false, but ai shells out to cagent
+	// if the command is 'cagent' we want to run cagent standalone (there's no 'docker cagent')
+	if plugin.RunningStandalone() || rootCmd.Name() == "cagent" {
 		// When no subcommand is given, default to "run".
 		rootCmd.SetArgs(defaultToRun(rootCmd, args))
 
