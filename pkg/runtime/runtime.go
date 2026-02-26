@@ -1307,6 +1307,25 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 		toolDefMap[t.Name] = t
 	}
 
+	// recordUsage persists the final token counts and emits telemetry exactly
+	// once per stream, after we have the most accurate usage snapshot.
+	usageRecorded := false
+	recordUsage := func() {
+		if usageRecorded || messageUsage == nil {
+			return
+		}
+		usageRecorded = true
+
+		sess.InputTokens = messageUsage.InputTokens + messageUsage.CachedInputTokens + messageUsage.CacheWriteTokens
+		sess.OutputTokens = messageUsage.OutputTokens
+
+		modelName := "unknown"
+		if m != nil {
+			modelName = m.Name
+		}
+		telemetry.RecordTokenUsage(ctx, modelName, sess.InputTokens, sess.OutputTokens, sess.TotalCost())
+	}
+
 	for {
 		response, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
@@ -1317,16 +1336,10 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 		}
 
 		if response.Usage != nil {
+			// Always keep the latest usage snapshot; some providers (e.g.
+			// Gemini) emit updated usage on every chunk with cumulative
+			// token counts, so the last value is the most accurate.
 			messageUsage = response.Usage
-
-			sess.InputTokens = response.Usage.InputTokens + response.Usage.CachedInputTokens + response.Usage.CacheWriteTokens
-			sess.OutputTokens = response.Usage.OutputTokens
-
-			modelName := "unknown"
-			if m != nil {
-				modelName = m.Name
-			}
-			telemetry.RecordTokenUsage(ctx, modelName, sess.InputTokens, sess.OutputTokens, sess.TotalCost())
 		}
 
 		if response.RateLimit != nil {
@@ -1348,6 +1361,7 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 		}
 
 		if choice.FinishReason == chat.FinishReasonStop || choice.FinishReason == chat.FinishReasonLength {
+			recordUsage()
 			return streamResult{
 				Calls:             toolCalls,
 				Content:           fullContent.String(),
@@ -1417,6 +1431,8 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 			fullContent.WriteString(choice.Delta.Content)
 		}
 	}
+
+	recordUsage()
 
 	// If the stream completed without producing any content or tool calls, likely because of a token limit, stop to avoid breaking the request loop
 	// NOTE(krissetto): this can likely be removed once compaction works properly with all providers (aka dmr)
