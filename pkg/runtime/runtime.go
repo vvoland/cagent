@@ -1837,8 +1837,19 @@ func (r *LocalRuntime) runTool(ctx context.Context, tool tools.Tool, toolCall to
 			events <- HookBlocked(toolCall, tool, result.Message, a.Name())
 			r.addToolErrorResponse(ctx, sess, toolCall, tool, events, a, "Tool call blocked by hook: "+result.Message)
 			return
-		case result.SystemMessage != "":
-			events <- Warning(result.SystemMessage, a.Name())
+		default:
+			if result.SystemMessage != "" {
+				events <- Warning(result.SystemMessage, a.Name())
+			}
+			if result.ModifiedInput != nil {
+				updated, merr := json.Marshal(result.ModifiedInput)
+				if merr != nil {
+					slog.Warn("Failed to marshal modified tool input from hook", "tool", toolCall.Function.Name, "error", merr)
+				} else {
+					slog.Debug("Pre-tool hook modified tool input", "tool", toolCall.Function.Name)
+					toolCall.Function.Arguments = string(updated)
+				}
+			}
 		}
 	}
 
