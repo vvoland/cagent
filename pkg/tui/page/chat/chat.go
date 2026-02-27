@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	goruntime "runtime"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
@@ -144,6 +145,7 @@ type chatPage struct {
 	msgCancel       context.CancelFunc
 	streamCancelled bool
 	streamDepth     int // nesting depth of active streams (incremented on StreamStarted, decremented on StreamStopped)
+	streamStartTime time.Time
 
 	// Track whether we've received content from an assistant response
 	// Used by --exit-after-response to ensure we don't exit before receiving content
