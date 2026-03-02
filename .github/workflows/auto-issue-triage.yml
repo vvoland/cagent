@@ -170,7 +170,7 @@ jobs:
             const issue = context.payload.issue;
             const branch = process.env.BRANCH_NAME;
 
-            // Create draft PR
+            // Create PR
             const pr = await github.rest.pulls.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
