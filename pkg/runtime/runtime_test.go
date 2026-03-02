@@ -1706,3 +1706,120 @@ func TestYoloMode_OverridesSessionDeny(t *testing.T) {
 	// With --yolo, the tool should execute despite session deny
 	require.True(t, executed, "expected tool to be executed in --yolo mode despite session deny permission")
 }
+
+func TestStripImageContent(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		messages []chat.Message
+		want     []chat.Message
+	}{
+		{
+			name: "no multi content unchanged",
+			messages: []chat.Message{
+				{Role: chat.MessageRoleUser, Content: "hello"},
+				{Role: chat.MessageRoleTool, Content: "result"},
+			},
+			want: []chat.Message{
+				{Role: chat.MessageRoleUser, Content: "hello"},
+				{Role: chat.MessageRoleTool, Content: "result"},
+			},
+		},
+		{
+			name: "strips image URL parts from tool result",
+			messages: []chat.Message{
+				{
+					Role:    chat.MessageRoleTool,
+					Content: "Read image file",
+					MultiContent: []chat.MessagePart{
+						{Type: chat.MessagePartTypeText, Text: "Read image file"},
+						{Type: chat.MessagePartTypeImageURL, ImageURL: &chat.MessageImageURL{URL: "data:image/png;base64,abc"}},
+					},
+				},
+			},
+			want: []chat.Message{
+				{
+					Role:    chat.MessageRoleTool,
+					Content: "Read image file",
+					MultiContent: []chat.MessagePart{
+						{Type: chat.MessagePartTypeText, Text: "Read image file"},
+					},
+				},
+			},
+		},
+		{
+			name: "strips image file parts from user message",
+			messages: []chat.Message{
+				{
+					Role: chat.MessageRoleUser,
+					MultiContent: []chat.MessagePart{
+						{Type: chat.MessagePartTypeText, Text: "check this image"},
+						{Type: chat.MessagePartTypeFile, File: &chat.MessageFile{Path: "/tmp/photo.png", MimeType: "image/png"}},
+					},
+				},
+			},
+			want: []chat.Message{
+				{
+					Role: chat.MessageRoleUser,
+					MultiContent: []chat.MessagePart{
+						{Type: chat.MessagePartTypeText, Text: "check this image"},
+					},
+				},
+			},
+		},
+		{
+			name: "preserves non-image file parts",
+			messages: []chat.Message{
+				{
+					Role: chat.MessageRoleUser,
+					MultiContent: []chat.MessagePart{
+						{Type: chat.MessagePartTypeText, Text: "check this"},
+						{Type: chat.MessagePartTypeFile, File: &chat.MessageFile{Path: "/tmp/doc.pdf", MimeType: "application/pdf"}},
+					},
+				},
+			},
+			want: []chat.Message{
+				{
+					Role: chat.MessageRoleUser,
+					MultiContent: []chat.MessagePart{
+						{Type: chat.MessagePartTypeText, Text: "check this"},
+						{Type: chat.MessagePartTypeFile, File: &chat.MessageFile{Path: "/tmp/doc.pdf", MimeType: "application/pdf"}},
+					},
+				},
+			},
+		},
+		{
+			name: "mixed messages only strips images",
+			messages: []chat.Message{
+				{Role: chat.MessageRoleUser, Content: "plain text"},
+				{
+					Role: chat.MessageRoleTool,
+					MultiContent: []chat.MessagePart{
+						{Type: chat.MessagePartTypeText, Text: "tool output"},
+						{Type: chat.MessagePartTypeImageURL, ImageURL: &chat.MessageImageURL{URL: "data:image/jpeg;base64,xyz"}},
+					},
+				},
+				{Role: chat.MessageRoleAssistant, Content: "got it"},
+			},
+			want: []chat.Message{
+				{Role: chat.MessageRoleUser, Content: "plain text"},
+				{
+					Role: chat.MessageRoleTool,
+					MultiContent: []chat.MessagePart{
+						{Type: chat.MessagePartTypeText, Text: "tool output"},
+					},
+				},
+				{Role: chat.MessageRoleAssistant, Content: "got it"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := stripImageContent(tt.messages)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}

@@ -1118,6 +1118,13 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			messages := sess.GetMessages(a)
 			slog.Debug("Retrieved messages for processing", "agent", a.Name(), "message_count", len(messages))
 
+			// Strip image content from messages if the model doesn't support image input.
+			// This prevents API errors when conversation history contains images (e.g. from
+			// tool results or user attachments) but the current model is text-only.
+			if m != nil && !slices.Contains(m.Modalities.Input, "image") {
+				messages = stripImageContent(messages)
+			}
+
 			// Try primary model with fallback chain if configured
 			res, usedModel, err := r.tryModelWithFallback(streamCtx, a, model, messages, agentTools, sess, m, events)
 			if err != nil {
@@ -2144,4 +2151,40 @@ func (r *LocalRuntime) elicitationHandler(ctx context.Context, req *mcp.ElicitPa
 		slog.Debug("Context cancelled while waiting for elicitation response")
 		return tools.ElicitationResult{}, ctx.Err()
 	}
+}
+
+// stripImageContent returns a copy of messages with all image-related content
+// removed. This is used when the target model doesn't support image input to
+// prevent API errors. Text content is preserved; image parts in MultiContent
+// are filtered out, and file attachments with image MIME types are dropped.
+func stripImageContent(messages []chat.Message) []chat.Message {
+	result := make([]chat.Message, len(messages))
+	for i, msg := range messages {
+		result[i] = msg
+
+		if len(msg.MultiContent) == 0 {
+			continue
+		}
+
+		var filtered []chat.MessagePart
+		for _, part := range msg.MultiContent {
+			switch part.Type {
+			case chat.MessagePartTypeImageURL:
+				// Drop image URL parts entirely.
+				continue
+			case chat.MessagePartTypeFile:
+				// Drop file parts that are images.
+				if part.File != nil && chat.IsImageMimeType(part.File.MimeType) {
+					continue
+				}
+			}
+			filtered = append(filtered, part)
+		}
+
+		if len(filtered) != len(msg.MultiContent) {
+			result[i].MultiContent = filtered
+			slog.Debug("Stripped image content from message", "role", msg.Role, "original_parts", len(msg.MultiContent), "remaining_parts", len(filtered))
+		}
+	}
+	return result
 }
