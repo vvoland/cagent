@@ -41,10 +41,22 @@ type FunctionCall struct {
 	Arguments string `json:"arguments,omitempty"`
 }
 
+// ImageContent represents a base64-encoded image returned by a tool.
+type ImageContent struct {
+	// Data is the base64-encoded image data.
+	Data string `json:"data"`
+	// MimeType is the MIME type of the image (e.g. "image/png", "image/jpeg").
+	MimeType string `json:"mimeType"`
+}
+
 type ToolCallResult struct {
 	Output  string `json:"output"`
 	IsError bool   `json:"isError,omitempty"`
 	Meta    any    `json:"meta,omitempty"`
+	// Images contains optional image attachments returned by the tool.
+	// When present, these are forwarded to the LLM as image content alongside
+	// the text output.
+	Images []ImageContent `json:"images,omitempty"`
 }
 
 func ResultError(output string) *ToolCallResult {

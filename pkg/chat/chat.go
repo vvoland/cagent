@@ -201,6 +201,22 @@ func DetectMimeType(filePath string) string {
 	}
 }
 
+// IsImageMimeType returns true if the MIME type is a supported image type.
+func IsImageMimeType(mimeType string) bool {
+	switch mimeType {
+	case "image/jpeg", "image/png", "image/gif", "image/webp":
+		return true
+	default:
+		return false
+	}
+}
+
+// IsImageFile returns true if the file at the given path is a supported image
+// based on its extension. Supported formats: JPEG, PNG, GIF, WebP.
+func IsImageFile(filePath string) bool {
+	return IsImageMimeType(DetectMimeType(filePath))
+}
+
 // IsSupportedMimeType returns true if the MIME type is supported for file attachments.
 // Supported types include images (jpeg, png, gif, webp) and documents (pdf, text, markdown).
 func IsSupportedMimeType(mimeType string) bool {

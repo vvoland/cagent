@@ -1798,6 +1798,27 @@ func (r *LocalRuntime) executeToolWithHandler(
 		IsError:    res.IsError,
 		CreatedAt:  time.Now().Format(time.RFC3339),
 	}
+
+	// If the tool result contains images, attach them as MultiContent
+	if len(res.Images) > 0 {
+		multiContent := []chat.MessagePart{
+			{
+				Type: chat.MessagePartTypeText,
+				Text: content,
+			},
+		}
+		for _, img := range res.Images {
+			multiContent = append(multiContent, chat.MessagePart{
+				Type: chat.MessagePartTypeImageURL,
+				ImageURL: &chat.MessageImageURL{
+					URL:    "data:" + img.MimeType + ";base64," + img.Data,
+					Detail: chat.ImageURLDetailAuto,
+				},
+			})
+		}
+		toolResponseMsg.MultiContent = multiContent
+	}
+
 	addAgentMessage(sess, a, &toolResponseMsg, events)
 }
 

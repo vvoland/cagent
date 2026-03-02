@@ -2,6 +2,7 @@ package builtin
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/docker/cagent/pkg/chat"
 	"github.com/docker/cagent/pkg/fsx"
 	"github.com/docker/cagent/pkg/tools"
 )
@@ -236,7 +238,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 		{
 			Name:         ToolNameReadFile,
 			Category:     "filesystem",
-			Description:  "Read the complete contents of a file from the file system.",
+			Description:  "Read the complete contents of a file from the file system. Supports text files and images (jpg, png, gif, webp). Images are returned as image content that you can view directly.",
 			Parameters:   tools.MustSchemaFor[ReadFileArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
 			Handler:      tools.NewHandler(t.handleReadFile),
@@ -518,6 +520,11 @@ func (t *FilesystemTool) handleListDirectory(_ context.Context, args ListDirecto
 func (t *FilesystemTool) handleReadFile(_ context.Context, args ReadFileArgs) (*tools.ToolCallResult, error) {
 	resolvedPath := t.resolvePath(args.Path)
 
+	// Check if the file is an image
+	if chat.IsImageFile(resolvedPath) {
+		return t.readImageFile(resolvedPath, args.Path)
+	}
+
 	content, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		var errMsg string
@@ -540,6 +547,42 @@ func (t *FilesystemTool) handleReadFile(_ context.Context, args ReadFileArgs) (*
 		Output: string(content),
 		Meta: ReadFileMeta{
 			LineCount: strings.Count(string(content), "\n") + 1,
+		},
+	}, nil
+}
+
+// readImageFile reads an image file and returns it as base64-encoded image content.
+func (t *FilesystemTool) readImageFile(resolvedPath, originalPath string) (*tools.ToolCallResult, error) {
+	data, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		var errMsg string
+		if os.IsNotExist(err) {
+			errMsg = "not found"
+		} else {
+			errMsg = err.Error()
+		}
+		return &tools.ToolCallResult{
+			Output:  errMsg,
+			IsError: true,
+			Meta: ReadFileMeta{
+				Error: errMsg,
+			},
+		}, nil
+	}
+
+	mimeType := chat.DetectMimeType(resolvedPath)
+	encoded := base64.StdEncoding.EncodeToString(data)
+
+	return &tools.ToolCallResult{
+		Output: fmt.Sprintf("Read image file %s [%s] (%d bytes)", originalPath, mimeType, len(data)),
+		Images: []tools.ImageContent{
+			{
+				Data:     encoded,
+				MimeType: mimeType,
+			},
+		},
+		Meta: ReadFileMeta{
+			Path: originalPath,
 		},
 	}, nil
 }

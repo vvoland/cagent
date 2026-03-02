@@ -135,7 +135,7 @@ func ConvertMessages(messages []chat.Message) []openai.ChatCompletionMessagePara
 			if len(msg.MultiContent) == 0 {
 				toolParam.Content.OfString = param.NewOpt(msg.Content)
 			} else {
-				// Convert multi-content for tool messages
+				// Convert multi-content for tool messages — only text parts go in the tool message
 				textParts := make([]openai.ChatCompletionContentPartTextParam, 0)
 				for _, part := range msg.MultiContent {
 					if part.Type == chat.MessagePartTypeText {
@@ -151,6 +151,26 @@ func ConvertMessages(messages []chat.Message) []openai.ChatCompletionMessagePara
 		}
 
 		openaiMessages = append(openaiMessages, openaiMessage)
+
+		// For tool messages with image content, inject a follow-up user message
+		// with the images since OpenAI tool messages only support text.
+		if msg.Role == chat.MessageRoleTool && len(msg.MultiContent) > 0 {
+			var imageParts []openai.ChatCompletionContentPartUnionParam
+			for _, part := range msg.MultiContent {
+				if part.Type == chat.MessagePartTypeImageURL && part.ImageURL != nil {
+					imageParts = append(imageParts, openai.ImageContentPart(openai.ChatCompletionContentPartImageImageURLParam{
+						URL:    part.ImageURL.URL,
+						Detail: string(part.ImageURL.Detail),
+					}))
+				}
+			}
+			if len(imageParts) > 0 {
+				// Prepend a text label so the model knows these images came from a tool result
+				label := openai.TextContentPart("Attached image(s) from tool result:")
+				allParts := append([]openai.ChatCompletionContentPartUnionParam{label}, imageParts...)
+				openaiMessages = append(openaiMessages, openai.UserMessage(allParts))
+			}
+		}
 	}
 	return openaiMessages
 }

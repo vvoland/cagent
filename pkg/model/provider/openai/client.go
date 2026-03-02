@@ -539,6 +539,44 @@ func convertMessagesToResponseInput(messages []chat.Message) []responses.Respons
 		if item.OfMessage != nil || item.OfInputMessage != nil || item.OfFunctionCall != nil || item.OfFunctionCallOutput != nil {
 			input = append(input, item)
 		}
+
+		// For tool messages with image content, inject a follow-up user message
+		// with the images since OpenAI function call outputs only support text.
+		if msg.Role == chat.MessageRoleTool && len(msg.MultiContent) > 0 {
+			var imageParts []responses.ResponseInputContentUnionParam
+			for _, part := range msg.MultiContent {
+				if part.Type == chat.MessagePartTypeImageURL && part.ImageURL != nil {
+					detail := responses.ResponseInputImageContentDetailAuto
+					switch part.ImageURL.Detail {
+					case chat.ImageURLDetailHigh:
+						detail = responses.ResponseInputImageContentDetailHigh
+					case chat.ImageURLDetailLow:
+						detail = responses.ResponseInputImageContentDetailLow
+					}
+					imageParts = append(imageParts, responses.ResponseInputContentUnionParam{
+						OfInputImage: &responses.ResponseInputImageParam{
+							ImageURL: param.NewOpt(part.ImageURL.URL),
+							Detail:   responses.ResponseInputImageDetail(detail),
+						},
+					})
+				}
+			}
+			if len(imageParts) > 0 {
+				// Prepend a text label so the model knows these images came from a tool result
+				label := responses.ResponseInputContentUnionParam{
+					OfInputText: &responses.ResponseInputTextParam{
+						Text: "Attached image(s) from tool result:",
+					},
+				}
+				allParts := append([]responses.ResponseInputContentUnionParam{label}, imageParts...)
+				input = append(input, responses.ResponseInputItemUnionParam{
+					OfInputMessage: &responses.ResponseInputItemMessageParam{
+						Role:    "user",
+						Content: allParts,
+					},
+				})
+			}
+		}
 	}
 	return input
 }

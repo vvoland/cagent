@@ -461,7 +461,7 @@ func (c *Client) convertMessages(ctx context.Context, messages []chat.Message) (
 			var blocks []anthropic.ContentBlockParamUnion
 			j := i
 			for j < len(messages) && messages[j].Role == chat.MessageRoleTool {
-				tr := anthropic.NewToolResultBlock(messages[j].ToolCallID, strings.TrimSpace(messages[j].Content), messages[j].IsError)
+				tr := convertToolResultBlock(&messages[j])
 				blocks = append(blocks, tr)
 				j++
 			}
@@ -484,6 +484,82 @@ func (c *Client) convertMessages(ctx context.Context, messages []chat.Message) (
 	applyMessageCacheControl(anthropicMessages)
 
 	return anthropicMessages, nil
+}
+
+// convertToolResultBlock converts a tool message to an Anthropic tool_result block.
+// If the message contains image content in MultiContent, the images are included
+// as image blocks within the tool_result.
+func convertToolResultBlock(msg *chat.Message) anthropic.ContentBlockParamUnion {
+	// If there are no images in MultiContent, use the simple text-only format.
+	if !hasImageMultiContent(msg.MultiContent) {
+		return anthropic.NewToolResultBlock(msg.ToolCallID, strings.TrimSpace(msg.Content), msg.IsError)
+	}
+
+	// Build content blocks with text + images for the tool result.
+	var content []anthropic.ToolResultBlockParamContentUnion
+	for _, part := range msg.MultiContent {
+		switch part.Type {
+		case chat.MessagePartTypeText:
+			if txt := strings.TrimSpace(part.Text); txt != "" {
+				content = append(content, anthropic.ToolResultBlockParamContentUnion{
+					OfText: &anthropic.TextBlockParam{Text: txt},
+				})
+			}
+		case chat.MessagePartTypeImageURL:
+			if part.ImageURL == nil {
+				continue
+			}
+			if strings.HasPrefix(part.ImageURL.URL, "data:") {
+				urlParts := strings.SplitN(part.ImageURL.URL, ",", 2)
+				if len(urlParts) == 2 {
+					mediaType := extractMediaType(urlParts[0])
+					content = append(content, anthropic.ToolResultBlockParamContentUnion{
+						OfImage: &anthropic.ImageBlockParam{
+							Source: anthropic.ImageBlockParamSourceUnion{
+								OfBase64: &anthropic.Base64ImageSourceParam{
+									Data:      urlParts[1],
+									MediaType: anthropic.Base64ImageSourceMediaType(mediaType),
+								},
+							},
+						},
+					})
+				}
+			}
+		}
+	}
+
+	toolBlock := anthropic.ToolResultBlockParam{
+		ToolUseID: msg.ToolCallID,
+		Content:   content,
+		IsError:   anthropic.Bool(msg.IsError),
+	}
+	return anthropic.ContentBlockParamUnion{OfToolResult: &toolBlock}
+}
+
+// hasImageMultiContent returns true if the multi-content parts contain any image content.
+func hasImageMultiContent(parts []chat.MessagePart) bool {
+	for _, part := range parts {
+		if part.Type == chat.MessagePartTypeImageURL && part.ImageURL != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// extractMediaType extracts the media type from a data URL prefix (e.g. "data:image/png;base64").
+func extractMediaType(prefix string) string {
+	switch {
+	case strings.Contains(prefix, "image/jpeg"):
+		return "image/jpeg"
+	case strings.Contains(prefix, "image/png"):
+		return "image/png"
+	case strings.Contains(prefix, "image/gif"):
+		return "image/gif"
+	case strings.Contains(prefix, "image/webp"):
+		return "image/webp"
+	default:
+		return "image/jpeg"
+	}
 }
 
 // convertUserMultiContent converts user message multi-content parts to Anthropic content blocks.

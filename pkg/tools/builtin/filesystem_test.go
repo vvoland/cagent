@@ -130,6 +130,48 @@ func TestFilesystemTool_ReadFile(t *testing.T) {
 	assert.Equal(t, "not found", result.Output)
 }
 
+func TestFilesystemTool_ReadImageFile(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+	tool := NewFilesystemTool(tmpDir)
+
+	// Create a minimal valid PNG file (1x1 pixel)
+	pngData := []byte{
+		0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
+		0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
+		0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // 1x1
+		0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xDE, // color type, etc.
+		0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, 0x54, // IDAT chunk
+		0x08, 0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00, 0x00,
+		0x00, 0x02, 0x00, 0x01, 0xE2, 0x21, 0xBC, 0x33,
+		0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, // IEND chunk
+		0xAE, 0x42, 0x60, 0x82,
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.png"), pngData, 0o644))
+
+	result, err := tool.handleReadFile(t.Context(), ReadFileArgs{Path: "test.png"})
+	require.NoError(t, err)
+	assert.False(t, result.IsError)
+	assert.Contains(t, result.Output, "image/png")
+	assert.Contains(t, result.Output, "test.png")
+	require.Len(t, result.Images, 1)
+	assert.Equal(t, "image/png", result.Images[0].MimeType)
+	assert.NotEmpty(t, result.Images[0].Data)
+
+	// Verify JPEG detection works too
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.jpg"), []byte("fake jpeg"), 0o644))
+	result, err = tool.handleReadFile(t.Context(), ReadFileArgs{Path: "test.jpg"})
+	require.NoError(t, err)
+	assert.False(t, result.IsError)
+	assert.Equal(t, "image/jpeg", result.Images[0].MimeType)
+
+	// Non-existent image file should return error
+	result, err = tool.handleReadFile(t.Context(), ReadFileArgs{Path: "missing.png"})
+	require.NoError(t, err)
+	assert.True(t, result.IsError)
+	assert.Equal(t, "not found", result.Output)
+}
+
 func TestFilesystemTool_ReadMultipleFiles(t *testing.T) {
 	t.Parallel()
 	tmpDir := t.TempDir()
