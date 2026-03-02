@@ -209,6 +209,15 @@ jobs:
               ].join('\n'),
             });
 
+            // Trigger AI review (auto-review won't run since the PR author is a bot,
+            // not an org member — so we use the /review command instead)
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.data.number,
+              body: '/review',
+            });
+
             core.info(`Created PR #${pr.data.number}: ${pr.data.html_url}`);
 
       - name: Notify issue on failure
