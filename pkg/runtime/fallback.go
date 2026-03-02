@@ -90,6 +90,7 @@ func extractHTTPStatusCode(err error) int {
 //
 // Retryable status codes:
 // - 5xx (server errors): 500, 502, 503, 504
+// - 529 (Anthropic overloaded)
 // - 408 (request timeout)
 //
 // Non-retryable status codes (skip to next model immediately):
@@ -98,6 +99,8 @@ func extractHTTPStatusCode(err error) int {
 func isRetryableStatusCode(statusCode int) bool {
 	switch statusCode {
 	case 500, 502, 503, 504: // Server errors
+		return true
+	case 529: // Anthropic overloaded
 		return true
 	case 408: // Request timeout
 		return true
@@ -119,6 +122,7 @@ func isRetryableStatusCode(statusCode int) bool {
 // - Network timeouts
 // - Temporary network errors
 // - HTTP 5xx errors (server errors)
+// - HTTP 529 (Anthropic overloaded)
 // - HTTP 408 (request timeout)
 //
 // Non-retryable errors (skip to next model in chain immediately):
@@ -180,6 +184,10 @@ func isRetryableModelError(err error) bool {
 		"gateway timeout",       // Gateway timeout
 		"overloaded",            // Server overloaded
 		"overloaded_error",      // Server overloaded
+		"other side closed",     // Connection closed by peer
+		"fetch failed",          // Network fetch failure
+		"reset before headers",  // Connection reset before headers received
+		"upstream connect",      // Upstream connection error
 	}
 
 	for _, pattern := range retryablePatterns {
@@ -370,9 +378,10 @@ func getEffectiveCooldown(a *agent.Agent) time.Duration {
 }
 
 // getEffectiveRetries returns the number of retries to use for the agent.
-// If no retries are explicitly configured (retries == 0) and fallback models
-// are configured, returns DefaultFallbackRetries to provide sensible retry
-// behavior out of the box.
+// If no retries are explicitly configured (retries == 0), returns
+// DefaultFallbackRetries to provide sensible retry behavior out of the box.
+// This ensures that transient errors (e.g., Anthropic 529 overloaded) are
+// retried even when no fallback models are configured.
 //
 // Note: Users who explicitly want 0 retries can set retries: -1 in their config
 // (though this is an edge case - most users want some retries for resilience).
@@ -382,8 +391,8 @@ func getEffectiveRetries(a *agent.Agent) int {
 	if retries < 0 {
 		return 0
 	}
-	// 0 means "use default" when fallback models are configured
-	if retries == 0 && len(a.FallbackModels()) > 0 {
+	// 0 means "use default" - always provide retries for transient error resilience
+	if retries == 0 {
 		return DefaultFallbackRetries
 	}
 	return retries

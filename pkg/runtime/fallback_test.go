@@ -177,6 +177,31 @@ func TestIsRetryableModelError(t *testing.T) {
 			expected: false,
 		},
 		{
+			name:     "anthropic overloaded 529",
+			err:      errors.New("529 overloaded"),
+			expected: true,
+		},
+		{
+			name:     "other side closed",
+			err:      errors.New("other side closed the connection"),
+			expected: true,
+		},
+		{
+			name:     "fetch failed",
+			err:      errors.New("fetch failed"),
+			expected: true,
+		},
+		{
+			name:     "reset before headers",
+			err:      errors.New("reset before headers"),
+			expected: true,
+		},
+		{
+			name:     "upstream connect error",
+			err:      errors.New("upstream connect error"),
+			expected: true,
+		},
+		{
 			name:     "unknown error",
 			err:      errors.New("something weird happened"),
 			expected: false,
@@ -591,6 +616,7 @@ func TestIsRetryableStatusCode(t *testing.T) {
 		{503, true},  // Service unavailable - retryable
 		{504, true},  // Gateway timeout - retryable
 		{408, true},  // Request timeout - retryable
+		{529, true},  // Anthropic overloaded - retryable
 		{429, false}, // Rate limit - NOT retryable (skip to next model)
 		{400, false}, // Bad request - not retryable
 		{401, false}, // Unauthorized - not retryable
@@ -719,12 +745,13 @@ func TestGetEffectiveRetries(t *testing.T) {
 	mockModel := &mockProvider{id: "test/model", stream: newStreamBuilder().AddContent("ok").AddStopWithUsage(1, 1).Build()}
 	mockFallback := &mockProvider{id: "test/fallback", stream: newStreamBuilder().AddContent("ok").AddStopWithUsage(1, 1).Build()}
 
-	// Agent with no retries configured and no fallback models should return 0
+	// Agent with no retries configured and no fallback models should use default
+	// retries for transient error resilience (e.g., Anthropic 529 overloaded)
 	agentNoFallback := agent.New("no-fallback", "test",
 		agent.WithModel(mockModel),
 	)
 	retries := getEffectiveRetries(agentNoFallback)
-	assert.Equal(t, 0, retries, "no fallback models = no retries (nothing to retry to)")
+	assert.Equal(t, DefaultFallbackRetries, retries, "should use default retries even without fallback models")
 
 	// Agent with no retries configured but with fallback models should use default
 	agentWithFallback := agent.New("with-fallback", "test",
