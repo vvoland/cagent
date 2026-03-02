@@ -571,19 +571,30 @@ func (t *FilesystemTool) readImageFile(resolvedPath, originalPath string) (*tool
 	}
 
 	mimeType := chat.DetectMimeType(resolvedPath)
-	encoded := base64.StdEncoding.EncodeToString(data)
+
+	// Resize the image if it exceeds provider limits (max 2000×2000, max 4.5MB).
+	resized, err := chat.ResizeImage(data, mimeType)
+	if err != nil {
+		// If resize fails, fall back to sending the original.
+		slog.Warn("Image resize failed, sending original", "path", originalPath, "error", err)
+		encoded := base64.StdEncoding.EncodeToString(data)
+		return &tools.ToolCallResult{
+			Output: fmt.Sprintf("Read image file %s [%s] (%d bytes)", originalPath, mimeType, len(data)),
+			Images: []tools.ImageContent{{Data: encoded, MimeType: mimeType}},
+			Meta:   ReadFileMeta{Path: originalPath},
+		}, nil
+	}
+
+	encoded := base64.StdEncoding.EncodeToString(resized.Data)
+	output := fmt.Sprintf("Read image file %s [%s] (%d bytes)", originalPath, resized.MimeType, len(resized.Data))
+	if note := chat.FormatDimensionNote(resized); note != "" {
+		output += "\n" + note
+	}
 
 	return &tools.ToolCallResult{
-		Output: fmt.Sprintf("Read image file %s [%s] (%d bytes)", originalPath, mimeType, len(data)),
-		Images: []tools.ImageContent{
-			{
-				Data:     encoded,
-				MimeType: mimeType,
-			},
-		},
-		Meta: ReadFileMeta{
-			Path: originalPath,
-		},
+		Output: output,
+		Images: []tools.ImageContent{{Data: encoded, MimeType: resized.MimeType}},
+		Meta:   ReadFileMeta{Path: originalPath},
 	}, nil
 }
 

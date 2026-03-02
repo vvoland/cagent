@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"os"
@@ -396,13 +397,41 @@ func (a *App) processFileAttachment(ctx context.Context, att messages.Attachment
 		textBuilder.WriteString(content)
 
 	case chat.IsSupportedMimeType(mimeType):
-		*binaryParts = append(*binaryParts, chat.MessagePart{
-			Type: chat.MessagePartTypeFile,
-			File: &chat.MessageFile{
-				Path:     absPath,
-				MimeType: mimeType,
-			},
-		})
+		if chat.IsImageMimeType(mimeType) {
+			// Read, resize if needed, and inline as base64 data URL.
+			// This works across all providers (not just Anthropic's File API).
+			imgData, readErr := os.ReadFile(absPath)
+			if readErr != nil {
+				slog.Warn("skipping attachment: failed to read image", "path", absPath, "error", readErr)
+				a.sendEvent(ctx, runtime.Warning(fmt.Sprintf("Skipped attachment %s: failed to read image", att.Name), ""))
+				return
+			}
+			resized, resizeErr := chat.ResizeImage(imgData, mimeType)
+			if resizeErr != nil {
+				slog.Warn("image resize failed, sending original", "path", absPath, "error", resizeErr)
+				resized = &chat.ImageResizeResult{Data: imgData, MimeType: mimeType}
+			}
+			dataURL := fmt.Sprintf("data:%s;base64,%s", resized.MimeType, base64.StdEncoding.EncodeToString(resized.Data))
+			*binaryParts = append(*binaryParts, chat.MessagePart{
+				Type: chat.MessagePartTypeImageURL,
+				ImageURL: &chat.MessageImageURL{
+					URL:    dataURL,
+					Detail: chat.ImageURLDetailAuto,
+				},
+			})
+			if note := chat.FormatDimensionNote(resized); note != "" {
+				textBuilder.WriteString("\n" + note)
+			}
+		} else {
+			// Non-image supported types (e.g. PDF) use the file upload path.
+			*binaryParts = append(*binaryParts, chat.MessagePart{
+				Type: chat.MessagePartTypeFile,
+				File: &chat.MessageFile{
+					Path:     absPath,
+					MimeType: mimeType,
+				},
+			})
+		}
 
 	default:
 		slog.Warn("skipping attachment: unsupported file type", "path", absPath, "mime_type", mimeType)

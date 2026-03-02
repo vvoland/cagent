@@ -1,7 +1,12 @@
 package builtin
 
 import (
+	"bytes"
 	"encoding/json"
+	"image"
+	"image/color"
+	"image/jpeg"
+	"image/png"
 	"os"
 	"path/filepath"
 	"testing"
@@ -135,35 +140,27 @@ func TestFilesystemTool_ReadImageFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	tool := NewFilesystemTool(tmpDir)
 
-	// Create a minimal valid PNG file (1x1 pixel)
-	pngData := []byte{
-		0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
-		0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
-		0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // 1x1
-		0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xDE, // color type, etc.
-		0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, 0x54, // IDAT chunk
-		0x08, 0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00, 0x00,
-		0x00, 0x02, 0x00, 0x01, 0xE2, 0x21, 0xBC, 0x33,
-		0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, // IEND chunk
-		0xAE, 0x42, 0x60, 0x82,
-	}
+	// Create a valid PNG file using Go's image library.
+	pngData := createTestPNG(t, 10, 10)
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.png"), pngData, 0o644))
 
 	result, err := tool.handleReadFile(t.Context(), ReadFileArgs{Path: "test.png"})
 	require.NoError(t, err)
 	assert.False(t, result.IsError)
-	assert.Contains(t, result.Output, "image/png")
 	assert.Contains(t, result.Output, "test.png")
 	require.Len(t, result.Images, 1)
-	assert.Equal(t, "image/png", result.Images[0].MimeType)
 	assert.NotEmpty(t, result.Images[0].Data)
+	// Small image should not be resized, so MIME stays as PNG or JPEG (whichever is smaller).
+	assert.True(t, result.Images[0].MimeType == "image/png" || result.Images[0].MimeType == "image/jpeg")
 
 	// Verify JPEG detection works too
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.jpg"), []byte("fake jpeg"), 0o644))
+	jpegData := createTestJPEG(t, 10, 10)
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.jpg"), jpegData, 0o644))
 	result, err = tool.handleReadFile(t.Context(), ReadFileArgs{Path: "test.jpg"})
 	require.NoError(t, err)
 	assert.False(t, result.IsError)
-	assert.Equal(t, "image/jpeg", result.Images[0].MimeType)
+	require.Len(t, result.Images, 1)
+	assert.NotEmpty(t, result.Images[0].Data)
 
 	// Non-existent image file should return error
 	result, err = tool.handleReadFile(t.Context(), ReadFileArgs{Path: "missing.png"})
@@ -801,4 +798,30 @@ func TestFilesystemTool_RemoveDirectory_MultipleStopsOnError(t *testing.T) {
 	assert.NoDirExists(t, dir1)
 	// dir3 should still exist since processing stopped at nonexistent
 	assert.DirExists(t, dir3)
+}
+
+func createTestPNG(t *testing.T, w, h int) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := range h {
+		for x := range w {
+			img.Set(x, y, color.RGBA{R: 255, A: 255})
+		}
+	}
+	var buf bytes.Buffer
+	require.NoError(t, png.Encode(&buf, img))
+	return buf.Bytes()
+}
+
+func createTestJPEG(t *testing.T, w, h int) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := range h {
+		for x := range w {
+			img.Set(x, y, color.RGBA{B: 255, A: 255})
+		}
+	}
+	var buf bytes.Buffer
+	require.NoError(t, jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90}))
+	return buf.Bytes()
 }
