@@ -157,7 +157,7 @@ jobs:
           git push origin "$BRANCH_NAME"
           echo "branch=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
 
-      - name: Create draft PR and comment on issue
+      - name: Create PR and comment on issue
         if: steps.push.outputs.branch != ''
         id: pr
         continue-on-error: true
@@ -192,7 +192,7 @@ jobs:
               ].join('\n'),
               head: branch,
               base: 'main',
-              draft: true,
+              draft: false,
             });
 
             // Comment on the issue with the PR link
@@ -203,13 +203,13 @@ jobs:
               body: [
                 `I've analyzed this bug report and created an automated fix:`,
                 ``,
-                `**Draft PR:** ${pr.data.html_url}`,
+                `**PR:** ${pr.data.html_url}`,
                 ``,
                 `Please review the changes — this was generated automatically and may need adjustments.`,
               ].join('\n'),
             });
 
-            core.info(`Created draft PR #${pr.data.number}: ${pr.data.html_url}`);
+            core.info(`Created PR #${pr.data.number}: ${pr.data.html_url}`);
 
       - name: Notify issue on failure
         if: failure() || (steps.result.outputs.action == 'fixed' && steps.changes.outputs.has_changes == 'true' && (steps.push.outcome == 'failure' || steps.pr.outcome == 'failure'))
