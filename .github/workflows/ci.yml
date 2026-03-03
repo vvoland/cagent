@@ -124,7 +124,9 @@ jobs:
         id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
-          images: docker/cagent
+          images: |
+            docker/cagent
+            docker/docker-agent
           tags: |
             type=semver,pattern={{version}}
             type=edge
