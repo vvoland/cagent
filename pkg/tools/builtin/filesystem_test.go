@@ -1,7 +1,12 @@
 package builtin
 
 import (
+	"bytes"
 	"encoding/json"
+	"image"
+	"image/color"
+	"image/jpeg"
+	"image/png"
 	"os"
 	"path/filepath"
 	"testing"
@@ -127,6 +132,40 @@ func TestFilesystemTool_ReadFile(t *testing.T) {
 		Path: "nonexistent.txt",
 	})
 	require.NoError(t, err)
+	assert.Equal(t, "not found", result.Output)
+}
+
+func TestFilesystemTool_ReadImageFile(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+	tool := NewFilesystemTool(tmpDir)
+
+	// Create a valid PNG file using Go's image library.
+	pngData := createTestPNG(t, 10, 10)
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.png"), pngData, 0o644))
+
+	result, err := tool.handleReadFile(t.Context(), ReadFileArgs{Path: "test.png"})
+	require.NoError(t, err)
+	assert.False(t, result.IsError)
+	assert.Contains(t, result.Output, "test.png")
+	require.Len(t, result.Images, 1)
+	assert.NotEmpty(t, result.Images[0].Data)
+	// Small image should not be resized, so MIME stays as PNG or JPEG (whichever is smaller).
+	assert.True(t, result.Images[0].MimeType == "image/png" || result.Images[0].MimeType == "image/jpeg")
+
+	// Verify JPEG detection works too
+	jpegData := createTestJPEG(t, 10, 10)
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "test.jpg"), jpegData, 0o644))
+	result, err = tool.handleReadFile(t.Context(), ReadFileArgs{Path: "test.jpg"})
+	require.NoError(t, err)
+	assert.False(t, result.IsError)
+	require.Len(t, result.Images, 1)
+	assert.NotEmpty(t, result.Images[0].Data)
+
+	// Non-existent image file should return error
+	result, err = tool.handleReadFile(t.Context(), ReadFileArgs{Path: "missing.png"})
+	require.NoError(t, err)
+	assert.True(t, result.IsError)
 	assert.Equal(t, "not found", result.Output)
 }
 
@@ -759,4 +798,30 @@ func TestFilesystemTool_RemoveDirectory_MultipleStopsOnError(t *testing.T) {
 	assert.NoDirExists(t, dir1)
 	// dir3 should still exist since processing stopped at nonexistent
 	assert.DirExists(t, dir3)
+}
+
+func createTestPNG(t *testing.T, w, h int) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := range h {
+		for x := range w {
+			img.Set(x, y, color.RGBA{R: 255, A: 255})
+		}
+	}
+	var buf bytes.Buffer
+	require.NoError(t, png.Encode(&buf, img))
+	return buf.Bytes()
+}
+
+func createTestJPEG(t *testing.T, w, h int) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := range h {
+		for x := range w {
+			img.Set(x, y, color.RGBA{B: 255, A: 255})
+		}
+	}
+	var buf bytes.Buffer
+	require.NoError(t, jpeg.Encode(&buf, img, &jpeg.Options{Quality: 90}))
+	return buf.Bytes()
 }

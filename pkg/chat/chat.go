@@ -173,32 +173,56 @@ type MessageStream interface {
 	Close()
 }
 
-// DetectMimeType returns the MIME type for a file based on its extension.
-// This is the canonical implementation used across all packages for consistency.
-// For binary file types (images, PDF), returns the specific MIME type.
-// For text-based files, returns "text/plain".
-// Unrecognized extensions return "application/octet-stream".
+// DetectMimeType returns the MIME type for a file by reading its first 512
+// bytes and inspecting the content (magic bytes). For text-based files that
+// http.DetectContentType cannot distinguish (e.g. source code vs plain text),
+// it falls back to extension matching. This is the canonical implementation
+// used across all packages for consistency.
 func DetectMimeType(filePath string) string {
-	ext := strings.ToLower(filepath.Ext(filePath))
-	switch ext {
-	// Images
-	case ".jpg", ".jpeg":
-		return "image/jpeg"
-	case ".png":
-		return "image/png"
-	case ".gif":
-		return "image/gif"
-	case ".webp":
-		return "image/webp"
-	// PDF
-	case ".pdf":
-		return "application/pdf"
-	default:
-		if isTextExtension(ext) {
-			return "text/plain"
-		}
+	// Content sniffing — reliably detects images, PDF, etc.
+	if ct := detectMimeTypeFromFile(filePath); ct != "application/octet-stream" {
+		return ct
+	}
+
+	// http.DetectContentType returns "application/octet-stream" for text
+	// files it can't classify, so fall back to extension for those.
+	if isTextExtension(strings.ToLower(filepath.Ext(filePath))) {
+		return "text/plain"
+	}
+	return "application/octet-stream"
+}
+
+// detectMimeTypeFromFile reads the first 512 bytes of a file and uses
+// content-based detection (magic bytes) to determine the MIME type.
+func detectMimeTypeFromFile(filePath string) string {
+	f, err := os.Open(filePath)
+	if err != nil {
 		return "application/octet-stream"
 	}
+	defer f.Close()
+
+	buf := make([]byte, 512)
+	n, _ := f.Read(buf)
+	if n == 0 {
+		return "application/octet-stream"
+	}
+	return DetectMimeTypeByContent(buf[:n])
+}
+
+// IsImageMimeType returns true if the MIME type is a supported image type.
+func IsImageMimeType(mimeType string) bool {
+	switch mimeType {
+	case "image/jpeg", "image/png", "image/gif", "image/webp":
+		return true
+	default:
+		return false
+	}
+}
+
+// IsImageFile returns true if the file at the given path is a supported image
+// based on its extension. Supported formats: JPEG, PNG, GIF, WebP.
+func IsImageFile(filePath string) bool {
+	return IsImageMimeType(DetectMimeType(filePath))
 }
 
 // IsSupportedMimeType returns true if the MIME type is supported for file attachments.

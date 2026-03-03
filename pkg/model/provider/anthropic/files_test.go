@@ -17,12 +17,6 @@ func TestDetectMimeType(t *testing.T) {
 		path     string
 		expected string
 	}{
-		{"image.jpg", "image/jpeg"},
-		{"image.jpeg", "image/jpeg"},
-		{"image.png", "image/png"},
-		{"image.gif", "image/gif"},
-		{"image.webp", "image/webp"},
-		{"document.pdf", "application/pdf"},
 		{"readme.txt", "text/plain"},
 		{"readme.md", "text/plain"},
 		{"readme.markdown", "text/plain"},

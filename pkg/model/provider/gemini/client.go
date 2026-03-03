@@ -188,9 +188,29 @@ func convertMessagesToGemini(messages []chat.Message) []*genai.Content {
 
 		// Handle tool responses
 		if msg.Role == chat.MessageRoleTool && msg.ToolCallID != "" {
-			part := genai.NewPartFromFunctionResponse(msg.ToolCallID, map[string]any{
-				"result": msg.Content,
-			})
+			response := map[string]any{"result": msg.Content}
+
+			// Check for image content in MultiContent
+			var imageParts []*genai.FunctionResponsePart
+			for _, mc := range msg.MultiContent {
+				if mc.Type == chat.MessagePartTypeImageURL && mc.ImageURL != nil && strings.HasPrefix(mc.ImageURL.URL, "data:") {
+					urlParts := strings.SplitN(mc.ImageURL.URL, ",", 2)
+					if len(urlParts) == 2 {
+						mimeType := extractMimeType(urlParts[0])
+						data, err := base64.StdEncoding.DecodeString(urlParts[1])
+						if err == nil {
+							imageParts = append(imageParts, genai.NewFunctionResponsePartFromBytes(data, mimeType))
+						}
+					}
+				}
+			}
+
+			var part *genai.Part
+			if len(imageParts) > 0 {
+				part = genai.NewPartFromFunctionResponseWithParts(msg.ToolCallID, response, imageParts)
+			} else {
+				part = genai.NewPartFromFunctionResponse(msg.ToolCallID, response)
+			}
 			contents = append(contents, genai.NewContentFromParts([]*genai.Part{part}, role))
 			continue
 		}

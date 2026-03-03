@@ -109,3 +109,71 @@ func TestCallToolStripsNullArguments(t *testing.T) {
 		})
 	}
 }
+
+func TestProcessMCPContent_WithImages(t *testing.T) {
+	t.Parallel()
+
+	t.Run("text only", func(t *testing.T) {
+		t.Parallel()
+		result := processMCPContent(&mcp.CallToolResult{
+			Content: []mcp.Content{&mcp.TextContent{Text: "hello"}},
+		})
+		assert.Equal(t, "hello", result.Output)
+		assert.Empty(t, result.Images)
+		assert.False(t, result.IsError)
+	})
+
+	t.Run("image only", func(t *testing.T) {
+		t.Parallel()
+		// mcp.ImageContent.Data holds raw bytes (SDK decodes base64 from wire)
+		rawImageData := []byte("imagedata")
+		result := processMCPContent(&mcp.CallToolResult{
+			Content: []mcp.Content{
+				&mcp.ImageContent{
+					Data:     rawImageData,
+					MIMEType: "image/png",
+				},
+			},
+		})
+		assert.Equal(t, "no output", result.Output) // no text content, so default
+		require.Len(t, result.Images, 1)
+		assert.Equal(t, "image/png", result.Images[0].MimeType)
+		// Output should be base64-encoded
+		assert.Equal(t, "aW1hZ2VkYXRh", result.Images[0].Data)
+	})
+
+	t.Run("text and image", func(t *testing.T) {
+		t.Parallel()
+		result := processMCPContent(&mcp.CallToolResult{
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: "Here is the screenshot"},
+				&mcp.ImageContent{
+					Data:     []byte("screenshot"),
+					MIMEType: "image/jpeg",
+				},
+			},
+		})
+		assert.Equal(t, "Here is the screenshot", result.Output)
+		require.Len(t, result.Images, 1)
+		assert.Equal(t, "image/jpeg", result.Images[0].MimeType)
+		assert.Equal(t, "c2NyZWVuc2hvdA==", result.Images[0].Data)
+	})
+
+	t.Run("error with image", func(t *testing.T) {
+		t.Parallel()
+		result := processMCPContent(&mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: "error occurred"},
+				&mcp.ImageContent{
+					Data:     []byte("error"),
+					MIMEType: "image/png",
+				},
+			},
+		})
+		assert.True(t, result.IsError)
+		assert.Equal(t, "error occurred", result.Output)
+		require.Len(t, result.Images, 1)
+		assert.Equal(t, "ZXJyb3I=", result.Images[0].Data)
+	})
+}

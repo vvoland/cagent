@@ -15,15 +15,7 @@ func TestDetectMimeType(t *testing.T) {
 		path     string
 		expected string
 	}{
-		// Images
-		{"photo.jpg", "image/jpeg"},
-		{"photo.jpeg", "image/jpeg"},
-		{"photo.png", "image/png"},
-		{"photo.gif", "image/gif"},
-		{"photo.webp", "image/webp"},
-		// PDF
-		{"document.pdf", "application/pdf"},
-		// Text files - all map to text/plain
+		// Text files (detected by extension fallback) - all map to text/plain
 		{"readme.txt", "text/plain"},
 		{"readme.md", "text/plain"},
 		{"readme.markdown", "text/plain"},
@@ -46,7 +38,7 @@ func TestDetectMimeType(t *testing.T) {
 		{"query.graphql", "text/plain"},
 		{"icon.svg", "text/plain"},
 		{"changes.diff", "text/plain"},
-		// Unknown binary
+		// Unknown binary (no file to sniff, unknown extension)
 		{"archive.tar.gz", "application/octet-stream"},
 		{"program.exe", "application/octet-stream"},
 		{"movie.mp4", "application/octet-stream"},
@@ -168,4 +160,51 @@ func TestReadFileForInline_NotFound(t *testing.T) {
 	t.Parallel()
 	_, err := ReadFileForInline("/nonexistent/file.txt")
 	assert.Error(t, err)
+}
+
+func TestDetectMimeType_ContentSniffing(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		filename string
+		content  []byte
+		want     string
+	}{
+		{
+			name:     "png with unknown extension",
+			filename: "image.bin",
+			content:  []byte{0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0},
+			want:     "image/png",
+		},
+		{
+			name:     "jpeg with unknown extension",
+			filename: "photo.dat",
+			content:  []byte{0xFF, 0xD8, 0xFF, 0xE0, 0, 0, 0, 0},
+			want:     "image/jpeg",
+		},
+		{
+			name:     "webp with unknown extension",
+			filename: "anim.unknown",
+			content:  append([]byte("RIFF"), append([]byte{0, 0, 0, 0}, []byte("WEBP")...)...),
+			want:     "image/webp",
+		},
+		{
+			name:     "plain text with unknown extension",
+			filename: "data.xyz",
+			content:  []byte("just some text content here"),
+			want:     "text/plain; charset=utf-8",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			path := filepath.Join(dir, tt.filename)
+			require.NoError(t, os.WriteFile(path, tt.content, 0o644))
+			got := DetectMimeType(path)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }

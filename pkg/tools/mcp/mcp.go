@@ -3,6 +3,7 @@ package mcp
 import (
 	"cmp"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -455,19 +456,31 @@ func isInitNotificationSendError(err error) bool {
 
 func processMCPContent(toolResult *mcp.CallToolResult) *tools.ToolCallResult {
 	finalContent := ""
+	var images []tools.ImageContent
+
 	for _, resultContent := range toolResult.Content {
-		if textContent, ok := resultContent.(*mcp.TextContent); ok {
-			finalContent += textContent.Text
+		switch c := resultContent.(type) {
+		case *mcp.TextContent:
+			finalContent += c.Text
+		case *mcp.ImageContent:
+			// MCP SDK decodes the base64 wire format into raw bytes,
+			// so we need to re-encode to base64 for our ImageContent.
+			images = append(images, tools.ImageContent{
+				Data:     base64.StdEncoding.EncodeToString(c.Data),
+				MimeType: c.MIMEType,
+			})
 		}
 	}
 
 	// Handle an empty response. This can happen if the MCP tool does not return any content.
 	finalContent = cmp.Or(finalContent, "no output")
 
-	if toolResult.IsError {
-		return tools.ResultError(finalContent)
+	result := &tools.ToolCallResult{
+		Output:  finalContent,
+		IsError: toolResult.IsError,
+		Images:  images,
 	}
-	return tools.ResultSuccess(finalContent)
+	return result
 }
 
 func (ts *Toolset) SetElicitationHandler(handler tools.ElicitationHandler) {
