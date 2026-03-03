@@ -102,7 +102,12 @@ func parseAuthInfo(token string) (*authInfo, error) {
 }
 
 func printAuthInfoText(w io.Writer, info *authInfo) {
-	fmt.Fprintf(w, "Token:      %s...%s\n", info.Token[:10], info.Token[len(info.Token)-10:])
+	const previewLen = 10
+	if len(info.Token) <= previewLen*2 {
+		fmt.Fprintf(w, "Token:      %s\n", info.Token)
+	} else {
+		fmt.Fprintf(w, "Token:      %s...%s\n", info.Token[:previewLen], info.Token[len(info.Token)-previewLen:])
+	}
 
 	if info.Username != "" {
 		fmt.Fprintf(w, "Username:   %s\n", info.Username)

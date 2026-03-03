@@ -361,12 +361,22 @@ func toolCallToProto(tc tools.ToolCall) *cagentv1.ToolCall {
 func toolToProto(t tools.Tool) *cagentv1.Tool {
 	var paramsJSON []byte
 	if t.Parameters != nil {
-		paramsJSON, _ = json.Marshal(t.Parameters)
+		var err error
+		paramsJSON, err = json.Marshal(t.Parameters)
+		if err != nil {
+			slog.Warn("Failed to marshal tool parameters", "tool", t.Name, "error", err)
+			paramsJSON = nil
+		}
 	}
 
 	var outputSchemaJSON []byte
 	if t.OutputSchema != nil {
-		outputSchemaJSON, _ = json.Marshal(t.OutputSchema)
+		var err error
+		outputSchemaJSON, err = json.Marshal(t.OutputSchema)
+		if err != nil {
+			slog.Warn("Failed to marshal tool output schema", "tool", t.Name, "error", err)
+			outputSchemaJSON = nil
+		}
 	}
 
 	annotations := &cagentv1.ToolAnnotations{
