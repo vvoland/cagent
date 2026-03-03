@@ -82,7 +82,6 @@ func TestSchemaMatchesGoTypes(t *testing.T) {
 		"ProviderConfig":        reflect.TypeFor[latest.ProviderConfig](),
 		"Toolset":               reflect.TypeFor[latest.Toolset](),
 		"Remote":                reflect.TypeFor[latest.Remote](),
-		"SandboxConfig":         reflect.TypeFor[latest.SandboxConfig](),
 		"ScriptShellToolConfig": reflect.TypeFor[latest.ScriptShellToolConfig](),
 		"PostEditConfig":        reflect.TypeFor[latest.PostEditConfig](),
 		"PermissionsConfig":     reflect.TypeFor[latest.PermissionsConfig](),

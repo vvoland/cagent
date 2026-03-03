@@ -66,7 +66,6 @@ The agent has access to the full system shell and environment variables. Command
 | Property  | Type   | Description                                                                      |
 | --------- | ------ | -------------------------------------------------------------------------------- |
 | `env`     | object | Environment variables to set for all shell commands                              |
-| `sandbox` | object | Run commands in a Docker container. See [Sandbox Mode](/configuration/sandbox/). |
 
 ### Think
 

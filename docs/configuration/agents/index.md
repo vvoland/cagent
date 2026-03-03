@@ -232,10 +232,6 @@ agents:
     toolsets:
       - type: filesystem
       - type: shell
-        sandbox:
-          image: golang:1.23-alpine
-          paths:
-            - "."
       - type: think
       - type: todo
 

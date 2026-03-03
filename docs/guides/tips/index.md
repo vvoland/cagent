@@ -205,7 +205,7 @@ $ docker agent run agent.yaml --yolo
 
 ### Combine Permissions with Sandbox
 
-For defense in depth, use both permissions and sandbox mode:
+For defense in depth, use both permissions and [sandbox mode](/configuration/sandbox/):
 
 ```yaml
 agents:
@@ -216,10 +216,6 @@ agents:
     toolsets:
       - type: filesystem
       - type: shell
-        sandbox:
-          image: golang:1.23-alpine
-          paths:
-            - ".:rw"
 
 permissions:
   allow:
@@ -229,6 +225,11 @@ permissions:
   deny:
     - "shell:cmd=sudo*"
     - "shell:cmd=rm*-rf*"
+```
+
+```bash
+# Run with sandbox enabled
+cagent run --sandbox agent.yaml
 ```
 
 ### Use Hooks for Audit Logging
