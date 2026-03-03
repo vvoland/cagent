@@ -936,6 +936,10 @@ func (r *LocalRuntime) registerDefaultTools() {
 }
 
 func (r *LocalRuntime) finalizeEventChannel(ctx context.Context, sess *session.Session, events chan Event) {
+	// Clear the elicitation events channel before closing the events channel
+	// to prevent a send-on-closed-channel panic in elicitationHandler.
+	r.clearElicitationEventsChannel()
+
 	defer close(events)
 
 	events <- StreamStopped(sess.ID, r.currentAgent)
@@ -961,7 +965,6 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 
 		// Set the events channel for elicitation requests
 		r.setElicitationEventsChannel(events)
-		defer r.clearElicitationEventsChannel()
 
 		// Set elicitation handler on all MCP toolsets before getting tools
 		a := r.CurrentAgent()
@@ -2095,12 +2098,12 @@ func (r *LocalRuntime) clearElicitationEventsChannel() {
 func (r *LocalRuntime) elicitationHandler(ctx context.Context, req *mcp.ElicitParams) (tools.ElicitationResult, error) {
 	slog.Debug("Elicitation request received from MCP server", "message", req.Message)
 
-	// Get the current events channel
+	// Hold the read lock while sending to the channel to prevent a race
+	// with clearElicitationEventsChannel / close(events).
 	r.elicitationEventsChannelMux.RLock()
 	eventsChannel := r.elicitationEventsChannel
-	r.elicitationEventsChannelMux.RUnlock()
-
 	if eventsChannel == nil {
+		r.elicitationEventsChannelMux.RUnlock()
 		return tools.ElicitationResult{}, fmt.Errorf("no events channel available for elicitation")
 	}
 
@@ -2111,6 +2114,7 @@ func (r *LocalRuntime) elicitationHandler(ctx context.Context, req *mcp.ElicitPa
 
 	// Send elicitation request event to the runtime's client
 	eventsChannel <- ElicitationRequest(req.Message, req.Mode, req.RequestedSchema, req.URL, req.ElicitationID, req.Meta, r.currentAgent)
+	r.elicitationEventsChannelMux.RUnlock()
 
 	// Wait for response from the client
 	select {
