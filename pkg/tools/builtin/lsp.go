@@ -1740,16 +1740,18 @@ func (h *lspHandler) readMessageLocked() ([]byte, error) {
 }
 
 func (h *lspHandler) readNotifications(ctx context.Context, stderrBuf *bytes.Buffer) {
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		default:
-		}
-
-		if stderrBuf.Len() > 0 {
-			slog.Debug("LSP stderr", "content", stderrBuf.String())
-			stderrBuf.Reset()
+		case <-ticker.C:
+			if stderrBuf.Len() > 0 {
+				slog.Debug("LSP stderr", "content", stderrBuf.String())
+				stderrBuf.Reset()
+			}
 		}
 	}
 }
