@@ -19,11 +19,11 @@
     instruction: You are a helpful assistant.
     toolsets:
       - type: shell
-    sandbox:
-      image: alpine:latest    # Docker image to use
-      paths:                  # Directories to mount
-        - "."                 # Current directory (read-write)
-        - "/data:ro"          # Read-only mount</code></pre>
+        sandbox:
+          image: alpine:latest    # Docker image to use
+          paths:                  # Directories to mount
+            - "."                 # Current directory (read-write)
+            - "/data:ro"          # Read-only mount</code></pre>
 
 <h2>Properties</h2>
 
@@ -63,12 +63,12 @@
       build commands and tests. Your shell runs in a sandbox.
     toolsets:
       - type: shell
-      - type: filesystem
-    sandbox:
-      image: node:20-alpine    # Node.js environment
-      paths:
-        - "."                  # Project directory
-        - "/tmp:rw"            # Temp directory for builds</code></pre>
+        sandbox:
+          image: node:20-alpine    # Node.js environment
+          paths:
+            - "."                  # Project directory
+            - "/tmp:rw"            # Temp directory for builds
+      - type: filesystem</code></pre>
 
 <h2>How It Works</h2>
 
@@ -136,17 +136,18 @@
     instruction: You are a helpful assistant.
     toolsets:
       - type: shell
+        sandbox:
+          image: node:20-alpine
+          paths:
+            - ".:rw"
       - type: filesystem
-    sandbox:
-      image: node:20-alpine
-      paths:
-        - ".:rw"
-    permissions:
-      allow:
-        - "shell:cmd=npm*"
-        - "shell:cmd=node*"
-        - "shell:cmd=ls*"
-      deny:
-        - "shell:cmd=sudo*"
-        - "shell:cmd=curl*"
-        - "shell:cmd=wget*"</code></pre>
+
+permissions:
+  allow:
+    - "shell:cmd=npm*"
+    - "shell:cmd=node*"
+    - "shell:cmd=ls*"
+  deny:
+    - "shell:cmd=sudo*"
+    - "shell:cmd=curl*"
+    - "shell:cmd=wget*"</code></pre>

@@ -27,19 +27,12 @@
       name: "prompt text"
     welcome_message: string        # Optional: message shown at session start
     handoffs: [list]               # Optional: list of A2A handoff agents
-    defer: [list] or true          # Optional: tools to load on demand
     hooks:                         # Optional: lifecycle hooks
       pre_tool_use: [list]
       post_tool_use: [list]
       session_start: [list]
       session_end: [list]
       on_user_input: [list]
-    permissions:                   # Optional: tool execution control
-      allow: [list]
-      deny: [list]
-    sandbox:                       # Optional: shell isolation
-      image: string
-      paths: [list]
     structured_output:             # Optional: constrain output format
       name: string
       schema: object</code></pre>
@@ -129,20 +122,8 @@
       <td>List of A2A agent configurations this agent can delegate to. See <a href="#features/a2a" onclick="event.preventDefault(); navigate('features/a2a')">A2A Protocol</a>.</td>
     </tr>
     <tr>
-      <td><code>defer</code></td><td>array/boolean</td><td>✗</td>
-      <td>Tools to load on-demand rather than at startup. Set to <code>true</code> to defer all tools, or provide a list of tool names.</td>
-    </tr>
-    <tr>
       <td><code>hooks</code></td><td>object</td><td>✗</td>
       <td>Lifecycle hooks for running commands at various points. See <a href="#configuration/hooks" onclick="event.preventDefault(); navigate('configuration/hooks')">Hooks</a>.</td>
-    </tr>
-    <tr>
-      <td><code>permissions</code></td><td>object</td><td>✗</td>
-      <td>Control which tools are auto-approved, require confirmation, or are blocked. See <a href="#configuration/permissions" onclick="event.preventDefault(); navigate('configuration/permissions')">Permissions</a>.</td>
-    </tr>
-    <tr>
-      <td><code>sandbox</code></td><td>object</td><td>✗</td>
-      <td>Run shell commands in an isolated Docker container. See <a href="#configuration/sandbox" onclick="event.preventDefault(); navigate('configuration/sandbox')">Sandbox Mode</a>.</td>
     </tr>
     <tr>
       <td><code>structured_output</code></td><td>object</td><td>✗</td>
@@ -187,20 +168,23 @@
     toolsets:
       - type: mcp
         ref: docker:github-official
+        defer: true
       - type: mcp
         ref: docker:slack
-      - type: filesystem
-    # Defer all tools - load when first used
-    defer: true</code></pre>
+        defer: true
+      - type: filesystem</code></pre>
 
-<p>Or defer specific tools:</p>
+<p>Or defer specific tools within a toolset:</p>
 
 <pre><code class="language-yaml">agents:
   root:
     model: openai/gpt-4o
-    defer:
-      - "mcp:github:*"    # Defer all GitHub tools
-      - "mcp:slack:*"     # Defer all Slack tools</code></pre>
+    toolsets:
+      - type: mcp
+        ref: docker:github-official
+        defer:
+          - "list_issues"
+          - "search_repos"</code></pre>
 
 <h2>Fallback Configuration</h2>
 
@@ -290,19 +274,12 @@ agents:
     toolsets:
       - type: filesystem
       - type: shell
+        sandbox:
+          image: golang:1.23-alpine
+          paths:
+            - "."
       - type: think
       - type: todo
-    permissions:
-      allow:
-        - "read_*"
-        - "shell:cmd=go*"
-        - "shell:cmd=npm*"
-      deny:
-        - "shell:cmd=sudo*"
-    sandbox:
-      image: golang:1.23-alpine
-      paths:
-        - "."
 
   researcher:
     model: openai/gpt-4o
