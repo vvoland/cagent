@@ -1,0 +1,232 @@
+---
+title: "Evaluation"
+description: "Measure agent quality with automated evaluations — tool call accuracy, response relevance, output size, and more."
+permalink: /features/evaluation/
+---
+
+# Evaluation
+
+_Measure agent quality with automated evaluations — tool call accuracy, response relevance, output size, and more._
+
+## Overview
+
+The `cagent eval` command runs your agent against a set of recorded sessions and scores the results. Each eval session captures a user question, the expected tool calls, and criteria the response must satisfy. cagent replays the question, compares the agent's behavior to expectations, and produces a report.
+
+<div class="callout callout-info">
+<div class="callout-title">ℹ️ Docker required
+</div>
+  <p>Evaluations run inside Docker containers for isolation. Each eval gets a clean environment with optional setup scripts. Docker Desktop (or Docker Engine) must be running.</p>
+
+</div>
+
+## Quick Start
+
+```bash
+# Run evaluations for an agent
+$ cagent eval agent.yaml
+
+# Specify a custom evals directory
+$ cagent eval agent.yaml ./my-evals
+
+# Run with 8 concurrent evaluations
+$ cagent eval agent.yaml -c 8
+
+# Only run evals matching a pattern
+$ cagent eval agent.yaml --only "auth*"
+```
+
+## Eval Directory Structure
+
+By default, cagent looks for eval sessions in an `evals/` directory next to your agent config:
+
+```bash
+my-agent/
+├── agent.yaml
+└── evals/
+    ├── 41b179a2-....json          # Eval session 1
+    ├── 5d83e247-....json          # Eval session 2
+    └── results/                   # Output (auto-created)
+        ├── adjective-noun-1234.json
+        ├── adjective-noun-1234.log
+        ├── adjective-noun-1234.db
+        └── adjective-noun-1234-sessions.json
+```
+
+## Eval Session Format
+
+Each eval file is a JSON session that captures a complete conversation. The key fields for evaluation are the user message, the expected tool calls (recorded from a real session), and optional eval criteria:
+
+```json
+{
+  "id": "41b179a2-ed19-4ae2-a45d-95775aaa90f7",
+  "title": "Counting Files in Local Folder",
+  "messages": [
+    {
+      "message": {
+        "agentFilename": "./agent.yaml",
+        "message": {
+          "role": "user",
+          "content": "How many files in the local folder?"
+        }
+      }
+    },
+    {
+      "message": {
+        "agentName": "root",
+        "message": {
+          "role": "assistant",
+          "tool_calls": [
+            {
+              "id": "call_abc123",
+              "type": "function",
+              "function": {
+                "name": "list_directory",
+                "arguments": "{\"path\":\"./\"}"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "message": {
+        "agentName": "root",
+        "message": {
+          "role": "assistant",
+          "content": "There are 2 files in the local folder..."
+        }
+      }
+    }
+  ],
+  "evals": {
+    "relevance": [
+      "The response mentions exactly 2 files",
+      "The response lists README.md and agent.yaml"
+    ],
+    "size": "S",
+    "working_dir": "my-project",
+    "setup": "echo 'hello' > test.txt"
+  }
+}
+```
+
+## Eval Criteria
+
+The `evals` object inside each session controls what gets scored:
+
+| Field         | Type     | Description                                                                               |
+| ------------- | -------- | ----------------------------------------------------------------------------------------- |
+| `relevance`   | string[] | Statements that must be true about the agent's response. Scored by an LLM judge.          |
+| `size`        | string   | Expected response size: `S`, `M`, `L`, or `XL`. Compared against actual output length.    |
+| `working_dir` | string   | Subdirectory under `evals/working_dirs/` to mount as the container's working directory.   |
+| `setup`       | string   | Shell script to run in the container before the agent executes (e.g., create test files). |
+
+## Scoring Metrics
+
+cagent evaluates agents across four dimensions:
+
+| Metric              | How It's Measured                                                                                                         |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **Tool Calls (F1)** | F1 score between the expected tool call sequence (from the recorded session) and the actual tool calls made by the agent. |
+| **Relevance**       | An LLM judge (configurable via `--judge-model`) evaluates whether each relevance statement is satisfied by the response.  |
+| **Size**            | Whether the response length matches the expected size category (S/M/L/XL).                                                |
+| **Handoffs**        | For multi-agent configs, whether task delegation matched the expected agent handoff pattern.                              |
+
+## Creating Eval Sessions
+
+The easiest way to create eval sessions is from real conversations:
+
+1. Run your agent interactively: `cagent run agent.yaml`
+2. Have a conversation that tests the behavior you care about
+3. Use the `/eval` slash command in the TUI to save the session as an eval file
+4. Edit the generated JSON to add `evals` criteria (relevance, size, etc.)
+
+<div class="callout callout-tip">
+<div class="callout-title">💡 Tip
+</div>
+  <p>Start with tool call scoring (automatic from recorded sessions), then add relevance criteria for the responses you care most about.</p>
+
+</div>
+
+## CLI Flags
+
+```bash
+cagent eval <agent-file>|<registry-ref> [<eval-dir>|./evals]
+```
+
+| Flag                | Default                     | Description                                                       |
+| ------------------- | --------------------------- | ----------------------------------------------------------------- |
+| `-c, --concurrency` | num CPUs                    | Number of concurrent evaluation runs                              |
+| `--judge-model`     | `anthropic/claude-opus-4-5` | Model for LLM-as-a-judge relevance scoring                        |
+| `--output`          | `&lt;eval-dir&gt;/results`  | Directory for results, logs, and session databases                |
+| `--only`            | (all)                       | Only run evals with file names matching these patterns            |
+| `--base-image`      | (default)                   | Custom base Docker image for eval containers                      |
+| `--keep-containers` | `false`                     | Keep containers after evaluation (don't remove with `--rm`)       |
+| `-e, --env`         | (none)                      | Environment variables to pass to container (`KEY` or `KEY=VALUE`) |
+
+## Output
+
+After a run completes, cagent produces:
+
+- **Console summary** — Pass/fail status per eval with metric breakdowns
+- **JSON results** — Full structured results for programmatic analysis
+- **SQLite database** — Complete sessions for detailed investigation and debugging
+- **Sessions JSON** — Exported session data for analysis
+- **Log file** — Debug-level log of the entire evaluation run
+
+<div class="callout callout-tip">
+<div class="callout-title">💡 Debugging Failed Evals
+</div>
+  <p>Use <code>--keep-containers</code> to preserve containers after evaluation. You can then inspect them with <code>docker exec</code> to understand why an eval failed. The session database (<code>.db</code> file) contains the full conversation history for each eval.</p>
+
+</div>
+
+```bash
+$ cagent eval demo.yaml ./evals
+
+  ✓ Counting Files in Local Folder
+    ✓ tool calls  ✓ relevance 2/2
+  ✓ Checking the Content of README.md File
+    ✓ tool calls  ✓ relevance 1/1
+
+Summary: 2/2 passed
+  Sizes:      0/0
+  Tool Calls: avg F1 1.00 (2 evals)
+  Handoffs:   2/2
+  Relevance:  3/3
+
+Sessions DB: ./evals/results/happy-panda-1234.db
+Sessions JSON: ./evals/results/happy-panda-1234-sessions.json
+Log: ./evals/results/happy-panda-1234.log
+```
+
+## Example
+
+Here's a minimal evaluation setup:
+
+```yaml
+# agent.yaml
+agents:
+  root:
+    model: openai/gpt-4o
+    description: Test agent
+    instruction: You know how to read/write and list files.
+    toolsets:
+      - type: filesystem
+```
+
+```bash
+# Create evals from interactive sessions
+$ cagent run agent.yaml
+# ... have conversations, then use /eval to save them
+
+# Run the evaluations
+$ cagent eval agent.yaml ./evals
+```
+
+<div class="callout callout-info">
+<div class="callout-title">ℹ️ See also
+</div>
+  <p>Use <code>/eval</code> in the <a href="/features/tui/">TUI</a> to create eval sessions from conversations. See the <a href="/features/cli/">CLI Reference</a> for all <code>cagent eval</code> flags. Example eval configs are in <a href="https://github.com/docker/cagent/tree/main/examples/eval">examples/eval</a> on GitHub.</p>
+
+</div>

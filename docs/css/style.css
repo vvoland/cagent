@@ -475,13 +475,70 @@ body {
   border-color: var(--border);
 }
 
-/* Prism.js overrides */
+/* Rouge / highlighter-rouge overrides */
 .content pre[class*="language-"],
-.content code[class*="language-"] {
+.content code[class*="language-"],
+.content .highlighter-rouge pre.highlight,
+.content .highlighter-rouge pre.highlight code {
   background: var(--bg-code-block);
   color: #abb2bf;
   text-shadow: none;
 }
+
+/* Ensure rouge wrapper div doesn't add margins */
+.content .highlighter-rouge {
+  margin-bottom: 20px;
+}
+.content .highlighter-rouge .highlight {
+  margin: 0;
+}
+.content .highlighter-rouge pre.highlight {
+  margin: 0;
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  border: 1px solid var(--border);
+  overflow-x: auto;
+  position: relative;
+}
+.content .highlighter-rouge pre.highlight code {
+  padding: 0;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  background: none;
+}
+
+/* Don't style inline code inside code blocks */
+.content .highlighter-rouge code {
+  background: none;
+  color: #abb2bf;
+  padding: 0;
+}
+
+/* Rouge syntax token colors (monokai-inspired, matches dark blocks) */
+.highlight .c, .highlight .c1, .highlight .cm, .highlight .cs { color: #5c6370; font-style: italic; } /* comments */
+.highlight .k, .highlight .kd, .highlight .kn, .highlight .kp, .highlight .kr { color: #c678dd; } /* keywords */
+.highlight .kc { color: #d19a66; } /* keyword constant */
+.highlight .kt { color: #e5c07b; } /* keyword type */
+.highlight .s, .highlight .s1, .highlight .s2, .highlight .sb, .highlight .sc, .highlight .sh { color: #98c379; } /* strings */
+.highlight .na { color: #e06c75; } /* name attribute (yaml keys) */
+.highlight .nb, .highlight .bp { color: #61afef; } /* builtin */
+.highlight .nc, .highlight .nn { color: #e5c07b; } /* class/namespace */
+.highlight .nf, .highlight .fm { color: #61afef; } /* function */
+.highlight .no { color: #d19a66; } /* constant */
+.highlight .ni { color: #abb2bf; } /* entity */
+.highlight .ne { color: #e06c75; } /* exception */
+.highlight .nv, .highlight .vi, .highlight .vc, .highlight .vg { color: #e06c75; } /* variables */
+.highlight .o, .highlight .ow { color: #56b6c2; } /* operator */
+.highlight .p, .highlight .pi { color: #abb2bf; } /* punctuation */
+.highlight .m, .highlight .mi, .highlight .mf, .highlight .mh, .highlight .il { color: #d19a66; } /* numbers */
+.highlight .sr { color: #98c379; } /* regex */
+.highlight .ss { color: #56b6c2; } /* symbol */
+.highlight .nt { color: #e06c75; } /* tag */
+.highlight .err { color: #e06c75; } /* error */
+.highlight .gh { color: #abb2bf; font-weight: bold; } /* heading */
+.highlight .gd { color: #e06c75; } /* diff deleted */
+.highlight .gi { color: #98c379; } /* diff inserted */
+.highlight .w { color: #abb2bf; } /* whitespace */
 
 
 /* ===== Tables ===== */

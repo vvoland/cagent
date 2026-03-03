@@ -1,0 +1,165 @@
+---
+title: "API Server"
+description: "Expose your agents via an HTTP API for programmatic access, web frontends, and integrations."
+permalink: /features/api-server/
+---
+
+# API Server
+
+_Expose your agents via an HTTP API for programmatic access, web frontends, and integrations._
+
+## Overview
+
+The `cagent api` command starts an HTTP server that exposes your agents through a REST-style API with Server-Sent Events (SSE) streaming. Use it to build web UIs, integrate with CI/CD pipelines, or connect agents to other services.
+
+```bash
+# Start the API server
+$ cagent api agent.yaml
+
+# Custom listen address
+$ cagent api agent.yaml --listen 0.0.0.0:8080
+
+# With session persistence
+$ cagent api agent.yaml --session-db ./sessions.db
+
+# Auto-refresh from OCI registry every 10 minutes
+$ cagent api agentcatalog/coder --pull-interval 10
+```
+
+## Endpoints
+
+All endpoints are under the `/api` prefix.
+
+### Agents
+
+| Method | Path              | Description                       |
+| ------ | ----------------- | --------------------------------- |
+| `GET`  | `/api/agents`     | List all available agents         |
+| `GET`  | `/api/agents/:id` | Get an agent's full configuration |
+
+### Sessions
+
+| Method   | Path                                | Description                                         |
+| -------- | ----------------------------------- | --------------------------------------------------- |
+| `GET`    | `/api/sessions`                     | List all sessions                                   |
+| `POST`   | `/api/sessions`                     | Create a new session                                |
+| `GET`    | `/api/sessions/:id`                 | Get a session by ID (messages, tokens, permissions) |
+| `DELETE` | `/api/sessions/:id`                 | Delete a session                                    |
+| `PATCH`  | `/api/sessions/:id/title`           | Update session title                                |
+| `PATCH`  | `/api/sessions/:id/permissions`     | Update session permissions                          |
+| `POST`   | `/api/sessions/:id/resume`          | Resume a paused session (after tool confirmation)   |
+| `POST`   | `/api/sessions/:id/tools/toggle`    | Toggle auto-approve (YOLO) mode                     |
+| `POST`   | `/api/sessions/:id/thinking/toggle` | Toggle thinking/reasoning mode                      |
+| `POST`   | `/api/sessions/:id/elicitation`     | Respond to an MCP tool elicitation request          |
+
+### Agent Execution
+
+| Method | Path                                   | Description                                   |
+| ------ | -------------------------------------- | --------------------------------------------- |
+| `POST` | `/api/sessions/:id/agent/:agent`       | Run the root agent for a session (SSE stream) |
+| `POST` | `/api/sessions/:id/agent/:agent/:name` | Run a specific named agent (SSE stream)       |
+
+### Health
+
+| Method | Path        | Description                               |
+| ------ | ----------- | ----------------------------------------- |
+| `GET`  | `/api/ping` | Health check — returns `{"status": "ok"}` |
+
+## Streaming Responses
+
+The agent execution endpoints (`POST /api/sessions/:id/agent/:agent`) return **Server-Sent Events (SSE)**. Each event is a JSON object representing a runtime event:
+
+```bash
+# Send a message and stream the response
+$ curl -N -X POST http://localhost:8080/api/sessions/$SID/agent/my-agent \
+  -H "Content-Type: application/json" \
+  -d '[{"role": "user", "content": "Hello!"}]'
+
+# Response (SSE stream):
+data: {"type":"stream_started","session_id":"...","agent":"root"}
+data: {"type":"agent_choice","content":"Hello! How","agent":"root"}
+data: {"type":"agent_choice","content":" can I help","agent":"root"}
+data: {"type":"agent_choice","content":" you today?","agent":"root"}
+data: {"type":"stream_stopped","session_id":"...","agent":"root"}
+```
+
+Event types include:
+
+- `stream_started` / `stream_stopped` — Agent execution lifecycle
+- `agent_choice` — Streamed text content (partial responses)
+- `tool_call` — Agent requesting tool execution
+- `tool_call_confirmation` — Tool call waiting for user approval
+- `tool_call_response` — Tool execution result
+- `error` — Error during execution
+
+## Typical Workflow
+
+1. **List agents** — `GET /api/agents` to discover available agents
+2. **Create session** — `POST /api/sessions` to start a conversation
+3. **Send message** — `POST /api/sessions/:id/agent/:agent` with user messages
+4. **Stream response** — Read SSE events as the agent processes
+5. **Handle confirmations** — If a tool call needs approval, `POST /api/sessions/:id/resume`
+6. **Continue** — Send follow-up messages to the same session
+
+```bash
+# 1. List available agents
+$ curl http://localhost:8080/api/agents
+[{"name":"my-agent","multi":false,"description":"A helpful assistant"}]
+
+# 2. Create a session
+$ curl -X POST http://localhost:8080/api/sessions \
+  -H "Content-Type: application/json" -d '{}'
+{"id":"abc-123","title":"","created_at":"..."}
+
+# 3. Run the agent with a message
+$ curl -N -X POST http://localhost:8080/api/sessions/abc-123/agent/my-agent \
+  -H "Content-Type: application/json" \
+  -d '[{"role":"user","content":"What files are in the current directory?"}]'
+```
+
+## CLI Flags
+
+```bash
+cagent api <agent-file>|<agents-dir> [flags]
+```
+
+| Flag               | Default          | Description                                      |
+| ------------------ | ---------------- | ------------------------------------------------ |
+| `-l, --listen`     | `127.0.0.1:8080` | Address to listen on                             |
+| `-s, --session-db` | `session.db`     | Path to the SQLite session database              |
+| `--pull-interval`  | `0` (disabled)   | Auto-pull OCI reference every N minutes          |
+| `--connect-rpc`    | `false`          | Use Connect-RPC protocol instead of HTTP/JSON    |
+| `--fake`           | (none)           | Replay AI responses from cassette file (testing) |
+| `--record`         | (none)           | Record AI API interactions to cassette file      |
+
+<div class="callout callout-tip">
+<div class="callout-title">💡 Multi-agent configs
+</div>
+  <p>You can point <code>cagent api</code> at a directory containing multiple agent YAML files. Each becomes a separate agent accessible via <code>/api/agents</code>. Combine with <code>--pull-interval</code> to auto-refresh agents from an OCI registry.</p>
+
+</div>
+
+## Session Persistence
+
+Sessions are stored in a SQLite database (default: `session.db` in the current directory). This means:
+
+- Sessions survive server restarts
+- Multiple server instances can share a database
+- Use `--session-db` to specify a custom path
+
+## Tool Call Approval
+
+By default, tool calls require approval. In the API workflow:
+
+1. Agent makes a tool call → server emits a `tool_call_confirmation` event
+2. Client reviews and sends `POST /api/sessions/:id/resume` with the decision
+3. Execution continues based on approval/denial
+
+Toggle auto-approve with `POST /api/sessions/:id/tools/toggle` for automated workflows.
+
+<div class="callout callout-info">
+<div class="callout-title">ℹ️ See also
+</div>
+  <p>For interactive use, see the <a href="/features/tui/">Terminal UI</a>. For agent-to-agent communication, see <a href="/features/a2a/">A2A Protocol</a> and <a href="/features/acp/">ACP</a>. For MCP integration, see <a href="/features/mcp-mode/">MCP Mode</a>.</p>
+
+</div>

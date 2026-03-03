@@ -1,0 +1,103 @@
+---
+title: "MCP Mode"
+description: "Expose your cagent agents as MCP tools for use in Claude Desktop, Claude Code, and other MCP-compatible applications."
+permalink: /features/mcp-mode/
+---
+
+# MCP Mode
+
+_Expose your cagent agents as MCP tools for use in Claude Desktop, Claude Code, and other MCP-compatible applications._
+
+## Why MCP Mode?
+
+The `cagent mcp` command makes your agents available to any application that supports the [Model Context Protocol](https://modelcontextprotocol.io/). This means you can:
+
+- Use custom agents directly within **Claude Desktop** or **Claude Code**
+- Share specialized agents across different applications
+- Build reusable agent teams consumable from any MCP client
+- Integrate domain-specific agents into existing workflows
+
+<div class="callout callout-info">
+<div class="callout-title">ℹ️ What is MCP?
+</div>
+  <p>The <a href="https://modelcontextprotocol.io/">Model Context Protocol</a> is an open standard for connecting AI tools. See also <a href="/features/remote-mcp/">Remote MCP Servers</a> for connecting to cloud services.</p>
+
+</div>
+
+## Basic Usage
+
+```bash
+# Expose a local config
+$ cagent mcp ./agent.yaml
+
+# Expose from a registry
+$ cagent mcp agentcatalog/pirate
+
+# Set the working directory
+$ cagent mcp ./agent.yaml --working-dir /path/to/project
+```
+
+## Using with Claude Desktop
+
+Add a configuration to your Claude Desktop MCP settings file:
+
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "myagent": {
+      "command": "/usr/local/bin/cagent",
+      "args": [
+        "mcp",
+        "agentcatalog/coder",
+        "--working-dir",
+        "/home/user/projects"
+      ],
+      "env": {
+        "ANTHROPIC_API_KEY": "your_key_here",
+        "OPENAI_API_KEY": "your_key_here"
+      }
+    }
+  }
+}
+```
+
+Restart Claude Desktop after updating the configuration.
+
+## Using with Claude Code
+
+```bash
+$ claude mcp add --transport stdio myagent \
+  --env OPENAI_API_KEY=$OPENAI_API_KEY \
+  --env ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+  -- cagent mcp agentcatalog/pirate --working-dir $(pwd)
+```
+
+## Multi-Agent in MCP Mode
+
+When you expose a multi-agent configuration via MCP, each agent becomes a separate tool in the MCP client:
+
+```yaml
+agents:
+  root:
+    model: anthropic/claude-sonnet-4-0
+    description: Main coordinator
+    sub_agents: [designer, engineer]
+  designer:
+    model: openai/gpt-5-mini
+    description: UI/UX design specialist
+  engineer:
+    model: anthropic/claude-sonnet-4-0
+    description: Software engineer
+```
+
+All three agents (`root`, `designer`, `engineer`) appear as separate tools in Claude Desktop or Claude Code.
+
+## Troubleshooting
+
+- **Agents not appearing:** Verify the `cagent` binary path and restart the MCP client
+- **Permission errors:** Ensure `cagent` has execute permissions (`chmod +x`)
+- **Missing API keys:** Pass all required keys in the `env` section
+- **Working directory issues:** Verify the `--working-dir` path exists and is accessible

@@ -1,0 +1,139 @@
+---
+title: "Contributing"
+description: "cagent is open source. Here's how to set up your development environment and contribute."
+permalink: /community/contributing/
+---
+
+# Contributing
+
+_cagent is open source. Here's how to set up your development environment and contribute._
+
+## Development Setup
+
+### Prerequisites
+
+- [Go 1.25](https://go.dev/dl/) or higher
+- API key(s) for your chosen AI provider
+- [Task 3.44](https://taskfile.dev/installation/) or higher
+- [golangci-lint](https://golangci-lint.run/docs/welcome/install/#binaries)
+
+<div class="callout callout-info">
+<div class="callout-title">ℹ️ Platform Support
+</div>
+  <p>macOS and Linux are fully supported for development. On Windows, use <code>task build-local</code> to build via Docker.</p>
+
+</div>
+
+### Build from Source
+
+```bash
+# Clone and build
+git clone https://github.com/docker/cagent.git
+cd cagent
+task build
+
+# Set API keys
+export OPENAI_API_KEY=your_key_here
+export ANTHROPIC_API_KEY=your_key_here
+
+# Run an example
+./bin/cagent run examples/code.yaml
+```
+
+### Development Commands
+
+| Command            | Description                                     |
+| ------------------ | ----------------------------------------------- |
+| `task build`       | Build the binary to `./bin/cagent`              |
+| `task test`        | Run all tests (clears API keys for determinism) |
+| `task lint`        | Run golangci-lint                               |
+| `task format`      | Format code                                     |
+| `task dev`         | Run lint, test, and build in sequence           |
+| `task build-local` | Build for local platform via Docker             |
+| `task cross`       | Cross-platform builds (all architectures)       |
+
+## Dogfooding
+
+Use cagent to work on cagent! The project includes a specialized developer agent:
+
+```bash
+cd cagent
+cagent run ./golang_developer.yaml
+```
+
+This agent is an expert Go developer that understands the cagent codebase. Ask it questions, request fixes, or have it implement features.
+
+## Core Concepts
+
+- **Root Agent** — Main entry point that coordinates the system
+- **Sub-Agents** — Specialized agents for specific domains
+- **Tools** — External capabilities via MCP
+- **Models** — AI provider configurations
+
+## Code Style
+
+The project uses `golangci-lint` with strict rules. As long as `task lint` passes, the code is stylistically acceptable.
+
+Key conventions:
+
+- Use `fmt.Errorf("context: %w", err)` for error wrapping
+- Always pass `context.Context` as the first parameter
+- Use `slog` for structured logging
+- Use functional options pattern for constructors
+- In tests: use `t.Context()`, `t.TempDir()`, `t.Setenv()`, and `t.Parallel()`
+
+## Opening Issues
+
+File issues on the [GitHub issue tracker](https://github.com/docker/cagent/issues). Please:
+
+<div class="callout callout-info">
+<div class="callout-title">ℹ️ See also
+</div>
+  <a href="/community/troubleshooting/">Troubleshooting</a> — Common issues and debug mode. <a href="/community/telemetry/">Telemetry</a> — What data is collected and how to opt out.
+
+</div>
+
+- Use the included issue template
+- Search for existing issues before creating new ones
+- Only use issues for bugs and feature requests (not support)
+
+## Submitting Pull Requests
+
+1. **Fork** the repository and create a branch for your changes
+2. **Write** your code following the style and testing guidelines above
+3. **Test** your changes: run `task lint` and `task test`
+4. **Sign** your commits with `git commit -s` (DCO required)
+5. **Open a pull request** against the `main` branch
+
+<div class="callout callout-tip">
+<div class="callout-title">💡 Tip
+</div>
+  <p>Use the dogfooding agent (<code>cagent run ./golang_developer.yaml</code>) to help write and review your changes before submitting.</p>
+
+</div>
+
+## Sign Your Work
+
+All contributions require a Developer Certificate of Origin (DCO) sign-off:
+
+```bash
+# Sign commits automatically
+git config user.name "Your Name"
+git config user.email "your.email@example.com"
+git commit -s -m "Your commit message"
+```
+
+## Community
+
+Find us on [Slack](https://dockercommunity.slack.com/archives/C09DASHHRU4) for questions and discussions.
+
+## Code of Conduct
+
+We want to keep the cagent community welcoming, inclusive, and collaborative. Key guidelines:
+
+- **Be nice** — Be courteous, respectful, and polite. No abuse of any kind will be tolerated.
+- **Encourage diversity** — Make everyone feel welcome regardless of background.
+- **Keep it legal** — Share only content you own and don't break the law.
+- **Stay on topic** — Post to the correct channel and avoid off-topic discussions.
+
+The governance for this repository is handled by Docker Inc.

@@ -1,0 +1,156 @@
+---
+title: "Remote MCP Servers"
+description: "Connect cagent to cloud services via remote MCP servers with built-in OAuth authentication."
+permalink: /features/remote-mcp/
+---
+
+# Remote MCP Servers
+
+_Connect cagent to cloud services via remote MCP servers with built-in OAuth authentication._
+
+## Overview
+
+cagent supports connecting to remote MCP servers over **SSE** (Server-Sent Events) and **Streamable HTTP** transports. Many popular services offer MCP endpoints with OAuth — cagent handles the authentication flow automatically.
+
+```yaml
+toolsets:
+  - type: mcp
+    remote:
+      url: "https://mcp.linear.app/sse"
+      transport_type: "sse"
+```
+
+<div class="callout callout-tip">
+<div class="callout-title">💡 OAuth flow
+</div>
+  <p>When you connect to a remote MCP server that requires OAuth, cagent opens your browser automatically for authentication. Tokens are cached for subsequent sessions.</p>
+
+</div>
+
+## Configuration
+
+```yaml
+toolsets:
+  - type: mcp
+    remote:
+      url: "https://mcp.example.com/sse"
+      transport_type: "sse" # or "streamable"
+      headers:
+        Authorization: "Bearer token" # optional: static auth
+```
+
+For full configuration details, see the [Tool Config](/configuration/tools/) page.
+
+## Project Management &amp; Collaboration
+
+| Service    | URL                                | Transport | Description                           |
+| ---------- | ---------------------------------- | --------- | ------------------------------------- |
+| Asana      | `https://mcp.asana.com/sse`        | sse       | Task and project management           |
+| Atlassian  | `https://mcp.atlassian.com/v1/sse` | sse       | Jira, Confluence integration          |
+| Linear     | `https://mcp.linear.app/sse`       | sse       | Issue tracking and project management |
+| Monday.com | `https://mcp.monday.com/sse`       | sse       | Work management platform              |
+| Intercom   | `https://mcp.intercom.com/sse`     | sse       | Customer communication platform       |
+
+## Development &amp; Infrastructure
+
+| Service                  | URL                                            | Transport  | Description                       |
+| ------------------------ | ---------------------------------------------- | ---------- | --------------------------------- |
+| GitHub                   | `https://api.githubcopilot.com/mcp`            | sse        | Version control and collaboration |
+| Buildkite                | `https://mcp.buildkite.com/mcp`                | streamable | CI/CD platform                    |
+| Netlify                  | `https://netlify-mcp.netlify.app/mcp`          | streamable | Web hosting and deployment        |
+| Vercel                   | `https://mcp.vercel.com/`                      | sse        | Web deployment platform           |
+| Cloudflare Bindings      | `https://bindings.mcp.cloudflare.com/sse`      | sse        | Edge computing resources          |
+| Cloudflare Observability | `https://observability.mcp.cloudflare.com/sse` | sse        | Monitoring and analytics          |
+| Grafbase                 | `https://api.grafbase.com/mcp`                 | streamable | GraphQL backend platform          |
+| Neon                     | `https://mcp.neon.tech/sse`                    | sse        | Serverless Postgres database      |
+| Prisma                   | `https://mcp.prisma.io/mcp`                    | streamable | Database ORM and toolkit          |
+| Sentry                   | `https://mcp.sentry.dev/sse`                   | sse        | Error tracking and monitoring     |
+
+## Content &amp; Media
+
+| Service    | URL                                               | Transport  | Description                       |
+| ---------- | ------------------------------------------------- | ---------- | --------------------------------- |
+| Canva      | `https://mcp.canva.com/mcp`                       | streamable | Design and graphics platform      |
+| Cloudinary | `https://asset-management.mcp.cloudinary.com/sse` | sse        | Media management and optimization |
+| InVideo    | `https://mcp.invideo.io/sse`                      | sse        | Video creation platform           |
+| Webflow    | `https://mcp.webflow.com/sse`                     | sse        | Website builder and CMS           |
+| Wix        | `https://mcp.wix.com/sse`                         | sse        | Website builder platform          |
+| Notion     | `https://mcp.notion.com/sse`                      | sse        | Documentation and knowledge base  |
+
+## Communication &amp; Voice
+
+| Service     | URL                                 | Transport  | Description                 |
+| ----------- | ----------------------------------- | ---------- | --------------------------- |
+| Fireflies   | `https://api.fireflies.ai/mcp`      | streamable | Meeting transcription       |
+| Listenetic  | `https://mcp.listenetic.com/v1/mcp` | streamable | Audio intelligence platform |
+| Carbonvoice | `https://mcp.carbonvoice.app`       | sse        | Voice communication tools   |
+| Telnyx      | `https://api.telnyx.com/v2/mcp`     | streamable | Communications platform     |
+| Dialer      | `https://getdialer.app/sse`         | sse        | Phone communication tools   |
+
+## Storage &amp; File Management
+
+| Service | URL                                 | Transport | Description              |
+| ------- | ----------------------------------- | --------- | ------------------------ |
+| Box     | `https://mcp.box.com`               | sse       | Cloud content management |
+| Egnyte  | `https://mcp-server.egnyte.com/sse` | sse       | Enterprise file sharing  |
+
+## Business &amp; Finance
+
+| Service       | URL                                       | Transport  | Description                |
+| ------------- | ----------------------------------------- | ---------- | -------------------------- |
+| PayPal        | `https://mcp.paypal.com/sse`              | sse        | Payment processing         |
+| Plaid         | `https://api.dashboard.plaid.com/mcp/sse` | sse        | Financial data integration |
+| Square        | `https://mcp.squareup.com/sse`            | sse        | Payment processing         |
+| Close         | `https://mcp.close.com/mcp`               | streamable | CRM platform               |
+| Dodo Payments | `https://mcp.dodopayments.com/sse`        | sse        | Payment processing         |
+
+## Analytics &amp; Data
+
+| Service     | URL                                     | Transport  | Description                    |
+| ----------- | --------------------------------------- | ---------- | ------------------------------ |
+| ThoughtSpot | `https://agent.thoughtspot.app/mcp`     | streamable | Analytics and BI platform      |
+| Meta Ads    | `https://mcp.pipeboard.co/meta-ads-mcp` | streamable | Facebook advertising analytics |
+
+## Utilities &amp; Tools
+
+| Service       | URL                                | Transport  | Description                     |
+| ------------- | ---------------------------------- | ---------- | ------------------------------- |
+| Apify         | `https://mcp.apify.com`            | sse        | Web scraping and automation     |
+| SimpleScraper | `https://mcp.simplescraper.io/mcp` | streamable | Web scraping tool               |
+| GlobalPing    | `https://mcp.globalping.dev/sse`   | sse        | Network diagnostics             |
+| Jam           | `https://mcp.jam.dev/mcp`          | streamable | Bug reporting and collaboration |
+
+## Example: Multi-Service Agent
+
+Combine multiple remote MCP servers in a single agent:
+
+```yaml
+agents:
+  root:
+    model: anthropic/claude-sonnet-4-0
+    instruction: |
+      You help manage projects and deployments.
+    toolsets:
+      - type: mcp
+        remote:
+          url: "https://mcp.linear.app/sse"
+          transport_type: "sse"
+        instruction: Use Linear for issue tracking.
+      - type: mcp
+        remote:
+          url: "https://api.githubcopilot.com/mcp"
+          transport_type: "sse"
+        instruction: Use GitHub for code and PRs.
+      - type: mcp
+        remote:
+          url: "https://mcp.vercel.com/"
+          transport_type: "sse"
+        instruction: Use Vercel for deployments.
+```
+
+<div class="callout callout-info">
+<div class="callout-title">ℹ️ Growing list
+</div>
+  <p>This list is updated as more services add MCP support. If a service you use isn't listed, check their documentation — many providers are adding MCP endpoints regularly.</p>
+
+</div>
