@@ -1144,7 +1144,6 @@ func (s *SQLiteSessionStore) UpdateMessage(ctx context.Context, messageID int64,
 		}
 	}
 
-	slog.Debug("[STORE] UpdateMessage", "message_id", messageID, "role", msg.Message.Role, "agent", msg.AgentName)
 	return nil
 }
 
