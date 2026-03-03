@@ -3,6 +3,45 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.28.0] - 2026-03-03
+
+This release improves authentication debugging, session management, and MCP server reliability, along with UI enhancements to the command palette.
+
+## What's New
+- Adds 'debug auth' command to inspect Docker Desktop JWT with optional JSON output
+- Adds automatic retry functionality for all models, including those without fallbacks
+
+## Improvements
+- Improves MCP server lifecycle with caching and auto-restart capabilities using exponential backoff
+- Sorts command palette actions alphabetically within each group
+- Uses tea.View.ProgressBar instead of raw escape codes for better display
+
+## Bug Fixes
+- Fixes session derailment by preserving user messages during conversation trimming
+- Fixes duplicate Session header in command palette on macOS
+- Fixes mcp/notion not working with OpenAI models by properly walking additionalProperties in schemas
+- Defaults to string type for script tool arguments when type is not specified
+
+## Technical Changes
+- Updates tool filtering documentation
+- Updates CHANGELOG.md for v1.27.1
+- Updates Charm libraries to stable v2.0.0 releases (bubbletea, bubbles, lipgloss)
+
+### Pull Requests
+
+- [#1859](https://github.com/docker/cagent/pull/1859) - Fix script args with DMR
+- [#1861](https://github.com/docker/cagent/pull/1861) - Add 'debug auth' command to inspect Docker Desktop JWT
+- [#1862](https://github.com/docker/cagent/pull/1862) - docs: update CHANGELOG.md for v1.27.1
+- [#1863](https://github.com/docker/cagent/pull/1863) - fix(#1863): preserve user messages in trimMessages to prevent session derailment
+- [#1864](https://github.com/docker/cagent/pull/1864) - fix(#1863): preserve user messages in trimMessages to prevent session derailment
+- [#1871](https://github.com/docker/cagent/pull/1871) - Fix `mcp/notion` not working with OpenAI models
+- [#1872](https://github.com/docker/cagent/pull/1872) - Improve MCP server lifecycle: caching and auto-restart
+- [#1874](https://github.com/docker/cagent/pull/1874) - Improve tool filtering doc
+- [#1876](https://github.com/docker/cagent/pull/1876) - Bump dependencies
+- [#1877](https://github.com/docker/cagent/pull/1877) - Improve Commands dialog
+- [#1886](https://github.com/docker/cagent/pull/1886) - Add retries even for models without fallbacks
+
+
 ## [v1.27.1] - 2026-02-26
 
 This release improves the user interface experience with better message editing capabilities and fixes several issues with token usage tracking and session loading.
@@ -813,3 +852,5 @@ This release improves the terminal user interface with better error handling and
 [v1.27.0]: https://github.com/docker/cagent/releases/tag/v1.27.0
 
 [v1.27.1]: https://github.com/docker/cagent/releases/tag/v1.27.1
+
+[v1.28.0]: https://github.com/docker/cagent/releases/tag/v1.28.0
