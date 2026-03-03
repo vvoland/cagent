@@ -88,6 +88,10 @@ tasks:
     desc: Build and Push Docker image
     cmd: docker buildx build --push --platform linux/amd64,linux/arm64 -t docker/cagent -t docker/docker-agent  {{.BUILD_ARGS}} .
 
+  build-sandbox-template:
+    desc: Build a sandbox template with the local cagent binary
+    cmd: docker buildx build --target=sandbox-template -t cagent-dev {{.BUILD_ARGS}} --load .
+
   record-demo:
     desc: Record demo gif
     cmd: vhs ./docs/recordings/demo.tape

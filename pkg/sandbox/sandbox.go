@@ -1,0 +1,237 @@
+// Package sandbox provides Docker sandbox lifecycle management including
+// creation, detection, argument building, and environment forwarding.
+package sandbox
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log/slog"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"slices"
+	"strings"
+	"time"
+
+	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/cagent/pkg/environment"
+)
+
+// CheckAvailable returns a user-friendly error when Docker is not
+// installed or the sandbox feature is not supported.
+func CheckAvailable(ctx context.Context) error {
+	if _, err := exec.LookPath("docker"); err != nil {
+		return fmt.Errorf("--sandbox requires Docker Desktop: %w\n\nInstall Docker Desktop from https://docs.docker.com/get-docker/", err)
+	}
+
+	if err := exec.CommandContext(ctx, "docker", "sandbox", "version").Run(); err != nil {
+		return fmt.Errorf(
+			"--sandbox requires Docker Desktop with sandbox support\n\n" +
+				"Make sure Docker Desktop is running and up to date.\n" +
+				"For more information, see https://docs.docker.com/ai/sandboxes/")
+	}
+
+	return nil
+}
+
+// Existing holds the name and workspaces of an existing Docker sandbox.
+type Existing struct {
+	Name       string   `json:"name"`
+	Workspaces []string `json:"workspaces"`
+}
+
+// HasWorkspace reports whether the sandbox has dir mounted as a workspace.
+func (s *Existing) HasWorkspace(dir string) bool {
+	return slices.ContainsFunc(s.Workspaces, func(ws string) bool {
+		// Workspaces may have a ":ro" suffix.
+		return strings.TrimSuffix(ws, ":ro") == dir
+	})
+}
+
+// ForWorkspace returns the existing sandbox whose primary workspace
+// matches wd, or nil if none exists.
+func ForWorkspace(ctx context.Context, wd string) *Existing {
+	out, err := exec.CommandContext(ctx, "docker", "sandbox", "ls", "--json").Output()
+	if err != nil {
+		return nil
+	}
+
+	var result struct {
+		VMs []Existing `json:"vms"`
+	}
+	if err := json.Unmarshal(out, &result); err != nil {
+		return nil
+	}
+
+	for _, vm := range result.VMs {
+		if len(vm.Workspaces) > 0 && vm.Workspaces[0] == wd {
+			return &vm
+		}
+	}
+	return nil
+}
+
+// Ensure makes sure a sandbox exists for the given workspace,
+// creating or recreating it as needed. When template is non-empty it is
+// passed to `docker sandbox create -t`. Returns the sandbox name.
+func Ensure(ctx context.Context, wd, extra, template, configDir string) (string, error) {
+	// Resolve wd to an absolute path so that it matches the absolute
+	// workspace paths returned by `docker sandbox ls --json`.
+	absWd, err := filepath.Abs(wd)
+	if err != nil {
+		return "", fmt.Errorf("resolving workspace path: %w", err)
+	}
+	wd = absWd
+
+	existing := ForWorkspace(ctx, wd)
+
+	// If the sandbox exists with the right mounts, reuse it.
+	if existing != nil &&
+		(extra == "" || existing.HasWorkspace(extra)) &&
+		existing.HasWorkspace(configDir) {
+		slog.Debug("Reusing existing sandbox", "name", existing.Name)
+		return existing.Name, nil
+	}
+
+	// Remove a stale sandbox whose mounts don't match.
+	if existing != nil {
+		slog.Debug("Removing existing sandbox to change workspace mounts", "name", existing.Name)
+		_ = exec.CommandContext(ctx, "docker", "sandbox", "rm", existing.Name).Run()
+	}
+
+	// docker sandbox create [-t template] cagent <wd> [<extra>:ro] <dataDir> <configDir>
+	createArgs := []string{"sandbox", "create"}
+	if template != "" {
+		createArgs = append(createArgs, "-t", template)
+	}
+	createArgs = append(createArgs, "cagent", wd)
+	if extra != "" {
+		createArgs = append(createArgs, extra+":ro")
+	}
+	// Mount config directory read-only so the sandbox can
+	// read the token file and access user config.
+	createArgs = append(createArgs, configDir+":ro")
+	slog.Debug("Creating sandbox", "args", createArgs)
+
+	createCmd := exec.CommandContext(ctx, "docker", createArgs...)
+	createCmd.Stdin = os.Stdin
+	createCmd.Stdout = os.Stdout
+	createCmd.Stderr = os.Stderr
+
+	if err := createCmd.Run(); err != nil {
+		return "", fmt.Errorf("docker sandbox create failed: %w", err)
+	}
+
+	// Read back the sandbox name that was just created.
+	created := ForWorkspace(ctx, wd)
+	if created == nil {
+		return "", fmt.Errorf("sandbox was created but could not be found")
+	}
+
+	return created.Name, nil
+}
+
+// BuildExecCmd assembles the `docker sandbox exec` command.
+func BuildExecCmd(ctx context.Context, name string, cagentArgs, envFlags, envVars []string) *exec.Cmd {
+	execArgs := []string{"sandbox", "exec", "-it"}
+	execArgs = append(execArgs, envFlags...)
+	execArgs = append(execArgs, name, "cagent", "run")
+	execArgs = append(execArgs, cagentArgs...)
+
+	dockerCmd := exec.CommandContext(ctx, "docker", execArgs...)
+	dockerCmd.Stdin = os.Stdin
+	dockerCmd.Stdout = os.Stdout
+	dockerCmd.Stderr = os.Stderr
+	dockerCmd.Env = append(os.Environ(), envVars...)
+
+	return dockerCmd
+}
+
+// StartTokenWriterIfNeeded starts a background goroutine that refreshes
+// DOCKER_TOKEN into a shared file when a models gateway is configured.
+// Returns a stop function that is safe to call multiple times (and is a
+// no-op when no writer was started).
+func StartTokenWriterIfNeeded(ctx context.Context, dir, modelsGateway string) func() {
+	if modelsGateway == "" {
+		return func() {}
+	}
+
+	tokenPath := environment.SandboxTokensFilePath(dir)
+	w := environment.NewSandboxTokenWriter(
+		tokenPath,
+		environment.NewDockerDesktopProvider(),
+		time.Minute,
+	)
+	w.Start(ctx)
+
+	return w.Stop
+}
+
+// proxyManagedEnvVars lists the environment variables that Docker Desktop
+// automatically proxies into sandboxes. We don't need to forward these.
+var proxyManagedEnvVars = []string{
+	"OPENAI_API_KEY",
+	"ANTHROPIC_API_KEY",
+	"GOOGLE_API_KEY",
+	"MISTRAL_API_KEY",
+	"XAI_API_KEY",
+	"NEBIUS_API_KEY",
+}
+
+// EnvForAgent loads the agent config and gathers the environment
+// variables it requires. It returns:
+//   - flags: `-e KEY` args for docker sandbox exec (name only, no value)
+//   - envVars: `KEY=VALUE` entries to set on the exec process environment
+//
+// Variables that Docker Desktop already proxies are skipped.
+func EnvForAgent(ctx context.Context, agentRef string, env environment.Provider) (flags, envVars []string) {
+	if agentRef == "" {
+		return nil, nil
+	}
+
+	names, err := gatherAgentEnvVars(ctx, agentRef, env)
+	if err != nil {
+		slog.Debug("Failed to gather agent env vars for sandbox", "error", err)
+		return nil, nil
+	}
+
+	for _, name := range names {
+		if slices.Contains(proxyManagedEnvVars, name) {
+			continue
+		}
+		val, ok := env.Get(ctx, name)
+		if !ok || val == "" {
+			continue
+		}
+		flags = append(flags, "-e", name)
+		envVars = append(envVars, name+"="+val)
+	}
+
+	return flags, envVars
+}
+
+// gatherAgentEnvVars resolves the agent config and returns the list of
+// environment variable names required by its models and tools.
+func gatherAgentEnvVars(ctx context.Context, agentRef string, env environment.Provider) ([]string, error) {
+	source, err := config.Resolve(agentRef, env)
+	if err != nil {
+		return nil, fmt.Errorf("resolving agent: %w", err)
+	}
+
+	cfg, err := config.Load(ctx, source)
+	if err != nil {
+		return nil, fmt.Errorf("loading agent config: %w", err)
+	}
+
+	var names []string
+	names = append(names, config.GatherEnvVarsForModels(cfg)...)
+
+	toolNames, err := config.GatherEnvVarsForTools(ctx, cfg)
+	if err != nil {
+		slog.Debug("Failed to gather tool env vars", "error", err)
+	}
+	names = append(names, toolNames...)
+
+	return names, nil
+}
