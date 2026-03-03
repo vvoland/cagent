@@ -180,6 +180,7 @@ func (m *model) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case messages.StreamCancelledMsg:
 		m.removeSpinner()
 		m.removePendingToolCallMessages()
+		m.stopReasoningBlockAnimations()
 		return m, nil
 
 	case tea.WindowSizeMsg:
@@ -1515,6 +1516,22 @@ func (m *model) RemoveSpinner() {
 	m.removeSpinner()
 }
 
+// animationStopper is implemented by views that register with the animation coordinator.
+// When a view is removed from the UI, StopAnimation must be called to unregister
+// its animation subscription and prevent leaked ticks.
+type animationStopper interface {
+	StopAnimation()
+}
+
+// stopViewAnimation stops animation subscriptions for a view being removed.
+// This prevents animation tick leaks when views with active spinners are
+// removed from the message list (e.g., on stream cancellation via ESC).
+func stopViewAnimation(view layout.Model) {
+	if stopper, ok := view.(animationStopper); ok {
+		stopper.StopAnimation()
+	}
+}
+
 func (m *model) removeSpinner() {
 	if len(m.messages) == 0 {
 		return
@@ -1522,10 +1539,12 @@ func (m *model) removeSpinner() {
 
 	lastIdx := len(m.messages) - 1
 	if m.messages[lastIdx].Type == types.MessageTypeSpinner {
-		m.messages = m.messages[:lastIdx]
-		if len(m.views) > lastIdx {
+		// Stop any animation subscriptions before removing the view
+		if lastIdx < len(m.views) {
+			stopViewAnimation(m.views[lastIdx])
 			m.views = m.views[:lastIdx]
 		}
+		m.messages = m.messages[:lastIdx]
 		m.invalidateAllItems()
 	}
 }
@@ -1537,6 +1556,10 @@ func (m *model) removePendingToolCallMessages() {
 	for i, msg := range m.messages {
 		if msg.Type == types.MessageTypeToolCall &&
 			(msg.ToolStatus == types.ToolStatusPending || msg.ToolStatus == types.ToolStatusRunning) {
+			// Stop any animation subscriptions before removing the view
+			if i < len(m.views) {
+				stopViewAnimation(m.views[i])
+			}
 			continue
 		}
 
@@ -1550,6 +1573,23 @@ func (m *model) removePendingToolCallMessages() {
 		m.messages = toolCallMessages
 		m.views = views
 		m.invalidateAllItems()
+	}
+}
+
+// stopReasoningBlockAnimations stops spinner animations in reasoning blocks
+// that have in-progress tool calls. Called on stream cancellation to prevent
+// spinners from running indefinitely after ESC is pressed.
+func (m *model) stopReasoningBlockAnimations() {
+	for i, msg := range m.messages {
+		if msg.Type != types.MessageTypeAssistantReasoningBlock || i >= len(m.views) {
+			continue
+		}
+		block, ok := m.views[i].(*reasoningblock.Model)
+		if !ok {
+			continue
+		}
+		block.StopAnimation()
+		m.invalidateItem(i)
 	}
 }
 

@@ -136,6 +136,15 @@ func (b *Base) CollapsedView() string {
 	return b.View()
 }
 
+// StopAnimation stops the spinner animation and unregisters from the animation coordinator.
+// This must be called when the view is removed from the UI to avoid leaked animation subscriptions.
+func (b *Base) StopAnimation() {
+	if b.spinnerRegistered {
+		b.spinnerRegistered = false
+		b.spinner.Stop()
+	}
+}
+
 func (b *Base) isSpinnerActive() bool {
 	return b.message.ToolStatus == types.ToolStatusPending ||
 		b.message.ToolStatus == types.ToolStatusRunning
