@@ -667,6 +667,31 @@ func (m *Model) renderReasoningPreviewWithTruncationInfo() (string, bool) {
 	return m.messageStyle().Render(preview), reasoningTruncated
 }
 
+// StopAnimation stops all animation subscriptions for this reasoning block.
+// This must be called when the block is removed from the UI to avoid leaked animation subscriptions.
+func (m *Model) StopAnimation() {
+	// Stop the block's own fade animation registration
+	if m.animationRegistered {
+		m.animationRegistered = false
+		animation.Unregister()
+	}
+	// Stop spinners in all tool entries
+	for _, entry := range m.toolEntries {
+		stopViewAnimation(entry.view)
+	}
+}
+
+// stopViewAnimation stops animation subscriptions for a view being removed.
+type animationStopper interface {
+	StopAnimation()
+}
+
+func stopViewAnimation(view layout.Model) {
+	if stopper, ok := view.(animationStopper); ok {
+		stopper.StopAnimation()
+	}
+}
+
 // IsHeaderLine returns true if the given line index is the header (line 0).
 func (m *Model) IsHeaderLine(lineIdx int) bool {
 	return lineIdx == 0

@@ -210,6 +210,14 @@ func (mv *messageModel) Message() *types.Message {
 
 // Layout.Sizeable methods
 
+// StopAnimation stops the spinner animation and unregisters from the animation coordinator.
+// This must be called when the view is removed from the UI to avoid leaked animation subscriptions.
+func (mv *messageModel) StopAnimation() {
+	if mv.message.Type == types.MessageTypeSpinner || mv.message.Type == types.MessageTypeLoading {
+		mv.spinner.Stop()
+	}
+}
+
 // SetSize sets the dimensions of the message view
 func (mv *messageModel) SetSize(width, height int) tea.Cmd {
 	mv.width = width

@@ -184,6 +184,7 @@ func (p *chatPage) handleTokenUsage(msg *runtime.TokenUsageEvent) {
 func (p *chatPage) handleStreamStarted(msg *runtime.StreamStartedEvent) tea.Cmd {
 	slog.Debug("handleStreamStarted called", "agent", msg.AgentName, "session_id", msg.SessionID)
 	p.streamCancelled = false
+	p.streamDepth++
 	spinnerCmd := p.setWorking(true)
 	pendingCmd := p.setPendingResponse(true)
 	sidebarCmd := p.forwardToSidebar(msg)
@@ -214,20 +215,30 @@ func (p *chatPage) handleStreamStopped(msg *runtime.StreamStoppedEvent) tea.Cmd 
 		"agent", msg.AgentName,
 		"session_id", msg.SessionID,
 		"should_exit", p.app.ShouldExitAfterFirstResponse(),
-		"has_content", p.hasReceivedAssistantContent)
-	spinnerCmd := p.setWorking(false)
-	p.setPendingResponse(false)
-	if p.msgCancel != nil {
-		p.msgCancel = nil
+		"has_content", p.hasReceivedAssistantContent,
+		"stream_depth", p.streamDepth)
+
+	if p.streamDepth > 0 {
+		p.streamDepth--
 	}
-	p.streamCancelled = false
+
 	sidebarCmd := p.forwardToSidebar(msg)
 
-	// Check if there are queued messages to process
+	// Sub-agent stream stopped — the parent is still running, so only
+	// forward to the sidebar and keep the working/cancel state intact.
+	// Without this guard, pressing Esc after a sub-agent completes but
+	// while the parent continues would have no effect.
+	if p.streamDepth > 0 {
+		return tea.Batch(p.messages.ScrollToBottom(), sidebarCmd)
+	}
+
+	// Outermost stream stopped — fully clean up.
+	p.msgCancel = nil
+	p.streamCancelled = false
+	spinnerCmd := p.setWorking(false)
+	p.setPendingResponse(false)
 	queueCmd := p.processNextQueuedMessage()
 
-	// Check if we should exit after this response
-	// Only exit if we've actually received assistant content (not just on any stream stop)
 	var exitCmd tea.Cmd
 	if p.app.ShouldExitAfterFirstResponse() && p.hasReceivedAssistantContent {
 		slog.Debug("Exit after first response triggered, scheduling delayed exit")

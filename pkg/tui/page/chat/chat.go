@@ -143,6 +143,7 @@ type chatPage struct {
 
 	msgCancel       context.CancelFunc
 	streamCancelled bool
+	streamDepth     int // nesting depth of active streams (incremented on StreamStarted, decremented on StreamStopped)
 
 	// Track whether we've received content from an assistant response
 	// Used by --exit-after-response to ensure we don't exit before receiving content
@@ -609,6 +610,7 @@ func (p *chatPage) cancelStream(showCancelMessage bool) tea.Cmd {
 	p.msgCancel()
 	p.msgCancel = nil
 	p.streamCancelled = true
+	p.streamDepth = 0
 	p.setPendingResponse(false)
 	// Send StreamCancelledMsg to all components to handle cleanup
 	return tea.Batch(
@@ -838,6 +840,8 @@ func (p *chatPage) processMessage(msg msgtypes.SendMsg) tea.Cmd {
 	if p.msgCancel != nil {
 		p.msgCancel()
 	}
+
+	p.streamDepth = 0
 
 	var ctx context.Context
 	ctx, p.msgCancel = context.WithCancel(context.Background())
