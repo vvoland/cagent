@@ -1,0 +1,118 @@
+---
+title: "Models"
+description: "Models are the AI brains behind your agents. cagent supports multiple providers and flexible configuration."
+permalink: /concepts/models/
+---
+
+# Models
+
+_Models are the AI brains behind your agents. cagent supports multiple providers and flexible configuration._
+
+## Inline vs. Named Models
+
+There are two ways to assign a model to an agent:
+
+### Inline (Quick)
+
+Use the `provider/model` shorthand directly in the agent definition:
+
+```yaml
+agents:
+  root:
+    model: openai/gpt-4o
+    instruction: You are a helpful assistant.
+```
+
+### Named (Full Control)
+
+Define models in a `models` section and reference them by name:
+
+```yaml
+models:
+  claude:
+    provider: anthropic
+    model: claude-sonnet-4-0
+    max_tokens: 64000
+    temperature: 0.7
+
+agents:
+  root:
+    model: claude
+    instruction: You are a helpful assistant.
+```
+
+Named models let you configure temperature, token limits, thinking budgets, and other parameters. They're also reusable across multiple agents.
+
+## Supported Providers
+
+| Provider            | Key              | Example Models                       | API Key Env Var     |
+| ------------------- | ---------------- | ------------------------------------ | ------------------- |
+| OpenAI              | `openai`         | gpt-4o, gpt-5, gpt-5-mini            | `OPENAI_API_KEY`    |
+| Anthropic           | `anthropic`      | claude-sonnet-4-0, claude-sonnet-4-5 | `ANTHROPIC_API_KEY` |
+| Google              | `google`         | gemini-2.5-flash, gemini-3-pro       | `GOOGLE_API_KEY`    |
+| AWS Bedrock         | `amazon-bedrock` | Claude, Nova, Llama models           | AWS credentials     |
+| Docker Model Runner | `dmr`            | ai/qwen3, ai/llama3.2                | None (local)        |
+| Mistral             | `mistral`        | Mistral models                       | `MISTRAL_API_KEY`   |
+| xAI                 | `xai`            | Grok models                          | `XAI_API_KEY`       |
+
+See the [Model Providers](/providers/overview/) section for detailed configuration guides.
+
+## Model Properties
+
+| Property            | Type       | Description                                       |
+| ------------------- | ---------- | ------------------------------------------------- |
+| `provider`          | string     | Provider identifier (required)                    |
+| `model`             | string     | Model name (required)                             |
+| `temperature`       | float      | Randomness: 0.0 (deterministic) to 1.0 (creative) |
+| `max_tokens`        | int        | Maximum response length                           |
+| `top_p`             | float      | Nucleus sampling: 0.0 to 1.0                      |
+| `frequency_penalty` | float      | Reduce repetition: 0.0 to 2.0                     |
+| `presence_penalty`  | float      | Encourage topic diversity: 0.0 to 2.0             |
+| `base_url`          | string     | Custom API endpoint                               |
+| `thinking_budget`   | string/int | Reasoning effort configuration                    |
+| `provider_opts`     | object     | Provider-specific options                         |
+
+## Reasoning / Thinking Budget
+
+Control how much the model "thinks" before responding:
+
+| Provider   | Format     | Values                                | Default      |
+| ---------- | ---------- | ------------------------------------- | ------------ |
+| OpenAI     | string     | `minimal`, `low`, `medium`, `high`    | `medium`     |
+| Anthropic  | int        | 1024–32768 tokens                     | 8192         |
+| Gemini 2.5 | int        | 0 (off), -1 (dynamic), or token count | -1 (dynamic) |
+| Gemini 3   | string     | `minimal`, `low`, `medium`, `high`    | varies       |
+| All        | string/int | `none` or `0` to disable              | —            |
+
+```yaml
+models:
+  deep-thinker:
+    provider: anthropic
+    model: claude-sonnet-4-5
+    thinking_budget: 16384
+
+  fast-responder:
+    provider: openai
+    model: gpt-5-mini
+    thinking_budget: none # disable thinking
+```
+
+<div class="callout callout-info">
+<div class="callout-title">ℹ️ Multi-provider teams
+</div>
+  <p>Different agents can use different providers in the same config. See <a href="/concepts/multi-agent/">Multi-Agent</a> for patterns.</p>
+
+</div>
+
+## Alloy Models
+
+"Alloy models" let you use more than one model in the same conversation — cagent alternates between them to leverage the strengths of each:
+
+```yaml
+agents:
+  root:
+    model: anthropic/claude-sonnet-4-0,openai/gpt-5-mini
+    instruction: You are a helpful assistant.
+```
+
+Read more about the alloy model concept at [xbow.com/blog/alloy-agents](https://xbow.com/blog/alloy-agents).

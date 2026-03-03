@@ -1,0 +1,400 @@
+---
+title: "Tips & Best Practices"
+description: "Expert guidance for building effective, efficient, and secure agents."
+permalink: /guides/tips/
+---
+
+# Tips & Best Practices
+
+_Expert guidance for building effective, efficient, and secure agents._
+
+## Configuration Tips
+
+### Auto Mode for Quick Start
+
+Don't have a config file? cagent can automatically detect your available API keys and use an appropriate model:
+
+```bash
+# Automatically uses the best available provider
+cagent run
+
+# Provider priority: OpenAI → Anthropic → Google → Mistral → DMR
+```
+
+The special `auto` model value also works in configs:
+
+```yaml
+agents:
+  root:
+    model: auto # Uses best available provider
+    description: Adaptive assistant
+    instruction: You are a helpful assistant.
+```
+
+### Environment Variable Interpolation
+
+Commands support JavaScript template literal syntax for environment variables:
+
+```yaml
+agents:
+  root:
+    model: openai/gpt-4o
+    description: Deployment assistant
+    instruction: You help with deployments.
+    commands:
+      # Simple variable
+      greet: "Hello ${env.USER}!"
+
+      # With default value
+      deploy: "Deploy to ${env.ENV || 'staging'}"
+
+      # Multiple variables
+      release: "Release ${env.PROJECT} v${env.VERSION || '1.0.0'}"
+```
+
+### Model Aliases Are Auto-Pinned
+
+cagent automatically resolves model aliases to their latest pinned versions. This ensures reproducible behavior:
+
+```yaml
+# You write:
+model: anthropic/claude-sonnet-4-5
+
+# cagent resolves to:
+# anthropic/claude-sonnet-4-5-20250929 (or latest available)
+```
+
+To use a specific version, specify it explicitly in your config.
+
+## Performance Tips
+
+### Defer Tools for Faster Startup
+
+Large MCP toolsets can slow down agent startup. Use `defer` to load tools on-demand:
+
+```yaml
+agents:
+  root:
+    model: openai/gpt-4o
+    description: Multi-tool assistant
+    instruction: You have many tools available.
+    toolsets:
+      - type: mcp
+        ref: docker:github-official
+        defer: true
+      - type: mcp
+        ref: docker:slack
+        defer: true
+      - type: mcp
+        ref: docker:linear
+        defer: true
+```
+
+Or defer specific tools within a toolset:
+
+```yaml
+toolsets:
+  - type: mcp
+    ref: docker:github-official
+    defer:
+      - "list_issues"
+      - "search_repos"
+  - type: mcp
+    ref: docker:slack
+    defer:
+      - "list_channels"
+```
+
+### Filter MCP Tools
+
+Many MCP servers expose dozens of tools. Filter to only what you need:
+
+```yaml
+toolsets:
+  - type: mcp
+    ref: docker:github-official
+    # Only expose these specific tools
+    tools:
+      - list_issues
+      - create_issue
+      - get_pull_request
+      - create_pull_request
+```
+
+Fewer tools means faster tool selection and less confusion for the model.
+
+### Set max_iterations
+
+Always set `max_iterations` for agents with powerful tools to prevent infinite loops:
+
+```yaml
+agents:
+  developer:
+    model: anthropic/claude-sonnet-4-0
+    description: Development assistant
+    instruction: You are a developer.
+    max_iterations: 30 # Reasonable limit for development tasks
+    toolsets:
+      - type: filesystem
+      - type: shell
+```
+
+Typical values: 20-30 for development agents, 10-15 for simple tasks.
+
+## Reliability Tips
+
+### Use Fallback Models
+
+Configure fallback models for resilience against provider outages or rate limits:
+
+```yaml
+agents:
+  root:
+    model: anthropic/claude-sonnet-4-0
+    description: Reliable assistant
+    instruction: You are a helpful assistant.
+    fallback:
+      models:
+        # Different provider for resilience
+        - openai/gpt-4o
+        # Cheaper model as last resort
+        - openai/gpt-4o-mini
+      retries: 2 # Retry 5xx errors twice
+      cooldown: 1m # Stick with fallback for 1 min after rate limit
+```
+
+**Best practices for fallback chains:**
+
+- Use different providers for true redundancy
+- Order by preference (best first)
+- Include a cheaper/faster model as last resort
+
+### Use Think Tool for Complex Tasks
+
+The `think` tool dramatically improves reasoning quality with minimal overhead:
+
+```yaml
+toolsets:
+  - type: think # Always include for complex agents
+```
+
+The agent uses it as a scratchpad for planning and decision-making.
+
+## Security Tips
+
+### Use --yolo Mode Carefully
+
+The `--yolo` flag auto-approves all tool calls without confirmation:
+
+```bash
+# Auto-approve everything (use with caution!)
+cagent run agent.yaml --yolo
+```
+
+**When it's appropriate:**
+
+- CI/CD pipelines with controlled inputs
+- Automated testing
+- Agents with only safe, read-only tools
+
+**When to avoid:**
+
+- Interactive sessions with untested prompts
+- Agents with shell or filesystem write access
+- Any situation where unreviewed actions could cause harm
+
+### Combine Permissions with Sandbox
+
+For defense in depth, use both permissions and sandbox mode:
+
+```yaml
+agents:
+  secure_dev:
+    model: anthropic/claude-sonnet-4-0
+    description: Secure development assistant
+    instruction: You are a secure coding assistant.
+    toolsets:
+      - type: filesystem
+      - type: shell
+        sandbox:
+          image: golang:1.23-alpine
+          paths:
+            - ".:rw"
+
+permissions:
+  allow:
+    - "read_*"
+    - "shell:cmd=go*"
+    - "shell:cmd=npm*"
+  deny:
+    - "shell:cmd=sudo*"
+    - "shell:cmd=rm*-rf*"
+```
+
+### Use Hooks for Audit Logging
+
+Log all tool calls for compliance or debugging:
+
+```yaml
+agents:
+  audited:
+    model: openai/gpt-4o
+    description: Audited assistant
+    instruction: You are a helpful assistant.
+    hooks:
+      post_tool_use:
+        - matcher: "*"
+          hooks:
+            - type: command
+              command: "./scripts/audit-log.sh"
+```
+
+## Multi-Agent Tips
+
+### Handoffs vs Sub-Agents
+
+Understand the difference between `sub_agents` and `handoffs`:
+
+<div class="cards">
+  <div class="card" style="cursor:default;">
+    <h3>sub_agents (transfer_task)</h3>
+    <p>Delegates task to a child, waits for result, then continues. The parent remains in control.</p>
+    <pre style="margin-top:12px"><code class="language-yaml">sub_agents: [researcher, writer]</code></pre>
+  </div>
+  <div class="card" style="cursor:default;">
+    <h3>handoffs (A2A)</h3>
+    <p>Transfers control entirely to another agent (possibly remote). One-way handoff.</p>
+    <pre style="margin-top:12px"><code class="language-yaml">handoffs:
+  - name: specialist
+    url: http://...</code></pre>
+  </div>
+</div>
+
+### Give Sub-Agents Clear Descriptions
+
+The root agent uses descriptions to decide which sub-agent to delegate to:
+
+```yaml
+agents:
+  root:
+    model: anthropic/claude-sonnet-4-0
+    description: Technical lead
+    instruction: Delegate to specialists based on the task.
+    sub_agents: [frontend, backend, devops]
+
+  frontend:
+    model: openai/gpt-4o
+    # Good: specific and actionable
+    description: |
+      Frontend specialist. Handles React, TypeScript, CSS, 
+      UI components, and browser-related issues.
+
+  backend:
+    model: openai/gpt-4o
+    # Good: clear domain boundaries
+    description: |
+      Backend specialist. Handles APIs, databases, 
+      server logic, and Go/Python code.
+
+  devops:
+    model: openai/gpt-4o
+    description: |
+      DevOps specialist. Handles CI/CD, Docker, Kubernetes,
+      infrastructure, and deployment pipelines.
+```
+
+## Debugging Tips
+
+### Enable Debug Logging
+
+Use the `--debug` flag to see detailed execution logs:
+
+```bash
+# Default log location: ~/.cagent/cagent.debug.log
+cagent run agent.yaml --debug
+
+# Custom log location
+cagent run agent.yaml --debug --log-file ./debug.log
+```
+
+### Check Token Usage
+
+Use the `/usage` command during a session to see token consumption:
+
+```text
+/usage
+
+Token Usage:
+  Input:  12,456 tokens
+  Output:  3,789 tokens
+  Total:  16,245 tokens
+```
+
+### Compact Long Sessions
+
+If a session gets too long, use `/compact` to summarize and reduce context:
+
+```text
+/compact
+
+Session compacted. Summary generated and history trimmed.
+```
+
+## More Tips
+
+### User-Defined Default Model
+
+Set your preferred default model in `~/.config/cagent/config.yaml`:
+
+```yaml
+settings:
+  default_model: anthropic/claude-sonnet-4-0
+```
+
+This model is used when you run `cagent run` without a config file.
+
+### GitHub PR Reviewer Example
+
+Use cagent as a GitHub Actions PR reviewer:
+
+```yaml
+# .github/workflows/pr-review.yml
+name: PR Review
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run cagent review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Install cagent
+          curl -fsSL https://get.cagent.dev | sh
+
+          # Run the review
+          cagent run --exec reviewer.yaml --yolo \
+            "Review PR #${{ github.event.pull_request.number }}"
+```
+
+With a simple reviewer agent:
+
+```yaml
+# reviewer.yaml
+agents:
+  root:
+    model: anthropic/claude-sonnet-4-0
+    description: PR reviewer
+    instruction: |
+      Review pull requests for code quality, bugs, and security issues.
+      Be constructive and specific in your feedback.
+    toolsets:
+      - type: mcp
+        ref: docker:github-official
+      - type: think
+```
