@@ -3,6 +3,49 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.28.1] - 2026-03-03
+
+This release adds image support for AI agents, improves cross-platform compatibility, and includes various stability fixes.
+
+## What's New
+- Adds image support to read_file tool and MCP tool results, allowing agents to view and describe images
+- Adds content-based MIME detection and automatic image resizing for vision capabilities
+- Strips image content for text-only models using model capabilities detection
+
+## Improvements
+- Reduces builtin tool prompt lengths while preserving key examples for better performance
+- Skips hidden directories in recursive skill loading to avoid walking large trees like .git and .node_modules
+- Only uses insecure TLS for localhost OTLP endpoints for better security
+
+## Bug Fixes
+- Fixes Esc key not interrupting sub-agents in multi-agent sessions
+- Fixes slice bounds out of range panic for short JWT tokens
+- Fixes goroutine tight loop in LSP readNotifications
+- Fixes race condition with elicitation events channel
+- Avoids looping forever on symlinks during skill loading
+- Handles json.Marshal errors for tool Parameters and OutputSchema
+
+## Technical Changes
+- Replaces syscall.Rmdir with golang.org/x/sys for cross-platform directory removal
+- Removes per-chunk UpdateMessage debug log from SQLite store to reduce log noise
+- Stops tool sets for team loaded in GetAgentToolCount
+- Migrates GitHub pages to markdown with Jekyll
+
+### Pull Requests
+
+- [#1875](https://github.com/docker/cagent/pull/1875) - Skip hidden directories in recursive skill loading
+- [#1879](https://github.com/docker/cagent/pull/1879) - Reduce builtin tool prompt lengths while preserving key examples
+- [#1885](https://github.com/docker/cagent/pull/1885) - Replace syscall.Rmdir with golang.org/x/sys for cross-platform directory removal
+- [#1889](https://github.com/docker/cagent/pull/1889) - :eyes: Vision :eyes:
+- [#1892](https://github.com/docker/cagent/pull/1892) - docs: update CHANGELOG.md for v1.28.0
+- [#1893](https://github.com/docker/cagent/pull/1893) - Fixes to the documentation
+- [#1895](https://github.com/docker/cagent/pull/1895) - Daily fixes of the bot-detected issues
+- [#1896](https://github.com/docker/cagent/pull/1896) - Remove per-chunk UpdateMessage debug log
+- [#1897](https://github.com/docker/cagent/pull/1897) - Pushes docker/docker-agent next to docker/cagent hub image
+- [#1899](https://github.com/docker/cagent/pull/1899) - fix: Esc key not interrupting sub-agents in multi-agent sessions
+- [#1900](https://github.com/docker/cagent/pull/1900) - Migrate our GitHub pages to markdown, with Jekyll
+
+
 ## [v1.28.0] - 2026-03-03
 
 This release improves authentication debugging, session management, and MCP server reliability, along with UI enhancements to the command palette.
@@ -854,3 +897,5 @@ This release improves the terminal user interface with better error handling and
 [v1.27.1]: https://github.com/docker/cagent/releases/tag/v1.27.1
 
 [v1.28.0]: https://github.com/docker/cagent/releases/tag/v1.28.0
+
+[v1.28.1]: https://github.com/docker/cagent/releases/tag/v1.28.1
