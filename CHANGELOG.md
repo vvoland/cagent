@@ -3,6 +3,34 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.29.0] - 2026-03-03
+
+This release adds automated issue triage capabilities and new CLI configuration options for directory overrides.
+
+## What's New
+- Adds auto issue triage workflow that automatically evaluates bug reports and can create fix PRs
+- Adds `--config-dir`, `--data-dir`, and `--cache-dir` global CLI flags to override default paths
+
+## Bug Fixes
+- Fixes result marker parsing in auto-issue-triage workflow to handle LLM output with trailing empty lines
+- Fixes GitHub Pages deployment issues
+
+## Technical Changes
+- Updates nightly scanner documentation and configuration
+- Removes draft status from PR creation workflow steps
+- Adds tip about the default agent in documentation
+
+### Pull Requests
+
+- [#1888](https://github.com/docker/cagent/pull/1888) - feat: add auto issue triage workflow
+- [#1901](https://github.com/docker/cagent/pull/1901) - Fix GitHub pages deployment
+- [#1902](https://github.com/docker/cagent/pull/1902) - docs: update CHANGELOG.md for v1.28.1
+- [#1903](https://github.com/docker/cagent/pull/1903) - Fix the github pages?
+- [#1905](https://github.com/docker/cagent/pull/1905) - Replace the brittle tail -n 1 parsing with something that searches for the marker
+- [#1906](https://github.com/docker/cagent/pull/1906) - Add tip about the default agent
+- [#1907](https://github.com/docker/cagent/pull/1907) - Add --config-dir and --data-dir global CLI flags to override default paths
+
+
 ## [v1.28.1] - 2026-03-03
 
 This release adds image support for AI agents, improves cross-platform compatibility, and includes various stability fixes.
@@ -899,3 +927,5 @@ This release improves the terminal user interface with better error handling and
 [v1.28.0]: https://github.com/docker/cagent/releases/tag/v1.28.0
 
 [v1.28.1]: https://github.com/docker/cagent/releases/tag/v1.28.1
+
+[v1.29.0]: https://github.com/docker/cagent/releases/tag/v1.29.0
