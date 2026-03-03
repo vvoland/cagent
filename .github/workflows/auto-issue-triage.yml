@@ -109,16 +109,16 @@ jobs:
           cat "$OUTPUT_FILE"
           echo "--------------------"
 
-          # The agent contract requires the result marker on the last line
-          LAST_LINE=$(tail -n 1 "$OUTPUT_FILE" | tr -d '[:space:]')
-          if [[ "$LAST_LINE" == "RESULT:NEEDS_INFO" ]]; then
+          # Search for the result marker anywhere in the output (LLMs often add trailing empty lines)
+          RESULT=$(grep -oE 'RESULT:(NEEDS_INFO|FIXED|NO_CHANGES)' "$OUTPUT_FILE" | tail -n 1)
+          if [[ "$RESULT" == "RESULT:NEEDS_INFO" ]]; then
             echo "action=needs_info" >> "$GITHUB_OUTPUT"
-          elif [[ "$LAST_LINE" == "RESULT:FIXED" ]]; then
+          elif [[ "$RESULT" == "RESULT:FIXED" ]]; then
             echo "action=fixed" >> "$GITHUB_OUTPUT"
-          elif [[ "$LAST_LINE" == "RESULT:NO_CHANGES" ]]; then
+          elif [[ "$RESULT" == "RESULT:NO_CHANGES" ]]; then
             echo "action=none" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::No recognized result marker on last line: $LAST_LINE"
+            echo "::warning::No recognized result marker found in agent output"
             echo "action=none" >> "$GITHUB_OUTPUT"
           fi
 
