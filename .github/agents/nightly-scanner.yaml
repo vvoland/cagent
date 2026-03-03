@@ -53,14 +53,14 @@ agents:
          - `security` - for security vulnerabilities (HIGHEST PRIORITY)
            - If fails: log error, continue to bugs
          - `bugs` - for logic errors, resource leaks, race conditions
-           - If fails: log error, continue to documentation check
-         - `documentation` - for missing docs
-           - ONLY run if BOTH security AND bugs returned `NO_ISSUES`
-           - (Rationale: documentation issues are lower priority; we avoid noise when real bugs exist)
+           - If fails: log error, continue to documentation
+         - `documentation` - for missing docs (ALWAYS run, regardless of other findings)
            - If fails: log error, continue to reporting
       4. Collect findings from each sub-agent (they return text format or `NO_ISSUES`)
       5. Filter out any issues where FILE matches patterns from memory
-      6. Sort by SEVERITY (critical > high > medium) and select top 1-2 issues
+      6. Select findings for the reporter using separate budgets:
+         - Up to 2 security/bug findings (sorted by SEVERITY: critical > high > medium)
+         - Up to 1 documentation finding (the highest severity one)
       7. Add CATEGORY field to each finding based on source agent:
          - From security agent → `CATEGORY: security`
          - From bugs agent → `CATEGORY: bug`
@@ -358,9 +358,10 @@ agents:
 
       ## Workflow
 
-      **ENFORCE: Process at most 2 findings. If you receive more, only process the first 2.**
+      **ENFORCE: Process at most 2 security/bug findings AND at most 1 documentation finding per run.**
+      (Maximum 3 issues total: 2 bug/security + 1 documentation.)
 
-      For each finding (up to 2 maximum):
+      For each finding (within the limits above):
 
       1. Check if a similar issue already exists by searching for the same file AND line:
          ```bash
@@ -447,7 +448,7 @@ agents:
 
       ## Important
 
-      - **STRICT LIMIT: Maximum 2 issues per run** - Stop after creating 2 issues, even if more findings exist
+      - **STRICT LIMIT: Maximum 2 security/bug issues + 1 documentation issue per run** (3 total max)
       - Skip duplicates (search by file path AND line number in issue body)
       - Use exact code snippets from the findings
       - If creation fails, log FAILED and continue with remaining findings
