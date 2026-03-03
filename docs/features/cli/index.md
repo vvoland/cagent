@@ -211,6 +211,15 @@ Run an alias with: cagent run <alias>
 
 </div>
 
+<div class="callout callout-tip">
+<div class="callout-title">💡 Set a default agent
+</div>
+  <p>Create a <code>default</code> alias to customize what <code>cagent</code> starts with no arguments:</p>
+  <pre><code>$ cagent alias add default /my/default/agent.yaml</code></pre>
+  <p>Then simply run <code>cagent</code> — it will launch that agent automatically.</p>
+
+</div>
+
 ## Global Flags
 
 | Flag                      | Description                                                  |
