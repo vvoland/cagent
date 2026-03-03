@@ -3,6 +3,7 @@ package chat
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -92,12 +93,19 @@ func ResizeImage(data []byte, mimeType string) (*ImageResizeResult, error) {
 	resized := scaleImage(img, newW, newH)
 
 	// Try both PNG and JPEG at default quality, pick the smaller one.
-	best, bestMime := pickSmallestEncoding(resized)
+	best, bestMime, err := pickSmallestEncoding(resized)
+	if err != nil {
+		return nil, fmt.Errorf("picking smallest encoding: %w", err)
+	}
 
 	// If still over the byte limit, try JPEG with decreasing quality.
 	if len(best) > MaxImageBytes {
 		for _, q := range []int{70, 55, 40} {
-			encoded := encodeJPEG(resized, q)
+			encoded, err := encodeJPEG(resized, q)
+			if err != nil {
+				continue
+			}
+
 			if len(encoded) < len(best) {
 				best = encoded
 				bestMime = "image/jpeg"
@@ -121,7 +129,11 @@ func ResizeImage(data []byte, mimeType string) (*ImageResizeResult, error) {
 			}
 			smaller := scaleImage(img, scaledW, scaledH)
 			for _, q := range []int{80, 55, 40} {
-				encoded := encodeJPEG(smaller, q)
+				encoded, err := encodeJPEG(smaller, q)
+				if err != nil {
+					continue
+				}
+
 				if len(encoded) < len(best) {
 					best = encoded
 					bestMime = "image/jpeg"
@@ -215,29 +227,38 @@ func scaleImage(img image.Image, w, h int) image.Image {
 }
 
 // pickSmallestEncoding encodes the image as both PNG and JPEG and returns whichever is smaller.
-func pickSmallestEncoding(img image.Image) ([]byte, string) {
-	pngData := encodePNG(img)
-	jpegData := encodeJPEG(img, jpegQuality)
+func pickSmallestEncoding(img image.Image) ([]byte, string, error) {
+	pngData, errPNG := encodePNG(img)
+	jpegData, errJPEG := encodeJPEG(img, jpegQuality)
+	if errPNG != nil && errJPEG != nil {
+		return nil, "", errors.Join(errPNG, errJPEG)
+	}
+	if errPNG != nil {
+		return jpegData, "image/jpeg", nil
+	}
+	if errJPEG != nil {
+		return pngData, "image/png", nil
+	}
 
 	if len(pngData) <= len(jpegData) {
-		return pngData, "image/png"
+		return pngData, "image/png", nil
 	}
-	return jpegData, "image/jpeg"
+	return jpegData, "image/jpeg", nil
 }
 
-func encodePNG(img image.Image) []byte {
+func encodePNG(img image.Image) ([]byte, error) {
 	var buf bytes.Buffer
 	if err := png.Encode(&buf, img); err != nil {
 		// Fallback: should not happen for RGBA images.
-		return nil
+		return nil, err
 	}
-	return buf.Bytes()
+	return buf.Bytes(), nil
 }
 
-func encodeJPEG(img image.Image, quality int) []byte {
+func encodeJPEG(img image.Image, quality int) ([]byte, error) {
 	var buf bytes.Buffer
 	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: quality}); err != nil {
-		return nil
+		return nil, err
 	}
-	return buf.Bytes()
+	return buf.Bytes(), nil
 }
