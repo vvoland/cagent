@@ -194,7 +194,7 @@ func loadSkillsFlat(dir string) []Skill {
 
 	var skills []Skill
 	for _, entry := range entries {
-		if !entry.IsDir() || isHiddenOrSymlink(entry) {
+		if !entry.IsDir() || (isHidden(entry) || isSymlink(entry)) {
 			continue
 		}
 
@@ -210,14 +210,48 @@ func loadSkillsFlat(dir string) []Skill {
 }
 
 // loadSkillsRecursive loads skills from all subdirectories (Codex format).
+// It tracks visited real directory paths to avoid infinite loops caused by
+// symlinks that form cycles.
 func loadSkillsRecursive(dir string) []Skill {
+	visited := make(map[string]bool)
+
+	// Resolve the root so cycles back to it are detected.
+	if realDir, err := filepath.EvalSymlinks(dir); err == nil {
+		visited[realDir] = true
+	}
+
+	return walkSkillsRecursive(dir, visited)
+}
+
+// walkSkillsRecursive walks dir for SKILL.md files, using visited to skip
+// directories whose real path has already been traversed.
+func walkSkillsRecursive(dir string, visited map[string]bool) []Skill {
 	var skills []Skill
 
 	_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
+		if err != nil {
 			return nil
 		}
-		if isHiddenOrSymlink(d) || d.Name() != skillFile {
+
+		if d.IsDir() {
+			if path != dir && isHidden(d) {
+				return fs.SkipDir
+			}
+
+			// Resolve and de-duplicate real directory paths to catch
+			// cycles introduced through symlinks higher up.
+			if path != dir {
+				if realPath, err := filepath.EvalSymlinks(path); err == nil {
+					if visited[realPath] {
+						return fs.SkipDir
+					}
+					visited[realPath] = true
+				}
+			}
+			return nil
+		}
+
+		if d.Name() != skillFile {
 			return nil
 		}
 
@@ -277,17 +311,14 @@ func parseFrontmatter(content string) (Skill, bool) {
 	return skill, true
 }
 
-// isValidSkill validates skill constraints.
 func isValidSkill(skill Skill) bool {
-	// Description and name is required
-	if skill.Description == "" || skill.Name == "" {
-		return false
-	}
-
-	return true
+	return skill.Description != "" && skill.Name != ""
 }
 
-// isHiddenOrSymlink returns true for hidden files/dirs or symlinks.
-func isHiddenOrSymlink(entry fs.DirEntry) bool {
-	return strings.HasPrefix(entry.Name(), ".") || entry.Type()&os.ModeSymlink != 0
+func isHidden(entry fs.DirEntry) bool {
+	return strings.HasPrefix(entry.Name(), ".")
+}
+
+func isSymlink(entry fs.DirEntry) bool {
+	return entry.Type()&os.ModeSymlink != 0
 }
