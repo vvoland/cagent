@@ -30,6 +30,9 @@ type rootFlags struct {
 	debugMode   bool
 	logFilePath string
 	logFile     io.Closer
+	cacheDir    string
+	configDir   string
+	dataDir     string
 }
 
 func isDockerAgent() bool {
@@ -51,6 +54,18 @@ func NewRootCmd() *cobra.Command {
   cagent run ./agent.yaml
   cagent run agentcatalog/pirate`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			// Apply directory overrides before anything else so that
+			// logging, telemetry, and config loading honour them.
+			if flags.cacheDir != "" {
+				paths.SetCacheDir(flags.cacheDir)
+			}
+			if flags.configDir != "" {
+				paths.SetConfigDir(flags.configDir)
+			}
+			if flags.dataDir != "" {
+				paths.SetDataDir(flags.dataDir)
+			}
+
 			// Initialize logging before anything else so logs don't break TUI
 			if err := flags.setupLogging(); err != nil {
 				// If logging setup fails, fall back to stderr so we still get logs
@@ -96,6 +111,9 @@ func NewRootCmd() *cobra.Command {
 	cmd.PersistentFlags().BoolVarP(&flags.debugMode, "debug", "d", false, "Enable debug logging")
 	cmd.PersistentFlags().BoolVarP(&flags.enableOtel, "otel", "o", false, "Enable OpenTelemetry tracing")
 	cmd.PersistentFlags().StringVar(&flags.logFilePath, "log-file", "", "Path to debug log file (default: ~/.cagent/cagent.debug.log; only used with --debug)")
+	cmd.PersistentFlags().StringVar(&flags.cacheDir, "cache-dir", "", "Override the cache directory (default: ~/Library/Caches/cagent on macOS)")
+	cmd.PersistentFlags().StringVar(&flags.configDir, "config-dir", "", "Override the config directory (default: ~/.config/cagent)")
+	cmd.PersistentFlags().StringVar(&flags.dataDir, "data-dir", "", "Override the data directory (default: ~/.cagent)")
 
 	cmd.AddCommand(newVersionCmd())
 	cmd.AddCommand(newRunCmd())
