@@ -37,9 +37,6 @@
     permissions:                   # Optional: tool execution control
       allow: [list]
       deny: [list]
-    sandbox:                       # Optional: shell isolation
-      image: string
-      paths: [list]
     structured_output:             # Optional: constrain output format
       name: string
       schema: object</code></pre>
@@ -139,10 +136,6 @@
     <tr>
       <td><code>permissions</code></td><td>object</td><td>✗</td>
       <td>Control which tools are auto-approved, require confirmation, or are blocked. See <a href="#configuration/permissions" onclick="event.preventDefault(); navigate('configuration/permissions')">Permissions</a>.</td>
-    </tr>
-    <tr>
-      <td><code>sandbox</code></td><td>object</td><td>✗</td>
-      <td>Run shell commands in an isolated Docker container. See <a href="#configuration/sandbox" onclick="event.preventDefault(); navigate('configuration/sandbox')">Sandbox Mode</a>.</td>
     </tr>
     <tr>
       <td><code>structured_output</code></td><td>object</td><td>✗</td>
@@ -299,10 +292,13 @@ agents:
         - "shell:cmd=npm*"
       deny:
         - "shell:cmd=sudo*"
-    sandbox:
-      image: golang:1.23-alpine
-      paths:
-        - "."
+    toolsets:
+      - type: filesystem
+      - type: shell
+        sandbox:
+          image: golang:1.23-alpine
+          paths:
+            - "."
 
   researcher:
     model: openai/gpt-4o

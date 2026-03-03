@@ -181,7 +181,11 @@ cagent run agent.yaml --yolo</code></pre>
     toolsets:
       - type: filesystem
       - type: shell
-    # Layer 1: Permission controls
+        sandbox:
+          image: golang:1.23-alpine
+          paths:
+            - ".:rw"
+    # Permission controls
     permissions:
       allow:
         - "read_*"
@@ -189,12 +193,7 @@ cagent run agent.yaml --yolo</code></pre>
         - "shell:cmd=npm*"
       deny:
         - "shell:cmd=sudo*"
-        - "shell:cmd=rm*-rf*"
-    # Layer 2: Container isolation
-    sandbox:
-      image: golang:1.23-alpine
-      paths:
-        - ".:rw"</code></pre>
+        - "shell:cmd=rm*-rf*"</code></pre>
 
 <h3>Use Hooks for Audit Logging</h3>
 
