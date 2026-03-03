@@ -402,6 +402,11 @@ func (sm *SessionManager) GetAgentToolCount(ctx context.Context, agentFilename, 
 	if err != nil {
 		return 0, err
 	}
+	defer func() {
+		if stopErr := t.StopToolSets(ctx); stopErr != nil {
+			slog.Error("Failed to stop tool sets", "error", stopErr)
+		}
+	}()
 
 	a, err := t.Agent(agentName)
 	if err != nil {
