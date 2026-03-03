@@ -210,7 +210,22 @@ func loadSkillsFlat(dir string) []Skill {
 }
 
 // loadSkillsRecursive loads skills from all subdirectories (Codex format).
+// It tracks visited real directory paths to avoid infinite loops caused by
+// symlinks that form cycles.
 func loadSkillsRecursive(dir string) []Skill {
+	visited := make(map[string]bool)
+
+	// Resolve the root so cycles back to it are detected.
+	if realDir, err := filepath.EvalSymlinks(dir); err == nil {
+		visited[realDir] = true
+	}
+
+	return walkSkillsRecursive(dir, visited)
+}
+
+// walkSkillsRecursive walks dir for SKILL.md files, using visited to skip
+// directories whose real path has already been traversed.
+func walkSkillsRecursive(dir string, visited map[string]bool) []Skill {
 	var skills []Skill
 
 	_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
@@ -221,6 +236,17 @@ func loadSkillsRecursive(dir string) []Skill {
 		if d.IsDir() {
 			if path != dir && isHidden(d) {
 				return fs.SkipDir
+			}
+
+			// Resolve and de-duplicate real directory paths to catch
+			// cycles introduced through symlinks higher up.
+			if path != dir {
+				if realPath, err := filepath.EvalSymlinks(path); err == nil {
+					if visited[realPath] {
+						return fs.SkipDir
+					}
+					visited[realPath] = true
+				}
 			}
 			return nil
 		}

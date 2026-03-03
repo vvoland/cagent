@@ -353,6 +353,44 @@ description: A flat global agents skill
 	assert.True(t, foundFlat, "Expected to find flat-skill from ~/.agents/skills/flat-skill")
 }
 
+func TestLoadSkillsFromDir_RecursiveSymlinkCycle(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a skill in a subdirectory.
+	skillDir := filepath.Join(tmpDir, "real-skill")
+	require.NoError(t, os.MkdirAll(skillDir, 0o755))
+
+	skillContent := `---
+name: real-skill
+description: A real skill
+---
+
+# Real Skill
+`
+	require.NoError(t, os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0o644))
+
+	// Create a symlink cycle: tmpDir/real-skill/link -> tmpDir
+	require.NoError(t, os.Symlink(tmpDir, filepath.Join(skillDir, "link")))
+
+	// loadSkillsRecursive must return without looping forever.
+	skills := loadSkillsFromDir(tmpDir, true)
+
+	require.Len(t, skills, 1)
+	assert.Equal(t, "real-skill", skills[0].Name)
+	assert.Equal(t, "A real skill", skills[0].Description)
+}
+
+func TestLoadSkillsFromDir_RecursiveSymlinkSelfReference(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a directory that symlinks to itself.
+	require.NoError(t, os.Symlink(tmpDir, filepath.Join(tmpDir, "self")))
+
+	// Must not loop forever.
+	skills := loadSkillsFromDir(tmpDir, true)
+	assert.Empty(t, skills)
+}
+
 func TestLoad_AgentsSkillsProjectFromNestedDir(t *testing.T) {
 	// Create a fake git repo with .agents/skills at the root
 	tmpRepo := t.TempDir()
