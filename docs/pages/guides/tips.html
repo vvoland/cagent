@@ -65,18 +65,26 @@ model: anthropic/claude-sonnet-4-5
     toolsets:
       - type: mcp
         ref: docker:github-official
+        defer: true
       - type: mcp
         ref: docker:slack
+        defer: true
       - type: mcp
         ref: docker:linear
-    # Load all tools on first use
-    defer: true</code></pre>
+        defer: true</code></pre>
 
-<p>Or defer specific tools:</p>
+<p>Or defer specific tools within a toolset:</p>
 
-<pre><code class="language-yaml">defer:
-  - "mcp:github:*"    # Defer GitHub tools
-  - "mcp:slack:*"     # Defer Slack tools</code></pre>
+<pre><code class="language-yaml">toolsets:
+  - type: mcp
+    ref: docker:github-official
+    defer:
+      - "list_issues"
+      - "search_repos"
+  - type: mcp
+    ref: docker:slack
+    defer:
+      - "list_channels"</code></pre>
 
 <h3>Filter MCP Tools</h3>
 
@@ -185,15 +193,15 @@ cagent run agent.yaml --yolo</code></pre>
           image: golang:1.23-alpine
           paths:
             - ".:rw"
-    # Permission controls
-    permissions:
-      allow:
-        - "read_*"
-        - "shell:cmd=go*"
-        - "shell:cmd=npm*"
-      deny:
-        - "shell:cmd=sudo*"
-        - "shell:cmd=rm*-rf*"</code></pre>
+
+permissions:
+  allow:
+    - "read_*"
+    - "shell:cmd=go*"
+    - "shell:cmd=npm*"
+  deny:
+    - "shell:cmd=sudo*"
+    - "shell:cmd=rm*-rf*"</code></pre>
 
 <h3>Use Hooks for Audit Logging</h3>
 

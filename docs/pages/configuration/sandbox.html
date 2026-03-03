@@ -141,12 +141,13 @@
           paths:
             - ".:rw"
       - type: filesystem
-    permissions:
-      allow:
-        - "shell:cmd=npm*"
-        - "shell:cmd=node*"
-        - "shell:cmd=ls*"
-      deny:
-        - "shell:cmd=sudo*"
-        - "shell:cmd=curl*"
-        - "shell:cmd=wget*"</code></pre>
+
+permissions:
+  allow:
+    - "shell:cmd=npm*"
+    - "shell:cmd=node*"
+    - "shell:cmd=ls*"
+  deny:
+    - "shell:cmd=sudo*"
+    - "shell:cmd=curl*"
+    - "shell:cmd=wget*"</code></pre>

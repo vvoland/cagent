@@ -17,18 +17,19 @@
     model: openai/gpt-4o
     description: Agent with permission controls
     instruction: You are a helpful assistant.
-    permissions:
-      # Auto-approve these tools (no confirmation needed)
-      allow:
-        - "read_file"
-        - "read_*"           # Glob patterns
-        - "shell:cmd=ls*"    # With argument matching
-      
-      # Block these tools entirely
-      deny:
-        - "shell:cmd=sudo*"
-        - "shell:cmd=rm*-rf*"
-        - "dangerous_tool"</code></pre>
+
+permissions:
+  # Auto-approve these tools (no confirmation needed)
+  allow:
+    - "read_file"
+    - "read_*"           # Glob patterns
+    - "shell:cmd=ls*"    # With argument matching
+  
+  # Block these tools entirely
+  deny:
+    - "shell:cmd=sudo*"
+    - "shell:cmd=rm*-rf*"
+    - "dangerous_tool"</code></pre>
 
 <h2>Pattern Syntax</h2>
 
