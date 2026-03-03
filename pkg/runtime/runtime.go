@@ -1121,7 +1121,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			// Strip image content from messages if the model doesn't support image input.
 			// This prevents API errors when conversation history contains images (e.g. from
 			// tool results or user attachments) but the current model is text-only.
-			if m != nil && !slices.Contains(m.Modalities.Input, "image") {
+			if m != nil && len(m.Modalities.Input) > 0 && !slices.Contains(m.Modalities.Input, "image") {
 				messages = stripImageContent(messages)
 			}
 

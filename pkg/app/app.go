@@ -408,8 +408,10 @@ func (a *App) processFileAttachment(ctx context.Context, att messages.Attachment
 			}
 			resized, resizeErr := chat.ResizeImage(imgData, mimeType)
 			if resizeErr != nil {
-				slog.Warn("image resize failed, sending original", "path", absPath, "error", resizeErr)
-				resized = &chat.ImageResizeResult{Data: imgData, MimeType: mimeType}
+				// Don't bypass security checks - reject the file if resize failed
+				slog.Warn("skipping attachment: image resize failed", "path", absPath, "error", resizeErr)
+				a.sendEvent(ctx, runtime.Warning(fmt.Sprintf("Skipped attachment %s: %s", att.Name, resizeErr), ""))
+				return
 			}
 			dataURL := fmt.Sprintf("data:%s;base64,%s", resized.MimeType, base64.StdEncoding.EncodeToString(resized.Data))
 			*binaryParts = append(*binaryParts, chat.MessagePart{

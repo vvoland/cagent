@@ -520,12 +520,8 @@ func (t *FilesystemTool) handleListDirectory(_ context.Context, args ListDirecto
 func (t *FilesystemTool) handleReadFile(_ context.Context, args ReadFileArgs) (*tools.ToolCallResult, error) {
 	resolvedPath := t.resolvePath(args.Path)
 
-	// Check if the file is an image
-	if chat.IsImageFile(resolvedPath) {
-		return t.readImageFile(resolvedPath, args.Path)
-	}
-
-	content, err := os.ReadFile(resolvedPath)
+	// Check if the file exists before any type detection.
+	info, err := os.Stat(resolvedPath)
 	if err != nil {
 		var errMsg string
 		if os.IsNotExist(err) {
@@ -539,6 +535,22 @@ func (t *FilesystemTool) handleReadFile(_ context.Context, args ReadFileArgs) (*
 			IsError: true,
 			Meta: ReadFileMeta{
 				Error: errMsg,
+			},
+		}, nil
+	}
+
+	// Only check for image files on regular files (not directories, etc.)
+	if info.Mode().IsRegular() && chat.IsImageFile(resolvedPath) {
+		return t.readImageFile(resolvedPath, args.Path)
+	}
+
+	content, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		return &tools.ToolCallResult{
+			Output:  err.Error(),
+			IsError: true,
+			Meta: ReadFileMeta{
+				Error: err.Error(),
 			},
 		}, nil
 	}
@@ -575,8 +587,16 @@ func (t *FilesystemTool) readImageFile(resolvedPath, originalPath string) (*tool
 	// Resize the image if it exceeds provider limits (max 2000×2000, max 4.5MB).
 	resized, err := chat.ResizeImage(data, mimeType)
 	if err != nil {
-		// If resize fails, fall back to sending the original.
-		slog.Warn("Image resize failed, sending original", "path", originalPath, "error", err)
+		// Check if the original exceeds limits before falling back
+		if len(data) > chat.MaxImageBytes {
+			return &tools.ToolCallResult{
+				Output:  fmt.Sprintf("Error: Image file too large (%d bytes, max %d bytes)", len(data), chat.MaxImageBytes),
+				IsError: true,
+				Meta:    ReadFileMeta{Path: originalPath, Error: "image too large"},
+			}, nil
+		}
+		// Original is within limits, proceed with fallback
+		slog.Warn("Image resize failed, sending original (within limits)", "path", originalPath, "error", err)
 		encoded := base64.StdEncoding.EncodeToString(data)
 		return &tools.ToolCallResult{
 			Output: fmt.Sprintf("Read image file %s [%s] (%d bytes)", originalPath, mimeType, len(data)),

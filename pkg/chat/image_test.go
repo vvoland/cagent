@@ -146,7 +146,7 @@ func TestFormatDimensionNote(t *testing.T) {
 		assert.Empty(t, FormatDimensionNote(result))
 	})
 
-	t.Run("resized", func(t *testing.T) {
+	t.Run("uniform scaling", func(t *testing.T) {
 		t.Parallel()
 		result := &ImageResizeResult{
 			Resized:        true,
@@ -158,7 +158,26 @@ func TestFormatDimensionNote(t *testing.T) {
 		note := FormatDimensionNote(result)
 		assert.Contains(t, note, "original 4000x3000")
 		assert.Contains(t, note, "displayed at 2000x1500")
-		assert.Contains(t, note, "2.00")
+		assert.Contains(t, note, "Multiply coordinates by 2.00")
+		// Should NOT contain separate X/Y factors.
+		assert.NotContains(t, note, "X coordinates")
+	})
+
+	t.Run("non-uniform scaling", func(t *testing.T) {
+		t.Parallel()
+		// Manually constructed result with different X and Y scale factors.
+		result := &ImageResizeResult{
+			Resized:        true,
+			OriginalWidth:  4000,
+			OriginalHeight: 2000,
+			Width:          2000,
+			Height:         2000,
+		}
+		note := FormatDimensionNote(result)
+		assert.Contains(t, note, "original 4000x2000")
+		assert.Contains(t, note, "displayed at 2000x2000")
+		assert.Contains(t, note, "Multiply X coordinates by 2.00")
+		assert.Contains(t, note, "Y coordinates by 1.00")
 	})
 }
 
@@ -168,9 +187,11 @@ func TestResizeImageBase64(t *testing.T) {
 	data := createTestPNG(t, 100, 100)
 	b64 := base64.StdEncoding.EncodeToString(data)
 
-	result, err := ResizeImageBase64(b64, "image/png")
+	b64Result, result, err := ResizeImageBase64(b64, "image/png")
 	require.NoError(t, err)
 	assert.False(t, result.Resized)
-	// Result.Data is base64-encoded
-	assert.Equal(t, b64, string(result.Data))
+	// Result data stays as raw bytes
+	assert.Equal(t, data, result.Data)
+	// Base64 result is returned separately
+	assert.Equal(t, b64, b64Result)
 }

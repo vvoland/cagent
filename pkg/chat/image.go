@@ -22,6 +22,10 @@ const (
 	// MaxImageBytes is the maximum file size for images sent to LLM providers (4.5MB,
 	// below Anthropic's 5MB limit).
 	MaxImageBytes = 4_500_000
+	// maxDecodedDimension is the absolute upper bound on decoded image dimensions.
+	// Images exceeding this are rejected before processing to guard against
+	// decompression bombs (small files that expand to huge pixel buffers).
+	maxDecodedDimension = 20_000
 	// jpegQuality is the default JPEG encoding quality.
 	jpegQuality = 80
 )
@@ -75,6 +79,13 @@ func ResizeImage(data []byte, mimeType string) (*ImageResizeResult, error) {
 	bounds := img.Bounds()
 	origW, origH := bounds.Dx(), bounds.Dy()
 
+	// Guard against decompression bombs: reject images whose decoded
+	// dimensions are absurdly large. A small compressed file can expand
+	// to hundreds of megabytes in memory (e.g. 20000×20000×4 ≈ 1.6 GB).
+	if origW > maxDecodedDimension || origH > maxDecodedDimension {
+		return nil, fmt.Errorf("image dimensions too large: %dx%d (max %d)", origW, origH, maxDecodedDimension)
+	}
+
 	// If the image already fits within all limits, return unchanged.
 	if origW <= MaxImageDimension && origH <= MaxImageDimension && len(data) <= MaxImageBytes {
 		return &ImageResizeResult{
@@ -103,6 +114,7 @@ func ResizeImage(data []byte, mimeType string) (*ImageResizeResult, error) {
 		for _, q := range []int{70, 55, 40} {
 			encoded, err := encodeJPEG(resized, q)
 			if err != nil {
+				slog.Debug("JPEG encoding failed", "quality", q, "error", err)
 				continue
 			}
 
@@ -131,6 +143,7 @@ func ResizeImage(data []byte, mimeType string) (*ImageResizeResult, error) {
 			for _, q := range []int{80, 55, 40} {
 				encoded, err := encodeJPEG(smaller, q)
 				if err != nil {
+					slog.Debug("JPEG encoding failed", "quality", q, "scale", scale, "error", err)
 					continue
 				}
 
@@ -150,8 +163,7 @@ func ResizeImage(data []byte, mimeType string) (*ImageResizeResult, error) {
 	}
 
 	if len(best) > MaxImageBytes {
-		slog.Warn("Image still exceeds size limit after all resize attempts",
-			"original_size", len(data), "final_size", len(best), "limit", MaxImageBytes)
+		return nil, fmt.Errorf("image exceeds size limit after all resize attempts: %d bytes (limit %d)", len(best), MaxImageBytes)
 	}
 
 	return &ImageResizeResult{
@@ -166,34 +178,51 @@ func ResizeImage(data []byte, mimeType string) (*ImageResizeResult, error) {
 }
 
 // ResizeImageBase64 is a convenience wrapper around ResizeImage that accepts
-// and returns base64-encoded image data.
-func ResizeImageBase64(b64Data, mimeType string) (*ImageResizeResult, error) {
+// and returns base64-encoded image data. The base64-encoded result is returned
+// separately to avoid mutating the ImageResizeResult.Data field.
+func ResizeImageBase64(b64Data, mimeType string) (b64Result string, metadata *ImageResizeResult, err error) {
 	raw, err := base64.StdEncoding.DecodeString(b64Data)
 	if err != nil {
-		return nil, fmt.Errorf("decode base64: %w", err)
+		return "", nil, fmt.Errorf("decode base64: %w", err)
 	}
 	result, err := ResizeImage(raw, mimeType)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
-	result.Data = []byte(base64.StdEncoding.EncodeToString(result.Data))
-	return result, nil
+	return base64.StdEncoding.EncodeToString(result.Data), result, nil
 }
 
 // FormatDimensionNote produces a human-readable note describing the resize mapping.
 // This helps the model translate coordinates from the resized image back to the original.
+//
+// Because ResizeImage uses fitDimensions (which preserves aspect ratio), the X and
+// Y scale factors are always equal in practice. If they ever differ (e.g. because
+// the function is called with a manually constructed ImageResizeResult), we emit
+// separate per-axis factors so that coordinate mapping remains correct.
 func FormatDimensionNote(r *ImageResizeResult) string {
 	if !r.Resized {
 		return ""
 	}
 	scaleX := float64(r.OriginalWidth) / float64(r.Width)
 	scaleY := float64(r.OriginalHeight) / float64(r.Height)
-	scale := scaleX
-	if scaleY > scaleX {
-		scale = scaleY
+
+	// Uniform scaling (the normal path): a single factor suffices.
+	const epsilon = 0.01
+	if abs(scaleX-scaleY) < epsilon {
+		return fmt.Sprintf("[Image: original %dx%d, displayed at %dx%d. Multiply coordinates by %.2f to map to original image.]",
+			r.OriginalWidth, r.OriginalHeight, r.Width, r.Height, scaleX)
 	}
-	return fmt.Sprintf("[Image: original %dx%d, displayed at %dx%d. Multiply coordinates by %.2f to map to original image.]",
-		r.OriginalWidth, r.OriginalHeight, r.Width, r.Height, scale)
+
+	// Non-uniform scaling: provide separate X and Y factors.
+	return fmt.Sprintf("[Image: original %dx%d, displayed at %dx%d. Multiply X coordinates by %.2f and Y coordinates by %.2f to map to original image.]",
+		r.OriginalWidth, r.OriginalHeight, r.Width, r.Height, scaleX, scaleY)
+}
+
+func abs(x float64) float64 {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
 
 // fitDimensions returns new dimensions that fit within maxW×maxH while
