@@ -10,7 +10,7 @@ _Connect docker-agent to cloud services via remote MCP servers with built-in OAu
 
 ## Overview
 
-cagent supports connecting to remote MCP servers over **SSE** (Server-Sent Events) and **Streamable HTTP** transports. Many popular services offer MCP endpoints with OAuth — docker-agent handles the authentication flow automatically.
+Docker Agent supports connecting to remote MCP servers over **SSE** (Server-Sent Events) and **Streamable HTTP** transports. Many popular services offer MCP endpoints with OAuth — docker-agent handles the authentication flow automatically.
 
 ```yaml
 toolsets:

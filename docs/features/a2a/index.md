@@ -10,7 +10,7 @@ _Expose docker-agent agents via Google's Agent-to-Agent (A2A) protocol for inter
 
 ## Overview
 
-The `docker agent serve a2a` command starts an A2A server that exposes your agents using the [A2A protocol](https://google.github.io/A2A/). This enables communication between cagent and other agent frameworks that support A2A.
+The `docker agent serve a2a` command starts an A2A server that exposes your agents using the [A2A protocol](https://google.github.io/A2A/). This enables communication between Docker Agent and other agent frameworks that support A2A.
 
 <div class="callout callout-warning">
 <div class="callout-title">⚠️ Early support
