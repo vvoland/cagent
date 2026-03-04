@@ -1,16 +1,16 @@
 ---
 title: "A2A Protocol"
-description: "Expose cagent agents via Google's Agent-to-Agent (A2A) protocol for interoperability with other agent frameworks."
+description: "Expose docker-agent agents via Google's Agent-to-Agent (A2A) protocol for interoperability with other agent frameworks."
 permalink: /features/a2a/
 ---
 
 # A2A Protocol
 
-_Expose cagent agents via Google's Agent-to-Agent (A2A) protocol for interoperability with other agent frameworks._
+_Expose docker-agent agents via Google's Agent-to-Agent (A2A) protocol for interoperability with other agent frameworks._
 
 ## Overview
 
-The `cagent serve a2a` command starts an A2A server that exposes your agents using the [A2A protocol](https://google.github.io/A2A/). This enables communication between cagent and other agent frameworks that support A2A.
+The `docker agent serve a2a` command starts an A2A server that exposes your agents using the [A2A protocol](https://google.github.io/A2A/). This enables communication between cagent and other agent frameworks that support A2A.
 
 <div class="callout callout-warning">
 <div class="callout-title">⚠️ Early support
@@ -23,20 +23,20 @@ The `cagent serve a2a` command starts an A2A server that exposes your agents usi
 
 ```bash
 # Start A2A server for an agent
-$ cagent serve a2a ./agent.yaml
+$ docker agent serve a2a ./agent.yaml
 
 # Specify a custom address
-$ cagent serve a2a ./agent.yaml --listen 127.0.0.1:9000
+$ docker agent serve a2a ./agent.yaml --listen 127.0.0.1:9000
 
 # Use an agent from the catalog
-$ cagent serve a2a agentcatalog/pirate
+$ docker agent serve a2a agentcatalog/pirate
 ```
 
 ## Features
 
 - **Auto port selection** — Picks an available port if not specified
 - **Agent card** — Provides standard A2A agent metadata
-- **Full cagent features** — Supports all tools, models, and gateway features
+- **Full docker-agent features** — Supports all tools, models, and gateway features
 - **Multiple sources** — Load agents from files or the agent catalog
 
 <div class="callout callout-tip">

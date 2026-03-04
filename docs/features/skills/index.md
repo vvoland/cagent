@@ -10,7 +10,7 @@ _Skills provide specialized instructions that agents can load on demand when a t
 
 ## How Skills Work
 
-1. cagent scans standard directories for `SKILL.md` files
+1. docker-agent scans standard directories for `SKILL.md` files
 2. Skill metadata (name, description) is injected into the agent's system prompt
 3. When a user request matches a skill, the agent reads the full instructions
 4. The agent follows the skill's detailed instructions to complete the task

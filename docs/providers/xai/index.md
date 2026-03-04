@@ -1,16 +1,16 @@
 ---
 title: "xAI (Grok)"
-description: "Use xAI's Grok models with cagent."
+description: "Use xAI's Grok models with docker-agent."
 permalink: /providers/xai/
 ---
 
 # xAI (Grok)
 
-_Use xAI's Grok models with cagent._
+_Use xAI's Grok models with docker-agent._
 
 ## Overview
 
-xAI provides the Grok family of models through an OpenAI-compatible API. cagent includes built-in support for xAI as an alias provider.
+xAI provides the Grok family of models through an OpenAI-compatible API. docker-agent includes built-in support for xAI as an alias provider.
 
 ## Setup
 
@@ -81,7 +81,7 @@ models:
 
 ## How It Works
 
-xAI is implemented as a built-in alias in cagent:
+xAI is implemented as a built-in alias in docker-agent:
 
 - **API Type:** OpenAI-compatible (`openai_chatcompletions`)
 - **Base URL:** `https://api.x.ai/v1`

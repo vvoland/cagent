@@ -72,7 +72,7 @@ agents:
 | `num_history_items`         | int     | ✗        | Limit the number of conversation history messages sent to the model. Useful for managing context window size with long conversations. Default: unlimited (all messages sent). |
 | `rag`                       | array   | ✗        | List of RAG source names to attach to this agent. References sources defined in the top-level `rag` section. See [RAG](/features/rag/).                                       |
 | `skills`                    | boolean | ✗        | Enable automatic skill discovery from standard directories.                                                                                                                   |
-| `commands`                  | object  | ✗        | Named prompts that can be run with `cagent run config.yaml /command_name`.                                                                                                    |
+| `commands`                  | object  | ✗        | Named prompts that can be run with `docker agent run config.yaml /command_name`.                                                                                              |
 | `welcome_message`           | string  | ✗        | Message displayed to the user when a session starts. Useful for providing context or instructions.                                                                            |
 | `handoffs`                  | array   | ✗        | List of A2A agent configurations this agent can delegate to. See [A2A Protocol](/features/a2a/).                                                                              |
 | `hooks`                     | object  | ✗        | Lifecycle hooks for running commands at various points. See [Hooks](/configuration/hooks/).                                                                                   |
@@ -185,9 +185,9 @@ agents:
 
 ```bash
 # Run commands from the CLI
-$ cagent run agent.yaml /df
-$ cagent run agent.yaml /greet
-$ PROJECT_NAME=myapp ENV=production cagent run agent.yaml /deploy
+$ docker agent run agent.yaml /df
+$ docker agent run agent.yaml /greet
+$ PROJECT_NAME=myapp ENV=production docker agent run agent.yaml /deploy
 ```
 
 Commands use JavaScript template literal syntax for environment variable interpolation. Undefined variables expand to empty strings.

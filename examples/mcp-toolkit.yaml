@@ -1,4 +1,4 @@
-#!/usr/bin/env cagent run
+#!/usr/bin/env docker agent run
 
 agents:
   root:
@@ -44,11 +44,10 @@ agents:
 
 permissions:
   allow:
-     - mcp-list
-     - mcp-activate-profile
-     - mcp-add
-     - mcp-config-set
-     - mcp-create-profile
-     - mcp-find
-     - mcp-remove
-  
+    - mcp-list
+    - mcp-activate-profile
+    - mcp-add
+    - mcp-config-set
+    - mcp-create-profile
+    - mcp-find
+    - mcp-remove

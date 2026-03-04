@@ -1,16 +1,16 @@
 ---
 title: "Agents"
-description: "Agents are the core building blocks of cagent. Each agent is an AI-powered entity with a model, instructions, tools, and optional sub-agents."
+description: "Agents are the core building blocks of docker-agent. Each agent is an AI-powered entity with a model, instructions, tools, and optional sub-agents."
 permalink: /concepts/agents/
 ---
 
 # Agents
 
-_Agents are the core building blocks of cagent. Each agent is an AI-powered entity with a model, instructions, tools, and optional sub-agents._
+_Agents are the core building blocks of docker-agent. Each agent is an AI-powered entity with a model, instructions, tools, and optional sub-agents._
 
 ## What is an Agent?
 
-An agent in cagent is defined by:
+An agent in docker-agent is defined by:
 
 - **Model** — The AI model powering it (e.g., Claude, GPT-4o, Gemini). See [Models](/concepts/models/).
 - **Description** — A brief summary of what the agent does (used by other agents for delegation)
@@ -34,12 +34,12 @@ agents:
 
 ## The Root Agent
 
-Every cagent configuration has a **root agent** — the entry point that receives user messages. In a single-agent setup, this is the only agent. In a multi-agent setup, the root agent acts as a coordinator, delegating tasks to specialized sub-agents.
+Every docker-agent configuration has a **root agent** — the entry point that receives user messages. In a single-agent setup, this is the only agent. In a multi-agent setup, the root agent acts as a coordinator, delegating tasks to specialized sub-agents.
 
 <div class="callout callout-info">
 <div class="callout-title">ℹ️ Naming
 </div>
-  <p>The first agent defined in your YAML (or the one named <code>root</code>) is the root agent by default. You can also specify which agent to start with using <code>cagent run config.yaml -a agent_name</code>.</p>
+  <p>The first agent defined in your YAML (or the one named <code>root</code>) is the root agent by default. You can also specify which agent to start with using <code>docker agent run config.yaml -a agent_name</code>.</p>
 
 </div>
 
@@ -91,23 +91,23 @@ agents:
 
 ```bash
 # Run a named command
-$ cagent run agent.yaml /df
-$ cagent run agent.yaml /greet
+$ docker agent run agent.yaml /df
+$ docker agent run agent.yaml /greet
 ```
 
 Commands support environment variable interpolation using JavaScript template literal syntax. Undefined variables expand to empty strings.
 
 ## Default Agent
 
-Running `cagent run` without a config file uses a built-in default agent. This is a capable general-purpose agent for quick tasks without needing any configuration.
+Running `docker agent run` without a config file uses a built-in default agent. This is a capable general-purpose agent for quick tasks without needing any configuration.
 
 ```bash
 # Use the default agent
-$ cagent run
+$ docker agent run
 
 # Override the default with an alias
-$ cagent alias add default /path/to/my-agent.yaml
-$ cagent run  # now runs your custom agent
+$ docker agent alias add default /path/to/my-agent.yaml
+$ docker agent run  # now runs your custom agent
 ```
 
 <div class="callout callout-tip">

@@ -1,12 +1,12 @@
 ---
 title: "Troubleshooting"
-description: "Common issues and how to resolve them when working with cagent."
+description: "Common issues and how to resolve them when working with docker-agent."
 permalink: /community/troubleshooting/
 ---
 
 # Troubleshooting
 
-_Common issues and how to resolve them when working with cagent._
+_Common issues and how to resolve them when working with docker-agent._
 
 ## Common Errors
 
@@ -29,7 +29,7 @@ The agent hit its `max_iterations` limit without completing the task.
 
 ### Model Fallback Triggered
 
-When the primary model fails, cagent automatically switches to fallback models. Look for log messages like `"Switching to fallback model"`.
+When the primary model fails, docker-agent automatically switches to fallback models. Look for log messages like `"Switching to fallback model"`.
 
 - **429 errors:** Rate limited — the cooldown period keeps using the fallback
 - **5xx errors:** Server issues — retries with exponential backoff first, then falls back
@@ -49,17 +49,17 @@ agents:
 
 ## Debug Mode
 
-The first step for any issue is enabling debug logging. This provides detailed information about what cagent is doing internally.
+The first step for any issue is enabling debug logging. This provides detailed information about what docker-agent is doing internally.
 
 ```bash
 # Enable debug logging (writes to ~/.cagent/cagent.debug.log)
-$ cagent run config.yaml --debug
+$ docker agent run config.yaml --debug
 
 # Write debug logs to a custom file
-$ cagent run config.yaml --debug --log-file ./debug.log
+$ docker agent run config.yaml --debug --log-file ./debug.log
 
 # Enable OpenTelemetry tracing for deeper analysis
-$ cagent run config.yaml --otel
+$ docker agent run config.yaml --otel
 ```
 
 <div class="callout callout-tip">
@@ -107,7 +107,7 @@ If the agent hangs or times out, check that you can reach the provider's API end
 
 - Ensure the MCP tool command is installed and on your `PATH`
 - Check file permissions — tools need to be executable
-- Test MCP tools independently before integrating with cagent
+- Test MCP tools independently before integrating with docker-agent
 - For Docker-based MCP tools (`ref: docker:*`), ensure Docker Desktop is running
 
 ### Filesystem / shell tool errors
@@ -128,7 +128,7 @@ MCP tools using stdio transport must complete the initialization handshake befor
 
 ### YAML syntax issues
 
-cagent validates config at startup and reports errors with line numbers. Common problems:
+docker-agent validates config at startup and reports errors with line numbers. Common problems:
 
 - Incorrect indentation (YAML is whitespace-sensitive)
 - Missing quotes around values containing special characters (`:`, `#`, `{`, `}`)
@@ -157,14 +157,14 @@ cagent validates config at startup and reports errors with line numbers. Common 
 
 ### Port conflicts
 
-When running cagent as an API server or MCP server, ensure the port is not already in use:
+When docker-agent as an API server or MCP server, ensure the port is not already in use:
 
 ```bash
 # Check if port 8080 is in use
 $ lsof -i :8080
 
 # Use a different port
-$ cagent api config.yaml --listen :9090
+$ docker agent api config.yaml --listen :9090
 ```
 
 ### MCP endpoint accessibility
@@ -210,12 +210,12 @@ Monitor for tools that don't clean up properly — check debug logs for MCP serv
 $ docker pull docker.io/username/agent:latest
 
 # Verify pulled agent content
-$ cagent pull docker.io/username/agent:latest
+$ docker agent pull docker.io/username/agent:latest
 ```
 
 ### Agent content issues
 
-- Ensure the pushed YAML is valid — run `cagent run` locally before pushing
+- Ensure the pushed YAML is valid — run `docker agent run` locally before pushing
 - Check that referenced resources (MCP tools, files) are available on the target machine
 - For auto-refresh (`--pull-interval`), verify the registry is accessible from the server
 

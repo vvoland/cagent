@@ -1,7 +1,7 @@
-#!/usr/bin/env cagent run
+#!/usr/bin/env docker agent run
 
 # Run the demo command with:
-# cagent run thinking_budget.yaml -c demo
+# docker agent run thinking_budget.yaml -c demo
 
 agents:
   root:
@@ -30,7 +30,7 @@ models:
     provider: anthropic
     model: claude-sonnet-4-5-20250929
     thinking_budget: 1024 # <- tokens, 1024 is the minimum
-  
+
   claude-4-5-sonnet-high:
     provider: anthropic
     model: claude-sonnet-4-5-20250929
@@ -47,12 +47,12 @@ models:
     provider: google
     model: gemini-2.5-flash
     thinking_budget: 0 # <- google only, no thinking
-  
+
   gemini-2-5-flash-low:
     provider: google
     model: gemini-2.5-flash
     thinking_budget: 1024
-  
+
   gemini-2-5-flash-high:
     provider: google
     model: gemini-2.5-flash

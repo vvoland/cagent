@@ -1,4 +1,4 @@
-#!/usr/bin/env cagent run
+#!/usr/bin/env docker agent run
 
 # OpenAPI Toolset Example
 #
@@ -8,7 +8,7 @@
 # Each endpoint in the spec becomes a callable tool that the agent can use.
 #
 # Usage:
-#   cagent run examples/openapi-petstore.yaml
+#   docker agent run examples/openapi-petstore.yaml
 
 agents:
   root:

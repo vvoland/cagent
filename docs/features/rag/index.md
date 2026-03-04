@@ -10,7 +10,7 @@ _Give your agents access to document knowledge bases with background indexing, m
 
 ## Overview
 
-RAG lets agents search through your documents to find relevant information before responding. cagent supports:
+RAG lets agents search through your documents to find relevant information before responding. docker-agent supports:
 
 - **Background indexing** — Files are indexed automatically and re-indexed on change
 - **Multiple strategies** — Semantic embeddings, BM25 keyword search, and LLM-enhanced search
@@ -175,7 +175,7 @@ chunking:
 Enable debug logging to see retrieval details:
 
 ```bash
-cagent run config.yaml --debug --log-file cagent.debug
+$ docker agent run config.yaml --debug --log-file cagent.debug
 ```
 
 Look for log tags: `[RAG Manager]`, `[Chunked-Embeddings Strategy]`, `[BM25 Strategy]`, `[RRF Fusion]`, `[Reranker]`.

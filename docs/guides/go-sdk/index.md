@@ -1,16 +1,16 @@
 ---
 title: "Go SDK"
-description: "Use cagent as a Go library to embed AI agents in your applications."
+description: "Use docker-agent as a Go library to embed AI agents in your applications."
 permalink: /guides/go-sdk/
 ---
 
 # Go SDK
 
-_Use cagent as a Go library to embed AI agents in your applications._
+_Use docker-agent as a Go library to embed AI agents in your applications._
 
 ## Overview
 
-cagent can be used as a Go library, allowing you to build AI agents directly into your Go applications. This gives you full programmatic control over agent creation, tool integration, and execution.
+docker-agent can be used as a Go library, allowing you to build AI agents directly into your Go applications. This gives you full programmatic control over agent creation, tool integration, and execution.
 
 <div class="callout callout-info">
 <div class="callout-title">ℹ️ Import Path
@@ -242,7 +242,7 @@ func createTeam(llm provider.Provider) *team.Team {
 
 ## Built-in Tools
 
-Use cagent's built-in tools:
+Use docker-agent's built-in tools:
 
 ```go
 import (

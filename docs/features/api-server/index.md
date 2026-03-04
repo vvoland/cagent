@@ -10,20 +10,20 @@ _Expose your agents via an HTTP API for programmatic access, web frontends, and 
 
 ## Overview
 
-The `cagent api` command starts an HTTP server that exposes your agents through a REST-style API with Server-Sent Events (SSE) streaming. Use it to build web UIs, integrate with CI/CD pipelines, or connect agents to other services.
+The `docker agent serve api` command starts an HTTP server that exposes your agents through a REST-style API with Server-Sent Events (SSE) streaming. Use it to build web UIs, integrate with CI/CD pipelines, or connect agents to other services.
 
 ```bash
 # Start the API server
-$ cagent api agent.yaml
+$ docker agent api agent.yaml
 
 # Custom listen address
-$ cagent api agent.yaml --listen 0.0.0.0:8080
+$ docker agent api agent.yaml --listen 0.0.0.0:8080
 
 # With session persistence
-$ cagent api agent.yaml --session-db ./sessions.db
+$ docker agent api agent.yaml --session-db ./sessions.db
 
 # Auto-refresh from OCI registry every 10 minutes
-$ cagent api agentcatalog/coder --pull-interval 10
+$ docker agent api agentcatalog/coder --pull-interval 10
 ```
 
 ## Endpoints
@@ -120,7 +120,7 @@ $ curl -N -X POST http://localhost:8080/api/sessions/abc-123/agent/my-agent \
 ## CLI Flags
 
 ```bash
-cagent api <agent-file>|<agents-dir> [flags]
+docker-agent api <agent-file>|<agents-dir> [flags]
 ```
 
 | Flag               | Default          | Description                                      |
@@ -135,7 +135,7 @@ cagent api <agent-file>|<agents-dir> [flags]
 <div class="callout callout-tip">
 <div class="callout-title">💡 Multi-agent configs
 </div>
-  <p>You can point <code>cagent api</code> at a directory containing multiple agent YAML files. Each becomes a separate agent accessible via <code>/api/agents</code>. Combine with <code>--pull-interval</code> to auto-refresh agents from an OCI registry.</p>
+  <p>You can point <code>docker agent serve api</code> at a directory containing multiple agent YAML files. Each becomes a separate agent accessible via <code>/api/agents</code>. Combine with <code>--pull-interval</code> to auto-refresh agents from an OCI registry.</p>
 
 </div>
 

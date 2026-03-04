@@ -1,12 +1,12 @@
 ---
 title: "Google Gemini"
-description: "Use Gemini 2.5 Flash, Gemini 3 Pro, and other Google models with cagent."
+description: "Use Gemini 2.5 Flash, Gemini 3 Pro, and other Google models with docker-agent."
 permalink: /providers/google/
 ---
 
 # Google Gemini
 
-_Use Gemini 2.5 Flash, Gemini 3 Pro, and other Google models with cagent._
+_Use Gemini 2.5 Flash, Gemini 3 Pro, and other Google models with docker-agent._
 
 ## Setup
 

@@ -171,8 +171,8 @@ toolsets:
 - **Use the right model** — Use capable models for complex reasoning, cheap models for simple tasks
 
 <div class="callout callout-info">
-<div class="callout-title">ℹ️ Beyond cagent
+<div class="callout-title">ℹ️ Beyond docker-agent
 </div>
-  <p>For interoperability with other agent frameworks, cagent supports the <a href="/features/a2a/">A2A protocol</a> and can expose agents via <a href="/features/mcp-mode/">MCP Mode</a>.</p>
+  <p>For interoperability with other agent frameworks, docker-agent supports the <a href="/features/a2a/">A2A protocol</a> and can expose agents via <a href="/features/mcp-mode/">MCP Mode</a>.</p>
 
 </div>

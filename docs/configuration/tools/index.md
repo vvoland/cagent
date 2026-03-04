@@ -10,7 +10,7 @@ _Complete reference for configuring built-in tools, MCP tools, and Docker-based 
 
 ## Built-in Tools
 
-Built-in tools are included with cagent and require no external dependencies. Add them to your agent's `toolsets` list.
+Built-in tools are included with docker-agent and require no external dependencies. Add them to your agent's `toolsets` list.
 
 ### Filesystem
 

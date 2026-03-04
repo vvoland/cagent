@@ -1,4 +1,4 @@
-#!/usr/bin/env cagent run
+#!/usr/bin/env docker agent run
 
 agents:
   root:
@@ -88,7 +88,14 @@ agents:
       - type: mcp
         command: gopls
         args: ["mcp"]
-        tools: [go_diagnostics, go_file_context, go_package_api, go_symbol_references, go_workspace]
+        tools:
+          [
+            go_diagnostics,
+            go_file_context,
+            go_package_api,
+            go_symbol_references,
+            go_workspace,
+          ]
 
 permissions:
   allow:

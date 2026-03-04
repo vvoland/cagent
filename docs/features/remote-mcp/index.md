@@ -1,16 +1,16 @@
 ---
 title: "Remote MCP Servers"
-description: "Connect cagent to cloud services via remote MCP servers with built-in OAuth authentication."
+description: "Connect docker-agent to cloud services via remote MCP servers with built-in OAuth authentication."
 permalink: /features/remote-mcp/
 ---
 
 # Remote MCP Servers
 
-_Connect cagent to cloud services via remote MCP servers with built-in OAuth authentication._
+_Connect docker-agent to cloud services via remote MCP servers with built-in OAuth authentication._
 
 ## Overview
 
-cagent supports connecting to remote MCP servers over **SSE** (Server-Sent Events) and **Streamable HTTP** transports. Many popular services offer MCP endpoints with OAuth — cagent handles the authentication flow automatically.
+cagent supports connecting to remote MCP servers over **SSE** (Server-Sent Events) and **Streamable HTTP** transports. Many popular services offer MCP endpoints with OAuth — docker-agent handles the authentication flow automatically.
 
 ```yaml
 toolsets:
@@ -23,7 +23,7 @@ toolsets:
 <div class="callout callout-tip">
 <div class="callout-title">💡 OAuth flow
 </div>
-  <p>When you connect to a remote MCP server that requires OAuth, cagent opens your browser automatically for authentication. Tokens are cached for subsequent sessions.</p>
+  <p>When you connect to a remote MCP server that requires OAuth, docker-agent opens your browser automatically for authentication. Tokens are cached for subsequent sessions.</p>
 
 </div>
 

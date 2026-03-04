@@ -2,7 +2,7 @@
 
 ### Build and Development
 
-- `task build` - Build the application binary (outputs to `./bin/cagent`)
+- `task build` - Build the application binary (outputs to `./bin/docker-agent`)
 - `task test` - Run Go tests (clears API keys to ensure deterministic tests)
 - `task lint` - Run golangci-lint (uses `.golangci.yml` configuration)
 - `task format` - Format code using golangci-lint fmt
@@ -12,29 +12,29 @@
 
 - `task build-local` - Build binary for local platform using Docker Buildx
 - `task cross` - Build binaries for multiple platforms (linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64, windows/arm64)
-- `task build-image` - Build Docker image tagged as `docker/cagent`
+- `task build-image` - Build Docker image tagged as `docker/docker-agent`
 - `task push-image` - Build and push multi-platform Docker image to registry
 
-### Running cagent
+### Running docker-agent
 
-- `./bin/cagent run <config.yaml>` - Run agent with configuration (launches TUI by default)
-- `./bin/cagent run <config.yaml> -a <agent_name>` - Run specific agent from multi-agent config
-- `./bin/cagent run agentcatalog/pirate` - Run agent directly from OCI registry
-- `./bin/cagent run --exec <config.yaml>` - Execute agent without TUI (non-interactive)
-- `./bin/cagent new` - Generate new agent configuration interactively
-- `./bin/cagent new --model openai/gpt-5` - Generate with specific model
-- `./bin/cagent share push ./agent.yaml namespace/repo` - Push agent to OCI registry
-- `./bin/cagent share pull namespace/repo` - Pull agent from OCI registry
-- `./bin/cagent serve mcp ./agent.yaml` - Expose agents as MCP tools
-- `./bin/cagent serve a2a <config.yaml>` - Start agent as A2A server
-- `./bin/cagent serve api` - Start Docker `cagent` API server
+- `./bin/docker-agent run <config.yaml>` - Run agent with configuration (launches TUI by default)
+- `./bin/docker-agent run <config.yaml> -a <agent_name>` - Run specific agent from multi-agent config
+- `./bin/docker-agent run agentcatalog/pirate` - Run agent directly from OCI registry
+- `./bin/docker-agent run --exec <config.yaml>` - Execute agent without TUI (non-interactive)
+- `./bin/docker-agent new` - Generate new agent configuration interactively
+- `./bin/docker-agent new --model openai/gpt-5` - Generate with specific model
+- `./bin/docker-agent share push ./agent.yaml namespace/repo` - Push agent to OCI registry
+- `./bin/docker-agent share pull namespace/repo` - Pull agent from OCI registry
+- `./bin/docker agent serve mcp ./agent.yaml` - Expose agents as MCP tools
+- `./bin/docker agent serve a2a <config.yaml>` - Start agent as A2A server
+- `./bin/docker agent serve api` - Start Docker `docker-agent` API server
 
 ### Debug and Development Flags
 
 - `--debug` or `-d` - Enable debug logging (logs to `~/.cagent/cagent.debug.log`)
 - `--log-file <path>` - Specify custom debug log location
 - `--otel` or `-o` - Enable OpenTelemetry tracing
-- Example: `./bin/cagent run config.yaml --debug --log-file ./debug.log`
+- Example: `./bin/docker-agent run config.yaml --debug --log-file ./debug.log`
 
 ### Single Test Execution
 
@@ -45,7 +45,8 @@
 
 ### Interactive Session Commands
 
-During a `cagent run` session, you can use:
+During a `docker agent run` session, you can use:
+
 - `/new` - Clear session history and start fresh
 - `/compact` - Generate summary and compact session history
 - `/copy` - Copy the current conversation to the clipboard
@@ -56,7 +57,7 @@ During a `cagent run` session, you can use:
 
 ## Architecture Overview
 
-cagent is a multi-agent AI system with hierarchical agent structure and pluggable tool ecosystem via MCP (Model Context Protocol).
+docker-agent is a multi-agent AI system with hierarchical agent structure and pluggable tool ecosystem via MCP (Model Context Protocol).
 
 ### Core Components
 
@@ -172,6 +173,7 @@ This project uses `github.com/stretchr/testify` for assertions and mocking.
 6. **Run tests in parallel when possible** - Use `t.Parallel()` for independent tests
 
 **VCR Pattern for E2E Tests:**
+
 ```go
 // Record/replay AI API interactions for deterministic tests
 recorder, err := startRecordingAIProxy(ctx, t, "test_name")
@@ -179,20 +181,24 @@ require.NoError(t, err)
 defer recorder.Stop()
 // Test code that makes AI API calls
 ```
+
 - Cassettes stored in `e2e/testdata/cassettes/`
 - Uses `go-vcr.v4` for recording/playback
 - Custom matcher normalizes tool call IDs
 
 **Golden File Pattern:**
+
 ```go
 // Compare test output against saved reference
 import "gotest.tools/v3/golden"
 golden.Assert(t, actualContent, "expected.golden")
 ```
+
 - Golden files in `testdata/` directories
 - Used for snapshot testing of complex outputs
 
 **Mock Pattern:**
+
 ```go
 type MockService struct {
     mock.Mock
@@ -210,6 +216,7 @@ defer mockSvc.AssertExpectations(t)
 ```
 
 **Table-Driven Tests:**
+
 ```go
 tests := []struct {
     name    string
@@ -252,6 +259,7 @@ for _, tt := range tests {
 5. **Env var gathering**: Dynamically collect required API keys and MCP tool secrets
 
 **Key validation rules:**
+
 - Agents must reference existing sub-agents
 - Model provider must be valid (`openai`, `anthropic`, `google`, `dmr`, etc.)
 - Toolset-specific fields validated (e.g., `path` only valid for `memory` toolsets)
@@ -269,6 +277,7 @@ for _, tt := range tests {
 ### Code Style and Conventions
 
 **Error Handling:**
+
 ```go
 // Always wrap errors with context using fmt.Errorf with %w
 if err != nil {
@@ -288,6 +297,7 @@ if errors.Is(err, context.Canceled) {
 ```
 
 **Context Usage:**
+
 ```go
 // Always pass context as first parameter
 func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-chan Event
@@ -302,6 +312,7 @@ ctx = context.WithoutCancel(ctx)
 ```
 
 **Logging with slog:**
+
 ```go
 // Use structured logging with key-value pairs
 slog.Debug("Starting runtime stream", "agent", agentName, "session_id", sess.ID)
@@ -313,6 +324,7 @@ slog.Debug("[Telemetry] Event tracked", "event", eventName)
 ```
 
 **Struct Initialization:**
+
 ```go
 // Use functional options pattern for constructors
 func New(name, prompt string, opts ...Opt) *Agent {
@@ -338,6 +350,7 @@ sess := session.New(
 ```
 
 **Interface Design:**
+
 ```go
 // Keep interfaces minimal and focused (excerpt — actual Runtime interface has more methods)
 type Runtime interface {
@@ -356,6 +369,7 @@ type StartableToolSet struct {
 ```
 
 **Concurrency Patterns:**
+
 ```go
 // Use atomic types for flags
 var started atomic.Bool
@@ -375,6 +389,7 @@ return events
 ```
 
 **Type Safety:**
+
 ```go
 // Always check type assertions
 if errEvent, ok := event.(*ErrorEvent); ok {
@@ -387,6 +402,7 @@ if errEvent, ok := event.(*ErrorEvent); ok {
 The project uses `golangci-lint` with strict rules (`.golangci.yml`):
 
 **Forbidden patterns in tests:**
+
 - `context.Background()` → use `t.Context()`
 - `context.TODO()` → use `t.Context()`
 - `os.MkdirTemp()` → use `t.TempDir()`
@@ -394,11 +410,13 @@ The project uses `golangci-lint` with strict rules (`.golangci.yml`):
 - `fmt.Print*()` → use testing or logging facilities
 
 **Dependency rules:**
+
 - Don't use `github.com/docker/cagent/internal` from `/pkg/`
 - Don't use deprecated `gopkg.in/yaml.v3` → use `github.com/goccy/go-yaml`
 - Don't use `testify` in production code (test files only)
 
 **Enabled linters:**
+
 - `gocritic`, `govet`, `staticcheck`, `revive` - code quality
 - `errcheck`, `ineffassign`, `unused`, `unparam` - error and unused code detection
 - `testifylint`, `ginkgolinter`, `thelper` - test quality
@@ -406,6 +424,7 @@ The project uses `golangci-lint` with strict rules (`.golangci.yml`):
 - `depguard` - dependency restrictions
 
 **Code formatters:**
+
 - `gofmt` - standard Go formatting (with `interface{}` → `any` rewrite)
 - `gofumpt` - stricter formatting with extra rules
 - `gci` - import ordering (standard, default, `github.com/docker/cagent`)
@@ -542,10 +561,9 @@ agents:
         path: ./writer_memory.db
 ```
 
-
 ## Runtime Execution Flow
 
-Understanding how Docekr `cagent` processes user input through to agent responses:
+Understanding how `docker-agent` processes user input through to agent responses:
 
 ### Main Execution Loop
 
@@ -582,6 +600,7 @@ Understanding how Docekr `cagent` processes user input through to agent response
 ### Tool Call Flow
 
 **Built-in Tools** (`pkg/runtime/runtime.go`):
+
 ```go
 // Runtime registers built-in tool handlers (transfer_task, handoff)
 r.toolMap[builtin.ToolNameTransferTask] = ToolHandler{handler: r.handleTaskTransfer, tool: t}
@@ -604,6 +623,7 @@ canceled := r.executeWithApproval(ctx, sess, toolCall, tool, events, a, runTool)
 ```
 
 **MCP Tools** (`pkg/tools/mcp/`):
+
 - Loaded from stdio commands or remote connections
 - Executed via MCP protocol (`tools/call` method)
 - Support elicitation (interactive prompts for missing data)
@@ -622,6 +642,7 @@ canceled := r.executeWithApproval(ctx, sess, toolCall, tool, events, a, runTool)
 8. Restore parent agent as current
 
 **Example delegation:**
+
 ```yaml
 # User → Root Agent → Sub-Agent
 User: "Research topic X"
@@ -634,6 +655,7 @@ Root: receives results, responds to user
 ### Event Streaming Architecture
 
 **Event Channel** (buffered, capacity 128):
+
 ```go
 events := make(chan Event, 128)
 go func() {
@@ -649,6 +671,7 @@ return events
 ```
 
 **Event Types** (`pkg/runtime/event.go`):
+
 - `StreamStarted` - Runtime begins processing
 - `AgentChoice` - Partial or complete agent response
 - `ToolCall` - Agent requests tool execution
@@ -658,6 +681,7 @@ return events
 - `StreamStopped` - Runtime completed/stopped
 
 **Consumers**:
+
 - TUI (`pkg/tui/`) - Renders events in terminal UI
 - CLI (`cmd/root/run.go`) - Prints events to stdout
 - API Server (`pkg/api/`) - Streams events over HTTP/SSE
@@ -666,12 +690,14 @@ return events
 ### Session Management
 
 **Session** (`pkg/session/`):
+
 - Maintains conversation history (messages)
 - Tracks current state (tool calls, iterations)
 - Stores configuration (max iterations, title)
 - Provides context for agents
 
 **Message Types**:
+
 - `SystemMessage` - Agent instruction/prompt
 - `UserMessage` - User input
 - `AssistantMessage` - Agent response (text + tool calls)
@@ -734,11 +760,12 @@ animation.Unregister()
 - Root directory - Main project configurations (`Taskfile.yml`, `go.mod`, `.golangci.yml`)
 - `.github/workflows/ci.yml` - CI/CD pipeline
 - `agent-schema.json` - JSON schema for agent configuration validation
-- `golang_developer.yaml` - Dogfooding agent for Docker `cagent` development
+- `golang_developer.yaml` - Dogfooding agent for Docker `docker-agent` development
 
 ### Environment Variables
 
 **Model Provider API Keys:**
+
 - `OPENAI_API_KEY` - OpenAI authentication
 - `ANTHROPIC_API_KEY` - Anthropic authentication
 - `GOOGLE_API_KEY` - Google/Gemini authentication
@@ -747,10 +774,12 @@ animation.Unregister()
 - `NEBIUS_API_KEY` - Nebius authentication
 
 **Telemetry:**
+
 - `TELEMETRY_ENABLED` - Control telemetry (set to `false` to disable)
 - `CAGENT_HIDE_TELEMETRY_BANNER` - Hide telemetry banner message
 
 **Testing:**
+
 - Tests run with all API keys cleared to ensure deterministic behavior
 - VCR cassettes used for E2E tests to replay AI API interactions
 
@@ -761,41 +790,46 @@ animation.Unregister()
 - Add `--debug` flag to any command for detailed logging
 - Logs written to `~/.cagent/cagent.debug.log` by default
 - Use `--log-file <path>` to specify custom log location
-- Example: `./bin/cagent run config.yaml --debug`
+- Example: `./bin/docker-agent run config.yaml --debug`
 
 ### OpenTelemetry Tracing
 
 - Add `--otel` flag to enable OpenTelemetry tracing
-- Example: `./bin/cagent run config.yaml --otel`
+- Example: `./bin/docker-agent run config.yaml --otel`
 - Traces include spans for runtime operations, tool calls, and model interactions
 
 ### Common Issues and Solutions
 
 **Config Validation Errors:**
+
 - Check agent references exist: all `sub_agents` must be defined in `agents` section
 - Verify model provider names: must be one of `openai`, `anthropic`, `google`, `dmr`, `mistral`, etc.
 - Check toolset-specific fields: e.g., `path` only valid for `memory` toolsets
 - Review error messages - YAML parsing errors show line numbers and context
 
 **Missing API Keys:**
+
 - Required keys gathered dynamically based on configured model providers
 - Set appropriate `<PROVIDER>_API_KEY` environment variable
 - Check with `env | grep API_KEY` to verify keys are set
 - For MCP tools, check `gateway.RequiredEnvVars()` output for additional secrets
 
 **Tool Execution Failures:**
+
 - Check tool permissions and paths (especially for `shell` and `filesystem` tools)
 - For MCP tools, verify command exists and is executable
 - Check MCP server logs (stdio stderr captured in debug logs)
 - For remote MCP, verify URL accessibility and authentication
 
 **Agent Not Responding:**
+
 - Check max iterations setting - may have hit limit
 - Review debug logs for context cancellation or errors
 - Verify model API is accessible (check API key and network)
 - For DMR provider, ensure Docker Model Runner is enabled and model is pulled
 
 **Performance Issues:**
+
 - Review token usage with `/usage` command during session
 - Consider reducing `max_tokens` in model configuration
 - Check if MCP tools are slow (show in debug logs)
@@ -804,13 +838,15 @@ animation.Unregister()
 ### Debugging Tips
 
 **Use the golang_developer agent:**
+
 ```bash
-cd /path/to/cagent
-./bin/cagent run golang_developer.yaml
+cd /path/to/docker-agent
+./bin/docker-agent run golang_developer.yaml
 # Ask questions about the codebase or request fixes/features
 ```
 
 **Trace execution flow:**
+
 1. Enable debug mode: `--debug`
 2. Look for key log patterns:
    - `"Starting runtime stream"` - Beginning of agent execution
@@ -819,6 +855,7 @@ cd /path/to/cagent
    - `"Stream stopped"` - Agent finished
 
 **Test with minimal config:**
+
 ```yaml
 agents:
   root:
@@ -828,10 +865,11 @@ agents:
 ```
 
 **Verify build artifacts:**
+
 ```bash
-task build  # Should create ./bin/cagent
-./bin/cagent version  # Should show version info
-./bin/cagent --help  # Should list all commands
+task build  # Should create ./bin/docker-agent
+./bin/docker-agent version  # Should show version info
+./bin/docker-agent --help  # Should list all commands
 ```
 
 ## CI/CD Pipeline
@@ -839,6 +877,7 @@ task build  # Should create ./bin/cagent
 ### GitHub Actions Workflow (`.github/workflows/ci.yml`)
 
 **Jobs:**
+
 1. **Lint** - Runs `golangci-lint`
 2. **Test** - Runs `task test` (clears API keys for deterministic tests)
 3. **License Check** - Validates dependencies use allowed licenses (Apache-2.0, MIT, BSD-3/2-Clause)
@@ -846,19 +885,22 @@ task build  # Should create ./bin/cagent
 5. **Build Image** - Builds and pushes Docker image for multiple platforms (linux/amd64, linux/arm64)
 
 **Triggers:**
+
 - Push to `main` branch
 - Pull requests to `main`
 - Tags starting with `v*`
 - Manual workflow dispatch
 
 **Build Configuration:**
+
 - Go version: 1.26.0
 - Platforms: linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64, windows/arm64
-- Binary name: `cagent` (or `cagent.exe` on Windows)
+- Binary name: `docker-agent` (or `docker-agent.exe` on Windows)
 - Version injection: Uses git tag and commit SHA via ldflags
 
 **Image Publishing:**
-- Registry: Docker Hub (`docker/cagent`)
+
+- Registry: Docker Hub (`docker/docker-agent`)
 - Tags: semver, edge, PR refs
 - Features: SBOM and provenance enabled
 
@@ -884,6 +926,7 @@ task push-image    # Build and push multi-platform
 1. **Model references are case-sensitive**: `openai/gpt-4o` ≠ `openai/GPT-4o`
 
 2. **Inline vs defined models**: Both work but have different validation
+
    ```yaml
    # Inline - validated at runtime
    agents:
@@ -957,11 +1000,13 @@ task push-image    # Build and push multi-platform
    - HTTP polling as fallback
 
 3. **Docker MCP refs resolve via gateway**:
+
    ```yaml
    toolsets:
      - type: mcp
-       ref: docker:github-official  # Special handling
+       ref: docker:github-official # Special handling
    ```
+
    - Requires Docker Desktop or gateway configuration
    - Auto-discovers required environment variables
 
@@ -1027,21 +1072,21 @@ task push-image    # Build and push multi-platform
 
 ## Quick Reference: Key Files
 
-| File | Purpose |
-|------|---------|
-| `main.go` | Entry point, signal handling |
-| `cmd/root/root.go` | Root command, logging setup, persistent flags |
-| `cmd/root/run.go` | `cagent run` command implementation |
-| `pkg/runtime/runtime.go` | Core execution loop, tool handling, streaming |
-| `pkg/agent/agent.go` | Agent abstraction, tool discovery |
-| `pkg/session/session.go` | Message history management |
-| `pkg/config/config.go` | Config loading, versioning, migration |
-| `pkg/config/latest/types.go` | Current config schema |
-| `pkg/tools/tools.go` | Tool interface definitions |
-| `pkg/tools/builtin/` | Built-in tool implementations |
-| `pkg/tools/mcp/` | MCP protocol client implementations |
-| `pkg/model/provider/` | AI provider integrations |
-| `pkg/tui/` | Terminal UI (Bubble Tea) |
-| `Taskfile.yml` | Build automation tasks |
-| `.golangci.yml` | Linter configuration |
-| `agent-schema.json` | JSON schema for config validation |
+| File                         | Purpose                                       |
+| ---------------------------- | --------------------------------------------- |
+| `main.go`                    | Entry point, signal handling                  |
+| `cmd/root/root.go`           | Root command, logging setup, persistent flags |
+| `cmd/root/run.go`            | `docker agent run` command implementation     |
+| `pkg/runtime/runtime.go`     | Core execution loop, tool handling, streaming |
+| `pkg/agent/agent.go`         | Agent abstraction, tool discovery             |
+| `pkg/session/session.go`     | Message history management                    |
+| `pkg/config/config.go`       | Config loading, versioning, migration         |
+| `pkg/config/latest/types.go` | Current config schema                         |
+| `pkg/tools/tools.go`         | Tool interface definitions                    |
+| `pkg/tools/builtin/`         | Built-in tool implementations                 |
+| `pkg/tools/mcp/`             | MCP protocol client implementations           |
+| `pkg/model/provider/`        | AI provider integrations                      |
+| `pkg/tui/`                   | Terminal UI (Bubble Tea)                      |
+| `Taskfile.yml`               | Build automation tasks                        |
+| `.golangci.yml`              | Linter configuration                          |
+| `agent-schema.json`          | JSON schema for config validation             |

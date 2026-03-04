@@ -1,12 +1,12 @@
 ---
 title: "OpenAI"
-description: "Use GPT-4o, GPT-5, GPT-5-mini, and other OpenAI models with cagent."
+description: "Use GPT-4o, GPT-5, GPT-5-mini, and other OpenAI models with docker-agent."
 permalink: /providers/openai/
 ---
 
 # OpenAI
 
-_Use GPT-4o, GPT-5, GPT-5-mini, and other OpenAI models with cagent._
+_Use GPT-4o, GPT-5, GPT-5-mini, and other OpenAI models with docker-agent._
 
 ## Setup
 

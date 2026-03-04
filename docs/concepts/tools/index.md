@@ -10,23 +10,23 @@ _Tools give agents the ability to interact with the world — read files, run co
 
 ## How Tools Work
 
-When an agent needs to perform an action, it makes a **tool call**. The cagent runtime executes the tool and returns the result to the agent, which can then use it to continue its work.
+When an agent needs to perform an action, it makes a **tool call**. The docker-agent runtime executes the tool and returns the result to the agent, which can then use it to continue its work.
 
 1. Agent receives a user message
 2. Agent decides it needs to use a tool (e.g., read a file)
-3. cagent executes the tool and returns the result
+3. docker-agent executes the tool and returns the result
 4. Agent incorporates the result and responds
 
 <div class="callout callout-info">
 <div class="callout-title">ℹ️ Tool Confirmation
 </div>
-  <p>By default, cagent asks for user confirmation before executing tools that have side effects (shell commands, file writes). Use <code>--yolo</code> to auto-approve all tool calls.</p>
+  <p>By default, docker-agent asks for user confirmation before executing tools that have side effects (shell commands, file writes). Use <code>--yolo</code> to auto-approve all tool calls.</p>
 
 </div>
 
 ## Built-in Tools
 
-cagent ships with several built-in tools that require no external dependencies. Each is enabled by adding its `type` to the agent's `toolsets` list.
+docker-agent ships with several built-in tools that require no external dependencies. Each is enabled by adding its `type` to the agent's `toolsets` list.
 
 ### Filesystem
 
@@ -115,7 +115,7 @@ The `transfer_task` tool is automatically available when an agent has `sub_agent
 
 ## MCP Tools
 
-cagent supports the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) for extending agents with external tools. There are three ways to connect MCP tools:
+docker-agent supports the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) for extending agents with external tools. There are three ways to connect MCP tools:
 
 ### Docker MCP (Recommended)
 

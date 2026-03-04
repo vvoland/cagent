@@ -1,12 +1,12 @@
 ---
 title: "Contributing"
-description: "cagent is open source. Here's how to set up your development environment and contribute."
+description: "docker-agent is open source. Here's how to set up your development environment and contribute."
 permalink: /community/contributing/
 ---
 
 # Contributing
 
-_cagent is open source. Here's how to set up your development environment and contribute._
+_docker-agent is open source. Here's how to set up your development environment and contribute._
 
 ## Development Setup
 
@@ -37,14 +37,14 @@ export OPENAI_API_KEY=your_key_here
 export ANTHROPIC_API_KEY=your_key_here
 
 # Run an example
-./bin/cagent run examples/code.yaml
+./bin/docker-agent run examples/code.yaml
 ```
 
 ### Development Commands
 
 | Command            | Description                                     |
 | ------------------ | ----------------------------------------------- |
-| `task build`       | Build the binary to `./bin/cagent`              |
+| `task build`       | Build the binary to `./bin/docker-agent`        |
 | `task test`        | Run all tests (clears API keys for determinism) |
 | `task lint`        | Run golangci-lint                               |
 | `task format`      | Format code                                     |
@@ -54,14 +54,14 @@ export ANTHROPIC_API_KEY=your_key_here
 
 ## Dogfooding
 
-Use cagent to work on cagent! The project includes a specialized developer agent:
+Use docker-agent to work on docker-agent! The project includes a specialized developer agent:
 
 ```bash
 cd cagent
-cagent run ./golang_developer.yaml
+docker agent run ./golang_developer.yaml
 ```
 
-This agent is an expert Go developer that understands the cagent codebase. Ask it questions, request fixes, or have it implement features.
+This agent is an expert Go developer that understands the docker-agent codebase. Ask it questions, request fixes, or have it implement features.
 
 ## Core Concepts
 
@@ -108,7 +108,7 @@ File issues on the [GitHub issue tracker](https://github.com/docker/cagent/issue
 <div class="callout callout-tip">
 <div class="callout-title">💡 Tip
 </div>
-  <p>Use the dogfooding agent (<code>cagent run ./golang_developer.yaml</code>) to help write and review your changes before submitting.</p>
+  <p>Use the dogfooding agent (<code>docker agent run ./golang_developer.yaml</code>) to help write and review your changes before submitting.</p>
 
 </div>
 
@@ -129,7 +129,7 @@ Find us on [Slack](https://dockercommunity.slack.com/archives/C09DASHHRU4) for q
 
 ## Code of Conduct
 
-We want to keep the cagent community welcoming, inclusive, and collaborative. Key guidelines:
+We want to keep the docker-agent community welcoming, inclusive, and collaborative. Key guidelines:
 
 - **Be nice** — Be courteous, respectful, and polite. No abuse of any kind will be tolerated.
 - **Encourage diversity** — Make everyone feel welcome regardless of background.
