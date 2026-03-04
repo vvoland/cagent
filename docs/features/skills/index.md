@@ -36,6 +36,7 @@ agents:
 
 ## SKILL.md Format
 
+<!-- yaml-lint:skip -->
 ```yaml
 ---
 name: create-dockerfile

@@ -412,10 +412,11 @@ agents:
             cmd: task lint
       # Custom API tool
       - type: api
-        name: get_status
-        method: GET
-        endpoint: "https://api.example.com/status"
-        instruction: Check service health
+        api_config:
+          name: get_status
+          method: GET
+          endpoint: "https://api.example.com/status"
+          instruction: Check service health
       # Docker MCP tools
       - type: mcp
         ref: docker:github-official
