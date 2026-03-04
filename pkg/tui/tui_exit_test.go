@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/docker/cagent/pkg/audio/transcribe"
 	"github.com/docker/cagent/pkg/tui/components/completion"
 	"github.com/docker/cagent/pkg/tui/components/editor"
 	"github.com/docker/cagent/pkg/tui/components/notification"
@@ -137,6 +138,7 @@ func newTestModel() (*appModel, *mockChatPage, *mockEditor) {
 		pendingSidebarCollapsed: map[string]bool{},
 		chatPage:                page,
 		editor:                  ed,
+		transcriber:             transcribe.New(""),
 		notification:            notification.New(),
 		dialogMgr:               dialog.New(),
 		completions:             completion.New(),
