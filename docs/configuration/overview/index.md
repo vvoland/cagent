@@ -14,7 +14,7 @@ A docker-agent YAML config has these main sections:
 
 ```bash
 # 1. Version — configuration schema version (optional but recommended)
-version: 5
+version: 6
 
 # 2. Metadata — optional agent metadata for distribution
 metadata:
