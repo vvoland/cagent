@@ -538,14 +538,19 @@ func (m *appModel) handleStartSpeak() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	m.transcriptCh = make(chan string, 100)
+	// Close any previous channel to unblock stale waitForTranscript goroutines.
+	m.closeTranscriptCh()
+
+	ch := make(chan string, 100)
+	m.transcriptCh = ch
 	err := m.transcriber.Start(context.Background(), func(delta string) {
 		select {
-		case m.transcriptCh <- delta:
+		case ch <- delta:
 		default:
 		}
 	})
 	if err != nil {
+		m.closeTranscriptCh()
 		return m, notification.ErrorCmd(fmt.Sprintf("Failed to start listening: %v", err))
 	}
 
@@ -562,6 +567,8 @@ func (m *appModel) handleStopSpeak() (tea.Model, tea.Cmd) {
 	}
 
 	m.transcriber.Stop()
+	m.closeTranscriptCh()
+
 	return m, tea.Batch(m.editor.SetRecording(false), notification.SuccessCmd("Stopped listening"))
 }
 
@@ -575,6 +582,15 @@ func (m *appModel) waitForTranscript() tea.Cmd {
 			return nil
 		}
 		return messages.SpeakTranscriptMsg{Delta: delta}
+	}
+}
+
+// closeTranscriptCh closes the transcript channel and sets it to nil,
+// unblocking any goroutines waiting in waitForTranscript.
+func (m *appModel) closeTranscriptCh() {
+	if m.transcriptCh != nil {
+		close(m.transcriptCh)
+		m.transcriptCh = nil
 	}
 }
 

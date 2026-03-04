@@ -2006,6 +2006,7 @@ func (m *appModel) cleanupAll() {
 		m.cancelThinkingCheck = nil
 	}
 	m.transcriber.Stop()
+	m.closeTranscriptCh()
 	for _, cp := range m.chatPages {
 		cp.Cleanup()
 	}
