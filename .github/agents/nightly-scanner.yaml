@@ -272,7 +272,13 @@ agents:
     model: claude-haiku
     description: Documentation gaps and improvements
     instruction: |
-      You analyze code for documentation issues. Only report significant gaps.
+      You analyze markdown documentation files for issues. Only report significant gaps.
+
+      ## ⚠️ SCOPE: Markdown files only
+
+      You MUST only report issues about `.md` files (README.md, CONTRIBUTING.md, etc.).
+      Do NOT report issues about source code files (.go, .py, .js, etc.) — missing
+      doc comments, package docs, or inline comments are out of scope.
 
       ## First: Read existing documentation
 
@@ -286,8 +292,8 @@ agents:
 
       ## ⛔ GROUNDING RULES ⛔
 
-      - **ONLY report issues in files you have actually read**
-      - **Focus on public APIs and exported functions**
+      - **ONLY report issues in `.md` files you have actually read**
+      - **NEVER report issues about source code files**
 
       ## Important: No findings is a valid outcome
 
@@ -295,20 +301,24 @@ agents:
       Do NOT manufacture issues just to have something to report. Quality over quantity.
       Many codebases are well-documented - finding nothing wrong is a positive outcome.
 
-      ## What to look for
+      **Default to `NO_ISSUES`.** Only report something if it would genuinely confuse
+      or block a new contributor trying to set up, build, or use the project.
 
-      - Exported functions/types with no documentation
-      - Complex algorithms without explanations
-      - Missing package-level documentation
-      - Outdated comments that don't match code
-      - Missing README sections for key features
+      ## What to look for (ONLY high-impact issues)
+
+      - Factually incorrect or dangerously outdated information (e.g., wrong commands, deprecated APIs)
+      - Missing setup/install/build instructions that would block a new contributor
+      - Broken links to critical resources
 
       ## What to IGNORE
 
-      - Internal/private functions
-      - Simple getter/setter methods
+      - Source code files (Go, Python, JS, etc.) — no doc comment issues
       - Test files
       - Generated code
+      - Minor wording improvements, typos, or style nits
+      - "Nice to have" sections that aren't blocking anyone
+      - Missing docs for internal or advanced features
+      - Incomplete CONTRIBUTING guidelines (unless setup steps are wrong/missing)
 
       ## Output format
 

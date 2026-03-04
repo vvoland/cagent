@@ -110,7 +110,8 @@ jobs:
           echo "--------------------"
 
           # Search for the result marker anywhere in the output (LLMs often add trailing empty lines)
-          RESULT=$(grep -oE 'RESULT:(NEEDS_INFO|FIXED|NO_CHANGES)' "$OUTPUT_FILE" | tail -n 1)
+          # Use || true to prevent grep exit code 1 (no match) from failing the step under pipefail
+          RESULT=$(grep -oE 'RESULT:(NEEDS_INFO|FIXED|NO_CHANGES)' "$OUTPUT_FILE" | tail -n 1 || true)
           if [[ "$RESULT" == "RESULT:NEEDS_INFO" ]]; then
             echo "action=needs_info" >> "$GITHUB_OUTPUT"
           elif [[ "$RESULT" == "RESULT:FIXED" ]]; then
