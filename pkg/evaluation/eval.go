@@ -375,8 +375,8 @@ func (r *Runner) runCagentInContainer(ctx context.Context, imageID string, quest
 	}
 
 	if r.runConfig.ModelsGateway != "" {
-		args = append(args, "-e", "CAGENT_MODELS_GATEWAY")
-		env = append(env, "CAGENT_MODELS_GATEWAY="+r.runConfig.ModelsGateway)
+		args = append(args, "-e", "DOCKER_AGENT_MODELS_GATEWAY")
+		env = append(env, "DOCKER_AGENT_MODELS_GATEWAY="+r.runConfig.ModelsGateway)
 
 		if token, ok := r.runConfig.EnvProvider().Get(ctx, environment.DockerDesktopTokenEnv); ok && token != "" {
 			args = append(args, "-e", environment.DockerDesktopTokenEnv)

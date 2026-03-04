@@ -69,7 +69,7 @@ func TestGatewayLogic(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("CAGENT_MODELS_GATEWAY", tt.env)
+			t.Setenv("DOCKER_AGENT_MODELS_GATEWAY", tt.env)
 
 			// Mock user config loader
 			original := loadUserConfig
@@ -229,7 +229,7 @@ func TestDefaultModelLogic(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("CAGENT_DEFAULT_MODEL", tt.env)
+			t.Setenv("DOCKER_AGENT_DEFAULT_MODEL", tt.env)
 
 			// Mock user config loader
 			original := loadUserConfig

@@ -18,9 +18,11 @@ import (
 )
 
 const (
-	flagModelsGateway = "models-gateway"
-	envModelsGateway  = "CAGENT_MODELS_GATEWAY"
-	envDefaultModel   = "CAGENT_DEFAULT_MODEL"
+	flagModelsGateway      = "models-gateway"
+	envModelsGateway       = "DOCKER_AGENT_MODELS_GATEWAY"
+	cagentEnvModelsGateway = "CAGENT_MODELS_GATEWAY"
+	envDefaultModel        = "DOCKER_AGENT_DEFAULT_MODEL"
+	cagentEnvDefaultModel  = "CAGENT_DEFAULT_MODEL"
 )
 
 func addRuntimeConfigFlags(cmd *cobra.Command, runConfig *config.RuntimeConfig) {
@@ -78,6 +80,8 @@ func addGatewayFlags(cmd *cobra.Command, runConfig *config.RuntimeConfig) {
 		if runConfig.ModelsGateway == "" {
 			if gateway := os.Getenv(envModelsGateway); gateway != "" {
 				runConfig.ModelsGateway = gateway
+			} else if gateway := os.Getenv(cagentEnvModelsGateway); gateway != "" {
+				runConfig.ModelsGateway = gateway
 			} else if userCfg.ModelsGateway != "" {
 				runConfig.ModelsGateway = userCfg.ModelsGateway
 			}
@@ -86,6 +90,8 @@ func addGatewayFlags(cmd *cobra.Command, runConfig *config.RuntimeConfig) {
 
 		// Precedence for default model: environment variable > user config
 		if model := os.Getenv(envDefaultModel); model != "" {
+			runConfig.DefaultModel = parseModelShorthand(model)
+		} else if model := os.Getenv(cagentEnvDefaultModel); model != "" {
 			runConfig.DefaultModel = parseModelShorthand(model)
 		} else if userCfg.DefaultModel != nil {
 			runConfig.DefaultModel = &userCfg.DefaultModel.ModelConfig
