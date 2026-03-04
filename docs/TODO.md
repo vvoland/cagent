@@ -66,7 +66,6 @@
 - [x] Multi-turn conversations in `cagent run --exec` — Added example. *(Added)*
 - [x] Queueing multiple messages: `cagent run question1 question2 ...` *(Added)*
 - [x] `cagent eval` flags — Added examples with flags. *(Added)*
-- [ ] `--exit-on-stdin-eof` flag — Hidden flag, low priority.
 - [ ] `--keep-containers` flag for eval — Already documented in eval page.
 
 ### Features > TUI (`tui.html`)
@@ -135,5 +134,4 @@
 
 - [ ] Branching sessions — More detailed documentation (currently mentioned)
 - [ ] Double-click title to edit in TUI — Minor feature
-- [ ] `--exit-on-stdin-eof` flag — Hidden flag for integration
 - [ ] Code-aware chunking detail — Already shown in examples
