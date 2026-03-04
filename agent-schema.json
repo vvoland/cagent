@@ -704,7 +704,8 @@
             "a2a",
             "lsp",
             "user_prompt",
-            "openapi"
+            "openapi",
+            "model_picker"
           ]
         },
         "instruction": {
@@ -840,6 +841,13 @@
           "items": {
             "type": "string"
           }
+        },
+        "models": {
+          "type": "array",
+          "description": "List of allowed models for the model_picker tool.",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false,
@@ -890,7 +898,8 @@
                 "api",
                 "a2a",
                 "lsp",
-                "user_prompt"
+                "user_prompt",
+                "model_picker"
               ]
             }
           }
@@ -955,6 +964,22 @@
             {
               "required": [
                 "url"
+              ]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "properties": {
+                "type": {
+                  "const": "model_picker"
+                }
+              }
+            },
+            {
+              "required": [
+                "models"
               ]
             }
           ]

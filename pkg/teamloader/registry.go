@@ -72,6 +72,7 @@ func NewDefaultToolsetRegistry() *ToolsetRegistry {
 	r.Register("lsp", createLSPTool)
 	r.Register("user_prompt", createUserPromptTool)
 	r.Register("openapi", createOpenAPITool)
+	r.Register("model_picker", createModelPickerTool)
 	return r
 }
 
@@ -326,4 +327,11 @@ func createOpenAPITool(ctx context.Context, toolset latest.Toolset, _ string, ru
 	headers := expander.ExpandMap(ctx, toolset.Headers)
 
 	return builtin.NewOpenAPITool(specURL, headers), nil
+}
+
+func createModelPickerTool(_ context.Context, toolset latest.Toolset, _ string, _ *config.RuntimeConfig) (tools.ToolSet, error) {
+	if len(toolset.Models) == 0 {
+		return nil, fmt.Errorf("model_picker toolset requires at least one model")
+	}
+	return builtin.NewModelPickerTool(toolset.Models), nil
 }

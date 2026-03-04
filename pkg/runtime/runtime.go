@@ -96,11 +96,6 @@ func ResumeReject(reason string) ResumeRequest {
 // ToolHandlerFunc is a function type for handling tool calls
 type ToolHandlerFunc func(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, events chan Event) (*tools.ToolCallResult, error)
 
-type ToolHandler struct {
-	handler ToolHandlerFunc
-	tool    tools.Tool
-}
-
 // ElicitationRequestHandler is a function type for handling elicitation requests
 type ElicitationRequestHandler func(ctx context.Context, message string, schema map[string]any) (map[string]any, error)
 
@@ -196,7 +191,7 @@ type ToolsChangeSubscriber interface {
 
 // LocalRuntime manages the execution of agents
 type LocalRuntime struct {
-	toolMap                     map[string]ToolHandler
+	toolMap                     map[string]ToolHandlerFunc
 	team                        *team.Team
 	currentAgent                string
 	resumeChan                  chan ResumeRequest
@@ -297,7 +292,7 @@ func NewLocalRuntime(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 	}
 
 	r := &LocalRuntime{
-		toolMap:              make(map[string]ToolHandler),
+		toolMap:              make(map[string]ToolHandlerFunc),
 		team:                 agents,
 		currentAgent:         defaultAgent.Name(),
 		resumeChan:           make(chan ResumeRequest),
@@ -909,30 +904,14 @@ func (r *LocalRuntime) emitToolsProgressively(ctx context.Context, a *agent.Agen
 	send(ToolsetInfo(totalTools, false, r.currentAgent))
 }
 
-// registerDefaultTools registers the default tool handlers
+// registerDefaultTools registers the runtime-managed tool handlers.
+// The tool definitions themselves come from the agent's toolsets; this only
+// maps tool names to the runtime handler functions that implement them.
 func (r *LocalRuntime) registerDefaultTools() {
-	slog.Debug("Registering default tools")
-
-	tt := builtin.NewTransferTaskTool()
-	ht := builtin.NewHandoffTool()
-	ttTools, _ := tt.Tools(context.TODO())
-	htTools, _ := ht.Tools(context.TODO())
-	allTools := append(ttTools, htTools...)
-
-	handlers := map[string]ToolHandlerFunc{
-		builtin.ToolNameTransferTask: r.handleTaskTransfer,
-		builtin.ToolNameHandoff:      r.handleHandoff,
-	}
-
-	for _, t := range allTools {
-		if h, exists := handlers[t.Name]; exists {
-			r.toolMap[t.Name] = ToolHandler{handler: h, tool: t}
-		} else {
-			slog.Warn("No handler found for default tool", "tool", t.Name)
-		}
-	}
-
-	slog.Debug("Registered default tools", "count", len(r.toolMap))
+	r.toolMap[builtin.ToolNameTransferTask] = r.handleTaskTransfer
+	r.toolMap[builtin.ToolNameHandoff] = r.handleHandoff
+	r.toolMap[builtin.ToolNameChangeModel] = r.handleChangeModel
+	r.toolMap[builtin.ToolNameRevertModel] = r.handleRevertModel
 }
 
 func (r *LocalRuntime) finalizeEventChannel(ctx context.Context, sess *session.Session, events chan Event) {
@@ -1579,8 +1558,8 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 		// Pick the handler: runtime-managed tools (transfer_task, handoff)
 		// have dedicated handlers; everything else goes through the toolset.
 		var runTool func()
-		if def, exists := r.toolMap[toolCall.Function.Name]; exists {
-			runTool = func() { r.runAgentTool(callCtx, def.handler, sess, toolCall, tool, events, a) }
+		if handler, exists := r.toolMap[toolCall.Function.Name]; exists {
+			runTool = func() { r.runAgentTool(callCtx, handler, sess, toolCall, tool, events, a) }
 		} else {
 			runTool = func() { r.runTool(callCtx, tool, toolCall, events, sess, a) }
 		}
@@ -2087,6 +2066,75 @@ func (r *LocalRuntime) handleHandoff(_ context.Context, _ *session.Session, tool
 		"Complete your part of the task and hand off to the next appropriate agent in your workflow " +
 		"(if any are available to you), or respond directly to the user if you are the final agent."
 	return tools.ResultSuccess(handoffMessage), nil
+}
+
+// findModelPickerTool returns the ModelPickerTool from the current agent's
+// toolsets, or nil if the agent has no model_picker configured.
+func (r *LocalRuntime) findModelPickerTool() *builtin.ModelPickerTool {
+	a, err := r.team.Agent(r.currentAgent)
+	if err != nil {
+		return nil
+	}
+	for _, ts := range a.ToolSets() {
+		if mpt, ok := tools.As[*builtin.ModelPickerTool](ts); ok {
+			return mpt
+		}
+	}
+	return nil
+}
+
+// handleChangeModel handles the change_model tool call by switching the current agent's model.
+func (r *LocalRuntime) handleChangeModel(ctx context.Context, _ *session.Session, toolCall tools.ToolCall, events chan Event) (*tools.ToolCallResult, error) {
+	var params builtin.ChangeModelArgs
+	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
+		return nil, fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	if params.Model == "" {
+		return tools.ResultError("model parameter is required"), nil
+	}
+
+	// Validate the requested model against the allowed list
+	mpt := r.findModelPickerTool()
+	if mpt == nil {
+		return tools.ResultError("model_picker is not configured for this agent"), nil
+	}
+	allowed := mpt.AllowedModels()
+	if !slices.Contains(allowed, params.Model) {
+		return tools.ResultError(fmt.Sprintf(
+			"model %q is not in the allowed list. Available models: %s",
+			params.Model, strings.Join(allowed, ", "),
+		)), nil
+	}
+
+	return r.setModelAndEmitInfo(ctx, params.Model, events)
+}
+
+// handleRevertModel handles the revert_model tool call by reverting the current agent to its default model.
+func (r *LocalRuntime) handleRevertModel(ctx context.Context, _ *session.Session, _ tools.ToolCall, events chan Event) (*tools.ToolCallResult, error) {
+	return r.setModelAndEmitInfo(ctx, "", events)
+}
+
+// setModelAndEmitInfo sets the model for the current agent and emits an updated
+// AgentInfo event so the UI reflects the change. An empty modelRef reverts to
+// the agent's default model.
+func (r *LocalRuntime) setModelAndEmitInfo(ctx context.Context, modelRef string, events chan Event) (*tools.ToolCallResult, error) {
+	if err := r.SetAgentModel(ctx, r.currentAgent, modelRef); err != nil {
+		return tools.ResultError(fmt.Sprintf("failed to set model: %v", err)), nil
+	}
+
+	if a, err := r.team.Agent(r.currentAgent); err == nil {
+		events <- AgentInfo(a.Name(), r.getEffectiveModelID(a), a.Description(), a.WelcomeMessage())
+	} else {
+		slog.Warn("Failed to retrieve agent after model change; UI may not reflect the update", "agent", r.currentAgent, "error", err)
+	}
+
+	if modelRef == "" {
+		slog.Info("Model reverted via model_picker tool", "agent", r.currentAgent)
+		return tools.ResultSuccess("Model reverted to the agent's default model"), nil
+	}
+	slog.Info("Model changed via model_picker tool", "agent", r.currentAgent, "model", modelRef)
+	return tools.ResultSuccess(fmt.Sprintf("Model changed to %s", modelRef)), nil
 }
 
 // Summarize generates a summary for the session based on the conversation history.
