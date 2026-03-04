@@ -18,9 +18,10 @@ import (
 )
 
 const (
-	flagModelsGateway = "models-gateway"
-	envModelsGateway  = "CAGENT_MODELS_GATEWAY"
-	envDefaultModel   = "CAGENT_DEFAULT_MODEL"
+	flagModelsGateway      = "models-gateway"
+	envModelsGateway       = "DOCKER_AGENT_MODELS_GATEWAY"
+	cagentEnvModelsGateway = "CAGENT_MODELS_GATEWAY"
+	envDefaultModel        = "CAGENT_DEFAULT_MODEL"
 )
 
 func addRuntimeConfigFlags(cmd *cobra.Command, runConfig *config.RuntimeConfig) {
@@ -77,6 +78,8 @@ func addGatewayFlags(cmd *cobra.Command, runConfig *config.RuntimeConfig) {
 		// Precedence: CLI flag > environment variable > user config
 		if runConfig.ModelsGateway == "" {
 			if gateway := os.Getenv(envModelsGateway); gateway != "" {
+				runConfig.ModelsGateway = gateway
+			} else if gateway := os.Getenv(cagentEnvModelsGateway); gateway != "" {
 				runConfig.ModelsGateway = gateway
 			} else if userCfg.ModelsGateway != "" {
 				runConfig.ModelsGateway = userCfg.ModelsGateway
