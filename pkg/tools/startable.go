@@ -2,8 +2,31 @@ package tools
 
 import (
 	"context"
+	"fmt"
 	"sync"
 )
+
+// Describer can be implemented by a ToolSet to provide a short, user-visible
+// description that uniquely identifies the toolset instance (e.g. for use in
+// error messages and warnings). The string must never contain secrets.
+type Describer interface {
+	Describe() string
+}
+
+// DescribeToolSet returns a short description for ts suitable for user-visible
+// messages. It unwraps a StartableToolSet, then delegates to Describer if
+// implemented. Falls back to the Go type name when not.
+func DescribeToolSet(ts ToolSet) string {
+	if s, ok := ts.(*StartableToolSet); ok {
+		ts = s.ToolSet
+	}
+	if d, ok := ts.(Describer); ok {
+		if desc := d.Describe(); desc != "" {
+			return desc
+		}
+	}
+	return fmt.Sprintf("%T", ts)
+}
 
 // StartableToolSet wraps a ToolSet with lazy, single-flight start semantics.
 // This is the canonical way to manage toolset lifecycle.

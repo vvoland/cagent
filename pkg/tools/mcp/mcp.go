@@ -10,6 +10,7 @@ import (
 	"io"
 	"iter"
 	"log/slog"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -41,6 +42,7 @@ type Toolset struct {
 	name         string
 	mcpClient    mcpClient
 	logID        string
+	description  string // user-visible description, set by constructors
 	instructions string
 	mu           sync.Mutex
 	started      bool
@@ -66,7 +68,10 @@ func (ts *Toolset) invalidateCache() {
 	ts.cacheGen++
 }
 
-var _ tools.ToolSet = (*Toolset)(nil)
+var (
+	_ tools.ToolSet   = (*Toolset)(nil)
+	_ tools.Describer = (*Toolset)(nil)
+)
 
 // Verify that Toolset implements optional capability interfaces
 var (
@@ -80,21 +85,25 @@ var (
 func NewToolsetCommand(name, command string, args, env []string, cwd string) *Toolset {
 	slog.Debug("Creating Stdio MCP toolset", "command", command, "args", args)
 
+	desc := buildStdioDescription(command, args)
 	return &Toolset{
-		name:      name,
-		mcpClient: newStdioCmdClient(command, args, env, cwd),
-		logID:     command,
+		name:        name,
+		mcpClient:   newStdioCmdClient(command, args, env, cwd),
+		logID:       command,
+		description: desc,
 	}
 }
 
 // NewRemoteToolset creates a new MCP toolset from a remote MCP Server.
-func NewRemoteToolset(name, url, transport string, headers map[string]string) *Toolset {
-	slog.Debug("Creating Remote MCP toolset", "url", url, "transport", transport, "headers", headers)
+func NewRemoteToolset(name, urlString, transport string, headers map[string]string) *Toolset {
+	slog.Debug("Creating Remote MCP toolset", "url", urlString, "transport", transport, "headers", headers)
 
+	desc := buildRemoteDescription(urlString, transport)
 	return &Toolset{
-		name:      name,
-		mcpClient: newRemoteClient(url, transport, headers, NewInMemoryTokenStore()),
-		logID:     url,
+		name:        name,
+		mcpClient:   newRemoteClient(urlString, transport, headers, NewInMemoryTokenStore()),
+		logID:       urlString,
+		description: desc,
 	}
 }
 
@@ -103,6 +112,30 @@ func NewRemoteToolset(name, url, transport string, headers map[string]string) *T
 // "started" so the agent can proceed, but watchConnection must not be spawned
 // because there is no live connection to monitor.
 var errServerUnavailable = errors.New("MCP server unavailable")
+
+// Describe returns a short, user-visible description of this toolset instance.
+// It never includes secrets.
+func (ts *Toolset) Describe() string {
+	return ts.description
+}
+
+// buildStdioDescription produces a user-visible description for a stdio MCP toolset.
+func buildStdioDescription(command string, args []string) string {
+	if len(args) == 0 {
+		return "mcp(stdio cmd=" + command + ")"
+	}
+	return fmt.Sprintf("mcp(stdio cmd=%s args_len=%d)", command, len(args))
+}
+
+// buildRemoteDescription produces a user-visible description for a remote MCP toolset,
+// exposing only the host (and port when present) from the URL.
+func buildRemoteDescription(rawURL, transport string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Host == "" {
+		return "mcp(remote transport=" + transport + ")"
+	}
+	return "mcp(remote host=" + u.Host + " transport=" + transport + ")"
+}
 
 func (ts *Toolset) Start(ctx context.Context) error {
 	ts.mu.Lock()
