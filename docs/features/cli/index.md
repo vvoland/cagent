@@ -214,9 +214,9 @@ Run an alias with: docker agent run <alias>
 <div class="callout callout-tip">
 <div class="callout-title">💡 Set a default agent
 </div>
-  <p>Create a <code>default</code> alias to customize what <code>cagent</code> starts with no arguments:</p>
-  <pre><code>$ cagent alias add default /my/default/agent.yaml</code></pre>
-  <p>Then simply run <code>cagent</code> — it will launch that agent automatically.</p>
+  <p>Create a <code>default</code> alias to customize what <code>docker agent</code> starts with no arguments:</p>
+  <pre><code>$ docker agent alias add default /my/default/agent.yaml</code></pre>
+  <p>Then simply run <code>docker agent</code> — it will launch that agent automatically.</p>
 
 </div>
 
