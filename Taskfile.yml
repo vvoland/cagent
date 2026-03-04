@@ -82,11 +82,11 @@ tasks:
 
   build-image:
     desc: Build Docker image
-    cmd: docker buildx build -t docker/cagent {{.BUILD_ARGS}} .
+    cmd: docker buildx build -t docker/cagent -t docker/docker-agent {{.BUILD_ARGS}} .
 
   push-image:
     desc: Build and Push Docker image
-    cmd: docker buildx build --push --platform linux/amd64,linux/arm64 -t docker/cagent {{.BUILD_ARGS}} .
+    cmd: docker buildx build --push --platform linux/amd64,linux/arm64 -t docker/cagent -t docker/docker-agent  {{.BUILD_ARGS}} .
 
   record-demo:
     desc: Record demo gif
