@@ -69,6 +69,7 @@ func TestGatewayLogic(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("CAGENT_MODELS_GATEWAY", tt.env) // Make sure the user doesn't have an old env set
 			t.Setenv("DOCKER_AGENT_MODELS_GATEWAY", tt.env)
 
 			// Mock user config loader
