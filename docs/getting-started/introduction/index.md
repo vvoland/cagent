@@ -1,18 +1,18 @@
 ---
 title: "Introduction"
-description: "cagent is a powerful, customizable multi-agent system that lets you build, run, and share AI agents using simple YAML configuration."
+description: "docker-agent is a powerful, customizable multi-agent system that lets you build, run, and share AI agents using simple YAML configuration."
 permalink: /getting-started/introduction/
 ---
 
 # Introduction
 
-_cagent is a powerful, customizable multi-agent system that lets you build, run, and share AI agents using simple YAML configuration._
+_docker-agent is a powerful, customizable multi-agent system that lets you build, run, and share AI agents using simple YAML configuration._
 
-## What is cagent?
+## What is docker-agent?
 
-cagent is an open-source tool by Docker that orchestrates AI agents with specialized capabilities and tools.
+docker-agent is an open-source tool by Docker that orchestrates AI agents with specialized capabilities and tools.
 Instead of writing code to wire up LLMs, tools, and workflows, you **declare** your agents in YAML —
-their model, personality, tools, and how they collaborate — and cagent handles the rest.
+their model, personality, tools, and how they collaborate — and docker-agent handles the rest.
 
 <div class="features-grid">
   <div class="feature">
@@ -53,19 +53,19 @@ their model, personality, tools, and how they collaborate — and cagent handles
   </div>
 </div>
 
-## Why cagent?
+## Why docker-agent?
 
 After spending years building AI agents using various frameworks, the Docker team kept asking the same questions:
 
-- **How do we make building agents less of a hassle?** — Most agents use the same building blocks. cagent provides them out of the box.
+- **How do we make building agents less of a hassle?** — Most agents use the same building blocks. docker-agent provides them out of the box.
 - **Can we reuse those building blocks?** — Declarative YAML configs mean you can mix and match agents, models, and tools without rewriting code.
 - **How can we share agents easily?** — Push agents to any OCI registry and run them anywhere with a single command.
 
-cagent is built in the open so the community can make use of this work and contribute to its future.
+docker-agent is built in the open so the community can make use of this work and contribute to its future.
 
 ## How it Works
 
-At its core, cagent follows a simple loop:
+At its core, docker-agent follows a simple loop:
 
 1. **You define agents** in YAML — their model, instructions, tools, and sub-agents.
 2. **You run an agent** via the TUI, CLI, or API.
@@ -85,7 +85,7 @@ agents:
 
 ```bash
 # Run it
-$ cagent run agent.yaml
+$ docker agent run agent.yaml
 ```
 
 <div class="callout callout-tip">
@@ -101,7 +101,7 @@ $ cagent run agent.yaml
   <a class="card" href="/getting-started/installation/">
     <div class="card-icon">📥</div>
     <h3>Installation</h3>
-    <p>Install cagent on macOS, Linux, or Windows.</p>
+    <p>Install docker-agent on macOS, Linux, or Windows.</p>
   </a>
   <a class="card" href="/getting-started/quickstart/">
     <div class="card-icon">⚡</div>

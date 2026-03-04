@@ -1,16 +1,16 @@
 ---
 title: "Mistral"
-description: "Use Mistral AI models with cagent."
+description: "Use Mistral AI models with docker-agent."
 permalink: /providers/mistral/
 ---
 
 # Mistral
 
-_Use Mistral AI models with cagent._
+_Use Mistral AI models with docker-agent._
 
 ## Overview
 
-Mistral AI provides powerful language models through an OpenAI-compatible API. cagent includes built-in support for Mistral as an alias provider.
+Mistral AI provides powerful language models through an OpenAI-compatible API. docker-agent includes built-in support for Mistral as an alias provider.
 
 ## Setup
 
@@ -70,11 +70,11 @@ Check the [Mistral Models documentation](https://docs.mistral.ai/getting-started
 
 ## Auto-Detection
 
-When you run `cagent run` without specifying a config, cagent automatically detects available providers. If `MISTRAL_API_KEY` is set and higher-priority providers (OpenAI, Anthropic, Google) are not available, Mistral will be used with `mistral-small-latest` as the default model.
+When you run `docker agent run` without specifying a config, docker-agent automatically detects available providers. If `MISTRAL_API_KEY` is set and higher-priority providers (OpenAI, Anthropic, Google) are not available, Mistral will be used with `mistral-small-latest` as the default model.
 
 ## Extended Thinking
 
-Mistral models support thinking mode through the OpenAI-compatible API. By default, cagent enables `medium` thinking effort:
+Mistral models support thinking mode through the OpenAI-compatible API. By default, docker-agent enables `medium` thinking effort:
 
 ```yaml
 models:
@@ -96,13 +96,13 @@ models:
 
 ## How It Works
 
-Mistral is implemented as a built-in alias in cagent:
+Mistral is implemented as a built-in alias in docker-agent:
 
 - **API Type:** OpenAI-compatible (`openai_chatcompletions`)
 - **Base URL:** `https://api.mistral.ai/v1`
 - **Token Variable:** `MISTRAL_API_KEY`
 
-This means Mistral uses the same client as OpenAI, making it fully compatible with all OpenAI features supported by cagent.
+This means Mistral uses the same client as OpenAI, making it fully compatible with all OpenAI features supported by docker-agent.
 
 ## Example: Code Assistant
 

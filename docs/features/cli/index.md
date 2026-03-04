@@ -1,28 +1,28 @@
 ---
 title: "CLI Reference"
-description: "Complete reference for all cagent command-line commands and flags."
+description: "Complete reference for all docker-agent command-line commands and flags."
 permalink: /features/cli/
 ---
 
 # CLI Reference
 
-_Complete reference for all cagent command-line commands and flags._
+_Complete reference for all docker-agent command-line commands and flags._
 
 <div class="callout callout-tip">
 <div class="callout-title">💡 No config needed
 </div>
-  <p>Running <code>cagent run</code> without a config file uses a built-in default agent. Perfect for quick experimentation.</p>
+  <p>Running <code>docker agent run</code> without a config file uses a built-in default agent. Perfect for quick experimentation.</p>
 
 </div>
 
 ## Commands
 
-### `cagent run`
+### `docker agent run`
 
 Launch the interactive TUI with an agent configuration.
 
 ```bash
-cagent run [config] [message...] [flags]
+$ docker agent run [config] [message...] [flags]
 ```
 
 | Flag                         | Description                                                                                                                               |
@@ -39,151 +39,151 @@ cagent run [config] [message...] [flags]
 
 ```bash
 # Examples
-$ cagent run agent.yaml
-$ cagent run agent.yaml "Fix the bug in auth.go"
-$ cagent run agent.yaml -a developer --yolo
-$ cagent run agent.yaml --model anthropic/claude-sonnet-4-0
-$ cagent run agent.yaml --model "dev=openai/gpt-4o,reviewer=anthropic/claude-sonnet-4-0"
-$ cagent run agent.yaml --session -1  # resume last session
-$ cagent run agent.yaml -c df         # run named command
-$ cagent run agent.yaml --prompt-file ./context.md  # include file as context
+$ docker agent run agent.yaml
+$ docker agent run agent.yaml "Fix the bug in auth.go"
+$ docker agent run agent.yaml -a developer --yolo
+$ docker agent run agent.yaml --model anthropic/claude-sonnet-4-0
+$ docker agent run agent.yaml --model "dev=openai/gpt-4o,reviewer=anthropic/claude-sonnet-4-0"
+$ docker agent run agent.yaml --session -1  # resume last session
+$ docker agent run agent.yaml -c df         # run named command
+$ docker agent run agent.yaml --prompt-file ./context.md  # include file as context
 
 # Queue multiple messages (processed in sequence)
-$ cagent run agent.yaml "question 1" "question 2" "question 3"
+$ docker agent run agent.yaml "question 1" "question 2" "question 3"
 ```
 
-### `cagent run --exec`
+### `docker agent run --exec`
 
 Run an agent in non-interactive (headless) mode. No TUI — output goes to stdout.
 
 ```bash
-cagent run --exec [config] [message...] [flags]
+$ docker agent run --exec [config] [message...] [flags]
 ```
 
 ```bash
 # One-shot task
-$ cagent run --exec agent.yaml "Create a Dockerfile for a Python Flask app"
+$ docker agent run --exec agent.yaml "Create a Dockerfile for a Python Flask app"
 
 # With auto-approve
-$ cagent run --exec agent.yaml --yolo "Set up CI/CD pipeline"
+$ docker agent run --exec agent.yaml --yolo "Set up CI/CD pipeline"
 
 # Multi-turn conversation
-$ cagent run --exec agent.yaml "question 1" "question 2" "question 3"
+$ docker agent run --exec agent.yaml "question 1" "question 2" "question 3"
 ```
 
-### `cagent new`
+### `docker agent new`
 
 Interactively generate a new agent configuration file.
 
 ```bash
-$ cagent new [flags]
+$ docker agent new [flags]
 
 # Examples
-$ cagent new
-$ cagent new --model openai/gpt-5-mini --max-tokens 32000
-$ cagent new --model dmr/ai/gemma3-qat:12B --max-iterations 15
+$ docker agent new
+$ docker agent new --model openai/gpt-5-mini --max-tokens 32000
+$ docker agent new --model dmr/ai/gemma3-qat:12B --max-iterations 15
 ```
 
-### `cagent api`
+### `docker agent serve api`
 
 Start the HTTP API server for programmatic access.
 
 ```bash
-$ cagent api [config] [flags]
+$ docker agent api [config] [flags]
 
 # Examples
-$ cagent api agent.yaml
-$ cagent api agent.yaml --listen :8080
-$ cagent api ociReference --pull-interval 10  # auto-refresh
+$ docker agent api agent.yaml
+$ docker agent api agent.yaml --listen :8080
+$ docker agent api ociReference --pull-interval 10  # auto-refresh
 ```
 
-### `cagent mcp`
+### `docker agent serve mcp`
 
 Expose agents as MCP tools for use in Claude Desktop, Claude Code, or other MCP clients.
 
 ```bash
-$ cagent mcp [config] [flags]
+$ docker agent mcp [config] [flags]
 
 # Examples
-$ cagent mcp agent.yaml
-$ cagent mcp agent.yaml --working-dir /path/to/project
-$ cagent mcp agentcatalog/coder
+$ docker agent mcp agent.yaml
+$ docker agent mcp agent.yaml --working-dir /path/to/project
+$ docker agent mcp agentcatalog/coder
 ```
 
 See [MCP Mode](/features/mcp-mode/) for detailed setup.
 
-### `cagent serve a2a`
+### `docker agent serve a2a`
 
 Start an A2A (Agent-to-Agent) protocol server.
 
 ```bash
-$ cagent serve a2a [config] [flags]
+$ docker agent serve a2a [config] [flags]
 
 # Examples
-$ cagent serve a2a agent.yaml
-$ cagent serve a2a agent.yaml --listen 127.0.0.1:9000
+$ docker agent serve a2a agent.yaml
+$ docker agent serve a2a agent.yaml --listen 127.0.0.1:9000
 ```
 
-### `cagent acp`
+### `docker agent serve acp`
 
 Start an ACP (Agent Client Protocol) server over stdio. This allows external clients to interact with your agents using the ACP protocol.
 
 ```bash
-$ cagent acp [config] [flags]
+$ docker agent serve acp [config] [flags]
 
 # Examples
-$ cagent acp agent.yaml
+$ docker agent serve acp agent.yaml
 ```
 
 See [ACP](/features/acp/) for details on the Agent Client Protocol.
 
-### `cagent share push` / `cagent pull`
+### `docker agent share push` / `docker agent pull`
 
 Share agents via OCI registries.
 
 ```bash
 # Push an agent
-$ cagent share push ./agent.yaml docker.io/username/my-agent:latest
+$ docker agent share push ./agent.yaml docker.io/username/my-agent:latest
 
 # Pull an agent
-$ cagent share pull docker.io/username/my-agent:latest
+$ docker agent share pull docker.io/username/my-agent:latest
 ```
 
 See [Agent Distribution](/concepts/distribution/) for full registry workflow details.
 
-### `cagent eval`
+### `docker agent eval`
 
 Run agent evaluations.
 
 ```bash
-$ cagent eval eval-config.yaml
+$ docker agent eval eval-config.yaml
 
 # With flags
-$ cagent eval agent.yaml ./evals -c 8              # 8 concurrent evaluations
-$ cagent eval agent.yaml --keep-containers         # Keep containers for debugging
-$ cagent eval agent.yaml --only "auth*"            # Only run matching evals
+$ docker agent eval agent.yaml ./evals -c 8              # 8 concurrent evaluations
+$ docker agent eval agent.yaml --keep-containers         # Keep containers for debugging
+$ docker agent eval agent.yaml --only "auth*"            # Only run matching evals
 ```
 
-### `cagent alias`
+### `docker agent alias`
 
 Manage agent aliases for quick access.
 
 ```bash
 # List aliases
-$ cagent alias ls
+$ docker agent alias ls
 
 # Add an alias
-$ cagent alias add pirate /path/to/pirate.yaml
-$ cagent alias add other ociReference
+$ docker agent alias add pirate /path/to/pirate.yaml
+$ docker agent alias add other ociReference
 
 # Add an alias with runtime options
-$ cagent alias add yolo-coder agentcatalog/coder --yolo
-$ cagent alias add fast-coder agentcatalog/coder --model openai/gpt-4o-mini
-$ cagent alias add turbo agentcatalog/coder --yolo --model anthropic/claude-sonnet-4-0
+$ docker agent alias add yolo-coder agentcatalog/coder --yolo
+$ docker agent alias add fast-coder agentcatalog/coder --model openai/gpt-4o-mini
+$ docker agent alias add turbo agentcatalog/coder --yolo --model anthropic/claude-sonnet-4-0
 
 # Use an alias
-$ cagent run pirate
-$ cagent run yolo-coder
+$ docker agent run pirate
+$ docker agent run yolo-coder
 ```
 
 **Alias Options:** Aliases can include runtime options that apply automatically when used:
@@ -194,20 +194,20 @@ $ cagent run yolo-coder
 When listing aliases, options are shown in brackets:
 
 ```bash
-$ cagent alias ls
+$ docker agent alias ls
 Registered aliases (3):
 
   fast-coder  → agentcatalog/coder [model=openai/gpt-4o-mini]
   turbo       → agentcatalog/coder [yolo, model=anthropic/claude-sonnet-4-0]
   yolo-coder  → agentcatalog/coder [yolo]
 
-Run an alias with: cagent run <alias>
+Run an alias with: docker agent run <alias>
 ```
 
 <div class="callout callout-tip">
 <div class="callout-title">💡 Override alias options
 </div>
-  <p>Command-line flags override alias options. For example, <code>cagent run yolo-coder --yolo=false</code> disables yolo mode even though the alias has it enabled.</p>
+  <p>Command-line flags override alias options. For example, <code>docker agent run yolo-coder --yolo=false</code> disables yolo mode even though the alias has it enabled.</p>
 
 </div>
 
@@ -238,7 +238,7 @@ Commands that accept a config support multiple reference types:
 | Local file    | `./agent.yaml`                              |
 | OCI registry  | `docker.io/username/agent:latest`           |
 | Agent catalog | `agentcatalog/pirate`                       |
-| Alias         | `pirate` (after `cagent alias add`)         |
+| Alias         | `pirate` (after `docker agent alias add`)   |
 | Default       | (no argument) — uses built-in default agent |
 
 <div class="callout callout-info">

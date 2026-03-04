@@ -1,20 +1,20 @@
 ---
 title: "Telemetry"
-description: "cagent collects anonymous usage data to help improve the tool. Telemetry can be disabled at any time."
+description: "docker-agent collects anonymous usage data to help improve the tool. Telemetry can be disabled at any time."
 permalink: /community/telemetry/
 ---
 
 # Telemetry
 
-_cagent collects anonymous usage data to help improve the tool. Telemetry can be disabled at any time._
+_docker-agent collects anonymous usage data to help improve the tool. Telemetry can be disabled at any time._
 
-On first startup, cagent displays a notice about telemetry collection so you're always informed. All events are processed synchronously when recorded.
+On first startup, docker-agent displays a notice about telemetry collection so you're always informed. All events are processed synchronously when recorded.
 
 ## Disabling Telemetry
 
 ```bash
 # Disable via environment variable
-$ TELEMETRY_ENABLED=false cagent run agent.yaml
+$ TELEMETRY_ENABLED=false docker agent run agent.yaml
 
 # Or export it in your shell profile
 $ export TELEMETRY_ENABLED=false
@@ -51,7 +51,7 @@ $ export TELEMETRY_ENABLED=false
 </div>
 
 ```bash
-cagent run agent.yaml --debug
+docker agent run agent.yaml --debug
 ```
 
 ## Event Types

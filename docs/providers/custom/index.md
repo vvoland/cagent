@@ -1,12 +1,12 @@
 ---
 title: "Custom Providers"
-description: "Connect cagent to any OpenAI-compatible API endpoint — without modifying cagent's source code."
+description: "Connect docker-agent to any OpenAI-compatible API endpoint — without modifying docker-agent's source code."
 permalink: /providers/custom/
 ---
 
 # Custom Providers
 
-_Connect cagent to any OpenAI-compatible API endpoint — without modifying cagent's source code._
+_Connect docker-agent to any OpenAI-compatible API endpoint — without modifying docker-agent's source code._
 
 ## Overview
 
@@ -20,7 +20,7 @@ The `providers` section in your agent YAML lets you define custom providers that
 <div class="callout callout-info">
 <div class="callout-title">ℹ️ Works with any OpenAI-compatible API
 </div>
-  <p>If a service supports the <code>/v1/chat/completions</code> endpoint, you can use it with cagent. No source code changes needed.</p>
+  <p>If a service supports the <code>/v1/chat/completions</code> endpoint, you can use it with docker-agent. No source code changes needed.</p>
 
 </div>
 

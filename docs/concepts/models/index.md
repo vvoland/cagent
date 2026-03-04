@@ -1,12 +1,12 @@
 ---
 title: "Models"
-description: "Models are the AI brains behind your agents. cagent supports multiple providers and flexible configuration."
+description: "Models are the AI brains behind your agents. docker-agent supports multiple providers and flexible configuration."
 permalink: /concepts/models/
 ---
 
 # Models
 
-_Models are the AI brains behind your agents. cagent supports multiple providers and flexible configuration._
+_Models are the AI brains behind your agents. docker-agent supports multiple providers and flexible configuration._
 
 ## Inline vs. Named Models
 
@@ -106,7 +106,7 @@ models:
 
 ## Alloy Models
 
-"Alloy models" let you use more than one model in the same conversation — cagent alternates between them to leverage the strengths of each:
+"Alloy models" let you use more than one model in the same conversation — docker-agent alternates between them to leverage the strengths of each:
 
 ```yaml
 agents:

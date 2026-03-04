@@ -76,7 +76,7 @@ provider_opts:
 
 ## Parameter Mapping
 
-cagent model config fields map to llama.cpp flags automatically:
+docker-agent model config fields map to llama.cpp flags automatically:
 
 | Config              | llama.cpp Flag        |
 | ------------------- | --------------------- |
@@ -106,7 +106,7 @@ models:
 
 ## Custom Endpoint
 
-If `base_url` is omitted, cagent auto-discovers the DMR endpoint. To set manually:
+If `base_url` is omitted, docker-agent auto-discovers the DMR endpoint. To set manually:
 
 ```yaml
 models:
@@ -118,6 +118,6 @@ models:
 
 ## Troubleshooting
 
-- **Plugin not found:** Ensure Docker Model Runner is enabled in Docker Desktop. cagent will fall back to the default URL.
+- **Plugin not found:** Ensure Docker Model Runner is enabled in Docker Desktop. docker-agent will fall back to the default URL.
 - **Endpoint empty:** Verify the Model Runner is running with `docker model status --json`.
 - **Performance:** Use `runtime_flags` to tune GPU layers (`--ngl`) and thread count (`--threads`).

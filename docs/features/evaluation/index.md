@@ -10,7 +10,7 @@ _Measure agent quality with automated evaluations — tool call accuracy, respon
 
 ## Overview
 
-The `cagent eval` command runs your agent against a set of recorded sessions and scores the results. Each eval session captures a user question, the expected tool calls, and criteria the response must satisfy. cagent replays the question, compares the agent's behavior to expectations, and produces a report.
+The `docker agent eval` command runs your agent against a set of recorded sessions and scores the results. Each eval session captures a user question, the expected tool calls, and criteria the response must satisfy. docker-agent replays the question, compares the agent's behavior to expectations, and produces a report.
 
 <div class="callout callout-info">
 <div class="callout-title">ℹ️ Docker required
@@ -23,21 +23,21 @@ The `cagent eval` command runs your agent against a set of recorded sessions and
 
 ```bash
 # Run evaluations for an agent
-$ cagent eval agent.yaml
+$ docker agent eval agent.yaml
 
 # Specify a custom evals directory
-$ cagent eval agent.yaml ./my-evals
+$ docker agent eval agent.yaml ./my-evals
 
 # Run with 8 concurrent evaluations
-$ cagent eval agent.yaml -c 8
+$ docker agent eval agent.yaml -c 8
 
 # Only run evals matching a pattern
-$ cagent eval agent.yaml --only "auth*"
+$ docker agent eval agent.yaml --only "auth*"
 ```
 
 ## Eval Directory Structure
 
-By default, cagent looks for eval sessions in an `evals/` directory next to your agent config:
+By default, docker-agent looks for eval sessions in an `evals/` directory next to your agent config:
 
 ```bash
 my-agent/
@@ -123,7 +123,7 @@ The `evals` object inside each session controls what gets scored:
 
 ## Scoring Metrics
 
-cagent evaluates agents across four dimensions:
+docker-agent evaluates agents across four dimensions:
 
 | Metric              | How It's Measured                                                                                                         |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
@@ -136,7 +136,7 @@ cagent evaluates agents across four dimensions:
 
 The easiest way to create eval sessions is from real conversations:
 
-1. Run your agent interactively: `cagent run agent.yaml`
+1. Run your agent interactively: `docker agent run agent.yaml`
 2. Have a conversation that tests the behavior you care about
 3. Use the `/eval` slash command in the TUI to save the session as an eval file
 4. Edit the generated JSON to add `evals` criteria (relevance, size, etc.)
@@ -151,7 +151,7 @@ The easiest way to create eval sessions is from real conversations:
 ## CLI Flags
 
 ```bash
-cagent eval <agent-file>|<registry-ref> [<eval-dir>|./evals]
+$ docker agent eval <agent-file>|<registry-ref> [<eval-dir>|./evals]
 ```
 
 | Flag                | Default                     | Description                                                       |
@@ -166,7 +166,7 @@ cagent eval <agent-file>|<registry-ref> [<eval-dir>|./evals]
 
 ## Output
 
-After a run completes, cagent produces:
+After a run completes, docker-agent produces:
 
 - **Console summary** — Pass/fail status per eval with metric breakdowns
 - **JSON results** — Full structured results for programmatic analysis
@@ -182,7 +182,7 @@ After a run completes, cagent produces:
 </div>
 
 ```bash
-$ cagent eval demo.yaml ./evals
+$ docker agent eval demo.yaml ./evals
 
   ✓ Counting Files in Local Folder
     ✓ tool calls  ✓ relevance 2/2
@@ -217,16 +217,16 @@ agents:
 
 ```bash
 # Create evals from interactive sessions
-$ cagent run agent.yaml
+$ docker agent run agent.yaml
 # ... have conversations, then use /eval to save them
 
 # Run the evaluations
-$ cagent eval agent.yaml ./evals
+$ docker agent eval agent.yaml ./evals
 ```
 
 <div class="callout callout-info">
 <div class="callout-title">ℹ️ See also
 </div>
-  <p>Use <code>/eval</code> in the <a href="/features/tui/">TUI</a> to create eval sessions from conversations. See the <a href="/features/cli/">CLI Reference</a> for all <code>cagent eval</code> flags. Example eval configs are in <a href="https://github.com/docker/cagent/tree/main/examples/eval">examples/eval</a> on GitHub.</p>
+  <p>Use <code>/eval</code> in the <a href="/features/tui/">TUI</a> to create eval sessions from conversations. See the <a href="/features/cli/">CLI Reference</a> for all <code>docker agent eval</code> flags. Example eval configs are in <a href="https://github.com/docker/cagent/tree/main/examples/eval">examples/eval</a> on GitHub.</p>
 
 </div>

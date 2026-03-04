@@ -63,9 +63,9 @@
 
 - [x] `--prompt-file` flag — Explanation of how it works (includes file contents as system context). *(Added)*
 - [x] `--session` with relative references — e.g., `-1` for last session, `-2` for second to last. *(Added)*
-- [x] Multi-turn conversations in `cagent run --exec` — Added example. *(Added)*
-- [x] Queueing multiple messages: `cagent run question1 question2 ...` *(Added)*
-- [x] `cagent eval` flags — Added examples with flags. *(Added)*
+- [x] Multi-turn conversations in `docker agent run --exec` — Added example. *(Added)*
+- [x] Queueing multiple messages: `docker agent run question1 question2 ...` *(Added)*
+- [x] `docker agent eval` flags — Added examples with flags. *(Added)*
 - [ ] `--keep-containers` flag for eval — Already documented in eval page.
 
 ### Features > TUI (`tui.html`)
@@ -120,7 +120,7 @@
   - [x] **Tip: Deferred tools for performance** — Use `defer: true` to load tools only when needed.
   - [x] **Tip: Combining handoffs and sub_agents** — Explain the difference.
   - [x] **Tip: Using the `auto` model** — The special `auto` model value for automatic model selection.
-  - [x] **Tip: Model aliases and pinning** — cagent automatically resolves model aliases to pinned versions.
+  - [x] **Tip: Model aliases and pinning** — docker-agent automatically resolves model aliases to pinned versions.
   - [x] **Tip: User-defined default model** — Users can define their own default model in global configuration. *(Added)*
   - [x] **Tip: Usage on Github** - Example of the PR reviewer. *(Added)*
 

@@ -79,7 +79,7 @@ agents:
 
 ## How It Works
 
-1. When the agent first uses the shell tool, cagent starts a Docker container
+1. When the agent first uses the shell tool, docker-agent starts a Docker container
 2. The container runs with the specified image and mounted paths
 3. Shell commands execute inside the container via `docker exec`
 4. The container persists for the session (commands share state)
@@ -96,7 +96,7 @@ Sandbox containers are started with these Docker options:
 
 ## Orphan Container Cleanup
 
-If cagent crashes or is killed, sandbox containers may be left running. cagent automatically cleans up orphaned containers from previous runs when it starts. Containers are identified by labels and the PID of the cagent process that created them.
+If docker-agent crashes or is killed, sandbox containers may be left running. docker-agent automatically cleans up orphaned containers from previous runs when it starts. Containers are identified by labels and the PID of the docker-agent process that created them.
 
 ## Choosing an Image
 

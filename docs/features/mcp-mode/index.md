@@ -1,16 +1,16 @@
 ---
 title: "MCP Mode"
-description: "Expose your cagent agents as MCP tools for use in Claude Desktop, Claude Code, and other MCP-compatible applications."
+description: "Expose your docker-agent agents as MCP tools for use in Claude Desktop, Claude Code, and other MCP-compatible applications."
 permalink: /features/mcp-mode/
 ---
 
 # MCP Mode
 
-_Expose your cagent agents as MCP tools for use in Claude Desktop, Claude Code, and other MCP-compatible applications._
+_Expose your docker-agent agents as MCP tools for use in Claude Desktop, Claude Code, and other MCP-compatible applications._
 
 ## Why MCP Mode?
 
-The `cagent mcp` command makes your agents available to any application that supports the [Model Context Protocol](https://modelcontextprotocol.io/). This means you can:
+The `docker agent serve mcp` command makes your agents available to any application that supports the [Model Context Protocol](https://modelcontextprotocol.io/). This means you can:
 
 - Use custom agents directly within **Claude Desktop** or **Claude Code**
 - Share specialized agents across different applications
@@ -28,13 +28,13 @@ The `cagent mcp` command makes your agents available to any application that sup
 
 ```bash
 # Expose a local config
-$ cagent mcp ./agent.yaml
+$ docker agent mcp ./agent.yaml
 
 # Expose from a registry
-$ cagent mcp agentcatalog/pirate
+$ docker agent mcp agentcatalog/pirate
 
 # Set the working directory
-$ cagent mcp ./agent.yaml --working-dir /path/to/project
+$ docker agent mcp ./agent.yaml --working-dir /path/to/project
 ```
 
 ## Using with Claude Desktop
@@ -48,8 +48,9 @@ Add a configuration to your Claude Desktop MCP settings file:
 {
   "mcpServers": {
     "myagent": {
-      "command": "/usr/local/bin/cagent",
+      "command": "/usr/local/bin/docker",
       "args": [
+        "agent"
         "mcp",
         "agentcatalog/coder",
         "--working-dir",
@@ -72,7 +73,7 @@ Restart Claude Desktop after updating the configuration.
 $ claude mcp add --transport stdio myagent \
   --env OPENAI_API_KEY=$OPENAI_API_KEY \
   --env ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
-  -- cagent mcp agentcatalog/pirate --working-dir $(pwd)
+  -- docker agent mcp agentcatalog/pirate --working-dir $(pwd)
 ```
 
 ## Multi-Agent in MCP Mode
@@ -97,7 +98,7 @@ All three agents (`root`, `designer`, `engineer`) appear as separate tools in Cl
 
 ## Troubleshooting
 
-- **Agents not appearing:** Verify the `cagent` binary path and restart the MCP client
-- **Permission errors:** Ensure `cagent` has execute permissions (`chmod +x`)
+- **Agents not appearing:** Verify the `docker-agent` binary path and restart the MCP client
+- **Permission errors:** Ensure `docker-agent` has execute permissions (`chmod +x`)
 - **Missing API keys:** Pass all required keys in the `env` section
 - **Working directory issues:** Verify the `--working-dir` path exists and is accessible

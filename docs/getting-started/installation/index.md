@@ -1,12 +1,12 @@
 ---
 title: "Installation"
-description: "Get cagent running on your system in minutes."
+description: "Get docker-agent running on your system in minutes."
 permalink: /getting-started/installation/
 ---
 
 # Installation
 
-_Get cagent running on your system in minutes._
+_Get docker-agent running on your system in minutes._
 
 ## Prerequisites
 
@@ -15,30 +15,32 @@ _Get cagent running on your system in minutes._
 
 ## Docker Desktop (Pre-installed)
 
-Starting with [Docker Desktop 4.49.0](https://docs.docker.com/desktop/release-notes/#4490), **cagent is already available**. No separate installation needed — just open a terminal and run:
+Starting with [Docker Desktop 4.49.0](https://docs.docker.com/desktop/release-notes/#4490), **docker-agent is already available**. No separate installation needed — just open a terminal and run:
 
 ```bash
-cagent version
+$ docker agent version
 ```
 
 <div class="callout callout-tip">
 <div class="callout-title">💡 Tip
 </div>
-  <p>Docker Desktop bundles cagent and keeps it up to date. This is the easiest way to get started, especially if you want to use Docker MCP tools and Docker Model Runner.</p>
+  <p>Docker Desktop bundles docker-agent and keeps it up to date. This is the easiest way to get started, especially if you want to use Docker MCP tools and Docker Model Runner.</p>
 
 </div>
 
 ## Homebrew (macOS / Linux)
 
-Install cagent using [Homebrew](https://brew.sh/):
+Install docker-agent using [Homebrew](https://brew.sh/):
 
 ```bash
 # Install
-$ brew install docker/tap/cagent
+$ brew install docker/tap/docker-agent
 
 # Verify
-$ cagent version
+$ docker-agent version
 ```
+
+You can also install docker-agent as a docker CLI plugin, by copying `docker-agent` binary in `~/.docker/cli-plugins`. You can then run `docker agent version`.
 
 ## Download Binary Releases
 
@@ -48,14 +50,20 @@ Download [prebuilt binary releases](https://github.com/docker/cagent/releases) f
 
 ```bash
 # Download the latest release (adjust URL for your platform)
-curl -L https://github.com/docker/cagent/releases/latest/download/cagent-$(uname -s)-$(uname -m) -o cagent
-chmod +x cagent
-sudo mv cagent /usr/local/bin/
+curl -L https://github.com/docker/cagent/releases/latest/download/docker-agent-$(uname -s)-$(uname -m) -o docker-agent
+chmod +x docker-agent
+sudo mv docker-agent /usr/local/bin/
+docker-agent version
+
+# or alternatively, instead of moving to /usr/local/bin:
+mkdir -p ~/.docker/cli-plugins
+sudo mv docker-agent ~/.docker/cli-plugins
+docker agent version
 ```
 
 ### Windows
 
-Download `cagent-Windows-x86_64.exe` from the [releases page](https://github.com/docker/cagent/releases) and add it to your PATH.
+Download `docker-agent-Windows-amd64.exe` from the [releases page](https://github.com/docker/cagent/releases), rename it to `docker-agent.exe` and add it to your PATH. Alternatively you can move it to `~/.docker/cli-plugins`
 
 ## Build from Source
 
@@ -75,8 +83,8 @@ cd cagent
 # Build the binary
 task build
 
-# The binary is at ./bin/cagent
-./bin/cagent --help
+# The binary is at ./bin/docker-agent
+./bin/docker-agent --help
 ```
 
 <div class="callout callout-tip">
@@ -88,7 +96,7 @@ task build
 
 ## Set Up API Keys
 
-cagent needs API keys for the model providers you want to use. Set them as environment variables:
+docker-agent needs API keys for the model providers you want to use. Set them as environment variables:
 
 ```bash
 # Pick one (or more) depending on your provider
@@ -109,13 +117,13 @@ export MISTRAL_API_KEY="..."            # Mistral
 
 ```bash
 # Check the version
-$ cagent version
+$ docker agent version
 
 # Run the default agent
-$ cagent run
+$ docker agent run
 
 # Or try a built-in example
-$ cagent run agentcatalog/pirate
+$ docker agent run agentcatalog/pirate
 ```
 
 ## What's Next?

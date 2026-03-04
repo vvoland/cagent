@@ -1,20 +1,20 @@
 ---
 title: "Quick Start"
-description: "Get up and running with cagent in under 5 minutes. Pick whichever path suits you best."
+description: "Get up and running with docker-agent in under 5 minutes. Pick whichever path suits you best."
 permalink: /getting-started/quickstart/
 ---
 
 # Quick Start
 
-_Get up and running with cagent in under 5 minutes. Pick whichever path suits you best._
+_Get up and running with docker-agent in under 5 minutes. Pick whichever path suits you best._
 
 ## Option A: Run the Default Agent
 
-The fastest way to try cagent — no config file needed:
+The fastest way to try docker-agent — no config file needed:
 
 ```bash
 # Launch the default agent with the interactive TUI
-$ cagent run
+$ docker agent run
 ```
 
 This starts a general-purpose assistant with sensible defaults. Just start chatting.
@@ -25,31 +25,31 @@ Try a ready-made agent from the [agent catalog](https://hub.docker.com/u/agentca
 
 ```bash
 # Run a pirate-themed assistant
-$ cagent run agentcatalog/pirate
+$ docker agent run agentcatalog/pirate
 
 # Run a coding agent
-$ cagent run agentcatalog/coder
+$ docker agent run agentcatalog/coder
 ```
 
 ## Option C: Generate a Config Interactively
 
-Use the `cagent new` command to scaffold a config file through prompts:
+Use the `docker agent new` command to scaffold a config file through prompts:
 
 ```bash
 # Interactive wizard
-$ cagent new
+$ docker agent new
 
 # Or specify options directly
-$ cagent new --model openai/gpt-4o
+$ docker agent new --model openai/gpt-4o
 
 # Override context size and iteration limits
-$ cagent new --model dmr/ai/gemma3-qat:12B --max-tokens 32000 --max-iterations 15
+$ docker agent new --model dmr/ai/gemma3-qat:12B --max-tokens 32000 --max-iterations 15
 ```
 
 This generates an `agent.yaml` in the current directory. Then run it:
 
 ```bash
-cagent run agent.yaml
+$ docker agent run agent.yaml
 ```
 
 ## Option D: Write Your Own Config
@@ -79,7 +79,7 @@ This gives your agent:
 
 ```bash
 # Launch the interactive terminal UI
-$ cagent run agent.yaml
+$ docker agent run agent.yaml
 ```
 
 ## Try It Out
@@ -93,20 +93,20 @@ Once your agent is running, try asking it to:
 <div class="callout callout-tip">
 <div class="callout-title">💡 Tip
 </div>
-  <p>Add <code>--yolo</code> to auto-approve all tool calls: `cagent run agent.yaml --yolo`</p>
+  <p>Add <code>--yolo</code> to auto-approve all tool calls: `docker agent run agent.yaml --yolo`</p>
 
 </div>
 
 ## Non-Interactive Mode
 
-Use `cagent run --exec` for one-shot tasks:
+Use `docker agent run --exec` for one-shot tasks:
 
 ```bash
 # Ask a single question
-$ cagent run --exec agent.yaml "Create a Dockerfile for a Node.js app"
+$ docker agent run --exec agent.yaml "Create a Dockerfile for a Node.js app"
 
 # Pipe input
-$ cat error.log | cagent run --exec agent.yaml "What's wrong in this log?"
+$ cat error.log | docker agent run --exec agent.yaml "What's wrong in this log?"
 ```
 
 ## Add More Power

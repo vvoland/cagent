@@ -1,16 +1,16 @@
 ---
 title: "Local Models (Ollama, vLLM, LocalAI)"
-description: "Run cagent with locally hosted models for privacy, offline use, or cost savings."
+description: "Run docker-agent with locally hosted models for privacy, offline use, or cost savings."
 permalink: /providers/local/
 ---
 
 # Local Models (Ollama, vLLM, LocalAI)
 
-_Run cagent with locally hosted models for privacy, offline use, or cost savings._
+_Run docker-agent with locally hosted models for privacy, offline use, or cost savings._
 
 ## Overview
 
-cagent can connect to any OpenAI-compatible local model server. This guide covers the most popular options:
+docker-agent can connect to any OpenAI-compatible local model server. This guide covers the most popular options:
 
 - **Ollama** — Easy-to-use local model runner
 - **vLLM** — High-performance inference server
@@ -25,7 +25,7 @@ cagent can connect to any OpenAI-compatible local model server. This guide cover
 
 ## Ollama
 
-Ollama is a popular tool for running LLMs locally. cagent includes a built-in `ollama` alias for easy configuration.
+Ollama is a popular tool for running LLMs locally. docker-agent includes a built-in `ollama` alias for easy configuration.
 
 ### Setup
 

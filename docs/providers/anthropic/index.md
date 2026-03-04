@@ -1,12 +1,12 @@
 ---
 title: "Anthropic"
-description: "Use Claude Sonnet 4, Claude Sonnet 4.5, and other Anthropic models with cagent."
+description: "Use Claude Sonnet 4, Claude Sonnet 4.5, and other Anthropic models with docker-agent."
 permalink: /providers/anthropic/
 ---
 
 # Anthropic
 
-_Use Claude Sonnet 4, Claude Sonnet 4.5, and other Anthropic models with cagent._
+_Use Claude Sonnet 4, Claude Sonnet 4.5, and other Anthropic models with docker-agent._
 
 ## Setup
 

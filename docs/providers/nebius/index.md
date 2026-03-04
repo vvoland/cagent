@@ -1,16 +1,16 @@
 ---
 title: "Nebius"
-description: "Use Nebius AI models with cagent."
+description: "Use Nebius AI models with docker-agent."
 permalink: /providers/nebius/
 ---
 
 # Nebius
 
-_Use Nebius AI models with cagent._
+_Use Nebius AI models with docker-agent._
 
 ## Overview
 
-Nebius provides AI models through an OpenAI-compatible API. cagent includes built-in support for Nebius as an alias provider.
+Nebius provides AI models through an OpenAI-compatible API. docker-agent includes built-in support for Nebius as an alias provider.
 
 ## Setup
 
@@ -66,7 +66,7 @@ Nebius hosts various open models. Check the [Nebius documentation](https://nebiu
 
 ## How It Works
 
-Nebius is implemented as a built-in alias in cagent:
+Nebius is implemented as a built-in alias in docker-agent:
 
 - **API Type:** OpenAI-compatible (`openai_chatcompletions`)
 - **Base URL:** `https://api.studio.nebius.ai/v1`

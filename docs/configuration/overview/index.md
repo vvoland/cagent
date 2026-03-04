@@ -1,16 +1,16 @@
 ---
 title: "Configuration Overview"
-description: "cagent uses YAML configuration files to define agents, models, tools, and their relationships."
+description: "docker-agent uses YAML configuration files to define agents, models, tools, and their relationships."
 permalink: /configuration/overview/
 ---
 
 # Configuration Overview
 
-_cagent uses YAML configuration files to define agents, models, tools, and their relationships._
+_docker-agent uses YAML configuration files to define agents, models, tools, and their relationships._
 
 ## File Structure
 
-A cagent YAML config has these main sections:
+A docker-agent YAML config has these main sections:
 
 ```bash
 # 1. Version — configuration schema version (optional but recommended)
@@ -155,7 +155,7 @@ API keys and secrets are read from environment variables — never stored in con
 
 ## Validation
 
-cagent validates your configuration at startup:
+docker-agent validates your configuration at startup:
 
 - All `sub_agents` must reference agents defined in the config
 - Named model references must exist in the `models` section
@@ -168,12 +168,12 @@ cagent validates your configuration at startup:
 For editor autocompletion and validation, use the [cagent JSON Schema](https://github.com/docker/cagent/blob/main/agent-schema.json). Add this to the top of your YAML file:
 
 ```bash
-# yaml-language-server: $schema=https://raw.githubusercontent.com/docker/cagent/main/agent-schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/docker/docker-agent/main/agent-schema.json
 ```
 
 ## Config Versioning
 
-cagent configs are versioned. The current version is `5`. Add the version at the top of your config:
+docker-agent configs are versioned. The current version is `5`. Add the version at the top of your config:
 
 ```yaml
 version: 5
@@ -184,7 +184,7 @@ agents:
     # ...
 ```
 
-When you load an older config, cagent automatically migrates it to the latest schema. It's recommended to include the version to ensure consistent behavior.
+When you load an older config, docker-agent automatically migrates it to the latest schema. It's recommended to include the version to ensure consistent behavior.
 
 ## Metadata Section
 

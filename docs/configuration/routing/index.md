@@ -15,7 +15,7 @@ Model routing lets you define a "router" model that automatically selects the be
 <div class="callout callout-info">
 <div class="callout-title">ℹ️ How It Works
 </div>
-  <p>cagent uses NLP-based text similarity (via Bleve full-text search) to match user messages against example phrases you define. The route with the best-matching examples wins, and that model handles the request.</p>
+  <p>docker-agent uses NLP-based text similarity (via Bleve full-text search) to match user messages against example phrases you define. The route with the best-matching examples wins, and that model handles the request.</p>
 
 </div>
 
@@ -157,7 +157,7 @@ models:
 Enable debug logging to see routing decisions:
 
 ```bash
-cagent run config.yaml --debug
+$ docker agent run config.yaml --debug
 ```
 
 Look for log entries like:

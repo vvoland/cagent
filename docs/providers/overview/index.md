@@ -1,12 +1,12 @@
 ---
 title: "Model Providers"
-description: "cagent supports multiple AI model providers. Choose the right one for your use case, or use multiple providers in the same configuration."
+description: "docker-agent supports multiple AI model providers. Choose the right one for your use case, or use multiple providers in the same configuration."
 permalink: /providers/overview/
 ---
 
 # Model Providers
 
-_cagent supports multiple AI model providers. Choose the right one for your use case, or use multiple providers in the same configuration._
+_docker-agent supports multiple AI model providers. Choose the right one for your use case, or use multiple providers in the same configuration._
 
 ## Supported Providers
 
@@ -55,7 +55,7 @@ _cagent supports multiple AI model providers. Choose the right one for your use 
 
 ## Additional Built-in Providers
 
-cagent also includes built-in aliases for these providers:
+docker-agent also includes built-in aliases for these providers:
 
 | Provider   | API Key Variable  |
 | ---------- | ----------------- |

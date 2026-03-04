@@ -1,31 +1,31 @@
 ---
 title: "Terminal UI (TUI)"
-description: "cagent's default interface is a rich, interactive terminal UI with file attachments, themes, session management, and more."
+description: "docker-agent's default interface is a rich, interactive terminal UI with file attachments, themes, session management, and more."
 permalink: /features/tui/
 ---
 
 # Terminal UI (TUI)
 
-_cagent's default interface is a rich, interactive terminal UI with file attachments, themes, session management, and more._
+_docker-agent's default interface is a rich, interactive terminal UI with file attachments, themes, session management, and more._
 
 <div class="demo-container">
-  <img src="/demo.gif" alt="cagent TUI in action showing an interactive agent session" loading="lazy">
+  <img src="/demo.gif" alt="docker-agent TUI in action showing an interactive agent session" loading="lazy">
 </div>
 
 ## Launching the TUI
 
 ```bash
 # Launch with a config
-$ cagent run agent.yaml
+$ docker agent run agent.yaml
 
 # Start with an initial message
-$ cagent run agent.yaml "Help me refactor this code"
+$ docker agent run agent.yaml "Help me refactor this code"
 
 # Auto-approve all tool calls
-$ cagent run agent.yaml --yolo
+$ docker agent run agent.yaml --yolo
 
 # Enable debug logging
-$ cagent run agent.yaml --debug
+$ docker agent run agent.yaml --debug
 ```
 
 ## Slash Commands
@@ -87,17 +87,17 @@ Edit any previous user message to branch the conversation. Click on a past messa
 
 ## Session Management
 
-cagent automatically saves your sessions. Use `/sessions` to browse past conversations:
+docker-agent automatically saves your sessions. Use `/sessions` to browse past conversations:
 
 - **Browse** past sessions with search and filtering
 - **Star** important sessions with `/star`
 - **Branch** conversations by editing any previous user message — preserving the original session history
-- **Resume** sessions with `cagent run config.yaml --session &lt;id&gt;`
+- **Resume** sessions with `docker agent run config.yaml --session &lt;id&gt;`
 - **Relative refs**: `--session -1` for the last session, `-2` for the one before
 
 ### Session Title Editing
 
-Customize session titles to make them more meaningful and easier to find. By default, cagent auto-generates titles based on your first message, but you can override or regenerate them at any time.
+Customize session titles to make them more meaningful and easier to find. By default, docker-agent auto-generates titles based on your first message, but you can override or regenerate them at any time.
 
 **Using the `/title` command:**
 
@@ -219,7 +219,7 @@ settings:
 
 ## Tool Permissions
 
-When an agent calls a tool, cagent shows a confirmation dialog by default. You can:
+When an agent calls a tool, docker-agent shows a confirmation dialog by default. You can:
 
 - **Approve once** — Allow this specific call
 - **Always allow** — Permanently approve this tool/command for the session
@@ -230,6 +230,6 @@ When an agent calls a tool, cagent shows a confirmation dialog by default. You c
 <div class="callout callout-tip">
 <div class="callout-title">💡 YOLO mode
 </div>
-  <p>Use <code>--yolo</code> or the <code>/yolo</code> command to auto-approve all tool calls. You can also toggle this mid-session. For aliases, set <code>--yolo</code> when creating the alias: <code>cagent alias add fast agentcatalog/coder --yolo</code>.</p>
+  <p>Use <code>--yolo</code> or the <code>/yolo</code> command to auto-approve all tool calls. You can also toggle this mid-session. For aliases, set <code>--yolo</code> when creating the alias: <code>docker agent alias add fast agentcatalog/coder --yolo</code>.</p>
 
 </div>

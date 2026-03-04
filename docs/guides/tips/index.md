@@ -12,11 +12,11 @@ _Expert guidance for building effective, efficient, and secure agents._
 
 ### Auto Mode for Quick Start
 
-Don't have a config file? cagent can automatically detect your available API keys and use an appropriate model:
+Don't have a config file? docker-agent can automatically detect your available API keys and use an appropriate model:
 
 ```bash
 # Automatically uses the best available provider
-cagent run
+$ docker agent run
 
 # Provider priority: OpenAI → Anthropic → Google → Mistral → DMR
 ```
@@ -54,13 +54,13 @@ agents:
 
 ### Model Aliases Are Auto-Pinned
 
-cagent automatically resolves model aliases to their latest pinned versions. This ensures reproducible behavior:
+docker-agent automatically resolves model aliases to their latest pinned versions. This ensures reproducible behavior:
 
 ```yaml
 # You write:
 model: anthropic/claude-sonnet-4-5
 
-# cagent resolves to:
+# docker-agent resolves to:
 # anthropic/claude-sonnet-4-5-20250929 (or latest available)
 ```
 
@@ -188,7 +188,7 @@ The `--yolo` flag auto-approves all tool calls without confirmation:
 
 ```bash
 # Auto-approve everything (use with caution!)
-cagent run agent.yaml --yolo
+$ docker agent run agent.yaml --yolo
 ```
 
 **When it's appropriate:**
@@ -311,10 +311,10 @@ Use the `--debug` flag to see detailed execution logs:
 
 ```bash
 # Default log location: ~/.cagent/cagent.debug.log
-cagent run agent.yaml --debug
+$ docker agent run agent.yaml --debug
 
 # Custom log location
-cagent run agent.yaml --debug --log-file ./debug.log
+$ docker agent run agent.yaml --debug --log-file ./debug.log
 ```
 
 ### Check Token Usage
@@ -351,11 +351,11 @@ settings:
   default_model: anthropic/claude-sonnet-4-0
 ```
 
-This model is used when you run `cagent run` without a config file.
+This model is used when you run `docker agent run` without a config file.
 
 ### GitHub PR Reviewer Example
 
-Use cagent as a GitHub Actions PR reviewer:
+Use docker-agent as a GitHub Actions PR reviewer:
 
 ```yaml
 # .github/workflows/pr-review.yml
@@ -369,16 +369,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run cagent review
+      - name: Run docker-agent review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Install cagent
-          curl -fsSL https://get.cagent.dev | sh
+          # Install docker-agent
+          curl -fsSL https://get.docker-agent.dev | sh
 
           # Run the review
-          cagent run --exec reviewer.yaml --yolo \
+          docker agent run --exec reviewer.yaml --yolo \
             "Review PR #${{ github.event.pull_request.number }}"
 ```
 

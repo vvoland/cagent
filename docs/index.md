@@ -1,12 +1,12 @@
 ---
 layout: default
-title: "cagent"
+title: "docker-agent"
 description: "Build, run, and share powerful AI agents with a declarative YAML config, rich tool ecosystem, and multi-agent orchestration — by Docker."
 permalink: /
 ---
 
 <div class="hero">
-  <h1>cagent</h1>
+  <h1>docker-agent</h1>
   <p>Build, run, and share powerful AI agents with a declarative YAML config, rich tool ecosystem, and multi-agent orchestration — by Docker.</p>
   <div class="hero-buttons">
     <a href="/getting-started/introduction/" class="btn btn-primary">Get Started</a>
@@ -50,7 +50,7 @@ permalink: /
 ## See It in Action
 
 <div class="demo-container">
-  <img src="demo.gif" alt="cagent TUI demo showing an interactive agent session" loading="lazy">
+  <img src="demo.gif" alt="docker agent TUI demo showing an interactive agent session" loading="lazy">
 </div>
 
 ## Quick Example
@@ -75,10 +75,10 @@ Then run it:
 
 ```bash
 # Launch the interactive TUI
-cagent run agent.yaml
+docker agent run agent.yaml
 
 # Or run a one-shot command
-cagent run --exec agent.yaml "Explain the code in main.go"
+docker agent run --exec agent.yaml "Explain the code in main.go"
 ```
 
 ## Explore the Docs
@@ -88,7 +88,7 @@ cagent run --exec agent.yaml "Explain the code in main.go"
     <div class="card-icon">🚀
 </div>
     <h3>Getting Started</h3>
-    <p>Learn what cagent is and get your first agent running in minutes.</p>
+    <p>Learn what docker agent is and get your first agent running in minutes.</p>
   </a>
   <a class="card" href="/concepts/agents/">
     <div class="card-icon">💡</div>

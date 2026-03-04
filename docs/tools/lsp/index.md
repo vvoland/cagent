@@ -199,6 +199,6 @@ All LSP tools use **1-based** line and character positions:
 <div class="callout callout-warning">
 <div class="callout-title">⚠️ Server Installation
 </div>
-  <p>The LSP server must be installed and available in the system PATH. cagent does not install LSP servers automatically. Install them using your language's package manager (e.g., <code>go install golang.org/x/tools/gopls@latest</code>).</p>
+  <p>The LSP server must be installed and available in the system PATH. docker-agent does not install LSP servers automatically. Install them using your language's package manager (e.g., <code>go install golang.org/x/tools/gopls@latest</code>).</p>
 
 </div>
