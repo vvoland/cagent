@@ -17,7 +17,8 @@ import (
 )
 
 type APITool struct {
-	config latest.APIToolConfig
+	config   latest.APIToolConfig
+	expander *js.Expander
 }
 
 // Verify interface compliance
@@ -37,26 +38,23 @@ func (t *APITool) callTool(ctx context.Context, toolCall tools.ToolCall) (*tools
 	case http.MethodGet:
 		if toolCall.Function.Arguments != "" {
 			var params map[string]string
-
 			if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
 				return nil, fmt.Errorf("invalid arguments: %w", err)
 			}
-			expanded, err := js.ExpandString(ctx, endpoint, params)
-			if err != nil {
-				return nil, fmt.Errorf("failed to expand endpoint: %w", err)
-			}
-			endpoint = expanded
+
+			endpoint = t.expander.Expand(ctx, endpoint, params)
 		}
 	case http.MethodPost:
 		var params map[string]any
-
 		if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &params); err != nil {
 			return nil, fmt.Errorf("invalid arguments: %w", err)
 		}
+
 		jsonData, err := json.Marshal(params)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal request body: %w", err)
 		}
+
 		reqBody = bytes.NewReader(jsonData)
 	}
 
@@ -85,9 +83,10 @@ func (t *APITool) callTool(ctx context.Context, toolCall tools.ToolCall) (*tools
 	return tools.ResultSuccess(limitOutput(string(body))), nil
 }
 
-func NewAPITool(config latest.APIToolConfig) *APITool {
+func NewAPITool(config latest.APIToolConfig, expander *js.Expander) *APITool {
 	return &APITool{
-		config: config,
+		config:   config,
+		expander: expander,
 	}
 }
 

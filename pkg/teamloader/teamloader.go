@@ -171,8 +171,8 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 
 		opts := []agent.Opt{
 			agent.WithName(agentConfig.Name),
-			agent.WithDescription(expander.Expand(ctx, agentConfig.Description)),
-			agent.WithWelcomeMessage(expander.Expand(ctx, agentConfig.WelcomeMessage)),
+			agent.WithDescription(expander.Expand(ctx, agentConfig.Description, nil)),
+			agent.WithWelcomeMessage(expander.Expand(ctx, agentConfig.WelcomeMessage, nil)),
 			agent.WithAddDate(agentConfig.AddDate),
 			agent.WithAddEnvironmentInfo(agentConfig.AddEnvironmentInfo),
 			agent.WithAddDescriptionParameter(agentConfig.AddDescriptionParameter),

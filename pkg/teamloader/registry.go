@@ -162,7 +162,7 @@ func expandSandboxPaths(ctx context.Context, sandbox *latest.SandboxConfig, envP
 
 	expandedPaths := make([]string, len(sandbox.Paths))
 	for i, p := range sandbox.Paths {
-		expandedPaths[i] = expander.Expand(ctx, p)
+		expandedPaths[i] = expander.Expand(ctx, p, nil)
 	}
 
 	return &latest.SandboxConfig{
@@ -224,10 +224,10 @@ func createAPITool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 	}
 
 	expander := js.NewJsExpander(runConfig.EnvProvider())
-	toolset.APIConfig.Endpoint = expander.Expand(ctx, toolset.APIConfig.Endpoint)
+	toolset.APIConfig.Endpoint = expander.Expand(ctx, toolset.APIConfig.Endpoint, nil)
 	toolset.APIConfig.Headers = expander.ExpandMap(ctx, toolset.APIConfig.Headers)
 
-	return builtin.NewAPITool(toolset.APIConfig), nil
+	return builtin.NewAPITool(toolset.APIConfig, expander), nil
 }
 
 func createFetchTool(_ context.Context, toolset latest.Toolset, _ string, _ *config.RuntimeConfig) (tools.ToolSet, error) {
@@ -283,7 +283,7 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 		expander := js.NewJsExpander(envProvider)
 
 		headers := expander.ExpandMap(ctx, toolset.Remote.Headers)
-		url := expander.Expand(ctx, toolset.Remote.URL)
+		url := expander.Expand(ctx, toolset.Remote.URL, nil)
 
 		return mcp.NewRemoteToolset(toolset.Name, url, toolset.Remote.TransportType, headers), nil
 
@@ -322,7 +322,7 @@ func createUserPromptTool(_ context.Context, _ latest.Toolset, _ string, _ *conf
 func createOpenAPITool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig) (tools.ToolSet, error) {
 	expander := js.NewJsExpander(runConfig.EnvProvider())
 
-	specURL := expander.Expand(ctx, toolset.URL)
+	specURL := expander.Expand(ctx, toolset.URL, nil)
 	headers := expander.ExpandMap(ctx, toolset.Headers)
 
 	return builtin.NewOpenAPITool(specURL, headers), nil

@@ -1,6 +1,7 @@
 package builtin
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/docker/cagent/pkg/config/latest"
+	"github.com/docker/cagent/pkg/js"
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -57,7 +59,7 @@ func TestAPITool_GET(t *testing.T) {
 	tool := NewAPITool(latest.APIToolConfig{
 		Method:   http.MethodGet,
 		Endpoint: ts.serverURL + "/api?key=${key}&value=${value}",
-	})
+	}, testExpander())
 
 	result, err := tool.callTool(t.Context(), tools.ToolCall{
 		Function: tools.FunctionCall{
@@ -78,7 +80,7 @@ func TestAPITool_POST(t *testing.T) {
 	tool := NewAPITool(latest.APIToolConfig{
 		Method:   http.MethodPost,
 		Endpoint: ts.serverURL,
-	})
+	}, testExpander())
 
 	result, err := tool.callTool(t.Context(), tools.ToolCall{
 		Function: tools.FunctionCall{
@@ -110,7 +112,7 @@ func TestAPITool_Headers(t *testing.T) {
 			"X-API-Key":        "secret-key",
 			"X-Another-Header": "another-value",
 		},
-	})
+	}, testExpander())
 
 	result, err := tool.callTool(t.Context(), tools.ToolCall{})
 
@@ -128,7 +130,7 @@ func TestAPITool_DefaultOutputSchema(t *testing.T) {
 		Name:     "default-schema",
 		Method:   http.MethodGet,
 		Endpoint: "https://example.com/api",
-	})
+	}, testExpander())
 
 	toolsList, err := tool.Tools(t.Context())
 	require.NoError(t, err)
@@ -157,7 +159,7 @@ func TestAPITool_CustomOutputSchema(t *testing.T) {
 		Required:     []string{"id"},
 		Args:         map[string]any{"id": map[string]any{"type": "number"}},
 		OutputSchema: customSchema,
-	})
+	}, testExpander())
 
 	toolsList, err := tool.Tools(t.Context())
 	require.NoError(t, err)
@@ -171,4 +173,12 @@ func TestAPITool_CustomOutputSchema(t *testing.T) {
 	require.True(t, ok)
 	assert.Contains(t, props, "first_name")
 	assert.Contains(t, props, "age")
+}
+
+type noopEnvProvider struct{}
+
+func (noopEnvProvider) Get(context.Context, string) (string, bool) { return "", false }
+
+func testExpander() *js.Expander {
+	return js.NewJsExpander(noopEnvProvider{})
 }

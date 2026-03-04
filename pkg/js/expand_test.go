@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestExpand(t *testing.T) {
@@ -128,7 +127,7 @@ func TestExpand(t *testing.T) {
 			env := testEnvProvider(tt.envVars)
 
 			expander := NewJsExpander(&env)
-			result := expander.Expand(t.Context(), tt.commands)
+			result := expander.Expand(t.Context(), tt.commands, nil)
 
 			assert.Equal(t, tt.expected, result)
 		})
@@ -197,7 +196,6 @@ func TestExpandString(t *testing.T) {
 		template string
 		values   map[string]string
 		expected string
-		wantErr  bool
 	}{
 		{
 			name:     "simple substitution",
@@ -235,12 +233,9 @@ func TestExpandString(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			result, err := ExpandString(t.Context(), tt.template, tt.values)
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
+			env := testEnvProvider(map[string]string{})
+			expander := NewJsExpander(&env)
+			result := expander.Expand(t.Context(), tt.template, tt.values)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
