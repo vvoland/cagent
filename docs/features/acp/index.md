@@ -25,16 +25,16 @@ ACP is built on the [ACP Go SDK](https://github.com/coder/acp-go-sdk) and provid
 
 ```bash
 # Start ACP server on stdio
-$ docker agent acp ./agent.yaml
+$ docker agent serve acp ./agent.yaml
 
 # With a multi-agent team config
-$ docker agent acp ./team.yaml
+$ docker agent serve acp ./team.yaml
 
 # From the agent catalog
-$ docker agent acp agentcatalog/pirate
+$ docker agent serve acp agentcatalog/pirate
 
 # With a custom session database
-$ docker agent acp ./agent.yaml --session-db ./my-sessions.db
+$ docker agent serve acp ./agent.yaml --session-db ./my-sessions.db
 ```
 
 ## How It Works

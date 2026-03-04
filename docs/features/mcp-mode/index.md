@@ -28,13 +28,13 @@ The `docker agent serve mcp` command makes your agents available to any applicat
 
 ```bash
 # Expose a local config
-$ docker agent mcp ./agent.yaml
+$ docker agent serve mcp ./agent.yaml
 
 # Expose from a registry
-$ docker agent mcp agentcatalog/pirate
+$ docker agent serve mcp agentcatalog/pirate
 
 # Set the working directory
-$ docker agent mcp ./agent.yaml --working-dir /path/to/project
+$ docker agent serve mcp ./agent.yaml --working-dir /path/to/project
 ```
 
 ## Using with Claude Desktop
@@ -73,7 +73,7 @@ Restart Claude Desktop after updating the configuration.
 $ claude mcp add --transport stdio myagent \
   --env OPENAI_API_KEY=$OPENAI_API_KEY \
   --env ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
-  -- docker agent mcp agentcatalog/pirate --working-dir $(pwd)
+  -- docker agent serve mcp agentcatalog/pirate --working-dir $(pwd)
 ```
 
 ## Multi-Agent in MCP Mode

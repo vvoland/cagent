@@ -102,12 +102,12 @@ $ docker agent api ociReference --pull-interval 10  # auto-refresh
 Expose agents as MCP tools for use in Claude Desktop, Claude Code, or other MCP clients.
 
 ```bash
-$ docker agent mcp [config] [flags]
+$ docker agent serve mcp [config] [flags]
 
 # Examples
-$ docker agent mcp agent.yaml
-$ docker agent mcp agent.yaml --working-dir /path/to/project
-$ docker agent mcp agentcatalog/coder
+$ docker agent serve mcp agent.yaml
+$ docker agent serve mcp agent.yaml --working-dir /path/to/project
+$ docker agent serve mcp agentcatalog/coder
 ```
 
 See [MCP Mode](/features/mcp-mode/) for detailed setup.
