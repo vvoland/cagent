@@ -100,13 +100,13 @@ Define custom shell scripts as named tools. Unlike the generic `shell` tool wher
 ```yaml
 toolsets:
   - type: script
-    scripts:
-      - name: run_tests
+    shell:
+      run_tests:
+        cmd: task test
         description: Run the project test suite
-        command: task test
-      - name: lint
+      lint:
+        cmd: task lint
         description: Run the linter
-        command: task lint
 ```
 
 ### Transfer Task
@@ -144,7 +144,7 @@ toolsets:
     args: ["--allow-write", "."]
     tools: ["read_file", "write_file"] # optional: only expose specific tools
     env:
-      - "RUST_LOG=debug"
+      RUST_LOG: debug
 ```
 
 ### Remote MCP (SSE / HTTP)

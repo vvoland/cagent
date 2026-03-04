@@ -312,9 +312,7 @@ toolsets:
     args: ["-m", "mcp_server"]
     tools: ["search", "fetch"] # optional: whitelist specific tools
     env:
-      - "API_KEY=value"
-    env_file:
-      - .env
+      API_KEY: value
 ```
 
 | Property      | Type   | Description                                           |
@@ -323,7 +321,6 @@ toolsets:
 | `args`        | array  | Command arguments                                     |
 | `tools`       | array  | Optional: only expose these tools                     |
 | `env`         | array  | Environment variables (`"KEY=value"` format)          |
-| `env_file`    | array  | Files to load environment variables from              |
 | `instruction` | string | Custom instructions injected into the agent's context |
 
 ### Remote MCP (SSE / Streamable HTTP)
@@ -406,12 +403,13 @@ agents:
         file_types: [".go"]
       # Custom scripts
       - type: script
-        run_tests:
-          description: Run the test suite
-          cmd: task test
-        lint:
-          description: Run the linter
-          cmd: task lint
+        shell:
+          run_tests:
+            description: Run the test suite
+            cmd: task test
+          lint:
+            description: Run the linter
+            cmd: task lint
       # Custom API tool
       - type: api
         name: get_status
