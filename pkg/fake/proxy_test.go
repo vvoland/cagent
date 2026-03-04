@@ -300,6 +300,28 @@ func TestSimulatedStreamCopy_SSEEvents(t *testing.T) {
 	assert.GreaterOrEqual(t, elapsed, 3*chunkDelay, "should have delays between data chunks")
 }
 
+// notifyWriter wraps an http.ResponseWriter and signals on first Write.
+type notifyWriter struct {
+	http.ResponseWriter
+	notify   chan struct{}
+	notified bool
+}
+
+func (w *notifyWriter) Write(p []byte) (int, error) {
+	n, err := w.ResponseWriter.Write(p)
+	if n > 0 && !w.notified {
+		w.notified = true
+		close(w.notify)
+	}
+	return n, err
+}
+
+func (w *notifyWriter) Flush() {
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
 func TestSimulatedStreamCopy_ContextCancellation(t *testing.T) {
 	// Create a reader that provides some data then blocks
 	// to allow context cancellation to be tested
@@ -321,17 +343,24 @@ func TestSimulatedStreamCopy_ContextCancellation(t *testing.T) {
 	rec := httptest.NewRecorder()
 	ctx, cancel := context.WithCancel(t.Context())
 	req = req.WithContext(ctx)
-	c := e.NewContext(req, rec)
+
+	// Wrap the recorder so we get notified when the first chunk is written,
+	// without racing on rec.Body.
+	firstWrite := make(chan struct{})
+	nw := &notifyWriter{ResponseWriter: rec, notify: firstWrite}
+	c := e.NewContext(req, nw)
 
 	done := make(chan error, 1)
 	go func() {
 		done <- SimulatedStreamCopy(c, resp, 10*time.Millisecond)
 	}()
 
-	// Wait until at least the first chunk has been written to the recorder
-	require.Eventually(t, func() bool {
-		return rec.Body.Len() > 0
-	}, time.Second, 5*time.Millisecond, "expected first chunk to be written")
+	// Wait until the first chunk has been written to the recorder.
+	select {
+	case <-firstWrite:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for first chunk to be written")
+	}
 
 	// Cancel the context and close the body (simulating client disconnect)
 	cancel()
@@ -347,6 +376,6 @@ func TestSimulatedStreamCopy_ContextCancellation(t *testing.T) {
 		t.Fatal("SimulatedStreamCopy did not return after context cancellation")
 	}
 
-	// Verify first chunk was written
+	// Verify first chunk was written (safe to read after goroutine finished)
 	assert.Contains(t, rec.Body.String(), "data: first")
 }
