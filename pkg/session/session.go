@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -51,6 +52,9 @@ func (si *Item) IsSubSession() bool {
 
 // Session represents the agent's state including conversation history and variables
 type Session struct {
+	// mu protects Messages from concurrent read/write access.
+	mu sync.RWMutex `json:"-"`
+
 	// ID is the unique identifier for the session
 	ID string `json:"id"`
 
@@ -216,16 +220,67 @@ type EvalCriteria struct {
 	Setup      string   `json:"setup,omitempty"`       // Optional sh script to run in the container before cagent run --exec
 }
 
+// deepCopyMessage returns a deep copy of a session Message.
+// It copies the inner chat.Message's slice and pointer fields so that the
+// returned value shares no mutable state with the original.
+func deepCopyMessage(m *Message) *Message {
+	cp := *m
+	cp.Message = deepCopyChatMessage(m.Message)
+	return &cp
+}
+
+// deepCopyChatMessage returns a deep copy of a chat.Message, duplicating
+// all slice and pointer fields that would otherwise alias the original.
+func deepCopyChatMessage(m chat.Message) chat.Message {
+	if m.MultiContent != nil {
+		orig := m.MultiContent
+		m.MultiContent = make([]chat.MessagePart, len(orig))
+		for i, part := range orig {
+			if part.ImageURL != nil {
+				imgCopy := *part.ImageURL
+				part.ImageURL = &imgCopy
+			}
+			if part.File != nil {
+				fileCopy := *part.File
+				part.File = &fileCopy
+			}
+			m.MultiContent[i] = part
+		}
+	}
+	if m.FunctionCall != nil {
+		fcCopy := *m.FunctionCall
+		m.FunctionCall = &fcCopy
+	}
+	if m.ToolCalls != nil {
+		m.ToolCalls = append([]tools.ToolCall(nil), m.ToolCalls...)
+	}
+	if m.ToolDefinitions != nil {
+		m.ToolDefinitions = append([]tools.Tool(nil), m.ToolDefinitions...)
+	}
+	if m.Usage != nil {
+		usageCopy := *m.Usage
+		m.Usage = &usageCopy
+	}
+	if m.ThoughtSignature != nil {
+		m.ThoughtSignature = append([]byte(nil), m.ThoughtSignature...)
+	}
+	return m
+}
+
 // Session helper methods
 
 // AddMessage adds a message to the session
 func (s *Session) AddMessage(msg *Message) {
+	s.mu.Lock()
 	s.Messages = append(s.Messages, NewMessageItem(msg))
+	s.mu.Unlock()
 }
 
 // AddSubSession adds a sub-session to the session
 func (s *Session) AddSubSession(subSession *Session) {
+	s.mu.Lock()
 	s.Messages = append(s.Messages, NewSubSessionItem(subSession))
+	s.mu.Unlock()
 }
 
 // Duration calculates the duration of the session from message timestamps.
@@ -258,8 +313,19 @@ func (s *Session) AllowedDirectories() []string {
 
 // GetAllMessages extracts all messages from the session, including from sub-sessions
 func (s *Session) GetAllMessages() []Message {
+	s.mu.RLock()
+	items := make([]Item, len(s.Messages))
+	for i, item := range s.Messages {
+		if item.Message != nil {
+			items[i] = Item{Message: deepCopyMessage(item.Message)}
+		} else {
+			items[i] = item
+		}
+	}
+	s.mu.RUnlock()
+
 	var messages []Message
-	for _, item := range s.Messages {
+	for _, item := range items {
 		if item.IsMessage() && item.Message.Message.Role != chat.MessageRoleSystem {
 			messages = append(messages, *item.Message)
 		} else if item.IsSubSession() {
@@ -408,6 +474,9 @@ func (s *Session) IsSubSession() bool {
 
 // MessageCount returns the number of items that contain a message.
 func (s *Session) MessageCount() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	n := 0
 	for _, item := range s.Messages {
 		if item.IsMessage() {
@@ -421,6 +490,9 @@ func (s *Session) MessageCount() int {
 // sub-sessions, and summary items. It does not use the session-level Cost
 // field, which exists only for backward-compatible persistence.
 func (s *Session) TotalCost() float64 {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	var cost float64
 	for _, item := range s.Messages {
 		switch {
@@ -439,6 +511,9 @@ func (s *Session) TotalCost() float64 {
 // This is used for live event emissions where sub-sessions report their
 // own costs separately.
 func (s *Session) OwnCost() float64 {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	var cost float64
 	for _, item := range s.Messages {
 		if item.IsMessage() {
@@ -609,22 +684,22 @@ func buildContextSpecificSystemMessages(a *agent.Agent, s *Session) []chat.Messa
 // if one exists. Session summaries are context-specific per session and thus should not have a checkpoint (they will be cached alongside the first user message anyway)
 //
 // lastSummaryIndex is the index of the last summary item in s.Messages, or -1 if none exists.
-func buildSessionSummaryMessages(s *Session) ([]chat.Message, int) {
+func buildSessionSummaryMessages(items []Item) ([]chat.Message, int) {
 	var messages []chat.Message
 	// Find the last summary index to determine where conversation messages start
 	// and to include the summary in session summary messages
 	lastSummaryIndex := -1
-	for i := len(s.Messages) - 1; i >= 0; i-- {
-		if s.Messages[i].Summary != "" {
+	for i := len(items) - 1; i >= 0; i-- {
+		if items[i].Summary != "" {
 			lastSummaryIndex = i
 			break
 		}
 	}
 
-	if lastSummaryIndex >= 0 && lastSummaryIndex < len(s.Messages) {
+	if lastSummaryIndex >= 0 && lastSummaryIndex < len(items) {
 		messages = append(messages, chat.Message{
 			Role:      chat.MessageRoleUser,
-			Content:   "Session Summary: " + s.Messages[lastSummaryIndex].Summary,
+			Content:   "Session Summary: " + items[lastSummaryIndex].Summary,
 			CreatedAt: time.Now().Format(time.RFC3339),
 		})
 	}
@@ -643,8 +718,21 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 	contextMessages := buildContextSpecificSystemMessages(a, s)
 	markLastMessageAsCacheControl(contextMessages)
 
+	// Take a snapshot of Messages under the lock, copying Message structs
+	// to avoid racing with UpdateMessage which may modify the pointed-to objects.
+	s.mu.RLock()
+	items := make([]Item, len(s.Messages))
+	for i, item := range s.Messages {
+		if item.Message != nil {
+			items[i] = Item{Message: deepCopyMessage(item.Message), Summary: item.Summary, SubSession: item.SubSession, Cost: item.Cost}
+		} else {
+			items[i] = item
+		}
+	}
+	s.mu.RUnlock()
+
 	// Build session summary messages (vary per session)
-	summaryMessages, lastSummaryIndex := buildSessionSummaryMessages(s)
+	summaryMessages, lastSummaryIndex := buildSessionSummaryMessages(items)
 
 	var messages []chat.Message
 	messages = append(messages, invariantMessages...)
@@ -654,8 +742,8 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 	startIndex := lastSummaryIndex + 1
 
 	// Begin adding conversation messages
-	for i := startIndex; i < len(s.Messages); i++ {
-		item := s.Messages[i]
+	for i := startIndex; i < len(items); i++ {
+		item := items[i]
 		if item.IsMessage() {
 			messages = append(messages, item.Message.Message)
 		}

@@ -195,16 +195,41 @@ func (s *InMemorySessionStore) UpdateSession(_ context.Context, session *Session
 		return ErrEmptyID
 	}
 
-	// Create a shallow copy of the session
-	newSession := *session
-	newSession.Messages = nil // Messages stored separately via AddMessage
+	// Build a new session with the same metadata but a fresh mutex.
+	// Messages are stored separately via AddMessage.
+	newSession := &Session{
+		ID:                    session.ID,
+		Title:                 session.Title,
+		Evals:                 session.Evals,
+		CreatedAt:             session.CreatedAt,
+		ToolsApproved:         session.ToolsApproved,
+		Thinking:              session.Thinking,
+		HideToolResults:       session.HideToolResults,
+		WorkingDir:            session.WorkingDir,
+		SendUserMessage:       session.SendUserMessage,
+		MaxIterations:         session.MaxIterations,
+		Starred:               session.Starred,
+		InputTokens:           session.InputTokens,
+		OutputTokens:          session.OutputTokens,
+		Cost:                  session.Cost,
+		Permissions:           session.Permissions,
+		AgentModelOverrides:   session.AgentModelOverrides,
+		CustomModelsUsed:      session.CustomModelsUsed,
+		BranchParentSessionID: session.BranchParentSessionID,
+		BranchParentPosition:  session.BranchParentPosition,
+		BranchCreatedAt:       session.BranchCreatedAt,
+		ParentID:              session.ParentID,
+	}
 
 	// Preserve existing messages if session already exists
 	if existing, exists := s.sessions.Load(session.ID); exists {
-		newSession.Messages = existing.Messages
+		existing.mu.RLock()
+		newSession.Messages = make([]Item, len(existing.Messages))
+		copy(newSession.Messages, existing.Messages)
+		existing.mu.RUnlock()
 	}
 
-	s.sessions.Store(session.ID, &newSession)
+	s.sessions.Store(session.ID, newSession)
 	return nil
 }
 
@@ -240,18 +265,25 @@ func (s *InMemorySessionStore) AddMessage(_ context.Context, sessionID string, m
 
 // UpdateMessage updates an existing message by its ID.
 func (s *InMemorySessionStore) UpdateMessage(_ context.Context, messageID int64, msg *Message) error {
+	// Create a deep copy of the message to avoid mutating the caller's pointer,
+	// which may be shared with another Session object.
+	updated := deepCopyMessage(msg)
+	updated.ID = messageID
+
 	// For in-memory store, we need to find the message across all sessions
 	var found bool
 	s.sessions.Range(func(_ string, session *Session) bool {
+		session.mu.Lock()
 		for i := range session.Messages {
-			if session.Messages[i].Message != nil && session.Messages[i].Message.ID == messageID {
-				// Preserve the message ID when updating
-				msg.ID = messageID
-				session.Messages[i].Message = msg
-				found = true
-				return false
+			if session.Messages[i].Message == nil || session.Messages[i].Message.ID != messageID {
+				continue
 			}
+			session.Messages[i].Message = updated
+			found = true
+			session.mu.Unlock()
+			return false
 		}
+		session.mu.Unlock()
 		return true
 	})
 	if !found {
@@ -284,7 +316,9 @@ func (s *InMemorySessionStore) AddSummary(_ context.Context, sessionID, summary 
 	if !exists {
 		return ErrNotFound
 	}
+	session.mu.Lock()
 	session.Messages = append(session.Messages, Item{Summary: summary})
+	session.mu.Unlock()
 	return nil
 }
 
