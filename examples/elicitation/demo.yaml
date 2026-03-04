@@ -37,5 +37,6 @@ agents:
     toolsets:
       - type: mcp
         command: uvx
+        version: "astral-sh/uv"
         args:
           ["--with", "mcp[cli]", "mcp", "run", "examples/elicitation/server.py"]

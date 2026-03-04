@@ -85,6 +85,9 @@ func (t *Toolset) validate() error {
 	if t.Shared && t.Type != "todo" {
 		return errors.New("shared can only be used with type 'todo'")
 	}
+	if t.Version != "" && t.Type != "mcp" && t.Type != "lsp" {
+		return errors.New("version can only be used with type 'mcp' or 'lsp'")
+	}
 	if t.Command != "" && t.Type != "mcp" && t.Type != "lsp" {
 		return errors.New("command can only be used with type 'mcp' or 'lsp'")
 	}

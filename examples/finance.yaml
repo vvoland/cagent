@@ -50,6 +50,7 @@ agents:
     toolsets:
       - type: mcp
         command: uvx
+        version: "astral-sh/uv"
         args: ["yfmcp"]
 
   web_search_agent:

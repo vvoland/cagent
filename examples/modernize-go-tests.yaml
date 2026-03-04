@@ -87,6 +87,7 @@ agents:
       - type: todo
       - type: mcp
         command: gopls
+        version: "golang/tools@v0.25.0"
         args: ["mcp"]
         tools:
           [

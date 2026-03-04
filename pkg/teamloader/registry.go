@@ -14,6 +14,7 @@ import (
 	"github.com/docker/cagent/pkg/js"
 	"github.com/docker/cagent/pkg/memory/database/sqlite"
 	"github.com/docker/cagent/pkg/path"
+	"github.com/docker/cagent/pkg/toolinstall"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/a2a"
 	"github.com/docker/cagent/pkg/tools/builtin"
@@ -271,13 +272,22 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 
 	// STDIO MCP Server from shell command
 	case toolset.Command != "":
+		// Auto-install missing command binary if needed
+		resolvedCommand, err := toolinstall.EnsureCommand(ctx, toolset.Command, toolset.Version)
+		if err != nil {
+			return nil, fmt.Errorf("resolving command %q: %w", toolset.Command, err)
+		}
+
 		env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), envProvider)
 		if err != nil {
 			return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
 		}
 		env = append(env, os.Environ()...)
 
-		return mcp.NewToolsetCommand(toolset.Name, toolset.Command, toolset.Args, env, runConfig.WorkingDir), nil
+		// Prepend tools bin dir to PATH so child processes can find installed tools
+		env = toolinstall.PrependBinDirToEnv(env)
+
+		return mcp.NewToolsetCommand(toolset.Name, resolvedCommand, toolset.Args, env, runConfig.WorkingDir), nil
 
 	// Remote MCP Server
 	case toolset.Remote.URL != "":
@@ -302,13 +312,22 @@ func createA2ATool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 }
 
 func createLSPTool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig) (tools.ToolSet, error) {
+	// Auto-install missing command binary if needed
+	resolvedCommand, err := toolinstall.EnsureCommand(ctx, toolset.Command, toolset.Version)
+	if err != nil {
+		return nil, fmt.Errorf("resolving command %q: %w", toolset.Command, err)
+	}
+
 	env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), runConfig.EnvProvider())
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand the tool's environment variables: %w", err)
 	}
 	env = append(env, os.Environ()...)
 
-	tool := builtin.NewLSPTool(toolset.Command, toolset.Args, env, runConfig.WorkingDir)
+	// Prepend tools bin dir to PATH so child processes can find installed tools
+	env = toolinstall.PrependBinDirToEnv(env)
+
+	tool := builtin.NewLSPTool(resolvedCommand, toolset.Args, env, runConfig.WorkingDir)
 	if len(toolset.FileTypes) > 0 {
 		tool.SetFileTypes(toolset.FileTypes)
 	}

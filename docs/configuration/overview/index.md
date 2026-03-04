@@ -146,6 +146,13 @@ API keys and secrets are read from environment variables — never stored in con
 | `XAI_API_KEY`       | xAI           |
 | `NEBIUS_API_KEY`    | Nebius        |
 
+**Tool Auto-Installation:**
+
+| Variable              | Description                                                     |
+| --------------------- | --------------------------------------------------------------- |
+| `DOCKER_AGENT_AUTO_INSTALL` | Set to `false` to disable automatic tool installation           |
+| `DOCKER_AGENT_TOOLS_DIR`    | Override the base directory for installed tools (default: `~/.cagent/tools/`) |
+
 <div class="callout callout-warning">
 <div class="callout-title">⚠️ Important
 </div>
