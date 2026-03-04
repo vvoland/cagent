@@ -9,8 +9,6 @@ import (
 func TestDefaultToRun(t *testing.T) {
 	t.Parallel()
 
-	rootCmd := NewRootCmd()
-
 	tests := []struct {
 		name string
 		args []string
@@ -102,7 +100,7 @@ func TestDefaultToRun(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := defaultToRun(rootCmd, tt.args)
+			got := defaultToRun(NewRootCmd(), tt.args)
 			assert.Equal(t, tt.want, got)
 		})
 	}
