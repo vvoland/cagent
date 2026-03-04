@@ -19,6 +19,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/docker/cagent/pkg/app"
+	"github.com/docker/cagent/pkg/audio/transcribe"
 	"github.com/docker/cagent/pkg/history"
 	"github.com/docker/cagent/pkg/runtime"
 	"github.com/docker/cagent/pkg/session"
@@ -86,6 +87,10 @@ type appModel struct {
 	dialogMgr    dialog.Manager
 	statusBar    statusbar.StatusBar
 	completions  completion.Manager
+
+	// Speech-to-text
+	transcriber  *transcribe.Transcriber
+	transcriptCh chan string // bridges transcriber goroutine → Bubble Tea event loop
 
 	// Working state indicator (resize handle spinner)
 	workingSpinner spinner.Spinner
@@ -181,6 +186,7 @@ func New(ctx context.Context, spawner SessionSpawner, initialApp *app.App, initi
 		notification:            notification.New(),
 		dialogMgr:               dialog.New(),
 		completions:             completion.New(),
+		transcriber:             transcribe.New(os.Getenv("OPENAI_API_KEY")),
 		workingSpinner:          spinner.New(spinner.ModeSpinnerOnly, styles.SpinnerDotsHighlightStyle),
 		focusedPanel:            PanelEditor,
 		editorLines:             3,
@@ -790,10 +796,18 @@ func (m *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// --- Speech-to-text ---
 
 	case messages.StartSpeakMsg:
-		return m, notification.InfoCmd("Speech-to-text is not yet supported")
+		if !m.transcriber.IsSupported() {
+			return m, notification.InfoCmd("Speech-to-text is only supported on macOS")
+		}
+		return m.handleStartSpeak()
 
-	case messages.StopSpeakMsg, messages.SpeakTranscriptMsg:
-		return m, nil
+	case messages.StopSpeakMsg:
+		return m.handleStopSpeak()
+
+	case messages.SpeakTranscriptMsg:
+		m.editor.InsertText(msg.Delta)
+		cmd := m.waitForTranscript()
+		return m, cmd
 
 	// --- MCP prompts ---
 
@@ -1461,6 +1475,19 @@ func (m *appModel) Bindings() []key.Binding {
 
 // handleKeyPress handles all keyboard input with proper priority routing.
 func (m *appModel) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	// Check if we should stop transcription on Enter or Escape
+	if m.transcriber.IsRunning() {
+		switch msg.String() {
+		case "enter":
+			model, cmd := m.handleStopSpeak()
+			sendCmd := m.editor.SendContent()
+			return model, tea.Batch(cmd, sendCmd)
+
+		case "esc":
+			return m.handleStopSpeak()
+		}
+	}
+
 	// Dialog gets priority when open
 	if m.dialogMgr.Open() {
 		u, cmd := m.dialogMgr.Update(msg)
@@ -1978,6 +2005,7 @@ func (m *appModel) cleanupAll() {
 		m.cancelThinkingCheck()
 		m.cancelThinkingCheck = nil
 	}
+	m.transcriber.Stop()
 	for _, cp := range m.chatPages {
 		cp.Cleanup()
 	}

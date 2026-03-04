@@ -531,6 +531,53 @@ func (m *appModel) handleAttachFile(filePath string) (tea.Model, tea.Cmd) {
 	})
 }
 
+// --- Speech-to-text ---
+
+func (m *appModel) handleStartSpeak() (tea.Model, tea.Cmd) {
+	if m.transcriber.IsRunning() {
+		return m, nil
+	}
+
+	m.transcriptCh = make(chan string, 100)
+	err := m.transcriber.Start(context.Background(), func(delta string) {
+		select {
+		case m.transcriptCh <- delta:
+		default:
+		}
+	})
+	if err != nil {
+		return m, notification.ErrorCmd(fmt.Sprintf("Failed to start listening: %v", err))
+	}
+
+	return m, tea.Batch(
+		notification.InfoCmd("🎤 Listening... (ENTER to send or ESC to cancel)"),
+		m.editor.SetRecording(true),
+		m.waitForTranscript(),
+	)
+}
+
+func (m *appModel) handleStopSpeak() (tea.Model, tea.Cmd) {
+	if !m.transcriber.IsRunning() {
+		return m, nil
+	}
+
+	m.transcriber.Stop()
+	return m, tea.Batch(m.editor.SetRecording(false), notification.SuccessCmd("Stopped listening"))
+}
+
+// waitForTranscript returns a command that blocks until the next transcript
+// delta arrives and delivers it as a SpeakTranscriptMsg.
+func (m *appModel) waitForTranscript() tea.Cmd {
+	ch := m.transcriptCh
+	return func() tea.Msg {
+		delta, ok := <-ch
+		if !ok {
+			return nil
+		}
+		return messages.SpeakTranscriptMsg{Delta: delta}
+	}
+}
+
 func (m *appModel) handleElicitationResponse(action tools.ElicitationAction, content map[string]any) (tea.Model, tea.Cmd) {
 	if err := m.application.ResumeElicitation(context.Background(), action, content); err != nil {
 		slog.Error("Failed to resume elicitation", "action", action, "error", err)
