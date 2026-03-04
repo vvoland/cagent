@@ -22,7 +22,8 @@ RAG lets agents search through your documents to find relevant information befor
 ```yaml
 rag:
   my_docs:
-    description: "Technical documentation"
+    tool:
+      description: "Technical documentation"
     docs: [./documents, ./some-doc.md]
     strategies:
       - type: chunked-embeddings

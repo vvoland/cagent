@@ -32,17 +32,18 @@ agents:
     instruction: You can look up weather information.
     toolsets:
       - type: api
-        name: get_weather
-        method: GET
-        endpoint: "https://api.weather.example/v1/current?city=${city}"
-        instruction: Get current weather for a city
-        args:
-          city:
-            type: string
-            description: City name to get weather for
-        required: ["city"]
-        headers:
-          Authorization: "Bearer ${env.WEATHER_API_KEY}"
+        api_config:
+          name: get_weather
+          method: GET
+          endpoint: "https://api.weather.example/v1/current?city=${city}"
+          instruction: Get current weather for a city
+          args:
+            city:
+              type: string
+              description: City name to get weather for
+          required: ["city"]
+          headers:
+            Authorization: "Bearer ${env.WEATHER_API_KEY}"
 ```
 
 ## Properties
@@ -67,18 +68,19 @@ For GET requests, parameters are interpolated into the URL:
 ```yaml
 toolsets:
   - type: api
-    name: search_users
-    method: GET
-    endpoint: "https://api.example.com/users?q=${query}&limit=${limit}"
-    instruction: Search for users by name
-    args:
-      query:
-        type: string
-        description: Search query
-      limit:
-        type: integer
-        description: Maximum results (default 10)
-    required: ["query"]
+    api_config:
+      name: search_users
+      method: GET
+      endpoint: "https://api.example.com/users?q=${query}&limit=${limit}"
+      instruction: Search for users by name
+      args:
+        query:
+          type: string
+          description: Search query
+        limit:
+          type: integer
+          description: Maximum results (default 10)
+      required: ["query"]
 ```
 
 ### POST Requests
@@ -88,25 +90,26 @@ For POST requests, parameters are sent as JSON in the request body:
 ```yaml
 toolsets:
   - type: api
-    name: create_task
-    method: POST
-    endpoint: "https://api.example.com/tasks"
-    instruction: Create a new task
-    args:
-      title:
-        type: string
-        description: Task title
-      description:
-        type: string
-        description: Task description
-      priority:
-        type: string
-        enum: ["low", "medium", "high"]
-        description: Task priority
-    required: ["title"]
-    headers:
-      Content-Type: "application/json"
-      Authorization: "Bearer ${env.API_TOKEN}"
+    api_config:
+      name: create_task
+      method: POST
+      endpoint: "https://api.example.com/tasks"
+      instruction: Create a new task
+      args:
+        title:
+          type: string
+          description: Task title
+        description:
+          type: string
+          description: Task description
+        priority:
+          type: string
+          enum: ["low", "medium", "high"]
+          description: Task priority
+      required: ["title"]
+      headers:
+        Content-Type: "application/json"
+        Authorization: "Bearer ${env.API_TOKEN}"
 ```
 
 ## URL Interpolation
@@ -137,26 +140,27 @@ Optionally document the expected response format:
 ```yaml
 toolsets:
   - type: api
-    name: get_user
-    method: GET
-    endpoint: "https://api.example.com/users/${id}"
-    instruction: Get user details by ID
-    args:
-      id:
-        type: string
-        description: User ID
-    required: ["id"]
-    output_schema:
-      type: object
-      properties:
+    api_config:
+      name: get_user
+      method: GET
+      endpoint: "https://api.example.com/users/${id}"
+      instruction: Get user details by ID
+      args:
         id:
           type: string
-        name:
-          type: string
-        email:
-          type: string
-        created_at:
-          type: string
+          description: User ID
+      required: ["id"]
+      output_schema:
+        type: object
+        properties:
+          id:
+            type: string
+          name:
+            type: string
+          email:
+            type: string
+          created_at:
+            type: string
 ```
 
 ## Example: GitHub API
@@ -169,34 +173,36 @@ agents:
     instruction: You can look up GitHub repositories and users.
     toolsets:
       - type: api
-        name: get_repo
-        method: GET
-        endpoint: "https://api.github.com/repos/${owner}/${repo}"
-        instruction: Get information about a GitHub repository
-        args:
-          owner:
-            type: string
-            description: Repository owner (user or org)
-          repo:
-            type: string
-            description: Repository name
-        required: ["owner", "repo"]
-        headers:
-          Accept: "application/vnd.github.v3+json"
-          Authorization: "Bearer ${env.GITHUB_TOKEN}"
+        api_config:
+          name: get_repo
+          method: GET
+          endpoint: "https://api.github.com/repos/${owner}/${repo}"
+          instruction: Get information about a GitHub repository
+          args:
+            owner:
+              type: string
+              description: Repository owner (user or org)
+            repo:
+              type: string
+              description: Repository name
+          required: ["owner", "repo"]
+          headers:
+            Accept: "application/vnd.github.v3+json"
+            Authorization: "Bearer ${env.GITHUB_TOKEN}"
 
       - type: api
-        name: get_user
-        method: GET
-        endpoint: "https://api.github.com/users/${username}"
-        instruction: Get information about a GitHub user
-        args:
-          username:
-            type: string
-            description: GitHub username
-        required: ["username"]
-        headers:
-          Accept: "application/vnd.github.v3+json"
+        api_config:
+          name: get_user
+          method: GET
+          endpoint: "https://api.github.com/users/${username}"
+          instruction: Get information about a GitHub user
+          args:
+            username:
+              type: string
+              description: GitHub username
+          required: ["username"]
+          headers:
+            Accept: "application/vnd.github.v3+json"
 ```
 
 ## Limitations

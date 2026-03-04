@@ -10,6 +10,7 @@ _Complete reference for defining models with providers, parameters, and reasonin
 
 ## Full Schema
 
+<!-- yaml-lint:skip -->
 ```yaml
 models:
   model_name:

@@ -10,6 +10,7 @@ _Complete reference for defining agents in your YAML configuration._
 
 ## Full Schema
 
+<!-- yaml-lint:skip -->
 ```yaml
 agents:
   agent_name:
