@@ -179,7 +179,7 @@ func NewSemanticEmbeddingsFromConfig(ctx context.Context, cfg latest.RAGStrategy
 
 	// Configure the embedding input builder to use the chat LLM
 	store.SetEmbeddingInputBuilder(newLLMSemanticEmbeddingBuilder(
-		chatProvider, semanticPrompt, usageTracker, useASTContext))
+		chatProvider, js.NewJsExpander(buildCtx.Env), semanticPrompt, usageTracker, useASTContext))
 
 	return &Config{
 		Name:      strategyName,
@@ -217,6 +217,7 @@ Include error handling patterns and edge cases if present.`
 // for each chunk before it is embedded.
 type llmSemanticEmbeddingBuilder struct {
 	provider     provider.Provider
+	expander     *js.Expander
 	prompt       string
 	usageTracker func(ctx context.Context, usage *chat.Usage)
 	astContext   bool
@@ -226,12 +227,14 @@ type llmSemanticEmbeddingBuilder struct {
 // calls the given provider with the configured prompt template.
 func newLLMSemanticEmbeddingBuilder(
 	p provider.Provider,
+	expander *js.Expander,
 	prompt string,
 	usageTracker func(ctx context.Context, usage *chat.Usage),
 	astContext bool,
 ) EmbeddingInputBuilder {
 	return &llmSemanticEmbeddingBuilder{
 		provider:     p,
+		expander:     expander,
 		prompt:       prompt,
 		usageTracker: usageTracker,
 		astContext:   astContext,
@@ -245,16 +248,13 @@ func (b *llmSemanticEmbeddingBuilder) BuildEmbeddingInput(ctx context.Context, s
 		astContext = formatASTContext(ch.Metadata)
 	}
 
-	t, err := js.ExpandString(ctx, b.prompt, map[string]string{
+	t := b.expander.Expand(ctx, b.prompt, map[string]string{
 		"path":        sourcePath,
 		"basename":    filepath.Base(sourcePath),
 		"chunk_index": fmt.Sprintf("%d", ch.Index),
 		"content":     ch.Content,
 		"ast_context": astContext,
 	})
-	if err != nil {
-		return "", fmt.Errorf("failed to expand prompt template: %w", err)
-	}
 
 	messages := []chat.Message{
 		{

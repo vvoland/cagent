@@ -4,12 +4,11 @@ package upstream
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
 
-	"github.com/dop251/goja"
+	"github.com/docker/cagent/pkg/js"
 )
 
 type contextKey struct{}
@@ -76,60 +75,20 @@ func ResolveHeaders(ctx context.Context, headers map[string]string) map[string]s
 		return headers
 	}
 
-	vm := goja.New()
-	_ = vm.Set("headers", vm.NewDynamicObject(headerAccessor(func(name string) goja.Value {
-		return vm.ToValue(upstream.Get(name))
-	})))
-
-	resolved := make(map[string]string, len(headers))
-	for k, v := range headers {
-		resolved[k] = expandTemplate(vm, v)
-	}
-	return resolved
+	return js.ExpandMapFunc(headers, "headers", upstream.Get, rewriteBracketNotation)
 }
-
-// headerAccessor implements [goja.DynamicObject] for case-insensitive
-// HTTP header lookups.
-type headerAccessor func(string) goja.Value
-
-func (h headerAccessor) Get(k string) goja.Value   { return h(k) }
-func (headerAccessor) Set(string, goja.Value) bool { return false }
-func (headerAccessor) Has(string) bool             { return true }
-func (headerAccessor) Delete(string) bool          { return false }
-func (headerAccessor) Keys() []string              { return nil }
 
 // headerPlaceholderRe matches ${headers.NAME} and captures the header
 // name so we can rewrite it to bracket notation for the JS runtime.
 var headerPlaceholderRe = regexp.MustCompile(`\$\{\s*headers\.([^}]+)\}`)
 
-// expandTemplate evaluates a string as a JavaScript template literal,
-// resolving any ${...} expressions via the goja runtime.
-// Before evaluation it rewrites ${headers.NAME} to ${headers["NAME"]}
+// rewriteBracketNotation rewrites ${headers.NAME} to ${headers["NAME"]}
 // so that header names containing hyphens (e.g. X-Request-Id) are
-// accessed correctly.
-func expandTemplate(vm *goja.Runtime, text string) string {
-	if !strings.Contains(text, "${") {
-		return text
-	}
-
-	// Rewrite dotted header access to bracket notation so names with
-	// hyphens work: ${headers.X-Req-Id} → ${headers["X-Req-Id"]}
-	text = headerPlaceholderRe.ReplaceAllStringFunc(text, func(m string) string {
+// accessed correctly by the JS runtime.
+func rewriteBracketNotation(text string) string {
+	return headerPlaceholderRe.ReplaceAllStringFunc(text, func(m string) string {
 		parts := headerPlaceholderRe.FindStringSubmatch(m)
 		name := strings.TrimSpace(parts[1])
 		return `${headers["` + name + `"]}`
 	})
-
-	escaped := strings.ReplaceAll(text, "\\", "\\\\")
-	escaped = strings.ReplaceAll(escaped, "`", "\\`")
-	script := "`" + escaped + "`"
-
-	v, err := vm.RunString(script)
-	if err != nil {
-		return text
-	}
-	if v == nil || v.Export() == nil {
-		return ""
-	}
-	return fmt.Sprintf("%v", v.Export())
 }

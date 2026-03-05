@@ -8,24 +8,18 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/dop251/goja"
-
 	"github.com/docker/cagent/pkg/tools"
 )
 
 // Evaluator handles JavaScript expression evaluation in strings.
 type Evaluator struct {
-	tools map[string]tools.Tool
+	tools []tools.Tool
 }
 
 // NewEvaluator creates a new Evaluator with the given tools.
 func NewEvaluator(agentTools []tools.Tool) *Evaluator {
-	toolMap := make(map[string]tools.Tool, len(agentTools))
-	for _, t := range agentTools {
-		toolMap[t.Name] = t
-	}
 	return &Evaluator{
-		tools: toolMap,
+		tools: agentTools,
 	}
 }
 
@@ -36,7 +30,7 @@ func (e *Evaluator) Evaluate(ctx context.Context, input string, args []string) s
 		return input
 	}
 
-	vm := goja.New()
+	vm := newVM()
 	if args == nil {
 		args = []string{}
 	}
@@ -47,23 +41,9 @@ func (e *Evaluator) Evaluate(ctx context.Context, input string, args []string) s
 		_ = vm.Set(tool.Name, e.createToolCaller(ctx, tool))
 	}
 
-	// Escape backslashes first, then backticks
-	escaped := strings.ReplaceAll(input, "\\", "\\\\")
-	escaped = strings.ReplaceAll(escaped, "`", "\\`")
-	script := "`" + escaped + "`"
+	slog.Debug("Evaluating JS template", "input", input)
 
-	slog.Debug("Evaluating JS template", "script", script)
-	v, err := vm.RunString(script)
-	if err != nil {
-		slog.Warn("JS template evaluation failed", "error", err)
-		return input
-	}
-
-	if v == nil || v.Export() == nil {
-		return ""
-	}
-
-	return fmt.Sprintf("%v", v.Export())
+	return runExpansion(vm, input)
 }
 
 // createToolCaller creates a JavaScript function that calls the given tool.
