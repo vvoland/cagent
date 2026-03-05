@@ -48,6 +48,13 @@
         "$ref": "#/definitions/ModelConfig"
       }
     },
+    "mcps": {
+      "type": "object",
+      "description": "Map of reusable MCP server definitions. Define MCP servers here and reference them by name from agent toolsets to avoid duplication.",
+      "additionalProperties": {
+        "$ref": "#/definitions/MCPToolset"
+      }
+    },
     "rag": {
       "type": "object",
       "description": "Map of RAG (Retrieval-Augmented Generation) configurations",
@@ -683,6 +690,95 @@
       },
       "additionalProperties": false
     },
+    "MCPToolset": {
+      "type": "object",
+      "description": "Reusable MCP server definition. Define once at the top level and reference by name from agent toolsets.",
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "Command to run the MCP server (stdio transport)"
+        },
+        "args": {
+          "type": "array",
+          "description": "Arguments to pass to the command",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ref": {
+          "type": "string",
+          "description": "Docker MCP reference (e.g., 'docker:context7')",
+          "pattern": "^docker:"
+        },
+        "remote": {
+          "$ref": "#/definitions/Remote",
+          "description": "Remote MCP server configuration (SSE/streamable-http transport)"
+        },
+        "config": {
+          "description": "MCP server configuration (for docker refs)"
+        },
+        "version": {
+          "type": "string",
+          "description": "Version/package reference for auto-installation"
+        },
+        "env": {
+          "type": "object",
+          "description": "Environment variables for the MCP server",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "tools": {
+          "type": "array",
+          "description": "Optional list of tools to expose from the MCP server",
+          "items": {
+            "type": "string"
+          }
+        },
+        "instruction": {
+          "type": "string",
+          "description": "Optional instruction for the tools"
+        },
+        "name": {
+          "type": "string",
+          "description": "Optional display name override for the MCP server"
+        },
+        "defer": {
+          "description": "Deferred loading configuration for tools from this MCP server",
+          "oneOf": [
+            {
+              "type": "boolean",
+              "description": "Set to true to defer all tools"
+            },
+            {
+              "type": "array",
+              "description": "Array of tool names to defer",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "command"
+          ]
+        },
+        {
+          "required": [
+            "remote"
+          ]
+        },
+        {
+          "required": [
+            "ref"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
     "Toolset": {
       "type": "object",
       "description": "Tool configuration",
@@ -718,8 +814,7 @@
         },
         "ref": {
           "type": "string",
-          "description": "Reference to external tool (e.g., docker:context7)",
-          "pattern": "^docker:"
+          "description": "Reference to a Docker MCP tool (e.g., 'docker:context7') or a named MCP definition from the top-level 'mcps' section"
         },
         "config": {
           "description": "Tool-specific configuration"
