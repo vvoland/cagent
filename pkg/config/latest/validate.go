@@ -76,6 +76,9 @@ func (t *Toolset) validate() error {
 	if len(t.FileTypes) > 0 && t.Type != "lsp" {
 		return errors.New("file_types can only be used with type 'lsp'")
 	}
+	if len(t.Models) > 0 && t.Type != "model_picker" {
+		return errors.New("models can only be used with type 'model_picker'")
+	}
 	if t.Sandbox != nil && t.Type != "shell" {
 		return errors.New("sandbox can only be used with type 'shell'")
 	}
@@ -153,6 +156,10 @@ func (t *Toolset) validate() error {
 	case "openapi":
 		if t.URL == "" {
 			return errors.New("openapi toolset requires a url to be set")
+		}
+	case "model_picker":
+		if len(t.Models) == 0 {
+			return errors.New("model_picker toolset requires at least one model in the 'models' list")
 		}
 	}
 
