@@ -49,6 +49,8 @@ type runExecFlags struct {
 	cpuProfile        string
 	memProfile        string
 	forceTUI          bool
+	sandbox           bool
+	sandboxTemplate   string
 
 	// Exec only
 	exec          bool
@@ -111,6 +113,8 @@ func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 	_ = cmd.PersistentFlags().MarkHidden("memprofile")
 	cmd.PersistentFlags().BoolVar(&flags.forceTUI, "force-tui", false, "Force TUI mode even when not in a terminal")
 	_ = cmd.PersistentFlags().MarkHidden("force-tui")
+	cmd.PersistentFlags().BoolVar(&flags.sandbox, "sandbox", false, "Run the agent inside a Docker sandbox (requires Docker Desktop with sandbox support)")
+	cmd.PersistentFlags().StringVar(&flags.sandboxTemplate, "template", "", "Template image for the sandbox (passed to docker sandbox create -t)")
 	cmd.MarkFlagsMutuallyExclusive("fake", "record")
 
 	// --exec only
@@ -120,6 +124,11 @@ func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 }
 
 func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
+	// If --sandbox is set, delegate everything to `docker sandbox run cagent`.
+	if f.sandbox {
+		return runInSandbox(cmd, &f.runConfig, f.sandboxTemplate)
+	}
+
 	if f.exec {
 		telemetry.TrackCommand("exec", args)
 	} else {

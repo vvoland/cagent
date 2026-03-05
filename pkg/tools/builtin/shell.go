@@ -18,7 +18,6 @@ import (
 
 	"github.com/docker/cagent/pkg/concurrent"
 	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/config/latest"
 	"github.com/docker/cagent/pkg/tools"
 )
 
@@ -50,7 +49,6 @@ type shellHandler struct {
 	workingDir      string
 	jobs            *concurrent.Map[string, *backgroundJob]
 	jobCounter      atomic.Int64
-	sandbox         *sandboxRunner
 }
 
 // Job status constants
@@ -152,11 +150,6 @@ func (h *shellHandler) RunShell(ctx context.Context, params RunShellArgs) (*tool
 	defer cancel()
 
 	cwd := h.resolveWorkDir(params.Cwd)
-
-	// Delegate to sandbox runner if configured
-	if h.sandbox != nil {
-		return h.sandbox.runCommand(timeoutCtx, ctx, params.Cmd, cwd, timeout), nil
-	}
 
 	slog.Debug("Executing native shell command", "command", params.Cmd, "cwd", cwd)
 
@@ -346,9 +339,9 @@ func (h *shellHandler) StopBackgroundJob(_ context.Context, params StopBackgroun
 	return tools.ResultSuccess(fmt.Sprintf("Job %s stopped successfully", params.JobID)), nil
 }
 
-// NewShellTool creates a new shell tool with optional sandbox configuration.
-func NewShellTool(env []string, runConfig *config.RuntimeConfig, sandboxConfig *latest.SandboxConfig) *ShellTool {
-	shell, argsPrefix := detectShell(sandboxConfig != nil)
+// NewShellTool creates a new shell tool.
+func NewShellTool(env []string, runConfig *config.RuntimeConfig) *ShellTool {
+	shell, argsPrefix := detectShell()
 
 	handler := &shellHandler{
 		shell:           shell,
@@ -359,19 +352,11 @@ func NewShellTool(env []string, runConfig *config.RuntimeConfig, sandboxConfig *
 		workingDir:      runConfig.WorkingDir,
 	}
 
-	if sandboxConfig != nil {
-		handler.sandbox = newSandboxRunner(sandboxConfig, runConfig.WorkingDir, env)
-	}
-
 	return &ShellTool{handler: handler}
 }
 
 // detectShell returns the appropriate shell and arguments based on the platform.
-func detectShell(sandboxMode bool) (shell string, argsPrefix []string) {
-	if sandboxMode {
-		return "/bin/sh", []string{"-c"}
-	}
-
+func detectShell() (shell string, argsPrefix []string) {
 	if runtime.GOOS == "windows" {
 		return detectWindowsShell()
 	}
@@ -419,28 +404,15 @@ func formatCommandOutput(timeoutCtx, ctx context.Context, err error, rawOutput s
 }
 
 func (t *ShellTool) Instructions() string {
-	if t.handler.sandbox != nil {
-		return t.buildSandboxInstructions()
-	}
 	return nativeInstructions
 }
 
-// buildSandboxInstructions returns the native instructions with a note about Linux sandboxing.
-func (t *ShellTool) buildSandboxInstructions() string {
-	return "**Note:** For sandboxing reasons, all shell commands run inside a Linux container.\n\n" + nativeInstructions
-}
-
 func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {
-	shellDesc := `Executes the given shell command in the user's default shell.`
-	if t.handler.sandbox != nil {
-		shellDesc = `Executes the given shell command inside a sandboxed Linux container (Alpine Linux with /bin/sh). Only mounted paths are accessible. Installed tools persist across calls.`
-	}
-
 	return []tools.Tool{
 		{
 			Name:                    ToolNameShell,
 			Category:                "shell",
-			Description:             shellDesc,
+			Description:             `Executes the given shell command in the user's default shell.`,
 			Parameters:              tools.MustSchemaFor[RunShellArgs](),
 			OutputSchema:            tools.MustSchemaFor[string](),
 			Handler:                 tools.NewHandler(t.handler.RunShell),
@@ -501,11 +473,6 @@ func (t *ShellTool) Stop(context.Context) error {
 		}
 		return true
 	})
-
-	// Stop sandbox container if running
-	if t.handler.sandbox != nil {
-		t.handler.sandbox.stop()
-	}
 
 	return nil
 }

@@ -124,7 +124,7 @@ Models can be referenced inline or defined in the `models` section:
   <a class="card" href="{{ '/configuration/sandbox/' | relative_url }}">
     <div class="card-icon">📦</div>
     <h3>Sandbox Mode</h3>
-    <p>Run shell commands in an isolated Docker container for security.</p>
+    <p>Run agents in an isolated Docker container for security.</p>
   </a>
   <a class="card" href="{{ '/configuration/structured-output/' | relative_url }}">
     <div class="card-icon">📋</div>

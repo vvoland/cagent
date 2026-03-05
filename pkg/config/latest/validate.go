@@ -79,9 +79,6 @@ func (t *Toolset) validate() error {
 	if len(t.Models) > 0 && t.Type != "model_picker" {
 		return errors.New("models can only be used with type 'model_picker'")
 	}
-	if t.Sandbox != nil && t.Type != "shell" {
-		return errors.New("sandbox can only be used with type 'shell'")
-	}
 	if t.Shared && t.Type != "todo" {
 		return errors.New("shared can only be used with type 'todo'")
 	}
@@ -115,9 +112,7 @@ func (t *Toolset) validate() error {
 
 	switch t.Type {
 	case "shell":
-		if t.Sandbox != nil && len(t.Sandbox.Paths) == 0 {
-			return errors.New("sandbox requires at least one path to be set")
-		}
+		// no additional validation needed
 	case "memory":
 		if t.Path == "" {
 			return errors.New("memory toolset requires a path to be set")
