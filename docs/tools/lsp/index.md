@@ -44,6 +44,7 @@ agents:
 | `args`       | array  | ✗        | Command-line arguments for the LSP server                  |
 | `env`        | object | ✗        | Environment variables for the LSP process                  |
 | `file_types` | array  | ✗        | File extensions this LSP handles (e.g., `[".go", ".mod"]`) |
+| `version`    | string | ✗        | Package reference for [auto-installing](/configuration/tools/#auto-installing-tools) the command binary (e.g., `"golang/tools@v0.25.0"`) |
 
 ## Available Tools
 
@@ -77,6 +78,7 @@ Here are configurations for popular languages:
 toolsets:
   - type: lsp
     command: gopls
+    version: "golang/tools@v0.25.0" # optional: auto-install if not in PATH
     file_types: [".go"]
 ```
 
@@ -196,9 +198,9 @@ All LSP tools use **1-based** line and character positions:
 }
 ```
 
-<div class="callout callout-warning">
-<div class="callout-title">⚠️ Server Installation
+<div class="callout callout-tip">
+<div class="callout-title">💡 Auto-Installation
 </div>
-  <p>The LSP server must be installed and available in the system PATH. docker-agent does not install LSP servers automatically. Install them using your language's package manager (e.g., <code>go install golang.org/x/tools/gopls@latest</code>).</p>
+  <p>docker-agent can automatically download and install LSP servers if they are not found in your PATH. Use the <code>version</code> property to specify a package, or let docker-agent auto-detect it from the command name. See <a href="/configuration/tools/#auto-installing-tools">Auto-Installing Tools</a> for details.</p>
 
 </div>

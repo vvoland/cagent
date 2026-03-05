@@ -844,6 +844,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "version": {
+          "type": "string",
+          "description": "Package reference for auto-installation of MCP/LSP tool binaries. Format: 'owner/repo' or 'owner/repo@version'. Set to 'false' to disable auto-install for this toolset."
         }
       },
       "additionalProperties": false,

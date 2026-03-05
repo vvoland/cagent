@@ -321,6 +321,7 @@ toolsets:
 | `tools`       | array  | Optional: only expose these tools                     |
 | `env`         | array  | Environment variables (`"KEY=value"` format)          |
 | `instruction` | string | Custom instructions injected into the agent's context |
+| `version`     | string | Package reference for [auto-installing](#auto-installing-tools) the command binary |
 
 ### Remote MCP (SSE / Streamable HTTP)
 
@@ -342,6 +343,81 @@ toolsets:
 | `remote.url`            | string | Base URL of the MCP server        |
 | `remote.transport_type` | string | `sse` or `streamable`             |
 | `remote.headers`        | object | HTTP headers (typically for auth) |
+
+## Auto-Installing Tools
+
+When configuring MCP or LSP tools that require a binary command, cagent can **automatically download and install** the command if it's not already available on your system. This uses the [aqua registry](https://github.com/aquaproj/aqua-registry) — a curated index of CLI tool packages.
+
+### How It Works
+
+1. When a toolset with a `command` is loaded, cagent checks if the command is available in your `PATH`
+2. If not found, it checks the cagent tools directory (`~/.cagent/tools/bin/`)
+3. If still not found, it looks up the command in the aqua registry and installs it automatically
+
+### Explicit Package Reference
+
+Use the `version` property to specify exactly which package to install:
+
+```yaml
+toolsets:
+  - type: mcp
+    command: gopls
+    version: "golang/tools@v0.25.0"
+    args: ["mcp"]
+  - type: lsp
+    command: rust-analyzer
+    version: "rust-lang/rust-analyzer@2024-01-01"
+    file_types: [".rs"]
+```
+
+The format is `owner/repo` or `owner/repo@version`. When a version is omitted, the latest release is used.
+
+### Automatic Detection
+
+If the `version` property is not set, cagent tries to auto-detect the package from the command name by searching the aqua registry:
+
+```yaml
+toolsets:
+  - type: mcp
+    command: gopls  # auto-detected as golang/tools
+    args: ["mcp"]
+```
+
+### Disabling Auto-Install
+
+You can disable auto-installation in two ways:
+
+**Per toolset** — set `version` to `"false"` or `"off"`:
+
+```yaml
+toolsets:
+  - type: mcp
+    command: my-custom-server
+    version: "false"
+```
+
+**Globally** — set the `DOCKER_AGENT_AUTO_INSTALL` environment variable:
+
+```bash
+export DOCKER_AGENT_AUTO_INSTALL=false
+```
+
+### Environment Variables
+
+| Variable              | Default                | Description                                      |
+| --------------------- | ---------------------- | ------------------------------------------------ |
+| `DOCKER_AGENT_AUTO_INSTALL` | (enabled)              | Set to `false` to disable all auto-installation  |
+| `DOCKER_AGENT_TOOLS_DIR`    | `~/.cagent/tools/`     | Base directory for installed tools               |
+| `GITHUB_TOKEN`        | —                      | GitHub token to raise API rate limits (optional) |
+
+Installed binaries are placed in `~/.cagent/tools/bin/` and cached so they are only downloaded once.
+
+<div class="callout callout-tip">
+<div class="callout-title">💡 Tip
+</div>
+  <p>Auto-install supports both Go packages (via <code>go install</code>) and GitHub release binaries (via archive download). The aqua registry metadata determines which method is used.</p>
+
+</div>
 
 ## Tool Filtering
 
