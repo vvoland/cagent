@@ -41,11 +41,11 @@ docker agent run agent.yaml
 
 ## Install
 
-**Docker Desktop** (4.49+) — docker-agent cli plugin is pre-installed. Just run `docker agent`.
+**Docker Desktop** (4.63+) — docker-agent CLI plugin is pre-installed. Just run `docker agent`.
 
-**Homebrew** — `brew install docker-agent`. Run `docker-agent` directly or copy the binary in `~/.docker/cli-plugins` and run `docker agent`.
+**Homebrew** — `brew install docker-agent`. Run `docker-agent` directly or symlink the binary to `~/.docker/cli-plugins/docker-agent` and run `docker agent`.
 
-**Binary releases** — Download from [GitHub Releases](https://github.com/docker/cagent/releases). Copy `docker-agent` binary in `~/.docker/cli-plugins` to be able to use `docker agent`, or use `docker-agent` directly.
+**Binary releases** — Download from [GitHub Releases](https://github.com/docker/cagent/releases). Symlink the `docker-agent` binary to `~/.docker/cli-plugins/docker-agent` to be able to use `docker agent`, or use `docker-agent` directly.
 
 Set at least one API key (or use [Docker Model Runner](https://docs.docker.com/ai/model-runner/) for local models):
 
