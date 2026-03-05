@@ -46,10 +46,10 @@
 # Agent's config yaml
 
 - Those config yaml follow a strict schema: ./agent-schema.json
-- The schema is versionned.
+- The schema is versioned.
 - ./pkg/config/v0, ./pkg/config/v1... packages handle older versions of the config.
 - ./pkg/config/latest packages handles the current, work in progress config format.
 - When adding new features to the config, only add them the latest config.
-- Olders config types are frozen.
+- Older config types are frozen.
 - When adding new features to the config, update ./agent-schema.json accordingly and create an example yaml
   that demonstrates the new feature.
