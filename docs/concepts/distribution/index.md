@@ -15,7 +15,7 @@ docker-agent agents can be pushed to any OCI-compatible registry (Docker Hub, Gi
 <div class="callout callout-tip">
 <div class="callout-title">💡 Tip
 </div>
-  <p>For CLI commands related to distribution, see <a href="/features/cli/">CLI Reference</a> (<code>docker agent share push</code>, <code>docker agent share pull</code>, <code>docker agent alias</code>).</p>
+  <p>For CLI commands related to distribution, see <a href="{{ '/features/cli/' | relative_url }}">CLI Reference</a> (<code>docker agent share push</code>, <code>docker agent share pull</code>, <code>docker agent alias</code>).</p>
 
 </div>
 
@@ -103,6 +103,6 @@ $ docker agent run docker.io/myorg/private-agent:latest
 <div class="callout callout-info">
 <div class="callout-title">ℹ️ Troubleshooting
 </div>
-  <p>Having issues with push/pull? See <a href="/community/troubleshooting/">Troubleshooting</a> for common registry issues.</p>
+  <p>Having issues with push/pull? See <a href="{{ '/community/troubleshooting/' | relative_url }}">Troubleshooting</a> for common registry issues.</p>
 
 </div>

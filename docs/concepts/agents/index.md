@@ -113,6 +113,6 @@ $ docker agent run  # now runs your custom agent
 <div class="callout callout-tip">
 <div class="callout-title">💡 See also
 </div>
-  <p>For reusable task-specific instructions, see <a href="/features/skills/">Skills</a>. For multi-agent patterns, see <a href="/concepts/multi-agent/">Multi-Agent</a>. For full config reference, see <a href="/configuration/agents/">Agent Config</a>.</p>
+  <p>For reusable task-specific instructions, see <a href="{{ '/features/skills/' | relative_url }}">Skills</a>. For multi-agent patterns, see <a href="{{ '/concepts/multi-agent/' | relative_url }}">Multi-Agent</a>. For full config reference, see <a href="{{ '/configuration/agents/' | relative_url }}">Agent Config</a>.</p>
 
 </div>

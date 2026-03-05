@@ -139,22 +139,22 @@ agents:
 ## What's Next?
 
 <div class="cards">
-  <a class="card" href="/concepts/agents/">
+  <a class="card" href="{{ '/concepts/agents/' | relative_url }}">
     <div class="card-icon">🤖</div>
     <h3>Understand Agents</h3>
     <p>Learn how agents work and what you can configure.</p>
   </a>
-  <a class="card" href="/concepts/multi-agent/">
+  <a class="card" href="{{ '/concepts/multi-agent/' | relative_url }}">
     <div class="card-icon">👥</div>
     <h3>Multi-Agent Systems</h3>
     <p>Build teams of collaborating agents.</p>
   </a>
-  <a class="card" href="/configuration/overview/">
+  <a class="card" href="{{ '/configuration/overview/' | relative_url }}">
     <div class="card-icon">📚</div>
     <h3>Configuration Reference</h3>
     <p>Full reference for all YAML options.</p>
   </a>
-  <a class="card" href="/community/troubleshooting/">
+  <a class="card" href="{{ '/community/troubleshooting/' | relative_url }}">
     <div class="card-icon">🔧</div>
     <h3>Troubleshooting</h3>
     <p>Something not working? Debug tips and common fixes.</p>

@@ -9,7 +9,7 @@ permalink: /features/tui/
 _docker-agent's default interface is a rich, interactive terminal UI with file attachments, themes, session management, and more._
 
 <div class="demo-container">
-  <img src="/demo.gif" alt="docker-agent TUI in action showing an interactive agent session" loading="lazy">
+  <img src="{{ '/demo.gif' | relative_url }}" alt="docker-agent TUI in action showing an interactive agent session" loading="lazy">
 </div>
 
 ## Launching the TUI

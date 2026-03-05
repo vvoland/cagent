@@ -100,7 +100,7 @@ models:
 <div class="callout callout-info">
 <div class="callout-title">ℹ️ Multi-provider teams
 </div>
-  <p>Different agents can use different providers in the same config. See <a href="/concepts/multi-agent/">Multi-Agent</a> for patterns.</p>
+  <p>Different agents can use different providers in the same config. See <a href="{{ '/concepts/multi-agent/' | relative_url }}">Multi-Agent</a> for patterns.</p>
 
 </div>
 

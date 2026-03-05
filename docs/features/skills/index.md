@@ -129,6 +129,6 @@ The skill will automatically be available to any agent with `skills: true`.
 <div class="callout callout-info">
 <div class="callout-title">ℹ️ See also
 </div>
-  <p>Skills are enabled in the <a href="/configuration/agents/">Agent Config</a> with the <code>skills: true</code> property. For tool-based capabilities, see <a href="/concepts/tools/">Tools</a>.</p>
+  <p>Skills are enabled in the <a href="{{ '/configuration/agents/' | relative_url }}">Agent Config</a> with the <code>skills: true</code> property. For tool-based capabilities, see <a href="{{ '/concepts/tools/' | relative_url }}">Tools</a>.</p>
 
 </div>

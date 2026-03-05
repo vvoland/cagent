@@ -11,32 +11,32 @@ _docker-agent supports multiple AI model providers. Choose the right one for you
 ## Supported Providers
 
 <div class="cards">
-  <a class="card" href="/providers/openai/">
+  <a class="card" href="{{ '/providers/openai/' | relative_url }}">
     <div class="card-icon">🟢</div>
     <h3>OpenAI</h3>
     <p>GPT-4o, GPT-5, GPT-5-mini. The most widely used AI models.</p>
   </a>
-  <a class="card" href="/providers/anthropic/">
+  <a class="card" href="{{ '/providers/anthropic/' | relative_url }}">
     <div class="card-icon">🟠</div>
     <h3>Anthropic</h3>
     <p>Claude Sonnet 4, Claude Sonnet 4.5. Excellent for coding and analysis.</p>
   </a>
-  <a class="card" href="/providers/google/">
+  <a class="card" href="{{ '/providers/google/' | relative_url }}">
     <div class="card-icon">🔵</div>
     <h3>Google Gemini</h3>
     <p>Gemini 2.5 Flash, Gemini 3 Pro. Fast and cost-effective.</p>
   </a>
-  <a class="card" href="/providers/bedrock/">
+  <a class="card" href="{{ '/providers/bedrock/' | relative_url }}">
     <div class="card-icon">🟡</div>
     <h3>AWS Bedrock</h3>
     <p>Access Claude, Nova, Llama, and more through AWS infrastructure.</p>
   </a>
-  <a class="card" href="/providers/dmr/">
+  <a class="card" href="{{ '/providers/dmr/' | relative_url }}">
     <div class="card-icon">🐳</div>
     <h3>Docker Model Runner</h3>
     <p>Run models locally with Docker. No API keys, no costs.</p>
   </a>
-  <a class="card" href="/providers/custom/">
+  <a class="card" href="{{ '/providers/custom/' | relative_url }}">
     <div class="card-icon">🔧</div>
     <h3>Custom Providers</h3>
     <p>Connect to any OpenAI-compatible API endpoint.</p>

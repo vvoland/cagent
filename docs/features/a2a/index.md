@@ -42,7 +42,7 @@ $ docker agent serve a2a agentcatalog/pirate
 <div class="callout callout-tip">
 <div class="callout-title">💡 See also
 </div>
-  <p>For exposing agents via MCP instead, see <a href="/features/mcp-mode/">MCP Mode</a>. For stdio-based integration, see <a href="/features/acp/">ACP</a>. For the HTTP API, see <a href="/features/api-server/">API Server</a>.</p>
+  <p>For exposing agents via MCP instead, see <a href="{{ '/features/mcp-mode/' | relative_url }}">MCP Mode</a>. For stdio-based integration, see <a href="{{ '/features/acp/' | relative_url }}">ACP</a>. For the HTTP API, see <a href="{{ '/features/api-server/' | relative_url }}">API Server</a>.</p>
 
 </div>
 

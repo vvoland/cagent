@@ -89,7 +89,7 @@ File issues on the [GitHub issue tracker](https://github.com/docker/cagent/issue
 <div class="callout callout-info">
 <div class="callout-title">ℹ️ See also
 </div>
-  <a href="/community/troubleshooting/">Troubleshooting</a> — Common issues and debug mode. <a href="/community/telemetry/">Telemetry</a> — What data is collected and how to opt out.
+  <a href="{{ '/community/troubleshooting/' | relative_url }}">Troubleshooting</a> — Common issues and debug mode. <a href="{{ '/community/telemetry/' | relative_url }}">Telemetry</a> — What data is collected and how to opt out.
 
 </div>
 

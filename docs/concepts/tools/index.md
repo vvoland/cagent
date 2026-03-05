@@ -190,6 +190,6 @@ toolsets:
 <div class="callout callout-tip">
 <div class="callout-title">💡 See also
 </div>
-  <p>For connecting to 50+ cloud services via remote MCP with OAuth, see <a href="/features/remote-mcp/">Remote MCP Servers</a>. For RAG (document retrieval), see <a href="/features/rag/">RAG</a>. For full tool config reference, see <a href="/configuration/tools/">Tool Config</a>.</p>
+  <p>For connecting to 50+ cloud services via remote MCP with OAuth, see <a href="{{ '/features/remote-mcp/' | relative_url }}">Remote MCP Servers</a>. For RAG (document retrieval), see <a href="{{ '/features/rag/' | relative_url }}">RAG</a>. For full tool config reference, see <a href="{{ '/configuration/tools/' | relative_url }}">Tool Config</a>.</p>
 
 </div>

@@ -160,6 +160,6 @@ Toggle auto-approve with `POST /api/sessions/:id/tools/toggle` for automated wor
 <div class="callout callout-info">
 <div class="callout-title">ℹ️ See also
 </div>
-  <p>For interactive use, see the <a href="/features/tui/">Terminal UI</a>. For agent-to-agent communication, see <a href="/features/a2a/">A2A Protocol</a> and <a href="/features/acp/">ACP</a>. For MCP integration, see <a href="/features/mcp-mode/">MCP Mode</a>.</p>
+  <p>For interactive use, see the <a href="{{ '/features/tui/' | relative_url }}">Terminal UI</a>. For agent-to-agent communication, see <a href="{{ '/features/a2a/' | relative_url }}">A2A Protocol</a> and <a href="{{ '/features/acp/' | relative_url }}">ACP</a>. For MCP integration, see <a href="{{ '/features/mcp-mode/' | relative_url }}">MCP Mode</a>.</p>
 
 </div>

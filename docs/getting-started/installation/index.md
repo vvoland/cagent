@@ -129,12 +129,12 @@ $ docker agent run agentcatalog/pirate
 ## What's Next?
 
 <div class="cards">
-  <a class="card" href="/getting-started/quickstart/">
+  <a class="card" href="{{ '/getting-started/quickstart/' | relative_url }}">
     <div class="card-icon">⚡</div>
     <h3>Quick Start</h3>
     <p>Create and run your first agent in under 5 minutes.</p>
   </a>
-  <a class="card" href="/community/troubleshooting/">
+  <a class="card" href="{{ '/community/troubleshooting/' | relative_url }}">
     <div class="card-icon">🔧</div>
     <h3>Troubleshooting</h3>
     <p>Something not working? Debug mode, common issues, and solutions.</p>

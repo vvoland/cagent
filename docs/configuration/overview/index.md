@@ -91,17 +91,17 @@ Models can be referenced inline or defined in the `models` section:
 ## Config Sections
 
 <div class="cards">
-  <a class="card" href="/configuration/agents/">
+  <a class="card" href="{{ '/configuration/agents/' | relative_url }}">
     <div class="card-icon">🤖</div>
     <h3>Agent Config</h3>
     <p>All agent properties: model, instruction, tools, sub-agents, hooks, and more.</p>
   </a>
-  <a class="card" href="/configuration/models/">
+  <a class="card" href="{{ '/configuration/models/' | relative_url }}">
     <div class="card-icon">🧠</div>
     <h3>Model Config</h3>
     <p>Provider setup, parameters, thinking budget, and provider-specific options.</p>
   </a>
-  <a class="card" href="/configuration/tools/">
+  <a class="card" href="{{ '/configuration/tools/' | relative_url }}">
     <div class="card-icon">🔧</div>
     <h3>Tool Config</h3>
     <p>Built-in tools, MCP tools, Docker MCP, LSP, API tools, and tool filtering.</p>
@@ -111,22 +111,22 @@ Models can be referenced inline or defined in the `models` section:
 ## Advanced Configuration
 
 <div class="cards">
-  <a class="card" href="/configuration/hooks/">
+  <a class="card" href="{{ '/configuration/hooks/' | relative_url }}">
     <div class="card-icon">⚡</div>
     <h3>Hooks</h3>
     <p>Run shell commands at lifecycle events like tool calls and session start/end.</p>
   </a>
-  <a class="card" href="/configuration/permissions/">
+  <a class="card" href="{{ '/configuration/permissions/' | relative_url }}">
     <div class="card-icon">🔐</div>
     <h3>Permissions</h3>
     <p>Control which tools auto-approve, require confirmation, or are blocked.</p>
   </a>
-  <a class="card" href="/configuration/sandbox/">
+  <a class="card" href="{{ '/configuration/sandbox/' | relative_url }}">
     <div class="card-icon">📦</div>
     <h3>Sandbox Mode</h3>
     <p>Run shell commands in an isolated Docker container for security.</p>
   </a>
-  <a class="card" href="/configuration/structured-output/">
+  <a class="card" href="{{ '/configuration/structured-output/' | relative_url }}">
     <div class="card-icon">📋</div>
     <h3>Structured Output</h3>
     <p>Constrain agent responses to match a specific JSON schema.</p>

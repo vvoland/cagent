@@ -173,6 +173,6 @@ toolsets:
 <div class="callout callout-info">
 <div class="callout-title">ℹ️ Beyond docker-agent
 </div>
-  <p>For interoperability with other agent frameworks, docker-agent supports the <a href="/features/a2a/">A2A protocol</a> and can expose agents via <a href="/features/mcp-mode/">MCP Mode</a>.</p>
+  <p>For interoperability with other agent frameworks, docker-agent supports the <a href="{{ '/features/a2a/' | relative_url }}">A2A protocol</a> and can expose agents via <a href="{{ '/features/mcp-mode/' | relative_url }}">MCP Mode</a>.</p>
 
 </div>
