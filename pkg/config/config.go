@@ -120,8 +120,14 @@ func validateConfig(cfg *latest.Config) error {
 
 	for _, agent := range cfg.Agents {
 		for _, subAgentName := range agent.SubAgents {
-			if _, exists := allNames[subAgentName]; !exists {
+			if _, exists := allNames[subAgentName]; !exists && !IsExternalReference(subAgentName) {
 				return fmt.Errorf("agent '%s' references non-existent sub-agent '%s'", agent.Name, subAgentName)
+			}
+		}
+
+		for _, handoffName := range agent.Handoffs {
+			if _, exists := allNames[handoffName]; !exists && !IsExternalReference(handoffName) {
+				return fmt.Errorf("agent '%s' references non-existent handoff agent '%s'", agent.Name, handoffName)
 			}
 		}
 
