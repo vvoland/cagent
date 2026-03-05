@@ -151,9 +151,9 @@ func Execute(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer, arg
 	telemetry.SetGlobalTelemetryVersion(version.Version)
 
 	// Print startup message only on first installation/setup
-	if isFirstRun() && os.Getenv("CAGENT_HIDE_TELEMETRY_BANNER") != "1" {
+	if isFirstRun() && os.Getenv("CAGENT_HIDE_TELEMETRY_BANNER") != "1" && os.Getenv("DOCKER_AGENT_HIDE_TELEMETRY_BANNER") != "1" {
 		welcomeMsg := fmt.Sprintf(`
-Welcome to cagent! 🚀
+Welcome to docker agent! 🚀
 
 For any feedback, please visit: %s
 `, feedback.Link)
@@ -162,7 +162,7 @@ For any feedback, please visit: %s
 		// Only show telemetry notice when telemetry is enabled
 		if telemetry.GetTelemetryEnabled() {
 			telemetryMsg := `
-We collect anonymous usage data to help improve cagent. To disable:
+We collect anonymous usage data to help improve docker agent. To disable:
   - Set environment variable: TELEMETRY_ENABLED=false
 `
 			fmt.Fprint(stderr, telemetryMsg)

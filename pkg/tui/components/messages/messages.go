@@ -156,7 +156,7 @@ func newModel(width, height int, sessionState *service.SessionState) *model {
 		scrollview:           sv,
 		selectedMessageIndex: -1,
 		inlineEditMsgIndex:   -1,
-		debugLayout:          os.Getenv("CAGENT_EXPERIMENTAL_DEBUG_LAYOUT") == "1",
+		debugLayout:          os.Getenv("DOCKER_AGENT_EXPERIMENTAL_DEBUG_LAYOUT") == "1" || os.Getenv("CAGENT_EXPERIMENTAL_DEBUG_LAYOUT") == "1",
 		renderDirty:          true,
 	}
 }
