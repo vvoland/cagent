@@ -98,13 +98,13 @@ child.stdout.on("data", (data) => {
 <div class="callout callout-tip">
 <div class="callout-title">💡 When to use ACP
 </div>
-  <p>Use ACP when building **IDE integrations**, **editor plugins**, or any tool that wants to embed a docker-agent agent as a subprocess. For HTTP-based integrations, use the <a href="/features/api-server/">API Server</a> instead.</p>
+  <p>Use ACP when building **IDE integrations**, **editor plugins**, or any tool that wants to embed a docker-agent agent as a subprocess. For HTTP-based integrations, use the <a href="{{ '/features/api-server/' | relative_url }}">API Server</a> instead.</p>
 
 </div>
 
 <div class="callout callout-info">
 <div class="callout-title">ℹ️ See also
 </div>
-  <p>For HTTP-based agent access, see the <a href="/features/api-server/">API Server</a>. For agent-to-agent communication, see <a href="/features/a2a/">A2A Protocol</a>. For exposing agents as MCP tools, see <a href="/features/mcp-mode/">MCP Mode</a>.</p>
+  <p>For HTTP-based agent access, see the <a href="{{ '/features/api-server/' | relative_url }}">API Server</a>. For agent-to-agent communication, see <a href="{{ '/features/a2a/' | relative_url }}">A2A Protocol</a>. For exposing agents as MCP tools, see <a href="{{ '/features/mcp-mode/' | relative_url }}">MCP Mode</a>.</p>
 
 </div>

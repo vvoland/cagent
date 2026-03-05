@@ -9,7 +9,7 @@ permalink: /
   <h1>docker-agent</h1>
   <p>Build, run, and share powerful AI agents with a declarative YAML config, rich tool ecosystem, and multi-agent orchestration — by Docker.</p>
   <div class="hero-buttons">
-    <a href="/getting-started/introduction/" class="btn btn-primary">Get Started</a>
+    <a href="{{ '/getting-started/introduction/' | relative_url }}" class="btn btn-primary">Get Started</a>
     <a href="https://github.com/docker/cagent" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">GitHub →</a>
   </div>
 </div>
@@ -84,33 +84,33 @@ docker agent run --exec agent.yaml "Explain the code in main.go"
 ## Explore the Docs
 
 <div class="cards">
-<a class="card" href="/getting-started/introduction/">
+<a class="card" href="{{ '/getting-started/introduction/' | relative_url }}">
     <div class="card-icon">🚀
 </div>
     <h3>Getting Started</h3>
     <p>Learn what docker agent is and get your first agent running in minutes.</p>
   </a>
-  <a class="card" href="/concepts/agents/">
+  <a class="card" href="{{ '/concepts/agents/' | relative_url }}">
     <div class="card-icon">💡</div>
     <h3>Core Concepts</h3>
     <p>Understand agents, models, tools, and multi-agent orchestration.</p>
   </a>
-  <a class="card" href="/configuration/overview/">
+  <a class="card" href="{{ '/configuration/overview/' | relative_url }}">
     <div class="card-icon">⚙️</div>
     <h3>Configuration</h3>
     <p>Complete reference for agent, model, and tool configuration.</p>
   </a>
-  <a class="card" href="/features/tui/">
+  <a class="card" href="{{ '/features/tui/' | relative_url }}">
     <div class="card-icon">✨</div>
     <h3>Features</h3>
     <p>TUI, CLI, MCP mode, RAG, Skills, and distribution.</p>
   </a>
-  <a class="card" href="/providers/overview/">
+  <a class="card" href="{{ '/providers/overview/' | relative_url }}">
     <div class="card-icon">🧠</div>
     <h3>Model Providers</h3>
     <p>OpenAI, Anthropic, Gemini, AWS Bedrock, Docker Model Runner, and custom providers.</p>
   </a>
-  <a class="card" href="/community/contributing/">
+  <a class="card" href="{{ '/community/contributing/' | relative_url }}">
     <div class="card-icon">🤝</div>
     <h3>Community</h3>
     <p>Contributing guidelines, troubleshooting, and more.</p>

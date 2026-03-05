@@ -91,19 +91,19 @@ $ docker agent run agent.yaml
 <div class="callout callout-tip">
 <div class="callout-title">💡 Tip
 </div>
-  <p>Jump straight to the <a href="/getting-started/quickstart/">Quick Start</a> if you want to build your first agent right away.</p>
+  <p>Jump straight to the <a href="{{ '/getting-started/quickstart/' | relative_url }}">Quick Start</a> if you want to build your first agent right away.</p>
 
 </div>
 
 ## What's Next?
 
 <div class="cards">
-  <a class="card" href="/getting-started/installation/">
+  <a class="card" href="{{ '/getting-started/installation/' | relative_url }}">
     <div class="card-icon">📥</div>
     <h3>Installation</h3>
     <p>Install docker-agent on macOS, Linux, or Windows.</p>
   </a>
-  <a class="card" href="/getting-started/quickstart/">
+  <a class="card" href="{{ '/getting-started/quickstart/' | relative_url }}">
     <div class="card-icon">⚡</div>
     <h3>Quick Start</h3>
     <p>Build your first agent in under 5 minutes.</p>

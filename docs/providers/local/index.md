@@ -19,7 +19,7 @@ docker-agent can connect to any OpenAI-compatible local model server. This guide
 <div class="callout callout-tip">
 <div class="callout-title">💡 Docker Model Runner
 </div>
-  <p>For the easiest local model experience, consider <a href="/providers/dmr/">Docker Model Runner</a> which is built into Docker Desktop and requires no additional setup.</p>
+  <p>For the easiest local model experience, consider <a href="{{ '/providers/dmr/' | relative_url }}">Docker Model Runner</a> which is built into Docker Desktop and requires no additional setup.</p>
 
 </div>
 

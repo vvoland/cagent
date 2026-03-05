@@ -192,6 +192,6 @@ Hooks can override allow decisions but cannot override deny decisions.
 <div class="callout callout-warning">
 <div class="callout-title">⚠️ Security Note
 </div>
-  <p>Permissions are enforced client-side. They help prevent accidental operations but should not be relied upon as a security boundary for untrusted agents. For stronger isolation, use <a href="/configuration/sandbox/">sandbox mode</a>.</p>
+  <p>Permissions are enforced client-side. They help prevent accidental operations but should not be relied upon as a security boundary for untrusted agents. For stronger isolation, use <a href="{{ '/configuration/sandbox/' | relative_url }}">sandbox mode</a>.</p>
 
 </div>

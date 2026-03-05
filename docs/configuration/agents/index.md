@@ -50,7 +50,7 @@ agents:
 <div class="callout callout-tip">
 <div class="callout-title">💡 See also
 </div>
-  <p>For model parameters, see <a href="/configuration/models/">Model Config</a>. For tool details, see <a href="/configuration/tools/">Tool Config</a>. For multi-agent patterns, see <a href="/concepts/multi-agent/">Multi-Agent</a>.</p>
+  <p>For model parameters, see <a href="{{ '/configuration/models/' | relative_url }}">Model Config</a>. For tool details, see <a href="{{ '/configuration/tools/' | relative_url }}">Tool Config</a>. For multi-agent patterns, see <a href="{{ '/concepts/multi-agent/' | relative_url }}">Multi-Agent</a>.</p>
 
 </div>
 

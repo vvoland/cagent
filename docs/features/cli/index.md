@@ -244,6 +244,6 @@ Commands that accept a config support multiple reference types:
 <div class="callout callout-info">
 <div class="callout-title">ℹ️ Debugging
 </div>
-  <p>Having issues? See <a href="/community/troubleshooting/">Troubleshooting</a> for debug mode, log analysis, and common solutions.</p>
+  <p>Having issues? See <a href="{{ '/community/troubleshooting/' | relative_url }}">Troubleshooting</a> for debug mode, log analysis, and common solutions.</p>
 
 </div>
