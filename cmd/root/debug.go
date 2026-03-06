@@ -59,24 +59,20 @@ func newDebugCmd() *cobra.Command {
 	return cmd
 }
 
-// loadTeam loads an agent team from the given agent file and returns
-// a cleanup function that must be deferred by the caller.
-func (f *debugFlags) loadTeam(ctx context.Context, agentFilename string, opts ...teamloader.Opt) (*team.Team, func() error, error) {
+// loadTeam loads an agent team from the given agent file.
+// Callers should defer stopToolSets(t) to clean up.
+func (f *debugFlags) loadTeam(ctx context.Context, agentFilename string, opts ...teamloader.Opt) (*team.Team, error) {
 	agentSource, err := config.Resolve(agentFilename, f.runConfig.EnvProvider())
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	t, err := teamloader.Load(ctx, agentSource, &f.runConfig, opts...)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	cleanup := func() error {
-		return t.StopToolSets(ctx)
-	}
-
-	return t, cleanup, nil
+	return t, nil
 }
 
 func (f *debugFlags) runDebugConfigCommand(cmd *cobra.Command, args []string) error {
@@ -100,15 +96,11 @@ func (f *debugFlags) runDebugToolsetsCommand(cmd *cobra.Command, args []string) 
 
 	ctx := cmd.Context()
 
-	t, cleanup, err := f.loadTeam(ctx, args[0])
+	t, err := f.loadTeam(ctx, args[0])
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := cleanup(); err != nil {
-			slog.Error("Failed to stop tool sets", "error", err)
-		}
-	}()
+	defer stopToolSets(t)
 
 	out := cli.NewPrinter(cmd.OutOrStdout())
 
@@ -144,15 +136,11 @@ func (f *debugFlags) runDebugTitleCommand(cmd *cobra.Command, args []string) err
 
 	ctx := cmd.Context()
 
-	t, cleanup, err := f.loadTeam(ctx, args[0], teamloader.WithModelOverrides(f.modelOverrides))
+	t, err := f.loadTeam(ctx, args[0], teamloader.WithModelOverrides(f.modelOverrides))
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := cleanup(); err != nil {
-			slog.Error("Failed to stop tool sets", "error", err)
-		}
-	}()
+	defer stopToolSets(t)
 
 	agent, err := t.DefaultAgent()
 	if err != nil {
