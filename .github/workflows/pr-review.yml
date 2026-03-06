@@ -10,10 +10,13 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
-  issues: write
 
 jobs:
   review:
     uses: docker/cagent-action/.github/workflows/review-pr.yml@latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      checks: write
     secrets: inherit
