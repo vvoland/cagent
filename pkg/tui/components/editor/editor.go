@@ -1273,8 +1273,19 @@ func (e *editor) InsertText(text string) {
 	e.refreshSuggestion()
 }
 
-// AttachFile adds a file as an attachment and inserts @filepath into the editor
+// AttachFile safely adds a file as an attachment and inserts @filepath into the editor.
+// If the file does not exist or is not accessible, the reference is ignored gracefully.
 func (e *editor) AttachFile(filePath string) {
+	info, err := os.Stat(filePath)
+	if err != nil {
+		slog.Warn("AttachFile skipped: cannot access file", "path", filePath, "error", err)
+		return
+	}
+	if info.IsDir() {
+		slog.Warn("AttachFile skipped: path is a directory", "path", filePath)
+		return
+	}
+
 	placeholder := "@" + filePath
 	e.addFileAttachment(placeholder)
 	currentValue := e.textarea.Value()
