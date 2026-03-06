@@ -255,6 +255,12 @@ func TestTodoTool_WithStorage(t *testing.T) {
 	assert.Equal(t, "Test item", storage.All()[0].Description)
 }
 
+func TestTodoTool_WithStorage_NilPanics(t *testing.T) {
+	assert.Panics(t, func() {
+		WithStorage(nil)
+	})
+}
+
 func TestTodoTool_OutputSchema(t *testing.T) {
 	tool := NewTodoTool()
 

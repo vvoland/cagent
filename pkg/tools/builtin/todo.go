@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/docker/cagent/pkg/concurrent"
 	"github.com/docker/cagent/pkg/tools"
@@ -106,7 +107,11 @@ func (s *MemoryTodoStorage) Clear() {
 type TodoOption func(*TodoTool)
 
 // WithStorage sets a custom storage implementation for the TodoTool.
+// The provided storage must not be nil.
 func WithStorage(storage TodoStorage) TodoOption {
+	if storage == nil {
+		panic("todo: storage must not be nil")
+	}
 	return func(t *TodoTool) {
 		t.handler.storage = storage
 	}
@@ -114,6 +119,7 @@ func WithStorage(storage TodoStorage) TodoOption {
 
 type todoHandler struct {
 	storage TodoStorage
+	nextID  atomic.Int64
 }
 
 var NewSharedTodoTool = sync.OnceValue(func() *TodoTool { return NewTodoTool() })
@@ -152,7 +158,7 @@ This toolset is REQUIRED for maintaining task state and ensuring all steps are c
 }
 
 func (h *todoHandler) createTodo(_ context.Context, params CreateTodoArgs) (*tools.ToolCallResult, error) {
-	id := fmt.Sprintf("todo_%d", h.storage.Len()+1)
+	id := fmt.Sprintf("todo_%d", h.nextID.Add(1))
 	todo := Todo{
 		ID:          id,
 		Description: params.Description,
@@ -167,11 +173,11 @@ func (h *todoHandler) createTodo(_ context.Context, params CreateTodoArgs) (*too
 }
 
 func (h *todoHandler) createTodos(_ context.Context, params CreateTodosArgs) (*tools.ToolCallResult, error) {
-	start := h.storage.Len()
+	ids := make([]int64, len(params.Descriptions))
 	for i, desc := range params.Descriptions {
-		id := fmt.Sprintf("todo_%d", start+i+1)
+		ids[i] = h.nextID.Add(1)
 		h.storage.Add(Todo{
-			ID:          id,
+			ID:          fmt.Sprintf("todo_%d", ids[i]),
 			Description: desc,
 			Status:      "pending",
 		})
@@ -183,7 +189,7 @@ func (h *todoHandler) createTodos(_ context.Context, params CreateTodosArgs) (*t
 		if i > 0 {
 			output.WriteString(", ")
 		}
-		fmt.Fprintf(&output, "[todo_%d]", start+i+1)
+		fmt.Fprintf(&output, "[todo_%d]", ids[i])
 	}
 
 	return &tools.ToolCallResult{
