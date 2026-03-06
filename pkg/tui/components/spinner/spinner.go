@@ -69,8 +69,8 @@ var defaultMessages = []string{
 
 func New(mode Mode, dotsStyle lipgloss.Style) Spinner {
 	// Pre-render all spinner frames for fast lookup during render
-	styledFrames := make([]string, len(spinnerChars))
-	for i, char := range spinnerChars {
+	styledFrames := make([]string, len(frames))
+	for i, char := range frames {
 		styledFrames[i] = dotsStyle.Render(char)
 	}
 
@@ -136,7 +136,13 @@ func (s *spinner) Stop() {
 	s.animSub.Stop()
 }
 
-var spinnerChars = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+// frames contains the braille spinner characters used for animation.
+var frames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
+// Frame returns the spinner character for the given animation frame.
+func Frame(index int) string {
+	return frames[index%len(frames)]
+}
 
 // lightStyles maps distance from light position to style (0=brightest, 1=bright, 2=dim, 3+=dimmest).
 var lightStyles = []lipgloss.Style{
