@@ -12,6 +12,7 @@ import (
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/sessiontitle"
 	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/cagent/pkg/tools/builtin"
 	mcptools "github.com/docker/cagent/pkg/tools/mcp"
 )
 
@@ -28,10 +29,10 @@ func (m *mockRuntime) CurrentAgentName() string { return "test" }
 func (m *mockRuntime) CurrentAgentInfo(context.Context) runtime.CurrentAgentInfo {
 	return runtime.CurrentAgentInfo{Name: "test"}
 }
-func (m *mockRuntime) SetCurrentAgent(string) error                            { return nil }
-func (m *mockRuntime) CurrentAgentTools(context.Context) ([]tools.Tool, error) { return nil, nil }
-func (m *mockRuntime) EmitStartupInfo(context.Context, chan runtime.Event)     {}
-func (m *mockRuntime) ResetStartupInfo()                                       {}
+func (m *mockRuntime) SetCurrentAgent(string) error                                          { return nil }
+func (m *mockRuntime) CurrentAgentTools(context.Context) ([]tools.Tool, error)               { return nil, nil }
+func (m *mockRuntime) EmitStartupInfo(context.Context, *session.Session, chan runtime.Event) {}
+func (m *mockRuntime) ResetStartupInfo()                                                     {}
 func (m *mockRuntime) Run(context.Context, *session.Session) ([]session.Message, error) {
 	return nil, nil
 }
@@ -42,7 +43,7 @@ func (m *mockRuntime) ResumeElicitation(context.Context, tools.ElicitationAction
 func (m *mockRuntime) SessionStore() session.Store                                             { return nil }
 func (m *mockRuntime) Summarize(context.Context, *session.Session, string, chan runtime.Event) {}
 func (m *mockRuntime) PermissionsInfo() *runtime.PermissionsInfo                               { return nil }
-func (m *mockRuntime) CurrentAgentSkillsEnabled() bool                                         { return false }
+func (m *mockRuntime) CurrentAgentSkillsToolset() *builtin.SkillsToolset                       { return nil }
 func (m *mockRuntime) CurrentMCPPrompts(context.Context) map[string]mcptools.PromptInfo {
 	return nil
 }
