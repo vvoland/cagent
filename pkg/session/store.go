@@ -197,6 +197,7 @@ func (s *InMemorySessionStore) UpdateSession(_ context.Context, session *Session
 
 	// Build a new session with the same metadata but a fresh mutex.
 	// Messages are stored separately via AddMessage.
+	// MAINTENANCE: when adding new persisted fields to Session, add them here too.
 	newSession := &Session{
 		ID:                    session.ID,
 		Title:                 session.Title,

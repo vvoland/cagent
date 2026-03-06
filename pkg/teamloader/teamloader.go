@@ -23,6 +23,7 @@ import (
 	"github.com/docker/cagent/pkg/team"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
+	agenttool "github.com/docker/cagent/pkg/tools/builtin/agent"
 	"github.com/docker/cagent/pkg/tools/codemode"
 )
 
@@ -463,7 +464,7 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 	}
 
 	if len(a.SubAgents) > 0 {
-		toolSets = append(toolSets, builtin.NewTransferTaskTool())
+		toolSets = append(toolSets, builtin.NewTransferTaskTool(), agenttool.NewToolSet())
 	}
 	if len(a.Handoffs) > 0 {
 		toolSets = append(toolSets, builtin.NewHandoffTool())

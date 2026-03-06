@@ -122,6 +122,12 @@ type Session struct {
 	// BranchCreatedAt is the time when this branch session was created.
 	BranchCreatedAt *time.Time `json:"branch_created_at,omitempty"`
 
+	// AgentName, when set, tells RunStream which agent to use for this session
+	// instead of reading from the shared runtime currentAgent field. This is
+	// required for background agent tasks where multiple sessions may run
+	// concurrently on different agents.
+	AgentName string `json:"-"`
+
 	// ParentID indicates this is a sub-session created by task transfer.
 	// Sub-sessions are not persisted as standalone entries; they are embedded
 	// within the parent session's Messages array.
@@ -456,6 +462,15 @@ func WithSendUserMessage(sendUserMessage bool) Opt {
 func WithPermissions(perms *PermissionsConfig) Opt {
 	return func(s *Session) {
 		s.Permissions = perms
+	}
+}
+
+// WithAgentName pins this session to a specific agent. When set, RunStream
+// resolves the agent from the session rather than the shared runtime state,
+// which is required for concurrent background agent tasks.
+func WithAgentName(name string) Opt {
+	return func(s *Session) {
+		s.AgentName = name
 	}
 }
 
