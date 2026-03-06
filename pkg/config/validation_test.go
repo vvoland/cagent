@@ -37,10 +37,6 @@ func TestValidationErrors(t *testing.T) {
 		path string
 	}{
 		{
-			name: "memory toolset missing path",
-			path: "missing_memory_path_v2.yaml",
-		},
-		{
 			name: "path in non memory toolset",
 			path: "invalid_path_v2.yaml",
 		},

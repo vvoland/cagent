@@ -66,9 +66,7 @@ func (t *Toolset) validate() error {
 
 	switch t.Type {
 	case "memory":
-		if t.Path == "" {
-			return errors.New("memory toolset requires a path to be set")
-		}
+		// path is optional; defaults to ~/.cagent/memory/<agent-name>/memory.db
 	case "mcp":
 		count := 0
 		if t.Command != "" {

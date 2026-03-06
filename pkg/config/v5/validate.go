@@ -113,9 +113,7 @@ func (t *Toolset) validate() error {
 			return errors.New("sandbox requires at least one path to be set")
 		}
 	case "memory":
-		if t.Path == "" {
-			return errors.New("memory toolset requires a path to be set")
-		}
+		// path is optional; defaults to ~/.cagent/memory/<agent-name>/memory.db
 	case "tasks":
 		// path defaults to ./tasks.json if not set
 	case "mcp":
