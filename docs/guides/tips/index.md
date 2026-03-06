@@ -229,7 +229,7 @@ permissions:
 
 ```bash
 # Run with sandbox enabled
-cagent run --sandbox agent.yaml
+docker-agent run --sandbox agent.yaml
 ```
 
 ### Use Hooks for Audit Logging
