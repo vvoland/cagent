@@ -37,26 +37,48 @@ type ElicitationField struct {
 }
 
 // ElicitationDialog implements Dialog for MCP elicitation requests.
+//
+// When a schema is provided, fields are rendered as a form.
+// When no schema is provided, a single free-form text input (responseInput)
+// is shown so the user can type an answer.
 type ElicitationDialog struct {
 	BaseDialog
-	message      string
-	fields       []ElicitationField
-	inputs       []textinput.Model
-	boolValues   map[int]bool
-	enumIndexes  map[int]int // selected index for enum fields
-	currentField int
-	keyMap       elicitationKeyMap
-	fieldErrors  map[int]string // validation error messages per field
+	title         string
+	message       string
+	fields        []ElicitationField
+	inputs        []textinput.Model
+	boolValues    map[int]bool
+	enumIndexes   map[int]int // selected index for enum fields
+	currentField  int
+	keyMap        elicitationKeyMap
+	fieldErrors   map[int]string  // validation error messages per field
+	responseInput textinput.Model // free-form text input used when len(fields) == 0
 }
 
 type elicitationKeyMap struct {
-	Up, Down, Enter, Escape, Space key.Binding
+	Up, Down, Tab, ShiftTab, Enter, Escape, Space key.Binding
+}
+
+// hasFreeFormInput returns true when no schema fields exist and the dialog
+// shows a single free-form text input instead.
+func (d *ElicitationDialog) hasFreeFormInput() bool {
+	return len(d.fields) == 0
 }
 
 // NewElicitationDialog creates a new elicitation dialog.
-func NewElicitationDialog(message string, schema any, _ map[string]any) Dialog {
+func NewElicitationDialog(message string, schema any, meta map[string]any) Dialog {
 	fields := parseElicitationSchema(schema)
+
+	// Determine dialog title from meta, defaulting to "Question"
+	title := "Question"
+	if meta != nil {
+		if t, ok := meta["cagent/title"].(string); ok && t != "" {
+			title = t
+		}
+	}
+
 	d := &ElicitationDialog{
+		title:       title,
 		message:     message,
 		fields:      fields,
 		inputs:      make([]textinput.Model, len(fields)),
@@ -64,19 +86,34 @@ func NewElicitationDialog(message string, schema any, _ map[string]any) Dialog {
 		enumIndexes: make(map[int]int),
 		fieldErrors: make(map[int]string),
 		keyMap: elicitationKeyMap{
-			Up:     key.NewBinding(key.WithKeys("up", "shift+tab")),
-			Down:   key.NewBinding(key.WithKeys("down", "tab")),
-			Enter:  key.NewBinding(key.WithKeys("enter")),
-			Escape: key.NewBinding(key.WithKeys("esc")),
-			Space:  key.NewBinding(key.WithKeys("space")),
+			Up:       key.NewBinding(key.WithKeys("up")),
+			Down:     key.NewBinding(key.WithKeys("down")),
+			Tab:      key.NewBinding(key.WithKeys("tab")),
+			ShiftTab: key.NewBinding(key.WithKeys("shift+tab")),
+			Enter:    key.NewBinding(key.WithKeys("enter")),
+			Escape:   key.NewBinding(key.WithKeys("esc")),
+			Space:    key.NewBinding(key.WithKeys("space")),
 		},
 	}
+
+	// If no schema fields, add a free-form text input for the response
+	if len(fields) == 0 {
+		ti := textinput.New()
+		ti.SetStyles(styles.DialogInputStyle)
+		ti.SetWidth(defaultWidth)
+		ti.Prompt = ""
+		ti.Placeholder = "Type your response"
+		ti.CharLimit = defaultCharLimit
+		ti.Focus()
+		d.responseInput = ti
+	}
+
 	d.initInputs()
 	return d
 }
 
 func (d *ElicitationDialog) Init() tea.Cmd {
-	if len(d.inputs) > 0 {
+	if d.hasFreeFormInput() || len(d.inputs) > 0 {
 		return textinput.Blink
 	}
 	return nil
@@ -88,7 +125,12 @@ func (d *ElicitationDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		cmd := d.SetSize(msg.Width, msg.Height)
 		return d, cmd
 	case tea.PasteMsg:
-		// Forward paste to text input if current field uses one
+		// Forward paste to the active text input
+		if d.hasFreeFormInput() {
+			var cmd tea.Cmd
+			d.responseInput, cmd = d.responseInput.Update(msg)
+			return d, cmd
+		}
 		if d.isTextInputField() {
 			var cmd tea.Cmd
 			d.inputs[d.currentField], cmd = d.inputs[d.currentField].Update(msg)
@@ -112,17 +154,24 @@ func (d *ElicitationDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 
 func (d *ElicitationDialog) handleKeyPress(msg tea.KeyPressMsg) (layout.Model, tea.Cmd) {
 	switch {
-	case key.Matches(msg, d.keyMap.Space) && !d.isTextInputField():
-		// Only handle space for boolean/enum fields; let it pass through to text input otherwise
-		d.toggleCurrentSelection()
+	case key.Matches(msg, d.keyMap.Space) && !d.isTextInputField() && !d.hasFreeFormInput():
+		// Space cycles forward through options, same as down arrow
+		d.moveSelection(1)
 		return d, nil
 	case key.Matches(msg, d.keyMap.Escape):
 		cmd := d.close(tools.ElicitationActionCancel, nil)
 		return d, cmd
 	case key.Matches(msg, d.keyMap.Up):
-		d.moveFocus(-1)
+		// Up/down navigate within selection fields (enum/boolean)
+		d.moveSelection(-1)
 		return d, nil
 	case key.Matches(msg, d.keyMap.Down):
+		d.moveSelection(1)
+		return d, nil
+	case key.Matches(msg, d.keyMap.ShiftTab):
+		d.moveFocus(-1)
+		return d, nil
+	case key.Matches(msg, d.keyMap.Tab):
 		d.moveFocus(1)
 		return d, nil
 	case key.Matches(msg, d.keyMap.Enter):
@@ -132,17 +181,21 @@ func (d *ElicitationDialog) handleKeyPress(msg tea.KeyPressMsg) (layout.Model, t
 	}
 }
 
-// toggleCurrentSelection toggles boolean or cycles enum for the current field.
-func (d *ElicitationDialog) toggleCurrentSelection() {
-	// Clear error when user interacts with the field
+// moveSelection moves the selection up/down within a boolean or enum field.
+func (d *ElicitationDialog) moveSelection(delta int) {
 	delete(d.fieldErrors, d.currentField)
 
 	switch d.currentFieldType() {
 	case "boolean":
+		// Boolean only has two options: toggle
 		d.boolValues[d.currentField] = !d.boolValues[d.currentField]
 	case "enum":
 		field := d.fields[d.currentField]
-		d.enumIndexes[d.currentField] = (d.enumIndexes[d.currentField] + 1) % len(field.EnumValues)
+		n := len(field.EnumValues)
+		if n == 0 {
+			return
+		}
+		d.enumIndexes[d.currentField] = (d.enumIndexes[d.currentField] + delta + n) % n
 	}
 }
 
@@ -154,17 +207,22 @@ func (d *ElicitationDialog) currentFieldType() string {
 }
 
 func (d *ElicitationDialog) submit() (layout.Model, tea.Cmd) {
-	if len(d.fields) == 0 {
-		cmd := d.close(tools.ElicitationActionAccept, nil)
+	// Free-form response: no schema fields, just a text input
+	if d.hasFreeFormInput() {
+		val := strings.TrimSpace(d.responseInput.Value())
+		var content map[string]any
+		if val != "" {
+			content = map[string]any{"response": val}
+		}
+		cmd := d.close(tools.ElicitationActionAccept, content)
 		return d, cmd
 	}
 
-	// Clear previous errors and validate
+	// Schema-based form: validate all fields
 	d.fieldErrors = make(map[int]string)
 	content, firstErrorIdx := d.collectAndValidate()
 
 	if firstErrorIdx >= 0 {
-		// Focus the first field with an error
 		d.focusField(firstErrorIdx)
 		return d, nil
 	}
@@ -174,9 +232,12 @@ func (d *ElicitationDialog) submit() (layout.Model, tea.Cmd) {
 }
 
 func (d *ElicitationDialog) updateCurrentInput(msg tea.KeyPressMsg) (layout.Model, tea.Cmd) {
-	// Only text-based fields (not boolean/enum) use the text input
+	if d.hasFreeFormInput() {
+		var cmd tea.Cmd
+		d.responseInput, cmd = d.responseInput.Update(msg)
+		return d, cmd
+	}
 	if d.isTextInputField() {
-		// Clear error for current field when user types
 		delete(d.fieldErrors, d.currentField)
 		var cmd tea.Cmd
 		d.inputs[d.currentField], cmd = d.inputs[d.currentField].Update(msg)
@@ -314,7 +375,7 @@ func (d *ElicitationDialog) View() string {
 	contentWidth := d.ContentWidth(dialogWidth, 2)
 
 	content := NewContent(contentWidth)
-	content.AddTitle("MCP Server Request")
+	content.AddTitle(d.title)
 	content.AddSeparator()
 	content.AddContent(styles.DialogContentStyle.Width(contentWidth).Render(d.message))
 
@@ -326,17 +387,21 @@ func (d *ElicitationDialog) View() string {
 				content.AddSpace()
 			}
 		}
+	} else if d.hasFreeFormInput() {
+		content.AddSeparator()
+		d.responseInput.SetWidth(contentWidth)
+		content.AddContent(d.responseInput.View())
 	}
 
 	content.AddSpace()
 	if len(d.fields) > 0 {
 		if d.hasSelectionFields() {
-			content.AddHelpKeys("↑/↓", "navigate", "space", "change", "enter", "submit", "esc", "cancel")
+			content.AddHelpKeys("↑/↓", "select", "tab", "next field", "enter", "submit", "esc", "cancel")
 		} else {
-			content.AddHelpKeys("↑/↓", "navigate", "enter", "submit", "esc", "cancel")
+			content.AddHelpKeys("tab", "next field", "enter", "submit", "esc", "cancel")
 		}
 	} else {
-		content.AddHelpKeys("enter", "confirm", "esc", "cancel")
+		content.AddHelpKeys("enter", "submit", "esc", "cancel")
 	}
 
 	return styles.DialogStyle.Width(dialogWidth).Render(content.Build())
@@ -441,7 +506,7 @@ func (d *ElicitationDialog) handleMouseClick(msg tea.MouseClickMsg) (layout.Mode
 
 	// Compute the Y offset where fields start by measuring the rendered header.
 	header := lipgloss.JoinVertical(lipgloss.Left,
-		styles.DialogTitleStyle.Width(contentWidth).Render("MCP Server Request"),
+		styles.DialogTitleStyle.Width(contentWidth).Render(d.title),
 		RenderSeparator(contentWidth),
 		styles.DialogContentStyle.Width(contentWidth).Render(d.message),
 		RenderSeparator(contentWidth),

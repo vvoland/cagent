@@ -287,14 +287,19 @@ func TestNewElicitationDialog(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name    string
-		message string
-		schema  any
+		name             string
+		message          string
+		schema           any
+		meta             map[string]any
+		expectedTitle    string
+		hasFreeFormInput bool
 	}{
 		{
-			name:    "simple dialog without fields",
-			message: "Please confirm this action",
-			schema:  nil,
+			name:             "simple dialog without fields has response input",
+			message:          "Please confirm this action",
+			schema:           nil,
+			expectedTitle:    "Question",
+			hasFreeFormInput: true,
 		},
 		{
 			name:    "dialog with form fields",
@@ -307,18 +312,38 @@ func TestNewElicitationDialog(t *testing.T) {
 				},
 				"required": []any{"username", "password"},
 			},
+			expectedTitle:    "Question",
+			hasFreeFormInput: false,
+		},
+		{
+			name:             "dialog with custom title from meta",
+			message:          "Choose wisely",
+			schema:           nil,
+			meta:             map[string]any{"cagent/title": "Custom Title"},
+			expectedTitle:    "Custom Title",
+			hasFreeFormInput: true,
+		},
+		{
+			name:             "dialog with empty meta defaults to Question",
+			message:          "What?",
+			schema:           nil,
+			meta:             map[string]any{},
+			expectedTitle:    "Question",
+			hasFreeFormInput: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			dialog := NewElicitationDialog(tt.message, tt.schema, nil)
+			dialog := NewElicitationDialog(tt.message, tt.schema, tt.meta)
 			require.NotNil(t, dialog)
 
 			ed, ok := dialog.(*ElicitationDialog)
 			require.True(t, ok)
 			assert.Equal(t, tt.message, ed.message)
+			assert.Equal(t, tt.expectedTitle, ed.title)
+			assert.Equal(t, tt.hasFreeFormInput, ed.hasFreeFormInput())
 		})
 	}
 }
