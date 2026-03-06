@@ -265,7 +265,7 @@ func builtInFeedbackCommands() []Item {
 			Description: "Report a bug or issue",
 			Category:    "Feedback",
 			Execute: func(string) tea.Cmd {
-				return core.CmdHandler(messages.OpenURLMsg{URL: "https://github.com/docker/cagent/issues/new/choose"})
+				return core.CmdHandler(messages.OpenURLMsg{URL: "https://github.com/docker/docker-agent/issues/new/choose"})
 			},
 		},
 	}

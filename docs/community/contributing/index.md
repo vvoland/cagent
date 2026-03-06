@@ -28,8 +28,8 @@ _docker-agent is open source. Here's how to set up your development environment 
 
 ```bash
 # Clone and build
-git clone https://github.com/docker/cagent.git
-cd cagent
+git clone https://github.com/docker/docker-agent.git
+cd docker-agent
 task build
 
 # Set API keys
@@ -57,7 +57,7 @@ export ANTHROPIC_API_KEY=your_key_here
 Use docker-agent to work on docker-agent! The project includes a specialized developer agent:
 
 ```bash
-cd cagent
+cd docker-agent
 docker agent run ./golang_developer.yaml
 ```
 

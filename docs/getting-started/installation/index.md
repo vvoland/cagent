@@ -77,8 +77,8 @@ For the latest features, or to contribute, build from source:
 
 ```bash
 # Clone the repository
-git clone https://github.com/docker/cagent.git
-cd cagent
+git clone https://github.com/docker/docker-agent.git
+cd docker-agent
 
 # Build the binary
 task build

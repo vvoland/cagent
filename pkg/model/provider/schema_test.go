@@ -186,7 +186,7 @@ func TestSchemaForAnthropic(t *testing.T) {
 
 // TestEmptyMapSchemaForOpenai makes sure we format empty properties in a way that
 // OpenAI and LM Studio accept.
-// See https://github.com/docker/cagent/issues/278
+// See https://github.com/docker/docker-agent/issues/278
 func TestEmptyMapSchemaForOpenai(t *testing.T) {
 	schema, err := openai.ConvertParametersToSchema(map[string]any{})
 	require.NoError(t, err)
