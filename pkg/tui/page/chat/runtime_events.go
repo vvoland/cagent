@@ -164,9 +164,15 @@ func (p *chatPage) handleTokenUsage(msg *runtime.TokenUsageEvent) {
 	p.sidebar.SetTokenUsage(msg)
 	if msg.Usage != nil {
 		if sess := p.app.Session(); sess != nil {
-			// Update session-level token counts (used for context % tracking)
-			sess.InputTokens = msg.Usage.InputTokens
-			sess.OutputTokens = msg.Usage.OutputTokens
+			// Only update the parent session's token counts when the event
+			// belongs to this session. Sub-sessions emit their own
+			// TokenUsageEvents with a different SessionID; writing those
+			// values into the parent would overwrite the parent's own
+			// context-tracking counters.
+			if msg.SessionID == "" || msg.SessionID == sess.ID {
+				sess.InputTokens = msg.Usage.InputTokens
+				sess.OutputTokens = msg.Usage.OutputTokens
+			}
 
 			// Track per-message usage for /cost dialog
 			if msg.Usage.LastMessage != nil {

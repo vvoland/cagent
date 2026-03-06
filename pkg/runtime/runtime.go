@@ -2002,25 +2002,29 @@ func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Ses
 		session.WithParentID(sess.ID),
 	)
 
-	for event := range r.RunStream(ctx, s) {
+	return r.runSubSession(ctx, sess, s, span, evts, a.Name())
+}
+
+// runSubSession runs a child session within the parent, forwarding events and
+// propagating state (tool approvals, thinking) back to the parent when done.
+func (r *LocalRuntime) runSubSession(ctx context.Context, parent, child *session.Session, span trace.Span, evts chan Event, agentName string) (*tools.ToolCallResult, error) {
+	for event := range r.RunStream(ctx, child) {
 		evts <- event
 		if errEvent, ok := event.(*ErrorEvent); ok {
 			span.RecordError(fmt.Errorf("%s", errEvent.Error))
-			span.SetStatus(codes.Error, "error in transferred session")
+			span.SetStatus(codes.Error, "sub-session error")
 			return nil, fmt.Errorf("%s", errEvent.Error)
 		}
 	}
 
-	sess.ToolsApproved = s.ToolsApproved
-	sess.Thinking = s.Thinking
+	parent.ToolsApproved = child.ToolsApproved
+	parent.Thinking = child.Thinking
 
-	sess.AddSubSession(s)
-	evts <- SubSessionCompleted(sess.ID, s, a.Name())
+	parent.AddSubSession(child)
+	evts <- SubSessionCompleted(parent.ID, child, agentName)
 
-	slog.Debug("Task transfer completed", "agent", params.Agent, "task", params.Task)
-
-	span.SetStatus(codes.Ok, "task transfer completed")
-	return tools.ResultSuccess(s.GetLastAssistantMessageContent()), nil
+	span.SetStatus(codes.Ok, "sub-session completed")
+	return tools.ResultSuccess(child.GetLastAssistantMessageContent()), nil
 }
 
 func (r *LocalRuntime) handleHandoff(_ context.Context, _ *session.Session, toolCall tools.ToolCall, _ chan Event) (*tools.ToolCallResult, error) {
