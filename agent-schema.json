@@ -148,14 +148,14 @@
         },
         "sub_agents": {
           "type": "array",
-          "description": "List of sub-agents",
+          "description": "List of sub-agents. Can be names of agents defined in this config or external references (OCI images like 'namespace/repo' or URLs).",
           "items": {
             "type": "string"
           }
         },
         "handoffs": {
           "type": "array",
-          "description": "List of agents this agent can hand off the conversation to",
+          "description": "List of agents this agent can hand off the conversation to. Can be names of agents defined in this config or external references (OCI images like 'namespace/repo' or URLs).",
           "items": {
             "type": "string"
           }
