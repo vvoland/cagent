@@ -37,6 +37,7 @@ import (
 	"github.com/docker/cagent/pkg/telemetry"
 	"github.com/docker/cagent/pkg/tools"
 	"github.com/docker/cagent/pkg/tools/builtin"
+	agenttool "github.com/docker/cagent/pkg/tools/builtin/agent"
 	mcptools "github.com/docker/cagent/pkg/tools/mcp"
 )
 
@@ -214,8 +215,12 @@ type LocalRuntime struct {
 	fallbackCooldowns    map[string]*fallbackCooldownState
 	fallbackCooldownsMux sync.RWMutex
 
+	currentAgentMu sync.RWMutex
+
 	// onToolsChanged is called when an MCP toolset reports a tool list change.
 	onToolsChanged func(Event)
+
+	bgAgents *agenttool.Handler
 }
 
 type streamResult struct {
@@ -302,6 +307,7 @@ func NewLocalRuntime(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 		sessionStore:         session.NewInMemorySessionStore(),
 		fallbackCooldowns:    make(map[string]*fallbackCooldownState),
 	}
+	r.bgAgents = agenttool.NewHandler(r)
 
 	for _, opt := range opts {
 		opt(r)
@@ -375,7 +381,7 @@ func (r *LocalRuntime) forwardRAGEvents(ctx context.Context, ragManagers map[str
 						return
 					}
 
-					agentName := r.currentAgent
+					agentName := r.CurrentAgentName()
 					slog.Debug("Forwarding RAG event", "type", ragEvent.Type, "rag", ragName, "agent", agentName)
 
 					switch ragEvent.Type {
@@ -436,7 +442,15 @@ func (r *LocalRuntime) InitializeRAG(ctx context.Context, events chan Event) {
 }
 
 func (r *LocalRuntime) CurrentAgentName() string {
+	r.currentAgentMu.RLock()
+	defer r.currentAgentMu.RUnlock()
 	return r.currentAgent
+}
+
+func (r *LocalRuntime) setCurrentAgent(name string) {
+	r.currentAgentMu.Lock()
+	defer r.currentAgentMu.Unlock()
+	r.currentAgent = name
 }
 
 func (r *LocalRuntime) CurrentAgentInfo(context.Context) CurrentAgentInfo {
@@ -454,7 +468,7 @@ func (r *LocalRuntime) SetCurrentAgent(agentName string) error {
 	if _, err := r.team.Agent(agentName); err != nil {
 		return err
 	}
-	r.currentAgent = agentName
+	r.setCurrentAgent(agentName)
 	slog.Debug("Switched current agent", "agent", agentName)
 	return nil
 }
@@ -538,7 +552,7 @@ func (r *LocalRuntime) discoverMCPPrompts(ctx context.Context, toolset *mcptools
 // CurrentAgent returns the current agent
 func (r *LocalRuntime) CurrentAgent() *agent.Agent {
 	// We validated already that the agent exists
-	current, _ := r.team.Agent(r.currentAgent)
+	current, _ := r.team.Agent(r.CurrentAgentName())
 	return current
 }
 
@@ -624,7 +638,7 @@ func (r *LocalRuntime) getHooksExecutor(a *agent.Agent) *hooks.Executor {
 
 // executeOnUserInputHooks executes on-user-input hooks for the current agent
 func (r *LocalRuntime) executeOnUserInputHooks(ctx context.Context, sessionID, logContext string) {
-	a, _ := r.team.Agent(r.currentAgent)
+	a, _ := r.team.Agent(r.CurrentAgentName())
 	if a == nil {
 		return
 	}
@@ -719,6 +733,7 @@ func (r *LocalRuntime) SessionStore() session.Store {
 
 // Close releases resources held by the runtime, including the session store.
 func (r *LocalRuntime) Close() error {
+	r.bgAgents.StopAll()
 	if r.sessionStore != nil {
 		return r.sessionStore.Close()
 	}
@@ -786,7 +801,7 @@ func (r *LocalRuntime) emitToolsChanged() {
 	if err != nil {
 		return
 	}
-	r.onToolsChanged(ToolsetInfo(len(agentTools), false, r.currentAgent))
+	r.onToolsChanged(ToolsetInfo(len(agentTools), false, r.CurrentAgentName()))
 }
 
 // EmitStartupInfo emits initial agent, team, and toolset information for immediate sidebar display.
@@ -817,7 +832,7 @@ func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, sess *session.Sessio
 	if !send(AgentInfo(a.Name(), modelID, a.Description(), a.WelcomeMessage())) {
 		return
 	}
-	if !send(TeamInfo(r.agentDetailsFromTeam(), r.currentAgent)) {
+	if !send(TeamInfo(r.agentDetailsFromTeam(), r.CurrentAgentName())) {
 		return
 	}
 
@@ -836,7 +851,7 @@ func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, sess *session.Sessio
 		}
 		usage := SessionUsage(sess, contextLimit)
 		usage.Cost = sess.TotalCost()
-		send(NewTokenUsageEvent(sess.ID, r.currentAgent, usage))
+		send(NewTokenUsageEvent(sess.ID, r.CurrentAgentName(), usage))
 	}
 
 	// Emit agent warnings (if any) - these are quick
@@ -856,12 +871,12 @@ func (r *LocalRuntime) emitToolsProgressively(ctx context.Context, a *agent.Agen
 
 	// If no toolsets, emit final state immediately
 	if totalToolsets == 0 {
-		send(ToolsetInfo(0, false, r.currentAgent))
+		send(ToolsetInfo(0, false, r.CurrentAgentName()))
 		return
 	}
 
 	// Emit initial loading state
-	if !send(ToolsetInfo(0, true, r.currentAgent)) {
+	if !send(ToolsetInfo(0, true, r.CurrentAgentName())) {
 		return
 	}
 
@@ -895,13 +910,13 @@ func (r *LocalRuntime) emitToolsProgressively(ctx context.Context, a *agent.Agen
 		totalTools += len(ts)
 
 		// Emit progress update - still loading unless this is the last toolset
-		if !send(ToolsetInfo(totalTools, !isLast, r.currentAgent)) {
+		if !send(ToolsetInfo(totalTools, !isLast, r.CurrentAgentName())) {
 			return
 		}
 	}
 
 	// Emit final state (not loading)
-	send(ToolsetInfo(totalTools, false, r.currentAgent))
+	send(ToolsetInfo(totalTools, false, r.CurrentAgentName()))
 }
 
 // registerDefaultTools registers the runtime-managed tool handlers.
@@ -912,16 +927,40 @@ func (r *LocalRuntime) registerDefaultTools() {
 	r.toolMap[builtin.ToolNameHandoff] = r.handleHandoff
 	r.toolMap[builtin.ToolNameChangeModel] = r.handleChangeModel
 	r.toolMap[builtin.ToolNameRevertModel] = r.handleRevertModel
+	r.toolMap[agenttool.ToolNameRunBackgroundAgent] = r.handleRunBackgroundAgent
+	r.toolMap[agenttool.ToolNameListBackgroundAgents] = r.handleListBackgroundAgents
+	r.toolMap[agenttool.ToolNameViewBackgroundAgent] = r.handleViewBackgroundAgent
+	r.toolMap[agenttool.ToolNameStopBackgroundAgent] = r.handleStopBackgroundAgent
+}
+
+func (r *LocalRuntime) handleRunBackgroundAgent(ctx context.Context, sess *session.Session, tc tools.ToolCall, _ chan Event) (*tools.ToolCallResult, error) {
+	return r.bgAgents.HandleRun(ctx, sess, tc)
+}
+
+func (r *LocalRuntime) handleListBackgroundAgents(ctx context.Context, sess *session.Session, tc tools.ToolCall, _ chan Event) (*tools.ToolCallResult, error) {
+	return r.bgAgents.HandleList(ctx, sess, tc)
+}
+
+func (r *LocalRuntime) handleViewBackgroundAgent(ctx context.Context, sess *session.Session, tc tools.ToolCall, _ chan Event) (*tools.ToolCallResult, error) {
+	return r.bgAgents.HandleView(ctx, sess, tc)
+}
+
+func (r *LocalRuntime) handleStopBackgroundAgent(ctx context.Context, sess *session.Session, tc tools.ToolCall, _ chan Event) (*tools.ToolCallResult, error) {
+	return r.bgAgents.HandleStop(ctx, sess, tc)
 }
 
 func (r *LocalRuntime) finalizeEventChannel(ctx context.Context, sess *session.Session, events chan Event) {
 	// Clear the elicitation events channel before closing the events channel
 	// to prevent a send-on-closed-channel panic in elicitationHandler.
-	r.clearElicitationEventsChannel()
+	// Skip for background sessions (ToolsApproved=true) — they never set the
+	// channel, so clearing it would null out the parent session's channel.
+	if !sess.ToolsApproved {
+		r.clearElicitationEventsChannel()
+	}
 
 	defer close(events)
 
-	events <- StreamStopped(sess.ID, r.currentAgent)
+	events <- StreamStopped(sess.ID, r.CurrentAgentName())
 
 	r.executeOnUserInputHooks(ctx, sess.ID, "stream stopped")
 
@@ -930,30 +969,44 @@ func (r *LocalRuntime) finalizeEventChannel(ctx context.Context, sess *session.S
 
 // RunStream starts the agent's interaction loop and returns a channel of events
 func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-chan Event {
-	slog.Debug("Starting runtime stream", "agent", r.currentAgent, "session_id", sess.ID)
+	slog.Debug("Starting runtime stream", "agent", r.CurrentAgentName(), "session_id", sess.ID)
 	events := make(chan Event, 128)
 
 	go func() {
-		telemetry.RecordSessionStart(ctx, r.currentAgent, sess.ID)
+		telemetry.RecordSessionStart(ctx, r.CurrentAgentName(), sess.ID)
 
 		ctx, sessionSpan := r.startSpan(ctx, "runtime.session", trace.WithAttributes(
-			attribute.String("agent", r.currentAgent),
+			attribute.String("agent", r.CurrentAgentName()),
 			attribute.String("session.id", sess.ID),
 		))
 		defer sessionSpan.End()
 
-		// Set the events channel for elicitation requests
-		r.setElicitationEventsChannel(events)
+		// Set the events channel for elicitation requests.
+		// Skip for background sessions (ToolsApproved=true): they have all tools
+		// pre-approved and will never trigger elicitation prompts. Setting the
+		// channel would overwrite the parent session's channel; clearing it at
+		// teardown would break any pending MCP auth flow in the parent.
+		if !sess.ToolsApproved {
+			r.setElicitationEventsChannel(events)
+		}
 
-		// Set elicitation handler on all MCP toolsets before getting tools
-		a := r.CurrentAgent()
+		// Resolve the agent for this session. When AgentName is set on the
+		// session (e.g., background agent tasks), use it directly to avoid
+		// racing on the shared currentAgent field.
+		var a *agent.Agent
+		if sess.AgentName != "" {
+			a, _ = r.team.Agent(sess.AgentName)
+		}
+		if a == nil {
+			a = r.CurrentAgent()
+		}
 
 		// Emit agent information for sidebar display
 		// Use getEffectiveModelID to account for active fallback cooldowns
 		events <- AgentInfo(a.Name(), r.getEffectiveModelID(a), a.Description(), a.WelcomeMessage())
 
 		// Emit team information
-		events <- TeamInfo(r.agentDetailsFromTeam(), r.currentAgent)
+		events <- TeamInfo(r.agentDetailsFromTeam(), r.CurrentAgentName())
 
 		// Initialize RAG and forward events
 		r.InitializeRAG(ctx, events)
@@ -967,7 +1020,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			return
 		}
 
-		events <- ToolsetInfo(len(agentTools), false, r.currentAgent)
+		events <- ToolsetInfo(len(agentTools), false, r.CurrentAgentName())
 
 		messages := sess.GetMessages(a)
 		if sess.SendUserMessage {
@@ -1001,7 +1054,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			// Emit updated tool count. After a ToolListChanged MCP notification
 			// the cache is invalidated, so getTools above re-fetches from the
 			// server and may return a different count.
-			events <- ToolsetInfo(len(agentTools), false, r.currentAgent)
+			events <- ToolsetInfo(len(agentTools), false, r.CurrentAgentName())
 
 			// Check iteration limit
 			if runtimeMaxIterations > 0 && iteration >= runtimeMaxIterations {
@@ -1203,7 +1256,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 
 			usage := SessionUsage(sess, contextLimit)
 			usage.LastMessage = msgUsage
-			events <- NewTokenUsageEvent(sess.ID, r.currentAgent, usage)
+			events <- NewTokenUsageEvent(sess.ID, r.CurrentAgentName(), usage)
 
 			r.processToolCalls(ctx, sess, res.Calls, agentTools, events)
 
@@ -1247,7 +1300,7 @@ func (r *LocalRuntime) configureToolsetHandlers(a *agent.Agent, events chan Even
 	for _, toolset := range a.ToolSets() {
 		tools.ConfigureHandlers(toolset,
 			r.elicitationHandler,
-			func() { events <- Authorization(tools.ElicitationActionAccept, r.currentAgent) },
+			func() { events <- Authorization(tools.ElicitationActionAccept, r.CurrentAgentName()) },
 			r.managedOAuth,
 		)
 	}
@@ -1261,7 +1314,7 @@ func (r *LocalRuntime) emitAgentWarningsWithSend(a *agent.Agent, send func(Event
 	}
 
 	slog.Warn("Tool setup partially failed; continuing", "agent", a.Name(), "warnings", warnings)
-	send(Warning(formatToolWarning(a, warnings), r.currentAgent))
+	send(Warning(formatToolWarning(a, warnings), r.CurrentAgentName()))
 }
 
 func (r *LocalRuntime) emitAgentWarnings(a *agent.Agent, events chan Event) {
@@ -1273,7 +1326,7 @@ func (r *LocalRuntime) emitAgentWarnings(a *agent.Agent, events chan Event) {
 	slog.Warn("Tool setup partially failed; continuing", "agent", a.Name(), "warnings", warnings)
 
 	if events != nil {
-		events <- Warning(formatToolWarning(a, warnings), r.currentAgent)
+		events <- Warning(formatToolWarning(a, warnings), r.CurrentAgentName())
 	}
 }
 
@@ -1287,7 +1340,7 @@ func formatToolWarning(a *agent.Agent, warnings []string) string {
 }
 
 func (r *LocalRuntime) Resume(_ context.Context, req ResumeRequest) {
-	slog.Debug("Resuming runtime", "agent", r.currentAgent, "type", req.Type, "reason", req.Reason)
+	slog.Debug("Resuming runtime", "agent", r.CurrentAgentName(), "type", req.Type, "reason", req.Reason)
 
 	// Defensive validation:
 	//
@@ -1298,7 +1351,7 @@ func (r *LocalRuntime) Resume(_ context.Context, req ResumeRequest) {
 	if !IsValidResumeType(req.Type) {
 		slog.Warn(
 			"Invalid resume type received; ignoring resume request",
-			"agent", r.currentAgent,
+			"agent", r.CurrentAgentName(),
 			"confirmation_type", req.Type,
 			"valid_types", ValidResumeTypes(),
 		)
@@ -1312,11 +1365,11 @@ func (r *LocalRuntime) Resume(_ context.Context, req ResumeRequest) {
 	// canceled, or shutting down).
 	select {
 	case r.resumeChan <- req:
-		slog.Debug("Resume signal sent", "agent", r.currentAgent)
+		slog.Debug("Resume signal sent", "agent", r.CurrentAgentName())
 	default:
 		slog.Debug(
 			"Resume channel not ready; resume signal dropped",
-			"agent", r.currentAgent,
+			"agent", r.CurrentAgentName(),
 			"confirmation_type", req.Type,
 		)
 	}
@@ -1324,7 +1377,7 @@ func (r *LocalRuntime) Resume(_ context.Context, req ResumeRequest) {
 
 // ResumeElicitation sends an elicitation response back to a waiting elicitation request
 func (r *LocalRuntime) ResumeElicitation(ctx context.Context, action tools.ElicitationAction, content map[string]any) error {
-	slog.Debug("Resuming runtime with elicitation response", "agent", r.currentAgent, "action", action)
+	slog.Debug("Resuming runtime with elicitation response", "agent", r.CurrentAgentName(), "action", action)
 
 	result := ElicitationResult{
 		Action:  action,
@@ -1916,6 +1969,85 @@ func (r *LocalRuntime) startSpan(ctx context.Context, name string, opts ...trace
 	return r.tracer.Start(ctx, name, opts...)
 }
 
+// CurrentAgentSubAgentNames implements agenttool.Runner.
+func (r *LocalRuntime) CurrentAgentSubAgentNames() []string {
+	a := r.CurrentAgent()
+	if a == nil {
+		return nil
+	}
+	var names []string
+	for _, sa := range a.SubAgents() {
+		names = append(names, sa.Name())
+	}
+	return names
+}
+
+// RunAgent implements agenttool.Runner. It starts a sub-agent synchronously and
+// blocks until completion or cancellation.
+func (r *LocalRuntime) RunAgent(ctx context.Context, params agenttool.RunParams) *agenttool.RunResult {
+	child, err := r.team.Agent(params.AgentName)
+	if err != nil {
+		return &agenttool.RunResult{ErrMsg: fmt.Sprintf("agent %q not found: %s", params.AgentName, err)}
+	}
+
+	systemMsg := "You are a member of a team of agents. Your goal is to complete the following task:"
+	systemMsg += fmt.Sprintf("\n\n<task>\n%s\n</task>", params.Task)
+	if params.ExpectedOutput != "" {
+		systemMsg += fmt.Sprintf("\n\n<expected_output>\n%s\n</expected_output>", params.ExpectedOutput)
+	}
+
+	sess := params.ParentSession
+
+	// Background tasks run with tools pre-approved because there is no user present
+	// to respond to interactive approval prompts during async execution. This is a
+	// deliberate design trade-off: the user implicitly authorises all tool calls made
+	// by the sub-agent when they approve run_background_agent. Callers should be aware
+	// that prompt injection in the sub-agent's context could exploit this gate-bypass.
+	//
+	// TODO: propagate the parent session's per-tool permission rules once the runtime
+	// supports per-session permission scoping rather than a single shared ToolsApproved flag.
+	s := session.New(
+		session.WithSystemMessage(systemMsg),
+		session.WithImplicitUserMessage("Please proceed."),
+		session.WithMaxIterations(child.MaxIterations()),
+		session.WithTitle("Background agent task"),
+		session.WithToolsApproved(true),
+		session.WithThinking(sess.Thinking),
+		session.WithSendUserMessage(false),
+		session.WithParentID(sess.ID),
+		session.WithAgentName(params.AgentName),
+	)
+
+	var errMsg string
+	events := r.RunStream(ctx, s)
+	for event := range events {
+		if ctx.Err() != nil {
+			break
+		}
+		if choice, ok := event.(*AgentChoiceEvent); ok && choice.Content != "" {
+			if params.OnContent != nil {
+				params.OnContent(choice.Content)
+			}
+		}
+		if errEvt, ok := event.(*ErrorEvent); ok {
+			errMsg = errEvt.Error
+			break
+		}
+	}
+	// Drain remaining events so the RunStream goroutine can complete
+	// and close the channel without blocking on a full buffer.
+	for range events {
+	}
+
+	if errMsg != "" {
+		return &agenttool.RunResult{ErrMsg: errMsg}
+	}
+
+	result := s.GetLastAssistantMessageContent()
+	sess.AddSubSession(s)
+	return &agenttool.RunResult{Result: result}
+}
+
 func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, evts chan Event) (*tools.ToolCallResult, error) {
 	var params struct {
 		Agent          string `json:"agent"`
@@ -1955,14 +2087,14 @@ func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Ses
 
 	slog.Debug("Transferring task to agent", "from_agent", a.Name(), "to_agent", params.Agent, "task", params.Task)
 
-	ca := r.currentAgent
+	ca := r.CurrentAgentName()
 
 	// Emit agent switching start event
 	evts <- AgentSwitching(true, ca, params.Agent)
 
-	r.currentAgent = params.Agent
+	r.setCurrentAgent(params.Agent)
 	defer func() {
-		r.currentAgent = ca
+		r.setCurrentAgent(ca)
 
 		// Emit agent switching end event
 		evts <- AgentSwitching(false, params.Agent, ca)
@@ -2033,7 +2165,7 @@ func (r *LocalRuntime) handleHandoff(_ context.Context, _ *session.Session, tool
 		return nil, fmt.Errorf("invalid arguments: %w", err)
 	}
 
-	ca := r.currentAgent
+	ca := r.CurrentAgentName()
 	currentAgent, err := r.team.Agent(ca)
 	if err != nil {
 		return nil, fmt.Errorf("current agent not found: %w", err)
@@ -2060,7 +2192,7 @@ func (r *LocalRuntime) handleHandoff(_ context.Context, _ *session.Session, tool
 		return nil, err
 	}
 
-	r.currentAgent = next.Name()
+	r.setCurrentAgent(next.Name())
 	handoffMessage := "The agent " + ca + " handed off the conversation to you. " +
 		"Your available handoff agents and tools are specified in the system messages that follow. " +
 		"Only use those capabilities - do not attempt to use tools or hand off to agents that you see " +
@@ -2075,7 +2207,8 @@ func (r *LocalRuntime) handleHandoff(_ context.Context, _ *session.Session, tool
 // findModelPickerTool returns the ModelPickerTool from the current agent's
 // toolsets, or nil if the agent has no model_picker configured.
 func (r *LocalRuntime) findModelPickerTool() *builtin.ModelPickerTool {
-	a, err := r.team.Agent(r.currentAgent)
+	currentName := r.CurrentAgentName()
+	a, err := r.team.Agent(currentName)
 	if err != nil {
 		return nil
 	}
@@ -2123,21 +2256,22 @@ func (r *LocalRuntime) handleRevertModel(ctx context.Context, _ *session.Session
 // AgentInfo event so the UI reflects the change. An empty modelRef reverts to
 // the agent's default model.
 func (r *LocalRuntime) setModelAndEmitInfo(ctx context.Context, modelRef string, events chan Event) (*tools.ToolCallResult, error) {
-	if err := r.SetAgentModel(ctx, r.currentAgent, modelRef); err != nil {
+	currentName := r.CurrentAgentName()
+	if err := r.SetAgentModel(ctx, currentName, modelRef); err != nil {
 		return tools.ResultError(fmt.Sprintf("failed to set model: %v", err)), nil
 	}
 
-	if a, err := r.team.Agent(r.currentAgent); err == nil {
+	if a, err := r.team.Agent(currentName); err == nil {
 		events <- AgentInfo(a.Name(), r.getEffectiveModelID(a), a.Description(), a.WelcomeMessage())
 	} else {
-		slog.Warn("Failed to retrieve agent after model change; UI may not reflect the update", "agent", r.currentAgent, "error", err)
+		slog.Warn("Failed to retrieve agent after model change; UI may not reflect the update", "agent", currentName, "error", err)
 	}
 
 	if modelRef == "" {
-		slog.Info("Model reverted via model_picker tool", "agent", r.currentAgent)
+		slog.Info("Model reverted via model_picker tool", "agent", currentName)
 		return tools.ResultSuccess("Model reverted to the agent's default model"), nil
 	}
-	slog.Info("Model changed via model_picker tool", "agent", r.currentAgent, "model", modelRef)
+	slog.Info("Model changed via model_picker tool", "agent", currentName, "model", modelRef)
 	return tools.ResultSuccess(fmt.Sprintf("Model changed to %s", modelRef)), nil
 }
 
@@ -2145,7 +2279,7 @@ func (r *LocalRuntime) setModelAndEmitInfo(ctx context.Context, modelRef string,
 // The additionalPrompt parameter allows users to provide additional instructions
 // for the summarization (e.g., "focus on code changes" or "include action items").
 func (r *LocalRuntime) Summarize(ctx context.Context, sess *session.Session, additionalPrompt string, events chan Event) {
-	r.sessionCompactor.Compact(ctx, sess, additionalPrompt, events, r.currentAgent)
+	r.sessionCompactor.Compact(ctx, sess, additionalPrompt, events, r.CurrentAgentName())
 
 	// Emit a TokenUsageEvent so the sidebar immediately reflects the
 	// compaction: tokens drop to the summary size, context % drops, and
@@ -2156,7 +2290,7 @@ func (r *LocalRuntime) Summarize(ctx context.Context, sess *session.Session, add
 	if m, err := r.modelsStore.GetModel(ctx, modelID); err == nil && m != nil {
 		contextLimit = int64(m.Limit.Context)
 	}
-	events <- NewTokenUsageEvent(sess.ID, r.currentAgent, SessionUsage(sess, contextLimit))
+	events <- NewTokenUsageEvent(sess.ID, r.CurrentAgentName(), SessionUsage(sess, contextLimit))
 }
 
 // setElicitationEventsChannel sets the current events channel for elicitation requests
@@ -2193,7 +2327,7 @@ func (r *LocalRuntime) elicitationHandler(ctx context.Context, req *mcp.ElicitPa
 	slog.Debug("Elicitation request meta", "meta", req.Meta)
 
 	// Send elicitation request event to the runtime's client
-	eventsChannel <- ElicitationRequest(req.Message, req.Mode, req.RequestedSchema, req.URL, req.ElicitationID, req.Meta, r.currentAgent)
+	eventsChannel <- ElicitationRequest(req.Message, req.Mode, req.RequestedSchema, req.URL, req.ElicitationID, req.Meta, r.CurrentAgentName())
 	r.elicitationEventsChannelMux.RUnlock()
 
 	// Wait for response from the client
