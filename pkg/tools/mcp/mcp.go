@@ -488,32 +488,45 @@ func isInitNotificationSendError(err error) bool {
 }
 
 func processMCPContent(toolResult *mcp.CallToolResult) *tools.ToolCallResult {
-	finalContent := ""
-	var images []tools.ImageContent
+	var text string
+	var images, audios []tools.MediaContent
 
-	for _, resultContent := range toolResult.Content {
-		switch c := resultContent.(type) {
+	for _, c := range toolResult.Content {
+		switch c := c.(type) {
 		case *mcp.TextContent:
-			finalContent += c.Text
+			text += c.Text
 		case *mcp.ImageContent:
-			// MCP SDK decodes the base64 wire format into raw bytes,
-			// so we need to re-encode to base64 for our ImageContent.
-			images = append(images, tools.ImageContent{
-				Data:     base64.StdEncoding.EncodeToString(c.Data),
-				MimeType: c.MIMEType,
-			})
+			images = append(images, encodeMedia(c.Data, c.MIMEType))
+		case *mcp.AudioContent:
+			audios = append(audios, encodeMedia(c.Data, c.MIMEType))
+		case *mcp.ResourceLink:
+			if c.Name != "" {
+				// Escape ] in name and ) in URI to prevent broken markdown links.
+				name := strings.ReplaceAll(c.Name, "]", "\\]")
+				uri := strings.ReplaceAll(c.URI, ")", "%29")
+				text += fmt.Sprintf("[%s](%s)", name, uri)
+			} else {
+				text += c.URI
+			}
 		}
 	}
 
-	// Handle an empty response. This can happen if the MCP tool does not return any content.
-	finalContent = cmp.Or(finalContent, "no output")
-
-	result := &tools.ToolCallResult{
-		Output:  finalContent,
-		IsError: toolResult.IsError,
-		Images:  images,
+	return &tools.ToolCallResult{
+		Output:            cmp.Or(text, "no output"),
+		IsError:           toolResult.IsError,
+		Images:            images,
+		Audios:            audios,
+		StructuredContent: toolResult.StructuredContent,
 	}
-	return result
+}
+
+// encodeMedia re-encodes raw bytes (as decoded by the MCP SDK) back to base64
+// for our internal MediaContent representation.
+func encodeMedia(data []byte, mimeType string) tools.MediaContent {
+	return tools.MediaContent{
+		Data:     base64.StdEncoding.EncodeToString(data),
+		MimeType: mimeType,
+	}
 }
 
 func (ts *Toolset) SetElicitationHandler(handler tools.ElicitationHandler) {

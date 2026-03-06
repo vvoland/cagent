@@ -126,18 +126,18 @@ func createMCPServer(ctx context.Context, agentFilename, agentName string, runCo
 
 		slog.Debug("Adding MCP tool", "agent", agentName, "description", description)
 
-		readOnly, err := isReadOnlyAgent(ctx, ag)
+		annotations, err := agentToolAnnotations(ctx, ag)
 		if err != nil {
 			cleanup()
-			return nil, nil, fmt.Errorf("failed to determine if agent %s is read-only: %w", agentName, err)
+			return nil, nil, fmt.Errorf("failed to compute annotations for agent %s: %w", agentName, err)
 		}
 
+		annotations.Title = description
+
 		toolDef := &mcp.Tool{
-			Name:        agentName,
-			Description: description,
-			Annotations: &mcp.ToolAnnotations{
-				ReadOnlyHint: readOnly,
-			},
+			Name:         agentName,
+			Description:  description,
+			Annotations:  annotations,
 			InputSchema:  tools.MustSchemaFor[ToolInput](),
 			OutputSchema: tools.MustSchemaFor[ToolOutput](),
 		}
@@ -185,17 +185,61 @@ func CreateToolHandler(t *team.Team, agentName string) func(context.Context, *mc
 	}
 }
 
-func isReadOnlyAgent(ctx context.Context, ag *agent.Agent) (bool, error) {
+// agentToolAnnotations inspects the agent's tools and derives
+// [mcp.ToolAnnotations] that describe the aggregate behaviour of the agent.
+//
+//   - ReadOnlyHint is true when every tool is read-only.
+//   - DestructiveHint is explicitly false when no tool is destructive.
+//   - IdempotentHint is true when every tool is idempotent.
+//   - OpenWorldHint is explicitly false when no tool interacts with an open world.
+func agentToolAnnotations(ctx context.Context, ag *agent.Agent) (*mcp.ToolAnnotations, error) {
 	allTools, err := ag.Tools(ctx)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
+	readOnly := true
+	destructive := false
+	idempotent := true
+	openWorld := false
+
 	for _, tool := range allTools {
-		if !tool.Annotations.ReadOnlyHint {
-			return false, nil
+		a := tool.Annotations
+		if !a.ReadOnlyHint {
+			readOnly = false
+		}
+		if !a.IdempotentHint {
+			idempotent = false
+		}
+		// *bool hints default to true per the MCP spec; nil means "assumed true".
+		if optionalBool(a.DestructiveHint, true) {
+			destructive = true
+		}
+		if optionalBool(a.OpenWorldHint, true) {
+			openWorld = true
 		}
 	}
 
-	return true, nil
+	annotations := &mcp.ToolAnnotations{
+		ReadOnlyHint:   readOnly,
+		IdempotentHint: idempotent,
+	}
+	// Only set *bool fields explicitly when they differ from the spec default
+	// (true), so that nil keeps its "default" semantics on the wire.
+	if !destructive {
+		annotations.DestructiveHint = new(bool)
+	}
+	if !openWorld {
+		annotations.OpenWorldHint = new(bool)
+	}
+
+	return annotations, nil
+}
+
+// optionalBool returns the value of p, or fallback when p is nil.
+func optionalBool(p *bool, fallback bool) bool {
+	if p != nil {
+		return *p
+	}
+	return fallback
 }
