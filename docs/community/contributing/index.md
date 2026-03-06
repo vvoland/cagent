@@ -57,7 +57,7 @@ export ANTHROPIC_API_KEY=your_key_here
 Use docker-agent to work on docker-agent! The project includes a specialized developer agent:
 
 ```bash
-cd cagent
+cd docker-agent
 docker agent run ./golang_developer.yaml
 ```
 
