@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/docker/cagent/pkg/model/provider"
 	"github.com/docker/cagent/pkg/runtime"
 )
 
@@ -361,6 +362,7 @@ func TestIsValidProvider(t *testing.T) {
 		{"ollama", true},
 		{"azure", true},
 		{"requesty", true},
+		{"minimax", true},
 		{"OPENAI", true}, // case insensitive
 		{"OpenAI", true}, // case insensitive
 		{"unknown", false},
@@ -371,7 +373,7 @@ func TestIsValidProvider(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.provider, func(t *testing.T) {
 			t.Parallel()
-			got := isValidProvider(tt.provider)
+			got := provider.IsKnownProvider(tt.provider)
 			assert.Equal(t, tt.want, got)
 		})
 	}

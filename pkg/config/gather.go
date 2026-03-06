@@ -103,7 +103,7 @@ func addEnvVarsForModelConfig(model *latest.ModelConfig, customProviders map[str
 			requiredEnv[alias.TokenEnvVar] = true
 		}
 	} else {
-		// Fallback to hardcoded mappings for unknown providers
+		// Fallback to hardcoded mappings for core providers
 		switch model.Provider {
 		case "openai":
 			requiredEnv["OPENAI_API_KEY"] = true
@@ -118,8 +118,6 @@ func addEnvVarsForModelConfig(model *latest.ModelConfig, customProviders map[str
 					requiredEnv["GOOGLE_API_KEY"] = true
 				}
 			}
-		case "mistral":
-			requiredEnv["MISTRAL_API_KEY"] = true
 		}
 	}
 }
