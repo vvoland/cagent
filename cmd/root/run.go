@@ -11,6 +11,7 @@ import (
 	goruntime "runtime"
 	"runtime/pprof"
 	"sync"
+	"time"
 
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
@@ -266,10 +267,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 	var initialTeamCleanupOnce sync.Once
 	initialTeamCleanup := func() {
 		initialTeamCleanupOnce.Do(func() {
-			cleanupCtx := context.WithoutCancel(ctx)
-			if err := loadResult.Team.StopToolSets(cleanupCtx); err != nil {
-				slog.Error("Failed to stop tool sets", "error", err)
-			}
+			stopToolSets(loadResult.Team)
 		})
 	}
 	defer initialTeamCleanup()
@@ -560,8 +558,7 @@ func (f *runExecFlags) createSessionSpawner(agentSource config.Source, sessStore
 
 		// Create cleanup function
 		cleanup := func() {
-			cleanupCtx := context.WithoutCancel(spawnCtx)
-			_ = team.StopToolSets(cleanupCtx)
+			stopToolSets(team)
 		}
 
 		// Create the app
@@ -575,6 +572,21 @@ func (f *runExecFlags) createSessionSpawner(agentSource config.Source, sessStore
 		a := app.New(spawnCtx, localRt, newSess, appOpts...)
 
 		return a, newSess, cleanup, nil
+	}
+}
+
+// toolStopper is the subset of *team.Team needed by stopToolSets.
+type toolStopper interface {
+	StopToolSets(ctx context.Context) error
+}
+
+// stopToolSets gracefully stops all tool sets with a bounded timeout so
+// that cleanup cannot block indefinitely.
+func stopToolSets(t toolStopper) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := t.StopToolSets(ctx); err != nil {
+		slog.Error("Failed to stop tool sets", "error", err)
 	}
 }
 

@@ -59,11 +59,7 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer func() {
-		// Use a fresh context for cleanup since the original may be canceled
-		cleanupCtx := context.WithoutCancel(ctx)
-		_ = t.StopToolSets(cleanupCtx)
-	}()
+	defer stopToolSets(t)
 
 	rt, err := runtime.New(t)
 	if err != nil {

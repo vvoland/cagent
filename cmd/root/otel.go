@@ -67,7 +67,9 @@ func initOTelSDK(ctx context.Context) (err error) {
 
 	go func() {
 		<-ctx.Done()
-		_ = tp.Shutdown(context.Background())
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = tp.Shutdown(shutdownCtx)
 	}()
 
 	return nil
