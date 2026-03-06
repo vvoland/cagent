@@ -84,7 +84,7 @@ Key conventions:
 
 ## Opening Issues
 
-File issues on the [GitHub issue tracker](https://github.com/docker/cagent/issues). Please:
+File issues on the [GitHub issue tracker](https://github.com/docker/docker-agent/issues). Please:
 
 <div class="callout callout-info">
 <div class="callout-title">ℹ️ See also
