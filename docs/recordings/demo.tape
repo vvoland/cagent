@@ -3,8 +3,6 @@
 
 Output docs/demo.gif
 
-Require cagent
-
 Set Shell "zsh"
 Set FontSize 24
 Set Width 2000
@@ -14,7 +12,7 @@ Set Padding 0
 Set WindowBar Colorful
 Set BorderRadius 10
 
-Type "cagent run ./examples/gopher.yaml" Sleep 3s Enter
+Type "docker agent run ./examples/gopher.yaml" Sleep 3s Enter
 Sleep 1s
 
 Type "Summarize README.md and explain what this project does" Sleep 1s Enter
