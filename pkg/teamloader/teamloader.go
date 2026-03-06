@@ -3,6 +3,8 @@ package teamloader
 import (
 	"cmp"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -483,18 +485,21 @@ func getToolsForAgent(ctx context.Context, a *latest.AgentConfig, parentDir stri
 }
 
 // configNameFromSource extracts a clean config name from a source name.
-// For file sources this strips the directory and extension (e.g. "/path/to/memory_agent.yaml" -> "memory_agent").
-// For non-file sources (OCI refs, URLs) it returns the full name sanitised for use as a directory.
+// The result is "<basename>-<hash>" where basename comes from the file name
+// (e.g. "memory_agent" from "/path/to/memory_agent.yaml") and hash is a short
+// SHA-256 of the full source name to prevent collisions between identically
+// named configs in different directories.
 func configNameFromSource(sourceName string) string {
 	base := filepath.Base(sourceName)
 	ext := filepath.Ext(base)
 	if ext != "" {
 		base = base[:len(base)-len(ext)]
 	}
-	if base == "" || base == "." {
-		return "default"
+	if base == "" || base == "." || base == ".." {
+		base = "default"
 	}
-	return base
+	h := sha256.Sum256([]byte(sourceName))
+	return base + "-" + hex.EncodeToString(h[:4])
 }
 
 // resolveAgentRefs resolves a list of agent references to agent instances.

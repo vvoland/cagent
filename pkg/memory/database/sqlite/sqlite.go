@@ -29,7 +29,12 @@ func NewMemoryDatabase(path string) (database.Database, error) {
 	}
 
 	// Add category column if it doesn't exist (transparent migration)
-	_, _ = db.ExecContext(context.Background(), "ALTER TABLE memories ADD COLUMN category TEXT DEFAULT ''")
+	if _, err := db.ExecContext(context.Background(), "ALTER TABLE memories ADD COLUMN category TEXT DEFAULT ''"); err != nil {
+		if !strings.Contains(err.Error(), "duplicate column name") {
+			db.Close()
+			return nil, fmt.Errorf("memory database migration failed: %w", err)
+		}
+	}
 
 	return &MemoryDatabase{db: db}, nil
 }
@@ -79,8 +84,11 @@ func (m *MemoryDatabase) SearchMemories(ctx context.Context, query, category str
 	if query != "" {
 		words := strings.Fields(query)
 		for _, word := range words {
-			conditions = append(conditions, "LOWER(memory) LIKE LOWER(?)")
-			args = append(args, "%"+word+"%")
+			conditions = append(conditions, "LOWER(memory) LIKE LOWER(?) ESCAPE '\\'")
+			escaped := strings.ReplaceAll(word, `\`, `\\`)
+			escaped = strings.ReplaceAll(escaped, `%`, `\%`)
+			escaped = strings.ReplaceAll(escaped, `_`, `\_`)
+			args = append(args, "%"+escaped+"%")
 		}
 	}
 
