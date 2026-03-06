@@ -34,7 +34,7 @@ func (m *MockDB) DeleteMemory(ctx context.Context, memory database.UserMemory) e
 	return args.Error(0)
 }
 
-func (m *MockDB) SearchMemories(ctx context.Context, query string, category string) ([]database.UserMemory, error) {
+func (m *MockDB) SearchMemories(ctx context.Context, query, category string) ([]database.UserMemory, error) {
 	args := m.Called(ctx, query, category)
 	return args.Get(0).([]database.UserMemory), args.Error(1)
 }

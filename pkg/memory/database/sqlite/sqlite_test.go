@@ -298,7 +298,7 @@ func TestMigrationAddsCategory(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, memories, 1)
 	assert.Equal(t, "Old memory without category", memories[0].Memory)
-	assert.Equal(t, "", memories[0].Category)
+	assert.Empty(t, memories[0].Category)
 }
 
 func TestDatabaseOperationsWithCanceledContext(t *testing.T) {

@@ -72,7 +72,7 @@ func (m *MemoryDatabase) DeleteMemory(ctx context.Context, memory database.UserM
 	return err
 }
 
-func (m *MemoryDatabase) SearchMemories(ctx context.Context, query string, category string) ([]database.UserMemory, error) {
+func (m *MemoryDatabase) SearchMemories(ctx context.Context, query, category string) ([]database.UserMemory, error) {
 	var conditions []string
 	var args []any
 
@@ -89,12 +89,12 @@ func (m *MemoryDatabase) SearchMemories(ctx context.Context, query string, categ
 		args = append(args, category)
 	}
 
-	sql := "SELECT id, created_at, memory, COALESCE(category, '') FROM memories"
+	stmt := "SELECT id, created_at, memory, COALESCE(category, '') FROM memories"
 	if len(conditions) > 0 {
-		sql += " WHERE " + strings.Join(conditions, " AND ")
+		stmt += " WHERE " + strings.Join(conditions, " AND ")
 	}
 
-	rows, err := m.db.QueryContext(ctx, sql, args...)
+	rows, err := m.db.QueryContext(ctx, stmt, args...)
 	if err != nil {
 		return nil, err
 	}

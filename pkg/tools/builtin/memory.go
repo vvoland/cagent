@@ -22,7 +22,7 @@ type DB interface {
 	AddMemory(ctx context.Context, memory database.UserMemory) error
 	GetMemories(ctx context.Context) ([]database.UserMemory, error)
 	DeleteMemory(ctx context.Context, memory database.UserMemory) error
-	SearchMemories(ctx context.Context, query string, category string) ([]database.UserMemory, error)
+	SearchMemories(ctx context.Context, query, category string) ([]database.UserMemory, error)
 	UpdateMemory(ctx context.Context, memory database.UserMemory) error
 }
 

@@ -21,6 +21,6 @@ type Database interface {
 	AddMemory(ctx context.Context, memory UserMemory) error
 	GetMemories(ctx context.Context) ([]UserMemory, error)
 	DeleteMemory(ctx context.Context, memory UserMemory) error
-	SearchMemories(ctx context.Context, query string, category string) ([]UserMemory, error)
+	SearchMemories(ctx context.Context, query, category string) ([]UserMemory, error)
 	UpdateMemory(ctx context.Context, memory UserMemory) error
 }
