@@ -30,10 +30,10 @@ jobs:
 
           $Version = $ENV:VERSION
           $DryRun = $ENV:DRY_RUN -eq 'true'
-          $PackageId = "Docker.Cagent"
+          $PackageId = "Docker.Agent"
           $Urls = @(
-            "https://github.com/docker/cagent/releases/download/$Version/cagent-windows-amd64.exe|amd64",
-            "https://github.com/docker/cagent/releases/download/$Version/cagent-windows-arm64.exe|arm64"
+            "https://github.com/docker/docker-agent/releases/download/$Version/docker-agent-windows-amd64.exe|amd64",
+            "https://github.com/docker/docker-agent/releases/download/$Version/docker-agent-windows-arm64.exe|arm64"
           )
 
           # Build command with conditional -s flag
