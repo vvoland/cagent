@@ -9,23 +9,43 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestWithModelName(t *testing.T) {
+func TestHeaders(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name      string
-		modelName string
-		wantSet   bool
+		name       string
+		opts       []Opt
+		wantHeader string
+		wantValue  string
 	}{
 		{
-			name:      "sets header when name is provided",
-			modelName: "my-fast-model",
-			wantSet:   true,
+			name:       "WithModel sets X-Cagent-Model",
+			opts:       []Opt{WithModel("gpt-4o")},
+			wantHeader: "X-Cagent-Model",
+			wantValue:  "gpt-4o",
 		},
 		{
-			name:      "skips header when name is empty",
-			modelName: "",
-			wantSet:   false,
+			name:       "WithModelName sets X-Cagent-Model-Name",
+			opts:       []Opt{WithModelName("my-fast-model")},
+			wantHeader: "X-Cagent-Model-Name",
+			wantValue:  "my-fast-model",
+		},
+		{
+			name:       "WithModelName skips header when empty",
+			opts:       []Opt{WithModelName("")},
+			wantHeader: "X-Cagent-Model-Name",
+			wantValue:  "",
+		},
+		{
+			name:       "WithProvider sets X-Cagent-Provider",
+			opts:       []Opt{WithProvider("openai")},
+			wantHeader: "X-Cagent-Provider",
+			wantValue:  "openai",
+		},
+		{
+			name:       "compression is disabled to support SSE streaming",
+			wantHeader: "Accept-Encoding",
+			wantValue:  "",
 		},
 	}
 
@@ -33,31 +53,21 @@ func TestWithModelName(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var capturedHeaders http.Header
-			srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-				capturedHeaders = r.Header
-			}))
-			defer srv.Close()
+			headers := doRequest(t, tt.opts...)
 
-			client := NewHTTPClient(WithModelName(tt.modelName))
-			req, err := http.NewRequest(http.MethodGet, srv.URL, http.NoBody)
-			require.NoError(t, err)
-
-			resp, err := client.Do(req)
-			require.NoError(t, err)
-			defer func() { _ = resp.Body.Close() }()
-
-			if tt.wantSet {
-				assert.Equal(t, tt.modelName, capturedHeaders.Get("X-Cagent-Model-Name"))
+			if tt.wantValue != "" {
+				assert.Equal(t, tt.wantValue, headers.Get(tt.wantHeader))
 			} else {
-				assert.Empty(t, capturedHeaders.Get("X-Cagent-Model-Name"))
+				assert.Empty(t, headers.Get(tt.wantHeader))
 			}
 		})
 	}
 }
 
-func TestWithModel(t *testing.T) {
-	t.Parallel()
+// doRequest creates an HTTP client with the given options, sends a GET request
+// to a test server, and returns the headers the server received.
+func doRequest(t *testing.T, opts ...Opt) http.Header {
+	t.Helper()
 
 	var capturedHeaders http.Header
 	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
@@ -65,7 +75,7 @@ func TestWithModel(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewHTTPClient(WithModel("gpt-4o"))
+	client := NewHTTPClient(opts...)
 	req, err := http.NewRequest(http.MethodGet, srv.URL, http.NoBody)
 	require.NoError(t, err)
 
@@ -73,25 +83,5 @@ func TestWithModel(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
-	assert.Equal(t, "gpt-4o", capturedHeaders.Get("X-Cagent-Model"))
-}
-
-func TestWithProvider(t *testing.T) {
-	t.Parallel()
-
-	var capturedHeaders http.Header
-	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-		capturedHeaders = r.Header
-	}))
-	defer srv.Close()
-
-	client := NewHTTPClient(WithProvider("openai"))
-	req, err := http.NewRequest(http.MethodGet, srv.URL, http.NoBody)
-	require.NoError(t, err)
-
-	resp, err := client.Do(req)
-	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
-
-	assert.Equal(t, "openai", capturedHeaders.Get("X-Cagent-Provider"))
+	return capturedHeaders
 }

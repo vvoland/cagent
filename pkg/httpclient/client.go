@@ -29,10 +29,15 @@ func NewHTTPClient(opts ...Opt) *http.Client {
 	// Enforce a consistent User-Agent header
 	httpOptions.Header.Set("User-Agent", fmt.Sprintf("Cagent/%s (%s; %s)", version.Version, runtime.GOOS, runtime.GOARCH))
 
+	// Disable automatic gzip: Go's default transport transparently compresses
+	// and decompresses responses, which is incompatible with SSE streaming.
+	// See https://github.com/docker/docker-agent/issues/1956
+	rt := newTransport()
+
 	return &http.Client{
 		Transport: &userAgentTransport{
 			httpOptions: httpOptions,
-			rt:          http.DefaultTransport,
+			rt:          rt,
 		},
 	}
 }
@@ -88,6 +93,17 @@ func WithQuery(query url.Values) Opt {
 	return func(o *HTTPOptions) {
 		o.Query = query
 	}
+}
+
+// newTransport returns an HTTP transport with automatic gzip compression disabled.
+func newTransport() http.RoundTripper {
+	t, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		return http.DefaultTransport
+	}
+	transport := t.Clone()
+	transport.DisableCompression = true
+	return transport
 }
 
 type userAgentTransport struct {
