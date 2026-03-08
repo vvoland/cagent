@@ -137,7 +137,7 @@ $ docker agent serve acp agent.yaml
 
 See [ACP](/features/acp/) for details on the Agent Client Protocol.
 
-### `docker agent share push` / `docker agent pull`
+### `docker agent share push` / `docker agent share pull`
 
 Share agents via OCI registries.
 

@@ -33,10 +33,10 @@ $ docker agent share push ./agent.yaml ghcr.io/username/my-agent:v1.0
 
 ```bash
 # Pull an agent
-$ docker agent pull docker.io/username/my-agent:latest
+$ docker agent share pull docker.io/username/my-agent:latest
 
 # Pull from the agent catalog
-$ docker agent pull agentcatalog/pirate
+$ docker agent share pull agentcatalog/pirate
 ```
 
 ## Running from a Registry
