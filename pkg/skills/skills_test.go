@@ -89,7 +89,39 @@ Body`,
 				License:       "Apache-2.0",
 				Compatibility: "Requires docker and git",
 				Metadata:      map[string]string{"author": "test-org", "version": "1.0"},
-				AllowedTools:  []string{"Bash(git:*)", "Read", "Write"},
+				AllowedTools:  stringOrList{"Bash(git:*)", "Read", "Write"},
+			},
+			wantOK: true,
+		},
+		{
+			name: "allowed-tools as comma-separated string",
+			content: `---
+name: csv-skill
+description: Skill with comma-separated allowed tools
+allowed-tools: Read, Grep, Write
+---
+
+Body`,
+			want: Skill{
+				Name:         "csv-skill",
+				Description:  "Skill with comma-separated allowed tools",
+				AllowedTools: stringOrList{"Read", "Grep", "Write"},
+			},
+			wantOK: true,
+		},
+		{
+			name: "allowed-tools as single string without commas",
+			content: `---
+name: single-tool-skill
+description: Skill with a single allowed tool
+allowed-tools: Read
+---
+
+Body`,
+			want: Skill{
+				Name:         "single-tool-skill",
+				Description:  "Skill with a single allowed tool",
+				AllowedTools: stringOrList{"Read"},
 			},
 			wantOK: true,
 		},
@@ -225,7 +257,7 @@ allowed-tools:
 	assert.Equal(t, "Apache-2.0", skills[0].License)
 	assert.Equal(t, "Requires docker", skills[0].Compatibility)
 	assert.Equal(t, map[string]string{"author": "test-org", "version": "2.0"}, skills[0].Metadata)
-	assert.Equal(t, []string{"Bash(git:*)", "Read"}, skills[0].AllowedTools)
+	assert.Equal(t, stringOrList{"Bash(git:*)", "Read"}, skills[0].AllowedTools)
 }
 
 func TestLoadSkillsFromDir_NonExistentDir(t *testing.T) {

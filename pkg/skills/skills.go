@@ -24,7 +24,34 @@ type Skill struct {
 	License       string            `yaml:"license"`
 	Compatibility string            `yaml:"compatibility"`
 	Metadata      map[string]string `yaml:"metadata"`
-	AllowedTools  []string          `yaml:"allowed-tools"`
+	AllowedTools  stringOrList      `yaml:"allowed-tools"`
+}
+
+// stringOrList is a []string that can be unmarshalled from either a YAML list
+// or a single comma-separated string (e.g. "Read, Grep").
+type stringOrList []string
+
+func (s *stringOrList) UnmarshalYAML(unmarshal func(any) error) error {
+	var list []string
+	if err := unmarshal(&list); err == nil {
+		*s = list
+		return nil
+	}
+
+	var single string
+	if err := unmarshal(&single); err != nil {
+		return err
+	}
+
+	parts := strings.Split(single, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if t := strings.TrimSpace(p); t != "" {
+			result = append(result, t)
+		}
+	}
+	*s = result
+	return nil
 }
 
 // Load discovers and loads skills from the given sources.
