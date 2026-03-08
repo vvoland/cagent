@@ -84,7 +84,7 @@ The API server supports OCI references with auto-refresh:
 
 ```bash
 # Start API from registry, auto-pull every 10 minutes
-$ docker agent api docker.io/username/agent:latest --pull-interval 10
+$ docker agent serve api docker.io/username/agent:latest --pull-interval 10
 ```
 
 ## Private Repositories

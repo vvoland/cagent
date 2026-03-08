@@ -89,12 +89,12 @@ $ docker agent new --model dmr/ai/gemma3-qat:12B --max-iterations 15
 Start the HTTP API server for programmatic access.
 
 ```bash
-$ docker agent api [config] [flags]
+$ docker agent serve api [config] [flags]
 
 # Examples
-$ docker agent api agent.yaml
-$ docker agent api agent.yaml --listen :8080
-$ docker agent api ociReference --pull-interval 10  # auto-refresh
+$ docker agent serve api agent.yaml
+$ docker agent serve api agent.yaml --listen :8080
+$ docker agent serve api ociReference --pull-interval 10  # auto-refresh
 ```
 
 ### `docker agent serve mcp`

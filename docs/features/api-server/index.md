@@ -14,16 +14,16 @@ The `docker agent serve api` command starts an HTTP server that exposes your age
 
 ```bash
 # Start the API server
-$ docker agent api agent.yaml
+$ docker agent serve api agent.yaml
 
 # Custom listen address
-$ docker agent api agent.yaml --listen 0.0.0.0:8080
+$ docker agent serve api agent.yaml --listen 0.0.0.0:8080
 
 # With session persistence
-$ docker agent api agent.yaml --session-db ./sessions.db
+$ docker agent serve api agent.yaml --session-db ./sessions.db
 
 # Auto-refresh from OCI registry every 10 minutes
-$ docker agent api agentcatalog/coder --pull-interval 10
+$ docker agent serve api agentcatalog/coder --pull-interval 10
 ```
 
 ## Endpoints
