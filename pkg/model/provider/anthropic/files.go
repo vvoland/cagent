@@ -368,24 +368,6 @@ func (fm *FileManager) CachedCount() int {
 	return len(fm.uploads)
 }
 
-// hashFile computes the SHA256 hash of a file's contents.
-// Note: This function is only used for testing and legacy code paths.
-// The main GetOrUpload path computes the hash inline to avoid opening the file twice.
-func hashFile(filePath string) (string, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	h := sha256.New()
-	if _, err := io.Copy(h, file); err != nil {
-		return "", err
-	}
-
-	return hex.EncodeToString(h.Sum(nil)), nil
-}
-
 // IsImageMime returns true if the MIME type is an image type supported by Anthropic.
 func IsImageMime(mimeType string) bool {
 	switch mimeType {

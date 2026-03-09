@@ -207,22 +207,8 @@ func (c *Client) convertBetaUserMultiContent(ctx context.Context, parts []chat.M
 			if strings.HasPrefix(part.ImageURL.URL, "data:") {
 				urlParts := strings.SplitN(part.ImageURL.URL, ",", 2)
 				if len(urlParts) == 2 {
-					mediaTypePart := urlParts[0]
+					mediaType := extractMediaType(urlParts[0])
 					base64Data := urlParts[1]
-
-					var mediaType string
-					switch {
-					case strings.Contains(mediaTypePart, "image/jpeg"):
-						mediaType = "image/jpeg"
-					case strings.Contains(mediaTypePart, "image/png"):
-						mediaType = "image/png"
-					case strings.Contains(mediaTypePart, "image/gif"):
-						mediaType = "image/gif"
-					case strings.Contains(mediaTypePart, "image/webp"):
-						mediaType = "image/webp"
-					default:
-						mediaType = "image/jpeg"
-					}
 
 					contentBlocks = append(contentBlocks, anthropic.BetaContentBlockParamUnion{
 						OfImage: &anthropic.BetaImageBlockParam{

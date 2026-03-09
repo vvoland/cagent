@@ -1,6 +1,9 @@
 package anthropic
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +14,22 @@ import (
 
 	"github.com/docker/docker-agent/pkg/chat"
 )
+
+// hashFile computes the SHA256 hash of a file's contents.
+func hashFile(filePath string) (string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, file); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
 
 func TestDetectMimeType(t *testing.T) {
 	tests := []struct {
