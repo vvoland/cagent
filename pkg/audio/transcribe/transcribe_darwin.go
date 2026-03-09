@@ -54,6 +54,10 @@ func New(apiKey string) *Transcriber {
 // transcription delta received. Returns an error if already running or if
 // connection fails. Call Stop to end transcription.
 func (t *Transcriber) Start(ctx context.Context, handler TranscriptHandler) error {
+	if t.apiKey == "" {
+		return fmt.Errorf("speech-to-text requires the OPENAI_API_KEY environment variable to be set")
+	}
+
 	if wasRunning := t.running.Swap(true); wasRunning {
 		return fmt.Errorf("transcriber already running")
 	}
