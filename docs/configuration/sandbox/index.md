@@ -60,28 +60,3 @@ docker agent run --sandbox agent.yaml
 - Container starts fresh each session (no persistence between sessions)
 
 </div>
-
-## Combining with Permissions
-
-For defense in depth, combine sandbox mode with [permissions](/configuration/permissions/):
-
-```yaml
-agents:
-  root:
-    model: openai/gpt-4o
-    description: Secure development agent
-    instruction: You are a helpful assistant.
-    toolsets:
-      - type: shell
-      - type: filesystem
-
-permissions:
-  allow:
-    - "shell:cmd=npm*"
-    - "shell:cmd=node*"
-    - "shell:cmd=ls*"
-  deny:
-    - "shell:cmd=sudo*"
-    - "shell:cmd=curl*"
-    - "shell:cmd=wget*"
-```
