@@ -10,7 +10,6 @@ import (
 
 	"github.com/docker/cagent/pkg/cli"
 	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/connectrpc"
 	"github.com/docker/cagent/pkg/server"
 	"github.com/docker/cagent/pkg/session"
 	"github.com/docker/cagent/pkg/telemetry"
@@ -22,7 +21,6 @@ type apiFlags struct {
 	pullIntervalMins int
 	fakeResponses    string
 	recordPath       string
-	connectRPC       bool
 	runConfig        config.RuntimeConfig
 }
 
@@ -41,7 +39,6 @@ func newAPICmd() *cobra.Command {
 	cmd.PersistentFlags().IntVar(&flags.pullIntervalMins, "pull-interval", 0, "Auto-pull OCI reference every N minutes (0 = disabled)")
 	cmd.PersistentFlags().StringVar(&flags.fakeResponses, "fake", "", "Replay AI responses from cassette file (for testing)")
 	cmd.PersistentFlags().StringVar(&flags.recordPath, "record", "", "Record AI API interactions to cassette file")
-	cmd.PersistentFlags().BoolVar(&flags.connectRPC, "connect-rpc", false, "Use Connect-RPC protocol instead of HTTP/JSON API")
 	cmd.MarkFlagsMutuallyExclusive("fake", "record")
 	addRuntimeConfigFlags(cmd, &flags.runConfig)
 
@@ -114,14 +111,6 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 	sources, err := config.ResolveSources(agentsPath, f.runConfig.EnvProvider())
 	if err != nil {
 		return fmt.Errorf("resolving agent sources: %w", err)
-	}
-
-	if f.connectRPC {
-		s, err := connectrpc.New(ctx, sessionStore, &f.runConfig, time.Duration(f.pullIntervalMins)*time.Minute, sources)
-		if err != nil {
-			return fmt.Errorf("creating Connect-RPC server: %w", err)
-		}
-		return s.Serve(ctx, ln)
 	}
 
 	s, err := server.New(ctx, sessionStore, &f.runConfig, time.Duration(f.pullIntervalMins)*time.Minute, sources)

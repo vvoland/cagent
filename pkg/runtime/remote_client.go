@@ -37,8 +37,4 @@ type RemoteClient interface {
 	GetAgentToolCount(ctx context.Context, agentFilename, agentName string) (int, error)
 }
 
-// Verify that both clients implement RemoteClient
-var (
-	_ RemoteClient = (*Client)(nil)
-	_ RemoteClient = (*ConnectRPCClient)(nil)
-)
+var _ RemoteClient = (*Client)(nil)

@@ -36,7 +36,6 @@ type runExecFlags struct {
 	autoApprove       bool
 	attachmentPath    string
 	remoteAddress     string
-	connectRPC        bool
 	modelOverrides    []string
 	promptFiles       []string
 	dryRun            bool
@@ -98,7 +97,6 @@ func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 	cmd.PersistentFlags().StringArrayVar(&flags.modelOverrides, "model", nil, "Override agent model: [agent=]provider/model (repeatable)")
 	cmd.PersistentFlags().BoolVar(&flags.dryRun, "dry-run", false, "Initialize the agent without executing anything")
 	cmd.PersistentFlags().StringVar(&flags.remoteAddress, "remote", "", "Use remote runtime with specified address")
-	cmd.PersistentFlags().BoolVar(&flags.connectRPC, "connect-rpc", false, "Use Connect-RPC protocol for remote communication (requires --remote)")
 	cmd.PersistentFlags().StringVarP(&flags.sessionDB, "session-db", "s", filepath.Join(paths.GetHomeDir(), ".cagent", "session.db"), "Path to the session database")
 	cmd.PersistentFlags().StringVar(&flags.sessionID, "session", "", "Continue from a previous session by ID or relative offset (e.g., -1 for last session)")
 	cmd.PersistentFlags().StringVar(&flags.fakeResponses, "fake", "", "Replay AI responses from cassette file (for testing)")
@@ -312,15 +310,7 @@ func (f *runExecFlags) loadAgentFrom(ctx context.Context, agentSource config.Sou
 }
 
 func (f *runExecFlags) createRemoteRuntimeAndSession(ctx context.Context, originalFilename string) (runtime.Runtime, *session.Session, error) {
-	var (
-		client runtime.RemoteClient
-		err    error
-	)
-	if f.connectRPC {
-		client, err = runtime.NewConnectRPCClient(f.remoteAddress)
-	} else {
-		client, err = runtime.NewClient(f.remoteAddress)
-	}
+	client, err := runtime.NewClient(f.remoteAddress)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create remote client: %w", err)
 	}
@@ -342,7 +332,7 @@ func (f *runExecFlags) createRemoteRuntimeAndSession(ctx context.Context, origin
 		return nil, nil, fmt.Errorf("failed to create remote runtime: %w", err)
 	}
 
-	slog.Debug("Using remote runtime", "address", f.remoteAddress, "agent", f.agentName, "connect_rpc", f.connectRPC)
+	slog.Debug("Using remote runtime", "address", f.remoteAddress, "agent", f.agentName)
 	return remoteRt, sess, nil
 }
 

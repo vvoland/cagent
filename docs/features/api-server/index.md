@@ -128,7 +128,6 @@ docker-agent api <agent-file>|<agents-dir> [flags]
 | `-l, --listen`     | `127.0.0.1:8080` | Address to listen on                             |
 | `-s, --session-db` | `session.db`     | Path to the SQLite session database              |
 | `--pull-interval`  | `0` (disabled)   | Auto-pull OCI reference every N minutes          |
-| `--connect-rpc`    | `false`          | Use Connect-RPC protocol instead of HTTP/JSON    |
 | `--fake`           | (none)           | Replay AI responses from cassette file (testing) |
 | `--record`         | (none)           | Record AI API interactions to cassette file      |
 
