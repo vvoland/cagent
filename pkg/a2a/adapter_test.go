@@ -11,7 +11,7 @@ import (
 	"github.com/docker/cagent/pkg/teamloader"
 )
 
-func TestNewCAgentAdapter(t *testing.T) {
+func TestNewDockerAgentAdapter(t *testing.T) {
 	t.Setenv("OPENAI_API_KEY", "DUMMY")
 
 	agentSource, err := config.Resolve("testdata/basic.yaml", nil)
@@ -23,7 +23,7 @@ func TestNewCAgentAdapter(t *testing.T) {
 		require.NoError(t, team.StopToolSets(t.Context()))
 	}()
 
-	adapter, err := newCAgentAdapter(team, "root")
+	adapter, err := newDockerAgentAdapter(team, "root")
 
 	require.NoError(t, err)
 	assert.Equal(t, "root", adapter.Name())
@@ -42,7 +42,7 @@ func TestNewCAgentAdapter_NonExistent(t *testing.T) {
 		require.NoError(t, team.StopToolSets(t.Context()))
 	}()
 
-	_, err = newCAgentAdapter(team, "nonexistent")
+	_, err = newDockerAgentAdapter(team, "nonexistent")
 
 	assert.Contains(t, err.Error(), "failed to get agent")
 }
