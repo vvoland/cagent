@@ -10,10 +10,10 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"charm.land/glamour/v2/ansi"
 	"charm.land/lipgloss/v2"
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
-	"github.com/charmbracelet/glamour/v2/ansi"
 	runewidth "github.com/mattn/go-runewidth"
 
 	"github.com/docker/docker-agent/pkg/tui/styles"

@@ -1,7 +1,7 @@
 package markdown
 
 import (
-	"github.com/charmbracelet/glamour/v2"
+	"charm.land/glamour/v2"
 
 	"github.com/docker/docker-agent/pkg/tui/styles"
 )
