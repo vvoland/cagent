@@ -72,7 +72,7 @@ tasks:
 
   build-local:
     desc: Build binaries for local host platform
-    cmd: docker buildx build --target=local {{.BUILD_ARGS}} --platform local --output=./dist . {{if eq OS "windows"}}&& mv ./dist/cagent ./dist/cagent.exe{{end}}
+    cmd: docker buildx build --target=local {{.BUILD_ARGS}} --platform local --output=./dist . {{if eq OS "windows"}}&& mv ./dist/docker-agent ./dist/docker-agent.exe{{end}}
 
   cross:
     desc: Build binaries for multiple platforms
@@ -80,15 +80,11 @@ tasks:
 
   build-image:
     desc: Build Docker image
-    cmd: docker buildx build -t docker/cagent -t docker/docker-agent {{.BUILD_ARGS}} .
+    cmd: docker buildx build -t docker/docker-agent {{.BUILD_ARGS}} .
 
   push-image:
     desc: Build and Push Docker image
-    cmd: docker buildx build --push --platform linux/amd64,linux/arm64 -t docker/cagent -t docker/docker-agent  {{.BUILD_ARGS}} .
-
-  build-sandbox-template:
-    desc: Build a sandbox template with the local cagent binary
-    cmd: docker buildx build --target=sandbox-template -t cagent-dev {{.BUILD_ARGS}} --load .
+    cmd: docker buildx build --push --platform linux/amd64,linux/arm64 -t docker/docker-agent  {{.BUILD_ARGS}} .
 
   record-demo:
     desc: Record demo gif

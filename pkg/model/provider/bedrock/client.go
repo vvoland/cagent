@@ -185,7 +185,7 @@ func buildAWSConfig(ctx context.Context, cfg *latest.ModelConfig, env environmen
 			if sessionName := getProviderOpt[string](cfg.ProviderOpts, "role_session_name"); sessionName != "" {
 				o.RoleSessionName = sessionName
 			} else {
-				o.RoleSessionName = "cagent-bedrock-session"
+				o.RoleSessionName = "docker-agent-bedrock-session"
 			}
 			if externalID := getProviderOpt[string](cfg.ProviderOpts, "external_id"); externalID != "" {
 				o.ExternalID = aws.String(externalID)

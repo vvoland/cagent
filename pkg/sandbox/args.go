@@ -96,7 +96,7 @@ func isEqualsFormOf(arg string, flags map[string]bool) bool {
 }
 
 // AgentRefFromArgs returns the first positional (non-flag) argument from the
-// cagent arg list, which is the agent file reference. Returns "" if there are
+// docker-agent arg list, which is the agent file reference. Returns "" if there are
 // no positional arguments.
 func AgentRefFromArgs(args []string) string {
 	for _, a := range args {

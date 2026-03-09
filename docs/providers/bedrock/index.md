@@ -77,7 +77,7 @@ models:
 | `region`                 | string | us-east-1              | AWS region                           |
 | `profile`                | string | —                      | AWS profile name                     |
 | `role_arn`               | string | —                      | IAM role ARN for assume role         |
-| `role_session_name`      | string | cagent-bedrock-session | Session name for assumed role        |
+| `role_session_name`      | string | docker-agent-bedrock-session | Session name for assumed role        |
 | `external_id`            | string | —                      | External ID for role assumption      |
 | `endpoint_url`           | string | —                      | Custom endpoint (VPC/testing)        |
 | `interleaved_thinking`   | bool   | true                   | Reasoning during tool calls (Claude) |

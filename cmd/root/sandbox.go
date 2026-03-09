@@ -30,14 +30,14 @@ func runInSandbox(cmd *cobra.Command, runConfig *config.RuntimeConfig, template 
 		return err
 	}
 
-	cagentArgs := sandbox.BuildCagentArgs(os.Args)
-	agentRef := sandbox.AgentRefFromArgs(cagentArgs)
+	dockerAgentArgs := sandbox.BuildCagentArgs(os.Args)
+	agentRef := sandbox.AgentRefFromArgs(dockerAgentArgs)
 	configDir := paths.GetConfigDir()
 
 	// Always forward config directory paths so the sandbox-side
 	// docker agent resolves it to the same host directories
 	// (which is mounted read-write by ensureSandbox).
-	cagentArgs = sandbox.AppendFlagIfMissing(cagentArgs, "--config-dir", configDir)
+	dockerAgentArgs = sandbox.AppendFlagIfMissing(dockerAgentArgs, "--config-dir", configDir)
 
 	stopTokenWriter := sandbox.StartTokenWriterIfNeeded(ctx, configDir, runConfig.ModelsGateway)
 	defer stopTokenWriter()
@@ -60,7 +60,7 @@ func runInSandbox(cmd *cobra.Command, runConfig *config.RuntimeConfig, template 
 		envFlags = append(envFlags, "-e", envModelsGateway+"="+gateway)
 	}
 
-	dockerCmd := sandbox.BuildExecCmd(ctx, name, cagentArgs, envFlags, envVars)
+	dockerCmd := sandbox.BuildExecCmd(ctx, name, dockerAgentArgs, envFlags, envVars)
 	slog.Debug("Executing in sandbox", "name", name, "args", dockerCmd.Args)
 
 	if err := dockerCmd.Run(); err != nil {

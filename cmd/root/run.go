@@ -125,7 +125,7 @@ func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 }
 
 func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
-	// If --sandbox is set, delegate everything to `docker sandbox run cagent`.
+	// If --sandbox is set, delegate everything to docker sandbox.
 	if f.sandbox {
 		return runInSandbox(cmd, &f.runConfig, f.sandboxTemplate)
 	}

@@ -1,5 +1,5 @@
 /* ===================================================
-   cagent docs – Jekyll site utilities
+   docker agent docs – Jekyll site utilities
    (theme, search, TOC, copy buttons)
    =================================================== */
 
