@@ -54,7 +54,7 @@ func Run(ctx context.Context, agentFilename, agentName string, runConfig *config
 		}
 	}()
 
-	adkAgent, err := newCAgentAdapter(t, agentName)
+	adkAgent, err := newDockerAgentAdapter(t, agentName)
 	if err != nil {
 		return fmt.Errorf("failed to create ADK agent adapter: %w", err)
 	}

@@ -17,8 +17,8 @@ import (
 	"github.com/docker/cagent/pkg/team"
 )
 
-// newCAgentAdapter creates a new ADK agent adapter from a docker agent team and agent name
-func newCAgentAdapter(t *team.Team, agentName string) (agent.Agent, error) {
+// newDockerAgentAdapter creates a new ADK agent adapter from a docker agent team and agent name
+func newDockerAgentAdapter(t *team.Team, agentName string) (agent.Agent, error) {
 	a, err := t.Agent(agentName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get agent %s: %w", agentName, err)
@@ -30,13 +30,13 @@ func newCAgentAdapter(t *team.Team, agentName string) (agent.Agent, error) {
 		Name:        agentName,
 		Description: desc,
 		Run: func(ctx agent.InvocationContext) iter.Seq2[*adksession.Event, error] {
-			return runCAgent(ctx, t, agentName, a)
+			return runDockerAgent(ctx, t, agentName, a)
 		},
 	})
 }
 
-// runCAgent executes a docker agent and returns ADK session events
-func runCAgent(ctx agent.InvocationContext, t *team.Team, agentName string, a *dagent.Agent) iter.Seq2[*adksession.Event, error] {
+// runDockerAgent executes a docker agent and returns ADK session events
+func runDockerAgent(ctx agent.InvocationContext, t *team.Team, agentName string, a *dagent.Agent) iter.Seq2[*adksession.Event, error] {
 	return func(yield func(*adksession.Event, error) bool) {
 		// Extract user message from the ADK context
 		userContent := ctx.UserContent()
