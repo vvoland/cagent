@@ -71,8 +71,13 @@ func (s *StartableToolSet) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop stops the toolset if it implements Startable.
+// Stop stops the toolset if it implements Startable and resets
+// the started flag so that a subsequent Start will re-initialize.
 func (s *StartableToolSet) Stop(ctx context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.started = false
 	if startable, ok := As[Startable](s.ToolSet); ok {
 		return startable.Stop(ctx)
 	}
