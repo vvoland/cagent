@@ -42,8 +42,8 @@ $ docker agent new
 # Or specify options directly
 $ docker agent new --model openai/gpt-4o
 
-# Override context size and iteration limits
-$ docker agent new --model dmr/ai/gemma3-qat:12B --max-tokens 32000 --max-iterations 15
+# Override iteration limits
+$ docker agent new --model dmr/ai/gemma3-qat:12B --max-iterations 15
 ```
 
 This generates an `agent.yaml` in the current directory. Then run it:
