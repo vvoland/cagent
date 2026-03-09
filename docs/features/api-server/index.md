@@ -120,7 +120,7 @@ $ curl -N -X POST http://localhost:8080/api/sessions/abc-123/agent/my-agent \
 ## CLI Flags
 
 ```bash
-docker-agent api <agent-file>|<agents-dir> [flags]
+docker agent serve api <agent-file>|<agents-dir> [flags]
 ```
 
 | Flag               | Default          | Description                                      |
