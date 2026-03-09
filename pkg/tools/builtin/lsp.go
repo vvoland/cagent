@@ -58,6 +58,7 @@ var (
 type lspHandler struct {
 	mu          sync.Mutex
 	cmd         *exec.Cmd
+	cancel      context.CancelFunc // cancels the process-lifetime context
 	stdin       io.WriteCloser
 	stdout      *bufio.Reader
 	initialized atomic.Bool
@@ -346,12 +347,16 @@ func (t *LSPTool) HandlesFile(path string) bool {
 	return t.handler.handlesFile(path)
 }
 
-func (t *LSPTool) Start(ctx context.Context) error {
-	return t.handler.start(ctx)
+func (t *LSPTool) Start(context.Context) error {
+	t.handler.mu.Lock()
+	defer t.handler.mu.Unlock()
+	return t.handler.startLocked()
 }
 
-func (t *LSPTool) Stop(ctx context.Context) error {
-	return t.handler.stop(ctx)
+func (t *LSPTool) Stop(context.Context) error {
+	t.handler.mu.Lock()
+	defer t.handler.mu.Unlock()
+	return t.handler.stopLocked()
 }
 
 func (t *LSPTool) Instructions() string {
@@ -497,28 +502,34 @@ func (t *LSPTool) Tools(context.Context) ([]tools.Tool, error) {
 
 // lspHandler implementation
 
-func (h *lspHandler) start(ctx context.Context) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
+// startLocked starts the LSP server process. The caller must hold h.mu.
+// The process is managed by a background context so that it outlives any
+// single request.
+func (h *lspHandler) startLocked() error {
 	if h.cmd != nil {
 		return errors.New("LSP server already running")
 	}
 
 	slog.Debug("Starting LSP server", "command", h.command, "args", h.args)
 
-	cmd := exec.CommandContext(ctx, h.command, h.args...)
+	// Use a background context for the process lifetime so that the LSP
+	// server is not killed when a caller's request context ends.
+	processCtx, processCancel := context.WithCancel(context.Background())
+
+	cmd := exec.CommandContext(processCtx, h.command, h.args...)
 	cmd.Env = append(os.Environ(), h.env...)
 	cmd.Dir = h.workingDir
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
+		processCancel()
 		return fmt.Errorf("failed to create stdin pipe: %w", err)
 	}
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		stdin.Close()
+		processCancel()
 		return fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
 
@@ -527,23 +538,23 @@ func (h *lspHandler) start(ctx context.Context) error {
 
 	if err := cmd.Start(); err != nil {
 		stdin.Close()
+		processCancel()
 		return fmt.Errorf("failed to start LSP server: %w", err)
 	}
 
 	h.cmd = cmd
+	h.cancel = processCancel
 	h.stdin = stdin
 	h.stdout = bufio.NewReader(stdout)
 
-	go h.readNotifications(ctx, &stderrBuf)
+	go h.readNotifications(processCtx, &stderrBuf)
 
 	slog.Debug("LSP server started successfully")
 	return nil
 }
 
-func (h *lspHandler) stop(_ context.Context) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
+// stopLocked shuts down the LSP server process. The caller must hold h.mu.
+func (h *lspHandler) stopLocked() error {
 	if h.cmd == nil {
 		return nil
 	}
@@ -556,6 +567,14 @@ func (h *lspHandler) stop(_ context.Context) error {
 	}
 
 	h.stdin.Close()
+
+	// Cancel the process-lifetime context to stop the readNotifications
+	// goroutine and (if the process didn't exit cleanly) kill the process.
+	if h.cancel != nil {
+		h.cancel()
+		h.cancel = nil
+	}
+
 	err := h.cmd.Wait()
 	h.cmd = nil
 	h.stdin = nil
@@ -577,7 +596,7 @@ func (h *lspHandler) stop(_ context.Context) error {
 	return nil
 }
 
-func (h *lspHandler) ensureInitialized(ctx context.Context) error {
+func (h *lspHandler) ensureInitialized() error {
 	if h.initialized.Load() && h.cmd != nil {
 		return nil
 	}
@@ -585,17 +604,15 @@ func (h *lspHandler) ensureInitialized(ctx context.Context) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	// Re-check under lock.
 	if h.initialized.Load() && h.cmd != nil {
 		return nil
 	}
 
 	if h.cmd == nil {
-		h.mu.Unlock()
-		if err := h.start(ctx); err != nil {
-			h.mu.Lock()
+		if err := h.startLocked(); err != nil {
 			return fmt.Errorf("failed to start LSP server: %w", err)
 		}
-		h.mu.Lock()
 	}
 
 	if !h.initialized.Load() {
@@ -668,7 +685,7 @@ func (h *lspHandler) ensureInitialized(ctx context.Context) error {
 
 // prepareFileRequest handles common setup for file-based requests
 func (h *lspHandler) prepareFileRequest(ctx context.Context, file string) (string, error) {
-	if err := h.ensureInitialized(ctx); err != nil {
+	if err := h.ensureInitialized(); err != nil {
 		return "", fmt.Errorf("LSP initialization failed: %w", err)
 	}
 	uri := pathToURI(file)
@@ -681,7 +698,7 @@ func (h *lspHandler) prepareFileRequest(ctx context.Context, file string) (strin
 // Tool handler implementations
 
 func (h *lspHandler) workspace(ctx context.Context, _ WorkspaceArgs) (*tools.ToolCallResult, error) {
-	if err := h.ensureInitialized(ctx); err != nil {
+	if err := h.ensureInitialized(); err != nil {
 		return tools.ResultError(fmt.Sprintf("LSP initialization failed: %s", err)), nil
 	}
 
@@ -857,7 +874,7 @@ func (h *lspHandler) documentSymbols(ctx context.Context, args FileArgs) (*tools
 }
 
 func (h *lspHandler) workspaceSymbols(ctx context.Context, args WorkspaceSymbolsArgs) (*tools.ToolCallResult, error) {
-	if err := h.ensureInitialized(ctx); err != nil {
+	if err := h.ensureInitialized(); err != nil {
 		return tools.ResultError(fmt.Sprintf("LSP initialization failed: %s", err)), nil
 	}
 
@@ -880,7 +897,7 @@ func (h *lspHandler) workspaceSymbols(ctx context.Context, args WorkspaceSymbols
 }
 
 func (h *lspHandler) getDiagnostics(ctx context.Context, args FileArgs) (*tools.ToolCallResult, error) {
-	if err := h.ensureInitialized(ctx); err != nil {
+	if err := h.ensureInitialized(); err != nil {
 		return tools.ResultError(fmt.Sprintf("LSP initialization failed: %s", err)), nil
 	}
 
