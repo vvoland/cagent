@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
+	"slices"
 
 	"github.com/docker/docker-agent/pkg/config/latest"
 	"github.com/docker/docker-agent/pkg/environment"
@@ -244,11 +246,7 @@ func resolveModelConfig(modelName string, buildCfg ManagersBuildConfig) (*latest
 
 // getModelNames extracts model names from the models map for logging
 func getModelNames(models map[string]latest.ModelConfig) []string {
-	names := make([]string, 0, len(models))
-	for name := range models {
-		names = append(names, name)
-	}
-	return names
+	return slices.Collect(maps.Keys(models))
 }
 
 // splitModelRef splits a model reference into provider and model parts

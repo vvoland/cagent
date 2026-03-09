@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/goccy/go-yaml"
@@ -168,9 +169,7 @@ func projectSearchDirs(cwd string) []string {
 	}
 
 	// Reverse so we go from root to cwd (earlier entries get overridden by later)
-	for i, j := 0, len(dirs)-1; i < j; i, j = i+1, j-1 {
-		dirs[i], dirs[j] = dirs[j], dirs[i]
-	}
+	slices.Reverse(dirs)
 
 	return dirs
 }

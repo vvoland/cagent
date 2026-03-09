@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/docker/docker-agent/pkg/rag/database"
@@ -424,11 +426,7 @@ func (m *Manager) Query(ctx context.Context, query string) ([]database.SearchRes
 
 // Helper to get strategy names for logging
 func getStrategyNames(stratMap map[string]strategy.Strategy) []string {
-	names := make([]string, 0, len(stratMap))
-	for name := range stratMap {
-		names = append(names, name)
-	}
-	return names
+	return slices.Collect(maps.Keys(stratMap))
 }
 
 // CheckAndReindexChangedFiles checks for file changes and re-indexes if needed

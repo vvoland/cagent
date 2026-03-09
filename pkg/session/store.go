@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -169,8 +169,8 @@ func (s *InMemorySessionStore) GetSessionSummaries(_ context.Context) ([]Summary
 		})
 		return true
 	})
-	sort.Slice(summaries, func(i, j int) bool {
-		return summaries[i].CreatedAt.After(summaries[j].CreatedAt)
+	slices.SortFunc(summaries, func(a, b Summary) int {
+		return b.CreatedAt.Compare(a.CreatedAt)
 	})
 	return summaries, nil
 }

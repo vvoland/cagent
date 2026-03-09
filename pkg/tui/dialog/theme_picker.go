@@ -1,7 +1,8 @@
 package dialog
 
 import (
-	"sort"
+	"cmp"
+	"slices"
 	"strings"
 	"time"
 
@@ -62,29 +63,35 @@ func NewThemePickerDialog(themes []ThemeChoice, originalThemeRef string) Dialog 
 	// current first, then default, then alphabetically.
 	sortedThemes := make([]ThemeChoice, len(themes))
 	copy(sortedThemes, themes)
-	sort.Slice(sortedThemes, func(i, j int) bool {
+	slices.SortFunc(sortedThemes, func(a, b ThemeChoice) int {
 		getPriority := func(t ThemeChoice) int {
 			if t.IsBuiltin {
 				return 0
 			}
 			return 1
 		}
-		pi, pj := getPriority(sortedThemes[i]), getPriority(sortedThemes[j])
-		if pi != pj {
-			return pi < pj
+		pa, pb := getPriority(a), getPriority(b)
+		if pa != pb {
+			return cmp.Compare(pa, pb)
 		}
-		if sortedThemes[i].IsCurrent != sortedThemes[j].IsCurrent {
-			return sortedThemes[i].IsCurrent
+		if a.IsCurrent != b.IsCurrent {
+			if a.IsCurrent {
+				return -1
+			}
+			return 1
 		}
-		if sortedThemes[i].IsDefault != sortedThemes[j].IsDefault {
-			return sortedThemes[i].IsDefault
+		if a.IsDefault != b.IsDefault {
+			if a.IsDefault {
+				return -1
+			}
+			return 1
 		}
-		ni := strings.ToLower(sortedThemes[i].Name)
-		nj := strings.ToLower(sortedThemes[j].Name)
-		if ni != nj {
-			return ni < nj
+		na := strings.ToLower(a.Name)
+		nb := strings.ToLower(b.Name)
+		if na != nb {
+			return cmp.Compare(na, nb)
 		}
-		return sortedThemes[i].Ref < sortedThemes[j].Ref
+		return cmp.Compare(a.Ref, b.Ref)
 	})
 
 	d := &themePickerDialog{

@@ -3,11 +3,11 @@ package session
 import (
 	"fmt"
 	"maps"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/docker/docker-agent/pkg/chat"
-	"github.com/docker/docker-agent/pkg/tools"
 )
 
 // BranchSession creates a new session branched from the parent at the given position.
@@ -144,16 +144,14 @@ func cloneStringMap(src map[string]string) map[string]string {
 	if len(src) == 0 {
 		return nil
 	}
-	dst := make(map[string]string, len(src))
-	maps.Copy(dst, src)
-	return dst
+	return maps.Clone(src)
 }
 
 func cloneStringSlice(src []string) []string {
 	if src == nil {
 		return nil
 	}
-	return append([]string(nil), src...)
+	return slices.Clone(src)
 }
 
 func cloneMessage(src *Message) *Message {
@@ -187,11 +185,11 @@ func cloneChatMessage(src chat.Message) chat.Message {
 	}
 
 	if src.ToolCalls != nil {
-		dst.ToolCalls = append([]tools.ToolCall(nil), src.ToolCalls...)
+		dst.ToolCalls = slices.Clone(src.ToolCalls)
 	}
 
 	if src.ToolDefinitions != nil {
-		dst.ToolDefinitions = append([]tools.Tool(nil), src.ToolDefinitions...)
+		dst.ToolDefinitions = slices.Clone(src.ToolDefinitions)
 	}
 
 	if src.Usage != nil {
@@ -200,7 +198,7 @@ func cloneChatMessage(src chat.Message) chat.Message {
 	}
 
 	if src.ThoughtSignature != nil {
-		dst.ThoughtSignature = append([]byte(nil), src.ThoughtSignature...)
+		dst.ThoughtSignature = slices.Clone(src.ThoughtSignature)
 	}
 
 	return dst
