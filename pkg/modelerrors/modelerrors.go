@@ -1,0 +1,354 @@
+// Package modelerrors provides error classification utilities for LLM model
+// providers. It determines whether errors are retryable, identifies context
+// window overflow conditions, extracts HTTP status codes from various SDK
+// error types, and computes exponential backoff durations.
+package modelerrors
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"math/rand"
+	"net"
+	"regexp"
+	"strings"
+	"time"
+
+	"github.com/anthropics/anthropic-sdk-go"
+	"google.golang.org/genai"
+)
+
+// Backoff configuration constants.
+const (
+	backoffBaseDelay = 200 * time.Millisecond
+	backoffMaxDelay  = 2 * time.Second
+	backoffFactor    = 2.0
+	backoffJitter    = 0.1
+)
+
+// Default fallback configuration.
+const (
+	// DefaultRetries is the default number of retries per model with exponential
+	// backoff for retryable errors (5xx, timeouts). 2 retries means 3 total attempts.
+	// This handles transient provider issues without immediately failing over.
+	DefaultRetries = 2
+
+	// DefaultCooldown is the default duration to stick with a fallback model
+	// after a non-retryable error before retrying the primary.
+	DefaultCooldown = 1 * time.Minute
+)
+
+// ContextOverflowError wraps an underlying error to indicate that the failure
+// was caused by the conversation context exceeding the model's context window.
+// This is used to trigger auto-compaction in the runtime loop instead of
+// surfacing raw HTTP errors to the user.
+type ContextOverflowError struct {
+	Underlying error
+}
+
+func (e *ContextOverflowError) Error() string {
+	if e.Underlying == nil {
+		return "context window overflow"
+	}
+	return fmt.Sprintf("context window overflow: %s", e.Underlying.Error())
+}
+
+func (e *ContextOverflowError) Unwrap() error {
+	return e.Underlying
+}
+
+// contextOverflowPatterns contains error message substrings that indicate the
+// prompt/context exceeds the model's context window. These patterns are checked
+// case-insensitively against error messages from various providers.
+var contextOverflowPatterns = []string{
+	"prompt is too long",
+	"maximum context length",
+	"context length exceeded",
+	"context_length_exceeded",
+	"max_tokens must be greater than",
+	"maximum number of tokens",
+	"content length exceeds",
+	"request too large",
+	"payload too large",
+	"input is too long",
+	"exceeds the model's max token",
+	"token limit",
+	"reduce your prompt",
+	"reduce the length",
+}
+
+// IsContextOverflowError checks whether the error indicates the conversation
+// context has exceeded the model's context window. It inspects both structured
+// SDK error types and raw error message patterns.
+//
+// Recognised patterns include:
+//   - Anthropic 400 "prompt is too long: N tokens > M maximum"
+//   - Anthropic 400 "max_tokens must be greater than thinking.budget_tokens"
+//     (emitted when the prompt is so large that max_tokens can't accommodate
+//     the thinking budget — a proxy for context overflow)
+//   - OpenAI 400 "maximum context length" / "context_length_exceeded"
+//   - Anthropic 500 that is actually a context overflow (heuristic: the error
+//     message is opaque but the conversation was already near the limit)
+//
+// This function intentionally does NOT match generic 500 errors; callers
+// that want to treat an opaque 500 as overflow must check separately with
+// additional context (e.g., session token counts).
+func IsContextOverflowError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// Already wrapped
+	var ctxErr *ContextOverflowError
+	if errors.As(err, &ctxErr) {
+		return true
+	}
+
+	errMsg := strings.ToLower(err.Error())
+	for _, pattern := range contextOverflowPatterns {
+		if strings.Contains(errMsg, pattern) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// statusCodeRegex matches HTTP status codes in error messages (e.g., "429", "500", ": 429 ")
+var statusCodeRegex = regexp.MustCompile(`\b([45]\d{2})\b`)
+
+// ExtractHTTPStatusCode attempts to extract an HTTP status code from the error.
+// Checks in order:
+// 1. Known provider SDK error types (Anthropic, Gemini)
+// 2. Regex parsing of error message (fallback for OpenAI and others)
+// Returns 0 if no status code found.
+func ExtractHTTPStatusCode(err error) int {
+	if err == nil {
+		return 0
+	}
+
+	// Check Anthropic SDK error type (public)
+	if anthropicErr, ok := errors.AsType[*anthropic.Error](err); ok {
+		return anthropicErr.StatusCode
+	}
+
+	// Check Google Gemini SDK error type (public)
+	if geminiErr, ok := errors.AsType[*genai.APIError](err); ok {
+		return geminiErr.Code
+	}
+
+	// For other providers (OpenAI, etc.), extract from error message using regex
+	// OpenAI SDK error format: `POST "/v1/...": 429 Too Many Requests {...}`
+	matches := statusCodeRegex.FindStringSubmatch(err.Error())
+	if len(matches) >= 2 {
+		var code int
+		if _, err := fmt.Sscanf(matches[1], "%d", &code); err == nil {
+			return code
+		}
+	}
+
+	return 0
+}
+
+// IsRetryableStatusCode determines if an HTTP status code is retryable.
+// Retryable means we should retry the SAME model with exponential backoff.
+//
+// Retryable status codes:
+// - 5xx (server errors): 500, 502, 503, 504
+// - 529 (Anthropic overloaded)
+// - 408 (request timeout)
+//
+// Non-retryable status codes (skip to next model immediately):
+// - 429 (rate limit) - provider is explicitly telling us to back off
+// - 4xx client errors (400, 401, 403, 404) - won't get better with retry
+func IsRetryableStatusCode(statusCode int) bool {
+	switch statusCode {
+	case 500, 502, 503, 504: // Server errors
+		return true
+	case 529: // Anthropic overloaded
+		return true
+	case 408: // Request timeout
+		return true
+	case 429: // Rate limit - NOT retryable, skip to next model
+		return false
+	default:
+		return false
+	}
+}
+
+// IsRetryableModelError determines if an error should trigger a retry of the SAME model.
+//
+// Retryable errors (retry same model with backoff):
+// - Network timeouts
+// - Temporary network errors
+// - HTTP 5xx errors (server errors)
+// - HTTP 529 (Anthropic overloaded)
+// - HTTP 408 (request timeout)
+//
+// Non-retryable errors (skip to next model in chain immediately):
+// - Context cancellation
+// - HTTP 429 (rate limit) - provider is explicitly rate limiting us
+// - HTTP 4xx errors (client errors)
+// - Authentication errors
+// - Invalid request errors
+//
+// The key distinction is: 429 means "you're calling too fast, slow down" which
+// suggests we should try a different model, not keep hammering the same one.
+func IsRetryableModelError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// Context cancellation is never retryable
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+
+	// Context overflow errors are never retryable — the context hasn't changed
+	// between attempts, so retrying the same oversized payload will always fail.
+	// This avoids wasting time on 3 attempts + exponential backoff.
+	if IsContextOverflowError(err) {
+		slog.Debug("Context overflow error, not retryable", "error", err)
+		return false
+	}
+
+	// First, try to extract HTTP status code from known SDK error types
+	if statusCode := ExtractHTTPStatusCode(err); statusCode != 0 {
+		retryable := IsRetryableStatusCode(statusCode)
+		slog.Debug("Classified error by status code",
+			"status_code", statusCode,
+			"retryable", retryable)
+		return retryable
+	}
+
+	// Check for network errors
+	if netErr, ok := errors.AsType[net.Error](err); ok {
+		// Timeout errors are retryable
+		if netErr.Timeout() {
+			slog.Debug("Network timeout error, retryable", "error", err)
+			return true
+		}
+	}
+
+	// Fall back to message-pattern matching for errors without structured status codes
+	errMsg := strings.ToLower(err.Error())
+
+	// Retryable patterns (5xx, timeout, network issues)
+	// NOTE: 429 is explicitly NOT in this list - we skip to next model for rate limits
+	retryablePatterns := []string{
+		"500",                   // Internal server error
+		"502",                   // Bad gateway
+		"503",                   // Service unavailable
+		"504",                   // Gateway timeout
+		"408",                   // Request timeout
+		"timeout",               // Generic timeout
+		"connection reset",      // Connection reset
+		"connection refused",    // Connection refused
+		"no such host",          // DNS failure
+		"temporary failure",     // Temporary failure
+		"service unavailable",   // Service unavailable
+		"internal server error", // Server error
+		"bad gateway",           // Gateway error
+		"gateway timeout",       // Gateway timeout
+		"overloaded",            // Server overloaded
+		"overloaded_error",      // Server overloaded
+		"other side closed",     // Connection closed by peer
+		"fetch failed",          // Network fetch failure
+		"reset before headers",  // Connection reset before headers received
+		"upstream connect",      // Upstream connection error
+	}
+
+	for _, pattern := range retryablePatterns {
+		if strings.Contains(errMsg, pattern) {
+			slog.Debug("Matched retryable error pattern", "pattern", pattern)
+			return true
+		}
+	}
+
+	// Non-retryable patterns (skip to next model immediately)
+	nonRetryablePatterns := []string{
+		"429",               // Rate limit - skip to next model
+		"rate limit",        // Rate limit message
+		"too many requests", // Rate limit message
+		"throttl",           // Throttling (rate limiting)
+		"quota",             // Quota exceeded
+		"capacity",          // Capacity issues (often rate-limit related)
+		"401",               // Unauthorized
+		"403",               // Forbidden
+		"404",               // Not found
+		"400",               // Bad request
+		"invalid",           // Invalid request
+		"unauthorized",      // Auth error
+		"authentication",    // Auth error
+		"api key",           // API key error
+	}
+
+	for _, pattern := range nonRetryablePatterns {
+		if strings.Contains(errMsg, pattern) {
+			slog.Debug("Matched non-retryable error pattern", "pattern", pattern)
+			return false
+		}
+	}
+
+	// Default: don't retry unknown errors to be safe
+	slog.Debug("Unknown error type, not retrying", "error", err)
+	return false
+}
+
+// CalculateBackoff returns the backoff duration for a given attempt (0-indexed).
+// Uses exponential backoff with jitter.
+func CalculateBackoff(attempt int) time.Duration {
+	if attempt < 0 {
+		attempt = 0
+	}
+
+	// Calculate exponential delay
+	delay := float64(backoffBaseDelay)
+	for range attempt {
+		delay *= backoffFactor
+	}
+
+	// Cap at max delay
+	if delay > float64(backoffMaxDelay) {
+		delay = float64(backoffMaxDelay)
+	}
+
+	// Add jitter (±10%)
+	jitter := delay * backoffJitter * (2*rand.Float64() - 1)
+	delay += jitter
+
+	return time.Duration(delay)
+}
+
+// SleepWithContext sleeps for the specified duration, returning early if context is cancelled.
+// Returns true if the sleep completed, false if it was interrupted by context cancellation.
+func SleepWithContext(ctx context.Context, d time.Duration) bool {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+
+	select {
+	case <-timer.C:
+		return true
+	case <-ctx.Done():
+		return false
+	}
+}
+
+// FormatError returns a user-friendly error message for model errors.
+// Context overflow gets a dedicated actionable message; all other errors
+// pass through their original message.
+func FormatError(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	// Context overflow gets a dedicated, actionable message.
+	var ctxOverflow *ContextOverflowError
+	if errors.As(err, &ctxOverflow) {
+		return "The conversation has exceeded the model's context window and automatic compaction is not enabled. " +
+			"Try running /compact to reduce the conversation size, or start a new session."
+	}
+
+	return err.Error()
+}
