@@ -65,7 +65,7 @@ agents:
       - type: todo
       - type: mcp
         command: gopls
-        version: "golang/tools@v0.25.0"
+        version: "golang/tools@v0.21.0"
         args: ["mcp"]
     commands:
       fix-lint:
@@ -165,7 +165,7 @@ agents:
       - type: shell
       - type: mcp
         command: gopls
-        version: "golang/tools@v0.25.0"
+        version: "golang/tools@v0.21.0"
         args: ["mcp"]
 
   librarian:
