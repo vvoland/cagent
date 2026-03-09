@@ -8,18 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/environment"
 	"github.com/docker/docker-agent/pkg/modelsdev"
 )
-
-// mockEnvProvider is a simple environment provider for testing
-type mockEnvProvider struct {
-	vars map[string]string
-}
-
-func (m *mockEnvProvider) Get(_ context.Context, name string) (string, bool) {
-	v, ok := m.vars[name]
-	return v, ok
-}
 
 // mockCatalogStore implements ModelStore for testing
 type mockCatalogStore struct {
@@ -232,7 +223,7 @@ func TestGetAvailableProviders(t *testing.T) {
 
 			r := &LocalRuntime{
 				modelSwitcherCfg: &ModelSwitcherConfig{
-					EnvProvider:   &mockEnvProvider{vars: tt.envVars},
+					EnvProvider:   environment.NewMapEnvProvider(tt.envVars),
 					ModelsGateway: tt.modelsGateway,
 				},
 			}
@@ -312,10 +303,10 @@ func TestBuildCatalogChoices(t *testing.T) {
 	r := &LocalRuntime{
 		modelsStore: &mockCatalogStore{db: db},
 		modelSwitcherCfg: &ModelSwitcherConfig{
-			EnvProvider: &mockEnvProvider{vars: map[string]string{
+			EnvProvider: environment.NewMapEnvProvider(map[string]string{
 				"OPENAI_API_KEY":    "sk-test",
 				"ANTHROPIC_API_KEY": "sk-ant-test",
-			}},
+			}),
 			Models: map[string]latest.ModelConfig{
 				"my_model": {Provider: "openai", Model: "gpt-4o"}, // This should be excluded from catalog (duplicate)
 			},
@@ -375,9 +366,9 @@ func TestBuildCatalogChoicesWithDuplicates(t *testing.T) {
 	r := &LocalRuntime{
 		modelsStore: &mockCatalogStore{db: db},
 		modelSwitcherCfg: &ModelSwitcherConfig{
-			EnvProvider: &mockEnvProvider{vars: map[string]string{
+			EnvProvider: environment.NewMapEnvProvider(map[string]string{
 				"OPENAI_API_KEY": "sk-test",
-			}},
+			}),
 			Models: map[string]latest.ModelConfig{
 				// This model has the same provider/model as the catalog entry
 				"my_gpt4o": {Provider: "openai", Model: "gpt-4o"},

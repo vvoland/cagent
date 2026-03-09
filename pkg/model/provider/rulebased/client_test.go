@@ -372,7 +372,7 @@ func TestClient_ModelsMapStoredInBaseConfig(t *testing.T) {
 	}
 
 	// Create a mock env provider
-	mockEnv := &mockEnvProvider{}
+	mockEnv := environment.NewNoEnvProvider()
 
 	client, err := NewClient(t.Context(), cfg, models, mockEnv, mockProviderFactory)
 	require.NoError(t, err)
@@ -384,11 +384,4 @@ func TestClient_ModelsMapStoredInBaseConfig(t *testing.T) {
 	assert.Equal(t, models, baseConfig.Models, "Models map should match what was passed to NewClient")
 	assert.NotNil(t, baseConfig.Env, "Env should be stored in base config for cloning")
 	assert.Equal(t, mockEnv, baseConfig.Env, "Env should match what was passed to NewClient")
-}
-
-// mockEnvProvider is a minimal mock for environment.Provider.
-type mockEnvProvider struct{}
-
-func (m *mockEnvProvider) Get(_ context.Context, _ string) (string, bool) {
-	return "", false
 }

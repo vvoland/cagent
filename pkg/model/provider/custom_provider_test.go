@@ -1,7 +1,6 @@
 package provider
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -19,20 +18,6 @@ import (
 	"github.com/docker/docker-agent/pkg/model/provider/options"
 	"github.com/docker/docker-agent/pkg/tools"
 )
-
-// mockEnvProvider is a simple env provider for testing
-type mockEnvProvider struct {
-	values map[string]string
-}
-
-func (m *mockEnvProvider) Get(_ context.Context, name string) (string, bool) {
-	v, ok := m.values[name]
-	return v, ok
-}
-
-func newMockEnvProvider(values map[string]string) environment.Provider {
-	return &mockEnvProvider{values: values}
-}
 
 // TestCustomProvider_WithProvidersOption tests the full flow using options.WithProviders
 func TestCustomProvider_WithProvidersOption(t *testing.T) {
@@ -78,7 +63,7 @@ func TestCustomProvider_WithProvidersOption(t *testing.T) {
 		Model:    "gpt-4o",
 	}
 
-	env := newMockEnvProvider(map[string]string{
+	env := environment.NewMapEnvProvider(map[string]string{
 		"MY_GATEWAY_TOKEN": "secret-from-provider",
 	})
 
@@ -161,7 +146,7 @@ func TestCustomProvider_RequestReachesServer(t *testing.T) {
 		},
 	}
 
-	env := newMockEnvProvider(map[string]string{
+	env := environment.NewMapEnvProvider(map[string]string{
 		customTokenKey: expectedToken,
 	})
 
@@ -224,7 +209,7 @@ func TestCustomProvider_ResponsesAPIType(t *testing.T) {
 		},
 	}
 
-	env := newMockEnvProvider(map[string]string{"API_KEY": "test"})
+	env := environment.NewMapEnvProvider(map[string]string{"API_KEY": "test"})
 
 	provider, err := New(t.Context(), modelCfg, env)
 	require.NoError(t, err)
@@ -284,7 +269,7 @@ func TestCustomProvider_ChatCompletionsAPIType(t *testing.T) {
 		},
 	}
 
-	env := newMockEnvProvider(map[string]string{"OPENAI_API_KEY": "test"})
+	env := environment.NewMapEnvProvider(map[string]string{"OPENAI_API_KEY": "test"})
 
 	provider, err := New(t.Context(), modelCfg, env)
 	require.NoError(t, err)
@@ -319,7 +304,7 @@ func TestCustomProvider_MissingAPIKey(t *testing.T) {
 		},
 	}
 
-	env := newMockEnvProvider(map[string]string{}) // Empty - key not set
+	env := environment.NewNoEnvProvider() // key not set
 
 	_, err := New(t.Context(), modelCfg, env)
 	require.Error(t, err)
