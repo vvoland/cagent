@@ -52,7 +52,6 @@ COPY --from=builder /binaries .
 
 FROM alpine:${ALPINE_VERSION}
 RUN apk add --no-cache ca-certificates docker-cli && \
-    addgroup -S cagent && adduser -S -G cagent cagent && \
     addgroup -S docker-agent && adduser -S -G docker-agent docker-agent && \
     mkdir /data /work && chmod 777 /data /work
 ARG TARGETOS TARGETARCH
@@ -60,7 +59,6 @@ ENV DOCKER_MCP_IN_CONTAINER=1
 ENV TERM=xterm-256color
 COPY --from=docker/mcp-gateway:v2 /docker-mcp /usr/local/lib/docker/cli-plugins/
 COPY --from=builder /binaries/docker-agent-$TARGETOS-$TARGETARCH /docker-agent
-RUN  ln -s /docker-agent /cagent
 USER docker-agent
 WORKDIR /work
 ENTRYPOINT ["/docker-agent"]

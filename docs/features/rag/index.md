@@ -176,7 +176,7 @@ chunking:
 Enable debug logging to see retrieval details:
 
 ```bash
-$ docker agent run config.yaml --debug --log-file cagent.debug
+$ docker agent run config.yaml --debug --log-file debug.log
 ```
 
 Look for log tags: `[RAG Manager]`, `[Chunked-Embeddings Strategy]`, `[BM25 Strategy]`, `[RRF Fusion]`, `[Reranker]`.

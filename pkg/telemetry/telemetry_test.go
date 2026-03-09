@@ -713,12 +713,12 @@ func TestCreateEventTelemetryTags(t *testing.T) {
 	})
 
 	t.Run("TagsWithWhitespace", func(t *testing.T) {
-		t.Setenv("TELEMETRY_TAGS", " source_system = github-actions , repo = docker/cagent ")
+		t.Setenv("TELEMETRY_TAGS", " source_system = github-actions , repo = docker/docker-agent")
 
 		event := client.createEvent("test_event", map[string]any{"action": "run"})
 
 		assert.Equal(t, "github-actions", event.Properties["source_system"])
-		assert.Equal(t, "docker/cagent", event.Properties["repo"])
+		assert.Equal(t, "docker/docker-agent", event.Properties["repo"])
 	})
 
 	t.Run("MalformedTagsIgnored", func(t *testing.T) {
