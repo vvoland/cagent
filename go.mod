@@ -43,7 +43,7 @@ require (
 	github.com/k3a/html2text v1.3.0
 	github.com/labstack/echo/v4 v4.15.1
 	github.com/mattn/go-isatty v0.0.20
-	github.com/mattn/go-runewidth v0.0.20
+	github.com/mattn/go-runewidth v0.0.21
 	github.com/modelcontextprotocol/go-sdk v1.4.0
 	github.com/natefinch/atomic v1.0.1
 	github.com/openai/openai-go/v3 v3.25.0
