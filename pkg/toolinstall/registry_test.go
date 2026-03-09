@@ -173,7 +173,7 @@ func TestRegistry_Caching(t *testing.T) {
 
 	_, err = registry.LookupByCommand(t.Context(), "fzf")
 	require.NoError(t, err)
-	assert.Equal(t, 1, callCount) // Served from cache.
+	assert.Equal(t, 2, callCount) // No in-memory cache; fetched again.
 }
 
 func TestRegistry_CacheFallback(t *testing.T) {
@@ -251,13 +251,13 @@ func TestRegistry_NoAuthHeaderWithoutToken(t *testing.T) {
 	assert.Empty(t, gotAuth)
 }
 
-func TestRegistry_InMemoryIndexCaching(t *testing.T) {
+func TestRegistry_DiskCacheFallback(t *testing.T) {
 	t.Parallel()
 
-	parseCount := 0
+	callCount := 0
 	mux := http.NewServeMux()
 	mux.HandleFunc("/registry.yaml", func(w http.ResponseWriter, _ *http.Request) {
-		parseCount++
+		callCount++
 		_, _ = w.Write([]byte(testRegistryYAML))
 	})
 	server := httptest.NewServer(mux)
@@ -269,19 +269,18 @@ func TestRegistry_InMemoryIndexCaching(t *testing.T) {
 		cacheDir:   filepath.Join(t.TempDir(), "cache"),
 	}
 
-	// First lookup: fetches + parses.
+	// First lookup: fetches from remote and writes to disk cache.
 	_, err := registry.LookupByCommand(t.Context(), "fzf")
 	require.NoError(t, err)
-	assert.Equal(t, 1, parseCount)
+	assert.Equal(t, 1, callCount)
 
-	// Remove file cache to prove in-memory cache is used.
-	require.NoError(t, os.RemoveAll(registry.cacheDir))
+	// Stop the server to simulate remote failure.
+	server.Close()
 
-	// Second lookup: served from in-memory cached index (no HTTP, no re-parse).
+	// Second lookup: remote fails, falls back to disk cache.
 	pkg, err := registry.LookupByCommand(t.Context(), "fzf")
 	require.NoError(t, err)
 	assert.Equal(t, "junegunn", pkg.RepoOwner)
-	assert.Equal(t, 1, parseCount) // Still 1 — no second fetch.
 }
 
 // --- GitHub auth tests ---

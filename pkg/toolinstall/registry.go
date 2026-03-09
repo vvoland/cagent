@@ -1,6 +1,7 @@
 package toolinstall
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,9 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/goccy/go-yaml"
+	"github.com/natefinch/atomic"
 )
 
 // githubToken returns a GitHub personal access token from the environment,
@@ -35,8 +36,8 @@ func setGitHubAuth(req *http.Request) {
 }
 
 const (
-	registryBaseURL  = "https://raw.githubusercontent.com/aquaproj/aqua-registry/main"
-	registryCacheTTL = 24 * time.Hour
+	registryBaseURL   = "https://raw.githubusercontent.com/aquaproj/aqua-registry/main"
+	registryIndexFile = "registry.yaml"
 )
 
 // Package represents a parsed aqua registry package definition.
@@ -104,11 +105,6 @@ type Registry struct {
 	httpClient *http.Client
 	baseURL    string
 	cacheDir   string
-
-	// In-memory cache for the parsed registry index, populated once via sync.Once.
-	indexOnce   sync.Once
-	cachedIndex *registryIndex
-	indexErr    error
 }
 
 var (
@@ -157,8 +153,8 @@ func (r *Registry) LookupByName(ctx context.Context, name string) (*Package, err
 		}
 	}
 
-	// Fallback: fetch the per-package YAML file.
-	data, err := r.fetchCached(ctx, fmt.Sprintf("pkgs/%s/%s/registry.yaml", owner, repo), 0)
+	// Fallback: fetch the per-package YAML file directly (no caching).
+	data, err := r.getBody(ctx, r.baseURL+"/"+fmt.Sprintf("pkgs/%s/%s/registry.yaml", owner, repo))
 	if err != nil {
 		return nil, fmt.Errorf("fetching package %s: %w", name, err)
 	}
@@ -213,88 +209,32 @@ func providesCommand(pkg *Package, command string) bool {
 	return false
 }
 
-// fetchIndex fetches and parses the full registry index, with caching.
-// The parsed result is cached in memory so that repeated calls within the
-// same Registry instance skip both the HTTP fetch and YAML deserialization.
+// fetchIndex fetches and parses the full registry index.
+// The raw YAML is cached to disk; on fetch failure the cached copy is used.
+// The YAML is re-parsed on every call — there is no in-memory cache.
 func (r *Registry) fetchIndex(ctx context.Context) (*registryIndex, error) {
-	r.indexOnce.Do(func() {
-		var data []byte
-		data, r.indexErr = r.fetchCached(ctx, "registry.yaml", registryCacheTTL)
-		if r.indexErr != nil {
-			return
-		}
+	cachePath := filepath.Join(r.cacheDir, registryIndexFile)
 
-		var index registryIndex
-		if err := yaml.Unmarshal(data, &index); err != nil {
-			r.indexErr = fmt.Errorf("parsing registry index: %w", err)
-			return
-		}
-		r.cachedIndex = &index
-	})
-
-	return r.cachedIndex, r.indexErr
-}
-
-// fetchCached fetches a file from the registry, using a local file cache.
-// A ttl of 0 means the cache never expires.
-func (r *Registry) fetchCached(ctx context.Context, path string, ttl time.Duration) ([]byte, error) {
-	cachePath := filepath.Join(r.cacheDir, path)
-
-	// Return cached data if still fresh.
-	if info, err := os.Stat(cachePath); err == nil {
-		if ttl == 0 || time.Since(info.ModTime()) < ttl {
-			return os.ReadFile(cachePath)
-		}
-	}
-
-	// Fetch from remote.
-	url := r.baseURL + "/" + path
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
+	data, err := r.getBody(ctx, r.baseURL+"/"+registryIndexFile)
 	if err != nil {
-		if data, readErr := os.ReadFile(cachePath); readErr == nil {
-			return data, nil
+		// Fallback to stale disk cache.
+		if cached, readErr := os.ReadFile(cachePath); readErr == nil {
+			data = cached
+		} else {
+			return nil, err
 		}
-		return nil, fmt.Errorf("creating request for %s: %w", url, err)
-	}
-	setGitHubAuth(req)
-
-	resp, err := r.httpClient.Do(req)
-	if err != nil {
-		if data, readErr := os.ReadFile(cachePath); readErr == nil {
-			return data, nil // stale cache beats no data
-		}
-		return nil, fmt.Errorf("fetching %s: %w", url, err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		if data, readErr := os.ReadFile(cachePath); readErr == nil {
-			return data, nil
-		}
-		return nil, fmt.Errorf("fetching %s: HTTP %d", url, resp.StatusCode)
+	} else {
+		// Best-effort: persist to disk for future fallback.
+		_ = os.MkdirAll(filepath.Dir(cachePath), 0o755)
+		_ = atomic.WriteFile(cachePath, bytes.NewReader(data))
 	}
 
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading response from %s: %w", url, err)
+	var index registryIndex
+	if err := yaml.Unmarshal(data, &index); err != nil {
+		return nil, fmt.Errorf("parsing registry index: %w", err)
 	}
 
-	// Write to cache atomically (best-effort): write to a temp file in the
-	// same directory, then rename. This avoids races when multiple goroutines
-	// fetch the same path concurrently.
-	if err := os.MkdirAll(filepath.Dir(cachePath), 0o755); err == nil {
-		if tmpFile, tmpErr := os.CreateTemp(filepath.Dir(cachePath), ".cache-*.tmp"); tmpErr == nil {
-			if _, writeErr := tmpFile.Write(data); writeErr == nil {
-				tmpFile.Close()
-				_ = os.Rename(tmpFile.Name(), cachePath)
-			} else {
-				tmpFile.Close()
-				_ = os.Remove(tmpFile.Name())
-			}
-		}
-	}
-
-	return data, nil
+	return &index, nil
 }
 
 // githubRelease represents the relevant fields from the GitHub releases API.
@@ -307,7 +247,7 @@ func (r *Registry) latestVersion(ctx context.Context, owner, repo string) (strin
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", owner, repo)
 
 	var release githubRelease
-	if err := r.fetchGitHubJSON(ctx, url, &release); err != nil {
+	if err := r.getJSON(ctx, url, &release); err != nil {
 		return "", fmt.Errorf("fetching latest release for %s/%s: %w", owner, repo, err)
 	}
 
@@ -324,7 +264,7 @@ func (r *Registry) latestVersionFiltered(ctx context.Context, owner, repo, tagPr
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases?per_page=50", owner, repo)
 
 	var releases []githubRelease
-	if err := r.fetchGitHubJSON(ctx, url, &releases); err != nil {
+	if err := r.getJSON(ctx, url, &releases); err != nil {
 		return "", fmt.Errorf("fetching releases for %s/%s: %w", owner, repo, err)
 	}
 
@@ -337,34 +277,15 @@ func (r *Registry) latestVersionFiltered(ctx context.Context, owner, repo, tagPr
 	return "", fmt.Errorf("no release found for %s/%s with tag prefix %q", owner, repo, tagPrefix)
 }
 
-// fetchGitHubJSON fetches a GitHub API endpoint and decodes the JSON response.
-func (r *Registry) fetchGitHubJSON(ctx context.Context, url string, target any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Accept", "application/vnd.github+json")
-	setGitHubAuth(req)
-
-	resp, err := r.httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("HTTP %d", resp.StatusCode)
-	}
-
-	return json.NewDecoder(resp.Body).Decode(target)
-}
-
-// download opens an HTTP connection to the given URL and returns the
-// response body as an io.ReadCloser. The caller is responsible for closing it.
-func (r *Registry) download(ctx context.Context, url string) (io.ReadCloser, error) {
+// doGet performs an authenticated GET request and returns the response.
+// The caller is responsible for closing the response body.
+func (r *Registry) doGet(ctx context.Context, url string, headers map[string]string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, err
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
 	}
 	setGitHubAuth(req)
 
@@ -376,6 +297,39 @@ func (r *Registry) download(ctx context.Context, url string) (io.ReadCloser, err
 	if resp.StatusCode != http.StatusOK {
 		resp.Body.Close()
 		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	return resp, nil
+}
+
+// getBody performs a GET request and returns the full response body.
+func (r *Registry) getBody(ctx context.Context, url string) ([]byte, error) {
+	resp, err := r.doGet(ctx, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	return io.ReadAll(resp.Body)
+}
+
+// getJSON performs a GET request and decodes the JSON response into target.
+func (r *Registry) getJSON(ctx context.Context, url string, target any) error {
+	resp, err := r.doGet(ctx, url, map[string]string{"Accept": "application/vnd.github+json"})
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	return json.NewDecoder(resp.Body).Decode(target)
+}
+
+// download opens an HTTP connection to the given URL and returns the
+// response body as an io.ReadCloser. The caller is responsible for closing it.
+func (r *Registry) download(ctx context.Context, url string) (io.ReadCloser, error) {
+	resp, err := r.doGet(ctx, url, nil)
+	if err != nil {
+		return nil, err
 	}
 
 	return resp.Body, nil

@@ -41,6 +41,7 @@ func TestExecMissingKeys(t *testing.T) {
 		require.Contains(t, res.Stderr, "OPENAI_API_KEY")
 	})
 }
+
 func TestAutoComplete(t *testing.T) {
 	t.Run("cli plugin auto-complete docker-agent", func(t *testing.T) {
 		res, err := Exec(binDir+"/docker-agent", "__complete", "ser")
