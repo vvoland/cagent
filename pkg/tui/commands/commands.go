@@ -8,12 +8,12 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/docker/cagent/pkg/app"
-	"github.com/docker/cagent/pkg/feedback"
-	"github.com/docker/cagent/pkg/modelsdev"
-	"github.com/docker/cagent/pkg/tui/components/toolcommon"
-	"github.com/docker/cagent/pkg/tui/core"
-	"github.com/docker/cagent/pkg/tui/messages"
+	"github.com/docker/docker-agent/pkg/app"
+	"github.com/docker/docker-agent/pkg/feedback"
+	"github.com/docker/docker-agent/pkg/modelsdev"
+	"github.com/docker/docker-agent/pkg/tui/components/toolcommon"
+	"github.com/docker/docker-agent/pkg/tui/core"
+	"github.com/docker/docker-agent/pkg/tui/messages"
 )
 
 // ExecuteFunc is a function that executes a command with an optional argument.

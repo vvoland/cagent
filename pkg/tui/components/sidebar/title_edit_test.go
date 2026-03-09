@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/tui/service"
+	"github.com/docker/docker-agent/pkg/session"
+	"github.com/docker/docker-agent/pkg/tui/service"
 )
 
 func TestSidebar_TitleEditStateTransitions(t *testing.T) {

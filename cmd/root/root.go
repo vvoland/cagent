@@ -16,11 +16,11 @@ import (
 	"github.com/docker/cli/cli/command"
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/feedback"
-	"github.com/docker/cagent/pkg/logging"
-	"github.com/docker/cagent/pkg/paths"
-	"github.com/docker/cagent/pkg/telemetry"
-	"github.com/docker/cagent/pkg/version"
+	"github.com/docker/docker-agent/pkg/feedback"
+	"github.com/docker/docker-agent/pkg/logging"
+	"github.com/docker/docker-agent/pkg/paths"
+	"github.com/docker/docker-agent/pkg/telemetry"
+	"github.com/docker/docker-agent/pkg/version"
 )
 
 type rootFlags struct {

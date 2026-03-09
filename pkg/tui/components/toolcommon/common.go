@@ -7,11 +7,11 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"github.com/docker/cagent/pkg/paths"
-	"github.com/docker/cagent/pkg/tools"
-	"github.com/docker/cagent/pkg/tui/components/spinner"
-	"github.com/docker/cagent/pkg/tui/styles"
-	"github.com/docker/cagent/pkg/tui/types"
+	"github.com/docker/docker-agent/pkg/paths"
+	"github.com/docker/docker-agent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/tui/components/spinner"
+	"github.com/docker/docker-agent/pkg/tui/styles"
+	"github.com/docker/docker-agent/pkg/tui/types"
 )
 
 // ParseArgs unmarshals JSON arguments into a typed struct.

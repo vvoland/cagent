@@ -9,7 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/docker-agent/pkg/session"
 )
 
 func TestSessionBrowserNavigation(t *testing.T) {

@@ -8,14 +8,14 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/app"
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/creator"
-	"github.com/docker/cagent/pkg/runtime"
-	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/telemetry"
-	"github.com/docker/cagent/pkg/tui"
-	tuiinput "github.com/docker/cagent/pkg/tui/input"
+	"github.com/docker/docker-agent/pkg/app"
+	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/creator"
+	"github.com/docker/docker-agent/pkg/runtime"
+	"github.com/docker/docker-agent/pkg/session"
+	"github.com/docker/docker-agent/pkg/telemetry"
+	"github.com/docker/docker-agent/pkg/tui"
+	tuiinput "github.com/docker/docker-agent/pkg/tui/input"
 )
 
 type newFlags struct {

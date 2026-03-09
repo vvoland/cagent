@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/docker-agent/pkg/config"
 )
 
 type sourceLoader struct {

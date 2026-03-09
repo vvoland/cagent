@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/cagent/pkg/memory/database"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/memory/database"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 const (

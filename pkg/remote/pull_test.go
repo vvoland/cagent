@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/content"
+	"github.com/docker/docker-agent/pkg/content"
 )
 
 func TestPullRegistryNotFound(t *testing.T) {

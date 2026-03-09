@@ -13,10 +13,10 @@ import (
 	"path"
 	"time"
 
-	"github.com/docker/cagent/pkg/api"
-	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/api"
+	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/session"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 // Client is an HTTP client for the docker agent server API

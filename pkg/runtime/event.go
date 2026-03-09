@@ -4,10 +4,10 @@ import (
 	"cmp"
 	"time"
 
-	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/config/types"
-	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/config/types"
+	"github.com/docker/docker-agent/pkg/session"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 type Event interface {

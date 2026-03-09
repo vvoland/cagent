@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/docker-agent/pkg/session"
 )
 
 func TestApp_NewSession_PreservesWorkingDir(t *testing.T) {

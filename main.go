@@ -9,7 +9,7 @@ import (
 
 	"github.com/docker/cli/cli"
 
-	"github.com/docker/cagent/cmd/root"
+	"github.com/docker/docker-agent/cmd/root"
 )
 
 func main() {

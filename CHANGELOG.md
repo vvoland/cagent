@@ -22,13 +22,13 @@ This release adds automated issue triage capabilities and new CLI configuration 
 
 ### Pull Requests
 
-- [#1888](https://github.com/docker/cagent/pull/1888) - feat: add auto issue triage workflow
-- [#1901](https://github.com/docker/cagent/pull/1901) - Fix GitHub pages deployment
-- [#1902](https://github.com/docker/cagent/pull/1902) - docs: update CHANGELOG.md for v1.28.1
-- [#1903](https://github.com/docker/cagent/pull/1903) - Fix the github pages?
-- [#1905](https://github.com/docker/cagent/pull/1905) - Replace the brittle tail -n 1 parsing with something that searches for the marker
-- [#1906](https://github.com/docker/cagent/pull/1906) - Add tip about the default agent
-- [#1907](https://github.com/docker/cagent/pull/1907) - Add --config-dir and --data-dir global CLI flags to override default paths
+- [#1888](https://github.com/docker/docker-agent/pull/1888) - feat: add auto issue triage workflow
+- [#1901](https://github.com/docker/docker-agent/pull/1901) - Fix GitHub pages deployment
+- [#1902](https://github.com/docker/docker-agent/pull/1902) - docs: update CHANGELOG.md for v1.28.1
+- [#1903](https://github.com/docker/docker-agent/pull/1903) - Fix the github pages?
+- [#1905](https://github.com/docker/docker-agent/pull/1905) - Replace the brittle tail -n 1 parsing with something that searches for the marker
+- [#1906](https://github.com/docker/docker-agent/pull/1906) - Add tip about the default agent
+- [#1907](https://github.com/docker/docker-agent/pull/1907) - Add --config-dir and --data-dir global CLI flags to override default paths
 
 
 ## [v1.28.1] - 2026-03-03
@@ -61,17 +61,17 @@ This release adds image support for AI agents, improves cross-platform compatibi
 
 ### Pull Requests
 
-- [#1875](https://github.com/docker/cagent/pull/1875) - Skip hidden directories in recursive skill loading
-- [#1879](https://github.com/docker/cagent/pull/1879) - Reduce builtin tool prompt lengths while preserving key examples
-- [#1885](https://github.com/docker/cagent/pull/1885) - Replace syscall.Rmdir with golang.org/x/sys for cross-platform directory removal
-- [#1889](https://github.com/docker/cagent/pull/1889) - :eyes: Vision :eyes:
-- [#1892](https://github.com/docker/cagent/pull/1892) - docs: update CHANGELOG.md for v1.28.0
-- [#1893](https://github.com/docker/cagent/pull/1893) - Fixes to the documentation
-- [#1895](https://github.com/docker/cagent/pull/1895) - Daily fixes of the bot-detected issues
-- [#1896](https://github.com/docker/cagent/pull/1896) - Remove per-chunk UpdateMessage debug log
-- [#1897](https://github.com/docker/cagent/pull/1897) - Pushes docker/docker-agent next to docker/cagent hub image
-- [#1899](https://github.com/docker/cagent/pull/1899) - fix: Esc key not interrupting sub-agents in multi-agent sessions
-- [#1900](https://github.com/docker/cagent/pull/1900) - Migrate our GitHub pages to markdown, with Jekyll
+- [#1875](https://github.com/docker/docker-agent/pull/1875) - Skip hidden directories in recursive skill loading
+- [#1879](https://github.com/docker/docker-agent/pull/1879) - Reduce builtin tool prompt lengths while preserving key examples
+- [#1885](https://github.com/docker/docker-agent/pull/1885) - Replace syscall.Rmdir with golang.org/x/sys for cross-platform directory removal
+- [#1889](https://github.com/docker/docker-agent/pull/1889) - :eyes: Vision :eyes:
+- [#1892](https://github.com/docker/docker-agent/pull/1892) - docs: update CHANGELOG.md for v1.28.0
+- [#1893](https://github.com/docker/docker-agent/pull/1893) - Fixes to the documentation
+- [#1895](https://github.com/docker/docker-agent/pull/1895) - Daily fixes of the bot-detected issues
+- [#1896](https://github.com/docker/docker-agent/pull/1896) - Remove per-chunk UpdateMessage debug log
+- [#1897](https://github.com/docker/docker-agent/pull/1897) - Pushes docker/docker-agent next to docker/cagent hub image
+- [#1899](https://github.com/docker/docker-agent/pull/1899) - fix: Esc key not interrupting sub-agents in multi-agent sessions
+- [#1900](https://github.com/docker/docker-agent/pull/1900) - Migrate our GitHub pages to markdown, with Jekyll
 
 
 ## [v1.28.0] - 2026-03-03
@@ -100,17 +100,17 @@ This release improves authentication debugging, session management, and MCP serv
 
 ### Pull Requests
 
-- [#1859](https://github.com/docker/cagent/pull/1859) - Fix script args with DMR
-- [#1861](https://github.com/docker/cagent/pull/1861) - Add 'debug auth' command to inspect Docker Desktop JWT
-- [#1862](https://github.com/docker/cagent/pull/1862) - docs: update CHANGELOG.md for v1.27.1
-- [#1863](https://github.com/docker/cagent/pull/1863) - fix(#1863): preserve user messages in trimMessages to prevent session derailment
-- [#1864](https://github.com/docker/cagent/pull/1864) - fix(#1863): preserve user messages in trimMessages to prevent session derailment
-- [#1871](https://github.com/docker/cagent/pull/1871) - Fix `mcp/notion` not working with OpenAI models
-- [#1872](https://github.com/docker/cagent/pull/1872) - Improve MCP server lifecycle: caching and auto-restart
-- [#1874](https://github.com/docker/cagent/pull/1874) - Improve tool filtering doc
-- [#1876](https://github.com/docker/cagent/pull/1876) - Bump dependencies
-- [#1877](https://github.com/docker/cagent/pull/1877) - Improve Commands dialog
-- [#1886](https://github.com/docker/cagent/pull/1886) - Add retries even for models without fallbacks
+- [#1859](https://github.com/docker/docker-agent/pull/1859) - Fix script args with DMR
+- [#1861](https://github.com/docker/docker-agent/pull/1861) - Add 'debug auth' command to inspect Docker Desktop JWT
+- [#1862](https://github.com/docker/docker-agent/pull/1862) - docs: update CHANGELOG.md for v1.27.1
+- [#1863](https://github.com/docker/docker-agent/pull/1863) - fix(#1863): preserve user messages in trimMessages to prevent session derailment
+- [#1864](https://github.com/docker/docker-agent/pull/1864) - fix(#1863): preserve user messages in trimMessages to prevent session derailment
+- [#1871](https://github.com/docker/docker-agent/pull/1871) - Fix `mcp/notion` not working with OpenAI models
+- [#1872](https://github.com/docker/docker-agent/pull/1872) - Improve MCP server lifecycle: caching and auto-restart
+- [#1874](https://github.com/docker/docker-agent/pull/1874) - Improve tool filtering doc
+- [#1876](https://github.com/docker/docker-agent/pull/1876) - Bump dependencies
+- [#1877](https://github.com/docker/docker-agent/pull/1877) - Improve Commands dialog
+- [#1886](https://github.com/docker/docker-agent/pull/1886) - Add retries even for models without fallbacks
 
 
 ## [v1.27.1] - 2026-02-26
@@ -137,15 +137,15 @@ This release improves the user interface experience with better message editing 
 
 ### Pull Requests
 
-- [#1845](https://github.com/docker/cagent/pull/1845) - Repaint the TUI when the current agent changes
-- [#1846](https://github.com/docker/cagent/pull/1846) - docs: update CHANGELOG.md for v1.27.0
-- [#1847](https://github.com/docker/cagent/pull/1847) - feat(hooks): add on_user_input
-- [#1850](https://github.com/docker/cagent/pull/1850) - Improve editing past user messages
-- [#1854](https://github.com/docker/cagent/pull/1854) - Make loading past sessions faster
-- [#1855](https://github.com/docker/cagent/pull/1855) - fix: record token usage once per stream to prevent inflated telemetry
-- [#1857](https://github.com/docker/cagent/pull/1857) - Schema tests should be only for latest version
-- [#1858](https://github.com/docker/cagent/pull/1858) - Fix doc
-- [#1860](https://github.com/docker/cagent/pull/1860) - Fix docker ai shellout to cagent
+- [#1845](https://github.com/docker/docker-agent/pull/1845) - Repaint the TUI when the current agent changes
+- [#1846](https://github.com/docker/docker-agent/pull/1846) - docs: update CHANGELOG.md for v1.27.0
+- [#1847](https://github.com/docker/docker-agent/pull/1847) - feat(hooks): add on_user_input
+- [#1850](https://github.com/docker/docker-agent/pull/1850) - Improve editing past user messages
+- [#1854](https://github.com/docker/docker-agent/pull/1854) - Make loading past sessions faster
+- [#1855](https://github.com/docker/docker-agent/pull/1855) - fix: record token usage once per stream to prevent inflated telemetry
+- [#1857](https://github.com/docker/docker-agent/pull/1857) - Schema tests should be only for latest version
+- [#1858](https://github.com/docker/docker-agent/pull/1858) - Fix doc
+- [#1860](https://github.com/docker/docker-agent/pull/1860) - Fix docker ai shellout to cagent
 
 
 ## [v1.27.0] - 2026-02-25
@@ -175,13 +175,13 @@ This release introduces dynamic agent color styling for multi-agent teams, adds 
 
 ### Pull Requests
 
-- [#1756](https://github.com/docker/cagent/pull/1756) - feat(#1756): Add dynamic agent color styling system
-- [#1757](https://github.com/docker/cagent/pull/1757) - feat(#1756): Add dynamic agent color styling system
-- [#1781](https://github.com/docker/cagent/pull/1781) - tools/fs: Add mkdir and rmdir
-- [#1832](https://github.com/docker/cagent/pull/1832) - Daily fixes
-- [#1833](https://github.com/docker/cagent/pull/1833) - allow .github and .gitlab directories in WalkFiles traversal
-- [#1841](https://github.com/docker/cagent/pull/1841) - docs: update CHANGELOG.md for v1.26.0
-- [#1844](https://github.com/docker/cagent/pull/1844) - Fix yaml marshalling
+- [#1756](https://github.com/docker/docker-agent/pull/1756) - feat(#1756): Add dynamic agent color styling system
+- [#1757](https://github.com/docker/docker-agent/pull/1757) - feat(#1756): Add dynamic agent color styling system
+- [#1781](https://github.com/docker/docker-agent/pull/1781) - tools/fs: Add mkdir and rmdir
+- [#1832](https://github.com/docker/docker-agent/pull/1832) - Daily fixes
+- [#1833](https://github.com/docker/docker-agent/pull/1833) - allow .github and .gitlab directories in WalkFiles traversal
+- [#1841](https://github.com/docker/docker-agent/pull/1841) - docs: update CHANGELOG.md for v1.26.0
+- [#1844](https://github.com/docker/docker-agent/pull/1844) - Fix yaml marshalling
 
 
 ## [v1.26.0] - 2026-02-24
@@ -214,10 +214,10 @@ This release introduces remote skills discovery capabilities and improves file r
 
 ### Pull Requests
 
-- [#1810](https://github.com/docker/cagent/pull/1810) - Freeze v5 (and a few refactoring)
-- [#1822](https://github.com/docker/cagent/pull/1822) - Implement remote skills discovery with disk cache and dedicated tools
-- [#1828](https://github.com/docker/cagent/pull/1828) - builtin: add offset and line_count pagination to read_file and read_multiple_files
-- [#1829](https://github.com/docker/cagent/pull/1829) - docs: update CHANGELOG.md for v1.23.6
+- [#1810](https://github.com/docker/docker-agent/pull/1810) - Freeze v5 (and a few refactoring)
+- [#1822](https://github.com/docker/docker-agent/pull/1822) - Implement remote skills discovery with disk cache and dedicated tools
+- [#1828](https://github.com/docker/docker-agent/pull/1828) - builtin: add offset and line_count pagination to read_file and read_multiple_files
+- [#1829](https://github.com/docker/docker-agent/pull/1829) - docs: update CHANGELOG.md for v1.23.6
 
 
 ## [v1.23.6] - 2026-02-23
@@ -255,19 +255,19 @@ This release improves cost tracking accuracy, enhances session management, and f
 
 ### Pull Requests
 
-- [#1795](https://github.com/docker/cagent/pull/1795) - Fix multiple cost/tokens related issues
-- [#1803](https://github.com/docker/cagent/pull/1803) - docs: update CHANGELOG.md for v1.23.5
-- [#1804](https://github.com/docker/cagent/pull/1804) - Better support copying emojis
-- [#1806](https://github.com/docker/cagent/pull/1806) - Tab completion for /commands dialog
-- [#1807](https://github.com/docker/cagent/pull/1807) - fix: use actual provider for alloy models in sidebar
-- [#1808](https://github.com/docker/cagent/pull/1808) - Update winget workflow
-- [#1811](https://github.com/docker/cagent/pull/1811) - Improve sessions dialog
-- [#1812](https://github.com/docker/cagent/pull/1812) - Binary e2e tests
-- [#1813](https://github.com/docker/cagent/pull/1813) - feat: use docker read write bot
-- [#1816](https://github.com/docker/cagent/pull/1816) - fix: restore ctrl-1, ctrl-2... shortcuts for quick agent selection
-- [#1817](https://github.com/docker/cagent/pull/1817) - Bump Go dependencies
-- [#1826](https://github.com/docker/cagent/pull/1826) - Refactor winget workflow to use wingetcreate CLI
-- [#1827](https://github.com/docker/cagent/pull/1827) - get_memories errors on new memories
+- [#1795](https://github.com/docker/docker-agent/pull/1795) - Fix multiple cost/tokens related issues
+- [#1803](https://github.com/docker/docker-agent/pull/1803) - docs: update CHANGELOG.md for v1.23.5
+- [#1804](https://github.com/docker/docker-agent/pull/1804) - Better support copying emojis
+- [#1806](https://github.com/docker/docker-agent/pull/1806) - Tab completion for /commands dialog
+- [#1807](https://github.com/docker/docker-agent/pull/1807) - fix: use actual provider for alloy models in sidebar
+- [#1808](https://github.com/docker/docker-agent/pull/1808) - Update winget workflow
+- [#1811](https://github.com/docker/docker-agent/pull/1811) - Improve sessions dialog
+- [#1812](https://github.com/docker/docker-agent/pull/1812) - Binary e2e tests
+- [#1813](https://github.com/docker/docker-agent/pull/1813) - feat: use docker read write bot
+- [#1816](https://github.com/docker/docker-agent/pull/1816) - fix: restore ctrl-1, ctrl-2... shortcuts for quick agent selection
+- [#1817](https://github.com/docker/docker-agent/pull/1817) - Bump Go dependencies
+- [#1826](https://github.com/docker/docker-agent/pull/1826) - Refactor winget workflow to use wingetcreate CLI
+- [#1827](https://github.com/docker/docker-agent/pull/1827) - get_memories errors on new memories
 
 
 ## [v1.23.5] - 2026-02-20
@@ -287,9 +287,9 @@ This release improves the session browser interface and fixes several issues wit
 
 ### Pull Requests
 
-- [#1792](https://github.com/docker/cagent/pull/1792) - docs: update CHANGELOG.md for v1.23.4
-- [#1796](https://github.com/docker/cagent/pull/1796) - Fix help for docker-agent standalone binary exec
-- [#1802](https://github.com/docker/cagent/pull/1802) - Fix docker-agent version for cli plugin & standalone exec
+- [#1792](https://github.com/docker/docker-agent/pull/1792) - docs: update CHANGELOG.md for v1.23.4
+- [#1796](https://github.com/docker/docker-agent/pull/1796) - Fix help for docker-agent standalone binary exec
+- [#1802](https://github.com/docker/docker-agent/pull/1802) - Fix docker-agent version for cli plugin & standalone exec
 
 
 ## [v1.23.4] - 2026-02-19
@@ -336,26 +336,26 @@ This release introduces parallel session support with tab management, major comm
 
 ### Pull Requests
 
-- [#1751](https://github.com/docker/cagent/pull/1751) - feat: add `X-Cagent-Model-Name` header to models gateway requests
-- [#1753](https://github.com/docker/cagent/pull/1753) - docs: update CHANGELOG.md for v1.23.3
-- [#1755](https://github.com/docker/cagent/pull/1755) - Review cagent commands
-- [#1759](https://github.com/docker/cagent/pull/1759) - Restore ctrl-r binding for searching prompt history
-- [#1761](https://github.com/docker/cagent/pull/1761) - Fix completion command
-- [#1762](https://github.com/docker/cagent/pull/1762) - fix: cagent-action expects a prompt
-- [#1763](https://github.com/docker/cagent/pull/1763) - fix: gemini use of vertexai environment variables 
-- [#1766](https://github.com/docker/cagent/pull/1766) - Add mouse click support to elicitation, prompt input, and tool confirmation dialogs
-- [#1768](https://github.com/docker/cagent/pull/1768) - chore(config): Update Claude Sonnet model version to 4.6
-- [#1772](https://github.com/docker/cagent/pull/1772) - drag 'n drop tabs
-- [#1773](https://github.com/docker/cagent/pull/1773) - temp home dir to avoid issues in some environments
-- [#1777](https://github.com/docker/cagent/pull/1777) - Bump Go dependencies
-- [#1780](https://github.com/docker/cagent/pull/1780) - fallback: Handle overloaded_error
-- [#1782](https://github.com/docker/cagent/pull/1782) - Fix ctrl-c in `docker agent serve api` and fix `docker agent` defaulting to `docker agent run`
-- [#1785](https://github.com/docker/cagent/pull/1785) - permissions: add Ask list to force confirmation for tools
-- [#1786](https://github.com/docker/cagent/pull/1786) - Make fetch tool not read-only
-- [#1787](https://github.com/docker/cagent/pull/1787) - Daily fixes for the Nightly issue detector
-- [#1788](https://github.com/docker/cagent/pull/1788) - Fix path and typo
-- [#1789](https://github.com/docker/cagent/pull/1789) - Keep same error handling for main cli plugin execution
-- [#1790](https://github.com/docker/cagent/pull/1790) - tui/tabbar: Prevent closing the last remaining tab
+- [#1751](https://github.com/docker/docker-agent/pull/1751) - feat: add `X-Cagent-Model-Name` header to models gateway requests
+- [#1753](https://github.com/docker/docker-agent/pull/1753) - docs: update CHANGELOG.md for v1.23.3
+- [#1755](https://github.com/docker/docker-agent/pull/1755) - Review cagent commands
+- [#1759](https://github.com/docker/docker-agent/pull/1759) - Restore ctrl-r binding for searching prompt history
+- [#1761](https://github.com/docker/docker-agent/pull/1761) - Fix completion command
+- [#1762](https://github.com/docker/docker-agent/pull/1762) - fix: cagent-action expects a prompt
+- [#1763](https://github.com/docker/docker-agent/pull/1763) - fix: gemini use of vertexai environment variables 
+- [#1766](https://github.com/docker/docker-agent/pull/1766) - Add mouse click support to elicitation, prompt input, and tool confirmation dialogs
+- [#1768](https://github.com/docker/docker-agent/pull/1768) - chore(config): Update Claude Sonnet model version to 4.6
+- [#1772](https://github.com/docker/docker-agent/pull/1772) - drag 'n drop tabs
+- [#1773](https://github.com/docker/docker-agent/pull/1773) - temp home dir to avoid issues in some environments
+- [#1777](https://github.com/docker/docker-agent/pull/1777) - Bump Go dependencies
+- [#1780](https://github.com/docker/docker-agent/pull/1780) - fallback: Handle overloaded_error
+- [#1782](https://github.com/docker/docker-agent/pull/1782) - Fix ctrl-c in `docker agent serve api` and fix `docker agent` defaulting to `docker agent run`
+- [#1785](https://github.com/docker/docker-agent/pull/1785) - permissions: add Ask list to force confirmation for tools
+- [#1786](https://github.com/docker/docker-agent/pull/1786) - Make fetch tool not read-only
+- [#1787](https://github.com/docker/docker-agent/pull/1787) - Daily fixes for the Nightly issue detector
+- [#1788](https://github.com/docker/docker-agent/pull/1788) - Fix path and typo
+- [#1789](https://github.com/docker/docker-agent/pull/1789) - Keep same error handling for main cli plugin execution
+- [#1790](https://github.com/docker/docker-agent/pull/1790) - tui/tabbar: Prevent closing the last remaining tab
 
 
 ## [v1.23.3] - 2026-02-16
@@ -377,11 +377,11 @@ This release adds Docker CLI plugin support and improves TUI performance by maki
 
 ### Pull Requests
 
-- [#1745](https://github.com/docker/cagent/pull/1745) - Rename cagent OCI annotation, keep old one
-- [#1746](https://github.com/docker/cagent/pull/1746) - docs: update CHANGELOG.md for v1.23.2
-- [#1747](https://github.com/docker/cagent/pull/1747) - Thread context.Context through modelsdev store API
-- [#1748](https://github.com/docker/cagent/pull/1748) - Allow to use cagent binary as a docker cli plugin docker-agent. No functional change for cagent command.
-- [#1749](https://github.com/docker/cagent/pull/1749) - Move ModelSupportsReasoning calls to async bubbletea commands
+- [#1745](https://github.com/docker/docker-agent/pull/1745) - Rename cagent OCI annotation, keep old one
+- [#1746](https://github.com/docker/docker-agent/pull/1746) - docs: update CHANGELOG.md for v1.23.2
+- [#1747](https://github.com/docker/docker-agent/pull/1747) - Thread context.Context through modelsdev store API
+- [#1748](https://github.com/docker/docker-agent/pull/1748) - Allow to use cagent binary as a docker cli plugin docker-agent. No functional change for cagent command.
+- [#1749](https://github.com/docker/docker-agent/pull/1749) - Move ModelSupportsReasoning calls to async bubbletea commands
 
 
 ## [v1.23.2] - 2026-02-16
@@ -412,16 +412,16 @@ This release adds header forwarding capabilities for toolsets and includes sever
 
 ### Pull Requests
 
-- [#1725](https://github.com/docker/cagent/pull/1725) - Support ${headers.NAME} syntax to forward upstream API headers to toolsets
-- [#1727](https://github.com/docker/cagent/pull/1727) - docs: update CHANGELOG.md for v1.23.1
-- [#1729](https://github.com/docker/cagent/pull/1729) - Cleanup config code
-- [#1730](https://github.com/docker/cagent/pull/1730) - refactor(environment): extract shared helpers for command-based providers
-- [#1731](https://github.com/docker/cagent/pull/1731) - Daily fixes
-- [#1732](https://github.com/docker/cagent/pull/1732) - Fix two issues with costs
-- [#1734](https://github.com/docker/cagent/pull/1734) - Small improvements to cmd/root
-- [#1740](https://github.com/docker/cagent/pull/1740) - Fix model switcher
-- [#1741](https://github.com/docker/cagent/pull/1741) - fix(#1741): resolve Ctrl+K key binding conflict in session browser
-- [#1742](https://github.com/docker/cagent/pull/1742) - fix(#1741): resolve Ctrl+K key binding conflict in session browser
+- [#1725](https://github.com/docker/docker-agent/pull/1725) - Support ${headers.NAME} syntax to forward upstream API headers to toolsets
+- [#1727](https://github.com/docker/docker-agent/pull/1727) - docs: update CHANGELOG.md for v1.23.1
+- [#1729](https://github.com/docker/docker-agent/pull/1729) - Cleanup config code
+- [#1730](https://github.com/docker/docker-agent/pull/1730) - refactor(environment): extract shared helpers for command-based providers
+- [#1731](https://github.com/docker/docker-agent/pull/1731) - Daily fixes
+- [#1732](https://github.com/docker/docker-agent/pull/1732) - Fix two issues with costs
+- [#1734](https://github.com/docker/docker-agent/pull/1734) - Small improvements to cmd/root
+- [#1740](https://github.com/docker/docker-agent/pull/1740) - Fix model switcher
+- [#1741](https://github.com/docker/docker-agent/pull/1741) - fix(#1741): resolve Ctrl+K key binding conflict in session browser
+- [#1742](https://github.com/docker/docker-agent/pull/1742) - fix(#1741): resolve Ctrl+K key binding conflict in session browser
 
 
 ## [v1.23.1] - 2026-02-13
@@ -453,17 +453,17 @@ This release introduces a new OpenAPI toolset for automatic API integration, tas
 
 ### Pull Requests
 
-- [#1704](https://github.com/docker/cagent/pull/1704) - Tasks toolset
-- [#1710](https://github.com/docker/cagent/pull/1710) - fix: recursively enforce required properties in OpenAI tool schemas
-- [#1714](https://github.com/docker/cagent/pull/1714) - docs: update CHANGELOG.md for v1.23.0
-- [#1718](https://github.com/docker/cagent/pull/1718) - preserve line breaks and indentation in welcome messages
-- [#1719](https://github.com/docker/cagent/pull/1719) - Add openapi built-in toolset type
-- [#1720](https://github.com/docker/cagent/pull/1720) - return error if no messages are available after conversion
-- [#1721](https://github.com/docker/cagent/pull/1721) - Refactor models store
-- [#1722](https://github.com/docker/cagent/pull/1722) - Replace time.Sleep in tests with deterministic synchronization
-- [#1723](https://github.com/docker/cagent/pull/1723) - Allow passing in custom tags to telemetry
-- [#1724](https://github.com/docker/cagent/pull/1724) - Speed up fallback tests
-- [#1726](https://github.com/docker/cagent/pull/1726) - Update documentation links to GitHub Pages
+- [#1704](https://github.com/docker/docker-agent/pull/1704) - Tasks toolset
+- [#1710](https://github.com/docker/docker-agent/pull/1710) - fix: recursively enforce required properties in OpenAI tool schemas
+- [#1714](https://github.com/docker/docker-agent/pull/1714) - docs: update CHANGELOG.md for v1.23.0
+- [#1718](https://github.com/docker/docker-agent/pull/1718) - preserve line breaks and indentation in welcome messages
+- [#1719](https://github.com/docker/docker-agent/pull/1719) - Add openapi built-in toolset type
+- [#1720](https://github.com/docker/docker-agent/pull/1720) - return error if no messages are available after conversion
+- [#1721](https://github.com/docker/docker-agent/pull/1721) - Refactor models store
+- [#1722](https://github.com/docker/docker-agent/pull/1722) - Replace time.Sleep in tests with deterministic synchronization
+- [#1723](https://github.com/docker/docker-agent/pull/1723) - Allow passing in custom tags to telemetry
+- [#1724](https://github.com/docker/docker-agent/pull/1724) - Speed up fallback tests
+- [#1726](https://github.com/docker/docker-agent/pull/1726) - Update documentation links to GitHub Pages
 
 
 ## [v1.23.0] - 2026-02-12
@@ -504,29 +504,29 @@ This release improves TUI display accuracy, enhances API security defaults, and 
 
 ### Pull Requests
 
-- [#1648](https://github.com/docker/cagent/pull/1648) - fix: show correct tool count in TUI when running in --remote mode
-- [#1657](https://github.com/docker/cagent/pull/1657) - Better default security for cagent api|mcp|a2a
-- [#1663](https://github.com/docker/cagent/pull/1663) - docs: update CHANGELOG.md for v1.22.0
-- [#1668](https://github.com/docker/cagent/pull/1668) - Session store cleanup
-- [#1669](https://github.com/docker/cagent/pull/1669) - Fix tick leak
-- [#1673](https://github.com/docker/cagent/pull/1673) - eval: add optional setup script support for eval sessions
-- [#1684](https://github.com/docker/cagent/pull/1684) - Fix Agents.UnmarshalYAML to reject unknown fields
-- [#1685](https://github.com/docker/cagent/pull/1685) - Fix A2A agent card advertising unroutable wildcard address
-- [#1686](https://github.com/docker/cagent/pull/1686) - Close the session
-- [#1687](https://github.com/docker/cagent/pull/1687) - Make /compact non-blocking with spinner feedback
-- [#1688](https://github.com/docker/cagent/pull/1688) - Remove redundant stdin nil check in api command
-- [#1689](https://github.com/docker/cagent/pull/1689) - Return error response for unknown tool calls instead of silently skipping
-- [#1692](https://github.com/docker/cagent/pull/1692) - Add documentation gh-pages
-- [#1693](https://github.com/docker/cagent/pull/1693) - Add the summary message as a user message
-- [#1694](https://github.com/docker/cagent/pull/1694) - Add more documentation
-- [#1696](https://github.com/docker/cagent/pull/1696) - Fix MCP tool calls with gpt 5.2
-- [#1697](https://github.com/docker/cagent/pull/1697) - Bump Go to 1.26.0
-- [#1699](https://github.com/docker/cagent/pull/1699) - Fix issues found by the review agent
-- [#1700](https://github.com/docker/cagent/pull/1700) - List valid versions in unsupported config version error
-- [#1703](https://github.com/docker/cagent/pull/1703) - Bump direct Go dependencies
-- [#1705](https://github.com/docker/cagent/pull/1705) - Improve the Planner
-- [#1706](https://github.com/docker/cagent/pull/1706) - Improve error handling and logging in evaluation judge
-- [#1711](https://github.com/docker/cagent/pull/1711) - Persist tool call error state in session messages
+- [#1648](https://github.com/docker/docker-agent/pull/1648) - fix: show correct tool count in TUI when running in --remote mode
+- [#1657](https://github.com/docker/docker-agent/pull/1657) - Better default security for cagent api|mcp|a2a
+- [#1663](https://github.com/docker/docker-agent/pull/1663) - docs: update CHANGELOG.md for v1.22.0
+- [#1668](https://github.com/docker/docker-agent/pull/1668) - Session store cleanup
+- [#1669](https://github.com/docker/docker-agent/pull/1669) - Fix tick leak
+- [#1673](https://github.com/docker/docker-agent/pull/1673) - eval: add optional setup script support for eval sessions
+- [#1684](https://github.com/docker/docker-agent/pull/1684) - Fix Agents.UnmarshalYAML to reject unknown fields
+- [#1685](https://github.com/docker/docker-agent/pull/1685) - Fix A2A agent card advertising unroutable wildcard address
+- [#1686](https://github.com/docker/docker-agent/pull/1686) - Close the session
+- [#1687](https://github.com/docker/docker-agent/pull/1687) - Make /compact non-blocking with spinner feedback
+- [#1688](https://github.com/docker/docker-agent/pull/1688) - Remove redundant stdin nil check in api command
+- [#1689](https://github.com/docker/docker-agent/pull/1689) - Return error response for unknown tool calls instead of silently skipping
+- [#1692](https://github.com/docker/docker-agent/pull/1692) - Add documentation gh-pages
+- [#1693](https://github.com/docker/docker-agent/pull/1693) - Add the summary message as a user message
+- [#1694](https://github.com/docker/docker-agent/pull/1694) - Add more documentation
+- [#1696](https://github.com/docker/docker-agent/pull/1696) - Fix MCP tool calls with gpt 5.2
+- [#1697](https://github.com/docker/docker-agent/pull/1697) - Bump Go to 1.26.0
+- [#1699](https://github.com/docker/docker-agent/pull/1699) - Fix issues found by the review agent
+- [#1700](https://github.com/docker/docker-agent/pull/1700) - List valid versions in unsupported config version error
+- [#1703](https://github.com/docker/docker-agent/pull/1703) - Bump direct Go dependencies
+- [#1705](https://github.com/docker/docker-agent/pull/1705) - Improve the Planner
+- [#1706](https://github.com/docker/docker-agent/pull/1706) - Improve error handling and logging in evaluation judge
+- [#1711](https://github.com/docker/docker-agent/pull/1711) - Persist tool call error state in session messages
 
 
 ## [v1.22.0] - 2026-02-09
@@ -559,17 +559,17 @@ This release enhances the chat experience with history search functionality and 
 
 ### Pull Requests
 
-- [#1630](https://github.com/docker/cagent/pull/1630) - feat: add Ctrl+R reverse history search
-- [#1640](https://github.com/docker/cagent/pull/1640) - better file attachments
-- [#1645](https://github.com/docker/cagent/pull/1645) - Prevent title generation spinner to spin forever
-- [#1649](https://github.com/docker/cagent/pull/1649) - docs: update CHANGELOG.md for v1.21.0
-- [#1650](https://github.com/docker/cagent/pull/1650) - OpenAI doesn't like those format indications on the schema
-- [#1652](https://github.com/docker/cagent/pull/1652) - Fix: persist multi_content for user messages
-- [#1654](https://github.com/docker/cagent/pull/1654) - Refactor scrollbar into more reusable `scrollview` component
-- [#1656](https://github.com/docker/cagent/pull/1656) - fix: use ctrl modifier for session browser shortcuts to avoid search conflict
-- [#1659](https://github.com/docker/cagent/pull/1659) - Fix pasted attachments
-- [#1661](https://github.com/docker/cagent/pull/1661) - deleting version 2 so i can use permissions
-- [#1662](https://github.com/docker/cagent/pull/1662) - Multi turn (cagent exec|run|eval)
+- [#1630](https://github.com/docker/docker-agent/pull/1630) - feat: add Ctrl+R reverse history search
+- [#1640](https://github.com/docker/docker-agent/pull/1640) - better file attachments
+- [#1645](https://github.com/docker/docker-agent/pull/1645) - Prevent title generation spinner to spin forever
+- [#1649](https://github.com/docker/docker-agent/pull/1649) - docs: update CHANGELOG.md for v1.21.0
+- [#1650](https://github.com/docker/docker-agent/pull/1650) - OpenAI doesn't like those format indications on the schema
+- [#1652](https://github.com/docker/docker-agent/pull/1652) - Fix: persist multi_content for user messages
+- [#1654](https://github.com/docker/docker-agent/pull/1654) - Refactor scrollbar into more reusable `scrollview` component
+- [#1656](https://github.com/docker/docker-agent/pull/1656) - fix: use ctrl modifier for session browser shortcuts to avoid search conflict
+- [#1659](https://github.com/docker/docker-agent/pull/1659) - Fix pasted attachments
+- [#1661](https://github.com/docker/docker-agent/pull/1661) - deleting version 2 so i can use permissions
+- [#1662](https://github.com/docker/docker-agent/pull/1662) - Multi turn (cagent exec|run|eval)
 
 
 ## [v1.21.0] - 2026-02-09
@@ -594,18 +594,18 @@ This release adds a new generalist coding agent, improves agent configuration ha
 
 ### Pull Requests
 
-- [#1419](https://github.com/docker/cagent/pull/1419) - Help fix #1419
-- [#1625](https://github.com/docker/cagent/pull/1625) - Add a generalist coding agent
-- [#1631](https://github.com/docker/cagent/pull/1631) - Support recursive ~/.agents/skills
-- [#1632](https://github.com/docker/cagent/pull/1632) - Help fix #1419
-- [#1633](https://github.com/docker/cagent/pull/1633) - Add OCI artifact wrapper for spec-compliant manifest with artifactType
-- [#1634](https://github.com/docker/cagent/pull/1634) - docs: update CHANGELOG.md for v1.20.6
-- [#1635](https://github.com/docker/cagent/pull/1635) - Freeze v4 and bump config version to v5
-- [#1637](https://github.com/docker/cagent/pull/1637) - Fix subagent logic
-- [#1641](https://github.com/docker/cagent/pull/1641) - unquoted strings are fine until they contain special characters like :
-- [#1643](https://github.com/docker/cagent/pull/1643) - Wrap todo descriptions at word boundaries in sidebar
-- [#1646](https://github.com/docker/cagent/pull/1646) - Bump Go dependencies
-- [#1647](https://github.com/docker/cagent/pull/1647) - Preserve 429 error details on OpenAI
+- [#1419](https://github.com/docker/docker-agent/pull/1419) - Help fix #1419
+- [#1625](https://github.com/docker/docker-agent/pull/1625) - Add a generalist coding agent
+- [#1631](https://github.com/docker/docker-agent/pull/1631) - Support recursive ~/.agents/skills
+- [#1632](https://github.com/docker/docker-agent/pull/1632) - Help fix #1419
+- [#1633](https://github.com/docker/docker-agent/pull/1633) - Add OCI artifact wrapper for spec-compliant manifest with artifactType
+- [#1634](https://github.com/docker/docker-agent/pull/1634) - docs: update CHANGELOG.md for v1.20.6
+- [#1635](https://github.com/docker/docker-agent/pull/1635) - Freeze v4 and bump config version to v5
+- [#1637](https://github.com/docker/docker-agent/pull/1637) - Fix subagent logic
+- [#1641](https://github.com/docker/docker-agent/pull/1641) - unquoted strings are fine until they contain special characters like :
+- [#1643](https://github.com/docker/docker-agent/pull/1643) - Wrap todo descriptions at word boundaries in sidebar
+- [#1646](https://github.com/docker/docker-agent/pull/1646) - Bump Go dependencies
+- [#1647](https://github.com/docker/docker-agent/pull/1647) - Preserve 429 error details on OpenAI
 
 
 ## [v1.20.6] - 2026-02-07
@@ -642,24 +642,24 @@ This release introduces branching sessions, model fallbacks, and automated code 
 
 ### Pull Requests
 
-- [#1573](https://github.com/docker/cagent/pull/1573) - Automated nightly codebase scanner
-- [#1578](https://github.com/docker/cagent/pull/1578) - Branching sessions on message edit
-- [#1589](https://github.com/docker/cagent/pull/1589) - Model fallbacks
-- [#1595](https://github.com/docker/cagent/pull/1595) - Simplifies PR review workflow by adopting the new reusable workflow from cagent-action
-- [#1610](https://github.com/docker/cagent/pull/1610) - docs: update CHANGELOG.md for v1.20.5
-- [#1611](https://github.com/docker/cagent/pull/1611) - Improve @ attachments perf 
-- [#1612](https://github.com/docker/cagent/pull/1612) - Only create a new modelstore if none is given
-- [#1613](https://github.com/docker/cagent/pull/1613) - [evals] Fix tool calls score rendering
-- [#1614](https://github.com/docker/cagent/pull/1614) - Added space between release links
-- [#1617](https://github.com/docker/cagent/pull/1617) - Opus 4.6
-- [#1618](https://github.com/docker/cagent/pull/1618) - feat: add --prompt-file CLI flag for including file contents as system context
-- [#1619](https://github.com/docker/cagent/pull/1619) - Update Nightly Scan Workflow
-- [#1620](https://github.com/docker/cagent/pull/1620) - /attach use file upload instead of embedding in the context
-- [#1621](https://github.com/docker/cagent/pull/1621) - Update Go deps
-- [#1622](https://github.com/docker/cagent/pull/1622) - Add debug title command for session title generation
-- [#1623](https://github.com/docker/cagent/pull/1623) - Add skill invocation via slash commands 
-- [#1624](https://github.com/docker/cagent/pull/1624) - Fix schema and add drift test
-- [#1627](https://github.com/docker/cagent/pull/1627) - Enable more linters and fix existing issues
+- [#1573](https://github.com/docker/docker-agent/pull/1573) - Automated nightly codebase scanner
+- [#1578](https://github.com/docker/docker-agent/pull/1578) - Branching sessions on message edit
+- [#1589](https://github.com/docker/docker-agent/pull/1589) - Model fallbacks
+- [#1595](https://github.com/docker/docker-agent/pull/1595) - Simplifies PR review workflow by adopting the new reusable workflow from cagent-action
+- [#1610](https://github.com/docker/docker-agent/pull/1610) - docs: update CHANGELOG.md for v1.20.5
+- [#1611](https://github.com/docker/docker-agent/pull/1611) - Improve @ attachments perf 
+- [#1612](https://github.com/docker/docker-agent/pull/1612) - Only create a new modelstore if none is given
+- [#1613](https://github.com/docker/docker-agent/pull/1613) - [evals] Fix tool calls score rendering
+- [#1614](https://github.com/docker/docker-agent/pull/1614) - Added space between release links
+- [#1617](https://github.com/docker/docker-agent/pull/1617) - Opus 4.6
+- [#1618](https://github.com/docker/docker-agent/pull/1618) - feat: add --prompt-file CLI flag for including file contents as system context
+- [#1619](https://github.com/docker/docker-agent/pull/1619) - Update Nightly Scan Workflow
+- [#1620](https://github.com/docker/docker-agent/pull/1620) - /attach use file upload instead of embedding in the context
+- [#1621](https://github.com/docker/docker-agent/pull/1621) - Update Go deps
+- [#1622](https://github.com/docker/docker-agent/pull/1622) - Add debug title command for session title generation
+- [#1623](https://github.com/docker/docker-agent/pull/1623) - Add skill invocation via slash commands 
+- [#1624](https://github.com/docker/docker-agent/pull/1624) - Fix schema and add drift test
+- [#1627](https://github.com/docker/docker-agent/pull/1627) - Enable more linters and fix existing issues
 
 
 ## [v1.20.5] - 2026-02-05
@@ -878,54 +878,54 @@ This release improves the terminal user interface with better error handling and
 - Protects aliases map with mutex for thread safety
 
 
-[v1.19.5]: https://github.com/docker/cagent/releases/tag/v1.19.5
+[v1.19.5]: https://github.com/docker/docker-agent/releases/tag/v1.19.5
 
-[v1.19.6]: https://github.com/docker/cagent/releases/tag/v1.19.6
+[v1.19.6]: https://github.com/docker/docker-agent/releases/tag/v1.19.6
 
-[v1.19.7]: https://github.com/docker/cagent/releases/tag/v1.19.7
+[v1.19.7]: https://github.com/docker/docker-agent/releases/tag/v1.19.7
 
-[v1.20.0]: https://github.com/docker/cagent/releases/tag/v1.20.0
+[v1.20.0]: https://github.com/docker/docker-agent/releases/tag/v1.20.0
 
-[v1.20.1]: https://github.com/docker/cagent/releases/tag/v1.20.1
+[v1.20.1]: https://github.com/docker/docker-agent/releases/tag/v1.20.1
 
-[v1.20.2]: https://github.com/docker/cagent/releases/tag/v1.20.2
+[v1.20.2]: https://github.com/docker/docker-agent/releases/tag/v1.20.2
 
-[v1.20.3]: https://github.com/docker/cagent/releases/tag/v1.20.3
+[v1.20.3]: https://github.com/docker/docker-agent/releases/tag/v1.20.3
 
-[v1.20.4]: https://github.com/docker/cagent/releases/tag/v1.20.4
+[v1.20.4]: https://github.com/docker/docker-agent/releases/tag/v1.20.4
 
-[v1.20.5]: https://github.com/docker/cagent/releases/tag/v1.20.5
+[v1.20.5]: https://github.com/docker/docker-agent/releases/tag/v1.20.5
 
-[v1.20.6]: https://github.com/docker/cagent/releases/tag/v1.20.6
+[v1.20.6]: https://github.com/docker/docker-agent/releases/tag/v1.20.6
 
-[v1.21.0]: https://github.com/docker/cagent/releases/tag/v1.21.0
+[v1.21.0]: https://github.com/docker/docker-agent/releases/tag/v1.21.0
 
-[v1.22.0]: https://github.com/docker/cagent/releases/tag/v1.22.0
+[v1.22.0]: https://github.com/docker/docker-agent/releases/tag/v1.22.0
 
-[v1.23.0]: https://github.com/docker/cagent/releases/tag/v1.23.0
+[v1.23.0]: https://github.com/docker/docker-agent/releases/tag/v1.23.0
 
-[v1.23.1]: https://github.com/docker/cagent/releases/tag/v1.23.1
+[v1.23.1]: https://github.com/docker/docker-agent/releases/tag/v1.23.1
 
-[v1.23.2]: https://github.com/docker/cagent/releases/tag/v1.23.2
+[v1.23.2]: https://github.com/docker/docker-agent/releases/tag/v1.23.2
 
-[v1.23.3]: https://github.com/docker/cagent/releases/tag/v1.23.3
+[v1.23.3]: https://github.com/docker/docker-agent/releases/tag/v1.23.3
 
-[v1.23.4]: https://github.com/docker/cagent/releases/tag/v1.23.4
+[v1.23.4]: https://github.com/docker/docker-agent/releases/tag/v1.23.4
 
-[v1.23.5]: https://github.com/docker/cagent/releases/tag/v1.23.5
+[v1.23.5]: https://github.com/docker/docker-agent/releases/tag/v1.23.5
 
-[v1.23.6]: https://github.com/docker/cagent/releases/tag/v1.23.6
+[v1.23.6]: https://github.com/docker/docker-agent/releases/tag/v1.23.6
 
-[v1.24.0]: https://github.com/docker/cagent/releases/tag/v1.24.0
+[v1.24.0]: https://github.com/docker/docker-agent/releases/tag/v1.24.0
 
-[v1.26.0]: https://github.com/docker/cagent/releases/tag/v1.26.0
+[v1.26.0]: https://github.com/docker/docker-agent/releases/tag/v1.26.0
 
-[v1.27.0]: https://github.com/docker/cagent/releases/tag/v1.27.0
+[v1.27.0]: https://github.com/docker/docker-agent/releases/tag/v1.27.0
 
-[v1.27.1]: https://github.com/docker/cagent/releases/tag/v1.27.1
+[v1.27.1]: https://github.com/docker/docker-agent/releases/tag/v1.27.1
 
-[v1.28.0]: https://github.com/docker/cagent/releases/tag/v1.28.0
+[v1.28.0]: https://github.com/docker/docker-agent/releases/tag/v1.28.0
 
-[v1.28.1]: https://github.com/docker/cagent/releases/tag/v1.28.1
+[v1.28.1]: https://github.com/docker/docker-agent/releases/tag/v1.28.1
 
-[v1.29.0]: https://github.com/docker/cagent/releases/tag/v1.29.0
+[v1.29.0]: https://github.com/docker/docker-agent/releases/tag/v1.29.0

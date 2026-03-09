@@ -16,9 +16,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/docker/cagent/pkg/concurrent"
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/concurrent"
+	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 const (

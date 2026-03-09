@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/cagent/pkg/memory/database"
-	"github.com/docker/cagent/pkg/sqliteutil"
+	"github.com/docker/docker-agent/pkg/memory/database"
+	"github.com/docker/docker-agent/pkg/sqliteutil"
 )
 
 type MemoryDatabase struct {

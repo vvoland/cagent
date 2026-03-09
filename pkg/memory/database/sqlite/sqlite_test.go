@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/memory/database"
+	"github.com/docker/docker-agent/pkg/memory/database"
 )
 
 func setupTestDB(t *testing.T) database.Database {

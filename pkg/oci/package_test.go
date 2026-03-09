@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/content"
+	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/content"
 )
 
 func TestPackageFileAsOCIToStore(t *testing.T) {

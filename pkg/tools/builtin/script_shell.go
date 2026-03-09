@@ -11,8 +11,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 type ScriptShellTool struct {

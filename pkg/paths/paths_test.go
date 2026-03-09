@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/docker/cagent/pkg/paths"
+	"github.com/docker/docker-agent/pkg/paths"
 )
 
 func TestOverrides(t *testing.T) {

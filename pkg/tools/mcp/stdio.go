@@ -8,7 +8,7 @@ import (
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/docker/cagent/pkg/desktop"
+	"github.com/docker/docker-agent/pkg/desktop"
 )
 
 type stdioMCPClient struct {

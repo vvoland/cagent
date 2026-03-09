@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/app"
-	"github.com/docker/cagent/pkg/history"
+	"github.com/docker/docker-agent/pkg/app"
+	"github.com/docker/docker-agent/pkg/history"
 )
 
 func enterSearch(t *testing.T, e *editor) *editor {

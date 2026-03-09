@@ -13,9 +13,9 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 
-	"github.com/docker/cagent/pkg/environment"
-	"github.com/docker/cagent/pkg/reference"
-	"github.com/docker/cagent/pkg/userconfig"
+	"github.com/docker/docker-agent/pkg/environment"
+	"github.com/docker/docker-agent/pkg/reference"
+	"github.com/docker/docker-agent/pkg/userconfig"
 )
 
 //go:embed builtin-agents/default.yaml

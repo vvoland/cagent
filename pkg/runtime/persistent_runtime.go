@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/team"
+	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/session"
+	"github.com/docker/docker-agent/pkg/team"
 )
 
 // PersistentRuntime wraps a LocalRuntime and persists session changes to a store

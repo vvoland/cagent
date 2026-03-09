@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"slices"
 
-	"github.com/docker/cagent/pkg/rag/database"
+	"github.com/docker/docker-agent/pkg/rag/database"
 )
 
 // WeightedFusion combines results using weighted sum of strategy scores

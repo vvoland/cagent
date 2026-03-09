@@ -46,13 +46,13 @@ import (
     "os/signal"
     "syscall"
 
-    "github.com/docker/cagent/pkg/agent"
-    "github.com/docker/cagent/pkg/config/latest"
-    "github.com/docker/cagent/pkg/environment"
-    "github.com/docker/cagent/pkg/model/provider/openai"
-    "github.com/docker/cagent/pkg/runtime"
-    "github.com/docker/cagent/pkg/session"
-    "github.com/docker/cagent/pkg/team"
+    "github.com/docker/docker-agent/pkg/agent"
+    "github.com/docker/docker-agent/pkg/config/latest"
+    "github.com/docker/docker-agent/pkg/environment"
+    "github.com/docker/docker-agent/pkg/model/provider/openai"
+    "github.com/docker/docker-agent/pkg/runtime"
+    "github.com/docker/docker-agent/pkg/session"
+    "github.com/docker/docker-agent/pkg/team"
 )
 
 func main() {
@@ -122,7 +122,7 @@ import (
     "encoding/json"
     "fmt"
 
-    "github.com/docker/cagent/pkg/tools"
+    "github.com/docker/docker-agent/pkg/tools"
 )
 
 // Define the tool's input schema
@@ -212,9 +212,9 @@ Create agents that delegate to sub-agents:
 package main
 
 import (
-    "github.com/docker/cagent/pkg/agent"
-    "github.com/docker/cagent/pkg/team"
-    "github.com/docker/cagent/pkg/tools/builtin"
+    "github.com/docker/docker-agent/pkg/agent"
+    "github.com/docker/docker-agent/pkg/team"
+    "github.com/docker/docker-agent/pkg/tools/builtin"
 )
 
 func createTeam(llm provider.Provider) *team.Team {
@@ -246,8 +246,8 @@ Use docker-agent's built-in tools:
 
 ```go
 import (
-    "github.com/docker/cagent/pkg/config"
-    "github.com/docker/cagent/pkg/tools/builtin"
+    "github.com/docker/docker-agent/pkg/config"
+    "github.com/docker/docker-agent/pkg/tools/builtin"
 )
 
 func createAgentWithBuiltinTools(llm provider.Provider) *agent.Agent {
@@ -280,9 +280,9 @@ func createAgentWithBuiltinTools(llm provider.Provider) *agent.Agent {
 
 ```go
 import (
-    "github.com/docker/cagent/pkg/model/provider/anthropic"
-    "github.com/docker/cagent/pkg/model/provider/gemini"
-    "github.com/docker/cagent/pkg/model/provider/openai"
+    "github.com/docker/docker-agent/pkg/model/provider/anthropic"
+    "github.com/docker/docker-agent/pkg/model/provider/gemini"
+    "github.com/docker/docker-agent/pkg/model/provider/openai"
 )
 
 // OpenAI
@@ -307,7 +307,7 @@ geminiClient, _ := gemini.NewClient(ctx, &latest.ModelConfig{
 ## Session Options
 
 ```go
-import "github.com/docker/cagent/pkg/session"
+import "github.com/docker/docker-agent/pkg/session"
 
 sess := session.New(
     // Set a title for the session

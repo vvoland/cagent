@@ -6,7 +6,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/tui/animation"
+	"github.com/docker/docker-agent/pkg/tui/animation"
 )
 
 func TestSpinnerCopyDoesNotLeakAnimationSubscription(t *testing.T) {

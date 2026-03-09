@@ -8,7 +8,7 @@ import (
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/docker/cagent/pkg/upstream"
+	"github.com/docker/docker-agent/pkg/upstream"
 )
 
 type remoteMCPClient struct {

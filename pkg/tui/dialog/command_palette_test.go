@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/tui/commands"
+	"github.com/docker/docker-agent/pkg/tui/commands"
 )
 
 var categories = []commands.Category{

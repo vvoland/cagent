@@ -13,8 +13,8 @@ import (
 	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"golang.org/x/term"
 
-	"github.com/docker/cagent/pkg/input"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/input"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 // ConfirmationResult represents the result of a user confirmation prompt

@@ -16,8 +16,8 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/natefinch/atomic"
 
-	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/paths"
+	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/paths"
 )
 
 // Alias represents an alias configuration with optional runtime settings

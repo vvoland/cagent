@@ -14,8 +14,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/docker/cagent/pkg/path"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/path"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 const (

@@ -11,9 +11,9 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/js"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/js"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 type APITool struct {

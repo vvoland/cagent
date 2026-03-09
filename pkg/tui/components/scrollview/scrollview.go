@@ -14,8 +14,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/docker/cagent/pkg/tui/components/scrollbar"
-	"github.com/docker/cagent/pkg/tui/messages"
+	"github.com/docker/docker-agent/pkg/tui/components/scrollbar"
+	"github.com/docker/docker-agent/pkg/tui/messages"
 )
 
 // ScrollKeyMap defines which keys trigger scroll actions.

@@ -1,7 +1,7 @@
 package dmr
 
 import (
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 // ConvertParametersToSchema converts parameters to DMR Schema format

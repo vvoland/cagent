@@ -3,9 +3,9 @@ package completions
 import (
 	"context"
 
-	"github.com/docker/cagent/pkg/app"
-	"github.com/docker/cagent/pkg/tui/commands"
-	"github.com/docker/cagent/pkg/tui/components/completion"
+	"github.com/docker/docker-agent/pkg/app"
+	"github.com/docker/docker-agent/pkg/tui/commands"
+	"github.com/docker/docker-agent/pkg/tui/components/completion"
 )
 
 type commandCompletion struct {

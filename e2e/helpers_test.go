@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/cmd/root"
+	"github.com/docker/docker-agent/cmd/root"
 )
 
 // runCLI runs a docker agent CLI command and returns its stdout.

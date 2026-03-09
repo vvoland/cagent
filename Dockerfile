@@ -36,7 +36,7 @@ RUN --mount=type=bind,from=osxcross,src=/osxsdk,target=/xx-sdk \
     if [ "$TARGETOS" != "darwin" ]; then
       export XX_GO_PREFER_C_COMPILER=zig
     fi
-    xx-go build -trimpath -tags no_audio -ldflags "-s -w -linkmode=external -X 'github.com/docker/cagent/pkg/version.Version=$GIT_TAG' -X 'github.com/docker/cagent/pkg/version.Commit=$GIT_COMMIT'" -o /binaries/docker-agent-$TARGETOS-$TARGETARCH .
+    xx-go build -trimpath -tags no_audio -ldflags "-s -w -linkmode=external -X 'github.com/docker/docker-agent/pkg/version.Version=$GIT_TAG' -X 'github.com/docker/docker-agent/pkg/version.Commit=$GIT_COMMIT'" -o /binaries/docker-agent-$TARGETOS-$TARGETARCH .
     xx-verify --static /binaries/docker-agent-$TARGETOS-$TARGETARCH
     if [ "$TARGETOS" = "windows" ]; then
       mv /binaries/docker-agent-$TARGETOS-$TARGETARCH /binaries/docker-agent-$TARGETOS-$TARGETARCH.exe

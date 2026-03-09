@@ -7,7 +7,7 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/config/types"
+	"github.com/docker/docker-agent/pkg/config/types"
 )
 
 func TestCommandsUnmarshal_Map(t *testing.T) {

@@ -13,7 +13,7 @@ import (
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/golang"
 
-	"github.com/docker/cagent/pkg/rag/chunk"
+	"github.com/docker/docker-agent/pkg/rag/chunk"
 )
 
 // DocumentProcessor uses tree-sitter to build syntax trees for source

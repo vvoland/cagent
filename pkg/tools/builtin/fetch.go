@@ -14,8 +14,8 @@ import (
 	"github.com/k3a/html2text"
 	"github.com/temoto/robotstxt"
 
-	"github.com/docker/cagent/pkg/tools"
-	"github.com/docker/cagent/pkg/useragent"
+	"github.com/docker/docker-agent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/useragent"
 )
 
 const (

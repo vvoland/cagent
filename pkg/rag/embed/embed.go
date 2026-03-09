@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/docker/cagent/pkg/model/provider"
+	"github.com/docker/docker-agent/pkg/model/provider"
 )
 
 // Embedder generates vector embeddings for text

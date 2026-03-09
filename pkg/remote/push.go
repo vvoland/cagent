@@ -9,7 +9,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 
-	"github.com/docker/cagent/pkg/content"
+	"github.com/docker/docker-agent/pkg/content"
 )
 
 // Push pushes an artifact from the content store to an OCI registry

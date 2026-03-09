@@ -3,8 +3,8 @@ package v5
 import (
 	"github.com/goccy/go-yaml"
 
-	"github.com/docker/cagent/pkg/config/types"
-	previous "github.com/docker/cagent/pkg/config/v4"
+	"github.com/docker/docker-agent/pkg/config/types"
+	previous "github.com/docker/docker-agent/pkg/config/v4"
 )
 
 func Register(parsers map[string]func([]byte) (any, error), upgraders *[]func(any, []byte) (any, error)) {

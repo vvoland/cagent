@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/server"
-	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/server"
+	"github.com/docker/docker-agent/pkg/session"
 )
 
 type Session struct {

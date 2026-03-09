@@ -9,7 +9,7 @@ import (
 
 	"github.com/goccy/go-yaml"
 
-	"github.com/docker/cagent/pkg/paths"
+	"github.com/docker/docker-agent/pkg/paths"
 )
 
 const skillFile = "SKILL.md"

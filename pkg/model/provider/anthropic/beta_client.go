@@ -12,10 +12,10 @@ import (
 	"github.com/anthropics/anthropic-sdk-go/packages/param"
 	"github.com/anthropics/anthropic-sdk-go/packages/ssestream"
 
-	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/rag/prompts"
-	"github.com/docker/cagent/pkg/rag/types"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/rag/prompts"
+	"github.com/docker/docker-agent/pkg/rag/types"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 // createBetaStream creates a streaming chat completion using the Beta Messages API

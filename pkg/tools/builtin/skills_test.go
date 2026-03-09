@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/skills"
+	"github.com/docker/docker-agent/pkg/skills"
 )
 
 func TestSkillsToolset_ReadSkillContent_Local(t *testing.T) {

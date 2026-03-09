@@ -13,13 +13,13 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/docker/cagent/pkg/fsx"
-	"github.com/docker/cagent/pkg/modelsdev"
-	"github.com/docker/cagent/pkg/rag/chunk"
-	"github.com/docker/cagent/pkg/rag/database"
-	"github.com/docker/cagent/pkg/rag/embed"
-	"github.com/docker/cagent/pkg/rag/treesitter"
-	"github.com/docker/cagent/pkg/rag/types"
+	"github.com/docker/docker-agent/pkg/fsx"
+	"github.com/docker/docker-agent/pkg/modelsdev"
+	"github.com/docker/docker-agent/pkg/rag/chunk"
+	"github.com/docker/docker-agent/pkg/rag/database"
+	"github.com/docker/docker-agent/pkg/rag/embed"
+	"github.com/docker/docker-agent/pkg/rag/treesitter"
+	"github.com/docker/docker-agent/pkg/rag/types"
 )
 
 // vectorStoreDB is the internal database interface used by VectorStore.

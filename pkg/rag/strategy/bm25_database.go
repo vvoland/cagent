@@ -9,8 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/cagent/pkg/rag/database"
-	"github.com/docker/cagent/pkg/sqliteutil"
+	"github.com/docker/docker-agent/pkg/rag/database"
+	"github.com/docker/docker-agent/pkg/sqliteutil"
 )
 
 // bm25DB implements the database for BM25 strategy (no vectors needed).

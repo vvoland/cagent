@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/docker/cagent/pkg/path"
+	"github.com/docker/docker-agent/pkg/path"
 )
 
 type RunSecretsProvider struct {

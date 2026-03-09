@@ -5,9 +5,9 @@ import (
 
 	"gotest.tools/v3/golden"
 
-	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/session"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 func TestSimple(t *testing.T) {

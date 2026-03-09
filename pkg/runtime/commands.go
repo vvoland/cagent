@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/cagent/pkg/js"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/js"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 // argsPlaceholderRegex matches ${args...} patterns to check if args are used.

@@ -1,7 +1,7 @@
 package hooks
 
 import (
-	"github.com/docker/cagent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/config/latest"
 )
 
 // FromConfig converts a latest.HooksConfig to a hooks.Config

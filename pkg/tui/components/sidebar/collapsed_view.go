@@ -6,7 +6,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"github.com/docker/cagent/pkg/tui/styles"
+	"github.com/docker/docker-agent/pkg/tui/styles"
 )
 
 // CollapsedViewModel holds the computed layout decisions for collapsed mode.

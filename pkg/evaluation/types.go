@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/docker-agent/pkg/session"
 )
 
 // InputSession wraps a session with its source path for evaluation loading.

@@ -14,12 +14,12 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 
-	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/fsx"
-	"github.com/docker/cagent/pkg/rag/chunk"
-	"github.com/docker/cagent/pkg/rag/database"
-	"github.com/docker/cagent/pkg/rag/treesitter"
-	"github.com/docker/cagent/pkg/rag/types"
+	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/fsx"
+	"github.com/docker/docker-agent/pkg/rag/chunk"
+	"github.com/docker/docker-agent/pkg/rag/database"
+	"github.com/docker/docker-agent/pkg/rag/treesitter"
+	"github.com/docker/docker-agent/pkg/rag/types"
 )
 
 // NewBM25FromConfig creates a BM25 strategy from configuration

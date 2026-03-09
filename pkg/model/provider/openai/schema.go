@@ -6,7 +6,7 @@ import (
 
 	"github.com/openai/openai-go/v3/shared"
 
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 // ConvertParametersToSchema converts parameters to OpenAI Schema format

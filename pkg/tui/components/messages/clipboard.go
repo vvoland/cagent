@@ -9,7 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/mattn/go-runewidth"
 
-	"github.com/docker/cagent/pkg/tui/components/notification"
+	"github.com/docker/docker-agent/pkg/tui/components/notification"
 )
 
 // boxDrawingChars contains Unicode box-drawing characters used by lipgloss borders.

@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/concurrent"
-	"github.com/docker/cagent/pkg/sqliteutil"
+	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/concurrent"
+	"github.com/docker/docker-agent/pkg/sqliteutil"
 )
 
 var (

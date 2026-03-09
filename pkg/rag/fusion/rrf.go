@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"slices"
 
-	"github.com/docker/cagent/pkg/rag/database"
+	"github.com/docker/docker-agent/pkg/rag/database"
 )
 
 // ReciprocalRankFusion implements the RRF (Reciprocal Rank Fusion) algorithm

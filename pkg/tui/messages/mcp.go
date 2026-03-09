@@ -1,6 +1,6 @@
 package messages
 
-import "github.com/docker/cagent/pkg/tools"
+import "github.com/docker/docker-agent/pkg/tools"
 
 // MCP messages control MCP prompt interactions and elicitation.
 type (

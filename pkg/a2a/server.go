@@ -18,9 +18,9 @@ import (
 	"google.golang.org/adk/server/adka2a"
 	"google.golang.org/adk/session"
 
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/teamloader"
-	"github.com/docker/cagent/pkg/version"
+	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/teamloader"
+	"github.com/docker/docker-agent/pkg/version"
 )
 
 // routableAddr replaces wildcard listen addresses (like "0.0.0.0" or "::") with

@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/genai"
 
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/teamloader"
+	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/teamloader"
 )
 
 func TestNewDockerAgentAdapter(t *testing.T) {

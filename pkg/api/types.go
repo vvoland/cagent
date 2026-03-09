@@ -3,9 +3,9 @@ package api
 import (
 	"time"
 
-	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/session"
 )
 
 type Message struct {

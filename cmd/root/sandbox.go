@@ -11,10 +11,10 @@ import (
 	"github.com/docker/cli/cli"
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/environment"
-	"github.com/docker/cagent/pkg/paths"
-	"github.com/docker/cagent/pkg/sandbox"
+	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/environment"
+	"github.com/docker/docker-agent/pkg/paths"
+	"github.com/docker/docker-agent/pkg/sandbox"
 )
 
 // runInSandbox delegates the current command to a Docker sandbox.

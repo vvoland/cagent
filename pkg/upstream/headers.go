@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/docker/cagent/pkg/js"
+	"github.com/docker/docker-agent/pkg/js"
 )
 
 type contextKey struct{}

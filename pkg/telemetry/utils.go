@@ -12,7 +12,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/docker/cagent/pkg/paths"
+	"github.com/docker/docker-agent/pkg/paths"
 )
 
 // getSystemInfo collects system information for events

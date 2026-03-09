@@ -6,12 +6,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/docker/cagent/pkg/config/types"
-	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/sessiontitle"
-	"github.com/docker/cagent/pkg/tools"
-	"github.com/docker/cagent/pkg/tools/builtin"
-	mcptools "github.com/docker/cagent/pkg/tools/mcp"
+	"github.com/docker/docker-agent/pkg/config/types"
+	"github.com/docker/docker-agent/pkg/session"
+	"github.com/docker/docker-agent/pkg/sessiontitle"
+	"github.com/docker/docker-agent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/tools/builtin"
+	mcptools "github.com/docker/docker-agent/pkg/tools/mcp"
 )
 
 // mockRuntime implements Runtime interface for testing

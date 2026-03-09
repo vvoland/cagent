@@ -1,7 +1,7 @@
 // Package messages defines all TUI message types organized by domain.
 package messages
 
-import "github.com/docker/cagent/pkg/session"
+import "github.com/docker/docker-agent/pkg/session"
 
 // Attachment represents content attached to a message. It is either a reference
 // to a file on disk (FilePath is set) or inline content already in memory
