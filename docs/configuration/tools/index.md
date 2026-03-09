@@ -362,7 +362,7 @@ Use the `version` property to specify exactly which package to install:
 toolsets:
   - type: mcp
     command: gopls
-    version: "golang/tools@v0.25.0"
+    version: "golang/tools@v0.21.0"
     args: ["mcp"]
   - type: lsp
     command: rust-analyzer

@@ -44,7 +44,7 @@ agents:
 | `args`       | array  | ✗        | Command-line arguments for the LSP server                  |
 | `env`        | object | ✗        | Environment variables for the LSP process                  |
 | `file_types` | array  | ✗        | File extensions this LSP handles (e.g., `[".go", ".mod"]`) |
-| `version`    | string | ✗        | Package reference for [auto-installing](/configuration/tools/#auto-installing-tools) the command binary (e.g., `"golang/tools@v0.25.0"`) |
+| `version`    | string | ✗        | Package reference for [auto-installing](/configuration/tools/#auto-installing-tools) the command binary (e.g., `"golang/tools@v0.21.0"`) |
 
 ## Available Tools
 
@@ -78,7 +78,7 @@ Here are configurations for popular languages:
 toolsets:
   - type: lsp
     command: gopls
-    version: "golang/tools@v0.25.0" # optional: auto-install if not in PATH
+    version: "golang/tools@v0.21.0" # optional: auto-install if not in PATH
     file_types: [".go"]
 ```
 
