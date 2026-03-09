@@ -9,7 +9,6 @@ import (
 	"os/exec"
 
 	"github.com/docker/cli/cli"
-
 	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/config"

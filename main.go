@@ -7,8 +7,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/docker/cagent/cmd/root"
 	"github.com/docker/cli/cli"
+
+	"github.com/docker/cagent/cmd/root"
 )
 
 func main() {
