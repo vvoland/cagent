@@ -64,7 +64,7 @@ Host Application
 ## CLI Flags
 
 ```bash
-docker-agent acp <agent-file>|<registry-ref> [flags]
+docker agent serve acp <agent-file>|<registry-ref> [flags]
 ```
 
 | Flag               | Default                | Description                         |
