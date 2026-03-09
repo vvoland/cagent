@@ -25,10 +25,10 @@ RUN chmod +x /run.sh
 
 FROM scratch
 COPY --from=dind / /
-COPY --from=docker/cagent:edge /cagent /
+COPY --from=docker/docker-agent:edge /docker-agent /
 WORKDIR /working_dir
 ENV TELEMETRY_ENABLED=false
 ENV DOCKER_AGENT_HIDE_TELEMETRY_BANNER=1
-ENTRYPOINT ["/run.sh", "/cagent", "run", "--exec", "--yolo", "--json"]
+ENTRYPOINT ["/run.sh", "/docker-agent", "run", "--exec", "--yolo", "--json"]
 {{if .CopyWorkingDir}}COPY . ./
 {{end}}
