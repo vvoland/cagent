@@ -1908,3 +1908,110 @@ func TestEstimateMessageTokens(t *testing.T) {
 		})
 	}
 }
+
+// TestResolveSessionAgent_PinnedAgent verifies that resolveSessionAgent returns
+// the session-pinned agent when AgentName is set, even though the runtime's
+// currentAgent points elsewhere (root). Before the fix, the shared currentAgent
+// field was always used, so background sub-agent tasks ran with root's config.
+func TestResolveSessionAgent_PinnedAgent(t *testing.T) {
+	prov := &mockProvider{id: "test/mock-model", stream: &mockStream{}}
+	worker := agent.New("worker", "Worker agent", agent.WithModel(prov))
+	root := agent.New("root", "Root agent", agent.WithModel(prov))
+	tm := team.New(team.WithAgents(root, worker))
+
+	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	require.NoError(t, err)
+	assert.Equal(t, "root", rt.CurrentAgentName(), "default agent should be root")
+
+	// Session pinned to worker (as run_background_agent does).
+	sess := session.New(session.WithAgentName("worker"))
+
+	resolved := rt.resolveSessionAgent(sess)
+	assert.Equal(t, "worker", resolved.Name(), "resolveSessionAgent should return pinned agent")
+}
+
+// TestResolveSessionAgent_FallsBackToCurrentAgent verifies that when no
+// AgentName is set on the session, resolveSessionAgent falls back to the
+// runtime's currentAgent (the normal interactive-session path).
+func TestResolveSessionAgent_FallsBackToCurrentAgent(t *testing.T) {
+	prov := &mockProvider{id: "test/mock-model", stream: &mockStream{}}
+	root := agent.New("root", "Root agent", agent.WithModel(prov))
+	tm := team.New(team.WithAgents(root))
+
+	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	require.NoError(t, err)
+
+	sess := session.New() // no AgentName
+	resolved := rt.resolveSessionAgent(sess)
+	assert.Equal(t, "root", resolved.Name(), "should fall back to currentAgent")
+}
+
+// TestResolveSessionAgent_InvalidNameFallsBack verifies that if the session's
+// AgentName refers to an agent that doesn't exist in the team, we gracefully
+// fall back to currentAgent instead of returning nil (which would panic).
+func TestResolveSessionAgent_InvalidNameFallsBack(t *testing.T) {
+	prov := &mockProvider{id: "test/mock-model", stream: &mockStream{}}
+	root := agent.New("root", "Root agent", agent.WithModel(prov))
+	tm := team.New(team.WithAgents(root))
+
+	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	require.NoError(t, err)
+
+	sess := session.New(session.WithAgentName("nonexistent"))
+	resolved := rt.resolveSessionAgent(sess)
+	require.NotNil(t, resolved, "should never return nil")
+	assert.Equal(t, "root", resolved.Name(), "should fall back to currentAgent for unknown AgentName")
+}
+
+// TestProcessToolCalls_UsesPinnedAgent verifies that tool-call events emitted by
+// processToolCalls carry the pinned agent's name, not root's. Before the fix,
+// processToolCalls called r.CurrentAgent() which always returned root for
+// background sessions.
+func TestProcessToolCalls_UsesPinnedAgent(t *testing.T) {
+	var executed bool
+	workerTool := tools.Tool{
+		Name:       "worker_tool",
+		Parameters: map[string]any{},
+		Handler: func(_ context.Context, _ tools.ToolCall) (*tools.ToolCallResult, error) {
+			executed = true
+			return tools.ResultSuccess("ok"), nil
+		},
+	}
+
+	prov := &mockProvider{id: "test/mock-model", stream: &mockStream{}}
+	worker := agent.New("worker", "Worker agent", agent.WithModel(prov))
+	root := agent.New("root", "Root agent", agent.WithModel(prov))
+	tm := team.New(team.WithAgents(root, worker))
+
+	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+	require.NoError(t, err)
+	rt.registerDefaultTools()
+	assert.Equal(t, "root", rt.CurrentAgentName())
+
+	// Simulate a background session pinned to "worker".
+	sess := session.New(
+		session.WithUserMessage("go"),
+		session.WithToolsApproved(true),
+		session.WithAgentName("worker"),
+	)
+
+	calls := []tools.ToolCall{{
+		ID:       "call-1",
+		Type:     "function",
+		Function: tools.FunctionCall{Name: "worker_tool", Arguments: "{}"},
+	}}
+
+	events := make(chan Event, 32)
+	rt.processToolCalls(t.Context(), sess, calls, []tools.Tool{workerTool}, events)
+	close(events)
+
+	assert.True(t, executed, "worker_tool handler should have been called")
+
+	// Every event emitted must reference "worker", not "root".
+	for ev := range events {
+		if named, ok := ev.(interface{ GetAgentName() string }); ok {
+			assert.Equal(t, "worker", named.GetAgentName(),
+				"event %T should reference pinned agent \"worker\", not root", ev)
+		}
+	}
+}

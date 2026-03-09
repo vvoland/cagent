@@ -556,6 +556,19 @@ func (r *LocalRuntime) CurrentAgent() *agent.Agent {
 	return current
 }
 
+// resolveSessionAgent returns the agent for the given session. When the session
+// is pinned to a specific agent (e.g. background agent tasks), it returns that
+// agent directly instead of reading the shared currentAgent field, which may
+// point to a different agent.
+func (r *LocalRuntime) resolveSessionAgent(sess *session.Session) *agent.Agent {
+	if sess.AgentName != "" {
+		if a, err := r.team.Agent(sess.AgentName); err == nil {
+			return a
+		}
+	}
+	return r.CurrentAgent()
+}
+
 // CurrentAgentSkillsToolset returns the skills toolset for the current agent, or nil if not enabled.
 func (r *LocalRuntime) CurrentAgentSkillsToolset() *builtin.SkillsToolset {
 	a := r.CurrentAgent()
@@ -960,7 +973,7 @@ func (r *LocalRuntime) finalizeEventChannel(ctx context.Context, sess *session.S
 
 	defer close(events)
 
-	events <- StreamStopped(sess.ID, r.CurrentAgentName())
+	events <- StreamStopped(sess.ID, r.resolveSessionAgent(sess).Name())
 
 	r.executeOnUserInputHooks(ctx, sess.ID, "stream stopped")
 
@@ -990,23 +1003,14 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			r.setElicitationEventsChannel(events)
 		}
 
-		// Resolve the agent for this session. When AgentName is set on the
-		// session (e.g., background agent tasks), use it directly to avoid
-		// racing on the shared currentAgent field.
-		var a *agent.Agent
-		if sess.AgentName != "" {
-			a, _ = r.team.Agent(sess.AgentName)
-		}
-		if a == nil {
-			a = r.CurrentAgent()
-		}
+		a := r.resolveSessionAgent(sess)
 
 		// Emit agent information for sidebar display
 		// Use getEffectiveModelID to account for active fallback cooldowns
 		events <- AgentInfo(a.Name(), r.getEffectiveModelID(a), a.Description(), a.WelcomeMessage())
 
 		// Emit team information
-		events <- TeamInfo(r.agentDetailsFromTeam(), r.CurrentAgentName())
+		events <- TeamInfo(r.agentDetailsFromTeam(), a.Name())
 
 		// Initialize RAG and forward events
 		r.InitializeRAG(ctx, events)
@@ -1020,7 +1024,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			return
 		}
 
-		events <- ToolsetInfo(len(agentTools), false, r.CurrentAgentName())
+		events <- ToolsetInfo(len(agentTools), false, a.Name())
 
 		messages := sess.GetMessages(a)
 		if sess.SendUserMessage {
@@ -1039,8 +1043,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		runtimeMaxIterations := sess.MaxIterations
 
 		for {
-			// Set elicitation handler on all MCP toolsets before getting tools
-			a := r.CurrentAgent()
+			a = r.resolveSessionAgent(sess)
 
 			r.emitAgentWarnings(a, events)
 			r.configureToolsetHandlers(a, events)
@@ -1054,7 +1057,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			// Emit updated tool count. After a ToolListChanged MCP notification
 			// the cache is invalidated, so getTools above re-fetches from the
 			// server and may return a different count.
-			events <- ToolsetInfo(len(agentTools), false, r.CurrentAgentName())
+			events <- ToolsetInfo(len(agentTools), false, a.Name())
 
 			// Check iteration limit
 			if runtimeMaxIterations > 0 && iteration >= runtimeMaxIterations {
@@ -1184,7 +1187,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 					)
 					events <- Warning(
 						"The conversation has exceeded the model's context window. Automatically compacting the conversation history...",
-						r.CurrentAgentName(),
+						a.Name(),
 					)
 					r.Summarize(ctx, sess, "", events)
 
@@ -1282,7 +1285,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 
 			usage := SessionUsage(sess, contextLimit)
 			usage.LastMessage = msgUsage
-			events <- NewTokenUsageEvent(sess.ID, r.CurrentAgentName(), usage)
+			events <- NewTokenUsageEvent(sess.ID, a.Name(), usage)
 
 			// Record the message count before tool calls so we can
 			// measure how much content was added by tool results.
@@ -1357,7 +1360,7 @@ func (r *LocalRuntime) configureToolsetHandlers(a *agent.Agent, events chan Even
 	for _, toolset := range a.ToolSets() {
 		tools.ConfigureHandlers(toolset,
 			r.elicitationHandler,
-			func() { events <- Authorization(tools.ElicitationActionAccept, r.CurrentAgentName()) },
+			func() { events <- Authorization(tools.ElicitationActionAccept, a.Name()) },
 			r.managedOAuth,
 		)
 	}
@@ -1371,7 +1374,7 @@ func (r *LocalRuntime) emitAgentWarningsWithSend(a *agent.Agent, send func(Event
 	}
 
 	slog.Warn("Tool setup partially failed; continuing", "agent", a.Name(), "warnings", warnings)
-	send(Warning(formatToolWarning(a, warnings), r.CurrentAgentName()))
+	send(Warning(formatToolWarning(a, warnings), a.Name()))
 }
 
 func (r *LocalRuntime) emitAgentWarnings(a *agent.Agent, events chan Event) {
@@ -1383,7 +1386,7 @@ func (r *LocalRuntime) emitAgentWarnings(a *agent.Agent, events chan Event) {
 	slog.Warn("Tool setup partially failed; continuing", "agent", a.Name(), "warnings", warnings)
 
 	if events != nil {
-		events <- Warning(formatToolWarning(a, warnings), r.CurrentAgentName())
+		events <- Warning(formatToolWarning(a, warnings), a.Name())
 	}
 }
 
@@ -1631,7 +1634,7 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 
 // processToolCalls handles the execution of tool calls for an agent
 func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Session, calls []tools.ToolCall, agentTools []tools.Tool, events chan Event) {
-	a := r.CurrentAgent()
+	a := r.resolveSessionAgent(sess)
 	slog.Debug("Processing tool calls", "agent", a.Name(), "call_count", len(calls))
 
 	// Build a map of agent tools for quick lookup
@@ -2347,18 +2350,18 @@ func (r *LocalRuntime) setModelAndEmitInfo(ctx context.Context, modelRef string,
 // The additionalPrompt parameter allows users to provide additional instructions
 // for the summarization (e.g., "focus on code changes" or "include action items").
 func (r *LocalRuntime) Summarize(ctx context.Context, sess *session.Session, additionalPrompt string, events chan Event) {
-	r.sessionCompactor.Compact(ctx, sess, additionalPrompt, events, r.CurrentAgentName())
+	a := r.resolveSessionAgent(sess)
+	r.sessionCompactor.Compact(ctx, sess, additionalPrompt, events, a.Name())
 
 	// Emit a TokenUsageEvent so the sidebar immediately reflects the
 	// compaction: tokens drop to the summary size, context % drops, and
 	// cost increases by the summary generation cost.
-	a := r.CurrentAgent()
 	modelID := r.getEffectiveModelID(a)
 	var contextLimit int64
 	if m, err := r.modelsStore.GetModel(ctx, modelID); err == nil && m != nil {
 		contextLimit = int64(m.Limit.Context)
 	}
-	events <- NewTokenUsageEvent(sess.ID, r.CurrentAgentName(), SessionUsage(sess, contextLimit))
+	events <- NewTokenUsageEvent(sess.ID, a.Name(), SessionUsage(sess, contextLimit))
 }
 
 // setElicitationEventsChannel sets the current events channel for elicitation requests
