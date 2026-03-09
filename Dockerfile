@@ -50,11 +50,6 @@ COPY --from=builder /binaries/docker-agent-$TARGETOS-$TARGETARCH* docker-agent
 FROM scratch AS cross
 COPY --from=builder /binaries .
 
-FROM docker/sandbox-templates:cagent AS sandbox-template
-ARG TARGETOS TARGETARCH
-COPY --from=builder /binaries/docker-agent-$TARGETOS-$TARGETARCH /usr/local/bin/docker-agent
-RUN ln -s /usr/local/bin/docker-agent /usr/local/bin/cagent
-
 FROM alpine:${ALPINE_VERSION}
 RUN apk add --no-cache ca-certificates docker-cli && \
     addgroup -S cagent && adduser -S -G cagent cagent && \
