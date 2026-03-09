@@ -75,15 +75,15 @@ More examples in the [`examples/`](examples/README.md) directory.
 
 📖 **[Full documentation](https://docker.github.io/docker-agent/)**
 
-- [Installation](https://docker.github.io/docker-agent/#getting-started/installation) · [Quick Start](https://docker.github.io/docker-agent/#getting-started/quickstart)
-- [Agents](https://docker.github.io/docker-agent/#concepts/agents) · [Models](https://docker.github.io/docker-agent/#concepts/models) · [Tools](https://docker.github.io/docker-agent/#concepts/tools) · [Multi-Agent](https://docker.github.io/docker-agent/#concepts/multi-agent)
-- [Configuration Reference](https://docker.github.io/docker-agent/#configuration/overview)
-- [TUI](https://docker.github.io/docker-agent/#features/tui) · [CLI](https://docker.github.io/docker-agent/#features/cli) · [MCP Mode](https://docker.github.io/docker-agent/#features/mcp-mode) · [RAG](https://docker.github.io/docker-agent/#features/rag)
-- [Model Providers](https://docker.github.io/docker-agent/#providers/overview) · [Docker Model Runner](https://docker.github.io/docker-agent/#providers/dmr)
+- [Installation](https://docker.github.io/docker-agent/getting-started/installation) · [Quick Start](https://docker.github.io/docker-agent/getting-started/quickstart)
+- [Agents](https://docker.github.io/docker-agent/concepts/agents) · [Models](https://docker.github.io/docker-agent/concepts/models) · [Tools](https://docker.github.io/docker-agent/concepts/tools) · [Multi-Agent](https://docker.github.io/docker-agent/concepts/multi-agent)
+- [Configuration Reference](https://docker.github.io/docker-agent/configuration/overview)
+- [TUI](https://docker.github.io/docker-agent/features/tui) · [CLI](https://docker.github.io/docker-agent/features/cli) · [MCP Mode](https://docker.github.io/docker-agent/features/mcp-mode) · [RAG](https://docker.github.io/docker-agent/features/rag)
+- [Model Providers](https://docker.github.io/docker-agent/providers/overview) · [Docker Model Runner](https://docker.github.io/docker-agent/providers/dmr)
 
 ## Contributing
 
-Read the [Contributing guide](https://docker.github.io/docker-agent/#community/contributing) to get started. We use `docker-agent` to build `docker-agent`:
+Read the [Contributing guide](https://docker.github.io/docker-agent/community/contributing) to get started. We use `docker-agent` to build `docker-agent`:
 
 ```sh
 docker agent run ./golang_developer.yaml
@@ -91,7 +91,7 @@ docker agent run ./golang_developer.yaml
 
 ## Telemetry
 
-We collect anonymous usage data to improve the tool. See [Telemetry](https://docker.github.io/docker-agent/#community/telemetry).
+We collect anonymous usage data to improve the tool. See [Telemetry](https://docker.github.io/docker-agent/community/telemetry).
 
 ## Community
 
