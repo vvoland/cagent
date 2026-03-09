@@ -1,13 +1,13 @@
 package config
 
 import (
-	"github.com/docker/cagent/pkg/config/latest"
-	v0 "github.com/docker/cagent/pkg/config/v0"
-	v1 "github.com/docker/cagent/pkg/config/v1"
-	v2 "github.com/docker/cagent/pkg/config/v2"
-	v3 "github.com/docker/cagent/pkg/config/v3"
-	v4 "github.com/docker/cagent/pkg/config/v4"
-	v5 "github.com/docker/cagent/pkg/config/v5"
+	"github.com/docker/docker-agent/pkg/config/latest"
+	v0 "github.com/docker/docker-agent/pkg/config/v0"
+	v1 "github.com/docker/docker-agent/pkg/config/v1"
+	v2 "github.com/docker/docker-agent/pkg/config/v2"
+	v3 "github.com/docker/docker-agent/pkg/config/v3"
+	v4 "github.com/docker/docker-agent/pkg/config/v4"
+	v5 "github.com/docker/docker-agent/pkg/config/v5"
 )
 
 func versions() (map[string]func([]byte) (any, error), []func(any, []byte) (any, error)) {

@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/concurrent"
-	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/concurrent"
+	"github.com/docker/docker-agent/pkg/session"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 // mockRunner implements Runner for testing.

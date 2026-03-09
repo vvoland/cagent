@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/sandbox"
-	"github.com/docker/cagent/pkg/userconfig"
+	"github.com/docker/docker-agent/pkg/sandbox"
+	"github.com/docker/docker-agent/pkg/userconfig"
 )
 
 func TestCheckAvailable(t *testing.T) {

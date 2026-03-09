@@ -7,13 +7,13 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/docker/cagent/pkg/runtime"
-	"github.com/docker/cagent/pkg/tui/components/notification"
-	"github.com/docker/cagent/pkg/tui/components/sidebar"
-	"github.com/docker/cagent/pkg/tui/core"
-	"github.com/docker/cagent/pkg/tui/dialog"
-	msgtypes "github.com/docker/cagent/pkg/tui/messages"
-	"github.com/docker/cagent/pkg/tui/types"
+	"github.com/docker/docker-agent/pkg/runtime"
+	"github.com/docker/docker-agent/pkg/tui/components/notification"
+	"github.com/docker/docker-agent/pkg/tui/components/sidebar"
+	"github.com/docker/docker-agent/pkg/tui/core"
+	"github.com/docker/docker-agent/pkg/tui/dialog"
+	msgtypes "github.com/docker/docker-agent/pkg/tui/messages"
+	"github.com/docker/docker-agent/pkg/tui/types"
 )
 
 // Runtime Event Handling

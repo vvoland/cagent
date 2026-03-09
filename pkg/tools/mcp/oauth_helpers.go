@@ -14,7 +14,7 @@ import (
 
 	"golang.org/x/oauth2"
 
-	"github.com/docker/cagent/pkg/browser"
+	"github.com/docker/docker-agent/pkg/browser"
 )
 
 // GenerateState generates a random state parameter for OAuth CSRF protection

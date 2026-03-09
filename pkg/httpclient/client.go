@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"runtime"
 
-	"github.com/docker/cagent/pkg/version"
+	"github.com/docker/docker-agent/pkg/version"
 )
 
 type HTTPOptions struct {

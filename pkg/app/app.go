@@ -14,18 +14,18 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/docker/cagent/pkg/app/export"
-	"github.com/docker/cagent/pkg/app/transcript"
-	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/cli"
-	"github.com/docker/cagent/pkg/config/types"
-	"github.com/docker/cagent/pkg/runtime"
-	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/sessiontitle"
-	"github.com/docker/cagent/pkg/skills"
-	"github.com/docker/cagent/pkg/tools"
-	mcptools "github.com/docker/cagent/pkg/tools/mcp"
-	"github.com/docker/cagent/pkg/tui/messages"
+	"github.com/docker/docker-agent/pkg/app/export"
+	"github.com/docker/docker-agent/pkg/app/transcript"
+	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/cli"
+	"github.com/docker/docker-agent/pkg/config/types"
+	"github.com/docker/docker-agent/pkg/runtime"
+	"github.com/docker/docker-agent/pkg/session"
+	"github.com/docker/docker-agent/pkg/sessiontitle"
+	"github.com/docker/docker-agent/pkg/skills"
+	"github.com/docker/docker-agent/pkg/tools"
+	mcptools "github.com/docker/docker-agent/pkg/tools/mcp"
+	"github.com/docker/docker-agent/pkg/tui/messages"
 )
 
 type App struct {

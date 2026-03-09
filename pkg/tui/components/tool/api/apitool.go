@@ -6,12 +6,12 @@ import (
 
 	"github.com/docker/go-units"
 
-	"github.com/docker/cagent/pkg/tui/components/spinner"
-	"github.com/docker/cagent/pkg/tui/components/toolcommon"
-	"github.com/docker/cagent/pkg/tui/core/layout"
-	"github.com/docker/cagent/pkg/tui/service"
-	"github.com/docker/cagent/pkg/tui/styles"
-	"github.com/docker/cagent/pkg/tui/types"
+	"github.com/docker/docker-agent/pkg/tui/components/spinner"
+	"github.com/docker/docker-agent/pkg/tui/components/toolcommon"
+	"github.com/docker/docker-agent/pkg/tui/core/layout"
+	"github.com/docker/docker-agent/pkg/tui/service"
+	"github.com/docker/docker-agent/pkg/tui/styles"
+	"github.com/docker/docker-agent/pkg/tui/types"
 )
 
 func New(msg *types.Message, sessionState service.SessionStateReader) layout.Model {

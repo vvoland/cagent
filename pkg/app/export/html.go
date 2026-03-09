@@ -16,8 +16,8 @@ import (
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/renderer/html"
 
-	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/session"
 )
 
 //go:embed export.css

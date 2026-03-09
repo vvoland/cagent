@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/fsx"
-	"github.com/docker/cagent/pkg/paths"
-	"github.com/docker/cagent/pkg/rag/types"
+	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/fsx"
+	"github.com/docker/docker-agent/pkg/paths"
+	"github.com/docker/docker-agent/pkg/rag/types"
 )
 
 // Helper functions for common operations

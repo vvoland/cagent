@@ -17,7 +17,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 type mcpClient interface {

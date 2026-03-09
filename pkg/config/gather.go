@@ -9,10 +9,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/environment"
-	"github.com/docker/cagent/pkg/gateway"
-	"github.com/docker/cagent/pkg/model/provider"
+	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/environment"
+	"github.com/docker/docker-agent/pkg/gateway"
+	"github.com/docker/docker-agent/pkg/model/provider"
 )
 
 // gatherMissingEnvVars finds out which environment variables are required by the models and tools.

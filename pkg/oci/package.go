@@ -14,10 +14,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/static"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/content"
-	"github.com/docker/cagent/pkg/version"
+	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/content"
+	"github.com/docker/docker-agent/pkg/version"
 )
 
 // PackageFileAsOCIToStore creates an OCI artifact from a file and stores it in the content store

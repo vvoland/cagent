@@ -7,10 +7,10 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/docker/cagent/pkg/agent"
-	"github.com/docker/cagent/pkg/config/types"
-	"github.com/docker/cagent/pkg/permissions"
-	"github.com/docker/cagent/pkg/rag"
+	"github.com/docker/docker-agent/pkg/agent"
+	"github.com/docker/docker-agent/pkg/config/types"
+	"github.com/docker/docker-agent/pkg/permissions"
+	"github.com/docker/docker-agent/pkg/rag"
 )
 
 type Team struct {

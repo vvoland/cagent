@@ -1,7 +1,7 @@
 package options
 
 import (
-	"github.com/docker/cagent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/config/latest"
 )
 
 type ModelOptions struct {

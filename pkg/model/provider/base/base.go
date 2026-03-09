@@ -1,9 +1,9 @@
 package base
 
 import (
-	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/environment"
-	"github.com/docker/cagent/pkg/model/provider/options"
+	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/environment"
+	"github.com/docker/docker-agent/pkg/model/provider/options"
 )
 
 // Config is a common base configuration shared by all provider clients.

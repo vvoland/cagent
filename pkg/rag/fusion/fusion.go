@@ -4,7 +4,7 @@ import (
 	"cmp"
 	"fmt"
 
-	"github.com/docker/cagent/pkg/rag/database"
+	"github.com/docker/docker-agent/pkg/rag/database"
 )
 
 // Fusion defines the interface for combining results from multiple retrieval strategies

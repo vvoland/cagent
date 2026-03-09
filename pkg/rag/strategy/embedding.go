@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/model/provider"
-	"github.com/docker/cagent/pkg/model/provider/options"
-	"github.com/docker/cagent/pkg/modelsdev"
-	"github.com/docker/cagent/pkg/rag/embed"
+	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/model/provider"
+	"github.com/docker/docker-agent/pkg/model/provider/options"
+	"github.com/docker/docker-agent/pkg/modelsdev"
+	"github.com/docker/docker-agent/pkg/rag/embed"
 )
 
 // EmbeddingConfig holds configuration for creating an embedding provider.

@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/docker/cagent/pkg/model/provider/options"
+	"github.com/docker/docker-agent/pkg/model/provider/options"
 )
 
 // CloneWithOptions returns a new Provider instance using the same provider/model

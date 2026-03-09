@@ -10,8 +10,8 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/genai"
 
-	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 // Pre-compiled regex for extracting text from error messages (performance optimization).

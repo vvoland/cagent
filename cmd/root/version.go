@@ -4,9 +4,9 @@ import (
 	"github.com/docker/cli/cli-plugins/plugin"
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/cli"
-	"github.com/docker/cagent/pkg/telemetry"
-	"github.com/docker/cagent/pkg/version"
+	"github.com/docker/docker-agent/pkg/cli"
+	"github.com/docker/docker-agent/pkg/telemetry"
+	"github.com/docker/docker-agent/pkg/version"
 )
 
 func newVersionCmd() *cobra.Command {

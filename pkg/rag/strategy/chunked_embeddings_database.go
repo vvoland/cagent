@@ -9,8 +9,8 @@ import (
 	"log/slog"
 	"slices"
 
-	"github.com/docker/cagent/pkg/rag/database"
-	"github.com/docker/cagent/pkg/sqliteutil"
+	"github.com/docker/docker-agent/pkg/rag/database"
+	"github.com/docker/docker-agent/pkg/sqliteutil"
 )
 
 // chunkedVectorDB implements vectorStoreDB for the chunked-embeddings strategy.

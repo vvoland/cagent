@@ -12,9 +12,9 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/evaluation"
-	"github.com/docker/cagent/pkg/telemetry"
+	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/evaluation"
+	"github.com/docker/docker-agent/pkg/telemetry"
 )
 
 const defaultJudgeModel = "anthropic/claude-opus-4-5-20251101"

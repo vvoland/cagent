@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/docker/cagent/pkg/config/types"
+	"github.com/docker/docker-agent/pkg/config/types"
 )
 
 const Version = "1"

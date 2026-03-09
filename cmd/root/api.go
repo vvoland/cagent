@@ -8,11 +8,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/cli"
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/server"
-	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/telemetry"
+	"github.com/docker/docker-agent/pkg/cli"
+	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/server"
+	"github.com/docker/docker-agent/pkg/session"
+	"github.com/docker/docker-agent/pkg/telemetry"
 )
 
 type apiFlags struct {

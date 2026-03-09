@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"slices"
 
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 // WithToolsFilter creates a toolset that only includes the specified tools.

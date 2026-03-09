@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/config"
+	"github.com/docker/docker-agent/pkg/config"
 )
 
 func TestSetupRecordingProxy_EmptyPath(t *testing.T) {

@@ -5,8 +5,8 @@ package commands
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/docker/cagent/pkg/tui/core"
-	"github.com/docker/cagent/pkg/tui/messages"
+	"github.com/docker/docker-agent/pkg/tui/core"
+	"github.com/docker/docker-agent/pkg/tui/messages"
 )
 
 func speakCommand() *Item {

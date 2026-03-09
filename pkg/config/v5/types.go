@@ -10,7 +10,7 @@ import (
 
 	"github.com/goccy/go-yaml"
 
-	"github.com/docker/cagent/pkg/config/types"
+	"github.com/docker/docker-agent/pkg/config/types"
 )
 
 const Version = "5"

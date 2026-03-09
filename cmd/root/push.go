@@ -6,12 +6,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/cli"
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/content"
-	"github.com/docker/cagent/pkg/oci"
-	"github.com/docker/cagent/pkg/remote"
-	"github.com/docker/cagent/pkg/telemetry"
+	"github.com/docker/docker-agent/pkg/cli"
+	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/content"
+	"github.com/docker/docker-agent/pkg/oci"
+	"github.com/docker/docker-agent/pkg/remote"
+	"github.com/docker/docker-agent/pkg/telemetry"
 )
 
 func newPushCmd() *cobra.Command {

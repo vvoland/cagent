@@ -10,11 +10,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/model/provider"
-	"github.com/docker/cagent/pkg/model/provider/options"
+	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/model/provider"
+	"github.com/docker/docker-agent/pkg/model/provider/options"
 )
 
 // relevancePrompt is the prompt template for the judge model to evaluate responses.

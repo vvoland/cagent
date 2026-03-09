@@ -16,8 +16,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/goccy/go-yaml"
 
-	"github.com/docker/cagent/pkg/paths"
-	"github.com/docker/cagent/pkg/userconfig"
+	"github.com/docker/docker-agent/pkg/paths"
+	"github.com/docker/docker-agent/pkg/userconfig"
 )
 
 //go:embed themes/*.yaml

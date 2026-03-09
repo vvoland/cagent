@@ -20,15 +20,15 @@ import (
 	"github.com/mattn/go-runewidth"
 	"github.com/rivo/uniseg"
 
-	"github.com/docker/cagent/pkg/app"
-	"github.com/docker/cagent/pkg/history"
-	"github.com/docker/cagent/pkg/paths"
-	"github.com/docker/cagent/pkg/tui/components/completion"
-	"github.com/docker/cagent/pkg/tui/components/editor/completions"
-	"github.com/docker/cagent/pkg/tui/core"
-	"github.com/docker/cagent/pkg/tui/core/layout"
-	"github.com/docker/cagent/pkg/tui/messages"
-	"github.com/docker/cagent/pkg/tui/styles"
+	"github.com/docker/docker-agent/pkg/app"
+	"github.com/docker/docker-agent/pkg/history"
+	"github.com/docker/docker-agent/pkg/paths"
+	"github.com/docker/docker-agent/pkg/tui/components/completion"
+	"github.com/docker/docker-agent/pkg/tui/components/editor/completions"
+	"github.com/docker/docker-agent/pkg/tui/core"
+	"github.com/docker/docker-agent/pkg/tui/core/layout"
+	"github.com/docker/docker-agent/pkg/tui/messages"
+	"github.com/docker/docker-agent/pkg/tui/styles"
 )
 
 // ansiRegexp matches ANSI escape sequences so they can be removed when

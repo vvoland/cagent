@@ -11,12 +11,12 @@ import (
 
 	"github.com/goccy/go-yaml"
 
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/team"
-	"github.com/docker/cagent/pkg/teamloader"
-	"github.com/docker/cagent/pkg/tools"
-	"github.com/docker/cagent/pkg/tools/builtin"
+	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/team"
+	"github.com/docker/docker-agent/pkg/teamloader"
+	"github.com/docker/docker-agent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/tools/builtin"
 )
 
 //go:embed instructions.txt

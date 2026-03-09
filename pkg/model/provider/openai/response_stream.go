@@ -8,8 +8,8 @@ import (
 	"github.com/openai/openai-go/v3/packages/ssestream"
 	"github.com/openai/openai-go/v3/responses"
 
-	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 // ResponseStreamAdapter adapts the OpenAI responses stream to our interface

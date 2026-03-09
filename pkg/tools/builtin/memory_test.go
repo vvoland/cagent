@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/memory/database"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/memory/database"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 // Mock for memorymanager.Manager

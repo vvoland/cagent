@@ -11,10 +11,10 @@ import (
 	adksession "google.golang.org/adk/session"
 	"google.golang.org/genai"
 
-	dagent "github.com/docker/cagent/pkg/agent"
-	"github.com/docker/cagent/pkg/runtime"
-	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/team"
+	dagent "github.com/docker/docker-agent/pkg/agent"
+	"github.com/docker/docker-agent/pkg/runtime"
+	"github.com/docker/docker-agent/pkg/session"
+	"github.com/docker/docker-agent/pkg/team"
 )
 
 // newDockerAgentAdapter creates a new ADK agent adapter from a docker agent team and agent name

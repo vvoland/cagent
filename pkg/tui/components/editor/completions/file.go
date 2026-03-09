@@ -5,8 +5,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/docker/cagent/pkg/fsx"
-	"github.com/docker/cagent/pkg/tui/components/completion"
+	"github.com/docker/docker-agent/pkg/fsx"
+	"github.com/docker/docker-agent/pkg/tui/components/completion"
 )
 
 // Initial loading limits for snappy UX

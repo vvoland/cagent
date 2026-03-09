@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 // Evaluator handles JavaScript expression evaluation in strings.

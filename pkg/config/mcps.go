@@ -5,7 +5,7 @@ import (
 	"maps"
 	"strings"
 
-	"github.com/docker/cagent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/config/latest"
 )
 
 // resolveMCPDefinitions resolves MCP definition references in agent toolsets.

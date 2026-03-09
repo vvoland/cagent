@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/environment"
+	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/environment"
 )
 
 // providerConfig defines a cloud provider and how to detect/describe its API keys.

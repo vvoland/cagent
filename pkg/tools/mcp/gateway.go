@@ -10,9 +10,9 @@ import (
 
 	"github.com/goccy/go-yaml"
 
-	"github.com/docker/cagent/pkg/environment"
-	"github.com/docker/cagent/pkg/gateway"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/environment"
+	"github.com/docker/docker-agent/pkg/gateway"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 type GatewayToolset struct {

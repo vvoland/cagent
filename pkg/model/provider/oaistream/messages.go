@@ -11,7 +11,7 @@ import (
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/packages/param"
 
-	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/chat"
 )
 
 // JSONSchema is a helper type that implements json.Marshaler for map[string]any.

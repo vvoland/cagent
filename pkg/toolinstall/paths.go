@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/cagent/pkg/paths"
+	"github.com/docker/docker-agent/pkg/paths"
 )
 
 // ToolsDir returns the base directory for installed tools.

@@ -9,7 +9,7 @@ import (
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 // sessionClient provides shared session-management logic for MCP client

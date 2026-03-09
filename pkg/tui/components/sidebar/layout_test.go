@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/runtime"
-	"github.com/docker/cagent/pkg/tui/components/scrollbar"
-	"github.com/docker/cagent/pkg/tui/service"
+	"github.com/docker/docker-agent/pkg/runtime"
+	"github.com/docker/docker-agent/pkg/tui/components/scrollbar"
+	"github.com/docker/docker-agent/pkg/tui/service"
 )
 
 func TestDefaultLayoutConfig(t *testing.T) {

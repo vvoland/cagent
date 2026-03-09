@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/docker/cagent/pkg/rag/database"
-	"github.com/docker/cagent/pkg/rag/fusion"
-	"github.com/docker/cagent/pkg/rag/rerank"
-	"github.com/docker/cagent/pkg/rag/strategy"
-	"github.com/docker/cagent/pkg/rag/types"
+	"github.com/docker/docker-agent/pkg/rag/database"
+	"github.com/docker/docker-agent/pkg/rag/fusion"
+	"github.com/docker/docker-agent/pkg/rag/rerank"
+	"github.com/docker/docker-agent/pkg/rag/strategy"
+	"github.com/docker/docker-agent/pkg/rag/types"
 )
 
 // ToolConfig represents tool-specific configuration

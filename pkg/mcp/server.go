@@ -12,14 +12,14 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/docker/cagent/pkg/agent"
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/runtime"
-	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/team"
-	"github.com/docker/cagent/pkg/teamloader"
-	"github.com/docker/cagent/pkg/tools"
-	"github.com/docker/cagent/pkg/version"
+	"github.com/docker/docker-agent/pkg/agent"
+	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/runtime"
+	"github.com/docker/docker-agent/pkg/session"
+	"github.com/docker/docker-agent/pkg/team"
+	"github.com/docker/docker-agent/pkg/teamloader"
+	"github.com/docker/docker-agent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/version"
 )
 
 type ToolInput struct {

@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/model/provider"
-	"github.com/docker/cagent/pkg/runtime"
+	"github.com/docker/docker-agent/pkg/model/provider"
+	"github.com/docker/docker-agent/pkg/runtime"
 )
 
 func TestModelPickerNavigation(t *testing.T) {

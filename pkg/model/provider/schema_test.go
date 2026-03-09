@@ -7,10 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/model/provider/anthropic"
-	"github.com/docker/cagent/pkg/model/provider/dmr"
-	"github.com/docker/cagent/pkg/model/provider/gemini"
-	"github.com/docker/cagent/pkg/model/provider/openai"
+	"github.com/docker/docker-agent/pkg/model/provider/anthropic"
+	"github.com/docker/docker-agent/pkg/model/provider/dmr"
+	"github.com/docker/docker-agent/pkg/model/provider/gemini"
+	"github.com/docker/docker-agent/pkg/model/provider/openai"
 )
 
 const schemaJSON = `

@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/environment"
+	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/environment"
 )
 
 // CheckAvailable returns a user-friendly error when Docker is not

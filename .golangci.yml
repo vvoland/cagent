@@ -80,7 +80,7 @@ linters:
           files:
             - "**/*.go"
           deny:
-            - pkg: github.com/docker/cagent/internal
+            - pkg: github.com/docker/docker-agent/internal
               desc: don't use /internal/ from /pkg/
         old_yaml:
           files:
@@ -141,7 +141,7 @@ formatters:
       sections:
         - standard
         - default
-        - prefix(github.com/docker/cagent)
+        - prefix(github.com/docker/docker-agent)
     gofmt:
       rewrite-rules:
         - pattern: 'interface{}'

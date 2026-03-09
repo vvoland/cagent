@@ -11,15 +11,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/cagent/pkg/api"
-	"github.com/docker/cagent/pkg/concurrent"
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/runtime"
-	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/sessiontitle"
-	"github.com/docker/cagent/pkg/team"
-	"github.com/docker/cagent/pkg/teamloader"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/api"
+	"github.com/docker/docker-agent/pkg/concurrent"
+	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/runtime"
+	"github.com/docker/docker-agent/pkg/session"
+	"github.com/docker/docker-agent/pkg/sessiontitle"
+	"github.com/docker/docker-agent/pkg/team"
+	"github.com/docker/docker-agent/pkg/teamloader"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 type activeRuntimes struct {

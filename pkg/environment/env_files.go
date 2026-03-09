@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/cagent/pkg/path"
-	"github.com/docker/cagent/pkg/paths"
+	"github.com/docker/docker-agent/pkg/path"
+	"github.com/docker/docker-agent/pkg/paths"
 )
 
 type KeyValuePair struct {

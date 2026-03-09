@@ -7,7 +7,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
 
-	"github.com/docker/cagent/pkg/content"
+	"github.com/docker/docker-agent/pkg/content"
 )
 
 // Pull pulls an artifact from a registry and stores it in the content store

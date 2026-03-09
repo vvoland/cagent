@@ -6,8 +6,8 @@ import (
 
 	"github.com/dop251/goja"
 
-	"github.com/docker/cagent/pkg/config/types"
-	"github.com/docker/cagent/pkg/environment"
+	"github.com/docker/docker-agent/pkg/config/types"
+	"github.com/docker/docker-agent/pkg/environment"
 )
 
 // newVM creates a new Goja JavaScript runtime.

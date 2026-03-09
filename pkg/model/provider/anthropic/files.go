@@ -16,7 +16,7 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 
-	"github.com/docker/cagent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/chat"
 )
 
 const (

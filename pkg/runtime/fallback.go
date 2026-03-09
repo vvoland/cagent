@@ -14,13 +14,13 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 	"google.golang.org/genai"
 
-	"github.com/docker/cagent/pkg/agent"
-	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/model/provider"
-	"github.com/docker/cagent/pkg/model/provider/options"
-	"github.com/docker/cagent/pkg/modelsdev"
-	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/agent"
+	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/model/provider"
+	"github.com/docker/docker-agent/pkg/model/provider/options"
+	"github.com/docker/docker-agent/pkg/modelsdev"
+	"github.com/docker/docker-agent/pkg/session"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 // Fallback configuration constants

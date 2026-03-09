@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	a2aserver "github.com/docker/cagent/pkg/a2a"
-	"github.com/docker/cagent/pkg/config"
+	a2aserver "github.com/docker/docker-agent/pkg/a2a"
+	"github.com/docker/docker-agent/pkg/config"
 )
 
 // a2aResponse is a simplified representation of a JSON-RPC response

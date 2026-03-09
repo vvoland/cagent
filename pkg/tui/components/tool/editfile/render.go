@@ -15,10 +15,10 @@ import (
 	"github.com/aymanbagabas/go-udiff"
 	"github.com/mattn/go-runewidth"
 
-	"github.com/docker/cagent/pkg/tools"
-	"github.com/docker/cagent/pkg/tools/builtin"
-	"github.com/docker/cagent/pkg/tui/styles"
-	"github.com/docker/cagent/pkg/tui/types"
+	"github.com/docker/docker-agent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/tools/builtin"
+	"github.com/docker/docker-agent/pkg/tui/styles"
+	"github.com/docker/docker-agent/pkg/tui/types"
 )
 
 const (

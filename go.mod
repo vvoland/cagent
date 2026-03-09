@@ -1,4 +1,4 @@
-module github.com/docker/cagent
+module github.com/docker/docker-agent
 
 go 1.26.0
 

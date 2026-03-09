@@ -15,11 +15,11 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/docker/cagent/pkg/content"
-	"github.com/docker/cagent/pkg/environment"
-	"github.com/docker/cagent/pkg/httpclient"
-	"github.com/docker/cagent/pkg/paths"
-	"github.com/docker/cagent/pkg/remote"
+	"github.com/docker/docker-agent/pkg/content"
+	"github.com/docker/docker-agent/pkg/environment"
+	"github.com/docker/docker-agent/pkg/httpclient"
+	"github.com/docker/docker-agent/pkg/paths"
+	"github.com/docker/docker-agent/pkg/remote"
 )
 
 type Source interface {

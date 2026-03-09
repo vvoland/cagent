@@ -14,7 +14,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/docker/cagent/pkg/audio/capture"
+	"github.com/docker/docker-agent/pkg/audio/capture"
 )
 
 const openAIRealtimeURL = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview"

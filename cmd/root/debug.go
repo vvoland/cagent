@@ -8,12 +8,12 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/cli"
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/sessiontitle"
-	"github.com/docker/cagent/pkg/team"
-	"github.com/docker/cagent/pkg/teamloader"
-	"github.com/docker/cagent/pkg/telemetry"
+	"github.com/docker/docker-agent/pkg/cli"
+	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/sessiontitle"
+	"github.com/docker/docker-agent/pkg/team"
+	"github.com/docker/docker-agent/pkg/teamloader"
+	"github.com/docker/docker-agent/pkg/telemetry"
 )
 
 type debugFlags struct {

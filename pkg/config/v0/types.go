@@ -3,7 +3,7 @@ package v0
 import (
 	"errors"
 
-	"github.com/docker/cagent/pkg/config/types"
+	"github.com/docker/docker-agent/pkg/config/types"
 )
 
 const Version = "0"

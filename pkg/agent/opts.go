@@ -3,10 +3,10 @@ package agent
 import (
 	"time"
 
-	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/config/types"
-	"github.com/docker/cagent/pkg/model/provider"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/config/types"
+	"github.com/docker/docker-agent/pkg/model/provider"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 type Opt func(a *Agent)

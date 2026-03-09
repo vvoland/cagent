@@ -14,9 +14,9 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 
-	"github.com/docker/cagent/pkg/tools"
-	"github.com/docker/cagent/pkg/upstream"
-	"github.com/docker/cagent/pkg/useragent"
+	"github.com/docker/docker-agent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/upstream"
+	"github.com/docker/docker-agent/pkg/useragent"
 )
 
 const httpTimeout = 30 * time.Second

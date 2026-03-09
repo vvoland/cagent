@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xeipuuv/gojsonschema"
 
-	"github.com/docker/cagent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/config/latest"
 )
 
 // schemaFile is the path to the JSON schema file relative to the repo root.

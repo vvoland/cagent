@@ -3,10 +3,10 @@ package runtime
 import (
 	"context"
 
-	"github.com/docker/cagent/pkg/api"
-	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/api"
+	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/session"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 // RemoteClient is the interface that both HTTP and Connect-RPC clients implement

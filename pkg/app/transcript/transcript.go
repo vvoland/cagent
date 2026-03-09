@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/session"
+	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/session"
 )
 
 func PlainText(sess *session.Session) string {

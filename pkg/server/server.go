@@ -14,10 +14,10 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
-	"github.com/docker/cagent/pkg/api"
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/session"
-	"github.com/docker/cagent/pkg/upstream"
+	"github.com/docker/docker-agent/pkg/api"
+	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/session"
+	"github.com/docker/docker-agent/pkg/upstream"
 )
 
 type Server struct {

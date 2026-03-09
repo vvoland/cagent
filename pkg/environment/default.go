@@ -1,8 +1,8 @@
 package environment
 
 import (
-	"github.com/docker/cagent/pkg/paths"
-	"github.com/docker/cagent/pkg/userconfig"
+	"github.com/docker/docker-agent/pkg/paths"
+	"github.com/docker/docker-agent/pkg/userconfig"
 )
 
 // NewDefaultProvider creates a provider chain with OS env, run secrets,

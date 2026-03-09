@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/cagent/pkg/paths"
+	"github.com/docker/docker-agent/pkg/paths"
 )
 
 // remoteIndex represents the index.json served at /.well-known/skills/index.json

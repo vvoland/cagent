@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/docker/cagent/pkg/paths"
-	"github.com/docker/cagent/pkg/sqliteutil"
+	"github.com/docker/docker-agent/pkg/paths"
+	"github.com/docker/docker-agent/pkg/sqliteutil"
 )
 
 // Store manages persistent TUI state in a SQLite database.

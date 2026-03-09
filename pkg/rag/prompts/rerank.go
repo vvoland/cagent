@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/cagent/pkg/rag/types"
+	"github.com/docker/docker-agent/pkg/rag/types"
 )
 
 // BuildRerankDocumentsPrompt formats the user prompt with query and numbered documents.

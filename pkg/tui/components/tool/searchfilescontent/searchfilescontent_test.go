@@ -3,9 +3,9 @@ package searchfilescontent
 import (
 	"testing"
 
-	"github.com/docker/cagent/pkg/tools"
-	"github.com/docker/cagent/pkg/tools/builtin"
-	"github.com/docker/cagent/pkg/tui/types"
+	"github.com/docker/docker-agent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/tools/builtin"
+	"github.com/docker/docker-agent/pkg/tui/types"
 )
 
 func TestExtractResult(t *testing.T) {

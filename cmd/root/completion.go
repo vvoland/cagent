@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/userconfig"
+	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/userconfig"
 )
 
 func completeRunExec(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {

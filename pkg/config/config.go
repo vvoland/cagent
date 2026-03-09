@@ -13,8 +13,8 @@ import (
 
 	"github.com/goccy/go-yaml"
 
-	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/environment"
+	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/environment"
 )
 
 func Load(ctx context.Context, source Source) (*latest.Config, error) {

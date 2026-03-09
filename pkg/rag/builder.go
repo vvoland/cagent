@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/environment"
-	"github.com/docker/cagent/pkg/model/provider"
-	"github.com/docker/cagent/pkg/rag/rerank"
-	"github.com/docker/cagent/pkg/rag/strategy"
-	"github.com/docker/cagent/pkg/rag/types"
+	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/environment"
+	"github.com/docker/docker-agent/pkg/model/provider"
+	"github.com/docker/docker-agent/pkg/rag/rerank"
+	"github.com/docker/docker-agent/pkg/rag/strategy"
+	"github.com/docker/docker-agent/pkg/rag/types"
 )
 
 // ManagersBuildConfig contains dependencies needed to build RAG managers from config.

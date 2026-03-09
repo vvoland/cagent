@@ -3,10 +3,10 @@ package root
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/a2a"
-	"github.com/docker/cagent/pkg/cli"
-	"github.com/docker/cagent/pkg/config"
-	"github.com/docker/cagent/pkg/telemetry"
+	"github.com/docker/docker-agent/pkg/a2a"
+	"github.com/docker/docker-agent/pkg/cli"
+	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/telemetry"
 )
 
 type a2aFlags struct {

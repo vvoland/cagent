@@ -11,9 +11,9 @@ import (
 	"github.com/junegunn/fzf/src/algo"
 	"github.com/junegunn/fzf/src/util"
 
-	"github.com/docker/cagent/pkg/tui/core"
-	"github.com/docker/cagent/pkg/tui/core/layout"
-	"github.com/docker/cagent/pkg/tui/styles"
+	"github.com/docker/docker-agent/pkg/tui/core"
+	"github.com/docker/docker-agent/pkg/tui/core/layout"
+	"github.com/docker/docker-agent/pkg/tui/styles"
 )
 
 const maxItems = 10

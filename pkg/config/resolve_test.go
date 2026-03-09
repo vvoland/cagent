@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/reference"
-	"github.com/docker/cagent/pkg/userconfig"
+	"github.com/docker/docker-agent/pkg/reference"
+	"github.com/docker/docker-agent/pkg/userconfig"
 )
 
 func TestOciRefToFilename(t *testing.T) {

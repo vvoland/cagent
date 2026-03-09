@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 // BranchSession creates a new session branched from the parent at the given position.

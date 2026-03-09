@@ -7,12 +7,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/model/provider"
-	"github.com/docker/cagent/pkg/model/provider/base"
-	"github.com/docker/cagent/pkg/rag/database"
-	"github.com/docker/cagent/pkg/rag/types"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/model/provider"
+	"github.com/docker/docker-agent/pkg/model/provider/base"
+	"github.com/docker/docker-agent/pkg/rag/database"
+	"github.com/docker/docker-agent/pkg/rag/types"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 // fakeRerankingProvider implements provider.RerankingProvider for testing.

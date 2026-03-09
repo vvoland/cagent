@@ -3,7 +3,7 @@ package markdown
 import (
 	"github.com/charmbracelet/glamour/v2"
 
-	"github.com/docker/cagent/pkg/tui/styles"
+	"github.com/docker/docker-agent/pkg/tui/styles"
 )
 
 // Renderer is an interface for markdown renderers.

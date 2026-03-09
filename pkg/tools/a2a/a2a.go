@@ -14,9 +14,9 @@ import (
 	"github.com/a2aproject/a2a-go/a2aclient"
 	"github.com/a2aproject/a2a-go/a2aclient/agentcard"
 
-	"github.com/docker/cagent/pkg/httpclient"
-	"github.com/docker/cagent/pkg/tools"
-	"github.com/docker/cagent/pkg/upstream"
+	"github.com/docker/docker-agent/pkg/httpclient"
+	"github.com/docker/docker-agent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/upstream"
 )
 
 // Toolset implements tools.ToolSet for A2A remote agents.

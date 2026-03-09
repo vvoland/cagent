@@ -8,8 +8,8 @@ import (
 	"log/slog"
 	"slices"
 
-	"github.com/docker/cagent/pkg/rag"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/rag"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 // RAGTool provides document querying capabilities for a single RAG source

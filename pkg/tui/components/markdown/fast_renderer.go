@@ -16,7 +16,7 @@ import (
 	"github.com/charmbracelet/glamour/v2/ansi"
 	runewidth "github.com/mattn/go-runewidth"
 
-	"github.com/docker/cagent/pkg/tui/styles"
+	"github.com/docker/docker-agent/pkg/tui/styles"
 )
 
 // ansiStyle holds pre-computed ANSI escape sequences for fast rendering.

@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/genai"
 
-	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/model/provider/base"
-	"github.com/docker/cagent/pkg/model/provider/options"
+	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/model/provider/base"
+	"github.com/docker/docker-agent/pkg/model/provider/options"
 )
 
 func TestBuildConfig_Gemini25_ThinkingBudget(t *testing.T) {

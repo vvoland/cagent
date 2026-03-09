@@ -11,14 +11,14 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/docker/cagent/pkg/chat"
-	"github.com/docker/cagent/pkg/config/latest"
-	"github.com/docker/cagent/pkg/js"
-	"github.com/docker/cagent/pkg/model/provider"
-	"github.com/docker/cagent/pkg/model/provider/options"
-	"github.com/docker/cagent/pkg/rag/chunk"
-	"github.com/docker/cagent/pkg/rag/types"
-	"github.com/docker/cagent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/js"
+	"github.com/docker/docker-agent/pkg/model/provider"
+	"github.com/docker/docker-agent/pkg/model/provider/options"
+	"github.com/docker/docker-agent/pkg/rag/chunk"
+	"github.com/docker/docker-agent/pkg/rag/types"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 // NewSemanticEmbeddingsFromConfig creates a semantic-embeddings strategy from configuration.

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/cagent/pkg/concurrent"
+	"github.com/docker/docker-agent/pkg/concurrent"
 )
 
 // OAuthTokenStore manages OAuth tokens

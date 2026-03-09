@@ -9,8 +9,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/spf13/cobra"
 
-	"github.com/docker/cagent/pkg/desktop"
-	"github.com/docker/cagent/pkg/telemetry"
+	"github.com/docker/docker-agent/pkg/desktop"
+	"github.com/docker/docker-agent/pkg/telemetry"
 )
 
 // authInfo holds the parsed JWT authentication information.
