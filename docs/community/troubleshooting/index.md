@@ -164,7 +164,7 @@ When docker-agent as an API server or MCP server, ensure the port is not already
 $ lsof -i :8080
 
 # Use a different port
-$ docker agent api config.yaml --listen :9090
+$ docker agent serve api config.yaml --listen :9090
 ```
 
 ### MCP endpoint accessibility
@@ -210,7 +210,7 @@ Monitor for tools that don't clean up properly — check debug logs for MCP serv
 $ docker pull docker.io/username/agent:latest
 
 # Verify pulled agent content
-$ docker agent pull docker.io/username/agent:latest
+$ docker agent share pull docker.io/username/agent:latest
 ```
 
 ### Agent content issues
