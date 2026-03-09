@@ -187,10 +187,43 @@ func TestCodeModeTool_CallEcho(t *testing.T) {
 	require.Empty(t, scriptResult.StdOut)
 }
 
+// TestCodeModeTool_StartRollsBackOnError verifies that when one toolset fails
+// to start, all successfully-started toolsets are stopped (rolled back).
+func TestCodeModeTool_StartRollsBackOnError(t *testing.T) {
+	failing := &testToolSet{startErr: assert.AnError}
+	healthy := &testToolSet{}
+
+	tool := Wrap(healthy, failing).(tools.Startable)
+
+	err := tool.Start(t.Context())
+	require.ErrorIs(t, err, assert.AnError)
+	assert.Equal(t, 1, failing.start, "failing toolset should have attempted start")
+	assert.Equal(t, 1, healthy.start, "healthy toolset should have attempted start")
+	assert.Equal(t, 1, healthy.stop, "healthy toolset should be rolled back after failure")
+}
+
+// TestCodeModeTool_StartStopWrappedToolSet verifies that Start/Stop find
+// Startable through a StartableToolSet wrapper via tools.As.
+func TestCodeModeTool_StartStopWrappedToolSet(t *testing.T) {
+	inner := &testToolSet{}
+	wrapped := tools.NewStartable(inner)
+
+	tool := Wrap(wrapped).(tools.Startable)
+
+	err := tool.Start(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, 1, inner.start)
+
+	err = tool.Stop(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, 1, inner.stop)
+}
+
 type testToolSet struct {
-	tools []tools.Tool
-	start int
-	stop  int
+	tools    []tools.Tool
+	start    int
+	stop     int
+	startErr error
 }
 
 // Verify interface compliance
@@ -205,7 +238,7 @@ func (t *testToolSet) Tools(context.Context) ([]tools.Tool, error) {
 
 func (t *testToolSet) Start(context.Context) error {
 	t.start++
-	return nil
+	return t.startErr
 }
 
 func (t *testToolSet) Stop(context.Context) error {
