@@ -71,15 +71,15 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 	}()
 
 	// Start recording proxy if --record is specified
-	if _, recordCleanup, err := setupRecordingProxy(f.recordPath, &f.runConfig); err != nil {
+	_, recordCleanup, err := setupRecordingProxy(f.recordPath, &f.runConfig)
+	if err != nil {
 		return err
-	} else {
-		defer func() {
-			if err := recordCleanup(); err != nil {
-				slog.Error("Failed to cleanup recording proxy", "error", err)
-			}
-		}()
 	}
+	defer func() {
+		if err := recordCleanup(); err != nil {
+			slog.Error("Failed to cleanup recording proxy", "error", err)
+		}
+	}()
 
 	if f.pullIntervalMins > 0 && !config.IsOCIReference(agentsPath) {
 		return fmt.Errorf("--pull-interval flag can only be used with OCI references, not local files")

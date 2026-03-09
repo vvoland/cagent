@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/docker/cli/cli"
 	"github.com/spf13/cobra"
 
 	"github.com/docker/cagent/pkg/config"
@@ -64,10 +65,7 @@ func runInSandbox(cmd *cobra.Command, runConfig *config.RuntimeConfig, template 
 
 	if err := dockerCmd.Run(); err != nil {
 		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
-			// Clean up the token writer before exiting so the temp
-			// file is removed (defers won't run after os.Exit).
-			stopTokenWriter()
-			os.Exit(exitErr.ExitCode()) //nolint:gocritic // intentional exit to propagate sandbox exit code
+			return cli.StatusError{StatusCode: exitErr.ExitCode()}
 		}
 		return fmt.Errorf("docker sandbox exec failed: %w", err)
 	}
