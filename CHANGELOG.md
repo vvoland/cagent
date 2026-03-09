@@ -3,6 +3,129 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.30.0] - 2026-03-09
+
+This release introduces file drag-and-drop support, background agent tasks, and completes the transition from "cagent" to "docker-agent" branding throughout the codebase.
+
+## What's New
+
+- Adds file drag-and-drop support for images and PDFs with visual file type indicators and 5MB size limit per file
+- Adds background agent task tools (`run_background_agent`, `list_background_agents`, `view_background_agent`, `stop_background_agent`) for concurrent sub-agent dispatch
+- Adds `--sandbox` flag to run command for Docker sandbox isolation
+- Adds model_picker toolset for dynamic model switching between LLM models mid-conversation
+- Adds search, update, categories, and default path functionality to memory tool
+- Adds MiniMax as a built-in provider alias with `MINIMAX_API_KEY` support
+- Adds top-level `mcps` section for reusable MCP server definitions in agent configs
+- Adds support for OCI/catalog and URL references as sub-agents and handoffs
+
+## Improvements
+
+- Auto-continues max iterations in `--yolo` mode instead of prompting
+- Improves toolset error reporting to show specific toolset information
+- Improves user_prompt TUI dialog with title, free-form input, and navigation
+- Auto-pulls DMR models in non-interactive mode
+- Animates window title while working for tmux activity detection
+- Supports comma-separated string format for allowed-tools in skills
+
+## Bug Fixes
+
+- Fixes thread blocking when attachment file is deleted
+- Fixes max iterations handling in JSON output mode
+- Fixes text to speech on macOS
+- Fixes context window overflow with auto-recovery and proactive compaction
+- Fixes data races in Session Messages slice and test functions
+- Fixes SSE streaming by disabling automatic gzip compression
+- Applies ModifiedInput from pre-tool hooks to tool call arguments
+
+## Technical Changes
+
+- Completes rename from "cagent" to "docker-agent" throughout codebase, documentation, and repository URLs
+- Supports both `DOCKER_AGENT_*` and legacy `CAGENT_*` environment variables
+- Removes `--exit-on-stdin-eof` flag and ConnectRPC code
+- Adds timeouts to shutdown contexts to prevent goroutine leaks
+- Extracts TodoStorage interface with in-memory implementation
+- Refactors listener lifecycle to return cleanup functions
+- Updates Dockerfile to use docker-agent binary with cagent as compatible symlink
+
+### Pull Requests
+
+- [#863](https://github.com/docker/docker-agent/pull/863) - Add background agent task tools for concurrent sub-agent dispatch (#863)
+- [#1658](https://github.com/docker/docker-agent/pull/1658) - feat: add file drag-and-drop support for images and PDFs
+- [#1736](https://github.com/docker/docker-agent/pull/1736) - fix(editor): prevent thread block when attachment file is deleted
+- [#1737](https://github.com/docker/docker-agent/pull/1737) - fix(cli): auto-continue max iterations in --yolo mode
+- [#1904](https://github.com/docker/docker-agent/pull/1904) - cagent run --sandbox
+- [#1908](https://github.com/docker/docker-agent/pull/1908) - Add background agent task tools for concurrent sub-agent dispatch (#863)
+- [#1909](https://github.com/docker/docker-agent/pull/1909) - docs: update CHANGELOG.md for v1.29.0
+- [#1911](https://github.com/docker/docker-agent/pull/1911) - Fix #1911
+- [#1913](https://github.com/docker/docker-agent/pull/1913) - Bump Go dependencies
+- [#1914](https://github.com/docker/docker-agent/pull/1914) - agent: Improve toolset error reporting
+- [#1915](https://github.com/docker/docker-agent/pull/1915) - Update docs and samples to rename docker-agent, change usage samples to `docker agent`
+- [#1916](https://github.com/docker/docker-agent/pull/1916) - update taskfile to build both images docker/cagent and docker/docker-agent
+- [#1917](https://github.com/docker/docker-agent/pull/1917) - Rename env vars CAGENT_ to DOCKER_AGENT_ (keep support for old env vars) 
+- [#1918](https://github.com/docker/docker-agent/pull/1918) - Remove --exit-on-stdin-eof
+- [#1921](https://github.com/docker/docker-agent/pull/1921) - Nightly scanner should be less nit-picky about docs
+- [#1922](https://github.com/docker/docker-agent/pull/1922) - Fix speech to text on macOS
+- [#1923](https://github.com/docker/docker-agent/pull/1923) - Simplify the AGENTS.md a LOT
+- [#1924](https://github.com/docker/docker-agent/pull/1924) - Fix a few issues in the docs
+- [#1925](https://github.com/docker/docker-agent/pull/1925) - Support auto-downloading tools
+- [#1926](https://github.com/docker/docker-agent/pull/1926) - Rename CAGENT_HIDE_TELEMETRY & CAGENT_EXP_DEBUG_LAYOUT. Still support old env vars
+- [#1927](https://github.com/docker/docker-agent/pull/1927) - docs: remove generated pages/ from git tracking
+- [#1928](https://github.com/docker/docker-agent/pull/1928) - More docs rename (in / docs), fix remaining `docker agent serve a2a/acp/mcp` 
+- [#1929](https://github.com/docker/docker-agent/pull/1929) - Fix test
+- [#1930](https://github.com/docker/docker-agent/pull/1930) - Fix a few race conditions seen in tests
+- [#1931](https://github.com/docker/docker-agent/pull/1931) - Fix #1911
+- [#1932](https://github.com/docker/docker-agent/pull/1932) - Validate yaml in doc
+- [#1933](https://github.com/docker/docker-agent/pull/1933) - Improve pkg/js
+- [#1936](https://github.com/docker/docker-agent/pull/1936) - Improve README
+- [#1937](https://github.com/docker/docker-agent/pull/1937) - Add model_picker toolset for dynamic model switching
+- [#1938](https://github.com/docker/docker-agent/pull/1938) - Teach the agent to work with our config versions
+- [#1939](https://github.com/docker/docker-agent/pull/1939) - Fix broken links in docs pages, were not using relative urls
+- [#1941](https://github.com/docker/docker-agent/pull/1941) - Improve sub-sessions usage
+- [#1942](https://github.com/docker/docker-agent/pull/1942) - Show the new TUI
+- [#1943](https://github.com/docker/docker-agent/pull/1943) - Improve user_prompt TUI dialog: title, free-form input, and navigation
+- [#1944](https://github.com/docker/docker-agent/pull/1944) - Auto-pull DMR models in non-interactive mode
+- [#1945](https://github.com/docker/docker-agent/pull/1945) - Fix listener resource leaks in serve commands
+- [#1946](https://github.com/docker/docker-agent/pull/1946) - Support OCI/catalog and URL references as sub-agents and handoffs
+- [#1947](https://github.com/docker/docker-agent/pull/1947) - Add top-level mcps section for reusable MCP server definitions
+- [#1948](https://github.com/docker/docker-agent/pull/1948) - Add MiniMax as a built-in provider alias
+- [#1949](https://github.com/docker/docker-agent/pull/1949) - Animate window title while working for tmux activity detection
+- [#1950](https://github.com/docker/docker-agent/pull/1950) - fix(hooks): apply ModifiedInput from pre-tool hooks to tool call arguments
+- [#1953](https://github.com/docker/docker-agent/pull/1953) - Bump go dependencies
+- [#1954](https://github.com/docker/docker-agent/pull/1954) - bump google.golang.org/adk from v0.4.0 to v0.5.0
+- [#1955](https://github.com/docker/docker-agent/pull/1955) - Leverage latest MCP spec features from go-sdk v1.4.0
+- [#1957](https://github.com/docker/docker-agent/pull/1957) - Rename repo URL and pages URL
+- [#1958](https://github.com/docker/docker-agent/pull/1958) - Use docker agent command
+- [#1959](https://github.com/docker/docker-agent/pull/1959) - Improve docs search
+- [#1960](https://github.com/docker/docker-agent/pull/1960) - todo: extract storage interface with in-memory implementation
+- [#1961](https://github.com/docker/docker-agent/pull/1961) - docker-agent is primary binary in taskfile
+- [#1962](https://github.com/docker/docker-agent/pull/1962) - A few more renames from cagent
+- [#1964](https://github.com/docker/docker-agent/pull/1964) - Some more cagent urls
+- [#1965](https://github.com/docker/docker-agent/pull/1965) - Add timeouts to shutdown contexts to prevent goroutine leaks
+- [#1967](https://github.com/docker/docker-agent/pull/1967) - Disable automatic gzip compression to fix SSE streaming
+- [#1968](https://github.com/docker/docker-agent/pull/1968) - Fix main branch
+- [#1971](https://github.com/docker/docker-agent/pull/1971) - Add search, update, categories, and default path to memory tool
+- [#1972](https://github.com/docker/docker-agent/pull/1972) - Update winget workflow to modify Docker.Agent package, with the new GH repo name
+- [#1973](https://github.com/docker/docker-agent/pull/1973) - Fix context window overflow: auto-recovery and proactive compaction
+- [#1974](https://github.com/docker/docker-agent/pull/1974) - updated GHA with new checks:write permission
+- [#1979](https://github.com/docker/docker-agent/pull/1979) - Fix cobra command and rename more things from cagent to docker agent
+- [#1983](https://github.com/docker/docker-agent/pull/1983) - Fix documentation
+- [#1984](https://github.com/docker/docker-agent/pull/1984) - Support comma-separated string for allowed-tools in skills
+- [#1988](https://github.com/docker/docker-agent/pull/1988) - Fix gopls versions
+- [#1989](https://github.com/docker/docker-agent/pull/1989) - auto-complete tests
+- [#1990](https://github.com/docker/docker-agent/pull/1990) - Daily fixes
+- [#1991](https://github.com/docker/docker-agent/pull/1991) - Fix model name
+- [#1992](https://github.com/docker/docker-agent/pull/1992) - Dockerfile with docker-agent binary, keeping cagent only as compatible symlink
+- [#1993](https://github.com/docker/docker-agent/pull/1993) - Rename cagent in eval
+- [#1994](https://github.com/docker/docker-agent/pull/1994) - More renames from cagent to docker-agent
+- [#1995](https://github.com/docker/docker-agent/pull/1995) - Fix documentation
+- [#1996](https://github.com/docker/docker-agent/pull/1996) - Remove ConnectRPC code
+- [#1997](https://github.com/docker/docker-agent/pull/1997) - Rename e2e test files
+- [#1998](https://github.com/docker/docker-agent/pull/1998) - Remove useless documentation
+- [#1999](https://github.com/docker/docker-agent/pull/1999) - More renames
+- [#2000](https://github.com/docker/docker-agent/pull/2000) - Remove package to github.com/docker/docker-agent
+- [#2001](https://github.com/docker/docker-agent/pull/2001) - Remove my name :-)
+
+
 ## [v1.29.0] - 2026-03-03
 
 This release adds automated issue triage capabilities and new CLI configuration options for directory overrides.
@@ -929,3 +1052,5 @@ This release improves the terminal user interface with better error handling and
 [v1.28.1]: https://github.com/docker/docker-agent/releases/tag/v1.28.1
 
 [v1.29.0]: https://github.com/docker/docker-agent/releases/tag/v1.29.0
+
+[v1.30.0]: https://github.com/docker/docker-agent/releases/tag/v1.30.0
