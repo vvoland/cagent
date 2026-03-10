@@ -311,6 +311,11 @@ func NewLocalRuntime(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 
 	r.sessionCompactor = newSessionCompactor(model, r.sessionStore)
 
+	// Register runtime-managed tool handlers once during construction.
+	// This avoids concurrent map writes when multiple goroutines call
+	// RunStream on the same runtime (e.g. background agent sessions).
+	r.registerDefaultTools()
+
 	slog.Debug("Creating new runtime", "agent", r.currentAgent, "available_agents", agents.Size())
 
 	return r, nil
