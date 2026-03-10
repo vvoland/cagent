@@ -92,6 +92,8 @@ type Model interface {
 	SetTitleRegenerating(regenerating bool) tea.Cmd
 	// IsScrollbarDragging returns true when the scrollbar thumb is being dragged.
 	IsScrollbarDragging() bool
+	// WorkingDirectory returns the working directory path displayed in the sidebar.
+	WorkingDirectory() string
 	// Cleanup cancels any in-flight async operations.
 	Cleanup()
 }
@@ -351,13 +353,19 @@ func (m *model) IsScrollbarDragging() bool {
 	return m.scrollview.IsDragging()
 }
 
+// WorkingDirectory returns the working directory path displayed in the sidebar.
+func (m *model) WorkingDirectory() string {
+	return m.workingDirectory
+}
+
 // ClickResult indicates what was clicked in the sidebar
 type ClickResult int
 
 const (
 	ClickNone ClickResult = iota
 	ClickStar
-	ClickTitle // Click on the title area (use double-click to edit)
+	ClickTitle      // Click on the title area (use double-click to edit)
+	ClickWorkingDir // Click on the working directory line
 )
 
 // HandleClick checks if click is on the star or title and returns true if it was
@@ -367,7 +375,7 @@ func (m *model) HandleClick(x, y int) bool {
 	return m.HandleClickType(x, y) != ClickNone
 }
 
-// HandleClickType returns what was clicked (star, title, or nothing)
+// HandleClickType returns what was clicked (star, title, working dir, or nothing)
 func (m *model) HandleClickType(x, y int) ClickResult {
 	// Account for left padding
 	adjustedX := x - m.layoutCfg.PaddingLeft
@@ -390,6 +398,15 @@ func (m *model) HandleClickType(x, y int) ClickResult {
 				return ClickTitle
 			}
 		}
+
+		// In collapsed mode, working dir line follows the title section.
+		vm := m.computeCollapsedViewModel(m.contentWidth(false))
+		wdStartY := vm.titleSectionLines()
+		wdLines := linesNeeded(lipgloss.Width(vm.WorkingDir), vm.ContentWidth)
+		if m.workingDirectory != "" && y >= wdStartY && y < wdStartY+wdLines {
+			return ClickWorkingDir
+		}
+
 		return ClickNone
 	}
 
@@ -409,6 +426,12 @@ func (m *model) HandleClickType(x, y int) ClickResult {
 			return ClickTitle
 		}
 	}
+
+	// Working dir is at: verticalStarY + titleLines (title) + 1 (empty separator)
+	if m.workingDirectory != "" && contentY == verticalStarY+titleLines+1 {
+		return ClickWorkingDir
+	}
+
 	return ClickNone
 }
 

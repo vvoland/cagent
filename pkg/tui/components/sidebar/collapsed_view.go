@@ -27,18 +27,7 @@ type CollapsedViewModel struct {
 // LineCount returns the number of lines needed to render this layout.
 func (vm CollapsedViewModel) LineCount() int {
 	lines := 1 // divider
-
-	switch {
-	case vm.TitleAndIndicatorOnOneLine:
-		lines++
-	case vm.WorkingIndicator == "":
-		// No working indicator but title wraps
-		lines += linesNeeded(lipgloss.Width(vm.TitleWithStar), vm.ContentWidth)
-	default:
-		// Title and working indicator on separate lines, each may wrap
-		lines += linesNeeded(lipgloss.Width(vm.TitleWithStar), vm.ContentWidth)
-		lines += linesNeeded(lipgloss.Width(vm.WorkingIndicator), vm.ContentWidth)
-	}
+	lines += vm.titleSectionLines()
 
 	if vm.WdAndUsageOnOneLine {
 		lines++
@@ -50,6 +39,20 @@ func (vm CollapsedViewModel) LineCount() int {
 	}
 
 	return lines
+}
+
+// titleSectionLines returns the number of rendered lines consumed by the
+// title (and optional working indicator) section.
+func (vm CollapsedViewModel) titleSectionLines() int {
+	switch {
+	case vm.TitleAndIndicatorOnOneLine:
+		return 1
+	case vm.WorkingIndicator == "":
+		return linesNeeded(lipgloss.Width(vm.TitleWithStar), vm.ContentWidth)
+	default:
+		return linesNeeded(lipgloss.Width(vm.TitleWithStar), vm.ContentWidth) +
+			linesNeeded(lipgloss.Width(vm.WorkingIndicator), vm.ContentWidth)
+	}
 }
 
 // RenderCollapsedView renders the collapsed sidebar from a CollapsedViewModel.

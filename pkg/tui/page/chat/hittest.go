@@ -16,6 +16,7 @@ const (
 	TargetSidebarResizeHandle
 	TargetSidebarStar
 	TargetSidebarTitle
+	TargetSidebarWorkingDir
 	TargetSidebarContent
 	TargetMessages
 )
@@ -124,6 +125,8 @@ func (h *HitTest) sidebarClickTarget(x, y int) MouseTarget {
 		return TargetSidebarStar
 	case sidebar.ClickTitle:
 		return TargetSidebarTitle
+	case sidebar.ClickWorkingDir:
+		return TargetSidebarWorkingDir
 	default:
 		return TargetSidebarContent
 	}

@@ -7,6 +7,7 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"github.com/atotto/clipboard"
 
 	"github.com/docker/docker-agent/pkg/app"
 	"github.com/docker/docker-agent/pkg/tui/components/messages"
@@ -89,6 +90,18 @@ func (p *chatPage) persistSessionTitle(newTitle string) tea.Cmd {
 	}
 }
 
+// copyWorkingDirToClipboard copies the working directory path to the system clipboard.
+func copyWorkingDirToClipboard(wd string) tea.Cmd {
+	return tea.Sequence(
+		func() tea.Msg {
+			_ = clipboard.WriteAll(wd)
+			return nil
+		},
+		tea.SetClipboard(wd),
+		notification.SuccessCmd("Working directory copied to clipboard."),
+	)
+}
+
 // handleMouseClick handles mouse click events.
 func (p *chatPage) handleMouseClick(msg tea.MouseClickMsg) (layout.Model, tea.Cmd) {
 	hit := NewHitTest(p)
@@ -128,6 +141,11 @@ func (p *chatPage) handleMouseClick(msg tea.MouseClickMsg) (layout.Model, tea.Cm
 				return p, core.CmdHandler(msgtypes.RequestFocusMsg{Target: msgtypes.PanelSidebarTitle})
 			}
 			return p, nil
+		}
+
+	case TargetSidebarWorkingDir:
+		if msg.Button == tea.MouseLeft {
+			return p, copyWorkingDirToClipboard(p.sidebar.WorkingDirectory())
 		}
 
 	case TargetMessages:
