@@ -130,6 +130,10 @@ linters:
       - path-except: _test\.go
         linters:
           - forbidigo
+      - path: pkg/model/provider/oaistream/
+        linters:
+          - staticcheck
+        text: "SA1019:.*FunctionCall.*deprecated"
 issues:
   max-same-issues: 3
 formatters:

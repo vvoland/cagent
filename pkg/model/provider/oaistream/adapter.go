@@ -78,7 +78,7 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 
 		// Convert function call if present
 		if choice.Delta.JSON.FunctionCall.Valid() {
-			funcCall := choice.Delta.FunctionCall //nolint:staticcheck // deprecated but still needed for compatibility
+			funcCall := choice.Delta.FunctionCall
 			response.Choices[i].Delta.FunctionCall = &tools.FunctionCall{
 				Name:      funcCall.Name,
 				Arguments: funcCall.Arguments,
