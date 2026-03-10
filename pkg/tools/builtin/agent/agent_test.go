@@ -538,9 +538,9 @@ func TestHandler_ConcurrentAccess(t *testing.T) {
 
 // --- Tools ---
 
-func TestTools_ReturnsFourTools(t *testing.T) {
-	h := NewHandler(&mockRunner{})
-	toolsList, err := h.Tools(t.Context())
+func TestNewToolSet_ReturnsFourTools(t *testing.T) {
+	ts := NewToolSet()
+	toolsList, err := ts.Tools(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, toolsList, 4)
 
@@ -552,4 +552,17 @@ func TestTools_ReturnsFourTools(t *testing.T) {
 	assert.Contains(t, names, ToolNameListBackgroundAgents)
 	assert.Contains(t, names, ToolNameViewBackgroundAgent)
 	assert.Contains(t, names, ToolNameStopBackgroundAgent)
+}
+
+func TestNewToolSet_Instructions(t *testing.T) {
+	ts := NewToolSet()
+	instructable, ok := ts.(tools.Instructable)
+	require.True(t, ok, "NewToolSet should implement Instructable")
+
+	instructions := instructable.Instructions()
+	assert.NotEmpty(t, instructions)
+	assert.Contains(t, instructions, "run_background_agent")
+	assert.Contains(t, instructions, "list_background_agents")
+	assert.Contains(t, instructions, "view_background_agent")
+	assert.Contains(t, instructions, "stop_background_agent")
 }

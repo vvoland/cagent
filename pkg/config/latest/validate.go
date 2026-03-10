@@ -152,6 +152,8 @@ func (t *Toolset) validate() error {
 		if len(t.Models) == 0 {
 			return errors.New("model_picker toolset requires at least one model in the 'models' list")
 		}
+	case "background_agents":
+		// no additional validation needed
 	}
 
 	return nil

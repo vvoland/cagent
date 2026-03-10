@@ -45,6 +45,50 @@ transfer_task(
 
 </div>
 
+## Parallel Delegation with Background Agents
+
+`transfer_task` is **sequential** — the coordinator waits for the sub-agent to finish before continuing. When you need to fan out work to multiple agents at the same time, use the `background_agents` toolset instead.
+
+Add it to your coordinator’s toolsets:
+
+```yaml
+agents:
+  root:
+    model: anthropic/claude-sonnet-4-0
+    description: Research coordinator
+    sub_agents: [researcher, analyst, writer]
+    toolsets:
+      - type: think
+      - type: background_agents
+```
+
+The coordinator can then:
+
+1. **Dispatch** several tasks at once with `run_background_agent` — each returns a task ID immediately
+2. **Monitor** progress with `list_background_agents` or `view_background_agent`
+3. **Collect** results once tasks complete
+4. **Cancel** tasks that are no longer needed with `stop_background_agent`
+
+```bash
+# Start two tasks in parallel
+run_background_agent(agent="researcher", task="Find recent papers on LLM agents")
+run_background_agent(agent="analyst", task="Analyze our current architecture")
+
+# Check on all tasks
+list_background_agents()
+
+# Read results when ready
+view_background_agent(task_id="agent_task_abc123")
+```
+
+<div class="callout callout-tip">
+<div class="callout-title">💡 When to use which
+</div>
+  <p><strong><code>transfer_task</code></strong> — simple, sequential delegation. Best when the coordinator needs the result before deciding what to do next.</p>
+  <p><strong><code>background_agents</code></strong> — parallel, async delegation. Best when multiple independent tasks can run simultaneously.</p>
+
+</div>
+
 ## Example: Development Team
 
 ```yaml

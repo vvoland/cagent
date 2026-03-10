@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker-agent/pkg/tools"
 	"github.com/docker/docker-agent/pkg/tools/a2a"
 	"github.com/docker/docker-agent/pkg/tools/builtin"
+	agenttool "github.com/docker/docker-agent/pkg/tools/builtin/agent"
 	"github.com/docker/docker-agent/pkg/tools/mcp"
 )
 
@@ -77,6 +78,7 @@ func NewDefaultToolsetRegistry() *ToolsetRegistry {
 	r.Register("user_prompt", createUserPromptTool)
 	r.Register("openapi", createOpenAPITool)
 	r.Register("model_picker", createModelPickerTool)
+	r.Register("background_agents", createBackgroundAgentsTool)
 	return r
 }
 
@@ -346,4 +348,8 @@ func createModelPickerTool(_ context.Context, toolset latest.Toolset, _ string, 
 		return nil, errors.New("model_picker toolset requires at least one model")
 	}
 	return builtin.NewModelPickerTool(toolset.Models), nil
+}
+
+func createBackgroundAgentsTool(_ context.Context, _ latest.Toolset, _ string, _ *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
+	return agenttool.NewToolSet(), nil
 }

@@ -56,3 +56,4 @@ These examples are groups of agents working together. Each of them is specialize
 | [finance.yaml](finance.yaml)         | Financial research and analysis         |            |       |      | ✓     |        | [duckduckgo](https://hub.docker.com/mcp/server/duckduckgo/overview) | ✓          |
 | [shared-todo.yaml](shared-todo.yaml) | Shared todo item manager                |            |       | ✓    |       |        |                                                                                | ✓          |
 | [pr-reviewer-bedrock.yaml](pr-reviewer-bedrock.yaml) | PR review toolkit (Bedrock) | ✓          | ✓     |      |       |        |                                                                                | ✓          |
+| [background_agents.yaml](background_agents.yaml) | Parallel research with background agents |          |       |      | ✓     |        | [duckduckgo](https://hub.docker.com/mcp/server/duckduckgo/overview) | ✓          |

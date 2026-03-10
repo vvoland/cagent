@@ -180,6 +180,31 @@ toolsets:
 
 The `transfer_task` tool is automatically available when an agent has `sub_agents`. Allows delegating tasks to sub-agents. No configuration needed — it's enabled implicitly.
 
+### Background Agents
+
+Dispatch work to sub-agents concurrently and collect results asynchronously. Unlike `transfer_task` (which blocks until the sub-agent finishes), background agent tasks run in parallel — the orchestrator can start several tasks, do other work, and check on them later.
+
+```yaml
+toolsets:
+  - type: background_agents
+```
+
+| Operation                | Description                                                                                      |
+| ------------------------ | ------------------------------------------------------------------------------------------------ |
+| `run_background_agent`   | Start a sub-agent task in the background; returns a task ID immediately                          |
+| `list_background_agents` | List all background tasks with their status and runtime                                          |
+| `view_background_agent`  | View live output or final result of a task by ID                                                 |
+| `stop_background_agent`  | Cancel a running task by ID                                                                      |
+
+No configuration options. Requires the agent to have `sub_agents` configured so the background tasks have agents to dispatch to.
+
+<div class="callout callout-tip">
+<div class="callout-title">💡 Tip
+</div>
+  <p>Use <code>background_agents</code> when your orchestrator needs to fan out work to multiple specialists in parallel — for example, researching several topics simultaneously or running independent code analyses side by side.</p>
+
+</div>
+
 ### LSP (Language Server Protocol)
 
 Connect to language servers for code intelligence: go-to-definition, find references, diagnostics, and more.

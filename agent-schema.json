@@ -801,7 +801,8 @@
             "lsp",
             "user_prompt",
             "openapi",
-            "model_picker"
+            "model_picker",
+            "background_agents"
           ]
         },
         "instruction": {
@@ -998,7 +999,8 @@
                 "a2a",
                 "lsp",
                 "user_prompt",
-                "model_picker"
+                "model_picker",
+                "background_agents"
               ]
             }
           }
@@ -1082,6 +1084,13 @@
               ]
             }
           ]
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "background_agents"
+            }
+          }
         }
       ]
     },
