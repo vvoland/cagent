@@ -459,9 +459,7 @@ func (t *TasksTool) nextTask(_ context.Context, _ tools.ToolCall) (*tools.ToolCa
 		}
 	}
 
-	return &tools.ToolCallResult{
-		Output: "No actionable tasks. Everything is either done or blocked.",
-	}, nil
+	return tools.ResultSuccess("No actionable tasks. Everything is either done or blocked."), nil
 }
 
 func (t *TasksTool) addDependency(_ context.Context, params AddDependencyArgs) (*tools.ToolCallResult, error) {

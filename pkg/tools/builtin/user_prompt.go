@@ -74,10 +74,7 @@ func (t *UserPromptTool) userPrompt(ctx context.Context, params UserPromptArgs) 
 	}
 
 	if result.Action != tools.ElicitationActionAccept {
-		return &tools.ToolCallResult{
-			Output:  string(responseJSON),
-			IsError: true,
-		}, nil
+		return tools.ResultError(string(responseJSON)), nil
 	}
 
 	return tools.ResultSuccess(string(responseJSON)), nil
