@@ -2,6 +2,7 @@ package spinner
 
 import (
 	"math/rand/v2"
+	"os"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -69,8 +70,8 @@ var defaultMessages = []string{
 
 func New(mode Mode, dotsStyle lipgloss.Style) Spinner {
 	// Pre-render all spinner frames for fast lookup during render
-	styledFrames := make([]string, len(frames))
-	for i, char := range frames {
+	styledFrames := make([]string, len(spinnerFrames))
+	for i, char := range spinnerFrames {
 		styledFrames[i] = dotsStyle.Render(char)
 	}
 
@@ -136,12 +137,42 @@ func (s *spinner) Stop() {
 	s.animSub.Stop()
 }
 
-// frames contains the braille spinner characters used for animation.
-var frames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+// spinnerFrames holds the animation frames for the current terminal.
+// Braille characters are used by default; inside tmux they don't render
+// correctly, so we fall back to ASCII.
+var spinnerFrames = selectFrames(inMultiplexer())
+
+// inMultiplexer reports whether the process is running inside a terminal
+// multiplexer (tmux, screen). Detection checks multiple env vars because
+// some of them may be stripped in containers or sudo sessions.
+func inMultiplexer() bool {
+	if os.Getenv("TMUX") != "" {
+		return true
+	}
+	if os.Getenv("STY") != "" { // GNU screen
+		return true
+	}
+	term := os.Getenv("TERM")
+	return strings.HasPrefix(term, "tmux") || strings.HasPrefix(term, "screen")
+}
+
+var (
+	brailleFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+	asciiFrames   = []string{"|", "/", "-", "\\"}
+)
+
+// selectFrames returns ASCII spinner frames when inTmux is true,
+// braille frames otherwise.
+func selectFrames(inTmux bool) []string {
+	if inTmux {
+		return asciiFrames
+	}
+	return brailleFrames
+}
 
 // Frame returns the spinner character for the given animation frame.
 func Frame(index int) string {
-	return frames[index%len(frames)]
+	return spinnerFrames[index%len(spinnerFrames)]
 }
 
 // lightStyles maps distance from light position to style (0=brightest, 1=bright, 2=dim, 3+=dimmest).
