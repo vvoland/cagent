@@ -56,8 +56,8 @@ type Settings struct {
 	// Defaults to false when not set (user must explicitly opt-in).
 	RestoreTabs *bool `yaml:"restore_tabs,omitempty"`
 	// Sound enables playing notification sounds on task success or failure.
-	// Defaults to false when not set (user must explicitly opt-in).
-	Sound *bool `yaml:"sound,omitempty"`
+	// Defaults to false (user must explicitly opt-in).
+	Sound bool `yaml:"sound,omitempty"`
 	// SoundThreshold is the minimum duration in seconds a task must run
 	// before a success sound is played. Defaults to 5 seconds.
 	SoundThreshold int `yaml:"sound_threshold,omitempty"`
@@ -77,15 +77,15 @@ func (s *Settings) GetTabTitleMaxLength() int {
 	return s.TabTitleMaxLength
 }
 
-// GetSound returns whether sound notifications are enabled, defaulting to true.
+// GetSound returns whether sound notifications are enabled, defaulting to false.
 func (s *Settings) GetSound() bool {
-	if s == nil || s.Sound == nil {
-		return true
+	if s == nil {
+		return false
 	}
-	return *s.Sound
+	return s.Sound
 }
 
-// GetSoundThreshold returns the minimum duration for sound notifications, defaulting to 5s.
+// GetSoundThreshold returns the minimum duration for sound notifications, defaulting to 10s.
 func (s *Settings) GetSoundThreshold() int {
 	if s == nil || s.SoundThreshold <= 0 {
 		return DefaultSoundThreshold
