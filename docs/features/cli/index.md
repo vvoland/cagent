@@ -32,7 +32,6 @@ $ docker agent run [config] [message...] [flags]
 | `--model &lt;ref&gt;`        | Override model(s). Use `provider/model` for all agents, or `agent=provider/model` for specific agents. Comma-separate multiple overrides. |
 | `--session &lt;id&gt;`       | Resume a previous session. Supports relative refs (`-1` = last, `-2` = second to last)                                                    |
 | `--prompt-file &lt;path&gt;` | Include file contents as additional system context (repeatable)                                                                           |
-| `-c &lt;name&gt;`            | Run a named command from the YAML config                                                                                                  |
 | `-d, --debug`                | Enable debug logging                                                                                                                      |
 | `--log-file &lt;path&gt;`    | Custom debug log location                                                                                                                 |
 | `-o, --otel`                 | Enable OpenTelemetry tracing                                                                                                              |
@@ -45,7 +44,6 @@ $ docker agent run agent.yaml -a developer --yolo
 $ docker agent run agent.yaml --model anthropic/claude-sonnet-4-0
 $ docker agent run agent.yaml --model "dev=openai/gpt-4o,reviewer=anthropic/claude-sonnet-4-0"
 $ docker agent run agent.yaml --session -1  # resume last session
-$ docker agent run agent.yaml -c df         # run named command
 $ docker agent run agent.yaml --prompt-file ./context.md  # include file as context
 
 # Queue multiple messages (processed in sequence)
@@ -80,7 +78,7 @@ $ docker agent new [flags]
 
 # Examples
 $ docker agent new
-$ docker agent new --model openai/gpt-5-mini --max-tokens 32000
+$ docker agent new --model openai/gpt-5-mini
 $ docker agent new --model dmr/ai/gemma3-qat:12B --max-iterations 15
 ```
 

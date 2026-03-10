@@ -266,8 +266,8 @@ Understand the difference between `sub_agents` and `handoffs`:
     <h3>handoffs (A2A)</h3>
     <p>Transfers control entirely to another agent (possibly remote). One-way handoff.</p>
     <pre style="margin-top:12px"><code class="language-yaml">handoffs:
-  - name: specialist
-    url: http://...</code></pre>
+  - specialist
+  - namespace/remote-agent</code></pre>
   </div>
 </div>
 
@@ -320,10 +320,10 @@ $ docker agent run agent.yaml --debug --log-file ./debug.log
 
 ### Check Token Usage
 
-Use the `/usage` command during a session to see token consumption:
+Use the `/cost` command during a session to see token consumption:
 
 ```text
-/usage
+/cost
 
 Token Usage:
   Input:  12,456 tokens
