@@ -13,7 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -1304,11 +1304,11 @@ func applyTextEditsToFile(filePath string, edits []lspTextEdit) error {
 
 	sortedEdits := make([]lspTextEdit, len(edits))
 	copy(sortedEdits, edits)
-	sort.Slice(sortedEdits, func(i, j int) bool {
-		if sortedEdits[i].Range.Start.Line != sortedEdits[j].Range.Start.Line {
-			return sortedEdits[i].Range.Start.Line > sortedEdits[j].Range.Start.Line
+	slices.SortFunc(sortedEdits, func(a, b lspTextEdit) int {
+		if a.Range.Start.Line != b.Range.Start.Line {
+			return cmp.Compare(b.Range.Start.Line, a.Range.Start.Line)
 		}
-		return sortedEdits[i].Range.Start.Character > sortedEdits[j].Range.Start.Character
+		return cmp.Compare(b.Range.Start.Character, a.Range.Start.Character)
 	})
 
 	for _, edit := range sortedEdits {

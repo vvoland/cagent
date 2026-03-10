@@ -2,8 +2,9 @@ package root
 
 import (
 	"fmt"
+	"maps"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/mattn/go-runewidth"
@@ -196,11 +197,7 @@ func runAliasListCommand(cmd *cobra.Command, args []string) error {
 	out.Printf("Registered aliases (%d):\n\n", len(allAliases))
 
 	// Sort aliases by name for consistent output
-	names := make([]string, 0, len(allAliases))
-	for name := range allAliases {
-		names = append(names, name)
-	}
-	sort.Strings(names)
+	names := slices.Sorted(maps.Keys(allAliases))
 
 	// Find max name width for alignment (using display width for proper Unicode handling)
 	maxLen := 0

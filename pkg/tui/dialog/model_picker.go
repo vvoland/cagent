@@ -1,8 +1,9 @@
 package dialog
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -48,7 +49,7 @@ func NewModelPickerDialog(models []runtime.ModelChoice) Dialog {
 	// Sort models: config first, then catalog, then custom. Within each section: current first, then default, then alphabetically
 	sortedModels := make([]runtime.ModelChoice, len(models))
 	copy(sortedModels, models)
-	sort.Slice(sortedModels, func(i, j int) bool {
+	slices.SortFunc(sortedModels, func(a, b runtime.ModelChoice) int {
 		// Get section priority: config (0) < catalog (1) < custom (2)
 		getPriority := func(m runtime.ModelChoice) int {
 			if m.IsCustom {
@@ -59,20 +60,26 @@ func NewModelPickerDialog(models []runtime.ModelChoice) Dialog {
 			}
 			return 0
 		}
-		pi, pj := getPriority(sortedModels[i]), getPriority(sortedModels[j])
-		if pi != pj {
-			return pi < pj
+		pa, pb := getPriority(a), getPriority(b)
+		if pa != pb {
+			return cmp.Compare(pa, pb)
 		}
 		// Within each section: current model first
-		if sortedModels[i].IsCurrent != sortedModels[j].IsCurrent {
-			return sortedModels[i].IsCurrent
+		if a.IsCurrent != b.IsCurrent {
+			if a.IsCurrent {
+				return -1
+			}
+			return 1
 		}
 		// Then default model
-		if sortedModels[i].IsDefault != sortedModels[j].IsDefault {
-			return sortedModels[i].IsDefault
+		if a.IsDefault != b.IsDefault {
+			if a.IsDefault {
+				return -1
+			}
+			return 1
 		}
 		// Then alphabetically by name
-		return sortedModels[i].Name < sortedModels[j].Name
+		return cmp.Compare(a.Name, b.Name)
 	})
 
 	d := &modelPickerDialog{

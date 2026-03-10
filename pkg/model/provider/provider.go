@@ -43,11 +43,7 @@ var CoreProviders = []string{
 // AllProviders returns all known provider names (core providers + aliases),
 // sorted for deterministic output.
 func AllProviders() []string {
-	providers := make([]string, 0, len(CoreProviders)+len(Aliases))
-	providers = append(providers, CoreProviders...)
-	for name := range Aliases {
-		providers = append(providers, name)
-	}
+	providers := slices.Concat(CoreProviders, slices.Collect(maps.Keys(Aliases)))
 	slices.Sort(providers)
 	return providers
 }

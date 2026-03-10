@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/docker/docker-agent/pkg/tools"
@@ -41,7 +42,7 @@ var (
 // NewLSPMultiplexer creates a multiplexer that routes LSP tool calls
 // to the appropriate backend based on file type.
 func NewLSPMultiplexer(backends []LSPBackend) *LSPMultiplexer {
-	return &LSPMultiplexer{backends: append([]LSPBackend{}, backends...)}
+	return &LSPMultiplexer{backends: slices.Clone(backends)}
 }
 
 func (m *LSPMultiplexer) Start(ctx context.Context) error {

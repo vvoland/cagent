@@ -3,6 +3,7 @@ package session
 import (
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -258,17 +259,17 @@ func deepCopyChatMessage(m chat.Message) chat.Message {
 		m.FunctionCall = &fcCopy
 	}
 	if m.ToolCalls != nil {
-		m.ToolCalls = append([]tools.ToolCall(nil), m.ToolCalls...)
+		m.ToolCalls = slices.Clone(m.ToolCalls)
 	}
 	if m.ToolDefinitions != nil {
-		m.ToolDefinitions = append([]tools.Tool(nil), m.ToolDefinitions...)
+		m.ToolDefinitions = slices.Clone(m.ToolDefinitions)
 	}
 	if m.Usage != nil {
 		usageCopy := *m.Usage
 		m.Usage = &usageCopy
 	}
 	if m.ThoughtSignature != nil {
-		m.ThoughtSignature = append([]byte(nil), m.ThoughtSignature...)
+		m.ThoughtSignature = slices.Clone(m.ThoughtSignature)
 	}
 	return m
 }

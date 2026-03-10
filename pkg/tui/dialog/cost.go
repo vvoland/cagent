@@ -3,7 +3,7 @@ package dialog
 import (
 	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -210,8 +210,8 @@ func (d *costDialog) gatherCostData() costData {
 	for _, m := range modelMap {
 		data.models = append(data.models, *m)
 	}
-	sort.Slice(data.models, func(i, j int) bool {
-		return data.models[i].cost > data.models[j].cost
+	slices.SortFunc(data.models, func(a, b totalUsage) int {
+		return cmp.Compare(b.cost, a.cost)
 	})
 
 	// Fall back to session-level totals if no per-message data (e.g., past sessions)

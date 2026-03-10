@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
@@ -161,11 +162,10 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 
 	for _, agentConfig := range cfg.Agents {
 		// Merge CLI prompt files with agent config prompt files, deduplicating
-		promptFiles := append([]string{}, agentConfig.AddPromptFiles...)
-		promptFiles = append(promptFiles, loadOpts.promptFiles...)
+		promptFiles := slices.Concat(agentConfig.AddPromptFiles, loadOpts.promptFiles)
 
 		seen := make(map[string]bool)
-		unique := promptFiles[:0]
+		unique := make([]string, 0, len(promptFiles))
 		for _, f := range promptFiles {
 			if !seen[f] {
 				seen[f] = true

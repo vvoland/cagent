@@ -1,13 +1,13 @@
 package builtin
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -195,16 +195,18 @@ func (t *TasksTool) resolveDescription(description, filePath string) (string, er
 }
 
 func sortTasks(tasks []taskWithEffective) {
-	sort.SliceStable(tasks, func(i, j int) bool {
-		a, b := tasks[i], tasks[j]
+	slices.SortStableFunc(tasks, func(a, b taskWithEffective) int {
 		if (a.EffectiveStatus == StatusBlocked) != (b.EffectiveStatus == StatusBlocked) {
-			return a.EffectiveStatus != StatusBlocked
+			if a.EffectiveStatus != StatusBlocked {
+				return -1
+			}
+			return 1
 		}
 		pa, pb := priorityOrder[a.Priority], priorityOrder[b.Priority]
 		if pa != pb {
-			return pa < pb
+			return cmp.Compare(pa, pb)
 		}
-		return a.CreatedAt < b.CreatedAt
+		return cmp.Compare(a.CreatedAt, b.CreatedAt)
 	})
 }
 
