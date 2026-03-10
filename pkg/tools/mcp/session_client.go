@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"iter"
 	"log/slog"
@@ -96,7 +97,7 @@ func (c *sessionClient) ListTools(ctx context.Context, request *gomcp.ListToolsP
 		return s.Tools(ctx, request)
 	}
 	return func(yield func(*gomcp.Tool, error) bool) {
-		yield(nil, fmt.Errorf("session not initialized"))
+		yield(nil, errors.New("session not initialized"))
 	}
 }
 
@@ -104,7 +105,7 @@ func (c *sessionClient) CallTool(ctx context.Context, request *gomcp.CallToolPar
 	if s := c.getSession(); s != nil {
 		return s.CallTool(ctx, request)
 	}
-	return nil, fmt.Errorf("session not initialized")
+	return nil, errors.New("session not initialized")
 }
 
 func (c *sessionClient) ListPrompts(ctx context.Context, request *gomcp.ListPromptsParams) iter.Seq2[*gomcp.Prompt, error] {
@@ -112,7 +113,7 @@ func (c *sessionClient) ListPrompts(ctx context.Context, request *gomcp.ListProm
 		return s.Prompts(ctx, request)
 	}
 	return func(yield func(*gomcp.Prompt, error) bool) {
-		yield(nil, fmt.Errorf("session not initialized"))
+		yield(nil, errors.New("session not initialized"))
 	}
 }
 
@@ -120,7 +121,7 @@ func (c *sessionClient) GetPrompt(ctx context.Context, request *gomcp.GetPromptP
 	if s := c.getSession(); s != nil {
 		return s.GetPrompt(ctx, request)
 	}
-	return nil, fmt.Errorf("session not initialized")
+	return nil, errors.New("session not initialized")
 }
 
 // handleElicitationRequest forwards incoming elicitation requests from the MCP
@@ -134,7 +135,7 @@ func (c *sessionClient) handleElicitationRequest(ctx context.Context, req *gomcp
 	c.mu.RUnlock()
 
 	if handler == nil {
-		return nil, fmt.Errorf("no elicitation handler configured")
+		return nil, errors.New("no elicitation handler configured")
 	}
 
 	result, err := handler(ctx, req.Params)
@@ -165,7 +166,7 @@ func (c *sessionClient) requestElicitation(ctx context.Context, req *gomcp.Elici
 	c.mu.RUnlock()
 
 	if handler == nil {
-		return tools.ElicitationResult{}, fmt.Errorf("no elicitation handler configured")
+		return tools.ElicitationResult{}, errors.New("no elicitation handler configured")
 	}
 
 	return handler(ctx, req)

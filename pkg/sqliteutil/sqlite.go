@@ -23,7 +23,7 @@ func OpenDB(path string) (*sql.DB, error) {
 	// _pragma=busy_timeout(5000): Wait up to 5 seconds if database is locked
 	// _pragma=journal_mode(WAL): Enable Write-Ahead Logging for better concurrent access
 	// _pragma=foreign_keys(1): Enable foreign key constraints (critical for ON DELETE CASCADE)
-	dsn := fmt.Sprintf("%s?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)", path)
+	dsn := path + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)"
 
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {

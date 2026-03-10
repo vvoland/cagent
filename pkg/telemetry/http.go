@@ -25,7 +25,7 @@ func (tc *Client) createEvent(eventName string, properties map[string]any) Event
 
 	// Allow callers to attach custom metadata to telemetry events
 	if tags := os.Getenv("TELEMETRY_TAGS"); tags != "" {
-		for _, pair := range strings.Split(tags, ",") {
+		for pair := range strings.SplitSeq(tags, ",") {
 			if k, v, ok := strings.Cut(pair, "="); ok && strings.TrimSpace(k) != "" {
 				allProperties[strings.TrimSpace(k)] = strings.TrimSpace(v)
 			}
@@ -130,7 +130,7 @@ func (tc *Client) performHTTPRequest(event *EventPayload, version string) error 
 
 	// Set headers
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", fmt.Sprintf("cagent/%s", version))
+	req.Header.Set("User-Agent", "cagent/"+version)
 	if tc.apiKey != "" && tc.header != "" {
 		req.Header.Set(tc.header, tc.apiKey)
 	}

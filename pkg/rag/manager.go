@@ -2,6 +2,7 @@ package rag
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -74,7 +75,7 @@ type FusionConfig struct {
 // The strategyEvents channel should be shared across all strategies for this manager.
 func New(_ context.Context, name string, config Config, strategyEvents <-chan types.Event) (*Manager, error) {
 	if len(config.StrategyConfigs) == 0 {
-		return nil, fmt.Errorf("at least one strategy required")
+		return nil, errors.New("at least one strategy required")
 	}
 
 	// Build strategies map from configs
@@ -106,7 +107,7 @@ func New(_ context.Context, name string, config Config, strategyEvents <-chan ty
 
 		// Ensure fusion was actually created
 		if fusionStrategy == nil {
-			return nil, fmt.Errorf("fusion strategy is nil after creation (this is a bug)")
+			return nil, errors.New("fusion strategy is nil after creation (this is a bug)")
 		}
 	}
 
@@ -355,7 +356,7 @@ func (m *Manager) Query(ctx context.Context, query string) ([]database.SearchRes
 
 	// Safety check: fusion should never be nil with multiple strategies
 	if m.fusion == nil {
-		return nil, fmt.Errorf("fusion strategy is nil but multiple strategies are configured (this is a bug)")
+		return nil, errors.New("fusion strategy is nil but multiple strategies are configured (this is a bug)")
 	}
 
 	fusedResults, err := m.fusion.Fuse(strategyResults)

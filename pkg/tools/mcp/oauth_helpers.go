@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -102,7 +103,7 @@ func RequestAuthorizationCode(ctx context.Context, authURL string, callbackServe
 // RegisterClient performs dynamic client registration
 func RegisterClient(ctx context.Context, authMetadata *AuthorizationServerMetadata, redirectURI string, scopes []string) (clientID, clientSecret string, err error) {
 	if authMetadata.RegistrationEndpoint == "" {
-		return "", "", fmt.Errorf("authorization server does not support dynamic client registration")
+		return "", "", errors.New("authorization server does not support dynamic client registration")
 	}
 
 	reqBody := map[string]any{
@@ -148,7 +149,7 @@ func RegisterClient(ctx context.Context, authMetadata *AuthorizationServerMetada
 	}
 
 	if respBody.ClientID == "" {
-		return "", "", fmt.Errorf("registration response missing client_id")
+		return "", "", errors.New("registration response missing client_id")
 	}
 
 	return respBody.ClientID, respBody.ClientSecret, nil

@@ -155,12 +155,12 @@ func resolveVersion(ctx context.Context, registry *Registry, pkg *Package) (stri
 func extractVersionPrefix(filter string) string {
 	filter = strings.TrimSpace(filter)
 	const marker = "startsWith"
-	idx := strings.Index(filter, marker)
-	if idx < 0 {
+	_, after, ok := strings.Cut(filter, marker)
+	if !ok {
 		return ""
 	}
 
-	rest := strings.TrimSpace(filter[idx+len(marker):])
+	rest := strings.TrimSpace(after)
 	if len(rest) >= 2 && (rest[0] == '"' || rest[0] == '\'') {
 		quote := rest[0]
 		end := strings.IndexByte(rest[1:], quote)

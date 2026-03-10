@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -321,7 +322,7 @@ func (d *costDialog) renderPlainText() string {
 	var lines []string
 
 	// Build input line with optional breakdown
-	inputLine := fmt.Sprintf("input: %s", formatTokenCount(data.total.totalInput()))
+	inputLine := "input: " + formatTokenCount(data.total.totalInput())
 	if data.total.CachedInputTokens > 0 || data.total.CacheWriteTokens > 0 {
 		inputLine += fmt.Sprintf(" (%s new + %s cached + %s cache write)",
 			formatTokenCount(data.total.InputTokens),
@@ -330,7 +331,7 @@ func (d *costDialog) renderPlainText() string {
 	}
 
 	lines = append(lines, "Session Cost Details", "", "Total", formatCost(data.total.cost),
-		inputLine, fmt.Sprintf("output: %s", formatTokenCount(data.total.OutputTokens)), "")
+		inputLine, "output: "+formatTokenCount(data.total.OutputTokens), "")
 
 	if len(data.models) > 0 {
 		lines = append(lines, "By Model")
@@ -400,7 +401,7 @@ func formatTokenCount(count int64) string {
 	case count >= 1_000:
 		return fmt.Sprintf("%.1fK", float64(count)/1_000)
 	default:
-		return fmt.Sprintf("%d", count)
+		return strconv.FormatInt(count, 10)
 	}
 }
 

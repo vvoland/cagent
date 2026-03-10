@@ -89,7 +89,7 @@ func (sm *SessionManager) CreateSession(ctx context.Context, sessionTemplate *se
 			return nil, err
 		}
 		if !info.IsDir() {
-			return nil, fmt.Errorf("working directory must be a directory")
+			return nil, errors.New("working directory must be a directory")
 		}
 		opts = append(opts, session.WithWorkingDir(absWd))
 	}

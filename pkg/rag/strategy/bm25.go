@@ -3,6 +3,7 @@ package strategy
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math"
@@ -243,7 +244,7 @@ func (s *BM25Strategy) Query(ctx context.Context, query string, numResults int, 
 	// Tokenize query
 	queryTerms := s.tokenize(query)
 	if len(queryTerms) == 0 {
-		return nil, fmt.Errorf("query contains no valid terms")
+		return nil, errors.New("query contains no valid terms")
 	}
 
 	// For BM25, we need to retrieve all documents and score them

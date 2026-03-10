@@ -588,7 +588,7 @@ func (r *LocalRuntime) CurrentAgentSkillsToolset() *builtin.SkillsToolset {
 func (r *LocalRuntime) ExecuteMCPPrompt(ctx context.Context, promptName string, arguments map[string]string) (string, error) {
 	currentAgent := r.CurrentAgent()
 	if currentAgent == nil {
-		return "", fmt.Errorf("no current agent available")
+		return "", errors.New("no current agent available")
 	}
 
 	for _, toolset := range currentAgent.ToolSets() {
@@ -1496,7 +1496,7 @@ func (r *LocalRuntime) ResumeElicitation(ctx context.Context, action tools.Elici
 		return nil
 	default:
 		slog.Debug("Elicitation channel not ready")
-		return fmt.Errorf("no elicitation request in progress")
+		return errors.New("no elicitation request in progress")
 	}
 }
 
@@ -2126,7 +2126,7 @@ func (r *LocalRuntime) elicitationHandler(ctx context.Context, req *mcp.ElicitPa
 	eventsChannel := r.elicitationEventsChannel
 	if eventsChannel == nil {
 		r.elicitationEventsChannelMux.RUnlock()
-		return tools.ElicitationResult{}, fmt.Errorf("no events channel available for elicitation")
+		return tools.ElicitationResult{}, errors.New("no events channel available for elicitation")
 	}
 
 	r.executeOnUserInputHooks(ctx, "", "elicitation")

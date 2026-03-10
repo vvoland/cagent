@@ -135,7 +135,7 @@ func parseCacheExpiry(cacheControl string) time.Time {
 		return time.Now().Add(defaultCacheTTL)
 	}
 
-	for _, directive := range strings.Split(cacheControl, ",") {
+	for directive := range strings.SplitSeq(cacheControl, ",") {
 		directive = strings.TrimSpace(directive)
 
 		if strings.EqualFold(directive, "no-store") || strings.EqualFold(directive, "no-cache") {

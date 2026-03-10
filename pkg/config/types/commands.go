@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -122,7 +123,7 @@ func parseCommandValue(v any) (Command, error) {
 		inst, _ := val["instruction"].(string)
 
 		if inst == "" && desc == "" {
-			return Command{}, fmt.Errorf("command must have at least 'instruction' or 'description'")
+			return Command{}, errors.New("command must have at least 'instruction' or 'description'")
 		}
 		if inst == "" {
 			inst = desc

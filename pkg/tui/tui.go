@@ -1471,7 +1471,7 @@ func (m *appModel) Bindings() []key.Binding {
 		bindings = append(bindings,
 			key.NewBinding(
 				key.WithKeys("ctrl+g"),
-				key.WithHelp("Ctrl+g", fmt.Sprintf("edit in %s", editorName)),
+				key.WithHelp("Ctrl+g", "edit in "+editorName),
 			),
 			key.NewBinding(
 				key.WithKeys("ctrl+r"),

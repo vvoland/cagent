@@ -2,6 +2,7 @@ package dialog
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -164,7 +165,7 @@ func TestSessionBrowserScrolling(t *testing.T) {
 	sessions := make([]session.Summary, 20)
 	for i := range sessions {
 		sessions[i] = session.Summary{
-			ID:        fmt.Sprintf("%d", i+1),
+			ID:        strconv.Itoa(i + 1),
 			Title:     fmt.Sprintf("Session %d", i+1),
 			CreatedAt: time.Now(),
 		}

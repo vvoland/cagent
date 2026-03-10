@@ -24,7 +24,7 @@ func newDockerAgentAdapter(t *team.Team, agentName string) (agent.Agent, error) 
 		return nil, fmt.Errorf("failed to get agent %s: %w", agentName, err)
 	}
 
-	desc := cmp.Or(a.Description(), fmt.Sprintf("Agent %s", agentName))
+	desc := cmp.Or(a.Description(), "Agent "+agentName)
 
 	return agent.New(agent.Config{
 		Name:        agentName,

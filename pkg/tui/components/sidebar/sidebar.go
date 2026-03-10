@@ -7,6 +7,7 @@ import (
 	"maps"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -478,7 +479,7 @@ func formatTokenCount(count int64) string {
 	} else if count >= 1000 {
 		return fmt.Sprintf("%.1fK", float64(count)/1000)
 	}
-	return fmt.Sprintf("%d", count)
+	return strconv.FormatInt(count, 10)
 }
 
 func formatCost(cost float64) string {
@@ -953,7 +954,7 @@ func (m *model) workingIndicator() string {
 		displayRagName := strings.ReplaceAll(ragName, "_", " ")
 
 		// RAG source header
-		header := fmt.Sprintf("Indexing %s", styles.BoldStyle.Render(displayRagName))
+		header := "Indexing " + styles.BoldStyle.Render(displayRagName)
 		indicators = append(indicators, styles.ActiveStyle.Render(header))
 
 		// Each strategy with its spinner and progress
@@ -985,7 +986,7 @@ func (m *model) workingIndicatorCollapsed() string {
 		strategies := ragGroups[ragName]
 		displayRagName := strings.ReplaceAll(ragName, "_", " ")
 
-		labels = append(labels, fmt.Sprintf("Indexing %s", styles.BoldStyle.Render(displayRagName)))
+		labels = append(labels, "Indexing "+styles.BoldStyle.Render(displayRagName))
 
 		for _, strategy := range strategies {
 			displayStratName := strings.ReplaceAll(strategy.strategyName, "-", " ")
@@ -1052,16 +1053,16 @@ func (m *model) tokenUsageSummary() string {
 
 	s := m.computeUsageStats()
 
-	parts := []string{fmt.Sprintf("Tokens: %s", formatTokenCount(s.tokens))}
+	parts := []string{"Tokens: " + formatTokenCount(s.tokens)}
 	if s.sessionCount > 1 {
 		if s.contextPct != "" {
-			parts = append(parts, fmt.Sprintf("Context: %s", s.contextPct))
+			parts = append(parts, "Context: "+s.contextPct)
 		}
-		parts = append(parts, fmt.Sprintf("Cost: $%s", formatCost(s.totalCost)), fmt.Sprintf("%d sub-sessions", s.sessionCount-1))
+		parts = append(parts, "Cost: $"+formatCost(s.totalCost), fmt.Sprintf("%d sub-sessions", s.sessionCount-1))
 	} else {
-		parts = append(parts, fmt.Sprintf("Cost: $%s", formatCost(s.totalCost)))
+		parts = append(parts, "Cost: $"+formatCost(s.totalCost))
 		if s.contextPct != "" {
-			parts = append(parts, fmt.Sprintf("Context: %s", s.contextPct))
+			parts = append(parts, "Context: "+s.contextPct)
 		}
 	}
 

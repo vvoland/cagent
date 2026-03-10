@@ -955,11 +955,13 @@ func (e *editor) handleGraphemeBackspace() (layout.Model, tea.Cmd) {
 	textBeforeCursor := strings.Join(beforeParts, "\n")
 
 	// Build text after cursor position (after cursor on current line + remaining lines)
-	var textAfterCursor string
-	textAfterCursor = afterCursor
+	var textAfterCursorSb strings.Builder
+	textAfterCursorSb.WriteString(afterCursor)
 	for i := currentLine + 1; i < len(lines); i++ {
-		textAfterCursor += "\n" + lines[i]
+		textAfterCursorSb.WriteByte('\n')
+		textAfterCursorSb.WriteString(lines[i])
 	}
+	textAfterCursor := textAfterCursorSb.String()
 
 	// Set the text before cursor and move to end
 	e.textarea.SetValue(textBeforeCursor)

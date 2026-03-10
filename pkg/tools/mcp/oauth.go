@@ -181,7 +181,7 @@ func (t *oauthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	reqClone := req.Clone(req.Context())
 
 	if token, err := t.tokenStore.GetToken(t.baseURL); err == nil && !token.IsExpired() {
-		reqClone.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.AccessToken))
+		reqClone.Header.Set("Authorization", "Bearer "+token.AccessToken)
 	}
 
 	resp, err := t.base.RoundTrip(reqClone)
@@ -320,7 +320,7 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 	slog.Debug("Elicitation response received", "result", result)
 
 	if result.Action != tools.ElicitationActionAccept {
-		return fmt.Errorf("user declined OAuth authorization")
+		return errors.New("user declined OAuth authorization")
 	}
 
 	slog.Debug("Requesting authorization code", "url", authURL)
@@ -331,7 +331,7 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 	}
 
 	if receivedState != state {
-		return fmt.Errorf("state mismatch in authorization response")
+		return errors.New("state mismatch in authorization response")
 	}
 
 	slog.Debug("Exchanging authorization code for token")
@@ -398,7 +398,7 @@ func (t *oauthTransport) handleUnmanagedOAuthFlow(ctx context.Context, authServe
 	slog.Debug("Sending OAuth elicitation request to client")
 
 	result, err := t.client.requestElicitation(ctx, &mcpsdk.ElicitParams{
-		Message:         fmt.Sprintf("OAuth authorization required for %s", t.baseURL),
+		Message:         "OAuth authorization required for " + t.baseURL,
 		RequestedSchema: nil,
 		Meta: map[string]any{
 			"cagent/type":          "oauth_flow",
@@ -415,10 +415,10 @@ func (t *oauthTransport) handleUnmanagedOAuthFlow(ctx context.Context, authServe
 	slog.Debug("Received elicitation response from client", "action", result.Action)
 
 	if result.Action != tools.ElicitationActionAccept {
-		return fmt.Errorf("OAuth flow declined or cancelled by client")
+		return errors.New("OAuth flow declined or cancelled by client")
 	}
 	if result.Content == nil {
-		return fmt.Errorf("no token received from client")
+		return errors.New("no token received from client")
 	}
 
 	tokenData := result.Content
@@ -428,7 +428,7 @@ func (t *oauthTransport) handleUnmanagedOAuthFlow(ctx context.Context, authServe
 	if accessToken, ok := tokenData["access_token"].(string); ok {
 		token.AccessToken = accessToken
 	} else {
-		return fmt.Errorf("access_token missing or invalid in client response")
+		return errors.New("access_token missing or invalid in client response")
 	}
 
 	if tokenType, ok := tokenData["token_type"].(string); ok {

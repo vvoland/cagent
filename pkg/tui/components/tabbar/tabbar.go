@@ -2,6 +2,8 @@
 package tabbar
 
 import (
+	"strings"
+
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -414,7 +416,7 @@ func (t *TabBar) View() string {
 	// Attention arrow style: warning-colored and bold so off-screen attention tabs are obvious.
 	attnArrowStyle := lipgloss.NewStyle().Foreground(styles.EnsureContrast(styles.Warning, styles.Background)).Bold(true)
 
-	var line string
+	var line strings.Builder
 	var cursor int
 
 	// Left scroll arrow — highlight if any off-screen tab to the left needs attention.
@@ -424,7 +426,7 @@ func (t *TabBar) View() string {
 			style = attnArrowStyle
 		}
 		arrow := style.Render(scrollLeftText)
-		line += arrow
+		line.WriteString(arrow)
 		t.zones = append(t.zones, clickZone{
 			startX: cursor, endX: cursor + scrollArrowWidth,
 			tabIdx: noTab, isScrollLeft: true,
@@ -475,7 +477,7 @@ func (t *TabBar) View() string {
 
 		// Insert the drop indicator before this tab if this is the visual drop position.
 		if visualDrop == i {
-			line += dropLine
+			line.WriteString(dropLine)
 			cursor += dropIndicatorWidth
 		}
 
@@ -486,14 +488,14 @@ func (t *TabBar) View() string {
 			clickZone{startX: mainEnd, endX: cursor + tabW, tabIdx: i, isClose: true},
 		)
 
-		line += tab.View()
+		line.WriteString(tab.View())
 		cursor += tabW
 		lastVisibleIdx = i
 	}
 
 	// Drop indicator after the last visible tab.
 	if visualDrop == lastVisibleIdx+1 {
-		line += dropLine
+		line.WriteString(dropLine)
 		cursor += dropIndicatorWidth
 	}
 
@@ -504,7 +506,7 @@ func (t *TabBar) View() string {
 			style = attnArrowStyle
 		}
 		arrow := style.Render(scrollRightText)
-		line += arrow
+		line.WriteString(arrow)
 		t.zones = append(t.zones, clickZone{
 			startX: cursor, endX: cursor + scrollArrowWidth,
 			tabIdx: noTab, isScrollRight: true,
@@ -514,13 +516,13 @@ func (t *TabBar) View() string {
 
 	// "+" button.
 	plus := plusStyle.Render(plusButtonText)
-	line += plus
+	line.WriteString(plus)
 	t.zones = append(t.zones, clickZone{
 		startX: cursor, endX: cursor + plusButtonWidth,
 		tabIdx: noTab, isPlus: true,
 	})
 
-	return line
+	return line.String()
 }
 
 // ensureActiveVisible adjusts scrollOffset so the active tab is visible.

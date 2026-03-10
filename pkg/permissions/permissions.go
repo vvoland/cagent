@@ -5,6 +5,7 @@ package permissions
 import (
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/docker/docker-agent/pkg/config/latest"
@@ -203,11 +204,11 @@ func argToString(v any) string {
 	case string:
 		return val
 	case bool:
-		return fmt.Sprintf("%t", val)
+		return strconv.FormatBool(val)
 	case float64:
 		// JSON numbers are float64 - format without trailing zeros
 		if val == float64(int64(val)) {
-			return fmt.Sprintf("%d", int64(val))
+			return strconv.FormatInt(int64(val), 10)
 		}
 		return fmt.Sprintf("%g", val)
 	case int, int64:

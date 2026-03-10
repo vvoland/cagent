@@ -24,7 +24,7 @@ func BuildRerankDocumentsPrompt(query string, documents []types.Document) string
 			var parts []string
 
 			if doc.SourcePath != "" {
-				parts = append(parts, fmt.Sprintf("source: %s", doc.SourcePath))
+				parts = append(parts, "source: "+doc.SourcePath)
 			}
 
 			// Add relevant metadata

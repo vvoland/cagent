@@ -322,7 +322,7 @@ func formatJSONValue(key string, value any) string {
 
 	case []any:
 		if len(v) == 0 {
-			return fmt.Sprintf("%s: []", bold(key))
+			return bold(key) + ": []"
 		}
 		// Single item arrays are rendered on a single line
 		if len(v) == 1 {

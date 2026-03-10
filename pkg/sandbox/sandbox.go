@@ -5,6 +5,7 @@ package sandbox
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -26,10 +27,9 @@ func CheckAvailable(ctx context.Context) error {
 	}
 
 	if err := exec.CommandContext(ctx, "docker", "sandbox", "version").Run(); err != nil {
-		return fmt.Errorf(
-			"--sandbox requires Docker Desktop with sandbox support\n\n" +
-				"Make sure Docker Desktop is running and up to date.\n" +
-				"For more information, see https://docs.docker.com/ai/sandboxes/")
+		return errors.New("--sandbox requires Docker Desktop with sandbox support\n\n" +
+			"Make sure Docker Desktop is running and up to date.\n" +
+			"For more information, see https://docs.docker.com/ai/sandboxes/")
 	}
 
 	return nil
@@ -126,7 +126,7 @@ func Ensure(ctx context.Context, wd, extra, template, configDir string) (string,
 	// Read back the sandbox name that was just created.
 	created := ForWorkspace(ctx, wd)
 	if created == nil {
-		return "", fmt.Errorf("sandbox was created but could not be found")
+		return "", errors.New("sandbox was created but could not be found")
 	}
 
 	return created.Name, nil

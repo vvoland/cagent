@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/docker/docker-agent/pkg/chat"
@@ -251,7 +252,7 @@ func (b *llmSemanticEmbeddingBuilder) BuildEmbeddingInput(ctx context.Context, s
 	t := b.expander.Expand(ctx, b.prompt, map[string]string{
 		"path":        sourcePath,
 		"basename":    filepath.Base(sourcePath),
-		"chunk_index": fmt.Sprintf("%d", ch.Index),
+		"chunk_index": strconv.Itoa(ch.Index),
 		"content":     ch.Content,
 		"ast_context": astContext,
 	})

@@ -3,6 +3,7 @@ package anthropic
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -267,7 +268,7 @@ func (c *Client) convertBetaUserMultiContent(ctx context.Context, parts []chat.M
 
 			default:
 				// File part has neither path nor file ID - this is invalid
-				return nil, fmt.Errorf("invalid file attachment: neither path nor file_id provided")
+				return nil, errors.New("invalid file attachment: neither path nor file_id provided")
 			}
 		}
 	}

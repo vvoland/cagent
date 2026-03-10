@@ -3,7 +3,6 @@ package runtime
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"reflect"
 	"sync"
@@ -164,7 +163,7 @@ type mockProviderWithError struct {
 func (m *mockProviderWithError) ID() string { return m.id }
 
 func (m *mockProviderWithError) CreateChatCompletionStream(context.Context, []chat.Message, []tools.Tool) (chat.MessageStream, error) {
-	return nil, fmt.Errorf("simulated error creating chat completion stream")
+	return nil, errors.New("simulated error creating chat completion stream")
 }
 
 func (m *mockProviderWithError) BaseConfig() base.Config { return base.Config{} }

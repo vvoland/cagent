@@ -6,6 +6,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -478,7 +479,7 @@ func (r *Runner) runDockerAgentInContainer(ctx context.Context, imageID string, 
 		if stderrStr != "" {
 			return nil, fmt.Errorf("no events received from container (stderr: %s)", stderrStr)
 		}
-		return nil, fmt.Errorf("no events received from container")
+		return nil, errors.New("no events received from container")
 	}
 
 	return events, nil

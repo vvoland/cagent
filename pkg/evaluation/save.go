@@ -366,7 +366,7 @@ func SaveRunSessionsJSON(run *EvalRun, outputDir string) (string, error) {
 func Save(sess *session.Session, filename string) (string, error) {
 	baseName := cmp.Or(filename, sess.ID)
 
-	evalFile := filepath.Join("evals", fmt.Sprintf("%s.json", baseName))
+	evalFile := filepath.Join("evals", baseName+".json")
 	for number := 1; ; number++ {
 		if _, err := os.Stat(evalFile); err != nil {
 			break

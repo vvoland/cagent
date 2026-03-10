@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/docker/docker-agent/pkg/memory/database"
@@ -167,7 +168,7 @@ func (t *MemoryTool) Tools(context.Context) ([]tools.Tool, error) {
 
 func (t *MemoryTool) handleAddMemory(ctx context.Context, args AddMemoryArgs) (*tools.ToolCallResult, error) {
 	memory := database.UserMemory{
-		ID:        fmt.Sprintf("%d", time.Now().UnixNano()),
+		ID:        strconv.FormatInt(time.Now().UnixNano(), 10),
 		CreatedAt: time.Now().Format(time.RFC3339),
 		Memory:    args.Memory,
 		Category:  args.Category,
@@ -177,7 +178,7 @@ func (t *MemoryTool) handleAddMemory(ctx context.Context, args AddMemoryArgs) (*
 		return nil, fmt.Errorf("failed to add memory: %w", err)
 	}
 
-	return tools.ResultSuccess(fmt.Sprintf("Memory added successfully with ID: %s", memory.ID)), nil
+	return tools.ResultSuccess("Memory added successfully with ID: " + memory.ID), nil
 }
 
 func (t *MemoryTool) handleGetMemories(ctx context.Context, _ map[string]any) (*tools.ToolCallResult, error) {

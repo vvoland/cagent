@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -92,7 +93,7 @@ func (d *semanticVectorDB) createSchema() error {
 // For semantic-embeddings, the embeddingInput contains the LLM-generated summary.
 func (d *semanticVectorDB) AddDocumentWithEmbedding(ctx context.Context, doc database.Document, embedding []float64, embeddingInput string) error {
 	if len(embedding) == 0 {
-		return fmt.Errorf("embedding is required for vector database")
+		return errors.New("embedding is required for vector database")
 	}
 	if len(embedding) != d.vectorDimensions {
 		return fmt.Errorf("embedding dimension mismatch: got %d, expected %d", len(embedding), d.vectorDimensions)

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -60,7 +61,7 @@ func applySingleOverride(cfg *latest.Config, override string) error {
 		// Global override: apply to all agents
 		modelSpec := strings.TrimSpace(override)
 		if modelSpec == "" {
-			return fmt.Errorf("empty model specification")
+			return errors.New("empty model specification")
 		}
 
 		for _, agent := range cfg.Agents {

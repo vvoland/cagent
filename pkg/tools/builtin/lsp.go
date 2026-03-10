@@ -916,7 +916,7 @@ func (h *lspHandler) getDiagnostics(ctx context.Context, args FileArgs) (*tools.
 	h.diagnosticsMu.RUnlock()
 
 	if !ok || len(diags) == 0 {
-		return tools.ResultSuccess(fmt.Sprintf("No diagnostics for %s", args.File)), nil
+		return tools.ResultSuccess("No diagnostics for " + args.File), nil
 	}
 
 	return tools.ResultSuccess(formatDiagnostics(args.File, diags)), nil
@@ -1022,7 +1022,7 @@ func (h *lspHandler) format(ctx context.Context, args FileArgs) (*tools.ToolCall
 	}
 
 	if len(result) == 0 || string(result) == "null" || string(result) == "[]" {
-		return tools.ResultSuccess(fmt.Sprintf("No formatting changes needed for %s", args.File)), nil
+		return tools.ResultSuccess("No formatting changes needed for " + args.File), nil
 	}
 
 	var edits []lspTextEdit
@@ -1031,7 +1031,7 @@ func (h *lspHandler) format(ctx context.Context, args FileArgs) (*tools.ToolCall
 	}
 
 	if len(edits) == 0 {
-		return tools.ResultSuccess(fmt.Sprintf("No formatting changes needed for %s", args.File)), nil
+		return tools.ResultSuccess("No formatting changes needed for " + args.File), nil
 	}
 
 	if err := applyTextEditsToFile(args.File, edits); err != nil {

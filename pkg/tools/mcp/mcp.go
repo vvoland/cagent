@@ -488,13 +488,13 @@ func isInitNotificationSendError(err error) bool {
 }
 
 func processMCPContent(toolResult *mcp.CallToolResult) *tools.ToolCallResult {
-	var text string
+	var text strings.Builder
 	var images, audios []tools.MediaContent
 
 	for _, c := range toolResult.Content {
 		switch c := c.(type) {
 		case *mcp.TextContent:
-			text += c.Text
+			text.WriteString(c.Text)
 		case *mcp.ImageContent:
 			images = append(images, encodeMedia(c.Data, c.MIMEType))
 		case *mcp.AudioContent:
@@ -504,15 +504,15 @@ func processMCPContent(toolResult *mcp.CallToolResult) *tools.ToolCallResult {
 				// Escape ] in name and ) in URI to prevent broken markdown links.
 				name := strings.ReplaceAll(c.Name, "]", "\\]")
 				uri := strings.ReplaceAll(c.URI, ")", "%29")
-				text += fmt.Sprintf("[%s](%s)", name, uri)
+				fmt.Fprintf(&text, "[%s](%s)", name, uri)
 			} else {
-				text += c.URI
+				text.WriteString(c.URI)
 			}
 		}
 	}
 
 	return &tools.ToolCallResult{
-		Output:            cmp.Or(text, "no output"),
+		Output:            cmp.Or(text.String(), "no output"),
 		IsError:           toolResult.IsError,
 		Images:            images,
 		Audios:            audios,

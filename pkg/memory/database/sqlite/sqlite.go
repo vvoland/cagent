@@ -82,8 +82,8 @@ func (m *MemoryDatabase) SearchMemories(ctx context.Context, query, category str
 	var args []any
 
 	if query != "" {
-		words := strings.Fields(query)
-		for _, word := range words {
+		words := strings.FieldsSeq(query)
+		for word := range words {
 			conditions = append(conditions, "LOWER(memory) LIKE LOWER(?) ESCAPE '\\'")
 			escaped := strings.ReplaceAll(word, `\`, `\\`)
 			escaped = strings.ReplaceAll(escaped, `%`, `\%`)

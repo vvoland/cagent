@@ -178,8 +178,8 @@ func (g *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		}
 
 		// Handle text and thoughts separately so TUI can render them distinctly
-		var textContent string
-		var reasoningText string
+		var reasoningTextSb strings.Builder
+		var textContentSb strings.Builder
 		var thoughtSignature []byte
 		for _, candidate := range res.resp.Candidates {
 			if candidate.Content != nil {
@@ -190,14 +190,16 @@ func (g *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 
 					if part.Text != "" {
 						if part.Thought {
-							reasoningText += part.Text
+							reasoningTextSb.WriteString(part.Text)
 						} else {
-							textContent += part.Text
+							textContentSb.WriteString(part.Text)
 						}
 					}
 				}
 			}
 		}
+		reasoningText := reasoningTextSb.String()
+		textContent := textContentSb.String()
 		if reasoningText != "" {
 			resp.Choices[0].Delta.ReasoningContent = reasoningText
 		}

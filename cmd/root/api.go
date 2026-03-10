@@ -1,6 +1,7 @@
 package root
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -79,7 +80,7 @@ func (f *apiFlags) runAPICommand(cmd *cobra.Command, args []string) error {
 	}()
 
 	if f.pullIntervalMins > 0 && !config.IsOCIReference(agentsPath) {
-		return fmt.Errorf("--pull-interval flag can only be used with OCI references, not local files")
+		return errors.New("--pull-interval flag can only be used with OCI references, not local files")
 	}
 
 	ln, lnCleanup, err := newListener(ctx, f.listenAddr)

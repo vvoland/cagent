@@ -81,5 +81,5 @@ func (r *LocalRuntime) setModelAndEmitInfo(ctx context.Context, modelRef string,
 		return tools.ResultSuccess("Model reverted to the agent's default model"), nil
 	}
 	slog.Info("Model changed via model_picker tool", "agent", currentName, "model", modelRef)
-	return tools.ResultSuccess(fmt.Sprintf("Model changed to %s", modelRef)), nil
+	return tools.ResultSuccess("Model changed to " + modelRef), nil
 }

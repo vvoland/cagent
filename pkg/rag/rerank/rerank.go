@@ -3,6 +3,7 @@ package rerank
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -39,7 +40,7 @@ type LLMReranker struct {
 // NewLLMReranker creates a new LLM-based reranker
 func NewLLMReranker(config Config) (*LLMReranker, error) {
 	if config.Model == nil {
-		return nil, fmt.Errorf("reranking model is required")
+		return nil, errors.New("reranking model is required")
 	}
 
 	slog.Debug("[Reranker] Creating LLM-based reranker",

@@ -139,7 +139,7 @@ func routeByFile(handlers []lspRouteTarget) tools.ToolHandler {
 				return h.handler(ctx, tc)
 			}
 		}
-		return tools.ResultError(fmt.Sprintf("no LSP server configured for file: %s", args.File)), nil
+		return tools.ResultError("no LSP server configured for file: " + args.File), nil
 	}
 }
 

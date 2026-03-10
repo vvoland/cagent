@@ -1,6 +1,7 @@
 package root
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"path/filepath"
@@ -264,7 +265,7 @@ func expandTilde(path string) (string, error) {
 
 	homeDir := paths.GetHomeDir()
 	if homeDir == "" {
-		return "", fmt.Errorf("failed to get user home directory")
+		return "", errors.New("failed to get user home directory")
 	}
 
 	return filepath.Join(homeDir, strings.TrimPrefix(path, "~/")), nil

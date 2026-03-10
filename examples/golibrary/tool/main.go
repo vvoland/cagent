@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os/signal"
+	"strconv"
 	"syscall"
 
 	"github.com/docker/docker-agent/pkg/agent"
@@ -40,7 +41,7 @@ func addNumbers(_ context.Context, toolCall tools.ToolCall) (*tools.ToolCallResu
 
 	fmt.Println("Adding numbers", p.A, p.B)
 
-	return tools.ResultSuccess(fmt.Sprintf("%d", p.A+p.B)), nil
+	return tools.ResultSuccess(strconv.Itoa(p.A + p.B)), nil
 }
 
 func run(ctx context.Context) error {

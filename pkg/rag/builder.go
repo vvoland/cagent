@@ -2,6 +2,7 @@ package rag
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -144,7 +145,7 @@ func buildRerankingConfig(
 
 	if rerankCfg.Model == "" {
 		slog.Error("Reranking model name is empty")
-		return nil, fmt.Errorf("reranking model is required")
+		return nil, errors.New("reranking model is required")
 	}
 
 	slog.Debug("Resolving reranking model",
