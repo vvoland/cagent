@@ -75,6 +75,7 @@ We collect anonymous usage data to help improve docker agent. To disable:
 `
 					fmt.Fprint(cmd.ErrOrStderr(), telemetryMsg)
 				}
+
 				fmt.Fprintln(cmd.ErrOrStderr())
 			}
 
