@@ -255,3 +255,80 @@ func TestSidebar_HandleClickType_NoWrap(t *testing.T) {
 	result = sb.HandleClickType(paddingLeft+1, verticalStarY)
 	assert.Equal(t, ClickStar, result, "star should still be clickable")
 }
+
+func TestSidebar_HandleClickType_WorkingDir_Vertical(t *testing.T) {
+	t.Parallel()
+
+	sess := session.New()
+	sessionState := service.NewSessionState(sess)
+	sb := New(sessionState)
+
+	m := sb.(*model)
+	m.sessionHasContent = true
+	m.titleGenerated = true
+	m.mode = ModeVertical
+	m.width = 50
+	m.sessionTitle = "Hi"
+	m.workingDirectory = "~/projects/myapp"
+
+	paddingLeft := m.layoutCfg.PaddingLeft
+
+	// In vertical mode, working dir is at verticalStarY + titleLineCount + 1 (empty separator)
+	titleLines := m.titleLineCount()
+	wdY := verticalStarY + titleLines + 1
+
+	// Click on the working directory line
+	result := sb.HandleClickType(paddingLeft+3, wdY)
+	assert.Equal(t, ClickWorkingDir, result, "click on working dir line should return ClickWorkingDir")
+
+	// Click on the title line should still return ClickTitle
+	result = sb.HandleClickType(paddingLeft+3, verticalStarY)
+	assert.Equal(t, ClickTitle, result, "click on title should still return ClickTitle")
+
+	// Click on the empty separator line should return ClickNone
+	result = sb.HandleClickType(paddingLeft+3, verticalStarY+titleLines)
+	assert.Equal(t, ClickNone, result, "click on separator line should return ClickNone")
+}
+
+func TestSidebar_HandleClickType_WorkingDir_Collapsed(t *testing.T) {
+	t.Parallel()
+
+	sess := session.New()
+	sessionState := service.NewSessionState(sess)
+	sb := New(sessionState)
+
+	m := sb.(*model)
+	m.sessionHasContent = true
+	m.titleGenerated = true
+	m.mode = ModeCollapsed
+	m.width = 50
+	m.sessionTitle = "Hi"
+	m.workingDirectory = "~/projects/myapp"
+
+	paddingLeft := m.layoutCfg.PaddingLeft
+
+	// In collapsed mode, title occupies 1 line, then working dir
+	titleLines := m.titleLineCount()
+	assert.Equal(t, 1, titleLines, "title should be on single line")
+
+	// Click on the working directory line (right after title)
+	result := sb.HandleClickType(paddingLeft+3, titleLines)
+	assert.Equal(t, ClickWorkingDir, result, "click on working dir line should return ClickWorkingDir")
+
+	// Click on the title should still return ClickTitle
+	result = sb.HandleClickType(paddingLeft+3, 0)
+	assert.Equal(t, ClickTitle, result, "click on title should still return ClickTitle")
+}
+
+func TestSidebar_WorkingDirectory(t *testing.T) {
+	t.Parallel()
+
+	sess := session.New()
+	sessionState := service.NewSessionState(sess)
+	sb := New(sessionState)
+
+	m := sb.(*model)
+	m.workingDirectory = "~/projects/myapp"
+
+	assert.Equal(t, "~/projects/myapp", sb.WorkingDirectory())
+}
