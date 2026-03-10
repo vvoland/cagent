@@ -19,6 +19,13 @@ import (
 func runCLI(t *testing.T, command string, moreArgs ...string) string {
 	t.Helper()
 
+	// Ensure root.Execute takes the standalone path even when the test
+	// process inherits DOCKER_CLI_PLUGIN_ORIGINAL_CLI_COMMAND from a
+	// Docker CLI plugin environment (e.g. running inside docker-agent).
+	// We use os.Unsetenv instead of t.Setenv because some callers run
+	// with t.Parallel(), and t.Setenv panics in that case.
+	os.Unsetenv("DOCKER_CLI_PLUGIN_ORIGINAL_CLI_COMMAND")
+
 	args := []string{command}
 
 	// Use .env file to set dummy env vars so config loading doesn't fail.

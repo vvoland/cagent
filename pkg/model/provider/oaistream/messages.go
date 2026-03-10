@@ -105,8 +105,8 @@ func ConvertMessages(messages []chat.Message) []openai.ChatCompletionMessagePara
 			}
 
 			if msg.FunctionCall != nil {
-				assistantParam.FunctionCall.Name = msg.FunctionCall.Name           //nolint:staticcheck // deprecated but still needed for compatibility
-				assistantParam.FunctionCall.Arguments = msg.FunctionCall.Arguments //nolint:staticcheck // deprecated but still needed for compatibility
+				assistantParam.FunctionCall.Name = msg.FunctionCall.Name
+				assistantParam.FunctionCall.Arguments = msg.FunctionCall.Arguments
 			}
 
 			if len(msg.ToolCalls) > 0 {
