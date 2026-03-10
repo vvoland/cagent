@@ -1,6 +1,7 @@
 package builtin
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,24 +29,16 @@ func TestTodoTool_CreateTodo(t *testing.T) {
 	result, err := tool.handler.createTodo(t.Context(), CreateTodoArgs{
 		Description: "Test todo item",
 	})
-
 	require.NoError(t, err)
-	assert.Contains(t, result.Output, "Created todo [todo_1]: Test todo item")
 
-	assert.Equal(t, 1, storage.Len())
-	todos := storage.All()
-	require.Len(t, todos, 1)
-	assert.Equal(t, "todo_1", todos[0].ID)
-	assert.Equal(t, "Test todo item", todos[0].Description)
-	assert.Equal(t, "pending", todos[0].Status)
+	var output Todo
+	require.NoError(t, json.Unmarshal([]byte(result.Output), &output))
+	assert.Equal(t, "todo_1", output.ID)
+	assert.Equal(t, "Test todo item", output.Description)
+	assert.Equal(t, "pending", output.Status)
 
-	// Verify Meta contains the created todo
-	metaTodos, ok := result.Meta.([]Todo)
-	require.True(t, ok, "Meta should be []Todo")
-	require.Len(t, metaTodos, 1)
-	assert.Equal(t, "todo_1", metaTodos[0].ID)
-	assert.Equal(t, "Test todo item", metaTodos[0].Description)
-	assert.Equal(t, "pending", metaTodos[0].Status)
+	require.Equal(t, 1, storage.Len())
+	requireMeta(t, result, 1)
 }
 
 func TestTodoTool_CreateTodos(t *testing.T) {
@@ -53,95 +46,67 @@ func TestTodoTool_CreateTodos(t *testing.T) {
 	tool := NewTodoTool(WithStorage(storage))
 
 	result, err := tool.handler.createTodos(t.Context(), CreateTodosArgs{
-		Descriptions: []string{
-			"First todo item",
-			"Second todo item",
-			"Third todo item",
-		},
+		Descriptions: []string{"First", "Second", "Third"},
 	})
-
 	require.NoError(t, err)
-	assert.Contains(t, result.Output, "Created 3 todos:")
-	assert.Contains(t, result.Output, "todo_1")
-	assert.Contains(t, result.Output, "todo_2")
-	assert.Contains(t, result.Output, "todo_3")
+
+	var output CreateTodosOutput
+	require.NoError(t, json.Unmarshal([]byte(result.Output), &output))
+	require.Len(t, output.Created, 3)
+	assert.Equal(t, "todo_1", output.Created[0].ID)
+	assert.Equal(t, "First", output.Created[0].Description)
+	assert.Equal(t, "pending", output.Created[0].Status)
+	assert.Equal(t, "todo_2", output.Created[1].ID)
+	assert.Equal(t, "todo_3", output.Created[2].ID)
 
 	assert.Equal(t, 3, storage.Len())
+	requireMeta(t, result, 3)
 
-	// Verify Meta contains all todos (order not guaranteed from map)
-	metaTodos, ok := result.Meta.([]Todo)
-	require.True(t, ok, "Meta should be []Todo")
-	require.Len(t, metaTodos, 3)
-
-	// Verify order is preserved
-	assert.Equal(t, "First todo item", metaTodos[0].Description)
-	assert.Equal(t, "Second todo item", metaTodos[1].Description)
-	assert.Equal(t, "Third todo item", metaTodos[2].Description)
-
+	// A second call continues the ID sequence
 	result, err = tool.handler.createTodos(t.Context(), CreateTodosArgs{
-		Descriptions: []string{
-			"Last todo item",
-		},
+		Descriptions: []string{"Last"},
 	})
-
 	require.NoError(t, err)
-	assert.Contains(t, result.Output, "Created 1 todos:")
-	assert.Contains(t, result.Output, "todo_4")
-	assert.Equal(t, 4, storage.Len())
 
-	// Verify Meta for second call contains all 4 todos
-	metaTodos, ok = result.Meta.([]Todo)
-	require.True(t, ok, "Meta should be []Todo")
-	require.Len(t, metaTodos, 4)
+	require.NoError(t, json.Unmarshal([]byte(result.Output), &output))
+	require.Len(t, output.Created, 1)
+	assert.Equal(t, "todo_4", output.Created[0].ID)
+	assert.Equal(t, 4, storage.Len())
+	requireMeta(t, result, 4)
 }
 
 func TestTodoTool_ListTodos(t *testing.T) {
 	tool := NewTodoTool()
 
-	todos := []string{
-		"First todo item",
-		"Second todo item",
-		"Third todo item",
-	}
-
-	for _, todoDesc := range todos {
-		_, err := tool.handler.createTodo(t.Context(), CreateTodoArgs{
-			Description: todoDesc,
-		})
-
+	descs := []string{"First", "Second", "Third"}
+	for _, d := range descs {
+		_, err := tool.handler.createTodo(t.Context(), CreateTodoArgs{Description: d})
 		require.NoError(t, err)
 	}
 
 	result, err := tool.handler.listTodos(t.Context(), tools.ToolCall{})
-
 	require.NoError(t, err)
-	assert.Contains(t, result.Output, "Current todos:")
-	for _, todoDesc := range todos {
-		assert.Contains(t, result.Output, todoDesc)
-		assert.Contains(t, result.Output, "Status: pending")
+
+	var output ListTodosOutput
+	require.NoError(t, json.Unmarshal([]byte(result.Output), &output))
+	require.Len(t, output.Todos, 3)
+	for i, d := range descs {
+		assert.Equal(t, d, output.Todos[i].Description)
+		assert.Equal(t, "pending", output.Todos[i].Status)
 	}
 
-	// Verify Meta contains all todos
-	metaTodos, ok := result.Meta.([]Todo)
-	require.True(t, ok, "Meta should be []Todo")
-	require.Len(t, metaTodos, 3)
+	requireMeta(t, result, 3)
 }
 
 func TestTodoTool_UpdateTodos(t *testing.T) {
 	storage := NewMemoryTodoStorage()
 	tool := NewTodoTool(WithStorage(storage))
 
-	// Create multiple todos first
 	_, err := tool.handler.createTodos(t.Context(), CreateTodosArgs{
-		Descriptions: []string{
-			"First todo item",
-			"Second todo item",
-			"Third todo item",
-		},
+		Descriptions: []string{"First", "Second", "Third"},
 	})
 	require.NoError(t, err)
 
-	// Update multiple todos in one call
 	result, err := tool.handler.updateTodos(t.Context(), UpdateTodosArgs{
 		Updates: []TodoUpdate{
 			{ID: "todo_1", Status: "completed"},
@@ -150,34 +115,34 @@ func TestTodoTool_UpdateTodos(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.False(t, result.IsError)
-	assert.Contains(t, result.Output, "Updated 2 todos")
-	assert.Contains(t, result.Output, "todo_1 -> completed")
-	assert.Contains(t, result.Output, "todo_3 -> in-progress")
 
-	// Verify the todos were updated
+	var output UpdateTodosOutput
+	require.NoError(t, json.Unmarshal([]byte(result.Output), &output))
+	require.Len(t, output.Updated, 2)
+	assert.Equal(t, "todo_1", output.Updated[0].ID)
+	assert.Equal(t, "completed", output.Updated[0].Status)
+	assert.Equal(t, "todo_3", output.Updated[1].ID)
+	assert.Equal(t, "in-progress", output.Updated[1].Status)
+	assert.Empty(t, output.NotFound)
+
 	todos := storage.All()
 	require.Len(t, todos, 3)
 	assert.Equal(t, "completed", todos[0].Status)
 	assert.Equal(t, "pending", todos[1].Status)
 	assert.Equal(t, "in-progress", todos[2].Status)
 
-	// Verify Meta contains all todos with updated status
-	metaTodos, ok := result.Meta.([]Todo)
-	require.True(t, ok, "Meta should be []Todo")
-	require.Len(t, metaTodos, 3)
+	requireMeta(t, result, 3)
 }
 
 func TestTodoTool_UpdateTodos_PartialFailure(t *testing.T) {
 	storage := NewMemoryTodoStorage()
 	tool := NewTodoTool(WithStorage(storage))
 
-	// Create two todos so we can complete one without clearing the list
 	_, err := tool.handler.createTodos(t.Context(), CreateTodosArgs{
-		Descriptions: []string{"First todo item", "Second todo item"},
+		Descriptions: []string{"First", "Second"},
 	})
 	require.NoError(t, err)
 
-	// Try to update one existing and one non-existing todo
 	result, err := tool.handler.updateTodos(t.Context(), UpdateTodosArgs{
 		Updates: []TodoUpdate{
 			{ID: "todo_1", Status: "completed"},
@@ -185,11 +150,15 @@ func TestTodoTool_UpdateTodos_PartialFailure(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	assert.False(t, result.IsError) // Not an error because at least one succeeded
-	assert.Contains(t, result.Output, "Updated 1 todos")
-	assert.Contains(t, result.Output, "Not found: nonexistent")
+	assert.False(t, result.IsError)
 
-	// Verify the existing todo was updated (list not cleared because todo_2 still pending)
+	var output UpdateTodosOutput
+	require.NoError(t, json.Unmarshal([]byte(result.Output), &output))
+	require.Len(t, output.Updated, 1)
+	assert.Equal(t, "todo_1", output.Updated[0].ID)
+	require.Len(t, output.NotFound, 1)
+	assert.Equal(t, "nonexistent", output.NotFound[0])
+
 	todos := storage.All()
 	require.Len(t, todos, 2)
 	assert.Equal(t, "completed", todos[0].Status)
@@ -199,7 +168,6 @@ func TestTodoTool_UpdateTodos_PartialFailure(t *testing.T) {
 func TestTodoTool_UpdateTodos_AllNotFound(t *testing.T) {
 	tool := NewTodoTool()
 
-	// Try to update non-existing todos
 	result, err := tool.handler.updateTodos(t.Context(), UpdateTodosArgs{
 		Updates: []TodoUpdate{
 			{ID: "nonexistent1", Status: "completed"},
@@ -207,21 +175,25 @@ func TestTodoTool_UpdateTodos_AllNotFound(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	assert.True(t, result.IsError) // Error because all failed
-	assert.Contains(t, result.Output, "Not found: nonexistent1, nonexistent2")
+	assert.True(t, result.IsError)
+
+	var output UpdateTodosOutput
+	require.NoError(t, json.Unmarshal([]byte(result.Output), &output))
+	assert.Empty(t, output.Updated)
+	require.Len(t, output.NotFound, 2)
+	assert.Equal(t, "nonexistent1", output.NotFound[0])
+	assert.Equal(t, "nonexistent2", output.NotFound[1])
 }
 
 func TestTodoTool_UpdateTodos_ClearsWhenAllCompleted(t *testing.T) {
 	storage := NewMemoryTodoStorage()
 	tool := NewTodoTool(WithStorage(storage))
 
-	// Create multiple todos
 	_, err := tool.handler.createTodos(t.Context(), CreateTodosArgs{
-		Descriptions: []string{"First todo item", "Second todo item"},
+		Descriptions: []string{"First", "Second"},
 	})
 	require.NoError(t, err)
 
-	// Complete all todos
 	result, err := tool.handler.updateTodos(t.Context(), UpdateTodosArgs{
 		Updates: []TodoUpdate{
 			{ID: "todo_1", Status: "completed"},
@@ -229,28 +201,22 @@ func TestTodoTool_UpdateTodos_ClearsWhenAllCompleted(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	assert.Contains(t, result.Output, "Updated 2 todos")
 
-	// Verify all todos were cleared
-	todos := storage.All()
-	assert.Empty(t, todos)
+	var output UpdateTodosOutput
+	require.NoError(t, json.Unmarshal([]byte(result.Output), &output))
+	require.Len(t, output.Updated, 2)
 
-	// Verify Meta is also empty
-	metaTodos, ok := result.Meta.([]Todo)
-	require.True(t, ok, "Meta should be []Todo")
-	assert.Empty(t, metaTodos)
+	assert.Empty(t, storage.All())
+	requireMeta(t, result, 0)
 }
 
 func TestTodoTool_WithStorage(t *testing.T) {
 	storage := NewMemoryTodoStorage()
 	tool := NewTodoTool(WithStorage(storage))
 
-	_, err := tool.handler.createTodo(t.Context(), CreateTodoArgs{
-		Description: "Test item",
-	})
+	_, err := tool.handler.createTodo(t.Context(), CreateTodoArgs{Description: "Test item"})
 	require.NoError(t, err)
 
-	// Verify the custom storage received the item
 	assert.Equal(t, 1, storage.Len())
 	assert.Equal(t, "Test item", storage.All()[0].Description)
 }
@@ -286,4 +252,12 @@ func TestTodoTool_ParametersAreObjects(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "object", m["type"])
 	}
+}
+
+// requireMeta asserts that result.Meta is a []Todo of the expected length.
+func requireMeta(t *testing.T, result *tools.ToolCallResult, expectedLen int) {
+	t.Helper()
+	metaTodos, ok := result.Meta.([]Todo)
+	require.True(t, ok, "Meta should be []Todo")
+	require.Len(t, metaTodos, expectedLen)
 }
