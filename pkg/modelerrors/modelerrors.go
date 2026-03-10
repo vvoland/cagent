@@ -100,8 +100,7 @@ func IsContextOverflowError(err error) bool {
 	}
 
 	// Already wrapped
-	var ctxErr *ContextOverflowError
-	if errors.As(err, &ctxErr) {
+	if _, ok := errors.AsType[*ContextOverflowError](err); ok {
 		return true
 	}
 
@@ -344,8 +343,7 @@ func FormatError(err error) string {
 	}
 
 	// Context overflow gets a dedicated, actionable message.
-	var ctxOverflow *ContextOverflowError
-	if errors.As(err, &ctxOverflow) {
+	if _, ok := errors.AsType[*ContextOverflowError](err); ok {
 		return "The conversation has exceeded the model's context window and automatic compaction is not enabled. " +
 			"Try running /compact to reduce the conversation size, or start a new session."
 	}
