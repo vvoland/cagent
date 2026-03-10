@@ -65,18 +65,18 @@ func TestConvertBetaMessages_MergesConsecutiveToolMessages(t *testing.T) {
 
 	require.Len(t, betaMessages, 4, "Should have 4 messages after conversion")
 
-	msg0Map, _ := marshalToMapBeta(betaMessages[0])
-	msg1Map, _ := marshalToMapBeta(betaMessages[1])
-	msg2Map, _ := marshalToMapBeta(betaMessages[2])
-	msg3Map, _ := marshalToMapBeta(betaMessages[3])
+	msg0Map, _ := marshalToMap(betaMessages[0])
+	msg1Map, _ := marshalToMap(betaMessages[1])
+	msg2Map, _ := marshalToMap(betaMessages[2])
+	msg3Map, _ := marshalToMap(betaMessages[3])
 	assert.Equal(t, "user", msg0Map["role"])
 	assert.Equal(t, "assistant", msg1Map["role"])
 	assert.Equal(t, "user", msg2Map["role"])
 	assert.Equal(t, "assistant", msg3Map["role"])
 
-	userMsg2Map, ok := marshalToMapBeta(betaMessages[2])
+	userMsg2Map, ok := marshalToMap(betaMessages[2])
 	require.True(t, ok)
-	content := contentArrayBeta(userMsg2Map)
+	content := contentArray(userMsg2Map)
 	require.Len(t, content, 2, "User message should have 2 tool_result blocks")
 
 	toolResultIDs := collectToolResultIDs(content)

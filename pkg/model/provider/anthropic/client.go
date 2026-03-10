@@ -583,22 +583,8 @@ func (c *Client) convertUserMultiContent(_ context.Context, parts []chat.Message
 			if strings.HasPrefix(part.ImageURL.URL, "data:") {
 				urlParts := strings.SplitN(part.ImageURL.URL, ",", 2)
 				if len(urlParts) == 2 {
-					mediaTypePart := urlParts[0]
+					mediaType := extractMediaType(urlParts[0])
 					base64Data := urlParts[1]
-
-					var mediaType string
-					switch {
-					case strings.Contains(mediaTypePart, "image/jpeg"):
-						mediaType = "image/jpeg"
-					case strings.Contains(mediaTypePart, "image/png"):
-						mediaType = "image/png"
-					case strings.Contains(mediaTypePart, "image/gif"):
-						mediaType = "image/gif"
-					case strings.Contains(mediaTypePart, "image/webp"):
-						mediaType = "image/webp"
-					default:
-						mediaType = "image/jpeg"
-					}
 
 					contentBlocks = append(contentBlocks, anthropic.NewImageBlock(anthropic.Base64ImageSourceParam{
 						Data:      base64Data,
@@ -748,7 +734,52 @@ func (c *Client) FileManager() *FileManager {
 // one or more tool_use blocks, the immediately following message is a user message
 // that includes tool_result blocks for all those tool_use IDs (grouped into that single message).
 func validateAnthropicSequencing(msgs []anthropic.MessageParam) error {
-	// Marshal-based inspection to avoid depending on SDK internals of union types
+	return validateSequencing(msgs)
+}
+
+// repairAnthropicSequencing inserts a synthetic user message containing tool_result blocks
+// immediately after any assistant message that has tool_use blocks missing a corresponding
+// tool_result in the next user message. This is a best-effort local repair to keep the
+// conversation valid for Anthropic while preserving original messages, to keep the agent loop running.
+func repairAnthropicSequencing(msgs []anthropic.MessageParam) []anthropic.MessageParam {
+	return repairSequencing(msgs, func(toolUseIDs map[string]struct{}) anthropic.MessageParam {
+		blocks := make([]anthropic.ContentBlockParamUnion, 0, len(toolUseIDs))
+		for id := range toolUseIDs {
+			blocks = append(blocks, anthropic.NewToolResultBlock(id, "(tool execution failed)", false))
+		}
+		return anthropic.NewUserMessage(blocks...)
+	})
+}
+
+// marshalToMap is a helper that converts any value to a map[string]any via JSON marshaling.
+// This is used to inspect SDK union types without depending on their internal structure.
+// It's shared by both standard and Beta API validation/repair code.
+func marshalToMap(v any) (map[string]any, bool) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return nil, false
+	}
+	var m map[string]any
+	if json.Unmarshal(b, &m) != nil {
+		return nil, false
+	}
+	return m, true
+}
+
+// contentArray extracts the content array from a marshaled message map.
+// Used by both standard and Beta API validation/repair code.
+func contentArray(m map[string]any) []any {
+	if a, ok := m["content"].([]any); ok {
+		return a
+	}
+	return nil
+}
+
+// validateSequencing generically validates that every assistant message with tool_use blocks
+// is immediately followed by a user message with corresponding tool_result blocks.
+// It works on both standard (MessageParam) and Beta (BetaMessageParam) types by
+// marshaling to map[string]any for inspection.
+func validateSequencing[T any](msgs []T) error {
 	for i := range msgs {
 		m, ok := marshalToMap(msgs[i])
 		if !ok || m["role"] != "assistant" {
@@ -781,15 +812,14 @@ func validateAnthropicSequencing(msgs []anthropic.MessageParam) error {
 	return nil
 }
 
-// repairAnthropicSequencing inserts a synthetic user message containing tool_result blocks
-// immediately after any assistant message that has tool_use blocks missing a corresponding
-// tool_result in the next user message. This is a best-effort local repair to keep the
-// conversation valid for Anthropic while preserving original messages, to keep the agent loop running.
-func repairAnthropicSequencing(msgs []anthropic.MessageParam) []anthropic.MessageParam {
+// repairSequencing generically inserts a synthetic user message after any assistant
+// tool_use message that is missing corresponding tool_result blocks. The makeSynthetic
+// callback builds the appropriate user message type for the remaining tool_use IDs.
+func repairSequencing[T any](msgs []T, makeSynthetic func(toolUseIDs map[string]struct{}) T) []T {
 	if len(msgs) == 0 {
 		return msgs
 	}
-	repaired := make([]anthropic.MessageParam, 0, len(msgs)+2)
+	repaired := make([]T, 0, len(msgs)+2)
 	for i := range msgs {
 		repaired = append(repaired, msgs[i])
 
@@ -814,38 +844,13 @@ func repairAnthropicSequencing(msgs []anthropic.MessageParam) []anthropic.Messag
 		}
 
 		if len(toolUseIDs) > 0 {
-			blocks := make([]anthropic.ContentBlockParamUnion, 0, len(toolUseIDs))
-			for id := range toolUseIDs {
-				blocks = append(blocks, anthropic.NewToolResultBlock(id, "(tool execution failed)", false))
-			}
-			repaired = append(repaired, anthropic.NewUserMessage(blocks...))
+			slog.Debug("Inserting synthetic user message for missing tool_results",
+				"assistant_index", i,
+				"missing_count", len(toolUseIDs))
+			repaired = append(repaired, makeSynthetic(toolUseIDs))
 		}
 	}
 	return repaired
-}
-
-// marshalToMap is a helper that converts any value to a map[string]any via JSON marshaling.
-// This is used to inspect SDK union types without depending on their internal structure.
-// It's shared by both standard and Beta API validation/repair code.
-func marshalToMap(v any) (map[string]any, bool) {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return nil, false
-	}
-	var m map[string]any
-	if json.Unmarshal(b, &m) != nil {
-		return nil, false
-	}
-	return m, true
-}
-
-// contentArray extracts the content array from a marshaled message map.
-// Used by both standard and Beta API validation/repair code.
-func contentArray(m map[string]any) []any {
-	if a, ok := m["content"].([]any); ok {
-		return a
-	}
-	return nil
 }
 
 func collectToolUseIDs(content []any) map[string]struct{} {
