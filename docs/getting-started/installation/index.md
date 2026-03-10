@@ -34,7 +34,7 @@ Install docker-agent using [Homebrew](https://brew.sh/):
 
 ```bash
 # Install
-$ brew install cagent
+$ brew install docker-agent
 
 # Verify
 $ docker-agent version
