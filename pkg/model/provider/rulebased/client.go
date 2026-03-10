@@ -1,8 +1,5 @@
 // Package rulebased provides a rule-based model router that selects
-// the appropriate model based on NLP analysis of the input using Bleve.
-//
-// Routes are defined with example texts, and Bleve's full-text search
-// determines the best matching route based on text similarity.
+// the appropriate model based on text similarity using Bleve full-text search.
 //
 // A model becomes a rule-based router when it has routing rules configured.
 // The model's provider/model fields define the fallback model, and each
@@ -43,15 +40,9 @@ type ProviderFactory func(ctx context.Context, modelSpec string, models map[stri
 // Client implements the Provider interface for rule-based model routing.
 type Client struct {
 	base.Config
-	routes   []route
+	routes   []Provider
 	fallback Provider
 	index    bleve.Index
-}
-
-// route represents a single routing rule.
-type route struct {
-	model    string
-	provider Provider
 }
 
 // NewClient creates a new rule-based routing client.
@@ -69,11 +60,21 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, models map[string]l
 		return nil, fmt.Errorf("creating bleve index: %w", err)
 	}
 
-	// Create fallback provider from the model's provider/model fields
+	// On any subsequent error, close the index before returning.
+	var cleanupErr error
+	defer func() {
+		if cleanupErr != nil {
+			_ = index.Close()
+		}
+	}()
+
+	routeOpts := filterOutMaxTokens(opts)
+
+	// Create fallback provider from the model's provider/model fields.
 	fallbackSpec := cfg.Provider + "/" + cfg.Model
-	fallback, err := providerFactory(ctx, fallbackSpec, models, env, filterOutMaxTokens(opts)...)
+	fallback, err := providerFactory(ctx, fallbackSpec, models, env, routeOpts...)
 	if err != nil {
-		_ = index.Close()
+		cleanupErr = err
 		return nil, fmt.Errorf("creating fallback provider %q: %w", fallbackSpec, err)
 	}
 
@@ -87,27 +88,28 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, models map[string]l
 		fallback: fallback,
 	}
 
-	// Process routing rules
+	// Process routing rules. Each example is indexed with a doc ID
+	// that encodes the route index (e.g. "r0_e1") so we can map
+	// search hits back to the corresponding provider.
 	for i, rule := range cfg.Routing {
 		if rule.Model == "" {
-			_ = index.Close()
-			return nil, fmt.Errorf("routing rule %d: 'model' field is required", i)
+			cleanupErr = fmt.Errorf("routing rule %d: 'model' field is required", i)
+			return nil, cleanupErr
 		}
 
-		provider, err := providerFactory(ctx, rule.Model, models, env, filterOutMaxTokens(opts)...)
+		provider, err := providerFactory(ctx, rule.Model, models, env, routeOpts...)
 		if err != nil {
-			_ = index.Close()
+			cleanupErr = err
 			return nil, fmt.Errorf("creating provider for routing rule %q: %w", rule.Model, err)
 		}
 
 		routeIndex := len(client.routes)
-		client.routes = append(client.routes, route{model: rule.Model, provider: provider})
+		client.routes = append(client.routes, provider)
 
-		// Index examples for this route
 		for j, example := range rule.Examples {
 			docID := fmt.Sprintf("r%d_e%d", routeIndex, j)
-			if err := index.Index(docID, map[string]any{"text": example, "route": routeIndex}); err != nil {
-				_ = index.Close()
+			if err := index.Index(docID, map[string]any{"text": example}); err != nil {
+				cleanupErr = err
 				return nil, fmt.Errorf("indexing example: %w", err)
 			}
 		}
@@ -124,7 +126,6 @@ func createIndex() (bleve.Index, error) {
 	textField := mapping.NewTextFieldMapping()
 	textField.Analyzer = "en"
 	docMapping.AddFieldMappingsAt("text", textField)
-	docMapping.AddFieldMappingsAt("route", mapping.NewNumericFieldMapping())
 
 	indexMapping.DefaultMapping = docMapping
 
@@ -132,19 +133,16 @@ func createIndex() (bleve.Index, error) {
 }
 
 // filterOutMaxTokens removes WithMaxTokens options from the slice.
-// This is necessary because child providers may have different token limits
-// than the parent router, and should determine their own limits.
+// Child providers may have different token limits than the parent router.
 func filterOutMaxTokens(opts []options.Opt) []options.Opt {
 	var filtered []options.Opt
 	for _, opt := range opts {
 		if opt == nil {
 			continue
 		}
-		// Test if this option sets maxTokens by applying it to an empty ModelOptions
-		var test options.ModelOptions
-		opt(&test)
-		// If maxTokens was set, skip this option
-		if test.MaxTokens() != 0 {
+		var probe options.ModelOptions
+		opt(&probe)
+		if probe.MaxTokens() != 0 {
 			continue
 		}
 		filtered = append(filtered, opt)
@@ -173,6 +171,7 @@ func (c *Client) CreateChatCompletionStream(
 }
 
 // selectProvider finds the best matching provider for the messages.
+// Bleve returns hits sorted by score, so the top hit determines the route.
 func (c *Client) selectProvider(messages []chat.Message) Provider {
 	userMessage := getLastUserMessage(messages)
 	if userMessage == "" {
@@ -183,8 +182,7 @@ func (c *Client) selectProvider(messages []chat.Message) Provider {
 	query.SetField("text")
 
 	searchRequest := bleve.NewSearchRequest(query)
-	searchRequest.Size = 10
-	searchRequest.Fields = []string{"route"}
+	searchRequest.Size = 1
 
 	results, err := c.index.Search(searchRequest)
 	if err != nil {
@@ -196,33 +194,28 @@ func (c *Client) selectProvider(messages []chat.Message) Provider {
 		return c.defaultProvider()
 	}
 
-	// Find best matching route by aggregating scores
-	scores := make(map[int]float64)
-	for _, hit := range results.Hits {
-		var routeIdx int
-		if _, err := fmt.Sscanf(hit.ID, "r%d_e", &routeIdx); err == nil {
-			if hit.Score > scores[routeIdx] {
-				scores[routeIdx] = hit.Score
-			}
-		}
+	// Parse the route index from the top hit's doc ID (e.g. "r2_e0" → 2).
+	hit := results.Hits[0]
+	routeIdx, ok := parseRouteIndex(hit.ID)
+	if !ok || routeIdx >= len(c.routes) {
+		return c.defaultProvider()
 	}
 
-	bestRoute, bestScore := -1, 0.0
-	for idx, score := range scores {
-		if score > bestScore {
-			bestRoute, bestScore = idx, score
-		}
-	}
+	selected := c.routes[routeIdx]
+	slog.Debug("Route matched",
+		"model", selected.ID(),
+		"score", hit.Score,
+	)
+	return selected
+}
 
-	if bestRoute >= 0 && bestRoute < len(c.routes) {
-		slog.Debug("Route matched",
-			"model", c.routes[bestRoute].model,
-			"score", bestScore,
-		)
-		return c.routes[bestRoute].provider
+// parseRouteIndex extracts the route index from a doc ID like "r2_e0".
+func parseRouteIndex(docID string) (int, bool) {
+	var idx int
+	if _, err := fmt.Sscanf(docID, "r%d_e", &idx); err != nil || idx < 0 {
+		return 0, false
 	}
-
-	return c.defaultProvider()
+	return idx, true
 }
 
 func (c *Client) defaultProvider() Provider {
@@ -230,7 +223,7 @@ func (c *Client) defaultProvider() Provider {
 		return c.fallback
 	}
 	if len(c.routes) > 0 {
-		return c.routes[0].provider
+		return c.routes[0]
 	}
 	return nil
 }

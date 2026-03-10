@@ -40,11 +40,9 @@ func (m *mockProvider) BaseConfig() base.Config {
 // mockProviderFactory creates a mock provider factory for testing.
 // It resolves model references from the models map or parses inline specs.
 func mockProviderFactory(_ context.Context, modelSpec string, models map[string]latest.ModelConfig, _ environment.Provider, _ ...options.Opt) (Provider, error) {
-	// Check if it's a model reference
 	if cfg, exists := models[modelSpec]; exists {
 		return &mockProvider{id: cfg.Provider + "/" + cfg.Model}, nil
 	}
-	// Otherwise treat as inline spec
 	return &mockProvider{id: modelSpec}, nil
 }
 
@@ -62,7 +60,7 @@ func TestNewClient(t *testing.T) {
 			name: "valid config with routing rules",
 			modelCfg: latest.ModelConfig{
 				Provider: "openai",
-				Model:    "gpt-4o", // fallback
+				Model:    "gpt-4o",
 				Routing: []latest.RoutingRule{
 					{
 						Model:    "anthropic/claude-3-haiku",
@@ -80,7 +78,7 @@ func TestNewClient(t *testing.T) {
 			name: "routing with model references",
 			modelCfg: latest.ModelConfig{
 				Provider: "anthropic",
-				Model:    "claude-haiku-4-5", // fallback
+				Model:    "claude-haiku-4-5",
 				Routing: []latest.RoutingRule{
 					{
 						Model:    "fast",
@@ -183,7 +181,7 @@ func TestClient_SelectProvider(t *testing.T) {
 
 			cfg := &latest.ModelConfig{
 				Provider: "openai",
-				Model:    "gpt-4o", // fallback
+				Model:    "gpt-4o",
 				Routing: []latest.RoutingRule{
 					{
 						Model:    "anthropic/claude-3-haiku",
@@ -262,11 +260,9 @@ func TestCreateIndex(t *testing.T) {
 	require.NoError(t, err)
 	defer index.Close()
 
-	// Index a document
-	err = index.Index("test", map[string]any{"text": "hello world", "route": 0})
+	err = index.Index("test", map[string]any{"text": "hello world"})
 	require.NoError(t, err)
 
-	// Search for it
 	query := bleve.NewMatchQuery("hello")
 	query.SetField("text")
 	results, err := index.Search(bleve.NewSearchRequest(query))
@@ -298,10 +294,9 @@ func TestClient_ID(t *testing.T) {
 func TestClient_DefaultProvider(t *testing.T) {
 	t.Parallel()
 
-	// Test that fallback is always used for empty messages
 	cfg := &latest.ModelConfig{
 		Provider: "openai",
-		Model:    "gpt-4o", // fallback
+		Model:    "gpt-4o",
 		Routing: []latest.RoutingRule{
 			{
 				Model:    "anthropic/claude-3-haiku",
@@ -314,7 +309,6 @@ func TestClient_DefaultProvider(t *testing.T) {
 	require.NoError(t, err)
 	defer client.Close()
 
-	// Empty message should use fallback
 	provider := client.selectProvider(nil)
 	assert.Equal(t, "openai/gpt-4o", provider.ID())
 }
@@ -322,8 +316,6 @@ func TestClient_DefaultProvider(t *testing.T) {
 func TestClient_CreateChatCompletionStream_NilProvider(t *testing.T) {
 	t.Parallel()
 
-	// Create a client with no routes and no fallback by directly manipulating the struct
-	// This simulates an edge case where defaultProvider returns nil
 	index, err := createIndex()
 	require.NoError(t, err)
 
@@ -335,7 +327,6 @@ func TestClient_CreateChatCompletionStream_NilProvider(t *testing.T) {
 	}
 	defer client.Close()
 
-	// Attempt to create stream should return error, not panic
 	messages := []chat.Message{{Role: chat.MessageRoleUser, Content: "hello"}}
 	_, err = client.CreateChatCompletionStream(t.Context(), messages, nil)
 	require.Error(t, err)
@@ -348,8 +339,6 @@ func TestClient_ModelsMapStoredInBaseConfig(t *testing.T) {
 	// This test verifies that the models map and env are stored in the base config.
 	// This is required for CloneWithOptions to work correctly with routers
 	// that use model references (e.g., "fast" instead of "anthropic/claude-haiku-4-5").
-	// Without this, cloning a router would fail because model references can't be resolved
-	// and the environment provider would be nil.
 
 	models := map[string]latest.ModelConfig{
 		"fast":    {Provider: "anthropic", Model: "claude-haiku-4-5"},
@@ -358,7 +347,7 @@ func TestClient_ModelsMapStoredInBaseConfig(t *testing.T) {
 
 	cfg := &latest.ModelConfig{
 		Provider: "anthropic",
-		Model:    "claude-haiku-4-5", // fallback
+		Model:    "claude-haiku-4-5",
 		Routing: []latest.RoutingRule{
 			{
 				Model:    "fast",
@@ -371,17 +360,42 @@ func TestClient_ModelsMapStoredInBaseConfig(t *testing.T) {
 		},
 	}
 
-	// Create a mock env provider
 	mockEnv := environment.NewNoEnvProvider()
 
 	client, err := NewClient(t.Context(), cfg, models, mockEnv, mockProviderFactory)
 	require.NoError(t, err)
 	defer client.Close()
 
-	// Verify the models map and env are stored in the base config
 	baseConfig := client.BaseConfig()
 	assert.NotNil(t, baseConfig.Models, "Models map should be stored in base config for cloning")
 	assert.Equal(t, models, baseConfig.Models, "Models map should match what was passed to NewClient")
 	assert.NotNil(t, baseConfig.Env, "Env should be stored in base config for cloning")
 	assert.Equal(t, mockEnv, baseConfig.Env, "Env should match what was passed to NewClient")
+}
+
+func TestParseRouteIndex(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		docID   string
+		wantIdx int
+		wantOK  bool
+	}{
+		{"r0_e0", 0, true},
+		{"r2_e5", 2, true},
+		{"r10_e3", 10, true},
+		{"invalid", 0, false},
+		{"", 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.docID, func(t *testing.T) {
+			t.Parallel()
+			idx, ok := parseRouteIndex(tt.docID)
+			assert.Equal(t, tt.wantOK, ok)
+			if ok {
+				assert.Equal(t, tt.wantIdx, idx)
+			}
+		})
+	}
 }
