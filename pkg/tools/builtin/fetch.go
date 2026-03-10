@@ -2,7 +2,6 @@ package builtin
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -77,12 +76,7 @@ func (h *fetchHandler) CallTool(ctx context.Context, params FetchToolArgs) (*too
 	}
 
 	// Multiple URLs - return structured results
-	output, err := json.MarshalIndent(results, "", "  ")
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal results: %w", err)
-	}
-
-	return tools.ResultSuccess(string(output)), nil
+	return tools.ResultJSON(results), nil
 }
 
 type FetchResult struct {

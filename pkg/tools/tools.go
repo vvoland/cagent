@@ -84,6 +84,16 @@ func ResultSuccess(output string) *ToolCallResult {
 	}
 }
 
+// ResultJSON marshals v as JSON and returns it as a successful tool result.
+// If marshaling fails, it returns an error result.
+func ResultJSON(v any) *ToolCallResult {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return ResultError(err.Error())
+	}
+	return &ToolCallResult{Output: string(data)}
+}
+
 type ToolType string
 
 type Tool struct {

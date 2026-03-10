@@ -408,7 +408,7 @@ func (t *FilesystemTool) handleDirectoryTree(_ context.Context, args DirectoryTr
 		return tools.ResultError(fmt.Sprintf("Error building directory tree: %s", err)), nil
 	}
 
-	result, err := json.MarshalIndent(tree, "", "  ")
+	result, err := json.Marshal(tree)
 	if err != nil {
 		return tools.ResultError(fmt.Sprintf("Error formatting tree: %s", err)), nil
 	}
@@ -662,7 +662,7 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadM
 
 	var output string
 	if args.JSON {
-		jsonResult, err := json.MarshalIndent(contents, "", "  ")
+		jsonResult, err := json.Marshal(contents)
 		if err != nil {
 			return tools.ResultError(fmt.Sprintf("Error formatting JSON: %s", err)), nil
 		}
