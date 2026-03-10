@@ -40,7 +40,7 @@ tasks:
     deps: ["build"]
     cmds:
       - mkdir -p ~/.docker/cli-plugins
-      - cp -P "{{.BUILD_DIR}}/{{.CLI_PLUGIN_BINARY_NAME}}" ~/.docker/cli-plugins/{{.CLI_PLUGIN_BINARY_NAME}}
+      - /bin/ln -sf "{{.TASKFILE_DIR}}/bin/{{.CLI_PLUGIN_BINARY_NAME}}" "{{.HOME}}/.docker/cli-plugins/{{.CLI_PLUGIN_BINARY_NAME}}"
 
   lint:
     desc: Run golangci-lint
