@@ -77,12 +77,12 @@ func TestGetMessagesWithToolCalls(t *testing.T) {
 
 	s := New()
 
-	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+	s.AddMessage(NewAgentMessage("", &chat.Message{
 		Role:    chat.MessageRoleUser,
 		Content: "test message",
 	}))
 
-	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+	s.AddMessage(NewAgentMessage("", &chat.Message{
 		Role:    chat.MessageRoleAssistant,
 		Content: "using tool",
 		ToolCalls: []tools.ToolCall{
@@ -92,7 +92,7 @@ func TestGetMessagesWithToolCalls(t *testing.T) {
 		},
 	}))
 
-	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+	s.AddMessage(NewAgentMessage("", &chat.Message{
 		Role:       chat.MessageRoleTool,
 		ToolCallID: "test-tool",
 		Content:    "tool result",
@@ -118,22 +118,22 @@ func TestGetMessagesWithSummary(t *testing.T) {
 
 	s := New()
 
-	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+	s.AddMessage(NewAgentMessage("", &chat.Message{
 		Role:    chat.MessageRoleUser,
 		Content: "first message",
 	}))
-	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+	s.AddMessage(NewAgentMessage("", &chat.Message{
 		Role:    chat.MessageRoleAssistant,
 		Content: "first response",
 	}))
 
 	s.Messages = append(s.Messages, Item{Summary: "This is a summary of the conversation so far"})
 
-	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+	s.AddMessage(NewAgentMessage("", &chat.Message{
 		Role:    chat.MessageRoleUser,
 		Content: "message after summary",
 	}))
-	s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+	s.AddMessage(NewAgentMessage("", &chat.Message{
 		Role:    chat.MessageRoleAssistant,
 		Content: "response after summary",
 	}))
@@ -221,8 +221,6 @@ func TestGetMessages_CacheControlWithSummary(t *testing.T) {
 func TestGetLastUserMessages(t *testing.T) {
 	t.Parallel()
 
-	testAgent := &agent.Agent{}
-
 	t.Run("empty session returns empty slice", func(t *testing.T) {
 		t.Parallel()
 		s := New()
@@ -232,7 +230,7 @@ func TestGetLastUserMessages(t *testing.T) {
 	t.Run("session with fewer messages than requested returns all", func(t *testing.T) {
 		t.Parallel()
 		s := New()
-		s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+		s.AddMessage(NewAgentMessage("", &chat.Message{
 			Role:    chat.MessageRoleUser,
 			Content: "Only message",
 		}))
@@ -244,23 +242,23 @@ func TestGetLastUserMessages(t *testing.T) {
 	t.Run("session returns last n user messages in order", func(t *testing.T) {
 		t.Parallel()
 		s := New()
-		s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+		s.AddMessage(NewAgentMessage("", &chat.Message{
 			Role:    chat.MessageRoleUser,
 			Content: "First",
 		}))
-		s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+		s.AddMessage(NewAgentMessage("", &chat.Message{
 			Role:    chat.MessageRoleAssistant,
 			Content: "Response 1",
 		}))
-		s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+		s.AddMessage(NewAgentMessage("", &chat.Message{
 			Role:    chat.MessageRoleUser,
 			Content: "Second",
 		}))
-		s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+		s.AddMessage(NewAgentMessage("", &chat.Message{
 			Role:    chat.MessageRoleAssistant,
 			Content: "Response 2",
 		}))
-		s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+		s.AddMessage(NewAgentMessage("", &chat.Message{
 			Role:    chat.MessageRoleUser,
 			Content: "Third",
 		}))
@@ -274,15 +272,15 @@ func TestGetLastUserMessages(t *testing.T) {
 	t.Run("skips empty user messages", func(t *testing.T) {
 		t.Parallel()
 		s := New()
-		s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+		s.AddMessage(NewAgentMessage("", &chat.Message{
 			Role:    chat.MessageRoleUser,
 			Content: "First",
 		}))
-		s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+		s.AddMessage(NewAgentMessage("", &chat.Message{
 			Role:    chat.MessageRoleUser,
 			Content: "   ", // Empty after trim
 		}))
-		s.AddMessage(NewAgentMessage(testAgent, &chat.Message{
+		s.AddMessage(NewAgentMessage("", &chat.Message{
 			Role:    chat.MessageRoleUser,
 			Content: "Third",
 		}))

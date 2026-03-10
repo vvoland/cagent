@@ -269,7 +269,7 @@ func TestIsThinkingBudgetDisabled(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := isThinkingBudgetDisabled(tt.budget)
+			got := tt.budget.IsDisabled()
 			assert.Equal(t, tt.expected, got)
 		})
 	}

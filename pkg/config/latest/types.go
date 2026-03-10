@@ -439,12 +439,12 @@ func (f *FlexibleModelConfig) UnmarshalYAML(unmarshal func(any) error) error {
 	// Try string shorthand first
 	var shorthand string
 	if err := unmarshal(&shorthand); err == nil && shorthand != "" {
-		provider, model, ok := strings.Cut(shorthand, "/")
-		if !ok || provider == "" || model == "" {
+		parsed, parseErr := ParseModelRef(shorthand)
+		if parseErr != nil {
 			return fmt.Errorf("invalid model shorthand %q: expected format 'provider/model'", shorthand)
 		}
-		f.Provider = provider
-		f.Model = model
+		f.Provider = parsed.Provider
+		f.Model = parsed.Model
 		return nil
 	}
 
@@ -705,6 +705,26 @@ func (t ThinkingBudget) MarshalYAML() (any, error) {
 
 	// Otherwise marshal as integer (includes 0, -1, and positive values)
 	return t.Tokens, nil
+}
+
+// IsDisabled returns true if the thinking budget is explicitly disabled.
+// A nil receiver is treated as "not configured" (not disabled).
+//
+// Disabled when:
+//   - Tokens == 0 with no Effort (thinking_budget: 0)
+//   - Effort == "none" (thinking_budget: none)
+//
+// NOT disabled when:
+//   - Tokens > 0 or Tokens == -1 (explicit token budget)
+//   - Effort is a real level like "medium" or "high"
+func (t *ThinkingBudget) IsDisabled() bool {
+	if t == nil {
+		return false
+	}
+	if t.Tokens == 0 && t.Effort == "" {
+		return true
+	}
+	return t.Effort == "none"
 }
 
 // MarshalJSON implements custom marshaling to output simple string or int format

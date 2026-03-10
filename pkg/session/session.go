@@ -190,9 +190,9 @@ func UserMessage(content string, multiContent ...chat.MessagePart) *Message {
 	}
 }
 
-func NewAgentMessage(a *agent.Agent, message *chat.Message) *Message {
+func NewAgentMessage(agentName string, message *chat.Message) *Message {
 	return &Message{
-		AgentName: a.Name(),
+		AgentName: agentName,
 		Message:   *message,
 	}
 }
