@@ -26,6 +26,8 @@ var (
 
 // getOrBuildImage returns a cached image ID or builds a new one.
 // Images are cached by working directory to avoid redundant builds.
+// Concurrent calls for the same working directory are deduplicated
+// using singleflight so that only one build runs at a time per key.
 func (r *Runner) getOrBuildImage(ctx context.Context, workingDir string) (string, error) {
 	r.imageCacheMu.Lock()
 	if imageID, ok := r.imageCache[workingDir]; ok {
@@ -34,16 +36,27 @@ func (r *Runner) getOrBuildImage(ctx context.Context, workingDir string) (string
 	}
 	r.imageCacheMu.Unlock()
 
-	imageID, err := r.buildEvalImage(ctx, workingDir)
+	// singleflight ensures only one build per working directory runs at a time.
+	// The cache write inside the callback guarantees the result is available
+	// before singleflight releases the key, so subsequent callers always
+	// hit the cache above.
+	v, err, _ := r.imageBuildGroup.Do(workingDir, func() (any, error) {
+		imageID, err := r.buildEvalImage(ctx, workingDir)
+		if err != nil {
+			return "", err
+		}
+
+		r.imageCacheMu.Lock()
+		r.imageCache[workingDir] = imageID
+		r.imageCacheMu.Unlock()
+
+		return imageID, nil
+	})
 	if err != nil {
 		return "", err
 	}
 
-	r.imageCacheMu.Lock()
-	r.imageCache[workingDir] = imageID
-	r.imageCacheMu.Unlock()
-
-	return imageID, nil
+	return v.(string), nil
 }
 
 func (r *Runner) buildEvalImage(ctx context.Context, workingDir string) (string, error) {

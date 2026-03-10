@@ -60,6 +60,13 @@ type Judge struct {
 	model       provider.Provider
 	runConfig   *config.RuntimeConfig
 	concurrency int
+
+	// judgeWithSchema is a provider pre-configured with structured output.
+	// Created lazily on first use and reused across all relevance checks.
+	// Protected by judgeWithSchemaMu; only cached on success so that
+	// transient errors (e.g. context cancellation) can be retried.
+	judgeWithSchema   provider.Provider
+	judgeWithSchemaMu sync.Mutex
 }
 
 // NewJudge creates a new Judge that runs relevance checks with the given concurrency.
@@ -141,16 +148,37 @@ func (j *Judge) CheckRelevance(ctx context.Context, response string, criteria []
 	return passed, failed, errs
 }
 
-// checkSingle checks a single relevance criterion against the response.
-// It returns whether the check passed, the reason provided by the judge, and any error.
-func (j *Judge) checkSingle(ctx context.Context, response, criterion string) (passed bool, reason string, err error) {
+// getOrCreateJudgeWithSchema returns a provider pre-configured with structured output.
+// The provider is created once and reused across all relevance checks.
+// Unlike sync.Once, transient failures (e.g. context cancellation) are not
+// cached, allowing subsequent calls to retry.
+func (j *Judge) getOrCreateJudgeWithSchema(ctx context.Context) (provider.Provider, error) {
+	j.judgeWithSchemaMu.Lock()
+	defer j.judgeWithSchemaMu.Unlock()
+
+	if j.judgeWithSchema != nil {
+		return j.judgeWithSchema, nil
+	}
+
 	modelCfg := j.model.BaseConfig().ModelConfig
-	judgeWithSchema, err := provider.New(
+	p, err := provider.New(
 		ctx,
 		&modelCfg,
 		j.runConfig.EnvProvider(),
 		options.WithStructuredOutput(judgeResponseSchema),
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	j.judgeWithSchema = p
+	return j.judgeWithSchema, nil
+}
+
+// checkSingle checks a single relevance criterion against the response.
+// It returns whether the check passed, the reason provided by the judge, and any error.
+func (j *Judge) checkSingle(ctx context.Context, response, criterion string) (passed bool, reason string, err error) {
+	judgeWithSchema, err := j.getOrCreateJudgeWithSchema(ctx)
 	if err != nil {
 		return false, "", fmt.Errorf("creating judge provider with structured output: %w", err)
 	}

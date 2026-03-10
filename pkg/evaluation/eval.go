@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/docker/docker-agent/pkg/config"
 	"github.com/docker/docker-agent/pkg/config/latest"
@@ -39,6 +40,9 @@ type Runner struct {
 	// Key is the working directory (empty string for no working dir).
 	imageCache   map[string]string
 	imageCacheMu sync.Mutex
+
+	// imageBuildGroup deduplicates concurrent image builds for the same working directory.
+	imageBuildGroup singleflight.Group
 }
 
 // newRunner creates a new evaluation runner.
@@ -290,10 +294,12 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *InputSession) (Res
 		evals = &session.EvalCriteria{}
 	}
 
+	userMessages := getUserMessages(evalSess.Session)
+
 	result := Result{
 		InputPath:         evalSess.SourcePath,
 		Title:             evalSess.Title,
-		Question:          strings.Join(getUserMessages(evalSess.Session), "\n"),
+		Question:          strings.Join(userMessages, "\n"),
 		SizeExpected:      evals.Size,
 		RelevanceExpected: float64(len(evals.Relevance)),
 	}
@@ -310,7 +316,7 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *InputSession) (Res
 		return result, fmt.Errorf("building eval image: %w", err)
 	}
 
-	events, err := r.runDockerAgentInContainer(ctx, imageID, getUserMessages(evalSess.Session), evals.Setup)
+	events, err := r.runDockerAgentInContainer(ctx, imageID, userMessages, evals.Setup)
 	if err != nil {
 		return result, fmt.Errorf("running docker agent in container: %w", err)
 	}
@@ -323,7 +329,7 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *InputSession) (Res
 	result.Size = getResponseSize(result.Response)
 
 	// Build session from events for database storage
-	result.Session = SessionFromEvents(events, evalSess.Title, getUserMessages(evalSess.Session))
+	result.Session = SessionFromEvents(events, evalSess.Title, userMessages)
 	result.Session.Evals = evals
 
 	if len(expectedToolCalls) > 0 || len(actualToolCalls) > 0 {
