@@ -1,7 +1,6 @@
 package openai
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -15,20 +14,6 @@ import (
 	"github.com/docker/docker-agent/pkg/config/latest"
 	"github.com/docker/docker-agent/pkg/environment"
 )
-
-// mockEnvProvider is a simple env provider for testing
-type mockEnvProvider struct {
-	values map[string]string
-}
-
-func (m *mockEnvProvider) Get(_ context.Context, name string) (string, bool) {
-	v, ok := m.values[name]
-	return v, ok
-}
-
-func newMockEnvProvider(values map[string]string) environment.Provider {
-	return &mockEnvProvider{values: values}
-}
 
 func TestGetAPIType(t *testing.T) {
 	t.Parallel()
@@ -183,7 +168,7 @@ func TestCustomProvider_WithTokenKey(t *testing.T) {
 		},
 	}
 
-	env := newMockEnvProvider(map[string]string{
+	env := environment.NewMapEnvProvider(map[string]string{
 		"MY_CUSTOM_TOKEN": "secret-token-123",
 	})
 
@@ -234,7 +219,7 @@ func TestCustomProvider_WithoutTokenKey(t *testing.T) {
 		},
 	}
 
-	env := newMockEnvProvider(map[string]string{})
+	env := environment.NewNoEnvProvider()
 
 	client, err := NewClient(t.Context(), cfg, env)
 	require.NoError(t, err)

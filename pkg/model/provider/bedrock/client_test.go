@@ -1,7 +1,6 @@
 package bedrock
 
 import (
-	"context"
 	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
@@ -342,24 +341,10 @@ func TestConvertImageURL_ValidImage(t *testing.T) {
 
 // NewClient validation tests
 
-type mockEnvProvider struct {
-	values map[string]string
-}
-
-func (m *mockEnvProvider) Get(_ context.Context, key string) (string, bool) {
-	if m.values == nil {
-		return "", false
-	}
-	v, ok := m.values[key]
-	return v, ok
-}
-
-var _ environment.Provider = (*mockEnvProvider)(nil)
-
 func TestNewClient_NilConfig(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewClient(t.Context(), nil, &mockEnvProvider{})
+	_, err := NewClient(t.Context(), nil, environment.NewNoEnvProvider())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "model configuration is required")
 }
@@ -371,7 +356,7 @@ func TestNewClient_WrongProvider(t *testing.T) {
 		Provider: "openai",
 		Model:    "gpt-4",
 	}
-	_, err := NewClient(t.Context(), cfg, &mockEnvProvider{})
+	_, err := NewClient(t.Context(), cfg, environment.NewNoEnvProvider())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "model type must be 'amazon-bedrock'")
 }
@@ -422,7 +407,7 @@ func TestBuildAWSConfig_DefaultRegion(t *testing.T) {
 		ProviderOpts: map[string]any{},
 	}
 
-	env := &mockEnvProvider{values: map[string]string{}}
+	env := environment.NewNoEnvProvider()
 
 	awsCfg, err := buildAWSConfig(t.Context(), cfg, env)
 	require.NoError(t, err)
@@ -442,7 +427,7 @@ func TestBuildAWSConfig_RegionFromProviderOpts(t *testing.T) {
 		},
 	}
 
-	env := &mockEnvProvider{values: map[string]string{}}
+	env := environment.NewNoEnvProvider()
 
 	awsCfg, err := buildAWSConfig(t.Context(), cfg, env)
 	require.NoError(t, err)
@@ -459,9 +444,9 @@ func TestBuildAWSConfig_RegionFromEnv(t *testing.T) {
 		ProviderOpts: map[string]any{},
 	}
 
-	env := &mockEnvProvider{values: map[string]string{
+	env := environment.NewMapEnvProvider(map[string]string{
 		"AWS_REGION": "ap-northeast-1",
-	}}
+	})
 
 	awsCfg, err := buildAWSConfig(t.Context(), cfg, env)
 	require.NoError(t, err)
@@ -480,9 +465,9 @@ func TestBuildAWSConfig_ProviderOptsOverridesEnv(t *testing.T) {
 		},
 	}
 
-	env := &mockEnvProvider{values: map[string]string{
+	env := environment.NewMapEnvProvider(map[string]string{
 		"AWS_REGION": "us-west-2",
-	}}
+	})
 
 	awsCfg, err := buildAWSConfig(t.Context(), cfg, env)
 	require.NoError(t, err)
@@ -504,9 +489,7 @@ func TestNewClient_ValidConfig(t *testing.T) {
 		},
 	}
 
-	env := &mockEnvProvider{values: map[string]string{}}
-
-	client, err := NewClient(t.Context(), cfg, env)
+	client, err := NewClient(t.Context(), cfg, environment.NewNoEnvProvider())
 	require.NoError(t, err)
 	require.NotNil(t, client)
 
@@ -527,11 +510,9 @@ func TestNewClient_WithBearerToken(t *testing.T) {
 		},
 	}
 
-	env := &mockEnvProvider{values: map[string]string{
+	client, err := NewClient(t.Context(), cfg, environment.NewMapEnvProvider(map[string]string{
 		"MY_BEDROCK_TOKEN": "test-bearer-token",
-	}}
-
-	client, err := NewClient(t.Context(), cfg, env)
+	}))
 	require.NoError(t, err)
 	require.NotNil(t, client)
 }
@@ -547,11 +528,9 @@ func TestNewClient_WithBearerTokenFromEnv(t *testing.T) {
 		},
 	}
 
-	env := &mockEnvProvider{values: map[string]string{
+	client, err := NewClient(t.Context(), cfg, environment.NewMapEnvProvider(map[string]string{
 		"AWS_BEARER_TOKEN_BEDROCK": "env-bearer-token",
-	}}
-
-	client, err := NewClient(t.Context(), cfg, env)
+	}))
 	require.NoError(t, err)
 	require.NotNil(t, client)
 }

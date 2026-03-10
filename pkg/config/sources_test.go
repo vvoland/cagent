@@ -10,6 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/docker/docker-agent/pkg/environment"
 )
 
 func TestURLSource_Read(t *testing.T) {
@@ -308,11 +310,9 @@ func TestURLSource_Read_WithGitHubAuth(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	// Create a mock env provider that returns a GitHub token
-	envProvider := &mockEnvProvider{
-		envVars: map[string]string{
-			"GITHUB_TOKEN": "test-token-123",
-		},
-	}
+	envProvider := environment.NewMapEnvProvider(map[string]string{
+		"GITHUB_TOKEN": "test-token-123",
+	})
 
 	// For non-GitHub URLs, auth should not be added even with token available
 	source := NewURLSource(server.URL, envProvider)
@@ -340,11 +340,9 @@ func TestURLSource_Read_WithGitHubAuth_GitHubURL(t *testing.T) {
 			}))
 			t.Cleanup(server.Close)
 
-			envProvider := &mockEnvProvider{
-				envVars: map[string]string{
-					"GITHUB_TOKEN": "test-token-456",
-				},
-			}
+			envProvider := environment.NewMapEnvProvider(map[string]string{
+				"GITHUB_TOKEN": "test-token-456",
+			})
 
 			// URL with GitHub host in path (not hostname) should NOT receive auth
 			// This prevents token leakage to attacker-controlled domains
@@ -369,9 +367,7 @@ func TestURLSource_Read_WithGitHubAuth_NoToken(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	// Create a mock env provider without a GitHub token
-	envProvider := &mockEnvProvider{
-		envVars: map[string]string{},
-	}
+	envProvider := environment.NewNoEnvProvider()
 
 	source := NewURLSource(server.URL, envProvider)
 	_, err := source.Read(t.Context())
@@ -436,11 +432,9 @@ func TestIsGitHubURL(t *testing.T) {
 func TestResolve_URLReference_WithEnvProvider(t *testing.T) {
 	t.Parallel()
 
-	envProvider := &mockEnvProvider{
-		envVars: map[string]string{
-			"GITHUB_TOKEN": "test-token",
-		},
-	}
+	envProvider := environment.NewMapEnvProvider(map[string]string{
+		"GITHUB_TOKEN": "test-token",
+	})
 
 	source, err := Resolve("https://github.com/owner/repo/raw/main/agent.yaml", envProvider)
 	require.NoError(t, err)
@@ -455,11 +449,9 @@ func TestResolve_URLReference_WithEnvProvider(t *testing.T) {
 func TestResolveSources_URLReference_WithEnvProvider(t *testing.T) {
 	t.Parallel()
 
-	envProvider := &mockEnvProvider{
-		envVars: map[string]string{
-			"GITHUB_TOKEN": "test-token",
-		},
-	}
+	envProvider := environment.NewMapEnvProvider(map[string]string{
+		"GITHUB_TOKEN": "test-token",
+	})
 
 	url := "https://github.com/owner/repo/raw/main/agent.yaml"
 	sources, err := ResolveSources(url, envProvider)

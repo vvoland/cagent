@@ -1,22 +1,13 @@
 package config
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/environment"
 )
-
-type mockEnvProvider struct {
-	envVars map[string]string
-}
-
-func (m *mockEnvProvider) Get(_ context.Context, name string) (string, bool) {
-	val, found := m.envVars[name]
-	return val, found
-}
 
 func TestAvailableProviders_NoGateway(t *testing.T) {
 	t.Parallel()
@@ -96,7 +87,7 @@ func TestAvailableProviders_NoGateway(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			providers := AvailableProviders(t.Context(), "", &mockEnvProvider{envVars: tt.envVars})
+			providers := AvailableProviders(t.Context(), "", environment.NewMapEnvProvider(tt.envVars))
 
 			assert.NotEmpty(t, providers)
 			assert.Equal(t, tt.expectedProvider, providers[0])
@@ -152,7 +143,7 @@ func TestAvailableProviders_WithGateway(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			providers := AvailableProviders(t.Context(), tt.gateway, &mockEnvProvider{envVars: tt.envVars})
+			providers := AvailableProviders(t.Context(), tt.gateway, environment.NewMapEnvProvider(tt.envVars))
 
 			assert.Len(t, providers, 1)
 			assert.Equal(t, tt.expectedProvider, providers[0])
@@ -228,7 +219,7 @@ func TestAutoModelConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			modelConfig := AutoModelConfig(t.Context(), tt.gateway, &mockEnvProvider{envVars: tt.envVars}, nil)
+			modelConfig := AutoModelConfig(t.Context(), tt.gateway, environment.NewMapEnvProvider(tt.envVars), nil)
 
 			assert.Equal(t, tt.expectedProvider, modelConfig.Provider)
 			assert.Equal(t, tt.expectedModel, modelConfig.Model)
@@ -328,7 +319,7 @@ func TestAutoModelConfig_IntegrationWithDefaultModels(t *testing.T) {
 				envVars["MISTRAL_API_KEY"] = "test-key"
 			}
 
-			modelConfig := AutoModelConfig(t.Context(), "", &mockEnvProvider{envVars: envVars}, nil)
+			modelConfig := AutoModelConfig(t.Context(), "", environment.NewMapEnvProvider(envVars), nil)
 
 			// Verify the returned model matches the DefaultModels entry
 			expectedModel := DefaultModels[provider]
@@ -341,7 +332,7 @@ func TestAutoModelConfig_IntegrationWithDefaultModels(t *testing.T) {
 	t.Run("dmr", func(t *testing.T) {
 		t.Parallel()
 
-		modelConfig := AutoModelConfig(t.Context(), "", &mockEnvProvider{envVars: map[string]string{}}, nil)
+		modelConfig := AutoModelConfig(t.Context(), "", environment.NewNoEnvProvider(), nil)
 
 		assert.Equal(t, "dmr", modelConfig.Provider)
 		assert.Equal(t, DefaultModels["dmr"], modelConfig.Model)
@@ -353,51 +344,41 @@ func TestAvailableProviders_PrecedenceOrder(t *testing.T) {
 	t.Parallel()
 
 	// All keys present - anthropic should win
-	env := &mockEnvProvider{
-		envVars: map[string]string{
-			"ANTHROPIC_API_KEY": "test-key",
-			"OPENAI_API_KEY":    "test-key",
-			"GOOGLE_API_KEY":    "test-key",
-			"MISTRAL_API_KEY":   "test-key",
-		},
-	}
+	var env environment.Provider = environment.NewMapEnvProvider(map[string]string{
+		"ANTHROPIC_API_KEY": "test-key",
+		"OPENAI_API_KEY":    "test-key",
+		"GOOGLE_API_KEY":    "test-key",
+		"MISTRAL_API_KEY":   "test-key",
+	})
 	providers := AvailableProviders(t.Context(), "", env)
 	assert.Equal(t, "anthropic", providers[0])
 
 	// No anthropic - openai should win
-	env = &mockEnvProvider{
-		envVars: map[string]string{
-			"OPENAI_API_KEY":  "test-key",
-			"GOOGLE_API_KEY":  "test-key",
-			"MISTRAL_API_KEY": "test-key",
-		},
-	}
+	env = environment.NewMapEnvProvider(map[string]string{
+		"OPENAI_API_KEY":  "test-key",
+		"GOOGLE_API_KEY":  "test-key",
+		"MISTRAL_API_KEY": "test-key",
+	})
 	providers = AvailableProviders(t.Context(), "", env)
 	assert.Equal(t, "openai", providers[0])
 
 	// No anthropic or openai - google should win
-	env = &mockEnvProvider{
-		envVars: map[string]string{
-			"GOOGLE_API_KEY":  "test-key",
-			"MISTRAL_API_KEY": "test-key",
-		},
-	}
+	env = environment.NewMapEnvProvider(map[string]string{
+		"GOOGLE_API_KEY":  "test-key",
+		"MISTRAL_API_KEY": "test-key",
+	})
 	providers = AvailableProviders(t.Context(), "", env)
 	assert.Equal(t, "google", providers[0])
 
 	// No anthropic, openai, or google - mistral should win
-	env = &mockEnvProvider{
-		envVars: map[string]string{
-			"MISTRAL_API_KEY": "test-key",
-		},
-	}
+	env = environment.NewMapEnvProvider(map[string]string{
+		"MISTRAL_API_KEY": "test-key",
+	})
 	providers = AvailableProviders(t.Context(), "", env)
 	assert.Equal(t, "mistral", providers[0])
 
 	// No keys at all - dmr should be selected
-	env = &mockEnvProvider{
-		envVars: map[string]string{},
-	}
+	env = environment.NewNoEnvProvider()
 	providers = AvailableProviders(t.Context(), "", env)
 	assert.Equal(t, "dmr", providers[0])
 }
@@ -467,7 +448,7 @@ func TestAutoModelConfig_UserDefaultModel(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			modelConfig := AutoModelConfig(t.Context(), "", &mockEnvProvider{envVars: tt.envVars}, tt.defaultModel)
+			modelConfig := AutoModelConfig(t.Context(), "", environment.NewMapEnvProvider(tt.envVars), tt.defaultModel)
 
 			assert.Equal(t, tt.expectedProvider, modelConfig.Provider)
 			assert.Equal(t, tt.expectedModel, modelConfig.Model)
@@ -490,7 +471,7 @@ func TestAutoModelConfig_UserDefaultModelWithOptions(t *testing.T) {
 		ThinkingBudget: thinkingBudget,
 	}
 
-	modelConfig := AutoModelConfig(t.Context(), "", &mockEnvProvider{envVars: map[string]string{}}, defaultModel)
+	modelConfig := AutoModelConfig(t.Context(), "", environment.NewNoEnvProvider(), defaultModel)
 
 	assert.Equal(t, "anthropic", modelConfig.Provider)
 	assert.Equal(t, "claude-sonnet-4-5", modelConfig.Model)
