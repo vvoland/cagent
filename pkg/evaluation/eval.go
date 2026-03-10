@@ -591,14 +591,9 @@ func createJudgeModel(ctx context.Context, judgeModel string, runConfig *config.
 		return nil, nil
 	}
 
-	providerName, model, ok := strings.Cut(judgeModel, "/")
-	if !ok {
+	cfg, err := latest.ParseModelRef(judgeModel)
+	if err != nil {
 		return nil, fmt.Errorf("invalid judge model format %q: expected 'provider/model'", judgeModel)
-	}
-
-	cfg := &latest.ModelConfig{
-		Provider: providerName,
-		Model:    model,
 	}
 
 	var opts []options.Opt
@@ -606,7 +601,7 @@ func createJudgeModel(ctx context.Context, judgeModel string, runConfig *config.
 		opts = append(opts, options.WithGateway(runConfig.ModelsGateway))
 	}
 
-	judge, err := provider.New(ctx, cfg, runConfig.EnvProvider(), opts...)
+	judge, err := provider.New(ctx, &cfg, runConfig.EnvProvider(), opts...)
 	if err != nil {
 		return nil, fmt.Errorf("creating judge model: %w", err)
 	}

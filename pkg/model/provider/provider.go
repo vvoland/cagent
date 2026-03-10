@@ -205,16 +205,11 @@ func createRuleBasedRouter(ctx context.Context, cfg *latest.ModelConfig, models 
 		}
 
 		// Otherwise, treat as an inline model spec (e.g., "openai/gpt-4o")
-		providerName, model, ok := strings.Cut(modelSpec, "/")
-		if !ok {
+		inlineCfg, parseErr := latest.ParseModelRef(modelSpec)
+		if parseErr != nil {
 			return nil, fmt.Errorf("invalid model spec %q: expected 'provider/model' format or a model reference", modelSpec)
 		}
-
-		inlineCfg := &latest.ModelConfig{
-			Provider: providerName,
-			Model:    model,
-		}
-		p, err := createDirectProvider(ctx, inlineCfg, env, factoryOpts...)
+		p, err := createDirectProvider(ctx, &inlineCfg, env, factoryOpts...)
 		if err != nil {
 			return nil, err
 		}
@@ -394,7 +389,7 @@ func applyOverrides(cfg *latest.ModelConfig, opts *options.ModelOptions) *latest
 	// 1. ThinkingBudget is nil (not configured) - apply defaults to enable thinking
 	// 2. ThinkingBudget is explicitly disabled (Tokens == 0 or Effort == "none") - clear and re-apply defaults
 	// This allows /think to enable thinking with provider defaults even when config had thinking_budget: 0
-	if enhancedCfg.ThinkingBudget == nil || isThinkingBudgetDisabled(enhancedCfg.ThinkingBudget) {
+	if enhancedCfg.ThinkingBudget == nil || enhancedCfg.ThinkingBudget.IsDisabled() {
 		enhancedCfg.ThinkingBudget = nil
 		applyModelDefaults(&enhancedCfg)
 		slog.Debug("Override: thinking enabled - applied default thinking configuration",
@@ -405,22 +400,6 @@ func applyOverrides(cfg *latest.ModelConfig, opts *options.ModelOptions) *latest
 	}
 
 	return &enhancedCfg
-}
-
-// isThinkingBudgetDisabled returns true if the thinking budget is explicitly disabled.
-// NOT disabled when:
-// - Tokens > 0 or Tokens == -1 (explicit token budget)
-// - Effort is set to something other than "none" (e.g., "medium", "high")
-func isThinkingBudgetDisabled(tb *latest.ThinkingBudget) bool {
-	if tb == nil {
-		return false
-	}
-	if tb.Effort == "none" {
-		return true
-	}
-	// Tokens == 0 with no Effort means explicitly disabled (thinking_budget: 0)
-	// Tokens == 0 with Effort set (e.g., "medium") means Effort-based config, not disabled
-	return tb.Tokens == 0 && tb.Effort == ""
 }
 
 // applyModelDefaults applies provider-specific default values for model configuration.
@@ -441,7 +420,7 @@ func applyModelDefaults(cfg *latest.ModelConfig) {
 	// If thinking is explicitly disabled (thinking_budget: 0 or thinking_budget: none),
 	// set ThinkingBudget to nil to completely disable thinking.
 	// This ensures no thinking config is sent to the provider.
-	if isThinkingBudgetDisabled(cfg.ThinkingBudget) {
+	if cfg.ThinkingBudget.IsDisabled() {
 		cfg.ThinkingBudget = nil
 		slog.Debug("Thinking explicitly disabled via thinking_budget: 0 or none",
 			"provider", cfg.Provider,

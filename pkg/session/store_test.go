@@ -29,11 +29,11 @@ func TestStoreAgentName(t *testing.T) {
 		ID: "test-session",
 		Messages: []Item{
 			NewMessageItem(UserMessage("Hello")),
-			NewMessageItem(NewAgentMessage(testAgent1, &chat.Message{
+			NewMessageItem(NewAgentMessage(testAgent1.Name(), &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "Hello from test-agent-1",
 			})),
-			NewMessageItem(NewAgentMessage(testAgent2, &chat.Message{
+			NewMessageItem(NewAgentMessage(testAgent2.Name(), &chat.Message{
 				Role:    chat.MessageRoleUser,
 				Content: "Another message from test-agent-2",
 			})),
@@ -82,11 +82,11 @@ func TestStoreMultipleAgents(t *testing.T) {
 		CreatedAt: time.Now(),
 		Messages: []Item{
 			NewMessageItem(UserMessage("Start conversation")),
-			NewMessageItem(NewAgentMessage(agent1, &chat.Message{
+			NewMessageItem(NewAgentMessage(agent1.Name(), &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "Response from agent 1",
 			})),
-			NewMessageItem(NewAgentMessage(agent2, &chat.Message{
+			NewMessageItem(NewAgentMessage(agent2.Name(), &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "Response from agent 2",
 			})),
@@ -128,7 +128,7 @@ func TestGetSessions(t *testing.T) {
 	session1 := &Session{
 		ID: "session-1",
 		Messages: []Item{
-			NewMessageItem(NewAgentMessage(testAgent, &chat.Message{
+			NewMessageItem(NewAgentMessage(testAgent.Name(), &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "Message from session 1",
 			})),
@@ -139,7 +139,7 @@ func TestGetSessions(t *testing.T) {
 	session2 := &Session{
 		ID: "session-2",
 		Messages: []Item{
-			NewMessageItem(NewAgentMessage(testAgent, &chat.Message{
+			NewMessageItem(NewAgentMessage(testAgent.Name(), &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "Message from session 2",
 			})),
@@ -180,7 +180,7 @@ func TestGetSessionSummaries(t *testing.T) {
 		ID:    "session-1",
 		Title: "First Session",
 		Messages: []Item{
-			NewMessageItem(NewAgentMessage(testAgent, &chat.Message{
+			NewMessageItem(NewAgentMessage(testAgent.Name(), &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "A very long message that should not be loaded when getting summaries",
 			})),
@@ -192,7 +192,7 @@ func TestGetSessionSummaries(t *testing.T) {
 		ID:    "session-2",
 		Title: "Second Session",
 		Messages: []Item{
-			NewMessageItem(NewAgentMessage(testAgent, &chat.Message{
+			NewMessageItem(NewAgentMessage(testAgent.Name(), &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "Another long message that should not be loaded when getting summaries",
 			})),
@@ -236,7 +236,7 @@ func TestBranchSessionCopiesPrefix(t *testing.T) {
 		CreatedAt: time.Now(),
 		Messages: []Item{
 			NewMessageItem(UserMessage("Hello")),
-			NewMessageItem(NewAgentMessage(testAgent, &chat.Message{
+			NewMessageItem(NewAgentMessage(testAgent.Name(), &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "Response",
 			})),
@@ -330,11 +330,11 @@ func TestStoreAgentNameJSON(t *testing.T) {
 		ID: "json-test-session",
 		Messages: []Item{
 			NewMessageItem(UserMessage("User input")),
-			NewMessageItem(NewAgentMessage(agent1, &chat.Message{
+			NewMessageItem(NewAgentMessage(agent1.Name(), &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "Response from my-agent",
 			})),
-			NewMessageItem(NewAgentMessage(agent2, &chat.Message{
+			NewMessageItem(NewAgentMessage(agent2.Name(), &chat.Message{
 				Role:    chat.MessageRoleAssistant,
 				Content: "Response from another-agent",
 			})),
@@ -401,7 +401,7 @@ func TestUpdateSession_LazyCreation(t *testing.T) {
 	_, err = store.AddMessage(t.Context(), "lazy-session", UserMessage("Hello"))
 	require.NoError(t, err)
 
-	_, err = store.AddMessage(t.Context(), "lazy-session", NewAgentMessage(testAgent, &chat.Message{
+	_, err = store.AddMessage(t.Context(), "lazy-session", NewAgentMessage(testAgent.Name(), &chat.Message{
 		Role:    chat.MessageRoleAssistant,
 		Content: "Hi there!",
 	}))
@@ -443,7 +443,7 @@ func TestUpdateSession_LazyCreation_InMemory(t *testing.T) {
 	// Add messages via AddMessage
 	_, err = store.AddMessage(t.Context(), "lazy-session", UserMessage("Hello"))
 	require.NoError(t, err)
-	_, err = store.AddMessage(t.Context(), "lazy-session", NewAgentMessage(testAgent, &chat.Message{
+	_, err = store.AddMessage(t.Context(), "lazy-session", NewAgentMessage(testAgent.Name(), &chat.Message{
 		Role:    chat.MessageRoleAssistant,
 		Content: "Hi there!",
 	}))

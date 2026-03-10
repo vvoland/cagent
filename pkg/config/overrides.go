@@ -186,15 +186,12 @@ func ensureSingleModelExists(cfg *latest.Config, modelName, context string) erro
 		return nil
 	}
 
-	providerName, model, ok := strings.Cut(modelName, "/")
-	if !ok || providerName == "" || model == "" {
+	parsed, err := latest.ParseModelRef(modelName)
+	if err != nil {
 		return fmt.Errorf("%s references non-existent model '%s'", context, modelName)
 	}
 
-	cfg.Models[modelName] = latest.ModelConfig{
-		Provider: providerName,
-		Model:    model,
-	}
+	cfg.Models[modelName] = parsed
 
 	return nil
 }

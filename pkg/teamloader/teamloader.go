@@ -33,20 +33,6 @@ import (
 
 var defaultMaxTokens int64 = 32000
 
-// isThinkingBudgetDisabled returns true if the thinking budget is explicitly set to disable thinking
-// (e.g., thinking_budget: 0 or thinking_budget: none).
-func isThinkingBudgetDisabled(tb *latest.ThinkingBudget) bool {
-	if tb == nil {
-		return false
-	}
-	// Disabled if tokens is explicitly 0
-	if tb.Tokens == 0 && tb.Effort == "" {
-		return true
-	}
-	// Disabled if effort is "none"
-	return tb.Effort == "none"
-}
-
 type loadOptions struct {
 	modelOverrides  []string
 	promptFiles     []string
@@ -316,7 +302,7 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 		// Check if thinking_budget was explicitly configured BEFORE provider defaults are applied.
 		// This is used to initialize session thinking state - thinking is only enabled by default
 		// when the user explicitly configured it in their YAML.
-		if modelCfg.ThinkingBudget != nil && !isThinkingBudgetDisabled(modelCfg.ThinkingBudget) {
+		if modelCfg.ThinkingBudget != nil && !modelCfg.ThinkingBudget.IsDisabled() {
 			thinkingConfigured = true
 		}
 
@@ -373,14 +359,11 @@ func getFallbackModelsForAgent(ctx context.Context, cfg *latest.Config, a *lates
 		modelCfg, exists := cfg.Models[name]
 		if !exists {
 			// Try parsing as inline provider/model format (e.g., "openai/gpt-4o")
-			providerName, modelName, ok := strings.Cut(name, "/")
-			if !ok {
+			parsed, err := latest.ParseModelRef(name)
+			if err != nil {
 				return nil, fmt.Errorf("fallback model '%s' not found in configuration and is not a valid provider/model format", name)
 			}
-			modelCfg = latest.ModelConfig{
-				Provider: providerName,
-				Model:    modelName,
-			}
+			modelCfg = parsed
 		}
 		modelCfg.Name = name
 

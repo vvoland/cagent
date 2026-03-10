@@ -424,7 +424,7 @@ func (r *LocalRuntime) runAgentTool(ctx context.Context, handler ToolHandlerFunc
 }
 
 func addAgentMessage(sess *session.Session, a *agent.Agent, msg *chat.Message, events chan Event) {
-	agentMsg := session.NewAgentMessage(a, msg)
+	agentMsg := session.NewAgentMessage(a.Name(), msg)
 	sess.AddMessage(agentMsg)
 	events <- MessageAdded(sess.ID, agentMsg, a.Name())
 }
