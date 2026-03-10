@@ -107,7 +107,7 @@ func (t *ScriptShellTool) Tools(context.Context) ([]tools.Tool, error) {
 		cfg := toolConfig
 		toolName := name
 
-		description := cmp.Or(cfg.Description, fmt.Sprintf("Execute shell command: %s", cfg.Cmd))
+		description := cmp.Or(cfg.Description, "Execute shell command: "+cfg.Cmd)
 
 		inputSchema, err := tools.SchemaToMap(map[string]any{
 			"type":       "object",

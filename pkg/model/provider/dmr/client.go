@@ -543,7 +543,7 @@ func (c *Client) CreateEmbedding(ctx context.Context, text string) (*base.Embedd
 	}
 
 	if len(response.Data) == 0 {
-		return nil, fmt.Errorf("no embedding returned from DMR")
+		return nil, errors.New("no embedding returned from DMR")
 	}
 
 	// Convert []float32 to []float64
@@ -707,7 +707,7 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []types.Doc
 	// Make HTTP request to rerank endpoint
 	// Rerank endpoint is at the base host level: http://host:port/rerank
 	// Not under /engines/v1/ like chat/embeddings
-	rerankURL := fmt.Sprintf("%s/rerank", baseURL)
+	rerankURL := baseURL + "/rerank"
 
 	slog.Debug("DMR reranking HTTP request",
 		"base_url", baseURL,
@@ -1014,7 +1014,7 @@ func confirmModelPull(ctx context.Context, model string) error {
 
 	response = strings.TrimSpace(strings.ToLower(response))
 	if response != "y" && response != "yes" {
-		return fmt.Errorf("model pull declined by user")
+		return errors.New("model pull declined by user")
 	}
 
 	return nil

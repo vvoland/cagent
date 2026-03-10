@@ -3,8 +3,10 @@ package latest
 import (
 	"cmp"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -61,7 +63,7 @@ func (c *Agents) UnmarshalYAML(unmarshal func(any) error) error {
 	for _, item := range items {
 		name, ok := item.Key.(string)
 		if !ok {
-			return fmt.Errorf("agent name must be a string")
+			return errors.New("agent name must be a string")
 		}
 
 		valueBytes, err := yaml.Marshal(item.Value)
@@ -162,7 +164,7 @@ type Duration struct {
 // UnmarshalYAML implements custom unmarshaling for Duration from string format
 func (d *Duration) UnmarshalYAML(unmarshal func(any) error) error {
 	if d == nil {
-		return fmt.Errorf("cannot unmarshal into nil Duration")
+		return errors.New("cannot unmarshal into nil Duration")
 	}
 
 	var s string
@@ -198,7 +200,7 @@ func (d Duration) MarshalYAML() (any, error) {
 // UnmarshalJSON implements custom unmarshaling for Duration from string format
 func (d *Duration) UnmarshalJSON(data []byte) error {
 	if d == nil {
-		return fmt.Errorf("cannot unmarshal into nil Duration")
+		return errors.New("cannot unmarshal into nil Duration")
 	}
 
 	var s string
@@ -252,7 +254,7 @@ type AgentConfig struct {
 	AddPromptFiles          []string          `json:"add_prompt_files,omitempty" yaml:"add_prompt_files,omitempty"`
 	Commands                types.Commands    `json:"commands,omitempty"`
 	StructuredOutput        *StructuredOutput `json:"structured_output,omitempty"`
-	Skills                  SkillsConfig      `json:"skills,omitempty"`
+	Skills                  SkillsConfig      `json:"skills,omitzero"`
 	Hooks                   *HooksConfig      `json:"hooks,omitempty"`
 }
 
@@ -274,12 +276,7 @@ func (s SkillsConfig) Enabled() bool {
 }
 
 func (s SkillsConfig) HasLocal() bool {
-	for _, src := range s.Sources {
-		if src == SkillSourceLocal {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s.Sources, SkillSourceLocal)
 }
 
 func (s SkillsConfig) RemoteURLs() []string {
@@ -305,7 +302,7 @@ func (s *SkillsConfig) UnmarshalYAML(unmarshal func(any) error) error {
 
 	var sources []string
 	if err := unmarshal(&sources); err != nil {
-		return fmt.Errorf("skills must be a boolean or a list of sources")
+		return errors.New("skills must be a boolean or a list of sources")
 	}
 	s.Sources = sources
 	return nil
@@ -334,7 +331,7 @@ func (s *SkillsConfig) UnmarshalJSON(data []byte) error {
 
 	var sources []string
 	if err := json.Unmarshal(data, &sources); err != nil {
-		return fmt.Errorf("skills must be a boolean or a list of sources")
+		return errors.New("skills must be a boolean or a list of sources")
 	}
 	s.Sources = sources
 	return nil
@@ -1020,7 +1017,7 @@ func (d *RAGDatabaseConfig) UnmarshalYAML(unmarshal func(any) error) error {
 		return nil
 	}
 
-	return fmt.Errorf("database must be a string path to a sqlite database")
+	return errors.New("database must be a string path to a sqlite database")
 }
 
 // AsString returns the database config as a connection string
@@ -1035,7 +1032,7 @@ func (d *RAGDatabaseConfig) AsString() (string, error) {
 		return str, nil
 	}
 
-	return "", fmt.Errorf("invalid database configuration: expected string path")
+	return "", errors.New("invalid database configuration: expected string path")
 }
 
 // IsEmpty returns true if no database is configured

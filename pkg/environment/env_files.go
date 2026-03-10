@@ -1,6 +1,7 @@
 package environment
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -38,7 +39,7 @@ func AbsolutePath(parentDir, relOrAbsPath string) (string, error) {
 	// For absolute paths (including tilde-expanded ones), validate against directory traversal
 	if filepath.IsAbs(p) {
 		if strings.Contains(relOrAbsPath, "..") {
-			return "", fmt.Errorf("invalid environment file path: path contains directory traversal sequences")
+			return "", errors.New("invalid environment file path: path contains directory traversal sequences")
 		}
 		return p, nil
 	}
@@ -59,7 +60,7 @@ func expandTildePath(p string) (string, error) {
 
 	homeDir := paths.GetHomeDir()
 	if homeDir == "" {
-		return "", fmt.Errorf("failed to get user home directory")
+		return "", errors.New("failed to get user home directory")
 	}
 
 	if p == "~" {

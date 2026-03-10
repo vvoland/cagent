@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -110,11 +111,11 @@ func (t *APITool) Tools(context.Context) ([]tools.Tool, error) {
 	}
 
 	if parsedURL.Scheme == "" || parsedURL.Host == "" {
-		return nil, fmt.Errorf("invalid URL: missing scheme or host")
+		return nil, errors.New("invalid URL: missing scheme or host")
 	}
 
 	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
-		return nil, fmt.Errorf("only HTTP and HTTPS URLs are supported")
+		return nil, errors.New("only HTTP and HTTPS URLs are supported")
 	}
 
 	outputSchema := tools.MustSchemaFor[string]()

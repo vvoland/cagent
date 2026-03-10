@@ -184,7 +184,7 @@ func (d *bm25DB) SetFileMetadata(ctx context.Context, metadata database.FileMeta
 
 func (d *bm25DB) GetAllFileMetadata(ctx context.Context) ([]database.FileMetadata, error) {
 	rows, err := d.db.QueryContext(ctx,
-		fmt.Sprintf("SELECT source_path, file_hash, last_indexed, chunk_count FROM %s", d.metadataTable))
+		"SELECT source_path, file_hash, last_indexed, chunk_count FROM "+d.metadataTable)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query file metadata: %w", err)
 	}

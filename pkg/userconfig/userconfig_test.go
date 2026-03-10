@@ -843,8 +843,8 @@ func TestSettings_RestoreTabs(t *testing.T) {
 	}{
 		{"nil settings", nil, false},
 		{"empty settings", &Settings{}, false},
-		{"explicitly disabled", &Settings{RestoreTabs: boolPtr(false)}, false},
-		{"explicitly enabled", &Settings{RestoreTabs: boolPtr(true)}, true},
+		{"explicitly disabled", &Settings{RestoreTabs: new(false)}, false},
+		{"explicitly enabled", &Settings{RestoreTabs: new(true)}, true},
 	}
 
 	for _, tt := range tests {

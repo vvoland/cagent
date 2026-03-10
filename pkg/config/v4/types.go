@@ -2,6 +2,7 @@ package v4
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"strings"
@@ -37,7 +38,7 @@ func (c *Agents) UnmarshalYAML(unmarshal func(any) error) error {
 	for _, item := range items {
 		name, ok := item.Key.(string)
 		if !ok {
-			return fmt.Errorf("agent name must be a string")
+			return errors.New("agent name must be a string")
 		}
 
 		valueBytes, err := yaml.Marshal(item.Value)
@@ -138,7 +139,7 @@ type Duration struct {
 // UnmarshalYAML implements custom unmarshaling for Duration from string format
 func (d *Duration) UnmarshalYAML(unmarshal func(any) error) error {
 	if d == nil {
-		return fmt.Errorf("cannot unmarshal into nil Duration")
+		return errors.New("cannot unmarshal into nil Duration")
 	}
 
 	var s string
@@ -174,7 +175,7 @@ func (d Duration) MarshalYAML() (any, error) {
 // UnmarshalJSON implements custom unmarshaling for Duration from string format
 func (d *Duration) UnmarshalJSON(data []byte) error {
 	if d == nil {
-		return fmt.Errorf("cannot unmarshal into nil Duration")
+		return errors.New("cannot unmarshal into nil Duration")
 	}
 
 	var s string
@@ -879,7 +880,7 @@ func (d *RAGDatabaseConfig) UnmarshalYAML(unmarshal func(any) error) error {
 		return nil
 	}
 
-	return fmt.Errorf("database must be a string path to a sqlite database")
+	return errors.New("database must be a string path to a sqlite database")
 }
 
 // AsString returns the database config as a connection string
@@ -894,7 +895,7 @@ func (d *RAGDatabaseConfig) AsString() (string, error) {
 		return str, nil
 	}
 
-	return "", fmt.Errorf("invalid database configuration: expected string path")
+	return "", errors.New("invalid database configuration: expected string path")
 }
 
 // IsEmpty returns true if no database is configured

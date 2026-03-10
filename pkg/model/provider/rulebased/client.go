@@ -8,6 +8,7 @@ package rulebased
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -52,7 +53,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, models map[string]l
 	slog.Debug("Creating rule-based router", "provider", cfg.Provider, "model", cfg.Model)
 
 	if len(cfg.Routing) == 0 {
-		return nil, fmt.Errorf("no routing rules configured")
+		return nil, errors.New("no routing rules configured")
 	}
 
 	index, err := createIndex()
@@ -158,7 +159,7 @@ func (c *Client) CreateChatCompletionStream(
 ) (chat.MessageStream, error) {
 	provider := c.selectProvider(messages)
 	if provider == nil {
-		return nil, fmt.Errorf("no provider available for routing")
+		return nil, errors.New("no provider available for routing")
 	}
 
 	slog.Debug("Rule-based router selected model",

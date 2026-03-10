@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -141,7 +142,7 @@ func NewHandler(runner Runner) *Handler {
 }
 
 func newTaskID() string {
-	return fmt.Sprintf("agent_task_%s", uuid.New().String())
+	return "agent_task_" + uuid.New().String()
 }
 
 func (h *Handler) runningTaskCount() int {
@@ -188,13 +189,7 @@ func (h *Handler) HandleRun(ctx context.Context, sess *session.Session, toolCall
 	}
 
 	subAgentNames := h.runner.CurrentAgentSubAgentNames()
-	valid := false
-	for _, name := range subAgentNames {
-		if name == params.Agent {
-			valid = true
-			break
-		}
-	}
+	valid := slices.Contains(subAgentNames, params.Agent)
 	if !valid {
 		if len(subAgentNames) > 0 {
 			return tools.ResultError(fmt.Sprintf("agent %q is not in the sub-agents list. Available: %s", params.Agent, strings.Join(subAgentNames, ", "))), nil
@@ -229,9 +224,7 @@ func (h *Handler) HandleRun(ctx context.Context, sess *session.Session, toolCall
 	t.storeStatus(taskRunning)
 	h.tasks.Store(taskID, t)
 
-	h.wg.Add(1)
-	go func() {
-		defer h.wg.Done()
+	h.wg.Go(func() {
 		defer cancel()
 
 		slog.Debug("Starting background agent task", "task_id", taskID, "agent", params.Agent)
@@ -270,7 +263,7 @@ func (h *Handler) HandleRun(ctx context.Context, sess *session.Session, toolCall
 		if t.casStatus(taskRunning, taskCompleted) {
 			slog.Debug("Background agent task completed", "task_id", taskID, "agent", params.Agent)
 		}
-	}()
+	})
 
 	return tools.ResultSuccess(fmt.Sprintf("Background agent task started with ID: %s\nAgent: %s\nTask: %s",
 		taskID, params.Agent, params.Task)), nil
@@ -310,7 +303,7 @@ func (h *Handler) HandleView(_ context.Context, _ *session.Session, toolCall too
 
 	t, exists := h.tasks.Load(params.TaskID)
 	if !exists {
-		return tools.ResultError(fmt.Sprintf("task not found: %s", params.TaskID)), nil
+		return tools.ResultError("task not found: " + params.TaskID), nil
 	}
 
 	status := t.loadStatus()
@@ -366,7 +359,7 @@ func (h *Handler) HandleStop(_ context.Context, _ *session.Session, toolCall too
 
 	t, exists := h.tasks.Load(params.TaskID)
 	if !exists {
-		return tools.ResultError(fmt.Sprintf("task not found: %s", params.TaskID)), nil
+		return tools.ResultError("task not found: " + params.TaskID), nil
 	}
 
 	if !t.casStatus(taskRunning, taskStopped) {

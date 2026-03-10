@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -87,7 +88,7 @@ func (t *OpenAPITool) fetchSpec(ctx context.Context) (*openapi3.T, error) {
 
 	// Check if the spec was truncated.
 	if len(body) >= 10<<20 {
-		return nil, fmt.Errorf("OpenAPI spec exceeds 10MB size limit")
+		return nil, errors.New("OpenAPI spec exceeds 10MB size limit")
 	}
 
 	loader := openapi3.NewLoader()
@@ -436,8 +437,8 @@ func (h *openAPIHandler) classifyParams(params openAPICallArgs) (string, url.Val
 		}
 
 		// Body parameter? (prefixed with "body_")
-		if strings.HasPrefix(key, "body_") {
-			bodyParams[strings.TrimPrefix(key, "body_")] = value
+		if after, ok := strings.CutPrefix(key, "body_"); ok {
+			bodyParams[after] = value
 			continue
 		}
 

@@ -1,6 +1,7 @@
 package session
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -14,7 +15,7 @@ import (
 // Messages up to (but not including) branchAtPosition are deep-cloned into the new session.
 func BranchSession(parent *Session, branchAtPosition int) (*Session, error) {
 	if parent == nil {
-		return nil, fmt.Errorf("parent session is nil")
+		return nil, errors.New("parent session is nil")
 	}
 	if branchAtPosition < 0 || branchAtPosition >= len(parent.Messages) {
 		return nil, fmt.Errorf("branch position %d out of range", branchAtPosition)
@@ -55,7 +56,7 @@ func cloneSessionItem(item Item) (Item, error) {
 	case item.Summary != "":
 		return Item{Summary: item.Summary, Cost: item.Cost}, nil
 	default:
-		return Item{}, fmt.Errorf("cannot clone empty session item")
+		return Item{}, errors.New("cannot clone empty session item")
 	}
 }
 
@@ -124,10 +125,10 @@ func generateBranchTitle(parentTitle string) string {
 	const branchedSuffix = "(branched)"
 	if strings.HasSuffix(parentTitle, branchedSuffix) {
 		baseTitle := strings.TrimRight(parentTitle[:len(parentTitle)-len(branchedSuffix)], " \t")
-		return fmt.Sprintf("%s (branch 2)", baseTitle)
+		return baseTitle + " (branch 2)"
 	}
 
-	return fmt.Sprintf("%s (branched)", parentTitle)
+	return parentTitle + " (branched)"
 }
 
 func clonePermissionsConfig(src *PermissionsConfig) *PermissionsConfig {

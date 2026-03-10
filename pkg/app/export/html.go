@@ -5,10 +5,12 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -82,7 +84,7 @@ type ToolCall struct {
 // Returns the absolute path of the created file.
 func SessionToFile(sess *session.Session, agentDescription, filename string) (string, error) {
 	if sess == nil {
-		return "", fmt.Errorf("no session to export")
+		return "", errors.New("no session to export")
 	}
 	data := sessionToData(sess)
 	data.AgentDescription = agentDescription
@@ -126,7 +128,7 @@ func sessionToData(sess *session.Session) SessionData {
 // Returns the absolute path of the created file.
 func ToFile(data SessionData, filename string) (string, error) {
 	if len(data.Messages) == 0 {
-		return "", fmt.Errorf("session is empty")
+		return "", errors.New("session is empty")
 	}
 
 	// Generate filename if not provided
@@ -392,7 +394,7 @@ func formatTokens(tokens int64) string {
 	if tokens >= 1000 {
 		return fmt.Sprintf("%.1fK", float64(tokens)/1000)
 	}
-	return fmt.Sprintf("%d", tokens)
+	return strconv.FormatInt(tokens, 10)
 }
 
 func formatCost(cost float64) string {

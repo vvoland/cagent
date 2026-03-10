@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -627,7 +628,7 @@ func (a *App) SwitchAgent(agentName string) error {
 func (a *App) SetCurrentAgentModel(ctx context.Context, modelRef string) error {
 	modelSwitcher, ok := a.runtime.(runtime.ModelSwitcher)
 	if !ok {
-		return fmt.Errorf("model switching not supported by this runtime")
+		return errors.New("model switching not supported by this runtime")
 	}
 
 	agentName := a.runtime.CurrentAgentName()
@@ -1028,11 +1029,11 @@ func (a *App) ExportHTML(ctx context.Context, filename string) (string, error) {
 // UpdateSessionTitle updates the current session's title and persists it.
 // It works with both local and remote runtimes.
 // ErrTitleGenerating is returned when attempting to set a title while generation is in progress.
-var ErrTitleGenerating = fmt.Errorf("title generation in progress, please wait")
+var ErrTitleGenerating = errors.New("title generation in progress, please wait")
 
 func (a *App) UpdateSessionTitle(ctx context.Context, title string) error {
 	if a.session == nil {
-		return fmt.Errorf("no active session")
+		return errors.New("no active session")
 	}
 
 	// Prevent manual title edits while generation is in progress
@@ -1108,7 +1109,7 @@ func (a *App) generateTitle(ctx context.Context, userMessages []string) {
 // Returns ErrTitleGenerating if a title generation is already in progress.
 func (a *App) RegenerateSessionTitle(ctx context.Context) error {
 	if a.session == nil {
-		return fmt.Errorf("no active session")
+		return errors.New("no active session")
 	}
 
 	// Check if title generation is already in progress
@@ -1135,5 +1136,5 @@ func (a *App) RegenerateSessionTitle(ctx context.Context) error {
 	// For remote runtime, title regeneration is not yet supported
 	// (the server would need to implement this)
 	slog.Debug("Title regeneration not available for remote runtime", "session_id", a.session.ID)
-	return fmt.Errorf("title regeneration not available")
+	return errors.New("title regeneration not available")
 }

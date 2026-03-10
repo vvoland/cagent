@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -130,7 +131,7 @@ func (a *Agent) NewSession(ctx context.Context, params acp.NewSessionRequest) (a
 			return acp.NewSessionResponse{}, fmt.Errorf("working directory does not exist: %w", err)
 		}
 		if !info.IsDir() {
-			return acp.NewSessionResponse{}, fmt.Errorf("working directory must be a directory")
+			return acp.NewSessionResponse{}, errors.New("working directory must be a directory")
 		}
 		workingDir = absWd
 	}
@@ -190,7 +191,7 @@ func (a *Agent) Authenticate(context.Context, acp.AuthenticateRequest) (acp.Auth
 // LoadSession implements [acp.Agent] (optional, not supported)
 func (a *Agent) LoadSession(context.Context, acp.LoadSessionRequest) (acp.LoadSessionResponse, error) {
 	slog.Debug("ACP LoadSession called (not supported)")
-	return acp.LoadSessionResponse{}, fmt.Errorf("load session not supported")
+	return acp.LoadSessionResponse{}, errors.New("load session not supported")
 }
 
 // Cancel implements [acp.Agent]
@@ -490,7 +491,7 @@ func (a *Agent) handleToolCallConfirmation(ctx context.Context, acpSess *Session
 	}
 
 	if permResp.Outcome.Selected == nil {
-		return fmt.Errorf("unexpected permission outcome")
+		return errors.New("unexpected permission outcome")
 	}
 
 	switch string(permResp.Outcome.Selected.OptionId) {
@@ -708,19 +709,23 @@ func extractDiffContent(toolCall tools.ToolCall, _ string) *acp.ToolCallContent 
 		}
 
 		// Build combined diff from all edits
-		var oldText, newText string
+		var oldTextSb, newTextSb strings.Builder
 		for _, edit := range edits {
 			editMap, ok := edit.(map[string]any)
 			if !ok {
 				continue
 			}
 			if old, ok := editMap["oldText"].(string); ok {
-				oldText += old + "\n"
+				oldTextSb.WriteString(old)
+				oldTextSb.WriteByte('\n')
 			}
 			if newVal, ok := editMap["newText"].(string); ok {
-				newText += newVal + "\n"
+				newTextSb.WriteString(newVal)
+				newTextSb.WriteByte('\n')
 			}
 		}
+		oldText := oldTextSb.String()
+		newText := newTextSb.String()
 
 		if oldText != "" || newText != "" {
 			diff := acp.ToolDiffContent(path, newText, oldText)

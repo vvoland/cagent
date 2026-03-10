@@ -591,7 +591,7 @@ func (c *Client) CreateEmbedding(ctx context.Context, text string) (*base.Embedd
 	}
 
 	if len(batchResult.Embeddings) == 0 {
-		return nil, fmt.Errorf("no embedding returned from OpenAI")
+		return nil, errors.New("no embedding returned from OpenAI")
 	}
 
 	embedding := batchResult.Embeddings[0]

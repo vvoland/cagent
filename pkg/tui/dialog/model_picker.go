@@ -2,6 +2,7 @@ package dialog
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -299,7 +300,7 @@ func validateCustomModelSpec(spec string) error {
 
 		providerName, modelName, ok := strings.Cut(part, "/")
 		if !ok {
-			return fmt.Errorf("invalid format: expected 'provider/model'")
+			return errors.New("invalid format: expected 'provider/model'")
 		}
 
 		providerName = strings.TrimSpace(providerName)

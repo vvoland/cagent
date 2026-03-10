@@ -2,6 +2,7 @@ package strategy
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -90,7 +91,7 @@ func createAutoEmbeddingModel(ctx context.Context, buildCtx BuildContext) (provi
 	}
 
 	if lastErr == nil {
-		return nil, fmt.Errorf("failed to create auto embedding model: no candidates configured")
+		return nil, errors.New("failed to create auto embedding model: no candidates configured")
 	}
 
 	return nil, fmt.Errorf("failed to create auto embedding model: %w", lastErr)

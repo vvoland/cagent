@@ -10,8 +10,6 @@ import (
 	"github.com/docker/docker-agent/pkg/tools"
 )
 
-func boolPtr(v bool) *bool { return &v }
-
 // annot is a shorthand for building tools.ToolAnnotations in tests.
 func annot(readOnly, idempotent bool, destructive, openWorld *bool) tools.ToolAnnotations {
 	return tools.ToolAnnotations{
@@ -25,8 +23,8 @@ func annot(readOnly, idempotent bool, destructive, openWorld *bool) tools.ToolAn
 func TestAgentToolAnnotations(t *testing.T) {
 	t.Parallel()
 
-	pFalse := boolPtr(false)
-	pTrue := boolPtr(true)
+	pFalse := new(false)
+	pTrue := new(true)
 
 	tests := []struct {
 		name            string

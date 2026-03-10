@@ -51,7 +51,7 @@ func (e *ContextOverflowError) Error() string {
 	if e.Underlying == nil {
 		return "context window overflow"
 	}
-	return fmt.Sprintf("context window overflow: %s", e.Underlying.Error())
+	return "context window overflow: " + e.Underlying.Error()
 }
 
 func (e *ContextOverflowError) Unwrap() error {

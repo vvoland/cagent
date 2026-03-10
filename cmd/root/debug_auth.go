@@ -18,8 +18,8 @@ type authInfo struct {
 	Token     string    `json:"token"`
 	Subject   string    `json:"subject,omitempty"`
 	Issuer    string    `json:"issuer,omitempty"`
-	IssuedAt  time.Time `json:"issued_at,omitempty"`
-	ExpiresAt time.Time `json:"expires_at,omitempty"`
+	IssuedAt  time.Time `json:"issued_at,omitzero"`
+	ExpiresAt time.Time `json:"expires_at,omitzero"`
 	Expired   bool      `json:"expired"`
 	Username  string    `json:"username,omitempty"`
 	Email     string    `json:"email,omitempty"`

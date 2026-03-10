@@ -43,7 +43,7 @@ func (r *Result) checkResults() (successes, failures []string) {
 	// Check size
 	if r.SizeExpected != "" {
 		if r.SizeExpected == r.Size {
-			successes = append(successes, fmt.Sprintf("size %s", r.Size))
+			successes = append(successes, "size "+r.Size)
 		} else {
 			failures = append(failures, fmt.Sprintf("size expected %s, got %s", r.SizeExpected, r.Size))
 		}
@@ -74,7 +74,7 @@ func (r *Result) checkResults() (successes, failures []string) {
 				if result.Reason != "" {
 					failures = append(failures, fmt.Sprintf("relevance: %s (reason: %s)", result.Criterion, result.Reason))
 				} else {
-					failures = append(failures, fmt.Sprintf("relevance: %s", result.Criterion))
+					failures = append(failures, "relevance: "+result.Criterion)
 				}
 			}
 		}

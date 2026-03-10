@@ -290,7 +290,7 @@ func (h *shellHandler) ListBackgroundJobs(_ context.Context, _ map[string]any) (
 func (h *shellHandler) ViewBackgroundJob(_ context.Context, params ViewBackgroundJobArgs) (*tools.ToolCallResult, error) {
 	job, exists := h.jobs.Load(params.JobID)
 	if !exists {
-		return tools.ResultError(fmt.Sprintf("Job not found: %s", params.JobID)), nil
+		return tools.ResultError("Job not found: " + params.JobID), nil
 	}
 
 	status := job.status.Load()
@@ -324,7 +324,7 @@ func (h *shellHandler) ViewBackgroundJob(_ context.Context, params ViewBackgroun
 func (h *shellHandler) StopBackgroundJob(_ context.Context, params StopBackgroundJobArgs) (*tools.ToolCallResult, error) {
 	job, exists := h.jobs.Load(params.JobID)
 	if !exists {
-		return tools.ResultError(fmt.Sprintf("Job not found: %s", params.JobID)), nil
+		return tools.ResultError("Job not found: " + params.JobID), nil
 	}
 
 	if !job.status.CompareAndSwap(statusRunning, statusStopped) {

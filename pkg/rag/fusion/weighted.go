@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"strconv"
 
 	"github.com/docker/docker-agent/pkg/rag/database"
 )
@@ -55,7 +56,7 @@ func (wf *WeightedFusion) Fuse(strategyResults map[string][]database.SearchResul
 		weight := wf.weights[strategyName]
 
 		for rank, result := range results {
-			docID := result.Document.SourcePath + "_" + fmt.Sprint(result.Document.ChunkIndex)
+			docID := result.Document.SourcePath + "_" + strconv.Itoa(result.Document.ChunkIndex)
 
 			if _, exists := docScores[docID]; !exists {
 				docScores[docID] = &fusedDocument{

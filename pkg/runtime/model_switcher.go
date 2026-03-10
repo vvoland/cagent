@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -67,7 +68,7 @@ type ModelSwitcherConfig struct {
 // SetAgentModel implements ModelSwitcher for LocalRuntime.
 func (r *LocalRuntime) SetAgentModel(ctx context.Context, agentName, modelRef string) error {
 	if r.modelSwitcherCfg == nil {
-		return fmt.Errorf("model switching not configured for this runtime")
+		return errors.New("model switching not configured for this runtime")
 	}
 
 	a, err := r.team.Agent(agentName)
@@ -132,7 +133,7 @@ func (r *LocalRuntime) SetAgentModel(ctx context.Context, agentName, modelRef st
 // "provider/model" spec (e.g. "openai/gpt-4o-mini").
 func (r *LocalRuntime) resolveModelRef(ctx context.Context, modelRef string) (provider.Provider, error) {
 	if r.modelSwitcherCfg == nil {
-		return nil, fmt.Errorf("model switching not configured for this runtime")
+		return nil, errors.New("model switching not configured for this runtime")
 	}
 
 	// Try named model from config first.
@@ -225,7 +226,7 @@ func (r *LocalRuntime) createProvidersFromInlineAlloy(ctx context.Context, model
 	}
 
 	if len(providers) == 0 {
-		return nil, fmt.Errorf("inline alloy spec has no valid models")
+		return nil, errors.New("inline alloy spec has no valid models")
 	}
 
 	return providers, nil
@@ -270,7 +271,7 @@ func (r *LocalRuntime) createProvidersFromAlloyConfig(ctx context.Context, alloy
 	}
 
 	if len(providers) == 0 {
-		return nil, fmt.Errorf("alloy model config has no valid models")
+		return nil, errors.New("alloy model config has no valid models")
 	}
 
 	return providers, nil

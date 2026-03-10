@@ -37,10 +37,12 @@ linters:
     - loggercheck
     - misspell
     - mirror
+    - modernize
     - nakedret
     - nolintlint
     - nosprintfhostport
     - nilnesserr
+    - perfsprint
     - predeclared
     - reassign
     - recvcheck

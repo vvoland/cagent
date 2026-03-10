@@ -265,7 +265,7 @@ func (t *TasksTool) createTask(_ context.Context, params CreateTaskArgs) (*tools
 	if params.Priority == "" {
 		priority = PriorityMedium
 	} else if !validPriority(params.Priority) {
-		return tools.ResultError(fmt.Sprintf("invalid priority: %s", params.Priority)), nil
+		return tools.ResultError("invalid priority: " + params.Priority), nil
 	}
 
 	t.mu.Lock()
@@ -280,7 +280,7 @@ func (t *TasksTool) createTask(_ context.Context, params CreateTaskArgs) (*tools
 	}
 	for _, depID := range deps {
 		if _, ok := store.Tasks[depID]; !ok {
-			return tools.ResultError(fmt.Sprintf("dependency task not found: %s", depID)), nil
+			return tools.ResultError("dependency task not found: " + depID), nil
 		}
 	}
 	if hasCycle(store.Tasks, id, deps) {
@@ -313,7 +313,7 @@ func (t *TasksTool) getTask(_ context.Context, params GetTaskArgs) (*tools.ToolC
 	store := t.load()
 	task, ok := store.Tasks[params.ID]
 	if !ok {
-		return tools.ResultError(fmt.Sprintf("task not found: %s", params.ID)), nil
+		return tools.ResultError("task not found: " + params.ID), nil
 	}
 
 	return taskWithEffectiveResult(task, store.Tasks), nil
@@ -326,7 +326,7 @@ func (t *TasksTool) updateTask(_ context.Context, params UpdateTaskArgs) (*tools
 	store := t.load()
 	task, ok := store.Tasks[params.ID]
 	if !ok {
-		return tools.ResultError(fmt.Sprintf("task not found: %s", params.ID)), nil
+		return tools.ResultError("task not found: " + params.ID), nil
 	}
 
 	if params.Title != "" {
@@ -341,20 +341,20 @@ func (t *TasksTool) updateTask(_ context.Context, params UpdateTaskArgs) (*tools
 	}
 	if params.Priority != "" {
 		if !validPriority(params.Priority) {
-			return tools.ResultError(fmt.Sprintf("invalid priority: %s", params.Priority)), nil
+			return tools.ResultError("invalid priority: " + params.Priority), nil
 		}
 		task.Priority = TaskPriority(params.Priority)
 	}
 	if params.Status != "" {
 		if !validStatus(params.Status) {
-			return tools.ResultError(fmt.Sprintf("invalid status: %s", params.Status)), nil
+			return tools.ResultError("invalid status: " + params.Status), nil
 		}
 		task.Status = TaskStatus(params.Status)
 	}
 	if params.Dependencies != nil {
 		for _, depID := range params.Dependencies {
 			if _, exists := store.Tasks[depID]; !exists {
-				return tools.ResultError(fmt.Sprintf("dependency task not found: %s", depID)), nil
+				return tools.ResultError("dependency task not found: " + depID), nil
 			}
 		}
 		if hasCycle(store.Tasks, params.ID, params.Dependencies) {
@@ -379,7 +379,7 @@ func (t *TasksTool) deleteTask(_ context.Context, params DeleteTaskArgs) (*tools
 
 	store := t.load()
 	if _, ok := store.Tasks[params.ID]; !ok {
-		return tools.ResultError(fmt.Sprintf("task not found: %s", params.ID)), nil
+		return tools.ResultError("task not found: " + params.ID), nil
 	}
 
 	for id, task := range store.Tasks {
@@ -483,10 +483,10 @@ func (t *TasksTool) addDependency(_ context.Context, params AddDependencyArgs) (
 	store := t.load()
 	task, ok := store.Tasks[params.TaskID]
 	if !ok {
-		return tools.ResultError(fmt.Sprintf("task not found: %s", params.TaskID)), nil
+		return tools.ResultError("task not found: " + params.TaskID), nil
 	}
 	if _, ok := store.Tasks[params.DependsOnID]; !ok {
-		return tools.ResultError(fmt.Sprintf("dependency task not found: %s", params.DependsOnID)), nil
+		return tools.ResultError("dependency task not found: " + params.DependsOnID), nil
 	}
 	if slices.Contains(task.Dependencies, params.DependsOnID) {
 		return tools.ResultError("dependency already exists"), nil
@@ -515,7 +515,7 @@ func (t *TasksTool) removeDependency(_ context.Context, params RemoveDependencyA
 	store := t.load()
 	task, ok := store.Tasks[params.TaskID]
 	if !ok {
-		return tools.ResultError(fmt.Sprintf("task not found: %s", params.TaskID)), nil
+		return tools.ResultError("task not found: " + params.TaskID), nil
 	}
 
 	filtered := make([]string, 0, len(task.Dependencies))
@@ -554,8 +554,6 @@ func taskWithEffectiveResult(task Task, tasks map[string]Task) *tools.ToolCallRe
 	}
 	return &tools.ToolCallResult{Output: string(out)}
 }
-
-func boolPtr(b bool) *bool { return &b }
 
 func (t *TasksTool) Tools(_ context.Context) ([]tools.Tool, error) {
 	return []tools.Tool{
@@ -598,7 +596,7 @@ func (t *TasksTool) Tools(_ context.Context) ([]tools.Tool, error) {
 			Handler:     tools.NewHandler(t.deleteTask),
 			Annotations: tools.ToolAnnotations{
 				Title:           "Delete Task",
-				DestructiveHint: boolPtr(true),
+				DestructiveHint: new(true),
 			},
 		},
 		{

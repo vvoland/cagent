@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -90,7 +91,7 @@ func (t *RAGTool) Tools(context.Context) ([]tools.Tool, error) {
 		Handler:      tools.NewHandler(t.handleQueryRAG),
 		Annotations: tools.ToolAnnotations{
 			ReadOnlyHint: true,
-			Title:        fmt.Sprintf("Query %s", t.toolName),
+			Title:        "Query " + t.toolName,
 		},
 	}
 
@@ -106,7 +107,7 @@ func (t *RAGTool) Tools(context.Context) ([]tools.Tool, error) {
 
 func (t *RAGTool) handleQueryRAG(ctx context.Context, args QueryRAGArgs) (*tools.ToolCallResult, error) {
 	if args.Query == "" {
-		return nil, fmt.Errorf("query cannot be empty")
+		return nil, errors.New("query cannot be empty")
 	}
 
 	results, err := t.manager.Query(ctx, args.Query)

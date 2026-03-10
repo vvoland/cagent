@@ -320,13 +320,11 @@ func TestStopAll_WaitsForGoroutines(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	tk.cancel = cancel
 
-	h.wg.Add(1)
-	go func() {
-		defer h.wg.Done()
+	h.wg.Go(func() {
 		<-ctx.Done()
 		time.Sleep(10 * time.Millisecond) // simulate teardown work
 		goroutineExited.Store(true)
-	}()
+	})
 
 	h.StopAll()
 	assert.True(t, goroutineExited.Load(), "StopAll should wait for goroutine to exit")
@@ -513,11 +511,9 @@ func TestHandler_ConcurrentAccess(t *testing.T) {
 	var wg sync.WaitGroup
 
 	for range 5 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			_, _ = h.HandleList(t.Context(), nil, tools.ToolCall{})
-		}()
+		})
 	}
 
 	for i := range 5 {

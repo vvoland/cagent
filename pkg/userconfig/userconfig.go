@@ -324,17 +324,13 @@ func (c *Config) DeleteAlias(name string) bool {
 	return false
 }
 
-func boolPtr(b bool) *bool {
-	return &b
-}
-
 // GetSettings returns the global settings with defaults applied.
 func (c *Config) GetSettings() *Settings {
 	if c.Settings == nil {
-		return &Settings{RestoreTabs: boolPtr(false)}
+		return &Settings{RestoreTabs: new(false)}
 	}
 	if c.Settings.RestoreTabs == nil {
-		c.Settings.RestoreTabs = boolPtr(false)
+		c.Settings.RestoreTabs = new(false)
 	}
 	return c.Settings
 }

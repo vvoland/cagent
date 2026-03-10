@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -178,7 +179,7 @@ func getCacheFilePath() string {
 
 func loadCatalogFromCache(cacheFile string) (Catalog, time.Duration, error) {
 	if cacheFile == "" {
-		return nil, 0, fmt.Errorf("no cache file path")
+		return nil, 0, errors.New("no cache file path")
 	}
 
 	data, err := os.ReadFile(cacheFile)

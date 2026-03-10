@@ -473,10 +473,10 @@ func (t *FilesystemTool) handleEditFile(ctx context.Context, args EditFileArgs) 
 	}
 
 	if len(changes) == 1 {
-		return tools.ResultSuccess(fmt.Sprintf("File edited successfully. %s", strings.TrimPrefix(changes[0], "Edit 1: "))), nil
+		return tools.ResultSuccess("File edited successfully. " + strings.TrimPrefix(changes[0], "Edit 1: ")), nil
 	}
 
-	return tools.ResultSuccess(fmt.Sprintf("File edited successfully. Changes:\n%s", strings.Join(changes, "\n"))), nil
+	return tools.ResultSuccess("File edited successfully. Changes:\n" + strings.Join(changes, "\n")), nil
 }
 
 func (t *FilesystemTool) handleListDirectory(_ context.Context, args ListDirectoryArgs) (*tools.ToolCallResult, error) {
@@ -817,7 +817,7 @@ func (t *FilesystemTool) handleCreateDirectory(_ context.Context, args CreateDir
 		if err := os.MkdirAll(resolvedPath, 0o755); err != nil {
 			return tools.ResultError(fmt.Sprintf("Error creating directory %s: %s", path, err)), nil
 		}
-		results = append(results, fmt.Sprintf("Directory created successfully: %s", path))
+		results = append(results, "Directory created successfully: "+path)
 	}
 
 	return tools.ResultSuccess(strings.Join(results, "\n")), nil
@@ -831,7 +831,7 @@ func (t *FilesystemTool) handleRemoveDirectory(_ context.Context, args RemoveDir
 		if err := rmdir(resolvedPath); err != nil {
 			return tools.ResultError(fmt.Sprintf("Error removing directory %s: %s", path, err)), nil
 		}
-		results = append(results, fmt.Sprintf("Directory removed successfully: %s", path))
+		results = append(results, "Directory removed successfully: "+path)
 	}
 
 	return tools.ResultSuccess(strings.Join(results, "\n")), nil

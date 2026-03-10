@@ -192,13 +192,13 @@ func validateProviders(cfg *latest.Config) error {
 func validateProviderName(name string) error {
 	trimmed := strings.TrimSpace(name)
 	if trimmed == "" {
-		return fmt.Errorf("name cannot be empty")
+		return errors.New("name cannot be empty")
 	}
 	if trimmed != name {
-		return fmt.Errorf("name cannot have leading or trailing whitespace")
+		return errors.New("name cannot have leading or trailing whitespace")
 	}
 	if strings.Contains(name, "/") {
-		return fmt.Errorf("name cannot contain '/'")
+		return errors.New("name cannot contain '/'")
 	}
 	return nil
 }

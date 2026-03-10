@@ -46,12 +46,10 @@ func (e *AutoModelFallbackError) Error() string {
 		hints = append(hints, fmt.Sprintf("    - %s: %s", p.name, p.hint))
 	}
 
-	return fmt.Sprintf(`No model providers available.
-
-To fix this, you can:
-  - Install Docker Model Runner: https://docs.docker.com/ai/model-runner/get-started/
-  - Configure an API key for a cloud provider:
-%s`, strings.Join(hints, "\n"))
+	return "No model providers available.\n\nTo fix this, you can:\n" +
+		"  - Install Docker Model Runner: https://docs.docker.com/ai/model-runner/get-started/\n" +
+		"  - Configure an API key for a cloud provider:\n" +
+		strings.Join(hints, "\n")
 }
 
 var DefaultModels = map[string]string{

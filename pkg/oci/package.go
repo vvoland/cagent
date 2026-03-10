@@ -57,7 +57,7 @@ func PackageFileAsOCIToStore(ctx context.Context, agentSource config.Source, art
 		"io.docker.cagent.version":             version.Version,
 		"io.docker.agent.version":              version.Version,
 		"org.opencontainers.image.created":     time.Now().Format(time.RFC3339),
-		"org.opencontainers.image.description": fmt.Sprintf("OCI artifact containing %s", filepath.Base(agentSource.Name())),
+		"org.opencontainers.image.description": "OCI artifact containing " + filepath.Base(agentSource.Name()),
 	}
 	if author := cfg.Metadata.Author; author != "" {
 		annotations["org.opencontainers.image.authors"] = author

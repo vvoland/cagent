@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -72,7 +73,7 @@ func (t *Toolset) Tools(_ context.Context) ([]tools.Tool, error) {
 	t.mu.RUnlock()
 
 	if card == nil {
-		return nil, fmt.Errorf("A2A toolset not started")
+		return nil, errors.New("A2A toolset not started")
 	}
 
 	// If skills are defined, create a tool for each skill; otherwise create one tool for the agent
@@ -162,7 +163,7 @@ func (t *Toolset) createHandler() tools.ToolHandler {
 		t.mu.RUnlock()
 
 		if client == nil {
-			return nil, fmt.Errorf("A2A client not initialized")
+			return nil, errors.New("A2A client not initialized")
 		}
 
 		params := &a2a.MessageSendParams{

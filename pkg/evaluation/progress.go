@@ -180,7 +180,7 @@ func (p *progressBar) render(final bool) {
 			name = name[:availableForName-1] + "…"
 		}
 		if runningCount == 1 {
-			status += fmt.Sprintf(" | %s", name)
+			status += " | " + name
 		} else {
 			status += fmt.Sprintf(" | %s +%d more", name, runningCount-1)
 		}

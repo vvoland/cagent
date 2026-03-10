@@ -2,6 +2,7 @@ package teamloader
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -167,7 +168,7 @@ func createShellTool(ctx context.Context, toolset latest.Toolset, _ string, runC
 
 func createScriptTool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
 	if len(toolset.Shell) == 0 {
-		return nil, fmt.Errorf("shell is required for script toolset")
+		return nil, errors.New("shell is required for script toolset")
 	}
 
 	env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), runConfig.EnvProvider())
@@ -214,7 +215,7 @@ func createFilesystemTool(_ context.Context, toolset latest.Toolset, _ string, r
 
 func createAPITool(ctx context.Context, toolset latest.Toolset, _ string, runConfig *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
 	if toolset.APIConfig.Endpoint == "" {
-		return nil, fmt.Errorf("api tool requires an endpoint in api_config")
+		return nil, errors.New("api tool requires an endpoint in api_config")
 	}
 
 	expander := js.NewJsExpander(runConfig.EnvProvider())
@@ -291,7 +292,7 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 		return mcp.NewRemoteToolset(toolset.Name, url, toolset.Remote.TransportType, headers), nil
 
 	default:
-		return nil, fmt.Errorf("mcp toolset requires either ref, command, or remote configuration")
+		return nil, errors.New("mcp toolset requires either ref, command, or remote configuration")
 	}
 }
 
@@ -342,7 +343,7 @@ func createOpenAPITool(ctx context.Context, toolset latest.Toolset, _ string, ru
 
 func createModelPickerTool(_ context.Context, toolset latest.Toolset, _ string, _ *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
 	if len(toolset.Models) == 0 {
-		return nil, fmt.Errorf("model_picker toolset requires at least one model")
+		return nil, errors.New("model_picker toolset requires at least one model")
 	}
 	return builtin.NewModelPickerTool(toolset.Models), nil
 }

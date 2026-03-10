@@ -3,6 +3,7 @@ package builtin
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -44,7 +45,7 @@ type FetchToolArgs struct {
 
 func (h *fetchHandler) CallTool(ctx context.Context, params FetchToolArgs) (*tools.ToolCallResult, error) {
 	if len(params.URLs) == 0 {
-		return nil, fmt.Errorf("at least one URL is required")
+		return nil, errors.New("at least one URL is required")
 	}
 
 	// Set timeout if specified

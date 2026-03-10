@@ -109,7 +109,7 @@ func (cs *CallbackServer) handleCallback(w http.ResponseWriter, r *http.Request)
 	state := query.Get("state")
 
 	if code == "" {
-		cs.errCh <- fmt.Errorf("no authorization code received")
+		cs.errCh <- errors.New("no authorization code received")
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprint(w, "No authorization code received")
 		return

@@ -3,10 +3,12 @@ package toolinstall
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 )
 
@@ -172,9 +174,7 @@ func resolveForPlatform(pkg *Package, version string) platformConfig {
 			if replacements == nil {
 				replacements = make(map[string]string)
 			}
-			for k, v := range o.Replacements {
-				replacements[k] = v
-			}
+			maps.Copy(replacements, o.Replacements)
 		}
 	}
 
@@ -218,7 +218,7 @@ func ensureSymlink(name, target string) error {
 
 	// Create a temporary symlink in the same directory, then atomically
 	// rename it over the target. This avoids the Remove+Symlink TOCTOU race.
-	tmpLink := link + ".tmp." + fmt.Sprintf("%d", os.Getpid())
+	tmpLink := link + ".tmp." + strconv.Itoa(os.Getpid())
 	_ = os.Remove(tmpLink) // clean up any stale temp from a previous crash
 
 	if err := os.Symlink(target, tmpLink); err != nil {

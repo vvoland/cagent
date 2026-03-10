@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -55,11 +56,11 @@ func New(apiKey string) *Transcriber {
 // connection fails. Call Stop to end transcription.
 func (t *Transcriber) Start(ctx context.Context, handler TranscriptHandler) error {
 	if t.apiKey == "" {
-		return fmt.Errorf("speech-to-text requires the OPENAI_API_KEY environment variable to be set")
+		return errors.New("speech-to-text requires the OPENAI_API_KEY environment variable to be set")
 	}
 
 	if wasRunning := t.running.Swap(true); wasRunning {
-		return fmt.Errorf("transcriber already running")
+		return errors.New("transcriber already running")
 	}
 
 	ctx, cancel := context.WithCancel(ctx)

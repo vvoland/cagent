@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -234,7 +235,7 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 					_ = rt.ResumeElicitation(ctx, "accept", nil)
 				case ConfirmationReject:
 					_ = rt.ResumeElicitation(ctx, "decline", nil)
-					return fmt.Errorf("OAuth authorization rejected by user")
+					return errors.New("OAuth authorization rejected by user")
 				}
 			}
 		}

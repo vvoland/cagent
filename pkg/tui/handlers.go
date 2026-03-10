@@ -130,7 +130,7 @@ func (m *appModel) handleSetSessionTitle(title string) (tea.Model, tea.Cmd) {
 		}
 		return m, notification.ErrorCmd(fmt.Sprintf("Failed to set session title: %v", err))
 	}
-	return m, notification.SuccessCmd(fmt.Sprintf("Title set to: %s", title))
+	return m, notification.SuccessCmd("Title set to: " + title)
 }
 
 func (m *appModel) handleRegenerateTitle() (tea.Model, tea.Cmd) {
@@ -159,7 +159,7 @@ func isErrTitleGenerating(err error) bool {
 
 func (m *appModel) handleEvalSession(filename string) (tea.Model, tea.Cmd) {
 	evalFile, _ := evaluation.Save(m.application.Session(), filename)
-	return m, notification.SuccessCmd(fmt.Sprintf("Eval saved to file %s", evalFile))
+	return m, notification.SuccessCmd("Eval saved to file " + evalFile)
 }
 
 func (m *appModel) handleExportSession(filename string) (tea.Model, tea.Cmd) {
@@ -167,7 +167,7 @@ func (m *appModel) handleExportSession(filename string) (tea.Model, tea.Cmd) {
 	if err != nil {
 		return m, notification.ErrorCmd(fmt.Sprintf("Failed to export session: %v", err))
 	}
-	return m, notification.SuccessCmd(fmt.Sprintf("Session exported to %s", exportFile))
+	return m, notification.SuccessCmd("Session exported to " + exportFile)
 }
 
 func (m *appModel) handleCompactSession(additionalPrompt string) (tea.Model, tea.Cmd) {
@@ -391,7 +391,7 @@ func (m *appModel) handleChangeModel(modelRef string) (tea.Model, tea.Cmd) {
 	if modelRef == "" {
 		return m, notification.SuccessCmd("Model reset to default")
 	}
-	return m, notification.SuccessCmd(fmt.Sprintf("Model changed to %s", modelRef))
+	return m, notification.SuccessCmd("Model changed to " + modelRef)
 }
 
 // --- Theme picker ---
@@ -442,7 +442,7 @@ func (m *appModel) handleChangeTheme(themeRef string) (tea.Model, tea.Cmd) {
 		slog.Warn("Failed to save theme to user config", "theme", themeRef, "error", err)
 	}
 	return m, tea.Sequence(
-		notification.SuccessCmd(fmt.Sprintf("Theme changed to %s", theme.Name)),
+		notification.SuccessCmd("Theme changed to "+theme.Name),
 		core.CmdHandler(messages.ThemeChangedMsg{}),
 	)
 }
@@ -523,7 +523,7 @@ func (m *appModel) handleAttachFile(filePath string) (tea.Model, tea.Cmd) {
 			slog.Warn("failed to attach file", "path", filePath, "error", err)
 			// Attachment failed — open the file picker with an error notification
 			return m, tea.Batch(
-				notification.ErrorCmd(fmt.Sprintf("Failed to attach %s", filePath)),
+				notification.ErrorCmd("Failed to attach "+filePath),
 				core.CmdHandler(dialog.OpenDialogMsg{
 					Model: dialog.NewFilePickerDialog(filePath),
 				}),

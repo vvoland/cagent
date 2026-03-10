@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -54,7 +55,7 @@ func WithRemoteAgentFilename(filename string) RemoteRuntimeOption {
 // It accepts any client that implements the RemoteClient interface.
 func NewRemoteRuntime(client RemoteClient, opts ...RemoteRuntimeOption) (*RemoteRuntime, error) {
 	if client == nil {
-		return nil, fmt.Errorf("client cannot be nil")
+		return nil, errors.New("client cannot be nil")
 	}
 
 	r := &RemoteRuntime{
@@ -271,7 +272,7 @@ func (r *RemoteRuntime) handleOAuthElicitation(ctx context.Context, req *Elicita
 
 	serverURL, ok := req.Meta["cagent/server_url"].(string)
 	if !ok {
-		err := fmt.Errorf("server_url missing from elicitation metadata")
+		err := errors.New("server_url missing from elicitation metadata")
 		slog.Error("Failed to extract server_url", "error", err)
 		_ = r.client.ResumeElicitation(ctx, r.sessionID, "decline", nil)
 		return err
@@ -279,7 +280,7 @@ func (r *RemoteRuntime) handleOAuthElicitation(ctx context.Context, req *Elicita
 
 	authServerMetadata, ok := req.Meta["auth_server_metadata"].(map[string]any)
 	if !ok {
-		err := fmt.Errorf("auth_server_metadata missing from elicitation metadata")
+		err := errors.New("auth_server_metadata missing from elicitation metadata")
 		slog.Error("Failed to extract auth_server_metadata", "error", err)
 		_ = r.client.ResumeElicitation(ctx, r.sessionID, "decline", nil)
 		return err
@@ -338,7 +339,7 @@ func (r *RemoteRuntime) handleOAuthElicitation(ctx context.Context, req *Elicita
 		}
 		slog.Debug("Client registered successfully", "client_id", clientID)
 	} else {
-		err := fmt.Errorf("authorization server does not support dynamic client registration")
+		err := errors.New("authorization server does not support dynamic client registration")
 		slog.Error("Client registration not supported", "error", err)
 		_ = r.client.ResumeElicitation(ctx, r.sessionID, "decline", nil)
 		return err
@@ -443,7 +444,7 @@ func (r *RemoteRuntime) CurrentAgentSkillsToolset() *builtin.SkillsToolset {
 func (r *RemoteRuntime) UpdateSessionTitle(ctx context.Context, sess *session.Session, title string) error {
 	sess.Title = title
 	if r.sessionID == "" {
-		return fmt.Errorf("cannot update session title: no session ID available")
+		return errors.New("cannot update session title: no session ID available")
 	}
 	return r.client.UpdateSessionTitle(ctx, r.sessionID, title)
 }
@@ -455,7 +456,7 @@ func (r *RemoteRuntime) CurrentMCPPrompts(context.Context) map[string]mcp.Prompt
 
 // ExecuteMCPPrompt is not supported on remote runtimes.
 func (r *RemoteRuntime) ExecuteMCPPrompt(context.Context, string, map[string]string) (string, error) {
-	return "", fmt.Errorf("MCP prompts are not supported by remote runtimes")
+	return "", errors.New("MCP prompts are not supported by remote runtimes")
 }
 
 // TitleGenerator is not supported on remote runtimes (titles are generated server-side).

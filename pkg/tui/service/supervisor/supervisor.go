@@ -3,7 +3,7 @@ package supervisor
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log/slog"
 	"path/filepath"
 	"sync"
@@ -101,7 +101,7 @@ func (s *Supervisor) AddSession(ctx context.Context, a *app.App, sess *session.S
 // SpawnSession creates and adds a new session.
 func (s *Supervisor) SpawnSession(ctx context.Context, workingDir string) (string, error) {
 	if s.spawner == nil {
-		return "", fmt.Errorf("session spawning is not available")
+		return "", errors.New("session spawning is not available")
 	}
 
 	a, sess, cleanup, err := s.spawner(ctx, workingDir)
@@ -387,10 +387,7 @@ func (s *Supervisor) CloseSession(sessionID string) (nextActiveID string) {
 	// first one when closing the first tab).
 	if s.activeID == sessionID {
 		if len(s.order) > 0 {
-			prevIdx := closedIdx - 1
-			if prevIdx < 0 {
-				prevIdx = 0
-			}
+			prevIdx := max(closedIdx-1, 0)
 			s.activeID = s.order[prevIdx]
 		} else {
 			s.activeID = ""
