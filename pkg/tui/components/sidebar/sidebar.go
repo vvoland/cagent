@@ -487,12 +487,18 @@ func formatCost(cost float64) string {
 }
 
 // currentSessionUsage returns the usage snapshot for the current agent's session.
-// It uses a 3-tier lookup: session ID (most reliable) → agent name → single-session fallback.
+// It uses a 3-tier lookup: session ID → agent name → single-session fallback.
 func (m *model) currentSessionUsage() (*runtime.Usage, bool) {
-	// Direct lookup by current session ID (most reliable, no map iteration ambiguity).
+	// Direct lookup by current session ID, skipping when the session belongs
+	// to a different agent (stale after a sub-agent's stream stops while
+	// currentAgent has already been restored to the parent).
 	if m.currentSessionID != "" {
-		if usage, ok := m.sessionUsage[m.currentSessionID]; ok {
-			return usage, true
+		owner := m.sessionAgent[m.currentSessionID]
+		stale := owner != "" && m.currentAgent != "" && owner != m.currentAgent
+		if !stale {
+			if usage, ok := m.sessionUsage[m.currentSessionID]; ok {
+				return usage, true
+			}
 		}
 	}
 
