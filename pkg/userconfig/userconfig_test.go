@@ -811,6 +811,28 @@ func TestGet_WithHideToolResults(t *testing.T) {
 	assert.True(t, settings.HideToolResults)
 }
 
+func TestSettings_GetSound(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		settings *Settings
+		expected bool
+	}{
+		{"nil settings", nil, false},
+		{"empty settings", &Settings{}, false},
+		{"explicitly enabled", &Settings{Sound: true}, true},
+		{"explicitly disabled", &Settings{Sound: false}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.expected, tt.settings.GetSound())
+		})
+	}
+}
+
 func TestSettings_RestoreTabs(t *testing.T) {
 	t.Parallel()
 
