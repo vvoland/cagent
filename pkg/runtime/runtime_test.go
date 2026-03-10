@@ -817,7 +817,7 @@ func TestGetTools_WarningHandling(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, tools1, tt.wantToolCount)
 
-			rt.emitAgentWarnings(root, events)
+			rt.emitAgentWarnings(root, chanSend(events))
 			evs := collectEvents(events)
 			require.Equal(t, tt.wantWarning, hasWarningEvent(evs), "warning event mismatch on first call")
 		})
