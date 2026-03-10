@@ -1741,7 +1741,7 @@ func formatHoverContents(contents any) string {
 		if value, ok := c["value"].(string); ok {
 			return value
 		}
-		data, _ := json.MarshalIndent(c, "", "  ")
+		data, _ := json.Marshal(c)
 		return string(data)
 	case []any:
 		var parts []string
@@ -1750,7 +1750,7 @@ func formatHoverContents(contents any) string {
 		}
 		return strings.Join(parts, "\n\n")
 	default:
-		data, _ := json.MarshalIndent(contents, "", "  ")
+		data, _ := json.Marshal(contents)
 		return string(data)
 	}
 }

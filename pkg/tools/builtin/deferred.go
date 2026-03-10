@@ -110,7 +110,7 @@ func (d *DeferredToolset) handleSearchTool(_ context.Context, args SearchToolArg
 		return tools.ResultError(fmt.Sprintf("No deferred tools found matching '%s'", args.Query)), nil
 	}
 
-	output, err := json.MarshalIndent(results, "", "  ")
+	output, err := json.Marshal(results)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal results: %w", err)
 	}

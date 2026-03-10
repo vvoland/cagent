@@ -399,11 +399,7 @@ func (t *TasksTool) deleteTask(_ context.Context, params DeleteTaskArgs) (*tools
 		return tools.ResultError(err.Error()), nil
 	}
 
-	out, err := json.MarshalIndent(map[string]string{"deleted": params.ID}, "", "  ")
-	if err != nil {
-		return tools.ResultError(err.Error()), nil
-	}
-	return &tools.ToolCallResult{Output: string(out)}, nil
+	return tools.ResultJSON(map[string]string{"deleted": params.ID}), nil
 }
 
 func (t *TasksTool) listTasks(_ context.Context, params ListTasksArgs) (*tools.ToolCallResult, error) {
@@ -440,11 +436,7 @@ func (t *TasksTool) listTasks(_ context.Context, params ListTasksArgs) (*tools.T
 
 	sortTasks(tasks)
 
-	out, err := json.Marshal(tasks)
-	if err != nil {
-		return tools.ResultError(err.Error()), nil
-	}
-	return &tools.ToolCallResult{Output: string(out)}, nil
+	return tools.ResultJSON(tasks), nil
 }
 
 func (t *TasksTool) nextTask(_ context.Context, _ tools.ToolCall) (*tools.ToolCallResult, error) {
@@ -463,11 +455,7 @@ func (t *TasksTool) nextTask(_ context.Context, _ tools.ToolCall) (*tools.ToolCa
 
 	for _, task := range tasks {
 		if task.EffectiveStatus != StatusBlocked && task.EffectiveStatus != StatusDone {
-			out, err := json.Marshal(task)
-			if err != nil {
-				return tools.ResultError(err.Error()), nil
-			}
-			return &tools.ToolCallResult{Output: string(out)}, nil
+			return tools.ResultJSON(task), nil
 		}
 	}
 
@@ -536,23 +524,14 @@ func (t *TasksTool) removeDependency(_ context.Context, params RemoveDependencyA
 }
 
 func taskResult(task Task) *tools.ToolCallResult {
-	out, err := json.Marshal(task)
-	if err != nil {
-		return tools.ResultError(err.Error())
-	}
-	return &tools.ToolCallResult{Output: string(out)}
+	return tools.ResultJSON(task)
 }
 
 func taskWithEffectiveResult(task Task, tasks map[string]Task) *tools.ToolCallResult {
-	result := taskWithEffective{
+	return tools.ResultJSON(taskWithEffective{
 		Task:            task,
 		EffectiveStatus: effectiveStatus(task, tasks),
-	}
-	out, err := json.Marshal(result)
-	if err != nil {
-		return tools.ResultError(err.Error())
-	}
-	return &tools.ToolCallResult{Output: string(out)}
+	})
 }
 
 func (t *TasksTool) Tools(_ context.Context) ([]tools.Tool, error) {
