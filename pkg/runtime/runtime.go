@@ -1177,8 +1177,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				// Auto-recovery: if the error is a context overflow and
 				// session compaction is enabled, compact the conversation
 				// and retry the request instead of surfacing raw errors.
-				var ctxOverflow *modelerrors.ContextOverflowError
-				if errors.As(err, &ctxOverflow) && r.sessionCompaction {
+				if _, ok := errors.AsType[*modelerrors.ContextOverflowError](err); ok && r.sessionCompaction {
 					slog.Warn("Context window overflow detected, attempting auto-compaction",
 						"agent", a.Name(),
 						"session_id", sess.ID,
