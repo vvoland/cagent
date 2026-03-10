@@ -24,15 +24,7 @@ import (
 	"github.com/docker/docker-agent/pkg/telemetry"
 	"github.com/docker/docker-agent/pkg/tools"
 	"github.com/docker/docker-agent/pkg/tools/builtin"
-	agenttool "github.com/docker/docker-agent/pkg/tools/builtin/agent"
 )
-
-// bgAgentHandler wraps a background-agent method as a ToolHandlerFunc.
-func (r *LocalRuntime) bgAgentHandler(fn func(context.Context, *session.Session, tools.ToolCall) (*tools.ToolCallResult, error)) ToolHandlerFunc {
-	return func(ctx context.Context, sess *session.Session, tc tools.ToolCall, _ chan Event) (*tools.ToolCallResult, error) {
-		return fn(ctx, sess, tc)
-	}
-}
 
 // registerDefaultTools wires up the built-in tool handlers (delegation,
 // background agents, model switching) into the runtime's tool dispatch map.
@@ -41,10 +33,12 @@ func (r *LocalRuntime) registerDefaultTools() {
 	r.toolMap[builtin.ToolNameHandoff] = r.handleHandoff
 	r.toolMap[builtin.ToolNameChangeModel] = r.handleChangeModel
 	r.toolMap[builtin.ToolNameRevertModel] = r.handleRevertModel
-	r.toolMap[agenttool.ToolNameRunBackgroundAgent] = r.bgAgentHandler(r.bgAgents.HandleRun)
-	r.toolMap[agenttool.ToolNameListBackgroundAgents] = r.bgAgentHandler(r.bgAgents.HandleList)
-	r.toolMap[agenttool.ToolNameViewBackgroundAgent] = r.bgAgentHandler(r.bgAgents.HandleView)
-	r.toolMap[agenttool.ToolNameStopBackgroundAgent] = r.bgAgentHandler(r.bgAgents.HandleStop)
+
+	r.bgAgents.RegisterHandlers(func(name string, fn func(context.Context, *session.Session, tools.ToolCall) (*tools.ToolCallResult, error)) {
+		r.toolMap[name] = func(ctx context.Context, sess *session.Session, tc tools.ToolCall, _ chan Event) (*tools.ToolCallResult, error) {
+			return fn(ctx, sess, tc)
+		}
+	})
 }
 
 // finalizeEventChannel performs cleanup at the end of a RunStream goroutine:

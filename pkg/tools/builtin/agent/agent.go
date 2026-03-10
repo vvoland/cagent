@@ -384,23 +384,40 @@ func (h *Handler) StopAll() {
 	h.wg.Wait()
 }
 
-// toolSet is a lightweight ToolSet that returns just the tool definitions
-// without requiring a Runner. Used by teamloader to register tool schemas.
-type toolSet struct{}
+// RegisterHandlers adds all background agent tool handlers to the given
+// dispatch map, keyed by tool name.
+func (h *Handler) RegisterHandlers(register func(name string, fn func(context.Context, *session.Session, tools.ToolCall) (*tools.ToolCallResult, error))) {
+	register(ToolNameRunBackgroundAgent, h.HandleRun)
+	register(ToolNameListBackgroundAgents, h.HandleList)
+	register(ToolNameViewBackgroundAgent, h.HandleView)
+	register(ToolNameStopBackgroundAgent, h.HandleStop)
+}
 
-// NewToolSet returns a ToolSet for registering background agent tool definitions.
-// This does not require a Runner and is suitable for use in teamloader.
+// NewToolSet returns a lightweight ToolSet for registering background agent
+// tool definitions and instructions. It does not require a Runner and is
+// suitable for use in the teamloader registry.
 func NewToolSet() tools.ToolSet {
 	return &toolSet{}
 }
 
-func (t *toolSet) Tools(ctx context.Context) ([]tools.Tool, error) {
+// toolSet provides tool definitions and instructions without a Runner.
+type toolSet struct{}
+
+func (t *toolSet) Tools(context.Context) ([]tools.Tool, error) {
 	return backgroundAgentTools()
 }
 
-// Tools returns the four background agent tool definitions.
-func (h *Handler) Tools(ctx context.Context) ([]tools.Tool, error) {
-	return backgroundAgentTools()
+func (t *toolSet) Instructions() string {
+	return `# Background Agent Tasks
+
+Use background agent tasks to dispatch work to sub-agents concurrently.
+
+- **run_background_agent**: Start a command, returns task ID. The sub-agent runs with all tools pre-approved — use only with trusted sub-agents and well-scoped tasks.
+- **list_background_agents**: Show all tasks with status and runtime
+- **view_background_agent**: Get output and status of a task by task_id
+- **stop_background_agent**: Terminate a task by task_id
+
+**Notes**: Output capped at 10MB per task. All tasks auto-terminate when the agent stops.`
 }
 
 func backgroundAgentTools() ([]tools.Tool, error) {
