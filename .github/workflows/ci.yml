@@ -142,5 +142,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            GIT_TAG=${{ github.ref_name }}
-            GIT_COMMIT=${{ github.sha }}
+            GIT_TAG=${{ github.event_name == 'pull_request' && 'pr' || github.ref_name }}
+            GIT_COMMIT=${{ github.event_name == 'pull_request' && 'dev' || github.sha }}
+          cache-from: type=gha,scope=buildx
+          cache-to: type=gha,mode=max,scope=buildx
