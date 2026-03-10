@@ -95,7 +95,26 @@ func TestTodoTool_ListTodos(t *testing.T) {
 		assert.Equal(t, "pending", output.Todos[i].Status)
 	}
 
+	// All pending, so reminder should list all of them
+	assert.Contains(t, output.Reminder, "todo_1")
+	assert.Contains(t, output.Reminder, "todo_2")
+	assert.Contains(t, output.Reminder, "todo_3")
+
 	requireMeta(t, result, 3)
+}
+
+func TestTodoTool_ListTodos_Empty(t *testing.T) {
+	tool := NewTodoTool()
+
+	result, err := tool.handler.listTodos(t.Context(), tools.ToolCall{})
+	require.NoError(t, err)
+
+	var output ListTodosOutput
+	require.NoError(t, json.Unmarshal([]byte(result.Output), &output))
+	assert.Empty(t, output.Todos)
+	assert.Empty(t, output.Reminder)
+
+	requireMeta(t, result, 0)
 }
 
 func TestTodoTool_UpdateTodos(t *testing.T) {
@@ -124,6 +143,11 @@ func TestTodoTool_UpdateTodos(t *testing.T) {
 	assert.Equal(t, "todo_3", output.Updated[1].ID)
 	assert.Equal(t, "in-progress", output.Updated[1].Status)
 	assert.Empty(t, output.NotFound)
+
+	// Reminder should list incomplete todos
+	assert.Contains(t, output.Reminder, "todo_2")
+	assert.Contains(t, output.Reminder, "todo_3")
+	assert.NotContains(t, output.Reminder, "todo_1") // completed, should not appear
 
 	todos := storage.All()
 	require.Len(t, todos, 3)
@@ -158,6 +182,9 @@ func TestTodoTool_UpdateTodos_PartialFailure(t *testing.T) {
 	assert.Equal(t, "todo_1", output.Updated[0].ID)
 	require.Len(t, output.NotFound, 1)
 	assert.Equal(t, "nonexistent", output.NotFound[0])
+
+	// Reminder should mention the still-pending todo
+	assert.Contains(t, output.Reminder, "todo_2")
 
 	todos := storage.All()
 	require.Len(t, todos, 2)
@@ -205,6 +232,7 @@ func TestTodoTool_UpdateTodos_ClearsWhenAllCompleted(t *testing.T) {
 	var output UpdateTodosOutput
 	require.NoError(t, json.Unmarshal([]byte(result.Output), &output))
 	require.Len(t, output.Updated, 2)
+	assert.Empty(t, output.Reminder) // no reminder when all completed
 
 	assert.Empty(t, storage.All())
 	requireMeta(t, result, 0)
