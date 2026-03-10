@@ -95,4 +95,4 @@ We collect anonymous usage data to improve the tool. See [Telemetry](https://doc
 
 ## Community
 
-[Docker Community Slack](http://dockr.ly/comm-slack) · [#cagent channel](https://dockercommunity.slack.com/archives/C09DASHHRU4)
+[Docker Community Slack](http://dockr.ly/comm-slack) · [#docker-agent channel](https://dockercommunity.slack.com/archives/C09DASHHRU4)
