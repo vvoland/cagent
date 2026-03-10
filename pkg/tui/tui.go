@@ -121,6 +121,21 @@ type appModel struct {
 	// (shift+enter, ctrl+i vs tab, etc.).
 	keyboardEnhancements *tea.KeyboardEnhancementsMsg
 
+	// program holds a reference to the tea.Program so that we can
+	// perform a full terminal release/restore cycle on focus events.
+	program *tea.Program
+
+	// dockerDesktop is true when running inside Docker Desktop's terminal
+	// (TERM_PROGRAM=docker_desktop). Focus reporting and the terminal
+	// release/restore cycle on tab switch are only enabled in this
+	// environment.
+	dockerDesktop bool
+
+	// focused tracks whether the terminal currently has focus. Used to
+	// detect real blur→focus transitions and ignore spurious FocusMsg
+	// events emitted by RestoreTerminal re-enabling focus reporting.
+	focused bool
+
 	// pendingRestores maps runtime tab IDs (supervisor routing keys) to
 	// persisted session-store IDs. When a tab with a pending restore is first
 	// switched to, the persisted session is loaded via replaceActiveSession —
@@ -193,6 +208,7 @@ func New(ctx context.Context, spawner SessionSpawner, initialApp *app.App, initi
 		workingSpinner:          spinner.New(spinner.ModeSpinnerOnly, styles.SpinnerDotsHighlightStyle),
 		focusedPanel:            PanelEditor,
 		editorLines:             3,
+		dockerDesktop:           os.Getenv("TERM_PROGRAM") == "docker_desktop",
 	}
 
 	// Initialize status bar (pass m as help provider)
@@ -226,6 +242,7 @@ func New(ctx context.Context, spawner SessionSpawner, initialApp *app.App, initi
 
 // SetProgram sets the tea.Program for the supervisor to send routed messages.
 func (m *appModel) SetProgram(p *tea.Program) {
+	m.program = p
 	m.supervisor.SetProgram(p)
 }
 
@@ -544,6 +561,31 @@ func (m *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.wWidth, m.wHeight = msg.Width, msg.Height
 		cmd := m.handleWindowResize(msg.Width, msg.Height)
 		return m, cmd
+
+	case tea.BlurMsg:
+		m.focused = false
+		return m, nil
+
+	case tea.FocusMsg:
+		// Only act on a real blur→focus transition. RestoreTerminal
+		// re-enables focus reporting which delivers a spurious FocusMsg;
+		// since m.focused is already true at that point, we skip it.
+		if m.focused || m.program == nil {
+			return m, nil
+		}
+		m.focused = true
+		if !m.dockerDesktop {
+			return m, nil
+		}
+		// Docker Desktop: the terminal may have lost all mode state (alt
+		// screen, mouse tracking, keyboard enhancements, background color,
+		// etc.). A full release/restore cycle re-emits every mode sequence
+		// and forces a complete repaint.
+		return m, func() tea.Msg {
+			_ = m.program.ReleaseTerminal()
+			_ = m.program.RestoreTerminal()
+			return nil
+		}
 
 	case tea.KeyboardEnhancementsMsg:
 		m.keyboardEnhancements = &msg
