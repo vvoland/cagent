@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker-agent/pkg/config/types"
 )
 
-const Version = "7"
+const Version = "6"
 
 // Config represents the entire configuration file
 type Config struct {
