@@ -2,6 +2,7 @@ package dialog
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -67,6 +68,9 @@ func TestCostDialogView(t *testing.T) {
 	assert.Contains(t, view, "Total")
 	assert.Contains(t, view, "By Model")
 	assert.Contains(t, view, "gpt-4o")
+	assert.Contains(t, view, "tokens:")           // total token count line
+	assert.Contains(t, view, "messages:")         // message count in header
+	assert.Contains(t, view, "avg cost/message:") // average cost per message
 }
 
 func TestCostDialogWithToolCalls(t *testing.T) {
@@ -100,6 +104,158 @@ func TestCostDialogWithToolCalls(t *testing.T) {
 	// Model name may be split across lines
 	assert.Contains(t, view, "claude")
 	assert.Contains(t, view, "$0.01")
+}
+
+func TestCostDialogWithReasoningTokens(t *testing.T) {
+	t.Parallel()
+
+	sess := session.New()
+	sess.AddMessage(&session.Message{
+		AgentName: "root",
+		Message: chat.Message{
+			Role:    chat.MessageRoleAssistant,
+			Content: "Thought deeply",
+			Model:   "o1",
+			Usage: &chat.Usage{
+				InputTokens:     500,
+				OutputTokens:    200,
+				ReasoningTokens: 1500,
+			},
+			Cost: 0.01,
+		},
+	})
+
+	dialog := NewCostDialog(sess)
+	dialog.SetSize(100, 50)
+	view := dialog.View()
+
+	assert.Contains(t, view, "reasoning:")
+	assert.Contains(t, view, "1.5K")
+}
+
+func TestCostDialogAvgCostPerToken(t *testing.T) {
+	t.Parallel()
+
+	sess := session.New()
+	sess.AddMessage(&session.Message{
+		AgentName: "root",
+		Message: chat.Message{
+			Role:    chat.MessageRoleAssistant,
+			Content: "Hello",
+			Model:   "gpt-4o",
+			Usage: &chat.Usage{
+				InputTokens:  1000,
+				OutputTokens: 1000,
+			},
+			Cost: 0.10,
+		},
+	})
+
+	dialog := NewCostDialog(sess)
+	dialog.SetSize(100, 50)
+	view := dialog.View()
+
+	// 0.10 / 2000 * 1000 = 0.05 per 1K tokens
+	assert.Contains(t, view, "avg cost/1K tokens:")
+}
+
+func TestCostDialogModelPercentage(t *testing.T) {
+	t.Parallel()
+
+	sess := session.New()
+	sess.AddMessage(&session.Message{
+		AgentName: "root",
+		Message: chat.Message{
+			Role:    chat.MessageRoleAssistant,
+			Content: "Expensive",
+			Model:   "gpt-4o",
+			Usage:   &chat.Usage{InputTokens: 1000, OutputTokens: 500},
+			Cost:    0.75,
+		},
+	})
+	sess.AddMessage(&session.Message{
+		AgentName: "root",
+		Message: chat.Message{
+			Role:    chat.MessageRoleAssistant,
+			Content: "Cheap",
+			Model:   "gpt-4o-mini",
+			Usage:   &chat.Usage{InputTokens: 100, OutputTokens: 50},
+			Cost:    0.25,
+		},
+	})
+
+	dialog := NewCostDialog(sess)
+	dialog.SetSize(120, 50)
+	view := dialog.View()
+
+	// gpt-4o should show 75%, gpt-4o-mini 25%
+	assert.Contains(t, view, "75%")
+	assert.Contains(t, view, "25%")
+}
+
+func TestCostDialogCacheHitRate(t *testing.T) {
+	t.Parallel()
+
+	sess := session.New()
+	sess.AddMessage(&session.Message{
+		AgentName: "root",
+		Message: chat.Message{
+			Role:    chat.MessageRoleAssistant,
+			Content: "Cached result",
+			Model:   "gpt-4o",
+			Usage: &chat.Usage{
+				InputTokens:       300,
+				CachedInputTokens: 700,
+				OutputTokens:      100,
+			},
+			Cost: 0.01,
+		},
+	})
+
+	dialog := NewCostDialog(sess)
+	dialog.SetSize(130, 50)
+	view := dialog.View()
+
+	// 700 cached out of 1000 total input = 70% hit rate
+	assert.Contains(t, view, "cache hit rate:")
+	assert.Contains(t, view, "70%")
+
+	// By Model line should also show cached token count
+	assert.Contains(t, view, "cached:")
+}
+
+func TestCostDialogCacheHitRateWithCacheWriteTokens(t *testing.T) {
+	t.Parallel()
+
+	sess := session.New()
+	sess.AddMessage(&session.Message{
+		AgentName: "root",
+		Message: chat.Message{
+			Role:    chat.MessageRoleAssistant,
+			Content: "Cached result with write tokens",
+			Model:   "gpt-4o",
+			Usage: &chat.Usage{
+				InputTokens:       300,
+				CachedInputTokens: 700,
+				CacheWriteTokens:  200,
+				OutputTokens:      100,
+			},
+			Cost: 0.01,
+		},
+	})
+
+	data := (&costDialog{session: sess}).gatherCostData()
+	stats := data.totalStats()
+
+	// Cache hit rate should be 700/(700+300) = 70%, NOT 700/(700+300+200) = 58%.
+	// CacheWriteTokens must NOT be included in the denominator.
+	var cacheHitRate string
+	for _, s := range stats {
+		if s.label == "cache hit rate:" {
+			cacheHitRate = s.value
+		}
+	}
+	assert.Equal(t, "70%", cacheHitRate)
 }
 
 func TestCostDialogEmptySession(t *testing.T) {
@@ -325,6 +481,17 @@ func TestFormatCost(t *testing.T) {
 	}
 }
 
+func TestFormatCostNegative(t *testing.T) {
+	t.Parallel()
+
+	// Negative costs should format with a leading "-" prefix.
+	assert.Equal(t, "-$0.01", formatCost(-0.01))
+	assert.Equal(t, "-$0.0050", formatCost(-0.005))
+	assert.Equal(t, "-$1.00", formatCost(-1.0))
+	// Very small negative is clamped to zero.
+	assert.Equal(t, "-$0.00", formatCost(-0.00001))
+}
+
 func TestFormatTokenCount(t *testing.T) {
 	t.Parallel()
 
@@ -347,5 +514,31 @@ func TestFormatTokenCount(t *testing.T) {
 	for _, tt := range tests {
 		result := formatTokenCount(tt.count)
 		assert.Equal(t, tt.expected, result, "formatTokenCount(%d)", tt.count)
+	}
+}
+
+func TestFormatDuration(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		d        time.Duration
+		expected string
+	}{
+		{-5 * time.Second, "0s"},  // negative durations clamp to 0
+		{-90 * time.Second, "0s"}, // negative durations clamp to 0
+		{0, "0s"},
+		{30 * time.Second, "30s"},
+		{59 * time.Second, "59s"},
+		{60 * time.Second, "1m"},
+		{90 * time.Second, "1m 30s"},
+		{5 * time.Minute, "5m"},
+		{60 * time.Minute, "1h"},
+		{90 * time.Minute, "1h 30m"},
+		{2*time.Hour + 15*time.Minute, "2h 15m"},
+	}
+
+	for _, tt := range tests {
+		result := formatDuration(tt.d)
+		assert.Equal(t, tt.expected, result, "formatDuration(%v)", tt.d)
 	}
 }
