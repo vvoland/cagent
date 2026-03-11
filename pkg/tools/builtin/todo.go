@@ -54,13 +54,22 @@ type UpdateTodosArgs struct {
 
 // Output types for JSON-structured responses.
 
+type CreateTodoOutput struct {
+	Created  Todo   `json:"created" jsonschema:"The created todo item"`
+	AllTodos []Todo `json:"all_todos" jsonschema:"Current state of all todo items"`
+	Reminder string `json:"reminder,omitempty" jsonschema:"Reminder about incomplete todos that still need to be completed"`
+}
+
 type CreateTodosOutput struct {
-	Created []Todo `json:"created" jsonschema:"List of created todo items"`
+	Created  []Todo `json:"created" jsonschema:"List of created todo items"`
+	AllTodos []Todo `json:"all_todos" jsonschema:"Current state of all todo items"`
+	Reminder string `json:"reminder,omitempty" jsonschema:"Reminder about incomplete todos that still need to be completed"`
 }
 
 type UpdateTodosOutput struct {
 	Updated  []TodoUpdate `json:"updated,omitempty" jsonschema:"List of successfully updated todos"`
 	NotFound []string     `json:"not_found,omitempty" jsonschema:"IDs of todos that were not found"`
+	AllTodos []Todo       `json:"all_todos" jsonschema:"Current state of all todo items"`
 	Reminder string       `json:"reminder,omitempty" jsonschema:"Reminder about incomplete todos that still need to be completed"`
 }
 
@@ -202,7 +211,12 @@ func (h *todoHandler) jsonResult(v any) (*tools.ToolCallResult, error) {
 }
 
 func (h *todoHandler) createTodo(_ context.Context, params CreateTodoArgs) (*tools.ToolCallResult, error) {
-	return h.jsonResult(h.addTodo(params.Description))
+	created := h.addTodo(params.Description)
+	return h.jsonResult(CreateTodoOutput{
+		Created:  created,
+		AllTodos: h.storage.All(),
+		Reminder: h.incompleteReminder(),
+	})
 }
 
 func (h *todoHandler) createTodos(_ context.Context, params CreateTodosArgs) (*tools.ToolCallResult, error) {
@@ -210,7 +224,11 @@ func (h *todoHandler) createTodos(_ context.Context, params CreateTodosArgs) (*t
 	for _, desc := range params.Descriptions {
 		created = append(created, h.addTodo(desc))
 	}
-	return h.jsonResult(CreateTodosOutput{Created: created})
+	return h.jsonResult(CreateTodosOutput{
+		Created:  created,
+		AllTodos: h.storage.All(),
+		Reminder: h.incompleteReminder(),
+	})
 }
 
 func (h *todoHandler) updateTodos(_ context.Context, params UpdateTodosArgs) (*tools.ToolCallResult, error) {
@@ -239,26 +257,10 @@ func (h *todoHandler) updateTodos(_ context.Context, params UpdateTodosArgs) (*t
 		return res, nil
 	}
 
-	if h.allCompleted() {
-		h.storage.Clear()
-	} else {
-		result.Reminder = h.incompleteReminder()
-	}
+	result.AllTodos = h.storage.All()
+	result.Reminder = h.incompleteReminder()
 
 	return h.jsonResult(result)
-}
-
-func (h *todoHandler) allCompleted() bool {
-	all := h.storage.All()
-	if len(all) == 0 {
-		return false
-	}
-	for _, todo := range all {
-		if todo.Status != "completed" {
-			return false
-		}
-	}
-	return true
 }
 
 // incompleteReminder returns a reminder string listing any non-completed todos,
@@ -306,7 +308,7 @@ func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 			Category:     "todo",
 			Description:  "Create a new todo item with a description",
 			Parameters:   tools.MustSchemaFor[CreateTodoArgs](),
-			OutputSchema: tools.MustSchemaFor[Todo](),
+			OutputSchema: tools.MustSchemaFor[CreateTodoOutput](),
 			Handler:      tools.NewHandler(t.handler.createTodo),
 			Annotations: tools.ToolAnnotations{
 				Title:        "Create TODO",

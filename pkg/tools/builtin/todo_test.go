@@ -31,11 +31,16 @@ func TestTodoTool_CreateTodo(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	var output Todo
+	var output CreateTodoOutput
 	require.NoError(t, json.Unmarshal([]byte(result.Output), &output))
-	assert.Equal(t, "todo_1", output.ID)
-	assert.Equal(t, "Test todo item", output.Description)
-	assert.Equal(t, "pending", output.Status)
+	assert.Equal(t, "todo_1", output.Created.ID)
+	assert.Equal(t, "Test todo item", output.Created.Description)
+	assert.Equal(t, "pending", output.Created.Status)
+
+	// Full state is included in the response
+	require.Len(t, output.AllTodos, 1)
+	assert.Equal(t, "todo_1", output.AllTodos[0].ID)
+	assert.Contains(t, output.Reminder, "todo_1")
 
 	require.Equal(t, 1, storage.Len())
 	requireMeta(t, result, 1)
@@ -59,10 +64,16 @@ func TestTodoTool_CreateTodos(t *testing.T) {
 	assert.Equal(t, "todo_2", output.Created[1].ID)
 	assert.Equal(t, "todo_3", output.Created[2].ID)
 
+	// Full state included in response
+	require.Len(t, output.AllTodos, 3)
+	assert.Contains(t, output.Reminder, "todo_1")
+	assert.Contains(t, output.Reminder, "todo_2")
+	assert.Contains(t, output.Reminder, "todo_3")
+
 	assert.Equal(t, 3, storage.Len())
 	requireMeta(t, result, 3)
 
-	// A second call continues the ID sequence
+	// A second call continues the ID sequence and includes all 4 items
 	result, err = tool.handler.createTodos(t.Context(), CreateTodosArgs{
 		Descriptions: []string{"Last"},
 	})
@@ -71,6 +82,7 @@ func TestTodoTool_CreateTodos(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(result.Output), &output))
 	require.Len(t, output.Created, 1)
 	assert.Equal(t, "todo_4", output.Created[0].ID)
+	require.Len(t, output.AllTodos, 4)
 	assert.Equal(t, 4, storage.Len())
 	requireMeta(t, result, 4)
 }
@@ -144,6 +156,12 @@ func TestTodoTool_UpdateTodos(t *testing.T) {
 	assert.Equal(t, "in-progress", output.Updated[1].Status)
 	assert.Empty(t, output.NotFound)
 
+	// Full state included in response
+	require.Len(t, output.AllTodos, 3)
+	assert.Equal(t, "completed", output.AllTodos[0].Status)
+	assert.Equal(t, "pending", output.AllTodos[1].Status)
+	assert.Equal(t, "in-progress", output.AllTodos[2].Status)
+
 	// Reminder should list incomplete todos
 	assert.Contains(t, output.Reminder, "todo_2")
 	assert.Contains(t, output.Reminder, "todo_3")
@@ -212,7 +230,7 @@ func TestTodoTool_UpdateTodos_AllNotFound(t *testing.T) {
 	assert.Equal(t, "nonexistent2", output.NotFound[1])
 }
 
-func TestTodoTool_UpdateTodos_ClearsWhenAllCompleted(t *testing.T) {
+func TestTodoTool_UpdateTodos_AllCompleted_NoAutoRemoval(t *testing.T) {
 	storage := NewMemoryTodoStorage()
 	tool := NewTodoTool(WithStorage(storage))
 
@@ -234,8 +252,14 @@ func TestTodoTool_UpdateTodos_ClearsWhenAllCompleted(t *testing.T) {
 	require.Len(t, output.Updated, 2)
 	assert.Empty(t, output.Reminder) // no reminder when all completed
 
-	assert.Empty(t, storage.All())
-	requireMeta(t, result, 0)
+	// Full state shows both items as completed
+	require.Len(t, output.AllTodos, 2)
+	assert.Equal(t, "completed", output.AllTodos[0].Status)
+	assert.Equal(t, "completed", output.AllTodos[1].Status)
+
+	// Todos remain in storage (no auto-clear on completion)
+	assert.Equal(t, 2, storage.Len())
+	requireMeta(t, result, 2)
 }
 
 func TestTodoTool_WithStorage(t *testing.T) {
@@ -280,6 +304,55 @@ func TestTodoTool_ParametersAreObjects(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "object", m["type"])
 	}
+}
+
+func TestTodoTool_CreateTodo_FullStateOutput(t *testing.T) {
+	tool := NewTodoTool()
+
+	// Create first todo
+	result1, err := tool.handler.createTodo(t.Context(), CreateTodoArgs{Description: "First"})
+	require.NoError(t, err)
+	var out1 CreateTodoOutput
+	require.NoError(t, json.Unmarshal([]byte(result1.Output), &out1))
+	require.Len(t, out1.AllTodos, 1)
+	assert.Contains(t, out1.Reminder, "todo_1")
+
+	// Create second todo — response shows both
+	result2, err := tool.handler.createTodo(t.Context(), CreateTodoArgs{Description: "Second"})
+	require.NoError(t, err)
+	var out2 CreateTodoOutput
+	require.NoError(t, json.Unmarshal([]byte(result2.Output), &out2))
+	require.Len(t, out2.AllTodos, 2)
+	assert.Contains(t, out2.Reminder, "todo_1")
+	assert.Contains(t, out2.Reminder, "todo_2")
+}
+
+func TestTodoTool_UpdateTodos_FullStateOutput(t *testing.T) {
+	tool := NewTodoTool()
+
+	_, err := tool.handler.createTodos(t.Context(), CreateTodosArgs{
+		Descriptions: []string{"A", "B", "C"},
+	})
+	require.NoError(t, err)
+
+	result, err := tool.handler.updateTodos(t.Context(), UpdateTodosArgs{
+		Updates: []TodoUpdate{{ID: "todo_1", Status: "completed"}},
+	})
+	require.NoError(t, err)
+
+	var output UpdateTodosOutput
+	require.NoError(t, json.Unmarshal([]byte(result.Output), &output))
+
+	// AllTodos shows full state including the completed item
+	require.Len(t, output.AllTodos, 3)
+	assert.Equal(t, "completed", output.AllTodos[0].Status)
+	assert.Equal(t, "pending", output.AllTodos[1].Status)
+	assert.Equal(t, "pending", output.AllTodos[2].Status)
+
+	// Reminder only lists incomplete items
+	assert.NotContains(t, output.Reminder, "todo_1")
+	assert.Contains(t, output.Reminder, "todo_2")
+	assert.Contains(t, output.Reminder, "todo_3")
 }
 
 // requireMeta asserts that result.Meta is a []Todo of the expected length.
