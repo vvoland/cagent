@@ -73,7 +73,7 @@ For the latest features, or to contribute, build from source:
 
 - [Go 1.26](https://go.dev/dl/) or higher
 - [Task 3.44](https://taskfile.dev/installation/) or higher (build tool)
-- [golangci-lint](https://golangci-lint.run/docs/welcome/install/#binaries) (for linting)
+- [golangci-lint](https://golangci-lint.run/docs/welcome/install/local/) (for linting)
 
 ```bash
 # Clone the repository
