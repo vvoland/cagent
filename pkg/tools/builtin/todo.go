@@ -2,8 +2,8 @@ package builtin
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -31,7 +31,7 @@ var (
 type Todo struct {
 	ID          string `json:"id" jsonschema:"ID of the todo item"`
 	Description string `json:"description" jsonschema:"Description of the todo item"`
-	Status      string `json:"status" jsonschema:"New status (pending, in-progress,completed)"`
+	Status      string `json:"status" jsonschema:"Status of the todo item (pending, in-progress, completed)"`
 }
 
 type CreateTodoArgs struct {
@@ -44,11 +44,26 @@ type CreateTodosArgs struct {
 
 type TodoUpdate struct {
 	ID     string `json:"id" jsonschema:"ID of the todo item"`
-	Status string `json:"status" jsonschema:"New status (pending, in-progress,completed)"`
+	Status string `json:"status" jsonschema:"New status (pending, in-progress, completed)"`
 }
 
 type UpdateTodosArgs struct {
 	Updates []TodoUpdate `json:"updates" jsonschema:"List of todo updates"`
+}
+
+// Output types for JSON-structured responses.
+
+type CreateTodosOutput struct {
+	Created []Todo `json:"created" jsonschema:"List of created todo items"`
+}
+
+type UpdateTodosOutput struct {
+	Updated  []TodoUpdate `json:"updated,omitempty" jsonschema:"List of successfully updated todos"`
+	NotFound []string     `json:"not_found,omitempty" jsonschema:"IDs of todos that were not found"`
+}
+
+type ListTodosOutput struct {
+	Todos []Todo `json:"todos" jsonschema:"List of all current todo items"`
 }
 
 // TodoStorage defines the storage layer for todo items.
@@ -157,55 +172,48 @@ IMPORTANT: You MUST use these tools to track the progress of your tasks:
 This toolset is REQUIRED for maintaining task state and ensuring all steps are completed.`
 }
 
-func (h *todoHandler) createTodo(_ context.Context, params CreateTodoArgs) (*tools.ToolCallResult, error) {
-	id := fmt.Sprintf("todo_%d", h.nextID.Add(1))
+// addTodo creates a new todo and adds it to storage.
+func (h *todoHandler) addTodo(description string) Todo {
 	todo := Todo{
-		ID:          id,
-		Description: params.Description,
+		ID:          fmt.Sprintf("todo_%d", h.nextID.Add(1)),
+		Description: description,
 		Status:      "pending",
 	}
 	h.storage.Add(todo)
+	return todo
+}
 
+// jsonResult builds a ToolCallResult with a JSON-serialized output and current storage as Meta.
+func (h *todoHandler) jsonResult(v any) (*tools.ToolCallResult, error) {
+	out, err := json.Marshal(v)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling todo output: %w", err)
+	}
 	return &tools.ToolCallResult{
-		Output: fmt.Sprintf("Created todo [%s]: %s", id, params.Description),
+		Output: string(out),
 		Meta:   h.storage.All(),
 	}, nil
+}
+
+func (h *todoHandler) createTodo(_ context.Context, params CreateTodoArgs) (*tools.ToolCallResult, error) {
+	return h.jsonResult(h.addTodo(params.Description))
 }
 
 func (h *todoHandler) createTodos(_ context.Context, params CreateTodosArgs) (*tools.ToolCallResult, error) {
-	ids := make([]int64, len(params.Descriptions))
-	for i, desc := range params.Descriptions {
-		ids[i] = h.nextID.Add(1)
-		h.storage.Add(Todo{
-			ID:          fmt.Sprintf("todo_%d", ids[i]),
-			Description: desc,
-			Status:      "pending",
-		})
+	created := make([]Todo, 0, len(params.Descriptions))
+	for _, desc := range params.Descriptions {
+		created = append(created, h.addTodo(desc))
 	}
-
-	var output strings.Builder
-	fmt.Fprintf(&output, "Created %d todos: ", len(params.Descriptions))
-	for i := range params.Descriptions {
-		if i > 0 {
-			output.WriteString(", ")
-		}
-		fmt.Fprintf(&output, "[todo_%d]", ids[i])
-	}
-
-	return &tools.ToolCallResult{
-		Output: output.String(),
-		Meta:   h.storage.All(),
-	}, nil
+	return h.jsonResult(CreateTodosOutput{Created: created})
 }
 
 func (h *todoHandler) updateTodos(_ context.Context, params UpdateTodosArgs) (*tools.ToolCallResult, error) {
-	var notFound []string
-	var updated []string
+	result := UpdateTodosOutput{}
 
 	for _, update := range params.Updates {
 		idx := h.storage.FindByID(update.ID)
 		if idx == -1 {
-			notFound = append(notFound, update.ID)
+			result.NotFound = append(result.NotFound, update.ID)
 			continue
 		}
 
@@ -213,32 +221,23 @@ func (h *todoHandler) updateTodos(_ context.Context, params UpdateTodosArgs) (*t
 			t.Status = update.Status
 			return t
 		})
-		updated = append(updated, fmt.Sprintf("%s -> %s", update.ID, update.Status))
+		result.Updated = append(result.Updated, update)
 	}
 
-	var output strings.Builder
-	if len(updated) > 0 {
-		fmt.Fprintf(&output, "Updated %d todos: %s", len(updated), strings.Join(updated, ", "))
-	}
-	if len(notFound) > 0 {
-		if output.Len() > 0 {
-			output.WriteString("; ")
+	if len(result.NotFound) > 0 && len(result.Updated) == 0 {
+		res, err := h.jsonResult(result)
+		if err != nil {
+			return nil, err
 		}
-		fmt.Fprintf(&output, "Not found: %s", strings.Join(notFound, ", "))
-	}
-
-	if len(notFound) > 0 && len(updated) == 0 {
-		return tools.ResultError(output.String()), nil
+		res.IsError = true
+		return res, nil
 	}
 
 	if h.allCompleted() {
 		h.storage.Clear()
 	}
 
-	return &tools.ToolCallResult{
-		Output: output.String(),
-		Meta:   h.storage.All(),
-	}, nil
+	return h.jsonResult(result)
 }
 
 func (h *todoHandler) allCompleted() bool {
@@ -255,17 +254,11 @@ func (h *todoHandler) allCompleted() bool {
 }
 
 func (h *todoHandler) listTodos(_ context.Context, _ tools.ToolCall) (*tools.ToolCallResult, error) {
-	var output strings.Builder
-	output.WriteString("Current todos:\n")
-
-	for _, todo := range h.storage.All() {
-		fmt.Fprintf(&output, "- [%s] %s (Status: %s)\n", todo.ID, todo.Description, todo.Status)
+	todos := h.storage.All()
+	if todos == nil {
+		todos = []Todo{}
 	}
-
-	return &tools.ToolCallResult{
-		Output: output.String(),
-		Meta:   h.storage.All(),
-	}, nil
+	return h.jsonResult(ListTodosOutput{Todos: todos})
 }
 
 func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
@@ -275,7 +268,7 @@ func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 			Category:     "todo",
 			Description:  "Create a new todo item with a description",
 			Parameters:   tools.MustSchemaFor[CreateTodoArgs](),
-			OutputSchema: tools.MustSchemaFor[string](),
+			OutputSchema: tools.MustSchemaFor[Todo](),
 			Handler:      tools.NewHandler(t.handler.createTodo),
 			Annotations: tools.ToolAnnotations{
 				Title:        "Create TODO",
@@ -287,7 +280,7 @@ func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 			Category:     "todo",
 			Description:  "Create a list of new todo items with descriptions",
 			Parameters:   tools.MustSchemaFor[CreateTodosArgs](),
-			OutputSchema: tools.MustSchemaFor[string](),
+			OutputSchema: tools.MustSchemaFor[CreateTodosOutput](),
 			Handler:      tools.NewHandler(t.handler.createTodos),
 			Annotations: tools.ToolAnnotations{
 				Title:        "Create TODOs",
@@ -299,7 +292,7 @@ func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 			Category:     "todo",
 			Description:  "Update the status of one or more todo item(s)",
 			Parameters:   tools.MustSchemaFor[UpdateTodosArgs](),
-			OutputSchema: tools.MustSchemaFor[string](),
+			OutputSchema: tools.MustSchemaFor[UpdateTodosOutput](),
 			Handler:      tools.NewHandler(t.handler.updateTodos),
 			Annotations: tools.ToolAnnotations{
 				Title:        "Update TODOs",
@@ -310,7 +303,7 @@ func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 			Name:         ToolNameListTodos,
 			Category:     "todo",
 			Description:  "List all current todos with their status",
-			OutputSchema: tools.MustSchemaFor[string](),
+			OutputSchema: tools.MustSchemaFor[ListTodosOutput](),
 			Handler:      t.handler.listTodos,
 			Annotations: tools.ToolAnnotations{
 				Title:        "List TODOs",
