@@ -36,6 +36,8 @@ exclude:
   - .markdownlint-cli2.yaml
   - .prettierrc
   - .prettierignore
+  - _config.dev.yml
+  - Dockerfile
 
 # Default front matter
 defaults:

@@ -16,35 +16,7 @@ The LSP tool connects your agent to any Language Server Protocol (LSP) server, p
 <div class="callout-title">ℹ️ What is LSP?
 </div>
   <p>The <a href="https://microsoft.github.io/language-server-protocol/">Language Server Protocol</a> is a standard for providing language features like autocomplete, go-to-definition, and diagnostics. Most programming languages have LSP servers available.</p>
-
 </div>
-
-## Configuration
-
-```yaml
-agents:
-  developer:
-    model: anthropic/claude-sonnet-4-0
-    description: Code developer with LSP support
-    instruction: You are a software developer.
-    toolsets:
-      - type: lsp
-        command: gopls
-        args: []
-        file_types: [".go"]
-      - type: filesystem
-      - type: shell
-```
-
-## Properties
-
-| Property     | Type   | Required | Description                                                |
-| ------------ | ------ | -------- | ---------------------------------------------------------- |
-| `command`    | string | ✓        | LSP server executable command                              |
-| `args`       | array  | ✗        | Command-line arguments for the LSP server                  |
-| `env`        | object | ✗        | Environment variables for the LSP process                  |
-| `file_types` | array  | ✗        | File extensions this LSP handles (e.g., `[".go", ".mod"]`) |
-| `version`    | string | ✗        | Package reference for [auto-installing](/configuration/tools/#auto-installing-tools) the command binary (e.g., `"golang/tools@v0.21.0"`) |
 
 ## Available Tools
 
@@ -67,6 +39,33 @@ The LSP toolset provides these tools to the agent:
 | `lsp_implementations`   | Find interface implementations                | ✓         |
 | `lsp_signature_help`    | Get function signature at call site           | ✓         |
 | `lsp_inlay_hints`       | Get type annotations and parameter names      | ✓         |
+
+## Configuration
+
+```yaml
+agents:
+  developer:
+    model: anthropic/claude-sonnet-4-0
+    description: Code developer with LSP support
+    instruction: You are a software developer.
+    toolsets:
+      - type: lsp
+        command: gopls
+        args: []
+        file_types: [".go"]
+      - type: filesystem
+      - type: shell
+```
+
+## Properties
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `command` | string | ✓ | LSP server executable command |
+| `args` | array | ✗ | Command-line arguments for the LSP server |
+| `env` | object | ✗ | Environment variables for the LSP process |
+| `file_types` | array | ✗ | File extensions this LSP handles (e.g., `[".go", ".mod"]`) |
+| `version` | string | ✗ | Package reference for [auto-installing](/configuration/tools/#auto-installing-tools) the command binary |
 
 ## Common LSP Servers
 
@@ -158,7 +157,6 @@ The LSP tool includes built-in instructions that guide the agent on how to use i
 <div class="callout-title">💡 Best Practice
 </div>
   <p>Always include the <code>filesystem</code> tool alongside LSP. The agent needs filesystem access to read and write code files, while LSP provides intelligence about the code.</p>
-
 </div>
 
 ## Capability Detection
@@ -202,5 +200,4 @@ All LSP tools use **1-based** line and character positions:
 <div class="callout-title">💡 Auto-Installation
 </div>
   <p>docker-agent can automatically download and install LSP servers if they are not found in your PATH. Use the <code>version</code> property to specify a package, or let docker-agent auto-detect it from the command name. See <a href="/configuration/tools/#auto-installing-tools">Auto-Installing Tools</a> for details.</p>
-
 </div>

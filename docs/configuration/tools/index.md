@@ -10,305 +10,36 @@ _Complete reference for configuring built-in tools, MCP tools, and Docker-based 
 
 ## Built-in Tools
 
-Built-in tools are included with docker-agent and require no external dependencies. Add them to your agent's `toolsets` list.
+Built-in tools are included with docker-agent and require no external dependencies. Add them to your agent's `toolsets` list by `type`. Each tool's dedicated page covers its full configuration options, available operations, and examples.
 
-### Filesystem
+| Type | Description | Page |
+| --- | --- | --- |
+| `filesystem` | Read, write, list, search, navigate | [Filesystem](/tools/filesystem/) |
+| `shell` | Execute shell commands | [Shell](/tools/shell/) |
+| `think` | Reasoning scratchpad | [Think](/tools/think/) |
+| `todo` | Task list management | [Todo](/tools/todo/) |
+| `memory` | Persistent key-value storage (SQLite) | [Memory](/tools/memory/) |
+| `fetch` | HTTP requests | [Fetch](/tools/fetch/) |
+| `script` | Custom shell scripts as tools | [Script](/tools/script/) |
+| `lsp` | Language Server Protocol integration | [LSP](/tools/lsp/) |
+| `api` | Custom HTTP API tools | [API](/tools/api/) |
+| `user_prompt` | Interactive user input | [User Prompt](/tools/user-prompt/) |
+| `transfer_task` | Delegate to sub-agents (auto-enabled) | [Transfer Task](/tools/transfer-task/) |
+| `background_agents` | Parallel sub-agent dispatch | [Background Agents](/tools/background-agents/) |
+| `handoff` | A2A remote agent delegation | [Handoff](/tools/handoff/) |
+| `a2a` | A2A remote agent connection | [A2A](/tools/a2a/) |
 
-Read, write, list, search, and navigate files in the working directory.
+**Example:**
 
 ```yaml
 toolsets:
   - type: filesystem
-    ignore_vcs: false # Optional: ignore .gitignore files
-    post_edit: # Optional: run commands after file edits
-      - path: "*.go"
-        cmd: "gofmt -w ${file}"
-```
-
-| Operation              | Description                                                               |
-| ---------------------- | ------------------------------------------------------------------------- |
-| `read_file`            | Read the complete contents of a file                                      |
-| `read_multiple_files`  | Read several files in one call (more efficient than multiple `read_file`) |
-| `write_file`           | Create or overwrite a file with new content                               |
-| `edit_file`            | Make line-based edits (find-and-replace) in an existing file              |
-| `list_directory`       | List files and directories at a given path                                |
-| `directory_tree`       | Recursive tree view of a directory                                        |
-| `search_files_content` | Search for text or regex patterns across files                            |
-
-| Property           | Type    | Default | Description                                                       |
-| ------------------ | ------- | ------- | ----------------------------------------------------------------- |
-| `ignore_vcs`       | boolean | `false` | When `true`, ignores `.gitignore` patterns and includes all files |
-| `post_edit`        | array   | `[]`    | Commands to run after editing files matching a path pattern       |
-| `post_edit[].path` | string  | —       | Glob pattern for files (e.g., `*.go`, `src/**/*.ts`)              |
-| `post_edit[].cmd`  | string  | —       | Command to run (use `${file}` for the edited file path)           |
-
-<div class="callout callout-tip">
-<div class="callout-title">💡 Tip
-</div>
-  <p>The filesystem tool resolves paths relative to the working directory. Agents can also use absolute paths.</p>
-
-</div>
-
-### Shell
-
-Execute arbitrary shell commands. Each call runs in a fresh, isolated shell session — no state persists between calls.
-
-```yaml
-toolsets:
   - type: shell
-    env: # Optional: environment variables
-      MY_VAR: "value"
-      PATH: "${PATH}:/custom/bin"
-```
-
-The agent has access to the full system shell and environment variables. Commands have a default 30-second timeout. Requires user confirmation unless `--yolo` is used.
-
-| Property  | Type   | Description                                                                      |
-| --------- | ------ | -------------------------------------------------------------------------------- |
-| `env`     | object | Environment variables to set for all shell commands                              |
-
-### Think
-
-Step-by-step reasoning scratchpad. The agent writes its thoughts without producing visible output — ideal for planning, decomposition, and decision-making.
-
-```yaml
-toolsets:
   - type: think
-```
-
-No configuration options. No side effects. Recommended for all agents — adds minimal overhead while improving reasoning quality.
-
-### Todo
-
-Task list management. Agents can create, update, and track tasks with status (pending, in-progress, completed).
-
-```yaml
-toolsets:
   - type: todo
-    shared: false # Optional: share todos across agents
-```
-
-| Operation      | Description                              |
-| -------------- | ---------------------------------------- |
-| `create_todo`  | Create a new task                        |
-| `create_todos` | Create multiple tasks at once            |
-| `update_todos` | Update status of one or more tasks       |
-| `list_todos`   | List all current tasks with their status |
-
-| Property | Type    | Default | Description                                                             |
-| -------- | ------- | ------- | ----------------------------------------------------------------------- |
-| `shared` | boolean | `false` | When `true`, todos are shared across all agents in a multi-agent config |
-
-### Memory
-
-Persistent key-value storage backed by SQLite. Data survives across sessions, letting agents remember context, user preferences, and past decisions. Memories can be organized with categories and searched by keyword.
-
-Each agent gets its own database at `~/.cagent/memory/<agent-name>/memory.db` by default.
-
-```yaml
-toolsets:
   - type: memory
-    path: ./agent_memory.db # optional: override the default location
+    path: ./dev.db
 ```
-
-| Property | Type   | Default                                      | Description                          |
-| -------- | ------ | -------------------------------------------- | ------------------------------------ |
-| `path`   | string | `~/.cagent/memory/<agent-name>/memory.db`    | Path to the SQLite database file     |
-
-| Operation          | Description                                                         |
-| ------------------ | ------------------------------------------------------------------- |
-| `add_memory`       | Store a new memory with optional category                           |
-| `get_memories`     | Retrieve all stored memories                                        |
-| `delete_memory`    | Delete a specific memory by ID                                      |
-| `search_memories`  | Search memories by keywords and/or category (more efficient than get_all) |
-| `update_memory`    | Update an existing memory's content and/or category by ID           |
-
-Memories support an optional `category` field (e.g., `preference`, `fact`, `project`, `decision`) for organization and filtering.
-
-### Fetch
-
-Make HTTP requests to external APIs and web services.
-
-```yaml
-toolsets:
-  - type: fetch
-    timeout: 30 # Optional: request timeout in seconds
-```
-
-Supports GET, POST, PUT, DELETE, and other HTTP methods. The agent can set headers, send request bodies, and receive response data. Useful for calling REST APIs, reading web pages, and downloading content.
-
-| Property  | Type | Default | Description                |
-| --------- | ---- | ------- | -------------------------- |
-| `timeout` | int  | `30`    | Request timeout in seconds |
-
-### Script
-
-Define custom shell scripts as named tools. Unlike the generic `shell` tool, scripts are predefined and can be given descriptive names — ideal for exposing safe, well-scoped operations.
-
-**Simple format:**
-
-```yaml
-toolsets:
-  - type: script
-    shell:
-      run_tests:
-        cmd: task test
-        description: Run the project test suite
-      lint:
-        cmd: task lint
-        description: Run the linter
-      deploy:
-        cmd: ./scripts/deploy.sh ${env}
-        description: Deploy to an environment
-        args:
-          env:
-            type: string
-            enum: [staging, production]
-        required: [env]
-```
-
-| Property                         | Type   | Description                                                |
-| -------------------------------- | ------ | ---------------------------------------------------------- |
-| `shell.&lt;name&gt;.cmd`         | string | Shell command to execute (supports `${arg}` interpolation) |
-| `shell.&lt;name&gt;.description` | string | Description shown to the model                             |
-| `shell.&lt;name&gt;.args`        | object | Parameter definitions (JSON Schema properties)             |
-| `shell.&lt;name&gt;.required`    | array  | Required parameter names                                   |
-| `shell.&lt;name&gt;.env`         | object | Environment variables for this script                      |
-| `shell.&lt;name&gt;.working_dir` | string | Working directory for script execution                     |
-
-### Transfer Task
-
-The `transfer_task` tool is automatically available when an agent has `sub_agents`. Allows delegating tasks to sub-agents. No configuration needed — it's enabled implicitly.
-
-### Background Agents
-
-Dispatch work to sub-agents concurrently and collect results asynchronously. Unlike `transfer_task` (which blocks until the sub-agent finishes), background agent tasks run in parallel — the orchestrator can start several tasks, do other work, and check on them later.
-
-```yaml
-toolsets:
-  - type: background_agents
-```
-
-| Operation                | Description                                                                                      |
-| ------------------------ | ------------------------------------------------------------------------------------------------ |
-| `run_background_agent`   | Start a sub-agent task in the background; returns a task ID immediately                          |
-| `list_background_agents` | List all background tasks with their status and runtime                                          |
-| `view_background_agent`  | View live output or final result of a task by ID                                                 |
-| `stop_background_agent`  | Cancel a running task by ID                                                                      |
-
-No configuration options. Requires the agent to have `sub_agents` configured so the background tasks have agents to dispatch to.
-
-<div class="callout callout-tip">
-<div class="callout-title">💡 Tip
-</div>
-  <p>Use <code>background_agents</code> when your orchestrator needs to fan out work to multiple specialists in parallel — for example, researching several topics simultaneously or running independent code analyses side by side.</p>
-
-</div>
-
-### LSP (Language Server Protocol)
-
-Connect to language servers for code intelligence: go-to-definition, find references, diagnostics, and more.
-
-```yaml
-toolsets:
-  - type: lsp
-    command: gopls
-    args: []
-    file_types: [".go"]
-```
-
-| Property     | Type   | Description                               |
-| ------------ | ------ | ----------------------------------------- |
-| `command`    | string | LSP server executable command             |
-| `args`       | array  | Command-line arguments for the LSP server |
-| `env`        | object | Environment variables for the LSP process |
-| `file_types` | array  | File extensions this LSP handles          |
-
-See [LSP Tool](/tools/lsp/) for full documentation.
-
-### User Prompt
-
-Ask users questions and collect interactive input during agent execution.
-
-```yaml
-toolsets:
-  - type: user_prompt
-```
-
-The agent can use this tool to ask questions, present choices, or collect information from the user. Supports JSON Schema for structured input validation.
-
-See [User Prompt Tool](/tools/user-prompt/) for full documentation.
-
-### API
-
-Create custom tools that call HTTP APIs without writing code.
-
-```yaml
-toolsets:
-  - type: api
-    name: get_weather
-    method: GET
-    endpoint: "https://api.weather.example/v1/current?city=${city}"
-    instruction: Get current weather for a city
-    args:
-      city:
-        type: string
-        description: City name
-    required: ["city"]
-    headers:
-      Authorization: "Bearer ${env.WEATHER_API_KEY}"
-```
-
-| Property   | Type   | Description                          |
-| ---------- | ------ | ------------------------------------ |
-| `name`     | string | Tool name                            |
-| `method`   | string | HTTP method: `GET` or `POST`         |
-| `endpoint` | string | URL with `${param}` interpolation    |
-| `args`     | object | Parameter definitions                |
-| `required` | array  | Required parameter names             |
-| `headers`  | object | HTTP headers (supports `${env.VAR}`) |
-
-See [API Tool](/tools/api/) for full documentation.
-
-### Handoff
-
-Delegate tasks to remote agents via the A2A (Agent-to-Agent) protocol.
-
-```yaml
-toolsets:
-  - type: handoff
-    name: research_agent
-    description: Specialized research agent
-    url: "http://localhost:8080/a2a"
-    timeout: 5m
-```
-
-| Property      | Type   | Description                   |
-| ------------- | ------ | ----------------------------- |
-| `name`        | string | Tool name for delegation      |
-| `description` | string | Description for the agent     |
-| `url`         | string | A2A server endpoint URL       |
-| `timeout`     | string | Request timeout (default: 5m) |
-
-See [A2A Protocol](/features/a2a/) for full documentation.
-
-### A2A (Agent-to-Agent)
-
-Connect to remote agents via the A2A protocol. Similar to handoff but configured as a toolset.
-
-```yaml
-toolsets:
-  - type: a2a
-    name: research_agent
-    url: "http://localhost:8080/a2a"
-```
-
-| Property | Type   | Description                    |
-| -------- | ------ | ------------------------------ |
-| `name`   | string | Tool name for the remote agent |
-| `url`    | string | A2A server endpoint URL        |
-
-See [A2A Protocol](/features/a2a/) for full documentation.
 
 ## MCP Tools
 
@@ -324,8 +55,6 @@ toolsets:
     ref: docker:duckduckgo # web search
   - type: mcp
     ref: docker:github-official # GitHub integration
-  - type: mcp
-    ref: docker:fetch # HTTP fetching
 ```
 
 Browse available tools at the [Docker MCP Catalog](https://hub.docker.com/search?q=&type=mcp).
@@ -346,19 +75,19 @@ toolsets:
   - type: mcp
     command: python
     args: ["-m", "mcp_server"]
-    tools: ["search", "fetch"] # optional: whitelist specific tools
+    tools: ["search", "fetch"]
     env:
       API_KEY: value
 ```
 
-| Property      | Type   | Description                                           |
-| ------------- | ------ | ----------------------------------------------------- |
-| `command`     | string | Command to execute the MCP server                     |
-| `args`        | array  | Command arguments                                     |
-| `tools`       | array  | Optional: only expose these tools                     |
-| `env`         | array  | Environment variables (`"KEY=value"` format)          |
+| Property | Type | Description |
+| --- | --- | --- |
+| `command` | string | Command to execute the MCP server |
+| `args` | array | Command arguments |
+| `tools` | array | Optional: only expose these tools |
+| `env` | object | Environment variables (key-value pairs) |
 | `instruction` | string | Custom instructions injected into the agent's context |
-| `version`     | string | Package reference for [auto-installing](#auto-installing-tools) the command binary |
+| `version` | string | Package reference for [auto-installing](#auto-installing-tools) the command binary |
 
 ### Remote MCP (SSE / Streamable HTTP)
 
@@ -369,7 +98,7 @@ toolsets:
   - type: mcp
     remote:
       url: "https://mcp-server.example.com"
-      transport_type: "sse" # sse or streamable
+      transport_type: "sse"
       headers:
         Authorization: "Bearer your-token"
     tools: ["search_web", "fetch_url"]
@@ -422,8 +151,6 @@ toolsets:
 
 ### Disabling Auto-Install
 
-You can disable auto-installation in two ways:
-
 **Per toolset** — set `version` to `"false"` or `"off"`:
 
 ```yaml
@@ -441,11 +168,11 @@ export DOCKER_AGENT_AUTO_INSTALL=false
 
 ### Environment Variables
 
-| Variable              | Default                | Description                                      |
-| --------------------- | ---------------------- | ------------------------------------------------ |
-| `DOCKER_AGENT_AUTO_INSTALL` | (enabled)              | Set to `false` to disable all auto-installation  |
-| `DOCKER_AGENT_TOOLS_DIR`    | `~/.cagent/tools/`     | Base directory for installed tools               |
-| `GITHUB_TOKEN`        | —                      | GitHub token to raise API rate limits (optional) |
+| Variable                     | Default            | Description                                      |
+| ---------------------------- | ------------------ | ------------------------------------------------ |
+| `DOCKER_AGENT_AUTO_INSTALL`  | (enabled)          | Set to `false` to disable all auto-installation  |
+| `DOCKER_AGENT_TOOLS_DIR`     | `~/.cagent/tools/` | Base directory for installed tools               |
+| `GITHUB_TOKEN`               | —                  | GitHub token to raise API rate limits (optional) |
 
 Installed binaries are placed in `~/.cagent/tools/bin/` and cached so they are only downloaded once.
 
@@ -453,7 +180,6 @@ Installed binaries are placed in `~/.cagent/tools/bin/` and cached so they are o
 <div class="callout-title">💡 Tip
 </div>
   <p>Auto-install supports both Go packages (via <code>go install</code>) and GitHub release binaries (via archive download). The aqua registry metadata determines which method is used.</p>
-
 </div>
 
 ## Tool Filtering
@@ -475,7 +201,6 @@ toolsets:
 <div class="callout-title">💡 Tip
 </div>
   <p>Filtering tools improves agent performance — fewer tools means less confusion for the model about which tool to use.</p>
-
 </div>
 
 ## Tool Instructions
@@ -490,6 +215,32 @@ toolsets:
       Use these tools to manage GitHub issues.
       Always check for existing issues before creating new ones.
       Label new issues with 'triage' by default.
+```
+
+## Deferred Tool Loading
+
+Load tools on-demand to speed up agent startup:
+
+```yaml
+toolsets:
+  - type: mcp
+    ref: docker:github-official
+    defer: true
+  - type: mcp
+    ref: docker:slack
+    defer: true
+  - type: filesystem
+```
+
+Or defer specific tools within a toolset:
+
+```yaml
+toolsets:
+  - type: mcp
+    ref: docker:github-official
+    defer:
+      - "list_issues"
+      - "search_repos"
 ```
 
 ## Combined Example
@@ -548,5 +299,4 @@ agents:
 <div class="callout-title">⚠️ Toolset Order Matters
 </div>
   <p>If multiple toolsets provide a tool with the same name, the first one wins. Order your toolsets intentionally.</p>
-
 </div>

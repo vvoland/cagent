@@ -109,7 +109,7 @@ agents:
 
 ## Deferred Tool Loading
 
-Load tools on-demand to speed up agent startup:
+Toolsets support `defer` to load tools on-demand and speed up agent startup. See [Deferred Tool Loading](/configuration/tools/#deferred-tool-loading) for details.
 
 ```yaml
 agents:
@@ -121,24 +121,7 @@ agents:
       - type: mcp
         ref: docker:github-official
         defer: true
-      - type: mcp
-        ref: docker:slack
-        defer: true
       - type: filesystem
-```
-
-Or defer specific tools within a toolset:
-
-```yaml
-agents:
-  root:
-    model: openai/gpt-4o
-    toolsets:
-      - type: mcp
-        ref: docker:github-official
-        defer:
-          - "list_issues"
-          - "search_repos"
 ```
 
 ## Fallback Configuration
