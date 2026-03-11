@@ -215,7 +215,7 @@ metadata:
 | `readme`      | Longer markdown description                |
 | `version`     | Semantic version string                    |
 
-See [Agent Distribution](/concepts/distribution/) for publishing agents to registries.
+See [Agent Distribution]({{ '/concepts/distribution/' | relative_url }}) for publishing agents to registries.
 
 ## Custom Providers Section
 
@@ -249,4 +249,4 @@ agents:
 | `base_url`  | Base URL for the API endpoint                                        |
 | `token_key` | Environment variable name for the API token                          |
 
-See [Custom Providers](/providers/custom/) for more details.
+See [Custom Providers]({{ '/providers/custom/' | relative_url }}) for more details.

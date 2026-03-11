@@ -55,7 +55,7 @@ Named models let you configure temperature, token limits, thinking budgets, and 
 | Mistral             | `mistral`        | Mistral models                       | `MISTRAL_API_KEY`   |
 | xAI                 | `xai`            | Grok models                          | `XAI_API_KEY`       |
 
-See the [Model Providers](/providers/overview/) section for detailed configuration guides.
+See the [Model Providers]({{ '/providers/overview/' | relative_url }}) section for detailed configuration guides.
 
 ## Model Properties
 

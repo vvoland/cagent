@@ -205,7 +205,7 @@ $ docker agent run agent.yaml --yolo
 
 ### Combine Permissions with Sandbox
 
-For defense in depth, use both permissions and [sandbox mode](/configuration/sandbox/):
+For defense in depth, use both permissions and [sandbox mode]({{ '/configuration/sandbox/' | relative_url }}):
 
 ```yaml
 agents:

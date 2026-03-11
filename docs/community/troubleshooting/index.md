@@ -195,7 +195,7 @@ In API server mode, each client gets isolated sessions. If sessions are mixing u
 
 - Check if MCP tools are adding latency (visible in debug logs)
 - Use the `/cost` command in TUI to see token usage and identify expensive interactions
-- For DMR, consider enabling [speculative decoding](/providers/dmr/) for faster inference
+- For DMR, consider enabling [speculative decoding]({{ '/providers/dmr/' | relative_url }}) for faster inference
 
 ### Tool resource leaks
 
@@ -229,7 +229,7 @@ When reviewing debug logs, search for these key patterns:
 | `"Tool call"`               | A tool is being executed                                                   |
 | `"Tool call result"`        | Tool execution completed                                                   |
 | `"Stream stopped"`          | Agent finished processing                                                  |
-| `HTTP 429`                  | Rate limiting — consider adding a [fallback model](/configuration/agents/) |
+| `HTTP 429`                  | Rate limiting — consider adding a [fallback model]({{ '/configuration/agents/' | relative_url }}) |
 | `context canceled`          | Operation was interrupted (timeout or user cancel)                         |
 | `[RAG Manager]`             | RAG retrieval operations                                                   |
 | `[Reranker]`                | Reranking operations                                                       |

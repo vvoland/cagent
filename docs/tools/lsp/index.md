@@ -65,7 +65,7 @@ agents:
 | `args` | array | ✗ | Command-line arguments for the LSP server |
 | `env` | object | ✗ | Environment variables for the LSP process |
 | `file_types` | array | ✗ | File extensions this LSP handles (e.g., `[".go", ".mod"]`) |
-| `version` | string | ✗ | Package reference for [auto-installing](/configuration/tools/#auto-installing-tools) the command binary |
+| `version` | string | ✗ | Package reference for [auto-installing]({{ '/configuration/tools/#auto-installing-tools' | relative_url }}) the command binary |
 
 ## Common LSP Servers
 
@@ -199,5 +199,5 @@ All LSP tools use **1-based** line and character positions:
 <div class="callout callout-tip">
 <div class="callout-title">💡 Auto-Installation
 </div>
-  <p>docker-agent can automatically download and install LSP servers if they are not found in your PATH. Use the <code>version</code> property to specify a package, or let docker-agent auto-detect it from the command name. See <a href="/configuration/tools/#auto-installing-tools">Auto-Installing Tools</a> for details.</p>
+  <p>docker-agent can automatically download and install LSP servers if they are not found in your PATH. Use the <code>version</code> property to specify a package, or let docker-agent auto-detect it from the command name. See <a href="{{ '/configuration/tools/#auto-installing-tools' | relative_url }}">Auto-Installing Tools</a> for details.</p>
 </div>

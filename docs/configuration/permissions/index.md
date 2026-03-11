@@ -180,7 +180,7 @@ permissions:
 
 ## Combining with Hooks
 
-Permissions work alongside [hooks](/configuration/hooks/). The evaluation order is:
+Permissions work alongside [hooks]({{ '/configuration/hooks/' | relative_url }}). The evaluation order is:
 
 1. Check **deny** patterns — if matched, tool is blocked
 2. Check **allow** patterns — if matched, tool is auto-approved

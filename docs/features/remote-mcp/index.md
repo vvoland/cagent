@@ -39,7 +39,7 @@ toolsets:
         Authorization: "Bearer token" # optional: static auth
 ```
 
-For full configuration details, see the [Tool Config](/configuration/tools/) page.
+For full configuration details, see the [Tool Config]({{ '/configuration/tools/' | relative_url }}) page.
 
 ## Project Management &amp; Collaboration
 
