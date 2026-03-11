@@ -139,6 +139,18 @@ func TestBuildConfig_Gemini3_ThinkingLevel(t *testing.T) {
 			thinkingBudget:      &latest.ThinkingBudget{Effort: "medium"},
 			expectThinkingLevel: genai.ThinkingLevelMedium,
 		},
+		{
+			name:                "gemini-3.1-pro-preview with high thinking level",
+			model:               "gemini-3.1-pro-preview",
+			thinkingBudget:      &latest.ThinkingBudget{Effort: "high"},
+			expectThinkingLevel: genai.ThinkingLevelHigh,
+		},
+		{
+			name:                "gemini-3.1-flash-preview with medium thinking level",
+			model:               "gemini-3.1-flash-preview",
+			thinkingBudget:      &latest.ThinkingBudget{Effort: "medium"},
+			expectThinkingLevel: genai.ThinkingLevelMedium,
+		},
 	}
 
 	for _, tt := range tests {
@@ -310,6 +322,20 @@ func TestBuildConfig_ThinkingExplicitlyDisabled(t *testing.T) {
 			name:               "gemini-3-pro with nil thinking budget but disabled via options",
 			model:              "gemini-3-pro",
 			thinkingBudget:     nil, // Even without explicit budget, Gemini 3 may use thinking by default
+			expectLevelLow:     true,
+			expectMinMaxTokens: 200,
+		},
+		{
+			name:               "gemini-3.1-pro-preview with thinking budget but disabled via options",
+			model:              "gemini-3.1-pro-preview",
+			thinkingBudget:     &latest.ThinkingBudget{Effort: "high"},
+			expectLevelLow:     true,
+			expectMinMaxTokens: 200,
+		},
+		{
+			name:               "gemini-3.1-flash-preview with thinking budget but disabled via options",
+			model:              "gemini-3.1-flash-preview",
+			thinkingBudget:     &latest.ThinkingBudget{Effort: "medium"},
 			expectLevelLow:     true,
 			expectMinMaxTokens: 200,
 		},

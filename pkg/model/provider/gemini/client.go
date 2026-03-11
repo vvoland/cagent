@@ -359,7 +359,7 @@ func (c *Client) buildConfig() *genai.GenerateContentConfig {
 	// is returned.
 	if thinking := c.ModelOptions.Thinking(); thinking != nil && !*thinking {
 		model := strings.ToLower(c.ModelConfig.Model)
-		if strings.HasPrefix(model, "gemini-3-") {
+		if isGemini3PlusModel(model) {
 			// Gemini 3 models require thinking — they reject ThinkingBudget=0.
 			// Use the lowest level instead and bump MaxOutputTokens so that
 			// even a tiny caller budget (e.g. 20 for title generation) leaves
@@ -414,8 +414,8 @@ func (c *Client) applyThinkingConfig(config *genai.GenerateContentConfig) {
 
 	model := strings.ToLower(c.ModelConfig.Model)
 
-	// Gemini 3 models use ThinkingLevel (effort-based)
-	if strings.HasPrefix(model, "gemini-3-") {
+	// Gemini 3+ models use ThinkingLevel (effort-based)
+	if isGemini3PlusModel(model) {
 		c.applyGemini3ThinkingLevel(config)
 		return
 	}
@@ -773,4 +773,17 @@ func providerOption(cfg *latest.ModelConfig, name string) string {
 		return v
 	}
 	return ""
+}
+
+// isGemini3PlusModel returns true if the lowercased model name is a Gemini 3+
+// model. It matches both "gemini-3-<family>" and "gemini-3.X-<family>" patterns.
+// NOTE: keep in sync with gemini3Family in pkg/model/provider/provider.go.
+func isGemini3PlusModel(model string) bool {
+	if !strings.HasPrefix(model, "gemini-3") {
+		return false
+	}
+	rest := model[len("gemini-3"):]
+	// "gemini-3-pro" → rest = "-pro"
+	// "gemini-3.1-flash" → rest = ".1-flash"
+	return rest != "" && (rest[0] == '-' || (rest[0] == '.' && strings.Contains(rest, "-")))
 }

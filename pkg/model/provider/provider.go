@@ -494,8 +494,8 @@ func applyAnthropicDefaults(cfg *latest.ModelConfig) {
 
 // applyGoogleDefaults applies default configuration for Google Gemini models.
 // - Gemini 2.5 models: thinking_budget = -1 (dynamic thinking)
-// - Gemini 3 Pro models: thinking_budget effort = "high"
-// - Gemini 3 Flash models: thinking_budget effort = "medium"
+// - Gemini 3+ Pro models: thinking_budget effort = "high"
+// - Gemini 3+ Flash models: thinking_budget effort = "medium"
 func applyGoogleDefaults(cfg *latest.ModelConfig) {
 	if cfg.ThinkingBudget != nil {
 		return // User explicitly set thinking_budget
@@ -512,24 +512,61 @@ func applyGoogleDefaults(cfg *latest.ModelConfig) {
 			"model", cfg.Model,
 			"thinking_budget", -1,
 		)
-	case strings.HasPrefix(model, "gemini-3-pro"):
-		// Gemini 3 Pro models use level-based thinking (high)
+	case isGeminiProModel(model):
+		// Gemini 3+ Pro models use level-based thinking (high)
 		cfg.ThinkingBudget = &latest.ThinkingBudget{Effort: "high"}
-		slog.Debug("Applied default thinking_budget for Google Gemini 3 Pro",
+		slog.Debug("Applied default thinking_budget for Google Gemini 3+ Pro",
 			"provider", cfg.Provider,
 			"model", cfg.Model,
 			"thinking_budget", "high",
 		)
-	case strings.HasPrefix(model, "gemini-3-flash"):
-		// Gemini 3 Flash models use level-based thinking (medium)
+	case isGeminiFlashModel(model):
+		// Gemini 3+ Flash models use level-based thinking (medium)
 		cfg.ThinkingBudget = &latest.ThinkingBudget{Effort: "medium"}
-		slog.Debug("Applied default thinking_budget for Google Gemini 3 Flash",
+		slog.Debug("Applied default thinking_budget for Google Gemini 3+ Flash",
 			"provider", cfg.Provider,
 			"model", cfg.Model,
 			"thinking_budget", "medium",
 		)
 	}
 	// For other Gemini models (e.g., gemini-2.0-*), leave unchanged
+}
+
+// gemini3Family extracts the model family (e.g. "pro", "flash") from a
+// Gemini 3+ model name, or returns "" if the model is not Gemini 3+.
+// It handles both "gemini-3-<family>" and "gemini-3.X-<family>" patterns.
+//
+// Examples:
+//
+//	gemini3Family("gemini-3-pro")              → "pro"
+//	gemini3Family("gemini-3.1-flash-preview")  → "flash-preview"
+//	gemini3Family("gemini-2.5-flash")          → ""
+func gemini3Family(model string) string {
+	if !strings.HasPrefix(model, "gemini-3") {
+		return ""
+	}
+	rest := model[len("gemini-3"):]
+	if rest == "" {
+		return ""
+	}
+	// Accept "gemini-3-..." or "gemini-3.X-..." (e.g. gemini-3.1-pro-preview)
+	switch rest[0] {
+	case '-':
+		return rest[1:] // "gemini-3-pro" → "pro"
+	case '.':
+		if _, family, ok := strings.Cut(rest, "-"); ok {
+			return family // "gemini-3.1-pro-preview" → "pro-preview"
+		}
+	}
+	return ""
+}
+
+func isGeminiProModel(model string) bool {
+	return strings.HasPrefix(gemini3Family(model), "pro")
+}
+
+func isGeminiFlashModel(model string) bool {
+	return strings.HasPrefix(gemini3Family(model), "flash")
 }
 
 // applyBedrockDefaults applies default configuration for Amazon Bedrock models.
