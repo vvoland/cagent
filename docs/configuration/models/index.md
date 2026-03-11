@@ -47,7 +47,7 @@ models:
 | `thinking_budget`     | string/int | ✗        | Reasoning effort control                                                              |
 | `parallel_tool_calls` | boolean    | ✗        | Allow model to call multiple tools at once                                            |
 | `track_usage`         | boolean    | ✗        | Track and report token usage for this model                                           |
-| `routing`             | array      | ✗        | Rule-based routing to different models. See [Model Routing](/configuration/routing/). |
+| `routing`             | array      | ✗        | Rule-based routing to different models. See [Model Routing]({{ '/configuration/routing/' | relative_url }}). |
 | `provider_opts`       | object     | ✗        | Provider-specific options (see provider pages)                                        |
 
 ## Thinking Budget
@@ -166,7 +166,7 @@ models:
     max_tokens: 8192
 ```
 
-For detailed provider setup, see the [Model Providers](/providers/overview/) section.
+For detailed provider setup, see the [Model Providers]({{ '/providers/overview/' | relative_url }}) section.
 
 ## Custom Endpoints
 
@@ -195,4 +195,4 @@ models:
     token_key: INTERNAL_API_KEY
 ```
 
-See [Local Models](/providers/local/) for more examples of custom endpoints.
+See [Local Models]({{ '/providers/local/' | relative_url }}) for more examples of custom endpoints.

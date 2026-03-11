@@ -12,7 +12,7 @@ _Agents are the core building blocks of docker-agent. Each agent is an AI-powere
 
 An agent in docker-agent is defined by:
 
-- **Model** — The AI model powering it (e.g., Claude, GPT-4o, Gemini). See [Models](/concepts/models/).
+- **Model** — The AI model powering it (e.g., Claude, GPT-4o, Gemini). See [Models]({{ '/concepts/models/' | relative_url }}).
 - **Description** — A brief summary of what the agent does (used by other agents for delegation)
 - **Instruction** — The system prompt that defines the agent's behavior and personality
 - **Tools** — Capabilities like filesystem access, shell commands, or external APIs

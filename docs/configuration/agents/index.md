@@ -62,7 +62,7 @@ agents:
 | `description`               | string  | ✓        | Brief description of the agent's purpose. Used by coordinators to decide delegation.                                                                                          |
 | `instruction`               | string  | ✓        | System prompt that defines the agent's behavior, personality, and constraints.                                                                                                |
 | `sub_agents`                | array   | ✗        | List of agent names this agent can delegate to. Automatically enables the `transfer_task` tool.                                                                               |
-| `toolsets`                  | array   | ✗        | List of tool configurations. See [Tool Config](/configuration/tools/).                                                                                                        |
+| `toolsets`                  | array   | ✗        | List of tool configurations. See [Tool Config]({{ '/configuration/tools/' | relative_url }}).                                                                                                        |
 | `fallback`                  | object  | ✗        | Automatic model failover configuration.                                                                                                                                       |
 | `add_date`                  | boolean | ✗        | When `true`, injects the current date into the agent's context.                                                                                                               |
 | `add_environment_info`      | boolean | ✗        | When `true`, injects working directory, OS, CPU architecture, and git info into context.                                                                                      |
@@ -71,13 +71,13 @@ agents:
 | `code_mode_tools`           | boolean | ✗        | When `true`, formats tool responses in a code-optimized format with structured output schemas. Useful for MCP gateway and programmatic access.                                |
 | `max_iterations`            | int     | ✗        | Maximum number of tool-calling loops. Default: unlimited (0). Set this to prevent infinite loops.                                                                             |
 | `num_history_items`         | int     | ✗        | Limit the number of conversation history messages sent to the model. Useful for managing context window size with long conversations. Default: unlimited (all messages sent). |
-| `rag`                       | array   | ✗        | List of RAG source names to attach to this agent. References sources defined in the top-level `rag` section. See [RAG](/features/rag/).                                       |
+| `rag`                       | array   | ✗        | List of RAG source names to attach to this agent. References sources defined in the top-level `rag` section. See [RAG]({{ '/features/rag/' | relative_url }}).                                       |
 | `skills`                    | boolean | ✗        | Enable automatic skill discovery from standard directories.                                                                                                                   |
 | `commands`                  | object  | ✗        | Named prompts that can be run with `docker agent run config.yaml /command_name`.                                                                                              |
 | `welcome_message`           | string  | ✗        | Message displayed to the user when a session starts. Useful for providing context or instructions.                                                                            |
-| `handoffs`                  | array   | ✗        | List of A2A agent configurations this agent can delegate to. See [A2A Protocol](/features/a2a/).                                                                              |
-| `hooks`                     | object  | ✗        | Lifecycle hooks for running commands at various points. See [Hooks](/configuration/hooks/).                                                                                   |
-| `structured_output`         | object  | ✗        | Constrain agent output to match a JSON schema. See [Structured Output](/configuration/structured-output/).                                                                    |
+| `handoffs`                  | array   | ✗        | List of A2A agent configurations this agent can delegate to. See [A2A Protocol]({{ '/features/a2a/' | relative_url }}).                                                                              |
+| `hooks`                     | object  | ✗        | Lifecycle hooks for running commands at various points. See [Hooks]({{ '/configuration/hooks/' | relative_url }}).                                                                                   |
+| `structured_output`         | object  | ✗        | Constrain agent output to match a JSON schema. See [Structured Output]({{ '/configuration/structured-output/' | relative_url }}).                                                                    |
 
 <div class="callout callout-warning">
 <div class="callout-title">⚠️ max_iterations
@@ -109,7 +109,7 @@ agents:
 
 ## Deferred Tool Loading
 
-Toolsets support `defer` to load tools on-demand and speed up agent startup. See [Deferred Tool Loading](/configuration/tools/#deferred-tool-loading) for details.
+Toolsets support `defer` to load tools on-demand and speed up agent startup. See [Deferred Tool Loading]({{ '/configuration/tools/#deferred-tool-loading' | relative_url }}) for details.
 
 ```yaml
 agents:

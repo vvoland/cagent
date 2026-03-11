@@ -29,20 +29,20 @@ docker-agent ships with several built-in tools that require no external dependen
 
 | Tool | Description |
 | --- | --- |
-| [Filesystem](/tools/filesystem/) | Read, write, list, search, and navigate files and directories |
-| [Shell](/tools/shell/) | Execute arbitrary shell commands in the user's environment |
-| [Think](/tools/think/) | Step-by-step reasoning scratchpad for planning and decision-making |
-| [Todo](/tools/todo/) | Task list management for complex multi-step workflows |
-| [Memory](/tools/memory/) | Persistent key-value storage backed by SQLite |
-| [Fetch](/tools/fetch/) | Make HTTP requests to external APIs and web services |
-| [Script](/tools/script/) | Define custom shell scripts as named tools |
-| [LSP](/tools/lsp/) | Connect to Language Server Protocol servers for code intelligence |
-| [API](/tools/api/) | Create custom tools that call HTTP APIs without writing code |
-| [User Prompt](/tools/user-prompt/) | Ask users questions and collect interactive input |
-| [Transfer Task](/tools/transfer-task/) | Delegate tasks to sub-agents (auto-enabled with `sub_agents`) |
-| [Background Agents](/tools/background-agents/) | Dispatch work to sub-agents concurrently |
-| [Handoff](/tools/handoff/) | Delegate tasks to remote agents via A2A |
-| [A2A](/tools/a2a/) | Connect to remote agents via the Agent-to-Agent protocol |
+| [Filesystem]({{ '/tools/filesystem/' | relative_url }}) | Read, write, list, search, and navigate files and directories |
+| [Shell]({{ '/tools/shell/' | relative_url }}) | Execute arbitrary shell commands in the user's environment |
+| [Think]({{ '/tools/think/' | relative_url }}) | Step-by-step reasoning scratchpad for planning and decision-making |
+| [Todo]({{ '/tools/todo/' | relative_url }}) | Task list management for complex multi-step workflows |
+| [Memory]({{ '/tools/memory/' | relative_url }}) | Persistent key-value storage backed by SQLite |
+| [Fetch]({{ '/tools/fetch/' | relative_url }}) | Make HTTP requests to external APIs and web services |
+| [Script]({{ '/tools/script/' | relative_url }}) | Define custom shell scripts as named tools |
+| [LSP]({{ '/tools/lsp/' | relative_url }}) | Connect to Language Server Protocol servers for code intelligence |
+| [API]({{ '/tools/api/' | relative_url }}) | Create custom tools that call HTTP APIs without writing code |
+| [User Prompt]({{ '/tools/user-prompt/' | relative_url }}) | Ask users questions and collect interactive input |
+| [Transfer Task]({{ '/tools/transfer-task/' | relative_url }}) | Delegate tasks to sub-agents (auto-enabled with `sub_agents`) |
+| [Background Agents]({{ '/tools/background-agents/' | relative_url }}) | Dispatch work to sub-agents concurrently |
+| [Handoff]({{ '/tools/handoff/' | relative_url }}) | Delegate tasks to remote agents via A2A |
+| [A2A]({{ '/tools/a2a/' | relative_url }}) | Connect to remote agents via the Agent-to-Agent protocol |
 
 ## MCP Tools
 
@@ -50,7 +50,7 @@ docker-agent supports the [Model Context Protocol (MCP)](https://modelcontextpro
 
 - **Docker MCP** (recommended) — Run MCP servers in Docker containers via the [MCP Gateway](https://github.com/docker/mcp-gateway). Browse the [Docker MCP Catalog](https://hub.docker.com/search?q=&type=mcp).
 - **Local MCP (stdio)** — Run MCP servers as local processes communicating over stdin/stdout.
-- **Remote MCP (SSE / HTTP)** — Connect to MCP servers running on a network. See [Remote MCP Servers](/features/remote-mcp/).
+- **Remote MCP (SSE / HTTP)** — Connect to MCP servers running on a network. See [Remote MCP Servers]({{ '/features/remote-mcp/' | relative_url }}).
 
 ```yaml
 toolsets:
@@ -58,10 +58,10 @@ toolsets:
     ref: docker:duckduckgo
 ```
 
-See [Tool Config](/configuration/tools/#mcp-tools) for full MCP configuration reference.
+See [Tool Config]({{ '/configuration/tools/#mcp-tools' | relative_url }}) for full MCP configuration reference.
 
 <div class="callout callout-tip">
 <div class="callout-title">💡 See also
 </div>
-  <p>For full configuration reference, see <a href="/configuration/tools/">Tool Config</a>. For RAG (document retrieval), see <a href="/features/rag/">RAG</a>.</p>
+  <p>For full configuration reference, see <a href="{{ '/configuration/tools/' | relative_url }}">Tool Config</a>. For RAG (document retrieval), see <a href="{{ '/features/rag/' | relative_url }}">RAG</a>.</p>
 </div>

@@ -14,20 +14,20 @@ Built-in tools are included with docker-agent and require no external dependenci
 
 | Type | Description | Page |
 | --- | --- | --- |
-| `filesystem` | Read, write, list, search, navigate | [Filesystem](/tools/filesystem/) |
-| `shell` | Execute shell commands | [Shell](/tools/shell/) |
-| `think` | Reasoning scratchpad | [Think](/tools/think/) |
-| `todo` | Task list management | [Todo](/tools/todo/) |
-| `memory` | Persistent key-value storage (SQLite) | [Memory](/tools/memory/) |
-| `fetch` | HTTP requests | [Fetch](/tools/fetch/) |
-| `script` | Custom shell scripts as tools | [Script](/tools/script/) |
-| `lsp` | Language Server Protocol integration | [LSP](/tools/lsp/) |
-| `api` | Custom HTTP API tools | [API](/tools/api/) |
-| `user_prompt` | Interactive user input | [User Prompt](/tools/user-prompt/) |
-| `transfer_task` | Delegate to sub-agents (auto-enabled) | [Transfer Task](/tools/transfer-task/) |
-| `background_agents` | Parallel sub-agent dispatch | [Background Agents](/tools/background-agents/) |
-| `handoff` | A2A remote agent delegation | [Handoff](/tools/handoff/) |
-| `a2a` | A2A remote agent connection | [A2A](/tools/a2a/) |
+| `filesystem` | Read, write, list, search, navigate | [Filesystem]({{ '/tools/filesystem/' | relative_url }}) |
+| `shell` | Execute shell commands | [Shell]({{ '/tools/shell/' | relative_url }}) |
+| `think` | Reasoning scratchpad | [Think]({{ '/tools/think/' | relative_url }}) |
+| `todo` | Task list management | [Todo]({{ '/tools/todo/' | relative_url }}) |
+| `memory` | Persistent key-value storage (SQLite) | [Memory]({{ '/tools/memory/' | relative_url }}) |
+| `fetch` | HTTP requests | [Fetch]({{ '/tools/fetch/' | relative_url }}) |
+| `script` | Custom shell scripts as tools | [Script]({{ '/tools/script/' | relative_url }}) |
+| `lsp` | Language Server Protocol integration | [LSP]({{ '/tools/lsp/' | relative_url }}) |
+| `api` | Custom HTTP API tools | [API]({{ '/tools/api/' | relative_url }}) |
+| `user_prompt` | Interactive user input | [User Prompt]({{ '/tools/user-prompt/' | relative_url }}) |
+| `transfer_task` | Delegate to sub-agents (auto-enabled) | [Transfer Task]({{ '/tools/transfer-task/' | relative_url }}) |
+| `background_agents` | Parallel sub-agent dispatch | [Background Agents]({{ '/tools/background-agents/' | relative_url }}) |
+| `handoff` | A2A remote agent delegation | [Handoff]({{ '/tools/handoff/' | relative_url }}) |
+| `a2a` | A2A remote agent connection | [A2A]({{ '/tools/a2a/' | relative_url }}) |
 
 **Example:**
 

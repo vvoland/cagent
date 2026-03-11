@@ -108,7 +108,7 @@ $ docker agent serve mcp agent.yaml --working-dir /path/to/project
 $ docker agent serve mcp agentcatalog/coder
 ```
 
-See [MCP Mode](/features/mcp-mode/) for detailed setup.
+See [MCP Mode]({{ '/features/mcp-mode/' | relative_url }}) for detailed setup.
 
 ### `docker agent serve a2a`
 
@@ -133,7 +133,7 @@ $ docker agent serve acp [config] [flags]
 $ docker agent serve acp agent.yaml
 ```
 
-See [ACP](/features/acp/) for details on the Agent Client Protocol.
+See [ACP]({{ '/features/acp/' | relative_url }}) for details on the Agent Client Protocol.
 
 ### `docker agent share push` / `docker agent share pull`
 
@@ -147,7 +147,7 @@ $ docker agent share push ./agent.yaml docker.io/username/my-agent:latest
 $ docker agent share pull docker.io/username/my-agent:latest
 ```
 
-See [Agent Distribution](/concepts/distribution/) for full registry workflow details.
+See [Agent Distribution]({{ '/concepts/distribution/' | relative_url }}) for full registry workflow details.
 
 ### `docker agent eval`
 
