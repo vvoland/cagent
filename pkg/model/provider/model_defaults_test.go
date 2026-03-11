@@ -260,6 +260,14 @@ func TestApplyModelDefaults_Google(t *testing.T) {
 			expectThinkingBudget: &latest.ThinkingBudget{Effort: "high"},
 		},
 		{
+			name: "gemini-3.1-pro-preview gets high thinking level default",
+			config: &latest.ModelConfig{
+				Provider: "google",
+				Model:    "gemini-3.1-pro-preview",
+			},
+			expectThinkingBudget: &latest.ThinkingBudget{Effort: "high"},
+		},
+		{
 			name: "gemini-3-flash gets medium thinking level default",
 			config: &latest.ModelConfig{
 				Provider: "google",
@@ -272,6 +280,14 @@ func TestApplyModelDefaults_Google(t *testing.T) {
 			config: &latest.ModelConfig{
 				Provider: "google",
 				Model:    "gemini-3-flash-preview",
+			},
+			expectThinkingBudget: &latest.ThinkingBudget{Effort: "medium"},
+		},
+		{
+			name: "gemini-3.1-flash-preview gets medium thinking level default",
+			config: &latest.ModelConfig{
+				Provider: "google",
+				Model:    "gemini-3.1-flash-preview",
 			},
 			expectThinkingBudget: &latest.ThinkingBudget{Effort: "medium"},
 		},
