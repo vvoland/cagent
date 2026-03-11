@@ -116,6 +116,9 @@ We collect anonymous usage data to help improve docker agent. To disable:
 			// Default to "run" command
 			if len(args) == 0 {
 				runCmd, _, _ := cmd.Find([]string{"run"})
+				if err := runCmd.PersistentPreRunE(runCmd, nil); err != nil {
+					return err
+				}
 				return runCmd.RunE(runCmd, nil)
 			}
 
