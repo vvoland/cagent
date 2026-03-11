@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -53,17 +54,28 @@ type UpdateTodosArgs struct {
 
 // Output types for JSON-structured responses.
 
+type CreateTodoOutput struct {
+	Created  Todo   `json:"created" jsonschema:"The created todo item"`
+	AllTodos []Todo `json:"all_todos" jsonschema:"Current state of all todo items"`
+	Reminder string `json:"reminder,omitempty" jsonschema:"Reminder about incomplete todos that still need to be completed"`
+}
+
 type CreateTodosOutput struct {
-	Created []Todo `json:"created" jsonschema:"List of created todo items"`
+	Created  []Todo `json:"created" jsonschema:"List of created todo items"`
+	AllTodos []Todo `json:"all_todos" jsonschema:"Current state of all todo items"`
+	Reminder string `json:"reminder,omitempty" jsonschema:"Reminder about incomplete todos that still need to be completed"`
 }
 
 type UpdateTodosOutput struct {
 	Updated  []TodoUpdate `json:"updated,omitempty" jsonschema:"List of successfully updated todos"`
 	NotFound []string     `json:"not_found,omitempty" jsonschema:"IDs of todos that were not found"`
+	AllTodos []Todo       `json:"all_todos" jsonschema:"Current state of all todo items"`
+	Reminder string       `json:"reminder,omitempty" jsonschema:"Reminder about incomplete todos that still need to be completed"`
 }
 
 type ListTodosOutput struct {
-	Todos []Todo `json:"todos" jsonschema:"List of all current todo items"`
+	Todos    []Todo `json:"todos" jsonschema:"List of all current todo items"`
+	Reminder string `json:"reminder,omitempty" jsonschema:"Reminder about incomplete todos that still need to be completed"`
 }
 
 // TodoStorage defines the storage layer for todo items.
@@ -157,17 +169,20 @@ func (t *TodoTool) Instructions() string {
 IMPORTANT: You MUST use these tools to track the progress of your tasks:
 
 1. Before starting any complex task:
-	- Create a todo for each major step using create_todo
+	- Create a todo for each major step using create_todos (prefer batch creation)
 	- Break down complex steps into smaller todos
 
 2. While working:
+	- Update todo status to "in-progress" BEFORE starting each task
+	- Mark todos as "completed" IMMEDIATELY after finishing each task
 	- Use list_todos frequently to keep track of remaining work
-	- Mark todos as "completed" when finished
 
-3. Task Management Rules:
-	- Never start a new task without creating a todo for it
-	- Always check list_todos before responding to ensure no steps are missed
-	- Update todo status to reflect current progress
+3. Task Completion Rules:
+	- EVERY todo you create MUST eventually be marked "completed"
+	- Before sending your final response, call list_todos to verify ALL todos are completed
+	- If any todos remain pending or in-progress, complete them or mark them completed before responding
+	- Never leave todos in a pending or in-progress state when you are done working
+	- When updating multiple todos, batch them in a single update_todos call
 
 This toolset is REQUIRED for maintaining task state and ensuring all steps are completed.`
 }
@@ -196,7 +211,12 @@ func (h *todoHandler) jsonResult(v any) (*tools.ToolCallResult, error) {
 }
 
 func (h *todoHandler) createTodo(_ context.Context, params CreateTodoArgs) (*tools.ToolCallResult, error) {
-	return h.jsonResult(h.addTodo(params.Description))
+	created := h.addTodo(params.Description)
+	return h.jsonResult(CreateTodoOutput{
+		Created:  created,
+		AllTodos: h.storage.All(),
+		Reminder: h.incompleteReminder(),
+	})
 }
 
 func (h *todoHandler) createTodos(_ context.Context, params CreateTodosArgs) (*tools.ToolCallResult, error) {
@@ -204,7 +224,11 @@ func (h *todoHandler) createTodos(_ context.Context, params CreateTodosArgs) (*t
 	for _, desc := range params.Descriptions {
 		created = append(created, h.addTodo(desc))
 	}
-	return h.jsonResult(CreateTodosOutput{Created: created})
+	return h.jsonResult(CreateTodosOutput{
+		Created:  created,
+		AllTodos: h.storage.All(),
+		Reminder: h.incompleteReminder(),
+	})
 }
 
 func (h *todoHandler) updateTodos(_ context.Context, params UpdateTodosArgs) (*tools.ToolCallResult, error) {
@@ -233,24 +257,38 @@ func (h *todoHandler) updateTodos(_ context.Context, params UpdateTodosArgs) (*t
 		return res, nil
 	}
 
-	if h.allCompleted() {
-		h.storage.Clear()
-	}
+	result.AllTodos = h.storage.All()
+	result.Reminder = h.incompleteReminder()
 
 	return h.jsonResult(result)
 }
 
-func (h *todoHandler) allCompleted() bool {
+// incompleteReminder returns a reminder string listing any non-completed todos,
+// or an empty string if all are completed (or storage is empty).
+func (h *todoHandler) incompleteReminder() string {
 	all := h.storage.All()
-	if len(all) == 0 {
-		return false
-	}
+	var pending, inProgress []string
 	for _, todo := range all {
-		if todo.Status != "completed" {
-			return false
+		switch todo.Status {
+		case "pending":
+			pending = append(pending, fmt.Sprintf("[%s] %s", todo.ID, todo.Description))
+		case "in-progress":
+			inProgress = append(inProgress, fmt.Sprintf("[%s] %s", todo.ID, todo.Description))
 		}
 	}
-	return true
+	if len(pending) == 0 && len(inProgress) == 0 {
+		return ""
+	}
+
+	var b strings.Builder
+	b.WriteString("The following todos are still incomplete and MUST be completed:")
+	for _, s := range inProgress {
+		b.WriteString(" (in-progress) " + s)
+	}
+	for _, s := range pending {
+		b.WriteString(" (pending) " + s)
+	}
+	return b.String()
 }
 
 func (h *todoHandler) listTodos(_ context.Context, _ tools.ToolCall) (*tools.ToolCallResult, error) {
@@ -258,7 +296,9 @@ func (h *todoHandler) listTodos(_ context.Context, _ tools.ToolCall) (*tools.Too
 	if todos == nil {
 		todos = []Todo{}
 	}
-	return h.jsonResult(ListTodosOutput{Todos: todos})
+	out := ListTodosOutput{Todos: todos}
+	out.Reminder = h.incompleteReminder()
+	return h.jsonResult(out)
 }
 
 func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
@@ -268,7 +308,7 @@ func (t *TodoTool) Tools(context.Context) ([]tools.Tool, error) {
 			Category:     "todo",
 			Description:  "Create a new todo item with a description",
 			Parameters:   tools.MustSchemaFor[CreateTodoArgs](),
-			OutputSchema: tools.MustSchemaFor[Todo](),
+			OutputSchema: tools.MustSchemaFor[CreateTodoOutput](),
 			Handler:      tools.NewHandler(t.handler.createTodo),
 			Annotations: tools.ToolAnnotations{
 				Title:        "Create TODO",
