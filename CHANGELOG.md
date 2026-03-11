@@ -3,6 +3,42 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.31.0] - 2026-03-11
+
+This release enhances the cost dialog with detailed session statistics and improves todo tool reliability for better task completion tracking.
+
+## What's New
+- Adds total token count, session duration, and message count to cost dialog
+- Adds reasoning tokens display for supported models (e.g. o1)
+- Adds average cost per 1K tokens and per message metrics to cost analysis
+- Adds cost percentage breakdown per model and per message
+- Adds cache hit rate and per-entry cached token count display
+
+## Improvements
+- Improves todo tool reliability by reminding LLM of incomplete items and including full state in all responses
+
+## Bug Fixes
+- Fixes Sonnet model name
+- Fixes various edge-case bugs in cost dialog formatting
+
+## Technical Changes
+- Adds cache to building hub image in CI
+- Optimizes CI by building and testing Go on the same runner to avoid duplicate compilation
+- Freezes config to v6
+- Deduplicates tool documentation into individual pages
+- Adds docs-serve task for local Jekyll preview via Docker
+
+### Pull Requests
+
+- [#2037](https://github.com/docker/docker-agent/pull/2037) - Add cache to building hub image in CI
+- [#2046](https://github.com/docker/docker-agent/pull/2046) - cost dialog: enrich with session stats, per-model percentages, and formatting fixes
+- [#2048](https://github.com/docker/docker-agent/pull/2048) - fix: improve todo completion reliability
+- [#2050](https://github.com/docker/docker-agent/pull/2050) - docs: update CHANGELOG.md for v1.30.1
+- [#2052](https://github.com/docker/docker-agent/pull/2052) - Fix sonnet model name
+- [#2056](https://github.com/docker/docker-agent/pull/2056) - Improve the toolsets documentation
+- [#2059](https://github.com/docker/docker-agent/pull/2059) - Freeze config v6
+
+
 ## [v1.30.1] - 2026-03-11
 
 This release improves command history handling, adds sound notifications, and includes various bug fixes and performance optimizations.
@@ -1139,3 +1175,5 @@ This release improves the terminal user interface with better error handling and
 [v1.30.0]: https://github.com/docker/docker-agent/releases/tag/v1.30.0
 
 [v1.30.1]: https://github.com/docker/docker-agent/releases/tag/v1.30.1
+
+[v1.31.0]: https://github.com/docker/docker-agent/releases/tag/v1.31.0
