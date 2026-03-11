@@ -3,6 +3,89 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.30.1] - 2026-03-11
+
+This release improves command history handling, adds sound notifications, and includes various bug fixes and performance optimizations.
+
+## What's New
+
+- Adds sound notifications for long-running tasks and errors (opt-in feature, disabled by default)
+- Adds LSP multiplexer to support multiple LSP toolsets simultaneously
+- Adds per-toolset model routing via model field on toolsets configuration
+- Adds click-to-copy functionality for working directory in TUI sidebar
+- Makes background_agents a standalone toolset that can be enabled independently
+
+## Improvements
+
+- Improves tmux experience with better keyboard enhancements and focus handling
+- Optimizes BM25 scoring strategy for better performance
+- Reduces redundant work during evaluation runs
+- Fixes animated spinners inside terminal multiplexers
+- Repaints terminal on focus to fix broken display after tab switch in Docker Desktop
+
+## Bug Fixes
+
+- Fixes loading very long lines in command history that previously caused crashes
+- Fixes LSP server being killed by context cancellation and restart failures
+- Fixes session-pinned agent usage in RunStream instead of shared currentAgent
+- Fixes sidebar context percentage flickering during sub-agent transfers
+- Fixes concurrent map writes by moving registerDefaultTools to constructor
+- Returns clear error when OPENAI_API_KEY is missing for speech-to-text
+
+## Technical Changes
+
+- Splits monolithic runtime.go into focused files by concern
+- Refactors code to use slices and maps stdlib functions instead of manual implementations
+- Enables modernize and perfsprint linters with all findings resolved
+- Migrates tool output to structured JSON schemas for todo tools
+- Replaces json.MarshalIndent with json.Marshal in builtin tools
+- Uses errors.AsType consistently instead of errors.As with pre-declared variables
+
+### Pull Requests
+
+- [#1870](https://github.com/docker/docker-agent/pull/1870) - feat: add sound notifications for task completion and errors
+- [#1940](https://github.com/docker/docker-agent/pull/1940) - history: Fix loading very long lines
+- [#1970](https://github.com/docker/docker-agent/pull/1970) - Add LSP multiplexer to support multiple LSP toolsets
+- [#2002](https://github.com/docker/docker-agent/pull/2002) - Don't ignore GITHUB_TOKEN
+- [#2003](https://github.com/docker/docker-agent/pull/2003) - docs: update CHANGELOG.md for v1.30.0
+- [#2005](https://github.com/docker/docker-agent/pull/2005) - Fix broken links to pages subsections
+- [#2007](https://github.com/docker/docker-agent/pull/2007) - codemode: fix Start() fail-fast and use tools.As for wrapper unwrapping
+- [#2008](https://github.com/docker/docker-agent/pull/2008) - Fix LSP server killed by context cancellation and restart failures
+- [#2009](https://github.com/docker/docker-agent/pull/2009) - fix: use session-pinned agent in RunStream instead of shared currentAgent
+- [#2010](https://github.com/docker/docker-agent/pull/2010) - refactor: split runtime.go and extract pkg/modelerrors
+- [#2011](https://github.com/docker/docker-agent/pull/2011) - Bump direct Go dependencies
+- [#2012](https://github.com/docker/docker-agent/pull/2012) - fix(#2012): Return clear error when OPENAI_API_KEY is missing for speech-to-text
+- [#2013](https://github.com/docker/docker-agent/pull/2013) - fix(#2012): Return clear error when OPENAI_API_KEY is missing for speech-to-text
+- [#2014](https://github.com/docker/docker-agent/pull/2014) - Replace duplicated mockEnvProvider test types with shared environment providers
+- [#2015](https://github.com/docker/docker-agent/pull/2015) - feat: add per-toolset model routing via model field on toolsets
+- [#2016](https://github.com/docker/docker-agent/pull/2016) - Simplify rulebased router: remove redundant types and score aggregation
+- [#2017](https://github.com/docker/docker-agent/pull/2017) - tui: improve tmux experience and simplify keyboard enhancements
+- [#2018](https://github.com/docker/docker-agent/pull/2018) - Unify streamAdapter/betaStreamAdapter retry logic into generic retryableStream
+- [#2019](https://github.com/docker/docker-agent/pull/2019) - refactor(anthropic): deduplicate sequencing, media-type, and test helpers
+- [#2020](https://github.com/docker/docker-agent/pull/2020) - docs: fix hallucinated CLI flags, commands, and config formats
+- [#2021](https://github.com/docker/docker-agent/pull/2021) - refactor: use slices and maps stdlib functions instead of manual implementations
+- [#2024](https://github.com/docker/docker-agent/pull/2024) - Fix task deploy-local
+- [#2025](https://github.com/docker/docker-agent/pull/2025) - fix: default sound notifications to off (opt-in)
+- [#2026](https://github.com/docker/docker-agent/pull/2026) - tui: repaint terminal on focus to fix broken display after tab switch
+- [#2027](https://github.com/docker/docker-agent/pull/2027) - Enable modernize and perfsprint linters, fix all findings
+- [#2028](https://github.com/docker/docker-agent/pull/2028) - refactor: use errors.AsType consistently instead of errors.As with pre-declared variables
+- [#2029](https://github.com/docker/docker-agent/pull/2029) - refactor(dmr): split client.go into focused files by concern
+- [#2030](https://github.com/docker/docker-agent/pull/2030) - refactor(runtime): split monolithic runtime.go into focused files
+- [#2031](https://github.com/docker/docker-agent/pull/2031) - Replace json.MarshalIndent with json.Marshal in builtin tools
+- [#2032](https://github.com/docker/docker-agent/pull/2032) - update Slack link in readme
+- [#2033](https://github.com/docker/docker-agent/pull/2033) - feat: make background_agents a standalone toolset
+- [#2034](https://github.com/docker/docker-agent/pull/2034) - Fix last brew install cagent mention
+- [#2035](https://github.com/docker/docker-agent/pull/2035) - tui: fix animated spinners inside terminal multiplexers
+- [#2036](https://github.com/docker/docker-agent/pull/2036) - feat: click to copy working directory in TUI sidebar
+- [#2038](https://github.com/docker/docker-agent/pull/2038) - refactor: remove duplication in model resolution, thinking budget, and message construction
+- [#2040](https://github.com/docker/docker-agent/pull/2040) - Use ResultSuccess/ResultError helpers in tasks and user_prompt tools
+- [#2041](https://github.com/docker/docker-agent/pull/2041) - fix: move registerDefaultTools to constructor to prevent concurrent map writes
+- [#2042](https://github.com/docker/docker-agent/pull/2042) - Fix sidebar context % flickering during sub-agent transfers
+- [#2043](https://github.com/docker/docker-agent/pull/2043) - perf: optimize BM25 scoring strategy
+- [#2045](https://github.com/docker/docker-agent/pull/2045) - todo: migrate tool output to structured JSON schemas
+- [#2047](https://github.com/docker/docker-agent/pull/2047) - eval: reduce redundant work during evaluation runs
+
+
 ## [v1.30.0] - 2026-03-09
 
 This release introduces file drag-and-drop support, background agent tasks, and completes the transition from "cagent" to "docker-agent" branding throughout the codebase.
@@ -1054,3 +1137,5 @@ This release improves the terminal user interface with better error handling and
 [v1.29.0]: https://github.com/docker/docker-agent/releases/tag/v1.29.0
 
 [v1.30.0]: https://github.com/docker/docker-agent/releases/tag/v1.30.0
+
+[v1.30.1]: https://github.com/docker/docker-agent/releases/tag/v1.30.1
