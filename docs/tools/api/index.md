@@ -217,12 +217,10 @@ agents:
 <div class="callout-title">💡 For Complex APIs
 </div>
   <p>For APIs that need authentication flows, pagination, or complex request/response handling, consider using an MCP server instead. The API tool is best for simple, stateless HTTP operations.</p>
-
 </div>
 
 <div class="callout callout-warning">
 <div class="callout-title">⚠️ Security
 </div>
   <p>API keys and tokens in headers are visible in debug logs. Use environment variables (<code>${env.VAR}</code>) rather than hardcoding secrets in configuration files.</p>
-
 </div>

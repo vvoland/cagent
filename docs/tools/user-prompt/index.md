@@ -172,7 +172,6 @@ How the prompt appears depends on the interface:
 <div class="callout-title">💡 Best Practice
 </div>
   <p>Provide clear, concise messages. Include context about why you're asking and what the information will be used for. Use schemas with descriptions to guide users on expected input format.</p>
-
 </div>
 
 ## Handling Responses
@@ -187,5 +186,4 @@ The agent should handle all possible actions:
 <div class="callout-title">⚠️ Context Requirement
 </div>
   <p>The user prompt tool requires an elicitation handler to be configured. It works in the TUI and CLI modes but may not be available in all contexts (e.g., some MCP client configurations).</p>
-
 </div>
