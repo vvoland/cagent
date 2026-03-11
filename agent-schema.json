@@ -739,7 +739,7 @@
         },
         "instruction": {
           "type": "string",
-          "description": "Optional instruction for the tools"
+          "description": "Custom instruction for this MCP server's tools. By default, setting this field replaces the toolset's built-in instructions entirely. To enrich (rather than replace) the original instructions, include the placeholder {ORIGINAL_INSTRUCTIONS} in your text — it will be substituted with the toolset's built-in instructions at runtime. For example: '{ORIGINAL_INSTRUCTIONS}\nAlways prefer JSON output.' will prepend the original instructions and append your extra guidance."
         },
         "name": {
           "type": "string",
@@ -809,7 +809,7 @@
         },
         "instruction": {
           "type": "string",
-          "description": "Additional instruction on how to use this toolset"
+          "description": "Custom instruction for this toolset. By default, setting this field replaces the toolset's built-in instructions entirely. To enrich (rather than replace) the original instructions, include the placeholder {ORIGINAL_INSTRUCTIONS} in your text — it will be substituted with the toolset's built-in instructions at runtime. For example: '{ORIGINAL_INSTRUCTIONS}\nAlways prefer JSON output.' will prepend the original instructions and append your extra guidance."
         },
         "toon": {
           "type": "string",

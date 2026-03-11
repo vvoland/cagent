@@ -18,6 +18,7 @@ Some of these agents use [built-in tools](../docs/index.html#configuration/tools
 | [mem.yaml](mem.yaml)                   | Humorous AI with persistent memory     | ✓          |       |      |       | ✓      |             |            |
 | [diag.yaml](diag.yaml)                 | Log analysis and diagnostics           | ✓          | ✓     |      | ✓     |        |             |            |
 | [todo.yaml](todo.yaml)                 | Task manager example                   |            |       | ✓    |       |        |             |            |
+| [toolset_instructions.yaml](toolset_instructions.yaml) | Enriching toolset instructions with `{ORIGINAL_INSTRUCTIONS}` | ✓ | ✓ |      |       |        |             |            |
 | [pythonista.yaml](pythonista.yaml)     | Python programming assistant           | ✓          | ✓     |      |       |        |             |            |
 | [fetch_docker.yaml](fetch_docker.yaml) | Web content fetcher and summarizer     |            |       |      |       |        | fetch (builtin) |        |
 | [alloy.yaml](alloy.yaml)               | Learning assistant                     |            |       |      |       |        |             |            |
