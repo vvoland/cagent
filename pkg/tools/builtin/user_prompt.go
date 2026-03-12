@@ -23,18 +23,10 @@ var (
 	_ tools.Instructable = (*UserPromptTool)(nil)
 )
 
-// UserPromptOption represents a single selectable choice presented to the user.
-type UserPromptOption struct {
-	Label       string `json:"label" jsonschema:"Short display text for this option (1-5 words)"`
-	Description string `json:"description" jsonschema:"Brief explanation of what this option means"`
-}
-
 type UserPromptArgs struct {
-	Message  string             `json:"message" jsonschema:"The message/question to display to the user"`
-	Title    string             `json:"title,omitempty" jsonschema:"Optional title for the dialog window (defaults to 'Question')"`
-	Schema   map[string]any     `json:"schema,omitempty" jsonschema:"JSON Schema defining the expected response structure. Mutually exclusive with options."`
-	Options  []UserPromptOption `json:"options,omitempty" jsonschema:"List of choices to present to the user. Each has a label and description. The user can pick from these or type a custom answer. Put recommended option first and append '(Recommended)' to its label. Mutually exclusive with schema."`
-	Multiple bool               `json:"multiple,omitempty" jsonschema:"When true and options are provided, allow the user to select multiple options. Defaults to single selection."`
+	Message string         `json:"message" jsonschema:"The message/question to display to the user"`
+	Title   string         `json:"title,omitempty" jsonschema:"Optional title for the dialog window (defaults to 'Question')"`
+	Schema  map[string]any `json:"schema,omitempty" jsonschema:"JSON Schema defining the expected response structure. Supports object schemas with properties or primitive type schemas."`
 }
 
 type UserPromptResponse struct {
@@ -55,13 +47,9 @@ func (t *UserPromptTool) userPrompt(ctx context.Context, params UserPromptArgs) 
 		return tools.ResultError("user_prompt tool is not available in this context (no elicitation handler configured)"), nil
 	}
 
-	meta := mcp.Meta{}
+	var meta mcp.Meta
 	if params.Title != "" {
-		meta["cagent/title"] = params.Title
-	}
-	if len(params.Options) > 0 {
-		meta["cagent/options"] = params.Options
-		meta["cagent/multiple"] = params.Multiple
+		meta = mcp.Meta{"cagent/title": params.Title}
 	}
 
 	req := &mcp.ElicitParams{
@@ -99,29 +87,16 @@ Use user_prompt to ask the user a question or gather input when you need clarifi
 
 Optionally provide a "title" to label the dialog (defaults to "Question").
 
-### Presenting choices with options (preferred for decisions)
+Optionally provide a JSON schema to structure the expected response (object, primitive, or enum types).
+If no schema is provided, the user can type a free-form response.
 
-Provide "options" — a list of {label, description} objects — to present clickable choices.
-The user can select from the list or type a custom answer.
-- Put the recommended option first and append "(Recommended)" to its label.
-- Set "multiple": true to allow selecting more than one option.
-- Do NOT include catch-all options like "Other" — a custom text input is always available.
-
-Example with options:
-{"message": "Which base image strategy?", "options": [{"label": "Alpine multi-stage (Recommended)", "description": "Smallest image size, widely used"}, {"label": "Distroless runtime", "description": "No shell, minimal attack surface"}, {"label": "Scratch with static binary", "description": "Absolute minimum, requires CGO_ENABLED=0"}]}
-
-### Structured input with schema (for forms)
-
-Provide a JSON "schema" to collect structured data (object, primitive, or enum types).
-If neither options nor schema is provided, the user can type a free-form response.
+Example schema for multiple choice:
+{"type": "string", "enum": ["option1", "option2"], "title": "Select an option"}
 
 Example schema for structured input:
 {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]}
 
-### Response format
-
-Response contains "action" (accept/decline/cancel) and "content" (user data, only when accepted).
-When options are used, content has "selection" (array of selected labels) or "custom" (user-typed text).`
+Response contains "action" (accept/decline/cancel) and "content" (user data, only when accepted).`
 }
 
 func (t *UserPromptTool) Tools(context.Context) ([]tools.Tool, error) {
@@ -129,7 +104,7 @@ func (t *UserPromptTool) Tools(context.Context) ([]tools.Tool, error) {
 		{
 			Name:         ToolNameUserPrompt,
 			Category:     "user_prompt",
-			Description:  "Ask the user a question and wait for their response. Use this when you need interactive input, clarification, or confirmation from the user. Provide 'options' to present a list of choices, or a JSON 'schema' for structured input.",
+			Description:  "Ask the user a question and wait for their response. Use this when you need interactive input, clarification, or confirmation from the user. Optionally provide a JSON schema to define the expected response structure.",
 			Parameters:   tools.MustSchemaFor[UserPromptArgs](),
 			OutputSchema: tools.MustSchemaFor[UserPromptResponse](),
 			Handler:      tools.NewHandler(t.userPrompt),
