@@ -71,6 +71,12 @@ func (r *PersistentRuntime) handleEvent(ctx context.Context, sess *session.Sessi
 		return
 	}
 
+	// Skip events that belong to a different session (e.g. sub-agent
+	// streaming events forwarded through the parent's event channel).
+	if scoped, ok := event.(SessionScoped); ok && scoped.GetSessionID() != sess.ID {
+		return
+	}
+
 	switch e := event.(type) {
 	case *AgentChoiceEvent:
 		// Accumulate streaming content
