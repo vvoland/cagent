@@ -113,16 +113,6 @@ type Session struct {
 	// These are shown in the model picker for easy re-selection.
 	CustomModelsUsed []string `json:"custom_models_used,omitempty"`
 
-	// BranchParentSessionID indicates this session was branched from another session.
-	BranchParentSessionID string `json:"branch_parent_session_id,omitempty"`
-
-	// BranchParentPosition is the parent session item position where this branch occurred.
-	// Only set when BranchParentSessionID is non-empty.
-	BranchParentPosition *int `json:"branch_parent_position,omitempty"`
-
-	// BranchCreatedAt is the time when this branch session was created.
-	BranchCreatedAt *time.Time `json:"branch_created_at,omitempty"`
-
 	// AgentName, when set, tells RunStream which agent to use for this session
 	// instead of reading from the shared runtime currentAgent field. This is
 	// required for background agent tasks where multiple sessions may run
