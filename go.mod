@@ -28,7 +28,7 @@ require (
 	github.com/coder/acp-go-sdk v0.6.3
 	github.com/docker/cli v29.3.0+incompatible
 	github.com/docker/go-units v0.5.0
-	github.com/dop251/goja v0.0.0-20260305124333-6a7976c22267
+	github.com/dop251/goja v0.0.0-20260311135729-065cd970411c
 	github.com/fatih/color v1.18.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/getkin/kin-openapi v0.132.0
