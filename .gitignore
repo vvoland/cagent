@@ -16,3 +16,8 @@ vendor
 # Local environment files
 .env.local
 .claude/settings.local.json
+
+# CI-downloaded binaries (cagent-action places these in the workspace root)
+/cagent
+/cagent-*
+/docker-mcp-*
