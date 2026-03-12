@@ -202,8 +202,27 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeSearch();
 });
 
+// ---------- Sidebar scroll persistence ----------
+function restoreSidebarScroll() {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+
+  const saved = sessionStorage.getItem('sidebar-scroll');
+  if (saved !== null) {
+    sidebar.scrollTop = parseInt(saved, 10);
+  }
+
+  // Before navigating away, save the current scroll position
+  sidebar.querySelectorAll('a').forEach(link => {
+    link.addEventListener('click', () => {
+      sessionStorage.setItem('sidebar-scroll', sidebar.scrollTop);
+    });
+  });
+}
+
 // ---------- Init ----------
 initTheme();
+restoreSidebarScroll();
 buildSearchIndex();
 buildTOC();
 addCopyButtons();
