@@ -164,27 +164,14 @@ func NewTodoTool(opts ...TodoOption) *TodoTool {
 }
 
 func (t *TodoTool) Instructions() string {
-	return `## Using the Todo Tools
+	return `## Todo Tools
 
-IMPORTANT: You MUST use these tools to track the progress of your tasks:
-
-1. Before starting any complex task:
-	- Create a todo for each major step using create_todos (prefer batch creation)
-	- Break down complex steps into smaller todos
-
-2. While working:
-	- Update todo status to "in-progress" BEFORE starting each task
-	- Mark todos as "completed" IMMEDIATELY after finishing each task
-	- Use list_todos frequently to keep track of remaining work
-
-3. Task Completion Rules:
-	- EVERY todo you create MUST eventually be marked "completed"
-	- Before sending your final response, call list_todos to verify ALL todos are completed
-	- If any todos remain pending or in-progress, complete them or mark them completed before responding
-	- Never leave todos in a pending or in-progress state when you are done working
-	- When updating multiple todos, batch them in a single update_todos call
-
-This toolset is REQUIRED for maintaining task state and ensuring all steps are completed.`
+Track task progress with todos:
+- Create todos for each major step before starting complex work (prefer batch create_todos)
+- Update status to "in-progress" before starting, "completed" immediately after finishing
+- Every todo MUST be marked "completed" before your final response
+- Batch multiple updates in a single update_todos call
+- Never leave todos pending or in-progress when done`
 }
 
 // addTodo creates a new todo and adds it to storage.

@@ -135,29 +135,28 @@ func (s *SkillsToolset) handleReadSkillFile(_ context.Context, args readSkillFil
 	return tools.ResultSuccess(content), nil
 }
 
+// hasFiles reports whether any loaded skill has supporting files beyond SKILL.md.
+func (s *SkillsToolset) hasFiles() bool {
+	for _, skill := range s.skills {
+		if len(skill.Files) > 1 {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *SkillsToolset) Instructions() string {
 	if len(s.skills) == 0 {
 		return ""
 	}
 
-	hasFiles := false
-	for _, skill := range s.skills {
-		if len(skill.Files) > 1 {
-			hasFiles = true
-			break
-		}
-	}
-
 	var sb strings.Builder
-	sb.WriteString("The following skills provide specialized instructions for specific tasks. ")
-	sb.WriteString("Each skill's description indicates what it does and when to use it.\n\n")
-	sb.WriteString("When a user's request matches a skill's description, use the read_skill tool to load the skill's content. ")
-	sb.WriteString("The content contains detailed instructions to follow for that task.\n\n")
+	sb.WriteString("Skills provide specialized instructions for specific tasks. ")
+	sb.WriteString("When a user's request matches a skill's description, use read_skill to load its instructions.\n\n")
 
-	if hasFiles {
-		sb.WriteString("Some skills reference supporting files (scripts, documentation, templates). ")
-		sb.WriteString("When skill instructions reference a file path, use the read_skill_file tool to load it on demand. ")
-		sb.WriteString("Do not load all files upfront — only load them as needed.\n\n")
+	if s.hasFiles() {
+		sb.WriteString("Some skills have supporting files. ")
+		sb.WriteString("Use read_skill_file to load referenced files on demand — do not preload them.\n\n")
 	}
 
 	sb.WriteString("<available_skills>\n")
@@ -213,14 +212,7 @@ func (s *SkillsToolset) Tools(context.Context) ([]tools.Tool, error) {
 	}
 
 	// Only expose read_skill_file if any skill has supporting files
-	hasFiles := false
-	for _, skill := range s.skills {
-		if len(skill.Files) > 1 {
-			hasFiles = true
-			break
-		}
-	}
-	if hasFiles {
+	if s.hasFiles() {
 		result = append(result, tools.Tool{
 			Name:         ToolNameReadSkillFile,
 			Category:     "skills",

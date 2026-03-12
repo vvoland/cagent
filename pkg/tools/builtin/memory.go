@@ -83,26 +83,14 @@ type UpdateMemoryArgs struct {
 }
 
 func (t *MemoryTool) Instructions() string {
-	return `## Using the memory tool
+	return `## Memory Tools
 
-Before taking any action or responding, check stored memories for relevant context.
-Use the memory tool generously to remember things about the user. Do not mention using this tool.
+Check stored memories for relevant context before acting. Store useful information silently — never mention using this tool.
 
-### When to remember
-- User preferences, corrections, and explicit requests to remember something
-- Key facts, decisions, and context that may be useful in future conversations
-- Project-specific conventions and patterns
-
-### Categories
-Organize memories with a category when adding or updating (e.g. "preference", "fact", "project", "decision").
-
-### Searching vs getting all
-- Use "search_memories" with keywords and/or a category to find specific memories efficiently.
-- Use "get_memories" only when you need a full dump of all stored memories.
-
-### Updating vs creating
-- Use "update_memory" to edit an existing memory by ID instead of deleting and re-adding.
-- Use "add_memory" only for genuinely new information.`
+- Remember: user preferences, corrections, key decisions, project conventions
+- Use search_memories with keywords/category for targeted lookup; use get_memories only for a full dump
+- Use update_memory to edit existing entries; use add_memory only for new information
+- Organize with categories: "preference", "fact", "project", "decision"`
 }
 
 func (t *MemoryTool) Tools(context.Context) ([]tools.Tool, error) {

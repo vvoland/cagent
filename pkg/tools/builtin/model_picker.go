@@ -37,12 +37,10 @@ func NewModelPickerTool(models []string) *ModelPickerTool {
 // Instructions returns guidance for the LLM on when and how to use the model picker tools.
 func (t *ModelPickerTool) Instructions() string {
 	return "## Model Switching\n\n" +
-		"You have access to multiple models and can switch between them mid-conversation " +
-		"using the `" + ToolNameChangeModel + "` and `" + ToolNameRevertModel + "` tools.\n\n" +
 		"Available models: " + strings.Join(t.models, ", ") + ".\n\n" +
-		"Use `" + ToolNameChangeModel + "` when the current task would benefit from a different model's strengths " +
-		"(e.g., switching to a faster model for simple tasks or a more capable model for complex reasoning).\n" +
-		"Use `" + ToolNameRevertModel + "` to return to the original model after the specialized task is complete."
+		"Use `" + ToolNameChangeModel + "` to switch to a model better suited for the current task " +
+		"(e.g., faster model for simple tasks, more capable model for complex reasoning).\n" +
+		"Use `" + ToolNameRevertModel + "` to return to the original model when done."
 }
 
 // AllowedModels returns the list of models this tool allows switching to.

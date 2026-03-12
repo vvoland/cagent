@@ -78,24 +78,12 @@ func NewFilesystemTool(workingDir string, opts ...FileSystemOpt) *FilesystemTool
 }
 
 func (t *FilesystemTool) Instructions() string {
-	return `## Filesystem Tool Instructions
+	return `## Filesystem Tools
 
-This toolset provides comprehensive filesystem operations.
-
-### Working Directory
-- Relative paths (like "." or "src/main.go") are resolved relative to the working directory
-- Absolute paths (like "/etc/hosts") access files directly
-- Paths starting with ".." can access parent directories
-
-### Common Patterns
-- Always check if directories exist before creating files
-- Prefer read_multiple_files for batch operations
-- Use search_files_content for finding specific code or text
-
-### Performance Tips
-- Use read_multiple_files instead of multiple read_file calls
-- Use directory_tree with max_depth to limit large traversals
-- Use appropriate exclude patterns in search operations`
+- Relative paths resolve from the working directory; absolute paths and ".." work as expected
+- Prefer read_multiple_files over sequential read_file calls
+- Use search_files_content to locate code or text across files
+- Use exclude patterns in searches and max_depth in directory_tree to limit output`
 }
 
 type DirectoryTreeArgs struct {

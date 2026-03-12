@@ -284,7 +284,7 @@ func WithTimeout(timeout time.Duration) FetchToolOption {
 func (t *FetchTool) Instructions() string {
 	return `## Fetch Tool
 
-Fetch content from HTTP/HTTPS URLs. Supports multiple URLs in a single call, output format selection (text, markdown, html), and respects robots.txt.`
+Fetch content from HTTP/HTTPS URLs. Supports multiple URLs per call, output format selection (text, markdown, html), and respects robots.txt.`
 }
 
 func (t *FetchTool) Tools(context.Context) ([]tools.Tool, error) {

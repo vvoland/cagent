@@ -392,7 +392,18 @@ func formatCommandOutput(timeoutCtx, ctx context.Context, err error, rawOutput s
 }
 
 func (t *ShellTool) Instructions() string {
-	return nativeInstructions
+	return `## Shell Tools
+
+- Each call runs in a fresh shell session — no state persists between calls
+- Default timeout: 30s. Set "timeout" for longer operations (builds, tests)
+- Use "cwd" parameter instead of cd within commands
+- Combine operations with pipes, redirections, and heredocs
+- For git commits, add trailer: git commit -m "message" -m "" -m "Assisted-By: docker-agent"
+- Non-zero exit codes return error info with output; timed-out commands are terminated
+
+### Background Jobs
+
+Use run_background_job for long-running processes (servers, watchers). Output capped at 10MB per job. All jobs auto-terminate when the agent stops.`
 }
 
 func (t *ShellTool) Tools(context.Context) ([]tools.Tool, error) {

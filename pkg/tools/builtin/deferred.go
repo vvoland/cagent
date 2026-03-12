@@ -66,12 +66,9 @@ func (d *DeferredToolset) HasSources() bool {
 }
 
 func (d *DeferredToolset) Instructions() string {
-	return `## Deferred Tool Loading
+	return `## Deferred Tools
 
-Additional tools can be discovered and loaded on-demand.
-
-Use search_tool to find tools by action keywords (e.g., "remote", "read", "write"). Prefer single words to maximize matches.
-Use add_tool to activate a discovered tool.`
+Use search_tool to discover additional tools by keyword (e.g., "remote", "read", "write"). Use add_tool to activate a discovered tool.`
 }
 
 type SearchToolArgs struct {
