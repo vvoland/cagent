@@ -54,6 +54,7 @@ func TestIsRetryableModelError(t *testing.T) {
 		{name: "fetch failed", err: errors.New("fetch failed"), expected: true},
 		{name: "reset before headers", err: errors.New("reset before headers"), expected: true},
 		{name: "upstream connect error", err: errors.New("upstream connect error"), expected: true},
+		{name: "HTTP/2 INTERNAL_ERROR", err: fmt.Errorf("error receiving from stream: %w", errors.New("stream error: stream ID 1; INTERNAL_ERROR; received from peer")), expected: true},
 		{name: "context overflow - prompt too long", err: errors.New("prompt is too long: 226360 tokens > 200000 maximum"), expected: false},
 		{name: "context overflow - thinking budget", err: errors.New("max_tokens must be greater than thinking.budget_tokens"), expected: false},
 		{name: "context overflow - wrapped", err: &ContextOverflowError{Underlying: errors.New("test")}, expected: false},

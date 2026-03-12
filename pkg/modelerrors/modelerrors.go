@@ -256,6 +256,7 @@ func IsRetryableModelError(err error) bool {
 		"fetch failed",          // Network fetch failure
 		"reset before headers",  // Connection reset before headers received
 		"upstream connect",      // Upstream connection error
+		"internal_error",        // HTTP/2 INTERNAL_ERROR (stream-level)
 	}
 
 	for _, pattern := range retryablePatterns {
