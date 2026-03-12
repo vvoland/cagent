@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"cmp"
 	"context"
 	"fmt"
 	"log/slog"
@@ -18,6 +17,7 @@ import (
 	"github.com/docker/docker-agent/pkg/evaluation"
 	"github.com/docker/docker-agent/pkg/modelsdev"
 	"github.com/docker/docker-agent/pkg/session"
+	"github.com/docker/docker-agent/pkg/shellpath"
 	"github.com/docker/docker-agent/pkg/tools"
 	mcptools "github.com/docker/docker-agent/pkg/tools/mcp"
 	"github.com/docker/docker-agent/pkg/tui/components/markdown"
@@ -619,11 +619,12 @@ func (m *appModel) startShell() (tea.Model, tea.Cmd) {
 			cmd = exec.Command(path, "-NoLogo", "-NoExit", "-Command",
 				`Write-Host ""; Write-Host "Type 'exit' to return to docker agent 🐳"`)
 		} else {
-			shell := cmp.Or(os.Getenv("ComSpec"), "cmd.exe")
+			// Use absolute path to cmd.exe to prevent PATH hijacking (CWE-426).
+			shell := shellpath.WindowsCmdExe()
 			cmd = exec.Command(shell, "/K", `echo. & echo Type 'exit' to return to docker agent`)
 		}
 	} else {
-		shell := cmp.Or(os.Getenv("SHELL"), "/bin/sh")
+		shell := shellpath.DetectUnixShell()
 		cmd = exec.Command(shell, "-i", "-c",
 			`echo -e "\nType 'exit' to return to docker agent 🐳"; exec `+shell)
 	}
