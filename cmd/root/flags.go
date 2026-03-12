@@ -76,11 +76,14 @@ func addGatewayFlags(cmd *cobra.Command, runConfig *config.RuntimeConfig) {
 			userCfg = &userconfig.Config{}
 		}
 
+		ctx := cmd.Context()
+		env := runConfig.EnvProvider()
+
 		// Precedence: CLI flag > environment variable > user config
 		if runConfig.ModelsGateway == "" {
-			if gateway := os.Getenv(envModelsGateway); gateway != "" {
+			if gateway, _ := env.Get(ctx, envModelsGateway); gateway != "" {
 				runConfig.ModelsGateway = gateway
-			} else if gateway := os.Getenv(cagentEnvModelsGateway); gateway != "" {
+			} else if gateway, _ := env.Get(ctx, cagentEnvModelsGateway); gateway != "" {
 				runConfig.ModelsGateway = gateway
 			} else if userCfg.ModelsGateway != "" {
 				runConfig.ModelsGateway = userCfg.ModelsGateway
@@ -89,9 +92,9 @@ func addGatewayFlags(cmd *cobra.Command, runConfig *config.RuntimeConfig) {
 		runConfig.ModelsGateway = canonize(runConfig.ModelsGateway)
 
 		// Precedence for default model: environment variable > user config
-		if model := os.Getenv(envDefaultModel); model != "" {
+		if model, _ := env.Get(ctx, envDefaultModel); model != "" {
 			runConfig.DefaultModel = parseModelShorthand(model)
-		} else if model := os.Getenv(cagentEnvDefaultModel); model != "" {
+		} else if model, _ := env.Get(ctx, cagentEnvDefaultModel); model != "" {
 			runConfig.DefaultModel = parseModelShorthand(model)
 		} else if userCfg.DefaultModel != nil {
 			runConfig.DefaultModel = &userCfg.DefaultModel.ModelConfig
