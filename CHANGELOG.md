@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.32.2] - 2026-03-12
+
+This release focuses on security improvements and bug fixes, including prevention of PATH hijacking vulnerabilities and fixes to environment file support.
+
+## Bug Fixes
+- Fixes prevention of PATH hijacking and TOCTOU (Time-of-Check-Time-of-Use) vulnerabilities in shell/binary resolution (CWE-426)
+- Fixes --env-file support for the gateway
+
+## Technical Changes
+- Removes debug code from codebase
+- Reverts user prompt options feature that was previously added
+
+### Pull Requests
+
+- [#2071](https://github.com/docker/docker-agent/pull/2071) - Add options-based selection to user_prompt tool
+- [#2083](https://github.com/docker/docker-agent/pull/2083) - fix: prevent PATH hijacking and TOCTOU in shell/binary resolution
+- [#2084](https://github.com/docker/docker-agent/pull/2084) - docs: update CHANGELOG.md for v1.32.1
+- [#2085](https://github.com/docker/docker-agent/pull/2085) - Fix --env-file support for the gateway
+- [#2086](https://github.com/docker/docker-agent/pull/2086) - Remove debug code
+- [#2088](https://github.com/docker/docker-agent/pull/2088) - Revert "Add options-based selection to user_prompt tool"
+
+
 ## [v1.32.1] - 2026-03-12
 
 This release fixes several issues with session handling, tool elicitation, and MCP environment variable validation.
@@ -1239,3 +1261,5 @@ This release improves the terminal user interface with better error handling and
 [v1.32.0]: https://github.com/docker/docker-agent/releases/tag/v1.32.0
 
 [v1.32.1]: https://github.com/docker/docker-agent/releases/tag/v1.32.1
+
+[v1.32.2]: https://github.com/docker/docker-agent/releases/tag/v1.32.2
