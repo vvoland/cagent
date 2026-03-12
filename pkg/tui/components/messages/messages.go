@@ -1,7 +1,6 @@
 package messages
 
 import (
-	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -121,9 +120,6 @@ type model struct {
 	selectedMessageIndex int  // Index of selected message (-1 = no selection)
 	focused              bool // Whether the messages component is focused
 
-	// Debug layout mode - highlights truncated lines with red background
-	debugLayout bool
-
 	// Inline editing state
 	inlineEditMsgIndex      int            // Index of message being edited (-1 = not editing)
 	inlineEditSessionPos    int            // Session position for branching
@@ -156,7 +152,6 @@ func newModel(width, height int, sessionState *service.SessionState) *model {
 		scrollview:           sv,
 		selectedMessageIndex: -1,
 		inlineEditMsgIndex:   -1,
-		debugLayout:          os.Getenv("DOCKER_AGENT_EXPERIMENTAL_DEBUG_LAYOUT") == "1" || os.Getenv("CAGENT_EXPERIMENTAL_DEBUG_LAYOUT") == "1",
 		renderDirty:          true,
 	}
 }
@@ -528,17 +523,6 @@ func (m *model) View() string {
 
 	if m.selection.active {
 		visibleLines = m.applySelectionHighlight(visibleLines, startLine)
-	}
-
-	// Apply debug layout highlighting for truncated lines
-	if m.debugLayout {
-		contentWidth := m.contentWidth()
-		for i, line := range visibleLines {
-			if ansi.StringWidth(line) > contentWidth {
-				truncated := ansi.Truncate(line, contentWidth, "")
-				visibleLines[i] = styles.BaseStyle.Background(styles.Error).Render(ansi.Strip(truncated))
-			}
-		}
 	}
 
 	// Sync scroll state and delegate rendering to scrollview which guarantees
