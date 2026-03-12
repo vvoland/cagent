@@ -3,6 +3,32 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.32.1] - 2026-03-12
+
+This release fixes several issues with session handling, tool elicitation, and MCP environment variable validation.
+
+## Bug Fixes
+- Fixes corrupted session history by filtering sub-agent streaming events from parent session persistence
+- Fixes elicitation requests failing in sessions with ToolsApproved=true by decoupling elicitation channel from ToolsApproved flag
+- Fixes MCP environment variable validation being skipped when any gateway preflight errors occur
+
+## Improvements
+- Prevents sidebar from scrolling to top when clicking navigation links in documentation
+
+## Technical Changes
+- Adds end-to-end test for tool result block validation
+- Updates CHANGELOG.md for v1.32.0 release
+
+### Pull Requests
+
+- [#2053](https://github.com/docker/docker-agent/pull/2053) - fix(#2053): filter sub-agent streaming events from parent session persistence
+- [#2072](https://github.com/docker/docker-agent/pull/2072) - docs: update CHANGELOG.md for v1.32.0
+- [#2076](https://github.com/docker/docker-agent/pull/2076) - Don't scroll sidebar to the top
+- [#2077](https://github.com/docker/docker-agent/pull/2077) - Fix corrupted session history
+- [#2080](https://github.com/docker/docker-agent/pull/2080) - fix: decouple elicitation channel from ToolsApproved flag
+- [#2081](https://github.com/docker/docker-agent/pull/2081) - Fix MCP env var check skipped when any gateway preflight errors
+
+
 ## [v1.32.0] - 2026-03-12
 
 This release adds support for newer Gemini models, improves toolset documentation, and enhances user interaction capabilities.
@@ -1211,3 +1237,5 @@ This release improves the terminal user interface with better error handling and
 [v1.31.0]: https://github.com/docker/docker-agent/releases/tag/v1.31.0
 
 [v1.32.0]: https://github.com/docker/docker-agent/releases/tag/v1.32.0
+
+[v1.32.1]: https://github.com/docker/docker-agent/releases/tag/v1.32.1
