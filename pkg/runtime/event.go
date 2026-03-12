@@ -14,6 +14,13 @@ type Event interface {
 	GetAgentName() string
 }
 
+// SessionScoped is implemented by events that belong to a specific session.
+// The PersistentRuntime uses this to filter out sub-session events that
+// should not be persisted into the parent session's history.
+type SessionScoped interface {
+	GetSessionID() string
+}
+
 // AgentContext carries optional agent attribution and timestamp for an event.
 type AgentContext struct {
 	AgentName string    `json:"agent_name,omitempty"`
@@ -144,6 +151,8 @@ type AgentChoiceEvent struct {
 	AgentContext
 }
 
+func (e *AgentChoiceEvent) GetSessionID() string { return e.SessionID }
+
 func AgentChoice(agentName, sessionID, content string) Event {
 	return &AgentChoiceEvent{
 		Type:         "agent_choice",
@@ -159,6 +168,8 @@ type AgentChoiceReasoningEvent struct {
 	SessionID string `json:"session_id,omitempty"`
 	AgentContext
 }
+
+func (e *AgentChoiceReasoningEvent) GetSessionID() string { return e.SessionID }
 
 func AgentChoiceReasoning(agentName, sessionID, content string) Event {
 	return &AgentChoiceReasoningEvent{
@@ -588,6 +599,7 @@ type MessageAddedEvent struct {
 }
 
 func (e *MessageAddedEvent) GetAgentName() string { return e.AgentName }
+func (e *MessageAddedEvent) GetSessionID() string { return e.SessionID }
 
 func MessageAdded(sessionID string, msg *session.Message, agentName string) Event {
 	return &MessageAddedEvent{
