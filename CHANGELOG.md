@@ -3,6 +3,38 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.32.0] - 2026-03-12
+
+This release adds support for newer Gemini models, improves toolset documentation, and enhances user interaction capabilities.
+
+## What's New
+
+- Adds options-based selection to user_prompt tool, allowing the agent to present users with labeled choices instead of free-form input
+- Documents {ORIGINAL_INSTRUCTIONS} placeholder for enriching toolset instructions rather than replacing them
+
+## Bug Fixes
+
+- Fixes support for Gemini 3.x versioned models (e.g., gemini-3.1-pro-preview) to ensure proper model recognition and thinking configuration
+- Fixes gateway handling when using docker agent without a command
+- Fixes broken links in documentation
+
+## Technical Changes
+
+- Adds check for broken links in CI
+- Updates .gitignore to exclude cagent-* binaries from being committed
+
+### Pull Requests
+
+- [#2054](https://github.com/docker/docker-agent/pull/2054) - fix: support Gemini 3.x versioned models (e.g., gemini-3.1-pro-preview)
+- [#2062](https://github.com/docker/docker-agent/pull/2062) - doc: document {ORIGINAL_INSTRUCTIONS} placeholder for toolset instructions
+- [#2063](https://github.com/docker/docker-agent/pull/2063) - docs: update CHANGELOG.md for v1.31.0
+- [#2064](https://github.com/docker/docker-agent/pull/2064) - Fix gateway handling with docker agent without command
+- [#2067](https://github.com/docker/docker-agent/pull/2067) - Fix broken links
+- [#2068](https://github.com/docker/docker-agent/pull/2068) - Check for broken links
+- [#2069](https://github.com/docker/docker-agent/pull/2069) - gitignore cagent-* binaries
+- [#2071](https://github.com/docker/docker-agent/pull/2071) - Add options-based selection to user_prompt tool
+
+
 ## [v1.31.0] - 2026-03-11
 
 This release enhances the cost dialog with detailed session statistics and improves todo tool reliability for better task completion tracking.
@@ -1177,3 +1209,5 @@ This release improves the terminal user interface with better error handling and
 [v1.30.1]: https://github.com/docker/docker-agent/releases/tag/v1.30.1
 
 [v1.31.0]: https://github.com/docker/docker-agent/releases/tag/v1.31.0
+
+[v1.32.0]: https://github.com/docker/docker-agent/releases/tag/v1.32.0
