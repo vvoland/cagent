@@ -998,18 +998,16 @@ func (r *LocalRuntime) Summarize(ctx context.Context, sess *session.Session, add
 	events <- NewTokenUsageEvent(sess.ID, a.Name(), SessionUsage(sess, contextLimit))
 }
 
-// setElicitationEventsChannel sets the current events channel for elicitation requests
-func (r *LocalRuntime) setElicitationEventsChannel(events chan Event) {
+// swapElicitationEventsChannel atomically replaces the current elicitation
+// events channel and returns the previous one. Each RunStream call swaps in
+// its own channel on entry and swaps the previous one back on exit, so nested
+// streams (sub-sessions, background agents) don't lose the parent's channel.
+func (r *LocalRuntime) swapElicitationEventsChannel(ch chan Event) chan Event {
 	r.elicitationEventsChannelMux.Lock()
 	defer r.elicitationEventsChannelMux.Unlock()
-	r.elicitationEventsChannel = events
-}
-
-// clearElicitationEventsChannel clears the current events channel
-func (r *LocalRuntime) clearElicitationEventsChannel() {
-	r.elicitationEventsChannelMux.Lock()
-	defer r.elicitationEventsChannelMux.Unlock()
-	r.elicitationEventsChannel = nil
+	prev := r.elicitationEventsChannel
+	r.elicitationEventsChannel = ch
+	return prev
 }
 
 // elicitationHandler creates an elicitation handler that can be used by MCP clients
@@ -1018,7 +1016,7 @@ func (r *LocalRuntime) elicitationHandler(ctx context.Context, req *mcp.ElicitPa
 	slog.Debug("Elicitation request received from MCP server", "message", req.Message)
 
 	// Hold the read lock while sending to the channel to prevent a race
-	// with clearElicitationEventsChannel / close(events).
+	// with swapElicitationEventsChannel / close(events).
 	r.elicitationEventsChannelMux.RLock()
 	eventsChannel := r.elicitationEventsChannel
 	if eventsChannel == nil {

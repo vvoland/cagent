@@ -42,16 +42,13 @@ func (r *LocalRuntime) registerDefaultTools() {
 }
 
 // finalizeEventChannel performs cleanup at the end of a RunStream goroutine:
-// clears elicitation state, emits the StreamStopped event, fires hooks, and
-// closes the events channel.
-func (r *LocalRuntime) finalizeEventChannel(ctx context.Context, sess *session.Session, events chan Event) {
-	// Clear the elicitation events channel before closing the events channel
-	// to prevent a send-on-closed-channel panic in elicitationHandler.
-	// Skip for background sessions (ToolsApproved=true) — they never set the
-	// channel, so clearing it would null out the parent session's channel.
-	if !sess.ToolsApproved {
-		r.clearElicitationEventsChannel()
-	}
+// restores the previous elicitation channel, emits the StreamStopped event,
+// fires hooks, and closes the events channel.
+func (r *LocalRuntime) finalizeEventChannel(ctx context.Context, sess *session.Session, prevElicitationCh, events chan Event) {
+	// Swap back the parent's elicitation channel before closing this
+	// stream's channel. This prevents a send-on-closed-channel panic
+	// and restores elicitation for the parent session.
+	r.swapElicitationEventsChannel(prevElicitationCh)
 
 	defer close(events)
 
@@ -80,14 +77,11 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		))
 		defer sessionSpan.End()
 
-		// Set the events channel for elicitation requests.
-		// Skip for background sessions (ToolsApproved=true): they have all tools
-		// pre-approved and will never trigger elicitation prompts. Setting the
-		// channel would overwrite the parent session's channel; clearing it at
-		// teardown would break any pending MCP auth flow in the parent.
-		if !sess.ToolsApproved {
-			r.setElicitationEventsChannel(events)
-		}
+		// Swap in this stream's events channel for elicitation and save the
+		// previous one so it can be restored on teardown. This allows nested
+		// RunStream calls to temporarily own elicitation without losing the
+		// parent's channel.
+		prevElicitationCh := r.swapElicitationEventsChannel(events)
 
 		a := r.resolveSessionAgent(sess)
 
@@ -120,7 +114,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 
 		events <- StreamStarted(sess.ID, a.Name())
 
-		defer r.finalizeEventChannel(ctx, sess, events)
+		defer r.finalizeEventChannel(ctx, sess, prevElicitationCh, events)
 
 		r.registerDefaultTools()
 
