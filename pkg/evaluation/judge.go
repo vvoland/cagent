@@ -160,13 +160,15 @@ func (j *Judge) getOrCreateJudgeWithSchema(ctx context.Context) (provider.Provid
 		return j.judgeWithSchema, nil
 	}
 
-	modelCfg := j.model.BaseConfig().ModelConfig
-	p, err := provider.New(
-		ctx,
-		&modelCfg,
-		j.runConfig.EnvProvider(),
+	opts := []options.Opt{
 		options.WithStructuredOutput(judgeResponseSchema),
-	)
+	}
+	if j.runConfig.ModelsGateway != "" {
+		opts = append(opts, options.WithGateway(j.runConfig.ModelsGateway))
+	}
+
+	modelCfg := j.model.BaseConfig().ModelConfig
+	p, err := provider.New(ctx, &modelCfg, j.runConfig.EnvProvider(), opts...)
 	if err != nil {
 		return nil, err
 	}
