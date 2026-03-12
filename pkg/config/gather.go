@@ -33,10 +33,12 @@ func gatherMissingEnvVars(ctx context.Context, cfg *latest.Config, modelsGateway
 	if err != nil {
 		// Store tool preflight error but continue checking models
 		toolErr = err
-	} else {
-		for _, e := range names {
-			requiredEnv[e] = true
-		}
+	}
+	// Always add tool env vars, even when some toolsets had preflight errors.
+	// Previously, a preflight error from one toolset would cause all tool
+	// env vars to be silently skipped.
+	for _, e := range names {
+		requiredEnv[e] = true
 	}
 
 	for _, e := range sortedKeys(requiredEnv) {
