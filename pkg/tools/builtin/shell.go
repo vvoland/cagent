@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/docker/docker-agent/pkg/concurrent"
 	"github.com/docker/docker-agent/pkg/config"
+	"github.com/docker/docker-agent/pkg/shellpath"
 	"github.com/docker/docker-agent/pkg/tools"
 )
 
@@ -356,22 +356,10 @@ func NewShellTool(env []string, runConfig *config.RuntimeConfig) *ShellTool {
 }
 
 // detectShell returns the appropriate shell and arguments based on the platform.
+// It delegates to shellpath.DetectShell which uses absolute paths to prevent
+// PATH hijacking (CWE-426).
 func detectShell() (shell string, argsPrefix []string) {
-	if runtime.GOOS == "windows" {
-		return detectWindowsShell()
-	}
-
-	return cmp.Or(os.Getenv("SHELL"), "/bin/sh"), []string{"-c"}
-}
-
-func detectWindowsShell() (shell string, argsPrefix []string) {
-	powershellArgs := []string{"-NoProfile", "-NonInteractive", "-Command"}
-	for _, ps := range []string{"pwsh.exe", "powershell.exe"} {
-		if path, err := exec.LookPath(ps); err == nil {
-			return path, powershellArgs
-		}
-	}
-	return cmp.Or(os.Getenv("ComSpec"), "cmd.exe"), []string{"/C"}
+	return shellpath.DetectShell()
 }
 
 // resolveWorkDir returns the effective working directory.

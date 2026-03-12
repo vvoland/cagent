@@ -2,19 +2,18 @@ package hooks
 
 import (
 	"bytes"
-	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
-	"os"
 	"os/exec"
 	"regexp"
-	"runtime"
 	"strings"
 	"sync"
+
+	"github.com/docker/docker-agent/pkg/shellpath"
 )
 
 // Executor handles the execution of hooks
@@ -64,24 +63,11 @@ func NewExecutor(config *Config, workingDir string, env []string) *Executor {
 	return e
 }
 
-// initShell initializes the shell configuration based on the OS
+// initShell initializes the shell configuration based on the OS.
+// It uses shellpath.DetectShell which resolves shell binaries via absolute
+// paths to prevent PATH hijacking (CWE-426).
 func (e *Executor) initShell() {
-	if runtime.GOOS == "windows" {
-		// Prefer PowerShell when available
-		if path, err := exec.LookPath("pwsh.exe"); err == nil {
-			e.shell = path
-			e.shellArgsPrefix = []string{"-NoProfile", "-NonInteractive", "-Command"}
-		} else if path, err := exec.LookPath("powershell.exe"); err == nil {
-			e.shell = path
-			e.shellArgsPrefix = []string{"-NoProfile", "-NonInteractive", "-Command"}
-		} else {
-			e.shell = cmp.Or(os.Getenv("ComSpec"), "cmd.exe")
-			e.shellArgsPrefix = []string{"/C"}
-		}
-	} else {
-		e.shell = cmp.Or(os.Getenv("SHELL"), "/bin/sh")
-		e.shellArgsPrefix = []string{"-c"}
-	}
+	e.shell, e.shellArgsPrefix = shellpath.DetectShell()
 }
 
 // compileMatchers pre-compiles all matcher regex patterns
