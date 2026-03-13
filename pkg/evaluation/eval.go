@@ -350,8 +350,6 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *InputSession) (Res
 		result.ToolCallsScore = toolCallF1Score(expectedToolCalls, actualToolCalls)
 	}
 
-	result.HandoffsMatch = countHandoffs(expectedToolCalls) == countHandoffs(actualToolCalls)
-
 	if r.judge != nil && len(evals.Relevance) > 0 {
 		// Use transcript for relevance checking to preserve temporal ordering
 		transcript := buildTranscript(events)
