@@ -49,7 +49,7 @@ type Runner struct {
 func newRunner(agentSource config.Source, runConfig *config.RuntimeConfig, judgeModel provider.Provider, cfg Config) *Runner {
 	var judge *Judge
 	if judgeModel != nil {
-		judge = NewJudge(judgeModel, runConfig, cfg.Concurrency)
+		judge = NewJudge(judgeModel, cfg.Concurrency)
 	}
 	return &Runner{
 		Config:      cfg,
@@ -626,6 +626,7 @@ func createJudgeModel(ctx context.Context, judgeModel string, runConfig *config.
 
 	opts := []options.Opt{
 		options.WithThinking(false),
+		options.WithStructuredOutput(judgeResponseSchema),
 	}
 	if runConfig.ModelsGateway != "" {
 		opts = append(opts, options.WithGateway(runConfig.ModelsGateway))

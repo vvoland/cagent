@@ -37,7 +37,7 @@ func TestNewJudge(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			judge := NewJudge(nil, nil, tt.concurrency)
+			judge := NewJudge(nil, tt.concurrency)
 			assert.Equal(t, tt.expectedConcurrency, judge.concurrency)
 		})
 	}
@@ -46,7 +46,7 @@ func TestNewJudge(t *testing.T) {
 func TestJudge_CheckRelevance_EmptyCriteria(t *testing.T) {
 	t.Parallel()
 
-	judge := NewJudge(nil, nil, 1)
+	judge := NewJudge(nil, 1)
 	passed, failed, err := judge.CheckRelevance(t.Context(), "some response", nil)
 
 	assert.Equal(t, 0, passed)
@@ -57,7 +57,7 @@ func TestJudge_CheckRelevance_EmptyCriteria(t *testing.T) {
 func TestJudge_CheckRelevance_ContextCanceled(t *testing.T) {
 	t.Parallel()
 
-	judge := NewJudge(nil, nil, 2)
+	judge := NewJudge(nil, 2)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel() // Cancel immediately
