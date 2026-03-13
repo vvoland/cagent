@@ -143,7 +143,7 @@ func (g *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 	}
 
 	if res.err != nil {
-		return chat.MessageStreamResponse{}, res.err
+		return chat.MessageStreamResponse{}, wrapGeminiError(res.err)
 	}
 
 	// Build response

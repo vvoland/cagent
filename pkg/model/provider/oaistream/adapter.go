@@ -35,7 +35,7 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 	if !a.stream.Next() {
 		err := a.stream.Err()
 		if err != nil {
-			return chat.MessageStreamResponse{}, err
+			return chat.MessageStreamResponse{}, WrapOpenAIError(err)
 		}
 		return chat.MessageStreamResponse{}, io.EOF
 	}

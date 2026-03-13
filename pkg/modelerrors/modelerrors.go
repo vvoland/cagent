@@ -18,25 +18,58 @@ import (
 	"time"
 
 	"github.com/anthropics/anthropic-sdk-go"
-	openai "github.com/openai/openai-go/v3"
 	"google.golang.org/genai"
 )
 
-// Backoff configuration constants.
+// Backoff and retry-after configuration constants.
 const (
 	backoffBaseDelay = 200 * time.Millisecond
 	backoffMaxDelay  = 2 * time.Second
 	backoffFactor    = 2.0
 	backoffJitter    = 0.1
+
+	// MaxRetryAfterWait caps how long we'll honor a Retry-After header to prevent
+	// a misbehaving server from blocking the agent for an unreasonable amount of time.
+	MaxRetryAfterWait = 60 * time.Second
 )
 
-// maxRetryAfterWait caps how long we'll honor a Retry-After header to prevent
-// a misbehaving server from blocking the agent for an unreasonable amount of time.
-const maxRetryAfterWait = 60 * time.Second
+// StatusError wraps an HTTP API error with structured metadata for retry decisions.
+// Providers wrap SDK errors in this type so the retry loop can use errors.As
+// to extract status code and Retry-After without importing provider-specific SDKs.
+type StatusError struct {
+	// StatusCode is the HTTP status code from the provider's API response.
+	StatusCode int
+	// RetryAfter is the parsed Retry-After header duration. Zero if absent.
+	RetryAfter time.Duration
+	// Err is the original error from the provider SDK.
+	Err error
+}
 
-// MaxRetryAfterWait is the exported cap for Retry-After header values.
-// See maxRetryAfterWait.
-const MaxRetryAfterWait = maxRetryAfterWait
+func (e *StatusError) Error() string {
+	return e.Err.Error()
+}
+
+func (e *StatusError) Unwrap() error {
+	return e.Err
+}
+
+// WrapHTTPError wraps err in a *StatusError carrying the HTTP status code and
+// parsed Retry-After header from resp. Returns err unchanged if statusCode < 400
+// or err is nil. Pass resp=nil when no *http.Response is available.
+func WrapHTTPError(statusCode int, resp *http.Response, err error) error {
+	if err == nil || statusCode < 400 {
+		return err
+	}
+	var retryAfter time.Duration
+	if resp != nil {
+		retryAfter = ParseRetryAfterHeader(resp.Header.Get("Retry-After"))
+	}
+	return &StatusError{
+		StatusCode: statusCode,
+		RetryAfter: retryAfter,
+		Err:        err,
+	}
+}
 
 // Default fallback configuration.
 const (
@@ -307,29 +340,10 @@ func IsRetryableModelError(err error) bool {
 	return false
 }
 
-// ExtractRetryAfter extracts the Retry-After duration from an HTTP error response.
-// Works with Anthropic and OpenAI SDK error types that expose *http.Response.
-// Returns 0 if no Retry-After header is present or the error type is unsupported.
-func ExtractRetryAfter(err error) time.Duration {
-	var resp *http.Response
-
-	if anthropicErr, ok := errors.AsType[*anthropic.Error](err); ok {
-		resp = anthropicErr.Response
-	} else if openaiErr, ok := errors.AsType[*openai.Error](err); ok {
-		resp = openaiErr.Response
-	}
-
-	if resp == nil {
-		return 0
-	}
-
-	return parseRetryAfterHeader(resp.Header.Get("Retry-After"))
-}
-
-// parseRetryAfterHeader parses the Retry-After header value.
+// ParseRetryAfterHeader parses a Retry-After header value.
 // Supports both seconds (integer) and HTTP-date formats per RFC 7231 §7.1.3.
 // Returns 0 if the value is empty, invalid, or results in a non-positive duration.
-func parseRetryAfterHeader(value string) time.Duration {
+func ParseRetryAfterHeader(value string) time.Duration {
 	if value == "" {
 		return 0
 	}
@@ -349,17 +363,18 @@ func parseRetryAfterHeader(value string) time.Duration {
 
 // ClassifyModelError classifies an error for the retry/fallback decision.
 //
+// If the error chain contains a *StatusError (wrapped by provider adapters),
+// its StatusCode and RetryAfter fields are used directly — no provider-specific
+// imports needed in the caller.
+//
 // Returns:
 //   - retryable=true:    retry the SAME model with backoff (5xx, timeouts)
 //   - rateLimited=true:  it's a 429 error; caller decides retry vs fallback based on config
-//   - retryAfter:        suggested wait from Retry-After header (only set when rateLimited=true)
+//   - retryAfter:        Retry-After duration from the provider (only set for 429)
 //
 // When rateLimited=true, retryable is always false — the caller is responsible for
 // deciding whether to retry (when no fallback is configured) or skip to the next
 // model (when fallbacks are available).
-//
-// IsRetryableModelError and IsRetryableStatusCode are kept unchanged for backward
-// compatibility. This function is the authoritative classifier used by the retry loop.
 func ClassifyModelError(err error) (retryable, rateLimited bool, retryAfter time.Duration) {
 	if err == nil {
 		return false, false, 0
@@ -376,20 +391,24 @@ func ClassifyModelError(err error) (retryable, rateLimited bool, retryAfter time
 		return false, false, 0
 	}
 
-	statusCode := ExtractHTTPStatusCode(err)
-
-	// 429: rate limited — caller decides retry-vs-fallback based on config.
-	if statusCode == http.StatusTooManyRequests {
-		return false, true, ExtractRetryAfter(err)
+	// Primary path: typed StatusError wrapped by provider adapters.
+	var statusErr *StatusError
+	if errors.As(err, &statusErr) {
+		if statusErr.StatusCode == http.StatusTooManyRequests {
+			return false, true, statusErr.RetryAfter
+		}
+		return IsRetryableStatusCode(statusErr.StatusCode), false, 0
 	}
 
-	// Known retryable status codes (5xx, 408, 529).
+	// Fallback: providers that don't yet wrap (e.g. Bedrock), or non-provider
+	// errors (network, pattern matching).
+	statusCode := ExtractHTTPStatusCode(err)
+	if statusCode == http.StatusTooManyRequests {
+		return false, true, 0 // No Retry-After without StatusError
+	}
 	if statusCode != 0 {
 		return IsRetryableStatusCode(statusCode), false, 0
 	}
-
-	// No structured status code — fall back to IsRetryableModelError for net.Error
-	// and message-pattern matching.
 	return IsRetryableModelError(err), false, 0
 }
 

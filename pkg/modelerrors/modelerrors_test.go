@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/anthropics/anthropic-sdk-go"
-	openai "github.com/openai/openai-go/v3"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // mockTimeoutError implements net.Error with Timeout() = true
@@ -283,44 +281,6 @@ func TestFormatError(t *testing.T) {
 	})
 }
 
-// makeAnthropicError creates an *anthropic.Error with the given status code and
-// optional Retry-After header value. Used for testing ExtractRetryAfter.
-func makeAnthropicError(statusCode int, retryAfterValue string) *anthropic.Error {
-	header := http.Header{}
-	if retryAfterValue != "" {
-		header.Set("Retry-After", retryAfterValue)
-	}
-	resp := httptest.NewRecorder().Result()
-	resp.StatusCode = statusCode
-	resp.Header = header
-	// anthropic.Error.Error() dereferences Request, so we must provide a non-nil one.
-	req, _ := http.NewRequest(http.MethodPost, "https://api.anthropic.com/v1/messages", http.NoBody)
-	return &anthropic.Error{
-		StatusCode: statusCode,
-		Response:   resp,
-		Request:    req,
-	}
-}
-
-// makeOpenAIError creates an *openai.Error with the given status code and
-// optional Retry-After header value. Used for testing ExtractRetryAfter.
-func makeOpenAIError(statusCode int, retryAfterValue string) *openai.Error {
-	header := http.Header{}
-	if retryAfterValue != "" {
-		header.Set("Retry-After", retryAfterValue)
-	}
-	resp := httptest.NewRecorder().Result()
-	resp.StatusCode = statusCode
-	resp.Header = header
-	// openai.Error.Error() dereferences Request, so we must provide a non-nil one.
-	req, _ := http.NewRequest(http.MethodPost, "https://api.openai.com/v1/chat/completions", http.NoBody)
-	return &openai.Error{
-		StatusCode: statusCode,
-		Response:   resp,
-		Request:    req,
-	}
-}
-
 func TestParseRetryAfterHeader(t *testing.T) {
 	t.Parallel()
 
@@ -341,16 +301,15 @@ func TestParseRetryAfterHeader(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := parseRetryAfterHeader(tt.value)
-			assert.Equal(t, tt.expected, got, "parseRetryAfterHeader(%q)", tt.value)
+			got := ParseRetryAfterHeader(tt.value)
+			assert.Equal(t, tt.expected, got, "ParseRetryAfterHeader(%q)", tt.value)
 		})
 	}
 
 	t.Run("HTTP-date in the future", func(t *testing.T) {
 		t.Parallel()
-		// Use a time 10 seconds in the future
 		future := time.Now().Add(10 * time.Second).UTC().Format(http.TimeFormat)
-		got := parseRetryAfterHeader(future)
+		got := ParseRetryAfterHeader(future)
 		assert.Greater(t, got, 0*time.Second, "should return positive duration for future HTTP-date")
 		assert.LessOrEqual(t, got, 11*time.Second, "should not exceed ~10s for near-future date")
 	})
@@ -358,53 +317,95 @@ func TestParseRetryAfterHeader(t *testing.T) {
 	t.Run("HTTP-date in the past", func(t *testing.T) {
 		t.Parallel()
 		past := time.Now().Add(-10 * time.Second).UTC().Format(http.TimeFormat)
-		got := parseRetryAfterHeader(past)
+		got := ParseRetryAfterHeader(past)
 		assert.Equal(t, 0*time.Second, got, "should return 0 for past HTTP-date")
 	})
 }
 
-func TestExtractRetryAfter(t *testing.T) {
+func TestStatusError(t *testing.T) {
 	t.Parallel()
 
-	t.Run("nil error returns 0", func(t *testing.T) {
+	t.Run("Error() delegates to wrapped error", func(t *testing.T) {
 		t.Parallel()
-		assert.Equal(t, time.Duration(0), ExtractRetryAfter(nil))
+		underlying := errors.New("rate limit exceeded")
+		se := &StatusError{StatusCode: 429, Err: underlying}
+		assert.Equal(t, underlying.Error(), se.Error())
 	})
 
-	t.Run("plain error returns 0", func(t *testing.T) {
+	t.Run("Unwrap() allows errors.Is traversal", func(t *testing.T) {
 		t.Parallel()
-		assert.Equal(t, time.Duration(0), ExtractRetryAfter(errors.New("some error")))
+		sentinel := errors.New("sentinel")
+		se := &StatusError{StatusCode: 500, Err: sentinel}
+		assert.ErrorIs(t, se, sentinel)
 	})
 
-	t.Run("anthropic error with Retry-After seconds", func(t *testing.T) {
+	t.Run("errors.As finds StatusError in chain", func(t *testing.T) {
 		t.Parallel()
-		err := makeAnthropicError(429, "15")
-		assert.Equal(t, 15*time.Second, ExtractRetryAfter(err))
+		se := &StatusError{StatusCode: 429, RetryAfter: 10 * time.Second, Err: errors.New("rate limited")}
+		wrapped := fmt.Errorf("outer: %w", se)
+		var found *StatusError
+		require.ErrorAs(t, wrapped, &found)
+		assert.Equal(t, 429, found.StatusCode)
+		assert.Equal(t, 10*time.Second, found.RetryAfter)
+	})
+}
+
+func TestWrapHTTPError(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil error returns nil", func(t *testing.T) {
+		t.Parallel()
+		require.NoError(t, WrapHTTPError(429, nil, nil))
 	})
 
-	t.Run("anthropic error without Retry-After header", func(t *testing.T) {
+	t.Run("status < 400 passes through unchanged", func(t *testing.T) {
 		t.Parallel()
-		err := makeAnthropicError(429, "")
-		assert.Equal(t, time.Duration(0), ExtractRetryAfter(err))
+		origErr := errors.New("original")
+		result := WrapHTTPError(200, nil, origErr)
+		assert.Equal(t, origErr, result)
+		var se *StatusError
+		assert.NotErrorAs(t, result, &se)
 	})
 
-	t.Run("openai error with Retry-After seconds", func(t *testing.T) {
+	t.Run("429 without response has zero RetryAfter", func(t *testing.T) {
 		t.Parallel()
-		err := makeOpenAIError(429, "30")
-		assert.Equal(t, 30*time.Second, ExtractRetryAfter(err))
+		origErr := errors.New("rate limited")
+		result := WrapHTTPError(429, nil, origErr)
+		var se *StatusError
+		require.ErrorAs(t, result, &se)
+		assert.Equal(t, 429, se.StatusCode)
+		assert.Equal(t, time.Duration(0), se.RetryAfter)
+		assert.Equal(t, origErr.Error(), se.Error())
 	})
 
-	t.Run("openai error without Retry-After header", func(t *testing.T) {
+	t.Run("429 with Retry-After header sets RetryAfter", func(t *testing.T) {
 		t.Parallel()
-		err := makeOpenAIError(429, "")
-		assert.Equal(t, time.Duration(0), ExtractRetryAfter(err))
+		origErr := errors.New("rate limited")
+		respHeader := http.Header{}
+		respHeader.Set("Retry-After", "30")
+		resp := &http.Response{Header: respHeader}
+		result := WrapHTTPError(429, resp, origErr)
+		var se *StatusError
+		require.ErrorAs(t, result, &se)
+		assert.Equal(t, 429, se.StatusCode)
+		assert.Equal(t, 30*time.Second, se.RetryAfter)
 	})
 
-	t.Run("wrapped anthropic error", func(t *testing.T) {
+	t.Run("500 wraps correctly", func(t *testing.T) {
 		t.Parallel()
-		anthropicErr := makeAnthropicError(429, "5")
-		wrapped := fmt.Errorf("model failed: %w", anthropicErr)
-		assert.Equal(t, 5*time.Second, ExtractRetryAfter(wrapped))
+		origErr := errors.New("internal server error")
+		result := WrapHTTPError(500, nil, origErr)
+		var se *StatusError
+		require.ErrorAs(t, result, &se)
+		assert.Equal(t, 500, se.StatusCode)
+		assert.Equal(t, time.Duration(0), se.RetryAfter)
+	})
+
+	t.Run("original error still accessible via Unwrap", func(t *testing.T) {
+		t.Parallel()
+		sentinel := errors.New("sentinel")
+		result := WrapHTTPError(429, nil, sentinel)
+		assert.ErrorIs(t, result, sentinel)
 	})
 }
 
@@ -412,33 +413,34 @@ func TestClassifyModelError(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name             string
-		err              error
-		wantRetryable    bool
-		wantRateLimited  bool
-		wantRetryAfterGT time.Duration // retryAfter should be > this (0 means just checking it's >=0)
+		name            string
+		err             error
+		wantRetryable   bool
+		wantRateLimited bool
+		wantRetryAfter  time.Duration
 	}{
 		{name: "nil", err: nil, wantRetryable: false, wantRateLimited: false},
 		{name: "context canceled", err: context.Canceled, wantRetryable: false, wantRateLimited: false},
 		{name: "context deadline exceeded", err: context.DeadlineExceeded, wantRetryable: false, wantRateLimited: false},
 		{name: "context overflow", err: errors.New("prompt is too long: 200000 tokens > 100000 maximum"), wantRetryable: false, wantRateLimited: false},
-		// 429 rate limit cases
-		{name: "429 message only", err: errors.New("POST /v1/chat: 429 Too Many Requests"), wantRetryable: false, wantRateLimited: true},
-		{name: "429 anthropic error no header", err: makeAnthropicError(429, ""), wantRetryable: false, wantRateLimited: true},
-		{name: "429 openai error no header", err: makeOpenAIError(429, ""), wantRetryable: false, wantRateLimited: true},
-		{name: "500 openai error", err: makeOpenAIError(500, ""), wantRetryable: true, wantRateLimited: false},
-		// Retryable server errors
-		{name: "500 message", err: errors.New("500 internal server error"), wantRetryable: true, wantRateLimited: false},
-		{name: "500 anthropic error", err: makeAnthropicError(500, ""), wantRetryable: true, wantRateLimited: false},
-		{name: "502 bad gateway", err: errors.New("502 bad gateway"), wantRetryable: true, wantRateLimited: false},
-		{name: "503 service unavailable", err: errors.New("503 service unavailable"), wantRetryable: true, wantRateLimited: false},
-		{name: "504 gateway timeout", err: errors.New("504 gateway timeout"), wantRetryable: true, wantRateLimited: false},
-		{name: "529 overloaded", err: makeAnthropicError(529, ""), wantRetryable: true, wantRateLimited: false},
-		{name: "408 timeout", err: makeAnthropicError(408, ""), wantRetryable: true, wantRateLimited: false},
-		// Non-retryable client errors
-		{name: "400 bad request", err: makeAnthropicError(400, ""), wantRetryable: false, wantRateLimited: false},
-		{name: "401 unauthorized", err: makeAnthropicError(401, ""), wantRetryable: false, wantRateLimited: false},
-		{name: "403 forbidden", err: makeAnthropicError(403, ""), wantRetryable: false, wantRateLimited: false},
+		// 429 without StatusError (fallback message-pattern path)
+		{name: "429 message fallback, no RetryAfter", err: errors.New("POST /v1/chat: 429 Too Many Requests"), wantRetryable: false, wantRateLimited: true, wantRetryAfter: 0},
+		// 429 via StatusError (primary path) — no Retry-After
+		{name: "429 StatusError no retry-after", err: &StatusError{StatusCode: 429, RetryAfter: 0, Err: errors.New("rate limited")}, wantRetryable: false, wantRateLimited: true, wantRetryAfter: 0},
+		// 429 via StatusError with Retry-After from response header
+		{name: "429 StatusError with retry-after", err: &StatusError{StatusCode: 429, RetryAfter: 20 * time.Second, Err: errors.New("rate limited")}, wantRetryable: false, wantRateLimited: true, wantRetryAfter: 20 * time.Second},
+		// Retryable status codes via StatusError
+		{name: "500 StatusError", err: &StatusError{StatusCode: 500, Err: errors.New("internal server error")}, wantRetryable: true, wantRateLimited: false},
+		{name: "529 StatusError", err: &StatusError{StatusCode: 529, Err: errors.New("overloaded")}, wantRetryable: true, wantRateLimited: false},
+		{name: "408 StatusError", err: &StatusError{StatusCode: 408, Err: errors.New("timeout")}, wantRetryable: true, wantRateLimited: false},
+		// Retryable fallback path (message-based)
+		{name: "500 message fallback", err: errors.New("500 internal server error"), wantRetryable: true, wantRateLimited: false},
+		{name: "502 message fallback", err: errors.New("502 bad gateway"), wantRetryable: true, wantRateLimited: false},
+		// Non-retryable via StatusError
+		{name: "401 StatusError", err: &StatusError{StatusCode: 401, Err: errors.New("unauthorized")}, wantRetryable: false, wantRateLimited: false},
+		{name: "403 StatusError", err: &StatusError{StatusCode: 403, Err: errors.New("forbidden")}, wantRetryable: false, wantRateLimited: false},
+		// Non-retryable fallback
+		{name: "401 message fallback", err: errors.New("401 unauthorized"), wantRetryable: false, wantRateLimited: false},
 		// Network errors
 		{name: "network timeout", err: &mockTimeoutError{}, wantRetryable: true, wantRateLimited: false},
 	}
@@ -446,28 +448,20 @@ func TestClassifyModelError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			retryable, rateLimited, retryAfter := ClassifyModelError(tt.err)
+			retryable, rateLimited, retryAfterOut := ClassifyModelError(tt.err)
 			assert.Equal(t, tt.wantRetryable, retryable, "retryable mismatch")
 			assert.Equal(t, tt.wantRateLimited, rateLimited, "rateLimited mismatch")
-			assert.GreaterOrEqual(t, retryAfter, time.Duration(0), "retryAfter should never be negative")
+			assert.Equal(t, tt.wantRetryAfter, retryAfterOut, "retryAfter mismatch")
 		})
 	}
 
-	t.Run("429 with Retry-After header propagated", func(t *testing.T) {
+	t.Run("wrapped StatusError is found by errors.As", func(t *testing.T) {
 		t.Parallel()
-		err := makeAnthropicError(429, "20")
-		retryable, rateLimited, retryAfter := ClassifyModelError(err)
+		statusErr := &StatusError{StatusCode: 429, RetryAfter: 15 * time.Second, Err: errors.New("rate limited")}
+		wrapped := fmt.Errorf("model failed: %w", statusErr)
+		retryable, rateLimited, retryAfterOut := ClassifyModelError(wrapped)
 		assert.False(t, retryable)
 		assert.True(t, rateLimited)
-		assert.Equal(t, 20*time.Second, retryAfter)
-	})
-
-	t.Run("429 openai with Retry-After header", func(t *testing.T) {
-		t.Parallel()
-		err := makeOpenAIError(429, "10")
-		retryable, rateLimited, retryAfter := ClassifyModelError(err)
-		assert.False(t, retryable)
-		assert.True(t, rateLimited)
-		assert.Equal(t, 10*time.Second, retryAfter)
+		assert.Equal(t, 15*time.Second, retryAfterOut)
 	})
 }
