@@ -194,6 +194,7 @@ func (j *Judge) getOrCreateJudgeWithSchema(ctx context.Context) (provider.Provid
 
 	opts := []options.Opt{
 		options.WithStructuredOutput(judgeResponseSchema),
+		options.WithThinking(false),
 	}
 	if j.runConfig.ModelsGateway != "" {
 		opts = append(opts, options.WithGateway(j.runConfig.ModelsGateway))

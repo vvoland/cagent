@@ -624,7 +624,9 @@ func createJudgeModel(ctx context.Context, judgeModel string, runConfig *config.
 		return nil, fmt.Errorf("invalid judge model format %q: expected 'provider/model'", judgeModel)
 	}
 
-	var opts []options.Opt
+	opts := []options.Opt{
+		options.WithThinking(false),
+	}
 	if runConfig.ModelsGateway != "" {
 		opts = append(opts, options.WithGateway(runConfig.ModelsGateway))
 	}
