@@ -116,10 +116,11 @@ type appModel struct {
 	// Focus state
 	focusedPanel FocusedPanel
 
-	// keyboardEnhancements stores the last keyboard enhancements message.
-	// When non-nil with Flags != 0, the terminal supports key disambiguation
-	// (shift+enter, ctrl+i vs tab, etc.).
+	// keyboardEnhancements stores the last keyboard enhancements message
 	keyboardEnhancements *tea.KeyboardEnhancementsMsg
+
+	// keyboardEnhancementsSupported tracks whether the terminal supports keyboard enhancements
+	keyboardEnhancementsSupported bool
 
 	// program holds a reference to the tea.Program so that we can
 	// perform a full terminal release/restore cycle on focus events.
@@ -246,20 +247,15 @@ func (m *appModel) SetProgram(p *tea.Program) {
 	m.supervisor.SetProgram(p)
 }
 
-// hasKeyboardEnhancements reports whether the terminal supports keyboard
-// enhancements (Kitty keyboard protocol). When true, keybindings like
-// shift+enter become available.
-func (m *appModel) hasKeyboardEnhancements() bool {
-	return m.keyboardEnhancements != nil && m.keyboardEnhancements.Flags != 0
-}
-
 // reapplyKeyboardEnhancements forwards the cached keyboard enhancements message
-// to the active editor so new/replaced instances pick up the terminal's key
-// disambiguation support.
+// to the active chat page and editor so new/replaced instances pick up the
+// terminal's key disambiguation support.
 func (m *appModel) reapplyKeyboardEnhancements() {
 	if m.keyboardEnhancements == nil {
 		return
 	}
+	updated, _ := m.chatPage.Update(*m.keyboardEnhancements)
+	m.chatPage = updated.(chat.Page)
 	editorModel, _ := m.editor.Update(*m.keyboardEnhancements)
 	m.editor = editorModel.(editor.Editor)
 }
@@ -589,10 +585,14 @@ func (m *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyboardEnhancementsMsg:
 		m.keyboardEnhancements = &msg
-		// Forward to editor (only component that uses it for keybinding config)
-		editorModel, cmd := m.editor.Update(msg)
+		m.keyboardEnhancementsSupported = msg.Flags != 0
+		// Forward to content view
+		updated, cmd := m.chatPage.Update(msg)
+		m.chatPage = updated.(chat.Page)
+		// Forward to editor
+		editorModel, editorCmd := m.editor.Update(msg)
 		m.editor = editorModel.(editor.Editor)
-		return m, cmd
+		return m, tea.Batch(cmd, editorCmd)
 
 	// --- Keyboard input ---
 
@@ -1494,7 +1494,7 @@ func (m *appModel) Bindings() []key.Binding {
 	))
 
 	// Show newline help based on keyboard enhancement support
-	if m.hasKeyboardEnhancements() {
+	if m.keyboardEnhancementsSupported {
 		bindings = append(bindings, key.NewBinding(
 			key.WithKeys("shift+enter"),
 			key.WithHelp("Shift+Enter", "newline"),
@@ -2229,8 +2229,6 @@ func toFullscreenView(content, windowTitle string, working bool) tea.View {
 	view.MouseMode = tea.MouseModeCellMotion
 	view.BackgroundColor = styles.Background
 	view.WindowTitle = windowTitle
-	view.ReportFocus = true
-	view.KeyboardEnhancements.ReportEventTypes = true
 	if working {
 		view.ProgressBar = tea.NewProgressBar(tea.ProgressBarIndeterminate, 0)
 	}
