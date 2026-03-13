@@ -3,6 +3,30 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.32.3] - 2026-03-13
+
+This release removes an experimental feature and improves error handling for rate-limited API requests.
+
+## Improvements
+- Makes HTTP 429 (Too Many Requests) errors retryable when no fallback model is available, respecting the Retry-After header
+
+## Bug Fixes
+- Gates 429 retry behavior behind WithRetryOnRateLimit() opt-in option to prevent unexpected retry behavior
+
+## Technical Changes
+- Removes experimental feature from the codebase
+- Adds optional gateway usage for LLM evaluation as a judge
+- Refactors to use typed StatusError for retry metadata, with providers wrapping errors at Recv()
+
+### Pull Requests
+
+- [#2087](https://github.com/docker/docker-agent/pull/2087) - Remove experimental feature
+- [#2090](https://github.com/docker/docker-agent/pull/2090) - docs: update CHANGELOG.md for v1.32.2
+- [#2092](https://github.com/docker/docker-agent/pull/2092) - [eval] Optionnally use the gateway for the llm as a judge
+- [#2093](https://github.com/docker/docker-agent/pull/2093) - This can be retried
+- [#2096](https://github.com/docker/docker-agent/pull/2096) - fix: make HTTP 429 retryable when no fallback model, respect Retry-After header
+
+
 ## [v1.32.2] - 2026-03-12
 
 This release focuses on security improvements and bug fixes, including prevention of PATH hijacking vulnerabilities and fixes to environment file support.
@@ -1263,3 +1287,5 @@ This release improves the terminal user interface with better error handling and
 [v1.32.1]: https://github.com/docker/docker-agent/releases/tag/v1.32.1
 
 [v1.32.2]: https://github.com/docker/docker-agent/releases/tag/v1.32.2
+
+[v1.32.3]: https://github.com/docker/docker-agent/releases/tag/v1.32.3
