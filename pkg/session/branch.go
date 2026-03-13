@@ -6,7 +6,6 @@ import (
 	"maps"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/docker/docker-agent/pkg/chat"
 )
@@ -23,11 +22,6 @@ func BranchSession(parent *Session, branchAtPosition int) (*Session, error) {
 
 	branched := New()
 	copySessionMetadata(branched, parent, generateBranchTitle(parent.Title))
-
-	now := time.Now()
-	branched.BranchParentSessionID = parent.ID
-	branched.BranchParentPosition = &branchAtPosition
-	branched.BranchCreatedAt = &now
 
 	branched.Messages = make([]Item, 0, branchAtPosition)
 	for i := range branchAtPosition {

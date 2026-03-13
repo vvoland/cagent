@@ -66,12 +66,11 @@ func ResolveSessionID(ctx context.Context, store Store, ref string) (string, err
 // Summary contains lightweight session metadata for listing purposes.
 // This is used instead of loading full Session objects with all messages.
 type Summary struct {
-	ID                    string
-	Title                 string
-	CreatedAt             time.Time
-	Starred               bool
-	BranchParentSessionID string
-	NumMessages           int
+	ID          string
+	Title       string
+	CreatedAt   time.Time
+	Starred     bool
+	NumMessages int
 }
 
 // Store defines the interface for session storage
@@ -160,12 +159,11 @@ func (s *InMemorySessionStore) GetSessionSummaries(_ context.Context) ([]Summary
 			return true
 		}
 		summaries = append(summaries, Summary{
-			ID:                    value.ID,
-			Title:                 value.Title,
-			CreatedAt:             value.CreatedAt,
-			Starred:               value.Starred,
-			BranchParentSessionID: value.BranchParentSessionID,
-			NumMessages:           value.MessageCount(),
+			ID:          value.ID,
+			Title:       value.Title,
+			CreatedAt:   value.CreatedAt,
+			Starred:     value.Starred,
+			NumMessages: value.MessageCount(),
 		})
 		return true
 	})
@@ -199,27 +197,24 @@ func (s *InMemorySessionStore) UpdateSession(_ context.Context, session *Session
 	// Messages are stored separately via AddMessage.
 	// MAINTENANCE: when adding new persisted fields to Session, add them here too.
 	newSession := &Session{
-		ID:                    session.ID,
-		Title:                 session.Title,
-		Evals:                 session.Evals,
-		CreatedAt:             session.CreatedAt,
-		ToolsApproved:         session.ToolsApproved,
-		Thinking:              session.Thinking,
-		HideToolResults:       session.HideToolResults,
-		WorkingDir:            session.WorkingDir,
-		SendUserMessage:       session.SendUserMessage,
-		MaxIterations:         session.MaxIterations,
-		Starred:               session.Starred,
-		InputTokens:           session.InputTokens,
-		OutputTokens:          session.OutputTokens,
-		Cost:                  session.Cost,
-		Permissions:           session.Permissions,
-		AgentModelOverrides:   session.AgentModelOverrides,
-		CustomModelsUsed:      session.CustomModelsUsed,
-		BranchParentSessionID: session.BranchParentSessionID,
-		BranchParentPosition:  session.BranchParentPosition,
-		BranchCreatedAt:       session.BranchCreatedAt,
-		ParentID:              session.ParentID,
+		ID:                  session.ID,
+		Title:               session.Title,
+		Evals:               session.Evals,
+		CreatedAt:           session.CreatedAt,
+		ToolsApproved:       session.ToolsApproved,
+		Thinking:            session.Thinking,
+		HideToolResults:     session.HideToolResults,
+		WorkingDir:          session.WorkingDir,
+		SendUserMessage:     session.SendUserMessage,
+		MaxIterations:       session.MaxIterations,
+		Starred:             session.Starred,
+		InputTokens:         session.InputTokens,
+		OutputTokens:        session.OutputTokens,
+		Cost:                session.Cost,
+		Permissions:         session.Permissions,
+		AgentModelOverrides: session.AgentModelOverrides,
+		CustomModelsUsed:    session.CustomModelsUsed,
+		ParentID:            session.ParentID,
 	}
 
 	// Preserve existing messages if session already exists
@@ -527,19 +522,6 @@ func (s *SQLiteSessionStore) AddSession(ctx context.Context, session *Session) e
 	if session.ParentID != "" {
 		parentID = session.ParentID
 	}
-	var branchParentID any
-	if session.BranchParentSessionID != "" {
-		branchParentID = session.BranchParentSessionID
-	}
-	var branchParentPosition any
-	if session.BranchParentPosition != nil {
-		branchParentPosition = *session.BranchParentPosition
-	}
-	var branchCreatedAt any
-	if session.BranchCreatedAt != nil {
-		branchCreatedAt = session.BranchCreatedAt.Format(time.RFC3339)
-	}
-
 	// Use a transaction to insert session and its items
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -551,13 +533,12 @@ func (s *SQLiteSessionStore) AddSession(ctx context.Context, session *Session) e
 		`INSERT INTO sessions (
 			id, tools_approved, input_tokens, output_tokens, title, cost, send_user_message,
 			max_iterations, working_dir, created_at, permissions, agent_model_overrides,
-			custom_models_used, thinking, parent_id, branch_parent_session_id,
-			branch_parent_position, branch_created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			custom_models_used, thinking, parent_id
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		session.ID, session.ToolsApproved, session.InputTokens, session.OutputTokens, session.Title,
 		session.Cost, session.SendUserMessage, session.MaxIterations, session.WorkingDir,
 		session.CreatedAt.Format(time.RFC3339), permissionsJSON, agentModelOverridesJSON,
-		customModelsUsedJSON, session.Thinking, parentID, branchParentID, branchParentPosition, branchCreatedAt)
+		customModelsUsedJSON, session.Thinking, parentID)
 	if err != nil {
 		return err
 	}
@@ -583,12 +564,7 @@ func scanSession(scanner interface {
 	var workingDir sql.NullString
 	var permissionsJSON sql.NullString
 	var parentID sql.NullString
-	var branchParentID sql.NullString
-	var branchParentPosition sql.NullInt64
-	var branchCreatedAt sql.NullString
-	var splitDiffView sql.NullBool // column kept for backward compat, value ignored
-
-	err := scanner.Scan(&sessionID, &toolsApprovedStr, &inputTokensStr, &outputTokensStr, &titleStr, &costStr, &sendUserMessageStr, &maxIterationsStr, &workingDir, &createdAtStr, &starredStr, &permissionsJSON, &agentModelOverridesJSON, &customModelsUsedJSON, &thinkingStr, &parentID, &branchParentID, &branchParentPosition, &branchCreatedAt, &splitDiffView)
+	err := scanner.Scan(&sessionID, &toolsApprovedStr, &inputTokensStr, &outputTokensStr, &titleStr, &costStr, &sendUserMessageStr, &maxIterationsStr, &workingDir, &createdAtStr, &starredStr, &permissionsJSON, &agentModelOverridesJSON, &customModelsUsedJSON, &thinkingStr, &parentID)
 	if err != nil {
 		return nil, err
 	}
@@ -663,42 +639,24 @@ func scanSession(scanner interface {
 		}
 	}
 
-	var branchParentPositionPtr *int
-	if branchParentPosition.Valid {
-		pos := int(branchParentPosition.Int64)
-		branchParentPositionPtr = &pos
-	}
-
-	var branchCreatedAtPtr *time.Time
-	if branchCreatedAt.Valid && branchCreatedAt.String != "" {
-		parsed, err := time.Parse(time.RFC3339, branchCreatedAt.String)
-		if err != nil {
-			return nil, err
-		}
-		branchCreatedAtPtr = &parsed
-	}
-
 	return &Session{
-		ID:                    sessionID,
-		Title:                 titleStr,
-		Messages:              nil, // Loaded separately from session_items
-		ToolsApproved:         toolsApproved,
-		Thinking:              thinking,
-		InputTokens:           inputTokens,
-		OutputTokens:          outputTokens,
-		Cost:                  cost,
-		SendUserMessage:       sendUserMessage,
-		MaxIterations:         maxIterations,
-		CreatedAt:             createdAt,
-		WorkingDir:            workingDir.String,
-		Starred:               starred,
-		Permissions:           permissions,
-		AgentModelOverrides:   agentModelOverrides,
-		CustomModelsUsed:      customModelsUsed,
-		BranchParentSessionID: branchParentID.String,
-		BranchParentPosition:  branchParentPositionPtr,
-		BranchCreatedAt:       branchCreatedAtPtr,
-		ParentID:              parentID.String,
+		ID:                  sessionID,
+		Title:               titleStr,
+		Messages:            nil, // Loaded separately from session_items
+		ToolsApproved:       toolsApproved,
+		Thinking:            thinking,
+		InputTokens:         inputTokens,
+		OutputTokens:        outputTokens,
+		Cost:                cost,
+		SendUserMessage:     sendUserMessage,
+		MaxIterations:       maxIterations,
+		CreatedAt:           createdAt,
+		WorkingDir:          workingDir.String,
+		Starred:             starred,
+		Permissions:         permissions,
+		AgentModelOverrides: agentModelOverrides,
+		CustomModelsUsed:    customModelsUsed,
+		ParentID:            parentID.String,
 	}, nil
 }
 
@@ -709,7 +667,7 @@ func (s *SQLiteSessionStore) GetSession(ctx context.Context, id string) (*Sessio
 	}
 
 	row := s.db.QueryRowContext(ctx,
-		"SELECT id, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at, starred, permissions, agent_model_overrides, custom_models_used, thinking, parent_id, branch_parent_session_id, branch_parent_position, branch_created_at, split_diff_view FROM sessions WHERE id = ?", id)
+		"SELECT id, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at, starred, permissions, agent_model_overrides, custom_models_used, thinking, parent_id FROM sessions WHERE id = ?", id)
 
 	sess, err := scanSession(row)
 	if err != nil {
@@ -825,7 +783,7 @@ func (s *SQLiteSessionStore) loadSessionItemsWith(ctx context.Context, q querier
 // loadSessionWith loads a session using the provided querier.
 func (s *SQLiteSessionStore) loadSessionWith(ctx context.Context, q querier, id string) (*Session, error) {
 	row := q.QueryRowContext(ctx,
-		"SELECT id, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at, starred, permissions, agent_model_overrides, custom_models_used, thinking, parent_id, branch_parent_session_id, branch_parent_position, branch_created_at, split_diff_view FROM sessions WHERE id = ?", id)
+		"SELECT id, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at, starred, permissions, agent_model_overrides, custom_models_used, thinking, parent_id FROM sessions WHERE id = ?", id)
 
 	sess, err := scanSession(row)
 	if err != nil {
@@ -880,7 +838,7 @@ func (s *SQLiteSessionStore) loadMessagesFromLegacyColumn(ctx context.Context, s
 // GetSessions retrieves all root sessions (excludes sub-sessions)
 func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error) {
 	rows, err := s.db.QueryContext(ctx,
-		"SELECT id, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at, starred, permissions, agent_model_overrides, custom_models_used, thinking, parent_id, branch_parent_session_id, branch_parent_position, branch_created_at, split_diff_view FROM sessions WHERE parent_id IS NULL OR parent_id = '' ORDER BY created_at DESC")
+		"SELECT id, tools_approved, input_tokens, output_tokens, title, cost, send_user_message, max_iterations, working_dir, created_at, starred, permissions, agent_model_overrides, custom_models_used, thinking, parent_id FROM sessions WHERE parent_id IS NULL OR parent_id = '' ORDER BY created_at DESC")
 	if err != nil {
 		return nil, err
 	}
@@ -915,7 +873,7 @@ func (s *SQLiteSessionStore) GetSessions(ctx context.Context) ([]*Session, error
 // This is much faster than GetSessions as it doesn't load message content.
 func (s *SQLiteSessionStore) GetSessionSummaries(ctx context.Context) ([]Summary, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT s.id, s.title, s.created_at, s.starred, s.branch_parent_session_id,
+		`SELECT s.id, s.title, s.created_at, s.starred,
 		        (SELECT COUNT(*) FROM session_items si WHERE si.session_id = s.id AND si.item_type = 'message')
 		 FROM sessions s
 		 WHERE s.parent_id IS NULL OR s.parent_id = ''
@@ -928,9 +886,8 @@ func (s *SQLiteSessionStore) GetSessionSummaries(ctx context.Context) ([]Summary
 	var summaries []Summary
 	for rows.Next() {
 		var id, title, createdAtStr, starredStr string
-		var branchParentID sql.NullString
 		var numMessages int
-		if err := rows.Scan(&id, &title, &createdAtStr, &starredStr, &branchParentID, &numMessages); err != nil {
+		if err := rows.Scan(&id, &title, &createdAtStr, &starredStr, &numMessages); err != nil {
 			return nil, err
 		}
 		createdAt, err := time.Parse(time.RFC3339, createdAtStr)
@@ -942,12 +899,11 @@ func (s *SQLiteSessionStore) GetSessionSummaries(ctx context.Context) ([]Summary
 			return nil, err
 		}
 		summaries = append(summaries, Summary{
-			ID:                    id,
-			Title:                 title,
-			CreatedAt:             createdAt,
-			Starred:               starred,
-			BranchParentSessionID: branchParentID.String,
-			NumMessages:           numMessages,
+			ID:          id,
+			Title:       title,
+			CreatedAt:   createdAt,
+			Starred:     starred,
+			NumMessages: numMessages,
 		})
 	}
 
@@ -1023,19 +979,6 @@ func (s *SQLiteSessionStore) UpdateSession(ctx context.Context, session *Session
 	if session.ParentID != "" {
 		parentID = session.ParentID
 	}
-	var branchParentID any
-	if session.BranchParentSessionID != "" {
-		branchParentID = session.BranchParentSessionID
-	}
-	var branchParentPosition any
-	if session.BranchParentPosition != nil {
-		branchParentPosition = *session.BranchParentPosition
-	}
-	var branchCreatedAt any
-	if session.BranchCreatedAt != nil {
-		branchCreatedAt = session.BranchCreatedAt.Format(time.RFC3339)
-	}
-
 	// Use a transaction
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -1048,10 +991,9 @@ func (s *SQLiteSessionStore) UpdateSession(ctx context.Context, session *Session
 		`INSERT INTO sessions (
 			id, tools_approved, input_tokens, output_tokens, title, cost, send_user_message,
 			max_iterations, working_dir, created_at, starred, permissions, agent_model_overrides,
-			custom_models_used, thinking, parent_id, branch_parent_session_id,
-			branch_parent_position, branch_created_at
+			custom_models_used, thinking, parent_id
 		)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(id) DO UPDATE SET
 		   title = excluded.title,
 		   tools_approved = excluded.tools_approved,
@@ -1066,14 +1008,11 @@ func (s *SQLiteSessionStore) UpdateSession(ctx context.Context, session *Session
 		   agent_model_overrides = excluded.agent_model_overrides,
 		   custom_models_used = excluded.custom_models_used,
 		   thinking = excluded.thinking,
-		   parent_id = excluded.parent_id,
-		   branch_parent_session_id = excluded.branch_parent_session_id,
-		   branch_parent_position = excluded.branch_parent_position,
-		   branch_created_at = excluded.branch_created_at`,
+		   parent_id = excluded.parent_id`,
 		session.ID, session.ToolsApproved, session.InputTokens, session.OutputTokens,
 		session.Title, session.Cost, session.SendUserMessage, session.MaxIterations, session.WorkingDir,
 		session.CreatedAt.Format(time.RFC3339), session.Starred, permissionsJSON, agentModelOverridesJSON,
-		customModelsUsedJSON, session.Thinking, parentID, branchParentID, branchParentPosition, branchCreatedAt)
+		customModelsUsedJSON, session.Thinking, parentID)
 	if err != nil {
 		return err
 	}
@@ -1265,32 +1204,18 @@ func (s *SQLiteSessionStore) addSessionTx(ctx context.Context, tx *sql.Tx, sessi
 	if session.ParentID != "" {
 		parentID = session.ParentID
 	}
-	var branchParentID any
-	if session.BranchParentSessionID != "" {
-		branchParentID = session.BranchParentSessionID
-	}
-	var branchParentPosition any
-	if session.BranchParentPosition != nil {
-		branchParentPosition = *session.BranchParentPosition
-	}
-	var branchCreatedAt any
-	if session.BranchCreatedAt != nil {
-		branchCreatedAt = session.BranchCreatedAt.Format(time.RFC3339)
-	}
-
 	_, err := tx.ExecContext(ctx,
 		`INSERT INTO sessions (
 			id, tools_approved, input_tokens, output_tokens, title, cost, send_user_message,
 			max_iterations, working_dir, created_at, starred, permissions, agent_model_overrides,
-			custom_models_used, thinking, parent_id, branch_parent_session_id,
-			branch_parent_position, branch_created_at
+			custom_models_used, thinking, parent_id
 		)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		session.ID, session.ToolsApproved, session.InputTokens, session.OutputTokens,
 		session.Title, session.Cost, session.SendUserMessage, session.MaxIterations,
 		session.WorkingDir, session.CreatedAt.Format(time.RFC3339), session.Starred,
 		permissionsJSON, agentModelOverridesJSON, customModelsUsedJSON, session.Thinking,
-		parentID, branchParentID, branchParentPosition, branchCreatedAt)
+		parentID)
 	return err
 }
 

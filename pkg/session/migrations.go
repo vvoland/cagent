@@ -332,6 +332,18 @@ func getAllMigrations() []Migration {
 			Description: "Add index on session_items(session_id, item_type) to speed up session summary message counts",
 			UpSQL:       `CREATE INDEX IF NOT EXISTS idx_session_items_session_type ON session_items(session_id, item_type)`,
 		},
+		{
+			ID:          19,
+			Name:        "019_drop_branch_and_split_diff_columns",
+			Description: "Drop unused branch metadata columns and split_diff_view column",
+			UpSQL: `
+				DROP INDEX IF EXISTS idx_sessions_branch_parent;
+				ALTER TABLE sessions DROP COLUMN branch_parent_session_id;
+				ALTER TABLE sessions DROP COLUMN branch_parent_position;
+				ALTER TABLE sessions DROP COLUMN branch_created_at;
+				ALTER TABLE sessions DROP COLUMN split_diff_view;
+			`,
+		},
 	}
 }
 

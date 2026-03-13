@@ -135,11 +135,6 @@ func TestBranchSession(t *testing.T) {
 
 		assert.NotEqual(t, parent.ID, branched.ID)
 		assert.Equal(t, "Parent Title (branched)", branched.Title)
-		assert.Equal(t, parent.ID, branched.BranchParentSessionID)
-		assert.NotNil(t, branched.BranchParentPosition)
-		assert.Equal(t, 2, *branched.BranchParentPosition)
-		assert.NotNil(t, branched.BranchCreatedAt)
-
 		assert.Len(t, branched.Messages, 2)
 		assert.Equal(t, "msg1", branched.Messages[0].Message.Message.Content)
 		assert.Equal(t, "msg2", branched.Messages[1].Message.Message.Content)
