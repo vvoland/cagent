@@ -362,19 +362,23 @@ func (r *LocalRuntime) handleModelError(
 	retryable, rateLimited, retryAfter := modelerrors.ClassifyModelError(err)
 
 	if rateLimited {
-		if hasFallbacks {
-			// Fallbacks available → skip to next model immediately (existing behaviour).
-			slog.Warn("Rate limited with fallbacks available, skipping to next model",
+		// Gate: only retry on 429 if opt-in is enabled AND no fallbacks exist.
+		// Default behavior (retryOnRateLimit=false) treats 429 as non-retryable,
+		// identical to today's behavior before this feature was added.
+		if !r.retryOnRateLimit || hasFallbacks {
+			slog.Warn("Rate limited, treating as non-retryable",
 				"agent", a.Name(),
 				"model", modelEntry.provider.ID(),
-				"retry_after", retryAfter)
+				"retry_on_rate_limit_enabled", r.retryOnRateLimit,
+				"has_fallbacks", hasFallbacks,
+				"error", err)
 			if !modelEntry.isFallback {
 				*primaryFailedWithNonRetryable = true
 			}
 			return retryDecisionBreak
 		}
 
-		// No fallbacks → retry same model after honouring Retry-After (or backoff).
+		// Opt-in enabled, no fallbacks → retry same model after honouring Retry-After (or backoff).
 		waitDuration := retryAfter
 		if waitDuration <= 0 {
 			waitDuration = modelerrors.CalculateBackoff(attempt)
@@ -386,12 +390,13 @@ func (r *LocalRuntime) handleModelError(
 				"max", modelerrors.MaxRetryAfterWait)
 			waitDuration = modelerrors.MaxRetryAfterWait
 		}
-		slog.Warn("Rate limited without fallbacks, retrying with wait",
+		slog.Warn("Rate limited, retrying (opt-in enabled)",
 			"agent", a.Name(),
 			"model", modelEntry.provider.ID(),
 			"attempt", attempt+1,
 			"wait", waitDuration,
-			"retry_after_from_header", retryAfter > 0)
+			"retry_after_from_header", retryAfter > 0,
+			"error", err)
 		if !modelerrors.SleepWithContext(ctx, waitDuration) {
 			return retryDecisionReturn
 		}

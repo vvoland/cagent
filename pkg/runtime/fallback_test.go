@@ -509,7 +509,8 @@ func TestFallback429WithFallbacksSkipsToNextModel(t *testing.T) {
 
 func TestFallback429WithoutFallbacksRetriesSameModel(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		// Primary gets rate limited; with no fallbacks configured it should retry.
+		// Primary gets rate limited; with no fallbacks configured it should retry
+		// when the opt-in is enabled.
 		successStream := newStreamBuilder().
 			AddContent("Success after rate limit").
 			AddStopWithUsage(10, 5).
@@ -528,7 +529,7 @@ func TestFallback429WithoutFallbacksRetriesSameModel(t *testing.T) {
 		)
 
 		tm := team.New(team.WithAgents(root))
-		rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+		rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}), WithRetryOnRateLimit())
 		require.NoError(t, err)
 
 		sess := session.New(session.WithUserMessage("test"))
@@ -547,7 +548,7 @@ func TestFallback429WithoutFallbacksRetriesSameModel(t *testing.T) {
 
 func TestFallback429WithoutFallbacksExhaustsRetries(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		// Primary always returns 429, no fallbacks — should fail after all retries.
+		// Primary always returns 429, no fallbacks, opt-in enabled — should fail after all retries.
 		primary := &failingProvider{
 			id:  "primary/always-rate-limited",
 			err: errors.New("POST /v1/chat/completions: 429 Too Many Requests"),
@@ -560,7 +561,7 @@ func TestFallback429WithoutFallbacksExhaustsRetries(t *testing.T) {
 		)
 
 		tm := team.New(team.WithAgents(root))
-		rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+		rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}), WithRetryOnRateLimit())
 		require.NoError(t, err)
 
 		sess := session.New(session.WithUserMessage("test"))
@@ -611,5 +612,121 @@ func TestFallback500RetryableWithBackoff(t *testing.T) {
 		}
 		assert.True(t, gotContent, "should receive content after 500 retry")
 		assert.Equal(t, 2, primary.callCount, "primary should be called twice: 1 failure + 1 success")
+	})
+}
+
+// --- WithRetryOnRateLimit gate tests ---
+
+func TestRateLimitGate_DisabledNoFallbacks_FailsImmediately(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		// With retryOnRateLimit=false (default) and no fallbacks, a 429 should
+		// be treated as non-retryable and fail immediately without any retry.
+		primary := &countingProvider{
+			id:        "primary/rate-limited",
+			failCount: 100,
+			err:       errors.New("POST /v1/chat/completions: 429 Too Many Requests"),
+		}
+
+		root := agent.New("root", "test",
+			agent.WithModel(primary),
+			// No fallback models, no WithRetryOnRateLimit opt-in
+			agent.WithFallbackRetries(3),
+		)
+
+		tm := team.New(team.WithAgents(root))
+		// Note: WithRetryOnRateLimit() is NOT passed — default off
+		rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
+		require.NoError(t, err)
+
+		sess := session.New(session.WithUserMessage("test"))
+		sess.Title = "429 Gate Disabled Test"
+
+		var gotError bool
+		for ev := range rt.RunStream(t.Context(), sess) {
+			if _, ok := ev.(*ErrorEvent); ok {
+				gotError = true
+			}
+		}
+		assert.True(t, gotError, "should fail immediately with an error")
+		assert.Equal(t, 1, primary.callCount, "primary should only be called once — no retry without opt-in")
+	})
+}
+
+func TestRateLimitGate_EnabledNoFallbacks_RetriesSameModel(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		// With retryOnRateLimit=true and no fallbacks, a 429 should retry
+		// the same model until it succeeds or retries are exhausted.
+		successStream := newStreamBuilder().
+			AddContent("Success after rate limit").
+			AddStopWithUsage(10, 5).
+			Build()
+		primary := &countingProvider{
+			id:        "primary/rate-limited",
+			failCount: 2,
+			err:       errors.New("POST /v1/chat/completions: 429 Too Many Requests"),
+			stream:    successStream,
+		}
+
+		root := agent.New("root", "test",
+			agent.WithModel(primary),
+			// No fallback models
+			agent.WithFallbackRetries(3),
+		)
+
+		tm := team.New(team.WithAgents(root))
+		rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}), WithRetryOnRateLimit())
+		require.NoError(t, err)
+
+		sess := session.New(session.WithUserMessage("test"))
+		sess.Title = "429 Gate Enabled No Fallbacks Test"
+
+		var gotContent bool
+		for ev := range rt.RunStream(t.Context(), sess) {
+			if choice, ok := ev.(*AgentChoiceEvent); ok && choice.Content == "Success after rate limit" {
+				gotContent = true
+			}
+		}
+		assert.True(t, gotContent, "should receive content after retrying")
+		assert.Equal(t, 3, primary.callCount, "primary should be called 3 times: 2 failures + 1 success")
+	})
+}
+
+func TestRateLimitGate_EnabledWithFallbacks_SkipsToFallback(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		// Even with retryOnRateLimit=true, when fallbacks are configured
+		// a 429 should skip to the fallback immediately (fallbacks take priority).
+		primary := &countingProvider{
+			id:        "primary/rate-limited",
+			failCount: 100,
+			err:       errors.New("POST /v1/chat/completions: 429 Too Many Requests"),
+		}
+		successStream := newStreamBuilder().
+			AddContent("Success from fallback").
+			AddStopWithUsage(10, 5).
+			Build()
+		fallback := &mockProvider{id: "fallback/success", stream: successStream}
+
+		root := agent.New("root", "test",
+			agent.WithModel(primary),
+			agent.WithFallbackModel(fallback),
+			agent.WithFallbackRetries(5),
+		)
+
+		tm := team.New(team.WithAgents(root))
+		// opt-in is enabled, but fallbacks are present → should still skip to fallback
+		rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}), WithRetryOnRateLimit())
+		require.NoError(t, err)
+
+		sess := session.New(session.WithUserMessage("test"))
+		sess.Title = "429 Gate Enabled With Fallbacks Test"
+
+		var gotContent bool
+		for ev := range rt.RunStream(t.Context(), sess) {
+			if choice, ok := ev.(*AgentChoiceEvent); ok && choice.Content == "Success from fallback" {
+				gotContent = true
+			}
+		}
+		assert.True(t, gotContent, "should receive content from fallback")
+		assert.Equal(t, 1, primary.callCount, "primary should only be called once — fallbacks take priority over retry")
 	})
 }

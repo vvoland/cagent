@@ -199,6 +199,12 @@ type LocalRuntime struct {
 	env                         []string // Environment variables for hooks execution
 	modelSwitcherCfg            *ModelSwitcherConfig
 
+	// retryOnRateLimit enables retry-with-backoff for HTTP 429 (rate limit) errors
+	// when no fallback models are configured. When false (default), 429 errors are
+	// treated as non-retryable and immediately fail or skip to the next model.
+	// Library consumers can enable this via WithRetryOnRateLimit().
+	retryOnRateLimit bool
+
 	// fallbackCooldowns tracks per-agent cooldown state for sticky fallback behavior
 	fallbackCooldowns    map[string]*fallbackCooldownState
 	fallbackCooldownsMux sync.RWMutex
@@ -261,6 +267,23 @@ func WithWorkingDir(dir string) Opt {
 func WithEnv(env []string) Opt {
 	return func(r *LocalRuntime) {
 		r.env = env
+	}
+}
+
+// WithRetryOnRateLimit enables automatic retry with backoff for HTTP 429 (rate limit)
+// errors when no fallback models are available. When enabled, the runtime will honor
+// the Retry-After header from the provider's response to determine wait time before
+// retrying, falling back to exponential backoff if the header is absent.
+//
+// This is off by default. It is intended for library consumers that run agents
+// programmatically and prefer to wait for rate limits to clear rather than fail
+// immediately.
+//
+// When fallback models are configured, 429 errors always skip to the next model
+// regardless of this setting.
+func WithRetryOnRateLimit() Opt {
+	return func(r *LocalRuntime) {
+		r.retryOnRateLimit = true
 	}
 }
 
