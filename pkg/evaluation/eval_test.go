@@ -12,6 +12,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/docker/docker-agent/pkg/session"
 )
 
 func TestToolCallF1Score(t *testing.T) {
@@ -1005,6 +1007,61 @@ func TestMatchesAnyPattern(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			got := matchesAnyPattern(tt.fileName, tt.patterns)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestNeedsJudge(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		evals []InputSession
+		want  bool
+	}{
+		{
+			name:  "no evals",
+			evals: nil,
+			want:  false,
+		},
+		{
+			name: "evals without relevance criteria",
+			evals: []InputSession{
+				{Session: &session.Session{Evals: &session.EvalCriteria{Size: "M"}}},
+				{Session: &session.Session{Evals: &session.EvalCriteria{}}},
+			},
+			want: false,
+		},
+		{
+			name: "evals with nil Evals field",
+			evals: []InputSession{
+				{Session: &session.Session{}},
+			},
+			want: false,
+		},
+		{
+			name: "some evals with relevance criteria",
+			evals: []InputSession{
+				{Session: &session.Session{Evals: &session.EvalCriteria{}}},
+				{Session: &session.Session{Evals: &session.EvalCriteria{Relevance: []string{"criterion1"}}}},
+			},
+			want: true,
+		},
+		{
+			name: "all evals with relevance criteria",
+			evals: []InputSession{
+				{Session: &session.Session{Evals: &session.EvalCriteria{Relevance: []string{"a", "b"}}}},
+				{Session: &session.Session{Evals: &session.EvalCriteria{Relevance: []string{"c"}}}},
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := needsJudge(tt.evals)
 			assert.Equal(t, tt.want, got)
 		})
 	}

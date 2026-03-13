@@ -117,6 +117,20 @@ func (r *Runner) Run(ctx context.Context, ttyOut, out io.Writer, isTTY bool) ([]
 		return nil, fmt.Errorf("loading evaluations: %w", err)
 	}
 
+	// Check whether any evaluations require relevance checking.
+	// If so, the judge must be configured and working; validate eagerly
+	// to fail fast on configuration issues (bad API key, wrong model, etc.)
+	// instead of silently producing zero-relevance results.
+	if needsJudge(evals) {
+		if r.judge == nil {
+			return nil, errors.New("some evaluations have relevance criteria but no judge model is configured (use --judge-model)")
+		}
+		fmt.Fprintln(out, "Validating judge model...")
+		if err := r.judge.Validate(ctx); err != nil {
+			return nil, fmt.Errorf("%w", err)
+		}
+	}
+
 	// Pre-build all unique Docker images in parallel before running evaluations.
 	// This avoids serialized builds when multiple workers need the same image.
 	if err := r.preBuildImages(ctx, out, evals); err != nil {
@@ -341,12 +355,12 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *InputSession) (Res
 	if r.judge != nil && len(evals.Relevance) > 0 {
 		// Use transcript for relevance checking to preserve temporal ordering
 		transcript := buildTranscript(events)
-		passed, failed, errs := r.judge.CheckRelevance(ctx, transcript, evals.Relevance)
+		passed, failed, err := r.judge.CheckRelevance(ctx, transcript, evals.Relevance)
+		if err != nil {
+			return result, fmt.Errorf("relevance check failed: %w", err)
+		}
 		result.RelevancePassed = float64(passed)
 		result.FailedRelevance = failed
-		for _, e := range errs {
-			slog.Warn("Relevance check error", "title", evalSess.Title, "error", e)
-		}
 	}
 
 	slog.Debug("Evaluation complete", "title", evalSess.Title, "duration", time.Since(startTime))
@@ -587,6 +601,14 @@ func matchesAnyPattern(name string, patterns []string) bool {
 	nameLower := strings.ToLower(name)
 	return slices.ContainsFunc(patterns, func(pattern string) bool {
 		return strings.Contains(nameLower, strings.ToLower(pattern))
+	})
+}
+
+// needsJudge returns true if any evaluation session has relevance criteria,
+// meaning a judge model is required to evaluate them.
+func needsJudge(evals []InputSession) bool {
+	return slices.ContainsFunc(evals, func(s InputSession) bool {
+		return s.Evals != nil && len(s.Evals.Relevance) > 0
 	})
 }
 

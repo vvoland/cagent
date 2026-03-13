@@ -82,6 +82,29 @@ func NewJudge(model provider.Provider, runConfig *config.RuntimeConfig, concurre
 	}
 }
 
+// Validate performs an end-to-end check of the judge model by sending a
+// trivial relevance prompt and verifying the response is valid structured
+// JSON. This catches configuration errors (bad API key, unsupported model,
+// missing structured-output support, etc.) before running any evaluations,
+// allowing the framework to fail fast.
+func (j *Judge) Validate(ctx context.Context) error {
+	const (
+		testResponse  = "The sky is blue."
+		testCriterion = "The response mentions a color."
+	)
+
+	passed, _, err := j.checkSingle(ctx, testResponse, testCriterion)
+	if err != nil {
+		return fmt.Errorf("judge model validation failed: %w", err)
+	}
+
+	if !passed {
+		return errors.New("judge model validation failed: expected the test criterion to pass but the judge returned 'fail'")
+	}
+
+	return nil
+}
+
 // RelevanceResult contains the result of a single relevance check.
 type RelevanceResult struct {
 	Criterion string `json:"criterion"`
@@ -89,8 +112,11 @@ type RelevanceResult struct {
 }
 
 // CheckRelevance runs all relevance checks concurrently with the configured concurrency.
-// It returns the number of passed checks, a slice of failed results with reasons, and any errors encountered.
-func (j *Judge) CheckRelevance(ctx context.Context, response string, criteria []string) (passed int, failed []RelevanceResult, errs []string) {
+// It returns the number of passed checks, a slice of failed results with reasons, and an error
+// if any check encountered an error (e.g. judge model misconfiguration). Errors cause a hard
+// failure so that configuration issues are surfaced immediately rather than silently producing
+// zero-relevance results.
+func (j *Judge) CheckRelevance(ctx context.Context, response string, criteria []string) (passed int, failed []RelevanceResult, err error) {
 	if len(criteria) == 0 {
 		return 0, nil, nil
 	}
@@ -122,17 +148,19 @@ func (j *Judge) CheckRelevance(ctx context.Context, response string, criteria []
 					results[item.index] = result{err: fmt.Errorf("context cancelled: %w", ctx.Err())}
 					continue
 				}
-				pass, reason, err := j.checkSingle(ctx, response, item.criterion)
-				results[item.index] = result{passed: pass, reason: reason, err: err}
+				pass, reason, checkErr := j.checkSingle(ctx, response, item.criterion)
+				results[item.index] = result{passed: pass, reason: reason, err: checkErr}
 			}
 		})
 	}
 	wg.Wait()
 
-	// Aggregate results
+	// Aggregate results. Any error is fatal — return it immediately so the
+	// caller can fail fast on judge misconfiguration.
+	var errs []error
 	for i, r := range results {
 		if r.err != nil {
-			errs = append(errs, fmt.Sprintf("error checking %q: %v", criteria[i], r.err))
+			errs = append(errs, fmt.Errorf("checking %q: %w", criteria[i], r.err))
 			continue
 		}
 		if r.passed {
@@ -145,7 +173,11 @@ func (j *Judge) CheckRelevance(ctx context.Context, response string, criteria []
 		}
 	}
 
-	return passed, failed, errs
+	if len(errs) > 0 {
+		return passed, failed, errors.Join(errs...)
+	}
+
+	return passed, failed, nil
 }
 
 // getOrCreateJudgeWithSchema returns a provider pre-configured with structured output.
