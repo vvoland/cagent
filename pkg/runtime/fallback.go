@@ -212,12 +212,14 @@ func (r *LocalRuntime) tryModelWithFallback(
 
 	var lastErr error
 	primaryFailedWithNonRetryable := false
+	hasFallbacks := len(fallbackModels) > 0
 
 	for chainIdx := startIndex; chainIdx < len(modelChain); chainIdx++ {
 		modelEntry := modelChain[chainIdx]
 
 		// Each model in the chain gets (1 + retries) attempts for retryable errors.
-		// Non-retryable errors (429, 4xx) skip immediately to the next model.
+		// Non-retryable errors (429 with fallbacks, 4xx) skip immediately to the next model.
+		// 429 without fallbacks is retried directly on the same model.
 		maxAttempts := 1 + fallbackRetries
 
 		for attempt := range maxAttempts {
@@ -270,28 +272,12 @@ func (r *LocalRuntime) tryModelWithFallback(
 					return streamResult{}, nil, err
 				}
 
-				// Check if error is retryable
-				if !modelerrors.IsRetryableModelError(err) {
-					slog.Error("Non-retryable error creating stream",
-						"agent", a.Name(),
-						"model", modelEntry.provider.ID(),
-						"error", err)
-
-					// Track if primary failed with non-retryable error
-					if !modelEntry.isFallback {
-						primaryFailedWithNonRetryable = true
-					}
-
-					// Skip to next model in chain
+				decision := r.handleModelError(ctx, err, a, modelEntry, attempt, hasFallbacks, &primaryFailedWithNonRetryable)
+				if decision == retryDecisionReturn {
+					return streamResult{}, nil, ctx.Err()
+				} else if decision == retryDecisionBreak {
 					break
 				}
-
-				slog.Warn("Retryable error creating stream",
-					"agent", a.Name(),
-					"model", modelEntry.provider.ID(),
-					"attempt", attempt+1,
-					"max_attempts", maxAttempts,
-					"error", err)
 				continue
 			}
 
@@ -306,27 +292,12 @@ func (r *LocalRuntime) tryModelWithFallback(
 					return streamResult{}, nil, err
 				}
 
-				// Check if stream error is retryable
-				if !modelerrors.IsRetryableModelError(err) {
-					slog.Error("Non-retryable error handling stream",
-						"agent", a.Name(),
-						"model", modelEntry.provider.ID(),
-						"error", err)
-
-					// Track if primary failed with non-retryable error
-					if !modelEntry.isFallback {
-						primaryFailedWithNonRetryable = true
-					}
-
+				decision := r.handleModelError(ctx, err, a, modelEntry, attempt, hasFallbacks, &primaryFailedWithNonRetryable)
+				if decision == retryDecisionReturn {
+					return streamResult{}, nil, ctx.Err()
+				} else if decision == retryDecisionBreak {
 					break
 				}
-
-				slog.Warn("Retryable error handling stream",
-					"agent", a.Name(),
-					"model", modelEntry.provider.ID(),
-					"attempt", attempt+1,
-					"max_attempts", maxAttempts,
-					"error", err)
 				continue
 			}
 
@@ -358,4 +329,90 @@ func (r *LocalRuntime) tryModelWithFallback(
 		return streamResult{}, nil, wrapped
 	}
 	return streamResult{}, nil, errors.New("all models failed with unknown error")
+}
+
+// retryDecision is the outcome of handleModelError.
+type retryDecision int
+
+const (
+	// retryDecisionContinue means retry the same model (backoff already applied).
+	retryDecisionContinue retryDecision = iota
+	// retryDecisionBreak means skip to the next model in the fallback chain.
+	retryDecisionBreak
+	// retryDecisionReturn means context was cancelled; return immediately.
+	retryDecisionReturn
+)
+
+// handleModelError classifies err and decides what to do next:
+//   - retryDecisionReturn   — context cancelled while sleeping; caller returns ctx.Err()
+//   - retryDecisionBreak    — non-retryable error or 429 with fallbacks; skip to next model
+//   - retryDecisionContinue — retryable error or 429 without fallbacks; retry same model
+//
+// Side-effect: sets *primaryFailedWithNonRetryable when the primary model fails with a
+// non-retryable (or rate-limited-with-fallbacks) error.
+func (r *LocalRuntime) handleModelError(
+	ctx context.Context,
+	err error,
+	a *agent.Agent,
+	modelEntry modelWithFallback,
+	attempt int,
+	hasFallbacks bool,
+	primaryFailedWithNonRetryable *bool,
+) retryDecision {
+	retryable, rateLimited, retryAfter := modelerrors.ClassifyModelError(err)
+
+	if rateLimited {
+		if hasFallbacks {
+			// Fallbacks available → skip to next model immediately (existing behaviour).
+			slog.Warn("Rate limited with fallbacks available, skipping to next model",
+				"agent", a.Name(),
+				"model", modelEntry.provider.ID(),
+				"retry_after", retryAfter)
+			if !modelEntry.isFallback {
+				*primaryFailedWithNonRetryable = true
+			}
+			return retryDecisionBreak
+		}
+
+		// No fallbacks → retry same model after honouring Retry-After (or backoff).
+		waitDuration := retryAfter
+		if waitDuration <= 0 {
+			waitDuration = modelerrors.CalculateBackoff(attempt)
+		} else if waitDuration > modelerrors.MaxRetryAfterWait {
+			slog.Warn("Retry-After exceeds maximum, capping",
+				"agent", a.Name(),
+				"model", modelEntry.provider.ID(),
+				"retry_after", retryAfter,
+				"max", modelerrors.MaxRetryAfterWait)
+			waitDuration = modelerrors.MaxRetryAfterWait
+		}
+		slog.Warn("Rate limited without fallbacks, retrying with wait",
+			"agent", a.Name(),
+			"model", modelEntry.provider.ID(),
+			"attempt", attempt+1,
+			"wait", waitDuration,
+			"retry_after_from_header", retryAfter > 0)
+		if !modelerrors.SleepWithContext(ctx, waitDuration) {
+			return retryDecisionReturn
+		}
+		return retryDecisionContinue
+	}
+
+	if !retryable {
+		slog.Error("Non-retryable error from model",
+			"agent", a.Name(),
+			"model", modelEntry.provider.ID(),
+			"error", err)
+		if !modelEntry.isFallback {
+			*primaryFailedWithNonRetryable = true
+		}
+		return retryDecisionBreak
+	}
+
+	slog.Warn("Retryable error from model",
+		"agent", a.Name(),
+		"model", modelEntry.provider.ID(),
+		"attempt", attempt+1,
+		"error", err)
+	return retryDecisionContinue
 }
