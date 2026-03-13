@@ -106,13 +106,11 @@ func NewTasksTool(storagePath string) *TasksTool {
 }
 
 func (t *TasksTool) Instructions() string {
-	return `## Using the Tasks Tools
+	return `## Task Tools
 
-Persistent task management with priorities (critical > high > medium > low), statuses (pending, in_progress, done, blocked), and dependencies.
+Persistent task management with priorities (critical > high > medium > low), statuses (pending, in_progress, done, blocked), and dependencies. Tasks persist across sessions.
 
-Tasks are saved to a JSON file and survive across sessions. A task is automatically blocked if any dependency is not done.
-
-Workflow: create_task → list_tasks/next_task → update_task as work progresses. Use add_dependency/remove_dependency to manage ordering.`
+A task is automatically blocked if any dependency is not done. Use next_task to get the highest-priority actionable task.`
 }
 
 func (t *TasksTool) load() taskStore {

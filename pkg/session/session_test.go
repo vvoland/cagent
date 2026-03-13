@@ -181,7 +181,7 @@ func TestGetMessages_CacheControl(t *testing.T) {
 	assert.Equal(t, "instructions", messages[0].Content)
 	assert.False(t, messages[0].CacheControl)
 
-	assert.Contains(t, messages[1].Content, "Using the Todo Tools")
+	assert.Contains(t, messages[1].Content, "Todo Tools")
 	assert.True(t, messages[1].CacheControl)
 }
 
@@ -212,7 +212,7 @@ func TestGetMessages_CacheControlWithSummary(t *testing.T) {
 	assert.Len(t, checkpointIndices, 2, "should have 2 checkpoints")
 
 	// Verify checkpoint #1 is on toolset instructions
-	assert.Contains(t, messages[checkpointIndices[0]].Content, "Using the Todo Tools", "checkpoint #1 should be on toolset instructions")
+	assert.Contains(t, messages[checkpointIndices[0]].Content, "Todo Tools", "checkpoint #1 should be on toolset instructions")
 
 	// Verify checkpoint #2 is on date
 	assert.Contains(t, messages[checkpointIndices[1]].Content, "Today's date", "checkpoint #2 should be on date message")

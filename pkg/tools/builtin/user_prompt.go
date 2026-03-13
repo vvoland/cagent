@@ -81,22 +81,15 @@ func (t *UserPromptTool) userPrompt(ctx context.Context, params UserPromptArgs) 
 }
 
 func (t *UserPromptTool) Instructions() string {
-	return `## Using the user_prompt tool
+	return `## User Prompt Tool
 
-Use user_prompt to ask the user a question or gather input when you need clarification, specific information, or a decision.
+Ask the user a question when you need clarification, input, or a decision.
 
-Optionally provide a "title" to label the dialog (defaults to "Question").
+Optionally provide a JSON schema to structure the response:
+- Enum: {"type": "string", "enum": ["option1", "option2"], "title": "Select"}
+- Object: {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]}
 
-Optionally provide a JSON schema to structure the expected response (object, primitive, or enum types).
-If no schema is provided, the user can type a free-form response.
-
-Example schema for multiple choice:
-{"type": "string", "enum": ["option1", "option2"], "title": "Select an option"}
-
-Example schema for structured input:
-{"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]}
-
-Response contains "action" (accept/decline/cancel) and "content" (user data, only when accepted).`
+Response contains "action" (accept/decline/cancel) and "content" (user data when accepted).`
 }
 
 func (t *UserPromptTool) Tools(context.Context) ([]tools.Tool, error) {

@@ -49,10 +49,10 @@ func TestMemoryTool_Instructions(t *testing.T) {
 	tool := NewMemoryTool(manager)
 
 	instructions := tool.Instructions()
-	assert.Contains(t, instructions, "Using the memory tool")
+	assert.Contains(t, instructions, "Memory Tools")
 	assert.Contains(t, instructions, "search_memories")
 	assert.Contains(t, instructions, "update_memory")
-	assert.Contains(t, instructions, "Categories")
+	assert.Contains(t, instructions, "preference")
 }
 
 func TestMemoryTool_DisplayNames(t *testing.T) {

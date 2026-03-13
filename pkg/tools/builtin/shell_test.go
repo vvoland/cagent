@@ -131,7 +131,7 @@ func TestShellTool_Instructions(t *testing.T) {
 	instructions := tool.Instructions()
 
 	// Check that native instructions are returned
-	assert.Contains(t, instructions, "Shell Tool Usage Guide")
+	assert.Contains(t, instructions, "Shell Tools")
 }
 
 func TestResolveWorkDir(t *testing.T) {

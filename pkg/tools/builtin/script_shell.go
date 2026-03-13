@@ -71,33 +71,29 @@ func validateConfig(toolName string, tool latest.ScriptShellToolConfig) error {
 }
 
 func (t *ScriptShellTool) Instructions() string {
-	var instructions strings.Builder
-	instructions.WriteString("## Custom Shell Tools\n\n")
-	instructions.WriteString("The following custom shell tools are available:\n\n")
+	var sb strings.Builder
+	sb.WriteString("## Custom Shell Tools\n\n")
 
 	for name, tool := range t.shellTools {
-		fmt.Fprintf(&instructions, "### %s\n", name)
+		fmt.Fprintf(&sb, "### %s\n", name)
 		if tool.Description != "" {
-			fmt.Fprintf(&instructions, "%s\n\n", tool.Description)
+			fmt.Fprintf(&sb, "%s\n", tool.Description)
 		} else {
-			fmt.Fprintf(&instructions, "Execute: `%s`\n\n", tool.Cmd)
+			fmt.Fprintf(&sb, "Runs: `%s`\n", tool.Cmd)
 		}
 
-		if len(tool.Args) > 0 {
-			instructions.WriteString("**Parameters:**\n")
-			for argName, argDef := range tool.Args {
-				required := ""
-				if slices.Contains(tool.Required, argName) {
-					required = " (required)"
-				}
-				description := argDef.(map[string]any)["description"].(string)
-				fmt.Fprintf(&instructions, "- `%s`: %s%s\n", argName, description, required)
+		for argName, argDef := range tool.Args {
+			description := argDef.(map[string]any)["description"].(string)
+			required := ""
+			if slices.Contains(tool.Required, argName) {
+				required = " (required)"
 			}
-			instructions.WriteString("\n")
+			fmt.Fprintf(&sb, "- `%s`: %s%s\n", argName, description, required)
 		}
+		sb.WriteString("\n")
 	}
 
-	return instructions.String()
+	return sb.String()
 }
 
 func (t *ScriptShellTool) Tools(context.Context) ([]tools.Tool, error) {
