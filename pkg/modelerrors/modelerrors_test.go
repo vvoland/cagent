@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // mockTimeoutError implements net.Error with Timeout() = true
@@ -276,5 +278,190 @@ func TestFormatError(t *testing.T) {
 		t.Parallel()
 		err := errors.New("authentication failed")
 		assert.Equal(t, "authentication failed", FormatError(err))
+	})
+}
+
+func TestParseRetryAfterHeader(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		value    string
+		expected time.Duration
+	}{
+		{name: "empty", value: "", expected: 0},
+		{name: "zero seconds", value: "0", expected: 0},
+		{name: "negative seconds", value: "-1", expected: 0},
+		{name: "invalid string", value: "foo", expected: 0},
+		{name: "5 seconds", value: "5", expected: 5 * time.Second},
+		{name: "30 seconds", value: "30", expected: 30 * time.Second},
+		{name: "120 seconds", value: "120", expected: 120 * time.Second},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := ParseRetryAfterHeader(tt.value)
+			assert.Equal(t, tt.expected, got, "ParseRetryAfterHeader(%q)", tt.value)
+		})
+	}
+
+	t.Run("HTTP-date in the future", func(t *testing.T) {
+		t.Parallel()
+		future := time.Now().Add(10 * time.Second).UTC().Format(http.TimeFormat)
+		got := ParseRetryAfterHeader(future)
+		assert.Greater(t, got, 0*time.Second, "should return positive duration for future HTTP-date")
+		assert.LessOrEqual(t, got, 11*time.Second, "should not exceed ~10s for near-future date")
+	})
+
+	t.Run("HTTP-date in the past", func(t *testing.T) {
+		t.Parallel()
+		past := time.Now().Add(-10 * time.Second).UTC().Format(http.TimeFormat)
+		got := ParseRetryAfterHeader(past)
+		assert.Equal(t, 0*time.Second, got, "should return 0 for past HTTP-date")
+	})
+}
+
+func TestStatusError(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Error() delegates to wrapped error", func(t *testing.T) {
+		t.Parallel()
+		underlying := errors.New("rate limit exceeded")
+		se := &StatusError{StatusCode: 429, Err: underlying}
+		assert.Equal(t, underlying.Error(), se.Error())
+	})
+
+	t.Run("Unwrap() allows errors.Is traversal", func(t *testing.T) {
+		t.Parallel()
+		sentinel := errors.New("sentinel")
+		se := &StatusError{StatusCode: 500, Err: sentinel}
+		assert.ErrorIs(t, se, sentinel)
+	})
+
+	t.Run("errors.As finds StatusError in chain", func(t *testing.T) {
+		t.Parallel()
+		se := &StatusError{StatusCode: 429, RetryAfter: 10 * time.Second, Err: errors.New("rate limited")}
+		wrapped := fmt.Errorf("outer: %w", se)
+		var found *StatusError
+		require.ErrorAs(t, wrapped, &found)
+		assert.Equal(t, 429, found.StatusCode)
+		assert.Equal(t, 10*time.Second, found.RetryAfter)
+	})
+}
+
+func TestWrapHTTPError(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil error returns nil", func(t *testing.T) {
+		t.Parallel()
+		require.NoError(t, WrapHTTPError(429, nil, nil))
+	})
+
+	t.Run("status < 400 passes through unchanged", func(t *testing.T) {
+		t.Parallel()
+		origErr := errors.New("original")
+		result := WrapHTTPError(200, nil, origErr)
+		assert.Equal(t, origErr, result)
+		var se *StatusError
+		assert.NotErrorAs(t, result, &se)
+	})
+
+	t.Run("429 without response has zero RetryAfter", func(t *testing.T) {
+		t.Parallel()
+		origErr := errors.New("rate limited")
+		result := WrapHTTPError(429, nil, origErr)
+		var se *StatusError
+		require.ErrorAs(t, result, &se)
+		assert.Equal(t, 429, se.StatusCode)
+		assert.Equal(t, time.Duration(0), se.RetryAfter)
+		assert.Equal(t, origErr.Error(), se.Error())
+	})
+
+	t.Run("429 with Retry-After header sets RetryAfter", func(t *testing.T) {
+		t.Parallel()
+		origErr := errors.New("rate limited")
+		respHeader := http.Header{}
+		respHeader.Set("Retry-After", "30")
+		resp := &http.Response{Header: respHeader}
+		result := WrapHTTPError(429, resp, origErr)
+		var se *StatusError
+		require.ErrorAs(t, result, &se)
+		assert.Equal(t, 429, se.StatusCode)
+		assert.Equal(t, 30*time.Second, se.RetryAfter)
+	})
+
+	t.Run("500 wraps correctly", func(t *testing.T) {
+		t.Parallel()
+		origErr := errors.New("internal server error")
+		result := WrapHTTPError(500, nil, origErr)
+		var se *StatusError
+		require.ErrorAs(t, result, &se)
+		assert.Equal(t, 500, se.StatusCode)
+		assert.Equal(t, time.Duration(0), se.RetryAfter)
+	})
+
+	t.Run("original error still accessible via Unwrap", func(t *testing.T) {
+		t.Parallel()
+		sentinel := errors.New("sentinel")
+		result := WrapHTTPError(429, nil, sentinel)
+		assert.ErrorIs(t, result, sentinel)
+	})
+}
+
+func TestClassifyModelError(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		err             error
+		wantRetryable   bool
+		wantRateLimited bool
+		wantRetryAfter  time.Duration
+	}{
+		{name: "nil", err: nil, wantRetryable: false, wantRateLimited: false},
+		{name: "context canceled", err: context.Canceled, wantRetryable: false, wantRateLimited: false},
+		{name: "context deadline exceeded", err: context.DeadlineExceeded, wantRetryable: false, wantRateLimited: false},
+		{name: "context overflow", err: errors.New("prompt is too long: 200000 tokens > 100000 maximum"), wantRetryable: false, wantRateLimited: false},
+		// 429 without StatusError (fallback message-pattern path)
+		{name: "429 message fallback, no RetryAfter", err: errors.New("POST /v1/chat: 429 Too Many Requests"), wantRetryable: false, wantRateLimited: true, wantRetryAfter: 0},
+		// 429 via StatusError (primary path) — no Retry-After
+		{name: "429 StatusError no retry-after", err: &StatusError{StatusCode: 429, RetryAfter: 0, Err: errors.New("rate limited")}, wantRetryable: false, wantRateLimited: true, wantRetryAfter: 0},
+		// 429 via StatusError with Retry-After from response header
+		{name: "429 StatusError with retry-after", err: &StatusError{StatusCode: 429, RetryAfter: 20 * time.Second, Err: errors.New("rate limited")}, wantRetryable: false, wantRateLimited: true, wantRetryAfter: 20 * time.Second},
+		// Retryable status codes via StatusError
+		{name: "500 StatusError", err: &StatusError{StatusCode: 500, Err: errors.New("internal server error")}, wantRetryable: true, wantRateLimited: false},
+		{name: "529 StatusError", err: &StatusError{StatusCode: 529, Err: errors.New("overloaded")}, wantRetryable: true, wantRateLimited: false},
+		{name: "408 StatusError", err: &StatusError{StatusCode: 408, Err: errors.New("timeout")}, wantRetryable: true, wantRateLimited: false},
+		// Retryable fallback path (message-based)
+		{name: "500 message fallback", err: errors.New("500 internal server error"), wantRetryable: true, wantRateLimited: false},
+		{name: "502 message fallback", err: errors.New("502 bad gateway"), wantRetryable: true, wantRateLimited: false},
+		// Non-retryable via StatusError
+		{name: "401 StatusError", err: &StatusError{StatusCode: 401, Err: errors.New("unauthorized")}, wantRetryable: false, wantRateLimited: false},
+		{name: "403 StatusError", err: &StatusError{StatusCode: 403, Err: errors.New("forbidden")}, wantRetryable: false, wantRateLimited: false},
+		// Non-retryable fallback
+		{name: "401 message fallback", err: errors.New("401 unauthorized"), wantRetryable: false, wantRateLimited: false},
+		// Network errors
+		{name: "network timeout", err: &mockTimeoutError{}, wantRetryable: true, wantRateLimited: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			retryable, rateLimited, retryAfterOut := ClassifyModelError(tt.err)
+			assert.Equal(t, tt.wantRetryable, retryable, "retryable mismatch")
+			assert.Equal(t, tt.wantRateLimited, rateLimited, "rateLimited mismatch")
+			assert.Equal(t, tt.wantRetryAfter, retryAfterOut, "retryAfter mismatch")
+		})
+	}
+
+	t.Run("wrapped StatusError is found by errors.As", func(t *testing.T) {
+		t.Parallel()
+		statusErr := &StatusError{StatusCode: 429, RetryAfter: 15 * time.Second, Err: errors.New("rate limited")}
+		wrapped := fmt.Errorf("model failed: %w", statusErr)
+		retryable, rateLimited, retryAfterOut := ClassifyModelError(wrapped)
+		assert.False(t, retryable)
+		assert.True(t, rateLimited)
+		assert.Equal(t, 15*time.Second, retryAfterOut)
 	})
 }

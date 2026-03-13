@@ -9,6 +9,7 @@ import (
 	"github.com/openai/openai-go/v3/responses"
 
 	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/model/provider/oaistream"
 	"github.com/docker/docker-agent/pkg/tools"
 )
 
@@ -33,7 +34,7 @@ func newResponseStreamAdapter(stream *ssestream.Stream[responses.ResponseStreamE
 func (a *ResponseStreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 	if !a.stream.Next() {
 		if err := a.stream.Err(); err != nil {
-			return chat.MessageStreamResponse{}, err
+			return chat.MessageStreamResponse{}, oaistream.WrapOpenAIError(err)
 		}
 		return chat.MessageStreamResponse{}, io.EOF
 	}

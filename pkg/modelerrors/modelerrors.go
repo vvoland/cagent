@@ -11,7 +11,9 @@ import (
 	"log/slog"
 	"math/rand"
 	"net"
+	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,13 +21,55 @@ import (
 	"google.golang.org/genai"
 )
 
-// Backoff configuration constants.
+// Backoff and retry-after configuration constants.
 const (
 	backoffBaseDelay = 200 * time.Millisecond
 	backoffMaxDelay  = 2 * time.Second
 	backoffFactor    = 2.0
 	backoffJitter    = 0.1
+
+	// MaxRetryAfterWait caps how long we'll honor a Retry-After header to prevent
+	// a misbehaving server from blocking the agent for an unreasonable amount of time.
+	MaxRetryAfterWait = 60 * time.Second
 )
+
+// StatusError wraps an HTTP API error with structured metadata for retry decisions.
+// Providers wrap SDK errors in this type so the retry loop can use errors.As
+// to extract status code and Retry-After without importing provider-specific SDKs.
+type StatusError struct {
+	// StatusCode is the HTTP status code from the provider's API response.
+	StatusCode int
+	// RetryAfter is the parsed Retry-After header duration. Zero if absent.
+	RetryAfter time.Duration
+	// Err is the original error from the provider SDK.
+	Err error
+}
+
+func (e *StatusError) Error() string {
+	return e.Err.Error()
+}
+
+func (e *StatusError) Unwrap() error {
+	return e.Err
+}
+
+// WrapHTTPError wraps err in a *StatusError carrying the HTTP status code and
+// parsed Retry-After header from resp. Returns err unchanged if statusCode < 400
+// or err is nil. Pass resp=nil when no *http.Response is available.
+func WrapHTTPError(statusCode int, resp *http.Response, err error) error {
+	if err == nil || statusCode < 400 {
+		return err
+	}
+	var retryAfter time.Duration
+	if resp != nil {
+		retryAfter = ParseRetryAfterHeader(resp.Header.Get("Retry-After"))
+	}
+	return &StatusError{
+		StatusCode: statusCode,
+		RetryAfter: retryAfter,
+		Err:        err,
+	}
+}
 
 // Default fallback configuration.
 const (
@@ -294,6 +338,78 @@ func IsRetryableModelError(err error) bool {
 	// Default: don't retry unknown errors to be safe
 	slog.Debug("Unknown error type, not retrying", "error", err)
 	return false
+}
+
+// ParseRetryAfterHeader parses a Retry-After header value.
+// Supports both seconds (integer) and HTTP-date formats per RFC 7231 §7.1.3.
+// Returns 0 if the value is empty, invalid, or results in a non-positive duration.
+func ParseRetryAfterHeader(value string) time.Duration {
+	if value == "" {
+		return 0
+	}
+	// Try integer seconds first (most common for rate limits)
+	if seconds, err := strconv.Atoi(value); err == nil && seconds > 0 {
+		return time.Duration(seconds) * time.Second
+	}
+	// Try HTTP-date format
+	if t, err := http.ParseTime(value); err == nil {
+		d := time.Until(t)
+		if d > 0 {
+			return d
+		}
+	}
+	return 0
+}
+
+// ClassifyModelError classifies an error for the retry/fallback decision.
+//
+// If the error chain contains a *StatusError (wrapped by provider adapters),
+// its StatusCode and RetryAfter fields are used directly — no provider-specific
+// imports needed in the caller.
+//
+// Returns:
+//   - retryable=true:    retry the SAME model with backoff (5xx, timeouts)
+//   - rateLimited=true:  it's a 429 error; caller decides retry vs fallback based on config
+//   - retryAfter:        Retry-After duration from the provider (only set for 429)
+//
+// When rateLimited=true, retryable is always false — the caller is responsible for
+// deciding whether to retry (when no fallback is configured) or skip to the next
+// model (when fallbacks are available).
+func ClassifyModelError(err error) (retryable, rateLimited bool, retryAfter time.Duration) {
+	if err == nil {
+		return false, false, 0
+	}
+
+	// Context cancellation and deadline are never retryable.
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false, false, 0
+	}
+
+	// Context overflow errors are never retryable — retrying the same oversized
+	// payload will always fail.
+	if IsContextOverflowError(err) {
+		return false, false, 0
+	}
+
+	// Primary path: typed StatusError wrapped by provider adapters.
+	var statusErr *StatusError
+	if errors.As(err, &statusErr) {
+		if statusErr.StatusCode == http.StatusTooManyRequests {
+			return false, true, statusErr.RetryAfter
+		}
+		return IsRetryableStatusCode(statusErr.StatusCode), false, 0
+	}
+
+	// Fallback: providers that don't yet wrap (e.g. Bedrock), or non-provider
+	// errors (network, pattern matching).
+	statusCode := ExtractHTTPStatusCode(err)
+	if statusCode == http.StatusTooManyRequests {
+		return false, true, 0 // No Retry-After without StatusError
+	}
+	if statusCode != 0 {
+		return IsRetryableStatusCode(statusCode), false, 0
+	}
+	return IsRetryableModelError(err), false, 0
 }
 
 // CalculateBackoff returns the backoff duration for a given attempt (0-indexed).

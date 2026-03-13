@@ -34,7 +34,7 @@ func (c *Client) newBetaStreamAdapter(stream *ssestream.Stream[anthropic.BetaRaw
 func (a *betaStreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 	ok, err := a.next()
 	if !ok {
-		return chat.MessageStreamResponse{}, err
+		return chat.MessageStreamResponse{}, wrapAnthropicError(err)
 	}
 
 	event := a.stream.Current()
