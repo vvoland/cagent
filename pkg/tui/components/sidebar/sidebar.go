@@ -268,8 +268,13 @@ func checkReasoningSupportCmd(ctx context.Context, modelID string) tea.Cmd {
 	}
 }
 
-// SetAgentInfo sets the current agent information and updates the model in availableAgents
+// SetAgentInfo sets the current agent information and updates the model in availableAgents.
+// It no-ops when the values are unchanged to avoid unnecessary cache invalidation and re-renders.
 func (m *model) SetAgentInfo(agentName, modelID, description string) tea.Cmd {
+	if m.currentAgent == agentName && m.agentModel == modelID && m.agentDescription == description {
+		return nil
+	}
+
 	m.currentAgent = agentName
 	m.agentModel = modelID
 	m.agentDescription = description

@@ -26,7 +26,6 @@ type streamResult struct {
 	ThinkingSignature string
 	ThoughtSignature  []byte
 	Stopped           bool
-	ActualModel       string
 	Usage             *chat.Usage
 	RateLimit         *chat.RateLimit
 }
@@ -43,7 +42,6 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 	var thinkingSignature string
 	var thoughtSignature []byte
 	var toolCalls []tools.ToolCall
-	var actualModel string
 	var messageUsage *chat.Usage
 	var messageRateLimit *chat.RateLimit
 
@@ -102,11 +100,6 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 			thoughtSignature = choice.Delta.ThoughtSignature
 		}
 
-		// Capture the actual model from the stream response (useful for model routing)
-		if actualModel == "" && response.Model != "" {
-			actualModel = response.Model
-		}
-
 		if choice.FinishReason == chat.FinishReasonStop || choice.FinishReason == chat.FinishReasonLength {
 			recordUsage()
 			return streamResult{
@@ -116,7 +109,6 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 				ThinkingSignature: thinkingSignature,
 				ThoughtSignature:  thoughtSignature,
 				Stopped:           true,
-				ActualModel:       actualModel,
 				Usage:             messageUsage,
 				RateLimit:         messageRateLimit,
 			}, nil
@@ -191,7 +183,6 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 		ThinkingSignature: thinkingSignature,
 		ThoughtSignature:  thoughtSignature,
 		Stopped:           stoppedDueToNoOutput,
-		ActualModel:       actualModel,
 		Usage:             messageUsage,
 		RateLimit:         messageRateLimit,
 	}, nil

@@ -41,9 +41,10 @@ type ProviderFactory func(ctx context.Context, modelSpec string, models map[stri
 // Client implements the Provider interface for rule-based model routing.
 type Client struct {
 	base.Config
-	routes   []Provider
-	fallback Provider
-	index    bleve.Index
+	routes         []Provider
+	fallback       Provider
+	index          bleve.Index
+	lastSelectedID string // ID of the provider selected by the most recent call
 }
 
 // NewClient creates a new rule-based routing client.
@@ -152,6 +153,7 @@ func filterOutMaxTokens(opts []options.Opt) []options.Opt {
 }
 
 // CreateChatCompletionStream selects a provider based on input and delegates the call.
+// The selected provider's ID is recorded in LastSelectedModelID.
 func (c *Client) CreateChatCompletionStream(
 	ctx context.Context,
 	messages []chat.Message,
@@ -162,13 +164,21 @@ func (c *Client) CreateChatCompletionStream(
 		return nil, errors.New("no provider available for routing")
 	}
 
+	c.lastSelectedID = provider.ID()
 	slog.Debug("Rule-based router selected model",
 		"router", c.ID(),
-		"selected_model", provider.ID(),
+		"selected_model", c.lastSelectedID,
 		"message_count", len(messages),
 	)
 
 	return provider.CreateChatCompletionStream(ctx, messages, availableTools)
+}
+
+// LastSelectedModelID returns the ID of the provider selected by the most
+// recent CreateChatCompletionStream call. This allows callers to display
+// the YAML-configured sub-model name for rule-based routing.
+func (c *Client) LastSelectedModelID() string {
+	return c.lastSelectedID
 }
 
 // selectProvider finds the best matching provider for the messages.

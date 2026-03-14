@@ -283,6 +283,15 @@ func (r *LocalRuntime) tryModelWithFallback(
 
 			// Stream created successfully, now handle it
 			slog.Debug("Processing stream", "agent", a.Name(), "model", modelEntry.provider.ID())
+
+			// If the provider is a rule-based router, notify the sidebar
+			// of the selected sub-model's YAML-configured name.
+			if rp, ok := modelEntry.provider.(interface{ LastSelectedModelID() string }); ok {
+				if selected := rp.LastSelectedModelID(); selected != "" {
+					events <- AgentInfo(a.Name(), selected, a.Description(), a.WelcomeMessage())
+				}
+			}
+
 			res, err := r.handleStream(ctx, stream, a, agentTools, sess, m, events)
 			if err != nil {
 				lastErr = err

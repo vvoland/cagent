@@ -276,12 +276,12 @@ func TestSimple(t *testing.T) {
 	require.Equal(t, chat.MessageRoleAssistant, msgAdded.Message.Message.Role)
 
 	expectedEvents := []Event{
-		AgentInfo("root", "test/mock-model", "", ""),
 		TeamInfo([]AgentDetails{{Name: "root", Provider: "test", Model: "mock-model"}}, "root"),
 		ToolsetInfo(0, false, "root"),
 		UserMessage("Hi", sess.ID, nil, 0),
 		StreamStarted(sess.ID, "root"),
 		ToolsetInfo(0, false, "root"),
+		AgentInfo("root", "test/mock-model", "", ""),
 		AgentChoice("root", sess.ID, "Hello"),
 		MessageAdded(sess.ID, msgAdded.Message, "root"),
 		NewTokenUsageEvent(sess.ID, "root", &Usage{InputTokens: 3, OutputTokens: 2, ContextLength: 5, LastMessage: &MessageUsage{
@@ -315,12 +315,12 @@ func TestMultipleContentChunks(t *testing.T) {
 	require.NotNil(t, msgAdded.Message)
 
 	expectedEvents := []Event{
-		AgentInfo("root", "test/mock-model", "", ""),
 		TeamInfo([]AgentDetails{{Name: "root", Provider: "test", Model: "mock-model"}}, "root"),
 		ToolsetInfo(0, false, "root"),
 		UserMessage("Please greet me", sess.ID, nil, 0),
 		StreamStarted(sess.ID, "root"),
 		ToolsetInfo(0, false, "root"),
+		AgentInfo("root", "test/mock-model", "", ""),
 		AgentChoice("root", sess.ID, "Hello "),
 		AgentChoice("root", sess.ID, "there, "),
 		AgentChoice("root", sess.ID, "how "),
@@ -356,12 +356,12 @@ func TestWithReasoning(t *testing.T) {
 	require.NotNil(t, msgAdded.Message)
 
 	expectedEvents := []Event{
-		AgentInfo("root", "test/mock-model", "", ""),
 		TeamInfo([]AgentDetails{{Name: "root", Provider: "test", Model: "mock-model"}}, "root"),
 		ToolsetInfo(0, false, "root"),
 		UserMessage("Hi", sess.ID, nil, 0),
 		StreamStarted(sess.ID, "root"),
 		ToolsetInfo(0, false, "root"),
+		AgentInfo("root", "test/mock-model", "", ""),
 		AgentChoiceReasoning("root", sess.ID, "Let me think about this..."),
 		AgentChoiceReasoning("root", sess.ID, " I should respond politely."),
 		AgentChoice("root", sess.ID, "Hello, how can I help you?"),
@@ -396,12 +396,12 @@ func TestMixedContentAndReasoning(t *testing.T) {
 	require.NotNil(t, msgAdded.Message)
 
 	expectedEvents := []Event{
-		AgentInfo("root", "test/mock-model", "", ""),
 		TeamInfo([]AgentDetails{{Name: "root", Provider: "test", Model: "mock-model"}}, "root"),
 		ToolsetInfo(0, false, "root"),
 		UserMessage("Hi there", sess.ID, nil, 0),
 		StreamStarted(sess.ID, "root"),
 		ToolsetInfo(0, false, "root"),
+		AgentInfo("root", "test/mock-model", "", ""),
 		AgentChoiceReasoning("root", sess.ID, "The user wants a greeting"),
 		AgentChoice("root", sess.ID, "Hello!"),
 		AgentChoiceReasoning("root", sess.ID, " I should be friendly"),
@@ -454,12 +454,12 @@ func TestErrorEvent(t *testing.T) {
 	}
 
 	require.Len(t, events, 8)
-	require.IsType(t, &AgentInfoEvent{}, events[0])
-	require.IsType(t, &TeamInfoEvent{}, events[1])
-	require.IsType(t, &ToolsetInfoEvent{}, events[2])
-	require.IsType(t, &UserMessageEvent{}, events[3])
-	require.IsType(t, &StreamStartedEvent{}, events[4])
-	require.IsType(t, &ToolsetInfoEvent{}, events[5])
+	require.IsType(t, &TeamInfoEvent{}, events[0])
+	require.IsType(t, &ToolsetInfoEvent{}, events[1])
+	require.IsType(t, &UserMessageEvent{}, events[2])
+	require.IsType(t, &StreamStartedEvent{}, events[3])
+	require.IsType(t, &ToolsetInfoEvent{}, events[4])
+	require.IsType(t, &AgentInfoEvent{}, events[5])
 	require.IsType(t, &ErrorEvent{}, events[6])
 	require.IsType(t, &StreamStoppedEvent{}, events[7])
 
@@ -493,12 +493,11 @@ func TestContextCancellation(t *testing.T) {
 		events = append(events, ev)
 	}
 
-	require.GreaterOrEqual(t, len(events), 5)
-	require.IsType(t, &AgentInfoEvent{}, events[0])
-	require.IsType(t, &TeamInfoEvent{}, events[1])
-	require.IsType(t, &ToolsetInfoEvent{}, events[2])
-	require.IsType(t, &UserMessageEvent{}, events[3])
-	require.IsType(t, &StreamStartedEvent{}, events[4])
+	require.GreaterOrEqual(t, len(events), 4)
+	require.IsType(t, &TeamInfoEvent{}, events[0])
+	require.IsType(t, &ToolsetInfoEvent{}, events[1])
+	require.IsType(t, &UserMessageEvent{}, events[2])
+	require.IsType(t, &StreamStartedEvent{}, events[3])
 	require.IsType(t, &StreamStoppedEvent{}, events[len(events)-1])
 }
 
