@@ -16,6 +16,7 @@ import (
 
 	"github.com/docker/docker-agent/pkg/agent"
 	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/compaction"
 	"github.com/docker/docker-agent/pkg/model/provider"
 	"github.com/docker/docker-agent/pkg/model/provider/options"
 	"github.com/docker/docker-agent/pkg/modelerrors"
@@ -252,11 +253,8 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				contextLimit = int64(m.Limit.Context)
 			}
 
-			if m != nil && r.sessionCompaction {
-				contextLength := sess.InputTokens + sess.OutputTokens
-				if contextLength > int64(float64(contextLimit)*0.9) {
-					r.Summarize(ctx, sess, "", events)
-				}
+			if m != nil && r.sessionCompaction && compaction.ShouldCompact(sess.InputTokens, sess.OutputTokens, 0, contextLimit) {
+				r.Summarize(ctx, sess, "", events)
 			}
 
 			messages := sess.GetMessages(a)
@@ -466,11 +464,10 @@ func (r *LocalRuntime) compactIfNeeded(
 	newMessages := sess.GetAllMessages()[messageCountBefore:]
 	var addedTokens int64
 	for _, msg := range newMessages {
-		addedTokens += estimateMessageTokens(&msg.Message)
+		addedTokens += compaction.EstimateMessageTokens(&msg.Message)
 	}
 
-	estimatedTotal := sess.InputTokens + sess.OutputTokens + addedTokens
-	if estimatedTotal <= int64(float64(contextLimit)*0.9) {
+	if !compaction.ShouldCompact(sess.InputTokens, sess.OutputTokens, addedTokens, contextLimit) {
 		return
 	}
 
@@ -479,7 +476,7 @@ func (r *LocalRuntime) compactIfNeeded(
 		"input_tokens", sess.InputTokens,
 		"output_tokens", sess.OutputTokens,
 		"added_estimated_tokens", addedTokens,
-		"estimated_total", estimatedTotal,
+		"estimated_total", sess.InputTokens+sess.OutputTokens+addedTokens,
 		"context_limit", contextLimit,
 	)
 	r.Summarize(ctx, sess, "", events)
