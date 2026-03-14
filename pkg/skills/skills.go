@@ -22,6 +22,7 @@ type Skill struct {
 	FilePath      string            `yaml:"-"`
 	BaseDir       string            `yaml:"-"`
 	Files         []string          `yaml:"-"`
+	Local         bool              `yaml:"-"` // true for filesystem-loaded skills, false for remote
 	License       string            `yaml:"license"`
 	Compatibility string            `yaml:"compatibility"`
 	Metadata      map[string]string `yaml:"metadata"`
@@ -308,6 +309,7 @@ func loadSkillFile(path, dirName string) (Skill, bool) {
 	skill.Name = cmp.Or(skill.Name, dirName)
 	skill.FilePath = path
 	skill.BaseDir = filepath.Dir(path)
+	skill.Local = true
 
 	return skill, true
 }

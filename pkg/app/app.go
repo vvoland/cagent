@@ -194,7 +194,7 @@ func (a *App) CurrentAgentSkills() []skills.Skill {
 
 // ResolveSkillCommand checks if the input matches a skill slash command (e.g. /skill-name args).
 // If matched, it reads the skill content and returns the resolved prompt. Otherwise returns "".
-func (a *App) ResolveSkillCommand(input string) (string, error) {
+func (a *App) ResolveSkillCommand(ctx context.Context, input string) (string, error) {
 	if !strings.HasPrefix(input, "/") {
 		return "", nil
 	}
@@ -212,7 +212,7 @@ func (a *App) ResolveSkillCommand(input string) (string, error) {
 			continue
 		}
 
-		content, err := st.ReadSkillContent(skill.Name)
+		content, err := st.ReadSkillContent(ctx, skill.Name)
 		if err != nil {
 			return "", fmt.Errorf("reading skill %q: %w", skill.Name, err)
 		}
@@ -229,7 +229,7 @@ func (a *App) ResolveSkillCommand(input string) (string, error) {
 // ResolveInput resolves the user input by trying skill commands first,
 // then agent commands. Returns the resolved content ready to send to the agent.
 func (a *App) ResolveInput(ctx context.Context, input string) string {
-	if resolved, err := a.ResolveSkillCommand(input); err != nil {
+	if resolved, err := a.ResolveSkillCommand(ctx, input); err != nil {
 		return fmt.Sprintf("Error loading skill: %v", err)
 	} else if resolved != "" {
 		return resolved
