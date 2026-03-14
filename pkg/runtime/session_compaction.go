@@ -2,121 +2,83 @@ package runtime
 
 import (
 	"context"
-	_ "embed"
 	"log/slog"
-	"time"
 
 	"github.com/docker/docker-agent/pkg/agent"
 	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/compaction"
 	"github.com/docker/docker-agent/pkg/model/provider"
 	"github.com/docker/docker-agent/pkg/model/provider/options"
 	"github.com/docker/docker-agent/pkg/session"
 	"github.com/docker/docker-agent/pkg/team"
 )
 
-//go:embed prompts/compaction-system.txt
-var compactionSystemPrompt string
+// runSummarization sends the prepared messages through a one-shot runtime
+// and returns the model's summary together with the output token count and
+// cost. The runtime is created with compaction disabled so it cannot recurse.
+func runSummarization(ctx context.Context, model provider.Provider, messages []chat.Message) (compaction.Result, error) {
+	summaryModel := provider.CloneWithOptions(ctx, model, options.WithStructuredOutput(nil))
+	root := agent.New("root", compaction.SystemPrompt, agent.WithModel(summaryModel))
+	t := team.New(team.WithAgents(root))
 
-//go:embed prompts/compaction-user.txt
-var compactionUserPrompt string
-
-type sessionCompactor struct {
-	model        provider.Provider
-	sessionStore session.Store
-}
-
-func newSessionCompactor(model provider.Provider, sessionStore session.Store) *sessionCompactor {
-	return &sessionCompactor{
-		model:        model,
-		sessionStore: sessionStore,
+	sess := session.New()
+	sess.Title = "Generating summary..."
+	for _, msg := range messages {
+		sess.AddMessage(&session.Message{Message: msg})
 	}
+
+	rt, err := New(t, WithSessionCompaction(false))
+	if err != nil {
+		return compaction.Result{}, err
+	}
+	if _, err = rt.Run(ctx, sess); err != nil {
+		return compaction.Result{}, err
+	}
+
+	return compaction.Result{
+		Summary:     sess.GetLastAssistantMessageContent(),
+		InputTokens: sess.OutputTokens,
+		Cost:        sess.TotalCost(),
+	}, nil
 }
 
-func (c *sessionCompactor) Compact(ctx context.Context, sess *session.Session, additionalPrompt string, events chan Event, agentName string) {
+// doCompact runs compaction on a session and applies the result (events,
+// persistence, token count updates). The agent is used to extract the
+// conversation from the session and to obtain the model for summarization.
+func (r *LocalRuntime) doCompact(ctx context.Context, sess *session.Session, a *agent.Agent, additionalPrompt string, events chan Event) {
 	slog.Debug("Generating summary for session", "session_id", sess.ID)
 
-	events <- SessionCompaction(sess.ID, "started", agentName)
+	events <- SessionCompaction(sess.ID, "started", a.Name())
 	defer func() {
-		events <- SessionCompaction(sess.ID, "completed", agentName)
+		events <- SessionCompaction(sess.ID, "completed", a.Name())
 	}()
 
-	summaryModel := provider.CloneWithOptions(ctx, c.model, options.WithStructuredOutput(nil))
-	root := agent.New("root", compactionSystemPrompt, agent.WithModel(summaryModel))
-	newTeam := team.New(team.WithAgents(root))
-
-	messages := sess.GetMessages(root)
-	if !hasConversationMessages(messages) {
-		events <- Warning("Session is empty. Start a conversation before compacting.", agentName)
+	messages := sess.GetMessages(a)
+	if !compaction.HasConversationMessages(messages) {
+		if additionalPrompt == "" {
+			events <- Warning("Session is empty. Start a conversation before compacting.", a.Name())
+		}
 		return
 	}
 
-	summarySession := session.New()
-	summarySession.Title = "Generating summary..."
-	for _, msg := range messages {
-		// Copy messages without their cost — the summary session should
-		// only track the cost of generating the summary itself, not the
-		// original conversation costs (which are already accounted for
-		// in the parent session).
-		cloned := msg
-		cloned.Cost = 0
-		summarySession.AddMessage(&session.Message{Message: cloned})
-	}
+	prepared := compaction.BuildPrompt(messages, additionalPrompt)
 
-	prompt := compactionUserPrompt
-	if additionalPrompt != "" {
-		prompt += "\n\nAdditional instructions from user: " + additionalPrompt
-	}
-	summarySession.AddMessage(&session.Message{
-		Message: chat.Message{
-			Role:      chat.MessageRoleUser,
-			Content:   prompt,
-			CreatedAt: time.Now().Format(time.RFC3339),
-		},
-	})
-
-	summaryRuntime, err := New(newTeam, WithSessionCompaction(false))
-	if err != nil {
-		slog.Error("Failed to create summary generator runtime", "error", err)
-		events <- Error(err.Error())
-		return
-	}
-
-	_, err = summaryRuntime.Run(ctx, summarySession)
+	result, err := runSummarization(ctx, a.Model(), prepared)
 	if err != nil {
 		slog.Error("Failed to generate session summary", "error", err)
 		events <- Error(err.Error())
 		return
 	}
-
-	summary := summarySession.GetLastAssistantMessageContent()
-	if summary == "" {
+	if result.Summary == "" {
 		return
 	}
 
-	compactionCost := summarySession.TotalCost()
-
-	// Store the compaction cost on the summary item so that TotalCost()
-	// can discover it when walking the session tree.
-	sess.Messages = append(sess.Messages, session.Item{Summary: summary, Cost: compactionCost})
-
-	// Update the parent session's token counts to reflect the compacted
-	// context. The summary model's output tokens approximate the new
-	// context size (system prompt + summary). The old counts reflected
-	// the pre-compaction context and are no longer meaningful.
-	sess.InputTokens = summarySession.OutputTokens
+	sess.Messages = append(sess.Messages, session.Item{Summary: result.Summary, Cost: result.Cost})
+	sess.InputTokens = result.InputTokens
 	sess.OutputTokens = 0
 
-	_ = c.sessionStore.UpdateSession(ctx, sess)
+	_ = r.sessionStore.UpdateSession(ctx, sess)
 
-	slog.Debug("Generated session summary", "session_id", sess.ID, "summary_length", len(summary), "compaction_cost", compactionCost)
-	events <- SessionSummary(sess.ID, summary, agentName)
-}
-
-func hasConversationMessages(messages []chat.Message) bool {
-	for _, msg := range messages {
-		if msg.Role != chat.MessageRoleSystem {
-			return true
-		}
-	}
-	return false
+	slog.Debug("Generated session summary", "session_id", sess.ID, "summary_length", len(result.Summary), "compaction_cost", result.Cost)
+	events <- SessionSummary(sess.ID, result.Summary, a.Name())
 }

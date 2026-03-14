@@ -193,7 +193,6 @@ type LocalRuntime struct {
 	elicitationEventsChannel    chan Event             // Current events channel for sending elicitation requests
 	elicitationEventsChannelMux sync.RWMutex           // Protects elicitationEventsChannel
 	ragInitialized              atomic.Bool
-	sessionCompactor            *sessionCompactor
 	sessionStore                session.Store
 	workingDir                  string   // Working directory for hooks execution
 	env                         []string // Environment variables for hooks execution
@@ -327,12 +326,9 @@ func NewLocalRuntime(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 		return nil, err
 	}
 
-	model := defaultAgent.Model()
-	if model == nil {
+	if defaultAgent.Model() == nil {
 		return nil, fmt.Errorf("agent %s has no valid model", defaultAgent.Name())
 	}
-
-	r.sessionCompactor = newSessionCompactor(model, r.sessionStore)
 
 	// Register runtime-managed tool handlers once during construction.
 	// This avoids concurrent map writes when multiple goroutines call
@@ -1008,7 +1004,7 @@ func (r *LocalRuntime) startSpan(ctx context.Context, name string, opts ...trace
 // for the summarization (e.g., "focus on code changes" or "include action items").
 func (r *LocalRuntime) Summarize(ctx context.Context, sess *session.Session, additionalPrompt string, events chan Event) {
 	a := r.resolveSessionAgent(sess)
-	r.sessionCompactor.Compact(ctx, sess, additionalPrompt, events, a.Name())
+	r.doCompact(ctx, sess, a, additionalPrompt, events)
 
 	// Emit a TokenUsageEvent so the sidebar immediately reflects the
 	// compaction: tokens drop to the summary size, context % drops, and
