@@ -64,15 +64,20 @@ func UserMessage(message, sessionID string, multiContent []chat.MessagePart, ses
 type PartialToolCallEvent struct {
 	Type           string         `json:"type"`
 	ToolCall       tools.ToolCall `json:"tool_call"`
-	ToolDefinition tools.Tool     `json:"tool_definition"`
+	ToolDefinition *tools.Tool    `json:"tool_definition,omitempty"`
 	AgentContext
 }
 
 func PartialToolCall(toolCall tools.ToolCall, toolDefinition tools.Tool, agentName string) Event {
+	var toolDef *tools.Tool
+	if toolDefinition.Name != "" {
+		def := toolDefinition
+		toolDef = &def
+	}
 	return &PartialToolCallEvent{
 		Type:           "partial_tool_call",
 		ToolCall:       toolCall,
-		ToolDefinition: toolDefinition,
+		ToolDefinition: toolDef,
 		AgentContext:   newAgentContext(agentName),
 	}
 }
