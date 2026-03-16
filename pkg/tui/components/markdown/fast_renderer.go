@@ -173,10 +173,14 @@ func ResetStyles() {
 	globalStylesOnce = sync.Once{}
 	globalStylesMu.Unlock()
 
-	// Also clear chroma syntax highlighting cache
+	// Also clear chroma syntax highlighting caches
 	chromaStyleCacheMu.Lock()
 	chromaStyleCache = make(map[chroma.TokenType]ansiStyle)
 	chromaStyleCacheMu.Unlock()
+
+	syntaxHighlightCacheMu.Lock()
+	syntaxHighlightCache.clear()
+	syntaxHighlightCacheMu.Unlock()
 }
 
 func getGlobalStyles() *cachedStyles {
@@ -2158,6 +2162,12 @@ type token struct {
 	style ansiStyle
 }
 
+// syntaxCacheKey builds a cache key for syntax highlighting results.
+type syntaxCacheKey struct {
+	lang string
+	code string
+}
+
 var (
 	lexerCache   = make(map[string]chroma.Lexer)
 	lexerCacheMu sync.RWMutex
@@ -2165,34 +2175,43 @@ var (
 	// Cache for chroma token type to ansiStyle conversion (with code bg)
 	chromaStyleCache   = make(map[chroma.TokenType]ansiStyle)
 	chromaStyleCacheMu sync.RWMutex
+
+	// Cache for syntax highlighting results to avoid re-tokenizing unchanged code blocks.
+	// Uses an LRU cache bounded to 128 entries to prevent unbounded memory growth
+	// in long-running TUI sessions with many unique code blocks.
+	syntaxHighlightCache   = newLRUCache[syntaxCacheKey, []token](syntaxHighlightCacheSize)
+	syntaxHighlightCacheMu sync.RWMutex
+)
+
+const (
+	// syntaxHighlightCacheSize is the maximum number of syntax-highlighted code blocks
+	// to keep in cache. This bounds memory usage while retaining recently viewed blocks.
+	syntaxHighlightCacheSize = 128
 )
 
 func (p *parser) syntaxHighlight(code, lang string) []token {
-	var lexer chroma.Lexer
+	cacheKey := syntaxCacheKey{lang: lang, code: code}
 
-	if lang != "" {
-		// Try cache first
-		lexerCacheMu.RLock()
-		lexer = lexerCache[lang]
-		lexerCacheMu.RUnlock()
-
-		if lexer == nil {
-			lexer = lexers.Get(lang)
-			if lexer == nil {
-				// Try with file extension
-				lexer = lexers.Match("file." + lang)
-			}
-			if lexer != nil {
-				lexer = chroma.Coalesce(lexer)
-				lexerCacheMu.Lock()
-				lexerCache[lang] = lexer
-				lexerCacheMu.Unlock()
-			}
-		}
+	syntaxHighlightCacheMu.RLock()
+	if cached, ok := syntaxHighlightCache.get(cacheKey); ok {
+		syntaxHighlightCacheMu.RUnlock()
+		return cached
 	}
+	syntaxHighlightCacheMu.RUnlock()
 
+	tokens := p.doSyntaxHighlight(code, lang)
+
+	syntaxHighlightCacheMu.Lock()
+	syntaxHighlightCache.put(cacheKey, tokens)
+	syntaxHighlightCacheMu.Unlock()
+
+	return tokens
+}
+
+// doSyntaxHighlight performs the actual syntax highlighting without caching.
+func (p *parser) doSyntaxHighlight(code, lang string) []token {
+	lexer := p.getLexer(lang)
 	if lexer == nil {
-		// No highlighting - return plain text with code background
 		return []token{{text: code, style: p.getCodeStyle(chroma.None)}}
 	}
 
@@ -2212,8 +2231,35 @@ func (p *parser) syntaxHighlight(code, lang string) []token {
 			style: p.getCodeStyle(tok.Type),
 		})
 	}
-
 	return tokens
+}
+
+// getLexer returns a cached chroma lexer for the given language, or nil if unknown.
+func (p *parser) getLexer(lang string) chroma.Lexer {
+	if lang == "" {
+		return nil
+	}
+
+	lexerCacheMu.RLock()
+	lexer := lexerCache[lang]
+	lexerCacheMu.RUnlock()
+	if lexer != nil {
+		return lexer
+	}
+
+	lexer = lexers.Get(lang)
+	if lexer == nil {
+		lexer = lexers.Match("file." + lang)
+	}
+	if lexer == nil {
+		return nil
+	}
+
+	lexer = chroma.Coalesce(lexer)
+	lexerCacheMu.Lock()
+	lexerCache[lang] = lexer
+	lexerCacheMu.Unlock()
+	return lexer
 }
 
 func (p *parser) getCodeStyle(tokenType chroma.TokenType) ansiStyle {
