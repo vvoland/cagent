@@ -58,7 +58,7 @@ func CollectFiles(ctx context.Context, paths []string, shouldIgnore func(path st
 
 			if info.IsDir() {
 				// Use DirectoryTree to collect files from directory
-				tree, err := DirectoryTreeWithContext(ctx, normalized, func(string) error { return nil }, shouldIgnore, 0)
+				tree, err := DirectoryTree(ctx, normalized, func(string) error { return nil }, shouldIgnore, 0)
 				if err != nil {
 					return nil, fmt.Errorf("failed to read directory %s: %w", normalized, err)
 				}

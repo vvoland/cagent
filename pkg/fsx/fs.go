@@ -15,13 +15,7 @@ type TreeNode struct {
 	Children []*TreeNode `json:"children,omitempty"`
 }
 
-func DirectoryTree(path string, isPathAllowed func(string) error, shouldIgnore func(string) bool, maxItems int) (*TreeNode, error) {
-	itemCount := 0
-	return directoryTree(context.Background(), path, isPathAllowed, shouldIgnore, maxItems, &itemCount)
-}
-
-// DirectoryTreeWithContext is a context-aware version of DirectoryTree.
-func DirectoryTreeWithContext(ctx context.Context, path string, isPathAllowed func(string) error, shouldIgnore func(string) bool, maxItems int) (*TreeNode, error) {
+func DirectoryTree(ctx context.Context, path string, isPathAllowed func(string) error, shouldIgnore func(string) bool, maxItems int) (*TreeNode, error) {
 	itemCount := 0
 	return directoryTree(ctx, path, isPathAllowed, shouldIgnore, maxItems, &itemCount)
 }
@@ -85,17 +79,6 @@ func directoryTree(ctx context.Context, path string, isPathAllowed func(string) 
 	}
 
 	return node, nil
-}
-
-func ListDirectory(path string, shouldIgnore func(string) bool) ([]string, error) {
-	tree, err := DirectoryTree(path, func(string) error { return nil }, shouldIgnore, 0)
-	if err != nil {
-		return nil, err
-	}
-
-	var files []string
-	CollectFilesFromTree(tree, "", &files)
-	return files, nil
 }
 
 // CollectFilesFromTree recursively collects file paths from a DirectoryTree.

@@ -70,7 +70,7 @@ func TestDirectoryTree_ContextCancellation(t *testing.T) {
 		// Cancel context immediately
 		cancel()
 
-		_, err := DirectoryTreeWithContext(ctx, tmpDir, func(string) error { return nil }, nil, 0)
+		_, err := DirectoryTree(ctx, tmpDir, func(string) error { return nil }, nil, 0)
 		assert.ErrorIs(t, err, context.Canceled)
 	})
 
@@ -81,7 +81,7 @@ func TestDirectoryTree_ContextCancellation(t *testing.T) {
 		// Give time for timeout to trigger
 		time.Sleep(10 * time.Millisecond)
 
-		_, err := DirectoryTreeWithContext(ctx, tmpDir, func(string) error { return nil }, nil, 0)
+		_, err := DirectoryTree(ctx, tmpDir, func(string) error { return nil }, nil, 0)
 		assert.ErrorIs(t, err, context.DeadlineExceeded)
 	})
 }
