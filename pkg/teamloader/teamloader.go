@@ -145,6 +145,8 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 
 	expander := js.NewJsExpander(env)
 
+	cliHooks := runConfig.CLIHooks()
+
 	for _, agentConfig := range cfg.Agents {
 		// Merge CLI prompt files with agent config prompt files, deduplicating
 		promptFiles := slices.Concat(agentConfig.AddPromptFiles, loadOpts.promptFiles)
@@ -171,7 +173,7 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 			agent.WithMaxConsecutiveToolCalls(agentConfig.MaxConsecutiveToolCalls),
 			agent.WithNumHistoryItems(agentConfig.NumHistoryItems),
 			agent.WithCommands(expander.ExpandCommands(ctx, agentConfig.Commands)),
-			agent.WithHooks(agentConfig.Hooks),
+			agent.WithHooks(config.MergeHooks(agentConfig.Hooks, cliHooks)),
 		}
 
 		models, thinkingConfigured, err := getModelsForAgent(ctx, cfg, &agentConfig, autoModel, runConfig)
