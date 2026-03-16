@@ -155,12 +155,26 @@ func TestModel_LogsSelection(t *testing.T) {
 
 	a := New("scanner", "test", WithModel(model1), WithModel(model2))
 
-	_ = a.Model()
+	// Verify basic selection logging
+	selected := a.Model()
 	logOutput := buf.String()
 
 	assert.Contains(t, logOutput, "Model selected")
 	assert.Contains(t, logOutput, "agent=scanner")
+	assert.Contains(t, logOutput, selected.ID())
 	assert.Contains(t, logOutput, "pool_size=2")
+
+	// Verify override scenario logs correct pool_size
+	buf.Reset()
+	override := &mockProvider{id: "google/gemini-2.0-flash"}
+	a.SetModelOverride(override)
+
+	selected = a.Model()
+	logOutput = buf.String()
+
+	assert.Equal(t, "google/gemini-2.0-flash", selected.ID())
+	assert.Contains(t, logOutput, "google/gemini-2.0-flash")
+	assert.Contains(t, logOutput, "pool_size=1")
 }
 
 func TestModelOverride_ConcurrentAccess(t *testing.T) {

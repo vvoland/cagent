@@ -132,13 +132,16 @@ func (a *Agent) HasSubAgents() bool {
 // Otherwise, it returns a random model from the available models.
 func (a *Agent) Model() provider.Provider {
 	var selected provider.Provider
+	var poolSize int
 	// Check for model override first (set via TUI model switching)
 	if overrides := a.modelOverrides.Load(); overrides != nil && len(*overrides) > 0 {
 		selected = (*overrides)[rand.Intn(len(*overrides))]
+		poolSize = len(*overrides)
 	} else {
 		selected = a.models[rand.Intn(len(a.models))]
+		poolSize = len(a.models)
 	}
-	slog.Info("Model selected", "agent", a.name, "model", selected.ID(), "pool_size", len(a.models))
+	slog.Info("Model selected", "agent", a.name, "model", selected.ID(), "pool_size", poolSize)
 	return selected
 }
 
