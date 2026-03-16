@@ -121,6 +121,77 @@ func TestThinkingBudget_MarshalUnmarshal_Zero(t *testing.T) {
 	require.Equal(t, "thinking_budget: 0\n", string(output))
 }
 
+func TestThinkingBudget_IsDisabled(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name string
+		b    *ThinkingBudget
+		want bool
+	}{
+		{"nil", nil, false},
+		{"zero tokens", &ThinkingBudget{Tokens: 0}, true},
+		{"none effort", &ThinkingBudget{Effort: "none"}, true},
+		{"positive tokens", &ThinkingBudget{Tokens: 8192}, false},
+		{"medium effort", &ThinkingBudget{Effort: "medium"}, false},
+		{"adaptive effort", &ThinkingBudget{Effort: "adaptive"}, false},
+		{"negative tokens (dynamic)", &ThinkingBudget{Tokens: -1}, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tt.want, tt.b.IsDisabled())
+		})
+	}
+}
+
+func TestThinkingBudget_IsAdaptive(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name string
+		b    *ThinkingBudget
+		want bool
+	}{
+		{"nil", nil, false},
+		{"adaptive", &ThinkingBudget{Effort: "adaptive"}, true},
+		{"medium", &ThinkingBudget{Effort: "medium"}, false},
+		{"tokens", &ThinkingBudget{Tokens: 8192}, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tt.want, tt.b.IsAdaptive())
+		})
+	}
+}
+
+func TestThinkingBudget_EffortTokens(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name       string
+		b          *ThinkingBudget
+		wantTokens int
+		wantOK     bool
+	}{
+		{"nil", nil, 0, false},
+		{"minimal", &ThinkingBudget{Effort: "minimal"}, 1024, true},
+		{"low", &ThinkingBudget{Effort: "low"}, 2048, true},
+		{"medium", &ThinkingBudget{Effort: "medium"}, 8192, true},
+		{"high", &ThinkingBudget{Effort: "high"}, 16384, true},
+		{"adaptive", &ThinkingBudget{Effort: "adaptive"}, 0, false},
+		{"none", &ThinkingBudget{Effort: "none"}, 0, false},
+		{"explicit tokens", &ThinkingBudget{Tokens: 4096}, 0, false},
+		{"empty effort", &ThinkingBudget{}, 0, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tokens, ok := tt.b.EffortTokens()
+			require.Equal(t, tt.wantOK, ok)
+			require.Equal(t, tt.wantTokens, tokens)
+		})
+	}
+}
+
 func TestAgents_UnmarshalYAML_RejectsUnknownFields(t *testing.T) {
 	t.Parallel()
 

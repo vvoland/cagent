@@ -275,16 +275,23 @@ func (c *Client) buildInferenceConfig() *types.InferenceConfiguration {
 	return cfg
 }
 
+// resolveThinkingTokens returns the effective token budget for thinking.
+// It handles both explicit token counts and effort-level strings.
+// Returns 0 if no valid thinking budget is configured.
+func (c *Client) resolveThinkingTokens() int {
+	if c.ModelConfig.ThinkingBudget == nil {
+		return 0
+	}
+	if tokens, ok := c.ModelConfig.ThinkingBudget.EffortTokens(); ok {
+		return tokens
+	}
+	return c.ModelConfig.ThinkingBudget.Tokens
+}
+
 // isThinkingEnabled mirrors the validation in buildAdditionalModelRequestFields
 // to determine if thinking params will affect inference config (temp/topP constraints).
 func (c *Client) isThinkingEnabled() bool {
-	if c.ModelConfig.ThinkingBudget == nil || c.ModelConfig.ThinkingBudget.Tokens <= 0 {
-		return false
-	}
-
-	tokens := c.ModelConfig.ThinkingBudget.Tokens
-
-	// Check minimum (Claude requires at least 1024 tokens for thinking)
+	tokens := c.resolveThinkingTokens()
 	if tokens < 1024 {
 		return false
 	}
@@ -310,11 +317,10 @@ func (c *Client) promptCachingEnabled() bool {
 
 // buildAdditionalModelRequestFields configures Claude's extended thinking (reasoning) mode.
 func (c *Client) buildAdditionalModelRequestFields() document.Interface {
-	if c.ModelConfig.ThinkingBudget == nil || c.ModelConfig.ThinkingBudget.Tokens <= 0 {
+	tokens := c.resolveThinkingTokens()
+	if tokens <= 0 {
 		return nil
 	}
-
-	tokens := c.ModelConfig.ThinkingBudget.Tokens
 
 	// Validate minimum (Claude requires at least 1024 tokens for thinking)
 	if tokens < 1024 {

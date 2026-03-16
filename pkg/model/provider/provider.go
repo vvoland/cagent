@@ -228,84 +228,61 @@ func createDirectProvider(ctx context.Context, cfg *latest.ModelConfig, env envi
 
 	// Apply defaults from custom providers (from config) or built-in aliases
 	enhancedCfg := applyProviderDefaults(cfg, globalOptions.Providers())
-	if thinking := globalOptions.Thinking(); thinking != nil && !*thinking {
-		enhancedCfg.ThinkingBudget = nil
 
-		// with thinking explicitly disabled, also remove the interleaved_thinking provider option
-		if enhancedCfg.ProviderOpts != nil {
-			// Copy to avoid mutating shared ProviderOpts in the original config
-			optsCopy := make(map[string]any, len(enhancedCfg.ProviderOpts))
-			maps.Copy(optsCopy, enhancedCfg.ProviderOpts)
-			delete(optsCopy, "interleaved_thinking")
-			enhancedCfg.ProviderOpts = optsCopy
-		}
-	}
-
-	// Apply overrides (e.g., disable thinking if requested by session)
+	// Apply overrides (e.g., disable/enable thinking via /think command)
 	enhancedCfg = applyOverrides(enhancedCfg, &globalOptions)
 
-	// Resolve the provider type with priority:
-	// 1. cfg.ProviderOpts["api_type"] (from custom provider or model override)
-	// 2. built-in alias APIType
-	// 3. provider name itself
-	providerType := resolveProviderTypeFromConfig(enhancedCfg)
+	providerType := resolveProviderType(enhancedCfg)
 
 	switch providerType {
 	case "openai", "openai_chatcompletions", "openai_responses":
 		return openai.NewClient(ctx, enhancedCfg, env, opts...)
-
 	case "anthropic":
 		return anthropic.NewClient(ctx, enhancedCfg, env, opts...)
-
 	case "google":
 		return gemini.NewClient(ctx, enhancedCfg, env, opts...)
-
 	case "dmr":
 		return dmr.NewClient(ctx, enhancedCfg, opts...)
-
 	case "amazon-bedrock":
 		return bedrock.NewClient(ctx, enhancedCfg, env, opts...)
-
 	default:
 		slog.Error("Unknown provider type", "type", providerType)
 		return nil, fmt.Errorf("unknown provider type: %s", providerType)
 	}
 }
 
-// resolveProviderTypeFromConfig determines the provider type to use based on config.
-// Priority:
-// 1. cfg.ProviderOpts["api_type"] (from custom provider or model-level override)
-// 2. built-in alias APIType (e.g., "mistral" -> "openai")
-// 3. provider name itself (e.g., "openai", "anthropic")
-func resolveProviderTypeFromConfig(cfg *latest.ModelConfig) string {
-	// Check for api_type in ProviderOpts (set by custom providers or model override)
+// ---------------------------------------------------------------------------
+// Provider-type resolution
+// ---------------------------------------------------------------------------
+
+// resolveProviderType determines the effective API type for a config.
+// Priority: ProviderOpts["api_type"] > built-in alias > provider name.
+func resolveProviderType(cfg *latest.ModelConfig) string {
 	if cfg.ProviderOpts != nil {
 		if apiType, ok := cfg.ProviderOpts["api_type"].(string); ok && apiType != "" {
-			slog.Debug("Using api_type from provider config",
-				"provider", cfg.Provider,
-				"model", cfg.Model,
-				"api_type", apiType,
-				"base_url", cfg.BaseURL,
-			)
 			return apiType
 		}
 	}
-
-	// Check built-in alias
 	if alias, exists := Aliases[cfg.Provider]; exists && alias.APIType != "" {
 		return alias.APIType
 	}
-
-	// Fall back to provider name
 	return cfg.Provider
 }
+
+// ---------------------------------------------------------------------------
+// Provider defaults
+// ---------------------------------------------------------------------------
 
 // applyProviderDefaults applies default configuration from custom providers or built-in aliases.
 // Custom providers (from config) take precedence over built-in aliases.
 // This sets default base URLs, token keys, api_type, and model-specific defaults (like thinking budget).
+//
+// The returned config is a deep-enough copy: the caller's ModelConfig, ProviderOpts map,
+// and ThinkingBudget pointer are never mutated.
 func applyProviderDefaults(cfg *latest.ModelConfig, customProviders map[string]latest.ProviderConfig) *latest.ModelConfig {
-	// Create a copy to avoid modifying the original
-	enhancedCfg := *cfg
+	// Create a copy to avoid modifying the original.
+	// cloneModelConfig also deep-copies ProviderOpts so writes are safe.
+	enhancedCfg := cloneModelConfig(cfg)
 
 	if customProviders != nil {
 		if providerCfg, exists := customProviders[cfg.Provider]; exists {
@@ -334,8 +311,8 @@ func applyProviderDefaults(cfg *latest.ModelConfig, customProviders map[string]l
 				enhancedCfg.ProviderOpts["api_type"] = apiType
 			}
 
-			applyModelDefaults(&enhancedCfg)
-			return &enhancedCfg
+			applyModelDefaults(enhancedCfg)
+			return enhancedCfg
 		}
 	}
 
@@ -352,184 +329,176 @@ func applyProviderDefaults(cfg *latest.ModelConfig, customProviders map[string]l
 	}
 
 	// Apply model-specific defaults (e.g., thinking budget for Claude/GPT models)
-	applyModelDefaults(&enhancedCfg)
-	return &enhancedCfg
+	applyModelDefaults(enhancedCfg)
+	return enhancedCfg
 }
 
-// applyOverrides applies session-level or request-level overrides to the configuration.
-// This is called AFTER defaults are applied, allowing overrides to clear or modify default values.
+// ---------------------------------------------------------------------------
+// Thinking defaults and overrides
+// ---------------------------------------------------------------------------
+
+// applyModelDefaults applies provider-specific default values for model configuration.
+//
+// Thinking defaults policy:
+//   - thinking_budget: 0  or  thinking_budget: none  →  thinking is off (nil).
+//   - thinking_budget explicitly set to a real value  →  kept as-is; interleaved_thinking
+//     is auto-enabled for Anthropic/Bedrock-Claude.
+//   - thinking_budget NOT set:
+//   - Thinking-only models (OpenAI o-series) get "medium".
+//   - All other models get no thinking.
+//
+// NOTE: max_tokens is NOT set here; see teamloader and runtime/model_switcher.
+func applyModelDefaults(cfg *latest.ModelConfig) {
+	// Explicitly disabled → normalise to nil so providers never see it.
+	if cfg.ThinkingBudget.IsDisabled() {
+		cfg.ThinkingBudget = nil
+		slog.Debug("Thinking explicitly disabled",
+			"provider", cfg.Provider, "model", cfg.Model)
+		return
+	}
+
+	providerType := resolveProviderType(cfg)
+
+	// User already set a real thinking_budget — just apply side-effects.
+	if cfg.ThinkingBudget != nil {
+		ensureInterleavedThinking(cfg, providerType)
+		return
+	}
+
+	// No thinking_budget configured — only thinking-only models get a default.
+	switch providerType {
+	case "openai", "openai_chatcompletions", "openai_responses":
+		if isOpenAIThinkingOnlyModel(cfg.Model) {
+			cfg.ThinkingBudget = &latest.ThinkingBudget{Effort: "medium"}
+			slog.Debug("Applied default thinking for thinking-only OpenAI model",
+				"provider", cfg.Provider, "model", cfg.Model)
+		}
+	}
+}
+
+// applyOverrides applies session-level overrides to the configuration (e.g. /think toggle).
+// The returned config never shares mutable state with the input.
 func applyOverrides(cfg *latest.ModelConfig, opts *options.ModelOptions) *latest.ModelConfig {
 	if opts == nil {
 		return cfg
 	}
 
-	// Create a copy to avoid modifying the original
-	enhancedCfg := *cfg
-
 	t := opts.Thinking()
 	if t == nil {
-		return &enhancedCfg
+		return cfg
 	}
 
-	// If thinking is explicitly disabled (e.g., via /think command), clear thinking configuration
+	enhancedCfg := cloneModelConfig(cfg)
+
+	// /think OFF — clear everything.
 	if !*t {
 		enhancedCfg.ThinkingBudget = nil
-		if enhancedCfg.ProviderOpts != nil {
-			delete(enhancedCfg.ProviderOpts, "interleaved_thinking")
-		}
-		slog.Debug("Override: thinking disabled - cleared thinking configuration",
-			"provider", cfg.Provider,
-			"model", cfg.Model,
-		)
-		return &enhancedCfg
+		delete(enhancedCfg.ProviderOpts, "interleaved_thinking")
+		slog.Debug("Override: thinking disabled",
+			"provider", cfg.Provider, "model", cfg.Model)
+		return enhancedCfg
 	}
 
-	// If thinking is explicitly enabled (e.g., via /think command), ensure thinking is configured.
-	// This handles two cases:
-	// 1. ThinkingBudget is nil (not configured) - apply defaults to enable thinking
-	// 2. ThinkingBudget is explicitly disabled (Tokens == 0 or Effort == "none") - clear and re-apply defaults
-	// This allows /think to enable thinking with provider defaults even when config had thinking_budget: 0
+	// /think ON — make sure there is a sensible budget.
 	if enhancedCfg.ThinkingBudget == nil || enhancedCfg.ThinkingBudget.IsDisabled() {
 		enhancedCfg.ThinkingBudget = nil
-		applyModelDefaults(&enhancedCfg)
-		slog.Debug("Override: thinking enabled - applied default thinking configuration",
-			"provider", cfg.Provider,
-			"model", cfg.Model,
-			"thinking_budget", enhancedCfg.ThinkingBudget,
-		)
+		setThinkingDefaults(enhancedCfg)
+		slog.Debug("Override: thinking enabled with defaults",
+			"provider", cfg.Provider, "model", cfg.Model,
+			"thinking_budget", enhancedCfg.ThinkingBudget)
 	}
 
-	return &enhancedCfg
+	return enhancedCfg
 }
 
-// applyModelDefaults applies provider-specific default values for model configuration.
-// These defaults are applied only if the user hasn't explicitly set the values.
-//
-// NOTE: max_tokens is NOT set here because:
-// 1. Different providers read it differently (ModelConfig vs ModelOptions)
-// 2. Runtime can do modelsdev lookups for model-specific limits
-// 3. Providers have their own fallbacks (e.g., Anthropic defaults to 8192)
-// max_tokens defaults are handled in teamloader and runtime/model_switcher via options.
-//
-// Config-level defaults (set here):
-// - OpenAI: thinking_budget = "medium"
-// - Anthropic: thinking_budget = 8192, interleaved_thinking = true
-// - Google: Gemini 2.5 → thinking_budget = -1 (dynamic), Gemini 3 Pro → "high", Gemini 3 Flash → "medium"
-// - Amazon Bedrock (Claude models only): thinking_budget = 8192, interleaved_thinking = true
-func applyModelDefaults(cfg *latest.ModelConfig) {
-	// If thinking is explicitly disabled (thinking_budget: 0 or thinking_budget: none),
-	// set ThinkingBudget to nil to completely disable thinking.
-	// This ensures no thinking config is sent to the provider.
-	if cfg.ThinkingBudget.IsDisabled() {
-		cfg.ThinkingBudget = nil
-		slog.Debug("Thinking explicitly disabled via thinking_budget: 0 or none",
-			"provider", cfg.Provider,
-			"model", cfg.Model,
-		)
-		return // Don't apply any provider defaults for thinking
-	}
-
-	// Resolve the actual provider type (handling aliases like mistral -> openai)
-	providerType := cfg.Provider
-	if alias, exists := Aliases[cfg.Provider]; exists && alias.APIType != "" {
-		providerType = alias.APIType
-	}
-	// Also check for api_type override in ProviderOpts
-	if cfg.ProviderOpts != nil {
-		if apiType, ok := cfg.ProviderOpts["api_type"].(string); ok && apiType != "" {
-			providerType = apiType
-		}
-	}
+// setThinkingDefaults assigns a sensible default thinking budget for /think ON.
+// Unlike applyModelDefaults this applies to every provider (not just thinking-only models)
+// because the user explicitly asked for thinking.
+func setThinkingDefaults(cfg *latest.ModelConfig) {
+	providerType := resolveProviderType(cfg)
 
 	switch providerType {
 	case "openai", "openai_chatcompletions", "openai_responses":
-		applyOpenAIDefaults(cfg)
-	case "anthropic":
-		applyAnthropicDefaults(cfg)
-	case "google":
-		applyGoogleDefaults(cfg)
-	case "amazon-bedrock":
-		applyBedrockDefaults(cfg)
-	}
-}
-
-// applyOpenAIDefaults applies default configuration for OpenAI models.
-func applyOpenAIDefaults(cfg *latest.ModelConfig) {
-	// Default thinking_budget to "medium" if not set
-	if cfg.ThinkingBudget == nil {
 		cfg.ThinkingBudget = &latest.ThinkingBudget{Effort: "medium"}
-		slog.Debug("Applied default thinking_budget for OpenAI",
-			"provider", cfg.Provider,
-			"model", cfg.Model,
-			"thinking_budget", "medium",
-		)
+	case "anthropic":
+		cfg.ThinkingBudget = &latest.ThinkingBudget{Tokens: 8192}
+		ensureInterleavedThinking(cfg, providerType)
+	case "google":
+		cfg.ThinkingBudget = defaultGoogleThinkingBudget(cfg.Model)
+	case "amazon-bedrock":
+		if isBedrockClaudeModel(cfg.Model) {
+			cfg.ThinkingBudget = &latest.ThinkingBudget{Tokens: 8192}
+			ensureInterleavedThinking(cfg, providerType)
+		}
 	}
 }
 
-// applyAnthropicDefaults applies default configuration for Anthropic models.
-func applyAnthropicDefaults(cfg *latest.ModelConfig) {
-	// Default thinking_budget to 8192 tokens if not set
-	if cfg.ThinkingBudget == nil {
-		cfg.ThinkingBudget = &latest.ThinkingBudget{Tokens: 8192}
-		slog.Debug("Applied default thinking_budget for Anthropic",
-			"provider", cfg.Provider,
-			"model", cfg.Model,
-			"thinking_budget", 8192,
-		)
+// defaultGoogleThinkingBudget returns a sensible thinking budget for a Google model.
+// Returns nil for models that don't have a known thinking capability.
+func defaultGoogleThinkingBudget(model string) *latest.ThinkingBudget {
+	m := strings.ToLower(model)
+	switch {
+	case strings.HasPrefix(m, "gemini-2.5-"):
+		return &latest.ThinkingBudget{Tokens: -1}
+	case isGeminiProModel(m):
+		return &latest.ThinkingBudget{Effort: "high"}
+	case isGeminiFlashModel(m):
+		return &latest.ThinkingBudget{Effort: "medium"}
+	default:
+		// Unknown or older Gemini models (e.g. gemini-2.0-*): don't enable
+		// thinking since the API may reject it.
+		return nil
 	}
+}
 
-	// Default interleaved_thinking to true if not set
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
+
+// cloneModelConfig returns a shallow copy of cfg with a deep copy of
+// ProviderOpts so that callers can safely mutate the returned config's
+// map and pointer fields without affecting the original.
+func cloneModelConfig(cfg *latest.ModelConfig) *latest.ModelConfig {
+	c := *cfg
+	if cfg.ProviderOpts != nil {
+		c.ProviderOpts = make(map[string]any, len(cfg.ProviderOpts))
+		maps.Copy(c.ProviderOpts, cfg.ProviderOpts)
+	}
+	return &c
+}
+
+// ensureInterleavedThinking sets interleaved_thinking=true in ProviderOpts
+// for Anthropic and Bedrock-Claude models, unless the user already set it.
+func ensureInterleavedThinking(cfg *latest.ModelConfig, providerType string) {
+	needsInterleaved := providerType == "anthropic" ||
+		(providerType == "amazon-bedrock" && isBedrockClaudeModel(cfg.Model))
+	if !needsInterleaved {
+		return
+	}
 	if cfg.ProviderOpts == nil {
 		cfg.ProviderOpts = make(map[string]any)
 	}
 	if _, has := cfg.ProviderOpts["interleaved_thinking"]; !has {
 		cfg.ProviderOpts["interleaved_thinking"] = true
-		slog.Debug("Applied default interleaved_thinking for Anthropic",
-			"provider", cfg.Provider,
-			"model", cfg.Model,
-			"interleaved_thinking", true,
-		)
+		slog.Debug("Auto-enabled interleaved_thinking",
+			"provider", cfg.Provider, "model", cfg.Model)
 	}
 }
 
-// applyGoogleDefaults applies default configuration for Google Gemini models.
-// - Gemini 2.5 models: thinking_budget = -1 (dynamic thinking)
-// - Gemini 3+ Pro models: thinking_budget effort = "high"
-// - Gemini 3+ Flash models: thinking_budget effort = "medium"
-func applyGoogleDefaults(cfg *latest.ModelConfig) {
-	if cfg.ThinkingBudget != nil {
-		return // User explicitly set thinking_budget
-	}
+// isOpenAIThinkingOnlyModel returns true for OpenAI models that require thinking
+// to function properly (o-series reasoning models).
+func isOpenAIThinkingOnlyModel(model string) bool {
+	m := strings.ToLower(model)
+	return strings.HasPrefix(m, "o1") ||
+		strings.HasPrefix(m, "o3") ||
+		strings.HasPrefix(m, "o4")
+}
 
-	model := strings.ToLower(cfg.Model)
-
-	switch {
-	case strings.HasPrefix(model, "gemini-2.5-"):
-		// Gemini 2.5 models use token-based thinking budget (-1 = dynamic)
-		cfg.ThinkingBudget = &latest.ThinkingBudget{Tokens: -1}
-		slog.Debug("Applied default thinking_budget for Google Gemini 2.5",
-			"provider", cfg.Provider,
-			"model", cfg.Model,
-			"thinking_budget", -1,
-		)
-	case isGeminiProModel(model):
-		// Gemini 3+ Pro models use level-based thinking (high)
-		cfg.ThinkingBudget = &latest.ThinkingBudget{Effort: "high"}
-		slog.Debug("Applied default thinking_budget for Google Gemini 3+ Pro",
-			"provider", cfg.Provider,
-			"model", cfg.Model,
-			"thinking_budget", "high",
-		)
-	case isGeminiFlashModel(model):
-		// Gemini 3+ Flash models use level-based thinking (medium)
-		cfg.ThinkingBudget = &latest.ThinkingBudget{Effort: "medium"}
-		slog.Debug("Applied default thinking_budget for Google Gemini 3+ Flash",
-			"provider", cfg.Provider,
-			"model", cfg.Model,
-			"thinking_budget", "medium",
-		)
-	}
-	// For other Gemini models (e.g., gemini-2.0-*), leave unchanged
+// isBedrockClaudeModel returns true if the model ID is a Claude model on Bedrock.
+// Claude model IDs on Bedrock start with "anthropic.claude-" or "global.anthropic.claude-".
+func isBedrockClaudeModel(model string) bool {
+	m := strings.ToLower(model)
+	return strings.HasPrefix(m, "anthropic.claude-") || strings.HasPrefix(m, "global.anthropic.claude-")
 }
 
 // gemini3Family extracts the model family (e.g. "pro", "flash") from a
@@ -567,43 +536,4 @@ func isGeminiProModel(model string) bool {
 
 func isGeminiFlashModel(model string) bool {
 	return strings.HasPrefix(gemini3Family(model), "flash")
-}
-
-// applyBedrockDefaults applies default configuration for Amazon Bedrock models.
-// Only applies to Claude models (anthropic.claude-* or global.anthropic.claude-*).
-func applyBedrockDefaults(cfg *latest.ModelConfig) {
-	// Only apply defaults for Claude models on Bedrock
-	if !isBedrockClaudeModel(cfg.Model) {
-		return
-	}
-
-	// Default thinking_budget to 8192 tokens if not set
-	if cfg.ThinkingBudget == nil {
-		cfg.ThinkingBudget = &latest.ThinkingBudget{Tokens: 8192}
-		slog.Debug("Applied default thinking_budget for Bedrock Claude",
-			"provider", cfg.Provider,
-			"model", cfg.Model,
-			"thinking_budget", 8192,
-		)
-	}
-
-	// Default interleaved_thinking to true if not set
-	if cfg.ProviderOpts == nil {
-		cfg.ProviderOpts = make(map[string]any)
-	}
-	if _, has := cfg.ProviderOpts["interleaved_thinking"]; !has {
-		cfg.ProviderOpts["interleaved_thinking"] = true
-		slog.Debug("Applied default interleaved_thinking for Bedrock Claude",
-			"provider", cfg.Provider,
-			"model", cfg.Model,
-			"interleaved_thinking", true,
-		)
-	}
-}
-
-// isBedrockClaudeModel returns true if the model ID is a Claude model on Bedrock.
-// Claude model IDs on Bedrock start with "anthropic.claude-" or "global.anthropic.claude-".
-func isBedrockClaudeModel(model string) bool {
-	m := strings.ToLower(model)
-	return strings.HasPrefix(m, "anthropic.claude-") || strings.HasPrefix(m, "global.anthropic.claude-")
 }
