@@ -52,6 +52,9 @@ var (
 	_ tools.Instructable = (*FilesystemTool)(nil)
 )
 
+// allowAllPaths is a no-op path filter that permits every path.
+var allowAllPaths = func(_ string) error { return nil }
+
 type FileSystemOpt func(*FilesystemTool)
 
 func WithPostEditCommands(postEditCommands []PostEditConfig) FileSystemOpt {
@@ -384,11 +387,7 @@ func (t *FilesystemTool) shouldIgnorePath(path string) bool {
 func (t *FilesystemTool) handleDirectoryTree(ctx context.Context, args DirectoryTreeArgs) (*tools.ToolCallResult, error) {
 	resolvedPath := t.resolvePath(args.Path)
 
-	isPathAllowed := func(_ string) error {
-		return nil
-	}
-
-	tree, err := fsx.DirectoryTree(ctx, resolvedPath, isPathAllowed, t.shouldIgnorePath, maxFiles)
+	tree, err := fsx.DirectoryTree(ctx, resolvedPath, allowAllPaths, t.shouldIgnorePath, maxFiles)
 	if err != nil {
 		return tools.ResultError(fmt.Sprintf("Error building directory tree: %s", err)), nil
 	}
