@@ -263,7 +263,7 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 			envProvider,
 		)
 
-		return mcp.NewGatewayToolset(ctx, toolset.Name, mcpServerName, toolset.Config, envProvider, runConfig.WorkingDir)
+		return mcp.NewGatewayToolset(ctx, toolset.Name, mcpServerName, serverSpec.Secrets, toolset.Config, envProvider, runConfig.WorkingDir)
 
 	// STDIO MCP Server from shell command
 	case toolset.Command != "":
