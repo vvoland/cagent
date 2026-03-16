@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -85,10 +84,6 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		prevElicitationCh := r.swapElicitationEventsChannel(events)
 
 		a := r.resolveSessionAgent(sess)
-
-		// Emit agent information for sidebar display
-		// Use getEffectiveModelID to account for active fallback cooldowns
-		events <- AgentInfo(a.Name(), r.getEffectiveModelID(a), a.Description(), a.WelcomeMessage())
 
 		// Emit team information
 		events <- TeamInfo(r.agentDetailsFromTeam(), a.Name())
@@ -210,7 +205,6 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			))
 
 			model := a.Model()
-			defaultModelID := r.getEffectiveModelID(a)
 
 			// Per-tool model routing: use a cheaper model for this turn
 			// if the previous tool calls specified one, then reset.
@@ -236,10 +230,10 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 
 			modelID := model.ID()
 
-			// Notify sidebar when this turn uses a different model (per-tool override).
-			if modelID != defaultModelID {
-				events <- AgentInfo(a.Name(), modelID, a.Description(), a.WelcomeMessage())
-			}
+			// Notify sidebar of the model for this turn. For rule-based
+			// routing, the actual routed model is emitted from within the
+			// stream once the first chunk arrives.
+			events <- AgentInfo(a.Name(), modelID, a.Description(), a.WelcomeMessage())
 
 			slog.Debug("Using agent", "agent", a.Name(), "model", modelID)
 			slog.Debug("Getting model definition", "model_id", modelID)
@@ -311,16 +305,9 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				return
 			}
 
-			// Update sidebar model info to reflect what was actually used this turn.
-			// Fallback models are sticky (cooldown system persists them), so we only
-			// emit once. Per-tool model overrides are temporary (one turn), so we
-			// emit the override and then revert to the agent's default.
 			if usedModel != nil && usedModel.ID() != model.ID() {
 				slog.Info("Used fallback model", "agent", a.Name(), "primary", model.ID(), "used", usedModel.ID())
 				events <- AgentInfo(a.Name(), usedModel.ID(), a.Description(), a.WelcomeMessage())
-			} else if model.ID() != defaultModelID {
-				// Per-tool override was active: revert sidebar to the agent's default model.
-				events <- AgentInfo(a.Name(), defaultModelID, a.Description(), a.WelcomeMessage())
 			}
 			streamSpan.SetAttributes(
 				attribute.Int("tool.calls", len(res.Calls)),
@@ -410,7 +397,7 @@ func (r *LocalRuntime) recordAssistantMessage(
 			float64(res.Usage.CacheWriteTokens)*m.Cost.CacheWrite) / 1e6
 	}
 
-	messageModel := cmp.Or(res.ActualModel, modelID)
+	messageModel := modelID
 
 	assistantMessage := chat.Message{
 		Role:              chat.MessageRoleAssistant,
