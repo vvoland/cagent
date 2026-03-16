@@ -286,6 +286,9 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 	var models []provider.Provider
 	thinkingConfigured := false
 
+	// Obtain the singleton store once, outside the loop.
+	modelsStore, modelsStoreErr := modelsdev.NewStore()
+
 	for name := range strings.SplitSeq(a.Model, ",") {
 		modelCfg, exists := cfg.Models[name]
 		isAutoModel := false
@@ -310,11 +313,7 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 		maxTokens := &defaultMaxTokens
 		if modelCfg.MaxTokens != nil {
 			maxTokens = modelCfg.MaxTokens
-		} else {
-			modelsStore, err := modelsdev.NewStore()
-			if err != nil {
-				return nil, false, err
-			}
+		} else if modelsStoreErr == nil {
 			m, err := modelsStore.GetModel(ctx, modelCfg.Provider+"/"+modelCfg.Model)
 			if err == nil {
 				maxTokens = &m.Limit.Output
@@ -355,6 +354,9 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 func getFallbackModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentConfig, runConfig *config.RuntimeConfig) ([]provider.Provider, error) {
 	var fallbackModels []provider.Provider
 
+	// Obtain the singleton store once, outside the loop.
+	modelsStore, modelsStoreErr := modelsdev.NewStore()
+
 	for _, name := range a.GetFallbackModels() {
 		modelCfg, exists := cfg.Models[name]
 		if !exists {
@@ -371,11 +373,7 @@ func getFallbackModelsForAgent(ctx context.Context, cfg *latest.Config, a *lates
 		maxTokens := &defaultMaxTokens
 		if modelCfg.MaxTokens != nil {
 			maxTokens = modelCfg.MaxTokens
-		} else {
-			modelsStore, err := modelsdev.NewStore()
-			if err != nil {
-				return nil, err
-			}
+		} else if modelsStoreErr == nil {
 			m, err := modelsStore.GetModel(ctx, modelCfg.Provider+"/"+modelCfg.Model)
 			if err == nil {
 				maxTokens = &m.Limit.Output

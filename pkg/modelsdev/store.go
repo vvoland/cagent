@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -22,15 +23,20 @@ const (
 
 // Store manages access to the models.dev data.
 // All methods are safe for concurrent use.
+//
+// Use NewStore to obtain the process-wide singleton instance.
+// The database is loaded on first access via GetDatabase and
+// shared across all callers, avoiding redundant disk/network I/O.
 type Store struct {
 	cacheFile string
 	mu        sync.Mutex
 	db        *Database
+	etag      string // ETag from last successful fetch, used for conditional requests
 }
 
-// NewStore creates a new models.dev store.
-// The database is loaded on first access via GetDatabase.
-func NewStore() (*Store, error) {
+// singleton holds the process-wide Store instance. It is initialised lazily
+// on the first call to NewStore. All subsequent calls return the same value.
+var singleton = sync.OnceValues(func() (*Store, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user home directory: %w", err)
@@ -44,6 +50,15 @@ func NewStore() (*Store, error) {
 	return &Store{
 		cacheFile: filepath.Join(cacheDir, CacheFileName),
 	}, nil
+})
+
+// NewStore returns the process-wide singleton Store.
+//
+// The database is loaded lazily on the first call to GetDatabase and
+// then cached in memory so that every caller shares one copy.
+// The first call creates the cache directory if it does not exist.
+func NewStore() (*Store, error) {
+	return singleton()
 }
 
 // NewDatabaseStore creates a Store pre-populated with the given database.
@@ -63,12 +78,13 @@ func (s *Store) GetDatabase(ctx context.Context) (*Database, error) {
 		return s.db, nil
 	}
 
-	db, err := loadDatabase(ctx, s.cacheFile)
+	db, etag, err := loadDatabase(ctx, s.cacheFile)
 	if err != nil {
 		return nil, err
 	}
 
 	s.db = db
+	s.etag = etag
 	return db, nil
 }
 
@@ -128,80 +144,117 @@ func (s *Store) GetModel(ctx context.Context, id string) (*Model, error) {
 
 // loadDatabase loads the database from the local cache file or
 // falls back to fetching from the models.dev API.
-func loadDatabase(ctx context.Context, cacheFile string) (*Database, error) {
+// It returns the database and the ETag associated with the data.
+func loadDatabase(ctx context.Context, cacheFile string) (*Database, string, error) {
 	// Try to load from cache first
 	cached, err := loadFromCache(cacheFile)
 	if err == nil && time.Since(cached.LastRefresh) < refreshInterval {
-		return &cached.Database, nil
+		return &cached.Database, cached.ETag, nil
 	}
 
-	// Cache is invalid or doesn't exist, fetch from API
-	database, fetchErr := fetchFromAPI(ctx)
+	// Cache is stale or doesn't exist — try a conditional fetch with the ETag.
+	var etag string
+	if cached != nil {
+		etag = cached.ETag
+	}
+
+	database, newETag, fetchErr := fetchFromAPI(ctx, etag)
 	if fetchErr != nil {
-		// If API fetch fails, but we have cached data, use it
+		// If API fetch fails but we have cached data, use it regardless of age.
 		if cached != nil {
-			return &cached.Database, nil
+			slog.Debug("API fetch failed, using stale cache", "error", fetchErr)
+			return &cached.Database, cached.ETag, nil
 		}
-		return nil, fmt.Errorf("failed to fetch from API and no cached data available: %w", fetchErr)
+		return nil, "", fmt.Errorf("failed to fetch from API and no cached data available: %w", fetchErr)
 	}
 
-	// Save to cache
-	if err := saveToCache(cacheFile, database); err != nil {
-		// Log the error but don't fail the request
-		slog.Warn("Warning: failed to save to cache", "error", err)
+	// database is nil when the server returned 304 Not Modified.
+	if database == nil && cached != nil {
+		// Bump LastRefresh so we don't re-check until the next interval.
+		cached.LastRefresh = time.Now()
+		if saveErr := saveToCache(cacheFile, &cached.Database, cached.ETag); saveErr != nil {
+			slog.Warn("Failed to update cache timestamp", "error", saveErr)
+		}
+		return &cached.Database, cached.ETag, nil
 	}
 
-	return database, nil
+	// Save the fresh data to cache.
+	if saveErr := saveToCache(cacheFile, database, newETag); saveErr != nil {
+		slog.Warn("Failed to save to cache", "error", saveErr)
+	}
+
+	return database, newETag, nil
 }
 
-func fetchFromAPI(ctx context.Context) (*Database, error) {
+// fetchFromAPI fetches the models.dev database.
+// If etag is non-empty it is sent as If-None-Match; a 304 response
+// returns (nil, etag, nil) to indicate no change.
+func fetchFromAPI(ctx context.Context, etag string) (*Database, string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ModelsDevAPIURL, http.NoBody)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	if etag != "" {
+		req.Header.Set("If-None-Match", etag)
 	}
 
 	resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch from API: %w", err)
+		return nil, "", fmt.Errorf("failed to fetch from API: %w", err)
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusNotModified {
+		slog.Debug("models.dev data not modified (304)")
+		return nil, etag, nil
+	}
+
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+		return nil, "", fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	// Read the full body then unmarshal — avoids the extra intermediate
+	// buffering that json.Decoder.Decode performs.
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	var providers map[string]Provider
-	if err := json.NewDecoder(resp.Body).Decode(&providers); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+	if err := json.Unmarshal(body, &providers); err != nil {
+		return nil, "", fmt.Errorf("failed to decode response: %w", err)
 	}
+
+	newETag := resp.Header.Get("ETag")
 
 	return &Database{
 		Providers: providers,
 		UpdatedAt: time.Now(),
-	}, nil
+	}, newETag, nil
 }
 
 func loadFromCache(cacheFile string) (*CachedData, error) {
-	f, err := os.Open(cacheFile)
+	data, err := os.ReadFile(cacheFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open cache file: %w", err)
+		return nil, fmt.Errorf("failed to read cache file: %w", err)
 	}
-	defer f.Close()
 
 	var cached CachedData
-	if err := json.NewDecoder(f).Decode(&cached); err != nil {
+	if err := json.Unmarshal(data, &cached); err != nil {
 		return nil, fmt.Errorf("failed to decode cached data: %w", err)
 	}
 
 	return &cached, nil
 }
 
-func saveToCache(cacheFile string, database *Database) error {
+func saveToCache(cacheFile string, database *Database, etag string) error {
 	now := time.Now()
 	cached := CachedData{
 		Database:    *database,
 		CachedAt:    now,
 		LastRefresh: now,
+		ETag:        etag,
 	}
 
 	data, err := json.MarshalIndent(cached, "", "  ")

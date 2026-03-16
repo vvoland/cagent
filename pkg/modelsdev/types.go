@@ -62,4 +62,5 @@ type CachedData struct {
 	Database    Database  `json:"database"`
 	CachedAt    time.Time `json:"cached_at"`
 	LastRefresh time.Time `json:"last_refresh"`
+	ETag        string    `json:"etag,omitempty"`
 }
