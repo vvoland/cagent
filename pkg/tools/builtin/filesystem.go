@@ -641,12 +641,13 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadM
 			continue
 		}
 
+		text := string(content)
 		contents = append(contents, PathContent{
 			Path:    path,
-			Content: string(content),
+			Content: text,
 		})
-		entry.Content = string(content)
-		entry.LineCount = strings.Count(string(content), "\n") + 1
+		entry.Content = text
+		entry.LineCount = strings.Count(text, "\n") + 1
 		meta.Files = append(meta.Files, entry)
 	}
 
