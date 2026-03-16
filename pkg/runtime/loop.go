@@ -52,7 +52,13 @@ func (r *LocalRuntime) finalizeEventChannel(ctx context.Context, sess *session.S
 
 	defer close(events)
 
-	events <- StreamStopped(sess.ID, r.resolveSessionAgent(sess).Name())
+	a := r.resolveSessionAgent(sess)
+
+	// Execute session end hooks with a context that won't be cancelled so
+	// cleanup hooks run even when the stream was interrupted (e.g. Ctrl+C).
+	r.executeSessionEndHooks(context.WithoutCancel(ctx), sess, a)
+
+	events <- StreamStopped(sess.ID, a.Name())
 
 	r.executeOnUserInputHooks(ctx, sess.ID, "stream stopped")
 
@@ -84,6 +90,9 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		prevElicitationCh := r.swapElicitationEventsChannel(events)
 
 		a := r.resolveSessionAgent(sess)
+
+		// Execute session start hooks
+		r.executeSessionStartHooks(ctx, sess, a, events)
 
 		// Emit team information
 		events <- TeamInfo(r.agentDetailsFromTeam(), a.Name())
@@ -164,6 +173,10 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				)
 
 				events <- MaxIterationsReached(runtimeMaxIterations)
+
+				maxIterMsg := fmt.Sprintf("Maximum iterations reached (%d)", runtimeMaxIterations)
+				r.executeNotificationHooks(ctx, a, sess.ID, "warning", maxIterMsg)
+				r.executeOnUserInputHooks(ctx, sess.ID, "max iterations reached")
 
 				// Wait for user decision (resume / reject)
 				select {
@@ -307,7 +320,9 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				slog.Error("All models failed", "agent", a.Name(), "error", err)
 				// Track error in telemetry
 				telemetry.RecordError(ctx, err.Error())
-				events <- Error(modelerrors.FormatError(err))
+				errMsg := modelerrors.FormatError(err)
+				events <- Error(errMsg)
+				r.executeNotificationHooks(ctx, a, sess.ID, "error", errMsg)
 				streamSpan.End()
 				return
 			}
@@ -345,10 +360,12 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				slog.Warn("Repetitive tool call loop detected",
 					"agent", a.Name(), "tool", toolName,
 					"consecutive", loopDetector.consecutive, "session_id", sess.ID)
-				events <- Error(fmt.Sprintf(
+				errMsg := fmt.Sprintf(
 					"Agent terminated: detected %d consecutive identical calls to %s. "+
 						"This indicates a degenerate loop where the model is not making progress.",
-					loopDetector.consecutive, toolName))
+					loopDetector.consecutive, toolName)
+				events <- Error(errMsg)
+				r.executeNotificationHooks(ctx, a, sess.ID, "error", errMsg)
 				return
 			}
 
@@ -357,6 +374,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 
 			if res.Stopped {
 				slog.Debug("Conversation stopped", "agent", a.Name())
+				r.executeStopHooks(ctx, sess, a, res.Content, events)
 				break
 			}
 

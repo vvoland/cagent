@@ -1291,6 +1291,12 @@ type HooksConfig struct {
 
 	// OnUserInput hooks run when the agent needs user input
 	OnUserInput []HookDefinition `json:"on_user_input,omitempty" yaml:"on_user_input,omitempty"`
+
+	// Stop hooks run when the model finishes responding and is about to hand control back to the user
+	Stop []HookDefinition `json:"stop,omitempty" yaml:"stop,omitempty"`
+
+	// Notification hooks run when the agent sends a notification (error, warning) to the user
+	Notification []HookDefinition `json:"notification,omitempty" yaml:"notification,omitempty"`
 }
 
 // IsEmpty returns true if no hooks are configured
@@ -1302,7 +1308,9 @@ func (h *HooksConfig) IsEmpty() bool {
 		len(h.PostToolUse) == 0 &&
 		len(h.SessionStart) == 0 &&
 		len(h.SessionEnd) == 0 &&
-		len(h.OnUserInput) == 0
+		len(h.OnUserInput) == 0 &&
+		len(h.Stop) == 0 &&
+		len(h.Notification) == 0
 }
 
 // HookMatcherConfig represents a hook matcher with its hooks.
@@ -1361,6 +1369,20 @@ func (h *HooksConfig) validate() error {
 	// Validate OnUserInput hooks
 	for i, hook := range h.OnUserInput {
 		if err := hook.validate("on_user_input", i); err != nil {
+			return err
+		}
+	}
+
+	// Validate Stop hooks
+	for i, hook := range h.Stop {
+		if err := hook.validate("stop", i); err != nil {
+			return err
+		}
+	}
+
+	// Validate Notification hooks
+	for i, hook := range h.Notification {
+		if err := hook.validate("notification", i); err != nil {
 			return err
 		}
 	}

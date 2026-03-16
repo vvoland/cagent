@@ -21,20 +21,24 @@ Hooks allow you to execute shell commands or scripts at key points in an agent's
 - Block dangerous operations based on custom rules
 - Set up the environment when a session starts
 - Clean up resources when a session ends
+- Log or validate model responses before returning to the user
+- Send external notifications on agent errors or warnings
 
 </div>
 
 ## Hook Types
 
-There are five hook event types:
+There are seven hook event types:
 
-| Event           | When it fires                            | Can block? |
-| --------------- | ---------------------------------------- | ---------- |
-| `pre_tool_use`  | Before a tool call executes              | Yes        |
-| `post_tool_use` | After a tool completes successfully      | No         |
-| `session_start` | When a session begins or resumes         | No         |
-| `session_end`   | When a session terminates                | No         |
-| `on_user_input` | When the agent is waiting for user input | No         |
+| Event            | When it fires                                          | Can block? |
+| ---------------- | ------------------------------------------------------ | ---------- |
+| `pre_tool_use`   | Before a tool call executes                            | Yes        |
+| `post_tool_use`  | After a tool completes successfully                    | No         |
+| `session_start`  | When a session begins or resumes                       | No         |
+| `session_end`    | When a session terminates                              | No         |
+| `on_user_input`  | When the agent is waiting for user input               | No         |
+| `stop`           | When the model finishes responding                     | No         |
+| `notification`   | When the agent emits a notification (error or warning) | No         |
 
 ## Configuration
 
@@ -74,6 +78,16 @@ agents:
       on_user_input:
         - type: command
           command: "./scripts/notify.sh"
+
+      # Run when the model finishes responding
+      stop:
+        - type: command
+          command: "./scripts/log-response.sh"
+
+      # Run on agent errors and warnings
+      notification:
+        - type: command
+          command: "./scripts/alert.sh"
 ```
 
 ## Matcher Patterns
@@ -107,21 +121,28 @@ Hooks receive JSON input via stdin with context about the event:
 
 ### Input Fields by Event Type
 
-| Field             | pre_tool_use | post_tool_use | session_start | session_end | on_user_input |
-| ----------------- | ------------ | ------------- | ------------- | ----------- | ------------- |
-| `session_id`      | ✓            | ✓             | ✓             | ✓           | ✓             |
-| `cwd`             | ✓            | ✓             | ✓             | ✓           | ✓             |
-| `hook_event_name` | ✓            | ✓             | ✓             | ✓           | ✓             |
-| `tool_name`       | ✓            | ✓             |               |             |               |
-| `tool_use_id`     | ✓            | ✓             |               |             |               |
-| `tool_input`      | ✓            | ✓             |               |             |               |
-| `tool_response`   |              | ✓             |               |             |               |
-| `source`          |              |               | ✓             |             |               |
-| `reason`          |              |               |               | ✓           |               |
+| Field                  | pre_tool_use | post_tool_use | session_start | session_end | on_user_input | stop | notification |
+| ---------------------- | ------------ | ------------- | ------------- | ----------- | ------------- | ---- | ------------ |
+| `session_id`           | ✓            | ✓             | ✓             | ✓           | ✓             | ✓    | ✓            |
+| `cwd`                  | ✓            | ✓             | ✓             | ✓           | ✓             | ✓    | ✓            |
+| `hook_event_name`      | ✓            | ✓             | ✓             | ✓           | ✓             | ✓    | ✓            |
+| `tool_name`            | ✓            | ✓             |               |             |               |      |              |
+| `tool_use_id`          | ✓            | ✓             |               |             |               |      |              |
+| `tool_input`           | ✓            | ✓             |               |             |               |      |              |
+| `tool_response`        |              | ✓             |               |             |               |      |              |
+| `source`               |              |               | ✓             |             |               |      |              |
+| `reason`               |              |               |               | ✓           |               |      |              |
+| `stop_response`        |              |               |               |             |               | ✓    |              |
+| `notification_level`   |              |               |               |             |               |      | ✓            |
+| `notification_message` |              |               |               |             |               |      | ✓            |
 
 The `source` field for `session_start` can be: `startup`, `resume`, `clear`, or `compact`.
 
 The `reason` field for `session_end` can be: `clear`, `logout`, `prompt_input_exit`, or `other`.
+
+The `stop_response` field contains the model's final text response.
+
+The `notification_level` field can be: `error` or `warning`.
 
 ## Hook Output
 
@@ -165,6 +186,10 @@ The `hook_specific_output` for `pre_tool_use` supports:
 | `permission_decision_reason` | string | Explanation for the decision            |
 | `updated_input`              | object | Modified tool input (replaces original) |
 
+### Plain Text Output
+
+For `session_start`, `post_tool_use`, and `stop` hooks, plain text written to stdout (i.e., output that is not valid JSON) is captured as additional context for the agent.
+
 ## Exit Codes
 
 Hook exit codes have special meaning:
@@ -175,7 +200,37 @@ Hook exit codes have special meaning:
 | `2`       | Blocking error — stop the operation    |
 | Other     | Error — logged but execution continues |
 
-## Example: Validation Script
+## Timeout
+
+Hooks have a default timeout of 60 seconds. You can customize this per hook:
+
+```yaml
+hooks:
+  pre_tool_use:
+    - matcher: "*"
+      hooks:
+        - type: command
+          command: "./slow-validation.sh"
+          timeout: 120 # 2 minutes
+```
+
+<div class="callout callout-warning">
+<div class="callout-title">⚠️ Performance
+</div>
+  <p>Hooks run synchronously and can slow down agent execution. Keep hook scripts fast and efficient. Consider using <code>suppress_output: true</code> for logging hooks to reduce noise.</p>
+
+</div>
+
+<div class="callout callout-info">
+<div class="callout-title">ℹ️ Session End and Cancellation
+</div>
+  <p><code>session_end</code> hooks are designed to run even when the session is interrupted (e.g., Ctrl+C). They are still subject to their configured timeout.</p>
+
+</div>
+
+## Examples
+
+### Validation Script
 
 A simple pre-tool-use hook that blocks dangerous shell commands:
 
@@ -201,7 +256,7 @@ echo '{"decision": "allow"}'
 exit 0
 ```
 
-## Example: Audit Logging
+### Audit Logging
 
 A post-tool-use hook that logs all tool calls:
 
@@ -222,24 +277,74 @@ echo '{"continue": true}'
 exit 0
 ```
 
-## Timeout
+### Session Lifecycle
 
-Hooks have a default timeout of 60 seconds. You can customize this per hook:
+Session start and end hooks for environment setup and cleanup:
 
 ```yaml
 hooks:
-  pre_tool_use:
-    - matcher: "*"
-      hooks:
-        - type: command
-          command: "./slow-validation.sh"
-          timeout: 120 # 2 minutes
+  session_start:
+    - type: command
+      timeout: 10
+      command: |
+        INPUT=$(cat)
+        SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"')
+        echo "Session $SESSION_ID started at $(date)" >> /tmp/agent-session.log
+        echo '{"hook_specific_output":{"additional_context":"Session initialized."}}'
+
+  session_end:
+    - type: command
+      timeout: 10
+      command: |
+        INPUT=$(cat)
+        SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"')
+        REASON=$(echo "$INPUT" | jq -r '.reason // "unknown"')
+        echo "Session $SESSION_ID ended ($REASON) at $(date)" >> /tmp/agent-session.log
 ```
 
-<div class="callout callout-warning">
-<div class="callout-title">⚠️ Performance
-</div>
-  <p>Hooks run synchronously and can slow down agent execution. Keep hook scripts fast and efficient. Consider using <code>suppress_output: true</code> for logging hooks to reduce noise.</p>
+### Response Logging with Stop Hook
+
+Log every model response for analytics or compliance:
+
+```yaml
+hooks:
+  stop:
+    - type: command
+      timeout: 10
+      command: |
+        INPUT=$(cat)
+        SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"')
+        RESPONSE_LENGTH=$(echo "$INPUT" | jq -r '.stop_response // ""' | wc -c | tr -d ' ')
+        echo "[$(date)] Session $SESSION_ID - Response: $RESPONSE_LENGTH chars" >> /tmp/agent-responses.log
+```
+
+The `stop` hook is useful for:
+
+- **Response quality checks** — validate that responses meet criteria before returning
+- **Analytics** — track response lengths, patterns, or content
+- **Compliance logging** — record all agent outputs for audit
+
+### Error Notifications
+
+Send alerts when the agent encounters errors:
+
+```yaml
+hooks:
+  notification:
+    - type: command
+      timeout: 10
+      command: |
+        INPUT=$(cat)
+        LEVEL=$(echo "$INPUT" | jq -r '.notification_level // "unknown"')
+        MESSAGE=$(echo "$INPUT" | jq -r '.notification_message // "no message"')
+        echo "[$(date)] [$LEVEL] $MESSAGE" >> /tmp/agent-notifications.log
+```
+
+The `notification` hook fires when:
+
+- The model returns an error (all models failed)
+- A degenerate tool call loop is detected
+- The maximum iteration limit is reached
 
 </div>
 

@@ -32,6 +32,15 @@ const (
 	// OnUserInput is triggered when the agent needs input from the user.
 	// Can log, notify, or perform actions before user interaction.
 	EventOnUserInput EventType = "on_user_input"
+
+	// Stop is triggered when the model finishes its response and is about
+	// to hand control back to the user. Can perform post-response validation,
+	// logging, or cleanup.
+	EventStop EventType = "stop"
+
+	// Notification is triggered when the agent emits a notification to the user,
+	// such as errors or warnings. Can send external notifications or log events.
+	EventNotification EventType = "notification"
 )
 
 // HookType represents the type of hook action
@@ -88,6 +97,12 @@ type Config struct {
 
 	// OnUserInput hooks run when the agent needs user input
 	OnUserInput []Hook `json:"on_user_input,omitempty" yaml:"on_user_input,omitempty"`
+
+	// Stop hooks run when the model finishes responding
+	Stop []Hook `json:"stop,omitempty" yaml:"stop,omitempty"`
+
+	// Notification hooks run when the agent sends a notification (error, warning) to the user
+	Notification []Hook `json:"notification,omitempty" yaml:"notification,omitempty"`
 }
 
 // IsEmpty returns true if no hooks are configured
@@ -96,7 +111,9 @@ func (c *Config) IsEmpty() bool {
 		len(c.PostToolUse) == 0 &&
 		len(c.SessionStart) == 0 &&
 		len(c.SessionEnd) == 0 &&
-		len(c.OnUserInput) == 0
+		len(c.OnUserInput) == 0 &&
+		len(c.Stop) == 0 &&
+		len(c.Notification) == 0
 }
 
 // Input represents the JSON input passed to hooks via stdin
@@ -119,6 +136,13 @@ type Input struct {
 
 	// SessionEnd specific
 	Reason string `json:"reason,omitempty"` // "clear", "logout", "prompt_input_exit", "other"
+
+	// Stop specific
+	StopResponse string `json:"stop_response,omitempty"` // The model's final response content
+
+	// Notification specific
+	NotificationLevel   string `json:"notification_level,omitempty"`   // "error" or "warning"
+	NotificationMessage string `json:"notification_message,omitempty"` // The notification content
 }
 
 // ToJSON serializes the input to JSON
