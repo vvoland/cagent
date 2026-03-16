@@ -50,7 +50,8 @@ Add a configuration to your Claude Desktop MCP settings file:
     "myagent": {
       "command": "/usr/local/bin/docker",
       "args": [
-        "agent"
+        "agent", 
+        "serve",
         "mcp",
         "agentcatalog/coder",
         "--working-dir",

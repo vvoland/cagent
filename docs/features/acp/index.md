@@ -77,7 +77,7 @@ A host application would spawn docker-agent as a subprocess and communicate via 
 
 ```javascript
 // Pseudocode for an IDE extension
-const child = spawn("docker", "agent", "serve", ["acp", "./agent.yaml"]);
+const child = spawn("docker", ["agent", "serve", "acp", "./agent.yaml"]);
 
 // Send a message to the agent
 child.stdin.write(
