@@ -127,9 +127,13 @@ func WithMaxIterations(maxIterations int) Opt {
 	}
 }
 
+// WithMaxConsecutiveToolCalls sets the threshold for consecutive identical tool
+// call detection. Values < 1 are ignored (0 means "use runtime default of 5").
 func WithMaxConsecutiveToolCalls(n int) Opt {
 	return func(a *Agent) {
-		a.maxConsecutiveToolCalls = n
+		if n >= 1 {
+			a.maxConsecutiveToolCalls = n
+		}
 	}
 }
 
