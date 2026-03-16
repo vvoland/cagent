@@ -74,9 +74,11 @@ type backgroundJob struct {
 	err          error
 }
 
-// limitedWriter wraps a buffer and stops writing after maxSize bytes
+// limitedWriter wraps a buffer and stops writing after maxSize bytes.
+// It uses an external mutex (mu) so that readers of the underlying buffer
+// can share the same lock.
 type limitedWriter struct {
-	mu      sync.Mutex
+	mu      *sync.RWMutex
 	buf     *bytes.Buffer
 	written int64
 	maxSize int64
@@ -86,20 +88,12 @@ func (lw *limitedWriter) Write(p []byte) (n int, err error) {
 	lw.mu.Lock()
 	defer lw.mu.Unlock()
 
-	if lw.written >= lw.maxSize {
-		return len(p), nil // Discard but report success
+	if remaining := lw.maxSize - lw.written; remaining > 0 {
+		toWrite := min(int64(len(p)), remaining)
+		lw.buf.Write(p[:toWrite]) // bytes.Buffer.Write never errors
+		lw.written += toWrite
 	}
-
-	remaining := lw.maxSize - lw.written
-	toWrite := min(int64(len(p)), remaining)
-
-	n, err = lw.buf.Write(p[:toWrite])
-	lw.written += int64(n)
-
-	if err == nil && int64(n) < int64(len(p)) {
-		return len(p), nil // Report full write even if truncated
-	}
-	return n, err
+	return len(p), nil // always report full write
 }
 
 type RunShellArgs struct {
@@ -184,6 +178,15 @@ func (h *shellHandler) runNativeCommand(timeoutCtx, ctx context.Context, command
 	select {
 	case <-timeoutCtx.Done():
 		_ = kill(cmd.Process, pg)
+		// Wait for cmd.Wait() to complete so that the internal pipe-copy
+		// goroutines finish writing to outBuf before we read it.
+		// Use a grace period: if SIGTERM is ignored, escalate to SIGKILL.
+		select {
+		case <-done:
+		case <-time.After(3 * time.Second):
+			_ = cmd.Process.Kill()
+			<-done
+		}
 	case cmdErr = <-done:
 	}
 
@@ -200,10 +203,20 @@ func (h *shellHandler) RunShellBackground(_ context.Context, params RunShellBack
 	cmd.Dir = h.resolveWorkDir(params.Cwd)
 	cmd.SysProcAttr = platformSpecificSysProcAttr()
 
-	outputBuf := &bytes.Buffer{}
-	limitedWriter := &limitedWriter{buf: outputBuf, maxSize: 10 * 1024 * 1024}
-	cmd.Stdout = limitedWriter
-	cmd.Stderr = limitedWriter
+	job := &backgroundJob{
+		id:        jobID,
+		cmd:       params.Cmd,
+		cwd:       params.Cwd,
+		output:    &bytes.Buffer{},
+		startTime: time.Now(),
+	}
+
+	// The limitedWriter shares the job's outputMu so that readers
+	// (ViewBackgroundJob, ListBackgroundJobs) and the pipe-copy
+	// goroutines spawned by exec.Cmd use the same lock.
+	lw := &limitedWriter{mu: &job.outputMu, buf: job.output, maxSize: 10 * 1024 * 1024}
+	cmd.Stdout = lw
+	cmd.Stderr = lw
 
 	if err := cmd.Start(); err != nil {
 		return tools.ResultError(fmt.Sprintf("Error starting background command: %s", err)), nil
@@ -215,15 +228,8 @@ func (h *shellHandler) RunShellBackground(_ context.Context, params RunShellBack
 		return tools.ResultError(fmt.Sprintf("Error creating process group: %s", err)), nil
 	}
 
-	job := &backgroundJob{
-		id:           jobID,
-		cmd:          params.Cmd,
-		cwd:          params.Cwd,
-		process:      cmd.Process,
-		processGroup: pg,
-		output:       outputBuf,
-		startTime:    time.Now(),
-	}
+	job.process = cmd.Process
+	job.processGroup = pg
 	job.status.Store(statusRunning)
 	h.jobs.Store(jobID, job)
 
